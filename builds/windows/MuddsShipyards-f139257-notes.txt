@@ -1,0 +1,54 @@
+Mudds Shipyards — safe seat lifecycle checkpoint — 2026-10-09
+Source: f139257f6d7c9e8dde8fc4ae5dc6f70b3830d99a
+Executable: MuddsShipyards-f139257.exe
+Executable SHA256: 91e472100fcf80a6535fbe34a9ccd66eca41ee9d4edef81d3de4d1dc0c55dc56
+
+Player-visible changes
+Interrupted boarding keeps its exact Player, craft and hatch reservation across
+retained scene re-entry. Stale or retiring ship callbacks cannot grant helm
+control or disrupt a newer boarding attempt. If a boarding hull disappears,
+its still-current transaction recovers a usable on-foot Player on the deck.
+Existing cabin/rest/crew safe-home recovery, walking, pilot retake, activity
+progress and owed rewards remain protected. Halyard passenger sit/stand from
+the previous checkpoint remains available.
+
+Validation on these exact bytes
+Independent review approves author5d0be604a; all6 integrated file blobs match.
+Nine author, nine fresh merged-source and nine frozen packed-runtime suites each
+pass396 assertions, actual numeric exits0/reaped, zero engine/script/leak errors
+and unchanged source/imports. Strict source/PCK each retain7 known warnings:
+2 Startup settings_missing and5 Atomic settings_missing/ok. No other warnings.
+Fresh clean import/export, x64 PE,1486-entry PCK/hash, standard4 probes(223) and
+silent isolated native Windows menu startup pass. Exactly one parsed menu-ready
+record, mouse free during load, warnings0/diagnostics0 and actual cleanup pass.
+Root verifies all raw hashes, frozen files and ZIP CRC/inner EXE/initial notes.
+
+All4 Linux packaged pilot/cabin/rest/crew interruption contexts pass actual owned
+SIGKILL(-9)/cold restart(0), reaped. All4 exported Windows contexts pass actual
+owned Process.Kill(-1)/cold restart(0), reaped. Exact durable Convoy boundary,
+receipts1->2 once, one crash event and both clean recovery markers pass. All
+nonpilot paths use authored motion, floor walking and ordinary Interact before
+helm retake. Pilot short canopy/boarding and later escort positioning remain
+fixtures. Root independently verifies8native raw markers/document hashes,
+all packaged logs, unchanged executable/source/cache and actual CIM/profile/
+owned-process cleanup. OS logs have warnings0/diagnostics0.
+Exact-source CI37899983202 coreSUCCESS/broadSKIPPED; CodeQL37899983224
+Python/actionsSUCCESS.
+
+Retained failures and remaining gates
+Historical3a full matrix FAIL1023/1027 remains retained. Its four reproduced
+failures are addressed by the reviewed lifecycle fix and honest prerequisites:
+fresh-actor tests explicitly select fenced Start Fresh, while Resume keeps its
+saved Torrent and displays the matching boarding tutorial. Earlier parse-error
+and insufficient-fixture runs also remain retained. Real freed-hull tests suspend
+unrelated cruise sampling: this qualifies callback/deck cancellation, not
+arbitrary full fleet-node retirement/recreation.
+A fresh full unfiltered1027-suite matrix is RUNNING on this exact frozen source
+under private Xvfb/x11/Dummy; its terminal qualification is not yet established.
+Matching installer is NOT_RUN; published27ffe71 setup remains its own source.
+Actual source OS-kill, Bulwark's supported cabin, other crew roles, full docking/
+planetary/activity recovery, uninterrupted human controls, native GPU/controller/
+audible/visual/endurance/platform/signing and final-release gates remain open.
+All ten phases and34 consolidated completion tasks remain open.
+
+Published checkpoint ZIP SHA256: 44d90babb46c4e29910a6571adea6a01d1de1e8a4dc8b13fbe8782b52097bf83
