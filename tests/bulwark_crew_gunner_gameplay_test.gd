@@ -913,7 +913,7 @@ func _test_retained_foreign_gunner_power() -> void:
 		"retained Main keeps the actual Player and releases its interrupted gunner claim on detach")
 	_check(await _sit_nearby_gunner(cold, craft), "ordinary E can reacquire the released chair after retained Main reentry")
 	craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
-	var engine_before := craft.get_telemetry().engine_state
+	var engine_before: StringName = StringName(craft.get_telemetry().engine_state)
 	var latch_before := bool(craft.get("_docked_latch"))
 	var power_owned_before := bool(actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}).get("weapon_power_started", false))
 	Input.action_press(&"fire")
@@ -923,6 +923,7 @@ func _test_retained_foreign_gunner_power() -> void:
 	_check(powered and not craft.is_piloted() and bool(craft.get("_docked_latch")) == latch_before
 		and bool(actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}).get("weapon_power_started", false)) == (true if engine_before == HeroShip.ENGINE_OFFLINE else power_owned_before),
 		"actual seated gunner FIRE uses weapon demand, preserves the witnessed dock latch and owns only power it woke")
+	_check(engine_before == HeroShip.ENGINE_OFFLINE and bool(actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}).get("weapon_power_started", false)), "replacement-power guard starts with a genuine old-role weapon-power ownership witness")
 	var old_authority := craft.get_crew_role_authority()
 	var assignment := old_authority.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID)
 	var release_sequence := maxi(int(assignment.get("claim_sequence", 0)), int(old_authority.get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
