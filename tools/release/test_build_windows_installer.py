@@ -155,11 +155,11 @@ class VerifierContract(unittest.TestCase):
 $root = Join-Path ([IO.Path]::GetTempPath()) ('mudds-verifier-regression-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 try {
-    # A legacy pilot-only payload must never qualify a requested cabin/rest run.
-    foreach ($selected in @('pilot', 'cabin', 'rest')) {
+    # A legacy pilot-only payload must never qualify a requested cabin/rest/crew run.
+    foreach ($selected in @('pilot', 'cabin', 'rest', 'crew')) {
         $InWorldRecoveryContext = $selected
         Assert-InWorldContext ([pscustomobject]@{recovery_context=$selected})
-        foreach ($reported in @('pilot', 'cabin', 'rest', '', 'REST')) {
+        foreach ($reported in @('pilot', 'cabin', 'rest', 'crew', '', 'PILOT', 'CABIN', 'REST', 'CREW')) {
             if ($reported -ceq $selected) { continue }
             $rejected = $false
             try { Assert-InWorldContext ([pscustomobject]@{recovery_context=$reported}) } catch { $rejected = $true }

@@ -24,8 +24,8 @@ InWorldRecovery additionally exercises the target installed payload's ordinary
 Boot entry in a separate throwaway profile. It kills one owned process after
 actual durable convoy readiness, then restarts that profile to prove exact
 boundary, one new receipt and its crash journal. InWorldRecoveryContext selects
-pilot (default), cabin or rest. Cabin/rest require a matching context in both
-Boot markers; older pilot-only payloads cannot qualify those selections.
+pilot (default), cabin, rest or crew. Cabin/rest/crew require a matching context
+in both Boot markers; older pilot-only payloads cannot qualify those selections.
 InWorldCancelPath (default:
 ProbeRoot\in-world-recovery.cancel) provides an independent owned-child abort.
 The activity profile is removed; logs/documents remain in ProbeRoot. This does
@@ -48,7 +48,7 @@ param(
     [string]$UserDataRecoveryFixture,
     [switch]$ForceKillRecovery,
     [switch]$InWorldRecovery,
-    [ValidateSet('pilot','cabin','rest')][string]$InWorldRecoveryContext = 'pilot',
+    [ValidateSet('pilot','cabin','rest','crew')][string]$InWorldRecoveryContext = 'pilot',
     [string]$InWorldCancelPath,
     [int]$StartupTimeoutMs = 120000
 )
