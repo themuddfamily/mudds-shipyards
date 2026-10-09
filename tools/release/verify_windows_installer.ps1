@@ -23,7 +23,10 @@ UserDataRecoveryFixture; it never fabricates interrupted markers or crash events
 InWorldRecovery additionally exercises the target installed payload's ordinary
 Boot entry in a separate throwaway profile. It kills one owned process after
 actual durable convoy readiness, then restarts that profile to prove exact
-progress, one new receipt and its crash journal. InWorldCancelPath (default:
+boundary, one new receipt and its crash journal. InWorldRecoveryContext selects
+pilot (default), cabin or rest. Cabin/rest require a matching context in both
+Boot markers; older pilot-only payloads cannot qualify those selections.
+InWorldCancelPath (default:
 ProbeRoot\in-world-recovery.cancel) provides an independent owned-child abort.
 The activity profile is removed; logs/documents remain in ProbeRoot. This does
 not qualify normal controls, pilot-seat/world restoration or native GPU work.
@@ -45,10 +48,12 @@ param(
     [string]$UserDataRecoveryFixture,
     [switch]$ForceKillRecovery,
     [switch]$InWorldRecovery,
+    [ValidateSet('pilot','cabin','rest')][string]$InWorldRecoveryContext = 'pilot',
     [string]$InWorldCancelPath,
     [int]$StartupTimeoutMs = 120000
 )
 $ErrorActionPreference = 'Stop'
+$InWorldRecoveryContext = $InWorldRecoveryContext.ToLowerInvariant()
 $regUninstall = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MuddsShipyards'
 $regApp = 'HKCU:\Software\Mudds Shipyards'
 $startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Mudds Shipyards'
@@ -433,12 +438,22 @@ function Stop-InWorldOwned($proc, $entry, [string]$termination) {
     }
     if (-not $proc.WaitForExit(15000)) { throw 'owned in-world process did not reap after Kill' }
 }
+function Assert-InWorldContext($token) {
+    $context = $token.PSObject.Properties['recovery_context']
+    if ($null -eq $context) {
+        if ($InWorldRecoveryContext -ne 'pilot') { throw 'installed payload did not report the requested recovery context' }
+        return
+    }
+    if ([string]$context.Value -cne $InWorldRecoveryContext) { throw 'installed payload recovery context differs from the requested context' }
+}
 function Start-InWorldOwned([string]$stage, [string]$ownedProfile, $children) {
     Check-InWorldCancel
     $log = Join-Path $ProbeRoot ("in-world-$stage.log")
     if (Test-Path -LiteralPath $log) { throw "in-world log already exists: $log" }
     $info = New-OwnedBootInfo $log $false $ownedProfile
     $info.Arguments += ' --in-world-interruption-stage=' + $stage
+    # Older qualified payloads support the implicit pilot mode only.
+    if ($InWorldRecoveryContext -ne 'pilot') { $info.Arguments += ' --in-world-interruption-context=' + $InWorldRecoveryContext }
     $info.EnvironmentVariables.Remove('DISPLAY')
     $info.EnvironmentVariables.Remove('WAYLAND_DISPLAY')
     $proc = [Diagnostics.Process]::Start($info)
@@ -454,7 +469,7 @@ function Run-InWorldRecovery {
     Assert-UserData
     $ownedProfile = Join-Path $ProbeRoot 'in-world-profile'
     if (Test-Path -LiteralPath $ownedProfile) { throw 'in-world profile already exists; refusing to overwrite it' }
-    $probe = [ordered]@{status='FAIL'; parent_windows_pid=$PID; tested_commit=$ExpectedCommit; installed_exe_sha256=$ExpectedExeSha256.ToLowerInvariant(); private_profile=$ownedProfile; cancel_path=$InWorldCancelPath; processes=@(); profile_removed=$false; normal_controls='NOT_RUN'; pilot_seat_world_restore='NOT_RUN'; native_gpu='NOT_RUN'}
+    $probe = [ordered]@{status='FAIL'; recovery_context=$InWorldRecoveryContext; parent_windows_pid=$PID; tested_commit=$ExpectedCommit; installed_exe_sha256=$ExpectedExeSha256.ToLowerInvariant(); private_profile=$ownedProfile; cancel_path=$InWorldCancelPath; processes=@(); profile_removed=$false; normal_controls='NOT_RUN'; pilot_seat_world_restore='NOT_RUN'; native_gpu='NOT_RUN'}
     $result.in_world_probe = $probe
     $children = New-Object System.Collections.ArrayList
     $completed = $false
@@ -473,6 +488,7 @@ function Run-InWorldRecovery {
         $probe.handshake_ms = $timer.ElapsedMilliseconds
         if ($null -eq $ready -or $arm.HasExited) { throw 'missing live installed in-world readiness before exit/timeout' }
         if ($ready.entry -ne 'startup_completed' -or $ready.loaded_main_instance_id -le 0 -or $ready.receipts -ne 1) { throw 'installed arm did not use its Boot-loaded Main and one genuine prior receipt' }
+        Assert-InWorldContext $ready
         if ((InWorld-LogCounts (Join-Path $ProbeRoot 'in-world-arm.log')).diagnostic_count -ne 0) { throw 'installed arm engine/script/leak diagnostics' }
         $probe.ready = $ready
         $beforeHash = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -496,6 +512,7 @@ function Run-InWorldRecovery {
         $resume.WaitForExit()
         $recovered = Read-InWorldToken (Join-Path $ProbeRoot 'in-world-resume.log') 'IN_WORLD_RECOVERY_OK'
         if ($resume.ExitCode -ne 0 -or $null -eq $recovered -or $recovered.entry -ne 'startup_completed' -or $recovered.loaded_main_instance_id -le 0) { throw 'installed restart did not exit0 with its Boot-loaded Main recovery token' }
+        Assert-InWorldContext $recovered
         if ((InWorld-LogCounts (Join-Path $ProbeRoot 'in-world-resume.log')).diagnostic_count -ne 0) { throw 'installed restart engine/script/leak diagnostics' }
         $lines = @((Read-InWorldLog (Join-Path $ProbeRoot 'in-world-resume.log')) -split '\r?\n' | Where-Object { $_.Trim().Length -gt 0 })
         if (-not $lines[-1].StartsWith('IN_WORLD_RECOVERY_OK: ')) { throw 'installed recovery token is not terminal' }
@@ -542,6 +559,7 @@ function Run-InWorldRecovery {
 }
 
 Step 'preconditions' {
+    if (-not $InWorldRecovery -and $InWorldRecoveryContext -ne 'pilot') { throw 'InWorldRecoveryContext requires InWorldRecovery' }
     if (-not $InWorldRecovery -and -not [string]::IsNullOrWhiteSpace($InWorldCancelPath)) { throw 'InWorldCancelPath requires InWorldRecovery' }
     if ($InWorldRecovery) {
         if ([string]::IsNullOrWhiteSpace($InWorldCancelPath)) { $script:InWorldCancelPath = Join-Path $ProbeRoot 'in-world-recovery.cancel' }

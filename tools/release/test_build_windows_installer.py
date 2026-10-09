@@ -145,7 +145,8 @@ class VerifierContract(unittest.TestCase):
                                 ("Read-RecoveryDocument", "Assert-RecoveryPayload"),
                                 ("Assert-RecoveryPayload", "Wait-OwnedRecoveryMarker"),
                                 ("Wait-OwnedRecoveryMarker", "Run-ForcedKillBoot"),
-                                ("Run-ForcedKillBoot", "Assert-StartupLog")):
+                                ("Run-ForcedKillBoot", "Assert-StartupLog"),
+                                ("Assert-InWorldContext", "Start-InWorldOwned")):
             functions.append("function " + name + text.split("function " + name, 1)[1].split("function " + following, 1)[0])
         # Execute the production assertion functions against actual files. A
         # documented application warning is allowed; duplicate/missing menu
@@ -154,6 +155,20 @@ class VerifierContract(unittest.TestCase):
 $root = Join-Path ([IO.Path]::GetTempPath()) ('mudds-verifier-regression-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 try {
+    # A legacy pilot-only payload must never qualify a requested cabin/rest run.
+    foreach ($selected in @('pilot', 'cabin', 'rest')) {
+        $InWorldRecoveryContext = $selected
+        Assert-InWorldContext ([pscustomobject]@{recovery_context=$selected})
+        foreach ($reported in @('pilot', 'cabin', 'rest', '', 'REST')) {
+            if ($reported -ceq $selected) { continue }
+            $rejected = $false
+            try { Assert-InWorldContext ([pscustomobject]@{recovery_context=$reported}) } catch { $rejected = $true }
+            if (-not $rejected) { throw "wrong recovery context accepted: $selected/$reported" }
+        }
+        $rejected = $false
+        try { Assert-InWorldContext ([pscustomobject]@{}) } catch { $rejected = $true }
+        if ($rejected -ne ($selected -ne 'pilot')) { throw "legacy marker acceptance differs: $selected" }
+    }
     $log = Join-Path $root 'startup.log'
     [IO.File]::WriteAllText($log, "WARNING: Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema`nSTARTUP_MENU_READY_OK: {}`n")
     Assert-StartupLog $log 0 | Out-Null
