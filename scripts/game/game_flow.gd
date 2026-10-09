@@ -3578,11 +3578,12 @@ func _session_recovery_save_description() -> String:
 func _solo_safe_recovery_craft() -> HeroShip:
 	var context := _solo_safe_recovery_context
 	if context.size() != 4 or context.get("location") != "mudds_home_berth" \
-			or context.get("mode") not in ["pilot", "on_foot"] \
+			or context.get("mode") not in ["pilot", "on_foot", "cabin", "rest"] \
 			or not context.get("craft_id") is String or not context.get("berth_id") is String:
 		return null
 	var craft := _find_flyable_ship_by_id(StringName(context.craft_id))
-	if not is_instance_valid(craft) or not craft.is_boardable() \
+	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
+			or craft not in ships or not craft.is_boardable() \
 			or String(craft.get_ship_id()) != context.craft_id \
 			or String(craft.get_home_berth_id()) != context.berth_id:
 		return null
@@ -3590,16 +3591,60 @@ func _solo_safe_recovery_craft() -> HeroShip:
 	if berth == null or berth.get_occupant() != craft \
 			or berth.get_reservation_owner() != craft:
 		return null
+	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	if area == null or not area.is_available_for(player):
+		return null
+	if context.mode in ["cabin", "rest"] and _solo_safe_recovery_cabin(craft).is_empty():
+		return null
 	return craft
+
+
+## A fresh cabin return needs a live authored frame and real walkable hull
+## support, never the old passenger's position or a generic exterior marker.
+func _solo_safe_recovery_cabin(craft: HeroShip) -> Dictionary:
+	var cabin := craft.get_in_flight_cabin_report()
+	var frame := cabin.get("frame") as MovingInteriorFrame
+	var stand := cabin.get("stand_transform", Transform3D.IDENTITY) as Transform3D
+	var bounds := cabin.get("local_bounds", AABB()) as AABB
+	if not bool(cabin.get("supported", false)) or not is_instance_valid(frame) \
+			or not frame.is_inside_tree() or frame.is_queued_for_deletion() \
+			or frame.get_moving_frame() != craft or not craft.is_ancestor_of(frame) \
+			or not stand.origin.is_finite() or not stand.basis.is_finite() \
+			or not bounds.position.is_finite() or not bounds.size.is_finite() \
+			or bounds.size.x <= 0.0 or bounds.size.y <= 0.0 or bounds.size.z <= 0.0 \
+			or not bounds.has_point(craft.to_local(stand.origin)):
+		return {}
+	var up := stand.basis.y.normalized()
+	if up.is_zero_approx():
+		return {}
+	var query := PhysicsRayQueryParameters3D.create(
+		stand.origin + up * 0.3, stand.origin - up * 0.8,
+		PhysicsLayers.WORLD | PhysicsLayers.SHIP
+	)
+	query.exclude = [player.get_rid()]
+	query.collide_with_areas = false
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+	var collider := hit.get("collider") as Node
+	var normal := hit.get("normal", Vector3.ZERO) as Vector3
+	if not is_instance_valid(collider) or (collider != craft and not craft.is_ancestor_of(collider)) \
+			or normal.normalized().dot(up) < cos(player.floor_max_angle):
+		return {}
+	stand.origin = hit.position
+	if not bounds.has_point(craft.to_local(stand.origin)):
+		return {}
+	cabin["safe_stand_transform"] = stand
+	return cabin
 
 
 func _solo_safe_recovery_description() -> String:
 	if not is_instance_valid(world):
 		return ""
 	var craft := _solo_safe_recovery_craft()
-	if is_instance_valid(craft) and not _planetary_visit_blocks_network_session():
+	if is_instance_valid(craft) and not _network_session_is_live() and not _planetary_visit_blocks_network_session():
 		if _solo_safe_recovery_context.mode == "pilot":
 			return " Safe recovery boards %s at its home berth; the previous flight position is not restored. Saved activity progress is kept." % craft.get_display_name()
+		if _solo_safe_recovery_context.mode in ["cabin", "rest"]:
+			return " Safe recovery returns you awake on foot inside %s at its home berth. Take the pilot seat to fly or exit onto the shipyard deck. The previous flight position and sleep are not restored. Saved activity progress is kept." % craft.get_display_name()
 		return " Safe recovery returns you on foot beside %s at its home berth. Saved activity progress is kept." % craft.get_display_name()
 	return " Safe recovery starts on foot at the shipyard, unless a saved planetary visit resumes on its planet. Saved activity and visit progress is kept."
 
@@ -3639,29 +3684,61 @@ func _capture_solo_safe_recovery_context() -> void:
 		return
 	var context := {"mode": "unavailable"}
 	if not _transition_busy and not _network_session_is_live() \
-			and not _planetary_visit_blocks_network_session() \
-			and is_instance_valid(active_ship) and active_ship in ships \
-			and not active_ship.is_destroyed():
+			and not _planetary_visit_blocks_network_session():
 		var mode := ""
-		if _piloting and active_ship.is_piloted() \
+		var context_ship := active_ship
+		# Landed bunk rest can belong to another craft than Main's current pilot
+		# preference. The reserved live bunk, not active_ship, owns that identity.
+		if not _piloting and _station_seated and player.is_sleeping() \
+				and is_instance_valid(_active_station_seat) \
+				and not _active_station_seat.is_queued_for_deletion() \
+				and _active_station_seat is ShipBunk \
+				and _active_station_seat.is_reserved_for(player) \
+				and player.is_seated_at(_active_station_seat.get_seat_anchor()):
+			context_ship = (_active_station_seat as ShipBunk).get_ship()
+			if is_instance_valid(context_ship) and context_ship in ships \
+					and not context_ship.is_destroyed() and context_ship.is_boardable() \
+					and not _solo_safe_recovery_cabin(context_ship).is_empty() \
+					and (phase in [Phase.APPROACH_SHIP, Phase.COMPLETE] \
+						or (phase == Phase.IN_FLIGHT_CABIN and _cabin_ship == context_ship)):
+				mode = "rest"
+		elif is_instance_valid(active_ship) and active_ship in ships \
+				and not active_ship.is_destroyed() and _piloting and active_ship.is_piloted() \
 				and player.is_seated_at(active_ship.get_pilot_seat_anchor()):
 			mode = "pilot"
 		elif not _piloting and not player.is_seated() and not player.is_sleeping() \
-				and phase in [Phase.APPROACH_SHIP, Phase.COMPLETE]:
-			# Jumping/walking keeps the last settled on-foot preference. It does
-			# not generate a pair of save transactions for every floor contact.
+				and phase in [Phase.APPROACH_SHIP, Phase.COMPLETE, Phase.IN_FLIGHT_CABIN]:
+			# Jumps keep the last settled preference without saving airborne poses.
 			if not player.is_on_floor():
 				return
-			mode = "on_foot"
+			for candidate: HeroShip in ships:
+				if not is_instance_valid(candidate) or candidate.is_destroyed() or not candidate.is_boardable():
+					continue
+				var frame := candidate.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+				if not is_instance_valid(frame) or not frame.is_occupant_registered(player):
+					continue
+				var cabin := _solo_safe_recovery_cabin(candidate)
+				if cabin.is_empty():
+					continue
+				var area := candidate.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+				if area != null and area.is_available_for(player) \
+						and frame.is_occupant_registered(player) \
+						and (cabin.local_bounds as AABB).has_point(candidate.to_local(player.global_position)) \
+						and (phase != Phase.IN_FLIGHT_CABIN or (candidate == _cabin_ship \
+							and player.get_cabin_containment_report().get("frame") == candidate)):
+					context_ship = candidate
+					mode = "cabin"
+					break
+			if mode.is_empty() and phase in [Phase.APPROACH_SHIP, Phase.COMPLETE] \
+					and is_instance_valid(active_ship) and active_ship in ships and not active_ship.is_destroyed():
+				mode = "on_foot"
+				# Cold Main's default Torrent must not replace the last settled
+				# exterior preference merely because the Player is beside its berth.
+				if _solo_safe_recovery_context.get("mode") == "on_foot":
+					var preferred := _solo_safe_recovery_craft()
+					if is_instance_valid(preferred):
+						context_ship = preferred
 		if not mode.is_empty():
-			var context_ship := active_ship
-			# On foot, the last settled craft remains a preference, not pilot
-			# ownership. Cold Main's default Torrent must not replace it merely
-			# because the safe offer put the Player beside another home berth.
-			if mode == "on_foot" and _solo_safe_recovery_context.get("mode") == "on_foot":
-				var preferred := _solo_safe_recovery_craft()
-				if is_instance_valid(preferred):
-					context_ship = preferred
 			context = {"location": "mudds_home_berth", "mode": mode,
 				"craft_id": String(context_ship.get_ship_id()),
 				"berth_id": String(context_ship.get_home_berth_id())}
@@ -3678,6 +3755,31 @@ func _apply_solo_safe_recovery() -> void:
 		return
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if area == null or not area.is_available_for(player):
+		return
+	if _solo_safe_recovery_context.mode in ["cabin", "rest"]:
+		var cabin := _solo_safe_recovery_cabin(craft)
+		if cabin.is_empty() or player.is_seated() or player.is_sleeping() or _piloting \
+				or not area.try_reserve(player):
+			return
+		var previous_pose := player.global_transform
+		player.teleport_to(cabin.safe_stand_transform as Transform3D)
+		_cabin_ship = craft
+		_bind_cabin_occupancy(craft)
+		var frame := cabin.frame as MovingInteriorFrame
+		if not frame.is_occupant_registered(player) \
+				or not bool(player.get_cabin_containment_report().get("contained", false)):
+			_release_cabin_occupancy()
+			area.release_reservation(player)
+			player.teleport_to(previous_pose)
+			return
+		active_ship = craft
+		_boarding_area = area
+		phase = Phase.IN_FLIGHT_CABIN
+		player.set_control_enabled(true)
+		hud.set_mode("cabin", craft.get_display_name())
+		hud.set_objective("Awake aboard %s — take the pilot seat to fly or exit onto the shipyard deck" % craft.get_display_name(), "HOME BERTH")
+		audio.set_on_foot(true)
+		_sync_cinder_loadmaster_hud_binding()
 		return
 	# The offer explicitly names this supported safe location. No saved world
 	# coordinates or old object/reservation identities are applied.

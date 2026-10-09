@@ -77,6 +77,8 @@ func _run() -> void:
 	_test_save_summary_names_the_resumed_save()
 	await _test_startup_card_offers_resume_or_start_fresh(recovery_snapshot)
 	await _test_cold_solo_safe_recovery()
+	await _test_cold_cabin_and_rest_recovery()
+	await _test_real_file_landed_rest_recovery()
 	_finish()
 
 
@@ -175,7 +177,10 @@ func _test_startup_card_offers_resume_or_start_fresh(interrupted: Dictionary) ->
 
 
 func _make_game(filesystem: FakeFilesystem) -> GameFlow:
-	var store := Store.new(STORE_PATH, filesystem) as UserDataStore
+	return await _make_game_with_store(Store.new(STORE_PATH, filesystem) as UserDataStore)
+
+
+func _make_game_with_store(store: UserDataStore) -> GameFlow:
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game.configure_runtime_settings_persistence(store), "Main uses the existing isolated shared store")
 	root.add_child(game)
@@ -340,6 +345,172 @@ func _test_cold_solo_safe_recovery() -> void:
 		if test_case.guard == "planetary":
 			fallback.get("_planetary_journey").set("_ember_surface_journey_active", false)
 		await _retire_game(fallback)
+
+
+func _settle_frames(count: int = 12) -> void:
+	for _frame in count:
+		await physics_frame
+		await process_frame
+
+
+func _test_cold_cabin_and_rest_recovery() -> void:
+	var filesystem := FakeFilesystem.new()
+	filesystem.reject_rewards = true
+	var original := await _make_game(filesystem)
+	var craft := original.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	original.start_shift()
+	original.call("_board_ship", craft)
+	_check(await _wait_for_seat(original, craft), "cabin interruption begins with an ordinary settled Halyard pilot")
+	_check(bool(original.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT).accepted), "the cabin fixture selects the existing convoy owner")
+	await InterruptionProbe.prepare_convoy(original, original.get_flyable_ships().find(craft))
+	_check(bool(original.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID).accepted), "the cabin fixture starts its actual convoy")
+	_check(await InterruptionProbe.finish_convoy(original, craft), "the cabin fixture reaches a real terminal convoy with reward write rejected")
+	var store := original.get("_runtime_settings_user_data_store") as UserDataStore
+	var activity_boundary: Variant = _canonical(store.get_snapshot()["cinder_convoy_session"])
+	var reward_boundary: Variant = _canonical(original.get_activity_reward_report().get("authority", {}).get("record", {}))
+	_check(store.get_snapshot()["cinder_convoy_session"].activities[0].reward_requested and not store.get_snapshot()["cinder_convoy_session"].activities[0].reward_granted, "the interrupted cabin carries real owed payment")
+	Input.action_press(&"hover")
+	Input.action_press(&"move_forward")
+	await _settle_frames(6)
+	Input.action_release(&"move_forward")
+	Input.action_release(&"hover")
+	await _settle_frames(int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 3)
+	_check(not bool(craft.get_telemetry().get("landed", true)) and craft.global_position.distance_to(original.world.get_berth_transform(craft.get_home_berth_id()).origin) > 100.0, "the interrupted craft really is airborne and away from its home berth")
+	original.call("_leave_seat_into_cabin")
+	await _settle_frames()
+	_check(original.player.is_on_floor() and original.get_in_flight_cabin_status().carried and not craft.is_piloted(), "production seat exit creates a real supported cabin passenger")
+	var airborne_bunk := craft.get_node("WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction") as ShipBunk
+	original.player.teleport_to(airborne_bunk.get_exit_transform())
+	await _settle_frames()
+	original.call("_sit_in_station_seat", airborne_bunk)
+	await _settle_frames()
+	original.call("_capture_solo_safe_recovery_context")
+	_check(original.player.is_sleeping() and airborne_bunk.is_reserved_for(original.player) and not bool(craft.get_telemetry().get("landed", true)) and store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT].get("mode") == "rest", "a real airborne ShipBunk captures rest through its live owner without flight coordinates")
+	original.call("_on_interact_requested")
+	await _settle_frames()
+	_check(not original.player.is_sleeping() and original.player.is_control_enabled() and original.player.is_on_floor() and airborne_bunk.is_available() and original.get_in_flight_cabin_status().carried, "ordinary wake returns the airborne sleeper to the supported controllable cabin")
+	for mode in ["cabin", "rest"]:
+		if mode == "rest":
+			var bunk := craft.get_node("WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction") as ShipBunk
+			original.player.teleport_to(bunk.get_exit_transform())
+			await _settle_frames()
+			original.call("_sit_in_station_seat", bunk)
+			await _settle_frames()
+			_check(original.player.is_sleeping() and original.player.is_seated_at(bunk.get_seat_anchor()) and bunk.is_reserved_for(original.player) and not craft.is_piloted(), "real reserved ShipBunk rest never grants pilot authority")
+		original.call("_capture_solo_safe_recovery_context")
+		var context: Dictionary = store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT]
+		_check(context.get("mode") == mode and context.get("craft_id") == String(craft.get_ship_id()) and context.size() == 4, "settled %s durably saves only safe mode and saved craft/home berth" % mode)
+		var old_player_id := original.player.get_instance_id()
+		var old_craft_id := craft.get_instance_id()
+		await _retire_game(original)
+		var cold := await _make_game(filesystem)
+		craft = cold.get_node("HalyardCrewTransport") as HalyardCrewTransport
+		store = cold.get("_runtime_settings_user_data_store") as UserDataStore
+		var pending := cold.get_recovery_available_snapshot()
+		var summary := cold.get_session_recovery_save_summary()
+		_check(summary.contains(craft.get_display_name()) and summary.contains("awake") and summary.contains("home berth") and summary.contains("pilot seat"), "the %s offer names an awake home-cabin recovery without pilot control" % mode)
+		var rejected: Dictionary = cold.call("_handle_hud_session_recovery_choice", &"normal_start", int(pending.session_id), int(pending.startup_generation) + 1)
+		_check(not rejected.accepted and not bool(cold.get("_solo_safe_recovery_pending")) and not cold.player.is_cabin_containment_active(), "stale %s Resume cannot stage cabin ownership" % mode)
+		var accepted: Dictionary = cold.call("_handle_hud_session_recovery_choice", &"normal_start", int(pending.session_id), int(pending.startup_generation))
+		_check(accepted.accepted and not cold.player.is_cabin_containment_active(), "accepted %s Resume waits for BEGIN SHIFT" % mode)
+		cold.start_shift()
+		await _settle_frames()
+		var frame := craft.get_moving_interior_component()
+		var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+		var berth := cold.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		_check(cold.phase == GameFlow.Phase.IN_FLIGHT_CABIN and cold.active_ship == craft and not craft.is_piloted() and not cold.player.is_seated() and not cold.player.is_sleeping() and cold.player.is_control_enabled() and cold.player.is_on_floor(), "cold %s Resume wakes a supported controllable saved-craft passenger" % mode)
+		_check(frame.is_occupant_registered(cold.player) and cold.player.is_cabin_containment_active() and area.get_reservation_token() == cold.player and berth.get_occupant() == craft and berth.get_reservation_owner() == craft and cold.player.get_instance_id() != old_player_id and craft.get_instance_id() != old_craft_id, "cold %s recovery acquires fresh exclusive cabin/hatch owners and exact home berth" % mode)
+		_check(_canonical(store.get_snapshot()["cinder_convoy_session"]) == activity_boundary and _canonical(cold.get_activity_reward_report().get("authority", {}).get("record", {})) == reward_boundary, "cold %s recovery preserves terminal activity and unpaid reward exactly" % mode)
+		var start := cold.player.global_position
+		Input.action_press(&"move_back")
+		await _settle_frames(20)
+		Input.action_release(&"move_back")
+		await _settle_frames()
+		_check(cold.player.global_position.distance_to(start) > 0.1 and cold.player.is_on_floor() and not craft.is_piloted(), "the recovered %s passenger can walk the actual cabin floor without piloting" % mode)
+		var retained_player := cold.player
+		root.remove_child(cold)
+		await process_frame
+		root.add_child(cold)
+		await _settle_frames()
+		cold.set_physics_process(false)
+		_check(cold.player == retained_player and frame.is_occupant_registered(retained_player) and not area.is_reserved() and not craft.is_piloted(), "retained %s Main keeps its same cabin Player and existing detached-hatch release policy" % mode)
+		original = cold
+	# Ordinary retaking of the physical seat remains the explicit pilot grant.
+	original.player.teleport_to(craft.get_cabin_stand_transform())
+	await _settle_frames()
+	original.call("_on_interact_requested")
+	_check(await _wait_for_seat(original, craft) and not original.player.is_cabin_containment_active() and not craft.get_moving_interior_component().is_occupant_registered(original.player), "ordinary cabin interaction retakes pilot control and releases passenger containment")
+	original.call("_try_exit_ship")
+	await _settle_frames(120)
+	_check(original.phase == GameFlow.Phase.APPROACH_SHIP and original.player.is_on_floor() and original.player.is_control_enabled() and not original.player.is_seated() and not craft.is_piloted(), "the recovered passenger can leave through the ordinary landed pilot exit onto the shipyard deck")
+	_check(_canonical(store.get_snapshot()["cinder_convoy_session"]) == activity_boundary, "ordinary recovered cabin retake and deck exit preserve the exact unpaid terminal boundary")
+	filesystem.reject_rewards = false
+	original.call("_retry_owed_game_flow_activity_rewards")
+	var paid: Variant = _canonical(original.get_activity_reward_report().get("authority", {}).get("record", {}))
+	original.call("_retry_owed_game_flow_activity_rewards")
+	_check(bool(store.get_snapshot()["cinder_convoy_session"].activities[0].reward_granted) and _canonical(original.get_activity_reward_report().get("authority", {}).get("record", {})) == paid, "the recovered cabin's actual owed reward still saves exactly once after ordinary exit")
+	await _retire_game(original)
+
+
+## The write-fault cases above use a shared fake disk. This path uses the actual
+## production filesystem and reloads a private user-data file into a fresh Main.
+func _test_real_file_landed_rest_recovery() -> void:
+	var path := "user://solo-cabin-recovery-%d.json" % OS.get_process_id()
+	var store := Store.new(path) as UserDataStore
+	var game := await _make_game_with_store(store)
+	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	var bunk := craft.get_node("WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction") as ShipBunk
+	game.start_shift()
+	game.player.teleport_to(bunk.get_exit_transform())
+	await _settle_frames()
+	game.call("_capture_solo_safe_recovery_context")
+	_check(store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT].get("mode") == "cabin" and store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT].get("craft_id") == String(craft.get_ship_id()), "landed frame-owned cabin walk saves the actual Halyard rather than Main's default Torrent")
+	game.call("_sit_in_station_seat", bunk)
+	await _settle_frames()
+	game.call("_capture_solo_safe_recovery_context")
+	_check(game.player.is_sleeping() and game.active_ship != craft and store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT].get("mode") == "rest" and store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT].get("craft_id") == String(craft.get_ship_id()) and FileAccess.file_exists(path), "landed reserved ShipBunk persists its own craft to a real private user file")
+	await _retire_game(game)
+	var cold := await _make_game_with_store(Store.new(path) as UserDataStore)
+	var cold_craft := cold.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	var pending := cold.get_recovery_available_snapshot()
+	_test_cabin_owner_refusals(cold, cold_craft)
+	_check(not pending.is_empty() and cold.get_session_recovery_save_summary().contains(cold_craft.get_display_name()), "fresh Main reloads the actual file and offers its saved bunk craft")
+	cold.call("_handle_hud_session_recovery_choice", &"normal_start", int(pending.session_id), int(pending.startup_generation))
+	cold.start_shift()
+	await _settle_frames()
+	_check(cold.active_ship == cold_craft and cold.player.is_on_floor() and cold.player.is_control_enabled() and not cold.player.is_sleeping() and not cold_craft.is_piloted() and cold_craft.get_moving_interior_component().is_occupant_registered(cold.player), "real-file cold Resume wakes onto a usable supported saved-craft cabin")
+	await _retire_game(cold)
+	for suffix in ["", ".bak", ".tmp", ".bak.1", ".bak.2", ".bak.3"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
+
+
+func _test_cabin_owner_refusals(game: GameFlow, craft: HeroShip) -> void:
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var other := Node.new()
+	game.add_child(other)
+	var pose := game.player.global_transform
+	var context: Dictionary = game.get("_solo_safe_recovery_context").duplicate(true)
+	_check(area.try_reserve(other), "the occupied-cabin fixture owns a real competing hatch reservation")
+	game.set("_solo_safe_recovery_pending", true)
+	game.call("_apply_solo_safe_recovery")
+	_check(game.player.global_transform.is_equal_approx(pose) and game.active_ship != craft and not game.player.is_cabin_containment_active() and area.get_reservation_token() == other, "cabin recovery refuses a reserved hatch without moving the Player or stealing its owner")
+	area.release_reservation(other)
+	other.queue_free()
+	# Withdraw the actual authored body shapes. A supported report alone must
+	# never substitute for real floor support at the standing route.
+	var body_layers: Dictionary = {}
+	body_layers[craft] = craft.collision_layer
+	craft.collision_layer = 0
+	for body in craft.find_children("*", "PhysicsBody3D", true, false):
+		body_layers[body] = body.collision_layer
+		body.collision_layer = 0
+	game.set("_solo_safe_recovery_pending", true)
+	game.call("_apply_solo_safe_recovery")
+	_check(game.player.global_transform.is_equal_approx(pose) and game.active_ship != craft and not game.player.is_cabin_containment_active() and not area.is_reserved(), "cabin recovery refuses an unsupported standing route without an orphan hatch claim")
+	for body: PhysicsBody3D in body_layers:
+		body.collision_layer = int(body_layers[body])
+	_check(game.get("_solo_safe_recovery_context") == context, "both refusals preserve the durable cabin preference for the next explicit Resume")
 
 
 func _check(condition: bool, label: String) -> void:
