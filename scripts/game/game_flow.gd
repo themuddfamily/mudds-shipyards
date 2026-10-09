@@ -9314,6 +9314,14 @@ func _submit_solo_gunner_fire() -> Dictionary:
 	if is_instance_valid(collider):
 		endpoint = hit.get("position", endpoint)
 	var target_id := StringName("sight_%d" % collider.get_instance_id()) if is_instance_valid(collider) else &"free_aim"
+	if is_instance_valid(collider):
+		# Existing target/ship owners publish their identity; this read only
+		# labels the sight contact and never registers health or damage authority.
+		var published_id: Variant = (collider as HeroShip).get_ship_id() if collider is HeroShip else collider.get_meta(&"target_id", &"")
+		if published_id is String or published_id is StringName:
+			var canonical_id := StringName(published_id)
+			if not canonical_id.is_empty() and String(canonical_id).length() <= 64:
+				target_id = canonical_id
 	direction = (endpoint - muzzle).normalized()
 	var prior := _solo_crew_authority.get_last_intent(1, SOLO_CREW_AVATAR_ID)
 	_solo_crew_sequence = maxi(_solo_crew_sequence, int(prior.get("request_sequence", 0))) + 1
