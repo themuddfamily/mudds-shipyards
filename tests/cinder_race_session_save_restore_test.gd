@@ -349,6 +349,7 @@ func _run() -> void:
 	await _retire_game(second)
 	await _test_race_write_recovery()
 	await _test_saved_race_progress_write_recovery()
+	await _test_running_race_progress_publication()
 	_finish()
 
 
@@ -565,6 +566,77 @@ func _test_saved_race_progress_write_recovery() -> void:
 			and owner.get_session_generation() == generation + 1 and game.get_active_activity_snapshot().state_id == &"idle",
 			"recovered %s completion cannot replay and ordinary reset publishes its durable next IDLE generation" % saved_phase)
 		await _retire_game(game)
+
+
+func _test_running_race_progress_publication() -> void:
+	for terminal_kind: String in ["active", "failed"]:
+		var path := "user://cinder-race-%s-progress-publication.json" % terminal_kind
+		var filesystem := RejectingDiskFilesystem.new()
+		var store := Store.new(path, filesystem) as UserDataStore
+		var game := await _make_game(store)
+		game.set_physics_process(false)
+		_check(_complete_real_race(game, 0.25) and _race_receipts(game) == 1 and game.reset_active_activity(),
+			"the %s publication case starts after genuine paid completion and durable reset" % terminal_kind)
+		var owner := game.cinder_race_session
+		var craft := game.get_flyable_ships()[1] as HeroShip
+		var started := game.request_activity_start(ROUTE.activity_id)
+		game.call("_physics_process", 2.0)
+		game.call("_physics_process", 0.25)
+		craft.global_position = ROUTE.get_checkpoint_position(0)
+		game.call("_physics_process", 0.0)
+		var early := owner.capture_persistence_state()
+		var early_bytes := FileAccess.get_file_as_bytes(path)
+		_check(bool(started.get("accepted", false)) and game.get_cinder_race_session_persistence_report().last_save_status.accepted
+			and int(early.race_state.next_checkpoint_index) == 1,
+			"real disk acknowledges the actual first ACTIVE gate before %s write interruption" % terminal_kind)
+		filesystem.reject_writes = true
+		game.call("_physics_process", 0.5)
+		for checkpoint in range(1, 3):
+			craft.global_position = ROUTE.get_checkpoint_position(checkpoint)
+			game.call("_physics_process", 0.0)
+		if terminal_kind == "failed":
+			owner.advance_physics(120.0, owner.get_session_generation())
+		var latest := owner.capture_persistence_state()
+		var rejected := game.save_cinder_race_session()
+		_check(not bool(rejected.get("accepted", false)) and FileAccess.get_file_as_bytes(path) == early_bytes
+			and owner.get_acknowledged_persistence_state() == early and int(latest.race_state.next_checkpoint_index) == 3
+			and game.get_active_activity_snapshot().state_id == StringName(terminal_kind) and _race_receipts(game) == 1,
+			"rejected later %s writes keep the first acknowledged boundary while the real ordered owner progresses" % terminal_kind)
+		filesystem.reject_writes = false
+		var saved := game.save_cinder_race_session()
+		_check(bool(saved.get("accepted", false)) and owner.capture_persistence_state() == latest
+			and owner.get_acknowledged_persistence_state() == latest and _race_receipts(game) == 1,
+			"ordinary save publishes authentic multiple-gate %s progress after writes recover (%s)" % [terminal_kind, saved.get("reason", "")])
+		await _retire_game(game)
+		if not bool(saved.get("accepted", false)):
+			continue
+		var fresh := await _make_game(Store.new(path, RejectingDiskFilesystem.new()))
+		fresh.set_physics_process(false)
+		var restored := fresh.cinder_race_session
+		_check(restored.capture_persistence_state() == latest and _race_receipts(fresh) == 1,
+			"fresh Main restores exact published %s gate, clock, results and generation without historic payout" % terminal_kind)
+		if terminal_kind == "failed":
+			fresh.call("_physics_process", 10.0)
+			_check(restored.capture_persistence_state() == latest and fresh.reset_active_activity(),
+				"the saved timeout stays FAILED until the player explicitly resets it")
+			_check(_complete_real_race(fresh, 0.5) and _race_receipts(fresh) == 2,
+				"only the next genuine race after a published failure receives its new-generation credit")
+		else:
+			craft = fresh.get_flyable_ships()[1] as HeroShip
+			fresh.active_ship = craft
+			fresh.set("_piloting", true)
+			fresh.phase = GameFlow.Phase.FREE_FLIGHT
+			fresh.call("_physics_process", 0.25)
+			for checkpoint in range(3, ROUTE.get_checkpoint_count()):
+				craft.global_position = ROUTE.get_checkpoint_position(checkpoint)
+				fresh.call("_physics_process", 0.0)
+			_check(fresh.get_active_activity_snapshot().state_id == &"completed"
+				and is_equal_approx(float(restored.get_presentation_snapshot().last_time_seconds), 1.0)
+				and _race_receipts(fresh) == 2,
+				"the reloaded ACTIVE owner consumes only its remaining physical gates and pays once")
+		fresh.call("_retry_owed_game_flow_activity_rewards")
+		_check(_race_receipts(fresh) == 2, "repeated retry after published %s cannot invent another reward" % terminal_kind)
+		await _retire_game(fresh)
 
 
 func _make_game(store: UserDataStore) -> GameFlow:

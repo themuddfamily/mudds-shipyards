@@ -222,6 +222,14 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary, session: 
 			or float(candidate_race.get("penalty_seconds", -1.0)) \
 			< float(existing_race.get("penalty_seconds", 0.0)):
 		return _result(false, &"stale_race_session")
+	if existing_state == TimedCheckpointRace.State.ACTIVE \
+			and candidate_state in [TimedCheckpointRace.State.ACTIVE, TimedCheckpointRace.State.FAILED] \
+			and _canonical_state(session.get_acknowledged_persistence_state()) == existing \
+			and _active_progress_ordinal(candidate_race) >= _active_progress_ordinal(existing_race) \
+			and _same_results(existing_race, candidate_race):
+		# The exact acknowledged boundary and current typed live capture prove
+		# this owner's ordered progress, including a later real failure.
+		return _result(true, &"race_session_unsaved_progress_recovered")
 	if existing_state in [TimedCheckpointRace.State.COUNTDOWN, TimedCheckpointRace.State.ACTIVE] \
 			and candidate_state == TimedCheckpointRace.State.COMPLETED \
 			and _canonical_state(session.get_acknowledged_persistence_state()) == existing \
