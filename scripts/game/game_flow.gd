@@ -6797,7 +6797,7 @@ func _publish_network_session_snapshot(
 
 
 func _network_local_role_presentation() -> Dictionary:
-	var local_role: StringName = &"pilot" if _piloting else (_network_engineer_client_seat.get_role() if is_instance_valid(_network_engineer_client_seat) else (_solo_crew_role if _solo_crew_role in [&"engineer", &"gunner"] and _solo_crew_claim_is_current() else &"observer"))
+	var local_role: StringName = &"pilot" if _piloting else (_network_engineer_client_seat.get_role() if is_instance_valid(_network_engineer_client_seat) else (_solo_crew_role if _solo_crew_role in [&"engineer", &"gunner", &"passenger"] and _solo_crew_claim_is_current() else &"observer"))
 	var craft_name := ""
 	var craft_id: StringName = &""
 	var local_peer_id := 1
@@ -6810,7 +6810,7 @@ func _network_local_role_presentation() -> Dictionary:
 	if is_instance_valid(active_ship):
 		craft_name = active_ship.get_display_name()
 		craft_id = active_ship.get_ship_id()
-		if not _piloting and local_role not in [&"engineer", &"gunner"] and is_instance_valid(network_session) and network_session.has_method(&"get_crew_role_snapshot"):
+		if not _piloting and local_role not in [&"engineer", &"gunner", &"passenger"] and is_instance_valid(network_session) and network_session.has_method(&"get_crew_role_snapshot"):
 			var role_snapshot := network_session.get_crew_role_snapshot() as Dictionary
 			var roles := role_snapshot.get("roles", {}) as Dictionary
 			for record_variant in roles.values():
@@ -9209,7 +9209,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 			var owner: Variant = (owner_ref as WeakRef).get_ref()
 			if is_instance_valid(owner) and owner != frame:
 				return
-	if _network_session_mode == &"server" and _network_engineer_binding != null and craft.get_ship_id() in [JOVIAN_SHIP_ID, BULWARK_SHIP_ID]:
+	if _network_session_mode == &"server" and _network_engineer_binding != null and craft.get_ship_id() in [JOVIAN_SHIP_ID, BULWARK_SHIP_ID, HALYARD_SHIP_ID]:
 		_solo_crew_authority = _network_engineer_binding.role_authority_for(craft)
 		_solo_crew_ship = craft
 	# A different attached authority belongs to another session. Never replace
@@ -23109,6 +23109,10 @@ func _attach_network_engineer_binding() -> void:
 		var gunner := NetworkBulwarkGunnerBinding.new()
 		if gunner.attach(network_session, bulwark, simulation, combat_authority, _network_engineer_generation):
 			binding.gunner = gunner
+		var halyard := _find_flyable_ship_by_id(HALYARD_SHIP_ID) as HalyardCrewTransport
+		var passenger := NetworkHalyardPassengerBinding.new()
+		if passenger.attach(network_session, halyard, simulation, _network_engineer_generation):
+			binding.passenger = passenger
 
 
 func _request_network_engineer_seat(seat: ShipCrewSeat) -> void:
@@ -23146,7 +23150,7 @@ func _advance_network_engineer(delta: float) -> void:
 	var belongs: bool = not assignment.is_empty() and is_instance_valid(_cabin_ship) and view.get("ship_id") == _cabin_ship.get_ship_id() \
 		and StringName(assignment.get("avatar_id", &"")) == _network_remote_body_intent_source.get_entity_id() \
 		and int(view.get("entity_generation", 0)) == _network_remote_body_intent_source.get_entity_generation() \
-		and ((assignment.get("role") == &"engineer" and assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("role") == &"gunner" and assignment.get("seat_id") == BulwarkHeavyGunship.GUNNER_SEAT_ID and _cabin_ship is BulwarkHeavyGunship)) \
+		and ((assignment.get("role") == &"engineer" and assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("role") == &"gunner" and assignment.get("seat_id") == BulwarkHeavyGunship.GUNNER_SEAT_ID and _cabin_ship is BulwarkHeavyGunship) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID and _cabin_ship is HalyardCrewTransport)) \
 		if _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound() else false
 	if is_instance_valid(_network_engineer_client_seat):
 		if _network_engineer_client_seat.get_role_contract().is_empty() or not _network_client_boarding_holds(_network_engineer_client_seat.get_ship()):
@@ -23199,6 +23203,9 @@ func _present_network_engineer_seat(seat: ShipCrewSeat) -> void:
 	player.set_station_seated_context(true)
 	player.set_control_enabled(true)
 	_transition_busy = false
+	if seat.get_role() == &"passenger":
+		hud.set_objective("Passenger aboard %s — stand [%s] to walk the cabin" % [craft.get_display_name(), hud.get_action_prompt(&"interact")])
+		return
 	_network_engineer_source = craft.get_local_input_source()
 	if is_instance_valid(_network_engineer_source):
 		_network_engineer_source_authority = _network_engineer_source.get_authority_peer_id()
@@ -23264,6 +23271,8 @@ func _restore_network_engineer_input_source() -> void:
 
 
 func _update_network_engineer_input(delta: float, view: Dictionary) -> void:
+	if _network_engineer_client_seat.get_role() == &"passenger":
+		return
 	var source := _network_engineer_source
 	var craft := _network_engineer_client_seat.get_ship()
 	if not is_instance_valid(source) or source != craft.get_local_input_source() \
@@ -23329,9 +23338,11 @@ func _send_network_engineer_intent(view: Dictionary, repair: float) -> Dictionar
 
 
 func _network_physical_crew_seat_is_wired(seat: ShipCrewSeat) -> bool:
-	return is_instance_valid(seat) and ((seat.get_ship() is JovianLightFreighter and seat.get_role() == &"engineer") or (seat.get_ship() is BulwarkHeavyGunship and seat.get_role() == &"gunner"))
+	return is_instance_valid(seat) and ((seat.get_ship() is HalyardCrewTransport and seat.get_role() == &"passenger") or (seat.get_ship() is JovianLightFreighter and seat.get_role() == &"engineer") or (seat.get_ship() is BulwarkHeavyGunship and seat.get_role() == &"gunner"))
 
 func _network_physical_crew_view() -> Dictionary:
+	if _cabin_ship is HalyardCrewTransport:
+		return network_session.get_passenger_replica_snapshot()
 	return network_session.get_gunner_replica_snapshot() if _cabin_ship is BulwarkHeavyGunship else network_session.get_engineer_replica_snapshot()
 
 func _update_network_gunner_input(delta: float, view: Dictionary, command: ShipCommand) -> void:

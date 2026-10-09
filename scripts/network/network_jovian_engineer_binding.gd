@@ -8,6 +8,7 @@ const CrewAuthority := preload("res://scripts/ships/crew_seat_role_authority.gd"
 
 var authority: CrewSeatRoleAuthority
 var gunner: NetworkBulwarkGunnerBinding
+var passenger: NetworkHalyardPassengerBinding
 var _session: NetworkEnetSessionAdapter
 var _ship: JovianLightFreighter
 var _simulation: NetworkRemoteBodySimulation
@@ -46,6 +47,9 @@ func attach(session: NetworkEnetSessionAdapter, ship: JovianLightFreighter,
 
 
 func detach() -> void:
+	if passenger != null:
+		passenger.detach()
+		passenger = null
 	if gunner != null:
 		gunner.detach()
 		gunner = null
@@ -86,6 +90,8 @@ func next_request_sequence(previous: int) -> int:
 
 
 func claim(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
+	if passenger != null and seat.get_ship() is HalyardCrewTransport:
+		return passenger.claim(record, seat)
 	if gunner != null and seat.get_ship() is BulwarkHeavyGunship:
 		return gunner.claim(record, seat)
 	if not _live() or not is_instance_valid(seat) or seat.get_ship() != _ship \
@@ -106,6 +112,8 @@ func claim(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
 
 
 func release(record: Dictionary) -> void:
+	if passenger != null:
+		passenger.release(record)
 	if gunner != null:
 		gunner.release(record)
 	if not _owns_authority():
@@ -180,6 +188,8 @@ func dispatch(peer_id: int, payload: Dictionary) -> Dictionary:
 
 
 func advance(delta: float) -> void:
+	if passenger != null:
+		passenger.advance(delta)
 	if gunner != null:
 		gunner.advance(delta)
 	if _owns_authority() and _ship.is_destroyed() and not _retired:
@@ -272,10 +282,10 @@ func _result(accepted: bool, status: StringName) -> Dictionary:
 
 
 func owns_role_authority(owner: CrewSeatRoleAuthority) -> bool:
-	return owner != null and (owner == authority or (gunner != null and gunner.owns(owner)))
+	return owner != null and (owner == authority or (gunner != null and gunner.owns(owner)) or (passenger != null and passenger.owns(owner)))
 
 func role_authority_for(craft: HeroShip) -> CrewSeatRoleAuthority:
-	return gunner.authority if craft is BulwarkHeavyGunship and gunner != null else authority if craft == _ship else null
+	return passenger.authority if craft is HalyardCrewTransport and passenger != null else gunner.authority if craft is BulwarkHeavyGunship and gunner != null else authority if craft == _ship else null
 
 func next_role_sequence(owner: CrewSeatRoleAuthority, previous: int) -> int:
-	return gunner.next_request_sequence(previous) if gunner != null and gunner.owns(owner) else next_request_sequence(previous)
+	return passenger.next_request_sequence(previous) if passenger != null and passenger.owns(owner) else gunner.next_request_sequence(previous) if gunner != null and gunner.owns(owner) else next_request_sequence(previous)
