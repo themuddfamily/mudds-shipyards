@@ -22,10 +22,13 @@ and crash journal, then requires menu readiness and orderly shutdown. It require
 UserDataRecoveryFixture; it never fabricates interrupted markers or crash events.
 InWorldRecovery additionally exercises the target installed payload's ordinary
 Boot entry in a separate throwaway profile. It kills one owned process after
-actual durable convoy readiness, then restarts that profile to prove exact
+actual durable activity readiness, then restarts that profile to prove exact
 boundary, one new receipt and its crash journal. InWorldRecoveryContext selects
 pilot (default), cabin, rest or crew. Cabin/rest/crew require a matching context
 in both Boot markers; older pilot-only payloads cannot qualify those selections.
+InWorldRecoveryActivity selects convoy (default) or beacon. Beacon requires pilot
+context and verifies the genuine unpaid terminal, safe-home pilot Resume, ordinary
+throttle and HUD Start payment, and the saved acknowledgement without duplicates.
 InWorldCancelPath (default:
 ProbeRoot\in-world-recovery.cancel) provides an independent owned-child abort.
 The activity profile is removed; logs/documents remain in ProbeRoot. This does
@@ -49,11 +52,13 @@ param(
     [switch]$ForceKillRecovery,
     [switch]$InWorldRecovery,
     [ValidateSet('pilot','cabin','rest','crew')][string]$InWorldRecoveryContext = 'pilot',
+    [ValidateSet('convoy','beacon')][string]$InWorldRecoveryActivity = 'convoy',
     [string]$InWorldCancelPath,
     [int]$StartupTimeoutMs = 120000
 )
 $ErrorActionPreference = 'Stop'
 $InWorldRecoveryContext = $InWorldRecoveryContext.ToLowerInvariant()
+$InWorldRecoveryActivity = $InWorldRecoveryActivity.ToLowerInvariant()
 $regUninstall = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MuddsShipyards'
 $regApp = 'HKCU:\Software\Mudds Shipyards'
 $startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Mudds Shipyards'
@@ -438,10 +443,60 @@ function Stop-InWorldOwned($proc, $entry, [string]$termination) {
     }
     if (-not $proc.WaitForExit(15000)) { throw 'owned in-world process did not reap after Kill' }
 }
+function Assert-InWorldSelection {
+    if (-not $InWorldRecovery -and $InWorldRecoveryActivity -ne 'convoy') { throw 'InWorldRecoveryActivity requires InWorldRecovery' }
+    if ($InWorldRecoveryActivity -eq 'beacon' -and $InWorldRecoveryContext -ne 'pilot') { throw 'beacon in-world recovery supports only pilot context' }
+}
+function InWorld-BeaconCount($payload) {
+    if ($null -eq $payload.game_flow_reward_store.reward_counts.debris_route_navigation_data) { return 0 }
+    return [int]$payload.game_flow_reward_store.reward_counts.debris_route_navigation_data
+}
+function Assert-InWorldBeaconArm($saved, $ready) {
+    $terminal = $saved.payload.cinder_beacon_session
+    if ((InWorld-Canonical $terminal) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed beacon readiness differs from actual durable document/running marker' }
+    if ($terminal.schema_version -ne 1 -or @($terminal.activities).Count -ne 1) { throw 'invalid installed durable beacon record' }
+    $activity = $terminal.activities[0]
+    if ($activity.activity_id -ne 'cinder_debris_beacon_traversal' -or $activity.generation -le 0 -or $activity.state -ne 2 -or $activity.reward_granted -ne $false -or $activity.reward_requested -ne $true) { throw 'installed beacon is not a durable unpaid terminal' }
+    if ($activity.progress.generation -ne $activity.generation -or $activity.progress.state -ne 2 -or $activity.progress.next_beacon_index -ne 4 -or $activity.progress.beacon_count -ne 4 -or $activity.progress.reward_requested -ne $false) { throw 'installed beacon terminal generation/cursor/payment boundary differs' }
+    if ($ready.receipts -ne 0 -or (InWorld-BeaconCount $saved.payload) -ne $ready.receipts) { throw 'fresh installed beacon profile has incorrect receipt baseline' }
+    $pilot = $ready.runtime_observation
+    if ($pilot.player_seated -ne $true -or $pilot.craft_piloted -ne $true -or $pilot.craft_id -ne 'bulwark_heavy_gunship' -or $saved.payload.solo_safe_recovery.craft_id -ne $pilot.craft_id) { throw 'installed beacon arm did not retain its real safe pilot owner' }
+}
+function Assert-InWorldBeaconRecovered($final, $ready, $recovered, [string]$log) {
+    if ((InWorld-Canonical $final.payload.cinder_beacon_session) -ne (InWorld-Canonical $recovered.paid_boundary)) { throw 'installed saved beacon acknowledgement differs from recovered paid boundary' }
+    if ($final.payload.cinder_beacon_session.schema_version -ne 1 -or @($final.payload.cinder_beacon_session.activities).Count -ne 1) { throw 'invalid installed paid beacon record' }
+    $activity = $ready.boundary.activities[0]
+    $paid = $final.payload.cinder_beacon_session.activities[0]
+    if ($paid.activity_id -ne $activity.activity_id -or $paid.generation -ne $activity.generation -or $paid.state -ne 2 -or $paid.reward_requested -ne $true -or $paid.reward_granted -ne $true -or $paid.progress.reward_requested -ne $true -or $paid.progress.next_beacon_index -ne 4 -or $paid.progress.beacon_count -ne 4 -or $paid.progress.state -ne 2 -or $paid.progress.generation -ne $activity.generation) { throw 'installed paid beacon acknowledgement changed terminal identity or cursor' }
+    if ((InWorld-BeaconCount $final.payload) -ne ($ready.receipts + 1)) { throw 'installed saved beacon reward store lost or duplicated payment' }
+    $receipt = $final.payload.game_flow_reward_store.last_receipt
+    if ($receipt.activity_id -ne $activity.activity_id -or $receipt.activity_generation -ne $activity.generation -or $receipt.granted -ne $true) { throw 'installed saved beacon receipt differs from completed activity' }
+    $pilot = $recovered.safe_recovery_observation
+    if ($pilot.player_seated -ne $true -or $pilot.craft_piloted -ne $true -or $pilot.piloting -ne $true -or $pilot.craft_id -ne 'bulwark_heavy_gunship') { throw 'installed beacon cold Resume did not reacquire real safe-home pilot' }
+    if ($recovered.continuation_method -ne 'real_safe_home_pilot_resume_then_ordinary_beacon_start_retry') { throw 'installed beacon continuation method differs' }
+    $raw = Read-InWorldLog $log
+    $last = -1
+    foreach ($assertion in @(
+        'PASS: a fresh Boot process restores only the genuine unpaid beacon checkpoint and one crash event',
+        'PASS: ordinary Resume reacquires the real safe-home pilot and preserves the exact unpaid boundary before retry',
+        'PASS: the recovered real pilot accepts ordinary flight input without mutating unpaid beacon progress',
+        'PASS: ordinary HUD Start publishes one beacon payment and its existing atomic acknowledgement',
+        'PASS: duplicate and late terminal callbacks cannot pay again or change the saved beacon acknowledgement',
+        'PASS: beacon restart closes both existing recovery marker owners'
+    )) {
+        $index = $raw.IndexOf($assertion)
+        if ($index -le $last) { throw "missing ordered installed beacon recovery assertion: $assertion" }
+        $last = $index
+    }
+}
 function Assert-InWorldContext($token) {
+    $activity = $token.PSObject.Properties['activity']
+    if ($null -eq $activity) {
+        if ($InWorldRecoveryActivity -ne 'convoy') { throw 'installed payload did not report the requested recovery activity' }
+    } elseif ([string]$activity.Value -cne $InWorldRecoveryActivity) { throw 'installed payload recovery activity differs from the requested activity' }
     $context = $token.PSObject.Properties['recovery_context']
     if ($null -eq $context) {
-        if ($InWorldRecoveryContext -ne 'pilot') { throw 'installed payload did not report the requested recovery context' }
+        if ($InWorldRecoveryActivity -eq 'beacon' -or $InWorldRecoveryContext -ne 'pilot') { throw 'installed payload did not report the requested recovery context' }
         return
     }
     if ([string]$context.Value -cne $InWorldRecoveryContext) { throw 'installed payload recovery context differs from the requested context' }
@@ -454,6 +509,7 @@ function Start-InWorldOwned([string]$stage, [string]$ownedProfile, $children) {
     $info.Arguments += ' --in-world-interruption-stage=' + $stage
     # Older qualified payloads support the implicit pilot mode only.
     if ($InWorldRecoveryContext -ne 'pilot') { $info.Arguments += ' --in-world-interruption-context=' + $InWorldRecoveryContext }
+    if ($InWorldRecoveryActivity -eq 'beacon') { $info.Arguments += ' --in-world-interruption-activity=beacon' }
     $info.EnvironmentVariables.Remove('DISPLAY')
     $info.EnvironmentVariables.Remove('WAYLAND_DISPLAY')
     $proc = [Diagnostics.Process]::Start($info)
@@ -469,7 +525,7 @@ function Run-InWorldRecovery {
     Assert-UserData
     $ownedProfile = Join-Path $ProbeRoot 'in-world-profile'
     if (Test-Path -LiteralPath $ownedProfile) { throw 'in-world profile already exists; refusing to overwrite it' }
-    $probe = [ordered]@{status='FAIL'; recovery_context=$InWorldRecoveryContext; parent_windows_pid=$PID; tested_commit=$ExpectedCommit; installed_exe_sha256=$ExpectedExeSha256.ToLowerInvariant(); private_profile=$ownedProfile; cancel_path=$InWorldCancelPath; processes=@(); profile_removed=$false; normal_controls='NOT_RUN'; pilot_seat_world_restore='NOT_RUN'; native_gpu='NOT_RUN'}
+    $probe = [ordered]@{status='FAIL'; activity=$InWorldRecoveryActivity; recovery_context=$InWorldRecoveryContext; parent_windows_pid=$PID; tested_commit=$ExpectedCommit; installed_exe_sha256=$ExpectedExeSha256.ToLowerInvariant(); private_profile=$ownedProfile; cancel_path=$InWorldCancelPath; processes=@(); profile_removed=$false; normal_controls='NOT_RUN'; pilot_seat_world_restore='NOT_RUN'; native_gpu='NOT_RUN'}
     $result.in_world_probe = $probe
     $children = New-Object System.Collections.ArrayList
     $completed = $false
@@ -487,13 +543,14 @@ function Run-InWorldRecovery {
         }
         $probe.handshake_ms = $timer.ElapsedMilliseconds
         if ($null -eq $ready -or $arm.HasExited) { throw 'missing live installed in-world readiness before exit/timeout' }
-        if ($ready.entry -ne 'startup_completed' -or $ready.loaded_main_instance_id -le 0 -or $ready.receipts -ne 1) { throw 'installed arm did not use its Boot-loaded Main and one genuine prior receipt' }
+        if ($ready.entry -ne 'startup_completed' -or $ready.loaded_main_instance_id -le 0 -or $ready.receipts -ne $(if ($InWorldRecoveryActivity -eq 'beacon') { 0 } else { 1 })) { throw 'installed arm did not use its Boot-loaded Main and expected genuine receipt baseline' }
         Assert-InWorldContext $ready
         if ((InWorld-LogCounts (Join-Path $ProbeRoot 'in-world-arm.log')).diagnostic_count -ne 0) { throw 'installed arm engine/script/leak diagnostics' }
         $probe.ready = $ready
         $beforeHash = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
         $saved = Get-Content -LiteralPath $ownedDocument -Raw | ConvertFrom-Json
-        if ((InWorld-Canonical $saved.payload.cinder_convoy_session.activities[0].progress.convoy_session_state) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed readiness differs from actual durable document/running marker' }
+        if ($InWorldRecoveryActivity -eq 'beacon') { Assert-InWorldBeaconArm $saved $ready }
+        elseif ((InWorld-Canonical $saved.payload.cinder_convoy_session.activities[0].progress.convoy_session_state) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed readiness differs from actual durable document/running marker' }
         Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-interrupted-document.json')
         $probe.interrupted_document_sha256 = $beforeHash
         Check-InWorldCancel
@@ -502,6 +559,7 @@ function Run-InWorldRecovery {
         Stop-InWorldOwned $arm $children[0].Entry 'Windows Process.Kill exact owned handle after durable in-world readiness'
         if (-not $children[0].Entry.kill_called) { throw 'installed arm exited without the required owned OS kill' }
         if ($arm.ExitCode -eq 0) { throw 'installed OS kill unexpectedly reported orderly exit' }
+        if ($InWorldRecoveryActivity -eq 'beacon' -and $arm.ExitCode -ne -1) { throw 'installed beacon owned Windows OS kill did not reap exit -1' }
         $probe.after_kill_document_sha256 = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($probe.after_kill_document_sha256 -ne $beforeHash) { throw 'installed OS kill performed an orderly save' }
         $resume = Start-InWorldOwned 'resume' $ownedProfile $children
@@ -516,9 +574,17 @@ function Run-InWorldRecovery {
         if ((InWorld-LogCounts (Join-Path $ProbeRoot 'in-world-resume.log')).diagnostic_count -ne 0) { throw 'installed restart engine/script/leak diagnostics' }
         $lines = @((Read-InWorldLog (Join-Path $ProbeRoot 'in-world-resume.log')) -split '\r?\n' | Where-Object { $_.Trim().Length -gt 0 })
         if (-not $lines[-1].StartsWith('IN_WORLD_RECOVERY_OK: ')) { throw 'installed recovery token is not terminal' }
-        if ((InWorld-Canonical $recovered.boundary) -ne (InWorld-Canonical $ready.boundary) -or $recovered.receipts_before -ne 1 -or $recovered.receipts_after -ne 2 -or $recovered.crash_events -ne 1) { throw 'installed restart lost durable boundary or lost/duplicated convoy payout/crash event' }
+        if ((InWorld-Canonical $recovered.boundary) -ne (InWorld-Canonical $ready.boundary) -or $recovered.receipts_before -ne $ready.receipts -or $recovered.receipts_after -ne ($ready.receipts + 1) -or $recovered.crash_events -ne 1) { throw 'installed restart lost durable boundary or lost/duplicated activity payout/crash event' }
         $final = Get-Content -LiteralPath $ownedDocument -Raw | ConvertFrom-Json
         if ($final.payload.crash_recovery.state -ne 'clean' -or $final.payload.safe_start_recovery.state -ne 'clean_shutdown') { throw 'installed recovered process did not close both marker owners' }
+        if ($InWorldRecoveryActivity -eq 'beacon') {
+            Assert-InWorldBeaconRecovered $final $ready $recovered (Join-Path $ProbeRoot 'in-world-resume.log')
+            $probe.automated_safe_home_berth_boarding = 'PASS'
+            $probe.automated_ordinary_throttle_before_retry = 'PASS'
+            $probe.ordinary_hud_start_payment_once = 'PASS'
+            $probe.duplicate_late_callback_refusal = 'PASS'
+            $probe.durable_unpaid_boundary_held_until_retry = 'PASS'
+        }
         Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-recovered-document.json')
         $probe.recovered_document_sha256 = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
         $probe.recovered = $recovered
@@ -555,10 +621,11 @@ function Run-InWorldRecovery {
         if ($null -ne $cleanupFailure -and $completed -eq $false) { Write-Warning "in-world cleanup: $cleanupFailure" }
     }
     if (-not $completed) { throw 'installed in-world cleanup failed' }
-    return 'exact_installed_boot_main=True os_kill_reaped=True exact_durable_boundary=True receipts=1_to_2 crash_events=1 markers_clean=True private_profile_removed=True'
+    return ('exact_installed_boot_main=True os_kill_reaped=True exact_durable_boundary=True receipts=' + $ready.receipts + '_to_' + ($ready.receipts + 1) + ' crash_events=1 markers_clean=True private_profile_removed=True')
 }
 
 Step 'preconditions' {
+    Assert-InWorldSelection
     if (-not $InWorldRecovery -and $InWorldRecoveryContext -ne 'pilot') { throw 'InWorldRecoveryContext requires InWorldRecovery' }
     if (-not $InWorldRecovery -and -not [string]::IsNullOrWhiteSpace($InWorldCancelPath)) { throw 'InWorldCancelPath requires InWorldRecovery' }
     if ($InWorldRecovery) {

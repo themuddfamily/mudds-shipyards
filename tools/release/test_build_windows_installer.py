@@ -8,6 +8,7 @@ per-user install, silent flags honoured, and an uninstaller that never reaches
 into %APPDATA% user data.
 """
 
+import base64
 import hashlib
 import json
 import os
@@ -146,15 +147,26 @@ class VerifierContract(unittest.TestCase):
                                 ("Assert-RecoveryPayload", "Wait-OwnedRecoveryMarker"),
                                 ("Wait-OwnedRecoveryMarker", "Run-ForcedKillBoot"),
                                 ("Run-ForcedKillBoot", "Assert-StartupLog"),
-                                ("Assert-InWorldContext", "Start-InWorldOwned")):
+                                ("Read-InWorldLog", "Read-InWorldToken"),
+                                ("Sorted-InWorldValue", "InWorld-LogCounts"),
+                                ("Assert-InWorldSelection", "Start-InWorldOwned")):
             functions.append("function " + name + text.split("function " + name, 1)[1].split("function " + following, 1)[0])
         # Execute the production assertion functions against actual files. A
         # documented application warning is allowed; duplicate/missing menu
         # readiness, nonzero exits, engine faults and changed/lost saves fail.
-        script = "$ErrorActionPreference = 'Stop'\n" + "\n".join(functions) + r"""
+        encoded_source = base64.b64encode(text.encode("utf-8")).decode("ascii")
+        parser = (
+            "$source = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"
+            + encoded_source + "'))\n"
+            "$tokens = $null; $errors = $null\n"
+            "[Management.Automation.Language.Parser]::ParseInput($source, [ref]$tokens, [ref]$errors) | Out-Null\n"
+            "if ($errors.Count) { throw ($errors | Out-String) }\n"
+        )
+        script = "$ErrorActionPreference = 'Stop'\n" + parser + "\n".join(functions) + r"""
 $root = Join-Path ([IO.Path]::GetTempPath()) ('mudds-verifier-regression-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 try {
+    $InWorldRecoveryActivity = 'convoy'
     # A legacy pilot-only payload must never qualify a requested cabin/rest/crew run.
     foreach ($selected in @('pilot', 'cabin', 'rest', 'crew')) {
         $InWorldRecoveryContext = $selected
@@ -168,6 +180,119 @@ try {
         $rejected = $false
         try { Assert-InWorldContext ([pscustomobject]@{}) } catch { $rejected = $true }
         if ($rejected -ne ($selected -ne 'pilot')) { throw "legacy marker acceptance differs: $selected" }
+    }
+    # Beacon requires an explicit activity/context marker and a pilot-only selection.
+    $InWorldRecovery = $true
+    $InWorldRecoveryActivity = 'beacon'
+    $InWorldRecoveryContext = 'pilot'
+    Assert-InWorldSelection
+    Assert-InWorldContext ([pscustomobject]@{activity='beacon'; recovery_context='pilot'})
+    foreach ($token in @(@{recovery_context='pilot'}, @{activity='convoy'; recovery_context='pilot'}, @{activity='BEACON'; recovery_context='pilot'}, @{activity='beacon'}, @{activity='beacon'; recovery_context='cabin'})) {
+        $rejected = $false
+        try { Assert-InWorldContext ([pscustomobject]$token) } catch { $rejected = $true }
+        if (-not $rejected) { throw 'unsupported beacon marker accepted' }
+    }
+    foreach ($selected in @('cabin','rest','crew')) {
+        $InWorldRecoveryContext = $selected
+        $rejected = $false
+        try { Assert-InWorldSelection } catch { $rejected = $true }
+        if (-not $rejected) { throw 'unsupported beacon context accepted' }
+    }
+    $InWorldRecoveryContext = 'pilot'
+    $InWorldRecovery = $false
+    $rejected = $false
+    try { Assert-InWorldSelection } catch { $rejected = $true }
+    if (-not $rejected) { throw 'beacon without in-world recovery accepted' }
+    $InWorldRecoveryActivity = 'convoy'
+    Assert-InWorldSelection
+    # Minimal genuine terminal shape: test production assertions, changing both
+    # token and disk together so structural checks also reject matching bad data.
+    $beacon = @{
+        schema_version=1; activities=@(@{
+            activity_id='cinder_debris_beacon_traversal'; generation=1; state=2
+            reward_requested=$true; reward_granted=$false
+            progress=@{generation=1; state=2; next_beacon_index=4; beacon_count=4; reward_requested=$false}
+        })
+    } | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+    $ready = [pscustomobject]@{boundary=$beacon; receipts=0; runtime_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; craft_id='bulwark_heavy_gunship'}}
+    $saved = [pscustomobject]@{payload=[pscustomobject]@{
+        cinder_beacon_session=$beacon; crash_recovery=[pscustomobject]@{state='running'}
+        solo_safe_recovery=[pscustomobject]@{craft_id='bulwark_heavy_gunship'}
+        game_flow_reward_store=[pscustomobject]@{reward_counts=[pscustomobject]@{debris_route_navigation_data=0}}
+    }}
+    Assert-InWorldBeaconArm $saved $ready
+    foreach ($mutation in @(
+        {$saved.payload.cinder_beacon_session.activities[0].generation=0},
+        {$saved.payload.cinder_beacon_session.activities[0].reward_granted=$true},
+        {$saved.payload.cinder_beacon_session.activities[0].progress.generation=2},
+        {$saved.payload.cinder_beacon_session.activities[0].progress.next_beacon_index=3},
+        {$saved.payload.cinder_beacon_session.activities[0].progress.reward_requested=$true},
+        {$saved.payload.game_flow_reward_store.reward_counts.debris_route_navigation_data=1},
+        {$saved.payload.crash_recovery.state='clean'},
+        {$ready.runtime_observation.player_seated=$false},
+        {$saved.payload.solo_safe_recovery.craft_id='torrent_provisional'}
+    )) {
+        $savedBaseline = $saved | ConvertTo-Json -Depth 12
+        $readyBaseline = $ready | ConvertTo-Json -Depth 12
+        & $mutation
+        $rejected = $false
+        $ready.boundary = $saved.payload.cinder_beacon_session
+        try { Assert-InWorldBeaconArm $saved $ready } catch { $rejected = $true }
+        if (-not $rejected) { throw 'invalid beacon unpaid boundary accepted' }
+        $saved = $savedBaseline | ConvertFrom-Json
+        $ready = $readyBaseline | ConvertFrom-Json
+    }
+    $paid = $ready.boundary | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+    $paid.activities[0].reward_granted=$true
+    $paid.activities[0].progress.reward_requested=$true
+    $final = [pscustomobject]@{payload=[pscustomobject]@{
+        cinder_beacon_session=$paid
+        game_flow_reward_store=[pscustomobject]@{
+            reward_counts=[pscustomobject]@{debris_route_navigation_data=1}
+            last_receipt=[pscustomobject]@{activity_id='cinder_debris_beacon_traversal'; activity_generation=1; granted=$true}
+        }
+    }}
+    $recovered = [pscustomobject]@{
+        paid_boundary=$paid
+        safe_recovery_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; piloting=$true; craft_id='bulwark_heavy_gunship'}
+        continuation_method='real_safe_home_pilot_resume_then_ordinary_beacon_start_retry'
+    }
+    $beaconLog = Join-Path $root 'beacon.log'
+    $beaconAssertions = @(
+        'PASS: a fresh Boot process restores only the genuine unpaid beacon checkpoint and one crash event',
+        'PASS: ordinary Resume reacquires the real safe-home pilot and preserves the exact unpaid boundary before retry',
+        'PASS: the recovered real pilot accepts ordinary flight input without mutating unpaid beacon progress',
+        'PASS: ordinary HUD Start publishes one beacon payment and its existing atomic acknowledgement',
+        'PASS: duplicate and late terminal callbacks cannot pay again or change the saved beacon acknowledgement',
+        'PASS: beacon restart closes both existing recovery marker owners'
+    )
+    [IO.File]::WriteAllText($beaconLog, ($beaconAssertions -join "`n") + "`n")
+    Assert-InWorldBeaconRecovered $final $ready $recovered $beaconLog
+    foreach ($mutation in @(
+        {$final.payload.cinder_beacon_session.activities[0].generation=2},
+        {$final.payload.cinder_beacon_session.activities[0].reward_granted=$false},
+        {$final.payload.cinder_beacon_session.activities[0].progress.reward_requested=$false},
+        {$final.payload.game_flow_reward_store.reward_counts.debris_route_navigation_data=2},
+        {$final.payload.game_flow_reward_store.last_receipt.activity_generation=2},
+        {$recovered.safe_recovery_observation.piloting=$false},
+        {$recovered.continuation_method='simulated_payment'}
+    )) {
+        $finalBaseline = $final | ConvertTo-Json -Depth 12
+        $recoveredBaseline = $recovered | ConvertTo-Json -Depth 12
+        & $mutation
+        $rejected = $false
+        $recovered.paid_boundary = $final.payload.cinder_beacon_session
+        try { Assert-InWorldBeaconRecovered $final $ready $recovered $beaconLog } catch { $rejected = $true }
+        if (-not $rejected) { throw 'invalid saved beacon payment/continuation accepted' }
+        $final = $finalBaseline | ConvertFrom-Json
+        $recovered = $recoveredBaseline | ConvertFrom-Json
+    }
+    foreach ($missing in $beaconAssertions) {
+        [IO.File]::WriteAllText($beaconLog, (($beaconAssertions | Where-Object { $_ -ne $missing }) -join "`n") + "`n")
+        $rejected = $false
+        $recovered.paid_boundary = $final.payload.cinder_beacon_session
+        try { Assert-InWorldBeaconRecovered $final $ready $recovered $beaconLog } catch { $rejected = $true }
+        if (-not $rejected) { throw 'missing real beacon continuation assertion accepted' }
     }
     $log = Join-Path $root 'startup.log'
     [IO.File]::WriteAllText($log, "WARNING: Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema`nSTARTUP_MENU_READY_OK: {}`n")
