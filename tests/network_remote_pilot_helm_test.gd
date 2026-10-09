@@ -80,6 +80,7 @@ var _roll_port := 0
 var _roll_child_pid := -1
 var _package_under_test := ""
 var _roll_edges := 0
+var _physical_interact_signals := 0
 var _production_max_physics_steps_per_frame := Engine.max_physics_steps_per_frame
 var _clock_trace_rejections := 0
 var _roll_pose_snapshot: Dictionary = {}
@@ -888,6 +889,10 @@ func _run_roll_peer() -> void:
 	begin_button.pressed.emit()
 	_check(await _wait_until(func() -> bool: return _host.phase == GameFlow.Phase.APPROACH_SHIP \
 		and not _host.hud._intro.visible, 8.0), "independent peer enters gameplay through Begin Shift")
+	_host.player.interact_requested.connect(func() -> void:
+		_physical_interact_signals += 1
+		_physical_interact_trace(&"player_signal")
+	)
 	await process_frame
 	await physics_frame
 	set_multiplayer(SceneMultiplayer.new(), _host.get_path())
@@ -1105,10 +1110,44 @@ func _wait_peer_until(predicate: Callable, timeout_seconds: float) -> bool:
 func _peer_interact() -> void:
 	# Deliver the physical edge immediately ahead of the player's physics poll.
 	await physics_frame
+	_physical_interact_trace(&"before_key")
 	_roll_key_action(&"interact", true)
+	_physical_interact_trace(&"pressed")
 	await _roll_peer_step()
+	_physical_interact_trace(&"before_release")
 	_roll_key_action(&"interact", false)
 	await _roll_peer_step()
+	_physical_interact_trace(&"released")
+
+
+func _physical_interact_trace(marker: StringName) -> void:
+	var actor := _host.player
+	var area := _craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var focus := _host.get_viewport().gui_get_focus_owner()
+	var source := _craft.get_local_input_source()
+	var sample := _host._network_craft_pose_stream.latest_sample(SHIP_ID)
+	print("NETWORK_PHYSICAL_INTERACT_TRACE: ", {
+		"marker": marker, "physics_frame": Engine.get_physics_frames(),
+		"in_physics": Engine.is_in_physics_frame(), "paused": paused,
+		"phase": _host.phase, "busy": _host._transition_busy,
+		"started": _host.hud._started, "intro": _host.hud._intro.visible,
+		"intro_alpha": _host.hud._intro.modulate.a,
+		"focus": focus.get_path() if is_instance_valid(focus) else NodePath(),
+		"control": actor.is_control_enabled(), "remote": actor.is_remote_driven(),
+		"embodiment": actor._embodiment_state, "actor_physics": actor.is_physics_processing(),
+		"actor_can_process": actor.can_process(), "held": Input.is_action_pressed(&"interact"),
+		"edge": Input.is_action_just_pressed(&"interact"), "signals": _physical_interact_signals,
+		"near_ship": _host._near_ship, "candidate": _host.boarding_candidate == _craft,
+		"station": _host.station_interaction_candidate.name if is_instance_valid(_host.station_interaction_candidate) else &"",
+		"reserved": area.is_reserved(), "reservation_is_actor": area.get_reservation_token() == actor,
+		"input_owner": source.is_enabled_owner(), "input_authority": source.get_authority_peer_id(),
+		"input_focused": source._application_focused,
+		"requests": _host.get_network_client_boarding_audit().get("requests", 0),
+		"craft_position": _craft.global_position, "actor_position": actor.global_position,
+		"sample_position": sample.get("position"), "sample_tick": sample.get("pose_tick", -1),
+		"sample_generation": sample.get("entity_generation", -1),
+		"hatch_distance": actor.get_interaction_origin().distance_to(_craft.get_boarding_position()),
+	})
 
 
 func _roll_peer_wait(role: String, marker: String, send_helm: bool = true) -> bool:
@@ -1413,6 +1452,15 @@ func _clock_trace(marker: String) -> void:
 
 
 func _peer_reboard_from_exterior() -> void:
+	var hatch_deadline := Time.get_ticks_msec() + 8000
+	_physical_interact_trace(&"approach_before_pose")
+	# Admission can precede the first host pose. Approach the presented craft,
+	# so the first replica application cannot move its hatch away from the key.
+	var presented := await _wait_peer_until(_peer_craft_pose_is_presented, 8.0)
+	_check(presented, "physical hatch approach waits for its accepted host craft pose")
+	if not presented:
+		return
+	_physical_interact_trace(&"approach_pose_ready")
 	# Approach setup uses the actual hatch and production discovery. No direct
 	# board call, claim/phase write, or synthetic logical action replaces the key.
 	_host.player.teleport_to(Transform3D(Basis.IDENTITY, _craft.get_boarding_position() + Vector3(8, 0, 0)))
@@ -1432,11 +1480,30 @@ func _peer_reboard_from_exterior() -> void:
 	await _peer_interact()
 	_check(await _wait_peer_until(func() -> bool: return _host.phase == GameFlow.Phase.IN_FLIGHT_CABIN \
 		and _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PASSENGER \
-		and not _host._transition_busy, 8.0), "physical hatch key boards a confirmed cabin berth")
+		and not _host._transition_busy, maxf(0.0, float(hatch_deadline - Time.get_ticks_msec()) / 1000.0)),
+		"physical hatch key boards a confirmed cabin berth")
 	await _peer_take_pilot_from_cabin()
 
 
+func _peer_craft_pose_is_presented() -> bool:
+	var sample := _host._network_craft_pose_stream.latest_sample(SHIP_ID)
+	return not sample.is_empty() and int(sample.get("entity_generation", 0)) > 0 \
+		and int(sample.get("pose_tick", 0)) > 0 and sample.get("position") is Vector3 \
+		and sample.get("rotation") is Quaternion \
+		and _craft.global_position.distance_to(sample.position) <= 0.01 \
+		and _craft.global_basis.orthonormalized().get_rotation_quaternion().angle_to(sample.rotation) <= 0.001
+
+
 func _peer_take_pilot_from_cabin() -> void:
+	var cockpit_deadline := Time.get_ticks_msec() + 8000
+	# A retained cabin can join a fresh session too. Present its first host
+	# pose before choosing the supported cockpit approach inside that hull.
+	_physical_interact_trace(&"cockpit_before_pose")
+	var presented := await _wait_peer_until(_peer_craft_pose_is_presented, 8.0)
+	_check(presented, "physical cockpit approach waits for its accepted host craft pose")
+	if not presented:
+		return
+	_physical_interact_trace(&"cockpit_pose_ready")
 	_host.player.teleport_to(_craft.get_in_flight_cabin_report().get("stand_transform"))
 	await _roll_peer_step(false)
 	_host._refresh_interaction_targets()
@@ -1458,7 +1525,7 @@ func _peer_take_pilot_from_cabin() -> void:
 	await _peer_interact()
 	var cockpit_reused := await _wait_peer_until(func() -> bool: return _host._piloting and _craft.is_piloted() \
 		and _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PILOT \
-		and not _host._transition_busy, 8.0)
+		and not _host._transition_busy, maxf(0.0, float(cockpit_deadline - Time.get_ticks_msec()) / 1000.0))
 	print("DOCK_REUSE_COCKPIT_AFTER: ", {"reused": cockpit_reused, "phase": _host.phase,
 		"claim": _host._network_client_boarding_claim, "request": _host._network_client_boarding_request,
 		"boarding": _host.get_network_client_boarding_audit(), "player_local": _craft.to_local(_host.player.global_position)})
