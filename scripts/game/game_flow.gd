@@ -922,6 +922,8 @@ var _solo_crew_ship: HeroShip
 var _solo_crew_authority: CrewSeatRoleAuthority
 var _solo_crew_sequence := 0
 var _solo_crew_seat_generation := 0
+var _solo_crew_lifetime_hook: Node
+var _solo_crew_lifetime_callback: Callable
 var _solo_crew_seat_id: StringName = &""
 var _solo_crew_role: StringName = &""
 var _solo_gunner_input_elapsed := 0.0
@@ -9032,6 +9034,7 @@ func _solo_crew_claim_is_current() -> bool:
 
 
 func _release_solo_crew_authority() -> bool:
+	_release_solo_crew_lifetime_hook()
 	_reset_solo_gunner_input()
 	if _solo_crew_authority == null:
 		return true
@@ -9159,6 +9162,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 		return
 	_solo_crew_seat_generation = int((claimed.assignment as Dictionary).seat_generation)
 	_solo_crew_seat = seat
+	_install_solo_crew_lifetime_hook(craft, seat)
 	_station_seat_recovery_transform = seat.get_exit_transform()
 	_transition_busy = true
 	var generation := _begin_transition_generation()
@@ -9235,9 +9239,55 @@ func _stand_from_solo_crew_seat() -> void:
 	_capture_solo_safe_recovery_context()
 
 
+## This last plain child exits before the craft's retained geometry, display,
+## chair and frame. It exists only for the exact acquired local crew lifetime.
+func _install_solo_crew_lifetime_hook(craft: HeroShip, seat: ShipCrewSeat) -> void:
+	_release_solo_crew_lifetime_hook()
+	var hook := Node.new()
+	hook.name = "SoloCrewSeatLifetime"
+	_solo_crew_lifetime_hook = hook
+	_solo_crew_lifetime_callback = _on_solo_crew_lifetime_tree_exiting.bind(
+		hook, craft, seat, _solo_crew_authority, _solo_crew_seat_generation
+	)
+	craft.add_child(hook)
+	hook.tree_exiting.connect(_solo_crew_lifetime_callback)
+
+
+func _release_solo_crew_lifetime_hook() -> void:
+	var hook := _solo_crew_lifetime_hook
+	var callback := _solo_crew_lifetime_callback
+	_solo_crew_lifetime_hook = null
+	_solo_crew_lifetime_callback = Callable()
+	if not is_instance_valid(hook):
+		return
+	if hook.tree_exiting.is_connected(callback):
+		hook.tree_exiting.disconnect(callback)
+	hook.queue_free()
+
+
+func _on_solo_crew_lifetime_tree_exiting(hook: Variant, craft: Variant, seat: Variant,
+		owner: CrewSeatRoleAuthority, generation: int) -> void:
+	# Another endpoint can have been freed earlier in the same deferred batch.
+	# Validate bound Objects before Godot's type/category or method dispatch.
+	if not is_instance_valid(hook) or not is_instance_valid(craft) or not is_instance_valid(seat):
+		return
+	if not hook is Node or not craft is HeroShip or not seat is ShipCrewSeat:
+		return
+	if hook != _solo_crew_lifetime_hook or craft != _solo_crew_ship or seat != _solo_crew_seat \
+			or owner != _solo_crew_authority or generation != _solo_crew_seat_generation \
+			or not is_instance_valid(craft) or craft.call(&"get_crew_role_authority") != owner:
+		return
+	var assignment := owner.get_assignment(1, SOLO_CREW_AVATAR_ID)
+	if assignment.get("seat_id") != _solo_crew_seat_id \
+			or int(assignment.get("seat_generation", 0)) != generation:
+		return
+	_cancel_solo_crew_seat()
+
+
 ## Interrupted acquisition, detach, hull loss and session handback share one
 ## cancellation. It releases only this exact local role and never a foreign one.
 func _cancel_solo_crew_seat() -> void:
+	_release_solo_crew_lifetime_hook()
 	_reset_solo_gunner_input()
 	if _solo_crew_authority == null or _solo_crew_seat_generation == 0:
 		return
@@ -9252,7 +9302,7 @@ func _cancel_solo_crew_seat() -> void:
 	var pose := _station_seat_recovery_transform
 	if is_instance_valid(_solo_crew_seat) and _solo_crew_seat.is_inside_tree() and not _solo_crew_seat.get_role_contract().is_empty():
 		pose = _solo_crew_seat.get_exit_transform()
-	var live_cabin := is_instance_valid(craft) and craft.is_inside_tree() and not craft.is_destroyed() and not _solo_safe_recovery_cabin(craft).is_empty()
+	var live_cabin := is_instance_valid(craft) and craft.is_inside_tree() and not craft.is_queued_for_deletion() and not craft.is_destroyed() and not _solo_safe_recovery_cabin(craft).is_empty()
 	if not live_cabin and is_instance_valid(world) and world.is_inside_tree():
 		pose = world.get_player_spawn()
 	_solo_crew_seat = null

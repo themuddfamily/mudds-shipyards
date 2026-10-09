@@ -645,11 +645,21 @@ func _test_real_solo_crew_recovery() -> void:
 	var context: Dictionary = store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT]
 	_check(context.get("mode") == "crew" and context.get("craft_id") == String(craft.get_ship_id()) and context.size() == 4 and FileAccess.file_exists(path), "a settled real passenger persists only safe crew mode and its registered craft/home berth to an actual file")
 	var retained_player := game.player
+	var lifetime_hook := craft.get_node("SoloCrewSeatLifetime")
+	lifetime_hook.tree_exiting.connect(func() -> void:
+		_check(craft.is_inside_tree() and seat.is_inside_tree() and retained_player.is_inside_tree()
+			and craft.get_moving_interior_component().is_inside_tree()
+			and not (game.call("_solo_safe_recovery_cabin", craft) as Dictionary).is_empty(),
+			"the exact crew lifetime exits while its real chair, supported geometry, frame and Player remain live"), Object.CONNECT_ONE_SHOT)
 	root.remove_child(game)
 	root.add_child(game)
 	await _settle_frames()
 	game.set_physics_process(true)
-	_check(game.player == retained_player and not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor() and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META), "retained Main releases passenger ownership and keeps the same supported usable Player")
+	_check(game.player == retained_player and not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor() and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META)
+		and game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and game.get_in_flight_cabin_status().carried
+		and game.player.is_cabin_containment_active() and craft.get_crew_role_authority() == null
+		and craft.get_node_or_null("SoloCrewSeatLifetime") == null,
+		"retained Main releases passenger ownership and keeps the same supported usable cabin Player")
 	await _press_crew_interaction()
 	_check(game.player.is_seated_at(craft.get_loadmaster_station_anchor()), "retained Main can admit the same Player again through ordinary input")
 	game.call("_capture_solo_safe_recovery_context")
