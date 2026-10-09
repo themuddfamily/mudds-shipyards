@@ -41,6 +41,7 @@ func advance_physics(delta: float) -> Dictionary:
 		return _result(false, &"invalid_delta")
 	_elapsed = minf(SCAN_SECONDS, _elapsed + delta)
 	if is_equal_approx(_elapsed, SCAN_SECONDS):
+		_elapsed = SCAN_SECONDS
 		_state = State.COMPLETE
 	return _result(true, &"complete" if _state == State.COMPLETE else &"advanced")
 
@@ -93,6 +94,86 @@ func get_snapshot() -> Dictionary:
 		"gameplay_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+## Compact authority state in the already-supported nearby session codec.
+func get_persistence_snapshot() -> Dictionary:
+	var snapshot := get_snapshot()
+	for key in ["state_id", "progress_unitless", "checkpoint_id", "reset_serial",
+			"structure_anchor", "approach_anchor", "reward_pending"]:
+		snapshot.erase(key)
+	return snapshot
+
+
+static func validate_persistence_record(value: Variant) -> Dictionary:
+	if not value is Dictionary:
+		return {"accepted": false, "reason": &"scan_session_invalid"}
+	if value.get("schema_version") != SCHEMA_VERSION:
+		return {"accepted": false, "reason": &"scan_session_unsupported_schema"}
+	if value.size() != 2 or not value.get("activities") is Array or value.activities.size() != 1:
+		return {"accepted": false, "reason": &"scan_session_invalid"}
+	var entry: Variant = value.activities[0]
+	if not entry is Dictionary or entry.size() != 6 or not entry.get("progress") is Dictionary:
+		return {"accepted": false, "reason": &"scan_session_invalid"}
+	var state: Dictionary = entry.progress
+	var defaults := CinderAbandonedStructureScanActivity.new().get_persistence_snapshot()
+	if state.size() != defaults.size():
+		return {"accepted": false, "reason": &"scan_session_invalid"}
+	for key in defaults:
+		if not state.has(key) or (key not in ["state", "generation", "elapsed_seconds", "reward_requested"] and state[key] != defaults[key]):
+			return {"accepted": false, "reason": &"scan_session_invalid"}
+	for key in ["state", "generation"]:
+		var number: Variant = state[key]
+		if not (number is int or number is float) or not is_finite(float(number)) \
+				or float(number) != floor(float(number)) or float(number) < 0.0 or float(number) > 2147483647.0:
+			return {"accepted": false, "reason": &"scan_session_invalid"}
+	var elapsed: Variant = state.elapsed_seconds
+	if not (elapsed is int or elapsed is float) or not is_finite(float(elapsed)):
+		return {"accepted": false, "reason": &"scan_session_invalid"}
+	var lifecycle := int(state.state)
+	var generation := int(state.generation)
+	var seconds := float(elapsed)
+	if lifecycle not in [State.IDLE, State.SCANNING, State.COMPLETE, State.RESET] \
+			or (generation == 0) != (lifecycle == State.IDLE) \
+			or seconds < 0.0 or seconds > SCAN_SECONDS \
+			or (lifecycle == State.COMPLETE and seconds != SCAN_SECONDS) \
+			or (lifecycle == State.SCANNING and seconds >= SCAN_SECONDS) \
+			or (lifecycle in [State.IDLE, State.RESET] and seconds != 0.0) \
+			or entry.get("activity_id") != String(ACTIVITY_ID) \
+			or entry.get("generation") != state.generation or entry.get("state") != state.state \
+			or not entry.get("reward_requested") is bool or not entry.get("reward_granted") is bool \
+			or not state.get("reward_requested") is bool \
+			or entry.reward_requested != (lifecycle == State.COMPLETE) \
+			or (entry.reward_granted and not entry.reward_requested) \
+			or state.reward_requested != entry.reward_granted:
+		return {"accepted": false, "reason": &"scan_session_invalid"}
+	return {"accepted": true, "reason": &"scan_session_valid"}
+
+
+func acknowledge_persisted_reward(record: Dictionary) -> Dictionary:
+	var checked := validate_persistence_record(record)
+	if not checked.accepted:
+		return checked
+	var entry: Dictionary = record.activities[0]
+	if _state != State.COMPLETE or int(entry.generation) != _generation \
+			or not entry.reward_granted or int(entry.state) != State.COMPLETE:
+		return _result(false, &"scan_payment_generation_mismatch")
+	_reward_requested = true
+	return _result(true, &"scan_payment_recovered")
+
+
+func restore_persistence_record(record: Dictionary) -> Dictionary:
+	var checked := validate_persistence_record(record)
+	if not checked.accepted:
+		return checked
+	if _generation != 0 or _state != State.IDLE:
+		return _result(false, &"scan_session_owner_already_active")
+	var state: Dictionary = record.activities[0].progress
+	_generation = int(state.generation)
+	_state = int(state.state)
+	_elapsed = float(state.elapsed_seconds)
+	_reward_requested = state.reward_requested
+	return _result(true, &"scan_session_restored")
 
 
 static func _state_id(state: int) -> StringName:

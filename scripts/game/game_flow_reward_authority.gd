@@ -234,6 +234,25 @@ func commit(request: Variant) -> Dictionary:
 			return _reject(&"reward_generation_already_committed")
 		race_completion = saved_race
 
+	var scan_completion: Dictionary = {}
+	if activity_id == CINDER_SCAN_ACTIVITY_ID:
+		var scan_slot: Variant = (payload as Dictionary).get("cinder_structure_scan_session")
+		var validated := CinderAbandonedStructureScanActivity.validate_persistence_record(scan_slot)
+		if not bool(validated.get("accepted", false)):
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		scan_completion = scan_slot.activities[0]
+		if int(scan_completion.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
+		if not scan_completion.reward_requested:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		if scan_completion.reward_granted:
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+
 	var beacon_completion: Dictionary = {}
 	if activity_id == CINDER_BEACON_ACTIVITY_ID:
 		var beacon_slot: Variant = (payload as Dictionary).get("cinder_beacon_session")
@@ -426,6 +445,10 @@ func commit(request: Variant) -> Dictionary:
 	if not race_completion.is_empty():
 		var acknowledged := (next_payload.cinder_timed_race_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true
+	if not scan_completion.is_empty():
+		var acknowledged := (next_payload.cinder_structure_scan_session.activities[0] as Dictionary)
+		acknowledged.reward_granted = true
+		(acknowledged.progress as Dictionary).reward_requested = true
 	if not beacon_completion.is_empty():
 		var acknowledged := (next_payload.cinder_beacon_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true

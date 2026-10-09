@@ -220,6 +220,7 @@ func _run() -> void:
 			and int((after_ember.reward_counts as Dictionary).ember_beacon_data) == 1,
 		"the typed Ember relay completion joins the same persisted receipt sequence"
 	)
+	_check(_save_actual_scan_completion(store), "the actual scan owner checkpoints its legitimate terminal before payment")
 	var scan := authority.commit(_request(
 		&"cinder_derelict_structure_scan",
 		1,
@@ -494,3 +495,16 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + message)
+
+
+func _save_actual_scan_completion(store: UserDataStore) -> bool:
+	var scan := CinderAbandonedStructureScanActivity.new()
+	if not scan.start(scan.APPROACH_ANCHOR).accepted or not scan.advance_physics(scan.SCAN_SECONDS).accepted:
+		return false
+	var record := NearbySectorActivitySessionAdapter.new().capture({"structure_scan": scan.get_persistence_snapshot()})
+	record.activities[0].reward_requested = true
+	if not store.load().accepted:
+		return false
+	var payload := store.get_snapshot()
+	payload["cinder_structure_scan_session"] = JSON.parse_string(JSON.stringify(record))
+	return bool(store.commit(payload, store.get_generation(), "unit-real-scan-completion").accepted)

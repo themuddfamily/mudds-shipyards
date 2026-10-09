@@ -1571,9 +1571,66 @@ func get_structure_scan_reward_handoff_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+func capture_structure_scan_session() -> Dictionary:
+	if _scan_activity == null:
+		return {}
+	var state := _scan_activity.call("get_persistence_snapshot") as Dictionary
+	var record := NearbySectorActivitySessionAdapter.new().capture({"structure_scan": state})
+	var entry := record.activities[0] as Dictionary
+	entry.reward_requested = int(state.state) == SCAN_ACTIVITY.State.COMPLETE
+	entry.reward_granted = bool(state.reward_requested)
+	return JSON.parse_string(JSON.stringify(record)) as Dictionary
+
+
+func restore_structure_scan_session(record: Dictionary) -> Dictionary:
+	if _scan_activity == null:
+		return _result(false, &"not_ready")
+	var restored := _scan_activity.call("restore_persistence_record", record) as Dictionary
+	if bool(restored.get("accepted", false)):
+		_restored_scan_discovery.clear()
+		if record.activities[0].reward_granted:
+			_retain_persisted_structure_scan_payment()
+		_publish_structure_scan_presentation()
+	return restored
+
+
+func acknowledge_structure_scan_reward(record: Dictionary) -> Dictionary:
+	if _scan_activity == null or not _structure_scan_reward_sink.is_valid():
+		return _result(false, &"not_ready")
+	var acknowledged := _scan_activity.call("acknowledge_persisted_reward", record) as Dictionary
+	if bool(acknowledged.get("accepted", false)):
+		_retain_persisted_structure_scan_payment()
+		var saved := _persist_structure_scan_discovery(_last_structure_scan_reward_result)
+		_last_structure_scan_reward_result["discovery_persisted"] = bool(saved.get("accepted", false))
+		_publish_structure_scan_presentation()
+	return acknowledged
+
+
+## This projection comes only after the activity validates its durable paid
+## terminal. The legacy discovery writer can retry without replaying payment.
+func _retain_persisted_structure_scan_payment() -> void:
+	_last_structure_scan_reward_result = _scan_activity.call("get_snapshot") as Dictionary
+	_last_structure_scan_reward_result.merge({
+		"accepted": true, "reason": &"reward_request_ready", "reward_committed": true,
+		"discovery_persisted": false,
+		"reward_request": {"activity_id": SCAN_ACTIVITY.ACTIVITY_ID,
+			"reward_id": SCAN_ACTIVITY.REWARD_ID,
+			"generation": int(_last_structure_scan_reward_result.generation), "granted": false},
+	}, true)
+
+
+func _has_pending_structure_scan_reward() -> bool:
+	if _scan_activity == null or not _structure_scan_reward_sink.is_valid():
+		return false
+	var snapshot := _scan_activity.call("get_snapshot") as Dictionary
+	return int(snapshot.state) == SCAN_ACTIVITY.State.COMPLETE and not bool(snapshot.reward_requested)
+
+
 func start_structure_scan(caller_position: Vector3) -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
+	if _has_pending_structure_scan_reward():
+		return _result(false, &"structure_scan_reward_save_pending")
 	if _has_pending_structure_scan_discovery():
 		return _result(false, &"scan_discovery_save_pending")
 	var result: Dictionary = _scan_activity.call("start", caller_position)
@@ -1720,6 +1777,8 @@ func _has_pending_structure_scan_discovery() -> bool:
 func reset_structure_scan() -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
+	if _has_pending_structure_scan_reward():
+		return _result(false, &"structure_scan_reward_save_pending")
 	if _has_pending_structure_scan_discovery():
 		return _result(false, &"scan_discovery_save_pending")
 	var result: Dictionary = _scan_activity.call("reset")
@@ -1775,6 +1834,8 @@ func configure_cinder_scan_discovery_persistence(
 			restored.get("discovery", {}) as Dictionary
 		).duplicate(true)
 		_last_scan_discovery_persistence_result = restored.duplicate(true)
+		if bool(_last_structure_scan_reward_result.get("reward_committed", false)):
+			_last_structure_scan_reward_result["discovery_persisted"] = true
 		_publish_structure_scan_presentation()
 	elif StringName(restored.get("reason", &"")) != &"scan_discovery_not_found":
 		_last_scan_discovery_persistence_result = restored.duplicate(true)
@@ -2667,6 +2728,8 @@ func _structure_scan_presentation_snapshot() -> Dictionary:
 	):
 		_clear_structure_scan_feedback()
 	snapshot["presentation_reason"] = _last_structure_scan_feedback_reason
+	if _has_pending_structure_scan_reward():
+		snapshot["reward_pending"] = true
 	if _has_pending_structure_scan_discovery():
 		snapshot["persistence_retry_available"] = true
 	var reward_result_matches := (
@@ -2681,8 +2744,9 @@ func _structure_scan_presentation_snapshot() -> Dictionary:
 			and bool(authority_result.get("accepted", false))
 			and bool(authority_result.get("granted", false))
 		)
+		reward_committed = reward_committed or bool(_last_structure_scan_reward_result.get("reward_committed", false))
 		snapshot["reward_committed"] = reward_committed
-		snapshot["reward_pending"] = (
+		snapshot["reward_pending"] = _has_pending_structure_scan_reward() or (
 			bool(snapshot.get("reward_requested", false)) and not reward_committed
 		)
 		snapshot["reward_handoff_reason"] = StringName(
@@ -2700,9 +2764,10 @@ func _structure_scan_presentation_snapshot() -> Dictionary:
 		snapshot["elapsed_seconds"] = duration
 		snapshot["scan_seconds"] = duration
 		snapshot["progress_unitless"] = 1.0
-	elif state != SCAN_ACTIVITY.State.COMPLETE:
+	elif state != SCAN_ACTIVITY.State.COMPLETE or not bool(snapshot.get("reward_requested", false)):
 		return snapshot.duplicate(true)
-	snapshot["reward_requested"] = false
+	if generation == 0:
+		snapshot["reward_requested"] = false
 	snapshot["reward_pending"] = false
 	snapshot["discovery_persisted"] = true
 	snapshot["discovery_receipt"] = (

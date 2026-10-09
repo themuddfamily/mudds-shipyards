@@ -724,6 +724,8 @@ var _cinder_cargo_hud_elapsed := 0.0
 var _cinder_mining_hud_elapsed := 0.0
 var _cinder_beacon_traversal_reward_configuration: Dictionary = {}
 var _last_cinder_beacon_traversal_reward_result: Dictionary = {}
+var _cinder_scan_checkpoint_elapsed := 0.0
+var _cinder_scan_session_owner: WeakRef
 var _cinder_beacon_session_owner: WeakRef
 var _cinder_asteroid_field_reward_configuration: Dictionary = {}
 var _last_cinder_asteroid_field_reward_result: Dictionary = {}
@@ -17794,6 +17796,7 @@ func _advance_cinder_structure_scan(
 		StringName(scan.get("state_id", &"")) != &"active"
 		or int(scan.get("generation", 0)) < 1
 	):
+		_cinder_scan_checkpoint_elapsed = 0.0
 		return {"accepted": false, "reason": &"structure_scan_inactive"}
 	var reward_handoff_ready := _cinder_structure_scan_reward_handoff_ready(binding)
 	var caller_position := _cinder_nearby_activity_authored_position(actor_sample)
@@ -17805,9 +17808,15 @@ func _advance_cinder_structure_scan(
 		bool(advanced.get("accepted", false))
 		and StringName(advanced.get("reason", &"")) == &"complete"
 	)
+	if bool(advanced.get("accepted", false)) and _game_flow_reward_authority != null:
+		_cinder_scan_checkpoint_elapsed += maxf(delta, 0.0)
+		if completed or _cinder_scan_checkpoint_elapsed >= 0.5:
+			advanced["persistence_result"] = _save_cinder_scan_session(binding)
+			if bool((advanced.persistence_result as Dictionary).get("accepted", false)):
+				_cinder_scan_checkpoint_elapsed = 0.0
 	if completed:
 		var reward := (
-			binding.call(&"request_structure_scan_reward") as Dictionary
+			_request_cinder_structure_scan_reward(binding)
 			if reward_handoff_ready else {
 				"accepted": false,
 				"reason": &"structure_scan_reward_handoff_unavailable",
@@ -18035,7 +18044,90 @@ func _configure_cinder_structure_scan_reward_handoff(binding: Object) -> Diction
 			&"configure_structure_scan_reward_handoff",
 			Callable(self, &"_commit_game_flow_activity_reward"),
 		) as Dictionary
+	if bool(_cinder_structure_scan_reward_configuration.get("accepted", false)):
+		_cinder_structure_scan_reward_configuration["session_result"] = _ensure_cinder_scan_session(binding)
 	return _cinder_structure_scan_reward_configuration.duplicate(true)
+
+
+func _ensure_cinder_scan_session(binding: Object) -> Dictionary:
+	if not is_instance_valid(binding) or binding != _get_nearby_activity_binding() \
+			or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"scan_session_owner_unavailable"}
+	if _cinder_scan_session_owner != null and _cinder_scan_session_owner.get_ref() == binding:
+		return {"accepted": true, "reason": &"scan_session_owner_current"}
+	var loaded := _runtime_settings_user_data_store.load()
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	if payload.has("cinder_structure_scan_session"):
+		var checked := CinderAbandonedStructureScanActivity.validate_persistence_record(payload.cinder_structure_scan_session)
+		if not checked.accepted:
+			return checked
+		var restored := binding.call("restore_structure_scan_session", payload.cinder_structure_scan_session) as Dictionary
+		if not bool(restored.get("accepted", false)):
+			return restored
+	_cinder_scan_session_owner = weakref(binding)
+	return {"accepted": true, "reason": &"scan_session_ready"}
+
+
+func _save_cinder_scan_session(binding: Object) -> Dictionary:
+	var ready := _ensure_cinder_scan_session(binding)
+	if not bool(ready.get("accepted", false)):
+		return ready
+	var record := binding.call("capture_structure_scan_session") as Dictionary
+	var checked := CinderAbandonedStructureScanActivity.validate_persistence_record(record)
+	if not checked.accepted:
+		return checked
+	var loaded := _runtime_settings_user_data_store.load()
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	if loaded.get("reason") == &"primary_invalid_backup_loaded":
+		return {"accepted": false, "reason": &"scan_session_store_recovery_required"}
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	if payload.has("cinder_structure_scan_session"):
+		checked = CinderAbandonedStructureScanActivity.validate_persistence_record(payload.cinder_structure_scan_session)
+		if not checked.accepted:
+			return checked
+		var old := (payload.cinder_structure_scan_session.activities[0] as Dictionary)
+		var next := (record.activities[0] as Dictionary)
+		if int(next.generation) == int(old.generation) and old.reward_granted \
+				and next.reward_requested and not next.reward_granted:
+			# Keep the paid disk acknowledgement monotonic. Refresh the existing
+			# reward owner from its durable ledger through the ordinary fenced
+			# request; it refuses payment because this terminal is already paid.
+			_commit_game_flow_activity_reward({
+				"activity_id": CinderAbandonedStructureScanActivity.ACTIVITY_ID,
+				"activity_generation": int(old.generation),
+				"reward_id": CinderAbandonedStructureScanActivity.REWARD_ID,
+				"reward_authority": false, "granted": false,
+			})
+			return binding.call("acknowledge_structure_scan_reward", payload.cinder_structure_scan_session) as Dictionary
+		if int(next.generation) < int(old.generation) or int(next.generation) > int(old.generation) + 1 \
+				or (old.reward_requested and not old.reward_granted and record != payload.cinder_structure_scan_session) \
+				or (int(next.generation) == int(old.generation) and int(next.state) != CinderAbandonedStructureScanActivity.State.RESET \
+					and float(next.progress.elapsed_seconds) < float(old.progress.elapsed_seconds)):
+			return {"accepted": false, "reason": &"scan_session_stale_or_unpaid"}
+		if record == payload.cinder_structure_scan_session:
+			return {"accepted": true, "reason": &"scan_session_unchanged"}
+	payload["cinder_structure_scan_session"] = record
+	var generation := _runtime_settings_user_data_store.get_generation()
+	var saved := _runtime_settings_user_data_store.commit(payload, generation, "game-flow-scan-%010d" % (generation + 1))
+	if bool(saved.get("accepted", false)):
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
+		_sync_production_runtime_settings_state()
+	return saved
+
+
+func _request_cinder_structure_scan_reward(binding: Object) -> Dictionary:
+	if _game_flow_reward_authority == null:
+		return binding.call("request_structure_scan_reward") as Dictionary
+	var saved := _save_cinder_scan_session(binding)
+	if not bool(saved.get("accepted", false)):
+		return {"accepted": false, "reason": &"scan_terminal_save_pending", "persistence_result": saved}
+	if saved.get("reason") == &"scan_payment_recovered":
+		saved["reward_committed"] = true
+		return saved
+	return binding.call("request_structure_scan_reward") as Dictionary
 
 
 func _configure_cinder_cargo_reward_handoff(binding: Object) -> Dictionary:
@@ -19276,6 +19368,9 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 					if is_instance_valid(active_ship) else Vector3.ZERO,
 			)
 		&"cinder_derelict_structure_scan":
+			var ready := _ensure_cinder_scan_session(binding)
+			if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
+				return ready
 			var scan := (
 				(binding.call(&"get_snapshot") as Dictionary).get(
 					"structure_scan", {}
@@ -19297,15 +19392,18 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 						"accepted": false,
 						"reason": &"structure_scan_reward_handoff_unavailable",
 					}
-				var retry := binding.call(&"request_structure_scan_reward") as Dictionary
+				var retry := _request_cinder_structure_scan_reward(binding)
 				_last_cinder_structure_scan_reward_result = retry.duplicate(true)
 				_present_cinder_structure_scan_completion(retry)
 				return retry
-			return binding.call(
+			var started := binding.call(
 				&"start_structure_scan",
 				_cinder_authored_frame_position(active_ship.global_position)
 					if is_instance_valid(active_ship) else Vector3.ZERO,
-			)
+			) as Dictionary
+			if bool(started.get("accepted", false)) and _game_flow_reward_authority != null:
+				started["persistence_result"] = _save_cinder_scan_session(binding)
+			return started
 		&"cinder_debris_beacon_traversal":
 			var ready := _ensure_cinder_beacon_session(binding)
 			if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
@@ -19395,7 +19493,14 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 		&"cinder_reach_checkpoint_route": return binding.call(&"reset_race")
 		&"cinder_relay_patrol": return binding.call(&"reset_patrol")
 		&"cinder_platform_mining_run": return binding.call(&"reset_mining_activity")
-		&"cinder_derelict_structure_scan": return binding.call(&"reset_structure_scan")
+		&"cinder_derelict_structure_scan":
+			var ready := _ensure_cinder_scan_session(binding)
+			if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
+				return ready
+			var reset := binding.call(&"reset_structure_scan") as Dictionary
+			if bool(reset.get("accepted", false)) and _game_flow_reward_authority != null:
+				reset["persistence_result"] = _save_cinder_scan_session(binding)
+			return reset
 		&"cinder_debris_beacon_traversal":
 			var ready := _ensure_cinder_beacon_session(binding)
 			if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
