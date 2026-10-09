@@ -1,0 +1,15 @@
+Mudds Shipyards — Cinder beacon save-pending checkpoint
+Source: 5f8216826ee8ad76f729373aeeb6a16a1919e639
+EXE SHA256: c4753fcbfe2315e034f6d33796db68f46225781edb4ff697b9fd4088a88a07bf
+
+A completed Cinder beacon route whose navigation-data reward cannot save now keeps its real retained outcome and shows COMPLETE — REWARD PENDING. Reset or another Start attempt cannot discard the unpaid terminal result. Start retries the owed credit through the existing save path, pays once, clears the pending state after success and preserves the paid receipt on fresh load. Earlier Bulwark ordinary gunner and supported crew/cabin recovery changes are included in this runtime.
+
+Actual checkpoint validation: clean exact-source import/export passed. Three focused source suites and the same suites against this EXE's embedded package passed85 assertions each, including an actual rejected beacon save, retained route/HUD pending state, Reset guard and Start retry without duplicate credit. Standard four package probes passed223. Two expected fresh-profile settings_missing warnings were retained, one in each owed-reward source/package run; no unexpected warnings or diagnostics. Native Windows headless startup under a GUID private profile exited0/reaped with exactly one parsed STARTUP_MENU_READY_OK, mouse-free true, warnings0/diagnostics0 and exact copied EXE hash; independent owned-root cleanup passed. All focused actors reaped and recorded PIDs absent. Source/import cache/EXE unchanged. PE x86_64 and embedded PCK payload inventory checked; checkpoint ZIP CRC, inner EXE and initial notes parity passed.
+
+Limits: unpaid terminal beacon OS-crash recovery NOT_RUN. This is focused source/embedded-package and silent native Windows startup acceptance; it does not qualify rendered Windows ordinary controls, native GPU/performance/controller/audio/human review, endurance, installer/signing, matching new Linux build, full matrix/full1027 or final release. The earlier fullaacd run is separate and cannot qualify this source. Prepared privately; root owns exclusive publication in builds/windows/.
+
+Published checkpoint: these reviewed bytes are now in builds/windows/.
+Checkpoint ZIP SHA256: d640c0203fb34022d1f3deb4391e6bb3b7f6630f01a26f2a1e717bac16c8ece5
+Standard probes retain four known root/superuser warnings; two focused fresh-settings warnings are recorded above.
+The ZIP preserves immutable initial notes; publication status and ZIP hash are sidecar-only.
+The older frozen 94da8f0 full regression finished FAIL (1024/1027). The newer exact aacd367 full regression is running separately; no full PASS is claimed.
