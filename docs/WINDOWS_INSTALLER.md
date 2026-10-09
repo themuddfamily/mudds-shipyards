@@ -459,6 +459,15 @@ installed executable with `--headless --audio-driver Dummy` and the packaged
 not an external script override. Older and rollback payloads keep their normal
 menu checks.
 
+Select `-InWorldRecoveryContext cabin` or `-InWorldRecoveryContext rest` with
+`-InWorldRecovery` to exercise those contexts on a supporting payload. The
+verifier passes the selection to both boots and requires an exact
+`recovery_context` in both readiness and recovery records. A pilot-only payload
+cannot qualify a cabin/rest request. The default `pilot` keeps the existing
+invocation compatible with older payloads. Published `3a800bfb4` does not yet
+provide the cabin/rest interruption entry; those installed checks remain
+`NOT_RUN` until a supporting checkpoint is qualified.
+
 The activity case uses a fresh `<ProbeRoot>\in-world-profile`, separate from
 settings/tutorial fixtures and protected newer documents. After genuine convoy
 completion/payment and reset, the next active convoy must commit its exact
