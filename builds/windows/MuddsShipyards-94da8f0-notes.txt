@@ -1,0 +1,16 @@
+Mudds Shipyards — network cockpit interaction checkpoint
+Exact source: 94da8f0c0b757e515a38bee3f132133134590937
+
+Live network sessions: the unavailable solo passenger chair no longer swallows cockpit E. Host seat authority and network deadlines are unchanged.
+
+Actual private validation: clean Dummy headless import/export exit0. Four focused fixtures against embedded runtime PASS507 (default lifecycle four cycles204, default soak twelve cycles80, boarding66, helm157). Both independent helm peers actual argv use the exact embedded pack; two runtime identity assertions pass. Every focused child actual0/reaped, one sentinel, zero warnings/engine/script/leak diagnostics. Source/cache/EXE parity retained. Four standard probes PASS223/W0/diag0. Silent isolated native Windows startup actual0, exactly one parsed READY, mouse_free_during_load true, W0/diag0; private parent removed and executable-path process count0. Original 0a7 mixed-scope and corrected both-pack failures remain unchanged/unpublished; 8b preparation remains historical/unqualified.
+
+The separate exact-source full matrix is RUNNING; no full pass is claimed. Native GPU/human ordinary controls, new OS-interruption contexts, Linux and matching installer acceptance remain NOT_RUN. This checkpoint is published in builds/windows/.
+
+EXE bytes: 177613184
+EXE SHA256: ce14e97231e072c0f380dc667358ac0ae1f346605ed252a66842f81a2e3fb5de
+
+Root-confirmed exact-source CI: GameRegression37919575012 SUCCESS (core PASS, broad SKIP); CodeQL37919575186 SUCCESS (actions/Python). Separate frozen source full matrix is RUNNING (44717); no full PASS claim. Native GPU/human/installer/new Linux bytes remain NOT_RUN.
+
+Checkpoint ZIP SHA256: 4a108199e10b4274df6b10b9920e95fc4d3461b6a29389af1ad2e1e2435abc18
+ZIP contains immutable initial notes; ZIP hash is sidecar-only.
