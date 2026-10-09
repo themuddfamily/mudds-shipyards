@@ -1,0 +1,10 @@
+Mudd's Shipyards 9ef48fd unsigned Windows installer
+
+Installed mining recovery preserves the completed unpaid extraction through an actual process kill, ordinary safe-home pilot Resume and throttle, then commits one capacity acknowledgement through HUD Start. Existing metadata remains non-granting and non-replayable; production settings and unrelated cargo remain unchanged.
+
+Validation: actual Windows headless/Dummy default lifecycle 11, mining 16, beacon 16 and default convoy 16 steps PASS. Every lane exits 0, reaps owned processes and passes independent CIM cleanup. Cross-build locked upgrade, rollback, startup readiness, backup recovery, protected newer documents and uninstall were checked. Default lane used original 218575e verifier; mining/beacon/convoy used corrected 7582cf6 verifier. Original mining verifier failure is retained, not counted as a pass.
+
+Final combined CIM cleanup passed across the original failed and four accepted profiles; all owned process/install/registry/shortcut counts are clear. The first extra combined-check execution-policy failure is retained separately. Native GPU, normal controls/human review and trusted signing remain NOT_RUN. Publication is root-only and pending.
+
+Published: these independently reviewed setup bytes are now in builds/windows/. The private notes above retain their pre-publication status.
+This installer contains game source 9ef48fdc2; newer station-defence source 189124deb is not included. Trusted signing, native GPU, human and final-release acceptance remain open.

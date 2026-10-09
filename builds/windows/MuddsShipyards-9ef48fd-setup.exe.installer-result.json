@@ -1,0 +1,16 @@
+{
+  "build_label": "0.12.0+9ef48fd",
+  "installer": "/root/.cache/mudds-shipyards/roadmap-validation/installer-mining-9ef48fd/MuddsShipyards-9ef48fd-setup.exe",
+  "installer_bytes": 86697893,
+  "installer_kind": "nsis-per-user",
+  "installer_sha256": "990f71c08cb17c7caa78258c5831d3d6e654d02466bf19aed520b202b786706c",
+  "makensis_version": "v3.09-4",
+  "native_verification": "NOT_RUN",
+  "product_version": "0.12.0",
+  "schema_version": 1,
+  "signing": "unsigned",
+  "source_commit": "9ef48fdc2fb8a1210579713c7854f059b8aa32b5",
+  "source_exe": "/root/.cache/mudds-shipyards/roadmap-validation/installer-mining-9ef48fd/MuddsShipyards-9ef48fd.exe",
+  "source_exe_bytes": 177672560,
+  "source_exe_sha256": "beaf335c838cff8b87442b156d182b2b4f8e1c2ac14a8dea6c2a2289e502f1b8"
+}

@@ -8,7 +8,32 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `3b4d68427` — 2026-10-09
+## Latest native checkpoint `9ef48fdc2` — 2026-10-09
+
+The unsigned [setup](../builds/windows/MuddsShipyards-9ef48fd-setup.exe) and
+[notes](../builds/windows/MuddsShipyards-9ef48fd-installer-notes.txt) are published.
+Setup SHA256 is `990f71c08cb17c7caa78258c5831d3d6e654d02466bf19aed520b202b786706c`;
+its exact game payload is `beaf335c838cff8b87442b156d182b2b4f8e1c2ac14a8dea6c2a2289e502f1b8`.
+
+Four sequential native contracts pass: default 11/11, mining pilot 16/16,
+beacon pilot 16/16 and default-convoy pilot 16/16. Each owning process exits 0
+and is reaped; independent cleanup confirms no owned processes, installation,
+registry entries, shortcuts or activity profiles. Root and independent review
+verify all 239 retained hashes, actual interrupted/recovered documents and
+protected data. Mining preserves a genuine unpaid six-second completion through
+owned kill and safe-home pilot Resume/throttle; HUD Start commits one capacity
+acknowledgement without granting ore inventory. Beacon/convoy pay once, record
+one crash and close markers. Locked upgrade, backup/newer-data preservation,
+safe-start/journal, rollback to `f0e2c590a` and uninstall pass.
+
+Default used verifier `218575e22`; later lanes used `7582cf6de`, whose numeric
+field checks accept valid Godot decimal JSON while rejecting malformed sessions.
+The original failed mining lane and extra cleanup invocation failure remain
+retained. Compiler sidecars describe their original build-time qualification.
+This installer excludes newer station-defence source `189124deb`; current-source
+full/nonpilot, native GPU, human controls, signing and final-release gates remain open.
+
+## Earlier native checkpoint `3b4d68427` — 2026-10-09
 
 The unsigned [installer](../builds/windows/MuddsShipyards-3b4d684-setup.exe) and
 [notes](../builds/windows/MuddsShipyards-3b4d684-installer-notes.txt) are published
@@ -33,9 +58,9 @@ completed native acceptance is recorded separately in the notes and witnesses.
 This qualifies headless installed pilot recovery for beacon and convoy. Current
 nonpilot installed recovery, scan OS-kill, human controls, native GPU, trusted
 signing and final-release gates remain open. The exact-source 1,029-suite full
-regression is running separately. New Jovian engineer work is not included.
+regression subsequently passed 1,029/1,029 on its own frozen source. New Jovian engineer work is not included.
 
-## Mining interruption selector — capability, native acceptance pending
+## Mining interruption selector — native pilot acceptance delivered
 
 The current verifier accepts `-InWorldRecovery -InWorldRecoveryActivity mining`
 with `-InWorldRecoveryContext pilot`. It requires the matching game to support
