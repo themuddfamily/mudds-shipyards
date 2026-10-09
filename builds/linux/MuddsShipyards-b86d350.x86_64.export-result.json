@@ -1,0 +1,21 @@
+{
+  "architecture": "x86_64",
+  "binary": {
+    "bytes": 141930448,
+    "path": "/root/.cache/mudds-shipyards/roadmap-work/linux-station-defense-boot-b86d350/builds/linux/MuddsShipyards-b86d350.x86_64",
+    "sha256": "b84b35d7e9a2b4bfe53c4b2f8573beba5a520757667b1ef9e0aedde6ff69f582"
+  },
+  "godot_version": "4.7.1.stable.official.a13da4feb",
+  "platform": "linux",
+  "preset": "Linux",
+  "schema_version": 1,
+  "signing": "unsigned",
+  "source_commit": "b86d350ff26d01d970d4bb6de25583353eae9bdc",
+  "startup_check": "NOT_RUN",
+  "tarball": {
+    "bytes": 93116121,
+    "path": "/root/.cache/mudds-shipyards/roadmap-work/linux-station-defense-boot-b86d350/builds/linux/MuddsShipyards-b86d350-linux-x86_64.tar.gz",
+    "sha256": "f425bd73782336e2d97400ebb312d66b2280c566a0b13004f2163042db78b0cb"
+  },
+  "tarball_root": "MuddsShipyards-b86d350"
+}
