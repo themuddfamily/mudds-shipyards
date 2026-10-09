@@ -57,6 +57,17 @@ func _run() -> void:
 	_check(not StartupLoaderType.in_world_probe_request(mining_args, "x11", "Dummy").accepted
 		and not StartupLoaderType.in_world_probe_request(mining_args, "headless", "PulseAudio").accepted,
 		"mining refuses an active display or audible driver before Main loading")
+	var hulk_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=hulk"])
+	_check(StartupLoaderType.in_world_probe_request(hulk_args, "headless", "Dummy").accepted,
+		"hulk interruption admits its supported pilot recovery")
+	for context in ["cabin", "rest", "crew", "engineer"]:
+		var unsupported := hulk_args.duplicate()
+		unsupported.append("--in-world-interruption-context=" + context)
+		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
+			"hulk refuses unsupported context before Main loading: %s" % context)
+	_check(not StartupLoaderType.in_world_probe_request(hulk_args, "x11", "Dummy").accepted
+		and not StartupLoaderType.in_world_probe_request(hulk_args, "headless", "PulseAudio").accepted,
+		"hulk refuses active display and audible driver before Main loading")
 	var defense_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=stationdefense"])
 	_check(StartupLoaderType.in_world_probe_request(defense_args, "headless", "Dummy").accepted,
 		"station-defense interruption admits only its supported pilot recovery")
@@ -85,7 +96,7 @@ func _run() -> void:
 		"engineer refuses unowned X11 and audible input")
 	_check(not StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy", true).accepted,
 		"private engineer input marker cannot broaden other contexts")
-	for other_activity in ["beacon", "mining", "stationdefense", "scan"]:
+	for other_activity in ["beacon", "mining", "stationdefense", "scan", "hulk"]:
 		var incompatible := engineer_args.duplicate()
 		incompatible.append("--in-world-interruption-activity=" + other_activity)
 		_check(not StartupLoaderType.in_world_probe_request(incompatible, "X11", "Dummy", true).accepted,
@@ -99,6 +110,9 @@ func _run() -> void:
 		_check(not bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", audio_driver).accepted),
 			"the fixture requires the actual Dummy driver: %s" % audio_driver)
 	for unsafe in [
+		PackedStringArray(["--in-world-interruption-activity=hulk"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "hulk"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=hulk", "--in-world-interruption-activity=hulk"]),
 		PackedStringArray(["--in-world-interruption-activity=scan"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "scan"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=scan", "--in-world-interruption-activity=scan"]),

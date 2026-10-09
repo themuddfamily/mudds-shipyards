@@ -202,11 +202,11 @@ static func in_world_probe_request(args: PackedStringArray, display_name: String
 	var rejected := {"requested": true, "accepted": false, "reason": &"unsafe_in_world_probe"}
 	if stages.size() != 1 or stages[0] not in ["arm", "resume"] \
 			or contexts.size() > 1 or (not contexts.is_empty() and contexts[0] not in ["pilot", "cabin", "rest", "crew", "engineer"]) \
-			or activities.size() > 1 or (not activities.is_empty() and activities[0] not in ["convoy", "beacon", "mining", "stationdefense", "scan"]):
+			or activities.size() > 1 or (not activities.is_empty() and activities[0] not in ["convoy", "beacon", "mining", "stationdefense", "scan", "hulk"]):
 		return rejected
 	var activity := activities[0] if not activities.is_empty() else "convoy"
 	var context := contexts[0] if not contexts.is_empty() else "pilot"
-	if activity in ["beacon", "mining", "stationdefense", "scan"] and context != "pilot":
+	if activity in ["beacon", "mining", "stationdefense", "scan", "hulk"] and context != "pilot":
 		return rejected
 	if context == "engineer":
 		if display_name != "X11" and display_name != "x11":

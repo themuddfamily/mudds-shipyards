@@ -66,6 +66,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if recovery_context == "engineer":
 		await _run_engineer(game, store, entry)
 		return
+	if activity == "hulk":
+		await _run_hulk(game, store, entry)
+		return
 	if activity == "scan":
 		await _run_scan(game, store, entry)
 		return
@@ -1498,3 +1501,176 @@ func _run_engineer(game: GameFlow, store: UserDataStore, entry: String) -> void:
 	else:
 		print("IN_WORLD_RECOVERY_FAILED")
 		get_tree().quit(1)
+
+
+func _hulk_receipts(game: GameFlow) -> int:
+	var record: Dictionary = game.get_activity_reward_report().authority.record
+	return int(record.reward_counts.get(String(DerelictPowerRestorationActivity.REWARD_ID), 0))
+
+
+## Real Boot/owner interruption capability: authored breaker engagement and
+## caller physics ticks earn the terminal. Only reward I/O is faulted using the
+## existing filesystem wrapper; route positioning does not invent entitlement.
+func _run_hulk(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	if recovery_context != "pilot":
+		_fail("hulk interruption supports the actual pilot recovery context only")
+		return
+	var main_id := game.get_instance_id()
+	game.set_physics_process(false)
+	var craft: HeroShip
+	var slot := DerelictPowerRestorationActivity.PERSISTENCE_SLOT
+	var path := str(store.get("_path"))
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		_check(game.cargo_delivery_activity.start(game.cargo_delivery_activity.get_generation()).accepted
+			and game.save_jovian_cargo_session().accepted,
+			"the actual cargo owner saves unrelated delivery progress and transfer receipts")
+		game.start_shift()
+		await _load_beacon_binding(game, "hulk")
+		game.call("_sync_hulk_power_restoration_binding")
+		var hulk := game.call("_get_station_hulk") as AbandonedStationHulk
+		if not is_instance_valid(hulk):
+			_fail("Boot streams the actual collision-backed hulk and its breaker")
+			return
+		# Route positioning fixture only; real on-foot ownership and the physical
+		# breaker's reach/engage contract remain unchanged.
+		game.player.teleport_to(Transform3D(Basis.IDENTITY, hulk.get_breaker_world_position()))
+		await _settle_frames(4)
+		var breaker := hulk.get_breaker()
+		_check(not game.player.is_seated() and game.player.is_control_enabled()
+			and game.player.get_nearby_interactables().has(breaker) and breaker.call("interact", game.player),
+			"the real on-foot Player discovers and engages the authored streamed breaker")
+		var original := store.get("_filesystem") as UserDataFilesystem
+		var fault := ActivityRewardFault.new(original, String(DerelictPowerRestorationActivity.ACTIVITY_ID))
+		store.set("_filesystem", fault)
+		for _frame in 180:
+			await get_tree().physics_frame
+			game.call("_advance_hulk_power_restoration", 1.0 / 60.0)
+		var boundary: Dictionary = store.get_snapshot().get(slot, {})
+		var live := game.get_hulk_power_restoration_snapshot()
+		_check(DerelictPowerRestorationActivity.validate_persistence_record(boundary).accepted
+			and boundary.generation == 1 and boundary.elapsed_seconds == 3.0
+			and live.state_id == &"complete" and live.reward_pending and fault.rejected and _hulk_receipts(game) == 0,
+			"180 genuine owner physics ticks stage the full earned terminal before a refused real reward write")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		craft = game.get_flyable_ships()[1] as HeroShip
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		# Return positioning alone confers no pilot authority: the same boarding
+		# transition must acquire its real Player and record the settled preference.
+		game.player.teleport_to(craft.get_boarding_entry_transform())
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft), "hulk arm acquires the actual Player pilot before interruption")
+		var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		_check(context.get("mode") == "pilot" and context.get("craft_id") == String(craft.get_ship_id())
+			and boundary == store.get_snapshot().get(slot, {}),
+			"hulk arm durably saves its genuine safe-home pilot without changing earned completion")
+		get_tree().paused = true
+		store.set("_filesystem", original)
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify({"boundary": boundary, "receipts": 0,
+			"activity": activity, "foreign_settings": store.get_snapshot().runtime_settings,
+			"foreign_cargo": store.get_snapshot().jovian_cargo_session,
+			"runtime_observation": _interruption_runtime_observation(game),
+			"fixture_method": "on_foot_route_positioning_real_breaker_and_180_owner_physics_ticks_then_real_pilot_boarding",
+			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}))
+		return
+	var boundary: Dictionary = store.get_snapshot().get(slot, {})
+	if not DerelictPowerRestorationActivity.validate_persistence_record(boundary).accepted or _hulk_receipts(game) not in [0, 1]:
+		_fail("hulk restart requires a supported genuine earned terminal and at most one cell receipt")
+		return
+	game.call("_sync_hulk_power_restoration_binding")
+	var live := game.get_hulk_power_restoration_snapshot()
+	# Normal Boot may already have completed its legitimate automatic retry.
+	# Observe that receipt honestly; do not suppress or undo production payment.
+	var receipts_at_boot := _hulk_receipts(game)
+	var payment_commit := store.get_commit_metadata() if receipts_at_boot == 1 else {}
+	var recovery := game.get_recovery_available_snapshot()
+	var crash_events := 0
+	for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+		if event.get("event_code") == "crash_detected":
+			crash_events += 1
+	_check(((receipts_at_boot == 0 and live.state_id == &"complete" and live.reward_pending)
+		or (receipts_at_boot == 1 and live.state_id == &"claimed" and live.reward_claimed)) and not live.hulk_loaded
+		and live.elapsed_seconds == 3.0 and live.generation == boundary.generation
+		and crash_events == 1 and not recovery.is_empty() and recovery.get("state") == "running",
+		"fresh Boot restores exact earned hulk completion or its legitimately paid ledger and one crash event without replaying the breaker timer")
+	var observations := _interruption_runtime_observation(game)
+	var foreign_settings: Dictionary = store.get_snapshot().runtime_settings
+	var foreign_cargo: Dictionary = store.get_snapshot().get("jovian_cargo_session", {})
+	var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	for candidate in game.get_flyable_ships():
+		if String(candidate.get_ship_id()) == context.get("craft_id"):
+			craft = candidate
+	if craft == null or not _failures.is_empty():
+		_fail("the saved hulk pilot identity must resolve its actual shipped craft before Resume")
+		return
+	var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	game.start_shift()
+	var settled := await _wait_for_real_pilot(game, craft)
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	_check(resumed.get("accepted", false) and settled and area.get_reservation_token() == game.player
+		and berth.get_occupant() == craft and berth.get_reservation_owner() == craft
+		and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1
+		and boundary == store.get_snapshot().get(slot, {}),
+		"ordinary Resume reacquires the exact safe-home pilot while preserving the earned hulk terminal")
+	Input.action_press(&"move_forward")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	Input.action_release(&"move_forward")
+	_check(str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE" and craft.get_last_ship_command().throttle > 0.0
+		and _hulk_receipts(game) == receipts_at_boot and boundary == store.get_snapshot().get(slot, {}),
+		"the recovered real pilot accepts ordinary throttle while preserving the exact earned terminal and current receipt count")
+	var safe := _interruption_runtime_observation(game)
+	var generation := store.get_generation()
+	game.set_physics_process(true)
+	for _frame in 120:
+		if game.get_hulk_power_restoration_snapshot().reward_claimed:
+			break
+		await get_tree().physics_frame
+	game.set_physics_process(false)
+	var claimed := game.get_hulk_power_restoration_snapshot()
+	if receipts_at_boot == 0:
+		payment_commit = store.get_commit_metadata()
+	var ledger: Dictionary = game.get_activity_reward_report().authority.record
+	var receipt: Dictionary = ledger.get("last_receipt", {})
+	_check(claimed.state_id == &"claimed" and claimed.reward_claimed and not claimed.reward_pending
+		and _hulk_receipts(game) == 1 and ledger.get("total_receipts") == 1 and ledger.get("receipt_serial") == 1
+		and receipt.get("activity_id") == String(DerelictPowerRestorationActivity.ACTIVITY_ID)
+		and receipt.get("reward_id") == String(DerelictPowerRestorationActivity.REWARD_ID)
+		and receipt.get("activity_generation") == boundary.generation and receipt.get("granted") == true
+		and receipt.get("replay_allowed") == false and store.get_generation() == generation + (1 - receipts_at_boot)
+		and str(payment_commit.id).begins_with("game-flow-reward-") and boundary == store.get_snapshot().get(slot, {}),
+		"the actual production Boot or running retry owner pays exactly one cell and preserves its exact earned terminal")
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var duplicate: Dictionary = game.call("_commit_hulk_power_reward")
+	game.call("_advance_hulk_power_restoration", 1.0)
+	_check(not duplicate.accepted and _hulk_receipts(game) == 1
+		and FileAccess.get_file_as_bytes(path) == bytes and store.get_generation() == generation + (1 - receipts_at_boot),
+		"late reward callback and production tick cannot repay the permanently claimed hulk cell")
+	_check(not foreign_settings.is_empty() and not foreign_cargo.is_empty()
+		and foreign_settings == store.get_snapshot().runtime_settings
+		and foreign_cargo == store.get_snapshot().get("jovian_cargo_session", {}),
+		"hulk recovery preserves unrelated production settings and cargo fields")
+	_check(game.mark_orderly_shutdown().get("accepted", false), "hulk recovery closes both existing crash marker owners")
+	_check(is_instance_valid(game) and game.get_instance_id() == main_id and game.get_tree() == get_tree(),
+		"hulk recovery retains Boot's exact supplied Main owner")
+	if not _failures.is_empty():
+		print("IN_WORLD_RECOVERY_FAILED")
+		get_tree().quit(1)
+		return
+	print("IN_WORLD_RECOVERY_OK: " + JSON.stringify({"boundary": boundary, "paid_boundary": store.get_snapshot().get(slot, {}),
+		"receipts_before": 0, "receipts_after": _hulk_receipts(game), "crash_events": crash_events, "activity": activity,
+		"foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo, "payment_commit": payment_commit,
+		"runtime_observation": observations, "safe_recovery_observation": safe,
+		"continuation_method": "production_automatic_hulk_retry_and_real_safe_home_pilot_resume",
+		"receipts_at_boot": receipts_at_boot, "payment_stage": "boot" if receipts_at_boot == 1 else "running_retry",
+		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}))
+	get_tree().quit(0)

@@ -3,7 +3,7 @@ set -euo pipefail
 set -o pipefail
 
 # --in-world-interruption runs one actual kill/restart; --activity=beacon or
-# --activity=mining, --activity=scan or --activity=stationdefense selects unpaid recovery
+# --activity=mining, --activity=scan, --activity=hulk or --activity=stationdefense selects unpaid recovery
 # (pilot only); default remains convoy.
 # --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
@@ -45,7 +45,7 @@ RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-prob
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 RECOVERY_CONTEXT="${PACKAGE_PROBE_RECOVERY_CONTEXT:-pilot}"
-if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense && "$PROBE_ACTIVITY" != scan ]]; then
+if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense && "$PROBE_ACTIVITY" != scan && "$PROBE_ACTIVITY" != hulk ]]; then
   echo "Invalid interruption activity" >&2
   exit 2
 fi
@@ -57,7 +57,7 @@ if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY
   echo "Invalid interruption recovery context" >&2
   exit 2
 fi
-if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan ) && "$RECOVERY_CONTEXT" != pilot ]]; then
+if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan || "$PROBE_ACTIVITY" == hulk ) && "$RECOVERY_CONTEXT" != pilot ]]; then
   echo "$PROBE_ACTIVITY interruption currently requires pilot context" >&2
   exit 2
 fi
@@ -320,7 +320,20 @@ try:
     require(ready.get("activity", "convoy") == activity, "arm ignored the selected activity")
     before = document.read_bytes()
     saved = json.loads(before)
-    if activity == "stationdefense":
+    if activity == "hulk":
+        terminal = saved["payload"]["cinder_hulk_power_session"]
+        require(terminal == ready["boundary"] and terminal == {"schema_version": 1,
+                "activity_id": "cinder_hulk_power_restoration", "state": 2, "generation": 1, "elapsed_seconds": 3},
+                "hulk readiness has no genuine supported full earned terminal")
+        require(ready["receipts"] == 0
+                and saved["payload"].get("game_flow_reward_store", {}).get("reward_counts", {}).get("hulk_auxiliary_power_cell", 0) == 0
+                and ready["runtime_observation"]["craft_piloted"] is True
+                and ready["runtime_observation"]["player_seated"] is True,
+                "hulk arm has no genuine unpaid completion and real pilot ownership")
+        require(saved["payload"]["runtime_settings"] == ready["foreign_settings"]
+                and saved["payload"]["jovian_cargo_session"] == ready["foreign_cargo"],
+                "hulk arm lost unrelated production settings/cargo")
+    elif activity == "stationdefense":
         terminal = saved["payload"]["station_defense_session"]
         session = terminal["session"]
         completion = session["completion"]
@@ -434,7 +447,20 @@ try:
     require(recovered["crash_events"] == 1, "actual interruption did not publish one crash event")
     after = document.read_bytes()
     final = json.loads(after)
-    if activity == "stationdefense":
+    if activity == "hulk":
+        paid = final["payload"]["cinder_hulk_power_session"]
+        safe = recovered["safe_recovery_observation"]
+        require(safe["craft_piloted"] is True and safe["player_seated"] is True
+                and safe["craft_id"] == ready["runtime_observation"]["craft_id"],
+                "hulk restart did not reacquire the actual saved safe-home pilot")
+        require(paid == terminal == recovered["paid_boundary"]
+                and final["payload"]["game_flow_reward_store"]["reward_counts"]["hulk_auxiliary_power_cell"] == 1
+                and recovered["payment_commit"]["id"].startswith("game-flow-reward-"),
+                "hulk retry changed the earned terminal or lost/duplicated its durable cell receipt")
+        require(final["payload"]["runtime_settings"] == ready["foreign_settings"] == recovered["foreign_settings"]
+                and final["payload"]["jovian_cargo_session"] == ready["foreign_cargo"] == recovered["foreign_cargo"],
+                "hulk recovery changed unrelated production settings/cargo")
+    elif activity == "stationdefense":
         paid = final["payload"]["station_defense_session"]
         safe = recovered["safe_recovery_observation"]
         require(safe["craft_piloted"] is True and safe["player_seated"] is True
