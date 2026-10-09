@@ -734,6 +734,9 @@ func _test_real_service_route() -> void:
 		await _wait_until(func() -> bool: return craft.get_gunner_gameplay_state().get("role_cooldowns", {}).values().all(func(value) -> bool: return float(value) <= 0.0), 6.0)
 		_check(await _set_fire_mode(game, InputBindingProfile.TOGGLE), "actual RuntimeSettings installs TOGGLE FIRE without replacing the crew owner")
 		craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+		# Focus restoration intentionally primes held inputs; complete neutral ticks
+		# before creating a fresh physical TOGGLE edge.
+		await _settle_frames(3)
 		var toggle_health := float(drone.get_meta("health", 0.0))
 		await _tap_fire()
 		_check(await _track_target_until(actor, drone, func() -> bool: return float(drone.get_meta("health", toggle_health)) < toggle_health, 3.0)
@@ -904,10 +907,13 @@ func _test_retained_foreign_gunner_power() -> void:
 	await _leave_actual_helm(cold, craft)
 	_check(await _walk_and_sit_gunner(cold, craft), "separate real Main ordinary controls reach the gunner before retained/foreign-owner checks")
 	var retained_authority := craft.get_crew_role_authority()
+	print("BULWARK_RETAINED_BEFORE: pose=", craft.to_local(actor.global_position), " exit=", craft.to_local(cold.get("_station_seat_recovery_transform").origin), " phase=", cold.phase, " seated=", actor.is_seated(), " frame=", cold.get_in_flight_cabin_status(), " tag=", actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}))
 	root.remove_child(cold)
 	await process_frame
 	root.add_child(cold)
 	await _settle_frames(12)
+	await _wait_until(func() -> bool: return actor.is_on_floor() and actor.is_control_enabled() and not actor.is_seated(), 1.0)
+	print("BULWARK_RETAINED_AFTER: pose=", craft.to_local(actor.global_position), " phase=", cold.phase, " floor=", actor.is_on_floor(), " control=", actor.is_control_enabled(), " seated=", actor.is_seated(), " busy=", cold.get("_transition_busy"), " frame=", cold.get_in_flight_cabin_status(), " tag=", actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}), " ledger=", retained_authority.get_snapshot())
 	_check(cold.player == actor and retained_authority.get_snapshot().assignments.is_empty()
 		and not actor.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) and not actor.is_seated() and actor.is_control_enabled() and actor.is_on_floor(),
 		"retained Main keeps the actual Player and releases its interrupted gunner claim on detach")
@@ -925,6 +931,10 @@ func _test_retained_foreign_gunner_power() -> void:
 		"actual seated gunner FIRE uses weapon demand, preserves the witnessed dock latch and owns only power it woke")
 	_check(engine_before == HeroShip.ENGINE_OFFLINE and bool(actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}).get("weapon_power_started", false)), "replacement-power guard starts with a genuine old-role weapon-power ownership witness")
 	var old_authority := craft.get_crew_role_authority()
+	if old_authority == null:
+		cold.queue_free()
+		await _settle_frames(3)
+		return
 	var assignment := old_authority.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID)
 	var release_sequence := maxi(int(assignment.get("claim_sequence", 0)), int(old_authority.get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
 	var released := old_authority.release(1, 1, GameFlow.SOLO_CREW_AVATAR_ID, &"gunner_station", release_sequence, int(assignment.get("seat_generation", 0)))
