@@ -1,0 +1,46 @@
+Mudds Shipyards — installed seat lifecycle checkpoint — 2026-10-09
+Payload/compiler/verifier source: f139257f6d7c9e8dde8fc4ae5dc6f70b3830d99a
+Installer: MuddsShipyards-f139257-setup.exe
+Installer bytes: 86626876
+Installer SHA256: 8c1b86638e62c27a24927c9af7b6c984d36cecee50f713e6c4e30286f0155493
+Game SHA256: 91e472100fcf80a6535fbe34a9ccd66eca41ee9d4edef81d3de4d1dc0c55dc56
+Signing: unsigned checkpoint
+
+Player-visible changes
+Install the matching safe seat-lifecycle checkpoint. Interrupted boarding keeps
+its physical owner and hatch claim; stale or vanished callbacks cannot steal
+helm or disrupt a newer boarding. A still-current boarding transaction whose
+hull disappears returns a usable deck Player. Solo pilot/cabin/bunk/passenger
+Resume retains activity progress and rewards, using safe home-berth recovery.
+Halyard passengers recover awake on supported cabin floor, able to walk and
+retake the helm. See matching game notes for the full runtime scope.
+
+Actual native installed qualification
+Default11 plus separate pilot/cabin/rest/crew16 contracts pass actual
+27ffe71->f139257->27ffe71 install/upgrade/rollback. All builders/verifiers and
+cleanup owners exit0/reaped. Locked upgrade refuses with exit2; payload/source
+identity, startup, uninstall and retained data pass. Each ordinary-Boot
+in-world arm is killed through its exact owned handle(-1/reaped); cold resume
+exits0/reaped. Exact selected context/durable Convoy boundary, receipts1->2
+once, crash1 and both clean markers pass. Nonpilot motion uses authored timings,
+ordinary floor walking and Interact before helm retake; later escort motion
+remains a fixture. Forced-startup safe-start/journal, corrupt backup recovery
+and unsupported-newer-data preservation also pass.
+
+Root and independent review verify47raw hashes,27completed startups each with
+one parsed ready record/mouse free, zero engine/script/leak diagnostics and
+28exact known warnings(12settings_missing,16intentional newer-data warnings).
+All24protected documents still match on disk after uninstall. Fresh native
+CIM/install/activity-profile/shortcut/HKCU cleanup passes; retained base
+profiles and witnesses remain. Setup and original compiler sidecars are
+published unchanged. Their build-time native_verification=NOT_RUN is retained;
+this separate executed qualification supplies the installed acceptance.
+
+Limits and remaining gates
+The exactf139257 full matrix is still RUNNING. Arbitrary whole-fleet retirement,
+Bulwark walkable cabin, other required crew roles, docking/planetary/full-activity
+recovery, uninterrupted human controls, native GPU/controller/audible/visual/
+endurance reviews, interactive clean-machine/platform installation, trusted
+signing and final release-candidate acceptance remain open. Original airborne
+pose and sleeping state are not restored. All10phases/34tasks remain open.
+Automated engine checks use headless/Dummy.

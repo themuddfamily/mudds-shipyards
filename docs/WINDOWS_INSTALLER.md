@@ -8,7 +8,35 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `27ffe71da` — 2026-10-09
+## Latest native checkpoint `f139257f6` — 2026-10-09
+
+The unsigned [installer](../builds/windows/MuddsShipyards-f139257-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-f139257-installer-notes.txt) are
+published. Setup is 86,626,876 bytes, SHA256
+`8c1b86638e62c27a24927c9af7b6c984d36cecee50f713e6c4e30286f0155493`;
+the exact game payload hash is
+`91e472100fcf80a6535fbe34a9ccd66eca41ee9d4edef81d3de4d1dc0c55dc56`.
+Clean compiler/verifier source is `f139257f6`. Original unsigned compiler
+metadata remains unchanged, including build-time `native_verification: NOT_RUN`.
+
+Executed default11 and separate pilot/cabin/rest/crew16 contracts pass actual
+`27ffe71da` → `f139257f6` → `27ffe71da`. All owning runs exit0/reaped. Each
+installed ordinary-Boot recovery uses an exact owned kill(−1) and cold resume(0),
+with matching context/durable Convoy boundary, receipts1→2 once, crash1 and
+clean crash/safe-start markers. Nonpilot recovery walks the supported home
+cabin using ordinary Interact before helm retake; later escort motion is a
+fixture. Locked upgrade refusal(2), startup safe-start/journal, corrupt backup,
+newer-data preservation, rollback and retained-data uninstall pass.
+
+Root and independent review verify47 raw hashes,27 single ready/mouse-free
+startups, zero diagnostics,28 exact known warnings and24 protected disk hashes.
+Fresh native CIM/install/activity-profile/shortcut/HKCU cleanup passes; base
+profiles/witnesses remain. Exact setup and three original sidecars are published.
+The full matrix is still RUNNING. Other crew roles, Bulwark cabin, broader
+recovery, interactive clean-machine installation, hardware/human reviews,
+trusted signing and final-release acceptance remain open.
+
+## Earlier native checkpoint `27ffe71da` — 2026-10-09
 
 The unsigned [installer](../builds/windows/MuddsShipyards-27ffe71-setup.exe)
 and [notes](../builds/windows/MuddsShipyards-27ffe71-installer-notes.txt) are
