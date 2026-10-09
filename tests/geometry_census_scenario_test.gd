@@ -365,10 +365,13 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Bulwark's recessed cabin adds 114 real triangles and 12 collision/frame
 # nodes in both scenarios. All other rows and streamed deltas stay fixed;
 # source/export still differ only by the two previously required local skies.
-const RESIDENT_FINGERPRINT := "7a9241148e27b3befee0f5f1f3858f8f88499e82ab40c609eea3aed7153884da"
-const CINDER_LOADED_FINGERPRINT := "389dcc78a326fe8213d69d93c85a996cdce90db361599d70ed126a83630a4806"
-const PACKED_RESIDENT_FINGERPRINT := "3c8f7ed7f3f75b03203d8c9c889d5d6d00ad534f198b3a3a115bbe6018bd5280"
-const PACKED_CINDER_LOADED_FINGERPRINT := "89a52600e26ed43034f1b6e9c7db0d60551977ab335ffb50fa326699bffd811d"
+# Connected gunner route: measured -69 triangles, +12 collision/route nodes and
+# +1 unique mesh. Ordinary gunner discovery adds two more nodes; renderers,
+# surfaces, materials, lights and every loaded-minus-resident delta stay fixed.
+const RESIDENT_FINGERPRINT := "4f1d06df494769b0774ecba9785785949c5caf8788cb7f7262dde6174fd2dc51"
+const CINDER_LOADED_FINGERPRINT := "fc0595ef92d661f9da4b82b66c5d95e212285b263cfe7b85e4b037c850930521"
+const PACKED_RESIDENT_FINGERPRINT := "15f22112c2dc418250373eeb70eaf9cd9c350382e2012cceb257bc27162e0afd"
+const PACKED_CINDER_LOADED_FINGERPRINT := "5fcb48104107e88e5bfb06f76cb0d5c1b76d43b834e4ade9cfc672b32f66fab1"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -418,18 +421,18 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1751245
+		int(resident.get("total_triangles", -1)) == 1751176
 			and int(resident.get("total_mesh_instances", -1)) == 5029
 			and int(resident.get("total_surfaces", -1)) == 5589
-			and int(resident.get("unique_meshes", -1)) == 2692,
-		"resident geometry freezes 1,751,245 triangles / 5,029 meshes / 5,589 surfaces / 2,692 unique meshes"
+			and int(resident.get("unique_meshes", -1)) == 2693,
+		"resident geometry freezes 1,751,176 triangles / 5,029 meshes / 5,589 surfaces / 2,693 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 647
 			and int(resident.get("retained_reachable_unique_materials", -1)) == (1065 if _packed_scene_resources() else 1063)
 			and int(resident.get("lights", -1)) == 327
-			and int(resident.get("nodes", -1)) == 10229,
-		"resident resource roster freezes exact source/export materials, 327 lights, and 10,229 nodes"
+			and int(resident.get("nodes", -1)) == 10243,
+		"resident resource roster freezes exact source/export materials, 327 lights, and 10,243 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == (PACKED_RESIDENT_FINGERPRINT if _packed_scene_resources() else RESIDENT_FINGERPRINT),
@@ -487,18 +490,18 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 1906267
+		int(loaded.get("total_triangles", -1)) == 1906198
 			and int(loaded.get("total_mesh_instances", -1)) == 5286
 			and int(loaded.get("total_surfaces", -1)) == 5850
-			and int(loaded.get("unique_meshes", -1)) == 2865,
-		"loaded geometry freezes 1,906,267 triangles / 5,286 meshes / 5,850 surfaces / 2,865 unique meshes"
+			and int(loaded.get("unique_meshes", -1)) == 2866,
+		"loaded geometry freezes 1,906,198 triangles / 5,286 meshes / 5,850 surfaces / 2,866 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 705
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1128 if _packed_scene_resources() else 1126)
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 10817,
-		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,817 nodes"
+			and int(loaded.get("nodes", -1)) == 10831,
+		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,831 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
