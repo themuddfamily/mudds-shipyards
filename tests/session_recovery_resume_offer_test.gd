@@ -73,6 +73,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--solo-crew-only" in OS.get_cmdline_user_args():
+		await _test_real_solo_crew_recovery()
+		_finish()
+		return
 	var recovery_snapshot := _test_unclean_shutdown_is_detected_and_clean_quit_is_not()
 	_test_save_summary_names_the_resumed_save()
 	await _test_startup_card_offers_resume_or_start_fresh(recovery_snapshot)
@@ -336,7 +340,7 @@ func _test_cold_solo_safe_recovery() -> void:
 			# it does not grant a visit or qualify a planet transition.
 			fallback.get("_planetary_journey").set("_ember_surface_journey_active", true)
 		elif test_case.guard == "network":
-			_check(bool(fallback.host_network_session(28479).get("accepted", false)), "the network fallback fixture establishes a real production host session")
+			_check(bool(fallback.host_network_session(_reserve_loopback_port()).get("accepted", false)), "the network fallback fixture establishes a real production host session")
 		var fallback_recovery := fallback.get_recovery_available_snapshot()
 		fallback.call("_handle_hud_session_recovery_choice", &"normal_start", int(fallback_recovery.session_id), int(fallback_recovery.startup_generation))
 		fallback.start_shift()
@@ -527,6 +531,18 @@ func _test_cabin_owner_refusals(game: GameFlow, craft: HeroShip) -> void:
 	_check(game.get("_solo_safe_recovery_context") == context, "both refusals preserve the durable cabin preference for the next explicit Resume")
 
 
+## Real hosts choose an available private fixture port rather than competing
+## with another recovery process for a shared fixed listener.
+func _reserve_loopback_port() -> int:
+	var probe := UDPServer.new()
+	if probe.listen(0, "127.0.0.1") != OK:
+		_check(false, "reserve a loopback UDP port for the real recovery host")
+		return 0
+	var port := probe.get_local_port()
+	probe.stop()
+	return port
+
+
 func _press_crew_interaction() -> void:
 	Input.action_press(&"interact")
 	await physics_frame
@@ -551,6 +567,14 @@ func _test_real_solo_crew_recovery() -> void:
 	game.player.teleport_to(entry)
 	await _settle_frames()
 	_check(game.station_interaction_candidate == seat and (game.hud.get("_interaction_label") as Label).text.contains("PASSENGER"), "ordinary facing and overlap discover the physical passenger chair and its visible prompt")
+	var contract := (seat as ShipCrewSeat).get_role_contract()
+	_check(contract.get("seat") == craft.get_loadmaster_station_anchor() and contract.get("frame") == craft.get_moving_interior_component() and contract.get("vessel_id") == craft.get_ship_id() and contract.get("seat_id") == &"crew_port_00" and contract.get("role") == &"passenger" and contract.get("entry_transform") == entry and contract.get("exit_transform") == entry, "ordinary Halyard chair publishes its original live craft, role, frame and entry/exit poses")
+	var anchor := craft.get_loadmaster_station_anchor()
+	var anchor_parent := anchor.get_parent()
+	anchor.reparent(game, true)
+	_check((seat as ShipCrewSeat).get_role_contract().is_empty() and not game.player.is_seated() and craft.get_crew_role_authority() == null, "chair discovery refuses an anchor that left its craft hierarchy before granting any crew claim")
+	anchor.reparent(anchor_parent, true)
+	await _settle_frames()
 	var foreign := CrewSeatRoleAuthority.new(1)
 	foreign.register_halyard_roster()
 	foreign.claim(1, 2, &"other_passenger", &"crew_port_00", &"passenger", 1)
@@ -605,12 +629,27 @@ func _test_real_solo_crew_recovery() -> void:
 	_check(not game.player.is_seated() and game.player.is_on_floor() and game.player.is_control_enabled() and authority.get_snapshot().assignments.is_empty() and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and game.get_in_flight_cabin_status().carried, "ordinary E stand releases the exact passenger claim and restores supported walking cabin ownership")
 	await _press_crew_interaction()
 	_check(game.player.is_seated_at(craft.get_loadmaster_station_anchor()), "the same ordinary passenger interaction remains reusable after standing")
-	var hosted := game.host_network_session(28619)
+	var hosted := game.host_network_session(_reserve_loopback_port())
 	await _settle_frames()
 	_check(bool(hosted.get("accepted", false)) and authority.get_snapshot().assignments.is_empty() and not game.player.is_seated() and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and game.player.is_control_enabled() and game.player.is_on_floor(), "successful production host handback releases the local passenger before network composition owns the session")
 	await _press_crew_interaction()
-	_check(not game.player.is_seated(), "live network sessions cannot acquire the solo passenger chair")
+	_check(not game.player.is_seated_at(craft.get_loadmaster_station_anchor()) and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and craft.get_crew_role_authority() == null and (game.get_solo_crew_seat_status().get("assignment", {}) as Dictionary).is_empty(), "live network E cannot acquire a solo passenger claim or physical crew tag")
+	# The network chair filter deliberately lets this press reach the legal
+	# empty cockpit. Prove and finish that actual pilot handoff before teardown.
+	_check(await _wait_for_seat(game, craft) and craft.is_piloted() and game.player.is_seated_at(craft.get_pilot_seat_anchor()), "network E beside the unavailable solo chair uses only the authorized pilot seat")
+	await _press_crew_interaction()
+	await _settle_frames(120)
+	_check(not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor() and not craft.is_piloted() and not bool(game.get("_transition_busy")), "ordinary E fully leaves the host pilot seat onto supported controllable deck")
 	game.shutdown_network_session(&"crew_test")
+	await _retire_game(game)
+	# Subsequent solo persistence is an independent Main session, using the
+	# same authored chair setup as the initial ordinary passenger fixture.
+	game = await _make_game_with_store(store)
+	craft = game.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	seat = craft.find_child("SoloPassengerSeatInteraction", true, false) as Area3D
+	game.start_shift()
+	game.set_physics_process(true)
+	game.player.teleport_to(seat.call("get_entry_transform"))
 	await _settle_frames()
 	await _press_crew_interaction()
 	_check(game.player.is_seated_at(craft.get_loadmaster_station_anchor()), "ordinary solo input can admit a passenger after network shutdown")
@@ -618,11 +657,21 @@ func _test_real_solo_crew_recovery() -> void:
 	var context: Dictionary = store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT]
 	_check(context.get("mode") == "crew" and context.get("craft_id") == String(craft.get_ship_id()) and context.size() == 4 and FileAccess.file_exists(path), "a settled real passenger persists only safe crew mode and its registered craft/home berth to an actual file")
 	var retained_player := game.player
+	var lifetime_hook := craft.get_node("SoloCrewSeatLifetime")
+	lifetime_hook.tree_exiting.connect(func() -> void:
+		_check(craft.is_inside_tree() and seat.is_inside_tree() and retained_player.is_inside_tree()
+			and craft.get_moving_interior_component().is_inside_tree()
+			and not (game.call("_solo_safe_recovery_cabin", craft) as Dictionary).is_empty(),
+			"the exact crew lifetime exits while its real chair, supported geometry, frame and Player remain live"), Object.CONNECT_ONE_SHOT)
 	root.remove_child(game)
 	root.add_child(game)
 	await _settle_frames()
 	game.set_physics_process(true)
-	_check(game.player == retained_player and not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor() and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META), "retained Main releases passenger ownership and keeps the same supported usable Player")
+	_check(game.player == retained_player and not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor() and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META)
+		and game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and game.get_in_flight_cabin_status().carried
+		and game.player.is_cabin_containment_active() and craft.get_crew_role_authority() == null
+		and craft.get_node_or_null("SoloCrewSeatLifetime") == null,
+		"retained Main releases passenger ownership and keeps the same supported usable cabin Player")
 	await _press_crew_interaction()
 	_check(game.player.is_seated_at(craft.get_loadmaster_station_anchor()), "retained Main can admit the same Player again through ordinary input")
 	game.call("_capture_solo_safe_recovery_context")
@@ -669,6 +718,11 @@ func _test_real_solo_crew_recovery() -> void:
 		craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
 		await _settle_frames(120)
 		_check(not cold.player.is_seated() and cold.player.is_control_enabled() and cold.player.is_on_floor() and not cold.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and destroyed_authority.get_snapshot().assignments.is_empty(), "actual hull loss releases the exact passenger ledger and restores a supported usable station Player")
+	craft.queue_free()
+	await _settle_frames(8)
+	_check(typeof(cold.active_ship) == TYPE_NIL and not cold.player.is_seated()
+		and cold.player.is_control_enabled() and cold.player.is_on_floor(),
+		"freeing the retired active craft leaves Main's typed activity consumers and supported Player usable")
 	await _retire_game(cold)
 	for suffix in ["", ".bak", ".tmp", ".bak.1", ".bak.2", ".bak.3"]:
 		if FileAccess.file_exists(path + suffix):

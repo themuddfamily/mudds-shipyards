@@ -16,6 +16,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_halyard_roster_and_single_seal()
+	_test_bulwark_roster()
 	_test_server_claims_and_role_capabilities()
 	_test_generation_release_and_exactly_once_cleanup()
 	if _failures.is_empty():
@@ -57,6 +58,15 @@ func _test_halyard_roster_and_single_seal() -> void:
 		and not bool(audit.owns_occupancy),
 		"seat authority leaves movement-interior occupancy with its existing owner"
 	)
+
+
+func _test_bulwark_roster() -> void:
+	var authority := Authority.new(1)
+	_check(authority.register_bulwark_roster().accepted, "ordinary Bulwark crew can seal the retained vessel roster")
+	var claim := authority.claim(1, 1, &"solo_avatar", &"gunner_station", Authority.ROLE_GUNNER, 1)
+	_check(claim.accepted and claim.assignment.vessel_id == &"bulwark_heavy_gunship" and claim.assignment.anchor_id == &"gunner_station_anchor", "ordinary gunner claims resolve to the published Bulwark station")
+	_check(not authority.authorize_action(1, &"solo_avatar", Authority.CAPABILITY_SHIP_COMMAND).accepted and authority.authorize_action(1, &"solo_avatar", Authority.CAPABILITY_WEAPON_CONTROL).accepted, "the gunner claim grants weapon control while leaving pilot movement with its owner")
+	_check(not authority.register_bulwark_roster().accepted, "the Bulwark vessel roster cannot be replaced after sealing")
 
 
 func _test_server_claims_and_role_capabilities() -> void:

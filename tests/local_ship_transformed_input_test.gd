@@ -53,6 +53,7 @@ func _run() -> void:
 	_test_process_stable_authored_defaults()
 	_test_profile_replacement_toggle_edges_and_reset()
 	_test_toggle_boundary_priming_requires_repress()
+	_test_retained_unpiloted_fire_and_pilot_handoff()
 	_test_stale_detached_and_malformed_fail_neutral()
 	await process_frame
 	_finish()
@@ -311,6 +312,74 @@ func _test_toggle_boundary_priming_requires_repress() -> void:
 		"whole-tree detach and re-entry seed a toggle held during detachment without changing its latch",
 	)
 	source.queue_free()
+
+
+func _test_retained_unpiloted_fire_and_pilot_handoff() -> void:
+	var ship := HeroShip.new()
+	root.add_child(ship)
+	var source := ship.get_local_input_source()
+	var provider := MutableProvider.new()
+	source.set_input_provider(provider)
+	source.set_input_transform_physics_delta(1.0 / 60.0)
+	var custom := source.get_input_binding_profile()
+	custom.set_action_options(&"fire", {
+		"deadzone": 0.0, "curve": Profile.CURVE_LINEAR, "hold_mode": Profile.TOGGLE,
+	})
+	_check(source.configure_input_binding_profile(custom).accepted,
+		"the retained production source accepts the settings FIRE toggle profile")
+	source.reset_stream()
+	source.next_command(2600)
+	provider.set_action(&"fire", 1.0)
+	provider.set_action(&"move_forward", 1.0)
+	provider.set_action(&"interact", 1.0)
+	var pressed := source.next_command(2601)
+	source.drain_pending_commands(source.get_delivery_generation())
+	provider.set_action(&"fire", 0.0, false)
+	var released := source.next_command(2602)
+	_check(not ship.is_piloted() and source == ship.get_command_source()
+		and pressed.fire and released.fire and pressed.throttle > 0.0
+		and ship.get_last_ship_command().is_neutral(),
+		"an unpiloted craft retains transformed FIRE toggle without applying sampled flight fields")
+	source.reset_stream()
+	_check(not source.next_command(2603).fire and source.drain_pending_commands().is_empty(),
+		"the seat-release stream reset clears a latched FIRE and discarded lifecycle edges")
+
+	provider.set_action(&"fire", 1.0)
+	_check(source.next_command(2604).fire, "a new physical FIRE press starts the current toggle")
+	source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	var unfocused := source.next_command(2605)
+	source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	var refocused_held := source.next_command(2606)
+	provider.set_action(&"fire", 0.0, false)
+	source.next_command(2607)
+	provider.set_action(&"fire", 1.0)
+	var refocused_repress := source.next_command(2608)
+	_check(unfocused.is_neutral() and not refocused_held.fire and refocused_repress.fire,
+		"focus loss clears FIRE toggle and a held refocus requires release and repress")
+
+	provider.set_action(&"fire", 0.0, false)
+	provider.set_action(&"interact", 0.0, false)
+	provider.set_action(&"move_forward", 0.0, false)
+	source.next_command(2609)
+	var previous_stream := source.get_stream_id()
+	ship.set_piloted(true)
+	provider.set_action(&"fire", 1.0)
+	provider.set_action(&"move_forward", 1.0)
+	var pilot_first := ship.call(&"_sample_ship_command") as ShipCommand
+	_check(source.get_stream_id() > previous_stream and pilot_first.fire and pilot_first.throttle > 0.0,
+		"normal helm retake revokes crew state and accepts the first new legitimate pilot inputs")
+	ship.set_piloted(false)
+	custom.set_action_options(&"fire", {
+		"deadzone": 0.0, "curve": Profile.CURVE_LINEAR, "hold_mode": Profile.HOLD,
+	})
+	_check(source.configure_input_binding_profile(custom).accepted,
+		"the retained producer accepts the settings FIRE hold profile")
+	var held := source.next_command(2610)
+	provider.set_action(&"fire", 0.0, false)
+	var hold_released := source.next_command(2611)
+	_check(held.fire and not hold_released.fire,
+		"FIRE hold uses physical strength and stops on release after the same seat boundary")
+	ship.queue_free()
 
 
 func _test_stale_detached_and_malformed_fail_neutral() -> void:

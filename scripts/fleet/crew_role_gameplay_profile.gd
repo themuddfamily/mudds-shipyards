@@ -124,7 +124,12 @@ static func _gunner_fire(payload: Dictionary) -> Dictionary:
 	var generation_schema := _exact_keys(
 		payload, ["weapon_id", "target_id", "trigger", "target_generation"]
 	)
-	if not base_schema and not generation_schema:
+	# Main supplies the actual muzzle/view ray; the legacy forms retain the
+	# downstream ship's existing default aim. Never admit only half of a ray.
+	var aim_schema := _exact_keys(payload, [
+		"weapon_id", "target_id", "trigger", "target_generation", "origin", "direction",
+	])
+	if not base_schema and not generation_schema and not aim_schema:
 		return _rejected(&"invalid_gunner_fire_schema")
 	var weapon_id := StringName(str(payload.get("weapon_id", "")))
 	var target_id := StringName(str(payload.get("target_id", "")))
@@ -134,12 +139,26 @@ static func _gunner_fire(payload: Dictionary) -> Dictionary:
 			or not target_generation is int \
 			or int(target_generation) <= 0 or int(target_generation) > 1_000_000:
 		return _rejected(&"invalid_gunner_fire_payload")
-	return _accepted({
+	var normalized := {
 		"weapon_id": weapon_id,
 		"target_id": target_id,
 		"trigger": bool(payload.get("trigger", false)),
 		"target_generation": int(target_generation),
-	})
+	}
+	if aim_schema:
+		var origin: Variant = payload.get("origin")
+		var direction: Variant = payload.get("direction")
+		if not origin is Vector3 or not direction is Vector3:
+			return _rejected(&"invalid_gunner_fire_aim")
+		var ray_origin: Vector3 = origin
+		var ray_direction: Vector3 = direction
+		var magnitude_squared := ray_direction.length_squared()
+		if not ray_origin.is_finite() or not ray_direction.is_finite() \
+				or not is_finite(magnitude_squared) or magnitude_squared <= 0.000001:
+			return _rejected(&"invalid_gunner_fire_aim")
+		normalized["origin"] = ray_origin
+		normalized["direction"] = ray_direction
+	return _accepted(normalized)
 
 
 static func _engineer_repair(payload: Dictionary) -> Dictionary:

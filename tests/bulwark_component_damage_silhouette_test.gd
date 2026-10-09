@@ -55,6 +55,12 @@ func _initialize() -> void:
 	var lane_ids := _functional_lane_ids(craft)
 	var gunner_feedback_before := craft.get_gunner_station_feedback_snapshot()
 	var collision_report := craft.get_landing_collision_report()
+	print("BULWARK_COMPOUND_MEASURE: ", collision_report)
+	var root_shapes := PackedStringArray()
+	for node in craft.get_children():
+		if node is CollisionShape3D:
+			root_shapes.append(String(node.name))
+	print("BULWARK_ROOT_SHAPES: ", root_shapes)
 	var collision_bounds := collision_report.get("local_bounds", AABB()) as AABB
 	var component_report := craft.get_component_damage_report()
 	var component_bounds := component_report.get("local_bounds", AABB()) as AABB
@@ -68,14 +74,14 @@ func _initialize() -> void:
 	)
 	_check(
 		bool(collision_report.get("valid", false))
-			and int(collision_report.get("shape_count", 0)) == 10
+			and int(collision_report.get("shape_count", 0)) == 22
 			and collision_bounds.is_equal_approx(AABB(Vector3(-5.8, -0.53, -5.15), Vector3(11.6, 3.43, 10.8)))
 			and component_bounds.is_equal_approx(collision_bounds)
 			and starboard_anchor.is_equal_approx(expected_starboard_anchor)
 			and is_equal_approx(
 				float(component_report.get("maximum_hull", -1.0)), craft.maximum_hull
 			),
-		"the live component ledger derives its bounds and starboard anchor from the ten-piece cabin shell with its unchanged original outer envelope"
+		"the live component ledger derives its bounds and starboard anchor from the 22-shape connected cabin shell with its unchanged original outer envelope"
 	)
 	var hull_before := float(craft.get_telemetry().get("hull", -1.0))
 	var damage_amount := craft.maximum_hull * 0.15

@@ -74,7 +74,16 @@ const FLEET_DOCK_EXIT_LOCAL_POSITION := Vector3(-5.5, -1.08, 5.7)
 # root-foot poses, with clearance for the ordinary 0.38 m / 1.94 m Player capsule.
 const CABIN_FLOOR_Y := 1.30
 const CABIN_VOID := AABB(Vector3(-1.10, CABIN_FLOOR_Y, -1.32), Vector3(0.98, 2.0, 2.24))
-const CABIN_MOVEMENT_BOUNDS := AABB(Vector3(-0.67, 1.27, -0.90), Vector3(0.10, 0.35, 1.40))
+# A connected port aisle, aft vestibule and inboard gunner approach. The
+# ordinary capsule stays full-sized; the fixed floor and pressure skin own the
+# non-rectangular interior while this frame bounds both real seat anchors.
+const CABIN_VOIDS: Array[AABB] = [
+	AABB(Vector3(-1.10, CABIN_FLOOR_Y, -1.32), Vector3(0.98, 2.50, 3.62)),
+	AABB(Vector3(-1.10, CABIN_FLOOR_Y, 1.10), Vector3(2.70, 2.50, 1.20)),
+	AABB(Vector3(0.70, CABIN_FLOOR_Y, -0.85), Vector3(2.70, 2.50, 3.15)),
+]
+const CABIN_MOVEMENT_BOUNDS := AABB(Vector3(-0.67, 1.27, -0.90), Vector3(3.50, 0.75, 2.75))
+const GUNNER_APPROACH_LOCAL_ORIGIN := Vector3(1.25, 1.33, 0.65)
 const CABIN_STAND_LOCAL_ORIGIN := Vector3(-0.62, 1.33, 0.40)
 const GUNNER_STATION_LOCAL_POSITION := Vector3(2.35, 1.55, 0.55)
 const ARMORED_SHOULDER_SIZE := Vector3(3.4, 1.25, 5.3)
@@ -689,23 +698,42 @@ func _set_cabin_collision_enabled(enabled: bool) -> void:
 
 func _add_cabin_shell_collision(label: String, center: Vector3, size: Vector3, floor_segment: bool = true) -> void:
 	var outer := AABB(center - size * 0.5, size)
-	var low := outer.position
-	var high := outer.end
-	var a := CABIN_VOID.position
-	var b := CABIN_VOID.end
-	var pieces: Array[AABB] = [
-		AABB(low, Vector3(a.x - low.x, size.y, size.z)),
-		AABB(Vector3(b.x, low.y, low.z), Vector3(high.x - b.x, size.y, size.z)),
-		AABB(Vector3(a.x, a.y, low.z), Vector3(b.x - a.x, high.y - a.y, a.z - low.z)),
-		AABB(Vector3(a.x, a.y, b.z), Vector3(b.x - a.x, high.y - a.y, high.z - b.z)),
-	]
-	if floor_segment:
-		pieces.append(AABB(Vector3(a.x, low.y, low.z), Vector3(b.x - a.x, a.y - low.y, size.z)))
-	# The Hull bottom already covers the Shoulder bottom completely. Omit that
-	# duplicate so the service floor has one physical owner and no coplanar seam.
+	var pieces: Array[AABB] = [outer]
+	for opening in CABIN_VOIDS:
+		var remaining: Array[AABB] = []
+		for piece in pieces:
+			remaining.append_array(_subtract_cabin_box(piece, opening))
+		pieces = remaining
 	for index in pieces.size():
 		var piece := pieces[index]
+		# The Hull bottom covers the complete Shoulder bottom. Keep one floor
+		# owner, without adding an overlapping body or changing the outer hull.
+		if not floor_segment and piece.end.y <= CABIN_FLOOR_Y:
+			continue
 		_add_box_collision_shape(label + str(index), piece.get_center(), piece.size)
+
+
+func _subtract_cabin_box(stock: AABB, opening: AABB) -> Array[AABB]:
+	var cut := stock.intersection(opening)
+	if not stock.intersects(opening) or cut.size.x <= 0.0 or cut.size.y <= 0.0 or cut.size.z <= 0.0:
+		return [stock]
+	var a := stock.position
+	var b := stock.end
+	var c := cut.position
+	var d := cut.end
+	var candidates: Array[AABB] = [
+		AABB(a, Vector3(c.x - a.x, stock.size.y, stock.size.z)),
+		AABB(Vector3(d.x, a.y, a.z), Vector3(b.x - d.x, stock.size.y, stock.size.z)),
+		AABB(Vector3(c.x, a.y, a.z), Vector3(cut.size.x, c.y - a.y, stock.size.z)),
+		AABB(Vector3(c.x, d.y, a.z), Vector3(cut.size.x, b.y - d.y, stock.size.z)),
+		AABB(Vector3(c.x, c.y, a.z), Vector3(cut.size.x, cut.size.y, c.z - a.z)),
+		AABB(Vector3(c.x, c.y, d.z), Vector3(cut.size.x, cut.size.y, b.z - d.z)),
+	]
+	var pieces: Array[AABB] = []
+	for piece in candidates:
+		if piece.size.x > 0.00001 and piece.size.y > 0.00001 and piece.size.z > 0.00001:
+			pieces.append(piece)
+	return pieces
 
 
 func _build_recessed_cabin(cockpit: Node3D, canopy: Node3D) -> void:
@@ -743,13 +771,14 @@ func _build_recessed_cabin(cockpit: Node3D, canopy: Node3D) -> void:
 	var floor_tool := SurfaceTool.new()
 	floor_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var decks: Array[AABB] = [
-		AABB(Vector3(-0.12, 1.87, -2.175), Vector3(1.095, 0.12, 3.25)),
+		AABB(Vector3(-0.12, 1.87, -2.175), Vector3(1.095, 0.12, 2.425)),
+		AABB(Vector3(-0.12, 1.87, 0.25), Vector3(0.92, 0.12, 0.825)),
 		AABB(Vector3(-0.975, 1.87, -2.175), Vector3(0.855, 0.12, 0.855)),
-		AABB(Vector3(-0.975, 1.87, 0.92), Vector3(0.855, 0.12, 0.155)),
-		AABB(Vector3(-1.10, 1.20, -1.32), Vector3(0.98, 0.10, 2.24)),
+		AABB(Vector3(-1.10, 1.20, -1.32), Vector3(0.98, 0.10, 3.62)),
 		AABB(Vector3(-0.12, 1.30, -1.32), Vector3(0.04, 0.69, 2.24)),
 		AABB(Vector3(-1.10, 1.30, -1.36), Vector3(0.98, 0.69, 0.04)),
-		AABB(Vector3(-1.10, 1.30, 0.92), Vector3(0.98, 0.69, 0.04)),
+		AABB(Vector3(-0.12, 1.20, 1.10), Vector3(0.82, 0.10, 1.20)),
+		AABB(Vector3(0.70, 1.20, -0.85), Vector3(2.70, 0.10, 3.15)),
 	]
 	for deck in decks:
 		var box := BoxMesh.new()
@@ -759,8 +788,18 @@ func _build_recessed_cabin(cockpit: Node3D, canopy: Node3D) -> void:
 	_cabin_floor.transform = Transform3D.IDENTITY
 	_cabin_floor.mesh = floor_tool.commit()
 	for label in ["ArmoredCentralSlab", "CockpitPressureTransition"]:
-		_cut_cabin_opening(_bulwark_visual.get_node(label) as MeshInstance3D)
+		for opening in CABIN_VOIDS:
+			_cut_cabin_opening(_bulwark_visual.get_node(label) as MeshInstance3D, opening)
+	_build_gunner_access_enclosure(cockpit, canopy)
 	var fixture_faces := PackedVector3Array()
+	# The actual raised pilot platform and step faces block the walking body.
+	# The recessed top is already owned by Hull; do not duplicate its floor.
+	var floor_faces := _cabin_floor.mesh.get_faces()
+	for triangle in range(0, floor_faces.size(), 3):
+		if floor_faces[triangle].y > CABIN_FLOOR_Y + 0.00001 \
+				or floor_faces[triangle + 1].y > CABIN_FLOOR_Y + 0.00001 \
+				or floor_faces[triangle + 2].y > CABIN_FLOOR_Y + 0.00001:
+			fixture_faces.append_array(floor_faces.slice(triangle, triangle + 3))
 	for descendant in cockpit.find_children("*", "MeshInstance3D", true, false):
 		var mesh_node := descendant as MeshInstance3D
 		if mesh_node == _cabin_floor or String(mesh_node.name) in ["PortSidewall", "StarboardSidewall", "ForwardPressureWall", "RearPressureWall", "PortSill", "StarboardSill"]:
@@ -768,9 +807,187 @@ func _build_recessed_cabin(cockpit: Node3D, canopy: Node3D) -> void:
 		var local := cockpit.global_transform.affine_inverse() * mesh_node.global_transform
 		for point in mesh_node.mesh.get_faces():
 			fixture_faces.append(local * point)
+	for descendant in _gunner_station.find_children("*", "MeshInstance3D", true, false):
+		var mesh_node := descendant as MeshInstance3D
+		var local := cockpit.global_transform.affine_inverse() * mesh_node.global_transform
+		for point in mesh_node.mesh.get_faces():
+			fixture_faces.append(local * point)
+	var shield := _bulwark_visual.get_node("GunnerRearSplinterShield") as MeshInstance3D
+	var shield_to_cockpit := cockpit.global_transform.affine_inverse() * shield.global_transform
+	for point in shield.mesh.get_faces():
+		fixture_faces.append(shield_to_cockpit * point)
 	_cabin_fixture_body = _add_cabin_skin(cockpit, "CabinFixtures", fixture_faces)
 	var glazing := canopy.get_node("CanopyGlass") as MeshInstance3D
 	_cabin_pressure_body = _add_cabin_skin(glazing, "CabinPressureSkin", glazing.mesh.get_faces())
+
+
+func _build_gunner_access_enclosure(cockpit: Node3D, canopy: Node3D) -> void:
+	# The real aft portal clears the pressure wall, keeper and hinge stock.
+	# Retained chair, gunner console, shield and anchors do not move.
+	var portal := AABB(Vector3(-1.10, 1.30, 0.80), Vector3(0.98, 2.50, 1.50))
+	_build_gunner_portal_wall(cockpit.get_node("RearPressureWall") as MeshInstance3D)
+	var star_wall := cockpit.get_node("StarboardSidewall") as MeshInstance3D
+	_cut_cabin_opening(star_wall, CABIN_VOIDS[2])
+	for label in ["CanopyHingeBar", "PortCanopyHingeMount", "StarboardCanopyHingeMount"]:
+		var member := _bulwark_visual.get_node_or_null(label) as MeshInstance3D
+		if member != null:
+			_cut_cabin_opening(member, portal)
+			_cut_cabin_opening(member, CABIN_VOIDS[2])
+	var glass := canopy.get_node("CanopyGlass") as MeshInstance3D
+	for opening in [portal, CABIN_VOIDS[2]]:
+		_cut_cabin_opening(glass, opening)
+	_stitch_gunner_glazing(glass)
+	_build_gunner_pressure_join(cockpit, glass, [portal, CABIN_VOIDS[2]])
+	# The annex stays below the original canopy crown and inside the original
+	# shoulder envelope. Its floor and all furniture have physical skin.
+	var finish := _cabin_floor.get_active_material(0)
+	for stock in [
+		AABB(Vector3(-0.14, 1.30, 0.99), Vector3(0.04, 2.50, 0.09)),
+		AABB(Vector3(0.70, 1.30, 0.99), Vector3(0.04, 2.50, 0.09)),
+		AABB(Vector3(-1.18, 1.30, 0.80), Vector3(0.08, 2.40, 1.58)),
+		AABB(Vector3(-1.18, 1.30, 2.30), Vector3(4.66, 2.40, 0.08)),
+		AABB(Vector3(3.40, 1.30, -0.93), Vector3(0.08, 2.40, 3.31)),
+		AABB(Vector3(0.70, 1.30, -0.93), Vector3(2.78, 2.40, 0.08)),
+		AABB(Vector3(-1.18, 3.60, 0.80), Vector3(1.88, 0.10, 1.58)),
+		AABB(Vector3(0.70, 3.60, -0.93), Vector3(2.78, 0.10, 3.31)),
+	]:
+		var shell := _box(cockpit, "GunnerAccessShell" + str(cockpit.get_child_count()), stock.get_center(), stock.size, finish)
+		shell.set_meta("pressure_boundary", true)
+	# Existing fitted glazing provides the forward port enclosure. The new
+	# fixed walls retain their own pressure ownership while the pilot lid opens.
+
+
+func _build_gunner_portal_wall(wall: MeshInstance3D) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(wall.get_active_material(0))
+	# Two retained formed jambs leave a genuine full-height port opening. Their
+	# flared feet terminate on the recessed deck rather than floating above it.
+	for span in [Vector2(-1.22, -1.10), Vector2(-0.12, 0.70)]:
+		var section := PackedVector2Array([
+			Vector2(0.84, 2.605), Vector2(1.04, 2.605),
+			Vector2(1.34, CABIN_FLOOR_Y), Vector2(0.94, CABIN_FLOOR_Y),
+		])
+		for edge in section.size():
+			var next := (edge + 1) % section.size()
+			_tub_quad(tool, Vector3(span.x, section[edge].y, section[edge].x),
+				Vector3(span.y, section[edge].y, section[edge].x),
+				Vector3(span.y, section[next].y, section[next].x),
+				Vector3(span.x, section[next].y, section[next].x), Vector3(span.x, 2.0, 1.0))
+		for end in [span.x, span.y]:
+			_tub_quad(tool, Vector3(end, section[0].y, section[0].x), Vector3(end, section[1].y, section[1].x),
+				Vector3(end, section[2].y, section[2].x), Vector3(end, section[3].y, section[3].x), Vector3(span.x, 2.0, 1.0))
+	tool.generate_tangents()
+	wall.transform = Transform3D.IDENTITY
+	wall.mesh = tool.commit()
+
+
+func _stitch_gunner_glazing(glass: MeshInstance3D) -> void:
+	# A rectangle cut can subdivide one side of an original shared edge while
+	# its untouched neighbor retains the whole edge. Split only those actual
+	# edges at their existing vertices so the pressure skin stays watertight.
+	var arrays := glass.mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var cells := {}
+	var unique := {}
+	for point in vertices:
+		var welded := point.snapped(Vector3.ONE * 0.000001)
+		if unique.has(welded):
+			continue
+		unique[welded] = true
+		var key := Vector3i((welded * 4.0).floor())
+		if not cells.has(key):
+			cells[key] = []
+		(cells[key] as Array).append(welded)
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(glass.get_active_material(0))
+	for triangle in range(0, vertices.size(), 3):
+		var polygon: Array[Dictionary] = []
+		for edge in 3:
+			var ia := triangle + edge
+			var ib := triangle + (edge + 1) % 3
+			var a := vertices[ia].snapped(Vector3.ONE * 0.000001)
+			var b := vertices[ib].snapped(Vector3.ONE * 0.000001)
+			var delta := b - a
+			var length_squared := delta.length_squared()
+			var cuts: Array[Dictionary] = [{"point": a, "weight": 0.0}]
+			var low := Vector3i((a.min(b) * 4.0).floor())
+			var high := Vector3i((a.max(b) * 4.0).floor())
+			for x in range(low.x, high.x + 1):
+				for y in range(low.y, high.y + 1):
+					for z in range(low.z, high.z + 1):
+						for point: Vector3 in cells.get(Vector3i(x, y, z), []):
+							var weight := (point - a).dot(delta) / maxf(length_squared, 0.000000000001)
+							if weight <= 0.00001 or weight >= 0.99999:
+								continue
+							if point.distance_squared_to(a + delta * weight) <= 0.000000000004:
+								cuts.append({"point": point, "weight": weight})
+			cuts.sort_custom(func(first: Dictionary, second: Dictionary) -> bool: return first.weight < second.weight)
+			for cut in cuts:
+				polygon.append({"point": cut.point,
+					"normal": normals[ia].lerp(normals[ib], cut.weight).normalized(),
+					"uv": uvs[ia].lerp(uvs[ib], cut.weight)})
+		if polygon.size() == 3:
+			for item in polygon:
+				tool.set_normal(item.normal)
+				tool.set_uv(item.uv)
+				tool.add_vertex(item.point)
+		else:
+			var center := (vertices[triangle] + vertices[triangle + 1] + vertices[triangle + 2]) / 3.0
+			var center_normal := (normals[triangle] + normals[triangle + 1] + normals[triangle + 2]).normalized()
+			var center_uv := (uvs[triangle] + uvs[triangle + 1] + uvs[triangle + 2]) / 3.0
+			for edge in polygon.size():
+				var a: Vector3 = polygon[edge].point
+				var b: Vector3 = polygon[(edge + 1) % polygon.size()].point
+				if (b - a).cross(center - a).length_squared() <= 0.000000000001:
+					continue
+				for item: Dictionary in [polygon[edge], polygon[(edge + 1) % polygon.size()],
+						{"point": center, "normal": center_normal, "uv": center_uv}]:
+					tool.set_normal(item.normal)
+					tool.set_uv(item.uv)
+					tool.add_vertex(item.point)
+	tool.generate_tangents()
+	glass.mesh = tool.commit()
+
+
+func _build_gunner_pressure_join(cockpit: Node3D, glass: MeshInstance3D, openings: Array) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_material(_cabin_floor.get_active_material(0))
+	var local := global_transform.affine_inverse() * glass.global_transform
+	var faces := glass.mesh.get_faces()
+	var emitted := false
+	var edges := {}
+	for triangle in range(0, faces.size(), 3):
+		for edge in 3:
+			var a: Vector3 = local * faces[triangle + edge]
+			var b: Vector3 = local * faces[triangle + (edge + 1) % 3]
+			for opening: AABB in openings:
+				var boundary := false
+				for axis in [0, 2]:
+					for limit in [opening.position[axis], opening.end[axis]]:
+						boundary = boundary or (absf(a[axis] - limit) < 0.00001 and absf(b[axis] - limit) < 0.00001)
+				if not boundary or a.y < 2.50 or b.y < 2.50:
+					continue
+				var key := [a.snapped(Vector3.ONE * 0.00001), b.snapped(Vector3.ONE * 0.00001)] if a < b else [b.snapped(Vector3.ONE * 0.00001), a.snapped(Vector3.ONE * 0.00001)]
+				if edges.has(key):
+					continue
+				edges[key] = true
+				var c := Vector3(b.x, 3.60, b.z)
+				var d := Vector3(a.x, 3.60, a.z)
+				if (c - a).cross(b - a).length_squared() > 0.000000000001:
+					_tub_quad(tool, a, b, c, d, Vector3(0.4, 2.0, 1.7))
+					emitted = true
+	if emitted:
+		tool.generate_tangents()
+		var join := MeshInstance3D.new()
+		join.name = "GunnerPressureJoin"
+		join.set_meta("pressure_boundary", true)
+		join.mesh = tool.commit()
+		cockpit.add_child(join)
 
 
 func _add_cabin_skin(parent: Node3D, label: String, faces: PackedVector3Array) -> StaticBody3D:
@@ -791,8 +1008,9 @@ func _add_cabin_skin(parent: Node3D, label: String, faces: PackedVector3Array) -
 	return body
 
 
-func _cut_cabin_opening(owner: MeshInstance3D) -> void:
+func _cut_cabin_opening(owner: MeshInstance3D, opening: AABB = CABIN_VOID) -> void:
 	var result := ArrayMesh.new()
+	var owner_to_ship := global_transform.affine_inverse() * owner.global_transform
 	for surface_index in owner.mesh.get_surface_count():
 		var arrays := owner.mesh.surface_get_arrays(surface_index)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -802,20 +1020,21 @@ func _cut_cabin_opening(owner: MeshInstance3D) -> void:
 		var tool := SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		tool.set_material(owner.get_active_material(surface_index))
+		var emitted := 0
 		var count := indices.size() if not indices.is_empty() else vertices.size()
 		for offset in range(0, count, 3):
 			var polygon: Array[Dictionary] = []
 			for edge in 3:
 				var index := indices[offset + edge] if not indices.is_empty() else offset + edge
-				polygon.append({"point": owner.transform * vertices[index], "normal": normals[index], "uv": uvs[index]})
+				polygon.append({"point": owner_to_ship * vertices[index], "normal": normals[index], "uv": uvs[index]})
 			var pieces: Array = [polygon]
 			var triangle_bounds := AABB(polygon[0].point, Vector3.ZERO).expand(polygon[1].point).expand(polygon[2].point)
 			# Preserve triangles outside the opening intact; splitting those at the
 			# infinite cut planes creates needless slivers in the exterior finish.
-			if triangle_bounds.intersects(CABIN_VOID):
+			if triangle_bounds.intersects(opening):
 				pieces = []
 				var remaining := polygon
-				for plane in [[0, CABIN_VOID.position.x, true], [0, CABIN_VOID.end.x, false], [2, CABIN_VOID.position.z, true], [2, CABIN_VOID.end.z, false]]:
+				for plane in [[0, opening.position.x, true], [0, opening.end.x, false], [2, opening.position.z, true], [2, opening.end.z, false]]:
 					pieces.append(_clip_cabin_polygon(remaining, plane[0], plane[1], plane[2], false))
 					remaining = _clip_cabin_polygon(remaining, plane[0], plane[1], plane[2], true)
 			for piece in pieces:
@@ -828,12 +1047,16 @@ func _cut_cabin_opening(owner: MeshInstance3D) -> void:
 						tool.set_uv(item.uv)
 						var point: Vector3 = item.point
 						if owner.name == &"CockpitPressureTransition" and point.y >= CABIN_FLOOR_Y and point.y < 1.4 \
-								and point.x >= CABIN_VOID.position.x - 0.0001 and point.x <= CABIN_VOID.end.x + 0.0001 \
-								and point.z >= CABIN_VOID.position.z - 0.0001 and point.z <= CABIN_VOID.end.z + 0.0001:
+								and point.x >= opening.position.x - 0.0001 and point.x <= opening.end.x + 0.0001 \
+								and point.z >= opening.position.z - 0.0001 and point.z <= opening.end.z + 0.0001:
 							point.y = CABIN_FLOOR_Y
-						tool.add_vertex(owner.transform.affine_inverse() * point)
-		tool.generate_tangents()
-		tool.commit(result)
+						if owner.name == &"StarboardSidewall" and absf(point.z - opening.position.z) < 0.00001 and is_equal_approx(point.y, 1.40):
+							point.y = CABIN_FLOOR_Y
+						tool.add_vertex(owner_to_ship.affine_inverse() * point)
+						emitted += 1
+		if emitted > 0:
+			tool.generate_tangents()
+			tool.commit(result)
 	owner.mesh = result
 
 
@@ -1842,6 +2065,16 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 	var result := _crew_role_result(true, &"authority_attached")
 	result["role_count"] = (snapshot.get("seats", []) as Array).size()
 	return result
+
+
+func detach_crew_role_authority(authority: CrewSeatRoleAuthority) -> bool:
+	if authority == null or _crew_role_authority != authority \
+			or not (authority.get_snapshot().get("assignments", []) as Array).is_empty():
+		return false
+	_crew_role_authority = null
+	_cleanup_detached_gunner_state()
+	_update_gunner_station_feedback()
+	return true
 
 
 func get_crew_role_authority() -> CrewSeatRoleAuthority:
@@ -3067,7 +3300,12 @@ func get_gunner_station_role_contract() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"role": &"gunner",
+		"vessel_id": get_ship_id(),
+		"seat_id": GUNNER_SEAT_ID,
 		"seat": _gunner_station_anchor,
+		"entry_transform": Transform3D(global_basis.orthonormalized().rotated(global_basis.y, -PI * 0.5), global_transform * GUNNER_APPROACH_LOCAL_ORIGIN),
+		"exit_transform": Transform3D(global_basis.orthonormalized().rotated(global_basis.y, -PI * 0.5), global_transform * GUNNER_APPROACH_LOCAL_ORIGIN),
+		"frame": get_moving_interior_component(),
 		"seat_type": &"physical",
 		"authority_owner": &"LiveCombatAuthority.resolve_hitscan",
 		"visual_only_weapon_fit": false,

@@ -1486,6 +1486,21 @@ func get_loadmaster_station_anchor() -> Marker3D:
 	return null
 
 
+## The ordinary local passenger flow uses the same authored chair and poses.
+func get_passenger_station_role_contract() -> Dictionary:
+	var anchor := get_loadmaster_station_anchor()
+	if not is_instance_valid(anchor):
+		return {}
+	var approach := global_transform * Transform3D(
+		Basis(Vector3.UP, PI / 2.0), Vector3(0.0, 0.52, to_local(anchor.global_position).z)
+	)
+	return {
+		"vessel_id": get_ship_id(), "seat_id": LOADMASTER_STATION_SEAT_ID,
+		"role": &"passenger", "seat": anchor, "frame": _moving_interior_component,
+		"entry_transform": approach, "exit_transform": approach,
+	}
+
+
 ## Returns only caller-owned manifest/readiness evidence. Inventory, reward,
 ## cargo movement, and berth authority remain outside this role.
 func get_loadmaster_manifest_snapshot() -> Dictionary:
