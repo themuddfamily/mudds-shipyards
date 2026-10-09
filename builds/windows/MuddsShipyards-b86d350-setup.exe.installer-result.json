@@ -1,0 +1,16 @@
+{
+  "build_label": "0.12.0+b86d350",
+  "installer": "/root/.cache/mudds-shipyards/roadmap-validation/installer-stationdefense-b86d350/MuddsShipyards-b86d350-setup.exe",
+  "installer_bytes": 86712236,
+  "installer_kind": "nsis-per-user",
+  "installer_sha256": "b15f62bbcd513e2c866436cc18085fda70213129d18d56c44b022d2e0912127c",
+  "makensis_version": "v3.09-4",
+  "native_verification": "NOT_RUN",
+  "product_version": "0.12.0",
+  "schema_version": 1,
+  "signing": "unsigned",
+  "source_commit": "b86d350ff26d01d970d4bb6de25583353eae9bdc",
+  "source_exe": "/root/.cache/mudds-shipyards/roadmap-validation/installer-stationdefense-b86d350/MuddsShipyards-b86d350.exe",
+  "source_exe_bytes": 177688736,
+  "source_exe_sha256": "235e6882db6874fb5c253fcaa9589bdc72216f8dffdfb2a5ea1592bb4bb01c33"
+}

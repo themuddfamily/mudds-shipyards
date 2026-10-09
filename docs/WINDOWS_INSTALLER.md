@@ -8,7 +8,41 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `9ef48fdc2` — 2026-10-09
+## Latest native checkpoint `b86d350ff` — 2026-10-09
+
+The matching unsigned [setup](../builds/windows/MuddsShipyards-b86d350-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-b86d350-installer-notes.txt) are
+published. Setup SHA256 is
+`b15f62bbcd513e2c866436cc18085fda70213129d18d56c44b022d2e0912127c`;
+its exact game payload is
+`235e6882db6874fb5c253fcaa9589bdc72216f8dffdfb2a5ea1592bb4bb01c33`.
+Game/builder source is `b86d350ff`; verifier source is separately recorded as
+`2c49b38a6`, with strict typed reward-count comparisons on both arm and restart.
+
+Sequential native default 11/11 and station-defence pilot 16/16 contracts pass
+actual exit 0/reaped, including `9ef48fdc2` → `b86d350ff` → `9ef48fdc2`, locked
+replacement refusal, startup safe-start/journal, backup/corrupt and protected
+newer-document retention, rollback and uninstall. A genuine earned unpaid report
+survives the owned kill and fresh Boot; safe-home Resume, throttle, ordinary
+pilot exit and physical-board retry publish one receipt and paid acknowledgement.
+Generation, settings, real cargo and an unrelated beacon reward remain intact;
+one crash and clean markers are verified. Recovery does not replay airborne
+pose, combat actors, damage, leases or timers.
+
+Root and HIGH review verify all 91 retained hashes and actual saved/raw records.
+Per-lane and final independent identity cleanup pass; all seven tracked Windows
+PIDs and owned installation, activity profile, registry and shortcuts are absent.
+Diagnostic userdata is intentionally retained. A scratch final-cleanup roster
+preparation error is preserved; it occurred after both lanes and before that
+cleanup invocation, requiring no gameplay rerun. Original compiler sidecars
+retain their build-time status. Exclusive root publication exits 0/reaped.
+
+Other installed recovery contexts on these bytes, engineer/scan interruption,
+exact-source full regression, interactive/human controls, clean-platform/native
+GPU/controller/audio, endurance, trusted signing and final release remain open.
+The older mining/beacon/convoy installed passes below qualify their own source.
+
+## Earlier native checkpoint `9ef48fdc2` — 2026-10-09
 
 The unsigned [setup](../builds/windows/MuddsShipyards-9ef48fd-setup.exe) and
 [notes](../builds/windows/MuddsShipyards-9ef48fd-installer-notes.txt) are published.
