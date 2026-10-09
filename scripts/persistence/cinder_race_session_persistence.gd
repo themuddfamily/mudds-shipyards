@@ -118,6 +118,7 @@ func save_state(
 		if not bool(transition.get("accepted", false)):
 			return transition
 		if transition.get("reason", &"") == &"race_session_unchanged":
+			session.acknowledge_persisted_capture(canonical_state)
 			return {
 				"accepted": true,
 				"reason": &"race_session_unchanged",
@@ -125,6 +126,8 @@ func save_state(
 			}.duplicate(true)
 	payload[slot_key] = record
 	var committed := _store.commit(payload, _store.get_generation(), commit_id)
+	if bool(committed.get("accepted", false)):
+		session.acknowledge_persisted_capture(canonical_state)
 	committed["binding_reason"] = (
 		&"race_session_saved"
 		if bool(committed.get("accepted", false)) else &"store_rejected"
@@ -219,6 +222,14 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary, session: 
 			or float(candidate_race.get("penalty_seconds", -1.0)) \
 			< float(existing_race.get("penalty_seconds", 0.0)):
 		return _result(false, &"stale_race_session")
+	if existing_state in [TimedCheckpointRace.State.COUNTDOWN, TimedCheckpointRace.State.ACTIVE] \
+			and candidate_state == TimedCheckpointRace.State.COMPLETED \
+			and _canonical_state(session.get_acknowledged_persistence_state()) == existing \
+			and _completion_results_follow(existing_race, candidate_race):
+		# Both current terminal authorities and the exact live capture have already
+		# been validated. The retained acknowledgement identifies this actual run's
+		# saved boundary even when its later ordered gate writes were rejected.
+		return _result(true, &"race_session_unsaved_completion_recovered")
 	match existing_state:
 		TimedCheckpointRace.State.COUNTDOWN:
 			if candidate_state == TimedCheckpointRace.State.COUNTDOWN:
@@ -295,6 +306,10 @@ func _live_start_is_proven(existing: Dictionary, candidate: Dictionary, session:
 		return false
 	# The existing typed validators already prove both terminal route states and
 	# last == elapsed + penalty. Preserve the actual prior best-result boundary.
+	return _completion_results_follow(before, after)
+
+
+func _completion_results_follow(before: Dictionary, after: Dictionary) -> bool:
 	var last := float(after.race_elapsed_seconds) + float(after.penalty_seconds)
 	var previous_best := float(before.best_time_seconds)
 	var best := last if previous_best < 0.0 else minf(previous_best, last)

@@ -36,6 +36,7 @@ var _pending_race_failure: StringName = &""
 var _authority_desynchronized := false
 var _presentation_reason: StringName = &""
 var _persistence_start_state: Dictionary = {}
+var _acknowledged_persistence_state: Dictionary = {}
 var _persistence_reset_candidate: CinderTimedRaceSession
 var _persistence_reset_director: ActivityDirector
 
@@ -123,6 +124,7 @@ func start(expected_session_generation: int) -> Dictionary:
 	_authority_desynchronized = false
 	_presentation_reason = &""
 	_persistence_start_state = start_state
+	_acknowledged_persistence_state.clear()
 	var result := _finish(true, &"started")
 	_emit_snapshot_signal(session_started)
 	_emit_presentation_changed()
@@ -254,6 +256,7 @@ func reset(expected_session_generation: int) -> Dictionary:
 	_race_generation = int(race_reset.get("generation", 0))
 	_session_generation += 1
 	_persistence_start_state.clear()
+	_acknowledged_persistence_state.clear()
 	_pending_activity_completion = false
 	_pending_race_completion = false
 	_pending_race_failure = &""
@@ -311,6 +314,20 @@ func owns_staged_persistence_reset(candidate: CinderTimedRaceSession, director: 
 
 func get_persistence_start_state() -> Dictionary:
 	return {} if _closed else _persistence_start_state.duplicate(true)
+
+
+## Remember only the exact live capture acknowledged by the existing store.
+## Reentrant owner changes cannot turn a different post-commit state into proof.
+func acknowledge_persisted_capture(expected: Dictionary) -> void:
+	if _closed:
+		return
+	var live := capture_persistence_state()
+	if JSON.parse_string(JSON.stringify(expected)) == JSON.parse_string(JSON.stringify(live)):
+		_acknowledged_persistence_state = live
+
+
+func get_acknowledged_persistence_state() -> Dictionary:
+	return {} if _closed else _acknowledged_persistence_state.duplicate(true)
 
 
 ## Permanently releases signal connections so a RefCounted session cannot keep
@@ -538,6 +555,7 @@ func restore_persistence_state(
 	_pending_race_failure = &""
 	_authority_desynchronized = false
 	_presentation_reason = StringName(str(state.presentation_reason))
+	_acknowledged_persistence_state = state.duplicate(true)
 	return _persistence_result(true, &"session_state_restored")
 
 

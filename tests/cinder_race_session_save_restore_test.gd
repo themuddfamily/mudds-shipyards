@@ -348,6 +348,7 @@ func _run() -> void:
 
 	await _retire_game(second)
 	await _test_race_write_recovery()
+	await _test_saved_race_progress_write_recovery()
 	_finish()
 
 
@@ -465,6 +466,105 @@ func _test_race_write_recovery() -> void:
 		and _complete_real_race(fresh, 0.5) and _race_receipts(fresh) == 3,
 		"fresh Main retains the recovered IDLE generations and the next physical race pays its new identity once")
 	await _retire_game(fresh)
+
+
+func _test_saved_race_progress_write_recovery() -> void:
+	for saved_phase: String in ["countdown", "active", "timeout", "abort"]:
+		var path := "user://cinder-race-%s-progress-recovery.json" % saved_phase
+		var filesystem := RejectingDiskFilesystem.new()
+		var store := Store.new(path, filesystem) as UserDataStore
+		var game := await _make_game(store)
+		game.set_physics_process(false)
+		var prior_time := 1.0 if saved_phase == "active" else 0.25
+		_check(_complete_real_race(game, prior_time) and _race_receipts(game) == 1 and game.reset_active_activity(),
+			"the %s progress case begins with a real paid race and saved reset" % saved_phase)
+		var craft := game.get_flyable_ships()[1] as HeroShip
+		var started := game.request_activity_start(ROUTE.activity_id)
+		if saved_phase == "countdown":
+			game.call("_physics_process", 0.5)
+		else:
+			game.call("_physics_process", 2.0)
+			game.call("_physics_process", 0.25)
+			craft.global_position = ROUTE.get_checkpoint_position(0)
+			game.call("_physics_process", 0.0)
+		var saved := game.save_cinder_race_session()
+		var early := game.cinder_race_session.capture_persistence_state()
+		var early_bytes := FileAccess.get_file_as_bytes(path)
+		_check(bool(started.get("accepted", false)) and bool(saved.get("accepted", false))
+			and game.get_active_activity_snapshot().state_id == (&"countdown" if saved_phase == "countdown" else &"active"),
+			"real disk accepts the genuine early %s state before the write failure" % saved_phase)
+		filesystem.reject_writes = true
+		if saved_phase == "active":
+			await _retire_game(game)
+			store = Store.new(path, filesystem)
+			game = await _make_game(store)
+			game.set_physics_process(false)
+			_check(game.cinder_race_session.capture_persistence_state() == early,
+				"fresh Main restores the accepted ACTIVE identity and physical checkpoint before later writes fail")
+			craft = game.get_flyable_ships()[1] as HeroShip
+			game.active_ship = craft
+			game.set("_piloting", true)
+			game.phase = GameFlow.Phase.FREE_FLIGHT
+		var owner := game.cinder_race_session
+		var generation := owner.get_session_generation()
+		if saved_phase == "countdown":
+			game.call("_physics_process", 1.5)
+			game.call("_physics_process", 0.75)
+		else:
+			game.call("_physics_process", 0.5)
+		if saved_phase in ["timeout", "abort"]:
+			for checkpoint in range(1, 3):
+				craft.global_position = ROUTE.get_checkpoint_position(checkpoint)
+				game.call("_physics_process", 0.0)
+			if saved_phase == "timeout":
+				owner.advance_physics(120.0, generation)
+			var before_reset := owner.capture_persistence_state()
+			var events := {"count": 0}
+			owner.session_reset.connect(func(_snapshot: Dictionary) -> void: events.count += 1)
+			owner.presentation_changed.connect(func(_snapshot: Dictionary) -> void: events.count += 1)
+			_check(game.get_active_activity_snapshot().state_id == (&"failed" if saved_phase == "timeout" else &"active")
+				and not game.reset_active_activity() and game.cinder_race_session == owner
+				and owner.capture_persistence_state() == before_reset and int(events.count) == 0
+				and FileAccess.get_file_as_bytes(path) == early_bytes and _race_receipts(game) == 1,
+				"rejected %s reset after unsaved physical progress preserves both owners, events and bytes" % saved_phase)
+			filesystem.reject_writes = false
+			_check(game.reset_active_activity() and owner.get_session_generation() == generation + 1
+				and int(events.count) == 2 and game.get_active_activity_snapshot().state_id == &"idle"
+				and _race_receipts(game) == 1,
+				"ordinary %s reset recovers unsaved progress with one durable IDLE publication and no completion entitlement" % saved_phase)
+			await _retire_game(game)
+			var fresh := await _make_game(Store.new(path, RejectingDiskFilesystem.new()))
+			fresh.set_physics_process(false)
+			_check(fresh.get_active_activity_snapshot().state_id == &"idle"
+				and fresh.cinder_race_session.get_session_generation() == generation + 1
+				and _race_receipts(fresh) == 1 and _complete_real_race(fresh, 0.5) and _race_receipts(fresh) == 2,
+				"fresh Main retains the recovered %s reset and pays only the next physical completion" % saved_phase)
+			await _retire_game(fresh)
+			continue
+		for checkpoint in range(0 if saved_phase == "countdown" else 1, ROUTE.get_checkpoint_count()):
+			craft.global_position = ROUTE.get_checkpoint_position(checkpoint)
+			game.call("_physics_process", 0.0)
+		var completed := owner.capture_persistence_state()
+		_check(game.get_active_activity_snapshot().state_id == &"completed" and _race_receipts(game) == 1
+			and not game.reset_active_activity() and owner.capture_persistence_state() == completed
+			and FileAccess.get_file_as_bytes(path) == early_bytes,
+			"physical completion after saved %s keeps pending debt and bytes unchanged while all later saves fail" % saved_phase)
+		filesystem.reject_writes = false
+		game.call("_retry_owed_game_flow_activity_rewards")
+		var row := store.get_snapshot().cinder_timed_race_session.activities[0] as Dictionary
+		_check(_race_receipts(game) == 2 and int(row.generation) == generation and bool(row.reward_granted)
+			and is_equal_approx(float(owner.get_presentation_snapshot().last_time_seconds), 0.75)
+			and is_equal_approx(float(owner.get_presentation_snapshot().best_time_seconds), minf(prior_time, 0.75)),
+			"ordinary retry saves and acknowledges genuine same-generation %s completion once (%s)" % [saved_phase,
+			game.get_cinder_race_session_persistence_report().last_save_status.get("reason", "")])
+		if _race_receipts(game) != 2:
+			await _retire_game(game)
+			continue
+		game.call("_retry_owed_game_flow_activity_rewards")
+		_check(_race_receipts(game) == 2 and game.reset_active_activity()
+			and owner.get_session_generation() == generation + 1 and game.get_active_activity_snapshot().state_id == &"idle",
+			"recovered %s completion cannot replay and ordinary reset publishes its durable next IDLE generation" % saved_phase)
+		await _retire_game(game)
 
 
 func _make_game(store: UserDataStore) -> GameFlow:
