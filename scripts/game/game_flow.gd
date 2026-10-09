@@ -17693,6 +17693,13 @@ func _sync_nearby_activity_hud() -> void:
 	bind_cinder_convoy_arrival_persistence(binding)
 	_sync_hulk_power_restoration_binding()
 	var snapshot := binding.call(&"get_snapshot") as Dictionary
+	# The private host owns progress; Main owns whether its saved escort has
+	# rebound. Forward both facts without changing either authority.
+	if is_instance_valid(cinder_convoy_host):
+		var convoy_presentation := _get_convoy_activity_snapshot()
+		var convoy_activity := (snapshot.get("host", {}) as Dictionary).get("activity", {}) as Dictionary
+		convoy_activity["runtime_rebind_pending"] = convoy_presentation.get("runtime_rebind_pending", false)
+		convoy_activity["resume_craft_display_name"] = convoy_presentation.get("resume_craft_display_name", "")
 	snapshot["binding_available"] = true
 	snapshot["hulk_power"] = get_hulk_power_restoration_snapshot()
 	_sync_nearby_activity_audio(snapshot)
@@ -17704,7 +17711,9 @@ func _set_unloaded_nearby_activity_hud() -> void:
 	if not is_instance_valid(hud) or not hud.has_method(&"set_nearby_activity_snapshot"):
 		return
 	_sync_hulk_power_restoration_binding()
+	var convoy_activity := _get_convoy_activity_snapshot().get("activity", {}) as Dictionary
 	hud.call(&"set_nearby_activity_snapshot", {
+		"host": {"activity": convoy_activity} if bool(convoy_activity.get("runtime_rebind_pending", false)) else {},
 		"binding_available": false,
 		"station_defense": _station_defense_nearby_activity_snapshot(),
 		"hulk_power": get_hulk_power_restoration_snapshot(),
@@ -18535,6 +18544,11 @@ func _get_convoy_activity_snapshot() -> Dictionary:
 	if is_instance_valid(cinder_convoy_threat):
 		snapshot["threat"] = cinder_convoy_threat.get_snapshot()
 	var activity := snapshot.get("activity", {}) as Dictionary
+	activity["runtime_rebind_pending"] = _cinder_convoy_runtime_rebind_pending \
+		and activity.get("state_id", &"") == &"active"
+	var saved_escort := _find_flyable_ship_by_id(_cinder_convoy_restored_ship_id)
+	activity["resume_craft_display_name"] = saved_escort.get_display_name() \
+		if is_instance_valid(saved_escort) else "the saved escort craft"
 	for key: Variant in activity:
 		snapshot[key] = activity[key]
 	snapshot["running"] = activity.get("state_id", &"") == &"active"

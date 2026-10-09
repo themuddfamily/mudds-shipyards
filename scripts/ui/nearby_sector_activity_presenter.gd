@@ -174,6 +174,13 @@ func get_snapshot() -> Dictionary:
 
 
 func _activity_state(activity_id: StringName) -> Dictionary:
+	# A saved escort can remain active while Cinder is unloaded. Its frozen
+	# recovery copy remains useful even though field actions are unavailable.
+	var convoy := (_snapshot.get("host", {}) as Dictionary).get("activity", {}) as Dictionary
+	if activity_id == &"cinder_reach_emberline_convoy" \
+			and convoy.get("state_id", &"") == &"active" \
+			and bool(convoy.get("runtime_rebind_pending", false)):
+		return convoy
 	if (
 		activity_id != &"station_defense"
 		and not bool(_snapshot.get("binding_available", true))
@@ -281,7 +288,10 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		station_defense_feedback = _station_defense_feedback(state)
 		if StringName(station_defense_feedback.get("stage_id", &"")) == &"lost_hostile":
 			state_id = &"lost_hostile"
+	var convoy_resume_pending := bool(convoy_feedback.get("runtime_rebind_pending", false))
 	var progress := (
+		"  //  %s" % str(convoy_feedback.get("summary", ""))
+		if convoy_resume_pending else
 		"  //  FLY TOWARD CINDER REACH TO LOAD"
 		if not actions_enabled else (
 		"  //  %s" % str(station_defense_feedback.get("summary", ""))
@@ -827,6 +837,7 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 	if state.is_empty():
 		return {}
 	var state_id := StringName(state.get("state_id", &"idle"))
+	var resume_pending := state_id == &"active" and bool(state.get("runtime_rebind_pending", false))
 	var has_sample := bool(state.get("has_entity_sample", false))
 	var distance := maxf(float(state.get("escort_distance", -1.0)), -1.0)
 	var radius := maxf(float(state.get("escort_proximity_radius", 0.0)), 0.0)
@@ -846,7 +857,17 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 	var objective := ""
 	var recovery_text := ""
 
-	if state_id == &"idle" or (state_id == &"active" and not has_sample):
+	if resume_pending:
+		var craft_name := str(state.get("resume_craft_display_name", "the saved escort craft")).strip_edges()
+		if craft_name.is_empty():
+			craft_name = "the saved escort craft"
+		threat_id = &"resume_pending"
+		semantic_cue_id = &""
+		summary = "SAVED ESCORT PAUSED"
+		objective = "Board %s, launch and return to Cinder Reach to resume" % craft_name
+		recovery_text = objective
+		caption = "Saved escort paused. " + objective
+	elif state_id == &"idle" or (state_id == &"active" and not has_sample):
 		threat_id = &"rendezvous"
 		semantic_cue_id = &""
 		caption = "Rendezvous with the supply tender"
@@ -899,12 +920,13 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 		caption = "Convoy escort range high. Close the gap."
 		summary = "ESCORT RANGE HIGH: CLOSE GAP"
 
-	if state_id == &"active" and has_sample and distance >= 0.0 and radius > 0.0:
+	if not resume_pending and state_id == &"active" and has_sample and distance >= 0.0 and radius > 0.0:
 		summary += "  //  %.0fm / %.0fm" % [distance, radius]
 	if state_id in [&"active", &"completed"] and leg_count > 0:
 		summary += "  //  LEG %d/%d" % [mini(completed_legs + 1, leg_count), leg_count]
 	return {
 		"generation": maxi(int(state.get("generation", 0)), 0),
+		"runtime_rebind_pending": resume_pending,
 		"threat_id": threat_id,
 		"semantic_cue_id": semantic_cue_id,
 		"caption_text": caption,
