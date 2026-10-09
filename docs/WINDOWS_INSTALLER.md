@@ -8,7 +8,45 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `f6b24358b` — 2026-10-09
+## Latest native checkpoint `3a800bfb4` — 2026-10-09
+
+The unsigned [installer](../builds/windows/MuddsShipyards-3a800bf-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-3a800bf-installer-notes.txt) are
+published in `builds/windows/`. It installs the awake cabin/bunk safe-home-berth
+recovery checkpoint. Setup is 86,612,076 bytes, SHA256
+`562aad436e51e8389fdab56939446b96f8593ec1004b327d970c54682957b6b1`;
+the exact x64 game payload is 177,585,024 bytes, SHA256
+`951562f762e1ce8a3ba5a08c1b26e0107b9dbe808cf2e5576a5d0fe2255da43b`.
+The NSIS bootstrap is x86. Clean compiler source is `31795f765`; its original
+result, hash sidecar and log are published unchanged. Build-time native
+verification remains `NOT_RUN` in that immutable result.
+
+Actual builder/default/combined owners exit 0 and are reaped. Existing default
+11-step and combined 16-step contracts pass `f6b24358b` → `3a800bfb4` →
+`f6b24358b`: install, locked replacement refusal (2), upgrade, exact provenance,
+startup, pilot activity OS interruption, three startup kills and fourth-boot
+safe-start/journal, corrupt-primary backup recovery, settings/tutorial and
+unsupported-newer preservation, rollback and uninstall. Installed pilot arm
+119768 is killed/reaped (−1), resume161912 exits 0/reaped; exact durable Convoy
+boundary survives, receipts advance 1→2 once, crash1 and both markers close.
+Real home-berth Bulwark seating and synthetic throttle precede escort fixtures;
+canopy/boarding timings are shortened to 0.01/0.02 seconds.
+
+Root independently verifies all 14 raw log hashes, nine completed startups
+with exactly one parsed ready JSON/mouse free, zero engine/script/leak
+diagnostics, six protected disk hashes and native parent/child/install/
+shortcut/HKCU cleanup. Ten exact known warnings remain: six missing-settings
+and four intentional newer-schema warnings. Activity logs have zero warnings.
+Activity profiles are removed; base profiles and witnesses remain. Evidence:
+`/root/.cache/mudds-shipyards/roadmap-validation/installer-cabin-3a800bf/`.
+
+This installer acceptance covers pilot interruption only. Cabin/rest OS and
+native cabin recovery remain `NOT_RUN` on this payload. Its full source matrix
+is separately RUNNING. Human controls, hardware, all recovery states,
+interactive/final-candidate installation, other platforms, signing and release
+acceptance remain open. Historical results retain their own scope.
+
+## Native checkpoint `f6b24358b` — 2026-10-09
 
 The unsigned [installer](../builds/windows/MuddsShipyards-f6b2435-setup.exe)
 and [notes](../builds/windows/MuddsShipyards-f6b2435-installer-notes.txt) are
@@ -51,7 +89,7 @@ remain for inspection. Evidence:
 
 Full source regression, all recovery states, interactive/final-candidate install,
 other desktop platforms, native GPU/controller/audio/art/human acceptance and
-trusted signing remain open. A newer [playable cabin/bunk checkpoint](../builds/windows/MuddsShipyards-3a800bf-notes.txt), `3a800bfb4`, adds awake cabin recovery. Its installer and cabin OS-kill acceptance are NOT_RUN; this qualified `f6b24358b` setup contains the earlier pilot/on-foot recovery slice. The historical runs below retain their own scope.
+trusted signing remain open. A newer [playable cabin/bunk checkpoint](../builds/windows/MuddsShipyards-3a800bf-notes.txt), `3a800bfb4`, adds awake cabin recovery. Its installer is qualified above; cabin OS-kill acceptance remains NOT_RUN on that payload. This earlier `f6b24358b` setup contains the pilot/on-foot recovery slice. The historical runs below retain their own scope.
 
 ## Native checkpoint `e7dedc2` result — 2026-10-08
 
