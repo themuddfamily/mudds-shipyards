@@ -400,7 +400,10 @@ func _assert_fleet_presentation() -> void:
 	_check(await _wait(func() -> bool:
 		if not FileAccess.file_exists(_directory + "/fleet"):
 			return false
-		var fleet := _read("fleet") as Dictionary
+		var value: Variant = _read("fleet")
+		if not value is Dictionary:
+			return false
+		var fleet: Dictionary = value
 		for ship: HeroShip in _game.ships:
 			var expected: Dictionary = fleet[ship.get_ship_id()]
 			var hull := ship.get_network_damage_presentation_audit().state as Dictionary
@@ -570,13 +573,38 @@ func _wait_marker(role: String, stage: String) -> bool:
 	return result
 
 func _write(stage: String, value: Variant) -> void:
-	var file := FileAccess.open(_directory + "/" + stage, FileAccess.WRITE)
+	var path := _directory + "/" + stage
+	# Peers poll the final path. Publish only after the complete serialized
+	# witness is closed, using a private file on the same filesystem.
+	var pending_path := path + ".%d.pending" % OS.get_process_id()
+	var file := FileAccess.open(pending_path, FileAccess.WRITE)
+	if file == null:
+		_check(false, "open private %s witness" % stage)
+		return
 	file.store_var(value)
+	file.flush()
+	var error := file.get_error()
 	file.close()
+	if error == OK:
+		error = DirAccess.rename_absolute(pending_path, path)
+	if error != OK:
+		DirAccess.remove_absolute(pending_path)
+		_check(false, "publish complete %s witness" % stage)
 
 func _read(stage: String) -> Variant:
 	var file := FileAccess.open(_directory + "/" + stage, FileAccess.READ)
-	return file.get_var() if file != null else null
+	if file == null:
+		return null
+	# store_var already writes a four-byte payload length. Do not decode an
+	# absent or incomplete witness while a peer is polling for publication.
+	var size := file.get_length()
+	if size < 8 or file.get_32() != size - 4:
+		file.close()
+		return null
+	file.seek(0)
+	var value: Variant = file.get_var()
+	file.close()
+	return value
 
 func _mark(stage: String) -> void:
 	var file := FileAccess.open(_directory + "/" + _role + "-" + stage, FileAccess.WRITE)
