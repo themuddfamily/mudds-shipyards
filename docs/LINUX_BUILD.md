@@ -172,11 +172,17 @@ The runtime was read for Windows-only assumptions:
 
 ## Validation status
 
+The [Linux archive](../builds/linux/MuddsShipyards-f139257-linux-x86_64.tar.gz),
+[binary](../builds/linux/MuddsShipyards-f139257.x86_64) and
+[player notes](../builds/linux/MuddsShipyards-f139257-linux-notes.txt) are published
+in `builds/linux/`. Original export metadata retains build-time
+`startup_check: NOT_RUN`; the executed qualification below is separate.
+
 | Gate | Status |
 | --- | --- |
-| Linux export from a clean commit | PASS on private `f139257f6` binary/tarball; not yet published |
-| Headless isolated startup check (`STARTUP_MENU_READY_OK`) | PASS on private `f139257f6` binary and extracted tarball; exit 0, one ready record each |
-| Exported-game pilot/cabin/rest/crew interruption | Pending fresh native-mode runs; the original editor-mode invocation failed before readiness because the ELF rejected `--path` |
+| Linux export from a clean commit | PASS on published `f139257f6` binary/tarball |
+| Headless isolated startup check (`STARTUP_MENU_READY_OK`) | PASS on published `f139257f6` binary and extracted tarball; exit 0, one ready record each |
+| Exported-game pilot/cabin/rest/crew interruption | PASS on published `f139257f6` with driver `503f361ba`; all four owned kill/restart contracts and the default PCK pilot regression pass. Original argument failure retained |
 | Clean install on a real Linux desktop (rendered, native GPU, audio) | NOT_RUN |
 | Signing | Not applicable yet. The artifacts are unsigned, and the result JSON says so. |
 

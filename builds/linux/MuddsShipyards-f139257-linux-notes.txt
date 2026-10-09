@@ -1,0 +1,49 @@
+Mudds Shipyards — Linux x86_64 seat lifecycle checkpoint — 2026-10-09
+Game source: f139257f6d7c9e8dde8fc4ae5dc6f70b3830d99a
+Recovery probe driver: 503f361ba41ef204a2d10c3f8a2553366b8647c1
+Binary: MuddsShipyards-f139257.x86_64 (141843200 bytes)
+SHA256: 091cef8d8dcb21fac633da504decc9cc15a4b2e808a687cdf279579228678e95
+Archive: MuddsShipyards-f139257-linux-x86_64.tar.gz (93030370 bytes)
+SHA256: 2b0e0ef76bd9c9ef2ec3b88f036cee55f456c1bfb25ff0b287994e5c4030332d
+Signing: unsigned checkpoint
+
+Player-visible changes and launch
+This is the Linux build of the published safe seat-lifecycle checkpoint.
+Interrupted boarding keeps its physical owner and hatch claim; stale callbacks
+cannot steal helm or disrupt newer boarding. Solo pilot/cabin/bunk/passenger
+Resume protects progress and rewards through safe home-berth recovery.
+Halyard passengers recover awake on supported floor and can walk to the helm.
+See the matching Windows game notes for the full runtime scope.
+
+Extract the archive and run ./MuddsShipyards-f139257.x86_64 in its folder.
+The optional ./install-desktop-entry.sh adds an applications-menu entry;
+./install-desktop-entry.sh --uninstall removes that entry, preserving saves.
+The binary contains its game pack. Keep the export-result sidecar for checks.
+Desktop launch/install usability has not yet been reviewed on a clean Linux
+machine. Godot user data remains under the standard user XDG data directory.
+
+Actual automated validation
+Clean exact-source import/export, executable ELF 64-bit x86_64, embedded 1,486-entry
+PCK, archive integrity/inner binary hash and launcher/icon/install permissions
+pass. Binary and extracted archive menu startups exit 0/reaped with exactly one
+parsed ready record, mouse free and zero warnings/diagnostics. Four actual
+exported-game pilot/cabin/rest/crew interruption contracts exit 0/reaped:
+owned SIGKILL −9 followed by cold restart 0 preserves each exact durable Convoy
+boundary, receipts 1->2 once, one crash event and both clean recovery markers. Source/cache,
+executable and compiler metadata stay unchanged; owned processes and private
+profiles are removed. The existing PCK-mode pilot regression also passes.
+Root and independent review verify the actual raw logs and artifact hashes.
+The original failed editor-mode invocation remains retained: exported ELF
+rejected --path before readiness. The reviewed native-export driver uses the
+embedded game without path/pack/script overrides. Original export metadata
+keeps its build-time startup_check=NOT_RUN; separate actual checks supply the
+startup and recovery acceptance.
+
+Limits and remaining gates
+These results establish Linux/WSL headless behavior with Dummy audio. Native
+GPU, rendered clean Linux desktop, controller/input, audible mix and human
+play reviews remain NOT_RUN. The exact f139 full matrix is still RUNNING.
+Bulwark's walkable cabin, other crew roles, broader docking/planetary/activity
+recovery, endurance, final licensing/signing/distribution acceptance and all
+10 phases/34 completion tasks remain open. Safe recovery does not restore the
+original airborne pose or sleeping state; later escort motion is a fixture.
