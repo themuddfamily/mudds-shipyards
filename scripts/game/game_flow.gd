@@ -916,6 +916,12 @@ var _driving := false
 ## acquires no driving, piloting, berth, or network authority.
 var _station_seated := false
 var _active_station_seat: StationSeat
+const SOLO_CREW_AVATAR_ID: StringName = &"solo_halyard_passenger"
+var _solo_crew_seat: ShipCrewSeat
+var _solo_crew_ship: HalyardCrewTransport
+var _solo_crew_authority: CrewSeatRoleAuthority
+var _solo_crew_sequence := 0
+var _solo_crew_seat_generation := 0
 var _ship_rest_overlay: CanvasLayer
 var _station_seat_recovery_transform := Transform3D.IDENTITY
 ## Which of the tow tractor's two independent safety guards last recalled the
@@ -1496,6 +1502,9 @@ func host_network_session(
 	port: int = NetworkSessionAdapterType.DEFAULT_PORT,
 	max_clients: int = NetworkSessionAdapterType.DEFAULT_MAX_CLIENTS
 ) -> Dictionary:
+	_cancel_solo_crew_seat()
+	if not _release_solo_crew_authority():
+		return {"accepted": false, "status": &"solo_crew_authority_busy"}
 	var session := _ensure_network_session()
 	if session == null:
 		return {"accepted": false, "status": &"game_flow_not_in_tree"}
@@ -1522,6 +1531,9 @@ func join_network_session(
 	address: String = "127.0.0.1",
 	port: int = NetworkSessionAdapterType.DEFAULT_PORT
 ) -> Dictionary:
+	_cancel_solo_crew_seat()
+	if not _release_solo_crew_authority():
+		return {"accepted": false, "status": &"solo_crew_authority_busy"}
 	var session := _ensure_network_session()
 	if session == null:
 		return {"accepted": false, "status": &"game_flow_not_in_tree"}
@@ -3578,7 +3590,7 @@ func _session_recovery_save_description() -> String:
 func _solo_safe_recovery_craft() -> HeroShip:
 	var context := _solo_safe_recovery_context
 	if context.size() != 4 or context.get("location") != "mudds_home_berth" \
-			or context.get("mode") not in ["pilot", "on_foot", "cabin", "rest"] \
+			or context.get("mode") not in ["pilot", "on_foot", "cabin", "rest", "crew"] \
 			or not context.get("craft_id") is String or not context.get("berth_id") is String:
 		return null
 	var craft := _find_flyable_ship_by_id(StringName(context.craft_id))
@@ -3594,7 +3606,9 @@ func _solo_safe_recovery_craft() -> HeroShip:
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if area == null or not area.is_available_for(player):
 		return null
-	if context.mode in ["cabin", "rest"] and _solo_safe_recovery_cabin(craft).is_empty():
+	if context.mode == "crew" and craft is not HalyardCrewTransport:
+		return null
+	if context.mode in ["cabin", "rest", "crew"] and _solo_safe_recovery_cabin(craft).is_empty():
 		return null
 	return craft
 
@@ -3643,7 +3657,9 @@ func _solo_safe_recovery_description() -> String:
 	if is_instance_valid(craft) and not _network_session_is_live() and not _planetary_visit_blocks_network_session():
 		if _solo_safe_recovery_context.mode == "pilot":
 			return " Safe recovery boards %s at its home berth; the previous flight position is not restored. Saved activity progress is kept." % craft.get_display_name()
-		if _solo_safe_recovery_context.mode in ["cabin", "rest"]:
+		if _solo_safe_recovery_context.mode == "crew":
+			return " Safe recovery returns you awake on foot inside %s at its home berth. Your previous crew-seat claim is not restored. Take the pilot seat to fly or exit onto the shipyard deck. Saved activity progress is kept." % craft.get_display_name()
+		if _solo_safe_recovery_context.mode in ["cabin", "rest", "crew"]:
 			return " Safe recovery returns you awake on foot inside %s at its home berth. Take the pilot seat to fly or exit onto the shipyard deck. The previous flight position and sleep are not restored. Saved activity progress is kept." % craft.get_display_name()
 		return " Safe recovery returns you on foot beside %s at its home berth. Saved activity progress is kept." % craft.get_display_name()
 	return " Safe recovery starts on foot at the shipyard, unless a saved planetary visit resumes on its planet. Saved activity and visit progress is kept."
@@ -3689,7 +3705,12 @@ func _capture_solo_safe_recovery_context() -> void:
 		var context_ship := active_ship
 		# Landed bunk rest can belong to another craft than Main's current pilot
 		# preference. The reserved live bunk, not active_ship, owns that identity.
-		if not _piloting and _station_seated and player.is_sleeping() \
+		if _solo_crew_claim_is_current() and not _piloting and _station_seated \
+				and player.is_station_seated() and player.is_seated_at(_solo_crew_seat.get_seat_anchor()):
+			context_ship = _solo_crew_ship
+			if not _solo_safe_recovery_cabin(context_ship).is_empty():
+				mode = "crew"
+		elif not _piloting and _station_seated and player.is_sleeping() \
 				and is_instance_valid(_active_station_seat) \
 				and not _active_station_seat.is_queued_for_deletion() \
 				and _active_station_seat is ShipBunk \
@@ -3756,7 +3777,7 @@ func _apply_solo_safe_recovery() -> void:
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if area == null or not area.is_available_for(player):
 		return
-	if _solo_safe_recovery_context.mode in ["cabin", "rest"]:
+	if _solo_safe_recovery_context.mode in ["cabin", "rest", "crew"]:
 		var cabin := _solo_safe_recovery_cabin(craft)
 		if cabin.is_empty() or player.is_seated() or player.is_sleeping() or _piloting \
 				or not area.try_reserve(player):
@@ -7849,7 +7870,9 @@ func _update_on_foot_flow() -> void:
 		hud.set_interaction("", false)
 		return
 	if phase == Phase.IN_FLIGHT_CABIN:
-		if station_interaction_candidate is ShipBunk:
+		if station_interaction_candidate is ShipCrewSeat:
+			hud.set_interaction(station_interaction_candidate.get_interaction_prompt())
+		elif station_interaction_candidate is ShipBunk:
 			hud.set_interaction(station_interaction_candidate.get_interaction_prompt())
 		elif _near_ship and boarding_candidate == _cabin_ship:
 			hud.set_interaction(_network_cabin_interaction_prompt())
@@ -8905,6 +8928,9 @@ func _on_interact_requested() -> void:
 	# See `_refresh_interaction_targets()`.
 	_refresh_interaction_targets()
 	if is_instance_valid(station_interaction_candidate):
+		if station_interaction_candidate is ShipCrewSeat:
+			_sit_in_solo_crew_seat(station_interaction_candidate as ShipCrewSeat)
+			return
 		if station_interaction_candidate is StationSeat:
 			_sit_in_station_seat(station_interaction_candidate as StationSeat)
 			return
@@ -8932,7 +8958,251 @@ func _on_interact_requested() -> void:
 	_board_ship(boarding_candidate)
 
 
+## These fields stage a physical handoff; the existing role ledger remains the
+## sole authority for the passenger assignment and its generation.
+func _solo_crew_claim_is_current() -> bool:
+	if _solo_crew_authority == null or not is_instance_valid(_solo_crew_ship) \
+			or not is_instance_valid(_solo_crew_seat) or not _solo_crew_seat.is_inside_tree() \
+			or _solo_crew_seat.is_queued_for_deletion() or not _solo_crew_ship.is_inside_tree() \
+			or _solo_crew_ship.is_queued_for_deletion() or _solo_crew_ship.is_destroyed() \
+			or _solo_crew_ship not in ships or _solo_crew_ship.get_crew_role_authority() != _solo_crew_authority:
+		return false
+	var frame := _solo_crew_ship.get_moving_interior_component()
+	if not is_instance_valid(frame):
+		return false
+	var assignment := _solo_crew_authority.get_assignment(1, SOLO_CREW_AVATAR_ID)
+	var metadata := player.get_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+	return assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID \
+		and assignment.get("role") == CrewSeatRoleAuthority.ROLE_PASSENGER \
+		and int(assignment.get("seat_generation", 0)) == _solo_crew_seat_generation \
+		and int(metadata.get("occupant_peer_id", 0)) == 1 \
+		and metadata.get("avatar_id") == SOLO_CREW_AVATAR_ID \
+		and metadata.get("seat_id") == assignment.get("seat_id") \
+		and metadata.get("authority") == _solo_crew_authority \
+		and metadata.get("frame") == frame \
+		and player.is_seated_at(_solo_crew_seat.get_seat_anchor()) \
+		and int(metadata.get("seat_generation", 0)) == _solo_crew_seat_generation \
+		and frame.is_occupant_registered(player)
+
+
+func _release_solo_crew_authority() -> bool:
+	if _solo_crew_authority == null:
+		return true
+	if is_instance_valid(_solo_crew_ship) \
+			and _solo_crew_ship.get_crew_role_authority() == _solo_crew_authority \
+			and not _solo_crew_ship.detach_crew_role_authority(_solo_crew_authority):
+		return false
+	_solo_crew_authority = null
+	_solo_crew_ship = null
+	_solo_crew_sequence = 0
+	return true
+
+
+func _release_solo_crew_claim() -> bool:
+	if _solo_crew_authority == null:
+		return true
+	var assignment := _solo_crew_authority.get_assignment(1, SOLO_CREW_AVATAR_ID)
+	if not assignment.is_empty() and (assignment.get("seat_id") != HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID \
+			or int(assignment.get("seat_generation", 0)) != _solo_crew_seat_generation):
+		return false
+	# Other accepted commands for this exact avatar use the same ledger cursor.
+	# Continue after its published claim/intent rather than replaying our old E.
+	var intent := _solo_crew_authority.get_last_intent(1, SOLO_CREW_AVATAR_ID)
+	_solo_crew_sequence = maxi(_solo_crew_sequence, int(assignment.get("claim_sequence", 0)))
+	_solo_crew_sequence = maxi(_solo_crew_sequence, int(intent.get("request_sequence", 0))) + 1
+	if player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META):
+		if not is_instance_valid(_solo_crew_ship):
+			return false
+		return bool(_solo_crew_ship.release_crew_role_occupant(
+			1, 1, SOLO_CREW_AVATAR_ID, HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID,
+			player, _solo_crew_sequence, _solo_crew_seat_generation, false, _solo_crew_authority
+		).get("accepted", false))
+	if assignment.is_empty():
+		return true
+	return bool(_solo_crew_authority.release(
+		1, 1, SOLO_CREW_AVATAR_ID, HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID,
+		_solo_crew_sequence, _solo_crew_seat_generation
+	).get("accepted", false))
+
+
+func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
+	if _transition_busy or _station_seated or _piloting or player.is_seated() \
+			or _network_session_is_live() or _planetary_visit_blocks_network_session() \
+			or not is_instance_valid(seat) or not seat.is_inside_tree() or seat.is_queued_for_deletion() \
+			or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE, Phase.IN_FLIGHT_CABIN]:
+		return
+	var craft := seat.get_ship()
+	if not is_instance_valid(craft) or craft not in ships or not craft.is_boardable() \
+			or seat.get_seat_anchor() != craft.get_loadmaster_station_anchor() \
+			or (phase == Phase.IN_FLIGHT_CABIN and craft != _cabin_ship) \
+			or player.get_interaction_origin().distance_to(seat.global_position) > STATION_SEAT_MAX_REACH \
+			or not player.is_on_floor() \
+			or not HalyardCrewTransport.CABIN_MOVEMENT_BOUNDS.has_point(craft.to_local(player.global_position)):
+		return
+	var cabin := _solo_safe_recovery_cabin(craft)
+	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	if cabin.is_empty() or area == null or not area.is_available_for(player):
+		return
+	var frame := cabin.frame as MovingInteriorFrame
+	for key: StringName in [MovingInteriorFrame.REGISTRATION_META, MovingInteriorFrame.OWNER_META]:
+		var owner_ref: Variant = player.get_meta(key, null)
+		if owner_ref is WeakRef:
+			var owner: Variant = (owner_ref as WeakRef).get_ref()
+			if is_instance_valid(owner) and owner != frame:
+				return
+	# A different attached authority belongs to another session. Never replace
+	# it just because this Player is standing beside the passenger chair.
+	if craft.get_crew_role_authority() != null and craft.get_crew_role_authority() != _solo_crew_authority:
+		hud.toast("Passenger seat unavailable", "Another session owns the crew roster")
+		return
+	if _solo_crew_authority == null:
+		_solo_crew_authority = CrewSeatRoleAuthority.new(1)
+		if not bool(_solo_crew_authority.register_halyard_roster().get("accepted", false)) \
+				or not bool(craft.attach_crew_role_authority(_solo_crew_authority).get("accepted", false)):
+			_solo_crew_authority = null
+			return
+		_solo_crew_ship = craft
+	_solo_crew_sequence += 1
+	var claimed := _solo_crew_authority.claim(
+		1, 1, SOLO_CREW_AVATAR_ID, HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID,
+		CrewSeatRoleAuthority.ROLE_PASSENGER, _solo_crew_sequence
+	)
+	if not bool(claimed.get("accepted", false)):
+		hud.toast("Passenger seat unavailable", "The crew roster refused this chair")
+		return
+	_solo_crew_seat_generation = int((claimed.assignment as Dictionary).seat_generation)
+	_solo_crew_seat = seat
+	_station_seat_recovery_transform = seat.get_exit_transform()
+	_transition_busy = true
+	var generation := _begin_transition_generation()
+	if not area.try_reserve(player):
+		_cancel_solo_crew_seat()
+		return
+	# Transfer the Player's existing volume/cabin registration through its owner
+	# before attaching the role tag, which refuses an independently owned body.
+	_cabin_ship = craft
+	active_ship = craft
+	_boarding_area = area
+	phase = Phase.IN_FLIGHT_CABIN
+	_release_cabin_occupancy()
+	var attached := craft.attach_crew_role_occupant(
+		1, SOLO_CREW_AVATAR_ID, HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID,
+		player, {"require_inside_bounds": false}
+	)
+	if not bool(attached.get("accepted", false)):
+		_cancel_solo_crew_seat()
+		return
+	_cabin_ship = craft
+	_bind_cabin_occupancy(craft)
+	if player.get_cabin_containment_report().get("frame") != craft:
+		_cancel_solo_crew_seat()
+		return
+	active_ship = craft
+	_boarding_area = area
+	phase = Phase.IN_FLIGHT_CABIN
+	player.set_control_enabled(false)
+	_capture_solo_safe_recovery_context()
+	if not player.begin_boarding(seat.get_entry_transform(), seat.get_seat_anchor(), minf(boarding_motion_time, 0.75), craft):
+		_cancel_solo_crew_seat()
+		return
+	await player.boarding_completed
+	if generation != _transition_generation:
+		return
+	if not _solo_crew_claim_is_current() or not player.is_seated_at(seat.get_seat_anchor()):
+		_cancel_solo_crew_seat()
+		return
+	_station_seated = true
+	player.set_station_seated_context(true)
+	player.set_control_enabled(true)
+	_transition_busy = false
+	hud.set_mode("cabin", craft.get_display_name())
+	hud.set_objective("Passenger aboard %s — stand to walk the cabin or take the pilot seat" % craft.get_display_name())
+	audio.play_ui_confirm()
+	_capture_solo_safe_recovery_context()
+
+
+func _stand_from_solo_crew_seat() -> void:
+	if _transition_busy or not _station_seated or not _solo_crew_claim_is_current():
+		return
+	var seat := _solo_crew_seat
+	var craft := _solo_crew_ship
+	_transition_busy = true
+	var generation := _begin_transition_generation()
+	player.set_station_seated_context(false)
+	if not player.begin_disembark(seat.get_exit_transform(), minf(disembarking_motion_time, 0.65), craft):
+		player.set_station_seated_context(true)
+		_transition_busy = false
+		return
+	await player.disembarking_completed
+	if generation != _transition_generation:
+		return
+	if not _release_solo_crew_claim():
+		_cancel_solo_crew_seat()
+		return
+	_solo_crew_seat = null
+	_solo_crew_seat_generation = 0
+	_station_seated = false
+	_transition_busy = false
+	_bind_cabin_occupancy(craft)
+	_release_solo_crew_authority()
+	player.set_control_enabled(true)
+	audio.play_ui_confirm()
+	_capture_solo_safe_recovery_context()
+
+
+## Interrupted acquisition, detach, hull loss and session handback share one
+## cancellation. It releases only this exact local role and never a foreign one.
+func _cancel_solo_crew_seat() -> void:
+	if _solo_crew_authority == null or _solo_crew_seat_generation == 0:
+		return
+	var craft := _solo_crew_ship
+	_invalidate_transition_generation()
+	if not _release_solo_crew_claim():
+		player.force_recovery_to_on_foot(_station_seat_recovery_transform)
+		player.set_control_enabled(true)
+		_station_seated = false
+		_transition_busy = false
+		return
+	var pose := _station_seat_recovery_transform
+	if is_instance_valid(_solo_crew_seat) and _solo_crew_seat.is_inside_tree():
+		pose = _solo_crew_seat.get_exit_transform()
+	if is_instance_valid(craft) and craft.is_inside_tree() and craft.is_destroyed() \
+			and is_instance_valid(world) and world.is_inside_tree():
+		pose = world.get_player_spawn()
+	_solo_crew_seat = null
+	_solo_crew_seat_generation = 0
+	_station_seated = false
+	_transition_busy = false
+	player.force_recovery_to_on_foot(pose)
+	if is_instance_valid(craft) and craft.is_inside_tree() and not craft.is_destroyed():
+		_cabin_ship = craft
+		phase = Phase.IN_FLIGHT_CABIN
+		_bind_cabin_occupancy(craft)
+	player.set_control_enabled(true)
+	_release_solo_crew_authority()
+
+
+func get_solo_crew_seat_status() -> Dictionary:
+	return {
+		"seated": _station_seated and _solo_crew_claim_is_current(),
+		"ship": _solo_crew_ship,
+		"assignment": _solo_crew_authority.get_assignment(1, SOLO_CREW_AVATAR_ID) if _solo_crew_authority != null else {},
+	}
+
+
 func _update_station_seat_flow() -> void:
+	if _solo_crew_authority != null and _solo_crew_seat_generation > 0:
+		if _transition_busy and is_instance_valid(_solo_crew_seat) \
+				and is_instance_valid(_solo_crew_ship) and not _solo_crew_ship.is_destroyed():
+			_station_seat_recovery_transform = _solo_crew_seat.get_exit_transform()
+			hud.set_interaction("", false)
+			return
+		if not _solo_crew_claim_is_current() or _solo_crew_ship.is_destroyed():
+			_cancel_solo_crew_seat()
+			return
+		_station_seat_recovery_transform = _solo_crew_seat.get_exit_transform()
+		hud.set_interaction("" if _transition_busy else _solo_crew_seat.get_seated_prompt(), not _transition_busy)
+		return
 	if not is_instance_valid(_active_station_seat):
 		_recover_from_station_seat()
 		return
@@ -9007,6 +9277,9 @@ func _sit_in_station_seat(seat: StationSeat) -> void:
 
 
 func _stand_from_station_seat() -> void:
+	if is_instance_valid(_solo_crew_seat):
+		_stand_from_solo_crew_seat()
+		return
 	var seat := _active_station_seat
 	if (
 		_transition_busy
@@ -9072,6 +9345,8 @@ func _end_ship_rest_presentation() -> void:
 
 
 func _cancel_station_seat_for_detach() -> void:
+	_cancel_solo_crew_seat()
+	_release_solo_crew_authority()
 	_end_ship_rest_presentation()
 	if not _station_seated and not is_instance_valid(_active_station_seat):
 		return
