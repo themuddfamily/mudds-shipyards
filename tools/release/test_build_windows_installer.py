@@ -324,6 +324,31 @@ try {
     $ready = [pscustomobject]@{boundary=$mining; receipts=0; foreign_settings=$settings; foreign_cargo=$cargo; runtime_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; craft_id='bulwark_heavy_gunship'}}
     $saved = [pscustomobject]@{payload=[pscustomobject]@{cinder_mining_capacity=$mining; runtime_settings=$settings; mining_probe_foreign_cargo=$cargo; crash_recovery=[pscustomobject]@{state='running'}; solo_safe_recovery=[pscustomobject]@{craft_id='bulwark_heavy_gunship'}}}
     Assert-InWorldMiningArm $saved $ready
+    # Godot serializes session numbers as decimals. Real Windows PowerShell
+    # preserves their .0 spelling; semantic numeric boundaries still qualify.
+    $decimalSession = '{"state":2.0,"generation":1.0,"elapsed_seconds":6.0,"reward_requested":false,"capacity_paid":false}' | ConvertFrom-Json
+    $saved.payload.cinder_mining_capacity.session = $decimalSession
+    $ready.boundary = $saved.payload.cinder_mining_capacity
+    Assert-InWorldMiningArm $saved $ready
+    foreach ($mutation in @(
+        {$decimalSession.generation=1.5}, {$decimalSession.elapsed_seconds=6.5},
+        {$decimalSession.state=[double]::NaN}, {$decimalSession.elapsed_seconds=[double]::PositiveInfinity},
+        {$decimalSession.generation='1'}, {$decimalSession.state=$true},
+        {$decimalSession.reward_requested=0}, {$decimalSession.capacity_paid='false'},
+        {$decimalSession | Add-Member -NotePropertyName extra -NotePropertyValue 1},
+        {$decimalSession.PSObject.Properties.Remove('state')},
+        {$decimalSession.PSObject.Properties.Remove('state'); $decimalSession | Add-Member -NotePropertyName STATE -NotePropertyValue 2}
+    )) {
+        $baseline = $decimalSession | ConvertTo-Json -Depth 12
+        & $mutation
+        $rejected = $false
+        try { Assert-InWorldMiningSession $decimalSession $false 1 6 } catch { $rejected = $true }
+        if (-not $rejected) { throw 'malformed decimal mining session accepted' }
+        $decimalSession = $baseline | ConvertFrom-Json
+    }
+    $saved.payload.cinder_mining_capacity.session = $decimalSession
+    $ready.boundary = $saved.payload.cinder_mining_capacity
+    Assert-InWorldMiningArm $saved $ready
     foreach ($mutation in @(
         {$saved.payload.cinder_mining_capacity.schema_version=1},
         {$saved.payload.cinder_mining_capacity.slot_id='other'},

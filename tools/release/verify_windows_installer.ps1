@@ -491,12 +491,23 @@ function Assert-InWorldBeaconRecovered($final, $ready, $recovered, [string]$log)
         $last = $index
     }
 }
+function Assert-InWorldMiningSession($session, [bool]$paid, $generation, $elapsed) {
+    if ($session -isnot [System.Management.Automation.PSCustomObject] -or @($session.PSObject.Properties).Count -ne 5) { throw 'installed mining session must contain exactly five fields' }
+    foreach ($name in @('state','generation','elapsed_seconds','reward_requested','capacity_paid')) {
+        if ($session.PSObject.Properties.Name -cnotcontains $name) { throw 'installed mining session field names differ' }
+    }
+    foreach ($pair in @(@('state',2), @('generation',$generation), @('elapsed_seconds',$elapsed))) {
+        $value = $session.($pair[0])
+        if (($value -isnot [int] -and $value -isnot [long] -and $value -isnot [double] -and $value -isnot [decimal]) -or [double]::IsNaN([double]$value) -or [double]::IsInfinity([double]$value) -or $value -ne $pair[1]) { throw 'installed mining session numeric boundary differs' }
+    }
+    if ($session.reward_requested -isnot [bool] -or $session.capacity_paid -isnot [bool] -or $session.reward_requested -ne $paid -or $session.capacity_paid -ne $paid) { throw 'installed mining session payment flags differ' }
+}
 function Assert-InWorldMiningArm($saved, $ready) {
     $terminal = $saved.payload.cinder_mining_capacity
     if ((InWorld-Canonical $terminal) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed mining readiness differs from actual durable document/running marker' }
     if ($terminal.schema_version -ne 2 -or $terminal.payload_kind -ne 'cinder_mining_capacity_receipt' -or $terminal.slot_id -ne 'cinder_mining_capacity') { throw 'invalid installed durable mining record identity' }
-    $expectedSession = [pscustomobject]@{state=2; generation=1; elapsed_seconds=6; reward_requested=$false; capacity_paid=$false}
-    if ((InWorld-Canonical $terminal.session) -ne (InWorld-Canonical $expectedSession) -or $terminal.capacity -isnot [System.Management.Automation.PSCustomObject] -or @($terminal.capacity.PSObject.Properties).Count -ne 0 -or $ready.receipts -ne 0) { throw 'installed mining is not a genuine generation-one full unpaid extraction' }
+    Assert-InWorldMiningSession $terminal.session $false 1 6
+    if ( $terminal.capacity -isnot [System.Management.Automation.PSCustomObject] -or @($terminal.capacity.PSObject.Properties).Count -ne 0 -or $ready.receipts -ne 0) { throw 'installed mining is not a genuine generation-one full unpaid extraction' }
     $pilot = $ready.runtime_observation
     if ($pilot.player_seated -ne $true -or $pilot.craft_piloted -ne $true -or $pilot.craft_id -ne 'bulwark_heavy_gunship' -or $saved.payload.solo_safe_recovery.craft_id -ne $pilot.craft_id) { throw 'installed mining arm did not retain its real safe pilot owner' }
     if (@($ready.foreign_settings.PSObject.Properties).Count -eq 0 -or @($ready.foreign_cargo.PSObject.Properties).Count -eq 0 -or (InWorld-Canonical $saved.payload.runtime_settings) -ne (InWorld-Canonical $ready.foreign_settings) -or (InWorld-Canonical $saved.payload.mining_probe_foreign_cargo) -ne (InWorld-Canonical $ready.foreign_cargo)) { throw 'installed mining arm lost production settings or unrelated cargo' }
@@ -505,8 +516,8 @@ function Assert-InWorldMiningRecovered($final, $ready, $recovered, [string]$log)
     $paid = $final.payload.cinder_mining_capacity
     $boundary = $ready.boundary
     if ((InWorld-Canonical $paid) -ne (InWorld-Canonical $recovered.paid_boundary)) { throw 'installed saved mining acknowledgement differs from recovered paid boundary' }
-    $expectedSession = [pscustomobject]@{state=2; generation=$boundary.session.generation; elapsed_seconds=$boundary.session.elapsed_seconds; reward_requested=$true; capacity_paid=$true}
-    if ($paid.schema_version -ne $boundary.schema_version -or $paid.payload_kind -ne $boundary.payload_kind -or $paid.slot_id -ne $boundary.slot_id -or (InWorld-Canonical $paid.session) -ne (InWorld-Canonical $expectedSession)) { throw 'installed paid mining acknowledgement changed extraction identity or progress' }
+    Assert-InWorldMiningSession $paid.session $true $boundary.session.generation $boundary.session.elapsed_seconds
+    if ($paid.schema_version -ne $boundary.schema_version -or $paid.payload_kind -ne $boundary.payload_kind -or $paid.slot_id -ne $boundary.slot_id) { throw 'installed paid mining acknowledgement changed extraction identity or progress' }
     if ($recovered.capacity_commits -ne 1 -or @($paid.capacity.PSObject.Properties).Count -ne 5 -or $paid.capacity.activity_id -ne 'cinder_platform_mining_run' -or $paid.capacity.content_class -ne 'NEW' -or $paid.capacity.evidence_status -ne 'modern_interpretation' -or $paid.capacity.extraction_seconds -ne 6) { throw 'installed mining did not publish exactly one genuine capacity record' }
     $expectedReceipt = [pscustomobject]@{activity_id='cinder_platform_mining_run'; reward_id='cinder_raw_ore_sample'; granted=$false; replay_allowed=$false}
     if ((InWorld-Canonical $paid.capacity.reward_receipt) -ne (InWorld-Canonical $expectedReceipt)) { throw 'installed mining metadata invented a granted or replayable receipt' }
@@ -594,14 +605,14 @@ function Run-InWorldRecovery {
         $probe.ready = $ready
         $beforeHash = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
         $saved = Get-Content -LiteralPath $ownedDocument -Raw | ConvertFrom-Json
+        Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-interrupted-document.json')
+        $probe.interrupted_document_sha256 = $beforeHash
         if ($InWorldRecoveryActivity -eq 'beacon') { Assert-InWorldBeaconArm $saved $ready }
         elseif ($InWorldRecoveryActivity -eq 'mining') {
             Assert-InWorldMiningArm $saved $ready
             if (Test-Path -LiteralPath ($ownedDocument + '.tmp')) { throw 'installed mining blockage remains at kill boundary' }
         }
         elseif ((InWorld-Canonical $saved.payload.cinder_convoy_session.activities[0].progress.convoy_session_state) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed readiness differs from actual durable document/running marker' }
-        Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-interrupted-document.json')
-        $probe.interrupted_document_sha256 = $beforeHash
         Check-InWorldCancel
         if ($arm.HasExited) { throw 'installed arm exited before owned OS kill' }
         $probe.arm_live_before_kill = $true
