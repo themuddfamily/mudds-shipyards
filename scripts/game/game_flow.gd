@@ -983,6 +983,14 @@ var runtime_settings: RuntimeSettings
 ## owner. These RefCounted identities survive whole-Main detach/re-entry and are
 ## never recreated after the one startup load.
 var _runtime_settings_user_data_store: UserDataStore
+## A passive safe-return preference in the existing document, never a saved
+## seat token, berth entitlement or physical flight pose.
+const SOLO_SAFE_RECOVERY_SLOT := "solo_safe_recovery"
+var _solo_safe_recovery_context: Dictionary = {}
+var _solo_safe_recovery_pending := false
+var _solo_safe_recovery_boarding_ship: HeroShip
+var _solo_safe_recovery_retry_remaining_seconds := 0.0
+var _solo_safe_recovery_observed_store_generation := -1
 var _runtime_settings_store_adapter: RuntimeSettingsStoreAdapter
 var _runtime_settings_legacy_path := RuntimeSettings.DEFAULT_CONFIG_PATH
 var _runtime_settings_load_attempted := false
@@ -1505,6 +1513,8 @@ func host_network_session(
 	var result := session.host(port, max_clients)
 	_settle_refused_network_start(session)
 	_publish_network_session_result(result, &"server")
+	if session.is_session_active():
+		_persist_solo_safe_recovery_context({"mode": "unavailable"})
 	return result
 
 
@@ -1529,6 +1539,8 @@ func join_network_session(
 	var result := session.join(address, port)
 	_settle_refused_network_start(session)
 	_publish_network_session_result(result, &"client")
+	if session.is_session_active():
+		_persist_solo_safe_recovery_context({"mode": "unavailable"})
 	return result
 
 
@@ -3021,6 +3033,12 @@ func _start_up_fleet() -> void:
 	_register_flyable_ships()
 	_resolve_ground_vehicle()
 	active_ship = ship
+	if _runtime_settings_user_data_store != null:
+		var saved: Variant = _runtime_settings_user_data_store.get_snapshot().get(SOLO_SAFE_RECOVERY_SLOT, {})
+		if saved is Dictionary:
+			_solo_safe_recovery_context = saved.duplicate(true)
+		_solo_safe_recovery_observed_store_generation = _runtime_settings_user_data_store.get_generation()
+	_publish_recovery_choice_to_hud()
 
 
 func _start_up_activities() -> void:
@@ -3497,9 +3515,11 @@ func _handle_hud_session_recovery_choice(
 			result = choose_session_start_recovery(choice)
 		&"normal_start":
 			result = acknowledge_recovery()
+			_solo_safe_recovery_pending = bool(result.get("accepted", false))
 		&"discard":
 			result = discard_recovery()
 			if bool(result.get("accepted", false)):
+				_solo_safe_recovery_pending = false
 				result["start_fresh"] = _start_fresh_after_interrupted_session()
 		_:
 			result = {"accepted": false, "reason": &"invalid_recovery_choice"}
@@ -3533,6 +3553,10 @@ func _handle_hud_session_recovery_choice(
 ## Save" continues from. It reflects the startup load of the shared user-data
 ## document, including a fallback to `.bak` or an older rotated copy.
 func get_session_recovery_save_summary() -> String:
+	return _session_recovery_save_description() + _solo_safe_recovery_description()
+
+
+func _session_recovery_save_description() -> String:
 	var status := _runtime_settings_load_status
 	var store_status := status.get("store_status", {}) as Dictionary
 	var store_reason := StringName(str(status.get("store_reason", &"")))
@@ -3549,6 +3573,119 @@ func get_session_recovery_save_summary() -> String:
 	if store_reason == &"empty":
 		return "No earlier save was found; progress starts from the dock."
 	return "Your save could not be read; defaults are in use until it is repaired."
+
+
+func _solo_safe_recovery_craft() -> HeroShip:
+	var context := _solo_safe_recovery_context
+	if context.size() != 4 or context.get("location") != "mudds_home_berth" \
+			or context.get("mode") not in ["pilot", "on_foot"] \
+			or not context.get("craft_id") is String or not context.get("berth_id") is String:
+		return null
+	var craft := _find_flyable_ship_by_id(StringName(context.craft_id))
+	if not is_instance_valid(craft) or not craft.is_boardable() \
+			or String(craft.get_ship_id()) != context.craft_id \
+			or String(craft.get_home_berth_id()) != context.berth_id:
+		return null
+	var berth: ShipBerth = world.get_berth_node(craft.get_home_berth_id())
+	if berth == null or berth.get_occupant() != craft \
+			or berth.get_reservation_owner() != craft:
+		return null
+	return craft
+
+
+func _solo_safe_recovery_description() -> String:
+	if not is_instance_valid(world):
+		return ""
+	var craft := _solo_safe_recovery_craft()
+	if is_instance_valid(craft) and not _planetary_visit_blocks_network_session():
+		if _solo_safe_recovery_context.mode == "pilot":
+			return " Safe recovery boards %s at its home berth; the previous flight position is not restored. Saved activity progress is kept." % craft.get_display_name()
+		return " Safe recovery returns you on foot beside %s at its home berth. Saved activity progress is kept." % craft.get_display_name()
+	return " Safe recovery starts on foot at the shipyard; saved activity and visit progress is kept."
+
+
+func _persist_solo_safe_recovery_context(context: Dictionary) -> void:
+	if _runtime_settings_user_data_store == null:
+		return
+	if _solo_safe_recovery_retry_remaining_seconds > 0.0:
+		return
+	var generation := _runtime_settings_user_data_store.get_generation()
+	if context == _solo_safe_recovery_context \
+			and generation == _solo_safe_recovery_observed_store_generation:
+		return
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	if payload.get(SOLO_SAFE_RECOVERY_SLOT, {}) == context:
+		_solo_safe_recovery_context = context.duplicate(true)
+		_solo_safe_recovery_observed_store_generation = generation
+		return
+	payload[SOLO_SAFE_RECOVERY_SLOT] = context
+	var committed := _runtime_settings_user_data_store.commit(
+		payload, generation, "solo-safe-return-%d" % (generation + 1)
+	)
+	if bool(committed.get("accepted", false)):
+		_solo_safe_recovery_context = context.duplicate(true)
+		_solo_safe_recovery_observed_store_generation = generation + 1
+		_solo_safe_recovery_retry_remaining_seconds = 0.0
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, generation + 1)
+		_sync_production_runtime_settings_state()
+	else:
+		_solo_safe_recovery_retry_remaining_seconds = SESSION_DIAGNOSTICS_RETRY_DELAY_SECONDS
+
+
+## Capture only settled live ownership. Unsupported and unfinished handoffs
+## invalidate the preference once, rather than retaining an older seat claim.
+func _capture_solo_safe_recovery_context() -> void:
+	if phase == Phase.INTRO or not is_instance_valid(player):
+		return
+	var context := {"mode": "unavailable"}
+	if not _transition_busy and not _network_session_is_live() \
+			and not _planetary_visit_blocks_network_session() \
+			and is_instance_valid(active_ship) and active_ship in ships \
+			and not active_ship.is_destroyed():
+		var mode := ""
+		if _piloting and active_ship.is_piloted() \
+				and player.is_seated_at(active_ship.get_pilot_seat_anchor()):
+			mode = "pilot"
+		elif not _piloting and not player.is_seated() and not player.is_sleeping() \
+				and phase in [Phase.APPROACH_SHIP, Phase.COMPLETE]:
+			# Jumping/walking keeps the last settled on-foot preference. It does
+			# not generate a pair of save transactions for every floor contact.
+			if not player.is_on_floor():
+				return
+			mode = "on_foot"
+		if not mode.is_empty():
+			var context_ship := active_ship
+			# On foot, the last settled craft remains a preference, not pilot
+			# ownership. Cold Main's default Torrent must not replace it merely
+			# because the safe offer put the Player beside another home berth.
+			if mode == "on_foot" and _solo_safe_recovery_context.get("mode") == "on_foot":
+				var preferred := _solo_safe_recovery_craft()
+				if is_instance_valid(preferred):
+					context_ship = preferred
+			context = {"location": "mudds_home_berth", "mode": mode,
+				"craft_id": String(context_ship.get_ship_id()),
+				"berth_id": String(context_ship.get_home_berth_id())}
+	_persist_solo_safe_recovery_context(context)
+
+
+func _apply_solo_safe_recovery() -> void:
+	if not _solo_safe_recovery_pending:
+		return
+	_solo_safe_recovery_pending = false
+	var craft := _solo_safe_recovery_craft()
+	if not is_instance_valid(craft) or _network_session_is_live() \
+			or _planetary_visit_blocks_network_session() or _transition_busy:
+		return
+	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	if area == null or not area.is_available_for(player):
+		return
+	# The offer explicitly names this supported safe location. No saved world
+	# coordinates or old object/reservation identities are applied.
+	player.teleport_to(player.settle_exit_onto_support(craft.get_exit_transform()))
+	if _solo_safe_recovery_context.mode == "pilot":
+		_solo_safe_recovery_boarding_ship = craft
+		_board_ship(craft)
+		_solo_safe_recovery_boarding_ship = null
 
 
 ## "Start Fresh" keeps settings and earned progress but abandons whichever
@@ -3725,8 +3862,13 @@ func _observe_session_diagnostic_runtime_mode() -> Dictionary:
 
 
 func _advance_session_diagnostics_physics(delta: float) -> void:
-	if _session_diagnostics_record == null \
-			or delta < 0.0 or is_nan(delta) or is_inf(delta):
+	if delta < 0.0 or is_nan(delta) or is_inf(delta):
+		return
+	_solo_safe_recovery_retry_remaining_seconds = maxf(
+		0.0, _solo_safe_recovery_retry_remaining_seconds - delta
+	)
+	_capture_solo_safe_recovery_context()
+	if _session_diagnostics_record == null:
 		return
 	_session_diagnostics_physics_tick = mini(
 		_session_diagnostics_physics_tick + 1,
@@ -7481,6 +7623,7 @@ func start_shift() -> void:
 		return
 	phase = Phase.APPROACH_SHIP
 	var resumed_interrupted_session := _resume_pending_session_recovery_for_shift()
+	resumed_interrupted_session = resumed_interrupted_session or _solo_safe_recovery_pending
 	player.set_camera_active(true)
 	player.set_control_enabled(true)
 	hud.set_mode("on-foot")
@@ -7495,6 +7638,8 @@ func start_shift() -> void:
 		hud.toast("Shipyard access granted", "Guided Torrent test and free-flight fleet access are available")
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
+	_apply_solo_safe_recovery()
+	_capture_solo_safe_recovery_context()
 	restore_interrupted_aurora_visit()
 	restore_interrupted_rime_visit()
 
@@ -8972,6 +9117,7 @@ func _board_ship(candidate: HeroShip = null) -> void:
 ## take: offline play reaches it directly, a host reaches it directly, and a
 ## client reaches it only through the ledger's confirmation.
 func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) -> void:
+	var preserving_recovery_activity := candidate == _solo_safe_recovery_boarding_ship
 	_bind_network_client_helm_input_source(candidate)
 	# Retaking the seat of the craft whose cabin the player is already walking is
 	# an interior movement, not an approach across an apron: there is no hull to
@@ -8997,7 +9143,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 		and _cinder_convoy_runtime_rebind_pending
 	)
 	if _selected_activity_is_running() and candidate != active_ship \
-			and not restored_convoy_awaits_rebind:
+			and not restored_convoy_awaits_rebind and not preserving_recovery_activity:
 		_fail_active_activity(&"active_ship_replaced")
 	if candidate != active_ship:
 		if hud.has_method("clear_hero_component_ship"):
@@ -9028,7 +9174,8 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	_sortie_departed_berth = false
 	_landing_request_active = false
 	_active_landing_berth_id = &""
-	_reset_terminal_activity_for_next_sortie()
+	if not preserving_recovery_activity:
+		_reset_terminal_activity_for_next_sortie()
 	opponent.set_target(active_ship)
 	if hud.has_method("set_ship_identity"):
 		hud.set_ship_identity(active_ship.get_display_name(), active_ship.get_role())
@@ -9036,6 +9183,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	var entry_noun := str(entry.get("noun", "canopy"))
 	var open_verb := str(entry.get("open_verb", "open"))
 	_transition_busy = true
+	_capture_solo_safe_recovery_context()
 	var transition_generation := _begin_transition_generation()
 	_remember_boarding_confirmation_reservation(
 		candidate_area, player, transition_generation
@@ -9128,6 +9276,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	audio.set_on_foot(false)
 	audio.play_ui_confirm()
 	_transition_busy = false
+	_capture_solo_safe_recovery_context()
 
 
 func _reset_lifecycle_command_cursor() -> void:
@@ -9244,6 +9393,7 @@ func _disembark_ship_to_exterior(transition_ship: HeroShip) -> void:
 	var entry_noun := str(entry.get("noun", "canopy"))
 	var open_verb := str(entry.get("open_verb", "open"))
 	_transition_busy = true
+	_capture_solo_safe_recovery_context()
 	var transition_generation := _begin_transition_generation()
 	if _network_client_boarding_is_live() and transition_ship.acquire_network_canopy_motion(transition_generation):
 		_network_exterior_canopy_ship = transition_ship
@@ -9334,6 +9484,7 @@ func _disembark_ship_to_exterior(transition_ship: HeroShip) -> void:
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
 	_transition_busy = false
+	_capture_solo_safe_recovery_context()
 
 
 ## Leaves the pilot seat of a shut-down craft that is not at a berth, putting the

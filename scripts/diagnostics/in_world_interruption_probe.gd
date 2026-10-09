@@ -1,8 +1,10 @@
 extends Node
 
 ## Opt-in release probe. It drives only the Main supplied by Boot, using the
-## same accepted escort setup as the production regression. This fixture does
-## not qualify normal controls, pilot-seat/world restoration or native GPU work.
+## same accepted escort setup as the production regression. The arm leg first
+## acquires a real Player seat; cold Resume must reacquire it at the disclosed
+## safe home berth before the escort motion fixture runs. This does not qualify
+## human flight acceptance, original flight-pose restoration or native GPU work.
 const SLOT: StringName = &"cinder_convoy_session"
 
 var stage := ""
@@ -63,8 +65,16 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	game.set_physics_process(false)
 	if stage == "arm":
 		game.call("_on_settings_save_requested")
+		var craft := game.get_flyable_ships()[1] as HeroShip
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		game.start_shift()
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft), "the arm leg settles a real Player pilot before any escort fixture setup")
+		var saved_context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		_check(saved_context.get("mode") == "pilot" and saved_context.get("craft_id") == String(craft.get_ship_id()), "the actual settled solo pilot context is durable before the OS interruption")
 		var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
-		var craft := await prepare_convoy(game, 1)
+		await _position_escort_fixture(game, craft)
 		var first_start := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
 		var first_arrival := await finish_convoy(game, craft)
 		var reset := game.reset_active_activity()
@@ -114,20 +124,46 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 			craft_index = index
 	_check(craft_index >= 0, "the durable escort identity resolves to its actual shipped craft")
 	var arrived := false
+	var safe_recovery_observation := {}
 	if craft_index >= 0 and _failures.is_empty():
-		var craft := await prepare_convoy(game, craft_index)
-		arrived = await finish_convoy(game, craft)
+		var craft := ships[craft_index] as HeroShip
+		var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		game.start_shift()
+		var seated := await _wait_for_real_pilot(game, craft)
+		safe_recovery_observation = _interruption_runtime_observation(game)
+		var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+		var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		_check(bool(resumed.get("accepted", false)) and seated
+			and area.get_reservation_token() == game.player and berth.get_occupant() == craft
+			and berth.get_reservation_owner() == craft
+			and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state
+			and _canonical(game.cinder_convoy_threat.capture_persistence_state()) == boundary.threat_state,
+			"ordinary cold Resume reacquires the real safe home-berth pilot and preserves the exact convoy before fixture positioning")
+		Input.action_press(&"move_forward")
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		Input.action_release(&"move_forward")
+		_check(str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE"
+			and craft.get_last_ship_command().throttle > 0.0,
+			"the cold recovered real pilot accepts an ordinary flight control")
+		if _failures.is_empty():
+			await _position_escort_fixture(game, craft)
+			arrived = await finish_convoy(game, craft)
 	game.call("_retry_owed_game_flow_activity_rewards")
 	game.call("_retry_owed_game_flow_activity_rewards")
 	_check(arrived and _convoy_receipts(game) == before_receipts + 1
 		and game.get_active_activity_snapshot().state_id == &"completed"
 		and bool(store.get_snapshot()[String(SLOT)].activities[0].reward_granted),
-		"physical continuation after OS interruption pays the distinct convoy once despite repeated retry")
+		"escort fixture continuation after real safe recovery pays the distinct convoy once despite repeated retry")
 	var closed := game.mark_orderly_shutdown()
 	_check(bool(closed.get("accepted", false)), "the recovered process closes both existing recovery marker owners")
 	var outcome := {"boundary": boundary, "receipts_before": before_receipts,
 		"receipts_after": _convoy_receipts(game), "crash_events": crash_events,
 		"runtime_observation": observations, "assertions": _assertions,
+		"safe_recovery_observation": safe_recovery_observation,
+		"continuation_method": "real_safe_home_berth_boarding_then_escort_motion_fixture",
 		"entry": entry, "loaded_main_instance_id": main_id}
 	_check(is_instance_valid(game) and game.get_instance_id() == main_id
 		and game.get_tree() == get_tree(), "continuation retains the supplied Main and its authority")
@@ -146,11 +182,26 @@ func _interruption_runtime_observation(game: GameFlow) -> Dictionary:
 		"craft_position": [game.active_ship.global_position.x, game.active_ship.global_position.y, game.active_ship.global_position.z]}
 
 
+func _wait_for_real_pilot(game: GameFlow, craft: HeroShip) -> bool:
+	for _frame in 120:
+		if game.phase == GameFlow.Phase.START_ENGINES:
+			return game.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted()
+		await get_tree().physics_frame
+	return false
+
+
 static func prepare_convoy(game: GameFlow, craft_index: int) -> HeroShip:
 	var craft := game.get_flyable_ships()[craft_index] as HeroShip
 	craft.set_piloted(true)
 	game.active_ship = craft
 	game.set("_piloting", true)
+	await _position_escort_fixture(game, craft)
+	return craft
+
+
+## Scenario positioning shared with old regression consumers. It does not
+## acquire a seat, and the Boot probe measures real recovery before this call.
+static func _position_escort_fixture(game: GameFlow, craft: HeroShip) -> void:
 	game.set("_sortie_departed_berth", true)
 	game.phase = GameFlow.Phase.FREE_FLIGHT
 	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER + Vector3(4.01, 0.0, 0.0)
@@ -160,7 +211,6 @@ static func prepare_convoy(game: GameFlow, craft_index: int) -> HeroShip:
 			break
 		await game.get_tree().physics_frame
 	craft.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
-	return craft
 
 
 static func finish_convoy(game: GameFlow, craft: HeroShip) -> bool:
