@@ -234,6 +234,25 @@ func commit(request: Variant) -> Dictionary:
 			return _reject(&"reward_generation_already_committed")
 		race_completion = saved_race
 
+	var beacon_completion: Dictionary = {}
+	if activity_id == CINDER_BEACON_ACTIVITY_ID:
+		var beacon_slot: Variant = (payload as Dictionary).get("cinder_beacon_session")
+		var validated := CinderBeaconTraversalActivity.validate_persistence_record(beacon_slot)
+		if not bool(validated.get("accepted", false)):
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		beacon_completion = beacon_slot.activities[0]
+		if int(beacon_completion.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
+		if not beacon_completion.reward_requested:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		if beacon_completion.reward_granted:
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+
 	var patrol_completion: Dictionary = {}
 	if activity_id in [PATROL_ACTIVITY_ID, PLATFORM_PATROL_ACTIVITY_ID]:
 		var patrol_slot: Variant = (payload as Dictionary).get("cinder_patrol_session")
@@ -407,6 +426,10 @@ func commit(request: Variant) -> Dictionary:
 	if not race_completion.is_empty():
 		var acknowledged := (next_payload.cinder_timed_race_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true
+	if not beacon_completion.is_empty():
+		var acknowledged := (next_payload.cinder_beacon_session.activities[0] as Dictionary)
+		acknowledged.reward_granted = true
+		(acknowledged.progress as Dictionary).reward_requested = true
 	if not patrol_completion.is_empty():
 		var acknowledged := (next_payload.cinder_patrol_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true

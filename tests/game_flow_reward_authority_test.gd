@@ -235,6 +235,7 @@ func _run() -> void:
 			and int((after_scan.reward_counts as Dictionary).derelict_material_sample) == 1,
 		"the completed production derelict scan records one shared material-sample receipt"
 	)
+	_check(_save_actual_beacon_completion(store), "the actual ordered beacon owner saves its legitimate terminal before reward handoff")
 	var beacon := authority.commit(_request(
 		&"cinder_debris_beacon_traversal",
 		1,
@@ -424,6 +425,18 @@ func _save_actual_jovian_completion(store: UserDataStore) -> bool:
 	destination.free()
 	transfer.free()
 	return bool(delivered.accepted) and bool(saved.accepted)
+
+
+func _save_actual_beacon_completion(store: UserDataStore) -> bool:
+	var beacon := CinderBeaconTraversalActivity.new()
+	beacon.start(CinderBeaconTraversalActivity.BEACONS[0])
+	for index in CinderBeaconTraversalActivity.BEACONS.size():
+		beacon.submit_beacon(index, CinderBeaconTraversalActivity.BEACONS[index])
+	var record := NearbySectorActivitySessionAdapter.new().capture({"beacon_traversal": beacon.get_snapshot()})
+	(record.activities[0] as Dictionary).reward_requested = true
+	var payload := store.get_snapshot()
+	payload["cinder_beacon_session"] = JSON.parse_string(JSON.stringify(record))
+	return bool(store.commit(payload, store.get_generation(), "unit-live-beacon-terminal").get("accepted", false))
 
 
 func _request(

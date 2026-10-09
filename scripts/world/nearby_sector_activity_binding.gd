@@ -1841,6 +1841,35 @@ func get_beacon_traversal_reward_handoff_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+func capture_beacon_traversal_session() -> Dictionary:
+	if _beacon_activity == null:
+		return {}
+	var state := _beacon_activity.call("get_snapshot") as Dictionary
+	var record := NearbySectorActivitySessionAdapter.new().capture({"beacon_traversal": state})
+	var entry := record.activities[0] as Dictionary
+	entry.reward_requested = int(state.state) == BEACON_ACTIVITY.State.COMPLETE
+	entry.reward_granted = bool(state.reward_requested)
+	return JSON.parse_string(JSON.stringify(record)) as Dictionary
+
+
+func acknowledge_beacon_traversal_reward(record: Dictionary) -> Dictionary:
+	if _beacon_activity == null or not _beacon_traversal_reward_sink.is_valid():
+		return _result(false, &"not_ready")
+	var acknowledged := _beacon_activity.call("acknowledge_persisted_reward", record) as Dictionary
+	if bool(acknowledged.get("accepted", false)):
+		_publish_beacon_traversal_presentation(acknowledged)
+	return acknowledged
+
+
+func restore_beacon_traversal_session(record: Dictionary) -> Dictionary:
+	if _beacon_activity == null:
+		return _result(false, &"not_ready")
+	var restored := _beacon_activity.call("restore_persistence_record", record) as Dictionary
+	if bool(restored.get("accepted", false)):
+		_publish_beacon_traversal_presentation(restored)
+	return restored
+
+
 func start_beacon_traversal(caller_position: Vector3) -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
@@ -2812,10 +2841,12 @@ func _beacon_traversal_presentation_snapshot() -> Dictionary:
 		if reward_result_matches else {}
 	)
 	var reward_committed := (
-		reward_result_matches
+		(_beacon_traversal_reward_sink.is_valid()
+			and bool(snapshot.get("reward_requested", false)))
+		or (reward_result_matches
 		and bool(_last_beacon_reward_result.get("accepted", false))
 		and bool(authority_result.get("accepted", false))
-		and bool(authority_result.get("granted", false))
+		and bool(authority_result.get("granted", false)))
 	)
 	var authority_state := int(snapshot.get("state", BEACON_ACTIVITY.State.IDLE))
 	snapshot["state_id"] = [
@@ -2828,8 +2859,8 @@ func _beacon_traversal_presentation_snapshot() -> Dictionary:
 		and request_matches
 		and not reward_committed
 	)
+	snapshot["reward_committed"] = reward_committed
 	if reward_result_matches:
-		snapshot["reward_committed"] = reward_committed
 		snapshot["reward_handoff_reason"] = StringName(
 			_last_beacon_reward_result.get("reason", &"")
 		)

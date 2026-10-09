@@ -724,6 +724,7 @@ var _cinder_cargo_hud_elapsed := 0.0
 var _cinder_mining_hud_elapsed := 0.0
 var _cinder_beacon_traversal_reward_configuration: Dictionary = {}
 var _last_cinder_beacon_traversal_reward_result: Dictionary = {}
+var _cinder_beacon_session_owner: WeakRef
 var _cinder_asteroid_field_reward_configuration: Dictionary = {}
 var _last_cinder_asteroid_field_reward_result: Dictionary = {}
 var _cinder_beacon_hud_elapsed := 0.0
@@ -17854,9 +17855,11 @@ func _advance_cinder_beacon_traversal(
 		bool(advanced.get("accepted", false))
 		and StringName(advanced.get("reason", &"")) == &"complete"
 	)
+	if bool(advanced.get("accepted", false)) and _game_flow_reward_authority != null:
+		advanced["persistence_result"] = _save_cinder_beacon_session(binding)
 	if completed:
 		var reward := (
-			binding.call(&"request_beacon_traversal_reward") as Dictionary
+			_request_cinder_beacon_traversal_reward(binding)
 			if reward_handoff_ready else {
 				"accepted": false,
 				"reason": &"beacon_traversal_reward_handoff_unavailable",
@@ -18083,7 +18086,92 @@ func _configure_cinder_beacon_traversal_reward_handoff(binding: Object) -> Dicti
 			&"configure_beacon_traversal_reward_handoff",
 			Callable(self, &"_commit_game_flow_activity_reward"),
 		) as Dictionary
+	if bool(_cinder_beacon_traversal_reward_configuration.get("accepted", false)):
+		_cinder_beacon_traversal_reward_configuration["session_result"] = _ensure_cinder_beacon_session(binding)
 	return _cinder_beacon_traversal_reward_configuration.duplicate(true)
+
+
+## The already-supported nearby session record is merged into the settings
+## document. Only the current streamed owner may restore or checkpoint it.
+func _ensure_cinder_beacon_session(binding: Object) -> Dictionary:
+	if not is_instance_valid(binding) or binding != _get_nearby_activity_binding() \
+			or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"beacon_session_owner_unavailable"}
+	if _cinder_beacon_session_owner != null and _cinder_beacon_session_owner.get_ref() == binding:
+		return {"accepted": true, "reason": &"beacon_session_owner_current"}
+	var loaded := _runtime_settings_user_data_store.load()
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	if payload.has("cinder_beacon_session"):
+		var checked := CinderBeaconTraversalActivity.validate_persistence_record(payload.cinder_beacon_session)
+		if not checked.accepted:
+			return checked
+		var restored := binding.call("restore_beacon_traversal_session", payload.cinder_beacon_session) as Dictionary
+		if not bool(restored.get("accepted", false)):
+			return restored
+	_cinder_beacon_session_owner = weakref(binding)
+	return {"accepted": true, "reason": &"beacon_session_ready"}
+
+
+func _save_cinder_beacon_session(binding: Object) -> Dictionary:
+	var ready := _ensure_cinder_beacon_session(binding)
+	if not bool(ready.get("accepted", false)):
+		return ready
+	var record := binding.call("capture_beacon_traversal_session") as Dictionary
+	var checked := CinderBeaconTraversalActivity.validate_persistence_record(record)
+	if not checked.accepted:
+		return checked
+	var loaded := _runtime_settings_user_data_store.load()
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	if loaded.get("reason") == &"primary_invalid_backup_loaded":
+		return {"accepted": false, "reason": &"beacon_session_store_recovery_required"}
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	if payload.has("cinder_beacon_session"):
+		checked = CinderBeaconTraversalActivity.validate_persistence_record(payload.cinder_beacon_session)
+		if not checked.accepted:
+			return checked
+		var old := (payload.cinder_beacon_session.activities[0] as Dictionary)
+		var next := (record.activities[0] as Dictionary)
+		if int(next.generation) == int(old.generation) and old.reward_granted \
+				and next.reward_requested and not next.reward_granted:
+			# Keep the paid disk acknowledgement monotonic. Refresh the existing
+			# reward owner from its durable ledger through the ordinary fenced
+			# request; it refuses payment because this terminal is already paid.
+			_commit_game_flow_activity_reward({
+				"activity_id": CinderBeaconTraversalActivity.ACTIVITY_ID,
+				"activity_generation": int(old.generation),
+				"reward_id": CinderBeaconTraversalActivity.REWARD_ID,
+				"reward_authority": false, "granted": false,
+			})
+			return binding.call("acknowledge_beacon_traversal_reward", payload.cinder_beacon_session) as Dictionary
+		if int(next.generation) < int(old.generation) or int(next.generation) > int(old.generation) + 1 \
+				or (old.reward_requested and not old.reward_granted and record != payload.cinder_beacon_session) \
+				or (int(next.generation) == int(old.generation) and int(next.state) != CinderBeaconTraversalActivity.State.RESET \
+					and int(next.progress.next_beacon_index) < int(old.progress.next_beacon_index)):
+			return {"accepted": false, "reason": &"beacon_session_stale_or_unpaid"}
+		if record == payload.cinder_beacon_session:
+			return {"accepted": true, "reason": &"beacon_session_unchanged"}
+	payload["cinder_beacon_session"] = record
+	var generation := _runtime_settings_user_data_store.get_generation()
+	var saved := _runtime_settings_user_data_store.commit(payload, generation, "game-flow-beacon-%010d" % (generation + 1))
+	if bool(saved.get("accepted", false)):
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
+		_sync_production_runtime_settings_state()
+	return saved
+
+
+func _request_cinder_beacon_traversal_reward(binding: Object) -> Dictionary:
+	if _game_flow_reward_authority == null:
+		return binding.call("request_beacon_traversal_reward") as Dictionary
+	var saved := _save_cinder_beacon_session(binding)
+	if not bool(saved.get("accepted", false)):
+		return {"accepted": false, "reason": &"beacon_terminal_save_pending", "persistence_result": saved}
+	if saved.get("reason") == &"beacon_payment_recovered":
+		saved["reward_committed"] = true
+		return saved
+	return binding.call("request_beacon_traversal_reward") as Dictionary
 
 
 func _cinder_beacon_traversal_reward_handoff_ready(binding: Object) -> bool:
@@ -18146,6 +18234,9 @@ func _present_cinder_structure_scan_completion(reward: Dictionary) -> void:
 
 func _present_cinder_beacon_traversal_completion(reward: Dictionary) -> void:
 	if not is_instance_valid(hud):
+		return
+	if reward.get("reason") == &"beacon_payment_recovered" and bool(reward.get("reward_committed", false)):
+		hud.toast("Debris beacon run complete", "Navigation data receipt already saved", 3.2)
 		return
 	var authority := reward.get("authority_result", {}) as Dictionary
 	var receipt := authority.get("receipt", {}) as Dictionary
@@ -19216,6 +19307,9 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 					if is_instance_valid(active_ship) else Vector3.ZERO,
 			)
 		&"cinder_debris_beacon_traversal":
+			var ready := _ensure_cinder_beacon_session(binding)
+			if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
+				return ready
 			var traversal := (
 				(binding.call(&"get_snapshot") as Dictionary).get(
 					"beacon_traversal", {}
@@ -19231,15 +19325,18 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 						"accepted": false,
 						"reason": &"beacon_traversal_reward_handoff_unavailable",
 					}
-				var retry := binding.call(&"request_beacon_traversal_reward") as Dictionary
+				var retry := _request_cinder_beacon_traversal_reward(binding)
 				_last_cinder_beacon_traversal_reward_result = retry.duplicate(true)
 				_present_cinder_beacon_traversal_completion(retry)
 				return retry
-			return binding.call(
+			var started := binding.call(
 				&"start_beacon_traversal",
 				_cinder_authored_frame_position(active_ship.global_position)
 					if is_instance_valid(active_ship) else Vector3.ZERO,
-			)
+			) as Dictionary
+			if bool(started.get("accepted", false)) and _game_flow_reward_authority != null:
+				started["persistence_result"] = _save_cinder_beacon_session(binding)
+			return started
 		&"cinder_asteroid_field_threading_run":
 			var belt_run := (
 				(binding.call(&"get_snapshot") as Dictionary).get(
@@ -19299,7 +19396,14 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 		&"cinder_relay_patrol": return binding.call(&"reset_patrol")
 		&"cinder_platform_mining_run": return binding.call(&"reset_mining_activity")
 		&"cinder_derelict_structure_scan": return binding.call(&"reset_structure_scan")
-		&"cinder_debris_beacon_traversal": return binding.call(&"reset_beacon_traversal")
+		&"cinder_debris_beacon_traversal":
+			var ready := _ensure_cinder_beacon_session(binding)
+			if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
+				return ready
+			var reset := binding.call(&"reset_beacon_traversal") as Dictionary
+			if bool(reset.get("accepted", false)) and _game_flow_reward_authority != null:
+				reset["persistence_result"] = _save_cinder_beacon_session(binding)
+			return reset
 		&"cinder_asteroid_field_threading_run":
 			return binding.call(&"reset_asteroid_field_run")
 		&"cinder_platform_supply_run": return binding.call(&"reset_cargo_run")
