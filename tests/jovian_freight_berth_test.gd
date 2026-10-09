@@ -1461,14 +1461,15 @@ func _test_recessed_lashing_ring_profile(module: JovianFreightBerth) -> void:
 		# the shared `FreightCrateKit` tote shell, whose shell, trim and stencil
 		# are three surfaces. Again no node, no batch and no drawn copy moved.
 		renderer_before == {
-			"descendant_nodes": 893,
+			# Three screen labels add descendants without changing this mesh-only census.
+			"descendant_nodes": 896,
 			"mesh_instance_nodes": 389,
 			"multimesh_nodes": 16,
 			"surfaces": 419,
 			"visible_copies": 447,
 		}
 		and _renderer_census(module) == renderer_before,
-		"collar batching preserves 447 visible copies through 893 descendants and 419 submissions"
+		"collar batching preserves 447 mesh copies through 896 descendants and 419 mesh submissions"
 	)
 	_check(
 		module.get_collision_contract() == collision_before

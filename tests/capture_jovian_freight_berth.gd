@@ -64,7 +64,9 @@ func _run() -> void:
 	var service_door_opened := await _wait_for_door_state(door, StationDoor.DoorState.OPEN, 1.5)
 	_check(service_door_opened, "service door completes its opening motion inside its physics-frame budget")
 	_check(door.is_open() and not door.is_portal_blocked(), "interior capture uses a physically clear service portal")
-	_frame(Vector3(8.8, 2.8, 34.5), Vector3(19.0, 1.8, 29.0), 55.0)
+	# Inspect the actual workbench from inside the opened room, rather than
+	# letting the exterior doorway hide the dispatch screens and interior.
+	_frame(Vector3(17.8, 1.9, 31.8), Vector3(20.0, 1.55, 28.8), 70.0)
 	await _wait_frames(8)
 	await _capture(CAPTURES[1])
 	_validate_images()

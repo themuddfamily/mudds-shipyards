@@ -2234,10 +2234,22 @@ func _build_service_room() -> void:
 	var workbench := _rounded_box(room, "DispatchWorkbench", Vector3(20.65, 0.82, 29.0), Vector3(1.65, 1.45, 4.7), _materials["graphite"])
 	workbench.set_meta("station_workbench", true)
 	_service_details.append(workbench)
-	for z_position in [27.6, 29.0, 30.4]:
+	var dispatch_headings := [
+		"FREIGHT CONTROL\nDISPATCH F-01",
+		"CARGO TRANSFER\nAPRON TERMINAL",
+		"BOARD THE JOVIAN\nBACK ON APRON",
+	]
+	for screen_index in range(dispatch_headings.size()):
+		var z_position: float = [27.6, 29.0, 30.4][screen_index]
 		var screen := _rounded_box(room, "DispatchScreen", Vector3(19.79, 1.55, z_position), Vector3(0.08, 0.72, 1.05), _materials["screen"], false, Vector3(0, 0, -12))
 		screen.set_meta("station_console", true)
 		_service_details.append(screen)
+		# Static wayfinding on the inward screen face; inventory and delivery
+		# status remain owned by the actual cargo terminal and activity HUD.
+		var readout := _label(screen, dispatch_headings[screen_index], Vector3(-0.046, 0, 0), 0.09, Color("102d3b"), Vector3(0, -90, 0))
+		readout.name = "DispatchReadout"
+		readout.shaded = false
+		readout.outline_size = 0
 	# CONTROL-TRUNK-001. Both utility trunks were 3.7 m pipes whose ends reached
 	# neither surface: they began 0.100 m above the room floor and stopped 0.540 m
 	# under the roof, touching nothing in the module. A service trunk that carries
