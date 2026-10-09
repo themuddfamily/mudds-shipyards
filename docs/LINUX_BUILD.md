@@ -4,6 +4,33 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
+## Latest published checkpoint: `9ef48fdc2`
+
+The [binary](../builds/linux/MuddsShipyards-9ef48fd.x86_64),
+[checkpoint archive](../builds/linux/MuddsShipyards-9ef48fd-linux-checkpoint.tar.gz)
+and [notes](../builds/linux/MuddsShipyards-9ef48fd-linux-notes.txt) include ordinary
+Jovian engineer controls and durable mining recovery. The standalone binary has
+execute mode 0755; its SHA256 is
+`842a9c00d7854f0f7e64a2b18cc41c6a7d40095a7ace54595f61d6617a49d896`.
+The checkpoint archive SHA256 is
+`10cfc0326390427c49b82339536144e0273bf42dbbac551965493541225a4dac`.
+
+Fifteen embedded-package suites pass 655 assertions plus the reward-adapter check.
+Direct embedded-game pilot, cabin, rest, Halyard-passenger, mining-pilot and
+beacon-pilot kill/restart checks pass, with one acknowledgement/payment and crash,
+unchanged durable boundaries and removed private profiles. Binary and fresh
+unpacked archive startup each exit 0 with exactly one parsed menu-ready record,
+mouse free and no diagnostics. Root and independent review verify all 113
+retained hashes, source/import parity, archive contents and process cleanup.
+
+The six-member checkpoint archive preserves the original export bundle and adds
+immutable initial notes. Published export metadata describes the original
+five-member export archive and its build-time startup status; completed checks
+are recorded separately in the notes. Linux/WSL headless and private X11 input
+checks leave clean desktop/GPU, physical-controller/audio/human, Linux installation,
+full/endurance/signing and final-release acceptance open. This source excludes
+the newer station-defence recovery delivery `189124deb`.
+
 ## What ships
 
 `tools/release/export_linux_candidate.sh` writes three files directly into

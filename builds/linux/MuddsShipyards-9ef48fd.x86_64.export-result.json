@@ -1,0 +1,21 @@
+{
+  "architecture": "x86_64",
+  "binary": {
+    "bytes": 141914288,
+    "path": "/root/.cache/mudds-shipyards/roadmap-work/linux-engineer-mining-9ef48fd/builds/linux/MuddsShipyards-9ef48fd.x86_64",
+    "sha256": "842a9c00d7854f0f7e64a2b18cc41c6a7d40095a7ace54595f61d6617a49d896"
+  },
+  "godot_version": "4.7.1.stable.official.a13da4feb",
+  "platform": "linux",
+  "preset": "Linux",
+  "schema_version": 1,
+  "signing": "unsigned",
+  "source_commit": "9ef48fdc2fb8a1210579713c7854f059b8aa32b5",
+  "startup_check": "NOT_RUN",
+  "tarball": {
+    "bytes": 93101197,
+    "path": "/root/.cache/mudds-shipyards/roadmap-work/linux-engineer-mining-9ef48fd/builds/linux/MuddsShipyards-9ef48fd-linux-x86_64.tar.gz",
+    "sha256": "13f10d55c325d706ad22a9bb505eb0a3e390ca108b99c07a106566b1d9802cf7"
+  },
+  "tarball_root": "MuddsShipyards-9ef48fd"
+}
