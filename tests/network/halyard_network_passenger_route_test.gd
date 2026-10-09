@@ -38,6 +38,7 @@ func _run() -> void:
 	_role = args[0]
 	_directory = args[1]
 	_port = int(args[2])
+	_write(_role + ".script_ready", {})
 	_game = Main.instantiate() as GameFlow
 	_store_path = "user://passenger-peer-%d.json" % OS.get_process_id()
 	var store := UserDataStore.new(_store_path)
@@ -49,6 +50,7 @@ func _run() -> void:
 	_player = _game.get_node("Player") as PlayerController
 	_game.start_shift()
 	await _ticks(3)
+	_write(_role + ".main_ready", {})
 	if _role == "host":
 		await _host()
 	else:
@@ -73,31 +75,41 @@ func _orchestrate() -> void:
 	var host_args := _peer_arguments("host", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
 	var host := _spawn_peer("host", host_args)
 	_check(host > 0, "owned independent host starts")
-	await _wait_file("host.ready", 60.0)
-	var client_args := _peer_arguments("client", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
-	var client := _spawn_peer("client", client_args)
-	_check(client > 0, "owned independent client starts")
-	await _wait_file("client.done", 120.0)
-	await _wait_file("host.done", 60.0)
-	for role in ["host", "client"]:
+	var peers := {"host": host}
+	var host_ready := host > 0 and await _wait_file("host.main_ready", 60.0)
+	if host_ready:
+		host_ready = await _wait_file("host.ready", 60.0)
+	if host_ready:
+		var client_args := _peer_arguments("client", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
+		var client := _spawn_peer("client", client_args)
+		peers["client"] = client
+		_check(client > 0, "owned independent client starts")
+		var finished := client > 0 and await _wait_file("client.done", 120.0)
+		if finished:
+			finished = await _wait_file("host.done", 60.0)
+		if not finished:
+			for role in peers:
+				await _abort_peer(role)
+	else:
+		await _abort_peer("host")
+	for role in peers:
 		var result := _read(role + ".done")
 		_check(not result.is_empty() and (result.get("failures", []) as Array).is_empty(), "%s ordinary production route passes" % role)
 		if not result.is_empty():
 			_checks += int(result.get("checks", 0))
-	for role in ["host", "client"]:
+	for role in peers:
 		await _wait_file(role + ".exit", 10.0)
 		_check(FileAccess.get_file_as_string(_directory.path_join(role + ".exit")).strip_edges() == "0", "%s OS process exits zero" % role)
 		var child_path := _directory.path_join(role + ".pid")
 		if not FileAccess.file_exists(_directory.path_join(role + ".exit")) and FileAccess.file_exists(child_path):
 			var child := int(FileAccess.get_file_as_string(child_path))
-			if child > 0 and OS.is_process_running(child):
+			if child > 0 and DirAccess.dir_exists_absolute("/proc/%d" % child):
 				OS.kill(child)
-	for role in ["host", "client"]:
+	for role in peers:
 		var child := int(FileAccess.get_file_as_string(_directory.path_join(role + ".pid")))
 		_check(child > 0 and not DirAccess.dir_exists_absolute("/proc/%d" % child), "%s actual Godot actor is absent after owning wait" % role)
-	for index in [0, 1]:
-		var role := "host" if index == 0 else "client"
-		var pid: int = host if index == 0 else client
+	for role in peers:
+		var pid := int(peers[role])
 		if not FileAccess.file_exists(_directory.path_join(role + ".exit")) and pid > 0 and OS.is_process_running(pid):
 			OS.kill(pid)
 	for failure in _failures:
@@ -105,6 +117,15 @@ func _orchestrate() -> void:
 	print("PASSENGER_PEER_ARTIFACTS: ", _directory)
 	print("HALYARD_NETWORK_PASSENGER_ROUTE: %d checks, %d failures" % [_checks, _failures.size()])
 	quit(0 if _failures.is_empty() else 1)
+
+func _abort_peer(role: String) -> void:
+	var pid_path := _directory.path_join(role + ".pid")
+	if FileAccess.file_exists(pid_path):
+		var pid := int(FileAccess.get_file_as_string(pid_path))
+		if pid > 0 and DirAccess.dir_exists_absolute("/proc/%d" % pid):
+			OS.kill(pid)
+	# The owned shell still waits/reaps the actual child and records its exit.
+	await _wait_file(role + ".exit", 10.0)
 
 func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringArray:
 	var parent := OS.get_cmdline_args()
@@ -176,7 +197,13 @@ func _host() -> void:
 	_check(_player.global_position.distance_to(_craft.get_passenger_station_role_contract().exit_transform.origin) > 2.0, "host walks clear of the shared chair exit")
 	_player.set_control_enabled(false)
 	_write("host.ready", {})
+	if not await _wait_file("client.admitted", 60.0):
+		return
 	if not await _wait_file("client.seated", 60.0):
+		print("PASSENGER_HOST_TIMEOUT: wall=", Time.get_unix_time_from_system(),
+			" peers=", _game.network_session.get_admitted_peer_ids(),
+			" capacity=", _game.network_session.get_session_capacity_snapshot(),
+			" bodies=", _game.get_network_remote_body_audit())
 		return
 	var simulation := _game.get_network_remote_body_simulation()
 	var peers := _game.network_session.get_admitted_peer_ids()
@@ -204,6 +231,7 @@ func _host() -> void:
 		return
 	var reseated := owner.get_assignment(peer, avatar)
 	_check(not reseated.is_empty() and int(reseated.get("claim_sequence", 0)) != int(assignment.claim_sequence), "ordinary reseat creates fresh authoritative chair identity")
+	print("PASSENGER_HOST_WALK_AUDIT: wall=", Time.get_unix_time_from_system(), " body=", simulation.get_body_record(avatar), " intent=", body.get_remote_drive_audit(), " movement=", _game.network_session.get_movement_authority_audit())
 	_write("host.reseat_checked", {})
 	if not await _wait_file("client.migrate", 20.0):
 		return
@@ -235,13 +263,49 @@ func _host() -> void:
 	_game.shutdown_network_session(&"passenger_host_done")
 	_check(_craft.get_crew_role_authority() == null, "shutdown detaches exact empty role owner for ordinary solo reuse")
 
+func _admitted_session_ready() -> bool:
+	var session := _game.network_session
+	if not session.is_session_active():
+		return false
+	var offer: Dictionary = session.get_server_offer()
+	var admission: Dictionary = offer.get("admission", {})
+	var peer: Dictionary = admission.get("peer", {})
+	var transport: Dictionary = offer.get("transport", {})
+	var epoch: Dictionary = (offer.get("migration", {}) as Dictionary).get("epoch", {})
+	var current: Dictionary = session.get_migration_snapshot()
+	if not bool(admission.get("accepted", false)) or int(peer.get("peer_id", 0)) != session.multiplayer.get_unique_id() \
+			or int(peer.get("peer_generation", 0)) <= 0 \
+			or int(transport.get("peer_id", 0)) != session.multiplayer.get_unique_id() \
+			or int(transport.get("peer_generation", 0)) != int(peer.get("peer_generation", 0)):
+		return false
+	for key in ["package_generation", "session_generation", "migration_generation"]:
+		if int(epoch.get(key, 0)) <= 0 or epoch.get(key) != current.get(key):
+			return false
+	return true
+
 func _client() -> void:
 	_check(_game.join_network_session("127.0.0.1", _port).accepted, "production client joins")
-	await _ticks(100)
+	var ready := await _until(_admitted_session_ready, 60.0)
+	_check(ready, "client receives matching admitted current-epoch server offer")
+	if not ready:
+		return
+	_write("client.admitted", {})
+	var offer: Dictionary = _game.network_session.get_server_offer()
+	print("PASSENGER_CLIENT_JOIN: wall=", Time.get_unix_time_from_system(),
+		" active=", _game.network_session.is_session_active(),
+		" offer_peer=", (offer.get("admission", {}) as Dictionary).get("peer", {}),
+		" phase=", _game.phase, " local=", _craft.to_local(_player.global_position))
 	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.get_boarding_position() + Vector3.UP * 0.05))
 	await _ticks(10)
 	await _press(&"interact")
-	_check(await _until(func(): return _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _game.get_network_remote_body_intent_source() != null and not bool(_game.get("_transition_busy")), 12.0), "ordinary hatch Interact admits real walking body")
+	var admitted := await _until(func(): return _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _game.get_network_remote_body_intent_source() != null and not bool(_game.get("_transition_busy")), 12.0)
+	_check(admitted, "ordinary hatch Interact admits real walking body")
+	print("PASSENGER_CLIENT_HATCH: wall=", Time.get_unix_time_from_system(),
+		" admitted=", admitted, " active=", _game.network_session.is_session_active(),
+		" phase=", _game.phase, " local=", _craft.to_local(_player.global_position),
+		" boarding=", _game.get_network_client_boarding_audit())
+	if not admitted:
+		return
 	root.grab_focus()
 	await _ticks(20)
 	await _walk(_craft.to_local(_craft.get_passenger_station_role_contract().entry_transform.origin))
@@ -302,8 +366,11 @@ func _client() -> void:
 
 func _walk(target_local: Vector3) -> void:
 	var target := _craft.to_global(target_local)
+	var start := _player.global_position
+	var furthest := 0.0
 	print("PASSENGER_WALK_START: local=", _craft.to_local(_player.global_position), " target=", target_local)
 	for _index in 240:
+		furthest = maxf(furthest, _player.global_position.distance_to(start))
 		var delta := target - _player.global_position
 		delta = delta.slide(_craft.global_basis.y.normalized())
 		if delta.length() < 0.30:
@@ -320,6 +387,11 @@ func _walk(target_local: Vector3) -> void:
 	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
 		Input.action_release(action)
 	await _ticks(15)
+	if _role == "client":
+		var source := _game.get_network_remote_body_intent_source()
+		print("PASSENGER_WALK_END: wall=", Time.get_unix_time_from_system(), " local=", _craft.to_local(_player.global_position),
+			" furthest_m=", furthest, " floor=", _player.is_on_floor(), " yaw=", _player.get_look_yaw(),
+			" source=", source.get_audit(), " relationship=", _game.network_session.get_moving_interior_latest_relationship(source.get_entity_id()))
 
 func _look(target: Vector3) -> void:
 	for _index in 4:
@@ -375,7 +447,7 @@ func _write(name: String, data: Dictionary) -> void:
 	if write_error != OK or DirAccess.rename_absolute(temporary, target) != OK:
 		_check(false, "complete peer receipt publishes atomically: " + name)
 		return
-	print("PASSENGER_PEER_BOUNDARY: ", _role, " ", name)
+	print("PASSENGER_PEER_BOUNDARY: ", _role, " ", name, " wall=", Time.get_unix_time_from_system(), " ticks=", Engine.get_physics_frames())
 
 func _read(name: String) -> Dictionary:
 	if not FileAccess.file_exists(_directory.path_join(name)):

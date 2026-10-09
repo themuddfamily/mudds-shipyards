@@ -37,6 +37,7 @@ func _run() -> void:
 	_role = args[0]
 	_directory = args[1]
 	_port = int(args[2])
+	_write(_role + ".script_ready", {})
 	_game = Main.instantiate() as GameFlow
 	_store_path = "user://engineer-peer-%d.json" % OS.get_process_id()
 	var store := UserDataStore.new(_store_path)
@@ -48,6 +49,7 @@ func _run() -> void:
 	_player = _game.get_node("Player") as PlayerController
 	_game.start_shift()
 	await _ticks(3)
+	_write(_role + ".main_ready", {})
 	if _role == "host":
 		await _host()
 	else:
@@ -169,6 +171,7 @@ func _host() -> void:
 	_write("host.damage", {})
 	if not await _wait_file("client.repaired", 35.0):
 		return
+	print("ENGINEER_HOST_REPAIR: wall=", Time.get_unix_time_from_system(), " state=", _craft.get_engineer_repair_state())
 	_check(int(_craft.get_engineer_repair_state().resource_units) == 5, "finite host repair spends exactly one kit")
 	_check(model.get_component_integrity(&"engine_bay") > before, "host actual engine integrity improves through ordinary client FIRE")
 	_write("host.repair_checked", {})
@@ -191,6 +194,14 @@ func _host() -> void:
 	_check(await _until(func(): return simulation.get_body_record(avatar).get("seat_state") == &"sitting", 8.0), "ordinary third chair press reaches host sitting transition")
 	_check(_game.network_session.rotate_session_migration().accepted, "host migration rotates during real sitting transition")
 	await _ticks(35)
+	print("ENGINEER_MIGRATION_BODY: wall=", Time.get_unix_time_from_system(),
+		" cached_body_valid=", is_instance_valid(body), " current_body_valid=", is_instance_valid(simulation.get_body(avatar)),
+		" epochs=", _game.network_session.get_migration_snapshot(),
+		" body_record=", simulation.get_body_record(avatar))
+	if not is_instance_valid(body):
+		_check(false, "migration cancels pending chair ownership without later resurrection")
+		_check(false, "migration recovery restores retained body cabin containment")
+		return
 	_check(authority.get_assignment(peer, avatar).is_empty() and not body.is_seated(), "migration cancels pending chair ownership without later resurrection")
 	_check(body.get_cabin_containment_report().active and body.get_cabin_containment_report().frame == _craft, "migration recovery restores retained body cabin containment")
 	_write("host.migration_checked", {})
@@ -245,6 +256,7 @@ func _client() -> void:
 	_check(await _until(func(): return StringName(((_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("selection", {}) as Dictionary).get("component_id", &"")) == &"engine_bay", 8.0), "ordinary remappable selector chooses engine bay on host")
 	await _press(source.fire_action)
 	_check(await _until(func(): return int(((_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary).get("resource_units", 6)) == 5, 8.0), "ordinary transformed FIRE completes finite repair with replicated stock")
+	print("ENGINEER_CLIENT_REPAIR: wall=", Time.get_unix_time_from_system(), " view=", _game.network_session.get_engineer_replica_snapshot(), " body_source=", _game.get_network_remote_body_intent_source().get_audit())
 	_check(_craft.get_crew_role_authority() == null, "client has no component-repair or role authority")
 	_write("client.repaired", {})
 	if not await _wait_file("host.repair_checked", 10.0):
@@ -388,7 +400,7 @@ func _wait_file(name: String, seconds: float) -> bool:
 	return result
 
 func _write(name: String, data: Dictionary) -> void:
-	print("ENGINEER_PEER_BOUNDARY: ", _role, " ", name)
+	print("ENGINEER_PEER_BOUNDARY: ", _role, " ", name, " wall=", Time.get_unix_time_from_system(), " ticks=", Engine.get_physics_frames())
 	var file := FileAccess.open(_directory.path_join(name), FileAccess.WRITE)
 	file.store_string(JSON.stringify(data))
 	file.close()
