@@ -67,11 +67,12 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if stage == "arm":
 		game.call("_on_settings_save_requested")
 		var craft := (game.get_flyable_ships()[1] if recovery_context == "pilot" else game.get_node("HalyardCrewTransport")) as HeroShip
-		game.canopy_motion_time = 0.01
-		game.boarding_motion_time = 0.02
+		if recovery_context != "crew":
+			game.canopy_motion_time = 0.01
+			game.boarding_motion_time = 0.02
 		game.start_shift()
 		game.call("_board_ship", craft)
-		_check(await _wait_for_real_pilot(game, craft), "the arm leg settles a real Player pilot before any escort fixture setup")
+		_check(await _wait_for_real_pilot(game, craft, 300 if recovery_context == "crew" else 120), "the arm leg settles a real Player pilot before any escort fixture setup")
 		var saved_context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
 		_check(saved_context.get("mode") == "pilot" and saved_context.get("craft_id") == String(craft.get_ship_id()), "the actual settled solo pilot context is durable before the OS interruption")
 		var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
@@ -134,13 +135,20 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if craft_index >= 0 and _failures.is_empty():
 		var craft := ships[craft_index] as HeroShip
 		var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
-		game.canopy_motion_time = 0.01
-		game.boarding_motion_time = 0.02
+		if recovery_context != "crew":
+			game.canopy_motion_time = 0.01
+			game.boarding_motion_time = 0.02
 		game.start_shift()
-		var settled := await _wait_for_real_pilot(game, craft) if recovery_context == "pilot" else await _wait_for_awake_cabin(game, craft)
+		var settled := await _wait_for_real_pilot(game, craft, 300 if recovery_context == "crew" else 120) if recovery_context == "pilot" else await _wait_for_awake_cabin(game, craft)
 		if recovery_context != "pilot":
 			_check(craft.get_ship_id() == GameFlow.HALYARD_SHIP_ID and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1,
 				"cold cabin recovery resolves the registered Halyard at its exact safe home berth")
+		if recovery_context == "crew":
+			var crew_status: Dictionary = game.call("get_solo_crew_seat_status")
+			_check(settled and not bool(crew_status.seated) and (crew_status.assignment as Dictionary).is_empty()
+				and (craft as HalyardCrewTransport).get_crew_role_authority() == null
+				and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META),
+				"cold crew Resume acquires awake cabin ownership without replaying the old passenger ledger or occupant tag")
 		safe_recovery_observation = _interruption_runtime_observation(game)
 		var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
 		var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
@@ -152,9 +160,10 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 			"ordinary cold Resume reacquires the selected real safe home context and preserves the exact convoy before fixture positioning")
 		if recovery_context != "pilot":
 			var start := game.player.global_position
-			Input.action_press(&"move_back")
-			await _settle_frames(20)
-			Input.action_release(&"move_back")
+			var walk_action := &"move_forward" if recovery_context == "crew" else &"move_back"
+			Input.action_press(walk_action)
+			await _settle_frames(24 if recovery_context == "crew" else 20)
+			Input.action_release(walk_action)
 			await _settle_frames()
 			_check(game.player.global_position.distance_to(start) > 0.1 and game.player.is_on_floor()
 				and not craft.is_piloted() and game.player.is_control_enabled(),
@@ -164,10 +173,13 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 				and _restored_threat_boundary_matches(game, boundary)
 				and _convoy_receipts(game) == before_receipts,
 				"awake cabin movement preserves the exact failed second convoy and first receipt")
-			game.player.teleport_to(craft.get_cabin_stand_transform())
-			await _settle_frames()
-			game.call("_on_interact_requested")
-			_check(await _wait_for_real_pilot(game, craft) and not game.player.is_cabin_containment_active()
+			if recovery_context == "crew":
+				await _press_real_interaction()
+			else:
+				game.player.teleport_to(craft.get_cabin_stand_transform())
+				await _settle_frames()
+				game.call("_on_interact_requested")
+			_check(await _wait_for_real_pilot(game, craft, 300 if recovery_context == "crew" else 120) and not game.player.is_cabin_containment_active()
 				and not craft.get_moving_interior_component().is_occupant_registered(game.player),
 				"ordinary cabin interaction retakes a real pilot seat and releases passenger owners")
 		Input.action_press(&"move_forward")
@@ -257,7 +269,49 @@ func _settle_airborne_context(game: GameFlow, craft: HeroShip) -> void:
 		_check(game.player.is_sleeping() and game.player.is_seated_at(bunk.get_seat_anchor())
 			and bunk.is_reserved_for(game.player) and not craft.is_piloted(),
 			"actual airborne ShipBunk rest owns the sleeper without pilot authority")
+	if recovery_context == "crew":
+		await _settle_real_crew_seat(game, craft as HalyardCrewTransport)
 	game.call("_capture_solo_safe_recovery_context")
+
+
+func _press_real_interaction() -> void:
+	# Let the real Player sample E once while the authored motion is still
+	# active. A shortened boarding can finish before the same edge is cleared.
+	Input.action_press(&"interact")
+	await get_tree().physics_frame
+	await get_tree().process_frame
+	Input.action_release(&"interact")
+	await _settle_frames()
+
+
+func _settle_real_crew_seat(game: GameFlow, craft: HalyardCrewTransport) -> void:
+	var seat := craft.find_child("SoloPassengerSeatInteraction", true, false) as ShipCrewSeat
+	_check(seat != null and seat.get_seat_anchor() == craft.get_loadmaster_station_anchor()
+		and craft.get_crew_role_authority() == null,
+		"the existing authored crew_port_00 chair has no injected passenger ledger before interaction")
+	if seat == null:
+		return
+	game.player.teleport_to(seat.get_entry_transform())
+	await _settle_frames()
+	_check(game.station_interaction_candidate == seat and game.player.is_on_floor()
+		and (game.hud.get("_interaction_label") as Label).text.contains("PASSENGER"),
+		"ordinary overlap and facing discover the real passenger chair and visible E prompt")
+	await _press_real_interaction()
+	for _frame in 120:
+		if not bool(game.get("_transition_busy")):
+			break
+		await _settle_frames(1)
+	var status: Dictionary = game.call("get_solo_crew_seat_status")
+	var assignment := status.assignment as Dictionary
+	_check(bool(status.seated) and status.ship == craft
+		and assignment.get("role") == &"passenger" and assignment.get("seat_id") == &"crew_port_00"
+		and int(assignment.get("seat_generation", 0)) > 0
+		and game.player.is_station_seated() and game.player.is_seated_at(seat.get_seat_anchor())
+		and game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META)
+		and craft.get_moving_interior_component().is_occupant_registered(game.player)
+		and game.player.is_cabin_containment_active() and not craft.is_piloted()
+		and not game.player.is_sleeping() and game.player.is_control_enabled(),
+		"ordinary E settles the real passenger in the existing ledger, moving frame and authored chair without helm or sleep authority")
 
 
 func _wait_for_awake_cabin(game: GameFlow, craft: HeroShip) -> bool:
@@ -281,8 +335,8 @@ func _interruption_runtime_observation(game: GameFlow) -> Dictionary:
 		"craft_position": [game.active_ship.global_position.x, game.active_ship.global_position.y, game.active_ship.global_position.z]}
 
 
-func _wait_for_real_pilot(game: GameFlow, craft: HeroShip) -> bool:
-	for _frame in 120:
+func _wait_for_real_pilot(game: GameFlow, craft: HeroShip, frame_budget: int = 120) -> bool:
+	for _frame in frame_budget:
 		if game.phase == GameFlow.Phase.START_ENGINES:
 			return game.player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted()
 		await get_tree().physics_frame

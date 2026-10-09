@@ -24,7 +24,7 @@ func _run() -> void:
 		"one explicit headless Dummy arm stage is admitted")
 	_check(StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy").recovery_context == "pilot",
 		"omitted recovery context keeps the existing pilot contract")
-	for context in ["pilot", "cabin", "rest"]:
+	for context in ["pilot", "cabin", "rest", "crew"]:
 		var selected := probe_args.duplicate()
 		selected.append("--in-world-interruption-context=" + context)
 		var request := StartupLoaderType.in_world_probe_request(selected, "headless", "Dummy")
@@ -40,6 +40,8 @@ func _run() -> void:
 			"the fixture requires the actual Dummy driver: %s" % audio_driver)
 	for unsafe in [
 		PackedStringArray(["--in-world-interruption-context=cabin"]),
+		PackedStringArray(["--in-world-interruption-context=crew"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=crew", "--in-world-interruption-context=crew"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=invalid"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context", "rest"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=cabin", "--in-world-interruption-context=rest"]),
