@@ -122,6 +122,30 @@ write them elsewhere. It never overwrites an earlier result.
 abort. `--keep-profile` keeps the private profile for inspection, and
 `--dry-run` prints the exact plan.
 
+## Exported-game interruption check
+
+Run the existing recovery probe with `--native-export` so the exported ELF
+starts its embedded game directly. Export templates reject `--path` overrides;
+the default editor/PCK probe mode cannot qualify this native executable.
+
+```sh
+PACKAGE_PATH=/absolute/path/MuddsShipyards-<short>.x86_64 \
+PACKAGE_PROBE_RECOVERY_CONTEXT=pilot \
+PACKAGE_PROBE_RESULTS_ROOT=/absolute/path/linux-recovery-results \
+PACKAGE_PROBE_RUN_ID=pilot \
+tools/release/run_package_probes.sh --in-world-interruption --native-export
+```
+
+Repeat separately with `cabin`, `rest` and `crew`, using a fresh result ID for
+each run. Keep the original `.x86_64.export-result.json` beside the binary:
+the check verifies its executable hash and records the compiled source commit
+separately from the probe driver's commit. It launches no external pack or
+script, uses headless/Dummy audio and private user directories, kills and reaps
+its exact native game process, then restarts against that same private save.
+The existing durable-boundary, one-payment, crash-event, clean-marker and
+source/cache/artifact-parity checks still apply. This mode requires a Linux
+x86_64 ELF and cannot be combined with `--source` or the standard script probes.
+
 ## Runtime platform audit
 
 The runtime was read for Windows-only assumptions:
@@ -150,8 +174,9 @@ The runtime was read for Windows-only assumptions:
 
 | Gate | Status |
 | --- | --- |
-| Linux export from a clean commit | NOT_RUN (run in the testing phase with the commands above) |
-| Headless isolated startup check (`STARTUP_MENU_READY_OK`) | NOT_RUN |
+| Linux export from a clean commit | PASS on private `f139257f6` binary/tarball; not yet published |
+| Headless isolated startup check (`STARTUP_MENU_READY_OK`) | PASS on private `f139257f6` binary and extracted tarball; exit 0, one ready record each |
+| Exported-game pilot/cabin/rest/crew interruption | Pending fresh native-mode runs; the original editor-mode invocation failed before readiness because the ELF rejected `--path` |
 | Clean install on a real Linux desktop (rendered, native GPU, audio) | NOT_RUN |
 | Signing | Not applicable yet. The artifacts are unsigned, and the result JSON says so. |
 

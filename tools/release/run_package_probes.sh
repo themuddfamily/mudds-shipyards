@@ -5,17 +5,25 @@ set -o pipefail
 # --in-world-interruption runs one actual kill/restart of the existing convoy
 # fixture. --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
+# --native-export runs PACKAGE_PATH's embedded Linux game directly; it cannot
+# accept external source, pack or script overrides.
 IN_WORLD_INTERRUPTION=0
 SOURCE_MODE=0
+NATIVE_EXPORT=0
 for argument in "$@"; do
   case "$argument" in
     --in-world-interruption) IN_WORLD_INTERRUPTION=1 ;;
     --source) SOURCE_MODE=1 ;;
+    --native-export) NATIVE_EXPORT=1 ;;
     *) echo "Unknown package probe option: $argument" >&2; exit 2 ;;
   esac
 done
 if (( SOURCE_MODE == 1 && IN_WORLD_INTERRUPTION == 0 )); then
   echo "--source requires --in-world-interruption" >&2
+  exit 2
+fi
+if (( NATIVE_EXPORT == 1 && (IN_WORLD_INTERRUPTION == 0 || SOURCE_MODE == 1) )); then
+  echo "--native-export requires --in-world-interruption and forbids --source" >&2
   exit 2
 fi
 
@@ -49,7 +57,7 @@ if (( SOURCE_MODE == 0 )) && ! [[ -f "$PACKAGE_PATH" ]]; then
   exit 2
 fi
 
-if ! command -v "$GODOT_BIN" >/dev/null; then
+if (( NATIVE_EXPORT == 0 )) && ! command -v "$GODOT_BIN" >/dev/null; then
   echo "Godot binary not found: $GODOT_BIN"
   exit 2
 fi
@@ -105,18 +113,22 @@ if (( IN_WORLD_INTERRUPTION == 1 )); then
   trap 'forward_interruption_cancel 130' INT
   trap 'forward_interruption_cancel 143' TERM
   trap 'forward_interruption_cancel 129' HUP
-  env -u DISPLAY -u WAYLAND_DISPLAY PYTHONDONTWRITEBYTECODE=1 python3 - "$PROJECT_ROOT" "$GODOT_BIN" "$PACKAGE_PATH" "$SOURCE_MODE" "$TIMEOUT_SECONDS" "$RUN_DIR" "$PROBE_WORK_DIR" "$RECOVERY_CONTEXT" <<'PYPROBE' &
+  env -u DISPLAY -u WAYLAND_DISPLAY PYTHONDONTWRITEBYTECODE=1 python3 - "$PROJECT_ROOT" "$GODOT_BIN" "$PACKAGE_PATH" "$SOURCE_MODE" "$TIMEOUT_SECONDS" "$RUN_DIR" "$PROBE_WORK_DIR" "$RECOVERY_CONTEXT" "$NATIVE_EXPORT" <<'PYPROBE' &
 import hashlib, json, os, pathlib, re, signal, subprocess, sys, time
-root, godot, package, source_mode, timeout, run_dir, profile, recovery_context = sys.argv[1:]
+root, godot, package, source_mode, timeout, run_dir, profile, recovery_context, native_export = sys.argv[1:]
 root, run_dir, profile = map(pathlib.Path, (root, run_dir, profile))
 timeout = int(timeout)
 source_mode = source_mode == "1"
+native_export = native_export == "1"
 result_path = run_dir / "in-world-interruption.json"
-result = {"status": "FAIL", "mode": "source" if source_mode else "PCK",
+driver_commit = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+result = {"status": "FAIL", "mode": "native_export" if native_export else ("source" if source_mode else "PCK"),
           "project_root": str(root), "private_profile": str(profile), "package": None if source_mode else package,
-          "source_commit": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip(),
+          "source_commit": None if native_export else driver_commit,
           "native_gpu": "NOT_RUN", "normal_controls": "NOT_RUN",
           "pilot_seat_world_restore": "NOT_RUN", "recovery_context": recovery_context, "processes": []}
+if native_export:
+    result["driver_source_commit"] = driver_commit
 children = []
 registering_child = False
 pending_abort = None
@@ -173,9 +185,12 @@ document = profile / "data/godot/app_userdata/Mudds Shipyards/mudds_user_data.js
 def start(stage):
     global registering_child
     log = run_dir / "logs" / (stage + ".log")
-    command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(root)]
-    if not source_mode:
-        command += ["--main-pack", package]
+    if native_export:
+        command = [package, "--headless", "--audio-driver", "Dummy"]
+    else:
+        command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(root)]
+        if not source_mode:
+            command += ["--main-pack", package]
     command += ["--in-world-interruption-stage=" + stage, "--in-world-interruption-context=" + recovery_context]
     with log.open("w") as output:
         registering_child = True
@@ -191,6 +206,29 @@ def start(stage):
                 abort_probe(pending_abort)
     return process, log, entry
 try:
+    if native_export:
+        # SIGKILL must own the actual game, never a Windows interop wrapper.
+        require(sys.platform.startswith("linux"), "native-export interruption requires a Linux host")
+        binary = pathlib.Path(package).resolve()
+        with binary.open("rb") as stream:
+            header = stream.read(20)
+        require(header[:6] == b"\x7fELF\x02\x01" and int.from_bytes(header[18:20], "little") == 62,
+                "native-export requires a Linux x86_64 ELF binary")
+        require(os.access(binary, os.X_OK), "native-export binary is not executable")
+        metadata_path = pathlib.Path(str(binary) + ".export-result.json")
+        metadata = json.loads(metadata_path.read_text())
+        require(metadata.get("schema_version") == 1 and metadata.get("platform") == "linux",
+                "native-export requires the existing Linux export metadata")
+        require(metadata.get("binary", {}).get("sha256") == result["package_sha256"]
+                and metadata.get("binary", {}).get("bytes") == binary.stat().st_size,
+                "native-export metadata does not match the executable")
+        require(re.fullmatch(r"[0-9a-f]{40}", metadata.get("source_commit", "")) is not None,
+                "native-export metadata has no exact compiled source identity")
+        # The driver can be newer than the immutable game it qualifies.
+        result["source_commit"] = metadata["source_commit"]
+        result["export_metadata_sha256"] = digest(metadata_path)
+        package = str(binary)
+        result["package"] = package
     arm, arm_log, arm_entry = start("arm")
     deadline = time.monotonic() + timeout
     ready = None
@@ -261,6 +299,9 @@ finally:
     if not source_mode and digest(pathlib.Path(package)) != result["package_sha256"]:
         result["status"] = "FAIL"
         result["failure"] = "package changed during interruption check"
+    if native_export and "export_metadata_sha256" in result and digest(metadata_path) != result["export_metadata_sha256"]:
+        result["status"] = "FAIL"
+        result["failure"] = "export metadata changed during interruption check"
     result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
 print("IN_WORLD_INTERRUPTION_CHECK_" + result["status"] + ": " + str(result_path))
 sys.exit(0 if result["status"] == "PASS" else 1)
