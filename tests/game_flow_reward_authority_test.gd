@@ -390,10 +390,55 @@ func _run() -> void:
 		and aurora_store.get_generation() == durable_generation,
 		"fresh authority rejects a second Aurora discovery using durable counts, regardless of activity generation")
 
+	_test_hulk_terminal_gate()
+
 	for failure in _failures:
 		push_error(failure)
 	print("GAME_FLOW_REWARD_AUTHORITY_TEST_OK: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _test_hulk_terminal_gate() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var store := StoreScript.new("memory://hulk-terminal-gate.json", filesystem)
+	store.load()
+	var authority := AuthorityScript.new()
+	authority.configure(store)
+	var request := _request(AuthorityScript.HULK_POWER_ACTIVITY_ID, 1, AuthorityScript.HULK_POWER_REWARD_ID)
+	_check(authority.commit(request).reason == &"reward_terminal_handoff_invalid" and store.get_generation() == 0,
+		"a direct forged hulk request without an earned terminal cannot publish a receipt")
+	var owner := DerelictPowerRestorationActivity.new()
+	owner.engage(DerelictPowerRestorationActivity.BREAKER_ANCHOR)
+	owner.advance_physics(DerelictPowerRestorationActivity.RESTORE_SECONDS)
+	var terminal := owner.get_persistence_record()
+	var payload := {DerelictPowerRestorationActivity.PERSISTENCE_SLOT: terminal, "foreign": {"callsign": "UNCHANGED"}}
+	var malformed := payload.duplicate(true)
+	malformed[DerelictPowerRestorationActivity.PERSISTENCE_SLOT].elapsed_seconds = 0.0
+	store.commit(malformed, store.get_generation(), "unit-hulk-incomplete")
+	_check(authority.commit(request).reason == &"reward_terminal_handoff_invalid",
+		"incomplete saved hulk progress creates no earned entitlement")
+	malformed = payload.duplicate(true)
+	malformed[DerelictPowerRestorationActivity.PERSISTENCE_SLOT].schema_version = 2
+	store.commit(malformed, store.get_generation(), "unit-hulk-unsupported")
+	var unsupported_before := store.get_snapshot()
+	_check(authority.commit(request).reason == &"reward_terminal_handoff_invalid" and store.get_snapshot() == unsupported_before,
+		"unsupported saved hulk data remains unchanged and creates no earned entitlement")
+	malformed = payload.duplicate(true)
+	malformed[DerelictPowerRestorationActivity.PERSISTENCE_SLOT].schema_version = true
+	store.commit(malformed, store.get_generation(), "unit-hulk-boolean-schema")
+	_check(authority.commit(request).reason == &"reward_terminal_handoff_invalid",
+		"a boolean schema value cannot masquerade as the supported numeric hulk version")
+	store.commit(payload, store.get_generation(), "unit-hulk-earned")
+	_check(authority.commit(_request(AuthorityScript.HULK_POWER_ACTIVITY_ID, 2, AuthorityScript.HULK_POWER_REWARD_ID)).reason == &"reward_generation_mismatch",
+		"a direct hulk reward request must match the actual saved completion generation")
+	var paid := authority.commit(request)
+	_check(paid.accepted and paid.granted and store.get_snapshot().foreign.callsign == "UNCHANGED",
+		"the genuine typed hulk terminal grants through the existing authority and preserves foreign data")
+	var generation := store.get_generation()
+	var fresh := AuthorityScript.new()
+	fresh.configure(store)
+	_check(fresh.commit(request).reason == &"reward_already_recorded" and store.get_generation() == generation,
+		"a fresh authority uses the legitimate paid ledger to keep hulk salvage permanently one-shot")
 
 
 func _save_actual_jovian_completion(store: UserDataStore) -> bool:

@@ -13,7 +13,8 @@ extends RefCounted
 ## either dead or it is not. `reset()` exists for presentation and for a failed
 ## attempt that never completed; it cannot un-claim a claimed cell, and a
 ## claimed activity stays claimed through a save and a whole-`Main` re-entry
-## because the durable record is the reward ledger, not a flag in here.
+## because the durable paid record is the reward ledger. Earned unpaid
+## completion is staged separately before that ledger can publish its receipt.
 ##
 ## **It owns no authority.** No store, no wallet, no ship, no berth, no
 ## geometry, no HUD, no network. It accepts caller-sampled actor positions and
@@ -30,6 +31,7 @@ const REWARD_ID: StringName = &"hulk_auxiliary_power_cell"
 const CONTENT_CLASS: StringName = &"NEW"
 const EVIDENCE_STATUS: StringName = &"modern_interpretation"
 const REPEATABLE := false
+const PERSISTENCE_SLOT := "cinder_hulk_power_session"
 
 ## Where the breaker physically is, in world coordinates. It matches
 ## `AbandonedStationHulk.HULK_ANCHOR + AbandonedStationHulk.BREAKER_LOCAL_POSITION`
@@ -139,6 +141,8 @@ func restore_from_reward_ledger(reward_counts: Dictionary) -> Dictionary:
 func reset() -> Dictionary:
 	if _state == State.CLAIMED:
 		return _result(false, &"reward_already_claimed")
+	if _state == State.COMPLETE:
+		return _result(false, &"reward_save_pending")
 	if _state == State.IDLE:
 		return _result(false, &"already_idle")
 	_state = State.RESET
@@ -170,13 +174,56 @@ func get_snapshot() -> Dictionary:
 		"interaction_radius": INTERACTION_RADIUS,
 		"reward_id": REWARD_ID,
 		"reward_requested": _reward_requested,
-		"reward_pending": _reward_requested and _state == State.COMPLETE,
+		"reward_pending": _state == State.COMPLETE,
 		"reward_claimed": _state == State.CLAIMED,
 		"claimed_receipts": _claimed_receipts,
 		"reward_authority": false,
 		"gameplay_authority": false,
 		"network_authority": false,
 	}.duplicate(true)
+
+
+## Only the actual earned terminal is recoverable. Incomplete attempts remain
+## transient; claimed state continues to come exclusively from the paid ledger.
+func get_persistence_record() -> Dictionary:
+	if _state != State.COMPLETE:
+		return {}
+	return JSON.parse_string(JSON.stringify({
+		"schema_version": SCHEMA_VERSION, "activity_id": String(ACTIVITY_ID),
+		"state": State.COMPLETE, "generation": _generation,
+		"elapsed_seconds": RESTORE_SECONDS,
+	})) as Dictionary
+
+
+static func validate_persistence_record(value: Variant) -> Dictionary:
+	if not value is Dictionary or value.size() != 5:
+		return {"accepted": false, "reason": &"hulk_terminal_invalid"}
+	for key in ["schema_version", "state", "elapsed_seconds"]:
+		var number: Variant = value.get(key)
+		if not (number is int or number is float) or not is_finite(float(number)):
+			return {"accepted": false, "reason": &"hulk_terminal_invalid"}
+	if value.get("schema_version") != SCHEMA_VERSION:
+		return {"accepted": false, "reason": &"hulk_terminal_unsupported_schema"}
+	var generation: Variant = value.get("generation")
+	if value.get("activity_id") != String(ACTIVITY_ID) or value.get("state") != State.COMPLETE \
+			or value.get("elapsed_seconds") != RESTORE_SECONDS \
+			or not (generation is int or generation is float) or not is_finite(float(generation)) \
+			or float(generation) != floor(float(generation)) or float(generation) < 1.0 or float(generation) > 2147483647.0:
+		return {"accepted": false, "reason": &"hulk_terminal_invalid"}
+	return {"accepted": true, "reason": &"hulk_terminal_valid"}
+
+
+func restore_persistence_record(record: Dictionary) -> Dictionary:
+	var checked := validate_persistence_record(record)
+	if not checked.accepted:
+		return checked
+	if _state != State.IDLE or _generation != 0:
+		return _result(false, &"hulk_owner_already_active")
+	_state = State.COMPLETE
+	_generation = int(record.generation)
+	_elapsed = RESTORE_SECONDS
+	_reward_requested = false
+	return _result(true, &"hulk_earned_completion_restored")
 
 
 func get_generation() -> int:

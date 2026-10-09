@@ -53,9 +53,10 @@ const AURORA_SURVEY_ACTIVITY_ID: StringName = &"aurora_coastal_observation"
 const AURORA_SURVEY_REWARD_ID: StringName = &"aurora_coastal_survey_data"
 const RIME_SURVEY_ACTIVITY_ID: StringName = &"rime_ice_core_survey"
 const RIME_SURVEY_REWARD_ID: StringName = &"rime_ice_core_record"
-## Planetary discoveries record once per save, across Main re-entry and
+## One-shot discoveries record once per save, across Main re-entry and
 ## interrupted visits.
 const ONE_TIME_DISCOVERY_ACTIVITY_IDS := [
+	HULK_POWER_ACTIVITY_ID,
 	AURORA_SURVEY_ACTIVITY_ID,
 	RIME_SURVEY_ACTIVITY_ID,
 ]
@@ -205,6 +206,16 @@ func commit(request: Variant) -> Dictionary:
 				"reason", &"reward_store_payload_corrupt"
 			)))
 		current = (stored as Dictionary).duplicate(true)
+
+	if activity_id == HULK_POWER_ACTIVITY_ID:
+		var terminal: Variant = (payload as Dictionary).get(DerelictPowerRestorationActivity.PERSISTENCE_SLOT)
+		var checked := DerelictPowerRestorationActivity.validate_persistence_record(terminal)
+		if not checked.accepted:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		if int(terminal.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
 
 	var station_completion: Dictionary = {}
 	if activity_id == STATION_DEFENSE_ACTIVITY_ID:

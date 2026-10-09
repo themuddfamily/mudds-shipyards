@@ -227,6 +227,7 @@ const CARGO_DELIVERY_REWARD_ID: StringName = &"return_fabrication_kits_to_shipya
 ## authority every other nearby activity already uses.
 const HULK_POWER_ACTIVITY_ID: StringName = DerelictPowerRestorationActivity.ACTIVITY_ID
 const HULK_POWER_REWARD_ID: StringName = DerelictPowerRestorationActivity.REWARD_ID
+const HULK_POWER_REWARD_RETRY_SECONDS := 1.0
 const HEAVY_BREACH_HUD_REFRESH_SECONDS := 0.1
 const CINDER_CARGO_HUD_REFRESH_SECONDS := 0.1
 const CINDER_MINING_HUD_REFRESH_SECONDS := 0.1
@@ -713,6 +714,7 @@ var _hulk_power_breaker: Node
 var _hulk_power_ledger_restored := false
 var _last_hulk_power_result: Dictionary = {}
 var _last_hulk_power_reward_result: Dictionary = {}
+var _hulk_power_reward_retry_elapsed := HULK_POWER_REWARD_RETRY_SECONDS
 var _station_defense_reward_configuration: Dictionary = {}
 var _station_defense_bindings_ready := false
 var _game_flow_reward_adapter: RefCounted
@@ -20571,7 +20573,14 @@ func _restore_hulk_power_from_reward_ledger() -> void:
 	var snapshot := _game_flow_reward_authority.call(&"get_snapshot") as Dictionary
 	var record := snapshot.get("record", {}) as Dictionary
 	var counts := record.get("reward_counts", {}) as Dictionary
-	_hulk_power_activity.restore_from_reward_ledger(counts)
+	var claimed := _hulk_power_activity.restore_from_reward_ledger(counts)
+	if claimed.accepted or _runtime_settings_user_data_store == null:
+		return
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	if payload.has(DerelictPowerRestorationActivity.PERSISTENCE_SLOT):
+		var terminal: Variant = payload[DerelictPowerRestorationActivity.PERSISTENCE_SLOT]
+		var checked := DerelictPowerRestorationActivity.validate_persistence_record(terminal)
+		_last_hulk_power_result = _hulk_power_activity.restore_persistence_record(terminal) if checked.accepted else checked
 
 
 func _on_hulk_breaker_engaged(_actor: Node) -> void:
@@ -20612,17 +20621,59 @@ func _advance_hulk_power_restoration(delta: float) -> void:
 			return
 		_last_hulk_power_result = _hulk_power_activity.advance_physics(delta).duplicate(true)
 		snapshot = _hulk_power_activity.get_snapshot()
+		if snapshot.state_id == &"complete":
+			_hulk_power_reward_retry_elapsed = HULK_POWER_REWARD_RETRY_SECONDS
 	if StringName(snapshot.get("state_id", &"")) != &"complete":
 		return
+	if is_finite(delta) and delta > 0.0:
+		_hulk_power_reward_retry_elapsed = minf(HULK_POWER_REWARD_RETRY_SECONDS, _hulk_power_reward_retry_elapsed + delta)
+	if _hulk_power_reward_retry_elapsed < HULK_POWER_REWARD_RETRY_SECONDS:
+		return
+	_hulk_power_reward_retry_elapsed = 0.0
 	_commit_hulk_power_reward()
+
+
+## Stage the existing owner's exact earned terminal in the shared atomic
+## envelope before payment. Other settings/activity namespaces are retained.
+func _save_hulk_power_completion() -> Dictionary:
+	if _runtime_settings_user_data_store == null or _hulk_power_activity == null:
+		return {"accepted": false, "reason": &"hulk_terminal_store_unavailable"}
+	var record := _hulk_power_activity.get_persistence_record()
+	var checked := DerelictPowerRestorationActivity.validate_persistence_record(record)
+	if not checked.accepted:
+		return checked
+	var loaded := _runtime_settings_user_data_store.load()
+	if not loaded.get("accepted", false):
+		return loaded
+	if loaded.get("reason") == &"primary_invalid_backup_loaded":
+		return {"accepted": false, "reason": &"hulk_terminal_store_recovery_required"}
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	if payload.has(DerelictPowerRestorationActivity.PERSISTENCE_SLOT):
+		var previous: Variant = payload[DerelictPowerRestorationActivity.PERSISTENCE_SLOT]
+		checked = DerelictPowerRestorationActivity.validate_persistence_record(previous)
+		if not checked.accepted:
+			return checked
+		if previous != record:
+			return {"accepted": false, "reason": &"hulk_earned_completion_retained"}
+		return {"accepted": true, "reason": &"hulk_terminal_unchanged"}
+	payload[DerelictPowerRestorationActivity.PERSISTENCE_SLOT] = record
+	var generation := _runtime_settings_user_data_store.get_generation()
+	var saved := _runtime_settings_user_data_store.commit(payload, generation, "game-flow-hulk-%010d" % (generation + 1))
+	if saved.get("accepted", false):
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
+		_sync_production_runtime_settings_state()
+	return saved
 
 
 func _commit_hulk_power_reward() -> Dictionary:
 	if _hulk_power_activity == null or _game_flow_reward_adapter == null:
 		return {"accepted": false, "reason": &"hulk_reward_plumbing_unavailable"}
-	var requested := _hulk_power_activity.request_reward()
-	if not bool(requested.get("accepted", false)):
-		return requested
+	var saved := _save_hulk_power_completion()
+	if not bool(saved.get("accepted", false)):
+		_last_hulk_power_reward_result = {"accepted": false, "reason": &"hulk_terminal_save_pending", "persistence_result": saved}
+		_sync_nearby_activity_hud()
+		return _last_hulk_power_reward_result.duplicate(true)
+	_sync_nearby_activity_hud()
 	var consumed := _game_flow_reward_adapter.call(
 		&"consume",
 		_hulk_power_activity.get_snapshot(),
@@ -20630,11 +20681,20 @@ func _commit_hulk_power_reward() -> Dictionary:
 	) as Dictionary
 	_last_hulk_power_reward_result = consumed.duplicate(true)
 	if not bool(consumed.get("accepted", false)):
+		# A published receipt can report a later directory-sync failure. The
+		# shared authority refreshes its ledger on retry and refuses repayment.
+		var ledger := _game_flow_reward_authority.get_snapshot().get("record", {}) as Dictionary
+		var recovered := _hulk_power_activity.restore_from_reward_ledger(ledger.get("reward_counts", {}) as Dictionary)
+		if recovered.accepted:
+			_sync_nearby_activity_hud()
+			return recovered
 		return consumed
 	var callback := consumed.get("callback", {}) as Dictionary
 	var receipt := (callback.get("receipt", {}) as Dictionary).duplicate(true)
 	receipt["reward_id"] = StringName(receipt.get("reward_id", &""))
 	receipt["activity_id"] = StringName(receipt.get("activity_id", &""))
+	# Consume the activity's one-shot request only after the authority saves.
+	_hulk_power_activity.request_reward()
 	var claimed := _hulk_power_activity.commit_reward_receipt(receipt)
 	if bool(claimed.get("accepted", false)):
 		_sync_nearby_activity_hud()

@@ -95,6 +95,21 @@ class MemoryFilesystem extends UserDataFilesystem:
 		return OK
 
 
+class RewardFaultFilesystem extends UserDataFilesystem:
+	var reject_rewards := true
+	var rejected_rewards := 0
+	var reject_terminals := true
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if reject_terminals and document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-hulk-"):
+			return ERR_UNAVAILABLE
+		if reject_rewards and document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-reward-"):
+			rejected_rewards += 1
+			return ERR_UNAVAILABLE
+		return super.write_bytes_and_flush(path, bytes)
+
+
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -102,6 +117,7 @@ func _init() -> void:
 func _run() -> void:
 	_test_frozen_contract()
 	_test_component_shape_and_budget()
+	await _test_unpaid_recovery()
 	await _test_production_loop()
 	_finish()
 
@@ -742,6 +758,95 @@ func _test_production_loop() -> void:
 	)
 
 	await _cleanup(game)
+
+
+## A genuine panel completion on real disk must remain recoverable while the
+## reward transaction is refused. Samples position the actor; no flight claim.
+func _test_unpaid_recovery() -> void:
+	var path := "user://hulk_unpaid_recovery_%d.json" % Time.get_ticks_usec()
+	var fault := RewardFaultFilesystem.new()
+	var first := await _recovery_game(path, fault)
+	var hulk := await _recovery_hulk(first)
+	first.call(&"_on_settings_save_requested")
+	var settings_before: Dictionary = first.get("_runtime_settings_user_data_store").get_snapshot().runtime_settings
+	first.player.teleport_to(Transform3D(Basis.IDENTITY, hulk.get_breaker_world_position()))
+	_check(hulk.get_breaker().call(&"interact", first.player), "the production breaker accepts the on-foot unpaid recovery attempt")
+	var disk_before := FileAccess.get_file_as_bytes(path)
+	first.call(&"_advance_hulk_power_restoration", 3.0)
+	var unsaved := first.get_hulk_power_restoration_snapshot()
+	var owner := first.get("_hulk_power_activity") as DerelictPowerRestorationActivity
+	var reset := owner.reset()
+	var card := _hulk_board_row(first.hud)
+	_check(unsaved.state_id == &"complete" and unsaved.reward_pending and not reset.accepted
+		and fault.rejected_rewards == 0 and FileAccess.get_file_as_bytes(path) == disk_before
+		and "POWER CELL SAVE PENDING" in (card.get_child(0) as Label).text,
+		"a refused first terminal save preserves the earned owner and disk, blocks reset, and reports pending without paying")
+	fault.reject_terminals = false
+	first.call(&"_advance_hulk_power_restoration", 1.0)
+	var completed := first.get_hulk_power_restoration_snapshot()
+	_check(completed.state_id == &"complete" and completed.reward_pending and fault.rejected_rewards > 0
+		and int(_reward_counts(first).get(String(EXPECTED_REWARD_ID), 0)) == 0,
+		"the genuine completed breaker run remains pending when its real reward write is refused")
+	var saved: Dictionary = first.get("_runtime_settings_user_data_store").get_snapshot()
+	var pending := saved.get("cinder_hulk_power_session", {}) as Dictionary
+	_check(not pending.is_empty() and pending.get("state") == POWER_ACTIVITY.State.COMPLETE,
+		"real disk retains the typed earned hulk completion before any reward is published")
+	reset = owner.reset()
+	_check(not reset.accepted and owner.get_snapshot().state_id == &"complete",
+		"the public attempt reset cannot discard a genuinely earned unpaid cell")
+	var rejected_before := fault.rejected_rewards
+	for _frame in 180:
+		await physics_frame
+		first.call(&"_advance_hulk_power_restoration", PHYSICS_DELTA)
+	var attempts := fault.rejected_rewards - rejected_before
+	_check(attempts >= 2 and attempts <= 3 and first.get_hulk_power_restoration_snapshot().reward_pending,
+		"sustained refusal retries the live earned completion at a bounded cadence across 180 real physics frames (%d attempts)" % attempts)
+	await _cleanup(first)
+	var second := await _recovery_game(path, fault)
+	var restored := second.get_hulk_power_restoration_snapshot()
+	_check(restored.state_id == &"complete" and restored.reward_pending and not restored.hulk_loaded
+		and restored.elapsed_seconds == POWER_ACTIVITY.RESTORE_SECONDS and int(restored.generation) == int(completed.generation)
+		and int(_reward_counts(second).get(String(EXPECTED_REWARD_ID), 0)) == 0,
+		"fresh Main restores the genuine earned pending completion without a reward receipt")
+	fault.reject_rewards = false
+	second.call(&"_advance_hulk_power_restoration", 1.0)
+	var claimed := second.get_hulk_power_restoration_snapshot()
+	_check(claimed.state_id == &"claimed" and claimed.reward_claimed
+		and int(_reward_counts(second).get(String(EXPECTED_REWARD_ID), 0)) == 1,
+		"the production retry owner commits the recovered power cell exactly once after storage recovers")
+	second.call(&"_advance_hulk_power_restoration", 0.0)
+	_check(int(_reward_counts(second).get(String(EXPECTED_REWARD_ID), 0)) == 1,
+		"a later production tick does not pay the recovered one-shot cell again")
+	await _cleanup(second)
+	var third := await _recovery_game(path, UserDataFilesystem.new())
+	var paid := third.get_hulk_power_restoration_snapshot()
+	_check(paid.state_id == &"claimed" and int(_reward_counts(third).get(String(EXPECTED_REWARD_ID), 0)) == 1,
+		"another fresh Main restores permanent one-shot claimed state from its legitimate receipt ledger")
+	_check(third.get("_runtime_settings_user_data_store").get_snapshot().runtime_settings == settings_before,
+		"hulk completion staging and payment preserve the saved runtime settings namespace")
+	await _cleanup(third)
+
+
+func _recovery_game(path: String, filesystem: UserDataFilesystem) -> GameFlow:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(UserDataStore.new(path, filesystem), path + ".legacy.cfg")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	game.set_physics_process(false)
+	game.call(&"_sync_hulk_power_restoration_binding")
+	return game
+
+
+func _recovery_hulk(game: GameFlow) -> AbandonedStationHulk:
+	game.cinder_streaming_bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	for _frame in 180:
+		if is_instance_valid(game.call(&"_get_station_hulk")):
+			break
+		await process_frame
+	game.call(&"_sync_hulk_power_restoration_binding")
+	return game.call(&"_get_station_hulk") as AbandonedStationHulk
 
 
 # --- Helpers -----------------------------------------------------------------

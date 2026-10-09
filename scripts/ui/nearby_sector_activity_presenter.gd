@@ -62,14 +62,17 @@ func present(snapshot: Dictionary) -> Dictionary:
 func _hulk_power_card(state: Dictionary) -> Dictionary:
 	var claimed := bool(state.get("reward_claimed", false)) \
 		or StringName(state.get("state_id", &"")) == &"claimed"
+	var pending := StringName(state.get("state_id", &"")) == &"complete" and not claimed
 	var loaded := bool(state.get("hulk_loaded", false))
 	var restoring := StringName(state.get("state_id", &"")) in [&"active", &"complete"]
 	var status: StringName = &"completed" if claimed else (
-		&"active" if loaded and restoring else (
+		&"active" if pending or (loaded and restoring) else (
 			&"available" if loaded else &"unavailable"
 		)
 	)
 	var guidance := "SALVAGED POWER CELL SECURED — AUXILIARY BUS RESTORED" if claimed else (
+		"POWER CELL SAVE PENDING — KEEP THE EARNED SALVAGE; SAVING RETRIES AUTOMATICALLY"
+		if pending else
 		"AUXILIARY BUS RESTORING — HOLD THE REACTOR GALLERY"
 		if restoring else
 		"DOCK AT THE HULK'S LIT FACE, THEN WALK IN AND THROW THE BREAKER; FOLLOW THE HULK DOCK MINIMAP MARK"
