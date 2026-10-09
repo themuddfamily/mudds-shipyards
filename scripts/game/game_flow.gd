@@ -19991,18 +19991,18 @@ func select_patrol_branch(branch_id: StringName) -> Dictionary:
 		return {"accepted": false, "reason": &"detached"}
 	if patrol_activity == null:
 		return {"accepted": false, "reason": &"patrol_unavailable"}
-	if _activity_selection_locked or _cinder_family_reset_selection:
+	if _activity_selection_locked:
 		return {"accepted": false, "reason": &"selection_locked"}
 	if _selected_activity_kind != ACTIVITY_KIND_PATROL:
 		var selected := select_activity_kind(ACTIVITY_KIND_PATROL)
 		if not bool(selected.get("accepted", false)):
 			return selected
-	var result := patrol_activity.select_branch(
-		branch_id, patrol_activity.get_generation()
+	var result := patrol_activity.select_branch_with_persistence(
+		branch_id, patrol_activity.get_generation(), save_cinder_patrol_session
 	)
 	if bool(result.get("accepted", false)):
-		_active_activity_id = &""
-		_active_activity_generation = 0
+		_active_activity_generation = patrol_activity.get_generation()
+		_active_activity_id = patrol_activity.definition.activity_id if _active_activity_generation > 0 else &""
 	_sync_activity_hud()
 	return result
 

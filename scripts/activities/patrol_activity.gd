@@ -123,6 +123,26 @@ func select_branch(branch_id: StringName, expected_generation: int) -> Dictionar
 		or _director.get_definition(candidate.activity_id) != candidate
 	):
 		return _result(false, &"route_not_registered")
+	if candidate == definition:
+		return _result(true, &"already_selected")
+	if _started_once:
+		if not owns_persistence_authorities(_director):
+			return _result(false, &"patrol_authority_mismatch")
+		# The alternate authored route adopts this genuine reset generation;
+		# its old instance cannot remain the new branch's progress authority.
+		var route_state := _capture_activity_persistence_state()
+		route_state.activity_id = String(candidate.activity_id)
+		var target := _director.get_activity_snapshot(candidate.activity_id)
+		_mutation_active = true
+		var adopted := _director.adopt_inactive_activity_owner(
+			candidate.activity_id, int(target.get("generation", 0)),
+			_director.get_activity_instance_id(candidate.activity_id),
+			func() -> Dictionary:
+				return _director.restore_activity_persistence_state(candidate.activity_id, route_state)
+		)
+		_mutation_active = false
+		if not bool(adopted.get("accepted", false)):
+			return adopted
 	_selected_branch_id = branch_id
 	definition = candidate
 	var result := _result(true, &"branch_selected")
@@ -434,6 +454,34 @@ func reset(expected_generation: int) -> Dictionary:
 ## The ordinary typed reset runs on isolated owners first. Only an accepted
 ## atomic store commit authorizes publishing the reset on the live owners.
 func reset_with_persistence(expected_generation: int, persist_reset: Callable) -> Dictionary:
+	return _change_with_persistence(expected_generation, persist_reset)
+
+
+## An already-saved IDLE generation changes its authored route only after the
+## existing atomic store accepts the staged choice. Rejection publishes nothing.
+func select_branch_with_persistence(
+	branch_id: StringName, expected_generation: int, persist_choice: Callable
+	) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if expected_generation != _generation:
+		return _result(false, &"stale_generation")
+	if _closed:
+		return _result(false, &"closed")
+	if branch_id not in VALID_BRANCH_IDS or not _branch_definitions.has(branch_id):
+		return _result(false, &"unsupported_patrol_branch")
+	if _generation == 0:
+		return select_branch(branch_id, expected_generation)
+	if _state != State.IDLE:
+		return _result(false, &"branch_locked")
+	if branch_id == _selected_branch_id:
+		return select_branch(branch_id, expected_generation)
+	return _change_with_persistence(expected_generation, persist_choice, branch_id)
+
+
+func _change_with_persistence(
+	expected_generation: int, persist_reset: Callable, branch_id: StringName = &""
+	) -> Dictionary:
 	if _is_reentrant():
 		return _result(false, &"reentrant_call")
 	if expected_generation != _generation or not _attached or not _started_once \
@@ -458,7 +506,8 @@ func reset_with_persistence(expected_generation: int, persist_reset: Callable) -
 	if bool(staged.get("accepted", false)):
 		staged = staged_patrol.attach(staged_director, staged_patrol.get_generation())
 	if bool(staged.get("accepted", false)):
-		staged = staged_patrol.reset(staged_patrol.get_generation())
+		staged = (staged_patrol.reset(staged_patrol.get_generation()) if branch_id.is_empty()
+			else staged_patrol.select_branch(branch_id, staged_patrol.get_generation()))
 	var saved: Variant = staged
 	if bool(staged.get("accepted", false)):
 		_persistence_reset_candidate = staged_patrol
@@ -470,8 +519,10 @@ func reset_with_persistence(expected_generation: int, persist_reset: Callable) -
 	staging_root.free()
 	_mutation_active = false
 	if not saved is Dictionary or not bool(saved.get("accepted", false)):
-		return {"accepted": false, "reason": &"patrol_reset_save_rejected", "store_result": saved}
-	return reset(expected_generation)
+		return {"accepted": false, "reason": (&"patrol_reset_save_rejected" if branch_id.is_empty()
+			else &"patrol_branch_save_rejected"), "store_result": saved}
+	return (reset(expected_generation) if branch_id.is_empty()
+		else select_branch(branch_id, expected_generation))
 
 
 func owns_staged_persistence_reset(candidate: PatrolActivity, director: ActivityDirector) -> bool:
@@ -486,6 +537,24 @@ func get_staged_persistence_reset_source(candidate: PatrolActivity, director: Ac
 		return {}
 	var source := capture_persistence_state()
 	return source if bool(validate_persistence_state(source, _director).get("accepted", false)) else {}
+
+
+func get_staged_persistence_branch_source(candidate: PatrolActivity, director: ActivityDirector) -> Dictionary:
+	if not _mutation_active or candidate == null or candidate != _persistence_reset_candidate \
+			or director != _persistence_reset_director or candidate._director != director \
+			or _state != State.IDLE or candidate._state != State.IDLE \
+			or candidate._generation != _generation or candidate.definition == definition \
+			or _branch_definitions.get(candidate._selected_branch_id) != candidate.definition \
+			or not owns_persistence_authorities(_director):
+		return {}
+	var source := capture_persistence_state()
+	var expected := source.duplicate(true)
+	expected.branch_id = String(candidate._selected_branch_id)
+	expected.activity_id = String(candidate.definition.activity_id)
+	expected.activity_state.activity_id = String(candidate.definition.activity_id)
+	if JSON.parse_string(JSON.stringify(expected)) != JSON.parse_string(JSON.stringify(candidate.capture_persistence_state())):
+		return {}
+	return source
 
 
 func owns_persistence_authorities(director: ActivityDirector) -> bool:

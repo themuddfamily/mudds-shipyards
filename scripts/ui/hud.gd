@@ -9289,7 +9289,7 @@ func _refresh_patrol_branch_choices() -> void:
 		if not is_instance_valid(button):
 			continue
 		var selected := branch_id == _patrol_branch_id
-		button.disabled = _activity_selection_locked or _activity_selection_family_reset_only
+		button.disabled = _activity_selection_locked
 		var base_text := (
 			"PLATFORM SWEEP" if branch_id == &"platform_sweep" else "RELAY SWEEP"
 		)

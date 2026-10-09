@@ -128,6 +128,7 @@ func _init() -> void:
 func _run() -> void:
 	if OS.get_cmdline_user_args().has("--genuine-write-recovery"):
 		await _test_genuine_write_recovery()
+		await _test_reset_branch_choice_recovery()
 		_finish()
 		return
 	var filesystem := MemoryFilesystem.new()
@@ -455,6 +456,7 @@ func _run() -> void:
 	await _test_terminal_patrol_reward_restart()
 	await _test_terminal_save_failure_and_legacy()
 	await _test_genuine_write_recovery()
+	await _test_reset_branch_choice_recovery()
 	for race_boundary in [&"paid", &"reset", &"legacy"]:
 		await _test_mixed_race_patrol_restart(race_boundary)
 	_finish()
@@ -911,6 +913,108 @@ func _test_genuine_write_recovery() -> void:
 			_fly_patrol_checkpoint(reset_game, checkpoint)
 		_check(_patrol_receipts(reset_game) == previous_receipts + 1, "next physical patrol after %s reset pays once" % terminal)
 		await _retire_game(reset_game)
+
+
+func _test_reset_branch_choice_recovery() -> void:
+	var path := "user://patrol_reset_branch_choice_%d.json" % Time.get_ticks_usec()
+	var filesystem := RejectingPatrolFilesystem.new()
+	var store := Store.new(path, filesystem) as UserDataStore
+	var game := await _make_game(store)
+	var patrol := _prepare_physical_patrol(game)
+	game.request_activity_start(ROUTE.activity_id)
+	for checkpoint in ROUTE.get_checkpoint_count():
+		_fly_patrol_checkpoint(game, checkpoint)
+	_check(_patrol_receipts(game) == 1 and game.reset_active_activity(),
+		"a genuine paid relay patrol saves its explicit IDLE reset before another branch choice")
+	await _retire_game(game)
+	store = Store.new(path, filesystem)
+	game = await _make_game(store)
+	game.set_physics_process(false)
+	patrol = game.get_activity_integration_report().patrol_activity as PatrolActivity
+	var hud := game.get_node("HUD") as GameHUD
+	var button := hud.find_child("PlatformSweepPatrolBranchButton", true, false) as Button
+	_check(game.get_active_activity_snapshot().state_id == &"idle" and not button.disabled,
+		"fresh Main's saved IDLE patrol exposes the ordinary alternate branch button")
+	var before := _canonical(patrol.capture_persistence_state())
+	var disk_before := _patrol_disk_snapshot(path)
+	var callback_count := {"saves": 0}
+	for choice in [
+		{"branch": &"", "generation": patrol.get_generation(), "reason": &"unsupported_patrol_branch"},
+		{"branch": &"unknown", "generation": patrol.get_generation(), "reason": &"unsupported_patrol_branch"},
+		{"branch": PatrolActivity.BRANCH_RELAY_SWEEP, "generation": patrol.get_generation(), "reason": &"already_selected"},
+		{"branch": PatrolActivity.BRANCH_PLATFORM_SWEEP, "generation": patrol.get_generation() - 1, "reason": &"stale_generation"},
+	]:
+		var refused := patrol.select_branch_with_persistence(choice.branch, choice.generation,
+			func(_candidate: PatrolActivity, _director: ActivityDirector) -> Dictionary:
+				callback_count.saves += 1
+				return {"accepted": false}
+		)
+		_check(refused.reason == choice.reason and callback_count.saves == 0
+			and _canonical(patrol.capture_persistence_state()) == before
+			and _patrol_disk_snapshot(path) == disk_before and _patrol_receipts(game) == 1,
+			"%s branch choice invokes no save and preserves the genuine reset, disk and reward" % choice.reason)
+	var route := preload("res://assets/activities/cinder_reach_platform_patrol_route.tres")
+	var target_before := game.activity_director.get_activity_snapshot(route.activity_id)
+	var changes := {"published": 0}
+	patrol.presentation_changed.connect(func(_snapshot: Dictionary) -> void: changes.published += 1)
+	filesystem.reject_writes = true
+	button.pressed.emit()
+	_check(_canonical(patrol.capture_persistence_state()) == before
+		and _patrol_disk_snapshot(path) == disk_before and filesystem.rejected_writes > 0
+		and game.activity_director.get_activity_snapshot(route.activity_id) == target_before
+		and changes.published == 0
+		and _patrol_receipts(game) == 1,
+		"rejected ordinary branch-choice save preserves the prior owner, saved reset and paid receipt")
+	filesystem.reject_writes = false
+	button.pressed.emit()
+	var chosen := patrol.get_selected_branch_id() == PatrolActivity.BRANCH_PLATFORM_SWEEP
+	_check(chosen and bool(game.get_cinder_patrol_session_persistence_report().last_save_status.accepted)
+		and patrol.get_generation() == int(before.generation) and changes.published == 1
+		and int(game.get_activity_integration_report().attached_route_owner_count) == 1
+		and _patrol_receipts(game) == 1,
+		"ordinary alternate branch retry saves the genuine IDLE generation without repaying it")
+	await _retire_game(game)
+	if not chosen:
+		return
+	game = await _make_game(Store.new(path, filesystem))
+	game.set_physics_process(false)
+	patrol = game.get_activity_integration_report().patrol_activity as PatrolActivity
+	_check(patrol.get_selected_branch_id() == PatrolActivity.BRANCH_PLATFORM_SWEEP
+		and game.get_active_activity_snapshot().state_id == &"idle" and _patrol_receipts(game) == 1,
+		"fresh Main restores the accepted alternate patrol branch and the earlier genuine credit")
+	game.active_ship = game.get_flyable_ships()[1]
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	_check(bool(game.request_activity_start(route.activity_id).accepted),
+		"the recovered alternate branch starts through the ordinary production action")
+	for checkpoint in route.get_checkpoint_count():
+		game.active_ship.global_position = route.get_checkpoint_position(checkpoint)
+		game.call("_physics_process", 0.0)
+		filesystem.reject_writes = checkpoint == route.get_checkpoint_count() - 1
+		game.call("_physics_process", patrol.dwell_seconds)
+	_check(patrol.get_state() == PatrolActivity.State.COMPLETED and _patrol_receipts(game) == 1,
+		"the next legitimate alternate patrol retains unpaid completion through rejected terminal writes")
+	filesystem.reject_writes = false
+	game.call("_retry_owed_game_flow_activity_rewards")
+	game.call("_retry_owed_game_flow_activity_rewards")
+	_check(_patrol_receipts(game) == 2, "alternate patrol terminal retry pays its new genuine generation once")
+	await _retire_game(game)
+	game = await _make_game(Store.new(path, filesystem))
+	_check(game.get_active_activity_snapshot().state_id == &"completed" and _patrol_receipts(game) == 2,
+		"fresh Main retains both paid patrol generations without a duplicate receipt")
+	_check(game.reset_active_activity(), "the alternate patrol accepts its explicit paid reset")
+	hud = game.get_node("HUD") as GameHUD
+	button = hud.find_child("RelaySweepPatrolBranchButton", true, false) as Button
+	button.pressed.emit()
+	_check(game.patrol_activity.get_selected_branch_id() == PatrolActivity.BRANCH_RELAY_SWEEP
+		and game.patrol_activity.get_generation() == int(before.generation) + 2 and _patrol_receipts(game) == 2,
+		"ordinary branch choice can return to the old route at the later genuine reset generation")
+	await _retire_game(game)
+	game = await _make_game(Store.new(path, filesystem))
+	_check(game.patrol_activity.get_selected_branch_id() == PatrolActivity.BRANCH_RELAY_SWEEP
+		and game.get_active_activity_snapshot().state_id == &"idle" and _patrol_receipts(game) == 2,
+		"fresh Main preserves the repeat branch choice without manufacturing entitlement")
+	await _retire_game(game)
 
 
 func _test_mixed_race_patrol_restart(race_boundary: StringName) -> void:

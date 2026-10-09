@@ -198,6 +198,10 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary, patrol: P
 	var candidate_generation := int(candidate.get("generation", -1))
 	if candidate_generation < existing_generation:
 		return _result(false, &"stale_patrol_session")
+	if candidate_generation == existing_generation and reset_source != null:
+		var source := _canonical_state(reset_source.get_staged_persistence_branch_source(patrol, director))
+		if not source.is_empty() and source == existing:
+			return _result(true, &"patrol_session_branch_selected")
 	if candidate_generation > existing_generation:
 		if int(candidate.get("state", -1)) == PatrolActivity.State.IDLE \
 				and reset_source != null and reset_source.owns_staged_persistence_reset(patrol, director):
