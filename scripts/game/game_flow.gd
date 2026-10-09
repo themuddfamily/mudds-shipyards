@@ -925,6 +925,12 @@ var _solo_crew_seat_generation := 0
 var _solo_crew_seat_id: StringName = &""
 var _solo_crew_role: StringName = &""
 var _solo_gunner_input_elapsed := 0.0
+var _solo_gunner_source: LocalShipInputSource
+var _solo_gunner_source_owner: CrewSeatRoleAuthority
+var _solo_gunner_source_seat_generation := 0
+var _solo_gunner_source_stream := -1
+var _solo_gunner_source_profile := -1
+var _solo_gunner_fire := false
 var _ship_rest_overlay: CanvasLayer
 var _station_seat_recovery_transform := Transform3D.IDENTITY
 ## Which of the tow tractor's two independent safety guards last recalled the
@@ -4078,7 +4084,6 @@ func _process(delta: float) -> void:
 		_update_drive_flow()
 	elif _station_seated:
 		_update_station_seat_flow()
-		_update_solo_gunner_input(delta)
 	else:
 		_update_on_foot_flow()
 		# The below-deck recall follows the yard's frame across origin rebases.
@@ -5050,6 +5055,7 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 func _physics_process(delta: float) -> void:
 	if not _initialized:
 		return
+	_update_solo_gunner_input(delta)
 	# Client-side: the one boarding request this peer may have outstanding.
 	# Deliberately above the expedition's early return -- a request whose
 	# clock stops is a request that never expires, and a never-expiring
@@ -8450,10 +8456,6 @@ func _consume_cinder_bomber_fire_pressed() -> Dictionary:
 ## LocalShipInputSource; this method queues synthetic edges into that same
 ## authority stream and never mutates ship lifecycle state itself.
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventAction and (event as InputEventAction).pressed and (event as InputEventAction).action == &"fire" \
-			and _station_seated and _solo_crew_role == &"gunner":
-		_submit_solo_gunner_fire()
-		return
 	if (
 		not _piloting
 		or _transition_busy
@@ -9022,6 +9024,7 @@ func _solo_crew_claim_is_current() -> bool:
 
 
 func _release_solo_crew_authority() -> bool:
+	_reset_solo_gunner_input()
 	if _solo_crew_authority == null:
 		return true
 	if is_instance_valid(_solo_crew_ship) \
@@ -9199,6 +9202,7 @@ func _stand_from_solo_crew_seat() -> void:
 		return
 	var seat := _solo_crew_seat
 	var craft := _solo_crew_ship
+	_reset_solo_gunner_input()
 	_transition_busy = true
 	var generation := _begin_transition_generation()
 	player.set_station_seated_context(false)
@@ -9226,6 +9230,7 @@ func _stand_from_solo_crew_seat() -> void:
 ## Interrupted acquisition, detach, hull loss and session handback share one
 ## cancellation. It releases only this exact local role and never a foreign one.
 func _cancel_solo_crew_seat() -> void:
+	_reset_solo_gunner_input()
 	if _solo_crew_authority == null or _solo_crew_seat_generation == 0:
 		return
 	var craft := _solo_crew_ship
@@ -9259,13 +9264,32 @@ func _cancel_solo_crew_seat() -> void:
 	_release_solo_crew_authority()
 
 
-## Held ordinary FIRE advances the existing siege-lance charge/receipt seam.
-## Aim is the live player's view; the combat resolver owns any actual hit.
+## The retained local producer samples once per physics tick. Only transformed
+## FIRE is consumed here; flight and GameFlow edges never leave this crew lane.
 func _update_solo_gunner_input(delta: float) -> void:
 	if not _solo_gunner_input_is_available():
-		_solo_gunner_input_elapsed = 0.0
+		_reset_solo_gunner_input()
 		return
-	if not Input.is_action_pressed(&"fire"):
+	var source := _solo_crew_ship.get_local_input_source()
+	if _solo_gunner_source != source or _solo_gunner_source_owner != _solo_crew_authority \
+			or _solo_gunner_source_seat_generation != _solo_crew_seat_generation:
+		_reset_solo_gunner_input()
+		source.reset_stream()
+		_solo_gunner_source = source
+		_solo_gunner_source_owner = _solo_crew_authority
+		_solo_gunner_source_seat_generation = _solo_crew_seat_generation
+	source.set_input_transform_physics_delta(delta)
+	var command := source.next_command()
+	# Production signals can synchronously retire the claim or replace the source.
+	if not _solo_gunner_source_is_current() or command == null or not command.is_valid() \
+			or command.stream_id != source.get_stream_id():
+		_reset_solo_gunner_input()
+		return
+	source.drain_pending_commands(source.get_delivery_generation())
+	_solo_gunner_source_stream = source.get_stream_id()
+	_solo_gunner_source_profile = source.get_input_profile_generation()
+	_solo_gunner_fire = command.fire
+	if not _solo_gunner_fire:
 		_solo_gunner_input_elapsed = 0.0
 		return
 	_solo_gunner_input_elapsed -= delta
@@ -9277,15 +9301,53 @@ func _update_solo_gunner_input(delta: float) -> void:
 func _solo_gunner_input_is_available() -> bool:
 	if _transition_busy or not _station_seated or _solo_crew_role != &"gunner" \
 			or _network_session_is_live() or get_tree().paused or not can_process() \
-			or not player.is_control_enabled() or not _solo_crew_claim_is_current():
+			or not player.is_control_enabled() or not _solo_crew_claim_is_current() \
+			or _solo_crew_ship.is_piloted():
 		return false
 	var source := _solo_crew_ship.get_local_input_source()
-	return is_instance_valid(source) and source.is_enabled_owner() \
-		and source.is_input_configuration_valid() and bool(source.call(&"_is_input_sampling_active"))
+	return is_instance_valid(source) and source == _solo_crew_ship.get_command_source() \
+		and source.is_enabled_owner() and source.is_input_configuration_valid() \
+		and bool(source.call(&"_is_input_sampling_active"))
+
+
+func _solo_gunner_source_is_current() -> bool:
+	return _solo_gunner_input_is_available() \
+		and _solo_gunner_source == _solo_crew_ship.get_local_input_source() \
+		and _solo_gunner_source_owner == _solo_crew_authority \
+		and _solo_gunner_source_seat_generation == _solo_crew_seat_generation
+
+
+func _reset_solo_gunner_input() -> void:
+	var source := _solo_gunner_source
+	var owner := _solo_gunner_source_owner
+	var generation := _solo_gunner_source_seat_generation
+	var stream := _solo_gunner_source_stream
+	_solo_gunner_source = null
+	_solo_gunner_source_owner = null
+	_solo_gunner_source_seat_generation = 0
+	_solo_gunner_source_stream = -1
+	_solo_gunner_source_profile = -1
+	_solo_gunner_fire = false
+	_solo_gunner_input_elapsed = 0.0
+	# A retiring crew caller cannot reset a replacement ledger or pilot producer.
+	if not is_instance_valid(source) or not is_instance_valid(_solo_crew_ship) \
+			or _solo_crew_ship.is_piloted() or not source.is_enabled_owner() \
+			or source != _solo_crew_ship.get_local_input_source() \
+			or source != _solo_crew_ship.get_command_source() \
+			or _solo_crew_ship.call(&"get_crew_role_authority") != owner \
+			or owner == null or generation != _solo_crew_seat_generation \
+			or source.get_stream_id() != stream:
+		return
+	var assignment := owner.get_assignment(1, SOLO_CREW_AVATAR_ID)
+	if assignment.get("seat_id") == _solo_crew_seat_id \
+			and int(assignment.get("seat_generation", 0)) == generation:
+		source.reset_stream()
 
 
 func _submit_solo_gunner_fire() -> Dictionary:
-	if not _solo_gunner_input_is_available():
+	if not _solo_gunner_source_is_current() or not _solo_gunner_fire \
+			or _solo_gunner_source.get_stream_id() != _solo_gunner_source_stream \
+			or _solo_gunner_source.get_input_profile_generation() != _solo_gunner_source_profile:
 		return {"accepted": false, "status": &"gunner_not_seated"}
 	if not _solo_crew_ship.request_solo_crew_weapon_power(SOLO_CREW_AVATAR_ID, _solo_crew_seat, player):
 		return {"accepted": false, "status": &"gunner_power_unavailable"}
