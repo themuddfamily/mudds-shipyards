@@ -409,20 +409,33 @@ func _test_detach_reentry_and_free_remain_dirty() -> void:
 		and int(production_events[1].fields.input_device_code) == 1,
 		"real Main startup commits completion and its initial station handoff"
 	)
-	var writes_before := filesystem.write_count
-	var generation_before := store.get_generation()
-	var bytes_before := (filesystem.files[path] as PackedByteArray).duplicate()
+	var markers_before := _session_marker_namespace_snapshot(store.get_snapshot())
+	# Reentry can save unrelated activity namespaces in this shared document.
+	# Preserve the complete marker identities, counters, times and event ring,
+	# rather than requiring every other persistence owner to remain idle.
 	# This focused marker test does not need to re-compose every gameplay binding;
 	# suppress that unrelated deferred work while retaining the real tree hooks.
 	flow.set("_initialized", false)
 	root.remove_child(flow)
 	await process_frame
+	var detached_store := Store.new(path, filesystem)
+	var detached_reload := detached_store.load()
+	_check(
+		bool(detached_reload.get("accepted", false))
+		and _session_marker_namespace_snapshot(store.get_snapshot()) == markers_before
+		and _session_marker_namespace_snapshot(detached_store.get_snapshot()) == markers_before
+		and StringName(detached_store.get_snapshot().safe_start_recovery.state) == &"starting"
+		and StringName(detached_store.get_snapshot().crash_recovery.state) == &"running",
+		"plain Main-node detach retains both complete dirty markers and diagnostics on disk"
+	)
 	root.add_child(flow)
 	await process_frame
+	var reentered_store := Store.new(path, filesystem)
+	var reentered_reload := reentered_store.load()
 	_check(
-		filesystem.write_count == writes_before
-		and store.get_generation() == generation_before
-		and filesystem.files[path] == bytes_before
+		bool(reentered_reload.get("accepted", false))
+		and _session_marker_namespace_snapshot(store.get_snapshot()) == markers_before
+		and _session_marker_namespace_snapshot(reentered_store.get_snapshot()) == markers_before
 		and StringName(store.get_snapshot().safe_start_recovery.state) == &"starting"
 		and StringName(store.get_snapshot().crash_recovery.state) == &"running",
 		"plain Main-node detach and retained-tree reentry publish no clean marker"
@@ -434,13 +447,22 @@ func _test_detach_reentry_and_free_remain_dirty() -> void:
 	var reloaded := restarted_store.load()
 	_check(
 		bool(reloaded.get("accepted", false))
-		and filesystem.write_count == writes_before
-		and restarted_store.get_generation() == generation_before
-		and filesystem.files[path] == bytes_before
+		and _session_marker_namespace_snapshot(store.get_snapshot()) == markers_before
+		and _session_marker_namespace_snapshot(restarted_store.get_snapshot()) == markers_before
 		and StringName(restarted_store.get_snapshot().safe_start_recovery.state) == &"starting"
 		and StringName(restarted_store.get_snapshot().crash_recovery.state) == &"running",
 		"queued free leaves both dirty markers for fresh-process recovery instead of inferring shutdown"
 	)
+
+
+func _session_marker_namespace_snapshot(payload: Dictionary) -> Dictionary:
+	# Normalize the in-memory and persisted JSON number representations without
+	# dropping any field or diagnostic event from the comparison.
+	return JSON.parse_string(JSON.stringify({
+		"safe_start_recovery": payload.get("safe_start_recovery"),
+		"crash_recovery": payload.get("crash_recovery"),
+		"session_diagnostics": payload.get("session_diagnostics"),
+	})) as Dictionary
 
 
 ## A crash-log.json left empty or truncated (power loss, disk fault) was never
