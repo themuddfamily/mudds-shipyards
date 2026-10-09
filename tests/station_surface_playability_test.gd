@@ -18,12 +18,13 @@ const WORLD_LAYER := PhysicsLayers.WORLD
 # sixteen exterior ground-support shapes (47 -> 63, four bogie struts, four
 # dampers, four sole castings and four exhaust collars). Neither craft's lowest
 # or widest collision changed; only the tails reach further aft.
-# Bulwark's retained outer hull is now five hull and four shoulder pieces
-# around its real cabin aisle, plus the unchanged chin: three -> ten shapes.
+# 5d6615c57 connects Bulwark's aisle, aft vestibule, and gunner approach.
+# Its retained outer hull now has twelve hull and nine shoulder pieces around
+# those three openings, plus the unchanged chin: ten -> twenty-two shapes.
 # Keep the whole-roster sample count exact; all clearance bounds stay fixed.
 const PRODUCTION_SHIP_ROOT_SHAPE_COUNTS := {
 	&"ArrowReconShip": 9,
-	&"BulwarkHeavyGunship": 10,
+	&"BulwarkHeavyGunship": 22,
 	&"cinder_cargo_hauler": 8,
 	&"cinder_light_interceptor": 1,
 	&"cinder_long_range_bomber": 1,
@@ -32,7 +33,7 @@ const PRODUCTION_SHIP_ROOT_SHAPE_COUNTS := {
 	&"TorrentInterceptor": 7,
 	&"ZenithInterceptor": 24,
 }
-const PRODUCTION_SHIP_ROOT_SHAPE_TOTAL := 145
+const PRODUCTION_SHIP_ROOT_SHAPE_TOTAL := 157
 
 const WORLD_SURFACE_PATHS := [
 	"ExposedDockLattice/CentralJunction",
@@ -775,7 +776,7 @@ func _test_observation_logistics_siting(world: ShipyardWorld, ships: Array[HeroS
 		and sampled_shape_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL \
 		and sample_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL * 21 \
 		and overflight_intrusions.is_empty(),
-		"all 145 enabled physical shapes across the exact nine-ship production roster clear Spur, connector, and Fabrication along the sampled +X overflight line"
+		"all 157 enabled physical shapes across the exact nine-ship production roster clear Spur, connector, and Fabrication along the sampled +X overflight line"
 	)
 	_check(
 		root_height_clearance > 16.0 and camera_sphere_clearance > 15.0,
@@ -1006,7 +1007,7 @@ func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) 
 		_production_ship_root_shape_roster_matches(ships) \
 		and craft_shape_count == PRODUCTION_SHIP_ROOT_SHAPE_TOTAL \
 		and craft_intrusions.is_empty(),
-		"all 145 enabled physical shapes across the exact nine-ship production roster clear Salvage and its connector"
+		"all 157 enabled physical shapes across the exact nine-ship production roster clear Salvage and its connector"
 	)
 	_check(
 		absf(smallest_berth_gap - 8.060792) <= 0.00001,
