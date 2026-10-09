@@ -106,6 +106,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	var path_index := parent.find("--path")
 	if path_index >= 0 and path_index + 1 < parent.size():
 		path = parent[path_index + 1]
+	elif path.is_empty():
+		path = DirAccess.open(".").get_current_dir()
 	var script := "res://tests/network/jovian_network_engineer_route_test.gd"
 	if not _package_under_test.is_empty():
 		# Tests are excluded from export. Only this fixture is external;
@@ -269,28 +271,36 @@ func _client() -> void:
 		"request_sequence": 10000, "binding_generation": int(view.binding_generation), "migration_generation": int(view.migration_generation),
 		"server_tick": _game.network_session.get_boarding_server_tick_estimate(),
 	}
+	# Each independent refusal uses the live clock; earlier RPC waits must
+	# not turn identity/replay checks into the separate expiry check below.
+	payload.server_tick = _game.network_session.get_boarding_server_tick_estimate()
 	_game.network_session.send_engineer_intent(payload)
 	_check(await _until(func(): return _game.network_session.get_engineer_replica_snapshot().get("error") == &"engineer_not_seated", 5.0), "delayed prior-chair request is refused after reseating")
 	payload.claim_sequence = int((view.assignment as Dictionary).claim_sequence)
 	payload.entity_generation += 1
+	payload.server_tick = _game.network_session.get_boarding_server_tick_estimate()
 	_game.network_session.send_engineer_intent(payload)
 	await _ticks(20)
 	_check(_game.network_session.get_engineer_replica_snapshot().get("error") == &"engineer_not_seated", "stale body generation is refused through actual secure RPC")
 	payload.entity_generation -= 1
 	payload.request_sequence += 1
 	payload.component_generation += 1
+	payload.server_tick = _game.network_session.get_boarding_server_tick_estimate()
 	_game.network_session.send_engineer_intent(payload)
 	_check(await _until(func(): return _game.network_session.get_engineer_replica_snapshot().get("error") == &"stale_component_generation", 5.0), "retired component generation cannot start repair")
 	payload.component_generation -= 1
 	payload.request_sequence += 1
 	payload.component_id = &"foreign_component"
+	payload.server_tick = _game.network_session.get_boarding_server_tick_estimate()
 	_game.network_session.send_engineer_intent(payload)
 	_check(await _until(func(): return _game.network_session.get_engineer_replica_snapshot().get("error") == &"foreign_component", 5.0), "foreign target cannot spend host kits")
 	payload.component_id = &"engine_bay"
+	payload.server_tick = _game.network_session.get_boarding_server_tick_estimate()
 	_game.network_session.send_engineer_intent(payload)
 	_check(await _until(func(): return _game.network_session.get_engineer_replica_snapshot().get("error") == &"stale_engineer_sequence", 5.0), "replayed accepted request cursor cannot start work")
 	payload.request_sequence += 1
 	payload.binding_generation += 1
+	payload.server_tick = _game.network_session.get_boarding_server_tick_estimate()
 	_game.network_session.send_engineer_intent(payload)
 	_check(await _until(func(): return _game.network_session.get_engineer_replica_snapshot().get("error") == &"stale_engineer_generation", 5.0), "retired binding generation cannot start repair")
 	payload.binding_generation -= 1
