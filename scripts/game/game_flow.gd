@@ -4048,6 +4048,10 @@ func _process(delta: float) -> void:
 	# gameplay startup tail has run.
 	if not _initialized:
 		return
+	# A freed craft is still an Object variant at typed activity boundaries.
+	# Keep a live replacement intact; the crew lifetime owns its own cleanup.
+	if not is_instance_valid(active_ship):
+		active_ship = null
 	_flush_minimap_update()
 	_update_debug_overlay()
 	_update_pending_regeneration(delta)
@@ -5055,6 +5059,10 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 func _physics_process(delta: float) -> void:
 	if not _initialized:
 		return
+	# A freed craft is still an Object variant at typed activity boundaries.
+	# Keep a live replacement intact; the crew lifetime owns its own cleanup.
+	if not is_instance_valid(active_ship):
+		active_ship = null
 	_update_solo_gunner_input(delta)
 	# Client-side: the one boarding request this peer may have outstanding.
 	# Deliberately above the expedition's early return -- a request whose

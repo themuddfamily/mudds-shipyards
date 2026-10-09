@@ -696,6 +696,11 @@ func _test_real_solo_crew_recovery() -> void:
 		craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
 		await _settle_frames(120)
 		_check(not cold.player.is_seated() and cold.player.is_control_enabled() and cold.player.is_on_floor() and not cold.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and destroyed_authority.get_snapshot().assignments.is_empty(), "actual hull loss releases the exact passenger ledger and restores a supported usable station Player")
+	craft.queue_free()
+	await _settle_frames(8)
+	_check(typeof(cold.active_ship) == TYPE_NIL and not cold.player.is_seated()
+		and cold.player.is_control_enabled() and cold.player.is_on_floor(),
+		"freeing the retired active craft leaves Main's typed activity consumers and supported Player usable")
 	await _retire_game(cold)
 	for suffix in ["", ".bak", ".tmp", ".bak.1", ".bak.2", ".bak.3"]:
 		if FileAccess.file_exists(path + suffix):
