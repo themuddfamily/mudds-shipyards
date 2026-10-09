@@ -183,6 +183,7 @@ in `builds/linux/`. Original export metadata retains build-time
 | Linux export from a clean commit | PASS on published `f139257f6` binary/tarball |
 | Headless isolated startup check (`STARTUP_MENU_READY_OK`) | PASS on published `f139257f6` binary and extracted tarball; exit 0, one ready record each |
 | Exported-game pilot/cabin/rest/crew interruption | PASS on published `f139257f6` with driver `503f361ba`; all four owned kill/restart contracts and the default PCK pilot regression pass. Original argument failure retained |
+| Isolated desktop-entry installer consumer | PASS on the shipped archive: directory with spaces, exact Exec/Path/Icon, silent startup, unsafe-path refusal and uninstall preserving saved data. Stock launcher parsing used an inert stub; rendered launch remains unqualified |
 | Clean install on a real Linux desktop (rendered, native GPU, audio) | NOT_RUN |
 | Signing | Not applicable yet. The artifacts are unsigned, and the result JSON says so. |
 
