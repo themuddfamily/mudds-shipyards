@@ -8,7 +8,44 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `1e47755a8` — 2026-10-09
+## Latest native checkpoint `27ffe71da` — 2026-10-09
+
+The unsigned [installer](../builds/windows/MuddsShipyards-27ffe71-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-27ffe71-installer-notes.txt) are
+published in `builds/windows/`. Setup is 86,629,627 bytes, SHA256
+`f9c0131b2ed1e0242fcd0fea60ab09c908510e8538a15aca057415a5e8dd944f`.
+Its exact x64 payload is 177,600,464 bytes, SHA256
+`7262085b46df8085bac5638044093ff15fba1b2e1e0e57f10e688ce1629b2f5d`.
+The clean compiler/verifier is `27ffe71da`; NSIS v3.09-4 creates an unsigned x86
+bootstrap. Original build metadata/hash/log remain unchanged, including the
+historical build-time `native_verification: NOT_RUN`.
+
+Subsequent native default11 and crew16 contracts pass actual `1e47755a8` →
+`27ffe71da` → `1e47755a8`. Builder, both verifiers and independent cleanup exit0
+and reap. Installed ordinary-Boot crew arm is killed by its exact owned handle
+(−1/reaped); cold resume exits0/reaped. Context and durable Convoy boundary match,
+receipts advance1→2 once, crash1 and both clean markers pass. Awake home-cabin
+support, ordinary floor walking and helm retake precede later escort fixtures.
+All nonpilot motion uses authored timings. Locked upgrade refusal(2), startup
+kills/fourth safe-start+journal, corrupt backup/newer-data preservation, rollback
+and uninstall with retained data pass.
+
+Root and independent review verify14 raw hashes, nine completed startups with
+one parsed ready/mouse-free record, zero engine/script/leak diagnostics and ten
+known warnings (six settings_missing, four intentional newer-document warnings).
+Six protected disk hashes still match after uninstall. Native CIM/profile,
+installation, activity-profile, shortcut and HKCU cleanup pass; base profiles
+and witnesses remain. Exact setup and sidecars are published unchanged.
+Evidence: `/root/.cache/mudds-shipyards/roadmap-validation/installer-crew-route-27ffe71/`.
+
+This qualifies the named default/crew contracts. Installed pilot/cabin/rest
+acceptance from `1e47755a8` retains its earlier source scope. This setup contains
+`27ffe71da`, not the later lifecycle fix `f139257f6`. Full27 regression, broader
+crew/docking/planetary/activity recovery, uninterrupted human play, native GPU/
+devices/audio/visual/endurance, interactive/platform installation, trusted
+signing and final-release acceptance remain open.
+
+## Earlier native checkpoint `1e47755a8` — 2026-10-09
 
 The unsigned [installer](../builds/windows/MuddsShipyards-1e47755-setup.exe)
 and [notes](../builds/windows/MuddsShipyards-1e47755-installer-notes.txt) are
@@ -41,7 +78,7 @@ base profiles and witnesses remain. Existing EXE/checkpoint ZIP are unchanged.
 Evidence: `/root/.cache/mudds-shipyards/roadmap-validation/installer-cabin-boot-1e47755/`.
 
 This qualifies the named unsigned installed checkpoint. Its full matrix is
-`NOT_RUN`; the separate frozen `3a800bfb4` full matrix remains RUNNING. Solo
+`NOT_RUN`; the separate frozen `3a800bfb4` full matrix finished FAIL: 1,023/1,027. Solo
 crew-seat entry/recovery, docking/planetary/full-activity recovery, uninterrupted
 human controls, native GPU/controller/audio/art review, other platforms,
 interactive/final-candidate installation, signing and release acceptance stay

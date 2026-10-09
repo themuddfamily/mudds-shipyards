@@ -1,0 +1,49 @@
+Mudds Shipyards — installed crew recovery checkpoint — 2026-10-09
+Payload source: 27ffe71da1522a7680b7be380701d6b9e96e8dc8
+Installer: MuddsShipyards-27ffe71-setup.exe
+Installer bytes: 86629627
+Installer SHA256: f9c0131b2ed1e0242fcd0fea60ab09c908510e8538a15aca057415a5e8dd944f
+Game SHA256: 7262085b46df8085bac5638044093ff15fba1b2e1e0e57f10e688ce1629b2f5d
+Compiler/verifier source: 27ffe71da1522a7680b7be380701d6b9e96e8dc8
+Signing: unsigned checkpoint
+
+Player-visible behavior
+Install the matching four-context recovery checkpoint. Halyard's forward port
+passenger supports normal sit/stand. Interrupted solo crew Resume returns an
+awake, supported passenger to the home cabin, able to walk to and retake the
+helm; existing activity progress and rewards remain protected. See matching
+checkpoint notes for the full runtime scope.
+
+Actual native installed qualification
+The existing default11 and combined crew16 contracts each exit0 and reap.
+Actual1e47755->27ffe71->1e47755 install/upgrade/rollback, locked upgrade refusal
+(exit2), exact payload/provenance/registry, silent startup and uninstall pass.
+User data remains protected on upgrade/rollback/uninstall. Installed ordinary
+Boot crew arm is killed by its exact owned handle(-1/reaped); fresh resume
+exits0/reaped with exact context, durable Convoy boundary, receipts1->2 once,
+crash1 and clean crash/safe-start markers. Awake home-cabin support/controls,
+ordinary walking/helm retake precede the later escort positioning fixture.
+Forced-startup kills, fourth-boot safe-start/journal, corrupt backup recovery
+and unsupported-newer-data byte preservation pass. Six protected documents
+still match after uninstall. Nine completed startups each have exactly one
+parsed STARTUP_MENU_READY_OK and mouse free during loading. All14raw logs are
+hashed and have no engine/script/leak diagnostics. Ten known warnings remain:
+six settings_missing and four intentional unsupported-newer load warnings.
+
+Root and independent review verify setup/payload/hash/PE/metadata, all raw
+markers, boundary/payment/crash, protected documents and actual native cleanup:
+no owned process, installation, activity profile, shortcut or registry remains.
+Base profiles/witnesses/logs remain retained. Every owning builder/verifier/
+cleanup exits0/reaped. Original compiler metadata is unchanged; its historical
+native_verification=NOT_RUN is supplemented by this separate actual result.
+
+Limits and remaining gates
+This setup contains27ffe71, not later lifecycle sourcef139257f6. It qualifies
+the stated default/crew installed contracts only; exported pilot/cabin/rest
+checks on27ffe71 and older installed contexts retain their own scopes.
+Uninterrupted human controls, arbitrary fleet retirement, docking/planetary/
+full-activity recovery, native GPU/controller/audible/visual/endurance review,
+interactive clean-machine/platform installation, trusted signing and final
+release-candidate acceptance remain open. The full27ffe71 matrix is NOT_RUN;
+the historical3a full failure is retained. All ten phases and34 tasks remain
+open. Automated engine checks use headless/Dummy.
