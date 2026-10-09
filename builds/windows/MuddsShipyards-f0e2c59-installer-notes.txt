@@ -1,0 +1,28 @@
+Mudds Shipyards unsigned f0e2c59 checkpoint installer
+Source: f0e2c590a8a2249af10d58759c64ac676d215a33 (clean compiler worktree).
+Setup: 86,641,716 bytes; SHA256 1505cc70c41fe1828347903e5db9da2101e109809b6faadfe47805d4bb045581.
+Payload: 177,612,800 bytes; SHA256 fb58bc477f73bda8a8596f1c86d90d46420816bcb64cd3e7082c2b53f5220dbd.
+NSIS v3.09-4; per-user x86 installer with x64 game. Original
+compiler metadata and sidecars retained unchanged; historical native_verification
+NOT_RUN remains immutable.
+
+Installs the exact cabin/scan checkpoint, including the supported Bulwark
+service aisle and player HUD feedback for paid discovery-save retry.
+
+Actual silent native f139257 -> f0e2c59 -> f139257 acceptance passes default
+11 steps and separate pilot, cabin, rest, crew 16-step runs. All owning runs
+exit 0/reaped; every in-world arm is owned-killed/reaped at -1 and resume
+exits 0/reaped. Exact context markers and durable boundaries match, receipts
+advance 1 -> 2 once, and one crash event is retained. Startup-kill safe-start,
+backup/settings/tutorial recovery, newer documents, rollback and uninstall pass.
+Independent review verifies 47 raw log hashes, 27 exact single parsed ready
+records with mouse free, diagnostics 0, 28 known retained warnings, and
+24 protected post-uninstall disk hashes. Native CIM finds no owned processes;
+installation, activity profiles, shortcuts, both HKCU keys and default install
+are absent. Base profiles and witnesses remain retained.
+
+Qualification manifest and raw results/logs are retained at:
+/root/.cache/mudds-shipyards/roadmap-validation/installer-cabin-scan-f0e2c59/
+Published unsigned checkpoint; hardware/GPU, human controls/audio/art review,
+trusted signing and final release remain NOT_RUN. This installer contains
+f0e2c59, not the newer mining checkpoint4311c94; qualifications stay separate.

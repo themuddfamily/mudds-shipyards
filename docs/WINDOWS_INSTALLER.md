@@ -8,7 +8,28 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `f139257f6` — 2026-10-09
+## Latest native checkpoint `f0e2c590a` — 2026-10-09
+
+The unsigned [installer](../builds/windows/MuddsShipyards-f0e2c59-setup.exe) and
+[notes](../builds/windows/MuddsShipyards-f0e2c59-installer-notes.txt) are published.
+Setup SHA256 is `1505cc70c41fe1828347903e5db9da2101e109809b6faadfe47805d4bb045581`;
+its exact game payload SHA256 is
+`fb58bc477f73bda8a8596f1c86d90d46420816bcb64cd3e7082c2b53f5220dbd`.
+
+Clean exact-source compilation and native default 11-step plus separate
+pilot/cabin/rest/crew 16-step contracts pass `f139257f6` → `f0e2c590a` →
+`f139257f6`. All owning runs exit 0/reaped. Each recovery uses owned kill −1
+and cold resume 0, preserves its exact durable boundary, pays once and clears
+recovery markers. Upgrade refusal, safe-start, backup/newer-data retention,
+rollback and uninstall pass. Review verifies 47 raw logs, 27 strict ready/mouse-free
+startups, zero unexpected diagnostics, 28 known warnings, 24 protected data hashes
+and native cleanup. Original compiler sidecars retain their build-time status.
+
+This installer contains the cabin/scan checkpoint, not newer mining source
+`4311c94e4`. Its complete matrix remains `NOT_RUN`; final-candidate installation,
+clean-machine human play, hardware reviews and trusted signing remain open.
+
+## Earlier native checkpoint `f139257f6` — 2026-10-09
 
 The unsigned [installer](../builds/windows/MuddsShipyards-f139257-setup.exe)
 and [notes](../builds/windows/MuddsShipyards-f139257-installer-notes.txt) are
@@ -32,7 +53,7 @@ Root and independent review verify47 raw hashes,27 single ready/mouse-free
 startups, zero diagnostics,28 exact known warnings and24 protected disk hashes.
 Fresh native CIM/install/activity-profile/shortcut/HKCU cleanup passes; base
 profiles/witnesses remain. Exact setup and three original sidecars are published.
-The full matrix is still RUNNING. Other crew roles, Bulwark cabin, broader
+Its full matrix finished FAIL: 1,024/1,027; the failed result remains retained. Other crew roles, Bulwark cabin, broader
 recovery, interactive clean-machine installation, hardware/human reviews,
 trusted signing and final-release acceptance remain open.
 
