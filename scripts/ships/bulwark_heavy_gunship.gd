@@ -70,6 +70,12 @@ const CHIN_COLLISION_SIZE := Vector3(4.8, 1.1, 4.0)
 ## with 0.12 m lateral and 0.17 m aft clearance beyond the player's 0.38 m
 ## capsule; the shared boarding/disembark authority continues to consume it.
 const FLEET_DOCK_EXIT_LOCAL_POSITION := Vector3(-5.5, -1.08, 5.7)
+# A recessed service aisle inside the retained pressure shell. Bounds name
+# root-foot poses, with clearance for the ordinary 0.38 m / 1.94 m Player capsule.
+const CABIN_FLOOR_Y := 1.30
+const CABIN_VOID := AABB(Vector3(-1.10, CABIN_FLOOR_Y, -1.32), Vector3(0.98, 2.0, 2.24))
+const CABIN_MOVEMENT_BOUNDS := AABB(Vector3(-0.67, 1.27, -0.90), Vector3(0.10, 0.35, 1.40))
+const CABIN_STAND_LOCAL_ORIGIN := Vector3(-0.62, 1.33, 0.40)
 const GUNNER_STATION_LOCAL_POSITION := Vector3(2.35, 1.55, 0.55)
 const ARMORED_SHOULDER_SIZE := Vector3(3.4, 1.25, 5.3)
 const ARMORED_SHOULDER_COPY_COUNT := 2
@@ -115,6 +121,10 @@ static var _shared_cockpit_console_key_mesh: Mesh
 
 static var _shared_engine_exhaust_mesh: WeakRef
 
+var _cabin_frame: MovingInteriorFrame
+var _cabin_floor: MeshInstance3D
+var _cabin_pressure_body: StaticBody3D
+var _cabin_fixture_body: StaticBody3D
 var _bulwark_built := false
 var _bulwark_visual: Node3D
 var _fitout_consolidation_report: Dictionary = {}
@@ -231,6 +241,9 @@ func _ready() -> void:
 		_bulwark_built = _reconfigure_component_damage_from_final_root_collision()
 	if not component_damage_changed.is_connected(_on_bulwark_component_damage_changed):
 		component_damage_changed.connect(_on_bulwark_component_damage_changed)
+	_bind_cabin_frame()
+	if not destroyed.is_connected(_on_cabin_destroyed):
+		destroyed.connect(_on_cabin_destroyed)
 	_sync_component_damage_cue()
 	_apply_bulwark_metadata()
 	_bind_siege_lance_audio()
@@ -267,6 +280,9 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 	_reset_engineer_repair_state()
 	_sync_component_damage_cue()
 	_update_gunner_station_feedback()
+	_set_cabin_collision_enabled(true)
+	if is_instance_valid(_cabin_frame):
+		_cabin_frame.reset_frame_tracking(true)
 
 func get_siege_lance_audio_binding() -> RefCounted:
 	return _siege_lance_audio_binding
@@ -577,8 +593,8 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 		if collision != null:
 			collision.get_parent().remove_child(collision)
 			collision.free()
-	_add_box_collision_shape("BulwarkHullCollision", Vector3(0.0, 1.35, 0.25), HULL_COLLISION_SIZE)
-	_add_box_collision_shape("BulwarkShoulderCollision", Vector3(0.0, 1.0, 0.55), SHOULDER_COLLISION_SIZE)
+	_add_cabin_shell_collision("BulwarkHullCollision", Vector3(0.0, 1.35, 0.25), HULL_COLLISION_SIZE)
+	_add_cabin_shell_collision("BulwarkShoulderCollision", Vector3(0.0, 1.0, 0.55), SHOULDER_COLLISION_SIZE, false)
 	_add_box_collision_shape("BulwarkChinCollision", Vector3(0.0, 0.02, -2.2), CHIN_COLLISION_SIZE)
 	
 	_boarding_area = Area3D.new()
@@ -595,11 +611,252 @@ func _build_bulwark_variant(_controller: HeroShip) -> bool:
 	_boarding_area.add_child(boarding_shape)
 	add_child(_boarding_area)
 
+	_build_recessed_cabin(cockpit, canopy)
 	if not replace_variant_visual_root(_bulwark_visual):
 		return false
 	_build_engine_exhaust(_bulwark_visual)
 	_consolidate_bulwark_fitout()
 	return true
+
+
+func get_moving_interior_component() -> MovingInteriorFrame:
+	return _cabin_frame
+
+
+func get_cabin_stand_transform() -> Transform3D:
+	return Transform3D(global_basis.orthonormalized(), global_transform * CABIN_STAND_LOCAL_ORIGIN)
+
+
+func get_in_flight_cabin_report() -> Dictionary:
+	var ready := not is_destroyed() and not is_queued_for_deletion() and is_inside_tree() \
+		and is_instance_valid(_cabin_floor) and _cabin_floor.is_inside_tree() and not _cabin_floor.is_queued_for_deletion() \
+		and is_instance_valid(_cabin_frame) \
+		and _cabin_frame.is_inside_tree() and not _cabin_frame.is_queued_for_deletion() \
+		and _cabin_frame.get_moving_frame() == self \
+		and _cabin_skin_is_live(_cabin_pressure_body) and _cabin_skin_is_live(_cabin_fixture_body)
+	return {"supported": ready, "status": &"walkable_cabin" if ready else &"interior_unavailable",
+		"frame": _cabin_frame, "stand_transform": get_cabin_stand_transform(),
+		"local_bounds": CABIN_MOVEMENT_BOUNDS}
+
+
+func _cabin_skin_is_live(body: StaticBody3D) -> bool:
+	if not is_instance_valid(body) or not body.is_inside_tree() or body.is_queued_for_deletion() or body.collision_layer == 0 or not is_ancestor_of(body) or body.get_child_count() == 0:
+		return false
+	var shape := body.get_child(0) as CollisionShape3D
+	return is_instance_valid(shape) and shape.is_inside_tree() and not shape.is_queued_for_deletion() and not shape.disabled and shape.shape != null
+
+
+func _bind_cabin_frame() -> void:
+	_cabin_frame = get_node_or_null("MovingInteriorFrame") as MovingInteriorFrame
+	if _cabin_frame == null:
+		_cabin_frame = MovingInteriorFrame.new()
+		_cabin_frame.name = "MovingInteriorFrame"
+		add_child(_cabin_frame)
+	_cabin_frame.auto_register_from_volume = false
+	_cabin_frame.configure(self, CABIN_MOVEMENT_BOUNDS)
+	if not _cabin_frame.occupant_registered.is_connected(_on_cabin_occupant_registered):
+		_cabin_frame.occupant_registered.connect(_on_cabin_occupant_registered)
+	if not _cabin_frame.occupant_unregistered.is_connected(_on_cabin_occupant_unregistered):
+		_cabin_frame.occupant_unregistered.connect(_on_cabin_occupant_unregistered)
+	_sync_cabin_occupant_collision()
+
+
+func _on_cabin_occupant_registered(_occupant: Node3D) -> void:
+	_sync_cabin_occupant_collision()
+
+
+func _on_cabin_occupant_unregistered(_occupant: Node3D, _exit_velocity: Vector3, _reason: StringName) -> void:
+	_sync_cabin_occupant_collision()
+
+
+func _sync_cabin_occupant_collision() -> void:
+	if is_destroyed() or is_queued_for_deletion():
+		return
+	collision_mask = PhysicsLayers.SHIP_BODY_MASK & ~PhysicsLayers.PLAYER \
+		if is_instance_valid(_cabin_frame) and _cabin_frame.get_occupant_count() > 0 \
+		else PhysicsLayers.SHIP_BODY_MASK
+
+
+func _on_cabin_destroyed(_world_position: Vector3, _inherited_velocity: Vector3) -> void:
+	_set_cabin_collision_enabled(false)
+
+
+func _set_cabin_collision_enabled(enabled: bool) -> void:
+	for body in [_cabin_pressure_body, _cabin_fixture_body]:
+		if is_instance_valid(body):
+			body.collision_layer = PhysicsLayers.SHIP if enabled else PhysicsLayers.NONE
+
+
+func _add_cabin_shell_collision(label: String, center: Vector3, size: Vector3, floor_segment: bool = true) -> void:
+	var outer := AABB(center - size * 0.5, size)
+	var low := outer.position
+	var high := outer.end
+	var a := CABIN_VOID.position
+	var b := CABIN_VOID.end
+	var pieces: Array[AABB] = [
+		AABB(low, Vector3(a.x - low.x, size.y, size.z)),
+		AABB(Vector3(b.x, low.y, low.z), Vector3(high.x - b.x, size.y, size.z)),
+		AABB(Vector3(a.x, a.y, low.z), Vector3(b.x - a.x, high.y - a.y, a.z - low.z)),
+		AABB(Vector3(a.x, a.y, b.z), Vector3(b.x - a.x, high.y - a.y, high.z - b.z)),
+	]
+	if floor_segment:
+		pieces.append(AABB(Vector3(a.x, low.y, low.z), Vector3(b.x - a.x, a.y - low.y, size.z)))
+	# The Hull bottom already covers the Shoulder bottom completely. Omit that
+	# duplicate so the service floor has one physical owner and no coplanar seam.
+	for index in pieces.size():
+		var piece := pieces[index]
+		_add_box_collision_shape(label + str(index), piece.get_center(), piece.size)
+
+
+func _build_recessed_cabin(cockpit: Node3D, canopy: Node3D) -> void:
+	# Retain the actual functional assemblies and their public anchors. Fit the
+	# seat to starboard and its controls ahead, leaving the port capsule corridor.
+	for child in cockpit.get_children():
+		var label := String(child.name)
+		if label.contains("Seat") or label.contains("Harness") or label.contains("Belt") \
+				or label.contains("Headrest") or label.ends_with("ShoulderSupport") or label.begins_with("ControlStick") or label.ends_with("RudderPedal"):
+			(child as Node3D).position.x += 0.40
+		elif label == "InstrumentCluster":
+			(child as Node3D).position.x = 0.40
+			(child as Node3D).scale.x = 0.55
+		elif label.contains("Console") or label.begins_with("Throttle"):
+			var old_x := -0.79 if label.begins_with("Port") or label.begins_with("Throttle") else 0.79
+			var new_x := 0.0 if old_x < 0.0 else 0.94
+			var fit_x := 0.35 if old_x < 0.0 else 0.60
+			(child as Node3D).position.x = new_x + ((child as Node3D).position.x - old_x) * fit_x
+			(child as Node3D).position.z = -0.90 + ((child as Node3D).position.z + 0.52) * 0.50
+			if label.ends_with("SideConsole"):
+				(child as Node3D).scale.x = fit_x
+				(child as Node3D).scale.z = 0.50
+	# Keep the retained keeper attached to its original sill while moving the
+	# mating contact out of the standing capsule, entirely inside that sill.
+	(cockpit.get_node("PortCanopyLatchStriker") as Node3D).position.x = -1.16
+	var hook := canopy.get_node("PortCanopyLatchHook") as MeshInstance3D
+	var hook_finish := hook.get_active_material(0)
+	hook.mesh = _canopy_frame_mesh(PackedVector3Array([
+		Vector3(-1.18, 0.105, -0.78), Vector3(-1.18, -0.04, -0.78),
+		Vector3(-1.16, -0.04, -0.78), Vector3(-1.16, -0.12, -0.78),
+	]), 0.028)
+	hook.mesh.surface_set_material(0, hook_finish)
+	_cabin_floor = cockpit.get_node("CockpitFloor") as MeshInstance3D
+	var floor_finish := _cabin_floor.get_active_material(0)
+	var floor_tool := SurfaceTool.new()
+	floor_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var decks: Array[AABB] = [
+		AABB(Vector3(-0.12, 1.87, -2.175), Vector3(1.095, 0.12, 3.25)),
+		AABB(Vector3(-0.975, 1.87, -2.175), Vector3(0.855, 0.12, 0.855)),
+		AABB(Vector3(-0.975, 1.87, 0.92), Vector3(0.855, 0.12, 0.155)),
+		AABB(Vector3(-1.10, 1.20, -1.32), Vector3(0.98, 0.10, 2.24)),
+		AABB(Vector3(-0.12, 1.30, -1.32), Vector3(0.04, 0.69, 2.24)),
+		AABB(Vector3(-1.10, 1.30, -1.36), Vector3(0.98, 0.69, 0.04)),
+		AABB(Vector3(-1.10, 1.30, 0.92), Vector3(0.98, 0.69, 0.04)),
+	]
+	for deck in decks:
+		var box := BoxMesh.new()
+		box.size = deck.size
+		floor_tool.append_from(box, 0, Transform3D(Basis.IDENTITY, deck.get_center()))
+	floor_tool.set_material(floor_finish)
+	_cabin_floor.transform = Transform3D.IDENTITY
+	_cabin_floor.mesh = floor_tool.commit()
+	for label in ["ArmoredCentralSlab", "CockpitPressureTransition"]:
+		_cut_cabin_opening(_bulwark_visual.get_node(label) as MeshInstance3D)
+	var fixture_faces := PackedVector3Array()
+	for descendant in cockpit.find_children("*", "MeshInstance3D", true, false):
+		var mesh_node := descendant as MeshInstance3D
+		if mesh_node == _cabin_floor or String(mesh_node.name) in ["PortSidewall", "StarboardSidewall", "ForwardPressureWall", "RearPressureWall", "PortSill", "StarboardSill"]:
+			continue
+		var local := cockpit.global_transform.affine_inverse() * mesh_node.global_transform
+		for point in mesh_node.mesh.get_faces():
+			fixture_faces.append(local * point)
+	_cabin_fixture_body = _add_cabin_skin(cockpit, "CabinFixtures", fixture_faces)
+	var glazing := canopy.get_node("CanopyGlass") as MeshInstance3D
+	_cabin_pressure_body = _add_cabin_skin(glazing, "CabinPressureSkin", glazing.mesh.get_faces())
+
+
+func _add_cabin_skin(parent: Node3D, label: String, faces: PackedVector3Array) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = label
+	body.collision_layer = PhysicsLayers.SHIP
+	body.collision_mask = PhysicsLayers.PLAYER
+	var collision := CollisionShape3D.new()
+	collision.name = label + "Shape"
+	var shape := ConcavePolygonShape3D.new()
+	shape.backface_collision = true
+	shape.set_faces(faces)
+	collision.shape = shape
+	body.add_child(collision)
+	parent.add_child(body)
+	add_collision_exception_with(body)
+	body.add_collision_exception_with(self)
+	return body
+
+
+func _cut_cabin_opening(owner: MeshInstance3D) -> void:
+	var result := ArrayMesh.new()
+	for surface_index in owner.mesh.get_surface_count():
+		var arrays := owner.mesh.surface_get_arrays(surface_index)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tool.set_material(owner.get_active_material(surface_index))
+		var count := indices.size() if not indices.is_empty() else vertices.size()
+		for offset in range(0, count, 3):
+			var polygon: Array[Dictionary] = []
+			for edge in 3:
+				var index := indices[offset + edge] if not indices.is_empty() else offset + edge
+				polygon.append({"point": owner.transform * vertices[index], "normal": normals[index], "uv": uvs[index]})
+			var pieces: Array = [polygon]
+			var triangle_bounds := AABB(polygon[0].point, Vector3.ZERO).expand(polygon[1].point).expand(polygon[2].point)
+			# Preserve triangles outside the opening intact; splitting those at the
+			# infinite cut planes creates needless slivers in the exterior finish.
+			if triangle_bounds.intersects(CABIN_VOID):
+				pieces = []
+				var remaining := polygon
+				for plane in [[0, CABIN_VOID.position.x, true], [0, CABIN_VOID.end.x, false], [2, CABIN_VOID.position.z, true], [2, CABIN_VOID.end.z, false]]:
+					pieces.append(_clip_cabin_polygon(remaining, plane[0], plane[1], plane[2], false))
+					remaining = _clip_cabin_polygon(remaining, plane[0], plane[1], plane[2], true)
+			for piece in pieces:
+				for triangle in range(1, piece.size() - 1):
+					var area: Vector3 = (piece[triangle].point - piece[0].point).cross(piece[triangle + 1].point - piece[0].point)
+					if area.length_squared() <= 0.000000000001:
+						continue
+					for item: Dictionary in [piece[0], piece[triangle], piece[triangle + 1]]:
+						tool.set_normal(item.normal)
+						tool.set_uv(item.uv)
+						var point: Vector3 = item.point
+						if owner.name == &"CockpitPressureTransition" and point.y >= CABIN_FLOOR_Y and point.y < 1.4 \
+								and point.x >= CABIN_VOID.position.x - 0.0001 and point.x <= CABIN_VOID.end.x + 0.0001 \
+								and point.z >= CABIN_VOID.position.z - 0.0001 and point.z <= CABIN_VOID.end.z + 0.0001:
+							point.y = CABIN_FLOOR_Y
+						tool.add_vertex(owner.transform.affine_inverse() * point)
+		tool.generate_tangents()
+		tool.commit(result)
+	owner.mesh = result
+
+
+func _clip_cabin_polygon(polygon: Array[Dictionary], axis: int, limit: float, greater: bool, inside: bool) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if polygon.is_empty():
+		return result
+	var previous: Dictionary = polygon[-1]
+	var previous_distance: float = (previous.point[axis] - limit) * (1.0 if greater else -1.0)
+	for current in polygon:
+		var distance: float = (current.point[axis] - limit) * (1.0 if greater else -1.0)
+		var current_kept := (distance >= 0.0) == inside
+		var previous_kept := (previous_distance >= 0.0) == inside
+		if current_kept != previous_kept:
+			var weight := previous_distance / (previous_distance - distance)
+			result.append({"point": (previous.point as Vector3).lerp(current.point, weight),
+				"normal": (previous.normal as Vector3).lerp(current.normal, weight).normalized(),
+				"uv": (previous.uv as Vector2).lerp(current.uv, weight)})
+		if current_kept:
+			result.append(current)
+		previous = current
+		previous_distance = distance
+	return result
 
 
 ## Phase 10 §2 scene-node trim, run as the last step of the craft's own build so
@@ -848,6 +1105,10 @@ func _fit_cockpit_armor_tub(cockpit: Node3D, armor: Material) -> void:
 			roll.y = 2.08
 			var belly := top.lerp(foot, 0.82)
 			belly.y = 1.83
+			# Widen only the concealed inboard face along the service aisle;
+			# outer armor lands and the sealed canopy silhouette remain exact.
+			if wall_name == "PortSidewall":
+				inner.x = -1.10
 			var inner_foot := Vector3(inner.x, 1.87, inner.z)
 			rings.append(PackedVector3Array([inner, top, shoulder, roll, belly, foot, inner_foot]))
 		var surface := SurfaceTool.new()
@@ -2928,7 +3189,7 @@ func _loft_mesh(size: Vector3, material: Material) -> ArrayMesh:
 	# The tapered chamfers are bilinear patches: width and height change at
 	# different rates, so each quad is twisted. Analytic patch normals avoid
 	# diagonal-weighted light fans while retaining the actual profile folds.
-	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)

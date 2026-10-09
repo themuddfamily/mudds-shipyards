@@ -57,12 +57,16 @@ func _run() -> void:
 		and definition.evidence_references.is_empty(),
 		"silhouette polish preserves Bulwark's original-modern EvidenceStatus.NEW claim"
 	)
+	var shell_intact := true
+	for index in 5:
+		shell_intact = shell_intact and ship.get_node_or_null("BulwarkHullCollision%d" % index) is CollisionShape3D
+	for index in 4:
+		shell_intact = shell_intact and ship.get_node_or_null("BulwarkShoulderCollision%d" % index) is CollisionShape3D
 	_check(
-		ship.get_node_or_null(^"BulwarkHullCollision") is CollisionShape3D
-		and ship.get_node_or_null(^"BulwarkShoulderCollision") is CollisionShape3D
+		shell_intact
 		and ship.get_node_or_null(^"BulwarkChinCollision") is CollisionShape3D
 		and ship.get_node_or_null(^"BulwarkBoardingArea") is Area3D,
-		"the existing collision and boarding nodes remain intact"
+		"the exact compound shell, chin, and existing boarding owners remain intact"
 	)
 
 	ship.queue_free()
@@ -207,6 +211,8 @@ func _check_mesh(mesh: Mesh, label: String) -> void:
 			var geometric_normal := (vertices[triangle + 2] - vertices[triangle]).cross(vertices[triangle + 1] - vertices[triangle]).normalized()
 			var uv_a := uv[triangle + 1] - uv[triangle]
 			var uv_b := uv[triangle + 2] - uv[triangle]
+			if absf(uv_a.cross(uv_b)) <= 0.000001 or geometric_normal.dot(normals[triangle]) <= 0.5:
+				print("BULWARK_CLIP_FRAGMENT: ", label, " triangle=", triangle / 3, " uv_area=", absf(uv_a.cross(uv_b)), " geometric_area=", (vertices[triangle + 2] - vertices[triangle]).cross(vertices[triangle + 1] - vertices[triangle]).length(), " normal_dot=", geometric_normal.dot(normals[triangle]), " points=", [vertices[triangle], vertices[triangle + 1], vertices[triangle + 2]])
 			valid = valid and absf(uv_a.cross(uv_b)) > 0.000001
 			for corner in 3:
 				valid = valid and normals[triangle + corner].is_finite() and geometric_normal.dot(normals[triangle + corner]) > 0.5

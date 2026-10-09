@@ -68,13 +68,14 @@ func _initialize() -> void:
 	)
 	_check(
 		bool(collision_report.get("valid", false))
-			and int(collision_report.get("shape_count", 0)) == 3
+			and int(collision_report.get("shape_count", 0)) == 10
+			and collision_bounds.is_equal_approx(AABB(Vector3(-5.8, -0.53, -5.15), Vector3(11.6, 3.43, 10.8)))
 			and component_bounds.is_equal_approx(collision_bounds)
 			and starboard_anchor.is_equal_approx(expected_starboard_anchor)
 			and is_equal_approx(
 				float(component_report.get("maximum_hull", -1.0)), craft.maximum_hull
 			),
-		"the live component ledger derives its bounds and starboard anchor from the final three-shape Bulwark collision envelope"
+		"the live component ledger derives its bounds and starboard anchor from the ten-piece cabin shell with its unchanged original outer envelope"
 	)
 	var hull_before := float(craft.get_telemetry().get("hull", -1.0))
 	var damage_amount := craft.maximum_hull * 0.15
@@ -102,7 +103,7 @@ func _initialize() -> void:
 		"production HeroShip.apply_damage alone reveals the impaired starboard-weapon shoulder"
 	)
 
-	var shoulder_collision := craft.get_node(^"BulwarkShoulderCollision") as CollisionShape3D
+	var shoulder_collision := craft.get_node(^"BulwarkShoulderCollision1") as CollisionShape3D
 	var shoulder_shape := shoulder_collision.shape as BoxShape3D
 	var shoulder_bounds := (
 		shoulder_collision.transform

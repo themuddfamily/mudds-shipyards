@@ -65,6 +65,7 @@ func _run() -> void:
 	var jovian := game.get_node("JovianLightFreighter") as JovianLightFreighter
 	var zenith := game.get_node("ZenithInterceptor") as HeroShip
 	var halyard := game.get_node("HalyardCrewTransport") as HeroShip
+	var bulwark := game.get_node("BulwarkHeavyGunship") as BulwarkHeavyGunship
 	var opponent := game.get_node("RangeOpponent") as CharacterBody3D
 
 	game.canopy_motion_time = 0.02
@@ -79,13 +80,15 @@ func _run() -> void:
 		and not arrow.supports_in_flight_cabin_access()
 		and not zenith.supports_in_flight_cabin_access()
 		and jovian.supports_in_flight_cabin_access()
-		and halyard.supports_in_flight_cabin_access(),
+		and halyard.supports_in_flight_cabin_access()
+		and bulwark.supports_in_flight_cabin_access(),
 		"exactly the craft with a connected walkable interior offer in-flight cabin access"
 	)
 
 	await _test_fighter_refuses_to_release_its_pilot(game, player, arrow, world)
 	await _test_cabin_loop(game, player, jovian, world)
 	await _test_losing_the_cabin_recovers_the_pilot(game, player, jovian, world)
+	await _test_bulwark_cabin_loop(game, player, bulwark, world)
 
 	_check(
 		not game.is_guided_activity_complete()
@@ -565,6 +568,69 @@ func _test_losing_the_cabin_recovers_the_pilot(
 		),
 		"the lost freighter regenerates at its berth and is flyable again"
 	)
+
+
+func _test_bulwark_cabin_loop(game: GameFlow, player: PlayerController, craft: BulwarkHeavyGunship, world: ShipyardWorld) -> void:
+	_check(craft.supports_in_flight_cabin_access(), "Bulwark publishes its supported recessed cabin through the production contract")
+	if not craft.supports_in_flight_cabin_access():
+		return
+	await _board_with_real_interaction(game, player, craft)
+	_check(player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted(),
+		"ordinary E boards Bulwark's actual retained and fitted pilot seat")
+	await _wake_engine_with_flight_demand(craft, "ordinary Bulwark flight demand wakes its unchanged propulsion")
+	_check(await _thrust_clear_of_the_berth(craft, 120.0) > 100.0
+		and not bool(craft.get_telemetry().get("landed", true)),
+		"real thrust flies the Bulwark away from the yard before its cabin walk")
+	await _idle_engine_offline(craft, "Bulwark idles its unchanged engine before ordinary cabin access")
+	_check(not bool(craft.get("_canopy_open")), "the pressure canopy stays sealed for Bulwark's cabin walk")
+	_dispatch_pilot_action(game, &"interact")
+	_check(await _wait_until(func() -> bool: return bool(game.get_in_flight_cabin_status().get("carried", false)), 1.5),
+		"ordinary pilot E physically leaves the actual seat into Bulwark's recessed aisle")
+	for _settle in 8:
+		await physics_frame
+	var frame := craft.get_moving_interior_component()
+	_check(player.is_on_floor() and player.is_control_enabled() and not player.is_seated()
+		and not craft.is_piloted() and frame.is_occupant_registered(player)
+		and player.is_cabin_containment_active()
+		and absf(craft.to_local(player.global_position).y - BulwarkHeavyGunship.CABIN_FLOOR_Y) < 0.05,
+		"the ordinary full-size Player stands on the real recessed floor with one cabin owner and no helm")
+	var hull_start := craft.global_position
+	var local_start := craft.to_local(player.global_position)
+	var walked := await _walk_until(&"move_forward", false,
+		func() -> bool: return craft.to_local(player.global_position).z < -0.70, 180)
+	var local_end := craft.to_local(player.global_position)
+	_check(walked and local_end.distance_to(local_start) > 0.90
+		and player.is_on_floor() and absf(local_end.y - BulwarkHeavyGunship.CABIN_FLOOR_Y) < 0.05
+		and craft.global_position.distance_to(hull_start) > 0.10
+		and not bool(craft.get("_canopy_open")) and not craft.is_piloted(),
+		"real on-foot input walks the capsule-clear aisle while its sealed hull physically drifts")
+	var retained_player := player
+	root.remove_child(game)
+	await process_frame
+	root.add_child(game)
+	for _settle in 8:
+		await physics_frame
+		await process_frame
+	_check(game.player == retained_player and player.is_on_floor() and player.is_control_enabled()
+		and frame.is_occupant_registered(player) and player.is_cabin_containment_active(),
+		"retained Bulwark Main restores the same supported cabin Player without replaying pilot ownership")
+	await _press_live_action(&"interact", 1)
+	_check(await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 1.5)
+		and player.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted()
+		and not frame.is_occupant_registered(player) and not player.is_cabin_containment_active(),
+		"ordinary cabin E retakes the actual helm through the existing boarding owner")
+	_dispatch_pilot_action(game, &"interact")
+	_check(await _wait_until(func() -> bool: return bool(game.get_in_flight_cabin_status().get("carried", false)), 1.5),
+		"ordinary E can leave Bulwark's actual helm again before the loss probe")
+	craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
+	_check(await _wait_until(func() -> bool: return player.is_control_enabled() and not player.is_seated() and not bool(game.get("_recovering")), 1.5)
+		and not frame.is_occupant_registered(player) and not player.is_cabin_containment_active()
+		and not craft.supports_in_flight_cabin_access() and not craft.is_piloted()
+		and player.global_position.distance_to(world.get_player_spawn().origin) < 3.0,
+		"actual Bulwark cabin destruction releases frame and containment and recalls the Player through ordinary deck recovery")
+	_check(await _wait_until(func() -> bool: return not craft.is_destroyed() and craft.is_boardable(), 6.0)
+		and craft.supports_in_flight_cabin_access() and frame.get_occupant_count() == 0,
+		"same-actor Bulwark reuse restores its real cabin without stale occupants")
 
 
 # --------------------------------------------------------------- helpers ----

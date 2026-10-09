@@ -78,6 +78,7 @@ func _run() -> void:
 	await _test_startup_card_offers_resume_or_start_fresh(recovery_snapshot)
 	await _test_cold_solo_safe_recovery()
 	await _test_cold_cabin_and_rest_recovery()
+	await _test_cold_cabin_and_rest_recovery("BulwarkHeavyGunship", ["cabin"])
 	await _test_real_file_landed_rest_recovery()
 	await _test_real_solo_crew_recovery()
 	_finish()
@@ -354,14 +355,14 @@ func _settle_frames(count: int = 12) -> void:
 		await process_frame
 
 
-func _test_cold_cabin_and_rest_recovery() -> void:
+func _test_cold_cabin_and_rest_recovery(craft_name: String = "HalyardCrewTransport", modes: Array = ["cabin", "rest", "crew"]) -> void:
 	var filesystem := FakeFilesystem.new()
 	filesystem.reject_rewards = true
 	var original := await _make_game(filesystem)
-	var craft := original.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	var craft := original.get_node(craft_name) as HeroShip
 	original.start_shift()
 	original.call("_board_ship", craft)
-	_check(await _wait_for_seat(original, craft), "cabin interruption begins with an ordinary settled Halyard pilot")
+	_check(await _wait_for_seat(original, craft), "cabin interruption begins with an ordinary settled saved-craft pilot")
 	_check(bool(original.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT).accepted), "the cabin fixture selects the existing convoy owner")
 	await InterruptionProbe.prepare_convoy(original, original.get_flyable_ships().find(craft))
 	_check(bool(original.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID).accepted), "the cabin fixture starts its actual convoy")
@@ -380,17 +381,18 @@ func _test_cold_cabin_and_rest_recovery() -> void:
 	original.call("_leave_seat_into_cabin")
 	await _settle_frames()
 	_check(original.player.is_on_floor() and original.get_in_flight_cabin_status().carried and not craft.is_piloted(), "production seat exit creates a real supported cabin passenger")
-	var airborne_bunk := craft.get_node("WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction") as ShipBunk
-	original.player.teleport_to(airborne_bunk.get_exit_transform())
-	await _settle_frames()
-	original.call("_sit_in_station_seat", airborne_bunk)
-	await _settle_frames()
-	original.call("_capture_solo_safe_recovery_context")
-	_check(original.player.is_sleeping() and airborne_bunk.is_reserved_for(original.player) and not bool(craft.get_telemetry().get("landed", true)) and store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT].get("mode") == "rest", "a real airborne ShipBunk captures rest through its live owner without flight coordinates")
-	original.call("_on_interact_requested")
-	await _settle_frames()
-	_check(not original.player.is_sleeping() and original.player.is_control_enabled() and original.player.is_on_floor() and airborne_bunk.is_available() and original.get_in_flight_cabin_status().carried, "ordinary wake returns the airborne sleeper to the supported controllable cabin")
-	for mode in ["cabin", "rest", "crew"]:
+	if craft is HalyardCrewTransport:
+		var airborne_bunk := craft.get_node("WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction") as ShipBunk
+		original.player.teleport_to(airborne_bunk.get_exit_transform())
+		await _settle_frames()
+		original.call("_sit_in_station_seat", airborne_bunk)
+		await _settle_frames()
+		original.call("_capture_solo_safe_recovery_context")
+		_check(original.player.is_sleeping() and airborne_bunk.is_reserved_for(original.player) and not bool(craft.get_telemetry().get("landed", true)) and store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT].get("mode") == "rest", "a real airborne ShipBunk captures rest through its live owner without flight coordinates")
+		original.call("_on_interact_requested")
+		await _settle_frames()
+		_check(not original.player.is_sleeping() and original.player.is_control_enabled() and original.player.is_on_floor() and airborne_bunk.is_available() and original.get_in_flight_cabin_status().carried, "ordinary wake returns the airborne sleeper to the supported controllable cabin")
+	for mode in modes:
 		if mode == "rest":
 			var bunk := craft.get_node("WalkableInterior/AftSystemsBay/PortSleepingBerth/ShipBunkInteraction") as ShipBunk
 			original.player.teleport_to(bunk.get_exit_transform())
@@ -411,7 +413,7 @@ func _test_cold_cabin_and_rest_recovery() -> void:
 		var old_craft_id := craft.get_instance_id()
 		await _retire_game(original)
 		var cold := await _make_game(filesystem)
-		craft = cold.get_node("HalyardCrewTransport") as HalyardCrewTransport
+		craft = cold.get_node(craft_name) as HeroShip
 		store = cold.get("_runtime_settings_user_data_store") as UserDataStore
 		var pending := cold.get_recovery_available_snapshot()
 		var summary := cold.get_session_recovery_save_summary()
@@ -422,16 +424,17 @@ func _test_cold_cabin_and_rest_recovery() -> void:
 		_check(accepted.accepted and not cold.player.is_cabin_containment_active(), "accepted %s Resume waits for BEGIN SHIFT" % mode)
 		cold.start_shift()
 		await _settle_frames()
-		var frame := craft.get_moving_interior_component()
+		var frame := craft.call("get_moving_interior_component") as MovingInteriorFrame
 		var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
 		var berth := cold.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
 		_check(cold.phase == GameFlow.Phase.IN_FLIGHT_CABIN and cold.active_ship == craft and not craft.is_piloted() and not cold.player.is_seated() and not cold.player.is_sleeping() and cold.player.is_control_enabled() and cold.player.is_on_floor(), "cold %s Resume wakes a supported controllable saved-craft passenger" % mode)
 		_check(frame.is_occupant_registered(cold.player) and cold.player.is_cabin_containment_active() and area.get_reservation_token() == cold.player and berth.get_occupant() == craft and berth.get_reservation_owner() == craft and cold.player.get_instance_id() != old_player_id and craft.get_instance_id() != old_craft_id, "cold %s recovery acquires fresh exclusive cabin/hatch owners and exact home berth" % mode)
 		_check(_canonical(store.get_snapshot()["cinder_convoy_session"]) == activity_boundary and _canonical(cold.get_activity_reward_report().get("authority", {}).get("record", {})) == reward_boundary, "cold %s recovery preserves terminal activity and unpaid reward exactly" % mode)
 		var start := cold.player.global_position
-		Input.action_press(&"move_back")
+		var walk_action := &"move_forward" if craft is BulwarkHeavyGunship else &"move_back"
+		Input.action_press(walk_action)
 		await _settle_frames(20)
-		Input.action_release(&"move_back")
+		Input.action_release(walk_action)
 		await _settle_frames()
 		_check(cold.player.global_position.distance_to(start) > 0.1 and cold.player.is_on_floor() and not craft.is_piloted(), "the recovered %s passenger can walk the actual cabin floor without piloting" % mode)
 		var retained_player := cold.player
@@ -450,7 +453,7 @@ func _test_cold_cabin_and_rest_recovery() -> void:
 	Input.action_release(&"move_forward")
 	await _settle_frames()
 	await _press_crew_interaction()
-	_check(await _wait_for_seat(original, craft) and not original.player.is_cabin_containment_active() and not craft.get_moving_interior_component().is_occupant_registered(original.player), "ordinary cabin interaction retakes pilot control and releases passenger containment")
+	_check(await _wait_for_seat(original, craft) and not original.player.is_cabin_containment_active() and not (craft.call("get_moving_interior_component") as MovingInteriorFrame).is_occupant_registered(original.player), "ordinary cabin interaction retakes pilot control and releases passenger containment")
 	original.call("_try_exit_ship")
 	await _settle_frames(120)
 	_check(original.phase == GameFlow.Phase.APPROACH_SHIP and original.player.is_on_floor() and original.player.is_control_enabled() and not original.player.is_seated() and not craft.is_piloted(), "the recovered passenger can leave through the ordinary landed pilot exit onto the shipyard deck")

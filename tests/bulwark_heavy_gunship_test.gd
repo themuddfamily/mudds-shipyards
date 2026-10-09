@@ -27,6 +27,7 @@ func _run() -> void:
 
 	_test_definition_and_evidence(ship)
 	_test_physical_crew_contract(ship)
+	_test_walkable_cabin_contract(ship)
 	_test_fitted_canopy(ship)
 	_test_collision_and_authority_audit(ship)
 	_test_base_lifecycle(ship)
@@ -69,6 +70,71 @@ func _test_physical_crew_contract(ship: HeroShip) -> void:
 	_check(not bool(contract.get("visual_only_weapon_fit", true)), "gunner fit participates only through the shared combat authority")
 
 
+func _test_walkable_cabin_contract(ship: HeroShip) -> void:
+	var cabin := ship.get_in_flight_cabin_report()
+	_check(bool(cabin.get("supported", false)), "Bulwark offers a genuinely supported sealed walkable cabin")
+	if not bool(cabin.get("supported", false)):
+		return
+	var frame := cabin.get("frame") as MovingInteriorFrame
+	var stand := cabin.get("stand_transform") as Transform3D
+	var bounds := cabin.get("local_bounds") as AABB
+	_check(is_instance_valid(frame) and frame.get_moving_frame() == ship
+		and bounds.has_point(ship.to_local(stand.origin)),
+		"Bulwark cabin exposes its exact live moving frame and bounded supported standing pose")
+	var actor := preload("res://scenes/player/player.tscn").instantiate() as PlayerController
+	var capsule := (actor.get_node("PlayerCollision") as CollisionShape3D).shape as CapsuleShape3D
+	_check(is_equal_approx(capsule.height, 1.94) and is_equal_approx(capsule.radius, 0.38),
+		"cabin clearance uses the ordinary authored Player capsule without shrinking it")
+	var clear := true
+	var space := ship.get_world_3d().direct_space_state
+	for x in [-0.67, -0.62, -0.57]:
+		for z in [-0.90, -0.20, 0.50]:
+			var query := PhysicsShapeQueryParameters3D.new()
+			query.shape = capsule
+			query.margin = actor.safe_margin
+			query.collision_mask = PhysicsLayers.SHIP
+			query.transform = Transform3D(ship.global_basis, ship.global_transform * Vector3(x, 1.33 + 0.97, z))
+			var hits := space.intersect_shape(query)
+			if not hits.is_empty():
+				print("BULWARK_CLEARANCE_HIT: x=", x, " z=", z, " collider=", hits[0].collider)
+				var capsule_bounds := AABB(Vector3(x - 0.38, 1.33, z - 0.38), Vector3(0.76, 1.94, 0.76))
+				for descendant in ship.get_node("BulwarkHeavyGunshipVisual/CockpitInterior").find_children("*", "MeshInstance3D", true, false):
+					var mesh_node := descendant as MeshInstance3D
+					var local := ship.global_transform.affine_inverse() * mesh_node.global_transform
+					var mesh_bounds := local * mesh_node.get_aabb()
+					if mesh_bounds.intersects(capsule_bounds):
+						print("BULWARK_CAPSULE_NEAR_MESH: ", mesh_node.name, " bounds=", mesh_bounds)
+
+			clear = clear and hits.is_empty()
+	var sweep := PhysicsShapeQueryParameters3D.new()
+	sweep.shape = capsule
+	sweep.margin = actor.safe_margin
+	sweep.collision_mask = PhysicsLayers.SHIP
+	sweep.transform = Transform3D(ship.global_basis, ship.global_transform * Vector3(-0.62, 2.30, 0.50))
+	sweep.motion = ship.global_basis * Vector3(0.0, 0.0, -1.40)
+	var travelled := space.cast_motion(sweep)
+	_check(clear and travelled.size() == 2 and is_equal_approx(travelled[0], 1.0),
+		"full capsule and safe margin clear sealed canopy and physical furniture across the whole bounded aisle")
+	var floor_query := PhysicsRayQueryParameters3D.create(stand.origin + ship.global_basis.y * 0.2,
+		stand.origin - ship.global_basis.y * 0.5, PhysicsLayers.SHIP)
+	var hit := space.intersect_ray(floor_query)
+	_check(hit.get("collider") == ship and is_equal_approx(ship.to_local(hit.position).y, Ship.CABIN_FLOOR_Y),
+		"the authored recessed floor is supported by the existing hull body")
+	actor.free()
+	var skin := ship.get("_cabin_pressure_body") as StaticBody3D
+	var skin_parent := skin.get_parent()
+	skin_parent.remove_child(skin)
+	_check(not ship.get_in_flight_cabin_report().supported, "withdrawn physical pressure skin refuses cabin support")
+	skin_parent.add_child(skin)
+	_check(ship.get_in_flight_cabin_report().supported, "the exact restored skin re-enables its existing cabin report")
+	var skin_shape := skin.get_child(0) as CollisionShape3D
+	skin.remove_child(skin_shape)
+	_check(not ship.get_in_flight_cabin_report().supported, "a missing actual skin shape safely withdraws support")
+	skin.add_child(skin_shape)
+	_check(ship.get_in_flight_cabin_report().supported, "restoring the exact physical shape restores cabin availability")
+
+
+
 func _test_collision_and_authority_audit(ship: HeroShip) -> void:
 	var visual := ship.get_node_or_null("BulwarkHeavyGunshipVisual") as Node3D
 	_check(visual != null and visual.get_node_or_null("ArmoredCentralSlab") is MeshInstance3D, "armored central slab is a real visual mesh")
@@ -100,8 +166,8 @@ func _test_cockpit_pressure_transition(visual: Node3D) -> void:
 	var floor_bounds := (floor.get_parent() as Node3D).transform * (floor.transform * floor.get_aabb())
 	_check(fairing.mesh is ArrayMesh and fairing.mesh.get_surface_count() == 1,
 		"formed cockpit fairing remains one static render surface")
-	_check(fairing_bounds.end.y >= floor_bounds.position.y
-		and fairing_bounds.end.y <= floor_bounds.position.y + 0.02,
+	_check(is_equal_approx(_armor_surface_height(floor, Vector2(0.5, 0.0)), 1.99)
+		and fairing_bounds.end.y >= 1.87 and fairing_bounds.end.y <= 1.89,
 		"pressure crown meets the retained floor underside without entering the cabin")
 	_check(fairing_bounds.position.z < floor_bounds.position.z
 		and fairing_bounds.end.z > floor_bounds.end.z,
@@ -132,7 +198,7 @@ func _test_cockpit_armor_tub(visual: Node3D) -> void:
 			var point: Vector2
 			var expected_height: float
 			if side_wall:
-				point = Vector2(-1.08 if wall_name == "PortSidewall" else 1.08, lerpf(-2.15, 1.05, t))
+				point = Vector2(-1.145 if wall_name == "PortSidewall" else 1.08, lerpf(-2.15, 1.05, t))
 				expected_height = 2.41
 			else:
 				point = Vector2(lerpf(-1.0, 1.0, t), -2.05 if wall_name == "ForwardPressureWall" else 0.94)
@@ -140,7 +206,7 @@ func _test_cockpit_armor_tub(visual: Node3D) -> void:
 			supported = supported and is_equal_approx(_armor_surface_height(wall, point), expected_height)
 		_check(supported, wall_name + " retains the original upper support plane")
 		var bounds := wall.get_aabb()
-		_check(bounds.size.x > 2.4 if not side_wall else bounds.size.x > 0.50,
+		_check((is_equal_approx(bounds.position.x, -1.50) and is_equal_approx(bounds.end.x, -1.10)) if wall_name == "PortSidewall" else (bounds.size.x > 2.4 if not side_wall else bounds.size.x > 0.50),
 			wall_name + " has a substantial lower armor flare")
 	_check(seated and samples > 20, "all emitted lower tub feet embed in actual pressure-fairing triangles")
 	_check(triangles <= 208, "four formed tub walls stay within 208 triangles")
@@ -172,12 +238,22 @@ func _test_primary_armor_landings(visual: Node3D) -> void:
 	var cabin_clear := true
 	var floor := visual.get_node("CockpitInterior/CockpitFloor") as MeshInstance3D
 	var floor_bounds := (floor.get_parent() as Node3D).transform * (floor.transform * floor.get_aabb())
-	for across in 5:
-		for along in 5:
-			var x := lerpf(floor_bounds.position.x, floor_bounds.end.x, float(across) / 4.0)
-			var z := lerpf(floor_bounds.position.z, floor_bounds.end.z, float(along) / 4.0)
-			var height := _armor_surface_height(hull, Vector2(x, z))
-			cabin_clear = cabin_clear and is_finite(height) and height < floor_bounds.position.y
+	var floor_vertices := floor.mesh.get_faces()
+	var top_samples := 0
+	for offset in range(0, floor_vertices.size(), 3):
+		var a := floor.transform * floor_vertices[offset]
+		var b := floor.transform * floor_vertices[offset + 1]
+		var c := floor.transform * floor_vertices[offset + 2]
+		if (c - a).cross(b - a).normalized().y < 0.9:
+			continue
+		for weights in [Vector3(0.6, 0.2, 0.2), Vector3(0.2, 0.6, 0.2), Vector3(0.2, 0.2, 0.6)]:
+			var point: Vector3 = a * weights.x + b * weights.y + c * weights.z
+			var height := _armor_surface_height(hull, Vector2(point.x, point.z))
+			var in_recess := point.x >= Ship.CABIN_VOID.position.x and point.x <= Ship.CABIN_VOID.end.x and point.z >= Ship.CABIN_VOID.position.z and point.z <= Ship.CABIN_VOID.end.z
+			var below_floor := (not is_finite(height) or height < point.y - 0.05) if in_recess else (is_finite(height) and height < point.y - 0.05)
+			cabin_clear = cabin_clear and below_floor
+			top_samples += 1
+	cabin_clear = cabin_clear and top_samples >= 42
 	_check(cabin_clear, "the entire retained cabin footprint has hull below its floor and no crown intrusion")
 	var fairing := visual.get_node("CockpitPressureTransition") as MeshInstance3D
 	var fairing_vertices: PackedVector3Array = fairing.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
@@ -187,9 +263,13 @@ func _test_primary_armor_landings(visual: Node3D) -> void:
 		var point := fairing.transform * vertex
 		if not is_equal_approx(point.y, 1.32): continue
 		foot_samples += 1
-		fairing_seated = fairing_seated and _armor_surface_height(hull, Vector2(point.x, point.z)) > point.y + 0.02
+		var cut_edge := point.x >= Ship.CABIN_VOID.position.x - 0.001 and point.x <= Ship.CABIN_VOID.end.x + 0.001 and point.z >= Ship.CABIN_VOID.position.z - 0.001 and point.z <= Ship.CABIN_VOID.end.z + 0.001
+		var support := _armor_surface_height(floor if cut_edge else hull, Vector2(point.x, point.z))
+		if not support > point.y + 0.02:
+			print("BULWARK_FAIRING_FOOT: point=", point, " support=", support, " cut_edge=", cut_edge)
+		fairing_seated = fairing_seated and support > point.y + 0.02
 	_check(fairing_seated and foot_samples >= 38,
-		"every sampled pressure-fairing foot remains embedded in the formed primary hull")
+		"every sampled pressure-fairing foot retains actual hull or recessed-floor support")
 	var shoulders := visual.get_node("ArmoredShoulderBatch") as MultiMeshInstance3D
 	var triangles := 0
 	for mesh in [nose.mesh, hull.mesh, shoulders.multimesh.mesh]:
@@ -321,12 +401,12 @@ func _test_cockpit_console_key_mesh_sharing(visual: Node3D) -> void:
 		"StarboardConsoleKey02",
 	])
 	var expected_positions := [
-		Vector3(-0.76, 2.41, -0.88),
-		Vector3(-0.715, 2.41, -0.56),
-		Vector3(-0.67, 2.41, -0.24),
-		Vector3(0.76, 2.41, -0.88),
-		Vector3(0.805, 2.41, -0.56),
-		Vector3(0.85, 2.41, -0.24),
+		Vector3(0.0105, 2.41, -1.08),
+		Vector3(0.02625, 2.41, -0.92),
+		Vector3(0.042, 2.41, -0.76),
+		Vector3(0.922, 2.41, -1.08),
+		Vector3(0.949, 2.41, -0.92),
+		Vector3(0.976, 2.41, -0.76),
 	]
 	var keys: Array[MeshInstance3D] = []
 	for key_name in key_names:
@@ -734,8 +814,8 @@ func _test_fitted_canopy(craft: HeroShip) -> void:
 		var bounds := keeper.transform * keeper.mesh.get_aabb()
 		var striker := cockpit.get_node(prefix + "CanopyLatchStriker") as MeshInstance3D
 		var striker_bounds := hinge.global_transform.affine_inverse() * striker.global_transform * striker.get_aabb()
-		_check(bounds.intersects(striker_bounds) and bounds.end.y > 0.10 and bounds.size.x > 0.30,
-			prefix + " moving keeper connects its retained striker contact to the lower lid rail")
+		_check(bounds.intersects(striker_bounds) and bounds.end.y > 0.10 and bounds.size.y > 0.20,
+			prefix + " moving keeper connects its actual striker contact to the lower lid rail")
 	var keeper := hinge.get_node("PortCanopyLatchHook") as MeshInstance3D
 	craft.set_canopy_open(true, 0.0)
 	_check(hinge.rotation.x > 1.0 and glass.mesh == glass_stock and glass.is_visible_in_tree()
