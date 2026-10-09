@@ -44,3 +44,7 @@ qualify only its own source. RENDER-001 remains open. Broader crew roles,
 docking/planetary/full-activity recovery and all ten roadmap phases remain open.
 
 Published checkpoint ZIP SHA256: 0b2add37deabf0d1843c5f939b8da89d61f2e1d09098a24a0deeaa8836d19e18
+
+Scope clarification: Reset/restart above means resetting or starting a new
+activity in the retained session. Crash recovery before successful discovery
+saving remains open; fresh-load acceptance follows a successful save.
