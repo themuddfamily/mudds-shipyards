@@ -8,6 +8,51 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
+## Latest native checkpoint `f6b24358b` — 2026-10-09
+
+The unsigned [installer](../builds/windows/MuddsShipyards-f6b2435-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-f6b2435-installer-notes.txt) are
+published in `builds/windows/`. Its payload matches the published safe-recovery
+EXE: 177,581,936 bytes, SHA256
+`e7304f1cdc8dddbfa9afc0f9909f919a27fbcaa725767dc53dd6b28a4756794f`.
+Setup is 86,612,450 bytes, SHA256
+`15e497bf94cee617b6a7f805f07baddfda132eb153b7ce2811eb6abc977a3d74`.
+The NSIS bootstrap is x86; the installed game is x64. Original compiler result,
+SHA256 sidecar and compiler log are copied unchanged beside it. Compiler source
+`ccf89c496` is clean; build-time `native_verification: NOT_RUN` remains immutable,
+with subsequent executed acceptance recorded separately.
+
+Builder, default verifier and combined verifier each exit 0 and are reaped.
+The unchanged 11-step default and 16-step combined contracts pass actual
+`01e6ec5ae` → `f6b24358b` → `01e6ec5ae` installation, locked replacement refusal
+(exit 2), upgrade, rollback and uninstall. Exact executable/provenance and
+protected data match throughout. Three actual startup kills lead to fourth-boot
+safe-start recommendation, matching journal and orderly marker closure. Backup
+recovery retains settings/tutorial identity; all six unsupported-newer
+primary/pending/backup/history hashes remain exact after rollback/uninstall.
+
+The installed ordinary-Boot activity probe kills/reaps its owned arm process
+(Windows −1), then resumes in a fresh process (0). It preserves the exact durable
+Convoy boundary, receipts advance 1→2 once, one crash is recorded and both marker
+owners close. The real cold-resumed Player is seated/piloting Bulwark at its safe
+home berth and accepts synthetic ordinary throttle before escort-positioning
+fixtures. Canopy/boarding test timings are shortened to 0.01/0.02 seconds; this
+proves the named safe recovery, with original airborne pose and uninterrupted
+human controls still open.
+
+Root verifies all 14 raw log hashes and actual native cleanup. Nine completed
+startups each have exactly one parsed ready JSON and mouse free during loading;
+all logs have zero engine/script/leak diagnostics. Ten expected warnings remain:
+six missing-settings and four explicit unsupported-newer-schema warnings.
+Activity logs have zero warnings. Owned parents/children, install, shortcuts,
+HKCU entries and activity profile are gone; base private profiles and witnesses
+remain for inspection. Evidence:
+`/root/.cache/mudds-shipyards/roadmap-validation/installer-safe-f6b2435/`.
+
+Full source regression, all recovery states, interactive/final-candidate install,
+other desktop platforms, native GPU/controller/audio/art/human acceptance and
+trusted signing remain open. The historical runs below retain their own scope.
+
 ## Native checkpoint `e7dedc2` result — 2026-10-08
 
 The unsigned [installer](../builds/windows/MuddsShipyards-e7dedc2-setup.exe)
