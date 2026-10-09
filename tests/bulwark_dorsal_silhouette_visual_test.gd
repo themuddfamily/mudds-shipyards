@@ -58,12 +58,13 @@ func _run() -> void:
 		"silhouette polish preserves Bulwark's original-modern EvidenceStatus.NEW claim"
 	)
 	var shell_intact := true
-	for index in 5:
+	for index in 12:
 		shell_intact = shell_intact and ship.get_node_or_null("BulwarkHullCollision%d" % index) is CollisionShape3D
-	for index in 4:
+	for index in [0, 1, 3, 4, 6, 7, 8, 10, 11]:
 		shell_intact = shell_intact and ship.get_node_or_null("BulwarkShoulderCollision%d" % index) is CollisionShape3D
 	_check(
 		shell_intact
+		and ship.find_children("*", "CollisionShape3D", false, false).size() == 22
 		and ship.get_node_or_null(^"BulwarkChinCollision") is CollisionShape3D
 		and ship.get_node_or_null(^"BulwarkBoardingArea") is Area3D,
 		"the exact compound shell, chin, and existing boarding owners remain intact"
