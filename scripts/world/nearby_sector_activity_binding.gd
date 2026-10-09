@@ -1314,6 +1314,8 @@ func reenter_station_defense_reward(attachment_generation: int) -> Dictionary:
 func start_mining_activity(caller_position: Vector3) -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
+	if _has_pending_mining_capacity_receipt():
+		return _result(false, &"mining_capacity_save_pending")
 	var result: Dictionary = _mining_activity.call("start", caller_position)
 	if bool(result.get("accepted", false)):
 		_last_mining_feedback_reason = &""
@@ -1467,9 +1469,27 @@ func _persist_mining_capacity(reward_result: Dictionary) -> Dictionary:
 	return _last_mining_capacity_persistence_result.duplicate(true)
 
 
+## Keep the completed owner and its genuine one-shot request until publication
+## succeeds. Replacing/resetting it would erase the only available save retry.
+func _has_pending_mining_capacity_receipt() -> bool:
+	if _mining_activity == null or _mining_capacity_persistence == null:
+		return false
+	var snapshot := _mining_activity.call("get_snapshot") as Dictionary
+	var request := _last_mining_reward_result.get("reward_request", {}) as Dictionary
+	return (
+		int(snapshot.get("state", -1)) == MINING_ACTIVITY.State.COMPLETE
+		and bool(snapshot.get("reward_requested", false))
+		and bool(_last_mining_reward_result.get("accepted", false))
+		and not bool(_last_mining_reward_result.get("capacity_persisted", false))
+		and int(request.get("generation", -1)) == int(snapshot.get("generation", 0))
+	)
+
+
 func reset_mining_activity() -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
+	if _has_pending_mining_capacity_receipt():
+		return _result(false, &"mining_capacity_save_pending")
 	var result: Dictionary = _mining_activity.call("reset")
 	if bool(result.get("accepted", false)):
 		_last_mining_feedback_reason = &""

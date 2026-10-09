@@ -1,5 +1,6 @@
 extends SceneTree
 
+const MAIN_SCENE := preload("res://scenes/main.tscn")
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const GameFlowScript := preload("res://scripts/game/game_flow.gd")
@@ -38,6 +39,7 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_failed_save_recovery()
+	await _test_real_file_reset_preserves_pending_capacity()
 	var filesystem := MemoryFilesystem.new()
 	var store := StoreScript.new("memory://cinder-mining-capacity.json", filesystem)
 	_check(bool(store.load().accepted), "the existing atomic store loads")
@@ -166,6 +168,122 @@ func _test_failed_save_recovery() -> void:
 		and int(reloaded_store.get_generation()) == 1,
 		"aborting a later extraction prevents stale receipt retry and starts a fresh empty generation")
 	await _retire(reentered)
+
+
+## Mine through actual Main and its streamed binding. A real directory at the
+## atomic store's temporary path sustains rejected writes, rather than mocking
+## an accepted reset or inventing a terminal reward request.
+func _test_real_file_reset_preserves_pending_capacity() -> void:
+	var directory := "/tmp/mudds-mining-reset-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()]
+	DirAccess.make_dir_recursive_absolute(directory)
+	var profile_path := directory.path_join("profile.json")
+	var store := StoreScript.new(profile_path)
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(store, directory.path_join("legacy.cfg"))
+	root.add_child(game)
+	await process_frame
+	game.set_physics_process(false)
+	var cluster := await _load_main_mining_cluster(game)
+	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	game.bind_cinder_mining_capacity_persistence(binding)
+	var craft := game.get_flyable_ships()[1] as HeroShip
+	game.active_ship = craft
+	craft.global_position = CinderMiningPlatformActivity.APPROACH_ANCHOR
+	var sample := {"available": true, "actor_kind": &"ship",
+		"actor_instance_id": craft.get_instance_id(), "position": craft.global_position}
+	_mining_intent(game, &"start_requested")
+	var first_completion := game.call(&"_advance_cinder_mining_extraction",
+		CinderMiningPlatformActivity.EXTRACTION_SECONDS, sample) as Dictionary
+	var first_receipt := first_completion.get("reward_result", {}) as Dictionary
+	var first_generation := int(binding.get_activity_snapshot(&"mining").generation)
+	_mining_intent(game, &"reset_requested")
+	_check(bool(first_receipt.get("capacity_persisted", false))
+		and binding.get_activity_snapshot(&"mining").state_id == &"reset",
+		"a genuine terminal capacity receipt commits before an ordinary Main reset")
+	var saved_bytes := FileAccess.get_file_as_bytes(profile_path)
+	DirAccess.make_dir_absolute(profile_path + ".tmp")
+	_mining_intent(game, &"start_requested")
+	game.call(&"_advance_cinder_mining_extraction", 2.0, sample)
+	var active := binding.get_activity_snapshot(&"mining")
+	_check(active.state_id == &"active" and int(active.generation) > first_generation
+		and is_equal_approx(float(active.elapsed_seconds), 2.0)
+		and FileAccess.get_file_as_bytes(profile_path) == saved_bytes,
+		"a new legitimate extraction remains transient while the actual atomic write path is blocked")
+	var completed := game.call(&"_advance_cinder_mining_extraction", 4.0, sample) as Dictionary
+	var request := completed.get("reward_result", {}) as Dictionary
+	var pending := binding.get_activity_snapshot(&"mining")
+	var pending_generation := int(pending.generation)
+	var profile_bytes := FileAccess.get_file_as_bytes(profile_path)
+	var terminal_request := (request.get("reward_request", {}) as Dictionary).duplicate(true)
+	_check(bool(request.accepted) and not bool(request.capacity_persisted)
+		and bool(pending.get("persistence_retry_available", false))
+		and int(terminal_request.get("generation", 0)) == pending_generation,
+		"the genuine completed extraction keeps its one non-granting terminal capacity request after rejected publication")
+	_mining_intent(game, &"reset_requested")
+	var replaced := binding.start_mining_activity(CinderMiningPlatformActivity.APPROACH_ANCHOR)
+	_mining_intent(game, &"start_requested")
+	var retained := binding.get_activity_snapshot(&"mining")
+	var last_request := (binding.get("_last_mining_reward_result") as Dictionary).get("reward_request", {}) as Dictionary
+	_check(not bool(replaced.accepted) and retained.state_id == &"complete"
+		and int(retained.generation) == pending_generation
+		and bool(retained.get("persistence_retry_available", false))
+		and last_request == terminal_request
+		and FileAccess.get_file_as_bytes(profile_path) == profile_bytes
+		and "START TO RETRY" in str(game.hud.get_activity_objective_report().get("text", "")),
+		"ordinary Reset, binding restart and still-rejected Start cannot discard or replace the pending mining receipt")
+	DirAccess.remove_absolute(profile_path + ".tmp")
+	_mining_intent(game, &"start_requested")
+	var recovered := binding.get_activity_snapshot(&"mining")
+	var recovered_generation := store.get_generation()
+	var repeated := binding.retry_mining_capacity_persistence()
+	var duplicate := binding.request_mining_reward()
+	_check(bool(recovered.get("capacity_persisted", false))
+		and int(recovered.generation) == pending_generation
+		and not bool(repeated.accepted) and not bool(duplicate.accepted)
+		and store.get_generation() == recovered_generation
+		and not bool(((binding.get_cinder_mining_capacity_persistence_snapshot().capacity as Dictionary).reward_receipt as Dictionary).granted),
+		"ordinary Start records exactly the retained extraction after recovery without replaying or granting its request")
+	game.queue_free()
+	for _frame in 3: await process_frame
+	var fresh_store := StoreScript.new(profile_path)
+	var fresh := MAIN_SCENE.instantiate() as GameFlow
+	fresh.configure_runtime_settings_persistence(fresh_store, directory.path_join("legacy.cfg"))
+	root.add_child(fresh)
+	await process_frame
+	fresh.set_physics_process(false)
+	var fresh_cluster := await _load_main_mining_cluster(fresh)
+	var fresh_binding := fresh_cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	fresh.bind_cinder_mining_capacity_persistence(fresh_binding)
+	var before_replay := FileAccess.get_file_as_bytes(profile_path)
+	var replay := fresh_binding.request_mining_reward()
+	_check(bool(fresh_binding.get_activity_snapshot(&"mining").get("capacity_persisted", false))
+		and not bool(replay.accepted) and replay.reason == &"not_complete"
+		and FileAccess.get_file_as_bytes(profile_path) == before_replay,
+		"fresh Main retains the recovered capacity without reconstructing live extraction or granting another request")
+	fresh.queue_free()
+	for _frame in 3: await process_frame
+	var cleanup := DirAccess.open(directory)
+	if cleanup != null:
+		for filename in cleanup.get_files(): DirAccess.remove_absolute(directory.path_join(filename))
+	DirAccess.remove_absolute(directory)
+
+
+func _mining_intent(game: GameFlow, action: StringName) -> void:
+	game.call(&"_on_hud_nearby_activity_intent_requested", {
+		"activity_id": CinderMiningPlatformActivity.ACTIVITY_ID, "reason": action,
+	})
+
+
+func _load_main_mining_cluster(game: GameFlow) -> NearbySectorCluster:
+	game.get_node(^"CinderStreamingProductionBinding").set_physics_process(false)
+	var bootstrap := game.get_node(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
+	bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	for _frame in 60:
+		if bootstrap.get_loaded_instance() != null:
+			return bootstrap.get_loaded_instance() as NearbySectorCluster
+		await process_frame
+	_check(false, "actual Main loads mining through the production Cinder bootstrap")
+	return null
 
 
 func _make_runtime(store: UserDataStore) -> Dictionary:
