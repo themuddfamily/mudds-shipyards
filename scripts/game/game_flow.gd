@@ -5723,6 +5723,11 @@ func _ensure_station_defense_encounter_bindings() -> void:
 			&"configure_station_defense_reward_handoff",
 			Callable(self, &"_commit_game_flow_activity_reward")
 		) as Dictionary
+	var board := world.get_station_defense_activity_board() as StationDefenseActivityBoard
+	if is_instance_valid(board) and board.configure_session_persistence(
+		_runtime_settings_user_data_store, &"station_defense_session", "station_defense_session"
+	):
+		board.load_session()
 	_station_defense_bindings_ready = bool(
 		_station_defense_reward_configuration.get("accepted", false)
 	)

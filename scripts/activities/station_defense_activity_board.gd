@@ -44,6 +44,12 @@ var _terminal_history: Dictionary = {}
 var _session_adapter: RefCounted
 var _persistence_binding: RefCounted
 var _restored_session: Dictionary = {}
+var _completion: Dictionary = {}
+var _session_store: RefCounted
+var _automatic_persistence := false
+var _session_refused := false
+var _reward_request_active := false
+var _loading_session := false
 var _presentation_generation := -1
 var _presentation_state_id: StringName = &"unavailable"
 var _presentation_text := "AWAITING LINK"
@@ -113,17 +119,19 @@ func configure_reward_handoff(callback: Callable) -> Dictionary:
 	return _result(true, &"reward_handoff_configured")
 
 
-func configure_session_persistence(store: RefCounted, slot_id: StringName) -> bool:
+func configure_session_persistence(store: RefCounted, slot_id: StringName, payload_namespace: String = "") -> bool:
 	if _persistence_binding != null or store == null or slot_id.is_empty():
 		return false
 	_session_adapter = SESSION_ADAPTER.new() as RefCounted
 	_persistence_binding = PERSISTENCE_BINDING.new() as RefCounted
 	if not bool(_persistence_binding.call(
-		"configure", store, _session_adapter, slot_id
+		"configure", store, _session_adapter, slot_id, payload_namespace
 	)):
 		_session_adapter = null
 		_persistence_binding = null
 		return false
+	_session_store = store
+	_automatic_persistence = not payload_namespace.is_empty()
 	return true
 
 
@@ -140,13 +148,17 @@ func load_session() -> Dictionary:
 		return _result(false, &"persistence_not_configured")
 	var loaded: Dictionary = _persistence_binding.call("load")
 	if not bool(loaded.get("accepted", false)):
+		_session_refused = loaded.get("reason") != &"session_absent"
 		return loaded
 	var session := loaded.get("session", {}) as Dictionary
 	var history := session.get("history", {}) as Dictionary
+	_loading_session = true
 	var restored := _content.restore_terminal_session_history(history)
+	_loading_session = false
 	if not bool(restored.get("accepted", false)):
 		return restored
 	_terminal_history = history.duplicate(true)
+	_completion = (session.get("completion", {}) as Dictionary).duplicate(true)
 	_highest_reward_generation = maxi(
 		_highest_reward_generation,
 		int(history.get("reward_handoff_generation", 0))
@@ -155,6 +167,11 @@ func load_session() -> Dictionary:
 		_reward_replay_generation_floor,
 		int(history.get("generation", 0))
 	)
+	if not _completion.is_empty():
+		_reward_replay_generation_floor = int(_completion.generation) - 1
+		if _completion.reward_granted:
+			_highest_reward_generation = int(_completion.generation)
+	_refresh_presentation(_content.get_snapshot())
 	_restored_session = {
 		"history": history.duplicate(true),
 		"runtime_state": &"idle",
@@ -172,6 +189,7 @@ func get_session_persistence_snapshot() -> Dictionary:
 	return {
 		"component_id": COMPONENT_ID,
 		"history": _terminal_history.duplicate(true),
+		"completion": _completion.duplicate(true),
 		"restored_session": _restored_session.duplicate(true),
 		"store_authority": false,
 		"active_runtime_state_persisted": false,
@@ -220,7 +238,13 @@ func interact(actor: Node = null) -> bool:
 		_last_result = gate.duplicate(true)
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return false
-	_last_result = _content.start(generation)
+	if _session_refused:
+		_last_result = _result(false, &"session_restore_refused")
+	elif _has_pending_reward():
+		_request_completed_reward({})
+		_last_result = _result(not _has_pending_reward(), &"reward_pending" if _has_pending_reward() else &"reward_settled")
+	else:
+		_last_result = _content.start(generation)
 	interaction_resolved.emit(actor, _last_result.duplicate(true))
 	return bool(_last_result.get("accepted", false))
 
@@ -236,6 +260,14 @@ func abort_and_reset(actor: Node, expected_generation: int) -> Dictionary:
 		"activity", {}
 	) as Dictionary
 	var state_id := StringName(activity.get("state_id", &""))
+	if _session_refused:
+		return _result(false, &"session_restore_refused")
+	if _has_pending_reward():
+		_request_completed_reward(activity)
+		if _has_pending_reward():
+			return _result(false, &"reward_pending")
+		if state_id == &"idle":
+			return _result(true, &"reward_settled")
 	# Resetting discards the completed run, so settle an owed reward first.
 	if state_id == &"completed":
 		_request_completed_reward(activity)
@@ -274,6 +306,8 @@ func get_last_result() -> Dictionary:
 func get_reward_handoff_snapshot() -> Dictionary:
 	return {
 		"configured": _reward_adapter != null,
+		"reward_pending": _has_pending_reward(),
+		"pending_generation": int(_completion.get("generation", 0)) if _has_pending_reward() else 0,
 		"highest_reward_generation": _highest_reward_generation,
 		"replay_generation_floor": _reward_replay_generation_floor,
 		"last_result": _last_reward_result.duplicate(true),
@@ -325,37 +359,97 @@ func get_presentation_snapshot() -> Dictionary:
 
 
 func _on_content_snapshot_changed(snapshot: Dictionary) -> void:
+	if _loading_session:
+		_refresh_presentation(snapshot)
+		return
 	var host := snapshot.get("host", {}) as Dictionary
 	var activity := (host.get("activity", {}) as Dictionary).duplicate(true)
 	var generation := int(activity.get("generation", 0))
 	if generation < _presentation_generation:
 		return
-	_refresh_presentation(snapshot)
+	# Only the current production owner can establish an earned handoff. A stale
+	# emitted presentation/history dictionary is never a completion authority.
+	var live := (_content.get_snapshot().get("host", {}) as Dictionary).get("activity", {}) as Dictionary
+	if live.get("state_id") == &"active" and not _has_pending_reward():
+		_completion.clear()
+	if live.get("state_id") == &"completed" and generation == int(live.get("generation", -1)) \
+			and _reward_adapter != null and _completion.is_empty() and generation > _reward_replay_generation_floor:
+		_completion = {"activity_id": ACTIVITY_ID, "generation": generation, "reward_requested": true, "reward_granted": false}
+	if not _has_pending_reward():
+		_capture_safe_history(snapshot)
+	elif live.get("state_id") == &"completed":
+		_capture_safe_history(_content.get_snapshot())
 	_request_completed_reward(activity)
-	_capture_safe_history(snapshot)
+	_refresh_presentation(snapshot)
+	if not _has_pending_reward() and StringName(activity.get("state_id", &"")) == &"idle":
+		_completion.clear()
+		if _automatic_persistence:
+			_persist_session()
 
 
 ## Pays a completed run once. A rejected handoff (the store could not commit)
 ## stays owed: every later completed snapshot and the physical reset retry it,
 ## and the adapter's generation fence prevents a second grant.
-func _request_completed_reward(activity_snapshot: Dictionary) -> void:
-	var activity := activity_snapshot.duplicate(true)
-	var generation := int(activity.get("generation", 0))
-	if (
-		_reward_adapter != null
-		and StringName(activity.get("state_id", &"")) == &"completed"
-		and generation > maxi(
-			_highest_reward_generation, _reward_replay_generation_floor
-		)
-	):
-		activity["activity_id"] = ACTIVITY_ID
-		# StationDefenseActivity publishes a terminal state rather than duplicating
-		# EncounterScenarioDirector's outcome field. Completion is its exact cleared
-		# terminal, so the adapter receives the canonical shared handoff vocabulary.
-		activity["outcome"] = &"cleared"
-		_last_reward_result = _reward_adapter.call("consume", activity, generation)
-		if bool(_last_reward_result.get("accepted", false)):
+func _has_pending_reward() -> bool:
+	return not _completion.is_empty() and not bool(_completion.get("reward_granted", false))
+
+
+func _persist_session() -> Dictionary:
+	return save_session(int(_session_store.call("get_generation")), "station-defense-session-%d" % (int(_session_store.call("get_generation")) + 1))
+
+
+func _request_completed_reward(_activity_snapshot: Dictionary) -> void:
+	if _reward_request_active or _reward_adapter == null or not _has_pending_reward() or _session_refused:
+		return
+	_reward_request_active = true
+	var generation := int(_completion.generation)
+	if _automatic_persistence:
+		# Refresh after a postpublication failure before attempting a checkpoint;
+		# a durable paid acknowledgement must never be downgraded to unpaid.
+		var loaded: Dictionary = _session_store.call("load")
+		if not loaded.get("accepted", false):
+			_last_reward_result = loaded
+			_reward_request_active = false
+			return
+		var document: Dictionary = _session_store.call("get_snapshot")
+		var slot_value: Variant = document.get("station_defense_session", {})
+		var saved: Dictionary = {}
+		if not slot_value is Dictionary:
+			_last_reward_result = {"accepted": false, "reason": &"malformed_session_retained"}
+			_reward_request_active = false
+			return
+		var slot := slot_value as Dictionary
+		if not slot.is_empty():
+			var checked := StationDefenseSessionAdapter.new().restore(slot.get("session"))
+			if not checked.get("accepted", false) or slot.get("schema_version") != 1 or str(slot.get("slot_id", "")) != "station_defense_session" or str(slot.get("payload_kind", "")) != "nearby_sector_activity_session":
+				_last_reward_result = {"accepted": false, "reason": &"unsupported_session_retained"}
+				_reward_request_active = false
+				return
+			saved = checked.completion
+		if not saved.is_empty() and int(saved.get("generation", -1)) == generation and saved.get("reward_granted") == true:
+			# Route the already-paid handoff through the existing callback so its
+			# ledger report refreshes too. Its paid-generation fence grants nothing.
+			_reward_adapter.call("consume", {"activity_id": ACTIVITY_ID, "generation": generation, "state_id": &"completed", "outcome": &"cleared"}, generation)
+			_completion.reward_granted = true
 			_highest_reward_generation = generation
+			_terminal_history.reward_handoff_generation = generation
+			_last_reward_result = {"accepted": true, "reason": &"published_payment_reconciled"}
+			_reward_request_active = false
+			_refresh_presentation(_content.get_snapshot())
+			return
+		var persisted := _persist_session()
+		if not persisted.get("accepted", false):
+			_last_reward_result = persisted
+			_reward_request_active = false
+			return
+	var activity := {"activity_id": ACTIVITY_ID, "generation": generation, "state_id": &"completed", "outcome": &"cleared"}
+	_last_reward_result = _reward_adapter.call("consume", activity, generation)
+	if bool(_last_reward_result.get("accepted", false)):
+		_completion.reward_granted = true
+		_highest_reward_generation = generation
+		_terminal_history.reward_handoff_generation = generation
+	_reward_request_active = false
+	_refresh_presentation(_content.get_snapshot())
 
 
 func _refresh_presentation(snapshot: Dictionary) -> void:
@@ -427,6 +521,9 @@ func _refresh_presentation(snapshot: Dictionary) -> void:
 		_:
 			status_text = "[?] STATUS UNAVAILABLE"
 			status_color = STATUS_COLOR_RECOVERY
+	if _has_pending_reward():
+		status_text = "[!] REPORT PENDING // INTERACT TO RETRY"
+		status_color = STATUS_COLOR_ACTIVE
 	_presentation_generation = generation
 	_presentation_state_id = state_id
 	_presentation_text = status_text

@@ -206,6 +206,28 @@ func commit(request: Variant) -> Dictionary:
 			)))
 		current = (stored as Dictionary).duplicate(true)
 
+	var station_completion: Dictionary = {}
+	if activity_id == STATION_DEFENSE_ACTIVITY_ID:
+		var slot: Variant = (payload as Dictionary).get("station_defense_session")
+		if not slot is Dictionary or slot.get("schema_version") != NearbySectorActivityPersistenceBinding.SCHEMA_VERSION \
+				or str(slot.get("payload_kind", "")) != str(NearbySectorActivityPersistenceBinding.PAYLOAD_KIND) \
+				or str(slot.get("slot_id", "")) != "station_defense_session":
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		var session: Variant = slot.get("session")
+		var decoded := StationDefenseSessionAdapter.new().restore(session)
+		if not decoded.get("accepted", false) or (decoded.get("completion", {}) as Dictionary).is_empty():
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		station_completion = decoded.completion
+		if int(station_completion.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
+		if station_completion.reward_granted:
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+
 	# The terminal Cinder race is already stored by its live session owner.
 	# Its existing handoff flags survive a process loss and acknowledge payment
 	# independently of whichever unrelated receipt later becomes the latest.
@@ -442,6 +464,10 @@ func commit(request: Variant) -> Dictionary:
 		return _reject(&"reward_store_generation_exhausted")
 	var next_payload := (payload as Dictionary).duplicate(true)
 	next_payload[String(SLOT_ID)] = next_record
+	if not station_completion.is_empty():
+		var session := next_payload.station_defense_session.session as Dictionary
+		session.completion.reward_granted = true
+		session.history.reward_handoff_generation = activity_generation
 	if not race_completion.is_empty():
 		var acknowledged := (next_payload.cinder_timed_race_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true
