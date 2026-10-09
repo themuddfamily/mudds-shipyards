@@ -513,7 +513,7 @@ python3 "$SCRIPT_DIR/test_suite_catalog.py" --root "$PROJECT_ROOT" > "$WORK_DIR/
 while IFS=$'\t' read -r path kind; do
 	SUITE_MODES["$PROJECT_ROOT/$path"]="$kind"
 done < "$WORK_DIR/catalog.tsv"
-# Input consumers keep their real window while avoiding unneeded frame drawing.
+# Input consumers keep their real window without allocating rendering resources.
 # The catalog excludes every readback suite from this positive declaration.
 declare -A INPUT_ONLY_SUITES=()
 python3 "$SCRIPT_DIR/test_suite_catalog.py" --root "$PROJECT_ROOT" --input-only > "$WORK_DIR/input-only.tsv"
@@ -644,7 +644,10 @@ run_suite_worker() {
 		GODOT_ARGS+=(--display-driver "$DISPLAY_DRIVER")
 	fi
 	if [[ "${INPUT_ONLY_SUITES[$test_file]:-0}" == 1 ]]; then
-		GODOT_ARGS+=(--disable-render-loop)
+		# Disabling presentation alone still processes pending RenderingDevice
+		# resources. The dummy renderer retains display/input and real physics
+		# without that unused work; readback suites never enter this branch.
+		GODOT_ARGS+=(--disable-render-loop --rendering-driver dummy)
 	fi
 	if [[ -n "$AUDIO_DRIVER" ]]; then
 		GODOT_ARGS+=(--audio-driver "$AUDIO_DRIVER")

@@ -24,6 +24,17 @@ func _run() -> void:
 		"one explicit headless Dummy arm stage is admitted")
 	_check(StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy").recovery_context == "pilot",
 		"omitted recovery context keeps the existing pilot contract")
+	_check(StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy").activity == "convoy",
+		"omitted activity keeps the existing convoy contract")
+	var beacon_args := probe_args.duplicate()
+	beacon_args.append("--in-world-interruption-activity=beacon")
+	_check(StartupLoaderType.in_world_probe_request(beacon_args, "headless", "Dummy").accepted,
+		"the beacon interruption selector admits the supported pilot context")
+	for context in ["cabin", "rest", "crew"]:
+		var unsupported := beacon_args.duplicate()
+		unsupported.append("--in-world-interruption-context=" + context)
+		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
+			"beacon refuses unsupported context before Main loading: %s" % context)
 	for context in ["pilot", "cabin", "rest", "crew"]:
 		var selected := probe_args.duplicate()
 		selected.append("--in-world-interruption-context=" + context)
@@ -39,6 +50,10 @@ func _run() -> void:
 		_check(not bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", audio_driver).accepted),
 			"the fixture requires the actual Dummy driver: %s" % audio_driver)
 	for unsafe in [
+		PackedStringArray(["--in-world-interruption-activity=beacon"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=unknown"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "beacon"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=beacon", "--in-world-interruption-activity=beacon"]),
 		PackedStringArray(["--in-world-interruption-context=cabin"]),
 		PackedStringArray(["--in-world-interruption-context=crew"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=crew", "--in-world-interruption-context=crew"]),

@@ -270,6 +270,9 @@ sys.path.insert(0, 'tests')
 import probe_support
 assert ('--headless' in args) == ('/ui/' not in script)
 assert ('--disable-render-loop' in args) == script.endswith('/ui/input_test.gd')
+assert ('--rendering-driver' in args) == script.endswith('/ui/input_test.gd')
+if '--rendering-driver' in args:
+    assert args[args.index('--rendering-driver')+1] == 'dummy'
 if '/ui/' in script:
     assert args[args.index('--display-driver')+1] == 'x11'
 else:

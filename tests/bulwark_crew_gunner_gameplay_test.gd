@@ -737,11 +737,11 @@ func _test_real_service_route() -> void:
 		# before creating a fresh physical TOGGLE edge.
 		await _settle_frames(3)
 		var toggle_health := float(drone.get_meta("health", 0.0))
-		await _tap_fire()
+		await _tap_fire(actor, drone)
 		_check(await _track_target_until(actor, drone, func() -> bool: return float(drone.get_meta("health", toggle_health)) < toggle_health, 3.0)
 			and not Input.is_action_pressed(&"fire") and bool(game.get("_solo_gunner_fire")),
 			"released physical TOGGLE FIRE continues the actual siege charge and damages the real target")
-		await _tap_fire()
+		await _tap_fire(actor, drone)
 		await physics_frame
 		await process_frame
 		_check(not bool(game.get("_solo_gunner_fire")), "second ordinary TOGGLE press stops Main gunner FIRE")
@@ -1005,11 +1005,20 @@ func _sit_nearby_gunner(game: GameFlow, craft: BulwarkHeavyGunship) -> bool:
 	return await _wait_until(func() -> bool: return game.player.is_seated_at(craft.get_gunner_station_anchor()) and bool(game.get_solo_crew_seat_status().get("seated", false)) and not bool(game.get("_transition_busy")), 4.0)
 
 
-func _tap_fire() -> void:
+func _tap_fire(actor: PlayerController, target: Node3D) -> void:
+	# Keep the same mouse tracking as HOLD through the existing six input
+	# frames. A slow process frame can finish the charge before the subsequent
+	# tracker resumes, spending the shot on aim retained before the cooldown.
 	Input.action_press(&"fire")
-	await _settle_frames(3)
+	for tick in 3:
+		_apply_mouse_look(actor, target.global_position)
+		await physics_frame
+		await process_frame
 	Input.action_release(&"fire")
-	await _settle_frames(3)
+	for tick in 3:
+		_apply_mouse_look(actor, target.global_position)
+		await physics_frame
+		await process_frame
 
 
 func _settle_frames(count: int) -> void:

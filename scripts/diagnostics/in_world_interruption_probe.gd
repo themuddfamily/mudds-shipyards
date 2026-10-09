@@ -9,6 +9,7 @@ const SLOT: StringName = &"cinder_convoy_session"
 
 var stage := ""
 var recovery_context := "pilot"
+var activity := "convoy"
 var _assertions := 0
 var _failures := PackedStringArray()
 var _started := false
@@ -61,6 +62,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	var store := game.get("_runtime_settings_user_data_store") as UserDataStore
 	if store == null or game.get_tree() != get_tree():
 		_fail("the supplied production Main owns its existing store and scene tree")
+		return
+	if activity == "beacon":
+		await _run_beacon(game, store, entry)
 		return
 	var main_id := game.get_instance_id()
 	game.set_physics_process(false)
@@ -209,6 +213,196 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
 	_check(is_instance_valid(game) and game.get_instance_id() == main_id
 		and game.get_tree() == get_tree(), "continuation retains the supplied Main and its authority")
+	if _failures.is_empty():
+		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
+		get_tree().quit(0)
+	else:
+		print("IN_WORLD_RECOVERY_FAILED")
+		get_tree().quit(1)
+
+
+## Fault only the existing reward transaction; every checkpoint and recovery
+## marker still delegates to the actual store's original disk filesystem.
+class BeaconRewardFault extends UserDataFilesystem:
+	var filesystem: UserDataFilesystem
+	var rejected := false
+
+	func _init(original: UserDataFilesystem) -> void:
+		filesystem = original
+
+	func file_exists(path: String) -> bool:
+		return filesystem.file_exists(path)
+
+	func directory_exists(path: String) -> bool:
+		return filesystem.directory_exists(path)
+
+	func ensure_parent_directory(path: String) -> Error:
+		return filesystem.ensure_parent_directory(path)
+
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		return filesystem.read_bytes(path, maximum_bytes)
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-reward-"):
+			var receipt: Dictionary = document.get("payload", {}).get("game_flow_reward_store", {}).get("last_receipt", {})
+			if receipt.get("activity_id") == String(CinderBeaconTraversalActivity.ACTIVITY_ID):
+				rejected = true
+				return ERR_UNAVAILABLE
+		return filesystem.write_bytes_and_flush(path, bytes)
+
+	func sync_file(path: String) -> Error:
+		return filesystem.sync_file(path)
+
+	func sync_directory(path: String) -> Error:
+		return filesystem.sync_directory(path)
+
+	func remove_path(path: String) -> Error:
+		return filesystem.remove_path(path)
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		return filesystem.rename_path(from_path, to_path)
+
+
+func _beacon_receipts(game: GameFlow) -> int:
+	var record: Dictionary = game.get_activity_reward_report().authority.record
+	return int(record.reward_counts.get(String(CinderBeaconTraversalActivity.REWARD_ID), 0))
+
+
+func _load_beacon_binding(game: GameFlow) -> NearbySectorActivityBinding:
+	game.cinder_streaming_bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	var binding: NearbySectorActivityBinding
+	for _frame in 180:
+		binding = game.call("_get_nearby_activity_binding") as NearbySectorActivityBinding
+		if is_instance_valid(binding):
+			break
+		await get_tree().process_frame
+	_check(is_instance_valid(binding), "Boot Main streams the actual beacon activity owner")
+	game.call("_sync_activity_hud")
+	return binding
+
+
+func _beacon_start(game: GameFlow) -> void:
+	for row in (game.hud.get("_nearby_activity_rows") as VBoxContainer).get_children():
+		if "cinder_debris_beacon_traversal" in str(row.name):
+			(row.get_child(2) as Button).emit_signal("pressed")
+			return
+	_check(false, "the actual nearby HUD exposes its beacon Start action")
+
+
+func _run_beacon(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	if recovery_context != "pilot":
+		_fail("beacon interruption supports the actual pilot recovery context only")
+		return
+	var main_id := game.get_instance_id()
+	game.set_physics_process(false)
+	var craft: HeroShip
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		craft = game.get_flyable_ships()[1] as HeroShip
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		game.start_shift()
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft), "beacon arm acquires the real Player pilot before route positioning")
+		var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		_check(context.get("mode") == "pilot" and context.get("craft_id") == String(craft.get_ship_id()),
+			"beacon arm saves its exact real safe-home pilot context before interruption")
+		var binding := await _load_beacon_binding(game)
+		if not is_instance_valid(binding):
+			get_tree().quit(1)
+			return
+		var baseline := _beacon_receipts(game)
+		var fault := BeaconRewardFault.new(store.get("_filesystem") as UserDataFilesystem)
+		store.set("_filesystem", fault)
+		craft.global_position = game.call("_cinder_authored_frame_to_world", CinderBeaconTraversalActivity.BEACONS[0])
+		_beacon_start(game)
+		for point in CinderBeaconTraversalActivity.BEACONS:
+			craft.global_position = game.call("_cinder_authored_frame_to_world", point)
+			game.call("_advance_cinder_beacon_traversal", 0.0, game.call("_capture_cinder_actor_sample"))
+		var boundary: Dictionary = store.get_snapshot().get("cinder_beacon_session", {})
+		var live := binding.get_activity_snapshot(&"beacon_traversal")
+		_check(CinderBeaconTraversalActivity.validate_persistence_record(boundary).accepted
+			and fault.rejected and live.state_id == &"complete" and not live.reward_requested
+			and live.reward_pending and _beacon_receipts(game) == baseline
+			and boundary == binding.capture_beacon_traversal_session()
+			and boundary.activities[0].reward_requested and not boundary.activities[0].reward_granted,
+			"ordered production beacon samples leave an exact valid unpaid checkpoint after a real reward-write refusal")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var ready := {"boundary": boundary, "receipts": baseline, "activity": activity,
+			"runtime_observation": _interruption_runtime_observation(game),
+			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+		get_tree().paused = true
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify(ready))
+		return
+	var boundary: Dictionary = store.get_snapshot().get("cinder_beacon_session", {})
+	var binding := await _load_beacon_binding(game)
+	if not is_instance_valid(binding) or not CinderBeaconTraversalActivity.validate_persistence_record(boundary).accepted:
+		_fail("restart requires the actual valid durable beacon terminal")
+		return
+	var live := binding.get_activity_snapshot(&"beacon_traversal")
+	var observations := _interruption_runtime_observation(game)
+	var recovery := game.get_recovery_available_snapshot()
+	var crash_events := 0
+	for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+		if event.get("event_code") == "crash_detected":
+			crash_events += 1
+	_check(live.state_id == &"complete" and live.reward_pending and not live.reward_requested
+		and boundary == binding.capture_beacon_traversal_session() and crash_events == 1
+		and not recovery.is_empty() and recovery.get("state") == "running",
+		"a fresh Boot process restores only the genuine unpaid beacon checkpoint and one crash event")
+	var baseline := _beacon_receipts(game)
+	var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	for candidate in game.get_flyable_ships():
+		if String(candidate.get_ship_id()) == context.get("craft_id"):
+			craft = candidate
+	if craft == null or not _failures.is_empty():
+		_fail("the saved pilot context must resolve an actual shipped craft before Resume")
+		return
+	var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	game.start_shift()
+	var settled := await _wait_for_real_pilot(game, craft)
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	_check(resumed.get("accepted", false) and settled and area.get_reservation_token() == game.player
+		and berth.get_occupant() == craft and berth.get_reservation_owner() == craft
+		and boundary == store.get_snapshot().cinder_beacon_session and boundary == binding.capture_beacon_traversal_session(),
+		"ordinary Resume reacquires the real safe-home pilot and preserves the exact unpaid boundary before retry")
+	Input.action_press(&"move_forward")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	Input.action_release(&"move_forward")
+	_check(str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE" and craft.get_last_ship_command().throttle > 0.0
+		and boundary == store.get_snapshot().cinder_beacon_session,
+		"the recovered real pilot accepts ordinary flight input without mutating unpaid beacon progress")
+	var safe_observation := _interruption_runtime_observation(game)
+	_beacon_start(game)
+	var paid: Dictionary = store.get_snapshot().cinder_beacon_session
+	_check(_beacon_receipts(game) == baseline + 1 and paid.activities[0].reward_granted
+		and binding.get_activity_snapshot(&"beacon_traversal").reward_committed,
+		"ordinary HUD Start publishes one beacon payment and its existing atomic acknowledgement")
+	var duplicate := binding.request_beacon_traversal_reward()
+	var stale: Dictionary = game.call("_commit_game_flow_activity_reward", {
+		"activity_id": CinderBeaconTraversalActivity.ACTIVITY_ID,
+		"activity_generation": int(boundary.activities[0].generation),
+		"reward_id": CinderBeaconTraversalActivity.REWARD_ID, "reward_authority": false, "granted": false,
+	})
+	_check(not duplicate.accepted and not stale.accepted and _beacon_receipts(game) == baseline + 1
+		and paid == store.get_snapshot().cinder_beacon_session,
+		"duplicate and late terminal callbacks cannot pay again or change the saved beacon acknowledgement")
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.get("accepted", false), "beacon restart closes both existing recovery marker owners")
+	_check(is_instance_valid(game) and game.get_instance_id() == main_id and game.get_tree() == get_tree(),
+		"beacon recovery retains Boot's exact supplied Main owner")
+	var outcome := {"boundary": boundary, "paid_boundary": paid, "receipts_before": baseline,
+		"receipts_after": _beacon_receipts(game), "crash_events": crash_events, "activity": activity,
+		"runtime_observation": observations, "safe_recovery_observation": safe_observation,
+		"continuation_method": "real_safe_home_pilot_resume_then_ordinary_beacon_start_retry",
+		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
 	if _failures.is_empty():
 		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
 		get_tree().quit(0)

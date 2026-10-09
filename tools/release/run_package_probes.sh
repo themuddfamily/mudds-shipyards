@@ -2,19 +2,26 @@
 set -euo pipefail
 set -o pipefail
 
-# --in-world-interruption runs one actual kill/restart of the existing convoy
-# fixture. --source selects the current project instead of PACKAGE_PATH; source
+# --in-world-interruption runs one actual kill/restart; --activity=beacon selects
+# unpaid beacon recovery (pilot only), otherwise the original convoy is used.
+# --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
 # --native-export runs PACKAGE_PATH's embedded Linux game directly; it cannot
 # accept external source, pack or script overrides.
 IN_WORLD_INTERRUPTION=0
 SOURCE_MODE=0
 NATIVE_EXPORT=0
+PROBE_ACTIVITY="${PACKAGE_PROBE_ACTIVITY:-convoy}"
+ACTIVITY_FLAG_SEEN=0
 for argument in "$@"; do
   case "$argument" in
     --in-world-interruption) IN_WORLD_INTERRUPTION=1 ;;
     --source) SOURCE_MODE=1 ;;
     --native-export) NATIVE_EXPORT=1 ;;
+    --activity=*)
+      if (( ACTIVITY_FLAG_SEEN == 1 )); then echo "Duplicate interruption activity selector" >&2; exit 2; fi
+      ACTIVITY_FLAG_SEEN=1
+      PROBE_ACTIVITY="${argument#--activity=}" ;;
     *) echo "Unknown package probe option: $argument" >&2; exit 2 ;;
   esac
 done
@@ -37,8 +44,20 @@ RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-prob
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 RECOVERY_CONTEXT="${PACKAGE_PROBE_RECOVERY_CONTEXT:-pilot}"
+if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon ]]; then
+  echo "Invalid interruption activity" >&2
+  exit 2
+fi
+if (( IN_WORLD_INTERRUPTION == 0 )) && { (( ACTIVITY_FLAG_SEEN == 1 )) || [[ "$PROBE_ACTIVITY" != convoy ]]; }; then
+  echo "Activity selection requires --in-world-interruption" >&2
+  exit 2
+fi
 if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest && "$RECOVERY_CONTEXT" != crew ]]; then
   echo "Invalid interruption recovery context" >&2
+  exit 2
+fi
+if [[ "$PROBE_ACTIVITY" == beacon && "$RECOVERY_CONTEXT" != pilot ]]; then
+  echo "Beacon interruption currently requires pilot context" >&2
   exit 2
 fi
 
@@ -113,9 +132,9 @@ if (( IN_WORLD_INTERRUPTION == 1 )); then
   trap 'forward_interruption_cancel 130' INT
   trap 'forward_interruption_cancel 143' TERM
   trap 'forward_interruption_cancel 129' HUP
-  env -u DISPLAY -u WAYLAND_DISPLAY PYTHONDONTWRITEBYTECODE=1 python3 - "$PROJECT_ROOT" "$GODOT_BIN" "$PACKAGE_PATH" "$SOURCE_MODE" "$TIMEOUT_SECONDS" "$RUN_DIR" "$PROBE_WORK_DIR" "$RECOVERY_CONTEXT" "$NATIVE_EXPORT" <<'PYPROBE' &
+  env -u DISPLAY -u WAYLAND_DISPLAY PYTHONDONTWRITEBYTECODE=1 python3 - "$PROJECT_ROOT" "$GODOT_BIN" "$PACKAGE_PATH" "$SOURCE_MODE" "$TIMEOUT_SECONDS" "$RUN_DIR" "$PROBE_WORK_DIR" "$RECOVERY_CONTEXT" "$NATIVE_EXPORT" "$PROBE_ACTIVITY" <<'PYPROBE' &
 import hashlib, json, os, pathlib, re, signal, subprocess, sys, time
-root, godot, package, source_mode, timeout, run_dir, profile, recovery_context, native_export = sys.argv[1:]
+root, godot, package, source_mode, timeout, run_dir, profile, recovery_context, native_export, activity = sys.argv[1:]
 root, run_dir, profile = map(pathlib.Path, (root, run_dir, profile))
 timeout = int(timeout)
 source_mode = source_mode == "1"
@@ -126,7 +145,7 @@ result = {"status": "FAIL", "mode": "native_export" if native_export else ("sour
           "project_root": str(root), "private_profile": str(profile), "package": None if source_mode else package,
           "source_commit": None if native_export else driver_commit,
           "native_gpu": "NOT_RUN", "normal_controls": "NOT_RUN",
-          "pilot_seat_world_restore": "NOT_RUN", "recovery_context": recovery_context, "processes": []}
+          "pilot_seat_world_restore": "NOT_RUN", "recovery_context": recovery_context, "activity": activity, "processes": []}
 if native_export:
     result["driver_source_commit"] = driver_commit
 children = []
@@ -192,6 +211,7 @@ def start(stage):
         if not source_mode:
             command += ["--main-pack", package]
     command += ["--in-world-interruption-stage=" + stage, "--in-world-interruption-context=" + recovery_context]
+    command += ["--in-world-interruption-activity=" + activity]
     with log.open("w") as output:
         registering_child = True
         try:
@@ -242,10 +262,26 @@ try:
     require(not diagnostics(arm_log), "arm engine/script diagnostics")
     require(ready.get("recovery_context") == recovery_context, "arm ignored the selected recovery context")
     require(ready.get("entry") == "startup_completed", "arm did not use Boot's own loaded Main")
+    require(ready.get("activity", "convoy") == activity, "arm ignored the selected activity")
     before = document.read_bytes()
     saved = json.loads(before)
-    row = saved["payload"]["cinder_convoy_session"]["activities"][0]
-    require(row["progress"]["convoy_session_state"] == ready["boundary"], "readiness differs from real durable document")
+    if activity == "beacon":
+        terminal = saved["payload"]["cinder_beacon_session"]
+        row = terminal["activities"][0]
+        require(terminal == ready["boundary"] and terminal["schema_version"] == 1
+                and len(terminal["activities"]) == 1, "beacon readiness differs from actual saved session")
+        require(row["activity_id"] == "cinder_debris_beacon_traversal" and row["generation"] > 0
+                and row["state"] == 2 and row["progress"]["next_beacon_index"] == 4
+                and row["progress"]["generation"] == row["generation"]
+                and row["reward_requested"] is True and row["reward_granted"] is False
+                and row["progress"]["reward_requested"] is False, "beacon readiness has no valid unpaid terminal")
+        require(ready["runtime_observation"]["craft_piloted"] is True
+                and ready["runtime_observation"]["player_seated"] is True, "beacon arm has no real pilot")
+        counts = saved["payload"].get("game_flow_reward_store", {}).get("reward_counts", {})
+        require(counts.get("debris_route_navigation_data", 0) == ready["receipts"], "beacon baseline differs from saved reward ledger")
+    else:
+        row = saved["payload"]["cinder_convoy_session"]["activities"][0]
+        require(row["progress"]["convoy_session_state"] == ready["boundary"], "readiness differs from real durable document")
     require(saved["payload"]["crash_recovery"]["state"] == "running", "no durable running marker before kill")
     (run_dir / "interrupted-document.json").write_bytes(before)
     # Kill this exact Popen handle only. No PID search, external desktop or
@@ -263,6 +299,7 @@ try:
     require(not diagnostics(resume_log), "restart engine/script diagnostics")
     require(recovered.get("recovery_context") == recovery_context, "restart ignored the selected recovery context")
     require(recovered.get("entry") == "startup_completed", "restart did not use Boot's own loaded Main")
+    require(recovered.get("activity", "convoy") == activity, "restart ignored the selected activity")
     require(resume_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "), "recovery token is not terminal")
     require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
     require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + 1,
@@ -270,6 +307,20 @@ try:
     require(recovered["crash_events"] == 1, "actual interruption did not publish one crash event")
     after = document.read_bytes()
     final = json.loads(after)
+    if activity == "beacon":
+        paid = final["payload"]["cinder_beacon_session"]
+        safe = recovered["safe_recovery_observation"]
+        require(safe["craft_piloted"] is True and safe["player_seated"] is True
+                and safe["craft_id"] == ready["runtime_observation"]["craft_id"],
+                "beacon restart did not reacquire the actual saved pilot craft")
+        require(paid == recovered["paid_boundary"] and paid["activities"][0]["reward_granted"] is True
+                and paid["activities"][0]["progress"]["reward_requested"] is True,
+                "restarted beacon has no actual durable payment acknowledgement")
+        require(paid["activities"][0]["generation"] == row["generation"]
+                and paid["activities"][0]["progress"]["next_beacon_index"] == row["progress"]["next_beacon_index"],
+                "beacon retry changed its legitimate terminal generation or cursor")
+        require(final["payload"]["game_flow_reward_store"]["reward_counts"]["debris_route_navigation_data"] == ready["receipts"] + 1,
+                "beacon retry lost or duplicated the actual saved navigation-data payment")
     (run_dir / "recovered-document.json").write_bytes(after)
     result["recovered"] = recovered
     require(final["payload"]["crash_recovery"]["state"] == "clean" and final["payload"]["safe_start_recovery"]["state"] == "clean_shutdown",
