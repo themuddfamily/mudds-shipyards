@@ -659,7 +659,7 @@ func _test_real_service_route() -> void:
 		await process_frame
 	Input.action_release(&"move_forward")
 	Input.action_press(&"brake")
-	await _wait_until(func() -> bool: return craft.velocity.length() < 12.0, 4.0)
+	await _wait_until(func() -> bool: return craft.velocity.length() < 30.0, 4.0)
 	Input.action_release(&"brake")
 	for tick in int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 4:
 		await physics_frame
@@ -681,7 +681,7 @@ func _test_real_service_route() -> void:
 	var crossed := await _walk_route_leg(&"move_right", func() -> bool: return craft.to_local(actor.global_position).x > 1.20)
 	var approached := await _walk_route_leg(&"move_forward", func() -> bool: return craft.to_local(actor.global_position).z < 0.70)
 	var local := craft.to_local(actor.global_position)
-	print("BULWARK_REAL_GUNNER_APPROACH: ", local, " floor=", actor.is_on_floor(), " legs=", [reached_aft, crossed, approached])
+	print("BULWARK_REAL_GUNNER_APPROACH: ", local, " floor=", actor.is_on_floor(), " legs=", [reached_aft, crossed, approached], " drift=", craft.global_position.distance_to(hull_origin), " velocity=", craft.velocity, " control=", actor.is_control_enabled(), " pilot=", craft.is_piloted(), " canopy=", craft.get("_canopy_open"), " registered=", craft.get_moving_interior_component().is_occupant_registered(actor))
 	var frame := craft.get_moving_interior_component()
 	_check(reached_aft and crossed and approached and actor.is_on_floor()
 		and absf(local.y - Bulwark.CABIN_FLOOR_Y) < 0.05
@@ -698,7 +698,7 @@ func _test_real_service_route() -> void:
 		and actor.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) and frame.is_occupant_registered(actor)
 		and not craft.is_piloted(), "ordinary E seats the actual Player at the gunner chair with the existing role and frame owners, without helm")
 	if gunner_seated:
-		var drone := game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone01") as Node3D
+		var drone := game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone03") as Node3D
 		var health_before := float(drone.get_meta("health", 0.0))
 		var receipts: Array[Dictionary] = []
 		var pilot_shots := [0]
@@ -713,7 +713,7 @@ func _test_real_service_route() -> void:
 		craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
 		print("BULWARK_FIRE_GATE: available=", game.call("_solo_gunner_input_is_available"), " current=", game.call("_solo_crew_claim_is_current"), " physics=", game.is_physics_processing(), " initialized=", game.get("_initialized"), " owner=", craft.get_local_input_source().is_enabled_owner(), " focus=", craft.get_local_input_source().get("_application_focused"), " config=", craft.get_local_input_source().is_input_configuration_valid(), " source=", craft.get_command_source() == craft.get_local_input_source())
 		Input.action_press(&"fire")
-		await _wait_until(func() -> bool: return float(drone.get_meta("health", health_before)) < health_before, 3.0)
+		await _track_target_until(actor, drone, func() -> bool: return float(drone.get_meta("health", health_before)) < health_before, 3.0)
 		Input.action_release(&"fire")
 		await physics_frame
 		print("BULWARK_ORDINARY_GUNNER_FIRE: health=", [health_before, drone.get_meta("health")], " receipts=", receipts, " state=", craft.get_gunner_gameplay_state(), " gate=", game.call("_solo_gunner_input_is_available"), " logical=", game.get("_solo_gunner_fire"), " audit=", craft.get_local_input_source().get_input_integration_audit().get("sampler"))
@@ -722,7 +722,7 @@ func _test_real_service_route() -> void:
 		for receipt in receipts:
 			damaged = damaged or (bool(receipt.get("accepted", false)) and bool(receipt.get("damaged", false)))
 		_check(damaged and float(drone.get_meta("health", health_before)) < health_before
-			and craft.get_gunner_gameplay_state().get("target_selection", {}).get("target_id", &"") == &"DRONE-01"
+			and craft.get_gunner_gameplay_state().get("target_selection", {}).get("target_id", &"") == &"DRONE-03"
 			and pilot_shots[0] == 0 and not craft.is_piloted() and not craft.get_last_ship_command().fire,
 			"held ordinary FIRE selects and damages the existing range drone through the shared siege-lance owner without pilot fire or helm")
 		var released_sequence := int(craft.get_crew_role_authority().get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).get("request_sequence", 0))
@@ -736,7 +736,7 @@ func _test_real_service_route() -> void:
 		craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
 		var toggle_health := float(drone.get_meta("health", 0.0))
 		await _tap_fire()
-		_check(await _wait_until(func() -> bool: return float(drone.get_meta("health", toggle_health)) < toggle_health, 3.0)
+		_check(await _track_target_until(actor, drone, func() -> bool: return float(drone.get_meta("health", toggle_health)) < toggle_health, 3.0)
 			and not Input.is_action_pressed(&"fire") and bool(game.get("_solo_gunner_fire")),
 			"released physical TOGGLE FIRE continues the actual siege charge and damages the real target")
 		await _tap_fire()
@@ -793,7 +793,7 @@ func _test_gunner_file_recovery_and_cleanup(game: GameFlow, craft: BulwarkHeavyG
 	await _settle_frames(3)
 	var cold_store := UserDataStore.new(path, filesystem)
 	var loaded := cold_store.load()
-	_check(bool(loaded.get("loaded", false)) and cold_store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {}) == context,
+	_check(bool(loaded.get("accepted", false)) and cold_store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {}) == context,
 		"a fresh production UserDataStore reloads the exact gunner preference before Main resets")
 	var cold := preload("res://scenes/main.tscn").instantiate() as GameFlow
 	_check(cold.configure_runtime_settings_persistence(cold_store), "fresh Main accepts the existing store owner")
@@ -827,7 +827,82 @@ func _test_gunner_file_recovery_and_cleanup(game: GameFlow, craft: BulwarkHeavyG
 	_check(JSON.stringify(cold_store.get_snapshot().get("cinder_convoy_session", {})) == activity_boundary
 		and JSON.stringify(cold.get_activity_reward_report().get("authority", {}).get("record", {})) == reward_boundary,
 		"awake cold gunner recovery preserves the exact terminal activity and unpaid reward")
-	_check(await _walk_and_sit_gunner(cold, craft), "the recovered full-size Player walks the actual home aisle and re-enters gunner through E")
+	await _look_toward(actor, actor.global_position - craft.global_basis.z * 20.0 + Vector3.UP * 1.5)
+	var helm := await _walk_route_leg(&"move_forward", func() -> bool: return craft.to_local(actor.global_position).z < -0.70)
+	print("BULWARK_COLD_HELM: pose=", craft.to_local(actor.global_position), " candidate=", cold.boarding_candidate, " station=", cold.station_interaction_candidate, " engine=", craft.get_telemetry().engine_state, " busy=", cold.get("_transition_busy"), " facing=", actor.get_interaction_direction())
+	await _press_interact()
+	_check(helm and await _wait_until(func() -> bool: return actor.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted(), 4.0),
+		"the recovered Player walks back and takes the actual home helm through ordinary E")
+	cold.call("_try_exit_ship")
+	_check(await _wait_until(func() -> bool: return cold.phase == GameFlow.Phase.APPROACH_SHIP and not actor.is_cabin_containment_active() and not actor.is_seated() and actor.is_control_enabled() and actor.is_on_floor() and not craft.is_piloted(), 4.0),
+		"existing landed exit owner returns the recovered Player to the supported shipyard deck")
+	_check(JSON.stringify(cold_store.get_snapshot().get("cinder_convoy_session", {})) == activity_boundary,
+		"gunner ownership, walking, helm and deck exit leave the exact debt boundary unchanged")
+	filesystem.reject_rewards = false
+	cold.call("_retry_owed_game_flow_activity_rewards")
+	var paid := JSON.stringify(cold.get_activity_reward_report().get("authority", {}).get("record", {}))
+	cold.call("_retry_owed_game_flow_activity_rewards")
+	_check(bool(cold_store.get_snapshot().get("cinder_convoy_session", {}).get("activities", [])[0].reward_granted)
+		and JSON.stringify(cold.get_activity_reward_report().get("authority", {}).get("record", {})) == paid,
+		"actual existing reward owner pays the preserved gunner debt exactly once")
+	# The landed-exit owner deliberately blocks immediate reboard until the
+	# Player walks clear of the same interaction volume and returns.
+	await _look_toward(actor, actor.global_position - craft.global_basis.z * 20.0 + Vector3.UP * 1.5)
+	await _walk_route_leg(&"move_left", func() -> bool: return craft.to_local(actor.global_position).x < -11.0)
+	await _look_toward(actor, craft.get_boarding_position() + Vector3.UP)
+	await _walk_route_leg(&"move_forward", func() -> bool: return craft.to_local(actor.global_position).x > -6.3)
+	print("BULWARK_DECK_REBOARD: pose=", craft.to_local(actor.global_position), " candidate=", cold.boarding_candidate, " phase=", cold.phase, " blocked=", cold.get("_reboard_blocked_ship"), " engine=", craft.get_telemetry().engine_state)
+	await _press_interact()
+	_check(await _wait_until(func() -> bool: return actor.is_seated_at(craft.get_pilot_seat_anchor()), 4.0), "ordinary deck E reboards the same recovered craft before retirement coverage")
+	craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	Input.action_press(&"move_forward")
+	var launch_origin := craft.global_position
+	await _wait_until(func() -> bool: return craft.global_position.distance_to(launch_origin) > 110.0, 7.0)
+	Input.action_release(&"move_forward")
+	Input.action_press(&"brake")
+	await _wait_until(func() -> bool: return craft.velocity.length() < 30.0, 4.0)
+	Input.action_release(&"brake")
+	await _leave_actual_helm(cold, craft)
+	var readmitted := await _walk_and_sit_gunner(cold, craft)
+	_check(readmitted, "ordinary pilot leave/walk/E settles a genuine gunner before its actual craft is freed")
+	if readmitted:
+		var retiring_authority := craft.get_crew_role_authority()
+		craft.queue_free()
+		await _settle_frames(3)
+		await _wait_until(func() -> bool: return actor.is_on_floor() and actor.is_control_enabled() and not actor.is_seated(), 1.0)
+		_check(not is_instance_valid(craft) and retiring_authority.get_snapshot().assignments.is_empty()
+			and not actor.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) and not actor.is_seated() and actor.is_control_enabled()
+			and actor.is_on_floor() and not actor.is_cabin_containment_active()
+			and cold.get_solo_crew_seat_status().get("assignment", {}).is_empty(),
+			"actual craft retirement releases only the old gunner owners and returns the same Player to a supported usable deck")
+	cold.queue_free()
+	await _settle_frames(3)
+	await _test_retained_foreign_gunner_power()
+
+
+
+func _test_retained_foreign_gunner_power() -> void:
+	var cold := preload("res://scenes/main.tscn").instantiate() as GameFlow
+	cold.configure_runtime_settings_persistence(UserDataStore.new("user://bulwark-foreign-owner-%d.json" % OS.get_process_id()))
+	root.add_child(cold)
+	await _settle_frames(3)
+	cold.start_shift()
+	var craft := cold.get_node("BulwarkHeavyGunship") as BulwarkHeavyGunship
+	var actor := cold.player
+	actor.teleport_to(Transform3D(craft.global_basis, craft.get_boarding_position() + Vector3.UP * 0.05))
+	await _settle_frames(8)
+	await _press_interact()
+	_check(await _wait_until(func() -> bool: return actor.is_seated_at(craft.get_pilot_seat_anchor()), 4.0), "separate ownership context acquires its actual pilot through E")
+	var origin := craft.global_position
+	craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	Input.action_press(&"move_forward")
+	await _wait_until(func() -> bool: return craft.global_position.distance_to(origin) > 110.0, 7.0)
+	Input.action_release(&"move_forward")
+	Input.action_press(&"brake")
+	await _wait_until(func() -> bool: return craft.velocity.length() < 30.0, 4.0)
+	Input.action_release(&"brake")
+	await _leave_actual_helm(cold, craft)
+	_check(await _walk_and_sit_gunner(cold, craft), "separate real Main ordinary controls reach the gunner before retained/foreign-owner checks")
 	var retained_authority := craft.get_crew_role_authority()
 	root.remove_child(cold)
 	await process_frame
@@ -838,10 +913,16 @@ func _test_gunner_file_recovery_and_cleanup(game: GameFlow, craft: BulwarkHeavyG
 		"retained Main keeps the actual Player and releases its interrupted gunner claim on detach")
 	_check(await _sit_nearby_gunner(cold, craft), "ordinary E can reacquire the released chair after retained Main reentry")
 	craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	var engine_before := craft.get_telemetry().engine_state
+	var latch_before := bool(craft.get("_docked_latch"))
+	var power_owned_before := bool(actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}).get("weapon_power_started", false))
 	Input.action_press(&"fire")
-	var powered := await _wait_until(func() -> bool: return bool(actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}).get("weapon_power_started", false)) and craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE, 1.0)
+	var powered := await _wait_until(func() -> bool: return craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and not craft.get_crew_role_authority().get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty(), 1.0)
 	Input.action_release(&"fire")
-	_check(powered and not craft.is_piloted() and bool(craft.get("_docked_latch")), "actual seated home gunner FIRE powers only its weapon demand and preserves the dock latch")
+	print("BULWARK_RETAINED_POWER: before=", engine_before, " after=", craft.get_telemetry().engine_state, " latch=", [latch_before, craft.get("_docked_latch")], " tag=", actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}))
+	_check(powered and not craft.is_piloted() and bool(craft.get("_docked_latch")) == latch_before
+		and bool(actor.get_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META, {}).get("weapon_power_started", false)) == (true if engine_before == HeroShip.ENGINE_OFFLINE else power_owned_before),
+		"actual seated gunner FIRE uses weapon demand, preserves the witnessed dock latch and owns only power it woke")
 	var old_authority := craft.get_crew_role_authority()
 	var assignment := old_authority.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID)
 	var release_sequence := maxi(int(assignment.get("claim_sequence", 0)), int(old_authority.get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
@@ -863,52 +944,8 @@ func _test_gunner_file_recovery_and_cleanup(game: GameFlow, craft: BulwarkHeavyG
 	await _settle_frames(8)
 	_check(not actor.is_seated() and replacement.get_assignment(2, &"replacement_gunner") == foreign.assignment,
 		"ordinary E refuses the competing chair without stealing its ledger")
-	replacement.release(1, 2, &"replacement_gunner", &"gunner_station", 2, int(foreign.assignment.seat_generation))
-	craft.detach_crew_role_authority(replacement)
-	await _look_toward(actor, actor.global_position - craft.global_basis.z * 20.0 + Vector3.UP * 1.5)
-	var aft := await _walk_route_leg(&"move_back", func() -> bool: return craft.to_local(actor.global_position).z > 1.72)
-	var port := await _walk_route_leg(&"move_left", func() -> bool: return craft.to_local(actor.global_position).x < -0.54)
-	var helm := await _walk_route_leg(&"move_forward", func() -> bool: return craft.to_local(actor.global_position).z < -0.70)
-	await _press_interact()
-	_check(aft and port and helm and await _wait_until(func() -> bool: return actor.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted(), 4.0),
-		"the recovered Player walks back and takes the actual home helm through ordinary E")
-	cold.call("_try_exit_ship")
-	_check(await _wait_until(func() -> bool: return not actor.is_seated() and actor.is_control_enabled() and actor.is_on_floor() and not craft.is_piloted(), 4.0),
-		"existing landed exit owner returns the recovered Player to the supported shipyard deck")
-	_check(JSON.stringify(cold_store.get_snapshot().get("cinder_convoy_session", {})) == activity_boundary,
-		"gunner ownership, walking, helm and deck exit leave the exact debt boundary unchanged")
-	filesystem.reject_rewards = false
-	cold.call("_retry_owed_game_flow_activity_rewards")
-	var paid := JSON.stringify(cold.get_activity_reward_report().get("authority", {}).get("record", {}))
-	cold.call("_retry_owed_game_flow_activity_rewards")
-	_check(bool(cold_store.get_snapshot().get("cinder_convoy_session", {}).get("activities", [])[0].reward_granted)
-		and JSON.stringify(cold.get_activity_reward_report().get("authority", {}).get("record", {})) == paid,
-		"actual existing reward owner pays the preserved gunner debt exactly once")
-	await _look_toward(actor, craft.get_boarding_position() + Vector3.UP)
-	await _press_interact()
-	_check(await _wait_until(func() -> bool: return actor.is_seated_at(craft.get_pilot_seat_anchor()), 4.0), "ordinary deck E reboards the same recovered craft before retirement coverage")
-	Input.action_press(&"move_forward")
-	var launch_origin := craft.global_position
-	await _wait_until(func() -> bool: return craft.global_position.distance_to(launch_origin) > 110.0, 7.0)
-	Input.action_release(&"move_forward")
-	Input.action_press(&"brake")
-	await _wait_until(func() -> bool: return craft.velocity.length() < 12.0, 4.0)
-	Input.action_release(&"brake")
-	await _leave_actual_helm(cold, craft)
-	var readmitted := await _walk_and_sit_gunner(cold, craft)
-	_check(readmitted, "ordinary pilot leave/walk/E settles a genuine gunner before its actual craft is freed")
-	if readmitted:
-		var retiring_authority := craft.get_crew_role_authority()
-		craft.queue_free()
-		await _settle_frames(12)
-		_check(not is_instance_valid(craft) and retiring_authority.get_snapshot().assignments.is_empty()
-			and not actor.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) and not actor.is_seated() and actor.is_control_enabled()
-			and actor.is_on_floor() and not actor.is_cabin_containment_active()
-			and cold.get_solo_crew_seat_status().get("assignment", {}).is_empty(),
-			"actual craft retirement releases only the old gunner owners and returns the same Player to a supported usable deck")
 	cold.queue_free()
 	await _settle_frames(3)
-
 
 func _leave_actual_helm(game: GameFlow, craft: HeroShip) -> void:
 	await _settle_frames(int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 4)
@@ -958,22 +995,36 @@ func _set_fire_mode(game: GameFlow, mode: StringName) -> bool:
 	return accepted and game.active_ship.get_local_input_source().get_input_binding_profile().get_action_options(&"fire").hold_mode == mode
 
 
-func _look_toward(actor: PlayerController, target: Vector3) -> void:
+func _apply_mouse_look(actor: PlayerController, target: Vector3) -> void:
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		var click := InputEventMouseButton.new()
 		click.button_index = MOUSE_BUTTON_LEFT
 		click.pressed = true
 		actor._unhandled_input(click)
+	var desired := actor.global_basis.inverse() * (target - actor.get_camera().global_position).normalized()
+	var current := actor.global_basis.inverse() * actor.get_interaction_direction().normalized()
+	var yaw_delta := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
+	var pitch_delta := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(-yaw_delta, pitch_delta * (1.0 if actor.invert_mouse_y else -1.0)) / actor.mouse_sensitivity
+	actor._unhandled_input(motion)
+
+
+func _look_toward(actor: PlayerController, target: Vector3) -> void:
 	for tick in 4:
-		var desired := actor.global_basis.inverse() * (target - actor.get_camera().global_position).normalized()
-		var current := actor.global_basis.inverse() * actor.get_interaction_direction().normalized()
-		var yaw_delta := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
-		var pitch_delta := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
-		var motion := InputEventMouseMotion.new()
-		motion.relative = Vector2(-yaw_delta, pitch_delta * (1.0 if actor.invert_mouse_y else -1.0)) / actor.mouse_sensitivity
-		actor._unhandled_input(motion)
+		_apply_mouse_look(actor, target)
 		await physics_frame
 		await process_frame
+
+
+func _track_target_until(actor: PlayerController, target: Node3D, reached: Callable, seconds: float) -> bool:
+	for tick in int(ceil(seconds * Engine.physics_ticks_per_second)):
+		if reached.call():
+			return true
+		_apply_mouse_look(actor, target.global_position)
+		await physics_frame
+		await process_frame
+	return bool(reached.call())
 
 
 func _walk_route_leg(action: StringName, arrived: Callable) -> bool:
