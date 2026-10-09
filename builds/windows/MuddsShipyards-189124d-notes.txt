@@ -19,3 +19,5 @@ Checkpoint ZIP SHA256: 81a592d0a58fded268d352e6c71beadc3beca78cc4ba4a0e3ab3cbdc4
 The ZIP preserves immutable initial notes; publication status and ZIP hash are sidecar-only.
 Exact-source full regression remains RUNNING on owner42623, matrix158061, roster1031 at publication; no full PASS is claimed. The older exact3b4d684 full PASS qualifies only that source.
 Actual station-defence, engineer and scan OS-interruption remain NOT_RUN. This checkpoint has native Windows menu/beacon/mining acceptance; it does not inherit installed qualification from the older9ef installer or Linux package. Matching current-source installed/Linux, native GPU/controllers/audio/human/endurance, trusted signing and final-release gates remain open.
+
+Post-publication gameplay finding: normal staged Boot can leave the station-defence board unavailable at generation 0 because its one-shot binding ran before combat/activity owners were added. Three real Boot probe failures reproduce this before station deployment. The focused synchronous suites and native menu startup checks did not cover it. A shared-startup fix is in progress; these immutable EXE/ZIP bytes do not include it.
