@@ -36,6 +36,7 @@ const REQUIRED_CLIPS := [
 	"run",
 	"jump",
 	"airborne",
+	"landing_recovery",
 	"boarding",
 	"seated_control",
 	"disembark_recovery",
@@ -47,6 +48,7 @@ const REQUIRED_CLIP_DURATIONS := {
 	&"run": 0.56,
 	&"jump": 0.42,
 	&"airborne": 0.9,
+	&"landing_recovery": 0.34,
 	&"boarding": 1.1,
 	&"seated_control": 2.4,
 	&"disembark_recovery": 0.9,
@@ -211,9 +213,11 @@ func _run() -> void:
 	Input.action_press(&"move_forward")
 	var reached_walk := await _wait_for_motion_state(&"walk")
 	_check(reached_walk, "ordinary production input reaches authored walk")
-	# Sample contact A at the end of the first natural loop so the controller's
-	# normal locomotion crossfade has fully yielded to the imported walk cycle.
-	var contact_a_ready := await _wait_for_clip_phase(&"walk", 0.76, 0.035)
+	# Authored walk contacts are at 0/0.8 and 0.4 seconds, half a cycle apart.
+	# Wait until the end of the first loop to settle the production crossfade,
+	# then sample just before each contact within one physics tick. The previous
+	# broad 0.76/0.44 windows caught unequal loading phases instead of contacts.
+	var contact_a_ready := await _wait_for_clip_phase(&"walk", 0.79, 0.012)
 	_check(contact_a_ready, "walk naturally advances to the imported contact-A phase")
 	var contact_a_left := _get_bone_pose_rotation(&"thigh_l")
 	var contact_a_right := _get_bone_pose_rotation(&"thigh_r")
@@ -221,23 +225,25 @@ func _run() -> void:
 	await _capture_semantic_frame(
 		CAPTURE_FILES[1],
 		&"walk",
-		{"grounded": true, "contact": "A", "natural_phase_target_seconds": 0.76, "travel_facing": true}
+		{"grounded": true, "contact": "A", "natural_phase_target_seconds": 0.79, "travel_facing": true}
 	)
 
-	var contact_b_ready := await _wait_for_clip_phase(&"walk", 0.44, 0.035)
+	var contact_b_ready := await _wait_for_clip_phase(&"walk", 0.39, 0.012)
 	_check(contact_b_ready, "walk naturally advances to the imported contact-B phase")
 	var contact_b_left := _get_bone_pose_rotation(&"thigh_l")
 	var contact_b_right := _get_bone_pose_rotation(&"thigh_r")
+	var left_contact_delta := contact_a_left.angle_to(contact_b_left)
+	var right_contact_delta := contact_a_right.angle_to(contact_b_right)
+	print("PLAYER_MOTION_WALK_CONTACT_DELTAS: left=%.5f right=%.5f rad" % [left_contact_delta, right_contact_delta])
 	_check(
-		contact_a_left.angle_to(contact_b_left) > 0.65
-		and contact_a_right.angle_to(contact_b_right) > 0.65,
+		left_contact_delta > 0.65 and right_contact_delta > 0.65,
 		"walk contacts alternate both imported thigh bones without direct clip seeking"
 	)
 	_frame_character(_player.global_position, 50.0)
 	await _capture_semantic_frame(
 		CAPTURE_FILES[2],
 		&"walk",
-		{"grounded": true, "contact": "B", "natural_phase_target_seconds": 0.44, "travel_facing": true}
+		{"grounded": true, "contact": "B", "natural_phase_target_seconds": 0.39, "travel_facing": true}
 	)
 
 	Input.action_press(&"sprint_boost")
@@ -280,6 +286,12 @@ func _run() -> void:
 		{"grounded": false, "vertical_motion": "descending_midair", "minimum_root_height_m": 0.65}
 	)
 
+	var reached_landing := await _wait_for_motion_state(&"landing_recovery")
+	_check(
+		reached_landing and _player.is_on_floor()
+		and StringName(_motion_player.current_animation) == &"landing_recovery",
+		"physical jump impact selects the imported landing recovery before grounded idle"
+	)
 	var landed_idle := await _wait_for_grounded_idle()
 	_check(landed_idle, "jump lifecycle lands through the production CharacterBody state machine")
 	_player.set_control_enabled(false)
@@ -592,8 +604,8 @@ func _validate_authored_motion_contract() -> void:
 	var exact_clips := actual_clips.size() == REQUIRED_CLIPS.size()
 	for required_clip in REQUIRED_CLIPS:
 		exact_clips = exact_clips and _motion_library.has_animation(required_clip)
-	_check(exact_clips, "imported library contains exactly the required nine motion clips")
-	_check(int(audit.get("clip_count", 0)) == REQUIRED_CLIPS.size(), "motion audit reports exactly nine clips")
+	_check(exact_clips, "imported library contains exactly the required ten motion clips")
+	_check(int(audit.get("clip_count", 0)) == REQUIRED_CLIPS.size(), "motion audit reports exactly ten clips")
 	var imported_track_count := 0
 	for clip_name in REQUIRED_CLIPS:
 		var animation := _motion_library.get_animation(clip_name)
