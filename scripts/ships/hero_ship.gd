@@ -9385,11 +9385,16 @@ func _discard_pending_atmospheric_wind_drift() -> void:
 
 ## Only ships with an authored ordinary crew chair install this discovery area.
 func _install_solo_crew_seat() -> void:
-	if not is_inside_tree() or not has_method(&"get_gunner_station_role_contract"):
+	if not is_inside_tree():
 		return
-	var contract: Dictionary = call(&"get_gunner_station_role_contract")
+	var contract: Dictionary = {}
+	if has_method(&"get_gunner_station_role_contract"):
+		contract = call(&"get_gunner_station_role_contract")
+	elif has_method(&"get_engineer_station_role_contract"):
+		contract = call(&"get_engineer_station_role_contract")
 	var anchor := contract.get("seat") as Marker3D
-	if is_instance_valid(anchor) and anchor.get_node_or_null("SoloGunnerSeatInteraction") == null:
+	var interaction_name := "Solo%sSeatInteraction" % String(contract.get("role", &"")).capitalize()
+	if is_instance_valid(anchor) and anchor.get_node_or_null(interaction_name) == null:
 		preload("res://scripts/interaction/ship_crew_seat.gd").install(anchor, self)
 
 

@@ -3620,7 +3620,7 @@ func _solo_safe_recovery_craft() -> HeroShip:
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if area == null or not area.is_available_for(player):
 		return null
-	if context.mode == "crew" and craft is not HalyardCrewTransport and craft.get_ship_id() != BULWARK_SHIP_ID:
+	if context.mode == "crew" and craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID]:
 		return null
 	if context.mode in ["cabin", "rest", "crew"] and _solo_safe_recovery_cabin(craft).is_empty():
 		return null
@@ -8468,6 +8468,23 @@ func _consume_cinder_bomber_fire_pressed() -> Dictionary:
 ## an InputEventAction directly. Real physical keys/buttons are sampled only by
 ## LocalShipInputSource; this method queues synthetic edges into that same
 ## authority stream and never mutates ship lifecycle state itself.
+## HeroShip receives wheel events only while piloted. An exact local engineer
+## instead queues them into that same retained producer before Player zoom.
+func _input(event: InputEvent) -> void:
+	if _solo_crew_role != &"engineer" or not _solo_gunner_source_is_current() \
+			or not event is InputEventMouseButton or not (event as InputEventMouseButton).pressed:
+		return
+	var button := event as InputEventMouseButton
+	if button.button_index not in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		return
+	# A remapped wheel binding is already sampled by InputMap; never enqueue
+	# the same physical click a second time in the source's step backlog.
+	if not event.is_action(_solo_gunner_source.camera_distance_in_action) \
+			and not event.is_action(_solo_gunner_source.camera_distance_out_action):
+		_solo_gunner_source.queue_camera_distance_delta(-1.0 if button.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0)
+	get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if (
 		not _piloting
@@ -9114,7 +9131,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	var craft := seat.get_ship()
 	var contract := seat.get_role_contract()
 	if not is_instance_valid(craft) or craft not in ships or not craft.is_boardable() \
-			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID] \
+			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID] \
 			or contract.is_empty() or contract.get("seat") != seat.get_seat_anchor() \
 			or (phase == Phase.IN_FLIGHT_CABIN and craft != _cabin_ship) \
 			or player.get_interaction_origin().distance_to(seat.global_position) > STATION_SEAT_MAX_REACH \
@@ -9141,7 +9158,13 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 		return
 	if _solo_crew_authority == null:
 		_solo_crew_authority = CrewSeatRoleAuthority.new(1)
-		var roster: Dictionary = _solo_crew_authority.register_halyard_roster() if craft is HalyardCrewTransport else _solo_crew_authority.register_bulwark_roster()
+		var roster: Dictionary
+		if craft is HalyardCrewTransport:
+			roster = _solo_crew_authority.register_halyard_roster()
+		elif craft is JovianLightFreighter:
+			roster = _solo_crew_authority.register_jovian_roster()
+		else:
+			roster = _solo_crew_authority.register_bulwark_roster()
 		if not bool(roster.get("accepted", false)) \
 				or not bool((craft.call(&"attach_crew_role_authority", _solo_crew_authority) as Dictionary).get("accepted", false)):
 			_solo_crew_authority = null
@@ -9217,6 +9240,7 @@ func _stand_from_solo_crew_seat() -> void:
 		return
 	var seat := _solo_crew_seat
 	var craft := _solo_crew_ship
+	var owner := _solo_crew_authority
 	_reset_solo_gunner_input()
 	_transition_busy = true
 	var generation := _begin_transition_generation()
@@ -9225,6 +9249,13 @@ func _stand_from_solo_crew_seat() -> void:
 		player.set_station_seated_context(true)
 		_transition_busy = false
 		return
+	# Stop this engineer's timed work as soon as standing is accepted. The
+	# existing physical frame/tag remain until the disembark animation finishes.
+	if _solo_crew_role == &"engineer" and is_instance_valid(craft) \
+			and craft.call(&"get_crew_role_authority") == owner:
+		var prior := owner.get_last_intent(1, SOLO_CREW_AVATAR_ID)
+		_solo_crew_sequence = maxi(_solo_crew_sequence, int(prior.get("request_sequence", 0))) + 1
+		craft.call(&"release_crew_role", 1, 1, SOLO_CREW_AVATAR_ID, _solo_crew_seat_id, _solo_crew_sequence, _solo_crew_seat_generation)
 	await player.disembarking_completed
 	if generation != _transition_generation:
 		return
@@ -9326,7 +9357,8 @@ func _cancel_solo_crew_seat() -> void:
 
 
 ## The retained local producer samples once per physics tick. Only transformed
-## FIRE is consumed here; flight and GameFlow edges never leave this crew lane.
+## FIRE and engineer component-selection steps are consumed here; flight and
+## GameFlow edges never leave this crew lane.
 func _update_solo_gunner_input(delta: float) -> void:
 	if not _solo_gunner_input_is_available():
 		_reset_solo_gunner_input()
@@ -9350,6 +9382,9 @@ func _update_solo_gunner_input(delta: float) -> void:
 	_solo_gunner_source_stream = source.get_stream_id()
 	_solo_gunner_source_profile = source.get_input_profile_generation()
 	_solo_gunner_fire = command.fire
+	if _solo_crew_role == &"engineer":
+		_update_solo_engineer_input(command)
+		return
 	if not _solo_gunner_fire:
 		_solo_gunner_input_elapsed = 0.0
 		return
@@ -9359,8 +9394,57 @@ func _update_solo_gunner_input(delta: float) -> void:
 		_submit_solo_gunner_fire()
 
 
+## The existing local stream's camera-distance controls become component
+## selection only for this exact seated engineer. No ship command is applied.
+func _update_solo_engineer_input(command: ShipCommand) -> void:
+	var craft := _solo_crew_ship as JovianLightFreighter
+	if craft == null or not _solo_gunner_source_is_current():
+		return
+	var model := craft.get_component_damage()
+	var state := craft.get_engineer_gameplay_state()
+	var selected := StringName((state.selection as Dictionary).get("component_id", &""))
+	var damaged: Array[StringName] = []
+	for component_id: StringName in model.COMPONENT_ORDER:
+		if model.get_component_integrity(component_id) < 1.0:
+			damaged.append(component_id)
+	if not damaged.is_empty() and ((selected not in damaged and not bool((state.repair as Dictionary).get("active", false))) or not is_zero_approx(command.camera_distance_delta)):
+		var index := damaged.find(selected)
+		if index < 0:
+			index = 0
+		elif not is_zero_approx(command.camera_distance_delta):
+			index = posmod(index + (1 if command.camera_distance_delta > 0.0 else -1), damaged.size())
+		selected = damaged[index]
+		_submit_solo_engineer_intent(selected, 0.0, int(state.component_generation))
+		state = craft.get_engineer_gameplay_state()
+	if command.fire and selected in damaged and bool(state.repair_ready):
+		_submit_solo_engineer_intent(selected, 0.2, int(state.component_generation))
+	var repair := craft.get_engineer_repair_state()
+	var has_target := selected in damaged or (not selected.is_empty() and bool(repair.active))
+	var target := String(selected).replace("_", " ").capitalize() if has_target else "No damaged components"
+	var integrity := model.get_component_integrity(selected) if has_target else 1.0
+	var condition := "BERTH REQUIRED" if not bool(craft.get_telemetry().get("landed", false)) else String(repair.get("status", &"idle")).to_upper()
+	hud.set_objective("Engineer // %s %d%% // KITS %d/6 // %s // cooldown %.1fs\nSelect component: wheel or [%s / %s] // Repair [%s] // stand to walk the cabin or take the pilot seat" % [
+		target, roundi(integrity * 100.0), int(repair.resource_units), condition, float(repair.cooldown_remaining),
+		hud.call(&"_action_bindings_text", _solo_gunner_source.camera_distance_in_action),
+		hud.call(&"_action_bindings_text", _solo_gunner_source.camera_distance_out_action),
+		hud.call(&"_action_bindings_text", _solo_gunner_source.fire_action),
+	])
+
+
+func _submit_solo_engineer_intent(component_id: StringName, repair: float, component_generation: int) -> Dictionary:
+	if _solo_crew_role != &"engineer" or not _solo_gunner_source_is_current() \
+			or _solo_gunner_source.get_stream_id() != _solo_gunner_source_stream \
+			or _solo_gunner_source.get_input_profile_generation() != _solo_gunner_source_profile:
+		return {"accepted": false, "status": &"engineer_not_seated"}
+	var prior := _solo_crew_authority.get_last_intent(1, SOLO_CREW_AVATAR_ID)
+	_solo_crew_sequence = maxi(_solo_crew_sequence, int(prior.get("request_sequence", 0))) + 1
+	return _solo_crew_ship.call(&"submit_crew_intent", 1, 1, SOLO_CREW_AVATAR_ID, CrewSeatRoleAuthority.ACTION_ENGINEER_REPAIR, {
+		"system_id": component_id, "repair": repair, "system_generation": component_generation,
+	}, _solo_crew_sequence)
+
+
 func _solo_gunner_input_is_available() -> bool:
-	if _transition_busy or not _station_seated or _solo_crew_role != &"gunner" \
+	if _transition_busy or not _station_seated or _solo_crew_role not in [&"gunner", &"engineer"] \
 			or _network_session_is_live() or get_tree().paused or not can_process() \
 			or not player.is_control_enabled() or not _solo_crew_claim_is_current() \
 			or _solo_crew_ship.is_piloted():

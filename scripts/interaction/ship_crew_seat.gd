@@ -13,14 +13,14 @@ static func install(anchor: Marker3D, ship: HeroShip) -> ShipCrewSeat:
 	var seat := ShipCrewSeat.new()
 	seat._ship = ship
 	seat._anchor = anchor
-	var contract: Dictionary = ship.call(&"get_passenger_station_role_contract") if ship.has_method(&"get_passenger_station_role_contract") else ship.call(&"get_gunner_station_role_contract")
+	var contract := _contract_for_ship(ship)
 	if contract.get("seat") != anchor or contract.get("vessel_id") != ship.get_ship_id() \
-			or StringName(contract.get("seat_id", &"")).is_empty() or contract.get("role") not in [&"passenger", &"gunner"]:
+			or StringName(contract.get("seat_id", &"")).is_empty() or contract.get("role") not in [&"passenger", &"gunner", &"engineer"]:
 		seat.free()
 		return null
 	seat._seat_id = contract.seat_id
 	seat._role = contract.role
-	seat.name = "SoloPassengerSeatInteraction" if seat._role == &"passenger" else "SoloGunnerSeatInteraction"
+	seat.name = "Solo%sSeatInteraction" % String(seat._role).capitalize()
 	anchor.add_child(seat)
 	seat.position = Vector3.UP * 1.2
 	var collision := CollisionShape3D.new()
@@ -44,17 +44,13 @@ func get_role_contract() -> Dictionary:
 			or not is_instance_valid(_anchor) or not _anchor.is_inside_tree() \
 			or _anchor.is_queued_for_deletion() or not _ship.is_ancestor_of(_anchor):
 		return {}
-	var contract: Dictionary = {}
-	if _ship.has_method(&"get_passenger_station_role_contract"):
-		contract = _ship.call(&"get_passenger_station_role_contract")
-	elif _ship.has_method(&"get_gunner_station_role_contract"):
-		contract = _ship.call(&"get_gunner_station_role_contract")
+	var contract := _contract_for_ship(_ship)
 	var frame := contract.get("frame") as MovingInteriorFrame
 	var entry: Variant = contract.get("entry_transform")
 	var exit_pose: Variant = contract.get("exit_transform")
 	if contract.get("vessel_id") != _ship.get_ship_id() or contract.get("seat") != _anchor \
 			or StringName(contract.get("seat_id", &"")).is_empty() \
-			or contract.get("role") not in [&"passenger", &"gunner"] \
+			or contract.get("role") not in [&"passenger", &"gunner", &"engineer"] \
 			or (_seat_id != &"" and contract.get("seat_id") != _seat_id) \
 			or (_role != &"" and contract.get("role") != _role) \
 			or not is_instance_valid(frame) or not frame.is_inside_tree() or frame.is_queued_for_deletion() \
@@ -111,3 +107,10 @@ func get_seated_prompt() -> String:
 func interact(_actor: Node = null) -> bool:
 	# Main intercepts this typed discovery component before generic interactions.
 	return false
+
+
+static func _contract_for_ship(ship: HeroShip) -> Dictionary:
+	for method: StringName in [&"get_passenger_station_role_contract", &"get_gunner_station_role_contract", &"get_engineer_station_role_contract"]:
+		if ship.has_method(method):
+			return ship.call(method)
+	return {}

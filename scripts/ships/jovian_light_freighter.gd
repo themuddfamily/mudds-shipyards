@@ -900,6 +900,17 @@ func get_engineer_seat_anchor() -> Marker3D:
 	return null
 
 
+## The unchanged port chair faces the central aisle. Boarding and standing
+## begin beside it on the full standing capsule's supported passenger deck.
+func get_engineer_station_role_contract() -> Dictionary:
+	var approach := global_transform * Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-1.35, 0.60, -5.25))
+	return {
+		"vessel_id": get_ship_id(), "seat_id": ENGINEER_SEAT_ID, "role": &"engineer",
+		"seat": get_engineer_seat_anchor(), "frame": get_moving_interior_component(),
+		"entry_transform": approach, "exit_transform": approach,
+	}
+
+
 ## Physical cockpit-side station for the freighter's optional navigation
 ## support role. The role ledger remains caller-owned; this anchor only names
 ## the seat that may submit navigation-route receipts.
@@ -949,6 +960,16 @@ func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:
 
 func get_crew_role_authority() -> CrewSeatRoleAuthority:
 	return _crew_role_authority
+
+
+## Only the exact empty ledger may detach; retiring its work retains the kit budget.
+func detach_crew_role_authority(authority: CrewSeatRoleAuthority) -> bool:
+	if authority == null or _crew_role_authority != authority or not authority.get_snapshot().get("assignments", []).is_empty():
+		return false
+	_clear_engineer_component_selection(&"authority_detached")
+	_clear_copilot_navigation_state(&"authority_detached")
+	_crew_role_authority = null
+	return true
 
 
 ## Admits one engineer receipt and routes it to ShipComponentDamage's existing
@@ -1405,7 +1426,8 @@ func _engineer_repair_interruption_reason() -> StringName:
 		StringName(_engineer_component_selection.get("avatar_id", &""))
 	)
 	if StringName(assignment.get("role", &"")) != CrewRoleGameplayProfileType.ROLE_ENGINEER \
-			or StringName(assignment.get("seat_id", &"")) != ENGINEER_SEAT_ID:
+			or StringName(assignment.get("seat_id", &"")) != ENGINEER_SEAT_ID \
+			or int(assignment.get("seat_generation", 0)) != int(_engineer_component_selection.get("seat_generation", 0)):
 		return &"engineer_seat_lost"
 	var model := get_component_damage()
 	if model == null \

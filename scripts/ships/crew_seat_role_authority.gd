@@ -119,6 +119,23 @@ func register_bulwark_roster() -> Dictionary:
 	return seal_roster()
 
 
+## The existing Jovian fixture roster, including its actual port engineer chair.
+func register_jovian_roster() -> Dictionary:
+	if _roster_sealed:
+		return _remember(_result(false, &"roster_sealed"))
+	for record in [
+		_seat_record(&"pilot_station", &"pilot_seat_anchor", ROLE_PILOT),
+		_seat_record(&"passenger_port_01", &"passenger_port_01", ROLE_ENGINEER),
+		_seat_record(&"co_pilot_station", &"co_pilot_station", ROLE_PASSENGER),
+		_seat_record(&"passenger_port_00", &"passenger_port_00", ROLE_PASSENGER),
+		_seat_record(&"freight_defense_slot", &"", ROLE_GUNNER),
+	]:
+		var registered := register_seat(record.seat_id, &"jovian_provisional", record.role, &"jovian_walkable_interior", 1, record.anchor_id)
+		if not bool(registered.get("accepted", false)):
+			return registered
+	return seal_roster()
+
+
 ## The ship/session coordinator owns the roster boundary. Once sealed, a late
 ## or duplicate marker cannot silently become an authoritative seat.
 func seal_roster() -> Dictionary:
