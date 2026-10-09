@@ -99,6 +99,9 @@ var _entity_status := ConvoyEscortActivity.EntityStatus.ACTIVE
 var _next_route_index := 0
 var _movement_distance := 0.0
 var _movement_backlog := 0.0
+var _movement_anchor_position := Vector3.ZERO
+var _movement_anchor_distance := 0.0
+var _movement_anchor_route_index := -1
 var _physics_tick_count := 0
 var _sample_publication_count := 0
 var _has_escort_sample := false
@@ -168,6 +171,7 @@ func start(expected_generation: int) -> Dictionary:
 	_next_route_index = 0
 	_movement_distance = 0.0
 	_movement_backlog = 0.0
+	_movement_anchor_route_index = -1
 	_physics_tick_count = 0
 	_sample_publication_count = 0
 	_has_escort_sample = false
@@ -255,12 +259,20 @@ func advance_physics(
 	# than manufacturing center-only samples that cannot be reconstructed later.
 	if remaining > 0.0 and _next_route_index < ROUTE.get_checkpoint_count():
 		var target := ROUTE.get_checkpoint_position(_next_route_index)
+		if _movement_anchor_route_index != _next_route_index:
+			_movement_anchor_position = _convoy_entity.position
+			_movement_anchor_distance = _movement_distance
+			_movement_anchor_route_index = _next_route_index
 		var distance_to_target := _convoy_entity.position.distance_to(target)
 		if distance_to_target > ROUTE_CENTER_REACH_TOLERANCE:
 			var step := minf(remaining, distance_to_target)
-			var direction := (target - _convoy_entity.position) / distance_to_target
-			_set_entity_position(_convoy_entity.position + direction * step)
 			_movement_distance += step
+			# Repeated Vector3 additions accumulate float32 drift away from the
+			# double-precision travel ledger. Recompute from this actual leg's
+			# opening position so ordinary 60 Hz travel retains its route witness.
+			_set_entity_position(_movement_anchor_position.move_toward(
+				target, _movement_distance - _movement_anchor_distance
+			))
 			remaining -= step
 			_orient_toward_route_index(_next_route_index)
 			if step >= distance_to_target - ROUTE_CENTER_REACH_TOLERANCE:
@@ -379,6 +391,7 @@ func _publish_typed_reset(expected_generation: int) -> Dictionary:
 	_next_route_index = 0
 	_movement_distance = 0.0
 	_movement_backlog = 0.0
+	_movement_anchor_route_index = -1
 	_physics_tick_count = 0
 	_sample_publication_count = 0
 	_has_escort_sample = false
@@ -649,6 +662,8 @@ func restore_persistence_state(candidate: Variant, expected_generation: int) -> 
 	_next_route_index = int(saved.next_route_index)
 	_movement_distance = float(saved.movement_distance)
 	_movement_backlog = float(saved.movement_backlog)
+	# Resume from the exact retained local position; no past route is rewritten.
+	_movement_anchor_route_index = -1
 	_physics_tick_count = int(saved.physics_tick_count)
 	_sample_publication_count = int(saved.sample_publication_count)
 	_has_escort_sample = bool(saved.has_escort_sample)

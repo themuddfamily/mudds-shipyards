@@ -1010,6 +1010,7 @@ func _prepare_convoy_craft(game: GameFlow) -> HeroShip:
 
 func _exercise_failed_clock_witnesses() -> void:
 	await _exercise_separation_clock_rounding()
+	await _exercise_natural_route_rounding()
 	for scenario in ["reported", "separation", "timeout", "separation_after_tick", "timeout_after_tick"]:
 		var host := CinderConvoyEscortHost.new()
 		root.add_child(host)
@@ -1120,6 +1121,95 @@ func _exercise_separation_clock_rounding() -> void:
 		and bool(first_far.validate_persistence_state(first_far_state).accepted),
 		"a genuine first separated final clock also accepts its tiny negative reconstructed prior")
 	first_far.free()
+
+
+func _exercise_natural_route_rounding() -> void:
+	for scenario in ["fresh", "reuse", "cold_resume"]:
+		var frame := Node3D.new()
+		root.add_child(frame)
+		var host := CinderConvoyEscortHost.new()
+		frame.add_child(host)
+		host.start(0)
+		if scenario == "reuse":
+			for _tick in 212:
+				host.advance_physics(1.0 / 60.0, host.get_snapshot().entity_position as Vector3,
+					host.get_generation())
+			host.report_convoy_lost(host.get_generation())
+			var previous_epoch := int(host.get_snapshot().entity_generation)
+			var reset := host.reset(host.get_generation())
+			var restarted := host.start(host.get_generation())
+			_check(bool(reset.accepted) and bool(restarted.accepted)
+				and int(host.get_snapshot().entity_generation) == previous_epoch + 1,
+				"a genuine failed convoy resets and starts the next route generation")
+		for _tick in 126:
+			host.advance_physics(1.0 / 60.0, host.get_snapshot().entity_position as Vector3,
+				host.get_generation())
+		var path := "user://convoy-route-rounding-%s-%d.json" % [scenario, Time.get_ticks_usec()]
+		var store := Store.new(path) as UserDataStore
+		store.load()
+		var codec := SessionPersistence.new()
+		codec.configure(store, SLOT)
+		_check(bool(codec.save(host, &"torrent", "natural-route-active").accepted),
+			"natural 60 Hz route progress saves its actual ACTIVE owner: %s" % scenario)
+		if scenario == "cold_resume":
+			var retained := host.capture_persistence_state()
+			var resumed := CinderConvoyEscortHost.new()
+			frame.add_child(resumed)
+			store = Store.new(path) as UserDataStore
+			codec = SessionPersistence.new()
+			codec.configure(store, SLOT)
+			var loaded := codec.load(resumed)
+			var adopted := resumed.restore_persistence_state(
+				(loaded.get("session_state", {}) as Dictionary).get("host_state", {}), 0)
+			_check(bool(loaded.accepted) and bool(adopted.accepted)
+				and _canonical(resumed.capture_persistence_state()) == _canonical(retained),
+				"cold route resume adopts the exact retained position and ledgers before movement")
+			host.free()
+			host = resumed
+		# Route motion is local to the host's common world frame. Moving or
+		# rotating its parent must not invalidate a retained leg or its witness.
+		frame.position = Vector3(8000.0, -2000.0, 4096.0)
+		frame.rotation.y = PI * 0.25
+		for _tick in 86:
+			host.advance_physics(1.0 / 60.0, host.get_snapshot().entity_position as Vector3,
+				host.get_generation())
+		host.report_convoy_lost(host.get_generation())
+		var failed := host.capture_persistence_state()
+		var replay := host.call("_best_route_replay", float(failed.movement_distance),
+			_decoded_position(failed.entity_position), int(failed.next_route_index),
+			int(failed.physics_tick_count)) as Dictionary
+		var saved := codec.save(host, &"torrent", "natural-route-failed")
+		var restored := CinderConvoyEscortHost.new()
+		frame.add_child(restored)
+		var fresh_codec := SessionPersistence.new()
+		fresh_codec.configure(Store.new(path), SLOT)
+		var loaded := fresh_codec.load(restored)
+		var adopted := restored.restore_persistence_state(
+			(loaded.get("session_state", {}) as Dictionary).get("host_state", {}), 0)
+		_check(int(failed.physics_tick_count) == 212 and int(failed.sample_publication_count) == 425
+			and is_equal_approx(float(failed.movement_distance), 84.8)
+			and failed.activity_state.terminal_reason == "convoy_reported_lost"
+			and sqrt(float(replay.get("error", INF))) < 0.0001
+			and bool(saved.accepted) and bool(loaded.accepted) and bool(adopted.accepted)
+			and _canonical(restored.capture_persistence_state()) == _canonical(failed),
+			"natural reported loss stays within the unchanged route witness and round-trips exact FAILED: %s" % scenario)
+		var forged_position := failed.duplicate(true)
+		var shifted := _decoded_position(failed.entity_position) + Vector3(0.0, 0.01, 0.0)
+		var encoded := {"x": shifted.x, "y": shifted.y, "z": shifted.z}
+		forged_position.entity_position = encoded.duplicate()
+		forged_position.last_entity_position = encoded.duplicate()
+		forged_position.activity_state.convoy_position = encoded.duplicate()
+		forged_position.activity_state.escort_distance = shifted.distance_to(
+			_decoded_position(forged_position.activity_state.escort_position))
+		var refused_position := host.validate_persistence_state(forged_position)
+		var forged_counter := failed.duplicate(true)
+		forged_counter.sample_publication_count = int(forged_counter.sample_publication_count) + 1
+		forged_counter.activity_state.sample_count = forged_counter.sample_publication_count
+		var refused_counter := host.validate_persistence_state(forged_counter)
+		_check(not bool(refused_position.accepted) and refused_position.reason == &"convoy_route_progress_mismatch"
+			and not bool(refused_counter.accepted) and refused_counter.reason == &"convoy_failure_publication_mismatch",
+			"natural-route repair still refuses coherently shifted geometry and forged publications: %s" % scenario)
+		frame.free()
 
 
 func _total_receipts(game: GameFlow) -> int:
