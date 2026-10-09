@@ -1,0 +1,21 @@
+{
+  "architecture": "x86_64",
+  "binary": {
+    "bytes": 141979560,
+    "path": "/tmp/mudds-linux-b67032f/builds/linux/MuddsShipyards-b67032f.x86_64",
+    "sha256": "767436877485543133d3d2b4e3d7417052e44fbc5a15ed4b9244d7d40b73c36e"
+  },
+  "godot_version": "4.7.1.stable.official.a13da4feb",
+  "platform": "linux",
+  "preset": "Linux",
+  "schema_version": 1,
+  "signing": "unsigned",
+  "source_commit": "b67032fa20481e021bb99849f5759b52ce465a9d",
+  "startup_check": "NOT_RUN",
+  "tarball": {
+    "bytes": 93163474,
+    "path": "/tmp/mudds-linux-b67032f/builds/linux/MuddsShipyards-b67032f-linux-x86_64.tar.gz",
+    "sha256": "7454697c6e8fecaf9ecd5ed00e874ddd30da847998f5f5e2545a8b376de138cf"
+  },
+  "tarball_root": "MuddsShipyards-b67032f"
+}

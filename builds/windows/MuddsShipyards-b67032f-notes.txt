@@ -1,0 +1,17 @@
+Mudds Shipyards — multiplayer Bulwark gunner checkpoint
+Source: b67032fa20481e021bb99849f5759b52ce465a9d
+EXE SHA256: ca57e0ad0f2029fb954567f4e4ca2c60d9d2bd86c262159daa5248bcf158a5ad
+EXE bytes: 177737848
+
+A connected crew member can board the Bulwark, walk to its gunner chair, charge and fire the real heavy weapon using ordinary remappable controls, stand, reseat and recover assignment after host migration. The host owns role and weapon authority. Powered charging disconnect clears the remote assignment and charge. Existing solo Bulwark and multiplayer engineer routes remain exercised.
+
+Clean import and safe Windows export exit 0. Fresh sequential gunner source72/PCK75 checks pass, exact-PCK engineer67 passes; actual parent/host/client OS exits all0 and all observed actors absent. Each PCK peer route verifies three exact package-load guards. Source adapter94 and migration33 pass. Exact-PCK solo Bulwark95 and Main session diagnostics/marker41 pass. Additional mistakenly selected minimap marker fixture12 also passed. Strict Linux/embedded-PCK startup exit0, exactly one STARTUP_MENU_READY_OK, mouse-free during load. AMD64 PE and embedded PCK1490-entry inventory verified. Complete source and import-cache before/after manifests are emitted and match; executable unchanged. ZIP CRC, inner executable and immutable initial notes parity checked.
+
+Retained failures: prior frozen1900618 source gunner71/4 failed chair reuse after migration and powered charge disconnect checks; cause remains unexplained. Prior Linux42/1 torn peer receipt is retained. This candidate replaces peer receipt writes atomically and waits for supported reseat readiness. Correction retained: the first draft incorrectly called the minimap12 fixture marker41. The actual requested Main session diagnostics fixture subsequently passed41; the incorrect preliminary report and draft archive are retained. Its fresh-profile authored-settings warning is retained.
+
+Two local packaging helper attempts failed before actors launched (190 pre-export absent EXE; b670 nested log path); both retained separately.
+
+Native Windows menu: HELD_NOT_RUN pending fresh root authorization for these exact bytes. Native graphical/network gameplay, native GPU/performance, human/controller/audio play, endurance, signing, installed-game checks and full-current/release qualification remain NOT_RUN. Xvfb/software-renderer results qualify only those environments. Root alone publishes.
+
+Publication acceptance: exact checkpoint published in builds/windows/. Fresh native Windows MENU ONLY now PASS after initial packaging: actual exit0/reaped, exactly one parsed STARTUP_MENU_READY_OK, mouse_free_during_load=true, diagnostics0/warnings0. Private GUID root removed; root independent final CIM query exits0, owned actors0, recorded parent62400/child157096 absent; fresh authority released. Initial ZIP notes retain the earlier HELD_NOT_RUN state and remain immutable. ZIP SHA256: d57efffc84bda8a1b3d578cb7998cfb7483f6790e1ea2049cf51065c6118afe8.
+The first preliminary marker mapping ran minimap12 instead of required Main session diagnostics41; corrected actual41 passes separately. Original draft ZIP/notes and helper failures retained. Earlier source190 gunner failure remains unexplained. Native graphical/network gameplay, GPU, physical controls, human/audio review, installed recovery, endurance, complete current regression, trusted signing and final release remain NOT_RUN.
