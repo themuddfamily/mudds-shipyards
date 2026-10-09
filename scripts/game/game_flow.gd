@@ -18929,6 +18929,11 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 					"structure_scan", {}
 				) as Dictionary
 			)
+			if bool(scan.get("persistence_retry_available", false)):
+				var saved := binding.call(&"retry_structure_scan_discovery_persistence") as Dictionary
+				_last_cinder_structure_scan_reward_result = saved.duplicate(true)
+				_present_cinder_structure_scan_completion(saved)
+				return saved
 			if (
 				StringName(scan.get("state_id", &"")) == &"complete"
 				and int(scan.get("generation", 0)) > 0

@@ -1554,6 +1554,8 @@ func get_structure_scan_reward_handoff_snapshot() -> Dictionary:
 func start_structure_scan(caller_position: Vector3) -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
+	if _has_pending_structure_scan_discovery():
+		return _result(false, &"scan_discovery_save_pending")
 	var result: Dictionary = _scan_activity.call("start", caller_position)
 	if bool(result.get("accepted", false)):
 		_clear_structure_scan_feedback()
@@ -1617,7 +1619,9 @@ func request_structure_scan_reward() -> Dictionary:
 		or bool(before.get("reward_requested", false))
 	):
 		var preflight := _scan_activity.call("request_reward") as Dictionary
-		_last_structure_scan_reward_result = preflight.duplicate(true)
+		# A duplicate must retain the paid terminal request needed by save retry.
+		if StringName(preflight.get("reason", &"")) != &"reward_already_requested":
+			_last_structure_scan_reward_result = preflight.duplicate(true)
 		_publish_structure_scan_presentation()
 		_cinder_field_audio.present_reward_result(preflight)
 		return preflight
@@ -1653,17 +1657,51 @@ func request_structure_scan_reward() -> Dictionary:
 	if not authority_result.is_empty():
 		result["authority_result"] = authority_result.duplicate(true)
 		result["reward_committed"] = bool(authority_result.get("granted", false))
-	_last_structure_scan_reward_result = result.duplicate(true)
 	if bool(result.get("accepted", false)):
-		_persist_structure_scan_discovery(result)
+		var persisted := _persist_structure_scan_discovery(result)
+		result["persistence_result"] = persisted.duplicate(true)
+		result["discovery_persisted"] = bool(persisted.get("accepted", false))
+		_last_structure_scan_reward_result = result.duplicate(true)
+	elif StringName(result.get("reason", &"")) != &"reward_already_requested":
+		_last_structure_scan_reward_result = result.duplicate(true)
 	_publish_structure_scan_presentation()
 	_cinder_field_audio.present_reward_result(result)
 	return result
 
 
+## Retry the exact completed scan receipt, without replaying the paid handoff.
+func retry_structure_scan_discovery_persistence() -> Dictionary:
+	if not _has_pending_structure_scan_discovery():
+		return _result(false, &"scan_discovery_retry_unavailable")
+	var persisted := _persist_structure_scan_discovery(_last_structure_scan_reward_result)
+	_last_structure_scan_reward_result["persistence_result"] = persisted.duplicate(true)
+	_last_structure_scan_reward_result["discovery_persisted"] = bool(persisted.get("accepted", false))
+	_publish_structure_scan_presentation()
+	var result := _last_structure_scan_reward_result.duplicate(true)
+	result["accepted"] = bool(persisted.get("accepted", false))
+	result["reason"] = persisted.get("reason", &"scan_discovery_save_rejected")
+	return result
+
+
+func _has_pending_structure_scan_discovery() -> bool:
+	if _scan_activity == null or _scan_discovery_persistence == null:
+		return false
+	var snapshot := _scan_activity.call("get_snapshot") as Dictionary
+	var request := _last_structure_scan_reward_result.get("reward_request", {}) as Dictionary
+	return (
+		int(snapshot.get("state", -1)) == SCAN_ACTIVITY.State.COMPLETE
+		and bool(snapshot.get("reward_requested", false))
+		and bool(_last_structure_scan_reward_result.get("accepted", false))
+		and not bool(_last_structure_scan_reward_result.get("discovery_persisted", false))
+		and int(request.get("generation", -1)) == int(snapshot.get("generation", 0))
+	)
+
+
 func reset_structure_scan() -> Dictionary:
 	if _scan_activity == null:
 		return _result(false, &"not_ready")
+	if _has_pending_structure_scan_discovery():
+		return _result(false, &"scan_discovery_save_pending")
 	var result: Dictionary = _scan_activity.call("reset")
 	_clear_structure_scan_feedback()
 	_last_structure_scan_reward_result.clear()
@@ -1734,9 +1772,9 @@ func get_cinder_scan_discovery_persistence_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
-func _persist_structure_scan_discovery(reward_result: Dictionary) -> void:
+func _persist_structure_scan_discovery(reward_result: Dictionary) -> Dictionary:
 	if _scan_discovery_persistence == null:
-		return
+		return _result(false, &"scan_discovery_persistence_unavailable")
 	var scan := _scan_activity.call("get_snapshot") as Dictionary
 	var commit_id := "cinder-scan-discovery-%010d" % (
 		int(_scan_discovery_persistence.call(&"get_store_generation")) + 1
@@ -1758,6 +1796,7 @@ func _persist_structure_scan_discovery(reward_result: Dictionary) -> void:
 				"replay_allowed": false,
 			},
 		}.duplicate(true)
+	return _last_scan_discovery_persistence_result.duplicate(true)
 
 
 func configure_beacon_traversal_reward_handoff(reward_sink: Callable) -> Dictionary:
@@ -2562,6 +2601,8 @@ func _structure_scan_presentation_snapshot() -> Dictionary:
 	):
 		_clear_structure_scan_feedback()
 	snapshot["presentation_reason"] = _last_structure_scan_feedback_reason
+	if _has_pending_structure_scan_discovery():
+		snapshot["persistence_retry_available"] = true
 	var reward_result_matches := (
 		int(_last_structure_scan_reward_result.get("generation", -1)) == generation
 	)

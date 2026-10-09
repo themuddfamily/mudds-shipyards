@@ -1,5 +1,6 @@
 extends SceneTree
 
+const MAIN_SCENE := preload("res://scenes/main.tscn")
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const GameFlowScript := preload("res://scripts/game/game_flow.gd")
@@ -34,6 +35,29 @@ class MemoryFilesystem extends FilesystemScript:
 		files.erase(from_path)
 		return OK
 
+## Use the production disk adapter. After the real reward is published, a
+## directory occupies the temporary path and rejects the following discovery
+## write through UserDataStore's normal filesystem collision check.
+class DiscoveryBlockedFilesystem extends FilesystemScript:
+	var block_after_reward := true
+	var reward_bytes := PackedByteArray()
+	var rejected_discovery := false
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		var result := super.rename_path(from_path, to_path)
+		if result == OK and block_after_reward and from_path.ends_with(".tmp"):
+			var document: Variant = JSON.parse_string(FileAccess.get_file_as_string(to_path))
+			if document is Dictionary and str(document.commit.id).begins_with("game-flow-reward-"):
+				reward_bytes = FileAccess.get_file_as_bytes(to_path)
+				DirAccess.make_dir_absolute(from_path)
+		return result
+
+	func directory_exists(path: String) -> bool:
+		var exists := super.directory_exists(path)
+		if exists and path.ends_with(".tmp"):
+			rejected_discovery = true
+		return exists
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -44,6 +68,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_terminal_receipt_gate()
+	await _test_paid_discovery_write_recovery()
 
 	var filesystem := MemoryFilesystem.new()
 	var store := StoreScript.new("memory://cinder-scan-discovery.json", filesystem)
@@ -146,6 +171,90 @@ func _run() -> void:
 		push_error(failure)
 	print("CINDER_SCAN_DISCOVERY_PERSISTENCE_ROUNDTRIP_TEST_OK: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _test_paid_discovery_write_recovery() -> void:
+	var directory := OS.get_environment("TMPDIR")
+	if directory.is_empty(): directory = "/tmp"
+	directory = directory.path_join("mudds-scan-recovery-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()])
+	DirAccess.make_dir_recursive_absolute(directory)
+	var path := directory.path_join("profile.json")
+	var filesystem := DiscoveryBlockedFilesystem.new()
+	var store := StoreScript.new(path, filesystem)
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(store, directory.path_join("legacy.cfg"))
+	root.add_child(game)
+	await process_frame
+	game.set_physics_process(false)
+	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	root.add_child(cluster)
+	await process_frame
+	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	game.bind_cinder_scan_discovery_persistence(binding)
+	game.call(&"_configure_cinder_structure_scan_reward_handoff", binding)
+	binding.start_structure_scan(ScanActivityScript.APPROACH_ANCHOR)
+	binding.advance_structure_scan(ScanActivityScript.SCAN_SECONDS)
+	var paid := binding.request_structure_scan_reward()
+	var paid_generation := store.get_generation()
+	var duplicate := binding.request_structure_scan_reward()
+	var snapshot := binding.get_activity_snapshot(&"structure_scan")
+	_check(bool(paid.get("reward_committed", false)) and filesystem.rejected_discovery
+		and not bool(duplicate.accepted) and bool(snapshot.get("persistence_retry_available", false))
+		and bool(snapshot.get("reward_committed", false))
+		and FileAccess.get_file_as_bytes(path) == filesystem.reward_bytes,
+		"a real paid scan keeps its terminal receipt and profile bytes after rejected discovery and duplicate")
+	var reset := binding.reset_structure_scan()
+	var restart := binding.start_structure_scan(ScanActivityScript.APPROACH_ANCHOR)
+	var rejected_retry := game.call(&"_start_nearby_activity", binding, ScanActivityScript.ACTIVITY_ID) as Dictionary
+	_check(not bool(reset.accepted) and not bool(restart.accepted)
+		and not bool(rejected_retry.accepted)
+		and binding.get_activity_snapshot(&"structure_scan").state_id == &"complete"
+		and bool(binding.get_activity_snapshot(&"structure_scan").get("persistence_retry_available", false))
+		and store.get_generation() == paid_generation
+		and FileAccess.get_file_as_bytes(path) == filesystem.reward_bytes,
+		"reset, restart and Start retry preserve the paid discovery while the actual disk path remains blocked")
+	filesystem.block_after_reward = false
+	DirAccess.remove_absolute(path + ".tmp")
+	var recovered := game.call(&"_start_nearby_activity", binding, ScanActivityScript.ACTIVITY_ID) as Dictionary
+	var repeated := binding.call(&"retry_structure_scan_discovery_persistence") as Dictionary
+	var rewards := store.get_snapshot().get("game_flow_reward_store", {}) as Dictionary
+	_check(bool(recovered.accepted) and bool(recovered.get("discovery_persisted", false))
+		and not bool(repeated.get("accepted", false)) and store.get_generation() == paid_generation + 1
+		and int(rewards.total_receipts) == 1
+		and int((rewards.reward_counts as Dictionary).derelict_material_sample) == 1,
+		"the existing Start action saves the paid discovery once after disk recovery without paying again")
+	cluster.queue_free(); game.queue_free()
+	for _frame in 3: await process_frame
+
+	var fresh_store := StoreScript.new(path)
+	var fresh := MAIN_SCENE.instantiate() as GameFlow
+	fresh.configure_runtime_settings_persistence(fresh_store, directory.path_join("legacy.cfg"))
+	root.add_child(fresh)
+	await process_frame
+	fresh.set_physics_process(false)
+	var fresh_cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
+	root.add_child(fresh_cluster)
+	await process_frame
+	var fresh_binding := fresh_cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
+	fresh.bind_cinder_scan_discovery_persistence(fresh_binding)
+	fresh.call(&"_configure_cinder_structure_scan_reward_handoff", fresh_binding)
+	var before_replay := FileAccess.get_file_as_bytes(path)
+	var replay := fresh_binding.request_structure_scan_reward()
+	var restored := fresh_binding.get_activity_snapshot(&"structure_scan")
+	var report := fresh.get_activity_reward_report()
+	_check(bool(restored.get("discovery_persisted", false)) and not bool(replay.accepted)
+		and int(((report.get("authority", {}) as Dictionary).get("record", {}) as Dictionary).get("total_receipts", -1)) == 1
+		and FileAccess.get_file_as_bytes(path) == before_replay,
+		"fresh Main reloads recorded discovery and one paid receipt without replaying the live scan")
+	_check(bool(fresh_binding.start_structure_scan(ScanActivityScript.APPROACH_ANCHOR).accepted),
+		"recorded discovery permits a normal new scan after reload")
+	fresh_cluster.queue_free(); fresh.queue_free()
+	for _frame in 3: await process_frame
+	var cleanup := DirAccess.open(directory)
+	if cleanup != null:
+		for filename in cleanup.get_files():
+			DirAccess.remove_absolute(directory.path_join(filename))
+	DirAccess.remove_absolute(directory)
 
 
 func _test_terminal_receipt_gate() -> void:
