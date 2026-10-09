@@ -213,10 +213,20 @@ func _run() -> void:
 		Input.action_press(&"brake")
 		await _wait_until(func() -> bool: return jovian.velocity.length() < 20.0, 4.0)
 		Input.action_release(&"brake")
-		await _wait_until(func() -> bool: return jovian.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE, 3.0)
+		var idle_ready := await _wait_until(func() -> bool: return jovian.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE, 3.0)
+		print("JOVIAN_LEAVE_BEFORE: idle_ready=", idle_ready, " engine=", jovian.get_telemetry().engine_state,
+			" phase=", game.phase, " piloted=", jovian.is_piloted(), " seated=", player.is_seated(), " control=", player.is_control_enabled())
 		await _press_interact()
-		await _wait_until(func() -> bool: return not player.is_seated() and player.is_control_enabled() and player.is_on_floor(), 3.0)
-		_check(not bool(jovian.get_telemetry().landed) and player.is_on_floor()
+		var cabin_ready := func() -> bool:
+			return game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and not jovian.is_piloted() \
+				and not player.is_seated() and player.is_control_enabled() and player.is_on_floor()
+		var leave_ready := await _wait_until(cabin_ready, 3.0)
+		print("JOVIAN_LEAVE_AFTER: leave_ready=", leave_ready, " local=", jovian.to_local(player.global_position),
+			" phase=", game.phase, " piloted=", jovian.is_piloted(), " seated=", player.is_seated(),
+			" control=", player.is_control_enabled(), " floor=", player.is_on_floor())
+		_check(idle_ready and leave_ready and game.phase == GameFlow.Phase.IN_FLIGHT_CABIN
+			and not jovian.is_piloted() and not player.is_seated() and player.is_control_enabled()
+			and not bool(jovian.get_telemetry().landed) and player.is_on_floor()
 			and jovian.get_moving_interior_component().is_occupant_registered(player), "normal flight and pilot leave preserve full standing body on actual moving cabin floor")
 		await _walk_toward(player, jovian, Vector3(-1.35, 0.60, -5.25))
 		await _look_toward(player, anchor.global_position + jovian.global_basis.y * 1.2)
