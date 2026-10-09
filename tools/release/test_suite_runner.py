@@ -249,10 +249,12 @@ print('OK: network lane fixture')
             release.mkdir(parents=True)
             for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
                 shutil.copy2(SUPPORT / name, release / name)
-            for relative in ('a/probe_test.gd', 'b/probe_test.gd', 'ui/render_test.gd'):
+            for relative in ('a/probe_test.gd', 'b/probe_test.gd', 'ui/render_test.gd', 'ui/input_test.gd', 'ui/declared_readback_test.gd'):
                 script = root / 'tests' / relative
                 script.parent.mkdir(parents=True, exist_ok=True)
-                script.write_text('print("OK: fixture (%d assertions)" % 2)\n' + ('await RenderingServer.frame_post_draw\n' if relative.startswith('ui/') else ''))
+                script.write_text('print("OK: fixture (%d assertions)" % 2)\n'
+                                  + ('## test-matrix-display: input-only\n' if relative in ('ui/input_test.gd', 'ui/declared_readback_test.gd') else '')
+                                  + ('await RenderingServer.frame_post_draw\n' if relative in ('ui/render_test.gd', 'ui/declared_readback_test.gd') else ''))
             (root / 'tests/probe_support.py').write_text('VALUE = 1\n')
             fake = root / 'fake-godot'
             fake.write_text('''#!/usr/bin/env python3
@@ -267,6 +269,7 @@ script=args[args.index('--script')+1]
 sys.path.insert(0, 'tests')
 import probe_support
 assert ('--headless' in args) == ('/ui/' not in script)
+assert ('--disable-render-loop' in args) == script.endswith('/ui/input_test.gd')
 if '/ui/' in script:
     assert args[args.index('--display-driver')+1] == 'x11'
 else:
@@ -285,7 +288,7 @@ print('OK: fixture (2 assertions)')
             self.assertFalse((root / 'tests/__pycache__').exists())
             manifest = (root / 'results/headless/run-manifest.txt').read_text()
             self.assertIn('scope_specs=headless:all', manifest)
-            self.assertIn('mode_excluded_suite_count=1', manifest)
+            self.assertIn('mode_excluded_suite_count=3', manifest)
             with (root / 'results/headless/results.tsv').open() as stream:
                 rows = list(csv.DictReader(stream, delimiter='\t'))
             self.assertEqual([row['test_path'] for row in rows], ['tests/a/probe_test.gd', 'tests/b/probe_test.gd'])
@@ -304,6 +307,26 @@ print('OK: fixture (2 assertions)')
             self.assertEqual(result.returncode, 2)
             self.assertIn('require DISPLAY', result.stdout)
 
+    def test_declared_input_display_requirement_keeps_readback_drawing(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            script = Path(temporary) / 'probe_test.gd'
+            for source, expected in (
+                ('extends SceneTree\n', 'headless'),
+                ('## test-matrix-display: input-only\nextends SceneTree\n', 'graphical'),
+                ('## test-matrix-display: headless\nextends SceneTree\n', 'headless'),
+                ('var label = "## test-matrix-display: input-only"\n', 'headless'),
+            ):
+                with self.subTest(source=source):
+                    script.write_text(source)
+                    self.assertEqual(catalog.mode(script), expected)
+                    self.assertEqual(catalog.input_only(script), expected == 'graphical')
+            for marker in catalog.RENDER_MARKERS:
+                with self.subTest(readback=marker):
+                    for declaration in ('headless', 'input-only'):
+                        script.write_text('## test-matrix-display: ' + declaration + '\n' + marker + '\n')
+                        self.assertEqual(catalog.mode(script), 'graphical')
+                        self.assertFalse(catalog.input_only(script))
+
     def test_live_roster_covers_nested_suites_and_rendering(self):
         root = SUPPORT.resolve().parents[1]
         paths = catalog.suites(root)
@@ -312,6 +335,7 @@ print('OK: fixture (2 assertions)')
         self.assertEqual(catalog.mode(root / 'tests/aft_junction_stair_handoff_visual_test.gd'), 'graphical')
         self.assertEqual(catalog.mode(root / 'tests/cinder_cargo_hauler_freight_frame_visual_test.gd'), 'graphical')
         self.assertEqual(catalog.mode(root / 'tests/network/network_enet_keepalive_test.gd'), 'headless')
+        self.assertEqual(catalog.mode(root / 'tests/bulwark_crew_gunner_gameplay_test.gd'), 'graphical')
 
 
 if __name__ == '__main__':

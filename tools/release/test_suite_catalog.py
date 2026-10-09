@@ -2,8 +2,8 @@
 """Shared recursive suite discovery and source-declared completion contracts.
 
 This is runner support, not proof of a suite's correctness: exit status and engine
-diagnostics remain independent gates. Rendering readback is conservatively run
-with a display, even when a particular suite makes its capture optional.
+diagnostics remain independent gates. Declared display requirements and rendering
+readback run with a display, even when a particular capture is optional.
 """
 from __future__ import annotations
 import argparse
@@ -18,6 +18,7 @@ RENDER_MARKERS = (
     "root.get_texture()",
     "viewport.get_texture()",
 )
+DISPLAY_INPUT_ONLY = re.compile(r"^## test-matrix-display: input-only[ \t]*$", re.MULTILINE)
 PRINT_LITERAL = re.compile(r'''\bprint\(\s*["']([^"'\n]+)["']''')
 TOKEN = re.compile(r"^([A-Z][A-Z0-9_]*(?:_OK|_PASSED|_PASS))(?=[:\s]|$)")
 
@@ -28,7 +29,13 @@ def suites(root: Path):
 
 def mode(path: Path) -> str:
     source = path.read_text(encoding="utf-8")
-    return "graphical" if any(marker in source for marker in RENDER_MARKERS) else "headless"
+    return "graphical" if DISPLAY_INPUT_ONLY.search(source) or any(marker in source for marker in RENDER_MARKERS) else "headless"
+
+
+def input_only(path: Path) -> bool:
+    """Disable drawing only for an explicit input consumer with no readback."""
+    source = path.read_text(encoding="utf-8")
+    return bool(DISPLAY_INPUT_ONLY.search(source)) and not any(marker in source for marker in RENDER_MARKERS)
 
 
 def completion_patterns(path: Path):
@@ -127,6 +134,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--mode", choices=("all", "headless", "graphical"), default="all")
+    parser.add_argument("--input-only", action="store_true", help="list only declared display input consumers without rendering readback")
     parser.add_argument("--assess", nargs=2, metavar=("SCRIPT", "LOG"))
     parser.add_argument("--render-001-assessment-log", nargs=2, metavar=("RAW", "ASSESSMENT"))
     args = parser.parse_args()
@@ -138,7 +146,7 @@ def main():
     else:
         for path in suites(args.root):
             kind = mode(path)
-            if args.mode in ("all", kind):
+            if args.mode in ("all", kind) and (not args.input_only or input_only(path)):
                 print(f"{path.relative_to(args.root).as_posix()}\t{kind}")
 
 

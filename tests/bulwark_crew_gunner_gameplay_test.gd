@@ -1,4 +1,5 @@
 extends SceneTree
+## test-matrix-display: input-only
 
 ## Focused Bulwark multicrew coverage. The server-owned seat authority admits
 ## the optional gunner, while HeroShip remains the pilot projectile request
