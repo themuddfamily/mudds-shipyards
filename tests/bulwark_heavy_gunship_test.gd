@@ -87,7 +87,7 @@ func _test_walkable_cabin_contract(ship: HeroShip) -> void:
 		"cabin clearance uses the ordinary authored Player capsule without shrinking it")
 	var clear := true
 	var space := ship.get_world_3d().direct_space_state
-	for x in [-0.67, -0.62, -0.57]:
+	for x in [-0.67, -0.62, -0.57, -0.55]:
 		for z in [-0.90, -0.20, 0.50]:
 			var query := PhysicsShapeQueryParameters3D.new()
 			query.shape = capsule
@@ -120,6 +120,48 @@ func _test_walkable_cabin_contract(ship: HeroShip) -> void:
 	var hit := space.intersect_ray(floor_query)
 	_check(hit.get("collider") == ship and is_equal_approx(ship.to_local(hit.position).y, Ship.CABIN_FLOOR_Y),
 		"the authored recessed floor is supported by the existing hull body")
+	var gunner_route := [Vector3(-0.62, 1.33, 0.40), Vector3(-0.62, 1.33, 1.80),
+		Vector3(1.25, 1.33, 1.80), Vector3(1.25, 1.33, 0.65)]
+	var route_clear := true
+	for leg in range(gunner_route.size() - 1):
+		var route_query := PhysicsShapeQueryParameters3D.new()
+		route_query.shape = capsule
+		route_query.margin = actor.safe_margin
+		route_query.collision_mask = PhysicsLayers.SHIP
+		route_query.transform = Transform3D(ship.global_basis,
+			ship.global_transform * (gunner_route[leg] + Vector3.UP * 0.97))
+		route_query.motion = ship.global_basis * (gunner_route[leg + 1] - gunner_route[leg])
+		var route_travel := space.cast_motion(route_query)
+		var leg_clear := route_travel.size() == 2 and is_equal_approx(route_travel[0], 1.0)
+		if not leg_clear:
+			print("BULWARK_GUNNER_ROUTE_BLOCKED: leg=", leg, " fraction=", route_travel)
+		route_clear = route_clear and leg_clear
+	var route_supported := true
+	for point: Vector3 in gunner_route:
+		var root_point := ship.global_transform * point
+		var ray := PhysicsRayQueryParameters3D.create(root_point + ship.global_basis.y * 0.1,
+			root_point - ship.global_basis.y * 0.5, PhysicsLayers.SHIP)
+		var support := space.intersect_ray(ray)
+		route_supported = route_supported and support.get("collider") == ship \
+			and absf(ship.to_local(support.get("position", Vector3.INF)).y - Ship.CABIN_FLOOR_Y) < 0.001
+	_check(route_clear and route_supported, "ordinary full-size standing capsule traverses a connected hull-supported aisle-to-gunner approach")
+	var role := ship.call("get_gunner_station_role_contract") as Dictionary
+	_check(role.get("vessel_id") == ship.get_ship_id() and role.get("seat_id") == Ship.GUNNER_SEAT_ID
+		and role.get("frame") == frame and role.get("seat") == ship.call("get_gunner_station_anchor")
+		and (role.entry_transform as Transform3D).origin.is_equal_approx(ship.global_transform * Ship.GUNNER_APPROACH_LOCAL_ORIGIN)
+		and (role.exit_transform as Transform3D).is_equal_approx(role.entry_transform),
+		"gunner role exposes the exact existing seat/frame and physically verified approach without creating a ledger")
+	var envelope := AABB()
+	var initialized := false
+	for shape: CollisionShape3D in ship.find_children("*", "CollisionShape3D", false, false):
+		if not shape.shape is BoxShape3D:
+			continue
+		var box := shape.shape as BoxShape3D
+		var stock := shape.transform * AABB(-box.size * 0.5, box.size)
+		envelope = envelope.merge(stock) if initialized else stock
+		initialized = true
+	_check(initialized and envelope.is_equal_approx(AABB(Vector3(-5.8, -0.53, -5.15), Vector3(11.6, 3.43, 10.8))),
+		"the compound cabin passage preserves the exact original hull collision envelope")
 	actor.free()
 	var skin := ship.get("_cabin_pressure_body") as StaticBody3D
 	var skin_parent := skin.get_parent()
@@ -170,8 +212,8 @@ func _test_cockpit_pressure_transition(visual: Node3D) -> void:
 		and fairing_bounds.end.y >= 1.87 and fairing_bounds.end.y <= 1.89,
 		"pressure crown meets the retained floor underside without entering the cabin")
 	_check(fairing_bounds.position.z < floor_bounds.position.z
-		and fairing_bounds.end.z > floor_bounds.end.z,
-		"pressure skin extends past both ends of the retained floor into the deck")
+		and fairing_bounds.end.z > 1.075,
+		"retained pressure fairing supports the original pilot deck before the hull-supported vestibule")
 	_check(fairing_bounds.size.x < 3.7 and fairing_bounds.position.y <= 1.33,
 		"rolled pressure shoulders narrow the former plinth and remain seated inside the deck")
 
@@ -187,10 +229,14 @@ func _test_cockpit_armor_tub(visual: Node3D) -> void:
 			wall_name + " keeps one existing renderer and one formed armor surface")
 		var vertices := wall.mesh.get_faces()
 		triangles += vertices.size() / 3
+		print("BULWARK_PORTAL_WALL: ", wall_name, " triangles=", vertices.size() / 3)
 		for vertex in vertices:
 			if not is_equal_approx(vertex.y, 1.40): continue
 			var point := wall.transform * vertex
-			seated = seated and _armor_surface_height(fairing, Vector2(point.x, point.z)) > point.y + 0.01
+			var height := _armor_surface_height(fairing, Vector2(point.x, point.z))
+			if not height > point.y + 0.01:
+				print("BULWARK_PORTAL_FOOT: ", wall_name, " ", point, " support=", height)
+			seated = seated and height > point.y + 0.01
 			samples += 1
 		var side_wall: bool = wall_name.ends_with("Sidewall")
 		var supported := true
@@ -203,10 +249,13 @@ func _test_cockpit_armor_tub(visual: Node3D) -> void:
 			else:
 				point = Vector2(lerpf(-1.0, 1.0, t), -2.05 if wall_name == "ForwardPressureWall" else 0.94)
 				expected_height = 2.525 if wall_name == "ForwardPressureWall" else 2.605
-			supported = supported and is_equal_approx(_armor_surface_height(wall, point), expected_height)
-		_check(supported, wall_name + " retains the original upper support plane")
+			var portal: bool = (wall_name == "StarboardSidewall" and point.y >= -0.85) \
+				or (wall_name == "RearPressureWall" and ((point.x > -1.10 and point.x < -0.12) or point.x > 0.70))
+			var height := _armor_surface_height(wall, point)
+			supported = supported and (not is_finite(height) if portal else is_equal_approx(height, expected_height))
+		_check(supported, wall_name + " retains its support plane outside the actual full-height service portal")
 		var bounds := wall.get_aabb()
-		_check((is_equal_approx(bounds.position.x, -1.50) and is_equal_approx(bounds.end.x, -1.10)) if wall_name == "PortSidewall" else (bounds.size.x > 2.4 if not side_wall else bounds.size.x > 0.50),
+		_check((is_equal_approx(bounds.position.x, -1.50) and is_equal_approx(bounds.end.x, -1.10)) if wall_name == "PortSidewall" else (bounds.size.x > (1.90 if wall_name == "RearPressureWall" else 2.4) if not side_wall else bounds.size.x > 0.50),
 			wall_name + " has a substantial lower armor flare")
 	_check(seated and samples > 20, "all emitted lower tub feet embed in actual pressure-fairing triangles")
 	_check(triangles <= 208, "four formed tub walls stay within 208 triangles")
@@ -249,7 +298,9 @@ func _test_primary_armor_landings(visual: Node3D) -> void:
 		for weights in [Vector3(0.6, 0.2, 0.2), Vector3(0.2, 0.6, 0.2), Vector3(0.2, 0.2, 0.6)]:
 			var point: Vector3 = a * weights.x + b * weights.y + c * weights.z
 			var height := _armor_surface_height(hull, Vector2(point.x, point.z))
-			var in_recess := point.x >= Ship.CABIN_VOID.position.x and point.x <= Ship.CABIN_VOID.end.x and point.z >= Ship.CABIN_VOID.position.z and point.z <= Ship.CABIN_VOID.end.z
+			var in_recess := false
+			for opening in Ship.CABIN_VOIDS:
+				in_recess = in_recess or (point.x >= opening.position.x and point.x <= opening.end.x and point.z >= opening.position.z and point.z <= opening.end.z)
 			var below_floor := (not is_finite(height) or height < point.y - 0.05) if in_recess else (is_finite(height) and height < point.y - 0.05)
 			cabin_clear = cabin_clear and below_floor
 			top_samples += 1
@@ -714,13 +765,19 @@ func _test_fitted_canopy(craft: HeroShip) -> void:
 		for pair in [[a, b], [b, c], [c, a]]:
 			var start: Vector3 = pair[0]
 			var end: Vector3 = pair[1]
-			var key := [start, end] if start < end else [end, start]
+			var key := [start.snapped(Vector3.ONE * 0.00001), end.snapped(Vector3.ONE * 0.00001)] if start < end else [end.snapped(Vector3.ONE * 0.00001), start.snapped(Vector3.ONE * 0.00001)]
 			edges[key] = int(edges.get(key, 0)) + 1
 	var rim_faces := PackedVector3Array()
 	for stock_name in ["PortSill", "StarboardSill", "ForwardPressureWall", "RearPressureWall", "PortSidewall", "StarboardSidewall"]:
 		var stock := craft.get_node("BulwarkHeavyGunshipVisual/CockpitInterior/" + stock_name) as MeshInstance3D
 		for vertex: Vector3 in stock.mesh.get_faces():
 			rim_faces.append(stock.transform * vertex - hinge.position)
+	for stock: MeshInstance3D in craft.get_node("BulwarkHeavyGunshipVisual/CockpitInterior").find_children("*", "MeshInstance3D", true, false):
+		if not bool(stock.get_meta("pressure_boundary", false)):
+			continue
+		var to_hinge := hinge.global_transform.affine_inverse() * stock.global_transform
+		for vertex: Vector3 in stock.mesh.get_faces():
+			rim_faces.append(to_hinge * vertex)
 	var perimeter_only := true
 	var seated := true
 	var maximum_gap := 0.0
@@ -728,20 +785,22 @@ func _test_fitted_canopy(craft: HeroShip) -> void:
 		if int(edges[edge]) == 1:
 			for step in 5:
 				var point: Vector3 = edge[0].lerp(edge[1], float(step) / 4.0)
-				perimeter_only = perimeter_only and point.y <= 0.106
 				var distance := INF
 				for index in range(0, rim_faces.size(), 3):
 					distance = minf(distance, _canopy_triangle_distance(point, rim_faces[index], rim_faces[index + 1], rim_faces[index + 2]))
 				var frame_radius := 0.045
 				if is_equal_approx(point.z, 0.015):
 					frame_radius = 0.032
+				perimeter_only = perimeter_only and (point.y <= 0.106 or distance <= frame_radius + 0.001)
 				maximum_gap = maxf(maximum_gap, distance - frame_radius)
+				if distance > frame_radius + 0.001:
+					print("BULWARK_PRESSURE_EDGE: ", point + hinge.position, " distance=", distance, " count=", edges[edge])
 				seated = seated and distance <= frame_radius + 0.001
 		else:
 			perimeter_only = perimeter_only and int(edges[edge]) == 2
 	_check(no_floor and perimeter_only and outward_winding,
-		"Bulwark glazing has outward winding and a single open lower perimeter, with no glass floor crossing the hood or opening sweep")
-	_check(seated, "every emitted open glass edge seats on retained rim triangles within the frame radius (maximum uncovered gap %.5f m)" % maximum_gap)
+		"Bulwark glazing has outward winding and only supported rim or service-joint boundaries, without a glass floor")
+	_check(seated, "every emitted glass edge seats on actual rim or fixed service pressure-joint triangles within the frame radius (maximum uncovered gap %.5f m)" % maximum_gap)
 	var front := hinge.get_node("PortCanopyNoseFrame") as MeshInstance3D
 	var broad_pillar := true
 	var sampled_pillar := false
@@ -780,11 +839,18 @@ func _test_fitted_canopy(craft: HeroShip) -> void:
 	# straddle the glass plane. Seats, controls and the complete fitted module
 	# must stay within the curved sides, crown and fore/aft glazing.
 	var enclosed := true
+	var enclosure_faces := vertices.duplicate()
+	for stock: MeshInstance3D in cockpit.find_children("*", "MeshInstance3D", true, false):
+		if not bool(stock.get_meta("pressure_boundary", false)):
+			continue
+		var to_hinge := hinge.global_transform.affine_inverse() * stock.global_transform
+		for vertex: Vector3 in stock.mesh.get_faces():
+			enclosure_faces.append(to_hinge * vertex)
 	var upper_points := {}
 	for part: MeshInstance3D in cockpit.find_children("*", "MeshInstance3D", true, false):
 		if part.name in [&"PortSill", &"StarboardSill", &"ForwardPressureWall", &"RearPressureWall", &"PortSidewall", &"StarboardSidewall"]:
 			continue
-		if not part.is_visible_in_tree():
+		if not part.is_visible_in_tree() or bool(part.get_meta("pressure_boundary", false)):
 			continue
 		var to_hinge := hinge.global_transform.affine_inverse() * part.global_transform
 		for vertex: Vector3 in part.mesh.get_faces():
@@ -794,10 +860,10 @@ func _test_fitted_canopy(craft: HeroShip) -> void:
 	for point: Vector3 in upper_points:
 		var left_hit := false
 		var right_hit := false
-		for index in range(0, vertices.size(), 3):
+		for index in range(0, enclosure_faces.size(), 3):
 			var hit: Variant = Geometry3D.segment_intersects_triangle(
-				Vector3(-3.0, point.y, point.z), Vector3(3.0, point.y, point.z),
-				vertices[index], vertices[index + 1], vertices[index + 2])
+				Vector3(-3.6, point.y, point.z), Vector3(3.6, point.y, point.z),
+				enclosure_faces[index], enclosure_faces[index + 1], enclosure_faces[index + 2])
 			if hit != null:
 				left_hit = left_hit or hit.x < point.x
 				right_hit = right_hit or hit.x > point.x
@@ -805,7 +871,7 @@ func _test_fitted_canopy(craft: HeroShip) -> void:
 				break
 		enclosed = enclosed and left_hit and right_hit
 	_check(enclosed and upper_points.size() > 100,
-		"all %d distinct upper seat, control, console and instrument vertices sit inside the actual closed-lid glazing" % upper_points.size())
+		"all %d distinct upper seat, control, console and instrument vertices sit inside the actual glazing and fixed service enclosure" % upper_points.size())
 	print("BULWARK_CANOPY_FIT: maximum_uncovered_rim_gap=%.5f minimum_windscreen_clearance=%.5f" % [maximum_gap, minimum_clearance])
 	var glass_stock := glass.mesh
 	for side in [-1, 1]:

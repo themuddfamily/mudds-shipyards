@@ -609,7 +609,120 @@ func _run() -> void:
 
 	craft.queue_free()
 	await process_frame
+	await _test_real_service_route()
 	_finish()
+
+
+func _test_real_service_route() -> void:
+	var game := preload("res://scenes/main.tscn").instantiate() as GameFlow
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await physics_frame
+	game.start_shift()
+	await process_frame
+	var actor := game.player
+	var craft := game.get_node("BulwarkHeavyGunship") as BulwarkHeavyGunship
+	actor.teleport_to(Transform3D(craft.global_basis,
+		craft.get_boarding_position() + craft.global_basis.y * 0.05))
+	for tick in 8:
+		await physics_frame
+		await process_frame
+	await _press_interact()
+	_check(await _wait_until(func() -> bool: return actor.is_seated_at(craft.get_pilot_seat_anchor()), 4.0),
+		"ordinary Main E boards the unchanged actual Bulwark helm before the service walk")
+	if not actor.is_seated_at(craft.get_pilot_seat_anchor()):
+		game.queue_free()
+		await process_frame
+		return
+	var berth_origin := craft.global_position
+	Input.action_press(&"move_forward")
+	for tick in 400:
+		if craft.global_position.distance_to(berth_origin) > 110.0:
+			break
+		await physics_frame
+		await process_frame
+	Input.action_release(&"move_forward")
+	for tick in int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 4:
+		await physics_frame
+		await process_frame
+	_check(craft.global_position.distance_to(berth_origin) > 100.0
+		and craft.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE,
+		"ordinary flight carries Bulwark clear before its sealed service-cabin walk")
+	var event := InputEventAction.new()
+	event.action = &"interact"
+	event.pressed = true
+	game._unhandled_input(event)
+	_check(await _wait_until(func() -> bool: return actor.is_control_enabled() and actor.is_cabin_containment_active(), 4.0),
+		"ordinary pilot E leaves the actual helm onto Bulwark's supported service floor")
+	for tick in 8:
+		await physics_frame
+		await process_frame
+	var hull_origin := craft.global_position
+	var reached_aft := await _walk_route_leg(&"move_back", func() -> bool: return craft.to_local(actor.global_position).z > 1.72)
+	var crossed := await _walk_route_leg(&"move_right", func() -> bool: return craft.to_local(actor.global_position).x > 1.20)
+	var approached := await _walk_route_leg(&"move_forward", func() -> bool: return craft.to_local(actor.global_position).z < 0.70)
+	var local := craft.to_local(actor.global_position)
+	print("BULWARK_REAL_GUNNER_APPROACH: ", local, " floor=", actor.is_on_floor(), " legs=", [reached_aft, crossed, approached])
+	var frame := craft.get_moving_interior_component()
+	_check(reached_aft and crossed and approached and actor.is_on_floor()
+		and absf(local.y - Bulwark.CABIN_FLOOR_Y) < 0.05
+		and actor.is_control_enabled() and not actor.is_seated()
+		and not craft.is_piloted() and frame.is_occupant_registered(actor)
+		and not bool(craft.get("_canopy_open")) and craft.global_position.distance_to(hull_origin) > 0.10,
+		"ordinary full-capsule input crosses the real aft vestibule and reaches the gunner approach while the sealed hull drifts")
+	var returned_aft := await _walk_route_leg(&"move_back", func() -> bool: return craft.to_local(actor.global_position).z > 1.72)
+	var returned_port := await _walk_route_leg(&"move_left", func() -> bool: return craft.to_local(actor.global_position).x < -0.54)
+	var returned_helm := await _walk_route_leg(&"move_forward", func() -> bool: return craft.to_local(actor.global_position).z < -0.70)
+	print("BULWARK_REAL_RETURN: ", craft.to_local(actor.global_position), " legs=", [returned_aft, returned_port, returned_helm], " floor=", actor.is_on_floor(), " phase=", game.phase)
+	await _press_interact()
+	_check(returned_aft and returned_port and returned_helm
+		and await _wait_until(func() -> bool: return actor.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted(), 4.0)
+		and not frame.is_occupant_registered(actor) and not actor.is_cabin_containment_active(),
+		"ordinary input returns through the connected corridor and E retakes the existing actual helm")
+	game._unhandled_input(event)
+	await _wait_until(func() -> bool: return actor.is_cabin_containment_active() and actor.is_control_enabled(), 4.0)
+	craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
+	_check(await _wait_until(func() -> bool: return not actor.is_seated() and actor.is_control_enabled() and not bool(game.get("_recovering")), 2.0)
+		and not frame.is_occupant_registered(actor) and not actor.is_cabin_containment_active()
+		and not craft.supports_in_flight_cabin_access(),
+		"destroying the real extended cabin releases its physical frame and recalls the same Player")
+	game.queue_free()
+	await process_frame
+	await process_frame
+
+
+func _walk_route_leg(action: StringName, arrived: Callable) -> bool:
+	Input.action_press(action)
+	for tick in 180:
+		if arrived.call():
+			break
+		await physics_frame
+		await process_frame
+	Input.action_release(action)
+	for tick in 8:
+		await physics_frame
+		await process_frame
+	return bool(arrived.call())
+
+
+func _press_interact() -> void:
+	Input.action_press(&"interact")
+	await physics_frame
+	await process_frame
+	Input.action_release(&"interact")
+	await physics_frame
+	await process_frame
+
+
+func _wait_until(predicate: Callable, seconds: float) -> bool:
+	var budget := int(ceil(seconds * Engine.physics_ticks_per_second))
+	for tick in budget:
+		if predicate.call():
+			return true
+		await physics_frame
+		await process_frame
+	return bool(predicate.call())
 
 
 func _build_authority():
