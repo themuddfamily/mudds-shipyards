@@ -66,6 +66,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if recovery_context == "engineer":
 		await _run_engineer(game, store, entry)
 		return
+	if activity == "scan":
+		await _run_scan(game, store, entry)
+		return
 	if activity == "stationdefense":
 		await _run_stationdefense(game, store, entry)
 		return
@@ -413,6 +416,160 @@ func _run_beacon(game: GameFlow, store: UserDataStore, entry: String) -> void:
 		"receipts_after": _beacon_receipts(game), "crash_events": crash_events, "activity": activity,
 		"runtime_observation": observations, "safe_recovery_observation": safe_observation,
 		"continuation_method": "real_safe_home_pilot_resume_then_ordinary_beacon_start_retry",
+		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+	if _failures.is_empty():
+		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
+		get_tree().quit(0)
+	else:
+		print("IN_WORLD_RECOVERY_FAILED")
+		get_tree().quit(1)
+
+
+func _scan_receipts(game: GameFlow) -> int:
+	var record: Dictionary = game.get_activity_reward_report().authority.record
+	return int(record.reward_counts.get(String(CinderAbandonedStructureScanActivity.REWARD_ID), 0))
+
+
+func _scan_start(game: GameFlow) -> void:
+	for row in (game.hud.get("_nearby_activity_rows") as VBoxContainer).get_children():
+		if row.get_meta(&"activity_id", &"") == CinderAbandonedStructureScanActivity.ACTIVITY_ID:
+			var button := row.get_child(2) as Button
+			_check(not button.disabled, "the actual nearby HUD exposes an enabled scan Start action")
+			if not button.disabled:
+				button.emit_signal("pressed")
+			return
+	_check(false, "the actual nearby HUD exposes its scan Start action")
+
+
+func _run_scan(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	if recovery_context != "pilot":
+		_fail("scan interruption supports the actual pilot recovery context only")
+		return
+	var main_id := game.get_instance_id()
+	game.set_physics_process(false)
+	var craft: HeroShip
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		_check(game.cargo_delivery_activity.start(game.cargo_delivery_activity.get_generation()).accepted
+			and game.save_jovian_cargo_session().accepted, "the actual cargo owner saves unrelated cargo progress")
+		craft = game.get_flyable_ships()[1] as HeroShip
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		game.start_shift()
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft), "scan arm acquires the real Player pilot before approach positioning")
+		var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		_check(context.get("mode") == "pilot" and context.get("craft_id") == String(craft.get_ship_id()),
+			"scan arm saves its exact real safe-home pilot context before interruption")
+		var binding := await _load_beacon_binding(game, "scan")
+		if not is_instance_valid(binding):
+			get_tree().quit(1)
+			return
+		var baseline := _scan_receipts(game)
+		var original := store.get("_filesystem") as UserDataFilesystem
+		var fault := ActivityRewardFault.new(original, String(CinderAbandonedStructureScanActivity.ACTIVITY_ID))
+		store.set("_filesystem", fault)
+		# Bounded position/time fixture: the actual seated craft samples the authored
+		# approach; Main and the scan owner retain all progression/payment authority.
+		craft.global_position = game.call("_cinder_authored_frame_to_world", CinderAbandonedStructureScanActivity.APPROACH_ANCHOR)
+		_scan_start(game)
+		game.call("_advance_cinder_structure_scan", 0.5, game.call("_capture_cinder_actor_sample"))
+		var progress: Dictionary = store.get_snapshot().get("cinder_structure_scan_session", {})
+		_check(CinderAbandonedStructureScanActivity.validate_persistence_record(progress).accepted
+			and progress.activities[0].progress.elapsed_seconds == 0.5
+			and progress == binding.capture_structure_scan_session(), "actual approach samples checkpoint genuine partial scan progress")
+		game.call("_advance_cinder_structure_scan", CinderAbandonedStructureScanActivity.SCAN_SECONDS - 0.5, game.call("_capture_cinder_actor_sample"))
+		var boundary: Dictionary = store.get_snapshot().get("cinder_structure_scan_session", {})
+		var live := binding.get_activity_snapshot(&"structure_scan")
+		_check(CinderAbandonedStructureScanActivity.validate_persistence_record(boundary).accepted
+			and fault.rejected and live.state_id == &"complete" and not live.reward_requested
+			and _scan_receipts(game) == baseline
+			and boundary == binding.capture_structure_scan_session()
+			and boundary.activities[0].reward_requested and not boundary.activities[0].reward_granted,
+			"timed production scan samples leave an exact valid unpaid checkpoint after a real reward-write refusal")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var ready := {"boundary": boundary, "receipts": baseline, "activity": activity,
+			"foreign_settings": store.get_snapshot().runtime_settings, "foreign_cargo": store.get_snapshot().jovian_cargo_session,
+			"fixture_method": "real_pilot_authored_scan_approach_and_production_elapsed_samples",
+			"runtime_observation": _interruption_runtime_observation(game),
+			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+		get_tree().paused = true
+		store.set("_filesystem", original)
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify(ready))
+		return
+	var boundary: Dictionary = store.get_snapshot().get("cinder_structure_scan_session", {})
+	var binding := await _load_beacon_binding(game, "scan")
+	if not is_instance_valid(binding) or not CinderAbandonedStructureScanActivity.validate_persistence_record(boundary).accepted:
+		_fail("restart requires the actual valid durable scan terminal")
+		return
+	if int(boundary.activities[0].state) != CinderAbandonedStructureScanActivity.State.COMPLETE or boundary.activities[0].reward_granted:
+		_fail("restart requires a genuinely completed unpaid scan checkpoint")
+		return
+	var foreign_settings: Dictionary = store.get_snapshot().runtime_settings
+	var foreign_cargo: Dictionary = store.get_snapshot().jovian_cargo_session
+	var live := binding.get_activity_snapshot(&"structure_scan")
+	var observations := _interruption_runtime_observation(game)
+	var recovery := game.get_recovery_available_snapshot()
+	var crash_events := 0
+	for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+		if event.get("event_code") == "crash_detected":
+			crash_events += 1
+	_check(live.state_id == &"complete" and not live.reward_requested
+		and boundary == binding.capture_structure_scan_session() and crash_events == 1
+		and not recovery.is_empty() and recovery.get("state") == "running",
+		"a fresh Boot process restores only the genuine unpaid scan checkpoint and one crash event")
+	var baseline := _scan_receipts(game)
+	var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	for candidate in game.get_flyable_ships():
+		if String(candidate.get_ship_id()) == context.get("craft_id"):
+			craft = candidate
+	if craft == null or not _failures.is_empty():
+		_fail("the saved pilot context must resolve an actual shipped craft before Resume")
+		return
+	var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	game.start_shift()
+	var settled := await _wait_for_real_pilot(game, craft)
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	_check(resumed.get("accepted", false) and settled and area.get_reservation_token() == game.player
+		and berth.get_occupant() == craft and berth.get_reservation_owner() == craft
+		and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1
+		and boundary == store.get_snapshot().cinder_structure_scan_session and boundary == binding.capture_structure_scan_session(),
+		"ordinary Resume reacquires the real safe-home pilot and preserves the exact unpaid boundary before retry")
+	Input.action_press(&"move_forward")
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	Input.action_release(&"move_forward")
+	_check(str(craft.get_telemetry().get("engine_state", "")).to_upper() == "ONLINE" and craft.get_last_ship_command().throttle > 0.0
+		and boundary == store.get_snapshot().cinder_structure_scan_session,
+		"the recovered real pilot accepts ordinary flight input without mutating unpaid scan progress")
+	var safe_observation := _interruption_runtime_observation(game)
+	game.call("_sync_activity_hud")
+	_scan_start(game)
+	var paid: Dictionary = store.get_snapshot().cinder_structure_scan_session
+	_check(_scan_receipts(game) == baseline + 1 and paid.activities[0].reward_granted
+		and binding.get_activity_snapshot(&"structure_scan").reward_committed,
+		"ordinary HUD Start publishes one scan payment and its existing atomic acknowledgement")
+	var duplicate := binding.request_structure_scan_reward()
+	var stale: Dictionary = game.call("_request_cinder_structure_scan_reward", binding)
+	_check(not duplicate.accepted and not stale.accepted and _scan_receipts(game) == baseline + 1
+		and paid == store.get_snapshot().cinder_structure_scan_session,
+		"duplicate and late terminal callbacks cannot pay again or change the saved scan acknowledgement")
+	_check(foreign_settings == store.get_snapshot().runtime_settings and foreign_cargo == store.get_snapshot().jovian_cargo_session,
+		"scan recovery preserves actual settings and unrelated cargo progress")
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.get("accepted", false), "scan restart closes both existing recovery marker owners")
+	_check(is_instance_valid(game) and game.get_instance_id() == main_id and game.get_tree() == get_tree(),
+		"scan recovery retains Boot's exact supplied Main owner")
+	var outcome := {"boundary": boundary, "paid_boundary": paid, "receipts_before": baseline,
+		"receipts_after": _scan_receipts(game), "crash_events": crash_events, "activity": activity,
+		"runtime_observation": observations, "safe_recovery_observation": safe_observation,
+		"continuation_method": "real_safe_home_pilot_resume_then_ordinary_scan_start_retry",
+		"foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo,
 		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
 	if _failures.is_empty():
 		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))

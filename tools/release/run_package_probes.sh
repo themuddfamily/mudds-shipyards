@@ -3,7 +3,7 @@ set -euo pipefail
 set -o pipefail
 
 # --in-world-interruption runs one actual kill/restart; --activity=beacon or
-# --activity=mining or --activity=stationdefense selects unpaid recovery
+# --activity=mining, --activity=scan or --activity=stationdefense selects unpaid recovery
 # (pilot only); default remains convoy.
 # --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
@@ -45,7 +45,7 @@ RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-prob
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 RECOVERY_CONTEXT="${PACKAGE_PROBE_RECOVERY_CONTEXT:-pilot}"
-if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense ]]; then
+if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense && "$PROBE_ACTIVITY" != scan ]]; then
   echo "Invalid interruption activity" >&2
   exit 2
 fi
@@ -57,7 +57,7 @@ if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY
   echo "Invalid interruption recovery context" >&2
   exit 2
 fi
-if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense ) && "$RECOVERY_CONTEXT" != pilot ]]; then
+if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan ) && "$RECOVERY_CONTEXT" != pilot ]]; then
   echo "$PROBE_ACTIVITY interruption currently requires pilot context" >&2
   exit 2
 fi
@@ -360,6 +360,23 @@ try:
         require(saved["payload"]["runtime_settings"] == ready["foreign_settings"]
                 and saved["payload"]["mining_probe_foreign_cargo"] == ready["foreign_cargo"],
                 "mining arm lost unrelated settings or cargo")
+    elif activity == "scan":
+        terminal = saved["payload"]["cinder_structure_scan_session"]
+        row = terminal["activities"][0]
+        require(terminal == ready["boundary"] and terminal["schema_version"] == 1
+                and len(terminal["activities"]) == 1, "scan readiness differs from actual saved session")
+        require(row["activity_id"] == "cinder_derelict_structure_scan" and row["generation"] == 1
+                and row["state"] == 2 and row["progress"]["elapsed_seconds"] == 4
+                and row["progress"]["generation"] == row["generation"]
+                and row["reward_requested"] is True and row["reward_granted"] is False
+                and row["progress"]["reward_requested"] is False, "scan readiness has no genuine unpaid terminal")
+        require(ready["runtime_observation"]["craft_piloted"] is True
+                and ready["runtime_observation"]["player_seated"] is True, "scan arm has no real pilot")
+        counts = saved["payload"].get("game_flow_reward_store", {}).get("reward_counts", {})
+        require(counts.get("derelict_material_sample", 0) == ready["receipts"], "scan baseline differs from saved reward ledger")
+        require(saved["payload"]["runtime_settings"] == ready["foreign_settings"]
+                and saved["payload"]["jovian_cargo_session"] == ready["foreign_cargo"],
+                "scan arm lost production settings or cargo")
     elif activity == "beacon":
         terminal = saved["payload"]["cinder_beacon_session"]
         row = terminal["activities"][0]
@@ -454,6 +471,22 @@ try:
         require(final["payload"]["runtime_settings"] == ready["foreign_settings"] == recovered["foreign_settings"]
                 and final["payload"]["mining_probe_foreign_cargo"] == ready["foreign_cargo"] == recovered["foreign_cargo"],
                 "mining recovery changed unrelated settings or cargo fields")
+    elif activity == "scan":
+        paid = final["payload"]["cinder_structure_scan_session"]
+        safe = recovered["safe_recovery_observation"]
+        require(safe["craft_piloted"] is True and safe["player_seated"] is True
+                and safe["craft_id"] == ready["runtime_observation"]["craft_id"],
+                "scan restart did not reacquire the actual saved safe-home pilot craft")
+        paid_row = paid["activities"][0]
+        require(paid == recovered["paid_boundary"]
+                and paid_row == {**row, "reward_granted": True,
+                                 "progress": {**row["progress"], "reward_requested": True}},
+                "scan retry changed genuine generation/progress or lost its atomic payment acknowledgement")
+        require(final["payload"]["game_flow_reward_store"]["reward_counts"]["derelict_material_sample"] == ready["receipts"] + 1,
+                "scan retry lost or duplicated the actual saved material-sample payment")
+        require(final["payload"]["runtime_settings"] == ready["foreign_settings"] == recovered["foreign_settings"]
+                and final["payload"]["jovian_cargo_session"] == ready["foreign_cargo"] == recovered["foreign_cargo"],
+                "scan recovery changed actual settings or cargo")
     elif activity == "beacon":
         paid = final["payload"]["cinder_beacon_session"]
         safe = recovered["safe_recovery_observation"]

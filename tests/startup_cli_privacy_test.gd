@@ -35,6 +35,17 @@ func _run() -> void:
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
 			"beacon refuses unsupported context before Main loading: %s" % context)
+	var scan_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=scan"])
+	_check(StartupLoaderType.in_world_probe_request(scan_args, "headless", "Dummy").accepted,
+		"scan interruption admits its supported pilot recovery")
+	for context in ["cabin", "rest", "crew", "engineer"]:
+		var unsupported := scan_args.duplicate()
+		unsupported.append("--in-world-interruption-context=" + context)
+		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
+			"scan refuses unsupported context before Main loading: %s" % context)
+	_check(not StartupLoaderType.in_world_probe_request(scan_args, "x11", "Dummy").accepted
+		and not StartupLoaderType.in_world_probe_request(scan_args, "headless", "PulseAudio").accepted,
+		"scan refuses active display or audible driver before Main loading")
 	var mining_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=mining"])
 	_check(StartupLoaderType.in_world_probe_request(mining_args, "headless", "Dummy").accepted,
 		"the mining interruption selector admits the supported pilot context")
@@ -74,7 +85,7 @@ func _run() -> void:
 		"engineer refuses unowned X11 and audible input")
 	_check(not StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy", true).accepted,
 		"private engineer input marker cannot broaden other contexts")
-	for other_activity in ["beacon", "mining", "stationdefense"]:
+	for other_activity in ["beacon", "mining", "stationdefense", "scan"]:
 		var incompatible := engineer_args.duplicate()
 		incompatible.append("--in-world-interruption-activity=" + other_activity)
 		_check(not StartupLoaderType.in_world_probe_request(incompatible, "X11", "Dummy", true).accepted,
@@ -88,6 +99,9 @@ func _run() -> void:
 		_check(not bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", audio_driver).accepted),
 			"the fixture requires the actual Dummy driver: %s" % audio_driver)
 	for unsafe in [
+		PackedStringArray(["--in-world-interruption-activity=scan"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "scan"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=scan", "--in-world-interruption-activity=scan"]),
 		PackedStringArray(["--in-world-interruption-activity=stationdefense"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "stationdefense"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=stationdefense", "--in-world-interruption-activity=stationdefense"]),
