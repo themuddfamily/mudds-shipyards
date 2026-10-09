@@ -6505,15 +6505,17 @@ func _restore_runtime_bindings_after_reentry() -> void:
 
 func _capture_pilot_reservation_for_reentry() -> void:
 	_pilot_reentry_reservation.clear()
-	if is_queued_for_deletion() or not _piloting or _transition_busy \
-			or not is_instance_valid(active_ship) or not is_instance_valid(player) \
-			or not is_instance_valid(_boarding_area) \
+	if is_queued_for_deletion() or not is_instance_valid(active_ship) \
+			or not is_instance_valid(player) or not is_instance_valid(_boarding_area) \
 			or not is_ancestor_of(active_ship) or not is_ancestor_of(player) \
-			or _boarding_area.get_ship() != active_ship \
-			or active_ship.is_destroyed() or not active_ship.is_piloted():
+			or _boarding_area.get_ship() != active_ship or active_ship.is_destroyed():
 		return
 	var anchor := active_ship.get_pilot_seat_anchor()
-	if not player.is_seated_at(anchor):
+	var boarding: bool = phase == Phase.BOARDING and _transition_busy and not _piloting \
+		and (player.is_boarding_at(anchor) or player.is_seated_at(anchor))
+	var settled: bool = _piloting and not _transition_busy and active_ship.is_piloted() \
+		and player.is_seated_at(anchor)
+	if not boarding and not settled:
 		return
 	var detach_generation := _boarding_area.consume_detached_reservation(player)
 	if detach_generation <= 0:
@@ -6521,21 +6523,41 @@ func _capture_pilot_reservation_for_reentry() -> void:
 	_pilot_reentry_reservation = {
 		"ship": active_ship, "player": player, "area": _boarding_area,
 		"anchor": anchor, "transition_generation": _transition_generation, "phase": phase,
-		"detach_generation": detach_generation,
+		"detach_generation": detach_generation, "boarding": boarding,
 	}
 
 
 func _restore_pilot_reservation_after_reentry() -> void:
 	var witness := _pilot_reentry_reservation
 	_pilot_reentry_reservation = {}
-	if witness.is_empty() or not _piloting or _transition_busy \
+	if witness.is_empty() or is_queued_for_deletion() or not is_inside_tree() \
 			or _transition_generation != int(witness.transition_generation) \
 			or phase != int(witness.phase) \
 			or not is_instance_valid(active_ship) or active_ship != witness.ship \
+			or active_ship.is_queued_for_deletion() or not active_ship.is_inside_tree() \
+			or active_ship.is_destroyed() \
 			or not is_instance_valid(player) or player != witness.player \
+			or player.is_queued_for_deletion() or not player.is_inside_tree() \
 			or not is_instance_valid(_boarding_area) or _boarding_area != witness.area \
 			or not is_ancestor_of(active_ship) or not is_ancestor_of(player) \
-			or not is_instance_valid(witness.anchor):
+			or not is_instance_valid(witness.anchor) \
+			or active_ship.get_pilot_seat_anchor() != witness.anchor:
+		return
+	if bool(witness.get("boarding", false)):
+		if _piloting or not _transition_busy or phase != Phase.BOARDING \
+				or not (player.is_boarding_at(witness.anchor) or player.is_seated_at(witness.anchor)):
+			return
+		# The detached area witnessed this exact Player/anchor/generation. Re-entry
+		# continues ordinary admission; a new contender still owns its refusal.
+		if not _boarding_area.try_reserve(player):
+			_invalidate_transition_generation()
+			_recall_pilot_to_deck()
+			_transition_busy = false
+			_restore_on_foot_objective()
+			return
+		_remember_boarding_confirmation_reservation(_boarding_area, player, _transition_generation)
+		return
+	if not _piloting or _transition_busy:
 		return
 	_boarding_area.restore_seated_pilot_reservation(
 		player, active_ship, witness.anchor, int(witness.detach_generation)
@@ -9439,21 +9461,36 @@ func _cancel_network_exterior_transition(craft_lost: bool = false) -> void:
 
 func _is_transition_current(
 		generation: int,
-		transition_ship: HeroShip,
+		transition_ship: Variant,
 		expected_phase: Phase
 	) -> bool:
-	return (
-		generation == _transition_generation
-		and _transition_busy
-		and phase == expected_phase
-		and active_ship == transition_ship
-		and is_instance_valid(transition_ship)
-		and not transition_ship.is_destroyed()
-	)
+	# A coroutine can retain a freed Object. Validate before a typed argument or
+	# cast can reject it, and before any callback can cross an actor boundary.
+	if generation != _transition_generation or not _transition_busy \
+			or phase != expected_phase or is_queued_for_deletion() or not is_inside_tree() \
+			or not is_instance_valid(transition_ship) or not transition_ship is HeroShip \
+			or not is_instance_valid(player) or player.is_queued_for_deletion() \
+			or not player.is_inside_tree() or not is_ancestor_of(player):
+		return false
+	var craft := transition_ship as HeroShip
+	if active_ship != craft or craft.is_queued_for_deletion() or not craft.is_inside_tree() \
+			or not is_ancestor_of(craft) or craft.is_destroyed():
+		return false
+	if expected_phase == Phase.BOARDING:
+		return is_instance_valid(_boarding_area) \
+			and _boarding_area.is_inside_tree() and not _boarding_area.is_queued_for_deletion() \
+			and _boarding_area.get_ship() == craft \
+			and _is_boarding_confirmation_reservation_current(_boarding_area, player, generation)
+	return true
 
 
 func _board_ship(candidate: HeroShip = null) -> void:
-	if _transition_busy or not is_instance_valid(candidate) or not candidate.is_boardable():
+	if _transition_busy or not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(candidate) or candidate.is_queued_for_deletion() \
+			or not candidate.is_inside_tree() or not is_ancestor_of(candidate) \
+			or not is_instance_valid(player) or not player.is_inside_tree() \
+			or player.is_queued_for_deletion() or not is_ancestor_of(player) \
+			or not candidate.is_boardable():
 		_present_boarding_confirmation(&"rejected", candidate, &"craft_unavailable")
 		return
 	var candidate_area := candidate.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
@@ -9623,7 +9660,19 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 			)
 		return
 	await player.boarding_completed
-	if not _is_transition_current(transition_generation, candidate, Phase.BOARDING):
+	if not _is_transition_current(transition_generation, candidate, Phase.BOARDING) \
+			or not player.is_seated_at(candidate.get_pilot_seat_anchor()):
+		# The Player may finish its safe physical cancellation after its original
+		# hull was retired. Only this still-current local transaction may recover
+		# the body; detached/reparented owners and newer transactions stay fenced.
+		if transition_generation == _transition_generation and _transition_busy \
+				and phase == Phase.BOARDING and is_inside_tree() and not is_queued_for_deletion() \
+				and is_instance_valid(player) and player.is_inside_tree() \
+				and not player.is_queued_for_deletion() and is_ancestor_of(player):
+			_invalidate_transition_generation()
+			_recall_pilot_to_deck()
+			_transition_busy = false
+			_restore_on_foot_objective()
 		return
 	if not from_cabin:
 		audio.play_canopy(false)
@@ -9824,7 +9873,7 @@ func _disembark_ship_to_exterior(transition_ship: HeroShip) -> void:
 	_landing_request_active = false
 	player.set_control_enabled(true)
 	_reboard_blocked_ship = transition_ship
-	if _boarding_area != null:
+	if is_instance_valid(_boarding_area):
 		_boarding_area.release_reservation(player)
 	_boarding_area = null
 	_clear_boarding_confirmation_reservation()
@@ -19463,7 +19512,7 @@ func _recall_pilot_to_deck() -> void:
 	# controller owns the embodiment reset so collision/pose/priority are restored
 	# atomically instead of teleporting a still-BOARDING body.
 	player.force_recovery_to_on_foot(world.get_player_spawn())
-	if _boarding_area != null:
+	if is_instance_valid(_boarding_area):
 		_boarding_area.release_reservation(player)
 	_boarding_area = null
 	_clear_boarding_confirmation_reservation()

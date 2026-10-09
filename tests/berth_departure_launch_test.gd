@@ -52,6 +52,10 @@ func _launch(craft_id: StringName) -> void:
 	root.add_child(flow)
 	for i in 120:
 		await physics_frame
+	var recovery := flow.get_recovery_available_snapshot()
+	if not recovery.is_empty():
+		var fresh: Dictionary = flow.call("_handle_hud_session_recovery_choice", &"discard", int(recovery.session_id), int(recovery.startup_generation))
+		_check(bool(fresh.get("accepted", false)), "the fresh-actor fixture explicitly chooses fenced Start Fresh")
 	flow.start_shift()
 	var craft: HeroShip = null
 	for candidate: HeroShip in flow.get_flyable_ships():

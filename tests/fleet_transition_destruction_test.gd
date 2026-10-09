@@ -30,7 +30,10 @@ func _run() -> void:
 	await _test_loss_during_player_boarding()
 	await _test_loss_during_disembarking_and_reuse()
 	await _test_detached_player_completion_defers_authority_handoff()
+	await _test_reentry_refuses_foreign_boarding_claim()
 	await _test_queued_canopy_completion_cannot_start_boarding()
+	await _test_freed_hull_during_player_motion()
+	await _test_immediate_recovery_and_reboard()
 	_finish()
 
 
@@ -186,6 +189,36 @@ func _test_detached_player_completion_defers_authority_handoff() -> void:
 	await _free_fixture(game)
 
 
+func _test_reentry_refuses_foreign_boarding_claim() -> void:
+	var fixture := await _new_fixture(0.0, 0.0, 0.25)
+	var game := fixture.game as GameFlow
+	var player := fixture.player as PlayerController
+	var craft := fixture.craft as HeroShip
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	game.call("_board_ship", craft)
+	craft.canopy_motion_finished.emit(true)
+	_check(player.is_seated_at(craft.get_pilot_seat_anchor()) and bool(game.get("_transition_busy")),
+		"competing reentry starts with the actual queued Player seat handoff")
+	root.remove_child(game)
+	await process_frame
+	var contender := Node3D.new()
+	root.add_child(contender)
+	root.add_child(game)
+	# The subtree's parent restore is deferred until every descendant enters.
+	# An ordinary contender wins the newly available area before that restore.
+	_check(area.try_reserve(contender), "a live foreign contender acquires the released physical hatch")
+	_check(await _wait_for_on_foot_recovery(fixture, 0.7),
+		"denied retained boarding returns the Player through ordinary deck recovery")
+	_check(area.get_reservation_token() == contender and not craft.is_piloted()
+		and not bool(game.get("_piloting")) and not bool(game.get("_transition_busy"))
+		and player.is_control_enabled() and not player.is_seated()
+		and player.collision_layer == PhysicsLayers.PLAYER_BODY_LAYER,
+		"reentry preserves the exact foreign claim and grants no stale helm authority")
+	area.release_reservation(contender)
+	contender.queue_free()
+	await _free_fixture(game)
+
+
 func _test_queued_canopy_completion_cannot_start_boarding() -> void:
 	var fixture := await _new_fixture(0.0, 0.5, 0.25)
 	var game := fixture.game as GameFlow
@@ -224,6 +257,50 @@ func _test_queued_canopy_completion_cannot_start_boarding() -> void:
 	await _free_fixture(game)
 
 
+func _test_freed_hull_during_player_motion() -> void:
+	var fixture := await _new_fixture(0.02, 0.55, 0.25)
+	var game := fixture.game as GameFlow
+	var player := fixture.player as PlayerController
+	var craft := fixture.craft as HeroShip
+	game.call("_board_ship", craft)
+	_check(await _wait_until(func() -> bool: return player.is_boarding_at(craft.get_pilot_seat_anchor()), PROBE_SETTLE_SECONDS),
+		"retiring-hull fixture reaches actual unfinished Player seat motion")
+	craft.queue_free()
+	# Isolate the transition continuation from the cruise binding's unrelated
+	# sampling of this deliberately removed fleet actor, as in the canopy case.
+	game.set_physics_process(false)
+	_check(await _wait_for_on_foot_recovery(fixture, 0.8),
+		"a genuinely freed boarding hull recovers its Player through the existing deck owner")
+	_check(not is_instance_valid(craft) and not bool(game.get("_piloting"))
+		and not bool(game.get("_transition_busy"))
+		and player.is_control_enabled() and not player.is_seated()
+		and player.collision_layer == PhysicsLayers.PLAYER_BODY_LAYER,
+		"freed coroutine references cannot grant helm or strand collision-free embodiment")
+	await _free_fixture(game)
+
+
+func _test_immediate_recovery_and_reboard() -> void:
+	var fixture := await _new_fixture(0.0, 0.55, 0.25)
+	var game := fixture.game as GameFlow
+	var player := fixture.player as PlayerController
+	var craft := fixture.craft as HeroShip
+	var arrow := game.get_node("ArrowReconShip") as HeroShip
+	game.call("_board_ship", craft)
+	craft.canopy_motion_finished.emit(true)
+	_check(player.is_boarding_at(craft.get_pilot_seat_anchor()),
+		"rapid recovery starts with a real interrupted Player boarding motion")
+	craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
+	game.call("_board_ship", arrow)
+	arrow.canopy_motion_finished.emit(true)
+	_check(player.is_boarding_at(arrow.get_pilot_seat_anchor()),
+		"ordinary new admission starts before the interrupted completion is delivered")
+	_check(await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 1.0)
+		and player.is_seated_at(arrow.get_pilot_seat_anchor()) and arrow.is_piloted()
+		and not craft.is_piloted() and not bool(game.get("_transition_busy")),
+		"interrupted completion cannot abandon the newer physical seat handoff")
+	await _free_fixture(game)
+
+
 func _new_fixture(canopy_time: float, boarding_time: float, disembark_time: float) -> Dictionary:
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
@@ -232,6 +309,10 @@ func _new_fixture(canopy_time: float, boarding_time: float, disembark_time: floa
 	game.canopy_motion_time = canopy_time
 	game.boarding_motion_time = boarding_time
 	game.disembarking_motion_time = disembark_time
+	var recovery := game.get_recovery_available_snapshot()
+	if not recovery.is_empty():
+		var fresh: Dictionary = game.call("_handle_hud_session_recovery_choice", &"discard", int(recovery.session_id), int(recovery.startup_generation))
+		_check(bool(fresh.get("accepted", false)), "the fresh-actor fixture explicitly chooses fenced Start Fresh")
 	game.start_shift()
 	await process_frame
 	var craft := game.get_node("TorrentInterceptor") as HeroShip

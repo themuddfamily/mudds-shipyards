@@ -286,6 +286,8 @@ var _transition_duration := 0.0
 ## again so a waiting coordinator never resumes against a detached hierarchy.
 var _boarding_completion_pending := false
 var _disembarking_completion_pending := false
+var _boarding_completion_parent: WeakRef
+var _disembarking_completion_parent: WeakRef
 ## Live cabin containment. While set, this body may not leave `_cabin_bounds`
 ## expressed in `_cabin_frame` local space, which is what makes leaving the
 ## pilot seat in open space a recoverable act rather than a soft-lock.
@@ -728,9 +730,15 @@ func begin_boarding(
 		reference_frame: Node3D = null,
 		approach_waypoints: Array[Transform3D] = []
 	) -> bool:
-	if _embodiment_state != EmbodimentState.ON_FOOT or not is_instance_valid(seat_anchor):
+	if _embodiment_state != EmbodimentState.ON_FOOT \
+			or not _hierarchy_is_live(self) or not _hierarchy_is_live(seat_anchor) \
+			or (reference_frame != null and not _hierarchy_is_live(reference_frame)):
 		return false
 
+	# A new physical seat motion supersedes an interrupted handoff. Its eventual
+	# completion still wakes older coordinators to reject their own generations.
+	_boarding_completion_pending = false
+	_boarding_completion_parent = null
 	_control_enabled = false
 	velocity = Vector3.ZERO
 	_clear_landing_recovery()
@@ -891,6 +899,12 @@ func is_seated() -> bool:
 ## Read-only identity check for restoring ownership of an already occupied seat.
 func is_seated_at(anchor: Node3D) -> bool:
 	return is_seated() and is_instance_valid(anchor) and _seat_anchor == anchor
+
+
+## Read-only witness for retaining this exact unfinished physical seat handoff.
+func is_boarding_at(anchor: Node3D) -> bool:
+	return _embodiment_state == EmbodimentState.BOARDING \
+		and is_instance_valid(anchor) and _seat_anchor == anchor
 
 
 ## Enables look/zoom and the interact edge while an ordinary station chair owns
@@ -1477,23 +1491,47 @@ func _complete_disembark() -> void:
 
 func _queue_boarding_completion() -> void:
 	_boarding_completion_pending = true
+	_boarding_completion_parent = weakref(get_parent()) if get_parent() != null else null
 	call_deferred("_flush_pending_transition_completions")
 
 
 func _queue_disembarking_completion() -> void:
 	_disembarking_completion_pending = true
+	_disembarking_completion_parent = weakref(get_parent()) if get_parent() != null else null
 	call_deferred("_flush_pending_transition_completions")
 
 
+func _hierarchy_is_live(node: Node) -> bool:
+	if not is_instance_valid(node) or not node.is_inside_tree():
+		return false
+	var ancestor := node
+	while ancestor != null:
+		if ancestor.is_queued_for_deletion():
+			return false
+		ancestor = ancestor.get_parent()
+	return true
+
+
+func _completion_parent_is_current(owner: WeakRef) -> bool:
+	return owner != null and is_instance_valid(owner.get_ref()) \
+		and owner.get_ref() == get_parent()
+
+
 func _flush_pending_transition_completions() -> void:
-	if is_queued_for_deletion() or not is_inside_tree():
+	if not _hierarchy_is_live(self):
 		return
 	if _boarding_completion_pending:
 		_boarding_completion_pending = false
-		boarding_completed.emit()
+		var current_parent := _completion_parent_is_current(_boarding_completion_parent)
+		_boarding_completion_parent = null
+		if current_parent:
+			boarding_completed.emit()
 	if _disembarking_completion_pending:
 		_disembarking_completion_pending = false
-		disembarking_completed.emit()
+		var current_parent := _completion_parent_is_current(_disembarking_completion_parent)
+		_disembarking_completion_parent = null
+		if current_parent:
+			disembarking_completed.emit()
 
 
 func _set_embodied_collision_enabled(enabled: bool) -> void:

@@ -100,11 +100,22 @@ func _run() -> void:
 	_check(not bool(recovered.hud.get_session_recovery_notice_snapshot().get("active", true))
 		and not (recovered.hud.get("_recovery_prompt_panel") as Control).visible,
 		"the recovery card does not stay over gameplay")
+	for _i in range(2):
+		await physics_frame
+	var player := recovered.get_node("Player") as PlayerController
+	var torrent := recovered.get_node("TorrentInterceptor") as HeroShip
+	var context := recovered.get("_solo_safe_recovery_context") as Dictionary
+	_check(player.is_control_enabled() and not player.is_seated()
+		and player.collision_layer == PhysicsLayers.PLAYER_BODY_LAYER
+		and context.get("mode") == "on_foot"
+		and context.get("craft_id") == String(torrent.get_ship_id())
+		and recovered.call("_find_boarding_candidate") == torrent,
+		"on-foot Resume restores an awake usable Player within the saved Torrent boarding reach")
 	_check(
-		recovered.get("_first_sortie_tutorial_active_step") == &"walk_interact"
+		recovered.get("_first_sortie_tutorial_active_step") == &"board"
 			and (recovered.hud.get("_runtime_status_panel") as Control).visible
-			and (recovered.hud.get("_runtime_status_title") as Label).text == "Reach the craft",
-		"the first tutorial card is visible once the shift begins"
+			and (recovered.hud.get("_runtime_status_title") as Label).text == "Board Torrent-class Interceptor",
+		"Resume shows the boarding tutorial beside the safely restored Torrent"
 	)
 	_finish()
 

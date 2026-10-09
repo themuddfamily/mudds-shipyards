@@ -49,6 +49,10 @@ func _test_engine_and_departure_authority() -> void:
 	game.canopy_motion_time = 0.01
 	game.boarding_motion_time = 0.02
 	game.disembarking_motion_time = 0.02
+	var recovery := game.get_recovery_available_snapshot()
+	if not recovery.is_empty():
+		var fresh: Dictionary = game.call("_handle_hud_session_recovery_choice", &"discard", int(recovery.session_id), int(recovery.startup_generation))
+		_check(bool(fresh.get("accepted", false)), "the fresh-actor fixture explicitly chooses fenced Start Fresh")
 	game.start_shift()
 	await process_frame
 
@@ -178,6 +182,10 @@ func _test_pre_guide_torrent_fire_is_freeplay() -> void:
 		await _clean_up(game)
 		return
 
+	var recovery := game.get_recovery_available_snapshot()
+	if not recovery.is_empty():
+		var fresh: Dictionary = game.call("_handle_hud_session_recovery_choice", &"discard", int(recovery.session_id), int(recovery.startup_generation))
+		_check(bool(fresh.get("accepted", false)), "the fresh-actor fixture explicitly chooses fenced Start Fresh")
 	game.start_shift()
 	await process_frame
 	_check(game.phase == GameFlow.Phase.APPROACH_SHIP, "guided test is pending before the hostile fire probe")
@@ -247,6 +255,10 @@ func _test_inactive_loss_and_occupied_berth_retry() -> void:
 	var arrow_berth := world.get_berth_node(arrow.get_home_berth_id())
 	game.canopy_motion_time = 0.01
 	game.boarding_motion_time = 0.02
+	var recovery := game.get_recovery_available_snapshot()
+	if not recovery.is_empty():
+		var fresh: Dictionary = game.call("_handle_hud_session_recovery_choice", &"discard", int(recovery.session_id), int(recovery.startup_generation))
+		_check(bool(fresh.get("accepted", false)), "the fresh-actor fixture explicitly chooses fenced Start Fresh")
 	game.start_shift()
 	await process_frame
 	game.call("_board_ship", torrent)
