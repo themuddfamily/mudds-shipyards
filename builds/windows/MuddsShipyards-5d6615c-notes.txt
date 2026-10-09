@@ -1,0 +1,16 @@
+Mudds Shipyards — Bulwark ordinary gunner checkpoint (source 5d6615c)
+
+Walk the Bulwark aft vestibule to its gunner chair, select a live target, and fire its siege lance with ordinary controls. Leave and retake the helm with correct crew ownership; supported crew/cabin recovery resumes at the saved craft's home berth without consuming an unpaid reward.
+
+Validation: affected source and embedded-package 13-fixture scope passed (916 assertions each) using 12 unchanged fixtures plus the reviewed external full 95-check gunner fixture. Full default recovery passed172; in-flight cabin passed75. Standard four package probes passed223 in composed scope: reviewed external surface89 plus original three probes134. Actual Windows headless startup exited0 with exactly one parsed STARTUP_MENU_READY_OK, mouse-free true, warnings0/diagnostics0, exact copied EXE hash and independent owned-root cleanup. Source/import cache/EXE unchanged; all owned actors reaped. Source5d coreCI37930039032 PASS (broad SKIP); CodeQL37930039021 PASS (actions/Python), as confirmed by root.
+
+Fixture provenance: package/source remain exact5d6615c57b0803e58b30d35d26bd202e74577a0d. External gunner author2b7c2cd337790bb4d05ddc2e9fe6a12a3cb519a1/blob3331ab8a212468a28a1be752c4ca1d45d7576e7e observes actual engine OFFLINE on physics ticks within unchanged94 budget; all95 checks and strict moving-hull drift remain. External surface author155775b7e0ba3ed5c9fe02cfb92d10fa6928fa01/blob077ae43eeea0abfd2db10353719c71dd9422740c reconciles physical roster22Bulwark/157fleet/3297samples with unchanged clearance limits. Original source gunner drift0 failure and original standard stale145-count failure are preserved; neither original run is relabeled. Root independently approved author final parity and integrated the gunner fixture at b6b7f3052ca11360b04a50ee516c324616331901.
+
+Actual geometry census, source and embedded package:19 checks each; resident1,751,176 triangles/5,029 instances/5,589 surfaces/2,693 meshes; Cinder-loaded1,906,198 triangles/5,286 instances/5,850 surfaces/2,866 meshes. Retained reachable materials source1063/1126 resident/loaded, package1065/1128; this is runtime resource census, not GPU timing.
+
+Limitations: gunner checks used private Xvfb x11/software GL with render-loop disabled; expected unsupported-VSync and fresh-settings warnings retained. Native GPU/performance, human ordinary controls, installer/signing, Linux release, new-source OS-kill recovery, endurance, full-matrix and final-release acceptance NOT_RUN. Full1027 acceptance is not claimed. Native Windows startup is headless startup evidence only. Prepared privately; root owns publication under builds/windows/.
+
+Published checkpoint: these reviewed bytes are now in builds/windows/.
+Checkpoint ZIP SHA256: 2c701e1e635aa7d84c92ef31bbcf2d477d6ad3d353b59799b8cd410d1110c5ba
+The ZIP preserves immutable initial notes; publication status and ZIP hash are sidecar-only.
+The older frozen 94da8f0 full regression finished FAIL (1024/1027). The newer exact aacd367 full regression is running separately; no full PASS is claimed.
