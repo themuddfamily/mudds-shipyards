@@ -3601,7 +3601,7 @@ func _solo_safe_recovery_description() -> String:
 		if _solo_safe_recovery_context.mode == "pilot":
 			return " Safe recovery boards %s at its home berth; the previous flight position is not restored. Saved activity progress is kept." % craft.get_display_name()
 		return " Safe recovery returns you on foot beside %s at its home berth. Saved activity progress is kept." % craft.get_display_name()
-	return " Safe recovery starts on foot at the shipyard; saved activity and visit progress is kept."
+	return " Safe recovery starts on foot at the shipyard, unless a saved planetary visit resumes on its planet. Saved activity and visit progress is kept."
 
 
 func _persist_solo_safe_recovery_context(context: Dictionary) -> void:
