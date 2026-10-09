@@ -55,13 +55,18 @@ func _run() -> void:
 		# totes at 948 and two lidded at 684, less the ten 60-triangle slabs).
 		# Same nodes, copies, bodies and shapes, because the tote's AABB is the
 		# slab's.
+		# Dispatch wayfinding subsequently added three childless Label3D
+		# DispatchReadout nodes to the existing service-room screens. Only
+		# descendants change: 893 -> 896; mesh geometry and collision stay exact.
 		census == {
-			"descendant_nodes": 893, "mesh_instance_nodes": 389, "multimesh_nodes": 16,
+			"descendant_nodes": 896, "mesh_instance_nodes": 389, "multimesh_nodes": 16,
 			"geometry_submissions": 449, "visible_geometry_copies": 477,
 			"drawn_triangles": 102044, "static_bodies": 206, "collision_shapes": 209,
 		},
-		"current standalone census includes later immutable batches: 893 nodes, 449 submissions, 477 visible copies, and collision exact"
+		"current standalone census includes later immutable batches and dispatch readouts: 896 nodes, 449 submissions, 477 visible copies, and collision exact"
 	)
+	_test_dispatch_readout_nodes(module)
+	_check(bool(module.get_performance_contract().within_budget), "standalone berth remains inside its unchanged production component budgets")
 	_test_apron_diagonal_batch(module, apron)
 	var contract := module.get_dock_guide_batch_contract()
 	_check(
@@ -125,6 +130,28 @@ func _run() -> void:
 	module.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_dispatch_readout_nodes(module: JovianFreightBerth) -> void:
+	var expected_headings := PackedStringArray([
+		"FREIGHT CONTROL\nDISPATCH F-01",
+		"CARGO TRANSFER\nAPRON TERMINAL",
+		"BOARD THE JOVIAN\nBACK ON APRON",
+	])
+	var readouts := module.find_children("DispatchReadout", "Label3D", true, false)
+	var headings := PackedStringArray()
+	var valid := readouts.size() == 3
+	for candidate in readouts:
+		var readout := candidate as Label3D
+		var screen := readout.get_parent() as MeshInstance3D
+		valid = valid and readout.get_child_count() == 0 and screen != null
+		if screen != null:
+			valid = valid and bool(screen.get_meta("station_console", false))
+			valid = valid and screen.get_parent() == module.get_node("FreightControlRoom")
+		headings.append(readout.text)
+	headings.sort()
+	expected_headings.sort()
+	_check(valid and headings == expected_headings, "three childless dispatch screen readouts account for the descendant increase without mesh or collision additions")
 
 
 func _test_apron_diagonal_batch(module: JovianFreightBerth, apron: Node) -> void:
