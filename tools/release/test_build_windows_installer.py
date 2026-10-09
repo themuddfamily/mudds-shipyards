@@ -294,6 +294,117 @@ try {
         try { Assert-InWorldBeaconRecovered $final $ready $recovered $beaconLog } catch { $rejected = $true }
         if (-not $rejected) { throw 'missing real beacon continuation assertion accepted' }
     }
+    $InWorldRecoveryActivity = 'mining'
+    $InWorldRecoveryContext = 'pilot'
+    $InWorldRecovery = $true
+    Assert-InWorldSelection
+    Assert-InWorldContext ([pscustomobject]@{activity='mining'; recovery_context='pilot'})
+    foreach ($token in @(@{recovery_context='pilot'}, @{activity='convoy'; recovery_context='pilot'}, @{activity='MINING'; recovery_context='pilot'}, @{activity='mining'}, @{activity='mining'; recovery_context='cabin'})) {
+        $rejected = $false
+        try { Assert-InWorldContext ([pscustomobject]$token) } catch { $rejected = $true }
+        if (-not $rejected) { throw 'unsupported mining marker accepted' }
+    }
+    foreach ($selected in @('cabin','rest','crew')) {
+        $InWorldRecoveryContext = $selected
+        $rejected = $false
+        try { Assert-InWorldSelection } catch { $rejected = $true }
+        if (-not $rejected) { throw 'unsupported mining context accepted' }
+    }
+    $InWorldRecoveryContext = 'pilot'
+    $InWorldRecovery = $false
+    $rejected = $false
+    try { Assert-InWorldSelection } catch { $rejected = $true }
+    if (-not $rejected) { throw 'mining without recovery accepted' }
+    $mining = @{
+        schema_version=2; payload_kind='cinder_mining_capacity_receipt'; slot_id='cinder_mining_capacity'
+        session=@{state=2; generation=1; elapsed_seconds=6; reward_requested=$false; capacity_paid=$false}; capacity=@{}
+    } | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+    $settings = [pscustomobject]@{values=[pscustomobject]@{graphics_profile='low'}}
+    $cargo = [pscustomobject]@{fixture='unrelated'; ore=7}
+    $ready = [pscustomobject]@{boundary=$mining; receipts=0; foreign_settings=$settings; foreign_cargo=$cargo; runtime_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; craft_id='bulwark_heavy_gunship'}}
+    $saved = [pscustomobject]@{payload=[pscustomobject]@{cinder_mining_capacity=$mining; runtime_settings=$settings; mining_probe_foreign_cargo=$cargo; crash_recovery=[pscustomobject]@{state='running'}; solo_safe_recovery=[pscustomobject]@{craft_id='bulwark_heavy_gunship'}}}
+    Assert-InWorldMiningArm $saved $ready
+    foreach ($mutation in @(
+        {$saved.payload.cinder_mining_capacity.schema_version=1},
+        {$saved.payload.cinder_mining_capacity.slot_id='other'},
+        {$saved.payload.cinder_mining_capacity.payload_kind='other'},
+        {$saved.payload.cinder_mining_capacity.session.generation=2},
+        {$saved.payload.cinder_mining_capacity.session.elapsed_seconds=5},
+        {$saved.payload.cinder_mining_capacity.session.state=1},
+        {$saved.payload.cinder_mining_capacity.session.capacity_paid=$true},
+        {$saved.payload.cinder_mining_capacity.session.reward_requested=$true},
+        {$saved.payload.cinder_mining_capacity.capacity=[pscustomobject]@{granted=$true}},
+        {$ready.receipts=1}, {$saved.payload.crash_recovery.state='clean'},
+        {$ready.runtime_observation.player_seated=$false}, {$ready.runtime_observation.craft_piloted=$false},
+        {$saved.payload.solo_safe_recovery.craft_id='other'},
+        {$ready.foreign_settings=[pscustomobject]@{}}, {$ready.foreign_cargo=[pscustomobject]@{}},
+        {$saved.payload.runtime_settings=[pscustomobject]@{changed=$true}},
+        {$saved.payload.mining_probe_foreign_cargo=[pscustomobject]@{ore=8}}
+    )) {
+        $savedBaseline = $saved | ConvertTo-Json -Depth 12
+        $readyBaseline = $ready | ConvertTo-Json -Depth 12
+        & $mutation
+        $ready.boundary = $saved.payload.cinder_mining_capacity
+        $rejected = $false
+        try { Assert-InWorldMiningArm $saved $ready } catch { $rejected = $true }
+        if (-not $rejected) { throw 'invalid matching mining unpaid document/token accepted' }
+        $saved = $savedBaseline | ConvertFrom-Json
+        $ready = $readyBaseline | ConvertFrom-Json
+    }
+    $paid = $ready.boundary | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+    $paid.session.capacity_paid=$true; $paid.session.reward_requested=$true
+    $paid.capacity = [pscustomobject]@{activity_id='cinder_platform_mining_run'; content_class='NEW'; evidence_status='modern_interpretation'; extraction_seconds=6; reward_receipt=[pscustomobject]@{activity_id='cinder_platform_mining_run'; reward_id='cinder_raw_ore_sample'; granted=$false; replay_allowed=$false}}
+    $final = [pscustomobject]@{payload=[pscustomobject]@{cinder_mining_capacity=$paid; runtime_settings=$ready.foreign_settings; mining_probe_foreign_cargo=$ready.foreign_cargo}}
+    $recovered = [pscustomobject]@{paid_boundary=$paid; capacity_commits=1; foreign_settings=$ready.foreign_settings; foreign_cargo=$ready.foreign_cargo; safe_recovery_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; piloting=$true; craft_id='bulwark_heavy_gunship'}; continuation_method='real_safe_home_pilot_resume_then_ordinary_mining_start_retry'}
+    $miningLog = Join-Path $root 'mining.log'
+    $miningAssertions = @(
+        'PASS: a fresh Boot process restores the genuine unpaid mining completion and one crash event',
+        'PASS: ordinary Resume reacquires the real safe-home pilot and preserves exact unpaid mining progress',
+        'PASS: the recovered real pilot accepts ordinary throttle without mutating unpaid mining progress',
+        'PASS: ordinary HUD Start atomically publishes capacity and the same generation paid acknowledgement once',
+        'PASS: duplicate and genuine late unpaid callbacks are refused without another capacity commit',
+        'PASS: mining recovery preserves production settings and unrelated cargo fields',
+        'PASS: mining restart closes both existing recovery marker owners'
+    )
+    [IO.File]::WriteAllText($miningLog, ($miningAssertions -join "`n") + "`n")
+    Assert-InWorldMiningRecovered $final $ready $recovered $miningLog
+    foreach ($mutation in @(
+        {$final.payload.cinder_mining_capacity.schema_version=1},
+        {$final.payload.cinder_mining_capacity.session.generation=2},
+        {$final.payload.cinder_mining_capacity.session.elapsed_seconds=7},
+        {$final.payload.cinder_mining_capacity.session.capacity_paid=$false},
+        {$final.payload.cinder_mining_capacity.session.reward_requested=$false},
+        {$final.payload.cinder_mining_capacity.capacity.extraction_seconds=5},
+        {$final.payload.cinder_mining_capacity.capacity.content_class='other'},
+        {$final.payload.cinder_mining_capacity.capacity.reward_receipt.granted=$true},
+        {$final.payload.cinder_mining_capacity.capacity.reward_receipt.replay_allowed=$true},
+        {$final.payload.cinder_mining_capacity.capacity.reward_receipt.reward_id='other'},
+        {$recovered.capacity_commits=2}, {$recovered.safe_recovery_observation.piloting=$false},
+        {$recovered.continuation_method='simulated'},
+        {$final.payload.runtime_settings=[pscustomobject]@{changed=$true}},
+        {$recovered.foreign_cargo=[pscustomobject]@{ore=9}}
+    )) {
+        $finalBaseline = $final | ConvertTo-Json -Depth 12
+        $recoveredBaseline = $recovered | ConvertTo-Json -Depth 12
+        & $mutation
+        $recovered.paid_boundary = $final.payload.cinder_mining_capacity
+        $rejected = $false
+        try { Assert-InWorldMiningRecovered $final $ready $recovered $miningLog } catch { $rejected = $true }
+        if (-not $rejected) { throw 'invalid matching mining paid document/token accepted' }
+        $final = $finalBaseline | ConvertFrom-Json
+        $recovered = $recoveredBaseline | ConvertFrom-Json
+    }
+    foreach ($missing in $miningAssertions) {
+        [IO.File]::WriteAllText($miningLog, (($miningAssertions | Where-Object { $_ -ne $missing }) -join "`n") + "`n")
+        $rejected = $false
+        try { Assert-InWorldMiningRecovered $final $ready $recovered $miningLog } catch { $rejected = $true }
+        if (-not $rejected) { throw 'missing real mining continuation assertion accepted' }
+    }
+    [array]::Reverse($miningAssertions)
+    [IO.File]::WriteAllText($miningLog, ($miningAssertions -join "`n") + "`n")
+    $rejected = $false
+    try { Assert-InWorldMiningRecovered $final $ready $recovered $miningLog } catch { $rejected = $true }
+    if (-not $rejected) { throw 'unordered real mining continuation assertions accepted' }
     $log = Join-Path $root 'startup.log'
     [IO.File]::WriteAllText($log, "WARNING: Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema`nSTARTUP_MENU_READY_OK: {}`n")
     Assert-StartupLog $log 0 | Out-Null

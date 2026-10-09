@@ -35,6 +35,23 @@ nonpilot installed recovery, scan OS-kill, human controls, native GPU, trusted
 signing and final-release gates remain open. The exact-source 1,029-suite full
 regression is running separately. New Jovian engineer work is not included.
 
+## Mining interruption selector — capability, native acceptance pending
+
+The current verifier accepts `-InWorldRecovery -InWorldRecoveryActivity mining`
+with `-InWorldRecoveryContext pilot`. It requires the matching game to support
+the Boot mining probe; convoy remains the default and beacon remains supported.
+Mining verifies genuine unpaid extraction before an owned kill, then fresh Boot
+safe-home pilot Resume, usable throttle and ordinary HUD Start. Capacity and its
+paid acknowledgement must publish once, without granting ore inventory; saved
+progress, unrelated settings/cargo and recovery markers are checked.
+
+Reviewed author `527bdde5c` changes only the existing verifier and its test.
+All 14 tests pass, including real PowerShell parsing and executable valid/mutated
+record and ordered-marker checks. Those results are transcript-only. Actual
+native installed mining acceptance remains `NOT_RUN` until the next matching
+checkpoint is built and tested; the published `3b4d68427` result above covers
+beacon/default-convoy pilot recovery only.
+
 ## Earlier native checkpoint `f0e2c590a` — 2026-10-09
 
 The unsigned [installer](../builds/windows/MuddsShipyards-f0e2c59-setup.exe) and

@@ -26,9 +26,11 @@ actual durable activity readiness, then restarts that profile to prove exact
 boundary, one new receipt and its crash journal. InWorldRecoveryContext selects
 pilot (default), cabin, rest or crew. Cabin/rest/crew require a matching context
 in both Boot markers; older pilot-only payloads cannot qualify those selections.
-InWorldRecoveryActivity selects convoy (default) or beacon. Beacon requires pilot
+InWorldRecoveryActivity selects convoy (default), beacon or mining. Beacon/mining require pilot
 context and verifies the genuine unpaid terminal, safe-home pilot Resume, ordinary
 throttle and HUD Start payment, and the saved acknowledgement without duplicates.
+Mining verifies the schema 2 unpaid extraction, one atomic capacity acknowledgement
+with existing non-granting metadata, and unchanged production settings/cargo.
 InWorldCancelPath (default:
 ProbeRoot\in-world-recovery.cancel) provides an independent owned-child abort.
 The activity profile is removed; logs/documents remain in ProbeRoot. This does
@@ -52,7 +54,7 @@ param(
     [switch]$ForceKillRecovery,
     [switch]$InWorldRecovery,
     [ValidateSet('pilot','cabin','rest','crew')][string]$InWorldRecoveryContext = 'pilot',
-    [ValidateSet('convoy','beacon')][string]$InWorldRecoveryActivity = 'convoy',
+    [ValidateSet('convoy','beacon','mining')][string]$InWorldRecoveryActivity = 'convoy',
     [string]$InWorldCancelPath,
     [int]$StartupTimeoutMs = 120000
 )
@@ -445,7 +447,7 @@ function Stop-InWorldOwned($proc, $entry, [string]$termination) {
 }
 function Assert-InWorldSelection {
     if (-not $InWorldRecovery -and $InWorldRecoveryActivity -ne 'convoy') { throw 'InWorldRecoveryActivity requires InWorldRecovery' }
-    if ($InWorldRecoveryActivity -eq 'beacon' -and $InWorldRecoveryContext -ne 'pilot') { throw 'beacon in-world recovery supports only pilot context' }
+    if ($InWorldRecoveryActivity -in @('beacon','mining') -and $InWorldRecoveryContext -ne 'pilot') { throw "$InWorldRecoveryActivity in-world recovery supports only pilot context" }
 }
 function InWorld-BeaconCount($payload) {
     if ($null -eq $payload.game_flow_reward_store.reward_counts.debris_route_navigation_data) { return 0 }
@@ -489,6 +491,49 @@ function Assert-InWorldBeaconRecovered($final, $ready, $recovered, [string]$log)
         $last = $index
     }
 }
+function Assert-InWorldMiningArm($saved, $ready) {
+    $terminal = $saved.payload.cinder_mining_capacity
+    if ((InWorld-Canonical $terminal) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed mining readiness differs from actual durable document/running marker' }
+    if ($terminal.schema_version -ne 2 -or $terminal.payload_kind -ne 'cinder_mining_capacity_receipt' -or $terminal.slot_id -ne 'cinder_mining_capacity') { throw 'invalid installed durable mining record identity' }
+    $expectedSession = [pscustomobject]@{state=2; generation=1; elapsed_seconds=6; reward_requested=$false; capacity_paid=$false}
+    if ((InWorld-Canonical $terminal.session) -ne (InWorld-Canonical $expectedSession) -or $terminal.capacity -isnot [System.Management.Automation.PSCustomObject] -or @($terminal.capacity.PSObject.Properties).Count -ne 0 -or $ready.receipts -ne 0) { throw 'installed mining is not a genuine generation-one full unpaid extraction' }
+    $pilot = $ready.runtime_observation
+    if ($pilot.player_seated -ne $true -or $pilot.craft_piloted -ne $true -or $pilot.craft_id -ne 'bulwark_heavy_gunship' -or $saved.payload.solo_safe_recovery.craft_id -ne $pilot.craft_id) { throw 'installed mining arm did not retain its real safe pilot owner' }
+    if (@($ready.foreign_settings.PSObject.Properties).Count -eq 0 -or @($ready.foreign_cargo.PSObject.Properties).Count -eq 0 -or (InWorld-Canonical $saved.payload.runtime_settings) -ne (InWorld-Canonical $ready.foreign_settings) -or (InWorld-Canonical $saved.payload.mining_probe_foreign_cargo) -ne (InWorld-Canonical $ready.foreign_cargo)) { throw 'installed mining arm lost production settings or unrelated cargo' }
+}
+function Assert-InWorldMiningRecovered($final, $ready, $recovered, [string]$log) {
+    $paid = $final.payload.cinder_mining_capacity
+    $boundary = $ready.boundary
+    if ((InWorld-Canonical $paid) -ne (InWorld-Canonical $recovered.paid_boundary)) { throw 'installed saved mining acknowledgement differs from recovered paid boundary' }
+    $expectedSession = [pscustomobject]@{state=2; generation=$boundary.session.generation; elapsed_seconds=$boundary.session.elapsed_seconds; reward_requested=$true; capacity_paid=$true}
+    if ($paid.schema_version -ne $boundary.schema_version -or $paid.payload_kind -ne $boundary.payload_kind -or $paid.slot_id -ne $boundary.slot_id -or (InWorld-Canonical $paid.session) -ne (InWorld-Canonical $expectedSession)) { throw 'installed paid mining acknowledgement changed extraction identity or progress' }
+    if ($recovered.capacity_commits -ne 1 -or @($paid.capacity.PSObject.Properties).Count -ne 5 -or $paid.capacity.activity_id -ne 'cinder_platform_mining_run' -or $paid.capacity.content_class -ne 'NEW' -or $paid.capacity.evidence_status -ne 'modern_interpretation' -or $paid.capacity.extraction_seconds -ne 6) { throw 'installed mining did not publish exactly one genuine capacity record' }
+    $expectedReceipt = [pscustomobject]@{activity_id='cinder_platform_mining_run'; reward_id='cinder_raw_ore_sample'; granted=$false; replay_allowed=$false}
+    if ((InWorld-Canonical $paid.capacity.reward_receipt) -ne (InWorld-Canonical $expectedReceipt)) { throw 'installed mining metadata invented a granted or replayable receipt' }
+    foreach ($namespace in @('runtime_settings','mining_probe_foreign_cargo')) {
+        $expected = $(if ($namespace -eq 'runtime_settings') { $ready.foreign_settings } else { $ready.foreign_cargo })
+        $reported = $(if ($namespace -eq 'runtime_settings') { $recovered.foreign_settings } else { $recovered.foreign_cargo })
+        if ((InWorld-Canonical $final.payload.$namespace) -ne (InWorld-Canonical $expected) -or (InWorld-Canonical $reported) -ne (InWorld-Canonical $expected)) { throw 'installed mining recovery changed production settings or unrelated cargo' }
+    }
+    $pilot = $recovered.safe_recovery_observation
+    if ($pilot.player_seated -ne $true -or $pilot.craft_piloted -ne $true -or $pilot.piloting -ne $true -or $pilot.craft_id -ne 'bulwark_heavy_gunship' -or $pilot.craft_id -ne $ready.runtime_observation.craft_id) { throw 'installed mining cold Resume did not reacquire real safe-home pilot' }
+    if ($recovered.continuation_method -ne 'real_safe_home_pilot_resume_then_ordinary_mining_start_retry') { throw 'installed mining continuation method differs' }
+    $raw = Read-InWorldLog $log
+    $last = -1
+    foreach ($assertion in @(
+        'PASS: a fresh Boot process restores the genuine unpaid mining completion and one crash event',
+        'PASS: ordinary Resume reacquires the real safe-home pilot and preserves exact unpaid mining progress',
+        'PASS: the recovered real pilot accepts ordinary throttle without mutating unpaid mining progress',
+        'PASS: ordinary HUD Start atomically publishes capacity and the same generation paid acknowledgement once',
+        'PASS: duplicate and genuine late unpaid callbacks are refused without another capacity commit',
+        'PASS: mining recovery preserves production settings and unrelated cargo fields',
+        'PASS: mining restart closes both existing recovery marker owners'
+    )) {
+        $index = $raw.IndexOf($assertion)
+        if ($index -le $last) { throw "missing ordered installed mining recovery assertion: $assertion" }
+        $last = $index
+    }
+}
 function Assert-InWorldContext($token) {
     $activity = $token.PSObject.Properties['activity']
     if ($null -eq $activity) {
@@ -496,7 +541,7 @@ function Assert-InWorldContext($token) {
     } elseif ([string]$activity.Value -cne $InWorldRecoveryActivity) { throw 'installed payload recovery activity differs from the requested activity' }
     $context = $token.PSObject.Properties['recovery_context']
     if ($null -eq $context) {
-        if ($InWorldRecoveryActivity -eq 'beacon' -or $InWorldRecoveryContext -ne 'pilot') { throw 'installed payload did not report the requested recovery context' }
+        if ($InWorldRecoveryActivity -ne 'convoy' -or $InWorldRecoveryContext -ne 'pilot') { throw 'installed payload did not report the requested recovery context' }
         return
     }
     if ([string]$context.Value -cne $InWorldRecoveryContext) { throw 'installed payload recovery context differs from the requested context' }
@@ -509,7 +554,7 @@ function Start-InWorldOwned([string]$stage, [string]$ownedProfile, $children) {
     $info.Arguments += ' --in-world-interruption-stage=' + $stage
     # Older qualified payloads support the implicit pilot mode only.
     if ($InWorldRecoveryContext -ne 'pilot') { $info.Arguments += ' --in-world-interruption-context=' + $InWorldRecoveryContext }
-    if ($InWorldRecoveryActivity -eq 'beacon') { $info.Arguments += ' --in-world-interruption-activity=beacon' }
+    if ($InWorldRecoveryActivity -ne 'convoy') { $info.Arguments += ' --in-world-interruption-activity=' + $InWorldRecoveryActivity }
     $info.EnvironmentVariables.Remove('DISPLAY')
     $info.EnvironmentVariables.Remove('WAYLAND_DISPLAY')
     $proc = [Diagnostics.Process]::Start($info)
@@ -543,13 +588,17 @@ function Run-InWorldRecovery {
         }
         $probe.handshake_ms = $timer.ElapsedMilliseconds
         if ($null -eq $ready -or $arm.HasExited) { throw 'missing live installed in-world readiness before exit/timeout' }
-        if ($ready.entry -ne 'startup_completed' -or $ready.loaded_main_instance_id -le 0 -or $ready.receipts -ne $(if ($InWorldRecoveryActivity -eq 'beacon') { 0 } else { 1 })) { throw 'installed arm did not use its Boot-loaded Main and expected genuine receipt baseline' }
+        if ($ready.entry -ne 'startup_completed' -or $ready.loaded_main_instance_id -le 0 -or $ready.receipts -ne $(if ($InWorldRecoveryActivity -ne 'convoy') { 0 } else { 1 })) { throw 'installed arm did not use its Boot-loaded Main and expected genuine receipt baseline' }
         Assert-InWorldContext $ready
         if ((InWorld-LogCounts (Join-Path $ProbeRoot 'in-world-arm.log')).diagnostic_count -ne 0) { throw 'installed arm engine/script/leak diagnostics' }
         $probe.ready = $ready
         $beforeHash = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
         $saved = Get-Content -LiteralPath $ownedDocument -Raw | ConvertFrom-Json
         if ($InWorldRecoveryActivity -eq 'beacon') { Assert-InWorldBeaconArm $saved $ready }
+        elseif ($InWorldRecoveryActivity -eq 'mining') {
+            Assert-InWorldMiningArm $saved $ready
+            if (Test-Path -LiteralPath ($ownedDocument + '.tmp')) { throw 'installed mining blockage remains at kill boundary' }
+        }
         elseif ((InWorld-Canonical $saved.payload.cinder_convoy_session.activities[0].progress.convoy_session_state) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed readiness differs from actual durable document/running marker' }
         Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-interrupted-document.json')
         $probe.interrupted_document_sha256 = $beforeHash
@@ -559,7 +608,7 @@ function Run-InWorldRecovery {
         Stop-InWorldOwned $arm $children[0].Entry 'Windows Process.Kill exact owned handle after durable in-world readiness'
         if (-not $children[0].Entry.kill_called) { throw 'installed arm exited without the required owned OS kill' }
         if ($arm.ExitCode -eq 0) { throw 'installed OS kill unexpectedly reported orderly exit' }
-        if ($InWorldRecoveryActivity -eq 'beacon' -and $arm.ExitCode -ne -1) { throw 'installed beacon owned Windows OS kill did not reap exit -1' }
+        if ($InWorldRecoveryActivity -ne 'convoy' -and $arm.ExitCode -ne -1) { throw "installed $InWorldRecoveryActivity owned Windows OS kill did not reap exit -1" }
         $probe.after_kill_document_sha256 = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($probe.after_kill_document_sha256 -ne $beforeHash) { throw 'installed OS kill performed an orderly save' }
         $resume = Start-InWorldOwned 'resume' $ownedProfile $children
@@ -584,6 +633,15 @@ function Run-InWorldRecovery {
             $probe.ordinary_hud_start_payment_once = 'PASS'
             $probe.duplicate_late_callback_refusal = 'PASS'
             $probe.durable_unpaid_boundary_held_until_retry = 'PASS'
+        }
+        elseif ($InWorldRecoveryActivity -eq 'mining') {
+            Assert-InWorldMiningRecovered $final $ready $recovered (Join-Path $ProbeRoot 'in-world-resume.log')
+            $probe.automated_safe_home_berth_boarding = 'PASS'
+            $probe.automated_ordinary_throttle_before_retry = 'PASS'
+            $probe.ordinary_hud_start_capacity_once = 'PASS'
+            $probe.duplicate_late_callback_refusal = 'PASS'
+            $probe.durable_unpaid_boundary_held_until_retry = 'PASS'
+            $probe.foreign_settings_cargo_preserved = 'PASS'
         }
         Copy-Item -LiteralPath $ownedDocument -Destination (Join-Path $ProbeRoot 'in-world-recovered-document.json')
         $probe.recovered_document_sha256 = (Get-FileHash -LiteralPath $ownedDocument -Algorithm SHA256).Hash.ToLowerInvariant()
