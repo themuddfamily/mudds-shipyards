@@ -25,6 +25,11 @@ const ARRIVAL_ID: StringName = &"cinder_convoy_safe_arrival"
 const REWARD_ID: StringName = &"return_convoy_credit_to_shipyard"
 const PERSISTENCE_SCHEMA_VERSION := 1
 const MAX_PERSISTED_COUNTER := 9_007_199_254_740_991
+## Independent elapsed, separation, and travel accumulations can reconstruct
+## a prior clock a few double-precision rounding bits across zero or its limit.
+## One picosecond covers the observed 60 Hz error (< 1e-13 seconds), far below
+## the is_zero_approx caller-delta floor. Actual activity limits remain strict.
+const PRIOR_SEPARATION_ROUNDING_SECONDS := 1.0e-12
 const ROUTE_CENTER_REACH_TOLERANCE := 0.00001
 const ROUTE_REPLAY_GRID_DIVISIONS := 16
 const ROUTE_REPLAY_REFINEMENT_STEPS := 18
@@ -558,8 +563,9 @@ func validate_persistence_state(candidate: Variant) -> Dictionary:
 				return _persistence_result(false, &"convoy_failure_clock_mismatch")
 			if float(activity_state.escort_distance) > _escort_proximity_radius:
 				var previous_separation := separation_elapsed - final_delta
-				if previous_separation < 0.0 or previous_separation >= _maximum_separation_seconds \
-						or previous_separation > movement_elapsed:
+				if previous_separation < -PRIOR_SEPARATION_ROUNDING_SECONDS \
+						or previous_separation - _maximum_separation_seconds > PRIOR_SEPARATION_ROUNDING_SECONDS \
+						or previous_separation - movement_elapsed > PRIOR_SEPARATION_ROUNDING_SECONDS:
 					return _persistence_result(false, &"convoy_failure_clock_mismatch")
 	var expected_movement := _movement_speed * movement_elapsed
 	if not is_finite(expected_movement) or not is_equal_approx(

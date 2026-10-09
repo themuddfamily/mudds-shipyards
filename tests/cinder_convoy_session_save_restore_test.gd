@@ -1009,6 +1009,7 @@ func _prepare_convoy_craft(game: GameFlow) -> HeroShip:
 
 
 func _exercise_failed_clock_witnesses() -> void:
+	await _exercise_separation_clock_rounding()
 	for scenario in ["reported", "separation", "timeout", "separation_after_tick", "timeout_after_tick"]:
 		var host := CinderConvoyEscortHost.new()
 		root.add_child(host)
@@ -1032,6 +1033,93 @@ func _exercise_failed_clock_witnesses() -> void:
 			"exact actual terminal sample/clock witness restores without mutation: %s" % scenario)
 		restored.free()
 		host.free()
+
+
+func _exercise_separation_clock_rounding() -> void:
+	var host := CinderConvoyEscortHost.new()
+	root.add_child(host)
+	host.start(0)
+	var generation := host.get_generation()
+	var cadence := 1.0 / 60.0
+	for _tick in 126:
+		host.advance_physics(cadence, host.get_snapshot().entity_position as Vector3, generation)
+	var path := "user://convoy-natural-separation-%d.json" % Time.get_ticks_usec()
+	var store := Store.new(path) as UserDataStore
+	store.load()
+	var codec := SessionPersistence.new()
+	codec.configure(store, SLOT)
+	_check(bool(codec.save(host, &"torrent", "natural-separation-active").accepted),
+		"ordinary 60 Hz escort progress durably saves its actual ACTIVE owner")
+	var previous := host.capture_persistence_state()
+	var far_ticks := 0
+	for _tick in 181:
+		previous = host.capture_persistence_state()
+		far_ticks += 1
+		host.advance_physics(cadence, Vector3(10000.0, 0.0, 0.0), generation)
+		if int(host.get_snapshot().activity.state) == ConvoyEscortActivity.State.FAILED:
+			break
+	var failed := host.capture_persistence_state()
+	var movement_elapsed := (float(failed.movement_distance) + float(failed.movement_backlog)) / 24.0
+	var final_delta := float(failed.activity_state.elapsed_seconds) - movement_elapsed
+	var reconstructed_previous := float(failed.activity_state.separation_elapsed_seconds) - final_delta
+	_check(far_ticks == 181 and float(previous.activity_state.separation_elapsed_seconds) < 3.0
+		and failed.activity_state.terminal_reason == "escort_separation_exceeded"
+		and reconstructed_previous >= 3.0 and reconstructed_previous - 3.0 < 1.0e-12
+		and int(failed.physics_tick_count) == int(previous.physics_tick_count)
+		and failed.entity_position == previous.entity_position,
+		"natural separation crosses on tick 181 with genuine prior grace below 3 seconds and rounded reconstruction above it")
+	var saved := codec.save(host, &"torrent", "natural-separation-failed")
+	var fresh_store := Store.new(path) as UserDataStore
+	var fresh_codec := SessionPersistence.new()
+	fresh_codec.configure(fresh_store, SLOT)
+	var restored := CinderConvoyEscortHost.new()
+	root.add_child(restored)
+	var signals := _new_signal_counts()
+	_connect_host_signal_counts(restored, signals)
+	var loaded := fresh_codec.load(restored)
+	var adopted := restored.restore_persistence_state(
+		(loaded.get("session_state", {}) as Dictionary).get("host_state", {}), 0)
+	_check(bool(saved.accepted) and bool(loaded.accepted) and bool(adopted.accepted)
+		and _canonical(restored.capture_persistence_state()) == _canonical(failed)
+		and _signal_total(signals) == 0
+		and not bool(failed.reward_requested) and not bool(failed.reward_granted),
+		"real file save replaces ACTIVE with exact earned separation FAILED and fresh startup adopts it silently without rewards")
+	for corruption in ["prior_expired", "prior_negative", "prior_beyond_movement", "zero_final_delta", "negative_final_delta", "configuration"]:
+		var forged := failed.duplicate(true)
+		match corruption:
+			"prior_expired":
+				forged.activity_state.separation_elapsed_seconds = 3.0 + final_delta + 1.0e-10
+			"prior_negative":
+				forged.activity_state.elapsed_seconds = movement_elapsed + float(forged.activity_state.separation_elapsed_seconds) + 1.0e-10
+			"prior_beyond_movement":
+				forged.activity_state.separation_elapsed_seconds = movement_elapsed + final_delta + 1.0e-10
+			"zero_final_delta":
+				forged.activity_state.elapsed_seconds = movement_elapsed
+			"negative_final_delta":
+				forged.activity_state.elapsed_seconds = movement_elapsed - 1.0e-10
+			"configuration":
+				forged.activity_state.configured_maximum_separation_seconds = 3.001
+		var refused := restored.validate_persistence_state(forged)
+		_check(not bool(refused.accepted),
+			"clock reconstruction still rejects genuine corruption beyond its roundoff budget: %s" % corruption)
+	restored.free()
+	host.free()
+	var first_far := CinderConvoyEscortHost.new()
+	root.add_child(first_far)
+	first_far.start(0)
+	for _tick in 126:
+		first_far.advance_physics(cadence, first_far.get_snapshot().entity_position as Vector3,
+			first_far.get_generation())
+	first_far.advance_physics(3.1, Vector3(10000.0, 0.0, 0.0), first_far.get_generation())
+	var first_far_state := first_far.capture_persistence_state()
+	var first_far_movement := (float(first_far_state.movement_distance)
+		+ float(first_far_state.movement_backlog)) / 24.0
+	var first_far_previous := float(first_far_state.activity_state.separation_elapsed_seconds) \
+		- (float(first_far_state.activity_state.elapsed_seconds) - first_far_movement)
+	_check(first_far_previous < 0.0 and first_far_previous > -1.0e-12
+		and bool(first_far.validate_persistence_state(first_far_state).accepted),
+		"a genuine first separated final clock also accepts its tiny negative reconstructed prior")
+	first_far.free()
 
 
 func _total_receipts(game: GameFlow) -> int:
