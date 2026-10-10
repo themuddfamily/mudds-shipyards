@@ -25,6 +25,13 @@ func _init() -> void:
 	call_deferred(&"_run")
 
 func _run() -> void:
+	# Optional genuine backup diagnosis preserves all default recovery routes.
+	if OS.get_cmdline_user_args().has("--mining-backup-trust-only"):
+		await _backup_trust_reproduction()
+		for failure in _failures: push_error(failure)
+		print("CINDER_MINING_DURABLE_RECOVERY_TEST_%s: %d assertions" % ["OK" if _failures.is_empty() else "FAILED", _assertions])
+		quit(0 if _failures.is_empty() else 1)
+		return
 	var directory := "/tmp/mudds-mining-durable-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()]
 	DirAccess.make_dir_recursive_absolute(directory)
 	var path := directory.path_join("profile.json")
@@ -124,6 +131,178 @@ func _run() -> void:
 	for failure in _failures: push_error(failure)
 	print("CINDER_MINING_DURABLE_RECOVERY_TEST_%s: %d assertions" % ["OK" if _failures.is_empty() else "FAILED", _assertions])
 	quit(0 if _failures.is_empty() else 1)
+
+
+## Mining's real capacity owner pays its six-second extraction, rotating the
+## genuine unpaid terminal into backup. This is not an inventory/currency grant.
+func _backup_trust_reproduction() -> void:
+	var path := "user://mining_backup_trust_%d.json" % Time.get_ticks_usec()
+	var retained := await _main(path)
+	var binding := retained.binding as NearbySectorActivityBinding
+	var shared := retained.store as UserDataStore
+	retained.game.call("_on_settings_save_requested")
+	var seeded := shared.get_snapshot()
+	seeded["mining_trust_unrelated"] = {"inventory": {"units": 4, "samples": ["caller-owned"]}, "note": "keep"}
+	_check(seeded.has("runtime_settings") and shared.commit(seeded, shared.get_generation(), "unit-mining-trust-unrelated").accepted,
+		"Mining diagnosis seeds caller data alongside actual saved runtime settings")
+	_mining_intent(retained.game, &"start_requested")
+	var active := binding.get_activity_snapshot(&"mining")
+	_check(active.state_id == &"active" and int(active.generation) > 0,
+		"ordinary Start admits the actual authored Mining approach and generation")
+	var completed := retained.game.call("_advance_cinder_mining_extraction", 6.0, retained.sample) as Dictionary
+	var reward: Dictionary = completed.get("reward_result", {})
+	var earned := (binding.get("_mining_activity") as RefCounted).call("get_snapshot") as Dictionary
+	print("MINING_BACKUP_COMPLETION: ", {"advance": completed, "owned": _mining_owned_state(binding),
+		"persistence": binding.get_cinder_mining_capacity_persistence_snapshot(), "source": shared.get_loaded_source()})
+	_check(bool(completed.get("accepted", false)) and bool(reward.get("accepted", false))
+		and bool(reward.get("capacity_persisted", false)) and is_equal_approx(float(earned.elapsed_seconds), 6.0),
+		"the actual six-second extraction publishes one genuine capacity acknowledgement")
+	var paid_bytes := FileAccess.get_file_as_bytes(path)
+	var unpaid_bytes := FileAccess.get_file_as_bytes(path + ".bak")
+	var paid: Variant = JSON.parse_string(paid_bytes.get_string_from_utf8())
+	var unpaid: Variant = JSON.parse_string(unpaid_bytes.get_string_from_utf8())
+	var readable: bool = paid is Dictionary and unpaid is Dictionary
+	_check(readable, "actual Mining publication retains readable paid primary and unpaid predecessor")
+	if not readable:
+		await _retire(retained.game)
+		return
+	var codec := CinderMiningCapacityPersistence.new()
+	codec.configure(shared, &"cinder_mining_capacity")
+	var paid_record: Dictionary = paid.payload.get("cinder_mining_capacity", {})
+	var unpaid_record: Dictionary = unpaid.payload.get("cinder_mining_capacity", {})
+	var valid: bool = codec.validate_record(paid_record).accepted and codec.validate_record(unpaid_record).accepted
+	_check(valid, "both genuine Mining witness documents satisfy the existing typed receipt codec")
+	if not valid:
+		await _retire(retained.game)
+		return
+	var genuine: bool = paid_record.session.capacity_paid and not unpaid_record.session.capacity_paid \
+		and unpaid_record.session.reward_requested and unpaid_record.capacity.is_empty() and not paid_record.capacity.is_empty() \
+		and int(paid_record.session.generation) == int(unpaid_record.session.generation) \
+		and int(paid_record.session.state) == CinderMiningPlatformActivity.State.COMPLETE \
+		and int(unpaid_record.session.state) == CinderMiningPlatformActivity.State.COMPLETE \
+		and float(unpaid_record.session.elapsed_seconds) == 6.0 \
+		and paid.payload.has("runtime_settings") and paid.payload.has("mining_trust_unrelated") \
+		and paid.payload.runtime_settings == unpaid.payload.runtime_settings \
+		and paid.payload.mining_trust_unrelated == unpaid.payload.mining_trust_unrelated
+	print("MINING_BACKUP_GENUINE_WITNESSES: ", {"paid": paid_record, "unpaid": unpaid_record, "reward": reward})
+	_check(genuine, "real paid capacity and its same-generation earned-unpaid predecessor retain full settings and caller data")
+	if not genuine:
+		await _retire(retained.game)
+		return
+	var corrupt := "corrupt newer paid Mining primary".to_utf8_buffer()
+	var staged := _write_mining_witness(path + ".paid-witness", paid_bytes) and _write_mining_witness(path, corrupt)
+	_check(staged, "retained Mining probe preserves paid evidence before corrupting the newer primary")
+	if not staged:
+		await _retire(retained.game)
+		return
+	var preflight := UserDataStore.new(path)
+	var selected := preflight.load()
+	var artifacts := _mining_recovery_artifacts(path)
+	print("MINING_BACKUP_RETAINED_PREFLIGHT: ", {"load": selected, "source": preflight.get_loaded_source()})
+	_check(selected.accepted and preflight.get_loaded_source() == &"backup" and artifacts.get(".recovery") == corrupt,
+		"the real store selects the genuine unpaid backup and preserves the exact corrupt primary")
+	var before := _mining_owned_state(binding)
+	_mining_intent(retained.game, &"start_requested")
+	_mining_intent(retained.game, &"start_requested")
+	print("MINING_BACKUP_RETAINED_START: ", {"feedback": ((retained.game as GameFlow).hud.get("_nearby_activity_feedback") as Label).text, "owned": _mining_owned_state(binding),
+		"persistence": binding.get_cinder_mining_capacity_persistence_snapshot(), "source": shared.get_loaded_source(), "payload": shared.get_snapshot()})
+	_check(_mining_owned_state(binding) == before and shared.get_loaded_source() == &"backup"
+		and shared.get_snapshot() == selected.payload and _mining_recovery_artifacts(path) == artifacts,
+		"repeated ordinary retained Start cannot discard paid Mining state or promote untrusted backup authority")
+	_mining_intent(retained.game, &"reset_requested")
+	print("MINING_BACKUP_RETAINED_RESET: ", {"feedback": ((retained.game as GameFlow).hud.get("_nearby_activity_feedback") as Label).text, "owned": _mining_owned_state(binding),
+		"persistence": binding.get_cinder_mining_capacity_persistence_snapshot(), "source": shared.get_loaded_source()})
+	_check(_mining_owned_state(binding) == before and shared.get_snapshot() == selected.payload
+		and _mining_recovery_artifacts(path) == artifacts,
+		"ordinary retained Reset preserves paid Mining acknowledgement, settings and recovery artifacts")
+	await _retire(retained.game)
+	_check(_mining_recovery_artifacts(path) == artifacts, "retained Mining teardown preserves all authority witnesses for explicit repair")
+
+	# Fresh and direct probes are independent of retained-control mutations.
+	path += "_fresh"
+	staged = _write_mining_witness(path + ".paid-witness", paid_bytes) and _write_mining_witness(path, corrupt) \
+		and _write_mining_witness(path + ".bak", unpaid_bytes)
+	_check(staged, "fresh Mining probe stages the exact genuine paid and earned-unpaid documents")
+	if not staged:
+		return
+	preflight = UserDataStore.new(path)
+	selected = preflight.load()
+	artifacts = _mining_recovery_artifacts(path)
+	_check(selected.accepted and preflight.get_loaded_source() == &"backup" and artifacts.get(".recovery") == corrupt,
+		"fresh Mining probe independently selects and retains the genuine fallback witnesses")
+	var fresh := await _main(path)
+	var fresh_binding := fresh.binding as NearbySectorActivityBinding
+	shared = fresh.store as UserDataStore
+	before = _mining_owned_state(fresh_binding)
+	var ready := fresh_binding.get_cinder_mining_capacity_persistence_snapshot()
+	print("MINING_BACKUP_FRESH_ADOPTION: ", {"owned": before, "persistence": ready,
+		"source": shared.get_loaded_source(), "payload": shared.get_snapshot()})
+	_check(not bool(ready.last_result.get("accepted", false))
+		and int(before.activity.state) == CinderMiningPlatformActivity.State.IDLE and int(before.activity.generation) == 0
+		and not before.capacity_paid and before.capacity.is_empty(),
+		"fresh Main refuses backup-derived Mining timer, generation and unpaid capacity entitlement")
+	_mining_intent(fresh.game, &"start_requested")
+	_mining_intent(fresh.game, &"start_requested")
+	_mining_intent(fresh.game, &"reset_requested")
+	print("MINING_BACKUP_FRESH_CONTROLS: ", {"feedback": ((fresh.game as GameFlow).hud.get("_nearby_activity_feedback") as Label).text, "owned": _mining_owned_state(fresh_binding),
+		"persistence": fresh_binding.get_cinder_mining_capacity_persistence_snapshot(), "source": shared.get_loaded_source(), "payload": shared.get_snapshot()})
+	_check(_mining_owned_state(fresh_binding) == before and shared.get_loaded_source() == &"backup"
+		and shared.get_snapshot() == selected.payload and _mining_recovery_artifacts(path) == artifacts,
+		"ordinary fresh Start, repeated capacity retry and Reset preserve untrusted state and complete caller settings/data")
+	await _retire(fresh.game)
+	_check(_mining_recovery_artifacts(path) == artifacts, "fresh Mining teardown retains paid witness, unpaid fallback and quarantine")
+
+	path += "_direct"
+	staged = _write_mining_witness(path + ".paid-witness", paid_bytes) and _write_mining_witness(path, corrupt) \
+		and _write_mining_witness(path + ".bak", unpaid_bytes)
+	_check(staged, "direct typed Mining probe stages independent genuine witness documents")
+	if not staged:
+		return
+	shared = UserDataStore.new(path)
+	selected = shared.load()
+	artifacts = _mining_recovery_artifacts(path)
+	_check(selected.accepted and shared.get_loaded_source() == &"backup" and artifacts.get(".recovery") == corrupt,
+		"direct typed persistence receives real backup-selected authority")
+	codec = CinderMiningCapacityPersistence.new()
+	_check(codec.configure(shared, &"cinder_mining_capacity").accepted, "the real Mining persistence owner configures without replacing store authority")
+	var loaded := codec.load()
+	print("MINING_BACKUP_DIRECT_LOAD: ", {"load": loaded, "source": shared.get_loaded_source()})
+	_check(not loaded.accepted and shared.get_snapshot() == selected.payload and _mining_recovery_artifacts(path) == artifacts,
+		"typed Mining load refuses adoption from backup without changing preserved authority documents")
+	var saved := codec.save(earned, reward, "unit-mining-backup-direct")
+	var saved_retry := codec.save(earned, reward, "unit-mining-backup-direct-retry")
+	print("MINING_BACKUP_DIRECT_SAVE: ", {"save": saved, "retry": saved_retry,
+		"source": shared.get_loaded_source(), "payload": shared.get_snapshot()})
+	_check(not saved.accepted and not saved_retry.accepted and shared.get_loaded_source() == &"backup"
+		and shared.get_snapshot() == selected.payload and _mining_recovery_artifacts(path) == artifacts,
+		"typed Mining capacity publication repeatedly refuses untrusted repayment/promotion and preserves all settings/caller data")
+
+
+func _write_mining_witness(path: String, bytes: PackedByteArray) -> bool:
+	var writer := FileAccess.open(path, FileAccess.WRITE)
+	if writer == null:
+		return false
+	writer.store_buffer(bytes)
+	writer.close()
+	return true
+
+
+func _mining_recovery_artifacts(path: String) -> Dictionary:
+	var absolute := ProjectSettings.globalize_path(path)
+	var directory := DirAccess.open(absolute.get_base_dir())
+	var result := {}
+	if directory == null:
+		return result
+	var name := absolute.get_file()
+	for filename in directory.get_files():
+		if filename == name or filename.begins_with(name + "."):
+			result[filename.trim_prefix(name)] = FileAccess.get_file_as_bytes(absolute.get_base_dir().path_join(filename))
+	return result
+
+
+func _mining_owned_state(binding: NearbySectorActivityBinding) -> Dictionary:
+	return {"activity": (binding.get("_mining_activity") as RefCounted).call("get_snapshot"),
+		"capacity_paid": binding.get("_mining_capacity_paid"), "capacity": (binding.get("_restored_mining_capacity") as Dictionary).duplicate(true)}
 
 
 func _test_published_sync(path: String) -> void:
