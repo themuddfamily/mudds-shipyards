@@ -386,10 +386,13 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Lights, source/export +2 local skies and the exact Cinder roster/delta stay fixed.
 # Both old-baseline measurement failures remain retained; strict acceptance
 # with these measured constants is run separately against the unchanged EXE.
-const RESIDENT_FINGERPRINT := "b885a4f8f29e9548082cfdc401bd7b75e55503b2169e2d4dbdfb8cb14944d11d"
-const CINDER_LOADED_FINGERPRINT := "d3f2aad097379f4e110e4ae472ef6abd6dd2f314ee267bcad201bc9e2f1a4962"
-const PACKED_RESIDENT_FINGERPRINT := "9ef7db59a05224562cd98d809a484e2a5e29150d8682bc302d648d648cef6dd3"
-const PACKED_CINDER_LOADED_FINGERPRINT := "31d4f29165e97e0c4c75cbec9536d8f2e803d363d3ae6feccbaed963cb5b4087"
+# Refrozen from actual source and packed 39759e48f reports for the ordinary
+# asteroid directory card: +5 UI nodes in each scenario. Geometry, resources,
+# lights, local skies and the complete streamed Cinder roster/delta are unchanged.
+const RESIDENT_FINGERPRINT := "4f0de3fe553a16a018943b095383a56698c55cb623346d1dfb7a6b9c6174930f"
+const CINDER_LOADED_FINGERPRINT := "f86e22fcdf1ef58a368e3c5cd3e5da79607dfe4a462862d2404b9d2e5f90cb5b"
+const PACKED_RESIDENT_FINGERPRINT := "79788e65353e216de3046532537a8854824aa75784a8232ae3f53a1c7fb63bca"
+const PACKED_CINDER_LOADED_FINGERPRINT := "b260f8a2643d7518e1c606ed69caef9c3dfdd9ee6b97f73da273367660058bac"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -449,8 +452,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 662
 			and int(resident.get("retained_reachable_unique_materials", -1)) == (1080 if _packed_scene_resources() else 1078)
 			and int(resident.get("lights", -1)) == 327
-			and int(resident.get("nodes", -1)) == 10285,
-		"resident resource roster freezes exact source/export materials, 327 lights, and 10,285 nodes"
+			and int(resident.get("nodes", -1)) == 10290,
+		"resident resource roster freezes exact source/export materials, 327 lights, and 10,290 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == (PACKED_RESIDENT_FINGERPRINT if _packed_scene_resources() else RESIDENT_FINGERPRINT),
@@ -518,8 +521,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 720
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1143 if _packed_scene_resources() else 1141)
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 10873,
-		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,873 nodes"
+			and int(loaded.get("nodes", -1)) == 10878,
+		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,878 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
