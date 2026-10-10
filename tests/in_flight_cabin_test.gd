@@ -55,6 +55,7 @@ func _run() -> void:
 
 	await _test_craft_contract()
 	await _test_cabin_containment()
+	await _test_containment_preserves_supported_axes()
 	await _test_frame_relative_seat_transitions()
 	await _test_collision_frame_arrival()
 
@@ -276,6 +277,54 @@ func _test_cabin_containment() -> void:
 		"RED: with containment released the same displacement leaves the body outside the craft"
 	)
 
+	await _free_containment_fixture(fixture)
+
+
+## Bulwark's standing origin is only 30 mm above its envelope bottom. Walking
+## into an open side must not lift that valid floor height to the 120 mm inset.
+func _test_containment_preserves_supported_axes() -> void:
+	var fixture := await _make_containment_fixture()
+	var frame := fixture["frame"] as Node3D
+	var player := fixture["player"] as PlayerController
+	var floor_local := frame.to_local(player.global_position)
+	var bounds := AABB(Vector3(-0.67, floor_local.y - 0.03, -0.9), Vector3(3.5, 0.75, 2.75))
+	player.set_cabin_containment(frame, bounds, player.global_transform)
+	player.set_remote_drive_enabled(true)
+	# This uses the same ordinary locomotion/gravity/slide as a carried player,
+	# with a held intent rather than depending on the host's physical keyboard.
+	player.apply_remote_intent(Vector2(1.0, -1.0), PI, false, false)
+	var maximum_height := floor_local.y
+	var grounded_ticks := 0
+	for _walk_tick in 50:
+		await physics_frame
+		await process_frame
+		maximum_height = maxf(maximum_height, frame.to_local(player.global_position).y)
+		if player.is_on_floor():
+			grounded_ticks += 1
+	player.clear_remote_intent()
+	var held := player.get_cabin_containment_report()
+	var corner := frame.to_local(player.global_position)
+	_check(
+		int(held.get("clamp_count", 0)) > 0 and bool(held.get("contained", false))
+		and corner.z > 1.6 and corner.x < -0.4,
+		"ordinary deck walking reaches and remains inside both open cabin corner faces"
+	)
+	_check(
+		maximum_height - floor_local.y < 0.03 and grounded_ticks == 50
+		and player.get_slide_collision_count() > 0,
+		"tangent corner containment preserves the real supported height and floor contact on every walk tick"
+	)
+	# Negative: containment cannot provide floor contact when the actual deck is
+	# gone. Its existing below-floor recall may reposition the body, but must
+	# never make is_on_floor true without a physical collider.
+	frame.get_node("ContainmentDeck").queue_free()
+	for _fall_tick in 8:
+		await physics_frame
+		await process_frame
+	_check(
+		not player.is_on_floor() and player.get_slide_collision_count() == 0,
+		"a contained body without its physical deck still reports no floor"
+	)
 	await _free_containment_fixture(fixture)
 
 
