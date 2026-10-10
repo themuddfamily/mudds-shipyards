@@ -357,6 +357,30 @@ func _client() -> void:
 func _helm_cursor(source: ShipCommandSource) -> Dictionary:
 	return {"stream": source.get_stream_id(), "delivery": source.get_delivery_generation(), "sequence": source.get_next_sequence()}
 
+func _print_movement_interval(stage: String, helm: NetworkRemotePilotCommandSource, start: Vector3) -> void:
+	var collisions: Array[Dictionary] = []
+	for index in _craft.get_slide_collision_count():
+		var collision := _craft.get_slide_collision(index)
+		var collider := collision.get_collider() as Node
+		collisions.append({"collider": collider.get_path() if is_instance_valid(collider) else NodePath(),
+			"position": collision.get_position(), "normal": collision.get_normal(),
+			"travel": collision.get_travel(), "remainder": collision.get_remainder()})
+	var command := _craft.get_last_ship_command()
+	var telemetry := _craft.get_telemetry()
+	print("GUNNER_MOVEMENT_INTERVAL: ", {"stage": stage, "monotonic_ms": Time.get_ticks_msec(),
+		"physics_frame": Engine.get_physics_frames(), "process_frame": Engine.get_process_frames(),
+		"start_position": start, "position": _craft.global_position, "velocity": _craft.velocity,
+		"displacement": _craft.global_position.distance_to(start),
+		"consumed_command": command.to_dictionary() if command != null else {}, "helm_audit": helm.get_audit(),
+		"helm_cursor": _helm_cursor(helm), "selected_helm": _craft.get_command_source() == helm,
+		"remote_piloted": _craft.is_remote_piloted(), "engine": telemetry.engine_state,
+		"throttle": telemetry.throttle, "landed": telemetry.landed, "landing_active": telemetry.landing_active,
+		"landing_phase": telemetry.landing_phase, "docked_latch": _craft.get("_docked_latch"),
+		"departure_lift_active": _craft.get("_departure_lift_active"),
+		"departure_lift_origin": _craft.get("_departure_lift_origin"),
+		"departure_lift_up": _craft.get("_departure_lift_up"), "departure_lift_height": _craft.get("_departure_lift_height"),
+		"on_floor": _craft.is_on_floor(), "on_wall": _craft.is_on_wall(), "collisions": collisions})
+
 func _host_moving_gunner(owner: CrewSeatRoleAuthority, receipts: Array[Dictionary]) -> void:
 	var source := _craft.get_local_input_source()
 	var profile_values: Dictionary = source.get_input_binding_profile().to_dictionary().duplicate(true)
@@ -374,7 +398,9 @@ func _host_moving_gunner(owner: CrewSeatRoleAuthority, receipts: Array[Dictionar
 		return
 	var helm_weak: WeakRef = weakref(helm)
 	var start := _craft.global_position
+	_print_movement_interval("before_12_steps", helm, start)
 	await _ticks(12)
+	_print_movement_interval("after_12_steps", helm, start)
 	_check(_craft.global_position.distance_to(start) > 0.05, "confirmed pilot commands move the actual host gunner craft")
 	_check(_player.is_seated_at(_craft.get_gunner_station_anchor()) and _game._solo_crew_claim_is_current() and _craft.get_moving_interior_component().is_occupant_registered(_player), "moving host gunner retains exact physical chair and shared owner")
 	var cursor := _helm_cursor(helm)
