@@ -132,7 +132,7 @@ func _test_cabin_cockpit_selection(craft: CinderCargoHauler) -> void:
 	player.set_physics_process(false)
 	craft.set_process(false)
 	craft.set_physics_process(false)
-	var seat := ShipCrewSeat.install(craft.get_loadmaster_station_anchor(), craft)
+	var seat := craft.get_loadmaster_station_anchor().get_node("SoloPassengerSeatInteraction") as ShipCrewSeat
 	var game := CabinSelectionFlow.new()
 	game.player = player
 	game.ships.append(craft)
@@ -174,7 +174,6 @@ func _test_cabin_cockpit_selection(craft: CinderCargoHauler) -> void:
 	_check(craft.get_crew_role_authority().get_snapshot() == owner_before and not craft.is_piloted(), "aim discovery leaves the real role ledger and pilot authority unchanged")
 	game.free()
 	player.queue_free()
-	seat.queue_free()
 	await process_frame
 
 
