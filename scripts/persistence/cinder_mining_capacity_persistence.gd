@@ -48,7 +48,7 @@ func save_session(snapshot: Dictionary, capacity_paid: bool, capacity: Dictionar
 
 
 func _save_record(record: Dictionary, commit_id: String) -> Dictionary:
-	var loaded := _store.call(&"load") as Dictionary
+	var loaded := load_authoritative_store()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
 	var payload := _store.call(&"get_snapshot") as Dictionary
@@ -69,8 +69,10 @@ func _save_record(record: Dictionary, commit_id: String) -> Dictionary:
 	# A platform sync adapter may reject after publication. Re-read the actual
 	# authority and reconcile only an exact record match, never pay it twice.
 	if not bool(committed.get("accepted", false)) and bool(committed.get("published", false)):
-		var reconciled := _store.call(&"load") as Dictionary
-		if bool(reconciled.get("accepted", false)) and (_store.call(&"get_snapshot") as Dictionary).get(key) == wire_record:
+		var reconciled := load_authoritative_store()
+		if bool(reconciled.get("accepted", false)) \
+				and StringName(_store.call(&"get_loaded_source")) == &"primary" \
+				and (_store.call(&"get_snapshot") as Dictionary).get(key) == wire_record:
 			committed = _result(true, &"mining_session_published_reconciled")
 	committed["binding_reason"] = &"mining_capacity_saved" if bool(committed.get("accepted", false)) else &"store_rejected"
 	return committed
@@ -105,9 +107,7 @@ func _session(snapshot: Dictionary, paid: bool) -> Dictionary:
 
 
 func load() -> Dictionary:
-	if not _configured():
-		return _result(false, &"mining_capacity_persistence_unavailable")
-	var loaded := _store.call(&"load") as Dictionary
+	var loaded := load_authoritative_store()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
 	var payload := loaded.get("payload", {}) as Dictionary
@@ -124,6 +124,21 @@ func load() -> Dictionary:
 		"capacity": (payload[key] as Dictionary).capacity.duplicate(true),
 		"session": ((payload[key] as Dictionary).get("session", {}) as Dictionary).duplicate(true),
 	}.duplicate(true)
+
+
+## Backup recovery can expose an older unpaid extraction after a newer payment.
+## Require explicit primary/empty provenance before adoption or publication.
+func load_authoritative_store() -> Dictionary:
+	if not _configured():
+		return _result(false, &"mining_capacity_persistence_unavailable")
+	if not _store.has_method(&"get_loaded_source"):
+		return _result(false, &"mining_capacity_store_recovery_required")
+	var loaded := _store.call(&"load") as Dictionary
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	if StringName(_store.call(&"get_loaded_source")) not in [&"primary", &"empty"]:
+		return _result(false, &"mining_capacity_store_recovery_required")
+	return loaded
 
 
 func capture(snapshot: Dictionary, reward_result: Dictionary) -> Dictionary:

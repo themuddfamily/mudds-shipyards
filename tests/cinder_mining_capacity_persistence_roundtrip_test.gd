@@ -29,6 +29,17 @@ class MemoryFilesystem extends FilesystemScript:
 		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
 		files.erase(from_path); return OK
 
+## A real store with only its recovery-provenance API withheld.
+class StoreWithoutProvenance extends RefCounted:
+	var backing: UserDataStore
+	var commit_calls := 0
+	func load() -> Dictionary: return backing.load()
+	func get_snapshot() -> Dictionary: return backing.get_snapshot()
+	func get_generation() -> int: return backing.get_generation()
+	func commit(payload: Dictionary, generation: int, commit_id: String) -> Dictionary:
+		commit_calls += 1
+		return backing.commit(payload, generation, commit_id)
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -62,6 +73,9 @@ func _run() -> void:
 		and not bool(((persisted.capacity as Dictionary).reward_receipt as Dictionary).replay_allowed)
 		and not bool(((persisted.capacity as Dictionary).reward_receipt as Dictionary).granted),
 		"the capacity receipt merges atomically without replacing foreign data")
+	_test_missing_provenance(store, filesystem,
+		(first_binding.get("_mining_activity") as RefCounted).call("get_snapshot") as Dictionary,
+		receipt, persisted.capacity as Dictionary)
 	await _retire(first)
 
 	var reloaded_store := StoreScript.new("memory://cinder-mining-capacity.json", filesystem)
@@ -113,6 +127,31 @@ func _run() -> void:
 	for failure in _failures: push_error(failure)
 	print("CINDER_MINING_CAPACITY_PERSISTENCE_ROUNDTRIP_TEST_OK: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _test_missing_provenance(store: UserDataStore, filesystem: MemoryFilesystem,
+		snapshot: Dictionary, receipt: Dictionary, capacity: Dictionary) -> void:
+	var wrapper := StoreWithoutProvenance.new()
+	wrapper.backing = store
+	var persistence := CinderMiningCapacityPersistence.new()
+	var configured := persistence.configure(wrapper, &"cinder_mining_capacity")
+	_check(bool(configured.accepted),
+		"the minimal store interface configures without assuming recovery provenance")
+	var before := store.get_snapshot().duplicate(true)
+	var files_before := filesystem.files.duplicate(true)
+	var generation_before := store.get_generation()
+	var refused := true
+	for attempt in range(2):
+		var loaded := persistence.load()
+		var saved := persistence.save(snapshot, receipt, "missing-mining-provenance-%d" % attempt)
+		var session := persistence.save_session(snapshot, true, capacity,
+			"missing-mining-session-provenance-%d" % attempt)
+		for result in [loaded, saved, session]:
+			refused = refused and not bool(result.accepted) \
+				and result.reason == &"mining_capacity_store_recovery_required"
+	_check(refused and wrapper.commit_calls == 0 and store.get_generation() == generation_before
+		and store.get_snapshot() == before and filesystem.files == files_before,
+		"repeated typed recovery and genuine capacity/session publication require provenance without changing paid data")
 
 
 func _test_failed_save_recovery() -> void:
