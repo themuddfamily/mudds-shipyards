@@ -8030,7 +8030,15 @@ func _update_on_foot_flow() -> void:
 		return
 	if phase == Phase.IN_FLIGHT_CABIN:
 		if station_interaction_candidate is ShipCrewSeat:
-			hud.set_interaction(station_interaction_candidate.get_interaction_prompt())
+			var seat := station_interaction_candidate as ShipCrewSeat
+			var prompt := seat.get_interaction_prompt()
+			if prompt.is_empty() and _can_reseat_host_cinder_loadmaster(seat):
+				prompt = "[ E ] SIT // %s %s" % [seat.get_ship().get_display_name().to_upper(), seat.get_role_label().to_upper()]
+				var owner: CrewSeatRoleAuthority = seat.get_ship().call(&"get_crew_role_authority")
+				for assignment: Dictionary in owner.get_snapshot().get("assignments", []):
+					if assignment.get("seat_id") == seat.get_seat_id():
+						prompt = "[ E ] %s SEAT OCCUPIED" % seat.get_role_label().to_upper()
+			hud.set_interaction(prompt)
 		elif station_interaction_candidate is ShipBunk:
 			hud.set_interaction(station_interaction_candidate.get_interaction_prompt())
 		elif _near_ship and boarding_candidate == _cabin_ship:
@@ -9257,6 +9265,33 @@ func _release_retired_solo_crew_claim(assignment: Dictionary) -> bool:
 	return true
 
 
+## Only an already-carried host body can retake this chair during remote flight.
+## This preserves its cabin reservation; it cannot admit an exterior contender.
+func _can_reseat_host_cinder_loadmaster(seat: ShipCrewSeat) -> bool:
+	if not is_instance_valid(seat) or not seat.get_ship() is CinderCargoHauler \
+			or seat.get_seat_id() != CinderCargoHauler.LOADMASTER_STATION_SEAT_ID \
+			or seat.get_role() != &"passenger" or phase != Phase.IN_FLIGHT_CABIN \
+			or _cabin_ship != seat.get_ship() or not player.is_on_floor():
+		return false
+	var craft := seat.get_ship() as CinderCargoHauler
+	var contract := seat.get_role_contract()
+	var frame := contract.get("frame") as MovingInteriorFrame
+	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	var containment := player.get_cabin_containment_report()
+	var authority := craft.get_crew_role_authority()
+	return _cinder_host_has_remote_pilot(craft) and not contract.is_empty() \
+		and authority != null and _network_engineer_binding != null \
+		and _network_engineer_binding.role_authority_for(craft) == authority \
+		and is_instance_valid(frame) and frame.get_moving_frame() == craft \
+		and frame.is_occupant_registered(player) \
+		and bool(containment.get("active", false)) and containment.get("frame") == craft \
+		and (craft.get_in_flight_cabin_report().get("local_bounds", AABB()) as AABB).has_point(craft.to_local(player.global_position)) \
+		and player.get_interaction_origin().distance_to(seat.global_position) <= STATION_SEAT_MAX_REACH \
+		and is_instance_valid(area) and area == _boarding_area and area.is_inside_tree() \
+		and not area.is_queued_for_deletion() and area.boarding_enabled and area.is_reserved() \
+		and area.get_reservation_token() == player
+
+
 func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	if _transition_busy or _station_seated or _piloting or player.is_seated() \
 			or (_network_session_is_live() and not (_network_session_mode == &"server" and seat is ShipCrewSeat and _network_physical_crew_seat_is_wired(seat))) or _planetary_visit_blocks_network_session() \
@@ -9265,7 +9300,8 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 		return
 	var craft := seat.get_ship()
 	var contract := seat.get_role_contract()
-	if not is_instance_valid(craft) or craft not in ships or not craft.is_boardable() \
+	var retained_cinder_cabin := _can_reseat_host_cinder_loadmaster(seat)
+	if not is_instance_valid(craft) or craft not in ships or (not craft.is_boardable() and not retained_cinder_cabin) \
 			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID] \
 			or contract.is_empty() or contract.get("seat") != seat.get_seat_anchor() \
 			or (phase == Phase.IN_FLIGHT_CABIN and craft != _cabin_ship) \
@@ -9275,7 +9311,8 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 		return
 	var cabin := _solo_safe_recovery_cabin(craft)
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
-	if cabin.is_empty() or cabin.get("frame") != contract.get("frame") or area == null or not area.is_available_for(player):
+	if cabin.is_empty() or cabin.get("frame") != contract.get("frame") or area == null \
+			or (not retained_cinder_cabin and not area.is_available_for(player)):
 		return
 	var frame := cabin.frame as MovingInteriorFrame
 	for key: StringName in [MovingInteriorFrame.REGISTRATION_META, MovingInteriorFrame.OWNER_META]:
@@ -9334,7 +9371,9 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	_station_seat_recovery_transform = seat.get_exit_transform()
 	_transition_busy = true
 	var generation := _begin_transition_generation()
-	if not area.try_reserve(player):
+	# A moving cabin handoff retains its existing reservation; ordinary exterior
+	# boarding still requires the area's unchanged availability/reservation gate.
+	if not retained_cinder_cabin and not area.try_reserve(player):
 		_cancel_solo_crew_seat()
 		return
 	# Transfer the Player's existing volume/cabin registration through its owner
@@ -9594,13 +9633,58 @@ func _submit_solo_engineer_intent(component_id: StringName, repair: float, compo
 func _solo_gunner_input_is_available() -> bool:
 	if not is_instance_valid(_solo_crew_ship) or _transition_busy or not _station_seated or (_solo_crew_role not in [&"gunner", &"engineer"] and not _solo_crew_ship is CinderCargoHauler) \
 			or (_network_session_is_live() and not (_network_session_mode == &"server" and _network_physical_crew_seat_is_wired(_solo_crew_seat))) or get_tree().paused or not can_process() \
-			or not player.is_control_enabled() or not _solo_crew_claim_is_current() \
-			or _solo_crew_ship.is_piloted():
+			or not player.is_control_enabled() or not _solo_crew_claim_is_current():
 		return false
 	var source := _solo_crew_ship.get_local_input_source()
-	return is_instance_valid(source) and source == _solo_crew_ship.get_command_source() \
+	return _solo_crew_local_source_is_available(source) \
 		and source.is_enabled_owner() and source.is_input_configuration_valid() \
 		and bool(source.call(&"_is_input_sampling_active"))
+
+
+## The retained local producer may serve only Cinder's exact host chair while
+## another admitted peer owns the selected helm. It never becomes a flight
+## producer, and neither sampling nor retiring it touches that remote stream.
+func _solo_crew_local_source_is_available(source: LocalShipInputSource) -> bool:
+	if not is_instance_valid(source) or not is_instance_valid(_solo_crew_ship) \
+			or source != _solo_crew_ship.get_local_input_source():
+		return false
+	var selected := _solo_crew_ship.get_command_source()
+	if not _solo_crew_ship.is_piloted():
+		return source == selected
+	if not _solo_crew_ship is CinderCargoHauler or _solo_crew_role != &"passenger" \
+			or _solo_crew_seat_id != CinderCargoHauler.LOADMASTER_STATION_SEAT_ID \
+			or _network_session_mode != &"server" or not _network_session_is_live() \
+			or not _solo_crew_ship.is_remote_piloted() or selected == source \
+			or not selected is NetworkRemotePilotCommandSourceType:
+		return false
+	return _cinder_host_has_remote_pilot(_solo_crew_ship)
+
+
+## Read only the confirmed production helm and its existing boarding lease.
+func _cinder_host_has_remote_pilot(craft: HeroShip) -> bool:
+	if not is_instance_valid(craft) or not craft is CinderCargoHauler \
+			or _network_session_mode != &"server" or not _network_session_is_live() \
+			or not network_session.is_server() \
+			or not craft.is_remote_piloted():
+		return false
+	var helm := craft.get_command_source() as NetworkRemotePilotCommandSourceType
+	if not is_instance_valid(helm):
+		return false
+	var ship_id := craft.get_ship_id()
+	var record := _network_remote_pilots.get(ship_id, {}) as Dictionary
+	var peer := int(record.get("peer_id", 0))
+	if peer <= 1 or peer not in network_session.get_admitted_peer_ids() \
+			or record.get("craft") != craft or record.get("source") != helm \
+			or helm.get_pilot_peer_id() != peer or helm.get_ship_id() != ship_id:
+		return false
+	# This is the pilot ID registered by _ensure_network_boarding_ship_registered.
+	for occupancy: Dictionary in network_session.get_boarding_snapshot().get("occupancies", []):
+		if int(occupancy.get("peer_id", 0)) == peer \
+				and occupancy.get("ship_id") == ship_id \
+				and occupancy.get("seat_id") == StringName("%s_pilot" % String(ship_id)) \
+				and occupancy.get("role") == &"pilot":
+			return true
+	return false
 
 
 func _solo_gunner_source_is_current() -> bool:
@@ -9624,9 +9708,7 @@ func _reset_solo_gunner_input() -> void:
 	_solo_gunner_input_elapsed = 0.0
 	# A retiring crew caller cannot reset a replacement ledger or pilot producer.
 	if not is_instance_valid(source) or not is_instance_valid(_solo_crew_ship) \
-			or _solo_crew_ship.is_piloted() or not source.is_enabled_owner() \
-			or source != _solo_crew_ship.get_local_input_source() \
-			or source != _solo_crew_ship.get_command_source() \
+			or not _solo_crew_local_source_is_available(source) or not source.is_enabled_owner() \
 			or _solo_crew_ship.call(&"get_crew_role_authority") != owner \
 			or owner == null or generation != _solo_crew_seat_generation \
 			or source.get_stream_id() != stream:
