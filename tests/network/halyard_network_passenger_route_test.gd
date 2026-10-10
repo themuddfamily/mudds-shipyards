@@ -527,8 +527,11 @@ func _client_loadmaster_pilot() -> void:
 	var anchor := _craft.get_pilot_seat_anchor()
 	await _walk(_craft.to_local(anchor.global_position) + Vector3(-0.6, 0.0, 0.6))
 	await _look(anchor.global_position)
+	_print_pilot_transfer_state(&"before_interact")
 	await _press(&"interact")
+	_print_pilot_transfer_state(&"after_interact")
 	_check(await _until(func(): return bool(_game.get("_piloting")) and not bool(_game.get("_transition_busy")), 12.0), "ordinary cockpit Interact swaps the admitted client berth for the real pilot seat")
+	_print_pilot_transfer_state(&"after_original_wait")
 	if not bool(_game.get("_piloting")):
 		return
 	_check(_game._network_client_boarding_claim.get("role") == &"pilot", "confirmed client owns the production pilot boarding receipt")
@@ -544,6 +547,28 @@ func _client_loadmaster_pilot() -> void:
 	Input.action_release(&"move_forward")
 	_game.shutdown_network_session(&"moving_loadmaster_pilot_disconnect")
 	_write("client.disconnected", {})
+
+## Read-only dispatch observations for the existing moving-route cockpit press.
+## A failed transfer must show whether the ordinary press reached boarding or
+## an authored nearby interaction, without changing the request or wait budget.
+func _print_pilot_transfer_state(stage: StringName) -> void:
+	var candidate: Node3D = _game.station_interaction_candidate
+	var prompt: String = str(candidate.call(&"get_interaction_prompt")) if is_instance_valid(candidate) and candidate.has_method(&"get_interaction_prompt") else ""
+	var label: Label = _game.hud.get("_interaction_label") as Label
+	print("PASSENGER_PILOT_TRANSFER: stage=", stage,
+		" phase=", _game.phase, " piloting=", _game.get("_piloting"),
+		" transition_busy=", _game.get("_transition_busy"),
+		" control_enabled=", _player.is_control_enabled(), " window_focus=", root.has_focus(),
+		" floor=", _player.is_on_floor(), " local=", _craft.to_local(_player.global_position),
+		" interaction_origin=", _craft.to_local(_player.get_interaction_origin()),
+		" interaction_direction=", _craft.global_basis.inverse() * _player.get_interaction_direction(),
+		" pilot_anchor=", _craft.to_local(_craft.get_pilot_seat_anchor().global_position),
+		" near_pilot=", _game._network_client_near_pilot_seat(_craft),
+		" candidate=", candidate, " prompt=", prompt,
+		" hud_prompt=", label.text if label != null else "",
+		" nearby=", _player.get_nearby_interactables(),
+		" boarding_candidate=", _game.boarding_candidate, " near_ship=", _game.get("_near_ship"),
+		" boarding=", _game.get_network_client_boarding_audit())
 
 func _cargo_state() -> Dictionary:
 	var binding := _game._get_nearby_activity_binding()
