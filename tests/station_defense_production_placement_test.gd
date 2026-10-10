@@ -590,8 +590,8 @@ func _verify_main_unpaid_recovery() -> void:
 		and first.save_jovian_cargo_session().accepted, "the real cargo owner stores its unrelated production namespace")
 	fault.reject_rewards = false
 	var unrelated: Dictionary = first.call("_commit_game_flow_activity_reward", {
-		"activity_id": &"shipyard_heavy_breach", "activity_generation": 1,
-		"reward_id": &"return_heavy_breach_credit", "reward_authority": false, "granted": false})
+		"activity_id": GameFlowRewardAuthority.CINDER_ASTEROID_RUN_ACTIVITY_ID, "activity_generation": 1,
+		"reward_id": GameFlowRewardAuthority.CINDER_ASTEROID_RUN_REWARD_ID, "reward_authority": false, "granted": false})
 	_check(unrelated.accepted and _main_receipts(first) == 1, "the existing shared authority stores an unrelated genuine reward receipt")
 	fault.reject_rewards = true
 	var cargo_before: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path)).payload.jovian_cargo_session
