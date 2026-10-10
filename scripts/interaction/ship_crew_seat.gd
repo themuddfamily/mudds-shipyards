@@ -96,12 +96,16 @@ func get_interaction_prompt() -> String:
 	if authority != null:
 		for assignment: Dictionary in authority.get_snapshot().get("assignments", []):
 			if assignment.get("seat_id") == _seat_id:
-				return "[ E ] %s SEAT OCCUPIED" % String(_role).to_upper()
-	return "[ E ] SIT // %s %s" % [_ship.get_display_name().to_upper(), String(_role).to_upper()]
+				return "[ E ] %s SEAT OCCUPIED" % get_role_label().to_upper()
+	return "[ E ] SIT // %s %s" % [_ship.get_display_name().to_upper(), get_role_label().to_upper()]
+
+
+func get_role_label() -> String:
+	return str(get_role_contract().get("role_label", String(_role)))
 
 
 func get_seated_prompt() -> String:
-	return "[ E ] STAND // %s %s" % [_ship.get_display_name().to_upper(), String(_role).to_upper()]
+	return "[ E ] STAND // %s %s" % [_ship.get_display_name().to_upper(), get_role_label().to_upper()]
 
 
 func interact(_actor: Node = null) -> bool:

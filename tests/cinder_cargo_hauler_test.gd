@@ -18,6 +18,24 @@ func _initialize() -> void:
 	var craft := Hauler.new()
 	root.add_child(craft)
 	await process_frame
+	var ramp := craft.get_node("CinderCargoVisual/BoardingRampSupport/CargoBoardingRamp") as CollisionShape3D
+	var tread := craft.get_node("CinderCargoVisual/CargoBoardingRampTread") as MeshInstance3D
+	_check(ramp.shape is BoxShape3D and tread.mesh is BoxMesh
+		and (ramp.shape as BoxShape3D).size == (tread.mesh as BoxMesh).size
+		and ramp.transform == tread.transform
+		and ramp.transform == Hauler.BOARDING_RAMP_POSE,
+		"visible boarding ramp and real support share exact authored stock and pose")
+	_check(ramp.basis.y.angle_to(Vector3.UP) < deg_to_rad(45.0)
+		and (ramp.transform * ramp.shape.get_debug_mesh().get_aabb()).position.y > -1.63,
+		"ramp fits ordinary suit slope and clears the parked station floor")
+	craft.set_piloted(true)
+	await physics_frame
+	await process_frame
+	_check(ramp.disabled and not tread.visible, "boarding ramp retracts before pilot-controlled motion")
+	craft.set_piloted(false)
+	await physics_frame
+	await process_frame
+	_check(not ramp.disabled and tread.visible, "landed unpiloted hull deploys the ordinary boarding ramp")
 	_test_recessed_exhaust(craft)
 	_test_cockpit_fairing(craft)
 	_test_fitted_canopy(craft)
@@ -345,6 +363,13 @@ func _test_home_berth_approach_lane_is_flyable() -> void:
 		await process_frame
 		return
 
+	# The flight lane checks the exact hull after the production boarding ramp
+	# retracts through its pilot owner, just as an ordinary departure does.
+	craft.set_piloted(true)
+	await physics_frame
+	await process_frame
+	var deployed_ramp := craft.get_node("CinderCargoVisual/BoardingRampSupport/CargoBoardingRamp") as CollisionShape3D
+	_check(deployed_ramp.disabled, "ordinary pilot ownership retracts ramp before flight-lane clearance")
 	var space := craft.get_world_3d().direct_space_state
 	var dock := berth.get_dock_transform()
 	var capture := berth.get_assist_capture_transform()
@@ -388,7 +413,7 @@ func _test_home_berth_approach_lane_is_flyable() -> void:
 		and berth.contains_oriented_bounds(
 			dock, report.get("local_bounds", AABB()) as AABB, 0.05
 		),
-		"the hauler's eight-shape flight envelope still fits inside Dock 04's parked volume"
+		"the hauler's retained eight-shape flight envelope still fits inside Dock 04's parked volume"
 	)
 	world.queue_free()
 	await process_frame

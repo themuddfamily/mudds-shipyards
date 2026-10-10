@@ -52,8 +52,11 @@ const DAMAGE_WARNING_ANCHOR := Vector3(0.0, 2.12, -2.05)
 const DAMAGE_DEBRIS_COUNT := 14
 const LOADMASTER_STATION_SEAT_ID: StringName = &"cinder_loadmaster_station"
 const NAVIGATOR_STATION_SEAT_ID: StringName = &"cinder_navigator_station"
-const INTERIOR_BOUNDS := AABB(Vector3(-2.55, -0.95, -2.80), Vector3(5.10, 2.10, 5.60))
+const INTERIOR_BOUNDS := AABB(Vector3(-2.55, -1.00, -2.80), Vector3(5.10, 2.15, 5.60))
 const CABIN_ROUTE_ID: StringName = &"cinder_cargo_port_aperture"
+# A 30.5 degree tread joins the station floor to the retained boarding deck.
+const BOARDING_RAMP_POSE := Transform3D(Basis(Vector3.FORWARD, -atan(0.59)), Vector3(-4.2, -1.3015, 0.0))
+const BOARDING_RAMP_SIZE := Vector3(1.161077086, 0.05, 1.60)
 const NAVIGATOR_ROUTE_ID: StringName = &"cinder_navigator_console"
 const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
 const LOADMASTER_INTERACTION_REACH := 1.20
@@ -393,6 +396,8 @@ var _loadmaster_manifest_receipt: Dictionary = {}
 var _loadmaster_manifest_generation := 1
 var _interior_occupant_count := 0
 var _cargo_built := false
+var _boarding_ramp_visual: MeshInstance3D
+var _boarding_ramp_collision: CollisionShape3D
 var _weapon_definition: WeaponDefinition
 var _ship_perspective_audio_binding: RefCounted
 
@@ -472,9 +477,13 @@ func _exit_tree() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Pending reset preflight keeps the entire craft unchanged.
+	if not _reset_for_reuse_mutation_blocked():
+		_sync_boarding_ramp()
 	super._physics_process(delta)
 	if _reset_for_reuse_mutation_blocked():
 		return
+	_sync_boarding_ramp()
 	_cleanup_detached_loadmaster()
 
 
@@ -645,9 +654,7 @@ func get_in_flight_cabin_report() -> Dictionary:
 			and _moving_interior_component != null,
 		"status": &"cinder_cargo_cabin",
 		"frame": _moving_interior_component,
-		"stand_transform": _loadmaster_station_anchor.global_transform \
-			if is_instance_valid(_loadmaster_station_anchor) and _loadmaster_station_anchor.is_inside_tree() \
-			else Transform3D.IDENTITY,
+		"stand_transform": global_transform * Transform3D(Basis.IDENTITY, Vector3(0.0, -0.86, 0.25)),
 		"local_bounds": INTERIOR_BOUNDS,
 		"boarding_route_id": CABIN_ROUTE_ID,
 		"loadmaster_station": _loadmaster_station_anchor,
@@ -660,6 +667,36 @@ func get_cargo_cabin_root() -> Node3D:
 
 func get_moving_interior_component() -> MovingInteriorFrame:
 	return _moving_interior_component
+
+
+## Ordinary chair discovery uses the existing physical seat and moving frame.
+func get_passenger_station_role_contract() -> Dictionary:
+	if not is_instance_valid(_loadmaster_station_anchor):
+		return {}
+	var approach := global_transform * Transform3D(Basis.IDENTITY, Vector3(0.0, -0.86, 0.25))
+	return {
+		"vessel_id": get_ship_id(), "seat_id": LOADMASTER_STATION_SEAT_ID,
+		"role": &"passenger", "seat": _loadmaster_station_anchor,
+		"frame": _moving_interior_component, "entry_transform": approach,
+		"exit_transform": approach, "role_label": "Loadmaster",
+	}
+
+
+func detach_crew_role_authority(owner: CrewSeatRoleAuthority) -> Dictionary:
+	if owner == null or owner != _crew_role_authority:
+		return _crew_role_result(false, &"authority_mismatch")
+	_crew_role_authority = null
+	_clear_loadmaster_manifest(&"authority_detached")
+	_loadmaster_interaction.refresh_availability()
+	_navigator_interaction.refresh_availability()
+	return _crew_role_result(true, &"authority_detached")
+
+
+## Readiness is a role receipt; cargo transfer and finite inventory keep ownership.
+func submit_loadmaster_readiness(peer: int, avatar: StringName, sequence: int) -> Dictionary:
+	return submit_crew_intent(1, peer, avatar, CrewRoleGameplayProfileType.ACTION_PASSENGER_CARGO_MANIFEST, {
+		"manifest_id": &"cinder_cabin_manifest", "route_id": CABIN_ROUTE_ID, "ready": true,
+	}, sequence)
 
 
 func get_loadmaster_station_anchor() -> Marker3D:
@@ -1884,6 +1921,26 @@ func _build_cargo_entry(visual: Node3D) -> void:
 		tread_transforms.append(Transform3D(Basis.IDENTITY, Vector3(x, -0.965, 0.0)))
 	_add_visual_box_batch(visual, "CargoBoardingGripBatch", Vector3(0.035, 0.012, 1.43),
 		tread_transforms, Color("25322f"), PackedStringArray())
+	_boarding_ramp_visual = _add_interior_box(visual, "CargoBoardingRampTread", Vector3.ZERO, BOARDING_RAMP_SIZE, Color("586569"))
+	_boarding_ramp_visual.transform = BOARDING_RAMP_POSE
+	_boarding_ramp_visual.set_meta(&"route_id", CABIN_ROUTE_ID)
+	# Deployed access infrastructure is separate from the retained flight hull.
+	# Its owner retracts it on pilot/flight/destruction physics boundaries.
+	# Reset preflight preserves it; committed rebuild installs current state.
+	var ramp_body := StaticBody3D.new()
+	ramp_body.name = "BoardingRampSupport"
+	ramp_body.collision_layer = PhysicsLayers.SHIP_BODY_LAYER
+	ramp_body.collision_mask = 0
+	visual.add_child(ramp_body)
+	add_collision_exception_with(ramp_body)
+	_boarding_ramp_collision = CollisionShape3D.new()
+	_boarding_ramp_collision.name = "CargoBoardingRamp"
+	var ramp_shape := BoxShape3D.new()
+	ramp_shape.size = BOARDING_RAMP_SIZE
+	_boarding_ramp_collision.shape = ramp_shape
+	_boarding_ramp_collision.transform = BOARDING_RAMP_POSE
+	ramp_body.add_child(_boarding_ramp_collision)
+	_sync_boarding_ramp()
 	var lamp := _add_interior_box(visual, "CargoBoardingLamp", Vector3(-3.18, 1.16, 0.0),
 		Vector3(0.065, 0.045, 1.32), Color("d8e8e5"))
 	lamp.material_override = _material(Color("d8e8e5"), 0.1, 0.42, Color("d8e8e5"), 0.9)
@@ -2292,6 +2349,14 @@ func _commit_variant_reset_for_reuse(context: Dictionary) -> void:
 		_navigator_interaction.refresh_availability()
 	_clear_navigator_ping(&"ship_reused")
 	_sync_interior_occupant_collision()
+
+
+func _sync_boarding_ramp() -> void:
+	if not is_instance_valid(_boarding_ramp_visual) or not is_instance_valid(_boarding_ramp_collision):
+		return
+	var deployed := _landed and not _piloted and not _remote_piloted and not _destroyed and not _reset_for_reuse_mutation_blocked()
+	_boarding_ramp_visual.visible = deployed
+	_boarding_ramp_collision.set_deferred(&"disabled", not deployed)
 
 
 func _cleanup_detached_loadmaster() -> void:
