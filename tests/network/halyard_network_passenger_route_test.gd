@@ -490,7 +490,7 @@ func _host_moving_loadmaster(owner: CrewSeatRoleAuthority) -> void:
 	Input.action_release(&"fire")
 	_check(_manifest_receipts == 1 and _craft.get_loadmaster_manifest_snapshot().get("receipt", {}) == receipt, "held FIRE records exactly one readiness receipt for the claim")
 	_print_host_loadmaster_state(&"before_readiness_invariant", local_source, profile, profile_values, area, helm_weak)
-	_check(_cargo_state() == _cargo_before and local_source.get_input_profile_generation() == profile, "moving readiness preserves finite cargo and the settings-configured input profile")
+	_check(_cargo_state() == _cargo_before and _craft.get_local_input_source() == local_source and local_source.is_input_configuration_valid() and local_source.get_input_binding_profile().to_dictionary() == profile_values, "moving readiness preserves finite cargo and the settings-configured input profile")
 	await _press(&"interact")
 	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving stand restores supported host cabin controls")
 	_check(_craft.get_command_source() == helm and helm.get_stream_id() == cursor.stream and helm.get_delivery_generation() == cursor.delivery, "moving stand preserves the selected remote helm stream and delivery epoch")
@@ -521,7 +521,7 @@ func _host_moving_loadmaster(owner: CrewSeatRoleAuthority) -> void:
 	await _press(&"interact")
 	_check(await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and _game._solo_crew_claim_is_current() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving reentry after lease loss reacquires only the host chair")
 	_print_host_loadmaster_state(&"before_reentry_invariant", local_source, profile, profile_values, area, helm_weak)
-	_check(area.get_reservation_token() == _player and _craft.get_command_source() == helm and local_source.get_input_profile_generation() == profile, "reentry preserves exact reservation, remote helm and configured local source")
+	_check(area.get_reservation_token() == _player and _craft.get_command_source() == helm and _craft.get_local_input_source() == local_source and local_source.is_input_configuration_valid() and local_source.get_input_binding_profile().to_dictionary() == profile_values, "reentry preserves exact reservation, remote helm and configured local source")
 	_write("host.flight_checked", {})
 	if not await _wait_file("client.disconnected", 20.0):
 		return
@@ -530,7 +530,7 @@ func _host_moving_loadmaster(owner: CrewSeatRoleAuthority) -> void:
 	await _press(&"fire")
 	_check(await _until(func(): return _manifest_receipts == 3, 3.0), "host readiness remains usable after the remote helm is released")
 	_print_host_loadmaster_state(&"before_final_invariant", local_source, profile, profile_values, area, helm_weak)
-	_check(_cargo_state() == _cargo_before and local_source.get_input_profile_generation() == profile, "full moving chair lifecycle preserves finite cargo and profile generation")
+	_check(_cargo_state() == _cargo_before and _craft.get_local_input_source() == local_source and local_source.is_input_configuration_valid() and local_source.get_input_binding_profile().to_dictionary() == profile_values, "full moving chair lifecycle preserves finite cargo and the settings-configured input profile")
 
 ## Read-only named-owner and predicate values for the unchanged moving checks.
 func _print_host_loadmaster_state(stage: StringName, local_source: LocalShipInputSource, baseline_profile: int, baseline_profile_values: Dictionary, area: ShipBoardingArea, helm_weak: WeakRef = null) -> void:
