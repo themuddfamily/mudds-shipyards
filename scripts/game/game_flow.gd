@@ -16341,7 +16341,34 @@ func _find_station_interaction_candidate() -> Node3D:
 		if distance < best_score:
 			best_score = distance
 			best_candidate = candidate
+	# A carried passenger can see both a crew chair and the cockpit at once.
+	# They compete by aim before distance; nearby chair discovery must not hide
+	# the cockpit's existing atomic seat-swap request from either HUD or Interact.
+	if best_candidate is ShipCrewSeat and _cabin_cockpit_precedes_crew_seat(best_candidate as ShipCrewSeat, origin, facing):
+		return null
 	return best_candidate
+
+
+func _cabin_cockpit_precedes_crew_seat(seat: ShipCrewSeat, origin: Vector3, facing: Vector3) -> bool:
+	if phase != Phase.IN_FLIGHT_CABIN or not _network_client_boarding_is_live() \
+			or not is_instance_valid(_cabin_ship) or not is_instance_valid(seat) \
+			or seat.get_ship() != _cabin_ship or not _network_physical_crew_seat_is_wired(seat) \
+			or seat.get_role_contract().is_empty() or not _network_client_boarding_holds(_cabin_ship) \
+			or not _network_client_near_pilot_seat(_cabin_ship) or _find_boarding_candidate() != _cabin_ship:
+		return false
+	var pilot := _cabin_ship.get_pilot_seat_anchor()
+	if not is_instance_valid(pilot) or not pilot.is_inside_tree() or pilot.is_queued_for_deletion():
+		return false
+	var pilot_offset := pilot.global_position - origin
+	var chair_offset := seat.global_position - origin
+	var pilot_aim := facing.dot(pilot_offset.normalized())
+	var chair_aim := facing.dot(chair_offset.normalized())
+	if pilot_aim < 0.05:
+		return false
+	if not is_equal_approx(pilot_aim, chair_aim):
+		return pilot_aim > chair_aim
+	# The nearer target wins equal aim; an exact tie keeps the existing chair.
+	return pilot_offset.length_squared() < chair_offset.length_squared()
 
 
 func _get_active_berth_transform() -> Transform3D:

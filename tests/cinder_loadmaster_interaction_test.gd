@@ -6,6 +6,16 @@ extends SceneTree
 
 const Hauler := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
+const PlayerScene := preload("res://scenes/player/player.tscn")
+
+# Discovery-only fixture: represent the client's existing admission readback,
+# never request a seat or mutate a role, flight or input authority.
+class CabinSelectionFlow:
+	extends GameFlow
+	var client_live := true
+
+	func _network_client_boarding_is_live() -> bool:
+		return client_live
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -98,6 +108,7 @@ func _run() -> void:
 	_check(bool(released.get("accepted", false)), "the fresh owner releases through the interaction seam")
 	_check(interaction.is_available(), "release reopens the station interaction")
 	_check(authority.get_assignment(74, &"interaction_loadmaster_fresh").is_empty(), "release removes the fresh authority assignment exactly once")
+	await _test_cabin_cockpit_selection(craft)
 
 	wrong_actor.queue_free()
 	actor.queue_free()
@@ -111,6 +122,60 @@ func _run() -> void:
 		for failure in _failures:
 			push_error(failure)
 		quit(1)
+
+
+func _test_cabin_cockpit_selection(craft: CinderCargoHauler) -> void:
+	var player := PlayerScene.instantiate() as PlayerController
+	root.add_child(player)
+	await process_frame
+	player.set_process(false)
+	player.set_physics_process(false)
+	craft.set_process(false)
+	craft.set_physics_process(false)
+	var seat := ShipCrewSeat.install(craft.get_loadmaster_station_anchor(), craft)
+	var game := CabinSelectionFlow.new()
+	game.player = player
+	game.ships.append(craft)
+	game.phase = GameFlow.Phase.IN_FLIGHT_CABIN
+	game.set("_cabin_ship", craft)
+	game.set("_network_client_boarding_claim", {"ship_id": craft.get_ship_id(), "role": &"passenger"})
+	# This is the supported overlapping approach from the failed ordinary route.
+	# Use the real discovery spheres and authored anchors, not injected candidates.
+	player.teleport_to(craft.global_transform * Transform3D(Basis.IDENTITY, Vector3(-0.60, -0.97, 0.60)))
+	await physics_frame
+	await physics_frame
+	var pilot := craft.get_pilot_seat_anchor()
+	var camera := player.get_camera()
+	camera.global_basis = Basis.looking_at(pilot.global_position - player.get_interaction_origin(), craft.global_basis.y.normalized())
+	_check(player.get_nearby_interactables().has(seat) and game._network_client_near_pilot_seat(craft) and game._find_boarding_candidate() == craft, "real Cinder discovery overlaps the loadmaster chair and in-reach cockpit on the admitted cabin craft")
+	var owner_before := craft.get_crew_role_authority().get_snapshot()
+	game.client_live = false
+	_check(game._find_station_interaction_candidate() == seat, "the original nearby crew-chair selection remains outside the admitted client cabin flow")
+	game.client_live = true
+	_check(game._find_station_interaction_candidate() == null, "aiming at the real Cinder cockpit lets ordinary boarding selection reach the existing pilot swap")
+	camera.global_basis = Basis.looking_at(seat.global_position - player.get_interaction_origin(), craft.global_basis.y.normalized())
+	_check(game._find_station_interaction_candidate() == seat, "aiming at the real overlapping loadmaster chair retains its ordinary SIT interaction")
+	camera.global_basis = Basis.looking_at(pilot.global_position - player.get_interaction_origin(), craft.global_basis.y.normalized())
+	game.phase = GameFlow.Phase.APPROACH_SHIP
+	_check(game._find_station_interaction_candidate() == seat, "cockpit comparison does not alter exterior station selection")
+	game.phase = GameFlow.Phase.IN_FLIGHT_CABIN
+	game.set("_network_client_boarding_claim", {})
+	_check(game._find_station_interaction_candidate() == seat, "unclaimed cabin discovery cannot take precedence over the valid chair")
+	game.set("_network_client_boarding_claim", {"ship_id": &"other_craft", "role": &"passenger"})
+	_check(game._find_station_interaction_candidate() == seat, "another craft's admission cannot select this cockpit")
+	game.set("_network_client_boarding_claim", {"ship_id": craft.get_ship_id(), "role": &"passenger"})
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	area.boarding_enabled = false
+	_check(game._find_station_interaction_candidate() == seat, "disabled ordinary boarding discovery keeps the chair rather than bypassing the cockpit gate")
+	area.boarding_enabled = true
+	player.teleport_to(craft.global_transform * Transform3D(Basis.IDENTITY, Vector3(-2.40, -0.97, 1.40)))
+	camera.global_basis = Basis.looking_at(pilot.global_position - player.get_interaction_origin(), craft.global_basis.y.normalized())
+	_check(not game._cabin_cockpit_precedes_crew_seat(seat, player.get_interaction_origin(), player.get_interaction_direction()), "cockpit selection preserves the existing planar pilot-seat reach")
+	_check(craft.get_crew_role_authority().get_snapshot() == owner_before and not craft.is_piloted(), "aim discovery leaves the real role ledger and pilot authority unchanged")
+	game.free()
+	player.queue_free()
+	seat.queue_free()
+	await process_frame
 
 
 func _check(condition: bool, message: String) -> void:
