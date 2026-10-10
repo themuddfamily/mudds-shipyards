@@ -1,4 +1,5 @@
 extends "res://tests/in_flight_cabin_integration_test.gd"
+## test-matrix-display: input-only
 
 ## A remote pilot flies the host's craft, over a real loopback ENet session.
 ##
@@ -99,7 +100,10 @@ func _run() -> void:
 		args.remove_at(package_index + 1)
 		args.remove_at(package_index)
 	if not _package_under_test.is_empty():
-		_check(FileAccess.file_exists("res://project.binary"), "helm process loads the requested package")
+		var package_loaded := FileAccess.file_exists("res://project.binary")
+		_check(package_loaded, "helm process loads the requested package")
+		if package_loaded:
+			print("HELM_PACKAGE_LOADED: pid=%d package=%s" % [OS.get_process_id(), _package_under_test])
 	if args.size() == 3 and args[0] == "roll-peer":
 		_roll_port = int(args[1])
 		_roll_directory = args[2]
@@ -512,6 +516,8 @@ func _drive(rounds: int) -> void:
 
 
 func _finish_remote_helm() -> void:
+	if _roll_child_pid > 0:
+		await _abort_roll_peer()
 	if is_instance_valid(_host):
 		_host.shutdown_network_session(&"suite_complete")
 		await process_frame
@@ -523,8 +529,6 @@ func _finish_remote_helm() -> void:
 		if is_instance_valid(adapter):
 			adapter.shutdown(&"suite_complete")
 	await process_frame
-	if _roll_child_pid > 0 and OS.is_process_running(_roll_child_pid):
-		OS.kill(_roll_child_pid)
 	if _failures.is_empty():
 		print("NETWORK_REMOTE_PILOT_HELM_TEST_OK: %d assertions" % _assertion_count)
 		quit(0)
@@ -532,6 +536,29 @@ func _finish_remote_helm() -> void:
 	print("NETWORK_REMOTE_PILOT_HELM_TEST_FAILED: %d/%d assertions failed: %s"
 		% [_failures.size(), _assertion_count, ", ".join(_failures)])
 	quit(1)
+
+
+func _abort_roll_peer() -> void:
+	var pid_path := _roll_directory + "/peer.pid"
+	var body_retired := true
+	if FileAccess.file_exists(pid_path):
+		var pid := int(FileAccess.get_file_as_string(pid_path))
+		var command_file := FileAccess.open("/proc/%d/cmdline" % pid, FileAccess.READ)
+		if pid > 0 and command_file != null:
+			# Match the private fixture directory before signalling the recorded body.
+			var command := command_file.get_buffer(65536).get_string_from_utf8()
+			if command.contains(_roll_directory):
+				OS.kill(pid)
+		# Its owned shell waits/reaps the body before xvfb-run retires the display.
+		body_retired = await _wait_until(func() -> bool:
+			return FileAccess.file_exists(_roll_directory + "/peer.exit") \
+				and not DirAccess.dir_exists_absolute("/proc/%d" % pid), 10.0)
+		_check(body_retired, "owned Godot peer retires before its display driver")
+	if OS.is_process_running(_roll_child_pid):
+		# TERM runs the driver's display cleanup trap; killing it would strand Xvfb.
+		OS.execute("kill", PackedStringArray(["-TERM", str(_roll_child_pid)]))
+	await _wait_until(func() -> bool: return not OS.is_process_running(_roll_child_pid), 10.0)
+	_check(not OS.is_process_running(_roll_child_pid), "aborted independent display driver is reaped")
 
 
 # A real production client and host have independent Input/frame clocks.
@@ -553,15 +580,27 @@ func _assert_independent_roll_press() -> void:
 		project_path = parent_args[path_index + 1]
 	elif project_path.is_empty():
 		project_path = DirAccess.open(".").get_current_dir()
-	var args := PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", project_path,
-		"--log-file", _roll_directory + "/peer.log", "--script", "res://tests/network_remote_pilot_helm_test.gd"])
+	var script_path := "res://tests/network_remote_pilot_helm_test.gd"
+	if not _package_under_test.is_empty():
+		var script_index := parent_args.find("--script")
+		if script_index >= 0 and script_index + 1 < parent_args.size():
+			script_path = parent_args[script_index + 1]
+	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy",
+		"--audio-driver", "Dummy", "--path", project_path,
+		"--log-file", _roll_directory + "/peer.log", "--script", script_path])
 	if not _package_under_test.is_empty():
 		args.append_array(PackedStringArray(["--main-pack", _package_under_test]))
 	args.append_array(PackedStringArray(["--", "roll-peer", str(_roll_port), _roll_directory]))
 	if _immediate_stall_probe: args.append("--immediate-stall-probe")
 	if not _package_under_test.is_empty():
 		args.append_array(PackedStringArray(["--package-under-test", _package_under_test]))
-	_roll_child_pid = OS.create_process(OS.get_executable_path(), args)
+	# The peer owns its display and a shell that waits for its actual Godot PID.
+	# Positional arguments keep executable/path text out of shell evaluation.
+	var command := '\"$@\" & child=$!; printf \"%s\" \"$child\" > \"$0.pid\"; wait \"$child\"; status=$?; printf \"%s\" \"$status\" > \"$0.exit\"; exit \"$status\"'
+	var wrapper := PackedStringArray(["-a", "--server-args=-screen 0 1280x720x24 -pn -nolisten unix -nolisten tcp",
+		"/bin/sh", "-c", command, _roll_directory + "/peer", OS.get_executable_path()])
+	wrapper.append_array(args)
+	_roll_child_pid = OS.create_process("xvfb-run", wrapper)
 	OS.set_environment("XDG_DATA_HOME", previous_xdg)
 	_check(_roll_child_pid > 0, "spawn independent production helm client")
 	if not await _wait_roll_marker("peer", "ready"):
@@ -666,6 +705,14 @@ func _assert_independent_roll_press() -> void:
 	_roll_mark("host", "finish")
 	await _wait_roll_marker("peer", "finished")
 	await _wait_until(func() -> bool: return not OS.is_process_running(_roll_child_pid), 10.0)
+	var peer_exit := OS.get_process_exit_code(_roll_child_pid)
+	print("HELM_PEER_EXIT: pid=%d exit=%d" % [_roll_child_pid, peer_exit])
+	_check(peer_exit == 0, "independent client exits with actual success")
+	var godot_pid := int(FileAccess.get_file_as_string(_roll_directory + "/peer.pid"))
+	var godot_exit_path := _roll_directory + "/peer.exit"
+	var godot_exit := int(FileAccess.get_file_as_string(godot_exit_path)) if FileAccess.file_exists(godot_exit_path) else -1
+	print("HELM_GODOT_PEER_EXIT: pid=%d exit=%d" % [godot_pid, godot_exit])
+	_check(godot_pid > 0 and godot_exit == 0, "owned shell waits for the actual Godot client to exit successfully")
 	_check(not OS.is_process_running(_roll_child_pid) and not FileAccess.file_exists(_roll_directory + "/peer.failed"),
 		"independent client completes without diagnostic failure")
 	_check(not (_craft.get_command_source() is RemotePilotSource) and not _craft.is_remote_piloted(),
@@ -1519,7 +1566,16 @@ func _peer_take_pilot_from_cabin() -> void:
 	supported_approach.origin = _craft.to_global(Vector3(seat_local.x, stand_local.y, seat_local.z + 1.0))
 	_host.player.teleport_to(supported_approach)
 	await _roll_peer_step(false)
+	# The physical passenger chair is now available behind this approach.
+	# Aim at the cockpit through ordinary mouse input before the same E key.
+	var prior_aim: Vector3 = _craft.global_basis.inverse() * _host.player.get_interaction_direction()
+	_peer_look_toward_cockpit()
 	_host._refresh_interaction_targets()
+	print("DOCK_REUSE_COCKPIT_AIM: ", {"before": prior_aim,
+		"after": _craft.global_basis.inverse() * _host.player.get_interaction_direction(),
+		"yaw": _host.player.get_look_yaw(), "mouse_mode": Input.mouse_mode,
+		"player_local": _craft.to_local(_host.player.global_position),
+		"station": _host.station_interaction_candidate.name if is_instance_valid(_host.station_interaction_candidate) else &""})
 	_check(_host._network_client_near_pilot_seat(_craft) and _host.boarding_candidate == _craft,
 		"supported cabin approach is within actual cockpit reach before the physical key")
 	await _peer_interact()
@@ -1530,6 +1586,27 @@ func _peer_take_pilot_from_cabin() -> void:
 		"claim": _host._network_client_boarding_claim, "request": _host._network_client_boarding_request,
 		"boarding": _host.get_network_client_boarding_audit(), "player_local": _craft.to_local(_host.player.global_position)})
 	_check(cockpit_reused, "physical cockpit key returns the same client to the confirmed pilot seat")
+
+
+func _peer_look_toward_cockpit() -> void:
+	# Use the production interaction origin; the camera boom can pass the
+	# close cockpit target. Keep the original approach/key physics cadence.
+	var actor := _host.player as PlayerController
+	for _index in 4:
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			var click := InputEventMouseButton.new()
+			click.button_index = MOUSE_BUTTON_LEFT
+			click.pressed = true
+			actor._unhandled_input(click)
+		var desired := actor.global_basis.inverse() * (
+			_craft.get_pilot_seat_anchor().global_position - actor.get_interaction_origin()
+		).normalized()
+		var current := actor.global_basis.inverse() * actor.get_interaction_direction().normalized()
+		var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
+		var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
+		var motion := InputEventMouseMotion.new()
+		motion.relative = Vector2(-yaw, pitch * (1.0 if actor.invert_mouse_y else -1.0)) / actor.mouse_sensitivity
+		actor._unhandled_input(motion)
 
 
 func _run_landing_peer_actions(seats: Array[StringName]) -> void:
