@@ -51,6 +51,8 @@ func load(activity: CargoDeliveryActivity, authority: CargoTransferAuthority) ->
 	var loaded := _store.load()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
+	if _store.get_loaded_source() == &"backup":
+		return _result(false, &"jovian_store_recovery_required")
 	var row: Variant = _store.get_snapshot().get(String(SLOT_ID))
 	if row == null:
 		return _result(false, &"jovian_session_not_found")
