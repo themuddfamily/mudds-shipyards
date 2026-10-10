@@ -469,7 +469,6 @@ func _host_moving_loadmaster(owner: CrewSeatRoleAuthority) -> void:
 	_print_host_loadmaster_state(&"on_client_moving", local_source, profile, profile_values, area)
 	_check(_game._cinder_host_has_remote_pilot(_craft), "actual admitted peer holds the confirmed Cinder pilot lease")
 	_print_host_loadmaster_state(&"before_engine_assertion", local_source, profile, profile_values, area)
-	_check(_craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE, "validated remote throttle wakes the authoritative Cinder engine")
 	var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
 	_check(helm != null and helm != local_source and _craft.is_remote_piloted(), "remote helm stays selected beside the retained local crew sampler")
 	if helm == null:
@@ -478,6 +477,16 @@ func _host_moving_loadmaster(owner: CrewSeatRoleAuthority) -> void:
 	var start := _craft.global_position
 	await _ticks(12)
 	_print_host_loadmaster_state(&"after_original_12_ticks", local_source, profile, profile_values, area, helm_weak)
+	# The client movement marker is prediction; verify authoritative consumption after the existing ticks.
+	var consumed_command: ShipCommand = _craft.get_last_ship_command()
+	_check(
+		_craft.get_command_source() == helm
+		and consumed_command != null and consumed_command.is_valid()
+		and consumed_command.stream_id == helm.get_stream_id()
+		and absf(consumed_command.throttle) > HeroShip.AUTOMATIC_ENGINE_INTENT_EPSILON
+		and _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE,
+		"validated remote throttle wakes the authoritative Cinder engine"
+	)
 	_check(_craft.global_position.distance_to(start) > 0.05, "authoritative pilot commands move the actual crew craft")
 	_check(_player.is_seated_at(_craft.get_loadmaster_station_anchor()) and _craft.get_moving_interior_component().is_occupant_registered(_player), "moving host Loadmaster retains exact physical chair and carry frame")
 	var cursor := _helm_cursor(helm)
