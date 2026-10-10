@@ -902,7 +902,9 @@ func _test_main_durable_threading() -> void:
 	_check(store.commit(payload, store.get_generation(), "unit-asteroid-unrelated").accepted,
 		"real Main uses the shared durable settings store with unrelated data")
 	_main_position(first, THREADING_ROUTE.get_checkpoint_position(0))
-	_activity_button(first, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	if not _press_start(first, EXPECTED_ACTIVITY_ID):
+		await _main_dispose(first)
+		return
 	var started := binding.get_activity_snapshot(&"asteroid_field_run")
 	_check(started.state_id == &"active" and int(started.generation) == 1,
 		"ordinary HUD Start opens the genuine first asteroid generation")
@@ -920,7 +922,9 @@ func _test_main_durable_threading() -> void:
 	_check(int(live.activities[0].progress.next_checkpoint_index) == 2
 		and store.get_snapshot()[ASTEROID_SLOT] == saved and _main_receipts(first) == 0,
 		"rejected later progress preserves the last durable checkpoint without a reward")
-	_press_reset(first)
+	if not _press_reset(first):
+		await _main_dispose(first)
+		return
 	_check(binding.capture_asteroid_field_session() == live and FileAccess.get_file_as_bytes(path) == bytes,
 		"ordinary Reset with a refused write preserves the exact live active cursor and durable bytes")
 	var authority_ref: WeakRef = weakref(first.get("_game_flow_reward_authority"))
@@ -940,7 +944,9 @@ func _test_main_durable_threading() -> void:
 	_check(second_fault.refused_reward and terminal.activities[0].reward_requested
 		and not terminal.activities[0].reward_granted and _main_receipts(second) == 0,
 		"genuinely finishing the recovered route persists unpaid terminal before rejected payment")
-	_press_reset(second)
+	if not _press_reset(second):
+		await _main_dispose(second)
+		return
 	_check(second_binding.capture_asteroid_field_session() == terminal,
 		"ordinary Reset refuses to abandon the genuine earned-unpaid route")
 	await _main_dispose(second)
@@ -953,13 +959,17 @@ func _test_main_durable_threading() -> void:
 	var mismatch: Dictionary = third.call("_commit_game_flow_activity_reward", _asteroid_request(2))
 	_check(not mismatch.accepted and mismatch.reason == &"reward_generation_mismatch",
 		"the durable terminal refuses another completion generation")
-	_activity_button(third, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	if not _press_start(third, EXPECTED_ACTIVITY_ID):
+		await _main_dispose(third)
+		return
 	var paid := third_binding.capture_asteroid_field_session()
 	_check(paid.activities[0].reward_granted and _main_receipts(third) == 1,
 		"ordinary Start pays once and atomically acknowledges the exact recovered terminal")
 	await _main_board(third)
 	_main_position(third, Beacon.BEACONS[0])
-	_activity_button(third, Beacon.ACTIVITY_ID, 2).emit_signal("pressed")
+	if not _press_start(third, Beacon.ACTIVITY_ID):
+		await _main_dispose(third)
+		return
 	for point in Beacon.BEACONS:
 		_main_position(third, point)
 		third.call("_advance_cinder_beacon_traversal", 0.0, third.call("_capture_cinder_actor_sample"))
@@ -968,7 +978,9 @@ func _test_main_durable_threading() -> void:
 	var known_payload: Dictionary = third.get("_runtime_settings_user_data_store").get_snapshot()
 	third_fault.reject_sessions = true
 	bytes = FileAccess.get_file_as_bytes(path)
-	_press_reset(third)
+	if not _press_reset(third):
+		await _main_dispose(third)
+		return
 	_check(third_binding.capture_asteroid_field_session() == paid and FileAccess.get_file_as_bytes(path) == bytes
 		and _main_receipts(third) == 2, "refused paid Reset keeps exact acknowledgement, ledger and primary bytes")
 	await _main_dispose(third)
@@ -981,7 +993,9 @@ func _test_main_durable_threading() -> void:
 		and duplicate.reason == &"reward_generation_already_committed" and _main_receipts(fourth) == 2,
 		"fresh authority refuses replay even after another activity overwrites the latest receipt")
 	fourth_fault.fail_reset_sync = true
-	_press_reset(fourth)
+	if not _press_reset(fourth):
+		await _main_dispose(fourth)
+		return
 	var reset := fourth_binding.capture_asteroid_field_session()
 	_check(int(reset.activities[0].state) == CheckpointRouteActivity.State.IDLE
 		and int(reset.activities[0].generation) == 2 and not reset.activities[0].reward_requested
@@ -1001,7 +1015,9 @@ func _test_main_durable_threading() -> void:
 		"fresh Main restores the reset generation without old debt or actor restoration")
 	await _main_board(fifth)
 	_main_position(fifth, THREADING_ROUTE.get_checkpoint_position(0))
-	_activity_button(fifth, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	if not _press_start(fifth, EXPECTED_ACTIVITY_ID):
+		await _main_dispose(fifth)
+		return
 	_check(int(fifth_binding.get_activity_snapshot(&"asteroid_field_run").generation) == 3,
 		"the next genuinely admitted run advances beyond the paid and reset generations")
 	for index in EXPECTED_GATE_COUNT:
@@ -1025,8 +1041,12 @@ func _backup_and_newer_refusal(path: String) -> void:
 	writer.close()
 	var game := await _main_game(path, UserDataFilesystem.new())
 	var binding := await _main_binding(game)
-	_activity_button(game, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
-	_press_reset(game)
+	if not _press_start(game, EXPECTED_ACTIVITY_ID):
+		await _main_dispose(game)
+		return
+	if not _press_reset(game):
+		await _main_dispose(game)
+		return
 	var refused: Dictionary = game.call("_commit_game_flow_activity_reward", _asteroid_request(3))
 	_check(not refused.accepted and int(binding.get_activity_snapshot(&"asteroid_field_run").generation) == 0
 		and game.get("_runtime_settings_user_data_store").get_loaded_source() == &"backup"
@@ -1043,8 +1063,12 @@ func _backup_and_newer_refusal(path: String) -> void:
 	var original_bytes := FileAccess.get_file_as_bytes(newer_path)
 	var fresh := await _main_game(newer_path, UserDataFilesystem.new())
 	var fresh_binding := await _main_binding(fresh)
-	_activity_button(fresh, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
-	_press_reset(fresh)
+	if not _press_start(fresh, EXPECTED_ACTIVITY_ID):
+		await _main_dispose(fresh)
+		return
+	if not _press_reset(fresh):
+		await _main_dispose(fresh)
+		return
 	var denied: Dictionary = fresh.call("_commit_game_flow_activity_reward", _asteroid_request(3))
 	_check(not denied.accepted and int(fresh_binding.get_activity_snapshot(&"asteroid_field_run").generation) == 0
 		and FileAccess.get_file_as_bytes(newer_path) == original_bytes and _main_receipts(fresh) == 3,
@@ -1059,7 +1083,9 @@ func _reset_callback_fence() -> void:
 	await _main_board(game)
 	var binding := await _main_binding(game)
 	_main_position(game, THREADING_ROUTE.get_checkpoint_position(0))
-	_activity_button(game, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	if not _press_start(game, EXPECTED_ACTIVITY_ID):
+		await _main_dispose(game)
+		return
 	_main_advance(game, 0)
 	fault.on_reset_write = func() -> void:
 		binding.submit_asteroid_field_run_position(THREADING_ROUTE.get_checkpoint_position(1))
@@ -1091,7 +1117,9 @@ func _legacy_paid_floor(path: String) -> void:
 		"a safe validated legacy paid receipt supplies only an idle future-generation floor")
 	await _main_board(game)
 	_main_position(game, THREADING_ROUTE.get_checkpoint_position(0))
-	_activity_button(game, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	if not _press_start(game, EXPECTED_ACTIVITY_ID):
+		await _main_dispose(game)
+		return
 	for index in EXPECTED_GATE_COUNT:
 		_main_advance(game, index)
 	_check(_main_receipts(game) == 2 and int(binding.get_activity_snapshot(&"asteroid_field_run").generation) == 2,
@@ -1167,10 +1195,26 @@ func _activity_button(game: GameFlow, activity_id: StringName, index: int) -> Bu
 	return null
 
 
-func _press_reset(game: GameFlow) -> void:
-	_activity_button(game, EXPECTED_ACTIVITY_ID, 3).emit_signal("pressed")
-	if _activity_button(game, EXPECTED_ACTIVITY_ID, 3).text == "CONFIRM RESET":
-		_activity_button(game, EXPECTED_ACTIVITY_ID, 3).emit_signal("pressed")
+func _press_start(game: GameFlow, activity_id: StringName) -> bool:
+	var button := _activity_button(game, activity_id, 2)
+	_check(button != null and not button.disabled,
+		"ordinary HUD exposes an enabled Start control for %s" % activity_id)
+	if button == null or button.disabled:
+		return false
+	button.emit_signal("pressed")
+	return true
+
+
+func _press_reset(game: GameFlow) -> bool:
+	var button := _activity_button(game, EXPECTED_ACTIVITY_ID, 3)
+	_check(button != null and not button.disabled,
+		"ordinary HUD exposes the enabled asteroid Reset control")
+	if button == null or button.disabled:
+		return false
+	button.emit_signal("pressed")
+	if button.text == "CONFIRM RESET":
+		button.emit_signal("pressed")
+	return true
 
 
 func _main_receipts(game: GameFlow) -> int:
