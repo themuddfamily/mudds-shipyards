@@ -1,0 +1,15 @@
+Mudds Shipyards — Linux crew berths and Ember checkpoint
+Source: dcd63d72b2be0da3d7bca9a93d479393a57de142
+
+Source changes include the reachable Halyard network passenger chair, same-body migration/reconnect, distinct supported crew positions and reduced recurring Ember runtime work with fresh Sun-generation reads.
+
+Executed Linux artifact acceptance:
+- Clean Linux x86_64 import/export, ELF0755 and all 1,492 embedded PCK entries verified.
+- Direct and extracted-archive startup checks exit0 with one parsed STARTUP_MENU_READY_OK, mouse-free loading and zero diagnostics.
+- Linux Godot execution of this exact ELF embedded PCK passes the four existing package probes: 89/40/25/69 assertions, actual exits0, one terminal sentinel each, zero diagnostics, original 300-second limits.
+- Source 11,753 files, 577 cache files and candidate artifacts remain unchanged; owning checks exit0/reaped and scoped actors are absent. Archive has five unique safe members (one directory and four files), fully read, and its inner ELF matches this executable.
+
+This note records qualification performed after export; desktop launcher installation has not been exercised. The fresh Windows package has its own crew/handback and Ember acceptance; those passes do not qualify this different Linux PCK. Native graphical Linux gameplay/GPU, physical controls, human/audio review, peer/endurance and installed/final-release acceptance remain open. The separate frozen154ddde1d full 1,034-suite regression remains running with its original handback failure retained; a full dcd63d72b regression has NOT_RUN. All ten phases and 34 completion tasks remain open. This is a bounded playable checkpoint.
+
+ELF SHA256: c2fb1a78adef26435a7512dfe5d9331d071f1fce9b31e4a04cc8ae985781873e
+Archive SHA256:7567ca27fa82327f7832173fee63f223bb3abdb06bb7b370c2213c699e57771a

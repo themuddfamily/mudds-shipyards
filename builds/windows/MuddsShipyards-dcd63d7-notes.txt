@@ -1,0 +1,19 @@
+Mudds Shipyards — crew berths and Ember checkpoint
+Source: dcd63d72b2be0da3d7bca9a93d479393a57de142
+
+Player-visible changes since the published 709de858a checkpoint:
+- Halyard passengers can physically sit, stand and reseat through the network crew route, including authenticated migration and reconnect.
+- Joined crew occupy distinct host-confirmed positions with cabin support.
+- Ember removes repeated planet/tree work while preserving fresh Sun-generation handoffs.
+
+Validation:
+- Clean Windows import/export; AMD64 and all 1,492 embedded PCK entries independently verified.
+- Exact fresh Windows PCK executed by Linux Godot: four standard probes pass 223; passenger70, engineer67, gunner75 and cockpit-handback269 pass with zero diagnostics and actual successful peer exits.
+- Ember focused79 and surface79 pass; completed return13 passes within the original 1,200-second limit; all nine walking legs reach their boundary at input release within normal-speed deadlines.
+- Silent native Windows menu startup exits0 with one parsed STARTUP_MENU_READY_OK, mouse-free loading and zero diagnostics/warnings. Independent process/profile cleanup passes; menu-only authorization is released.
+- Source/cache/package and harness guards remain unchanged during acceptance. Actual owning exits0, reaping and final terminal readback are independently confirmed.
+
+Scope and remaining work:
+This is a playable checkpoint. The separate frozen154ddde1d full 1,034-suite regression is still running with its original remote-handback failure retained. The reviewed fixture correction preserves physical reach, original input timing and authority checks, and uses ordinary cockpit aim plus isolated input displays. A full regression on dcd63d72b has NOT_RUN. Native Windows gameplay/GPU, physical controls, audio listening, human/graphical review, endurance, final installed recovery, licensing and trusted signing remain open. All ten roadmap phases and 34 completion tasks remain open.
+
+Windows EXE SHA256: 4cd71ab303324bda20b43b7a349bce636c139a8736b6b0f7a7dd717a725a4e53
