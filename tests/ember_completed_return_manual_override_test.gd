@@ -467,14 +467,16 @@ func _walk_until(
 		ticks = Engine.get_physics_frames() - first_physics_frame \
 			if count_physics_steps else ticks + 1
 	Input.action_release(action)
+	var reached_within_deadline := false
 	if count_physics_steps:
+		reached_within_deadline = bool(predicate.call()) and ticks <= tick_budget
 		print("SURVEY_WALK_DEADLINE action=%s actual_physics_steps=%d budget=%d simulated_seconds=%.6f reached=%s" % [
 			action, ticks, tick_budget,
-			float(ticks) / float(Engine.physics_ticks_per_second), bool(predicate.call())])
+			float(ticks) / float(Engine.physics_ticks_per_second), reached_within_deadline])
 	for _settle_tick in 4:
 		await physics_frame
 		await process_frame
-	return bool(predicate.call())
+	return reached_within_deadline if count_physics_steps else bool(predicate.call())
 
 
 func _wait_for(predicate: Callable, tick_budget: int) -> bool:
