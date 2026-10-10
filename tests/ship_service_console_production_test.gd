@@ -266,7 +266,7 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 	var presented := console.call(&"get_presentation_snapshot") as Dictionary
 	_check(
 		_kit_units(jovian) == 6 and str(presented.status_text).contains("RESTOCKED")
-			and str(presented.status_text).contains(jovian.get_display_name().to_upper())
+			and str(presented.status_text).contains("JOVIAN-CLASS LIGHT FREIGHTER")
 			and str(presented.status_text).contains("KITS 6/6")
 			and int(presented.presentation_sequence) == int(annex_before.presentation_sequence) + 1
 			and (aft.call(&"get_presentation_snapshot") as Dictionary) == aft_before,
@@ -377,6 +377,14 @@ func _spend_one_kit(jovian: HeroShip, authority: CrewSeatRoleAuthority) -> void:
 		if float((jovian.call(&"get_engineer_repair_state") as Dictionary).get("cooldown_remaining", 0.0)) <= 0.0:
 			break
 		await physics_frame
+	# Ordinary berth repair kept healing the original fixture during cooldown
+	# and walking. Refresh its real damage immediately before the real repair;
+	# no kit, cooldown, repair, or authority state is assigned by the fixture.
+	var damage_accepted := true
+	for _hit in 4:
+		damage_accepted = bool(jovian.get_component_damage().record_damage(
+			70.0, Vector3.INF).get("accepted", false)) and damage_accepted
+	_check(damage_accepted, "the existing component owner accepts each fresh damage input before a kit spend")
 	var claim := authority.claim(1, 77, &"service_test_engineer", &"passenger_port_01", CrewAuthorityType.ROLE_ENGINEER, _engineer_sequence)
 	_engineer_sequence += 1
 	var result := jovian.call(&"submit_crew_intent", 1, 77, &"service_test_engineer",
