@@ -397,8 +397,10 @@ func _run() -> void:
 	_check(destroyed_owner != null and destroy_game.player.is_seated_at(destroyed_craft.get_engineer_seat_anchor()), "actual hull-loss case starts from ordinary engineer admission")
 	if destroyed_owner != null:
 		destroyed_craft.apply_damage(destroyed_craft.maximum_hull + 1.0, destroyed_craft.global_position, Vector3.UP)
+		# Retain the lethal boundary before wall-clock berth regeneration can finish.
+		var destroyed_after_lethal := destroyed_craft.is_destroyed()
 		await _settle(15)
-		_check(destroyed_craft.is_destroyed() and not destroy_game.player.is_seated()
+		_check(destroyed_after_lethal and not destroy_game.player.is_seated()
 			and destroy_game.player.is_on_floor() and destroy_game.player.is_control_enabled()
 			and not destroy_game.player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META)
 			and destroyed_owner.get_snapshot().assignments.is_empty(), "actual hull destruction retires engineer claim and leaves supported usable awake Player")
