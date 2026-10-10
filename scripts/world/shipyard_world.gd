@@ -3053,6 +3053,13 @@ func get_ship_service_console() -> Area3D:
 	return console if is_instance_valid(console) else null
 
 
+## World-owned service access over the annex's existing fabricator control.
+## FabricationAnnex remains geometry-only and the adapter owns no kit mutation.
+func get_fabrication_ship_service_console() -> Area3D:
+	var console := get_node_or_null(^"FabricationShipServiceConsole") as Area3D
+	return console if is_instance_valid(console) else null
+
+
 ## Exposes the read-only adapter physically placed over ModernFleetRegistry's
 ## existing terminal. It is a world sibling so the pod's frozen renderer and
 ## collision audit remains about authored structure, not interaction plumbing.
