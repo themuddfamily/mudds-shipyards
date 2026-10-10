@@ -313,6 +313,9 @@ func commit(request: Variant) -> Dictionary:
 
 	var beacon_completion: Dictionary = {}
 	if activity_id == CINDER_BEACON_ACTIVITY_ID:
+		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
 		var beacon_slot: Variant = (payload as Dictionary).get("cinder_beacon_session")
 		var validated := CinderBeaconTraversalActivity.validate_persistence_record(beacon_slot)
 		if not bool(validated.get("accepted", false)):

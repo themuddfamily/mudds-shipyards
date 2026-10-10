@@ -299,6 +299,19 @@ func _run() -> void:
 		"the completed production derelict scan records one shared material-sample receipt"
 	)
 	_check(_save_actual_beacon_completion(store), "the actual ordered beacon owner saves its legitimate terminal before reward handoff")
+	var beacon_without_provenance := StoreWithoutProvenance.new()
+	beacon_without_provenance.backing = store
+	var untrusted_beacon_authority := AuthorityScript.new() as GameFlowRewardAuthority
+	_check(untrusted_beacon_authority.configure(beacon_without_provenance).accepted,
+		"the existing reward store interface admits a Beacon store without recovery provenance")
+	var before_untrusted_beacon := store.get_snapshot()
+	var untrusted_beacon_request := _request(AuthorityScript.CINDER_BEACON_ACTIVITY_ID, 1, AuthorityScript.CINDER_BEACON_REWARD_ID)
+	var untrusted_beacon := untrusted_beacon_authority.commit(untrusted_beacon_request)
+	var untrusted_beacon_retry := untrusted_beacon_authority.commit(untrusted_beacon_request)
+	_check(not untrusted_beacon.accepted and untrusted_beacon.reason == &"reward_store_recovery_required"
+		and not untrusted_beacon_retry.accepted and untrusted_beacon_retry.reason == &"reward_store_recovery_required"
+		and beacon_without_provenance.commit_calls == 0 and store.get_snapshot() == before_untrusted_beacon,
+		"missing Beacon recovery provenance refuses repeated payment without writing or stranding the authority")
 	var beacon := authority.commit(_request(
 		&"cinder_debris_beacon_traversal",
 		1,

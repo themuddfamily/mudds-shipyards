@@ -18974,11 +18974,17 @@ func _ensure_cinder_beacon_session(binding: Object) -> Dictionary:
 	if not is_instance_valid(binding) or binding != _get_nearby_activity_binding() \
 			or _runtime_settings_user_data_store == null:
 		return {"accepted": false, "reason": &"beacon_session_owner_unavailable"}
-	if _cinder_beacon_session_owner != null and _cinder_beacon_session_owner.get_ref() == binding:
-		return {"accepted": true, "reason": &"beacon_session_owner_current"}
+	if not _runtime_settings_user_data_store.has_method(&"get_loaded_source"):
+		return {"accepted": false, "reason": &"beacon_session_store_recovery_required"}
 	var loaded := _runtime_settings_user_data_store.load()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
+	# Recheck disk provenance before a retained paid owner can start a new run
+	# or a fresh owner can adopt an older unpaid backup. Keep live state intact.
+	if _runtime_settings_user_data_store.get_loaded_source() == &"backup":
+		return {"accepted": false, "reason": &"beacon_session_store_recovery_required"}
+	if _cinder_beacon_session_owner != null and _cinder_beacon_session_owner.get_ref() == binding:
+		return {"accepted": true, "reason": &"beacon_session_owner_current"}
 	var payload := _runtime_settings_user_data_store.get_snapshot()
 	if payload.has("cinder_beacon_session"):
 		var checked := CinderBeaconTraversalActivity.validate_persistence_record(payload.cinder_beacon_session)
@@ -19003,7 +19009,8 @@ func _save_cinder_beacon_session(binding: Object, prospective_record: Dictionary
 	var loaded := _runtime_settings_user_data_store.load()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
-	if loaded.get("reason") == &"primary_invalid_backup_loaded":
+	if not _runtime_settings_user_data_store.has_method(&"get_loaded_source") \
+			or _runtime_settings_user_data_store.get_loaded_source() == &"backup":
 		return {"accepted": false, "reason": &"beacon_session_store_recovery_required"}
 	var payload := _runtime_settings_user_data_store.get_snapshot()
 	if payload.has("cinder_beacon_session"):
