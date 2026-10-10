@@ -342,11 +342,12 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 	console.free()
 	await physics_frame
 	await process_frame
-	_check(game.station_interaction_candidate == replacement, "the replacement is rediscovered physically at the same control")
 	var replacement_before := _presentation_state(replacement)
 	var toast_before := int(game.hud.get("_toast_serial"))
 	var retained: Array[Area3D] = [replacement]
+	var selected_at_mutation: Array[bool] = [false]
 	var mutation_observer := func(_snapshot: Dictionary) -> void:
+		selected_at_mutation[0] = game.station_interaction_candidate == replacement
 		# Restock emits synchronously. Replacement occurs after the real kit
 		# mutation and before GameFlow is allowed to paint its result.
 		game.world.remove_child(replacement)
@@ -357,6 +358,7 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 		retained.append(next)
 	jovian.connect(&"engineer_repair_state_changed", mutation_observer, CONNECT_ONE_SHOT)
 	await _press_interact()
+	_check(selected_at_mutation[0], "ordinary E physically rediscovers the replacement at the same control before its real mutation")
 	var newest := retained[1] if retained.size() == 2 else null
 	_check(_kit_units(jovian) == 6 and newest != null
 			and _presentation_state(replacement) == replacement_before
