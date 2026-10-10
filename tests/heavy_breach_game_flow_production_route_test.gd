@@ -406,11 +406,32 @@ func _run() -> void:
 	await _finish(restored)
 
 
+## BEGIN SHIFT otherwise resumes the saved pilot seat. This board route uses
+## the shipped Start Fresh choice, which keeps earned debt and saved settings.
+func _begin_fresh_board_shift(game: GameFlow, filesystem: MemoryFilesystem) -> void:
+	var pending := game.get_recovery_available_snapshot()
+	if not pending.is_empty():
+		var before: Dictionary = JSON.parse_string((filesystem.files[STORE_PATH] as PackedByteArray).get_string_from_utf8()).payload
+		(game.hud as GameHUD).session_recovery_discard_requested.emit(
+			int(pending.get("session_id", 0)), int(pending.get("startup_generation", 0)))
+		var result: Dictionary = game.get_session_diagnostics_snapshot().recovery_hud
+		var after: Dictionary = JSON.parse_string((filesystem.files[STORE_PATH] as PackedByteArray).get_string_from_utf8()).payload
+		_check(bool(result.get("accepted", false)) and result.get("choice", &"") == &"discard" and game.get_recovery_available_snapshot().is_empty()
+			and after.heavy_breach_session == before.heavy_breach_session
+			and after.game_flow_reward_store == before.game_flow_reward_store
+			and after.get("runtime_settings", {}) == before.get("runtime_settings", {})
+			and after.foreign == before.foreign,
+			"the shipped Start Fresh choice retires pilot recovery while preserving terminal debt, receipts and settings")
+	game.start_shift()
+	await process_frame
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP and not (game.player as PlayerController).is_seated(),
+		"the recreated Main begins the ordinary board route on foot after its explicit recovery choice")
+
+
 func _verify_main_unpaid_recovery(game: GameFlow, filesystem: MemoryFilesystem) -> GameFlow:
 	game.canopy_motion_time = 0.0
 	game.boarding_motion_time = 0.04
-	game.start_shift()
-	await process_frame
+	await _begin_fresh_board_shift(game, filesystem)
 	game.call(&"_on_settings_save_requested")
 	var before: Dictionary = JSON.parse_string((filesystem.files[STORE_PATH] as PackedByteArray).get_string_from_utf8()).payload
 	var board := (game.world as ShipyardWorld).get_heavy_breach_activity_board() as HeavyBreachActivityBoard
@@ -454,8 +475,7 @@ func _verify_main_unpaid_recovery(game: GameFlow, filesystem: MemoryFilesystem) 
 		and int(fresh_board.get_snapshot().active_director_generation) == 0
 		and int(fresh_board.get_reward_handoff_snapshot().pending_reward_generation) > 0,
 		"fresh Main restores owed credit without recreating the encounter or actor authority")
-	fresh.start_shift()
-	await process_frame
+	await _begin_fresh_board_shift(fresh, filesystem)
 	var fresh_player := fresh.player as PlayerController
 	fresh_player.teleport_to(Transform3D(Basis.looking_at(Vector3.FORWARD, Vector3.UP), fresh_board.global_position + Vector3(0.0, 0.0, 2.0)))
 	_check(await _wait_until(func() -> bool: return fresh.station_interaction_candidate == fresh_board), "fresh Main exposes the unpaid board through ordinary interaction")
