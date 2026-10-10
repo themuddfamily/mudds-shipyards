@@ -699,6 +699,10 @@ func _test_threading_run_completes(binding: Node, field: CinderAsteroidField) ->
 
 
 func _test_reward_is_taken_exactly_once(binding: Node) -> void:
+	var canonical := binding.call("capture_asteroid_field_session") as Dictionary
+	_check(SESSION_ADAPTER.validate_asteroid_session(canonical).accepted
+		and canonical == JSON.parse_string(JSON.stringify(canonical)),
+		"the strictly validated complete session retains exact field equality across JSON persistence")
 	var payload := _store.call("get_snapshot") as Dictionary
 	payload[ASTEROID_SLOT] = binding.call("capture_asteroid_field_session")
 	_check(bool((_store.call("commit", payload, _store.call("get_generation"), "unit-earned-asteroid-terminal") as Dictionary).accepted),
@@ -919,7 +923,7 @@ func _test_main_durable_threading() -> void:
 	_press_reset(first)
 	_check(binding.capture_asteroid_field_session() == live and FileAccess.get_file_as_bytes(path) == bytes,
 		"ordinary Reset with a refused write preserves the exact live active cursor and durable bytes")
-	var authority_ref := weakref(first.get("_game_flow_reward_authority"))
+	var authority_ref: WeakRef = weakref(first.get("_game_flow_reward_authority"))
 	await _main_dispose(first)
 	_check(not is_instance_valid(first) and not is_instance_valid(binding) and authority_ref.get_ref() == null,
 		"the original Main, streamed binding and reward authority are actually destroyed")
