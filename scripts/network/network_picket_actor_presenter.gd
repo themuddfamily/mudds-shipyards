@@ -187,14 +187,30 @@ func _clone_visual(template: Node3D, materials: Dictionary, copies: Dictionary) 
 		var batch := MultiMeshInstance3D.new()
 		var source := (template as MultiMeshInstance3D).multimesh
 		var multi := MultiMesh.new()
-		# Resource.duplicate() can assign the buffer before allocating its layout.
-		# Configure the complete format before instance_count sizes that buffer.
+		# Configure the complete format before instance_count sizes its buffer.
 		multi.transform_format = source.transform_format
 		multi.use_colors = source.use_colors
 		multi.use_custom_data = source.use_custom_data
 		multi.mesh = source.mesh
 		multi.instance_count = source.instance_count
-		multi.buffer = source.buffer
+		var buffer := source.buffer
+		var stride := 8 if source.transform_format == MultiMesh.TRANSFORM_2D else 12
+		stride += 4 if source.use_colors else 0
+		stride += 4 if source.use_custom_data else 0
+		if buffer.size() == source.instance_count * stride:
+			multi.buffer = buffer
+		else:
+			# Dummy exposes no packed buffer. Copy whatever the valid instance
+			# getters can provide without assigning an invalid-sized buffer.
+			for index in source.instance_count:
+				if source.transform_format == MultiMesh.TRANSFORM_2D:
+					multi.set_instance_transform_2d(index, source.get_instance_transform_2d(index))
+				else:
+					multi.set_instance_transform(index, source.get_instance_transform(index))
+				if source.use_colors:
+					multi.set_instance_color(index, source.get_instance_color(index))
+				if source.use_custom_data:
+					multi.set_instance_custom_data(index, source.get_instance_custom_data(index))
 		multi.visible_instance_count = source.visible_instance_count
 		multi.custom_aabb = source.custom_aabb
 		multi.physics_interpolation_quality = source.physics_interpolation_quality

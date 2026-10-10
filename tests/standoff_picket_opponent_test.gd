@@ -132,9 +132,17 @@ func _test_network_actor_multimesh_copy() -> void:
 				and copied.visible_instance_count == original.visible_instance_count
 				and copied.custom_aabb == original.custom_aabb
 				and copied.physics_interpolation_quality == original.physics_interpolation_quality
-				and copied.buffer == original_buffer and copy_node.visible == source_node.visible
+				and copy_node.visible == source_node.visible
 				and copy_node.get_script() == null and copy_node.process_mode == Node.PROCESS_MODE_DISABLED,
-				"%s copy retains exact allocated layout, instance data, culling and scriptless visibility" % relative_path)
+				"%s copy retains exact allocated layout, culling and scriptless visibility" % relative_path)
+			if DisplayServer.get_name() != "headless":
+				var stride := 8 if original.transform_format == MultiMesh.TRANSFORM_2D else 12
+				stride += 4 if original.use_colors else 0
+				stride += 4 if original.use_custom_data else 0
+				_check(not original_buffer.is_empty()
+					and original_buffer.size() == original.instance_count * stride
+					and copied.buffer == original_buffer,
+					"%s real renderer exposes and preserves the complete authored instance buffer" % relative_path)
 			_check(copied.mesh != original.mesh and copied_material != original_material
 				and copied_material.albedo_color == original_material.albedo_color,
 				"%s copy privately owns its authored surface palette" % relative_path)
