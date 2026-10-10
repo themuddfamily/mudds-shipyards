@@ -31,6 +31,8 @@ func load(
 	var loaded := _store.load()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
+	if _store.get_loaded_source() == &"backup":
+		return _result(false, &"race_session_store_recovery_required")
 	var payload := _store.get_snapshot()
 	var slot_key := String(_slot_id)
 	if not payload.has(slot_key):
