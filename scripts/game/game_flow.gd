@@ -8903,7 +8903,10 @@ func _on_planetary_destination_console_open_requested(actor: Node) -> void:
 ## The console owns no resource mutation; only engineer-capable craft expose the
 ## restock method, which delegates to their existing RepairAuthority.
 func _on_ship_service_console_requested(actor: Node, source: Area3D) -> void:
-	if not _get_current_ship_service_consoles().has(source):
+	if not _get_current_ship_service_consoles().has(source) \
+			or not is_instance_valid(player) or actor != player \
+			or not player.is_inside_tree() or player.is_queued_for_deletion() \
+			or not is_ancestor_of(player):
 		return
 	_refresh_interaction_targets()
 	var result: Dictionary
