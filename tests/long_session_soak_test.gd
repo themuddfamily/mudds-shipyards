@@ -408,18 +408,20 @@ func _run_cycle(
 		# waits that recovery out inside the cycle so the counters below are
 		# sampled at the same quiescent point every time.
 		craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
+		# Observe synchronous loss before slow frames can finish the production
+		# wall-clock regeneration delay; recovery remains independently awaited.
+		var destroyed := craft.is_destroyed()
 		for _destroy_tick in 4:
 			await physics_frame
 			await process_frame
-		var destroyed := craft.is_destroyed()
 		var recovered := await _wait_until(
 			func() -> bool: return not craft.is_destroyed() and craft.is_boardable(),
 			6.0
 		)
 		_check(
 			destroyed and recovered,
-			"cycle %d loses and recovers %s through the berth regeneration lifecycle"
-				% [cycle + 1, craft_id]
+			"cycle %d loses and recovers %s through the berth regeneration lifecycle (destroyed=%s recovered=%s)"
+				% [cycle + 1, craft_id, destroyed, recovered]
 		)
 		# Boardable is not the same as clean. A regenerated craft the player is
 		# about to fly again must also come back with its component ledger on a
