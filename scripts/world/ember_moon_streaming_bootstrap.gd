@@ -49,6 +49,20 @@ var _environment_attach_count := 0
 var _environment_detach_count := 0
 
 
+func _descendant_directional_light_count() -> int:
+	# Match find_children's complete, current descendant scope, including
+	# internal and queued nodes, without name matching or script-class lookup.
+	var count := 0
+	var pending: Array[Node] = get_children(true)
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if node is DirectionalLight3D:
+			count += 1
+		if node.get_child_count(true) > 0:
+			pending.append_array(node.get_children(true))
+	return count
+
+
 func _create_profile() -> Dictionary:
 	return {
 		"location_id": LOCATION_ID,
@@ -225,22 +239,20 @@ func _collect_presentation_contract_errors(
 		errors: PackedStringArray,
 		loaded_instance: Node3D,
 	) -> void:
-	var directional_lights := find_children(
-		"*", "DirectionalLight3D", true, false
-	)
+	var directional_light_count := _descendant_directional_light_count()
 	var sun_rig := get_airless_sun_rig()
 	if is_instance_valid(sun_rig):
 		if not is_instance_valid(loaded_instance) \
 				or sun_rig.get_parent() != _coordinator \
 				or sun_rig.scene_file_path != AIRLESS_SUN_RIG_SCENE_PATH \
 				or sun_rig.find_children("*", "DirectionalLight3D", true, false).size() != 1 \
-				or directional_lights.size() != 1:
+				or directional_light_count != 1:
 			errors.append("airless sun rig is not bound to the one live Ember generation")
 	elif is_instance_valid(loaded_instance):
 		# A location-loaded signal composes the rig synchronously, so no stable
 		# resident snapshot may omit its sole light owner.
 		errors.append("loaded Ember generation is missing its airless sun rig")
-	elif not directional_lights.is_empty():
+	elif directional_light_count != 0:
 		errors.append("unloaded Ember retains a directional light")
 	var authored_environment := _resolve_authored_world_environment()
 	# The sun binding calls this audit while it configures, before the passive

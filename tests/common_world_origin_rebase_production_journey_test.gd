@@ -3,7 +3,13 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 35
+const EXPECTED_ASSERTIONS := 49
+
+class OwnerSubclassProbe extends CommonWorldOriginRebaseOwner:
+	func _init() -> void:
+		pass
+	func _enter_tree() -> void:
+		pass
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -94,6 +100,7 @@ func _run() -> void:
 	var authority_false := true
 	for value: Variant in authority.values(): authority_false = authority_false and value is bool and not value
 	_check(bool(owner_audit.get("valid", false)) and int(owner_audit.get("owner_count", 0)) == 1 and authority_false and bool(owned.get("collision_transform_synchronization", false)) and not owner.is_processing() and not owner.is_physics_processing(), "one caller-only owner exposes narrow collision-transform synchronization and zero adjacent authority")
+	await _check_live_owner_validation(game, owner)
 
 	player.global_position = CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
 	cinder_binding.physics_tick_from_caller_sample(1.0 / 60.0, _sample(player))
@@ -217,6 +224,9 @@ func _run() -> void:
 	_check([owner.get_instance_id(), ember.get_instance_id(), ember_binding.get_instance_id(), frame.get_instance_id(), cinder_loaded.get_instance_id()] == identities and int(owner.get_snapshot().transaction_count) == transaction_count and bool(owner.audit().valid), "re-entry preserves owner/frame/stream identities without replay")
 
 	game.remove_child(ember_binding)
+	_check(not bool(owner.get_live_validation().valid)
+		and owner.get_live_validation().errors == owner.audit().errors,
+		"compact and full validation both reject current world-binding identity drift")
 	var detached_binding_before := ember_binding.get_snapshot()
 	var detached_bootstrap_before := ember.get_snapshot()
 	var detached_accept := ember_binding.accept_committed_origin_rebase({}, {}, {}, 0)
@@ -411,6 +421,79 @@ func _check_aurora_transit_carry() -> void:
 	ship.set_piloted(false)
 	game.set("_piloting", false)
 	await _cleanup(game)
+
+
+func _check_live_owner_validation(game: GameFlow, owner: CommonWorldOriginRebaseOwner) -> void:
+	var nested := Node.new()
+	game.add_child(nested)
+	var other_host := Node.new()
+	root.add_child(other_host)
+	var unrelated := Node.new()
+	unrelated.add_to_group(CommonWorldOriginRebaseOwner._LIVE_OWNER_GROUP)
+	nested.add_child(unrelated)
+	_check(bool(owner.get_live_validation().valid) and int(owner.audit().owner_count) == 1,
+		"group members without the actual owner type cannot change the live census")
+	var duplicate := OwnerSubclassProbe.new()
+	nested.add_child(duplicate)
+	_check(not bool(owner.get_live_validation().valid) and int(owner.audit().owner_count) == 2,
+		"base construction registers nested owner subclasses despite overridden lifecycle callbacks")
+	duplicate.reparent(other_host)
+	_check(bool(owner.get_live_validation().valid) and int(owner.audit().owner_count) == 1,
+		"reparenting a duplicate outside this host restores the next live validation")
+	duplicate.reparent(nested)
+	_check(not bool(owner.get_live_validation().valid) and int(owner.audit().owner_count) == 2,
+		"reparenting the same duplicate back immediately refuses validation")
+	duplicate.queue_free()
+	_check(not bool(owner.get_live_validation().valid) and int(owner.audit().owner_count) == 2,
+		"queued duplicate owners still count until actual tree removal")
+	await process_frame
+	_check(bool(owner.get_live_validation().valid) and int(owner.audit().owner_count) == 1,
+		"freeing a duplicate restores validation without a retained validity cache")
+	duplicate = OwnerSubclassProbe.new()
+	nested.add_child(duplicate)
+	nested.remove_child(duplicate)
+	_check(bool(owner.get_live_validation().valid) and int(owner.audit().owner_count) == 1,
+		"removing an owner immediately removes it from this host's census")
+	nested.add_child(duplicate)
+	_check(not bool(owner.get_live_validation().valid) and int(owner.audit().owner_count) == 2,
+		"the same removed owner registers again on tree re-entry")
+	nested.remove_child(duplicate)
+	duplicate.free()
+	nested.free()
+	other_host.free()
+
+	var detached_host := Node.new()
+	var detached_owner := CommonWorldOriginRebaseOwner.new()
+	var detached_nested := Node.new()
+	var detached_duplicate := OwnerSubclassProbe.new()
+	detached_host.add_child(detached_owner)
+	detached_host.add_child(detached_nested)
+	detached_nested.add_child(detached_duplicate)
+	_check(int(detached_owner.get_live_validation().owner_count) == 2
+		and int(detached_owner.audit().owner_count) == 2,
+		"out-of-tree validation keeps the original recursive nested-owner scope")
+	detached_nested.remove_child(detached_duplicate)
+	detached_duplicate.free()
+	_check(int(detached_owner.get_live_validation().owner_count) == 1
+		and int(detached_owner.audit().owner_count) == 1,
+		"out-of-tree owner removal is reflected without a SceneTree index")
+	detached_host.free()
+
+	owner._commit_adapter = Callable(self, &"_reject_commit")
+	_check(not bool(owner.get_live_validation().valid)
+		and owner.get_live_validation().errors == owner.audit().errors,
+		"compact validation retains the production test-adapter refusal")
+	owner._commit_adapter = Callable()
+	owner.set_process(true)
+	_check(not bool(owner.get_live_validation().valid)
+		and owner.get_live_validation().errors == owner.audit().errors,
+		"compact validation retains the automatic process refusal")
+	owner.set_process(false)
+	owner.set_physics_process(true)
+	_check(not bool(owner.get_live_validation().valid)
+		and owner.get_live_validation().errors == owner.audit().errors,
+		"compact validation retains the automatic physics refusal")
+	owner.set_physics_process(false)
 
 
 func _sample(actor: Node3D) -> Dictionary:

@@ -1204,6 +1204,15 @@ func _compose_caldera_expedition_interactions(
 ## Installs the caller's errand seam behind both offer points. The caller may
 ## install it before or after composition; nothing here can be pressed until
 ## it arrives.
+## An unchanged physics-time observation does not need the surface diagnostics.
+## The sink stays with this owner through re-entry; newly composed offers inherit
+## it in _compose_caldera_expedition_interactions.
+func ensure_caldera_expedition_intent_sink(sink: Callable) -> Dictionary:
+	if sink.is_valid() and _expedition_intent_sink == sink:
+		return {"accepted": true, "reason": &"caldera_expedition_intent_sink_unchanged"}
+	return configure_caldera_expedition_intent_sink(sink)
+
+
 func configure_caldera_expedition_intent_sink(sink: Callable) -> Dictionary:
 	if not sink.is_valid():
 		return _result(false, &"invalid_caldera_expedition_intent_sink")

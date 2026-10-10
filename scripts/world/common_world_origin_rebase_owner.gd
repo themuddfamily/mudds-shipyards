@@ -19,6 +19,7 @@ signal rebase_committed(receipt: Dictionary)
 
 const SCHEMA_VERSION := 1
 const MAX_DERIVED_DESCENDANT_RESPONSE_METERS := 0.1
+const _LIVE_OWNER_GROUP: StringName = &"_mudds_common_world_origin_rebase_owners"
 
 
 ## A node that answers `false` declares that its transform does not express a
@@ -33,6 +34,10 @@ static func node_is_common_world_translation_root(node: Node3D) -> bool:
 	return true
 
 
+# Inherited field initialization runs even when a subclass overrides _init()
+# without calling super. SceneTree then maintains live group membership through
+# removal and reparenting; this field never caches census or validity results.
+var _live_owner_group_registered := _register_live_owner_group()
 var _worlds: Array[Dictionary] = []
 var _activated := false
 var _configuration_error: StringName = &""
@@ -53,6 +58,11 @@ var _last_covered_node_count := 0
 var _last_covered_instance_ids := PackedInt64Array()
 var _last_receipt: Dictionary = {}
 var _commit_adapter := Callable()
+
+
+func _register_live_owner_group() -> bool:
+	add_to_group(_LIVE_OWNER_GROUP)
+	return true
 
 
 func _enter_tree() -> void:
@@ -438,7 +448,9 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
-func audit() -> Dictionary:
+## Fresh physics-time validity with the same guards as the full public audit.
+## No validity, identities or descendant count are retained between queries.
+func get_live_validation() -> Dictionary:
 	var errors := PackedStringArray()
 	if not _activated or _worlds.is_empty():
 		errors.append("common-world origin owner is not activated: %s" % _configuration_error)
@@ -455,15 +467,26 @@ func audit() -> Dictionary:
 		errors.append("origin owner must be caller-driven only")
 	var count := 0
 	var host := get_parent()
-	if host != null:
+	if host != null and host.is_inside_tree():
+		for candidate in host.get_tree().get_nodes_in_group(_LIVE_OWNER_GROUP):
+			if candidate is CommonWorldOriginRebaseOwner and host.is_ancestor_of(candidate):
+				count += 1
+	elif host != null:
+		# Detached compositions have no SceneTree group index. Keep the original
+		# recursive descendant scope for their diagnostic observations.
 		for candidate in host.find_children("*", "CommonWorldOriginRebaseOwner", true, false):
 			if candidate is CommonWorldOriginRebaseOwner:
 				count += 1
+	return {"valid": errors.is_empty() and count == 1, "errors": errors, "owner_count": count}
+
+
+func audit() -> Dictionary:
+	var validation := get_live_validation()
 	return {
 		"schema_version": SCHEMA_VERSION,
-		"valid": errors.is_empty() and count == 1,
-		"errors": errors,
-		"owner_count": count,
+		"valid": validation.valid,
+		"errors": validation.errors,
+		"owner_count": validation.owner_count,
 		"world_count": _worlds.size(),
 		"world_ids": get_bound_world_ids(),
 		"snapshot": get_snapshot(),

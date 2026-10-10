@@ -21789,20 +21789,18 @@ func _ensure_ember_surface_presentations() -> Dictionary:
 			or not is_instance_valid(audio) \
 			or not (hud is GameHUD):
 		return {"accepted": false, "reason": &"ember_presentation_dependencies_missing"}
-	var host_snapshot := ember_surface_loop_host.get_snapshot()
-	var production_snapshot := ember_surface_loop_production_binding.get_snapshot()
-	if not bool(host_snapshot.get("attached", false)) \
-			or not bool(production_snapshot.get("configured", false)):
+	if not ember_surface_loop_host.is_attached() \
+			or not ember_surface_loop_production_binding.is_configured():
 		return {"accepted": false, "reason": &"ember_production_not_bound"}
 
 	# The authored trailhead offer points are composed with the surface, but
 	# only this owner may answer their presses. Installing the seam here keeps
 	# it on the same idempotent pass that owns every other Ember presentation.
 	if ember_surface_loop_production_binding.has_method(
-		&"configure_caldera_expedition_intent_sink"
+		&"ensure_caldera_expedition_intent_sink"
 	):
 		ember_surface_loop_production_binding.call(
-			&"configure_caldera_expedition_intent_sink",
+			&"ensure_caldera_expedition_intent_sink",
 			Callable(self, "_submit_ember_caldera_expedition_intent")
 		)
 

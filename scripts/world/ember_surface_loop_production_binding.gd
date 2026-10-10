@@ -668,6 +668,16 @@ func get_caldera_expedition_snapshot() -> Dictionary:
 
 ## Installs the caller's errand seam behind the two authored trailhead offer
 ## points. Presentation may ask; only the caller's seam answers.
+## The physics caller needs only the install outcome on repeated observations;
+## keep the full configuration report available through configure below.
+func ensure_caldera_expedition_intent_sink(sink: Callable) -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	if _planetary_composition.has_method(&"ensure_caldera_expedition_intent_sink"):
+		return _planetary_composition.call(&"ensure_caldera_expedition_intent_sink", sink)
+	return configure_caldera_expedition_intent_sink(sink)
+
+
 func configure_caldera_expedition_intent_sink(sink: Callable) -> Dictionary:
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
@@ -3154,7 +3164,7 @@ func _validate_origin_result(
 			or int(result.coordinate_frame_generation) != current_frame_generation:
 		return {"accepted": false, "reason": &"origin_result_observation_mismatch"}
 	var binding_snapshot := _origin_binding.get_snapshot()
-	var owner_audit := _origin_owner.audit()
+	var owner_audit := _origin_owner.get_live_validation()
 	if not bool(owner_audit.get("valid", false)) \
 			or int(binding_snapshot.get("last_actor_instance_id", 0)) \
 				!= int(sample.actor_instance_id) \
