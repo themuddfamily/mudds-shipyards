@@ -4,7 +4,33 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest published checkpoint: `999fee71e` — 2026-10-10
+## Latest published checkpoint: `b3de8e299` — 2026-10-10
+
+The [executable](../builds/linux/MuddsShipyards-b3de8e2.x86_64),
+[archive](../builds/linux/MuddsShipyards-b3de8e2-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-b3de8e2-linux-notes.txt) include the
+Cinder Loadmaster manifest chair, readable Aft Operations signage and boarding
+cards showing role, rated speed and maximum hull.
+
+Fresh clean-source export and direct/extracted-archive startup exit 0, with
+reaped actors, one parsed mouse-free menu-ready result per startup and zero
+diagnostics. This Linux embedded package passes HUD205, live GameFlow16 and
+four standard probes223. All 1,492 PCK4 entries, five safe archive members,
+11,759 tracked source files and 577 cache files pass guards. Publication uses
+exclusive writes and verifies file hashes and archive parity. Executable mode
+is 0755; archive and notes are 0644.
+
+Executable SHA256:
+`af2cf2d7373c98df20211dd703b2a05d483c522369d51c2060702f111ba27ad4`.
+Archive SHA256:
+`9869f2d783a936d69d7440c901d61cc704ebb92713dd47153b4e727c25a3743f`.
+
+These checks use Linux/WSL headless execution and Dummy audio. Native GPU,
+physical devices, human review, complete regression and this archive's desktop
+helper execution remain NOT_RUN. Windows package and installer qualification
+are separate; this publication does not close a roadmap phase or completion task.
+
+## Earlier published checkpoint: `999fee71e` — 2026-10-10
 
 The matching [executable](../builds/linux/MuddsShipyards-999fee7.x86_64),
 [archive](../builds/linux/MuddsShipyards-999fee7-linux-x86_64.tar.gz) and
