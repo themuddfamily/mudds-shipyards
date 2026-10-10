@@ -68,6 +68,7 @@ Options:
   --audio-driver NAME       Audio backend passed to --audio-driver (default: Dummy).
   --display-driver NAME     Display backend for graphical suites only (default: engine choice).
                             Use x11 under Xvfb; headless suites and imports stay headless.
+                            X11 suites isolate the runtime directory and clear Wayland access.
   --accepted-risk ID        Opt in to exact trailing RENDER-001 shutdown warning;
                             raw logs remain intact; diagnostic_count excludes only this block.
                             Opt-in rows also report raw_diagnostic_count and accepted counts.
@@ -623,6 +624,17 @@ run_suite_worker() {
 	# other's STARTING/STABLE markers.
 	local suite_user_data_dir="$WORK_DIR/user-data/$suite_identity"
 	mkdir -p "$suite_user_data_dir"
+	local suite_environment=(env "XDG_DATA_HOME=$suite_user_data_dir")
+	if [[ "${SUITE_MODES[$test_file]}" != headless && "$DISPLAY_DRIVER" == x11 ]]; then
+		# Godot can fall back to Wayland when the requested X11 display fails.
+		# Block both inherited socket access and the default runtime-directory
+		# socket so a failed private display cannot connect to the desktop.
+		local suite_runtime_dir="$WORK_DIR/runtime/$suite_identity"
+		mkdir -p "$suite_runtime_dir"
+		chmod 700 "$suite_runtime_dir"
+		suite_environment=(env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET
+			"XDG_DATA_HOME=$suite_user_data_dir" "XDG_RUNTIME_DIR=$suite_runtime_dir")
+	fi
 
 	local source_copy="$WORK_DIR/source/$suite_identity.gd"
 	mkdir -p "$(dirname "$source_copy")"
@@ -654,11 +666,11 @@ run_suite_worker() {
 	fi
 
 	if (( HAVE_TIMEOUT_BIN == 1 )); then
-		env XDG_DATA_HOME="$suite_user_data_dir" \
+		"${suite_environment[@]}" \
 			timeout "$(suite_timeout_seconds "$test_file")s" "${GODOT_ARGS[@]}" > "$log_path" 2>&1
 		exit_code="$?"
 	else
-		env XDG_DATA_HOME="$suite_user_data_dir" \
+		"${suite_environment[@]}" \
 			"${GODOT_ARGS[@]}" > "$log_path" 2>&1
 		exit_code="$?"
 	fi

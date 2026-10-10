@@ -36,6 +36,12 @@ if [[ -n "$script_path" ]]; then
 		printf '%s\t%s\n' "$script_path" "${XDG_DATA_HOME:?}" \
 			>> "$MATRIX_FAKE_USER_DATA_RECORD"
 	fi
+	if [[ -n "${MATRIX_FAKE_RUNTIME_RECORD:-}" ]]; then
+		[[ -z "${WAYLAND_DISPLAY+x}" && -z "${WAYLAND_SOCKET+x}" ]]
+		[[ -d "${XDG_RUNTIME_DIR:?}" ]]
+		[[ "$(stat -c '%a' "$XDG_RUNTIME_DIR")" == 700 ]]
+		printf '%s\t%s\n' "$script_path" "$XDG_RUNTIME_DIR" >> "$MATRIX_FAKE_RUNTIME_RECORD"
+	fi
 	for (( assertion = 1; assertion <= ${MATRIX_FAKE_ASSERTIONS:-1}; assertion++ )); do
 		printf 'PASS: no orphaned registration; measured_distance=%s assertion=%s\n' "${MATRIX_FAKE_MEASUREMENT:?}" "$assertion"
 	done
@@ -137,5 +143,25 @@ grep -E $'^res://tests/ship_command_test.gd\t.*/user-data/ship_command_test$' \
 	"$USER_DATA_RECORD" >/dev/null
 grep -Fx 'suite_user_data_isolated=true' \
 	"$WORK_DIR/results/user-data-isolation/run-manifest.txt" >/dev/null
+
+# A failed X11 connection must not let Godot use the developer's Wayland
+# display, an inherited connected socket, or the default runtime socket.
+# Fake Godot checks its actual launch environment without opening a display.
+RUNTIME_RECORD="$WORK_DIR/runtime-record.tsv"
+mkdir -p "$WORK_DIR/inherited-runtime"
+TEST_MATRIX_RUN_ID=x11-runtime-isolation MATRIX_FAKE_MEASUREMENT=8 \
+	MATRIX_FAKE_RUNTIME_RECORD="$RUNTIME_RECORD" DISPLAY=:12345 \
+	WAYLAND_DISPLAY=wayland-fixture WAYLAND_SOCKET=999 \
+	XDG_RUNTIME_DIR="$WORK_DIR/inherited-runtime" \
+	"$MATRIX" --godot "$FAKE_GODOT" --import-gate never --jobs 2 \
+	--mode graphical --display-driver x11 --results-dir "$WORK_DIR/results" \
+	--scope jovian_solo_engineer_route_test,bulwark_crew_gunner_gameplay_test \
+	--manifest-scope tests/jovian_solo_engineer_route_test.gd,tests/bulwark_crew_gunner_gameplay_test.gd >/dev/null
+[[ "$(wc -l < "$RUNTIME_RECORD")" -eq 2 ]]
+[[ "$(cut -f2 "$RUNTIME_RECORD" | sort -u | wc -l)" -eq 2 ]]
+while IFS=$'\t' read -r _script runtime_dir; do
+	[[ "$runtime_dir" == */runtime/* && ! -e "$runtime_dir" ]]
+done < "$RUNTIME_RECORD"
+[[ -d "$WORK_DIR/inherited-runtime" ]]
 
 echo "matrix canonical evidence check: PASS"
