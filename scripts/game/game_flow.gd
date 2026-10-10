@@ -18819,11 +18819,12 @@ func _ensure_cinder_beacon_session(binding: Object) -> Dictionary:
 	return {"accepted": true, "reason": &"beacon_session_ready"}
 
 
-func _save_cinder_beacon_session(binding: Object) -> Dictionary:
+func _save_cinder_beacon_session(binding: Object, prospective_record: Dictionary = {}) -> Dictionary:
 	var ready := _ensure_cinder_beacon_session(binding)
 	if not bool(ready.get("accepted", false)):
 		return ready
-	var record := binding.call("capture_beacon_traversal_session") as Dictionary
+	var record := (binding.call("capture_beacon_traversal_session") as Dictionary) \
+		if prospective_record.is_empty() else prospective_record.duplicate(true)
 	var checked := CinderBeaconTraversalActivity.validate_persistence_record(record)
 	if not checked.accepted:
 		return checked
@@ -20118,9 +20119,27 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 			var ready := _ensure_cinder_beacon_session(binding)
 			if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
 				return ready
+			if _game_flow_reward_authority == null:
+				return binding.call(&"reset_beacon_traversal") as Dictionary
+			var prepared := binding.call(&"prepare_beacon_traversal_reset") as Dictionary
+			if not bool(prepared.get("accepted", false)):
+				return prepared
+			var record := prepared.session_record as Dictionary
+			var saved := _save_cinder_beacon_session(binding, record)
+			if not bool(saved.get("accepted", false)):
+				# A directory-sync refusal may follow successful publication. Only
+				# the exact primary record permits publishing the live reset.
+				if not bool(saved.get("published", false)):
+					return {"accepted": false, "reason": &"beacon_reset_save_pending", "persistence_result": saved}
+				var loaded := _runtime_settings_user_data_store.load()
+				if not bool(loaded.get("accepted", false)) \
+						or _runtime_settings_user_data_store.get_loaded_source() != &"primary" \
+						or _runtime_settings_user_data_store.get_snapshot().get("cinder_beacon_session") != record:
+					return {"accepted": false, "reason": &"beacon_reset_save_pending", "persistence_result": saved}
+				_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
+				_sync_production_runtime_settings_state()
 			var reset := binding.call(&"reset_beacon_traversal") as Dictionary
-			if bool(reset.get("accepted", false)) and _game_flow_reward_authority != null:
-				reset["persistence_result"] = _save_cinder_beacon_session(binding)
+			reset["persistence_result"] = saved
 			return reset
 		&"cinder_asteroid_field_threading_run":
 			return binding.call(&"reset_asteroid_field_run")
