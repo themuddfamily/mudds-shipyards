@@ -2228,12 +2228,12 @@ func _create_materials() -> void:
 	# is supposed to belong to.
 	#
 	# Not a lighting change: no lamp moved, no energy changed. This shared step
-	# remains on bunk pillows and chair arm pads; the away-facing observation
-	# backrests receive their own final bounded lift below.
+	# remains on chair arm pads; the away-facing observation
+	# backrests receive their own final bounded lift below. Bunk pillows use linen.
 	_materials["fabric_dark"] = _material(Color("2c5158"), 0.02, 0.86)
 	# Chair-only modern interpretation: a modest reflectance lift keeps the
-	# away-facing backrests shaped without relighting the glazed room. Bunk
-	# pillows and arm pads retain the existing darker upholstery hierarchy.
+	# away-facing backrests shaped without relighting the glazed room.
+	# Arm pads retain the existing darker upholstery hierarchy.
 	_materials["observation_backrest"] = _material(
 		OBSERVATION_BACKREST_COLOR,
 		OBSERVATION_BACKREST_METALLIC,
@@ -2298,6 +2298,8 @@ func _create_materials() -> void:
 ## all on things people own rather than on things the station owns.
 func _create_habitat_life_materials() -> void:
 	_materials["linen"] = _material(Color("d8cfc0"), 0.02, 0.90)
+	# Bedding and curtains are cloth, without the shell helper's lacquer layer.
+	(_materials["linen"] as StandardMaterial3D).clearcoat_enabled = false
 	_materials["blanket"] = _material(Color("9c5f3e"), 0.02, 0.88)
 	_materials["coverall"] = _material(Color("3f6f5c"), 0.03, 0.86)
 	_materials["leather"] = _material(Color("4a3a30"), 0.06, 0.72)
@@ -2549,7 +2551,9 @@ func _build_bunk_alcove(parent: Node3D, index: int, center: Vector3) -> void:
 	var outer_x := float(side) * 1.02
 	_box(bunk, "BunkPlinth", Vector3(outer_x, 0.32, 0), Vector3(1.65, 0.64, 2.75), _materials["structural"])
 	_box(bunk, "Mattress", Vector3(outer_x - float(side) * 0.04, 0.72, 0), Vector3(1.42, 0.18, 2.45), _materials["fabric"], true)
-	_box(bunk, "Pillow", Vector3(outer_x - float(side) * 0.08, 0.88, 0.88), Vector3(1.0, 0.16, 0.52), _materials["fabric_dark"], false, Vector3(0, 0, float(side) * 3.0))
+	# Existing pale linen separates the pillow from the dark mattress and chair
+	# upholstery at corridor range. This is modern rest-space dressing.
+	_box(bunk, "Pillow", Vector3(outer_x - float(side) * 0.08, 0.88, 0.88), Vector3(1.0, 0.16, 0.52), _materials["linen"], false, Vector3(0, 0, float(side) * 3.0))
 	_box(bunk, "HeadServiceUnit", Vector3(outer_x, 1.42, 1.42), Vector3(1.7, 1.65, 0.22), _materials["shell_light"], true)
 	_box(bunk, "ReadingLight", Vector3(outer_x - float(side) * 0.1, 1.85, 1.29), Vector3(0.55, 0.1, 0.06), _materials["amber"], false)
 	# Six alcoves, each with an amber reading lamp that lit nothing — six warm

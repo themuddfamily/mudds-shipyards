@@ -425,6 +425,23 @@ func _test_bunk_alcoves(module: HabitatSpine) -> void:
 		_check(module.contains_room(room_id, module.to_global(center)), "bunk centre lies in published occupancy volume: %s" % room_id)
 		_check(not module.contains_room(room_id, module.to_global(Vector3(0, 1.0, center.z))), "central corridor is outside bunk occupancy: %s" % room_id)
 		_check(bunk.get_node_or_null("BunkPlinth") is StaticBody3D and bunk.get_node_or_null("Mattress") is StaticBody3D, "bunk sleeping surface is physically backed: %s" % room_id)
+		var pillow := bunk.get_node_or_null("Pillow") as MeshInstance3D
+		var curtain := bunk.get_node_or_null("BerthLife/BerthCurtain") as MeshInstance3D
+		var linen := pillow.material_override as StandardMaterial3D if pillow != null else null
+		_check(
+			linen != null and curtain != null
+			and linen == curtain.material_override
+			and linen.albedo_color.is_equal_approx(Color("d8cfc0"))
+			and not linen.clearcoat_enabled and not linen.emission_enabled
+			and is_equal_approx(linen.roughness, 0.9),
+			"bunk pillow reads as matte pale bedding using existing curtain linen: %s" % room_id
+		)
+		_check(
+			pillow != null and pillow.get_child_count() == 0
+			and pillow.position.is_equal_approx(Vector3((-1.0 if index < 3 else 1.0) * 0.94, 0.88, 0.88))
+			and pillow.mesh.get_aabb().size.is_equal_approx(Vector3(1.0, 0.16, 0.52)),
+			"pillow finish preserves its existing visual-only extent and placement: %s" % room_id
+		)
 		# Phase 10 coplanar-seam fix. The head laps over both jambs, so authored
 		# at the jambs' own x it put `shell_light` and `shell_mid` on one plane
 		# over the lap and the two finishes fought there from the lane. It now
