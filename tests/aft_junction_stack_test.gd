@@ -1203,6 +1203,24 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"the required header rejects a same-name non-atlas replacement")
 		wrong_kind.free()
 		visuals.add_child(header)
+		# Same type, name, authored state and text must still fail: the console
+		# retains its original status label as the target of service updates.
+		visuals.remove_child(status)
+		var same_kind := status.duplicate() as Label3D
+		visuals.add_child(same_kind)
+		var identity_red := module.get_pod_corner_collar_visual_allocation_audit()
+		_check(not bool(identity_red.valid)
+			and (identity_red.errors as PackedStringArray).has(
+				"ship_service_atlas_display_identity_drift"
+			), "an identical same-kind status replacement cannot replace the console's retained update target")
+		var replacement_text := same_kind.text
+		console.present_service_result({"accepted": false, "reason": &"pilot_seated"})
+		_check(same_kind.text == replacement_text
+			and status.text == str(console.get_presentation_snapshot().status_text)
+			and status.text != same_kind.text,
+			"ordinary service updates prove a same-kind replacement is not the console's cached status owner")
+		same_kind.free()
+		visuals.add_child(status)
 		_check(bool(module.get_pod_corner_collar_visual_allocation_audit().valid)
 			and [header.get_instance_id(), status.get_instance_id()] == before_ids,
 			"restoring the exact retained readouts restores Aft validation")

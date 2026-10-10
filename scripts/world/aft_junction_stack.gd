@@ -482,6 +482,10 @@ var _roof_vent_collar_mesh: TorusMesh
 var _route_markers: Dictionary = {}
 var _chair_nodes: Array[Node3D] = []
 var _console_nodes: Array[Node3D] = []
+# Authored once after the console's ready cascade. Weak ownership preserves
+# identity across module re-entry without retaining freed presentation nodes.
+var _ship_service_console_ref: WeakRef
+var _ship_service_readout_refs: Dictionary = {}
 var _built := false
 var _staged_construction := false
 var _staged_tree_generation := 0
@@ -1380,6 +1384,9 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 	var console := get_node_or_null(
 		^"Structure/OperationsRoom/ConsoleBay03/ShipServiceConsole"
 	) as ShipServiceConsoleType
+	if console == null or _ship_service_console_ref == null \
+			or _ship_service_console_ref.get_ref() != console:
+		errors.append("ship_service_console_identity_drift")
 	var expected_text: Dictionary = console.get_presentation_snapshot() if console != null else {}
 	for readout_name: StringName in [&"ShipServiceHeader", &"ShipServiceStatus"]:
 		var label: Label3D = console.get_node_or_null(
@@ -1389,6 +1396,9 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 			errors.append("ship_service_atlas_display_missing")
 			continue
 		atlas_paths.append(String(get_path_to(label)))
+		var retained_ref := _ship_service_readout_refs.get(readout_name) as WeakRef
+		if retained_ref == null or retained_ref.get_ref() != label:
+			errors.append("ship_service_atlas_display_identity_drift")
 		var text := str(expected_text.get(
 			"header" if readout_name == &"ShipServiceHeader" else "status_text", ""
 		))
@@ -4121,6 +4131,12 @@ func _build_operations_console(room: Node3D, bay_index: int) -> void:
 	elif bay_index == 2:
 		var ship_service_console = ShipServiceConsoleType.new()
 		ship_service_console.name = "ShipServiceConsole"
+		# The child creates its labels in _ready. Connecting before insertion
+		# also supports an off-tree bay: capture only after that child is built.
+		ship_service_console.ready.connect(
+			_retain_ship_service_readouts.bind(weakref(ship_service_console)),
+			CONNECT_ONE_SHOT
+		)
 		bay.add_child(ship_service_console)
 	# The bay's one warm lamp gets its own tiny pool. It is the only warm
 	# source on the console line and it is what stops three identical cyan
@@ -4133,6 +4149,19 @@ func _build_operations_console(room: Node3D, bay_index: int) -> void:
 		0.24,
 		1.25
 	)
+
+
+func _retain_ship_service_readouts(console_ref: WeakRef) -> void:
+	var console := console_ref.get_ref() as ShipServiceConsoleType
+	if console == null or _ship_service_console_ref != null:
+		return
+	_ship_service_console_ref = console_ref
+	for readout_name: StringName in [&"ShipServiceHeader", &"ShipServiceStatus"]:
+		var label := console.get_node_or_null(
+			NodePath("ShipServiceReadability/" + String(readout_name))
+		) as Label3D
+		if label != null:
+			_ship_service_readout_refs[readout_name] = weakref(label)
 
 
 func _finish_operations_consoles(room: Node3D) -> void:
