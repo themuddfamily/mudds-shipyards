@@ -1126,16 +1126,26 @@ func _run_roll_peer() -> void:
 	await physics_frame
 	_check(_craft.get_local_input_source() == local_source and local_source.get_authority_peer_id() == original_authority,
 		"Main reentry restores the same solo producer without a stale network binding")
+	print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "before_queue_free", "monotonic_ms": Time.get_ticks_msec(), "host_valid": is_instance_valid(_host), "failures": _failures.size()})
 	_host.queue_free()
+	print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "after_queue_free", "monotonic_ms": Time.get_ticks_msec(), "host_queued": _host.is_queued_for_deletion()})
 	await process_frame
+	print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "after_first_process_frame", "monotonic_ms": Time.get_ticks_msec(), "host_valid": is_instance_valid(_host)})
 	await process_frame
+	print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "after_second_process_frame", "monotonic_ms": Time.get_ticks_msec(), "host_valid": is_instance_valid(_host), "failures": _failures.size()})
 	if _failures.is_empty():
 		print("NETWORK_REMOTE_HELM_PEER_COMPLETE: %d assertions" % _assertion_count)
+		print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "before_finished_marker", "monotonic_ms": Time.get_ticks_msec()})
 		_roll_mark("peer", "finished")
+		print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "after_finished_marker_before_quit", "monotonic_ms": Time.get_ticks_msec()})
 		quit(0)
+		print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "after_quit_requested", "monotonic_ms": Time.get_ticks_msec(), "requested_exit": 0})
 	else:
+		print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "before_failed_marker", "monotonic_ms": Time.get_ticks_msec()})
 		_roll_mark("peer", "failed")
+		print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "after_failed_marker_before_quit", "monotonic_ms": Time.get_ticks_msec()})
 		quit(1)
+		print("REMOTE_HELM_TEARDOWN_DIAGNOSTIC: ", {"stage": "after_quit_requested", "monotonic_ms": Time.get_ticks_msec(), "requested_exit": 1})
 
 
 func _roll_peer_step(send_helm: bool = true) -> void:
@@ -1287,8 +1297,10 @@ func _assert_independent_landing() -> void:
 		"host automatically shuts down the actually docked craft before exterior departure")
 	print("DOCK_EXIT_HOST_BEFORE: ", {"engine": _craft.get_telemetry().get("engine_state"),
 		"landed": _craft.get_telemetry().get("landed"), "entity": _server.get_landing_entity(SHIP_ID)})
+	_parked_diagnostic("host_before_exit_marker", -1)
 	_roll_mark("host", "dock_exit")
 	if not await _wait_roll_marker("peer", "dock_exit_pressed"): return
+	_parked_diagnostic("host_after_exit_marker", -1)
 	_check(await _wait_until(func() -> bool: return not _host._network_remote_pilots.has(SHIP_ID), 2.0),
 		"actual independent postdock interact releases the host-confirmed pilot seat")
 	if not await _wait_roll_marker("peer", "dock_reboarded"): return
@@ -1498,6 +1510,37 @@ func _clock_trace(marker: String) -> void:
 	print("DOCK_EXIT_CLOCK_TRACE: ", row)
 
 
+func _cockpit_diagnostic(marker: String, original_deadline_ms: int) -> void:
+	print("REMOTE_HELM_COCKPIT_DIAGNOSTIC: ", {
+		"stage": marker, "monotonic_ms": Time.get_ticks_msec(), "original_deadline_ms": original_deadline_ms,
+		"main_piloting": _host._piloting, "craft_piloted": _craft.is_piloted(),
+		"confirmed_pilot_role": _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PILOT,
+		"transition_idle": not _host._transition_busy, "phase": _host.phase,
+		"embodiment": _host.player._embodiment_state, "player_seated": _host.player.is_seated(),
+		"boarding": _host.get_network_client_boarding_audit(),
+	})
+
+
+func _parked_diagnostic(marker: String, original_operation_tick: int) -> void:
+	var sample := _host._network_craft_pose_stream.latest_sample(SHIP_ID)
+	var adapter := _host.get_network_session()
+	var received_snapshot: Dictionary = adapter.get_snapshot().get("authoritative", {})
+	var published_snapshot := adapter.get_authoritative_snapshot()
+	print("REMOTE_HELM_PARKED_DIAGNOSTIC: ", {
+		"stage": marker, "monotonic_ms": Time.get_ticks_msec(), "physics_frame": Engine.get_physics_frames(),
+		"original_operation_tick": original_operation_tick, "operation_tick": sample.get("operation_tick", -1),
+		"pose_tick": sample.get("pose_tick", -1), "entity_generation": sample.get("entity_generation", -1),
+		"operation_presentation": sample.get("operation_presentation", {}),
+		"boarding_server_tick": _host.get_network_client_boarding_audit().get("server_tick", -1),
+		"movement_server_tick": adapter.get_movement_server_tick(),
+		"is_server": adapter.is_server(),
+		"received_revision": received_snapshot.get("revision", -1), "received_server_tick": received_snapshot.get("server_tick", -1),
+		"published_revision": published_snapshot.get("revision", -1), "published_server_tick": published_snapshot.get("server_tick", -1),
+		"craft_pose_audit": _host.get_network_craft_pose_audit(),
+		"replication_counters": adapter.get_replication_budget_counters(),
+	})
+
+
 func _peer_reboard_from_exterior() -> void:
 	var hatch_deadline := Time.get_ticks_msec() + 8000
 	_physical_interact_trace(&"approach_before_pose")
@@ -1543,6 +1586,7 @@ func _peer_craft_pose_is_presented() -> bool:
 
 func _peer_take_pilot_from_cabin() -> void:
 	var cockpit_deadline := Time.get_ticks_msec() + 8000
+	_cockpit_diagnostic("deadline_started", cockpit_deadline)
 	# A retained cabin can join a fresh session too. Present its first host
 	# pose before choosing the supported cockpit approach inside that hull.
 	_physical_interact_trace(&"cockpit_before_pose")
@@ -1551,6 +1595,7 @@ func _peer_take_pilot_from_cabin() -> void:
 	if not presented:
 		return
 	_physical_interact_trace(&"cockpit_pose_ready")
+	_cockpit_diagnostic("pose_presented", cockpit_deadline)
 	_host.player.teleport_to(_craft.get_in_flight_cabin_report().get("stand_transform"))
 	await _roll_peer_step(false)
 	_host._refresh_interaction_targets()
@@ -1578,10 +1623,13 @@ func _peer_take_pilot_from_cabin() -> void:
 		"station": _host.station_interaction_candidate.name if is_instance_valid(_host.station_interaction_candidate) else &""})
 	_check(_host._network_client_near_pilot_seat(_craft) and _host.boarding_candidate == _craft,
 		"supported cabin approach is within actual cockpit reach before the physical key")
+	_cockpit_diagnostic("before_key", cockpit_deadline)
 	await _peer_interact()
+	_cockpit_diagnostic("after_key", cockpit_deadline)
 	var cockpit_reused := await _wait_peer_until(func() -> bool: return _host._piloting and _craft.is_piloted() \
 		and _host._network_client_boarding_claim.get("role") == BoardingIntent.ROLE_PILOT \
 		and not _host._transition_busy, maxf(0.0, float(cockpit_deadline - Time.get_ticks_msec()) / 1000.0))
+	_cockpit_diagnostic("readiness_final", cockpit_deadline)
 	print("DOCK_REUSE_COCKPIT_AFTER: ", {"reused": cockpit_reused, "phase": _host.phase,
 		"claim": _host._network_client_boarding_claim, "request": _host._network_client_boarding_request,
 		"boarding": _host.get_network_client_boarding_audit(), "player_local": _craft.to_local(_host.player.global_position)})
@@ -1627,8 +1675,10 @@ func _run_landing_peer_actions(seats: Array[StringName]) -> void:
 		"predicted_landed": _craft.get_telemetry().get("landed"), "predicted_engine": _craft.get_telemetry().get("engine_state"),
 		"host_operation": _host._network_craft_pose_stream.latest_sample(SHIP_ID).get("operation_presentation", {}).get("docked")})
 	var parked_tick := int(_host._network_craft_pose_stream.latest_sample(SHIP_ID).get("operation_tick", 0))
+	_parked_diagnostic("peer_wait_start", parked_tick)
 	_check(await _wait_peer_until(func() -> bool: return int(_host._network_craft_pose_stream.latest_sample(SHIP_ID).get("operation_tick", 0)) \
 		- parked_tick >= 180, 6.0), "delayed parked physical exit waits on actual host operation ticks")
+	_parked_diagnostic("peer_wait_final", parked_tick)
 	var requests_before := int(_host.get_network_client_boarding_audit().requests)
 	_roll_key_action(&"interact", true)
 	_craft._physics_process(1.0 / 60.0)
