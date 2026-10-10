@@ -23,13 +23,18 @@ const ASTEROID_ROUTE := preload("res://assets/activities/cinder_asteroid_field_t
 ## Use the existing envelope with only the route owner's canonical save state.
 ## Reward metadata proves a terminal handoff; it cannot replace route geometry.
 static func capture_asteroid_session(route_state: Dictionary, paid: bool) -> Dictionary:
-	return {"schema_version": SCHEMA_VERSION, "activities": [{
+	var record := {"schema_version": SCHEMA_VERSION, "activities": [{
 		"activity_id": String(ASTEROID_ACTIVITY_ID),
 		"generation": route_state.get("generation", 0),
 		"state": route_state.get("state", 0), "progress": route_state.duplicate(true),
 		"reward_requested": int(route_state.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED,
 		"reward_granted": paid,
 	}]}
+	if not bool(validate_asteroid_session(record).get("accepted", false)):
+		return {}
+	# UserDataStore installs parsed JSON numbers. Canonicalise this validated
+	# owned session only, so exact comparisons retain every route/payment field.
+	return JSON.parse_string(JSON.stringify(record)) as Dictionary
 
 
 static func validate_asteroid_session(value: Variant) -> Dictionary:
