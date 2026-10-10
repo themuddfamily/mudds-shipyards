@@ -4,7 +4,35 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest published checkpoint: `9ef48fdc2`
+## Latest published checkpoint: `dcd63d72b` — 2026-10-10
+
+The matching [executable](../builds/linux/MuddsShipyards-dcd63d7.x86_64),
+[archive](../builds/linux/MuddsShipyards-dcd63d7-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-dcd63d7-linux-notes.txt) include supported
+Halyard crew berths and Ember runtime improvements. Executable mode is 0755;
+SHA256 is `c2fb1a78adef26435a7512dfe5d9331d071f1fce9b31e4a04cc8ae985781873e`.
+Archive SHA256 is
+`7567ca27fa82327f7832173fee63f223bb3abdb06bb7b370c2213c699e57771a`.
+
+Direct and extracted-archive startup exit 0 with one parsed menu-ready record,
+mouse-free loading and zero diagnostics. Four existing probes against this
+ELF's embedded PCK pass 89/40/25/69 assertions with actual exits 0, zero
+diagnostics and original limits. The archive has one directory and four files;
+its executable matches the standalone binary. Source, cache and artifact
+readbacks are unchanged. Windows package gameplay checks have separate scope.
+
+The shipped desktop helper passes install, reinstall, `--uninstall` and repeated
+uninstall in a private XDG directory, with an extraction path containing spaces.
+All four actions exit 0 and reap; resolved executable/icon paths and modes match
+the archive, repeated installation is byte-identical, and the seeded Godot save
+remains unchanged. Root independently verifies the archive/member hashes and
+owned temporary-tree cleanup. No GUI or desktop launcher was run.
+
+Native graphical Linux/GPU, physical controls, audio/human review, peer/endurance,
+complete current-source regression and final release remain open. These checks
+qualify a checkpoint; the 34 completion tasks remain open.
+
+## Earlier published checkpoint: `9ef48fdc2`
 
 The [binary](../builds/linux/MuddsShipyards-9ef48fd.x86_64),
 [checkpoint archive](../builds/linux/MuddsShipyards-9ef48fd-linux-checkpoint.tar.gz)
