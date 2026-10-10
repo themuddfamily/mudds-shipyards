@@ -389,8 +389,16 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Refrozen from actual source and packed 39759e48f reports for the ordinary
 # asteroid directory card: +5 UI nodes in each scenario. Geometry, resources,
 # lights, local skies and the complete streamed Cinder roster/delta are unchanged.
-const RESIDENT_FINGERPRINT := "4f0de3fe553a16a018943b095383a56698c55cb623346d1dfb7a6b9c6174930f"
-const CINDER_LOADED_FINGERPRINT := "f86e22fcdf1ef58a368e3c5cd3e5da79607dfe4a462862d2404b9d2e5f90cb5b"
+# Source-only refreeze from the closed 6349cc39d production measurement.
+# Eight converted Label3D readouts contribute 16 triangles under the census's
+# scene-proxy rule; this does not measure actual glyph geometry or atlas cost.
+# The corrected Aft allocation contract restores all seven service couriers:
+# OperationalLattice is again 478 instances / 528 surfaces / 848 nodes / 93,912
+# triangles, with all six shared courier materials. The Cinder roster and every
+# loaded-minus-resident delta are unchanged. Packed fingerprints and retained
+# material expectations below remain pending a fresh actual package measurement.
+const RESIDENT_FINGERPRINT := "20c450db5aef4bf657e1815c2e4a23da2779121e923fcfaeb7edf3cd9279d9ca"
+const CINDER_LOADED_FINGERPRINT := "119cd90aa74c53aa5e4dad0ac66a1c17f09fd1de2843c394586f55594853da20"
 const PACKED_RESIDENT_FINGERPRINT := "79788e65353e216de3046532537a8854824aa75784a8232ae3f53a1c7fb63bca"
 const PACKED_CINDER_LOADED_FINGERPRINT := "b260f8a2643d7518e1c606ed69caef9c3dfdd9ee6b97f73da273367660058bac"
 
@@ -442,15 +450,15 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1767772
+		int(resident.get("total_triangles", -1)) == 1748849
 			and int(resident.get("total_mesh_instances", -1)) == 5045
 			and int(resident.get("total_surfaces", -1)) == 5605
-			and int(resident.get("unique_meshes", -1)) == 2707,
-		"resident geometry freezes 1,767,772 triangles / 5,045 meshes / 5,605 surfaces / 2,707 unique meshes"
+			and int(resident.get("unique_meshes", -1)) == 2700,
+		"resident geometry freezes 1,748,849 triangles / 5,045 meshes / 5,605 surfaces / 2,700 unique meshes"
 	)
 	_check(
-		int(resident.get("bound_phase_unique_materials", -1)) == 662
-			and int(resident.get("retained_reachable_unique_materials", -1)) == (1080 if _packed_scene_resources() else 1078)
+		int(resident.get("bound_phase_unique_materials", -1)) == 656
+			and int(resident.get("retained_reachable_unique_materials", -1)) == (1080 if _packed_scene_resources() else 1072)
 			and int(resident.get("lights", -1)) == 327
 			and int(resident.get("nodes", -1)) == 10290,
 		"resident resource roster freezes exact source/export materials, 327 lights, and 10,290 nodes"
@@ -511,15 +519,15 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 1922794
+		int(loaded.get("total_triangles", -1)) == 1903871
 			and int(loaded.get("total_mesh_instances", -1)) == 5302
 			and int(loaded.get("total_surfaces", -1)) == 5866
-			and int(loaded.get("unique_meshes", -1)) == 2880,
-		"loaded geometry freezes 1,922,794 triangles / 5,302 meshes / 5,866 surfaces / 2,880 unique meshes"
+			and int(loaded.get("unique_meshes", -1)) == 2873,
+		"loaded geometry freezes 1,903,871 triangles / 5,302 meshes / 5,866 surfaces / 2,873 unique meshes"
 	)
 	_check(
-		int(loaded.get("bound_phase_unique_materials", -1)) == 720
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1143 if _packed_scene_resources() else 1141)
+		int(loaded.get("bound_phase_unique_materials", -1)) == 714
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1143 if _packed_scene_resources() else 1135)
 			and int(loaded.get("lights", -1)) == 362
 			and int(loaded.get("nodes", -1)) == 10878,
 		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,878 nodes"
