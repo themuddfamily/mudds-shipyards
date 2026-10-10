@@ -266,7 +266,10 @@ func _assert_c_the_pilot_copy_is_reconciled() -> void:
 	proxy.global_transform = Transform3D(_craft.global_basis, _craft.global_position + Vector3(3.0, 0.0, 0.0))
 	var initial := proxy.global_position.distance_to(_craft.global_position)
 	var worst_step := 0.0
+	_print_pilot_pose_diagnostic("initial", proxy, {}, _craft.global_position, Engine.get_physics_frames(), proxy.global_position)
 	for frame in 120:
+		var host_before := _craft.global_position
+		var physics_before := Engine.get_physics_frames()
 		_fly_frame(frame)
 		await physics_frame
 		await process_frame
@@ -275,10 +278,13 @@ func _assert_c_the_pilot_copy_is_reconciled() -> void:
 		# craft does, and carries only the initial offset as its error.
 		proxy.velocity = _craft.velocity
 		proxy.global_position += proxy.velocity * TICK
-		_pilot_stream.advance_replica(
+		var pre_reconcile_position := proxy.global_position
+		var replica_verdict := _pilot_stream.advance_replica(
 			[proxy], proxy, null, float(_pilot.get_round_trip_milliseconds()), TICK
 		)
 		worst_step = maxf(worst_step, (proxy.global_position - before - proxy.velocity * TICK).length())
+		if frame in [0, 29, 59, 89, 119]:
+			_print_pilot_pose_diagnostic("frame_%d" % frame, proxy, replica_verdict, host_before, physics_before, pre_reconcile_position)
 	var settled := proxy.global_position.distance_to(_craft.global_position)
 	# The pilot's copy is meant to lead the host's by the helm's send
 	# quantisation, so a fast craft settles a little ahead of it.
@@ -296,6 +302,40 @@ func _assert_c_the_pilot_copy_is_reconciled() -> void:
 		and proxy.global_position.distance_to(_craft.global_position) < 3.0 + _craft.velocity.length() * 0.5,
 		"a copy 40 m off is snapped onto the host's pose in one tick (%s)" % String(snap.get("status", &"")))
 	proxy.queue_free()
+
+
+func _print_pilot_pose_diagnostic(label: String, proxy: CraftProxy, replica_verdict: Dictionary, host_before: Vector3, physics_before: int, pre_reconcile_position: Vector3) -> void:
+	var sample := _pilot_stream.latest_sample(SHIP_ID)
+	var clock := _pilot_stream.get_clock()
+	var rtt_ms := _pilot.get_round_trip_milliseconds()
+	var lead_ticks := clampf(maxf(0.0, clock - float(sample.get("pose_tick", 0)))
+		+ maxf(0.0, float(rtt_ms)) / 1000.0 / PoseStream.TICK_SECONDS
+		+ PoseStream.HELM_QUANTIZATION_TICKS, 0.0, PoseStream.MAX_LEAD_TICKS)
+	var sample_position: Vector3 = sample.get("position", Vector3.ZERO)
+	var sample_velocity: Vector3 = sample.get("velocity_world", Vector3.ZERO)
+	var target := sample_position + sample_velocity * lead_ticks * PoseStream.TICK_SECONDS
+	var offset := proxy.global_position - _craft.global_position
+	var direction := _craft.velocity.normalized()
+	var along := offset.dot(direction)
+	print("PILOT_POSE_DIAGNOSTIC: ", {
+		"point": label, "physics_frame": Engine.get_physics_frames(),
+		"physics_frames_elapsed": Engine.get_physics_frames() - physics_before,
+		"rtt_ms": rtt_ms, "pose_tick": sample.get("pose_tick", -1),
+		"stream_clock": clock, "stream_audit": _pilot_stream.get_audit(),
+		"lead_ticks": lead_ticks, "sample_position": sample_position,
+		"sample_velocity": sample_velocity, "target_position": target,
+		"advance_verdict": replica_verdict,
+		"host_position": _craft.global_position, "host_velocity": _craft.velocity,
+		"host_actual_step": _craft.global_position - host_before,
+		"proxy_position": proxy.global_position, "proxy_velocity": proxy.velocity,
+		"proxy_simulated_step": _craft.velocity * TICK,
+		"pre_reconcile_position": pre_reconcile_position,
+		"correction_applied": proxy.global_position - pre_reconcile_position,
+		"target_error_before": target - pre_reconcile_position,
+		"host_offset": offset, "along_track_offset": along,
+		"cross_track_offset": (offset - direction * along).length(),
+		"target_error": target - proxy.global_position,
+	})
 
 
 # --- D ------------------------------------------------------------------------
