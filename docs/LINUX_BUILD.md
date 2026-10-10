@@ -4,7 +4,34 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest published checkpoint: `dcd63d72b` — 2026-10-10
+## Latest published checkpoint: `999fee71e` — 2026-10-10
+
+The matching [executable](../builds/linux/MuddsShipyards-999fee7.x86_64),
+[archive](../builds/linux/MuddsShipyards-999fee7-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-999fee7-linux-notes.txt) include six
+matte pale linen Habitat bunk pillows and remove the existing linen clearcoat.
+Geometry, collision, lights and material allocation are unchanged.
+The executable is 142,003,008 bytes, mode 0755, SHA256
+`f92595802e3eefba6eea984bdcb4cb18afeddae234e30c45b00152b17fd74fc1`.
+The archive is 93,185,634 bytes, SHA256
+`f514121c56c6bc47537b73a0a554c8f03773a1562086e2583b54858befd0b1ac`.
+
+Fresh export and direct/extracted-archive startup finish with actual exits 0
+and reaped actors. Each startup emits exactly one parsed menu-ready record,
+mouse-free loading and zero diagnostics/warnings. The exact Linux PCK passes
+Habitat415 and the four standard probes89/40/25/69, each with exit 0, one
+success marker and zero diagnostics. All 1,492 embedded PCK4 entries, five safe
+archive members, executable/helper/desktop/icon bytes and modes, 11,756 tracked
+source files and 577 recursive cache files are verified. Source/cache and all
+package/extracted bytes remain stable through qualification. Independent review,
+exclusive publication, root readback and independent final readback pass.
+
+This build's desktop launch and install-helper execution, native GPU/device/audio,
+human review, peer/endurance, full regression and final release remain open.
+Matching Windows startup and package checks have separate qualification. The
+latest installer remains `dcd63d72b`; its acceptance does not qualify this source.
+
+## Earlier published checkpoint: `dcd63d72b` — 2026-10-10
 
 The matching [executable](../builds/linux/MuddsShipyards-dcd63d7.x86_64),
 [archive](../builds/linux/MuddsShipyards-dcd63d7-linux-x86_64.tar.gz) and

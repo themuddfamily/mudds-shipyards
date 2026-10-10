@@ -1,0 +1,11 @@
+Mudds Shipyards — Linux Habitat pillow checkpoint
+Source: 999fee71e642d8845478a182bee7f6c2a3f923dc
+
+Six Habitat bunks now have matte pale linen pillows; existing linen no longer reads as lacquer. Habitat budgets remain 33 materials and 1,242 submissions.
+
+Validation: clean exact Linux export exit 0; all owned actors reaped. Fresh x86_64 ELF has 1,492 verified embedded PCK4 entries. Direct ELF and extracted archive startup each exit 0 with one parsed menu-ready record, mouse-free loading and zero diagnostics under headless/Dummy audio. Exact package Habitat owning test passes 415; four standard package probes pass 223 assertions with one sentinel each and zero diagnostics. Source, recursive cache, executable, archive and extracted bytes remain stable; HOME unchanged and private XDG used. Archive contains executable, icon, desktop entry and existing installer helper.
+
+Desktop/human review, native GPU performance and full regression remain NOT_RUN. This checkpoint is published in builds/linux/. Matching Windows checkpoint999fee71e is separately qualified; the latest matching installer remains dcd63d72b. Desktop launch, native GPU/device/audio/human review, complete current-source regression and final-release gates remain open.
+
+ELF SHA256: f92595802e3eefba6eea984bdcb4cb18afeddae234e30c45b00152b17fd74fc1
+Archive SHA256: f514121c56c6bc47537b73a0a554c8f03773a1562086e2583b54858befd0b1ac
