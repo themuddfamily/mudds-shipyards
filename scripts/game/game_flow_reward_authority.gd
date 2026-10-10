@@ -291,6 +291,9 @@ func commit(request: Variant) -> Dictionary:
 
 	var scan_completion: Dictionary = {}
 	if activity_id == CINDER_SCAN_ACTIVITY_ID:
+		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
 		var scan_slot: Variant = (payload as Dictionary).get("cinder_structure_scan_session")
 		var validated := CinderAbandonedStructureScanActivity.validate_persistence_record(scan_slot)
 		if not bool(validated.get("accepted", false)):

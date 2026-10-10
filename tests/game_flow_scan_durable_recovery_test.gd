@@ -58,7 +58,7 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	# Bounded pre-fix diagnosis owns the same original outer/route deadlines;
+	# Bounded backup recovery coverage owns the same original route deadlines;
 	# the default suite keeps all of its existing recovery coverage unchanged.
 	if OS.get_cmdline_user_args().has("--scan-backup-trust-only"):
 		await _backup_trust_reproduction()
@@ -235,6 +235,7 @@ func _backup_trust_reproduction() -> void:
 	var before := binding.capture_structure_scan_session()
 	fault.reject_discovery = false
 	_button(retained, 2).emit_signal("pressed")
+	_button(retained, 2).emit_signal("pressed")
 	var retry := retained.get_activity_reward_report().last_cinder_structure_scan_result as Dictionary
 	var shared: UserDataStore = retained.get("_runtime_settings_user_data_store")
 	print("SCAN_BACKUP_RETAINED_START: ", {"last_reward_report": retry,
@@ -286,10 +287,14 @@ func _backup_trust_reproduction() -> void:
 	var payment := authority.commit({"activity_id": Scan.ACTIVITY_ID,
 		"activity_generation": generation, "reward_id": Scan.REWARD_ID,
 		"reward_authority": false, "granted": false})
+	var payment_retry := authority.commit({"activity_id": Scan.ACTIVITY_ID,
+		"activity_generation": generation, "reward_id": Scan.REWARD_ID,
+		"reward_authority": false, "granted": false})
 	shared = fresh.get("_runtime_settings_user_data_store")
-	print("SCAN_BACKUP_DIRECT_PAYMENT: ", {"payment": payment, "source": shared.get_loaded_source(),
+	print("SCAN_BACKUP_DIRECT_PAYMENT: ", {"payment": payment, "retry": payment_retry, "source": shared.get_loaded_source(),
 		"payload": shared.get_snapshot(), "captured": fresh_binding.capture_structure_scan_session()})
 	_check(not payment.accepted and payment.reason == &"reward_store_recovery_required"
+		and not payment_retry.accepted and payment_retry.reason == &"reward_store_recovery_required"
 		and _receipts(fresh) == receipts and shared.get_loaded_source() == &"backup"
 		and fresh_binding.capture_structure_scan_session() == captured and _scan_recovery_artifacts(path) == artifacts,
 		"actual scan authority refuses payment from the genuine unpaid fallback without publishing it")

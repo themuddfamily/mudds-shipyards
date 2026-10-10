@@ -270,6 +270,19 @@ func _run() -> void:
 		"the typed Ember relay completion joins the same persisted receipt sequence"
 	)
 	_check(_save_actual_scan_completion(store), "the actual scan owner checkpoints its legitimate terminal before payment")
+	var scan_without_provenance := StoreWithoutProvenance.new()
+	scan_without_provenance.backing = store
+	var untrusted_scan_authority := AuthorityScript.new() as GameFlowRewardAuthority
+	_check(untrusted_scan_authority.configure(scan_without_provenance).accepted,
+		"the existing reward store interface admits a scan store without recovery provenance")
+	var before_untrusted_scan := store.get_snapshot()
+	var untrusted_scan_request := _request(AuthorityScript.CINDER_SCAN_ACTIVITY_ID, 1, AuthorityScript.CINDER_SCAN_REWARD_ID)
+	var untrusted_scan := untrusted_scan_authority.commit(untrusted_scan_request)
+	var untrusted_scan_retry := untrusted_scan_authority.commit(untrusted_scan_request)
+	_check(not untrusted_scan.accepted and untrusted_scan.reason == &"reward_store_recovery_required"
+		and not untrusted_scan_retry.accepted and untrusted_scan_retry.reason == &"reward_store_recovery_required"
+		and scan_without_provenance.commit_calls == 0 and store.get_snapshot() == before_untrusted_scan,
+		"missing scan recovery provenance refuses repeated payment without writing or stranding the authority")
 	var scan := authority.commit(_request(
 		&"cinder_derelict_structure_scan",
 		1,
