@@ -219,6 +219,7 @@ var _network_presentation_only := false
 var _network_saved_collision_layer := 0
 var _network_saved_collision_mask := 0
 var _network_saved_visible := false
+var _network_saved_cue_visibility: Array[bool] = []
 ## Retained before the first shot allocates the lance pool.
 var _lance_bolt_reduced_flash := false
 ## Launch context for the bolts currently in the air, keyed by the authority's
@@ -1345,6 +1346,10 @@ func set_network_presentation_only(enabled: bool) -> void:
 		_network_saved_collision_layer = collision_layer
 		_network_saved_collision_mask = collision_mask
 		_network_saved_visible = visible
+		_network_saved_cue_visibility = [
+			_posture_cue.visible if is_instance_valid(_posture_cue) else false,
+			_standoff_intent_cue.visible if is_instance_valid(_standoff_intent_cue) else false,
+		]
 		_discard_lance_bolts(&"network_client_suspended")
 		_release_combat_registration()
 		collision_layer = 0
@@ -1355,14 +1360,50 @@ func set_network_presentation_only(enabled: bool) -> void:
 		if is_instance_valid(_standoff_intent_cue):
 			_standoff_intent_cue.visible = false
 	else:
+		collision_layer = _network_saved_collision_layer
+		collision_mask = _network_saved_collision_mask
+		visible = _network_saved_visible
+		if _network_saved_cue_visibility.size() == 2:
+			if is_instance_valid(_posture_cue):
+				_posture_cue.visible = _network_saved_cue_visibility[0]
+			if is_instance_valid(_standoff_intent_cue):
+				_standoff_intent_cue.visible = _network_saved_cue_visibility[1]
+		_network_saved_cue_visibility.clear()
 		if _active:
-			collision_layer = _network_saved_collision_layer
-			collision_mask = _network_saved_collision_mask
-			visible = _network_saved_visible
 			if is_inside_tree():
 				_register_combat_source()
-				_sync_posture_cue()
-				_sync_standoff_intent_cue()
+
+
+## Read-only presentation ingress. These three retained subtrees contain the
+## authored hull and cues; the consumer copies only visual nodes, never scripts.
+func get_network_actor_visual_templates() -> Array[Node3D]:
+	return [_visual_root, _standoff_intent_cue, _posture_cue]
+
+
+## Fixed-order, actor-local authored transforms. No target ObjectDB identity or
+## simulation timer crosses the wire, and sampling never advances presentation.
+func get_network_actor_presentation_snapshot() -> Dictionary:
+	var cues: Array = []
+	for node: Node3D in get_network_actor_cue_nodes():
+		cues.append([node.transform if is_instance_valid(node) else Transform3D.IDENTITY,
+			node.visible if is_instance_valid(node) else false])
+	return {"activation_generation": _activation_generation, "active": _active,
+		"health": get_health(), "maximum_health": get_maximum_health(),
+		"charge_active": _telegraph_remaining > 0.0 and _lance_charge_armed,
+		"posture": _posture_visible_state if is_instance_valid(_posture_cue) and _posture_cue.visible else STATE_DORMANT,
+		"cues": cues}.duplicate(true)
+
+
+## Local clone construction uses these references only to bind the fixed cue
+## order to its copied nodes. References and instance IDs never enter a packet.
+func get_network_actor_cue_nodes() -> Array[Node3D]:
+	return [_lance_emitter, _lance_lens,
+		_warning_lenses[2] if _warning_lenses.size() > 2 else null,
+		_engine_glows[0] if not _engine_glows.is_empty() else null,
+		_engine_glows[1] if _engine_glows.size() > 1 else null,
+		_standoff_intent_cue, _posture_cue,
+		_posture_strokes[0] if not _posture_strokes.is_empty() else null,
+		_posture_strokes[1] if _posture_strokes.size() > 1 else null]
 
 
 ## Reading the optional pool never builds a dormant weapon.

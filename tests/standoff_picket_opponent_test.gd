@@ -1060,6 +1060,11 @@ func _test_charge_locked_aim() -> void:
 
 	var activation_before_join := picket._activation_generation
 	var pose_before_join := picket.global_transform
+	var presentation_before_join := picket.get_network_actor_presentation_snapshot()
+	var collision_before_join := Vector2i(picket.collision_layer, picket.collision_mask)
+	var visibility_before_join := picket.visible
+	var target_before_join := picket.get("_target") as Node3D
+	var reduced_before_join := bool(picket.get("_reduced_flash"))
 	picket.set_network_presentation_only(true)
 	picket._physics_process(10.0)
 	picket._process(10.0)
@@ -1077,7 +1082,11 @@ func _test_charge_locked_aim() -> void:
 	picket.set_network_presentation_only(false)
 	_check(picket.get_lance_charge_snapshot() == locked and picket.visible
 		and picket.is_combat_source_registered() and picket._is_fire_authorized()
-		and picket.collision_layer != 0 and cue.visible,
+		and Vector2i(picket.collision_layer, picket.collision_mask) == collision_before_join
+		and picket.visible == visibility_before_join and cue.visible
+		and picket.global_transform == pose_before_join and picket.get("_target") == target_before_join
+		and picket.get("_reduced_flash") == reduced_before_join
+		and picket.get_network_actor_presentation_snapshot() == presentation_before_join,
 		"disconnect restores the same armed solo lance and targeting rails")
 	# Move far enough sideways to clear both the original target collider and the
 	# old homing hold cone. From here onward only the real production physics loop

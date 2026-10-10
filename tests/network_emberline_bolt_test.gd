@@ -5,6 +5,9 @@ extends SceneTree
 const MAIN := preload("res://scenes/main.tscn")
 const Replicator := preload("res://scripts/network/network_remote_projectile_replicator.gd")
 const Actors := preload("res://scripts/network/network_emberline_actor_presenter.gd")
+const PicketActors := preload("res://scripts/network/network_picket_actor_presenter.gd")
+const Fragmenter := preload("res://scripts/network/network_snapshot_fragmenter.gd")
+const SnapshotCodec := preload("res://scripts/network/network_snapshot_delta_codec.gd")
 const PEER_TIMEOUT := 45.0
 var _game: GameFlow
 var _failures: Array[String] = []
@@ -14,6 +17,8 @@ var _directory := ""
 var _role := "host"
 var _port := 0
 var _package_under_test := ""
+var _picket: StandoffPicketOpponent
+var _snapshot_budget_checked := false
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -82,6 +87,20 @@ func _host() -> void:
 	_check(_game.host_network_session(_port, 3).get("accepted", false), "production Main hosts ENet")
 	_check(not (_game.multiplayer as SceneMultiplayer).server_relay, "authoritative session disables engine client-to-client relays")
 	_check(not _game._piloting, "host publishes the convoy while on foot")
+	_check(_game._build_network_picket_actor_entries().is_empty(), "initial dormant picket publishes no first-life tombstone")
+	_picket = _stage_picket()
+	_game.get_network_session().snapshot_published.connect(func(packet: Dictionary) -> void:
+		var rows: Array = (packet.get("sections", {}) as Dictionary).get("movement", [])
+		if not _snapshot_budget_checked and rows.any(func(row): return row.get("mode") == PicketActors.MODE) \
+				and rows.any(func(row): return row.get("mode") == Actors.MODE and bool(row.get("present", false))) \
+				and not ((packet.get("sections", {}) as Dictionary).get("projectiles", []) as Array).is_empty():
+			_snapshot_budget_checked = true
+			var envelope := SnapshotCodec.new().encode(packet, true)
+			var fragments := Fragmenter.new().fragment(envelope, 1, int(packet.get("revision", 0)))
+			_check(Marshalls.variant_to_base64(envelope).to_utf8_buffer().size() <= Fragmenter.MAX_PACKET_BYTES
+				and not fragments.is_empty() and fragments.size() <= Fragmenter.MAX_FRAGMENTS
+				and rows.size() <= NetworkAuthoritativeSnapshot.MAX_ENTRIES_PER_SECTION,
+				"actual combined host snapshot including picket stays inside original packet and row budgets"))
 	_game._advance_network_remote_projectiles()
 	var replicator := _game.get_network_remote_projectile_replicator()
 	var threat := _game.cinder_convoy_threat
@@ -114,6 +133,7 @@ func _host() -> void:
 	if not await _wait_marker("late", "first"):
 		return
 	(threat.get_attacker().get_node("Damageable") as Damageable).apply_damage(100.0)
+	_picket.apply_damage(_picket.get_maximum_health() + 1.0)
 	_check(pool.get_active_bolt_count() == 0 and replicator.get_active_flight_count() == 0,
 		"raider destruction retires its host flight once")
 	if not await _wait_marker("client", "retired") or not await _wait_marker("late", "retired"):
@@ -135,20 +155,27 @@ func _host() -> void:
 	generation_file.store_var(replacement_generation)
 	generation_file.close()
 	_check(threat.start(replacement_generation), "replacement threat generation can fire")
+	_check(bool(_picket.activate(Transform3D(Basis.IDENTITY,
+		_game._network_station_frame_origin() + Vector3(1010, 0, 0))).get("accepted", false)), "real picket replacement advances its activation")
+	_picket.set_target(_game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone01"))
+	_picket._update_presentation(0.0)
 	_game._advance_network_remote_projectiles()
 	threat.advance(3.01, replacement_generation)
 	if not await _wait_marker("client", "second") or not await _wait_marker("late", "second"):
 		return
 	var attacker := threat.get_attacker()
 	threat.remove_child(attacker)
+	_game.remove_child(_picket)
 	if not await _wait_marker("client", "missing") or not await _wait_marker("late", "missing"):
 		attacker.free()
 		return
 	attacker.free()
+	_picket.free()
 	threat.retire(replacement_generation)
 	if not await _wait_marker("client", "finished") or not await _wait_marker("late", "finished"):
 		return
 	_check(int(replicator.get_audit().publish_failures) == 0, "all launches and terminals use the existing publisher")
+	_check(_snapshot_budget_checked, "actual combined live actor and projectile baseline was measured inside unchanged budgets")
 	for pid in _children:
 		var deadline := Time.get_ticks_msec() + 4000
 		while OS.is_process_running(pid) and Time.get_ticks_msec() < deadline:
@@ -156,6 +183,14 @@ func _host() -> void:
 		_check(not OS.is_process_running(pid), "independent client exits cleanly")
 
 func _client() -> void:
+	_picket = _stage_picket()
+	var solo_picket_state := _picket.get_network_actor_presentation_snapshot()
+	var solo_picket_pose := _picket.global_transform
+	var solo_picket_charge := _picket.get_lance_charge_snapshot()
+	var solo_picket_collision := Vector2i(_picket.collision_layer, _picket.collision_mask)
+	var solo_picket_visible := _picket.visible
+	var solo_picket_target := _picket.get("_target") as Node3D
+	var audio_before_join := int(_game.combat_audio.get_state_snapshot().cue_count)
 	_check(_game.cinder_convoy_host.start(_game.cinder_convoy_host.get_generation()).get("accepted", false), "client fixture begins a retained solo convoy")
 	var solo_generation := _game.cinder_convoy_host.get_generation()
 	_check(_game.cinder_convoy_threat.start(solo_generation), "retained solo threat begins")
@@ -170,6 +205,10 @@ func _client() -> void:
 		if StringName(projectile.get("source_entity_id", &"")) == &"emberline-raider" and bool(result.get("accepted", false)):
 			records.append(packet.duplicate(true)))
 	_check(await _wait(func() -> bool: return not _game.get_network_session().get_server_offer().is_empty()), "client admitted")
+	_check(await _wait(func() -> bool: return _game._network_picket_actor_presenter != null
+		and bool(_game._network_picket_actor_presenter.get_snapshot().actor.get("present", false)))
+		and int(_game.combat_audio.get_state_snapshot().cue_count) == audio_before_join,
+		"current and late actor first admission stays quiet without duplicate charge or weapon audio")
 	var retained_convoy := _game.cinder_convoy_host.get_snapshot()
 	_game._physics_process(1.0 / 60.0)
 	_check(_game.cinder_convoy_host.get_snapshot() == retained_convoy and not _game.cinder_convoy_host.visible,
@@ -204,6 +243,42 @@ func _client() -> void:
 	_check(remote_raider != null and remote_raider.visible and remote_tender != null and remote_tender.visible,
 		"host tender and raider are visible beside their replicated bolt on the independent client")
 	var actor_snapshot := actor_presenter.get_snapshot()
+	var picket_presenter := _game._network_picket_actor_presenter
+	_check(await _wait(func() -> bool: return picket_presenter != null
+		and bool(picket_presenter.get_snapshot().actor.get("present", false))), "current and late peer receive actual host picket actor")
+	var remote_picket := picket_presenter.get_visual()
+	var picket_record := picket_presenter.get_snapshot().actor as Dictionary
+	var expected_file := FileAccess.open(_directory + "/picket-state", FileAccess.READ)
+	var expected_picket: Dictionary = expected_file.get_var()
+	expected_file.close()
+	_check(picket_record.cues == expected_picket.cues and picket_record.charge_active == expected_picket.charge_active
+		and picket_record.posture == expected_picket.posture
+		and remote_picket.global_position.is_equal_approx((picket_record.position as Vector3) + _game._network_station_frame_origin())
+		and remote_picket.global_basis.is_equal_approx(Basis(picket_record.rotation as Quaternion)),
+		"real current and held late baseline reproduce committed host charge, posture and independent-origin pose")
+	var committed_cues := true
+	for index in PicketActors.CUE_COUNT:
+		var cue_visual := picket_presenter.get_cue_visual(index)
+		committed_cues = committed_cues and is_instance_valid(cue_visual) \
+			and cue_visual.transform == picket_record.cues[index][0] and cue_visual.visible == picket_record.cues[index][1]
+	_check(committed_cues, "all nine actual replica cue nodes carry the committed host transforms and visibility")
+	var visual_only := remote_picket.get_script() == null
+	for node: Node in remote_picket.find_children("*", "Node", true, false):
+		visual_only = visual_only and node.get_script() == null and node.process_mode == Node.PROCESS_MODE_DISABLED
+	_check(visual_only and remote_picket.find_children("*", "Node", true, false).size() < PicketActors.MAX_VISUAL_NODES,
+		"bounded retained visual copy contains no scripted or processing actor")
+	_check(remote_picket.visible and remote_picket.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and remote_picket.find_children("*", "CollisionShape3D", true, false).is_empty()
+		and remote_picket.find_children("*", "Damageable", true, false).is_empty()
+		and remote_picket.find_children("*", "Light3D", true, false).is_empty()
+		and not _picket.visible and not _picket.is_combat_source_registered()
+		and _picket.get_lance_charge_snapshot() == solo_picket_charge
+		and _picket.global_transform == solo_picket_pose,
+		"picket replica carries no simulation authority and preserves the hidden frozen solo actor")
+	var cue_count := int(_game.combat_audio.get_state_snapshot().cue_count)
+	picket_presenter.consume_movement_section([picket_record], _game._network_station_frame_origin())
+	_check(int(_game.combat_audio.get_state_snapshot().cue_count) == cue_count,
+		"picket actor adoption and restatement dispatch no weapon audio")
 	var raider_record := (actor_snapshot.actors as Dictionary).get(Actors.RAIDER_ID, {}) as Dictionary
 	var tender_record := (actor_snapshot.actors as Dictionary).get(Actors.TENDER_ID, {}) as Dictionary
 	_check(is_equal_approx(float(raider_record.get("health", 0)), 25.0)
@@ -241,6 +316,9 @@ func _client() -> void:
 		and int(actor_presenter.get_snapshot().destruction_cues) == 1,
 		"neutralized raider disappears once while the surviving tender remains visible")
 	var neutralized_before := actor_presenter.get_snapshot()
+	_check(await _wait(func() -> bool: return bool(picket_presenter.get_snapshot().actor.get("destroyed", false)))
+		and not remote_picket.visible, "host picket destruction hides its real client visual")
+	_check_picket_replays(picket_presenter, picket_record)
 	var hidden_healthy := ((neutralized_before.actors as Dictionary)[Actors.RAIDER_ID] as Dictionary).duplicate(true)
 	hidden_healthy.health = 35.0
 	hidden_healthy.destroyed = false
@@ -277,6 +355,16 @@ func _client() -> void:
 		and expected_generation > int(first.source_generation), "new flight uses the exact actual convoy generation after reset and start")
 	_check(await _wait(func() -> bool: return int(actor_presenter.get_snapshot().generation) == int(second.get("source_generation", -1)) \
 		and remote_raider.visible), "replacement generation replaces the retired actor presentation")
+	_check(await _wait(func() -> bool: return picket_presenter.get_snapshot().generation > int(picket_record.entity_generation)
+		and remote_picket.visible), "new actual picket activation replaces its terminal prior life")
+	var picket_mesh := remote_picket.get_node("StandoffPicketVisual/LanceEmitter") as MeshInstance3D
+	var mesh_id := picket_mesh.mesh.get_instance_id()
+	var material_id := picket_mesh.material_override.get_instance_id()
+	_game.runtime_settings.reduced_flash = true
+	_game._apply_opponent_weapon_heat_presentation_profile()
+	_check((picket_mesh.material_override as StandardMaterial3D).emission_energy_multiplier <= 1.0
+		and picket_mesh.mesh.get_instance_id() == mesh_id and picket_mesh.material_override.get_instance_id() == material_id,
+		"public accessibility update changes already-live picket material without new allocations")
 	_check(hull.mesh.get_instance_id() == retained_mesh and hull.material_override.get_instance_id() == retained_material
 		and bool(actor_presenter.get_snapshot().reduced_flash)
 		and (hull.material_override as StandardMaterial3D).emission_energy_multiplier <= 1.0,
@@ -292,6 +380,9 @@ func _client() -> void:
 	_check(int(actor_presenter.get_snapshot().destruction_cues) == 1, "stream removal does not fabricate a destruction cue")
 	_check_stale_actor_records(actor_presenter, actor_snapshot)
 	_mark("missing")
+	_check(await _wait(func() -> bool: return bool(picket_presenter.get_snapshot().actor.get("retired", false)))
+		and not remote_picket.visible, "removed picket retires independently of the surviving convoy tender")
+	_check_picket_replays(picket_presenter, picket_record)
 	_check(await _wait(func() -> bool: return int(replicator.get_audit().terminals) == 2), "convoy retirement reaches client once")
 	_check(replicator.get_drawn_projectile_ids().is_empty() and int(replicator.get_audit().published) == 0,
 		"convoy retirement leaves no visual and client publishes no combat")
@@ -309,6 +400,13 @@ func _client() -> void:
 	_check((actor_presenter.get_snapshot().actors as Dictionary).is_empty()
 		and not remote_raider.visible and not remote_tender.visible and _game.cinder_convoy_host.visible,
 		"disconnect retires remote actors and restores retained solo tender visibility")
+	_check(picket_presenter.get_snapshot().actor.is_empty() and not remote_picket.visible
+		and _picket.visible == solo_picket_visible
+		and Vector2i(_picket.collision_layer, _picket.collision_mask) == solo_picket_collision
+		and _picket.global_transform == solo_picket_pose and _picket.get("_target") == solo_picket_target
+		and _picket.get_lance_charge_snapshot() == solo_picket_charge
+		and _picket.get_network_actor_presentation_snapshot() == solo_picket_state
+		and bool(_picket.get("_reduced_flash")), "disconnect clears host copy before exact solo picket state and current accessibility restore")
 	var resumed := _game.cinder_convoy_threat.get_snapshot()
 	_check(bool(resumed.active) and int(resumed.generation) == solo_generation
 		and is_equal_approx(float(resumed.attacker_health), solo_health)
@@ -327,6 +425,62 @@ func _dead_client() -> void:
 		and (_game.get_network_remote_projectile_replicator() == null
 			or _game.get_network_remote_projectile_replicator().get_drawn_projectile_ids().is_empty()),
 		"late neutralization adopts surviving tender without destruction or launch replay")
+	_check(await _wait(func() -> bool: return _game._network_picket_actor_presenter != null
+		and bool(_game._network_picket_actor_presenter.get_snapshot().actor.get("destroyed", false)))
+		and not _game._network_picket_actor_presenter.get_visual().visible,
+		"late terminal baseline cannot revive a destroyed host picket")
+
+
+func _stage_picket() -> StandoffPicketOpponent:
+	var picket := _game.get_node("StandoffPicket") as StandoffPicketOpponent
+	var target := _game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone01") as Node3D
+	target.set_physics_process(false)
+	target.set_process(false)
+	var origin := _game._network_station_frame_origin() + Vector3(1000, 0, 0)
+	target.global_position = origin + Vector3(0, 0, -180)
+	picket.escort_enabled = false
+	_check(bool(picket.activate(Transform3D(Basis.IDENTITY, origin)).get("accepted", false)), "actual picket activation stages authored actor")
+	picket.set_target(target)
+	picket.set_physics_process(false)
+	picket.set_process(false)
+	picket._physics_process(picket.initial_arming_delay + 0.01)
+	picket._update_presentation(0.0)
+	_check(bool(picket.get_lance_charge_snapshot().active)
+		and bool(picket.get_standoff_intent_cue_snapshot().active)
+		and bool(picket.get_posture_cue_snapshot().active), "actual picket physics arms and commits its charge, aim and movement cues")
+	if _role == "host":
+		var file := FileAccess.open(_directory + "/picket-state", FileAccess.WRITE)
+		file.store_var(picket.get_network_actor_presentation_snapshot())
+		file.close()
+	return picket
+
+
+func _check_picket_replays(presenter: PicketActors, old: Dictionary) -> void:
+	var before: Dictionary = presenter.get_snapshot()
+	var current := (before.actor as Dictionary).duplicate(true)
+	var previous := old.duplicate(true)
+	previous.pose_tick = int(current.pose_tick) + 100
+	var epoch := current.duplicate(true)
+	epoch.actor_epoch = int(epoch.actor_epoch) + 1
+	epoch.pose_tick = int(epoch.pose_tick) + 100
+	var revive := current.duplicate(true)
+	revive.health = float(revive.maximum_health)
+	revive.destroyed = false
+	revive.retired = false
+	revive.available = true
+	revive.present = true
+	revive.pose_tick = int(revive.pose_tick) + 100
+	var malformed := current.duplicate(true)
+	malformed.cues[0][0] = Transform3D(Basis.IDENTITY, Vector3(INF, 0, 0))
+	malformed.pose_tick = int(malformed.pose_tick) + 100
+	var actor_origin := _game._network_station_frame_origin()
+	var convoy_before := _game._network_emberline_actor_presenter.get_snapshot()
+	var audio_before := int(_game.combat_audio.get_state_snapshot().cue_count)
+	presenter.consume_movement_section([previous, epoch, revive, malformed, current], actor_origin)
+	_check(presenter.get_snapshot() == before and not presenter.get_visual().visible
+		and _game._network_emberline_actor_presenter.get_snapshot() == convoy_before
+		and int(_game.combat_audio.get_state_snapshot().cue_count) == audio_before,
+		"stale epoch/life/tick, malformed cue and same-life resurrection reject atomically without convoy or audio mutation")
 
 func _check_stale_actor_records(presenter: NetworkEmberlineActorPresenter, old_snapshot: Dictionary) -> void:
 	var before := presenter.get_snapshot()

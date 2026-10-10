@@ -8,6 +8,7 @@ const ShipRestOverlayType := preload("res://scripts/ui/ship_rest_overlay.gd")
 const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_authority.gd")
 const CinderConvoyThreatType := preload("res://scripts/activities/cinder_convoy_threat.gd")
 const NetworkEmberlineActorPresenterType := preload("res://scripts/network/network_emberline_actor_presenter.gd")
+const NetworkPicketActorPresenterType := preload("res://scripts/network/network_picket_actor_presenter.gd")
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
@@ -668,6 +669,8 @@ var _cinder_convoy_client_host_suspended := false
 var _cinder_convoy_client_host_visible := false
 var _network_emberline_actor_generation := 0
 var _network_emberline_actor_presenter: NetworkEmberlineActorPresenterType
+var _network_picket_actor_presenter: NetworkPicketActorPresenterType
+var _network_picket_actor_migration_generation := 0
 var cinder_streaming_bootstrap: CinderStreamingBootstrap
 var cinder_streaming_binding: CinderStreamingProductionBinding
 var cinder_streaming_coordinator: WorldStreamingCoordinator
@@ -5130,6 +5133,7 @@ func _physics_process(delta: float) -> void:
 		# replacement composition can no longer publish "stale" ticks.
 		var craft_poses := _build_network_craft_pose_entries()
 		craft_poses.append_array(_build_network_emberline_actor_entries())
+		craft_poses.append_array(_build_network_picket_actor_entries())
 		var composition_attachment := _attach_network_ship_authority_composition()
 		if bool(composition_attachment.get("accepted", false)) \
 				and _network_ship_authority_composition != null:
@@ -7050,12 +7054,18 @@ func _resume_cinder_convoy_solo_threat() -> void:
 
 
 func _set_standoff_picket_network_presentation_only(enabled: bool) -> void:
+	# Remove the remote copy before restoring the retained solo presentation.
+	if not enabled and is_instance_valid(_network_picket_actor_presenter):
+		_network_picket_actor_presenter.clear()
+		_network_picket_actor_migration_generation = 0
 	var director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
 	if is_instance_valid(director):
 		director.set_heavy_breach_network_suspended(enabled)
 	var picket := get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent
 	if is_instance_valid(picket):
 		picket.set_network_presentation_only(enabled)
+	if enabled:
+		_ensure_network_picket_actor_presenter()
 	if not enabled:
 		_bind_standoff_picket_bolts_for_network()
 
@@ -7156,6 +7166,9 @@ func _on_network_migration_result(result: Dictionary) -> void:
 	# confirmed chair and its borrowed input producer in the same boundary,
 	# before relationship recovery can make the body appear on foot.
 	_cancel_network_engineer()
+	if generation > 0 and generation != _network_picket_actor_migration_generation and is_instance_valid(_network_picket_actor_presenter):
+		_network_picket_actor_presenter.clear_replica()
+		_network_picket_actor_migration_generation = generation
 	if generation > 0 and generation != _bomber_payload_replica_migration_generation:
 		_clear_bomber_payload_replica_presentation(generation)
 	if generation > 0 and generation != _player_pulse_replica_migration_generation:
@@ -9290,7 +9303,7 @@ func _can_reseat_host_remote_crew_seat(seat: ShipCrewSeat) -> bool:
 	var contract := seat.get_role_contract()
 	var frame := contract.get("frame") as MovingInteriorFrame
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
-	var containment := player.get_cabin_containment_report()
+	var containment: Dictionary = player.get_cabin_containment_report()
 	var cabin := craft.get_in_flight_cabin_report()
 	var authority: CrewSeatRoleAuthority = craft.call(&"get_crew_role_authority")
 	return _host_craft_has_remote_pilot(craft) and not contract.is_empty() \
@@ -11141,6 +11154,32 @@ func _on_network_snapshot_applied(result: Dictionary) -> void:
 		_ensure_network_emberline_actor_presenter().consume_movement_section(
 			movement as Array, _network_station_frame_origin()
 		)
+		_ensure_network_picket_actor_presenter().consume_movement_section(
+			movement as Array, _network_station_frame_origin()
+		)
+
+
+## Actual picket poses and authored cue transforms use the same authenticated
+## movement channel, with a separate activation lifetime from convoy actors.
+func _build_network_picket_actor_entries() -> Array:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) or not network_session.is_server():
+		return []
+	return _ensure_network_picket_actor_presenter().build_host_entries(
+		get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent,
+		maxi(1, _network_hud_session_epoch), maxi(0, _network_boarding_server_tick),
+		_network_station_frame_origin())
+
+
+func _ensure_network_picket_actor_presenter() -> NetworkPicketActorPresenterType:
+	if not is_instance_valid(_network_picket_actor_presenter):
+		_network_picket_actor_presenter = NetworkPicketActorPresenterType.new()
+		_network_picket_actor_presenter.name = "NetworkPicketActorPresenter"
+		add_child(_network_picket_actor_presenter)
+	if _network_session_mode == &"client":
+		_network_picket_actor_presenter.configure(get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent)
+	if runtime_settings != null:
+		_network_picket_actor_presenter.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+	return _network_picket_actor_presenter
 
 
 ## Emberline actor poses and committed hull outcomes share the existing
@@ -22628,6 +22667,8 @@ func _apply_opponent_weapon_heat_presentation_profile() -> void:
 		_network_remote_projectile_replicator.set_reduced_flash_enabled(runtime_settings.reduced_flash)
 	if is_instance_valid(_network_emberline_actor_presenter):
 		_network_emberline_actor_presenter.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+	if is_instance_valid(_network_picket_actor_presenter):
+		_network_picket_actor_presenter.set_reduced_flash_enabled(runtime_settings.reduced_flash)
 	# The Emberline raider's travelling bolts honour the same setting.
 	if is_instance_valid(cinder_convoy_threat):
 		var bolt_pool := cinder_convoy_threat.get_bolt_pool()
