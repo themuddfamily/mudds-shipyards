@@ -421,6 +421,10 @@ func _host_moving_gunner(owner: CrewSeatRoleAuthority, receipts: Array[Dictionar
 	_check(source.get_authority_peer_id() == source_peer and _craft.get_local_input_source() == source and source.is_input_configuration_valid() and source.get_input_binding_profile().to_dictionary() == profile_values, "moving gunner lifecycle preserves exact local source, authority and settings profile")
 
 func _host_gunner_shot(target_name: String, receipts: Array[Dictionary]) -> void:
+	# ShipyardWorld owns target animation; disabling the child does not stage it.
+	var world := _game.get_node("ShipyardWorld")
+	var world_was_processing := world.is_processing()
+	world.set_process(false)
 	var target := _stage_target(target_name)
 	var health := float(target.get_meta("health", 0.0))
 	var before := receipts.size()
@@ -435,6 +439,7 @@ func _host_gunner_shot(target_name: String, receipts: Array[Dictionary]) -> void
 	var focused := await _until(func(): return root.has_focus() and Window.get_focused_window() == root and bool(source.call(&"_is_input_sampling_active")), maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0))
 	_check(focused, "real private host Window and local sampler are active before moving FIRE: " + target_name)
 	if not focused:
+		world.set_process(world_was_processing)
 		return
 	Input.action_press(source.fire_action)
 	var fired := await _until(func(): return int((_craft.get_gunner_gameplay_state().role_ammunition as Dictionary).get(actor, 2)) < 2, maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0))
@@ -443,6 +448,7 @@ func _host_gunner_shot(target_name: String, receipts: Array[Dictionary]) -> void
 	_print_host_shot_state(&"after_fire", target, health, receipts, before)
 	_check(fired and int((_craft.get_gunner_gameplay_state().role_ammunition as Dictionary).get(actor, 2)) == 1 and receipts.size() == before + 1, "ordinary moving host held FIRE resolves exactly one real charge and ammunition debit: " + target_name)
 	_check(receipts.size() == before + 1 and bool(receipts[before].get("accepted", false)) and bool(receipts[before].get("damaged", false)) and float(target.get_meta("health", health)) < health, "existing authoritative siege lance damages the registered target on host: " + target_name)
+	world.set_process(world_was_processing)
 
 ## Existing request/results expose authoritative contacts without another ray or shot.
 func _print_host_shot_state(stage: StringName, target: Node3D, baseline_health: float, receipts: Array[Dictionary], before: int) -> void:
@@ -494,6 +500,9 @@ func _client_pilot_host_gunner() -> void:
 	var client_target_a := _game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone02") as Node3D
 	var client_target_b := _game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone01") as Node3D
 	var client_health := [client_target_a.get_meta("health"), client_target_b.get_meta("health")]
+	var retained_source := _craft.get_local_input_source()
+	var retained_authority := retained_source.get_authority_peer_id()
+	var retained_enabled := retained_source.enabled
 	_print_fresh_pilot_state(&"before_join")
 	var join_result: Dictionary = _game.join_network_session("127.0.0.1", _port)
 	_check(join_result.accepted, "fresh ordinary client joins the retained host for pilot duty")
@@ -533,7 +542,12 @@ func _client_pilot_host_gunner() -> void:
 	_print_fresh_pilot_state(&"before_pilot_shutdown")
 	var shutdown_result: Dictionary = _game.shutdown_network_session(&"host_gunner_pilot_disconnect")
 	_print_fresh_pilot_state(&"after_pilot_shutdown", shutdown_result)
-	_check(not _player.is_seated() and _player.is_control_enabled(), "pilot disconnect restores the actual client body and controls")
+	# Session shutdown hands the confirmed pilot back to its existing solo owner.
+	_check(_game.active_ship == _craft and bool(_game.get("_piloting")) and _craft.is_piloted() and _player.is_seated_at(anchor) \
+		and _craft.get_command_source() == retained_source and _craft.get_local_input_source() == retained_source \
+		and retained_source.get_authority_peer_id() == retained_authority and retained_source.enabled == retained_enabled and retained_source.is_enabled_owner() \
+		and String(_game.get("_network_session_mode")).is_empty() and _game._network_client_boarding_claim.is_empty() \
+		and _game._network_client_boarding_request.is_empty() and _game._network_client_helm_input_sources.is_empty(), "pilot disconnect restores the exact usable solo pilot and clears network ownership")
 	_write("client.pilot_disconnected", {})
 
 ## Read-only admission observations expose failures buffered until client.done.
