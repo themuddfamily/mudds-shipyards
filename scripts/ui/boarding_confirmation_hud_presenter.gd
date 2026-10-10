@@ -31,6 +31,26 @@ func present(snapshot: Dictionary) -> Dictionary:
 		craft = "CRAFT"
 	var reason := str(snapshot.get("reason", "")).strip_edges().replace("_", " ").to_upper()
 	var reading := _reading_for(state, craft, reason)
+	# Detached rated definition facts help choose a craft before boarding. They
+	# never describe this instance's current velocity, damage or seat authority.
+	if state in [&"approach", &"available"]:
+		var facts := snapshot.get("definition_facts", {}) as Dictionary
+		var role := str(facts.get("role", "")).strip_edges().to_upper()
+		var speed := float(facts.get("maximum_speed", 0.0))
+		var hull := float(facts.get("maximum_hull", 0.0))
+		if not role.is_empty() and is_finite(speed) and speed > 0.0 \
+				and is_finite(hull) and hull > 0.0:
+			# The facts line already carries the exact role. Compact repeated class
+			# wording while retaining candidate and reconstruction qualifiers.
+			var choice_name := craft
+			if "-CLASS " in craft:
+				choice_name = craft.get_slice("-CLASS ", 0)
+				if craft.ends_with(" CANDIDATE"):
+					choice_name += " CANDIDATE"
+				if " — " in craft:
+					choice_name += " // " + craft.get_slice(" — ", 1).replace("-OBSERVED", "")
+			reading = _reading_for(state, choice_name, reason)
+			reading.message += "\n%s | %.0f M/S BASE | MAX HULL %.0f" % [role, speed, hull]
 	return {
 		"accepted": true,
 		"state": state,

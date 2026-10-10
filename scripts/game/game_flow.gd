@@ -21678,9 +21678,19 @@ func _present_boarding_confirmation(
 	var retained := _is_boarding_confirmation_reservation_current(
 		observed_area, player, _transition_generation
 	)
+	var definition_facts: Dictionary = {}
+	if is_instance_valid(craft) and state in [&"approach", &"available"]:
+		var definition := craft.get_ship_definition()
+		if definition != null:
+			definition_facts = {
+				"role": definition.get_role(),
+				"maximum_speed": definition.get_flight_profile().get("maximum_speed", 0.0),
+				"maximum_hull": definition.get_systems_profile().get("maximum_hull", 0.0),
+			}
 	_boarding_confirmation_hud_composition.apply_snapshot({
 		"state": state,
 		"craft_name": craft.get_display_name() if is_instance_valid(craft) else "CRAFT",
+		"definition_facts": definition_facts,
 		"reason": reason,
 		"generation": _transition_generation,
 		"reservation_retained": retained,

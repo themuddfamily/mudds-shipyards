@@ -676,6 +676,37 @@ This is the operative section. Everything above describes; this constrains.
 
 ## 8. The lateral-trade-off rule, operationally
 
+### Current nine-craft choice facts
+
+The boarding approach and available cards now read the live `ShipDefinition`
+role, base maximum speed and maximum hull. These are rated definition values,
+not current velocity or damaged-instance health. The table below describes this
+project's current source definitions and implemented utilities; it makes no
+historical handling claim or dominance ranking. The older eight-craft matrix
+below remains a record of that earlier measured roster.
+
+| Craft / definition role | Base speed (m/s) | Max hull | Spool (s) | Current runtime provision |
+| --- | ---: | ---: | ---: | --- |
+| Torrent / Interceptor | 82 | 100 | 2.0 | Pilot seat; pulse weapon |
+| Arrow / Reconnaissance ship | 94 | 82 | 1.65 | Pilot seat; precision recon emitter |
+| Jovian / Light freighter | 56 | 260 | 3.2 | Walkable cargo bay, cargo hardpoints and crew role authority |
+| Zenith / Interceptor (B7 label) | 94 | 68 | 1.35 | Pilot seat; interceptor weapon |
+| Halyard / Crew transport | 108 | 190 | 4.6 | Walkable crew cabin, crew seats and pilot commands |
+| Cinder Cargo Hauler / Cargo hauler | 64 | 220 | 3.8 | Cargo hold, transfer anchors, capacity and crew role authority |
+| Cinder Long-Range Bomber / Long-range bomber | 72 | 240 | 3.6 | Payload hardpoints and retained payload ammunition/cooldown authority |
+| Cinder Light Interceptor / Light interceptor | 102 | 110 | 1.8 | Pilot seat; interceptor weapon |
+| Bulwark / Heavy gunship | 98 | 300 | 2.75 | Walkable crew interior and gunner role with siege lance |
+
+Values come from the nine production `assets/ships/*.tres` definitions, with
+Torrent's omitted fields taking `scripts/ships/ship_definition.gd` defaults.
+Utility provisions come from the corresponding craft scripts under
+`scripts/ships/` and the production weapon/crew bridges in
+`scripts/game/game_flow.gd`. A cargo hardpoint or cabin provision alone does
+not promise a reward loop. Faster rated travel, hull capacity and engine spool
+are separate choice facts; the card does not infer a universally better craft
+from them. Spool remains in this reference table rather than crowding the
+ordinary boarding instruction.
+
 ### The definition
 
 A craft's handling is a vector over **16 axes** (`handling_axis_count`) — the 12

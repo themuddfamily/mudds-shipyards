@@ -2,6 +2,12 @@ extends SceneTree
 
 const HudType := preload("res://scripts/ui/hud.gd")
 const CompositionType := preload("res://scripts/ui/boarding_confirmation_hud_composition.gd")
+const DEFINITION_PATHS := [
+	"torrent_provisional", "arrow_provisional", "jovian_provisional",
+	"zenith_b7_observed", "halyard_new_design", "cinder_cargo_hauler_new_design",
+	"cinder_long_range_bomber_new_design", "cinder_light_interceptor_new_design",
+	"bulwark_new_design",
+]
 const CAPTURE_DIR := "user://screenshots/boarding_confirmation_states"
 
 var _assertions := 0
@@ -23,8 +29,13 @@ func _run() -> void:
 	await process_frame
 	# Begin through the real HUD transition so the retained card has a visible
 	# production canvas for the Forward+ state captures.
+	# Settle the existing intro immediately before measuring live HUD layout.
+	hud.set_reduced_motion(true)
 	hud.call(&"_begin")
-	await process_frame
+	_check(await _wait_until(func() -> bool:
+		var live_hud := hud.get("_hud") as Control
+		return live_hud != null and live_hud.is_visible_in_tree(), 30),
+		"real intro callback exposes the live HUD before layout checks")
 	# The production HUD start path captures the cursor. Automation must not
 	# hold a pointer grab, and on the shared display the graphical matrix runs
 	# on a retained grab makes a concurrent suite's own capture report
@@ -40,6 +51,7 @@ func _run() -> void:
 	hud.set_captions_enabled(false)
 	_check(not hud.present_semantic_audio_cue(&"boarding_confirmed", &"boarding", 0.3, Vector3.ZERO), "caption preference gates confirmations")
 	await _check_boarding_status_card(hud)
+	await _check_fleet_choice_readability(hud)
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -130,6 +142,48 @@ func _check_boarding_status_card(hud: Object) -> void:
 		_check(bool(applied.get("accepted", false)), "reachable %s snapshot renders" % state.state)
 	var rejected_facts := composition.apply_snapshot({"state": &"seated", "craft_name": "Torrent"})
 	_check(not bool(rejected_facts.get("accepted", false)) and rejected_facts.reason == &"seat_not_observed", "unobserved seated claim is fenced")
+	composition.detach()
+
+
+func _check_fleet_choice_readability(hud: Object) -> void:
+	var composition := CompositionType.new()
+	_check(bool(composition.attach(hud).get("accepted", false)), "fleet choice uses the production retained card")
+	root.content_scale_size = Vector2i.ZERO
+	for viewport in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = viewport
+		for scale_value in [0.75, 1.0, 1.6]:
+			hud.set_ui_scale(scale_value)
+			for definition_name in DEFINITION_PATHS:
+				var definition := load("res://assets/ships/%s.tres" % definition_name) as ShipDefinition
+				var facts := {"role": definition.get_role(), "maximum_speed": definition.maximum_speed, "maximum_hull": definition.maximum_hull}
+				composition.apply_snapshot({"state": &"available", "craft_name": definition.get_display_name(), "definition_facts": facts})
+				for frame in 3:
+					await process_frame
+				var view := (composition.get_snapshot().adapter as Dictionary).view as Dictionary
+				var expected := "%s | %.0f M/S BASE | MAX HULL %.0f" % [definition.get_role().to_upper(), definition.maximum_speed, definition.maximum_hull]
+				_check(str(view.message).ends_with(expected) and str(view.message).contains("PRESS INTERACT TO BOARD"), "rated facts and ordinary Interact survive for %s at %s / %.2f" % [definition_name, viewport, scale_value])
+				var name_upper := definition.get_display_name().to_upper()
+				if "CANDIDATE" in name_upper:
+					_check("CANDIDATE" in str(view.message), "candidate identity remains visible for %s" % definition_name)
+				if "RECONSTRUCTION" in name_upper:
+					_check("RECONSTRUCTION" in str(view.message) and ("B5" if definition_name == "torrent_provisional" else "B7") in str(view.message), "source reconstruction identity remains visible for %s" % definition_name)
+				var panel := hud.find_child("RuntimeStatusPanel", true, false) as Control
+				var detail := hud.get("_runtime_status_detail") as Label
+				var scroll := hud.find_child("RuntimeStatusBodyScroll", true, false) as ScrollContainer
+				_check(detail.size.y <= scroll.size.y + 1.0, "complete choice and state fit without scrolling for %s at %s / %.2f (body %.0f, viewport %.0f)" % [definition_name, viewport, scale_value, detail.size.y, scroll.size.y])
+				_check(Rect2(Vector2.ZERO, Vector2(viewport)).encloses(panel.get_global_rect()), "choice card stays inside viewport for %s at %s / %.2f" % [definition_name, viewport, scale_value])
+				if "--capture-choice" in OS.get_cmdline_user_args() and scale_value == 1.0 \
+						and viewport == Vector2i(1280, 720) and definition_name in ["torrent_provisional", "zenith_b7_observed"]:
+					_check(DisplayServer.get_name() == "X11", "choice capture uses an isolated X11 renderer")
+					await RenderingServer.frame_post_draw
+					DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CAPTURE_DIR))
+					_check(root.get_texture().get_image().save_png(CAPTURE_DIR.path_join("choice_%s.png" % definition_name)) == OK, "choice capture saves %s" % definition_name)
+	composition.apply_snapshot({"state": &"available", "craft_name": "CRAFT"})
+	var fallback := (composition.get_snapshot().adapter as Dictionary).view as Dictionary
+	_check(not str(fallback.message).contains("MAX HULL") and str(fallback.message).contains("PRESS INTERACT"), "missing definition keeps the ordinary boarding prompt")
+	composition.apply_snapshot({"state": &"reserved", "craft_name": "CRAFT", "reservation_retained": true, "definition_facts": {"role": "TEST", "maximum_speed": 99, "maximum_hull": 99}})
+	var reserved := (composition.get_snapshot().adapter as Dictionary).view as Dictionary
+	_check(str(reserved.message).contains("ENTRY ROUTE RESERVED") and not str(reserved.message).contains("MAX HULL"), "reservation instruction retains its exclusive transition reading")
 	composition.detach()
 
 

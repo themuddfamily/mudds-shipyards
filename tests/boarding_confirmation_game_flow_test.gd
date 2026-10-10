@@ -23,6 +23,14 @@ func _run() -> void:
 	var player := game.player as PlayerController
 	var ship := game.ship as HeroShip
 	var area := ship.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	var definition := ship.get_ship_definition()
+	var approach_view := (game.get_boarding_confirmation_presentation_report().adapter as Dictionary).view as Dictionary
+	_check(
+		str(approach_view.message).contains(definition.get_role().to_upper())
+		and str(approach_view.message).contains("%.0f M/S BASE" % definition.maximum_speed)
+		and str(approach_view.message).contains("MAX HULL %.0f" % definition.maximum_hull),
+		"production approach bridge presents the active craft's rated definition facts",
+	)
 	_check(
 		player.begin_boarding(player.global_transform, ship.get_pilot_seat_anchor(), 0.0),
 		"production player enters a conflicting seated state for the failure reproduction",
@@ -46,6 +54,12 @@ func _run() -> void:
 	game.call(&"_present_boarding_confirmation", &"available", ship)
 	_check(_presented_state(game) == &"available",
 		"the ordinary hatch prompt returns after the refusal reading window")
+	var available_view := (game.get_boarding_confirmation_presentation_report().adapter as Dictionary).view as Dictionary
+	_check(
+		str(available_view.message).contains("PRESS INTERACT TO BOARD")
+		and str(available_view.message).contains("MAX HULL %.0f" % definition.maximum_hull),
+		"production available card preserves ordinary Interact and rated hull guidance",
+	)
 
 	player.force_recovery_to_on_foot(game.world.get_player_spawn())
 	await process_frame
