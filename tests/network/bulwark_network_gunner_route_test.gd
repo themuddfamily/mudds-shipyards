@@ -15,6 +15,7 @@ var _craft: BulwarkHeavyGunship
 var _player: PlayerController
 var _port := 0
 var _store_path := ""
+var _pilot_store_path := ""
 var _package_under_test := ""
 
 func _init() -> void:
@@ -61,6 +62,8 @@ func _run() -> void:
 	_game.queue_free()
 	await _ticks(3)
 	DirAccess.remove_absolute(_store_path)
+	if not _pilot_store_path.is_empty():
+		DirAccess.remove_absolute(_pilot_store_path)
 	_write(_role + ".done", {"checks": _checks, "failures": _failures})
 	for failure in _failures:
 		push_error(failure)
@@ -450,7 +453,8 @@ func _client_pilot_host_gunner() -> void:
 	_check(not is_instance_valid(previous), "old client Main is actually retired before the independent pilot connection")
 	_print_fresh_pilot_state(&"before_new_main")
 	_game = Main.instantiate() as GameFlow
-	var store := UserDataStore.new(_store_path)
+	_pilot_store_path = "user://gunner-pilot-peer-%d.json" % OS.get_process_id()
+	var store := UserDataStore.new(_pilot_store_path)
 	store.load()
 	_game.configure_runtime_settings_persistence(store)
 	root.add_child(_game)
