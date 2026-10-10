@@ -228,10 +228,28 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 		return
 	var authored_transform := console.transform
 	var header := console.get_node_or_null(^"ShipServiceReadability/ShipServiceHeader") as MeshInstance3D
+	var status := console.get_node_or_null(^"ShipServiceReadability/ShipServiceStatus") as MeshInstance3D
+	var underline := console.get_node_or_null(^"ShipServiceReadability/ShipServiceLocatorUnderline") as MeshInstance3D
+	var luminous := annex.get_node_or_null(^"GeneratedAnnex/FabricatorLuminousRenderBatch") as MeshInstance3D
+	var status_bar: Dictionary = {}
+	if luminous != null:
+		for raw_part: Dictionary in luminous.get_meta(&"fabrication_luminous_render_parts", []):
+			if raw_part.get("id") == &"status" \
+					and (raw_part.transform as Transform3D).origin.distance_to(
+						Vector3(5.13, 1.35, 7.55)) < 0.01:
+				status_bar = raw_part
+	var readability_clear := header != null and status != null and underline != null \
+			and not status_bar.is_empty()
+	if readability_clear:
+		var bar_face := (status_bar.transform as Transform3D).origin.x \
+				- (status_bar.size as Vector3).x * 0.5
+		for text_part: MeshInstance3D in [header, status, underline]:
+			readability_clear = readability_clear \
+					and annex.to_local(text_part.global_position).x < bar_face - 0.01
 	_check(
-		header != null and annex.to_local(header.global_position).distance_to(
-			Vector3(5.14, 1.48, 7.55)) < 0.01,
-		"service readability sits on the authored fabricator control, outside its face"
+		readability_clear and annex.to_local(header.global_position).distance_to(
+			Vector3(5.06, 1.48, 7.55)) < 0.01,
+		"all service readability sits aisleward of the authored control and opaque status bar"
 	)
 	_check(int((console.call(&"get_presentation_snapshot") as Dictionary).presentation_sequence) == 0,
 		"the existing Aft route never repaints the annex origin")

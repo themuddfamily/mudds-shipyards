@@ -136,7 +136,7 @@ rotation = Vector3(0, 1.570796, 0)
 ; A world-owned adapter over the existing starboard/front FabricatorControl.
 ; The annex module remains geometry-only; the selected craft owns kit mutation.
 [node name="FabricationShipServiceConsole" type="Area3D" parent="."]
-transform = Transform3D(-1, 0, 0, 0, 0.207911691, 0.978147601, 0, 0.978147601, -0.207911691, 79.55, 1.650837962, 31.370947871)
+transform = Transform3D(-1, 0, 0, 0, 0.207911691, 0.978147601, 0, 0.978147601, -0.207911691, 79.55, 1.650837962, 31.450947871)
 script = ExtResource("14_fabrication_ship_service")
 metadata/evidence_classification = "modern_interpretation"
 metadata/authored_control = "FabricationAnnex/starboard_front_fabricator"
