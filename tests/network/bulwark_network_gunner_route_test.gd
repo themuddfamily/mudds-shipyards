@@ -244,8 +244,8 @@ func _client() -> void:
 	root.grab_focus()
 	await _ticks(20)
 	await _look(_player.global_position - _craft.global_basis.z * 20.0 + Vector3.UP * 1.5)
-	await _walk(Vector3(-1.4, BulwarkHeavyGunship.CABIN_FLOOR_Y, 2.15))
-	await _walk(Vector3(1.45, BulwarkHeavyGunship.CABIN_FLOOR_Y, 2.15))
+	await _walk(Vector3(-0.4, BulwarkHeavyGunship.CABIN_FLOOR_Y, 1.65))
+	await _walk(Vector3(1.45, BulwarkHeavyGunship.CABIN_FLOOR_Y, 1.65))
 	await _walk(Vector3(1.45, BulwarkHeavyGunship.CABIN_FLOOR_Y, 0.60))
 	_check(_player.is_on_floor(), "ordinary full capsule walk reaches real gunner portal supported")
 	await _look(_craft.get_gunner_station_anchor().global_position + Vector3.UP * 1.2)
@@ -448,6 +448,7 @@ func _client_pilot_host_gunner() -> void:
 	previous.queue_free()
 	await _ticks(3)
 	_check(not is_instance_valid(previous), "old client Main is actually retired before the independent pilot connection")
+	_print_fresh_pilot_state(&"before_new_main")
 	_game = Main.instantiate() as GameFlow
 	var store := UserDataStore.new(_store_path)
 	store.load()
@@ -456,17 +457,23 @@ func _client_pilot_host_gunner() -> void:
 	await _ticks(4)
 	_craft = _game.get_node("BulwarkHeavyGunship") as BulwarkHeavyGunship
 	_player = _game.get_node("Player") as PlayerController
+	_print_fresh_pilot_state(&"before_start_shift")
 	_game.start_shift()
 	await _ticks(3)
 	var client_target_a := _game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone02") as Node3D
 	var client_target_b := _game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone01") as Node3D
 	var client_health := [client_target_a.get_meta("health"), client_target_b.get_meta("health")]
-	_check(_game.join_network_session("127.0.0.1", _port).accepted, "fresh ordinary client joins the retained host for pilot duty")
+	_print_fresh_pilot_state(&"before_join")
+	var join_result: Dictionary = _game.join_network_session("127.0.0.1", _port)
+	_check(join_result.accepted, "fresh ordinary client joins the retained host for pilot duty")
+	_print_fresh_pilot_state(&"after_join", join_result)
 	await _ticks(100)
 	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.get_boarding_position() + _craft.global_basis.y.normalized() * 0.05))
 	await _ticks(10)
+	_print_fresh_pilot_state(&"before_hatch_press")
 	await _press(&"interact")
 	_check(await _until(func(): return _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _game.get_network_remote_body_intent_source() != null and not bool(_game.get("_transition_busy")), 12.0), "fresh pilot uses ordinary exterior hatch to enter the real parked cabin")
+	_print_fresh_pilot_state(&"after_hatch_wait")
 	root.grab_focus()
 	var anchor := _craft.get_pilot_seat_anchor()
 	await _walk(_craft.to_local(anchor.global_position) + Vector3(-0.6, 0.0, 0.6))
@@ -495,6 +502,19 @@ func _client_pilot_host_gunner() -> void:
 	_game.shutdown_network_session(&"host_gunner_pilot_disconnect")
 	_check(not _player.is_seated() and _player.is_control_enabled(), "pilot disconnect restores the actual client body and controls")
 	_write("client.pilot_disconnected", {})
+
+## Read-only admission observations expose failures buffered until client.done.
+func _print_fresh_pilot_state(stage: StringName, join_result: Dictionary = {}) -> void:
+	print("GUNNER_FRESH_PILOT_STATE: stage=", stage, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(), " pending_failures=", _failures, " join_result=", join_result, " game_valid=", is_instance_valid(_game))
+	if not is_instance_valid(_game):
+		return
+	var peer: MultiplayerPeer = _game.network_session.multiplayer.multiplayer_peer
+	print("GUNNER_FRESH_PILOT_CONTEXT: stage=", stage,
+		" session_mode=", _game.get("_network_session_mode"), " connection_status=", peer.get_connection_status() if peer != null else -1,
+		" session_server=", _game.network_session.is_server(), " admitted_peers=", _game.network_session.get_admitted_peer_ids(),
+		" boarding_claim=", _game.get("_network_client_boarding_claim"), " boarding_request=", _game.get("_network_client_boarding_request"), " boarding_audit=", _game.get_network_client_boarding_audit(),
+		" piloting=", _game.get("_piloting"), " phase=", _game.phase, " transition_busy=", _game.get("_transition_busy"),
+		" player_control=", _player.is_control_enabled(), " player_seated=", _player.is_seated(), " containment=", _player.get_cabin_containment_report())
 
 func _refusal(payload: Dictionary, reason: StringName, description: String) -> void:
 	payload.server_tick = _game.network_session.get_boarding_server_tick_estimate()
