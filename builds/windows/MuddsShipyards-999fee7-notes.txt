@@ -1,0 +1,15 @@
+Mudds Shipyards — Habitat bedding finish
+Source:999fee71e642d8845478a182bee7f6c2a3f923dc
+
+Six Habitat bunk pillows now read as pale matte linen rather than dark chair upholstery. Existing linen no longer inherits a lacquer clearcoat. Geometry, collision, lights and material allocation are unchanged; Habitat retains33 materials and1,242 submissions.
+
+Validation: source Habitat owning test passes415 assertions with exit0. Same-camera original1280x720 private-Xvfb Compatibility/software captures inspected before/after confirm the new bedding finish and retained silhouette/occlusion. This capture is not native GPU or human art acceptance.
+
+Fresh clean Windows import/export exit0 with reaped actors; AMD64 PE and all1,492 embedded PCK4 entries verified. Linux Godot loads this exact Windows package: strict startup exits0 with one parsed mouse-free ready record and zero diagnostics; external Habitat owning harness passes415 and the four existing package probes pass89/40/25/69 assertions, one sentinel each, actual exits0/reaping and zero diagnostics. All11,756 tracked source files match the committed Git blobs; all577 import-cache files and the EXE remain stable through qualification. Fresh EXE/PCK differ from dcd63d72b; no earlier byte-identity carry is claimed.
+
+The exact fresh EXE also passes silent native Windows startup: actual exit0, one parsed STARTUP_MENU_READY_OK, mouse-free loading and zero diagnostics/warnings. GUID copy/profile hashes and cleanup pass; root fresh CIM verifies both recorded Windows PIDs and owned processes/profile absent. Actual base user profile is unchanged; root authority is released.
+
+This checkpoint includes the preceding crew/Ember/runtime deliveries, whose earlier checks remain source-specific. Native ordinary/network gameplay, GPU, physical devices/audio, human review, endurance, complete current-source regression, matching Linux/installer qualification and final release remain open. The separate frozen154ddde1d full regression is still running with its original handback failure retained; this999fee71e full regression is NOT_RUN. All ten phases and34 completion tasks remain open.
+
+EXE SHA256:16b9ed5ad39c9abc999496b8b64ba2df23c8c53357e6f7baed6d6ccc6635f122
+EXE bytes:177761296
