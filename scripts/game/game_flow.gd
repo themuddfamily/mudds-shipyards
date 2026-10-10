@@ -20121,6 +20121,7 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 				return ready
 			if _game_flow_reward_authority == null:
 				return binding.call(&"reset_beacon_traversal") as Dictionary
+			var before := binding.call(&"capture_beacon_traversal_session") as Dictionary
 			var prepared := binding.call(&"prepare_beacon_traversal_reset") as Dictionary
 			if not bool(prepared.get("accepted", false)):
 				return prepared
@@ -20138,6 +20139,12 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 					return {"accepted": false, "reason": &"beacon_reset_save_pending", "persistence_result": saved}
 				_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
 				_sync_production_runtime_settings_state()
+			# Supported filesystem callbacks may retire the stream or advance its
+			# owner during publication. Never reset a replacement or changed route.
+			if not is_inside_tree() or is_queued_for_deletion() or not is_instance_valid(binding) \
+					or binding.is_queued_for_deletion() or binding != _get_nearby_activity_binding() \
+					or (binding.call("capture_beacon_traversal_session") as Dictionary) != before:
+				return {"accepted": false, "reason": &"beacon_reset_owner_changed", "persistence_result": saved}
 			var reset := binding.call(&"reset_beacon_traversal") as Dictionary
 			reset["persistence_result"] = saved
 			return reset
