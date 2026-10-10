@@ -227,8 +227,8 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 	if console == null or annex == null:
 		return
 	var authored_transform := console.transform
-	var header := console.get_node_or_null(^"ShipServiceReadability/ShipServiceHeader") as MeshInstance3D
-	var status := console.get_node_or_null(^"ShipServiceReadability/ShipServiceStatus") as MeshInstance3D
+	var header := console.get_node_or_null(^"ShipServiceReadability/ShipServiceHeader") as Label3D
+	var status := console.get_node_or_null(^"ShipServiceReadability/ShipServiceStatus") as Label3D
 	var underline := console.get_node_or_null(^"ShipServiceReadability/ShipServiceLocatorUnderline") as MeshInstance3D
 	var luminous := annex.get_node_or_null(^"GeneratedAnnex/FabricatorLuminousRenderBatch") as MeshInstance3D
 	var status_bar: Dictionary = {}
@@ -243,7 +243,7 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 	if readability_clear:
 		var bar_face := (status_bar.transform as Transform3D).origin.x \
 				- (status_bar.size as Vector3).x * 0.5
-		for text_part: MeshInstance3D in [header, status, underline]:
+		for text_part: GeometryInstance3D in [header, status, underline]:
 			readability_clear = readability_clear \
 					and annex.to_local(text_part.global_position).x < bar_face - 0.01
 	_check(

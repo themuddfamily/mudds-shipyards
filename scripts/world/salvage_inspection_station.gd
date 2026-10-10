@@ -62,8 +62,8 @@ func get_interactable(target_id: StringName) -> Area3D:
 
 
 func get_readout_text(target_id: StringName) -> String:
-	var mesh := _labels.get(target_id) as TextMesh
-	return mesh.text if mesh != null else ""
+	var label := _labels.get(target_id) as Label3D
+	return label.text if label != null else ""
 
 
 func get_snapshot() -> Dictionary:
@@ -208,17 +208,17 @@ func _order_inspected() -> void:
 
 func _refresh_presentation() -> void:
 	for target_id: StringName in _labels:
-		var mesh := _labels[target_id] as TextMesh
+		var label := _labels[target_id] as Label3D
 		if target_id == CONSOLE_ID:
-			mesh.text = "SALVAGE INSPECTION\n%d/3 INSPECTED\n%s\nMODERN INTERPRETATION" % [
+			label.text = "SALVAGE INSPECTION\n%d/3 INSPECTED\n%s\nMODERN INTERPRETATION" % [
 				_inspected.size(), "MANIFEST PUBLISHED" if bool(_durable_record.manifest_published)
 				else ("MANIFEST SAVE PENDING" if _manifest_requested else _last_save_reason)]
 		else:
 			var index := COMPONENT_IDS.find(String(target_id))
-			mesh.text = "%s\n%s" % [COMPONENT_NAMES[index], COMPONENT_RESULTS[index]
+			label.text = "%s\n%s" % [COMPONENT_NAMES[index], COMPONENT_RESULTS[index]
 				if _inspected.has(String(target_id)) else "UNINSPECTED"]
 			if _inspected.has(String(target_id)) and not (_durable_record.inspected as Array).has(String(target_id)):
-				mesh.text += "\nSAVE PENDING"
+				label.text += "\nSAVE PENDING"
 	snapshot_changed.emit(get_snapshot())
 
 
@@ -254,18 +254,25 @@ func _build_controls() -> void:
 		visual.position.y = -0.10 if index == 1 else (-0.01 if index < 3 else 0.0)
 		visual.material_override = _material(Color("bd8b50") if index < 3 else Color("172930"))
 		target.add_child(visual)
-		var label := MeshInstance3D.new()
+		# Dynamic readouts use the same textured glyph quads as the terrace's
+		# identity label, rather than tessellating every letter into a TextMesh.
+		# Keep the authored em-height, facing, colour and physical placement.
+		var label := Label3D.new()
 		label.name = "InspectionReadout"
-		var text := TextMesh.new()
-		text.font_size = 28
-		text.pixel_size = 0.0035 if index < 3 else 0.003
-		text.depth = 0.0
-		label.mesh = text
-		label.material_override = _material(Color("9ff5f2"), true)
+		label.font_size = SignGeometryBudget.FONT_SIZE
+		label.pixel_size = 28.0 * (0.0035 if index < 3 else 0.003) / float(label.font_size)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.outline_size = 0
+		label.modulate = Color("9ff5f2")
+		label.shaded = false
+		label.double_sided = false
+		label.no_depth_test = false
+		label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		label.position = Vector3(0.0, 0.55, -0.30)
 		label.rotation.y = PI
 		target.add_child(label)
-		_labels[id] = text
+		_labels[id] = label
 
 
 func _box(node_name: String, at: Vector3, size: Vector3, colour: Color) -> void:

@@ -17,15 +17,27 @@ func _run() -> void:
 
 	var header := console.get_node_or_null(
 		^"ShipServiceReadability/ShipServiceHeader"
-	) as MeshInstance3D
+	) as Label3D
 	var status := console.get_node_or_null(
 		^"ShipServiceReadability/ShipServiceStatus"
-	) as MeshInstance3D
+	) as Label3D
 	_check(
-		header != null and header.mesh is TextMesh \
-			and (header.mesh as TextMesh).text == "SHIP SERVICES"
-			and status != null and status.mesh is TextMesh \
-			and (status.mesh as TextMesh).text == ConsoleType.INITIAL_STATUS_TEXT,
+		header != null and header.text == "SHIP SERVICES"
+			and status != null and status.text == ConsoleType.INITIAL_STATUS_TEXT
+			and header.font_size == 47 and status.font_size == 47
+			and is_equal_approx(header.font_size * header.pixel_size, 0.768)
+			and is_equal_approx(status.font_size * status.pixel_size, 0.768)
+			and header.outline_size == 0 and status.outline_size == 0
+			and not header.double_sided and not status.double_sided
+			and not header.shaded and not status.shaded
+			and not header.no_depth_test and not status.no_depth_test
+			and header.modulate == ConsoleType.CYAN and status.modulate == ConsoleType.AMBER
+			and header.position == ConsoleType.HEADER_POSITION
+			and status.position == ConsoleType.STATUS_POSITION
+			and header.basis.is_equal_approx(Basis(ConsoleType.GLYPH_RIGHT,
+				ConsoleType.GLYPH_UP, ConsoleType.FACE_NORMAL).scaled(Vector3.ONE * ConsoleType.HEADER_SCALE))
+			and status.basis.is_equal_approx(Basis(ConsoleType.GLYPH_RIGHT,
+				ConsoleType.GLYPH_UP, ConsoleType.FACE_NORMAL).scaled(Vector3.ONE * ConsoleType.STATUS_SCALE)),
 		"the authored workstation names its service and starts with physical usage guidance"
 	)
 	_check(
@@ -69,8 +81,8 @@ func _run() -> void:
 		bool(presented.get("accepted", false))
 			and str(presented.get("text", "")).contains("RESTOCKED")
 			and str(presented.get("text", "")).contains("KITS 6/6")
-			and (status.mesh as TextMesh).text == presented.get("text", ""),
-		"an accepted restock becomes literal craft and kit-count feedback on the mesh"
+			and status.text == presented.get("text", ""),
+		"an accepted restock becomes literal craft and kit-count feedback on the physical label"
 	)
 	var full: Dictionary = console.present_service_result({
 		"accepted": true,

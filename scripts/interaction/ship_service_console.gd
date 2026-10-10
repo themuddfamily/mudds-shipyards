@@ -28,12 +28,10 @@ const CYAN := Color("0b5160")
 const AMBER := Color("8d4b00")
 const MAX_DISPLAY_NAME_LENGTH := 28
 
-static var _shared_header_mesh: TextMesh
 static var _shared_underline_mesh: BoxMesh
 
 var _built := false
-var _status_mesh: TextMesh
-var _status_label: MeshInstance3D
+var _status_label: Label3D
 var _status_text := INITIAL_STATUS_TEXT
 var _presentation_sequence := 0
 var _last_result: Dictionary = {}
@@ -98,8 +96,8 @@ func present_service_result(result: Dictionary) -> Dictionary:
 	_presentation_sequence += 1
 	_status_text = text
 	_last_result = result.duplicate(true)
-	if _status_mesh != null:
-		_status_mesh.text = _status_text
+	if _status_label != null:
+		_status_label.text = _status_text
 	return {
 		"accepted": true,
 		"reason": &"service_result_presented",
@@ -169,34 +167,23 @@ func _build_readability_visuals() -> void:
 	visuals.set_meta("presentation_only", true)
 	add_child(visuals)
 
-	var header := MeshInstance3D.new()
+	var header := _readability_label(HEADER_TEXT, CYAN)
 	header.name = "ShipServiceHeader"
-	header.mesh = _get_shared_header_mesh()
 	header.position = HEADER_POSITION
 	header.basis = Basis(GLYPH_RIGHT, GLYPH_UP, FACE_NORMAL).scaled(
 		Vector3.ONE * HEADER_SCALE
 	)
 	header.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	header.material_override = _readability_material(CYAN)
 	visuals.add_child(header)
 
-	_status_mesh = TextMesh.new()
-	_status_mesh.text = _status_text
-	_status_mesh.font_size = 64
-	_status_mesh.pixel_size = 0.012
-	_status_mesh.depth = 0.004
-	_status_mesh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_status_mesh.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_status_label = MeshInstance3D.new()
+	_status_label = _readability_label(_status_text, AMBER)
 	_status_label.name = "ShipServiceStatus"
-	_status_label.mesh = _status_mesh
 	_status_label.position = STATUS_POSITION
 	_status_label.basis = Basis(GLYPH_RIGHT, GLYPH_UP, FACE_NORMAL).scaled(
 		Vector3.ONE * STATUS_SCALE
 	)
 	_status_label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var amber_material := _readability_material(AMBER)
-	_status_label.material_override = amber_material
 	visuals.add_child(_status_label)
 
 	var underline := MeshInstance3D.new()
@@ -209,17 +196,21 @@ func _build_readability_visuals() -> void:
 	visuals.add_child(underline)
 
 
-static func _get_shared_header_mesh() -> TextMesh:
-	if _shared_header_mesh == null:
-		var mesh := TextMesh.new()
-		mesh.text = HEADER_TEXT
-		mesh.font_size = 64
-		mesh.pixel_size = 0.012
-		mesh.depth = 0.006
-		mesh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		mesh.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_shared_header_mesh = mesh
-	return _shared_header_mesh
+func _readability_label(text: String, color: Color) -> Label3D:
+	# Atlas glyph quads keep dynamic feedback cheap without coarsening the
+	# station font, adding extrusion or changing the authored world em-height.
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = SignGeometryBudget.FONT_SIZE
+	label.pixel_size = SignGeometryBudget.REFERENCE_EM_METRES / float(label.font_size)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.outline_size = 0
+	label.modulate = color
+	label.shaded = false
+	label.double_sided = false
+	label.no_depth_test = false
+	return label
 
 
 static func _get_shared_underline_mesh() -> BoxMesh:
