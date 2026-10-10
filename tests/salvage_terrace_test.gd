@@ -4,6 +4,9 @@ extends SceneTree
 
 const MODULE_SCENE := preload("res://scenes/world/modules/salvage_terrace.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const INSPECTION := preload("res://scripts/world/salvage_inspection_station.gd")
+const USER_STORE := preload("res://scripts/persistence/user_data_store.gd")
+const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const WORLD_LAYER := 1
 const CAPTURE_PATH := "/tmp/salvage-terrace-forward-plus.png"
 const CLOSE_CAPTURE_PATH := "/tmp/salvage-terrace-bevel-close.png"
@@ -11,6 +14,53 @@ const CLOSE_CAPTURE_PATH := "/tmp/salvage-terrace-bevel-close.png"
 var _failures: Array[String] = []
 var _assertions := 0
 var _test_root: Node3D
+var _inspection_store: UserDataStore
+var _inspection_filesystem: InspectionFilesystem
+var _inspection_write_calls := 0
+var _inspection_owner: Node3D
+var _inspection_actor: PlayerController
+var _inspection_reentrant_result: Dictionary = {}
+
+
+class InspectionFilesystem extends UserDataFilesystem:
+	var files: Dictionary = {}
+	var refuse_write := false
+
+	func file_exists(path: String) -> bool:
+		return files.has(path)
+
+	func directory_exists(_path: String) -> bool:
+		return false
+
+	func ensure_parent_directory(_path: String) -> Error:
+		return OK
+
+	func read_bytes(path: String, maximum: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes: PackedByteArray = files[path]
+		return {"error": OK if bytes.size() <= maximum else ERR_FILE_CORRUPT, "bytes": bytes.duplicate()}
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if refuse_write:
+			return ERR_FILE_CANT_WRITE
+		files[path] = bytes.duplicate()
+		return OK
+
+	func remove_path(path: String) -> Error:
+		if not files.has(path):
+			return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path):
+			return ERR_FILE_NOT_FOUND
+		if files.has(to_path):
+			return ERR_ALREADY_EXISTS
+		files[to_path] = files[from_path]
+		files.erase(from_path)
+		return OK
 
 
 func _init() -> void:
@@ -50,6 +100,7 @@ func _run() -> void:
 	_test_performance_and_lifecycle(module)
 	await _test_queued_module_enable_guard()
 	await _test_real_player_ramp_traversal(module)
+	await _test_salvage_inspection_loop(module)
 	await _test_mutations_turn_audit_red(module)
 	await _test_cleanup(module)
 	_finish()
@@ -1097,6 +1148,197 @@ func _test_real_player_ramp_traversal(module: SalvageTerrace) -> void:
 	player.queue_free()
 	await process_frame
 	await physics_frame
+
+
+## The added world-owned controls use the real deck and ordinary Player walking
+## and proximity discovery. Only the initial connector staging is a teleport.
+## Callback persistence uses the existing atomic UserDataStore with a private
+## memory filesystem, including actual refused writes and fresh-store reload.
+func _test_salvage_inspection_loop(module: SalvageTerrace) -> void:
+	var scene_state := WORLD_SCENE.get_state()
+	var composed := false
+	for index in scene_state.get_node_count():
+		if scene_state.get_node_name(index) != &"SalvageInspectionStation":
+			continue
+		for property in scene_state.get_node_property_count(index):
+			if scene_state.get_node_property_name(index, property) == &"script":
+				composed = scene_state.get_node_property_value(index, property) == INSPECTION
+	_check(composed, "production world composes the inspection owner outside the geometry-only terrace")
+	_inspection_filesystem = InspectionFilesystem.new()
+	_inspection_store = USER_STORE.new("memory://salvage-inspection.json", _inspection_filesystem)
+	_inspection_store.load()
+	var unrelated := {"settings": {"music_volume": 0.2}, "future_owned_slot": {"keep": ["untouched"]}}
+	_check(bool(_inspection_store.commit(unrelated, 0, "inspection-seed").accepted), "inspection fixture seeds unrelated shared-store namespaces")
+	var station := INSPECTION.new()
+	station.transform = module.transform
+	_test_root.add_child(station)
+	await process_frame
+	_inspection_owner = station
+	_check(bool(station.configure_persistence(_read_inspection, _write_inspection).accepted)
+		and station.get_snapshot().inspected.is_empty(), "absent inspection slot restores an uninspected modern component set")
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	_inspection_actor = player
+	_test_root.add_child(player)
+	await process_frame
+	player.set_camera_active(false)
+	player.set_control_enabled(true)
+	_release_actions()
+	player.teleport_to(Transform3D(Basis.IDENTITY, module.get_route_marker(&"connector").global_position))
+	for _settle in 8:
+		await physics_frame
+	var coil := station.get_interactable(&"field_coil")
+	_check(not bool(coil.call("interact", player)), "a distant real Player cannot inspect a terrace component")
+	var walked := await _walk_inspection_to(player, module, Vector3(0.0, 0.0, 7.0))
+	walked = await _walk_inspection_to(player, module, Vector3(-8.0, 0.0, 7.0)) and walked
+	var console := station.get_interactable(INSPECTION.CONSOLE_ID)
+	_check(walked and bool(console.call("interact", player))
+		and not bool(station.get_snapshot().manifest_requested)
+		and not bool(station.get_snapshot().manifest_published) and _inspection_write_calls == 0,
+		"reachable console guides inspection without manufacturing an incomplete manifest or save")
+	walked = await _walk_inspection_to(player, module, Vector3(-16.0, 0.0, 7.0)) and walked
+	_check(walked and player.is_on_floor() and player.get_nearby_interactables().has(coil),
+		"same Player walks connector to the first identifiable component on real floor without jumping or teleporting")
+	_inspection_filesystem.refuse_write = true
+	_check(bool(coil.call("interact", player)) and station.get_snapshot().inspected == ["field_coil"]
+		and bool(station.get_snapshot().save_pending)
+		and station.get_readout_text(&"field_coil").contains("GRADE A // USABLE")
+		and station.get_readout_text(&"field_coil").contains("SAVE PENDING"),
+		"refused atomic write keeps genuine coil inspection and shows its grade with pending save")
+	_check(not bool(_inspection_reentrant_result.get("accepted", true)) and station.get_snapshot().inspected == ["field_coil"],
+		"writer re-entry cannot inspect a second nearby component during the first inspection")
+	_inspection_filesystem.refuse_write = false
+	walked = await _walk_inspection_to(player, module, Vector3(-14.4, 0.0, 7.0))
+	var relay := station.get_interactable(&"relay_board")
+	_check(walked and player.get_nearby_interactables().has(relay) and bool(relay.call("interact", player))
+		and station.get_snapshot().inspected == ["field_coil", "relay_board"]
+		and not bool(station.get_snapshot().save_pending),
+		"walking to the relay inspects it and durably saves both genuine observations without losing refused progress")
+	var writes := _inspection_write_calls
+	_check(bool(relay.call("interact", player)) and _inspection_write_calls == writes,
+		"re-inspecting a saved component is idempotent without another shared-store commit")
+	walked = await _walk_inspection_to(player, module, Vector3(-12.8, 0.0, 7.0))
+	var coupling := station.get_interactable(&"cracked_coupling")
+	_inspection_filesystem.refuse_write = true
+	_check(walked and player.get_nearby_interactables().has(coupling) and bool(coupling.call("interact", player))
+		and station.get_readout_text(&"cracked_coupling").contains("GRADE D // RECYCLE")
+		and not bool(station.get_snapshot().manifest_requested),
+		"third identifiable component earns a recycle grade but cannot fabricate console publication")
+	walked = await _walk_inspection_to(player, module, Vector3(-9.5, 0.0, 7.0))
+	_check(walked and player.is_on_floor() and player.get_nearby_interactables().has(console)
+		and bool(console.call("interact", player)) and station.get_snapshot().inspected.size() == 3
+		and bool(station.get_snapshot().manifest_requested) and not bool(station.get_snapshot().manifest_published)
+		and station.get_readout_text(INSPECTION.CONSOLE_ID).contains("MANIFEST SAVE PENDING"),
+		"ordinary console interaction earns the 3/3 manifest while refused publication remains visibly pending")
+	_test_root.remove_child(station)
+	_check(not bool(console.call("interact", player)), "detached inspection controls cannot mutate retained work")
+	_test_root.add_child(station)
+	await process_frame
+	_check(bool(station.configure_persistence(_read_inspection, _write_inspection).accepted)
+		and station.get_snapshot().inspected.size() == 3 and bool(station.get_snapshot().save_pending)
+		and bool(station.get_snapshot().manifest_requested) and not bool(station.get_snapshot().manifest_published),
+		"retained subtree re-entry merges saved observations without resetting unsaved component or manifest work")
+	_inspection_filesystem.refuse_write = false
+	for _settle in 3:
+		await physics_frame
+	_check(bool(console.call("interact", player)) and bool(station.get_snapshot().manifest_published)
+		and not bool(station.get_snapshot().save_pending)
+		and station.get_readout_text(INSPECTION.CONSOLE_ID).contains("MANIFEST PUBLISHED"),
+		"same console retries the genuine pending work and publishes the manifest only after accepted atomic save")
+	writes = _inspection_write_calls
+	_check(bool(console.call("interact", player)) and _inspection_write_calls == writes
+		and _inspection_store.get_snapshot().settings == unrelated.settings
+		and _inspection_store.get_snapshot().future_owned_slot == unrelated.future_owned_slot,
+		"repeat publication is idempotent and shared-store commits preserve unrelated and unknown namespaces")
+	station.queue_free()
+	await process_frame
+	_inspection_store = USER_STORE.new("memory://salvage-inspection.json", _inspection_filesystem)
+	var fresh := INSPECTION.new()
+	fresh.transform = module.transform
+	_test_root.add_child(fresh)
+	await process_frame
+	_inspection_owner = fresh
+	_check(bool(fresh.configure_persistence(_read_inspection, _write_inspection).accepted)
+		and fresh.get_snapshot().inspected.size() == 3 and bool(fresh.get_snapshot().manifest_published)
+		and fresh.get_readout_text(&"relay_board").contains("GRADE B // USABLE")
+		and _inspection_write_calls == writes,
+		"fresh owner and fresh atomic-store reload restore all component grades and published manifest without replay writes")
+	var unsafe_read := func(_slot: String) -> Dictionary:
+		return {"accepted": true, "record": {"inspected": [], "manifest_published": false, "unsupported": true}}
+	_check(not bool(fresh.configure_persistence(unsafe_read, _write_inspection).accepted)
+		and fresh.get_snapshot().inspected.size() == 3 and bool(fresh.get_snapshot().manifest_published)
+		and _inspection_write_calls == writes,
+		"unsupported slot data refuses rebinding without erasing earned state or overwriting another format")
+	_check(not INSPECTION.is_valid_persistence_record({"inspected": ["field_coil", "field_coil"], "manifest_published": false})
+		and not INSPECTION.is_valid_persistence_record({"inspected": ["field_coil"], "manifest_published": true}),
+		"duplicate component records and fabricated incomplete manifests fail the production parser")
+	var detached_snapshot := fresh.get_snapshot()
+	(detached_snapshot.inspected as Array).clear()
+	_check(fresh.get_snapshot().inspected.size() == 3 and not bool(fresh.get_snapshot().inventory_authority)
+		and not bool(fresh.get_snapshot().reward_authority) and bool(module.get_audit_report().valid),
+		"inspection snapshots are detached and world-owned content preserves geometry-only terrace authority")
+	fresh.queue_free()
+	await process_frame
+	var unsupported := INSPECTION.new()
+	unsupported.transform = module.transform
+	_test_root.add_child(unsupported)
+	await process_frame
+	_inspection_owner = unsupported
+	unsupported.configure_persistence(unsafe_read, _write_inspection)
+	walked = await _walk_inspection_to(player, module, Vector3(-16.0, 0.0, 7.0))
+	var unsupported_coil := unsupported.get_interactable(&"field_coil")
+	_check(walked and bool(unsupported_coil.call("interact", player))
+		and unsupported.get_snapshot().inspected == ["field_coil"]
+		and bool(unsupported.get_snapshot().save_pending) and _inspection_write_calls == writes,
+		"genuine new observation stays pending behind an unsupported stored record without invoking its writer")
+	unsupported.queue_free()
+	player.queue_free()
+	_inspection_owner = null
+	_inspection_actor = null
+	_release_actions()
+	await process_frame
+	await physics_frame
+
+
+func _walk_inspection_to(player: PlayerController, module: SalvageTerrace, destination: Vector3) -> bool:
+	var world_destination := module.to_global(destination)
+	var direction := world_destination - player.global_position
+	direction.y = 0.0
+	player.global_basis = Basis.looking_at(direction.normalized(), Vector3.UP)
+	Input.action_press(&"move_forward")
+	var reached := false
+	for _frame in 240:
+		await physics_frame
+		await process_frame
+		var offset := world_destination - player.global_position
+		offset.y = 0.0
+		if offset.length() <= 0.20:
+			reached = true
+			break
+	_release_actions()
+	for _settle in 4:
+		await physics_frame
+	player.global_basis = module.global_basis * Basis(Vector3.UP, PI)
+	return reached and player.is_on_floor()
+
+
+func _read_inspection(slot: String) -> Dictionary:
+	var loaded := _inspection_store.load()
+	if not bool(loaded.accepted) or _inspection_store.get_loaded_source() == &"backup":
+		return {"accepted": false, "reason": &"store_unavailable"}
+	return {"accepted": true, "record": _inspection_store.get_snapshot().get(slot, {})}
+
+
+func _write_inspection(slot: String, record: Dictionary) -> Dictionary:
+	_inspection_write_calls += 1
+	if _inspection_reentrant_result.is_empty():
+		_inspection_reentrant_result = _inspection_owner.call("inspect", &"relay_board", _inspection_actor)
+	var loaded := _inspection_store.load()
+	if not bool(loaded.accepted) or _inspection_store.get_loaded_source() == &"backup":
+		return {"accepted": false, "reason": &"store_unavailable"}
+	var payload := _inspection_store.get_snapshot()
+	payload[slot] = record.duplicate(true)
+	var generation := _inspection_store.get_generation()
+	return _inspection_store.commit(payload, generation, "salvage-inspection-%d" % (generation + 1))
 
 
 func _test_mutations_turn_audit_red(module: SalvageTerrace) -> void:
