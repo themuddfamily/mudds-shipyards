@@ -376,7 +376,6 @@ func _host_moving_gunner(owner: CrewSeatRoleAuthority, receipts: Array[Dictionar
 	var cursor := _helm_cursor(helm)
 	_game._reset_solo_gunner_input()
 	_check(_helm_cursor(helm) == cursor and _craft.get_command_source() == helm, "retiring retained gunner input leaves remote helm stream and cursor untouched")
-	source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
 	await _host_gunner_shot("TargetDrone02", receipts)
 	await _press(&"interact")
 	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving gunner stand restores supported cabin controls")
@@ -424,8 +423,16 @@ func _host_gunner_shot(target_name: String, receipts: Array[Dictionary]) -> void
 	var actor := StringName("1:%s" % GameFlow.SOLO_CREW_AVATAR_ID)
 	var source := _craft.get_local_input_source()
 	await _look(target.global_position)
+	# Actual private-window focus and the charge share the existing eight-second
+	# budget. Never grant sampling permission through a synthetic notification.
+	var deadline := Time.get_ticks_msec() + 8000
+	root.grab_focus()
+	var focused := await _until(func(): return root.has_focus() and Window.get_focused_window() == root and bool(source.call(&"_is_input_sampling_active")), maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0))
+	_check(focused, "real private host Window and local sampler are active before moving FIRE: " + target_name)
+	if not focused:
+		return
 	Input.action_press(source.fire_action)
-	var fired := await _until(func(): return int((_craft.get_gunner_gameplay_state().role_ammunition as Dictionary).get(actor, 2)) < 2, 8.0)
+	var fired := await _until(func(): return int((_craft.get_gunner_gameplay_state().role_ammunition as Dictionary).get(actor, 2)) < 2, maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0))
 	Input.action_release(source.fire_action)
 	await _ticks(8)
 	_check(fired and int((_craft.get_gunner_gameplay_state().role_ammunition as Dictionary).get(actor, 2)) == 1 and receipts.size() == before + 1, "ordinary moving host held FIRE resolves exactly one real charge and ammunition debit: " + target_name)
@@ -470,9 +477,15 @@ func _client_pilot_host_gunner() -> void:
 		return
 	_check(_game._network_client_boarding_claim.get("role") == &"pilot", "actual client boarding receipt grants only the pilot role")
 	var source := _craft.get_local_input_source()
-	source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	# Focus acquisition consumes the existing five-second engine/motion budget.
+	var deadline := Time.get_ticks_msec() + 5000
+	root.grab_focus()
+	var focused := await _until(func(): return root.has_focus() and Window.get_focused_window() == root and bool(source.call(&"_is_input_sampling_active")), maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0))
+	_check(focused, "real private client Window and local sampler are active before ordinary pilot throttle")
+	if not focused:
+		return
 	Input.action_press(source.throttle_forward_action, 0.15)
-	_check(await _until(func(): return _craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and _craft.velocity.length() > 0.1, 5.0), "ordinary confirmed client throttle starts the engine and actual craft motion")
+	_check(await _until(func(): return _craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and _craft.velocity.length() > 0.1, maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0)), "ordinary confirmed client throttle starts the engine and actual craft motion")
 	_write("client.pilot_moving", {})
 	if not await _wait_file("host.moving_checked", 60.0):
 		Input.action_release(source.throttle_forward_action)
