@@ -719,6 +719,7 @@ func _test_interrupted_cargo_recovery() -> void:
 	first.cargo_delivery_activity.advance_physics(0.75, generation)
 	var saved := first.save_jovian_cargo_session()
 	var active_capture := first.cargo_delivery_activity.capture_persistence_state()
+	var active_primary := FileAccess.get_file_as_bytes(path)
 	_check(bool(started.accepted) and bool(saved.accepted) and int(active_capture.next_phase_index) == 1,
 		"actual departed Jovian cargo saves its live phase, clock and generation to real disk (%s)" % saved.get("reason", ""))
 	if not bool(saved.accepted):
@@ -766,6 +767,8 @@ func _test_interrupted_cargo_recovery() -> void:
 	var fresh_store := fresh.get("_runtime_settings_user_data_store") as UserDataStore
 	_check(_cargo_receipts(fresh) == 1 and fresh_store.get_snapshot().jovian_cargo_session.activities[0].reward_granted,
 		"retry atomically acknowledges the exact completed delivery with one saved reward receipt")
+	var paid_primary := FileAccess.get_file_as_bytes(path)
+	var unpaid_backup := FileAccess.get_file_as_bytes(path + ".bak")
 	var owner := fresh.cargo_delivery_activity
 	var before := owner.capture_persistence_state()
 	var before_inventory := fresh.cargo_transfer_authority.to_dictionary()
@@ -856,6 +859,84 @@ func _test_interrupted_cargo_recovery() -> void:
 		and bool(last.call("_complete_cargo_delivery_on_return")) and _cargo_receipts(last) == 3,
 		"restart then ordinary next delivery transfers the final actual kits and grants its new generation once")
 	await _clean_up(last)
+	await _test_cargo_fallback_refusal(active_primary, unpaid_backup, paid_primary, generation)
+
+
+func _test_cargo_fallback_refusal(active: PackedByteArray, unpaid: PackedByteArray,
+		paid: PackedByteArray, generation: int) -> void:
+	for kind: String in ["active", "unpaid"]:
+		var path := "user://jovian-fallback-%s-%d.json" % [kind, Time.get_ticks_usec()]
+		var fallback := active if kind == "active" else unpaid
+		var older: Dictionary = JSON.parse_string(fallback.get_string_from_utf8()).payload.jovian_cargo_session.activities[0]
+		var newer: Dictionary = JSON.parse_string(paid.get_string_from_utf8()).payload.jovian_cargo_session.activities[0]
+		_check(int(older.state) == (CargoDeliveryActivity.State.ACTIVE if kind == "active" else CargoDeliveryActivity.State.COMPLETED)
+			and not older.reward_granted and newer.reward_granted and int(newer.generation) == generation,
+			"fallback fixture retains genuine older %s and newer paid cargo documents" % kind)
+		var writer := FileAccess.open(path + ".paid-witness", FileAccess.WRITE)
+		writer.store_buffer(paid)
+		writer.close()
+		writer = FileAccess.open(path, FileAccess.WRITE)
+		writer.store_string("corrupt newer paid Jovian primary")
+		writer.close()
+		writer = FileAccess.open(path + ".bak", FileAccess.WRITE)
+		writer.store_buffer(fallback)
+		writer.close()
+		var preflight := Store.new(path) as UserDataStore
+		_check(preflight.load().accepted and preflight.get_loaded_source() == &"backup",
+			"the existing store selects and quarantines the genuinely corrupt cargo primary")
+		var artifacts := _cargo_recovery_artifacts(path)
+		_check(artifacts.get(path + ".recovery") == "corrupt newer paid Jovian primary".to_utf8_buffer(),
+			"the original corrupt primary remains an exact recovery witness")
+		for attempt in 2:
+			var game := await _make_disk_game(path, UserDataFilesystem.new())
+			var report := game.get_activity_integration_report()
+			var shared := game.get("_runtime_settings_user_data_store") as UserDataStore
+			_check(game.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.IDLE
+				and game.cargo_delivery_activity.get_generation() == 0
+				and _manifest_quantity(report.cargo_source_manifest) == 6
+				and _manifest_quantity(report.cargo_destination_manifest) == 0
+				and (game.get("_owed_game_flow_activity_rewards") as Array).is_empty(),
+				"fresh Main refuses %s fallback lifecycle, inventory and earned-debt adoption" % kind)
+			var before := game.cargo_delivery_activity.capture_persistence_state()
+			var before_receipts := _cargo_receipts(game)
+			var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY)
+			var started := game.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
+			var reset := game.reset_active_activity()
+			var after_selection := game.get_activity_integration_report()
+			_check(not bool(selected.accepted) and selected.reason == &"outgoing_family_save_rejected"
+				and after_selection.selected_activity_kind == report.selected_activity_kind
+				and after_selection.active_activity_id == report.active_activity_id
+				and not bool(started.accepted) and started.reason == &"unsupported_activity" and not reset
+				and game.cargo_delivery_activity.capture_persistence_state() == before
+				and after_selection.cargo_source_manifest == report.cargo_source_manifest
+				and after_selection.cargo_destination_manifest == report.cargo_destination_manifest
+				and (game.get("_owed_game_flow_activity_rewards") as Array).is_empty()
+				and _cargo_recovery_artifacts(path) == artifacts,
+				"ordinary cargo selection, Start and Reset cannot adopt fallback progress or publish a reset")
+			var authority := game.get("_game_flow_reward_authority") as GameFlowRewardAuthority
+			var payment := authority.commit({"activity_id": GameFlow.CARGO_DELIVERY_ACTIVITY_ID,
+				"activity_generation": generation, "reward_id": GameFlowRewardAuthority.CARGO_REWARD_ID,
+				"reward_authority": false, "granted": false})
+			print("JOVIAN_FALLBACK_REFUSAL ", {"kind": kind, "attempt": attempt,
+				"restored_state": game.cargo_delivery_activity.get_state(),
+				"restore": game.get("_jovian_cargo_session_restore_status"),
+				"selection": selected, "start": started, "reset": reset, "payment": payment, "source": shared.get_loaded_source()})
+			_check(not payment.accepted and payment.reason == &"reward_store_recovery_required"
+				and game.cargo_delivery_activity.capture_persistence_state() == before
+				and _cargo_receipts(game) == before_receipts and shared.get_loaded_source() == &"backup"
+				and _cargo_recovery_artifacts(path) == artifacts,
+				"direct cargo payment refuses %s fallback across fresh Main without changing artifacts" % kind)
+			await _clean_up(game)
+			_check(_cargo_recovery_artifacts(path) == artifacts,
+				"cargo owner teardown preserves fallback and quarantine bytes for explicit recovery")
+
+
+func _cargo_recovery_artifacts(path: String) -> Dictionary:
+	var result := {}
+	for suffix: String in ["", ".bak", ".bak.1", ".bak.2", ".bak.3", ".recovery", ".tmp", ".paid-witness"]:
+		if FileAccess.file_exists(path + suffix):
+			result[path + suffix] = FileAccess.get_file_as_bytes(path + suffix)
+	return result
 
 
 func _test_unsaved_cargo_reset_recovery() -> void:
