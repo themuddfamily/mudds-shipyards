@@ -16,6 +16,7 @@ const ACTIVITY_IDS: Array[StringName] = [
 	&"cinder_platform_mining_run",
 	&"cinder_derelict_structure_scan",
 	&"cinder_debris_beacon_traversal",
+	&"cinder_asteroid_field_threading_run",
 	&"cinder_platform_supply_run",
 	&"station_defense",
 ]
@@ -205,6 +206,8 @@ func _activity_state(activity_id: StringName) -> Dictionary:
 		return _snapshot.get("structure_scan", {}) as Dictionary
 	if activity_id == &"cinder_debris_beacon_traversal":
 		return _snapshot.get("beacon_traversal", {}) as Dictionary
+	if activity_id == &"cinder_asteroid_field_threading_run":
+		return _snapshot.get("asteroid_field_run", {}) as Dictionary
 	if activity_id == &"cinder_platform_supply_run":
 		return _snapshot.get("cargo", {}) as Dictionary
 	if activity_id == &"station_defense":
@@ -327,6 +330,12 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		bool(state.get("reward_pending", state.get("reward_requested", false)))
 		or bool(cargo_progress.get("reward_retry_available", false))
 	)
+	if activity_id == &"cinder_asteroid_field_threading_run":
+		# This binding acknowledges payment with reward_requested; it is not debt.
+		reward_pending = state_id == &"completed" and not bool(state.get("reward_requested", false))
+		recovery = "START TO RETRY REWARD SAVE" if reward_pending else (
+			"RESET BEFORE RETRYING" if state_id == &"failed" else ""
+		)
 	var status_suffix := ""
 	if reward_pending and cargo_progress.is_empty() and station_defense_feedback.is_empty() and beacon_feedback.is_empty() and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \
 			and mining_feedback.is_empty():
@@ -952,6 +961,15 @@ func _convoy_feedback(state: Dictionary) -> Dictionary:
 
 
 func _progress_text(activity_id: StringName, state: Dictionary) -> String:
+	if activity_id == &"cinder_asteroid_field_threading_run":
+		var state_id := StringName(state.get("state_id", _state_label(state)))
+		if state_id == &"completed":
+			return "  //  SURVEY RECEIPT SAVED" if bool(state.get("reward_requested", false)) else ""
+		if state_id == &"failed":
+			return "  //  ASTEROID IMPACT"
+		if state_id == &"active":
+			return "  //  NEXT GATE %d/%d" % [int(state.get("next_checkpoint_index", 0)) + 1, int(state.get("checkpoint_count", 5))]
+		return "  //  FLY TO THE FIRST BELT GATE TO START"
 	if activity_id == &"cinder_debris_beacon_traversal":
 		return " (NEXT BEACON %d/%d)" % [int(state.get("next_beacon_index", 0)) + 1, int(state.get("beacon_count", 4))]
 	if activity_id == &"cinder_platform_mining_run":
@@ -1145,6 +1163,7 @@ func _title(activity_id: StringName) -> String:
 		&"cinder_platform_mining_run": "PLATFORM EXTRACTION",
 		&"cinder_derelict_structure_scan": "DERELICT SCAN",
 		&"cinder_debris_beacon_traversal": "DEBRIS BEACON RUN",
+		&"cinder_asteroid_field_threading_run": "ASTEROID THREADING RUN",
 		&"cinder_platform_supply_run": "PLATFORM SUPPLY RUN",
 		&"station_defense": "STATION DEFENSE",
 	}.get(activity_id, "ACTIVITY")

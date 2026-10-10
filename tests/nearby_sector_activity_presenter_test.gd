@@ -23,12 +23,51 @@ func _initialize() -> void:
 		activity_ids.append(str(card.get("activity_id", &"")))
 	activity_ids.sort()
 	_check(activity_ids == [
+		"cinder_asteroid_field_threading_run",
 		"cinder_debris_beacon_traversal", "cinder_derelict_structure_scan",
 		"cinder_hulk_power_restoration",
 		"cinder_platform_mining_run", "cinder_platform_supply_run",
 		"cinder_reach_checkpoint_route", "cinder_reach_emberline_convoy",
 		"cinder_relay_patrol", "station_defense",
 	], "the presenter renders each integrated activity once regardless of priority order")
+	var asteroid_id: StringName = &"cinder_asteroid_field_threading_run"
+	var idle_asteroid := _card(presenter.present({"asteroid_field_run": {
+		"state_id": &"idle", "generation": 0,
+	}}), asteroid_id)
+	_check(idle_asteroid.title == "ASTEROID THREADING RUN"
+		and "FIRST BELT GATE" in str(idle_asteroid.text)
+		and bool(idle_asteroid.actions_enabled),
+		"the real asteroid snapshot supplies an ordinary discoverable Start and Reset card")
+	var active_asteroid := _card(presenter.present({"asteroid_field_run": {
+		"state_id": &"active", "generation": 3,
+		"next_checkpoint_index": 2, "checkpoint_count": 5,
+	}}), asteroid_id)
+	_check(active_asteroid.state_id == &"active" and "NEXT GATE 3/5" in str(active_asteroid.text),
+		"the asteroid card follows the binding's actual ordered gate cursor")
+	var reset_asteroid := presenter.reset_intent(asteroid_id)
+	_check(not bool(reset_asteroid.accepted)
+		and reset_asteroid.get("reason") == &"reset_confirmation_requested"
+		and not bool(reset_asteroid.get("authority", true))
+		and bool(presenter.reset_intent(asteroid_id).accepted),
+		"active asteroid Reset uses the existing current-generation confirmation and non-authoritative intent")
+	# The binding snapshot flag means acknowledged payment, unlike the durable
+	# envelope's genuine-terminal reward_requested flag.
+	var unpaid_asteroid := _card(presenter.present({"asteroid_field_run": {
+		"state_id": &"completed", "generation": 3, "reward_requested": false,
+	}}), asteroid_id)
+	_check(bool(unpaid_asteroid.reward_pending) and "START TO RETRY REWARD SAVE" in str(unpaid_asteroid.text)
+		and bool(presenter.start_intent(asteroid_id).accepted),
+		"genuinely completed unpaid asteroid progress exposes ordinary Start to retry")
+	var paid_asteroid := _card(presenter.present({"asteroid_field_run": {
+		"state_id": &"completed", "generation": 3, "reward_requested": true,
+	}}), asteroid_id)
+	_check(not bool(paid_asteroid.reward_pending) and "SURVEY RECEIPT SAVED" in str(paid_asteroid.text)
+		and not bool(paid_asteroid.reward_authority),
+		"the acknowledged asteroid receipt is complete without duplicate reward authority")
+	var unavailable_asteroid := _card(presenter.present({"binding_available": false}), asteroid_id)
+	_check(not bool(unavailable_asteroid.actions_enabled)
+		and "FLY TOWARD CINDER REACH" in str(unavailable_asteroid.text),
+		"the asteroid card keeps existing unloaded-sector admission guidance")
 	var hulk_id: StringName = &"cinder_hulk_power_restoration"
 	var away_hulk := _card(view, hulk_id)
 	_check(away_hulk.get("state_id") == &"unavailable"
