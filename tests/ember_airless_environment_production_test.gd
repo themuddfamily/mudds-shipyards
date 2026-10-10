@@ -6,7 +6,7 @@ const AirlessEnvironmentPresentation := preload(
 	"res://scripts/world/ember_airless_environment_presentation.gd"
 )
 const STORE_PATH := "memory://ember-airless-environment-settings.json"
-const EXPECTED_ASSERTIONS := 13
+const EXPECTED_ASSERTIONS := 15
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -178,6 +178,40 @@ func _run() -> void:
 		and int((after_generation.presentation as Dictionary).coordinate_frame_generation) == 3
 		and environment.ambient_light_energy == day_energy,
 		"a later rebase advances the accepted frame without duplicate environment binding",
+	)
+	var presenter := bootstrap.get(
+		"_airless_environment_presentation"
+	) as EmberAirlessEnvironmentPresentation
+	var before_rejections := presenter.get_snapshot()
+	var location_generation := int(after_generation.presentation.location_generation)
+	_check(
+		presenter.present_accepted_sun({}, 2, location_generation, 1).reason \
+			== &"stale_coordinate_frame_generation"
+		and presenter.present_accepted_sun(
+			{}, 3 + 4_294_967_296, location_generation, 1
+		).reason == &"stale_coordinate_frame_generation"
+		and presenter.present_accepted_sun(
+			{}, 3, location_generation + 4_294_967_296, 1
+		).reason == &"stale_location_generation"
+		and presenter.get_snapshot() == before_rejections,
+		"stale and large mismatched generations reject without Environment writes",
+	)
+	var replacement_environment := environment.duplicate(true) as Environment
+	world_environment.environment = replacement_environment
+	var replacement_values := _owned_values(replacement_environment)
+	var replacement_audit := presenter.audit()
+	var replacement_result := presenter.present_accepted_sun(
+		{}, 3, location_generation, 1
+	)
+	world_environment.environment = environment
+	_check(
+		not bool(replacement_audit.valid)
+		and "authored_environment_identity_drift" in replacement_audit.errors
+		and replacement_result.reason == &"authored_environment_identity_drift"
+		and _owned_values(replacement_environment) == replacement_values
+		and presenter.get_snapshot() == before_rejections
+		and bool(presenter.audit().valid),
+		"resource replacement rejects before writes and restoring the exact resource restores validity",
 	)
 
 	player.global_position = bootstrap.global_position \
@@ -393,7 +427,7 @@ func _finish() -> void:
 			"expected %d assertions, ran %d" % [EXPECTED_ASSERTIONS, _assertions]
 		)
 	if _failures.is_empty():
-		print("EMBER_AIRLESS_ENVIRONMENT_PRODUCTION_TEST_OK: 13 assertions")
+		print("EMBER_AIRLESS_ENVIRONMENT_PRODUCTION_TEST_OK: %d assertions" % _assertions)
 		quit(0)
 		return
 	for failure in _failures:

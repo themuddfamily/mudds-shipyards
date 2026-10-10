@@ -220,13 +220,10 @@ func _identity_reason(
 		return &"authored_environment_identity_drift"
 	if sun == null or sun.get_instance_id() != _sun_instance_id:
 		return &"sun_binding_identity_drift"
-	var sun_snapshot := sun.get_snapshot()
-	if int(sun_snapshot.get("coordinate_frame_generation", 0)) \
-			!= coordinate_frame_generation:
+	if sun.get_coordinate_frame_generation() != coordinate_frame_generation:
 		return &"stale_coordinate_frame_generation"
 	if location_generation != _location_generation \
-			or int(sun_snapshot.get("location_generation", 0)) \
-			!= location_generation:
+			or sun.get_location_generation() != location_generation:
 		return &"stale_location_generation"
 	if not _black_sky_identity_is_current(environment):
 		return &"black_star_field_identity_drift"

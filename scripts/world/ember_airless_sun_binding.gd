@@ -336,6 +336,15 @@ func get_generation() -> int:
 	return _binding_generation
 
 
+## Current accepted generations, without allocating the full presentation snapshot.
+func get_coordinate_frame_generation() -> int:
+	return _last_coordinate_frame_generation
+
+
+func get_location_generation() -> int:
+	return _location_generation
+
+
 func get_directional_light() -> DirectionalLight3D:
 	return get_node_or_null(NodePath(String(LIGHT_NODE_NAME))) as DirectionalLight3D
 
