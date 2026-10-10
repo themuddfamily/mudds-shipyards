@@ -25,6 +25,8 @@ func load(patrol: PatrolActivity, director: ActivityDirector) -> Dictionary:
 	var loaded := _store.load()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
+	if loaded.get("reason") == &"primary_invalid_backup_loaded":
+		return _result(false, &"patrol_session_store_recovery_required")
 	var payload := _store.get_snapshot()
 	var slot_key := String(_slot_id)
 	if not payload.has(slot_key):

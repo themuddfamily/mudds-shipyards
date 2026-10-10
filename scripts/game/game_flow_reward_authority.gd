@@ -351,6 +351,9 @@ func commit(request: Variant) -> Dictionary:
 
 	var patrol_completion: Dictionary = {}
 	if activity_id in [PATROL_ACTIVITY_ID, PLATFORM_PATROL_ACTIVITY_ID]:
+		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
 		var patrol_slot: Variant = (payload as Dictionary).get("cinder_patrol_session")
 		if not patrol_slot is Dictionary or not patrol_slot.get("activities") is Array \
 				or (patrol_slot.activities as Array).size() != 1:

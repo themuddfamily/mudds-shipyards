@@ -194,6 +194,20 @@ func _run() -> void:
 	patrol_owner.close(patrol_owner.get_generation())
 	patrol_director.free()
 
+	var patrol_without_provenance := StoreWithoutProvenance.new()
+	patrol_without_provenance.backing = store
+	var untrusted_patrol_authority := AuthorityScript.new() as GameFlowRewardAuthority
+	_check(untrusted_patrol_authority.configure(patrol_without_provenance).accepted,
+		"the existing store interface admits an eligible patrol store without recovery provenance")
+	var before_untrusted_patrol := store.get_snapshot()
+	var untrusted_patrol_request := _request(AuthorityScript.PATROL_ACTIVITY_ID, 1, AuthorityScript.PATROL_REWARD_ID)
+	var untrusted_patrol := untrusted_patrol_authority.commit(untrusted_patrol_request)
+	var untrusted_patrol_retry := untrusted_patrol_authority.commit(untrusted_patrol_request)
+	_check(not untrusted_patrol.accepted and untrusted_patrol.reason == &"reward_store_recovery_required"
+		and not untrusted_patrol_retry.accepted and untrusted_patrol_retry.reason == &"reward_store_recovery_required"
+		and patrol_without_provenance.commit_calls == 0 and store.get_snapshot() == before_untrusted_patrol,
+		"missing patrol recovery provenance refuses repeated payment without writing or stranding the authority")
+
 	var patrol := authority.commit(_request(
 		&"cinder_relay_patrol",
 		1,

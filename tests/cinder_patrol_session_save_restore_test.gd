@@ -6,6 +6,7 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const ROUTE := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
+const PLATFORM_ROUTE := preload("res://assets/activities/cinder_reach_platform_patrol_route.tres")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Filesystem := preload("res://scripts/persistence/user_data_filesystem.gd")
 const SessionPersistence := preload(
@@ -126,6 +127,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--backup-recovery"):
+		await _test_platform_patrol_fallback_refusal()
+		_finish()
+		return
 	if OS.get_cmdline_user_args().has("--genuine-write-recovery"):
 		await _test_genuine_write_recovery()
 		await _test_reset_branch_choice_recovery()
@@ -645,6 +650,123 @@ func _connect_rejection_signal_counts(
 		func(_activity_id: StringName, _generation: int) -> void:
 			counts.director = int(counts.director) + 1
 	)
+
+
+func _test_platform_patrol_fallback_refusal() -> void:
+	var path := "user://platform_patrol_fallback_source_%d.json" % Time.get_ticks_usec()
+	var filesystem := InterruptedPatrolRewardFilesystem.new()
+	var store := Store.new(path, filesystem) as UserDataStore
+	var game := await _make_game(store)
+	if game == null:
+		return
+	game.set_physics_process(false)
+	var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_PATROL)
+	var patrol := game.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+	var button := game.get_node("HUD").find_child("PlatformSweepPatrolBranchButton", true, false) as Button
+	_check(button != null and not button.disabled, "real Main exposes the ordinary Platform Patrol branch choice")
+	if button == null or button.disabled:
+		await _retire_game(game)
+		return
+	button.pressed.emit()
+	game.active_ship = game.get_flyable_ships()[1]
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var started := game.request_activity_start(PLATFORM_ROUTE.activity_id)
+	game.active_ship.global_position = PLATFORM_ROUTE.get_checkpoint_position(0)
+	game.call("_physics_process", 0.0)
+	game.call("_physics_process", patrol.dwell_seconds)
+	var active := FileAccess.get_file_as_bytes(path)
+	_check(bool(selected.get("accepted", false)) and bool(started.get("accepted", false))
+		and patrol.get_state() == PatrolActivity.State.ACTIVE
+		and patrol.get_selected_branch_id() == PatrolActivity.BRANCH_PLATFORM_SWEEP
+		and int(_stored_patrol_state(store).get("next_checkpoint_index", -1)) == 1,
+		"actual Main earns and saves Platform Patrol ACTIVE progress through its first dwell")
+	for checkpoint in range(1, PLATFORM_ROUTE.get_checkpoint_count()):
+		game.active_ship.global_position = PLATFORM_ROUTE.get_checkpoint_position(checkpoint)
+		game.call("_physics_process", 0.0)
+		game.call("_physics_process", patrol.dwell_seconds)
+	var unpaid := FileAccess.get_file_as_bytes(path)
+	_check(patrol.get_state() == PatrolActivity.State.COMPLETED and filesystem.reward_rejected
+		and filesystem.stopped and _patrol_receipts(game) == 0,
+		"the same genuine Platform Patrol saves its terminal debt before payment is interrupted")
+	filesystem.interrupt_rewards = false
+	filesystem.stopped = false
+	game.call("_retry_owed_game_flow_activity_rewards")
+	game.call("_retry_owed_game_flow_activity_rewards")
+	var paid := FileAccess.get_file_as_bytes(path)
+	_check(_patrol_receipts(game) == 1 and bool(store.get_snapshot().cinder_patrol_session.activities[0].reward_granted),
+		"ordinary retained debt retry publishes one real Platform Patrol receipt with its paid acknowledgement")
+	await _retire_game(game)
+	for kind: String in ["active", "unpaid"]:
+		var fallback := active if kind == "active" else unpaid
+		var older: Dictionary = JSON.parse_string(fallback.get_string_from_utf8()).payload.cinder_patrol_session.activities[0]
+		var newer: Dictionary = JSON.parse_string(paid.get_string_from_utf8()).payload.cinder_patrol_session.activities[0]
+		_check(int(older.state) == (PatrolActivity.State.ACTIVE if kind == "active" else PatrolActivity.State.COMPLETED)
+			and not older.reward_granted and newer.reward_granted and int(older.generation) == int(newer.generation)
+			and str(older.activity_id) == String(PLATFORM_ROUTE.activity_id),
+			"fallback retains genuinely authored older Platform %s and newer paid documents" % kind)
+		var recovery_path := "user://platform_patrol_fallback_%s_%d.json" % [kind, Time.get_ticks_usec()]
+		var writer := FileAccess.open(recovery_path + ".paid-witness", FileAccess.WRITE)
+		writer.store_buffer(paid)
+		writer.close()
+		writer = FileAccess.open(recovery_path, FileAccess.WRITE)
+		writer.store_string("corrupt newer paid Platform Patrol primary")
+		writer.close()
+		writer = FileAccess.open(recovery_path + ".bak", FileAccess.WRITE)
+		writer.store_buffer(fallback)
+		writer.close()
+		var preflight := Store.new(recovery_path) as UserDataStore
+		_check(bool(preflight.load().get("accepted", false)) and preflight.get_loaded_source() == &"backup",
+			"the actual store selects the genuine Platform fallback and quarantines the corrupt primary")
+		var artifacts := _patrol_fallback_artifacts(recovery_path)
+		_check(artifacts.get(".recovery") == "corrupt newer paid Platform Patrol primary".to_utf8_buffer(),
+			"the actual recovery preserves the original Platform corruption witness")
+		for attempt in 2:
+			store = Store.new(recovery_path)
+			game = await _make_game(store)
+			if game == null:
+				return
+			game.set_physics_process(false)
+			patrol = game.get_activity_integration_report().get("patrol_activity") as PatrolActivity
+			var before := _canonical(patrol.capture_persistence_state())
+			var restore := game.get_cinder_patrol_session_persistence_report().restore_status as Dictionary
+			print("PLATFORM_PATROL_FALLBACK_STARTUP ", {"kind": kind, "attempt": attempt, "patrol": before,
+				"public_activity": game.get_active_activity_snapshot(), "restore": restore,
+				"receipts": _patrol_receipts(game), "source": store.get_loaded_source()})
+			_check(patrol.get_state() == PatrolActivity.State.IDLE and patrol.get_generation() == 0
+				and int(before.get("next_checkpoint_index", -1)) == 0
+				and float(before.get("elapsed_seconds", -1.0)) == 0.0
+				and not bool(restore.get("accepted", true)) and _patrol_receipts(game) == 0
+				and (game.get("_owed_game_flow_activity_rewards") as Array).is_empty(),
+				"fresh Main refuses backup-derived Platform progress and earned debt")
+			started = game.request_activity_start(PLATFORM_ROUTE.activity_id)
+			var reset := game.reset_active_activity()
+			var saved := game.save_cinder_patrol_session()
+			game.call("_retry_owed_game_flow_activity_rewards")
+			print("PLATFORM_PATROL_FALLBACK_ACTIONS ", {"start": started, "reset": reset, "save": saved,
+				"patrol": patrol.capture_persistence_state(), "source": store.get_loaded_source()})
+			_check(not bool(started.get("accepted", true)) and not reset
+				and _canonical(patrol.capture_persistence_state()) == before and _patrol_receipts(game) == 0
+				and store.get_loaded_source() == &"backup" and _patrol_fallback_artifacts(recovery_path) == artifacts,
+				"ordinary Platform Start, Reset, save and owed retry preserve untrusted fallback artifacts")
+			var authority := game.get("_game_flow_reward_authority") as GameFlowRewardAuthority
+			var payment := authority.commit({"activity_id": GameFlowRewardAuthority.PLATFORM_PATROL_ACTIVITY_ID,
+				"activity_generation": int(older.generation), "reward_id": GameFlowRewardAuthority.PATROL_REWARD_ID,
+				"reward_authority": false, "granted": false})
+			print("PLATFORM_PATROL_FALLBACK_PAYMENT ", {"kind": kind, "attempt": attempt, "payment": payment,
+				"receipts": _patrol_receipts(game), "source": store.get_loaded_source()})
+			_check(not bool(payment.get("accepted", true)) and _patrol_receipts(game) == 0
+				and store.get_loaded_source() == &"backup" and _patrol_fallback_artifacts(recovery_path) == artifacts,
+				"the production reward authority refuses the exact backup-derived Platform completion request")
+			await _retire_game(game)
+			_check(_patrol_fallback_artifacts(recovery_path) == artifacts,
+				"Platform owner teardown preserves the backup, paid witness and quarantine across recreation")
+
+
+func _patrol_fallback_artifacts(path: String) -> Dictionary:
+	var snapshot := _patrol_disk_snapshot(path)
+	snapshot[".paid-witness"] = FileAccess.get_file_as_bytes(path + ".paid-witness")
+	return snapshot
 
 
 func _test_terminal_patrol_reward_restart() -> void:
