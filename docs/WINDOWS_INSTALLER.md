@@ -8,7 +8,40 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `d4a2cc564` — 2026-10-10
+## Latest native checkpoint `b3de8e299` — 2026-10-10
+
+The matching unsigned [setup](../builds/windows/MuddsShipyards-b3de8e2-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-b3de8e2-installer-notes.txt) are published.
+Player-visible changes include the reachable Cinder Loadmaster manifest chair,
+Aft Operations signage and boarding facts. Game/payload/builder source is
+`b3de8e299`; the native verifier is `0f12b985e`.
+
+Setup SHA256 is `51cf5b9597f857adbffe13917337b6f13a608a7496836045adf3784b61508485`
+(86,791,269 bytes); payload SHA256 is
+`266fa75c7e628d911319cbea99e167d5ff750a3e421e7ddf190d9f371eec6596`.
+Fresh native silent installation and headless Dummy-audio probes pass59 checks:
+default11, hulk/pilot16, convoy/crew16 and scan/pilot16. Actual owned OS
+kill/restart, unpaid recovery and exactly-once receipts pass. Root and all lane
+owners exit0 and are reaped; final fresh CIM finds68 captured process identities
+absent, installations/registry/shortcuts removed and the250-file base profile
+unchanged. All36 raw logs retain21 menu-ready records and22 expected settings
+warnings/refusal diagnostics, with zero script/engine/leak errors.
+
+Fresh clean-source package acceptance and corrected external soak pass separately:
+all80 soak checks across12 default cycles in134.036s, actual exit0/reaped and
+stable guards. The external fixture is `a509ce4d9`; it corrects test staging beside
+a valid chair and failed-leg cleanup without changing game runtime. Its failure
+branch has static review only. Historical controlled soak and frozen full-regression
+failures remain retained. Three software VSync and seven package recovery-default
+warnings are disclosed in the notes.
+
+Root exclusive publication exits0/reaped; independent readback verifies all five
+files. Compiler metadata keeps its immutable build-time `native_verification: NOT_RUN`;
+executed acceptance is recorded separately. Full current regression is running,
+without a final result. Native graphical engineer, GPU/performance, physical
+controls/audio, human review, licensing, trusted signing and final release remain open.
+
+## Earlier native checkpoint `d4a2cc564` — 2026-10-10
 
 The unsigned [setup](../builds/windows/MuddsShipyards-d4a2cc5-setup.exe)
 and [notes](../builds/windows/MuddsShipyards-d4a2cc5-installer-notes.txt) are published.
@@ -970,7 +1003,7 @@ this is not a zero-warning qualification of every startup.
 
 ## Installed scan recovery verification
 
-The verifier extension in `0f12b985e` accepts `-InWorldRecovery -InWorldRecoveryActivity scan` with pilot context on a payload containing the production scan interruption entry. It uses the existing owned kill/wait/restart lifecycle and verifies the genuine unpaid terminal, safe-home Resume/throttle, ordinary HUD retry, exactly one permanent material sample receipt, unchanged settings/cargo and clean recovery markers. The private matching `b3de8e299` installer now passes actual native scan-pilot recovery, alongside default installation/menu, hulk-pilot and convoy-crew checks (11/16/16/16 steps). Owning processes exit 0 and are reaped; all 68 captured process identities are absent and the 250-file base user profile is unchanged. Game/builder source is `b3de8e299`; the verifier is exact `0f12b985e`. Scan recovery produces one material-sample receipt after owned kill/restart and safe-home HUD retry. These checks use headless/Dummy execution and retain expected settings/refusal diagnostics; compiled metadata stays immutable `NOT_RUN`, with actual acceptance recorded separately. Publication is held because a separate controlled current-source soak exposes unresolved Cinder boarding/interceptor launch and downstream coverage failures. Native graphical engineer, physical controls, GPU/human review, complete regression and trusted signing remain open.
+The verifier extension in `0f12b985e` accepts `-InWorldRecovery -InWorldRecoveryActivity scan` with pilot context on a payload containing the production scan interruption entry. It uses the existing owned kill/wait/restart lifecycle and verifies the genuine unpaid terminal, safe-home Resume/throttle, ordinary HUD retry, exactly one permanent material sample receipt, unchanged settings/cargo and clean recovery markers. The published matching `b3de8e299` installer passes actual native scan-pilot recovery, alongside default installation/menu, hulk-pilot and convoy-crew checks (11/16/16/16 steps). Owning processes exit 0 and are reaped; all 68 captured process identities are absent and the 250-file base user profile is unchanged. Game/builder source is `b3de8e299`; the verifier is exact `0f12b985e`. Scan recovery produces one material-sample receipt after owned kill/restart and safe-home HUD retry. These checks use headless/Dummy execution and retain expected settings/refusal diagnostics; compiled metadata stays immutable `NOT_RUN`, with actual acceptance recorded separately. Publication followed corrected source and Windows-package soak acceptance: all80 checks pass after fixing test hatch staging and failed-leg cleanup; earlier failed records are retained. The full current-source regression is running with no final result. Native graphical engineer, physical controls, GPU/human review, complete regression and trusted signing remain open.
 
 The existing focused suite passes 16 tests, including executable Linux PowerShell fixture/mutation checks on exact committed verifier bytes. These tests do not qualify an installed Windows payload.
 

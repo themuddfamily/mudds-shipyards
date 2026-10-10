@@ -30,14 +30,16 @@ physical devices, human review, complete regression and this archive's desktop
 helper execution remain NOT_RUN. Windows package and installer qualification
 are separate; this publication does not close a roadmap phase or completion task.
 
-Known current-source issue: the subsequent controlled twelve-cycle soak on
-`b3de8e299` exits 1 with seven failure diagnostics (60/67 executed checks;
-intended 80-check coverage is incomplete). Cinder cargo boarding fails in cycles
-3 and 12, and interceptor launch fails in cycle 4, with downstream return,
-activity and re-entry coverage failures. The separate four-cycle lifecycle
-passes 204 checks. Causes remain unproven; these findings are retained while
-interaction/admission and craft handoff are investigated. The original published
-notes retain their build-time acceptance scope.
+Retained soak history: the subsequent controlled twelve-cycle source run on
+`b3de8e299` failed with seven diagnostics (60/67 executed checks), while the
+four-cycle lifecycle passed204. Diagnosis proved test staging selected a valid
+Loadmaster chair and failed-leg cleanup retained cabin ownership. Reviewed
+external fixture `a509ce4d9` corrects hatch staging and requested-craft admission;
+its default twelve-cycle source and frozen Windows-package runs each pass all80
+checks without production runtime changes. Earlier failed results remain retained.
+This does not establish a Linux-ELF soak pass. The original published notes keep
+their build-time acceptance scope; the complete current source regression is
+running separately, with no final result yet.
 
 ## Earlier published checkpoint: `999fee71e` — 2026-10-10
 
