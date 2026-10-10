@@ -893,8 +893,7 @@ func _test_main_durable_threading() -> void:
 	var path := "user://asteroid_durable_%d.json" % Time.get_ticks_usec()
 	var fault := FaultFilesystem.new()
 	var first := await _main_game(path, fault)
-	await _main_board(first)
-	var binding := await _main_binding(first)
+	var binding := await _main_board(first)
 	first.call("_on_settings_save_requested")
 	var store: UserDataStore = first.get("_runtime_settings_user_data_store")
 	var payload := store.get_snapshot()
@@ -937,7 +936,7 @@ func _test_main_durable_threading() -> void:
 	_check(second_binding.capture_asteroid_field_session() == saved and _main_receipts(second) == 0
 		and not second.get_guided_ship().is_piloted() and not (second.player as PlayerController).is_seated(),
 		"fresh Main restores exactly the accepted active cursor, not unsaved later progress or actors")
-	await _main_board(second)
+	second_binding = await _main_board(second)
 	for index in range(1, EXPECTED_GATE_COUNT):
 		_main_advance(second, index)
 	var terminal := second.get("_runtime_settings_user_data_store").get_snapshot()[ASTEROID_SLOT] as Dictionary
@@ -965,7 +964,7 @@ func _test_main_durable_threading() -> void:
 	var paid := third_binding.capture_asteroid_field_session()
 	_check(paid.activities[0].reward_granted and _main_receipts(third) == 1,
 		"ordinary Start pays once and atomically acknowledges the exact recovered terminal")
-	await _main_board(third)
+	third_binding = await _main_board(third)
 	_main_position(third, Beacon.BEACONS[0])
 	if not _press_start(third, Beacon.ACTIVITY_ID):
 		await _main_dispose(third)
@@ -1013,7 +1012,7 @@ func _test_main_durable_threading() -> void:
 	var fifth_binding := await _main_binding(fifth)
 	_check(fifth_binding.capture_asteroid_field_session() == reset and _main_receipts(fifth) == 2,
 		"fresh Main restores the reset generation without old debt or actor restoration")
-	await _main_board(fifth)
+	fifth_binding = await _main_board(fifth)
 	_main_position(fifth, THREADING_ROUTE.get_checkpoint_position(0))
 	if not _press_start(fifth, EXPECTED_ACTIVITY_ID):
 		await _main_dispose(fifth)
@@ -1080,8 +1079,7 @@ func _reset_callback_fence() -> void:
 	var path := "user://asteroid_callback_%d.json" % Time.get_ticks_usec()
 	var fault := FaultFilesystem.new()
 	var game := await _main_game(path, fault)
-	await _main_board(game)
-	var binding := await _main_binding(game)
+	var binding := await _main_board(game)
 	_main_position(game, THREADING_ROUTE.get_checkpoint_position(0))
 	if not _press_start(game, EXPECTED_ACTIVITY_ID):
 		await _main_dispose(game)
@@ -1115,7 +1113,7 @@ func _legacy_paid_floor(path: String) -> void:
 		and binding.get_activity_snapshot(&"asteroid_field_run").state_id == &"idle"
 		and game.get("_runtime_settings_user_data_store").get_snapshot().game_flow_reward_store == old_receipt,
 		"a safe validated legacy paid receipt supplies only an idle future-generation floor")
-	await _main_board(game)
+	binding = await _main_board(game)
 	_main_position(game, THREADING_ROUTE.get_checkpoint_position(0))
 	if not _press_start(game, EXPECTED_ACTIVITY_ID):
 		await _main_dispose(game)
@@ -1138,8 +1136,11 @@ func _main_game(path: String, filesystem: UserDataFilesystem) -> GameFlow:
 	return game
 
 
-func _main_binding(game: GameFlow) -> NearbySectorActivityBinding:
-	game.cinder_streaming_bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+func _main_binding(game: GameFlow, actor_sample: Dictionary = {}) -> NearbySectorActivityBinding:
+	if actor_sample.is_empty():
+		game.cinder_streaming_bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	else:
+		game.cinder_streaming_binding.physics_tick_from_caller_sample(0.0, actor_sample)
 	var binding: NearbySectorActivityBinding
 	for _frame in 180:
 		binding = game.call("_get_nearby_activity_binding") as NearbySectorActivityBinding
@@ -1151,7 +1152,10 @@ func _main_binding(game: GameFlow) -> NearbySectorActivityBinding:
 	return binding
 
 
-func _main_board(game: GameFlow) -> void:
+func _main_board(game: GameFlow) -> NearbySectorActivityBinding:
+	var previous_binding := game.call("_get_nearby_activity_binding") as NearbySectorActivityBinding
+	var previous_session := previous_binding.capture_asteroid_field_session() \
+		if is_instance_valid(previous_binding) else {}
 	var pending := game.get_recovery_available_snapshot()
 	if not pending.is_empty():
 		var store: UserDataStore = game.get("_runtime_settings_user_data_store")
@@ -1177,6 +1181,14 @@ func _main_board(game: GameFlow) -> void:
 	_check(craft.is_piloted() and game.player.is_seated_at(craft.get_pilot_seat_anchor()),
 		"actual production pilot boarding supplies genuine Main ship samples")
 	game.set_physics_process(false)
+	# Home boarding can retire Cinder. Admit the real boarded ship sample at
+	# the first authored gate before using any streamed activity owner again.
+	_main_position(game, THREADING_ROUTE.get_checkpoint_position(0))
+	var current := await _main_binding(game, game.call("_capture_cinder_actor_sample") as Dictionary)
+	if not previous_session.is_empty():
+		_check(is_instance_valid(current) and current.capture_asteroid_field_session() == previous_session,
+			"post-boarding current streamed owner restores the exact legitimate asteroid session")
+	return current
 
 
 func _main_position(game: GameFlow, authored_position: Vector3) -> void:
