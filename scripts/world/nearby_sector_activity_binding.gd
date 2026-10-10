@@ -2222,12 +2222,77 @@ func get_asteroid_field_reward_handoff_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
+func capture_asteroid_field_session() -> Dictionary:
+	if _asteroid_run_director == null:
+		return {}
+	var state := _asteroid_run_director.capture_activity_persistence_state(ASTEROID_RUN_ACTIVITY_ID)
+	return NearbySectorActivitySessionAdapter.capture_asteroid_session(state, _asteroid_run_reward_requested) if not state.is_empty() else {}
+
+
+func restore_asteroid_field_session(record: Dictionary) -> Dictionary:
+	var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(record)
+	if not checked.accepted or _asteroid_run_director == null:
+		return checked if not checked.accepted else _result(false, &"not_ready")
+	var entry := record.activities[0] as Dictionary
+	var restored := _asteroid_run_director.restore_activity_persistence_state(ASTEROID_RUN_ACTIVITY_ID, entry.progress)
+	if bool(restored.get("accepted", false)):
+		_asteroid_run_reward_requested = entry.reward_granted
+		_asteroid_run_rewarded_generation = int(entry.generation) if entry.reward_granted else -1
+		_last_asteroid_run_feedback_reason = &""
+		_last_asteroid_run_reward_result.clear()
+		_publish_asteroid_run_presentation()
+	return restored
+
+
+func restore_asteroid_generation_floor(generation: int) -> Dictionary:
+	if _asteroid_run_director == null or generation < 1 or generation > CheckpointRouteActivity.MAX_PERSISTED_GENERATION:
+		return _result(false, &"asteroid_generation_floor_invalid")
+	var state := CheckpointRouteActivity.new(ASTEROID_RUN_ROUTE).capture_persistence_state()
+	state.generation = generation
+	return _asteroid_run_director.restore_activity_persistence_state(ASTEROID_RUN_ACTIVITY_ID, state)
+
+
+func acknowledge_asteroid_field_reward(record: Dictionary) -> Dictionary:
+	var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(record)
+	if not checked.accepted:
+		return checked
+	var current := capture_asteroid_field_session()
+	var entry := record.activities[0] as Dictionary
+	if current.is_empty() or not entry.reward_granted or current.activities[0].progress != entry.progress:
+		return _result(false, &"asteroid_payment_generation_mismatch")
+	_asteroid_run_reward_requested = true
+	_asteroid_run_rewarded_generation = int(entry.generation)
+	_publish_asteroid_run_presentation()
+	return _result(true, &"asteroid_payment_recovered")
+
+
+func prepare_asteroid_field_reset() -> Dictionary:
+	if _asteroid_run_director == null:
+		return _result(false, &"not_ready")
+	if _has_pending_asteroid_field_reward():
+		return _result(false, &"asteroid_field_reward_save_pending")
+	var before := _asteroid_run_director.get_activity_snapshot(ASTEROID_RUN_ACTIVITY_ID)
+	var prepared := _asteroid_run_director.preview_activity_reset_state(ASTEROID_RUN_ACTIVITY_ID, int(before.get("generation", -1)))
+	if bool(prepared.get("accepted", false)):
+		prepared["session_record"] = NearbySectorActivitySessionAdapter.capture_asteroid_session(prepared.persistence_state, false)
+	return prepared
+
+
+func _has_pending_asteroid_field_reward() -> bool:
+	if _asteroid_run_director == null or not _asteroid_run_reward_sink.is_valid():
+		return false
+	var state := _asteroid_run_director.get_activity_snapshot(ASTEROID_RUN_ACTIVITY_ID)
+	return int(state.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED and not _asteroid_run_reward_requested
+
+
 ## Admission is the first gate itself. The gate sits inside the belt, off the
 ## safe lane, so a pilot who has not actually flown into the rock cannot open a
 ## run from the comfort of the beacon chain.
 func start_asteroid_field_run(caller_position: Vector3) -> Dictionary:
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
+	if _has_pending_asteroid_field_reward():
+		return _result(false, &"asteroid_field_reward_save_pending")
 	var first_gate := ASTEROID_RUN_ROUTE.get_checkpoint_position(0)
 	if not caller_position.is_finite() \
 			or caller_position.distance_to(first_gate) > ASTEROID_RUN_ROUTE.checkpoint_radius:
@@ -2389,6 +2454,8 @@ func get_last_asteroid_field_run_reward_result() -> Dictionary:
 func reset_asteroid_field_run() -> Dictionary:
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
+	if _has_pending_asteroid_field_reward():
+		return _result(false, &"asteroid_field_reward_save_pending")
 	var before := _asteroid_run_director.get_activity_snapshot(ASTEROID_RUN_ACTIVITY_ID)
 	var accepted := _asteroid_run_director.reset_activity(
 		ASTEROID_RUN_ACTIVITY_ID, int(before.get("generation", -1))

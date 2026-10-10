@@ -589,6 +589,17 @@ func _verify_main_unpaid_recovery() -> void:
 	_check(first.cargo_delivery_activity.start(first.cargo_delivery_activity.get_generation()).accepted
 		and first.save_jovian_cargo_session().accepted, "the real cargo owner stores its unrelated production namespace")
 	fault.reject_rewards = false
+	var asteroid_route := CheckpointRouteActivity.new(NearbySectorActivitySessionAdapter.ASTEROID_ROUTE)
+	asteroid_route.start()
+	for index in asteroid_route.definition.get_checkpoint_count():
+		asteroid_route.submit_position(asteroid_route.definition.get_checkpoint_position(index), asteroid_route.get_generation())
+	var reward_store: UserDataStore = first.get("_runtime_settings_user_data_store")
+	var unrelated_payload := reward_store.get_snapshot()
+	unrelated_payload[NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT] = NearbySectorActivitySessionAdapter.capture_asteroid_session(
+		asteroid_route.capture_persistence_state(), false)
+	_check(asteroid_route.get_state() == CheckpointRouteActivity.State.COMPLETED
+		and reward_store.commit(unrelated_payload, reward_store.get_generation(), "unit-defense-earned-asteroid").accepted,
+		"the independent asteroid route genuinely clears before its unrelated reward handoff")
 	var unrelated: Dictionary = first.call("_commit_game_flow_activity_reward", {
 		"activity_id": GameFlowRewardAuthority.CINDER_ASTEROID_RUN_ACTIVITY_ID, "activity_generation": 1,
 		"reward_id": GameFlowRewardAuthority.CINDER_ASTEROID_RUN_REWARD_ID, "reward_authority": false, "granted": false})

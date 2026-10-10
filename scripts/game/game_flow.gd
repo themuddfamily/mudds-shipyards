@@ -737,6 +737,7 @@ var _last_cinder_beacon_traversal_reward_result: Dictionary = {}
 var _cinder_scan_checkpoint_elapsed := 0.0
 var _cinder_scan_session_owner: WeakRef
 var _cinder_beacon_session_owner: WeakRef
+var _cinder_asteroid_session_owner: WeakRef
 var _cinder_asteroid_field_reward_configuration: Dictionary = {}
 var _last_cinder_asteroid_field_reward_result: Dictionary = {}
 var _cinder_beacon_hud_elapsed := 0.0
@@ -18581,9 +18582,11 @@ func _advance_cinder_asteroid_field_run(
 		&"advance_asteroid_field_run_from_caller_sample", caller_position
 	) as Dictionary
 	var completed := StringName(advanced.get("state_id", &"")) == &"completed"
+	if bool(advanced.get("accepted", false)) and _game_flow_reward_authority != null:
+		advanced["persistence_result"] = _save_cinder_asteroid_session(binding)
 	if completed:
 		var reward := (
-			binding.call(&"request_asteroid_field_run_reward") as Dictionary
+			_request_cinder_asteroid_field_reward(binding)
 			if reward_handoff_ready else {
 				"accepted": false,
 				"reason": &"asteroid_field_reward_handoff_unavailable",
@@ -18618,7 +18621,121 @@ func _configure_cinder_asteroid_field_reward_handoff(binding: Object) -> Diction
 			&"configure_asteroid_field_reward_handoff",
 			Callable(self, &"_commit_game_flow_activity_reward"),
 		) as Dictionary
+	if bool(_cinder_asteroid_field_reward_configuration.get("accepted", false)):
+		_cinder_asteroid_field_reward_configuration["session_result"] = _ensure_cinder_asteroid_session(binding)
 	return _cinder_asteroid_field_reward_configuration.duplicate(true)
+
+
+## Only the actual current streamed route owner can adopt safe primary state.
+func _ensure_cinder_asteroid_session(binding: Object) -> Dictionary:
+	if not is_instance_valid(binding) or binding != _get_nearby_activity_binding() \
+			or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"asteroid_session_owner_unavailable"}
+	var loaded := _runtime_settings_user_data_store.load()
+	if not bool(loaded.get("accepted", false)):
+		return loaded
+	if _runtime_settings_user_data_store.get_loaded_source() == &"backup":
+		return {"accepted": false, "reason": &"asteroid_session_store_recovery_required"}
+	if _cinder_asteroid_session_owner != null and _cinder_asteroid_session_owner.get_ref() == binding:
+		return {"accepted": true, "reason": &"asteroid_session_owner_current"}
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	if payload.has(NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT):
+		var record: Variant = payload[NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT]
+		var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(record)
+		if not checked.accepted:
+			return checked
+		var restored := binding.call("restore_asteroid_field_session", record) as Dictionary
+		if not bool(restored.get("accepted", false)):
+			return restored
+	elif _game_flow_reward_authority != null:
+		var paid_floor := int(_game_flow_reward_authority.call(&"get_asteroid_paid_generation_floor"))
+		if paid_floor > 0:
+			var adopted := binding.call("restore_asteroid_generation_floor", paid_floor) as Dictionary
+			if not bool(adopted.get("accepted", false)):
+				return adopted
+	_cinder_asteroid_session_owner = weakref(binding)
+	return {"accepted": true, "reason": &"asteroid_session_ready"}
+
+
+func _save_cinder_asteroid_session(binding: Object, prospective_record: Dictionary = {}) -> Dictionary:
+	var ready := _ensure_cinder_asteroid_session(binding)
+	if not bool(ready.get("accepted", false)):
+		return ready
+	var record := (binding.call("capture_asteroid_field_session") as Dictionary) \
+		if prospective_record.is_empty() else prospective_record.duplicate(true)
+	var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(record)
+	if not checked.accepted:
+		return checked
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	var slot := NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT
+	if payload.has(slot):
+		checked = NearbySectorActivitySessionAdapter.validate_asteroid_session(payload[slot])
+		if not checked.accepted:
+			return checked
+		var old := payload[slot].activities[0] as Dictionary
+		var next := record.activities[0] as Dictionary
+		if int(next.generation) == int(old.generation) and old.reward_granted \
+				and next.reward_requested and not next.reward_granted:
+			_commit_game_flow_activity_reward({"activity_id": NearbySectorActivitySessionAdapter.ASTEROID_ACTIVITY_ID,
+				"activity_generation": int(old.generation), "reward_id": GameFlowRewardAuthority.CINDER_ASTEROID_RUN_REWARD_ID,
+				"reward_authority": false, "granted": false})
+			return binding.call("acknowledge_asteroid_field_reward", payload[slot]) as Dictionary
+		if int(next.generation) < int(old.generation) or int(next.generation) > int(old.generation) + 1 \
+				or (old.reward_requested and not old.reward_granted and record != payload[slot]) \
+				or (int(next.generation) == int(old.generation) \
+					and int(next.progress.next_checkpoint_index) < int(old.progress.next_checkpoint_index)):
+			return {"accepted": false, "reason": &"asteroid_session_stale_or_unpaid"}
+		if record == payload[slot]:
+			return {"accepted": true, "reason": &"asteroid_session_unchanged"}
+	payload[slot] = record
+	var generation := _runtime_settings_user_data_store.get_generation()
+	var saved := _runtime_settings_user_data_store.commit(payload, generation, "game-flow-asteroid-%010d" % (generation + 1))
+	if bool(saved.get("accepted", false)):
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
+		_sync_production_runtime_settings_state()
+	return saved
+
+
+func _request_cinder_asteroid_field_reward(binding: Object) -> Dictionary:
+	if _game_flow_reward_authority == null:
+		return binding.call("request_asteroid_field_run_reward") as Dictionary
+	var saved := _save_cinder_asteroid_session(binding)
+	if not bool(saved.get("accepted", false)):
+		return {"accepted": false, "reason": &"asteroid_terminal_save_pending", "persistence_result": saved}
+	if saved.get("reason") == &"asteroid_payment_recovered":
+		saved["reward_committed"] = true
+		return saved
+	return binding.call("request_asteroid_field_run_reward") as Dictionary
+
+
+func _reset_cinder_asteroid_session(binding: Node) -> Dictionary:
+	var ready := _ensure_cinder_asteroid_session(binding)
+	if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
+		return ready
+	if _game_flow_reward_authority == null:
+		return binding.call("reset_asteroid_field_run") as Dictionary
+	var before := binding.call("capture_asteroid_field_session") as Dictionary
+	var prepared := binding.call("prepare_asteroid_field_reset") as Dictionary
+	if not bool(prepared.get("accepted", false)):
+		return prepared
+	var record := prepared.session_record as Dictionary
+	var saved := _save_cinder_asteroid_session(binding, record)
+	if not bool(saved.get("accepted", false)):
+		if not bool(saved.get("published", false)):
+			return {"accepted": false, "reason": &"asteroid_reset_save_pending", "persistence_result": saved}
+		var loaded := _runtime_settings_user_data_store.load()
+		if not bool(loaded.get("accepted", false)) or _runtime_settings_user_data_store.get_loaded_source() != &"primary" \
+				or _runtime_settings_user_data_store.get_snapshot().get(NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT) != record:
+			return {"accepted": false, "reason": &"asteroid_reset_save_pending", "persistence_result": saved}
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation())
+		_sync_production_runtime_settings_state()
+	if not is_inside_tree() or is_queued_for_deletion() or not is_instance_valid(binding) \
+			or binding.is_queued_for_deletion() or binding != _get_nearby_activity_binding() \
+			or (binding.call("capture_asteroid_field_session") as Dictionary) != before:
+		return {"accepted": false, "reason": &"asteroid_reset_owner_changed", "persistence_result": saved}
+	var reset := binding.call("reset_asteroid_field_run") as Dictionary
+	reset["persistence_result"] = saved
+	return reset
 
 
 func _cinder_asteroid_field_reward_handoff_ready(binding: Object) -> bool:
@@ -20099,6 +20216,9 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 				started["persistence_result"] = _save_cinder_beacon_session(binding)
 			return started
 		&"cinder_asteroid_field_threading_run":
+			var ready := _ensure_cinder_asteroid_session(binding)
+			if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
+				return ready
 			var belt_run := (
 				(binding.call(&"get_snapshot") as Dictionary).get(
 					"asteroid_field_run", {}
@@ -20114,17 +20234,18 @@ func _start_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 						"accepted": false,
 						"reason": &"asteroid_field_reward_handoff_unavailable",
 					}
-				var belt_retry := binding.call(
-					&"request_asteroid_field_run_reward"
-				) as Dictionary
+				var belt_retry := _request_cinder_asteroid_field_reward(binding)
 				_last_cinder_asteroid_field_reward_result = belt_retry.duplicate(true)
 				_present_cinder_asteroid_field_completion(belt_retry)
 				return belt_retry
-			return binding.call(
+			var started := binding.call(
 				&"start_asteroid_field_run",
 				_cinder_authored_frame_position(active_ship.global_position)
 					if is_instance_valid(active_ship) else Vector3.ZERO,
-			)
+			) as Dictionary
+			if bool(started.get("accepted", false)) and _game_flow_reward_authority != null:
+				started["persistence_result"] = _save_cinder_asteroid_session(binding)
+			return started
 		&"cinder_platform_supply_run":
 			var cargo := (
 				(binding.call(&"get_snapshot") as Dictionary).get("cargo", {})
@@ -20198,7 +20319,7 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 			reset["persistence_result"] = saved
 			return reset
 		&"cinder_asteroid_field_threading_run":
-			return binding.call(&"reset_asteroid_field_run")
+			return _reset_cinder_asteroid_session(binding)
 		&"cinder_platform_supply_run": return binding.call(&"reset_cargo_run")
 		&"station_defense": return _reset_physical_station_defense_board()
 	return {"accepted": false, "reason": &"unknown_activity"}
