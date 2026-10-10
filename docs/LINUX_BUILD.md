@@ -30,6 +30,15 @@ physical devices, human review, complete regression and this archive's desktop
 helper execution remain NOT_RUN. Windows package and installer qualification
 are separate; this publication does not close a roadmap phase or completion task.
 
+Known current-source issue: the subsequent controlled twelve-cycle soak on
+`b3de8e299` exits 1 with seven failure diagnostics (60/67 executed checks;
+intended 80-check coverage is incomplete). Cinder cargo boarding fails in cycles
+3 and 12, and interceptor launch fails in cycle 4, with downstream return,
+activity and re-entry coverage failures. The separate four-cycle lifecycle
+passes 204 checks. Causes remain unproven; these findings are retained while
+interaction/admission and craft handoff are investigated. The original published
+notes retain their build-time acceptance scope.
+
 ## Earlier published checkpoint: `999fee71e` — 2026-10-10
 
 The matching [executable](../builds/linux/MuddsShipyards-999fee7.x86_64),
