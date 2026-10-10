@@ -939,8 +939,14 @@ func _test_main_durable_threading() -> void:
 		"fresh Main restores exactly the accepted active cursor, not unsaved later progress or actors")
 	await _main_board(second)
 	for index in range(1, EXPECTED_GATE_COUNT):
-		_main_advance(second, index)
+		var advanced := _main_advance(second, index)
+		print("ASTEROID_RECOVERED_ADVANCE ", {"gate": index, "result": advanced,
+			"captured_owner_valid": is_instance_valid(second_binding),
+			"current_owner_valid": is_instance_valid(second.call("_get_nearby_activity_binding"))})
 	var terminal := second.get("_runtime_settings_user_data_store").get_snapshot()[ASTEROID_SLOT] as Dictionary
+	print("ASTEROID_RECOVERED_TERMINAL ", {"durable": terminal,
+		"live": second_binding.capture_asteroid_field_session() if is_instance_valid(second_binding) else {},
+		"refused_reward": second_fault.refused_reward, "receipts": _main_receipts(second)})
 	_check(second_fault.refused_reward and terminal.activities[0].reward_requested
 		and not terminal.activities[0].reward_granted and _main_receipts(second) == 0,
 		"genuinely finishing the recovered route persists unpaid terminal before rejected payment")
@@ -1183,9 +1189,9 @@ func _main_position(game: GameFlow, authored_position: Vector3) -> void:
 	game.active_ship.global_position = game.call("_cinder_authored_frame_to_world", authored_position)
 
 
-func _main_advance(game: GameFlow, index: int) -> void:
+func _main_advance(game: GameFlow, index: int) -> Dictionary:
 	_main_position(game, THREADING_ROUTE.get_checkpoint_position(index))
-	game.call("_advance_cinder_asteroid_field_run", 0.0, game.call("_capture_cinder_actor_sample"))
+	return game.call("_advance_cinder_asteroid_field_run", 0.0, game.call("_capture_cinder_actor_sample")) as Dictionary
 
 
 func _activity_button(game: GameFlow, activity_id: StringName, index: int) -> Button:
