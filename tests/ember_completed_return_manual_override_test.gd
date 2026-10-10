@@ -292,11 +292,29 @@ func _walk_leg(player: PlayerController, region: Node3D, leg: Array) -> bool:
 	var axis := str(leg[0])
 	var bound := float(leg[1])
 	var greater := bool(leg[2])
+	var start := region.to_local(player.global_position)
+	var start_value := start.x if axis == "x" else start.z
+	var remaining_distance := maxf(
+		(bound - start_value) * (1.0 if greater else -1.0), 0.0
+	)
+	# The original tick allowance covers acceleration and route support. Add
+	# the minimum travel time at the actual production walking speed: a render
+	# wait may contain several physics steps, which must not enlarge the deadline.
+	var travel_ticks := int(ceil(
+		remaining_distance / player.walk_speed * float(Engine.physics_ticks_per_second)
+	))
 	var predicate := func() -> bool:
 		var local := region.to_local(player.global_position)
 		var value := local.x if axis == "x" else local.z
 		return value >= bound if greater else value <= bound
-	return await _walk_until(StringName(leg[3]), predicate, int(leg[4]))
+	var reached := await _walk_until(
+		StringName(leg[3]), predicate, travel_ticks + int(leg[4]), true
+	)
+	var supported := player.is_on_floor() and player.is_control_enabled()
+	print("SURVEY_ROUTE_LEG action=%s start=%s end=%s distance_m=%.6f travel_ticks=%d reserve_ticks=%d supported=%s reached=%s" % [
+		leg[3], start, region.to_local(player.global_position), remaining_distance,
+		travel_ticks, int(leg[4]), supported, reached])
+	return reached and supported
 
 
 func _landing_region(game: GameFlow) -> Node3D:
@@ -436,14 +454,23 @@ func _advance_to_phase(host: EmberSurfaceLoopHost, phase: int, tick_budget: int)
 	return host.get_phase() == phase
 
 
-func _walk_until(action: StringName, predicate: Callable, tick_budget: int) -> bool:
+func _walk_until(
+		action: StringName, predicate: Callable, tick_budget: int,
+		count_physics_steps: bool = false
+	) -> bool:
 	Input.action_press(action)
 	var ticks := 0
+	var first_physics_frame := Engine.get_physics_frames()
 	while not bool(predicate.call()) and ticks < tick_budget:
 		await physics_frame
 		await process_frame
-		ticks += 1
+		ticks = Engine.get_physics_frames() - first_physics_frame \
+			if count_physics_steps else ticks + 1
 	Input.action_release(action)
+	if count_physics_steps:
+		print("SURVEY_WALK_DEADLINE action=%s actual_physics_steps=%d budget=%d simulated_seconds=%.6f reached=%s" % [
+			action, ticks, tick_budget,
+			float(ticks) / float(Engine.physics_ticks_per_second), bool(predicate.call())])
 	for _settle_tick in 4:
 		await physics_frame
 		await process_frame
