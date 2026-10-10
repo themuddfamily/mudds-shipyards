@@ -598,6 +598,8 @@ var activity_board_console: Area3D
 var _activity_board_proximity_prompt_rendered := false
 var planetary_destination_console: Area3D
 var ship_service_console: Area3D
+var fabrication_ship_service_console: Area3D
+var _bound_ship_service_consoles: Array[Area3D] = []
 var fleet_registry_console: Area3D
 var heavy_breach_activity_board: Area3D
 var _heavy_breach_sortie_generation := 0
@@ -1425,6 +1427,7 @@ func _on_game_flow_tree_exiting() -> void:
 
 
 func _exit_tree() -> void:
+	_disconnect_ship_service_consoles()
 	_activity_board_proximity_prompt_rendered = false
 	_capture_pilot_reservation_for_reentry()
 	_minimap_pending_actor_sample.clear()
@@ -8004,13 +8007,7 @@ func _refresh_interaction_targets() -> void:
 		)
 	):
 		_bind_planetary_destination_console()
-	if (
-		not is_instance_valid(ship_service_console)
-		or not ship_service_console.is_connected(
-			&"service_requested", _on_ship_service_console_requested
-		)
-	):
-		_bind_ship_service_console()
+	_bind_ship_service_console()
 	if (
 		not is_instance_valid(fleet_registry_console)
 		or not fleet_registry_console.is_connected(
@@ -8686,16 +8683,50 @@ func _bind_planetary_destination_console() -> void:
 	_sync_planetary_cruise_hud()
 
 
+func _get_current_ship_service_consoles() -> Array[Area3D]:
+	var consoles: Array[Area3D] = []
+	if not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(world) or not world.is_inside_tree() \
+			or world.is_queued_for_deletion() or get_node_or_null(^"ShipyardWorld") != world:
+		return consoles
+	for accessor: StringName in [
+		&"get_ship_service_console", &"get_fabrication_ship_service_console"
+	]:
+		if not world.has_method(accessor):
+			continue
+		var console := world.call(accessor) as Area3D
+		if is_instance_valid(console) and console.is_inside_tree() \
+				and not console.is_queued_for_deletion() and world.is_ancestor_of(console) \
+				and not consoles.has(console):
+			consoles.append(console)
+	return consoles
+
+
+func _disconnect_ship_service_consoles() -> void:
+	for console in _bound_ship_service_consoles:
+		if is_instance_valid(console):
+			var callback := _on_ship_service_console_requested.bind(console)
+			if console.is_connected(&"service_requested", callback):
+				console.disconnect(&"service_requested", callback)
+	_bound_ship_service_consoles.clear()
+
+
 func _bind_ship_service_console() -> void:
-	if not is_instance_valid(world) or not world.has_method(&"get_ship_service_console"):
-		ship_service_console = null
-		return
-	ship_service_console = world.call(&"get_ship_service_console") as Area3D
-	_connect_signal_once(
-		ship_service_console,
-		&"service_requested",
-		_on_ship_service_console_requested
-	)
+	var current := _get_current_ship_service_consoles()
+	for console in _bound_ship_service_consoles:
+		if is_instance_valid(console) and not current.has(console):
+			var callback := _on_ship_service_console_requested.bind(console)
+			if console.is_connected(&"service_requested", callback):
+				console.disconnect(&"service_requested", callback)
+	_bound_ship_service_consoles = current
+	ship_service_console = world.call(&"get_ship_service_console") as Area3D \
+		if is_instance_valid(world) and world.has_method(&"get_ship_service_console") else null
+	fabrication_ship_service_console = world.call(&"get_fabrication_ship_service_console") as Area3D \
+		if is_instance_valid(world) and world.has_method(&"get_fabrication_ship_service_console") else null
+	for console in current:
+		_connect_signal_once(
+			console, &"service_requested", _on_ship_service_console_requested.bind(console)
+		)
 
 
 func _bind_fleet_registry_console() -> void:
@@ -8871,21 +8902,27 @@ func _on_planetary_destination_console_open_requested(actor: Node) -> void:
 ## Resolves one physical on-foot service request against the last active craft.
 ## The console owns no resource mutation; only engineer-capable craft expose the
 ## restock method, which delegates to their existing RepairAuthority.
-func _on_ship_service_console_requested(actor: Node) -> void:
+func _on_ship_service_console_requested(actor: Node, source: Area3D) -> void:
+	if not _get_current_ship_service_consoles().has(source):
+		return
+	_refresh_interaction_targets()
 	var result: Dictionary
 	if (
 		actor != player
-		or ship_service_console != station_interaction_candidate
+		or source != station_interaction_candidate
 		or _piloting
 		or _transition_busy
 		or _station_seated
 		or not is_instance_valid(player)
+		or not player.is_inside_tree() or player.is_queued_for_deletion()
+		or not is_ancestor_of(player)
 		or not player.is_control_enabled()
 		or player.is_seated()
 		or phase not in [Phase.APPROACH_SHIP, Phase.COMPLETE]
 	):
 		result = {"accepted": false, "reason": &"service_admission_rejected"}
-	elif not is_instance_valid(active_ship):
+	elif not is_instance_valid(active_ship) or not active_ship.is_inside_tree() \
+			or active_ship.is_queued_for_deletion() or not is_ancestor_of(active_ship):
 		result = {"accepted": false, "reason": &"active_ship_unavailable"}
 	elif not active_ship.has_method(&"restock_engineer_repair_kits"):
 		result = {
@@ -8896,7 +8933,7 @@ func _on_ship_service_console_requested(actor: Node) -> void:
 		}
 	else:
 		result = active_ship.call(&"restock_engineer_repair_kits") as Dictionary
-	_present_ship_service_result(result)
+	_present_ship_service_result(result, source)
 
 
 ## Rechecks the same embodied admission used by all station consoles, then
@@ -8991,11 +9028,12 @@ func _fleet_registry_state(candidate: HeroShip) -> StringName:
 	return &"available"
 
 
-func _present_ship_service_result(result: Dictionary) -> void:
-	if is_instance_valid(ship_service_console) \
-			and ship_service_console.has_method(&"present_service_result"):
-		ship_service_console.call(&"present_service_result", result.duplicate(true))
-	if not is_instance_valid(hud):
+func _present_ship_service_result(result: Dictionary, source: Area3D) -> void:
+	if not _get_current_ship_service_consoles().has(source):
+		return
+	if source.has_method(&"present_service_result"):
+		source.call(&"present_service_result", result.duplicate(true))
+	if not _get_current_ship_service_consoles().has(source) or not is_instance_valid(hud):
 		return
 	var accepted := bool(result.get("accepted", false))
 	var reason := StringName(result.get("reason", &"service_unavailable"))
