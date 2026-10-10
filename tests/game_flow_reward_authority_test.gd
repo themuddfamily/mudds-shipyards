@@ -506,11 +506,11 @@ func _stage_breach_terminal(store: UserDataStore, scenario: StringName, generati
 		"schema_version": NearbySectorActivityPersistenceBinding.SCHEMA_VERSION,
 		"payload_kind": HeavyBreachActivityBoard.SESSION_KIND,
 		"slot_id": HeavyBreachActivityBoard.SESSION_SLOT,
-		"session": {"component_id": HeavyBreachActivityBoard.COMPONENT_ID,
+		"session": {"component_id": String(HeavyBreachActivityBoard.COMPONENT_ID),
 			"generation_floor": generation,
 			"offered_index": 1 if scenario == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH else 0,
-			"completion": {"activity_id": activity, "state_id": &"concluded", "outcome": &"cleared",
-				"generation": generation, "scenario": scenario,
+			"completion": {"activity_id": String(activity), "state_id": "concluded", "outcome": "cleared",
+				"generation": generation, "scenario": String(scenario),
 				"protected_objective": "HeavyBreachProtectedObjective", "reward_granted": false}},
 	}
 	return bool(store.commit(payload, store.get_generation(), "unit-earned-breach-%d" % generation).accepted)

@@ -348,10 +348,14 @@ func _persist_earned_request(request: Dictionary) -> Dictionary:
 			if _pending_reward_request.is_empty():
 				return _result(true, &"paid_terminal_retained")
 	var completion := request.duplicate(true)
+	# UserDataStore accepts JSON Strings, not the runtime StringName identities.
+	# Convert only this board's owned terminal fields; unrelated payload stays exact.
+	for key: String in ["activity_id", "state_id", "outcome", "scenario"]:
+		completion[key] = String(completion[key])
 	completion["reward_granted"] = false
 	document[SESSION_SLOT] = {"schema_version": NearbySectorActivityPersistenceBinding.SCHEMA_VERSION,
 		"payload_kind": SESSION_KIND, "slot_id": SESSION_SLOT,
-		"session": {"component_id": COMPONENT_ID, "generation_floor": int(request.generation),
+		"session": {"component_id": String(COMPONENT_ID), "generation_floor": int(request.generation),
 			"offered_index": _offered_index, "completion": completion}}
 	return _session_store.call("commit", document, int(_session_store.call("get_generation")),
 		"heavy-breach-terminal-%d" % (int(_session_store.call("get_generation")) + 1))

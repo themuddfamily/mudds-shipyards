@@ -541,6 +541,10 @@ func _fresh_recovery_board(host: Node3D, objective: Node3D, director: EncounterS
 
 func _test_fresh_debt_recovery(host: Node3D, objective: Node3D, director: EncounterScenarioDirector, authority: LiveCombatAuthority, actor: Node3D, generation: int) -> void:
 	var staged: Dictionary = _recovery_store.get_snapshot().heavy_breach_session.session
+	_check(staged.component_id is String and staged.completion.activity_id is String
+		and staged.completion.state_id is String and staged.completion.outcome is String
+		and staged.completion.scenario is String and staged.completion.protected_objective is String,
+		"the genuinely earned terminal persists JSON string identities through the unchanged store validator")
 	_check(not staged.completion.reward_granted and int(staged.completion.generation) == generation
 		and not _recovery_store.get_snapshot().has(String(GameFlowRewardAuthority.SLOT_ID)),
 		"earned terminal write succeeds while actual rejected payment creates no receipt")
