@@ -1,0 +1,16 @@
+Mudds Shipyards709 unsigned Windows installer
+Game/builder source: 709de858a29a75373c707d73543ee798a4c49f84
+Installer SHA256: 460931a8194bdc994a264e0dd05a376416b1314b5f348fbd0085c1a6b1238c41 (86770718 bytes)
+Payload SHA256: dddf04aca1335149ee2420e9d35de5b70c78afbe884c28b18639d0e83373b640 (177747960 bytes)
+Frozen verifier source: 62db4241e3ddb2f8a381ea093530c73dcc02d376; SHA256 f06a49f780eed5e37409bc4ff4b56ae5c558a93b03e6f71dec77d0270024796b
+
+Earned hulk salvage survives an actual installed Windows process kill. Fresh installed Boot automatically commits its retained cell once before recovery observation; receipt0→1 stays1 through continuation, while unrelated settings and cargo remain unchanged. This is a staged probe: on-foot route positioning, the real breaker,180 production physics ticks and real pilot boarding arm the unpaid boundary; the existing180-second arm deadline remains unchanged. It does not establish a player-led journey or restored original airborne pose.
+
+Actual headless/Dummy native acceptance passes default11 and hulk16 steps, actual owning exits0/reaped. Both run real b86d350→709→b86d350 install/upgrade/rollback/uninstall. Locked replacement refuses with exit2 and preserves prior payload/metadata/data. Hulk arm130216 exits−1 after Windows Process.Kill/reaping; resume154320 exits0/reaped, payment_stage=boot, crash1 and clean markers. Three startup kills and fourth-boot safe-start/journal recovery, corrupt-primary backup recovery and unsupported-newer-document retention pass. Raw logs retain expected settings/newer-schema warnings: default4, hulk6; parsed log diagnostics0. Completed raw menu-ready counts default3/hulk6, all mouse-free. Inputs and frozen helper hashes remain unchanged.
+
+Each lane's independent cleanup and root fresh normalized CIM cleanup pass actual0/reaped. All seven recorded Windows PIDs are absent; owned installations, activity profiles, registry keys and shortcuts are absent. Diagnostic user-data profiles/witnesses remain retained. Native authority is released; no further actors launched. The compiler's immutable initial native_verification=NOT_RUN remains unchanged; this separate executed acceptance supplements it.
+
+Game and installer remain unsigned. Trusted signing, native GPU, physical devices/audio/human/normal-controls review, original pilot-seat world restoration, current full regression, other activity/context qualifications and final release remain NOT_RUN. Verifier62db does not change the installed709 runtime identity. Root alone publishes; staged notes are private and publication pending.
+
+Published: these independently reviewed setup bytes are now in builds/windows/. The private notes above retain their pre-publication status.
+This installer contains game source 709de858a, matching the separately published Windows/Linux checkpoint. Default11 and installed hulk pilot16 pass; other installed contexts and later source qualification remain open. Trusted signing, native GPU, human and final-release acceptance remain open.

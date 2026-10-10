@@ -8,7 +8,42 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `b86d350ff` — 2026-10-09
+## Latest native checkpoint `709de858a` — 2026-10-10
+
+The matching unsigned [setup](../builds/windows/MuddsShipyards-709de85-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-709de85-installer-notes.txt) are published.
+Setup SHA256 is `460931a8194bdc994a264e0dd05a376416b1314b5f348fbd0085c1a6b1238c41`
+(86,770,718 bytes); payload SHA256 is
+`dddf04aca1335149ee2420e9d35de5b70c78afbe884c28b18639d0e83373b640`.
+Game/builder source is `709de858a`; frozen verifier source is `62db4241e`.
+
+Actual native default11 and hulk pilot16 pass with owning exit 0/reaped,
+through `b86d350ff` → `709de858a` → `b86d350ff`. Locked replacement refuses
+with exit 2; install/update/rollback/uninstall, three startup kills and
+safe-start/journal, corrupt-primary backup recovery and unsupported-newer
+retention pass. The earned hulk terminal survives an actual owned Windows
+process kill (arm −1/reaped, resume 0/reaped). Fresh installed Boot pays one
+permanent generation-matched cell (0→1→1), preserving terminal, settings and
+actual cargo. Safe-home Resume/throttle, one crash and clean markers pass.
+This probe positions the on-foot route before the real breaker and 180
+production physics ticks; it does not qualify ordinary physical travel or
+restore the original airborne pose.
+
+Root and independent review verify 96 retained hashes and actual raw/saved
+records: 14 logs, nine parsed mouse-free menu-ready records, zero diagnostics
+and ten expected startup warnings (default four, hulk six). Both activity logs
+have zero warnings. Per-lane cleanup and root fresh normalized CIM pass;
+all seven recorded Windows PIDs and owned installs/activity profiles/registry/
+shortcuts are absent. Diagnostic userdata remains retained. Native authority
+is released. Exclusive publication exits 0/reaped; independent five-file
+readback passes. Immutable compiler metadata retains initial `NOT_RUN`;
+separate executed acceptance supplements it.
+
+Other installed contexts, current full regression, native GPU, physical
+controls/audio, human/ordinary journey review, endurance, trusted signing and
+final release remain open. Earlier installed passes qualify their own source.
+
+## Earlier native checkpoint `b86d350ff` — 2026-10-09
 
 The matching unsigned [setup](../builds/windows/MuddsShipyards-b86d350-setup.exe)
 and [notes](../builds/windows/MuddsShipyards-b86d350-installer-notes.txt) are
