@@ -98,9 +98,9 @@ func _test_curved_operations_header(module: AftJunctionStack) -> void:
 	_check(
 		sign != null and sign_mesh != null and sign.visible
 		and sign_mesh.text == "AFT OPERATIONS"
-		and sign.position.is_equal_approx(Vector3(7.2, 3.7, 9.31))
-		and sign.rotation_degrees.is_equal_approx(Vector3(0.0, 180.0, 0.0)),
-		"AFT OPERATIONS signage remains readable at its exact approach transform"
+		and sign.position.is_equal_approx(Vector3(6.9, 4.10, 9.335))
+		and sign.rotation_degrees.is_equal_approx(Vector3.ZERO),
+		"AFT OPERATIONS signage retains its room-facing transform above the status board"
 	)
 	var audit := module.get_audit_report()
 	var evidence := module.get_evidence_metadata()
