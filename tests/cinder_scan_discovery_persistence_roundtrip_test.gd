@@ -35,6 +35,17 @@ class MemoryFilesystem extends FilesystemScript:
 		files.erase(from_path)
 		return OK
 
+class StoreWithoutProvenance extends RefCounted:
+	var backing: UserDataStore
+	var commit_calls := 0
+
+	func load() -> Dictionary: return backing.load()
+	func get_snapshot() -> Dictionary: return backing.get_snapshot()
+	func get_generation() -> int: return backing.get_generation()
+	func commit(payload: Dictionary, generation: int, commit_id: String) -> Dictionary:
+		commit_calls += 1
+		return backing.commit(payload, generation, commit_id)
+
 ## Use the production disk adapter. After the real reward is published, a
 ## directory occupies the temporary path and rejects the following discovery
 ## write through UserDataStore's normal filesystem collision check.
@@ -355,6 +366,43 @@ func _test_terminal_receipt_gate() -> void:
 			and not bool(persistence.capture(snapshot, stale_receipt).accepted),
 		"interrupted, zero, fractional, and stale generations cannot forge a completed discovery"
 	)
+
+	var unknown_store := StoreWithoutProvenance.new()
+	unknown_store.backing = reloaded_store
+	var unknown_adapter := ScanPersistenceScript.new()
+	var unknown_configured := unknown_adapter.configure(unknown_store, &"cinder_scan_discovery")
+	var before_unknown := filesystem.files.duplicate(true)
+	var unknown_load := unknown_adapter.load()
+	var unknown_load_retry := unknown_adapter.load()
+	var unknown_save := unknown_adapter.save(snapshot, receipt, "unknown-discovery")
+	var unknown_save_retry := unknown_adapter.save(snapshot, receipt, "unknown-discovery-retry")
+	_check(unknown_configured.accepted
+		and not unknown_load.accepted and unknown_load.reason == &"scan_discovery_store_recovery_required"
+		and not unknown_load_retry.accepted and unknown_load_retry.reason == &"scan_discovery_store_recovery_required"
+		and not unknown_save.accepted and unknown_save.reason == &"scan_discovery_store_recovery_required"
+		and not unknown_save_retry.accepted and unknown_save_retry.reason == &"scan_discovery_store_recovery_required"
+		and unknown_store.commit_calls == 0 and filesystem.files == before_unknown,
+		"missing discovery provenance refuses repeated adoption and publication without touching the genuine receipt")
+
+	# A real subsequent transaction rotates the genuine discovery into backup.
+	# Corrupt only that newer primary, then observe the store's normal fallback.
+	var advanced := reloaded_store.commit(reloaded_store.get_snapshot(), reloaded_store.get_generation(), "after-discovery")
+	filesystem.files["memory://cinder-scan-receipt-gate.json"] = "corrupt newer discovery primary".to_utf8_buffer()
+	var fallback := reloaded_store.load()
+	_check(advanced.accepted and fallback.accepted and reloaded_store.get_loaded_source() == &"backup"
+		and reloaded_store.get_snapshot().has("cinder_scan_discovery"),
+		"the real store fallback contains the earlier genuinely completed discovery")
+	var fallback_artifacts := filesystem.files.duplicate(true)
+	var fallback_load := reloaded_persistence.load()
+	var fallback_load_retry := reloaded_persistence.load()
+	var fallback_save := reloaded_persistence.save(snapshot, receipt, "fallback-discovery")
+	var fallback_save_retry := reloaded_persistence.save(snapshot, receipt, "fallback-discovery-retry")
+	_check(not fallback_load.accepted and fallback_load.reason == &"scan_discovery_store_recovery_required"
+		and not fallback_load_retry.accepted and fallback_load_retry.reason == &"scan_discovery_store_recovery_required"
+		and not fallback_save.accepted and fallback_save.reason == &"scan_discovery_store_recovery_required"
+		and not fallback_save_retry.accepted and fallback_save_retry.reason == &"scan_discovery_store_recovery_required"
+		and reloaded_store.get_loaded_source() == &"backup" and filesystem.files == fallback_artifacts,
+		"fallback discovery cannot restore completion or republish its older envelope and retains every recovery artifact")
 
 
 func _make_runtime(store: UserDataStore) -> Dictionary:

@@ -8,6 +8,8 @@ const Scan := preload("res://scripts/world/cinder_abandoned_structure_scan_activ
 class FaultFilesystem extends UserDataFilesystem:
 	var reject_rewards := true
 	var reject_all := false
+	var reject_discovery := false
+	var refused_discovery := false
 	var freeze_on_reward := false
 	var refused_reward := false
 	var fail_published_reward_sync := false
@@ -17,6 +19,9 @@ class FaultFilesystem extends UserDataFilesystem:
 		if reject_all:
 			return ERR_UNAVAILABLE
 		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if reject_discovery and document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("cinder-scan-discovery-"):
+			refused_discovery = true
+			return ERR_UNAVAILABLE
 		if reject_rewards and document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-reward-"):
 			refused_reward = true
 			if freeze_on_reward:
@@ -53,6 +58,12 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	# Bounded backup recovery coverage owns the same original route deadlines;
+	# the default suite keeps all of its existing recovery coverage unchanged.
+	if OS.get_cmdline_user_args().has("--scan-backup-trust-only"):
+		await _backup_trust_reproduction()
+		_finish()
+		return
 	await _progress_recovery()
 	await _legacy_discovery_compatibility()
 	var path := "user://scan_durable_%d.json" % Time.get_ticks_usec()
@@ -150,11 +161,164 @@ func _run() -> void:
 	await _published_payment_retry()
 	await _all_writes_failed()
 	await _unsupported_record(path)
+	_finish()
+
+func _finish() -> void:
 	for failure in _failures:
 		push_error(failure)
 	if _failures.is_empty():
 		print("GAME_FLOW_SCAN_DURABLE_RECOVERY_TEST_OK: %d assertions" % _checks)
 	quit(0 if _failures.is_empty() else 1)
+
+## One real paid scan leaves its unpaid predecessor in the atomic backup when
+## discovery publication is refused. Both probes use those genuine documents;
+## no progress, reward acknowledgement or ledger is fabricated in the fixture.
+func _backup_trust_reproduction() -> void:
+	var path := "user://scan_backup_trust_%d.json" % Time.get_ticks_usec()
+	var fault := FaultFilesystem.new()
+	fault.reject_rewards = false
+	fault.reject_discovery = true
+	var retained := await _game(path, fault)
+	await _board(retained)
+	var binding := await _binding(retained)
+	await _complete(retained, binding)
+	var paid_bytes := FileAccess.get_file_as_bytes(path)
+	var unpaid_bytes := FileAccess.get_file_as_bytes(path + ".bak")
+	var paid_document: Variant = JSON.parse_string(paid_bytes.get_string_from_utf8())
+	var unpaid_document: Variant = JSON.parse_string(unpaid_bytes.get_string_from_utf8())
+	print("SCAN_BACKUP_FIXTURE_COMPLETION: ", retained.get_activity_reward_report())
+	var documents_valid := paid_document is Dictionary and unpaid_document is Dictionary
+	_check(documents_valid, "actual timed scan and payment publish readable primary and predecessor documents")
+	if not documents_valid:
+		await _dispose(retained)
+		return
+	var paid_record: Dictionary = paid_document.payload.get("cinder_structure_scan_session", {})
+	var unpaid_record: Dictionary = unpaid_document.payload.get("cinder_structure_scan_session", {})
+	var live := binding.get_activity_snapshot(&"structure_scan")
+	print("SCAN_BACKUP_GENUINE_FIXTURE: ", {"live": live,
+		"reward": retained.get_activity_reward_report().last_cinder_structure_scan_result,
+		"paid_record": paid_record, "unpaid_record": unpaid_record})
+	var valid: bool = (
+		bool(Scan.validate_persistence_record(paid_record).accepted)
+		and bool(Scan.validate_persistence_record(unpaid_record).accepted)
+	)
+	_check(valid, "backup trust fixture contains actual valid paid and unpaid timed-scan documents")
+	if not valid:
+		await _dispose(retained)
+		return
+	var paid_entry: Dictionary = paid_record.activities[0]
+	var unpaid_entry: Dictionary = unpaid_record.activities[0]
+	var generation := int(paid_entry.generation)
+	_check(fault.refused_discovery and paid_entry.reward_granted and unpaid_entry.reward_requested
+		and not unpaid_entry.reward_granted and int(unpaid_entry.generation) == generation
+		and int(paid_document.payload.game_flow_reward_store.total_receipts) == 1
+		and int((unpaid_document.payload.get("game_flow_reward_store", {}) as Dictionary).get("total_receipts", 0)) == 0
+		and live.reward_committed and live.persistence_retry_available,
+		"real payment followed by refused discovery leaves its genuine unpaid predecessor without a receipt")
+	var corrupt := "corrupt newer paid Cinder scan primary".to_utf8_buffer()
+	var staged := (
+		_write_scan_fixture(path + ".paid-witness", paid_bytes)
+		and _write_scan_fixture(path, corrupt)
+	)
+	_check(staged, "retained scan probe preserves the real paid witness and corrupts only its primary")
+	if not staged:
+		await _dispose(retained)
+		return
+	var preflight := UserDataStore.new(path)
+	var selected := preflight.load()
+	print("SCAN_BACKUP_PREFLIGHT: ", selected)
+	_check(selected.accepted and preflight.get_loaded_source() == &"backup",
+		"existing store selects the genuine unpaid fallback and quarantines the corrupt newer primary")
+	var artifacts := _scan_recovery_artifacts(path)
+	_check(artifacts.get(path + ".recovery") == corrupt,
+		"scan backup diagnosis retains the exact corrupt-primary recovery witness")
+	var before := binding.capture_structure_scan_session()
+	fault.reject_discovery = false
+	_button(retained, 2).emit_signal("pressed")
+	_button(retained, 2).emit_signal("pressed")
+	var retry := retained.get_activity_reward_report().last_cinder_structure_scan_result as Dictionary
+	var shared: UserDataStore = retained.get("_runtime_settings_user_data_store")
+	print("SCAN_BACKUP_RETAINED_START: ", {"last_reward_report": retry,
+		"action_feedback": (retained.hud.get("_nearby_activity_feedback") as Label).text,
+		"source": shared.get_loaded_source(), "store_generation": shared.get_generation(),
+		"payload": shared.get_snapshot(), "scan": binding.get_activity_snapshot(&"structure_scan")})
+	_check(not retry.get("discovery_persisted", false) and binding.capture_structure_scan_session() == before
+		and binding.get_activity_snapshot(&"structure_scan").persistence_retry_available
+		and shared.get_loaded_source() == &"backup" and _scan_recovery_artifacts(path) == artifacts,
+		"ordinary retained Start cannot republish an older unpaid envelope through pending discovery retry")
+	await _dispose(retained)
+	_check(_scan_recovery_artifacts(path) == artifacts,
+		"retained scan teardown preserves fallback, paid witness and quarantine for explicit repair")
+
+	# This separate path starts from the same immutable genuine documents, so a
+	# pre-fix retained retry cannot contaminate the fresh-owner authority probe.
+	path += "_fresh"
+	staged = (
+		_write_scan_fixture(path + ".paid-witness", paid_bytes)
+		and _write_scan_fixture(path, corrupt)
+		and _write_scan_fixture(path + ".bak", unpaid_bytes)
+	)
+	_check(staged, "fresh scan probe retains the same genuine unpaid and newer paid documents")
+	if not staged:
+		return
+	preflight = UserDataStore.new(path)
+	selected = preflight.load()
+	_check(selected.accepted and preflight.get_loaded_source() == &"backup",
+		"fresh scan probe selects the older unpaid fallback through the actual store")
+	artifacts = _scan_recovery_artifacts(path)
+	var fresh := await _game(path, UserDataFilesystem.new())
+	var fresh_binding := await _binding(fresh)
+	var captured := fresh_binding.capture_structure_scan_session()
+	var ready: Dictionary = fresh.call("_ensure_cinder_scan_session", fresh_binding)
+	print("SCAN_BACKUP_FRESH_BIND: ", {"ready": ready, "captured": captured,
+		"presentation": fresh_binding.get_activity_snapshot(&"structure_scan"),
+		"discovery": fresh_binding.get_cinder_scan_discovery_persistence_snapshot()})
+	var fresh_entry: Dictionary = captured.activities[0]
+	_check(not ready.get("accepted", false) and ready.get("reason") == &"scan_session_store_recovery_required"
+		and int(fresh_entry.generation) == 0 and int(fresh_entry.state) == Scan.State.IDLE,
+		"fresh Main cannot adopt backup-derived scan progress, generation or unpaid entitlement")
+	var receipts := _receipts(fresh)
+	_button(fresh, 2).emit_signal("pressed")
+	_button(fresh, 3).emit_signal("pressed")
+	_check(fresh_binding.capture_structure_scan_session() == captured
+		and _receipts(fresh) == receipts and _scan_recovery_artifacts(path) == artifacts,
+		"ordinary fresh Start and Reset preserve the untrusted scan state and recovery artifacts")
+	var authority: GameFlowRewardAuthority = fresh.get("_game_flow_reward_authority")
+	var payment := authority.commit({"activity_id": Scan.ACTIVITY_ID,
+		"activity_generation": generation, "reward_id": Scan.REWARD_ID,
+		"reward_authority": false, "granted": false})
+	var payment_retry := authority.commit({"activity_id": Scan.ACTIVITY_ID,
+		"activity_generation": generation, "reward_id": Scan.REWARD_ID,
+		"reward_authority": false, "granted": false})
+	shared = fresh.get("_runtime_settings_user_data_store")
+	print("SCAN_BACKUP_DIRECT_PAYMENT: ", {"payment": payment, "retry": payment_retry, "source": shared.get_loaded_source(),
+		"payload": shared.get_snapshot(), "captured": fresh_binding.capture_structure_scan_session()})
+	_check(not payment.accepted and payment.reason == &"reward_store_recovery_required"
+		and not payment_retry.accepted and payment_retry.reason == &"reward_store_recovery_required"
+		and _receipts(fresh) == receipts and shared.get_loaded_source() == &"backup"
+		and fresh_binding.capture_structure_scan_session() == captured and _scan_recovery_artifacts(path) == artifacts,
+		"actual scan authority refuses payment from the genuine unpaid fallback without publishing it")
+	await _dispose(fresh)
+	_check(_scan_recovery_artifacts(path) == artifacts,
+		"fresh scan teardown preserves unpaid fallback and paid evidence for explicit repair")
+
+
+func _write_scan_fixture(path: String, bytes: PackedByteArray) -> bool:
+	var writer := FileAccess.open(path, FileAccess.WRITE)
+	if writer == null:
+		return false
+	writer.store_buffer(bytes)
+	writer.close()
+	return true
+
+
+func _scan_recovery_artifacts(path: String) -> Dictionary:
+	var result := {}
+	for suffix: String in ["", ".bak", ".bak.1", ".bak.2", ".bak.3", ".recovery", ".tmp", ".paid-witness"]:
+		if FileAccess.file_exists(path + suffix):
+			result[path + suffix] = FileAccess.get_file_as_bytes(path + suffix)
+	return result
+
 
 func _progress_recovery() -> void:
 	var path := "user://scan_progress_%d.json" % Time.get_ticks_usec()

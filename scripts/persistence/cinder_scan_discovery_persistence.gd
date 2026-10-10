@@ -35,6 +35,8 @@ func save(snapshot: Dictionary, reward_result: Dictionary, commit_id: String) ->
 	var loaded := _store.call(&"load") as Dictionary
 	if not bool(loaded.get("accepted", false)):
 		return loaded
+	if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
+		return _result(false, &"scan_discovery_store_recovery_required")
 	var payload := _store.call(&"get_snapshot") as Dictionary
 	payload[String(_slot_id)] = captured.record
 	var committed := _store.call(
@@ -53,6 +55,8 @@ func load() -> Dictionary:
 	var loaded := _store.call(&"load") as Dictionary
 	if not bool(loaded.get("accepted", false)):
 		return loaded
+	if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
+		return _result(false, &"scan_discovery_store_recovery_required")
 	var payload := loaded.get("payload", {}) as Dictionary
 	var key := String(_slot_id)
 	if not payload.has(key):

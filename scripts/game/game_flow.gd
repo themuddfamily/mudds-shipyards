@@ -18834,11 +18834,15 @@ func _ensure_cinder_scan_session(binding: Object) -> Dictionary:
 	if not is_instance_valid(binding) or binding != _get_nearby_activity_binding() \
 			or _runtime_settings_user_data_store == null:
 		return {"accepted": false, "reason": &"scan_session_owner_unavailable"}
-	if _cinder_scan_session_owner != null and _cinder_scan_session_owner.get_ref() == binding:
-		return {"accepted": true, "reason": &"scan_session_owner_current"}
 	var loaded := _runtime_settings_user_data_store.load()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
+	# A retained live scan may still owe discovery publication after payment.
+	# Recheck disk provenance before its fast path can retry that publication.
+	if _runtime_settings_user_data_store.get_loaded_source() == &"backup":
+		return {"accepted": false, "reason": &"scan_session_store_recovery_required"}
+	if _cinder_scan_session_owner != null and _cinder_scan_session_owner.get_ref() == binding:
+		return {"accepted": true, "reason": &"scan_session_owner_current"}
 	var payload := _runtime_settings_user_data_store.get_snapshot()
 	if payload.has("cinder_structure_scan_session"):
 		var checked := CinderAbandonedStructureScanActivity.validate_persistence_record(payload.cinder_structure_scan_session)
@@ -18862,7 +18866,7 @@ func _save_cinder_scan_session(binding: Object) -> Dictionary:
 	var loaded := _runtime_settings_user_data_store.load()
 	if not bool(loaded.get("accepted", false)):
 		return loaded
-	if loaded.get("reason") == &"primary_invalid_backup_loaded":
+	if _runtime_settings_user_data_store.get_loaded_source() == &"backup":
 		return {"accepted": false, "reason": &"scan_session_store_recovery_required"}
 	var payload := _runtime_settings_user_data_store.get_snapshot()
 	if payload.has("cinder_structure_scan_session"):
