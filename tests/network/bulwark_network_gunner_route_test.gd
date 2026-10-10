@@ -502,7 +502,11 @@ func _refusal(payload: Dictionary, reason: StringName, description: String) -> v
 	_check(await _until(func(): return _game.network_session.get_gunner_replica_snapshot().get("error") == reason, 5.0), description)
 
 func _walk(target_local: Vector3) -> void:
-	print("GUNNER_WALK_START: local=", _craft.to_local(_player.global_position), " target=", target_local)
+	_print_walk_state(&"start", target_local, Vector3.ZERO, Vector2.ZERO, 0)
+	var stalled_ticks := 0
+	var printed_stall := false
+	var printed_collision := false
+	var iterations := 0
 	for _index in 240:
 		var target := _craft.to_global(target_local)
 		var delta := target - _player.global_position
@@ -517,10 +521,41 @@ func _walk(target_local: Vector3) -> void:
 			Input.action_release(action)
 		Input.action_press(&"move_left" if axis.x < 0.0 else &"move_right", absf(axis.x))
 		Input.action_press(&"move_forward" if axis.y < 0.0 else &"move_back", absf(axis.y))
+		var before_local := _craft.to_local(_player.global_position)
 		await _ticks(1)
+		iterations = _index + 1
+		var moved := _craft.to_local(_player.global_position).distance_to(before_local)
+		stalled_ticks = stalled_ticks + 1 if moved < 0.01 else 0
+		if not printed_collision:
+			for collision_index in _player.get_slide_collision_count():
+				if _player.get_slide_collision(collision_index).get_normal().dot(direction) < -0.1:
+					_print_walk_state(&"first_blocking_collision", target_local, direction, axis, iterations)
+					printed_collision = true
+					break
+		if not printed_stall and stalled_ticks >= 12:
+			_print_walk_state(&"first_stall", target_local, direction, axis, iterations)
+			printed_stall = true
 	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
 		Input.action_release(action)
 	await _ticks(15)
+	_print_walk_state(&"end", target_local, Vector3.ZERO, Vector2.ZERO, iterations)
+
+## Bounded read-only observations; no changes to route decisions or input.
+func _print_walk_state(stage: StringName, target_local: Vector3, direction: Vector3, commanded_axis: Vector2, iteration: int) -> void:
+	var collisions: Array[Dictionary] = []
+	for index in mini(_player.get_slide_collision_count(), 4):
+		var collision := _player.get_slide_collision(index)
+		var collider := collision.get_collider() as Node
+		collisions.append({"collider": collider.get_path() if collider != null else NodePath(), "normal": collision.get_normal(), "position": collision.get_position(), "travel": collision.get_travel(), "remainder": collision.get_remainder()})
+	var source: NetworkRemoteBodyIntentSource = _game.get_network_remote_body_intent_source()
+	var delta := (_craft.to_global(target_local) - _player.global_position).slide(_craft.global_basis.y.normalized())
+	print("GUNNER_WALK_STATE: stage=", stage, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(),
+		" iteration=", iteration, " local=", _craft.to_local(_player.global_position), " target=", target_local, " planar_distance=", delta.length(),
+		" floor=", _player.is_on_floor(), " control=", _player.is_control_enabled(), " focus=", root.has_focus(), " focused_window=", Window.get_focused_window(),
+		" commanded_axis=", commanded_axis, " actual_input_axis=", Input.get_vector("move_left", "move_right", "move_forward", "move_back"), " direction=", direction, " velocity=", _player.velocity,
+		" collisions=", collisions, " containment=", _player.get_cabin_containment_report(), " phase=", _game.phase, " transition_busy=", _game.get("_transition_busy"),
+		" seated=", _player.is_seated(), " role_view=", _game.network_session.get_gunner_replica_snapshot(), " piloted=", _craft.is_piloted(), " remote_piloted=", _craft.is_remote_piloted(),
+		" session_server=", _game.network_session.is_server(), " admitted_peers=", _game.network_session.get_admitted_peer_ids(), " body_source_audit=", source.get_audit() if source != null else {})
 
 func _look(target: Vector3) -> void:
 	for _index in 4:
@@ -558,7 +593,9 @@ func _ticks(count: int) -> void:
 		await process_frame
 
 func _wait_file(name: String, seconds: float) -> bool:
+	var started_ms := Time.get_ticks_msec()
 	var result := await _until(func(): return FileAccess.file_exists(_directory.path_join(name)), seconds)
+	print("GUNNER_WAIT_END: role=", _role, " boundary=", name, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(), " elapsed_ms=", Time.get_ticks_msec() - started_ms, " original_budget_seconds=", seconds, " arrived=", result)
 	_check(result, "peer boundary arrives: " + name)
 	return result
 
@@ -576,7 +613,7 @@ func _write(name: String, data: Dictionary) -> void:
 	if write_error != OK or DirAccess.rename_absolute(temporary, target) != OK:
 		_check(false, "complete peer receipt publishes atomically: " + name)
 		return
-	print("GUNNER_PEER_BOUNDARY: ", _role, " ", name)
+	print("GUNNER_PEER_BOUNDARY: ", _role, " ", name, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames())
 
 func _read(name: String) -> Dictionary:
 	if not FileAccess.file_exists(_directory.path_join(name)):
