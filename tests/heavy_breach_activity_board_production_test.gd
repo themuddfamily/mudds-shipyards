@@ -541,6 +541,18 @@ func _fresh_recovery_board(host: Node3D, objective: Node3D, director: EncounterS
 
 func _test_fresh_debt_recovery(host: Node3D, objective: Node3D, director: EncounterScenarioDirector, authority: LiveCombatAuthority, actor: Node3D, generation: int) -> void:
 	var staged: Dictionary = _recovery_store.get_snapshot().heavy_breach_session.session
+	var wire_record: Dictionary = _recovery_store.get_snapshot().heavy_breach_session.duplicate(true)
+	_check(wire_record.session.offered_index is float
+		and HeavyBreachActivityBoard.validate_session_record(wire_record),
+		"the genuine persisted JSON-number offer validates before fresh debt recovery")
+	for index: int in [0, 1]:
+		wire_record.session.offered_index = float(index)
+		_check(HeavyBreachActivityBoard.validate_session_record(wire_record),
+			"the supported JSON offer %d retains the exact terminal contract" % index)
+	for index: float in [0.5, 1.5, -1.0, 2.0]:
+		wire_record.session.offered_index = index
+		_check(not HeavyBreachActivityBoard.validate_session_record(wire_record),
+			"fractional or unsupported JSON offer %s cannot restore a terminal contract" % index)
 	_check(staged.component_id is String and staged.completion.activity_id is String
 		and staged.completion.state_id is String and staged.completion.outcome is String
 		and staged.completion.scenario is String and staged.completion.protected_objective is String,

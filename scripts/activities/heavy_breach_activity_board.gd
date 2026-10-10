@@ -263,7 +263,7 @@ static func validate_session_record(record: Variant) -> bool:
 	if session.size() != 4 or str(session.get("component_id", "")) != str(COMPONENT_ID) \
 			or not _valid_generation(session.get("generation_floor")) \
 			or not _valid_generation(session.get("offered_index")) \
-			or session.get("offered_index") not in [0, 1] or not session.get("completion") is Dictionary:
+			or int(session.offered_index) not in [0, 1] or not session.get("completion") is Dictionary:
 		return false
 	var completion: Dictionary = session.completion
 	if completion.is_empty():
