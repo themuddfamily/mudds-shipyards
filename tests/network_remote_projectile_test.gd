@@ -501,15 +501,43 @@ func _check_production_picket_lance(port: int) -> void:
 	var held := pool.get_active_bolt_records()[0] as Dictionary
 	for _frame in Replicator.TORPEDO_UPDATE_INTERVAL_TICKS:
 		_host_replicator.advance_host()
+	var late_join_receipt := {}
+	var capture_late_lance := func(packet: Dictionary, result: Dictionary) -> void:
+		var record := packet.get("projectile", {}) as Dictionary
+		if StringName(record.get("projectile_id", &"")) == lance_id \
+				and bool(result.get("accepted", false)) and not bool(packet.get("terminal", false)):
+			late_join_receipt["packet"] = packet.duplicate(true)
+	_late.projectile_replica_packet.connect(capture_late_lance)
 	_check(_late.join("127.0.0.1", port).accepted, "a real peer joins with a production lance already in flight")
 	await _pump(func() -> bool: return not _late.get_server_offer().is_empty())
 	_host_replicator.republish_for_peer(_late.multiplayer.get_unique_id())
 	await _pump(func() -> bool: return _late_replicator.get_drawn_projectile_ids().has(lance_id))
 	var canonical := _server._projectile_authoritative_records.get(lance_id, {}) as Dictionary
-	_check(_late_replicator.get_drawn_projectile_ids().has(lance_id)
-		and (canonical.get("position", Vector3.INF) as Vector3).is_equal_approx((held.position as Vector3) - HOST_STATION_ORIGIN)
-		and is_equal_approx(float((canonical.get(Replicator.RECORD_KEY, {}) as Dictionary).get("elapsed", -1.0)), float(held.elapsed))
-		and int(_late_audio.get_state_snapshot().cue_count) == late_cues,
+	_late.projectile_replica_packet.disconnect(capture_late_lance)
+	var late_projectile := (late_join_receipt.get("packet", {}) as Dictionary).get("projectile", {}) as Dictionary
+	var late_descriptor := late_projectile.get(Replicator.RECORD_KEY, {}) as Dictionary
+	var expected_position := (held.position as Vector3) - HOST_STATION_ORIGIN
+	# The canonical lifecycle record retains position, while the admitted wire
+	# descriptor carries elapsed and the quiet late-join presentation marker.
+	var held_join_ok: bool = _late_replicator.get_drawn_projectile_ids().has(lance_id) \
+		and (canonical.get("position", Vector3.INF) as Vector3).is_equal_approx(expected_position) \
+		and StringName(late_projectile.get("projectile_id", &"")) == lance_id \
+		and StringName(late_projectile.get("source_entity_id", &"")) == StringName(lance_record.get("source_entity_id", &"")) \
+		and int(late_projectile.get("projectile_generation", 0)) == int(lance_record.get("projectile_generation", -1)) \
+		and int(late_projectile.get("source_generation", 0)) == picket._activation_generation \
+		and (late_projectile.get("position", Vector3.INF) as Vector3).is_equal_approx(expected_position) \
+		and StringName(late_descriptor.get("kind", &"")) == Replicator.KIND_LANCE \
+		and late_descriptor.get("launch") is bool and late_descriptor.get("launch") == false \
+		and is_equal_approx(float(late_descriptor.get("elapsed", -1.0)), float(held.elapsed)) \
+		and int(_late_audio.get_state_snapshot().cue_count) == late_cues
+	if not held_join_ok:
+		print("LANCE_LATE_JOIN_VALUES: ", {"expected_id": lance_id,
+			"expected_generation": picket._activation_generation,
+			"drawn_ids": _late_replicator.get_drawn_projectile_ids(),
+			"expected_position": expected_position, "expected_elapsed": held.elapsed,
+			"canonical_position": canonical.get("position"), "admitted": late_projectile,
+			"cue_count_before": late_cues, "cue_count_after": int(_late_audio.get_state_snapshot().cue_count)})
+	_check(held_join_ok,
 		"mid-flight join samples the held authority position/elapsed without extrapolation or a fresh fire cue")
 	_client_replicator.set_reduced_flash_enabled(true)
 	var visual := _client_replicator._visuals.get(lance_id, {}) as Dictionary
