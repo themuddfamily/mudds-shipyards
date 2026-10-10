@@ -14,11 +14,18 @@ class FaultFilesystem extends UserDataFilesystem:
 	var _reward_just_published := false
 	var fail_published_reset_sync := false
 	var _reset_just_published := false
+	var on_reset_write := Callable()
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
 		if reject_all:
 			return ERR_UNAVAILABLE
 		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if document is Dictionary and on_reset_write.is_valid():
+			var session: Dictionary = document.get("payload", {}).get("cinder_beacon_session", {})
+			if not session.is_empty() and int(session.activities[0].state) == Beacon.State.RESET:
+				var callback := on_reset_write
+				on_reset_write = Callable()
+				callback.call()
 		if reject_rewards and document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-reward-"):
 			refused_reward = true
 			if freeze_on_reward:
@@ -136,6 +143,7 @@ func _run() -> void:
 	await _dispose(fourth)
 	await _reset_write_failure(false)
 	await _reset_write_failure(true)
+	await _reset_owner_changed()
 	await _published_payment_retry()
 	await _all_writes_failed()
 	await _unsupported_record(path)
@@ -216,6 +224,29 @@ func _reset_write_failure(paid: bool) -> void:
 	_check(started.state_id == &"active" and int(started.generation) == int(before.activities[0].generation) + 1
 		and _receipts(third) == receipts, "the next genuine Start advances generation exactly once after reset recovery")
 	await _dispose(third)
+
+func _reset_owner_changed() -> void:
+	var path := "user://beacon_reset_reentrant_%d.json" % Time.get_ticks_usec()
+	var fault := FaultFilesystem.new()
+	fault.reject_rewards = false
+	var game := await _game(path, fault)
+	await _board(game)
+	var binding := await _binding(game)
+	game.active_ship.global_position = game.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+	_button(game, 2).emit_signal("pressed")
+	game.call("_advance_cinder_beacon_traversal", 0.0, game.call("_capture_cinder_actor_sample"))
+	fault.on_reset_write = func() -> void:
+		binding.submit_beacon_traversal(1, Beacon.BEACONS[1])
+	var result: Dictionary = game.call("_reset_nearby_activity", binding, Beacon.ACTIVITY_ID)
+	var live := binding.capture_beacon_traversal_session()
+	_check(not result.accepted and result.reason == &"beacon_reset_owner_changed"
+		and result.persistence_result.accepted and int(live.activities[0].state) == Beacon.State.ACTIVE
+		and int(live.activities[0].progress.next_beacon_index) == 2,
+		"a real reset-write callback changing the live route cannot publish a stale live reset")
+	var disk: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path)).payload.cinder_beacon_session
+	_check(int(disk.activities[0].state) == Beacon.State.RESET and _receipts(game) == 0,
+		"the changed-owner refusal preserves the actual published outcome without rollback or entitlement")
+	await _dispose(game)
 
 func _published_payment_retry() -> void:
 	var path := "user://beacon_published_payment_%d.json" % Time.get_ticks_usec()
