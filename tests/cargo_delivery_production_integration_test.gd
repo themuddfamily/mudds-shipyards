@@ -898,16 +898,41 @@ func _test_cargo_fallback_refusal(active: PackedByteArray, unpaid: PackedByteArr
 				and (game.get("_owed_game_flow_activity_rewards") as Array).is_empty(),
 				"fresh Main refuses %s fallback lifecycle, inventory and earned-debt adoption" % kind)
 			var before := game.cargo_delivery_activity.capture_persistence_state()
+			var before_race := game.cinder_race_session.capture_persistence_state()
+			var race_restore := game.get_cinder_race_session_persistence_report().restore_status as Dictionary
 			var before_receipts := _cargo_receipts(game)
 			var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY)
 			var started := game.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
 			var reset := game.reset_active_activity()
 			var after_selection := game.get_activity_integration_report()
-			_check(not bool(selected.accepted) and selected.reason == &"outgoing_family_save_rejected"
-				and after_selection.selected_activity_kind == report.selected_activity_kind
-				and after_selection.active_activity_id == report.active_activity_id
-				and not bool(started.accepted) and started.reason == &"unsupported_activity" and not reset
+			# Recovery refuses the outgoing race too, leaving a generation-zero
+			# placeholder. Selecting cargo is safe; starting it still needs flight.
+			print("JOVIAN_FALLBACK_SELECTION_CONTRACT ", {"kind": kind, "attempt": attempt,
+				"before": {"selected_kind": report.selected_activity_kind,
+					"active_id": report.active_activity_id, "active_generation": report.active_generation,
+					"race_state": before_race, "race_restore": race_restore, "cargo_state": before,
+					"source_manifest": report.cargo_source_manifest, "destination_manifest": report.cargo_destination_manifest,
+					"receipts": before_receipts},
+				"selection": selected, "start": started, "reset": reset,
+				"after": {"selected_kind": after_selection.selected_activity_kind,
+					"active_id": after_selection.active_activity_id, "active_generation": after_selection.active_generation,
+					"race_state": game.cinder_race_session.capture_persistence_state(),
+					"cargo_state": game.cargo_delivery_activity.capture_persistence_state(),
+					"source_manifest": after_selection.cargo_source_manifest,
+					"destination_manifest": after_selection.cargo_destination_manifest,
+					"receipts": _cargo_receipts(game), "owed_rewards": game.get("_owed_game_flow_activity_rewards"),
+					"loaded_source": shared.get_loaded_source(), "artifacts_unchanged": _cargo_recovery_artifacts(path) == artifacts}})
+			_check(report.active_activity_id == &"" and report.active_generation == 0
+				and report.selected_activity_kind == GameFlow.ACTIVITY_KIND_TIMED_RACE
+				and not bool(race_restore.accepted) and race_restore.reason == &"race_session_store_recovery_required"
+				and bool(selected.accepted) and selected.reason == &"selected"
+				and after_selection.selected_activity_kind == GameFlow.ACTIVITY_KIND_CARGO_DELIVERY
+				and after_selection.active_activity_id == GameFlow.CARGO_DELIVERY_ACTIVITY_ID
+				and after_selection.active_generation == 0
+				and not bool(started.accepted) and started.reason == &"not_in_free_flight" and not reset
+				and game.cinder_race_session.capture_persistence_state() == before_race
 				and game.cargo_delivery_activity.capture_persistence_state() == before
+				and _cargo_receipts(game) == before_receipts and shared.get_loaded_source() == &"backup"
 				and after_selection.cargo_source_manifest == report.cargo_source_manifest
 				and after_selection.cargo_destination_manifest == report.cargo_destination_manifest
 				and (game.get("_owed_game_flow_activity_rewards") as Array).is_empty()
