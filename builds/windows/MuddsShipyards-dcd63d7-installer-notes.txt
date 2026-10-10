@@ -1,0 +1,19 @@
+Mudds Shipyards — matching crew berths and Ember Windows installer
+Source/game/builder/verifier checkout: dcd63d72b2be0da3d7bca9a93d479393a57de142
+Version: 0.12.0+dcd63d7
+
+Player changes match the published Windows/Linux checkpoint: physical Halyard crew berths and reseating, distinct host-confirmed cabin positions, and reduced recurring Ember planet/tree work with fresh Sun handoffs.
+
+The existing NSIS workflow compiled unsigned from a clean exact source checkout, actual exit0/reaped and no compiler warnings. Payload matches the published EXE byte-for-byte; AMD64 PE and all1,492 embedded PCK entries pass independent static review.
+
+Actual silent native Windows default11 and pilot/hulk16 checks pass, all owning bridges/drivers exit0/reaped. Cross-build install/startup/upgrade/rollback/uninstall follows709de858a -> dcd63d72b ->709de858a; locked replacement refuses exit2 and preserves the prior executable, provenance, registry and user data. Three owned startup kills, safe-start/crash journal, corrupt-primary backup recovery and unsupported-newer-document retention pass.
+
+The genuinely earned hulk breaker terminal survives an actual owned installed process kill (arm-1/reaped); a fresh installed Boot pays one permanent generation-matched cell (0->1->1), resume0/reaped. Exact terminal/settings/cargo, late-callback refusal, safe-home Resume/ordinary throttle, one crash event and clean markers pass. This fixture positions the on-foot route before the real breaker and180 production physics ticks; ordinary physical travel and original flight-pose restoration remain NOT_RUN.
+
+All14 raw logs were inspected: nine parsed mouse-free menu-ready records, zero engine/script/leak diagnostics, ten expected application startup warnings retained. Both activity logs have zero warnings. Protected setup/payload/verifier/fixture/helpers remain unchanged. Independent per-lane cleanup and root fresh CIM pass: all seven recorded Windows PIDs and owned installations/activity profiles/registry/shortcuts absent, diagnostic profiles retained. Actual base user profile matches before/after hashes; native authorization is released. Root and independent artifact/qualification review pass. Compiler metadata retains its initial build-time native_verification NOT_RUN; this separate executed acceptance supplements it.
+
+This is an unsigned checkpoint installer. Other installed contexts, complete dcd63d72b regression, native GPU, physical devices/audio, human review, endurance, licensing/trusted signing and final release remain open. All ten phases and34 consolidated completion tasks remain open.
+
+Payload SHA256:4cd71ab303324bda20b43b7a349bce636c139a8736b6b0f7a7dd717a725a4e53
+Installer SHA256:e966a3a748dc6385c58a5bf5c52a4640f7c703122bd0abf626036cee4ddc993a
+Installer bytes:86773591

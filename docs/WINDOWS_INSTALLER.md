@@ -8,7 +8,43 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `709de858a` — 2026-10-10
+## Latest native checkpoint `dcd63d72b` — 2026-10-10
+
+The matching unsigned [setup](../builds/windows/MuddsShipyards-dcd63d7-setup.exe)
+and [notes](../builds/windows/MuddsShipyards-dcd63d7-installer-notes.txt) are published.
+Setup SHA256 is `e966a3a748dc6385c58a5bf5c52a4640f7c703122bd0abf626036cee4ddc993a`
+(86,773,591 bytes); payload SHA256 is
+`4cd71ab303324bda20b43b7a349bce636c139a8736b6b0f7a7dd717a725a4e53`.
+Game/builder/verifier checkout is exact clean `dcd63d72b`.
+
+Native default11 and pilot/hulk16 pass with actual exits0/reaping through
+`709de858a` → `dcd63d72b` → `709de858a` install/startup/upgrade/rollback/uninstall.
+Locked replacement refuses exit2 and preserves the prior executable/provenance,
+registry and save. Three actual owned startup kills, safe-start/crash journal,
+corrupt-primary backup recovery and unsupported-newer-document retention pass.
+
+The genuinely earned hulk terminal survives an owned installed Windows process
+kill (arm−1/reaped, resume0/reaped). Fresh Boot pays one permanent generation-matched
+cell (0→1→1), preserving terminal/settings/cargo. Safe-home Resume/throttle,
+late-callback refusal, one crash event and clean markers pass. The fixture
+positions the on-foot approach before a real breaker and180 production physics
+ticks; ordinary physical travel and original flight-pose restoration remain open.
+
+Root and independent review inspect all14 raw logs: nine parsed mouse-free ready
+records, zero engine/script/leak diagnostics and ten expected application startup
+warnings. Both activity logs have zero warnings. Protected inputs are unchanged;
+per-lane cleanup and root fresh CIM verify seven recorded Windows PIDs and owned
+installation/activity profiles/registry/shortcuts absent. Diagnostic profiles
+are retained. The actual base user profile remains unchanged. Native authority
+is released; exclusive publication and independent five-file readback pass.
+Immutable compiler metadata retains initial build-time `NOT_RUN`; separately
+executed acceptance is recorded here and in the installer notes.
+
+Other installed contexts, complete current-source regression, native GPU, physical
+controls/audio, human/ordinary journey review, endurance, licensing/trusted signing
+and final release remain open. Earlier results qualify their own source.
+
+## Earlier native checkpoint `709de858a` — 2026-10-10
 
 The matching unsigned [setup](../builds/windows/MuddsShipyards-709de85-setup.exe)
 and [notes](../builds/windows/MuddsShipyards-709de85-installer-notes.txt) are published.
