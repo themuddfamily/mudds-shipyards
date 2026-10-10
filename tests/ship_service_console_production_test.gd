@@ -26,6 +26,26 @@ func _run() -> void:
 	root.add_child(game)
 	await process_frame
 	await physics_frame
+	# The production menu, rather than the coordinator alone, releases the
+	# intro's GUI input interception and captures ordinary mouse look.
+	root.grab_focus()
+	var begin := InputEventAction.new()
+	begin.action = &"interact"
+	begin.pressed = true
+	Input.parse_input_event(begin)
+	await physics_frame
+	var begin_release := InputEventAction.new()
+	begin_release.action = &"interact"
+	Input.parse_input_event(begin_release)
+	for _frame in 60:
+		if game.phase == GameFlow.Phase.APPROACH_SHIP \
+				and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			break
+		await physics_frame
+		await process_frame
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP
+			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"ordinary intro Interact starts the shift and captures private-window mouse look")
 	game.start_shift()
 
 	var console := game.world.call(&"get_ship_service_console") as Area3D
@@ -189,6 +209,8 @@ func _run() -> void:
 			and annex_console.get_signal_connection_list(&"service_requested").size() == 1,
 		"whole-Main re-entry restores exactly one annex service binding"
 	)
+	print("SERVICE_CREW_REENTRY: ", {"same_authority": jovian.call(&"get_crew_role_authority") == authority,
+		"repair": jovian.call(&"get_engineer_repair_state")})
 
 	game.queue_free()
 	await process_frame
@@ -350,6 +372,7 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 
 
 func _spend_one_kit(jovian: HeroShip, authority: CrewSeatRoleAuthority) -> void:
+	var repair_before := jovian.call(&"get_engineer_repair_state") as Dictionary
 	for _frame in 60:
 		if float((jovian.call(&"get_engineer_repair_state") as Dictionary).get("cooldown_remaining", 0.0)) <= 0.0:
 			break
@@ -366,8 +389,19 @@ func _spend_one_kit(jovian: HeroShip, authority: CrewSeatRoleAuthority) -> void:
 		if StringName((jovian.call(&"get_engineer_repair_state") as Dictionary).get("status", &"")) == &"completed":
 			break
 		await physics_frame
+	var completed := jovian.call(&"get_engineer_repair_state") as Dictionary
 	var released := jovian.call(&"release_crew_role", 1, 77, &"service_test_engineer", &"passenger_port_01", _engineer_sequence) as Dictionary
 	_engineer_sequence += 1
+	if not bool(claim.get("accepted", false)) or not bool(result.get("consumed", false)) \
+			or not bool(released.get("accepted", false)) or _kit_units(jovian) != 5:
+		print("FABRICATION_SERVICE_KIT_SPEND_FAILED: ", {
+			"same_authority": jovian.call(&"get_crew_role_authority") == authority,
+			"claim": claim, "intent": result, "completed": completed,
+			"release": released, "repair_before": repair_before,
+			"repair_after": jovian.call(&"get_engineer_repair_state"),
+			"gameplay": jovian.call(&"get_engineer_gameplay_state"),
+			"telemetry": jovian.get_telemetry(),
+		})
 	_check(bool(claim.get("accepted", false)) and bool(result.get("consumed", false))
 			and bool(released.get("accepted", false)) and _kit_units(jovian) == 5,
 		"the unchanged public engineer route spends a real kit before annex service")
@@ -390,7 +424,10 @@ func _walk_to(player: PlayerController, destination: Vector3) -> bool:
 		await physics_frame
 	if not reached or not player.is_on_floor():
 		print("FABRICATION_SERVICE_WALK_FAILED: ", {"target": destination,
-			"actual": player.global_position, "floor": player.is_on_floor(), "velocity": player.velocity})
+			"actual": player.global_position, "floor": player.is_on_floor(), "velocity": player.velocity,
+			"mouse_mode": Input.mouse_mode, "look_yaw": player.get_look_yaw(),
+			"camera_forward": -(player.get_node(^"%CameraYaw") as Node3D).global_basis.z,
+			"control_enabled": player.is_control_enabled(), "root_focus": root.has_focus()})
 	return reached and player.is_on_floor()
 
 
