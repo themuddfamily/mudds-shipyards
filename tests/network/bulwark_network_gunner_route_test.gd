@@ -531,8 +531,9 @@ func _client_pilot_host_gunner() -> void:
 	_check(focused, "real private client Window and local sampler are active before ordinary pilot throttle")
 	if not focused:
 		return
+	var motion_pose_tick := int(_game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()).get("pose_tick", -1))
 	Input.action_press(source.throttle_forward_action, 0.15)
-	_check(await _until(func(): return _craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and _craft.velocity.length() > 0.1, maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0)), "ordinary confirmed client throttle starts the engine and actual craft motion")
+	_check(await _until(func(): return _craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and _craft.velocity.length() > 0.1 and _host_confirmed_pilot_motion_after(motion_pose_tick), maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0)), "ordinary confirmed client throttle starts the engine and actual craft motion")
 	_write("client.pilot_moving", {})
 	if not await _wait_file("host.moving_checked", 60.0):
 		Input.action_release(source.throttle_forward_action)
@@ -551,6 +552,24 @@ func _client_pilot_host_gunner() -> void:
 	_write("client.pilot_disconnected", {})
 
 ## Read-only admission observations expose failures buffered until client.done.
+# The local pilot predicts motion before the host necessarily has it. Keep
+# the original five-second budget, but publish readiness from an accepted new
+# host pose so the host's unchanged twelve-step displacement check starts moving.
+func _host_confirmed_pilot_motion_after(pose_tick: int) -> bool:
+	var stream := _game._network_craft_pose_stream
+	var sample := stream.latest_sample(_craft.get_ship_id())
+	var clock := stream.get_clock()
+	var damage_state: Dictionary = _craft.get_network_damage_presentation_audit().get("state", {})
+	if sample.is_empty() or int(sample.get("pose_tick", -1)) <= pose_tick or clock < 0.0 \
+			or maxf(0.0, clock - float(sample.pose_tick)) > NetworkRemoteCraftPoseStream.STALE_SAMPLE_TICKS \
+			or not bool(sample.get("pose_active", false)) or bool(sample.get("destroyed", true)) \
+			or int(sample.get("entity_generation", 0)) <= 0 \
+			or int(sample.entity_generation) != int(damage_state.get("generation", 0)) \
+			or int(sample.get("pilot_peer_id", 0)) != _game.network_session.multiplayer.get_unique_id():
+		return false
+	var forward := (sample.rotation as Quaternion) * Vector3.FORWARD
+	return (sample.velocity_world as Vector3).dot(forward) > HeroShip.DEPARTURE_SPEED_THRESHOLD
+
 func _print_fresh_pilot_state(stage: StringName, join_result: Dictionary = {}) -> void:
 	print("GUNNER_FRESH_PILOT_STATE: stage=", stage, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(), " pending_failures=", _failures, " join_result=", join_result, " game_valid=", is_instance_valid(_game))
 	if not is_instance_valid(_game):
