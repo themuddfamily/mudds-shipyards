@@ -359,7 +359,7 @@ func _helm_cursor(source: ShipCommandSource) -> Dictionary:
 
 func _host_moving_gunner(owner: CrewSeatRoleAuthority, receipts: Array[Dictionary]) -> void:
 	var source := _craft.get_local_input_source()
-	var profile := source.get_input_profile_generation()
+	var profile_values: Dictionary = source.get_input_binding_profile().to_dictionary().duplicate(true)
 	var source_peer := source.get_authority_peer_id()
 	var area := _craft.get_node("ShipBoardingArea") as ShipBoardingArea
 	var first_claim := owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID)
@@ -372,6 +372,7 @@ func _host_moving_gunner(owner: CrewSeatRoleAuthority, receipts: Array[Dictionar
 	_check(helm != null and helm != source and _craft.is_remote_piloted(), "exact remote helm remains selected beside retained host gunner input")
 	if helm == null:
 		return
+	var helm_weak: WeakRef = weakref(helm)
 	var start := _craft.global_position
 	await _ticks(12)
 	_check(_craft.global_position.distance_to(start) > 0.05, "confirmed pilot commands move the actual host gunner craft")
@@ -415,9 +416,9 @@ func _host_moving_gunner(owner: CrewSeatRoleAuthority, receipts: Array[Dictionar
 	_write("host.moving_checked", {})
 	if not await _wait_file("client.pilot_disconnected", 20.0):
 		return
-	_check(await _until(func(): return not _craft.is_remote_piloted() and _craft.get_command_source() == source and not is_instance_valid(helm), 5.0), "actual pilot disconnect restores the exact retained local producer")
+	_check(await _until(func(): return not _craft.is_remote_piloted() and _craft.get_command_source() == source and helm_weak.get_ref() == null, 5.0), "actual pilot disconnect restores the exact retained local producer")
 	_check(_game._solo_crew_claim_is_current() and _player.is_seated_at(_craft.get_gunner_station_anchor()), "pilot disconnect preserves the separate host gunner claim")
-	_check(source.get_authority_peer_id() == source_peer and source.get_input_profile_generation() == profile and _craft.get_local_input_source() == source, "moving gunner lifecycle preserves exact local source, authority and settings profile")
+	_check(source.get_authority_peer_id() == source_peer and _craft.get_local_input_source() == source and source.is_input_configuration_valid() and source.get_input_binding_profile().to_dictionary() == profile_values, "moving gunner lifecycle preserves exact local source, authority and settings profile")
 
 func _host_gunner_shot(target_name: String, receipts: Array[Dictionary]) -> void:
 	var target := _stage_target(target_name)
@@ -426,6 +427,7 @@ func _host_gunner_shot(target_name: String, receipts: Array[Dictionary]) -> void
 	var actor := StringName("1:%s" % GameFlow.SOLO_CREW_AVATAR_ID)
 	var source := _craft.get_local_input_source()
 	await _look(target.global_position)
+	_print_host_shot_state(&"before_fire", target, health, receipts, before)
 	# Actual private-window focus and the charge share the existing eight-second
 	# budget. Never grant sampling permission through a synthetic notification.
 	var deadline := Time.get_ticks_msec() + 8000
@@ -438,8 +440,33 @@ func _host_gunner_shot(target_name: String, receipts: Array[Dictionary]) -> void
 	var fired := await _until(func(): return int((_craft.get_gunner_gameplay_state().role_ammunition as Dictionary).get(actor, 2)) < 2, maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0))
 	Input.action_release(source.fire_action)
 	await _ticks(8)
+	_print_host_shot_state(&"after_fire", target, health, receipts, before)
 	_check(fired and int((_craft.get_gunner_gameplay_state().role_ammunition as Dictionary).get(actor, 2)) == 1 and receipts.size() == before + 1, "ordinary moving host held FIRE resolves exactly one real charge and ammunition debit: " + target_name)
 	_check(receipts.size() == before + 1 and bool(receipts[before].get("accepted", false)) and bool(receipts[before].get("damaged", false)) and float(target.get_meta("health", health)) < health, "existing authoritative siege lance damages the registered target on host: " + target_name)
+
+## Existing request/results expose authoritative contacts without another ray or shot.
+func _print_host_shot_state(stage: StringName, target: Node3D, baseline_health: float, receipts: Array[Dictionary], before: int) -> void:
+	var shapes: Array[Dictionary] = []
+	var component_snapshot: Dictionary = {}
+	if is_instance_valid(target):
+		for child in target.find_children("*", "CollisionShape3D", true, false):
+			var collision := child as CollisionShape3D
+			shapes.append({"path": collision.get_path(), "pose": collision.global_transform, "disabled": collision.disabled, "shape": collision.shape})
+		var adapter := target.get_node_or_null("AuthoritativeDamageable")
+		if adapter != null and adapter.has_method(&"get_component_snapshot"):
+			component_snapshot = adapter.call(&"get_component_snapshot")
+	var muzzle := _craft.get_node_or_null("LeftMuzzle") as Node3D
+	print("GUNNER_HOST_SHOT_STATE: stage=", stage, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(),
+		" target=", target, " baseline_health=", baseline_health, " health=", target.get_meta("health", null) if is_instance_valid(target) else null,
+		" target_pose=", target.global_transform if is_instance_valid(target) else null, " component_snapshot=", component_snapshot, " shapes=", shapes,
+		" craft_pose=", _craft.global_transform, " camera_pose=", _player.get_camera().global_transform, " aim_direction=", _player.get_interaction_direction(),
+		" muzzle_pose=", muzzle.global_transform if muzzle != null else null, " gunner_state=", _craft.get_gunner_gameplay_state(), " receipts_before=", before, " receipts_now=", receipts.size())
+	for index in range(before, receipts.size()):
+		var result: Dictionary = receipts[index]
+		var request := result.get("request") as ShotRequest
+		print("GUNNER_HOST_SHOT_RECEIPT: stage=", stage, " index=", index, " result=", result,
+			" request_context=", request.get_source_context() if request != null else {}, " origin=", request.origin if request != null else null,
+			" direction=", request.direction if request != null else null, " range=", request.range if request != null else null, " damage=", request.damage if request != null else null)
 
 func _client_pilot_host_gunner() -> void:
 	if not await _wait_file("host.local_seated", 20.0):
@@ -503,7 +530,9 @@ func _client_pilot_host_gunner() -> void:
 		return
 	_check([client_target_a.get_meta("health"), client_target_b.get_meta("health")] == client_health and _craft.get_crew_role_authority() == null, "host-local gunner shots never resolve target damage or acquire role authority on client")
 	Input.action_release(source.throttle_forward_action)
-	_game.shutdown_network_session(&"host_gunner_pilot_disconnect")
+	_print_fresh_pilot_state(&"before_pilot_shutdown")
+	var shutdown_result: Dictionary = _game.shutdown_network_session(&"host_gunner_pilot_disconnect")
+	_print_fresh_pilot_state(&"after_pilot_shutdown", shutdown_result)
 	_check(not _player.is_seated() and _player.is_control_enabled(), "pilot disconnect restores the actual client body and controls")
 	_write("client.pilot_disconnected", {})
 
@@ -520,7 +549,8 @@ func _print_fresh_pilot_state(stage: StringName, join_result: Dictionary = {}) -
 		" session_mode=", _game.get("_network_session_mode"), " connection_status=", peer.get_connection_status() if peer != null else -1,
 		" session_server=", session.is_server() if session_available else null, " admitted_peers=", session.get_admitted_peer_ids() if session_available else [],
 		" boarding_claim=", _game.get("_network_client_boarding_claim"), " boarding_request=", _game.get("_network_client_boarding_request"), " boarding_audit=", _game.get_network_client_boarding_audit(),
-		" piloting=", _game.get("_piloting"), " phase=", _game.phase, " transition_busy=", _game.get("_transition_busy"),
+		" piloting=", _game.get("_piloting"), " phase=", _game.phase, " transition_busy=", _game.get("_transition_busy"), " canopy_generation=", _game.get("_network_exterior_canopy_generation"),
+		" cabin_reserved=", (_craft.get_node("ShipBoardingArea") as ShipBoardingArea).get_reservation_token(), " selected_source=", _craft.get_command_source(), " local_source=", _craft.get_local_input_source(), " source_authority_peer=", _craft.get_local_input_source().get_authority_peer_id(),
 		" player_control=", _player.is_control_enabled(), " player_seated=", _player.is_seated(), " containment=", _player.get_cabin_containment_report())
 
 func _refusal(payload: Dictionary, reason: StringName, description: String) -> void:
