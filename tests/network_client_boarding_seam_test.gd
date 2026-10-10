@@ -1,4 +1,5 @@
 extends "res://tests/in_flight_cabin_integration_test.gd"
+## test-matrix-display: input-only
 
 ## The client half of the production hatch, over a real ENet session.
 ##
@@ -64,6 +65,7 @@ var _client_players: Array = []
 var _fillers: Array = []
 var _filler_peer_ids: Array[int] = []
 var _boarding_results: Array = []
+var _cockpit_reach_sampled := false
 
 
 func _run() -> void:
@@ -544,13 +546,17 @@ func _assert_a_passenger_is_promoted_to_pilot_in_place() -> void:
 	# cannot leave this approach dependent on a retained camera heading.
 	_only_this_player_hears_the_key(client_player)
 	client_player.set_control_enabled(true)
+	print("NETWORK_COCKPIT_APPROACH_BEFORE_LOOK: ", _cockpit_approach_pose(client_player, craft, entity))
 	await _look_toward_cockpit(client_player, craft.get_pilot_seat_anchor().global_position)
+	print("NETWORK_COCKPIT_APPROACH_AFTER_LOOK: ", _cockpit_approach_pose(client_player, craft, entity))
+	_cockpit_reach_sampled = false
 	Input.action_press(&"move_forward")
 	var reached := await _wait_until(
-		func() -> bool: return game._network_client_near_pilot_seat(craft), 6.0
+		func() -> bool: return _sample_cockpit_reach(game, client_player, craft, entity), 6.0
 	)
 	Input.action_release(&"move_forward")
 	await _drive_session(10)
+	print("NETWORK_COCKPIT_APPROACH_SETTLED: ", _cockpit_approach_pose(client_player, craft, entity))
 	_check(reached and game._network_client_near_pilot_seat(craft),
 		"the passenger reached the cockpit")
 	game._refresh_interaction_targets()
@@ -628,6 +634,36 @@ func _assert_the_host_is_refused_a_seat_a_crewmate_holds() -> void:
 func _client_holds_role(game: GameFlow, role: StringName) -> bool:
 	var claim := game.get_network_client_boarding_audit().get("claim", {}) as Dictionary
 	return StringName(claim.get("role", &"")) == role
+
+
+func _cockpit_approach_pose(
+	client_player: PlayerController, craft: HeroShip, entity: StringName
+) -> Dictionary:
+	var client_local := craft.to_local(client_player.global_position)
+	var seat_local := craft.to_local(craft.get_pilot_seat_anchor().global_position)
+	var body := _host_body(entity)
+	var host_local := _host_craft.to_local(body.global_position) if body != null else Vector3.INF
+	var host_seat_local := _host_craft.to_local(_host_craft.get_pilot_seat_anchor().global_position)
+	return {
+		"look_yaw": client_player.get_look_yaw(),
+		"mouse_mode": Input.mouse_mode, "camera_active": client_player._camera_active,
+		"embodiment": client_player._embodiment_state, "sleeping": client_player.is_sleeping(),
+		"back_local": craft.global_basis.inverse() * client_player._camera_relative_direction(Vector2.DOWN),
+		"forward_local": craft.global_basis.inverse() * client_player._camera_relative_direction(Vector2.UP),
+		"client_local": client_local, "seat_local": seat_local, "host_local": host_local,
+		"client_distance": Vector2(client_local.x - seat_local.x, client_local.z - seat_local.z).length(),
+		"host_distance": Vector2(host_local.x - host_seat_local.x, host_local.z - host_seat_local.z).length(),
+	}
+
+
+func _sample_cockpit_reach(
+	game: GameFlow, client_player: PlayerController, craft: HeroShip, entity: StringName
+) -> bool:
+	var reached := game._network_client_near_pilot_seat(craft)
+	if reached and not _cockpit_reach_sampled:
+		_cockpit_reach_sampled = true
+		print("NETWORK_COCKPIT_APPROACH_FIRST_REACH: ", _cockpit_approach_pose(client_player, craft, entity))
+	return reached
 
 
 func _look_toward_cockpit(client_player: PlayerController, target: Vector3) -> void:

@@ -125,6 +125,7 @@ const NETWORK_REMOTE_BODY_CORRECTION_METRES := 0.5
 ## berth, so this is also the hatch's headcount per craft.
 const NETWORK_CABIN_BERTH_COUNT := 4
 const NETWORK_CABIN_BERTH_ROLE: StringName = &"passenger"
+const NETWORK_CABIN_BERTH_CLEARANCE_METRES := 0.25
 ## Craft-local horizontal metres from the pilot seat anchor within which a
 ## networked passenger's cabin press asks to be promoted into the pilot seat
 ## (an atomic ledger swap) rather than to leave through the hatch.
@@ -10474,6 +10475,43 @@ static func is_network_cabin_berth_seat(ship_id: StringName, seat_id: StringName
 	return String(seat_id).begins_with("%s_cabin_" % String(ship_id))
 
 
+## Halyard's four ledger berths share its authored central cabin deck, but
+## cannot share one physical capsule. Keep berth one at the existing stand;
+## successive berths stand aft along the supported aisle, one capsule and a
+## walking clearance apart. Other craft retain their own stand contract.
+func _network_cabin_berth_transform(
+	craft: HeroShip, seat_id: StringName, occupant: PlayerController
+) -> Transform3D:
+	var cabin := craft.get_in_flight_cabin_report()
+	var stand := cabin.get("stand_transform", craft.global_transform) as Transform3D
+	stand = Transform3D(stand.basis.orthonormalized(), stand.origin)
+	if not craft is HalyardCrewTransport or not is_instance_valid(occupant):
+		return stand
+	var collision := occupant.get_node_or_null("PlayerCollision") as CollisionShape3D
+	var capsule := collision.shape as CapsuleShape3D if collision != null else null
+	if capsule == null:
+		return stand
+	for index in NETWORK_CABIN_BERTH_COUNT:
+		if seat_id == network_cabin_berth_seat_id(craft.get_ship_id(), index + 1):
+			var spacing := capsule.radius * 2.0 + occupant.safe_margin * 2.0 + NETWORK_CABIN_BERTH_CLEARANCE_METRES
+			stand.origin += craft.global_basis.z.normalized() * spacing * index
+			break
+	return stand
+
+
+## Read the seat held by this avatar from the host's ledger rather than from
+## an admission caller. Re-admission after a reconnect uses the same berth.
+func _network_cabin_berth_for_avatar(
+	craft: HeroShip, owner_peer_id: int, entity_id: StringName
+) -> StringName:
+	for occupancy: Dictionary in network_session.get_boarding_snapshot().get("occupancies", []):
+		if int(occupancy.get("peer_id", 0)) == owner_peer_id \
+				and StringName(occupancy.get("avatar_id", &"")) == entity_id \
+				and StringName(occupancy.get("ship_id", &"")) == craft.get_ship_id():
+			return StringName(occupancy.get("seat_id", &""))
+	return &""
+
+
 # --- boarding ledger clock and the host's own seat (authority) --------------
 #
 # Two things the ledger could not do on its own. Its tick window was inert
@@ -12002,8 +12040,8 @@ func _advance_network_remote_bodies(tick: int) -> void:
 
 ## Stands a server-owned body for `owner_peer_id` aboard `fleet_ship`, named
 ## `entity_id` to the publisher. Server only; the peer must be admitted. The
-## craft's own cabin report supplies the stand pose and the movement envelope,
-## exactly as it does for the host's own player leaving the seat.
+## craft's own cabin report supplies the movement envelope; a confirmed cabin
+## berth chooses its arrival pose from the host ledger.
 func admit_network_remote_body(
 	owner_peer_id: int,
 	entity_id: StringName,
@@ -12024,7 +12062,14 @@ func admit_network_remote_body(
 	var result: Dictionary = simulation.admit(owner_peer_id, entity_id, craft, frame, frame_id)
 	if not bool(result.get("accepted", false)):
 		return result
-	var body := result.get("body") as Node3D
+	var body := result.get("body") as PlayerController
+	var berth := _network_cabin_berth_for_avatar(craft, owner_peer_id, entity_id)
+	if is_network_cabin_berth_seat(craft.get_ship_id(), berth):
+		var stand := _network_cabin_berth_transform(craft, berth, body)
+		body.teleport_to(stand)
+		body.set_cabin_containment(
+			craft, craft.get_in_flight_cabin_report().get("local_bounds", AABB()) as AABB, stand
+		)
 	var named := register_network_moving_interior_occupant(body, entity_id, owner_peer_id)
 	result["named"] = named
 	_network_moving_interior_dirty = true
@@ -12488,9 +12533,11 @@ func _network_client_boarding_matches_abandoned(
 			_network_client_boarding_audit["claimed_seat_id"] = granted_seat
 			if adopted_role == NETWORK_CABIN_BERTH_ROLE:
 				_restore_network_client_helm_input_sources(_find_flyable_ship_by_id(StringName(abandoned.get("ship_id", &""))))
-				# A late hand-back of the helm: the host already stood this
-				# peer's body up in the cabin it is walking.
-				bind_network_remote_body(network_client_boarding_avatar_id(_network_client_peer_id()))
+				# A late hand-back uses the same confirmed berth pose as an
+				# on-time answer and the body already admitted by the host.
+				_present_network_client_helm_released(_find_flyable_ship_by_id(
+					StringName(abandoned.get("ship_id", &""))
+				))
 			else:
 				_bind_network_client_helm_input_source(_find_flyable_ship_by_id(StringName(abandoned.get("ship_id", &""))))
 				unbind_network_remote_body()
@@ -12626,14 +12673,19 @@ func _request_network_client_helm_release(craft: HeroShip) -> Dictionary:
 
 
 ## Client: the ledger moved this peer from the pilot seat into a berth. It is
-## already standing in the cabin (the local seat exit put it there), so the
-## only change is that its walk is now the prediction of the body the host
-## admitted, exactly as for a passenger who boarded through the hatch.
+## already standing in the cabin (the local seat exit put it there). Present
+## the confirmed berth pose and bind its walk to the host's admitted body,
+## exactly as for a passenger who boarded through the hatch.
 func _present_network_client_helm_released(craft: HeroShip) -> void:
 	_restore_network_client_helm_input_sources(craft)
 	_network_client_boarding_audit["helm_releases"] = \
 		int(_network_client_boarding_audit.get("helm_releases", 0)) + 1
 	_network_remote_helm = {}
+	if is_instance_valid(craft):
+		player.teleport_to(_network_cabin_berth_transform(
+			craft, StringName(_network_client_boarding_claim.get("seat_id", &"")), player
+		))
+		_bind_cabin_occupancy(craft)
 	bind_network_remote_body(network_client_boarding_avatar_id(_network_client_peer_id()))
 	if is_instance_valid(hud) and is_instance_valid(craft):
 		hud.toast(
@@ -12658,7 +12710,9 @@ func _present_network_client_cabin_boarding(craft: HeroShip, area: ShipBoardingA
 		# hand the berth straight back instead of holding a seat nobody is in.
 		_return_network_client_berth(craft, area, &"cabin_unavailable")
 		return
-	var stand := cabin.get("stand_transform", craft.global_transform) as Transform3D
+	var stand := _network_cabin_berth_transform(
+		craft, StringName(_network_client_boarding_claim.get("seat_id", &"")), player
+	)
 	_boarding_area = area
 	_piloting = false
 	_cabin_ship = craft
@@ -13051,6 +13105,10 @@ func _bind_cabin_occupancy(cabin_ship: HeroShip) -> void:
 	var frame := cabin.get("frame") as MovingInteriorFrame
 	var cabin_bounds := cabin.get("local_bounds", AABB()) as AABB
 	var stand_transform := cabin.get("stand_transform", Transform3D.IDENTITY) as Transform3D
+	if _network_session_mode == &"client" and _network_client_boarding_holds(cabin_ship):
+		stand_transform = _network_cabin_berth_transform(
+			cabin_ship, StringName(_network_client_boarding_claim.get("seat_id", &"")), player
+		)
 	if not is_instance_valid(frame):
 		return
 	# The cockpit deck legitimately reaches past the pressurised occupancy volume,
