@@ -386,9 +386,20 @@ func _test_race_fallback_refusal(active: PackedByteArray, unpaid: PackedByteArra
 			var game := await _make_game(store)
 			game.set_physics_process(false)
 			var snapshot := game.get_active_activity_snapshot()
-			_check(snapshot.state_id == &"idle" and int(snapshot.session_generation) == 0
-				and int(snapshot.next_checkpoint_index) == 0 and float(snapshot.last_time_seconds) == -1.0
-				and float(snapshot.best_time_seconds) == -1.0 and _race_receipts(game) == 0
+			var session := game.cinder_race_session.get_presentation_snapshot()
+			var integration := game.get_activity_integration_report()
+			var restore := game.get_cinder_race_session_persistence_report().restore_status as Dictionary
+			print("RACE_FALLBACK_ADMISSION ", {"kind": kind, "attempt": attempt, "public_state": snapshot,
+				"session": session, "selected_kind": integration.selected_activity_kind,
+				"active_id": integration.active_activity_id, "restore": restore})
+			_check(snapshot.is_empty() and integration.active_activity_id == &""
+				and integration.selected_activity_kind == GameFlow.ACTIVITY_KIND_TIMED_RACE
+				and not restore.accepted and restore.reason == &"race_session_store_recovery_required"
+				and session.get("state_id", &"") == &"idle" and session.get("attached", false)
+				and int(session.get("session_generation", -1)) == 0 and int(session.get("next_checkpoint_index", -1)) == 0
+				and float(session.get("current_time_seconds", -1.0)) == 0.0 and float(session.get("penalty_seconds", -1.0)) == 0.0
+				and float(session.get("last_time_seconds", 0.0)) == -1.0 and float(session.get("best_time_seconds", 0.0)) == -1.0
+				and _race_receipts(game) == 0
 				and (game.get("_owed_game_flow_activity_rewards") as Array).is_empty(),
 				"fresh Main refuses %s backup-derived race clock, gates, results and debt" % kind)
 			var before := game.cinder_race_session.capture_persistence_state()
@@ -403,7 +414,7 @@ func _test_race_fallback_refusal(active: PackedByteArray, unpaid: PackedByteArra
 				"state": snapshot, "restore": game.get_cinder_race_session_persistence_report().restore_status,
 				"start": started, "reset": reset, "save": saved, "payment": payment, "source": store.get_loaded_source()})
 			_check(not started.accepted and started.reason == &"not_in_free_flight" and not reset
-				and not saved.accepted and saved.reason == &"race_session_store_recovery_required"
+				and saved.accepted and saved.reason == &"race_session_not_started"
 				and not payment.accepted and payment.reason == &"reward_store_recovery_required"
 				and game.cinder_race_session.capture_persistence_state() == before and _race_receipts(game) == 0
 				and store.get_loaded_source() == &"backup" and _race_recovery_artifacts(path) == artifacts,
