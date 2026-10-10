@@ -217,6 +217,9 @@ var _posture_visible_direction_sign := 0.0
 var _bolt_pool: TravellingBoltProjectile
 var _network_presentation_only := false
 var _network_saved_activation_generation := -1
+## Expires when solo physics resumes. Covers parent shutdown before this
+## descendant exits, without preserving an ordinary later detach's charge.
+var _network_solo_handback_generation := -1
 var _network_saved_collision_layer := 0
 var _network_saved_collision_mask := 0
 var _network_saved_visible := false
@@ -253,11 +256,15 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	var retain_solo_charge := _active and not escort_enabled \
+		and not is_instance_valid(_dispatch_authority_owner) and not is_queued_for_deletion() \
+		and _activation_generation == _network_solo_handback_generation
 	_discard_lance_bolts(&"detached")
 	_clear_standoff_intent_cue()
 	_clear_posture_cue()
 	_unbind_siege_lance_audio()
-	_revoke_dispatch_authorization(&"detached")
+	_revoke_dispatch_authorization(&"detached", retain_solo_charge)
+	_network_solo_handback_generation = -1
 	_disconnect_pulse_signals()
 	# Damage authority is already final; only queued presentation is dropped so a
 	# streamed teardown can never resurrect a transient on re-entry.
@@ -277,6 +284,7 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if _network_presentation_only:
 		return
+	_network_solo_handback_generation = -1
 	_update_escort_dispatch(delta)
 	if _active and is_finite(delta) and delta >= 0.0:
 		_post_shot_relocation_remaining = maxf(
@@ -713,6 +721,7 @@ func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
 	var activation := super(spawn_transform) as Dictionary
 	if not bool(activation.get("accepted", false)):
 		return activation
+	_network_solo_handback_generation = -1
 	# Activation alone grants movement/lifecycle ownership, never escort fire.
 	# Retire only after acceptance, for both ordinary and typed activation.
 	if escort_enabled:
@@ -796,6 +805,7 @@ func activate_authorized_dispatch(
 
 
 func deactivate() -> void:
+	_network_solo_handback_generation = -1
 	_discard_lance_bolts(&"deactivated")
 	_revoke_dispatch_authorization(&"deactivated")
 	_post_shot_relocation_remaining = 0.0
@@ -826,6 +836,7 @@ func _unbind_siege_lance_audio() -> void:
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
+	_network_solo_handback_generation = -1
 	_discard_lance_bolts(&"source_destroyed")
 	_revoke_dispatch_authorization(&"destroyed")
 	_post_shot_relocation_remaining = 0.0
@@ -995,7 +1006,7 @@ func _stand_down_escort_dispatch(reason: StringName) -> void:
 		_cancel_lance_charge(reason, false)
 
 
-func _revoke_dispatch_authorization(reason: StringName) -> void:
+func _revoke_dispatch_authorization(reason: StringName, retain_solo_charge: bool = false) -> void:
 	_escort_fire_authorized = false
 	_escort_dispatched = false
 	_dispatch_owner_generation = 0
@@ -1003,7 +1014,7 @@ func _revoke_dispatch_authorization(reason: StringName) -> void:
 	_dispatch_authority_owner = null
 	_dispatch_defender = null
 	_unbind_escort_defender_signal()
-	if _lance_charge_armed or _telegraph_remaining > 0.0:
+	if not retain_solo_charge and (_lance_charge_armed or _telegraph_remaining > 0.0):
 		_cancel_lance_charge(reason, false)
 
 
@@ -1345,6 +1356,8 @@ func set_network_presentation_only(enabled: bool) -> void:
 	_network_presentation_only = enabled
 	if enabled:
 		_network_saved_activation_generation = _activation_generation
+		_network_solo_handback_generation = _activation_generation \
+			if _active and not escort_enabled and not is_instance_valid(_dispatch_authority_owner) else -1
 		_network_saved_collision_layer = collision_layer
 		_network_saved_collision_mask = collision_mask
 		_network_saved_visible = visible

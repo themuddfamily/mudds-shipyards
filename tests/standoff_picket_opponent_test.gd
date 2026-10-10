@@ -62,6 +62,7 @@ func _run() -> void:
 	await _test_standoff_tactics()
 	await _test_charge_locked_aim()
 	await _test_network_suspension_retirement()
+	await _test_network_solo_handback_reentry()
 	await _test_synchronous_escort_stand_down_fence()
 	await _test_dispatch_authority_modes_and_stale_owners()
 	await _test_lance_firing_and_receipts()
@@ -1288,6 +1289,101 @@ func _test_network_suspension_retirement() -> void:
 			and picket.visible == next_visible
 			and picket.get_network_actor_presentation_snapshot() == next_state,
 			"a new activation after %s retains its own exact active handback" % retirement)
+		await _free_fixture(fixture)
+
+
+## Match Main's shutdown-before-descendant-exit ordering, using the retained
+## real source/target/authority subtree. Other detach and life transitions keep
+## their cancellation fences; no saved charge is recreated on re-entry.
+func _test_network_solo_handback_reentry() -> void:
+	for route in [&"client_handback", &"ordinary", &"resumed", &"deactivated", &"destroyed", &"reactivated", &"client_dispatch"]:
+		var fixture := await _make_fixture()
+		var host := fixture.host as Node3D
+		var picket: StandoffPicketOpponent = fixture.picket
+		var target: RangeOpponent = fixture.target
+		_place_target(target, Vector3(0.0, 0.0, -120.0))
+		_place(picket, Vector3.ZERO, target.global_position)
+		picket.activate(picket.global_transform)
+		picket.set_target(target)
+		if route == &"client_dispatch":
+			var defender: RangeOpponent = fixture.defender
+			picket.escort_enabled = true
+			picket.escort_launch_delay = 0.0
+			defender.activate(Transform3D(Basis.IDENTITY, Vector3(180.0, 0.0, 0.0)))
+			picket._update_escort_dispatch(0.0)
+			_place(picket, Vector3.ZERO, target.global_position)
+		picket.set_physics_process(false)
+		picket.set_process(false)
+		target.set_physics_process(false)
+		target.set_process(false)
+		picket._cooldown_remaining = 0.0
+		var target_offset := target.global_position - picket.global_position
+		picket._update_weapon(
+			target.global_position, target_offset.normalized(), target_offset.length(), 0.0
+		)
+		picket._update_presentation(0.0)
+		_check(bool(picket.get_lance_charge_snapshot().get("armed", false)),
+			"%s re-entry begins with a real armed source charge" % route)
+		if route != &"ordinary":
+			picket.set_network_presentation_only(true)
+			picket.set_reduced_flash_enabled(true)
+			# GameFlow tree_exiting shuts the session down while descendants are
+			# still attached; this restores false before picket._exit_tree runs.
+			picket.set_network_presentation_only(false)
+		if route == &"resumed":
+			picket._physics_process(0.0)
+		elif route == &"deactivated":
+			picket.deactivate()
+		elif route == &"destroyed":
+			picket.apply_damage(picket.maximum_health + 1.0, picket.global_position)
+		elif route == &"reactivated":
+			picket.activate_with_result(picket.global_transform)
+			picket._cooldown_remaining = 0.0
+			picket._update_weapon(
+				target.global_position, target_offset.normalized(), target_offset.length(), 0.0
+			)
+			picket._update_presentation(0.0)
+		var charge := picket.get_lance_charge_snapshot()
+		var presentation := picket.get_network_actor_presentation_snapshot()
+		var pose := picket.global_transform
+		var collision := Vector2i(picket.collision_layer, picket.collision_mask)
+		var visible_before := picket.visible
+		var activation := picket.get_lance_source_generation()
+		root.remove_child(host)
+		_check(not picket.is_combat_source_registered() and not picket._is_fire_authorized(),
+			"%s detached source retains no combat or fire authority" % route)
+		root.add_child(host)
+		await process_frame
+		await process_frame
+		if route == &"client_handback":
+			_check(picket.get_lance_charge_snapshot() == charge
+				and picket.get_network_actor_presentation_snapshot() == presentation
+				and picket.global_transform == pose and picket.get("_target") == target
+				and Vector2i(picket.collision_layer, picket.collision_mask) == collision
+				and picket.visible == visible_before and picket.get_lance_source_generation() == activation
+				and bool(picket.get("_reduced_flash"))
+				and picket.is_combat_source_registered() and picket._is_lance_charge_authorized(),
+				"immediate client handback re-entry retains exact live solo charge, aim, life, cues and current accessibility")
+		elif route == &"deactivated" or route == &"destroyed":
+			_check(not picket.is_active() and not picket.visible
+				and picket.collision_layer == 0 and picket.collision_mask == 0
+				and not picket.is_combat_source_registered()
+				and not bool(picket.get_lance_charge_snapshot().get("armed", true))
+				and (route != &"destroyed" or picket.get_health() == 0.0),
+				"%s client handback cannot revive a retired solo life during re-entry" % route)
+		else:
+			_check(not bool(picket.get_lance_charge_snapshot().get("armed", true))
+				and not bool(picket.get_lance_charge_snapshot().get("active", true))
+				and picket.get_lance_charge_snapshot().get("cancel_reason") == &"detached",
+				"%s detach keeps ordinary cancellation instead of inheriting old client handback" % route)
+			if route == &"client_dispatch":
+				var lifecycle := picket.get_audit_report().lifecycle as Dictionary
+				_check(int(lifecycle.dispatch_owner_instance_id) == 0
+					and not bool(lifecycle.escort_fire_authorized) and not picket._is_fire_authorized(),
+					"client handback re-entry cannot retain an escort charge or its stale dispatch grant")
+		_check(_lance_events.is_empty() and picket.get_pending_lance_receipt_count() == 0
+			and not bool(picket.get_lance_bolt_snapshot().get("built", true)),
+			"%s handback and re-entry create no local shot, receipt or projectile pool" % route)
 		await _free_fixture(fixture)
 
 
