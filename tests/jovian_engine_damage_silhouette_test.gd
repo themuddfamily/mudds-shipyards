@@ -77,8 +77,7 @@ func _initialize() -> void:
 		freighter, ShipComponentDamageType.COMPONENT_ENGINE_BAY
 	)
 	var hull_before := float(freighter.get_telemetry().get("hull", -1.0))
-	# Leave enough impairment headroom that the craft's legitimate berth-repair
-	# tick cannot cross back to nominal during the short chase/re-entry probe.
+	# Damage is admitted only through the production hull/component owner.
 	var damage_amount := freighter.maximum_hull * 0.15
 	freighter.apply_damage(
 		damage_amount,
@@ -86,6 +85,9 @@ func _initialize() -> void:
 		Vector3.BACK
 	)
 	var damaged := freighter.get_engine_damage_cue_snapshot()
+	var damaged_engine_integrity := freighter.get_component_damage().get_component_integrity(
+		ShipComponentDamageType.COMPONENT_ENGINE_BAY
+	)
 	_check(
 		is_equal_approx(
 			float(freighter.get_telemetry().get("hull", -1.0)),
@@ -99,9 +101,40 @@ func _initialize() -> void:
 		"production HeroShip.apply_damage alone reveals the impaired engine-bay silhouette"
 	)
 
+	# Check the real detach/re-entry boundary before physics resumes. A landed
+	# craft may legitimately repair past impairment during process-frame waits.
+	var cue_id := cue.get_instance_id()
+	root.remove_child(freighter)
+	root.add_child(freighter)
+	_check(
+		cue.get_instance_id() == cue_id
+			and bool(freighter.get_engine_damage_cue_snapshot().get("visible", false))
+			and freighter.get_engine_damage_cue_snapshot().get("stage", &"") == &"impaired"
+			and _lane_identity(freighter) == lane_identity,
+		"detach and re-entry retain the same steady cue and every freighter lane"
+	)
+
 	freighter.set_piloted(true)
 	for _frame in 4:
 		await process_frame
+	# Re-entry also schedules deferred fitout/audio work. Let that work and one
+	# real physics tick run, then compare presentation with the current ledger;
+	# legitimate berth repair may already have returned the engine to nominal.
+	await physics_frame
+	await process_frame
+	var after_deferred := freighter.get_engine_damage_cue_snapshot()
+	var live_engine_stage := ShipComponentDamageType.state_id_for(
+		freighter.get_component_damage().get_component_state(
+			ShipComponentDamageType.COMPONENT_ENGINE_BAY
+		)
+	)
+	_check(
+		cue.get_instance_id() == cue_id
+			and after_deferred.get("stage", &"") == live_engine_stage
+			and bool(after_deferred.get("visible", false)) == (live_engine_stage != &"nominal")
+			and _lane_identity(freighter) == lane_identity,
+		"deferred re-entry retains the cue and every lane while visibility follows the live engine ledger"
+	)
 	var vane_bounds: AABB = cue.transform * vane.transform * vane.mesh.get_aabb()
 	var chase_camera := freighter.get_camera()
 	var projected_height_px := vane_bounds.size.y * 720.0 / (
@@ -124,17 +157,45 @@ func _initialize() -> void:
 		"damage presentation preserves cargo, passenger, engineer, copilot, boarding, and weapon lanes"
 	)
 
-	var cue_id := cue.get_instance_id()
-	root.remove_child(freighter)
-	await process_frame
-	root.add_child(freighter)
-	await process_frame
+	# Berth repair stays active. Observe its real owner ticks separately from the
+	# synchronous lifecycle check, rather than assuming an impairment survives
+	# a number of rendered frames on a loaded machine.
+	var component_damage := freighter.get_component_damage()
+	var repair_tick_budget := ceili(
+		(1.0 - component_damage.get_component_integrity(
+			ShipComponentDamageType.COMPONENT_ENGINE_BAY
+		)) / component_damage.repair_rate_per_second * Engine.physics_ticks_per_second
+	) + 2
+	var repair_started_at := Engine.get_physics_frames()
+	while component_damage.get_component_integrity(
+			ShipComponentDamageType.COMPONENT_ENGINE_BAY
+		) < 1.0 \
+			and Engine.get_physics_frames() - repair_started_at < repair_tick_budget:
+		await physics_frame
+	var repaired := freighter.get_engine_damage_cue_snapshot()
 	_check(
-		cue.get_instance_id() == cue_id
-			and bool(freighter.get_engine_damage_cue_snapshot().get("visible", false))
-			and freighter.get_engine_damage_cue_snapshot().get("stage", &"") == &"impaired"
+		component_damage.get_component_integrity(
+			ShipComponentDamageType.COMPONENT_ENGINE_BAY
+		) > damaged_engine_integrity
+			and component_damage.get_component_state(
+				ShipComponentDamageType.COMPONENT_ENGINE_BAY
+			) == ShipComponentDamageType.ComponentState.NOMINAL
+			and repaired.get("stage", &"") == &"nominal"
+			and not bool(repaired.get("visible", true))
+			and cue.get_instance_id() == cue_id
 			and _lane_identity(freighter) == lane_identity,
-		"detach and re-entry retain the same steady cue and every freighter lane"
+		"live berth repair clears the cue with the engine ledger and preserves every freighter lane"
+	)
+
+	# Keep reuse's original impaired-to-nominal contract meaningful after the
+	# independent production repair proof.
+	freighter.apply_damage(
+		damage_amount, freighter.to_global(engine_position), Vector3.BACK
+	)
+	_check(
+		freighter.get_engine_damage_cue_snapshot().get("stage", &"") == &"impaired"
+			and bool(freighter.get_engine_damage_cue_snapshot().get("visible", false)),
+		"production damage restores impairment before the pooled reuse check"
 	)
 
 	var reset := freighter.reset_for_reuse(freighter.global_transform)
