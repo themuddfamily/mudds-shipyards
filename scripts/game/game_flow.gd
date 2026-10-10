@@ -8730,7 +8730,7 @@ func _bind_heavy_breach_activity_board() -> void:
 func _bind_salvage_inspection_persistence() -> void:
 	var station := _get_salvage_inspection_station()
 	if station != null and _runtime_settings_user_data_store != null:
-		var owner := weakref(station)
+		var owner: WeakRef = weakref(station)
 		station.configure_persistence(
 			Callable(self, &"_read_salvage_inspection_record").bind(owner),
 			Callable(self, &"_write_salvage_inspection_record").bind(owner)
