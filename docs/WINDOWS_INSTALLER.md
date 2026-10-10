@@ -967,3 +967,11 @@ this is not a zero-warning qualification of every startup.
   `tools/release/test_build_windows_installer.py` pins the script contract
   (per-user, no `HKLM`, no recursive or user-data deletion, provenance
   recorded) and builds a stub installer when `makensis` is present.
+
+## Installed scan recovery verification
+
+The verifier extension in `0f12b985e` accepts `-InWorldRecovery -InWorldRecoveryActivity scan` with pilot context on a payload containing the production scan interruption entry. It uses the existing owned kill/wait/restart lifecycle and verifies the genuine unpaid terminal, safe-home Resume/throttle, ordinary HUD retry, exactly one permanent material sample receipt, unchanged settings/cargo and clean recovery markers. Run it against the matching installer; native scan acceptance remains `NOT_RUN`.
+
+The existing focused suite passes 16 tests, including executable Linux PowerShell fixture/mutation checks on exact committed verifier bytes. These tests do not qualify an installed Windows payload.
+
+`-InWorldRecoveryContext engineer` is explicitly refused by this headless Windows lane because the shipped engineer probe requires private X11 input. Native Windows engineer acceptance needs an ordinary-input probe and a qualified private display/ownership guard in a dedicated closed test session; it remains open.
