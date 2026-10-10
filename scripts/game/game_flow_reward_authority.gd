@@ -421,7 +421,7 @@ func commit(request: Variant) -> Dictionary:
 
 	var cargo_completion: Dictionary = {}
 	if activity_id == CARGO_ACTIVITY_ID:
-		if _store.get_loaded_source() == &"backup":
+		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
 			_commit_active = false
 			return _reject(&"reward_store_recovery_required")
 		var cargo_slot: Variant = (payload as Dictionary).get("jovian_cargo_session")

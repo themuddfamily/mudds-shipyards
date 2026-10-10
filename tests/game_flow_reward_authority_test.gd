@@ -50,6 +50,21 @@ class MemoryFilesystem extends FilesystemScript:
 		return OK
 
 
+class StoreWithoutProvenance extends RefCounted:
+	var backing: UserDataStore
+	var commit_calls := 0
+
+	func get_snapshot() -> Dictionary:
+		return backing.get_snapshot()
+
+	func get_generation() -> int:
+		return backing.get_generation()
+
+	func commit(payload: Dictionary, generation: int, commit_id: String) -> Dictionary:
+		commit_calls += 1
+		return backing.commit(payload, generation, commit_id)
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -261,6 +276,19 @@ func _run() -> void:
 		"the completed production beacon run records one shared navigation-data receipt"
 	)
 	_check(_save_actual_jovian_completion(store), "a genuine Main-compatible typed transfer owns the Jovian durable terminal handoff")
+	var without_provenance := StoreWithoutProvenance.new()
+	without_provenance.backing = store
+	var untrusted_authority := AuthorityScript.new() as GameFlowRewardAuthority
+	_check(untrusted_authority.configure(without_provenance).accepted,
+		"the existing reward store interface admits a store without recovery provenance")
+	var before_untrusted := store.get_snapshot()
+	var untrusted_request := _request(AuthorityScript.CARGO_ACTIVITY_ID, 1, AuthorityScript.CARGO_REWARD_ID)
+	var untrusted := untrusted_authority.commit(untrusted_request)
+	var untrusted_retry := untrusted_authority.commit(untrusted_request)
+	_check(not untrusted.accepted and untrusted.reason == &"reward_store_recovery_required"
+		and not untrusted_retry.accepted and untrusted_retry.reason == &"reward_store_recovery_required"
+		and without_provenance.commit_calls == 0 and store.get_snapshot() == before_untrusted,
+		"missing cargo recovery provenance refuses repeated payment without writing or stranding the authority")
 	var jovian_cargo := authority.commit(_request(
 		&"jovian_fabrication_kit_delivery",
 		1,
