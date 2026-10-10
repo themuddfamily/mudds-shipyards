@@ -120,6 +120,18 @@ func _run() -> void:
 		1,
 		&"return_race_record_to_shipyard"
 	)
+	var race_without_provenance := StoreWithoutProvenance.new()
+	race_without_provenance.backing = store
+	var untrusted_race_authority := AuthorityScript.new() as GameFlowRewardAuthority
+	_check(untrusted_race_authority.configure(race_without_provenance).accepted,
+		"the existing store interface admits a race store without recovery provenance")
+	var before_untrusted_race := store.get_snapshot()
+	var untrusted_race := untrusted_race_authority.commit(race_request)
+	var untrusted_race_retry := untrusted_race_authority.commit(race_request)
+	_check(not untrusted_race.accepted and untrusted_race.reason == &"reward_store_recovery_required"
+		and not untrusted_race_retry.accepted and untrusted_race_retry.reason == &"reward_store_recovery_required"
+		and race_without_provenance.commit_calls == 0 and store.get_snapshot() == before_untrusted_race,
+		"missing race recovery provenance refuses repeated payment without writing or stranding the authority")
 	var race := authority.commit(race_request)
 	if not bool(race.accepted):
 		_check(false, "the live terminal handoff is eligible (%s)" % race.reason)

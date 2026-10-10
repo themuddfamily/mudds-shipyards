@@ -263,6 +263,9 @@ func commit(request: Variant) -> Dictionary:
 	# independently of whichever unrelated receipt later becomes the latest.
 	var race_completion: Dictionary = {}
 	if activity_id == RACE_ACTIVITY_ID:
+		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
 		var race_slot: Variant = (payload as Dictionary).get("cinder_timed_race_session")
 		if not race_slot is Dictionary or not race_slot.get("activities") is Array \
 				or (race_slot.activities as Array).size() != 1:
