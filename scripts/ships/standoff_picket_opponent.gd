@@ -216,6 +216,7 @@ var _posture_visible_state: StringName = STATE_DORMANT
 var _posture_visible_direction_sign := 0.0
 var _bolt_pool: TravellingBoltProjectile
 var _network_presentation_only := false
+var _network_saved_activation_generation := -1
 var _network_saved_collision_layer := 0
 var _network_saved_collision_mask := 0
 var _network_saved_visible := false
@@ -1343,6 +1344,7 @@ func set_network_presentation_only(enabled: bool) -> void:
 		return
 	_network_presentation_only = enabled
 	if enabled:
+		_network_saved_activation_generation = _activation_generation
 		_network_saved_collision_layer = collision_layer
 		_network_saved_collision_mask = collision_mask
 		_network_saved_visible = visible
@@ -1360,18 +1362,21 @@ func set_network_presentation_only(enabled: bool) -> void:
 		if is_instance_valid(_standoff_intent_cue):
 			_standoff_intent_cue.visible = false
 	else:
-		collision_layer = _network_saved_collision_layer
-		collision_mask = _network_saved_collision_mask
-		visible = _network_saved_visible
-		if _network_saved_cue_visibility.size() == 2:
-			if is_instance_valid(_posture_cue):
-				_posture_cue.visible = _network_saved_cue_visibility[0]
-			if is_instance_valid(_standoff_intent_cue):
-				_standoff_intent_cue.visible = _network_saved_cue_visibility[1]
-		_network_saved_cue_visibility.clear()
-		if _active:
+		# Lifecycle retirement during suspension owns its final flags. Only the
+		# same retained live activation may reclaim the exact pre-client state.
+		if _active and _activation_generation == _network_saved_activation_generation:
+			collision_layer = _network_saved_collision_layer
+			collision_mask = _network_saved_collision_mask
+			visible = _network_saved_visible
+			if _network_saved_cue_visibility.size() == 2:
+				if is_instance_valid(_posture_cue):
+					_posture_cue.visible = _network_saved_cue_visibility[0]
+				if is_instance_valid(_standoff_intent_cue):
+					_standoff_intent_cue.visible = _network_saved_cue_visibility[1]
 			if is_inside_tree():
 				_register_combat_source()
+		_network_saved_cue_visibility.clear()
+		_network_saved_activation_generation = -1
 
 
 ## Read-only presentation ingress. These three retained subtrees contain the

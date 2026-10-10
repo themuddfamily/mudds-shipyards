@@ -59,6 +59,7 @@ func _run() -> void:
 	await _test_authority_identity_lifecycle()
 	await _test_standoff_tactics()
 	await _test_charge_locked_aim()
+	await _test_network_suspension_retirement()
 	await _test_synchronous_escort_stand_down_fence()
 	await _test_dispatch_authority_modes_and_stale_owners()
 	await _test_lance_firing_and_receipts()
@@ -1143,6 +1144,65 @@ func _test_charge_locked_aim() -> void:
 
 	picket.deactivate()
 	await _free_fixture(fixture)
+
+
+## Client suspension retains a live life, but cannot undo an authoritative
+## retirement that occurs before handback. Later activations retain their own
+## exact presentation state rather than inheriting retired saved flags.
+func _test_network_suspension_retirement() -> void:
+	for retirement in [&"deactivated", &"destroyed"]:
+		var fixture := await _make_fixture()
+		var picket: StandoffPicketOpponent = fixture.picket
+		var target: RangeOpponent = fixture.target
+		_place_target(target, Vector3(0.0, 0.0, -120.0))
+		_place(picket, Vector3.ZERO, target.global_position)
+		picket.activate(picket.global_transform)
+		picket.set_target(target)
+		picket._cooldown_remaining = 0.0
+		var target_offset := target.global_position - picket.global_position
+		picket._update_weapon(
+			target.global_position, target_offset.normalized(), target_offset.length(), 0.0
+		)
+		picket._update_presentation(0.0)
+		var suspended_generation := picket.get_lance_source_generation()
+		_check(bool(picket.get_lance_charge_snapshot().get("active", false))
+			and picket.visible and picket.collision_layer != 0,
+			"%s suspension begins with a real live charged picket" % retirement)
+		picket.set_network_presentation_only(true)
+		if retirement == &"destroyed":
+			picket.apply_damage(picket.maximum_health + 1.0, picket.global_position)
+		else:
+			picket.deactivate()
+		var retired_state := picket.get_network_actor_presentation_snapshot()
+		var retired_health := picket.get_health()
+		picket.set_network_presentation_only(false)
+		_check(not picket.is_active() and not picket.visible
+			and picket.collision_layer == 0 and picket.collision_mask == 0
+			and not picket.is_combat_source_registered() and not picket._is_fire_authorized()
+			and not bool(picket.get_lance_charge_snapshot().get("active", true))
+			and picket.get_network_actor_presentation_snapshot() == retired_state
+			and picket.get_health() == retired_health
+			and (retirement != &"destroyed" or retired_health == 0.0),
+			"disconnect preserves %s retirement without reviving saved hull, collision, cues or authority" % retirement)
+		# A later ordinary activation owns a new suspension, never the retired
+		# life's saved flags; its exact active handback remains usable.
+		var reactivation := picket.activate_with_result(picket.global_transform)
+		picket.set_target(target)
+		picket._update_presentation(0.0)
+		var next_state := picket.get_network_actor_presentation_snapshot()
+		var next_collision := Vector2i(picket.collision_layer, picket.collision_mask)
+		var next_visible := picket.visible
+		picket.set_network_presentation_only(true)
+		picket.set_network_presentation_only(false)
+		_check(bool(reactivation.get("accepted", false))
+			and picket.get_lance_source_generation() > suspended_generation
+			and picket.is_active() and picket.is_combat_source_registered()
+			and picket._is_fire_authorized()
+			and Vector2i(picket.collision_layer, picket.collision_mask) == next_collision
+			and picket.visible == next_visible
+			and picket.get_network_actor_presentation_snapshot() == next_state,
+			"a new activation after %s retains its own exact active handback" % retirement)
+		await _free_fixture(fixture)
 
 
 ## A defender's terminal lifecycle signal and a lance dispatch can share one
