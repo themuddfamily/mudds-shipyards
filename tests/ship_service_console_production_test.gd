@@ -164,12 +164,13 @@ func _run() -> void:
 
 	var connections_before := console.get_signal_connection_list(&"service_requested").size()
 	var retained_annex := game.world.call(&"get_fabrication_ship_service_console") as Area3D
-	var detached_before := retained_annex.call(&"get_presentation_snapshot") as Dictionary
+	var detached_before := _presentation_state(retained_annex)
 	var units_before_detach := _kit_units(jovian)
 	root.remove_child(game)
 	retained_annex.emit_signal(&"service_requested", player)
 	_check(_kit_units(jovian) == units_before_detach
-			and (retained_annex.call(&"get_presentation_snapshot") as Dictionary) == detached_before,
+			and _presentation_state(retained_annex) == detached_before
+			and str(retained_annex.call(&"get_interaction_prompt")).is_empty(),
 		"a detached Main revokes both source bindings without a resource or presentation mutation")
 	await process_frame
 	root.add_child(game)
@@ -264,12 +265,12 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 	jovian.set("_landed", true)
 
 	await _spend_one_kit(jovian, authority)
-	var before := console.call(&"get_presentation_snapshot") as Dictionary
+	var before := _presentation_state(console)
 	# A forged actor must not enter the candidate refresh against a detached Player.
 	var player_parent := player.get_parent()
 	player_parent.remove_child(player)
 	console.emit_signal(&"service_requested", player)
-	_check(_kit_units(jovian) == 5 and (console.call(&"get_presentation_snapshot") as Dictionary) == before,
+	_check(_kit_units(jovian) == 5 and _presentation_state(console) == before,
 		"a detached production Player cannot restock or repaint through a forged signal")
 	player_parent.add_child(player)
 	await physics_frame
@@ -293,6 +294,8 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 	game.call(&"_bind_ship_service_console")
 	game.call(&"_bind_ship_service_console")
 	_check(_kit_units(jovian) == 5
+			and _presentation_state(console) == before
+			and str(console.call(&"get_interaction_prompt")).is_empty()
 			and console.get_signal_connection_list(&"service_requested").is_empty()
 			and replacement.get_signal_connection_list(&"service_requested").size() == 1,
 		"replacement binding revokes the detached source and binds the annex once while Aft stays valid")
@@ -300,7 +303,7 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 	await physics_frame
 	await process_frame
 	_check(game.station_interaction_candidate == replacement, "the replacement is rediscovered physically at the same control")
-	var replacement_before := replacement.get_presentation_snapshot()
+	var replacement_before := _presentation_state(replacement)
 	var toast_before := int(game.hud.get("_toast_serial"))
 	var retained: Array[Area3D] = [replacement]
 	var mutation_observer := func(_snapshot: Dictionary) -> void:
@@ -316,7 +319,8 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 	await _press_interact()
 	var newest := retained[1] if retained.size() == 2 else null
 	_check(_kit_units(jovian) == 6 and newest != null
-			and replacement.get_presentation_snapshot() == replacement_before
+			and _presentation_state(replacement) == replacement_before
+			and replacement.get_interaction_prompt().is_empty()
 			and int(newest.call(&"get_presentation_snapshot").get("presentation_sequence", -1)) == 0
 			and int(game.hud.get("_toast_serial")) == toast_before,
 		"synchronous source replacement preserves the real restock but paints no stale console, replacement, or HUD")
@@ -331,10 +335,11 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 			"a detached active craft receives refusal rather than a restock")
 		ship_parent.add_child(jovian)
 		game.station_interaction_candidate = newest
-		var newest_before := newest.call(&"get_presentation_snapshot") as Dictionary
+		var newest_before := _presentation_state(newest)
 		newest.queue_free()
 		newest.emit_signal(&"service_requested", player)
-		_check(_kit_units(jovian) == 5 and (newest.call(&"get_presentation_snapshot") as Dictionary) == newest_before,
+		_check(_kit_units(jovian) == 5 and _presentation_state(newest) == newest_before
+				and str(newest.call(&"get_interaction_prompt")).is_empty(),
 			"a queued accessor source cannot restock or repaint")
 		await process_frame
 	var final_console := ServiceConsoleType.new()
@@ -413,6 +418,17 @@ func _press_interact() -> void:
 
 func _kit_units(jovian: HeroShip) -> int:
 	return int((jovian.call(&"get_engineer_repair_state") as Dictionary).get("resource_units", -1))
+
+
+func _presentation_state(console: Area3D) -> Dictionary:
+	var snapshot := console.call(&"get_presentation_snapshot") as Dictionary
+	return {
+		"header": snapshot.header,
+		"status_text": snapshot.status_text,
+		"presentation_sequence": snapshot.presentation_sequence,
+		"last_result": snapshot.last_result,
+		"authority": snapshot.authority,
+	}
 
 
 func _build_jovian_authority():
