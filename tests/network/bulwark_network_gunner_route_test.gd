@@ -508,10 +508,13 @@ func _print_fresh_pilot_state(stage: StringName, join_result: Dictionary = {}) -
 	print("GUNNER_FRESH_PILOT_STATE: stage=", stage, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(), " pending_failures=", _failures, " join_result=", join_result, " game_valid=", is_instance_valid(_game))
 	if not is_instance_valid(_game):
 		return
-	var peer: MultiplayerPeer = _game.network_session.multiplayer.multiplayer_peer
+	var session := _game.network_session
+	var session_available := is_instance_valid(session)
+	var peer: MultiplayerPeer = session.multiplayer.multiplayer_peer if session_available else null
 	print("GUNNER_FRESH_PILOT_CONTEXT: stage=", stage,
+		" session_available=", session_available,
 		" session_mode=", _game.get("_network_session_mode"), " connection_status=", peer.get_connection_status() if peer != null else -1,
-		" session_server=", _game.network_session.is_server(), " admitted_peers=", _game.network_session.get_admitted_peer_ids(),
+		" session_server=", session.is_server() if session_available else null, " admitted_peers=", session.get_admitted_peer_ids() if session_available else [],
 		" boarding_claim=", _game.get("_network_client_boarding_claim"), " boarding_request=", _game.get("_network_client_boarding_request"), " boarding_audit=", _game.get_network_client_boarding_audit(),
 		" piloting=", _game.get("_piloting"), " phase=", _game.phase, " transition_busy=", _game.get("_transition_busy"),
 		" player_control=", _player.is_control_enabled(), " player_seated=", _player.is_seated(), " containment=", _player.get_cabin_containment_report())
