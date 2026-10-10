@@ -1475,7 +1475,7 @@ func _test_main_salvage_inspection() -> void:
 	_check(store.get_snapshot().future_owned_slot == unrelated
 		and store.get_snapshot()[SETTINGS_ADAPTER.SETTINGS_PAYLOAD_KEY] == settings_payload,
 		"production inspection commits preserve unrelated caller data and complete custom settings")
-	var old_main := weakref(game)
+	var old_main: WeakRef = weakref(game)
 	game.queue_free()
 	await process_frame
 	await physics_frame
