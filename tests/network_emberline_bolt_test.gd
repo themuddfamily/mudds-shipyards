@@ -205,7 +205,7 @@ func _client() -> void:
 		if StringName(projectile.get("source_entity_id", &"")) == &"emberline-raider" and bool(result.get("accepted", false)):
 			records.append(packet.duplicate(true)))
 	_check(await _wait(func() -> bool: return not _game.get_network_session().get_server_offer().is_empty()), "client admitted")
-	_check(await _wait(func() -> bool: return _game._network_picket_actor_presenter != null
+	_check(await _wait(func() -> bool: return _game._network_picket_actor_presenter != null \
 		and bool(_game._network_picket_actor_presenter.get_snapshot().actor.get("present", false)))
 		and int(_game.combat_audio.get_state_snapshot().cue_count) == audio_before_join,
 		"current and late actor first admission stays quiet without duplicate charge or weapon audio")
@@ -244,7 +244,7 @@ func _client() -> void:
 		"host tender and raider are visible beside their replicated bolt on the independent client")
 	var actor_snapshot := actor_presenter.get_snapshot()
 	var picket_presenter := _game._network_picket_actor_presenter
-	_check(await _wait(func() -> bool: return picket_presenter != null
+	_check(await _wait(func() -> bool: return picket_presenter != null \
 		and bool(picket_presenter.get_snapshot().actor.get("present", false))), "current and late peer receive actual host picket actor")
 	var remote_picket := picket_presenter.get_visual()
 	var picket_record := picket_presenter.get_snapshot().actor as Dictionary
@@ -355,7 +355,7 @@ func _client() -> void:
 		and expected_generation > int(first.source_generation), "new flight uses the exact actual convoy generation after reset and start")
 	_check(await _wait(func() -> bool: return int(actor_presenter.get_snapshot().generation) == int(second.get("source_generation", -1)) \
 		and remote_raider.visible), "replacement generation replaces the retired actor presentation")
-	_check(await _wait(func() -> bool: return picket_presenter.get_snapshot().generation > int(picket_record.entity_generation)
+	_check(await _wait(func() -> bool: return picket_presenter.get_snapshot().generation > int(picket_record.entity_generation) \
 		and remote_picket.visible), "new actual picket activation replaces its terminal prior life")
 	var picket_mesh := remote_picket.get_node("StandoffPicketVisual/LanceEmitter") as MeshInstance3D
 	var mesh_id := picket_mesh.mesh.get_instance_id()
@@ -425,7 +425,7 @@ func _dead_client() -> void:
 		and (_game.get_network_remote_projectile_replicator() == null
 			or _game.get_network_remote_projectile_replicator().get_drawn_projectile_ids().is_empty()),
 		"late neutralization adopts surviving tender without destruction or launch replay")
-	_check(await _wait(func() -> bool: return _game._network_picket_actor_presenter != null
+	_check(await _wait(func() -> bool: return _game._network_picket_actor_presenter != null \
 		and bool(_game._network_picket_actor_presenter.get_snapshot().actor.get("destroyed", false)))
 		and not _game._network_picket_actor_presenter.get_visual().visible,
 		"late terminal baseline cannot revive a destroyed host picket")
