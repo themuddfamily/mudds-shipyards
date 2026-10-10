@@ -77,12 +77,38 @@ func _run() -> void:
 		"resource_capacity": 6,
 		"units_added": 1,
 	})
-	_check(
+	var original_feedback_valid := (
 		bool(presented.get("accepted", false))
 			and str(presented.get("text", "")).contains("RESTOCKED")
 			and str(presented.get("text", "")).contains("KITS 6/6")
-			and status.text == presented.get("text", ""),
-		"an accepted restock becomes literal craft and kit-count feedback on the physical label"
+			and status.text == presented.get("text", "")
+	)
+	# The shipped Jovian name caused the captured overflow. Exercise the real
+	# public formatter and settled glyph bounds, not just the wrap properties.
+	var definition := load("res://assets/ships/jovian_provisional.tres") as ShipDefinition
+	var long_feedback: Dictionary = console.present_service_result({
+		"accepted": true,
+		"reason": &"resource_restocked",
+		"display_name": definition.get_display_name(),
+		"resource_units": 6,
+		"resource_capacity": 6,
+		"units_added": 1,
+	})
+	await process_frame
+	var header_bounds := header.get_aabb()
+	var status_bounds := status.get_aabb()
+	var header_bottom := header.position.dot(ConsoleType.GLYPH_UP) \
+			+ header_bounds.position.y * ConsoleType.HEADER_SCALE
+	var status_top := status.position.dot(ConsoleType.GLYPH_UP) \
+			+ status_bounds.end.y * ConsoleType.STATUS_SCALE
+	_check(
+		original_feedback_valid and bool(long_feedback.get("accepted", false))
+			and status.text == "RESTOCKED // JOVIAN-CLASS LIGHT FREIGHTER // KITS 6/6"
+			and header_bounds.size.x * ConsoleType.HEADER_SCALE <= 0.9801
+			and status_bounds.size.x * ConsoleType.STATUS_SCALE <= 0.9801
+			and header_bounds.size.x > 0.0 and status_bounds.size.x > 0.0
+			and status_top < header_bottom - 0.01,
+		"accepted feedback retains its full shipped craft name and kit count within the panel without overlapping the header"
 	)
 	var full: Dictionary = console.present_service_result({
 		"accepted": true,
