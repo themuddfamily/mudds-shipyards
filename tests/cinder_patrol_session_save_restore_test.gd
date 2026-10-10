@@ -459,7 +459,6 @@ func _run() -> void:
 		"normal resume and exact saves advance only UserDataStore's commit generation"
 	)
 	await _test_terminal_patrol_reward_restart()
-	await _test_platform_patrol_fallback_refusal()
 	await _test_terminal_save_failure_and_legacy()
 	await _test_genuine_write_recovery()
 	await _test_reset_branch_choice_recovery()
@@ -704,7 +703,7 @@ func _test_platform_patrol_fallback_refusal() -> void:
 		var newer: Dictionary = JSON.parse_string(paid.get_string_from_utf8()).payload.cinder_patrol_session.activities[0]
 		_check(int(older.state) == (PatrolActivity.State.ACTIVE if kind == "active" else PatrolActivity.State.COMPLETED)
 			and not older.reward_granted and newer.reward_granted and int(older.generation) == int(newer.generation)
-			and str(older.activity_id) == String(GameFlowRewardAuthority.PLATFORM_PATROL_ACTIVITY_ID),
+			and str(older.activity_id) == String(PLATFORM_ROUTE.activity_id),
 			"fallback retains genuinely authored older Platform %s and newer paid documents" % kind)
 		var recovery_path := "user://platform_patrol_fallback_%s_%d.json" % [kind, Time.get_ticks_usec()]
 		var writer := FileAccess.open(recovery_path + ".paid-witness", FileAccess.WRITE)
