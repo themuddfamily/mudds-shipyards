@@ -9392,6 +9392,8 @@ func _install_solo_crew_seat() -> void:
 		contract = call(&"get_gunner_station_role_contract")
 	elif has_method(&"get_engineer_station_role_contract"):
 		contract = call(&"get_engineer_station_role_contract")
+	elif self is CinderCargoHauler:
+		contract = call(&"get_passenger_station_role_contract")
 	var anchor := contract.get("seat") as Marker3D
 	var interaction_name := "Solo%sSeatInteraction" % String(contract.get("role", &"")).capitalize()
 	if is_instance_valid(anchor) and anchor.get_node_or_null(interaction_name) == null:

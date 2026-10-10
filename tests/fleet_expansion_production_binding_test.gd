@@ -41,6 +41,16 @@ func _initialize() -> void:
 	_check(bool(reattached.get("accepted", false)), "detached bomber can be safely reused")
 	_check_registration_snapshot(binding, "after reuse")
 	_check(bool(binding.get_audit_report().get("valid", false)), "detach/reuse leaves the composition valid")
+	var cargo := binding.get_node(^"cinder_cargo_hauler") as Node3D
+	var cargo_audio := (binding.get("_audio_bindings") as Dictionary)[&"cinder_cargo_hauler"] as RefCounted
+	_check(bool(cargo_audio.get_snapshot().get("attached", false)), "live cargo owns its actual audio composition")
+	cargo.queue_free()
+	await process_frame
+	var retired := binding.detach_craft(&"cinder_cargo_hauler")
+	_check(not bool(retired.get("accepted", true)) and retired.get("reason") == &"craft_unavailable", "retired cargo never enters typed live berth detachment")
+	_check(not bool(cargo_audio.get_snapshot().get("attached", true)), "retired cargo closes its retained audio composition")
+	var cargo_berth := berths.get_node(^"dock_04_cargo") as ShipBerth
+	_check(cargo_berth.get_occupant() == null and cargo_berth.get_reserved_ship_id().is_empty(), "retired cargo leaves the actual weak berth lease available")
 	binding.queue_free()
 	await process_frame
 	if _failures.is_empty():

@@ -9,6 +9,7 @@ const CrewAuthority := preload("res://scripts/ships/crew_seat_role_authority.gd"
 var authority: CrewSeatRoleAuthority
 var gunner: NetworkBulwarkGunnerBinding
 var passenger: NetworkHalyardPassengerBinding
+var loadmaster: NetworkHalyardPassengerBinding
 var _session: NetworkEnetSessionAdapter
 var _ship: JovianLightFreighter
 var _simulation: NetworkRemoteBodySimulation
@@ -47,6 +48,9 @@ func attach(session: NetworkEnetSessionAdapter, ship: JovianLightFreighter,
 
 
 func detach() -> void:
+	if loadmaster != null:
+		loadmaster.detach()
+		loadmaster = null
 	if passenger != null:
 		passenger.detach()
 		passenger = null
@@ -90,6 +94,8 @@ func next_request_sequence(previous: int) -> int:
 
 
 func claim(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
+	if loadmaster != null and seat.get_ship() is CinderCargoHauler:
+		return loadmaster.claim(record, seat)
 	if passenger != null and seat.get_ship() is HalyardCrewTransport:
 		return passenger.claim(record, seat)
 	if gunner != null and seat.get_ship() is BulwarkHeavyGunship:
@@ -112,6 +118,8 @@ func claim(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
 
 
 func release(record: Dictionary) -> void:
+	if loadmaster != null:
+		loadmaster.release(record)
 	if passenger != null:
 		passenger.release(record)
 	if gunner != null:
@@ -136,6 +144,8 @@ func submit(peer_id: int, payload: Dictionary) -> void:
 
 
 func dispatch(peer_id: int, payload: Dictionary) -> Dictionary:
+	if payload.get("action") == &"cargo_manifest_ready" and loadmaster != null:
+		return loadmaster.submit_readiness(peer_id, payload)
 	if not _live() or peer_id not in _session.get_admitted_peer_ids():
 		return _result(false, &"session_unavailable")
 	var fields := ["avatar_id", "entity_generation", "seat_generation", "claim_sequence", "component_generation", "component_id", "repair", "request_sequence", "binding_generation", "migration_generation", "server_tick"]
@@ -188,6 +198,8 @@ func dispatch(peer_id: int, payload: Dictionary) -> Dictionary:
 
 
 func advance(delta: float) -> void:
+	if loadmaster != null:
+		loadmaster.advance(delta)
 	if passenger != null:
 		passenger.advance(delta)
 	if gunner != null:
@@ -282,10 +294,10 @@ func _result(accepted: bool, status: StringName) -> Dictionary:
 
 
 func owns_role_authority(owner: CrewSeatRoleAuthority) -> bool:
-	return owner != null and (owner == authority or (gunner != null and gunner.owns(owner)) or (passenger != null and passenger.owns(owner)))
+	return owner != null and (owner == authority or (gunner != null and gunner.owns(owner)) or (passenger != null and passenger.owns(owner)) or (loadmaster != null and loadmaster.owns(owner)))
 
 func role_authority_for(craft: HeroShip) -> CrewSeatRoleAuthority:
-	return passenger.authority if craft is HalyardCrewTransport and passenger != null else gunner.authority if craft is BulwarkHeavyGunship and gunner != null else authority if craft == _ship else null
+	return loadmaster.authority if craft is CinderCargoHauler and loadmaster != null else passenger.authority if craft is HalyardCrewTransport and passenger != null else gunner.authority if craft is BulwarkHeavyGunship and gunner != null else authority if craft == _ship else null
 
 func next_role_sequence(owner: CrewSeatRoleAuthority, previous: int) -> int:
-	return passenger.next_request_sequence(previous) if passenger != null and passenger.owns(owner) else gunner.next_request_sequence(previous) if gunner != null and gunner.owns(owner) else next_request_sequence(previous)
+	return loadmaster.next_request_sequence(previous) if loadmaster != null and loadmaster.owns(owner) else passenger.next_request_sequence(previous) if passenger != null and passenger.owns(owner) else gunner.next_request_sequence(previous) if gunner != null and gunner.owns(owner) else next_request_sequence(previous)

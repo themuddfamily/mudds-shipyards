@@ -136,6 +136,22 @@ func register_jovian_roster() -> Dictionary:
 	return seal_roster()
 
 
+## Cinder policy roster, with only its authored loadmaster chair wired to walking input.
+func register_cinder_roster() -> Dictionary:
+	if _roster_sealed:
+		return _remember(_result(false, &"roster_sealed"))
+	for record in [
+		_seat_record(&"cinder_pilot", &"pilot_seat_anchor", ROLE_PILOT),
+		_seat_record(&"cinder_gunner", &"", ROLE_GUNNER),
+		_seat_record(&"cinder_engineer", &"", ROLE_ENGINEER),
+		_seat_record(&"cinder_loadmaster_station", &"LoadmasterStationAnchor", ROLE_PASSENGER),
+	]:
+		var registered := register_seat(record.seat_id, &"cinder_cargo_hauler", record.role, &"cinder_cargo_walkable_interior", 1, record.anchor_id)
+		if not bool(registered.get("accepted", false)):
+			return registered
+	return seal_roster()
+
+
 ## The ship/session coordinator owns the roster boundary. Once sealed, a late
 ## or duplicate marker cannot silently become an authoritative seat.
 func seal_roster() -> Dictionary:

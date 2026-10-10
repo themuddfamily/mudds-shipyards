@@ -261,6 +261,12 @@ func detach_craft(craft_id: StringName) -> Dictionary:
 					return activity_detach
 				_cargo_activity_bridge = null
 				_cargo_activity_binding = null
+			# The berth owns its lease through weak craft references.
+			# Close only our retained audio composition when that craft is gone.
+			if not is_instance_valid(_craft_by_id[craft_id]):
+				if _audio_bindings.has(craft_id):
+					(_audio_bindings[craft_id] as RefCounted).detach()
+				return {"accepted": false, "reason": &"craft_unavailable"}
 			var result: Dictionary = _berths.call("detach_craft", spec.pad_id, _craft_by_id[craft_id])
 			if bool(result.get("accepted", false)) and _audio_bindings.has(craft_id):
 				(_audio_bindings[craft_id] as RefCounted).detach()
