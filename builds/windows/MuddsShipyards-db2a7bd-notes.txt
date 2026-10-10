@@ -1,0 +1,22 @@
+Mudds Shipyards — beacon recovery and Fabrication Annex checkpoint
+Game/build source: db2a7bd257e71addcb11f8ed7b1f21512f1e46c5
+
+Player-visible changes:
+- Beacon Reset saves before changing live progress. A refused save preserves your active or paid route; a later retry resets it safely.
+- Walk to the Fabrication Annex control and use Interact to restock repair kits through the existing finite-capacity service. The control shows craft, kit and refusal status.
+- Replaced or detached controls and craft cannot authorize or repaint a current service transaction.
+
+Actual validation:
+- Linux Godot executing this Windows EXE's embedded package: beacon recovery 65, physical service interaction 38, console 9, Fabrication module 126, standard probes 223, and strict mouse-free startup PASS.
+- Measured composition: source census 19 and embedded-package census 19 PASS using external fixture a477e556fb5c608cc787a3f8fe30a8d230ff5cee. Game source and executable remain db2a7bd25. Original baseline measurements each returned 13 PASS / 6 obsolete-count/fingerprint FAIL; those failures are retained, separately from strict acceptance.
+- Three package warnings retained: two existing missing-settings/default warnings and one software-renderer VSync warning. No script, engine or leak errors in accepted checks.
+- All accepted owning runs exited 0 and were reaped; all 38 captured identities are absent. Source/index, 576 cache files, artifact and all 1,498 embedded payload guards passed.
+- A post-run handoff git-status command refreshed index metadata. The runner closure guard passed before that command; later staged/source content, cache and payload readbacks stayed unchanged. No checks were replayed.
+- Physical service automation used a private authenticated X11 display and Mesa software rendering, with Dummy audio. This does not establish native GPU performance or human readability.
+- Native Windows isolated menu smoke: PASS. Actual exit 0/reaped, one mouse-free ready record, zero warnings/errors, unchanged user profile, exact parent/child absence and temporary profile cleanup.
+
+Native gameplay, GPU/devices/controller, audible audio, uninterrupted human review, final-source full regression/endurance, matching installer and trusted signing remain NOT_RUN/OPEN. This checkpoint does not close the full roadmap or qualify a final release.
+
+EXE: MuddsShipyards-db2a7bd.exe
+Bytes: 177811728
+SHA256: 50fa75c8e3522287755032f0def5aa2f210ad7d13777798a7c8a8b5aaebafc3f
