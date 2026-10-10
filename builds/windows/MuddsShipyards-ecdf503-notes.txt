@@ -1,0 +1,14 @@
+Mudds Shipyards — Jovian cargo recovery protection checkpoint
+Game/build source:ecdf5032a39e065e3ecaf1c4fa5dd3128c52d6b0
+
+Jovian cargo delivery and reward handoffs refuse untrusted backup recovery, protecting durable cargo and reward history from replay.
+
+Fresh package checks passed:cargo120 and reward authority44, strict source19 and packed19 census, four standard probes223 and strict startup. Startup exited0 with one parsed STARTUP_MENU_READY_OK and mouse_free_during_load=true. All31 captured process identities are absent;11767 source files, raw index,576 cache files,61 artifacts and1498 embedded payload guards passed. Eleven known settings-default warnings occurred in cargo:7 settings_missing/ok and4 primary_invalid_backup_loaded; other lanes emitted none. Zero script/engine/leak errors. The unchanged census harness comes from the exact exported game source; no measurement/refreeze was needed. Silent Dummy audio was used; export performed required import internally.
+
+Native Windows isolated menu smoke: PASS. Silent headless startup exited0 with one parsed mouse-free READY and zero warnings/diagnostics. Four PowerShell bridges exited0 and were reaped. Fresh CIM confirmed both native creation identities absent and the private GUID tree removed. Fresh before/after base-profile bytes matched across250 measured files. Linux owner creation identity was recorded and absent; native grant was revoked. This qualifies menu startup only.
+
+Native GPU/devices/controller, audible audio, interactive desktop performance, human review, installer validation, full final-source regression/endurance and trusted signing remain NOT_RUN/OPEN.
+
+EXE:MuddsShipyards-ecdf503.exe
+Bytes:177822592
+SHA256:c85d5ee6380bf4dfb087403ad5ce6c1817107cd2f4045fae19e470bcb72d794f
