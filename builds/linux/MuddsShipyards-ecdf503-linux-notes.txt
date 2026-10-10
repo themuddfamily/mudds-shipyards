@@ -1,0 +1,13 @@
+Mudds Shipyards — Linux cargo recovery checkpoint
+Source: ecdf5032a39e065e3ecaf1c4fa5dd3128c52d6b0
+
+Jovian cargo now refuses backup progress and reward entitlement when the primary save is missing or corrupt. Ordinary selection, Start, Reset and payment preserve fallback/quarantine data for explicit recovery across fresh Main instances. A stale unpaid backup cannot create a second reward; genuinely completed cargo retains durable payment acknowledgement, and refused unsaved resets preserve the live delivery.
+
+Validation: clean cold Linux x86_64 release export; no cache donor/copy/separate import. Strict source19 and packed19 geometry checks, packed cargo120/reward-authority44, and standard223 all passed. The actual direct ELF and byte-identical archive-extracted ELF each exited0 with one parsed STARTUP_MENU_READY_OK and mouse-free loading. All owned processes were waited/reaped and recorded creation identities were absent; source/index/cache/artifact/helper/payload/archive guards passed.
+
+Cargo emitted11 settings-default/recovery warnings (7 settings_missing / ok,4 settings_missing / primary_invalid_backup_loaded). Other checked logs had0 warnings; all had0 script/engine/leak diagnostics. All1498 embedded payloads passed SHA256/stored-MD5 checks, with Boot/Main/cargo/reward/persistence origins checked. Tests/tools are exact-commit external harnesses, excluded from the PCK. Compiler metadata remains immutable startup_check=NOT_RUN; the separate actual ELF startup records establish the menu check.
+
+The archive includes the binary, desktop entry, icon and existing installer helper. Desktop-helper execution was NOT_RUN. Qualification is bounded Linux/WSL headless/Dummy-audio/menu behavior. Native desktop/GPU/devices, ordinary graphical controls, controller/audible/human review, full-current regression and trusted signing remain NOT_RUN/OPEN. Windows native qualification is not transferred to Linux; retained failures and roadmap gates remain open.
+
+Binary SHA256: 5128b1f742f5eff78d34f3ab4198dbdb268f17717cc853a2e464d9628cdb2244
+Archive SHA256: a197169ffd56452d2167a29f9acf0d1ae70c62bd3dc906fac7d0fa6f84538f4a
