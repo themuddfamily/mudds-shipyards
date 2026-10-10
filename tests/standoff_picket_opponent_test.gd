@@ -1365,7 +1365,9 @@ func _test_network_solo_handback_reentry() -> void:
 				and picket.is_combat_source_registered() and picket._is_lance_charge_authorized(),
 				"immediate client handback re-entry retains exact live solo charge, aim, life, cues and current accessibility")
 		elif route == &"deactivated" or route == &"destroyed":
-			_check(not picket.is_active() and not picket.visible
+			_check(not picket.is_active() and picket.visible == visible_before
+				and picket.get_network_actor_visual_templates().all(
+					func(node: Node3D) -> bool: return not node.is_visible_in_tree())
 				and picket.collision_layer == 0 and picket.collision_mask == 0
 				and not picket.is_combat_source_registered()
 				and not bool(picket.get_lance_charge_snapshot().get("armed", true))
