@@ -1007,10 +1007,12 @@ func get_nearby_interactables() -> Array[Node3D]:
 	if _embodiment_state != EmbodimentState.ON_FOOT:
 		return nearby
 	for body in _interaction_area.get_overlapping_bodies():
-		if body is Node3D and body != self:
+		if body is Node3D and body != self and body.is_inside_tree() \
+				and not body.is_queued_for_deletion():
 			nearby.append(body as Node3D)
 	for area in _interaction_area.get_overlapping_areas():
-		if area is Node3D and area != _interaction_area:
+		if area is Node3D and area != _interaction_area and area.is_inside_tree() \
+				and not area.is_queued_for_deletion():
 			nearby.append(area as Node3D)
 	nearby.sort_custom(func(a: Node3D, b: Node3D) -> bool:
 		return get_interaction_origin().distance_squared_to(a.global_position) \

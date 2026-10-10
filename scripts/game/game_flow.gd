@@ -3783,7 +3783,9 @@ func _capture_solo_safe_recovery_context() -> void:
 			if not player.is_on_floor():
 				return
 			for candidate: HeroShip in ships:
-				if not is_instance_valid(candidate) or candidate.is_destroyed() or not candidate.is_boardable():
+				if not is_instance_valid(candidate) or not candidate.is_inside_tree() \
+						or candidate.is_queued_for_deletion() or not is_ancestor_of(candidate) \
+						or candidate.is_destroyed() or not candidate.is_boardable():
 					continue
 				var frame := candidate.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
 				if not is_instance_valid(frame) or not frame.is_occupant_registered(player):
@@ -16426,11 +16428,17 @@ func _boarding_candidate_is_nearer(
 
 
 func _find_station_interaction_candidate() -> Node3D:
+	if not is_instance_valid(player) or not player.is_inside_tree() \
+			or player.is_queued_for_deletion():
+		return null
 	var origin: Vector3 = player.get_interaction_origin()
 	var facing: Vector3 = player.get_interaction_direction()
 	var best_candidate: Node3D
 	var best_score := INF
 	for candidate in player.get_nearby_interactables():
+		if not is_instance_valid(candidate) or not candidate.is_inside_tree() \
+				or candidate.is_queued_for_deletion():
+			continue
 		# The two physical moving-crew bindings can replace the cabin hatch prompt.
 		if candidate is ShipCrewSeat and _network_session_is_live() \
 				and not (_network_physical_crew_seat_is_wired(candidate) \
