@@ -1,0 +1,10 @@
+Mudds Shipyards — boarding craft facts checkpoint
+Source: d4a2cc564157978ab1555e481e6fc4c16ba1d237
+
+Boarding cards now show the craft definition's role, rated base speed and maximum hull before confirmation. Compact identities retain the visible candidate and B5/B7 reconstruction cues.
+
+Validation: clean exact Windows import/export exit 0, all owned actors reaped. Static AMD64 embedded PCK4 inventory verifies 1,492 entries. Linux Godot loads this exact fresh Windows PCK with one parsed menu-ready record, mouse-free loading and zero engine diagnostics. Exact package HUD test passes 205 assertions and owning live GameFlow test passes 16; four standard package probes pass 223 with one sentinel each and zero diagnostics. All tracked source matches the clean commit; recursive cache and executable bytes remain unchanged through acceptance. Compatible read-only999 cache donor stays unchanged. HOME preserved; private XDG and headless/Dummy audio used.
+
+Source-only HUD capture209 and source tests were separately reviewed before staging; no new graphical/human check is claimed here. Native Windows startup/gameplay, native GPU/devices, human visual/controls/audio review, full regression and trusted signing remain NOT_RUN. Published Windows checkpoint. Latest Linux checkpoint: 999fee71e; latest Windows installer: dcd63d72b.
+
+EXE SHA256: 319b2908600c589e09474a582fdb34ac6980acc3dd62e572409fc7ad52b4ee98
