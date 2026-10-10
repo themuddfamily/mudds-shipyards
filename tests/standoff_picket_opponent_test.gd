@@ -24,6 +24,7 @@ const AUDIO_SCENE := preload("res://scenes/audio/combat_audio_presentation.tscn"
 const AuthorityScript := preload("res://scripts/combat/live_combat_authority.gd")
 const AdapterScript := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const ShotRequestScript := preload("res://scripts/combat/shot_request.gd")
+const PicketActorPresenter := preload("res://scripts/network/network_picket_actor_presenter.gd")
 
 const TARGET_FACTION: StringName = &"picket_test_flight"
 const FIRE_FRAME_BUDGET := 420
@@ -54,6 +55,7 @@ func _init() -> void:
 func _run() -> void:
 	var original_root_child_count := root.get_child_count()
 	await _test_contract_and_evidence()
+	await _test_network_actor_multimesh_copy()
 	await _test_pooled_audio_cue()
 	await _test_role_differentiation()
 	await _test_authority_identity_lifecycle()
@@ -72,6 +74,82 @@ func _run() -> void:
 
 
 # ------------------------------------------------- A. contract / evidence ----
+
+## Use the real retained hull and targeting-rail batches through the public
+## client presenter. Extra instance attributes exercise its complete layout;
+## renderer-backed runs also compare the full authored instance buffer.
+func _test_network_actor_multimesh_copy() -> void:
+	var fixture := await _make_fixture()
+	var picket: StandoffPicketOpponent = fixture.picket
+	var templates := picket.get_network_actor_visual_templates()
+	var attribute_batch := MultiMeshInstance3D.new()
+	attribute_batch.name = "CloneInstanceAttributeFixture"
+	var attributes := MultiMesh.new()
+	attributes.transform_format = MultiMesh.TRANSFORM_3D
+	attributes.use_colors = true
+	attributes.use_custom_data = true
+	var mesh := BoxMesh.new()
+	var material := StandardMaterial3D.new()
+	material.emission_enabled = true
+	material.emission_energy_multiplier = 2.0
+	mesh.material = material
+	attributes.mesh = mesh
+	attributes.instance_count = 2
+	attributes.visible_instance_count = 1
+	attributes.custom_aabb = AABB(Vector3(-3.0, -2.0, -1.0), Vector3(6.0, 4.0, 2.0))
+	attributes.physics_interpolation_quality = MultiMesh.INTERP_QUALITY_HIGH
+	for index in attributes.instance_count:
+		attributes.set_instance_transform(index, Transform3D(
+			Basis(Vector3.UP, float(index) * 0.25), Vector3(float(index), 2.0, -3.0)))
+		attributes.set_instance_color(index, Color(0.25, float(index) * 0.5, 0.75, 1.0))
+		attributes.set_instance_custom_data(index, Color(0.5, 0.75, float(index), 0.25))
+	attribute_batch.multimesh = attributes
+	templates[0].add_child(attribute_batch)
+	var presenter := PicketActorPresenter.new()
+	(fixture.host as Node3D).add_child(presenter)
+	presenter.configure(picket)
+	var visual := presenter.get_visual()
+	var batch_count := 0
+	for template: Node3D in templates:
+		var sources: Array[Node] = template.find_children("*", "MultiMeshInstance3D", true, false)
+		if template is MultiMeshInstance3D:
+			sources.append(template)
+		for node: Node in sources:
+			var source_node := node as MultiMeshInstance3D
+			var relative_path := String(template.name)
+			if source_node != template:
+				relative_path += "/" + String(template.get_path_to(source_node))
+			var copy_node := visual.get_node(NodePath(relative_path)) as MultiMeshInstance3D
+			var original := source_node.multimesh
+			var copied := copy_node.multimesh
+			var original_buffer := original.buffer
+			var original_material := original.mesh.surface_get_material(0) as StandardMaterial3D
+			var copied_material := copied.mesh.surface_get_material(0) as StandardMaterial3D
+			var original_energy := original_material.emission_energy_multiplier
+			_check(copied != original and copied.transform_format == original.transform_format
+				and copied.use_colors == original.use_colors and copied.use_custom_data == original.use_custom_data
+				and copied.instance_count == original.instance_count
+				and copied.visible_instance_count == original.visible_instance_count
+				and copied.custom_aabb == original.custom_aabb
+				and copied.physics_interpolation_quality == original.physics_interpolation_quality
+				and copied.buffer == original_buffer and copy_node.visible == source_node.visible
+				and copy_node.get_script() == null and copy_node.process_mode == Node.PROCESS_MODE_DISABLED,
+				"%s copy retains exact allocated layout, instance data, culling and scriptless visibility" % relative_path)
+			_check(copied.mesh != original.mesh and copied_material != original_material
+				and copied_material.albedo_color == original_material.albedo_color,
+				"%s copy privately owns its authored surface palette" % relative_path)
+			presenter.set_reduced_flash_enabled(true)
+			_check(copied_material.emission_energy_multiplier <= 1.0
+				and original_material.emission_energy_multiplier == original_energy
+				and original.buffer == original_buffer,
+				"%s live accessibility updates preserve solo materials and instance data" % relative_path)
+			presenter.set_reduced_flash_enabled(false)
+			_check(copied_material.emission_energy_multiplier == original_energy,
+				"%s copy restores its authored emission after reduced flash" % relative_path)
+			batch_count += 1
+	_check(batch_count >= 6, "real hull and targeting rails plus attributed instances exercise MultiMesh copying")
+	await _free_fixture(fixture)
+
 
 func _test_contract_and_evidence() -> void:
 	var fixture := await _make_fixture()

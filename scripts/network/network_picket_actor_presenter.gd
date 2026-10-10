@@ -185,7 +185,20 @@ func _clone_visual(template: Node3D, materials: Dictionary, copies: Dictionary) 
 	elif template is MultiMeshInstance3D:
 		copy.free()
 		var batch := MultiMeshInstance3D.new()
-		batch.multimesh = (template as MultiMeshInstance3D).multimesh.duplicate() as MultiMesh
+		var source := (template as MultiMeshInstance3D).multimesh
+		var multi := MultiMesh.new()
+		# Resource.duplicate() can assign the buffer before allocating its layout.
+		# Configure the complete format before instance_count sizes that buffer.
+		multi.transform_format = source.transform_format
+		multi.use_colors = source.use_colors
+		multi.use_custom_data = source.use_custom_data
+		multi.mesh = source.mesh
+		multi.instance_count = source.instance_count
+		multi.buffer = source.buffer
+		multi.visible_instance_count = source.visible_instance_count
+		multi.custom_aabb = source.custom_aabb
+		multi.physics_interpolation_quality = source.physics_interpolation_quality
+		batch.multimesh = multi
 		copy = batch
 	elif template is Decal:
 		copy.free()
