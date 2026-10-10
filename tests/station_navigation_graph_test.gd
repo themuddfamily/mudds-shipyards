@@ -730,7 +730,19 @@ func _test_agent_detach_readd_identity() -> void:
 func _test_production_graph_reuses_the_route_registry(world: ShipyardWorld) -> void:
 	var graph_report := world.get_station_navigation_graph_report()
 	var registry_report := world.get_station_route_registry_report()
-	_check(bool(graph_report.valid) and (graph_report.errors as PackedStringArray).is_empty(), "the production navigation graph is valid")
+	var aft := world.get_node(^"AftJunctionStack") as AftJunctionStack
+	var allocation := aft.get_pod_corner_collar_visual_allocation_audit()
+	print("STATION_AFT_DISPLAY_ALLOCATION: ", allocation.current, " errors=", allocation.errors)
+	_check(bool(registry_report.valid) and bool(graph_report.valid)
+		and (graph_report.errors as PackedStringArray).is_empty()
+		and bool(allocation.valid) and int(allocation.current.atlas_display_nodes) == 2
+		and world.get_node_or_null(
+			^"AftJunctionStack/Structure/OperationsRoom/ConsoleBay03/ShipServiceConsole/ShipServiceReadability/ShipServiceHeader"
+		) is Label3D
+		and world.get_node_or_null(
+			^"AftJunctionStack/Structure/OperationsRoom/ConsoleBay03/ShipServiceConsole/ShipServiceReadability/ShipServiceStatus"
+		) is Label3D,
+		"the production registry and navigation graph stay valid with both Ship Services atlas readouts")
 	_check(
 		int(graph_report.node_count) == int(registry_report.connection_slot_count) * 2
 		and int(graph_report.edge_count) == int(registry_report.connection_slot_count),

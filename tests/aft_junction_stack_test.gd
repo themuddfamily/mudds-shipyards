@@ -105,9 +105,9 @@ func _test_synchronous_parent_validation(module: AftJunctionStack) -> void:
 	)
 	_check(
 		bool(resource_audit.valid)
-		and int(resource_audit.current.material_resource_allocations) == 39
+		and int(resource_audit.current.material_resource_allocations) == 38
 		and (resource_audit.errors as PackedStringArray).is_empty(),
-		"Aft resource census is immediately green at 39 materials before any deferred frame"
+		"Aft resource census is immediately green at 38 explicit mesh materials before any deferred frame"
 	)
 	_check(
 		operations_material != null
@@ -1107,6 +1107,8 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			int(report.current.drawn_copies),
 		]
 	)
+	print("AFT_DISPLAY_ALLOCATION: ", report.current, " atlas_paths=", report.atlas_display_paths,
+		" generated_atlas_resources_measured=", report.atlas_generated_resources_measured)
 	_check(
 		bool(report.valid)
 		and StringName(report.selected_family) == &"pod_corner_collars"
@@ -1124,17 +1126,20 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		}
 		and report.current == {
 			"descendant_nodes": 1172,
-			"renderer_nodes": 757,
-			"drawn_copies": 897,
-			"surface_submissions": 757,
-			"mesh_resource_allocations": 309,
-			"material_resource_allocations": 39,
+			"renderer_nodes": 755,
+			"drawn_copies": 895,
+			"atlas_display_nodes": 2,
+			"authored_display_nodes": 757,
+			"authored_display_copies": 897,
+			"surface_submissions": 755,
+			"mesh_resource_allocations": 307,
+			"material_resource_allocations": 38,
 			"family_visual_nodes": 4,
 			"family_visible_copies": 4,
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus all three station consoles freeze 1172 descendants, 757 renderers/submissions, 897 copies, and 309 mesh allocations"
+		"shared collar families plus all three station consoles freeze 1172 descendants, 757 display slots (755 mesh submissions + two atlas labels), 897 displayed copies, and 307 mesh allocations"
 	)
 	_check(
 		report.reductions == {
@@ -1153,6 +1158,54 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and not bool(report.pixel_equivalence_claimed),
 		"selected pod-family evidence remains immutable sharing, with no timing, GPU, VRAM, whole-scene or pixel claim"
 	)
+
+	var console := module.get_node(
+		^"Structure/OperationsRoom/ConsoleBay03/ShipServiceConsole"
+	) as ShipServiceConsole
+	var visuals := console.get_node(^"ShipServiceReadability")
+	var header := visuals.get_node(^"ShipServiceHeader") as Label3D
+	var status := visuals.get_node(^"ShipServiceStatus") as Label3D
+	_check(
+		header != null and status != null
+		and (report.atlas_display_paths as PackedStringArray) == PackedStringArray([
+			"Structure/OperationsRoom/ConsoleBay03/ShipServiceConsole/ShipServiceReadability/ShipServiceHeader",
+			"Structure/OperationsRoom/ConsoleBay03/ShipServiceConsole/ShipServiceReadability/ShipServiceStatus",
+		])
+		and not bool(report.atlas_generated_resources_measured),
+		"the two stable atlas readouts remain display slots without invented mesh or atlas resource counts"
+	)
+	if header != null and status != null:
+		var before_ids := [header.get_instance_id(), status.get_instance_id()]
+		console.present_service_result({"accepted": false, "reason": &"ship_not_landed"})
+		var updated := module.get_pod_corner_collar_visual_allocation_audit()
+		_check(bool(updated.valid) and updated.current == report.current
+			and [header.get_instance_id(), status.get_instance_id()] == before_ids,
+			"an ordinary service result updates the atlas status without reallocating authored displays")
+		header.visible = false
+		_check(not bool(module.get_pod_corner_collar_visual_allocation_audit().valid),
+			"a hidden Ship Services atlas display rejects the Aft allocation contract")
+		header.visible = true
+		var intruder := Label3D.new()
+		visuals.add_child(intruder)
+		_check(not bool(module.get_pod_corner_collar_visual_allocation_audit().valid),
+			"an additional atlas label cannot consume undeclared display slots")
+		intruder.free()
+		var authority := Area3D.new()
+		header.add_child(authority)
+		_check(not bool(module.get_pod_corner_collar_visual_allocation_audit().valid),
+			"an atlas display cannot acquire an interaction descendant")
+		authority.free()
+		visuals.remove_child(header)
+		var wrong_kind := Node3D.new()
+		wrong_kind.name = "ShipServiceHeader"
+		visuals.add_child(wrong_kind)
+		_check(not bool(module.get_pod_corner_collar_visual_allocation_audit().valid),
+			"the required header rejects a same-name non-atlas replacement")
+		wrong_kind.free()
+		visuals.add_child(header)
+		_check(bool(module.get_pod_corner_collar_visual_allocation_audit().valid)
+			and [header.get_instance_id(), status.get_instance_id()] == before_ids,
+			"restoring the exact retained readouts restores Aft validation")
 
 	var collars: Array[MeshInstance3D] = []
 	for raw_node in module.find_children("*", "MeshInstance3D", true, false):
@@ -1214,7 +1267,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 	(report.behavior_rows as Array).clear()
 	var detached := module.get_pod_corner_collar_visual_allocation_audit()
 	_check(
-		int(detached.current.mesh_resource_allocations) == 309
+		int(detached.current.mesh_resource_allocations) == 307
 		and (detached.behavior_rows as Array).size() == 4,
 		"component-local allocation and transform evidence is deeply detached"
 	)
@@ -1256,7 +1309,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 		and (identity_red.errors as PackedStringArray).has(
 			"pod_corner_collar_mesh_identity_not_shared"
 		)
-		and int(identity_red.current.mesh_resource_allocations) == 310
+		and int(identity_red.current.mesh_resource_allocations) == 308
 		and int(identity_red.current.family_mesh_resource_allocations) == 2,
 		"RED identity mutation rejects an exact-looking private collar mesh allocation"
 	)

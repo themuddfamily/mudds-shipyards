@@ -308,15 +308,23 @@ const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1204
 # renderers, copies and submissions, and one TextMesh resource.
 const RENDER_DESCENDANT_NODE_COUNT := 1172
 const BASELINE_RENDERER_NODE_COUNT := 868
-const RENDERER_NODE_COUNT := 757
+# Two Ship Services displays now use engine-managed glyph atlases. Keep their
+# authored display slots separate from explicit mesh submissions/resources.
+const SHIP_SERVICE_ATLAS_DISPLAY_COUNT := 2
+const AUTHORED_DISPLAY_NODE_COUNT := 757
+const RENDERER_NODE_COUNT := AUTHORED_DISPLAY_NODE_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_DRAWN_COPY_COUNT := 878
-const DRAWN_COPY_COUNT := 897
+const AUTHORED_DISPLAY_COPY_COUNT := 897
+const DRAWN_COPY_COUNT := AUTHORED_DISPLAY_COPY_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_SURFACE_SUBMISSION_COUNT := 868
-const SURFACE_SUBMISSION_COUNT := 757
+const SURFACE_SUBMISSION_COUNT := 757 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_MESH_RESOURCE_COUNT := 332
-const MESH_RESOURCE_COUNT := 309
+# The former header and status each owned one unique TextMesh. The former
+# cyan material was private to the header; the amber material remains on the
+# locator underline. Label3D internal atlas resources are not mesh allocations.
+const MESH_RESOURCE_COUNT := 309 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_MATERIAL_RESOURCE_COUNT := 39
-const MATERIAL_RESOURCE_COUNT := 39
+const MATERIAL_RESOURCE_COUNT := 39 - 1
 
 # This authored exterior group has no independent visibility, motion or damage
 # state. Keep the existing colour geometry and combine only its opaque shadows.
@@ -978,10 +986,12 @@ func get_performance_contract() -> Dictionary:
 		# llvmpipe. What is measured is that every one of these is a chamfered kit
 		# primitive sharing this module's two mesh caches, so the added *unique*
 		# mesh resources are far fewer than the added instances.
-		# The adjacent physical Ship Services workstation adds three literal
-		# display meshes to the retained ConsoleBay03; no hidden headroom is used.
+		# Ship Services keeps its three authored displays: the underline remains
+		# a mesh, while two glyph-atlas labels replace two literal TextMeshes.
+		# Move those two slots between categories without raising the combined
+		# 843-slot ceiling. The allocation audit below requires the exact roster.
 		# One additional renderer carries only the retained envelope shadows.
-		"mesh_instances": 839,
+		"mesh_instances": 837,
 		# Unchanged at 120 against 103 built, up from 87. The content pass added
 		# sixteen colliders and every one of them is a piece of furniture a player
 		# can walk into: three rack frames, the plot table's base, two pedestals and
@@ -1004,7 +1014,7 @@ func get_performance_contract() -> Dictionary:
 		# one FootSupport box that only the pilot's foot rays cast (the capsule
 		# still rides the continuous ramp), in one extra body within its ceiling.
 		"collision_shapes": 147,
-		"labels": 4,
+		"labels": 6,
 		# Light ceiling re-frozen in the open, 12 -> 32 -> 40. The module built 11
 		# lights against that 12; the fixture pass took it to 32, all of them
 		# fixture practicals — see `_fixture_practical`. Every one is shadowless,
@@ -1362,6 +1372,37 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		material_resource_ids[material_id] = true
 
 	var errors := PackedStringArray()
+	# Glyph-atlas displays are authored visible slots, not one-surface meshes.
+	# Their generated surfaces, materials and textures belong to Label3D's
+	# renderer; do not fabricate those allocations from the number of labels.
+	var atlas_displays := find_children("*", "Label3D", true, false)
+	var atlas_paths := PackedStringArray()
+	var console := get_node_or_null(
+		^"Structure/OperationsRoom/ConsoleBay03/ShipServiceConsole"
+	) as ShipServiceConsoleType
+	var expected_text: Dictionary = console.get_presentation_snapshot() if console != null else {}
+	for readout_name: StringName in [&"ShipServiceHeader", &"ShipServiceStatus"]:
+		var label: Label3D = console.get_node_or_null(
+			NodePath("ShipServiceReadability/" + String(readout_name))
+		) as Label3D if console != null else null
+		if label == null:
+			errors.append("ship_service_atlas_display_missing")
+			continue
+		atlas_paths.append(String(get_path_to(label)))
+		var text := str(expected_text.get(
+			"header" if readout_name == &"ShipServiceHeader" else "status_text", ""
+		))
+		if (
+			label.text != text or text.is_empty()
+			or not label.visible or label.get_child_count() != 0
+			or label.get_script() != null
+			or label.is_processing() or label.is_physics_processing()
+			or label.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		):
+			errors.append("ship_service_atlas_display_state_drift")
+	if atlas_displays.size() != SHIP_SERVICE_ATLAS_DISPLAY_COUNT \
+			or atlas_paths.size() != SHIP_SERVICE_ATLAS_DISPLAY_COUNT:
+		errors.append("ship_service_atlas_display_roster_drift")
 	var family_nodes: Array[MeshInstance3D] = []
 	var family_mesh_ids := {}
 	var family_material_ids := {}
@@ -1464,6 +1505,8 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		or surface_submissions != SURFACE_SUBMISSION_COUNT
 		or mesh_resource_ids.size() != MESH_RESOURCE_COUNT
 		or material_resource_ids.size() != MATERIAL_RESOURCE_COUNT
+		or renderer_nodes + atlas_displays.size() != AUTHORED_DISPLAY_NODE_COUNT
+		or drawn_copies + atlas_displays.size() != AUTHORED_DISPLAY_COPY_COUNT
 	):
 		errors.append("pod_corner_collar_component_allocation_census_drift")
 
@@ -1483,6 +1526,9 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"descendant_nodes": descendant_nodes,
 		"renderer_nodes": renderer_nodes,
 		"drawn_copies": drawn_copies,
+		"atlas_display_nodes": atlas_displays.size(),
+		"authored_display_nodes": renderer_nodes + atlas_displays.size(),
+		"authored_display_copies": drawn_copies + atlas_displays.size(),
 		"surface_submissions": surface_submissions,
 		"mesh_resource_allocations": mesh_resource_ids.size(),
 		"material_resource_allocations": material_resource_ids.size(),
@@ -1499,6 +1545,8 @@ func get_pod_corner_collar_visual_allocation_audit() -> Dictionary:
 		"selected_family": POD_CORNER_COLLAR_FAMILY_ID,
 		"legacy": legacy,
 		"current": current,
+		"atlas_display_paths": atlas_paths,
+		"atlas_generated_resources_measured": false,
 		"reductions": {
 			"descendant_nodes": 35,
 			"renderer_nodes": 114,
