@@ -632,14 +632,19 @@ func _test_real_solo_crew_recovery() -> void:
 	var hosted := game.host_network_session(_reserve_loopback_port())
 	await _settle_frames()
 	_check(bool(hosted.get("accepted", false)) and authority.get_snapshot().assignments.is_empty() and not game.player.is_seated() and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and game.player.is_control_enabled() and game.player.is_on_floor(), "successful production host handback releases the local passenger before network composition owns the session")
+	var network_owner := craft.get_crew_role_authority()
+	var network_binding: Object = game.get("_network_engineer_binding")
 	await _press_crew_interaction()
-	_check(not game.player.is_seated_at(craft.get_loadmaster_station_anchor()) and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and craft.get_crew_role_authority() == null and (game.get_solo_crew_seat_status().get("assignment", {}) as Dictionary).is_empty(), "live network E cannot acquire a solo passenger claim or physical crew tag")
-	# The network chair filter deliberately lets this press reach the legal
-	# empty cockpit. Prove and finish that actual pilot handoff before teardown.
-	_check(await _wait_for_seat(game, craft) and craft.is_piloted() and game.player.is_seated_at(craft.get_pilot_seat_anchor()), "network E beside the unavailable solo chair uses only the authorized pilot seat")
+	var network_assignment: Dictionary = network_owner.get_assignment(1, GameFlowScript.SOLO_CREW_AVATAR_ID) if network_owner != null else {}
+	var network_tag := game.player.get_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+	# The ordinary host chair borrows the authenticated session's shared owner;
+	# it must never recreate the retired solo ledger or grant cockpit authority.
+	_check(network_owner != null and network_owner != authority and network_binding != null and network_binding.owns_role_authority(network_owner) and craft.get_crew_role_authority() == network_owner and network_assignment.get("occupant_peer_id") == 1 and network_assignment.get("avatar_id") == GameFlowScript.SOLO_CREW_AVATAR_ID and int(network_assignment.get("seat_generation", 0)) > 0 and network_assignment.get("vessel_id") == craft.get_ship_id() and network_assignment.get("role") == &"passenger" and network_assignment.get("seat_id") == &"crew_port_00" and network_tag.get("role") == &"passenger" and network_tag.get("authority") == network_owner and network_tag.get("occupant_peer_id") == 1 and network_tag.get("avatar_id") == GameFlowScript.SOLO_CREW_AVATAR_ID and network_tag.get("seat_id") == network_assignment.get("seat_id") and network_tag.get("seat_generation") == network_assignment.get("seat_generation") and network_tag.get("frame") == craft.get_moving_interior_component(), "live host E acquires only the authenticated shared passenger claim and its exact physical crew tag")
+	game.call("_capture_solo_safe_recovery_context")
+	_check(game.player.is_seated_at(craft.get_loadmaster_station_anchor()) and game.player.is_station_seated() and not game.player.is_seated_at(craft.get_pilot_seat_anchor()) and not craft.is_piloted() and game.get_solo_crew_seat_status().get("seated", false) and store.get_snapshot()[GameFlowScript.SOLO_SAFE_RECOVERY_SLOT].get("mode") == "unavailable", "live host passenger chair grants no pilot seat or solo recovery offer")
 	await _press_crew_interaction()
 	await _settle_frames(120)
-	_check(not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor() and not craft.is_piloted() and not bool(game.get("_transition_busy")), "ordinary E fully leaves the host pilot seat onto supported controllable deck")
+	_check(not game.player.is_seated() and game.player.is_control_enabled() and game.player.is_on_floor() and not craft.is_piloted() and not bool(game.get("_transition_busy")) and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META) and craft.get_crew_role_authority() == network_owner and network_owner != null and network_owner.get_assignment(1, GameFlowScript.SOLO_CREW_AVATAR_ID).is_empty(), "ordinary E leaves the host passenger chair, clears its exact claim/tag and preserves the shared network owner")
 	game.shutdown_network_session(&"crew_test")
 	await _retire_game(game)
 	# Subsequent solo persistence is an independent Main session, using the
