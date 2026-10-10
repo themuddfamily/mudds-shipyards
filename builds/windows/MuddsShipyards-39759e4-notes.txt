@@ -1,0 +1,14 @@
+Mudds Shipyards — asteroid activity recovery checkpoint
+Game/build source:39759e48f1bbd9c1e173520266087d730209c243
+
+The asteroid activity card shows durable progress. Saved progress and an earned unpaid handoff survive a fresh game load; ordinary retry pays once. Safe reset and a genuinely new sortie preserve their separate behavior. Automatic backup promotion applies the existing recovery guards.
+
+Fresh package checks passed: coordinator33, lifecycle15, asteroid139, station50, presenter23 and HUD13 (273 focused assertions); strict source19 and packed19 census checks; four standard probes223 and strict startup. Startup exited0 with one parsed STARTUP_MENU_READY_OK and mouse_free_during_load=true. The census uses reviewed external fixture3d474c22c571312fcdf13e663596d2eeb17edabb; production game source remains the commit above. Earlier source/packed measurements each retained15PASS/4old-baselineFAIL as NOT_CLAIMED before refreeze. All34 owned process identities are absent;11766 source files, raw index,576 cache files,60 artifacts and1498 embedded payload guards passed. Zero warnings, script/engine/leak errors. Silent Dummy audio was used; export performed the required import internally.
+
+Native Windows isolated menu smoke: PASS. Silent headless startup exited0 with one parsed mouse-free READY and zero warnings/diagnostics. Four PowerShell bridges exited0 and were reaped; fresh CIM checks confirmed both native creation identities absent and the private GUID tree removed. Fresh before/after base-profile bytes matched across250 files. The native grant was revoked. This qualifies menu startup only.
+
+Native GPU/devices/controller, audible audio, interactive desktop performance, human review, installer validation, full final-source regression/endurance and trusted signing remain NOT_RUN/OPEN.
+
+EXE:MuddsShipyards-39759e4.exe
+Bytes:177822544
+SHA256:174a34857363a3a86d3e6ee0b808324f7e1774b555dfabc0848381d43b5db0be
