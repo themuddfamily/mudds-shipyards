@@ -1083,12 +1083,13 @@ func _backup_and_newer_refusal(path: String) -> void:
 	store.load()
 	_check(store.commit(source_payload, store.get_generation(), "unit-newer-asteroid").accepted,
 		"the unsupported asteroid fixture retains the real paid ledger in its shared store")
+	var seeded_payload := store.get_snapshot()
 	var fresh := await _main_game(newer_path, UserDataFilesystem.new())
 	var fresh_binding := await _main_binding(fresh)
 	var newer_startup_payload: Dictionary = fresh.get("_runtime_settings_user_data_store").get_snapshot()
-	_check(newer_startup_payload[ASTEROID_SLOT] == source_payload[ASTEROID_SLOT]
-		and newer_startup_payload.game_flow_reward_store == source_payload.game_flow_reward_store
-		and newer_startup_payload.asteroid_unrelated == source_payload.asteroid_unrelated,
+	_check(newer_startup_payload[ASTEROID_SLOT] == seeded_payload[ASTEROID_SLOT]
+		and newer_startup_payload.game_flow_reward_store == seeded_payload.game_flow_reward_store
+		and newer_startup_payload.asteroid_unrelated == seeded_payload.asteroid_unrelated,
 		"shared startup preserves the exact unsupported activity slot, paid receipt and unrelated data")
 	var original_bytes := FileAccess.get_file_as_bytes(newer_path)
 	if not _press_start(fresh, EXPECTED_ACTIVITY_ID):
