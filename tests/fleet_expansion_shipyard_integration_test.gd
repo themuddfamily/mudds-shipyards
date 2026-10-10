@@ -28,7 +28,7 @@ func _initialize() -> void:
 		var row := craft[index] as Dictionary
 		_check(row.get("pad_id", &"") == expected[index] and bool(row.get("attached", false)), "Dock %s remains attached" % expected[index])
 	_test_access_geometry_clearance(world)
-	_test_published_approach_lanes_are_flyable(world)
+	await _test_published_approach_lanes_are_flyable(world)
 	_test_service_dressing_stands_in_no_other_module(world)
 	_test_structure_clears_comb_negative_space(world)
 	world.queue_free()
@@ -168,6 +168,18 @@ func _test_published_approach_lanes_are_flyable(world: ShipyardWorld) -> void:
 		if craft == null or berth == null:
 			_check(false, "%s publishes a berth and an attached craft to measure" % pad_id)
 			continue
+		var ramp: CollisionShape3D
+		var tread: MeshInstance3D
+		if craft is CinderCargoHauler:
+			ramp = craft.get_node(^"CinderCargoVisual/BoardingRampSupport/CargoBoardingRamp") as CollisionShape3D
+			tread = craft.get_node(^"CinderCargoVisual/CargoBoardingRampTread") as MeshInstance3D
+			_check(not ramp.disabled and tread.visible, "parked cargo retains its physical boarding ramp")
+			# Measure the flight hull after ordinary pilot ownership retracts
+			# deployed access stock, matching the production landing/departure state.
+			craft.set_piloted(true)
+			await physics_frame
+			await process_frame
+			_check(ramp.disabled and not tread.visible, "cargo pilot ownership stows access stock before the flight-lane sweep")
 		var blockers := _lane_blockers(craft, berth)
 		_check(
 			blockers.is_empty(),
@@ -175,6 +187,35 @@ func _test_published_approach_lanes_are_flyable(world: ShipyardWorld) -> void:
 				pad_id, craft.get_ship_id(), ", ".join(blockers),
 			]
 		)
+		if craft is CinderCargoHauler:
+			# Preserve the original query's foreign-obstacle sensitivity. No
+			# descendant bodies or world geometry are filtered from the sweep.
+			var probe := StaticBody3D.new()
+			probe.name = "ForeignCargoLaneProbe"
+			probe.collision_layer = PhysicsLayers.WORLD_BODY_LAYER
+			probe.collision_mask = PhysicsLayers.WORLD_BODY_MASK
+			var probe_collision := CollisionShape3D.new()
+			var probe_shape := BoxShape3D.new()
+			probe_shape.size = Vector3.ONE * 0.25
+			probe_collision.shape = probe_shape
+			probe.add_child(probe_collision)
+			world.add_child(probe)
+			var dock := berth.get_dock_transform()
+			var capture := berth.get_assist_capture_transform()
+			var hull_floor := craft.get_node(^"CargoHullFloor") as CollisionShape3D
+			probe.global_transform = Transform3D(dock.basis, capture.origin.lerp(dock.origin, 0.5)) * hull_floor.transform
+			await physics_frame
+			await process_frame
+			_check(_lane_blockers(craft, berth).has("%s (CargoHullFloor)" % probe.get_path()),
+				"the cargo flight-lane sweep still detects a foreign World-layer obstruction")
+			world.remove_child(probe)
+			probe.free()
+			craft.set_piloted(false)
+			await physics_frame
+			await process_frame
+			var boarding_deck := craft.get_node(^"CargoBoardingDeck") as CollisionShape3D
+			_check(not ramp.disabled and tread.visible and not boarding_deck.disabled,
+				"unpiloting the parked cargo restores its physical boarding support and retains its deck")
 
 
 ## Every sample is the craft's own enabled root collision shapes at the berth's
