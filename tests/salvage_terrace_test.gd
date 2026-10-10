@@ -1390,9 +1390,16 @@ func _test_main_salvage_inspection() -> void:
 	settings.camera_fov = 96.0
 	settings.captions_enabled = true
 	var settings_payload: Dictionary = settings.to_user_data_payload()
+	var expected_live_settings := settings.to_dictionary()
+	# The store exposes JSON numbers as floats, including schema/profile ints.
+	# Compare every persisted key to an independently decoded wire expectation,
+	# and every live setting to its original typed value after both Main loads.
+	var expected_wire_settings: Variant = JSON.parse_string(JSON.stringify(settings_payload))
 	var unrelated := {"keep": ["original", "future-owned-data"]}
 	_check(bool(store.commit({SETTINGS_ADAPTER.SETTINGS_PAYLOAD_KEY: settings_payload,
-		"future_owned_slot": unrelated}, 0, "salvage-main-seed").accepted),
+		"future_owned_slot": unrelated}, 0, "salvage-main-seed").accepted)
+		and expected_wire_settings is Dictionary
+		and store.get_snapshot()[SETTINGS_ADAPTER.SETTINGS_PAYLOAD_KEY] == expected_wire_settings,
 		"Main inspection fixture seeds complete settings and unrelated data in the existing shared store")
 	var game: GameFlow = await _new_inspection_main(store, filesystem)
 	var station: Node = game.world.get_node(^"SalvageInspectionStation")
@@ -1473,7 +1480,8 @@ func _test_main_salvage_inspection() -> void:
 		and store.get_snapshot()[INSPECTION.PERSISTENCE_SLOT] == published_record,
 		"repeat published Main console interaction adds no transaction and does not change its inspection record")
 	_check(store.get_snapshot().future_owned_slot == unrelated
-		and store.get_snapshot()[SETTINGS_ADAPTER.SETTINGS_PAYLOAD_KEY] == settings_payload,
+		and store.get_snapshot()[SETTINGS_ADAPTER.SETTINGS_PAYLOAD_KEY] == expected_wire_settings
+		and game.get_runtime_settings().to_dictionary() == expected_live_settings,
 		"production inspection commits preserve unrelated caller data and complete custom settings")
 	var old_main: WeakRef = weakref(game)
 	game.queue_free()
@@ -1490,7 +1498,8 @@ func _test_main_salvage_inspection() -> void:
 		and str(station.call("get_readout_text", &"field_coil")).contains("GRADE A // USABLE")
 		and str(station.call("get_readout_text", &"cracked_coupling")).contains("GRADE D // RECYCLE")
 		and store.get_snapshot().future_owned_slot == unrelated
-		and game.get_runtime_settings().camera_fov == 96.0 and game.get_runtime_settings().captions_enabled,
+		and store.get_snapshot()[SETTINGS_ADAPTER.SETTINGS_PAYLOAD_KEY] == expected_wire_settings
+		and game.get_runtime_settings().to_dictionary() == expected_live_settings,
 		"fresh Main and fresh shared store restore component grades, published manifest, unrelated data and settings")
 	player = game.player as PlayerController
 	terrace = game.world.get_node(^"SalvageTerrace") as SalvageTerrace
