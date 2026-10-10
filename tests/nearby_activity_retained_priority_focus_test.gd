@@ -48,6 +48,7 @@ func _run() -> void:
 	_check(second_ids.slice(3) == [
 		&"cinder_reach_emberline_convoy", &"cinder_reach_checkpoint_route",
 		&"cinder_derelict_structure_scan", &"cinder_debris_beacon_traversal",
+		&"cinder_asteroid_field_threading_run",
 		&"station_defense", &"cinder_hulk_power_restoration",
 	], "standard available and completed items retain deterministic authored order")
 
