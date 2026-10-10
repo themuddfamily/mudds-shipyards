@@ -540,6 +540,8 @@ func _fresh_recovery_board(host: Node3D, objective: Node3D, director: EncounterS
 
 
 func _test_fresh_debt_recovery(host: Node3D, objective: Node3D, director: EncounterScenarioDirector, authority: LiveCombatAuthority, actor: Node3D, generation: int) -> void:
+	var original_store := _recovery_store
+	var original_authority := _recovery_authority
 	var staged: Dictionary = _recovery_store.get_snapshot().heavy_breach_session.session
 	var wire_record: Dictionary = _recovery_store.get_snapshot().heavy_breach_session.duplicate(true)
 	_check(wire_record.session.offered_index is float
@@ -585,6 +587,12 @@ func _test_fresh_debt_recovery(host: Node3D, objective: Node3D, director: Encoun
 		"second fresh load and ordinary admission cannot duplicate an already paid debt after intervening rewards")
 	second.queue_free()
 	await process_frame
+	_check(not is_instance_valid(fresh) and not is_instance_valid(second),
+		"temporary fresh recovery boards retire before restoring the original callback owner")
+	# The original live board retains original_store for its later genuine clears.
+	# Restore its callback owner after the fresh boards have left the tree.
+	_recovery_store = original_store
+	_recovery_authority = original_authority
 
 
 
