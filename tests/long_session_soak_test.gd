@@ -466,6 +466,13 @@ func _walk_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) 
 	var up := craft.global_basis.y.normalized()
 	var approach := craft.global_basis.x.normalized()
 	var stage := boarding + up * 0.05 + approach * 6.0
+	var port_hatch_approach := craft is CinderCargoHauler
+	if port_hatch_approach:
+		# The published hatch is on the port side. Starting six metres along
+		# +X places this fixture inside the cabin, facing the valid Loadmaster
+		# chair; that press correctly sits a passenger instead of the pilot.
+		approach = -approach
+		stage = boarding + up * 0.05 + approach * 6.0
 	if craft.get_ship_id() == &"cinder_long_range_bomber":
 		# Dock 05's bomber sits four metres above a narrow service leg. Its
 		# boarding projection is approached along local +Z at deck height; the
@@ -481,7 +488,7 @@ func _walk_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) 
 	for _stage_tick in 4:
 		await physics_frame
 		await process_frame
-	if craft.get_ship_id() == &"cinder_long_range_bomber":
+	if craft.get_ship_id() == &"cinder_long_range_bomber" or port_hatch_approach:
 		# Its raised hatch may already be in discovery range at this staging
 		# point, so cross the first part of the deck before checking the prompt.
 		var deck_start := player.global_position
@@ -491,29 +498,70 @@ func _walk_and_board(game: GameFlow, player: PlayerController, craft: HeroShip) 
 			await process_frame
 		Input.action_release(&"move_forward")
 		var deck_travel := (player.global_position - deck_start).slide(Vector3.UP).length()
-		print("SOAK_BOMBER_BOARD_WALK metres=%.3f" % deck_travel)
+		print("SOAK_HATCH_BOARD_WALK craft=%s metres=%.3f" % [craft.get_ship_id(), deck_travel])
 		# The hatch can enter range within a few centimetres; only require
 		# observable horizontal movement, not an arbitrary approach distance.
 		if deck_travel < 0.05:
 			return false
 	var arrived := await _walk_until(
 		&"move_forward",
-		func() -> bool: return game.boarding_candidate == craft,
+		func() -> bool: return (
+			game.boarding_candidate == craft
+			and not is_instance_valid(game.station_interaction_candidate)
+		),
 		LOCOMOTION_TICK_BUDGET
 	)
-	if not arrived:
+	if not arrived and not port_hatch_approach:
 		# Locomotion can be blocked by authored yard geometry between the stage
 		# point and a nested expansion pad. Close the remaining gap and re-select
 		# through the same proximity rule rather than reaching past the coordinator.
 		player.teleport_to(Transform3D(player.global_basis, boarding + up * 0.05))
 		arrived = await _wait_until(
-			func() -> bool: return game.boarding_candidate == craft,
+			func() -> bool: return (
+				game.boarding_candidate == craft
+				and not is_instance_valid(game.station_interaction_candidate)
+			),
 			0.5
 		)
 	if not arrived:
+		_print_interaction_state(game, player, craft, "failed_hatch_discovery")
 		return false
+	_print_interaction_state(game, player, craft, "before_board")
 	await _press_live_action(&"interact", 1)
-	return await _wait_for_phase(game, GameFlow.Phase.START_ENGINES, 1.5)
+	var boarded := await _wait_until(
+		func() -> bool: return (
+			game.phase == GameFlow.Phase.START_ENGINES
+			and game.get_active_ship() == craft
+			and craft.is_piloted()
+			and player.is_seated_at(craft.get_pilot_seat_anchor())
+		),
+		1.5
+	)
+	if not boarded:
+		_print_interaction_state(game, player, craft, "failed_board")
+	return boarded
+
+
+func _print_interaction_state(game: GameFlow, player: PlayerController, craft: HeroShip, event: String) -> void:
+	var selected := game.station_interaction_candidate
+	var seat := selected as ShipCrewSeat
+	var active := game.get_active_ship()
+	var board := game.boarding_candidate
+	print("SOAK_INTERACTION_STATE ", {
+		"event": event, "requested": craft.get_ship_id(),
+		"active": active.get_ship_id() if is_instance_valid(active) else &"",
+		"boarding": board.get_ship_id() if is_instance_valid(board) else &"",
+		"station": selected.get_path() if is_instance_valid(selected) else NodePath(),
+		"seat": seat.get_seat_id() if is_instance_valid(seat) else &"",
+		"phase": game.phase, "pose": player.global_position,
+		"local_pose": craft.to_local(player.global_position),
+		"floor": player.is_on_floor(), "seated": player.is_seated(),
+		"in_cabin": (craft.get_in_flight_cabin_report().get("local_bounds", AABB()) as AABB).has_point(craft.to_local(player.global_position)),
+		"seat_distance": player.get_interaction_origin().distance_to(seat.global_position) if is_instance_valid(seat) else -1.0,
+		"transition_busy": game.get("_transition_busy"), "generation": game.get("_transition_generation"),
+		"piloting": game.get("_piloting"), "requested_piloted": craft.is_piloted(),
+		"engine": craft.get_telemetry().get("engine_state"), "landed": craft.get_telemetry().get("landed"),
+	})
 
 
 func _wake_engine(craft: HeroShip) -> bool:
@@ -533,11 +581,14 @@ func _launch_and_fly(game: GameFlow, craft: HeroShip) -> bool:
 	Input.action_press(&"hover")
 	Input.action_press(&"move_forward")
 	var ticks := 0
-	while game.phase != GameFlow.Phase.FREE_FLIGHT and ticks < DEPARTURE_TICK_BUDGET:
+	while not (game.phase == GameFlow.Phase.FREE_FLIGHT
+			and game.get_active_ship() == craft and craft.is_piloted()) \
+			and ticks < DEPARTURE_TICK_BUDGET:
 		await physics_frame
 		await process_frame
 		ticks += 1
-	var airborne := game.phase == GameFlow.Phase.FREE_FLIGHT
+	var airborne := game.phase == GameFlow.Phase.FREE_FLIGHT \
+		and game.get_active_ship() == craft and craft.is_piloted()
 	# Lift demand stays held through the flown leg. Three of the nine craft are
 	# parked inside a nested dock, and forward thrust alone walks them along its
 	# inner wall instead of out of it.
@@ -549,7 +600,11 @@ func _launch_and_fly(game: GameFlow, craft: HeroShip) -> bool:
 	for _settle_tick in 4:
 		await physics_frame
 		await process_frame
-	return airborne and not bool(craft.get_telemetry().get("landed", true))
+	var launched := airborne and game.get_active_ship() == craft and craft.is_piloted() \
+		and not bool(craft.get_telemetry().get("landed", true))
+	if not launched:
+		_print_interaction_state(game, game.player, craft, "failed_launch")
+	return launched
 
 
 ## One real trigger pull through the live weapon path. The range encounter is
@@ -867,17 +922,23 @@ func _await_free_on_foot(game: GameFlow, player: PlayerController) -> void:
 func _recover_to_on_foot(game: GameFlow, player: PlayerController, world: ShipyardWorld) -> void:
 	_release_all_actions()
 	var craft := game.get_active_ship()
+	# Retire the actual GameFlow crew/cabin owners before relocation. Forcing
+	# only Player on foot leaves the chair claim and cabin containment live;
+	# the next tick can then reseat the avatar in the previous craft.
+	if bool(game.get("_station_seated")):
+		await _press_live_action(&"interact", 1)
+		await _await_free_on_foot(game, player)
+	game.call(&"_cancel_station_seat_for_detach")
+	game.call(&"_release_cabin_occupancy")
+	game.call(&"_invalidate_transition_generation")
 	if is_instance_valid(craft):
 		craft.set_piloted(false)
 		craft.velocity = Vector3.ZERO
 		var berth := world.get_berth_node(craft.get_home_berth_id())
 		if is_instance_valid(berth):
 			craft.global_transform = berth.get_dock_transform()
-	game.set("_piloting", false)
-	game.set("_transition_busy", false)
-	player.force_recovery_to_on_foot(world.get_player_spawn())
-	player.set_control_enabled(true)
-	game.phase = GameFlow.Phase.COMPLETE
+	game.call(&"_recall_pilot_to_deck")
+	game.call(&"_restore_on_foot_objective")
 	await _await_free_on_foot(game, player)
 
 
