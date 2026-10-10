@@ -84,6 +84,8 @@ func begin_session(session_id: int, commit_id: String) -> Dictionary:
 		return _status(false, &"active_session")
 	if not _valid_session_id(session_id):
 		return _status(false, &"invalid_session_id")
+	if _store != null and _store.get_loaded_source() == &"backup":
+		return _status(false, &"store_recovery_required")
 	if _state == _STATE_RUNNING and _session_id > 0:
 		_unclean_start_count = mini(
 			_unclean_start_count + 1,
@@ -311,6 +313,9 @@ func audit() -> Dictionary:
 func _commit(candidate: Dictionary, commit_id: String) -> Dictionary:
 	if _store == null:
 		return _status(false, &"no_store")
+	# Automatic lifecycle markers must not promote untrusted fallback history.
+	if _store.get_loaded_source() == &"backup":
+		return _status(false, &"store_recovery_required")
 	var payload := _store.get_snapshot()
 	var existing: Variant = payload.get(PAYLOAD_NAMESPACE, null)
 	if existing != null and not bool(_validate_snapshot(existing).accepted):
