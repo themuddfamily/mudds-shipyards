@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/shipyard_world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/components/ship_berth.tscn" id="2_berth"]
@@ -12,6 +12,8 @@
 [ext_resource type="PackedScene" path="res://scenes/world/modules/observation_logistics_spur.tscn" id="11_observation_spur"]
 [ext_resource type="PackedScene" path="res://scenes/world/modules/salvage_terrace.tscn" id="12_salvage_terrace"]
 [ext_resource type="Script" path="res://scripts/world/salvage_inspection_station.gd" id="13_salvage_inspection"]
+
+[ext_resource type="Script" path="res://scripts/interaction/ship_service_console.gd" id="14_fabrication_ship_service"]
 
 [node name="ShipyardWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -129,6 +131,15 @@ observation_rear_gate_open = true
 [node name="ObservationLogisticsSpur" parent="." instance=ExtResource("11_observation_spur")]
 position = Vector3(92.5, 0.38, 38)
 rotation = Vector3(0, 1.570796, 0)
+
+
+; A world-owned adapter over the existing starboard/front FabricatorControl.
+; The annex module remains geometry-only; the selected craft owns kit mutation.
+[node name="FabricationShipServiceConsole" type="Area3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 0.207911691, 0.978147601, 0, 0.978147601, -0.207911691, 79.55, 1.650837962, 31.450947871)
+script = ExtResource("14_fabrication_ship_service")
+metadata/evidence_classification = "modern_interpretation"
+metadata/authored_control = "FabricationAnnex/starboard_front_fabricator"
 
 [node name="SalvageTerrace" parent="." instance=ExtResource("12_salvage_terrace")]
 position = Vector3(84, 0.38, 52.91)
