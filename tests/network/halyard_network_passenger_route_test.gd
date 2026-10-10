@@ -12,6 +12,8 @@ var _role := ""
 var _game: GameFlow
 var _craft: HeroShip
 var _cinder := false
+var _host_loadmaster_flight := false
+var _manifest_receipts := 0
 var _cargo_before: Dictionary = {}
 var _player: PlayerController
 var _port := 0
@@ -23,7 +25,9 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
-	_cinder = "--cinder-loadmaster" in args
+	_host_loadmaster_flight = "--host-loadmaster-flight" in args
+	args.erase("--host-loadmaster-flight")
+	_cinder = "--cinder-loadmaster" in args or _host_loadmaster_flight
 	args.erase("--cinder-loadmaster")
 	var package_index := args.find("--package-under-test")
 	if package_index >= 0 and package_index + 1 < args.size():
@@ -158,6 +162,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
 	if _cinder:
 		args.append("--cinder-loadmaster")
+	if _host_loadmaster_flight:
+		args.append("--host-loadmaster-flight")
 	if not _package_under_test.is_empty():
 		args.append_array(["--package-under-test", _package_under_test])
 	print("PASSENGER_PEER_LAUNCH: ", role, " ", args)
@@ -203,6 +209,9 @@ func _host() -> void:
 		return
 	_check(owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).get("role") == &"passenger" and _game._solo_crew_claim_is_current(), "host-local claim uses exact network-owned chair and body")
 	_check(_game._network_local_role_presentation().local_role == &"passenger", "host HUD names confirmed passenger role")
+	if _host_loadmaster_flight:
+		await _host_moving_loadmaster(owner)
+		return
 	if _cinder:
 		_cargo_before = _cargo_state()
 		_check(int(_cargo_before.finite_source) == GameFlow.CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY and int(_cargo_before.capacity) == 8, "production cargo owner starts with exact finite quantity and retained eight-slot Cinder hold")
@@ -369,6 +378,9 @@ func _client() -> void:
 		return
 	root.grab_focus()
 	await _ticks(20)
+	if _host_loadmaster_flight:
+		await _client_loadmaster_pilot()
+		return
 	await _walk(_craft.to_local(_craft.get_passenger_station_role_contract().entry_transform.origin))
 	_check(_player.is_on_floor(), "ordinary cabin walk reaches actual passenger chair supported")
 	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
@@ -434,6 +446,160 @@ func _client() -> void:
 		return
 	_game.shutdown_network_session(&"passenger_client_disconnect")
 	_check(not _player.is_seated() and _player.is_control_enabled(), "disconnect leaves local passenger awake with controls")
+	_write("client.disconnected", {})
+
+
+func _on_manifest_ready(_receipt: Dictionary) -> void:
+	_manifest_receipts += 1
+
+func _helm_cursor(source: ShipCommandSource) -> Dictionary:
+	return {"stream": source.get_stream_id(), "delivery": source.get_delivery_generation(), "sequence": source.get_next_sequence()}
+
+func _host_moving_loadmaster(owner: CrewSeatRoleAuthority) -> void:
+	_cargo_before = _cargo_state()
+	var area := _craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var local_source := _craft.get_local_input_source()
+	var profile := local_source.get_input_profile_generation()
+	var profile_values: Dictionary = local_source.get_input_binding_profile().to_dictionary().duplicate(true)
+	(_craft as CinderCargoHauler).loadmaster_manifest_intent_accepted.connect(_on_manifest_ready)
+	_print_host_loadmaster_state(&"before_client_ready", local_source, profile, profile_values, area)
+	_write("host.ready", {})
+	if not await _wait_file("client.moving", 60.0):
+		return
+	_print_host_loadmaster_state(&"on_client_moving", local_source, profile, profile_values, area)
+	_check(_game._cinder_host_has_remote_pilot(_craft), "actual admitted peer holds the confirmed Cinder pilot lease")
+	_print_host_loadmaster_state(&"before_engine_assertion", local_source, profile, profile_values, area)
+	var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+	_check(helm != null and helm != local_source and _craft.is_remote_piloted(), "remote helm stays selected beside the retained local crew sampler")
+	if helm == null:
+		return
+	var helm_weak: WeakRef = weakref(helm)
+	var start := _craft.global_position
+	await _ticks(12)
+	_print_host_loadmaster_state(&"after_original_12_ticks", local_source, profile, profile_values, area, helm_weak)
+	# The client movement marker is prediction; verify authoritative consumption after the existing ticks.
+	var consumed_command: ShipCommand = _craft.get_last_ship_command()
+	_check(
+		_craft.get_command_source() == helm
+		and consumed_command != null and consumed_command.is_valid()
+		and consumed_command.stream_id == helm.get_stream_id()
+		and absf(consumed_command.throttle) > HeroShip.AUTOMATIC_ENGINE_INTENT_EPSILON
+		and _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE,
+		"validated remote throttle wakes the authoritative Cinder engine"
+	)
+	_check(_craft.global_position.distance_to(start) > 0.05, "authoritative pilot commands move the actual crew craft")
+	_check(_player.is_seated_at(_craft.get_loadmaster_station_anchor()) and _craft.get_moving_interior_component().is_occupant_registered(_player), "moving host Loadmaster retains exact physical chair and carry frame")
+	var cursor := _helm_cursor(helm)
+	_game._reset_solo_gunner_input()
+	_check(_helm_cursor(helm) == cursor and _craft.get_command_source() == helm, "crew stream retirement leaves remote helm identity and cursor untouched")
+	Input.action_press(&"fire")
+	_check(await _until(func(): return bool((_craft.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).get("ready", false)), 3.0), "ordinary host FIRE submits readiness while the confirmed peer pilots")
+	var receipt := (_craft.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).duplicate(true)
+	await _ticks(15)
+	Input.action_release(&"fire")
+	_check(_manifest_receipts == 1 and _craft.get_loadmaster_manifest_snapshot().get("receipt", {}) == receipt, "held FIRE records exactly one readiness receipt for the claim")
+	_print_host_loadmaster_state(&"before_readiness_invariant", local_source, profile, profile_values, area, helm_weak)
+	_check(_cargo_state() == _cargo_before and _craft.get_local_input_source() == local_source and local_source.is_input_configuration_valid() and local_source.get_input_binding_profile().to_dictionary() == profile_values, "moving readiness preserves finite cargo and the settings-configured input profile")
+	await _press(&"interact")
+	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving stand restores supported host cabin controls")
+	_check(_craft.get_command_source() == helm and helm.get_stream_id() == cursor.stream and helm.get_delivery_generation() == cursor.delivery, "moving stand preserves the selected remote helm stream and delivery epoch")
+	_check(area.is_reserved() and area.get_reservation_token() == _player, "moving stand retains the host's exact cabin reservation")
+	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+	_check(await _until(func():
+		var label := _game.hud.get("_interaction_label") as Label
+		return _game.station_interaction_candidate is ShipCrewSeat and label != null and label.text.contains("SIT") and label.text.contains("LOADMASTER")
+	, 3.0), "moving host sees the actual authored Loadmaster chair SIT prompt")
+	await _press(&"interact")
+	_check(await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and _game._solo_crew_claim_is_current() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving chair reseat uses the already-owned cabin and fresh claim")
+	await _press(&"fire")
+	_check(await _until(func(): return _manifest_receipts == 2, 3.0), "moving reseat reaches readiness once through its fresh crew stream")
+	var claim := owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID)
+	var sequence := maxi(int(claim.get("claim_sequence", 0)), int(owner.get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
+	_check(_craft.release_crew_role(1, 1, GameFlow.SOLO_CREW_AVATAR_ID, CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, sequence, int(claim.get("seat_generation", 0))).accepted, "existing role authority revokes the exact host chair lease")
+	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled(), 8.0), "chair lease loss restores supported moving cabin body")
+	_check(_craft.get_command_source() == helm and helm.get_stream_id() == cursor.stream and helm.get_delivery_generation() == cursor.delivery, "chair lease loss leaves the remote pilot producer unchanged")
+	Input.action_press(&"fire")
+	await _ticks(8)
+	Input.action_release(&"fire")
+	_check(_manifest_receipts == 2, "unseated FIRE cannot reuse the revoked Loadmaster lease")
+	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+	_check(await _until(func():
+		var label := _game.hud.get("_interaction_label") as Label
+		return _game.station_interaction_candidate is ShipCrewSeat and label != null and label.text.contains("SIT") and label.text.contains("LOADMASTER")
+	, 3.0), "moving host sees the actual authored Loadmaster chair SIT prompt")
+	await _press(&"interact")
+	_check(await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and _game._solo_crew_claim_is_current() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving reentry after lease loss reacquires only the host chair")
+	_print_host_loadmaster_state(&"before_reentry_invariant", local_source, profile, profile_values, area, helm_weak)
+	_check(area.get_reservation_token() == _player and _craft.get_command_source() == helm and _craft.get_local_input_source() == local_source and local_source.is_input_configuration_valid() and local_source.get_input_binding_profile().to_dictionary() == profile_values, "reentry preserves exact reservation, remote helm and configured local source")
+	_write("host.flight_checked", {})
+	if not await _wait_file("client.disconnected", 20.0):
+		return
+	_check(await _until(func(): return not _craft.is_remote_piloted() and _craft.get_command_source() == local_source and helm_weak.get_ref() == null, 5.0), "real peer disconnect restores the exact retained local producer through the existing helm owner")
+	_check(_game._solo_crew_claim_is_current(), "remote pilot disconnect preserves the independent host Loadmaster claim")
+	await _press(&"fire")
+	_check(await _until(func(): return _manifest_receipts == 3, 3.0), "host readiness remains usable after the remote helm is released")
+	_print_host_loadmaster_state(&"before_final_invariant", local_source, profile, profile_values, area, helm_weak)
+	_check(_cargo_state() == _cargo_before and _craft.get_local_input_source() == local_source and local_source.is_input_configuration_valid() and local_source.get_input_binding_profile().to_dictionary() == profile_values, "full moving chair lifecycle preserves finite cargo and the settings-configured input profile")
+
+## Read-only named-owner and predicate values for the unchanged moving checks.
+func _print_host_loadmaster_state(stage: StringName, local_source: LocalShipInputSource, baseline_profile: int, baseline_profile_values: Dictionary, area: ShipBoardingArea, helm_weak: WeakRef = null) -> void:
+	var cargo: Dictionary = _cargo_state()
+	var binding: Node = _game._get_nearby_activity_binding()
+	var configured: LocalShipInputSource = _craft.get_local_input_source()
+	var selected: ShipCommandSource = _craft.get_command_source()
+	var remote: NetworkRemotePilotCommandSource = selected as NetworkRemotePilotCommandSource
+	var last_command: ShipCommand = _craft.get_last_ship_command()
+	var configured_profile: InputBindingProfile = configured.get_input_binding_profile()
+	var configured_profile_values: Dictionary = configured_profile.to_dictionary() if configured_profile != null else {}
+	var helm: Object = helm_weak.get_ref() if helm_weak != null else null
+	print("LOADMASTER_HOST_STATE: stage=", stage,
+		" baseline_cargo=", _cargo_before, " current_cargo=", cargo,
+		" cargo_equal=", cargo == _cargo_before,
+		" nearby_cinder_binding=", binding,
+		" finite_cargo_owner=", _game.cargo_transfer_authority,
+		" baseline_profile_generation=", baseline_profile,
+		" current_profile_generation=", local_source.get_input_profile_generation(),
+		" profile_generation_equal=", local_source.get_input_profile_generation() == baseline_profile,
+		" retained_local_source=", local_source, " configured_local_source=", configured,
+		" retained_source_equal=", configured == local_source,
+		" configured_profile=", configured_profile,
+		" baseline_profile_values=", baseline_profile_values,
+		" configured_profile_values=", configured_profile_values,
+		" profile_values_equal=", configured_profile_values == baseline_profile_values,
+		" input_configuration_valid=", local_source.is_input_configuration_valid(),
+		" input_transform_snapshot=", local_source.get_input_transform_snapshot(),
+		" input_provider=", local_source.get_input_provider(),
+		" selected_source=", selected, " expected_helm=", helm,
+		" remote_command_audit=", remote.get_audit() if remote != null else {},
+		" last_consumed_command=", last_command.to_dictionary() if last_command != null else {},
+		" selected_helm_equal=", selected == helm,
+		" remote_piloted=", _craft.is_remote_piloted(),
+		" reservation_token=", area.get_reservation_token(),
+		" expected_player=", _player, " reservation_equal=", area.get_reservation_token() == _player,
+		" telemetry=", _craft.get_telemetry(),
+		" engine_online=", _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE,
+		" velocity=", _craft.velocity)
+
+func _client_loadmaster_pilot() -> void:
+	var anchor := _craft.get_pilot_seat_anchor()
+	await _walk(_craft.to_local(anchor.global_position) + Vector3(-0.6, 0.0, 0.6))
+	await _look(anchor.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return bool(_game.get("_piloting")) and not bool(_game.get("_transition_busy")), 12.0), "ordinary cockpit Interact swaps the admitted client berth for the real pilot seat")
+	if not bool(_game.get("_piloting")):
+		return
+	_check(_game._network_client_boarding_claim.get("role") == &"pilot", "confirmed client owns the production pilot boarding receipt")
+	# The authored flight controls are demand-driven: throttle is the ordinary
+	# engine-start demand, not a separate engine toggle or forced state.
+	Input.action_press(&"move_forward", 0.15)
+	_check(await _until(func(): return _craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_ONLINE, 5.0), "ordinary client throttle wakes its confirmed flight engine")
+	_check(await _until(func(): return _craft.velocity.length() > 0.1, 5.0), "ordinary client throttle drives the confirmed Cinder helm")
+	_write("client.moving", {})
+	if not await _wait_file("host.flight_checked", 60.0):
+		Input.action_release(&"move_forward")
+		return
+	Input.action_release(&"move_forward")
+	_game.shutdown_network_session(&"moving_loadmaster_pilot_disconnect")
 	_write("client.disconnected", {})
 
 func _cargo_state() -> Dictionary:

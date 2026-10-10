@@ -3,7 +3,8 @@ extends SceneTree
 
 ## Two owned OS peers load actual Main. The remote exterior hatch and range
 ## target are staged; cabin walk, chair, siege-lance FIRE and standing use Input.
-## A supported host chair approach separately exercises retained solo migration.
+## A supported host chair then fires, stands and reseats while a confirmed peer
+## pilots through the ordinary cockpit; the original migration route remains.
 const Main := preload("res://scenes/main.tscn")
 var _checks := 0
 var _failures: Array[String] = []
@@ -14,6 +15,7 @@ var _craft: BulwarkHeavyGunship
 var _player: PlayerController
 var _port := 0
 var _store_path := ""
+var _pilot_store_path := ""
 var _package_under_test := ""
 
 func _init() -> void:
@@ -60,6 +62,8 @@ func _run() -> void:
 	_game.queue_free()
 	await _ticks(3)
 	DirAccess.remove_absolute(_store_path)
+	if not _pilot_store_path.is_empty():
+		DirAccess.remove_absolute(_pilot_store_path)
 	_write(_role + ".done", {"checks": _checks, "failures": _failures})
 	for failure in _failures:
 		push_error(failure)
@@ -141,8 +145,8 @@ func _spawn_peer(role: String, args: PackedStringArray) -> int:
 	wrapper.append_array(args)
 	return OS.create_process("xvfb-run", wrapper)
 
-func _stage_target() -> Node3D:
-	var target := _game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone03") as Node3D
+func _stage_target(name: String = "TargetDrone03") -> Node3D:
+	var target := _game.get_node("ShipyardWorld/ExteriorTargetRange/" + name) as Node3D
 	target.set_process(false)
 	target.set_physics_process(false)
 	target.global_position = _craft.to_global(Vector3(2.0, 3.5, -70.0))
@@ -224,9 +228,11 @@ func _host() -> void:
 	await _press(&"interact")
 	_check(await _until(func(): return _player.is_seated_at(_craft.get_gunner_station_anchor()) and not bool(_game.get("_transition_busy")), 6.0), "host ordinary Interact uses physical gunner and the existing shared ship ledger")
 	_check(not owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty(), "host physical chair uses host-local authoritative assignment")
+	await _host_moving_gunner(owner, receipts)
 	_check(_game.network_session.rotate_session_migration().accepted, "host-local occupied gunner participates in actual migration")
 	await _ticks(35)
 	_check(owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty() and not _player.is_seated() and _player.is_control_enabled(), "migration clears host-local claim and restores actual usable local body")
+	_check((_craft.get_gunner_gameplay_state().role_charges as Dictionary).is_empty() and _craft.get_command_source() == _craft.get_local_input_source(), "migration leaves no gunner charge or borrowed remote producer")
 	_game.shutdown_network_session(&"gunner_host_done")
 	_check(_craft.get_crew_role_authority() == null, "session shutdown detaches exact empty role owner for retained solo reuse")
 
@@ -241,8 +247,8 @@ func _client() -> void:
 	root.grab_focus()
 	await _ticks(20)
 	await _look(_player.global_position - _craft.global_basis.z * 20.0 + Vector3.UP * 1.5)
-	await _walk(Vector3(-1.4, BulwarkHeavyGunship.CABIN_FLOOR_Y, 2.15))
-	await _walk(Vector3(1.45, BulwarkHeavyGunship.CABIN_FLOOR_Y, 2.15))
+	await _walk(Vector3(-0.4, BulwarkHeavyGunship.CABIN_FLOOR_Y, 1.65))
+	await _walk(Vector3(1.45, BulwarkHeavyGunship.CABIN_FLOOR_Y, 1.65))
 	await _walk(Vector3(1.45, BulwarkHeavyGunship.CABIN_FLOOR_Y, 0.60))
 	_check(_player.is_on_floor(), "ordinary full capsule walk reaches real gunner portal supported")
 	await _look(_craft.get_gunner_station_anchor().global_position + Vector3.UP * 1.2)
@@ -346,6 +352,220 @@ func _client() -> void:
 	_game.shutdown_network_session(&"gunner_client_disconnect")
 	_check(not _player.is_seated() and _player.is_control_enabled(), "disconnect keeps local player awake and usable")
 	_write("client.disconnected", {})
+	await _client_pilot_host_gunner()
+
+func _helm_cursor(source: ShipCommandSource) -> Dictionary:
+	return {"stream": source.get_stream_id(), "delivery": source.get_delivery_generation(), "sequence": source.get_next_sequence()}
+
+func _host_moving_gunner(owner: CrewSeatRoleAuthority, receipts: Array[Dictionary]) -> void:
+	var source := _craft.get_local_input_source()
+	var profile_values: Dictionary = source.get_input_binding_profile().to_dictionary().duplicate(true)
+	var source_peer := source.get_authority_peer_id()
+	var area := _craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var first_claim := owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID)
+	_write("host.local_seated", {})
+	if not await _wait_file("client.pilot_moving", 30.0):
+		return
+	_check(_game._host_craft_has_remote_pilot(_craft), "actual admitted peer holds the confirmed Bulwark pilot occupancy")
+	_check(_craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE, "ordinary remote throttle wakes the authoritative Bulwark engine")
+	var helm := _craft.get_command_source() as NetworkRemotePilotCommandSource
+	_check(helm != null and helm != source and _craft.is_remote_piloted(), "exact remote helm remains selected beside retained host gunner input")
+	if helm == null:
+		return
+	var helm_weak: WeakRef = weakref(helm)
+	var start := _craft.global_position
+	await _ticks(12)
+	_check(_craft.global_position.distance_to(start) > 0.05, "confirmed pilot commands move the actual host gunner craft")
+	_check(_player.is_seated_at(_craft.get_gunner_station_anchor()) and _game._solo_crew_claim_is_current() and _craft.get_moving_interior_component().is_occupant_registered(_player), "moving host gunner retains exact physical chair and shared owner")
+	var cursor := _helm_cursor(helm)
+	_game._reset_solo_gunner_input()
+	_check(_helm_cursor(helm) == cursor and _craft.get_command_source() == helm, "retiring retained gunner input leaves remote helm stream and cursor untouched")
+	await _host_gunner_shot("TargetDrone02", receipts)
+	await _press(&"interact")
+	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving gunner stand restores supported cabin controls")
+	_check(owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty() and (_craft.get_gunner_gameplay_state().role_charges as Dictionary).is_empty(), "moving stand releases exactly the gunner lease and charge")
+	_check(_craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and _craft.get_command_source() == helm and helm.get_stream_id() == cursor.stream and helm.get_delivery_generation() == cursor.delivery, "moving stand preserves pilot power and exact remote helm epochs")
+	_check(area.is_reserved() and area.get_reservation_token() == _player, "moving stand retains the host cabin reservation")
+	var stand_local := _craft.to_local(_player.global_position)
+	await _walk(Vector3(1.45, BulwarkHeavyGunship.CABIN_FLOOR_Y, 1.65))
+	_check(_craft.to_local(_player.global_position).distance_to(stand_local) > 0.60 and _player.is_on_floor() and _craft.get_moving_interior_component().is_occupant_registered(_player), "ordinary moving walk travels away from the chair on its actual carried floor")
+	await _walk(Vector3(1.45, BulwarkHeavyGunship.CABIN_FLOOR_Y, 0.60))
+	await _look(_craft.get_gunner_station_anchor().global_position + Vector3.UP * 1.2)
+	_check(await _until(func():
+		var label := _game.hud.get("_interaction_label") as Label
+		return _game.station_interaction_candidate is ShipCrewSeat and label != null and label.text.contains("SIT") and label.text.contains("GUNNER")
+	, 3.0), "moving host sees the ordinary physical gunner SIT prompt")
+	await _press(&"interact")
+	_check(await _until(func(): return _player.is_seated_at(_craft.get_gunner_station_anchor()) and _game._solo_crew_claim_is_current() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving gunner reseat acquires a fresh physical claim")
+	var claim := owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID)
+	_check(not claim.is_empty() and int(claim.get("claim_sequence", 0)) != int(first_claim.get("claim_sequence", 0)), "moving reseat replaces the retired chair claim identity")
+	# Exercise the existing lease owner, without assigning a seat or mutating
+	# flight, power, ammunition or damage state to manufacture a success.
+	var sequence := maxi(int(claim.get("claim_sequence", 0)), int(owner.get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
+	_check(_craft.release_crew_role(1, 1, GameFlow.SOLO_CREW_AVATAR_ID, BulwarkHeavyGunship.GUNNER_SEAT_ID, sequence, int(claim.get("seat_generation", 0))).accepted, "existing authority revokes exactly the moving host gunner lease")
+	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled(), 8.0), "lease loss restores supported moving gunner body")
+	_check(_craft.get_command_source() == helm and helm.get_stream_id() == cursor.stream and helm.get_delivery_generation() == cursor.delivery, "gunner lease loss preserves the independent pilot stream")
+	var before_unseated := receipts.size()
+	await _press(source.fire_action)
+	_check(receipts.size() == before_unseated and (_craft.get_gunner_gameplay_state().role_charges as Dictionary).is_empty(), "unseated FIRE cannot reuse a retired gunner lease")
+	await _look(_craft.get_gunner_station_anchor().global_position + Vector3.UP * 1.2)
+	await _press(&"interact")
+	_check(await _until(func(): return _player.is_seated_at(_craft.get_gunner_station_anchor()) and _game._solo_crew_claim_is_current() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving reentry after lease loss uses only the host gunner chair")
+	await _host_gunner_shot("TargetDrone01", receipts)
+	_check(_craft.get_command_source() == helm and helm.get_next_sequence() > int(cursor.sequence) and _craft.global_position.distance_to(start) > 0.5 and _craft.get_last_ship_command().throttle > 0.0 and not _craft.get_last_ship_command().fire, "pilot commands continue through gunner FIRE, stand, walk and lease recovery without borrowing pilot FIRE")
+	_write("host.moving_checked", {})
+	if not await _wait_file("client.pilot_disconnected", 20.0):
+		return
+	_check(await _until(func(): return not _craft.is_remote_piloted() and _craft.get_command_source() == source and helm_weak.get_ref() == null, 5.0), "actual pilot disconnect restores the exact retained local producer")
+	_check(_game._solo_crew_claim_is_current() and _player.is_seated_at(_craft.get_gunner_station_anchor()), "pilot disconnect preserves the separate host gunner claim")
+	_check(source.get_authority_peer_id() == source_peer and _craft.get_local_input_source() == source and source.is_input_configuration_valid() and source.get_input_binding_profile().to_dictionary() == profile_values, "moving gunner lifecycle preserves exact local source, authority and settings profile")
+
+func _host_gunner_shot(target_name: String, receipts: Array[Dictionary]) -> void:
+	# ShipyardWorld owns target animation; disabling the child does not stage it.
+	var world := _game.get_node("ShipyardWorld")
+	var world_was_processing := world.is_processing()
+	world.set_process(false)
+	var target := _stage_target(target_name)
+	var health := float(target.get_meta("health", 0.0))
+	var before := receipts.size()
+	var actor := StringName("1:%s" % GameFlow.SOLO_CREW_AVATAR_ID)
+	var source := _craft.get_local_input_source()
+	await _look(target.global_position)
+	_print_host_shot_state(&"before_fire", target, health, receipts, before)
+	# Actual private-window focus and the charge share the existing eight-second
+	# budget. Never grant sampling permission through a synthetic notification.
+	var deadline := Time.get_ticks_msec() + 8000
+	root.grab_focus()
+	var focused := await _until(func(): return root.has_focus() and Window.get_focused_window() == root and bool(source.call(&"_is_input_sampling_active")), maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0))
+	_check(focused, "real private host Window and local sampler are active before moving FIRE: " + target_name)
+	if not focused:
+		world.set_process(world_was_processing)
+		return
+	Input.action_press(source.fire_action)
+	var fired := await _until(func(): return int((_craft.get_gunner_gameplay_state().role_ammunition as Dictionary).get(actor, 2)) < 2, maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0))
+	Input.action_release(source.fire_action)
+	await _ticks(8)
+	_print_host_shot_state(&"after_fire", target, health, receipts, before)
+	_check(fired and int((_craft.get_gunner_gameplay_state().role_ammunition as Dictionary).get(actor, 2)) == 1 and receipts.size() == before + 1, "ordinary moving host held FIRE resolves exactly one real charge and ammunition debit: " + target_name)
+	_check(receipts.size() == before + 1 and bool(receipts[before].get("accepted", false)) and bool(receipts[before].get("damaged", false)) and float(target.get_meta("health", health)) < health, "existing authoritative siege lance damages the registered target on host: " + target_name)
+	world.set_process(world_was_processing)
+
+## Existing request/results expose authoritative contacts without another ray or shot.
+func _print_host_shot_state(stage: StringName, target: Node3D, baseline_health: float, receipts: Array[Dictionary], before: int) -> void:
+	var shapes: Array[Dictionary] = []
+	var component_snapshot: Dictionary = {}
+	if is_instance_valid(target):
+		for child in target.find_children("*", "CollisionShape3D", true, false):
+			var collision := child as CollisionShape3D
+			shapes.append({"path": collision.get_path(), "pose": collision.global_transform, "disabled": collision.disabled, "shape": collision.shape})
+		var adapter := target.get_node_or_null("AuthoritativeDamageable")
+		if adapter != null and adapter.has_method(&"get_component_snapshot"):
+			component_snapshot = adapter.call(&"get_component_snapshot")
+	var muzzle := _craft.get_node_or_null("LeftMuzzle") as Node3D
+	print("GUNNER_HOST_SHOT_STATE: stage=", stage, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(),
+		" target=", target, " baseline_health=", baseline_health, " health=", target.get_meta("health", null) if is_instance_valid(target) else null,
+		" target_pose=", target.global_transform if is_instance_valid(target) else null, " component_snapshot=", component_snapshot, " shapes=", shapes,
+		" craft_pose=", _craft.global_transform, " camera_pose=", _player.get_camera().global_transform, " aim_direction=", _player.get_interaction_direction(),
+		" muzzle_pose=", muzzle.global_transform if muzzle != null else null, " gunner_state=", _craft.get_gunner_gameplay_state(), " receipts_before=", before, " receipts_now=", receipts.size())
+	for index in range(before, receipts.size()):
+		var result: Dictionary = receipts[index]
+		var request := result.get("request") as ShotRequest
+		print("GUNNER_HOST_SHOT_RECEIPT: stage=", stage, " index=", index, " result=", result,
+			" request_context=", request.get_source_context() if request != null else {}, " origin=", request.origin if request != null else null,
+			" direction=", request.direction if request != null else null, " range=", request.range if request != null else null, " damage=", request.damage if request != null else null)
+
+func _client_pilot_host_gunner() -> void:
+	if not await _wait_file("host.local_seated", 20.0):
+		return
+	# The original client body has disconnected. Retire its actual Main before
+	# a new ordinary connection; never reposition an already-reserved cabin body.
+	var previous := _game
+	previous.release_mouse_capture()
+	previous.queue_free()
+	await _ticks(3)
+	_check(not is_instance_valid(previous), "old client Main is actually retired before the independent pilot connection")
+	_print_fresh_pilot_state(&"before_new_main")
+	_game = Main.instantiate() as GameFlow
+	_pilot_store_path = "user://gunner-pilot-peer-%d.json" % OS.get_process_id()
+	var store := UserDataStore.new(_pilot_store_path)
+	store.load()
+	_game.configure_runtime_settings_persistence(store)
+	root.add_child(_game)
+	await _ticks(4)
+	_craft = _game.get_node("BulwarkHeavyGunship") as BulwarkHeavyGunship
+	_player = _game.get_node("Player") as PlayerController
+	_print_fresh_pilot_state(&"before_start_shift")
+	_game.start_shift()
+	await _ticks(3)
+	var client_target_a := _game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone02") as Node3D
+	var client_target_b := _game.get_node("ShipyardWorld/ExteriorTargetRange/TargetDrone01") as Node3D
+	var client_health := [client_target_a.get_meta("health"), client_target_b.get_meta("health")]
+	var retained_source := _craft.get_local_input_source()
+	var retained_authority := retained_source.get_authority_peer_id()
+	var retained_enabled := retained_source.enabled
+	_print_fresh_pilot_state(&"before_join")
+	var join_result: Dictionary = _game.join_network_session("127.0.0.1", _port)
+	_check(join_result.accepted, "fresh ordinary client joins the retained host for pilot duty")
+	_print_fresh_pilot_state(&"after_join", join_result)
+	await _ticks(100)
+	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.get_boarding_position() + _craft.global_basis.y.normalized() * 0.05))
+	await _ticks(10)
+	_print_fresh_pilot_state(&"before_hatch_press")
+	await _press(&"interact")
+	_check(await _until(func(): return _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _game.get_network_remote_body_intent_source() != null and not bool(_game.get("_transition_busy")), 12.0), "fresh pilot uses ordinary exterior hatch to enter the real parked cabin")
+	_print_fresh_pilot_state(&"after_hatch_wait")
+	root.grab_focus()
+	var anchor := _craft.get_pilot_seat_anchor()
+	await _walk(Vector3(-0.55, BulwarkHeavyGunship.CABIN_FLOOR_Y, -0.10))
+	await _look(anchor.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return bool(_game.get("_piloting")) and not bool(_game.get("_transition_busy")), 12.0), "ordinary client cockpit Interact acquires the real confirmed pilot seat")
+	if not bool(_game.get("_piloting")):
+		return
+	_check(_game._network_client_boarding_claim.get("role") == &"pilot", "actual client boarding receipt grants only the pilot role")
+	var source := _craft.get_local_input_source()
+	# Focus acquisition consumes the existing five-second engine/motion budget.
+	var deadline := Time.get_ticks_msec() + 5000
+	root.grab_focus()
+	var focused := await _until(func(): return root.has_focus() and Window.get_focused_window() == root and bool(source.call(&"_is_input_sampling_active")), maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0))
+	_check(focused, "real private client Window and local sampler are active before ordinary pilot throttle")
+	if not focused:
+		return
+	Input.action_press(source.throttle_forward_action, 0.15)
+	_check(await _until(func(): return _craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and _craft.velocity.length() > 0.1, maxf(0.0, float(deadline - Time.get_ticks_msec()) / 1000.0)), "ordinary confirmed client throttle starts the engine and actual craft motion")
+	_write("client.pilot_moving", {})
+	if not await _wait_file("host.moving_checked", 60.0):
+		Input.action_release(source.throttle_forward_action)
+		return
+	_check([client_target_a.get_meta("health"), client_target_b.get_meta("health")] == client_health and _craft.get_crew_role_authority() == null, "host-local gunner shots never resolve target damage or acquire role authority on client")
+	Input.action_release(source.throttle_forward_action)
+	_print_fresh_pilot_state(&"before_pilot_shutdown")
+	var shutdown_result: Dictionary = _game.shutdown_network_session(&"host_gunner_pilot_disconnect")
+	_print_fresh_pilot_state(&"after_pilot_shutdown", shutdown_result)
+	# Session shutdown hands the confirmed pilot back to its existing solo owner.
+	_check(_game.active_ship == _craft and bool(_game.get("_piloting")) and _craft.is_piloted() and _player.is_seated_at(anchor) \
+		and _craft.get_command_source() == retained_source and _craft.get_local_input_source() == retained_source \
+		and retained_source.get_authority_peer_id() == retained_authority and retained_source.enabled == retained_enabled and retained_source.is_enabled_owner() \
+		and String(_game.get("_network_session_mode")).is_empty() and _game._network_client_boarding_claim.is_empty() \
+		and _game._network_client_boarding_request.is_empty() and _game._network_client_helm_input_sources.is_empty(), "pilot disconnect restores the exact usable solo pilot and clears network ownership")
+	_write("client.pilot_disconnected", {})
+
+## Read-only admission observations expose failures buffered until client.done.
+func _print_fresh_pilot_state(stage: StringName, join_result: Dictionary = {}) -> void:
+	print("GUNNER_FRESH_PILOT_STATE: stage=", stage, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(), " pending_failures=", _failures, " join_result=", join_result, " game_valid=", is_instance_valid(_game))
+	if not is_instance_valid(_game):
+		return
+	var session := _game.network_session
+	var session_available := is_instance_valid(session)
+	var peer: MultiplayerPeer = session.multiplayer.multiplayer_peer if session_available else null
+	print("GUNNER_FRESH_PILOT_CONTEXT: stage=", stage,
+		" session_available=", session_available,
+		" session_mode=", _game.get("_network_session_mode"), " connection_status=", peer.get_connection_status() if peer != null else -1,
+		" session_server=", session.is_server() if session_available else null, " admitted_peers=", session.get_admitted_peer_ids() if session_available else [],
+		" boarding_claim=", _game.get("_network_client_boarding_claim"), " boarding_request=", _game.get("_network_client_boarding_request"), " boarding_audit=", _game.get_network_client_boarding_audit(),
+		" piloting=", _game.get("_piloting"), " phase=", _game.phase, " transition_busy=", _game.get("_transition_busy"), " canopy_generation=", _game.get("_network_exterior_canopy_generation"),
+		" cabin_reserved=", (_craft.get_node("ShipBoardingArea") as ShipBoardingArea).get_reservation_token(), " selected_source=", _craft.get_command_source(), " local_source=", _craft.get_local_input_source(), " source_authority_peer=", _craft.get_local_input_source().get_authority_peer_id(),
+		" player_control=", _player.is_control_enabled(), " player_seated=", _player.is_seated(), " containment=", _player.get_cabin_containment_report())
 
 func _refusal(payload: Dictionary, reason: StringName, description: String) -> void:
 	payload.server_tick = _game.network_session.get_boarding_server_tick_estimate()
@@ -353,9 +573,13 @@ func _refusal(payload: Dictionary, reason: StringName, description: String) -> v
 	_check(await _until(func(): return _game.network_session.get_gunner_replica_snapshot().get("error") == reason, 5.0), description)
 
 func _walk(target_local: Vector3) -> void:
-	var target := _craft.to_global(target_local)
-	print("GUNNER_WALK_START: local=", _craft.to_local(_player.global_position), " target=", target_local)
+	_print_walk_state(&"start", target_local, Vector3.ZERO, Vector2.ZERO, 0)
+	var stalled_ticks := 0
+	var printed_stall := false
+	var printed_collision := false
+	var iterations := 0
 	for _index in 240:
+		var target := _craft.to_global(target_local)
 		var delta := target - _player.global_position
 		delta = delta.slide(_craft.global_basis.y.normalized())
 		if delta.length() < 0.30:
@@ -368,10 +592,41 @@ func _walk(target_local: Vector3) -> void:
 			Input.action_release(action)
 		Input.action_press(&"move_left" if axis.x < 0.0 else &"move_right", absf(axis.x))
 		Input.action_press(&"move_forward" if axis.y < 0.0 else &"move_back", absf(axis.y))
+		var before_local := _craft.to_local(_player.global_position)
 		await _ticks(1)
+		iterations = _index + 1
+		var moved := _craft.to_local(_player.global_position).distance_to(before_local)
+		stalled_ticks = stalled_ticks + 1 if moved < 0.01 else 0
+		if not printed_collision:
+			for collision_index in _player.get_slide_collision_count():
+				if _player.get_slide_collision(collision_index).get_normal().dot(direction) < -0.1:
+					_print_walk_state(&"first_blocking_collision", target_local, direction, axis, iterations)
+					printed_collision = true
+					break
+		if not printed_stall and stalled_ticks >= 12:
+			_print_walk_state(&"first_stall", target_local, direction, axis, iterations)
+			printed_stall = true
 	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
 		Input.action_release(action)
 	await _ticks(15)
+	_print_walk_state(&"end", target_local, Vector3.ZERO, Vector2.ZERO, iterations)
+
+## Bounded read-only observations; no changes to route decisions or input.
+func _print_walk_state(stage: StringName, target_local: Vector3, direction: Vector3, commanded_axis: Vector2, iteration: int) -> void:
+	var collisions: Array[Dictionary] = []
+	for index in mini(_player.get_slide_collision_count(), 4):
+		var collision := _player.get_slide_collision(index)
+		var collider := collision.get_collider() as Node
+		collisions.append({"collider": collider.get_path() if collider != null else NodePath(), "normal": collision.get_normal(), "position": collision.get_position(), "travel": collision.get_travel(), "remainder": collision.get_remainder()})
+	var source: NetworkRemoteBodyIntentSource = _game.get_network_remote_body_intent_source()
+	var delta := (_craft.to_global(target_local) - _player.global_position).slide(_craft.global_basis.y.normalized())
+	print("GUNNER_WALK_STATE: stage=", stage, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(),
+		" iteration=", iteration, " local=", _craft.to_local(_player.global_position), " target=", target_local, " planar_distance=", delta.length(),
+		" floor=", _player.is_on_floor(), " control=", _player.is_control_enabled(), " focus=", root.has_focus(), " focused_window=", Window.get_focused_window(),
+		" commanded_axis=", commanded_axis, " actual_input_axis=", Input.get_vector("move_left", "move_right", "move_forward", "move_back"), " direction=", direction, " velocity=", _player.velocity,
+		" collisions=", collisions, " containment=", _player.get_cabin_containment_report(), " phase=", _game.phase, " transition_busy=", _game.get("_transition_busy"),
+		" seated=", _player.is_seated(), " role_view=", _game.network_session.get_gunner_replica_snapshot(), " piloted=", _craft.is_piloted(), " remote_piloted=", _craft.is_remote_piloted(),
+		" session_server=", _game.network_session.is_server(), " admitted_peers=", _game.network_session.get_admitted_peer_ids(), " body_source_audit=", source.get_audit() if source != null else {})
 
 func _look(target: Vector3) -> void:
 	for _index in 4:
@@ -409,7 +664,9 @@ func _ticks(count: int) -> void:
 		await process_frame
 
 func _wait_file(name: String, seconds: float) -> bool:
+	var started_ms := Time.get_ticks_msec()
 	var result := await _until(func(): return FileAccess.file_exists(_directory.path_join(name)), seconds)
+	print("GUNNER_WAIT_END: role=", _role, " boundary=", name, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(), " elapsed_ms=", Time.get_ticks_msec() - started_ms, " original_budget_seconds=", seconds, " arrived=", result)
 	_check(result, "peer boundary arrives: " + name)
 	return result
 
@@ -427,7 +684,7 @@ func _write(name: String, data: Dictionary) -> void:
 	if write_error != OK or DirAccess.rename_absolute(temporary, target) != OK:
 		_check(false, "complete peer receipt publishes atomically: " + name)
 		return
-	print("GUNNER_PEER_BOUNDARY: ", _role, " ", name)
+	print("GUNNER_PEER_BOUNDARY: ", _role, " ", name, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames())
 
 func _read(name: String) -> Dictionary:
 	if not FileAccess.file_exists(_directory.path_join(name)):

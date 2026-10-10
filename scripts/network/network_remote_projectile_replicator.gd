@@ -2,7 +2,7 @@ class_name NetworkRemoteProjectileReplicator
 extends Node3D
 
 ## Replicates the travelling projectiles the host resolves -- the Cinder
-## hauler's mass-driver slugs, Emberline raider bolts and seeker torpedoes -- to the
+## hauler's mass-driver slugs, picket siege lances, Emberline raider bolts and seeker torpedoes -- to the
 ## clients, as presentation only.
 ##
 ## These weapons are real authority flights on the host (`CombatResolver` opens
@@ -34,6 +34,7 @@ const RECORD_KEY := "remote_projectile_record"
 const KIND_SLUG: StringName = &"mass_driver_slug"
 const KIND_TORPEDO: StringName = &"seeker_torpedo"
 const KIND_EMBERLINE: StringName = &"emberline_raider_bolt"
+const KIND_LANCE: StringName = &"siege_lance_bolt"
 const TORPEDO_UPDATE_INTERVAL_TICKS := 6
 const MAX_VISUALS := 24
 const MAX_SPEED := 2000.0
@@ -92,7 +93,7 @@ func set_publisher(publisher: Callable) -> void:
 ## wire. Observing again updates the source generation for future launches;
 ## the already-live flights retain the generation that admitted them.
 func observe_pool(pool: Node, kind: StringName, source_entity_id: StringName, source_generation: int = 1) -> Dictionary:
-	if not is_instance_valid(pool) or kind not in [KIND_SLUG, KIND_TORPEDO, KIND_EMBERLINE] \
+	if not is_instance_valid(pool) or kind not in [KIND_SLUG, KIND_TORPEDO, KIND_EMBERLINE, KIND_LANCE] \
 			or String(source_entity_id).is_empty() or source_generation < 1:
 		return {"accepted": false, "status": &"invalid_pool"}
 	var key := pool.get_instance_id()
@@ -100,7 +101,7 @@ func observe_pool(pool: Node, kind: StringName, source_entity_id: StringName, so
 		(_pools[key] as Dictionary)["generation"] = source_generation
 		return {"accepted": true, "status": &"already_observed"}
 	var bindings: Array = []
-	if kind in [KIND_SLUG, KIND_EMBERLINE]:
+	if kind in [KIND_SLUG, KIND_EMBERLINE, KIND_LANCE]:
 		bindings = [
 			[&"bolt_launched", Callable(self, "_on_launched").bind(key)],
 			[&"bolt_resolved", Callable(self, "_on_resolved").bind(key)],
@@ -122,9 +123,9 @@ func observe_pool(pool: Node, kind: StringName, source_entity_id: StringName, so
 		"pool": weakref(pool), "kind": kind, "source": source_entity_id,
 		"generation": source_generation, "bindings": bindings,
 	}
-	# Hosting may begin while an offline convoy shot or seeker is in flight.
+	# Hosting may begin while an offline lance, convoy shot or seeker is in flight.
 	var live_record_method := &"get_active_torpedo_records" if kind == KIND_TORPEDO else &"get_active_bolt_records"
-	if kind in [KIND_EMBERLINE, KIND_TORPEDO] and pool.has_method(live_record_method):
+	if kind in [KIND_EMBERLINE, KIND_TORPEDO, KIND_LANCE] and pool.has_method(live_record_method):
 		for record: Dictionary in pool.call(live_record_method):
 			_on_launched(record, key, false)
 	return {"accepted": true, "status": &"pool_observed", "kind": kind}
@@ -147,10 +148,10 @@ func advance_host() -> void:
 		return
 	for key_variant in _pools.keys():
 		var entry := _pools[key_variant] as Dictionary
-		if StringName(entry.kind) not in [KIND_TORPEDO, KIND_EMBERLINE]:
+		if StringName(entry.kind) not in [KIND_TORPEDO, KIND_EMBERLINE, KIND_LANCE]:
 			continue
 		var pool := (entry.pool as WeakRef).get_ref() as Node
-		var record_method := &"get_active_bolt_records" if StringName(entry.kind) == KIND_EMBERLINE else &"get_active_torpedo_records"
+		var record_method := &"get_active_bolt_records" if StringName(entry.kind) in [KIND_EMBERLINE, KIND_LANCE] else &"get_active_torpedo_records"
 		if not pool.has_method(record_method):
 			continue
 		for record_variant in pool.call(record_method):
@@ -173,8 +174,8 @@ func republish_for_peer(peer_id: int) -> int:
 	for active_variant in _active.values():
 		var active := active_variant as Dictionary
 		var record := (active.record as Dictionary).duplicate(true)
-		if StringName(active.kind) == KIND_EMBERLINE:
-			# The convoy can pause: sample the authority pool, never wall time.
+		if StringName(active.kind) in [KIND_EMBERLINE, KIND_LANCE]:
+			# Convoy and lance flights can pause: sample the authority pool, never wall time.
 			var entry := _pools.get(int(active.pool_key), {}) as Dictionary
 			var pool := (entry.get("pool") as WeakRef).get_ref() as Node if not entry.is_empty() else null
 			if not is_instance_valid(pool):
@@ -243,7 +244,7 @@ func _on_launched(record: Dictionary, pool_key: int, launch: bool = true) -> voi
 	if flight_id <= 0:
 		return
 	_serial += 1
-	var prefix := "emberline" if StringName(entry.kind) == KIND_EMBERLINE else ("slug" if StringName(entry.kind) == KIND_SLUG else "torpedo")
+	var prefix := "lance" if StringName(entry.kind) == KIND_LANCE else ("emberline" if StringName(entry.kind) == KIND_EMBERLINE else ("slug" if StringName(entry.kind) == KIND_SLUG else "torpedo"))
 	var active := {
 		"projectile_id": StringName("%s-%d" % [prefix, _serial]),
 		"kind": entry.kind,
@@ -358,7 +359,19 @@ static func _active_key(pool_key: int, flight_id: int) -> String:
 
 
 func set_reduced_flash_enabled(enabled: bool) -> void:
+	if _reduced_flash == enabled:
+		return
 	_reduced_flash = enabled
+	for visual_variant in _visuals.values():
+		var visual := visual_variant as Dictionary
+		_apply_kind(visual, StringName(visual.kind))
+		# Material refresh must not turn an already confirmed burst into a
+		# flying body, or reset its remaining lifetime.
+		if bool(visual.get("bursting", false)):
+			(visual.body as Node3D).visible = false
+			(visual.trail as Node3D).visible = false
+			(visual.burst as Node3D).visible = true
+			_advance_burst(visual, 0.0)
 
 
 ## Draws one replicated record. `status` is the adapter's own verdict on the
@@ -371,7 +384,7 @@ func present_packet(packet: Dictionary, status: StringName) -> Dictionary:
 	var kind := StringName(descriptor.get("kind", &""))
 	var position: Variant = projectile.get("position")
 	var direction: Variant = projectile.get("direction", Vector3.FORWARD)
-	if String(projectile_id).is_empty() or kind not in [KIND_SLUG, KIND_TORPEDO, KIND_EMBERLINE] \
+	if String(projectile_id).is_empty() or kind not in [KIND_SLUG, KIND_TORPEDO, KIND_EMBERLINE, KIND_LANCE] \
 			or not position is Vector3 or not (position as Vector3).is_finite() \
 			or not direction is Vector3 or not (direction as Vector3).is_finite():
 		return {"accepted": false, "status": &"invalid_remote_projectile_record"}
@@ -572,15 +585,16 @@ func _apply_kind(visual: Dictionary, kind: StringName) -> void:
 		return
 	var torpedo := kind == KIND_TORPEDO
 	var emberline := kind == KIND_EMBERLINE
-	var core_color := EMBERLINE_CORE_COLOR if emberline else SLUG_CORE_COLOR
-	var trail_color := EMBERLINE_TRAIL_COLOR if emberline else SLUG_TRAIL_COLOR
+	var lance := kind == KIND_LANCE
+	var core_color := TravellingBoltProjectile.BOLT_CORE_COLOR if lance else (EMBERLINE_CORE_COLOR if emberline else SLUG_CORE_COLOR)
+	var trail_color := TravellingBoltProjectile.BOLT_TRAIL_COLOR if lance else (EMBERLINE_TRAIL_COLOR if emberline else SLUG_TRAIL_COLOR)
 	var body := visual.body as MeshInstance3D
 	var trail := visual.trail as MeshInstance3D
 	var burst := visual.burst as MeshInstance3D
 	var body_mesh := body.mesh as CapsuleMesh
 	body_mesh.radius = 0.34 if torpedo else 0.16
 	body_mesh.height = 2.6 if torpedo else 0.8
-	(trail.mesh as CylinderMesh).height = (3.0 if _reduced_flash else 7.0) if torpedo else ((3.6 if _reduced_flash else 9.0) if emberline else 5.0)
+	(trail.mesh as CylinderMesh).height = (3.0 if _reduced_flash else 7.0) if torpedo else ((3.6 if _reduced_flash else 9.0) if emberline or lance else 5.0)
 	trail.position = Vector3(0.0, 0.0, (trail.mesh as CylinderMesh).height * 0.5 + body_mesh.height * 0.5)
 	var energy_scale := 0.35 if _reduced_flash else 1.0
 	body.material_override = _material(

@@ -8,6 +8,7 @@ const ShipRestOverlayType := preload("res://scripts/ui/ship_rest_overlay.gd")
 const LiveCombatAuthorityType := preload("res://scripts/combat/live_combat_authority.gd")
 const CinderConvoyThreatType := preload("res://scripts/activities/cinder_convoy_threat.gd")
 const NetworkEmberlineActorPresenterType := preload("res://scripts/network/network_emberline_actor_presenter.gd")
+const NetworkPicketActorPresenterType := preload("res://scripts/network/network_picket_actor_presenter.gd")
 const ShotRequestType := preload("res://scripts/combat/shot_request.gd")
 const LifecycleDamageableAdapterType := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const CombatResolverType := preload("res://scripts/combat/combat_resolver.gd")
@@ -668,6 +669,8 @@ var _cinder_convoy_client_host_suspended := false
 var _cinder_convoy_client_host_visible := false
 var _network_emberline_actor_generation := 0
 var _network_emberline_actor_presenter: NetworkEmberlineActorPresenterType
+var _network_picket_actor_presenter: NetworkPicketActorPresenterType
+var _network_picket_actor_migration_generation := 0
 var cinder_streaming_bootstrap: CinderStreamingBootstrap
 var cinder_streaming_binding: CinderStreamingProductionBinding
 var cinder_streaming_coordinator: WorldStreamingCoordinator
@@ -1550,6 +1553,7 @@ func host_network_session(
 	_network_session_retry_mode = &"server"
 	_set_station_defense_network_presentation_only(false)
 	_set_torpedo_boat_network_presentation_only(false)
+	_set_standoff_picket_network_presentation_only(false)
 	_network_session_port = port
 	_network_session_max_clients = max_clients
 	var result := session.host(port, max_clients)
@@ -1579,6 +1583,7 @@ func join_network_session(
 	_network_session_retry_mode = &"client"
 	_set_station_defense_network_presentation_only(true)
 	_set_torpedo_boat_network_presentation_only(true)
+	_set_standoff_picket_network_presentation_only(true)
 	_network_session_address = address
 	_network_session_port = port
 	var result := session.join(address, port)
@@ -1642,6 +1647,7 @@ func _settle_refused_network_start(session: NetworkSessionAdapterType) -> void:
 	_network_session_mode = &""
 	_set_station_defense_network_presentation_only(false)
 	_set_torpedo_boat_network_presentation_only(false)
+	_set_standoff_picket_network_presentation_only(false)
 
 
 ## The role to name for a session that has ended: the live one if a session is
@@ -5127,6 +5133,7 @@ func _physics_process(delta: float) -> void:
 		# replacement composition can no longer publish "stale" ticks.
 		var craft_poses := _build_network_craft_pose_entries()
 		craft_poses.append_array(_build_network_emberline_actor_entries())
+		craft_poses.append_array(_build_network_picket_actor_entries())
 		var composition_attachment := _attach_network_ship_authority_composition()
 		if bool(composition_attachment.get("accepted", false)) \
 				and _network_ship_authority_composition != null:
@@ -6902,6 +6909,7 @@ func _on_network_session_started(mode: StringName) -> void:
 	_network_hud_migration_generation = 0
 	_set_station_defense_network_presentation_only(mode == &"client")
 	_set_torpedo_boat_network_presentation_only(mode == &"client")
+	_set_standoff_picket_network_presentation_only(mode == &"client")
 	if mode == &"client":
 		_network_craft_pose_stream.bind_replica_craft_presentations(ships)
 	for craft: HeroShip in ships:
@@ -6966,6 +6974,7 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_player_pulse_network_active_shots.clear()
 	_set_station_defense_network_presentation_only(false)
 	_set_torpedo_boat_network_presentation_only(false)
+	_set_standoff_picket_network_presentation_only(false)
 	if _network_session_mode == &"client":
 		_clear_bomber_payload_replica_presentation()
 		_clear_player_pulse_replica_presentation()
@@ -7042,6 +7051,23 @@ func _resume_cinder_convoy_solo_threat() -> void:
 	if not cinder_convoy_threat.start(generation) \
 			or not cinder_convoy_threat.restore_persistence_state(saved, generation):
 		_fail_active_activity(&"convoy_threat_restore_failed")
+
+
+func _set_standoff_picket_network_presentation_only(enabled: bool) -> void:
+	# Remove the remote copy before restoring the retained solo presentation.
+	if not enabled and is_instance_valid(_network_picket_actor_presenter):
+		_network_picket_actor_presenter.clear()
+		_network_picket_actor_migration_generation = 0
+	var director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	if is_instance_valid(director):
+		director.set_heavy_breach_network_suspended(enabled)
+	var picket := get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent
+	if is_instance_valid(picket):
+		picket.set_network_presentation_only(enabled)
+	if enabled:
+		_ensure_network_picket_actor_presenter()
+	if not enabled:
+		_bind_standoff_picket_bolts_for_network()
 
 
 func _set_torpedo_boat_network_presentation_only(enabled: bool) -> void:
@@ -7140,6 +7166,9 @@ func _on_network_migration_result(result: Dictionary) -> void:
 	# confirmed chair and its borrowed input producer in the same boundary,
 	# before relationship recovery can make the body appear on foot.
 	_cancel_network_engineer()
+	if generation > 0 and generation != _network_picket_actor_migration_generation and is_instance_valid(_network_picket_actor_presenter):
+		_network_picket_actor_presenter.clear_replica()
+		_network_picket_actor_migration_generation = generation
 	if generation > 0 and generation != _bomber_payload_replica_migration_generation:
 		_clear_bomber_payload_replica_presentation(generation)
 	if generation > 0 and generation != _player_pulse_replica_migration_generation:
@@ -7584,6 +7613,7 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			_network_session_mode = &"client"
 			_network_session_retry_mode = &"client"
 			_set_torpedo_boat_network_presentation_only(true)
+			_set_standoff_picket_network_presentation_only(true)
 			_apply_lan_endpoint_for_join(session_id)
 			var started := session.consume_join_intent(
 				intent.get("intent", {}) as Dictionary,
@@ -7608,6 +7638,7 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			_network_session_retry_mode = &"client"
 			_set_station_defense_network_presentation_only(true)
 			_set_torpedo_boat_network_presentation_only(true)
+			_set_standoff_picket_network_presentation_only(true)
 			var joined := session.consume_direct_connect_intent(direct_connect_intent)
 			_settle_refused_network_start(session)
 			if bool(joined.get("accepted", false)):
@@ -8012,7 +8043,15 @@ func _update_on_foot_flow() -> void:
 		return
 	if phase == Phase.IN_FLIGHT_CABIN:
 		if station_interaction_candidate is ShipCrewSeat:
-			hud.set_interaction(station_interaction_candidate.get_interaction_prompt())
+			var seat := station_interaction_candidate as ShipCrewSeat
+			var prompt := seat.get_interaction_prompt()
+			if prompt.is_empty() and _can_reseat_host_remote_crew_seat(seat):
+				prompt = "[ E ] SIT // %s %s" % [seat.get_ship().get_display_name().to_upper(), seat.get_role_label().to_upper()]
+				var owner: CrewSeatRoleAuthority = seat.get_ship().call(&"get_crew_role_authority")
+				for assignment: Dictionary in owner.get_snapshot().get("assignments", []):
+					if assignment.get("seat_id") == seat.get_seat_id():
+						prompt = "[ E ] %s SEAT OCCUPIED" % seat.get_role_label().to_upper()
+			hud.set_interaction(prompt)
 		elif station_interaction_candidate is ShipBunk:
 			hud.set_interaction(station_interaction_candidate.get_interaction_prompt())
 		elif _near_ship and boarding_candidate == _cabin_ship:
@@ -9239,6 +9278,49 @@ func _release_retired_solo_crew_claim(assignment: Dictionary) -> bool:
 	return true
 
 
+## Only an already-carried host body can retake this chair during remote flight.
+## This preserves its cabin reservation; it cannot admit an exterior contender.
+func _can_reseat_host_cinder_loadmaster(seat: ShipCrewSeat) -> bool:
+	return is_instance_valid(seat) and seat.get_ship() is CinderCargoHauler \
+		and _can_reseat_host_remote_crew_seat(seat)
+
+
+## These exact host chairs can use an existing carried cabin, never exterior
+## boarding or another role's airborne admission policy.
+func _host_remote_crew_seat_matches(craft: HeroShip, seat_id: StringName, role: StringName) -> bool:
+	return is_instance_valid(craft) and ((craft is CinderCargoHauler and seat_id == CinderCargoHauler.LOADMASTER_STATION_SEAT_ID and role == &"passenger") \
+		or (craft is BulwarkHeavyGunship and seat_id == BulwarkHeavyGunship.GUNNER_SEAT_ID and role == &"gunner"))
+
+
+func _can_reseat_host_remote_crew_seat(seat: ShipCrewSeat) -> bool:
+	if not is_instance_valid(seat) or not seat.is_inside_tree() or seat.is_queued_for_deletion() \
+			or not _host_remote_crew_seat_matches(seat.get_ship(), seat.get_seat_id(), seat.get_role()) \
+			or not is_instance_valid(player) or not player.is_inside_tree() or player.is_queued_for_deletion() \
+			or not player.is_control_enabled() or phase != Phase.IN_FLIGHT_CABIN \
+			or _cabin_ship != seat.get_ship() or not player.is_on_floor():
+		return false
+	var craft := seat.get_ship()
+	var contract := seat.get_role_contract()
+	var frame := contract.get("frame") as MovingInteriorFrame
+	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	var containment: Dictionary = player.get_cabin_containment_report()
+	var cabin := craft.get_in_flight_cabin_report()
+	var authority: CrewSeatRoleAuthority = craft.call(&"get_crew_role_authority")
+	return _host_craft_has_remote_pilot(craft) and not contract.is_empty() \
+		and authority != null and _network_engineer_binding != null \
+		and _network_engineer_binding.role_authority_for(craft) == authority \
+		and is_instance_valid(frame) and frame.get_moving_frame() == craft \
+		and frame.is_inside_tree() and not frame.is_queued_for_deletion() \
+		and bool(cabin.get("supported", false)) and cabin.get("frame") == frame \
+		and frame.is_occupant_registered(player) \
+		and bool(containment.get("active", false)) and containment.get("frame") == craft \
+		and (cabin.get("local_bounds", AABB()) as AABB).has_point(craft.to_local(player.global_position)) \
+		and player.get_interaction_origin().distance_to(seat.global_position) <= STATION_SEAT_MAX_REACH \
+		and is_instance_valid(area) and area == _boarding_area and area.is_inside_tree() \
+		and not area.is_queued_for_deletion() and area.boarding_enabled and area.is_reserved() \
+		and area.get_reservation_token() == player
+
+
 func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	if _transition_busy or _station_seated or _piloting or player.is_seated() \
 			or (_network_session_is_live() and not (_network_session_mode == &"server" and seat is ShipCrewSeat and _network_physical_crew_seat_is_wired(seat))) or _planetary_visit_blocks_network_session() \
@@ -9247,7 +9329,8 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 		return
 	var craft := seat.get_ship()
 	var contract := seat.get_role_contract()
-	if not is_instance_valid(craft) or craft not in ships or not craft.is_boardable() \
+	var retained_host_cabin := _can_reseat_host_remote_crew_seat(seat)
+	if not is_instance_valid(craft) or craft not in ships or (not craft.is_boardable() and not retained_host_cabin) \
 			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID] \
 			or contract.is_empty() or contract.get("seat") != seat.get_seat_anchor() \
 			or (phase == Phase.IN_FLIGHT_CABIN and craft != _cabin_ship) \
@@ -9257,7 +9340,8 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 		return
 	var cabin := _solo_safe_recovery_cabin(craft)
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
-	if cabin.is_empty() or cabin.get("frame") != contract.get("frame") or area == null or not area.is_available_for(player):
+	if cabin.is_empty() or cabin.get("frame") != contract.get("frame") or area == null \
+			or (not retained_host_cabin and not area.is_available_for(player)):
 		return
 	var frame := cabin.frame as MovingInteriorFrame
 	for key: StringName in [MovingInteriorFrame.REGISTRATION_META, MovingInteriorFrame.OWNER_META]:
@@ -9316,7 +9400,9 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	_station_seat_recovery_transform = seat.get_exit_transform()
 	_transition_busy = true
 	var generation := _begin_transition_generation()
-	if not area.try_reserve(player):
+	# A moving cabin handoff retains its existing reservation; ordinary exterior
+	# boarding still requires the area's unchanged availability/reservation gate.
+	if not retained_host_cabin and not area.try_reserve(player):
 		_cancel_solo_crew_seat()
 		return
 	# Transfer the Player's existing volume/cabin registration through its owner
@@ -9576,13 +9662,62 @@ func _submit_solo_engineer_intent(component_id: StringName, repair: float, compo
 func _solo_gunner_input_is_available() -> bool:
 	if not is_instance_valid(_solo_crew_ship) or _transition_busy or not _station_seated or (_solo_crew_role not in [&"gunner", &"engineer"] and not _solo_crew_ship is CinderCargoHauler) \
 			or (_network_session_is_live() and not (_network_session_mode == &"server" and _network_physical_crew_seat_is_wired(_solo_crew_seat))) or get_tree().paused or not can_process() \
-			or not player.is_control_enabled() or not _solo_crew_claim_is_current() \
-			or _solo_crew_ship.is_piloted():
+			or not player.is_control_enabled() or not _solo_crew_claim_is_current():
 		return false
 	var source := _solo_crew_ship.get_local_input_source()
-	return is_instance_valid(source) and source == _solo_crew_ship.get_command_source() \
+	return _solo_crew_local_source_is_available(source) \
 		and source.is_enabled_owner() and source.is_input_configuration_valid() \
 		and bool(source.call(&"_is_input_sampling_active"))
+
+
+## The retained local producer may serve only these exact host chairs while
+## another admitted peer owns the selected helm. It never becomes a flight
+## producer, and neither sampling nor retiring it touches that remote stream.
+func _solo_crew_local_source_is_available(source: LocalShipInputSource) -> bool:
+	if not is_instance_valid(source) or not is_instance_valid(_solo_crew_ship) \
+			or source != _solo_crew_ship.get_local_input_source():
+		return false
+	var selected := _solo_crew_ship.get_command_source()
+	if not _solo_crew_ship.is_piloted():
+		return source == selected
+	if not _host_remote_crew_seat_matches(_solo_crew_ship, _solo_crew_seat_id, _solo_crew_role) \
+			or _network_session_mode != &"server" or not _network_session_is_live() \
+			or not _solo_crew_ship.is_remote_piloted() or selected == source \
+			or not selected is NetworkRemotePilotCommandSourceType:
+		return false
+	return _host_craft_has_remote_pilot(_solo_crew_ship)
+
+
+## Read only the confirmed production helm and its existing boarding lease.
+func _cinder_host_has_remote_pilot(craft: HeroShip) -> bool:
+	return is_instance_valid(craft) and craft is CinderCargoHauler and _host_craft_has_remote_pilot(craft)
+
+
+func _host_craft_has_remote_pilot(craft: HeroShip) -> bool:
+	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
+			or craft.is_destroyed() or craft not in ships \
+			or _network_session_mode != &"server" or not _network_session_is_live() \
+			or not network_session.is_server() \
+			or not craft.is_remote_piloted():
+		return false
+	var helm := craft.get_command_source() as NetworkRemotePilotCommandSourceType
+	if not is_instance_valid(helm):
+		return false
+	var ship_id := craft.get_ship_id()
+	var record := _network_remote_pilots.get(ship_id, {}) as Dictionary
+	var peer := int(record.get("peer_id", 0))
+	if peer <= 1 or peer not in network_session.get_admitted_peer_ids() \
+			or record.get("craft") != craft or record.get("source") != helm \
+			or helm.get_pilot_peer_id() != peer or helm.get_ship_id() != ship_id:
+		return false
+	# This is the pilot ID registered by _ensure_network_boarding_ship_registered.
+	for occupancy: Dictionary in network_session.get_boarding_snapshot().get("occupancies", []):
+		if int(occupancy.get("peer_id", 0)) == peer \
+				and occupancy.get("ship_id") == ship_id \
+				and occupancy.get("seat_id") == StringName("%s_pilot" % String(ship_id)) \
+				and occupancy.get("role") == &"pilot":
+			return true
+	return false
 
 
 func _solo_gunner_source_is_current() -> bool:
@@ -9606,9 +9741,7 @@ func _reset_solo_gunner_input() -> void:
 	_solo_gunner_input_elapsed = 0.0
 	# A retiring crew caller cannot reset a replacement ledger or pilot producer.
 	if not is_instance_valid(source) or not is_instance_valid(_solo_crew_ship) \
-			or _solo_crew_ship.is_piloted() or not source.is_enabled_owner() \
-			or source != _solo_crew_ship.get_local_input_source() \
-			or source != _solo_crew_ship.get_command_source() \
+			or not _solo_crew_local_source_is_available(source) or not source.is_enabled_owner() \
 			or _solo_crew_ship.call(&"get_crew_role_authority") != owner \
 			or owner == null or generation != _solo_crew_seat_generation \
 			or source.get_stream_id() != stream:
@@ -11021,6 +11154,32 @@ func _on_network_snapshot_applied(result: Dictionary) -> void:
 		_ensure_network_emberline_actor_presenter().consume_movement_section(
 			movement as Array, _network_station_frame_origin()
 		)
+		_ensure_network_picket_actor_presenter().consume_movement_section(
+			movement as Array, _network_station_frame_origin()
+		)
+
+
+## Actual picket poses and authored cue transforms use the same authenticated
+## movement channel, with a separate activation lifetime from convoy actors.
+func _build_network_picket_actor_entries() -> Array:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) or not network_session.is_server():
+		return []
+	return _ensure_network_picket_actor_presenter().build_host_entries(
+		get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent,
+		maxi(1, _network_hud_session_epoch), maxi(0, _network_boarding_server_tick),
+		_network_station_frame_origin())
+
+
+func _ensure_network_picket_actor_presenter() -> NetworkPicketActorPresenterType:
+	if not is_instance_valid(_network_picket_actor_presenter):
+		_network_picket_actor_presenter = NetworkPicketActorPresenterType.new()
+		_network_picket_actor_presenter.name = "NetworkPicketActorPresenter"
+		add_child(_network_picket_actor_presenter)
+	if _network_session_mode == &"client":
+		_network_picket_actor_presenter.configure(get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent)
+	if runtime_settings != null:
+		_network_picket_actor_presenter.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+	return _network_picket_actor_presenter
 
 
 ## Emberline actor poses and committed hull outcomes share the existing
@@ -11199,8 +11358,8 @@ func _ensure_network_remote_projectile_replicator() -> NetworkRemoteProjectileRe
 	return _network_remote_projectile_replicator
 
 
-## Host: keeps the replicator observing the player mass-driver pool and the
-## torpedo boat's seeker pool and Emberline raider pool, then advances it.
+## Host: observes player mass-driver slugs, picket lances, torpedo boat seekers
+## and Emberline raider bolts, then advances their presentation channel.
 func _advance_network_remote_projectiles() -> void:
 	if not is_instance_valid(network_session) or not network_session.is_server():
 		return
@@ -11210,6 +11369,7 @@ func _advance_network_remote_projectiles() -> void:
 			_player_bolt_pool, NetworkRemoteProjectileReplicatorType.KIND_SLUG, &"player-mass-driver"
 		)
 	_observe_cinder_convoy_bolts_for_network()
+	_bind_standoff_picket_bolts_for_network()
 	var torpedo_boat := get_node_or_null(^"TorpedoBoat") as TorpedoBoatOpponent
 	if is_instance_valid(torpedo_boat):
 		var torpedoes := torpedo_boat.get_torpedo_pool()
@@ -11218,6 +11378,28 @@ func _advance_network_remote_projectiles() -> void:
 				torpedoes, NetworkRemoteProjectileReplicatorType.KIND_TORPEDO, &"torpedo-boat"
 			)
 	replicator.advance_host()
+
+
+## Bind the lazy pool signal before the host's first lance launch. A retained
+## offline pool is observed without allocating one for a dormant picket.
+func _bind_standoff_picket_bolts_for_network() -> void:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) or not network_session.is_server():
+		return
+	var picket := get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent
+	if not is_instance_valid(picket):
+		return
+	_connect_signal_once(picket, &"lance_bolt_pool_ready", _on_standoff_picket_bolt_pool_ready)
+	var pool := picket.get_lance_bolt_pool()
+	if is_instance_valid(pool):
+		_on_standoff_picket_bolt_pool_ready(pool, picket.get_lance_source_generation())
+
+
+func _on_standoff_picket_bolt_pool_ready(pool: TravellingBoltProjectile, source_generation: int) -> void:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) or not network_session.is_server():
+		return
+	_ensure_network_remote_projectile_replicator().observe_pool(
+		pool, NetworkRemoteProjectileReplicatorType.KIND_LANCE, &"standoff-picket", source_generation
+	)
 
 
 ## Attach before convoy launch (including restored/offline pools), on the same
@@ -11256,7 +11438,7 @@ func _publish_network_remote_projectile(
 	return published
 
 
-## Client: presents one replicated slug or torpedo record.
+## Client: presents one replicated slug, lance, raider bolt or torpedo record.
 func _present_network_remote_projectile(packet: Dictionary, result: Dictionary) -> Dictionary:
 	var lifecycle := network_session.get_projectile_replica_lifecycle_snapshot()
 	var projectile := packet.get("projectile", {}) as Dictionary
@@ -11271,6 +11453,21 @@ func _present_network_remote_projectile(packet: Dictionary, result: Dictionary) 
 		return {"accepted": false, "status": &"invalid_remote_projectile_record"}
 	var replicator := _ensure_network_remote_projectile_replicator()
 	var presented := replicator.present_packet(packet, StringName(result.get("status", &"")))
+	var lance := StringName(descriptor.get("kind", &"")) == NetworkRemoteProjectileReplicatorType.KIND_LANCE \
+		and StringName(projectile.get("source_entity_id", &"")) == &"standoff-picket"
+	if lance and bool(presented.get("accepted", false)) and is_instance_valid(combat_audio):
+		if presented.get("status") == &"remote_projectile_presented" \
+				and bool(result.get("first_admission", false)) and launch:
+			combat_audio.play_opponent_weapon_fire(
+				projectile.get("position") as Vector3, get_instance_id(),
+				CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE
+			)
+		elif presented.get("status") == &"remote_projectile_terminal_presented" \
+				and StringName((projectile.get("terminal_intent", {}) as Dictionary).get("kind", &"")) == &"impact":
+			combat_audio.play_opponent_weapon_impact(
+				projectile.get("position") as Vector3, get_instance_id(),
+				CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE
+			)
 	if bool(presented.get("accepted", false)) \
 			and presented.get("status") == &"remote_projectile_presented" \
 			and bool(result.get("first_admission", false)) and launch \
@@ -16144,7 +16341,34 @@ func _find_station_interaction_candidate() -> Node3D:
 		if distance < best_score:
 			best_score = distance
 			best_candidate = candidate
+	# A carried passenger can see both a crew chair and the cockpit at once.
+	# They compete by aim before distance; nearby chair discovery must not hide
+	# the cockpit's existing atomic seat-swap request from either HUD or Interact.
+	if best_candidate is ShipCrewSeat and _cabin_cockpit_precedes_crew_seat(best_candidate as ShipCrewSeat, origin, facing):
+		return null
 	return best_candidate
+
+
+func _cabin_cockpit_precedes_crew_seat(seat: ShipCrewSeat, origin: Vector3, facing: Vector3) -> bool:
+	if phase != Phase.IN_FLIGHT_CABIN or not _network_client_boarding_is_live() \
+			or not is_instance_valid(_cabin_ship) or not is_instance_valid(seat) \
+			or seat.get_ship() != _cabin_ship or not _network_physical_crew_seat_is_wired(seat) \
+			or seat.get_role_contract().is_empty() or not _network_client_boarding_holds(_cabin_ship) \
+			or not _network_client_near_pilot_seat(_cabin_ship) or _find_boarding_candidate() != _cabin_ship:
+		return false
+	var pilot := _cabin_ship.get_pilot_seat_anchor()
+	if not is_instance_valid(pilot) or not pilot.is_inside_tree() or pilot.is_queued_for_deletion():
+		return false
+	var pilot_offset := pilot.global_position - origin
+	var chair_offset := seat.global_position - origin
+	var pilot_aim := facing.dot(pilot_offset.normalized())
+	var chair_aim := facing.dot(chair_offset.normalized())
+	if pilot_aim < 0.05:
+		return false
+	if not is_equal_approx(pilot_aim, chair_aim):
+		return pilot_aim > chair_aim
+	# The nearer target wins equal aim; an exact tie keeps the existing chair.
+	return pilot_offset.length_squared() < chair_offset.length_squared()
 
 
 func _get_active_berth_transform() -> Transform3D:
@@ -22470,6 +22694,8 @@ func _apply_opponent_weapon_heat_presentation_profile() -> void:
 		_network_remote_projectile_replicator.set_reduced_flash_enabled(runtime_settings.reduced_flash)
 	if is_instance_valid(_network_emberline_actor_presenter):
 		_network_emberline_actor_presenter.set_reduced_flash_enabled(runtime_settings.reduced_flash)
+	if is_instance_valid(_network_picket_actor_presenter):
+		_network_picket_actor_presenter.set_reduced_flash_enabled(runtime_settings.reduced_flash)
 	# The Emberline raider's travelling bolts honour the same setting.
 	if is_instance_valid(cinder_convoy_threat):
 		var bolt_pool := cinder_convoy_threat.get_bolt_pool()

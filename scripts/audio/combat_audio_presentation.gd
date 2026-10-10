@@ -190,6 +190,17 @@ func play_opponent_weapon_fire(
 	return accepted
 
 
+## A replicated impact can arrive after a quiet mid-flight join, without a
+## locally heard fire cue. Use the admitted weapon's explicit existing profile
+## without changing the remembered profile of any other source.
+func play_opponent_weapon_impact(
+		world_position: Vector3,
+		source_instance_id: int,
+		profile_id: StringName
+	) -> bool:
+	return _play_profiled_opponent_impact(world_position, source_instance_id, profile_id)
+
+
 func play_dry_fire(world_position: Vector3, source_instance_id: int) -> bool:
 	var accepted := _play(CUE_DRY_FIRE, &"dry", world_position, source_instance_id, -7.0)
 	if _weapon_ready_announced:

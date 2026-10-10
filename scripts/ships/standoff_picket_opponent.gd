@@ -42,6 +42,8 @@ const SiegeLanceAudioBindingType := preload("res://scripts/audio/siege_lance_aud
 ## weapon, tactic, or class name is authenticated or claimed by this archetype.
 
 signal lance_fired(origin: Vector3, direction: Vector3, result: Dictionary)
+## Emitted synchronously before both the first launch and a reused pool launch.
+signal lance_bolt_pool_ready(pool: TravellingBoltProjectile, source_generation: int)
 signal siege_lance_audio_record(record: Dictionary)
 signal engagement_state_changed(state: StringName)
 
@@ -213,6 +215,15 @@ var _posture_activation_generation := 0
 var _posture_visible_state: StringName = STATE_DORMANT
 var _posture_visible_direction_sign := 0.0
 var _bolt_pool: TravellingBoltProjectile
+var _network_presentation_only := false
+var _network_saved_activation_generation := -1
+## Expires when solo physics resumes. Covers parent shutdown before this
+## descendant exits, without preserving an ordinary later detach's charge.
+var _network_solo_handback_generation := -1
+var _network_saved_collision_layer := 0
+var _network_saved_collision_mask := 0
+var _network_saved_visible := false
+var _network_saved_cue_visibility: Array[bool] = []
 ## Retained before the first shot allocates the lance pool.
 var _lance_bolt_reduced_flash := false
 ## Launch context for the bolts currently in the air, keyed by the authority's
@@ -245,11 +256,15 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	var retain_solo_charge := _active and not escort_enabled \
+		and not is_instance_valid(_dispatch_authority_owner) and not is_queued_for_deletion() \
+		and _activation_generation == _network_solo_handback_generation
 	_discard_lance_bolts(&"detached")
 	_clear_standoff_intent_cue()
 	_clear_posture_cue()
 	_unbind_siege_lance_audio()
-	_revoke_dispatch_authorization(&"detached")
+	_revoke_dispatch_authorization(&"detached", retain_solo_charge)
+	_network_solo_handback_generation = -1
 	_disconnect_pulse_signals()
 	# Damage authority is already final; only queued presentation is dropped so a
 	# streamed teardown can never resurrect a transient on re-entry.
@@ -261,7 +276,15 @@ func _exit_tree() -> void:
 	super()
 
 
+func _process(delta: float) -> void:
+	if not _network_presentation_only:
+		super(delta)
+
+
 func _physics_process(delta: float) -> void:
+	if _network_presentation_only:
+		return
+	_network_solo_handback_generation = -1
 	_update_escort_dispatch(delta)
 	if _active and is_finite(delta) and delta >= 0.0:
 		_post_shot_relocation_remaining = maxf(
@@ -671,7 +694,7 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("registration is claimed without a live combat authority")
 	if _lance_receipts.size() > MAX_PENDING_LANCE_RECEIPTS:
 		errors.append("pending lance receipts exceed the fixed bound")
-	if _active and is_inside_tree() and not _registered:
+	if _active and is_inside_tree() and not _registered and not _network_presentation_only:
 		errors.append("an active picket must own a live combat registration")
 	if not _active and _registered:
 		errors.append("a dormant picket must not retain a live combat registration")
@@ -681,6 +704,12 @@ func get_validation_errors() -> PackedStringArray:
 # ------------------------------------------------------------- activation ----
 
 func activate(spawn_transform: Transform3D) -> Dictionary:
+	return activate_with_result(spawn_transform)
+
+
+func activate_with_result(spawn_transform: Transform3D) -> Dictionary:
+	if _network_presentation_only:
+		return {"accepted": false, "reason": &"client_projectile_authority_forbidden"}
 	# A queued picket is still attached until the frame drain, but it can no
 	# longer safely reclaim collision, damage, or combat-authority ownership.
 	# Deliberately retain the inherited detached/pre-tree staging path.
@@ -689,13 +718,15 @@ func activate(spawn_transform: Transform3D) -> Dictionary:
 			"accepted": false,
 			"reason": &"queued_for_deletion",
 		}.duplicate(true)
-	# In escort mode activation alone is movement/lifecycle authority, never fire
-	# authority. Only `activate_authorized_dispatch()` below may publish a grant.
-	if escort_enabled:
-		_revoke_dispatch_authorization(&"activation_reset")
 	var activation := super(spawn_transform) as Dictionary
 	if not bool(activation.get("accepted", false)):
 		return activation
+	_network_solo_handback_generation = -1
+	# Activation alone grants movement/lifecycle ownership, never escort fire.
+	# Retire only after acceptance, for both ordinary and typed activation.
+	if escort_enabled:
+		_revoke_dispatch_authorization(&"activation_reset")
+	_discard_lance_bolts(&"reactivated")
 	_cooldown_remaining = maxf(_cooldown_remaining, initial_arming_delay)
 	_shots_fired = 0
 	_shots_aborted = 0
@@ -774,6 +805,7 @@ func activate_authorized_dispatch(
 
 
 func deactivate() -> void:
+	_network_solo_handback_generation = -1
 	_discard_lance_bolts(&"deactivated")
 	_revoke_dispatch_authorization(&"deactivated")
 	_post_shot_relocation_remaining = 0.0
@@ -804,6 +836,7 @@ func _unbind_siege_lance_audio() -> void:
 
 
 func _destroy_interceptor(death_position: Vector3) -> void:
+	_network_solo_handback_generation = -1
 	_discard_lance_bolts(&"source_destroyed")
 	_revoke_dispatch_authorization(&"destroyed")
 	_post_shot_relocation_remaining = 0.0
@@ -907,7 +940,7 @@ func _encounter_authorizes_dispatch() -> bool:
 ## lifecycle state at the irreversible shot seam. Isolated/manual fixtures that
 ## disable escort dispatch retain the component's established direct-fire use.
 func _is_fire_authorized() -> bool:
-	if not _active or not is_inside_tree():
+	if _network_presentation_only or not _active or not is_inside_tree():
 		return false
 	if not escort_enabled:
 		return true
@@ -973,7 +1006,7 @@ func _stand_down_escort_dispatch(reason: StringName) -> void:
 		_cancel_lance_charge(reason, false)
 
 
-func _revoke_dispatch_authorization(reason: StringName) -> void:
+func _revoke_dispatch_authorization(reason: StringName, retain_solo_charge: bool = false) -> void:
 	_escort_fire_authorized = false
 	_escort_dispatched = false
 	_dispatch_owner_generation = 0
@@ -981,7 +1014,7 @@ func _revoke_dispatch_authorization(reason: StringName) -> void:
 	_dispatch_authority_owner = null
 	_dispatch_defender = null
 	_unbind_escort_defender_signal()
-	if _lance_charge_armed or _telegraph_remaining > 0.0:
+	if not retain_solo_charge and (_lance_charge_armed or _telegraph_remaining > 0.0):
 		_cancel_lance_charge(reason, false)
 
 
@@ -1179,6 +1212,10 @@ func _set_engagement_state(state: StringName) -> void:
 ## registered identity, then consumes the shared pooled presentation seams. No
 ## ray query, health store, or damage application lives here.
 func _fire_at_target(target_position: Vector3) -> void:
+	# A suspended solo charge belongs to disconnect recovery. Refusing a client
+	# dispatch must not consume that retained charge or its recovery timer.
+	if _network_presentation_only:
+		return
 	if not _active or not is_inside_tree():
 		return
 	# A charge can finish before the next escort physics pass after its defender
@@ -1310,6 +1347,93 @@ func _on_lance_bolt_abandoned(record: Dictionary, _reason: StringName) -> void:
 	_lance_flights.erase(int(record.get("flight_id", 0)))
 
 
+## A client retains its solo activation, charge and target for disconnect.
+## Old local flights are abandoned permanently; only host records draw new
+## flights while joined. Suspending a dormant weapon never allocates its pool.
+func set_network_presentation_only(enabled: bool) -> void:
+	if _network_presentation_only == enabled:
+		return
+	_network_presentation_only = enabled
+	if enabled:
+		_network_saved_activation_generation = _activation_generation
+		_network_solo_handback_generation = _activation_generation \
+			if _active and not escort_enabled and not is_instance_valid(_dispatch_authority_owner) else -1
+		_network_saved_collision_layer = collision_layer
+		_network_saved_collision_mask = collision_mask
+		_network_saved_visible = visible
+		_network_saved_cue_visibility = [
+			_posture_cue.visible if is_instance_valid(_posture_cue) else false,
+			_standoff_intent_cue.visible if is_instance_valid(_standoff_intent_cue) else false,
+		]
+		_discard_lance_bolts(&"network_client_suspended")
+		_release_combat_registration()
+		collision_layer = 0
+		collision_mask = 0
+		visible = false
+		if is_instance_valid(_posture_cue):
+			_posture_cue.visible = false
+		if is_instance_valid(_standoff_intent_cue):
+			_standoff_intent_cue.visible = false
+	else:
+		# Lifecycle retirement during suspension owns its final flags. Only the
+		# same retained live activation may reclaim the exact pre-client state.
+		if _active and _activation_generation == _network_saved_activation_generation:
+			collision_layer = _network_saved_collision_layer
+			collision_mask = _network_saved_collision_mask
+			visible = _network_saved_visible
+			if _network_saved_cue_visibility.size() == 2:
+				if is_instance_valid(_posture_cue):
+					_posture_cue.visible = _network_saved_cue_visibility[0]
+				if is_instance_valid(_standoff_intent_cue):
+					_standoff_intent_cue.visible = _network_saved_cue_visibility[1]
+			if is_inside_tree():
+				_register_combat_source()
+		_network_saved_cue_visibility.clear()
+		_network_saved_activation_generation = -1
+
+
+## Read-only presentation ingress. These three retained subtrees contain the
+## authored hull and cues; the consumer copies only visual nodes, never scripts.
+func get_network_actor_visual_templates() -> Array[Node3D]:
+	return [_visual_root, _standoff_intent_cue, _posture_cue]
+
+
+## Fixed-order, actor-local authored transforms. No target ObjectDB identity or
+## simulation timer crosses the wire, and sampling never advances presentation.
+func get_network_actor_presentation_snapshot() -> Dictionary:
+	var cues: Array = []
+	for node: Node3D in get_network_actor_cue_nodes():
+		cues.append([node.transform if is_instance_valid(node) else Transform3D.IDENTITY,
+			node.visible if is_instance_valid(node) else false])
+	return {"activation_generation": _activation_generation, "active": _active,
+		"health": get_health(), "maximum_health": get_maximum_health(),
+		"charge_active": _telegraph_remaining > 0.0 and _lance_charge_armed,
+		"posture": _posture_visible_state if is_instance_valid(_posture_cue) and _posture_cue.visible else STATE_DORMANT,
+		"cues": cues}.duplicate(true)
+
+
+## Local clone construction uses these references only to bind the fixed cue
+## order to its copied nodes. References and instance IDs never enter a packet.
+func get_network_actor_cue_nodes() -> Array[Node3D]:
+	return [_lance_emitter, _lance_lens,
+		_warning_lenses[2] if _warning_lenses.size() > 2 else null,
+		_engine_glows[0] if not _engine_glows.is_empty() else null,
+		_engine_glows[1] if _engine_glows.size() > 1 else null,
+		_standoff_intent_cue, _posture_cue,
+		_posture_strokes[0] if not _posture_strokes.is_empty() else null,
+		_posture_strokes[1] if _posture_strokes.size() > 1 else null]
+
+
+## Reading the optional pool never builds a dormant weapon.
+func get_lance_bolt_pool() -> TravellingBoltProjectile:
+	return _bolt_pool if is_instance_valid(_bolt_pool) else null
+
+
+## The activation owns the generation stamped on future admitted lance flights.
+func get_lance_source_generation() -> int:
+	return maxi(1, _activation_generation)
+
+
 ## Builds the bolt pool on first use — a picket that never fires never pays for
 ## it. It hangs off this craft so it is torn down
 ## with it, but every slot is `top_level`, so a bolt already in the air keeps its
@@ -1317,6 +1441,7 @@ func _on_lance_bolt_abandoned(record: Dictionary, _reason: StringName) -> void:
 func _ensure_bolt_pool() -> TravellingBoltProjectile:
 	if is_instance_valid(_bolt_pool):
 		_bolt_pool.bind_authority(_get_combat_authority())
+		lance_bolt_pool_ready.emit(_bolt_pool, get_lance_source_generation())
 		return _bolt_pool
 	if not is_inside_tree() or is_queued_for_deletion():
 		return null
@@ -1334,6 +1459,7 @@ func _ensure_bolt_pool() -> TravellingBoltProjectile:
 	_bolt_pool.bind_authority(_get_combat_authority())
 	_bolt_pool.set_reduced_flash_enabled(_lance_bolt_reduced_flash)
 	_sync_bolt_presentation_gate()
+	lance_bolt_pool_ready.emit(_bolt_pool, get_lance_source_generation())
 	return _bolt_pool
 
 
@@ -1577,6 +1703,8 @@ func _discard_lance_receipts() -> void:
 # ------------------------------------------------------------- authority ----
 
 func _register_combat_source() -> void:
+	if _network_presentation_only:
+		return
 	var authority := _get_combat_authority()
 	if not is_instance_valid(authority):
 		return
@@ -1696,6 +1824,9 @@ func _is_posture_cue_current() -> bool:
 
 func _sync_posture_cue() -> void:
 	if not is_instance_valid(_posture_cue):
+		return
+	if _network_presentation_only:
+		_posture_cue.visible = false
 		return
 	if not _is_standoff_intent_target_current() or _engagement_state == STATE_DORMANT:
 		_clear_posture_cue()
@@ -1825,6 +1956,9 @@ func _is_standoff_intent_target_current() -> bool:
 
 func _sync_standoff_intent_cue() -> void:
 	if not is_instance_valid(_standoff_intent_cue):
+		return
+	if _network_presentation_only:
+		_standoff_intent_cue.visible = false
 		return
 	if not _is_standoff_intent_target_current():
 		_clear_standoff_intent_cue()
