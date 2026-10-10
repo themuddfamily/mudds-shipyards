@@ -8032,7 +8032,7 @@ func _update_on_foot_flow() -> void:
 		if station_interaction_candidate is ShipCrewSeat:
 			var seat := station_interaction_candidate as ShipCrewSeat
 			var prompt := seat.get_interaction_prompt()
-			if prompt.is_empty() and _can_reseat_host_cinder_loadmaster(seat):
+			if prompt.is_empty() and _can_reseat_host_remote_crew_seat(seat):
 				prompt = "[ E ] SIT // %s %s" % [seat.get_ship().get_display_name().to_upper(), seat.get_role_label().to_upper()]
 				var owner: CrewSeatRoleAuthority = seat.get_ship().call(&"get_crew_role_authority")
 				for assignment: Dictionary in owner.get_snapshot().get("assignments", []):
@@ -9268,24 +9268,40 @@ func _release_retired_solo_crew_claim(assignment: Dictionary) -> bool:
 ## Only an already-carried host body can retake this chair during remote flight.
 ## This preserves its cabin reservation; it cannot admit an exterior contender.
 func _can_reseat_host_cinder_loadmaster(seat: ShipCrewSeat) -> bool:
-	if not is_instance_valid(seat) or not seat.get_ship() is CinderCargoHauler \
-			or seat.get_seat_id() != CinderCargoHauler.LOADMASTER_STATION_SEAT_ID \
-			or seat.get_role() != &"passenger" or phase != Phase.IN_FLIGHT_CABIN \
+	return is_instance_valid(seat) and seat.get_ship() is CinderCargoHauler \
+		and _can_reseat_host_remote_crew_seat(seat)
+
+
+## These exact host chairs can use an existing carried cabin, never exterior
+## boarding or another role's airborne admission policy.
+func _host_remote_crew_seat_matches(craft: HeroShip, seat_id: StringName, role: StringName) -> bool:
+	return is_instance_valid(craft) and ((craft is CinderCargoHauler and seat_id == CinderCargoHauler.LOADMASTER_STATION_SEAT_ID and role == &"passenger") \
+		or (craft is BulwarkHeavyGunship and seat_id == BulwarkHeavyGunship.GUNNER_SEAT_ID and role == &"gunner"))
+
+
+func _can_reseat_host_remote_crew_seat(seat: ShipCrewSeat) -> bool:
+	if not is_instance_valid(seat) or not seat.is_inside_tree() or seat.is_queued_for_deletion() \
+			or not _host_remote_crew_seat_matches(seat.get_ship(), seat.get_seat_id(), seat.get_role()) \
+			or not is_instance_valid(player) or not player.is_inside_tree() or player.is_queued_for_deletion() \
+			or not player.is_control_enabled() or phase != Phase.IN_FLIGHT_CABIN \
 			or _cabin_ship != seat.get_ship() or not player.is_on_floor():
 		return false
-	var craft := seat.get_ship() as CinderCargoHauler
+	var craft := seat.get_ship()
 	var contract := seat.get_role_contract()
 	var frame := contract.get("frame") as MovingInteriorFrame
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	var containment := player.get_cabin_containment_report()
-	var authority := craft.get_crew_role_authority()
-	return _cinder_host_has_remote_pilot(craft) and not contract.is_empty() \
+	var cabin := craft.get_in_flight_cabin_report()
+	var authority: CrewSeatRoleAuthority = craft.call(&"get_crew_role_authority")
+	return _host_craft_has_remote_pilot(craft) and not contract.is_empty() \
 		and authority != null and _network_engineer_binding != null \
 		and _network_engineer_binding.role_authority_for(craft) == authority \
 		and is_instance_valid(frame) and frame.get_moving_frame() == craft \
+		and frame.is_inside_tree() and not frame.is_queued_for_deletion() \
+		and bool(cabin.get("supported", false)) and cabin.get("frame") == frame \
 		and frame.is_occupant_registered(player) \
 		and bool(containment.get("active", false)) and containment.get("frame") == craft \
-		and (craft.get_in_flight_cabin_report().get("local_bounds", AABB()) as AABB).has_point(craft.to_local(player.global_position)) \
+		and (cabin.get("local_bounds", AABB()) as AABB).has_point(craft.to_local(player.global_position)) \
 		and player.get_interaction_origin().distance_to(seat.global_position) <= STATION_SEAT_MAX_REACH \
 		and is_instance_valid(area) and area == _boarding_area and area.is_inside_tree() \
 		and not area.is_queued_for_deletion() and area.boarding_enabled and area.is_reserved() \
@@ -9300,8 +9316,8 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 		return
 	var craft := seat.get_ship()
 	var contract := seat.get_role_contract()
-	var retained_cinder_cabin := _can_reseat_host_cinder_loadmaster(seat)
-	if not is_instance_valid(craft) or craft not in ships or (not craft.is_boardable() and not retained_cinder_cabin) \
+	var retained_host_cabin := _can_reseat_host_remote_crew_seat(seat)
+	if not is_instance_valid(craft) or craft not in ships or (not craft.is_boardable() and not retained_host_cabin) \
 			or craft.get_ship_id() not in [HALYARD_SHIP_ID, BULWARK_SHIP_ID, JOVIAN_SHIP_ID, CINDER_CARGO_SHIP_ID] \
 			or contract.is_empty() or contract.get("seat") != seat.get_seat_anchor() \
 			or (phase == Phase.IN_FLIGHT_CABIN and craft != _cabin_ship) \
@@ -9312,7 +9328,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	var cabin := _solo_safe_recovery_cabin(craft)
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
 	if cabin.is_empty() or cabin.get("frame") != contract.get("frame") or area == null \
-			or (not retained_cinder_cabin and not area.is_available_for(player)):
+			or (not retained_host_cabin and not area.is_available_for(player)):
 		return
 	var frame := cabin.frame as MovingInteriorFrame
 	for key: StringName in [MovingInteriorFrame.REGISTRATION_META, MovingInteriorFrame.OWNER_META]:
@@ -9373,7 +9389,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	var generation := _begin_transition_generation()
 	# A moving cabin handoff retains its existing reservation; ordinary exterior
 	# boarding still requires the area's unchanged availability/reservation gate.
-	if not retained_cinder_cabin and not area.try_reserve(player):
+	if not retained_host_cabin and not area.try_reserve(player):
 		_cancel_solo_crew_seat()
 		return
 	# Transfer the Player's existing volume/cabin registration through its owner
@@ -9641,7 +9657,7 @@ func _solo_gunner_input_is_available() -> bool:
 		and bool(source.call(&"_is_input_sampling_active"))
 
 
-## The retained local producer may serve only Cinder's exact host chair while
+## The retained local producer may serve only these exact host chairs while
 ## another admitted peer owns the selected helm. It never becomes a flight
 ## producer, and neither sampling nor retiring it touches that remote stream.
 func _solo_crew_local_source_is_available(source: LocalShipInputSource) -> bool:
@@ -9651,18 +9667,22 @@ func _solo_crew_local_source_is_available(source: LocalShipInputSource) -> bool:
 	var selected := _solo_crew_ship.get_command_source()
 	if not _solo_crew_ship.is_piloted():
 		return source == selected
-	if not _solo_crew_ship is CinderCargoHauler or _solo_crew_role != &"passenger" \
-			or _solo_crew_seat_id != CinderCargoHauler.LOADMASTER_STATION_SEAT_ID \
+	if not _host_remote_crew_seat_matches(_solo_crew_ship, _solo_crew_seat_id, _solo_crew_role) \
 			or _network_session_mode != &"server" or not _network_session_is_live() \
 			or not _solo_crew_ship.is_remote_piloted() or selected == source \
 			or not selected is NetworkRemotePilotCommandSourceType:
 		return false
-	return _cinder_host_has_remote_pilot(_solo_crew_ship)
+	return _host_craft_has_remote_pilot(_solo_crew_ship)
 
 
 ## Read only the confirmed production helm and its existing boarding lease.
 func _cinder_host_has_remote_pilot(craft: HeroShip) -> bool:
-	if not is_instance_valid(craft) or not craft is CinderCargoHauler \
+	return is_instance_valid(craft) and craft is CinderCargoHauler and _host_craft_has_remote_pilot(craft)
+
+
+func _host_craft_has_remote_pilot(craft: HeroShip) -> bool:
+	if not is_instance_valid(craft) or not craft.is_inside_tree() or craft.is_queued_for_deletion() \
+			or craft.is_destroyed() or craft not in ships \
 			or _network_session_mode != &"server" or not _network_session_is_live() \
 			or not network_session.is_server() \
 			or not craft.is_remote_piloted():
