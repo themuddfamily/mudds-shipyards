@@ -991,6 +991,10 @@ func _test_main_durable_threading() -> void:
 	_check(fourth_binding.capture_asteroid_field_session() == paid and not duplicate.accepted
 		and duplicate.reason == &"reward_generation_already_committed" and _main_receipts(fourth) == 2,
 		"fresh authority refuses replay even after another activity overwrites the latest receipt")
+	var fourth_startup_payload: Dictionary = fourth.get("_runtime_settings_user_data_store").get_snapshot()
+	_check(fourth_startup_payload.asteroid_unrelated == known_payload.asteroid_unrelated
+		and fourth_startup_payload.game_flow_reward_store == known_payload.game_flow_reward_store,
+		"legitimate fresh Main startup preserves unrelated data and the independent receipt")
 	fourth_fault.fail_reset_sync = true
 	if not _press_reset(fourth):
 		await _main_dispose(fourth)
@@ -1001,7 +1005,7 @@ func _test_main_durable_threading() -> void:
 		and _main_receipts(fourth) == 2 and not fourth_fault.fail_reset_sync,
 		"writable Reset adopts its actually published IDLE generation despite directory-sync refusal")
 	var after_reset: Dictionary = fourth.get("_runtime_settings_user_data_store").get_snapshot()
-	_check(after_reset.runtime_settings == known_payload.runtime_settings
+	_check(after_reset.runtime_settings == fourth_startup_payload.runtime_settings
 		and after_reset.asteroid_unrelated == known_payload.asteroid_unrelated
 		and after_reset.game_flow_reward_store == known_payload.game_flow_reward_store,
 		"reset and reward transactions preserve settings, unrelated data and the independent receipt")
@@ -1040,6 +1044,17 @@ func _backup_and_newer_refusal(path: String) -> void:
 	writer.close()
 	var game := await _main_game(path, UserDataFilesystem.new())
 	var binding := await _main_binding(game)
+	var backup_payload: Dictionary = game.get("_runtime_settings_user_data_store").get_snapshot()
+	var pending := game.get_recovery_available_snapshot()
+	if not pending.is_empty():
+		(game.hud as GameHUD).session_recovery_discard_requested.emit(
+			int(pending.get("session_id", 0)), int(pending.get("startup_generation", 0)))
+	game.start_shift()
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP and not game.get_guided_ship().is_piloted()
+		and game.get("_runtime_settings_user_data_store").get_loaded_source() == &"backup"
+		and game.get("_runtime_settings_user_data_store").get_snapshot() == backup_payload
+		and FileAccess.get_file_as_bytes(path + ".bak") == backup,
+		"ordinary on-foot Begin Shift cannot promote fallback through its solo return-context writer")
 	if not _press_start(game, EXPECTED_ACTIVITY_ID):
 		await _main_dispose(game)
 		return
@@ -1052,6 +1067,15 @@ func _backup_and_newer_refusal(path: String) -> void:
 		and FileAccess.get_file_as_bytes(path + ".bak") == backup and _main_receipts(game) == 2,
 		"backup unpaid history cannot restore debt, grant payment or overwrite recovery artifacts")
 	await _main_dispose(game)
+	var repeated := await _main_game(path, UserDataFilesystem.new())
+	var repeated_binding := await _main_binding(repeated)
+	var repeated_refusal: Dictionary = repeated.call("_commit_game_flow_activity_reward", _asteroid_request(3))
+	_check(not repeated_refusal.accepted
+		and int(repeated_binding.get_activity_snapshot(&"asteroid_field_run").generation) == 0
+		and repeated.get("_runtime_settings_user_data_store").get_loaded_source() == &"backup"
+		and FileAccess.get_file_as_bytes(path + ".bak") == backup and _main_receipts(repeated) == 2,
+		"another actual fresh Main keeps fallback unpaid debt untrusted without promotion or payment")
+	await _main_dispose(repeated)
 	var newer_path := "user://asteroid_newer_%d.json" % Time.get_ticks_usec()
 	var source_payload: Dictionary = JSON.parse_string(primary.get_string_from_utf8()).payload
 	source_payload[ASTEROID_SLOT].schema_version = 2
@@ -1059,9 +1083,14 @@ func _backup_and_newer_refusal(path: String) -> void:
 	store.load()
 	_check(store.commit(source_payload, store.get_generation(), "unit-newer-asteroid").accepted,
 		"the unsupported asteroid fixture retains the real paid ledger in its shared store")
-	var original_bytes := FileAccess.get_file_as_bytes(newer_path)
 	var fresh := await _main_game(newer_path, UserDataFilesystem.new())
 	var fresh_binding := await _main_binding(fresh)
+	var newer_startup_payload: Dictionary = fresh.get("_runtime_settings_user_data_store").get_snapshot()
+	_check(newer_startup_payload[ASTEROID_SLOT] == source_payload[ASTEROID_SLOT]
+		and newer_startup_payload.game_flow_reward_store == source_payload.game_flow_reward_store
+		and newer_startup_payload.asteroid_unrelated == source_payload.asteroid_unrelated,
+		"shared startup preserves the exact unsupported activity slot, paid receipt and unrelated data")
+	var original_bytes := FileAccess.get_file_as_bytes(newer_path)
 	if not _press_start(fresh, EXPECTED_ACTIVITY_ID):
 		await _main_dispose(fresh)
 		return

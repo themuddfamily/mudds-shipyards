@@ -3719,6 +3719,8 @@ func _solo_safe_recovery_description() -> String:
 func _persist_solo_safe_recovery_context(context: Dictionary) -> void:
 	if _runtime_settings_user_data_store == null:
 		return
+	if _runtime_settings_user_data_store.get_loaded_source() == &"backup":
+		return
 	if _solo_safe_recovery_retry_remaining_seconds > 0.0:
 		return
 	var generation := _runtime_settings_user_data_store.get_generation()

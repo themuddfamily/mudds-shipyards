@@ -239,7 +239,33 @@ func _run() -> void:
 		and bool(race.audit().authority.gameplay_recovery) == false,
 		"the coordinator audit keeps OS capture, settings and gameplay outside its authority"
 	)
+	_test_backup_refusal()
 	_finish()
+
+
+func _test_backup_refusal() -> void:
+	var filesystem := FakeFilesystem.new()
+	var store := Store.new(STORE_PATH, filesystem) as UserDataStore
+	store.load()
+	var owner = Coordinator.new(store)
+	owner.restore()
+	_check(owner.begin_session(71, "fallback-start").accepted
+		and owner.checkpoint(71, 1, 0.1, "fallback-newer").accepted,
+		"fallback fixture establishes a genuine older running marker and newer primary")
+	filesystem.files[STORE_PATH] = "corrupt newer primary".to_utf8_buffer()
+	for attempt in 2:
+		var restarted_store := Store.new(STORE_PATH, filesystem) as UserDataStore
+		_check(restarted_store.load().accepted and restarted_store.get_loaded_source() == &"backup",
+			"fresh lifecycle owner selects fallback without treating it as primary")
+		var artifacts := filesystem.files.duplicate(true)
+		var restarted = Coordinator.new(restarted_store)
+		_check(restarted.restore().accepted, "fallback marker can be inspected without granting commit authority")
+		var before := restarted.get_snapshot()
+		var refused := restarted.begin_session(72 + attempt, "fallback-refused-%d" % attempt)
+		_check(not refused.accepted and refused.reason == &"store_recovery_required"
+			and restarted.get_snapshot() == before
+			and filesystem.files == artifacts and restarted_store.get_loaded_source() == &"backup",
+			"automatic lifecycle commit refuses backup across recreation and preserves all recovery artifacts")
 
 
 func _check(condition: bool, message: String) -> void:
