@@ -17712,18 +17712,26 @@ func _initialize_game_flow_reward_authority() -> void:
 
 ## The board already fences admission and the director generation. This binds
 ## its non-authoritative request directly to the same callback used by the
-## route-activity adapter; ShipyardWorld and the board still own no store or
-## grant authority.
+## route-activity adapter. The existing shared store retains terminal debt;
+## ShipyardWorld and the board still own no grant authority.
 func _configure_heavy_breach_reward_handoff() -> Dictionary:
 	if _game_flow_reward_authority == null:
 		return {"accepted": false, "reason": &"reward_authority_unavailable"}
 	if not is_instance_valid(world) \
 			or not world.has_method(&"configure_heavy_breach_reward_handoff"):
 		return {"accepted": false, "reason": &"heavy_breach_board_unavailable"}
-	return world.call(
+	var configured := world.call(
 		&"configure_heavy_breach_reward_handoff",
 		Callable(self, &"_commit_game_flow_activity_reward")
 	) as Dictionary
+
+	if configured.get("accepted", false):
+		var board := world.get_heavy_breach_activity_board() as HeavyBreachActivityBoard
+		if is_instance_valid(board) and board.configure_session_persistence(
+			_runtime_settings_user_data_store, int(_game_flow_reward_authority.call(&"get_heavy_breach_paid_generation_floor"))
+		):
+			board.load_session()
+	return configured
 
 
 func _commit_game_flow_activity_reward(request: Dictionary) -> Dictionary:

@@ -13,6 +13,8 @@ const STORE_PATH := "memory://heavy-breach-production-route.json"
 
 class MemoryFilesystem extends Filesystem:
 	var files: Dictionary = {}
+	var reject_rewards := false
+	var refused_reward := false
 
 	func file_exists(path: String) -> bool:
 		return files.has(path)
@@ -36,6 +38,12 @@ class MemoryFilesystem extends Filesystem:
 		}
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if reject_rewards:
+			var intended: Dictionary = JSON.parse_string(bytes.get_string_from_utf8())
+			var current: Dictionary = JSON.parse_string((files[STORE_PATH] as PackedByteArray).get_string_from_utf8()) if files.has(STORE_PATH) else {}
+			if int(intended.get("payload", {}).get("game_flow_reward_store", {}).get("total_receipts", 0)) > int(current.get("payload", {}).get("game_flow_reward_store", {}).get("total_receipts", 0)):
+				refused_reward = true
+				return ERR_CANT_CREATE
 		files[path] = bytes.duplicate()
 		return OK
 
@@ -63,13 +71,16 @@ func _init() -> void:
 
 func _run() -> void:
 	var filesystem := MemoryFilesystem.new()
+	var initial_store := Store.new(STORE_PATH, filesystem)
+	_check(initial_store.load().accepted and initial_store.commit({"foreign": {"callsign": "MUDDS"}}, 0, "seed-route-foreign").accepted,
+		"the route retains unrelated user data beside activity receipts")
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates for the Heavy Breach route")
 	if game == null:
 		await _finish(game)
 		return
 	_check(
-		game.configure_runtime_settings_persistence(Store.new(STORE_PATH, filesystem)),
+		game.configure_runtime_settings_persistence(initial_store),
 		"the route uses one isolated atomic user-data store"
 	)
 	root.add_child(game)
@@ -391,7 +402,103 @@ func _run() -> void:
 			== "LATEST #1  //  HEAVY BREACH CREDIT LOGGED",
 		"fresh startup restores the Heavy Breach receipt onto the Activity Board"
 	)
+	restored = await _verify_main_unpaid_recovery(restored, filesystem)
 	await _finish(restored)
+
+
+## BEGIN SHIFT otherwise resumes the saved pilot seat. This board route uses
+## the shipped Start Fresh choice, which keeps earned debt and saved settings.
+func _begin_fresh_board_shift(game: GameFlow, filesystem: MemoryFilesystem) -> void:
+	var pending := game.get_recovery_available_snapshot()
+	if not pending.is_empty():
+		var before: Dictionary = JSON.parse_string((filesystem.files[STORE_PATH] as PackedByteArray).get_string_from_utf8()).payload
+		(game.hud as GameHUD).session_recovery_discard_requested.emit(
+			int(pending.get("session_id", 0)), int(pending.get("startup_generation", 0)))
+		var result: Dictionary = game.get_session_diagnostics_snapshot().recovery_hud
+		var after: Dictionary = JSON.parse_string((filesystem.files[STORE_PATH] as PackedByteArray).get_string_from_utf8()).payload
+		_check(bool(result.get("accepted", false)) and result.get("choice", &"") == &"discard" and game.get_recovery_available_snapshot().is_empty()
+			and after.heavy_breach_session == before.heavy_breach_session
+			and after.game_flow_reward_store == before.game_flow_reward_store
+			and after.get("runtime_settings", {}) == before.get("runtime_settings", {})
+			and after.foreign == before.foreign,
+			"the shipped Start Fresh choice retires pilot recovery while preserving terminal debt, receipts and settings")
+	game.start_shift()
+	await process_frame
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP and not (game.player as PlayerController).is_seated(),
+		"the recreated Main begins the ordinary board route on foot after its explicit recovery choice")
+
+
+func _verify_main_unpaid_recovery(game: GameFlow, filesystem: MemoryFilesystem) -> GameFlow:
+	game.canopy_motion_time = 0.0
+	game.boarding_motion_time = 0.04
+	await _begin_fresh_board_shift(game, filesystem)
+	game.call(&"_on_settings_save_requested")
+	var before: Dictionary = JSON.parse_string((filesystem.files[STORE_PATH] as PackedByteArray).get_string_from_utf8()).payload
+	var board := (game.world as ShipyardWorld).get_heavy_breach_activity_board() as HeavyBreachActivityBoard
+	var player := game.player as PlayerController
+	var arrow := game.get_node(^"ArrowReconShip") as HeroShip
+	var director := game.get_node(^"EncounterScenarios") as EncounterScenarioDirector
+	player.teleport_to(Transform3D(Basis.looking_at(Vector3.FORWARD, Vector3.UP), board.global_position + Vector3(0.0, 0.0, 2.0)))
+	_check(await _wait_until(func() -> bool: return game.station_interaction_candidate == board),
+		"the restored Main selects its rotated contract through the ordinary board sensor")
+	await _press_action(&"interact", 1)
+	_check(board.is_sortie_armed(), "ordinary E arms the later genuine Torpedo Run")
+	player.teleport_to(Transform3D(Basis.IDENTITY, arrow.get_boarding_position() + Vector3(0.0, 0.05, 0.0)))
+	_check(await _wait_until(func() -> bool: return game.boarding_candidate == arrow), "the later sortie selects the real Arrow")
+	await _press_action(&"interact", 1)
+	_check(await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES), "the later sortie uses the real Arrow seat handoff")
+	Input.action_press(&"move_forward")
+	var launched := await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.FREE_FLIGHT and director.is_running())
+	Input.action_release(&"move_forward")
+	_check(launched and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
+		"real berth departure launches the restored board's genuine rotated Torpedo Run")
+	filesystem.reject_rewards = true
+	var boat := game.get_node(^"TorpedoBoat") as TorpedoBoatOpponent
+	boat.apply_damage(boat.maximum_health, boat.global_position)
+	_check(await _wait_until(func() -> bool: return director.is_concluded()), "destroying the actual torpedo boat concludes the earned Main sortie")
+	var unpaid: Dictionary = JSON.parse_string((filesystem.files[STORE_PATH] as PackedByteArray).get_string_from_utf8()).payload
+	_check(filesystem.refused_reward and not unpaid.heavy_breach_session.session.completion.reward_granted
+		and int(unpaid.game_flow_reward_store.total_receipts) == 1
+		and int(board.get_reward_handoff_snapshot().pending_reward_generation) > 0,
+		"earned Main terminal write succeeds before the actual payment write is rejected")
+	filesystem.reject_rewards = false
+	await _clean_up(game)
+	var fresh := MAIN_SCENE.instantiate() as GameFlow
+	_check(fresh.configure_runtime_settings_persistence(Store.new(STORE_PATH, filesystem)), "fresh Main binds the same unpaid durable store")
+	root.add_child(fresh)
+	await process_frame
+	await physics_frame
+	await process_frame
+	var fresh_board := (fresh.world as ShipyardWorld).get_heavy_breach_activity_board() as HeavyBreachActivityBoard
+	var fresh_director := fresh.get_node(^"EncounterScenarios") as EncounterScenarioDirector
+	_check(fresh_director.get_state() == EncounterScenarioDirector.STATE_IDLE
+		and int(fresh_board.get_snapshot().active_director_generation) == 0
+		and int(fresh_board.get_reward_handoff_snapshot().pending_reward_generation) > 0,
+		"fresh Main restores owed credit without recreating the encounter or actor authority")
+	await _begin_fresh_board_shift(fresh, filesystem)
+	var fresh_player := fresh.player as PlayerController
+	fresh_player.teleport_to(Transform3D(Basis.looking_at(Vector3.FORWARD, Vector3.UP), fresh_board.global_position + Vector3(0.0, 0.0, 2.0)))
+	_check(await _wait_until(func() -> bool: return fresh.station_interaction_candidate == fresh_board), "fresh Main exposes the unpaid board through ordinary interaction")
+	await _press_action(&"interact", 1)
+	var paid: Dictionary = JSON.parse_string((filesystem.files[STORE_PATH] as PackedByteArray).get_string_from_utf8()).payload
+	_check(paid.heavy_breach_session.session.completion.reward_granted and int(paid.game_flow_reward_store.total_receipts) == 2
+		and int(paid.game_flow_reward_store.reward_counts.return_heavy_breach_credit) == 1
+		and int(paid.game_flow_reward_store.reward_counts.return_torpedo_run_credit) == 1
+		and paid.runtime_settings == before.runtime_settings and paid.foreign == before.foreign,
+		"ordinary fresh-Main board retry pays once and preserves settings, foreign data and the unrelated prior receipt")
+	await _press_action(&"interact", 1)
+	_check(int(fresh.get_activity_reward_report().authority.record.total_receipts) == 2, "a second ordinary interaction cannot repay the recovered Main debt")
+	await _clean_up(fresh)
+	var second := MAIN_SCENE.instantiate() as GameFlow
+	second.configure_runtime_settings_persistence(Store.new(STORE_PATH, filesystem))
+	root.add_child(second)
+	await process_frame
+	await physics_frame
+	await process_frame
+	_check(int(second.get_activity_reward_report().authority.record.total_receipts) == 2
+		and int(((second.world as ShipyardWorld).get_heavy_breach_activity_board() as HeavyBreachActivityBoard).get_reward_handoff_snapshot().pending_reward_generation) == 0,
+		"second actual Main recreation retains the paid acknowledgement without duplicating credit")
+	return second
 
 
 func _wait_until(predicate: Callable) -> bool:

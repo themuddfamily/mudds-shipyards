@@ -12,7 +12,8 @@ extends Area3D
 ## sortie it launched concludes: Heavy Breach (break the charged picket), then
 ## Torpedo Run (kill a torpedo boat whose seekers can be dodged or shot down).
 ## Both pay through the same generation-fenced reward handoff, once per cleared
-## director generation; each contract files its own reward id.
+## earned completion; reward generations survive fresh load independently of
+## director actor epochs. Each contract files its own reward id.
 
 signal interaction_resolved(actor: Node, result: Dictionary)
 signal snapshot_changed(snapshot: Dictionary)
@@ -24,6 +25,9 @@ const REWARD_ID: StringName = &"return_heavy_breach_credit"
 ## HUD identity stay ACTIVITY_ID; only the reward request names the contract.
 const TORPEDO_RUN_ACTIVITY_ID: StringName = &"shipyard_torpedo_run"
 const TORPEDO_RUN_REWARD_ID: StringName = &"return_torpedo_run_credit"
+const SESSION_SLOT := "heavy_breach_session"
+const SESSION_KIND := "nearby_sector_activity_session"
+const MAX_REWARD_GENERATION := 9_007_199_254_740_991
 const REWARD_ADAPTER := preload("res://scripts/world/nearby_activity_reward_adapter.gd")
 const BOARD_AUDIO_BINDING := preload("res://scripts/audio/heavy_breach_activity_board_audio_binding.gd")
 const INTERACTION_RADIUS := 2.8
@@ -61,6 +65,11 @@ var _highest_reward_generation := 0
 ## store could not commit). The credit stays owed and is retried on the next
 ## board interaction; the adapter's generation fence prevents a double grant.
 var _pending_reward_request: Dictionary = {}
+var _session_store: RefCounted
+var _session_refused := false
+var _reward_generation_floor := 0
+var _known_paid_generation_floor := 0
+var _reward_request_active := false
 var _sortie_armed := false
 var _sortie_generation := 0
 var _armed_actor_instance_id := 0
@@ -233,6 +242,125 @@ func configure_reward_handoff(callback: Callable) -> Dictionary:
 	return _result(true, &"reward_handoff_configured")
 
 
+## Terminal debt only: no director, opponents, health or combat grants load.
+func configure_session_persistence(store: RefCounted, known_paid_generation_floor: int = 0) -> bool:
+	if _session_store != null or store == null or not store.has_method("load") \
+			or not store.has_method("commit") or not store.has_method("get_snapshot") \
+			or not store.has_method("get_generation") or not store.has_method("get_loaded_source"):
+		return false
+	_session_store = store
+	_known_paid_generation_floor = maxi(0, known_paid_generation_floor)
+	return true
+
+
+static func validate_session_record(record: Variant) -> bool:
+	if not record is Dictionary or record.size() != 4 \
+			or record.get("schema_version") != NearbySectorActivityPersistenceBinding.SCHEMA_VERSION \
+			or str(record.get("payload_kind", "")) != SESSION_KIND \
+			or str(record.get("slot_id", "")) != SESSION_SLOT or not record.get("session") is Dictionary:
+		return false
+	var session: Dictionary = record.session
+	if session.size() != 4 or str(session.get("component_id", "")) != str(COMPONENT_ID) \
+			or not _valid_generation(session.get("generation_floor")) \
+			or not _valid_generation(session.get("offered_index")) \
+			or int(session.offered_index) not in [0, 1] or not session.get("completion") is Dictionary:
+		return false
+	var completion: Dictionary = session.completion
+	if completion.is_empty():
+		return true
+	var scenario := StringName(completion.get("scenario", ""))
+	var activity := ACTIVITY_ID if scenario == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH else TORPEDO_RUN_ACTIVITY_ID
+	return completion.size() == 7 and OFFERED_SCENARIOS.has(scenario) \
+		and str(completion.get("activity_id", "")) == str(activity) \
+		and str(completion.get("state_id", "")) == "concluded" and str(completion.get("outcome", "")) == "cleared" \
+		and _valid_generation(completion.get("generation")) and int(completion.generation) > 0 \
+		and int(completion.generation) == int(session.generation_floor) \
+		and completion.get("protected_objective") is String and not completion.protected_objective.is_empty() \
+		and completion.get("reward_granted") is bool
+
+
+static func _valid_generation(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value)) \
+		and float(value) == floor(float(value)) and float(value) >= 0.0 and float(value) < MAX_REWARD_GENERATION
+
+
+func load_session() -> Dictionary:
+	if _session_store == null or _active_director_generation > 0 or not _pending_reward_request.is_empty():
+		return _result(false, &"session_load_unavailable")
+	var loaded: Dictionary = _session_store.call("load")
+	if not loaded.get("accepted", false):
+		_session_refused = true
+		_refresh_board_label()
+		return loaded
+	if _session_store.call("get_loaded_source") == &"backup":
+		_session_refused = true
+		_refresh_board_label()
+		return _result(false, &"session_store_recovery_required")
+	var document: Dictionary = _session_store.call("get_snapshot")
+	if not document.has(SESSION_SLOT):
+		_reward_generation_floor = maxi(_reward_generation_floor, _known_paid_generation_floor)
+		return _result(true, &"session_absent")
+	if not validate_session_record(document[SESSION_SLOT]):
+		_session_refused = true
+		_refresh_board_label()
+		return _result(false, &"unsupported_session_retained")
+	_adopt_terminal_session(document[SESSION_SLOT].session)
+	return _result(true, &"terminal_debt_loaded")
+
+
+func _adopt_terminal_session(session: Dictionary) -> void:
+	_reward_generation_floor = maxi(_reward_generation_floor, int(session.generation_floor))
+	_offered_index = int(session.offered_index)
+	var completion: Dictionary = session.completion
+	if completion.is_empty():
+		return
+	if completion.reward_granted:
+		_highest_reward_generation = maxi(_highest_reward_generation, int(completion.generation))
+		_pending_reward_request.clear()
+	else:
+		_pending_reward_request = completion.duplicate(true)
+		_pending_reward_request.erase("reward_granted")
+	_refresh_board_label()
+
+
+func _persist_earned_request(request: Dictionary) -> Dictionary:
+	var loaded: Dictionary = _session_store.call("load")
+	if not loaded.get("accepted", false):
+		return loaded
+	if _session_store.call("get_loaded_source") == &"backup":
+		_session_refused = true
+		_refresh_board_label()
+		return _result(false, &"session_store_recovery_required")
+	var document: Dictionary = _session_store.call("get_snapshot")
+	if document.has(SESSION_SLOT):
+		if not validate_session_record(document[SESSION_SLOT]):
+			_session_refused = true
+			return _result(false, &"unsupported_session_retained")
+		var previous: Dictionary = document[SESSION_SLOT].session
+		if int(previous.generation_floor) > int(request.generation):
+			return _result(false, &"newer_terminal_retained")
+		if int(previous.generation_floor) == int(request.generation):
+			var previous_request: Dictionary = previous.completion.duplicate(true)
+			previous_request.erase("reward_granted")
+			if previous_request != JSON.parse_string(JSON.stringify(request)):
+				return _result(false, &"terminal_identity_mismatch")
+			_adopt_terminal_session(previous)
+			if _pending_reward_request.is_empty():
+				return _result(true, &"paid_terminal_retained")
+	var completion := request.duplicate(true)
+	# UserDataStore accepts JSON Strings, not the runtime StringName identities.
+	# Convert only this board's owned terminal fields; unrelated payload stays exact.
+	for key: String in ["activity_id", "state_id", "outcome", "scenario"]:
+		completion[key] = String(completion[key])
+	completion["reward_granted"] = false
+	document[SESSION_SLOT] = {"schema_version": NearbySectorActivityPersistenceBinding.SCHEMA_VERSION,
+		"payload_kind": SESSION_KIND, "slot_id": SESSION_SLOT,
+		"session": {"component_id": String(COMPONENT_ID), "generation_floor": int(request.generation),
+			"offered_index": _offered_index, "completion": completion}}
+	return _session_store.call("commit", document, int(_session_store.call("get_generation")),
+		"heavy-breach-terminal-%d" % (int(_session_store.call("get_generation")) + 1))
+
+
 func get_generation() -> int:
 	return _generation
 
@@ -242,6 +370,10 @@ func get_generation() -> int:
 ## craft departs; isolated callers may still use [method interact] for the
 ## immediate board-owned contract exercised by the component tests.
 func get_interaction_prompt() -> String:
+	if _session_refused:
+		return "SAVE RECOVERY REQUIRED"
+	if not _pending_reward_request.is_empty():
+		return "[ E ]  REWARD SAVE PENDING — INTERACT TO RETRY"
 	if _board_scenario_is_running():
 		return "[ E ]  %s ACTIVE" % _scenario_title(_director.get_active_scenario())
 	if _sortie_armed:
@@ -301,6 +433,10 @@ func arm_sortie(actor: Node, expected_generation: int = 0) -> Dictionary:
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return _last_result.duplicate(true)
 	_retry_pending_reward()
+	if _session_refused or (_session_store != null and not _pending_reward_request.is_empty()):
+		_last_result = _result(false, &"earned_reward_pending")
+		interaction_resolved.emit(actor, _last_result.duplicate(true))
+		return _last_result.duplicate(true)
 	if _director.is_running():
 		_last_result = _result(false, &"activity_busy")
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
@@ -376,6 +512,10 @@ func interact(actor: Node = null, expected_generation: int = 0) -> bool:
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
 		return false
 	_retry_pending_reward()
+	if _session_refused or (_session_store != null and not _pending_reward_request.is_empty()):
+		_last_result = _result(false, &"earned_reward_pending")
+		interaction_resolved.emit(actor, _last_result.duplicate(true))
+		return false
 	if _director.is_running():
 		_last_result = _result(false, &"activity_busy")
 		interaction_resolved.emit(actor, _last_result.duplicate(true))
@@ -498,12 +638,14 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 	# torpedo run cycled by the director is not a board sortie and pays nothing.
 	if not _active_scenario_id.is_empty() and scenario_id != _active_scenario_id:
 		return
-	if is_instance_valid(_director) \
-			and _director.get_scenario_generation() != _active_director_generation:
+	if not is_instance_valid(_director) or not _director.is_concluded() \
+			or _director.get_outcome() != outcome or _director.get_active_scenario() != scenario_id \
+			or _director.get_scenario_generation() != _active_director_generation:
 		return
-	var generation := _active_director_generation
+	var generation := maxi(_active_director_generation, _reward_generation_floor + 1)
 	if _audio_binding != null:
-		_audio_binding.present_terminal(scenario_id, outcome, generation)
+		_audio_binding.present_terminal(scenario_id, outcome, _active_director_generation)
+	_offered_index = posmod(_offered_index + 1, OFFERED_SCENARIOS.size())
 	if outcome == EncounterScenarioDirector.OUTCOME_CLEARED \
 			and _reward_adapter != null and generation > _highest_reward_generation:
 		var request := {
@@ -517,17 +659,31 @@ func _on_scenario_concluded(scenario_id: StringName, outcome: StringName) -> voi
 				if is_instance_valid(_protected_objective) else ""
 			),
 		}.duplicate(true)
+		_reward_generation_floor = generation
 		_submit_reward_request(request)
 	_active_director_generation = 0
 	_active_scenario_id = &""
 	# Post the next contract. Any concluded sortie rotates, so a failed run
 	# still offers the other fight next rather than repeating the same one.
-	_offered_index = posmod(_offered_index + 1, OFFERED_SCENARIOS.size())
 	_refresh_board_label()
 	snapshot_changed.emit(get_snapshot())
 
 
 func _submit_reward_request(request: Dictionary) -> void:
+	if _reward_request_active or _session_refused:
+		return
+	if not _valid_generation(request.get("generation")):
+		_last_reward_result = _result(false, &"reward_generation_exhausted")
+		return
+	_reward_request_active = true
+	_pending_reward_request = request.duplicate(true)
+	if _session_store != null:
+		var persisted := _persist_earned_request(request)
+		if not persisted.get("accepted", false) or _pending_reward_request.is_empty():
+			_last_reward_result = persisted
+			_reward_request_active = false
+			_refresh_board_label()
+			return
 	var generation := int(request.get("generation", 0))
 	_last_reward_result = _reward_adapter.call("consume", request, generation)
 	if bool(_last_reward_result.get("accepted", false)):
@@ -535,10 +691,22 @@ func _submit_reward_request(request: Dictionary) -> void:
 		_pending_reward_request.clear()
 		if _audio_binding != null:
 			_audio_binding.present_reward(_last_reward_result, generation)
-	elif StringName(_last_reward_result.get("reason", &"")) == &"reward_callback_rejected":
-		_pending_reward_request = request.duplicate(true)
-	else:
+	elif _session_store != null:
+		# A failed durability acknowledgement can follow successful publication.
+		# Reload the atomic paid flag before any retry can downgrade it.
+		var loaded: Dictionary = _session_store.call("load")
+		if loaded.get("accepted", false) and _session_store.call("get_loaded_source") == &"backup":
+			_session_refused = true
+		elif loaded.get("accepted", false):
+			var saved: Variant = (_session_store.call("get_snapshot") as Dictionary).get(SESSION_SLOT)
+			if validate_session_record(saved) and int(saved.session.generation_floor) == generation \
+					and not saved.session.completion.is_empty() and saved.session.completion.reward_granted:
+				_adopt_terminal_session(saved.session)
+				_last_reward_result = _result(true, &"published_payment_reconciled")
+	elif StringName(_last_reward_result.get("reason", &"")) != &"reward_callback_rejected":
 		_pending_reward_request.clear()
+	_reward_request_active = false
+	_refresh_board_label()
 
 
 func _retry_pending_reward() -> void:
@@ -581,6 +749,12 @@ func _scenario_title(scenario_id: StringName) -> String:
 func _refresh_board_label() -> void:
 	var label := get_node_or_null(^"ActivityLabel") as Label3D
 	if label == null:
+		return
+	if _session_refused:
+		label.text = "%s\nSAVE RECOVERY REQUIRED" % LABEL_BASE_TEXT
+		return
+	if not _pending_reward_request.is_empty():
+		label.text = "%s\nREWARD SAVE PENDING\nINTERACT TO RETRY" % LABEL_BASE_TEXT
 		return
 	var offered := get_offered_scenario()
 	label.text = LABEL_BASE_TEXT if offered == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH \

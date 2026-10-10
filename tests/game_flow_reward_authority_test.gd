@@ -180,6 +180,14 @@ func _run() -> void:
 			and int((after_patrol.reward_counts as Dictionary).return_patrol_log_to_shipyard) == 1,
 		"an independent activity generation advances the shared receipt sequence once"
 	)
+	var absent_breach := authority.commit(_request(&"shipyard_heavy_breach", 1, &"return_heavy_breach_credit"))
+	_check(not absent_breach.accepted and absent_breach.reason == &"reward_terminal_handoff_invalid",
+		"Heavy Breach cannot pay without a persisted earned terminal handoff")
+	_check(_stage_breach_terminal(store, EncounterScenarioDirector.SCENARIO_HEAVY_BREACH, 1),
+		"the Heavy Breach fixture stages its matching earned terminal handoff")
+	var mismatched_breach := authority.commit(_request(&"shipyard_heavy_breach", 2, &"return_heavy_breach_credit"))
+	_check(not mismatched_breach.accepted and mismatched_breach.reason == &"reward_generation_mismatch",
+		"Heavy Breach cannot pay a generation different from its earned terminal")
 	var heavy_breach := authority.commit(_request(
 		&"shipyard_heavy_breach",
 		1,
@@ -316,9 +324,15 @@ func _run() -> void:
 		"reload retains the receipt summary without inventing currency or inventory authority"
 	)
 
+	var paid_breach := restored_authority.commit(_request(&"shipyard_heavy_breach", 1, &"return_heavy_breach_credit"))
+	_check(not paid_breach.accepted and paid_breach.reason == &"reward_generation_already_committed"
+		and int(reloaded_store.get_snapshot().game_flow_reward_store.total_receipts) == 8,
+		"fresh authority refuses paid Heavy Breach debt after intervening activities")
+	_check(_stage_breach_terminal(reloaded_store, EncounterScenarioDirector.SCENARIO_TORPEDO_RUN, 2),
+		"the subsequent Torpedo Run fixture stages its distinct earned terminal handoff")
 	var torpedo_run := restored_authority.commit(_request(
 		&"shipyard_torpedo_run",
-		1,
+		2,
 		&"return_torpedo_run_credit"
 	))
 	var torpedo_as_breach := restored_authority.commit(_request(
@@ -328,7 +342,7 @@ func _run() -> void:
 	))
 	var torpedo_duplicate := restored_authority.commit(_request(
 		&"shipyard_torpedo_run",
-		1,
+		2,
 		&"return_torpedo_run_credit"
 	))
 	var after_torpedo_run := reloaded_store.get_snapshot().game_flow_reward_store as Dictionary
@@ -483,6 +497,23 @@ func _save_actual_beacon_completion(store: UserDataStore) -> bool:
 	var payload := store.get_snapshot()
 	payload["cinder_beacon_session"] = JSON.parse_string(JSON.stringify(record))
 	return bool(store.commit(payload, store.get_generation(), "unit-live-beacon-terminal").get("accepted", false))
+
+
+func _stage_breach_terminal(store: UserDataStore, scenario: StringName, generation: int) -> bool:
+	var activity := HeavyBreachActivityBoard.ACTIVITY_ID if scenario == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH else HeavyBreachActivityBoard.TORPEDO_RUN_ACTIVITY_ID
+	var payload := store.get_snapshot()
+	payload[HeavyBreachActivityBoard.SESSION_SLOT] = {
+		"schema_version": NearbySectorActivityPersistenceBinding.SCHEMA_VERSION,
+		"payload_kind": HeavyBreachActivityBoard.SESSION_KIND,
+		"slot_id": HeavyBreachActivityBoard.SESSION_SLOT,
+		"session": {"component_id": String(HeavyBreachActivityBoard.COMPONENT_ID),
+			"generation_floor": generation,
+			"offered_index": 1 if scenario == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH else 0,
+			"completion": {"activity_id": String(activity), "state_id": "concluded", "outcome": "cleared",
+				"generation": generation, "scenario": String(scenario),
+				"protected_objective": "HeavyBreachProtectedObjective", "reward_granted": false}},
+	}
+	return bool(store.commit(payload, store.get_generation(), "unit-earned-breach-%d" % generation).accepted)
 
 
 func _request(

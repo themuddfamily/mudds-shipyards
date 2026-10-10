@@ -217,6 +217,25 @@ func commit(request: Variant) -> Dictionary:
 			_commit_active = false
 			return _reject(&"reward_generation_mismatch")
 
+	var breach_completion: Dictionary = {}
+	if activity_id in [HEAVY_BREACH_ACTIVITY_ID, TORPEDO_RUN_ACTIVITY_ID]:
+		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
+		var slot: Variant = (payload as Dictionary).get(HeavyBreachActivityBoard.SESSION_SLOT)
+		if not HeavyBreachActivityBoard.validate_session_record(slot):
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		breach_completion = slot.session.completion
+		if breach_completion.is_empty() or str(breach_completion.activity_id) != str(activity_id) \
+				or int(breach_completion.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
+		if breach_completion.reward_granted:
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+
 	var station_completion: Dictionary = {}
 	if activity_id == STATION_DEFENSE_ACTIVITY_ID:
 		var slot: Variant = (payload as Dictionary).get("station_defense_session")
@@ -475,6 +494,8 @@ func commit(request: Variant) -> Dictionary:
 		return _reject(&"reward_store_generation_exhausted")
 	var next_payload := (payload as Dictionary).duplicate(true)
 	next_payload[String(SLOT_ID)] = next_record
+	if not breach_completion.is_empty():
+		next_payload[HeavyBreachActivityBoard.SESSION_SLOT].session.completion.reward_granted = true
 	if not station_completion.is_empty():
 		var session := next_payload.station_defense_session.session as Dictionary
 		session.completion.reward_granted = true
@@ -581,6 +602,19 @@ func validate_record(candidate: Variant) -> Dictionary:
 			or int((record.reward_counts as Dictionary).get(String(reward_id), 0)) < 1:
 		return _result(false, &"reward_store_payload_corrupt")
 	return _result(true, &"reward_store_payload_valid")
+
+
+## A known paid legacy receipt supplies only a future reward epoch floor.
+## No missing completion or historical entitlement is reconstructed.
+func get_heavy_breach_paid_generation_floor() -> int:
+	if not _configured or not bool(validate_record(_record).get("accepted", false)) \
+			or not _store.has_method(&"get_loaded_source") \
+			or _store.call(&"get_loaded_source") not in [&"primary", &"empty"]:
+		return 0
+	var receipt: Dictionary = _record.last_receipt
+	if receipt.is_empty() or StringName(receipt.activity_id) not in [HEAVY_BREACH_ACTIVITY_ID, TORPEDO_RUN_ACTIVITY_ID]:
+		return 0
+	return int(receipt.activity_generation)
 
 
 func get_snapshot() -> Dictionary:
