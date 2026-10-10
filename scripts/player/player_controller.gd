@@ -1707,11 +1707,17 @@ func _resolve_cabin_containment() -> void:
 
 	var minimum := _cabin_bounds.position + Vector3.ONE * CABIN_CONTAINMENT_INSET
 	var maximum := _cabin_bounds.position + _cabin_bounds.size - Vector3.ONE * CABIN_CONTAINMENT_INSET
-	var clamped := Vector3(
-		clampf(local_position.x, minf(minimum.x, maximum.x), maxf(minimum.x, maximum.x)),
-		clampf(local_position.y, minf(minimum.y, maximum.y), maxf(minimum.y, maximum.y)),
-		clampf(local_position.z, minf(minimum.z, maximum.z), maxf(minimum.z, maximum.z))
-	)
+	var outer_maximum := _cabin_bounds.position + _cabin_bounds.size
+	var clamped := local_position
+	# Only the escaped axes need the inset. A doorway nudge must preserve a
+	# valid deck height, even when that floor lies inside the inset margin.
+	for axis in 3:
+		if local_position[axis] < _cabin_bounds.position[axis] \
+				or local_position[axis] > outer_maximum[axis]:
+			clamped[axis] = clampf(
+				local_position[axis], minf(minimum[axis], maximum[axis]),
+				maxf(minimum[axis], maximum[axis])
+			)
 	var correction := clamped - local_position
 	# Below the deck plane is a failure of the floor, not a nudge at a doorway:
 	# clamping there would place the capsule inside the deck collider.
