@@ -324,6 +324,28 @@ func commit(request: Variant) -> Dictionary:
 			_commit_active = false
 			return _reject(&"reward_generation_already_committed")
 
+	var asteroid_completion: Dictionary = {}
+	if activity_id == CINDER_ASTEROID_RUN_ACTIVITY_ID:
+		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
+		var slot: Variant = (payload as Dictionary).get(NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT)
+		var validated := NearbySectorActivitySessionAdapter.validate_asteroid_session(slot)
+		if not bool(validated.get("accepted", false)):
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		asteroid_completion = slot.activities[0]
+		if int(asteroid_completion.generation) != activity_generation:
+			_commit_active = false
+			return _reject(&"reward_generation_mismatch")
+		if not asteroid_completion.reward_requested:
+			_commit_active = false
+			return _reject(&"reward_terminal_handoff_invalid")
+		if asteroid_completion.reward_granted:
+			_record = current
+			_commit_active = false
+			return _reject(&"reward_generation_already_committed")
+
 	var patrol_completion: Dictionary = {}
 	if activity_id in [PATROL_ACTIVITY_ID, PLATFORM_PATROL_ACTIVITY_ID]:
 		var patrol_slot: Variant = (payload as Dictionary).get("cinder_patrol_session")
@@ -511,6 +533,8 @@ func commit(request: Variant) -> Dictionary:
 		var acknowledged := (next_payload.cinder_beacon_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true
 		(acknowledged.progress as Dictionary).reward_requested = true
+	if not asteroid_completion.is_empty():
+		(next_payload[NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT].activities[0] as Dictionary).reward_granted = true
 	if not patrol_completion.is_empty():
 		var acknowledged := (next_payload.cinder_patrol_session.activities[0] as Dictionary)
 		acknowledged.reward_granted = true
@@ -613,6 +637,19 @@ func get_heavy_breach_paid_generation_floor() -> int:
 		return 0
 	var receipt: Dictionary = _record.last_receipt
 	if receipt.is_empty() or StringName(receipt.activity_id) not in [HEAVY_BREACH_ACTIVITY_ID, TORPEDO_RUN_ACTIVITY_ID]:
+		return 0
+	return int(receipt.activity_generation)
+
+
+## A strictly validated latest legacy payment is only a future epoch floor.
+## It supplies no missing route or unpaid entitlement.
+func get_asteroid_paid_generation_floor() -> int:
+	if not _configured or not bool(validate_record(_record).get("accepted", false)) \
+			or not _store.has_method(&"get_loaded_source") \
+			or _store.call(&"get_loaded_source") not in [&"primary", &"empty"]:
+		return 0
+	var receipt: Dictionary = _record.last_receipt
+	if receipt.is_empty() or StringName(receipt.activity_id) != CINDER_ASTEROID_RUN_ACTIVITY_ID:
 		return 0
 	return int(receipt.activity_generation)
 

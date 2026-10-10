@@ -28,6 +28,8 @@ extends SceneTree
 ##    suite: a belt that quietly adds a renderer would make Cinder Reach
 ##    invisible, not merely wrong.
 
+const Main := preload("res://scenes/main.tscn")
+const Beacon := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
 const THREADING_ROUTE := preload(
 	"res://assets/activities/cinder_asteroid_field_threading_run.tres"
@@ -38,6 +40,7 @@ const TRANSITION := preload("res://scripts/world/cinder_streaming_transition_pre
 const SESSION_ADAPTER := preload(
 	"res://scripts/persistence/nearby_sector_activity_session_adapter.gd"
 )
+const ASTEROID_SLOT := SESSION_ADAPTER.ASTEROID_SESSION_SLOT
 const AUTHORITY_SCRIPT := preload("res://scripts/game/game_flow_reward_authority.gd")
 const STORE_SCRIPT := preload("res://scripts/persistence/user_data_store.gd")
 const FILESYSTEM_SCRIPT := preload("res://scripts/persistence/user_data_filesystem.gd")
@@ -120,6 +123,49 @@ class MemoryFilesystem extends FILESYSTEM_SCRIPT:
 		return OK
 
 
+class FaultFilesystem extends UserDataFilesystem:
+	var reject_sessions := false
+	var reject_rewards := true
+	var refused_reward := false
+	var fail_reset_sync := false
+	var reset_published := false
+	var on_reset_write := Callable()
+
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if document is Dictionary:
+			var commit_id := str(document.get("commit", {}).get("id", ""))
+			if commit_id.begins_with("game-flow-asteroid-"):
+				if reject_sessions:
+					return ERR_UNAVAILABLE
+				if on_reset_write.is_valid() and int(document.payload[ASTEROID_SLOT].activities[0].state) == CheckpointRouteActivity.State.IDLE:
+					var callback := on_reset_write
+					on_reset_write = Callable()
+					callback.call()
+			if reject_rewards and commit_id.begins_with("game-flow-reward-"):
+				refused_reward = true
+				return ERR_UNAVAILABLE
+		return super.write_bytes_and_flush(path, bytes)
+
+	func rename_path(from_path: String, to_path: String) -> Error:
+		var reset := false
+		if from_path.ends_with(".tmp"):
+			var document: Variant = JSON.parse_string(FileAccess.get_file_as_string(from_path))
+			if document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-asteroid-"):
+				reset = int(document.payload[ASTEROID_SLOT].activities[0].state) == CheckpointRouteActivity.State.IDLE
+		var result := super.rename_path(from_path, to_path)
+		if result == OK and reset:
+			reset_published = true
+		return result
+
+	func sync_directory(path: String) -> Error:
+		if fail_reset_sync and reset_published:
+			fail_reset_sync = false
+			reset_published = false
+			return ERR_UNAVAILABLE
+		return super.sync_directory(path)
+
+
 var _assertions := 0
 var _failures: Array[String] = []
 var _space: PhysicsDirectSpaceState3D
@@ -173,6 +219,7 @@ func _run() -> void:
 	cluster.queue_free()
 	await process_frame
 	await process_frame
+	await _test_main_durable_threading()
 	_finish()
 
 
@@ -652,6 +699,10 @@ func _test_threading_run_completes(binding: Node, field: CinderAsteroidField) ->
 
 
 func _test_reward_is_taken_exactly_once(binding: Node) -> void:
+	var payload := _store.call("get_snapshot") as Dictionary
+	payload[ASTEROID_SLOT] = binding.call("capture_asteroid_field_session")
+	_check(bool((_store.call("commit", payload, _store.call("get_generation"), "unit-earned-asteroid-terminal") as Dictionary).accepted),
+		"the genuine component completion stages its canonical unpaid terminal before payment")
 	var granted := binding.call(&"request_asteroid_field_run_reward") as Dictionary
 	var authority_result := granted.get("authority_result", {}) as Dictionary
 	var receipt := authority_result.get("receipt", {}) as Dictionary
@@ -830,6 +881,307 @@ func _test_abandon_is_clean(binding: Node, field: CinderAsteroidField) -> void:
 			== EXPECTED_ASTEROID_COUNT,
 		"abandoning restores the idle gates and leaves the belt itself untouched"
 	)
+
+
+# --- Actual Main destruction/recreation and ordinary HUD recovery ------------
+
+func _test_main_durable_threading() -> void:
+	var path := "user://asteroid_durable_%d.json" % Time.get_ticks_usec()
+	var fault := FaultFilesystem.new()
+	var first := await _main_game(path, fault)
+	await _main_board(first)
+	var binding := await _main_binding(first)
+	first.call("_on_settings_save_requested")
+	var store: UserDataStore = first.get("_runtime_settings_user_data_store")
+	var payload := store.get_snapshot()
+	payload["asteroid_unrelated"] = {"keep": "independent", "amount": 31}
+	_check(store.commit(payload, store.get_generation(), "unit-asteroid-unrelated").accepted,
+		"real Main uses the shared durable settings store with unrelated data")
+	_main_position(first, THREADING_ROUTE.get_checkpoint_position(0))
+	_activity_button(first, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	var started := binding.get_activity_snapshot(&"asteroid_field_run")
+	_check(started.state_id == &"active" and int(started.generation) == 1,
+		"ordinary HUD Start opens the genuine first asteroid generation")
+	var premature: Dictionary = first.call("_commit_game_flow_activity_reward", _asteroid_request(1))
+	_check(not premature.accepted and _main_receipts(first) == 0,
+		"an ACTIVE route provides no earned-terminal payment entitlement")
+	_main_advance(first, 0)
+	var saved := store.get_snapshot()[ASTEROID_SLOT] as Dictionary
+	_check(int(saved.activities[0].progress.next_checkpoint_index) == 1,
+		"the first real ship sample checkpoints its canonical active cursor")
+	fault.reject_sessions = true
+	_main_advance(first, 1)
+	var live := binding.capture_asteroid_field_session()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	_check(int(live.activities[0].progress.next_checkpoint_index) == 2
+		and store.get_snapshot()[ASTEROID_SLOT] == saved and _main_receipts(first) == 0,
+		"rejected later progress preserves the last durable checkpoint without a reward")
+	_press_reset(first)
+	_check(binding.capture_asteroid_field_session() == live and FileAccess.get_file_as_bytes(path) == bytes,
+		"ordinary Reset with a refused write preserves the exact live active cursor and durable bytes")
+	var authority_ref := weakref(first.get("_game_flow_reward_authority"))
+	await _main_dispose(first)
+	_check(not is_instance_valid(first) and not is_instance_valid(binding) and authority_ref.get_ref() == null,
+		"the original Main, streamed binding and reward authority are actually destroyed")
+	var second_fault := FaultFilesystem.new()
+	var second := await _main_game(path, second_fault)
+	var second_binding := await _main_binding(second)
+	_check(second_binding.capture_asteroid_field_session() == saved and _main_receipts(second) == 0
+		and not second.get_guided_ship().is_piloted() and not (second.player as PlayerController).is_seated(),
+		"fresh Main restores exactly the accepted active cursor, not unsaved later progress or actors")
+	await _main_board(second)
+	for index in range(1, EXPECTED_GATE_COUNT):
+		_main_advance(second, index)
+	var terminal := second.get("_runtime_settings_user_data_store").get_snapshot()[ASTEROID_SLOT] as Dictionary
+	_check(second_fault.refused_reward and terminal.activities[0].reward_requested
+		and not terminal.activities[0].reward_granted and _main_receipts(second) == 0,
+		"genuinely finishing the recovered route persists unpaid terminal before rejected payment")
+	_press_reset(second)
+	_check(second_binding.capture_asteroid_field_session() == terminal,
+		"ordinary Reset refuses to abandon the genuine earned-unpaid route")
+	await _main_dispose(second)
+	var third_fault := FaultFilesystem.new()
+	third_fault.reject_rewards = false
+	var third := await _main_game(path, third_fault)
+	var third_binding := await _main_binding(third)
+	_check(third_binding.capture_asteroid_field_session() == terminal and _main_receipts(third) == 0,
+		"another actual fresh Main restores only the exact unpaid terminal and generation")
+	var mismatch: Dictionary = third.call("_commit_game_flow_activity_reward", _asteroid_request(2))
+	_check(not mismatch.accepted and mismatch.reason == &"reward_generation_mismatch",
+		"the durable terminal refuses another completion generation")
+	_activity_button(third, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	var paid := third_binding.capture_asteroid_field_session()
+	_check(paid.activities[0].reward_granted and _main_receipts(third) == 1,
+		"ordinary Start pays once and atomically acknowledges the exact recovered terminal")
+	await _main_board(third)
+	_main_position(third, Beacon.BEACONS[0])
+	_activity_button(third, Beacon.ACTIVITY_ID, 2).emit_signal("pressed")
+	for point in Beacon.BEACONS:
+		_main_position(third, point)
+		third.call("_advance_cinder_beacon_traversal", 0.0, third.call("_capture_cinder_actor_sample"))
+	_check(_main_receipts(third) == 2 and third.get("_runtime_settings_user_data_store").get_snapshot()[ASTEROID_SLOT] == paid,
+		"a separate genuinely cleared beacon activity preserves the paid asteroid terminal")
+	var known_payload: Dictionary = third.get("_runtime_settings_user_data_store").get_snapshot()
+	third_fault.reject_sessions = true
+	bytes = FileAccess.get_file_as_bytes(path)
+	_press_reset(third)
+	_check(third_binding.capture_asteroid_field_session() == paid and FileAccess.get_file_as_bytes(path) == bytes
+		and _main_receipts(third) == 2, "refused paid Reset keeps exact acknowledgement, ledger and primary bytes")
+	await _main_dispose(third)
+	var fourth_fault := FaultFilesystem.new()
+	fourth_fault.reject_rewards = false
+	var fourth := await _main_game(path, fourth_fault)
+	var fourth_binding := await _main_binding(fourth)
+	var duplicate: Dictionary = fourth.call("_commit_game_flow_activity_reward", _asteroid_request(1))
+	_check(fourth_binding.capture_asteroid_field_session() == paid and not duplicate.accepted
+		and duplicate.reason == &"reward_generation_already_committed" and _main_receipts(fourth) == 2,
+		"fresh authority refuses replay even after another activity overwrites the latest receipt")
+	fourth_fault.fail_reset_sync = true
+	_press_reset(fourth)
+	var reset := fourth_binding.capture_asteroid_field_session()
+	_check(int(reset.activities[0].state) == CheckpointRouteActivity.State.IDLE
+		and int(reset.activities[0].generation) == 2 and not reset.activities[0].reward_requested
+		and _main_receipts(fourth) == 2 and not fourth_fault.fail_reset_sync,
+		"writable Reset adopts its actually published IDLE generation despite directory-sync refusal")
+	var after_reset: Dictionary = fourth.get("_runtime_settings_user_data_store").get_snapshot()
+	_check(after_reset.runtime_settings == known_payload.runtime_settings
+		and after_reset.asteroid_unrelated == known_payload.asteroid_unrelated
+		and after_reset.game_flow_reward_store == known_payload.game_flow_reward_store,
+		"reset and reward transactions preserve settings, unrelated data and the independent receipt")
+	await _main_dispose(fourth)
+	var fifth_fault := FaultFilesystem.new()
+	fifth_fault.reject_rewards = false
+	var fifth := await _main_game(path, fifth_fault)
+	var fifth_binding := await _main_binding(fifth)
+	_check(fifth_binding.capture_asteroid_field_session() == reset and _main_receipts(fifth) == 2,
+		"fresh Main restores the reset generation without old debt or actor restoration")
+	await _main_board(fifth)
+	_main_position(fifth, THREADING_ROUTE.get_checkpoint_position(0))
+	_activity_button(fifth, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	_check(int(fifth_binding.get_activity_snapshot(&"asteroid_field_run").generation) == 3,
+		"the next genuinely admitted run advances beyond the paid and reset generations")
+	for index in EXPECTED_GATE_COUNT:
+		_main_advance(fifth, index)
+	_check(_main_receipts(fifth) == 3 and fifth_binding.capture_asteroid_field_session().activities[0].reward_granted,
+		"a later genuinely completed sortie earns one distinct durable payment")
+	await _main_dispose(fifth)
+	await _backup_and_newer_refusal(path)
+	await _reset_callback_fence()
+	await _legacy_paid_floor(path)
+
+
+func _backup_and_newer_refusal(path: String) -> void:
+	var primary := FileAccess.get_file_as_bytes(path)
+	var backup := FileAccess.get_file_as_bytes(path + ".bak")
+	var unpaid: Dictionary = JSON.parse_string(backup.get_string_from_utf8()).payload[ASTEROID_SLOT]
+	_check(unpaid.activities[0].reward_requested and not unpaid.activities[0].reward_granted,
+		"the real newer paid primary has a genuine unpaid predecessor backup")
+	var writer := FileAccess.open(path, FileAccess.WRITE)
+	writer.store_string("corrupt newer paid primary")
+	writer.close()
+	var game := await _main_game(path, UserDataFilesystem.new())
+	var binding := await _main_binding(game)
+	_activity_button(game, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	_press_reset(game)
+	var refused: Dictionary = game.call("_commit_game_flow_activity_reward", _asteroid_request(3))
+	_check(not refused.accepted and int(binding.get_activity_snapshot(&"asteroid_field_run").generation) == 0
+		and game.get("_runtime_settings_user_data_store").get_loaded_source() == &"backup"
+		and FileAccess.get_file_as_bytes(path + ".bak") == backup and _main_receipts(game) == 2,
+		"backup unpaid history cannot restore debt, grant payment or overwrite recovery artifacts")
+	await _main_dispose(game)
+	var newer_path := "user://asteroid_newer_%d.json" % Time.get_ticks_usec()
+	var source_payload: Dictionary = JSON.parse_string(primary.get_string_from_utf8()).payload
+	source_payload[ASTEROID_SLOT].schema_version = 2
+	var store := UserDataStore.new(newer_path)
+	store.load()
+	_check(store.commit(source_payload, store.get_generation(), "unit-newer-asteroid").accepted,
+		"the unsupported asteroid fixture retains the real paid ledger in its shared store")
+	var original_bytes := FileAccess.get_file_as_bytes(newer_path)
+	var fresh := await _main_game(newer_path, UserDataFilesystem.new())
+	var fresh_binding := await _main_binding(fresh)
+	_activity_button(fresh, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	_press_reset(fresh)
+	var denied: Dictionary = fresh.call("_commit_game_flow_activity_reward", _asteroid_request(3))
+	_check(not denied.accepted and int(fresh_binding.get_activity_snapshot(&"asteroid_field_run").generation) == 0
+		and FileAccess.get_file_as_bytes(newer_path) == original_bytes and _main_receipts(fresh) == 3,
+		"newer session data remains byte-preserved and creates no recovered owner or entitlement")
+	await _main_dispose(fresh)
+
+
+func _reset_callback_fence() -> void:
+	var path := "user://asteroid_callback_%d.json" % Time.get_ticks_usec()
+	var fault := FaultFilesystem.new()
+	var game := await _main_game(path, fault)
+	await _main_board(game)
+	var binding := await _main_binding(game)
+	_main_position(game, THREADING_ROUTE.get_checkpoint_position(0))
+	_activity_button(game, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	_main_advance(game, 0)
+	fault.on_reset_write = func() -> void:
+		binding.submit_asteroid_field_run_position(THREADING_ROUTE.get_checkpoint_position(1))
+	var result: Dictionary = game.call("_reset_nearby_activity", binding, EXPECTED_ACTIVITY_ID)
+	_check(not result.accepted and result.reason == &"asteroid_reset_owner_changed"
+		and result.persistence_result.accepted
+		and int(binding.get_activity_snapshot(&"asteroid_field_run").next_checkpoint_index) == 2,
+		"a real reset-write callback changing the live cursor cannot publish a stale live reset")
+	await _main_dispose(game)
+
+
+func _legacy_paid_floor(path: String) -> void:
+	var legacy_path := "user://asteroid_legacy_%d.json" % Time.get_ticks_usec()
+	var payload: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path + ".bak")).payload
+	# Use the exact validated paid record retained before primary corruption.
+	var latest := _store.call("get_snapshot") as Dictionary
+	payload.game_flow_reward_store = latest.game_flow_reward_store.duplicate(true)
+	payload.erase(ASTEROID_SLOT)
+	var store := UserDataStore.new(legacy_path)
+	store.load()
+	_check(store.commit(payload, store.get_generation(), "unit-legacy-paid-asteroid").accepted,
+		"a real prior validated paid receipt is retained without inventing a legacy session")
+	var old_receipt: Dictionary = payload.game_flow_reward_store
+	var game := await _main_game(legacy_path, UserDataFilesystem.new())
+	var binding := await _main_binding(game)
+	_check(int(binding.get_activity_snapshot(&"asteroid_field_run").generation) == 1
+		and binding.get_activity_snapshot(&"asteroid_field_run").state_id == &"idle"
+		and game.get("_runtime_settings_user_data_store").get_snapshot().game_flow_reward_store == old_receipt,
+		"a safe validated legacy paid receipt supplies only an idle future-generation floor")
+	await _main_board(game)
+	_main_position(game, THREADING_ROUTE.get_checkpoint_position(0))
+	_activity_button(game, EXPECTED_ACTIVITY_ID, 2).emit_signal("pressed")
+	for index in EXPECTED_GATE_COUNT:
+		_main_advance(game, index)
+	_check(_main_receipts(game) == 2 and int(binding.get_activity_snapshot(&"asteroid_field_run").generation) == 2,
+		"a genuinely completed new legacy-compatible sortie pays at a distinct later generation")
+	await _main_dispose(game)
+
+
+func _main_game(path: String, filesystem: UserDataFilesystem) -> GameFlow:
+	var game := Main.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(UserDataStore.new(path, filesystem), path + ".legacy.cfg")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	game.set_physics_process(false)
+	return game
+
+
+func _main_binding(game: GameFlow) -> NearbySectorActivityBinding:
+	game.cinder_streaming_bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	var binding: NearbySectorActivityBinding
+	for _frame in 180:
+		binding = game.call("_get_nearby_activity_binding") as NearbySectorActivityBinding
+		if is_instance_valid(binding):
+			break
+		await process_frame
+	_check(is_instance_valid(binding), "actual Main streaming supplies the fresh asteroid binding")
+	game.call("_sync_activity_hud")
+	return binding
+
+
+func _main_board(game: GameFlow) -> void:
+	var pending := game.get_recovery_available_snapshot()
+	if not pending.is_empty():
+		var store: UserDataStore = game.get("_runtime_settings_user_data_store")
+		var before := store.get_snapshot()
+		(game.hud as GameHUD).session_recovery_discard_requested.emit(
+			int(pending.get("session_id", 0)), int(pending.get("startup_generation", 0)))
+		var after := store.get_snapshot()
+		_check(game.get_recovery_available_snapshot().is_empty()
+			and after.get(ASTEROID_SLOT) == before.get(ASTEROID_SLOT)
+			and after.get("game_flow_reward_store") == before.get("game_flow_reward_store")
+			and after.get("runtime_settings") == before.get("runtime_settings")
+			and after.get("asteroid_unrelated") == before.get("asteroid_unrelated"),
+			"ordinary Start Fresh declines actor recovery while preserving earned activity and shared data")
+	game.set_physics_process(true)
+	game.start_shift()
+	var craft := game.get_guided_ship()
+	game.player.global_position = craft.get_boarding_position()
+	game.call("_board_ship", craft)
+	for _tick in 300:
+		if craft.is_piloted() and game.player.is_seated_at(craft.get_pilot_seat_anchor()):
+			break
+		await physics_frame
+	_check(craft.is_piloted() and game.player.is_seated_at(craft.get_pilot_seat_anchor()),
+		"actual production pilot boarding supplies genuine Main ship samples")
+	game.set_physics_process(false)
+
+
+func _main_position(game: GameFlow, authored_position: Vector3) -> void:
+	game.active_ship.global_position = game.call("_cinder_authored_frame_to_world", authored_position)
+
+
+func _main_advance(game: GameFlow, index: int) -> void:
+	_main_position(game, THREADING_ROUTE.get_checkpoint_position(index))
+	game.call("_advance_cinder_asteroid_field_run", 0.0, game.call("_capture_cinder_actor_sample"))
+
+
+func _activity_button(game: GameFlow, activity_id: StringName, index: int) -> Button:
+	for row in (game.hud.get("_nearby_activity_rows") as VBoxContainer).get_children():
+		if String(activity_id) in str(row.name):
+			return row.get_child(index) as Button
+	return null
+
+
+func _press_reset(game: GameFlow) -> void:
+	_activity_button(game, EXPECTED_ACTIVITY_ID, 3).emit_signal("pressed")
+	if _activity_button(game, EXPECTED_ACTIVITY_ID, 3).text == "CONFIRM RESET":
+		_activity_button(game, EXPECTED_ACTIVITY_ID, 3).emit_signal("pressed")
+
+
+func _main_receipts(game: GameFlow) -> int:
+	return int(game.get_activity_reward_report().authority.record.total_receipts)
+
+
+func _asteroid_request(generation: int) -> Dictionary:
+	return {"activity_id": EXPECTED_ACTIVITY_ID, "activity_generation": generation,
+		"reward_id": EXPECTED_REWARD_ID, "reward_authority": false, "granted": false}
+
+
+func _main_dispose(game: GameFlow) -> void:
+	game.queue_free()
+	await process_frame
+	await process_frame
 
 
 # --- Helpers ------------------------------------------------------------------

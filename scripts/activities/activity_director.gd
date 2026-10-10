@@ -78,6 +78,20 @@ func get_definition(activity_id: StringName) -> ActivityDefinition:
 	return _definitions.get(activity_id) as ActivityDefinition
 
 
+func capture_activity_persistence_state(activity_id: StringName) -> Dictionary:
+	var activity := _activities.get(activity_id) as CheckpointRouteActivity
+	return activity.capture_persistence_state() if activity != null else {}
+
+
+func preview_activity_reset_state(activity_id: StringName, expected_generation: int) -> Dictionary:
+	if not _can_mutate_live_activity():
+		return {"accepted": false, "reason": &"director_detached"}
+	var activity := _activities.get(activity_id) as CheckpointRouteActivity
+	if activity == null:
+		return {"accepted": false, "reason": &"unknown_activity"}
+	return activity.preview_reset_persistence_state(expected_generation)
+
+
 ## Generation-safe startup restoration stays inside the existing route
 ## authority. The director creates its ordinary route object and that object
 ## adopts validated state without replaying historical signals.

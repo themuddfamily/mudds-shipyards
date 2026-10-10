@@ -15,6 +15,48 @@ const SUPPORTED_ACTIVITY_IDS: Array[StringName] = [
 	&"station_defense",
 ]
 
+const ASTEROID_SESSION_SLOT := "cinder_asteroid_session"
+const ASTEROID_ACTIVITY_ID: StringName = &"cinder_asteroid_field_threading_run"
+const ASTEROID_ROUTE := preload("res://assets/activities/cinder_asteroid_field_threading_run.tres")
+
+
+## Use the existing envelope with only the route owner's canonical save state.
+## Reward metadata proves a terminal handoff; it cannot replace route geometry.
+static func capture_asteroid_session(route_state: Dictionary, paid: bool) -> Dictionary:
+	return {"schema_version": SCHEMA_VERSION, "activities": [{
+		"activity_id": String(ASTEROID_ACTIVITY_ID),
+		"generation": route_state.get("generation", 0),
+		"state": route_state.get("state", 0), "progress": route_state.duplicate(true),
+		"reward_requested": int(route_state.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED,
+		"reward_granted": paid,
+	}]}
+
+
+static func validate_asteroid_session(value: Variant) -> Dictionary:
+	if not value is Dictionary or value.size() != 2 \
+			or not (value.get("schema_version") is int or value.get("schema_version") is float) \
+			or float(value.schema_version) != float(SCHEMA_VERSION) \
+			or not value.get("activities") is Array or value.activities.size() != 1:
+		return {"accepted": false, "reason": &"asteroid_session_invalid"}
+	var entry: Variant = value.activities[0]
+	if not entry is Dictionary or entry.size() != 6 or entry.get("activity_id") != String(ASTEROID_ACTIVITY_ID) \
+			or not entry.get("reward_requested") is bool or not entry.get("reward_granted") is bool:
+		return {"accepted": false, "reason": &"asteroid_session_invalid"}
+	var route := CheckpointRouteActivity.new(ASTEROID_ROUTE)
+	var validated := route.validate_persistence_state(entry.get("progress"))
+	if not bool(validated.get("accepted", false)):
+		return validated
+	var state := entry.progress as Dictionary
+	if not state.get("activity_id") is String or not (entry.get("generation") is int or entry.get("generation") is float) \
+			or not (entry.get("state") is int or entry.get("state") is float):
+		return {"accepted": false, "reason": &"asteroid_session_invalid"}
+	if entry.get("generation") != state.generation or entry.get("state") != state.state \
+			or entry.reward_requested != (int(state.state) == CheckpointRouteActivity.State.COMPLETED) \
+			or (entry.reward_granted and not entry.reward_requested):
+		return {"accepted": false, "reason": &"asteroid_session_invalid"}
+	return {"accepted": true, "reason": &"asteroid_session_valid"}
+
+
 var _restored_generations: Dictionary = {}
 
 

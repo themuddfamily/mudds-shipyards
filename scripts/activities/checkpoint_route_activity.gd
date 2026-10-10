@@ -85,6 +85,22 @@ func fail(reason: StringName, expected_generation: int) -> bool:
 	return true
 
 
+## The same owner guards as Reset, with no mutation or historic signals.
+func preview_reset_persistence_state(expected_generation: int) -> Dictionary:
+	if _checkpoint_signal_in_progress:
+		return _persistence_result(false, &"reentrant_call")
+	if not _matches_generation(expected_generation):
+		return _persistence_result(false, &"stale_generation")
+	if _generation >= MAX_PERSISTED_GENERATION:
+		return _persistence_result(false, &"route_generation_exhausted")
+	var state := capture_persistence_state()
+	state.generation = _generation + 1
+	state.state = State.IDLE
+	state.next_checkpoint_index = 0
+	state.failure_reason = ""
+	return {"accepted": true, "reason": &"reset_prepared", "persistence_state": state}
+
+
 func reset(expected_generation: int = ANY_GENERATION) -> bool:
 	if _checkpoint_signal_in_progress:
 		return false
