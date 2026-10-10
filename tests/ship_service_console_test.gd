@@ -77,7 +77,7 @@ func _run() -> void:
 		"resource_capacity": 6,
 		"units_added": 1,
 	})
-	var original_feedback_valid := (
+	var original_feedback_valid: bool = (
 		bool(presented.get("accepted", false))
 			and str(presented.get("text", "")).contains("RESTOCKED")
 			and str(presented.get("text", "")).contains("KITS 6/6")
