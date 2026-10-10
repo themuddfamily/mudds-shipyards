@@ -1949,7 +1949,25 @@ func get_beacon_traversal_reward_handoff_snapshot() -> Dictionary:
 func capture_beacon_traversal_session() -> Dictionary:
 	if _beacon_activity == null:
 		return {}
-	var state := _beacon_activity.call("get_snapshot") as Dictionary
+	return _capture_beacon_traversal_state(_beacon_activity.call("get_snapshot") as Dictionary)
+
+
+func prepare_beacon_traversal_reset() -> Dictionary:
+	if _beacon_activity == null:
+		return _result(false, &"not_ready")
+	if _has_pending_beacon_traversal_reward():
+		return _result(false, &"beacon_traversal_reward_save_pending")
+	var prepared := _beacon_activity.call("preview_reset") as Dictionary
+	if not bool(prepared.get("accepted", false)):
+		return prepared
+	var state := prepared.duplicate(true)
+	state.erase("accepted")
+	state.erase("reason")
+	prepared["session_record"] = _capture_beacon_traversal_state(state)
+	return prepared
+
+
+func _capture_beacon_traversal_state(state: Dictionary) -> Dictionary:
 	var record := NearbySectorActivitySessionAdapter.new().capture({"beacon_traversal": state})
 	var entry := record.activities[0] as Dictionary
 	entry.reward_requested = int(state.state) == BEACON_ACTIVITY.State.COMPLETE

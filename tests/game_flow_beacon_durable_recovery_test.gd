@@ -12,6 +12,8 @@ class FaultFilesystem extends UserDataFilesystem:
 	var refused_reward := false
 	var fail_published_reward_sync := false
 	var _reward_just_published := false
+	var fail_published_reset_sync := false
+	var _reset_just_published := false
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
 		if reject_all:
@@ -31,15 +33,25 @@ class FaultFilesystem extends UserDataFilesystem:
 		if reject_all:
 			return ERR_UNAVAILABLE
 		var reward := false
+		var reset := false
 		if from_path.ends_with(".tmp"):
 			var document: Variant = JSON.parse_string(FileAccess.get_file_as_string(from_path))
 			reward = document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-reward-")
+			if document is Dictionary:
+				var session: Dictionary = document.get("payload", {}).get("cinder_beacon_session", {})
+				reset = not session.is_empty() and int(session.activities[0].state) == Beacon.State.RESET
 		var result := super.rename_path(from_path, to_path)
 		if result == OK and reward:
 			_reward_just_published = true
+		if result == OK and reset:
+			_reset_just_published = true
 		return result
 
 	func sync_directory(path: String) -> Error:
+		if _reset_just_published and fail_published_reset_sync:
+			fail_published_reset_sync = false
+			_reset_just_published = false
+			return ERR_UNAVAILABLE
 		if _reward_just_published and fail_published_reward_sync:
 			fail_published_reward_sync = false
 			_reward_just_published = false
@@ -122,6 +134,8 @@ func _run() -> void:
 		and next_restored.next_beacon_index == 0 and not next_restored.reward_requested and _receipts(fourth) == 1,
 		"fresh Main recovers the next run without inheriting the previous paid reward")
 	await _dispose(fourth)
+	await _reset_write_failure(false)
+	await _reset_write_failure(true)
 	await _published_payment_retry()
 	await _all_writes_failed()
 	await _unsupported_record(path)
@@ -130,6 +144,78 @@ func _run() -> void:
 	if _failures.is_empty():
 		print("GAME_FLOW_BEACON_DURABLE_RECOVERY_TEST_OK: %d assertions" % _checks)
 	quit(0 if _failures.is_empty() else 1)
+
+## A refused reset must never publish a live reset against an older disk route.
+func _reset_write_failure(paid: bool) -> void:
+	var path := "user://beacon_reset_%s_%d.json" % [str(paid), Time.get_ticks_usec()]
+	var fault := FaultFilesystem.new()
+	fault.reject_rewards = false
+	var first := await _game(path, fault)
+	await _board(first)
+	var binding := await _binding(first)
+	first.call("_on_settings_save_requested")
+	var store: UserDataStore = first.get("_runtime_settings_user_data_store")
+	var seeded := store.get_snapshot()
+	seeded["beacon_reset_unrelated"] = {"keep": "independent data", "value": 29}
+	_check(store.commit(seeded, store.get_generation(), "unit-beacon-reset-unrelated").accepted,
+		"the reset fixture persists unrelated data through the production store")
+	if paid:
+		await _complete(first, binding)
+	else:
+		first.active_ship.global_position = first.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+		_button(first, 2).emit_signal("pressed")
+		first.call("_advance_cinder_beacon_traversal", 0.0, first.call("_capture_cinder_actor_sample"))
+	var before := binding.capture_beacon_traversal_session()
+	var visible := binding.get_activity_snapshot(&"beacon_traversal")
+	var payload := store.get_snapshot()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var receipts := _receipts(first)
+	_check(int(before.activities[0].progress.next_beacon_index) == (4 if paid else 1)
+		and before.activities[0].reward_granted == paid and receipts == (1 if paid else 0),
+		"the reset starts from a genuinely saved active cursor or paid completion")
+	fault.reject_all = true
+	_button(first, 3).emit_signal("pressed")
+	if _button(first, 3).text == "CONFIRM RESET":
+		_button(first, 3).emit_signal("pressed")
+	_check(binding.capture_beacon_traversal_session() == before
+		and binding.get_activity_snapshot(&"beacon_traversal") == visible,
+		"refused Reset preserves the exact live cursor, paid acknowledgement and presentation")
+	_check(FileAccess.get_file_as_bytes(path) == bytes and store.get_snapshot() == payload
+		and _receipts(first) == receipts,
+		"refused Reset preserves durable bytes, receipts, settings and unrelated data")
+	await _dispose(first)
+	var retry_fault := FaultFilesystem.new()
+	retry_fault.reject_rewards = false
+	var second := await _game(path, retry_fault)
+	var second_binding := await _binding(second)
+	_check(second_binding.capture_beacon_traversal_session() == before and _receipts(second) == receipts,
+		"fresh Main restores the unchanged active or paid route after refused Reset")
+	# Exercise publication with failed directory sync for the paid variant.
+	retry_fault.fail_published_reset_sync = paid
+	_button(second, 3).emit_signal("pressed")
+	if _button(second, 3).text == "CONFIRM RESET":
+		_button(second, 3).emit_signal("pressed")
+	var reset := second_binding.capture_beacon_traversal_session()
+	_check(int(reset.activities[0].state) == Beacon.State.RESET
+		and int(reset.activities[0].generation) == int(before.activities[0].generation)
+		and not reset.activities[0].reward_requested and _receipts(second) == receipts,
+		"ordinary writable retry publishes RESET at the same generation, including a real postpublication sync refusal")
+	var second_payload: Dictionary = second.get("_runtime_settings_user_data_store").get_snapshot()
+	_check(second_payload.runtime_settings == payload.runtime_settings
+		and second_payload.beacon_reset_unrelated == payload.beacon_reset_unrelated
+		and second_payload.get("game_flow_reward_store") == payload.get("game_flow_reward_store"),
+		"committed Reset preserves settings, unrelated data and the exact reward ledger")
+	await _dispose(second)
+	var third := await _game(path, UserDataFilesystem.new())
+	var third_binding := await _binding(third)
+	_check(third_binding.capture_beacon_traversal_session() == reset and _receipts(third) == receipts,
+		"another fresh Main restores the committed same-generation RESET without new entitlement")
+	third.active_ship.global_position = third.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+	_button(third, 2).emit_signal("pressed")
+	var started := third_binding.get_activity_snapshot(&"beacon_traversal")
+	_check(started.state_id == &"active" and int(started.generation) == int(before.activities[0].generation) + 1
+		and _receipts(third) == receipts, "the next genuine Start advances generation exactly once after reset recovery")
+	await _dispose(third)
 
 func _published_payment_retry() -> void:
 	var path := "user://beacon_published_payment_%d.json" % Time.get_ticks_usec()

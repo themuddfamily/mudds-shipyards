@@ -58,12 +58,24 @@ func request_reward() -> Dictionary:
 	return result
 
 
-func reset() -> Dictionary:
+## Prepare the exact reset without changing the live route or its paid flag.
+func preview_reset() -> Dictionary:
 	if _state == State.IDLE:
 		return _result(false, &"already_idle")
-	_state = State.RESET
-	_next_index = 0
-	_reward_requested = false
+	var result := _result(true, &"reset")
+	result.state = State.RESET
+	result.next_beacon_index = 0
+	result.reward_requested = false
+	return result
+
+
+func reset() -> Dictionary:
+	var prepared := preview_reset()
+	if not prepared.accepted:
+		return prepared
+	_state = prepared.state
+	_next_index = prepared.next_beacon_index
+	_reward_requested = prepared.reward_requested
 	return _result(true, &"reset")
 
 
