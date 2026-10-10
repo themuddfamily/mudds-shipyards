@@ -25,10 +25,19 @@ Executable SHA256:
 Archive SHA256:
 `9869f2d783a936d69d7440c901d61cc704ebb92713dd47153b4e727c25a3743f`.
 
-These checks use Linux/WSL headless execution and Dummy audio. Native GPU,
-physical devices, human review, complete regression and this archive's desktop
-helper execution remain NOT_RUN. Windows package and installer qualification
-are separate; this publication does not close a roadmap phase or completion task.
+These game checks use Linux/WSL headless execution and Dummy audio. Native GPU,
+physical devices and human review remain NOT_RUN; complete current regression
+is running separately. Windows package and installer qualification are separate;
+this publication does not close a roadmap phase or completion task.
+
+The actual published archive's `install-desktop-entry.sh` now passes install,
+reinstall, uninstall and repeated uninstall in private XDG directories, including
+an extraction path containing spaces. Each invocation exits 0 and is reaped.
+The generated entry resolves the exact archived executable, working directory
+and icon; reinstall preserves identical entry bytes. Uninstall leaves seeded
+private saves/settings intact. HOME and all published executable/archive/notes
+bytes and modes remain unchanged; the temporary profile is removed. No game or
+shortcut is launched, so real graphical desktop launch remains NOT_RUN.
 
 Retained soak history: the subsequent controlled twelve-cycle source run on
 `b3de8e299` failed with seven diagnostics (60/67 executed checks), while the
