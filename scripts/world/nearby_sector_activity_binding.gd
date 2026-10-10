@@ -1316,6 +1316,12 @@ func reenter_station_defense_reward(attachment_generation: int) -> Dictionary:
 func start_mining_activity(caller_position: Vector3) -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
+	if _mining_capacity_persistence != null:
+		var admission := _mining_capacity_persistence.call(&"load_authoritative_store") as Dictionary
+		if not bool(admission.get("accepted", false)):
+			_last_mining_capacity_persistence_result = admission.duplicate(true)
+			_publish_mining_presentation()
+			return admission
 	if _has_pending_mining_capacity_receipt():
 		return _result(false, &"mining_capacity_save_pending")
 	var result: Dictionary = _mining_activity.call("start", caller_position)
@@ -1515,6 +1521,12 @@ func _has_pending_mining_capacity_receipt() -> bool:
 func reset_mining_activity() -> Dictionary:
 	if _mining_activity == null:
 		return _result(false, &"not_ready")
+	if _mining_capacity_persistence != null:
+		var admission := _mining_capacity_persistence.call(&"load_authoritative_store") as Dictionary
+		if not bool(admission.get("accepted", false)):
+			_last_mining_capacity_persistence_result = admission.duplicate(true)
+			_publish_mining_presentation()
+			return admission
 	if _has_pending_mining_capacity_receipt():
 		return _result(false, &"mining_capacity_save_pending")
 	var result: Dictionary = _mining_activity.call("reset")
