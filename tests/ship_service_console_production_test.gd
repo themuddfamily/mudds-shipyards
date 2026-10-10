@@ -1,5 +1,7 @@
 extends SceneTree
 
+## test-matrix-display: input-only
+
 ## Focused production route for the Phase 6 dockside kit loop. It uses the live
 ## Main station console, production Player, production Jovian, public crew-role
 ## admission, and the craft's existing RepairAuthority; no alternate inventory
@@ -451,6 +453,9 @@ func _check(condition: bool, message: String) -> void:
 
 
 func _finish() -> void:
+	Input.action_release(&"move_forward")
+	Input.action_release(&"interact")
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if _failures.is_empty():
 		print("SHIP_SERVICE_CONSOLE_PRODUCTION_TEST_OK: %d assertions" % _assertions)
 		quit(0)
