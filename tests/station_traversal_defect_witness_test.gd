@@ -747,7 +747,11 @@ func _test_cinder_boarding_positions_from_real_spawn(
 			# Through the container row's gap, then round the resting hauler's
 			# nose to its stepped-out port boarding position.
 			Vector3(-2.4, 0.0, 0.5), Vector3(-9.0, 0.0, 0.5),
-			Vector3(-12.0, 0.0, 2.0), Vector3(-20.55, 0.0, 2.0),
+			# Round the deployed ramp's low toe before turning up its slope.
+			# Crossing at -20.55 approaches the raised side face, whose tread
+			# exceeds the capsule's ordinary 0.30 m step at that point.
+			Vector3(-12.0, 0.0, 2.0), Vector3(-21.8, 0.0, 2.0),
+			Vector3(-21.8, 0.0, -5.0),
 			Vector3(-20.55, 0.0, -5.0),
 		]),
 	}
