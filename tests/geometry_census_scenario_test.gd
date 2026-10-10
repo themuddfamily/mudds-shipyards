@@ -377,13 +377,13 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Refrozen 2026-10-10 from the combined Salvage source run: +13,353 triangles,
 # +12 renderers/surfaces/unique meshes/bound and retained materials, +29 nodes
 # in both scenarios. Lights and the exact streamed Cinder roster/delta stay fixed.
-# Packed fingerprints below remain the prior baseline and are NOT qualified
-# for this content. The existing packed +2 local-sky material expectation is
-# retained; new packed measurements and acceptance are still NOT_RUN.
+# Packed fingerprints refrozen from the actual 96397ab PCK measurement:
+# every count, the exact +2 local skies and Cinder delta matched; only the two
+# old fingerprints failed. Revised packed-suite acceptance remains pending.
 const RESIDENT_FINGERPRINT := "f3cc07891e10993456c6f6a46557b6d7ea9da42379075b1ae1c48d7a7c09b374"
 const CINDER_LOADED_FINGERPRINT := "9732a7cd53bc5af2ad7ab8787a1613c919737e695cf72e8b3668fd8fa51607f6"
-const PACKED_RESIDENT_FINGERPRINT := "e6f14c8e7f6999e82c3eadc46d5d904dedc1e9c7aa527936aa32c256df6065d0"
-const PACKED_CINDER_LOADED_FINGERPRINT := "c9f60ab85a4ae57ee56a2180e7a6674073d99c1e2e58a03df8a69285ae487ee0"
+const PACKED_RESIDENT_FINGERPRINT := "906e4f9fc47f328fe7a6492469b16c38746eae22825c1e427201b2fb734d3150"
+const PACKED_CINDER_LOADED_FINGERPRINT := "d249d7bc080b51d7ff5e128adfae4f20bf8e53bfde9a0a63c8c22015dcf6433a"
 
 var _assertions := 0
 var _failures := PackedStringArray()
