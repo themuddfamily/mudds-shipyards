@@ -154,6 +154,22 @@ func _test_derived_opponent_weapon_profiles() -> void:
 	var presentation := await _make_presentation()
 	if presentation == null:
 		return
+	var quiet_source := 9099
+	_check(presentation.play_opponent_weapon_impact(Vector3(4.0, 2.0, -8.0), quiet_source,
+		CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE),
+		"an unheard lance source presents its explicit confirmed-impact profile")
+	var quiet_impact := presentation.get_state_snapshot()
+	_check(quiet_impact.last_cue_id == CombatAudioPresentation.CUE_IMPACT_HEAVY
+		and quiet_impact.last_semantic_cue_id == CombatAudioPresentation.SEMANTIC_SIEGE_LANCE_IMPACT
+		and int(quiet_impact.profiled_source_count) == 0,
+		"explicit lance impact uses the shared heavy voice without remembering a fire profile")
+	_check(presentation.play_impact(Vector3.ZERO, 0.9, quiet_source)
+		and presentation.get_state_snapshot().last_weapon_profile_id == CombatAudioPresentation.WEAPON_PROFILE_STANDARD,
+		"explicit impact leaves the generic source's later impact profile unchanged")
+	var quiet_count := int(presentation.get_state_snapshot().cue_count)
+	_check(not presentation.play_opponent_weapon_impact(Vector3.ZERO, quiet_source, &"unknown_weapon")
+		and int(presentation.get_state_snapshot().cue_count) == quiet_count,
+		"an unknown explicit impact profile emits no cue")
 	var courier := COURIER_SCENE.instantiate() as CourierRunnerOpponent
 	var skirmisher := SKIRMISHER_SCENE.instantiate() as FlankingSkirmisherOpponent
 	var picket := PICKET_SCENE.instantiate() as StandoffPicketOpponent

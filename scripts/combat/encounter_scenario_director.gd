@@ -224,6 +224,7 @@ var _torpedo_boat: Node3D
 ## so belongs to sandbox FREE_FLIGHT rather than the guided engagement phase.
 var _board_sortie := false
 var _torpedo_run_network_suspended := false
+var _heavy_breach_network_suspended := false
 var _heavy_standoff_range := DEFAULT_HEAVY_STANDOFF_RANGE
 var _heavy_advance_health_ratio := DEFAULT_HEAVY_ADVANCE_HEALTH_RATIO
 var _regroup_range := DEFAULT_REGROUP_RANGE
@@ -249,7 +250,7 @@ func _exit_tree() -> void:
 func _physics_process(delta: float) -> void:
 	if not _is_current():
 		return
-	if _torpedo_run_network_suspended and _scenario == SCENARIO_TORPEDO_RUN:
+	if (_torpedo_run_network_suspended and _scenario == SCENARIO_TORPEDO_RUN) or (_heavy_breach_network_suspended and _scenario == SCENARIO_HEAVY_BREACH):
 		return
 	if not enabled or not is_finite(delta) or delta < 0.0:
 		return
@@ -427,7 +428,7 @@ func get_roster() -> Array[Node3D]:
 func is_fire_authorized(member: Node) -> bool:
 	if not _is_current():
 		return false
-	if _torpedo_run_network_suspended and _scenario == SCENARIO_TORPEDO_RUN:
+	if (_torpedo_run_network_suspended and _scenario == SCENARIO_TORPEDO_RUN) or (_heavy_breach_network_suspended and _scenario == SCENARIO_HEAVY_BREACH):
 		return false
 	if _state != STATE_RUNNING:
 		return false
@@ -612,6 +613,12 @@ func set_torpedo_run_network_suspended(enabled: bool) -> void:
 	_torpedo_run_network_suspended = enabled
 
 
+## Preserve the retained solo breach timer and dispatch while a client draws
+## only host lance records. The picket independently releases local authority.
+func set_heavy_breach_network_suspended(enabled: bool) -> void:
+	_heavy_breach_network_suspended = enabled
+
+
 ## Explicit admission for the caller-owned defense anchor. The director retains
 ## only the live Node identity for scenario distance/loss observations and never
 ## mutates its transform, health, collision, ownership, or lifecycle.
@@ -726,7 +733,7 @@ func _begin_scenario(
 	) -> bool:
 	if not _is_current():
 		return false
-	if _torpedo_run_network_suspended and scenario_id == SCENARIO_TORPEDO_RUN:
+	if (_torpedo_run_network_suspended and scenario_id == SCENARIO_TORPEDO_RUN) or (_heavy_breach_network_suspended and scenario_id == SCENARIO_HEAVY_BREACH):
 		return false
 	# An unknown identifier is refused by return value rather than by an engine
 	# diagnostic: `get_validation_errors()` already names an unrecognised entry

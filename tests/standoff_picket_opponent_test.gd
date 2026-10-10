@@ -1058,6 +1058,27 @@ func _test_charge_locked_aim() -> void:
 		"the retained twin rails expose the committed resolver line during the charge"
 	)
 
+	var activation_before_join := picket._activation_generation
+	var pose_before_join := picket.global_transform
+	picket.set_network_presentation_only(true)
+	picket._physics_process(10.0)
+	picket._process(10.0)
+	var sequence_before_join_fire := resolver.get_last_sequence(picket, picket.source_id)
+	picket._fire_at_target(initial_aim)
+	_check(picket.get_lance_charge_snapshot() == locked
+		and picket._activation_generation == activation_before_join
+		and picket.global_transform == pose_before_join
+		and not picket.visible and picket.collision_layer == 0
+		and not picket.is_combat_source_registered()
+		and resolver.get_last_sequence(picket, picket.source_id) == sequence_before_join_fire
+		and not bool(picket.activate_with_result(pose_before_join).get("accepted", true))
+		and not bool(picket.get_lance_bolt_snapshot().get("built", true)),
+		"joining suspends an armed solo picket without firing, allocating a pool or changing its charge/activation/target")
+	picket.set_network_presentation_only(false)
+	_check(picket.get_lance_charge_snapshot() == locked and picket.visible
+		and picket.is_combat_source_registered() and picket._is_fire_authorized()
+		and picket.collision_layer != 0 and cue.visible,
+		"disconnect restores the same armed solo lance and targeting rails")
 	# Move far enough sideways to clear both the original target collider and the
 	# old homing hold cone. From here onward only the real production physics loop
 	# advances the attitude, charge and irreversible resolver dispatch.

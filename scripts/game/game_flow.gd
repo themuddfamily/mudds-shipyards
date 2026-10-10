@@ -1550,6 +1550,7 @@ func host_network_session(
 	_network_session_retry_mode = &"server"
 	_set_station_defense_network_presentation_only(false)
 	_set_torpedo_boat_network_presentation_only(false)
+	_set_standoff_picket_network_presentation_only(false)
 	_network_session_port = port
 	_network_session_max_clients = max_clients
 	var result := session.host(port, max_clients)
@@ -1579,6 +1580,7 @@ func join_network_session(
 	_network_session_retry_mode = &"client"
 	_set_station_defense_network_presentation_only(true)
 	_set_torpedo_boat_network_presentation_only(true)
+	_set_standoff_picket_network_presentation_only(true)
 	_network_session_address = address
 	_network_session_port = port
 	var result := session.join(address, port)
@@ -1642,6 +1644,7 @@ func _settle_refused_network_start(session: NetworkSessionAdapterType) -> void:
 	_network_session_mode = &""
 	_set_station_defense_network_presentation_only(false)
 	_set_torpedo_boat_network_presentation_only(false)
+	_set_standoff_picket_network_presentation_only(false)
 
 
 ## The role to name for a session that has ended: the live one if a session is
@@ -6902,6 +6905,7 @@ func _on_network_session_started(mode: StringName) -> void:
 	_network_hud_migration_generation = 0
 	_set_station_defense_network_presentation_only(mode == &"client")
 	_set_torpedo_boat_network_presentation_only(mode == &"client")
+	_set_standoff_picket_network_presentation_only(mode == &"client")
 	if mode == &"client":
 		_network_craft_pose_stream.bind_replica_craft_presentations(ships)
 	for craft: HeroShip in ships:
@@ -6966,6 +6970,7 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_player_pulse_network_active_shots.clear()
 	_set_station_defense_network_presentation_only(false)
 	_set_torpedo_boat_network_presentation_only(false)
+	_set_standoff_picket_network_presentation_only(false)
 	if _network_session_mode == &"client":
 		_clear_bomber_payload_replica_presentation()
 		_clear_player_pulse_replica_presentation()
@@ -7042,6 +7047,17 @@ func _resume_cinder_convoy_solo_threat() -> void:
 	if not cinder_convoy_threat.start(generation) \
 			or not cinder_convoy_threat.restore_persistence_state(saved, generation):
 		_fail_active_activity(&"convoy_threat_restore_failed")
+
+
+func _set_standoff_picket_network_presentation_only(enabled: bool) -> void:
+	var director := get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	if is_instance_valid(director):
+		director.set_heavy_breach_network_suspended(enabled)
+	var picket := get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent
+	if is_instance_valid(picket):
+		picket.set_network_presentation_only(enabled)
+	if not enabled:
+		_bind_standoff_picket_bolts_for_network()
 
 
 func _set_torpedo_boat_network_presentation_only(enabled: bool) -> void:
@@ -7584,6 +7600,7 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			_network_session_mode = &"client"
 			_network_session_retry_mode = &"client"
 			_set_torpedo_boat_network_presentation_only(true)
+			_set_standoff_picket_network_presentation_only(true)
 			_apply_lan_endpoint_for_join(session_id)
 			var started := session.consume_join_intent(
 				intent.get("intent", {}) as Dictionary,
@@ -7608,6 +7625,7 @@ func _handle_server_browser_intent(payload: Dictionary) -> void:
 			_network_session_retry_mode = &"client"
 			_set_station_defense_network_presentation_only(true)
 			_set_torpedo_boat_network_presentation_only(true)
+			_set_standoff_picket_network_presentation_only(true)
 			var joined := session.consume_direct_connect_intent(direct_connect_intent)
 			_settle_refused_network_start(session)
 			if bool(joined.get("accepted", false)):
@@ -11199,8 +11217,8 @@ func _ensure_network_remote_projectile_replicator() -> NetworkRemoteProjectileRe
 	return _network_remote_projectile_replicator
 
 
-## Host: keeps the replicator observing the player mass-driver pool and the
-## torpedo boat's seeker pool and Emberline raider pool, then advances it.
+## Host: observes player mass-driver slugs, picket lances, torpedo boat seekers
+## and Emberline raider bolts, then advances their presentation channel.
 func _advance_network_remote_projectiles() -> void:
 	if not is_instance_valid(network_session) or not network_session.is_server():
 		return
@@ -11210,6 +11228,7 @@ func _advance_network_remote_projectiles() -> void:
 			_player_bolt_pool, NetworkRemoteProjectileReplicatorType.KIND_SLUG, &"player-mass-driver"
 		)
 	_observe_cinder_convoy_bolts_for_network()
+	_bind_standoff_picket_bolts_for_network()
 	var torpedo_boat := get_node_or_null(^"TorpedoBoat") as TorpedoBoatOpponent
 	if is_instance_valid(torpedo_boat):
 		var torpedoes := torpedo_boat.get_torpedo_pool()
@@ -11218,6 +11237,28 @@ func _advance_network_remote_projectiles() -> void:
 				torpedoes, NetworkRemoteProjectileReplicatorType.KIND_TORPEDO, &"torpedo-boat"
 			)
 	replicator.advance_host()
+
+
+## Bind the lazy pool signal before the host's first lance launch. A retained
+## offline pool is observed without allocating one for a dormant picket.
+func _bind_standoff_picket_bolts_for_network() -> void:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) or not network_session.is_server():
+		return
+	var picket := get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent
+	if not is_instance_valid(picket):
+		return
+	_connect_signal_once(picket, &"lance_bolt_pool_ready", _on_standoff_picket_bolt_pool_ready)
+	var pool := picket.get_lance_bolt_pool()
+	if is_instance_valid(pool):
+		_on_standoff_picket_bolt_pool_ready(pool, picket.get_lance_source_generation())
+
+
+func _on_standoff_picket_bolt_pool_ready(pool: TravellingBoltProjectile, source_generation: int) -> void:
+	if _network_session_mode != &"server" or not is_instance_valid(network_session) or not network_session.is_server():
+		return
+	_ensure_network_remote_projectile_replicator().observe_pool(
+		pool, NetworkRemoteProjectileReplicatorType.KIND_LANCE, &"standoff-picket", source_generation
+	)
 
 
 ## Attach before convoy launch (including restored/offline pools), on the same
@@ -11256,7 +11297,7 @@ func _publish_network_remote_projectile(
 	return published
 
 
-## Client: presents one replicated slug or torpedo record.
+## Client: presents one replicated slug, lance, raider bolt or torpedo record.
 func _present_network_remote_projectile(packet: Dictionary, result: Dictionary) -> Dictionary:
 	var lifecycle := network_session.get_projectile_replica_lifecycle_snapshot()
 	var projectile := packet.get("projectile", {}) as Dictionary
@@ -11271,6 +11312,21 @@ func _present_network_remote_projectile(packet: Dictionary, result: Dictionary) 
 		return {"accepted": false, "status": &"invalid_remote_projectile_record"}
 	var replicator := _ensure_network_remote_projectile_replicator()
 	var presented := replicator.present_packet(packet, StringName(result.get("status", &"")))
+	var lance := StringName(descriptor.get("kind", &"")) == NetworkRemoteProjectileReplicatorType.KIND_LANCE \
+		and StringName(projectile.get("source_entity_id", &"")) == &"standoff-picket"
+	if lance and bool(presented.get("accepted", false)) and is_instance_valid(combat_audio):
+		if presented.get("status") == &"remote_projectile_presented" \
+				and bool(result.get("first_admission", false)) and launch:
+			combat_audio.play_opponent_weapon_fire(
+				projectile.get("position") as Vector3, get_instance_id(),
+				CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE
+			)
+		elif presented.get("status") == &"remote_projectile_terminal_presented" \
+				and StringName((projectile.get("terminal_intent", {}) as Dictionary).get("kind", &"")) == &"impact":
+			combat_audio.play_opponent_weapon_impact(
+				projectile.get("position") as Vector3, get_instance_id(),
+				CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE
+			)
 	if bool(presented.get("accepted", false)) \
 			and presented.get("status") == &"remote_projectile_presented" \
 			and bool(result.get("first_admission", false)) and launch \

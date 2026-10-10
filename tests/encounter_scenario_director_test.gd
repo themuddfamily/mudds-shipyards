@@ -878,6 +878,26 @@ func _test_heavy_breach_picket_and_screen_objective() -> void:
 			and bool(screen_intent.fire_authorized),
 		"the generation-owned picket charges the protected objective while its paired wing screens the caller"
 	)
+	var retained_elapsed := director._elapsed
+	var retained_arming := director._arming_elapsed
+	var retained_charge := picket.get_lance_charge_snapshot()
+	director.set_heavy_breach_network_suspended(true)
+	picket.set_network_presentation_only(true)
+	director._physics_process(director.scenario_time_limit + 1.0)
+	picket._physics_process(10.0)
+	_check(director.get_state() == EncounterScenarioDirector.STATE_RUNNING
+		and director.get_scenario_generation() == generation
+		and is_equal_approx(director._elapsed, retained_elapsed)
+		and is_equal_approx(director._arming_elapsed, retained_arming)
+		and picket.get_lance_charge_snapshot() == retained_charge
+		and not director.is_picket_dispatch_authorized(picket, generation)
+		and not picket.is_combat_source_registered(),
+		"client suspension retains the breach timer, dispatch generation and picket charge without local authority")
+	director.set_heavy_breach_network_suspended(false)
+	picket.set_network_presentation_only(false)
+	_check(director.is_picket_dispatch_authorized(picket, generation)
+		and picket.is_combat_source_registered() and picket.visible,
+		"disconnect restores the same solo breach dispatch and usable picket authority")
 	var resolver: CombatResolver = (fixture.authority as LiveCombatAuthority).get_resolver()
 	var sequence_before := resolver.get_last_sequence(picket, picket.source_id)
 	var protected_health_before := protected.get_health()
