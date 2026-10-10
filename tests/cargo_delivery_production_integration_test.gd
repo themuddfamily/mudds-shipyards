@@ -902,8 +902,15 @@ func _test_cargo_fallback_refusal(active: PackedByteArray, unpaid: PackedByteArr
 			var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY)
 			var started := game.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
 			var reset := game.reset_active_activity()
-			_check(bool(selected.accepted) and not bool(started.accepted) and not reset
+			var after_selection := game.get_activity_integration_report()
+			_check(not bool(selected.accepted) and selected.reason == &"outgoing_family_save_rejected"
+				and after_selection.selected_activity_kind == report.selected_activity_kind
+				and after_selection.active_activity_id == report.active_activity_id
+				and not bool(started.accepted) and started.reason == &"unsupported_activity" and not reset
 				and game.cargo_delivery_activity.capture_persistence_state() == before
+				and after_selection.cargo_source_manifest == report.cargo_source_manifest
+				and after_selection.cargo_destination_manifest == report.cargo_destination_manifest
+				and (game.get("_owed_game_flow_activity_rewards") as Array).is_empty()
 				and _cargo_recovery_artifacts(path) == artifacts,
 				"ordinary cargo selection, Start and Reset cannot adopt fallback progress or publish a reset")
 			var authority := game.get("_game_flow_reward_authority") as GameFlowRewardAuthority
@@ -913,7 +920,7 @@ func _test_cargo_fallback_refusal(active: PackedByteArray, unpaid: PackedByteArr
 			print("JOVIAN_FALLBACK_REFUSAL ", {"kind": kind, "attempt": attempt,
 				"restored_state": game.cargo_delivery_activity.get_state(),
 				"restore": game.get("_jovian_cargo_session_restore_status"),
-				"start": started, "reset": reset, "payment": payment, "source": shared.get_loaded_source()})
+				"selection": selected, "start": started, "reset": reset, "payment": payment, "source": shared.get_loaded_source()})
 			_check(not payment.accepted and payment.reason == &"reward_store_recovery_required"
 				and game.cargo_delivery_activity.capture_persistence_state() == before
 				and _cargo_receipts(game) == before_receipts and shared.get_loaded_source() == &"backup"
