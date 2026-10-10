@@ -782,6 +782,36 @@ func _test_operations_contents(module: AftJunctionStack) -> void:
 	var service_wall := module.get_service_wall()
 	_check(service_wall != null and bool(service_wall.get_meta("station_service_wall", false)), "service wall is present and semantically tagged")
 
+	var room := module.get_node(^"Structure/OperationsRoom") as Node3D
+	var sign := room.get_node_or_null(^"Sign_AFT_OPERATIONS") as MeshInstance3D
+	_check(sign != null and sign.mesh is TextMesh and (sign.mesh as TextMesh).text == "AFT OPERATIONS",
+		"operations room retains its existing room-name cue")
+	if sign == null or not sign.mesh is TextMesh:
+		return
+	var module_from_world := module.global_transform.affine_inverse()
+	var sign_in_module := module_from_world * sign.global_transform
+	var glyph_bounds := sign_in_module * sign.get_aabb()
+	_check(sign_in_module.basis.z.normalized().dot(Vector3.BACK) > 0.999,
+		"operations room-name glyph fronts face occupants on the room side of the south wall")
+	var wall := room.get_node(^"SouthWallDoorPocket/Collision") as CollisionShape3D
+	var wall_size := (wall.shape as BoxShape3D).size
+	var wall_bounds := module_from_world * wall.global_transform * AABB(-wall_size * 0.5, wall_size)
+	var ceiling := room.get_node(^"OperationsCeiling/Collision") as CollisionShape3D
+	var ceiling_size := (ceiling.shape as BoxShape3D).size
+	var ceiling_bounds := module_from_world * ceiling.global_transform * AABB(-ceiling_size * 0.5, ceiling_size)
+	_check(glyph_bounds.position.z > wall_bounds.end.z + 0.01,
+		"complete room-name glyph depth stands clear of the room-facing wall")
+	var board := room.get_node(^"OperationsContent/ModuleStatusBoard") as Node3D
+	var board_top := -INF
+	for raw_mesh in board.find_children("*", "MeshInstance3D", true, false):
+		var mesh := raw_mesh as MeshInstance3D
+		var bounds := module_from_world * mesh.global_transform * mesh.get_aabb()
+		board_top = maxf(board_top, bounds.end.y)
+	_check(is_finite(board_top) and glyph_bounds.position.y > board_top + 0.05,
+		"complete room-name glyph height clears the existing status board and its top border")
+	_check(glyph_bounds.end.y < wall_bounds.end.y and glyph_bounds.end.y < ceiling_bounds.position.y,
+		"room-name glyphs fit below the south-wall crown and ceiling")
+
 
 func _test_manufactured_material_roles(module: AftJunctionStack) -> void:
 	var materials := module.get("_materials") as Dictionary

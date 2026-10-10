@@ -4140,7 +4140,8 @@ func _build_operations_chairs(room: Node3D) -> void:
 
 
 func _build_operations_sign(room: Node3D) -> void:
-	_text_sign(room, "AFT OPERATIONS", Vector3(7.2, 3.7, 9.31), Vector3(0, 180, 0), 0.29, _materials["cyan"])
+	# Face the room (+Z), proud of the south wall and above the status-board rail.
+	_text_sign(room, "AFT OPERATIONS", Vector3(6.9, 4.10, 9.335), Vector3.ZERO, 0.29, _materials["cyan"])
 	# A lit sign that does not light the wall it hangs on is a sticker. This is a
 	# wide, weak wash placed a little in front of and below the legend, so the
 	# bulkhead behind it carries a gradient the sign sits inside.
@@ -5508,7 +5509,7 @@ func _build_vip_landmark(structure: Node3D) -> void:
 	# MAP-004 family. The legend sits at z = 19.96, in front of the facade panels
 	# (z = 20.12 …) on the -Z side of the landmark, and was authored with
 	# `Vector3.ZERO`, so it read backwards to anyone walking aft towards it. Yawed
-	# to the reader; `AFT OPERATIONS` in the same module already does this.
+	# to the -Z approach; the Aft Operations legend faces its room on +Z.
 	# MAP-004 family, plus a second defect found only by photographing it. The
 	# legend was authored with `Vector3.ZERO`, so it read backwards; and it stood
 	# at z = 19.96 while `VIPAccess/FrameVisuals/Header` — the door frame added
