@@ -42,6 +42,7 @@ const RuntimeSettingsRepairBindingType := preload(
 	"res://scripts/persistence/runtime_settings_repair_binding.gd"
 )
 const UserDataStoreType := preload("res://scripts/persistence/user_data_store.gd")
+const SalvageInspectionStationType := preload("res://scripts/world/salvage_inspection_station.gd")
 const PlanetarySaveSessionContractType := preload(
 	"res://scripts/world/planetary_save_session_contract.gd"
 )
@@ -6641,6 +6642,7 @@ func _connect_runtime_signals() -> void:
 	_bind_ship_service_console()
 	_bind_fleet_registry_console()
 	_bind_heavy_breach_activity_board()
+	_bind_salvage_inspection_persistence()
 	_connect_signal_once(
 		combat_authority,
 		&"authoritative_shot_submitted",
@@ -8721,6 +8723,75 @@ func _bind_heavy_breach_activity_board() -> void:
 		&"snapshot_changed",
 		_on_heavy_breach_board_snapshot_changed
 	)
+
+
+## The authored inspection loop shares the existing atomic user-data document.
+## Its controls own observations; this coordinator only retains their save slot.
+func _bind_salvage_inspection_persistence() -> void:
+	var station := _get_salvage_inspection_station()
+	if station != null and _runtime_settings_user_data_store != null:
+		var owner: WeakRef = weakref(station)
+		station.configure_persistence(
+			Callable(self, &"_read_salvage_inspection_record").bind(owner),
+			Callable(self, &"_write_salvage_inspection_record").bind(owner)
+		)
+
+
+func _get_salvage_inspection_station() -> SalvageInspectionStationType:
+	if not is_inside_tree() or is_queued_for_deletion() or not is_instance_valid(world) \
+			or not world.is_inside_tree() or world.is_queued_for_deletion():
+		return null
+	var station := world.get_node_or_null(^"SalvageInspectionStation") as SalvageInspectionStationType
+	return station if is_instance_valid(station) and station.is_inside_tree() \
+		and not station.is_queued_for_deletion() else null
+
+
+func _read_salvage_inspection_record(slot: String, owner: WeakRef) -> Dictionary:
+	var current := _get_salvage_inspection_station()
+	if slot != SalvageInspectionStationType.PERSISTENCE_SLOT \
+			or current == null or owner == null or owner.get_ref() != current \
+			or _runtime_settings_user_data_store == null:
+		return {"accepted": false, "reason": &"inspection_store_unavailable"}
+	# Inspection cannot select a recovered backup as current or quarantine a
+	# damaged primary. The existing explicit save-repair flow owns recovery.
+	var loaded := _runtime_settings_user_data_store.load_read_only()
+	if not bool(loaded.get("accepted", false)) \
+			or _runtime_settings_user_data_store.get_loaded_source() not in [&"primary", &"empty"]:
+		return {"accepted": false, "reason": &"inspection_store_recovery_required"}
+	var record: Variant = _runtime_settings_user_data_store.get_snapshot().get(slot, {})
+	if not SalvageInspectionStationType.is_valid_persistence_record(record):
+		return {"accepted": false, "reason": &"unsupported_inspection_record"}
+	return {"accepted": true, "record": (record as Dictionary).duplicate(true)}
+
+
+func _write_salvage_inspection_record(slot: String, record: Dictionary, owner: WeakRef) -> Dictionary:
+	if record.is_empty() or not SalvageInspectionStationType.is_valid_persistence_record(record):
+		return {"accepted": false, "reason": &"invalid_inspection_record"}
+	# Reload the current envelope for every transaction, so another activity's
+	# accepted save cannot be replaced by the inspector's earlier snapshot.
+	var prior := _read_salvage_inspection_record(slot, owner)
+	if not bool(prior.get("accepted", false)):
+		return prior
+	var current: Dictionary = prior.record
+	for component_id in current.get("inspected", []):
+		if not (record.inspected as Array).has(component_id):
+			return {"accepted": false, "reason": &"inspection_record_regressed"}
+	if bool(current.get("manifest_published", false)) and not bool(record.manifest_published):
+		return {"accepted": false, "reason": &"inspection_manifest_regressed"}
+	if current == record:
+		return {"accepted": true, "reason": &"inspection_unchanged"}
+	var payload := _runtime_settings_user_data_store.get_snapshot()
+	payload[slot] = record.duplicate(true)
+	var generation := _runtime_settings_user_data_store.get_generation()
+	var saved := _runtime_settings_user_data_store.commit(
+		payload, generation, "salvage-inspection-%010d" % (generation + 1)
+	)
+	if bool(saved.get("accepted", false)):
+		_runtime_settings_commit_serial = maxi(
+			_runtime_settings_commit_serial, _runtime_settings_user_data_store.get_generation()
+		)
+		_sync_production_runtime_settings_state()
+	return saved
 
 
 func _on_heavy_breach_board_snapshot_changed(snapshot: Dictionary) -> void:
