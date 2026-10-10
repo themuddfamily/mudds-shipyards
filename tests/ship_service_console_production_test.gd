@@ -247,7 +247,8 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 			readability_clear = readability_clear \
 					and annex.to_local(text_part.global_position).x < bar_face - 0.01
 	_check(
-		readability_clear and annex.to_local(header.global_position).distance_to(
+		readability_clear and _service_labels_fit_control(annex, header, status)
+			and annex.to_local(header.global_position).distance_to(
 			Vector3(5.06, 1.48, 7.55)) < 0.01,
 		"all service readability sits aisleward of the authored control and opaque status bar"
 	)
@@ -286,6 +287,8 @@ func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
 		_kit_units(jovian) == 6 and str(presented.status_text).contains("RESTOCKED")
 			and str(presented.status_text).contains("JOVIAN-CLASS LIGHT FREIGHTER")
 			and str(presented.status_text).contains("KITS 6/6")
+			and status.text == presented.status_text
+			and _service_labels_fit_control(annex, header, status)
 			and int(presented.presentation_sequence) == int(annex_before.presentation_sequence) + 1
 			and (aft.call(&"get_presentation_snapshot") as Dictionary) == aft_before,
 		"one ordinary annex E restocks the selected craft and paints only its origin once"
@@ -483,6 +486,29 @@ func _press_interact() -> void:
 
 func _kit_units(jovian: HeroShip) -> int:
 	return int((jovian.call(&"get_engineer_repair_state") as Dictionary).get("resource_units", -1))
+
+
+func _service_labels_fit_control(annex: Node3D, header: Label3D, status: Label3D) -> bool:
+	if header == null or status == null:
+		return false
+	# Independent physical envelope: the authored FabricatorControl is centred
+	# at (5.24, 1.25, 7.55), 0.72 m high and 1.05 m wide along the annex Z axis.
+	var header_bottom := INF
+	var status_top := -INF
+	for label: Label3D in [header, status]:
+		var bounds := label.get_aabb()
+		if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
+			return false
+		for corner in 8:
+			var point := annex.to_local(label.to_global(bounds.get_endpoint(corner)))
+			if absf(point.z - 7.55) > 1.05 * 0.5 - 0.025 \
+					or absf(point.y - 1.25) > 0.72 * 0.5 - 0.025:
+				return false
+			if label == header:
+				header_bottom = minf(header_bottom, point.y)
+			else:
+				status_top = maxf(status_top, point.y)
+	return status_top < header_bottom - 0.01
 
 
 func _presentation_state(console: Area3D) -> Dictionary:

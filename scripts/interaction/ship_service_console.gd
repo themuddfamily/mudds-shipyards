@@ -20,6 +20,9 @@ const STATUS_POSITION := Vector3(0.0, 1.485, -0.285)
 const UNDERLINE_POSITION := Vector3(0.0, 1.480, -0.345)
 const HEADER_SCALE := 0.12
 const STATUS_SCALE := 0.055
+## Fits the narrower 1.05 m FabricatorControl with a margin on each side.
+## Wrapping keeps the complete result at its authored glyph size.
+const READOUT_WIDTH_METRES := 0.98
 const UNDERLINE_SIZE := Vector3(1.18, 0.014, 0.025)
 const GLYPH_RIGHT := Vector3.LEFT
 const GLYPH_UP := Vector3(0.0, 0.2079117, 0.9781476)
@@ -167,7 +170,7 @@ func _build_readability_visuals() -> void:
 	visuals.set_meta("presentation_only", true)
 	add_child(visuals)
 
-	var header := _readability_label(HEADER_TEXT, CYAN)
+	var header := _readability_label(HEADER_TEXT, CYAN, HEADER_SCALE)
 	header.name = "ShipServiceHeader"
 	header.position = HEADER_POSITION
 	header.basis = Basis(GLYPH_RIGHT, GLYPH_UP, FACE_NORMAL).scaled(
@@ -176,7 +179,7 @@ func _build_readability_visuals() -> void:
 	header.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	visuals.add_child(header)
 
-	_status_label = _readability_label(_status_text, AMBER)
+	_status_label = _readability_label(_status_text, AMBER, STATUS_SCALE)
 	_status_label.name = "ShipServiceStatus"
 	_status_label.position = STATUS_POSITION
 	_status_label.basis = Basis(GLYPH_RIGHT, GLYPH_UP, FACE_NORMAL).scaled(
@@ -196,13 +199,15 @@ func _build_readability_visuals() -> void:
 	visuals.add_child(underline)
 
 
-func _readability_label(text: String, color: Color) -> Label3D:
+func _readability_label(text: String, color: Color, authored_scale: float) -> Label3D:
 	# Atlas glyph quads keep dynamic feedback cheap without coarsening the
 	# station font, adding extrusion or changing the authored world em-height.
 	var label := Label3D.new()
 	label.text = text
 	label.font_size = SignGeometryBudget.FONT_SIZE
 	label.pixel_size = SignGeometryBudget.REFERENCE_EM_METRES / float(label.font_size)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.width = READOUT_WIDTH_METRES / (label.pixel_size * authored_scale)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.outline_size = 0
