@@ -229,7 +229,13 @@ func _run() -> void:
 			and not bool(jovian.get_telemetry().landed) and player.is_on_floor()
 			and jovian.get_moving_interior_component().is_occupant_registered(player), "normal flight and pilot leave preserve full standing body on actual moving cabin floor")
 		await _walk_toward(player, jovian, Vector3(-1.35, 0.60, -5.25))
-		await _look_toward(player, anchor.global_position + jovian.global_basis.y * 1.2)
+		await _look_toward(player, func() -> Vector3: return anchor.global_position + jovian.global_basis.y * 1.2)
+		var moving_chair := game.station_interaction_candidate as ShipCrewSeat
+		_check(moving_chair != null and moving_chair.get_ship() == jovian
+			and moving_chair.get_seat_anchor() == anchor
+			and player.get_nearby_interactables().has(moving_chair)
+			and player.is_on_floor() and player.is_control_enabled(),
+			"ordinary moving-cabin walk and live chair look discover the actual nearby engineer chair before Interact")
 		await _press_interact()
 		await _wait_until(func() -> bool: return bool(game.get_solo_crew_seat_status().seated), 3.0)
 		print("JOVIAN_MOVING_ADMISSION: local=", jovian.to_local(player.global_position), " velocity=", jovian.velocity, " floor=", player.is_on_floor(), " phase=", game.phase, " control=", player.is_control_enabled(), " candidate=", game.station_interaction_candidate)
@@ -265,7 +271,7 @@ func _run() -> void:
 			_check(JSON.parse_string(FileAccess.get_file_as_string(path)).get("payload", {}).get("runtime_settings", {}) == settings_before
 				and fresh_store.get_snapshot().get("cargo", {}) == {"sealed_manifest": ["retained freight"]}, "engineer recovery preserves unrelated settings and cargo namespaces")
 			await _walk_toward(fresh.player, craft, Vector3(-1.35, 0.60, -5.25))
-			await _look_toward(fresh.player, craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
+			await _look_toward(fresh.player, func() -> Vector3: return craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
 			await _press_interact()
 			await _wait_until(func() -> bool: return bool(fresh.get_solo_crew_seat_status().seated), 3.0)
 			var owner := craft.get_crew_role_authority()
@@ -283,7 +289,7 @@ func _run() -> void:
 				_check(not fresh.player.is_seated() and fresh.player.is_on_floor() and fresh.player.is_control_enabled()
 					and int(craft.get_engineer_repair_state().resource_units) == 6 and owner.get_snapshot().assignments.is_empty(),
 					"ordinary midrepair stand cancels owned work before .4s commit without consuming a kit")
-				await _look_toward(fresh.player, craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
+				await _look_toward(fresh.player, func() -> Vector3: return craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
 				await _press_interact()
 				await _wait_until(func() -> bool: return bool(fresh.get_solo_crew_seat_status().seated), 3.0)
 				owner = craft.get_crew_role_authority()
@@ -306,7 +312,7 @@ func _run() -> void:
 						and not bool(craft.get_engineer_repair_state().active), "retiring local Player cleanup and held FIRE cannot claim or repair through replacement owner")
 					replacement.release(1, 2, &"foreign_engineer", craft.ENGINEER_SEAT_ID, 2, 1)
 					craft.detach_crew_role_authority(replacement)
-					await _look_toward(fresh.player, craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
+					await _look_toward(fresh.player, func() -> Vector3: return craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
 					await _press_interact()
 					await _wait_until(func() -> bool: return bool(fresh.get_solo_crew_seat_status().seated), 3.0)
 					owner = craft.get_crew_role_authority()
@@ -322,7 +328,7 @@ func _run() -> void:
 							await _settle(12)
 							_check(bool(hosted.accepted) and not fresh.player.is_seated() and fresh.player.is_on_floor()
 								and fresh.player.is_control_enabled() and owner.get_snapshot().assignments.is_empty(), "real host handback releases exact engineer claim to usable awake cabin")
-							await _look_toward(fresh.player, craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
+							await _look_toward(fresh.player, func() -> Vector3: return craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
 							await _press_interact()
 							var host_chair_ready := await _wait_until(func() -> bool: return fresh.player.is_seated_at(craft.get_engineer_seat_anchor()) and not bool(fresh.get("_transition_busy")), 4.0)
 							var network_owner := craft.get_crew_role_authority()
@@ -356,7 +362,7 @@ func _run() -> void:
 							# engineer entry from that pose without exterior restaging.
 							var shutdown_entry: Transform3D = craft.get_engineer_station_role_contract().entry_transform
 							await _walk_toward(fresh.player, craft, craft.to_local(shutdown_entry.origin))
-							await _look_toward(fresh.player, craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
+							await _look_toward(fresh.player, func() -> Vector3: return craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
 							var shutdown_chair := fresh.station_interaction_candidate as ShipCrewSeat
 							_check(shutdown_chair != null and shutdown_chair.get_ship() == craft
 								and shutdown_chair.get_seat_anchor() == craft.get_engineer_seat_anchor()
@@ -427,9 +433,11 @@ func _finish() -> void:
 		quit(1)
 
 
-func _look_toward(actor: PlayerController, target: Vector3) -> void:
+func _look_toward(actor: PlayerController, target: Variant) -> void:
 	for tick in 4:
-		_apply_mouse_look(actor, target)
+		# Moving furniture must supply its current world target for each look step.
+		var live_target: Vector3 = target.call() if target is Callable else target
+		_apply_mouse_look(actor, live_target)
 		await physics_frame
 		await process_frame
 
