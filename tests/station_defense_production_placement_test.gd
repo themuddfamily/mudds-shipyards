@@ -661,7 +661,7 @@ func _verify_main_unpaid_recovery() -> void:
 		"ordinary board interaction pays the restored generation exactly once after write recovery")
 	_check(JSON.parse_string(FileAccess.get_file_as_string(path)).payload.runtime_settings == settings_before
 		and JSON.parse_string(FileAccess.get_file_as_string(path)).payload.jovian_cargo_session == cargo_before
-		and published.game_flow_reward_store.reward_counts.return_heavy_breach_credit == 1,
+		and published.game_flow_reward_store.reward_counts[String(GameFlowRewardAuthority.CINDER_ASTEROID_RUN_REWARD_ID)] == 1,
 		"defense retry and receipt transactions preserve actual settings, cargo and unrelated reward counts")
 	await _dispose_main(second)
 	var third := await _main_game(path, UserDataFilesystem.new())
