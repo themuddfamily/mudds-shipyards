@@ -133,8 +133,8 @@ position = Vector3(92.5, 0.38, 38)
 rotation = Vector3(0, 1.570796, 0)
 
 
-# A world-owned adapter over the existing starboard/front FabricatorControl.
-# The annex module remains geometry-only; the selected craft owns kit mutation.
+; A world-owned adapter over the existing starboard/front FabricatorControl.
+; The annex module remains geometry-only; the selected craft owns kit mutation.
 [node name="FabricationShipServiceConsole" type="Area3D" parent="."]
 transform = Transform3D(-1, 0, 0, 0, 0.207911691, 0.978147601, 0, 0.978147601, -0.207911691, 79.55, 1.650837962, 31.370947871)
 script = ExtResource("14_fabrication_ship_service")
