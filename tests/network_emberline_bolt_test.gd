@@ -357,14 +357,22 @@ func _client() -> void:
 		and remote_raider.visible), "replacement generation replaces the retired actor presentation")
 	_check(await _wait(func() -> bool: return picket_presenter.get_snapshot().generation > int(picket_record.entity_generation) \
 		and remote_picket.visible), "new actual picket activation replaces its terminal prior life")
-	var picket_mesh := remote_picket.get_node("StandoffPicketVisual/LanceEmitter") as MeshInstance3D
-	var mesh_id := picket_mesh.mesh.get_instance_id()
-	var material_id := picket_mesh.material_override.get_instance_id()
+	var picket_mesh := picket_presenter.get_cue_visual(0) as MeshInstance3D
+	var cue_ready: bool = is_instance_valid(picket_mesh) and picket_mesh.mesh != null \
+		and picket_mesh.mesh.get_surface_count() > 0
+	# The authored emitter material lives on its mesh surface; the network copy
+	# retains a per-surface override rather than a whole-instance override.
+	var picket_material := picket_mesh.get_active_material(0) as StandardMaterial3D if cue_ready else null
+	var mesh_id := picket_mesh.mesh.get_instance_id() if cue_ready else 0
+	var material_id := picket_material.get_instance_id() if picket_material != null else 0
 	_game.runtime_settings.reduced_flash = true
 	_game._apply_opponent_weapon_heat_presentation_profile()
-	_check((picket_mesh.material_override as StandardMaterial3D).emission_energy_multiplier <= 1.0
-		and picket_mesh.mesh.get_instance_id() == mesh_id and picket_mesh.material_override.get_instance_id() == material_id,
-		"public accessibility update changes already-live picket material without new allocations")
+	var live_ready: bool = is_instance_valid(picket_mesh) and picket_mesh.mesh != null \
+		and picket_mesh.mesh.get_surface_count() > 0
+	var live_material := picket_mesh.get_active_material(0) as StandardMaterial3D if live_ready else null
+	_check(cue_ready and live_ready and live_material != null and live_material.emission_energy_multiplier <= 1.0
+		and picket_mesh.mesh.get_instance_id() == mesh_id and live_material.get_instance_id() == material_id,
+		"public accessibility update retains the real live picket cue mesh/material and changes emission without new allocations")
 	_check(hull.mesh.get_instance_id() == retained_mesh and hull.material_override.get_instance_id() == retained_material
 		and bool(actor_presenter.get_snapshot().reduced_flash)
 		and (hull.material_override as StandardMaterial3D).emission_energy_multiplier <= 1.0,
