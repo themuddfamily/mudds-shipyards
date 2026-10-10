@@ -480,7 +480,7 @@ func _client_pilot_host_gunner() -> void:
 	_print_fresh_pilot_state(&"after_hatch_wait")
 	root.grab_focus()
 	var anchor := _craft.get_pilot_seat_anchor()
-	await _walk(_craft.to_local(anchor.global_position) + Vector3(-0.6, 0.0, 0.6))
+	await _walk(Vector3(-0.55, BulwarkHeavyGunship.CABIN_FLOOR_Y, -0.10))
 	await _look(anchor.global_position)
 	await _press(&"interact")
 	_check(await _until(func(): return bool(_game.get("_piloting")) and not bool(_game.get("_transition_busy")), 12.0), "ordinary client cockpit Interact acquires the real confirmed pilot seat")
