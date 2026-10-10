@@ -574,9 +574,36 @@ func _test_fresh_debt_recovery(host: Node3D, objective: Node3D, director: Encoun
 	_test_backup_rollback_refusal(host)
 	fresh.queue_free()
 	await process_frame
+	var asteroid_route := CheckpointRouteActivity.new(NearbySectorActivitySessionAdapter.ASTEROID_ROUTE)
+	var asteroid_generation := asteroid_route.start()
+	for index in asteroid_route.definition.get_checkpoint_count():
+		asteroid_route.submit_position(asteroid_route.definition.get_checkpoint_position(index), asteroid_generation)
+	var asteroid_record := NearbySectorActivitySessionAdapter.capture_asteroid_session(asteroid_route.capture_persistence_state(), false)
+	var unrelated_payload := _recovery_store.get_snapshot()
+	var paid_ack_before: Dictionary = unrelated_payload.heavy_breach_session.duplicate(true)
+	var receipts_before := int(unrelated_payload.game_flow_reward_store.total_receipts)
+	unrelated_payload[NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT] = asteroid_record
+	_check(_recovery_store.get_loaded_source() == &"primary"
+		and asteroid_route.get_state() == CheckpointRouteActivity.State.COMPLETED
+		and NearbySectorActivitySessionAdapter.validate_asteroid_session(asteroid_record).accepted
+		and _recovery_store.commit(unrelated_payload, _recovery_store.get_generation(), "unit-breach-earned-asteroid").accepted,
+		"the unrelated route genuinely clears and saves its validated terminal through the same trusted primary")
 	var other := NearbyActivityRewardAdapter.new()
 	other.configure(_recovery_authority.commit, GameFlowRewardAuthority.CINDER_ASTEROID_RUN_ACTIVITY_ID, GameFlowRewardAuthority.CINDER_ASTEROID_RUN_REWARD_ID)
-	_check(other.consume({"activity_id": GameFlowRewardAuthority.CINDER_ASTEROID_RUN_ACTIVITY_ID, "generation": 1, "state_id": &"completed", "outcome": &"cleared"}, 1).accepted,
+	var unrelated := asteroid_route.get_snapshot()
+	# Adapt the real route's terminal state to the existing reward view.
+	unrelated["state_id"] = &"completed" if int(unrelated.state) == CheckpointRouteActivity.State.COMPLETED else &""
+	unrelated["outcome"] = &"cleared" if int(unrelated.state) == CheckpointRouteActivity.State.COMPLETED else &""
+	var intervening := other.consume(unrelated, asteroid_generation)
+	if not intervening.accepted:
+		print("HEAVY_BREACH_UNRELATED_REWARD_REJECTED: ", {"handoff": intervening,
+			"authority": _recovery_authority.get_snapshot(), "source": _recovery_store.get_loaded_source()})
+	var duplicate := other.consume(unrelated, asteroid_generation)
+	var after_unrelated := _recovery_store.get_snapshot()
+	_check(intervening.accepted and not duplicate.accepted
+		and int(after_unrelated.game_flow_reward_store.total_receipts) == receipts_before + 1
+		and after_unrelated.game_flow_reward_store.last_receipt.activity_id == String(GameFlowRewardAuthority.CINDER_ASTEROID_RUN_ACTIVITY_ID)
+		and after_unrelated.heavy_breach_session == paid_ack_before,
 		"an unrelated activity can replace last receipt without erasing the paid acknowledgement")
 	var second := _fresh_recovery_board(host, objective, director, authority)
 	actor.global_position = second.global_position + Vector3(1.5, 0.0, 0.0)
