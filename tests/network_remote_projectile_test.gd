@@ -34,6 +34,11 @@ const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd"
 const Replicator := preload("res://scripts/network/network_remote_projectile_replicator.gd")
 const GameFlow := preload("res://scripts/game/game_flow.gd")
 const Cargo := preload("res://scripts/ships/cinder_cargo_hauler.gd")
+const PicketScene := preload("res://scenes/ships/standoff_picket_opponent.tscn")
+const DefenderScene := preload("res://scenes/ships/range_opponent.tscn")
+const PulseScene := preload("res://scenes/effects/pulse_weapon_presentation.tscn")
+const Authority := preload("res://scripts/combat/live_combat_authority.gd")
+const DamageAdapter := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
 const AudioScene := preload("res://scenes/audio/combat_audio_presentation.tscn")
 const HOST_STATION_ORIGIN := Vector3(-31.0, -4.0, -48.0)
 const CLIENT_STATION_ORIGIN := Vector3(22.0, 3.0, 17.0)
@@ -41,6 +46,21 @@ const LATE_STATION_ORIGIN := Vector3(-5.0, 2.0, 91.0)
 const STORM_SLUGS := 200
 ## Live flights plus the retired-id tombstones the fencing needs.
 const STORM_BOUND := 160
+
+
+## Keep unrelated Main startup out of this existing transport test, while the
+## real GameFlow pool observer, publisher and client admission remain intact.
+class FixtureGameFlow extends GameFlow:
+	func _enter_tree() -> void:
+		pass
+	func _ready() -> void:
+		pass
+	func _physics_process(_delta: float) -> void:
+		pass
+	func _process(_delta: float) -> void:
+		pass
+	func _exit_tree() -> void:
+		pass
 
 
 class FakeBoltPool extends Node:
@@ -98,7 +118,7 @@ func _initialize() -> void:
 	root.add_child(_host_replicator)
 	root.add_child(_client_replicator)
 	root.add_child(_late_replicator)
-	_host_flow = GameFlow.new()
+	_host_flow = FixtureGameFlow.new()
 	_host_flow.network_session = _server
 	_host_flow._network_session_mode = &"server"
 	_host_flow.world = _make_station_origin(HOST_STATION_ORIGIN)
@@ -399,6 +419,7 @@ func _initialize() -> void:
 		"the client never publishes a projectile")
 
 	_check_launch_descriptor_compatibility(_last_launch_packet)
+	await _check_production_picket_lance(port)
 
 	for adapter in [_late, _client, _server]:
 		adapter.shutdown(&"suite_complete")
@@ -410,6 +431,176 @@ func _initialize() -> void:
 	_late_flow.free()
 	await process_frame
 	_finish()
+
+
+## Real authored picket -> authority flight -> production GameFlow observer ->
+## ENet -> client presentation. No synthetic launch signal proves this seam.
+func _check_production_picket_lance(port: int) -> void:
+	_late.shutdown(&"picket_midflight_join")
+	await _pump(func() -> bool: return _server.multiplayer.get_peers().size() == 1)
+	_client_replicator.clear_presentation()
+	_late_replicator.clear_presentation()
+	_host_flow._network_remote_projectile_replicator = _host_replicator
+	root.add_child(_host_flow)
+	var authority := Authority.new() as LiveCombatAuthority
+	authority.name = "CombatAuthority"
+	_host_flow.add_child(authority)
+	var pulse := PulseScene.instantiate() as PulseWeaponPresentation
+	pulse.name = "PulseWeaponPresentation"
+	_host_flow.add_child(pulse)
+	var target := DefenderScene.instantiate() as RangeOpponent
+	target.name = "LanceTarget"
+	_host_flow.add_child(target)
+	target.activate(Transform3D(Basis.IDENTITY, HOST_STATION_ORIGIN + Vector3(1000.0, 0.0, -300.0)))
+	target.set_physics_process(false)
+	target.set_process(false)
+	authority.attach_lifecycle_damageable(target, DamageAdapter.LifecycleKind.RANGE_OPPONENT, &"lance_target")
+	var picket := PicketScene.instantiate() as StandoffPicketOpponent
+	picket.name = "StandoffPicket"
+	picket.escort_enabled = false
+	picket.combat_audio_path = ^"../AbsentAudio"
+	picket.hud_path = ^"../AbsentHUD"
+	_host_flow.add_child(picket)
+	picket.activate(Transform3D(Basis.IDENTITY, HOST_STATION_ORIGIN + Vector3(1000.0, 0.0, 0.0)))
+	picket.set_target(target)
+	picket.set_physics_process(false)
+	picket.set_process(false)
+	_host_flow._advance_network_remote_projectiles()
+	_check(picket.get_lance_bolt_pool() == null,
+		"the production network observer leaves a dormant lance pool unallocated")
+	await physics_frame
+	await process_frame
+	var client_cues := int(_client_audio.get_state_snapshot().cue_count)
+	var late_cues := int(_late_audio.get_state_snapshot().cue_count)
+	var target_health := target.get_health()
+	picket._fire_at_target(target.global_position)
+	var pool := picket.get_lance_bolt_pool()
+	_check(is_instance_valid(pool) and _host_replicator.is_observing(pool)
+		and picket.get_last_shot_result().get("status") == &"bolt_in_flight",
+		"the real picket lazily attaches its newly built pool before the first accepted launch")
+	if not is_instance_valid(pool):
+		return
+	pool.set_physics_process(false)
+	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
+	var lance_packet := _last_launch_packet.duplicate(true)
+	var lance_id := StringName((lance_packet.get("projectile", {}) as Dictionary).get("projectile_id", &""))
+	var lance_record := lance_packet.get("projectile", {}) as Dictionary
+	_check(_client_replicator.get_drawn_projectile_ids().has(lance_id)
+		and StringName((lance_record.get(Replicator.RECORD_KEY, {}) as Dictionary).get("kind", &"")) == Replicator.KIND_LANCE
+		and int(lance_record.get("source_generation", 0)) == picket._activation_generation
+		and int(_client_audio.get_state_snapshot().cue_count) == client_cues + 1
+		and _client_audio.get_state_snapshot().last_semantic_cue_id == CombatAudioPresentation.SEMANTIC_SIEGE_LANCE_FIRE
+		and is_equal_approx(target.get_health(), target_health),
+		"the first production lance is drawn and voiced once in its activation, with damage still pending")
+	var duplicate := _client._apply_projectile_replica_snapshot(lance_packet)
+	_client_flow._on_projectile_replica_packet(lance_packet, duplicate)
+	_check(not bool(duplicate.get("accepted", true))
+		and int(_client_audio.get_state_snapshot().cue_count) == client_cues + 1,
+		"a duplicate lance launch cannot replay its fire cue")
+	pool._physics_process(0.5)
+	var held := pool.get_active_bolt_records()[0] as Dictionary
+	for _frame in Replicator.TORPEDO_UPDATE_INTERVAL_TICKS:
+		_host_replicator.advance_host()
+	_check(_late.join("127.0.0.1", port).accepted, "a real peer joins with a production lance already in flight")
+	await _pump(func() -> bool: return not _late.get_server_offer().is_empty())
+	_host_replicator.republish_for_peer(_late.multiplayer.get_unique_id())
+	await _pump(func() -> bool: return _late_replicator.get_drawn_projectile_ids().has(lance_id))
+	var canonical := _server._projectile_authoritative_records.get(lance_id, {}) as Dictionary
+	_check(_late_replicator.get_drawn_projectile_ids().has(lance_id)
+		and (canonical.get("position", Vector3.INF) as Vector3).is_equal_approx((held.position as Vector3) - HOST_STATION_ORIGIN)
+		and is_equal_approx(float((canonical.get(Replicator.RECORD_KEY, {}) as Dictionary).get("elapsed", -1.0)), float(held.elapsed))
+		and int(_late_audio.get_state_snapshot().cue_count) == late_cues,
+		"mid-flight join samples the held authority position/elapsed without extrapolation or a fresh fire cue")
+	_client_replicator.set_reduced_flash_enabled(true)
+	var visual := _client_replicator._visuals.get(lance_id, {}) as Dictionary
+	_check(not visual.is_empty()
+		and ((visual.body as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.is_equal_approx(TravellingBoltProjectile.BOLT_CORE_COLOR)
+		and is_equal_approx(((visual.trail as MeshInstance3D).mesh as CylinderMesh).height, TravellingBoltProjectile.REDUCED_FLASH_TRAIL_LENGTH_METERS),
+		"the remote lance preserves the authored magenta palette and reduced-flash trail")
+	var terminals_before := int(_client_replicator.get_audit().terminals)
+	var bursts_before := int(_client_replicator.get_audit().bursts)
+	var terminal_packet := {}
+	var capture_terminal := func(packet: Dictionary, _result: Dictionary) -> void:
+		if bool(packet.get("terminal", false)):
+			terminal_packet.merge(packet, true)
+	_client.projectile_replica_packet.connect(capture_terminal)
+	pool._physics_process(2.0)
+	await _pump(func() -> bool: return int(_client_replicator.get_audit().terminals) == terminals_before + 1)
+	await _pump(func() -> bool: return not _late_replicator.get_drawn_projectile_ids().has(lance_id))
+	_check(target.get_health() < target_health
+		and int(_client_replicator.get_audit().bursts) == bursts_before + 1
+		and int(_client_audio.get_state_snapshot().cue_count) == client_cues + 2
+		and int(_late_audio.get_state_snapshot().cue_count) == late_cues + 1
+		and _late_audio.get_state_snapshot().last_semantic_cue_id == CombatAudioPresentation.SEMANTIC_SIEGE_LANCE_IMPACT,
+		"one real authority arrival damages only on the host and voices one confirmed impact for current and quiet-joined peers")
+	duplicate = _client._apply_projectile_replica_snapshot(terminal_packet)
+	_client_flow._on_projectile_replica_packet(terminal_packet, duplicate)
+	_check(not bool(duplicate.get("accepted", true))
+		and int(_client_replicator.get_audit().bursts) == bursts_before + 1
+		and int(_client_audio.get_state_snapshot().cue_count) == client_cues + 2,
+		"a repeated terminal cannot replay the lance impact or burst")
+	_client.projectile_replica_packet.disconnect(capture_terminal)
+	# A reused source updates only future-flight generation; its pool remains lazy.
+	# Hosting must never import an offline shot from an older activation under
+	# the newly activated hull's source generation.
+	_host_replicator.clear_host(false)
+	_host_flow._network_session_mode = &""
+	picket._fire_at_target(picket.global_position + Vector3(0.0, 400.0, 0.0))
+	pool.set_physics_process(false)
+	_check(pool.get_active_bolt_count() == 1, "an offline picket activation owns a real live lance")
+	var typed_activation := picket.activate_with_result(picket.global_transform)
+	_check(bool(typed_activation.get("accepted", false)) and pool.get_active_bolt_count() == 0
+		and picket.get_lance_charge_snapshot().get("cancel_reason") == &"activation_reset",
+		"accepted reactivation retires the previous offline activation's flight before host import")
+	_host_flow._network_session_mode = &"server"
+	_host_flow._advance_network_remote_projectiles()
+	_check(_host_replicator.get_active_flight_count() == 0,
+		"hosting the reused source imports no flight from the retired activation")
+	picket.set_target(target)
+	picket._fire_at_target(picket.global_position + Vector3(0.0, 400.0, 0.0))
+	pool.set_physics_process(false)
+	await _pump(func() -> bool: return not _client_replicator.get_drawn_projectile_ids().is_empty())
+	var reused_record := _last_launch_packet.get("projectile", {}) as Dictionary
+	_check(picket.get_lance_bolt_pool() == pool
+		and int(reused_record.get("source_generation", 0)) == picket._activation_generation,
+		"a reused production pool stamps the newly admitted activation generation")
+	var miss_cues := int(_client_audio.get_state_snapshot().cue_count)
+	var miss_bursts := int(_client_replicator.get_audit().bursts)
+	terminals_before = int(_client_replicator.get_audit().terminals)
+	pool._physics_process(4.0)
+	await _pump(func() -> bool: return int(_client_replicator.get_audit().terminals) == terminals_before + 1)
+	_check(int(_client_audio.get_state_snapshot().cue_count) == miss_cues
+		and int(_client_replicator.get_audit().bursts) == miss_bursts,
+		"an actual lance range/lifetime miss retires without impact audio or burst")
+	picket._fire_at_target(picket.global_position + Vector3(0.0, 400.0, 0.0))
+	pool.set_physics_process(false)
+	await _pump(func() -> bool: return not _client_replicator.get_drawn_projectile_ids().is_empty())
+	var retired_id := StringName((_last_launch_packet.get("projectile", {}) as Dictionary).get("projectile_id", &""))
+	var retire_cues := int(_client_audio.get_state_snapshot().cue_count)
+	picket.set_network_presentation_only(true)
+	await _pump(func() -> bool: return not _client_replicator.get_drawn_projectile_ids().has(retired_id))
+	_check(not picket.is_combat_source_registered() and pool.get_active_bolt_count() == 0
+		and int(_client_audio.get_state_snapshot().cue_count) == retire_cues,
+		"client-role suspension abandons local authority flights and retires remote copies without an impact")
+	picket.set_network_presentation_only(false)
+	_check(picket.is_combat_source_registered() and pool.get_active_bolt_count() == 0,
+		"solo handback restores the source without resurrecting an old flight")
+	picket._fire_at_target(picket.global_position + Vector3(0.0, 400.0, 0.0))
+	pool.set_physics_process(false)
+	await _pump(func() -> bool: return not _client_replicator.get_drawn_projectile_ids().is_empty())
+	retired_id = StringName((_last_launch_packet.get("projectile", {}) as Dictionary).get("projectile_id", &""))
+	pool.queue_free()
+	await process_frame
+	_host_replicator.advance_host()
+	await _pump(func() -> bool: return not _client_replicator.get_drawn_projectile_ids().has(retired_id))
+	_check(not _client_replicator.get_drawn_projectile_ids().has(retired_id),
+		"loss of the real lance pool publishes retirement of its remaining remote flight")
+	_client_flow._clear_network_remote_projectiles()
+	_late_flow._clear_network_remote_projectiles()
+	_check(_client_replicator.get_drawn_projectile_ids().is_empty()
+		and _late_replicator.get_drawn_projectile_ids().is_empty()
+		and not bool(_client_replicator.get_audit().owns_combat_authority),
+		"the existing session-clear seam drops lance presentation without client damage authority")
 
 
 func _check_launch_descriptor_compatibility(launch_packet: Dictionary) -> void:
