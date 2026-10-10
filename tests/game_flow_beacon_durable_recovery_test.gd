@@ -72,6 +72,11 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	# Optional bounded diagnosis leaves every default recovery route unchanged.
+	if OS.get_cmdline_user_args().has("--beacon-backup-trust-only"):
+		await _backup_trust_reproduction()
+		_finish()
+		return
 	var path := "user://beacon_durable_%d.json" % Time.get_ticks_usec()
 	var first_fs := FaultFilesystem.new()
 	first_fs.freeze_on_reward = true
@@ -147,11 +152,166 @@ func _run() -> void:
 	await _published_payment_retry()
 	await _all_writes_failed()
 	await _unsupported_record(path)
+	_finish()
+
+func _finish() -> void:
 	for failure in _failures:
 		push_error(failure)
 	if _failures.is_empty():
 		print("GAME_FLOW_BEACON_DURABLE_RECOVERY_TEST_OK: %d assertions" % _checks)
 	quit(0 if _failures.is_empty() else 1)
+
+## The actual ordered route pays once and rotates its genuine earned-unpaid
+## predecessor into backup. Each probe retains those exact independent bytes.
+func _backup_trust_reproduction() -> void:
+	var path := "user://beacon_backup_trust_%d.json" % Time.get_ticks_usec()
+	var fault := FaultFilesystem.new()
+	fault.reject_rewards = false
+	var retained := await _game(path, fault)
+	await _board(retained)
+	var binding := await _binding(retained)
+	retained.call("_on_settings_save_requested")
+	var shared: UserDataStore = retained.get("_runtime_settings_user_data_store")
+	var seeded := shared.get_snapshot()
+	seeded["beacon_trust_unrelated"] = {"inventory": {"units": 4, "components": ["caller-owned sample"]}, "note": "independent caller data"}
+	_check(seeded.has("runtime_settings") and shared.commit(seeded, shared.get_generation(), "unit-beacon-trust-unrelated").accepted,
+		"the existing store seeds caller inventory data beside actual saved runtime settings")
+	await _complete(retained, binding)
+	var paid_bytes := FileAccess.get_file_as_bytes(path)
+	var unpaid_bytes := FileAccess.get_file_as_bytes(path + ".bak")
+	var paid_document: Variant = JSON.parse_string(paid_bytes.get_string_from_utf8())
+	var unpaid_document: Variant = JSON.parse_string(unpaid_bytes.get_string_from_utf8())
+	print("BEACON_BACKUP_FIXTURE_COMPLETION: ", retained.get_activity_reward_report())
+	var documents_valid := paid_document is Dictionary and unpaid_document is Dictionary
+	_check(documents_valid, "actual ordered traversal and payment publish readable primary and predecessor documents")
+	if not documents_valid:
+		await _dispose(retained)
+		return
+	var paid_record: Dictionary = paid_document.payload.get("cinder_beacon_session", {})
+	var unpaid_record: Dictionary = unpaid_document.payload.get("cinder_beacon_session", {})
+	print("BEACON_BACKUP_GENUINE_FIXTURE: ", {"paid_record": paid_record,
+		"unpaid_record": unpaid_record, "live": binding.get_activity_snapshot(&"beacon_traversal")})
+	var valid: bool = Beacon.validate_persistence_record(paid_record).accepted and Beacon.validate_persistence_record(unpaid_record).accepted
+	_check(valid, "backup trust fixture contains actual valid paid and earned-unpaid ordered-route documents")
+	if not valid:
+		await _dispose(retained)
+		return
+	var paid_entry: Dictionary = paid_record.activities[0]
+	var unpaid_entry: Dictionary = unpaid_record.activities[0]
+	var generation := int(paid_entry.generation)
+	var genuine: bool = (
+		paid_entry.reward_granted and unpaid_entry.reward_requested and not unpaid_entry.reward_granted
+		and int(unpaid_entry.generation) == generation and int(unpaid_entry.progress.next_beacon_index) == Beacon.BEACONS.size()
+		and int((paid_document.payload.get("game_flow_reward_store", {}) as Dictionary).get("total_receipts", 0)) == 1
+		and int((unpaid_document.payload.get("game_flow_reward_store", {}) as Dictionary).get("total_receipts", 0)) == 0
+		and paid_document.payload.has("runtime_settings") and paid_document.payload.has("beacon_trust_unrelated")
+		and paid_document.payload.runtime_settings == unpaid_document.payload.runtime_settings
+		and paid_document.payload.beacon_trust_unrelated == unpaid_document.payload.beacon_trust_unrelated
+	)
+	_check(genuine,
+		"real one-time payment leaves its earned-unpaid predecessor while preserving complete settings and caller inventory data")
+	if not genuine:
+		await _dispose(retained)
+		return
+	var corrupt := "corrupt newer paid Beacon primary".to_utf8_buffer()
+	var staged := _write_beacon_fixture(path + ".paid-witness", paid_bytes) and _write_beacon_fixture(path, corrupt)
+	_check(staged, "retained Beacon probe preserves its real paid witness and corrupts only the newer primary")
+	if not staged:
+		await _dispose(retained)
+		return
+	var preflight := UserDataStore.new(path)
+	var selected := preflight.load()
+	print("BEACON_BACKUP_PREFLIGHT: ", selected)
+	_check(selected.accepted and preflight.get_loaded_source() == &"backup",
+		"the existing store selects the genuine unpaid fallback and quarantines the corrupt newer paid primary")
+	var artifacts := _beacon_recovery_artifacts(path)
+	_check(artifacts.get(path + ".recovery") == corrupt, "Beacon diagnosis retains the exact corrupt-primary recovery witness")
+	var before := binding.capture_beacon_traversal_session()
+	var retained_receipts := _receipts(retained)
+	retained.active_ship.global_position = retained.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+	_button(retained, 2).emit_signal("pressed")
+	_button(retained, 2).emit_signal("pressed")
+	print("BEACON_BACKUP_RETAINED_START: ", {"feedback": (retained.hud.get("_nearby_activity_feedback") as Label).text,
+		"live": binding.capture_beacon_traversal_session(), "reward": retained.get_activity_reward_report().last_cinder_beacon_traversal_result,
+		"source": shared.get_loaded_source(), "payload": shared.get_snapshot()})
+	_check(binding.capture_beacon_traversal_session() == before and _receipts(retained) == retained_receipts
+		and shared.get_loaded_source() == &"backup" and shared.get_snapshot() == selected.payload and _beacon_recovery_artifacts(path) == artifacts,
+		"ordinary retained Start cannot begin a new Beacon generation against untrusted fallback authority")
+	_button(retained, 3).emit_signal("pressed")
+	if _button(retained, 3).text == "CONFIRM RESET":
+		_button(retained, 3).emit_signal("pressed")
+	print("BEACON_BACKUP_RETAINED_RESET: ", {"feedback": (retained.hud.get("_nearby_activity_feedback") as Label).text,
+		"live": binding.capture_beacon_traversal_session(), "source": shared.get_loaded_source()})
+	_check(binding.capture_beacon_traversal_session() == before and _receipts(retained) == retained_receipts
+		and shared.get_snapshot() == selected.payload and _beacon_recovery_artifacts(path) == artifacts,
+		"ordinary retained Reset preserves the exact paid live route, inventory, settings and recovery artifacts")
+	await _dispose(retained)
+	_check(_beacon_recovery_artifacts(path) == artifacts, "retained Beacon teardown leaves paid evidence and unpaid fallback for explicit repair")
+
+	# Independent path prevents pre-fix retained controls contaminating the
+	# fresh-owner/direct-authority probe of the same genuine documents.
+	path += "_fresh"
+	staged = _write_beacon_fixture(path + ".paid-witness", paid_bytes) \
+		and _write_beacon_fixture(path, corrupt) and _write_beacon_fixture(path + ".bak", unpaid_bytes)
+	_check(staged, "fresh Beacon probe stages the exact same genuine paid and earned-unpaid documents")
+	if not staged:
+		return
+	preflight = UserDataStore.new(path)
+	selected = preflight.load()
+	_check(selected.accepted and preflight.get_loaded_source() == &"backup", "fresh Beacon probe selects the genuine earned-unpaid backup")
+	artifacts = _beacon_recovery_artifacts(path)
+	var fresh := await _game(path, UserDataFilesystem.new())
+	var fresh_binding := await _binding(fresh)
+	var captured := fresh_binding.capture_beacon_traversal_session()
+	var ready: Dictionary = fresh.call("_ensure_cinder_beacon_session", fresh_binding)
+	print("BEACON_BACKUP_FRESH_BIND: ", {"ready": ready, "captured": captured,
+		"presentation": fresh_binding.get_activity_snapshot(&"beacon_traversal")})
+	var fresh_entry: Dictionary = captured.activities[0]
+	_check(not ready.get("accepted", false) and ready.get("reason") == &"beacon_session_store_recovery_required"
+		and int(fresh_entry.generation) == 0 and int(fresh_entry.state) == Beacon.State.IDLE,
+		"fresh Main cannot adopt backup-derived Beacon cursor, generation or unpaid entitlement")
+	var receipts := _receipts(fresh)
+	_button(fresh, 2).emit_signal("pressed")
+	_button(fresh, 2).emit_signal("pressed")
+	_button(fresh, 3).emit_signal("pressed")
+	if _button(fresh, 3).text == "CONFIRM RESET":
+		_button(fresh, 3).emit_signal("pressed")
+	shared = fresh.get("_runtime_settings_user_data_store")
+	print("BEACON_BACKUP_FRESH_CONTROLS: ", {"feedback": (fresh.hud.get("_nearby_activity_feedback") as Label).text,
+		"captured": fresh_binding.capture_beacon_traversal_session(), "reward": fresh.get_activity_reward_report().last_cinder_beacon_traversal_result,
+		"source": shared.get_loaded_source(), "payload": shared.get_snapshot()})
+	_check(fresh_binding.capture_beacon_traversal_session() == captured and _receipts(fresh) == receipts
+		and shared.get_snapshot() == selected.payload and _beacon_recovery_artifacts(path) == artifacts,
+		"ordinary fresh Start, repeated retry and Reset leave untrusted progress, inventory, settings and receipts unchanged")
+	var authority: GameFlowRewardAuthority = fresh.get("_game_flow_reward_authority")
+	var request := {"activity_id": Beacon.ACTIVITY_ID, "activity_generation": generation,
+		"reward_id": Beacon.REWARD_ID, "reward_authority": false, "granted": false}
+	var payment := authority.commit(request)
+	var payment_retry := authority.commit(request)
+	print("BEACON_BACKUP_DIRECT_PAYMENT: ", {"payment": payment, "retry": payment_retry,
+		"source": shared.get_loaded_source(), "payload": shared.get_snapshot(), "captured": fresh_binding.capture_beacon_traversal_session()})
+	_check(not payment.accepted and payment.reason == &"reward_store_recovery_required"
+		and not payment_retry.accepted and payment_retry.reason == &"reward_store_recovery_required"
+		and _receipts(fresh) == receipts and shared.get_loaded_source() == &"backup" and shared.get_snapshot() == selected.payload
+		and fresh_binding.capture_beacon_traversal_session() == captured and _beacon_recovery_artifacts(path) == artifacts,
+		"actual Beacon authority refuses repeated payment from the genuine unpaid backup without republishing its envelope")
+	await _dispose(fresh)
+	_check(_beacon_recovery_artifacts(path) == artifacts, "fresh Beacon teardown preserves paid evidence, unpaid fallback and quarantine for explicit repair")
+
+func _write_beacon_fixture(path: String, bytes: PackedByteArray) -> bool:
+	var writer := FileAccess.open(path, FileAccess.WRITE)
+	if writer == null:
+		return false
+	writer.store_buffer(bytes)
+	writer.close()
+	return true
+
+func _beacon_recovery_artifacts(path: String) -> Dictionary:
+	var result := {}
+	for suffix: String in ["", ".bak", ".bak.1", ".bak.2", ".bak.3", ".recovery", ".tmp", ".paid-witness"]:
+		if FileAccess.file_exists(path + suffix):
+			result[path + suffix] = FileAccess.get_file_as_bytes(path + suffix)
+	return result
 
 ## A refused reset must never publish a live reset against an older disk route.
 func _reset_write_failure(paid: bool) -> void:
