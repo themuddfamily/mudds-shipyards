@@ -777,17 +777,20 @@ func _damage_destroy_and_regenerate(craft: HeroShip, cycle: int) -> void:
 	)
 
 	craft.apply_damage(craft.maximum_hull + 1.0, craft.global_position, Vector3.UP)
+	# Damage publishes destruction synchronously. Observe it before yielding:
+	# the wall-clock regeneration deadline can expire during slow render frames.
+	var destroyed := craft.is_destroyed()
 	for _destroy_tick in 6:
 		await physics_frame
 		await process_frame
-	var destroyed := craft.is_destroyed()
 	var recovered := await _wait_until(
 		func() -> bool: return not craft.is_destroyed() and craft.is_boardable(),
 		8.0
 	)
 	_check(
 		destroyed and recovered,
-		"cycle %d loses and regenerates %s at its berth" % [cycle + 1, craft.get_ship_id()]
+		"cycle %d loses and regenerates %s at its berth (destroyed=%s recovered=%s)"
+			% [cycle + 1, craft.get_ship_id(), destroyed, recovered]
 	)
 	if destroyed and recovered:
 		_destroyed_and_regenerated += 1
