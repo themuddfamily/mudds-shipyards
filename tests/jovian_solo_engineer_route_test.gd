@@ -352,8 +352,17 @@ func _run() -> void:
 								and not fresh.player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META), "network-live unsupported crew role remains refused without a chair or helm claim")
 							fresh.shutdown_network_session()
 							await _settle(8)
-							await _walk_from_ramp(fresh.player, craft)
+							# Shutdown retains the supported cabin; approach its authored
+							# engineer entry from that pose without exterior restaging.
+							var shutdown_entry: Transform3D = craft.get_engineer_station_role_contract().entry_transform
+							await _walk_toward(fresh.player, craft, craft.to_local(shutdown_entry.origin))
 							await _look_toward(fresh.player, craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
+							var shutdown_chair := fresh.station_interaction_candidate as ShipCrewSeat
+							_check(shutdown_chair != null and shutdown_chair.get_ship() == craft
+								and shutdown_chair.get_seat_anchor() == craft.get_engineer_seat_anchor()
+								and fresh.player.get_nearby_interactables().has(shutdown_chair)
+								and fresh.player.is_on_floor() and fresh.player.is_control_enabled(),
+								"ordinary cabin walk after session shutdown discovers the actual nearby engineer chair before Interact")
 							print("JOVIAN_SESSION_HANDBACK: phase=", fresh.phase, " pose=", craft.to_local(fresh.player.global_position), " floor=", fresh.player.is_on_floor(), " control=", fresh.player.is_control_enabled(), " ledger=", craft.get_crew_role_authority(), " candidate=", fresh.station_interaction_candidate)
 							await _press_interact()
 							await _wait_until(func() -> bool: return bool(fresh.get_solo_crew_seat_status().seated), 3.0)
