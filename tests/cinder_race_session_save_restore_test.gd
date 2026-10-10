@@ -97,6 +97,7 @@ func _run() -> void:
 	var saved := first.save_cinder_race_session()
 	var before := first.get_active_activity_snapshot()
 	var stored_generation := first_store.get_generation()
+	var active_document := (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
 	_check(
 		bool(started.get("accepted", false))
 			and bool(penalized.get("accepted", false))
@@ -205,6 +206,8 @@ func _run() -> void:
 			and int(lifecycle_counts.completed) == 1,
 		"the restored authority resumes once and preserves current, last, and best results"
 	)
+	var paid_document := (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	var unpaid_document := (filesystem.files[STORE_PATH + ".bak"] as PackedByteArray).duplicate()
 
 	_check(second.reset_active_activity(), "the restored terminal result resets through production")
 	var replacement := second.request_activity_start(ROUTE.activity_id)
@@ -347,10 +350,75 @@ func _run() -> void:
 	)
 
 	await _retire_game(second)
+	await _test_race_fallback_refusal(active_document, unpaid_document, paid_document)
 	await _test_race_write_recovery()
 	await _test_saved_race_progress_write_recovery()
 	await _test_running_race_progress_publication()
 	_finish()
+
+
+func _test_race_fallback_refusal(active: PackedByteArray, unpaid: PackedByteArray, paid: PackedByteArray) -> void:
+	for kind: String in ["active", "unpaid"]:
+		var path := "user://cinder-race-fallback-%s-%d.json" % [kind, Time.get_ticks_usec()]
+		var fallback := active if kind == "active" else unpaid
+		var older: Dictionary = JSON.parse_string(fallback.get_string_from_utf8()).payload.cinder_timed_race_session.activities[0]
+		var newer: Dictionary = JSON.parse_string(paid.get_string_from_utf8()).payload.cinder_timed_race_session.activities[0]
+		_check(int(older.state) == (TimedCheckpointRace.State.ACTIVE if kind == "active" else TimedCheckpointRace.State.COMPLETED)
+			and not older.reward_granted and newer.reward_granted and int(older.generation) == int(newer.generation),
+			"race fallback retains genuinely authored older %s and newer paid documents" % kind)
+		var writer := FileAccess.open(path + ".paid-witness", FileAccess.WRITE)
+		writer.store_buffer(paid)
+		writer.close()
+		writer = FileAccess.open(path, FileAccess.WRITE)
+		writer.store_string("corrupt newer paid Cinder race primary")
+		writer.close()
+		writer = FileAccess.open(path + ".bak", FileAccess.WRITE)
+		writer.store_buffer(fallback)
+		writer.close()
+		var preflight := Store.new(path) as UserDataStore
+		_check(preflight.load().accepted and preflight.get_loaded_source() == &"backup",
+			"race recovery selects the valid fallback and quarantines the actual corrupt primary")
+		var artifacts := _race_recovery_artifacts(path)
+		_check(artifacts.get(path + ".recovery") == "corrupt newer paid Cinder race primary".to_utf8_buffer(),
+			"race recovery retains the exact original corruption witness")
+		for attempt in 2:
+			var store := Store.new(path) as UserDataStore
+			var game := await _make_game(store)
+			game.set_physics_process(false)
+			var snapshot := game.get_active_activity_snapshot()
+			_check(snapshot.state_id == &"idle" and int(snapshot.session_generation) == 0
+				and int(snapshot.next_checkpoint_index) == 0 and float(snapshot.last_time_seconds) == -1.0
+				and float(snapshot.best_time_seconds) == -1.0 and _race_receipts(game) == 0
+				and (game.get("_owed_game_flow_activity_rewards") as Array).is_empty(),
+				"fresh Main refuses %s backup-derived race clock, gates, results and debt" % kind)
+			var before := game.cinder_race_session.capture_persistence_state()
+			var started := game.request_activity_start(ROUTE.activity_id)
+			var reset := game.reset_active_activity()
+			var saved := game.save_cinder_race_session()
+			var authority := game.get("_game_flow_reward_authority") as GameFlowRewardAuthority
+			var payment := authority.commit({"activity_id": GameFlowRewardAuthority.RACE_ACTIVITY_ID,
+				"activity_generation": int(older.generation), "reward_id": GameFlowRewardAuthority.RACE_REWARD_ID,
+				"reward_authority": false, "granted": false})
+			print("RACE_FALLBACK_REFUSAL ", {"kind": kind, "attempt": attempt,
+				"state": snapshot, "restore": game.get_cinder_race_session_persistence_report().restore_status,
+				"start": started, "reset": reset, "save": saved, "payment": payment, "source": store.get_loaded_source()})
+			_check(not started.accepted and started.reason == &"not_in_free_flight" and not reset
+				and not saved.accepted and saved.reason == &"race_session_store_recovery_required"
+				and not payment.accepted and payment.reason == &"reward_store_recovery_required"
+				and game.cinder_race_session.capture_persistence_state() == before and _race_receipts(game) == 0
+				and store.get_loaded_source() == &"backup" and _race_recovery_artifacts(path) == artifacts,
+				"ordinary race Start, Reset, save and direct payment preserve untrusted fallback artifacts")
+			await _retire_game(game)
+			_check(_race_recovery_artifacts(path) == artifacts,
+				"race owner teardown preserves backup, paid witness and quarantine across recreation")
+
+
+func _race_recovery_artifacts(path: String) -> Dictionary:
+	var result := {}
+	for suffix: String in ["", ".bak", ".bak.1", ".bak.2", ".bak.3", ".recovery", ".tmp", ".paid-witness"]:
+		if FileAccess.file_exists(path + suffix):
+			result[path + suffix] = FileAccess.get_file_as_bytes(path + suffix)
+	return result
 
 
 func _race_receipts(game: GameFlow) -> int:
