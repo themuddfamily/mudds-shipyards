@@ -9290,7 +9290,7 @@ func _can_reseat_host_remote_crew_seat(seat: ShipCrewSeat) -> bool:
 	var contract := seat.get_role_contract()
 	var frame := contract.get("frame") as MovingInteriorFrame
 	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
-	var containment := player.get_cabin_containment_report()
+	var containment: Dictionary = player.get_cabin_containment_report()
 	var cabin := craft.get_in_flight_cabin_report()
 	var authority: CrewSeatRoleAuthority = craft.call(&"get_crew_role_authority")
 	return _host_craft_has_remote_pilot(craft) and not contract.is_empty() \
