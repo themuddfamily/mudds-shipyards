@@ -24,17 +24,20 @@ InWorldRecovery additionally exercises the target installed payload's ordinary
 Boot entry in a separate throwaway profile. It kills one owned process after
 actual durable activity readiness, then restarts that profile to prove exact
 boundary, one new receipt and its crash journal. InWorldRecoveryContext selects
-pilot (default), cabin, rest or crew. Cabin/rest/crew require a matching context
-in both Boot markers; older pilot-only payloads cannot qualify those selections.
-InWorldRecoveryActivity selects convoy (default), beacon, mining, stationdefense or hulk.
-Beacon/mining/stationdefense/hulk require pilot context and verify the genuine
-unpaid terminal and safe-home pilot Resume. Beacon/mining/stationdefense also
+pilot (default), cabin, rest or crew. Engineer is refused because the shipped
+engineer probe requires private X11 input and cannot run in this headless Windows
+lane. Cabin/rest/crew require a matching context in both Boot markers; older pilot-only payloads cannot qualify those selections.
+InWorldRecoveryActivity selects convoy (default), beacon, mining, stationdefense, scan or hulk.
+Beacon/mining/stationdefense/scan/hulk require pilot context and verify the genuine
+unpaid terminal and safe-home pilot Resume. Beacon/mining/stationdefense/scan also
 verify ordinary throttle, HUD Start payment and the saved acknowledgement without
 duplicates.
 Stationdefense verifies only the earned unpaid report and atomic paid acknowledgement;
 combat actors, elapsed timers, leases, damage and airborne claims are not restored.
 Mining verifies the schema 2 unpaid extraction, one atomic capacity acknowledgement
 with existing non-granting metadata, and unchanged production settings/cargo.
+Scan verifies its genuine four-second unpaid terminal, one permanent material
+sample receipt and exact paid acknowledgement, with unchanged settings/cargo.
 Hulk verifies genuinely earned unpaid breaker completion, the unchanged terminal
 and exactly one permanent cell ledger receipt through automatic Boot/running
 retry, plus real safe-home Resume/throttle and unchanged settings/cargo.
@@ -60,8 +63,8 @@ param(
     [string]$UserDataRecoveryFixture,
     [switch]$ForceKillRecovery,
     [switch]$InWorldRecovery,
-    [ValidateSet('pilot','cabin','rest','crew')][string]$InWorldRecoveryContext = 'pilot',
-    [ValidateSet('convoy','beacon','mining','stationdefense','hulk')][string]$InWorldRecoveryActivity = 'convoy',
+    [ValidateSet('pilot','cabin','rest','crew','engineer')][string]$InWorldRecoveryContext = 'pilot',
+    [ValidateSet('convoy','beacon','mining','stationdefense','scan','hulk')][string]$InWorldRecoveryActivity = 'convoy',
     [string]$InWorldCancelPath,
     [int]$StartupTimeoutMs = 120000
 )
@@ -453,8 +456,9 @@ function Stop-InWorldOwned($proc, $entry, [string]$termination) {
     if (-not $proc.WaitForExit(15000)) { throw 'owned in-world process did not reap after Kill' }
 }
 function Assert-InWorldSelection {
+    if ($InWorldRecoveryContext -eq 'engineer') { throw 'engineer recovery requires the production private X11 input probe; headless Windows installed recovery cannot qualify it' }
     if (-not $InWorldRecovery -and $InWorldRecoveryActivity -ne 'convoy') { throw 'InWorldRecoveryActivity requires InWorldRecovery' }
-    if ($InWorldRecoveryActivity -in @('beacon','mining','stationdefense','hulk') -and $InWorldRecoveryContext -ne 'pilot') { throw "$InWorldRecoveryActivity in-world recovery supports only pilot context" }
+    if ($InWorldRecoveryActivity -in @('beacon','mining','stationdefense','scan','hulk') -and $InWorldRecoveryContext -ne 'pilot') { throw "$InWorldRecoveryActivity in-world recovery supports only pilot context" }
 }
 function InWorld-BeaconCount($payload) {
     if ($null -eq $payload.game_flow_reward_store.reward_counts.debris_route_navigation_data) { return 0 }
@@ -719,6 +723,73 @@ function Assert-InWorldHulkRecovered($final, $ready, $recovered, [string]$log) {
         if ($index -le $last) { throw "missing ordered installed hulk recovery assertion: $assertion" }; $last = $index
     }
 }
+function Assert-InWorldScanRecord($record, [bool]$paid) {
+    Assert-InWorldStationKeys $record @('schema_version','activities')
+    Assert-InWorldHulkNumber $record.schema_version 1
+    if ($record.activities -isnot [Array] -or @($record.activities).Count -ne 1) { throw 'installed scan requires exactly one activity' }
+    $entry = $record.activities[0]
+    Assert-InWorldStationKeys $entry @('activity_id','generation','state','reward_requested','reward_granted','progress')
+    Assert-InWorldHulkNumber $entry.generation 1
+    Assert-InWorldHulkNumber $entry.state 2
+    if ($entry.activity_id -cne 'cinder_derelict_structure_scan' -or $entry.reward_requested -isnot [bool] -or $entry.reward_requested -ne $true -or $entry.reward_granted -isnot [bool] -or $entry.reward_granted -ne $paid) { throw 'installed scan earned terminal or payment flags differ' }
+    $progress = $entry.progress
+    Assert-InWorldStationKeys $progress @('schema_version','activity_id','content_class','evidence_status','state','generation','elapsed_seconds','scan_seconds','reward_requested','reward_authority','gameplay_authority','network_authority')
+    foreach ($pair in @(@('schema_version',1),@('state',2),@('generation',1),@('elapsed_seconds',4),@('scan_seconds',4))) { Assert-InWorldHulkNumber $progress.($pair[0]) $pair[1] }
+    if ($progress.activity_id -cne $entry.activity_id -or $progress.content_class -cne 'NEW' -or $progress.evidence_status -cne 'modern_interpretation' -or $progress.reward_requested -isnot [bool] -or $progress.reward_requested -ne $paid) { throw 'installed scan progress identity or acknowledgement differs' }
+    foreach ($name in @('reward_authority','gameplay_authority','network_authority')) { if ($progress.$name -isnot [bool] -or $progress.$name -ne $false) { throw 'installed scan progress invented authority' } }
+}
+function Assert-InWorldScanArm($saved, $ready) {
+    Assert-InWorldScanRecord $saved.payload.cinder_structure_scan_session $false
+    Assert-InWorldHulkNumber $ready.receipts 0
+    if ((InWorld-Canonical $saved.payload.cinder_structure_scan_session) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -cne 'running') { throw 'installed scan readiness differs from actual durable running document' }
+    $ledger = $saved.payload.game_flow_reward_store
+    if ($null -ne $ledger) {
+        Assert-InWorldHulkNumber $ledger.total_receipts 0
+        Assert-InWorldHulkNumber $ledger.receipt_serial 0
+        Assert-InWorldStationKeys $ledger.reward_counts @()
+        Assert-InWorldStationKeys $ledger.last_receipt @()
+    }
+    $pilot = $ready.runtime_observation
+    foreach ($name in @('player_seated','craft_piloted')) { if ($pilot.$name -isnot [bool] -or $pilot.$name -ne $true) { throw 'installed scan arm lacks its real pilot' } }
+    if ($pilot.craft_id -cne 'bulwark_heavy_gunship' -or $saved.payload.solo_safe_recovery.mode -cne 'pilot' -or $saved.payload.solo_safe_recovery.craft_id -cne $pilot.craft_id -or $ready.fixture_method -cne 'real_pilot_authored_scan_approach_and_production_elapsed_samples') { throw 'installed scan arm lacks genuine timed approach and saved safe pilot' }
+    Assert-InWorldHulkForeign $saved.payload $ready
+}
+function Assert-InWorldScanRecovered($final, $ready, $recovered, [string]$log) {
+    $paid = $final.payload.cinder_structure_scan_session
+    Assert-InWorldScanRecord $paid $true
+    $expected = $ready.boundary | ConvertTo-Json -Depth 60 | ConvertFrom-Json
+    $expected.activities[0].reward_granted = $true
+    $expected.activities[0].progress.reward_requested = $true
+    if ((InWorld-Canonical $paid) -ne (InWorld-Canonical $expected) -or (InWorld-Canonical $paid) -ne (InWorld-Canonical $recovered.paid_boundary)) { throw 'installed scan retry changed earned progress or saved acknowledgement' }
+    $ledger = $final.payload.game_flow_reward_store
+    Assert-InWorldHulkNumber $ledger.total_receipts 1
+    Assert-InWorldHulkNumber $ledger.receipt_serial 1
+    Assert-InWorldStationKeys $ledger.reward_counts @('derelict_material_sample')
+    Assert-InWorldHulkNumber $ledger.reward_counts.derelict_material_sample 1
+    $receipt = $ledger.last_receipt
+    Assert-InWorldHulkNumber $receipt.receipt_id 1
+    Assert-InWorldHulkNumber $receipt.activity_generation 1
+    if ($receipt.activity_id -cne 'cinder_derelict_structure_scan' -or $receipt.reward_id -cne 'derelict_material_sample' -or $receipt.granted -isnot [bool] -or $receipt.granted -ne $true -or $receipt.replay_allowed -isnot [bool] -or $receipt.replay_allowed -ne $false) { throw 'installed scan lacks its single permanent material sample receipt' }
+    Assert-InWorldHulkForeign $final.payload $ready
+    if ((InWorld-Canonical $recovered.foreign_settings) -ne (InWorld-Canonical $ready.foreign_settings) -or (InWorld-Canonical $recovered.foreign_cargo) -ne (InWorld-Canonical $ready.foreign_cargo)) { throw 'installed scan reported foreign fields differ' }
+    $pilot = $recovered.safe_recovery_observation
+    foreach ($name in @('player_seated','craft_piloted','piloting')) { if ($pilot.$name -isnot [bool] -or $pilot.$name -ne $true) { throw 'installed scan Resume did not reacquire real safe-home pilot' } }
+    if ($pilot.craft_id -cne $ready.runtime_observation.craft_id -or $pilot.craft_id -cne 'bulwark_heavy_gunship' -or $recovered.continuation_method -cne 'real_safe_home_pilot_resume_then_ordinary_scan_start_retry') { throw 'installed scan pilot or continuation method differs' }
+    $raw = Read-InWorldLog $log; $last = -1
+    foreach ($assertion in @(
+        'PASS: a fresh Boot process restores only the genuine unpaid scan checkpoint and one crash event',
+        'PASS: ordinary Resume reacquires the real safe-home pilot and preserves the exact unpaid boundary before retry',
+        'PASS: the recovered real pilot accepts ordinary flight input without mutating unpaid scan progress',
+        'PASS: ordinary HUD Start publishes one scan payment and its existing atomic acknowledgement',
+        'PASS: duplicate and late terminal callbacks cannot pay again or change the saved scan acknowledgement',
+        'PASS: scan recovery preserves actual settings and unrelated cargo progress',
+        'PASS: scan restart closes both existing recovery marker owners',
+        "PASS: scan recovery retains Boot's exact supplied Main owner"
+    )) {
+        $index = $raw.IndexOf($assertion)
+        if ($index -le $last) { throw "missing ordered installed scan recovery assertion: $assertion" }; $last = $index
+    }
+}
 function Assert-InWorldContext($token) {
     $activity = $token.PSObject.Properties['activity']
     if ($null -eq $activity) {
@@ -788,6 +859,7 @@ function Run-InWorldRecovery {
         }
         elseif ($InWorldRecoveryActivity -eq 'stationdefense') { Assert-InWorldStationArm $saved $ready }
         elseif ($InWorldRecoveryActivity -eq 'hulk') { Assert-InWorldHulkArm $saved $ready }
+        elseif ($InWorldRecoveryActivity -eq 'scan') { Assert-InWorldScanArm $saved $ready }
         elseif ((InWorld-Canonical $saved.payload.cinder_convoy_session.activities[0].progress.convoy_session_state) -ne (InWorld-Canonical $ready.boundary) -or $saved.payload.crash_recovery.state -ne 'running') { throw 'installed readiness differs from actual durable document/running marker' }
         Check-InWorldCancel
         if ($arm.HasExited) { throw 'installed arm exited before owned OS kill' }
@@ -847,6 +919,15 @@ function Run-InWorldRecovery {
             $probe.production_automatic_cell_payment_once = 'PASS'
             $probe.payment_stage = $recovered.payment_stage
             $probe.duplicate_late_callback_refusal = 'PASS'
+            $probe.foreign_settings_cargo_preserved = 'PASS'
+        }
+        elseif ($InWorldRecoveryActivity -eq 'scan') {
+            Assert-InWorldScanRecovered $final $ready $recovered (Join-Path $ProbeRoot 'in-world-resume.log')
+            $probe.automated_safe_home_berth_boarding = 'PASS'
+            $probe.automated_ordinary_throttle_before_retry = 'PASS'
+            $probe.ordinary_hud_start_payment_once = 'PASS'
+            $probe.duplicate_late_callback_refusal = 'PASS'
+            $probe.durable_unpaid_boundary_held_until_retry = 'PASS'
             $probe.foreign_settings_cargo_preserved = 'PASS'
         }
         $probe.recovered = $recovered

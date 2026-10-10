@@ -132,14 +132,32 @@ class VerifierContract(unittest.TestCase):
 
     def test_hulk_recovery_routes_the_existing_installed_consumer(self):
         text = VERIFY_PS1.read_text(encoding="utf-8")
-        self.assertIn("[ValidateSet('convoy','beacon','mining','stationdefense','hulk')]", text)
-        self.assertIn("-in @('beacon','mining','stationdefense','hulk')", text)
+        self.assertIn("[ValidateSet('convoy','beacon','mining','stationdefense','scan','hulk')]", text)
+        self.assertIn("-in @('beacon','mining','stationdefense','scan','hulk')", text)
         flow = text.split("function Run-InWorldRecovery {", 1)[1].split("Step 'preconditions'", 1)[0]
         self.assertIn("elseif ($InWorldRecoveryActivity -eq 'hulk') { Assert-InWorldHulkArm $saved $ready }", flow)
         self.assertIn("Assert-InWorldHulkRecovered $final $ready $recovered", flow)
         self.assertIn("$probe.production_automatic_cell_payment_once = 'PASS'", flow)
         self.assertIn("$probe.payment_stage = $recovered.payment_stage", flow)
         self.assertIn("normal_controls='NOT_RUN'; pilot_seat_world_restore='NOT_RUN'; native_gpu='NOT_RUN'", flow)
+
+    def test_scan_recovery_uses_owned_installed_lifecycle_and_refuses_engineer(self):
+        text = VERIFY_PS1.read_text(encoding="utf-8")
+        self.assertIn("[ValidateSet('pilot','cabin','rest','crew','engineer')]", text)
+        self.assertIn("engineer recovery requires the production private X11 input probe", text)
+        selection = text.split("function Assert-InWorldSelection {", 1)[1].split("function InWorld-BeaconCount", 1)[0]
+        self.assertIn("$InWorldRecoveryContext -eq 'engineer'", selection)
+        flow = text.split("function Run-InWorldRecovery {", 1)[1].split("Step 'preconditions'", 1)[0]
+        self.assertIn("elseif ($InWorldRecoveryActivity -eq 'scan') { Assert-InWorldScanArm $saved $ready }", flow)
+        self.assertIn("Assert-InWorldScanRecovered $final $ready $recovered", flow)
+        self.assertLess(flow.index("Assert-InWorldScanArm"), flow.index("Stop-InWorldOwned $arm"))
+        self.assertLess(flow.index("Stop-InWorldOwned $arm"), flow.index("Start-InWorldOwned 'resume'"))
+        self.assertIn("$probe.after_kill_document_sha256 -ne $beforeHash", flow)
+        self.assertIn("$InWorldRecoveryActivity -ne 'convoy' -and $arm.ExitCode -ne -1", flow)
+        self.assertIn("$probe.foreign_settings_cargo_preserved = 'PASS'", flow)
+        self.assertIn("$proc.Kill()", text)
+        self.assertIn("$proc.WaitForExit(15000)", text)
+        self.assertIn("[int]$StartupTimeoutMs = 120000", text)
 
     def test_native_log_and_document_acceptance_rejects_real_regressions(self):
         powershell = shutil.which("powershell.exe") or shutil.which("pwsh")
@@ -665,6 +683,105 @@ try {
     [IO.File]::WriteAllText($hulkLog, ($hulkAssertions -join "`n")+"`n"); $rejected=$false
     try { Assert-InWorldHulkRecovered $final $ready $recovered $hulkLog } catch { $rejected=$true }
     if (-not $rejected) { throw 'unordered actual hulk continuation accepted' }
+    # Engineer is deliberately private-X11-only in the shipped Boot contract.
+    $InWorldRecovery=$true; $InWorldRecoveryActivity='convoy'; $InWorldRecoveryContext='engineer'; $rejected=$false
+    try { Assert-InWorldSelection } catch { $rejected=$_.Exception.Message -like '*private X11 input probe*' }
+    if (-not $rejected) { throw 'headless Windows engineer selection was accepted or misdiagnosed' }
+    $InWorldRecoveryActivity='scan'; $InWorldRecoveryContext='pilot'
+    Assert-InWorldSelection
+    Assert-InWorldContext ([pscustomobject]@{activity='scan'; recovery_context='pilot'})
+    foreach ($context in @('cabin','rest','crew','engineer')) {
+        $InWorldRecoveryContext=$context; $rejected=$false
+        try { Assert-InWorldSelection } catch { $rejected=$true }
+        if (-not $rejected) { throw 'scan nonpilot selection accepted' }
+    }
+    $InWorldRecoveryContext='pilot'; $InWorldRecovery=$false; $rejected=$false
+    try { Assert-InWorldSelection } catch { $rejected=$true }
+    if (-not $rejected) { throw 'scan without recovery accepted' }
+    foreach ($token in @(@{},@{activity='scan'},@{activity='SCAN'; recovery_context='pilot'},@{activity='convoy'; recovery_context='pilot'},@{activity='scan'; recovery_context='crew'})) {
+        $rejected=$false
+        try { Assert-InWorldContext ([pscustomobject]$token) } catch { $rejected=$true }
+        if (-not $rejected) { throw 'wrong scan activity/context token accepted' }
+    }
+    $progress=[pscustomobject]@{schema_version=1; activity_id='cinder_derelict_structure_scan'; content_class='NEW'; evidence_status='modern_interpretation'; state=2; generation=1; elapsed_seconds=4.0; scan_seconds=4.0; reward_requested=$false; reward_authority=$false; gameplay_authority=$false; network_authority=$false}
+    $terminal=[pscustomobject]@{schema_version=1; activities=@([pscustomobject]@{activity_id='cinder_derelict_structure_scan'; generation=1; state=2; reward_requested=$true; reward_granted=$false; progress=$progress})}
+    $ready=[pscustomobject]@{boundary=$terminal; receipts=0; fixture_method='real_pilot_authored_scan_approach_and_production_elapsed_samples'; foreign_settings=[pscustomobject]@{values=[pscustomobject]@{graphics_profile='low'}}; foreign_cargo=[pscustomobject]@{state=1; generation=1}; runtime_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; craft_id='bulwark_heavy_gunship'}}
+    $saved=[pscustomobject]@{payload=[pscustomobject]@{cinder_structure_scan_session=$terminal; runtime_settings=$ready.foreign_settings; jovian_cargo_session=$ready.foreign_cargo; crash_recovery=[pscustomobject]@{state='running'}; solo_safe_recovery=[pscustomobject]@{mode='pilot'; craft_id='bulwark_heavy_gunship'}; game_flow_reward_store=[pscustomobject]@{total_receipts=0; receipt_serial=0; reward_counts=[pscustomobject]@{}; last_receipt=[pscustomobject]@{}}}}
+    Assert-InWorldScanArm $saved $ready
+    $armFixture=@($saved,$ready) | ConvertTo-Json -Depth 60
+    foreach ($mutate in @(
+        {$saved.payload.cinder_structure_scan_session.schema_version=2},
+        {$saved.payload.cinder_structure_scan_session.activities[0].progress.elapsed_seconds=3.9},
+        {$saved.payload.cinder_structure_scan_session.activities[0].progress.reward_authority=$true},
+        {$saved.payload.cinder_structure_scan_session.activities[0].progress.generation='1'},
+        {$saved.payload.cinder_structure_scan_session.activities[0].progress | Add-Member -NotePropertyName invented -NotePropertyValue $true},
+        {$saved.payload.cinder_structure_scan_session.activities[0].reward_granted=$true},
+        {$saved.payload.cinder_structure_scan_session.activities[0].reward_requested=1},
+        {$saved.payload.game_flow_reward_store.total_receipts=1},
+        {$saved.payload.game_flow_reward_store.reward_counts | Add-Member -NotePropertyName derelict_material_sample -NotePropertyValue 1},
+        {$ready.boundary=[pscustomobject]@{}}, {$ready.receipts=$false}, {$ready.fixture_method='synthetic'},
+        {$ready.runtime_observation.player_seated=$false}, {$saved.payload.solo_safe_recovery.mode='crew'},
+        {$saved.payload.runtime_settings.values.graphics_profile='high'}, {$saved.payload.jovian_cargo_session.state=2},
+        {$saved.payload.crash_recovery.state='clean'}
+    )) {
+        $copy=$armFixture | ConvertFrom-Json; $saved=$copy[0]; $ready=$copy[1]
+        & $mutate
+        # Keep the claimed/disk terminal equal to prove malformed records fail.
+        if ($ready.boundary.PSObject.Properties.Name -contains 'activities') { $ready.boundary=$saved.payload.cinder_structure_scan_session }
+        $rejected=$false
+        try { Assert-InWorldScanArm $saved $ready } catch { $rejected=$true }
+        if (-not $rejected) { throw 'malformed installed scan arm accepted' }
+    }
+    $copy=$armFixture | ConvertFrom-Json; $saved=$copy[0]; $ready=$copy[1]
+    $paid=$ready.boundary | ConvertTo-Json -Depth 60 | ConvertFrom-Json
+    $paid.activities[0].reward_granted=$true; $paid.activities[0].progress.reward_requested=$true
+    $receipt=[pscustomobject]@{receipt_id=1; activity_id='cinder_derelict_structure_scan'; activity_generation=1; reward_id='derelict_material_sample'; granted=$true; replay_allowed=$false}
+    $final=[pscustomobject]@{payload=[pscustomobject]@{cinder_structure_scan_session=$paid; runtime_settings=$ready.foreign_settings; jovian_cargo_session=$ready.foreign_cargo; game_flow_reward_store=[pscustomobject]@{total_receipts=1; receipt_serial=1; reward_counts=[pscustomobject]@{derelict_material_sample=1}; last_receipt=$receipt}}}
+    $recovered=[pscustomobject]@{paid_boundary=$paid; foreign_settings=$ready.foreign_settings; foreign_cargo=$ready.foreign_cargo; safe_recovery_observation=[pscustomobject]@{player_seated=$true; craft_piloted=$true; piloting=$true; craft_id='bulwark_heavy_gunship'}; continuation_method='real_safe_home_pilot_resume_then_ordinary_scan_start_retry'}
+    $scanLog=Join-Path $root 'scan-resume.log'
+    $scanAssertions=@(
+        'PASS: a fresh Boot process restores only the genuine unpaid scan checkpoint and one crash event',
+        'PASS: ordinary Resume reacquires the real safe-home pilot and preserves the exact unpaid boundary before retry',
+        'PASS: the recovered real pilot accepts ordinary flight input without mutating unpaid scan progress',
+        'PASS: ordinary HUD Start publishes one scan payment and its existing atomic acknowledgement',
+        'PASS: duplicate and late terminal callbacks cannot pay again or change the saved scan acknowledgement',
+        'PASS: scan recovery preserves actual settings and unrelated cargo progress',
+        'PASS: scan restart closes both existing recovery marker owners',
+        "PASS: scan recovery retains Boot's exact supplied Main owner"
+    )
+    [IO.File]::WriteAllText($scanLog, ($scanAssertions -join "`n")+"`n")
+    Assert-InWorldScanRecovered $final $ready $recovered $scanLog
+    $resumeFixture=@($final,$ready,$recovered) | ConvertTo-Json -Depth 60
+    foreach ($mutate in @(
+        {$final.payload.cinder_structure_scan_session.activities[0].progress.elapsed_seconds=3.9},
+        {$final.payload.cinder_structure_scan_session.activities[0].reward_granted=$false},
+        {$final.payload.game_flow_reward_store.reward_counts.derelict_material_sample=2},
+        {$final.payload.game_flow_reward_store.reward_counts | Add-Member -NotePropertyName invented -NotePropertyValue 1},
+        {$final.payload.game_flow_reward_store.receipt_serial=2},
+        {$final.payload.game_flow_reward_store.last_receipt.reward_id='invented'},
+        {$final.payload.game_flow_reward_store.last_receipt.replay_allowed=$true},
+        {$final.payload.runtime_settings.values.graphics_profile='high'},
+        {$final.payload.jovian_cargo_session.state=2}, {$recovered.foreign_cargo.state=2},
+        {$recovered.safe_recovery_observation.piloting=$false},
+        {$recovered.safe_recovery_observation.craft_id='jovian_light_freighter'},
+        {$recovered.continuation_method='automatic'}, {$recovered.paid_boundary=[pscustomobject]@{}}
+    )) {
+        $copy=$resumeFixture | ConvertFrom-Json; $final=$copy[0]; $ready=$copy[1]; $recovered=$copy[2]
+        & $mutate
+        $rejected=$false
+        try { Assert-InWorldScanRecovered $final $ready $recovered $scanLog } catch { $rejected=$true }
+        if (-not $rejected) { throw 'invalid installed scan continuation accepted' }
+    }
+    $copy=$resumeFixture | ConvertFrom-Json; $final=$copy[0]; $ready=$copy[1]; $recovered=$copy[2]
+    foreach ($omitted in $scanAssertions) {
+        [IO.File]::WriteAllText($scanLog, (($scanAssertions | Where-Object { $_ -ne $omitted }) -join "`n")+"`n"); $rejected=$false
+        try { Assert-InWorldScanRecovered $final $ready $recovered $scanLog } catch { $rejected=$true }
+        if (-not $rejected) { throw 'missing actual scan continuation accepted' }
+    }
+    [array]::Reverse($scanAssertions)
+    [IO.File]::WriteAllText($scanLog, ($scanAssertions -join "`n")+"`n"); $rejected=$false
+    try { Assert-InWorldScanRecovered $final $ready $recovered $scanLog } catch { $rejected=$true }
+    if (-not $rejected) { throw 'unordered actual scan continuation accepted' }
     $log = Join-Path $root 'startup.log'
     [IO.File]::WriteAllText($log, "WARNING: Atomic runtime settings load retained authored defaults: store_load_failed / newer_schema`nSTARTUP_MENU_READY_OK: {}`n")
     Assert-StartupLog $log 0 | Out-Null
