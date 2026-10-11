@@ -174,8 +174,14 @@ func consume_state(packet: Dictionary) -> void:
 	if epoch < _epoch or epoch <= 0 or packet.get("world_id") != WORLD_ID:
 		return
 	if packet.get("phase") == &"retired":
+		if epoch == _epoch and not _state.is_empty() \
+				and packet.get("ship_id") == _state.get("ship_id"):
+			_flow._consume_network_ember_passenger_retirement(epoch, StringName(packet.ship_id))
 		_epoch = epoch
 		_state.clear()
+		return
+	# A terminal epoch cannot be revived by delayed focus or boarding traffic.
+	if epoch == _epoch and _state.is_empty():
 		return
 	if packet.get("phase") not in [&"preparing", &"cruising", &"cruise_stopped", &"approaching", &"landed", &"returning"]:
 		return

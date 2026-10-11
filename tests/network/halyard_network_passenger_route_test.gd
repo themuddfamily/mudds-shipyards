@@ -20,6 +20,8 @@ var _navigator_cues: Array[StringName] = []
 # route's overall budget. All default waits and stage caps stay intact.
 const EMBER_SURFACE_TOTAL_SECONDS := 2400.0
 var _ember_surface := false
+var _ember_surface_loss := false
+var _ember_surface_loss_authority_first := false
 var _ember_surface_total_deadline_unix := 0.0
 var _shared_cruise := false
 var _readiness_pressure_epoch := 0
@@ -39,6 +41,12 @@ func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	_ember_surface = "--ember-surface" in args
 	args.erase("--ember-surface")
+	_ember_surface_loss = "--ember-surface-loss" in args
+	args.erase("--ember-surface-loss")
+	_ember_surface_loss_authority_first = "--ember-surface-loss-authority-first" in args
+	args.erase("--ember-surface-loss-authority-first")
+	_ember_surface_loss = _ember_surface_loss or _ember_surface_loss_authority_first
+	_ember_surface = _ember_surface or _ember_surface_loss
 	var deadline_index := args.find("--ember-total-deadline")
 	if deadline_index >= 0 and deadline_index + 1 < args.size():
 		_ember_surface_total_deadline_unix = args[deadline_index + 1].to_float()
@@ -237,6 +245,10 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if _ember_surface:
 		args.append("--ember-surface")
 		args.append_array(["--ember-total-deadline", str(_ember_surface_total_deadline_unix)])
+	if _ember_surface_loss:
+		args.append("--ember-surface-loss")
+	if _ember_surface_loss_authority_first:
+		args.append("--ember-surface-loss-authority-first")
 	if _shared_cruise:
 		args.append("--shared-cruise")
 	if _cinder:
@@ -1216,6 +1228,25 @@ func _ember_surface_host() -> void:
 		and (_game.network_session.get_boarding_snapshot().get("occupancies", []) as Array).any(func(held: Dictionary): return int(held.get("peer_id", 0)) == peer and held.get("role") == GameFlow.NETWORK_CABIN_BERTH_ROLE),
 		"returning passenger owns only cabin berth while standing host retains pilot ledger")
 	_write("host.reboard_seen", {})
+	if _ember_surface_loss:
+		if not await _wait_file("client.world_lost", 20.0):
+			return
+		# Destroy the actual visit world, not a lease/Host/receipt field. Existing
+		# production lifetime guards must retire authority and notify the peer.
+		_game.ember_streaming_bootstrap.get_loaded_instance().queue_free()
+		_check(await _until(func(): return simulation.get_body_count() == 0
+			and _game._network_ember_passenger_surfaces.is_empty(), 5.0)
+			and int(simulation.get_audit().get("released", -1)) - releases_before == 1
+			and _game.network_session.get_movement_avatar_snapshot(avatar).is_empty()
+			and _game.network_session.get_admitted_peer_ids().has(peer),
+			"actual terrain loss releases exactly one body while the peer remains admitted")
+		if not await _wait_file("client.recovered", 20.0):
+			return
+		var after_loss := UserDataStore.new(str(store.get("_path")))
+		_check(after_loss.load_read_only().accepted and after_loss.get_snapshot() == saved
+			and store.get_generation() == saved_generation,
+			"visit loss and explicit recovery preserve genuine durable survey manifest and once-only reward")
+		return
 	if not await _wait_file("client.disconnected", 20.0):
 		return
 	_check(await _until(func(): return simulation.get_body_count() == 0 and _game._network_ember_passenger_surfaces.is_empty(), 5.0)
@@ -1326,6 +1357,61 @@ func _ember_surface_client() -> void:
 	await _walk(Vector3(-8.0, 0.0, HalyardCrewTransport.AIRSTAIR_Z))
 	var stale := Callable(_game, "_network_local_ember_passenger_prediction_is_current").bind(_game._network_client_ember_passenger_surface)
 	var surface_position := _player.global_position
+	if _ember_surface_loss:
+		var retirements: Array[Dictionary] = []
+		var recovery_messages: Array[String] = []
+		var received_retirement := func(packet: Dictionary) -> void:
+			if packet.get("phase") == &"retired":
+				retirements.append(packet.duplicate(true))
+				recovery_messages.append(str((_game.hud.get("_toast_title") as Label).text))
+		_game.network_session.planetary_journey_state_received.connect(received_retirement)
+		var local_scene := _game.ember_streaming_bootstrap.get_loaded_instance()
+		if _ember_surface_loss_authority_first:
+			_check(_game._network_client_ember_passenger_surface_is_current() and _player.is_on_floor(),
+				"authority-first loss starts with actual current supported client terrain")
+		else:
+			# Local loss arrives first. It may revoke prediction, but must not
+			# grant recall until the real server retires this exact visit.
+			local_scene.queue_free()
+			_check(await _until(func(): return _game._network_client_ember_passenger_surface.is_empty()
+				and not _game._network_client_ember_passenger_retired.is_empty(), 4.0)
+				and not source.is_bound() and not bool(stale.call()) and retirements.is_empty()
+				and _player.get_instance_id() == body_id
+				and _player.global_position.distance_to((_game.world.call(&"get_player_spawn") as Transform3D).origin) > 1_000_000.0,
+				"local terrain loss revokes stale prediction while retaining identity without recovery authority")
+		_write("client.world_lost", {})
+		_check(await _until(func(): return not retirements.is_empty() and _player.is_on_floor()
+			and _player.is_control_enabled() and _game._network_client_ember_passenger_retired.is_empty(), 20.0)
+			and _game._network_client_boarding_is_live() and _player.get_instance_id() == body_id
+			and not source.is_bound() and not bool(stale.call()) and _game._cabin_ship == null
+			and recovery_messages.has("CREW SAFE RECOVERY")
+			and _player.global_position.distance_to((_game.world.call(&"get_player_spawn") as Transform3D).origin) < 2.0,
+			"authenticated current visit retirement recalls the same supported usable actor without ending ENet")
+		if retirements.is_empty():
+			return
+		if _ember_surface_loss_authority_first and is_instance_valid(local_scene) and not local_scene.is_queued_for_deletion():
+			local_scene.queue_free()
+		var recovered_pose := _player.global_transform
+		var toast_serial: int = _game.hud.get("_toast_serial")
+		var recovered_confirmations := int(_game.get_network_client_boarding_audit().get("confirmations", 0))
+		_game.network_session.planetary_journey_state_received.emit(retirements[0].duplicate(true))
+		for answer: Dictionary in [old_departure, old_boarding]:
+			_game.network_session.boarding_intent_result.emit(answer.duplicate(true))
+		_check(_player.global_transform == recovered_pose and not source.is_bound() and not bool(stale.call())
+			and _game._network_client_ember_passenger_surface.is_empty()
+			and _game._network_client_ember_passenger_retired.is_empty()
+			and not _game._network_client_boarding_holds(_craft)
+			and source.advance(_game._network_client_peer_id(), {}, _game.network_session.get_moving_interior_latest_server_tick()).is_empty()
+			and int(_game.hud.get("_toast_serial")) == toast_serial
+			and int(_game.get_network_client_boarding_audit().get("confirmations", -1)) == recovered_confirmations,
+			"real duplicate retirement and old boarding answers cannot repeat recovery or revive exterior authority")
+		_game.network_session.planetary_journey_state_received.disconnect(received_retirement)
+		await _ticks(3)
+		_check(_player.is_on_floor() and _player.is_control_enabled() and _game._network_client_boarding_is_live()
+			and _game._network_client_ember_passenger_retired.is_empty(),
+			"recovery remains supported and usable after subsequent local terrain retirement")
+		_write("client.recovered", {})
+		return
 	_game.shutdown_network_session(&"terrain_passenger_disconnect")
 	_check(not source.is_bound() and _game._network_client_ember_passenger_surface.is_empty()
 		and not bool(stale.call()) and _player.is_control_enabled()

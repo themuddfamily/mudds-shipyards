@@ -852,6 +852,9 @@ var _network_client_boarding_claim: Dictionary = {}
 ## owns the caldera lease. These are embodiment contexts, never seat/reward grants.
 var _network_ember_passenger_surfaces: Dictionary = {}
 var _network_client_ember_passenger_surface: Dictionary = {}
+## Local support loss can precede the authenticated retirement packet. This
+## identity may await that packet; it grants neither prediction nor recovery.
+var _network_client_ember_passenger_retired: Dictionary = {}
 ## The board request this peer stopped waiting for. An expiry does not reach
 ## the ledger, so a grant can still arrive for it; this is what lets that late
 ## grant be handed straight back instead of becoming a seat held forever by a
@@ -10779,10 +10782,23 @@ func _network_local_ember_passenger_prediction_is_current(expected_context: Dict
 		and _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound()
 
 
-func _retire_network_client_ember_passenger_surface() -> void:
+func _retire_network_client_ember_passenger_surface(await_authority: bool = false, resume_controls: bool = true) -> void:
+	if await_authority and not _network_client_ember_passenger_surface.is_empty() \
+			and _network_client_boarding_is_live() \
+			and int(get_network_planetary_journey_snapshot().get("journey_epoch", 0)) \
+				== int(_network_client_ember_passenger_surface.journey_epoch):
+		var current := _network_client_ember_passenger_surface
+		_network_client_ember_passenger_retired = {
+			"session_id": current.session_id, "journey_epoch": current.journey_epoch,
+			"ship_id": current.ship_id, "craft_id": current.craft_id, "body_id": current.body_id,
+			"entity_id": current.entity_id, "entity_generation": current.entity_generation,
+		}
+	else:
+		_network_client_ember_passenger_retired.clear()
 	if _network_client_ember_passenger_surface.is_empty():
 		return
 	if is_instance_valid(player):
+		player.clear_remote_intent()
 		player.gravity_multiplier = float(_network_client_ember_passenger_surface.get("cabin_gravity", 1.0))
 	_network_client_ember_passenger_surface.clear()
 	_release_cabin_occupancy()
@@ -10790,8 +10806,43 @@ func _retire_network_client_ember_passenger_surface() -> void:
 		_network_remote_body_intent_source.unbind()
 	_sync_network_moving_interior_presenter()
 	if is_instance_valid(player) and player.is_inside_tree() and not player.is_seated():
-		player.set_control_enabled(true)
+		if resume_controls:
+			player.set_control_enabled(true)
 		phase = Phase.APPROACH_SHIP
+
+
+## Called only by the authenticated current-epoch bridge retirement consumer.
+## Scene loss by itself only revokes prediction; it cannot move the actor.
+func _consume_network_ember_passenger_retirement(epoch: int, ship_id: StringName) -> void:
+	var context := _network_client_ember_passenger_surface \
+		if not _network_client_ember_passenger_surface.is_empty() else _network_client_ember_passenger_retired
+	if context.is_empty() or not _network_client_boarding_is_live() \
+			or network_session.get_instance_id() != int(context.session_id) \
+			or int(context.journey_epoch) != epoch or context.get("ship_id") != ship_id \
+			or not is_instance_valid(player) or player.get_instance_id() != int(context.body_id) \
+			or not is_instance_valid(world) or not world.is_inside_tree() or world.is_queued_for_deletion() \
+			or not world.has_method(&"get_player_spawn"):
+		return
+	var craft := _find_flyable_ship_by_id(ship_id)
+	if not is_instance_valid(craft) or craft.get_instance_id() != int(context.craft_id):
+		return
+	if _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound() \
+			and (_network_remote_body_intent_source.get_entity_id() != context.entity_id \
+				or _network_remote_body_intent_source.get_entity_generation() != int(context.entity_generation)):
+		return
+	# The existing spawn/embodiment owner provides safe recovery. This is an
+	# explicit recall after visit loss, never an ordinary physical return. The
+	# withdrawn authority matters even while an old local floor is still drawn.
+	player.set_control_enabled(false)
+	_abandon_network_client_boarding_request()
+	_refuse_network_client_boarding(&"shared_terrain_retired")
+	_invalidate_transition_generation()
+	_retire_network_client_ember_passenger_surface(false, false)
+	_transition_busy = false
+	_recall_pilot_to_deck()
+	phase = Phase.APPROACH_SHIP
+	if is_instance_valid(hud):
+		hud.toast("Crew safe recovery", "Shared visit ended — recalled to Mudds", 5.0, true)
 
 
 ## Shared exterior motion after local physical acceptance or a confirmed
@@ -13438,11 +13489,13 @@ func _present_network_client_ember_passenger_departure(craft: HeroShip, area: Sh
 		return
 	_network_client_ember_passenger_surface = {
 		"session_id": network_session.get_instance_id(), "journey_epoch": epoch,
+		"ship_id": craft.get_ship_id(),
 		"body_id": player.get_instance_id(), "craft_id": craft.get_instance_id(),
 		"entity_id": _network_remote_body_intent_source.get_entity_id(),
 		"entity_generation": _network_remote_body_intent_source.get_entity_generation(),
 		"scene_id": scene.get_instance_id(), "policy": policy, "cabin_gravity": player.gravity_multiplier,
 	}
+	_network_client_ember_passenger_retired.clear()
 	if is_instance_valid(area) and area.get_reservation_token() == player:
 		area.release_reservation(player)
 	_boarding_area = null
@@ -13632,14 +13685,21 @@ func get_network_client_boarding_audit() -> Dictionary:
 ## the current body. Later predicted movement and current velocity survive;
 ## the intent source rebases its retained newer samples without input replay.
 func _advance_network_remote_body_intent_stream() -> void:
+	var retired := _network_client_ember_passenger_retired
+	if not retired.is_empty() and (not _network_client_boarding_is_live() \
+			or network_session.get_instance_id() != int(retired.session_id) \
+			or not is_instance_valid(player) or player.get_instance_id() != int(retired.body_id) \
+			or int(get_network_planetary_journey_snapshot().get("journey_epoch", 0)) != int(retired.journey_epoch) \
+			or (_network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound())):
+		_network_client_ember_passenger_retired.clear()
 	if not _network_client_ember_passenger_surface.is_empty():
 		if not _network_client_ember_passenger_surface_is_current():
-			_retire_network_client_ember_passenger_surface()
+			_retire_network_client_ember_passenger_surface(true)
 			return
 		var multiplier := _network_ember_passenger_gravity(player.global_position,
 			_network_client_ember_passenger_surface.policy as PlanetarySurfaceGravityPolicy)
 		if not is_finite(multiplier) or multiplier <= 0.0:
-			_retire_network_client_ember_passenger_surface()
+			_retire_network_client_ember_passenger_surface(true)
 			return
 		player.gravity_multiplier = multiplier
 	if _network_session_mode != &"client" \
