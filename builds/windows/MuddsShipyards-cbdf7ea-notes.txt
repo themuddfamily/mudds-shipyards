@@ -1,0 +1,18 @@
+Mudds Shipyards — Windows chair and approach-braking checkpoint (2026-10-11)
+Source: cbdf7eae9723544bcf98be858a4808a79a084b04
+
+Player-visible changes:
+- One travelling-crew Interact press sampled twice in the same physics frame now produces one chair request; later presses can still stand and reseat.
+- Ember approaches brake using the craft's current stopping distance and damage-scaled brake strength, retaining braking until the low-speed landing handoff. Real Halyard checks verify stopping near staging instead of overshooting into a reverse approach.
+
+Actual validation:
+- Fresh clean-source Windows export and embedded PCK inventory passed with zero cache copies.
+- All 22 focused source/PCK lanes passed 1,874 assertions, including body intent 49 per lane, final-approach handoff 27 per lane and Host lifecycle 162 per lane. Shared crew cruise passed source115/package120 with both ordinary reseats and actual peer exits 0. Source cruise used the guarded passive chair diagnostic without changing inputs or deadlines.
+- Four standard embedded-PCK probes passed 223 assertions and zero diagnostics: 2,097 total.
+- Strict --startup-check exited 0 with exactly one STARTUP_MENU_READY_OK and mouse_free_during_load=true.
+- Actual owning tool36044 exited 0 and was consumed/reaped. All 189 captured creation identities are absent; source/index/cache/artifact/protected-input/helper and all 1,502 PCK payload guards passed.
+- All 26 original settings_missing/software VSync warning lines remain retained. Earlier failed checkpoint and arrival runs remain failures; the intermittent reseat failure's cause is unresolved.
+
+Run: extract the checkpoint ZIP and launch MuddsShipyards-cbdf7ea.exe.
+
+Limits: automated checks load the Windows embedded PCK using Linux Godot with Dummy audio and headless or private X11 software rendering. Native Windows/GPU performance, physical devices, audible/human review, installed recovery, complete final-source regression and trusted signing remain open/NOT_RUN. Full shared planetary landing within the original deadline, surface activity, durable progress, ordinary reboarding and return remain unqualified. This focused checkpoint does not close a roadmap phase or release gate.
