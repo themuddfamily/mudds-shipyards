@@ -907,19 +907,23 @@ func _test_audit_is_deep_copy_and_authority_free() -> void:
 	_check(coordinator.get_location_generation(zeta.location_id) == 1
 			and coordinator.get_location_generation(alpha.location_id) == 0,
 		"focused generation is independent of nested audit mutation and observes registered generation zero")
-	fake.complete(0, _packed_node_3d())
 	coordinator.request_load(alpha.location_id)
 	fake.complete(1, _packed_node_3d())
+	fake.complete(0, _packed_node_3d())
+	var alpha_root := coordinator.get_loaded_instance(alpha.location_id)
 	var retired_locations: Array[StringName] = []
 	coordinator.location_unloaded.connect(
-		func(id: StringName, _generation: int) -> void: retired_locations.append(id)
+		func(id: StringName, _generation: int) -> void:
+			retired_locations.append(id)
+			if id == zeta.location_id:
+				alpha_root.queue_free()
 	)
 	coordinator.get_loaded_instance(zeta.location_id).queue_free()
 	var audits_before := coordinator.audit_reads
 	var alpha_generation := coordinator.get_location_generation(alpha.location_id)
-	_check(alpha_generation == 1 and retired_locations == [&"zeta_location"]
+	_check(alpha_generation == 2 and retired_locations == [&"zeta_location", &"alpha_location"]
 			and coordinator.audit_reads == audits_before,
-		"focused generation preserves audit reconciliation of another queued loaded location without constructing an audit")
+		"focused generation preserves both audit reconciliation passes when another root's retirement queues the queried root, without constructing an audit")
 	coordinator.queue_free()
 	await process_frame
 
