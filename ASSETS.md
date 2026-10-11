@@ -808,3 +808,18 @@ assets or scripts are bundled.
   crisp at reading distance).
 - Project status: original project work tagged `modern_interpretation`; a
   readability layer for the remake, not a recovered original sign scheme.
+
+## `assets/signage/observation_instrument_atlas.svg` — Observation instrument plates
+
+- Content: three static instrument identity plates, SECTOR VIEW, RANGE DISPLAY
+  and LOGISTICS, with compass, concentric-range and manifest silhouettes. These
+  are architectural dressing, not live readings or interactive controls.
+- Source: generated deterministically with
+  `python3 tools/signage/generate_observation_instrument_atlas.py`, using the
+  project's font-free engineering alphabet and heading table in
+  `scripts/world/observation_logistics_spur.gd`. No external fonts or images.
+- Rendering: one 512 × 512 SVG atlas, one unshaded non-emissive material and three
+  textured quads on the existing console lenses. Pale lettering on dark plates
+  with shape cues; no meaning depends on colour. Lossless import with mipmaps.
+- Authorship/status: project-original `modern_interpretation`; no third-party
+  material or third-party licence applies.

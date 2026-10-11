@@ -121,6 +121,10 @@ const INDEXED_RUNTIME_CHILD_PATHS := [
 	"Structure/Dressing/LightLens06",
 ]
 
+## Project-original static headings share one atlas across the three lens faces.
+const OBSERVATION_INSTRUMENT_ATLAS := preload("res://assets/signage/observation_instrument_atlas.svg")
+const OBSERVATION_INSTRUMENT_HEADINGS := ["SECTOR VIEW", "RANGE DISPLAY", "LOGISTICS"]
+
 ## Visual-only observation lenses retain their stable authored paths as empty
 ## anchors while one bounded renderer draws the three exact copies.
 const OBSERVATION_LENS_SIZE := Vector3(0.035, 0.26, 0.92)
@@ -1777,6 +1781,7 @@ func _build_dressing(parent: Node3D) -> void:
 		observation_lens_transforms
 	)
 	observation_lens_batch.multimesh.custom_aabb = OBSERVATION_LENS_CULLING_BOUNDS
+	_build_observation_instrument_plates(parent)
 	_box(parent, "ObservationBench", Vector3(-4.5, 0.30, 28.0), Vector3(2.6, 0.60, 0.62), _materials["shell"], true)
 	# Logistics pad: restrained pallet stacks remain along the outboard edge.
 	_logistics_case_mesh = BoxMesh.new()
@@ -2193,6 +2198,46 @@ func _apply_metadata() -> void:
 	set_meta("evidence_status", EVIDENCE_STATUS)
 	set_meta("authenticated_original_geometry", false)
 	set_meta("content_note", CONTENT_NOTE)
+
+
+## Static instrument identity, not live telemetry or an interactive screen.
+## Three quads sit 2 mm in front of the existing cyan lenses. Their dark plates
+## leave a narrow cyan rim and face the pad's clear inward (+X) approach.
+func _build_observation_instrument_plates(parent: Node3D) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for index in OBSERVATION_LENS_POSITIONS.size():
+		var centre: Vector3 = OBSERVATION_LENS_POSITIONS[index]
+		centre.x += OBSERVATION_LENS_SIZE.x * 0.5 + 0.002
+		var across := Vector3(0.0, 0.0, -0.90)
+		var down := Vector3(0.0, -0.24, 0.0)
+		var top_left := centre - across * 0.5 - down * 0.5
+		var corners := [top_left, top_left + across, top_left + across + down, top_left + down]
+		# Half-pixel inset keeps each plate away from the adjacent atlas cell.
+		var uv_left := 0.5 / 512.0
+		var uv_right := 511.5 / 512.0
+		var uv_top := (index * 128.0 + 0.5) / 512.0
+		var uv_bottom := (index * 128.0 + 127.5) / 512.0
+		var uvs := [Vector2(uv_left, uv_top), Vector2(uv_right, uv_top), Vector2(uv_right, uv_bottom), Vector2(uv_left, uv_bottom)]
+		for vertex_index in [0, 1, 2, 0, 2, 3]:
+			tool.set_normal(Vector3.RIGHT)
+			tool.set_uv(uvs[vertex_index])
+			tool.add_vertex(corners[vertex_index])
+	var material := StandardMaterial3D.new()
+	material.resource_name = "ObservationInstrumentPlates"
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_texture = OBSERVATION_INSTRUMENT_ATLAS
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	var batch := MeshInstance3D.new()
+	batch.name = "ObservationInstrumentPlates"
+	batch.mesh = tool.commit()
+	batch.material_override = material
+	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	batch.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	batch.set_meta("visual_detail_only", true)
+	batch.set_meta("evidence_status", EVIDENCE_STATUS)
+	batch.set_meta("headings", OBSERVATION_INSTRUMENT_HEADINGS)
+	parent.add_child(batch)
 
 
 func _create_materials() -> void:
