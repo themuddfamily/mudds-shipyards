@@ -447,51 +447,53 @@ func _test_tractor_binding_prompts(hud: GameHUD) -> void:
 	var objective := hud.get("_objective_label") as Label
 	var toast_detail := hud.get("_toast_detail") as Label
 	var original: InputBindingProfile = hud.get("_input_binding_profile").duplicate_profile()
-	var profile := original.duplicate_profile()
+	var defaults: InputBindingProfile = hud.get("_input_binding_defaults").duplicate_profile()
+	var profile := defaults.duplicate_profile()
+	_apply_compatible_tractor_profile(hud, defaults)
 	hud.set_objective(source_objective, "TOW TRACTOR")
 	hud.toast("Tow tractor running", source_toast)
 	_check(objective.text == source_objective and toast_detail.text == source_toast,
 		"default desktop tractor boarding copy remains exact")
 	for action_and_key: Array in [
 		[&"move_forward", KEY_I], [&"move_back", KEY_K],
-		[&"move_left", KEY_J], [&"move_right", KEY_L],
+		[&"move_left", KEY_J], [&"move_right", KEY_O],
 		[&"brake", KEY_B], [&"jump", KEY_N], [&"interact", KEY_T],
 	]:
 		var bindings: Array[Dictionary] = []
-		for binding: Dictionary in original.get_bindings(action_and_key[0]):
+		for binding: Dictionary in defaults.get_bindings(action_and_key[0]):
 			if binding.device == &"gamepad":
 				bindings.append(binding)
 		bindings.append({"device": &"keyboard", "type": &"key", "physical_keycode": action_and_key[1]})
 		profile.set_bindings(action_and_key[0], bindings)
-	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_apply_compatible_tractor_profile(hud, profile)
 	hud.toast("Tow tractor running", source_toast)
 	_check(objective.text.ends_with("press T to hop out")
-		and toast_detail.text == "I / K drive  •  J / L steer  •  B / N brake  •  T to hop out",
+		and toast_detail.text == "I / K drive  •  J / O steer  •  B / N brake  •  T to hop out",
 		"tractor movement, brake aliases and exit help use their actual rebound desktop controls")
 	profile.set_bindings(&"brake", [])
-	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_apply_compatible_tractor_profile(hud, profile)
 	hud.toast("Tow tractor running", source_toast)
 	_check(toast_detail.text.contains("N brake") and not toast_detail.text.contains("Unbound Input"),
 		"a bound jump alias can brake without advertising the missing brake alias")
 	profile.set_bindings(&"brake", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_B}])
 	profile.set_bindings(&"jump", [])
-	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_apply_compatible_tractor_profile(hud, profile)
 	hud.toast("Tow tractor running", source_toast)
 	_check(toast_detail.text.contains("B brake") and not toast_detail.text.contains("Unbound Input"),
 		"a bound brake action remains sufficient when jump is unbound")
 	profile.set_bindings(&"brake", [])
 	profile.set_bindings(&"move_forward", [])
 	profile.set_bindings(&"interact", [])
-	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_apply_compatible_tractor_profile(hud, profile)
 	hud.toast("Tow tractor running", source_toast)
 	_check(objective.text.ends_with("press Unbound Input to hop out")
-		and toast_detail.text == "Unbound Input / K drive  •  J / L steer  •  Unbound Input brake  •  Unbound Input to hop out",
+		and toast_detail.text == "Unbound Input / K drive  •  J / O steer  •  Unbound Input brake  •  Unbound Input to hop out",
 		"missing required directions, both brake aliases and exit never advertise obsolete keys")
 	profile.set_bindings(&"interact", [{"device": &"mouse", "type": &"mouse_button", "button_index": MOUSE_BUTTON_MIDDLE}])
-	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_apply_compatible_tractor_profile(hud, profile)
 	_check(objective.text.ends_with("press Middle Mouse to hop out"),
 		"a mouse exit remap refreshes the retained tractor objective")
-	hud.set_settings_snapshot({"input_binding_profile": original.to_dictionary()})
+	_apply_compatible_tractor_profile(hud, defaults)
 	hud._on_controller_glyph_family_selected(1)
 	hud.toast("Tow tractor running", source_toast)
 	var exit_glyph := hud.get_action_prompt(&"interact")
@@ -501,10 +503,10 @@ func _test_tractor_binding_prompts(hud: GameHUD) -> void:
 		and not toast_detail.text.contains("SPACE brake")
 		and toast_detail.text.ends_with("%s to hop out" % exit_glyph),
 		"switching devices refreshes the retained objective and new toast with controller inputs")
-	profile = original.duplicate_profile()
-	for action: StringName in [&"interact", &"brake", &"jump"]:
-		profile.set_bindings(action, [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_T}])
-	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	profile = defaults.duplicate_profile()
+	for action_and_key: Array in [[&"interact", KEY_T], [&"brake", KEY_B], [&"jump", KEY_N]]:
+		profile.set_bindings(action_and_key[0], [{"device": &"keyboard", "type": &"key", "physical_keycode": action_and_key[1]}])
+	_apply_compatible_tractor_profile(hud, profile)
 	hud.toast("Tow tractor running", source_toast)
 	_check(objective.text.ends_with("press Unbound Input to hop out")
 		and toast_detail.text.contains("Unbound Input brake")
@@ -518,13 +520,26 @@ func _test_tractor_binding_prompts(hud: GameHUD) -> void:
 	await process_frame
 	_check(objective.text.ends_with("press T to hop out"),
 		"returning to desktop refreshes the retained objective without caller republication")
-	hud.set_settings_snapshot({"input_binding_profile": original.to_dictionary()})
+	_apply_compatible_tractor_profile(hud, defaults)
 	hud.toast("Tow tractor running", source_toast)
 	_check(objective.text == source_objective and toast_detail.text == source_toast,
 		"restoring defaults restores exact authored tractor copy")
 	hud.toast("Unrelated text", "E engine • SPACE station • W / S sensor • A / D dish")
 	_check(toast_detail.text == "E engine • SPACE station • W / S sensor • A / D dish",
 		"contextual tractor tokens leave unrelated letters and words intact")
+	_apply_compatible_tractor_profile(hud, original)
+
+
+## Never let a rejected fixture silently leave the HUD exercising old bindings.
+func _apply_compatible_tractor_profile(hud: GameHUD, profile: InputBindingProfile) -> void:
+	var service: InputRebindService = hud.get("_input_rebind_service")
+	var compatible := service.is_profile_compatible_with_defaults(profile)
+	_check(compatible, "tractor fixture is compatible with the complete authored action inventory")
+	if not compatible:
+		return
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_check((hud.get("_input_binding_profile") as InputBindingProfile).to_dictionary() == profile.to_dictionary(),
+		"the HUD accepts the intended tractor fixture before presentation assertions")
 
 
 func _destination_snapshot() -> Dictionary:
