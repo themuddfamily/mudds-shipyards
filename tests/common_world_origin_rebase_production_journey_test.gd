@@ -4,13 +4,22 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 76
+const EXPECTED_ASSERTIONS := 77
 
 class OwnerSubclassProbe extends CommonWorldOriginRebaseOwner:
 	func _init() -> void:
 		pass
 	func _enter_tree() -> void:
 		pass
+
+class TopologyMutationOwner extends CommonWorldOriginRebaseOwner:
+	var rename_after_apply: Node
+	func _apply_root_translation(roots: Array, delta: Vector3) -> bool:
+		var applied := super._apply_root_translation(roots, delta)
+		if applied and is_instance_valid(rename_after_apply):
+			rename_after_apply.name = "RenamedAfterTranslation"
+			rename_after_apply = null
+		return applied
 
 class RosterCapabilityProbe extends Node3D:
 	var eligible := true
@@ -59,6 +68,17 @@ func _run() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates")
 	if game == null: _finish(); return
+	# Exercise topology rollback through an inherited implementation seam, before
+	# Main discovers its caller-only owner and binds the original world frames.
+	var scene_owner := game.get_node(^"CommonWorldOriginRebaseOwner")
+	game.remove_child(scene_owner)
+	scene_owner.free()
+	var mutation_owner := TopologyMutationOwner.new()
+	mutation_owner.name = "CommonWorldOriginRebaseOwner"
+	game.add_child(mutation_owner)
+	var mutation_marker := Node.new()
+	mutation_marker.name = "TopologyMutationMarker"
+	game.add_child(mutation_marker)
 	var store := Store.new(STORE_PATH, MemoryFilesystem.new()) as UserDataStore
 	_check(game.configure_runtime_settings_persistence(store, "memory://origin-owner-legacy.cfg"), "settings are isolated")
 	root.add_child(game)
@@ -222,6 +242,22 @@ func _run() -> void:
 	var before_rollback_area_server := PhysicsServer3D.area_get_transform(
 		rollback_area.get_rid()
 	)
+	var before_topology_generations := [frame.get_generation(), aurora_frame.get_generation(), rime_frame.get_generation()]
+	mutation_owner.rename_after_apply = mutation_marker
+	var topology_rejected := owner.consume_rebase_preview(rollback_preview, rollback_sample)
+	var topology_body_server := PhysicsServer3D.body_get_state(
+		rollback_body.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM) as Transform3D
+	var topology_area_server := PhysicsServer3D.area_get_transform(rollback_area.get_rid())
+	_check(topology_rejected.reason == &"world_roster_changed"
+		and world.global_transform.is_equal_approx(before_rollback_world)
+		and camera.transform.is_equal_approx(before_rollback_camera)
+		and topology_body_server.is_equal_approx(before_rollback_body_server)
+		and topology_area_server.is_equal_approx(before_rollback_area_server)
+		and [frame.get_generation(), aurora_frame.get_generation(), rime_frame.get_generation()] == before_topology_generations
+		and (frame.get_snapshot().pending_rebase as Dictionary).is_empty()
+		and (aurora_frame.get_snapshot().pending_rebase as Dictionary).is_empty()
+		and (rime_frame.get_snapshot().pending_rebase as Dictionary).is_empty(),
+		"post-translation topology changes restore roots, local and server transforms and cancel every frame before commit")
 	owner._commit_adapter = Callable(self, &"_reject_commit")
 	var rollback_pose := game._network_craft_pose_stream.latest_sample((ship as HeroShip).get_ship_id())
 	var rejected := owner.consume_rebase_preview(rollback_preview, rollback_sample)
@@ -233,7 +269,7 @@ func _run() -> void:
 		rollback_area.get_rid()
 	)
 	_check(rejected.reason == &"forced_commit_rejection" and world.global_transform.is_equal_approx(before_rollback_world) and camera.transform.is_equal_approx(before_rollback_camera) and after_rollback_body_server.is_equal_approx(before_rollback_body_server) and after_rollback_area_server.is_equal_approx(before_rollback_area_server) and frame.get_generation() == before_rollback_generation and (frame.get_snapshot().pending_rebase as Dictionary).is_empty(), "commit failure restores roots, derived local state, and body/area PhysicsServer transforms before cancelling the exact request")
-	_check(int(owner.get_snapshot().rollback_count) == 1 and bool(owner.audit().valid), "rollback is counted and production audit recovers")
+	_check(int(owner.get_snapshot().rollback_count) == 2 and bool(owner.audit().valid), "rollback is counted and production audit recovers")
 	_check(game._network_craft_pose_stream.latest_sample((ship as HeroShip).get_ship_id()) == rollback_pose,
 		"a rejected transaction does not migrate retained network samples")
 
