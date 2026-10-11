@@ -551,6 +551,43 @@ func _test_remote_cabin_interaction_support() -> void:
 		and supported.y >= -0.003 and supported.y < 0.03
 		and player.floor_snap_length == original_snap,
 		"support refresh preserves deck tangent position, solid floor and authored snap length")
+	# Project along the real rolled deck. Vector3's float tangent projection
+	# leaves a positive dot-product residue here, without inventing a floor flag.
+	var frame_up := frame.get_frame_up_direction()
+	var tangent_velocity := Vector3.DOWN.slide(frame_up)
+	player.velocity = tangent_velocity
+	player._move_in_interior_collision_frame(1.0 / 60.0)
+	_check(player.is_on_floor(), "the real rolled-deck slide retains physical capsule support")
+	player.velocity = tangent_velocity
+	var up_residue := player.velocity.dot(frame_up)
+	var residue_pose := player.global_transform
+	_check(up_residue > 0.0 and is_zero_approx(up_residue)
+		and player.refresh_remote_cabin_floor_support(frame)
+		and player.global_transform.is_equal_approx(residue_pose),
+		"a supported rolled-deck tangent's positive float residue permits the ordinary seat support check without moving")
+	player.velocity = frame_up * 0.001
+	_check(not player.refresh_remote_cabin_floor_support(frame)
+		and player.global_transform.is_equal_approx(residue_pose),
+		"real upward speed of 0.001 m/s remains refused even with an existing floor flag")
+	player.velocity = tangent_velocity
+	player.apply_remote_intent(Vector2.ZERO, 0.0, false, true)
+	_check(not player.refresh_remote_cabin_floor_support(frame),
+		"a supported capsule with a pending jump is refused before the float-residue exception")
+	player.clear_remote_intent()
+	# Clear support through actual collision movement outside snap reach, then
+	# stage the same tangent just above the deck, where a blanket epsilon rule
+	# would incorrectly snap it into contact. The exception needs support first.
+	player.global_position = deck.to_global(Vector3(0, 1, 0))
+	player.velocity = Vector3.ZERO
+	player._move_in_interior_collision_frame(1.0 / 60.0)
+	player.global_position = deck.to_global(Vector3(0, 0.08, 0))
+	player.velocity = tangent_velocity
+	var unsupported_pose := player.global_transform
+	_check(not player.is_on_floor() and player.velocity.dot(frame_up) > 0.0
+		and is_zero_approx(player.velocity.dot(frame_up))
+		and not player.refresh_remote_cabin_floor_support(frame)
+		and player.global_transform.is_equal_approx(unsupported_pose),
+		"an unsupported capsule with the same positive near-zero residue cannot use the grounded exception")
 	for case in ["unsupported", "upward", "jump"]:
 		player.global_position = deck.to_global(Vector3(0, 1.0 if case == "unsupported" else 0.08, 0))
 		player.velocity = Vector3.ZERO

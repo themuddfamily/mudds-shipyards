@@ -542,8 +542,13 @@ func refresh_remote_cabin_floor_support(frame: MovingInteriorFrame) -> bool:
 			or frame.get_moving_frame() != _cabin_frame \
 			or not frame.is_occupant_registered(self) \
 			or not frame.is_simulation_authority_for(self) \
-			or _remote_jump_pending or _remote_floor_support_rejected \
-			or velocity.dot(_get_movement_up_direction()) > 0.0:
+			or _remote_jump_pending or _remote_floor_support_rejected:
+		return false
+	var up_speed := velocity.dot(_get_movement_up_direction())
+	# A supported capsule's tangent projection can leave a tiny positive float
+	# residue. Only its actual floor contact permits treating that as zero;
+	# airborne bodies and genuine upward motion still cannot snap into a chair.
+	if up_speed > 0.0 and not (is_on_floor() and is_zero_approx(up_speed)):
 		return false
 	if is_on_floor():
 		return true
