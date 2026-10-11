@@ -1,5 +1,5 @@
 extends RefCounted
-## Session-owned Ember orbit cruise. Absolute focus crosses the wire; each
+## Session-owned physical Ember journey. Absolute focus crosses the wire; each
 ## machine retains its own local coordinate-frame generation and origin owner.
 ## Clients observe streaming only. Pilot, ship movement and saves stay on host.
 
@@ -49,7 +49,12 @@ func get_snapshot() -> Dictionary:
 func before_world_tick() -> void:
 	if not is_active() or not _flow.network_session.is_server():
 		return
-	if not _flow._shared_planetary_host_eligible():
+	_flow._planetary_journey.finish_shared_ember_surface_handback()
+	var has_surface: bool = _flow._planetary_journey.shared_ember_surface_was_admitted()
+	var surface_current: bool = _flow._planetary_journey.shared_ember_surface_is_current()
+	var handback_pending: bool = _flow._planetary_journey.shared_ember_surface_handback_pending()
+	if (has_surface and not surface_current and not handback_pending) \
+			or (not has_surface and not _flow._shared_planetary_host_eligible()):
 		cancel(&"pilot_ownership_lost")
 		return
 	if not is_preparing():
@@ -66,9 +71,13 @@ func before_world_tick() -> void:
 			return
 	var result: Dictionary = _flow.planetary_cruise_binding.request_engage(
 		_flow.active_ship, frame.get_generation(), _flow._planetary_cruise_gate_reason(),
-		_flow.planetary_cruise_binding.get_generation())
+		_flow.planetary_cruise_binding.get_generation(), true)
 	if not bool(result.get("accepted", false)):
 		cancel(StringName(result.get("reason", &"shared_engage_rejected")))
+		return
+	var landing: Dictionary = _flow._planetary_journey.begin_shared_ember_landing()
+	if not bool(landing.get("accepted", false)):
+		cancel(StringName(landing.get("reason", &"shared_landing_rejected")))
 		return
 	_state["phase"] = &"cruising"
 	_publish(true)
@@ -80,9 +89,36 @@ func after_world_tick() -> void:
 		_ticks += 1
 		if _ticks % PUBLICATION_TICKS == 0:
 			_publish(false)
-		if _state.get("phase") == &"cruising" and not bool(_flow.planetary_cruise_binding.get_snapshot().get("engagement_requested", false)):
+		var landing: Dictionary = _flow._planetary_journey.get_shared_ember_landing_snapshot()
+		if not is_preparing() and landing.is_empty():
+			cancel(&"shared_landing_owner_retired")
+			return
+		var next_phase: StringName = StringName(_state.get("phase", &""))
+		var cruise: Dictionary = _flow.planetary_cruise_binding.get_snapshot()
+		if bool(_flow._planetary_journey.get("_shared_ember_surface_finished")) \
+				or _flow._planetary_journey.shared_ember_surface_handback_pending():
+			next_phase = &"returning"
+		elif _flow._planetary_journey.shared_ember_surface_is_current():
+			next_phase = &"landed" if bool(_flow.active_ship.get_telemetry().get("landed", false)) else &"returning"
+		elif bool(landing.get("landed", false)):
+			next_phase = &"landed"
+		elif bool(landing.get("handoff_ready", false)):
+			next_phase = &"approaching"
+		elif next_phase == &"cruising" and not bool(cruise.get("engagement_requested", false)):
 			# Controller cessation alone is not evidence of orbital arrival.
-			_state["phase"] = &"cruise_stopped"
+			next_phase = &"cruise_stopped"
+		elif next_phase == &"cruise_stopped" and bool(cruise.get("engagement_requested", false)) \
+				and _flow._shared_planetary_host_eligible() \
+				and _flow._planetary_journey._ember_outbound_transit_wanted() \
+				and _state.get("ship_id") == _flow.active_ship.get_ship_id() \
+				and int(cruise.get("engaged_ship_instance_id", 0)) == _flow.active_ship.get_instance_id() \
+				and int(cruise.get("bound_coordinate_frame_generation", -1)) \
+					== int(cruise.get("current_coordinate_frame_generation", -2)):
+			# The retained outbound owner may resume after a real binding pause.
+			# Publish that current physical engagement under the same journey epoch.
+			next_phase = &"cruising"
+		if next_phase != _state.get("phase"):
+			_state["phase"] = next_phase
 			_publish(true)
 		return
 	# Reliable delivery cannot guarantee application admission: the shared
@@ -136,7 +172,7 @@ func consume_state(packet: Dictionary) -> void:
 		_epoch = epoch
 		_state.clear()
 		return
-	if packet.get("phase") not in [&"preparing", &"cruising", &"cruise_stopped"]:
+	if packet.get("phase") not in [&"preparing", &"cruising", &"cruise_stopped", &"approaching", &"landed", &"returning"]:
 		return
 	var frame: PlanetaryCoordinateFrame = _flow.ember_streaming_bootstrap.get_coordinate_frame_for_session()
 	if not bool(frame.validate_orbital_coordinate(packet.get("absolute_focus", {})).get("accepted", false)) \
@@ -163,6 +199,15 @@ func peer_admitted(peer_id: int) -> void:
 
 func cancel(reason: StringName) -> Dictionary:
 	if is_active() and _flow.network_session.is_server():
+		if _flow._planetary_journey.shared_ember_surface_was_admitted():
+			if reason == &"player_cancelled":
+				return _flow._planetary_journey.abandon_ember_surface_journey(reason)
+			_flow._planetary_journey.retire_shared_ember_surface(reason)
+		var landing: Dictionary = _flow._planetary_journey.get_shared_ember_landing_snapshot()
+		if not landing.is_empty():
+			var cancelled: Dictionary = _flow._planetary_journey.cancel_ember_surface_journey()
+			if not bool(cancelled.get("accepted", false)) and reason == &"player_cancelled":
+				return cancelled
 		_flow.planetary_cruise_binding.request_disengage(_flow.planetary_cruise_binding.get_generation(), true)
 		_state["phase"] = &"retired"
 		_state["retirement_reason"] = reason
@@ -173,6 +218,11 @@ func cancel(reason: StringName) -> Dictionary:
 	return {"accepted": true, "reason": reason}
 
 func detach() -> void:
+	_flow._planetary_journey.retire_shared_ember_surface(&"network_session_retired")
+	# Withdraw an outbound request before its physical Host starts. A running
+	# landing remains owned by that Host and retains its ordinary berth lease.
+	if not _flow._planetary_journey.get_shared_ember_landing_snapshot().is_empty():
+		_flow._planetary_journey.cancel_ember_surface_journey()
 	# Session state cannot survive into another adapter, even when that adapter
 	# begins its sequence at one again. No shared visit is saved by this bridge.
 	if is_active() and is_instance_valid(_flow.planetary_cruise_binding):

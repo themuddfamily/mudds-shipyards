@@ -37,6 +37,9 @@ var _ember_surface_forward_count := 0
 var _ember_survey_start_context: Dictionary = {}
 var _ember_survey_return_manifest: Dictionary = {}
 var _ember_surface_journey_active := false
+var _shared_ember_landing_active := false
+var _shared_ember_surface_context: Dictionary = {}
+var _shared_ember_surface_finished := false
 ## An expedition the player gave up on. The Host holds the abandon until the
 ## craft is airborne again, so a pilot on the caldera keeps their objective and
 ## their craft's pad lease until they have boarded it.
@@ -785,6 +788,7 @@ func _aurora_retired(
 
 
 func detach() -> void:
+	retire_shared_ember_surface(&"shared_surface_main_detached")
 	cancel_return_departure(&"return_main_detached")
 	if _aurora_visit_active:
 		retire_aurora_visit()
@@ -926,6 +930,20 @@ func _advance_ember_surface_loop_cadence(
 	)
 	if not bool(advanced.get("accepted", false)):
 		return advanced
+	# Compose only after the real shared landing owner has consumed its typed
+	# handoff and the physical Host owns an occupied, supported caldera lease.
+	if _shared_ember_landing_active and not _shared_ember_surface_finished \
+			and _shared_ember_surface_context.is_empty():
+		if host_phase != EmberSurfaceLoopHost.Phase.LANDED:
+			return advanced.duplicate(true)
+		var surface_admission := admit_shared_ember_surface()
+		advanced["shared_surface"] = surface_admission.duplicate(true)
+		if not bool(surface_admission.get("accepted", false)):
+			return advanced.duplicate(true)
+		binding_snapshot = _flow.ember_surface_loop_production_binding.get_caller_snapshot()
+	if _shared_ember_landing_active and not _shared_ember_surface_finished \
+			and not shared_ember_surface_is_current():
+		return {"accepted": false, "reason": &"shared_surface_owner_retired"}
 	var survey_lifecycle := _advance_ember_survey_lifecycle(binding_snapshot)
 	if not survey_lifecycle.is_empty():
 		advanced["relay_survey"] = survey_lifecycle.duplicate(true)
@@ -1100,7 +1118,23 @@ func begin_ember_surface_journey(
 		host: Object, director: ActivityDirector, reward_sink: Callable,
 		caller_serial: int
 	) -> Dictionary:
-	if _flow._network_session_is_live():
+	return _begin_ember_journey(host, director, reward_sink, caller_serial, false)
+
+
+## Authenticated host admission retains physical approach/berth landing only.
+## Shared surface embodiment and activity have their own later admission.
+func begin_shared_ember_landing() -> Dictionary:
+	if not _flow._network_session_is_live() or not _flow._shared_planetary_host_eligible():
+		return {"accepted": false, "reason": &"shared_landing_host_unavailable"}
+	return _begin_ember_journey(_flow.ember_surface_loop_host, _flow.activity_director,
+		Callable(_flow, &"_commit_game_flow_activity_reward"), 1, true)
+
+
+func _begin_ember_journey(
+		host: Object, director: ActivityDirector, reward_sink: Callable,
+		caller_serial: int, shared_landing: bool
+	) -> Dictionary:
+	if _flow._network_session_is_live() and (not shared_landing or not _flow._shared_planetary_host_eligible()):
 		return {"accepted": false, "reason": &"network_session_active"}
 	if host == null or director == null or not reward_sink.is_valid() or caller_serial < 1:
 		return {"accepted": false, "reason": &"ember_surface_request_invalid"}
@@ -1139,6 +1173,7 @@ func begin_ember_surface_journey(
 		_pending_ember_surface_director = director
 		_pending_ember_surface_reward_sink = reward_sink
 		_pending_ember_surface_serial = caller_serial
+		_shared_ember_landing_active = shared_landing
 		_pending_ember_surface_request = {
 			"host_instance_id": host.get_instance_id(),
 			"caller_serial": caller_serial,
@@ -1153,7 +1188,7 @@ func begin_ember_surface_journey(
 		var configured: Dictionary = binding.configure(host, binding.get_generation())
 		if not bool(configured.get("accepted", false)):
 			return configured
-	if binding.get_planetary_surface_snapshot().is_empty():
+	if not shared_landing and binding.get_planetary_surface_snapshot().is_empty():
 		var composed: Dictionary = binding.configure_planetary_surface(
 			director, reward_sink, null,
 			Callable(_flow, &"_commit_ember_service_terminal_repair")
@@ -1164,7 +1199,7 @@ func begin_ember_surface_journey(
 	if not bool(final_approach.get("accepted", false)):
 		return final_approach
 	var survey_restore: Dictionary = {}
-	if binding == _flow._ember_relay_survey_persistence_binding:
+	if not shared_landing and binding == _flow._ember_relay_survey_persistence_binding:
 		survey_restore = _flow._restore_ember_surface_persistence_for_admission()
 	# Admission starts the retained surface journey. Disembark is a later,
 	# phase-specific caller intent after the Host has actually reached LANDED;
@@ -1191,6 +1226,9 @@ func begin_ember_surface_journey(
 		host.call(&"get_abandon_snapshot").get("commit_count", 0)
 	)
 	_ember_surface_journey_active = true
+	_shared_ember_landing_active = shared_landing
+	_shared_ember_surface_context.clear()
+	_shared_ember_surface_finished = false
 	_ember_final_approach_handoff_ready = false
 	_ember_final_approach_completion_receipt.clear()
 	_mudds_return_handback_consumption_attempted = false
@@ -1220,6 +1258,188 @@ func begin_ember_surface_journey(
 		"caller_serial": caller_serial,
 		"relay_survey_persistence": survey_restore.duplicate(true),
 	}
+
+
+func get_shared_ember_landing_snapshot() -> Dictionary:
+	if not _shared_ember_landing_active:
+		return {}
+	var host := _flow.ember_surface_loop_host
+	var phase := host.get_phase() if is_instance_valid(host) else -1
+	var completion := _ember_final_approach_completion_receipt
+	var completion_current := _ember_final_approach_handoff_ready \
+		and not completion.is_empty() and is_instance_valid(host) and host.is_attached() \
+		and is_instance_valid(_flow.active_ship) \
+		and int(completion.get("ship_instance_id", 0)) == _flow.active_ship.get_instance_id() \
+		and int(completion.get("host_instance_id", 0)) == host.get_instance_id() \
+		and int(completion.get("host_attachment_generation", -1)) == host.get_attachment_generation() \
+		and int(completion.get("location_generation", -1)) == host.get_location_generation()
+	var landed := completion_current and phase == EmberSurfaceLoopHost.Phase.LANDED \
+		and _flow._shared_planetary_host_eligible() \
+		and host._landed_public_state_is_exact()
+	return {"active": true, "pending_stream": not _pending_ember_surface_request.is_empty(),
+		"handoff_ready": completion_current, "host_phase": phase, "landed": landed,
+		"completion": _ember_final_approach_completion_receipt.duplicate(true)}
+
+
+## This admission adds authored work to the existing physical Host. It never
+## starts another expedition, supplies a landing receipt, or grants crew helm.
+func admit_shared_ember_surface() -> Dictionary:
+	if not _shared_ember_surface_context.is_empty():
+		return {"accepted": shared_ember_surface_is_current(), "reason": &"shared_surface_already_admitted"}
+	var landing := get_shared_ember_landing_snapshot()
+	if not bool(landing.get("landed", false)):
+		return {"accepted": false, "reason": &"shared_surface_requires_physical_landing"}
+	var bridge := _flow.get_network_planetary_journey_snapshot()
+	var host := _flow.ember_surface_loop_host
+	var binding := _flow.ember_surface_loop_production_binding
+	var scene := _flow.ember_streaming_bootstrap.get_loaded_instance()
+	if int(bridge.get("journey_epoch", 0)) <= 0 \
+			or bridge.get("ship_id") != _flow.active_ship.get_ship_id() \
+			or not is_instance_valid(scene) or not binding.get_planetary_surface_snapshot().is_empty():
+		return {"accepted": false, "reason": &"shared_surface_composition_unavailable"}
+	_shared_ember_surface_context = {
+		"network_session_instance_id": _flow.network_session.get_instance_id(),
+		"network_session_epoch": _flow._network_hud_session_epoch,
+		"journey_epoch": int(bridge.journey_epoch),
+		"host_instance_id": host.get_instance_id(),
+		"host_generation": host.get_generation(),
+		"host_attachment_generation": host.get_attachment_generation(),
+		"location_generation": host.get_location_generation(),
+		"loaded_scene_instance_id": scene.get_instance_id(),
+		"player_instance_id": _flow.player.get_instance_id(),
+		"ship_instance_id": _flow.active_ship.get_instance_id(),
+		"berth_token": _flow.ember_surface_berth.get_reservation_token(_flow.active_ship),
+	}
+	var composed := binding.configure_planetary_surface(
+		_flow.activity_director, Callable(self, "_commit_shared_ember_surface_reward"), null,
+		Callable(self, "_commit_shared_ember_surface_repair"),
+		Callable(self, "_shared_ember_surface_activity_is_current"))
+	if not bool(composed.get("accepted", false)):
+		_shared_ember_surface_context.clear()
+		return composed
+	# A shared visit starts fresh authored work. Saved completion cannot grant
+	# a new shared arrival any survey/reward/return authority.
+	_ember_survey_start_context.clear()
+	_ember_survey_return_manifest.clear()
+	_flow._ensure_ember_surface_presentations()
+	return {"accepted": true, "reason": &"shared_surface_admitted"}
+
+
+## The Host owns intentional standing and both exterior transitions. The host
+## keeps its existing pilot-of-record ledger seat; a crew claim cannot replace
+## that identity or turn a lost session/attachment into a fresh surface visit.
+func shared_ember_surface_is_current() -> bool:
+	var context := _shared_ember_surface_context
+	if context.is_empty() or not _shared_ember_landing_active \
+			or not _ember_surface_journey_active or not _flow.is_inside_tree() or _flow.is_queued_for_deletion() \
+			or not _flow._network_session_is_live() or _flow._network_session_mode != &"server" \
+			or not _flow.network_session.is_server() \
+			or _flow.network_session.get_instance_id() != int(context.network_session_instance_id) \
+			or _flow._network_hud_session_epoch != int(context.network_session_epoch):
+		return false
+	var bridge := _flow.get_network_planetary_journey_snapshot()
+	var host := _flow.ember_surface_loop_host
+	var ship := _flow.active_ship
+	var scene := _flow.ember_streaming_bootstrap.get_loaded_instance()
+	if int(bridge.get("journey_epoch", 0)) != int(context.journey_epoch) \
+			or not is_instance_valid(host) or not host.is_inside_tree() or host.is_queued_for_deletion() or not host.is_attached() \
+			or host.get_instance_id() != int(context.host_instance_id) \
+			or host.get_generation() != int(context.host_generation) \
+			or host.get_attachment_generation() != int(context.host_attachment_generation) \
+			or host.get_location_generation() != int(context.location_generation) \
+			or not is_instance_valid(scene) or not scene.is_inside_tree() or scene.is_queued_for_deletion() \
+			or scene.get_instance_id() != int(context.loaded_scene_instance_id) \
+			or not is_instance_valid(ship) or ship.get_instance_id() != int(context.ship_instance_id) \
+			or not ship.is_inside_tree() or ship.is_queued_for_deletion() or ship.is_destroyed() or ship.is_remote_piloted() \
+			or not is_instance_valid(_flow.player) or not _flow.player.is_inside_tree() or _flow.player.is_queued_for_deletion() \
+			or _flow.player.get_instance_id() != int(context.player_instance_id) \
+			or not _flow._piloting \
+			or _flow._network_host_boarding_seat.get("seat_id") != StringName("%s_pilot" % ship.get_ship_id()) \
+			or _flow._network_host_boarding_seat.get("ship_id") != ship.get_ship_id() \
+			or bridge.get("ship_id") != ship.get_ship_id() \
+			or ship.get_command_source() != host.get("_command_source"):
+		return false
+	var phase := host.get_phase()
+	if phase in [EmberSurfaceLoopHost.Phase.LANDED, EmberSurfaceLoopHost.Phase.DISEMBARKING,
+		EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, EmberSurfaceLoopHost.Phase.ON_FOOT,
+		EmberSurfaceLoopHost.Phase.BOARDING, EmberSurfaceLoopHost.Phase.REBOARDED,
+		EmberSurfaceLoopHost.Phase.TAKEOFF]:
+		return _flow.ember_surface_berth.get_occupant() == ship \
+			and _flow.ember_surface_berth.has_valid_lease(ship, context.berth_token, ship.get_ship_id())
+	return phase in [EmberSurfaceLoopHost.Phase.ASCENT, EmberSurfaceLoopHost.Phase.ORBIT_RETURN]
+
+
+func shared_ember_surface_was_admitted() -> bool:
+	return not _shared_ember_surface_context.is_empty()
+
+
+func shared_ember_surface_handback_pending() -> bool:
+	var binding := _flow.ember_surface_loop_production_binding
+	if not is_instance_valid(binding) \
+			or binding.get_state() != EmberSurfaceLoopProductionBinding.State.HANDOFF_PENDING:
+		return false
+	return _shared_ember_surface_handback_is_current(binding.get("_completion_handback") as Dictionary)
+
+
+func _shared_ember_surface_handback_is_current(receipt: Dictionary) -> bool:
+	var host := _flow.ember_surface_loop_host
+	var context := _shared_ember_surface_context
+	if context.is_empty() or not is_instance_valid(host) \
+			or host.get_phase() != EmberSurfaceLoopHost.Phase.COMPLETED \
+			or host.get_instance_id() != int(context.host_instance_id) \
+			or host.get_generation() != int(context.host_generation) \
+			or not _flow._network_session_is_live() or not _flow._shared_planetary_host_eligible() \
+			or _flow.network_session.get_instance_id() != int(context.network_session_instance_id) \
+			or _flow._network_hud_session_epoch != int(context.network_session_epoch) \
+			or _flow.active_ship.get_instance_id() != int(context.ship_instance_id) \
+			or _flow.player.get_instance_id() != int(context.player_instance_id) \
+			or int(_flow.get_network_planetary_journey_snapshot().get("journey_epoch", 0)) != int(context.journey_epoch):
+		return false
+	return int(receipt.get("host_id", 0)) == int(context.host_instance_id) \
+		and int(receipt.get("generation", -1)) == int(context.host_generation) \
+		and int(receipt.get("retired_attachment_generation", -1)) == int(context.host_attachment_generation) \
+		and int(receipt.get("ship_instance_id", 0)) == int(context.ship_instance_id) \
+		and int(receipt.get("player_instance_id", 0)) == int(context.player_instance_id) \
+		and bool(receipt.get("command_source_restored", false)) \
+		and bool(receipt.get("player_seated", false)) and bool(receipt.get("ship_piloted", false))
+
+
+func finish_shared_ember_surface_handback() -> bool:
+	if not _shared_ember_surface_handback_is_current(_mudds_return_handback_receipt):
+		return false
+	_shared_ember_surface_context.clear()
+	_shared_ember_surface_finished = true
+	return true
+
+
+func _shared_ember_surface_activity_is_current() -> bool:
+	return not _ember_surface_abandon_pending and shared_ember_surface_is_current()
+
+
+func _commit_shared_ember_surface_reward(request: Dictionary) -> Dictionary:
+	if not shared_ember_surface_is_current() or _ember_surface_abandon_pending:
+		return {"accepted": false, "reason": &"shared_surface_owner_retired"}
+	return _flow._commit_game_flow_activity_reward(request)
+
+
+func _commit_shared_ember_surface_repair(request: Dictionary) -> Dictionary:
+	if not shared_ember_surface_is_current() or _ember_surface_abandon_pending:
+		return {"accepted": false, "reason": &"shared_surface_owner_retired"}
+	return _flow._commit_ember_service_terminal_repair(request)
+
+
+func retire_shared_ember_surface(reason: StringName) -> void:
+	if _shared_ember_surface_context.is_empty():
+		return
+	# Abort authored work while its live context still exists, then revoke every
+	# callback synchronously. The Host retains physical embodiment and the lease
+	# until its existing abandonment path can hand usable controls back.
+	abandon_ember_surface_journey(reason)
+	_shared_ember_surface_context.clear()
+	_shared_ember_surface_finished = true
+	var binding := _flow.ember_surface_loop_production_binding
+	if is_instance_valid(binding):
+		binding.detach_planetary_surface()
 
 
 func _arm_ember_final_approach(host: Object) -> Dictionary:
@@ -1356,6 +1576,9 @@ func _consume_ember_final_approach_completion(receipt: Dictionary) -> Dictionary
 		&"final_approach_completion_stale",
 	)
 	_ember_surface_journey_active = false
+	_shared_ember_landing_active = false
+	_shared_ember_surface_context.clear()
+	_shared_ember_surface_finished = false
 	_ember_final_approach_handoff_ready = false
 	_ember_final_approach_completion_receipt.clear()
 	return discarded
@@ -2016,6 +2239,7 @@ func _advance_ember_surface_abandon(coordinate_frame_generation: int) -> Diction
 func _complete_ember_surface_abandon(
 	reason: StringName, coordinate_frame_generation: int
 ) -> Dictionary:
+	var shared_landing := _shared_ember_landing_active
 	_ember_surface_abandon_pending = false
 	_ember_surface_abandon_count += 1
 	var retired: Dictionary = {}
@@ -2055,6 +2279,12 @@ func _complete_ember_surface_abandon(
 	_mudds_return_approach_completion_receipt.clear()
 	_planetary_return_physical_arrival_required = false
 	_planetary_return_physical_arrival_armed = false
+	if shared_landing:
+		_shared_ember_landing_active = false
+		_shared_ember_surface_context.clear()
+		_ember_abandon_return_arm_pending = false
+		_ember_completed_return_resume = false
+		return {"accepted": true, "reason": &"shared_ember_landing_retired", "retirement_reason": reason}
 	_ember_abandon_return_arm_pending = true
 	_ember_abandon_return_arm_attempts = 0
 	_ember_completed_return_resume = false
@@ -2300,6 +2530,8 @@ func cancel_ember_surface_journey() -> Dictionary:
 	_ember_final_approach_handoff_ready = false
 	_ember_final_approach_completion_receipt.clear()
 	_ember_surface_journey_active = false
+	_shared_ember_landing_active = false
+	_shared_ember_surface_context.clear()
 	return {"accepted": true, "reason": &"ember_surface_request_cancelled"}
 
 
@@ -2325,8 +2557,8 @@ func _forward_pending_ember_surface_journey() -> Dictionary:
 	_pending_ember_surface_director = null
 	_pending_ember_surface_reward_sink = Callable()
 	_pending_ember_surface_serial = 0
-	var forwarded := begin_ember_surface_journey(
-		host, director, reward_sink, caller_serial
+	var forwarded := _begin_ember_journey(
+		host, director, reward_sink, caller_serial, _shared_ember_landing_active
 	)
 	if not bool(forwarded.get("accepted", false)):
 		_pending_ember_surface_request = retained_request

@@ -301,7 +301,8 @@ func configure_planetary_surface(
 		director: ActivityDirector,
 		reward_sink: Callable,
 		atmosphere_composition: Node = null,
-		service_repair_sink: Callable = Callable()
+		service_repair_sink: Callable = Callable(),
+		lifecycle_gate: Callable = Callable()
 	) -> Dictionary:
 	if not _configured or _composition_root == null:
 		return _reject(&"production_binding_unavailable")
@@ -333,7 +334,8 @@ func configure_planetary_surface(
 		Callable(self, &"_commit_relay_reward_through_authority"),
 		_host.get_generation(),
 		service_repair_sink,
-		reward_sink
+		reward_sink,
+		lifecycle_gate
 	)
 	if bool(result.get("accepted", false)) \
 			and _relay_survey_persistence_store != null:
