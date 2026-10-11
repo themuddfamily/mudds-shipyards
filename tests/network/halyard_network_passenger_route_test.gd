@@ -17,6 +17,7 @@ var _gunner := false
 var _gunner_shots := 0
 var _navigator_cues: Array[StringName] = []
 var _shared_cruise := false
+var _readiness_pressure_epoch := 0
 var _host_loadmaster_flight := false
 var _host_gunner_flight := false
 var _manifest_receipts := 0
@@ -1088,9 +1089,23 @@ func _shared_host() -> void:
 	var start := frame.world_streaming_to_orbital_position(_craft.global_position, frame.get_generation()).coordinate as Dictionary
 	var initial_frame := frame.get_generation()
 	var initial_crew_tick := _game._network_moving_interior_server_tick
+	var readiness_strikes_before := (_game.network_session.get("_security_strikes") as Dictionary).duplicate()
+	var pressure_drop := [false]
 	_game.hud.planetary_cruise_toggle_requested.emit(4)
 	_check(_game.get_network_planetary_journey_snapshot().phase == &"preparing", "ordinary HUD prepares authenticated crew readiness before cruise")
-	_check(await _until(func(): return _game.get_network_planetary_journey_snapshot().get("phase") == &"cruising", 12.0), "both real crew peers acknowledge production streaming readiness")
+	_check(await _until(func():
+		var pressure := _read("client.ready_pressure")
+		var peer_id := int(pressure.get("peer_id", 0))
+		var strikes := _game.network_session.get("_security_strikes") as Dictionary
+		var counts := _game.network_session.get("_secure_window_counts") as Dictionary
+		if peer_id > 0 and int(strikes.get(peer_id, 0)) > int(readiness_strikes_before.get(peer_id, 0)) \
+				and int(counts.get(peer_id, 0)) >= _game.network_session.MAX_SECURE_PACKETS_PER_WINDOW:
+			pressure_drop[0] = true
+		return _game.get_network_planetary_journey_snapshot().get("phase") == &"cruising",
+		12.0), "both real crew peers acknowledge production streaming readiness")
+	_check(pressure_drop[0], "authenticated preparation pressure exhausts the actual secure packet budget and drops readiness admission")
+	print("SHARED_READINESS_PRESSURE: dropped=", pressure_drop[0], " state=", _game.get_network_planetary_journey_snapshot(),
+		" strikes=", _game.network_session.get("_security_strikes"))
 	_check(await _until(func(): return frame.get_generation() > initial_frame, 35.0), "real cruise physics crosses existing ten-kilometre origin threshold and commits")
 	var traveled := frame.orbital_to_world_streaming_position(start, frame.get_generation())
 	_check(_craft.global_position.distance_to(traveled.position) > 8000.0 and _craft.velocity.length() > 50.0, "host craft physically travels before origin shift with nonzero cruise velocity")
@@ -1114,6 +1129,22 @@ func _shared_host() -> void:
 	_check(await _until(func(): return _game._network_remote_body_simulation.get_body_count() == 0, 5.0), "actual peer disconnect retires both travelling cabin bodies")
 	_game.shutdown_network_session(&"shared_cruise_done")
 	_check(_game.get_network_planetary_journey_snapshot().get("journey_epoch", 0) == 0 and _craft.get_command_source() == source, "session stop retires journey without replacing retained solo pilot input")
+
+## Exhaust admission with authenticated but semantically stale requests in one
+## receive burst, before production's first legitimate acknowledgement. No
+## body, boarding claim, origin generation or authority is injected.
+func _pressure_shared_preparation(packet: Dictionary) -> void:
+	if _readiness_pressure_epoch <= 0 or int(packet.get("journey_epoch", 0)) != _readiness_pressure_epoch \
+			or packet.get("phase") != &"preparing":
+		return
+	_readiness_pressure_epoch = 0
+	for _index in _game.network_session.MAX_SECURE_PACKETS_PER_WINDOW:
+		_game.network_session.send_planetary_journey_ready({
+			"journey_epoch": -1, "origin_revision": int(packet.origin_revision),
+			"world_id": packet.world_id, "ship_id": packet.ship_id})
+	_write("client.ready_pressure", {"peer_id": _game.network_session.multiplayer.get_unique_id(),
+		"journey_epoch": int(packet.journey_epoch), "origin_revision": int(packet.origin_revision)})
+
 
 func _shared_client() -> void:
 	if _role == "client":
@@ -1175,6 +1206,9 @@ func _shared_client() -> void:
 	if not await _wait_file("host.cancelled", 20.0):
 		return
 	_check(await _until(func(): return not _game._network_planetary_journey.is_active(), 10.0), "real peer receives reliable queued cancellation without stale focus resurrection: " + _role)
+	if _role == "client":
+		_readiness_pressure_epoch = int(_game._network_planetary_journey.get("_epoch")) + 1
+		_game.network_session.planetary_journey_state_received.connect(_pressure_shared_preparation)
 	_write(_role + ".cancel_seen", {})
 	var frame: PlanetaryCoordinateFrame = _game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
 	var initial_frame := frame.get_generation()

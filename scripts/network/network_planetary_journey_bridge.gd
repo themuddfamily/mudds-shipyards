@@ -13,6 +13,7 @@ var _ready_peers: Dictionary = {}
 var _prepare_deadline := 0
 var _ticks := 0
 var _last_ack_origin := -1
+var _readiness_retry_ticks := 0
 var _client_rebases := 0
 
 func _init(flow: Node) -> void:
@@ -84,6 +85,15 @@ func after_world_tick() -> void:
 			_state["phase"] = &"cruise_stopped"
 			_publish(true)
 		return
+	# Reliable delivery cannot guarantee application admission: the shared
+	# secure-packet budget may reject an acknowledgement. Preparation retries
+	# the same fenced tuple on the existing publication cadence until the host
+	# leaves preparation or its bounded deadline retires the journey.
+	if not is_preparing():
+		return
+	_readiness_retry_ticks = maxi(0, _readiness_retry_ticks - 1)
+	if _readiness_retry_ticks > 0:
+		return
 	var binding: Dictionary = _flow.ember_streaming_binding.get_snapshot()
 	if not bool((binding.get("last_tick_result", {}) as Dictionary).get("accepted", false)):
 		return
@@ -96,12 +106,12 @@ func after_world_tick() -> void:
 	if streaming.get("action", &"") == &"load" and not is_instance_valid(_flow.ember_streaming_bootstrap.get_loaded_instance()):
 		return
 	var origin_revision := int(_state.get("origin_revision", -1))
-	if origin_revision == _last_ack_origin:
-		return
-	_last_ack_origin = origin_revision
-	_client_rebases = int(binding.get("external_rebase_commit_count", 0))
-	_flow.network_session.send_planetary_journey_ready({"journey_epoch": int(_state.journey_epoch),
+	_readiness_retry_ticks = PUBLICATION_TICKS
+	var queued: Dictionary = _flow.network_session.send_planetary_journey_ready({"journey_epoch": int(_state.journey_epoch),
 		"origin_revision": origin_revision, "world_id": WORLD_ID, "ship_id": _state.ship_id})
+	if bool(queued.get("accepted", false)):
+		_last_ack_origin = origin_revision
+		_client_rebases = int(binding.get("external_rebase_commit_count", 0))
 
 func client_actor_sample(local_sample: Dictionary) -> Dictionary:
 	if not is_active() or _flow.network_session.is_server():
