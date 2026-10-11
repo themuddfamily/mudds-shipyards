@@ -2056,6 +2056,12 @@ func has_pending_station_return_handoff() -> bool:
 	return not _station_return_handoff_intent.is_empty() and not _station_return_handoff_delivered
 
 
+## Scalar completion observation for physics callers; diagnostic reports remain
+## available separately without being constructed for every readiness poll.
+func has_delivered_completion_handback() -> bool:
+	return _completion_handback_delivered
+
+
 ## GameFlow observes these fields before preparing a tick, then keeps that
 ## observation through survey admission. All values are fresh detached copies;
 ## the complete diagnostic tree and per-tick signal payload remain unchanged.
@@ -2631,7 +2637,9 @@ func _physics_process(_engine_delta: float) -> void:
 		_fail_late(operation.get("reason", &"host_advance_rejected") as StringName)
 		return
 	_advance_count += 1
-	_last_late_result = operation.duplicate(true)
+	# Host.advance_physics returns a fresh detached report. Retain that owned
+	# result; get_snapshot still detaches the complete report for observers.
+	_last_late_result = operation
 	# The real Host commits retained return evidence internally. Publish its
 	# generation-fenced route intent at the first ORBIT_RETURN boundary, leaving
 	# one caller tick for GameFlow to take it before the next late tick atomically
