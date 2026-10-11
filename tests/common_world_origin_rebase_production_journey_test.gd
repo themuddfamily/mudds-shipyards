@@ -4,7 +4,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 77
+const EXPECTED_ASSERTIONS := 78
 
 class OwnerSubclassProbe extends CommonWorldOriginRebaseOwner:
 	func _init() -> void:
@@ -502,12 +502,28 @@ func _check_roster_cache_lifecycle(game: GameFlow, owner: CommonWorldOriginRebas
 	var probe := RosterCapabilityProbe.new()
 	probe.name = "CacheProbe"
 	ancestor.add_child(probe)
+	# Insert out of order under a plain Node, including case, numeric text and
+	# a parent-path prefix. Preserve the original String < comparator contract.
+	for probe_name in ["a", "A2", "Z", "A10", "A"]:
+		var ordering_probe := Node3D.new()
+		ordering_probe.name = probe_name
+		ancestor.add_child(ordering_probe)
+	var prefix_child := Node3D.new()
+	prefix_child.name = "AChild"
+	ancestor.get_node(^"A").add_child(prefix_child)
 	var first := owner._capture_live_roster()
 	var first_revision := int(owner.get("_roster_cache_revision"))
 	var paths: Array[String] = []
 	for entry: Dictionary in first.covered: paths.append(entry.path)
 	var sorted_paths := paths.duplicate()
-	sorted_paths.sort()
+	sorted_paths.sort_custom(func(a: String, b: String) -> bool: return a < b)
+	var ordering_paths: Array[String] = []
+	for path: String in paths:
+		if path.begins_with("CacheAncestor/") and path != "CacheAncestor/CacheProbe":
+			ordering_paths.append(path)
+	_check(ordering_paths == ["CacheAncestor/A", "CacheAncestor/A/AChild",
+		"CacheAncestor/A10", "CacheAncestor/A2", "CacheAncestor/Z", "CacheAncestor/a"],
+		"cold capture preserves case-sensitive lexical, numeric-text and prefix order through plain ancestors")
 	_check(bool(first.accepted) and paths == sorted_paths and not _roster_entry(first.covered, probe).is_empty(),
 		"cold capture discovers and lexically orders the complete live roster")
 	var warm := owner._capture_live_roster()
