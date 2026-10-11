@@ -804,6 +804,13 @@ var _network_remote_helm_stream_epoch := -1
 ## craft and reconciled / interpolated on each client. See
 ## `NetworkRemoteCraftPoseStream` and the "craft pose replication" block.
 var _network_craft_pose_stream := NetworkRemoteCraftPoseStreamType.new()
+
+
+func notify_common_world_translation(delta: Vector3, generation: int) -> void:
+	# The origin owner already translates Node3D presentation nodes. Only this
+	# detached craft history needs forwarding through Main's notification.
+	_network_craft_pose_stream.notify_common_world_translation(delta, generation)
+
 ## Monotonic request sequence GameFlow stamps on every
 ## `NetworkShipOwnershipAuthority` operation it asks the adapter for.
 var _network_ship_ownership_sequence := 0
