@@ -1,0 +1,17 @@
+Mudds Shipyards — Windows station readout and recovery checkpoint
+Game/builder source: 6ddf7443f46a6ff93c9ff608b7c644ca72f0e2b7
+
+Player-visible changes
+- Mining recovery preserves pending extraction and retries valid saves while refusing untrusted backup history before changing progress or publishing capacity acknowledgement. Mining does not grant currency or inventory.
+- Beacon recovery protects once-only rewards from backup replay while retaining valid saved progress and payment retry.
+- Station service and Salvage readouts use font glyphs. Long Fabrication Annex feedback wraps within the console face. All seven service couriers remain present.
+
+Actual validation
+Windows package qualification: PASS, 1,906 accepted assertions (strict source/packed census 19 each, 22 focused routes totaling 1,645, standard probes 223). All original deadlines preserved, including Patrol 133 checks in 229.192 seconds under 300 seconds. Strict package startup: exit 0, one STARTUP_MENU_READY_OK, mouse free during load. Owning tool exit 0 consumed/reaped; all 63 captured process identities absent; source, raw index, cache and artifact guards unchanged. There are 58 known settings warnings (45 defaults and 13 invalid-primary backup-load notices), zero script/engine/leak errors.
+Native Windows isolated menu smoke: PASS. Actual exit 0 with exactly one STARTUP_MENU_READY_OK, mouse free during load, zero warnings/errors, Dummy audio and headless display under the original 180-second bound. Native process identities absent, private temporary directory removed and all 250 existing profile files byte-identical. Native authorization released.
+AMD64 EXE with PCK format 4: 177,825,376 bytes, 1,498 payloads individually verified. The original packed census measurements retain 15 PASS / 4 stale-baseline FAIL; strict acceptance uses the separately reviewed measured fixture without weakening any of its 19 assertions or original limits. Previous failed checkpoints remain failed.
+
+Scope and remaining work
+Unsigned development alpha. Linux qualification is separate and ongoing. This checkpoint does not qualify native gameplay, native GPU/performance, physical controllers/accessibility, audible audio, human play/review, matching installed interruption/recovery, current full regression, licensing, trusted signing or the full release. The existing b3de8e299 installer predates this checkpoint; a matching installer remains required. Broader station, fleet, combat, multiplayer and world scope remains open in ROADMAP.md.
+
+EXE SHA256: a003abed2f98232b8624d2674a9884000bc5aacfb64f50467f45f1162996555d
