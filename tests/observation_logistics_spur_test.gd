@@ -371,11 +371,11 @@ func _test_surface_roster_and_area(module: ObservationLogisticsSpur) -> void:
 	var performance := module.get_performance_contract()
 	_check(
 		bool(performance.within_budget)
-		and int(performance.mesh_instances) == 7
+		and int(performance.mesh_instances) == 8
 		and int(performance.static_bodies) == 40
 		and int(performance.collision_shapes) == 42
-		and module.find_children("*", "Node", true, false).size() == 168,
-		"finished district freezes 168 nodes, 7 meshes, 40 bodies and 42 shapes"
+		and module.find_children("*", "Node", true, false).size() == 169,
+		"finished district freezes 169 nodes, 8 meshes, 40 bodies and 42 shapes"
 	)
 	_check(int(performance.lights) == 6 and int(performance.labels) == 4 and int(performance.process_loops) == 0, "restrained presentation uses six practicals, four district signs and no frame loop")
 	var marker_batch := module.get_node_or_null(^"Structure/Dressing/ConnectorMarkers") as MultiMeshInstance3D
@@ -434,8 +434,8 @@ func _test_material_retention(module: ObservationLogisticsSpur) -> void:
 	var materials := module.get_material_retention_contract()
 	_check(
 		int(materials.catalog_entry_count) == 10
-		and int(materials.retained_unique_materials) == 10,
-		"finished pavilions retain ten shared material recipes including their dark view band"
+		and int(materials.retained_unique_materials) == 11,
+		"finished pavilions retain ten shared recipes plus the instrument atlas material"
 	)
 	var deck_material := (module.get_node(^"Structure/Walkable/ExposedConnectorDeck/Mesh/SlabRenderer") as MeshInstance3D).material_override as StandardMaterial3D
 	var grip_material := (module.get_node(^"Structure/Dressing/LogisticsPalletRenderBatch") as MultiMeshInstance3D).material_override as StandardMaterial3D
@@ -489,21 +489,21 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and bool(performance.headless_safe)
 		and StringName(performance.selected_family) == &"pad_canopy_frame_renderers"
 		and int(performance.baseline_descendant_nodes) == 156
-		and int(performance.descendant_nodes) == 168
+		and int(performance.descendant_nodes) == 169
 		and int(performance.baseline_renderer_nodes) == 42
-		and int(performance.renderer_nodes) == 34
+		and int(performance.renderer_nodes) == 35
 		and int(performance.baseline_drawn_copies) == 270
-		and int(performance.drawn_copies) == 278
+		and int(performance.drawn_copies) == 279
 		and int(performance.baseline_surface_submissions) == 42
-		and int(performance.surface_submissions) == 34,
-		"authored deck visuals preserve 278 supported visible copies in 34 submissions"
+		and int(performance.surface_submissions) == 35,
+		"authored deck visuals and instrument plates preserve 279 supported visible copies in 35 submissions"
 	)
 	_check(
 		int(performance.baseline_mesh_resources) == 34
-		and int(performance.mesh_resources) == 19
-		and int(performance.mesh_resource_delta) == -15
+		and int(performance.mesh_resources) == 20
+		and int(performance.mesh_resource_delta) == -14
 		and int(performance.baseline_material_resources) == 10
-		and int(performance.material_resources) == 10
+		and int(performance.material_resources) == 11
 		and int(performance.baseline_family_nodes) == 2
 		and int(performance.family_nodes) == 1
 		and int(performance.baseline_family_submissions) == 2

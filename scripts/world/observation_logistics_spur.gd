@@ -140,17 +140,17 @@ const OBSERVATION_LENS_CULLING_BOUNDS := AABB(
 ## district in the Phase 10 walkability pass; they are physics, not renderers, so
 ## both the batched and the un-batched baseline grow by the same twelve.
 const BASELINE_VISUAL_DESCENDANT_NODE_COUNT := 156
-const VISUAL_DESCENDANT_NODE_COUNT := 168
+const VISUAL_DESCENDANT_NODE_COUNT := 169
 const BASELINE_RENDERER_NODE_COUNT := 42
-const RENDERER_NODE_COUNT := 34
+const RENDERER_NODE_COUNT := 35
 const BASELINE_DRAWN_COPY_COUNT := 270
-const DRAWN_COPY_COUNT := 278
+const DRAWN_COPY_COUNT := 279
 const BASELINE_SURFACE_SUBMISSION_COUNT := 42
-const SURFACE_SUBMISSION_COUNT := 34
+const SURFACE_SUBMISSION_COUNT := 35
 const BASELINE_MESH_RESOURCE_COUNT := 34
-const MESH_RESOURCE_COUNT := 19
+const MESH_RESOURCE_COUNT := 20
 const BASELINE_MATERIAL_RESOURCE_COUNT := 10
-const MATERIAL_RESOURCE_COUNT := 10
+const MATERIAL_RESOURCE_COUNT := 11
 const WALKABLE_DECK_COPY_COUNT := 5
 const BASELINE_WALKABLE_DECK_RENDERER_NODE_COUNT := 5
 const WALKABLE_DECK_RENDERER_NODE_COUNT := 5
@@ -491,8 +491,8 @@ func get_authority_contract() -> Dictionary:
 
 
 func get_performance_contract() -> Dictionary:
-	# Exact standalone build census, frozen rather than estimated: 168 descendant
-	# nodes, 7 MeshInstance3D nodes plus twenty-seven MultiMesh batches,
+	# Exact standalone build census, frozen rather than estimated: 169 descendant
+	# nodes, 8 MeshInstance3D nodes plus twenty-seven MultiMesh batches,
 	# 40 bodies, 42 shapes, four Label3Ds and six practicals. Six of those bodies
 	# are the light masts, which the Phase 10 walkability sweep found drawn but
 	# not solid. The fifteen conservative
@@ -500,9 +500,10 @@ func get_performance_contract() -> Dictionary:
 	# owns no processing callback. The practical lenses reuse three exact recipes,
 	# reducing repeated practical recipes while retaining one dedicated dark view
 	# band material for the two perimeter pavilions.
+	# Three instrument plates share one additional mesh/material/atlas renderer.
 	# Any later content must declare its cost here.
 	var contract := StationModuleContract.build_performance_contract(self, {
-		"mesh_instances": 7,
+		"mesh_instances": 8,
 		"static_bodies": 40,
 		"collision_shapes": 42,
 		"labels": 4,
@@ -1533,7 +1534,7 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("static visual resource or batching contract drifted")
 	var materials := get_material_retention_contract()
 	if int(materials.catalog_entry_count) != 10 \
-			or int(materials.retained_unique_materials) != 10 \
+			or int(materials.retained_unique_materials) != 11 \
 			or int(materials.practical_lens_recipe_count) != 3 \
 			or not bool(materials.practical_lens_identities_exact):
 		errors.append("retained material or shared practical-lens identity drifted")

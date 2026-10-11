@@ -26,14 +26,19 @@ func _run() -> void:
 				var centre: Vector3 = ObservationLogisticsSpur.OBSERVATION_LENS_POSITIONS[index]
 				var correct := vertices.size() == 18 and uvs.size() == 18 and normals.size() == 18
 				if correct:
+					# ArrayMesh packs normals; observed RIGHT decodes with a 0.000015259 Z error.
 					for offset in 6:
 						var vertex_index := index * 6 + offset
 						var position := vertices[vertex_index]
 						correct = correct and is_equal_approx(position.x, centre.x + 0.0195) \
 							and absf(position.y - centre.y) <= 0.1201 and absf(position.z - centre.z) <= 0.4501 \
-							and normals[vertex_index].is_equal_approx(Vector3.RIGHT) \
+							and normals[vertex_index].distance_to(Vector3.RIGHT) <= 0.00005 \
 							and uvs[vertex_index].y > index * 0.25 and uvs[vertex_index].y < (index + 1) * 0.25
-				_check(correct, "plate %d faces inward on its original lens and samples a distinct atlas row" % (index + 1))
+					for triangle in 2:
+						var start := index * 6 + triangle * 3
+						var geometric_normal := (vertices[start + 1] - vertices[start]).cross(vertices[start + 2] - vertices[start])
+						correct = correct and geometric_normal.dot(Vector3.RIGHT) < 0.0
+				_check(correct, "plate %d faces inward with clockwise triangles on its original lens and samples a distinct atlas row" % (index + 1))
 		var material := batch.material_override as StandardMaterial3D
 		_check(material != null and material.albedo_texture == ObservationLogisticsSpur.OBSERVATION_INSTRUMENT_ATLAS \
 			and material.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED and not material.emission_enabled,
