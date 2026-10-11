@@ -261,7 +261,7 @@ func _run_success(ship: HeroShip, landing: Node3D, egress: Vector3, staging: Vec
 		_check(false, "ordinary interaction restores actual pilot anchor and boarding token through REBOARDED")
 		return
 	_check(true, "ordinary interaction restores actual pilot anchor and boarding token through REBOARDED")
-	if not await _until(func(): return bool(production.get_snapshot().get("completion_handback_delivered", false)), SUCCESS_ASCENT_SECONDS):
+	if not await _until(func(): return production.has_delivered_completion_handback(), SUCCESS_ASCENT_SECONDS):
 		_check(false, "actual Host ascent clears Ember and delivers typed ownership handback")
 		print("SHARED_SURFACE_ASCENT_FAILED: ", host.get_snapshot(), " binding=", production.get_snapshot())
 		return
