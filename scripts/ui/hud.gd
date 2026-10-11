@@ -1883,16 +1883,20 @@ func _live_interaction_text(text: String) -> String:
 	return _controller_prompt_text(display_text)
 
 
-# --- Flight and expedition prompt glyphs -------------------------------------
+# --- Flight, expedition and yard prompt glyphs -------------------------------
 # Several flight and planetary-expedition callers still author a keyboard key in
 # their copy ("[ L ]  LAND AT AURORA PAD  //  ESC: RETURN TO MUDDS", "press L",
 # "[ W/S / LEFT STICK ]"). While a gamepad family is the live prompt device,
 # those tokens are replaced with the bound controller glyph for the same
 # InputMap action, so a pad-only player is never told to press a key. Desktop
-# landing, thrust and pause tokens also follow live bindings; default copy stays
+# landing, thrust, pause and yard tokens also follow live bindings; default copy stays
 # unchanged for each action that retains its authored desktop binding.
 
-## [legacy token, actions, replacement format, authored desktop glyph].
+## [legacy token, actions, replacement format, default desktop resolution].
+## The authored tractor SPACE copy remains a valid default jump brake alias,
+## even though the default desktop resolver also offers Ctrl via brake.
+## Tractor entries add an alternatives flag: brake OR jump can each stop the
+## vehicle, whereas every direction in a movement pair needs its own binding.
 const _CONTROLLER_PROMPT_TOKENS := [
 	["[ W/S / LEFT STICK ]", [&"move_forward", &"move_back"], "[ %s ]", "W / S"],
 	["[ L / D-PAD LEFT ]", [&"landing_assist"], "[ %s ]", "L"],
@@ -1900,6 +1904,10 @@ const _CONTROLLER_PROMPT_TOKENS := [
 	["ESC: ", [&"pause"], "%s: ", "Esc"],
 	["Esc → ", [&"pause"], "%s → ", "Esc"],
 	["press L to ", [&"landing_assist"], "press %s to ", "L"],
+	["W / S drive", [&"move_forward", &"move_back"], "%s drive", "W / S", false],
+	["A / D steer", [&"move_left", &"move_right"], "%s steer", "A / D", false],
+	["SPACE brake", [&"brake", &"jump"], "%s brake", "Ctrl / Space", true],
+	["E to hop out", [&"interact"], "%s to hop out", "E", false],
 ]
 const _CONTROLLER_PROMPT_TRAILING_TOKENS := [
 	["press L", [&"landing_assist"], "press %s", "L"],
@@ -1930,7 +1938,9 @@ func _controller_prompt_text(text: String) -> String:
 		var token := str(entry[0])
 		if not result.contains(token):
 			continue
-		var glyph := _controller_prompt_glyph(entry[1] as Array) if controller_active else _desktop_prompt_glyph(entry[1] as Array)
+		var glyph := _yard_prompt_glyph(entry[1] as Array, bool(entry[4])) if entry.size() > 4 else (
+			_controller_prompt_glyph(entry[1] as Array) if controller_active else _desktop_prompt_glyph(entry[1] as Array)
+		)
 		if not controller_active and glyph == str(entry[3]):
 			continue
 		if not glyph.is_empty():
@@ -1945,6 +1955,27 @@ func _controller_prompt_text(text: String) -> String:
 		if not glyph.is_empty():
 			result = result.left(result.length() - token.length()) + str(entry[2]) % glyph
 	return result
+
+
+## Yard controls must describe the active device, never the resolver's fallback
+## onto another device. Optional brake aliases omit unavailable alternatives;
+## required direction pairs keep each missing direction explicit.
+func _yard_prompt_glyph(actions: Array, alternatives: bool) -> String:
+	if _input_glyph_resolver == null or _runtime_input_glyph_presenter == null:
+		return ""
+	var controller_active := _controller_prompt_active()
+	var parts := PackedStringArray()
+	for action: Variant in actions:
+		var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(StringName(action))
+		var family: StringName = resolved.get("device_family", &"unknown")
+		var matches_device := InputGlyphResolverType.GAMEPAD_FAMILIES.has(family) if controller_active else family in [&"keyboard", &"mouse"]
+		var available := bool(resolved.get("valid", false)) and matches_device
+		if alternatives and not available:
+			continue
+		var glyph := str(resolved.get("text", "Unbound Input")) if available else "Unbound Input"
+		if glyph not in parts:
+			parts.append(glyph)
+	return "Unbound Input" if parts.is_empty() else " / ".join(parts)
 
 
 func _desktop_prompt_glyph(actions: Array) -> String:
