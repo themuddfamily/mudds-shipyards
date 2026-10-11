@@ -452,6 +452,11 @@ func _try_crew_sit(record: Dictionary) -> bool:
 				distance = reach
 	if best == null:
 		return false
+	# Resolve this edge's actual deck contact once before the binding applies
+	# its unchanged floor, overlap, reach and authenticated identity guards.
+	if not body.refresh_remote_cabin_floor_support(record.get("frame") as MovingInteriorFrame):
+		_audit.interactions_refused += 1
+		return true
 	var claimed: Dictionary = crew_seat_claim.call(record, best)
 	if not bool(claimed.get("accepted", false)):
 		_audit.interactions_refused += 1

@@ -38,6 +38,8 @@ func _run() -> void:
 	await _test_ember_pad_snap_penetration()
 	await _test_floor_snap_descends_walkable_slope()
 	await _test_floor_snap_recovery_requires_headroom()
+	await _test_remote_cabin_interaction_support()
+	await _test_rejected_remote_snap_stays_rejected()
 	_finish()
 
 
@@ -500,6 +502,140 @@ func _walk(player: PlayerController, start: Vector3, frames: int) -> Dictionary:
 		"final": player.global_position,
 		"travelled": initial.distance_to(player.global_position),
 	}
+
+
+## Stage the observed unsupported descending capsule, then resolve contact
+## through the production moving-frame collision seam without waiting/retrying.
+func _test_remote_cabin_interaction_support() -> void:
+	var rig := Node3D.new()
+	root.add_child(rig)
+	var deck := CharacterBody3D.new()
+	deck.collision_layer = WORLD_LAYER
+	deck.collision_mask = 0
+	rig.add_child(deck)
+	deck.basis = Basis(Vector3.FORWARD, deg_to_rad(22.0))
+	# Same broad, thin box geometry that exposed the native snap penetration.
+	var slab := _slab(Vector3(96.0, 0.5, 96.0), Vector3(0.0, -0.25, 0.0))
+	var shape := slab.get_child(0) as CollisionShape3D
+	slab.remove_child(shape)
+	deck.add_child(shape)
+	shape.position = slab.position
+	slab.free()
+	var frame := MovingFrame.new()
+	deck.add_child(frame)
+	frame.configure(deck)
+	frame.set_physics_process(false)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.set_remote_drive_enabled(true)
+	rig.add_child(player)
+	player.set_physics_process(false)
+	frame.register_occupant(player, {"require_inside_bounds": false})
+	player.set_cabin_containment(deck, AABB(Vector3(-4, -1, -4), Vector3(8, 5, 8)), Transform3D.IDENTITY)
+	await physics_frame
+	await process_frame
+	var original_snap := player.floor_snap_length
+	player.global_transform = deck.global_transform * Transform3D(Basis.IDENTITY, Vector3(0, 0.08, 0))
+	player.velocity = Vector3.ZERO
+	player.move_and_slide()
+	_check(not player.is_on_floor(), "the real capsule starts above the deck without a floor flag")
+	player.velocity = -frame.get_frame_up_direction() * 0.3
+	deck.global_position += Vector3(120, 0, 0)
+	frame.step_frame(1.0 / 60.0, int(Engine.get_physics_frames()) + 1)
+	_check(not player._get_interior_collision_transform().is_equal_approx(Transform3D.IDENTITY),
+		"the carried body resolves against a distinct published hull collision pose")
+	var tangent_before := deck.to_local(player.global_position)
+	_check(player.refresh_remote_cabin_floor_support(frame) and player.is_on_floor(),
+		"one physical support refresh re-seats the descending remote capsule on its carried, rolled deck")
+	var supported := deck.to_local(player.global_position)
+	_check(absf(supported.x - tangent_before.x) < 0.003 and absf(supported.z - tangent_before.z) < 0.003
+		and supported.y >= -0.003 and supported.y < 0.03
+		and player.floor_snap_length == original_snap,
+		"support refresh preserves deck tangent position, solid floor and authored snap length")
+	for case in ["unsupported", "upward", "jump"]:
+		player.global_position = deck.to_global(Vector3(0, 1.0 if case == "unsupported" else 0.08, 0))
+		player.velocity = Vector3.ZERO
+		player._move_in_interior_collision_frame(1.0 / 60.0)
+		player.apply_remote_intent(Vector2.ZERO, 0.0, false, case == "jump")
+		player.velocity = frame.get_frame_up_direction() * (1.0 if case == "upward" else -0.3)
+		var before := player.global_position
+		_check(not player.refresh_remote_cabin_floor_support(frame) and not player.is_on_floor()
+			and before.is_equal_approx(player.global_position),
+			"%s capsule is refused immediately without snapping or storing a future claim" % case)
+		player.clear_remote_intent()
+	var wrong_frame := MovingFrame.new()
+	rig.add_child(wrong_frame)
+	wrong_frame.configure(deck)
+	_check(not player.refresh_remote_cabin_floor_support(wrong_frame),
+		"a frame that does not own the remote capsule cannot refresh its support")
+	frame.unregister_occupant(player, false, &"test_teardown")
+	_check(not player.refresh_remote_cabin_floor_support(frame),
+		"lost moving-frame registration refuses support refresh")
+	rig.queue_free()
+	await process_frame
+
+
+## Use the existing recorded thin-pad snap and headroom fixture, including
+## its actual engine floor flag, to exercise a rejected explicit query twice.
+func _test_rejected_remote_snap_stays_rejected() -> void:
+	var rig := Node3D.new()
+	root.add_child(rig)
+	var pad := _slab(Vector3(96.0, 0.5, 96.0), Vector3(0.0, -60.21875, -297.4707))
+	rig.add_child(pad)
+	var frame := MovingFrame.new()
+	pad.add_child(frame)
+	frame.configure(pad)
+	frame.set_physics_process(false)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.set_remote_drive_enabled(true)
+	rig.add_child(player)
+	player.set_physics_process(false)
+	frame.register_occupant(player, {"require_inside_bounds": false})
+	player.set_cabin_containment(pad,
+		AABB(Vector3(-48, 0, -48), Vector3(96, 5, 96)), Transform3D.IDENTITY)
+	await physics_frame
+	await process_frame
+	var before_snap := Transform3D(Basis(Vector3.UP, -PI / 2.0),
+		Vector3(44.63671875, -59.9664421081543, -297.704040527))
+	player.global_transform = before_snap
+	player.apply_floor_snap()
+	var snapped := player.global_transform
+	if before_snap.origin.y - snapped.origin.y <= 0.1:
+		_check(snapped.origin.y >= -59.96875 - player.safe_margin,
+			"native thin-pad snap already stays outside the floor")
+	else:
+		var ceiling := _slab(Vector3(4.0, 0.2, 4.0),
+			snapped.origin + Vector3(0.0, 1.94 + 0.02 + 0.1, 0.0))
+		rig.add_child(ceiling)
+		await physics_frame
+		await process_frame
+		# A real unsupported slide clears the prior native snap's cached flag.
+		player.global_transform = before_snap
+		player.global_position += Vector3.UP * 3.0
+		player.velocity = Vector3.ZERO
+		player._move_in_interior_collision_frame(1.0 / 60.0)
+		player.global_transform = before_snap
+		_check(not player.is_on_floor(), "blocked explicit snap starts with a real unsupported slide")
+		_check(not player.refresh_remote_cabin_floor_support(frame)
+			and player.is_on_floor() and player.global_transform.is_equal_approx(before_snap),
+			"unsafe thin-pad snap is rejected despite the engine's cached floor flag and restores its pose")
+		_check(not player.refresh_remote_cabin_floor_support(frame)
+			and player.global_transform.is_equal_approx(before_snap),
+			"a second query in the same physics step cannot trust the rejected cached floor flag")
+		await physics_frame
+		_check(not player.refresh_remote_cabin_floor_support(frame),
+			"an engine frame without capsule movement cannot clear the rejected contact")
+		ceiling.queue_free()
+		await physics_frame
+		await process_frame
+		player.global_position = before_snap.origin + Vector3.UP
+		player.velocity = Vector3.ZERO
+		player._move_in_interior_collision_frame(1.0 / 60.0)
+		player.global_transform = before_snap
+		_check(player.refresh_remote_cabin_floor_support(frame),
+			"actual collision movement permits a fresh safe support query after the obstruction clears")
+	frame.unregister_occupant(player, false, &"test_teardown")
+	rig.queue_free()
+	await process_frame
 
 
 func _slab(size: Vector3, slab_position: Vector3) -> StaticBody3D:

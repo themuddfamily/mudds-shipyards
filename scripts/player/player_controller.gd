@@ -342,6 +342,9 @@ var _remote_drive_enabled := false
 var _remote_move_axis := Vector2.ZERO
 var _remote_run := false
 var _remote_jump_pending := false
+## A rejected explicit snap can leave Godot's floor flag set. Only the next
+## actual collision movement can replace that cached result safely.
+var _remote_floor_support_rejected := false
 
 
 func _ready() -> void:
@@ -524,6 +527,50 @@ func get_remote_drive_audit() -> Dictionary:
 	}
 
 
+## A moving deck can briefly lose the last slide's floor flag while the
+## capsule re-seats. Resolve support against the same published hull pose as
+## normal walking before the server consumes a physical crew-seat edge.
+## The caller still owns admission and the seat's identity/reach checks.
+func refresh_remote_cabin_floor_support(frame: MovingInteriorFrame) -> bool:
+	if not _remote_drive_enabled or _control_enabled \
+			or _embodiment_state != EmbodimentState.ON_FOOT \
+			or not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(frame) or not frame.is_inside_tree() \
+			or frame.is_queued_for_deletion() \
+			or not is_instance_valid(_cabin_frame) \
+			or not _cabin_frame.is_inside_tree() or _cabin_frame.is_queued_for_deletion() \
+			or frame.get_moving_frame() != _cabin_frame \
+			or not frame.is_occupant_registered(self) \
+			or not frame.is_simulation_authority_for(self) \
+			or _remote_jump_pending or _remote_floor_support_rejected \
+			or velocity.dot(_get_movement_up_direction()) > 0.0:
+		return false
+	if is_on_floor():
+		return true
+	var collision_transform := _get_interior_collision_transform()
+	var shifted := not collision_transform.is_equal_approx(Transform3D.IDENTITY)
+	if shifted:
+		global_transform = collision_transform * global_transform
+		velocity = collision_transform.basis * velocity
+		up_direction = collision_transform.basis * up_direction
+	# Keep the authored snap length and floor angle. This is one real collision
+	# query, never a remembered support flag or a pending claim that can retry.
+	var before_snap := global_transform
+	apply_floor_snap()
+	var supported := is_on_floor() and get_floor_normal().dot(up_direction) >= cos(floor_max_angle)
+	if supported:
+		supported = _recover_descending_floor_penetration(before_snap, velocity)
+	if not supported:
+		global_transform = before_snap
+		_remote_floor_support_rejected = true
+	if shifted:
+		var carried_transform := collision_transform.affine_inverse()
+		global_transform = carried_transform * global_transform
+		velocity = carried_transform.basis * velocity
+		up_direction = carried_transform.basis * up_direction
+	return supported
+
+
 func _get_interior_collision_transform() -> Transform3D:
 	var collision_transform := Transform3D.IDENTITY
 	var owner_ref: Variant = (
@@ -548,6 +595,7 @@ func _move_in_interior_collision_frame(delta: float) -> void:
 	var pre_move_velocity := velocity
 	var was_on_floor := is_on_floor()
 	move_and_slide()
+	_remote_floor_support_rejected = false
 	_recover_floor_snap_penetration(pre_move_transform, pre_move_velocity, was_on_floor)
 	_resolve_step_up(pre_move_transform, pre_move_velocity, delta)
 	if shifted:
@@ -570,9 +618,22 @@ func _recover_floor_snap_penetration(
 	if not was_on_floor or not is_on_floor() or get_slide_collision_count() != 0:
 		return
 	var movement_up := _get_movement_up_direction()
-	var descent := (pre_move_transform.origin - global_position).dot(movement_up)
-	if descent <= safe_margin or pre_move_velocity.dot(movement_up) > 0.0:
+	if (pre_move_transform.origin - global_position).dot(movement_up) <= safe_margin \
+			or pre_move_velocity.dot(movement_up) > 0.0:
 		return
+	_recover_descending_floor_penetration(pre_move_transform, pre_move_velocity)
+
+
+## Contact validation shared by a normal descending snap and an explicit
+## remote support query. A floor flag alone cannot prove a thin-box snap stayed
+## outside the deck: the bounded zero-motion query must also settle safely.
+func _recover_descending_floor_penetration(
+		pre_move_transform: Transform3D, pre_move_velocity: Vector3
+	) -> bool:
+	var movement_up := _get_movement_up_direction()
+	var descent := (pre_move_transform.origin - global_position).dot(movement_up)
+	if pre_move_velocity.dot(movement_up) > 0.0:
+		return false
 	var snapped := global_transform
 	var recovered := snapped
 	var collision := KinematicCollision3D.new()
@@ -588,19 +649,21 @@ func _recover_floor_snap_penetration(
 		if overlapping:
 			for contact_index in collision.get_collision_count():
 				if collision.get_normal(contact_index).dot(movement_up) < cos(floor_max_angle):
-					return
+					return false
 		if correction.length() <= safe_margin:
 			if overlapping and collision.get_depth() > safe_margin:
-				return
+				return false
 			if recovered.origin != snapped.origin:
 				global_transform = recovered
-			return
+			return true
 		if correction.dot(movement_up) <= 0.0 \
 				or correction.slide(movement_up).length() > safe_margin:
-			return
+			return false
 		recovered.origin += movement_up * correction.dot(movement_up)
 		if (recovered.origin - snapped.origin).length() > descent + safe_margin:
-			return
+			return false
+
+	return false
 
 
 func _process(delta: float) -> void:

@@ -175,6 +175,11 @@ func _run() -> void:
 		await _finish_remote_bodies()
 		return
 	await _assert_a_remote_body_is_stood_up_for_the_walker()
+	await _assert_crew_support_is_resolved_once_per_edge()
+	if "--crew-support-only" in OS.get_cmdline_user_args():
+		await _assert_forged_and_stale_intents_are_rejected()
+		await _finish_remote_bodies()
+		return
 	await _assert_the_body_walks_the_aisle_on_intent()
 	await _assert_forged_and_stale_intents_are_rejected()
 	await _assert_the_body_sleeps_in_the_bunk_and_wakes()
@@ -357,6 +362,58 @@ func _assert_a_remote_body_is_stood_up_for_the_walker() -> void:
 		"the owning client receives it too: it is the authority's pose now, not the owner's claim")
 	_check(_frame.is_simulation_authority_for(body),
 		"the frame simulates the remote body on the server, not on the owning client")
+
+
+## Keep the ordinary source/ENet/authority path, but decline at the existing
+## delegated claim seam so this probe acquires no role or chair reservation.
+func _assert_crew_support_is_resolved_once_per_edge() -> void:
+	var body := _body(WALKER_ENTITIES[0])
+	if body == null:
+		return
+	var simulation := _game.get_network_remote_body_simulation()
+	var original_claim := simulation.crew_seat_claim
+	var claims := []
+	simulation.crew_seat_claim = func(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
+		claims.append({"id": record.get("last_interaction_id"), "floor": body.is_on_floor(),
+			"normal": body.get_floor_normal(), "seat": seat})
+		return {"accepted": false, "status": &"test_declined"}
+	body.set_physics_process(false)
+	var start := body.global_transform
+	# First perform a real unsupported slide outside snap reach, clearing the
+	# previous supported slide. Raising only .08 would auto-snap an old floor.
+	body.global_position += _frame.get_frame_up_direction()
+	body.velocity = Vector3.ZERO
+	body._move_in_interior_collision_frame(TICK_SECONDS)
+	body.global_transform = start
+	body.global_position += _frame.get_frame_up_direction() * 0.08
+	_check(not body.is_on_floor(), "crew-seat edge starts with the real unsupported deck capsule")
+	body.velocity = -_frame.get_frame_up_direction() * 0.3
+	var source := _walkers[0].get("source") as IntentSource
+	source.request_interaction()
+	await _drive(12)
+	_check(claims.size() == 1 and bool(claims[0].floor)
+		and (claims[0].normal as Vector3).dot(_frame.get_frame_up_direction()) >= cos(body.floor_max_angle),
+		"ordinary ENet interaction resolves real walkable support before exactly one delegated crew claim")
+	await _drive(12)
+	_check(claims.size() == 1,
+		"later neutral packets carrying the consumed interaction id never retry the declined claim")
+	# A fresh ordinary edge from the opposite cabin end has no actual nearby
+	# crew chair. It cannot invoke the delegated claim or snap toward a chair.
+	body.global_position = _craft.global_transform * Vector3(0, 0.60, 1.0)
+	body.velocity = Vector3.ZERO
+	body._move_in_interior_collision_frame(TICK_SECONDS)
+	await _drive(4)
+	var out_of_reach := body.global_position
+	source.request_interaction()
+	await _drive(12)
+	_check(claims.size() == 1 and body.global_position.is_equal_approx(out_of_reach),
+		"an ordinary out-of-reach edge neither delegates a crew claim nor moves the capsule")
+	simulation.crew_seat_claim = original_claim
+	body.global_transform = start
+	body.clear_remote_intent()
+	body.velocity = Vector3.ZERO
+	body.set_physics_process(true)
+	await _drive(20)
 
 
 func _assert_the_body_walks_the_aisle_on_intent() -> void:
