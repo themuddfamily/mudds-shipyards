@@ -174,7 +174,16 @@ func _run_success(ship: HeroShip, landing: Node3D, egress: Vector3, staging: Vec
 	var boarding := host.get("_boarding_area") as ShipBoardingArea
 	var context: Dictionary = journey._ember_survey_context(production.get_snapshot()).duplicate(true)
 	var beacon := landing.to_global(Vector3(540.0, 30.0, -210.0))
-	if not await _walk_to(beacon, SUCCESS_BEACON_SECONDS):
+	var survey_generation := int(_game.activity_director.get_activity_snapshot(&"ember_beacon_survey").get("generation", -1))
+	var beacon_completed := func() -> bool:
+		var observed := _game.activity_director.get_activity_snapshot(&"ember_beacon_survey")
+		return survey_generation > 0 and int(observed.get("generation", -1)) == survey_generation \
+			and int(observed.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED \
+			and int(observed.get("next_checkpoint_index", -1)) == 2 \
+			and journey.shared_ember_surface_is_current()
+	# The Director accepts the authored three-dimensional checkpoint radius.
+	# Its real completion ends this walk before an unrelated center tolerance.
+	if not await _walk_to(beacon, SUCCESS_BEACON_SECONDS, [], 1.5, beacon_completed):
 		_check(false, "ordinary walking reaches the second authored survey beacon")
 		return
 	_check(true, "ordinary walking reaches the second authored survey beacon")
@@ -449,17 +458,23 @@ func _until(predicate: Callable, seconds: float) -> bool:
 			return true
 	return false
 
-func _walk_to(target: Vector3, seconds: float, via: Array[Vector3] = [], arrival_radius: float = 1.5) -> bool:
+func _walk_to(target: Vector3, seconds: float, via: Array[Vector3] = [], arrival_radius: float = 1.5, completion: Callable = Callable()) -> bool:
 	var waypoints: Array[Vector3] = via.duplicate()
 	waypoints.append(target)
 	var waypoint_index := 0
 	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
 	while Time.get_ticks_msec() < deadline:
+		if completion.is_valid() and bool(completion.call()):
+			_release_walk()
+			return true
 		var offset := (waypoints[waypoint_index] - _game.player.global_position).slide(_game.player.up_direction)
 		if offset.length() <= arrival_radius:
 			if waypoint_index == waypoints.size() - 1:
 				_release_walk()
-				return true
+				if not completion.is_valid():
+					return true
+				await physics_frame
+				continue
 			waypoint_index += 1
 			continue
 		var camera := _game.player.get_node("%CameraYaw") as Node3D
