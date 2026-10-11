@@ -1676,8 +1676,8 @@ func get_return_status_snapshot() -> Dictionary:
 			"player_instance_id": _player_instance_id,
 		},
 		"actor_state": {
-			"ship_position": _ship.global_position if is_instance_valid(_ship) else Vector3.ZERO,
-			"player_position": _player.global_position if is_instance_valid(_player) else Vector3.ZERO,
+			"ship_position": _ship.global_position if _node_is_current(_ship) else Vector3.ZERO,
+			"player_position": _player.global_position if _node_is_current(_player) else Vector3.ZERO,
 		},
 		"surface_route": {
 			"egress_anchor": _region_local_to_world(_REGION.surface_route_anchor_positions_region_local_m[0]),
@@ -1687,10 +1687,12 @@ func get_return_status_snapshot() -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
+	# Retained composition nodes can be alive after whole-Main removal, or
+	# while Main is being freed. Read world-dependent reports only in the tree.
 	var bootstrap_snapshot := _bootstrap.get_snapshot() \
 		if _node_is_current(_bootstrap) and _node_is_current(_scene) else {}
-	var ship_position := _ship.global_position if is_instance_valid(_ship) else Vector3.ZERO
-	var player_position := _player.global_position if is_instance_valid(_player) else Vector3.ZERO
+	var ship_position := _ship.global_position if _node_is_current(_ship) else Vector3.ZERO
+	var player_position := _player.global_position if _node_is_current(_player) else Vector3.ZERO
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"host_id": HOST_ID,
@@ -1716,7 +1718,7 @@ func get_snapshot() -> Dictionary:
 			"terrain_profile_id": TERRAIN_PROFILE_ID,
 			"orbital_frame_id": ORBITAL_FRAME_ID,
 			"ship_definition_id": _ship.get_ship_definition().ship_id \
-				if is_instance_valid(_ship) and _ship.get_ship_definition() != null else &"",
+				if _node_is_current(_ship) and _ship.get_ship_definition() != null else &"",
 			"composition_root_instance_id": _composition_root_instance_id,
 			"loaded_scene_instance_id": _loaded_scene_instance_id,
 			"ship_instance_id": _ship_instance_id,
@@ -1768,9 +1770,9 @@ func get_snapshot() -> Dictionary:
 		"actor_state": {
 			"ship_position": ship_position,
 			"player_position": player_position,
-			"ship_telemetry": _ship.get_telemetry() if is_instance_valid(_ship) else {},
-			"player_seated": _player.is_seated() if is_instance_valid(_player) else false,
-			"player_control_enabled": _player.is_control_enabled() if is_instance_valid(_player) else false,
+			"ship_telemetry": _ship.get_telemetry() if _node_is_current(_ship) else {},
+			"player_seated": _player.is_seated() if _node_is_current(_player) else false,
+			"player_control_enabled": _player.is_control_enabled() if _node_is_current(_player) else false,
 			"host_transform_writes": 0,
 			"host_velocity_writes": 0,
 			"host_move_and_collide_calls": 0,
@@ -1796,15 +1798,15 @@ func get_snapshot() -> Dictionary:
 			"last_ship_sample": _last_ship_gravity_sample.duplicate(true),
 			"ship_report": (
 				_ship.get_planetary_surface_gravity_report()
-				if is_instance_valid(_ship) else {}
+				if _node_is_current(_ship) else {}
 			),
 			"policy": _gravity_policy.get_snapshot() if _gravity_policy != null else {},
 			"application": &"player_public_gravity_multiplier_tangent_projection",
 			"ship_application": &"hero_ship_single_tick_world_vector_ingress",
 		},
-		"berth": _berth.audit() if is_instance_valid(_berth) else {},
+		"berth": _berth.audit() if _node_is_current(_berth) else {},
 		"boarding_reserved_for_player": _boarding_area.get_reservation_token() == _player \
-			if is_instance_valid(_boarding_area) and is_instance_valid(_player) else false,
+			if _node_is_current(_boarding_area) and _node_is_current(_player) else false,
 		"command_source": _command_source.get_snapshot() if is_instance_valid(_command_source) else {},
 		"travel_session": _session.get_presentation_snapshot() if _session != null else {},
 		"world_composition": _world_report.duplicate(true),

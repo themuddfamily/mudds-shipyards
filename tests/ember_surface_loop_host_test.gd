@@ -694,7 +694,7 @@ func _test_halyard_velocity_aware_surface_braking() -> void:
 
 
 func _test_normal_public_actor_loop() -> void:
-	var fixture := await _fixture()
+	var fixture := await _fixture(true, true)
 	if fixture.is_empty():
 		return
 	var host := fixture.host as EmberSurfaceLoopHost
@@ -815,6 +815,7 @@ func _test_normal_public_actor_loop() -> void:
 	)
 	var takeoff_lease_seen := false
 	var completed := false
+	var ascent_reentry_checked := false
 	for _index in 2700:
 		var was_landed := bool(ship.get_telemetry().get("landed", true))
 		var token_before := berth.get_reservation_token(ship)
@@ -823,11 +824,14 @@ func _test_normal_public_actor_loop() -> void:
 			takeoff_lease_seen = true
 		if not bool(tick.get("accepted", false)):
 			break
+		if not ascent_reentry_checked and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT:
+			await _check_detached_ascent_queries_and_reentry(fixture)
+			ascent_reentry_checked = true
 		if host.get_phase() == EmberSurfaceLoopHost.Phase.COMPLETED:
 			completed = true
 			break
 	_check(
-		completed and takeoff_lease_seen
+		completed and takeoff_lease_seen and ascent_reentry_checked
 			and not bool(ship.get_telemetry().get("landed", true))
 			and berth.get_reservation_token(ship).is_empty(),
 		"real takeoff keeps the berth through landed=true then releases it before orbit completion",
@@ -880,6 +884,81 @@ func _test_normal_public_actor_loop() -> void:
 		"retired attachment cannot repeat or drop an already returned reservation",
 	)
 	await _cleanup(fixture)
+
+
+## Model whole-Main removal using the shared production composition topology,
+## after the real landing, on-foot route, boarding and takeoff reach ASCENT.
+func _check_detached_ascent_queries_and_reentry(fixture: Dictionary) -> void:
+	var host := fixture.host as EmberSurfaceLoopHost
+	var composition := fixture.composition_root as Node
+	var ship := fixture.ship as ArrowReconShip
+	var player := fixture.player as PlayerController
+	var session := host.get_travel_session_observation_source()
+	var parent := composition.get_parent()
+	var source_before := ship.get_command_source()
+	var before := host.get_snapshot()
+	var session_before := session.get_presentation_snapshot() as Dictionary
+	var ship_pose_before := ship.transform
+	var player_pose_before := player.transform
+	var velocity_before := ship.velocity
+	parent.remove_child(composition)
+	await process_frame
+	var detached := host.get_snapshot()
+	var status := host.get_return_status_snapshot()
+	var rejected := host.advance_physics(
+		PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
+		host.get_coordinate_frame_generation(), host.get_location_generation()
+	)
+	for query in [detached, status, rejected]:
+		var actors := query.actor_state as Dictionary
+		var route := query.surface_route as Dictionary
+		_check(
+			actors.ship_position == Vector3.ZERO
+				and actors.player_position == Vector3.ZERO
+				and route.egress_anchor == Vector3.ZERO
+				and route.staging_anchor == Vector3.ZERO,
+			"retained off-tree ASCENT snapshot/status/result use detached spatial fallbacks",
+		)
+	_check(
+		(detached.actor_state.ship_telemetry as Dictionary).is_empty()
+			and not bool(detached.actor_state.player_seated)
+			and not bool(detached.actor_state.player_control_enabled)
+			and (detached.gravity.ship_report as Dictionary).is_empty()
+			and (detached.berth as Dictionary).is_empty()
+			and (detached.bootstrap as Dictionary).is_empty()
+			and not bool(detached.boarding_reserved_for_player),
+		"off-tree ASCENT diagnostic queries do not call retained actor or berth world reports",
+	)
+	_check(
+		not composition.is_inside_tree() and not host.is_inside_tree()
+			and host.is_attached() and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT
+			and not bool(rejected.accepted) and rejected.reason == &"host_detached"
+			and host.get_snapshot() == detached
+			and detached.generation == before.generation
+			and detached.attachment_generation == before.attachment_generation
+			and detached.physics_advance_count == before.physics_advance_count
+			and detached.transition_count == before.transition_count
+			and detached.elapsed_seconds == before.elapsed_seconds
+			and detached.phase_elapsed_seconds == before.phase_elapsed_seconds
+			and session.get_presentation_snapshot() == session_before
+			and ship.get_command_source() == source_before
+			and ship.transform == ship_pose_before and player.transform == player_pose_before
+			and ship.velocity == velocity_before,
+		"off-tree ASCENT queries and rejected advancement preserve live visit authority and clock",
+	)
+	parent.add_child(composition)
+	var reentered := host.get_return_status_snapshot()
+	_check(
+		host.is_attached() and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT
+			and host.get_generation() == int(before.generation)
+			and host.get_attachment_generation() == int(before.attachment_generation)
+			and reentered.actor_state.ship_position == ship.global_position
+			and reentered.actor_state.player_position == player.global_position
+			and int(host.get_snapshot().composition_reentry_count)
+				== int(before.composition_reentry_count) + 1
+			and StringName(host.get_snapshot().terminal_reason).is_empty(),
+		"whole-composition ASCENT reentry restores current presentation and retains the same visit",
+	)
 
 
 func _test_authenticated_focus_builds_collision_corridor() -> void:
