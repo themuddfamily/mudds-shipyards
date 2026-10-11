@@ -871,7 +871,7 @@ func _cargo_state() -> Dictionary:
 func _walk(target_local: Vector3) -> void:
 	var start := _player.global_position
 	var furthest := 0.0
-	print("PASSENGER_WALK_START: local=", _craft.to_local(_player.global_position), " target=", target_local)
+	_print_walk_support("start", target_local)
 	for _index in 240:
 		furthest = maxf(furthest, _player.global_position.distance_to(start))
 		var delta := _craft.to_global(target_local) - _player.global_position
@@ -900,11 +900,18 @@ func _walk(target_local: Vector3) -> void:
 		_check(await _until(func(): return _player.is_on_floor() and _player.velocity.slide(_craft.global_basis.y.normalized()).length() < 0.1, 3.0), "ordinary Cinder walk settles on actual cabin support")
 	else:
 		await _ticks(15)
-	if _role == "client":
+	if _role in ["client", "client_b"]:
 		var source := _game.get_network_remote_body_intent_source()
-		print("PASSENGER_WALK_END: wall=", Time.get_unix_time_from_system(), " local=", _craft.to_local(_player.global_position),
+		print("PASSENGER_WALK_END: role=", _role, " wall=", Time.get_unix_time_from_system(), " local=", _craft.to_local(_player.global_position),
 			" furthest_world_distance_m=", furthest, " floor=", _player.is_on_floor(), " yaw=", _player.get_look_yaw(),
 			" source=", source.get_audit(), " relationship=", _game.network_session.get_moving_interior_latest_relationship(source.get_entity_id()))
+
+	_print_walk_support("end", target_local)
+
+func _print_walk_support(boundary: String, target: Vector3) -> void:
+	var frame := _craft.get_moving_interior_component() as MovingInteriorFrame
+	var source := _game.get_network_remote_body_intent_source()
+	print("PASSENGER_WALK_SUPPORT: role=", _role, " boundary=", boundary, " wall=", Time.get_unix_time_from_system(), " ticks=", Engine.get_physics_frames(), " local=", _craft.to_local(_player.global_position), " target=", target, " floor=", _player.is_on_floor(), " velocity=", _player.velocity, " controls=", _player.is_control_enabled(), " containment=", _player.get_cabin_containment_report(), " registered=", frame.is_occupant_registered(_player), " authority=", frame.is_simulation_authority_for(_player), " prediction=", frame._local_prediction_is_current(_player), " admission=", _game._network_local_cabin_prediction_is_current(_player, _craft, _game.network_session), " source=", source.get_audit() if source != null else {}, " relationship=", _game.network_session.get_moving_interior_latest_relationship(source.get_entity_id()) if source != null else {})
 
 func _look(target: Vector3) -> void:
 	var target_local := _craft.to_local(target) if _host_gunner_flight or _shared_cruise else Vector3.ZERO
@@ -1219,6 +1226,7 @@ func _shared_client() -> void:
 	var initial_tick := _game.network_session.get_moving_interior_latest_server_tick()
 	var initial_position := _craft.to_local(_player.global_position)
 	await _walk(Vector3(-1.0 if _role == "client" else 1.0, 0.52, -5.8))
+	print("SHARED_CREW_WALK_RESULT: role=", _role, " initial_local=", initial_position, " final_local=", _craft.to_local(_player.global_position), " distance=", _craft.to_local(_player.global_position).distance_to(initial_position), " floor=", _player.is_on_floor())
 	_check(_craft.to_local(_player.global_position).distance_to(initial_position) > 0.6 and _player.is_on_floor(), "ordinary cabin walking remains supported after live origin shift: " + _role)
 	_check(source.is_bound() and _game.network_session.get_moving_interior_latest_server_tick() > initial_tick and not bool(_game.planetary_cruise_binding.get_snapshot().get("engagement_requested", true)), "peer streams actual body while host alone owns physical cruise: " + _role)
 	var sample := _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
