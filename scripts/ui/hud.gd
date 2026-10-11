@@ -1889,19 +1889,20 @@ func _live_interaction_text(text: String) -> String:
 # "[ W/S / LEFT STICK ]"). While a gamepad family is the live prompt device,
 # those tokens are replaced with the bound controller glyph for the same
 # InputMap action, so a pad-only player is never told to press a key. Desktop
-# landing tokens also follow the live binding; default L copy stays unchanged.
+# landing, thrust and pause tokens also follow live bindings; default copy stays
+# unchanged for each action that retains its authored desktop binding.
 
-## [legacy token, actions whose live glyph replaces it, replacement format].
+## [legacy token, actions, replacement format, authored desktop glyph].
 const _CONTROLLER_PROMPT_TOKENS := [
-	["[ W/S / LEFT STICK ]", [&"move_forward", &"move_back"], "[ %s ]"],
-	["[ L / D-PAD LEFT ]", [&"landing_assist"], "[ %s ]"],
-	["[ L ]", [&"landing_assist"], "[ %s ]"],
-	["ESC: ", [&"pause"], "%s: "],
-	["Esc → ", [&"pause"], "%s → "],
-	["press L to ", [&"landing_assist"], "press %s to "],
+	["[ W/S / LEFT STICK ]", [&"move_forward", &"move_back"], "[ %s ]", "W / S"],
+	["[ L / D-PAD LEFT ]", [&"landing_assist"], "[ %s ]", "L"],
+	["[ L ]", [&"landing_assist"], "[ %s ]", "L"],
+	["ESC: ", [&"pause"], "%s: ", "Esc"],
+	["Esc → ", [&"pause"], "%s → ", "Esc"],
+	["press L to ", [&"landing_assist"], "press %s to ", "L"],
 ]
 const _CONTROLLER_PROMPT_TRAILING_TOKENS := [
-	["press L", [&"landing_assist"], "press %s"],
+	["press L", [&"landing_assist"], "press %s", "L"],
 ]
 
 ## Raw caller copy, retained so a device switch re-renders the live glyph even
@@ -1924,42 +1925,45 @@ func _controller_prompt_text(text: String) -> String:
 	if text.is_empty():
 		return text
 	var controller_active := _controller_prompt_active()
-	var desktop_landing := ""
-	if not controller_active:
-		desktop_landing = _desktop_landing_prompt_glyph()
-		if desktop_landing.is_empty() or desktop_landing == "L":
-			return text
 	var result := text
 	for entry: Array in _CONTROLLER_PROMPT_TOKENS:
-		if not controller_active and not (entry[1] as Array).has(&"landing_assist"):
-			continue
 		var token := str(entry[0])
 		if not result.contains(token):
 			continue
-		var glyph := _controller_prompt_glyph(entry[1] as Array) if controller_active else desktop_landing
+		var glyph := _controller_prompt_glyph(entry[1] as Array) if controller_active else _desktop_prompt_glyph(entry[1] as Array)
+		if not controller_active and glyph == str(entry[3]):
+			continue
 		if not glyph.is_empty():
 			result = result.replace(token, str(entry[2]) % glyph)
 	for entry: Array in _CONTROLLER_PROMPT_TRAILING_TOKENS:
 		var token := str(entry[0])
 		if not result.ends_with(token):
 			continue
-		var glyph := _controller_prompt_glyph(entry[1] as Array) if controller_active else desktop_landing
+		var glyph := _controller_prompt_glyph(entry[1] as Array) if controller_active else _desktop_prompt_glyph(entry[1] as Array)
+		if not controller_active and glyph == str(entry[3]):
+			continue
 		if not glyph.is_empty():
 			result = result.left(result.length() - token.length()) + str(entry[2]) % glyph
 	return result
 
 
-func _desktop_landing_prompt_glyph() -> String:
+func _desktop_prompt_glyph(actions: Array) -> String:
 	if _input_glyph_resolver == null or _runtime_input_glyph_presenter == null:
 		return ""
 	if _input_glyph_resolver.get_preferred_device_family() not in [&"keyboard", &"mouse"]:
 		return ""
-	var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(&"landing_assist")
-	# A controller-only fallback cannot tell a desktop player how to land.
-	if not bool(resolved.get("valid", false)) \
-			or resolved.get("device_family", &"unknown") not in [&"keyboard", &"mouse"]:
-		return "Unbound Input"
-	return str(resolved.get("text", "Unbound Input"))
+	var parts := PackedStringArray()
+	for action: Variant in actions:
+		var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(StringName(action))
+		# A controller-only fallback cannot describe a desktop action. Keep each
+		# missing direction explicit when only one half of a movement pair is bound.
+		var glyph := "Unbound Input"
+		if bool(resolved.get("valid", false)) \
+				and resolved.get("device_family", &"unknown") in [&"keyboard", &"mouse"]:
+			glyph = str(resolved.get("text", "Unbound Input"))
+		if glyph not in parts:
+			parts.append(glyph)
+	return " / ".join(parts)
 
 
 func _controller_prompt_glyph(actions: Array) -> String:

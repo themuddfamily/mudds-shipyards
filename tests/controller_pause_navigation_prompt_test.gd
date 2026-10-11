@@ -10,7 +10,7 @@ extends SceneTree
 ## 2. Keyboard-authored expedition copy ("[ L ]", "ESC:", "Esc →", "press L",
 ##    "[ W/S / LEFT STICK ]") shows the live controller glyph while a gamepad is
 ##    the prompt device. Default keyboard copy remains unchanged, while rebound
-##    desktop landing controls refresh retained prompts and objectives.
+##    desktop landing, thrust and pause controls refresh retained prompts and objectives.
 
 const HudType := preload("res://scripts/ui/hud.gd")
 
@@ -48,6 +48,7 @@ func _run() -> void:
 	await _test_controls_overlay_toggle_keeps_pause_focus(hud)
 	await _test_controller_prompt_glyphs(hud)
 	await _test_keyboard_landing_binding_prompts(hud)
+	await _test_keyboard_navigation_binding_prompts(hud)
 	hud.set_paused(false)
 	paused = false
 	hud.queue_free()
@@ -349,6 +350,89 @@ func _test_keyboard_landing_binding_prompts(hud: GameHUD) -> void:
 		interaction.text == LANDING_ASSIST_PROMPT
 			and objective.text == "Return to Mudds, then press L to dock.",
 		"restoring authored bindings restores exact default keyboard copy on retained surfaces"
+	)
+
+
+func _test_keyboard_navigation_binding_prompts(hud: GameHUD) -> void:
+	var interaction := hud.get("_interaction_label") as Label
+	var objective := hud.get("_objective_label") as Label
+	var original: InputBindingProfile = hud.get("_input_binding_profile").duplicate_profile()
+	var profile := original.duplicate_profile()
+	var thrust_and_return := THRUST_PROMPT + "  //  ESC: RETURN TO MUDDS"
+	hud.set_interaction(thrust_and_return)
+	hud.set_objective(AURORA_LANDED_OBJECTIVE, "AURORA EXPEDITION")
+	for action_and_key: Array in [
+		[&"move_forward", KEY_I], [&"move_back", KEY_K], [&"pause", KEY_F8],
+	]:
+		var bindings: Array[Dictionary] = []
+		for binding: Dictionary in original.get_bindings(action_and_key[0]):
+			if binding.device == &"gamepad":
+				bindings.append(binding)
+		bindings.append({"device": &"keyboard", "type": &"key", "physical_keycode": action_and_key[1]})
+		profile.set_bindings(action_and_key[0], bindings)
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_check(
+		interaction.text == "[ I / K ]  APPLY THRUST  //  F8: RETURN TO MUDDS"
+			and objective.text == "Explore Aurora, or open F8 → Destination Board to return to Mudds",
+		"desktop thrust and pause remaps refresh retained interaction/objective copy together"
+	)
+	hud.set_interaction(AURORA_LANDED_PROMPT)
+	_check(
+		interaction.text == "[ L ]  LAND AT AURORA PAD  //  F8: RETURN TO MUDDS",
+		"remapped planetary pause guidance preserves unchanged authored landing copy"
+	)
+	hud._on_controller_glyph_family_selected(1)
+	var controller_pause := hud.get_action_prompt(&"pause")
+	_check(
+		interaction.text.ends_with("%s: RETURN TO MUDDS" % controller_pause)
+			and objective.text.contains("%s → Destination Board" % controller_pause),
+		"a device switch still renders controller pause guidance from the retained source"
+	)
+	hud.set_interaction(thrust_and_return)
+	var movement_actions: Array[StringName] = [&"move_forward", &"move_back"]
+	_check(
+		interaction.text.begins_with("[ %s ]" % hud.call("_action_prompts", movement_actions)),
+		"desktop movement remaps leave the controller thrust glyph unchanged"
+	)
+	hud._on_controller_glyph_family_selected(0)
+	var keyboard := InputEventKey.new()
+	keyboard.physical_keycode = KEY_F
+	keyboard.pressed = true
+	root.push_input(keyboard)
+	await process_frame
+	_check(
+		interaction.text == "[ I / K ]  APPLY THRUST  //  F8: RETURN TO MUDDS"
+			and objective.text.contains("F8 → Destination Board"),
+		"returning to keyboard refreshes retained thrust and pause remaps"
+	)
+	var pause_bindings := profile.get_bindings(&"pause")
+	pause_bindings[-1].physical_keycode = KEY_F9
+	profile.set_bindings(&"pause", pause_bindings)
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_check(
+		interaction.text.ends_with("F9: RETURN TO MUDDS")
+			and objective.text.contains("F9 → Destination Board"),
+		"a later pause snapshot refreshes both retained surfaces without republication"
+	)
+	profile.set_bindings(&"move_forward", [])
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_check(interaction.text.begins_with("[ Unbound Input / K ]"), "a missing forward binding remains explicit beside the bound back direction")
+	for action: StringName in [&"move_back", &"pause"]:
+		var gamepad_only: Array[Dictionary] = []
+		for binding: Dictionary in original.get_bindings(action):
+			if binding.device == &"gamepad":
+				gamepad_only.append(binding)
+		profile.set_bindings(action, gamepad_only)
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_check(
+		interaction.text == "[ Unbound Input ]  APPLY THRUST  //  Unbound Input: RETURN TO MUDDS"
+			and objective.text.contains("Unbound Input → Destination Board"),
+		"unbound desktop thrust/pause never advertises authored keys or controller-only fallbacks"
+	)
+	hud.set_settings_snapshot({"input_binding_profile": original.to_dictionary()})
+	_check(
+		interaction.text == thrust_and_return and objective.text == AURORA_LANDED_OBJECTIVE,
+		"restoring defaults restores exact authored thrust/pause copy on both retained surfaces"
 	)
 
 
