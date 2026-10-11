@@ -167,6 +167,12 @@ weakens any B7 claim.
   manifest `9f6aab53f202e9eebc8487ce1b8753584d8a42a40c241b14f2237d1f5640e004`.
 
 
+## `assets/effects/smoke_alpha.tres`
+
+- Purpose: shared 64×64 radial alpha mask for opponent damage and destruction smoke. The Godot gradient fades the existing tinted billboard to transparent at its edges.
+- Created: 2026-10-11 as a project-original procedural Godot resource; no external artwork or image-generation input.
+- Project status: modern interpretation, not historical evidence for the original game. Particle counts, lifetimes and damage authority remain owned by the existing runtime.
+
 ## `assets/effects/mudds-combat-vfx-atlas-v1.png`
 
 - Purpose: project-original, tintable presentation atlas for the shared Mudds
