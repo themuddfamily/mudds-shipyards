@@ -1,6 +1,6 @@
 # Completion scope working inventory
 
-Current completion snapshot (2026-10-11): Windows `72f6cf81c` is the latest published checkpoint; Linux remains `fbfcf6c6a`. Matching Linux qualification on `72f6cf81c` was interrupted and is incomplete. The integrated Habitat common-room display now has focused source and bounded software visual acceptance; its fresh checkpoint qualification remains pending. The [roadmap completion assessment](../ROADMAP.md#current-completion-assessment--2026-10-11) records the current package scopes and remaining 34 tasks.
+Current completion snapshot (2026-10-11): Windows `0efb132a0` is the latest published checkpoint; Linux remains `fbfcf6c6a`. Its Habitat common-room display passes 1,133 focused source/package assertions and strict startup, with two software-driver V-Sync warnings retained. Matching Linux qualification remains pending; the earlier `72f6cf81c` Linux attempt was interrupted and is incomplete. Final-source full regression and native/human/installed acceptance remain open. The [roadmap completion assessment](../ROADMAP.md#current-completion-assessment--2026-10-11) records the current package scopes and remaining 34 tasks.
 
 Latest shared-arrival attempt stopped in the cancellation/reseat prelude before producing its timing window. Cancellation-ready state, full physical arrival, authoritative surface activity/reward, ordinary reboarding and return remain open. Current-main diagnostics preserve the accepted crew-support fixes and retain the original route deadlines; they are preparation, not delivery.
 
