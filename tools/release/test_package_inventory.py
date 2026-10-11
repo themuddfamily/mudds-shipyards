@@ -2,8 +2,11 @@
 """Focused tests for package_inventory.py's bounded PCK/GDSC parser."""
 
 import hashlib
+import json
 import struct
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -19,11 +22,16 @@ def _pad(value, alignment):
     return value + b"\0" * (-len(value) % alignment)
 
 
-def build_exe(entries, *, pack_flags=inventory.PACK_REL_FILEBASE):
+def build_exe(entries, *, pack_flags=inventory.PACK_REL_FILEBASE, elf=False):
     prefix = bytearray(128)
     prefix[:2] = b"MZ"
     struct.pack_into("<I", prefix, 0x3C, 64)
     prefix[64:68] = b"PE\0\0"
+    if elf:
+        prefix = bytearray(128)
+        prefix[:7] = b"\x7fELF\x02\x01\x01"
+        struct.pack_into("<HHI", prefix, 16, 2, 62, 1)
+        struct.pack_into("<H", prefix, 52, 64)
 
     header = bytearray(104)
     struct.pack_into("<4s5I", header, 0, b"GDPC", 4, 4, 7, 1, pack_flags)
@@ -54,6 +62,69 @@ def build_exe(entries, *, pack_flags=inventory.PACK_REL_FILEBASE):
 
 
 class PackageInventoryTests(unittest.TestCase):
+    def run_cli(self, data):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "game"
+            executable.write_bytes(data)
+            return subprocess.run(
+                [sys.executable, str(Path(inventory.__file__)), str(executable)],
+                capture_output=True, text=True, check=False,
+            )
+
+    def test_cli_preserves_pe_json_contract(self):
+        data = build_exe([("assets/data.bin", b"content")])
+        completed = self.run_cli(data)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        result = json.loads(completed.stdout)
+        self.assertEqual(result["executable"]["pe"], {
+            "offset": 64, "machine": 0, "sections": 0,
+        })
+        self.assertEqual(set(result["executable"]), {"path", "sha256", "size", "pe"})
+        self.assertEqual(result["executable"]["sha256"], hashlib.sha256(data).hexdigest())
+
+    def test_cli_reads_elf64_embedded_pack_with_identical_payloads(self):
+        entries = [("assets/data.bin", b"content")]
+        pe_data = build_exe(entries)
+        data = build_exe(entries, elf=True)
+        completed = self.run_cli(data)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        result = json.loads(completed.stdout)
+        base, end = inventory.find_pck(pe_data)
+        pe_result = inventory.parse(pe_data, base, end)
+        self.assertEqual(result["pck"], pe_result["pck"])
+        self.assertEqual(result["entries"], pe_result["entries"])
+        self.assertEqual(result["executable"]["elf"], {
+            "class": 64, "byte_order": "little", "machine": 62,
+        })
+        self.assertEqual(set(result["executable"]), {"path", "sha256", "size", "elf"})
+        self.assertEqual(result["executable"]["size"], len(data))
+        self.assertEqual(result["executable"]["sha256"], hashlib.sha256(data).hexdigest())
+
+    def test_cli_rejects_truncated_elf_header_or_pack(self):
+        data = build_exe([("assets/data.bin", b"content")], elf=True)
+        for truncated, message in ((data[:63], "truncated ELF64"),
+                                   (data[:-1], "PCK trailer not found")):
+            with self.subTest(message=message):
+                completed = self.run_cli(truncated)
+                self.assertEqual(completed.returncode, 2)
+                self.assertIn(message, completed.stderr)
+                self.assertEqual(completed.stdout, "")
+
+    def test_cli_rejects_unsupported_elf_architecture_and_encoding(self):
+        original = build_exe([("assets/data.bin", b"content")], elf=True)
+        for offset, value, message in ((4, 1, "ELF64 little-endian"),
+                                       (5, 2, "ELF64 little-endian"),
+                                       (18, 183, "unsupported ELF machine"),
+                                       (6, 2, "ELF header version"),
+                                       (52, 63, "ELF64 header size")):
+            with self.subTest(offset=offset):
+                data = bytearray(original)
+                data[offset] = value
+                completed = self.run_cli(data)
+                self.assertEqual(completed.returncode, 2)
+                self.assertIn(message, completed.stderr)
+                self.assertEqual(completed.stdout, "")
+
     def parse_exe(self, entries, **kwargs):
         data = build_exe(entries, **kwargs)
         base, pack_end = inventory.find_pck(data)
