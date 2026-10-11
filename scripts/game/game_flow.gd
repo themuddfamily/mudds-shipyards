@@ -3667,6 +3667,8 @@ func _solo_safe_recovery_craft() -> HeroShip:
 ## A fresh cabin return needs a live authored frame and real walkable hull
 ## support, never the old passenger's position or a generic exterior marker.
 func _solo_safe_recovery_cabin(craft: HeroShip) -> Dictionary:
+	if not is_instance_valid(player) or not player.is_inside_tree() or player.get_world_3d() == null:
+		return {}
 	var cabin := craft.get_in_flight_cabin_report()
 	var frame := cabin.get("frame") as MovingInteriorFrame
 	var stand := cabin.get("stand_transform", Transform3D.IDENTITY) as Transform3D
@@ -9405,7 +9407,7 @@ func _can_reseat_host_cinder_loadmaster(seat: ShipCrewSeat) -> bool:
 ## These exact host chairs can use an existing carried cabin, never exterior
 ## boarding or another role's airborne admission policy.
 func _host_remote_crew_seat_matches(craft: HeroShip, seat_id: StringName, role: StringName) -> bool:
-	return is_instance_valid(craft) and ((craft is CinderCargoHauler and seat_id == CinderCargoHauler.LOADMASTER_STATION_SEAT_ID and role == &"passenger") \
+	return is_instance_valid(craft) and ((craft is CinderCargoHauler and seat_id in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID] and role == &"passenger") \
 		or (craft is BulwarkHeavyGunship and seat_id == BulwarkHeavyGunship.GUNNER_SEAT_ID and role == &"gunner"))
 
 
@@ -9660,6 +9662,15 @@ func _cancel_solo_crew_seat() -> void:
 		_station_seated = false
 		_transition_busy = false
 		return
+	# During whole-Main teardown the Player can leave World3D before its
+	# craft's lifetime hook. Retire the exact claim without recovery physics.
+	if not is_instance_valid(player) or not player.is_inside_tree() or player.get_world_3d() == null:
+		_solo_crew_seat = null
+		_solo_crew_seat_generation = 0
+		_station_seated = false
+		_transition_busy = false
+		_release_solo_crew_authority()
+		return
 	var pose := _station_seat_recovery_transform
 	if is_instance_valid(_solo_crew_seat) and _solo_crew_seat.is_inside_tree() and not _solo_crew_seat.get_role_contract().is_empty():
 		pose = _solo_crew_seat.get_exit_transform()
@@ -9708,8 +9719,15 @@ func _update_solo_gunner_input(delta: float) -> void:
 	source.drain_pending_commands(source.get_delivery_generation())
 	_solo_gunner_source_stream = source.get_stream_id()
 	_solo_gunner_source_profile = source.get_input_profile_generation()
+	var previous_fire := _solo_gunner_fire
 	_solo_gunner_fire = command.fire
 	if _solo_crew_ship is CinderCargoHauler:
+		if _solo_crew_seat_id == CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID:
+			if command.fire and not previous_fire and _solo_gunner_source_is_current():
+				_solo_crew_sequence = maxi(_solo_crew_sequence, int(_solo_crew_authority.get_last_intent(1, SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
+				_solo_crew_ship.submit_navigator_ping(1, SOLO_CREW_AVATAR_ID, _solo_crew_sequence)
+			hud.set_objective("Navigator // %s // FIRE [%s] sends route hint // stand [%s] to walk the cabin or take the helm" % ["ROUTE HINT SENT" if not (_solo_crew_ship.get_navigator_ping_snapshot().get("receipt", {}) as Dictionary).is_empty() else "AWAITING ROUTE HINT", hud.call(&"_action_bindings_text", source.fire_action), hud.get_action_prompt(&"interact")])
+			return
 		if command.fire and not bool((_solo_crew_ship.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).get("ready", false)):
 			_solo_crew_sequence = maxi(_solo_crew_sequence, int(_solo_crew_authority.get_last_intent(1, SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
 			_solo_crew_ship.submit_loadmaster_readiness(1, SOLO_CREW_AVATAR_ID, _solo_crew_sequence)
@@ -16461,6 +16479,16 @@ func _find_station_interaction_candidate() -> Node3D:
 			# Favour what the player is looking at without making a slightly
 			# off-centre nearby control impossible to use.
 			distance -= facing_dot * 0.65
+		# Two Cinder consoles can overlap the same walking body. Preserve
+		# ordinary aim selection so the nearer navigator cannot hide loadmaster.
+		if candidate is ShipCrewSeat and best_candidate is ShipCrewSeat and candidate.get_ship() is CinderCargoHauler and best_candidate.get_ship() == candidate.get_ship():
+			var candidate_aim := facing.dot(offset.normalized())
+			var selected_aim := facing.dot((best_candidate.global_position - origin).normalized())
+			if not is_equal_approx(candidate_aim, selected_aim):
+				if candidate_aim > selected_aim:
+					best_score = distance
+					best_candidate = candidate
+				continue
 		if distance < best_score:
 			best_score = distance
 			best_candidate = candidate
@@ -16473,12 +16501,23 @@ func _find_station_interaction_candidate() -> Node3D:
 
 
 func _cabin_cockpit_precedes_crew_seat(seat: ShipCrewSeat, origin: Vector3, facing: Vector3) -> bool:
-	if phase != Phase.IN_FLIGHT_CABIN or not _network_client_boarding_is_live() \
-			or not is_instance_valid(_cabin_ship) or not is_instance_valid(seat) \
+	if phase != Phase.IN_FLIGHT_CABIN or not is_instance_valid(_cabin_ship) or not is_instance_valid(seat) \
 			or seat.get_ship() != _cabin_ship or not _network_physical_crew_seat_is_wired(seat) \
-			or seat.get_role_contract().is_empty() or not _network_client_boarding_holds(_cabin_ship) \
-			or not _network_client_near_pilot_seat(_cabin_ship) or _find_boarding_candidate() != _cabin_ship:
+			or seat.get_role_contract().is_empty() or not _network_client_near_pilot_seat(_cabin_ship) \
+			or _find_boarding_candidate() != _cabin_ship:
 		return false
+	if _network_client_boarding_is_live():
+		if not _network_client_boarding_holds(_cabin_ship):
+			return false
+	else:
+		var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+		var containment: Dictionary = player.get_cabin_containment_report()
+		if _network_session_is_live() or not _cabin_ship is CinderCargoHauler \
+				or not is_instance_valid(frame) or not frame.is_occupant_registered(player) \
+				or not bool(containment.get("active", false)) or containment.get("frame") != _cabin_ship \
+				or not is_instance_valid(_boarding_area) or _boarding_area.get_ship() != _cabin_ship \
+				or _boarding_area.get_reservation_token() != player:
+			return false
 	var pilot := _cabin_ship.get_pilot_seat_anchor()
 	if not is_instance_valid(pilot) or not pilot.is_inside_tree() or pilot.is_queued_for_deletion():
 		return false
@@ -19611,13 +19650,19 @@ func _detach_optional_semantic_audio() -> void:
 
 
 func _get_cinder_navigator_presentation_generation() -> int:
-	if (
-		_network_ship_authority_composition == null
-		or not is_instance_valid(_network_composition_ship)
-		or not _network_composition_ship is CinderCargoHaulerType
-	):
-		return 0
-	return _network_ship_generation
+	if _network_ship_authority_composition != null and is_instance_valid(_network_composition_ship) and _network_composition_ship is CinderCargoHaulerType:
+		return _network_ship_generation
+	if _network_engineer_binding != null and _network_engineer_binding.loadmaster != null:
+		return _network_engineer_binding.loadmaster.get_navigator_presentation_generation()
+	return 0
+
+
+func _get_cinder_navigator_presentation_ship() -> CinderCargoHauler:
+	if _network_ship_authority_composition != null and is_instance_valid(_network_composition_ship) and _network_composition_ship is CinderCargoHaulerType:
+		return _network_composition_ship as CinderCargoHauler
+	if _network_engineer_binding != null and _network_engineer_binding.loadmaster != null:
+		return _network_engineer_binding.loadmaster.get_navigator_presentation_ship()
+	return null
 
 
 func _sync_cinder_navigator_presentations() -> void:
@@ -19675,6 +19720,7 @@ func _forward_cinder_navigator_presentation(
 				result, navigator_generation
 			):
 		return
+	_sync_cinder_navigator_presentations()
 	if is_instance_valid(optional_semantic_audio_composition):
 		optional_semantic_audio_composition.present_cinder_navigator_bridge_result(result)
 	if _cinder_navigator_ping_hud_composition == null \
@@ -19693,8 +19739,10 @@ func _forward_cinder_navigator_presentation(
 	var crew_snapshot := _get_cinder_navigator_crew_snapshot(identity_receipts)
 	# A ping receipt is never sufficient evidence of passenger occupancy. The
 	# HUD receives only the exact retained physical assignment; without it, the
-	# presentation fails closed instead of synthesizing a passenger row.
+	# old matching overlay can only retire, never synthesize a passenger row.
 	if crew_snapshot.is_empty():
+		if tombstone_envelope:
+			_retire_absent_cinder_navigator_overlay(identity_receipts)
 		return
 	if tombstone_envelope:
 		_cinder_navigator_ping_hud_composition.apply_tombstones(
@@ -19704,6 +19752,48 @@ func _forward_cinder_navigator_presentation(
 		_cinder_navigator_ping_hud_composition.apply_bridge_result(
 			result, crew_snapshot
 		)
+
+
+## An external authority revocation can remove the row before its retained
+## bridge clear arrives. Retire only that exact old rendered crew overlay.
+func _retire_absent_cinder_navigator_overlay(receipts: Array[Dictionary]) -> void:
+	var craft := _get_cinder_navigator_presentation_ship()
+	if not is_instance_valid(craft) or craft.get_crew_role_authority() == null or not hud.has_method(&"clear_runtime_status"):
+		return
+	for row: Dictionary in craft.get_crew_role_authority().get_snapshot().get("assignments", []):
+		if row.get("seat_id") == CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID:
+			return
+	var retained: Dictionary = _cinder_navigator_ping_hud_composition.get_snapshot()
+	var previous := retained.get("presenter", {}) as Dictionary
+	if previous.get("state") != &"active":
+		return
+	var matching_clear := false
+	for receipt in receipts:
+		var payload := receipt.get("payload", {}) as Dictionary
+		if receipt.get("action") != &"passenger_ping_clear" or not bool(payload.get("clear", false)) \
+				or int(payload.get("source_request_sequence", 0)) != int(previous.get("request_sequence", 0)) \
+				or int(receipt.get("request_sequence", 0)) <= int(previous.get("request_sequence", 0)) \
+				or int(receipt.get("migration_generation", 0)) < int(previous.get("migration_generation", 0)) \
+				or int(receipt.get("server_tick", 0)) <= int(previous.get("server_tick", 0)):
+			continue
+		matching_clear = true
+		for field in ["peer_id", "peer_generation", "avatar_id", "seat_id", "seat_generation", "ship_id", "ship_generation"]:
+			if receipt.get(field) != previous.get(field):
+				matching_clear = false
+				break
+		if matching_clear:
+			break
+	if not matching_clear:
+		return
+	var cards := hud.get("_runtime_status_cards") as Dictionary
+	var rendered := (cards.get(&"crew", {}) as Dictionary).get("snapshot", {}) as Dictionary
+	var composed := (retained.get("adapter", {}) as Dictionary).get("composed_crew_snapshot", {}) as Dictionary
+	var expected := CrewRoleSeatPresenter.new().present_snapshot(composed)
+	if composed.is_empty() or rendered != expected:
+		return
+	hud.call(&"clear_runtime_status", &"crew")
+	_cinder_navigator_ping_hud_composition.detach()
+	_cinder_navigator_presentation_ship_generation = 0
 
 
 func _cinder_navigator_result_matches_generation(
@@ -19724,11 +19814,10 @@ func _cinder_navigator_result_matches_generation(
 func _get_cinder_navigator_crew_snapshot(
 		expected_receipts: Array[Dictionary] = []
 	) -> Dictionary:
-	if not is_instance_valid(_network_composition_ship) \
-			or not _network_composition_ship is CinderCargoHaulerType \
-			or not _network_composition_ship.has_method(&"get_crew_role_authority"):
+	var presentation_ship := _get_cinder_navigator_presentation_ship()
+	if not is_instance_valid(presentation_ship):
 		return {}
-	var authority: Object = _network_composition_ship.call(&"get_crew_role_authority")
+	var authority: Object = presentation_ship.get_crew_role_authority()
 	if authority == null or not is_instance_valid(authority) \
 			or not authority.has_method(&"get_snapshot"):
 		return {}
@@ -23765,6 +23854,33 @@ func _attach_network_engineer_binding() -> void:
 		var loadmaster := NetworkHalyardPassengerBinding.new()
 		if loadmaster.attach(network_session, hauler, simulation, _network_engineer_generation):
 			binding.loadmaster = loadmaster
+			loadmaster.navigator_submit = _submit_confirmed_cinder_navigator_ping
+			loadmaster.navigator_release = _release_confirmed_cinder_navigator_ping
+			loadmaster.cinder_navigator_ping_result_forwarded.connect(_on_cinder_navigator_ping_result_forwarded)
+			loadmaster.cinder_navigator_ping_tombstones_forwarded.connect(_on_cinder_navigator_ping_tombstones_forwarded)
+
+
+## The authenticated passenger owner has already verified the exact host body,
+## chair and request epoch. Reuse the existing navigator publication consumer.
+func _submit_confirmed_cinder_navigator_ping(peer: int, avatar: StringName, generation: int, sequence: int) -> Dictionary:
+	var craft := _find_flyable_ship_by_id(CINDER_CARGO_SHIP_ID) as CinderCargoHauler
+	if craft == null or _network_engineer_binding == null or _network_engineer_binding.loadmaster == null:
+		return {"accepted": false, "status": &"navigator_unavailable"}
+	if _network_composition_ship == craft and _network_ship_authority_composition != null:
+		var peer_generation := 0
+		for record: Dictionary in network_session.get_migration_snapshot().get("peers", []):
+			if int(record.get("peer_id", 0)) == peer:
+				peer_generation = int(record.get("peer_generation", 0))
+		return _network_ship_authority_composition.submit_cinder_navigator_ping(peer, peer_generation, avatar, generation, sequence,
+			{"channel": &"sensor", "marker_id": CinderCargoHauler.NAVIGATOR_ROUTE_ID},
+			network_session.get_boarding_server_tick(), int(network_session.get_migration_snapshot().migration_generation))
+	_sync_cinder_navigator_presentations()
+	return _network_engineer_binding.loadmaster.publish_navigator_ping(peer, avatar, generation, sequence)
+
+
+func _release_confirmed_cinder_navigator_ping(peer: int) -> void:
+	if _network_composition_ship is CinderCargoHauler and _network_ship_authority_composition != null:
+		_network_ship_authority_composition.release_peer(peer)
 
 
 func _request_network_engineer_seat(seat: ShipCrewSeat) -> void:
@@ -23802,13 +23918,13 @@ func _advance_network_engineer(delta: float) -> void:
 	var belongs: bool = not assignment.is_empty() and is_instance_valid(_cabin_ship) and view.get("ship_id") == _cabin_ship.get_ship_id() \
 		and StringName(assignment.get("avatar_id", &"")) == _network_remote_body_intent_source.get_entity_id() \
 		and int(view.get("entity_generation", 0)) == _network_remote_body_intent_source.get_entity_generation() \
-		and ((assignment.get("role") == &"engineer" and assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("role") == &"gunner" and assignment.get("seat_id") == BulwarkHeavyGunship.GUNNER_SEAT_ID and _cabin_ship is BulwarkHeavyGunship) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID and _cabin_ship is HalyardCrewTransport) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == CinderCargoHauler.LOADMASTER_STATION_SEAT_ID and _cabin_ship is CinderCargoHauler)) \
+		and ((assignment.get("role") == &"engineer" and assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("role") == &"gunner" and assignment.get("seat_id") == BulwarkHeavyGunship.GUNNER_SEAT_ID and _cabin_ship is BulwarkHeavyGunship) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID and _cabin_ship is HalyardCrewTransport) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID] and _cabin_ship is CinderCargoHauler)) \
 		if _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound() else false
 	if is_instance_valid(_network_engineer_client_seat):
 		if _network_engineer_client_seat.get_role_contract().is_empty() or not _network_client_boarding_holds(_network_engineer_client_seat.get_ship()):
 			_cancel_network_engineer()
 			return
-		if not belongs or not bool(view.get("seated", false)) or int(assignment.get("claim_sequence", 0)) != _network_engineer_client_claim:
+		if not belongs or not bool(view.get("seated", false)) or assignment.get("seat_id") != _network_engineer_client_seat.get_seat_id() or assignment.get("role") != _network_engineer_client_seat.get_role() or int(assignment.get("claim_sequence", 0)) != _network_engineer_client_claim:
 			if not _transition_busy:
 				_finish_network_engineer_stand()
 			return
@@ -23817,7 +23933,7 @@ func _advance_network_engineer(delta: float) -> void:
 			return
 		_update_network_engineer_input(delta, view)
 	elif belongs and bool(view.get("seated", false)):
-		if is_instance_valid(_network_engineer_pending_seat) and not _transition_busy:
+		if is_instance_valid(_network_engineer_pending_seat) and assignment.get("seat_id") == _network_engineer_pending_seat.get_seat_id() and assignment.get("role") == _network_engineer_pending_seat.get_role() and not _transition_busy:
 			_present_network_engineer_seat(_network_engineer_pending_seat)
 		elif _network_remote_body_intent_source != null and not _transition_busy:
 			# A confirmation for an expired/abandoned press cannot seize the
@@ -23931,12 +24047,20 @@ func _update_network_engineer_input(delta: float, view: Dictionary) -> void:
 			or not source.is_enabled_owner() or not source.is_input_configuration_valid() \
 			or not bool(source.call(&"_is_input_sampling_active")):
 		return
+	var stream := source.get_stream_id()
+	var profile := source.get_input_profile_generation()
 	source.set_input_transform_physics_delta(delta)
 	var command := source.next_command()
-	source.drain_pending_commands(source.get_delivery_generation())
-	if command == null or not command.is_valid():
+	if not is_instance_valid(_network_engineer_client_seat) or _network_engineer_source != source or source != craft.get_local_input_source() or source.get_authority_peer_id() != _network_engineer_source_peer or source.get_stream_id() != stream or source.get_input_profile_generation() != profile or command == null or not command.is_valid() or command.stream_id != stream:
 		return
+	source.drain_pending_commands(source.get_delivery_generation())
 	if craft is CinderCargoHauler:
+		if _network_engineer_client_seat.get_seat_id() == CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID:
+			if command.fire and not _network_gunner_fire:
+				_send_network_loadmaster_intent(view, &"navigator_ping")
+			_network_gunner_fire = command.fire
+			hud.set_objective("Navigator // %s // FIRE [%s] sends route hint // stand [%s] to walk the cabin or take the helm" % ["ROUTE HINT SENT" if not ((view.get("navigator", {}) as Dictionary).get("receipt", {}) as Dictionary).is_empty() else "AWAITING ROUTE HINT", hud.call(&"_action_bindings_text", source.fire_action), hud.get_action_prompt(&"interact")])
+			return
 		var manifest := view.get("manifest", {}) as Dictionary
 		var receipt := manifest.get("receipt", {}) as Dictionary
 		hud.update_cinder_loadmaster_telemetry(craft.get_ship_id(), &"loadmaster", {"state": &"manifest_ready" if bool(receipt.get("ready", false)) else &"occupied", "generation": int(manifest.get("manifest_generation", 0)), "presentation_only": true}, manifest)
@@ -23999,11 +24123,11 @@ func _send_network_engineer_intent(view: Dictionary, repair: float) -> Dictionar
 	})
 
 
-func _send_network_loadmaster_intent(view: Dictionary) -> Dictionary:
+func _send_network_loadmaster_intent(view: Dictionary, action: StringName = &"cargo_manifest_ready") -> Dictionary:
 	var assignment := view.get("assignment", {}) as Dictionary
 	_network_engineer_request_sequence += 1
 	return network_session.send_engineer_intent({
-		"action": &"cargo_manifest_ready", "avatar_id": StringName(assignment.get("avatar_id", &"")),
+		"action": action, "avatar_id": StringName(assignment.get("avatar_id", &"")),
 		"entity_generation": int(view.get("entity_generation", 0)),
 		"seat_generation": int(assignment.get("seat_generation", 0)), "claim_sequence": int(assignment.get("claim_sequence", 0)),
 		"request_sequence": _network_engineer_request_sequence, "binding_generation": int(view.get("binding_generation", 0)),
@@ -24012,7 +24136,7 @@ func _send_network_loadmaster_intent(view: Dictionary) -> Dictionary:
 
 
 func _network_physical_crew_seat_is_wired(seat: ShipCrewSeat) -> bool:
-	return is_instance_valid(seat) and ((seat.get_ship() is CinderCargoHauler and seat.get_role() == &"passenger" and seat.get_seat_id() == CinderCargoHauler.LOADMASTER_STATION_SEAT_ID) or (seat.get_ship() is HalyardCrewTransport and seat.get_role() == &"passenger") or (seat.get_ship() is JovianLightFreighter and seat.get_role() == &"engineer") or (seat.get_ship() is BulwarkHeavyGunship and seat.get_role() == &"gunner"))
+	return is_instance_valid(seat) and ((seat.get_ship() is CinderCargoHauler and seat.get_role() == &"passenger" and seat.get_seat_id() in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID]) or (seat.get_ship() is HalyardCrewTransport and seat.get_role() == &"passenger") or (seat.get_ship() is JovianLightFreighter and seat.get_role() == &"engineer") or (seat.get_ship() is BulwarkHeavyGunship and seat.get_role() == &"gunner"))
 
 func _network_physical_crew_view() -> Dictionary:
 	if _cabin_ship is HalyardCrewTransport or _cabin_ship is CinderCargoHauler:

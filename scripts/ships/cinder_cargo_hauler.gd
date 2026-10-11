@@ -485,6 +485,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_sync_boarding_ramp()
 	_cleanup_detached_loadmaster()
+	_cleanup_detached_navigator()
 
 
 func _rebind_cargo_perspective_audio() -> void:
@@ -682,11 +683,37 @@ func get_passenger_station_role_contract() -> Dictionary:
 	}
 
 
+func get_navigator_station_role_contract() -> Dictionary:
+	if not is_instance_valid(_navigator_station_anchor):
+		return {}
+	var approach := global_transform * Transform3D(Basis.IDENTITY, Vector3(-0.95, -0.86, 0.25))
+	return {
+		"vessel_id": get_ship_id(), "seat_id": NAVIGATOR_STATION_SEAT_ID,
+		"role": &"passenger", "seat": _navigator_station_anchor,
+		"frame": _moving_interior_component, "entry_transform": approach,
+		"exit_transform": approach, "role_label": "Navigator",
+	}
+
+
+func _install_solo_crew_seat() -> void:
+	super._install_solo_crew_seat()
+	if is_instance_valid(_navigator_station_anchor) and _navigator_station_anchor.get_node_or_null("SoloPassengerSeatInteraction") == null:
+		preload("res://scripts/interaction/ship_crew_seat.gd").install(_navigator_station_anchor, self)
+
+
+## A bounded sensor hint uses the existing passenger ping consumer.
+func submit_navigator_ping(peer: int, avatar: StringName, sequence: int) -> Dictionary:
+	return submit_crew_intent(1, peer, avatar, CrewRoleGameplayProfileType.ACTION_PASSENGER_PING, {
+		"channel": &"sensor", "marker_id": NAVIGATOR_ROUTE_ID,
+	}, sequence)
+
+
 func detach_crew_role_authority(owner: CrewSeatRoleAuthority) -> Dictionary:
 	if owner == null or owner != _crew_role_authority:
 		return _crew_role_result(false, &"authority_mismatch")
 	_crew_role_authority = null
 	_clear_loadmaster_manifest(&"authority_detached")
+	_clear_navigator_ping(&"authority_detached")
 	_loadmaster_interaction.refresh_availability()
 	_navigator_interaction.refresh_availability()
 	return _crew_role_result(true, &"authority_detached")
@@ -1028,7 +1055,10 @@ func release_crew_role(
 		source_peer_id, occupant_peer_id, avatar_id, seat_id, request_sequence, seat_generation
 	)
 	if bool(released.get("accepted", false)):
-		_clear_loadmaster_manifest(&"role_released")
+		if seat_id == NAVIGATOR_STATION_SEAT_ID:
+			_clear_navigator_ping(&"role_released")
+		else:
+			_clear_loadmaster_manifest(&"role_released")
 	return released
 
 
@@ -2373,6 +2403,14 @@ func _cleanup_detached_loadmaster() -> void:
 			or StringName(assignment.get("seat_id", &"")) != LOADMASTER_STATION_SEAT_ID \
 			or int(assignment.get("seat_generation", 0)) != int(_loadmaster_manifest_receipt.get("seat_generation", 0)):
 		_clear_loadmaster_manifest(&"role_detached")
+
+
+func _cleanup_detached_navigator() -> void:
+	if _navigator_ping_receipt.is_empty():
+		return
+	var assignment := _crew_role_authority.get_assignment(int(_navigator_ping_receipt.get("occupant_peer_id", 0)), StringName(_navigator_ping_receipt.get("avatar_id", &""))) if _crew_role_authority != null else {}
+	if assignment.is_empty() or assignment.get("seat_id") != NAVIGATOR_STATION_SEAT_ID or int(assignment.get("seat_generation", 0)) != int(_navigator_ping_receipt.get("seat_generation", 0)):
+		_clear_navigator_ping(&"role_detached")
 
 
 func _clear_loadmaster_manifest(reason: StringName, advance_generation: bool = true) -> void:

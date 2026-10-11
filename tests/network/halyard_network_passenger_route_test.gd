@@ -12,6 +12,8 @@ var _role := ""
 var _game: GameFlow
 var _craft: HeroShip
 var _cinder := false
+var _navigator := false
+var _navigator_cues: Array[StringName] = []
 var _host_loadmaster_flight := false
 var _manifest_receipts := 0
 var _cargo_before: Dictionary = {}
@@ -25,9 +27,11 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_navigator = "--cinder-navigator" in args
+	args.erase("--cinder-navigator")
 	_host_loadmaster_flight = "--host-loadmaster-flight" in args
 	args.erase("--host-loadmaster-flight")
-	_cinder = "--cinder-loadmaster" in args or _host_loadmaster_flight
+	_cinder = "--cinder-loadmaster" in args or _host_loadmaster_flight or _navigator
 	args.erase("--cinder-loadmaster")
 	var package_index := args.find("--package-under-test")
 	if package_index >= 0 and package_index + 1 < args.size():
@@ -58,6 +62,9 @@ func _run() -> void:
 	_player = _game.get_node("Player") as PlayerController
 	_game.start_shift()
 	await _ticks(3)
+	if _navigator:
+		await _remap_navigator_fire()
+		_game.audio.semantic_cue_emitted.connect(func(_source: StringName, cue: StringName, _intensity: float, _position: Vector3) -> void: _navigator_cues.append(cue))
 	_write(_role + ".main_ready", {})
 	if _role == "host":
 		await _host()
@@ -162,6 +169,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
 	if _cinder:
 		args.append("--cinder-loadmaster")
+	if _navigator:
+		args.append("--cinder-navigator")
 	if _host_loadmaster_flight:
 		args.append("--host-loadmaster-flight")
 	if not _package_under_test.is_empty():
@@ -197,12 +206,12 @@ func _host() -> void:
 		_check(await _until(func(): return _craft.is_canopy_open(), 5.0), "ordinary host hatch Interact opens physical cabin")
 		await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
 		await _walk(Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
-	await _walk(_craft.to_local(_craft.get_passenger_station_role_contract().entry_transform.origin))
-	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+	await _walk(_craft.to_local(_station_contract().entry_transform.origin))
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 	_game._refresh_interaction_targets()
-	print("LOADMASTER_HOST_APPROACH: local=", _craft.to_local(_player.global_position), " floor=", _player.is_on_floor(), " candidate=", _game.station_interaction_candidate, " cabin=", _game._solo_safe_recovery_cabin(_craft), " area=", (_craft.get_node("ShipBoardingArea") as ShipBoardingArea).is_available_for(_player))
+	print("LOADMASTER_HOST_APPROACH: local=", _craft.to_local(_player.global_position), " floor=", _player.is_on_floor(), " candidate=", _game.station_interaction_candidate, " nearby=", _player.get_nearby_interactables(), " facing=", _player.get_interaction_direction(), " target=", _station_anchor().global_position + Vector3.UP * 1.2, " origin=", _player.get_interaction_origin(), " cabin=", _game._solo_safe_recovery_cabin(_craft), " area=", (_craft.get_node("ShipBoardingArea") as ShipBoardingArea).is_available_for(_player))
 	await _press(&"interact")
-	var host_seated := await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0)
+	var host_seated := await _until(func(): return _player.is_seated_at(_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0)
 	_check(host_seated, "host ordinary walk and chair Interact physically seats passenger")
 	print("PASSENGER_HOST_CHAIR: seated=", host_seated, " local=", _craft.to_local(_player.global_position), " candidate=", _game.station_interaction_candidate, " assignment=", owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID))
 	if not host_seated:
@@ -212,19 +221,30 @@ func _host() -> void:
 	if _host_loadmaster_flight:
 		await _host_moving_loadmaster(owner)
 		return
+	if _navigator:
+		_check(await _until(func(): return _objective_text().contains("AWAITING ROUTE HINT"), 3.0), "new navigator claim starts without old route-hint acknowledgement")
 	if _cinder:
 		_cargo_before = _cargo_state()
 		_check(int(_cargo_before.finite_source) == GameFlow.CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY and int(_cargo_before.capacity) == 8, "production cargo owner starts with exact finite quantity and retained eight-slot Cinder hold")
 		await _press(&"fire")
-		_check(await _until(func(): return bool((_craft.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).get("ready", false)), 3.0), "host ordinary seated FIRE reaches real manifest consumer")
+		_check(await _until(func(): return _role_effect_ready(_craft.get_navigator_ping_snapshot() if _navigator else _craft.get_loadmaster_manifest_snapshot()), 3.0), "host ordinary seated FIRE reaches real manifest consumer")
 		_check(_cargo_state() == _cargo_before, "host readiness preserves exact finite cargo state")
 	await _press(&"interact")
 	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and not bool(_game.get("_transition_busy")), 8.0), "ordinary host stand restores supported controllable body")
 	_check(owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID).is_empty() and _craft.get_crew_role_authority() == owner, "host stand releases own claim and preserves shared network ledger")
 	# Clear the shared exit through ordinary walking before another body arrives.
 	await _walk(Vector3(-1.85, -0.86, -1.7) if _cinder else Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
-	_check(_player.global_position.distance_to(_craft.get_passenger_station_role_contract().exit_transform.origin) > 2.0, "host walks clear of the shared chair exit")
+	_check(_player.global_position.distance_to(_station_contract().exit_transform.origin) > 2.0, "host walks clear of the shared chair exit")
 	_player.set_control_enabled(false)
+	var observed_craft: HeroShip
+	var observed_source: ShipCommandSource
+	if _navigator:
+		# Change only the host's observed craft, retaining the real walking Cinder
+		# bodies, chair authority and all command producers.
+		observed_craft = _game._find_flyable_ship_by_id(GameFlow.TORRENT_SHIP_ID)
+		observed_source = observed_craft.get_command_source()
+		_game.active_ship = observed_craft
+		_check(_game._attach_network_ship_authority_composition().accepted and _game._network_composition_ship == observed_craft, "host observes another actual craft before remote navigator FIRE")
 	_write("host.ready", {})
 	if not await _wait_file("client.admitted", 60.0):
 		return
@@ -243,18 +263,21 @@ func _host() -> void:
 	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
 	var body := simulation.get_body(avatar)
 	var assignment: Dictionary = owner.get_assignment(peer, avatar)
-	_check(body != null and body.is_seated_at(_craft.get_loadmaster_station_anchor()), "host production walking body physically occupies passenger anchor")
-	_check(assignment.get("role") == &"passenger" and assignment.get("seat_id") == (CinderCargoHauler.LOADMASTER_STATION_SEAT_ID if _cinder else HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID), "host role owner grants exactly the authored passenger chair")
+	_check(body != null and body.is_seated_at(_station_anchor()), "host production walking body physically occupies passenger anchor")
+	_check(assignment.get("role") == &"passenger" and assignment.get("seat_id") == (CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID if _navigator else (CinderCargoHauler.LOADMASTER_STATION_SEAT_ID if _cinder else HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID)), "host role owner grants exactly the authored passenger chair")
 	var seat := simulation.get_body_crew_seat(avatar)
 	var unregistered := PlayerController.new()
 	var spoof := {"body": unregistered, "owner_peer_id": peer, "entity_id": &"foreign_passenger", "craft": _craft, "frame": _craft.get_moving_interior_component()}
 	_check(not (_game._network_engineer_binding.loadmaster if _cinder else _game._network_engineer_binding.passenger).claim(spoof, seat).accepted, "unregistered body cannot invent passenger occupancy")
 	unregistered.free()
 	if _cinder:
-		_check(bool((_craft.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).get("ready", false)), "host owns remote manifest readiness effect")
+		_check(_role_effect_ready(_craft.get_navigator_ping_snapshot() if _navigator else _craft.get_loadmaster_manifest_snapshot()), "host owns remote manifest readiness effect")
+		if _navigator:
+			_check(_navigator_cues.has(&"cinder_navigator_ping_accepted") and _game._cinder_navigator_ping_hud_composition.get_snapshot().presenter.state == &"active", "off-camera authenticated FIRE reaches retained real HUD and semantic audio")
+			_check(_game.active_ship == observed_craft and observed_craft.get_command_source() == observed_source and not observed_craft.is_piloted(), "off-camera ping preserves the observed craft and exact helm producer")
 		_check(_cargo_state() == _cargo_before, "remote readiness preserves host finite cargo state")
 		var binding := _game._network_engineer_binding.loadmaster
-		var payload := {"action": &"cargo_manifest_ready", "avatar_id": avatar, "entity_generation": int(simulation.get_body_record(avatar).entity_generation), "seat_generation": int(assignment.seat_generation), "claim_sequence": int(assignment.claim_sequence), "request_sequence": 800, "binding_generation": int(binding.get("_generation")), "migration_generation": int(_game.network_session.get_migration_snapshot().migration_generation), "server_tick": _game.network_session.get_boarding_server_tick()}
+		var payload := {"action": &"navigator_ping" if _navigator else &"cargo_manifest_ready", "avatar_id": avatar, "entity_generation": int(simulation.get_body_record(avatar).entity_generation), "seat_generation": int(assignment.seat_generation), "claim_sequence": int(assignment.claim_sequence), "request_sequence": int(binding.get("_requests").get(avatar, 0)), "binding_generation": int(binding.get("_generation")), "migration_generation": int(_game.network_session.get_migration_snapshot().migration_generation), "server_tick": _game.network_session.get_boarding_server_tick()}
 		var forged := payload.duplicate()
 		forged.avatar_id = &"foreign_loadmaster"
 		_check(not _game._network_engineer_binding.dispatch(peer, forged).accepted, "forged avatar cannot submit manifest readiness")
@@ -275,17 +298,49 @@ func _host() -> void:
 		forged.migration_generation += 1
 		_check(not _game._network_engineer_binding.dispatch(peer, forged).accepted, "stale session role generation cannot submit readiness")
 		_check(not _game._network_engineer_binding.dispatch(1, payload).accepted, "host peer cannot forge admitted remote readiness")
-		_check(_game._network_engineer_binding.dispatch(peer, payload).accepted and not _game._network_engineer_binding.dispatch(peer, payload).accepted, "authenticated exact chair accepts once and refuses replay")
+		_check(_role_effect_ready(_craft.get_navigator_ping_snapshot() if _navigator else _craft.get_loadmaster_manifest_snapshot()) and not _game._network_engineer_binding.dispatch(peer, payload).accepted, "actual authenticated FIRE accepts once and refuses replay without advancing the client's cursor")
 	_write("host.seat_checked", {})
 	if not await _wait_file("client.stood", 20.0):
 		return
 	_check(owner.get_assignment(peer, avatar).is_empty() and not body.is_seated(), "ordinary remote stand releases exact physical role")
+	if _navigator:
+		_check((_craft.get_navigator_ping_snapshot().get("receipt", {}) as Dictionary).is_empty() and _navigator_cues.has(&"cinder_navigator_ping_cleared") and _game._cinder_navigator_ping_hud_composition.get_snapshot().presenter.state == &"cleared", "off-camera ordinary stand clears the actual navigator receipt, HUD and semantic audio")
 	_check(await _until(func(): return body.is_on_floor(), 3.0), "stood host body has usable cabin support")
 	_write("host.stand_checked", {})
 	if not await _wait_file("client.reseated", 20.0):
 		return
 	var reseated: Dictionary = owner.get_assignment(peer, avatar)
 	_check(not reseated.is_empty() and int(reseated.get("claim_sequence", 0)) != int(assignment.claim_sequence), "ordinary reseat creates fresh authoritative chair identity")
+	if _navigator:
+		var binding := _game._network_engineer_binding.loadmaster
+		var generation: int = binding.get_navigator_presentation_generation()
+		var clears := _navigator_cues.count(&"cinder_navigator_ping_cleared")
+		_check(_craft.release_crew_role(1, peer, avatar, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID, binding.next_request_sequence(int(owner.get_last_intent(peer, avatar).get("request_sequence", 0))), int(reseated.seat_generation)).accepted and owner.get_assignment(peer, avatar).is_empty() and body.is_seated_at(_station_anchor()), "actual host role owner revokes the ordinary peer's row before retained publication retirement")
+		var other_cards: Dictionary = (_game.hud.get("_runtime_status_cards") as Dictionary).duplicate(true)
+		other_cards.erase(&"crew")
+		var retained_source: Dictionary = _game._cinder_navigator_ping_hud_composition.get_snapshot().adapter.composed_crew_snapshot.duplicate(true)
+		var replacement := retained_source.duplicate(true)
+		replacement.crew_status_headline = "NAVIGATOR UPDATED CREW STATUS"
+		_game.hud.update_crew_role_status(replacement)
+		var replacement_view := CrewRoleSeatPresenter.new().present_snapshot(replacement)
+		binding.cinder_navigator_ping_tombstones_forwarded.connect(func(envelope: Dictionary):
+			var rendered: Dictionary = (_game.hud.get("_runtime_status_cards") as Dictionary).get(&"crew", {}).get("snapshot", {})
+			_check(rendered == replacement_view and _game._cinder_navigator_ping_hud_composition.get_snapshot().attached, "old navigator retirement preserves a newer real crew card with the same occupant and changed headline")
+			_game.hud.update_crew_role_status(retained_source)
+			_game._on_cinder_navigator_ping_tombstones_forwarded(envelope)
+		, CONNECT_ONE_SHOT)
+		var retired: Dictionary = binding._retire_navigator_publication(&"test_retained_publication")
+		_check(int(retired.get("tombstone_count", 0)) == 1 and int(retired.tombstones[0].receipt.ship_generation) == generation, "existing bridge detach retains its actual old-generation wire clear")
+		_check(_navigator_cues.count(&"cinder_navigator_ping_cleared") == clears + 1 and not (_game.hud.get("_runtime_status_cards") as Dictionary).has(&"crew") and not _game._cinder_navigator_ping_hud_composition.get_snapshot().attached, "revoked ordinary peer's retained tombstone clears its rendered old overlay and actual audio without inventing occupancy")
+		var remaining_cards: Dictionary = (_game.hud.get("_runtime_status_cards") as Dictionary).duplicate(true)
+		remaining_cards.erase(&"crew")
+		_check(remaining_cards == other_cards, "revoked navigator retirement preserves every unrelated existing status card")
+		_game._sync_cinder_navigator_presentations()
+		_check(binding.get_navigator_presentation_generation() == 0 and not _game.optional_semantic_audio_composition.get_snapshot().navigator.attached and not _game._cinder_navigator_ping_hud_composition.get_snapshot().attached, "detach retires both existing presentation consumers after forwarding")
+		_game._on_cinder_navigator_ping_tombstones_forwarded(retired)
+		_check(_navigator_cues.count(&"cinder_navigator_ping_cleared") == clears + 1 and _game._cinder_navigator_presentation_ship_generation == 0, "retired old-generation envelope cannot replay or reattach presentation authority")
+		simulation.stand_crew_body(avatar)
+		_check(await _until(func(): return not body.is_seated() and body.is_on_floor() and body.get_cabin_containment_report().active, 3.0), "existing host body owner restores supported cabin standing after exact row revocation")
 	print("PASSENGER_HOST_WALK_AUDIT: wall=", Time.get_unix_time_from_system(), " body=", simulation.get_body_record(avatar), " intent=", body.get_remote_drive_audit(), " movement=", _game.network_session.get_movement_authority_audit())
 	_write("host.reseat_checked", {})
 	if not await _wait_file("client.migrate", 20.0):
@@ -315,20 +370,25 @@ func _host() -> void:
 		return
 	await _ticks(20)
 	_check(simulation.get_body(avatar) == null and owner.get_assignment(peer, avatar).is_empty(), "disconnect retires actual remote body and exact passenger role")
+	if _navigator:
+		_game.active_ship = _craft
+		_game._attach_network_ship_authority_composition()
 	_game.shutdown_network_session(&"passenger_host_done")
 	_check(_craft.get_crew_role_authority() == null, "shutdown detaches exact empty role owner for ordinary solo reuse")
 	if _cinder:
 		_player.set_control_enabled(true)
-		await _walk(_craft.to_local(_craft.get_passenger_station_role_contract().entry_transform.origin))
-		await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+		await _walk(_craft.to_local(_station_contract().entry_transform.origin))
+		await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 		await _press(&"interact")
-		_check(await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0), "ordinary local-only chair reentry creates the supported loadmaster consumer")
+		_check(await _until(func(): return _player.is_seated_at(_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0), "ordinary local-only chair reentry creates the supported loadmaster consumer")
 		var local_owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
 		_check(local_owner != null and local_owner != owner and _game._solo_crew_claim_is_current(), "local-only loadmaster owns a fresh exact physical chair claim")
 		await _press(&"fire")
-		_check(await _until(func(): return bool((_craft.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).get("ready", false)), 3.0), "local-only ordinary FIRE reaches real manifest consumer")
+		_check(await _until(func(): return _role_effect_ready(_craft.get_navigator_ping_snapshot() if _navigator else _craft.get_loadmaster_manifest_snapshot()), 3.0), "local-only ordinary FIRE reaches real manifest consumer")
 		_check(_cargo_state() == _cargo_before, "local-only readiness preserves exact finite cargo state")
-		if local_owner != null:
+		if _navigator and local_owner != null:
+			await _test_navigator_safe_home_recovery(local_owner)
+		elif local_owner != null:
 			_craft.queue_free()
 			_check(await _until(func(): return not is_instance_valid(_craft) and not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled(), 8.0), "retiring actual seated Cinder restores supported usable local controls")
 			_check(local_owner.get_snapshot().assignments.is_empty() and not _player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META), "retired Cinder releases only its exact claim and physical body tag")
@@ -381,12 +441,12 @@ func _client() -> void:
 	if _host_loadmaster_flight:
 		await _client_loadmaster_pilot()
 		return
-	await _walk(_craft.to_local(_craft.get_passenger_station_role_contract().entry_transform.origin))
+	await _walk(_craft.to_local(_station_contract().entry_transform.origin))
 	_check(_player.is_on_floor(), "ordinary cabin walk reaches actual passenger chair supported")
-	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 	print("PASSENGER_APPROACH: local=", _craft.to_local(_player.global_position), " candidate=", _game.station_interaction_candidate, " nearby=", _player.get_nearby_interactables())
 	await _press(&"interact")
-	var seated := await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0)
+	var seated := await _until(func(): return _player.is_seated_at(_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0)
 	_check(seated, "ordinary chair Interact seats client only after host confirms")
 	if not seated:
 		print("PASSENGER_CHAIR_DEBUG: ", _game.network_session.get_passenger_replica_snapshot())
@@ -394,11 +454,13 @@ func _client() -> void:
 	_check(_player.is_station_seated() and _player.is_control_enabled(), "confirmed passenger retains usable seated controls")
 	_check(_craft.get_crew_role_authority() == null and not _craft.is_piloted() and (_cinder or _craft.get_local_input_source().get_authority_peer_id() == 1), "client chair acquires no role ledger or pilot control; Cinder sampler serves only readiness")
 	_check(_game._network_local_role_presentation().local_role == &"passenger", "client HUD names confirmed passenger role")
+	if _navigator:
+		_check(await _until(func(): return _objective_text().contains("AWAITING ROUTE HINT"), 3.0), "new navigator claim starts without old route-hint acknowledgement")
 	if _cinder:
 		_cargo_before = _cargo_state()
 		_check(int(_cargo_before.finite_source) == GameFlow.CARGO_DELIVERY_SOURCE_INITIAL_QUANTITY and int(_cargo_before.capacity) == 8, "production cargo owner starts with exact finite quantity and retained eight-slot Cinder hold")
 		await _press(&"fire")
-		_check(await _until(func(): return bool((( _game.network_session.get_passenger_replica_snapshot().get("manifest", {}) as Dictionary).get("receipt", {}) as Dictionary).get("ready", false)), 5.0), "remote ordinary seated FIRE reaches host manifest consumer and confirms receipt")
+		_check(await _until(func(): return _role_effect_ready(_game.network_session.get_passenger_replica_snapshot().get("navigator" if _navigator else "manifest", {})), 5.0), "remote ordinary seated FIRE reaches host manifest consumer and confirms receipt")
 		_check(_cargo_state() == _cargo_before, "client readiness leaves finite cargo unchanged")
 	_write("client.seated", {})
 	if not await _wait_file("host.seat_checked", 10.0):
@@ -414,10 +476,13 @@ func _client() -> void:
 	var stood_local := _craft.to_local(_player.global_position)
 	await _walk(Vector3(-1.85, -0.86, -1.7) if _cinder else Vector3(0.0, 0.52, -6.80))
 	_check(_craft.to_local(_player.global_position).distance_to(stood_local) > 0.6 and _player.is_on_floor(), "ordinary post-stand locomotion moves the supported passenger along the cabin aisle")
-	await _walk(_craft.to_local(_craft.get_passenger_station_role_contract().entry_transform.origin))
-	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+	await _walk(_craft.to_local(_station_contract().entry_transform.origin))
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 	await _press(&"interact")
-	_check(await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0), "ordinary reseat succeeds without injected occupancy")
+	_check(await _until(func(): return _player.is_seated_at(_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0), "ordinary reseat succeeds without injected occupancy")
+	if _navigator:
+		_check(await _until(func(): return _objective_text().contains("AWAITING ROUTE HINT"), 3.0), "ordinary reseat clears the previous visible navigator acknowledgement")
+		await _press(&"fire")
 	print("PASSENGER_RESEAT_DEBUG: local=", _craft.to_local(_player.global_position), " floor=", _player.is_on_floor(), " control=", _player.is_control_enabled(), " candidate=", _game.station_interaction_candidate, " view=", _game.network_session.get_passenger_replica_snapshot(), " body_source=", _game.get_network_remote_body_intent_source().get_audit())
 	_write("client.reseated", {})
 	if not await _wait_file("host.reseat_checked", 10.0):
@@ -427,7 +492,7 @@ func _client() -> void:
 		return
 	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled() and not bool(_game.get("_transition_busy")), 8.0), "migration restores usable local passenger body")
 	if _cinder:
-		await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+		await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 	_check(await _until(func():
 		var source := _game.get_network_remote_body_intent_source()
 		return source != null and source.is_bound() and source.get_audit().stream_id == 2 \
@@ -435,12 +500,12 @@ func _client() -> void:
 			and _game.station_interaction_candidate is ShipCrewSeat \
 			and _game._network_client_boarding_holds(_craft)
 	, 8.0), "fresh authenticated offer reopens the same body stream with the actual host clock")
-	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 	await _press(&"interact")
-	_check(await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0), "fresh post-migration ordinary chair claim succeeds")
+	_check(await _until(func(): return _player.is_seated_at(_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0), "fresh post-migration ordinary chair claim succeeds")
 	if _cinder:
 		await _press(&"fire")
-		_check(await _until(func(): return bool(((_game.network_session.get_passenger_replica_snapshot().get("manifest", {}) as Dictionary).get("receipt", {}) as Dictionary).get("ready", false)), 5.0), "post-migration ordinary FIRE uses fresh binding and request cursor")
+		_check(await _until(func(): return _role_effect_ready(_game.network_session.get_passenger_replica_snapshot().get("navigator" if _navigator else "manifest", {})), 5.0), "post-migration ordinary FIRE uses fresh binding and request cursor")
 	_write("client.disconnect_seated", {})
 	if not await _wait_file("host.disconnect_ready", 10.0):
 		return
@@ -448,6 +513,54 @@ func _client() -> void:
 	_check(not _player.is_seated() and _player.is_control_enabled(), "disconnect leaves local passenger awake with controls")
 	_write("client.disconnected", {})
 
+
+func _station_anchor() -> Marker3D:
+	return _craft.get_navigator_station_anchor() if _navigator else _craft.get_loadmaster_station_anchor()
+
+func _station_contract() -> Dictionary:
+	if _navigator:
+		if _craft.has_method("get_navigator_station_role_contract"):
+			return _craft.get_navigator_station_role_contract()
+		return {"entry_transform": _craft.global_transform * Transform3D(Basis.IDENTITY, Vector3(-0.95, -0.86, 0.25)), "exit_transform": _craft.global_transform * Transform3D(Basis.IDENTITY, Vector3(-0.95, -0.86, 0.25))}
+	return _craft.get_passenger_station_role_contract()
+
+func _role_effect_ready(snapshot: Dictionary) -> bool:
+	var receipt := snapshot.get("receipt", {}) as Dictionary
+	return receipt.get("marker_id", &"") == CinderCargoHauler.NAVIGATOR_ROUTE_ID if _navigator else bool(receipt.get("ready", false))
+
+func _test_navigator_safe_home_recovery(retired_owner: CrewSeatRoleAuthority) -> void:
+	var disk := UserDataStore.new(_store_path)
+	disk.load()
+	var context: Dictionary = disk.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+	_check(context.get("mode") == "crew" and context.get("craft_id") == String(CinderCargoHauler.COMPONENT_ID) and context.size() == 4, "ordinary navigator stores only existing safe crew/craft/home preference")
+	var settings: Dictionary = disk.get_snapshot().get("runtime_settings", {}).duplicate(true)
+	_game.queue_free()
+	await _ticks(3)
+	_check(retired_owner.get_snapshot().assignments.is_empty(), "retiring actual seated Main empties old navigator claim")
+	_game = Main.instantiate() as GameFlow
+	var fresh_store := UserDataStore.new(_store_path)
+	_check(_game.configure_runtime_settings_persistence(fresh_store), "fresh Main reads the same real private save")
+	root.add_child(_game)
+	await _ticks(4)
+	_player = _game.player
+	_craft = _game._find_flyable_ship_by_id(GameFlow.CINDER_CARGO_SHIP_ID)
+	_check(not _game.get_recovery_available_snapshot().is_empty() and _game.get_session_recovery_save_summary().contains("awake"), "fresh Main offers ordinary awake navigator home recovery")
+	var resume := (_game.hud.get("_session_recovery_action_buttons") as Dictionary).get(&"continue") as Button
+	_check(resume != null, "existing HUD Resume action is available")
+	if resume == null:
+		return
+	resume.pressed.emit()
+	await _ticks(3)
+	_game.start_shift()
+	_check(await _until(func(): return _player.is_on_floor() and _player.is_control_enabled() and not _player.is_seated() and _game.active_ship == _craft, 8.0), "real-file Resume returns awake in the supported home Cinder cabin")
+	_check(_craft.get_crew_role_authority() == null and not _craft.is_piloted() and not _player.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META) and (_craft.get_navigator_ping_snapshot().get("receipt", {}) as Dictionary).is_empty(), "recovery restores no old navigator claim, ping, or helm authority")
+	_check(fresh_store.get_snapshot().get("runtime_settings", {}) == settings, "awake home recovery retains actual remapped settings namespace")
+	var pilot := _craft.get_pilot_seat_anchor()
+	await _walk(_craft.to_local(pilot.global_position) + Vector3(-0.6, 0.0, 0.6))
+	await _look(pilot.global_position)
+	print("NAVIGATOR_HOME_HELM_APPROACH: local=", _craft.to_local(_player.global_position), " candidate=", _game.station_interaction_candidate, " boarding=", _game.boarding_candidate, " nearby=", _player.get_nearby_interactables(), " facing=", _player.get_interaction_direction(), " containment=", _player.get_cabin_containment_report())
+	await _press(&"interact")
+	_check(await _until(func(): return _player.is_seated_at(pilot) and bool(_game.get("_piloting")), 8.0), "recovered awake navigator walks and Interact returns to actual home helm")
 
 func _on_manifest_ready(_receipt: Dictionary) -> void:
 	_manifest_receipts += 1
@@ -488,47 +601,61 @@ func _host_moving_loadmaster(owner: CrewSeatRoleAuthority) -> void:
 		"validated remote throttle wakes the authoritative Cinder engine"
 	)
 	_check(_craft.global_position.distance_to(start) > 0.05, "authoritative pilot commands move the actual crew craft")
-	_check(_player.is_seated_at(_craft.get_loadmaster_station_anchor()) and _craft.get_moving_interior_component().is_occupant_registered(_player), "moving host Loadmaster retains exact physical chair and carry frame")
+	_check(_player.is_seated_at(_station_anchor()) and _craft.get_moving_interior_component().is_occupant_registered(_player), "moving host Loadmaster retains exact physical chair and carry frame")
 	var cursor := _helm_cursor(helm)
 	_game._reset_solo_gunner_input()
 	_check(_helm_cursor(helm) == cursor and _craft.get_command_source() == helm, "crew stream retirement leaves remote helm identity and cursor untouched")
-	Input.action_press(&"fire")
-	_check(await _until(func(): return bool((_craft.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).get("ready", false)), 3.0), "ordinary host FIRE submits readiness while the confirmed peer pilots")
-	var receipt := (_craft.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).duplicate(true)
+	if _navigator:
+		_fire_key(true)
+	else:
+		Input.action_press(&"fire")
+	_check(await _until(func(): return _role_effect_ready(_craft.get_navigator_ping_snapshot() if _navigator else _craft.get_loadmaster_manifest_snapshot()), 3.0), "ordinary host FIRE submits readiness while the confirmed peer pilots")
+	var receipt := ((_craft.get_navigator_ping_snapshot() if _navigator else _craft.get_loadmaster_manifest_snapshot()).get("receipt", {}) as Dictionary).duplicate(true)
 	await _ticks(15)
-	Input.action_release(&"fire")
-	_check(_manifest_receipts == 1 and _craft.get_loadmaster_manifest_snapshot().get("receipt", {}) == receipt, "held FIRE records exactly one readiness receipt for the claim")
+	if _navigator:
+		_fire_key(false)
+	else:
+		Input.action_release(&"fire")
+	_check((owner.get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).get("request_sequence") == receipt.get("request_sequence") if _navigator else _manifest_receipts == 1 and _craft.get_loadmaster_manifest_snapshot().get("receipt", {}) == receipt), "held FIRE records exactly one readiness receipt for the claim")
 	_print_host_loadmaster_state(&"before_readiness_invariant", local_source, profile, profile_values, area, helm_weak)
 	_check(_cargo_state() == _cargo_before and _craft.get_local_input_source() == local_source and local_source.is_input_configuration_valid() and local_source.get_input_binding_profile().to_dictionary() == profile_values, "moving readiness preserves finite cargo and the settings-configured input profile")
 	await _press(&"interact")
 	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving stand restores supported host cabin controls")
 	_check(_craft.get_command_source() == helm and helm.get_stream_id() == cursor.stream and helm.get_delivery_generation() == cursor.delivery, "moving stand preserves the selected remote helm stream and delivery epoch")
 	_check(area.is_reserved() and area.get_reservation_token() == _player, "moving stand retains the host's exact cabin reservation")
-	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 	_check(await _until(func():
 		var label := _game.hud.get("_interaction_label") as Label
-		return _game.station_interaction_candidate is ShipCrewSeat and label != null and label.text.contains("SIT") and label.text.contains("LOADMASTER")
+		return _game.station_interaction_candidate is ShipCrewSeat and label != null and label.text.contains("SIT") and label.text.contains("NAVIGATOR" if _navigator else "LOADMASTER")
 	, 3.0), "moving host sees the actual authored Loadmaster chair SIT prompt")
 	await _press(&"interact")
-	_check(await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and _game._solo_crew_claim_is_current() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving chair reseat uses the already-owned cabin and fresh claim")
+	_check(await _until(func(): return _player.is_seated_at(_station_anchor()) and _game._solo_crew_claim_is_current() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving chair reseat uses the already-owned cabin and fresh claim")
+	if _navigator:
+		_check(await _until(func(): return _objective_text().contains("AWAITING ROUTE HINT"), 3.0), "moving reseat clears the previous visible navigator acknowledgement")
 	await _press(&"fire")
-	_check(await _until(func(): return _manifest_receipts == 2, 3.0), "moving reseat reaches readiness once through its fresh crew stream")
+	_check(await _until(func(): return _role_effect_ready(_craft.get_navigator_ping_snapshot()) if _navigator else _manifest_receipts == 2, 3.0), "moving reseat reaches readiness once through its fresh crew stream")
 	var claim := owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID)
 	var sequence := maxi(int(claim.get("claim_sequence", 0)), int(owner.get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
-	_check(_craft.release_crew_role(1, 1, GameFlow.SOLO_CREW_AVATAR_ID, CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, sequence, int(claim.get("seat_generation", 0))).accepted, "existing role authority revokes the exact host chair lease")
+	_check(_craft.release_crew_role(1, 1, GameFlow.SOLO_CREW_AVATAR_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID if _navigator else CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, sequence, int(claim.get("seat_generation", 0))).accepted, "existing role authority revokes the exact host chair lease")
 	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled(), 8.0), "chair lease loss restores supported moving cabin body")
 	_check(_craft.get_command_source() == helm and helm.get_stream_id() == cursor.stream and helm.get_delivery_generation() == cursor.delivery, "chair lease loss leaves the remote pilot producer unchanged")
-	Input.action_press(&"fire")
+	if _navigator:
+		_fire_key(true)
+	else:
+		Input.action_press(&"fire")
 	await _ticks(8)
-	Input.action_release(&"fire")
-	_check(_manifest_receipts == 2, "unseated FIRE cannot reuse the revoked Loadmaster lease")
-	await _look(_craft.get_loadmaster_station_anchor().global_position + Vector3.UP * 1.2)
+	if _navigator:
+		_fire_key(false)
+	else:
+		Input.action_release(&"fire")
+	_check((_craft.get_navigator_ping_snapshot().get("receipt", {}) as Dictionary).is_empty() if _navigator else _manifest_receipts == 2, "unseated FIRE cannot reuse the revoked Loadmaster lease")
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 	_check(await _until(func():
 		var label := _game.hud.get("_interaction_label") as Label
-		return _game.station_interaction_candidate is ShipCrewSeat and label != null and label.text.contains("SIT") and label.text.contains("LOADMASTER")
+		return _game.station_interaction_candidate is ShipCrewSeat and label != null and label.text.contains("SIT") and label.text.contains("NAVIGATOR" if _navigator else "LOADMASTER")
 	, 3.0), "moving host sees the actual authored Loadmaster chair SIT prompt")
 	await _press(&"interact")
-	_check(await _until(func(): return _player.is_seated_at(_craft.get_loadmaster_station_anchor()) and _game._solo_crew_claim_is_current() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving reentry after lease loss reacquires only the host chair")
+	_check(await _until(func(): return _player.is_seated_at(_station_anchor()) and _game._solo_crew_claim_is_current() and not bool(_game.get("_transition_busy")), 8.0), "ordinary moving reentry after lease loss reacquires only the host chair")
 	_print_host_loadmaster_state(&"before_reentry_invariant", local_source, profile, profile_values, area, helm_weak)
 	_check(area.get_reservation_token() == _player and _craft.get_command_source() == helm and _craft.get_local_input_source() == local_source and local_source.is_input_configuration_valid() and local_source.get_input_binding_profile().to_dictionary() == profile_values, "reentry preserves exact reservation, remote helm and configured local source")
 	_write("host.flight_checked", {})
@@ -537,7 +664,7 @@ func _host_moving_loadmaster(owner: CrewSeatRoleAuthority) -> void:
 	_check(await _until(func(): return not _craft.is_remote_piloted() and _craft.get_command_source() == local_source and helm_weak.get_ref() == null, 5.0), "real peer disconnect restores the exact retained local producer through the existing helm owner")
 	_check(_game._solo_crew_claim_is_current(), "remote pilot disconnect preserves the independent host Loadmaster claim")
 	await _press(&"fire")
-	_check(await _until(func(): return _manifest_receipts == 3, 3.0), "host readiness remains usable after the remote helm is released")
+	_check(await _until(func(): return _role_effect_ready(_craft.get_navigator_ping_snapshot()) if _navigator else _manifest_receipts == 3, 3.0), "host readiness remains usable after the remote helm is released")
 	_print_host_loadmaster_state(&"before_final_invariant", local_source, profile, profile_values, area, helm_weak)
 	_check(_cargo_state() == _cargo_before and _craft.get_local_input_source() == local_source and local_source.is_input_configuration_valid() and local_source.get_input_binding_profile().to_dictionary() == profile_values, "full moving chair lifecycle preserves finite cargo and the settings-configured input profile")
 
@@ -657,7 +784,7 @@ func _look(target: Vector3) -> void:
 			click.button_index = MOUSE_BUTTON_LEFT
 			click.pressed = true
 			_player._unhandled_input(click)
-		var desired := _player.global_basis.inverse() * (target - _player.get_camera().global_position).normalized()
+		var desired := _player.global_basis.inverse() * (target - (_player.get_interaction_origin() if _navigator else _player.get_camera().global_position)).normalized()
 		var current := _player.global_basis.inverse() * _player.get_interaction_direction().normalized()
 		var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
 		var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
@@ -670,10 +797,33 @@ func _look(target: Vector3) -> void:
 			await _ticks(1)
 
 func _press(action: StringName) -> void:
+	if _navigator and action == &"fire":
+		_fire_key(true)
+		await _ticks(2)
+		_fire_key(false)
+		await _ticks(3)
+		_check(await _until(func(): return _objective_text().contains("NAVIGATOR") and _objective_text().contains("ROUTE HINT SENT") and _objective_text().contains("F13"), 3.0), "actual remapped FIRE receives visible authoritative navigator acknowledgement")
+		return
 	Input.action_press(action)
 	await _ticks(2)
 	Input.action_release(action)
 	await _ticks(3)
+
+func _fire_key(pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.physical_keycode = KEY_F13
+	event.pressed = pressed
+	Input.parse_input_event(event)
+
+func _objective_text() -> String:
+	return str((_game.hud.get("_objective_label") as Label).text).to_upper()
+
+func _remap_navigator_fire() -> void:
+	var profile := _game.runtime_settings.get_input_binding_profile()
+	_check(profile.set_bindings(&"fire", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_F13}]), "navigator fixture defines actual remapped FIRE")
+	_game._on_setting_change_requested(&"input_binding_profile", profile)
+	await _ticks(3)
+	_check(_craft.get_local_input_source().get_input_binding_profile().get_bindings(&"fire") == profile.get_bindings(&"fire"), "retained Cinder input producer receives committed FIRE remapping")
 
 func _until(predicate: Callable, seconds: float) -> bool:
 	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)

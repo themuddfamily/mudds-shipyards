@@ -144,7 +144,7 @@ func submit(peer_id: int, payload: Dictionary) -> void:
 
 
 func dispatch(peer_id: int, payload: Dictionary) -> Dictionary:
-	if payload.get("action") == &"cargo_manifest_ready" and loadmaster != null:
+	if payload.get("action") in [&"cargo_manifest_ready", &"navigator_ping"] and loadmaster != null:
 		return loadmaster.submit_readiness(peer_id, payload)
 	if not _live() or peer_id not in _session.get_admitted_peer_ids():
 		return _result(false, &"session_unavailable")

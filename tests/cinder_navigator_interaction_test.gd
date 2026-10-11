@@ -30,28 +30,11 @@ func _run() -> void:
 	_check(interaction != null and interaction.get_node_or_null(^"InteractionShape") is CollisionShape3D, "the navigator interaction has a physical range shape")
 	_check(anchor != null and StringName(anchor.get_meta(&"route_id", &"")) == Hauler.NAVIGATOR_ROUTE_ID, "the station publishes its authored cabin route")
 
+	var ordinary := anchor.get_node_or_null("SoloPassengerSeatInteraction") as ShipCrewSeat
+	_check(ordinary != null and ordinary.get_seat_id() == Hauler.NAVIGATOR_STATION_SEAT_ID and ordinary.get_role_contract().get("seat") == anchor, "ordinary discovery resolves the exact navigator chair through the retained frame")
+
 	var authority := Authority.new(1)
-	for seat_record in [
-		[&"cinder_pilot", Authority.ROLE_PILOT],
-		[&"cinder_gunner", Authority.ROLE_GUNNER],
-		[&"cinder_engineer", Authority.ROLE_ENGINEER],
-		[Hauler.LOADMASTER_STATION_SEAT_ID, Authority.ROLE_PASSENGER],
-		[Hauler.NAVIGATOR_STATION_SEAT_ID, Authority.ROLE_PASSENGER],
-	]:
-		var seat_id := StringName(seat_record[0])
-		var role := StringName(seat_record[1])
-		_check(
-			bool(authority.register_seat(
-				seat_id,
-				Hauler.COMPONENT_ID,
-				role,
-				&"cinder_cargo_walkable_interior",
-				1,
-				seat_id
-			).get("accepted", false)),
-			"the authority registers Cinder %s" % role
-		)
-	_check(bool(authority.seal_roster().get("accepted", false)), "the navigator roster seals")
+	_check(bool(authority.register_cinder_roster().get("accepted", false)), "the production Cinder roster registers and seals the navigator chair")
 	_check(bool(craft.attach_crew_role_authority(authority).get("accepted", false)), "the navigator station binds to the injected authority")
 	_check(interaction.is_available(), "the navigator interaction opens only with its authority seat registered")
 

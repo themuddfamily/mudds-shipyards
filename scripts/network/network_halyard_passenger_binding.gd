@@ -1,6 +1,9 @@
 class_name NetworkHalyardPassengerBinding
 extends RefCounted
 
+signal cinder_navigator_ping_result_forwarded(result: Dictionary)
+signal cinder_navigator_ping_tombstones_forwarded(result: Dictionary)
+
 ## One authored chair, admitted through the server's existing walking body.
 ## A cabin berth admits entry; only supported overlap grants this physical role.
 var authority: CrewSeatRoleAuthority
@@ -14,6 +17,10 @@ var _migration := 1
 var _lifetime := 0
 var _elapsed := 0.0
 var _retired := false
+var navigator_submit: Callable
+var navigator_release: Callable
+var _navigator_bridge: NetworkCinderNavigatorPingBridge
+var _navigator_presentation_generation := 0
 
 
 func attach(session: NetworkEnetSessionAdapter, ship: HeroShip,
@@ -32,6 +39,10 @@ func attach(session: NetworkEnetSessionAdapter, ship: HeroShip,
 	_generation = generation
 	_migration = int(session.get_migration_snapshot().migration_generation)
 	_lifetime = ship.get_component_damage().get_ledger_generation()
+	if ship is CinderCargoHauler:
+		_navigator_bridge = NetworkCinderNavigatorPingBridge.new()
+		_navigator_bridge.attach(session, ship, generation)
+		_navigator_presentation_generation = generation
 	_session.peer_disconnected.connect(_peer_disconnected)
 	return true
 
@@ -47,7 +58,7 @@ func next_request_sequence(previous: int) -> int:
 
 func claim(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
 	if not _live() or not is_instance_valid(seat) or seat.get_ship() != _ship \
-			or seat.get_role() != &"passenger" or seat.get_seat_id() != _ship.get_passenger_station_role_contract().seat_id \
+			or seat.get_role() != &"passenger" or not _physical_passenger_seat_matches(seat) \
 			or seat.get_role_contract().is_empty():
 		return {"accepted": false, "status": &"passenger_unavailable"}
 	var body := record.get("body") as PlayerController
@@ -74,6 +85,10 @@ func release(record: Dictionary) -> void:
 	var peer := int(record.get("owner_peer_id", 0))
 	var avatar := StringName(record.get("entity_id", &""))
 	var assignment := authority.get_assignment(peer, avatar)
+	if _navigator_bridge != null:
+		_forward_navigator_tombstones(_navigator_bridge.release_peer(peer))
+	if not assignment.is_empty() and assignment.get("seat_id") == CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID and navigator_release.is_valid():
+		navigator_release.call(peer)
 	if not assignment.is_empty():
 		_ship.release_crew_role(1, peer, avatar, StringName(assignment.seat_id),
 			next_request_sequence(int(authority.get_last_intent(peer, avatar).get("request_sequence", 0))), int(assignment.seat_generation))
@@ -101,6 +116,10 @@ func advance(delta: float) -> void:
 		_migration = migration
 		_lifetime = lifetime
 		_generation += 1
+		if _navigator_bridge != null:
+			_retire_navigator_publication(&"lifecycle_changed")
+			_navigator_bridge.attach(_session, _ship, _generation)
+			_navigator_presentation_generation = _generation
 		_retired = _ship.is_destroyed()
 		_elapsed = 1.0
 	if _live():
@@ -136,8 +155,11 @@ func advance(delta: float) -> void:
 			"ship_id": _ship.get_ship_id(), "binding_generation": _generation,
 			"assignment": assignment, "entity_generation": int(record.get("entity_generation", 0)),
 			"manifest": _ship.get_loadmaster_manifest_snapshot(),
+			"navigator": _ship.get_navigator_ping_snapshot() if _ship is CinderCargoHauler else {},
 			"seated": _live() and body != null and not record.is_empty() and record.get("seat_state") == &"seated"
-				and body.is_seated_at(_ship.get_loadmaster_station_anchor()),
+				and is_instance_valid(_simulation.get_body_crew_seat(avatar))
+				and _physical_passenger_seat_matches(_simulation.get_body_crew_seat(avatar))
+				and body.is_seated_at(_simulation.get_body_crew_seat(avatar).get_seat_anchor()),
 		})
 
 
@@ -153,7 +175,7 @@ func submit_readiness(peer: int, payload: Dictionary) -> Dictionary:
 	for field in ["entity_generation", "seat_generation", "claim_sequence", "request_sequence", "binding_generation", "migration_generation"]:
 		if not payload[field] is int or int(payload[field]) <= 0 or int(payload[field]) > 9007199254740991:
 			return {"accepted": false, "status": &"invalid_loadmaster_generation"}
-	if payload.action != &"cargo_manifest_ready" or not (payload.avatar_id is String or payload.avatar_id is StringName) or str(payload.avatar_id).length() > 64:
+	if payload.action not in [&"cargo_manifest_ready", &"navigator_ping"] or not (payload.avatar_id is String or payload.avatar_id is StringName) or str(payload.avatar_id).length() > 64:
 		return {"accepted": false, "status": &"invalid_loadmaster_action"}
 	if not payload.server_tick is int or int(payload.server_tick) < _session.get_boarding_server_tick() - 120 or int(payload.server_tick) > _session.get_boarding_server_tick() + 12:
 		return {"accepted": false, "status": &"stale_loadmaster_tick"}
@@ -164,9 +186,10 @@ func submit_readiness(peer: int, payload: Dictionary) -> Dictionary:
 	var assignment := authority.get_assignment(peer, avatar)
 	if record.is_empty() or body == null or seat == null or seat.get_ship() != _ship or seat.get_role_contract().is_empty() \
 			or int(record.owner_peer_id) != peer or int(record.entity_generation) != int(payload.entity_generation) \
-			or record.seat_state != &"seated" or not body.is_seated_at(_ship.get_loadmaster_station_anchor()) \
+			or record.seat_state != &"seated" or not _physical_passenger_seat_matches(seat) or not body.is_seated_at(seat.get_seat_anchor()) \
 			or not _ship.get_moving_interior_component().is_occupant_registered(body) or assignment.is_empty() \
-			or assignment.seat_id != CinderCargoHauler.LOADMASTER_STATION_SEAT_ID or assignment.role != &"passenger" \
+			or assignment.seat_id != seat.get_seat_id() or assignment.role != &"passenger" \
+			or assignment.seat_id != (CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID if payload.action == &"navigator_ping" else CinderCargoHauler.LOADMASTER_STATION_SEAT_ID) \
 			or int(assignment.seat_generation) != int(payload.seat_generation) or int(assignment.claim_sequence) != int(payload.claim_sequence):
 		return {"accepted": false, "status": &"loadmaster_not_seated"}
 	if int(payload.binding_generation) != _generation or int(payload.migration_generation) != _migration or int(_session.get_migration_snapshot().migration_generation) != _migration:
@@ -174,7 +197,59 @@ func submit_readiness(peer: int, payload: Dictionary) -> Dictionary:
 	if int(payload.request_sequence) <= int(_requests.get(avatar, 0)):
 		return {"accepted": false, "status": &"stale_loadmaster_sequence"}
 	_requests[avatar] = int(payload.request_sequence)
-	return _ship.submit_loadmaster_readiness(peer, avatar, next_request_sequence(int(authority.get_last_intent(peer, avatar).get("request_sequence", 0))))
+	var sequence := next_request_sequence(int(authority.get_last_intent(peer, avatar).get("request_sequence", 0)))
+	if payload.action == &"navigator_ping":
+		if not navigator_submit.is_valid():
+			return {"accepted": false, "status": &"navigator_consumer_unavailable"}
+		return navigator_submit.call(peer, avatar, int(assignment.seat_generation), sequence)
+	return _ship.submit_loadmaster_readiness(peer, avatar, sequence)
+
+
+## The same existing publication bridge also serves Cinder while the host
+## observes another craft. Presentation never changes the selected helm.
+func publish_navigator_ping(peer: int, avatar: StringName, generation: int, sequence: int) -> Dictionary:
+	if not _live() or _navigator_bridge == null:
+		return {"accepted": false, "status": &"navigator_consumer_unavailable"}
+	var peer_generation := 0
+	for record: Dictionary in _session.get_migration_snapshot().get("peers", []):
+		if int(record.get("peer_id", 0)) == peer and bool(record.get("active", false)):
+			peer_generation = int(record.get("peer_generation", 0))
+	var result := _navigator_bridge.submit_ping(peer, peer_generation, avatar, generation, sequence,
+		{"channel": &"sensor", "marker_id": CinderCargoHauler.NAVIGATOR_ROUTE_ID},
+		_session.get_boarding_server_tick(), _migration)
+	cinder_navigator_ping_result_forwarded.emit(result.duplicate(true))
+	return result
+
+
+func get_navigator_presentation_ship() -> CinderCargoHauler:
+	return _ship as CinderCargoHauler if owns(authority) and _navigator_bridge != null else null
+
+
+func get_navigator_presentation_generation() -> int:
+	return _navigator_presentation_generation if get_navigator_presentation_ship() != null else 0
+
+
+## Bridge detach clears its own generation before returning the envelope.
+## Keep this owner's old generation live only through synchronous forwarding.
+func _retire_navigator_publication(reason: StringName) -> Dictionary:
+	if _navigator_bridge == null:
+		return {}
+	var result := _navigator_bridge.detach(reason)
+	_forward_navigator_tombstones(result)
+	_navigator_presentation_generation = 0
+	return result
+
+
+func _forward_navigator_tombstones(result: Dictionary) -> void:
+	if int(result.get("tombstone_count", 0)) > 0:
+		cinder_navigator_ping_tombstones_forwarded.emit(result.duplicate(true))
+
+
+func _physical_passenger_seat_matches(seat: ShipCrewSeat) -> bool:
+	if not is_instance_valid(seat) or seat.get_ship() != _ship or seat.get_role() != &"passenger":
+		return false
+	var contract: Dictionary = _ship.get_navigator_station_role_contract() if _ship is CinderCargoHauler and seat.get_seat_id() == CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID else _ship.get_passenger_station_role_contract()
+	return not contract.is_empty() and contract.get("seat_id") == seat.get_seat_id() and contract.get("seat") == seat.get_seat_anchor()
 
 
 func _release_all() -> void:
@@ -188,6 +263,11 @@ func _release_all() -> void:
 
 func detach() -> void:
 	_release_all()
+	if _navigator_bridge != null:
+		_retire_navigator_publication(&"passenger_binding_detached")
+	_navigator_bridge = null
+	navigator_submit = Callable()
+	navigator_release = Callable()
 	_requests.clear()
 	if is_instance_valid(_session) and _session.peer_disconnected.is_connected(_peer_disconnected):
 		_session.peer_disconnected.disconnect(_peer_disconnected)

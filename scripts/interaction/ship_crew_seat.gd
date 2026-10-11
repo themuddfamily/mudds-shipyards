@@ -13,7 +13,7 @@ static func install(anchor: Marker3D, ship: HeroShip) -> ShipCrewSeat:
 	var seat := ShipCrewSeat.new()
 	seat._ship = ship
 	seat._anchor = anchor
-	var contract := _contract_for_ship(ship)
+	var contract := _contract_for_ship(ship, anchor)
 	if contract.get("seat") != anchor or contract.get("vessel_id") != ship.get_ship_id() \
 			or StringName(contract.get("seat_id", &"")).is_empty() or contract.get("role") not in [&"passenger", &"gunner", &"engineer"]:
 		seat.free()
@@ -44,7 +44,7 @@ func get_role_contract() -> Dictionary:
 			or not is_instance_valid(_anchor) or not _anchor.is_inside_tree() \
 			or _anchor.is_queued_for_deletion() or not _ship.is_ancestor_of(_anchor):
 		return {}
-	var contract := _contract_for_ship(_ship)
+	var contract := _contract_for_ship(_ship, _anchor)
 	var frame := contract.get("frame") as MovingInteriorFrame
 	var entry: Variant = contract.get("entry_transform")
 	var exit_pose: Variant = contract.get("exit_transform")
@@ -113,7 +113,9 @@ func interact(_actor: Node = null) -> bool:
 	return false
 
 
-static func _contract_for_ship(ship: HeroShip) -> Dictionary:
+static func _contract_for_ship(ship: HeroShip, anchor: Marker3D = null) -> Dictionary:
+	if ship is CinderCargoHauler and anchor == ship.get_navigator_station_anchor():
+		return ship.get_navigator_station_role_contract()
 	for method: StringName in [&"get_passenger_station_role_contract", &"get_gunner_station_role_contract", &"get_engineer_station_role_contract"]:
 		if ship.has_method(method):
 			return ship.call(method)
