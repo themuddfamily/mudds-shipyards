@@ -1,0 +1,16 @@
+Mudds Shipyards — Linux x86_64 origin-shift trajectory checkpoint (2026-10-11)
+Source: 2e195f94919b192e4b349b2e640df77ba2715531
+
+Long-distance origin shifts keep detached remote craft motion histories and projectile trajectories aligned with the world. Mass-driver bolts and seeker torpedoes retain their cached paths. GameFlow forwards committed shifts to detached craft histories once, preserving ongoing movement.
+
+Actual validation:
+- Fresh clean-source safe Linux release export, cold cache, zero copied caches; embedded PCK payload hashes and exact source/index/cache/artifact guards passed.
+- Source and embedded-PCK checks each passed: production origin-shift journey 63, remote craft pose 43, remote projectile 60, mass-driver bolt 13, seeker torpedo 32 (422 assertions total).
+- Four standard embedded-PCK probes passed: 223 assertions, zero diagnostics.
+- Direct ELF and archive-extracted byte-identical ELF --startup-check each exited 0 with exactly one STARTUP_MENU_READY_OK and mouse_free_during_load=true.
+- Desktop helper install, reinstall, uninstall and repeated uninstall passed in private XDG, preserving seeded saves/settings. No game or desktop handler launched by helper tests.
+- All automated Godot runs used headless display and Dummy audio, unchanged HOME, private 0700 XDG and an isolated network namespace. Actual owning tool 46337 exited 0 and was consumed/reaped; all captured creation identities absent. No warnings in these qualification logs.
+
+Run: extract the tar.gz and launch MuddsShipyards-2e195f9.x86_64. Optional desktop entry: run install-desktop-entry.sh in the extracted directory; remove with --uninstall.
+
+Limits: native GPU performance, graphical desktop launch, physical controllers/devices, audible output, human gameplay/visual/audio review, installed recovery, complete final-source regression and trusted signing remain NOT_RUN. This development checkpoint closes no phase exit gate.
