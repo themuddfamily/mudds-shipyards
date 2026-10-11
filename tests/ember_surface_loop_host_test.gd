@@ -694,7 +694,7 @@ func _test_halyard_velocity_aware_surface_braking() -> void:
 
 
 func _test_normal_public_actor_loop() -> void:
-	var fixture := await _fixture(true, true)
+	var fixture := await _fixture()
 	if fixture.is_empty():
 		return
 	var host := fixture.host as EmberSurfaceLoopHost
@@ -815,27 +815,32 @@ func _test_normal_public_actor_loop() -> void:
 	)
 	var takeoff_lease_seen := false
 	var completed := false
-	var ascent_reentry_checked := false
+	var last_takeoff_tick := {}
 	for _index in 2700:
 		var was_landed := bool(ship.get_telemetry().get("landed", true))
 		var token_before := berth.get_reservation_token(ship)
 		var tick := await _tick(fixture)
+		last_takeoff_tick = tick
 		if was_landed and not token_before.is_empty():
 			takeoff_lease_seen = true
 		if not bool(tick.get("accepted", false)):
 			break
-		if not ascent_reentry_checked and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT:
-			await _check_detached_ascent_queries_and_reentry(fixture)
-			ascent_reentry_checked = true
 		if host.get_phase() == EmberSurfaceLoopHost.Phase.COMPLETED:
 			completed = true
 			break
 	_check(
-		completed and takeoff_lease_seen and ascent_reentry_checked
+		completed and takeoff_lease_seen
 			and not bool(ship.get_telemetry().get("landed", true))
 			and berth.get_reservation_token(ship).is_empty(),
 		"real takeoff keeps the berth through landed=true then releases it before orbit completion",
 	)
+	if not completed:
+		print("TAKEOFF_COMPLETION_DIAGNOSTIC: phase=%s terminal=%s reason=%s telemetry=%s" % [
+			host.get_return_status_snapshot().phase_id, host.get_snapshot().terminal_reason,
+			last_takeoff_tick.get("reason", &"budget_exhausted"), ship.get_telemetry(),
+		])
+		await _cleanup(fixture)
+		return
 	var audit := host.audit()
 	var route_snapshot := host.get_snapshot().surface_route as Dictionary
 	_check(
@@ -868,9 +873,16 @@ func _test_normal_public_actor_loop() -> void:
 			)),
 		"completion atomically returns command and gravity ownership while continuously retaining the seated Player reservation",
 	)
+	if not bool(returned.get("accepted", false)) or return_receipt.is_empty():
+		print("OWNERSHIP_RETURN_DIAGNOSTIC: reason=%s phase=%s receipt=%s" % [
+			returned.get("reason", &"missing_result"),
+			host.get_return_status_snapshot().phase_id, return_receipt,
+		])
+		await _cleanup(fixture)
+		return
 	return_receipt["ship_instance_id"] = -1
 	_check(
-		int(((host.get_snapshot().runtime_ownership_return as Dictionary).last_receipt as Dictionary).ship_instance_id)
+		int(((host.get_snapshot().runtime_ownership_return as Dictionary).last_receipt as Dictionary).get("ship_instance_id", 0))
 			== ship.get_instance_id(),
 		"runtime ownership return receipt is deeply detached for a later production owner",
 	)
@@ -1572,6 +1584,47 @@ func _test_composition_reentry_preserves_the_live_visit() -> void:
 			and host.get_phase() != EmberSurfaceLoopHost.Phase.FAILED,
 		"the re-entered Host keeps advancing its own phase (%s)"
 			% advanced.get("reason", &"?"),
+	)
+	if not bool(advanced.get("accepted", false)):
+		await _cleanup(fixture)
+		return
+	var outbound := await _walk_outbound_route(fixture)
+	_check(outbound, "shared re-entry fixture completes its real outbound surface route")
+	if not outbound:
+		await _cleanup(fixture)
+		return
+	var returned_to_craft := await _walk_return_to_boarding(fixture)
+	_check(returned_to_craft, "shared re-entry fixture returns to its real BoardingArea")
+	if not returned_to_craft:
+		await _cleanup(fixture)
+		return
+	var reboard := host.request_reboard(host.get_generation(), host.get_attachment_generation())
+	_check(bool(reboard.get("accepted", false)), "shared re-entry fixture begins public reboarding")
+	if not bool(reboard.get("accepted", false)):
+		await _cleanup(fixture)
+		return
+	var reboarded := await _drive_to_phase(fixture, EmberSurfaceLoopHost.Phase.REBOARDED, 20)
+	_check(reboarded, "shared re-entry fixture completes public reboarding")
+	if not reboarded:
+		await _cleanup(fixture)
+		return
+	var takeoff := host.request_takeoff(host.get_generation(), host.get_attachment_generation())
+	_check(bool(takeoff.get("accepted", false)), "shared re-entry fixture requests public takeoff")
+	if not bool(takeoff.get("accepted", false)):
+		await _cleanup(fixture)
+		return
+	var reached_ascent := await _drive_to_phase(fixture, EmberSurfaceLoopHost.Phase.ASCENT, 2700)
+	_check(reached_ascent, "shared re-entry fixture reaches ASCENT through real actor physics")
+	if not reached_ascent:
+		await _cleanup(fixture)
+		return
+	await _check_detached_ascent_queries_and_reentry(fixture)
+	var restored := await _tick(fixture)
+	_check(
+		bool(restored.get("accepted", false))
+			and host.is_attached() and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT,
+		"the re-entered ASCENT Host accepts its next restored physics tick (%s)"
+			% restored.get("reason", &"?"),
 	)
 	await _cleanup(fixture)
 
