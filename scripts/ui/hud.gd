@@ -1938,7 +1938,7 @@ func _controller_prompt_text(text: String) -> String:
 		var token := str(entry[0])
 		if not result.contains(token):
 			continue
-		var glyph := _yard_prompt_glyph(entry[1] as Array, bool(entry[4])) if entry.size() > 4 else (
+		var glyph := _active_device_prompt_glyph(entry[1] as Array, bool(entry[4])) if entry.size() > 4 else (
 			_controller_prompt_glyph(entry[1] as Array) if controller_active else _desktop_prompt_glyph(entry[1] as Array)
 		)
 		if not controller_active and glyph == str(entry[3]):
@@ -1957,10 +1957,10 @@ func _controller_prompt_text(text: String) -> String:
 	return result
 
 
-## Yard controls must describe the active device, never the resolver's fallback
+## Controls must describe the active device, never the resolver's fallback
 ## onto another device. Optional brake aliases omit unavailable alternatives;
 ## required direction pairs keep each missing direction explicit.
-func _yard_prompt_glyph(actions: Array, alternatives: bool) -> String:
+func _active_device_prompt_glyph(actions: Array, alternatives: bool) -> String:
 	if _input_glyph_resolver == null or _runtime_input_glyph_presenter == null:
 		return ""
 	var controller_active := _controller_prompt_active()
@@ -8322,7 +8322,20 @@ func _matching_axis_deadzone(event: InputEventJoypadMotion) -> float:
 	return clampf(matched_deadzone, 0.0, 1.0) if matched else -1.0
 
 
+## Starting accepts interact OR jump. Keep the familiar default desktop hint,
+## then show the available live alternatives after remapping or device changes.
+func _refresh_intro_start_prompt() -> void:
+	if not is_instance_valid(_intro_start_button):
+		return
+	var prompt := _active_device_prompt_glyph([&"interact", &"jump"], true)
+	if not _controller_prompt_active() and _desktop_prompt_glyph([&"interact"]) == "E":
+		prompt = "E"
+	if not prompt.is_empty():
+		_intro_start_button.text = "BEGIN SHIFT   [ %s ]" % prompt
+
+
 func _refresh_input_prompts() -> void:
+	_refresh_intro_start_prompt()
 	_refresh_all_binding_rows()
 	_refresh_controller_prompt_surfaces()
 	if is_instance_valid(_help_panel):

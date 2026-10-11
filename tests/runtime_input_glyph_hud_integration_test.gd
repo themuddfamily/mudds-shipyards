@@ -15,6 +15,7 @@ func _run() -> void:
 	var hud := HudType.new()
 	root.add_child(hud)
 	await process_frame
+	await _test_intro_start_prompt(hud)
 	var presenter: Variant = hud.get("_runtime_input_glyph_presenter")
 	var interact_actions: Array[StringName] = [&"interact"]
 	_check(presenter != null, "HUD retains the runtime glyph presenter")
@@ -43,6 +44,63 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+## The button hint must follow the same interact/jump actions consumed by the
+## startup input handler, including restored settings and later device changes.
+func _test_intro_start_prompt(hud: GameHUD) -> void:
+	var start := hud.find_child("IntroBeginShiftButton", true, false) as Button
+	var defaults: InputBindingProfile = hud.get("_input_binding_defaults").duplicate_profile()
+	var profile := defaults.duplicate_profile()
+	_check(start != null and start.text == "BEGIN SHIFT   [ E ]", "startup keeps the authored default desktop hint")
+	if start == null:
+		return
+	profile.set_bindings(&"interact", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_T}])
+	_apply_start_profile(hud, profile)
+	_check(start.text == "BEGIN SHIFT   [ T / Space ]", "a restored interact remap updates the startup button with accepted alternatives")
+	profile.set_bindings(&"jump", [])
+	_apply_start_profile(hud, profile)
+	_check(start.text == "BEGIN SHIFT   [ T ]", "an available interact binding suffices without an unbound jump hint")
+	profile.set_bindings(&"interact", [])
+	profile.set_bindings(&"jump", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_N}])
+	_apply_start_profile(hud, profile)
+	_check(start.text == "BEGIN SHIFT   [ N ]", "a jump-only startup binding remains available")
+	profile.set_bindings(&"jump", [])
+	_apply_start_profile(hud, profile)
+	_check(start.text == "BEGIN SHIFT   [ Unbound Input ]" and not start.disabled, "missing startup action bindings never advertise E and keep the clickable button usable")
+	profile.set_bindings(&"interact", [{"device": &"mouse", "type": &"mouse_button", "button_index": MOUSE_BUTTON_MIDDLE}])
+	_apply_start_profile(hud, profile)
+	_check(start.text == "BEGIN SHIFT   [ Middle Mouse ]", "the startup hint accepts a remapped mouse binding")
+	_apply_start_profile(hud, defaults)
+	hud._on_controller_glyph_family_selected(1)
+	var controller_start := "%s / %s" % [hud.get_action_prompt(&"interact"), hud.get_action_prompt(&"jump")]
+	_check(start.text == "BEGIN SHIFT   [ %s ]" % controller_start and not start.text.contains("[ E ]"),
+		"a device switch refreshes the existing startup button without republishing it")
+	profile = defaults.duplicate_profile()
+	profile.set_bindings(&"interact", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_T}])
+	profile.set_bindings(&"jump", [])
+	_apply_start_profile(hud, profile)
+	_check(start.text == "BEGIN SHIFT   [ Unbound Input ]", "controller startup hints do not fall back onto a desktop remap")
+	hud._on_controller_glyph_family_selected(0)
+	var keyboard := InputEventKey.new()
+	keyboard.physical_keycode = KEY_I
+	keyboard.pressed = true
+	root.push_input(keyboard)
+	await process_frame
+	_check(start.text == "BEGIN SHIFT   [ T ]", "returning to keyboard refreshes the retained startup button")
+	_apply_start_profile(hud, defaults)
+	_check(start.text == "BEGIN SHIFT   [ E ]", "restoring defaults restores exact startup copy")
+
+
+func _apply_start_profile(hud: GameHUD, profile: InputBindingProfile) -> void:
+	var service: InputRebindService = hud.get("_input_rebind_service")
+	var compatible := service.is_profile_compatible_with_defaults(profile)
+	_check(compatible, "startup fixture is compatible with the complete action inventory")
+	if not compatible:
+		return
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_check((hud.get("_input_binding_profile") as InputBindingProfile).to_dictionary() == profile.to_dictionary(),
+		"the HUD applies the startup fixture before hint assertions")
 
 
 func _check(condition: bool, message: String) -> void:
