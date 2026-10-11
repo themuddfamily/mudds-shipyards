@@ -614,6 +614,14 @@ func _test_committed_origin_receipt_adoption() -> void:
 			and host.get_snapshot() == replay_before,
 		"a committed receipt is single-generation evidence and cannot replay",
 	)
+	var published_snapshot := host.get_snapshot()
+	var retained_result_before: Dictionary = (host.get("_last_result") as Dictionary).duplicate(true)
+	(published_snapshot.origin_rebase.last_adopted_receipt.root_roster as Array).clear()
+	published_snapshot["bootstrap"]["coordinate_frame"]["generation"] = -1
+	_check(
+		host.get_snapshot() == replay_before and host.get("_last_result") == retained_result_before,
+		"nested published origin receipt and child report mutation leaves Host and retained results detached",
+	)
 	(receipt.root_roster as Array).clear()
 	_check(
 		not ((host.get_snapshot().origin_rebase as Dictionary).last_adopted_receipt as Dictionary).root_roster.is_empty(),
