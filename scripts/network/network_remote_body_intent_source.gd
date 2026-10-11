@@ -57,6 +57,7 @@ var _observed_server_tick := -1
 var _ticks_since_observation := 0
 var _jump_latched := false
 var _interact_latched := false
+var _last_interaction_physics_frame := -1
 var _interaction_request_id := 0
 var _pose_history: Dictionary = {}
 var _pose_order: Array = []
@@ -92,6 +93,7 @@ func bind(entity_id: StringName, entity_generation: int, stream_id: int = -1) ->
 	_last_client_tick = -1
 	_jump_latched = false
 	_interact_latched = false
+	_last_interaction_physics_frame = -1
 	_pose_history.clear()
 	_pose_order.clear()
 	_last_correction.clear()
@@ -104,6 +106,7 @@ func unbind() -> Dictionary:
 	_clear_opening()
 	_jump_latched = false
 	_interact_latched = false
+	_last_interaction_physics_frame = -1
 	_entity_id = &""
 	_entity_generation = 0
 	_pose_history.clear()
@@ -130,6 +133,13 @@ func request_jump() -> void:
 
 
 func request_interaction() -> void:
+	# GameFlow samples the edge before the Player emits its interaction signal.
+	# A cadence send between those consumers must not turn one press into two
+	# host toggles. Requests in a later physics frame remain independent edges.
+	var physics_frame := Engine.get_physics_frames()
+	if physics_frame == _last_interaction_physics_frame:
+		return
+	_last_interaction_physics_frame = physics_frame
 	_interact_latched = true
 
 

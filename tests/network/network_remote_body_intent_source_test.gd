@@ -3,7 +3,8 @@ extends SceneTree
 ## Deterministic contract for the client-side on-foot intent stream: fixed
 ## cadence, edge latching, strictly ordered tick stamps derived from the
 ## observed server tick, and the bounded prediction reconciliation. No peer,
-## no physics; the integration is `tests/network_remote_body_simulation_test.gd`.
+## no actors; only edge tests await the engine's actual physics-frame clock.
+## The integration is `tests/network_remote_body_simulation_test.gd`.
 
 const IntentSource := preload("res://scripts/network/network_remote_body_intent_source.gd")
 const Authority := preload("res://scripts/network/network_movement_authority.gd")
@@ -19,7 +20,8 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_cadence_and_framing()
-	_test_edges_survive_between_sends()
+	await _test_edges_survive_between_sends()
+	await _test_same_physics_frame_interaction_is_one_edge()
 	_test_stamp_tracks_the_observed_server_tick()
 	_test_reconciliation_is_bounded()
 	_test_delayed_correction_preserves_newer_movement()
@@ -100,6 +102,7 @@ func _test_edges_survive_between_sends() -> void:
 		not after.has_jump_request() and after.get_interaction_request_id() == 1,
 		"the jump edge is consumed by one send; the interaction id stays monotonic"
 	)
+	await physics_frame
 	source.request_interaction()
 	var next: Dictionary = {}
 	for _tick in 4:
@@ -110,6 +113,29 @@ func _test_edges_survive_between_sends() -> void:
 		Intent.from_dictionary(next).get_interaction_request_id() == 2,
 		"a second interaction request is a new id, never a repeat"
 	)
+
+
+func _test_same_physics_frame_interaction_is_one_edge() -> void:
+	var source := IntentSource.new(1)
+	source.bind(&"crew_a", 1)
+	# Production's sampler sends before the same-frame Player interaction signal.
+	source.request_interaction()
+	var sampled := source.advance(2, _sample(), 50)
+	source.request_interaction()
+	var signalled := source.advance(2, _sample(), 51)
+	_check(sampled.interaction_request_id == 1 and signalled.interaction_request_id == 1,
+		"same-frame sampler and Player signal deliver one host interaction across a cadence send")
+	await physics_frame
+	source.request_interaction()
+	var next_press := source.advance(2, _sample(), 52)
+	_check(next_press.interaction_request_id == 2,
+		"a distinct press in the next physics frame retains its host interaction")
+	source.unbind()
+	source.bind(&"crew_b", 2)
+	source.request_interaction()
+	var rebound := source.advance(2, _sample(), 53)
+	_check(rebound.entity_generation == 2 and rebound.interaction_request_id == 3,
+		"same-frame stream rebind retires the old edge fence and preserves interaction highwater")
 
 
 func _test_stamp_tracks_the_observed_server_tick() -> void:
