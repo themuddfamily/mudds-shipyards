@@ -848,6 +848,10 @@ var _network_remote_projectile_replicator: NetworkRemoteProjectileReplicatorType
 ## authority: both are erased the moment the session that granted them ends.
 var _network_client_boarding_request: Dictionary = {}
 var _network_client_boarding_claim: Dictionary = {}
+## Confirmed Ember passengers retain one movement body while the landed Host
+## owns the caldera lease. These are embodiment contexts, never seat/reward grants.
+var _network_ember_passenger_surfaces: Dictionary = {}
+var _network_client_ember_passenger_surface: Dictionary = {}
 ## The board request this peer stopped waiting for. An expiry does not reach
 ## the ledger, so a grant can still arrive for it; this is what lets that late
 ## grant be handed straight back instead of becoming a seat held forever by a
@@ -10591,7 +10595,30 @@ func _try_network_client_pilot_exit() -> void:
 ## also needs the physical craft's already-held support; a cabin swap does not
 ## leave the hull and continues through its existing owner unchanged.
 func _network_boarding_departure_status(peer_id: int, request: Dictionary) -> StringName:
-	if StringName(request.get("action", &"")) != NetworkBoardingIntentType.ACTION_DISEMBARK:
+	var avatar := StringName(request.get("avatar_id", &""))
+	var action := StringName(request.get("action", &""))
+	if _network_ember_passenger_surfaces.has(avatar):
+		if action not in [NetworkBoardingIntentType.ACTION_BOARD, NetworkBoardingIntentType.ACTION_BOARD_ANY]:
+			return &"surface_passenger_requires_hatch_return"
+		var context := _network_ember_passenger_surfaces[avatar] as Dictionary
+		if peer_id != int(context.peer_id) or request.get("ship_id") != context.ship_id \
+				or request.get("role") != NETWORK_CABIN_BERTH_ROLE \
+				or not _network_ember_passenger_surface_is_current(avatar):
+			return &"surface_passenger_owner_retired"
+		if not _planetary_journey._ember_survey_return_is_admitted(ember_surface_loop_production_binding.get_snapshot()):
+			return &"surface_survey_return_pending"
+		var body := _network_remote_body_simulation.get_body(avatar) as PlayerController
+		var craft := _find_flyable_ship_by_id(context.ship_id)
+		if not _network_ember_passenger_at_hatch(body, craft, true):
+			return &"surface_return_requires_cabin_entry"
+		return &""
+	# No fresh body may be placed aboard a landed shared visit. Exterior peers
+	# must return the exact body retained by its confirmed departure above.
+	var journey := get_network_planetary_journey_snapshot()
+	if action in [NetworkBoardingIntentType.ACTION_BOARD, NetworkBoardingIntentType.ACTION_BOARD_ANY] \
+			and journey.get("phase") == &"landed" and request.get("ship_id") == journey.get("ship_id"):
+		return &"surface_return_requires_retained_body"
+	if action != NetworkBoardingIntentType.ACTION_DISEMBARK:
 		return &""
 	var held: Dictionary = {}
 	for occupancy: Dictionary in network_session.get_boarding_snapshot().get("occupancies", []):
@@ -10613,10 +10640,158 @@ func _network_boarding_departure_status(peer_id: int, request: Dictionary) -> St
 		return &"propulsion_not_offline"
 	if not bool(telemetry.get("landed", false)):
 		return &"exterior_departure_requires_landing"
+	if held.get("role") == NETWORK_CABIN_BERTH_ROLE and _network_ember_passenger_host_is_current(craft):
+		var body := _network_remote_body_simulation.get_body(avatar) as PlayerController \
+			if is_instance_valid(_network_remote_body_simulation) else null
+		if not _network_ember_passenger_at_hatch(body, craft, false):
+			return &"surface_departure_requires_supported_hatch"
+		var record := _network_remote_body_simulation.get_body_record(avatar)
+		var scene := ember_streaming_bootstrap.get_loaded_instance()
+		var policy := _network_ember_passenger_gravity_policy()
+		if int(record.get("owner_peer_id", 0)) != peer_id or record.get("seat_state") != &"standing" \
+				or not _network_ember_passenger_on_pad(body, scene) or policy == null:
+			return &"surface_body_not_admitted"
+		var gravity := _network_ember_passenger_gravity(body.global_position, policy)
+		if not is_finite(gravity) or gravity <= 0.0:
+			return &"surface_gravity_unavailable"
+		return &""
 	var berth_id := StringName(_reserved_berth_ids.get(craft.get_instance_id(), &""))
 	if berth_id.is_empty() or not _ship_owns_exact_occupied_berth(craft, berth_id):
 		return &"physical_berth_not_secured"
 	return &""
+
+
+func _network_ember_passenger_host_is_current(craft: HeroShip) -> bool:
+	return is_inside_tree() and not is_queued_for_deletion() \
+		and is_instance_valid(craft) and craft == active_ship and not craft.is_destroyed() \
+		and _network_session_mode == &"server" and _network_session_is_live() \
+		and _planetary_journey.shared_ember_surface_is_current() \
+		and not bool(_planetary_journey.get("_ember_surface_abandon_pending")) \
+		and ember_surface_loop_host.get_phase() in [EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, EmberSurfaceLoopHost.Phase.ON_FOOT] \
+		and StringName(craft.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE \
+		and ember_surface_loop_host._landed_public_state_is_exact()
+
+
+func _network_ember_passenger_at_hatch(body: PlayerController, craft: HeroShip, returning: bool) -> bool:
+	if not is_instance_valid(body) or not body.is_inside_tree() or body.is_queued_for_deletion() \
+			or body.is_seated() or not body.is_on_floor() or not is_instance_valid(craft):
+		return false
+	var hatch := craft.get_node_or_null(^"WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+	if not is_instance_valid(hatch) or not body.get_nearby_interactables().has(hatch) \
+			or body.get_interaction_origin().distance_to(hatch.global_position) > ShipCabinHatch.MAX_REACH:
+		return false
+	var cabin := craft.get_in_flight_cabin_report()
+	return bool(cabin.get("supported", false)) \
+		and (not returning or (cabin.local_bounds as AABB).has_point(craft.to_local(body.global_position)))
+
+
+func _network_ember_passenger_gravity_policy() -> PlanetarySurfaceGravityPolicy:
+	var policy := PlanetarySurfaceGravityPolicy.new()
+	# Match the production Host's Ember dependency binding (1.62 m/s²).
+	var configured := policy.configure(preload("res://assets/world/planets/ember_moon_world.tres"),
+		preload("res://assets/world/planets/ember_basalt_terrain.tres"),
+		ember_streaming_bootstrap.get_coordinate_frame_for_session(), 1.62)
+	return policy if bool(configured.get("accepted", false)) else null
+
+
+func _network_ember_passenger_gravity(position: Vector3, policy: PlanetarySurfaceGravityPolicy) -> float:
+	if policy == null or not is_instance_valid(ember_streaming_bootstrap):
+		return NAN
+	var basis := ember_streaming_bootstrap.global_basis.orthonormalized()
+	var sample := policy.sample(basis.transposed() * (position - ember_streaming_bootstrap.global_position))
+	var scene := ember_streaming_bootstrap.get_loaded_instance()
+	var landing := scene.get_node_or_null(^"LandingRegion") as Node3D if is_instance_valid(scene) else null
+	var project_gravity := float(ProjectSettings.get_setting("physics/3d/default_gravity", 9.8))
+	if not bool(sample.get("accepted", false)) or not is_instance_valid(landing) or project_gravity <= 0.0:
+		return NAN
+	return -(basis * (sample.gravity_vector_mps2 as Vector3)).dot(landing.global_basis.y.normalized()) / project_gravity
+
+
+func _network_ember_passenger_surface_is_current(avatar: StringName, expected_context: Variant = null) -> bool:
+	var context := _network_ember_passenger_surfaces.get(avatar, {}) as Dictionary
+	if expected_context is Dictionary and (expected_context.is_empty() or expected_context != context):
+		return false
+	if context.is_empty() or not is_instance_valid(network_session) \
+			or network_session.get_instance_id() != int(context.session_id) \
+			or not network_session.get_admitted_peer_ids().has(int(context.peer_id)) \
+			or int(get_network_planetary_journey_snapshot().get("journey_epoch", 0)) != int(context.journey_epoch):
+		return false
+	var craft := _find_flyable_ship_by_id(context.ship_id)
+	var scene := ember_streaming_bootstrap.get_loaded_instance()
+	var body := _network_remote_body_simulation.get_body(avatar) as PlayerController \
+		if is_instance_valid(_network_remote_body_simulation) else null
+	return _network_ember_passenger_host_is_current(craft) and is_instance_valid(scene) \
+		and scene.get_instance_id() == int(context.scene_id) \
+		and ember_surface_loop_host.get_generation() == int(context.host_generation) \
+		and ember_surface_loop_host.get_attachment_generation() == int(context.attachment_generation) \
+		and is_instance_valid(body) and body.get_instance_id() == int(context.body_id) \
+		and _network_ember_passenger_on_pad(body, scene)
+
+
+func _network_ember_passenger_on_pad(body: Node3D, scene: Node3D) -> bool:
+	var collision := scene.get_node_or_null(^"LandingRegion/WalkablePatch/CollisionShape3D") as CollisionShape3D
+	if not is_instance_valid(collision) or not collision.is_inside_tree() or collision.is_queued_for_deletion() \
+			or collision.disabled or not collision.shape is BoxShape3D:
+		return false
+	var local := collision.to_local(body.global_position)
+	var half := (collision.shape as BoxShape3D).size * 0.5
+	return absf(local.x) < half.x and absf(local.z) < half.z and local.y >= -half.y
+
+
+func _network_client_ember_surface_scene_is_current(craft: HeroShip, epoch: int) -> bool:
+	if not _network_client_boarding_is_live() or not is_instance_valid(craft) \
+			or craft.is_destroyed() or not craft.is_inside_tree():
+		return false
+	var journey := get_network_planetary_journey_snapshot()
+	var operation := _network_craft_pose_stream.latest_sample(craft.get_ship_id()).get("operation_presentation", {}) as Dictionary
+	var scene := ember_streaming_bootstrap.get_loaded_instance()
+	return epoch > 0 and int(journey.get("journey_epoch", 0)) == epoch \
+		and journey.get("ship_id") == craft.get_ship_id() and journey.get("phase") == &"landed" \
+		and bool(operation.get("landed", false)) and operation.get("engine") == HeroShip.ENGINE_OFFLINE \
+		and is_instance_valid(scene) and scene.is_inside_tree() and not scene.is_queued_for_deletion()
+
+
+func _network_client_ember_passenger_surface_is_current() -> bool:
+	var context := _network_client_ember_passenger_surface
+	if context.is_empty() or not is_instance_valid(network_session) \
+			or network_session.get_instance_id() != int(context.session_id) \
+			or not is_instance_valid(player) or player.get_instance_id() != int(context.body_id) \
+			or not is_instance_valid(_cabin_ship) or _cabin_ship.get_instance_id() != int(context.craft_id) \
+			or not _network_client_ember_surface_scene_is_current(_cabin_ship, int(context.journey_epoch)):
+		return false
+	if _network_remote_body_intent_source == null or not _network_remote_body_intent_source.is_bound() \
+			or _network_remote_body_intent_source.get_entity_id() != context.entity_id \
+			or _network_remote_body_intent_source.get_entity_generation() != int(context.entity_generation):
+		return false
+	# The existing authenticated release removes this relationship. That closes
+	# local prediction even while the craft's last landed picture is unchanged.
+	var relationship := network_session.get_moving_interior_latest_relationship(context.entity_id)
+	if int(relationship.get("entity_generation", 0)) != int(context.entity_generation) \
+			or relationship.get("parent_frame_id") != StringName("frame_%s" % _cabin_ship.get_ship_id()):
+		return false
+	var scene := ember_streaming_bootstrap.get_loaded_instance()
+	return scene.get_instance_id() == int(context.scene_id) and _network_ember_passenger_on_pad(player, scene)
+
+
+func _network_local_ember_passenger_prediction_is_current(expected_context: Dictionary) -> bool:
+	return not expected_context.is_empty() and expected_context == _network_client_ember_passenger_surface \
+		and _network_client_ember_passenger_surface_is_current() and not player.is_seated() \
+		and _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound()
+
+
+func _retire_network_client_ember_passenger_surface() -> void:
+	if _network_client_ember_passenger_surface.is_empty():
+		return
+	if is_instance_valid(player):
+		player.gravity_multiplier = float(_network_client_ember_passenger_surface.get("cabin_gravity", 1.0))
+	_network_client_ember_passenger_surface.clear()
+	_release_cabin_occupancy()
+	if _network_remote_body_intent_source != null:
+		_network_remote_body_intent_source.unbind()
+	_sync_network_moving_interior_presenter()
+	if is_instance_valid(player) and player.is_inside_tree() and not player.is_seated():
+		player.set_control_enabled(true)
+		phase = Phase.APPROACH_SHIP
 
 
 ## Shared exterior motion after local physical acceptance or a confirmed
@@ -12420,6 +12595,9 @@ func _ensure_network_remote_body_simulation() -> NetworkRemoteBodySimulationType
 
 
 func _release_all_network_remote_bodies(reason: StringName) -> void:
+	for context: Dictionary in _network_ember_passenger_surfaces.values():
+		context.clear()
+	_network_ember_passenger_surfaces.clear()
 	if _network_remote_body_simulation == null \
 			or not is_instance_valid(_network_remote_body_simulation):
 		return
@@ -12429,11 +12607,15 @@ func _release_all_network_remote_bodies(reason: StringName) -> void:
 
 func _advance_network_remote_bodies(tick: int) -> void:
 	if _network_remote_body_simulation == null \
-			or not is_instance_valid(_network_remote_body_simulation) \
-			or _network_remote_body_simulation.get_body_count() == 0:
+			or not is_instance_valid(_network_remote_body_simulation):
 		return
-	network_session.set_movement_server_tick(tick)
-	_network_remote_body_simulation.advance(tick)
+	if _network_remote_body_simulation.get_body_count() > 0:
+		network_session.set_movement_server_tick(tick)
+		_network_remote_body_simulation.advance(tick)
+	for avatar: StringName in _network_ember_passenger_surfaces.keys():
+		if not _network_remote_body_simulation.has_body(avatar):
+			(_network_ember_passenger_surfaces[avatar] as Dictionary).clear()
+			_network_ember_passenger_surfaces.erase(avatar)
 
 
 ## Stands a server-owned body for `owner_peer_id` aboard `fleet_ship`, named
@@ -12475,6 +12657,9 @@ func admit_network_remote_body(
 
 
 func release_network_remote_body(entity_id: StringName, reason: StringName = &"released") -> Dictionary:
+	if _network_ember_passenger_surfaces.has(entity_id):
+		(_network_ember_passenger_surfaces[entity_id] as Dictionary).clear()
+		_network_ember_passenger_surfaces.erase(entity_id)
 	if _network_remote_body_simulation == null \
 			or not is_instance_valid(_network_remote_body_simulation):
 		return {"accepted": false, "status": &"unknown_body"}
@@ -12530,6 +12715,13 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 			_network_hatch_audit["hatch_refusals"] = int(_network_hatch_audit["hatch_refusals"]) + 1
 			_network_hatch_audit["last_hatch_status"] = &"unknown_craft"
 			return
+		if _network_ember_passenger_surfaces.has(avatar_id):
+			var returned := _network_remote_body_simulation.finish_surface_walk(avatar_id)
+			_network_hatch_audit["last_hatch_status"] = returned.status
+			if bool(returned.get("accepted", false)):
+				(_network_ember_passenger_surfaces[avatar_id] as Dictionary).clear()
+				_network_ember_passenger_surfaces.erase(avatar_id)
+			return
 		var admitted := admit_network_remote_body(peer_id, avatar_id, craft)
 		if bool(admitted.get("accepted", false)):
 			_network_hatch_audit["hatch_admissions"] = int(_network_hatch_audit["hatch_admissions"]) + 1
@@ -12583,6 +12775,29 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 			_network_hatch_audit["hatch_refusals"] = int(_network_hatch_audit["hatch_refusals"]) + 1
 			_network_hatch_audit["last_hatch_status"] = &"not_body_owner"
 			return
+		var craft := _find_flyable_ship_by_id(ship_id)
+		if _network_ember_passenger_host_is_current(craft):
+			var body := _network_remote_body_simulation.get_body(avatar_id) as PlayerController
+			var scene := ember_streaming_bootstrap.get_loaded_instance()
+			var policy := _network_ember_passenger_gravity_policy()
+			_network_ember_passenger_surfaces[avatar_id] = {
+				"peer_id": peer_id, "session_id": network_session.get_instance_id(),
+				"ship_id": ship_id, "body_id": body.get_instance_id(),
+				"journey_epoch": int(get_network_planetary_journey_snapshot().journey_epoch),
+				"scene_id": scene.get_instance_id(), "host_generation": ember_surface_loop_host.get_generation(),
+				"attachment_generation": ember_surface_loop_host.get_attachment_generation(),
+			}
+			var retained := _network_remote_body_simulation.begin_surface_walk(avatar_id,
+				Callable(self, "_network_ember_passenger_surface_is_current").bind(avatar_id, _network_ember_passenger_surfaces[avatar_id]),
+				Callable(self, "_network_ember_passenger_gravity").bind(policy))
+			_network_hatch_audit["last_hatch_status"] = retained.status
+			if bool(retained.get("accepted", false)):
+				# This confirmed passenger's ordinary hatch press opens the actual
+				# host-owned door. Walking, never placement, crosses the airstair.
+				craft.set_canopy_open(true, ShipCabinHatch.MOTION_SECONDS)
+				return
+			(_network_ember_passenger_surfaces[avatar_id] as Dictionary).clear()
+			_network_ember_passenger_surfaces.erase(avatar_id)
 		var released := release_network_remote_body(avatar_id, &"hatch_disembark")
 		if bool(released.get("accepted", false)):
 			_network_hatch_audit["hatch_releases"] = int(_network_hatch_audit["hatch_releases"]) + 1
@@ -12627,6 +12842,8 @@ func _on_network_movement_intent_result(result: Dictionary) -> void:
 
 
 func unbind_network_remote_body() -> Dictionary:
+	if not _network_client_ember_passenger_surface.is_empty():
+		_retire_network_client_ember_passenger_surface()
 	if _network_remote_body_intent_source == null:
 		return {"accepted": true, "status": &"unbound"}
 	var result: Dictionary = _network_remote_body_intent_source.unbind()
@@ -12795,6 +13012,9 @@ func _begin_network_client_boarding_request(
 		"sequence": -1,
 		"elapsed": 0.0,
 	}
+	var epoch := int(get_network_planetary_journey_snapshot().get("journey_epoch", 0))
+	if role == NETWORK_CABIN_BERTH_ROLE and _network_client_ember_surface_scene_is_current(craft, epoch):
+		_network_client_boarding_request["ember_journey_epoch"] = epoch
 	if offered.is_empty() or String(action).is_empty():
 		return _refuse_network_client_boarding(&"no_seat_offered")
 	return _send_network_client_boarding_intent()
@@ -12988,7 +13208,16 @@ func _confirm_network_client_boarding(answer: Dictionary = {}) -> void:
 	if not String(answer.get("seat_id", "")).is_empty():
 		seat_id = StringName(answer.get("seat_id"))
 	if action == NetworkBoardingIntentType.ACTION_DISEMBARK:
+		if request.has("ember_journey_epoch"):
+			_present_network_client_ember_passenger_departure(craft, area, int(request.ember_journey_epoch))
+			return
 		_release_network_client_boarding_presentation(craft, area)
+		return
+	if request.has("ember_journey_epoch") and not _network_client_ember_passenger_surface_is_current():
+		# Hand an expired grant back through the existing ordered ledger seam.
+		# Never fall through to the ordinary yard/cabin placement presentation.
+		_send_network_client_boarding_release(StringName(request.get("ship_id", &"")), seat_id, role)
+		_retire_network_client_ember_passenger_surface()
 		return
 	_network_client_boarding_claim = {
 		"ship_id": StringName(request.get("ship_id", &"")),
@@ -13108,6 +13337,25 @@ func _present_network_client_cabin_boarding(craft: HeroShip, area: ShipBoardingA
 		# hand the berth straight back instead of holding a seat nobody is in.
 		_return_network_client_berth(craft, area, &"cabin_unavailable")
 		return
+	if not _network_client_ember_passenger_surface.is_empty():
+		# This is the SAME walking body. Preserve its pose and movement stream.
+		if not _network_client_ember_passenger_surface_is_current() or craft != _cabin_ship:
+			_retire_network_client_ember_passenger_surface()
+			return
+		player.gravity_multiplier = float(_network_client_ember_passenger_surface.cabin_gravity)
+		_network_client_ember_passenger_surface.clear()
+		_boarding_area = area
+		phase = Phase.IN_FLIGHT_CABIN
+		var frame := cabin.get("frame") as MovingInteriorFrame
+		if not is_instance_valid(frame) or not frame.is_occupant_registered(player):
+			_return_network_client_berth(craft, area, &"surface_frame_retired")
+			return
+		frame.bind_local_prediction(player, _network_client_peer_id(),
+			Callable(self, "_network_local_cabin_prediction_is_current").bind(player, craft, network_session))
+		player.set_cabin_containment(craft, cabin.get("local_bounds", AABB()) as AABB, player.global_transform)
+		hud.set_mode("cabin", craft.get_display_name())
+		hud.set_objective("Cabin berth confirmed — the host retains flight authority")
+		return
 	var stand := _network_cabin_berth_transform(
 		craft, StringName(_network_client_boarding_claim.get("seat_id", &"")), player
 	)
@@ -13173,9 +13421,49 @@ func _return_network_client_berth(
 
 ## Reverses the presentation above, and only ever on the ledger's confirmation
 ## that the seat has actually been released.
+func _present_network_client_ember_passenger_departure(craft: HeroShip, area: ShipBoardingArea, epoch: int) -> void:
+	_network_client_boarding_claim.clear()
+	_network_client_boarding_audit["claimed_seat_id"] = &""
+	# An answer to an expired visit cannot become a new visit or a yard teleport.
+	if not _network_client_ember_surface_scene_is_current(craft, epoch) or craft != _cabin_ship \
+			or _network_remote_body_intent_source == null or not _network_remote_body_intent_source.is_bound():
+		_release_cabin_occupancy()
+		unbind_network_remote_body()
+		return
+	var scene := ember_streaming_bootstrap.get_loaded_instance()
+	var policy := _network_ember_passenger_gravity_policy()
+	if policy == null:
+		_release_cabin_occupancy()
+		unbind_network_remote_body()
+		return
+	_network_client_ember_passenger_surface = {
+		"session_id": network_session.get_instance_id(), "journey_epoch": epoch,
+		"body_id": player.get_instance_id(), "craft_id": craft.get_instance_id(),
+		"entity_id": _network_remote_body_intent_source.get_entity_id(),
+		"entity_generation": _network_remote_body_intent_source.get_entity_generation(),
+		"scene_id": scene.get_instance_id(), "policy": policy, "cabin_gravity": player.gravity_multiplier,
+	}
+	if is_instance_valid(area) and area.get_reservation_token() == player:
+		area.release_reservation(player)
+	_boarding_area = null
+	_clear_boarding_confirmation_reservation()
+	player.clear_cabin_containment()
+	craft.set_canopy_open(true, ShipCabinHatch.MOTION_SECONDS)
+	phase = Phase.APPROACH_SHIP
+	var frame := craft.get_moving_interior_component() as MovingInteriorFrame
+	var predicted := frame.bind_local_prediction(player, _network_client_peer_id(),
+		Callable(self, "_network_local_ember_passenger_prediction_is_current").bind(_network_client_ember_passenger_surface))
+	if not bool(predicted.get("accepted", false)):
+		_retire_network_client_ember_passenger_surface()
+		return
+	hud.set_mode("on-foot")
+	hud.set_objective("Walk the supported caldera; return through the hatch after the saved relay survey")
+
+
 func _release_network_client_boarding_presentation(
 	craft: HeroShip, area: ShipBoardingArea
 ) -> void:
+	_retire_network_client_ember_passenger_surface()
 	_restore_network_client_helm_input_sources(craft)
 	var was_pilot := StringName(_network_client_boarding_claim.get("role", &"")) \
 		== NetworkBoardingIntentType.ROLE_PILOT
@@ -13307,6 +13595,7 @@ func _abandon_network_client_boarding_request() -> void:
 ## left behind: a player standing in a cabin is recovered by the same
 ## moving-interior retirement the session stop already runs.
 func _abort_network_client_boarding(reason: StringName) -> Dictionary:
+	_retire_network_client_ember_passenger_surface()
 	_restore_network_client_helm_input_sources()
 	var had_request := not _network_client_boarding_request.is_empty()
 	# Nothing outlives the session that granted it, so an abandoned request is
@@ -13343,6 +13632,16 @@ func get_network_client_boarding_audit() -> Dictionary:
 ## the current body. Later predicted movement and current velocity survive;
 ## the intent source rebases its retained newer samples without input replay.
 func _advance_network_remote_body_intent_stream() -> void:
+	if not _network_client_ember_passenger_surface.is_empty():
+		if not _network_client_ember_passenger_surface_is_current():
+			_retire_network_client_ember_passenger_surface()
+			return
+		var multiplier := _network_ember_passenger_gravity(player.global_position,
+			_network_client_ember_passenger_surface.policy as PlanetarySurfaceGravityPolicy)
+		if not is_finite(multiplier) or multiplier <= 0.0:
+			_retire_network_client_ember_passenger_surface()
+			return
+		player.gravity_multiplier = multiplier
 	if _network_session_mode != &"client" \
 			or _network_remote_body_intent_source == null \
 			or not _network_remote_body_intent_source.is_bound() \
@@ -13354,6 +13653,16 @@ func _advance_network_remote_body_intent_stream() -> void:
 	var peer_id := network_session.multiplayer.get_unique_id()
 	if peer_id <= 1:
 		return
+	var hatch_intent := false
+	if player.is_control_enabled() and not player.is_seated() and Input.is_action_just_pressed("interact") \
+			and _network_client_boarding_request.is_empty() and is_instance_valid(_cabin_ship):
+		var epoch := int(get_network_planetary_journey_snapshot().get("journey_epoch", 0))
+		var hatch := _cabin_ship.get_node_or_null(^"WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+		if _network_client_ember_surface_scene_is_current(_cabin_ship, epoch) and is_instance_valid(hatch) \
+				and player.get_nearby_interactables().has(hatch) \
+				and player.get_interaction_origin().distance_to(hatch.global_position) <= ShipCabinHatch.MAX_REACH:
+			var requested := _request_network_client_boarding(_cabin_ship, _boarding_area)
+			hatch_intent = bool(requested.get("accepted", false))
 	var move_axis := Vector2.ZERO
 	var run := false
 	if player.is_control_enabled() and not player.is_seated():
@@ -13361,7 +13670,7 @@ func _advance_network_remote_body_intent_stream() -> void:
 		run = Input.is_action_pressed("sprint_boost")
 		if Input.is_action_just_pressed("jump"):
 			_network_remote_body_intent_source.request_jump()
-	if player.is_control_enabled() and Input.is_action_just_pressed("interact"):
+	if player.is_control_enabled() and Input.is_action_just_pressed("interact") and not hatch_intent:
 		_network_remote_body_intent_source.request_interaction()
 	var movement_tick := network_session.get_moving_interior_latest_server_tick()
 	if movement_tick >= 0:

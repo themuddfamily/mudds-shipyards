@@ -16,6 +16,10 @@ var _navigator := false
 var _gunner := false
 var _gunner_shots := 0
 var _navigator_cues: Array[StringName] = []
+# Additional real landing + authored survey stages use the existing shared
+# success route's overall budget. All default waits and stage caps stay intact.
+const EMBER_SURFACE_TOTAL_SECONDS := 2400.0
+var _ember_surface := false
 var _shared_cruise := false
 var _readiness_pressure_epoch := 0
 var _host_loadmaster_flight := false
@@ -32,6 +36,8 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_ember_surface = "--ember-surface" in args
+	args.erase("--ember-surface")
 	_shared_cruise = _shared_cruise or "--shared-cruise" in args
 	args.erase("--shared-cruise")
 	_host_gunner_flight = "--host-gunner-flight" in args
@@ -80,7 +86,12 @@ func _run() -> void:
 	if _gunner:
 		_craft.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3): _gunner_shots += 1)
 	_write(_role + ".main_ready", {})
-	if _shared_cruise:
+	if _ember_surface:
+		if _role == "host":
+			await _ember_surface_host()
+		else:
+			await _ember_surface_client()
+	elif _shared_cruise:
 		if _role == "host":
 			await _shared_host()
 		else:
@@ -103,6 +114,7 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _orchestrate() -> void:
+	var ember_deadline := Time.get_ticks_msec() + int(EMBER_SURFACE_TOTAL_SECONDS * 1000.0)
 	_directory = "/tmp/mudds-passenger-peers-%d" % OS.get_process_id()
 	DirAccess.make_dir_recursive_absolute(_directory)
 	_port = 26000 + OS.get_process_id() % 15000
@@ -136,6 +148,12 @@ func _orchestrate() -> void:
 			finished = await _wait_file("host.done", 60.0) and finished
 			if peers.has("observer"):
 				finished = await _wait_file("observer.done", 60.0) and finished
+		elif _ember_surface:
+			var remaining := maxf(0.0, float(ember_deadline - Time.get_ticks_msec()) / 1000.0)
+			finished = int(peers.client) > 0 and await _wait_file("client.done", remaining)
+			if finished:
+				remaining = maxf(0.0, float(ember_deadline - Time.get_ticks_msec()) / 1000.0)
+				finished = await _wait_file("host.done", minf(60.0, remaining))
 		else:
 			finished = int(peers.client) > 0 and await _wait_file("client.done", 120.0)
 			if finished:
@@ -169,6 +187,8 @@ func _orchestrate() -> void:
 		push_error(failure)
 	print("PASSENGER_PEER_ARTIFACTS: ", _directory)
 	print("HALYARD_NETWORK_PASSENGER_ROUTE: %d checks, %d failures" % [_checks, _failures.size()])
+	if _ember_surface and _failures.is_empty():
+		print("HALYARD_NETWORK_EMBER_PASSENGER_TERRAIN_OK checks=%d" % _checks)
 	quit(0 if _failures.is_empty() else 1)
 
 func _abort_peer(role: String) -> void:
@@ -205,6 +225,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if not _package_under_test.is_empty():
 		args.append_array(["--main-pack", _package_under_test])
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
+	if _ember_surface:
+		args.append("--ember-surface")
 	if _shared_cruise:
 		args.append("--shared-cruise")
 	if _cinder:
@@ -890,7 +912,7 @@ func _walk(target_local: Vector3) -> void:
 		var axis := Vector2(direction.dot(right), -direction.dot(forward))
 		# Slow an ordinary analog walk near the authored pose. At low render
 		# cadence several real physics steps can run between input refreshes.
-		if _cinder or _host_gunner_flight or _shared_cruise:
+		if _cinder or _host_gunner_flight or _shared_cruise or _ember_surface:
 			axis *= clampf(delta.length() / 1.5, 0.6, 1.0)
 		for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
 			Input.action_release(action)
@@ -922,15 +944,15 @@ func _print_walk_support(boundary: String, target: Vector3) -> void:
 	print("PASSENGER_WALK_SUPPORT: role=", _role, " boundary=", boundary, " wall=", Time.get_unix_time_from_system(), " ticks=", Engine.get_physics_frames(), " local=", _craft.to_local(_player.global_position), " target=", target, " floor=", _player.is_on_floor(), " velocity=", _player.velocity, " controls=", _player.is_control_enabled(), " containment=", _player.get_cabin_containment_report(), " registered=", frame.is_occupant_registered(_player), " authority=", frame.is_simulation_authority_for(_player), " prediction=", frame._local_prediction_is_current(_player), " admission=", _game._network_local_cabin_prediction_is_current(_player, _craft, _game.network_session), " source=", source.get_audit() if source != null else {}, " relationship=", _game.network_session.get_moving_interior_latest_relationship(source.get_entity_id()) if source != null else {})
 
 func _look(target: Vector3) -> void:
-	var target_local := _craft.to_local(target) if _host_gunner_flight or _shared_cruise else Vector3.ZERO
+	var target_local := _craft.to_local(target) if _host_gunner_flight or _shared_cruise or _ember_surface else Vector3.ZERO
 	for _index in 4:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			var click := InputEventMouseButton.new()
 			click.button_index = MOUSE_BUTTON_LEFT
 			click.pressed = true
 			_player._unhandled_input(click)
-		var current_target := _craft.to_global(target_local) if _host_gunner_flight or _shared_cruise else target
-		var desired := _player.global_basis.inverse() * (current_target - (_player.get_interaction_origin() if _navigator or _shared_cruise else _player.get_camera().global_position)).normalized()
+		var current_target := _craft.to_global(target_local) if _host_gunner_flight or _shared_cruise or _ember_surface else target
+		var desired := _player.global_basis.inverse() * (current_target - (_player.get_interaction_origin() if _navigator or _shared_cruise or _ember_surface else _player.get_camera().global_position)).normalized()
 		var current := _player.global_basis.inverse() * _player.get_interaction_direction().normalized()
 		var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
 		var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
@@ -988,7 +1010,7 @@ func _ticks(count: int) -> void:
 		await process_frame
 
 func _wait_file(name: String, seconds: float) -> bool:
-	var result := await _until(func(): return FileAccess.file_exists(_directory.path_join(name)) or (name in ["host.ready", "host.rebased"] and FileAccess.file_exists(_directory.path_join("host.done"))), seconds)
+	var result := await _until(func(): return FileAccess.file_exists(_directory.path_join(name)) or ((name in ["host.ready", "host.rebased"] or (_ember_surface and name.begins_with("host."))) and FileAccess.file_exists(_directory.path_join("host.done"))), seconds)
 	result = result and FileAccess.file_exists(_directory.path_join(name))
 	_check(result, "peer boundary arrives: " + name)
 	return result
@@ -1022,6 +1044,240 @@ func _check(condition: bool, description: String) -> void:
 	_checks += 1
 	if not condition:
 		_failures.append("FAIL: " + description)
+
+## Two actual ENet peers: an admitted passenger keeps its authoritative body
+## while walking the supported caldera patch. The host alone performs the real
+## authored survey; its durable manifest admits the ordinary same-body return.
+func _ember_surface_host() -> void:
+	_check(_game.host_network_session(_port).accepted, "terrain host starts actual ENet session")
+	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.to_global(Vector3(-3.10, 0.0, HalyardCrewTransport.AIRSTAIR_Z))))
+	await _ticks(15)
+	var hatch := _craft.get_node("WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+	await _look(hatch.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return _craft.is_canopy_open(), 5.0), "ordinary host hatch opens real airstair")
+	await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _walk(Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	_write("host.ready", {})
+	if not await _wait_file("client.cabin", 60.0):
+		return
+	var peer := int(_read("client.cabin").get("peer_id", 0))
+	var avatar := _game.network_client_boarding_avatar_id(peer)
+	var simulation := _game.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	_check(is_instance_valid(body), "confirmed passenger has actual authoritative standing body")
+	if not is_instance_valid(body):
+		return
+	var body_id := body.get_instance_id()
+	var generation := int(simulation.get_body_record(avatar).get("entity_generation", 0))
+	var admissions := int(simulation.get_audit().get("admitted", 0))
+	var pilot := _craft.get_pilot_seat_anchor()
+	await _walk(Vector3(0.0, 0.52, -9.2))
+	await _walk(_craft.to_local(pilot.global_position) + Vector3(-0.6, 0.0, 0.6))
+	await _look(pilot.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return _game._piloting and _player.is_seated_at(pilot) and not _game._transition_busy, 12.0), "ordinary host cockpit owns real pilot seat")
+	if not _game._piloting:
+		return
+	var commands := _craft.get_command_source()
+	# Only the initial flight envelope is staged, as in the existing shared
+	# surface fixture. No body/receipt/lease/state is injected after engagement.
+	var frame := _game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	var destination: Vector3 = frame.orbital_to_world_streaming_position(
+		_game.planetary_cruise_binding.get_snapshot().canonical_destination_orbital, frame.get_generation()).position
+	_craft.global_position = destination + Vector3.BACK * 500.0
+	_craft.global_basis = Basis.looking_at((destination - _craft.global_position).normalized(), Vector3.UP)
+	_craft.velocity = Vector3.ZERO
+	_game._sortie_departed_berth = true
+	_game.phase = GameFlow.Phase.FREE_FLIGHT
+	_write("host.flight_started", {})
+	_game.hud.planetary_cruise_toggle_requested.emit(_game._last_hud_planetary_cruise_toggle_serial + 1)
+	_check(_game.get_network_planetary_journey_snapshot().get("phase") in [&"preparing", &"cruising"],
+		"ordinary HUD prepares shared cruise with real admitted passenger")
+	var journey = _game.get("_planetary_journey")
+	var host := _game.ember_surface_loop_host
+	var production := _game.ember_surface_loop_production_binding
+	_check(await _until(func(): return journey.shared_ember_surface_is_current(), 120.0), "genuine typed approach and supported landing admit shared visit")
+	if not journey.shared_ember_surface_is_current():
+		return
+	_check(host._landed_public_state_is_exact(), "actual Host occupancy, lease and solid hull support remain exact")
+	_check(await _until(func(): return host.get_phase() == EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 20.0), "Host physically disembarks standing pilot")
+	_write("host.landed", {})
+	if not await _wait_file("client.terrain", 20.0):
+		return
+	_check(simulation.get_body(avatar) == body and body.get_instance_id() == body_id
+		and simulation.is_surface_walking(avatar) and _game._network_ember_passenger_surface_is_current(avatar)
+		and not bool(body.get_cabin_containment_report().get("active", false))
+		and body.is_on_floor() and not body.is_seated(), "confirmed departure keeps same supported authoritative exterior body")
+	if not await _wait_file("client.return_refused", 20.0):
+		return
+	_check(_game.get_network_remote_body_audit().get("last_hatch_status") == &"surface_body_retained"
+		and simulation.is_surface_walking(avatar) and not journey._ember_survey_return_is_admitted(production.get_snapshot()),
+		"early ordinary return refuses before genuine survey without admitting a new body")
+	var landing := _game.ember_streaming_bootstrap.get_loaded_instance().get_node("LandingRegion") as Node3D
+	var route := host.get_snapshot().surface_route as Dictionary
+	var bow: Array[Vector3] = [_craft.to_global(Vector3(-9.0, 0.0, -16.0)), _craft.to_global(Vector3(18.0, 0.0, -16.0))]
+	_check(await _ember_walk_world(route.egress_anchor, 20.0, bow)
+		and await _ember_walk_world(route.staging_anchor, 20.0), "host walks ordered real egress and staging within original leg caps")
+	if not _failures.is_empty():
+		return
+	_check(await _until(func(): return production.get_planetary_surface_snapshot().adapter.activity_reward.state == &"active", 4.0), "host on-foot observations start genuine authored survey")
+	_check(await _ember_walk_world(landing.to_global(Vector3(160.0, 0.0, -30.0)), 50.0), "ordinary host walk reaches actual mandatory tower")
+	_check(await _until(func(): return int(_game.activity_director.get_activity_snapshot(&"ember_beacon_survey").get("next_checkpoint_index", 0)) == 1, 4.0), "Director consumes genuine first checkpoint")
+	_check(await _ember_walk_world(landing.to_global(Vector3(540.0, 30.0, -210.0)), 100.0), "ordinary host walk reaches actual second beacon")
+	_check(await _until(func(): return production.get_planetary_surface_snapshot().adapter.activity_reward.state == &"completed", 4.0), "genuine final observation completes and saves survey")
+	if not _failures.is_empty():
+		return
+	var surface := production.get_planetary_surface_snapshot()
+	var reward: Dictionary = production.get_snapshot().relay_reward_commit
+	var store := _game._runtime_settings_user_data_store
+	var reader := UserDataStore.new(str(store.get("_path")))
+	var persistence := EmberRelaySurveyPersistenceBinding.new()
+	var configured := persistence.configure(reader, GameFlow.EMBER_RELAY_SURVEY_PERSISTENCE_SLOT)
+	var captured := persistence.capture(surface)
+	var loaded := reader.load_read_only()
+	var saved := reader.get_snapshot()
+	var ledger := saved.get("game_flow_reward_store", {}) as Dictionary
+	_check(configured.accepted and captured.accepted and loaded.accepted
+		and reader.get_loaded_source() == &"primary" and reader.get_generation() == store.get_generation()
+		and saved.get("ember_relay_survey_completion", {}) == captured.record
+		and int(reward.authority_commit_count) == 1 and int(reward.persistence_commit_count) == 1
+		and int(ledger.get("total_receipts", 0)) == 1
+		and int((ledger.get("reward_counts", {}) as Dictionary).get("ember_beacon_data", 0)) == 1,
+		"independent disk read retains actual completed survey and exactly one reward")
+	_check(await _until(func(): return journey._ember_survey_return_is_admitted(production.get_snapshot()), 4.0), "host current durable survey manifest admits ordinary passenger return")
+	if not _failures.is_empty():
+		return
+	var saved_generation := store.get_generation()
+	_write("host.return_ready", {})
+	if not await _wait_file("client.reboarded", 20.0):
+		return
+	_check(simulation.get_body(avatar) == body and body.get_instance_id() == body_id
+		and int(simulation.get_body_record(avatar).get("entity_generation", -1)) == generation
+		and int(simulation.get_audit().get("admitted", -1)) == admissions
+		and not simulation.is_surface_walking(avatar)
+		and bool(body.get_cabin_containment_report().get("active", false)) and body.is_on_floor(),
+		"ordinary manifest-gated hatch return restores containment on same host body without readmission")
+	_check(_craft.get_command_source() != null and _game._piloting and not _player.is_seated()
+		and (_game.network_session.get_boarding_snapshot().get("occupancies", []) as Array).any(func(held: Dictionary): return int(held.get("peer_id", 0)) == peer and held.get("role") == GameFlow.NETWORK_CABIN_BERTH_ROLE),
+		"returning passenger owns only cabin berth while standing host retains pilot ledger")
+	_write("host.reboard_seen", {})
+	if not await _wait_file("client.disconnected", 20.0):
+		return
+	_check(await _until(func(): return simulation.get_body_count() == 0 and _game._network_ember_passenger_surfaces.is_empty(), 5.0), "actual exterior peer disconnect retires body and surface lifetime")
+	_check(store.get_generation() == saved_generation and int(production.get_snapshot().relay_reward_commit.persistence_commit_count) == 1,
+		"passenger departure, return and disconnect cannot write another host reward")
+	_check(commands == host.get("_original_command_source"), "passenger route preserves original pilot command owner")
+
+func _ember_surface_client() -> void:
+	_check(_game.join_network_session("127.0.0.1", _port).accepted, "independent terrain client joins actual host")
+	if not await _until(_admitted_session_ready, 60.0):
+		_check(false, "terrain passenger receives authenticated admission")
+		return
+	# Existing initial yard hatch staging; every landed exterior step below is Input.
+	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.get_boarding_position() + Vector3.UP * 0.05))
+	await _ticks(10)
+	await _press(&"interact")
+	_check(await _until(func(): return _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _game.get_network_remote_body_intent_source() != null and not _game._transition_busy, 12.0), "ordinary passenger boarding confirms actual walking body")
+	var source := _game.get_network_remote_body_intent_source()
+	if source == null:
+		return
+	var body_id := _player.get_instance_id()
+	await _walk(Vector3(-1.3, 0.52, -5.8))
+	_write("client.cabin", {"peer_id": _game.network_session.multiplayer.get_unique_id()})
+	if not await _wait_file("host.flight_started", 20.0) or not await _wait_file("host.landed", 120.0):
+		return
+	var epoch := int(_game.get_network_planetary_journey_snapshot().get("journey_epoch", 0))
+	_check(await _until(func(): return _game._network_client_ember_surface_scene_is_current(_craft, epoch), 12.0), "authenticated landed state and real loaded surface select exterior route")
+	var hatch := _craft.get_node("WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+	await _walk(Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _look(hatch.global_position)
+	var before := source.get_audit()
+	await _press(&"interact")
+	_check(await _until(func(): return _game._network_client_ember_passenger_surface_is_current(), 12.0), "ordinary hatch press waits for host-confirmed exterior departure")
+	if not _game._network_client_ember_passenger_surface_is_current():
+		return
+	var retired_prediction := Callable(_game, "_network_local_ember_passenger_prediction_is_current").bind(_game._network_client_ember_passenger_surface)
+	_check(_player.get_instance_id() == body_id and _game.get_network_remote_body_intent_source() == source
+		and source.get_audit().stream_id == before.stream_id and source.get_audit().entity_generation == before.entity_generation
+		and not bool(_player.get_cabin_containment_report().get("active", false)), "departure retains local body, entity generation and predictor stream without placement")
+	await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _walk(Vector3(-8.0, 0.0, HalyardCrewTransport.AIRSTAIR_Z))
+	_check(_player.is_on_floor() and _game._network_client_ember_passenger_surface_is_current()
+		and _craft.to_local(_player.global_position).x < -5.0 and source.get_audit().sequence > before.sequence,
+		"ordinary Input walks same supported body down airstair onto real caldera patch")
+	_write("client.terrain", {})
+	# Walk back physically before asking; the manifest, rather than proximity,
+	# must still refuse this supported same-body return before the host survey.
+	await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _walk(Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _look(hatch.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return _game.get_network_client_boarding_audit().get("last_status") == &"surface_survey_return_pending", 12.0)
+		and _game._network_client_ember_passenger_surface_is_current() and source.is_bound()
+		and not _game._network_client_boarding_holds(_craft), "early ordinary hatch return is refused by actual durable survey gate")
+	_write("client.return_refused", {})
+	if not await _wait_file("host.return_ready", 240.0):
+		return
+	before = source.get_audit()
+	await _look(hatch.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return _game._network_client_boarding_holds(_craft) and _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN, 12.0), "ordinary hatch return confirms cabin only after host saved survey manifest")
+	_check(_player.get_instance_id() == body_id and _game.get_network_remote_body_intent_source() == source
+		and source.get_audit().stream_id == before.stream_id and source.get_audit().entity_generation == before.entity_generation
+		and source.get_audit().sequence > before.sequence
+		and bool(_player.get_cabin_containment_report().get("active", false))
+		and not _player.is_seated() and not _game._piloting,
+		"return retains same actual body, ordered predictor and passenger authority")
+	_write("client.reboarded", {})
+	if not await _wait_file("host.reboard_seen", 20.0):
+		return
+	# A second genuine hatch exit leaves the same exterior lifetime active at
+	# actual disconnect, so cleanup tests the new route rather than cabin cleanup.
+	await _look(hatch.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return _game._network_client_ember_passenger_surface_is_current(), 12.0)
+		and not bool(retired_prediction.call()), "second ordinary exit retains body without reviving first departure admission")
+	await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _walk(Vector3(-8.0, 0.0, HalyardCrewTransport.AIRSTAIR_Z))
+	var stale := Callable(_game, "_network_local_ember_passenger_prediction_is_current").bind(_game._network_client_ember_passenger_surface)
+	var surface_position := _player.global_position
+	_game.shutdown_network_session(&"terrain_passenger_disconnect")
+	_check(not source.is_bound() and _game._network_client_ember_passenger_surface.is_empty()
+		and not bool(stale.call()) and _player.is_control_enabled()
+		and _player.global_position.distance_to(surface_position) < 0.01,
+		"actual disconnect retires predictor and stale admission without a Mudds teleport")
+	_write("client.disconnected", {})
+
+func _ember_walk_world(target: Vector3, seconds: float, via: Array[Vector3] = []) -> bool:
+	var waypoints: Array[Vector3] = via.duplicate()
+	waypoints.append(target)
+	var index := 0
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		var delta := (waypoints[index] - _player.global_position).slide(_player.up_direction)
+		if delta.length() <= 1.5:
+			if index == waypoints.size() - 1:
+				_ember_release_walk()
+				return true
+			index += 1
+			continue
+		var camera := _player.get_node("%CameraYaw") as Node3D
+		var forward := -camera.global_basis.z.slide(_player.up_direction).normalized()
+		var right := camera.global_basis.x.slide(_player.up_direction).normalized()
+		var direction := delta.normalized()
+		var axes := Vector2(direction.dot(right), -direction.dot(forward))
+		_ember_release_walk()
+		Input.action_press(&"move_right" if axes.x > 0.0 else &"move_left", absf(axes.x))
+		Input.action_press(&"move_back" if axes.y > 0.0 else &"move_forward", absf(axes.y))
+		await physics_frame
+	_ember_release_walk()
+	print("EMBER_PASSENGER_WALK_FAILED: role=", _role, " position=", _player.global_position, " waypoint=", waypoints[index], " floor=", _player.is_on_floor())
+	return false
+
+func _ember_release_walk() -> void:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+		Input.action_release(action)
 
 # Shared Ember orbit: actual Main, independent Input/frame clocks, two physical
 # cabin admissions before cruise and a third observer joining after origin shift.
