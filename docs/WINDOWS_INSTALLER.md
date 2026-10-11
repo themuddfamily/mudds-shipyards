@@ -8,7 +8,40 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `b3de8e299` — 2026-10-10
+## Latest native checkpoint `6ddf7443f` — 2026-10-11
+
+The unsigned [setup](../builds/windows/MuddsShipyards-6ddf744-setup.exe) and
+[notes](../builds/windows/MuddsShipyards-6ddf744-installer-notes.txt) are published.
+This contains the station readout, Mining and Beacon recovery work. Game/payload/
+builder source is `6ddf7443f`; verifier source is `48e95cc79b`. Newer flight/tractor
+and title-menu input hints are excluded.
+
+Setup SHA256 is `7d93446989bec1a93861ed5b759e97dcd17b47434f568995f954940ae51e36b4`
+(86,843,052 bytes); payload SHA256 is
+`a003abed2f98232b8624d2674a9884000bc5aacfb64f50467f45f1162996555d`.
+Six silent native lanes pass all 91 steps: default11 and Mining, Beacon, Hulk,
+convoy crew and Scan16 each. Installation, locked replacement refusal, update,
+rollback, startup/recovery and uninstall pass. Nondefault lanes include genuine
+owned interruption and retained unpaid progress/once-only reward checks.
+
+Actual root, bridge, observer and cleanup owners exit0/reaped. Final fresh CIM
+confirms recorded creations and temporary installations/profiles/registry/shortcuts
+absent. The 250-file real user profile and protected inputs are byte-identical.
+Independent closure review, exclusive publication and five-file readback pass.
+Retained installed logs contain zero warnings/errors; earlier package warnings
+remain disclosed in checkpoint notes. Immutable compiler metadata retains its
+build-time `native_verification: NOT_RUN`; executed acceptance is separate.
+
+The original native attempt remains failed. Its verifier assumed backup recovery
+repaired the malformed primary. The corrected verifier checks recovered settings/
+tutorial identity and backup generation while verifying that primary, backup and
+quarantine bytes remain unchanged until explicit repair.
+
+Matching newer-source installed acceptance, complete current-source regression,
+uninterrupted normal controls, native GPU/devices/audio, human review, licensing,
+trusted signing and final release remain open.
+
+## Earlier native checkpoint `b3de8e299` — 2026-10-10
 
 The matching unsigned [setup](../builds/windows/MuddsShipyards-b3de8e2-setup.exe)
 and [notes](../builds/windows/MuddsShipyards-b3de8e2-installer-notes.txt) are published.
