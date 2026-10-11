@@ -1,0 +1,17 @@
+Mudds Shipyards — Linux rebase-roster checkpoint (2026-10-11)
+Source: fbfcf6c6ae19c0924d91bd0a7451a2b4f626d459
+
+Common-world origin shifts now reuse a cached roster structure while checking live participants and rollback conditions for each transaction. Shared Ember orbit retains authenticated readiness/cancellation, ordinary crew walking and physical Interact/seat access across an origin shift, and a late observer. Loading also guards Cinder production detachment.
+
+Actual validation:
+- Fresh clean-source cold Linux release export and embedded PCK inventory passed with zero cache copies.
+- Source/PCK checks each passed: loading screen 137, body intent 46, extended Main origin journey 77, moving frame 121, Cinder interaction 47, solo cruise 37, network adapter 94. Normal passenger source 67/package 70 and shared cruise source 115/package 120 passed: 1490 focused assertions.
+- Four standard embedded-PCK probes passed 223 assertions/zero diagnostics: 1713 total.
+- Direct ELF and byte-identical archive-extracted ELF strict --startup-check each exited 0 with exactly one STARTUP_MENU_READY_OK and mouse_free_during_load=true.
+- Private-XDG desktop helper install/reinstall/uninstall/repeated uninstall passed, preserving seeded saves/settings without launching game or desktop handlers.
+- Automated Godot used Dummy audio and headless or authenticated private X11/Mesa llvmpipe displays. Actual tool 34748 exited 0 and was consumed/reaped; all 210 captured creation identities freshly absent. Exact source/index/cache/builds/protected helpers/inputs/PCK SHA256+MD5/archive member bytes/hash/modes/extraction guards passed.
+- All 26 original loading-fixture settings_missing and software VSync warning lines remain in raw records. Earlier namespace-admission and missing-inventory-helper failures are preserved in their original base; this fresh reviewed workflow includes the helper and treats the old full-suite namespace as TERMINAL_CLOSED.
+
+Run: extract the tar.gz and launch MuddsShipyards-fbfcf6c.x86_64. Optional desktop entry: run install-desktop-entry.sh in the extracted directory; remove with --uninstall.
+
+Limits: full planetary arrival/surface handoff/Aurora/Rime journeys, native GPU performance, physical controls/devices, audible output, graphical desktop launch, human gameplay/visual/audio review, installed recovery, complete final-source regression and trusted signing remain NOT_RUN. The older full-suite run ended 1036 PASS/2 FAIL; this focused qualification does not erase those failures or close a phase exit gate. Software-renderer results do not qualify native hardware performance.
