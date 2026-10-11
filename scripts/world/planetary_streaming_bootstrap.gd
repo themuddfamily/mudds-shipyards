@@ -257,6 +257,11 @@ func get_loaded_instance() -> Node3D:
 		if _configured and is_instance_valid(_coordinator) else null
 
 
+## Current coordinator generation without constructing the bootstrap diagnostics.
+func get_location_generation() -> int:
+	return _current_location_generation()
+
+
 ## Test/integration seam matching WorldStreamingCoordinator. Replacement is
 ## allowed only before the first load attempt while this bootstrap owns a live
 ## scene-tree lifecycle.

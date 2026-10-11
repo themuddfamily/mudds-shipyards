@@ -2993,13 +2993,15 @@ func _dependency_failure_reason() -> StringName:
 	if is_instance_valid(_frame) \
 			and _frame.get_generation() != _coordinate_frame_generation:
 		return &"stale_coordinate_frame_generation"
-	var bootstrap_snapshot := _bootstrap.get_snapshot()
-	if int(bootstrap_snapshot.get("location_generation", -1)) \
+	var loaded_instance := _bootstrap.get_loaded_instance()
+	var loaded_instance_id := loaded_instance.get_instance_id() \
+		if is_instance_valid(loaded_instance) else 0
+	if _bootstrap.get_location_generation() \
 			!= _location_generation \
-			or int(bootstrap_snapshot.get("loaded_instance_id", 0)) \
+			or loaded_instance_id \
 			!= _loaded_scene_instance_id \
 			or not _node_is_current(_scene) \
-			or _bootstrap.get_loaded_instance() != _scene \
+			or loaded_instance != _scene \
 			or int(_scene.get_meta(LOCATION_GENERATION_META, -1)) \
 			!= _location_generation:
 		return &"stale_loaded_scene_generation"

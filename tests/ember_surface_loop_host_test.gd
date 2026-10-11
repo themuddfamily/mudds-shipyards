@@ -15,6 +15,14 @@ var _failures := PackedStringArray()
 var _original_time_scale := 1.0
 
 
+class CountingBootstrap:
+	extends EmberMoonStreamingBootstrap
+	var snapshot_reads := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_snapshot()
+
+
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -1286,15 +1294,34 @@ func _test_exact_generation_and_loaded_root_freshness() -> void:
 	)
 	await _cleanup(fixture)
 
-	fixture = await _fixture()
+	fixture = await _fixture(true, false, true, ARROW_SCENE, true)
 	if fixture.is_empty():
 		return
 	host = fixture.host as EmberSurfaceLoopHost
-	var bootstrap := fixture.bootstrap as EmberMoonStreamingBootstrap
+	var bootstrap := fixture.bootstrap as CountingBootstrap
 	frame = fixture.frame as PlanetaryCoordinateFrame
+	var original_loaded_id := bootstrap.get_loaded_instance().get_instance_id()
+	var snapshot_reads_before := bootstrap.snapshot_reads
+	var advanced := await _tick(fixture)
+	_check(
+		bool(advanced.get("accepted", false))
+			and bootstrap.snapshot_reads == snapshot_reads_before + 1,
+		"live Host tick builds only its public bootstrap report, without a second full report for dependency scalars",
+	)
+	var diagnostic := advanced.get("bootstrap", {}) as Dictionary
+	_check(
+		bootstrap.get_location_generation() == int(diagnostic.get("location_generation", -1))
+			and int(diagnostic.get("loaded_instance_id", 0)) == original_loaded_id,
+		"focused generation and loaded identity preserve the full bootstrap report's live authority",
+	)
+	(diagnostic.coordinator.generation_by_id as Dictionary)[bootstrap.get_location_id()] = -99
+	_check(bootstrap.get_location_generation() == 1,
+		"mutating the returned full diagnostic cannot change the coordinator generation")
 	var far := _absolute(frame, Vector3(0.0, 300_001.0, 0.0))
 	_check(bootstrap.update_absolute_focus(far, frame.get_generation()).accepted, "loaded root unload advances to N+1")
 	await process_frame
+	_check(bootstrap.get_location_generation() == 2 and bootstrap.get_loaded_instance() == null,
+		"focused bootstrap queries observe the genuine N+1 unload")
 	_check(
 		host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED
 			and host.get_snapshot().terminal_reason == &"loaded_scene_detached",
@@ -1304,6 +1331,9 @@ func _test_exact_generation_and_loaded_root_freshness() -> void:
 	_check(bootstrap.update_absolute_focus(near, frame.get_generation()).accepted, "loaded root reload advances to N+2")
 	await process_frame
 	await process_frame
+	_check(bootstrap.get_location_generation() == 3
+			and bootstrap.get_location_generation() == int(bootstrap.get_snapshot().location_generation),
+		"focused generation observes the genuine N+2 reload with unchanged diagnostic semantics")
 	var replay := host.advance_physics(
 		PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
 		frame.get_generation(), 1
@@ -1937,7 +1967,8 @@ func _fixture(
 	auto_start: bool = true,
 	shared_composition_root: bool = false,
 	bind_now: bool = true,
-	ship_scene: PackedScene = ARROW_SCENE
+	ship_scene: PackedScene = ARROW_SCENE,
+	count_bootstrap_reports: bool = false
 ) -> Dictionary:
 	var world: Node3D
 	var host := EmberSurfaceLoopHost.new()
@@ -1949,7 +1980,8 @@ func _fixture(
 	else:
 		world = host
 		root.add_child(world)
-	var bootstrap := BOOTSTRAP_SCENE.instantiate() as EmberMoonStreamingBootstrap
+	var bootstrap: EmberMoonStreamingBootstrap = CountingBootstrap.new() \
+		if count_bootstrap_reports else BOOTSTRAP_SCENE.instantiate() as EmberMoonStreamingBootstrap
 	bootstrap.name = "EmberMoonStreamingBootstrap"
 	world.add_child(bootstrap)
 	var frame := bootstrap.get_coordinate_frame_for_session()
