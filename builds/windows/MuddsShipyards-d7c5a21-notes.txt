@@ -1,0 +1,15 @@
+Mudds Shipyards — Windows Halyard defensive gunner checkpoint
+Source: d7c5a21bc4da206aec2f56c22f2deecbeeccc17f
+Unsigned development alpha
+
+Walk to Halyard’s co-pilot gunner chair and Interact to sit. Aim and use the current remapped FIRE control to fire its defensive lance. Interact stands you up for cabin walking, reseating and helm return. A local gunner can serve alongside a remote pilot. Standing, walking and reseating leave the remote pilot’s engine and command stream intact.
+
+Previously delivered Cinder Navigator and live remapped interaction guidance remain available.
+
+Matching package acceptance: PASS, 1,205 checks, zero diagnostic errors and 21 warnings (20 software-driver V-Sync warnings and one settings-missing/defaults warning). Strict silent isolated startup passed with one menu-ready result and a free mouse. Actual owning process exited 0 and was consumed/reaped; source, index, cache, artifacts and embedded package remained unchanged, and all 215 captured process creations are absent. This reused the same frozen export; acceptance did not re-export or import.
+Native Windows isolated menu smoke: PASS. One menu-ready result, free mouse, exit 0, zero diagnostic errors and zero warnings. Silent headless Dummy audio; actual native owner and four bridges reaped, exact Linux and Windows process creations absent, private profile removed, base profile unchanged and menu authorization released. This is menu readiness only; later diagnostic probes are excluded.
+
+Complete current-source regression for this exact d7 source is RUNNING; final full-source qualification remains NOT_RUN until it finishes. Native GPU performance, uninterrupted native gameplay/physical controls, audible audio, human review and trusted signing remain NOT_RUN. The latest installer is the older edbeef checkpoint and does not include these later features; this loose EXE/ZIP checkpoint does not qualify an installer.
+
+EXE: 177854064 bytes
+EXE SHA256: f2d4cd50ed6d5c266669a206d99db8ab3ac8d14a9b366564cab535c5ef36c83f
