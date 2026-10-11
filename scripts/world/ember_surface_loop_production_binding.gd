@@ -2570,7 +2570,14 @@ func _physics_process(_engine_delta: float) -> void:
 			_frame.get_generation(),
 		)
 		if not bool(operation.get("accepted", false)):
-			_fail_late(operation.get("reason", &"host_start_rejected") as StringName)
+			var start_reason := operation.get("reason", &"host_start_rejected") as StringName
+			# Hero physics runs between the cruise handoff and this measured start.
+			# A speed refusal commits no Host ownership; retain the consumed serial
+			# and require a fresh envelope to pass the unchanged entry measurement.
+			if start_reason == &"approach_entry_speed_out_of_bounds":
+				_reject_late_start(start_reason)
+			else:
+				_fail_late(start_reason)
 			return
 		if _planetary_composition != null:
 			var adopted := _planetary_composition.call(

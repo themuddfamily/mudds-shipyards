@@ -223,6 +223,20 @@ class EarlyCaller:
 		queued_intent = intent_id
 
 
+## Reproduces actual speed changing after Hero physics and before the late
+## binding measures Host.start; no Host phase, receipt or ownership is supplied.
+class LateSpeedProbe:
+	extends Node
+	var ship: ArrowReconShip
+	var armed := false
+	func _ready() -> void:
+		process_physics_priority = 1
+	func _physics_process(_delta: float) -> void:
+		if armed:
+			ship.velocity = Vector3.BACK * (EmberSurfaceLoopHost.APPROACH_ENTRY_MAXIMUM_SPEED_MPS + 1.0)
+			armed = false
+
+
 class PartialReceiptHost:
 	extends EmberSurfaceLoopHost
 
@@ -312,11 +326,79 @@ func _init() -> void:
 func _run() -> void:
 	_original_time_scale = Engine.time_scale
 	Engine.time_scale = TEST_TIME_SCALE
+	await _test_speed_preflight_retry()
 	await _test_surface_adoption_rollback()
 	await _test_real_scheduler_complete_loop()
 	await _test_stale_frame_and_partial_handback_reds()
 	Engine.time_scale = _original_time_scale
 	_finish()
+
+
+func _test_speed_preflight_retry() -> void:
+	var fixture := await _real_fixture()
+	if fixture.is_empty():
+		return
+	var world := fixture.world as Node3D
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as ArrowReconShip
+	var production := EmberSurfaceLoopProductionBinding.new()
+	production.name = "EmberSurfaceLoopProductionBinding"
+	world.add_child(production)
+	_active_production = production
+	var early := EarlyCaller.new()
+	early.name = "GameFlowEarlyCaller"
+	early.production = production
+	early.streaming = fixture.origin_binding
+	early.origin_owner = fixture.origin_owner
+	early.frame = fixture.frame
+	early.host = host
+	early.ship = ship
+	early.player = fixture.player
+	world.add_child(early)
+	var speed_probe := LateSpeedProbe.new()
+	speed_probe.ship = ship
+	world.add_child(speed_probe)
+	await process_frame
+	_check(production.configure(host, 0).accepted, "speed retry fixture binds the real Host")
+	speed_probe.armed = true
+	early.enabled = true
+	await _one_physics()
+	early.enabled = false
+	var refused := production.get_snapshot()
+	var refused_host := host.get_snapshot()
+	_check(
+		early.last_prepare.accepted
+			and production.get_state() == EmberSurfaceLoopProductionBinding.State.IDLE
+			and refused.last_late_result.reason == &"approach_entry_speed_out_of_bounds"
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.IDLE
+			and host.get_generation() == 0
+			and (refused_host.approach_entry.accepted_measurement as Dictionary).is_empty()
+			and not bool(refused_host.approach_entry.command_source_installed)
+			and not bool(refused_host.approach_entry.boarding_cleanup_owned)
+			and ship.get_command_source() == fixture.original_source
+			and (fixture.area as ShipBoardingArea).get_reservation_token() == fixture.player
+			and int(refused.start_count) == 0
+			and int(refused.last_caller_serial) == 1
+			and int(refused.last_consumed_caller_serial) == 1,
+		"actual late high-speed refusal consumes its serial without starting or taking Host ownership",
+	)
+	ship.velocity = Vector3.ZERO
+	early.enabled = true
+	await _one_physics()
+	early.enabled = false
+	var started := production.get_snapshot()
+	_check(
+		early.last_prepare.accepted
+			and production.get_state() == EmberSurfaceLoopProductionBinding.State.RUNNING
+			and host.get_phase() == EmberSurfaceLoopHost.Phase.ORBIT_APPROACH
+			and host.get_generation() == 1
+			and ship.get_command_source() != fixture.original_source
+			and int(started.start_count) == 1 and int(started.advance_count) == 0
+			and int(started.last_caller_serial) == 2
+			and int(started.last_consumed_caller_serial) == 2,
+		"next current serial at valid actual speed starts the real Host exactly once",
+	)
+	await _cleanup(world)
 
 
 func _test_surface_adoption_rollback() -> void:
