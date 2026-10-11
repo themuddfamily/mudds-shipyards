@@ -22,6 +22,7 @@ func _run() -> void:
 	_test_edges_survive_between_sends()
 	_test_stamp_tracks_the_observed_server_tick()
 	_test_reconciliation_is_bounded()
+	_test_delayed_correction_preserves_newer_movement()
 	_test_rejected_opening_recovers()
 	if _failures.is_empty():
 		print("OK: network remote body intent source (%d assertions)" % _assertions)
@@ -156,7 +157,7 @@ func _test_reconciliation_is_bounded() -> void:
 	var diverge: Dictionary = source.reconcile(15, Transform3D(Basis.IDENTITY, Vector3(2.0, 0.5, 1.5)), 0.5)
 	_check(
 		bool(diverge.correct) and diverge.status == &"corrected" and float(diverge.error_m) > 1.9,
-		"a divergence past tolerance asks the caller to snap"
+		"a divergence past tolerance asks the caller to correct the historical error"
 	)
 	for tick in 400:
 		source.record_local_pose(1000 + tick, Transform3D.IDENTITY)
@@ -169,6 +170,35 @@ func _test_reconciliation_is_bounded() -> void:
 		int(audit.corrections) == 1 and not bool(audit.owns_movement_authority),
 		"the audit counts corrections and claims no movement authority"
 	)
+
+
+func _test_delayed_correction_preserves_newer_movement() -> void:
+	var source := IntentSource.new(1)
+	source.bind(&"crew_a", 1)
+	var judged := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.5, -7.9))
+	var newer := Transform3D(Basis.IDENTITY, Vector3(1.0, 0.5, -5.8))
+	source.record_local_pose(100, judged)
+	source.record_local_pose(104, newer)
+	var authoritative := judged
+	authoritative.origin.x -= 0.8
+	var correction := source.reconcile(100, authoritative)
+	var translated := newer.origin + (correction.correction_delta as Vector3)
+	_check(correction.correct and translated.is_equal_approx(Vector3(0.2, 0.5, -5.8))
+		and (translated - authoritative.origin).is_equal_approx(newer.origin - judged.origin),
+		"a delayed historical correction preserves the movement since its judged tick instead of rewinding to that old server pose")
+	var later := Transform3D(newer.basis, translated)
+	var matched := source.reconcile(104, later)
+	_check(not matched.correct and matched.status == &"within_tolerance"
+		and is_zero_approx(float(matched.error_m)) and source.get_audit().corrections == 1,
+		"the retained newer pose receives the same translation so its matching judgment cannot repeat the correction")
+	_check(not source.reconcile(100, authoritative).correct and source.get_audit().pose_history == 0,
+		"retired historical judgments remain stale after a delayed correction")
+	var escaped := Transform3D(Basis.IDENTITY, Vector3(20.0, 0.5, -5.8))
+	var clamped := Transform3D(Basis.IDENTITY, Vector3(2.6, 0.5, -5.8))
+	source.record_local_pose(108, escaped)
+	var containment := source.reconcile(108, clamped)
+	_check(containment.correct and (escaped.origin + (containment.correction_delta as Vector3)).is_equal_approx(clamped.origin),
+		"a genuine authoritative cabin-boundary correction still removes the entire out-of-bounds error")
 
 
 func _opening_reply(wire: Dictionary, result: Dictionary, server_tick: int) -> Dictionary:

@@ -32,9 +32,10 @@ extends RefCounted
 ## body was at each stamp, and `reconcile()` compares the server's published
 ## pose at a tick with the local pose at the same stamp: same physics, same
 ## input, same tick, so a divergence above the tolerance is a genuine
-## disagreement and not latency. Deliberately no input replay — the caller
-## snaps and moves on. That is the cheap, bounded prediction the moving-
-## interior latency notes ask for; anything more is a rollback system.
+## disagreement and not latency. The correction is the error at that stamp,
+## applied to the current pose so movement after the stamp survives. Newer
+## history receives the same translation to avoid applying that error twice.
+## This remains bounded prediction bookkeeping without input replay.
 
 const Intent := preload("res://scripts/network/network_movement_intent.gd")
 
@@ -62,6 +63,7 @@ var _pose_order: Array = []
 var _sent := 0
 var _corrections := 0
 var _worst_divergence := 0.0
+var _last_correction: Dictionary = {}
 var _opening_confirmed := false
 var _opening_tick := -1
 var _opening_peer := 0
@@ -92,6 +94,7 @@ func bind(entity_id: StringName, entity_generation: int, stream_id: int = -1) ->
 	_interact_latched = false
 	_pose_history.clear()
 	_pose_order.clear()
+	_last_correction.clear()
 	return _result(true, &"bound", {
 		"entity_id": _entity_id, "entity_generation": _entity_generation, "stream_id": _stream_id,
 	})
@@ -105,6 +108,7 @@ func unbind() -> Dictionary:
 	_entity_generation = 0
 	_pose_history.clear()
 	_pose_order.clear()
+	_last_correction.clear()
 	return _result(true, &"unbound")
 
 
@@ -216,6 +220,7 @@ func accept_opening_result(peer_id: int, result: Dictionary) -> Dictionary:
 	_opening_tick = -1
 	_pose_history.clear()
 	_pose_order.clear()
+	_last_correction.clear()
 	_opening_retries += 1
 	return _result(true, &"opening_retry_queued")
 
@@ -282,8 +287,9 @@ func record_local_pose(client_tick: int, frame_local_transform: Transform3D) -> 
 
 ## Compares the server's published frame-local pose at `server_tick` with the
 ## local pose recorded at the same stamp. `correct` is true when the caller
-## should snap its predicted body to `server_transform`. With no local pose on
-## record for that tick nothing can be compared and nothing is corrected.
+## should translate its CURRENT predicted body by `correction_delta`, in frame
+## coordinates. The authoritative pose describes the judged historical tick,
+## not the current body. With no local pose nothing is compared or corrected.
 func reconcile(
 	server_tick: int,
 	server_transform: Transform3D,
@@ -304,8 +310,16 @@ func reconcile(
 			kept.append(tick_variant)
 	_pose_order = kept
 	if error > tolerance_metres:
+		var correction_delta := server_transform.origin - local.origin
+		# These samples describe movement after the judged tick. Translate them
+		# with the live body so the next judgment does not repeat this error.
+		for tick_variant in _pose_order:
+			var newer: Transform3D = _pose_history[tick_variant]
+			newer.origin += correction_delta
+			_pose_history[tick_variant] = newer
 		_corrections += 1
-		return {"correct": true, "status": &"corrected", "error_m": error}
+		_last_correction = {"server_tick": server_tick, "predicted_position": local.origin, "authoritative_position": server_transform.origin, "correction_delta": correction_delta}
+		return {"correct": true, "status": &"corrected", "error_m": error, "correction_delta": correction_delta}
 	return {"correct": false, "status": &"within_tolerance", "error_m": error}
 
 
@@ -328,6 +342,7 @@ func get_audit() -> Dictionary:
 		"pose_history": _pose_history.size(),
 		"corrections": _corrections,
 		"worst_divergence_m": _worst_divergence,
+		"last_correction": _last_correction.duplicate(),
 		"owns_movement_authority": false,
 	}
 

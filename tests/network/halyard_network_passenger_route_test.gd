@@ -894,6 +894,8 @@ func _walk(target_local: Vector3) -> void:
 			await physics_frame
 		else:
 			await _ticks(1)
+	if _shared_cruise:
+		_print_walk_support("release", target_local)
 	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
 		Input.action_release(action)
 	if _cinder:

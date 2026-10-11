@@ -13339,8 +13339,9 @@ func get_network_client_boarding_audit() -> Dictionary:
 ## correction. The local `PlayerController` keeps simulating on the same input
 ## (that is the prediction); the pose it reaches at each stamp is remembered,
 ## and when the server's pose for the same stamp arrives more than
-## `NETWORK_REMOTE_BODY_CORRECTION_METRES` away, the local body is snapped to
-## it. No input replay: cheap, bounded, and honest about the jerk it costs.
+## `NETWORK_REMOTE_BODY_CORRECTION_METRES` away, its frame-local error translates
+## the current body. Later predicted movement and current velocity survive;
+## the intent source rebases its retained newer samples without input replay.
 func _advance_network_remote_body_intent_stream() -> void:
 	if _network_session_mode != &"client" \
 			or _network_remote_body_intent_source == null \
@@ -13400,9 +13401,8 @@ func _advance_network_remote_body_intent_stream() -> void:
 	var moving := frame.get_moving_frame()
 	if not is_instance_valid(moving):
 		return
-	var corrected := moving.global_transform * server_local
-	player.global_position = corrected.origin
-	player.velocity = Vector3.ZERO
+	var correction_delta: Vector3 = verdict.get("correction_delta", Vector3.ZERO)
+	player.global_position += moving.global_basis * correction_delta
 	player.reset_physics_interpolation()
 	_network_remote_body_corrections += 1
 
