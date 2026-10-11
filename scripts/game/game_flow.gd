@@ -20857,7 +20857,12 @@ func _on_hud_planetary_cruise_toggle_requested(request_serial: int) -> void:
 	_planetary_cruise_hud_toggle_active = true
 	var before := _planetary_cruise_presentation()
 	var result: Dictionary
-	if not _pending_ember_surface_request.is_empty() \
+	if _network_planetary_journey.is_active():
+		# Shared admission also retains the physical coordinator. Its transport
+		# owner must retire queued state, or refuse a started physical landing,
+		# before the ordinary solo expedition abandonment path is considered.
+		result = disengage_planetary_cruise(true)
+	elif not _pending_ember_surface_request.is_empty() \
 			or _ember_surface_journey_active:
 		# A started expedition is abandoned, not refused: the same press that
 		# opened it gives it up, and the retained owner decides whether that
@@ -22125,9 +22130,18 @@ func _planetary_cruise_public_gate_copy(reason: StringName) -> String:
 
 
 func _planetary_cruise_presentation() -> Dictionary:
-	if _network_planetary_journey.is_active() and (_network_planetary_journey.is_preparing() or _network_planetary_journey.get_snapshot().get("phase") == &"cruise_stopped"):
-		return {"status_id": &"queued", "status_text": "SHARED EMBER ORBIT — WAITING FOR CREW" if _network_planetary_journey.is_preparing() else "SHARED EMBER CRUISE STOPPED",
-			"toggle_enabled": _network_session_mode == &"server", "engagement_requested": true, "public_gate": &""}
+	if _network_planetary_journey.is_active():
+		var shared_phase := StringName(_network_planetary_journey.get_snapshot().get("phase", &""))
+		if shared_phase in [&"preparing", &"cruise_stopped", &"approaching", &"landed", &"returning"]:
+			var text := "SHARED EMBER CRUISE STOPPED"
+			match shared_phase:
+				&"preparing": text = "SHARED EMBER — WAITING FOR CREW"
+				&"approaching": text = "SHARED EMBER — CALDERA LANDING"
+				&"landed": text = "SHARED EMBER — HOST SURVEY; CREW ABOARD"
+				&"returning": text = "SHARED EMBER — RETURNING TO MUDDS"
+			return {"status_id": &"queued", "status_text": text,
+				"toggle_enabled": _network_session_mode == &"server" and (shared_phase in [&"preparing", &"cruise_stopped"] or _planetary_journey.shared_ember_surface_is_current()),
+				"engagement_requested": true, "public_gate": &""}
 	if _planetary_journey.is_return_departure_pending():
 		# The retained destination is cancelable before the physical controller
 		# starts. This presentation flag is not a claim of ship engagement.
@@ -22225,7 +22239,7 @@ func _planetary_cruise_presentation() -> Dictionary:
 					status_text = (
 						"READY — RETURN TO MUDDS"
 						if _planetary_journey.stranded_return_available()
-						else ("READY — SHARED EMBER ORBIT" if _network_session_is_live() else "READY — EMBER MOON")
+						else ("READY — SHARED EMBER LANDING" if _network_session_is_live() else "READY — EMBER MOON")
 					)
 					toggle_enabled = true
 				else:
@@ -22316,7 +22330,7 @@ func _make_planetary_destination_catalog_snapshot(presentation: Dictionary) -> D
 	var surface_visits := _surface_visit_runtime_states()
 	var ember_presentation := presentation.duplicate(true)
 	if _network_session_is_live():
-		ember_presentation = {"status_id": &"unavailable", "status_text": "SURFACE EXPEDITION — SOLO ONLY; SHARED ORBIT IN FLIGHT MENU", "toggle_enabled": false, "engagement_requested": false}
+		ember_presentation = {"status_id": &"unavailable", "status_text": "SURFACE EXPEDITION — SOLO ONLY; SHARED LANDING IN FLIGHT MENU", "toggle_enabled": false, "engagement_requested": false}
 	var snapshot := _planetary_destination_catalog.get_presentation_snapshot({
 		EMBER_DESTINATION_ID: {
 			"status_id": StringName(ember_presentation.get("status_id", &"unavailable")),

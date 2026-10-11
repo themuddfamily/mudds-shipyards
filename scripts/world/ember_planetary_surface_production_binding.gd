@@ -68,6 +68,7 @@ enum State { IDLE, BOUND, DETACHED }
 enum CueFrame { BODY, REGION }
 
 var _state := State.IDLE
+var _lifecycle_gate := Callable()
 var _host: Object
 var _host_generation := -1
 var _attachment_generation := -1
@@ -146,7 +147,8 @@ func configure(
 		reward_sink: Callable,
 		expected_generation: int = 0,
 		service_repair_sink: Callable = Callable(),
-		expedition_reward_sink: Callable = Callable()
+		expedition_reward_sink: Callable = Callable(),
+		lifecycle_gate: Callable = Callable()
 	) -> Dictionary:
 	if _state != State.IDLE or host == null or not is_instance_valid(host):
 		return _result(false, &"composition_unavailable")
@@ -156,6 +158,7 @@ func configure(
 	if generation != expected_generation and expected_generation != 0:
 		return _result(false, &"stale_host_generation")
 	_host = host
+	_lifecycle_gate = lifecycle_gate
 	_surface_cues.clear()
 	_host_generation = generation
 	_attachment_generation = int(host.call(&"get_attachment_generation"))
@@ -689,7 +692,13 @@ func retire_interrupted_relay_survey_journey(
 	) as Dictionary
 
 func abort_relay_survey(reason: StringName = &"caller_evidence_lost") -> Dictionary:
-	if not _live(): return _result(false, &"composition_detached")
+	# Cleanup may terminalize this exact owned activity after its work gate has
+	# been revoked by abandonment/session loss. It never reopens start, progress,
+	# persistence or reward; the adapter still checks the live on-foot Host and
+	# both runtime generations before failing the Director's activity.
+	if _state != State.BOUND or not _host_current() \
+			or int(_host.call(&"get_attachment_generation")) != _attachment_generation:
+		return _result(false, &"composition_detached")
 	var result := _adapter.call(&"abort_activity", reason) as Dictionary
 	_refresh_sample_rack_presentation()
 	return result
@@ -1805,7 +1814,7 @@ func _bind_relay_survey_pad_guides(host: Object) -> void:
 
 
 func _on_survey_interaction_completed(receipt: Dictionary) -> void:
-	if _relay_survey == null or _adapter == null:
+	if not _live() or _relay_survey == null or _adapter == null:
 		return
 	var result := _relay_survey.call(
 		&"submit_optional_checkpoint", _adapter, receipt
@@ -1820,7 +1829,7 @@ func _on_survey_interaction_completed(receipt: Dictionary) -> void:
 
 
 func _sample_rack_activity_is_current(expected_activity_generation: int) -> bool:
-	if _relay_survey == null or _adapter == null:
+	if not _live() or _relay_survey == null or _adapter == null:
 		return false
 	var adapter_snapshot: Dictionary
 	if _adapter.has_method(&"get_state_id") and _adapter.has_method(&"get_activity_reward_snapshot"):
@@ -1839,7 +1848,7 @@ func _sample_rack_activity_is_current(expected_activity_generation: int) -> bool
 
 
 func _submit_sample_rack_optional_checkpoint(receipt: Dictionary) -> Dictionary:
-	if _relay_survey == null or _adapter == null:
+	if not _live() or _relay_survey == null or _adapter == null:
 		return {"accepted": false, "reason": &"relay_survey_unavailable"}
 	return _relay_survey.call(&"submit_optional_checkpoint", _adapter, receipt)
 
@@ -2099,7 +2108,8 @@ func _landing_marker_snapshot() -> Dictionary:
 
 
 func _live() -> bool:
-	return _state == State.BOUND and _host_current()
+	return _state == State.BOUND and _host_current() \
+		and (_lifecycle_gate.is_null() or (_lifecycle_gate.is_valid() and bool(_lifecycle_gate.call())))
 
 
 func _host_current() -> bool:
