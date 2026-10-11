@@ -50,7 +50,10 @@ func _test_active_device_interactions(hud: GameHUD) -> void:
 	var profile := defaults.duplicate_profile()
 	var keyboard_binding := [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_TAB}]
 	var mouse_binding := [{"device": &"mouse", "type": &"mouse_button", "button_index": MOUSE_BUTTON_MIDDLE}]
-	var controller_binding := [{"device": &"gamepad", "type": &"joy_button", "button_index": JOY_BUTTON_A}]
+	var controller_binding: Array[Dictionary] = []
+	for binding: Dictionary in defaults.get_bindings(&"interact"):
+		if StringName(binding.get("device", &"")) == &"gamepad":
+			controller_binding.append(binding)
 	for intent: String in ["START COASTAL SURVEY", "LOG BUNKER / GANTRY SURVEY"]:
 		hud.set_interaction("[ E ]  " + intent, true)
 		profile.set_bindings(&"interact", keyboard_binding)
@@ -66,7 +69,7 @@ func _test_active_device_interactions(hud: GameHUD) -> void:
 		_check(label.text == "[ Unbound Input ]  " + intent,
 			"keyboard interaction never advertises a controller-only binding: " + intent)
 		hud._on_controller_glyph_family_selected(1)
-		_check(label.text == "[ A ]  " + intent,
+		_check(label.text == "[ %s ]  %s" % [hud.get_action_prompt(&"interact"), intent],
 			"the retained interaction shows its available Xbox binding: " + intent)
 		profile.set_bindings(&"interact", [])
 		_apply_profile(hud, profile)
