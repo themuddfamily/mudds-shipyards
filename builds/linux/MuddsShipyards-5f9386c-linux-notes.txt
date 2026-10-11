@@ -1,0 +1,14 @@
+Mudds Shipyards — Linux input prompt checkpoint
+Game/builder source: 5f9386c13ae73531b6cb1650caa9a8e8ee7e2747
+
+Player-visible changes
+Landing, thrust, pause and return-menu prompts now follow your keyboard or mouse bindings. Tractor help uses your active-device movement, steering, brake/jump and exit bindings, and retained objectives refresh when bindings or devices change. Missing required directions show Unbound Input. Authored default key text and controller prompts are preserved.
+
+Actual validation
+Fresh Linux package: PASS, 354 assertions (three prompt suites 84/5/4, strict current source/packed geometry census 19 each, standard probes 223). Original deadlines retained. Direct and archive-extracted startup each exits 0 with one parsed STARTUP_MENU_READY_OK and mouse free during load. Headless display and Dummy audio. Package owner exits 0/reaped; all 42 captured identities absent; source/index/cache/artifact/ELF/archive guards pass. Zero warnings and script/engine/leak diagnostics.
+Packaged desktop-helper lifecycle: PASS. Install, reinstall, uninstall and repeated uninstall each exit 0 within the original 30-second limit. Reinstall is byte-identical; uninstalls are idempotent. Private settings/save bytes and real user paths are preserved; HOME is unchanged and XDG paths are private. No game or desktop handler launched. Owning tool 96363 actual exit 0/reaped, chunk 5bd890; all five captured identities absent. Independent review approves.
+ELF SHA-256: c571c316f6db4e0e3e9b74be45533e6f9ff5326c845b511b6fc37ab96130316d
+Archive SHA-256: f0921d77a1e245d0581d54cd8c45f0b0633142b2d8372d4599a9248af2423c72
+
+Remaining review
+Desktop graphical launch, native GPU performance, physical controller/audio testing, human visual review, complete current-source regression and trusted signing: NOT_RUN. Previous failed runs remain failed.
