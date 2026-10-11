@@ -22552,11 +22552,7 @@ func _ensure_ember_surface_presentations() -> Dictionary:
 		_ember_surface_loop_audio_composition = EmberSurfaceLoopAudioCompositionType.new()
 		_ember_surface_loop_audio_composition.name = "EmberSurfaceLoopAudioComposition"
 		add_child(_ember_surface_loop_audio_composition)
-	var audio_was_attached := bool(
-		(_ember_surface_loop_audio_composition.call(&"get_snapshot") as Dictionary).get(
-			"attached", false
-		)
-	)
+	var audio_was_attached := bool(_ember_surface_loop_audio_composition.call(&"is_attached"))
 	if not audio_was_attached:
 		var entry_audio_perspective: StringName = &"interior" \
 			if is_instance_valid(active_ship) \
@@ -22572,16 +22568,8 @@ func _ensure_ember_surface_presentations() -> Dictionary:
 		_ember_surface_return_status_binding = EmberSurfaceReturnStatusBindingType.new()
 	if _ember_surface_return_hud_adapter == null:
 		_ember_surface_return_hud_adapter = EmberSurfaceReturnHudAdapterType.new()
-	var status_attached := bool(
-		(_ember_surface_return_status_binding.call(&"get_snapshot") as Dictionary).get(
-			"attached", false
-		)
-	)
-	var hud_attached := bool(
-		(_ember_surface_return_hud_adapter.call(&"get_snapshot") as Dictionary).get(
-			"attached", false
-		)
-	)
+	var status_attached := bool(_ember_surface_return_status_binding.call(&"is_attached"))
+	var hud_attached := bool(_ember_surface_return_hud_adapter.call(&"is_attached"))
 	if status_attached and hud_attached:
 		return {
 			"accepted": true,
