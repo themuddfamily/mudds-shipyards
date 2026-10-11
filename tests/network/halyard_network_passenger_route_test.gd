@@ -119,7 +119,13 @@ func _orchestrate() -> void:
 			var client := _spawn_peer(role, client_args)
 			peers[role] = client
 			_check(client > 0, "owned independent peer starts: " + role)
-		if _shared_cruise and await _wait_file("host.rebased", 60.0):
+		var shared_clients_ready := true
+		if _shared_cruise:
+			# Cold Main startup has its own existing budget. The travel wait
+			# begins only after both independent clients can participate.
+			for role in ["client", "client_b"]:
+				shared_clients_ready = await _wait_file(role + ".main_ready", 60.0) and shared_clients_ready
+		if _shared_cruise and shared_clients_ready and await _wait_file("host.rebased", 60.0):
 			var observer := _spawn_peer("observer", _peer_arguments("observer", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"])))
 			peers["observer"] = observer
 			_check(observer > 0, "owned late observer starts after actual origin commit")
