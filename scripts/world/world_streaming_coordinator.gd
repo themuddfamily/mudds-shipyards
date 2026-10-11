@@ -310,6 +310,12 @@ func get_loaded_instance(location_id: StringName) -> Node3D:
 	return _get_loaded_instance_raw(location_id)
 
 
+## Current generation with the same loaded-root reconciliation as the full audit.
+func get_location_generation(location_id: StringName) -> int:
+	get_loaded_ids()
+	return int(_generation_by_id.get(location_id, -1))
+
+
 func _get_loaded_instance_raw(location_id: StringName) -> Node3D:
 	var record := _loaded.get(location_id, {}) as Dictionary
 	var candidate: Variant = record.get("instance")

@@ -715,8 +715,7 @@ func _root_is_aligned(expected_generation: int) -> bool:
 func _current_location_generation() -> int:
 	if not is_instance_valid(_coordinator):
 		return -1
-	var generations := _coordinator.audit().get("generation_by_id", {}) as Dictionary
-	return int(generations.get(get_location_id(), -1))
+	return _coordinator.get_location_generation(get_location_id())
 
 
 func _finish_transition(

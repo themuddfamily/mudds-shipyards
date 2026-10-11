@@ -13,6 +13,13 @@ var _assertions := 0
 var _failures: Array[String] = []
 
 
+class CountingCoordinator extends CoordinatorScript:
+	var audit_reads := 0
+	func audit() -> Dictionary:
+		audit_reads += 1
+		return super.audit()
+
+
 class FakeLoader extends RefCounted:
 	var accepts_requests := true
 	var requests: Array[Dictionary] = []
@@ -639,7 +646,7 @@ func _test_reentrant_scene_entry_and_same_frame_reload() -> void:
 
 
 func _test_unexpected_loaded_root_retirement() -> void:
-	var coordinator := CoordinatorScript.new() as WorldStreamingCoordinator
+	var coordinator := CountingCoordinator.new()
 	root.add_child(coordinator)
 	var fake := FakeLoader.new()
 	coordinator.set_loader(Callable(fake, "request_scene"))
@@ -655,7 +662,14 @@ func _test_unexpected_loaded_root_retirement() -> void:
 	var first_request := coordinator.request_load(definition.location_id)
 	fake.complete(0, _packed_node_3d())
 	var self_retiring := coordinator.get_loaded_instance(definition.location_id)
+	var audits_before := coordinator.audit_reads
+	_check(coordinator.get_location_generation(definition.location_id) == int(first_request.generation)
+			and coordinator.get_location_generation(&"unknown_location") == -1,
+		"focused generation reads current authority and preserves the unknown-location fallback")
 	self_retiring.queue_free()
+	_check(coordinator.get_location_generation(definition.location_id) == int(first_request.generation) + 1
+			and unload_generations.size() == 1 and coordinator.audit_reads == audits_before,
+		"focused generation reconciles a queued loaded root immediately without constructing an audit")
 	await process_frame
 	await process_frame
 	_check(
@@ -846,7 +860,7 @@ func _test_real_scene_placement_reentry_and_teardown() -> void:
 
 
 func _test_audit_is_deep_copy_and_authority_free() -> void:
-	var coordinator := CoordinatorScript.new() as WorldStreamingCoordinator
+	var coordinator := CountingCoordinator.new()
 	root.add_child(coordinator)
 	var fake := FakeLoader.new()
 	coordinator.set_loader(Callable(fake, "request_scene"))
@@ -890,6 +904,22 @@ func _test_audit_is_deep_copy_and_authority_free() -> void:
 			and second.get("transform_policy") == &"identity_basis_at_definition_scene_origin",
 		"audit publishes immutable-definition, scene-ownership, and transform policies"
 	)
+	_check(coordinator.get_location_generation(zeta.location_id) == 1
+			and coordinator.get_location_generation(alpha.location_id) == 0,
+		"focused generation is independent of nested audit mutation and observes registered generation zero")
+	fake.complete(0, _packed_node_3d())
+	coordinator.request_load(alpha.location_id)
+	fake.complete(1, _packed_node_3d())
+	var retired_locations: Array[StringName] = []
+	coordinator.location_unloaded.connect(
+		func(id: StringName, _generation: int) -> void: retired_locations.append(id)
+	)
+	coordinator.get_loaded_instance(zeta.location_id).queue_free()
+	var audits_before := coordinator.audit_reads
+	var alpha_generation := coordinator.get_location_generation(alpha.location_id)
+	_check(alpha_generation == 1 and retired_locations == [&"zeta_location"]
+			and coordinator.audit_reads == audits_before,
+		"focused generation preserves audit reconciliation of another queued loaded location without constructing an audit")
 	coordinator.queue_free()
 	await process_frame
 
