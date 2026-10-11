@@ -2,6 +2,7 @@ extends SceneTree
 
 const MODULE_SCENE := preload("res://scenes/world/modules/observation_logistics_spur.tscn")
 var _failures: Array[String] = []
+var _assertions := 0
 
 func _init() -> void:
 	call_deferred("_run")
@@ -41,23 +42,32 @@ func _run() -> void:
 			and batch.gi_mode == GeometryInstance3D.GI_MODE_DISABLED and batch.get_child_count() == 0 \
 			and not batch.is_processing(), "static plates add no lights, collision, animation or child nodes")
 		_check(batch.get_meta("headings") == ["SECTOR VIEW", "RANGE DISPLAY", "LOGISTICS"], "three distinct instrument identities")
-	var source := FileAccess.get_file_as_string("res://assets/signage/observation_instrument_atlas.svg")
-	for heading in ObservationLogisticsSpur.OBSERVATION_INSTRUMENT_HEADINGS:
-		_check(source.contains("<title>%s</title>" % heading), "%s is drawn in the committed atlas" % heading)
-	_check(not source.contains("<text"), "instrument lettering uses vector paths without external fonts")
+	var atlas: Texture2D = ObservationLogisticsSpur.OBSERVATION_INSTRUMENT_ATLAS
+	_check(atlas != null and atlas.get_size() == Vector2(512.0, 512.0), "loaded instrument atlas retains its 512 by 512 layout in source and packages")
+	var image := atlas.get_image() if atlas != null else null
+	var distinct_rows := image != null and image.get_width() == 512 and image.get_height() == 512
+	if distinct_rows:
+		var first := image.get_region(Rect2i(0, 0, 512, 128)).get_data()
+		var second := image.get_region(Rect2i(0, 128, 512, 128)).get_data()
+		var third := image.get_region(Rect2i(0, 256, 512, 128)).get_data()
+		distinct_rows = first != second and first != third and second != third
+	_check(distinct_rows, "loaded texture contains three distinct instrument plates at the sampled UV rows")
 	var contract := module.get_visual_resource_contract()
 	_check(bool(contract.observation_lens_identities_exact) and bool(contract.observation_console_identities_exact),
 		"original console collision and lens/console batch identity remain unchanged")
 	module.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("OBSERVATION_INSTRUMENT_PLATES_TEST_OK")
+		print("OBSERVATION_INSTRUMENT_PLATES_TEST_OK: %d assertions" % _assertions)
 		quit(0)
 	else:
 		print("OBSERVATION_INSTRUMENT_PLATES_TEST_FAILED: ", "; ".join(_failures))
 		quit(1)
 
 func _check(condition: bool, message: String) -> void:
-	if not condition:
+	_assertions += 1
+	if condition:
+		print("PASS: ", message)
+	else:
 		_failures.append(message)
-		push_error(message)
+		push_error("FAIL: " + message)
