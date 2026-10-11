@@ -395,12 +395,16 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # The corrected Aft allocation contract restores all seven service couriers:
 # OperationalLattice is again 478 instances / 528 surfaces / 848 nodes / 93,912
 # triangles, with all six shared courier materials. The Cinder roster and every
-# loaded-minus-resident delta are unchanged. Packed fingerprints and retained
-# material expectations below remain pending a fresh actual package measurement.
+# loaded-minus-resident delta are unchanged. Independent Windows and Linux
+# 6ddf7443f packed measurements agree on 1,074 / 1,137 retained materials and
+# the fingerprints below. Geometry, bound materials, lights, nodes, local skies
+# and the Cinder roster/delta match the measured source. The original packed
+# measurements retain their four stale-baseline failures; strict acceptance
+# runs separately against the same unchanged exported artifacts.
 const RESIDENT_FINGERPRINT := "20c450db5aef4bf657e1815c2e4a23da2779121e923fcfaeb7edf3cd9279d9ca"
 const CINDER_LOADED_FINGERPRINT := "119cd90aa74c53aa5e4dad0ac66a1c17f09fd1de2843c394586f55594853da20"
-const PACKED_RESIDENT_FINGERPRINT := "79788e65353e216de3046532537a8854824aa75784a8232ae3f53a1c7fb63bca"
-const PACKED_CINDER_LOADED_FINGERPRINT := "b260f8a2643d7518e1c606ed69caef9c3dfdd9ee6b97f73da273367660058bac"
+const PACKED_RESIDENT_FINGERPRINT := "c5bbf35fba8fe9e152daf33f29ed83b2d43926a8409be4f25a26281951eecafb"
+const PACKED_CINDER_LOADED_FINGERPRINT := "32febefe1a1385338f4d50cb89ebd4a5408d60fc5f7afc2de779474ccf9b46c7"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -458,7 +462,7 @@ func _run() -> void:
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 656
-			and int(resident.get("retained_reachable_unique_materials", -1)) == (1080 if _packed_scene_resources() else 1072)
+			and int(resident.get("retained_reachable_unique_materials", -1)) == (1074 if _packed_scene_resources() else 1072)
 			and int(resident.get("lights", -1)) == 327
 			and int(resident.get("nodes", -1)) == 10290,
 		"resident resource roster freezes exact source/export materials, 327 lights, and 10,290 nodes"
@@ -527,7 +531,7 @@ func _run() -> void:
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 714
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1143 if _packed_scene_resources() else 1135)
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1137 if _packed_scene_resources() else 1135)
 			and int(loaded.get("lights", -1)) == 362
 			and int(loaded.get("nodes", -1)) == 10878,
 		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,878 nodes"
