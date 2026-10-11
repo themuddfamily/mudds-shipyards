@@ -3718,6 +3718,8 @@ func _build_damage_effects() -> void:
 
 
 func _make_spark_particles(count: int, lifetime_value: float, speed: float) -> CPUParticles3D:
+	# Persistent emitters in derived hulls use this factory before base setup.
+	_ensure_particle_meshes()
 	var particles := CPUParticles3D.new()
 	particles.amount = count
 	particles.lifetime = lifetime_value

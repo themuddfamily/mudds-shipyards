@@ -306,6 +306,10 @@ func _audit_opponent(archetype: StringName, scene: PackedScene) -> void:
 		await _free_host(host)
 		return
 	_check(
+		sparks.mesh != null and sparks.mesh.surface_get_material(0) != null,
+		"%s persistent sparks bind a visible particle mesh and material" % archetype
+	)
+	_check(
 		not sparks.emitting and not smoke.emitting,
 		"%s shows no damage staging at full hull" % archetype
 	)
