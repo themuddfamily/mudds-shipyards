@@ -1,0 +1,18 @@
+Mudds Shipyards — Windows input prompt installer
+Game/payload/builder/verifier: 5f9386c13ae73531b6cb1650caa9a8e8ee7e2747
+Version: 0.12.0+5f9386c, unsigned development alpha
+
+Matches the input prompt checkpoint. Landing, thrust, pause and return-menu prompts follow your keyboard or mouse bindings. Tractor help uses active-device movement, steering, brake/jump and exit bindings; retained objectives refresh when bindings or devices change. Missing required directions show Unbound Input. Default key text and controller prompts are preserved. The newer edbeef74a title/loading-hint changes are not included.
+
+Actual validation
+NSIS v3.09-4: actual exit 0/reaped, setup 86,844,045 bytes, exact unchanged payload 177,826,256 bytes. Compilation took 98.813 seconds, within 600 seconds; the executed wrapper did not enforce a 600-second deadline. The future wrapper was corrected separately. Source/index/cache/artifact/protected-input guards passed. Original unsigned compiler metadata remains immutable and native_verification NOT_RUN; installed acceptance is recorded separately.
+Installed acceptance: PASS, 91 steps across default 11, Mining 16, Beacon 16, Hulk 16, convoy crew 16 and patrol scan 16. Root tool 34592 actual exit 0 consumed/reaped, terminal chunk f80b89; independent review approved closure. Original native deadlines retained. Actual child/observer/cleanup waits and fresh creation-bound CIM audit confirm no owned actors or temporary installation/profile/registry/shortcut residues. All 250 real Windows profile files are byte-identical; source/index/cache/artifact/protected inputs are unchanged. Retained installed logs contain zero warnings/errors; native authority was released and the common lock is unheld.
+
+Backup recovery preserves settings/tutorial identity while leaving the corrupt primary, backup and quarantined bytes intact. The primary remains unchanged until explicit repair; startup does not implicitly repair it. Previous failed records remain failed and retained.
+
+Remaining review
+Native GPU performance, normal controls, physical controllers and audible audio, human review, complete current-source regression, trusted signing, licensing and full release remain NOT_RUN/open.
+
+Setup SHA256: 44ad6d4139aa9144facb490f648d0b08cd5929061e98562e7d194873c3d007fd
+Payload SHA256: 9d4159dd0b06e599f7e5109e41c8fb234e04d7eb0a93b76e15c7a241cdf1e931
+Verifier SHA256: e292abae208d7bfc0bbfe5459ae6519d818a20ad43873b68448a564be1540641

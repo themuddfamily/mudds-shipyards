@@ -8,7 +8,35 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `6ddf7443f` — 2026-10-11
+## Latest native checkpoint `5f9386c13` — 2026-10-11
+
+The unsigned [setup](../builds/windows/MuddsShipyards-5f9386c-setup.exe) and
+[notes](../builds/windows/MuddsShipyards-5f9386c-installer-notes.txt) are published.
+It includes the remapped flight and tractor prompts; newer `edbeef74a` BEGIN SHIFT
+hints are excluded. Game/payload/builder/verifier source is `5f9386c13`.
+
+Setup SHA256 is `44ad6d4139aa9144facb490f648d0b08cd5929061e98562e7d194873c3d007fd`
+(86,844,045 bytes); payload SHA256 is
+`9d4159dd0b06e599f7e5109e41c8fb234e04d7eb0a93b76e15c7a241cdf1e931`.
+All six silent native lanes pass 91 steps: default11 and Mining, Beacon, Hulk,
+convoy crew and Scan16 each. Update/rollback against the published `6ddf7443f`
+installer, locked replacement refusal, startup, interruption/recovery and uninstall
+pass. Actual owners are reaped; final creation-bound CIM finds no owned actors or
+temporary install/profile/registry/shortcut residues. All 250 real-profile files
+and protected inputs remain unchanged. Installed logs contain zero warnings/errors.
+Independent review and exclusive publication pass.
+
+Compilation finished in 98.813 seconds, but the executed compiler wrapper did not
+enforce the original 600-second deadline. Its exact executed bytes and result are
+retained; the future wrapper correction does not retroactively qualify that limit.
+Immutable compiler metadata retains `native_verification: NOT_RUN`; the actual
+91-step installed acceptance is separate.
+
+Complete current-source regression, uninterrupted ordinary controls, native GPU,
+physical devices/audio, human review, licensing, trusted signing and final release
+remain open. This checkpoint does not close those gates.
+
+## Earlier native checkpoint `6ddf7443f` — 2026-10-11
 
 The unsigned [setup](../builds/windows/MuddsShipyards-6ddf744-setup.exe) and
 [notes](../builds/windows/MuddsShipyards-6ddf744-installer-notes.txt) are published.
