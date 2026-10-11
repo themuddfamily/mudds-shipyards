@@ -1689,6 +1689,7 @@ func get_return_status_snapshot() -> Dictionary:
 func get_snapshot() -> Dictionary:
 	# Retained composition nodes can be alive after whole-Main removal, or
 	# while Main is being freed. Read world-dependent reports only in the tree.
+	# Every container below is fresh or detached by its explicit copy/getter.
 	var bootstrap_snapshot := _bootstrap.get_snapshot() \
 		if _node_is_current(_bootstrap) and _node_is_current(_scene) else {}
 	var ship_position := _ship.global_position if _node_is_current(_ship) else Vector3.ZERO
@@ -1814,7 +1815,7 @@ func get_snapshot() -> Dictionary:
 		"bootstrap": bootstrap_snapshot,
 		"owned_capabilities": _owned_capabilities(),
 		"adjacent_authority": _adjacent_authority(),
-	}.duplicate(true)
+	}
 
 
 func audit() -> Dictionary:
