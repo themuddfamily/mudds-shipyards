@@ -9,7 +9,8 @@ extends SceneTree
 ##    flight as a barrel roll); Start still closes the overlay.
 ## 2. Keyboard-authored expedition copy ("[ L ]", "ESC:", "Esc →", "press L",
 ##    "[ W/S / LEFT STICK ]") shows the live controller glyph while a gamepad is
-##    the prompt device, and is left byte-for-byte unchanged for keyboard.
+##    the prompt device. Default keyboard copy remains unchanged, while rebound
+##    desktop landing controls refresh retained prompts and objectives.
 
 const HudType := preload("res://scripts/ui/hud.gd")
 
@@ -46,6 +47,7 @@ func _run() -> void:
 	await _test_server_browser_escape_steps_back(hud)
 	await _test_controls_overlay_toggle_keeps_pause_focus(hud)
 	await _test_controller_prompt_glyphs(hud)
+	await _test_keyboard_landing_binding_prompts(hud)
 	hud.set_paused(false)
 	paused = false
 	hud.queue_free()
@@ -268,6 +270,86 @@ func _test_controller_prompt_glyphs(hud: GameHUD) -> void:
 		"errand trailhead prompts keep the live controller interact glyph"
 	)
 	hud._on_controller_glyph_family_selected(0)
+
+
+func _test_keyboard_landing_binding_prompts(hud: GameHUD) -> void:
+	var interaction := hud.get("_interaction_label") as Label
+	var objective := hud.get("_objective_label") as Label
+	var toast_detail := hud.get("_toast_detail") as Label
+	var original: InputBindingProfile = hud.get("_input_binding_profile").duplicate_profile()
+	var profile := original.duplicate_profile()
+	var gamepad_bindings: Array[Dictionary] = []
+	for binding: Dictionary in original.get_bindings(&"landing_assist"):
+		if binding.device == &"gamepad":
+			gamepad_bindings.append(binding)
+	var keyboard := InputEventKey.new()
+	keyboard.physical_keycode = KEY_F
+	keyboard.pressed = true
+	root.push_input(keyboard)
+	await process_frame
+	hud.set_interaction(LANDING_ASSIST_PROMPT)
+	hud.set_objective("Return to Mudds, then press L to dock.", "RETURN")
+	var rebound: Array[Dictionary] = gamepad_bindings.duplicate(true)
+	rebound.append({"device": &"keyboard", "type": &"key", "physical_keycode": KEY_T})
+	profile.set_bindings(&"landing_assist", rebound)
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_check(
+		interaction.text == "[ T ]  ENGAGE LANDING ASSIST"
+			and objective.text == "Return to Mudds, then press T to dock.",
+		"a landing remap refreshes retained flight interaction and objective without caller republication"
+	)
+	hud.set_interaction(AURORA_LANDED_PROMPT)
+	hud.toast("Aurora landing", AURORA_LANDING_TOAST)
+	_check(
+		interaction.text == "[ T ]  LAND AT AURORA PAD  //  ESC: RETURN TO MUDDS"
+			and toast_detail.text.ends_with("press T"),
+		"planetary landing and toast copy use the desktop binding without changing pause guidance"
+	)
+	for key_and_label: Array in [[KEY_K, "K"], [KEY_CTRL, "Ctrl"]]:
+		rebound[-1].physical_keycode = key_and_label[0]
+		profile.set_bindings(&"landing_assist", rebound)
+		hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+		_check(
+			interaction.text.begins_with("[ %s ]" % key_and_label[1])
+				and objective.text == "Return to Mudds, then press %s to dock." % key_and_label[1],
+			"later snapshots refresh retained landing copy, including an individually bound modifier key"
+		)
+	hud._on_controller_glyph_family_selected(1)
+	var controller_landing := hud.get_action_prompt(&"landing_assist")
+	_check(
+		interaction.text.begins_with("[ %s ]" % controller_landing)
+			and not interaction.text.contains("ESC:"),
+		"desktop remaps preserve the existing gamepad landing and pause prompts"
+	)
+	hud._on_controller_glyph_family_selected(0)
+	root.push_input(keyboard)
+	await process_frame
+	_check(interaction.text.begins_with("[ Ctrl ]"), "returning to keyboard refreshes retained planetary copy")
+	profile.set_bindings(&"interact", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_TAB}])
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	hud.set_interaction("[ E ]  ACCESS DESTINATION BOARD")
+	_check(interaction.text == "[ Tab ]  ACCESS DESTINATION BOARD", "Interact remapping remains independent of landing copy")
+	hud.set_interaction(AURORA_LANDED_PROMPT)
+	for bindings: Array in [[], gamepad_bindings]:
+		profile.set_bindings(&"landing_assist", bindings)
+		hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+		_check(
+			interaction.text.begins_with("[ Unbound Input ]")
+				and objective.text == "Return to Mudds, then press Unbound Input to dock.",
+			"missing desktop landing bindings never advertise L or a controller-only fallback"
+		)
+	profile.set_bindings(&"landing_assist", [{"device": &"mouse", "type": &"mouse_button", "button_index": MOUSE_BUTTON_MIDDLE}])
+	hud.set_settings_snapshot({"input_binding_profile": profile.to_dictionary()})
+	_check(interaction.text.begins_with("[ Middle Mouse ]"), "desktop landing copy resolves an actual mouse binding")
+	hud.set_interaction("press Left Stick // press Lander // PILOT L")
+	_check(interaction.text == "press Left Stick // press Lander // PILOT L", "landing replacement leaves unrelated words intact")
+	hud.set_interaction(LANDING_ASSIST_PROMPT)
+	hud.set_settings_snapshot({"input_binding_profile": original.to_dictionary()})
+	_check(
+		interaction.text == LANDING_ASSIST_PROMPT
+			and objective.text == "Return to Mudds, then press L to dock.",
+		"restoring authored bindings restores exact default keyboard copy on retained surfaces"
+	)
 
 
 func _destination_snapshot() -> Dictionary:

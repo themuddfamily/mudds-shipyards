@@ -1883,13 +1883,13 @@ func _live_interaction_text(text: String) -> String:
 	return _controller_prompt_text(display_text)
 
 
-# --- Controller-only prompt glyphs -------------------------------------------
+# --- Flight and expedition prompt glyphs -------------------------------------
 # Several flight and planetary-expedition callers still author a keyboard key in
 # their copy ("[ L ]  LAND AT AURORA PAD  //  ESC: RETURN TO MUDDS", "press L",
 # "[ W/S / LEFT STICK ]"). While a gamepad family is the live prompt device,
 # those tokens are replaced with the bound controller glyph for the same
-# InputMap action, so a pad-only player is never told to press a key. Keyboard
-# and mouse presentation is left byte-for-byte unchanged.
+# InputMap action, so a pad-only player is never told to press a key. Desktop
+# landing tokens also follow the live binding; default L copy stays unchanged.
 
 ## [legacy token, actions whose live glyph replaces it, replacement format].
 const _CONTROLLER_PROMPT_TOKENS := [
@@ -1921,24 +1921,45 @@ func _controller_prompt_active() -> bool:
 
 
 func _controller_prompt_text(text: String) -> String:
-	if text.is_empty() or not _controller_prompt_active():
+	if text.is_empty():
 		return text
+	var controller_active := _controller_prompt_active()
+	var desktop_landing := ""
+	if not controller_active:
+		desktop_landing = _desktop_landing_prompt_glyph()
+		if desktop_landing.is_empty() or desktop_landing == "L":
+			return text
 	var result := text
 	for entry: Array in _CONTROLLER_PROMPT_TOKENS:
+		if not controller_active and not (entry[1] as Array).has(&"landing_assist"):
+			continue
 		var token := str(entry[0])
 		if not result.contains(token):
 			continue
-		var glyph := _controller_prompt_glyph(entry[1] as Array)
+		var glyph := _controller_prompt_glyph(entry[1] as Array) if controller_active else desktop_landing
 		if not glyph.is_empty():
 			result = result.replace(token, str(entry[2]) % glyph)
 	for entry: Array in _CONTROLLER_PROMPT_TRAILING_TOKENS:
 		var token := str(entry[0])
 		if not result.ends_with(token):
 			continue
-		var glyph := _controller_prompt_glyph(entry[1] as Array)
+		var glyph := _controller_prompt_glyph(entry[1] as Array) if controller_active else desktop_landing
 		if not glyph.is_empty():
 			result = result.left(result.length() - token.length()) + str(entry[2]) % glyph
 	return result
+
+
+func _desktop_landing_prompt_glyph() -> String:
+	if _input_glyph_resolver == null or _runtime_input_glyph_presenter == null:
+		return ""
+	if _input_glyph_resolver.get_preferred_device_family() not in [&"keyboard", &"mouse"]:
+		return ""
+	var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(&"landing_assist")
+	# A controller-only fallback cannot tell a desktop player how to land.
+	if not bool(resolved.get("valid", false)) \
+			or resolved.get("device_family", &"unknown") not in [&"keyboard", &"mouse"]:
+		return "Unbound Input"
+	return str(resolved.get("text", "Unbound Input"))
 
 
 func _controller_prompt_glyph(actions: Array) -> String:
@@ -1961,7 +1982,7 @@ func _refresh_controller_prompt_surfaces() -> void:
 		if _objective_label.text != rendered:
 			_objective_label.text = rendered
 			_queue_objective_panel_fit()
-# --- end controller-only prompt glyphs ---------------------------------------
+# --- end flight and expedition prompt glyphs ---------------------------------
 
 
 ## Presentation-only transition copy for the first boarding/seat handoff. The
