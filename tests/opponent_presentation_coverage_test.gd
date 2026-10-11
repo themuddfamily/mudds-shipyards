@@ -343,6 +343,7 @@ func _audit_opponent(archetype: StringName, scene: PackedScene) -> void:
 	)
 
 	# 3. Staged smoke at the critical threshold.
+	_check_smoke_alpha(smoke, archetype)
 	craft.apply_damage(craft.maximum_health * 0.4, hit_position)
 	await _advance(2)
 	var ratio_after_second := craft.get_health() / craft.maximum_health
@@ -384,6 +385,10 @@ func _audit_opponent(archetype: StringName, scene: PackedScene) -> void:
 			elif child is CPUParticles3D:
 				if (child as CPUParticles3D).mesh is QuadMesh:
 					destruction_smoke += 1
+					_check(
+						(child as CPUParticles3D).mesh == smoke.mesh,
+						"%s destruction reuses the staged smoke's feathered mesh/material" % archetype
+					)
 				else:
 					burst += 1
 	_check(
@@ -413,6 +418,32 @@ func _audit_opponent(archetype: StringName, scene: PackedScene) -> void:
 
 	# The detached root is world-owned, so a torn-down craft must not leak it.
 	await _free_host(host)
+
+
+func _check_smoke_alpha(smoke: CPUParticles3D, archetype: StringName) -> void:
+	_check(smoke.mesh != null, "%s smoke binds a visible particle mesh" % archetype)
+	if smoke.mesh == null:
+		return
+	var material := smoke.mesh.surface_get_material(0) as StandardMaterial3D
+	var texture := material.albedo_texture if material != null else null
+	_check(texture != null, "%s smoke has an alpha silhouette" % archetype)
+	if texture == null:
+		return
+	var image := texture.get_image()
+	var edge_alpha := 0.0
+	for index in image.get_width():
+		edge_alpha = maxf(edge_alpha, image.get_pixel(index, 0).a)
+		edge_alpha = maxf(edge_alpha, image.get_pixel(index, image.get_height() - 1).a)
+	for index in image.get_height():
+		edge_alpha = maxf(edge_alpha, image.get_pixel(0, index).a)
+		edge_alpha = maxf(edge_alpha, image.get_pixel(image.get_width() - 1, index).a)
+	var center_alpha := image.get_pixel(image.get_width() / 2, image.get_height() / 2).a
+	var shoulder_alpha := image.get_pixel(image.get_width() * 3 / 4, image.get_height() / 2).a
+	_check(
+		edge_alpha <= 0.005 and center_alpha > 0.95
+		and shoulder_alpha > 0.05 and shoulder_alpha < center_alpha,
+		"%s smoke fades smoothly from a dense center to fully transparent quad edges" % archetype
+	)
 
 
 func _find_persistent_smoke(craft: RangeOpponent) -> CPUParticles3D:

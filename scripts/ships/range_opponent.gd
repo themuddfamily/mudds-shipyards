@@ -3737,6 +3737,9 @@ func _make_spark_particles(count: int, lifetime_value: float, speed: float) -> C
 
 
 func _make_smoke_particles(one_shot_value: bool) -> CPUParticles3D:
+	# Derived hulls can build their persistent emitters before the base hull's
+	# particle-mesh setup. Bind the retained smoke mesh in either build order.
+	_ensure_particle_meshes()
 	var particles := CPUParticles3D.new()
 	particles.amount = 16
 	particles.lifetime = 1.45
@@ -3793,6 +3796,9 @@ func _create_materials() -> void:
 	_materials.glass = glass
 	var smoke := StandardMaterial3D.new()
 	smoke.albedo_color = SMOKE_DARK
+	# Fade the shared damage/destruction billboard to transparent before its
+	# boundary; uniform alpha alone reveals every smoke particle as a square.
+	smoke.albedo_texture = preload("res://assets/effects/smoke_alpha.tres")
 	smoke.roughness = 1.0
 	smoke.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	smoke.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
