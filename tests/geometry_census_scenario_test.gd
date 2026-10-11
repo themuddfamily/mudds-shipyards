@@ -406,8 +406,13 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # and its InteractionShape (CollisionShape3D), via ShipCrewSeat.install. Both
 # scenarios retain that craft, so nodes move +2 each; geometry, materials,
 # lights and the exact streamed Cinder bucket / +588-node delta stay fixed.
-const RESIDENT_FINGERPRINT := "dd81b9e55cb59b8095f924049824d03016e34312edc54ea661d5f1736a0a9264"
-const CINDER_LOADED_FINGERPRINT := "8ba5993919dd8913bc0c6f23c40765cacc5ef92bc7020eaa8be813e85e4f2706"
+# Actual f4629641b source census: the ordinary Halyard gunner chair adds
+# CoPilotStationAnchor/SoloGunnerSeatInteraction (Area3D) and InteractionShape
+# (CollisionShape3D): +2 nodes in both scenarios, with all geometry/resources
+# and the +588-node streamed delta unchanged. Packed fingerprints below await
+# actual matching package measurement; no packed refreeze is inferred here.
+const RESIDENT_FINGERPRINT := "25f79d1f382894fe3a11f8bfb1e4936496a1327f3dc16e9b39b856d2fe4578e8"
+const CINDER_LOADED_FINGERPRINT := "fbb4988e4a006b3127d9607d00be30ac6e7f7b375d321f25ce747f0ac12f29fa"
 const PACKED_RESIDENT_FINGERPRINT := "d2e960e1a8efd6e1d68ea3a2d45815af5fc4c2e8145db64c64172de7db218baf"
 const PACKED_CINDER_LOADED_FINGERPRINT := "5ffdbf271e5bdb0d13e2e00ae93eb893e11527e14de83f53b147884bd61b8102"
 
@@ -469,8 +474,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 656
 			and int(resident.get("retained_reachable_unique_materials", -1)) == (1074 if _packed_scene_resources() else 1072)
 			and int(resident.get("lights", -1)) == 327
-			and int(resident.get("nodes", -1)) == 10292,
-		"resident resource roster freezes exact source/export materials, 327 lights, and 10,292 nodes"
+			and int(resident.get("nodes", -1)) == 10294,
+		"resident resource roster freezes exact source/export materials, 327 lights, and 10,294 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == (PACKED_RESIDENT_FINGERPRINT if _packed_scene_resources() else RESIDENT_FINGERPRINT),
@@ -538,8 +543,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 714
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1137 if _packed_scene_resources() else 1135)
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 10880,
-		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,880 nodes"
+			and int(loaded.get("nodes", -1)) == 10882,
+		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,882 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
