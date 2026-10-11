@@ -1285,9 +1285,8 @@ func _rearm_retired_ember_final_approach() -> Dictionary:
 		return {"accepted": false, "reason": &"ember_final_approach_rearm_unavailable"}
 	if _flow.active_ship.has_manual_flight_intent():
 		return {"accepted": false, "reason": &"manual_flight_intent"}
-	var host_snapshot := _flow.ember_surface_loop_host.get_snapshot()
-	if not bool(host_snapshot.get("attached", false)) \
-			or int(host_snapshot.get("phase", -1)) != EmberSurfaceLoopHost.Phase.IDLE:
+	if not _flow.ember_surface_loop_host.is_attached() \
+			or _flow.ember_surface_loop_host.get_phase() != EmberSurfaceLoopHost.Phase.IDLE:
 		return {"accepted": false, "reason": &"ember_final_approach_rearm_phase_mismatch"}
 	var cruise_snapshot := _flow.planetary_cruise_binding.get_snapshot()
 	if int((cruise_snapshot.get("final_approach", {}) as Dictionary).get(
