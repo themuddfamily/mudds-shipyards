@@ -1877,7 +1877,7 @@ func set_interaction(text: String, is_visible: bool = true) -> void:
 func _live_interaction_text(text: String) -> String:
 	var display_text := text
 	if text.begins_with("[ E ]"):
-		var interact_prompt := _action_prompts([&"interact"])
+		var interact_prompt := _active_device_prompt_glyph([&"interact"], false)
 		if not interact_prompt.is_empty():
 			display_text = "[ %s ]%s" % [interact_prompt, text.substr(5)]
 	return _controller_prompt_text(display_text)
