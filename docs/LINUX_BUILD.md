@@ -4,7 +4,30 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest published checkpoint: `b3de8e299` — 2026-10-10
+## Latest published checkpoint: `fbfcf6c6a` — 2026-10-11
+
+The [executable](../builds/linux/MuddsShipyards-fbfcf6c.x86_64),
+[archive](../builds/linux/MuddsShipyards-fbfcf6c-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-fbfcf6c-linux-notes.txt) use clean source
+`fbfcf6c6ae19c0924d91bd0a7451a2b4f626d459`. Common-world origin shifts reuse a
+cached roster while checking live participants and preserving rollback.
+The package includes the bounded shared Ember cruise and crew-correction work.
+
+Source/PCK checks pass 1,490 focused assertions and four standard embedded-PCK
+probes pass 223, for 1,713 total. Direct and archive-extracted strict startups
+each exit 0 with exactly one `STARTUP_MENU_READY_OK` and mouse-free loading.
+Private-XDG desktop-helper install/reinstall/uninstall/repeated-uninstall pass,
+preserving seeded saves/settings without launching games or desktop handlers.
+Source/index/cache/PCK/archive/member-byte/mode guards pass, all 210 captured
+process identities are absent, and all 26 original warning lines remain retained.
+
+These checks use Dummy audio and headless or private X11 software rendering.
+Full planetary arrival/surface/reboard/return, native GPU/devices, audible output,
+graphical desktop launch, human review, installed recovery, final-source full
+regression and trusted signing remain open. This checkpoint qualifies its exact
+source and bounded checks; it does not qualify later source or complete a release.
+
+## Earlier published checkpoint: `b3de8e299` — 2026-10-10
 
 The [executable](../builds/linux/MuddsShipyards-b3de8e2.x86_64),
 [archive](../builds/linux/MuddsShipyards-b3de8e2-linux-x86_64.tar.gz) and
@@ -298,7 +321,11 @@ The runtime was read for Windows-only assumptions:
   and needs `--rendering-driver opengl3`, which is the same fallback as on
   Windows.
 
-## Validation status
+## Historical validation status — `f0e2c590a`
+
+The following results apply to this earlier checkpoint only. The latest
+published checkpoint and its bounded acceptance are recorded at the top of
+this page; later packages do not inherit this older interruption acceptance.
 
 The [Linux archive](../builds/linux/MuddsShipyards-f0e2c59-linux-x86_64.tar.gz),
 [binary](../builds/linux/MuddsShipyards-f0e2c59.x86_64) and
