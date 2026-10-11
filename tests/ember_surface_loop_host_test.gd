@@ -909,7 +909,7 @@ func _check_detached_ascent_queries_and_reentry(fixture: Dictionary) -> void:
 	var player := fixture.player as PlayerController
 	var area := fixture.area as ShipBoardingArea
 	var anchor := ship.get_pilot_seat_anchor()
-	var fixture_scope_current := not composition is GameFlow \
+	var fixture_scope_current: bool = not composition is GameFlow \
 		and composition.is_ancestor_of(host) and composition.is_ancestor_of(ship) \
 		and composition.is_ancestor_of(player) and area.get_ship() == ship \
 		and player.is_seated_at(anchor) and ship.is_piloted() and not ship.is_destroyed() \
@@ -985,13 +985,13 @@ func _check_detached_ascent_queries_and_reentry(fixture: Dictionary) -> void:
 	# Match Main._restore_pilot_reservation_after_reentry without creating or
 	# changing a token, identity or generation. The area's public API validates
 	# and consumes the real lifecycle ticket while ordinary boarding stays gated.
-	var witness_current := host.get_generation() == int(before.generation) \
+	var witness_current: bool = host.get_generation() == int(before.generation) \
 		and host.get_attachment_generation() == int(before.attachment_generation) \
 		and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT \
 		and fixture.ship == ship and fixture.player == player and fixture.area == area \
 		and area.get_ship() == ship and ship.get_pilot_seat_anchor() == anchor \
 		and player.is_seated_at(anchor) and ship.is_piloted() and not ship.is_destroyed()
-	var pilot_restored := witness_current and area.restore_seated_pilot_reservation(
+	var pilot_restored: bool = witness_current and area.restore_seated_pilot_reservation(
 		player, ship, anchor, detach_generation
 	)
 	_check(
