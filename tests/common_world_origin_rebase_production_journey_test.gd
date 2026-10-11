@@ -4,13 +4,22 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 63
+const EXPECTED_ASSERTIONS := 76
 
 class OwnerSubclassProbe extends CommonWorldOriginRebaseOwner:
 	func _init() -> void:
 		pass
 	func _enter_tree() -> void:
 		pass
+
+class RosterCapabilityProbe extends Node3D:
+	var eligible := true
+	var rename_during_capture := false
+	func is_common_world_translation_root() -> bool:
+		if rename_during_capture:
+			rename_during_capture = false
+			name = "RenamedDuringCapture"
+		return eligible
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -102,6 +111,7 @@ func _run() -> void:
 	for value: Variant in authority.values(): authority_false = authority_false and value is bool and not value
 	_check(bool(owner_audit.get("valid", false)) and int(owner_audit.get("owner_count", 0)) == 1 and authority_false and bool(owned.get("collision_transform_synchronization", false)) and not owner.is_processing() and not owner.is_physics_processing(), "one caller-only owner exposes narrow collision-transform synchronization and zero adjacent authority")
 	await _check_live_owner_validation(game, owner)
+	await _check_roster_cache_lifecycle(game, owner)
 
 	player.global_position = CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR
 	cinder_binding.physics_tick_from_caller_sample(1.0 / 60.0, _sample(player))
@@ -233,6 +243,7 @@ func _run() -> void:
 	await process_frame
 	_check(owner.consume_rebase_preview(rollback_preview, rollback_sample).reason == &"owner_unavailable" and int(owner.get_snapshot().transaction_count) == transaction_count, "whole-Main detach freezes transactions")
 	root.add_child(game)
+	_check(int(owner.get("_roster_cache_revision")) == -1, "owner reentry starts with a cold structure cache")
 	await process_frame
 	await process_frame
 	_check([owner.get_instance_id(), ember.get_instance_id(), ember_binding.get_instance_id(), frame.get_instance_id(), cinder_loaded.get_instance_id()] == identities and int(owner.get_snapshot().transaction_count) == transaction_count and bool(owner.audit().valid), "re-entry preserves owner/frame/stream identities without replay")
@@ -438,6 +449,70 @@ func _check_aurora_transit_carry() -> void:
 	ship.set_piloted(false)
 	game.set("_piloting", false)
 	await _cleanup(game)
+
+
+func _roster_entry(entries: Array, node: Node3D) -> Dictionary:
+	for entry: Dictionary in entries:
+		if entry.instance_id == node.get_instance_id(): return entry
+	return {}
+
+
+func _check_roster_cache_lifecycle(game: GameFlow, owner: CommonWorldOriginRebaseOwner) -> void:
+	_check(has_signal(&"node_added") and has_signal(&"node_removed") and has_signal(&"node_renamed"),
+		"actual SceneTree exposes synchronous topology and rename signals")
+	var ancestor := Node.new()
+	ancestor.name = "CacheAncestor"
+	game.add_child(ancestor)
+	var probe := RosterCapabilityProbe.new()
+	probe.name = "CacheProbe"
+	ancestor.add_child(probe)
+	var first := owner._capture_live_roster()
+	var first_revision := int(owner.get("_roster_cache_revision"))
+	var paths: Array[String] = []
+	for entry: Dictionary in first.covered: paths.append(entry.path)
+	var sorted_paths := paths.duplicate()
+	sorted_paths.sort()
+	_check(bool(first.accepted) and paths == sorted_paths and not _roster_entry(first.covered, probe).is_empty(),
+		"cold capture discovers and lexically orders the complete live roster")
+	var warm := owner._capture_live_roster()
+	_check(bool(warm.accepted) and first_revision == int(owner.get("_roster_cache_revision"))
+		and first.covered == warm.covered, "unchanged topology reuses structure with an identical public roster")
+	probe.position = Vector3(3.0, 4.0, 5.0)
+	var transformed := owner._capture_live_roster()
+	_check((_roster_entry(transformed.covered, probe).transform as Transform3D).is_equal_approx(probe.transform)
+		and first_revision == int(owner.get("_roster_cache_revision")), "warm capture reads fresh transforms")
+	probe.top_level = true
+	var top := owner._capture_live_roster()
+	_check(_roster_entry(top.roots, probe).get("mode", &"") == &"top_level",
+		"warm capture reclassifies a changed top-level flag")
+	probe.eligible = false
+	_check(_roster_entry(owner._capture_live_roster().roots, probe).is_empty(),
+		"warm capture reevaluates translation-root capability")
+	probe.eligible = true
+	var added := Node3D.new()
+	added.name = "CacheAdded"
+	game.add_child(added)
+	_check(not _roster_entry(owner._capture_live_roster().covered, added).is_empty()
+		and int(owner.get("_roster_cache_revision")) != first_revision, "node addition invalidates cached structure")
+	game.remove_child(added)
+	_check(_roster_entry(owner._capture_live_roster().covered, added).is_empty(),
+		"node removal invalidates cached structure")
+	ancestor.add_child(added)
+	probe.reparent(added)
+	_check(_roster_entry(owner._capture_live_roster().covered, probe).path == "CacheAncestor/CacheAdded/CacheProbe",
+		"reparenting refreshes cached host-relative paths")
+	ancestor.name = "RenamedPlainAncestor"
+	_check(_roster_entry(owner._capture_live_roster().covered, probe).path == "RenamedPlainAncestor/CacheAdded/CacheProbe",
+		"renaming a plain Node ancestor synchronously invalidates descendant paths")
+	probe.rename_during_capture = true
+	_check(owner._capture_live_roster().get("reason") == &"world_roster_changed",
+		"a structural mutation inside a capability callback fails closed without retry")
+	owner._capture_live_roster()
+	probe.queue_free()
+	_check(owner._capture_live_roster().get("reason") == &"queued_or_detached_world_node",
+		"warm cache refuses a queued node before the removal signal")
+	ancestor.queue_free()
+	await process_frame
 
 
 func _check_live_owner_validation(game: GameFlow, owner: CommonWorldOriginRebaseOwner) -> void:

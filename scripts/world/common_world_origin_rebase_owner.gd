@@ -58,6 +58,12 @@ var _last_covered_node_count := 0
 var _last_covered_instance_ids := PackedInt64Array()
 var _last_receipt: Dictionary = {}
 var _commit_adapter := Callable()
+# Cache only topology and lexical paths. Transaction state is always captured live.
+var _roster_tree: SceneTree
+var _roster_host: WeakRef
+var _roster_revision := 0
+var _roster_cache_revision := -1
+var _roster_structure: Array[Dictionary] = []
 
 
 func _register_live_owner_group() -> bool:
@@ -66,6 +72,7 @@ func _register_live_owner_group() -> bool:
 
 
 func _enter_tree() -> void:
+	_connect_roster_signals()
 	set_process(false)
 	set_physics_process(false)
 
@@ -77,6 +84,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_disconnect_roster_signals()
 	set_process(false)
 	set_physics_process(false)
 
@@ -251,6 +259,7 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 	var roster_result := _capture_live_roster()
 	if not bool(roster_result.get("accepted", false)):
 		return _reject(roster_result.get("reason", &"roster_preflight_failed") as StringName)
+	var roster_revision := _roster_revision
 	var roots := roster_result.get("roots", []) as Array
 	var covered := roster_result.get("covered", []) as Array
 	var source_generation := int(preview_value.get("coordinate_frame_generation", 0))
@@ -281,6 +290,10 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		_cancel_pending_rebases(requests)
 		_mutation_active = false
 		return _reject(binding_preflight.get("reason", &"binding_preflight_rejected") as StringName)
+	if _roster_revision != roster_revision:
+		_cancel_pending_rebases(requests)
+		_mutation_active = false
+		return _reject(&"world_roster_changed")
 	if not _apply_root_translation(roots, delta):
 		var apply_rollback_synchronized := _rollback_world(roots, covered)
 		_cancel_pending_rebases(requests)
@@ -289,6 +302,14 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		if not apply_rollback_synchronized:
 			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(&"translation_apply_failed")
+	if _roster_revision != roster_revision:
+		var roster_rollback_synchronized := _rollback_world(roots, covered)
+		_cancel_pending_rebases(requests)
+		_rollback_count += 1
+		_mutation_active = false
+		if not roster_rollback_synchronized:
+			return _reject(&"collision_transform_rollback_desynchronized")
+		return _reject(&"world_roster_changed")
 	if not _verify_covered_translation(covered, roots, delta):
 		var verification_rollback_synchronized := _rollback_world(roots, covered)
 		_cancel_pending_rebases(requests)
@@ -297,6 +318,14 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		if not verification_rollback_synchronized:
 			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(&"translation_verification_failed")
+	if _roster_revision != roster_revision:
+		var roster_rollback_synchronized := _rollback_world(roots, covered)
+		_cancel_pending_rebases(requests)
+		_rollback_count += 1
+		_mutation_active = false
+		if not roster_rollback_synchronized:
+			return _reject(&"collision_transform_rollback_desynchronized")
+		return _reject(&"world_roster_changed")
 	# Node3D transforms commit immediately, but broadphase state for inherited
 	# CollisionObject3D transforms can otherwise remain at the pre-translation
 	# coordinates until the next physics flush. Downstream same-tick consumers
@@ -311,6 +340,14 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		if not synchronization_rollback_synchronized:
 			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(&"collision_transform_synchronization_failed")
+	if _roster_revision != roster_revision:
+		var roster_rollback_synchronized := _rollback_world(roots, covered)
+		_cancel_pending_rebases(requests)
+		_rollback_count += 1
+		_mutation_active = false
+		if not roster_rollback_synchronized:
+			return _reject(&"collision_transform_rollback_desynchronized")
+		return _reject(&"world_roster_changed")
 	# The requesting world commits first, while every other frame is still only
 	# pending and the whole transaction is still reversible.
 	var commit := _commit_frame_rebase(
@@ -633,34 +670,74 @@ func _validate_preview_and_actor(
 	return _result(true, &"rebase_input_valid")
 
 
+func _connect_roster_signals() -> void:
+	_disconnect_roster_signals()
+	_roster_tree = get_tree()
+	_roster_host = weakref(get_parent())
+	_roster_tree.node_added.connect(_invalidate_roster_structure)
+	_roster_tree.node_removed.connect(_invalidate_roster_structure)
+	_roster_tree.node_renamed.connect(_invalidate_roster_structure)
+
+
+func _disconnect_roster_signals() -> void:
+	if is_instance_valid(_roster_tree):
+		for event in [&"node_added", &"node_removed", &"node_renamed"]:
+			if _roster_tree.is_connected(event, _invalidate_roster_structure):
+				_roster_tree.disconnect(event, _invalidate_roster_structure)
+	_roster_tree = null
+	_roster_host = null
+	_roster_structure = []
+	_roster_cache_revision = -1
+	_roster_revision += 1
+
+
+func _invalidate_roster_structure(_node: Node) -> void:
+	_roster_revision += 1
+
+
 func _capture_live_roster() -> Dictionary:
 	var host := get_parent()
+	if _roster_tree != get_tree() or _roster_host == null \
+			or _roster_host.get_ref() != host:
+		_connect_roster_signals()
+	var revision := _roster_revision
+	if _roster_cache_revision != revision:
+		var structure: Array[Dictionary] = []
+		for candidate in host.find_children("*", "Node3D", true, false):
+			structure.append({"ref": weakref(candidate), "instance_id": candidate.get_instance_id(),
+				"path": str(host.get_path_to(candidate))})
+		structure.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.path) < str(b.path))
+		if _roster_revision != revision:
+			return _result(false, &"world_roster_changed")
+		_roster_structure = structure
+		_roster_cache_revision = revision
 	var roots: Array[Dictionary] = []
 	var covered: Array[Dictionary] = []
-	for candidate in host.find_children("*", "Node3D", true, false):
-		var node := candidate as Node3D
+	for entry in _roster_structure:
+		var node := (entry.ref as WeakRef).get_ref() as Node3D
 		if not is_instance_valid(node) or node.is_queued_for_deletion() \
-				or not node.is_inside_tree():
+				or not node.is_inside_tree() or not host.is_ancestor_of(node) \
+				or node.get_instance_id() != int(entry.instance_id):
 			return _result(false, &"queued_or_detached_world_node")
 		covered.append({
-			"node": node,
-			"instance_id": node.get_instance_id(),
-			"path": str(host.get_path_to(node)),
-			"global_transform": node.global_transform,
-			"transform": node.transform,
+			"node": node, "instance_id": node.get_instance_id(), "path": entry.path,
+			"global_transform": node.global_transform, "transform": node.transform,
 		})
-		if (node.get_parent() == host or node.top_level) \
-				and node_is_common_world_translation_root(node):
+		var root_eligible := node.get_parent() == host or node.top_level
+		var translation_root := false
+		if root_eligible:
+			translation_root = node_is_common_world_translation_root(node)
+			# Capability callbacks may remove or free nodes. Check before touching one again.
+			if _roster_revision != revision:
+				return _result(false, &"world_roster_changed")
+		if root_eligible and translation_root:
 			roots.append({
-				"node": node,
-				"instance_id": node.get_instance_id(),
-				"path": str(host.get_path_to(node)),
+				"node": node, "instance_id": node.get_instance_id(), "path": entry.path,
 				"mode": &"top_level" if node.top_level else &"direct",
-				"transform": node.transform,
-				"global_transform": node.global_transform,
+				"transform": node.transform, "global_transform": node.global_transform,
 			})
-	roots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.path) < str(b.path))
-	covered.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.path) < str(b.path))
+	if _roster_revision != revision:
+		return _result(false, &"world_roster_changed")
 	return {"accepted": true, "reason": &"roster_captured", "roots": roots, "covered": covered}
 
 
