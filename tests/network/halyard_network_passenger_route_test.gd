@@ -1161,8 +1161,39 @@ func _ember_surface_host() -> void:
 		return
 	_check(host._landed_public_state_is_exact(), "actual Host occupancy, lease and solid hull support remain exact")
 	_check(await _until(func(): return host.get_phase() == EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 20.0), "Host physically disembarks standing pilot")
+	var departure_result: Dictionary = {}
+	var observe_departure := func(result: Dictionary) -> void:
+		var caller := _game.network_session.multiplayer.get_remote_sender_id()
+		if caller == peer:
+			departure_result.clear()
+			departure_result.merge({"caller_peer_id": caller, "accepted": result.get("accepted"),
+				"status": result.get("status"), "reason": result.get("reason"), "sequence": result.get("sequence")})
+	_game.network_session.boarding_intent_result.connect(observe_departure)
 	_write("host.landed", {})
-	if not await _wait_file("client.terrain", 20.0):
+	var terrain_arrived := await _wait_file("client.terrain", 20.0)
+	_game.network_session.boarding_intent_result.disconnect(observe_departure)
+	if not terrain_arrived:
+		var actual_body := simulation.get_body(avatar) as PlayerController
+		var record := simulation.get_body_record(avatar)
+		var host_visit := _game.get_network_planetary_journey_snapshot()
+		var telemetry := _craft.get_telemetry()
+		var hatch_audit := _game.get_network_remote_body_audit()
+		print("EMBER_PASSENGER_HOST_DEPARTURE_FAILED: %s" % JSON.stringify({
+			"boarding_result": departure_result, "expected_peer_id": peer,
+			"body_id": actual_body.get_instance_id() if is_instance_valid(actual_body) else 0,
+			"body_owner": record.get("owner_peer_id"), "entity_generation": record.get("entity_generation"),
+			"seat_state": record.get("seat_state"), "last_interaction_id": record.get("last_interaction_id"),
+			"frozen": record.get("frozen"), "local_position": _craft.to_local(actual_body.global_position) if is_instance_valid(actual_body) else null,
+			"floor": actual_body.is_on_floor() if is_instance_valid(actual_body) else false,
+			"at_hatch": _game._network_ember_passenger_at_hatch(actual_body, _craft, false),
+			"host_current": _game._network_ember_passenger_host_is_current(_craft),
+			"host_phase": host.get_phase(), "host_attached": host.is_attached(),
+			"lease_exact": host._landed_public_state_is_exact(),
+			"engine": telemetry.get("engine_state"), "landed": telemetry.get("landed"),
+			"journey_epoch": host_visit.get("journey_epoch"), "journey_phase": host_visit.get("phase"),
+			"last_hatch_status": hatch_audit.get("last_hatch_status"),
+			"interactions": hatch_audit.get("interactions"), "interactions_refused": hatch_audit.get("interactions_refused"),
+		}))
 		return
 	_check(simulation.get_body(avatar) == body and body.get_instance_id() == body_id
 		and simulation.is_surface_walking(avatar) and _game._network_ember_passenger_surface_is_current(avatar)
@@ -1283,7 +1314,32 @@ func _ember_surface_client() -> void:
 	await _look(hatch.global_position)
 	var before := source.get_audit()
 	await _press(&"interact")
-	_check(await _until(func(): return _game._network_client_ember_passenger_surface_is_current(), 12.0), "ordinary hatch press waits for host-confirmed exterior departure")
+	var departure_confirmed := await _until(func(): return _game._network_client_ember_passenger_surface_is_current(), 12.0)
+	_check(departure_confirmed, "ordinary hatch press waits for host-confirmed exterior departure")
+	if not departure_confirmed:
+		var source_audit := source.get_audit()
+		var boarding := _game.get_network_client_boarding_audit()
+		var answer := _game.network_session.get_boarding_intent_result_replica()
+		var visit := _game.get_network_planetary_journey_snapshot()
+		var operation := _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()).get("operation_presentation", {}) as Dictionary
+		var target: Node = _game.station_interaction_candidate
+		print("EMBER_PASSENGER_CLIENT_DEPARTURE_FAILED: %s" % JSON.stringify({
+			"request_serial": boarding.get("sequence"), "request_pending": boarding.get("request_pending"),
+			"last_status": boarding.get("last_status"), "requests": boarding.get("requests"),
+			"refusals": boarding.get("refusals"), "timeouts": boarding.get("timeouts"),
+			"answer_serial": answer.get("sequence"), "answer_action": answer.get("action"),
+			"answer_accepted": answer.get("accepted"), "answer_status": answer.get("status"), "answer_reason": answer.get("reason"),
+			"source_entity": source_audit.get("entity_id"), "source_generation": source_audit.get("entity_generation"),
+			"source_stream": source_audit.get("stream_id"), "source_sequence": source_audit.get("sequence"),
+			"source_bound": source_audit.get("bound"), "corrections": source_audit.get("corrections"),
+			"interaction_id_before": before.get("interaction_request_id"), "interaction_id_after": source_audit.get("interaction_request_id"),
+			"target": str(target.get_path()) if is_instance_valid(target) else "",
+			"hatch_nearby": _player.get_nearby_interactables().has(hatch), "hatch_reach": _player.get_interaction_origin().distance_to(hatch.global_position),
+			"local_position": _craft.to_local(_player.global_position), "floor": _player.is_on_floor(), "controls": _player.is_control_enabled(),
+			"cabin_ship_current": _game._cabin_ship == _craft, "secure_surface_current": _game._network_client_ember_surface_scene_is_current(_craft, epoch),
+			"engine": operation.get("engine"), "landed": operation.get("landed"),
+			"journey_epoch": visit.get("journey_epoch"), "journey_phase": visit.get("phase"),
+		}))
 	if not _game._network_client_ember_passenger_surface_is_current():
 		return
 	var old_departure := _game.network_session.get_boarding_intent_result_replica()
