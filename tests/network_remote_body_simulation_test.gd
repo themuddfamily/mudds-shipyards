@@ -403,11 +403,18 @@ func _assert_crew_support_is_resolved_once_per_edge() -> void:
 	body.velocity = Vector3.ZERO
 	body._move_in_interior_collision_frame(TICK_SECONDS)
 	await _drive(4)
-	var out_of_reach := body.global_position
+	var out_of_reach := _frame.get_occupant_frame_local_transform(body).origin
 	source.request_interaction()
 	await _drive(12)
-	_check(claims.size() == 1 and body.global_position.is_equal_approx(out_of_reach),
-		"an ordinary out-of-reach edge neither delegates a crew claim nor moves the capsule")
+	var after_edge := simulation.get_body_record(WALKER_ENTITIES[0])
+	# The moving deck still carries this paused capsule in world space. Compare
+	# cabin coordinates, allowing 1 mm for floating-point carried-pose rounding
+	# (the captured unchanged pose differed by 0.043 mm after 8.68 m of carry).
+	_check(claims.size() == 1
+		and _frame.get_occupant_frame_local_transform(body).origin.distance_to(out_of_reach) < 0.001
+		and after_edge.get("seat_state") == &"standing"
+		and after_edge.get("avatar_mode") == MovementAuthority.MODE_ON_FOOT,
+		"an ordinary out-of-reach edge delegates no crew claim, leaves the capsule in place in its cabin, and keeps it on foot")
 	simulation.crew_seat_claim = original_claim
 	body.global_transform = start
 	body.clear_remote_intent()
