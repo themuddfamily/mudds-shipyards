@@ -286,14 +286,89 @@ func _beacon_receipts(game: GameFlow) -> int:
 	return int(record.reward_counts.get(String(CinderBeaconTraversalActivity.REWARD_ID), 0))
 
 
+## These observers retain only event values. They never print or mutate streaming.
+## Either scene owner exiting also disconnects an abandoned awaiting lookup.
+class StreamBindingObservation extends RefCounted:
+	var events: Array[Dictionary] = []
+	var _connections: Array[Dictionary] = []
+
+	func _init(probe: Node, game: GameFlow, coordinator: WorldStreamingCoordinator) -> void:
+		var recorded_events := events
+		_listen(coordinator.location_load_started, func(id: StringName, generation: int):
+			recorded_events.append({"event": "load_started", "location_id": id, "generation": generation}))
+		_listen(coordinator.location_loaded, func(id: StringName, generation: int, node: Node3D):
+			recorded_events.append({"event": "loaded", "location_id": id, "generation": generation,
+				"instance_id": node.get_instance_id()}))
+		_listen(coordinator.location_load_failed, func(id: StringName, generation: int, reason: StringName):
+			recorded_events.append({"event": "load_failed", "location_id": id, "generation": generation, "reason": reason}))
+		_listen(coordinator.location_unloaded, func(id: StringName, generation: int):
+			recorded_events.append({"event": "unloaded", "location_id": id, "generation": generation}))
+		_listen(probe.tree_exiting, disconnect_observers)
+		_listen(game.tree_exiting, disconnect_observers)
+
+	func _listen(observed_signal: Signal, callback: Callable) -> void:
+		observed_signal.connect(callback)
+		_connections.append({"signal": observed_signal, "callback": callback})
+
+	func disconnect_observers() -> void:
+		for connection in _connections:
+			var observed_signal: Signal = connection.signal
+			if is_instance_valid(observed_signal.get_object()) \
+					and observed_signal.is_connected(connection.callback):
+				observed_signal.disconnect(connection.callback)
+		_connections.clear()
+
+
+func _stream_binding_node_diagnostic(node: Node) -> Dictionary:
+	if not is_instance_valid(node):
+		return {"valid": false}
+	var script := node.get_script() as Script
+	return {"valid": true, "instance_id": node.get_instance_id(), "class": node.get_class(),
+		"inside_tree": node.is_inside_tree(), "queued_for_deletion": node.is_queued_for_deletion(),
+		"script_path": script.resource_path if script != null else "",
+		"is_cinder_bootstrap": node is CinderStreamingBootstrap,
+		"is_nearby_cluster": node is NearbySectorCluster,
+		"is_activity_binding": node is NearbySectorActivityBinding}
+
+
+func _report_stream_binding_failure(game: GameFlow, activity_label: String,
+		update: Dictionary, observation: StreamBindingObservation, elapsed_ms: int) -> void:
+	var world := game.world
+	var host := world.get_parent() if is_instance_valid(world) else null
+	var world_bootstrap := host.get_node_or_null(^"CinderStreamingBootstrap") if is_instance_valid(host) else null
+	var loaded := game.cinder_streaming_bootstrap.get_loaded_instance()
+	var direct_child := loaded.get_node_or_null(^"ActivityBinding") if is_instance_valid(loaded) else null
+	var world_cluster := world.call("get_nearby_sector_cluster") as Node if is_instance_valid(world) else null
+	var consumer_binding := game.call("_get_nearby_activity_binding") as Node
+	print("IN_WORLD_STREAM_BINDING_FAILED: " + JSON.stringify({
+		"activity": activity_label, "idle_polls": 180, "elapsed_ms": elapsed_ms,
+		"update": update, "generation_events": observation.events,
+		"main_instance_id": game.get_instance_id(), "main_physics_processing": game.is_physics_processing(),
+		"bootstrap": game.cinder_streaming_bootstrap.get_snapshot(),
+		"production_binding": game.cinder_streaming_binding.get_snapshot(),
+		"coordinator": game.cinder_streaming_coordinator.audit(),
+		"world": _stream_binding_node_diagnostic(world),
+		"main_bootstrap": _stream_binding_node_diagnostic(game.cinder_streaming_bootstrap),
+		"world_bootstrap": _stream_binding_node_diagnostic(world_bootstrap),
+		"loaded_cluster": _stream_binding_node_diagnostic(loaded),
+		"world_cluster": _stream_binding_node_diagnostic(world_cluster),
+		"direct_activity_child": _stream_binding_node_diagnostic(direct_child),
+		"consumer_binding": _stream_binding_node_diagnostic(consumer_binding)}))
+
+
 func _load_beacon_binding(game: GameFlow, activity_label := "beacon") -> NearbySectorActivityBinding:
-	game.cinder_streaming_bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	var observation := StreamBindingObservation.new(self, game, game.cinder_streaming_coordinator)
+	var started_ms := Time.get_ticks_msec()
+	var update := game.cinder_streaming_bootstrap.update_position(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
 	var binding: NearbySectorActivityBinding
 	for _frame in 180:
 		binding = game.call("_get_nearby_activity_binding") as NearbySectorActivityBinding
 		if is_instance_valid(binding):
 			break
 		await get_tree().process_frame
+	observation.disconnect_observers()
+	if not is_instance_valid(binding):
+		_report_stream_binding_failure(game, activity_label, update, observation, Time.get_ticks_msec() - started_ms)
 	_check(is_instance_valid(binding), "Boot Main streams the actual %s activity owner" % activity_label)
 	game.call("_sync_activity_hud")
 	return binding
