@@ -8,7 +8,29 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
-## Latest native checkpoint `5f9386c13` — 2026-10-11
+## Latest native checkpoint `edbeef74a` — 2026-10-11
+
+The unsigned [setup](../builds/windows/MuddsShipyards-edbeef7-setup.exe) and
+[notes](../builds/windows/MuddsShipyards-edbeef7-installer-notes.txt) are published.
+It includes live BEGIN SHIFT remapping and the earlier flight/tractor hints.
+The later `c7f4b0539` contextual Interact fix and navigator work are excluded.
+
+Setup SHA256 is `087296dc2ecd5914a3e2a7aec978946c59517616659d73bec4036648179898e4`
+(86,846,226 bytes); payload SHA256 is
+`6876c3404ea29465e7b97c3ccca99d0b7fc80677499bb689cf3d0adf8d22ecc4`.
+Compilation exits 0 in 84.295 seconds under the enforced 600-second limit.
+All six native lanes pass 91 steps against the published `5f9386c13` baseline,
+including update/rollback, locked replacement refusal, interruption recovery,
+strict startup and uninstall. Actual owners are reaped; final creation-bound
+CIM confirms no owned actors or private install/profile/registry/shortcut residue.
+All 250 real-profile files are preserved. Root preservation checks, independent
+review, exclusive publication and exact five-file readback pass.
+
+Compiler metadata retains its build-time `native_verification: NOT_RUN`;
+installed acceptance is recorded separately. Ordinary play, native GPU/devices,
+human review, final-source regression and trusted signing remain open.
+
+## Earlier native checkpoint `5f9386c13` — 2026-10-11
 
 The unsigned [setup](../builds/windows/MuddsShipyards-5f9386c-setup.exe) and
 [notes](../builds/windows/MuddsShipyards-5f9386c-installer-notes.txt) are published.
