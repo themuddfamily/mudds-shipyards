@@ -100,6 +100,7 @@ var _source_paths := PackedStringArray()
 var _source_snapshot: Dictionary = {}
 var _source_aggregate_sha256 := ""
 var _source_frozen_validated := false
+var _publication_started := false
 var _semantic_frames: Array[Dictionary] = []
 var _captured_images: Dictionary = {}
 var _pair_metrics: Dictionary = {}
@@ -207,7 +208,9 @@ func _resolve_production_contracts() -> bool:
 	if _world == null or _hero == null or _opponent == null or _pulse == null:
 		return false
 
-	_opponent_visual = _opponent.get_node_or_null("RangeInterceptorVisual") as Node3D
+	# Dormant opponents release their hull subtree from the scene tree. Resolve
+	# the production-owned root; activate() restores that same root below.
+	_opponent_visual = _opponent.get_presentation_root()
 	_opponent_smoke = _opponent.get_node_or_null("EngineSmoke") as CPUParticles3D
 	_check(_opponent_visual != null, "opponent exposes its authored hull presentation root")
 	_check(_opponent_smoke != null, "opponent exposes its critical engine-smoke presentation")
@@ -264,6 +267,12 @@ func _prepare_deterministic_combat_stage() -> void:
 	var aim_direction := (_hero.global_position - opponent_position).normalized()
 	var opponent_basis := Basis.looking_at(aim_direction, Vector3.UP).orthonormalized()
 	_opponent.activate(Transform3D(opponent_basis, opponent_position))
+	_check(
+		_opponent.is_presentation_resident()
+		and _opponent.get_presentation_root() == _opponent_visual
+		and _opponent_visual.get_parent() == _opponent,
+		"activation restores the resolved authored hull before combat framing"
+	)
 	_opponent.set_target(_hero)
 	_opponent.set_physics_process(false)
 	_game.active_ship = _hero
@@ -1211,7 +1220,8 @@ func _write_evidence_manifest() -> void:
 func _reset_capture_transaction() -> void:
 	var output_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
 	_check(output_error == OK or output_error == ERR_ALREADY_EXISTS, "combat-visual output directory is available")
-	_invalidate_published_claims("prior published claim")
+	# Reset only staging. A failed capture before publication must leave the
+	# previous published frames and their authenticating manifests intact.
 	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(TRANSACTION_DIR)):
 		_remove_directory_tree(TRANSACTION_DIR)
 	var transaction_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(TRANSACTION_DIR))
@@ -1219,6 +1229,7 @@ func _reset_capture_transaction() -> void:
 
 
 func _publish_capture_transaction() -> void:
+	_publication_started = true
 	_invalidate_published_claims("published claim before replacement")
 	_remove_stale_capture_files()
 	if not _failures.is_empty():
@@ -1575,6 +1586,7 @@ func _finish() -> void:
 		)
 		quit(0)
 	else:
-		_invalidate_published_claims("failed capture")
+		if _publication_started:
+			_invalidate_published_claims("failed capture")
 		push_error("MUDDS_COMBAT_VISUAL_CAPTURE_FAILED: " + "; ".join(_failures))
 		quit(1)
