@@ -24,7 +24,7 @@ const ASSET_ENTRIES: Array[Dictionary] = [
 	{
 		"register": "assets/signage/observation_instrument_atlas.svg — Observation instrument plates",
 		"kind": "Textures",
-		"credit": "Three static Observation instrument plates generated with the project's font-free engineering alphabet. Original modern interpretation; no external fonts or images, live readings or interactive controls.",
+		"credit": "Observation console headings and engineering graphics, created with the project's engineering alphabet. Original modern interpretation.",
 		"licence": PROJECT_ORIGINAL,
 	},
 	{
