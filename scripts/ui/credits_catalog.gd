@@ -22,6 +22,12 @@ const IMAGEGEN_ORIGINAL := "Project-original output of OpenAI's built-in image g
 ## there with Markdown backticks removed.
 const ASSET_ENTRIES: Array[Dictionary] = [
 	{
+		"register": "assets/signage/habitat_common_room_display.svg — Habitat common-room table display",
+		"kind": "Textures",
+		"credit": "Habitat common-room lettering and chair/cup artwork, created with the project's engineering alphabet. Original modern interpretation.",
+		"licence": PROJECT_ORIGINAL,
+	},
+	{
 		"register": "assets/effects/smoke_alpha.tres",
 		"kind": "Textures",
 		"credit": "Procedural gradient alpha mask for combat smoke, created by the Mudds Shipyards team. Original modern interpretation.",

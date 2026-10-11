@@ -98,8 +98,8 @@ func _run() -> void:
 			and int(render.mesh_instances) == 1219
 			and int(render.multimesh_batches) == 32
 			and int(render.multimesh_resources) == 31
-			and int(render.drawn_copies) == 1412
-			and int(render.geometry_submissions) == 1242
+			and int(render.drawn_copies) == 1413
+			and int(render.geometry_submissions) == 1243
 			and bool(audit.valid),
 		"Habitat stays allocation-green at 2->1 foot renderers and 1243->1242 submissions"
 	)

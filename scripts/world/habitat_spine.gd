@@ -17,6 +17,10 @@ const EVIDENCE_STATUS: StringName = &"fixed_era_inspired_modern_interpretation"
 const HUB_CONNECTION_SLOT: StringName = &"hub-starboard-habitat"
 const WORLD_LAYER := PhysicsLayers.WORLD
 const STATIC_SHADOW_BATCH = preload("res://scripts/world/static_shadow_batch.gd")
+const COMMON_ROOM_DISPLAY_ATLAS := preload("res://assets/signage/habitat_common_room_display.svg")
+const COMMON_ROOM_DISPLAY_LABELS := ["COMMON ROOM", "REST", "REFRESHMENTS"]
+const COMMON_ROOM_DISPLAY_CENTRE := Vector3(0.0, 1.383, 21.45)
+const COMMON_ROOM_DISPLAY_SIZE := Vector2(1.22, 0.59)
 const ARCH_SHADOW_BATCH_COUNT := 27
 const ARCH_SHADOW_SEGMENTS_PER_BATCH := 14
 
@@ -152,20 +156,21 @@ const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1264
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
-const RENDER_DESCENDANT_COUNT := 1882
-const RENDER_MESH_INSTANCE_COUNT := 1219
+## The static common-room display adds one quad renderer/mesh/material to this roster.
+const RENDER_DESCENDANT_COUNT := 1883
+const RENDER_MESH_INSTANCE_COUNT := 1220
 const RENDER_MULTIMESH_BATCH_COUNT := 32
 ## One reusable StationDoor renderer owns a shared MultiMesh resource across the
 ## module's two door instances; all other batches own their component buffer.
 const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 31
-const RENDER_DRAWN_COPY_COUNT := 1412
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1242
+const RENDER_DRAWN_COPY_COUNT := 1413
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 1243
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
 # The 27 independent shadow-only arch meshes bring the live allocation to 367.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 367
-const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 33
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 368
+const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 34
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
 const OBSERVATION_BACKREST_METALLIC := 0.02
 const OBSERVATION_BACKREST_ROUGHNESS := 0.80
@@ -4207,6 +4212,7 @@ func _build_common_soft_goods(common: Node3D) -> void:
 			false
 		)
 	_box(goods, "TableDisplayCursor", Vector3(0.0, 1.3775, 21.32), Vector3(0.52, 0.007, 0.06), _materials["teal"], false)
+	_build_common_room_display(goods)
 
 	# Window ledge. Underside 0.96, which is the sill top exactly.
 	var frond_transforms: Array[Transform3D] = []
@@ -4337,6 +4343,39 @@ func _transparent_material(color: Color, metallic: float, roughness: float) -> S
 	result.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	result.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 	return result
+
+
+## A calm table placard gives the existing screen a readable common-room use.
+## The original bezel, screen, strips and light retain their identities and poses;
+## an opaque quad covers the generic strip artwork, leaving a narrow cyan rim.
+## It reads from the entry side (-Z). This is static dressing, not an interaction.
+func _build_common_room_display(goods: Node3D) -> void:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var across := Vector3.LEFT * COMMON_ROOM_DISPLAY_SIZE.x
+	var down := Vector3.FORWARD * COMMON_ROOM_DISPLAY_SIZE.y
+	var top_left := COMMON_ROOM_DISPLAY_CENTRE - across * 0.5 - down * 0.5
+	var corners := [top_left, top_left + across, top_left + across + down, top_left + down]
+	var uvs := [Vector2.ZERO, Vector2.RIGHT, Vector2.ONE, Vector2.DOWN]
+	for index in [0, 1, 2, 0, 2, 3]:
+		tool.set_normal(Vector3.UP)
+		tool.set_uv(uvs[index])
+		tool.add_vertex(corners[index])
+	var material := StandardMaterial3D.new()
+	material.resource_name = "HabitatCommonRoomDisplay"
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_texture = COMMON_ROOM_DISPLAY_ATLAS
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	var display := MeshInstance3D.new()
+	display.name = "CommonRoomTableDisplay"
+	display.mesh = tool.commit()
+	display.material_override = material
+	display.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	display.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	display.set_meta("visual_detail_only", true)
+	display.set_meta("evidence_status", &"modern_interpretation")
+	display.set_meta("common_room_display_labels", COMMON_ROOM_DISPLAY_LABELS)
+	goods.add_child(display)
 
 
 func _box(
