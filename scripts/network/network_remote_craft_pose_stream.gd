@@ -353,6 +353,20 @@ func clear_replica() -> void:
 	_heard_frame = -1
 
 
+## Called once by Main after a common-world transaction commits. Samples are
+## decoded local world positions; host settled records and incoming packets
+## remain station-relative. The world's generation is not a session epoch and
+## cannot fence translations requested by a different planetary frame.
+func notify_common_world_translation(
+	delta: Vector3, _target_coordinate_frame_generation: int = 0
+) -> void:
+	if not delta.is_finite() or delta == Vector3.ZERO:
+		return
+	for history: Array in _samples.values():
+		for sample: Dictionary in history:
+			sample["position"] = (sample.position as Vector3) + delta
+
+
 ## The replica's estimate of the authority tick, advanced once per physics
 ## tick and slewed toward "newest pose heard + physics frames since", so the
 ## render clock moves smoothly between arrivals instead of in 3-tick steps.

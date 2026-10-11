@@ -515,6 +515,18 @@ func abandon_projectile_flight(flight_id: int) -> bool:
 	return _projectile_flights.erase(flight_id)
 
 
+## The shared origin transaction moves every source and terminal candidate by
+## the same delta. Keep the admitted flight's range envelope in that frame;
+## translation grants no new range, sequence, lifetime or source authority.
+func notify_common_world_translation(
+	delta: Vector3, _target_coordinate_frame_generation: int = 0
+) -> void:
+	if not delta.is_finite() or delta == Vector3.ZERO:
+		return
+	for flight: Dictionary in _projectile_flights.values():
+		flight["launch_origin"] = (flight.launch_origin as Vector3) + delta
+
+
 func get_active_projectile_flight_count() -> int:
 	_prune_projectile_flights()
 	return _projectile_flights.size()

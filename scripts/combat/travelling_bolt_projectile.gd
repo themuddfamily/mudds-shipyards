@@ -183,6 +183,20 @@ func launch(
 	}.duplicate(true)
 
 
+## Roots and holders have already moved under the origin owner. Preserve the
+## flight's analytic trajectory without changing distance, time or authority.
+func notify_common_world_translation(
+	delta: Vector3, _target_coordinate_frame_generation: int = 0
+) -> void:
+	if not delta.is_finite() or delta == Vector3.ZERO:
+		return
+	for slot: Dictionary in _slots:
+		if not bool(slot.get("active", false)):
+			continue
+		for field: String in ["origin", "position", "previous_position"]:
+			slot[field] = (slot[field] as Vector3) + delta
+
+
 ## Retires every live bolt without inventing a resolver event.
 func abandon_all(reason: StringName = &"abandoned") -> int:
 	var abandoned := 0

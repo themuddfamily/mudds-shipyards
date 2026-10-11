@@ -447,6 +447,26 @@ func clear_presentation() -> void:
 	set_process(false)
 
 
+## The origin owner already translated this node and every top-level visual
+## root. Move only the retained world-space records, so interpolation, bursts,
+## late joins and pool-retirement aborts continue in the committed local frame.
+## Frame generations belong to individual worlds, not this shared cache.
+func notify_common_world_translation(
+	delta: Vector3, _target_coordinate_frame_generation: int = 0
+) -> void:
+	if not delta.is_finite() or delta == Vector3.ZERO:
+		return
+	for active: Dictionary in _active.values():
+		var record := active.record as Dictionary
+		for field: String in ["origin", "position", "previous_position", "terminal_position"]:
+			var position: Variant = record.get(field)
+			if position is Vector3 and (position as Vector3).is_finite():
+				record[field] = (position as Vector3) + delta
+	for visual: Dictionary in _visuals.values():
+		visual["position"] = (visual.position as Vector3) + delta
+		visual["target"] = (visual.target as Vector3) + delta
+
+
 func get_audit() -> Dictionary:
 	return {
 		"observed_pools": _pools.size(),

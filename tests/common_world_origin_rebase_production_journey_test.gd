@@ -2,8 +2,9 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
+const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 49
+const EXPECTED_ASSERTIONS := 63
 
 class OwnerSubclassProbe extends CommonWorldOriginRebaseOwner:
 	func _init() -> void:
@@ -124,6 +125,7 @@ func _run() -> void:
 		"ember": ember.global_position,
 		"top": top_probe.global_position,
 	}
+	var network_probes := _prepare_network_origin_probes(game, ship as HeroShip)
 	player.global_position = Vector3(0.0, 0.0, -7_900_000.0)
 	var sample := _sample(player)
 	var ember_tick := ember_binding.physics_tick_from_caller_sample(1.0 / 60.0, sample)
@@ -161,6 +163,15 @@ func _run() -> void:
 	_check(player.global_position == Vector3.ZERO and world.global_position.is_equal_approx(before_positions.world + delta) and ship.global_position.is_equal_approx(before_positions.ship + delta), "actor, station, and fleet roots receive one exact delta")
 	_check(cinder.global_position.is_equal_approx(before_positions.cinder + delta) and cinder_loaded.global_position.is_equal_approx(before_positions.cinder_loaded + delta) and cinder.get_loaded_instance() == cinder_loaded and int(cinder.get_snapshot().loaded_generation) == 1, "Cinder bootstrap and live generation translate without retirement")
 	_check(ember.global_position.is_equal_approx(before_positions.ember + delta) and top_probe.global_position.is_equal_approx(before_positions.top + delta), "Ember and nested top-level nodes receive the same delta")
+	_check_network_origin_probes(game, network_probes, delta)
+	var no_op_pose := game._network_craft_pose_stream.latest_sample((ship as HeroShip).get_ship_id())
+	var no_op_sample := _sample(player)
+	var no_op_tick := ember_binding.physics_tick_from_caller_sample(1.0 / 60.0, no_op_sample)
+	var no_op_preview := ember_binding.preview_origin_rebase(int(no_op_tick.coordinate_frame_generation))
+	var no_op := owner.consume_rebase_preview(no_op_preview, no_op_sample)
+	_check(no_op.reason == &"no_rebase_required" and int(owner.get_snapshot().transaction_count) == 1
+		and game._network_craft_pose_stream.latest_sample((ship as HeroShip).get_ship_id()) == no_op_pose,
+		"a real no-op preview preserves histories and does not replay the committed translation")
 	var binding_after := ember_binding.get_snapshot()
 	_check(int(binding_after.bound_coordinate_frame_generation) == 2 and binding_after.last_absolute_coordinate == absolute_before and int(binding_after.external_rebase_commit_count) == 1, "binding handoff preserves the absolute coordinate at target generation")
 	await process_frame
@@ -202,6 +213,7 @@ func _run() -> void:
 		rollback_area.get_rid()
 	)
 	owner._commit_adapter = Callable(self, &"_reject_commit")
+	var rollback_pose := game._network_craft_pose_stream.latest_sample((ship as HeroShip).get_ship_id())
 	var rejected := owner.consume_rebase_preview(rollback_preview, rollback_sample)
 	owner._commit_adapter = Callable()
 	var after_rollback_body_server := PhysicsServer3D.body_get_state(
@@ -212,6 +224,8 @@ func _run() -> void:
 	)
 	_check(rejected.reason == &"forced_commit_rejection" and world.global_transform.is_equal_approx(before_rollback_world) and camera.transform.is_equal_approx(before_rollback_camera) and after_rollback_body_server.is_equal_approx(before_rollback_body_server) and after_rollback_area_server.is_equal_approx(before_rollback_area_server) and frame.get_generation() == before_rollback_generation and (frame.get_snapshot().pending_rebase as Dictionary).is_empty(), "commit failure restores roots, derived local state, and body/area PhysicsServer transforms before cancelling the exact request")
 	_check(int(owner.get_snapshot().rollback_count) == 1 and bool(owner.audit().valid), "rollback is counted and production audit recovers")
+	_check(game._network_craft_pose_stream.latest_sample((ship as HeroShip).get_ship_id()) == rollback_pose,
+		"a rejected transaction does not migrate retained network samples")
 
 	var identities := [owner.get_instance_id(), ember.get_instance_id(), ember_binding.get_instance_id(), frame.get_instance_id(), cinder_loaded.get_instance_id()]
 	var transaction_count := int(owner.get_snapshot().transaction_count)
@@ -246,6 +260,9 @@ func _run() -> void:
 		int(reentry_tick.coordinate_frame_generation)
 	)
 	var reentry_transaction := owner.consume_rebase_preview(reentry_preview, reentry_sample)
+	_check((game._network_craft_pose_stream.latest_sample((ship as HeroShip).get_ship_id()).position as Vector3)
+		.is_equal_approx((rollback_pose.position as Vector3) + (reentry_preview.world_translation_delta as Vector3)),
+		"a fresh transaction migrates histories once after rollback and tree reentry")
 	_check(
 		bool(reentry_transaction.accepted)
 			and reentry_transaction.reason == &"rebase_committed"
@@ -494,6 +511,139 @@ func _check_live_owner_validation(game: GameFlow, owner: CommonWorldOriginRebase
 		and owner.get_live_validation().errors == owner.audit().errors,
 		"compact validation retains the automatic physics refusal")
 	owner.set_physics_process(false)
+
+
+func _prepare_network_origin_probes(game: GameFlow, craft: HeroShip) -> Dictionary:
+	var stream := game._network_craft_pose_stream
+	stream.bind_replica_craft_presentations([craft])
+	var canonical: Array = []
+	for tick: int in [20, 30, 40, 50]:
+		var entry := NetworkRemoteCraftPoseStream.build_pose_entry(craft, craft.get_ship_id(), 2, tick)
+		entry["position"] = Vector3(float(tick), 300.0, 400.0)
+		entry["velocity_world"] = Vector3.ZERO
+		entry["craft_epoch"] = 7
+		canonical.append(NetworkRemoteCraftPoseStream.pack_display_facts(
+			game._shift_network_craft_pose_entries([entry], -game.world.global_position)))
+	var admitted := stream.consume_movement_section(canonical[0], 0, game.world.global_position)
+	admitted += stream.consume_movement_section(canonical[1], 0, game.world.global_position)
+	stream._clock = 31.0
+	var proxy := Node3D.new()
+	proxy.name = "OriginCraftInterpolationProbe"
+	game.add_child(proxy)
+	stream.interpolate_observer(proxy, craft.get_ship_id())
+	var probe_root := Node3D.new()
+	probe_root.name = "OriginFlightProbes"
+	game.add_child(probe_root)
+	var authority := LiveCombatAuthority.new()
+	probe_root.add_child(authority)
+	var bolt := TravellingBoltProjectile.new()
+	var seeker := SeekerTorpedoProjectile.new()
+	var targets: Array = []
+	var launches: Array = []
+	var results: Array = []
+	var replicator := game._ensure_network_remote_projectile_replicator()
+	var published: Array = []
+	replicator.set_publisher(func(record: Dictionary, terminal: bool, _recipients: Array) -> Dictionary:
+		published.append({"projectile": record.duplicate(true), "terminal": terminal})
+		return {"accepted": true})
+	for index in 2:
+		var source := Node3D.new()
+		probe_root.add_child(source)
+		source.global_position = Vector3(200.0 + 400.0 * index, 300.0, 400.0)
+		var target := StaticBody3D.new()
+		probe_root.add_child(target)
+		target.global_position = source.global_position + Vector3.FORWARD * 60.0
+		target.collision_layer = Layers.SHIP_BODY_LAYER
+		var shape := CollisionShape3D.new()
+		var sphere := SphereShape3D.new()
+		sphere.radius = 6.0
+		shape.shape = sphere
+		target.add_child(shape)
+		var health := Damageable.new()
+		health.faction_id = &"origin_target"
+		target.add_child(health)
+		targets.append(health)
+		var pool = bolt if index == 0 else seeker
+		source.add_child(pool)
+		pool.bind_authority(authority)
+		authority.register_source(source, 9801 + index, &"origin_source", {&"origin_probe": {
+			"range": 200.0, "damage": 10.0, "origin_tolerance": 4.0,
+			"projectile_speed": 40.0, "projectile_lifetime": 5.0, "projectile_radius": 0.2}})
+		replicator.observe_pool(pool, NetworkRemoteProjectileReplicator.KIND_SLUG if index == 0
+			else NetworkRemoteProjectileReplicator.KIND_TORPEDO, &"origin_probe")
+		if index == 0:
+			bolt.bolt_resolved.connect(func(_record: Dictionary, result: Dictionary) -> void: results.append(result))
+			launches.append(bolt.launch(source, &"origin_probe", source.global_position, Vector3.FORWARD))
+		else:
+			seeker.torpedo_resolved.connect(func(_record: Dictionary, result: Dictionary) -> void: results.append(result))
+			launches.append(seeker.launch(source, &"origin_probe", source.global_position, Vector3.FORWARD, target))
+		pool._advance_slot(int(launches.back().slot_index), 0.1)
+		pool.set_physics_process(false)
+	var visual_packet := {"projectile": {"projectile_id": &"origin_visual", "position": Vector3(800.0, 300.0, 400.0),
+		"direction": Vector3.FORWARD, NetworkRemoteProjectileReplicator.RECORD_KEY: {
+			"kind": NetworkRemoteProjectileReplicator.KIND_SLUG, "speed": 10.0, "lifetime": 5.0}}}
+	var presented := replicator.present_packet(visual_packet, &"projectile_presented")
+	replicator.set_process(false)
+	_check(admitted == 2 and bool(launches[0].accepted) and bool(launches[1].accepted) and bool(presented.accepted),
+		"real craft histories, authority flights and remote projectile presentation are live before origin commit")
+	return {"craft": craft, "proxy": proxy, "proxy_position": proxy.global_position, "canonical": canonical,
+		"canonical_copy": canonical.duplicate(true), "replicator": replicator, "published": published,
+		"bolt": bolt, "seeker": seeker, "launches": launches, "authority": authority,
+		"targets": targets, "results": results}
+
+
+func _check_network_origin_probes(game: GameFlow, probes: Dictionary, delta: Vector3) -> void:
+	var stream := game._network_craft_pose_stream
+	var ship_id := (probes.craft as HeroShip).get_ship_id()
+	_check((stream.latest_sample(ship_id).position as Vector3).is_equal_approx(Vector3(30.0, 300.0, 400.0) + delta)
+		and probes.canonical == probes.canonical_copy and stream._epoch == 7,
+		"commit migrates local craft histories once while canonical packets and session epoch stay intact")
+	stream.interpolate_observer(probes.proxy, ship_id)
+	_check((probes.proxy as Node3D).global_position.is_equal_approx((probes.proxy_position as Vector3) + delta),
+		"retained interpolation brackets continue coherently after the real owner commit")
+	(probes.proxy as Node3D).global_position = stream.latest_sample(ship_id).position
+	_check(stream.reconcile_pilot(probes.proxy, ship_id, 0.0, 1.0 / 60.0).status == &"within_deadband",
+		"pilot reconciliation sees the translated history without a corrective snap")
+	var replicator := probes.replicator as NetworkRemoteProjectileReplicator
+	var visual := replicator._visuals[&"origin_visual"] as Dictionary
+	var expected_visual := Vector3(800.0, 300.0, 400.0) + delta
+	_check(replicator.get_visual_position(&"origin_visual").is_equal_approx(expected_visual)
+		and (visual.root as Node3D).global_position.is_equal_approx(expected_visual),
+		"active projectile cache and top-level visual receive the delta exactly once")
+	replicator._process(0.1)
+	_check(replicator.get_visual_position(&"origin_visual").is_equal_approx(expected_visual + Vector3.FORWARD),
+		"the next presentation step keeps its translated trajectory and correction target")
+	replicator.republish_for_peer(2)
+	var republished := (probes.published as Array).slice(-2)
+	_check(((republished[0].projectile.position as Vector3) - (Vector3(200.0, 300.0, 400.0) + delta)).length() < 20.0
+		and ((republished[1].projectile.position as Vector3) - (Vector3(600.0, 300.0, 400.0) + delta)).length() < 20.0,
+		"late-join host records retain the moved launch origins before any steering republish")
+	for index in 2:
+		var pool = probes.bolt if index == 0 else probes.seeker
+		var slot := pool._slots[int(probes.launches[index].slot_index)] as Dictionary
+		var origin := Vector3(200.0 + 400.0 * index, 300.0, 400.0) + delta
+		pool._advance_slot(int(probes.launches[index].slot_index), 0.1)
+		_check(bool(slot.active) and (slot.position as Vector3).is_equal_approx(origin + Vector3.FORWARD * 8.0)
+			and (probes.authority.resolver.get_projectile_flight_snapshot(int(slot.flight_id)).launch_origin as Vector3).is_equal_approx(origin)
+			and is_equal_approx(float(slot.elapsed), 0.2) and is_equal_approx(float(slot.travelled), 8.0),
+			"translated %s flight advances without false contact or widened travel envelope" % ("bolt" if index == 0 else "seeker"))
+	for _step in 100:
+		(probes.bolt as TravellingBoltProjectile)._advance_slot(int(probes.launches[0].slot_index), 0.02)
+		(probes.seeker as SeekerTorpedoProjectile)._advance_slot(int(probes.launches[1].slot_index), 0.02)
+	_check(probes.results.size() == 2 and bool(probes.results[0].damaged) and bool(probes.results[1].damaged)
+		and is_equal_approx((probes.targets[0] as Damageable).get_health(), 90.0)
+		and is_equal_approx((probes.targets[1] as Damageable).get_health(), 90.0)
+		and (probes.authority as LiveCombatAuthority).get_active_projectile_flight_count() == 0,
+		"both real translated flights resolve their legitimate arrivals once through authority")
+	var delayed := stream.consume_movement_section(probes.canonical[2], 0, game.world.global_position)
+	var fresh := stream.consume_movement_section(probes.canonical[3], 0, game.world.global_position)
+	_check(delayed == 1 and fresh == 1
+		and (stream.latest_sample(ship_id).position as Vector3).is_equal_approx(Vector3(50.0, 300.0, 400.0) + delta)
+		and probes.canonical == probes.canonical_copy,
+		"delayed and fresh canonical movement records decode against the current moved station origin")
+	replicator.clear_host(false)
+	replicator.clear_presentation()
+	stream._clock = -1.0
 
 
 func _sample(actor: Node3D) -> Dictionary:

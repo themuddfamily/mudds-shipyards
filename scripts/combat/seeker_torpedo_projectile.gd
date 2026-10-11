@@ -252,6 +252,20 @@ func launch(
 	}.duplicate(true)
 
 
+## The origin owner moved holders, hurtboxes, targets and bursts already. Only
+## frozen trajectory positions change; heading, lock and travel stay intact.
+func notify_common_world_translation(
+	delta: Vector3, _target_coordinate_frame_generation: int = 0
+) -> void:
+	if not delta.is_finite() or delta == Vector3.ZERO:
+		return
+	for slot: Dictionary in _slots:
+		if not bool(slot.get("active", false)):
+			continue
+		for field: String in ["origin", "position", "previous_position"]:
+			slot[field] = (slot[field] as Vector3) + delta
+
+
 ## Retires every live torpedo without inventing a resolver event.
 func abandon_all(reason: StringName = &"abandoned") -> int:
 	var abandoned := 0

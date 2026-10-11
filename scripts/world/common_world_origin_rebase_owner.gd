@@ -708,6 +708,12 @@ func _notify_committed_translation(
 			generation_by_bootstrap[entry_bootstrap.get_instance_id()] = entry_target
 		if default_generation == 0:
 			default_generation = entry_target
+	# Main itself is deliberately outside the translated Node3D roster. It owns
+	# non-node caches (such as remote craft interpolation) that must observe the
+	# same committed translation before any adapter accepts the new frame.
+	var host := get_parent()
+	if is_instance_valid(host) and host.has_method(&"notify_common_world_translation"):
+		host.call(&"notify_common_world_translation", delta, default_generation)
 	var notified := {}
 	for group: Array in [roots, covered]:
 		for record_value in group:
