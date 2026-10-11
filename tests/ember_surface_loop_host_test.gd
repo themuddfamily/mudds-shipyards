@@ -631,8 +631,10 @@ func _test_halyard_velocity_aware_surface_braking() -> void:
 	var brake_entry_z := -INF
 	var braking_retained := true
 	var requested := false
+	var trajectory_ticks := 0
 	for _index in 1800:
 		await physics_frame
+		trajectory_ticks += 1
 		var advanced := host.advance_physics(
 			1.0 / Engine.physics_ticks_per_second, host.get_generation(),
 			host.get_attachment_generation(), host.get_coordinate_frame_generation(),
@@ -660,6 +662,33 @@ func _test_halyard_velocity_aware_surface_braking() -> void:
 	_check(requested and (ship.global_position - berth.global_position).z > 0.0
 		and ship.global_position.distance_to(staging.origin) <= EmberSurfaceLoopHost.APPROACH_BRAKE_Z_M,
 		"Halyard stops before the pad near staging instead of overshooting into a reverse approach")
+	# The accepted request starts the physical assist; it does not prove touchdown.
+	# Spend only the remainder of the original trajectory allowance, at the same
+	# real physics cadence, without changing the craft or its landing contract.
+	var reached_landed := false
+	if requested:
+		for _index in range(trajectory_ticks, 1800):
+			await physics_frame
+			trajectory_ticks += 1
+			var advanced := host.advance_physics(
+				1.0 / Engine.physics_ticks_per_second, host.get_generation(),
+				host.get_attachment_generation(), host.get_coordinate_frame_generation(),
+				host.get_location_generation())
+			if not bool(advanced.get("accepted", false)):
+				break
+			if host.get_phase() == EmberSurfaceLoopHost.Phase.LANDED:
+				reached_landed = true
+				break
+	_check(reached_landed, "real Halyard physics completes leased landing within the original trajectory allowance")
+	_check(reached_landed and berth.get_occupant() == ship
+		and berth.has_valid_lease(ship, berth.get_reservation_token(ship), ship.get_ship_definition().ship_id)
+		and bool(ship.get_telemetry().get("landed", false)) and not ship.is_landing_active()
+		and host._landed_public_state_is_exact(),
+		"Halyard touchdown retains the exact berth lease, hull acceptance and solid floor support")
+	if not reached_landed:
+		print("HALYARD_TOUCHDOWN_FAILED: ticks=", trajectory_ticks, " host_phase=", host.get_phase(),
+			" ship_position=", ship.global_position, " velocity=", ship.velocity,
+			" landing=", ship.get_landing_contract_report())
 	await _cleanup(fixture)
 	Engine.time_scale = saved_time_scale
 
