@@ -409,12 +409,13 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Actual f4629641b source census: the ordinary Halyard gunner chair adds
 # CoPilotStationAnchor/SoloGunnerSeatInteraction (Area3D) and InteractionShape
 # (CollisionShape3D): +2 nodes in both scenarios, with all geometry/resources
-# and the +588-node streamed delta unchanged. Packed fingerprints below await
-# actual matching package measurement; no packed refreeze is inferred here.
+# and the +588-node streamed delta unchanged. Actual c28bc7dcb Windows-PCK
+# measurement supplies the packed fingerprints below; the initial two-fingerprint
+# failure is retained. All geometry/material/light checks passed unchanged.
 const RESIDENT_FINGERPRINT := "25f79d1f382894fe3a11f8bfb1e4936496a1327f3dc16e9b39b856d2fe4578e8"
 const CINDER_LOADED_FINGERPRINT := "fbb4988e4a006b3127d9607d00be30ac6e7f7b375d321f25ce747f0ac12f29fa"
-const PACKED_RESIDENT_FINGERPRINT := "d2e960e1a8efd6e1d68ea3a2d45815af5fc4c2e8145db64c64172de7db218baf"
-const PACKED_CINDER_LOADED_FINGERPRINT := "5ffdbf271e5bdb0d13e2e00ae93eb893e11527e14de83f53b147884bd61b8102"
+const PACKED_RESIDENT_FINGERPRINT := "8533e507f09653a487a599fbd52ac290e013611bd7e45b13bf18f872bc0b505b"
+const PACKED_CINDER_LOADED_FINGERPRINT := "7380995ee3fecf5bc79ee4665e3175a9b04fbe6a6ff03c1d1d179faeb419c8e1"
 
 var _assertions := 0
 var _failures := PackedStringArray()
