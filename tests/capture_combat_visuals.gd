@@ -158,6 +158,15 @@ func _run() -> void:
 	root.add_child(_game)
 	await _settle_render(12)
 	await physics_frame
+	# Main applies the player's display settings during readiness. Capture owns
+	# its output size after that startup transaction, before framing any shots.
+	_configure_capture_viewport()
+	await _settle_render(2)
+	_check(
+		DisplayServer.window_get_size() == CAPTURE_RESOLUTION
+		and root.size == CAPTURE_RESOLUTION,
+		"post-startup capture window and viewport are exactly 2560x1440"
+	)
 
 	if not _resolve_production_contracts():
 		await _dispose_game()
@@ -188,6 +197,7 @@ func _run() -> void:
 
 
 func _configure_capture_viewport() -> void:
+	DisplayServer.window_set_size(CAPTURE_RESOLUTION)
 	root.size = CAPTURE_RESOLUTION
 	root.content_scale_size = Vector2i.ZERO
 	root.use_taa = true
@@ -724,7 +734,11 @@ func _capture_frame(
 		return
 	image.convert(Image.FORMAT_RGB8)
 	var actual_size := image.get_size()
-	_check(actual_size == CAPTURE_RESOLUTION, "%s is exactly 2560x1440" % file_name)
+	_check(
+		actual_size == CAPTURE_RESOLUTION,
+		"%s is exactly 2560x1440 (actual %dx%d)"
+		% [file_name, actual_size.x, actual_size.y]
+	)
 	if actual_size != CAPTURE_RESOLUTION:
 		return
 
