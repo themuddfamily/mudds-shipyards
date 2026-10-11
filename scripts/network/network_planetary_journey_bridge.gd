@@ -152,6 +152,11 @@ func after_world_tick() -> void:
 func client_actor_sample(local_sample: Dictionary) -> Dictionary:
 	if not is_active() or _flow.network_session.is_server():
 		return local_sample
+	if _flow._network_client_ember_passenger_surface_is_current():
+		# A confirmed exterior passenger remains a participant. Origin previews
+		# describe the actual same local body, never a host-supplied pose.
+		return {"available": true, "position": _flow.player.global_position,
+			"actor_kind": &"player", "actor_instance_id": _flow.player.get_instance_id()}
 	var craft: Node3D = _flow._find_flyable_ship_by_id(StringName(_state.get("ship_id", &"")))
 	# An observer still at Mudds retains its own nearby origin. Aboard peers
 	# observe the host craft; its absolute focus remains canonical across each
