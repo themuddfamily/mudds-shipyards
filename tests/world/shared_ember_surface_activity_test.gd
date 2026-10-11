@@ -462,7 +462,16 @@ func _walk_to(target: Vector3, seconds: float, via: Array[Vector3] = [], arrival
 	var waypoints: Array[Vector3] = via.duplicate()
 	waypoints.append(target)
 	var waypoint_index := 0
-	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	var started_msec := Time.get_ticks_msec()
+	var started_physics_frame := int(Engine.get_physics_frames())
+	var waypoint_started_msec := started_msec
+	var waypoint_started_physics_frame := started_physics_frame
+	var planned_path_m := 0.0
+	var previous := _game.player.global_position
+	for waypoint in waypoints:
+		planned_path_m += (waypoint - previous).slide(_game.player.up_direction).length()
+		previous = waypoint
+	var deadline := started_msec + int(seconds * 1000.0)
 	while Time.get_ticks_msec() < deadline:
 		if completion.is_valid() and bool(completion.call()):
 			_release_walk()
@@ -476,6 +485,8 @@ func _walk_to(target: Vector3, seconds: float, via: Array[Vector3] = [], arrival
 				await physics_frame
 				continue
 			waypoint_index += 1
+			waypoint_started_msec = Time.get_ticks_msec()
+			waypoint_started_physics_frame = int(Engine.get_physics_frames())
 			continue
 		var camera := _game.player.get_node("%CameraYaw") as Node3D
 		var forward := -camera.global_basis.z.slide(_game.player.up_direction).normalized()
@@ -489,7 +500,26 @@ func _walk_to(target: Vector3, seconds: float, via: Array[Vector3] = [], arrival
 	_release_walk()
 	var collision := _game.player.get_last_slide_collision()
 	var collider: Object = collision.get_collider() if collision != null else null
+	var host := _game.ember_surface_loop_host
+	var boarding := host.get("_boarding_area") as ShipBoardingArea
+	var ended_msec := Time.get_ticks_msec()
+	var ended_physics_frame := int(Engine.get_physics_frames())
 	print("SHARED_SURFACE_WALK_FAILED: ", {
+		"elapsed_wall_seconds": float(ended_msec - started_msec) / 1000.0,
+		"elapsed_physics_frames": ended_physics_frame - started_physics_frame,
+		"physics_ticks_per_second": Engine.physics_ticks_per_second,
+		"engine_time_scale": Engine.time_scale,
+		"planned_path_m": planned_path_m,
+		"nominal_walk_speed_mps": _game.player.walk_speed,
+		"waypoint_elapsed_wall_seconds": float(ended_msec - waypoint_started_msec) / 1000.0,
+		"waypoint_elapsed_physics_frames": ended_physics_frame - waypoint_started_physics_frame,
+		"velocity_world_mps": _game.player.velocity,
+		"is_on_floor": _game.player.is_on_floor(),
+		"floor_normal": _game.player.get_floor_normal(),
+		"nearby_actual_boarding_area": boarding != null and _game.player.get_nearby_interactables().has(boarding),
+		"surface_route_outbound_complete": bool(host.get("_surface_route_outbound_complete")),
+		"surface_route_return_complete": bool(host.get("_surface_route_return_complete")),
+		"return_departed_staging": bool(host.get("_return_departed_staging")),
 		"position": _game.player.global_position, "waypoint_index": waypoint_index,
 		"waypoint": waypoints[waypoint_index],
 		"remaining_m": (waypoints[waypoint_index] - _game.player.global_position).slide(_game.player.up_direction).length(),
