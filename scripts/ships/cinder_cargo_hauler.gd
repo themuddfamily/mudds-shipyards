@@ -696,6 +696,9 @@ func get_navigator_station_role_contract() -> Dictionary:
 
 
 func _install_solo_crew_seat() -> void:
+	# The fleet can detach during staged construction before this deferred call.
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	super._install_solo_crew_seat()
 	if is_instance_valid(_navigator_station_anchor) and _navigator_station_anchor.get_node_or_null("SoloPassengerSeatInteraction") == null:
 		preload("res://scripts/interaction/ship_crew_seat.gd").install(_navigator_station_anchor, self)
