@@ -52,6 +52,7 @@ func _run() -> void:
 	_test_exit_velocity_inheritance()
 	_test_gravity_compensation_contract()
 	_test_multiplayer_authority_lifecycle()
+	await _test_current_client_prediction()
 	await _test_ownership_reparent_free_and_reuse()
 	await _test_component_detach_readd()
 	await _test_direct_step_currentness()
@@ -335,6 +336,73 @@ func _test_multiplayer_authority_lifecycle() -> void:
 	fixture.root.free()
 	api.multiplayer_peer = previous_peer
 	peer.close()
+
+
+func _test_current_client_prediction() -> void:
+	var server := ENetMultiplayerPeer.new()
+	_check(server.create_server(0, 1) == OK, "prediction fixture starts real ENet authority")
+	var server_api := SceneMultiplayer.new()
+	server_api.multiplayer_peer = server
+	var client := ENetMultiplayerPeer.new()
+	_check(client.create_client("127.0.0.1", server.host.get_local_port()) == OK, "prediction fixture starts real ENet client")
+	var fixture := _manual_fixture(true)
+	var client_api := SceneMultiplayer.new()
+	client_api.multiplayer_peer = client
+	set_multiplayer(client_api, fixture.root.get_path())
+	var deadline := Time.get_ticks_msec() + 3000
+	while client.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED and Time.get_ticks_msec() < deadline:
+		server_api.poll()
+		client_api.poll()
+		await process_frame
+	_check(client.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED, "prediction fixture connects genuine ENet peers")
+	var frame := fixture.frame as Node3D
+	var coordinator := fixture.coordinator as MovingInteriorFrame
+	var occupant := fixture.occupant as CharacterBody3D
+	var original_priority := occupant.process_physics_priority
+	var original_floor_layers := occupant.platform_floor_layers
+	var admission := {"held": true}
+	var admitted := func() -> bool: return bool(admission.held)
+	var peer_id := client_api.get_unique_id()
+	_check(not coordinator.bind_local_prediction(occupant, peer_id, admitted).accepted, "unregistered body cannot receive prediction")
+	coordinator.register_occupant(occupant)
+	_check(not coordinator.is_simulation_authority_for(occupant), "connected client retains default frame-authority denial before admission")
+	_check(not coordinator.bind_local_prediction(occupant, peer_id + 1, admitted).accepted, "another peer id cannot receive prediction")
+	_check(not coordinator.bind_local_prediction(occupant, peer_id, func() -> bool: return false).accepted, "absent gameplay admission cannot receive prediction")
+	_check(coordinator.bind_local_prediction(occupant, peer_id, admitted).accepted and coordinator.authority_mode == MovingFrame.AuthorityMode.FRAME_AUTHORITY, "explicit current-client prediction binds existing occupancy without changing frame authority")
+	var local := frame.to_local(occupant.global_position)
+	frame.position.x += 4.0
+	coordinator.step_frame(0.1, _next_token())
+	_check(frame.to_local(occupant.global_position).is_equal_approx(local), "admitted client body receives real frame translation exactly once")
+	var foreign := CharacterBody3D.new()
+	fixture.root.add_child(foreign)
+	coordinator.register_occupant(foreign)
+	_check(not coordinator.is_simulation_authority_for(foreign), "other registered bodies retain host authority")
+	admission.held = false
+	coordinator.step_frame(0.1, _next_token())
+	_check(not occupant.has_meta(MovingFrame.OWNER_META) and occupant.process_physics_priority == original_priority and occupant.platform_floor_layers == original_floor_layers, "lost gameplay admission restores controller state before further carry")
+	admission.held = true
+	coordinator.bind_local_prediction(occupant, peer_id, admitted)
+	coordinator.unregister_occupant(occupant, false)
+	coordinator.register_occupant(occupant)
+	_check(not coordinator.is_simulation_authority_for(occupant), "unregister and reentry do not resurrect prior prediction")
+	coordinator.bind_local_prediction(occupant, peer_id, admitted)
+	var replacement := ENetMultiplayerPeer.new()
+	replacement.create_server(0, 1)
+	client_api.multiplayer_peer = replacement
+	coordinator.set_multiplayer_authority(2)
+	coordinator.step_frame(0.1, _next_token())
+	_check(not occupant.has_meta(MovingFrame.OWNER_META) and occupant.process_physics_priority == original_priority, "peer replacement retires old prediction and restores controller state")
+	client_api.multiplayer_peer = client
+	_check(coordinator.bind_local_prediction(occupant, peer_id, admitted).accepted, "original connected client can obtain a fresh admitted prediction grant")
+	client.close()
+	_check(not coordinator._local_prediction_is_current(occupant), "closed native client cannot use a retained prediction grant")
+	coordinator.step_frame(0.1, _next_token())
+	_check(not coordinator.get("_occupants")[occupant.get_instance_id()].has("prediction_peer_id") and coordinator.is_occupant_registered(occupant), "disconnected carry tick retires prediction without dropping ordinary solo occupancy")
+	set_multiplayer(null, fixture.root.get_path())
+	fixture.root.free()
+	client.close()
+	server.close()
+	replacement.close()
 
 
 func _test_ownership_reparent_free_and_reuse() -> void:

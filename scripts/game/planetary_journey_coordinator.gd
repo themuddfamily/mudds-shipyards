@@ -1100,6 +1100,8 @@ func begin_ember_surface_journey(
 		host: Object, director: ActivityDirector, reward_sink: Callable,
 		caller_serial: int
 	) -> Dictionary:
+	if _flow._network_session_is_live():
+		return {"accepted": false, "reason": &"network_session_active"}
 	if host == null or director == null or not reward_sink.is_valid() or caller_serial < 1:
 		return {"accepted": false, "reason": &"ember_surface_request_invalid"}
 	if not is_instance_valid(_flow.active_ship) or not _flow.active_ship.is_piloted() \

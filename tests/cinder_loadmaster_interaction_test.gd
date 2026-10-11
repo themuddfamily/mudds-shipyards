@@ -115,6 +115,7 @@ func _run() -> void:
 	fresh_actor.queue_free()
 	craft.queue_free()
 	await process_frame
+	await _test_landed_host_halyard_cockpit_selection()
 	if _failures.is_empty():
 		print("CINDER_LOADMASTER_INTERACTION_TEST_OK: %d checks" % _assertions)
 		quit(0)
@@ -175,6 +176,50 @@ func _test_cabin_cockpit_selection(craft: CinderCargoHauler) -> void:
 	game.free()
 	player.queue_free()
 	await process_frame
+
+
+func _test_landed_host_halyard_cockpit_selection() -> void:
+	var game := preload("res://scenes/main.tscn").instantiate() as GameFlow
+	var store_path := "user://host-cockpit-selection-%d.json" % OS.get_process_id()
+	var store := UserDataStore.new(store_path)
+	store.load()
+	game.configure_runtime_settings_persistence(store)
+	root.add_child(game)
+	await process_frame
+	game.start_shift()
+	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	var player := game.player as PlayerController
+	var pilot := craft.get_pilot_seat_anchor()
+	var seat := craft.get_gunner_station_anchor().get_node("SoloGunnerSeatInteraction") as ShipCrewSeat
+	_check(game.host_network_session(43000 + OS.get_process_id() % 10000).accepted, "landed cockpit discovery uses an actual production server adapter")
+	craft.set_canopy_open(true, 0.0)
+	player.teleport_to(Transform3D(craft.global_basis, pilot.global_position + craft.global_basis * Vector3(-0.6, 0.0, 0.6)))
+	for tick in range(20):
+		await physics_frame
+	var frame := craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var camera := player.get_camera()
+	camera.global_basis = Basis.looking_at(pilot.global_position - player.get_interaction_origin(), craft.global_basis.y.normalized())
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP and player.is_on_floor() and frame.is_occupant_registered(player) and frame.contains_world_position(player.global_position) and player.get_nearby_interactables().has(seat), "real landed Halyard frame registers the on-foot cockpit approach and overlapping gunner interaction")
+	var ledger_before := game.network_session.get_boarding_snapshot()
+	_check(game._find_station_interaction_candidate() == null, "actual host aiming at landed Halyard pilot reaches ordinary boarding instead of nearby gunner")
+	camera.global_basis = Basis.looking_at(seat.global_position - player.get_interaction_origin(), craft.global_basis.y.normalized())
+	_check(game._find_station_interaction_candidate() == seat, "actual host aiming at gunner retains the gunner chair")
+	camera.global_basis = Basis.looking_at(pilot.global_position - player.get_interaction_origin(), craft.global_basis.y.normalized())
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	_check(area.try_reserve(seat), "another physical contender reserves the boarding area")
+	_check(game._find_station_interaction_candidate() == seat, "an occupied boarding reservation cannot receive pilot aim priority")
+	area.release_reservation(seat)
+	craft.set_piloted(true)
+	_check(game._find_station_interaction_candidate() == seat, "occupied pilot availability keeps ordinary chair discovery without seating the host")
+	craft.set_piloted(false)
+	frame.unregister_occupant(player)
+	_check(game._find_station_interaction_candidate() == seat, "an unregistered exterior body cannot suppress the nearby chair")
+	_check(game.network_session.get_boarding_snapshot() == ledger_before and not game._piloting and not player.is_seated(), "discovery does not acquire pilot ledger, posture or authority")
+	game.shutdown_network_session(&"host_cockpit_selection_done")
+	game.release_mouse_capture()
+	game.queue_free()
+	await process_frame
+	DirAccess.remove_absolute(store_path)
 
 
 func _check(condition: bool, message: String) -> void:

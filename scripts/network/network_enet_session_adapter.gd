@@ -60,6 +60,10 @@ signal engineer_intent_requested(peer_id: int, payload: Dictionary)
 signal engineer_snapshot_received(snapshot: Dictionary)
 signal gunner_intent_requested(peer_id: int, payload: Dictionary)
 signal gunner_snapshot_received(snapshot: Dictionary)
+signal planetary_journey_state_received(snapshot: Dictionary)
+signal planetary_journey_ready_received(peer_id: int, payload: Dictionary)
+
+var _planetary_journey_revision := 0
 
 signal crew_role_result(result: Dictionary)
 signal crew_command_result(result: Dictionary)
@@ -575,6 +579,7 @@ func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_cargo_manifest_replica_generation = 0
 	_cargo_manifest_terminal_generation = 0
 	_crew_replica_snapshot.clear()
+	_planetary_journey_revision = 0
 	_engineer_snapshot_revision = 0
 	_engineer_replica_snapshot.clear()
 	_gunner_snapshot_revision = 0
@@ -2286,6 +2291,13 @@ func get_moving_interior_budget_snapshot(peer_id: int = 0) -> Dictionary:
 ## ordered path as the snapshots it retires. Production sends both directly.
 func _send_moving_interior_release_packet(peer_id: int, packet: Dictionary) -> void:
 	if _moving_interior_transport_hook.is_null():
+		# Simultaneous departures can reset a native link before its queued
+		# disconnect callback removes the corresponding admission record.
+		if _peer == null or not multiplayer.get_peers().has(peer_id):
+			return
+		var link := _peer.get_peer(peer_id)
+		if link == null or link.get_state() != ENetPacketPeer.STATE_CONNECTED:
+			return
 		_broadcast_moving_interior_release.rpc_id(peer_id, packet)
 	else:
 		_moving_interior_transport_hook.call(peer_id, packet.duplicate(true))
@@ -2469,6 +2481,66 @@ func send_engineer_intent(payload: Dictionary) -> Dictionary:
 		return _result(false, &"client_required")
 	_receive_engineer_intent.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"engineer", payload))
 	return _result(true, &"queued")
+
+
+func publish_planetary_journey_state(state: Dictionary, reliable: bool = false, recipient: int = 0) -> Dictionary:
+	if not is_server():
+		return _result(false, &"authority_required")
+	_planetary_journey_revision += 1
+	for peer_id in get_admitted_peer_ids():
+		if recipient > 0 and peer_id != recipient:
+			continue
+		var packet := state.duplicate(true)
+		packet["recipient_peer_id"] = peer_id
+		packet["peer_generation"] = int(_peer_generations[peer_id])
+		packet["session_generation"] = int(_transport.get_snapshot().session_generation)
+		packet["migration_generation"] = int(_migration.get_snapshot().migration_generation)
+		packet["revision"] = _planetary_journey_revision
+		if reliable:
+			_broadcast_planetary_journey_bootstrap.rpc_id(peer_id, packet)
+		else:
+			_broadcast_planetary_journey_focus.rpc_id(peer_id, packet)
+	return _result(true, &"published")
+
+
+func send_planetary_journey_ready(payload: Dictionary) -> Dictionary:
+	if is_server() or not _configured:
+		return _result(false, &"client_required")
+	_receive_planetary_journey_ready.rpc_id(AUTHORITY_PEER_ID, _make_secure_rpc_packet(&"planetary_ready", payload))
+	return _result(true, &"queued")
+
+
+@rpc("any_peer", "call_remote", "reliable", 0)
+func _receive_planetary_journey_ready(wire: Dictionary) -> void:
+	if not is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	var payload := _accept_secure_rpc(peer_id, wire, &"planetary_ready")
+	if not payload.is_empty():
+		planetary_journey_ready_received.emit(peer_id, payload)
+
+
+@rpc("authority", "call_remote", "reliable", 0)
+func _broadcast_planetary_journey_bootstrap(packet: Dictionary) -> void:
+	_consume_planetary_journey_state(packet)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered", 0)
+func _broadcast_planetary_journey_focus(packet: Dictionary) -> void:
+	_consume_planetary_journey_state(packet)
+
+
+func _consume_planetary_journey_state(packet: Dictionary) -> void:
+	if is_server() or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID:
+		return
+	if int(packet.get("recipient_peer_id", 0)) != multiplayer.get_unique_id() \
+			or int(packet.get("peer_generation", 0)) != _next_peer_generation - 1 \
+			or int(packet.get("session_generation", 0)) != int(_transport.get_snapshot().session_generation) \
+			or int(packet.get("migration_generation", 0)) != int(_migration.get_snapshot().migration_generation) \
+			or int(packet.get("revision", 0)) <= _planetary_journey_revision:
+		return
+	_planetary_journey_revision = int(packet.revision)
+	planetary_journey_state_received.emit(packet.duplicate(true))
 
 
 func publish_engineer_snapshot(peer_id: int, snapshot: Dictionary) -> Dictionary:
@@ -3071,6 +3143,7 @@ func reset_snapshot_jitter(migration_generation: int = 1) -> Dictionary:
 	_crew_snapshot_codec = CrewSnapshotCodec.new()
 	_crew_snapshot_revision = 0
 	_crew_replica_snapshot.clear()
+	_planetary_journey_revision = 0
 	_engineer_snapshot_revision = 0
 	_engineer_replica_snapshot.clear()
 	_gunner_snapshot_revision = 0

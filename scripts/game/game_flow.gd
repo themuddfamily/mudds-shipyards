@@ -804,12 +804,34 @@ var _network_remote_helm_stream_epoch := -1
 ## craft and reconciled / interpolated on each client. See
 ## `NetworkRemoteCraftPoseStream` and the "craft pose replication" block.
 var _network_craft_pose_stream := NetworkRemoteCraftPoseStreamType.new()
+const NetworkPlanetaryJourneyBridgeType := preload("res://scripts/network/network_planetary_journey_bridge.gd")
+var _network_planetary_journey := NetworkPlanetaryJourneyBridgeType.new(self)
 
 
 func notify_common_world_translation(delta: Vector3, generation: int) -> void:
 	# The origin owner already translates Node3D presentation nodes. Only this
 	# detached craft history needs forwarding through Main's notification.
 	_network_craft_pose_stream.notify_common_world_translation(delta, generation)
+
+
+func _shared_planetary_host_eligible() -> bool:
+	return _network_session_mode == &"server" and is_instance_valid(network_session) \
+		and network_session.is_server() and is_instance_valid(active_ship) \
+		and active_ship.is_inside_tree() and not active_ship.is_queued_for_deletion() and not active_ship.is_destroyed() \
+		and _piloting and player.is_seated() and not active_ship.is_remote_piloted() \
+		and StringName(_network_host_boarding_seat.get("ship_id", &"")) == active_ship.get_ship_id()
+
+
+func get_network_planetary_journey_snapshot() -> Dictionary:
+	return _network_planetary_journey.get_snapshot()
+
+
+func _on_network_planetary_journey_state(packet: Dictionary) -> void:
+	_network_planetary_journey.consume_state(packet)
+
+
+func _on_network_planetary_journey_ready(peer_id: int, payload: Dictionary) -> void:
+	_network_planetary_journey.consume_ready(peer_id, payload)
 
 ## Monotonic request sequence GameFlow stamps on every
 ## `NetworkShipOwnershipAuthority` operation it asks the adapter for.
@@ -1701,6 +1723,8 @@ func _ensure_network_session() -> NetworkSessionAdapterType:
 func _network_session_signal_bindings() -> Array:
 	return [
 		[&"session_started", Callable(self, "_on_network_session_started")],
+		[&"planetary_journey_state_received", Callable(self, "_on_network_planetary_journey_state")],
+		[&"planetary_journey_ready_received", Callable(self, "_on_network_planetary_journey_ready")],
 		[&"session_stopped", Callable(self, "_on_network_session_stopped")],
 		[&"peer_admitted", Callable(self, "_on_network_peer_admitted")],
 		[&"peer_disconnected", Callable(self, "_on_network_peer_disconnected")],
@@ -5181,8 +5205,10 @@ func _physics_process(delta: float) -> void:
 	_advance_station_defense_encounter(delta)
 	if _caption_presentation_service != null:
 		_caption_presentation_service.advance_physics(delta)
-	var actor_sample := _capture_cinder_actor_sample()
+	_network_planetary_journey.before_world_tick()
+	var actor_sample := _network_planetary_journey.client_actor_sample(_capture_cinder_actor_sample())
 	actor_sample = _planetary_journey.advance_world(delta, actor_sample)
+	_network_planetary_journey.after_world_tick()
 	var cinder_streaming_tick: Dictionary = {
 		"accepted": false,
 		"reason": &"binding_unavailable",
@@ -6451,9 +6477,9 @@ func _planetary_cruise_gate_reason(include_combat: bool = true) -> StringName:
 		return &"ship_destroyed"
 	if not _piloting or not active_ship.is_piloted():
 		return &"pilot_unseated"
-	# Planet visits are solo exploration, as Aurora's and Rime's are: the cruise
-	# rebases this game's whole world, and no connected peer shares that frame.
-	if _network_session_is_live():
+	# The host's real ledger pilot can prepare the shared Ember orbit lane.
+	# Surface expeditions and other worlds retain their own admission guards.
+	if _network_session_is_live() and not _shared_planetary_host_eligible():
 		return &"network_session_active"
 	if _landing_request_active or active_ship.is_landing_active():
 		return &"landing_active"
@@ -6979,6 +7005,11 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_network_planetary_journey.detach()
+	if _network_session_mode == &"client" and is_instance_valid(_cabin_ship):
+		var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+		if is_instance_valid(frame):
+			frame.clear_local_prediction(player)
 	_cancel_network_engineer()
 	_cancel_solo_crew_seat()
 	if _network_engineer_binding != null:
@@ -7106,6 +7137,7 @@ func _set_station_defense_network_presentation_only(enabled: bool) -> Dictionary
 
 
 func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
+	_network_planetary_journey.peer_admitted(peer_id)
 	if _network_session_mode == &"server":
 		_republish_bomber_payloads_for_peer(peer_id)
 		_republish_player_pulses_for_peer(peer_id)
@@ -7133,6 +7165,8 @@ func _on_network_peer_admitted(peer_id: int, _receipt: Dictionary) -> void:
 ## authored cabin bounds describe the retained interest; this claims no seat,
 ## creates no body, and makes no client-provided attachment authoritative.
 func _on_network_migration_preparing() -> void:
+	if _network_planetary_journey.is_active():
+		_network_planetary_journey.cancel(&"session_migration")
 	if _network_session_mode != &"server" or not is_instance_valid(network_session):
 		return
 	var peer_generations: Dictionary = {}
@@ -13482,7 +13516,18 @@ func _bind_cabin_occupancy(cabin_ship: HeroShip) -> void:
 		"require_inside_bounds": false,
 		"registration_source": &"in_flight_cabin",
 	})
+	if _network_session_mode == &"client" and _network_client_boarding_holds(cabin_ship):
+		frame.bind_local_prediction(player, _network_client_peer_id(),
+			Callable(self, "_network_local_cabin_prediction_is_current").bind(player, cabin_ship, network_session))
 	player.set_cabin_containment(cabin_ship, cabin_bounds, stand_transform)
+
+
+func _network_local_cabin_prediction_is_current(body: Variant, craft: Variant, session: Variant) -> bool:
+	return is_inside_tree() and not is_queued_for_deletion() and is_instance_valid(body) and body == player \
+		and is_instance_valid(craft) and craft is HeroShip and craft == _cabin_ship and phase == Phase.IN_FLIGHT_CABIN \
+		and _network_session_mode == &"client" and _network_session_is_live() \
+		and is_instance_valid(session) and network_session == session and not session.is_server() \
+		and _network_client_boarding_holds(craft)
 
 
 ## Reverses `_bind_cabin_occupancy()`. `inherit_velocity` is false for every
@@ -16513,9 +16558,33 @@ func _find_station_interaction_candidate() -> Node3D:
 	# A carried passenger can see both a crew chair and the cockpit at once.
 	# They compete by aim before distance; nearby chair discovery must not hide
 	# the cockpit's existing atomic seat-swap request from either HUD or Interact.
-	if best_candidate is ShipCrewSeat and _cabin_cockpit_precedes_crew_seat(best_candidate as ShipCrewSeat, origin, facing):
+	if best_candidate is ShipCrewSeat and (_cabin_cockpit_precedes_crew_seat(best_candidate as ShipCrewSeat, origin, facing) \
+			or _landed_host_cockpit_precedes_crew_seat(best_candidate as ShipCrewSeat, origin, facing)):
 		return null
 	return best_candidate
+
+
+func _landed_host_cockpit_precedes_crew_seat(seat: ShipCrewSeat, origin: Vector3, facing: Vector3) -> bool:
+	# Walking through the open Halyard airstair leaves the host in the exterior
+	# phase. Its physical frame already carries the body, but cabin reservation
+	# and pilot ledger ownership are acquired only by ordinary _board_ship.
+	if phase != Phase.APPROACH_SHIP or _network_session_mode != &"server" \
+			or not _network_session_is_live() or not network_session.is_server() \
+			or _transition_busy or _piloting or _station_seated or player.is_seated() \
+			or not player.is_control_enabled() or not player.is_on_floor() \
+			or not is_instance_valid(seat) or seat.get_ship() is not HalyardCrewTransport \
+			or not _network_physical_crew_seat_is_wired(seat) or seat.get_role_contract().is_empty():
+		return false
+	var craft := seat.get_ship() as HeroShip
+	var frame := craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var area := craft.get_node_or_null("ShipBoardingArea") as ShipBoardingArea
+	if craft not in ships or craft.is_destroyed() or not craft.is_boardable() \
+			or not is_instance_valid(frame) or frame.get_moving_frame() != craft \
+			or not frame.is_occupant_registered(player) or not frame.contains_world_position(player.global_position) \
+			or not is_instance_valid(area) or area.get_ship() != craft or not area.is_available_for(player) \
+			or not _network_client_near_pilot_seat(craft) or _find_boarding_candidate() != craft:
+		return false
+	return _cockpit_aim_precedes_crew_seat(craft, seat, origin, facing)
 
 
 func _cabin_cockpit_precedes_crew_seat(seat: ShipCrewSeat, origin: Vector3, facing: Vector3) -> bool:
@@ -16536,7 +16605,11 @@ func _cabin_cockpit_precedes_crew_seat(seat: ShipCrewSeat, origin: Vector3, faci
 				or not is_instance_valid(_boarding_area) or _boarding_area.get_ship() != _cabin_ship \
 				or _boarding_area.get_reservation_token() != player:
 			return false
-	var pilot := _cabin_ship.get_pilot_seat_anchor()
+	return _cockpit_aim_precedes_crew_seat(_cabin_ship, seat, origin, facing)
+
+
+func _cockpit_aim_precedes_crew_seat(craft: HeroShip, seat: ShipCrewSeat, origin: Vector3, facing: Vector3) -> bool:
+	var pilot := craft.get_pilot_seat_anchor()
 	if not is_instance_valid(pilot) or not pilot.is_inside_tree() or pilot.is_queued_for_deletion():
 		return false
 	var pilot_offset := pilot.global_position - origin
@@ -20799,7 +20872,7 @@ func _on_hud_planetary_cruise_toggle_requested(request_serial: int) -> void:
 		before.get("status_id", &"") == &"ready"
 		and bool(before.get("toggle_enabled", false))
 	):
-		result = _begin_player_ember_surface_journey(request_serial)
+		result = engage_planetary_cruise() if _network_session_is_live() else _begin_player_ember_surface_journey(request_serial)
 	else:
 		_sync_planetary_cruise_hud()
 		if is_instance_valid(hud):
@@ -21941,6 +22014,10 @@ func get_active_ship() -> HeroShip:
 ## The pause HUD can request it, but this method rechecks all production gates;
 ## neither the HUD nor its displayed state is authoritative.
 func engage_planetary_cruise() -> Dictionary:
+	if _network_session_is_live():
+		var shared := _network_planetary_journey.begin()
+		_sync_planetary_cruise_hud()
+		return shared
 	if not is_instance_valid(planetary_cruise_binding):
 		_sync_planetary_cruise_hud()
 		return {"accepted": false, "reason": &"binding_unavailable"}
@@ -21992,6 +22069,10 @@ func _begin_player_ember_surface_journey(caller_serial: int) -> Dictionary:
 
 
 func disengage_planetary_cruise(brake_to_stop: bool = true) -> Dictionary:
+	if _network_planetary_journey.is_active():
+		var shared := _network_planetary_journey.cancel(&"player_cancelled")
+		_sync_planetary_cruise_hud()
+		return shared
 	# A return can still be waiting for terrain clearance with no live cruise
 	# attachment. Cancel that retained intent before falling back to the binding.
 	var return_cancel := _planetary_journey.cancel_return_departure(
@@ -22044,6 +22125,9 @@ func _planetary_cruise_public_gate_copy(reason: StringName) -> String:
 
 
 func _planetary_cruise_presentation() -> Dictionary:
+	if _network_planetary_journey.is_active() and (_network_planetary_journey.is_preparing() or _network_planetary_journey.get_snapshot().get("phase") == &"cruise_stopped"):
+		return {"status_id": &"queued", "status_text": "SHARED EMBER ORBIT — WAITING FOR CREW" if _network_planetary_journey.is_preparing() else "SHARED EMBER CRUISE STOPPED",
+			"toggle_enabled": _network_session_mode == &"server", "engagement_requested": true, "public_gate": &""}
 	if _planetary_journey.is_return_departure_pending():
 		# The retained destination is cancelable before the physical controller
 		# starts. This presentation flag is not a claim of ship engagement.
@@ -22141,7 +22225,7 @@ func _planetary_cruise_presentation() -> Dictionary:
 					status_text = (
 						"READY — RETURN TO MUDDS"
 						if _planetary_journey.stranded_return_available()
-						else "READY — EMBER MOON"
+						else ("READY — SHARED EMBER ORBIT" if _network_session_is_live() else "READY — EMBER MOON")
 					)
 					toggle_enabled = true
 				else:
@@ -22230,12 +22314,15 @@ func get_planetary_destination_catalog_snapshot() -> Dictionary:
 ## so both controls describe one observation without repeating the live query.
 func _make_planetary_destination_catalog_snapshot(presentation: Dictionary) -> Dictionary:
 	var surface_visits := _surface_visit_runtime_states()
+	var ember_presentation := presentation.duplicate(true)
+	if _network_session_is_live():
+		ember_presentation = {"status_id": &"unavailable", "status_text": "SURFACE EXPEDITION — SOLO ONLY; SHARED ORBIT IN FLIGHT MENU", "toggle_enabled": false, "engagement_requested": false}
 	var snapshot := _planetary_destination_catalog.get_presentation_snapshot({
 		EMBER_DESTINATION_ID: {
-			"status_id": StringName(presentation.get("status_id", &"unavailable")),
-			"status_text": str(presentation.get("status_text", "UNAVAILABLE — SYSTEM OFFLINE")),
-			"action_enabled": bool(presentation.get("toggle_enabled", false)),
-			"engagement_requested": bool(presentation.get("engagement_requested", false)),
+			"status_id": StringName(ember_presentation.get("status_id", &"unavailable")),
+			"status_text": str(ember_presentation.get("status_text", "UNAVAILABLE — SYSTEM OFFLINE")),
+			"action_enabled": bool(ember_presentation.get("toggle_enabled", false)),
+			"engagement_requested": bool(ember_presentation.get("engagement_requested", false)),
 		},
 		AuroraExpeditionType.DESTINATION_ID: surface_visits[AuroraExpeditionType.DESTINATION_ID],
 		RimeExpeditionType.DESTINATION_ID: surface_visits[RimeExpeditionType.DESTINATION_ID],

@@ -16,6 +16,7 @@ var _navigator := false
 var _gunner := false
 var _gunner_shots := 0
 var _navigator_cues: Array[StringName] = []
+var _shared_cruise := false
 var _host_loadmaster_flight := false
 var _host_gunner_flight := false
 var _manifest_receipts := 0
@@ -30,6 +31,8 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_shared_cruise = _shared_cruise or "--shared-cruise" in args
+	args.erase("--shared-cruise")
 	_host_gunner_flight = "--host-gunner-flight" in args
 	args.erase("--host-gunner-flight")
 	_gunner = "--halyard-gunner" in args or _host_gunner_flight
@@ -76,7 +79,12 @@ func _run() -> void:
 	if _gunner:
 		_craft.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3): _gunner_shots += 1)
 	_write(_role + ".main_ready", {})
-	if _role == "host":
+	if _shared_cruise:
+		if _role == "host":
+			await _shared_host()
+		else:
+			await _shared_client()
+	elif _role == "host":
 		await _host()
 	else:
 		await _client()
@@ -105,13 +113,26 @@ func _orchestrate() -> void:
 	if host_ready:
 		host_ready = await _wait_file("host.ready", 60.0)
 	if host_ready:
-		var client_args := _peer_arguments("client", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
-		var client := _spawn_peer("client", client_args)
-		peers["client"] = client
-		_check(client > 0, "owned independent client starts")
-		var finished := client > 0 and await _wait_file("client.done", 120.0)
-		if finished:
-			finished = await _wait_file("host.done", 60.0)
+		for role in (["client", "client_b"] if _shared_cruise else ["client"]):
+			var client_args := _peer_arguments(role, PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
+			var client := _spawn_peer(role, client_args)
+			peers[role] = client
+			_check(client > 0, "owned independent peer starts: " + role)
+		if _shared_cruise and await _wait_file("host.rebased", 60.0):
+			var observer := _spawn_peer("observer", _peer_arguments("observer", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"])))
+			peers["observer"] = observer
+			_check(observer > 0, "owned late observer starts after actual origin commit")
+		var finished := true
+		if _shared_cruise:
+			for role in ["client", "client_b"]:
+				finished = await _wait_file(role + ".done", 120.0) and finished
+			finished = await _wait_file("host.done", 60.0) and finished
+			if peers.has("observer"):
+				finished = await _wait_file("observer.done", 60.0) and finished
+		else:
+			finished = int(peers.client) > 0 and await _wait_file("client.done", 120.0)
+			if finished:
+				finished = await _wait_file("host.done", 60.0)
 		if not finished:
 			for role in peers:
 				await _abort_peer(role)
@@ -177,6 +198,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if not _package_under_test.is_empty():
 		args.append_array(["--main-pack", _package_under_test])
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
+	if _shared_cruise:
+		args.append("--shared-cruise")
 	if _cinder:
 		args.append("--cinder-loadmaster")
 	if _gunner:
@@ -860,7 +883,7 @@ func _walk(target_local: Vector3) -> void:
 		var axis := Vector2(direction.dot(right), -direction.dot(forward))
 		# Slow an ordinary analog walk near the authored pose. At low render
 		# cadence several real physics steps can run between input refreshes.
-		if _cinder or _host_gunner_flight:
+		if _cinder or _host_gunner_flight or _shared_cruise:
 			axis *= clampf(delta.length() / 1.5, 0.6, 1.0)
 		for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
 			Input.action_release(action)
@@ -879,19 +902,19 @@ func _walk(target_local: Vector3) -> void:
 	if _role == "client":
 		var source := _game.get_network_remote_body_intent_source()
 		print("PASSENGER_WALK_END: wall=", Time.get_unix_time_from_system(), " local=", _craft.to_local(_player.global_position),
-			" furthest_m=", furthest, " floor=", _player.is_on_floor(), " yaw=", _player.get_look_yaw(),
+			" furthest_world_distance_m=", furthest, " floor=", _player.is_on_floor(), " yaw=", _player.get_look_yaw(),
 			" source=", source.get_audit(), " relationship=", _game.network_session.get_moving_interior_latest_relationship(source.get_entity_id()))
 
 func _look(target: Vector3) -> void:
-	var target_local := _craft.to_local(target) if _host_gunner_flight else Vector3.ZERO
+	var target_local := _craft.to_local(target) if _host_gunner_flight or _shared_cruise else Vector3.ZERO
 	for _index in 4:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			var click := InputEventMouseButton.new()
 			click.button_index = MOUSE_BUTTON_LEFT
 			click.pressed = true
 			_player._unhandled_input(click)
-		var current_target := _craft.to_global(target_local) if _host_gunner_flight else target
-		var desired := _player.global_basis.inverse() * (current_target - (_player.get_interaction_origin() if _navigator else _player.get_camera().global_position)).normalized()
+		var current_target := _craft.to_global(target_local) if _host_gunner_flight or _shared_cruise else target
+		var desired := _player.global_basis.inverse() * (current_target - (_player.get_interaction_origin() if _navigator or _shared_cruise else _player.get_camera().global_position)).normalized()
 		var current := _player.global_basis.inverse() * _player.get_interaction_direction().normalized()
 		var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
 		var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
@@ -949,7 +972,7 @@ func _ticks(count: int) -> void:
 		await process_frame
 
 func _wait_file(name: String, seconds: float) -> bool:
-	var result := await _until(func(): return FileAccess.file_exists(_directory.path_join(name)) or (name == "host.ready" and FileAccess.file_exists(_directory.path_join("host.done"))), seconds)
+	var result := await _until(func(): return FileAccess.file_exists(_directory.path_join(name)) or (name in ["host.ready", "host.rebased"] and FileAccess.file_exists(_directory.path_join("host.done"))), seconds)
 	result = result and FileAccess.file_exists(_directory.path_join(name))
 	_check(result, "peer boundary arrives: " + name)
 	return result
@@ -983,3 +1006,212 @@ func _check(condition: bool, description: String) -> void:
 	_checks += 1
 	if not condition:
 		_failures.append("FAIL: " + description)
+
+# Shared Ember orbit: actual Main, independent Input/frame clocks, two physical
+# cabin admissions before cruise and a third observer joining after origin shift.
+func _shared_host() -> void:
+	_check(_game.host_network_session(_port).accepted, "shared cruise production host starts")
+	# The existing ordinary passenger lane's physical airstair entrance. The
+	# generic boarding area would seat the host directly and close the hatch.
+	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.to_global(Vector3(-3.10, 0.0, HalyardCrewTransport.AIRSTAIR_Z))))
+	await _ticks(15)
+	var hatch := _craft.get_node("WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+	await _look(hatch.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return _craft.is_canopy_open(), 5.0), "host ordinary airstair hatch Interact opens physical cabin")
+	await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _walk(Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	_write("host.ready", {})
+	if not await _wait_file("client.cabin", 60.0) or not await _wait_file("client_b.cabin", 60.0):
+		return
+	var pilot := _craft.get_pilot_seat_anchor()
+	await _walk(Vector3(0.0, 0.52, -9.2))
+	await _walk(_craft.to_local(pilot.global_position) + Vector3(-0.6, 0.0, 0.6))
+	await _look(pilot.global_position)
+	_game._refresh_interaction_targets()
+	print("SHARED_HOST_COCKPIT_APPROACH: local=", _craft.to_local(_player.global_position), " phase=", _game.phase, " boarding=", _game.boarding_candidate, " candidate=", _game.station_interaction_candidate, " near=", _player.get_nearby_interactables(), " floor=", _player.is_on_floor())
+	await _press(&"interact")
+	_check(await _until(func(): return _game._piloting and _player.is_seated_at(pilot) and not _game._transition_busy, 12.0), "host ordinary cockpit Interact owns the actual pilot seat")
+	if not _game._piloting:
+		return
+	_check(_game._network_remote_body_simulation.get_body_count() == 2, "two real crew bodies exist on host before planetary travel")
+	# The boarding route above is physical. Stage only the flight envelope, as
+	# the existing cruise activation test does; travel/rebase remain real physics.
+	var frame: PlanetaryCoordinateFrame = _game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	var destination := frame.orbital_to_world_streaming_position(_game.planetary_cruise_binding.get_snapshot().canonical_destination_orbital, frame.get_generation())
+	_craft.global_position = Vector3(0.0, 5000.0, -8640.0).normalized() * 9995.0
+	_craft.global_basis = Basis.looking_at((destination.position - _craft.global_position).normalized(), Vector3.UP)
+	_craft.velocity = Vector3.ZERO
+	_game._sortie_departed_berth = true
+	_game.phase = GameFlow.Phase.FREE_FLIGHT
+	_game._sync_planetary_cruise_hud()
+	await _ticks(12)
+	_check(_game._shared_planetary_host_eligible(), "real host pilot claim admits only shared orbit lane")
+	_check(_game._planetary_cruise_presentation().status_text == "READY — SHARED EMBER ORBIT", "ordinary HUD honestly names the bounded shared orbit cruise")
+	_check(not _game.begin_ember_surface_journey(_game.ember_surface_loop_host, _game.activity_director, Callable(_game, "_commit_game_flow_activity_reward"), 1).accepted, "shared orbit does not unlock unimplemented surface expedition")
+	# One real client acknowledges and then loses the journey-state stream;
+	# another has not acknowledged yet. Advance the physical origin manually,
+	# then restore only the second: an old first acknowledgement must not start.
+	# Face outward for this manual origin crossing rather than relying on a
+	# partial throttle to overcome the still-active shipyard gravity field.
+	_craft.global_basis = Basis.looking_at(_craft.global_position.normalized(), Vector3.UP)
+	_game.hud.planetary_cruise_toggle_requested.emit(1)
+	if not await _wait_file("client.ack_held", 10.0):
+		return
+	var preparation_frame := frame.get_generation()
+	Input.action_press(&"move_forward")
+	var preparation_rebased := await _until(func(): return frame.get_generation() > preparation_frame, 6.0)
+	Input.action_release(&"move_forward")
+	print("SHARED_PREPARATION_ORIGIN: committed=", preparation_rebased, " position=", _craft.global_position, " velocity=", _craft.velocity, " telemetry=", _craft.get_telemetry(), " journey=", _game.get_network_planetary_journey_snapshot())
+	_check(preparation_rebased, "ordinary host throttle commits an origin while crew preparation is pending")
+	if not preparation_rebased:
+		return
+	_write("host.restore_b", {})
+	_check(await _until(func(): return _game.get_network_planetary_journey_snapshot().get("ready_peers", []).size() == 1, 3.0), "fresh second peer acknowledges new preparation origin without reviving first old acknowledgement")
+	_check(_game.get_network_planetary_journey_snapshot().get("phase") == &"preparing" and not bool(_game.planetary_cruise_binding.get_snapshot().get("engagement_requested", true)), "stale pre-rebase readiness cannot start shared physical cruise")
+	_check(await _until(func(): return not _game._network_planetary_journey.is_active(), 12.0), "unready actual peer reaches bounded production preparation timeout")
+	_check(not bool(_game.planetary_cruise_binding.get_snapshot().get("engagement_requested", true)), "preparation timeout leaves physical cruise unengaged")
+	_write("host.restore_all", {})
+	if not await _wait_file("client.ready_restored", 10.0) or not await _wait_file("client_b.ready_restored", 10.0):
+		return
+	# Prepare/cancel through the same ordinary HUD signal without yielding to
+	# a physics tick, then wait for both real clients' reliable retirement.
+	_game.hud.planetary_cruise_toggle_requested.emit(2)
+	_game.hud.planetary_cruise_toggle_requested.emit(3)
+	_check(not _game._network_planetary_journey.is_active() and not bool(_game.planetary_cruise_binding.get_snapshot().get("engagement_requested", true)), "ordinary queued HUD cancellation retires prepared journey before movement")
+	_write("host.cancelled", {})
+	if not await _wait_file("client.cancel_seen", 10.0) or not await _wait_file("client_b.cancel_seen", 10.0):
+		return
+	destination = frame.orbital_to_world_streaming_position(_game.planetary_cruise_binding.get_snapshot().canonical_destination_orbital, frame.get_generation())
+	_craft.global_basis = Basis.looking_at((destination.position - _craft.global_position).normalized(), Vector3.UP)
+	var source := _craft.get_command_source()
+	var start := frame.world_streaming_to_orbital_position(_craft.global_position, frame.get_generation()).coordinate as Dictionary
+	var initial_frame := frame.get_generation()
+	var initial_crew_tick := _game._network_moving_interior_server_tick
+	_game.hud.planetary_cruise_toggle_requested.emit(4)
+	_check(_game.get_network_planetary_journey_snapshot().phase == &"preparing", "ordinary HUD prepares authenticated crew readiness before cruise")
+	_check(await _until(func(): return _game.get_network_planetary_journey_snapshot().get("phase") == &"cruising", 12.0), "both real crew peers acknowledge production streaming readiness")
+	_check(await _until(func(): return frame.get_generation() > initial_frame, 35.0), "real cruise physics crosses existing ten-kilometre origin threshold and commits")
+	var traveled := frame.orbital_to_world_streaming_position(start, frame.get_generation())
+	_check(_craft.global_position.distance_to(traveled.position) > 8000.0 and _craft.velocity.length() > 50.0, "host craft physically travels before origin shift with nonzero cruise velocity")
+	_check(_craft.get_command_source() == source and _game._network_remote_body_simulation.get_body_count() == 2, "real origin commit preserves pilot source and both actual crew bodies")
+	_check(_game._network_moving_interior_server_tick > initial_crew_tick, "crew physics and publication continue through shared cruise")
+	_write("host.rebased", {"origin_revision": frame.get_generation()})
+	if not await _wait_file("client.walked", 60.0) or not await _wait_file("client_b.walked", 60.0):
+		return
+	if not await _wait_file("observer.observed", 60.0):
+		return
+	# Both crew use the same actual passenger chair in turn. A forged seat or
+	# replica posture would not exercise the physical host ownership path.
+	for role in ["client", "client_b"]:
+		_write(role + ".chair_go", {})
+		if not await _wait_file(role + ".chair_done", 60.0):
+			return
+		_check(_game._network_remote_body_simulation.get_body_count() == 2, "both crew remain admitted after ordinary stand and reseat: " + role)
+	_write("host.finish", {})
+	if not await _wait_file("client.disconnected", 30.0) or not await _wait_file("client_b.disconnected", 30.0):
+		return
+	_check(await _until(func(): return _game._network_remote_body_simulation.get_body_count() == 0, 5.0), "actual peer disconnect retires both travelling cabin bodies")
+	_game.shutdown_network_session(&"shared_cruise_done")
+	_check(_game.get_network_planetary_journey_snapshot().get("journey_epoch", 0) == 0 and _craft.get_command_source() == source, "session stop retires journey without replacing retained solo pilot input")
+
+func _shared_client() -> void:
+	if _role == "client":
+		var prior_frame: PlanetaryCoordinateFrame = _game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+		var prior_generation := prior_frame.get_generation()
+		_player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(10020.0, 5.0, 0.0)))
+		_check(await _until(func(): return prior_frame.get_generation() > prior_generation, 5.0), "client makes a genuine solo origin commit before joining")
+		_player.teleport_to(_game.world.get_player_spawn())
+		_check(await _until(func(): return prior_frame.get_generation() > prior_generation + 1, 5.0), "prior solo return leaves independently advanced local frame history")
+	_check(_game.join_network_session("127.0.0.1", _port).accepted, "shared cruise independent peer joins")
+	if not await _until(_admitted_session_ready, 60.0):
+		_check(false, "shared peer receives authenticated admission")
+		return
+	if _role == "observer":
+		var observer_frame: PlanetaryCoordinateFrame = _game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+		var initial_generation := observer_frame.get_generation()
+		var origin := _game.world.global_position
+		_check(await _until(func(): return int(_game.get_network_planetary_journey_snapshot().get("origin_revision", 0)) > 1, 10.0), "late observer receives current authenticated shared journey bootstrap")
+		await _ticks(30)
+		_check(observer_frame.get_generation() == initial_generation and _game.world.global_position == origin and _player.global_position.length() < 1000.0, "late yard observer retains nearby local origin instead of rebasing to remote travelling ship")
+		_check(_game.get_network_remote_body_intent_source() == null and not _player.is_seated(), "late journey bootstrap grants no cabin or pilot ownership")
+		_write("observer.observed", {})
+		await _wait_file("host.finish", 60.0)
+		return
+	if _role == "client_b" and not await _wait_file("client.cabin", 60.0):
+		return
+	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.get_boarding_position() + Vector3.UP * 0.05))
+	await _ticks(10)
+	await _press(&"interact")
+	_check(await _until(func(): return _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _game.get_network_remote_body_intent_source() != null and not _game._transition_busy, 12.0), "ordinary peer hatch admits actual host-owned walking body: " + _role)
+	if _game.get_network_remote_body_intent_source() == null:
+		return
+	var cabin_frame := _craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	_check(cabin_frame.is_simulation_authority_for(_player) and cabin_frame.authority_mode == MovingInteriorFrame.AuthorityMode.FRAME_AUTHORITY, "confirmed crew predicts only its own carried body with unchanged host frame authority: " + _role)
+	_check(not _game._network_local_cabin_prediction_is_current(_craft, _craft, _game.network_session), "a foreign body cannot use this crew's local prediction admission: " + _role)
+	root.grab_focus()
+	await _ticks(20)
+	await _walk(Vector3(-1.3 if _role == "client" else 1.3, 0.52, -5.8))
+	var journey_receiver := Callable(_game, "_on_network_planetary_journey_state")
+	if _role == "client_b":
+		_game.network_session.planetary_journey_state_received.disconnect(journey_receiver)
+	_write(_role + ".cabin", {})
+	if _role == "client":
+		var acknowledged := await _until(func(): return _game._network_planetary_journey.is_preparing() and int(_game._network_planetary_journey.get("_last_ack_origin")) > 0, 20.0)
+		_check(acknowledged, "first actual peer acknowledges initial preparation before stream impairment")
+		if not acknowledged:
+			return
+		_game.network_session.planetary_journey_state_received.disconnect(journey_receiver)
+		_write("client.ack_held", {})
+	else:
+		if not await _wait_file("host.restore_b", 20.0):
+			return
+		_game.network_session.planetary_journey_state_received.connect(journey_receiver)
+	if not await _wait_file("host.restore_all", 20.0):
+		return
+	if not _game.network_session.planetary_journey_state_received.is_connected(journey_receiver):
+		_game.network_session.planetary_journey_state_received.connect(journey_receiver)
+	_write(_role + ".ready_restored", {})
+	if not await _wait_file("host.cancelled", 20.0):
+		return
+	_check(await _until(func(): return not _game._network_planetary_journey.is_active(), 10.0), "real peer receives reliable queued cancellation without stale focus resurrection: " + _role)
+	_write(_role + ".cancel_seen", {})
+	var frame: PlanetaryCoordinateFrame = _game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	var initial_frame := frame.get_generation()
+	if not await _wait_file("host.rebased", 60.0):
+		return
+	_check(await _until(func(): return frame.get_generation() > initial_frame, 10.0), "aboard peer commits own local origin from canonical shared craft focus: " + _role)
+	var source := _game.get_network_remote_body_intent_source()
+	var initial_tick := _game.network_session.get_moving_interior_latest_server_tick()
+	var initial_position := _craft.to_local(_player.global_position)
+	await _walk(Vector3(-1.0 if _role == "client" else 1.0, 0.52, -5.8))
+	_check(_craft.to_local(_player.global_position).distance_to(initial_position) > 0.6 and _player.is_on_floor(), "ordinary cabin walking remains supported after live origin shift: " + _role)
+	_check(source.is_bound() and _game.network_session.get_moving_interior_latest_server_tick() > initial_tick and not bool(_game.planetary_cruise_binding.get_snapshot().get("engagement_requested", true)), "peer streams actual body while host alone owns physical cruise: " + _role)
+	var sample := _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
+	_check(not sample.is_empty() and _craft.global_position.distance_to(sample.position) < 5000.0, "replicated hull remains in current local origin after interpolation: " + _role)
+	_write(_role + ".walked", {})
+	if not await _wait_file(_role + ".chair_go", 60.0):
+		return
+	await _walk(_craft.to_local(_station_contract().entry_transform.origin))
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
+	_game._refresh_interaction_targets()
+	print("SHARED_CREW_CHAIR_APPROACH: role=", _role, " local=", _craft.to_local(_player.global_position), " candidate=", _game.station_interaction_candidate, " nearby=", _player.get_nearby_interactables(), " objective=", _objective_text(), " source=", source.get_audit())
+	await _press(&"interact")
+	_check(await _until(func(): return _player.is_seated_at(_station_anchor()) and not _game._transition_busy, 8.0), "ordinary travelling crew chair claim after origin shift: " + _role)
+	await _press(&"interact")
+	_check(await _until(func(): return not _player.is_seated() and not _game._transition_busy, 8.0), "ordinary travelling crew stand after origin shift: " + _role)
+	await _ticks(20)
+	await _walk(_craft.to_local(_station_contract().entry_transform.origin))
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
+	await _press(&"interact")
+	_check(await _until(func(): return _player.is_seated_at(_station_anchor()) and not _game._transition_busy, 8.0), "ordinary travelling crew reseat after origin shift: " + _role)
+	await _press(&"interact")
+	await _until(func(): return not _player.is_seated() and not _game._transition_busy, 8.0)
+	await _walk(Vector3(0.0, 0.52, -8.0))
+	_write(_role + ".chair_done", {})
+	if not await _wait_file("host.finish", 60.0):
+		return
+	_game.shutdown_network_session(&"shared_crew_disconnect")
+	_check(_player.is_control_enabled() and not _player.is_seated(), "disconnect restores real travelling crew controls: " + _role)
+	_check(not cabin_frame._local_prediction_is_current(_player) and not _game._network_local_cabin_prediction_is_current(_player, _craft, _game.network_session), "actual disconnect retires the crew prediction grant while retaining ordinary solo cabin controls: " + _role)
+	_write(_role + ".disconnected", {})

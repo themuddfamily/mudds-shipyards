@@ -267,6 +267,44 @@ func register_occupant(occupant: Node3D, options: Dictionary = {}) -> Dictionary
 	return result
 
 
+## Opts one already registered client body into local carried prediction. The
+## admission callback stays owned by the gameplay binding that holds its seat;
+## this grants no craft or authoritative body ownership. Peer replacement,
+## lost admission, and unregister invalidate the grant.
+func bind_local_prediction(occupant: CharacterBody3D, peer_id: int, admission: Callable) -> Dictionary:
+	if _tearing_down or not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(occupant) or not occupant.is_inside_tree() or occupant.is_queued_for_deletion() \
+			or not is_instance_valid(_moving_frame) or not _moving_frame.is_inside_tree() or _moving_frame.is_queued_for_deletion() \
+			or not is_occupant_registered(occupant) or not admission.is_valid() or admission.call() != true \
+			or not multiplayer.has_multiplayer_peer() or multiplayer.is_server() \
+			or multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED \
+			or peer_id <= 1 or multiplayer.get_unique_id() != peer_id:
+		return {"accepted": false, "status": &"local_prediction_not_admitted"}
+	var state: Dictionary = _occupants[occupant.get_instance_id()]
+	state["prediction_peer_id"] = peer_id
+	state["prediction_peer"] = weakref(multiplayer.multiplayer_peer)
+	state["prediction_admission"] = admission
+	_occupants[occupant.get_instance_id()] = state
+	_sync_occupant_authority(occupant, state, _sample_frame_transform())
+	_occupants[occupant.get_instance_id()] = state
+	return {"accepted": true, "status": &"local_prediction_bound"}
+
+
+func clear_local_prediction(occupant: CharacterBody3D) -> void:
+	if not is_instance_valid(occupant) or not _occupants.has(occupant.get_instance_id()):
+		return
+	var state: Dictionary = _occupants[occupant.get_instance_id()]
+	_clear_local_prediction_state(state)
+	_sync_occupant_authority(occupant, state, _sample_frame_transform())
+	_occupants[occupant.get_instance_id()] = state
+
+
+func _clear_local_prediction_state(state: Dictionary) -> void:
+	state.erase("prediction_peer_id")
+	state.erase("prediction_peer")
+	state.erase("prediction_admission")
+
+
 ## Releases one occupant and optionally applies physically correct world exit
 ## velocity. The result always reports the calculated velocity, even for Node3D
 ## occupants that have no writable `velocity` property.
@@ -297,6 +335,7 @@ func unregister_occupant(
 	var frame_velocity := get_frame_velocity_at_position(_node_world_transform(occupant).origin)
 	var exit_velocity := relative_velocity + frame_velocity
 	var should_inherit := inherit_velocity and bool((state["options"] as Dictionary)["inherit_velocity_on_exit"])
+	var may_simulate := _can_simulate_occupant(occupant)
 
 	_restore_occupant_state(occupant, state)
 	_occupants.erase(occupant_id)
@@ -304,7 +343,7 @@ func unregister_occupant(
 	_pending_volume_occupants.erase(occupant_id)
 	_clear_owner_meta(occupant)
 	_clear_registration_meta(occupant)
-	if should_inherit and occupant is CharacterBody3D and _can_simulate_occupant(occupant):
+	if should_inherit and occupant is CharacterBody3D and may_simulate:
 		(occupant as CharacterBody3D).velocity = exit_velocity
 		result["velocity_applied"] = true
 
@@ -697,6 +736,8 @@ func _sync_occupant_authority(
 		state: Dictionary,
 		current_frame: Transform3D
 	) -> bool:
+	if state.has("prediction_peer_id") and not _local_prediction_is_current(occupant):
+		_clear_local_prediction_state(state)
 	var should_prepare := _can_simulate_occupant(occupant)
 	var is_prepared := bool(state.get("simulation_prepared", false))
 	if should_prepare == is_prepared:
@@ -778,7 +819,7 @@ func _can_simulate_occupant(occupant: Node3D) -> bool:
 		return true
 	match authority_mode:
 		AuthorityMode.FRAME_AUTHORITY:
-			return is_multiplayer_authority()
+			return is_multiplayer_authority() or _local_prediction_is_current(occupant)
 		AuthorityMode.OCCUPANT_AUTHORITY:
 			return occupant.is_multiplayer_authority()
 		AuthorityMode.FRAME_AND_OCCUPANT_AUTHORITY:
@@ -786,6 +827,25 @@ func _can_simulate_occupant(occupant: Node3D) -> bool:
 		AuthorityMode.UNRESTRICTED:
 			return true
 	return false
+
+
+func _local_prediction_is_current(occupant: Node3D) -> bool:
+	if not is_inside_tree() or not multiplayer.has_multiplayer_peer():
+		return false
+	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return false
+	if multiplayer.is_server() or not occupant is CharacterBody3D \
+			or not occupant.is_inside_tree() or occupant.is_queued_for_deletion() \
+			or not is_instance_valid(_moving_frame) or not _moving_frame.is_inside_tree() or _moving_frame.is_queued_for_deletion() \
+			or not _occupants.has(occupant.get_instance_id()):
+		return false
+	var state: Dictionary = _occupants[occupant.get_instance_id()]
+	var peer_ref: Variant = state.get("prediction_peer")
+	var admission: Callable = state.get("prediction_admission", Callable())
+	return (state.occupant as WeakRef).get_ref() == occupant \
+		and peer_ref is WeakRef and peer_ref.get_ref() == multiplayer.multiplayer_peer \
+		and int(state.get("prediction_peer_id", -1)) == multiplayer.get_unique_id() \
+		and admission.is_valid() and admission.call() == true
 
 
 func _sample_frame_transform() -> Transform3D:
