@@ -34,9 +34,9 @@
   "hud_policy": "HUD_OFF_ALL_CANVASLAYERS_HIDDEN_AND_DISABLED",
   "production_main_scene": "res://scenes/main.tscn",
   "source_manifest": "res://artifacts/combat_visuals/source_manifest.sha256",
-  "source_manifest_sha256": "f5147afe21708baf2b55f52917c555a9c3c6dd0262927952e0f79aee20d94ade",
-  "source_aggregate_sha256": "f5147afe21708baf2b55f52917c555a9c3c6dd0262927952e0f79aee20d94ade",
-  "source_file_count": 9254,
+  "source_manifest_sha256": "4f9a6a38670e6b8ffc8b313caebe36b6972cbdebdff3f8b3af56c17b6b0c81e4",
+  "source_aggregate_sha256": "4f9a6a38670e6b8ffc8b313caebe36b6972cbdebdff3f8b3af56c17b6b0c81e4",
+  "source_file_count": 9255,
   "source_files": {
     "res://art_source/materials/COATING_SOURCE.md": "883d13a1db12ade5fe686a8e644385b39c02e3e6e0093f5dc5b05ca8593d1e35",
     "res://art_source/materials/blue_metal_plate_rough_1k.png": "db0cee2879a04f6449f8abd4dbe51b9ba4be939052dc27dd8f8c2bcee8d2c402",
@@ -123,6 +123,7 @@
     "res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png.import": "d50da2025cc9b1d09984db0e4c6f25ad05e18d15224ca3a78e76c7bf50e89a68",
     "res://assets/effects/mudds-combat-vfx-atlas-v1.png": "e748314a287112a11f809b417fa262b184199715f029b0915b63ca8ccecd3aac",
     "res://assets/effects/mudds-combat-vfx-atlas-v1.png.import": "287d562b7e851fd1e3f5ee2b4d1f8eb198c80341de1cddae1427f6e6fbfc0cf4",
+    "res://assets/effects/smoke_alpha.tres": "9656b4483aa1f02ca63b83b7f600dbe043758ef19401abc45ca27b86ebdee5ec",
     "res://assets/keth-icon.png": "08f8427bd4cc74c8109150ede9df87feec181a1bdb97fc762853db8bf497d473",
     "res://assets/keth-icon.png.import": "28ea4863fa21bed36684d0f61a52885dafcdf5b041815ae8480bc70425dfc15d",
     "res://assets/keth-nebula.png": "f84b9528f039e2c5abd6cad72f775ba89778a91cbfe778d7d3872998edee0e55",
@@ -1005,7 +1006,7 @@
     "res://scripts/ships/jovian_engineer_repair_presentation.gd.uid": "97d0c4c1983e34ea46dde094afab7a831dc2f16c9365f620e3071e56059c6949",
     "res://scripts/ships/jovian_light_freighter.gd": "f5f4528b6fe482c91793285a9616c35a7f859c482d85a728e2a692bf55061064",
     "res://scripts/ships/jovian_light_freighter.gd.uid": "bd1001fff4262a3147edad00714ea6d68f49c0d504ae40987e66a7e0e710e597",
-    "res://scripts/ships/range_opponent.gd": "cf0d9328faf9490d6727e11cb0e2e6b2719700c567c22fd7ccfde19a35a4676b",
+    "res://scripts/ships/range_opponent.gd": "4116cdae98e44fb987b25994de559d143ed90e07891ce6d53f812030af0118ce",
     "res://scripts/ships/range_opponent.gd.uid": "bd9314289bda7f6fad04f80a56d8bd689b297ddea61aafa4a94d469333fcbe96",
     "res://scripts/ships/resolver_backed_opponent.gd": "68670394c30167eea10460e07363a2507ee4ae97808b31948138a595e48654bb",
     "res://scripts/ships/resolver_backed_opponent.gd.uid": "a98e3727d7bd9bd40e7bdbe45098bd910b532bb9db7e2de8f5b651e71365d855",
@@ -9337,8 +9338,8 @@
     {
       "file": "01_damaged_opponent_baseline.png",
       "semantic_state": "damaged_opponent_baseline",
-      "sha256": "26b00cceb40d4cd4ec2d82109c8dd0d5f7c9bb5c28f5f05cce8944138a175da9",
-      "png_bytes": 723139,
+      "sha256": "2eccfadcc405be42b1a261b4b559842273a897bea1a5977b7acfd6f04a16a195",
+      "png_bytes": 723774,
       "resolution": [
         2560,
         1440
@@ -9354,14 +9355,14 @@
         "interlace": 0
       },
       "luminance_range": 0.819932,
-      "luminance_variance": 0.00564,
+      "luminance_variance": 0.005556,
       "effect_roi_pixels": {
         "x": 2040,
         "y": 728,
         "width": 144,
         "height": 144
       },
-      "effect_roi_peak_luminance": 0.736282,
+      "effect_roi_peak_luminance": 0.748878,
       "camera_transform": {
         "origin": [
           215.977356,
@@ -9393,8 +9394,8 @@
     {
       "file": "02_cyan_muzzle_midflight.png",
       "semantic_state": "cyan_muzzle_midflight",
-      "sha256": "583828543dde78eae6dbecfbb3015dec5cb60e77e5a56884dbd70771c168ecb5",
-      "png_bytes": 727061,
+      "sha256": "54040e41dfe1111bbf2a95efe5912c403cc8bdbe78e3af72fbbd5c0f870af5d6",
+      "png_bytes": 727846,
       "resolution": [
         2560,
         1440
@@ -9410,7 +9411,7 @@
         "interlace": 0
       },
       "luminance_range": 0.82302,
-      "luminance_variance": 0.005543,
+      "luminance_variance": 0.005443,
       "effect_roi_pixels": {
         "x": 1107,
         "y": 702,
@@ -9457,7 +9458,7 @@
         "pulse_snapshot": {
           "shot_id": 2,
           "style_id": "cyan",
-          "source_instance_id": 580625893975,
+          "source_instance_id": 575693392473,
           "hit": true,
           "age": 0.044824,
           "travel_duration": 0.117959,
@@ -9487,8 +9488,8 @@
     {
       "file": "03_cyan_impact_critical.png",
       "semantic_state": "cyan_impact_critical",
-      "sha256": "7890c93563d0b58912cf748870e91927c9ff393146b32e1d5d113cd3a11b37b9",
-      "png_bytes": 725379,
+      "sha256": "a13aa4ca2cc55b5f6f0d82ed7ad5b25b708b039d2414a5afeed2214a8e6f9300",
+      "png_bytes": 726569,
       "resolution": [
         2560,
         1440
@@ -9504,14 +9505,14 @@
         "interlace": 0
       },
       "luminance_range": 0.819932,
-      "luminance_variance": 0.005579,
+      "luminance_variance": 0.005551,
       "effect_roi_pixels": {
         "x": 1875,
         "y": 723,
         "width": 144,
         "height": 144
       },
-      "effect_roi_peak_luminance": 0.907928,
+      "effect_roi_peak_luminance": 0.906507,
       "camera_transform": {
         "origin": [
           215.977356,
@@ -9551,7 +9552,7 @@
         "pulse_snapshot": {
           "shot_id": 2,
           "style_id": "cyan",
-          "source_instance_id": 580625893975,
+          "source_instance_id": 575693392473,
           "hit": true,
           "age": 0.162959,
           "travel_duration": 0.117959,
@@ -9581,8 +9582,8 @@
     {
       "file": "04_amber_midflight.png",
       "semantic_state": "amber_midflight",
-      "sha256": "7d3d41a5af36af25ccbdd2f31a6ccea804b3750fccbb4a387d5a8a9dc20eb6ab",
-      "png_bytes": 731061,
+      "sha256": "0451c62b3af78e915640e97d7b980acc6daf0cbe44c6a16d7732ce228855f95c",
+      "png_bytes": 736460,
       "resolution": [
         2560,
         1440
@@ -9598,7 +9599,7 @@
         "interlace": 0
       },
       "luminance_range": 0.826658,
-      "luminance_variance": 0.005781,
+      "luminance_variance": 0.005681,
       "effect_roi_pixels": {
         "x": 1107,
         "y": 732,
@@ -9645,7 +9646,7 @@
         "pulse_snapshot": {
           "shot_id": 3,
           "style_id": "amber",
-          "source_instance_id": 583478020864,
+          "source_instance_id": 578545519362,
           "hit": true,
           "age": 0.06552,
           "travel_duration": 0.112966,
@@ -9675,8 +9676,8 @@
     {
       "file": "05_amber_hero_impact.png",
       "semantic_state": "amber_hero_impact",
-      "sha256": "e02b80021267cd8c9e2241909dcb9e5ffd0309b8cd6d6cf174f13f7cfb7ba441",
-      "png_bytes": 734038,
+      "sha256": "73bc96f9e3deb2f30c1b472c3df0e48802ce01a45cdc7332ca677c5ede055d92",
+      "png_bytes": 737678,
       "resolution": [
         2560,
         1440
@@ -9692,7 +9693,7 @@
         "interlace": 0
       },
       "luminance_range": 0.827775,
-      "luminance_variance": 0.005556,
+      "luminance_variance": 0.00576,
       "effect_roi_pixels": {
         "x": 606,
         "y": 697,
@@ -9739,7 +9740,7 @@
         "pulse_snapshot": {
           "shot_id": 3,
           "style_id": "amber",
-          "source_instance_id": 583478020864,
+          "source_instance_id": 578545519362,
           "hit": true,
           "age": 0.152966,
           "travel_duration": 0.112966,
@@ -9769,8 +9770,8 @@
     {
       "file": "06_lethal_cyan_inflight.png",
       "semantic_state": "lethal_cyan_inflight",
-      "sha256": "028ee7705c3a206078fd96f72c08827e3939479bd3cfc60ff5c481106d102211",
-      "png_bytes": 728789,
+      "sha256": "b2c1ba728407f76c8aae1a43195e850d20607dc9bde5097f85bd098a07c5de08",
+      "png_bytes": 733251,
       "resolution": [
         2560,
         1440
@@ -9786,7 +9787,7 @@
         "interlace": 0
       },
       "luminance_range": 0.831696,
-      "luminance_variance": 0.005612,
+      "luminance_variance": 0.005538,
       "effect_roi_pixels": {
         "x": 1318,
         "y": 708,
@@ -9833,7 +9834,7 @@
         "pulse_snapshot": {
           "shot_id": 4,
           "style_id": "cyan",
-          "source_instance_id": 580625893975,
+          "source_instance_id": 575693392473,
           "hit": true,
           "age": 0.064877,
           "travel_duration": 0.117959,
@@ -9863,8 +9864,8 @@
     {
       "file": "07_lethal_arrival_destruction.png",
       "semantic_state": "lethal_arrival_destruction",
-      "sha256": "5e18617a0541836ad38ac33b1aef86fe88057efaab17ad52479d32e91a6c7621",
-      "png_bytes": 702131,
+      "sha256": "9d1fb3d5a59ecfa8488acaae83bed01f250ce1406a897ae89217a845310e93b9",
+      "png_bytes": 710828,
       "resolution": [
         2560,
         1440
@@ -9880,14 +9881,14 @@
         "interlace": 0
       },
       "luminance_range": 0.827775,
-      "luminance_variance": 0.003846,
+      "luminance_variance": 0.003702,
       "effect_roi_pixels": {
         "x": 2040,
         "y": 728,
         "width": 144,
         "height": 144
       },
-      "effect_roi_peak_luminance": 0.726133,
+      "effect_roi_peak_luminance": 0.850288,
       "camera_transform": {
         "origin": [
           215.977356,
@@ -9927,7 +9928,7 @@
         "pulse_snapshot": {
           "shot_id": 4,
           "style_id": "cyan",
-          "source_instance_id": 580625893975,
+          "source_instance_id": 575693392473,
           "hit": true,
           "age": 0.162959,
           "travel_duration": 0.117959,
@@ -9985,16 +9986,16 @@
         "height": 144
       },
       "sample_count": 20736,
-      "mean_difference": 0.0244089411460836,
-      "changed_fraction": 0.0890721450617284,
-      "changed_pixels": 1847,
+      "mean_difference": 0.0261829391032278,
+      "changed_fraction": 0.0929783950617284,
+      "changed_pixels": 1928,
       "pixel_change_threshold": 0.045,
       "style_id": "cyan",
       "effect_colour": {
         "style_id": "cyan",
-        "coloured_pixels": 6043,
+        "coloured_pixels": 6149,
         "minimum_coloured_pixels": 48,
-        "peak_luminance": 0.907927811145782,
+        "peak_luminance": 0.906507432460785,
         "colour_rule": "green and blue each exceed red by 0.05"
       }
     },
@@ -10027,7 +10028,7 @@
         "height": 144
       },
       "sample_count": 20736,
-      "mean_difference": 0.0158256556907736,
+      "mean_difference": 0.0158254665719275,
       "changed_fraction": 0.0464409722222222,
       "changed_pixels": 963,
       "pixel_change_threshold": 0.045,
@@ -10069,9 +10070,9 @@
         "height": 144
       },
       "sample_count": 20736,
-      "mean_difference": 0.225512519909124,
-      "changed_fraction": 0.876109182098765,
-      "changed_pixels": 18167,
+      "mean_difference": 0.24237732021073,
+      "changed_fraction": 0.9296875,
+      "changed_pixels": 19278,
       "pixel_change_threshold": 0.045
     }
   },

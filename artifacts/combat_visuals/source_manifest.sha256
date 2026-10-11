@@ -83,6 +83,7 @@ b4a3ffae58cf76eb9d43e94ac3d21871444fc65d2c5b2ea6a30a22a22158caf2  res://assets/a
 d50da2025cc9b1d09984db0e4c6f25ad05e18d15224ca3a78e76c7bf50e89a68  res://assets/concepts/torrent/torrent-hero-concept-multiview-v1.png.import
 e748314a287112a11f809b417fa262b184199715f029b0915b63ca8ccecd3aac  res://assets/effects/mudds-combat-vfx-atlas-v1.png
 287d562b7e851fd1e3f5ee2b4d1f8eb198c80341de1cddae1427f6e6fbfc0cf4  res://assets/effects/mudds-combat-vfx-atlas-v1.png.import
+9656b4483aa1f02ca63b83b7f600dbe043758ef19401abc45ca27b86ebdee5ec  res://assets/effects/smoke_alpha.tres
 08f8427bd4cc74c8109150ede9df87feec181a1bdb97fc762853db8bf497d473  res://assets/keth-icon.png
 28ea4863fa21bed36684d0f61a52885dafcdf5b041815ae8480bc70425dfc15d  res://assets/keth-icon.png.import
 f84b9528f039e2c5abd6cad72f775ba89778a91cbfe778d7d3872998edee0e55  res://assets/keth-nebula.png
@@ -965,7 +966,7 @@ eb044d38cd152ecf91dedfe5ae8b9de039de176d1d8a1f00bef69fe9687cf704  res://scripts/
 97d0c4c1983e34ea46dde094afab7a831dc2f16c9365f620e3071e56059c6949  res://scripts/ships/jovian_engineer_repair_presentation.gd.uid
 f5f4528b6fe482c91793285a9616c35a7f859c482d85a728e2a692bf55061064  res://scripts/ships/jovian_light_freighter.gd
 bd1001fff4262a3147edad00714ea6d68f49c0d504ae40987e66a7e0e710e597  res://scripts/ships/jovian_light_freighter.gd.uid
-cf0d9328faf9490d6727e11cb0e2e6b2719700c567c22fd7ccfde19a35a4676b  res://scripts/ships/range_opponent.gd
+4116cdae98e44fb987b25994de559d143ed90e07891ce6d53f812030af0118ce  res://scripts/ships/range_opponent.gd
 bd9314289bda7f6fad04f80a56d8bd689b297ddea61aafa4a94d469333fcbe96  res://scripts/ships/range_opponent.gd.uid
 68670394c30167eea10460e07363a2507ee4ae97808b31948138a595e48654bb  res://scripts/ships/resolver_backed_opponent.gd
 a98e3727d7bd9bd40e7bdbe45098bd910b532bb9db7e2de8f5b651e71365d855  res://scripts/ships/resolver_backed_opponent.gd.uid
