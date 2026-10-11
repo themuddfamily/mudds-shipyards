@@ -1071,6 +1071,7 @@ func _ember_surface_host() -> void:
 	var body_id := body.get_instance_id()
 	var generation := int(simulation.get_body_record(avatar).get("entity_generation", 0))
 	var admissions := int(simulation.get_audit().get("admitted", 0))
+	var releases_before := int(simulation.get_audit().get("released", 0))
 	var pilot := _craft.get_pilot_seat_anchor()
 	await _walk(Vector3(0.0, 0.52, -9.2))
 	await _walk(_craft.to_local(pilot.global_position) + Vector3(-0.6, 0.0, 0.6))
@@ -1124,7 +1125,14 @@ func _ember_surface_host() -> void:
 	_check(await _until(func(): return production.get_planetary_surface_snapshot().adapter.activity_reward.state == &"active", 4.0), "host on-foot observations start genuine authored survey")
 	_check(await _ember_walk_world(landing.to_global(Vector3(160.0, 0.0, -30.0)), 50.0), "ordinary host walk reaches actual mandatory tower")
 	_check(await _until(func(): return int(_game.activity_director.get_activity_snapshot(&"ember_beacon_survey").get("next_checkpoint_index", 0)) == 1, 4.0), "Director consumes genuine first checkpoint")
-	_check(await _ember_walk_world(landing.to_global(Vector3(540.0, 30.0, -210.0)), 100.0), "ordinary host walk reaches actual second beacon")
+	var survey_generation := int(_game.activity_director.get_activity_snapshot(&"ember_beacon_survey").get("generation", 0))
+	var completed := func() -> bool:
+		var activity := _game.activity_director.get_activity_snapshot(&"ember_beacon_survey")
+		return int(activity.get("generation", -1)) == survey_generation \
+			and int(activity.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED \
+			and int(activity.get("next_checkpoint_index", -1)) == 2
+	_check(await _ember_walk_world(landing.to_global(Vector3(540.0, 30.0, -210.0)), 100.0, [], completed),
+		"ordinary host walk completes both genuine checkpoints in the current Director generation")
 	_check(await _until(func(): return production.get_planetary_surface_snapshot().adapter.activity_reward.state == &"completed", 4.0), "genuine final observation completes and saves survey")
 	if not _failures.is_empty():
 		return
@@ -1164,7 +1172,9 @@ func _ember_surface_host() -> void:
 	_write("host.reboard_seen", {})
 	if not await _wait_file("client.disconnected", 20.0):
 		return
-	_check(await _until(func(): return simulation.get_body_count() == 0 and _game._network_ember_passenger_surfaces.is_empty(), 5.0), "actual exterior peer disconnect retires body and surface lifetime")
+	_check(await _until(func(): return simulation.get_body_count() == 0 and _game._network_ember_passenger_surfaces.is_empty(), 5.0)
+		and int(simulation.get_audit().get("released", -1)) - releases_before == 1,
+		"actual exterior disconnect releases exactly one retained body and clears its surface lifetime")
 	_check(store.get_generation() == saved_generation and int(production.get_snapshot().relay_reward_commit.persistence_commit_count) == 1,
 		"passenger departure, return and disconnect cannot write another host reward")
 	_check(commands == host.get("_original_command_source"), "passenger route preserves original pilot command owner")
@@ -1197,6 +1207,9 @@ func _ember_surface_client() -> void:
 	_check(await _until(func(): return _game._network_client_ember_passenger_surface_is_current(), 12.0), "ordinary hatch press waits for host-confirmed exterior departure")
 	if not _game._network_client_ember_passenger_surface_is_current():
 		return
+	var old_departure := _game.network_session.get_boarding_intent_result_replica()
+	_check(bool(old_departure.get("accepted", false)) and old_departure.get("status") == &"disembarked"
+		and old_departure.get("avatar_id") == source.get_entity_id(), "capture real host-accepted exterior departure answer")
 	var retired_prediction := Callable(_game, "_network_local_ember_passenger_prediction_is_current").bind(_game._network_client_ember_passenger_surface)
 	_check(_player.get_instance_id() == body_id and _game.get_network_remote_body_intent_source() == source
 		and source.get_audit().stream_id == before.stream_id and source.get_audit().entity_generation == before.entity_generation
@@ -1229,6 +1242,9 @@ func _ember_surface_client() -> void:
 		and bool(_player.get_cabin_containment_report().get("active", false))
 		and not _player.is_seated() and not _game._piloting,
 		"return retains same actual body, ordered predictor and passenger authority")
+	var old_boarding := _game.network_session.get_boarding_intent_result_replica()
+	_check(bool(old_boarding.get("accepted", false)) and old_boarding.get("status") == &"boarded"
+		and old_boarding.get("avatar_id") == source.get_entity_id(), "capture real host-accepted same-body return answer")
 	_write("client.reboarded", {})
 	if not await _wait_file("host.reboard_seen", 20.0):
 		return
@@ -1238,6 +1254,26 @@ func _ember_surface_client() -> void:
 	await _press(&"interact")
 	_check(await _until(func(): return _game._network_client_ember_passenger_surface_is_current(), 12.0)
 		and not bool(retired_prediction.call()), "second ordinary exit retains body without reviving first departure admission")
+	var current_answer := _game.network_session.get_boarding_intent_result_replica()
+	_check(int(old_departure.get("sequence", -1)) < int(old_boarding.get("sequence", -1))
+		and int(old_boarding.get("sequence", -1)) < int(current_answer.get("sequence", -1)),
+		"captured genuine answers precede the current confirmed departure")
+	var current_context := _game._network_client_ember_passenger_surface.duplicate(true)
+	var current_predictor := source.get_audit()
+	var current_pose := _player.global_transform
+	var confirmations := int(_game.get_network_client_boarding_audit().get("confirmations", 0))
+	# Replay the exact accepted answers delivered by the real host through the
+	# production signal/callback path, without making a new ledger decision.
+	for answer: Dictionary in [old_departure, old_boarding]:
+		_game.network_session.boarding_intent_result.emit(answer.duplicate(true))
+	_check(_game._network_client_ember_passenger_surface == current_context
+		and _game._network_client_ember_passenger_surface_is_current()
+		and _player.get_instance_id() == body_id and _player.global_transform == current_pose
+		and _game.get_network_remote_body_intent_source() == source and source.get_audit() == current_predictor
+		and source.is_bound() and not _game._network_client_boarding_holds(_craft)
+		and _game.phase == GameFlow.Phase.APPROACH_SHIP
+		and int(_game.get_network_client_boarding_audit().get("confirmations", -1)) == confirmations,
+		"real old departure and return answers cannot mutate the current exterior body, context or ordered predictor")
 	await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
 	await _walk(Vector3(-8.0, 0.0, HalyardCrewTransport.AIRSTAIR_Z))
 	var stale := Callable(_game, "_network_local_ember_passenger_prediction_is_current").bind(_game._network_client_ember_passenger_surface)
@@ -1249,17 +1285,23 @@ func _ember_surface_client() -> void:
 		"actual disconnect retires predictor and stale admission without a Mudds teleport")
 	_write("client.disconnected", {})
 
-func _ember_walk_world(target: Vector3, seconds: float, via: Array[Vector3] = []) -> bool:
+func _ember_walk_world(target: Vector3, seconds: float, via: Array[Vector3] = [], completed: Callable = Callable()) -> bool:
 	var waypoints: Array[Vector3] = via.duplicate()
 	waypoints.append(target)
 	var index := 0
 	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
 	while Time.get_ticks_msec() < deadline:
+		if completed.is_valid() and completed.call() == true:
+			_ember_release_walk()
+			return true
 		var delta := (waypoints[index] - _player.global_position).slide(_player.up_direction)
 		if delta.length() <= 1.5:
 			if index == waypoints.size() - 1:
 				_ember_release_walk()
-				return true
+				if not completed.is_valid():
+					return true
+				await physics_frame
+				continue
 			index += 1
 			continue
 		var camera := _player.get_node("%CameraYaw") as Node3D
