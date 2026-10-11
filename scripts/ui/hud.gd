@@ -1894,7 +1894,7 @@ func _live_interaction_text(text: String) -> String:
 
 ## [legacy token, actions, replacement format, default desktop resolution].
 ## The authored tractor SPACE copy remains a valid default jump brake alias,
-## even though the default desktop resolver also offers Ctrl via brake.
+## even though the default desktop resolver also offers Page Up via brake.
 ## Tractor entries add an alternatives flag: brake OR jump can each stop the
 ## vehicle, whereas every direction in a movement pair needs its own binding.
 const _CONTROLLER_PROMPT_TOKENS := [
@@ -1906,7 +1906,7 @@ const _CONTROLLER_PROMPT_TOKENS := [
 	["press L to ", [&"landing_assist"], "press %s to ", "L"],
 	["W / S drive", [&"move_forward", &"move_back"], "%s drive", "W / S", false],
 	["A / D steer", [&"move_left", &"move_right"], "%s steer", "A / D", false],
-	["SPACE brake", [&"brake", &"jump"], "%s brake", "Ctrl / Space", true],
+	["SPACE brake", [&"brake", &"jump"], "%s brake", "Page Up / Space", true],
 	["E to hop out", [&"interact"], "%s to hop out", "E", false],
 ]
 const _CONTROLLER_PROMPT_TRAILING_TOKENS := [
