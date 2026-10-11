@@ -703,10 +703,19 @@ func _capture_live_roster() -> Dictionary:
 	var revision := _roster_revision
 	if _roster_cache_revision != revision:
 		var structure: Array[Dictionary] = []
+		var paths: Array[String] = []
+		var entries_by_path: Dictionary = {}
 		for candidate in host.find_children("*", "Node3D", true, false):
-			structure.append({"ref": weakref(candidate), "instance_id": candidate.get_instance_id(),
-				"path": str(host.get_path_to(candidate))})
-		structure.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.path) < str(b.path))
+			var path := str(host.get_path_to(candidate))
+			paths.append(path)
+			entries_by_path[path] = {"ref": weakref(candidate),
+				"instance_id": candidate.get_instance_id(), "path": path}
+		# Host-relative paths uniquely identify live nodes. Sort native Strings
+		# with the same case-sensitive lexical order, avoiding a GDScript callback
+		# and Dictionary/path conversions for every comparison in a cold capture.
+		paths.sort()
+		for path in paths:
+			structure.append(entries_by_path[path])
 		if _roster_revision != revision:
 			return _result(false, &"world_roster_changed")
 		_roster_structure = structure
