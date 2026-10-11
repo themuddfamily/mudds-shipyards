@@ -16,10 +16,11 @@ var _navigator := false
 var _gunner := false
 var _gunner_shots := 0
 var _navigator_cues: Array[StringName] = []
-# Additional real landing + authored survey stages use the existing shared
-# success route's overall budget. All default waits and stage caps stay intact.
+# Real outbound cruise, landing + authored survey use the existing shared success
+# route's overall budget. All default waits and stage caps stay intact.
 const EMBER_SURFACE_TOTAL_SECONDS := 2400.0
 var _ember_surface := false
+var _ember_surface_total_deadline_unix := 0.0
 var _shared_cruise := false
 var _readiness_pressure_epoch := 0
 var _host_loadmaster_flight := false
@@ -38,6 +39,11 @@ func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	_ember_surface = "--ember-surface" in args
 	args.erase("--ember-surface")
+	var deadline_index := args.find("--ember-total-deadline")
+	if deadline_index >= 0 and deadline_index + 1 < args.size():
+		_ember_surface_total_deadline_unix = args[deadline_index + 1].to_float()
+		args.remove_at(deadline_index + 1)
+		args.remove_at(deadline_index)
 	_shared_cruise = _shared_cruise or "--shared-cruise" in args
 	args.erase("--shared-cruise")
 	_host_gunner_flight = "--host-gunner-flight" in args
@@ -115,6 +121,9 @@ func _run() -> void:
 
 func _orchestrate() -> void:
 	var ember_deadline := Time.get_ticks_msec() + int(EMBER_SURFACE_TOTAL_SECONDS * 1000.0)
+	# Peers have separate tick clocks. Share this actual wall deadline for their
+	# transit waits; the parent's unchanged monotonic cap still owns all setup.
+	_ember_surface_total_deadline_unix = Time.get_unix_time_from_system() + EMBER_SURFACE_TOTAL_SECONDS
 	_directory = "/tmp/mudds-passenger-peers-%d" % OS.get_process_id()
 	DirAccess.make_dir_recursive_absolute(_directory)
 	_port = 26000 + OS.get_process_id() % 15000
@@ -227,6 +236,7 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
 	if _ember_surface:
 		args.append("--ember-surface")
+		args.append_array(["--ember-total-deadline", str(_ember_surface_total_deadline_unix)])
 	if _shared_cruise:
 		args.append("--shared-cruise")
 	if _cinder:
@@ -1004,6 +1014,10 @@ func _until(predicate: Callable, seconds: float) -> bool:
 		await _ticks(1)
 	return false
 
+func _ember_surface_seconds_remaining() -> float:
+	return clampf(_ember_surface_total_deadline_unix - Time.get_unix_time_from_system(),
+		0.0, EMBER_SURFACE_TOTAL_SECONDS)
+
 func _ticks(count: int) -> void:
 	for _index in count:
 		await physics_frame
@@ -1081,16 +1095,20 @@ func _ember_surface_host() -> void:
 	if not _game._piloting:
 		return
 	var commands := _craft.get_command_source()
-	# Only the initial flight envelope is staged, as in the existing shared
-	# surface fixture. No body/receipt/lease/state is injected after engagement.
+	# Stage the existing shared cruise's Mudds-side flight envelope. A craft
+	# placed near Ember without a journey correctly gets the stranded-return HUD.
+	# The whole canonical outbound leg now remains real after this initial setup.
 	var frame := _game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
 	var destination: Vector3 = frame.orbital_to_world_streaming_position(
 		_game.planetary_cruise_binding.get_snapshot().canonical_destination_orbital, frame.get_generation()).position
-	_craft.global_position = destination + Vector3.BACK * 500.0
+	var home: Vector3 = (_game.world.call(&"get_ship_spawn") as Transform3D).origin
+	_craft.global_position = home + Vector3(0.0, 5000.0, -8640.0).normalized() * 9995.0
 	_craft.global_basis = Basis.looking_at((destination - _craft.global_position).normalized(), Vector3.UP)
 	_craft.velocity = Vector3.ZERO
 	_game._sortie_departed_berth = true
 	_game.phase = GameFlow.Phase.FREE_FLIGHT
+	_check(not _game._planetary_journey.stranded_return_available(),
+		"actual Mudds-side envelope offers outbound cruise rather than stranded return")
 	_write("host.flight_started", {})
 	var request_serial: int = _game._last_hud_planetary_cruise_toggle_serial + 1
 	var admission_before: Dictionary = _game._planetary_cruise_presentation()
@@ -1118,6 +1136,14 @@ func _ember_surface_host() -> void:
 	var journey = _game.get("_planetary_journey")
 	var host := _game.ember_surface_loop_host
 	var production := _game.ember_surface_loop_production_binding
+	# The old 120-second combined wait covered only a near-Ember fixture.
+	# Canonical transit uses remaining total time; physical landing keeps 120.
+	var approached := await _until(func(): return bool(journey.get_shared_ember_landing_snapshot().get("handoff_ready", false)),
+		_ember_surface_seconds_remaining())
+	_check(approached, "real canonical outbound reaches current typed approach completion")
+	if not approached:
+		return
+	_write("host.approaching", {})
 	_check(await _until(func(): return journey.shared_ember_surface_is_current(), 120.0), "genuine typed approach and supported landing admit shared visit")
 	if not journey.shared_ember_surface_is_current():
 		return
@@ -1215,7 +1241,9 @@ func _ember_surface_client() -> void:
 	var body_id := _player.get_instance_id()
 	await _walk(Vector3(-1.3, 0.52, -5.8))
 	_write("client.cabin", {"peer_id": _game.network_session.multiplayer.get_unique_id()})
-	if not await _wait_file("host.flight_started", 20.0) or not await _wait_file("host.landed", 120.0):
+	if not await _wait_file("host.flight_started", 20.0) \
+			or not await _wait_file("host.approaching", _ember_surface_seconds_remaining()) \
+			or not await _wait_file("host.landed", 120.0):
 		return
 	var epoch := int(_game.get_network_planetary_journey_snapshot().get("journey_epoch", 0))
 	_check(await _until(func(): return _game._network_client_ember_surface_scene_is_current(_craft, epoch), 12.0), "authenticated landed state and real loaded surface select exterior route")
