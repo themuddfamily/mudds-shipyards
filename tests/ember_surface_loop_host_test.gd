@@ -4,6 +4,7 @@ const BOOTSTRAP_SCENE := preload(
 	"res://scenes/world/components/ember_moon_streaming_bootstrap.tscn"
 )
 const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
+const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const TORRENT_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const TORRENT_DEFINITION := preload("res://assets/ships/torrent_provisional.tres")
@@ -26,6 +27,7 @@ func _run() -> void:
 	await _test_shared_composition_and_measured_entry()
 	await _test_committed_origin_receipt_adoption()
 	await _test_authenticated_focus_builds_collision_corridor()
+	await _test_halyard_velocity_aware_surface_braking()
 	await _test_normal_public_actor_loop()
 	await _test_queued_host_lifecycle_currentness()
 	await _test_active_command_source_replacement()
@@ -611,6 +613,55 @@ func _test_committed_origin_receipt_adoption() -> void:
 		"stored committed-origin evidence is deeply detached from caller mutation",
 	)
 	await _cleanup(fixture)
+
+
+func _test_halyard_velocity_aware_surface_braking() -> void:
+	# This regression starts at the authored entry with an ordinary seated pilot.
+	# Every subsequent pose and speed comes from real ship/Host physics at 1x.
+	var saved_time_scale := Engine.time_scale
+	Engine.time_scale = 1.0
+	var fixture := await _fixture(true, false, true, HALYARD_SCENE)
+	if fixture.is_empty():
+		Engine.time_scale = saved_time_scale
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var ship := fixture.ship as HeroShip
+	var berth := fixture.berth as EmberSurfaceBerth
+	var braking_started := false
+	var brake_entry_z := -INF
+	var braking_retained := true
+	var requested := false
+	for _index in 1800:
+		await physics_frame
+		var advanced := host.advance_physics(
+			1.0 / Engine.physics_ticks_per_second, host.get_generation(),
+			host.get_attachment_generation(), host.get_coordinate_frame_generation(),
+			host.get_location_generation())
+		if not bool(advanced.get("accepted", false)):
+			break
+		var source := ship.get_command_source() as EmberSurfaceLoopCommandSource
+		var mode: int = int(source.get_snapshot().get("mode", -1)) if source != null else -1
+		if mode == EmberSurfaceLoopCommandSource.Mode.BRAKE and not braking_started:
+			braking_started = true
+			brake_entry_z = (ship.global_position - berth.global_position).z
+		if braking_started and host.get_phase() == EmberSurfaceLoopHost.Phase.SURFACE_APPROACH:
+			braking_retained = braking_retained and mode == EmberSurfaceLoopCommandSource.Mode.BRAKE
+		if host.get_phase() == EmberSurfaceLoopHost.Phase.LANDING_APPROACH:
+			requested = true
+			break
+	var report := ship.get_landing_contract_report()
+	var staging: Transform3D = report.get("staging_transform_snapshot", Transform3D.IDENTITY)
+	_check(braking_started and braking_retained and brake_entry_z > EmberSurfaceLoopHost.APPROACH_BRAKE_Z_M,
+		"real Halyard brakes before the fixed margin and retains braking through physical handoff")
+	_check(requested and ship.is_landing_active() and ship.velocity.length() <= EmberSurfaceLoopHost.APPROACH_HANDOFF_MAXIMUM_SPEED_MPS
+		and berth.has_valid_lease(ship, berth.get_reservation_token(ship), ship.get_ship_definition().ship_id)
+		and bool(report.get("contract_accepted", false)),
+		"real Halyard braking reaches an accepted landing request with its actual berth lease")
+	_check(requested and (ship.global_position - berth.global_position).z > 0.0
+		and ship.global_position.distance_to(staging.origin) <= EmberSurfaceLoopHost.APPROACH_BRAKE_Z_M,
+		"Halyard stops before the pad near staging instead of overshooting into a reverse approach")
+	await _cleanup(fixture)
+	Engine.time_scale = saved_time_scale
 
 
 func _test_normal_public_actor_loop() -> void:
@@ -1669,7 +1720,8 @@ func _check_forwarded_access_route(player: PlayerController, ship: HeroShip,
 func _fixture(
 	auto_start: bool = true,
 	shared_composition_root: bool = false,
-	bind_now: bool = true
+	bind_now: bool = true,
+	ship_scene: PackedScene = ARROW_SCENE
 ) -> Dictionary:
 	var world: Node3D
 	var host := EmberSurfaceLoopHost.new()
@@ -1761,8 +1813,16 @@ func _fixture(
 	var berth := EmberSurfaceBerth.new()
 	world.add_child(berth)
 	berth.global_transform = (scene.get_node(^"LandingRegion") as Node3D).global_transform
-	var ship := ARROW_SCENE.instantiate() as ArrowReconShip
-	ship.name = "ArrowReconShip"
+	var ship := ship_scene.instantiate() as HeroShip
+	ship.name = "ArrowReconShip" if ship_scene == ARROW_SCENE else "HalyardCrewTransport"
+	if ship_scene == HALYARD_SCENE:
+		# Establish the moving cabin's initial pose before any Player exists.
+		# Moving it after registration would carry that Player by the setup delta
+		# again on the first physics tick, away from the real boarding area.
+		ship.transform = world.global_transform.affine_inverse() \
+			* (scene.get_node(^"LandingRegion") as Node3D).global_transform \
+			* Transform3D(Basis.IDENTITY, EmberSurfaceLoopHost.APPROACH_ENTRY_REGION_LOCAL_M)
+		ship.velocity = Vector3.ZERO
 	world.add_child(ship)
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	player.name = "Player"
@@ -1770,17 +1830,19 @@ func _fixture(
 	await process_frame
 	await physics_frame
 	var original_source := ship.get_command_source()
-	ship.global_transform = (scene.get_node(^"LandingRegion") as Node3D).global_transform \
-		* Transform3D(
-			Basis.IDENTITY,
-			EmberSurfaceLoopHost.APPROACH_ENTRY_REGION_LOCAL_M
-	)
-	ship.velocity = Vector3.ZERO
+	if ship_scene != HALYARD_SCENE:
+		ship.global_transform = (scene.get_node(^"LandingRegion") as Node3D).global_transform \
+			* Transform3D(
+				Basis.IDENTITY,
+				EmberSurfaceLoopHost.APPROACH_ENTRY_REGION_LOCAL_M
+		)
+		ship.velocity = Vector3.ZERO
 	var area := ship.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
-	player.teleport_to(area.global_transform)
+	player.teleport_to(area.global_transform if ship_scene == ARROW_SCENE
+		else ship.get_boarding_entry_transform())
 	await physics_frame
 	await physics_frame
-	_check(_player_near(area, player), "initial fixture physically discovers the exact Arrow BoardingArea")
+	_check(_player_near(area, player), "initial fixture physically discovers the exact craft BoardingArea")
 	if not area.try_reserve(player) or not player.begin_boarding(
 		ship.get_boarding_entry_transform(), ship.get_pilot_seat_anchor(), 0.0, ship
 	):
@@ -1824,14 +1886,14 @@ func _bind_fixture(fixture: Dictionary, composition_root: Node) -> Dictionary:
 		return host.bind_dependencies(
 			fixture.bootstrap as EmberMoonStreamingBootstrap,
 			fixture.berth as EmberSurfaceBerth,
-			fixture.ship as ArrowReconShip,
+			fixture.ship as HeroShip,
 			fixture.player as PlayerController,
 			1.62, 1, 0, 0
 		)
 	return host.bind_dependencies(
 		fixture.bootstrap as EmberMoonStreamingBootstrap,
 		fixture.berth as EmberSurfaceBerth,
-		fixture.ship as ArrowReconShip,
+		fixture.ship as HeroShip,
 		fixture.player as PlayerController,
 		1.62, 1, 0, 0, composition_root,
 		fixture.origin_owner as CommonWorldOriginRebaseOwner

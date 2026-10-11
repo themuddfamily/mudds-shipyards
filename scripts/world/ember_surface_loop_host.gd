@@ -1968,9 +1968,23 @@ func _advance_descent() -> Dictionary:
 
 func _advance_surface_approach() -> Dictionary:
 	var relative := _ship.global_position - _berth.global_position
-	if relative.z > APPROACH_BRAKE_Z_M:
-		return {"accepted": true, "reason": &"production_approach_in_progress"}
-	_command_source.set_mode(EmberSurfaceLoopCommandSource.Mode.BRAKE, _source_generation)
+	var braking := int(_command_source.get_snapshot().get("mode", -1)) \
+		== EmberSurfaceLoopCommandSource.Mode.BRAKE
+	if not braking:
+		# Use the same damage-scaled manual brake as HeroShip's real integrator.
+		# The fixed capture margin alone lets a fast craft stop beyond the pad,
+		# then spend its landing assist flying back to the staging point.
+		var engine_power := clampf(float(_ship.get_telemetry().get("engine_power", 1.0)), 0.0, 1.0)
+		var brake_power := lerpf(HeroShip.FAILED_ENGINE_MANUAL_BRAKE_FACTOR, 1.0, engine_power)
+		var braking_acceleration := maxf(_ship.brake_acceleration * brake_power, 0.001)
+		var stopping_distance := maxf(0.0,
+			_ship.velocity.length_squared() - APPROACH_HANDOFF_MAXIMUM_SPEED_MPS ** 2
+		) / (2.0 * braking_acceleration)
+		if relative.z > APPROACH_BRAKE_Z_M + stopping_distance:
+			return {"accepted": true, "reason": &"production_approach_in_progress"}
+		# Keep braking once selected; recomputing the shrinking stopping envelope
+		# must never return to throttle while the craft is settling for capture.
+		_command_source.set_mode(EmberSurfaceLoopCommandSource.Mode.BRAKE, _source_generation)
 	if _ship.velocity.length() > APPROACH_HANDOFF_MAXIMUM_SPEED_MPS:
 		return {"accepted": true, "reason": &"production_approach_braking"}
 	var definition := _ship.get_ship_definition()
