@@ -171,6 +171,7 @@ class VerifierContract(unittest.TestCase):
         for name, following in (("Run-Silent", "Assert-UserData"),
                                 ("Assert-UserData", "Assert-Installed"),
                                 ("Assert-StartupLog", "Assert-NewerDocumentDiagnostics"),
+                                ("Assert-BackupRecoveryDocuments", "Assert-Uninstalled"),
                                 ("Seed-ForcedKillFixture", "Read-RecoveryDocument"),
                                 ("Read-RecoveryDocument", "Assert-RecoveryPayload"),
                                 ("Assert-RecoveryPayload", "Wait-OwnedRecoveryMarker"),
@@ -843,6 +844,47 @@ try {
         if ([IO.File]::ReadAllText($prior) -ne ('prior transaction ' + $suffix)) { throw 'forced-kill fixture removed prior transaction without witness' }
     }
     if ([IO.File]::ReadAllText(($document + '.unrelated')) -ne 'retain unrelated user file') { throw 'forced-kill fixture seeding changed unrelated file' }
+    # A successful backup boot leaves the corrupt primary available for an
+    # explicit player repair. Never parse that intentionally malformed file.
+    $documentHashes = @{}
+    Copy-Item -LiteralPath $UserDataRecoveryFixture -Destination ($document + '.bak')
+    [IO.File]::WriteAllText($document, '{broken-installed-primary')
+    Copy-Item -LiteralPath $document -Destination ($document + '.recovery')
+    $corruptHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $document).Hash
+    $backupHash = (Get-FileHash -Algorithm SHA256 -LiteralPath ($document + '.bak')).Hash
+    Assert-BackupRecoveryDocuments $corruptHash $backupHash | Out-Null
+    if ($documentHashes.Count -ne 3) { throw 'backup recovery did not protect all authority/witness bytes' }
+    foreach ($suffix in @('', '.bak', '.recovery')) {
+        $path = $document + $suffix
+        $original = [IO.File]::ReadAllBytes($path)
+        try {
+            [IO.File]::WriteAllText($path, 'changed document')
+            $rejected = $false
+            try { Assert-BackupRecoveryDocuments $corruptHash $backupHash | Out-Null } catch { $rejected = $true }
+            if (-not $rejected) { throw "changed backup recovery artifact accepted: $suffix" }
+            Remove-Item -LiteralPath $path
+            $rejected = $false
+            try { Assert-BackupRecoveryDocuments $corruptHash $backupHash | Out-Null } catch { $rejected = $true }
+            if (-not $rejected) { throw "missing backup recovery artifact accepted: $suffix" }
+        } finally { [IO.File]::WriteAllBytes($path, $original) }
+    }
+    foreach ($mutation in @(
+        {$candidate.payload.runtime_settings.values.graphics_profile = 'high'},
+        {$candidate.payload.tutorial_prompts_seen.seen_ids = @('reset-prompt')},
+        {$candidate.generation = 3},
+        {$candidate.schema_version = 2}
+    )) {
+        $candidate = Get-Content -LiteralPath $UserDataRecoveryFixture -Raw | ConvertFrom-Json
+        & $mutation
+        [IO.File]::WriteAllText(($document + '.bak'), ($candidate | ConvertTo-Json -Depth 12))
+        $candidateHash = (Get-FileHash -Algorithm SHA256 -LiteralPath ($document + '.bak')).Hash
+        $rejected = $false
+        try { Assert-BackupRecoveryDocuments $corruptHash $candidateHash | Out-Null } catch { $rejected = $true }
+        if (-not $rejected) { throw 'backup settings/tutorial/generation identity regression accepted' }
+    }
+    Copy-Item -LiteralPath $UserDataRecoveryFixture -Destination ($document + '.bak')
+    Copy-Item -LiteralPath $UserDataRecoveryFixture -Destination $document
+    $documentHashes.Clear()
     $interrupted = $fixture | ConvertTo-Json -Depth 12 | ConvertFrom-Json
     $interrupted.generation = 3
     $interrupted.payload | Add-Member -NotePropertyName safe_start_recovery -NotePropertyValue @{ state = 'starting'; startup_generation = 1; consecutive_failure_count = 0; safe_settings_recommended = $false }

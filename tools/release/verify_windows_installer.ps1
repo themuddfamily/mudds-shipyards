@@ -365,6 +365,27 @@ function Assert-NewerDocumentDiagnostics([string]$stage) {
     if (Test-Path -LiteralPath ($document + '.recovery')) { throw 'newer document was quarantined as corrupt' }
     return 'application_newer_schema_diagnostic_retained=True'
 }
+function Assert-BackupRecoveryDocuments([string]$corruptHash, [string]$backupHash) {
+    # Loading a backup does not consent to repairing the primary. Production
+    # startup retains corrupt bytes and requires a separate confirmed repair.
+    $quarantine = $document + '.recovery'
+    $backup = $document + '.bak'
+    if (-not (Test-Path -LiteralPath $quarantine -PathType Leaf) -or (Get-FileHash -Algorithm SHA256 -LiteralPath $quarantine).Hash -ne $corruptHash) { throw 'corrupt primary was not retained byte-for-byte in recovery quarantine' }
+    if (-not (Test-Path -LiteralPath $document -PathType Leaf) -or (Get-FileHash -Algorithm SHA256 -LiteralPath $document).Hash -ne $corruptHash) { throw 'startup changed corrupt primary without confirmed repair' }
+    if (-not (Test-Path -LiteralPath $backup -PathType Leaf) -or (Get-FileHash -Algorithm SHA256 -LiteralPath $backup).Hash -ne $backupHash) { throw 'backup recovery changed the valid backup bytes' }
+    $fixture = Get-Content -LiteralPath $UserDataRecoveryFixture -Raw | ConvertFrom-Json
+    $recovered = Get-Content -LiteralPath $backup -Raw | ConvertFrom-Json
+    foreach ($namespace in @('runtime_settings', 'tutorial_prompts_seen')) {
+        $expected = $fixture.payload.$namespace | ConvertTo-Json -Depth 12 -Compress
+        $actual = $recovered.payload.$namespace | ConvertTo-Json -Depth 12 -Compress
+        if ($expected -ne $actual) { throw "backup recovery changed retained $namespace identity" }
+    }
+    if ($recovered.schema_version -ne 1 -or $recovered.generation -ne $fixture.generation) { throw 'backup recovery changed document generation' }
+    $documentHashes[$document] = $corruptHash
+    $documentHashes[$backup] = $backupHash
+    $documentHashes[$quarantine] = $corruptHash
+    return "backup_settings_loaded=True recovered_settings_and_tutorial_identity_preserved=True corrupt_primary_preserved=True backup_bytes_preserved=True corrupt_quarantine_sha256=$corruptHash generation=$($recovered.generation)"
+}
 function Assert-Uninstalled {
     if (-not (Wait-Gone $installDir 90000)) {
         $left = (Get-ChildItem -LiteralPath $installDir -Force | ForEach-Object { $_.Name }) -join ','
@@ -1089,26 +1110,15 @@ if ($checkRecovery) {
         Copy-Item -LiteralPath $UserDataRecoveryFixture -Destination ($document + '.bak')
         Copy-Item -LiteralPath $document -Destination (Join-Path $ProbeRoot 'corrupt-primary-witness.json')
         $corruptHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $document).Hash
+        $backupHash = (Get-FileHash -Algorithm SHA256 -LiteralPath ($document + '.bak')).Hash
         Run-Startup 'corrupt-backup'
         $log = Join-Path $ProbeRoot 'corrupt-backup-startup.log'
         if (-not (Select-String -LiteralPath $log -SimpleMatch 'STARTUP graphics profile=low')) { throw 'backup settings were not selected by startup' }
-        $quarantine = $document + '.recovery'
-        if (-not (Test-Path -LiteralPath $quarantine) -or (Get-FileHash -Algorithm SHA256 -LiteralPath $quarantine).Hash -ne $corruptHash) { throw 'corrupt primary was not retained byte-for-byte in recovery quarantine' }
-        $fixture = Get-Content -LiteralPath $UserDataRecoveryFixture -Raw | ConvertFrom-Json
-        $recovered = Get-Content -LiteralPath $document -Raw | ConvertFrom-Json
-        foreach ($namespace in @('runtime_settings', 'tutorial_prompts_seen')) {
-            $expected = $fixture.payload.$namespace | ConvertTo-Json -Depth 12 -Compress
-            $actual = $recovered.payload.$namespace | ConvertTo-Json -Depth 12 -Compress
-            if ($expected -ne $actual) { throw "backup recovery changed retained $namespace identity" }
-        }
-        if ($recovered.schema_version -ne 1 -or $recovered.generation -lt $fixture.generation) { throw 'backup recovery lost document generation' }
-        $documentHashes[$quarantine] = $corruptHash
-        "backup_settings_loaded=True recovered_settings_and_tutorial_identity_preserved=True corrupt_quarantine_sha256=$corruptHash generation=$($recovered.generation)"
-
+        Assert-BackupRecoveryDocuments $corruptHash $backupHash
     }
     Step 'installed_unsupported_newer_document_preserved' {
-        # Preserve the corrupt witness before replacing only probe-owned bytes.
-        Copy-Item -LiteralPath $document -Destination (Join-Path $ProbeRoot 'recovered-document-witness.json')
+        # The loaded document remains the backup until the player confirms repair.
+        Copy-Item -LiteralPath ($document + '.bak') -Destination (Join-Path $ProbeRoot 'recovered-document-witness.json')
         $documentHashes.Clear()
         Remove-Item -LiteralPath ($document + '.recovery')
         [IO.File]::WriteAllText($document, '{"schema_version":999,"future_player_progress":"retain exactly"}')
