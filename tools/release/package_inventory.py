@@ -330,6 +330,31 @@ def parse(data, base, pack_end=None):
     }
 
 
+def executable_metadata(data):
+    """Identify supported export executables without changing the PE contract."""
+    if data[:2] == b"MZ":
+        pe_offset = u32(data, 0x3C) if len(data) >= 64 else 0
+        pe = {"offset": pe_offset}
+        if pe_offset + 24 <= len(data) and data[pe_offset : pe_offset + 4] == b"PE\0\0":
+            pe["machine"] = struct.unpack_from("<H", data, pe_offset + 4)[0]
+            pe["sections"] = struct.unpack_from("<H", data, pe_offset + 6)[0]
+        return {"pe": pe}
+    if data[:4] == b"\x7fELF":
+        if len(data) < 64:
+            raise ValueError("truncated ELF64 executable header")
+        if data[4] != 2 or data[5] != 1:
+            raise ValueError("only ELF64 little-endian executables are supported")
+        machine = struct.unpack_from("<H", data, 18)[0]
+        if machine != 62:
+            raise ValueError(f"unsupported ELF machine {machine}; expected x86_64 (62)")
+        if data[6] != 1 or u32(data, 20) != 1:
+            raise ValueError("unsupported ELF header version")
+        if struct.unpack_from("<H", data, 52)[0] != 64:
+            raise ValueError("invalid ELF64 header size")
+        return {"elf": {"class": 64, "byte_order": "little", "machine": machine}}
+    raise ValueError("input is not a PE or ELF executable (missing MZ or ELF)")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("executable", type=Path)
@@ -337,20 +362,14 @@ def main():
     args = parser.parse_args()
     try:
         data = args.executable.read_bytes()
-        if data[:2] != b"MZ":
-            raise ValueError("input is not a PE executable (missing MZ)")
+        metadata = executable_metadata(data)
         base, pack_end = find_pck(data)
         result = parse(data, base, pack_end)
-        pe_offset = u32(data, 0x3C) if len(data) >= 64 else 0
-        pe = {"offset": pe_offset}
-        if pe_offset + 24 <= len(data) and data[pe_offset : pe_offset + 4] == b"PE\0\0":
-            pe["machine"] = struct.unpack_from("<H", data, pe_offset + 4)[0]
-            pe["sections"] = struct.unpack_from("<H", data, pe_offset + 6)[0]
         result["executable"] = {
             "path": str(args.executable),
             "sha256": hashlib.sha256(data).hexdigest(),
             "size": len(data),
-            "pe": pe,
+            **metadata,
         }
         output = json.dumps(result, sort_keys=True, indent=2) + "\n"
         if args.output:
