@@ -1092,8 +1092,28 @@ func _ember_surface_host() -> void:
 	_game._sortie_departed_berth = true
 	_game.phase = GameFlow.Phase.FREE_FLIGHT
 	_write("host.flight_started", {})
-	_game.hud.planetary_cruise_toggle_requested.emit(_game._last_hud_planetary_cruise_toggle_serial + 1)
-	_check(_game.get_network_planetary_journey_snapshot().get("phase") in [&"preparing", &"cruising"],
+	var request_serial: int = _game._last_hud_planetary_cruise_toggle_serial + 1
+	var admission_before: Dictionary = _game._planetary_cruise_presentation()
+	var admission_context := {
+		"status": admission_before.get("status_id", &""),
+		"public_gate": admission_before.get("public_gate", &""),
+		"toggle_enabled": bool(admission_before.get("toggle_enabled", false)),
+		"engagement_requested": bool(admission_before.get("engagement_requested", false)),
+		"live_gate": _game._planetary_cruise_gate_reason(),
+		"host_eligible": _game._shared_planetary_host_eligible(),
+		"hud_busy": bool(_game._planetary_cruise_hud_toggle_active),
+		"request_serial": request_serial,
+		"shared_phase_before": _game.get_network_planetary_journey_snapshot().get("phase", &""),
+		"surface_pending": not _game._pending_ember_surface_request.is_empty() or bool(_game._ember_surface_journey_active),
+		"stranded_return_available": _game._planetary_journey.stranded_return_available(),
+	}
+	_game.hud.planetary_cruise_toggle_requested.emit(request_serial)
+	var shared_phase: StringName = _game.get_network_planetary_journey_snapshot().get("phase", &"")
+	if shared_phase not in [&"preparing", &"cruising"]:
+		admission_context["shared_phase_after"] = shared_phase
+		admission_context["consumed_serial"] = _game._last_hud_planetary_cruise_toggle_serial
+		print("EMBER_PASSENGER_HUD_ADMISSION_REFUSED: %s" % JSON.stringify(admission_context))
+	_check(shared_phase in [&"preparing", &"cruising"],
 		"ordinary HUD prepares shared cruise with real admitted passenger")
 	var journey = _game.get("_planetary_journey")
 	var host := _game.ember_surface_loop_host
