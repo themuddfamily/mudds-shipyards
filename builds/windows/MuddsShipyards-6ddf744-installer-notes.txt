@@ -1,0 +1,19 @@
+Mudds Shipyards — Windows station recovery installer
+Game/payload/builder: 6ddf7443f46a6ff93c9ff608b7c644ca72f0e2b7
+Verifier: 48e95cc79b1e28bf16513e4de7dd7aa6013b2bd5
+Version: 0.12.0+6ddf744, unsigned development alpha
+
+Matches the station readout and recovery checkpoint. Mining retains valid pending extraction and protects progress from untrusted backup history; Beacon protects once-only rewards from backup replay. Station service and Salvage readouts use font glyphs, and long Fabrication Annex feedback wraps within the console. The newer 5f9386c input-prompt changes are not included.
+
+Actual validation
+NSIS v3.09-4 compiler: exit 0/reaped, setup 86,843,052 bytes. Same-source payload 177,825,376 bytes is unchanged. Original compiler metadata remains immutable, unsigned and native_verification NOT_RUN; installed acceptance is recorded separately.
+Installed acceptance: PASS, 91 steps across default 11, Mining 16, Beacon 16, Hulk 16, convoy crew 16 and patrol scan 16. Root tool 17577 actual exit 0 consumed/reaped, terminal chunk 089bea. Original deadlines retained; independent review approved closure. Actual child/observer/cleanup waits and fresh creation-bound CIM audit confirm no owned actors or temporary installation/profile/registry/shortcut residues. All 250 real Windows profile files are byte-identical; protected inputs and source/cache remain unchanged. Retained installed logs contain zero warnings/errors.
+
+The original failed native run remains failed and retained. The corrected verifier checks settings/tutorial recovery from backup while preserving malformed primary, backup and quarantined bytes. The corrupt primary remains unchanged until explicit repair; startup does not repair it. This changes the verifier's recovery expectation and leaves the compiled game payload unchanged.
+
+Remaining review
+Native GPU/performance, physical controls/audio, human review, complete current-source regression, trusted signing, licensing and full release remain NOT_RUN/open. The checkpoint's earlier package warnings remain disclosed in its notes.
+
+Setup SHA256: 7d93446989bec1a93861ed5b759e97dcd17b47434f568995f954940ae51e36b4
+Payload SHA256: a003abed2f98232b8624d2674a9884000bc5aacfb64f50467f45f1162996555d
+Verifier SHA256: e292abae208d7bfc0bbfe5459ae6519d818a20ad43873b68448a564be1540641
