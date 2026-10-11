@@ -898,13 +898,26 @@ func _test_normal_public_actor_loop() -> void:
 	await _cleanup(fixture)
 
 
-## Model whole-Main removal using the shared production composition topology,
-## after the real landing, on-foot route, boarding and takeoff reach ASCENT.
+## Model bare whole-composition Host/pilot reentry after real physical ASCENT.
+## This fixture has no Main: explicitly perform its exact one-shot seated-pilot
+## lifecycle handoff. It does not cover retaining a live shared network journey;
+## real Main retires that journey when it exits.
 func _check_detached_ascent_queries_and_reentry(fixture: Dictionary) -> void:
 	var host := fixture.host as EmberSurfaceLoopHost
 	var composition := fixture.composition_root as Node
 	var ship := fixture.ship as ArrowReconShip
 	var player := fixture.player as PlayerController
+	var area := fixture.area as ShipBoardingArea
+	var anchor := ship.get_pilot_seat_anchor()
+	var fixture_scope_current := not composition is GameFlow \
+		and composition.is_ancestor_of(host) and composition.is_ancestor_of(ship) \
+		and composition.is_ancestor_of(player) and area.get_ship() == ship \
+		and player.is_seated_at(anchor) and ship.is_piloted() and not ship.is_destroyed() \
+		and area.get_reservation_token() == player
+	_check(fixture_scope_current,
+		"bare shared ASCENT fixture captures the exact settled pilot, ship, area and anchor")
+	if not fixture_scope_current:
+		return
 	var session := host.get_travel_session_observation_source()
 	var parent := composition.get_parent()
 	var source_before := ship.get_command_source()
@@ -958,7 +971,34 @@ func _check_detached_ascent_queries_and_reentry(fixture: Dictionary) -> void:
 			and ship.velocity == velocity_before,
 		"off-tree ASCENT queries and rejected advancement preserve live visit authority and clock",
 	)
+	# The detached query assertions above are read-only. This separate lifecycle
+	# step models Main._capture_pilot_reservation_for_reentry after children exit.
+	var detach_generation := area.consume_detached_reservation(player)
+	_check(
+		detach_generation > 0 and area.consume_detached_reservation(player) == 0
+			and not area.is_inside_tree() and area.get_reservation_token() == null
+			and host.get_generation() == int(before.generation)
+			and host.get_attachment_generation() == int(before.attachment_generation),
+		"off-tree seated-pilot lifecycle consumes its real detached claim exactly once",
+	)
 	parent.add_child(composition)
+	# Match Main._restore_pilot_reservation_after_reentry without creating or
+	# changing a token, identity or generation. The area's public API validates
+	# and consumes the real lifecycle ticket while ordinary boarding stays gated.
+	var witness_current := host.get_generation() == int(before.generation) \
+		and host.get_attachment_generation() == int(before.attachment_generation) \
+		and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT \
+		and fixture.ship == ship and fixture.player == player and fixture.area == area \
+		and area.get_ship() == ship and ship.get_pilot_seat_anchor() == anchor \
+		and player.is_seated_at(anchor) and ship.is_piloted() and not ship.is_destroyed()
+	var pilot_restored := witness_current and area.restore_seated_pilot_reservation(
+		player, ship, anchor, detach_generation
+	)
+	_check(
+		pilot_restored and area.get_reservation_token() == player
+			and not area.restore_seated_pilot_reservation(player, ship, anchor, detach_generation),
+		"reentered exact seated pilot restores its real claim once and rejects lifecycle replay",
+	)
 	var reentered := host.get_return_status_snapshot()
 	_check(
 		host.is_attached() and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT
