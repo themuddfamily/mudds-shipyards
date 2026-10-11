@@ -981,7 +981,8 @@ func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 		"OperationalLattice/ServiceAgents/FabricationAnnexServiceCourier": [7, 5, 0, 0],
 		# Five authored-size walkable decks now render as five ordinary mapped
 		# surfaces with exact local bounds; canopy batching is retained.
-		"ObservationLogisticsSpur": [7, 6, 27, 16],
+		# Static instrument plates add one unmapped surface; deck maps and batches stay unchanged.
+		"ObservationLogisticsSpur": [8, 6, 27, 16],
 		"ExposedDockLattice/ObservationLogisticsConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [7, 5, 0, 0],
 		# The emissive-dressing merge removes one unmapped ordinary renderer;
