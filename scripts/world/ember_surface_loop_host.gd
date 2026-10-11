@@ -3517,7 +3517,7 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 	var result := get_snapshot()
 	result["accepted"] = accepted
 	result["reason"] = reason
-	return result.duplicate(true)
+	return result
 
 
 func _owned_capabilities() -> Dictionary:

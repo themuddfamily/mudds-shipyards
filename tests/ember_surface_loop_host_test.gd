@@ -402,6 +402,13 @@ func _test_shared_composition_and_measured_entry() -> void:
 			and host.get_snapshot() == return_before_completion,
 		"runtime ownership return is completion-only and state-preserving while the loop runs",
 	)
+	var retained_result_before: Dictionary = early_return.duplicate(true)
+	early_return["approach_entry"]["accepted_measurement"]["reason"] = &"caller_mutated_result"
+	_check(
+		host.get("_last_result") == retained_result_before
+			and host.get_snapshot() == return_before_completion,
+		"caller mutation of a nested operation result leaves retained results and fresh snapshots detached",
+	)
 	_check(
 		host.detach(host.get_generation(), host.get_attachment_generation()).accepted
 			and ship.get_command_source() == original_source
