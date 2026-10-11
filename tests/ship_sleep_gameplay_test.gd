@@ -149,7 +149,13 @@ func _run() -> void:
 	player.global_basis = craft.global_basis
 	player._camera_yaw.rotation.y = 0.0
 	_check(await _walk_until(&"move_forward", false,
-		func() -> bool: return craft.to_local(player.global_position).z < -8.8, AISLE_TICK_BUDGET), "the rested passenger walks back to the cockpit")
+		func() -> bool:
+			var seat_local := craft.to_local(craft.get_pilot_seat_anchor().global_position)
+			var body_local := craft.to_local(player.global_position)
+			return Vector2(seat_local.x - body_local.x, seat_local.z - body_local.z).length() <= GameFlow.NETWORK_PILOT_SEAT_SWAP_REACH \
+				and game.boarding_candidate == craft \
+				and _hud_interaction_text(game) == "[ E ]  TAKE THE PILOT SEAT",
+		AISLE_TICK_BUDGET), "the rested passenger walks within pilot reach and sees the cockpit prompt")
 	await _press_live_action(&"interact", 1)
 	_check(await _wait_until(func() -> bool: return game._piloting and player.is_seated() and craft.is_piloted(), 2.0),
 		"ordinary E resumes piloting after sleep")
