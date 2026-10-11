@@ -188,7 +188,8 @@ func _lights_with_color(parent: Node, color: Color) -> Array[Node]:
 func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -> void:
 	var aft_performance: Dictionary = aft.get_performance_contract()
 	var habitat_performance: Dictionary = habitat.get_performance_contract()
-	var aft_render: Dictionary = aft.get_pod_corner_collar_visual_allocation_audit().current
+	var aft_allocation: Dictionary = aft.get_pod_corner_collar_visual_allocation_audit()
+	var aft_render: Dictionary = aft_allocation.current
 	var habitat_render: Dictionary = habitat.get_render_allocation_report()
 	_check(
 		int(aft_performance.lights) == 50
@@ -197,9 +198,16 @@ func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -
 		# geometry" added one shadow-only renderer (and matching headroom), so
 		# the built/budget pair moved from 723/838 to 724/839. f2d41984f then
 		# double-faced the stair handoff cue (two rear chevron strokes and a
-		# rear UPPER OPERATIONS header): 724 -> 727 built inside the same budget.
-		and int(aft_performance.mesh_instances) == 727
-		and int(aft_performance.budgets.mesh_instances) == 839
+		# rear UPPER OPERATIONS header): 724 -> 727 built. e7a80561e moved
+		# the two Ship Services TextMeshes to exact glyph-atlas display slots:
+		# 725 explicit meshes + two labels, with the combined 843-slot ceiling.
+		and int(aft_performance.mesh_instances) == 725
+		and int(aft_performance.labels) == 2
+		and int(aft_performance.budgets.mesh_instances) == 837
+		and int(aft_performance.budgets.labels) == 6
+		and int(aft_performance.budgets.mesh_instances) + int(aft_performance.budgets.labels) == 843
+		and int(aft_render.atlas_display_nodes) == 2
+		and bool(aft_allocation.valid) and aft_allocation.errors.is_empty()
 		and int(aft_render.descendant_nodes) == AftJunctionStack.RENDER_DESCENDANT_NODE_COUNT
 		and int(aft_render.renderer_nodes) == AftJunctionStack.RENDERER_NODE_COUNT
 		and bool(aft_performance.within_budget),
