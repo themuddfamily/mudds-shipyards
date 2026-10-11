@@ -1,0 +1,18 @@
+Mudds Shipyards — Windows title-menu and input prompt installer
+Game/payload/builder/verifier: edbeef74a554991e50cf07310268b0e3eba1c86a
+Version: 0.12.0+edbeef7, unsigned development alpha
+
+BEGIN SHIFT follows live Interact/Jump bindings and the active device, including remapped keyboard/mouse controls, missing aliases, controller changes and restored defaults. The button remains clickable. Includes earlier remapped landing/thrust/pause and tractor-help prompts; authored defaults and controller presentation are preserved. Later c7 contextual interaction changes are not included.
+
+Actual compiler validation
+NSIS v3.09-4: compiler owner tool 97867 actual exit 0 consumed/reaped, terminal 58f73e. The actual 600-second deadline was enforced; compilation completed in 84.295 seconds without timeout. Setup 86,846,226 bytes; exact unchanged payload 177,826,624 bytes. Captured actors are absent and source/index/cache/artifact/protected-input guards pass. Original unsigned compiler metadata remains immutable and native_verification NOT_RUN.
+
+Actual installed acceptance
+PASS, 91 steps: default 11 and Mining/Beacon/Hulk/convoy crew/Scan 16 each. Native root tool 91700 actual exit 0 consumed/reaped, terminal b2b8ce; final cleanup and profile readback each exit 0. Root fresh closure e7b7f3 confirms 22 captured Linux owner/bridge creation identities absent and 11,781 tracked source/raw-index/cache-absence/artifact/protected-input preservation. Existing six-lane records retain actual owning/driver/cleanup waits and original limits. Final native installation/profile/registry/shortcut/menu cleanup, unchanged real profile and released native authority are verified. Independent actual closure review approves these bounded results; root binds that approval in final summary 7d5b7d.
+
+Remaining review
+Native GPU performance, normal controls, physical controllers and audible audio, human review, complete current-source regression, trusted signing, licensing and full release remain NOT_RUN/open. Earlier failures remain failed; other source versions cannot inherit this qualification.
+
+Setup SHA256: 087296dc2ecd5914a3e2a7aec978946c59517616659d73bec4036648179898e4
+Payload SHA256: 6876c3404ea29465e7b97c3ccca99d0b7fc80677499bb689cf3d0adf8d22ecc4
+Verifier SHA256: e292abae208d7bfc0bbfe5459ae6519d818a20ad43873b68448a564be1540641
