@@ -1,0 +1,17 @@
+Mudds Shipyards — Linux station readout and recovery checkpoint
+Game/builder source: 6ddf7443f46a6ff93c9ff608b7c644ca72f0e2b7
+
+Player-visible changes
+Mining recovery preserves pending extraction and valid save retries while refusing untrusted backup history before progress or capacity acknowledgement changes; Mining grants no currency or inventory. Beacon recovery protects once-only rewards from backup replay while retaining valid saved progress and payment retry. Station service and Salvage readouts use font glyphs; long Fabrication Annex feedback wraps within the console face. All seven service couriers remain present.
+
+Actual validation
+Exact Linux package: PASS, 1,906 accepted assertions (source/packed census 19 each, 22 focused routes totaling 1,645, standard probes 223). Original deadlines retained; Patrol 133 completes in 247.574 seconds under 300. There are 58 known settings warnings and zero script/engine/leak diagnostics. Owning tool 68353 exits 0, consumed/reaped; all 97 captured process identities are absent. Full source, index, cache, artifact, ELF, archive and extracted-file guards pass.
+Direct and archive-extracted startup each exits 0 with exactly one parsed STARTUP_MENU_READY_OK, mouse free during load and zero warnings/errors, using headless display and Dummy audio under original 300-second bounds. Actual durations: 10.343 and 10.549 seconds.
+Separate shipped desktop-helper lifecycle: install, identical reinstall, uninstall and repeated uninstall all exit 0/reaped under original 30-second bounds, preserving private settings/save witnesses and real user paths. Helper owner and four captured actors are absent. HOME stays unchanged and writes use private XDG paths. This helper check does not launch the game or a graphical desktop handler.
+ELF64 x86-64/PCK format 4: 142,067,056 bytes and 1,498 individually verified embedded payloads. Archive has five safe members with exact ELF parity and executable modes. The original packed measurement retains 15 PASS / 4 stale-baseline FAIL; strict acceptance uses the separately reviewed measured fixture with all 19 original assertions and limits. Earlier failed checkpoints, including the older Linux Patrol timeout, remain failed and are not assigned a cause by this pass.
+
+Remaining work
+Development alpha. Native desktop/GPU performance, physical devices/accessibility, audible audio, human play/review, final-source full regression, installed recovery, licensing and final release remain open. Matching Windows installer acceptance is running separately; the latest published installer is still b3de8e299. The full station, fleet, combat, multiplayer and world scope remains open in ROADMAP.md.
+
+ELF SHA256: 35336b29a75edbbc7a78054bbb572d7ab43a996c3bf73ebff3cb52861e4c590a
+Archive SHA256: 97b3a1f7a507656b7a34e3516abaeafe185cf79dcafa8c14b498d329462d5915
