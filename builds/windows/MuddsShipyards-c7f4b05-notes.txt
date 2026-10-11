@@ -1,0 +1,15 @@
+Mudds Shipyards — Windows contextual input checkpoint
+Source: c7f4b0539dda6639558821d4221f1503015999fc
+Unsigned development alpha
+
+Contextual Interact prompts now show bindings available on your active keyboard/mouse or controller. If that device has no Interact binding, the prompt shows Unbound Input. Device switches and remaps refresh retained prompts while preserving the action text. Default E remains unchanged. Includes BEGIN SHIFT Interact/Jump remaps and earlier landing, thrust, pause and tractor-help prompts.
+
+Actual validation
+Current-source focused checks: PASS, 159 assertions (44 contextual, 84 controller, 31 glyph), zero warnings/errors. The valid pre-fix reproduction retained six wrong-device failures; the initial invalid fixture attempt remains separate.
+Packaged checks: PASS, 420 assertions (19 source +19 packed geometry, 159 focused HUD, 223 standard), zero warnings/errors. Strict startup exited 0 with one parsed menu-ready record and mouse free during loading. Actual package owner 9127 exited 0, consumed/reaped c37f2e; original budgets and source/index/cache/artifact/PCK guards pass.
+Native Windows isolated menu smoke: PASS. Actual owner 91790 exited 0, consumed/reaped a65a7a. Silent headless Dummy-audio startup returned one parsed READY with mouse free, zero warnings/diagnostics. Four bridge stages were reaped; exact Windows actors and Linux owner/bridges absent, 250 real profile files unchanged, native authority released and common lock unheld.
+
+Native GPU performance, normal controls, physical controllers and audible audio, human playtest, complete current-source regression, full release and trusted signing: NOT_RUN. Installed installer/activity/recovery qualification is separate and is not claimed by this menu smoke.
+
+EXE: 177826864 bytes
+EXE SHA256: 19516a9948084f891a4899cad939fddaf3a1348475ace3f61d02b10770ebe5c9
