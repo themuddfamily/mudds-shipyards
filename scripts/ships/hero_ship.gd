@@ -4945,6 +4945,10 @@ func _update_weapon_heat(delta: float) -> void:
 
 
 func _fire_weapon() -> void:
+	_fire_weapon_with_aim()
+
+
+func _fire_weapon_with_aim(crew_origin: Vector3 = Vector3.INF, crew_direction: Vector3 = Vector3.ZERO) -> void:
 	var modifiers := get_operational_modifiers()
 	var fire_power := _get_damage_weapon_multiplier()
 	if not bool(get_weapon_fire_status().get("ready", false)):
@@ -4959,18 +4963,26 @@ func _fire_weapon() -> void:
 	var aiming_camera := get_camera()
 	var screen_center := aiming_camera.get_viewport().get_visible_rect().size * 0.5
 	var camera_direction := aiming_camera.project_ray_normal(screen_center).normalized()
+	var ray_origin := aiming_camera.global_position
+	if crew_origin.is_finite() and crew_direction.is_finite() and not crew_direction.is_zero_approx():
+		ray_origin = crew_origin
+		camera_direction = crew_direction.normalized()
 	var targeting_distance := _get_weapon_targeting_distance()
-	var ray_end := aiming_camera.global_position + camera_direction * targeting_distance
+	var ray_end := ray_origin + camera_direction * targeting_distance
 	var convergence_point := ray_end
 	# Resolve the reticle ray first so both offset cannons converge exactly on
 	# nearby geometry and range drones. Damage remains owned by game_flow.gd;
 	# this query only corrects the emitted direction.
 	if is_inside_tree() and not bool(modifiers.get("targeting_disabled", false)):
+		var exclusions: Array[RID] = [get_rid()]
+		if crew_origin.is_finite():
+			for child in find_children("*", "CollisionObject3D", true, false):
+				exclusions.append((child as CollisionObject3D).get_rid())
 		var query := PhysicsRayQueryParameters3D.create(
-			aiming_camera.global_position,
+			ray_origin,
 			ray_end,
 			WEAPON_AIM_MASK,
-			[get_rid()]
+			exclusions
 		)
 		query.collide_with_areas = true
 		query.collide_with_bodies = true
@@ -9466,10 +9478,10 @@ func request_solo_crew_weapon_power(avatar_id: StringName, seat: ShipCrewSeat, o
 		return false
 	var contract := seat.get_role_contract()
 	var authority: CrewSeatRoleAuthority = call(&"get_crew_role_authority")
-	var metadata := occupant.get_meta(SOLO_CREW_ROLE_OCCUPANT_META, {}) as Dictionary
+	var metadata := occupant.get_meta(get_solo_crew_occupant_metadata_key(), {}) as Dictionary
 	var assignment := authority.get_assignment(occupant_peer_id, avatar_id) if authority != null else {}
 	var frame := contract.get("frame") as MovingInteriorFrame
-	if contract.is_empty() or metadata.get("craft") != self or metadata.get("authority") != authority \
+	if contract.is_empty() or (not self is HalyardCrewTransport and metadata.get("craft") != self) or metadata.get("authority") != authority \
 			or metadata.get("avatar_id") != avatar_id or int(metadata.get("occupant_peer_id", 0)) != occupant_peer_id \
 			or metadata.get("seat_id") != contract.seat_id or metadata.get("role") != &"gunner" \
 			or assignment.get("seat_id") != contract.seat_id or assignment.get("role") != &"gunner" \
@@ -9479,6 +9491,6 @@ func request_solo_crew_weapon_power(avatar_id: StringName, seat: ShipCrewSeat, o
 		return false
 	if _engine_state == ENGINE_OFFLINE:
 		metadata["weapon_power_started"] = true
-		occupant.set_meta(SOLO_CREW_ROLE_OCCUPANT_META, metadata)
+		occupant.set_meta(get_solo_crew_occupant_metadata_key(), metadata)
 		_wake_engine_for_automatic_demand(false)
 	return _engine_state == ENGINE_ONLINE

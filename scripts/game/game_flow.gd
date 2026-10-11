@@ -9378,7 +9378,7 @@ func _release_solo_crew_claim() -> bool:
 ## A freed craft cannot perform the handback, but its retained exact role owner
 ## can still retire this local claim. Never clear another session's body tag.
 func _release_retired_solo_crew_claim(assignment: Dictionary) -> bool:
-	var tag_key := HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META if _solo_crew_seat_id == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID else HeroShip.SOLO_CREW_ROLE_OCCUPANT_META
+	var tag_key := HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META if _solo_crew_seat_id in [HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID, &"co_pilot_station"] else HeroShip.SOLO_CREW_ROLE_OCCUPANT_META
 	var metadata := player.get_meta(tag_key, {}) as Dictionary
 	if not metadata.is_empty() and (metadata.get("authority") != _solo_crew_authority \
 			or int(metadata.get("occupant_peer_id", 0)) != 1 or metadata.get("avatar_id") != SOLO_CREW_AVATAR_ID \
@@ -9408,7 +9408,8 @@ func _can_reseat_host_cinder_loadmaster(seat: ShipCrewSeat) -> bool:
 ## boarding or another role's airborne admission policy.
 func _host_remote_crew_seat_matches(craft: HeroShip, seat_id: StringName, role: StringName) -> bool:
 	return is_instance_valid(craft) and ((craft is CinderCargoHauler and seat_id in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID] and role == &"passenger") \
-		or (craft is BulwarkHeavyGunship and seat_id == BulwarkHeavyGunship.GUNNER_SEAT_ID and role == &"gunner"))
+		or (craft is BulwarkHeavyGunship and seat_id == BulwarkHeavyGunship.GUNNER_SEAT_ID and role == &"gunner") \
+		or (craft is HalyardCrewTransport and seat_id == &"co_pilot_station" and role == &"gunner"))
 
 
 func _can_reseat_host_remote_crew_seat(seat: ShipCrewSeat) -> bool:
@@ -9507,7 +9508,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	if not bool(claimed.get("accepted", false)):
 		hud.toast("Crew seat unavailable", "The crew roster refused this chair")
 		return
-	if _solo_crew_role == &"gunner" and not bool((craft.call(&"attach_gunner_combat_authority", combat_authority) as Dictionary).get("accepted", false)):
+	if _solo_crew_role == &"gunner" and craft is BulwarkHeavyGunship and not bool((craft.call(&"attach_gunner_combat_authority", combat_authority) as Dictionary).get("accepted", false)):
 		_solo_crew_authority.release(1, 1, SOLO_CREW_AVATAR_ID, _solo_crew_seat_id, _solo_crew_sequence + 1)
 		_release_solo_crew_authority()
 		return
@@ -9736,6 +9737,8 @@ func _update_solo_gunner_input(delta: float) -> void:
 	if _solo_crew_role == &"engineer":
 		_update_solo_engineer_input(command)
 		return
+	if _solo_crew_ship is HalyardCrewTransport:
+		_update_halyard_gunner_objective(_solo_crew_ship.get_gunner_gameplay_state(), source)
 	if not _solo_gunner_fire:
 		_solo_gunner_input_elapsed = 0.0
 		return
@@ -9899,6 +9902,14 @@ func _submit_solo_gunner_fire() -> Dictionary:
 	var direction: Vector3 = player.get_interaction_direction().normalized()
 	if not is_instance_valid(camera) or not direction.is_finite() or direction.is_zero_approx():
 		return {"accepted": false, "status": &"gunner_aim_unavailable"}
+	if _solo_crew_ship is HalyardCrewTransport:
+		var prior := _solo_crew_authority.get_last_intent(1, SOLO_CREW_AVATAR_ID)
+		_solo_crew_sequence = maxi(_solo_crew_sequence, int(prior.get("request_sequence", 0))) + 1
+		return _solo_crew_ship.submit_crew_intent(1, 1, SOLO_CREW_AVATAR_ID, CrewSeatRoleAuthority.ACTION_GUNNER_FIRE, {
+			"weapon_id": HALYARD_COMBAT_WEAPON_ID, "target_id": &"free_aim",
+			"target_generation": int(state.target_generation), "trigger": true,
+			"origin": camera.global_position, "direction": direction,
+		}, _solo_crew_sequence)
 	# Start the ray at the exterior muzzle instead of firing through the cabin.
 	var muzzle_anchor := _solo_crew_ship.get_node_or_null("LeftMuzzle") as Marker3D
 	if not is_instance_valid(muzzle_anchor):
@@ -16512,7 +16523,7 @@ func _cabin_cockpit_precedes_crew_seat(seat: ShipCrewSeat, origin: Vector3, faci
 	else:
 		var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
 		var containment: Dictionary = player.get_cabin_containment_report()
-		if _network_session_is_live() or not _cabin_ship is CinderCargoHauler \
+		if _network_session_is_live() or (_cabin_ship is not CinderCargoHauler and _cabin_ship is not HalyardCrewTransport) \
 				or not is_instance_valid(frame) or not frame.is_occupant_registered(player) \
 				or not bool(containment.get("active", false)) or containment.get("frame") != _cabin_ship \
 				or not is_instance_valid(_boarding_area) or _boarding_area.get_ship() != _cabin_ship \
@@ -23918,7 +23929,7 @@ func _advance_network_engineer(delta: float) -> void:
 	var belongs: bool = not assignment.is_empty() and is_instance_valid(_cabin_ship) and view.get("ship_id") == _cabin_ship.get_ship_id() \
 		and StringName(assignment.get("avatar_id", &"")) == _network_remote_body_intent_source.get_entity_id() \
 		and int(view.get("entity_generation", 0)) == _network_remote_body_intent_source.get_entity_generation() \
-		and ((assignment.get("role") == &"engineer" and assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("role") == &"gunner" and assignment.get("seat_id") == BulwarkHeavyGunship.GUNNER_SEAT_ID and _cabin_ship is BulwarkHeavyGunship) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID and _cabin_ship is HalyardCrewTransport) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID] and _cabin_ship is CinderCargoHauler)) \
+		and ((assignment.get("role") == &"engineer" and assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("role") == &"gunner" and ((assignment.get("seat_id") == BulwarkHeavyGunship.GUNNER_SEAT_ID and _cabin_ship is BulwarkHeavyGunship) or (assignment.get("seat_id") == &"co_pilot_station" and _cabin_ship is HalyardCrewTransport))) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID and _cabin_ship is HalyardCrewTransport) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID] and _cabin_ship is CinderCargoHauler)) \
 		if _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound() else false
 	if is_instance_valid(_network_engineer_client_seat):
 		if _network_engineer_client_seat.get_role_contract().is_empty() or not _network_client_boarding_holds(_network_engineer_client_seat.get_ship()):
@@ -24070,7 +24081,7 @@ func _update_network_engineer_input(delta: float, view: Dictionary) -> void:
 			_send_network_loadmaster_intent(view)
 		hud.set_objective("Loadmaster // %s // FIRE [%s] marks manifest ready // stand [%s]" % ["MANIFEST READY" if bool(receipt.get("ready", false)) else "AWAITING READINESS", hud.get_action_prompt(&"fire"), hud.get_action_prompt(&"interact")])
 		return
-	if craft is BulwarkHeavyGunship:
+	if craft is BulwarkHeavyGunship or craft is HalyardCrewTransport:
 		_update_network_gunner_input(delta, view, command)
 		return
 	var components := view.get("components", {}) as Dictionary
@@ -24136,10 +24147,14 @@ func _send_network_loadmaster_intent(view: Dictionary, action: StringName = &"ca
 
 
 func _network_physical_crew_seat_is_wired(seat: ShipCrewSeat) -> bool:
-	return is_instance_valid(seat) and ((seat.get_ship() is CinderCargoHauler and seat.get_role() == &"passenger" and seat.get_seat_id() in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID]) or (seat.get_ship() is HalyardCrewTransport and seat.get_role() == &"passenger") or (seat.get_ship() is JovianLightFreighter and seat.get_role() == &"engineer") or (seat.get_ship() is BulwarkHeavyGunship and seat.get_role() == &"gunner"))
+	return is_instance_valid(seat) and ((seat.get_ship() is CinderCargoHauler and seat.get_role() == &"passenger" and seat.get_seat_id() in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID]) or (seat.get_ship() is HalyardCrewTransport and ((seat.get_role() == &"passenger" and seat.get_seat_id() == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID) or (seat.get_role() == &"gunner" and seat.get_seat_id() == &"co_pilot_station"))) or (seat.get_ship() is JovianLightFreighter and seat.get_role() == &"engineer") or (seat.get_ship() is BulwarkHeavyGunship and seat.get_role() == &"gunner"))
 
 func _network_physical_crew_view() -> Dictionary:
-	if _cabin_ship is HalyardCrewTransport or _cabin_ship is CinderCargoHauler:
+	if _cabin_ship is HalyardCrewTransport:
+		var passenger := network_session.get_passenger_replica_snapshot()
+		var gunner := network_session.get_gunner_replica_snapshot()
+		return gunner if gunner.get("ship_id") == _cabin_ship.get_ship_id() and not (gunner.get("assignment", {}) as Dictionary).is_empty() else passenger
+	if _cabin_ship is CinderCargoHauler:
 		return network_session.get_passenger_replica_snapshot()
 	return network_session.get_gunner_replica_snapshot() if _cabin_ship is BulwarkHeavyGunship else network_session.get_engineer_replica_snapshot()
 
@@ -24150,11 +24165,21 @@ func _update_network_gunner_input(delta: float, view: Dictionary, command: ShipC
 		_network_engineer_fire_elapsed = 0.1
 		_send_network_gunner_intent(view, command.fire)
 	var gameplay := view.get("gameplay", {}) as Dictionary
+	if _cabin_ship is HalyardCrewTransport:
+		_update_halyard_gunner_objective(gameplay, _network_engineer_source, StringName(view.get("error", &"")))
+		return
 	var charges := gameplay.get("role_charges", {}) as Dictionary
 	var progress := 0.0
 	for charge in charges.values():
 		progress = float(charge.get("elapsed", 0.0)) / maxf(float(charge.get("charge_time", 1.0)), 0.001)
 	hud.set_objective("Gunner // SIEGE LANCE // %d%% // %s\nHold FIRE [%s] // stand [%s]" % [roundi(progress * 100.0), String(view.get("error", &"")).replace("_", " ").to_upper(), hud.call(&"_action_bindings_text", _network_engineer_source.fire_action), hud.get_action_prompt(&"interact")])
+
+func _update_halyard_gunner_objective(state: Dictionary, source: LocalShipInputSource, error: StringName = &"") -> void:
+	var acknowledgement := "LANCE FIRED" if not (state.get("last_fire", {}) as Dictionary).is_empty() else "READY"
+	if not error.is_empty():
+		acknowledgement = String(error).replace("_", " ").to_upper()
+	hud.set_objective("Gunner // DEFENSIVE LANCE // %s // FIRE [%s] // stand [%s] to walk the cabin or take the helm" % [acknowledgement, hud.call(&"_action_bindings_text", source.fire_action), hud.get_action_prompt(&"interact")])
+
 
 func _send_network_gunner_intent(view: Dictionary, trigger: bool) -> Dictionary:
 	var assignment := view.get("assignment", {}) as Dictionary

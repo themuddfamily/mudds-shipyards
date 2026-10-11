@@ -118,5 +118,7 @@ static func _contract_for_ship(ship: HeroShip, anchor: Marker3D = null) -> Dicti
 		return ship.get_navigator_station_role_contract()
 	for method: StringName in [&"get_passenger_station_role_contract", &"get_gunner_station_role_contract", &"get_engineer_station_role_contract"]:
 		if ship.has_method(method):
-			return ship.call(method)
+			var contract: Dictionary = ship.call(method)
+			if contract.get("seat") == anchor:
+				return contract
 	return {}

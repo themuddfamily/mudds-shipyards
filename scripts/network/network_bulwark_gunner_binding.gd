@@ -89,6 +89,9 @@ func release(record: Dictionary) -> void:
 	_elapsed = 1.0
 
 func submit(peer: int, payload: Dictionary) -> void:
+	var seat := _simulation.get_body_crew_seat(StringName(payload.get("avatar_id", &"")))
+	if not is_instance_valid(seat) or seat.get_ship() != _ship:
+		return
 	var result := dispatch(peer, payload)
 	_errors[peer] = StringName((result.get("effect", {}) as Dictionary).get("status", result.get("status", &"invalid_request"))) if not result.accepted or result.get("consumed", true) == false else &""
 	_elapsed = 1.0
@@ -200,6 +203,14 @@ func advance(delta: float) -> void:
 		return
 	_elapsed = 0.0
 	for peer in _session.get_admitted_peer_ids():
+		var boarded := false
+		for entity in _simulation.get_body_entity_ids():
+			var body_record := _simulation.get_body_record(entity)
+			var carried_body := _simulation.get_body(entity)
+			if carried_body != null and int(body_record.get("owner_peer_id", 0)) == int(peer) and carried_body.get_cabin_containment_report().get("frame") == _ship:
+				boarded = true
+		if not boarded:
+			continue
 		var assignment := {}
 		for row in authority.get_snapshot().get("assignments", []):
 			if int(row.occupant_peer_id) == int(peer) and row.role == &"gunner":

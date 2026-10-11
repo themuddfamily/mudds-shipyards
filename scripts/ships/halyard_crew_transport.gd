@@ -452,6 +452,7 @@ var _loadmaster_manifest_receipt: Dictionary = {}
 var _loadmaster_manifest_generation := 1
 var _gunner_target_selection: Dictionary = {}
 var _gunner_target_generation := 1
+var _gunner_last_fire: Dictionary = {}
 var _engineer_component_selection: Dictionary = {}
 var _engineer_component_generation := 1
 var _engineer_repair_authority: RepairAuthority
@@ -1238,6 +1239,8 @@ func release_crew_role_occupant(
 		unregistration = _moving_interior_component.unregister_occupant(
 			occupant, inherit_velocity, &"crew_role_released"
 		)
+	if bool(metadata.get("weapon_power_started", false)) and not _piloted and owner == _crew_role_authority:
+		request_engine_stop()
 	occupant.remove_meta(HALYARD_CREW_ROLE_OCCUPANT_META)
 	if owner == _crew_role_authority:
 		_clear_crew_role_state(occupant_peer_id, avatar_id, &"role_released")
@@ -1264,7 +1267,11 @@ func _release_tagged_crew_role_occupants(
 		if int(metadata.get("occupant_peer_id", 0)) != occupant_peer_id \
 				or StringName(metadata.get("avatar_id", &"")) != avatar_id:
 			continue
-		_moving_interior_component.unregister_occupant(occupant, false, reason)
+		# The network simulation owns the walking body registration beyond this chair.
+		if not NetworkRemoteBodySimulation.is_remote_body(occupant):
+			_moving_interior_component.unregister_occupant(occupant, false, reason)
+		if bool(metadata.get("weapon_power_started", false)) and not _piloted and metadata.get("authority") == _crew_role_authority:
+			request_engine_stop()
 		occupant.remove_meta(HALYARD_CREW_ROLE_OCCUPANT_META)
 
 
@@ -1499,6 +1506,28 @@ func get_passenger_station_role_contract() -> Dictionary:
 		"role": &"passenger", "seat": anchor, "frame": _moving_interior_component,
 		"entry_transform": approach, "exit_transform": approach,
 	}
+
+
+## The existing co-pilot chair is the roster's defensive gunner station.
+func get_gunner_station_anchor() -> Marker3D:
+	return _co_pilot_station_anchor
+
+
+func get_gunner_station_role_contract() -> Dictionary:
+	if not is_instance_valid(_co_pilot_station_anchor):
+		return {}
+	var approach := global_transform * Transform3D(Basis(Vector3.UP, -PI / 2.0), Vector3(0.0, 0.52, -10.80))
+	return {
+		"vessel_id": get_ship_id(), "seat_id": &"co_pilot_station", "role": &"gunner",
+		"seat": _co_pilot_station_anchor, "frame": _moving_interior_component,
+		"entry_transform": approach, "exit_transform": approach,
+	}
+
+
+func get_gunner_gameplay_state() -> Dictionary:
+	return {"target_generation": _gunner_target_generation,
+		"target_selection": _gunner_target_selection.duplicate(true),
+		"last_fire": _gunner_last_fire.duplicate(true), "cooldown_remaining": _weapon_timer}
 
 
 ## Returns only caller-owned manifest/readiness evidence. Inventory, reward,
@@ -1756,7 +1785,7 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	if float(_gunner_role_cooldowns.get(actor_key, 0.0)) > 0.0:
 		return _crew_role_result(false, &"role_cooldown")
 	var previous_timer := _weapon_timer
-	_fire_weapon()
+	_fire_weapon_with_aim(payload.get("origin", Vector3.INF), payload.get("direction", Vector3.ZERO))
 	if _weapon_timer <= previous_timer:
 		return _crew_role_result(false, &"weapon_request_rejected")
 	var result := _crew_role_result(true, &"weapon_request_emitted")
@@ -1768,6 +1797,7 @@ func _consume_gunner_fire_intent(intent: Dictionary) -> Dictionary:
 	result["selection"] = selection
 	result["request_sequence"] = int(intent.get("request_sequence", -1))
 	result["cooldown_remaining"] = _weapon_timer
+	_gunner_last_fire = result.duplicate(true)
 	_gunner_role_cooldowns[actor_key] = weapon_cooldown
 	return result
 
@@ -3270,6 +3300,7 @@ func _build_flight_deck_second_station() -> void:
 	_co_pilot_station_anchor.position = Vector3(0.0, 0.22, -0.02)
 	_co_pilot_station_anchor.set_meta("station_id", &"co_pilot")
 	station.add_child(_co_pilot_station_anchor)
+	preload("res://scripts/interaction/ship_crew_seat.gd").install(_co_pilot_station_anchor, self)
 	# The common controller's practical cockpit light is Torrent-only presentation
 	# and is deliberately released for fleet variants, so the flight deck needs
 	# its own. Rendered without one, both crew stations sat in the dark while the
@@ -4455,8 +4486,14 @@ func _cleanup_detached_crew_role_occupants() -> bool:
 			StringName(metadata.get("avatar_id", &""))
 		) if _crew_role_authority != null else {}
 		if assignment.is_empty() \
-				or StringName(assignment.get("seat_id", &"")) != StringName(metadata.get("seat_id", &"")):
-			_moving_interior_component.unregister_occupant(occupant, false, &"role_detached")
+				or metadata.get("authority") != _crew_role_authority \
+				or StringName(assignment.get("seat_id", &"")) != StringName(metadata.get("seat_id", &"")) \
+				or int(assignment.get("seat_generation", 0)) != int(metadata.get("seat_generation", 0)):
+			if bool(metadata.get("weapon_power_started", false)) and not _piloted \
+					and metadata.get("authority") == _crew_role_authority and assignment.is_empty():
+				request_engine_stop()
+			if not NetworkRemoteBodySimulation.is_remote_body(occupant):
+				_moving_interior_component.unregister_occupant(occupant, false, &"role_detached")
 			occupant.remove_meta(HALYARD_CREW_ROLE_OCCUPANT_META)
 	return tagged_occupancy_present
 
@@ -4557,6 +4594,7 @@ func _clear_gunner_target_selection(reason: StringName, advance_generation: bool
 	var target_id := StringName(_gunner_target_selection.get("target_id", &""))
 	var target_generation := int(_gunner_target_selection.get("target_generation", 0))
 	_gunner_target_selection.clear()
+	_gunner_last_fire.clear()
 	gunner_target_cleared.emit(target_id, target_generation, reason)
 	if advance_generation:
 		_gunner_target_generation = mini(
