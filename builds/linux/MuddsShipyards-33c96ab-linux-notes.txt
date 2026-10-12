@@ -1,0 +1,46 @@
+Mudds Shipyards — Linux x86_64 checkpoint 33c96ab
+Published locally 2026-10-12. Development checkpoint.
+Source commit: 33c96ab45e9baa22c67eb8f1331edb913f8cfbcc
+This is the matching Linux build of the published Windows 33c96ab checkpoint.
+
+Player-visible change
+Zenith uses its authored model in the exported game. Its original GLB and Blender
+source bytes are embedded so the existing strict authored-asset audit can run
+inside the package without selecting fallback geometry.
+This source includes the earlier frame-relative cruise carriage checkpoint.
+It excludes the newer FAA late shared-abandonment handback repair and 8bb CI
+integration; those remain separate candidates.
+
+Actual validation already completed by root
+- Silent native Linux direct-binary and archive startup: exit 0 and strict
+  STARTUP_MENU_READY_OK readiness, with fresh process closure.
+- Four packaged probes: 223 assertions PASS; protected-state closure PASS.
+- Export and all eight protected scopes: PASS; captured processes absent.
+- Pack payload: all 1,512 stored MD5 and independently read SHA-256 checks PASS;
+  both raw Zenith source assets match the existing manifest.
+- Independent archive review: five exact relative-path members, no duplicate,
+  traversal, link, device or special-mode entries. One x86_64 ELF binary; its
+  complete member SHA-256 matches the standalone binary. Launcher/icon source
+  identity and archive/source commit metadata match.
+
+Additional package validation
+Packed geometry census: all 19 assertions PASS. Home-return: all 44 PASS.
+Four-peer shared cruise: all 132 PASS; every actor verifies the exact exported
+package and all four peer exits are 0. Fresh source/index/cache/process closure
+passes after each check. This checkpoint does not establish full release acceptance.
+Native GPU performance, human visual review, native Windows qualification,
+installed-launch/recovery and full release qualification are NOT_RUN.
+The exporter metadata's startup_check=NOT_RUN describes the export step;
+separate strict startup checks above were performed afterwards. Metadata is
+preserved without rewriting it.
+
+Files and SHA-256
+MuddsShipyards-33c96ab.x86_64
+  148491648 bytes
+  5e57228d2bb3eaa6b87cf47ffb3b9cb813741e7c9a29682dcdf0d1ed732f80b8
+MuddsShipyards-33c96ab-linux-x86_64.tar.gz
+  94994796 bytes
+  7e76e59f1110cbc30170a3d7416a537d59443d4c40387776e04e566c87da22d6
+
+Unpack the tarball and run its .x86_64 binary. The optional
+install-desktop-entry.sh adds a per-user menu entry; it was inspected but not run.
