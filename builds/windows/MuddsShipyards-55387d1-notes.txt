@@ -14,3 +14,6 @@ Remaining gates
 Full-candidate CI 38314396183 is running; core has failed and the cause is under investigation. Installed Ember recovery, canonical full outbound/return flights, native Windows/GPU/controllers, human play/visual/audio review and full-release acceptance remain open. Initial orbital/corridor staging was disclosed in the source recovery probe. This is a playable development checkpoint, not full release qualification.
 
 EXE SHA-256: 18a7542aa88d5bbbe399fa99fa3f3a5d2cf3cd8e847c623cb5762627eb021077
+
+Subsequent package qualification — 2026-10-12
+The unchanged package passes home-return64 and shared-crew132. All five actors load its exact embedded PCK; all four peers exit 0, with no engine errors. Fresh protected-state/process checks pass after both runs; 40 captured identities are absent after the crew run. These checks use Linux Godot loading the package and do not establish native Windows or native GPU qualification. Archive payloads retain their original publication-time notes.
