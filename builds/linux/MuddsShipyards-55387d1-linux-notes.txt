@@ -1,0 +1,17 @@
+Mudds Shipyards — Linux development checkpoint — 2026-10-12
+Source: 55387d120e43eb33c8259c584923870c0a2ee73e
+
+Player-visible changes
+- Cabins retained by GameFlow stay attached during travel.
+- Bulwark's declared self-colliders no longer falsely block cruise; external obstacles still block it.
+- Interrupted Ember surveys resume their original checkpoint and save the completion reward once, even when ordinary session saves occur before survey Start.
+
+Validation
+Exact source: checkpoint27; compiled Ember interruption/recovery (real SIGKILL -9, cold restart 0, 13 resume assertions, one durable reward); home-return64; ordinary shared-crew127, all four peer exits 0. Each passed independent protected-state/process checks. The interruption reporting wrapper separately failed on a missing report field; native results were independently verified, and that wrapper failure is retained.
+Linux export passed. Direct and archive-extracted native Linux menu startup both passed exit 0 plus one STARTUP_MENU_READY_OK. Four packaged station suites passed all 223 assertions. All checks used silent/headless execution with private profiles and passed independent protected-state/process closure. Native Linux startup qualifies this environment; installed Ember recovery and native GPU performance remain open.
+
+Remaining gates
+Full-candidate CI 38314396183 is running; core has failed and the cause is under investigation. Installed Ember recovery, canonical full outbound/return flights, native Windows/GPU/controllers, human play/visual/audio review and full-release acceptance remain open. Initial orbital/corridor staging was disclosed in the source recovery probe. This is a playable development checkpoint, not full release qualification.
+
+ELF SHA-256: a6f7e8ce9d031a0b6e19fb0e744e481a43908a3b808390739f3e3698c73c1188
+Archive SHA-256: fced6a39d1212c5a22f4c16d626be4c9cc2a3b213d60ef34fd6d829abc909c9b
