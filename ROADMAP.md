@@ -19,6 +19,8 @@ The current game has **nine flyable craft and implemented slices across Phases 2
 
 These rows summarize the existing 34 tasks. **The project is not at final polish or release-candidate stage.** Working implementation is substantial; missing production scope and end-to-end acceptance still determine the distance to completion. The immediate deliverable is an updated, trustworthy alpha checkpoint. Owners, estimates and hardware/reviewer availability are still needed for a credible release schedule.
 
+**Latest home-return result (2026-10-12):** the combined `b885a347c` candidate again reaches genuine surface survey completion, durable reward/save, ordinary reboarding, ascent, canonical home cruise and an accepted strict physical home dock. The final arrival handoff fails: the retained nested refusal is `composition_not_bound`, with the surface runtime already detached and its Host completed/unattached. The actual run exits 1; fresh source/index/cache and process closure pass. Usable home exit remains unqualified. Next: repair the detached composition lifecycle without bypassing live attachment cleanup or current arrival authority, then repeat the unchanged complete journey.
+
 ### Practical completion sequence
 
 The game remains a development alpha: the published checkpoints demonstrate bounded working features, while the following production and acceptance work still blocks completion. These actions refine the existing 34 tasks rather than create a second checklist.
