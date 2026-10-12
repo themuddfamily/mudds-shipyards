@@ -1265,7 +1265,7 @@ func _ember_surface_host() -> void:
 		# Destroy the actual visit world, not a lease/Host/receipt field. Existing
 		# production lifetime guards must retire authority and notify the peer.
 		_game.ember_streaming_bootstrap.get_loaded_instance().queue_free()
-		_check(await _until(func(): return simulation.get_body_count() == 0
+		_check(await _until(func(): return simulation.get_body_count() == 0 \
 			and _game._network_ember_passenger_surfaces.is_empty(), 5.0)
 			and int(simulation.get_audit().get("released", -1)) - releases_before == 1
 			and _game.network_session.get_movement_avatar_snapshot(avatar).is_empty()
@@ -1429,14 +1429,14 @@ func _ember_surface_client() -> void:
 			# Local loss arrives first. It may revoke prediction, but must not
 			# grant recall until the real server retires this exact visit.
 			local_scene.queue_free()
-			_check(await _until(func(): return _game._network_client_ember_passenger_surface.is_empty()
+			_check(await _until(func(): return _game._network_client_ember_passenger_surface.is_empty() \
 				and not _game._network_client_ember_passenger_retired.is_empty(), 4.0)
 				and not source.is_bound() and not bool(stale.call()) and retirements.is_empty()
 				and _player.get_instance_id() == body_id
 				and _player.global_position.distance_to((_game.world.call(&"get_player_spawn") as Transform3D).origin) > 1_000_000.0,
 				"local terrain loss revokes stale prediction while retaining identity without recovery authority")
 		_write("client.world_lost", {})
-		_check(await _until(func(): return not retirements.is_empty() and _player.is_on_floor()
+		_check(await _until(func(): return not retirements.is_empty() and _player.is_on_floor() \
 			and _player.is_control_enabled() and _game._network_client_ember_passenger_retired.is_empty(), 20.0)
 			and _game._network_client_boarding_is_live() and _player.get_instance_id() == body_id
 			and not source.is_bound() and not bool(stale.call()) and _game._cabin_ship == null
