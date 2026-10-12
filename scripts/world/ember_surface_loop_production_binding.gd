@@ -2062,6 +2062,15 @@ func has_delivered_completion_handback() -> bool:
 	return _completion_handback_delivered
 
 
+## Fresh tick admission fields when no on-foot survey context is consumed.
+## Complete caller and diagnostic reports remain available unchanged.
+func get_tick_admission_snapshot() -> Dictionary:
+	return {
+		"state_id": _state_id(_state),
+		"identities": {"location_generation": _location_generation},
+	}
+
+
 ## GameFlow observes these fields before preparing a tick, then keeps that
 ## observation through survey admission. All values are fresh detached copies;
 ## the complete diagnostic tree and per-tick signal payload remain unchanged.

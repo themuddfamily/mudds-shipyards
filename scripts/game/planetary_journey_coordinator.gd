@@ -884,7 +884,12 @@ func _advance_ember_surface_loop_cadence(
 			or not is_instance_valid(_flow.active_ship) \
 			or not is_instance_valid(_flow.player):
 		return {"accepted": false, "reason": &"ember_surface_cadence_unavailable"}
-	var binding_snapshot := _flow.ember_surface_loop_production_binding.get_caller_snapshot()
+	# Only ON_FOOT consumes survey/reward context below. Keep its complete
+	# pre-admission observation; other phases need just tick admission scalars.
+	var binding_snapshot := _flow.ember_surface_loop_production_binding.get_caller_snapshot() \
+		if _flow.ember_surface_loop_production_binding.get_host_phase() \
+			== EmberSurfaceLoopHost.Phase.ON_FOOT \
+		else _flow.ember_surface_loop_production_binding.get_tick_admission_snapshot()
 	if StringName(binding_snapshot.get("state_id", &"")) \
 			not in [&"idle", &"start_pending", &"running"]:
 		return {"accepted": false, "reason": &"ember_surface_cadence_inactive"}
