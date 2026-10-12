@@ -419,12 +419,14 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # atlases and smoke_alpha) add six heading/body Labels through HUD's existing
 # _add_credits_section. Both scenarios therefore gain exactly eight nodes.
 # The streamed Cinder bucket and every loaded-minus-resident delta stay fixed.
-# Packed fingerprints below still require a fresh actual package measurement;
-# preserve their strict checks rather than inventing unmeasured replacements.
+# Actual 33c96ab Windows-PCK measurement after the authored Zenith export fix
+# restores all geometry/resource counts and the exact Cinder delta. The package
+# retains exactly the checked Aurora/Rime local skies (1,076 / 1,139 materials);
+# only the two stale fingerprints failed, and those failed runs remain retained.
 const RESIDENT_FINGERPRINT := "e717250eae991d3597aff5501b0a6278fb7a23d5176787a6fb5ed41382634b4c"
 const CINDER_LOADED_FINGERPRINT := "8faa7ca945119da507db70adcbd94348a651dd1d4da35f9237baea8e6b5fd4d6"
-const PACKED_RESIDENT_FINGERPRINT := "8533e507f09653a487a599fbd52ac290e013611bd7e45b13bf18f872bc0b505b"
-const PACKED_CINDER_LOADED_FINGERPRINT := "7380995ee3fecf5bc79ee4665e3175a9b04fbe6a6ff03c1d1d179faeb419c8e1"
+const PACKED_RESIDENT_FINGERPRINT := "8c4d5c32956573f5ae1a8dfbfd791baf1c62b3246cf55f36688d13dc4164370f"
+const PACKED_CINDER_LOADED_FINGERPRINT := "320c9d2978a03c5bca59a146b10cf85643476be72c325b4ce4003e542fb77584"
 
 var _assertions := 0
 var _failures := PackedStringArray()
