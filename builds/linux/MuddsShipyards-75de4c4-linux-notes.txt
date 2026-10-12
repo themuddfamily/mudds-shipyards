@@ -1,0 +1,29 @@
+Mudds Shipyards — Linux development checkpoint — 2026-10-12
+Source: 75de4c4bb956b014495c71fb542d0775ac52c8d3
+Status: bounded package qualification PASS; main runtime integration and complete regression remain pending.
+
+Player-visible changes
+Remote crew remain steady at off-centre cabin positions during sustained full-speed cruise and common-origin changes, without emergency recall. Hull replacement retires the old cruise attachment correctly. The checkpoint combines accepted planetary recovery and crew repairs with the pivot-relative carriage calculation. Ordinary walking, collisions, gravity and authority retain their existing contracts.
+
+Actual source validation
+Exact-source cold import and focused body176, shared127, home44, cruise44 and rebase86 pass. The original full-speed body test preserves its 0.05 m drift requirement: 1,500 neutral physics ticks, more than 428 km travelled, minimum speed 12,424.8125 m/s, floor support and zero recalls; maximum drift is 0.00143492640927 m.
+The existing default planetary cancellation check passes all 20 assertions on this exact source: genuine landed/supported survey cancellation, retained Director generation, refused restart/reward/manifest, no persistence advance, synchronous callback revocation on ENet shutdown and usable standing controls. The initial approach is staged and ENet is local; this does not qualify canonical outbound travel, remote-peer loss, abandoned physical return or installed recovery. Actual exit 0, zero diagnostics and independent fresh source/index/cache/process closure pass.
+
+Linux package validation
+Clean-source Linux export passes with actual exit 0 and independent fresh protected-state/process closure. The ELF64 amd64 executable embeds Godot 4.7.1 PCK v4; all 1,506 entries pass MD5/SHA, compiled-script and forbidden-path checks. Their resource payloads match the qualified Windows checkpoint exactly. Independent archive review verifies safe members and exact binary bytes.
+Direct executable and archive-extracted native Linux --startup-check each pass: actual exit 0 and exactly one mouse-free STARTUP_MENU_READY_OK. Both native process identities are captured and closed.
+The four standard package probes pass all 223 assertions. The affected packed home-return check passes 44 assertions; the packed four-peer cruise route passes 132 checks (127 route plus five package checks), with all five actors verifying the same package and all four peer exits 0.
+Gameplay probes and affected packed tests use standalone Linux Godot loading this ELF's embedded PCK. They do not establish native rendered gameplay or GPU performance. All tests use Dummy audio and headless or isolated X11 displays. Independent source/index/cache/build/template/user-data and process checks pass.
+
+Remaining qualification
+Exact-source CI https://github.com/themuddfamily/mudds-shipyards/actions/runs/38267397068: core and graphical PASS; headless and full-candidate jobs running at the latest authoritative poll. The graphical artifact verifies 34 selected suites and 2,299 assertions; 1,007 suites are excluded from that graphical-only job. Three existing RENDER-001 diagnostics and software V-Sync warnings are retained. Complete regression acceptance and main runtime integration remain pending.
+Packed geometry census, installed recovery, complete canonical planetary journeys, missing content and multiplayer endurance remain open. Native Windows gameplay, native GPU/device/controller checks, human play/visual review, audible listening and final-release qualification remain NOT_RUN. All ten phase exit gates and 34 consolidated completion tasks remain open.
+
+Linux payloads
+MuddsShipyards-75de4c4.x86_64
+Bytes: 142215768
+SHA256: b269f4a614a97af5ff073c173bb325e90be9ee4fe1baffcaaa169a333a0aee56
+MuddsShipyards-75de4c4-linux-x86_64.tar.gz
+Bytes: 93393902
+SHA256: dcef1480c0ff9637bd9d1a2d361a030111b99c278854a91d49f70bb9ec18a3a3
+The archive contains the binary, desktop launcher, icon and desktop-entry installer. Export-result JSON retains the original source/staging paths and export-time startup status; the actual post-export startup results are recorded above. Earlier checkpoints are retained. This local unsigned checkpoint is not a final release.
