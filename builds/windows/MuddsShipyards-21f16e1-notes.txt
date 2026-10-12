@@ -1,0 +1,25 @@
+Mudds Shipyards — Windows development checkpoint 21f16e1 — 2026-10-12
+Source: 21f16e1d8a794120539ab2564b4bdf2da8f582c1
+Status: bounded automated checkpoint qualification PASS; full-release acceptance remains open.
+
+Player-visible changes
+Completed Ember survey returns can finish the physical home-dock arrival and exit cleanly. The return retires the shared surface composition once, preserves useful refusal diagnostics and avoids detaching the streamed-out relay twice. Saving, survey/reward completion, reboarding, ascent and the physical home-berth landing handoff remain part of the exercised path.
+
+Source and actual validation
+The accepted source physical-return run at parent 5e36a0ae09cc3c7cce0b7f0dbe9db82987d0565c passed 27 assertions through save, survey, reboarding, ascent and physical home docking. Its initial approach was staged; this does not qualify canonical shared arrival. Candidate 21f16e1d8a794120539ab2564b4bdf2da8f582c1 adds only the missing standard test UID sidecar; every existing tree blob, including runtime code, matches that accepted parent. The ordinary cancellation test on this exact UID child passed 20 assertions with unchanged source/index/cache and closed actors. Clean-source Windows and Linux exports at this child passed with fresh closure.
+
+Package validation
+Windows embedded-package --startup-check: PASS, actual exit 0 and exactly one mouse-free STARTUP_MENU_READY_OK; fresh closure PASS.
+Linux direct and archive-extracted --startup-check: PASS, each actual exit 0 and exactly one mouse-free STARTUP_MENU_READY_OK; fresh closure PASS.
+Windows four standard package probes: PASS, all 223 assertions with fresh source/index/cache/artifact/process closure.
+Linux four standard package probes: PASS, all 223 assertions with fresh source/index/cache/artifact/process closure.
+Windows focused packaged home-return check: PASS, all 44 assertions, actual exit 0, unique packed-resource and success markers, no diagnostics and fresh protected-state/process closure.
+Linux focused packaged home-return check: PASS, all 44 assertions, actual exit 0, unique packed-resource and success markers, no diagnostics and fresh protected-state/process closure.
+Both focused checks verify the exact package hash, 32 packed entry hashes and 15 compiled production scripts, with no production source fallback. Windows embedded-package checks use Linux Godot and do not qualify native Windows gameplay.
+
+Scope and remaining work
+This development checkpoint is available in the repository build directories. The earlier 155d642 checkpoint is retained. This candidate source remains separate from main runtime integration and is not a release candidate. Hosted graphical shared-surface validation at parent 5e36 failed at the Habitat timeout and exposed the crew-fixture gap; full/headless validation is still LIVE and unqualified. Native Windows gameplay, native GPU performance, physical controllers, human play/visual review, audible audio review and full release acceptance are NOT_RUN. Automated checks use Dummy audio and headless or isolated displays. Complete canonical shared arrival, complete final-source regression, installed recovery, endurance and licensing/signing remain open.
+
+Windows payload
+EXE bytes: 177971128
+EXE SHA-256: dea2f4f8450bc318013411a63631013ebc465b5e9db789988847c3ba143d8be1
