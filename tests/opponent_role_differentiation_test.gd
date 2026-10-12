@@ -711,9 +711,9 @@ func _test_courier_visual_resource_sharing() -> void:
 			== _binding_identity_counts(audits[1].visual_material_bindings as Dictionary)
 		and _binding_identity_counts(audits[0].visual_material_bindings as Dictionary)
 			== _binding_identity_counts(audits[2].visual_material_bindings as Dictionary)
-		and (audits[0].visual_material_bindings as Dictionary).size() == 31
-		and (audits[1].visual_material_bindings as Dictionary).size() == 31
-		and (audits[2].visual_material_bindings as Dictionary).size() == 31,
+		and (audits[0].visual_material_bindings as Dictionary).size() == 33
+		and (audits[1].visual_material_bindings as Dictionary).size() == 33
+		and (audits[2].visual_material_bindings as Dictionary).size() == 33,
 		"shared courier materials preserve every visible parameter and semantic binding"
 	)
 	_check(
@@ -729,15 +729,19 @@ func _test_courier_visual_resource_sharing() -> void:
 	# added the registry and crew-rescue artwork receivers. Every census axis
 	# moved up or held; lights, particles and collision shapes are untouched,
 	# so nothing the sharing pass protects has been lost.
+	# 07b713bb8 and d5b9fa36f bind the existing EngineSmoke and DamageSparks
+	# meshes before derived hull setup. Each retained emitter now contributes
+	# one surface/material binding: 31 -> 33 per courier, 93 -> 99 across three.
+	# This adds no nodes or materials to the nineteen-entry shared catalog.
 	_check(
 		int(aggregate_counts.node_count) == 141
 		and int(aggregate_counts.mesh_instance_nodes) == 84
 		and int(aggregate_counts.particle_nodes) == 9
-		and int(aggregate_counts.geometry_submissions) == 93
-		and int(aggregate_counts.material_bindings) == 93
+		and int(aggregate_counts.geometry_submissions) == 99
+		and int(aggregate_counts.material_bindings) == 99
 		and int(aggregate_counts.light_nodes) == 15
 		and int(aggregate_counts.collision_shape_nodes) == 9,
-		"sharing preserves 141 nodes, 93 submissions, 15 lights, and all collision shapes"
+		"sharing preserves 141 nodes, 99 submissions, 15 lights, and all collision shapes"
 	)
 
 	# The catalog is shared; the distress latch, visibility, lights, and lifecycle
