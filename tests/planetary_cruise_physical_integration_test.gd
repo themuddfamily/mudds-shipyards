@@ -1001,11 +1001,32 @@ func _test_arrow_rime_return_clearance(stage: Node3D) -> void:
 	blocker.global_basis = Basis.looking_at(direction, Vector3.UP)
 	await physics_frame
 	await process_frame
+	# Confirm the actual published blocker occupies the Cylinder's translated
+	# midpoint in the same private physics space before trusting its long cast.
+	# This moves only a query transform; the genuine Arrow remains untouched.
+	var midpoint_query := PhysicsShapeQueryParameters3D.new()
+	midpoint_query.shape = cylinder.shape
+	midpoint_query.transform = cylinder.global_transform
+	midpoint_query.transform.origin += direction * 375_100.0
+	midpoint_query.collision_mask = ship.collision_mask
+	midpoint_query.collide_with_bodies = true
+	midpoint_query.collide_with_areas = false
+	midpoint_query.exclude = ship.call(&"_planetary_cruise_self_collision_exclusions")
+	midpoint_query.margin = 0.0
+	var midpoint_hits := ship.get_world_3d().direct_space_state.intersect_shape(midpoint_query, 1)
+	var midpoint_identity := int(midpoint_hits[0].get("collider_id", 0)) \
+		if not midpoint_hits.is_empty() else 0
+	var same_world := ship.get_world_3d() == blocker.get_world_3d() \
+		and ship.get_world_3d() == isolated.find_world_3d() \
+		and ship.get_world_3d() != stage.get_world_3d()
 	var blocked := _arrow_sweep_detail(ship, cylinder, direction * HORIZON)
 	var refusal := blocked.get("refusal", {}) as Dictionary
 	_check(bool(blocked.get("accepted", false)) and bool(blocked.get("obstacle_detected", false))
-		and not refusal.is_empty() and refusal.has("native_cast"),
-		"captured Rime return cylinder retains an actual distant thin obstacle with query refusal detail [%s]" % refusal)
+		and not refusal.is_empty() and refusal.has("native_cast")
+		and same_world and midpoint_identity == blocker.get_instance_id(),
+		"captured Rime return cylinder retains an actual distant thin obstacle with published midpoint identity [same_world=%s midpoint_id=%d expected_id=%d cylinder_pose=%s blocker_pose=%s refusal=%s]" % [
+			same_world, midpoint_identity, blocker.get_instance_id(),
+			cylinder.global_transform, blocker.global_transform, refusal])
 	blocker.free()
 	blocker = _make_blocker("RimeReturnCylinderInitialBlocker", Vector3.ONE * 3.0,
 		cylinder.global_position)

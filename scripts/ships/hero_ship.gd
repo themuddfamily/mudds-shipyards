@@ -2036,9 +2036,10 @@ func build_planetary_cruise_clearance_proof(
 	return proof.duplicate(true)
 
 
-## Once a cast refuses, every descendant must cover BOTH complete halves down
-## to short leaves. Each clear leaf also proves its full fixed-attitude swept-box
-## volume empty; a clear long recast alone cannot erase a real thin obstacle.
+## A cylinder also corroborates a native-clear long cast with a whole-span
+## enclosing-box volume: native cylinder casts can miss real thin obstacles.
+## If that volume refuses, both complete halves must be proved within the same
+## short-leaf/depth bounds. Native-refused short leaves remain blocked.
 ## The original shape/query is never replaced by the scratch convex volume.
 func _planetary_cruise_query_full_sweep(
 		space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3D,
@@ -2069,15 +2070,15 @@ func _planetary_cruise_query_full_sweep(
 	if not endpoint_hits.is_empty():
 		return _planetary_cruise_sweep_refusal(&"endpoint_overlap", start, motion, depth,
 			0.0 if recheck_refusal else safe_fraction, cast_result, endpoint_hits[0])
-	if safe_fraction == 1.0 and not recheck_refusal:
+	if safe_fraction == 1.0 and not recheck_refusal and not query.shape is CylinderShape3D:
 		return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
 	if not motion.is_finite() or not start.is_finite() \
 			or is_zero_approx(start.basis.determinant()):
 		return _planetary_cruise_sweep_refusal(&"invalid_sweep_geometry", start, motion,
 			depth, 0.0, cast_result)
-	# Unsupported shapes retain their validated native prefix AND refusal;
-	# they never gain clearance from a box-only corroborating volume.
-	if not query.shape is BoxShape3D:
+	# Other unsupported shapes retain their validated native prefix AND refusal;
+	# only boxes and cylinders have a proved conservative enclosing volume.
+	if not query.shape is BoxShape3D and not query.shape is CylinderShape3D:
 		return _planetary_cruise_sweep_refusal(&"unsupported_shape_native_refusal",
 			start, motion, depth, safe_fraction, cast_result)
 	if swept_query == null:
@@ -2091,7 +2092,31 @@ func _planetary_cruise_query_full_sweep(
 		swept_query.exclude = query.exclude
 		swept_query.margin = query.margin
 		swept_query.motion = Vector3.ZERO
-	if motion.length() <= PLANETARY_CRUISE_CLEARANCE_SPLIT_MIN_METERS:
+	if query.shape is CylinderShape3D:
+		var cylinder := query.shape as CylinderShape3D
+		if not is_finite(cylinder.radius) or not is_finite(cylinder.height) \
+				or cylinder.radius <= 0.0 or cylinder.height <= 0.0:
+			return _planetary_cruise_sweep_refusal(&"invalid_cylinder_dimensions",
+				start, motion, depth, 0.0, cast_result)
+		var short_leaf := motion.length() <= PLANETARY_CRUISE_CLEARANCE_SPLIT_MIN_METERS
+		if short_leaf and safe_fraction < 1.0:
+			return _planetary_cruise_sweep_refusal(&"short_native_refusal", start,
+				motion, depth, 0.0, cast_result)
+		# The complete cylinder lies within [-r,r] x [-h/2,h/2] x [-r,r].
+		# Sweeping this BOX encloses every point of its translation; no radial
+		# polygon approximates or cuts inside the actual circular silhouette.
+		var enclosure := BoxShape3D.new()
+		enclosure.size = Vector3(cylinder.radius, cylinder.height * 0.5, cylinder.radius) * 2.0
+		var cylinder_hit: Dictionary = {}
+		if _planetary_cruise_swept_box_is_clear(space, enclosure, start, motion,
+				swept_query, cylinder_hit, true):
+			return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
+		if short_leaf:
+			return _planetary_cruise_sweep_refusal(&"swept_volume_refusal", start,
+				motion, depth, 0.0, cast_result, cylinder_hit)
+		# A nonempty/unresolved long enclosing volume proves no clearance.
+		# Reuse the original cylinder query and cover BOTH halves below.
+	elif motion.length() <= PLANETARY_CRUISE_CLEARANCE_SPLIT_MIN_METERS:
 		# Native-refused short leaves remain unresolved; never clear them from
 		# an empty sampled pose or even an empty corroborating volume.
 		if safe_fraction < 1.0:
@@ -2154,17 +2179,17 @@ func _planetary_cruise_sweep_refusal(
 func _planetary_cruise_swept_box_is_clear(
 		space: PhysicsDirectSpaceState3D, box: BoxShape3D, start: Transform3D,
 		motion: Vector3, swept_query: PhysicsShapeQueryParameters3D,
-		refusal_hit: Dictionary = {}
+		refusal_hit: Dictionary = {}, rebuild_volume: bool = false
 	) -> bool:
 	if not box.size.is_finite() or box.size.x <= 0.0 or box.size.y <= 0.0 or box.size.z <= 0.0:
 		return false
 	var volume := swept_query.shape as ConvexPolygonShape3D
 	if volume == null:
 		return false
-	if volume.points.is_empty():
-		# All leaves of this root request have the same half-motion and basis:
-		# only their start origins differ. Build the exact volume once, then
-		# reuse it at every translated leaf pose in this synchronous request.
+	if volume.points.is_empty() or rebuild_volume:
+		# Box recheck leaves share one fixed motion/basis. Cylinder adaptive
+		# queries also test their whole parent spans, so explicitly rebuild the
+		# same scratch volume for each exact requested motion before querying.
 		var local_motion := start.basis.inverse() * motion
 		if not local_motion.is_finite():
 			return false
