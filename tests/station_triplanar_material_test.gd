@@ -748,12 +748,15 @@ func _test_live_station_coverage(
 	# fc4828756 (chair arm pads, coordinator headrests) fold 14 mapped 0.28 m
 	# surfaces into dressing batches, 643 -> 629; restoring those names to
 	# PROTECTED_DRESSING_NAMES restores exactly 1972 / 643.
+	# Habitat's 378 pressure/privacy arch segments retain their exact mapped
+	# stock/materials in 60 room-local batches: ordinary 1958 -> 1580, 0.28 m
+	# surfaces 629 -> 251. The 0.22/0.30 m scales and all drawn copies stay fixed.
 	_check(
-		mapped_surface_count == 1958
+		mapped_surface_count == 1580
 		and scale_022_count == 45
-		and scale_028_count == 629
+		and scale_028_count == 251
 		and scale_030_count == 1284,
-		"live static station binds exactly 1958 ordinary mapped surfaces with all seven couriers dispatched"
+		"live static station binds exactly 1580 ordinary mapped surfaces with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -940,10 +943,12 @@ func _test_instanced_station_family(
 	# TaskStrip and FasciaFastener batches: 16 fewer batches, 12 fewer mapped.
 	# At High the parent of 8eee567cf measures 213/128. That commit maps seven
 	# existing orange batches, making the complete High roster 213/135.
+	# Habitat's arch migration adds 60 mapped batches (273/195), preserving
+	# all 378 copies and their existing immutable world-triplanar materials.
 	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
 	_check(
-		batches == 213 and mapped == 135,
-		"instanced station structure is exactly 213 batches, 135 of them mapped"
+		batches == 273 and mapped == 195,
+		"instanced station structure is exactly 273 batches, 195 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
