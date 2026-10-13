@@ -1054,6 +1054,60 @@ func _test_arrow_rime_return_clearance(stage: Node3D) -> void:
 		and ship.global_transform.is_equal_approx(Transform3D(captured_basis, captured_position))
 		and ship.velocity.is_equal_approx(captured_velocity),
 		"captured Rime return cylinder retains a real endpoint obstacle without moving the query-only actor")
+	blocker.free()
+	# This exact deterministic direction reproduced native "Too few vertices
+	# per face" with the old 16-point convex enclosure at the captured pose.
+	var warning_direction_rng := RandomNumberGenerator.new()
+	warning_direction_rng.seed = 120613
+	var warning_direction := Vector3.ZERO
+	for _sample in 272:
+		warning_direction = Vector3(warning_direction_rng.randf_range(-1.0, 1.0),
+			warning_direction_rng.randf_range(-1.0, 1.0),
+			warning_direction_rng.randf_range(-1.0, 1.0))
+	warning_direction = warning_direction.normalized()
+	var warning_motion := warning_direction * HORIZON
+	var cylinder_shape := cylinder.shape as CylinderShape3D
+	var box := BoxShape3D.new()
+	box.size = Vector3(cylinder_shape.radius * 2.0, cylinder_shape.height,
+		cylinder_shape.radius * 2.0)
+	var scratch := PhysicsShapeQueryParameters3D.new()
+	scratch.shape = BoxShape3D.new()
+	scratch.collision_mask = ship.collision_mask
+	scratch.collide_with_bodies = true
+	scratch.collide_with_areas = false
+	scratch.exclude = [ship.get_rid()]
+	scratch.margin = 0.0
+	var warning_clear := bool(ship.call(&"_planetary_cruise_swept_box_is_clear",
+		ship.get_world_3d().direct_space_state, box, cylinder.global_transform,
+		warning_motion, scratch))
+	_check(warning_clear and scratch.shape is BoxShape3D,
+		"the reproduced oblique 750 km warning span uses a valid primitive enclosure and stays clear")
+	var contains_entire_sweep := true
+	var enclosure_half_size := (scratch.shape as BoxShape3D).size * 0.5
+	var enclosure_inverse := scratch.transform.affine_inverse()
+	for x in [-1.0, 1.0]:
+		for y in [-1.0, 1.0]:
+			for z in [-1.0, 1.0]:
+				var corner := cylinder.global_transform * (box.size * 0.5 * Vector3(x, y, z))
+				for travel in [Vector3.ZERO, warning_motion]:
+					var projected: Vector3 = (enclosure_inverse * (corner + travel)).abs()
+					contains_entire_sweep = contains_entire_sweep \
+						and projected.x <= enclosure_half_size.x \
+						and projected.y <= enclosure_half_size.y \
+						and projected.z <= enclosure_half_size.z
+	_check(contains_entire_sweep,
+		"primitive enclosure contains all start/end corners and their complete convex translation")
+	blocker = _make_blocker("RimeReturnObliqueThinBlocker", Vector3(30.0, 30.0, 1.0),
+		cylinder.global_position + warning_direction * 375_100.0)
+	space_root.add_child(blocker)
+	blocker.global_basis = Basis.looking_at(warning_direction, Vector3.UP)
+	await physics_frame
+	await process_frame
+	blocked = _arrow_sweep_detail(ship, cylinder, warning_motion)
+	_check(bool(blocked.get("accepted", false)) and bool(blocked.get("obstacle_detected", false))
+		and float(blocked.get("safe_fraction", 1.0)) < 1.0,
+		"the reproduced oblique warning span retains the actual distant thin blocker")
+	blocker.free()
 	isolated.queue_free()
 	await physics_frame
 	await process_frame

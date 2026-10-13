@@ -2040,7 +2040,7 @@ func build_planetary_cruise_clearance_proof(
 ## enclosing-box volume: native cylinder casts can miss real thin obstacles.
 ## If that volume refuses, both complete halves must be proved within the same
 ## short-leaf/depth bounds. Native-refused short leaves remain blocked.
-## The original shape/query is never replaced by the scratch convex volume.
+## The original shape/query is never replaced by the scratch enclosing box.
 func _planetary_cruise_query_full_sweep(
 		space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3D,
 		start: Transform3D, motion: Vector3, depth: int,
@@ -2082,10 +2082,10 @@ func _planetary_cruise_query_full_sweep(
 		return _planetary_cruise_sweep_refusal(&"unsupported_shape_native_refusal",
 			start, motion, depth, safe_fraction, cast_result)
 	if swept_query == null:
-		# One scratch convex resource/query per refused root hull shape, reused
-		# across all its leaves with one geometry build. No persistent cache.
+		# One primitive scratch box/query per root hull shape, reused across
+		# all adaptive spans. No native convex-hull build or persistent cache.
 		swept_query = PhysicsShapeQueryParameters3D.new()
-		swept_query.shape = ConvexPolygonShape3D.new()
+		swept_query.shape = BoxShape3D.new()
 		swept_query.collision_mask = query.collision_mask
 		swept_query.collide_with_bodies = query.collide_with_bodies
 		swept_query.collide_with_areas = query.collide_with_areas
@@ -2109,7 +2109,7 @@ func _planetary_cruise_query_full_sweep(
 		enclosure.size = Vector3(cylinder.radius, cylinder.height * 0.5, cylinder.radius) * 2.0
 		var cylinder_hit: Dictionary = {}
 		if _planetary_cruise_swept_box_is_clear(space, enclosure, start, motion,
-				swept_query, cylinder_hit, true):
+				swept_query, cylinder_hit):
 			return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
 		if short_leaf:
 			return _planetary_cruise_sweep_refusal(&"swept_volume_refusal", start,
@@ -2173,43 +2173,49 @@ func _planetary_cruise_sweep_refusal(
 		"obstacle_detected": true, "refusal": refusal}
 
 
-## Conv(box corners, box corners + local motion) is the entire translated box
-## sweep, not a set of sampled poses. All points stay in the original local frame
-## and the scratch query keeps the original fixed basis, mask and exclusions.
+## A rigid box aligned with motion encloses the complete translated box.
+## Projecting the original box's support onto each enclosure axis bounds all
+## eight corners; adding the complete projected motion bounds every intervening
+## pose. Primitive box setup avoids native convex-hull coordinate quantization.
 func _planetary_cruise_swept_box_is_clear(
 		space: PhysicsDirectSpaceState3D, box: BoxShape3D, start: Transform3D,
 		motion: Vector3, swept_query: PhysicsShapeQueryParameters3D,
-		refusal_hit: Dictionary = {}, rebuild_volume: bool = false
+		refusal_hit: Dictionary = {}
 	) -> bool:
-	if not box.size.is_finite() or box.size.x <= 0.0 or box.size.y <= 0.0 or box.size.z <= 0.0:
+	if not box.size.is_finite() or box.size.x <= 0.0 or box.size.y <= 0.0 or box.size.z <= 0.0 \
+			or not start.is_finite() or not motion.is_finite() \
+			or is_zero_approx(start.basis.determinant()) or motion.is_zero_approx():
 		return false
-	var volume := swept_query.shape as ConvexPolygonShape3D
+	var volume := swept_query.shape as BoxShape3D
 	if volume == null:
 		return false
-	if volume.points.is_empty() or rebuild_volume:
-		# Box recheck leaves share one fixed motion/basis. Cylinder adaptive
-		# queries also test their whole parent spans, so explicitly rebuild the
-		# same scratch volume for each exact requested motion before querying.
-		var local_motion := start.basis.inverse() * motion
-		if not local_motion.is_finite():
-			return false
-		var half_size := box.size * 0.5
-		var points := PackedVector3Array()
-		for x in [-1.0, 1.0]:
-			for y in [-1.0, 1.0]:
-				for z in [-1.0, 1.0]:
-					var corner := half_size * Vector3(x, y, z)
-					var end_corner := corner + local_motion
-					if not corner.is_finite() or not end_corner.is_finite():
-						return false
-					points.append(corner)
-					points.append(end_corner)
-		if points.size() != 16:
-			return false
-		volume.points = points
-	if volume.points.size() != 16 or not volume.get_rid().is_valid():
+	var direction := motion.normalized()
+	var up := Vector3.RIGHT if absf(direction.dot(Vector3.UP)) > 0.9 else Vector3.UP
+	var enclosure_basis := Basis.looking_at(direction, up)
+	if not enclosure_basis.is_finite() or is_zero_approx(enclosure_basis.determinant()):
 		return false
-	swept_query.transform = start
+	var inverse := enclosure_basis.inverse()
+	var half_size := box.size * 0.5
+	var projected_half_size := (inverse * start.basis.x).abs() * half_size.x \
+		+ (inverse * start.basis.y).abs() * half_size.y \
+		+ (inverse * start.basis.z).abs() * half_size.z
+	var projected_motion := inverse * motion
+	var endpoint := start.origin + motion
+	# Bound float32 rounding in the basis projections, midpoint and dimensions.
+	# Padding expands the enclosure, so unresolved precision can only refuse.
+	var coordinate_scale := maxf(1.0, maxf(start.origin.abs().length(), endpoint.abs().length()))
+	var rounding_padding := coordinate_scale * (8.0 / 8388608.0)
+	var enclosure_size := projected_half_size * 2.0 + projected_motion.abs() \
+		+ Vector3.ONE * (rounding_padding * 2.0)
+	var enclosure_transform := Transform3D(enclosure_basis, start.origin + motion * 0.5)
+	if not enclosure_size.is_finite() or enclosure_size.x <= 0.0 \
+			or enclosure_size.y <= 0.0 or enclosure_size.z <= 0.0 \
+			or not enclosure_transform.is_finite():
+		return false
+	volume.size = enclosure_size
+	if not volume.get_rid().is_valid():
+		return false
+	swept_query.transform = enclosure_transform
 	var hits := space.intersect_shape(swept_query, 1)
 	if not hits.is_empty():
 		refusal_hit.merge(hits[0])
