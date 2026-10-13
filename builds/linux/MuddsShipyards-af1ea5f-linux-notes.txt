@@ -1,0 +1,26 @@
+Mudd's Shipyards — matching Linux station guidance and Aft roof checkpoint (2026-10-13)
+Source: af1ea5f9657a2fedc26c04d559e7742fb0669e12 (exact clean isolated clone).
+
+Player-visible changes
+Cinder Beacon, Race and Belt activity guidance now explains the current Start entry, ordered beacons/gates and movement/braking controls. The Aft operations roof draws five complete pressure ribs (70 tube segments) through one exact arc batch instead of fourteen segment batches. Both production scenarios lose thirteen scene nodes, renderers and surfaces, and six bound mesh resources; triangles, material/light limits and the streamed Cinder delta stay fixed. Habitat mess feet preserve their two visible feet, graphite finish, shadows and ordinary trestle collision bodies.
+
+Validation actually performed
+Safe Linux x86_64 release export exited 0 in 14.471 seconds, using private installed template copies and the accepted frozen Windows import/export cache. All 1,513 embedded payload entries match the accepted final Windows EXE exactly by path, size and SHA-256.
+Complete common-content parity permits reuse of root-accepted source and actual-Windows-PCK qualification: census 19/19, activity guidance 195/195, Habitat feet 8/8, Aft exact arc 13/13, complete Aft 309/309, four standard package probes 223, and fresh first-sortie free-sortie/rebased-yard checks 5/8. These shared runs used Linux Godot with private per-suite profiles; they do not establish native Windows execution. Standard triplanar used its declared source-normal PNG reference with the PCK imported Texture2D through the established source-project probe workflow.
+Native direct ELF and archive-extracted startup each exited 0 with exactly one STARTUP_MENU_READY_OK and no error diagnostics: direct 9.449 seconds, archive-extracted 9.169 seconds. Both run headless with --startup-check before any user-argument separator, Dummy audio, inherited HOME, seven private mode-700 XDG roots plus TMPDIR, and the original 300-second game cap. Captured owned actors are absent.
+Archive gzip CRC, exactly five unique safe relative members (root directory plus four regular files), no links, expected modes and extracted ELF SHA-256 parity passed. ELF/installer/desktop modes are 755, icon/archive modes 644. Source/index, frozen postexport cache, shared fixtures, embedded PCK and ELF/archive identities close unchanged through qualification and staging.
+The retained source-view roof comparison and isolated software-renderer capture establish that visual environment only. Earlier boarding failures used a reused saved-state profile; fresh baseline/candidate and the accepted fresh package suites passed without a production boarding fix. Prior stale test expectations and harness/profile-observer failures remain retained outside accepted artifacts.
+
+Package identity
+ELF: MuddsShipyards-af1ea5f.x86_64
+ELF bytes: 148558272
+ELF SHA-256: c1392fa1aabbce24c2415680da563f98226f5ffef94f77354c7ad896145a615b
+Archive: MuddsShipyards-af1ea5f-linux-x86_64.tar.gz
+Archive bytes: 94973862
+Archive SHA-256: c64da3be1f41f4075de792928cf4076a45252041be1d7d85df45fa3c9532afa4
+Matching Windows EXE SHA-256: b98cef112cb5dfa3cadaf3f10ee567ce8fa10881d7b2094fc021482ff278cca9
+Embedded PCK SHA-256: 5fc4d34f34c5f6289488b6ac7b0d5cd584196a11a834732a0fe8027e5ef84d62
+Raw qualification evidence: /root/.cache/mudds-shipyards/roadmap-validation/station-guidance-checkpoint/linux
+
+Remaining gates
+Native Linux ordinary gameplay/graphics and target GPU performance, native Windows execution, physical devices/controllers, human normal-controls/first-time-player and visual review, audible audio mix, full-main rendered regression, broad CI requalification and full release: NOT_RUN. The earlier full-main timeout and frozen broad-CI failures remain unqualified. Publication awaits independent root review.
