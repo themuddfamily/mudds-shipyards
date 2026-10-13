@@ -235,3 +235,179 @@ jobs:
           path: artifacts/ember-completed-return/
           retention-days: 30
           if-no-files-found: error
+  rime-completed-return:
+    if: github.event_name == 'workflow_dispatch' && inputs.full_candidate
+    runs-on: ubuntu-24.04
+    # Preserve 600s cold import + 3600s physical operation, with cleanup/upload time.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Godot
+        run: bash tools/release/install_ci_godot.sh
+      # Explicit full mode supplements the unchanged discovered regression roster.
+      - name: Cold import and canonical Rime full journey
+        timeout-minutes: 80
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          logs=artifacts/rime-completed-return
+          mkdir -p "$logs"
+          git rev-parse HEAD > "$logs/commit.txt"
+          test "$(cat "$logs/commit.txt")" = "$CANDIDATE_SHA"
+          test ! -d .godot
+          profile="$(mktemp -d "$RUNNER_TEMP/rime-completed-return.XXXXXX")"
+          export XDG_DATA_HOME="$profile/data" XDG_CONFIG_HOME="$profile/config"
+          export XDG_CACHE_HOME="$profile/cache" XDG_RUNTIME_DIR="$profile/runtime"
+          mkdir -p "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          source_scope=(project.godot export_presets.cfg default_bus_layout.tres scripts scenes tests assets tools art_source)
+          python3 tools/release/source_manifest.py --root . \
+            --output "$logs/source-before.csv" "${source_scope[@]}"
+          # Always retain actual source/cache closure, including failed/time-limited routes.
+          close_journey() {
+            local exit_status=$?
+            local closure_status=0
+            trap - EXIT
+            python3 tools/release/source_manifest.py --root . \
+              --output "$logs/source-after.csv" "${source_scope[@]}" || closure_status=1
+            cmp "$logs/source-before.csv" "$logs/source-after.csv" || closure_status=1
+            if [[ -f "$logs/cache-before.csv" ]]; then
+              python3 tools/release/source_manifest.py --root . \
+                --output "$logs/cache-after.csv" .godot || closure_status=1
+              cmp "$logs/cache-before.csv" "$logs/cache-after.csv" || closure_status=1
+            else
+              closure_status=1
+            fi
+            git diff --exit-code HEAD -- > "$logs/tracked-source-diff.txt" || closure_status=1
+            printf 'source_cache_closure_exit=%s\noperation_exit=%s\n' \
+              "$closure_status" "$exit_status" > "$logs/closure.txt"
+            if [[ "$closure_status" -ne 0 ]]; then
+              exit_status=1
+            fi
+            exit "$exit_status"
+          }
+          trap close_journey EXIT
+          diagnostic_re='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\bFATAL ERROR\b|\bObjectDB\b|Resource.*still in use|\bOrphaned\b|\bLeaked\b|^[[:space:]]*FAIL:'
+          import_exit=0
+          timeout --kill-after=10s 600s godot --headless --audio-driver Dummy \
+            --editor --path . --quit > "$logs/import.log" 2>&1 || import_exit=$?
+          printf '%s\n' "$import_exit" > "$logs/import-exit.txt"
+          cat "$logs/import.log"
+          test "$import_exit" -eq 0
+          if grep -E "$diagnostic_re" "$logs/import.log"; then
+            exit 1
+          fi
+          python3 tools/release/source_manifest.py --root . \
+            --output "$logs/cache-before.csv" .godot
+          route_exit=0
+          timeout --kill-after=10s 3600s godot --headless --audio-driver Dummy \
+            --path . --script res://tests/rime_visit_loop_test.gd \
+            -- --rime-completed-return > "$logs/route.log" 2>&1 || route_exit=$?
+          printf '%s\n' "$route_exit" > "$logs/route-exit.txt"
+          cat "$logs/route.log"
+          test "$route_exit" -eq 0
+          if grep -E "$diagnostic_re" "$logs/route.log"; then
+            exit 1
+          fi
+          # Only this route's unique final completion proves the entire contract.
+          test "$(grep -aEc '^RIME_VISIT_LOOP_TEST_(OK|FAILED)(:|[[:space:]]|$)' "$logs/route.log")" -eq 1
+          grep -Fxq 'RIME_VISIT_LOOP_TEST_OK: 43 assertions' "$logs/route.log"
+          terminal="$(grep -aE '.' "$logs/route.log" | tail -n 1 | tr -d '\r')"
+          test "$terminal" = 'RIME_VISIT_LOOP_TEST_OK: 43 assertions'
+          printf '%s\n' "$terminal" > "$logs/completion.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rime-completed-return-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/rime-completed-return/
+          retention-days: 30
+          if-no-files-found: error
+  aurora-full-roundtrip:
+    if: github.event_name == 'workflow_dispatch' && inputs.full_candidate
+    runs-on: ubuntu-24.04
+    # Preserve 600s cold import + 3600s physical operation, with cleanup/upload time.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Godot
+        run: bash tools/release/install_ci_godot.sh
+      # Explicit full mode supplements the unchanged discovered regression roster.
+      - name: Cold import and canonical Aurora full journey
+        timeout-minutes: 80
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          logs=artifacts/aurora-full-roundtrip
+          mkdir -p "$logs"
+          git rev-parse HEAD > "$logs/commit.txt"
+          test "$(cat "$logs/commit.txt")" = "$CANDIDATE_SHA"
+          test ! -d .godot
+          profile="$(mktemp -d "$RUNNER_TEMP/aurora-full-roundtrip.XXXXXX")"
+          export XDG_DATA_HOME="$profile/data" XDG_CONFIG_HOME="$profile/config"
+          export XDG_CACHE_HOME="$profile/cache" XDG_RUNTIME_DIR="$profile/runtime"
+          mkdir -p "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          source_scope=(project.godot export_presets.cfg default_bus_layout.tres scripts scenes tests assets tools art_source)
+          python3 tools/release/source_manifest.py --root . \
+            --output "$logs/source-before.csv" "${source_scope[@]}"
+          # Always retain actual source/cache closure, including failed/time-limited routes.
+          close_journey() {
+            local exit_status=$?
+            local closure_status=0
+            trap - EXIT
+            python3 tools/release/source_manifest.py --root . \
+              --output "$logs/source-after.csv" "${source_scope[@]}" || closure_status=1
+            cmp "$logs/source-before.csv" "$logs/source-after.csv" || closure_status=1
+            if [[ -f "$logs/cache-before.csv" ]]; then
+              python3 tools/release/source_manifest.py --root . \
+                --output "$logs/cache-after.csv" .godot || closure_status=1
+              cmp "$logs/cache-before.csv" "$logs/cache-after.csv" || closure_status=1
+            else
+              closure_status=1
+            fi
+            git diff --exit-code HEAD -- > "$logs/tracked-source-diff.txt" || closure_status=1
+            printf 'source_cache_closure_exit=%s\noperation_exit=%s\n' \
+              "$closure_status" "$exit_status" > "$logs/closure.txt"
+            if [[ "$closure_status" -ne 0 ]]; then
+              exit_status=1
+            fi
+            exit "$exit_status"
+          }
+          trap close_journey EXIT
+          diagnostic_re='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\bFATAL ERROR\b|\bObjectDB\b|Resource.*still in use|\bOrphaned\b|\bLeaked\b|^[[:space:]]*FAIL:'
+          import_exit=0
+          timeout --kill-after=10s 600s godot --headless --audio-driver Dummy \
+            --editor --path . --quit > "$logs/import.log" 2>&1 || import_exit=$?
+          printf '%s\n' "$import_exit" > "$logs/import-exit.txt"
+          cat "$logs/import.log"
+          test "$import_exit" -eq 0
+          if grep -E "$diagnostic_re" "$logs/import.log"; then
+            exit 1
+          fi
+          python3 tools/release/source_manifest.py --root . \
+            --output "$logs/cache-before.csv" .godot
+          route_exit=0
+          timeout --kill-after=10s 3600s godot --headless --audio-driver Dummy \
+            --path . --script res://tests/aurora_physical_return_soak.gd \
+            -- --aurora-full-roundtrip > "$logs/route.log" 2>&1 || route_exit=$?
+          printf '%s\n' "$route_exit" > "$logs/route-exit.txt"
+          cat "$logs/route.log"
+          test "$route_exit" -eq 0
+          if grep -E "$diagnostic_re" "$logs/route.log"; then
+            exit 1
+          fi
+          # Only this route's unique final completion proves the entire contract.
+          test "$(grep -aEc '^AURORA_PHYSICAL_RETURN_SOAK_(OK|FAILED)(:|[[:space:]]|$)' "$logs/route.log")" -eq 1
+          grep -Fxq 'AURORA_PHYSICAL_RETURN_SOAK_OK: 29 assertions' "$logs/route.log"
+          terminal="$(grep -aE '.' "$logs/route.log" | tail -n 1 | tr -d '\r')"
+          test "$terminal" = 'AURORA_PHYSICAL_RETURN_SOAK_OK: 29 assertions'
+          printf '%s\n' "$terminal" > "$logs/completion.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aurora-full-roundtrip-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/aurora-full-roundtrip/
+          retention-days: 30
+          if-no-files-found: error
