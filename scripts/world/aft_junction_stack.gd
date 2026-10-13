@@ -5608,7 +5608,13 @@ func _build_open_structure_details(structure: Node3D) -> void:
 	structure.add_child(details)
 	for side in [-1.0, 1.0]:
 		var x_position: float = float(side) * 4.75
-		_cylinder(details, "JunctionSupport", Vector3(x_position, -0.95, 7.4), 0.24, 1.9, _materials["mid_grey"], true)
+		var support := _cylinder(details, "JunctionSupport", Vector3(x_position, -0.95, 7.4), 0.24, 1.9, _materials["mid_grey"], true)
+		# The cap formerly shared JunctionDeck's walked y=0 colour plane, leaving
+		# a flickering dark disk below the brass collar. Recess only the existing
+		# drawn cylinder; its body, collider, deck and support recipe stay exact.
+		for child in support.get_children():
+			if child is MeshInstance3D:
+				(child as MeshInstance3D).position.y = -0.005
 		_torus(details, "SupportCollar", Vector3(x_position, -0.15, 7.4), 0.26, 0.39, _materials["brass"], Vector3(90, 0, 0), null, UNDERFLOOR_MEMBER_NEAREST_VIEW_METRES)
 	_beam_between(details, "LowerCrossBrace", Vector3(-4.7, -1.2, 6.1), Vector3(4.7, -1.2, 8.7), 0.16, _materials["mid_grey"], false)
 	_beam_between(details, "LowerCrossBraceReturn", Vector3(4.7, -1.2, 6.1), Vector3(-4.7, -1.2, 8.7), 0.16, _materials["mid_grey"], false)

@@ -371,6 +371,30 @@ func _test_collision_backed_surfaces(module: AftJunctionStack) -> void:
 		var lower_local := module.to_local(lower_hit.position)
 		_check(is_equal_approx(lower_local.y, 0.0), "lower collision surface matches its declared elevation")
 
+	# Underfloor support caps must not compete with the walked deck finish.
+	var details := module.get_node(^"Structure/OpenStructureDetails")
+	var support_count := 0
+	for child in details.get_children():
+		if not child is StaticBody3D:
+			continue
+		var support := child as StaticBody3D
+		var meshes := support.find_children("*", "MeshInstance3D", false, false)
+		var shapes := support.find_children("*", "CollisionShape3D", false, false)
+		var mesh := meshes[0] as MeshInstance3D if meshes.size() == 1 else null
+		var collision := shapes[0] as CollisionShape3D if shapes.size() == 1 else null
+		var cylinder := collision.shape as CylinderShape3D if collision != null else null
+		var visual_top := support.position.y + mesh.position.y + mesh.mesh.get_aabb().end.y \
+			if mesh != null else INF
+		_check(visual_top <= -0.0049, "junction support cap stays below the walked deck colour plane")
+		_check(cylinder != null and is_equal_approx(cylinder.height, 1.9) \
+			and is_equal_approx(cylinder.radius, 0.24) \
+			and collision.position == Vector3.ZERO \
+			and is_equal_approx(support.position.y, -0.95) \
+			and support.collision_layer == WORLD_LAYER,
+			"junction support retains its authored collision and placement")
+		support_count += 1
+	_check(support_count == 2, "both walked junction edges retain their supports")
+
 	var room_hit := await _ray_down(module, Vector3(5.6, 2.0, 10.7), Vector3(5.6, -1.0, 10.7))
 	_check(not room_hit.is_empty(), "operations-room floor is backed by real physics")
 	if not room_hit.is_empty():
