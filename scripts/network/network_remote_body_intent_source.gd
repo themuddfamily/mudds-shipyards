@@ -39,6 +39,7 @@ extends RefCounted
 ## This remains bounded prediction bookkeeping without input replay.
 
 const Intent := preload("res://scripts/network/network_movement_intent.gd")
+const Relationship := preload("res://scripts/network/moving_interior_relationship.gd")
 
 ## Sends per physics tick: one packet every four 60 Hz ticks is 15 Hz, well
 ## under the adapter's per-peer secure-packet ceiling with room for every other
@@ -301,6 +302,35 @@ func get_last_client_tick() -> int:
 
 func get_interaction_request_id() -> int:
 	return _interaction_request_id
+
+
+## The wire yaw remains relative to the authoritative Player's CameraYaw
+## parent. A host-only seat/stand can turn that body's root while the local
+## prediction keeps its old root. Express the unchanged local camera heading
+## against the authenticated walking root, without rotating either actor.
+## Both bases are in the SAME retained cabin frame, so hull motion/rebases
+## cancel. CameraRig has no authored rotation in the production Player scene.
+func map_body_look_yaw(local_body_in_frame: Basis, local_yaw: float,
+		relationship: Dictionary, frame_id: StringName, frame_generation: int = 1) -> Dictionary:
+	if not is_bound() or relationship.get("entity_id") != _entity_id \
+			or int(relationship.get("entity_generation", 0)) != _entity_generation \
+			or relationship.get("parent_frame_id") != frame_id \
+			or int(relationship.get("parent_frame_generation", 0)) != frame_generation \
+			or int(relationship.get("occupancy_state", -1)) != Relationship.STATE_WALKING \
+			or int(relationship.get("server_tick", -1)) < maxi(0, _last_observed_pose_tick):
+		return _result(false, &"walking_relationship_not_current")
+	var transform_variant: Variant = relationship.get("frame_local_transform")
+	if not transform_variant is Transform3D or not local_body_in_frame.is_finite() \
+			or not is_finite(local_yaw) or is_zero_approx(local_body_in_frame.determinant()):
+		return _result(false, &"walking_basis_unavailable")
+	var authoritative: Transform3D = transform_variant
+	if not authoritative.basis.is_finite() or is_zero_approx(authoritative.basis.determinant()):
+		return _result(false, &"walking_basis_unavailable")
+	var predicted_heading := -(local_body_in_frame.orthonormalized() * Basis(Vector3.UP, local_yaw)).z
+	var body_heading := authoritative.basis.orthonormalized().inverse() * predicted_heading
+	if Vector2(body_heading.x, body_heading.z).is_zero_approx():
+		return _result(false, &"walking_basis_unavailable")
+	return _result(true, &"body_local_yaw", {"look_yaw": atan2(-body_heading.x, -body_heading.z)})
 
 
 ## Retires samples across a physical boarding/seat/frame boundary while keeping

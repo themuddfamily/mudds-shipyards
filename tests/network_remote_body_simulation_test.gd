@@ -190,6 +190,9 @@ func _run() -> void:
 	await _assert_the_body_walks_the_aisle_on_intent()
 	await _assert_forged_and_stale_intents_are_rejected()
 	await _assert_the_body_sleeps_in_the_bunk_and_wakes()
+	if "--body-heading-only" in OS.get_cmdline_user_args():
+		await _finish_remote_bodies()
+		return
 	await _assert_the_hatch_admits_and_releases_a_body()
 	for _cycle in 2:
 		var landing_generation := int(_server.get_landing_entity(SHIP_ID).get("entity_generation", 0))
@@ -571,6 +574,9 @@ func _assert_the_body_sleeps_in_the_bunk_and_wakes() -> void:
 	var body := _body(WALKER_ENTITIES[0])
 	if body == null:
 		return
+	# Retain the root of a client prediction which never presents this host
+	# bunk handoff. No actor pose is changed to stage the facing discrepancy.
+	var prediction_basis := _frame.get_occupant_frame_local_transform(body).basis
 	var simulation := _game.get_network_remote_body_simulation()
 	var bunk := _nearest_bunk(body)
 	_check(bunk != null, "the body has walked within reach of a production bunk")
@@ -648,12 +654,49 @@ func _assert_the_body_sleeps_in_the_bunk_and_wakes() -> void:
 	# And walking is accepted again on the same stream.
 	_intent_statuses.clear()
 	var applied_before := int(_game.get_network_remote_body_audit().get("intents_applied", 0))
+	var heading_start := _frame.get_occupant_frame_local_transform(body)
+	_check(not heading_start.basis.is_equal_approx(prediction_basis),
+		"the real host bunk exit turns its root while an unpresented client retains its walking root")
+	var toward_aisle := Vector3(-heading_start.origin.x, 0.0, -5.8 - heading_start.origin.z).normalized()
+	var prediction_heading := prediction_basis.inverse() * toward_aisle
+	_walkers[0]["prediction_basis"] = prediction_basis
+	_walkers[0]["look_yaw"] = atan2(-prediction_heading.x, -prediction_heading.z)
+	_assert_body_heading_relationship_guards(source, _latest(_clients[0], WALKER_ENTITIES[0]))
 	_set_plan(0, FORWARD, true)
 	await _drive(16)
 	_set_plan(0, Vector2.ZERO, true)
+	var heading_end := _frame.get_occupant_frame_local_transform(body).origin
+	var heading_step := (heading_end - heading_start.origin).slide(Vector3.UP)
+	_check(heading_step.dot(toward_aisle) > 0.25 and heading_step.cross(toward_aisle).length() < 0.15,
+		"the unchanged ENet movement consumer walks toward the client's aisle heading after a host-only bunk exit (%s)" % heading_step)
+	_walkers[0].erase("prediction_basis")
+	_walkers[0].erase("look_yaw")
 	_check(int(_game.get_network_remote_body_audit().get("intents_applied", 0)) > applied_before
 		and int(_intent_statuses.get(&"action_not_allowed_in_mode", 0)) == 0,
 		"a body back on foot walks on its owner's intent again with nothing refused")
+
+
+func _assert_body_heading_relationship_guards(source: IntentSource, relationship: Dictionary) -> void:
+	var authoritative: Transform3D = relationship.get("frame_local_transform", Transform3D.IDENTITY)
+	var same := source.map_body_look_yaw(authoritative.basis, 0.37, relationship, FRAME_ID)
+	_check(bool(same.get("accepted", false)) and is_equal_approx(float(same.get("look_yaw", 0.0)), 0.37),
+		"matching walking roots keep the historical body-local wire yaw unchanged")
+	var guard_source := IntentSource.new()
+	guard_source.bind(source.get_entity_id(), source.get_entity_generation())
+	guard_source.reconcile(int(relationship.get("server_tick", 0)), authoritative)
+	for replacement in [
+		{"entity_id": &"another_body"}, {"entity_generation": source.get_entity_generation() + 1},
+		{"parent_frame_id": &"another_frame"}, {"parent_frame_generation": 2},
+		{"occupancy_state": Relationship.STATE_SEATED},
+		{"server_tick": int(relationship.get("server_tick", 0)) - 1},
+	]:
+		var stale := relationship.duplicate(true)
+		stale.merge(replacement, true)
+		_check(not bool(guard_source.map_body_look_yaw(authoritative.basis, 0.37, stale, FRAME_ID).get("accepted", false)),
+			"heading mapping refuses a foreign, seated or stale walking relationship: %s" % replacement)
+	guard_source.unbind()
+	_check(not bool(guard_source.map_body_look_yaw(authoritative.basis, 0.37, relationship, FRAME_ID).get("accepted", false)),
+		"heading mapping retires with the actual movement source")
 
 
 # --- the hatch --------------------------------------------------------------
@@ -1392,9 +1435,15 @@ func _on_physics_tick() -> void:
 				or client.get_server_offer().is_empty():
 			continue
 		var source := walker.get("source") as IntentSource
+		var look_yaw := float(walker.get("look_yaw", 0.0))
+		if walker.has("prediction_basis"):
+			var mapping := source.map_body_look_yaw(walker.prediction_basis as Basis, look_yaw,
+				_latest(client, walker.entity_id), FRAME_ID)
+			if bool(mapping.get("accepted", false)):
+				look_yaw = float(mapping.look_yaw)
 		var wire: Dictionary = source.advance(_client_peer_ids[index], {
 			"move_axis": walker.get("move_axis", Vector2.ZERO),
-			"look_yaw": 0.0,
+			"look_yaw": look_yaw,
 			"look_pitch": 0.0,
 			"run": false,
 			"crouch": false,

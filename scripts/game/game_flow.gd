@@ -13761,16 +13761,28 @@ func _advance_network_remote_body_intent_stream() -> void:
 		# Boarding seeds only the otherwise unknown opening. The first actual
 		# movement observation/reply establishes the body's own clock domain.
 		movement_tick = network_session.get_boarding_server_tick_estimate()
+	var frame: MovingInteriorFrame = null
+	if is_instance_valid(_cabin_ship):
+		frame = _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var look_yaw := player.get_look_yaw()
+	if _network_client_ember_passenger_surface.is_empty() and is_instance_valid(frame) \
+			and frame.is_occupant_registered(player) and frame._local_prediction_is_current(player) \
+			and _network_local_cabin_prediction_is_current(player, _cabin_ship, network_session) \
+			and not player.is_seated() and not _transition_busy \
+			and _network_remote_body_intent_source.get_entity_id() == network_client_boarding_avatar_id(peer_id):
+		var yaw_mapping := _network_remote_body_intent_source.map_body_look_yaw(
+			frame.get_occupant_frame_local_transform(player).basis, look_yaw,
+			network_session.get_moving_interior_latest_relationship(_network_remote_body_intent_source.get_entity_id()),
+			StringName("frame_%s" % _cabin_ship.get_ship_id()))
+		if bool(yaw_mapping.get("accepted", false)):
+			look_yaw = float(yaw_mapping.look_yaw)
 	var wire: Dictionary = _network_remote_body_intent_source.advance(peer_id, {
 		"move_axis": move_axis,
-		"look_yaw": player.get_look_yaw() if player.has_method(&"get_look_yaw") else 0.0,
+		"look_yaw": look_yaw,
 		"look_pitch": 0.0,
 		"run": run,
 		"crouch": false,
 	}, movement_tick)
-	var frame: MovingInteriorFrame = null
-	if is_instance_valid(_cabin_ship):
-		frame = _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
 	if not wire.is_empty():
 		network_session.send_movement_intent(wire)
 	if not is_instance_valid(frame) or not frame.is_occupant_registered(player) \
