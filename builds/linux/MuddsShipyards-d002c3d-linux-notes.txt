@@ -1,0 +1,29 @@
+Mudd's Shipyards — matching Linux Convoy and deck-board guidance checkpoint (2026-10-14)
+Source: d002c3d19a2aceb5576e7912c683befa5fc561c2 (exact clean isolated clone).
+
+Player-visible changes
+Emberline Convoy help now explains healthy-craft berth departure, the marked rendezvous, Start or automatic marker admission, escorting the tender, the three-second separation limit and Reset/Start recovery after loss.
+Heavy Breach and Torpedo Run help now explains arming the posted physical deck-board contract on foot before launching a healthy combat craft. Guidance covers interrupted departure, cancelling an armed offer at the board, returning on foot after a concluded sortie, alternating offers and retrying a pending reward save. Keyboard, controller and accessible guidance use the current controls.
+
+Actual validation
+One clean safe Linux x86_64 release export exited 0 in 16.115 seconds under the original 900-second export cap, from the verified closed 601-file Windows cache seed. All 1,513 actual embedded payload entries match Windows exactly by path, size and SHA-256.
+The matching Windows-package qualification completed source/actual-PCK tutorial checks 253/253, global production census 19/19 and four standard package probes totaling 223 (89 playability, 40 interaction, 25 material, 69 central hero), with exit 0 and closed source/cache/fixture/package guards. Shared content qualification follows complete actual payload parity. These common-content checks loaded the Windows PCK in Linux Godot.
+Native Windows direct and ZIP-extracted headless title-menu startup also passed: exit 0, exactly one readiness marker per captured stream, no diagnostics, 12.412/10.455 seconds, fresh isolated profiles and Dummy audio, original 300-second game cap. Profiles and owned actors were removed; parent environment was preserved. The tested ZIP is retained with its earlier notes; the regenerated final ZIP has the exact same EXE member hash. This qualifies headless menu startup only.
+Native Linux direct ELF and archive-extracted startup each exited 0 with exactly one STARTUP_MENU_READY_OK and no error diagnostics: direct 10.011 seconds, archive-extracted 10.009 seconds. Both use fresh profiles, headless --startup-check before any user-argument separator, Dummy audio, inherited HOME, seven private mode-700 XDG roots plus TMPDIR, and the original 300-second game cap.
+Archive gzip CRC, exactly five unique safe relative members (root directory and four regular files), no links, expected modes and extracted ELF SHA-256 parity passed. ELF, packaged installer and desktop entry modes are 755; icon and archive are 644.
+The installer differs from the prior f84 helper only in the new executable basename. A fresh actual packaged-helper install/uninstall under private paths with spaces validated the new Exec/Icon/Path targets and installed entry mode 644, removed the entry, and preserved a separately seeded game-data hash. The prior four-action lifecycle acceptance is retained as historical evidence; it is not reused as exact-helper-byte acceptance for this changed target. No GUI or desktop launch occurred.
+Exact source commit/clean Git state, index bytes and indexed blob tree, frozen postexport cache, read-only shared fixtures, embedded PCK, ELF/archive and protected installer data close unchanged through qualification and staging. Owned actors are absent. Bounded command waits and before/after process-group checks were used; no full tracked-source file-hash loops, observer loops or /tmp workspace were added.
+
+Package identity
+ELF: MuddsShipyards-d002c3d.x86_64
+ELF bytes: 148560352
+ELF SHA-256: ea5c59339040c6ac62b5c549510e9d4ef8e2a46b631b0bf6c3d7473e1525ecd3
+Archive: MuddsShipyards-d002c3d-linux-x86_64.tar.gz
+Archive bytes: 94975483
+Archive SHA-256: 9650f02e76224560c36421823d4d6b6a89a2a921980dad4096de734b17dea0e0
+Matching Windows EXE SHA-256: 0e850651cedda815dc7ebdd55723704af6ffcc370fba3d75722f06fe2cbc184c
+Embedded PCK SHA-256: da43b576b9de9728f16a8558f59ca0774c040dbba67ce712ace12bb53ad7b94d
+Raw qualification evidence: /root/.cache/mudds-shipyards/roadmap-validation/convoy-board-linux
+
+Remaining gates
+Native Windows direct/ZIP headless title-menu startup: PASS (unchanged EXE member in the regenerated final ZIP). Native Windows ordinary gameplay/release qualification, native Linux ordinary gameplay/graphics, target GPU/device performance, human normal-controls/first-time-player and visual review, audible audio mix, full-main rendered regression, broad CI requalification and full release: NOT_RUN. Earlier broad-CI failures and full-main timeout remain unqualified. Independent root artifact review passes; remaining gates above stay open.
