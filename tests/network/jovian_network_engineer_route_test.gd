@@ -175,7 +175,13 @@ func _host() -> void:
 	# boundary, as the solo route does, so this assertion measures a kit commit.
 	_craft.apply_damage(_craft.maximum_hull * 0.35, _craft.to_global((model.get_component_states()[4] as Dictionary).local_position))
 	var before := model.get_component_integrity(&"engine_bay")
-	_write("host.repair_ready", {})
+	_check(before < 1.0, "fresh real host damage leaves engine bay eligible for finite repair")
+	_write("host.repair_ready", {
+		"server_tick": _game.network_session.get_boarding_server_tick(),
+		"component_generation": int(_craft.get_engineer_gameplay_state().component_generation),
+		"seat_generation": int(assignment.seat_generation), "claim_sequence": int(assignment.claim_sequence),
+		"migration_generation": int(_game.network_session.get_migration_snapshot().migration_generation),
+	})
 	if not await _wait_file("client.repaired", 35.0):
 		return
 	var repair := _craft.get_engineer_repair_state()
@@ -270,6 +276,17 @@ func _client() -> void:
 	_write("client.repair_selected", {})
 	if not await _wait_file("host.repair_ready", 10.0):
 		return
+	# FIRE admission reads the production replica, not the host's file marker.
+	# Wait for this damage in the current occupancy; an older damaged snapshot
+	# cannot establish that the fresh acceptance target reached the client.
+	var ready := _read("host.repair_ready")
+	var target_ready := await _until(func(): return _repair_target_replica_ready(ready), 8.0)
+	_check(target_ready, "fresh selected engine bay damage reaches current production replica before FIRE")
+	if not target_ready:
+		return
+	var repair_view := _game.network_session.get_engineer_replica_snapshot()
+	print("ENGINEER_REPAIR_TARGET_READY: marker=", ready, " replica_tick=", repair_view.server_tick,
+		" revision=", repair_view.revision, " integrity=", (repair_view.components as Dictionary).get(&"engine_bay"))
 	await _press(source.fire_action)
 	_check(await _until(func(): return int(((_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary).get("resource_units", 6)) == 5, 8.0), "ordinary transformed FIRE completes finite repair with replicated stock")
 	print("ENGINEER_CLIENT_REPAIR: wall=", Time.get_unix_time_from_system(), " view=", _game.network_session.get_engineer_replica_snapshot(), " body_source=", _game.get_network_remote_body_intent_source().get_audit())
@@ -353,6 +370,22 @@ func _client() -> void:
 	_game.shutdown_network_session(&"engineer_client_disconnect")
 	_check(not _player.is_seated() and _player.is_control_enabled(), "disconnect leaves local player awake with controls")
 	_write("client.disconnected", {})
+
+func _repair_target_replica_ready(ready: Dictionary) -> bool:
+	var view := _game.network_session.get_engineer_replica_snapshot()
+	var gameplay := view.get("gameplay", {}) as Dictionary
+	var selection := gameplay.get("selection", {}) as Dictionary
+	var assignment := view.get("assignment", {}) as Dictionary
+	return not ready.is_empty() and bool(view.get("seated", false)) \
+		and int(view.get("server_tick", -1)) > int(ready.server_tick) \
+		and int(view.get("migration_generation", 0)) == int(ready.migration_generation) \
+		and int(assignment.get("seat_generation", 0)) == int(ready.seat_generation) \
+		and int(assignment.get("claim_sequence", 0)) == int(ready.claim_sequence) \
+		and int(gameplay.get("component_generation", 0)) == int(ready.component_generation) \
+		and int(selection.get("component_generation", 0)) == int(ready.component_generation) \
+		and StringName(selection.get("component_id", &"")) == &"engine_bay" \
+		and float((view.get("components", {}) as Dictionary).get(&"engine_bay", 1.0)) < 1.0 \
+		and int((gameplay.get("repair", {}) as Dictionary).get("resource_units", 0)) == 6
 
 func _walk(target_local: Vector3) -> void:
 	var target := _craft.to_global(target_local)
