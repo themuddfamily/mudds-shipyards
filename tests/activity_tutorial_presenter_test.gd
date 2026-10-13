@@ -192,6 +192,8 @@ func _run() -> void:
 				_check_route_briefing(detail.text, activity_id)
 			if activity_id == &"cinder_relay_patrol":
 				_check_patrol_briefing(detail.text)
+			if activity_id in [&"shipyard_heavy_breach", &"shipyard_torpedo_run"]:
+				_check_board_sortie_briefing(detail.text, activity_id)
 			if activity_id == &"cinder_reach_emberline_convoy":
 				_check_convoy_briefing(detail.text)
 			if activity_id == &"cinder_platform_supply_run":
@@ -200,6 +202,8 @@ func _run() -> void:
 			seen_titles.size() == Presenter.ACTIVITY_ORDER.size(),
 			"each %s activity kind yields its own distinct briefing" % String(device_family),
 		)
+	await _check_production_board_sortie_briefings()
+	_check_board_sortie_presentation_variants()
 	await _check_production_convoy_behaviors()
 	_check_convoy_presentation_variants()
 	await _check_production_route_behaviors()
@@ -1026,6 +1030,96 @@ func _check_production_convoy_behaviors() -> void:
 		"Reset then rendezvous Start creates a fresh escort with cleared route progress")
 	paused = false
 	game.set("_piloting", false)
+	game.queue_free()
+	await process_frame
+	await process_frame
+
+
+func _check_board_sortie_briefing(prompt: String, activity_id: StringName) -> void:
+	_check(prompt.contains("On foot at the deck board") and prompt.contains("arm the posted")
+		and prompt.contains("healthy combat craft") and prompt.contains("berth departure"),
+		"%s help explains physical board admission before combat departure" % activity_id)
+	_check(prompt.contains("RETRY DEPARTURE") and prompt.contains("AGAIN TO CANCEL")
+		and prompt.contains("ARM THE CURRENT OFFER") and prompt.contains("ALTERNATE")
+		and prompt.contains("REWARD SAVE PENDING") and not prompt.contains("CHOOSE RESET"),
+		"%s help preserves armed retry, board cancellation, rotating offers and pending reward retry" % activity_id)
+	_check(prompt.contains("protected station asset") if activity_id == &"shipyard_heavy_breach"
+		else prompt.contains("destroy the torpedo boat"),
+		"%s help names its actual cleared objective" % activity_id)
+
+
+func _check_board_sortie_presentation_variants() -> void:
+	for activity_id: StringName in [&"shipyard_heavy_breach", &"shipyard_torpedo_run"]:
+		var presenter := Presenter.new()
+		var remapped := presenter.present_snapshot({
+			"activity_id": activity_id, "generation": 1, "input_family": &"keyboard",
+			"glyphs": {&"interact": "CUSTOM INTERACT", &"fire": "CUSTOM FIRE",
+				&"pitch_up": "CUSTOM PITCH", &"sprint_boost": "CUSTOM BOOST"},
+		})
+		_check(remapped.accepted and remapped.prompt.contains("CUSTOM INTERACT")
+			and remapped.prompt.contains("CUSTOM FIRE") and not remapped.prompt.contains("{"),
+			"%s board admission and combat use caller-resolved controls" % activity_id)
+		_check_board_sortie_briefing(remapped.prompt, activity_id)
+		var accessible := presenter.present_snapshot({
+			"activity_id": activity_id, "generation": 2, "accessible": true,
+		})
+		_check(accessible.accepted and accessible.prompt == accessible.accessible_prompt
+			and accessible.prompt.contains("interact control") and not accessible.prompt.contains("{"),
+			"%s accessible board admission is glyph-free" % activity_id)
+		_check_board_sortie_briefing(accessible.prompt, activity_id)
+
+
+func _check_production_board_sortie_briefings() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(
+		StoreType.new(STORE_PATH, MemoryFilesystem.new()), "user://board-tutorial-legacy.cfg")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	game.set_physics_process(false)
+	game.start_shift()
+	var board := (game.world as ShipyardWorld).get_heavy_breach_activity_board() as HeavyBreachActivityBoard
+	var director := game.get_node(^"EncounterScenarios") as EncounterScenarioDirector
+	var ship := game.get_node(^"ArrowReconShip") as HeroShip
+	var board_position := board.global_position + Vector3.BACK * 2.0
+	game.player.teleport_to(Transform3D(Basis.looking_at(Vector3.FORWARD, Vector3.UP), board_position))
+	await physics_frame
+	await process_frame
+	game.station_interaction_candidate = board
+	game.call(&"_on_interact_requested")
+	var armed := board.get_snapshot()
+	var detail := game.hud.get("_runtime_status_detail") as Label
+	_check(armed.sortie_armed and armed.armed_actor_instance_id == game.player.get_instance_id()
+		and director.get_state() == EncounterScenarioDirector.STATE_IDLE,
+		"physical board Interact arms one admitted avatar generation without starting combat")
+	_check_board_sortie_briefing(detail.text, &"shipyard_heavy_breach")
+	game.call(&"_on_interact_requested")
+	_check(not board.is_sortie_armed()
+		and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH,
+		"a second board Interact cancels the arm without rotating the posted contract")
+	game.call(&"_on_interact_requested")
+	ship.set_piloted(true)
+	game.active_ship = ship
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	game.set("_sortie_departed_berth", false)
+	_check(not game.call(&"_try_launch_armed_heavy_breach") and board.is_sortie_armed(),
+		"departure not yet admitted retains the same armed sortie for launch retry")
+	game.set("_sortie_departed_berth", true)
+	_check(game.call(&"_try_launch_armed_heavy_breach") and director.is_running(),
+		"admitted combat craft departure converts the arm into the real encounter")
+	director.abort(EncounterScenarioDirector.OUTCOME_WITHDRAWN)
+	_check(board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN,
+		"a concluded heavy breach posts Torpedo Run rather than promising the same retry")
+	ship.set_piloted(false)
+	game.set("_piloting", false)
+	game.phase = GameFlow.Phase.APPROACH_SHIP
+	game.hud.clear_activity_tutorial(&"next_board_contract")
+	game.call(&"_on_interact_requested")
+	_check(board.is_sortie_armed() and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_TORPEDO_RUN
+		and director.is_concluded(), "on-foot board Interact arms the current Torpedo Run offer")
+	_check_board_sortie_briefing(detail.text, &"shipyard_torpedo_run")
+	paused = false
 	game.queue_free()
 	await process_frame
 	await process_frame
