@@ -4,8 +4,8 @@
 #   tools/release/run_linux_startup_check.sh [--dry-run] [--keep-profile] <binary.x86_64 | package.tar.gz>
 #
 # Runs the exported game with --headless --audio-driver Dummy --startup-check
-# under a private HOME and XDG profile (so the developer's saves, settings and
-# caches are never read or written) and passes only when the process exits 0
+# with inherited HOME and a private XDG/TMPDIR profile (so the developer's
+# saves, settings and caches are never read or written) and passes only when the process exits 0
 # AND the log contains STARTUP_MENU_READY_OK. The game prints that sentinel only
 # after the real title menu is presented and interactive (startup_loader.gd);
 # a fixed --quit-after frame count would not establish menu readiness, and
@@ -104,7 +104,7 @@ cleanup() {
 	exit "$status"
 }
 trap cleanup EXIT
-for sub in home data config cache runtime state; do
+for sub in data config cache runtime state data-dirs config-dirs tmp; do
 	mkdir -p -- "$profile_root/$sub"
 	chmod 700 -- "$profile_root/$sub"
 done
@@ -126,16 +126,24 @@ if [[ "$input_kind" == "tarball" ]]; then
 fi
 [[ -x "$binary" ]] || fail "binary is not executable: $binary"
 
+inherited_home=()
+if [[ ${HOME+x} ]]; then
+	inherited_home=("HOME=$HOME")
+fi
+
 started_ms="$(date +%s%3N)"
 set +e
 ( cd "$(dirname -- "$binary")" && env -i \
 	PATH="/usr/local/bin:/usr/bin:/bin" \
-	HOME="$profile_root/home" \
+	"${inherited_home[@]}" \
 	XDG_DATA_HOME="$profile_root/data" \
 	XDG_CONFIG_HOME="$profile_root/config" \
 	XDG_CACHE_HOME="$profile_root/cache" \
 	XDG_STATE_HOME="$profile_root/state" \
 	XDG_RUNTIME_DIR="$profile_root/runtime" \
+	XDG_DATA_DIRS="$profile_root/data-dirs" \
+	XDG_CONFIG_DIRS="$profile_root/config-dirs" \
+	TMPDIR="$profile_root/tmp" \
 	LANG="C.UTF-8" \
 	timeout --signal=TERM --kill-after=15s "${timeout_seconds}s" \
 	"$binary" "${game_args[@]}" ) >"$result_log" 2>&1 </dev/null
@@ -173,7 +181,7 @@ record = {
     "log": log,
     "private_user_data_created": user_data == "true",
     "reasons": reasons,
-    "environment": "headless, --audio-driver Dummy, private HOME/XDG",
+    "environment": "headless, --audio-driver Dummy, inherited HOME, private XDG/TMPDIR",
     "native_gpu": "NOT_RUN",
 }
 with open(out, "w", encoding="utf-8") as handle:

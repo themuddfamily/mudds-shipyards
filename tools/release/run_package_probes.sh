@@ -202,8 +202,9 @@ if not source_mode:
 environment = os.environ.copy()
 for key in ("DISPLAY", "WAYLAND_DISPLAY", "MUDDS_PRIVATE_PROBE_INPUT"):
     environment.pop(key, None)
-for key, directory in {"HOME": "home", "XDG_DATA_HOME": "data", "XDG_CONFIG_HOME": "config",
-                       "XDG_CACHE_HOME": "cache", "XDG_STATE_HOME": "state", "XDG_RUNTIME_DIR": "runtime"}.items():
+for key, directory in {"XDG_DATA_HOME": "data", "XDG_CONFIG_HOME": "config",
+                       "XDG_CACHE_HOME": "cache", "XDG_STATE_HOME": "state", "XDG_RUNTIME_DIR": "runtime",
+                       "XDG_DATA_DIRS": "data-dirs", "XDG_CONFIG_DIRS": "config-dirs", "TMPDIR": "tmp"}.items():
     path = profile / directory
     path.mkdir(mode=0o700)
     environment[key] = str(path)

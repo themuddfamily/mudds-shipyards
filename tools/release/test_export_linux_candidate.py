@@ -3,13 +3,14 @@
 
 Covers export_linux_candidate.sh argument handling and --dry-run planning,
 run_linux_startup_check.sh's pass/fail contract against stub binaries (exit 0
-AND STARTUP_MENU_READY_OK, private HOME/XDG, Dummy audio), and the Linux preset
+AND STARTUP_MENU_READY_OK, inherited HOME, private XDG/TMPDIR, Dummy audio), and the Linux preset
 in export_presets.cfg. No test runs Godot or exports anything.
 """
 
 import configparser
 import json
 import os
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -159,22 +160,56 @@ class StartupCheck(unittest.TestCase):
         self.assertFalse((self.dir / (stub.name + ".startup-check.json")).exists())
 
     def test_passes_only_with_exit_zero_and_sentinel_in_private_profile(self):
-        stub = self._stub(
-            "MuddsShipyards-abcdef0.x86_64",
-            'echo "ARGS $*"\necho "HOME $HOME"\necho "DATA $XDG_DATA_HOME"\n'
-            'echo "DISPLAY ${DISPLAY:-unset}"\necho "STARTUP_MENU_READY_OK: {}"\nexit 0\n',
-        )
-        result = self._check(stub)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        record = json.loads((self.dir / (stub.name + ".startup-check.json")).read_text())
-        self.assertEqual(record["status"], "PASS")
-        self.assertEqual(record["native_gpu"], "NOT_RUN")
-        log = (self.dir / (stub.name + ".startup-check.log")).read_text()
-        self.assertIn("ARGS --headless --audio-driver Dummy --startup-check", log)
-        self.assertIn("DISPLAY unset", log)
-        home = next(line for line in log.splitlines() if line.startswith("HOME "))
-        self.assertNotEqual(home.split(" ", 1)[1], os.environ.get("HOME"))
-        self.assertIn("mudds-linux-startup-check.", home)
+        xdg_keys = ("XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME",
+                    "XDG_STATE_HOME", "XDG_RUNTIME_DIR", "XDG_DATA_DIRS", "XDG_CONFIG_DIRS")
+        caller = self.dir / "caller"
+        caller.mkdir()
+        for key in (*xdg_keys, "TMPDIR", "HOME"):
+            directory = caller / key
+            directory.mkdir()
+            (directory / "untouched").write_text(key)
+        before = {str(p.relative_to(caller)): p.read_bytes() for p in caller.rglob("*") if p.is_file()}
+        for home_set in (True, False):
+            with self.subTest(home_set=home_set):
+                stub = self._stub(
+                    f"MuddsShipyards-home-{home_set}.x86_64",
+                    'echo "ARGS $*"\necho "HOME_SET ${HOME+x}"\necho "HOME ${HOME-}"\n'
+                    'echo "DISPLAY ${DISPLAY:-unset}"\necho "WAYLAND ${WAYLAND_DISPLAY:-unset}"\n'
+                    + "".join(f'echo "{key} ${{{key}}}"\nmkdir -p "${{{key}}}"\n'
+                              f'printf private > "${{{key}}}/probe-write"\n' for key in (*xdg_keys, "TMPDIR"))
+                    + 'echo "STARTUP_MENU_READY_OK: {}"\nexit 0\n',
+                )
+                env = dict(os.environ, DISPLAY=":caller", WAYLAND_DISPLAY="caller",
+                           **{key: str(caller / key) for key in (*xdg_keys, "TMPDIR", "HOME")})
+                if not home_set:
+                    env.pop("HOME")
+                result = _run([str(STARTUP_SCRIPT), "--keep-profile", str(stub)], env=env, cwd=self.dir)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                record = json.loads((self.dir / (stub.name + ".startup-check.json")).read_text())
+                self.assertEqual(record["status"], "PASS")
+                self.assertEqual(record["native_gpu"], "NOT_RUN")
+                log = (self.dir / (stub.name + ".startup-check.log")).read_text()
+                lines = dict(line.split(" ", 1) for line in log.splitlines())
+                self.assertEqual(lines["ARGS"], "--headless --audio-driver Dummy --startup-check")
+                self.assertEqual(lines["DISPLAY"], "unset")
+                self.assertEqual(lines["WAYLAND"], "unset")
+                self.assertEqual(lines["HOME_SET"], "x" if home_set else "")
+                self.assertEqual(lines["HOME"], env.get("HOME", ""))
+                roots = set()
+                for key in (*xdg_keys, "TMPDIR"):
+                    directory = Path(lines[key])
+                    self.assertNotEqual(directory, caller / key)
+                    self.assertEqual(directory.parent.parent, caller / "TMPDIR")
+                    self.assertTrue(directory.parent.name.startswith("mudds-linux-startup-check."))
+                    self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
+                    self.assertEqual((directory / "probe-write").read_text(), "private")
+                    roots.add(directory.parent)
+                self.assertEqual(len(roots), 1)
+                self.assertEqual(len({lines[key] for key in (*xdg_keys, "TMPDIR")}), len(xdg_keys) + 1)
+                # Remove the explicitly retained private profile before checking caller closure.
+                shutil.rmtree(roots.pop())
+                after = {str(p.relative_to(caller)): p.read_bytes() for p in caller.rglob("*") if p.is_file()}
+                self.assertEqual(before, after)
 
     def test_fails_without_sentinel(self):
         stub = self._stub("MuddsShipyards-abcdef0.x86_64", "echo booted\nexit 0\n")
