@@ -1,0 +1,7 @@
+Mudds Shipyards — matching Linux alpha checkpoint (2026-10-13)
+Source: e9484ba0851a5261f61ddc90dc6939ff76de579f
+
+Player changes and pending full qualification are described in the matching Windows notes. All 1,513 embedded payload entries match Windows byte for byte. Clean Linux export, native headless direct startup and archive-extracted startup pass: actual exits 0 and one STARTUP_MENU_READY_OK each. The archive embeds the exact verified binary with launcher/icon/install helper. Windows-PCK focused406, station223 and four-peer137 pass through Linux Godot; these do not qualify exact-head native Linux gameplay or installed recovery. Native GPU, devices, human/audio review, signing and final release remain NOT_RUN.
+
+Linux binary SHA256: 1294da571fd39acfbb8af02964267c6ef0a735a64a2b6c264db21fcb83f2a819
+Full CI: https://github.com/themuddfamily/mudds-shipyards/actions/runs/38449081906
