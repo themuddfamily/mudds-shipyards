@@ -136,6 +136,7 @@ const GARDEN_BENCH_LEG_COPY_COUNT := 6
 const CUPOLA_DOWNLIGHT_COPY_COUNT := 3
 const CORRIDOR_DECK_SEAM_COPY_COUNT := 9
 const COMMON_CEILING_LIGHT_BODY_COPY_COUNT := 6
+const COMMON_CEILING_LIGHT_LENS_COPY_COUNT := 6
 const GALLEY_DOOR_PULL_COPY_COUNT := 4
 const GALLEY_MUG_COPY_COUNT := 6
 const POTTING_PULL_COPY_COUNT := 3
@@ -158,14 +159,14 @@ const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 946
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
 ## The static common-room display adds one quad renderer/mesh/material to this roster.
-const RENDER_DESCENDANT_COUNT := 1565
-const RENDER_MESH_INSTANCE_COUNT := 842
-const RENDER_MULTIMESH_BATCH_COUNT := 92
+const RENDER_DESCENDANT_COUNT := 1560
+const RENDER_MESH_INSTANCE_COUNT := 836
+const RENDER_MULTIMESH_BATCH_COUNT := 93
 ## One reusable StationDoor renderer owns a shared MultiMesh resource across the
 ## module's two door instances; all other batches own their component buffer.
-const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 91
+const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 92
 const RENDER_DRAWN_COPY_COUNT := 1413
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 925
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 920
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
@@ -336,6 +337,8 @@ var _corridor_deck_seam_transforms: Array[Transform3D] = []
 var _corridor_deck_seam_batch: MultiMeshInstance3D
 var _common_ceiling_light_body_transforms: Array[Transform3D] = []
 var _common_ceiling_light_body_batch: MultiMeshInstance3D
+var _common_ceiling_light_lens_transforms: Array[Transform3D] = []
+var _common_ceiling_light_lens_batch: MultiMeshInstance3D
 var _galley_door_pull_transforms: Array[Transform3D] = []
 var _galley_door_pull_batch: MultiMeshInstance3D
 var _galley_mug_transforms: Array[Transform3D] = []
@@ -1565,6 +1568,31 @@ func get_render_allocation_report() -> Dictionary:
 		and bool(_berth_boot_batch.get_meta("visual_detail_only", false))
 		and StringName(_berth_boot_batch.get_meta("authored_source_name", &"")) == &"BerthBoot"
 	)
+	var common_ceiling_light_lens_authored: bool = (
+		is_instance_valid(_common_ceiling_light_lens_batch)
+		and _common_ceiling_light_lens_batch.multimesh != null
+		and _common_ceiling_light_lens_batch.multimesh.instance_count == COMMON_CEILING_LIGHT_LENS_COPY_COUNT
+		and _common_ceiling_light_lens_batch.multimesh.visible_instance_count == -1
+		and _common_ceiling_light_lens_batch.multimesh.mesh == _rounded_box_mesh(Vector3(1.55, 0.035, 0.2))
+		and _common_ceiling_light_lens_batch.multimesh.buffer == _encode_multimesh_transforms(
+			_common_ceiling_light_lens_transforms
+		)
+		and _common_ceiling_light_lens_batch.multimesh.custom_aabb.is_equal_approx(
+			_transformed_mesh_bounds(
+				_common_ceiling_light_lens_batch.multimesh.mesh.get_aabb(), _common_ceiling_light_lens_transforms
+			)
+		)
+		and _common_ceiling_light_lens_batch.material_override == _materials.get("warm_light")
+		and _common_ceiling_light_lens_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and _common_ceiling_light_lens_batch.layers == 1
+		and _common_ceiling_light_lens_batch.lod_bias == 1.0
+		and _common_ceiling_light_lens_batch.visible
+		and _common_ceiling_light_lens_batch.get_child_count() == 0
+		and _common_ceiling_light_lens_batch.get_script() == null
+		and _common_ceiling_light_lens_batch.get_groups().is_empty()
+		and bool(_common_ceiling_light_lens_batch.get_meta("visual_detail_only", false))
+		and StringName(_common_ceiling_light_lens_batch.get_meta("authored_source_name", &"")) == &"CeilingLightLens"
+	)
 	var descendant_count := _render_descendant_count()
 	var exact_counts: bool = (
 		descendant_count == RENDER_DESCENDANT_COUNT
@@ -1584,6 +1612,7 @@ func get_render_allocation_report() -> Dictionary:
 		and _common_ceiling_light_body_transforms.size()
 			== COMMON_CEILING_LIGHT_BODY_COPY_COUNT
 		and common_ceiling_light_body_authored
+		and common_ceiling_light_lens_authored
 		and _corridor_deck_seam_transforms.size() == CORRIDOR_DECK_SEAM_COPY_COUNT
 		and deck_seam_authored
 		and _galley_door_pull_transforms.size() == GALLEY_DOOR_PULL_COPY_COUNT
@@ -1602,6 +1631,7 @@ func get_render_allocation_report() -> Dictionary:
 	)
 	return {
 		"schema_version": 1,
+		"common_ceiling_light_lens_authored": common_ceiling_light_lens_authored,
 		"descendant_nodes": descendant_count,
 		"mesh_instances": mesh_instance_count,
 		"multimesh_batches": batch_nodes.size(),
@@ -2735,13 +2765,16 @@ func _build_observation_common(structure: Node3D) -> void:
 	# emission cannot be reduced to pay for more lenses here without dimming a
 	# corridor that was not the problem, so the lenses are made smaller instead.
 	_common_ceiling_light_body_transforms.clear()
+	_common_ceiling_light_lens_transforms.clear()
 	for light_z in [20.5, 24.3]:
 		for light_x in [-4.7, 0.0, 4.7]:
 			_common_ceiling_light_body_transforms.append(Transform3D(
 				Basis.IDENTITY,
 				Vector3(float(light_x), 4.58, float(light_z) - 0.2)
 			))
-			_box(common, "CeilingLightLens", Vector3(float(light_x), 4.5, float(light_z) - 0.2), Vector3(1.55, 0.035, 0.2), _materials["warm_light"], false)
+			_common_ceiling_light_lens_transforms.append(Transform3D(
+				Basis.IDENTITY, Vector3(float(light_x), 4.5, float(light_z) - 0.2)
+			))
 			_omni_light(common, "CommonPoolLight", Vector3(float(light_x), 4.1, float(light_z)), Color("ffe0b4"), 0.66, 9.0)
 	_common_ceiling_light_body_batch = _multimesh_visual_stock(
 		common,
@@ -2750,6 +2783,17 @@ func _build_observation_common(structure: Node3D) -> void:
 		_materials["graphite"],
 		_common_ceiling_light_body_transforms,
 		&"CeilingLightBody"
+	)
+	# These six childless lenses remain exact copies in their owning room.
+	# The world's protected dressing roster leaves this family out of its
+	# anonymous merger, so this dedicated batch also removes five live renderers.
+	_common_ceiling_light_lens_batch = _multimesh_visual_stock(
+		common,
+		"CeilingLightLenses",
+		_rounded_box_mesh(Vector3(1.55, 0.035, 0.2)),
+		_materials["warm_light"],
+		_common_ceiling_light_lens_transforms,
+		&"CeilingLightLens"
 	)
 	# The rear glazing, as a fixture.
 	#
