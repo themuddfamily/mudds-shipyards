@@ -277,6 +277,7 @@ func _run() -> void:
 		settings = main.call("get_runtime_settings") as RuntimeSettings
 	_check(settings != null, "runtime settings have a strong gameplay owner")
 	if settings != null and hud != null and ship != null:
+		var saves_before := main.get_runtime_settings_persistence_report()
 		var original_sensitivity := settings.ship_mouse_sensitivity
 		var requested_sensitivity := minf(original_sensitivity + 0.0007, RuntimeSettings.MAX_SHIP_MOUSE_SENSITIVITY)
 		hud.emit_signal("setting_change_requested", &"ship_mouse_sensitivity", requested_sensitivity)
@@ -288,8 +289,8 @@ func _run() -> void:
 		hud.emit_signal("setting_change_requested", &"ship_mouse_sensitivity", original_sensitivity)
 		persistence = main.get_runtime_settings_persistence_report()
 		_check(
-			int(persistence.save_attempt_count) == 2
-			and int(persistence.save_success_count) == 2
+			int(persistence.save_attempt_count) - int(saves_before.save_attempt_count) == 2
+			and int(persistence.save_success_count) - int(saves_before.save_success_count) == 2
 			and filesystem.files.has(ISOLATED_STORE_PATH),
 			"both smoke setting transactions commit only to the in-memory store"
 		)
