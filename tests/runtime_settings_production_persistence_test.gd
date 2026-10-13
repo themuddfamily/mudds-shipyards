@@ -89,6 +89,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await _test_production_startup_transactions_and_reentry()
 	_test_empty_corrupt_newer_and_failed_loads()
+	_test_existing_missing_settings_initialization()
 	_test_process_lifetime_recreation_identity()
 	_restore_project_input_defaults()
 	_finish()
@@ -464,15 +465,43 @@ func _test_empty_corrupt_newer_and_failed_loads() -> void:
 	var empty := _initialize_flow(Store.new(STORE_PATH, empty_filesystem), "empty")
 	_check(
 		bool(empty.report.load_status.accepted)
-		and empty.report.load_status.reason == &"empty"
+		and empty.report.load_status.reason == &"defaults_initialized"
+		and int(empty.report.load_status.generation) == 1
+		and int(empty.report.save_success_count) == 1
 		and (empty.flow as GameFlow).get_runtime_settings().to_dictionary()
 			== Settings.new(LEGACY_PATH).to_dictionary()
 		and (empty.flow as GameFlow).get_safe_start_recovery_report()
 			.policy_snapshot.state == "starting"
 		and empty_filesystem.files.has(STORE_PATH),
-		"empty settings authority keeps defaults live while the recovery marker owns generation one"
+		"fresh startup commits authored settings as generation one before recovery writes other keys"
 	)
+	var reopened := Store.new(STORE_PATH, empty_filesystem)
+	var readonly := Settings.new(LEGACY_PATH)
+	var before_preview := empty_filesystem.files.duplicate(true)
+	var loaded := Adapter.new(readonly, reopened, LEGACY_PATH).load_read_only()
+	_check(bool(loaded.accepted) and loaded.reason == &"loaded"
+		and readonly.to_dictionary() == Settings.new(LEGACY_PATH).to_dictionary()
+		and empty_filesystem.files == before_preview,
+		"repeated startup reads initialized default preferences without read-only writes")
+	var repeated := _initialize_flow(reopened, "empty-repeated")
+	_check(repeated.report.load_status.reason == &"loaded"
+		and int(repeated.report.save_attempt_count) == 0,
+		"a new gameplay owner restores defaults without repeating their initialization transaction")
+	(repeated.flow as GameFlow).free()
 	(empty.flow as GameFlow).free()
+
+	var failed_defaults_filesystem := FakeFilesystem.new()
+	failed_defaults_filesystem.fail_write_once = true
+	var failed_defaults := _initialize_flow(Store.new(STORE_PATH, failed_defaults_filesystem), "failed-defaults")
+	_check(not bool(failed_defaults.report.load_status.accepted)
+		and failed_defaults.report.load_status.reason == &"store_commit_failed"
+		and failed_defaults.report.load_status.store_reason == &"temp_write_failed"
+		and bool(failed_defaults.report.unsaved_changes)
+		and (failed_defaults.flow as GameFlow).get_runtime_settings().to_dictionary()
+			== Settings.new(LEGACY_PATH).to_dictionary()
+		and failed_defaults_filesystem.files.is_empty(),
+		"failed first defaults commit retains live defaults, reports unsaved state and prevents recovery from creating a settings-less document")
+	(failed_defaults.flow as GameFlow).free()
 
 	var corrupt_filesystem := FakeFilesystem.new()
 	corrupt_filesystem.files[STORE_PATH] = "{corrupt".to_utf8_buffer()
@@ -527,6 +556,31 @@ func _test_empty_corrupt_newer_and_failed_loads() -> void:
 		"filesystem load failure keeps defaults live and never rewrites unreadable authority"
 	)
 	(failed_load.flow as GameFlow).free()
+
+
+func _test_existing_missing_settings_initialization() -> void:
+	var filesystem := FakeFilesystem.new()
+	var store := Store.new(STORE_PATH, filesystem)
+	store.load()
+	var foreign := {"career": {"credits": 73}, "archive": {"keep": "keep-me"}}
+	store.commit(foreign, 0, "shipped-without-preferences")
+	foreign = store.get_snapshot()
+	var prior_bytes := (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
+	var initialized := _initialize_flow(store, "old-profile")
+	var payload := store.get_snapshot()
+	_check(bool(initialized.report.load_status.accepted)
+		and initialized.report.load_status.reason == &"defaults_initialized"
+		and int(initialized.report.load_status.generation) == 2,
+		"healthy shipped profiles explicitly initialize defaults at the next atomic generation")
+	_check(payload.career == foreign.career and payload.archive == foreign.archive,
+		"initializing missing preferences preserves every unrelated payload namespace")
+	var restored := Settings.new(LEGACY_PATH)
+	_check(bool(restored.apply_user_data_payload(payload[Adapter.SETTINGS_PAYLOAD_KEY]).accepted)
+		and restored.to_dictionary() == Settings.new(LEGACY_PATH).to_dictionary(),
+		"the initialized durable settings section reconstructs exact authored defaults")
+	_check(filesystem.files[STORE_PATH + ".bak.1"] == prior_bytes,
+		"settings initialization and recovery retain the earlier atomic generation in rotated backup history")
+	(initialized.flow as GameFlow).free()
 
 
 func _initialize_flow(store: UserDataStore, suffix: String) -> Dictionary:

@@ -632,10 +632,11 @@ func _process(_delta: float) -> void:
 ## GameFlow still owns the normal settings load and persistence lifecycle.
 func _read_accessibility_descriptor() -> Dictionary:
 	var settings := RuntimeSettings.new()
-	var loaded := RuntimeSettingsStoreAdapter.new(settings).load_read_only()
+	var adapter := RuntimeSettingsStoreAdapter.new(settings)
+	var loaded := adapter.load_read_only()
 	_startup_graphics_profile = settings.graphics_profile
 	print("STARTUP graphics profile=%s" % settings.get_graphics_profile_id())
-	if not bool(loaded.get("accepted", false)):
+	if not bool(loaded.get("accepted", false)) and not adapter.can_initialize_defaults(loaded):
 		push_warning("Startup could not read stored settings: %s" % str(loaded.get("reason", &"unknown")))
 		_display_settings_report = {"applied": false, "reason": &"settings_load_failed"}
 		return {}
