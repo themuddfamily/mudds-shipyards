@@ -60,6 +60,27 @@ func load_read_only() -> Dictionary:
 	return result
 
 
+## Missing preferences in a healthy primary document can be initialized by the
+## gameplay owner. This eligibility read never imports legacy data or repairs
+## authority; startup presentation may use authored defaults without writing.
+func can_initialize_defaults(load_status: Dictionary) -> bool:
+	if _operation_active or _settings == null or _store == null or _legacy_artifact_exists():
+		return false
+	var store_status := load_status.get("store_status", {}) as Dictionary
+	if bool(load_status.get("accepted", false)) and load_status.get("reason") == &"empty":
+		return _is_genuinely_empty(store_status)
+	return (
+		not bool(load_status.get("accepted", false))
+		and load_status.get("reason") == &"settings_missing"
+		and bool(store_status.get("accepted", false))
+		and store_status.get("reason") == &"ok"
+		and store_status.get("source") == &"primary"
+		and store_status.get("primary_status") == "ok"
+		and int(store_status.get("generation", 0)) > 0
+		and not (store_status.get("payload", {}) as Dictionary).has(SETTINGS_PAYLOAD_KEY)
+	)
+
+
 func _load(read_only: bool = false) -> Dictionary:
 	if _settings == null or _store == null:
 		return _status(false, &"invalid_owner", false, false, {})

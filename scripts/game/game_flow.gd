@@ -23296,6 +23296,14 @@ func _initialize_runtime_settings() -> void:
 		_runtime_settings_commit_serial,
 		_parse_runtime_settings_commit_serial(loaded_commit_id)
 	)
+	# Establish the settings namespace before recovery/tutorial owners commit
+	# other keys. Older healthy documents may also predate this initialization.
+	# The adapter excludes legacy, backup, invalid and newer authority here.
+	if _runtime_settings_store_adapter.can_initialize_defaults(_runtime_settings_load_status):
+		_runtime_settings_unsaved_changes = true
+		_runtime_settings_load_status = _persist_runtime_settings().duplicate(true)
+		if bool(_runtime_settings_load_status.get("accepted", false)):
+			_runtime_settings_load_status["reason"] = &"defaults_initialized"
 	if not bool(_runtime_settings_load_status.get("accepted", false)):
 		push_warning(
 			"Atomic runtime settings load retained authored defaults: %s / %s"

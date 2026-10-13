@@ -1,0 +1,18 @@
+Mudds Shipyards settings checkpoint — 2026-10-13
+Source: 36691865a581443214e239773a6a4331fcd57bee (main runtime)
+
+Player-visible change
+Fresh profiles now persist authored settings defaults before gameplay writes shared save data. Existing healthy saves missing the settings namespace receive those defaults without losing other namespaces or metadata. Repeat launches reach the menu without the previous settings_missing warnings. Invalid, newer, interrupted and legacy settings retain existing rejection/recovery policy.
+
+Actual validation
+Independent settings lifecycle review approved the production change. Seven focused source suites passed (adapter53, persistence45, repair binding11, GameFlow repair18, RuntimeSettings156, UserDataStore93, startup privacy114). Expected invalid-input/write-failure diagnostics remain in their focused negative tests. Four final source menu probes (fresh/repeat and copied original failing save/repeat) each exited0 with exactly one readiness marker and zero diagnostics; source/cache and original profile unchanged, HOME unchanged.
+Clean Windows and Linux exports exited0 from unchanged clean source. Windows embedded-PCK fresh/repeat menu probes exited0 with exactly one STARTUP_MENU_READY_OK and zero diagnostics; owned children absent. Four packaged station probes on each platform passed223, all exits0, one exact sentinel each, zero diagnostics and verified log hashes.
+Actual installed standalone Linux desktop-entry launches: fresh/repeat and copied original failing save/repeat all exited0 with one readiness marker and zero diagnostics. Preferences identical on repeat; unrelated namespaces/foreign metadata retained; source HEAD/export cache/original profile/HOME/package unchanged and children absent.
+Main core CI38430909838 passed at 066e5aaf34ee5c3c22e19156aee3cb59866aa329. That child changes only the smoke test to count two user saves relative to the post-startup baseline; production runtime is identical to this export. Earlier CI38430319380 failed the old absolute transaction count and remains retained.
+Package inventory parsing passed on both executables: same 1513-entry path roster and matching authored Zenith Blend/GLB hashes. Whole-payload hash parity is not claimed: 65 compiled scenes and one imported texture have different bytes across the independently exported platforms.
+Windows EXE SHA256: 7d6f9675850d026a5140877f792248d1ace34298b6fbe6da48d73287ab72a138
+Linux ELF SHA256: 8c6378815df76f3896d3504eb6fb4bb3d722e99afd6618ef93fe3249c18bde4a
+Linux archive SHA256: 2caf810a53d0083391e50d77d2ad0b21f37e4f6ec6ced245882fd71331a42638
+
+Scope and remaining gates
+This is current main's settings checkpoint. The broader combined planetary/cabin/remote-body candidate3fe807a52 remains separate and unmerged pending full CI; its older package is unchanged. Windows package checks use Linux Godot loading the embedded Windows PCK. Native Windows execution/install/update/rollback, GPU/device/controller/accessibility, audible and human review, trusted signing and final-release acceptance remain NOT_RUN. No phase completion is claimed.

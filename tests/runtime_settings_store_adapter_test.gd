@@ -69,6 +69,7 @@ func _run() -> void:
 	_test_json_round_trip_and_payload_composition()
 	_test_legacy_import_is_empty_store_only()
 	_test_read_only_startup_settings()
+	_test_default_initialization_eligibility()
 	_test_failed_writes_preserve_live_and_disk()
 	_test_corrupt_and_newer_authority_is_preserved()
 	_test_typed_payload_rejection_is_atomic()
@@ -224,6 +225,44 @@ func _test_read_only_startup_settings() -> void:
 		and filesystem.files == before,
 		"malformed atomic authority remains untouched and never falls back to legacy Low")
 	_cleanup_legacy()
+
+
+func _test_default_initialization_eligibility() -> void:
+	_cleanup_legacy()
+	var filesystem := FakeFilesystem.new()
+	var store := Store.new(STORE_PATH, filesystem)
+	var settings := Settings.new(_legacy_path)
+	var adapter := Adapter.new(settings, store, _legacy_path)
+	_check(adapter.can_initialize_defaults(adapter.load_read_only()) and filesystem.files.is_empty(),
+		"fresh defaults are eligible without read-only startup creating any files")
+	store.load()
+	store.commit({"career": {"credits": 17}}, 0, "pre-settings-career")
+	var before := filesystem.files.duplicate(true)
+	var missing := adapter.load_read_only()
+	_check(not bool(missing.accepted) and missing.reason == &"settings_missing"
+		and adapter.can_initialize_defaults(missing) and filesystem.files == before,
+		"healthy existing data without preferences allows caller initialization without changing the load contract or bytes")
+	_write_legacy(0.0052)
+	_check(not adapter.can_initialize_defaults(adapter.load_read_only()) and filesystem.files == before,
+		"legacy preferences block automatic defaults and remain an explicit migration decision")
+	_cleanup_legacy()
+	store.commit({"career": {"credits": 18}}, 1, "pre-settings-career-two")
+	filesystem.files[STORE_PATH] = "invalid-primary".to_utf8_buffer()
+	before = filesystem.files.duplicate(true)
+	var recovered := adapter.load_read_only()
+	_check(recovered.store_reason == &"primary_invalid_backup_loaded"
+		and not adapter.can_initialize_defaults(recovered) and filesystem.files == before,
+		"backup authority with missing preferences is never eligible for default initialization")
+	filesystem = FakeFilesystem.new()
+	store = Store.new(STORE_PATH, filesystem)
+	adapter = Adapter.new(settings, store, _legacy_path)
+	store.load()
+	store.commit({Adapter.SETTINGS_PAYLOAD_KEY: {"schema_version": 999}}, 0, "future-settings")
+	_check(not adapter.can_initialize_defaults(adapter.load_read_only()),
+		"an existing newer settings section cannot be initialized over")
+	store.commit({Adapter.SETTINGS_PAYLOAD_KEY: {}}, 1, "invalid-settings")
+	_check(not adapter.can_initialize_defaults(adapter.load_read_only()),
+		"an existing invalid settings section cannot be initialized over")
 
 
 func _test_failed_writes_preserve_live_and_disk() -> void:

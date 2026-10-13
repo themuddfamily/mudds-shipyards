@@ -423,10 +423,17 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # restores all geometry/resource counts and the exact Cinder delta. The package
 # retains exactly the checked Aurora/Rime local skies (1,076 / 1,139 materials);
 # only the two stale fingerprints failed, and those failed runs remain retained.
-const RESIDENT_FINGERPRINT := "e717250eae991d3597aff5501b0a6278fb7a23d5176787a6fb5ed41382634b4c"
-const CINDER_LOADED_FINGERPRINT := "8faa7ca945119da507db70adcbd94348a651dd1d4da35f9237baea8e6b5fd4d6"
-const PACKED_RESIDENT_FINGERPRINT := "8c4d5c32956573f5ae1a8dfbfd791baf1c62b3246cf55f36688d13dc4164370f"
-const PACKED_CINDER_LOADED_FINGERPRINT := "320c9d2978a03c5bca59a146b10cf85643476be72c325b4ce4003e542fb77584"
+# Actual 3fe807a source and unchanged Linux-PCK measurements account for
+# d24a1a747's per-craft Cargo cabin finish reuse: three hull bindings now share
+# one immutable finish (-2 materials), and four accent bindings share one (-3).
+# Reversing only that change restores all 19 old assertions and fingerprints.
+# Bound and retained materials fall by exactly five in both scenarios; every
+# geometry/resource/scene row and the streamed Cinder delta remain unchanged.
+# The packed scene still retains exactly two additional Aurora/Rime local skies.
+const RESIDENT_FINGERPRINT := "806422988ecbd113ffafa8b7ae91964a6fad9e4333abbd9ebee6793214fc3e04"
+const CINDER_LOADED_FINGERPRINT := "e968e9562d379c8980c3663beb81ae0835e7a647899d19d11826d8e5948e6efb"
+const PACKED_RESIDENT_FINGERPRINT := "b6e65a330ceb321cf146cf563e255810c488259d1d80d1076fdd7dbb2453eaab"
+const PACKED_CINDER_LOADED_FINGERPRINT := "f1066fbdd05018321fdffe20237f3b59d22853bf410ec42ae7a68244ac0781c9"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -483,8 +490,8 @@ func _run() -> void:
 		"resident geometry freezes 1,748,857 triangles / 5,047 meshes / 5,607 surfaces / 2,702 unique meshes"
 	)
 	_check(
-		int(resident.get("bound_phase_unique_materials", -1)) == 658
-			and int(resident.get("retained_reachable_unique_materials", -1)) == (1076 if _packed_scene_resources() else 1074)
+		int(resident.get("bound_phase_unique_materials", -1)) == 653
+			and int(resident.get("retained_reachable_unique_materials", -1)) == (1071 if _packed_scene_resources() else 1069)
 			and int(resident.get("lights", -1)) == 327
 			and int(resident.get("nodes", -1)) == 10302,
 		"resident resource roster freezes exact source/export materials, 327 lights, and 10,302 nodes"
@@ -552,8 +559,8 @@ func _run() -> void:
 		"loaded geometry freezes 1,903,879 triangles / 5,304 meshes / 5,868 surfaces / 2,875 unique meshes"
 	)
 	_check(
-		int(loaded.get("bound_phase_unique_materials", -1)) == 716
-			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1139 if _packed_scene_resources() else 1137)
+		int(loaded.get("bound_phase_unique_materials", -1)) == 711
+			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1134 if _packed_scene_resources() else 1132)
 			and int(loaded.get("lights", -1)) == 362
 			and int(loaded.get("nodes", -1)) == 10890,
 		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,890 nodes"
