@@ -946,11 +946,14 @@ func _test_instanced_station_family(
 	# Habitat's arch migration adds 60 mapped batches (273/195), preserving
 	# all 378 copies and their existing immutable world-triplanar materials.
 	# Six common-room ceiling lenses share one additional unmapped batch;
-	# the measured roster is now 274/195 with mapped materials unchanged.
+	# the measured roster is then 274/195 with mapped materials unchanged.
+	# Aft replaces fourteen mapped rib-segment batches with one mapped arc
+	# batch, so the measured roster is now 261/182; all 70 tubes and their
+	# ordinary surface bindings, material recipe and scale remain unchanged.
 	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
 	_check(
-		batches == 274 and mapped == 195,
-		"instanced station structure is exactly 274 batches, 195 of them mapped"
+		batches == 261 and mapped == 182,
+		"instanced station structure is exactly 261 batches, 182 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
