@@ -1,0 +1,2466 @@
+{
+  "schema": 1,
+  "purpose": "Original Bulwark development evidence; historical results, not current qualification. Only regenerable Godot/Mesa caches excluded.",
+  "source_directories": [
+    "/tmp/bulwark-cabin-clip-diagnostic",
+    "/tmp/bulwark-cabin-clip-fix-bulwark_component_damage_silhouette_test",
+    "/tmp/bulwark-cabin-clip-fix-bulwark_dorsal_silhouette_visual_test",
+    "/tmp/bulwark-cabin-clip-fix-bulwark_heavy_gunship_test",
+    "/tmp/bulwark-cabin-final-bulwark_component_damage_silhouette_test",
+    "/tmp/bulwark-cabin-final-bulwark_crew_gunner_gameplay_test",
+    "/tmp/bulwark-cabin-final-bulwark_dorsal_silhouette_visual_test",
+    "/tmp/bulwark-cabin-final-bulwark_game_flow_registration_test",
+    "/tmp/bulwark-cabin-final-bulwark_heavy_gunship_test",
+    "/tmp/bulwark-cabin-final-geometry_census_retained_material_test",
+    "/tmp/bulwark-cabin-final-geometry_census_scenario_test",
+    "/tmp/bulwark-cabin-final-in_flight_cabin_integration_test",
+    "/tmp/bulwark-cabin-final-session_recovery_resume_offer_test",
+    "/tmp/bulwark-cabin-final2-bulwark_component_damage_silhouette_test",
+    "/tmp/bulwark-cabin-final2-bulwark_crew_gunner_gameplay_test",
+    "/tmp/bulwark-cabin-final2-bulwark_dorsal_silhouette_visual_test",
+    "/tmp/bulwark-cabin-final2-bulwark_game_flow_registration_test",
+    "/tmp/bulwark-cabin-final2-bulwark_heavy_gunship_test",
+    "/tmp/bulwark-cabin-final2-geometry_census_retained_material_test",
+    "/tmp/bulwark-cabin-final2-geometry_census_scenario_test",
+    "/tmp/bulwark-cabin-final2-in_flight_cabin_integration_test",
+    "/tmp/bulwark-cabin-final2-session_recovery_resume_offer_test",
+    "/tmp/bulwark-cabin-green1",
+    "/tmp/bulwark-cabin-green2",
+    "/tmp/bulwark-cabin-green3",
+    "/tmp/bulwark-cabin-green4",
+    "/tmp/bulwark-cabin-green5-bulwark_heavy_gunship_test",
+    "/tmp/bulwark-cabin-green5-in_flight_cabin_integration_test",
+    "/tmp/bulwark-cabin-green6-bulwark_heavy_gunship_test",
+    "/tmp/bulwark-cabin-green6-in_flight_cabin_integration_test",
+    "/tmp/bulwark-cabin-green6-session_recovery_resume_offer_test",
+    "/tmp/bulwark-cabin-import",
+    "/tmp/bulwark-cabin-red",
+    "/tmp/bulwark-cabin-results",
+    "/tmp/bulwark-combined-idle-pair-gunner",
+    "/tmp/bulwark-combined-idle-pair-import",
+    "/tmp/bulwark-combined-idle-pair-session",
+    "/tmp/bulwark-combined-import4",
+    "/tmp/bulwark-combined-import7",
+    "/tmp/bulwark-combined-ordinary1",
+    "/tmp/bulwark-combined-ordinary2",
+    "/tmp/bulwark-combined-ordinary3",
+    "/tmp/bulwark-combined-ordinary4",
+    "/tmp/bulwark-combined-ordinary5",
+    "/tmp/bulwark-combined-ordinary6",
+    "/tmp/bulwark-combined-qualification1",
+    "/tmp/bulwark-combined-qualification2",
+    "/tmp/bulwark-combined-qualification3",
+    "/tmp/bulwark-combined-qualification4",
+    "/tmp/bulwark-combined-qualification5",
+    "/tmp/bulwark-console-evidence",
+    "/tmp/bulwark-gunner-check",
+    "/tmp/bulwark-gunner-combined-import",
+    "/tmp/bulwark-gunner-combined-reimport",
+    "/tmp/bulwark-gunner-combined-results",
+    "/tmp/bulwark-gunner-route-author1-cabin",
+    "/tmp/bulwark-gunner-route-author1-census",
+    "/tmp/bulwark-gunner-route-author1-component",
+    "/tmp/bulwark-gunner-route-author1-dorsal",
+    "/tmp/bulwark-gunner-route-author1-gunner",
+    "/tmp/bulwark-gunner-route-author1-heavy",
+    "/tmp/bulwark-gunner-route-author1-recovery",
+    "/tmp/bulwark-gunner-route-author1-registration",
+    "/tmp/bulwark-gunner-route-final-component",
+    "/tmp/bulwark-gunner-route-final-dorsal",
+    "/tmp/bulwark-gunner-route-final-materials",
+    "/tmp/bulwark-gunner-route-final-registration",
+    "/tmp/bulwark-gunner-route-green1",
+    "/tmp/bulwark-gunner-route-green2",
+    "/tmp/bulwark-gunner-route-green3",
+    "/tmp/bulwark-gunner-route-green4-physical-route",
+    "/tmp/bulwark-gunner-route-green5-physical-route",
+    "/tmp/bulwark-gunner-route-green6",
+    "/tmp/bulwark-gunner-route-green7",
+    "/tmp/bulwark-gunner-route-green8-physical-route",
+    "/tmp/bulwark-gunner-route-import",
+    "/tmp/bulwark-gunner-route-measure",
+    "/tmp/bulwark-gunner-route-red",
+    "/tmp/bulwark-gunner-route-results",
+    "/tmp/bulwark-gunner-route-walk1",
+    "/tmp/bulwark-gunner-route-walk2-main-route",
+    "/tmp/bulwark-gunner-route-walk3-main-route",
+    "/tmp/bulwark-gunner-route-walk4-main-route",
+    "/tmp/halyard-gunner-runs/bulwark-regression-1"
+  ],
+  "files": [
+    {
+      "path": "/tmp/bulwark-cabin-clip-diagnostic/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 3352,
+      "sha256": "c399851cbec81097a0a38a9cc83ce125548f24a545069b4ac5fbc7b957a59c4f"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-clip-fix-bulwark_component_damage_silhouette_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 1551,
+      "sha256": "b5861b4feb8c9b07d175ca4220d5fbaa652b088dd308f167a500288e32f96a4b"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-clip-fix-bulwark_dorsal_silhouette_visual_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 2703,
+      "sha256": "d9d5a5860ad503b04b0433213cceda1e5529e98ebc736289a42a66a84b9fc404"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-clip-fix-bulwark_heavy_gunship_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 11279,
+      "sha256": "92d996434f36f209364b56875afa9396776043d202649da2630e1815ca217e62"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-bulwark_component_damage_silhouette_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 1578,
+      "sha256": "c368af4db48daf0a5ea7d0d6d399df4114db1019c5777005753ef5d54d0698ce"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-bulwark_crew_gunner_gameplay_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 372,
+      "sha256": "be891672cdf7f58d45c7bd7c614cddc65be99cc60a0af7fa76078d73bc18f241"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-bulwark_dorsal_silhouette_visual_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 3380,
+      "sha256": "db33e34b79ce72c0127a6388d8079a353cf2583ba869f4a742a2ff71c989246f"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-bulwark_game_flow_registration_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 374,
+      "sha256": "0b21e91b7b21d96669190b3972fc830676aa5cc96d76829465cef9bd1da39a3c"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-bulwark_heavy_gunship_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 11279,
+      "sha256": "92d996434f36f209364b56875afa9396776043d202649da2630e1815ca217e62"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-geometry_census_retained_material_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 1399,
+      "sha256": "9c1088c9bac2380821fc7c8867a5f28fa698516aca74361821251c5404594f06"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 5735,
+      "sha256": "a4b513717febe4e17fa3a0d2d88d98b333d9f0833edba7a9b03c969568f2e71e"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 1126,
+      "sha256": "d10c88da3e1d5d3aec13d76f9d38f14d15440d1768a8276a8d52ad7c57550b81"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 911,
+      "sha256": "e17a4f6657d440bca5f9acd96610e69830822ab8072e28b90432235f07e8afd4"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 598,
+      "sha256": "b509d29102d43f10b938cae3c94effbc81c5bd1e95d3280e4bf65929043afe29"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 393,
+      "sha256": "5e649a3bfc850597e2ec2d3ba090e312f33e343c85f8c5bde75428fd45fcc7fa"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 6108,
+      "sha256": "7f886b09e609076f71e5ce45a6a243c5993bdaa5af7725b59461b9757026ac9b"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 5184,
+      "sha256": "34ceb3714c59283e0680dacf11b29b00589d05f5de0b877510694e9eafe891a1"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 5085,
+      "sha256": "63979d1db9aa2173885e951f59d3d15618b6eab1d14acbde3770adae6c729347"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 4851,
+      "sha256": "c9155064cd8295529617376da2b1ba3d2c3e8faf2ca2ba9495b473c29d809d82"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 4956,
+      "sha256": "654188f800e3ea83801fb5f7383e1b9ae76d32a64c005a59c915a758b4c5364b"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 4859,
+      "sha256": "99bfa8c71faf520b5e3b79af1cd14556206934e9c6dcbccc5d6d765728d04157"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-session_recovery_resume_offer_test/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 4335,
+      "sha256": "62d5d438724a6356dd7a86a5067b97387d96e3991ee188ec3eff46cfcfd55770"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-session_recovery_resume_offer_test/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.previous.json",
+      "bytes": 5141,
+      "sha256": "d7b2ae135f51d65d29cd372aac22c19835544c7bed43c9bbf951b77569e50ea7"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final-session_recovery_resume_offer_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 17613,
+      "sha256": "0fe72b80f0d6f87a6a1449767d4d2fe3616726912e533d42849fbce92db14ebb"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-bulwark_component_damage_silhouette_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 1551,
+      "sha256": "b5861b4feb8c9b07d175ca4220d5fbaa652b088dd308f167a500288e32f96a4b"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-bulwark_crew_gunner_gameplay_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 372,
+      "sha256": "be891672cdf7f58d45c7bd7c614cddc65be99cc60a0af7fa76078d73bc18f241"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-bulwark_dorsal_silhouette_visual_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 2703,
+      "sha256": "d9d5a5860ad503b04b0433213cceda1e5529e98ebc736289a42a66a84b9fc404"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-bulwark_game_flow_registration_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 374,
+      "sha256": "0b21e91b7b21d96669190b3972fc830676aa5cc96d76829465cef9bd1da39a3c"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-bulwark_heavy_gunship_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 11279,
+      "sha256": "92d996434f36f209364b56875afa9396776043d202649da2630e1815ca217e62"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-geometry_census_retained_material_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 1399,
+      "sha256": "9c1088c9bac2380821fc7c8867a5f28fa698516aca74361821251c5404594f06"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 5735,
+      "sha256": "b3998aed0e3b8d5ae1b5b4d01780bc7c03d136f84d9e83a6b5e770afa1d17f50"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 1126,
+      "sha256": "d10c88da3e1d5d3aec13d76f9d38f14d15440d1768a8276a8d52ad7c57550b81"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 911,
+      "sha256": "e17a4f6657d440bca5f9acd96610e69830822ab8072e28b90432235f07e8afd4"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 598,
+      "sha256": "b509d29102d43f10b938cae3c94effbc81c5bd1e95d3280e4bf65929043afe29"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-geometry_census_scenario_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 393,
+      "sha256": "5e649a3bfc850597e2ec2d3ba090e312f33e343c85f8c5bde75428fd45fcc7fa"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 6096,
+      "sha256": "9c09afa950162c67c71363a31a5b85681f32c0d0794bc4661fde86ea34834b9a"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 5177,
+      "sha256": "e0b7273cfbe8660ae37f1966c387206811e6689ea005427440455e6740e3f8d4"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 5078,
+      "sha256": "f9a89007457fa78275ce7be0cca75b43b926e02fa2daea92d928ce7d23b5f037"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 5183,
+      "sha256": "d6c6c5da11de84bec4e0afb0d2e1416fda0d17e9f855eada72e428bb91dbfe17"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 5086,
+      "sha256": "ec0f77835ea8ae9b00d29384e8553b1b0f9208a212203c14d70dde25e3204283"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 4852,
+      "sha256": "0fca6141f97534bac434d9b1b0d33d004ffabda2e89c2ba4d91d203967e83da7"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-session_recovery_resume_offer_test/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 4335,
+      "sha256": "62d5d438724a6356dd7a86a5067b97387d96e3991ee188ec3eff46cfcfd55770"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-session_recovery_resume_offer_test/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.previous.json",
+      "bytes": 5141,
+      "sha256": "d7b2ae135f51d65d29cd372aac22c19835544c7bed43c9bbf951b77569e50ea7"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-final2-session_recovery_resume_offer_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 17613,
+      "sha256": "0fe72b80f0d6f87a6a1449767d4d2fe3616726912e533d42849fbce92db14ebb"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green1/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 13583,
+      "sha256": "49ff661d30b0d6a11ba5086483a1b2d212d136fedfe353331d5c4deda6612779"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green2/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 12555,
+      "sha256": "584e3e1dd1061fb2023cbff3d2ac43c01ee68c5608c14f96aa6f2a5ed1f5ea52"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green3/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 16863,
+      "sha256": "4fa6fd22a3fece56674931af1c9d43c320335eeb8772468e16ce174d97dcc168"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green4/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 12803,
+      "sha256": "596d05751fd4a5faa81f350c8ae083fc14f9eb28800d4736596d614d6506ed76"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green5-bulwark_heavy_gunship_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 11346,
+      "sha256": "9bfbd435c0f7015763b995db67bb05f5e87df18e6cef9d514669f228f70ef5e7"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green5-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 6686,
+      "sha256": "f765b1dfe176a52b6352db75490cbf1fefcca7ed9453fcc170d840e6e127b8b5"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green5-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 5164,
+      "sha256": "f8aee687bc90ab116201ad45cbe868c1c403b265fd5a5f46050b8669ad48d154"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green5-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 5065,
+      "sha256": "8fcc3181826ccfed4bac8a3545251827d8531cfd293b421bced5c33035404478"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green5-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 5170,
+      "sha256": "d8fa3a0e6a684cc6cd0204a9419d59f636ddeed872a2743dddf03e9907071255"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green5-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 5073,
+      "sha256": "b92a9b59471aa93855c8b379a01a02316dab16ac55d9d4aaaa546382c12e8c22"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green5-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 4839,
+      "sha256": "9941728f60514328c3d5667cd522f2ecdf061cdc3e14f34c6ee8da32baecf6d0"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-bulwark_heavy_gunship_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 11149,
+      "sha256": "54a1040e7d8e49fce95e759ec15e7b78773acda6346ac897910cdec9ea22560a"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 6106,
+      "sha256": "d478c69f7f3131d860ebe92aeec9c05138b5ba947038741124fbf8a59551736b"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 5179,
+      "sha256": "f4bcbcb4c91c30cf68e8b86063241627116073dd6cdb87fc14367844f7a438d3"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 5080,
+      "sha256": "279c9d24aa7b283c2458c3363a70a067a90f7298f2af4725123b3c01f01d93ff"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 5185,
+      "sha256": "3018cc4a7f6ba15c6153f1d38d89988a587830f7a1452ec04b9571bc38371f14"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 5088,
+      "sha256": "cc5e0e4523ed4a80a2618842d9414a8d0c8cc3a64fe5c17bce96ba8d7f3bc2cd"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-in_flight_cabin_integration_test/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 4854,
+      "sha256": "70ddc0516331a7a0837be6def2e90a0e4e7a5436afa6dcd57eb4e19ce2e0ff55"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-session_recovery_resume_offer_test/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 4335,
+      "sha256": "62d5d438724a6356dd7a86a5067b97387d96e3991ee188ec3eff46cfcfd55770"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-session_recovery_resume_offer_test/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.previous.json",
+      "bytes": 5141,
+      "sha256": "d7b2ae135f51d65d29cd372aac22c19835544c7bed43c9bbf951b77569e50ea7"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-green6-session_recovery_resume_offer_test/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 18079,
+      "sha256": "16531371c51f756c9743270e5cc9e6f0089f868617e52e4ea64ec8ae6c78143e"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-import/config/godot/editor_settings-4.7.tres",
+      "bytes": 17660,
+      "sha256": "401cfbf8dd3f77a5ec2575e6098b820d0bc65a42365a702948548a20c8cd6026"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-red/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 10996,
+      "sha256": "0645dcb7f645232bafae14f270bcfd4299dba41367f9191d186f344cb9a3fbfe"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/clip-diagnostic-terminal.json",
+      "bytes": 165,
+      "sha256": "4bda8015e59d70b291052596456342afe3aa80195d2a8dc41b65c0ed6271155e"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/clip-diagnostic.log",
+      "bytes": 3354,
+      "sha256": "77d5539d32802959d3d335b859bbd55c372d7d7f0d0556162f8fbc5dd98ba8d4"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/clip-fix-bulwark_component_damage_silhouette_test.log",
+      "bytes": 1553,
+      "sha256": "fb0b766e0d1425c4c9f58e3e27ee4d62278ce1be210b7d60c61ec16bb825d0db"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/clip-fix-bulwark_dorsal_silhouette_visual_test.log",
+      "bytes": 2705,
+      "sha256": "711503411300556447e5f0287ee04c008a7dc78578a3727b41faa62706817965"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/clip-fix-bulwark_heavy_gunship_test.log",
+      "bytes": 11281,
+      "sha256": "1d64527b997512f0f1359b0547ca5aab2fd492115495e494fdeb2a93da81651c"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/clip-fix-terminals.json",
+      "bytes": 622,
+      "sha256": "9075c6e771406f5f7708d55536155dd57ca90a92f428f74bc3479845180404c2"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-after.json",
+      "bytes": 1587840,
+      "sha256": "7010df5b025cf3d4839e328cd74cc8394b0f9e3386d0b6db201715765de51dfd"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-before.json",
+      "bytes": 1587840,
+      "sha256": "7010df5b025cf3d4839e328cd74cc8394b0f9e3386d0b6db201715765de51dfd"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-bulwark_component_damage_silhouette_test.log",
+      "bytes": 1601,
+      "sha256": "8ae23df3025de0479c6ef3010f14fec6984ecaf387bdbd2eacf77c1e5edb497f"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-bulwark_crew_gunner_gameplay_test.log",
+      "bytes": 374,
+      "sha256": "c71cac540210e9ece66b72f9ff640b33fe7817a84ea969147ae92937d3262175"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-bulwark_dorsal_silhouette_visual_test.log",
+      "bytes": 3382,
+      "sha256": "540442a183cb03bc13fe57ec8c8727f2575d04b6a10187bfcfde779e682f0f22"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-bulwark_game_flow_registration_test.log",
+      "bytes": 376,
+      "sha256": "cc02ecca4c08e8fb565921197430b0cad76b63cbac0e7d2d2aceb713ec7d995f"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-bulwark_heavy_gunship_test.log",
+      "bytes": 11281,
+      "sha256": "1d64527b997512f0f1359b0547ca5aab2fd492115495e494fdeb2a93da81651c"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-geometry_census_retained_material_test.log",
+      "bytes": 1401,
+      "sha256": "63e97c5b5ef01541d8fcb4e1eca9e68a8fb78c7128694857377c53c19f0c29b2"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-geometry_census_scenario_test.log",
+      "bytes": 5737,
+      "sha256": "4ca54361a39d3698b45e3fb78551d5edd992b09f89c53f18051e3905d5775af2"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-in_flight_cabin_integration_test.log",
+      "bytes": 6110,
+      "sha256": "25ea0e7ab6fb4409537a19e594e2f5559abfe0f8854353c710a7a77360c420b3"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-session_recovery_resume_offer_test.log",
+      "bytes": 17731,
+      "sha256": "6ae00eef04537b7493841589c90d79f466b72aa0b1a411092e68cf93c50e820e"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final-terminals.json",
+      "bytes": 2601,
+      "sha256": "9446c1d77911f887540c84e28452dc70de1b319063a6366c0f1c43348a3e430a"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-after.json",
+      "bytes": 1587840,
+      "sha256": "7ec960d0a3b7e0a5730f0246c299117abaabad1378bb5170bacc58fcbc621d37"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-before.json",
+      "bytes": 1587840,
+      "sha256": "7ec960d0a3b7e0a5730f0246c299117abaabad1378bb5170bacc58fcbc621d37"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-bulwark_component_damage_silhouette_test.log",
+      "bytes": 1553,
+      "sha256": "fb0b766e0d1425c4c9f58e3e27ee4d62278ce1be210b7d60c61ec16bb825d0db"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-bulwark_crew_gunner_gameplay_test.log",
+      "bytes": 374,
+      "sha256": "c71cac540210e9ece66b72f9ff640b33fe7817a84ea969147ae92937d3262175"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-bulwark_dorsal_silhouette_visual_test.log",
+      "bytes": 2705,
+      "sha256": "711503411300556447e5f0287ee04c008a7dc78578a3727b41faa62706817965"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-bulwark_game_flow_registration_test.log",
+      "bytes": 376,
+      "sha256": "cc02ecca4c08e8fb565921197430b0cad76b63cbac0e7d2d2aceb713ec7d995f"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-bulwark_heavy_gunship_test.log",
+      "bytes": 11281,
+      "sha256": "1d64527b997512f0f1359b0547ca5aab2fd492115495e494fdeb2a93da81651c"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-diagnostics.json",
+      "bytes": 3728,
+      "sha256": "c263dfd3202e1aac02d91c0dcd61afc01c4b9d1e7991a7cc2d3c5e909f281a1e"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-geometry_census_retained_material_test.log",
+      "bytes": 1401,
+      "sha256": "63e97c5b5ef01541d8fcb4e1eca9e68a8fb78c7128694857377c53c19f0c29b2"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-geometry_census_scenario_test.log",
+      "bytes": 5737,
+      "sha256": "0fab0ba9c96312506a40ffb82c1e341ff67af6febcf98ba3a409e905aa99d092"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-in_flight_cabin_integration_test.log",
+      "bytes": 6098,
+      "sha256": "34711ee07094305326a9bc629aab17a731f0e4a7b2705f6363dd4cffaeb88122"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-session_recovery_resume_offer_test.log",
+      "bytes": 17731,
+      "sha256": "6ae00eef04537b7493841589c90d79f466b72aa0b1a411092e68cf93c50e820e"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/final2-terminals.json",
+      "bytes": 2608,
+      "sha256": "be477a566936c6acf65dad8ba71455085192ded737b336fb490a9be55b836f26"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green1-bulwark_heavy_gunship_test.log",
+      "bytes": 13641,
+      "sha256": "424f25c5a23351ad363cf0cad7db0dfdc70acd6a1d326351c52f0411b85d9a6e"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green1-terminal.json",
+      "bytes": 117,
+      "sha256": "b2e00b99842d5a13ebdfccf82ba1ffb1af4292409e260d9d70a0b8942bd983ac"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green2-bulwark_heavy_gunship_test.log",
+      "bytes": 12557,
+      "sha256": "f2121e884d61b8f68b11837cd18c5fd34c8b40effb0e6734189512db123f0e05"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green2-terminal.json",
+      "bytes": 117,
+      "sha256": "963ffd624545027c042c83bb7bfbd8456544558015af61aebff5f84a7aed5e3f"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green3-bulwark_heavy_gunship_test.log",
+      "bytes": 16865,
+      "sha256": "a42e357e16b1859acb36d955c2f9d6cce76cf9d61fae7dd2547a63416db9af16"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green3-terminal.json",
+      "bytes": 117,
+      "sha256": "33eb1e38866ead8c6637d9c0a46232c72914470d3cadde60d5f0d6fd88d9691c"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green4-bulwark_heavy_gunship_test.log",
+      "bytes": 12805,
+      "sha256": "c6fb810b5aeb1e434069a3fdceedcf9e0b3741c7437e303d84fe4a93a3240bf6"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green4-terminal.json",
+      "bytes": 117,
+      "sha256": "e7304c096538f527c384b02bb299af89a7269cb2f904f59defd36b146a6402e1"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green5-bulwark_heavy_gunship_test.log",
+      "bytes": 11348,
+      "sha256": "35502c45bcec9512c759cf8c7e2ba46312c25a48f5cbe5d31ad90a84f54b45f3"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green5-in_flight_cabin_integration_test.log",
+      "bytes": 6688,
+      "sha256": "f046a1109895e9cef45cafb13696ce7f147cb1411bd69522f11046a0d7f674e4"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green5-terminals.json",
+      "bytes": 380,
+      "sha256": "8b5514eedec1c4f63f8951160a69107406cdf25081fbdd2bb863198e39acdccb"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green6-bulwark_heavy_gunship_test.log",
+      "bytes": 11151,
+      "sha256": "57e2c8481a959f36d2ee15c768685e9aa9ca3e77193add5574f3c45374598323"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green6-in_flight_cabin_integration_test.log",
+      "bytes": 6108,
+      "sha256": "9b47ddef48a7574e9202f1ca9c9338b7228dc92f862d7c010fdf0cfa194d69c4"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green6-session_recovery_resume_offer_test.log",
+      "bytes": 18197,
+      "sha256": "0546e9ca406e0051ad849e0a245bdab757bbb49b15fc3247ba698556d05d0667"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/green6-terminals.json",
+      "bytes": 594,
+      "sha256": "d65fecfdcc4ce42d7402366f423f5fe4e11f7b30b803e9a563cd8c5004cf9a40"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/handoff.json",
+      "bytes": 9187,
+      "sha256": "b4a0fb5af499f153db069ee61b26dd340593e19ed4fc798c08d77e3e6813e32b"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/import-terminal.json",
+      "bytes": 91,
+      "sha256": "f5b9d2062e54971975096d7e82022a25a38dc58c6ddd2ff35c13ce4ea54647aa"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/import.log",
+      "bytes": 147090,
+      "sha256": "69935c1524b65f9706103c50f579b06e4afa2b8c8f9edb4ca0f3d558d408257e"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/red-bulwark_heavy_gunship_test.log",
+      "bytes": 10998,
+      "sha256": "5176f42267ead4e0727d0d9ccddc07f133f0b8d4be0fb11c68c95a7f356cec7f"
+    },
+    {
+      "path": "/tmp/bulwark-cabin-results/red-terminal.json",
+      "bytes": 112,
+      "sha256": "b9efa29c102f98fbdfd55ecc49e7a38059275366a7bc841861d3e4c36b692838"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2098831.json",
+      "bytes": 2807,
+      "sha256": "6b47be686b8af01a09901725239dceeed99a82d58c45e976b3b78a8bbbda2bbd"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2098831.json.bak",
+      "bytes": 2903,
+      "sha256": "d72e56a19115202e590bcc72ce8273424f384725b852f64966a3015c49520760"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2098831.json.bak.1",
+      "bytes": 2807,
+      "sha256": "c00cd8081c21d7c548a5d297dc469b2ed76544ff540029a425139cd923c4bfa1"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2098831.json.bak.2",
+      "bytes": 2904,
+      "sha256": "c915d78818e18df4783c3831ec86f528a8ff6f79188d36e9518e2a56422ee803"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2098831.json.bak.3",
+      "bytes": 2903,
+      "sha256": "0a95cc6a3db935dd762c8c1b004843baed12ccbffb217d914ceacf2cd7bc6b5e"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 1539,
+      "sha256": "9076966e9417acd3945fad7b6c0ba29bc6d679fa68acfdb4a4b2ba6c82f9bf71"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 10858,
+      "sha256": "fee8c617e3bc8dd6dc7a959f5c6f6b092df91db5c70bb9b6ebd0b0d0f5ebd910"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2098831.json",
+      "bytes": 7252,
+      "sha256": "91cb6a2def24e6aa2f16ba7da578ad8c15ee610f39d8bd2e1263ee8a3c1e8b88"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2098831.json.bak",
+      "bytes": 7348,
+      "sha256": "b94bc4ff1ac19c86e9e15425418eb35c830d3a16ae94bc6275fc887f2031642a"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2098831.json.bak.1",
+      "bytes": 7252,
+      "sha256": "7e9a8d42497bb5ed34b2678b4ea2184b757edefb3694ef02ce6b735b8f9cec7b"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2098831.json.bak.2",
+      "bytes": 7357,
+      "sha256": "e153ca5c46849363e6d600e52b37e39a37c4ef09749db6cd0f7a7efd610b6636"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-gunner/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2098831.json.bak.3",
+      "bytes": 7260,
+      "sha256": "a36474319f803e3fad81220c5d842fa6c3682953dbaf341037b7dae9bbb0ad9b"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-import/config/godot/editor_settings-4.7.tres",
+      "bytes": 17673,
+      "sha256": "56cb389ce3fcee4895f65f1c0c30373b808b1392ad06895167320f573b3eac56"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-session/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 4383,
+      "sha256": "c30c66be83bd3203b81f6f915d20c6b667cf168f54961851e54f10b7fa26b4ca"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-session/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.previous.json",
+      "bytes": 4763,
+      "sha256": "ef5c89b0adda1698b457fee008bfcf0abe8a2678d56123d8fe9eb79a52b6909c"
+    },
+    {
+      "path": "/tmp/bulwark-combined-idle-pair-session/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 20051,
+      "sha256": "488c93c105fc84a6260bdb697154c5fa2162e4709dcfc28f8773606dfc42849a"
+    },
+    {
+      "path": "/tmp/bulwark-combined-import4/config/godot/editor_settings-4.7.tres",
+      "bytes": 17664,
+      "sha256": "c1e9e2f2e40ac5ea23d859302c495dd36b65e4e3b56ada176f837360327fcd21"
+    },
+    {
+      "path": "/tmp/bulwark-combined-import7/config/godot/editor_settings-4.7.tres",
+      "bytes": 17664,
+      "sha256": "a8f1e75837576f694465af3f7f572d2e597ffa6e5a84227656c1a0a89f87f647"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary1/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 1030,
+      "sha256": "65b47b292141cd084117ae0533fbc5218f8b5d003bf91f0451e75a0246597b51"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 3011,
+      "sha256": "ef20a21d6aec810a6e79e9ead6e31d61eaf95378149d68b27317cb7284076174"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3116,
+      "sha256": "fdfc83d87101dddf4541ba4ee5c760f1977049badd0c7e370e8944003236cef9"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 3019,
+      "sha256": "f9f3bf1b36e6d4063e19dc7188b864b3b7ff45ac7ba88d517224340859bfdde4"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 2797,
+      "sha256": "183f7194c0c5503a67a20c8474e91164118e3603037e7f3e9c0b60abe773713d"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 2902,
+      "sha256": "726f929e29035f36dc1b5b997ace8589aeee77b9115a5500f41694f2dd03e0cc"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary2/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 1765,
+      "sha256": "1d2f0c7c7ab458fb3cc31fc0ed58bc1a8f44cfd398fcfa407b8a45f74dbf06ba"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary2/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 3044,
+      "sha256": "3dbcbcc02db5dae1c9a39e6d4e612c51932c46e201465e5d7245e3709ada5bb5"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary2/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3149,
+      "sha256": "4674f413334cacdcee0e082d0908ab9060fec376764a03cf4a129557a14c4b28"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary2/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 3052,
+      "sha256": "9ab3be00ec1a11ead8618ec468d7acfad1fc4c64febf936097f141d323fe9ab5"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary2/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 2830,
+      "sha256": "e223df114f75b99383682cce41619b03218274fdfed083a82a8fbb14291c83b0"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary2/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 2935,
+      "sha256": "3fb6a3b91a14b7b43612f7d81728d66af6c879c70c9d338ca65da89c15ca104b"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary3/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 620,
+      "sha256": "a129e69524874bb8ff82c2eb27b0bce9ffe2d31ef82a7bc20be67c50d89a3b25"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary3/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 1248,
+      "sha256": "0a9c94f51f28c4aee125e1ca3fe3ba3d2794171614c048b21c6eb6d7a0a1e7d4"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary3/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 1126,
+      "sha256": "d10c88da3e1d5d3aec13d76f9d38f14d15440d1768a8276a8d52ad7c57550b81"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary3/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 911,
+      "sha256": "e17a4f6657d440bca5f9acd96610e69830822ab8072e28b90432235f07e8afd4"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary3/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 598,
+      "sha256": "b509d29102d43f10b938cae3c94effbc81c5bd1e95d3280e4bf65929043afe29"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary3/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 393,
+      "sha256": "5e649a3bfc850597e2ec2d3ba090e312f33e343c85f8c5bde75428fd45fcc7fa"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary4/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 4246,
+      "sha256": "4153bed6421b59fd513c12214706b282ca5cfac030128bb956aa50257e880879"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary4/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 2973,
+      "sha256": "a7e7e3a0668033701ffbe3350a58760c9a560aa2da71cce76745ff104664980e"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary4/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3078,
+      "sha256": "a79babc65a25cc9033db9d712a408f4fdf8b52ab9f8dbf84e5caab7e47934e2b"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary4/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 2981,
+      "sha256": "cff93648292a8df8aa6c0c2252445a187904fec0f8c63cb7c288d430496fbf50"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary4/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 2759,
+      "sha256": "659fa26833d3ec409ee1d72635ba79f84cbe15ed7c9542c8e5819caded424df1"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary4/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 2856,
+      "sha256": "caceab2397b6c7b7ee5d2cb469fa6b16aec6fc9c6132b48a4316f15052a154a3"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary5/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 5392,
+      "sha256": "7c4cce3a3d7359ef8f5088142fdb3762a823e5e1ce3e39f5a646204f49c08373"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary5/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 2973,
+      "sha256": "b070056ce995852e33f56ef95eef45ce19195e0d178563d0c4aa9c3a57370f6d"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary5/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3078,
+      "sha256": "6d61aab4816b8160e6db82b6265fa099acadd7b3a6589f514ff1c2e94b18d867"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary5/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 2981,
+      "sha256": "f24925d910f506c6ab51c832d66febb9534286c0863b57b407c15016b1d30196"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary5/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 2759,
+      "sha256": "5fb82289da9d24977ce6c1d1de3f44717df863457261690b4f07a6303c211662"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary5/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 2856,
+      "sha256": "46e4de04534fcd65868546d374589220e1fbbbb44e8146fc2fd024bcb59b0e22"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary6/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 5981,
+      "sha256": "6a515471b980ebb5c27711d3b9e63cba67e67257eec69c0c822eb3f5af36113a"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary6/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 2973,
+      "sha256": "645d1404ef900f28ec88096de2a050ff73d41aaf90a40e47be32946bf644a578"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary6/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3078,
+      "sha256": "5765e0214772dc7cde50dd0243fa63cd6bca56fa494619b0a262eca805b949e3"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary6/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 2981,
+      "sha256": "c521e72bca07aac2396f4fc6a8b0ad25325a5f090d116da0aab97780205c8fff"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary6/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 2759,
+      "sha256": "d74bf858837da4eaa94c81f0c74f5a7cf665e83bde91aad8a39a475e0af94ead"
+    },
+    {
+      "path": "/tmp/bulwark-combined-ordinary6/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 2856,
+      "sha256": "bb574cdc0f5254d7c39c7c8aa707dbfb143ecae22d31fa99c0e8731e4a6a61c2"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification1/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 1538,
+      "sha256": "c74623cb7da719f3f87e99deb72e9b0a4553de79ac10ac08d9b8f4e7db09082d"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification1/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 12323,
+      "sha256": "a1db7e62f8cc62047590fab63be77d178797f4525233449c865a152b3fd73287"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification1/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1959887.json",
+      "bytes": 6622,
+      "sha256": "3c802f1ce166473f2b69cd7626cf0b6ac118c2d30d99c9ad7713c23b35a66c7c"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification1/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1959887.json.bak",
+      "bytes": 6109,
+      "sha256": "dd848a1b1cd321701de8f22a9da3337c5487905b9b80d0d39a7e5cecba6baa16"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification1/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1959887.json.bak.1",
+      "bytes": 6102,
+      "sha256": "51690b38b3ffac1f4fbe7daf98d676ae2582621ee3d3e4d6531af1aadd7c7c90"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification1/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1959887.json.bak.2",
+      "bytes": 6198,
+      "sha256": "d01b207a53c9eae5cd6709c204a1672d11090f9f5453e369e5690f7de944ad45"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification1/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1959887.json.bak.3",
+      "bytes": 6102,
+      "sha256": "80ce241464d045afc87f491a175aaba708adce60860ee6ad957af750f86a2732"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification2/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 988,
+      "sha256": "2d69fb29ddeda376d725826f57ae7b3541d65432f8147dcd9e0d0dcd8013bc8c"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1975965.json",
+      "bytes": 2906,
+      "sha256": "f3cd44fc1c8a18d94e59835d1b3faadde28508a43abb3186090e713af185f31a"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1975965.json.bak",
+      "bytes": 2903,
+      "sha256": "9fc652ce44bace26059449764eb343373354859677b3e51d863ca81a5e9b39d4"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1975965.json.bak.1",
+      "bytes": 2815,
+      "sha256": "69e8e423b71bbd73426a9312358ff1e70cf538b86c3799f016ed7219348b4d77"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1975965.json.bak.2",
+      "bytes": 2912,
+      "sha256": "44e28bbd85efec5ef87c43c1f86b5e10c31c457e759a92a12974ba239ed626ac"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1975965.json.bak.3",
+      "bytes": 2680,
+      "sha256": "87988fe649aa1ee9a6e5b7f8104c97c7ff964be8a6462edf202aca121f52aa05"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 1539,
+      "sha256": "c309cfdfdfb5e58f4d1c75a7fc5157e6df0a7b5ba00431cb2ce13d8f3d4ae5b6"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 23214,
+      "sha256": "1766132b1dea6a4dbe3241e148c2110a1e9a24beb6878dbd55d665678dff14ac"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1975965.json",
+      "bytes": 7320,
+      "sha256": "676664243486a30def7777a87c4b3655eee19be32ddc1011e6e248b06dd5220b"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1975965.json.bak",
+      "bytes": 7416,
+      "sha256": "02b620186ab3af1686756af75992e5bf2cbf81df118dbfda84051f346b1514e0"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1975965.json.bak.1",
+      "bytes": 7320,
+      "sha256": "a471b144f36331a14f63d9b8ee0a8396224289c28a18c7c3d17a2372b439f6b1"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1975965.json.bak.2",
+      "bytes": 7425,
+      "sha256": "0a7d55bf9a3f484ba12f423d4ab8ba3ee2b272b44f18ebbee05221f0bbe57850"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification3/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1975965.json.bak.3",
+      "bytes": 7328,
+      "sha256": "d2c9e5cf914876aa9ca7d3507e87e197e4b631b041e7da5ec1bc05610ff4a0f1"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/config/godot/editor_settings-4.7.tres",
+      "bytes": 17671,
+      "sha256": "acf0c94bac5bc6b05c6ec3c6b97bedc02e292c756f8268c061edab2196fbada2"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1986898.json",
+      "bytes": 2944,
+      "sha256": "151293ca4ef83fd93d1a2a8975b985a50d475e3e5401a3dcda3da20940e1deef"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1986898.json.bak",
+      "bytes": 2941,
+      "sha256": "857497fa784ae3698930ebbf06dfa00484930138ce95346dd04a5472037394eb"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1986898.json.bak.1",
+      "bytes": 2853,
+      "sha256": "fea663583dc713dd0a3dd5039f17b875ec11704bdab5292ba6dcdf685af2cfb7"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1986898.json.bak.2",
+      "bytes": 2950,
+      "sha256": "4293e3fb1aab1dd192a46b62d8abb26dfabe65b96c08e140752fcc1bc87959ec"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-1986898.json.bak.3",
+      "bytes": 2730,
+      "sha256": "08663e10023275460d74ade7d1b17a87c2c0f94eb6a883d162a54fec8d93776f"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 1539,
+      "sha256": "6248f820cee7587d4e4bd2654839056aaa85340dfd1c70eba3f6ff865620b632"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 13234,
+      "sha256": "33d6aa466eb2ec4ae27bc24fcec37fa8df18330a0a2bd544be8c224385bf96f8"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1986898.json",
+      "bytes": 7321,
+      "sha256": "6dd248ba5e0c6436775d1eb06528a1ce9223fe27273eab023f6840b3a2faa49d"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1986898.json.bak",
+      "bytes": 7417,
+      "sha256": "9581970b236d0c6cd3127b447de815e9c44ea0bf2170bacf9889708b23d2e0de"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1986898.json.bak.1",
+      "bytes": 7321,
+      "sha256": "938ff35a673df09f9385d36ddc4eeda7c03dc322047e837b28eed9825fe9ad32"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1986898.json.bak.2",
+      "bytes": 7426,
+      "sha256": "aaa6893f03496b1187d8d0bfaa45cb5d072de7514987b58120c9839e91fb3607"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification4/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-1986898.json.bak.3",
+      "bytes": 7329,
+      "sha256": "d0fc727342234f0aebea491d5414d89a6619ccb633e40176966ebde72d1150e2"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/config/godot/editor_settings-4.7.tres",
+      "bytes": 17671,
+      "sha256": "46b567151b3b6c5b0f7b5aa0937748e2544b5437574e88d9e3a89bf6ae7c0013"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2020675.json",
+      "bytes": 2878,
+      "sha256": "02c8efe06941e906c838c74da8d026dcb0af1d4bbb0ab3552e2444870f28fafd"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2020675.json.bak",
+      "bytes": 2974,
+      "sha256": "08da176ada343b1454881022afd51fa99c14140f3c9dc952c9b3842fa976af24"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2020675.json.bak.1",
+      "bytes": 2878,
+      "sha256": "af88c0cb9a6113756054ea338f53fdac34084a867b752e2e196a0c8ded95f737"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2020675.json.bak.2",
+      "bytes": 2975,
+      "sha256": "f0aef02c407df81950498d31488e9dc4ec8cac30acf60341ec2c9f3e704a4442"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-2020675.json.bak.3",
+      "bytes": 2974,
+      "sha256": "e0e4b7898e00e49e469259b244da86191ae263559678a36be81e87aba5e7217a"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 1540,
+      "sha256": "dc7d114f670829ce1e6ec7a091a93802cdee4d7ec0ba12bdc4d545b2e9eccccd"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 10353,
+      "sha256": "d4fade9da37718972a38d5a834ac6157829ceec3d558b165c134132d4ae6b74f"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2020675.json",
+      "bytes": 7334,
+      "sha256": "2808ad4ca9b5470e97860665800affec84de707f212336b2716988c7d6106afc"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2020675.json.bak",
+      "bytes": 7430,
+      "sha256": "8afa8cb195277125e59ad9928c5f81ff7e1a951a79413d673c30dc5b0a034b88"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2020675.json.bak.1",
+      "bytes": 7334,
+      "sha256": "18f15c4916e006ca823d377df9ffe4943d745f038c626a836280178944590d22"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2020675.json.bak.2",
+      "bytes": 7439,
+      "sha256": "b196818bff9c8f7cc09dd57043d0872c0fe39c7fc19c396578d078bf14b98a0d"
+    },
+    {
+      "path": "/tmp/bulwark-combined-qualification5/data/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-2020675.json.bak.3",
+      "bytes": 7342,
+      "sha256": "c7ed591db03380f43322539737e74be4e9ee52948d5ef0de3f940a7c5621d3b7"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/audit.gd",
+      "bytes": 535,
+      "sha256": "96ebec19f3e71b8aa7537cc1e262612c8bf616b366235f396791e9304631d22f"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/capture.gd",
+      "bytes": 1660,
+      "sha256": "8cc34065937a077de6e99a272897bfa4d95e30b957d13a3a3fc69093d3cdccdf"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/capture_low.gd",
+      "bytes": 1665,
+      "sha256": "cb70b940e733eafa9ac4b83823402f1a8a1c2623a7cc969b506f377dadd56163"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/contact-visibility.log",
+      "bytes": 568,
+      "sha256": "7b4eb40e83d155bdfa57cda0d50db44e31f28f3731aa83204dceb9109b3a10fd"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/contact_visibility.gd",
+      "bytes": 1882,
+      "sha256": "6962386f4d5fc77b8c5394b8dc7259393ee9e64328f119211ae4eb5b26938d5a"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/current-audit.log",
+      "bytes": 3074,
+      "sha256": "da74331f96926ad53beba9ba022e83943d9999ba0df8b71616dc2ee68b064fd3"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/current-capture.log",
+      "bytes": 521,
+      "sha256": "0b25a5264cfc7b8de3b897faecf796e586add2fe3c0e353b2ffc7dd620f847b6"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/current-low-capture.log",
+      "bytes": 525,
+      "sha256": "61ba596968b2153d0cb3807c51ccd6d136b2e8e010887b878f46d28a2cc97da7"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/current-low.png",
+      "bytes": 233486,
+      "sha256": "4fe9a5404c0dcec172683803fdd03472a80951c929cd209c977044f09c1890fe"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/current.png",
+      "bytes": 654015,
+      "sha256": "9065344c4afaf921ff96db8db91fb151f10126916f10d9ae418cf6262a11ac32"
+    },
+    {
+      "path": "/tmp/bulwark-console-evidence/import.log",
+      "bytes": 146875,
+      "sha256": "7462dba4f6caf80733da71a8c930ca26f1c960eee1160b8ece7f1d679335d98f"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-check/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 320,
+      "sha256": "b7dc1a2e408699a0419c6b35ae00d27b1130fad5bfe80599a1b92ebe2bb6c4d0"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-import/config/godot/editor_settings-4.7.tres",
+      "bytes": 17670,
+      "sha256": "eb4fa069100d33ddca83cc24f3bac9dcbeb9547759b9aa4bd4455d817feff262"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-reimport/config/godot/editor_settings-4.7.tres",
+      "bytes": 17672,
+      "sha256": "0383f630112ede87cea28f53e91a96aff98be93483c0c8a918ab70458a7476d6"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/final-source-import.log",
+      "bytes": 1725,
+      "sha256": "2b6d6e4b30e6d1e401f40ac448db3dcf8b7ce7edd2107f5390e74265a7a51f09"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/final-source-private-import-terminal.json",
+      "bytes": 221,
+      "sha256": "72d5656051337608043c6428e9bfd0616583b0215b08eeef33267ecc8085c5a4"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/final-source-private-import.log",
+      "bytes": 1266,
+      "sha256": "644fc56f7291ca40876ccfcd2475d8903e1d4db45cfeef65ac734332a776c3b8"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/idle-pair-after.json",
+      "bytes": 1564702,
+      "sha256": "b7a82ab273486947305ec9c8028210dc6d0e10732c4c3a9a808e51912c56087d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/idle-pair-before.json",
+      "bytes": 1564702,
+      "sha256": "b7a82ab273486947305ec9c8028210dc6d0e10732c4c3a9a808e51912c56087d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/idle-pair-gunner.log",
+      "bytes": 10878,
+      "sha256": "1c340b824224a7745834f8baeecc6b88d21c1dc12aa48f3ffb7bf6ac33aca052"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/idle-pair-import.log",
+      "bytes": 1543,
+      "sha256": "f01f5b9ff6b496dc540bad8292eb9a1406db3002849891c8fadc33222b9f93a5"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/idle-pair-session.log",
+      "bytes": 20207,
+      "sha256": "9fbbb5d8c069f490bee4b994359afa828b9b86a939d7539540b1543f1183ac6b"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/idle-pair-summary.json",
+      "bytes": 1559,
+      "sha256": "9605a4e42fef82a92c73d13fb99c47f8825053fcb5180b3929801962b78f6487"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/idle-pair-terminal.json",
+      "bytes": 806,
+      "sha256": "ea2b78a94f88944333601e5f383c0c5a571e444472993153b20a5681390a92d3"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/idle-physics-syntax.log",
+      "bytes": 322,
+      "sha256": "6c35a59241a8f62bab6e78cee2b410d380bc87fdce241d13dee81dc333a34337"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/import-terminal.json",
+      "bytes": 117,
+      "sha256": "076611281ebaa20540685a7cb5ea15c9ea250b7705ea5ee01bea55f87eba4997"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/import.log",
+      "bytes": 146841,
+      "sha256": "ab9d659f7f0128dae528ad847720e38e0b859dcf4c6968f368e1c7eb3de220ab"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary1-after.json",
+      "bytes": 1564702,
+      "sha256": "3d2463cb2694147e7e6915d835f75b7e825df4e6853a0f9e5606a081d43100fb"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary1-before.json",
+      "bytes": 1564702,
+      "sha256": "3d2463cb2694147e7e6915d835f75b7e825df4e6853a0f9e5606a081d43100fb"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary1-terminal.json",
+      "bytes": 221,
+      "sha256": "a85b784cd583acfb45951b75c4885e6910a3326d8ea048665913cf163f672cb1"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary1.log",
+      "bytes": 1032,
+      "sha256": "cc1a394b345194d3108bc06fd1fee0446b5d185bc4c98b03ffe3c4a015f41778"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary2-after.json",
+      "bytes": 1564702,
+      "sha256": "62d63e5e921d8931d9c029d840a396bee1671719b472f402ff8250e60e2f059d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary2-before.json",
+      "bytes": 1564702,
+      "sha256": "62d63e5e921d8931d9c029d840a396bee1671719b472f402ff8250e60e2f059d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary2-terminal.json",
+      "bytes": 221,
+      "sha256": "d2f363af920fd09ef4c38a896ad326634a213cfcaf5aa7a424c897af4436fc27"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary2.log",
+      "bytes": 1767,
+      "sha256": "57aff81b94f8207788acfc4b9332fdb117dc18cbfc4284f6075e9645d99d63b3"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary3-after.json",
+      "bytes": 1564702,
+      "sha256": "62d63e5e921d8931d9c029d840a396bee1671719b472f402ff8250e60e2f059d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary3-before.json",
+      "bytes": 1564702,
+      "sha256": "62d63e5e921d8931d9c029d840a396bee1671719b472f402ff8250e60e2f059d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary3-live.png",
+      "bytes": 352450,
+      "sha256": "3be2cf3e90f5388cac8bdcf72c7118d7dd4494141754bdf9f99850969125d71e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary3-terminal.json",
+      "bytes": 814,
+      "sha256": "70268acd43f1c5340f9ab279e919edf441f31bd06145f9ed3f143c5a09a91e5c"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary3.log",
+      "bytes": 624,
+      "sha256": "b0cad3b933dde05804bd8cf7a9a249b4117d1a1cdd865b15b9db27920e9dcbfc"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary4-after.json",
+      "bytes": 1564702,
+      "sha256": "a17e72d7c524fdff1963a602caf80429e14eab024ebde45301ff0bd42ef10b80"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary4-before.json",
+      "bytes": 1564702,
+      "sha256": "a17e72d7c524fdff1963a602caf80429e14eab024ebde45301ff0bd42ef10b80"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary4-terminal.json",
+      "bytes": 285,
+      "sha256": "c69a6e0eae2975896767bf06b36179862fe31ab443a592331143d504947c2185"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary4.log",
+      "bytes": 4250,
+      "sha256": "f5a1c37fe1b3561a1a72615a7193a00a9a835668af5684bd9c549f07eb87e0c9"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary5-after.json",
+      "bytes": 1564702,
+      "sha256": "dd5d242a1266318515fd26eb4eaa636b35dbcd8f357724d797396bb9ffaaa335"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary5-before.json",
+      "bytes": 1564702,
+      "sha256": "dd5d242a1266318515fd26eb4eaa636b35dbcd8f357724d797396bb9ffaaa335"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary5-terminal.json",
+      "bytes": 285,
+      "sha256": "04ec770b9ff57b3b79282fb80ef5e67cc7bfa0ca6b2b53ebf59b366728c74f4c"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary5.log",
+      "bytes": 5396,
+      "sha256": "8f2e66c8c2eb8c4ae8a10c3a66483ec2ccd82a4ba34912f808b71b8ac9216400"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary6-after.json",
+      "bytes": 1564702,
+      "sha256": "b953efb927d6c04ced5267b68b2845b03eecc0f6cdcd9ef387694e2d3d935484"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary6-before.json",
+      "bytes": 1564702,
+      "sha256": "b953efb927d6c04ced5267b68b2845b03eecc0f6cdcd9ef387694e2d3d935484"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary6-terminal.json",
+      "bytes": 285,
+      "sha256": "4069b2076619019d7c993b489841f4cc52140b953430951194d49fe76673e2fb"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/ordinary6.log",
+      "bytes": 5985,
+      "sha256": "4a17a00a0212c43d2360d170070b06c45d8ddd12f4633d47f7017a88da2635bc"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification-import-terminal.json",
+      "bytes": 214,
+      "sha256": "1b008eff57bd757cf3c9a80696d5febd5e770e4983368a63d31af2407e578950"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification-import.log",
+      "bytes": 1624,
+      "sha256": "8667c1c354c138a6bc19cd116425e6bc4e780ba5e19a436de84a5c48650d7082"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification1-after.json",
+      "bytes": 1564702,
+      "sha256": "1d980467a243cee728beba4cc9d84d97c46b643a54ce730ba60bf88585b89ced"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification1-before.json",
+      "bytes": 1564702,
+      "sha256": "1d980467a243cee728beba4cc9d84d97c46b643a54ce730ba60bf88585b89ced"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification1-terminal.json",
+      "bytes": 290,
+      "sha256": "dc874f3a5f9a2df29fd7ed9dc1cc26116640f31b6a8d3a4b46697629de6ac30c"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification1.log",
+      "bytes": 12343,
+      "sha256": "ae61959535745daa2dfc0ff504ae6aa7777d4f44a7b6db6881d4263cdbe61608"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification2-after.json",
+      "bytes": 1564702,
+      "sha256": "50e045add42b2bc9b60cd22a157ebde612a57ae4b11f4484d24dc5c4940f8286"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification2-before.json",
+      "bytes": 1564702,
+      "sha256": "50e045add42b2bc9b60cd22a157ebde612a57ae4b11f4484d24dc5c4940f8286"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification2-terminal.json",
+      "bytes": 290,
+      "sha256": "875ce11facfa9e67465cdf7af1df8cb280a2e417bdb0dc0c9e8c7f15b8536371"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification2.log",
+      "bytes": 999,
+      "sha256": "8a48fb7fe390f8bd5971028ae9be620ab7086320e8c582d1265756985354703f"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification3-after.json",
+      "bytes": 1564702,
+      "sha256": "28bbf3704bcc5d16e370b20a53ffeb0cc9067f1138b28eda995c664df9cfa2ec"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification3-before.json",
+      "bytes": 1564702,
+      "sha256": "28bbf3704bcc5d16e370b20a53ffeb0cc9067f1138b28eda995c664df9cfa2ec"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification3-summary.json",
+      "bytes": 495,
+      "sha256": "27eb9fa3bc169de53546d8e6b8599f01c13086789b89e16b8bafd6f6faede2d4"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification3-syntax.log",
+      "bytes": 322,
+      "sha256": "6c35a59241a8f62bab6e78cee2b410d380bc87fdce241d13dee81dc333a34337"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification3-terminal.json",
+      "bytes": 290,
+      "sha256": "bd6c758725a4ef6cb6f762b9409a82c5082afd6855cf639bc9e41c08bd513fe7"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification3.log",
+      "bytes": 23990,
+      "sha256": "b6262ca02a6393154ec185dc899e44e36a631886dd165f2a3caaf8369384f408"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification4-after.json",
+      "bytes": 1564702,
+      "sha256": "bc637e3a91f46305704a725a0ec4355cb4572853c961c6f2e4f2b4c991e968c4"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification4-before.json",
+      "bytes": 1564702,
+      "sha256": "bc637e3a91f46305704a725a0ec4355cb4572853c961c6f2e4f2b4c991e968c4"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification4-import.log",
+      "bytes": 1609,
+      "sha256": "1d9c7b855284366893298f6213d740e753cb96c13e1bbba6a99104fbf7042d7e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification4-summary.json",
+      "bytes": 494,
+      "sha256": "cc4bafe8b841d2f71faa3c727511a1ba6f38fccd8f42c2b1177624aee829d641"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification4-terminal.json",
+      "bytes": 290,
+      "sha256": "67ad2c95a24c2f0d28b869cbf6f2c74f0f5e85b365f4fb7ab36abe753164d975"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification4.log",
+      "bytes": 13254,
+      "sha256": "15dbf5bfbea803f9857c791e4dc666730232b19c6d0792717a0d4b2299c5ca23"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification5-after.json",
+      "bytes": 1564702,
+      "sha256": "126b8b09686dea3d11182f99dc061f1f6d49fdb16ec74d96c7d34c03da84c571"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification5-before.json",
+      "bytes": 1564702,
+      "sha256": "126b8b09686dea3d11182f99dc061f1f6d49fdb16ec74d96c7d34c03da84c571"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification5-import.log",
+      "bytes": 1667,
+      "sha256": "c31b91fcdddc3f84916fff3383c922153a2777cf575d8053eb4d4b4c41e43a8a"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification5-summary.json",
+      "bytes": 906,
+      "sha256": "b55d8b4ce09c398039b59d340cdd2adb279e9aed8bae41f368743f0b3178e5ed"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification5-syntax.log",
+      "bytes": 322,
+      "sha256": "6c35a59241a8f62bab6e78cee2b410d380bc87fdce241d13dee81dc333a34337"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification5-terminal.json",
+      "bytes": 290,
+      "sha256": "62ebe6fbeb99e3317ed531db56eaeaeb64500d4e6ed0f07f56b27aab2151ed73"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/qualification5.log",
+      "bytes": 10373,
+      "sha256": "a43119d376e1f31f8ac9f84f7562932ac93db0ddd2d1d928ab4061f358e66cd2"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/reimport-terminal.json",
+      "bytes": 119,
+      "sha256": "307ce6239479016eb659393c4c399e8bcc0fac33bcd2c53bc5592c4b7ac99e96"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-combined-results/reimport.log",
+      "bytes": 1017,
+      "sha256": "5fb5d4a42e3cfa487502ff777e904964db14040d3ccf409829d422b68e583297"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-cabin/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 5849,
+      "sha256": "73e7f102d8df09a88b04ef25392181f52998de1e4a3e9460c74af330d75935ea"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-cabin/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 5169,
+      "sha256": "b9aee3729d5635ccaa12de3ce526738f1684e3ba7b2016637f1d22db816a2928"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-cabin/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 5070,
+      "sha256": "3de441ee49a536786ca224a7d29312c0a66082a5d40ce1837492b24d3426a81a"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-cabin/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 4836,
+      "sha256": "1bcd6c9430ed838bfee48e792d636846e73a10c7614d950aeec098f72ff26d1e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-cabin/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 4941,
+      "sha256": "b19b30ddb1dc2516018003321788836caeb17dff97eceb6a12b0f4a17b16ff2a"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-cabin/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 4844,
+      "sha256": "35b0d132922679836e6ba2bbe33ece481ae8837ec5c44e71073392a4b6202c78"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-census/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 5488,
+      "sha256": "27bab3e628ba52022d7dc43923d49260f30faaebdd063949de10bc1bc003feae"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-census/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 1126,
+      "sha256": "d10c88da3e1d5d3aec13d76f9d38f14d15440d1768a8276a8d52ad7c57550b81"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-census/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 911,
+      "sha256": "e17a4f6657d440bca5f9acd96610e69830822ab8072e28b90432235f07e8afd4"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-census/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 598,
+      "sha256": "b509d29102d43f10b938cae3c94effbc81c5bd1e95d3280e4bf65929043afe29"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-census/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 393,
+      "sha256": "5e649a3bfc850597e2ec2d3ba090e312f33e343c85f8c5bde75428fd45fcc7fa"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-component/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 1710,
+      "sha256": "ca52be7f8fa6735b9d383d37c266778f2abbfd61499fc4b51dc259fde5481e79"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-dorsal/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 2721,
+      "sha256": "2c715d6d55aa01270b3fb6cb0c6ad4ad2c8fe6de094756f92cf59beb003a2c90"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-gunner/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 319,
+      "sha256": "b29cfa8eadd420ea70cc807f5cc416c9801b776c350c0e7f2f098eee65ea8d13"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-gunner/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 3044,
+      "sha256": "d7441ef425b85b6d46ba20abfdacbcafdbf2f96d8b44da466654e6b17106abc2"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-gunner/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3149,
+      "sha256": "a57689bab9f6e7b3e7d54b0d02649e7523d8c3fd74b56da0ff8044e0652de5fd"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-gunner/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 3052,
+      "sha256": "a4c5ff7ee15dfe31a9bd402f17d629e691235c0a17ac1285f61026e2894e0f69"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-gunner/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 2830,
+      "sha256": "cf00aef766076054f62053871590b3d1c5168bee82e2e39121e4238b2b422a8a"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-gunner/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 2935,
+      "sha256": "df4e7ef42dda1b6ab6029b9773688b31249994574b22b79b48c0f69be7ef7c53"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-heavy/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 11713,
+      "sha256": "ebf5096bc1e6e7dfb15bae3169da76a8aba4605c97830b36673f07e5456ac64e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-recovery/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 4763,
+      "sha256": "0f70ffcef585475c524e439ff3ddee03444d7b963c7e0817a84e66b57d10af27"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-recovery/data/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.previous.json",
+      "bytes": 5141,
+      "sha256": "d7b2ae135f51d65d29cd372aac22c19835544c7bed43c9bbf951b77569e50ea7"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-recovery/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 20906,
+      "sha256": "cb4f531d54a61019fc1d63f7c3dd67c54472b0f1155c61891763004a2b7972e7"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-author1-registration/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 459,
+      "sha256": "cf0590b1b61c2b7a51f9300ca4043c866c028dcf53e3f3dfd283a73405e58d8e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-final-component/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 2114,
+      "sha256": "01af96357080543c3f84f3b486a27cdbcb5489e167a5518b20d255f4908c43e8"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-final-dorsal/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 2456,
+      "sha256": "7257386bb22eb24419ba801d168665143e1374e4d2e62c45600393d8e94d5b9f"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-final-materials/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 1152,
+      "sha256": "ee2d03be510acc2c2c09debfd89d836e8c5823eed8fda836e71aaf03dfc83fb5"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-final-registration/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 138,
+      "sha256": "71366ae03609fa0847cc353dc5cdb046bb7e8caa75eb5a50c2c3e7e63d92d5d1"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-green1/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 15738,
+      "sha256": "1a6bd89099a5c553db126b78abf20062f56e46dbc9145f517f10746007859e27"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-green2/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 14624,
+      "sha256": "41d845af0c81cc53917a710c3cbfca137e2962b4a756c99a3ee16e98fbfd3ea8"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-green3/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 14828,
+      "sha256": "19fff12bba14c476b7cdfaedd5d3c453f43b154e2d5bb152a5eecf5b4ad90b4c"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-green4-physical-route/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 420,
+      "sha256": "0519de0e7801227380c692e298b6535b696d1c96ed5a99f22c1cf6f4e513a685"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-green5-physical-route/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 12144,
+      "sha256": "4ba0aaf130fa13a8b36f363691b685810282ccdc17dcc99573f7d3afb25cb2ba"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-green6/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 21876,
+      "sha256": "914a66b935a5162d8fd0c54bde5ba72e5007bef8b955ad33977d01631e62c071"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-green7/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 16619,
+      "sha256": "cedda9f8a38318f99cfc7e1c7c6fd8b5ccb0ae4cd42cca775073d332e799e441"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-green8-physical-route/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 11545,
+      "sha256": "d9a2a394316ecb5f7fc34f0034f91b81b58aa68c4dd699bbdc1c6a4bb91c8bdb"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-import/config/godot/editor_settings-4.7.tres",
+      "bytes": 17667,
+      "sha256": "ef8b8ee8f2f93b581398bbc0da81c3c750613524fad5e83271a159537c58457a"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-measure/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 2511,
+      "sha256": "77c31d3e91442a939441535666e12d4881aec741a1a3488489b8a56009b2ac99"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-red/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 11668,
+      "sha256": "39146140f8e1845b4e1b33866416a860ca9eed090f2c0fe4fa58557af6f96a0d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-after.json",
+      "bytes": 1588847,
+      "sha256": "e9575b43c33d5f61924f566b9fd35d066c8a64aa23c8aa85de976022ca934aa5"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-before.json",
+      "bytes": 1588847,
+      "sha256": "e9575b43c33d5f61924f566b9fd35d066c8a64aa23c8aa85de976022ca934aa5"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-cabin-terminal.json",
+      "bytes": 224,
+      "sha256": "9b67801a59fb0f35477a187a5fd799f628553561120867062f3d9a96b5115a18"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-cabin.log",
+      "bytes": 5849,
+      "sha256": "73e7f102d8df09a88b04ef25392181f52998de1e4a3e9460c74af330d75935ea"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-census-terminal.json",
+      "bytes": 226,
+      "sha256": "c4a7f5f4db5f26b3eafd1569c31a01c4162d8c12370da132d55c6cc5d0f70271"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-census.log",
+      "bytes": 5488,
+      "sha256": "27bab3e628ba52022d7dc43923d49260f30faaebdd063949de10bc1bc003feae"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-component-terminal.json",
+      "bytes": 232,
+      "sha256": "342acf7e4be82feca2a953a2d2240b2125a272cc25b20cd22a34b7dfb2268c56"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-component.log",
+      "bytes": 1710,
+      "sha256": "ca52be7f8fa6735b9d383d37c266778f2abbfd61499fc4b51dc259fde5481e79"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-dorsal-terminal.json",
+      "bytes": 226,
+      "sha256": "f95088ea004907447984ea7a2ea619ecab6b55922ff8c47983f02a6a358a77ad"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-dorsal.log",
+      "bytes": 2721,
+      "sha256": "2c715d6d55aa01270b3fb6cb0c6ad4ad2c8fe6de094756f92cf59beb003a2c90"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-gunner-terminal.json",
+      "bytes": 226,
+      "sha256": "bf4063a230e326814caba5bd39538848175651e7fd7ea26a5c3e3e344a49f41b"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-gunner.log",
+      "bytes": 319,
+      "sha256": "b29cfa8eadd420ea70cc807f5cc416c9801b776c350c0e7f2f098eee65ea8d13"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-heavy-terminal.json",
+      "bytes": 224,
+      "sha256": "29d43d794dfd14bd5658706570ebb66315788528698cb6896b708d661d492ceb"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-heavy.log",
+      "bytes": 11713,
+      "sha256": "ebf5096bc1e6e7dfb15bae3169da76a8aba4605c97830b36673f07e5456ac64e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-recovery-terminal.json",
+      "bytes": 230,
+      "sha256": "916fe8dc1490ec7af0922ab57bd0c51cac7b7f7a0b1e5e3626ff683c2511244d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-recovery.log",
+      "bytes": 21022,
+      "sha256": "b8d96f4f3d1bad717649be88e726c2cf05bbfe0c058981f3056d8a8cdfd9cf37"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-registration-terminal.json",
+      "bytes": 238,
+      "sha256": "5ca100cfc2f11e8b30c1c540fa8b669d26e03407e8732da4873204201b50d809"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-registration.log",
+      "bytes": 459,
+      "sha256": "cf0590b1b61c2b7a51f9300ca4043c866c028dcf53e3f3dfd283a73405e58d8e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/author1-terminals.json",
+      "bytes": 1965,
+      "sha256": "adc90a41edb97389236230ea2e56ddd22c12bc13773f7c3b0a8040b22d42d6bb"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-after.json",
+      "bytes": 1588847,
+      "sha256": "f91160b279013df5c7f197b6ceac98b94c3c980fb9411204c41e44cceba3eea7"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-before.json",
+      "bytes": 1588847,
+      "sha256": "f91160b279013df5c7f197b6ceac98b94c3c980fb9411204c41e44cceba3eea7"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-component-terminal.json",
+      "bytes": 230,
+      "sha256": "27284833ba5566c2fc7d083139d4abd55fb51612ea6eaecdfccb25cf7185502c"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-component.log",
+      "bytes": 2114,
+      "sha256": "01af96357080543c3f84f3b486a27cdbcb5489e167a5518b20d255f4908c43e8"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-dorsal-terminal.json",
+      "bytes": 224,
+      "sha256": "12180db6c40d10aa717a3d81e5a494d0305a1e154b91c221789b5ce656a88c23"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-dorsal.log",
+      "bytes": 2456,
+      "sha256": "7257386bb22eb24419ba801d168665143e1374e4d2e62c45600393d8e94d5b9f"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-materials-terminal.json",
+      "bytes": 230,
+      "sha256": "ea470d873b9a0a3d2080d7a8f41de1622d4799660e1437f4b38badf653328448"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-materials.log",
+      "bytes": 1152,
+      "sha256": "ee2d03be510acc2c2c09debfd89d836e8c5823eed8fda836e71aaf03dfc83fb5"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-registration-terminal.json",
+      "bytes": 236,
+      "sha256": "36ebb4f5625919bc91e533832318c2919542bcec6ff7cfdca576233c1d932e4f"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-registration.log",
+      "bytes": 138,
+      "sha256": "71366ae03609fa0847cc353dc5cdb046bb7e8caa75eb5a50c2c3e7e63d92d5d1"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/final-terminals.json",
+      "bytes": 991,
+      "sha256": "9c6645f3019982ba063dfbc3b19b3418ada8f0d3d050f6ef6018dc01852ffb87"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green1-physical-route-terminal.json",
+      "bytes": 129,
+      "sha256": "a12ab6158308259044b69b7d59afc27278626c2b22c8bb6d4223baba17df0de0"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green1-physical-route.log",
+      "bytes": 15738,
+      "sha256": "1a6bd89099a5c553db126b78abf20062f56e46dbc9145f517f10746007859e27"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green2-physical-route-terminal.json",
+      "bytes": 129,
+      "sha256": "30b15b2237e2967be601575ed94ce8803cd41f1b591934a9c768a1b1a335357e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green2-physical-route.log",
+      "bytes": 14624,
+      "sha256": "41d845af0c81cc53917a710c3cbfca137e2962b4a756c99a3ee16e98fbfd3ea8"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green3-physical-route-terminal.json",
+      "bytes": 129,
+      "sha256": "8e12509cc0e3a70ddf5807ece56c48fb2c6c7a0e25bcef72a9461786bf8e7413"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green3-physical-route.log",
+      "bytes": 14828,
+      "sha256": "19fff12bba14c476b7cdfaedd5d3c453f43b154e2d5bb152a5eecf5b4ad90b4c"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green4-physical-route-terminal.json",
+      "bytes": 129,
+      "sha256": "09d8d44e1d8a71c0e5e83e9641abaa26461507c7e727840e44dcd093dbc02c6e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green4-physical-route.log",
+      "bytes": 427,
+      "sha256": "ef11e49428c2297a14d6d3948e414f7a32abbc4ceb5519ed636367ac317e174a"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green5-physical-route-terminal.json",
+      "bytes": 129,
+      "sha256": "e1167d12d54c93b0a853ea83a915121d500f92b281d56709d926577728d2770a"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green5-physical-route.log",
+      "bytes": 12144,
+      "sha256": "4ba0aaf130fa13a8b36f363691b685810282ccdc17dcc99573f7d3afb25cb2ba"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green6-physical-route-terminal.json",
+      "bytes": 129,
+      "sha256": "43f337f23d745f78c87936553f686336dac9957c91199a56e11ee02dc294c69e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green6-physical-route.log",
+      "bytes": 21876,
+      "sha256": "914a66b935a5162d8fd0c54bde5ba72e5007bef8b955ad33977d01631e62c071"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green7-physical-route-terminal.json",
+      "bytes": 129,
+      "sha256": "6b82707c8db2a63a552a18a34e7d55a9ee131cd8ac3821a63638d7ea80ea631e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green7-physical-route.log",
+      "bytes": 16619,
+      "sha256": "cedda9f8a38318f99cfc7e1c7c6fd8b5ccb0ae4cd42cca775073d332e799e441"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green8-physical-route-terminal.json",
+      "bytes": 129,
+      "sha256": "90a149470a3fb8899b33050c15b95c848365c40a4b9916d885d2884a37b654e0"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/green8-physical-route.log",
+      "bytes": 11545,
+      "sha256": "d9a2a394316ecb5f7fc34f0034f91b81b58aa68c4dd699bbdc1c6a4bb91c8bdb"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/handoff-physical.json",
+      "bytes": 6629,
+      "sha256": "44ca82ed114bb74b36e23c633d99e3ce3f9a035633f8453fe3cd2b1305b9053a"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/import-terminal.json",
+      "bytes": 113,
+      "sha256": "f29331b6df9c9f57c456f5ca1c2982ba87079a3c51ddb88b965d97095154a5d9"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/import.log",
+      "bytes": 146841,
+      "sha256": "ab9d659f7f0128dae528ad847720e38e0b859dcf4c6968f368e1c7eb3de220ab"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/measure-compound-consumer-terminal.json",
+      "bytes": 217,
+      "sha256": "41ef7854374510dab7915239b1257984c338d652d72cb6c1e8d9f3361973e1b6"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/measure-compound-consumer.log",
+      "bytes": 2511,
+      "sha256": "77c31d3e91442a939441535666e12d4881aec741a1a3488489b8a56009b2ac99"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/red-physical-route-terminal.json",
+      "bytes": 126,
+      "sha256": "5c1a44fd06a2233599c5a4927146371a5776ade2fca252060c0239d3d3007122"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/red-physical-route.log",
+      "bytes": 11668,
+      "sha256": "39146140f8e1845b4e1b33866416a860ca9eed090f2c0fe4fa58557af6f96a0d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/walk1-main-route-terminal.json",
+      "bytes": 124,
+      "sha256": "5e6cfa34771440709bd87ec8a380248cddd83d36d1d16234b7d90eecbb2baac4"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/walk1-main-route.log",
+      "bytes": 221,
+      "sha256": "eeaa02d8ce4949347cef63dc204a217f12441004b266c1f1327ba22b4d89e5cc"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/walk2-main-route-terminal.json",
+      "bytes": 124,
+      "sha256": "2a9389e1a6e83c3128a32f5de42067900332a9f61265a8a99c64df46a00aa368"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/walk2-main-route.log",
+      "bytes": 669,
+      "sha256": "e7c08d2e89c17403b2910aa599a234f65942fb662e8fe37126332693475f28cb"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/walk3-main-route-terminal.json",
+      "bytes": 124,
+      "sha256": "3a7cd17c2df7ba9255713d8a65c3f81912bbd75991d7f8ae348357ac74429207"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/walk3-main-route.log",
+      "bytes": 768,
+      "sha256": "ac3ca0907fb2a93f887b3796a52f4b2d87cc545f97f024d65eefe834496eefab"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/walk4-main-route-terminal.json",
+      "bytes": 124,
+      "sha256": "fa0e0599a06dacc51486ef70198fb9e535023eec67994cee9c9683517850eef4"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-results/walk4-main-route.log",
+      "bytes": 319,
+      "sha256": "4b07c43b466f4902da63d896a170f533dbc09bba78b2b25667663cc303dd002f"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk1/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 221,
+      "sha256": "eeaa02d8ce4949347cef63dc204a217f12441004b266c1f1327ba22b4d89e5cc"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 3054,
+      "sha256": "2526288a0b2bf816dee9c9d34142b2aa935430c46225c2798b059206e82275f8"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3010,
+      "sha256": "631141b77a120f8e43e2b1745e04f915cbaa4f17c87dd3f3b24533039bc8f20b"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 3115,
+      "sha256": "a01c091441331ee6fb5823926df0da2e802ad6012bfc8a8e1c8006beece2973f"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 3018,
+      "sha256": "38e61d7bc087351f1da9f6c17e21386a443b0eee7117005baf617e020424fb04"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk1/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 2797,
+      "sha256": "5e50d8236787175e63f702d05fce69d6fe68e637726c3c005c732b11481bd992"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk2-main-route/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 669,
+      "sha256": "e7c08d2e89c17403b2910aa599a234f65942fb662e8fe37126332693475f28cb"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk2-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 3208,
+      "sha256": "ec47cb4cc090a8dc4ed889fc09d9b6b00ca91d92945cbb885d46ace5d0fa7242"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk2-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3194,
+      "sha256": "183000f10ec0a51791983687413a180c54f2a1a9f87309f11d6fbb92c8060d9d"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk2-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 3162,
+      "sha256": "3e34913b735a3c62557537a95b5d6d9c79eb8dd08048861472592f5bed72ad5c"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk2-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 3162,
+      "sha256": "beb93d2ab13338cb702f08c1eed4fd65de39c2d5ba81ef883ea2cbf50fa94be7"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk2-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 3118,
+      "sha256": "a1b1bf9ffdd945caecbdb819981af24b060815328b318f51aa4b9994c340709e"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk3-main-route/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 768,
+      "sha256": "ac3ca0907fb2a93f887b3796a52f4b2d87cc545f97f024d65eefe834496eefab"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk3-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 3220,
+      "sha256": "ec769071219e9b118565d4cdd72518fe2e4cc5a5554c9f2fd4bd1bfa0b4c05cc"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk3-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3194,
+      "sha256": "48ea31a79a355cc46afa31e858077bd934f718467b26d3df746310efdbfc6ad9"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk3-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 3162,
+      "sha256": "6c935688d32ceaab61f905325838c1ab9400868d72251597b5a3d68169997a3b"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk3-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 3162,
+      "sha256": "d822cd1e71a9f8c1825919e414b0b7d0cb9e319b79a53ebfad42143bd5ac7094"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk3-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 3118,
+      "sha256": "744e2ba96d24237b1c103300293db8f60f1667ad73e1901f778abbc20eeb9098"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk4-main-route/data/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 319,
+      "sha256": "4b07c43b466f4902da63d896a170f533dbc09bba78b2b25667663cc303dd002f"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk4-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json",
+      "bytes": 3054,
+      "sha256": "74ff19048f9042369206b66826609dc0ac5d5df2a5718794ff8b14b7ecb36179"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk4-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak",
+      "bytes": 3010,
+      "sha256": "d48bc58c1fe4736f9dede1b7dc828f1b35f3411e7c3252d49187a5c4eef113bc"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk4-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.1",
+      "bytes": 3115,
+      "sha256": "e362e1c580dd8160ee88a364447a230b07fb6b4b33eb2a081cf5f47a996be193"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk4-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.2",
+      "bytes": 3018,
+      "sha256": "a499231d90bcaef5d442442c09b6b9bb1e6623e958fa7b2e0f1234c3171ded55"
+    },
+    {
+      "path": "/tmp/bulwark-gunner-route-walk4-main-route/data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json.bak.3",
+      "bytes": 2797,
+      "sha256": "50b294eb7b2d3d941871208d18f84e2e3b1e0fe7482d0a2f9994e57fd01665a6"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/06/36ec3bed81f8913bb37d0ebec0b209db6be1db",
+      "bytes": 3347,
+      "sha256": "deeddc0c18f0227dcec4be84bf02041076e099c70c7934a5ae945e9a7da87b3a"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/13/e012ee429c5726d39d5a15735273203cd3f249",
+      "bytes": 746,
+      "sha256": "e13b8e62421995d1b0c1e17bff6b2ec925c68d2ad0faac888fb435d7eafa923c"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/24/5af28c53255291443b113b1e881fccf1d72562",
+      "bytes": 715,
+      "sha256": "8019c0c387525cf733bfe3d75937c4fde5c9ea547676c124658493556a7ba0f7"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/30/4dca2b5709b808aeaae97437213050181f7f2f",
+      "bytes": 1391,
+      "sha256": "e27315831b23b8043f60b75d50f90dcd05397a98caa9a184d5c8782a1b88eae3"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/30/c5d9bef2c5685cfb04bacee8454fd5204ebe93",
+      "bytes": 720,
+      "sha256": "ef7a07ffb9ad2837130ad4c861b920f77b6107702d65dd9c5ae111d17f472943"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/36/3b6ff825755896647984ef43d382ee75ec1213",
+      "bytes": 2520,
+      "sha256": "b7e5e243f4c8971847ad264cb77af7dc09a1d11aa898d1cf127060761a51cfbe"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/3f/e0e35f246a04e91727b4ca555da8e715f08ca0",
+      "bytes": 3041,
+      "sha256": "b2739a070037c59b24f44ab19aaf46233a60274ed368d35dd9cda72747dddae1"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/49/8430d33251dbc4f89a2a7e24187395dcf71d63",
+      "bytes": 600,
+      "sha256": "c3fe94c6b27b58f5b96e2e96627cb8edffac16b9bd161f6c492bf9712cbf7f5c"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/62/804da117c45df03d39f774aa71b45071496ac2",
+      "bytes": 928,
+      "sha256": "7bbd46267171eeae4e5aeaf9890fd1bfe8e7142f884fc1fb11c01200a55465e3"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/6c/619924420d3d8e18b7c1b3e9214cfc1c24f55d",
+      "bytes": 413,
+      "sha256": "2af03a3b70ad69ad3e02363e100b5acebbfc2ac846793b566cd6734970b632e9"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/6e/dbf151b9ee6f4514e3b1022cc8252625c1447c",
+      "bytes": 2574,
+      "sha256": "ca574cef02776098c8152e1a849881614064fbb347724187a1859ababc10598a"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/74/bf50c0a3c705f30267d5d7d9e7be5e6ffb8c2b",
+      "bytes": 1544,
+      "sha256": "814ec3e9386086915d72cf1caec654f3f12f1ae5eebe6c11dcca6248f2d46562"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/7a/0f0602bdfb19605003cb27a253f984a9331f57",
+      "bytes": 1006,
+      "sha256": "33222530a4964def3b5c813de0a9374f0bbaa2403b988ed91a26b2de5d254e02"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/8a/31fc60f40290344249c3ccee903206653ab6ff",
+      "bytes": 960,
+      "sha256": "2435163c9de5377c7ac442014c27706abbbad488a462d368ac790f82d92da661"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/8f/3b89083b4756bd680d1c088d5b86241530e7f7",
+      "bytes": 585,
+      "sha256": "65a1c2931b6575811c88a892bf2476e4305fa107a03631a4fa39422a12847bb0"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/94/91aa0c1c650f7380eed64d880183114a00cf32",
+      "bytes": 436,
+      "sha256": "13fc5505d89a788a32b291f066779cf84656c7d2bf753b7e022b42e665c6e31b"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/9c/05f5962040d43bb60ab140e7522929fbfefcbe",
+      "bytes": 602,
+      "sha256": "0f7bf7e317f19c5fe29123f2a7d2bb847cf86180d8faf4c8773499a0d3ee22b7"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/a4/7d9b2c6d44b400e02ec6ba2aa5efc20f33f798",
+      "bytes": 1413,
+      "sha256": "48f6fda0ecb8de9fb41ef5823a8184d76bf969f99c186b4796b03462e2a47f70"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/a6/2ffdc929af584989d2cf8f2914c39cfddcea60",
+      "bytes": 835,
+      "sha256": "591e0a2c8c0822317df477b6fa56c7ba6999991da4d430d31218eff8de2b8b29"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/b3/70877aba1006d22c627c4cbf207668e7bc0914",
+      "bytes": 51663,
+      "sha256": "cda09428eac50fdaa426bf26e94c15eb5ca26664131a273300e6406f46126370"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/bc/299c8620bc1db4ffd1d70dd7c6fa5f7c3b5844",
+      "bytes": 812,
+      "sha256": "8d725132e53446c7fa5a2ce83f386174985bcd03e8070fa1841b8b36b1bbc5fa"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/be/29ad1a8d12d3e1ce670964adfa930155c69da7",
+      "bytes": 882,
+      "sha256": "818a77e36d1fb799a6281212953230a51aac72aa51afe6499c7ba0022c6bdbc1"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/bf/e0770cee07ab731151beea654d0442360a2fc2",
+      "bytes": 939,
+      "sha256": "3f45dc289400a844452ef055c9bed2681e80414d4c79c4a8acf27393526195c4"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/d3/9d4d44f7dbe609129bc0638c075c034a815b7b",
+      "bytes": 51444,
+      "sha256": "c266dbaeae2902752812c1db65064e3ce2140e54aa8b3db393950de7867e7ddd"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/de/5525b941d4e9495e0f164c3339da06ff4c9015",
+      "bytes": 599,
+      "sha256": "36262ac3258d4c84867d9543fea8ce1f867a0743f7b98c0044fc799402c6d868"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/e6/06aded1fd4689f807fffda616901a272f074e0",
+      "bytes": 928,
+      "sha256": "7b79fc33f1464b65755e6c9de0942897ff6a640fcf7fc789bd77098a3d9f1748"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/eb/a8c6a5633b0a137f0cd51efe6252072893a087",
+      "bytes": 497,
+      "sha256": "b5fb5f0f10fe4d909a5c9e33a4bb93ec2774581d2de6497cd717c4999f4379db"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/fc/b28a7fea125569c2b7d84c7572858a7a8dec79",
+      "bytes": 601,
+      "sha256": "844bf39a06725c9756fa9672d40ca400d8beb466a07a7f5e458f60615840d75a"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/index",
+      "bytes": 1310728,
+      "sha256": "bc2a32eafb0cb31f495252f9e8a367987b8d155ff7e318a7a447f6f5255b1589"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_CACHE_HOME/mesa_shader_cache/marker",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-3416492.json",
+      "bytes": 3184,
+      "sha256": "43abeece6f93e46f555bf69e3bb34202d6634aa16cc21ea6c64c116e1133984d"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-3416492.json.bak",
+      "bytes": 3280,
+      "sha256": "db78bbaeb8ce83b85db0b7ef9914e55296a18f3b53945c88ded500aef2bccdbd"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-3416492.json.bak.1",
+      "bytes": 3184,
+      "sha256": "a9ffaab44e3a6a61fd04d3f1de425245e05ce3276028fdad01850708da0733fb"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-3416492.json.bak.2",
+      "bytes": 3288,
+      "sha256": "e9efe91e0c28ae434a712a850de31278e1c8e79cf46d914585419dfa9aef84fc"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/bulwark-foreign-owner-3416492.json.bak.3",
+      "bytes": 3294,
+      "sha256": "8a4ecd8d6124db4debfc3b41b19812c818294ce10ac32139b3b7951a2ac92432"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/diagnostics/crash-log.json",
+      "bytes": 1539,
+      "sha256": "6b69f776a47ec64b2448cc0cf492817df9140a2be76076dbdc4c4cb76dcb6d61"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/logs/godot.log",
+      "bytes": 10854,
+      "sha256": "e32f02c1b486a1a3b08118dc23d7055046aca4ddda4faa75d4327af920e5a20e"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-3416492.json",
+      "bytes": 7264,
+      "sha256": "a0297057d18127d544aec0e920c79bce3e3f6990d77ba2d0f9ac1f86ae3fce43"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-3416492.json.bak",
+      "bytes": 7360,
+      "sha256": "38a06362e9d28255464ae0cf9ab755db5df945248b66e901617ec23d5118140c"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-3416492.json.bak.1",
+      "bytes": 7264,
+      "sha256": "4635e923fd285056d5feb919141673ef2677852fa5fd161bcb093cba19931f92"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-3416492.json.bak.2",
+      "bytes": 7369,
+      "sha256": "8a744566e399cfea6d778fb9f20938c41ded124f63b67639a966d52e7d02e45b"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_DATA_HOME/godot/app_userdata/Mudds Shipyards/ordinary-bulwark-gunner-3416492.json.bak.3",
+      "bytes": 7272,
+      "sha256": "354a3f781d9646ea933152187a1c972901306612790e465d8d0fcb2da3b50499"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/XDG_RUNTIME_DIR/dconf/user",
+      "bytes": 2,
+      "sha256": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/output.log",
+      "bytes": 10891,
+      "sha256": "3686284f768ca0e9f9699a7aa761568d74b308f1a5ffb866d34f0132a7dc4d74"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/owner.json",
+      "bytes": 515,
+      "sha256": "58d5e75274b73a3070873abd024b30dbe78accd60c9aab86c05ef3af1b6b7900"
+    },
+    {
+      "path": "/tmp/halyard-gunner-runs/bulwark-regression-1/result.json",
+      "bytes": 33,
+      "sha256": "b9881f0544f63142b94ef43cbbd0a6993488f542b90cff6db830ff96f2200d44"
+    },
+    {
+      "path": "/tmp/bulwark-diagnostic-focused-launcher-template.py",
+      "bytes": 30079,
+      "sha256": "657ee4ad967a9f492807c523282c3854b5b6a14cceeb254e190f96f1b244c71a"
+    },
+    {
+      "path": "/tmp/bulwark-diagnostic-runtime-launcher.py",
+      "bytes": 30102,
+      "sha256": "5b6e0d13deb7634755a1909636bc5d9834544fc4ce51049e7415a232b84ff90f"
+    },
+    {
+      "path": "/tmp/bulwark-winding-probe.gd",
+      "bytes": 1162,
+      "sha256": "18ddf84ce36bfcfa2bfde7fe871753bdf9c8aa19f4576dd7ea09dce58b99dd01"
+    }
+  ],
+  "excluded_cache_files": 2115,
+  "excluded_cache_bytes": 188316041,
+  "archive_sha256": "53962fb5a13e9319e40d0e70408e4611ac9a9627a25b1597858fbfd8f69ae0dd",
+  "archive": "historical-evidence.tar.xz"
+}
