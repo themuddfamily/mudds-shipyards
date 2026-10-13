@@ -116,6 +116,7 @@ func _initialize() -> void:
 			and second.get_crew_role_authority() == null,
 		"sharing leaves collision, component lifecycle and gameplay authority unchanged"
 	)
+	await _check_cabin_finish_reuse(first, second)
 
 	first.queue_free()
 	second.queue_free()
@@ -133,6 +134,93 @@ func _initialize() -> void:
 		for failure in _failures:
 			push_error(failure)
 		quit(1)
+
+
+func _check_cabin_finish_reuse(first: CinderCargoHauler, second: CinderCargoHauler) -> void:
+	var finishes := _cabin_finishes(first)
+	var other_finishes := _cabin_finishes(second)
+	var shared := finishes.size() == 7 and not finishes.has(null)
+	if shared:
+		for index in 7:
+			shared = shared and finishes[index] == finishes[0 if index < 3 else 3]
+		shared = shared and finishes[0] != finishes[3]
+	_check(shared, "seven authored cabin pieces retain exactly two immutable finishes")
+	var expected_recipes := true
+	for index in finishes.size():
+		var expected := StandardMaterial3D.new()
+		expected.albedo_color = Hauler.HULL_COLOR if index < 3 else Hauler.ACCENT_COLOR
+		expected.metallic = 0.42
+		expected.roughness = 0.62
+		expected.cull_mode = BaseMaterial3D.CULL_DISABLED
+		expected.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		expected.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
+		expected.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+		expected_recipes = expected_recipes and _finish_recipe(finishes[index]) == _finish_recipe(expected)
+	_check(shared and expected_recipes, "both cabin finishes retain their complete authored material recipes")
+	_check(shared and other_finishes.size() == 7 and not other_finishes.has(null)
+		and finishes[0] != other_finishes[0] and finishes[3] != other_finishes[3],
+		"each hauler owns separate cabin finishes without a cross-craft material cache")
+	var recipes: Array[Dictionary] = []
+	for finish in finishes + other_finishes:
+		recipes.append(_finish_recipe(finish))
+	var geometry := [_cabin_geometry(first), _cabin_geometry(second)]
+	var first_hull := float(first.get_telemetry().get("hull", 0.0))
+	var second_hull := float(second.get_telemetry().get("hull", 0.0))
+	first.apply_damage(1.0)
+	await process_frame
+	var after := _cabin_finishes(first) + _cabin_finishes(second)
+	var unchanged := after == finishes + other_finishes
+	for index in after.size():
+		unchanged = unchanged and _finish_recipe(after[index]) == recipes[index]
+	_check(unchanged and float(first.get_telemetry().get("hull", 0.0)) < first_hull
+		and is_equal_approx(float(second.get_telemetry().get("hull", 0.0)), second_hull),
+		"real damage changes only its craft's health and leaves both immutable cabin recipes intact")
+	_check(geometry == [_cabin_geometry(first), _cabin_geometry(second)],
+		"finish reuse and real damage preserve cabin mesh buffers and all local placements")
+
+
+func _cabin_finishes(craft: CinderCargoHauler) -> Array[Material]:
+	var cabin := craft.get_cargo_cabin_root()
+	var out: Array[Material] = []
+	for piece_name in ["CabinCeiling", "CabinStarboardWall"]:
+		# Resolve the authored finish even if the existing fitout pass folded it.
+		var piece := ShipFitoutBatch.find_authored_piece(cabin, piece_name)
+		out.append(piece.get("material_override") as Material)
+	for piece_name in ["CabinEndWallBatch", "CrewSeatBaseBatch", "CrewSeatBackBatch", "CrewConsoleBatch", "LoadmasterStatusPanel"]:
+		var piece := cabin.get_node_or_null(NodePath(piece_name)) as GeometryInstance3D
+		out.append(piece.material_override if piece != null else null)
+	return out
+
+
+func _finish_recipe(finish: Material) -> Dictionary:
+	var out: Dictionary = {}
+	if finish == null:
+		return out
+	for property: Dictionary in finish.get_property_list():
+		var property_name := String(property.name)
+		if int(property.usage) & PROPERTY_USAGE_STORAGE and not property_name.begins_with("resource_"):
+			out[property_name] = finish.get(property_name)
+	return out
+
+
+func _cabin_geometry(craft: CinderCargoHauler) -> PackedByteArray:
+	var rows: Array = []
+	for node in craft.get_cargo_cabin_root().find_children("*", "GeometryInstance3D", true, false):
+		var mesh: Mesh = null
+		var placements: Array[Transform3D] = []
+		if node is MultiMeshInstance3D:
+			var multi := (node as MultiMeshInstance3D).multimesh
+			mesh = multi.mesh
+			for index in multi.instance_count:
+				placements.append(multi.get_instance_transform(index))
+		elif node is MeshInstance3D:
+			mesh = (node as MeshInstance3D).mesh
+		var surfaces: Array = []
+		if mesh != null:
+			for index in mesh.get_surface_count():
+				surfaces.append(mesh.surface_get_arrays(index))
+		rows.append([node.name, node.transform, surfaces, placements])
+	return var_to_bytes(rows)
 
 
 func _hull(craft: CinderCargoHauler) -> MeshInstance3D:

@@ -2047,9 +2047,13 @@ func _build_cargo_interior() -> void:
 	_cargo_cabin.set_meta(&"space_id", &"loadmaster_cabin")
 	_cargo_cabin.set_meta(&"route_id", CABIN_ROUTE_ID)
 	_walkable_interior.add_child(_cargo_cabin)
+	# Immutable cabin stock shares finishes within this builder invocation only.
+	# Damage-owned finishes and other craft retain their own material lifetimes.
+	var hull_finish: StandardMaterial3D = _material(HULL_COLOR, 0.42, 0.62)
+	var accent_finish: StandardMaterial3D = _material(ACCENT_COLOR, 0.42, 0.62)
 	_add_interior_box(_cargo_cabin, "CabinDeck", Vector3(0.0, -0.92, 0.0), Vector3(4.9, 0.12, 5.3), CARGO_COLOR)
-	_add_interior_box(_cargo_cabin, "CabinCeiling", Vector3(0.0, 1.28, 0.0), Vector3(4.9, 0.10, 5.3), HULL_COLOR)
-	_add_interior_box(_cargo_cabin, "CabinStarboardWall", Vector3(2.35, 0.18, 0.0), Vector3(0.10, 2.0, 5.3), HULL_COLOR)
+	_add_interior_box(_cargo_cabin, "CabinCeiling", Vector3(0.0, 1.28, 0.0), Vector3(4.9, 0.10, 5.3), HULL_COLOR, hull_finish)
+	_add_interior_box(_cargo_cabin, "CabinStarboardWall", Vector3(2.35, 0.18, 0.0), Vector3(0.10, 2.0, 5.3), HULL_COLOR, hull_finish)
 	_add_visual_box_batch(
 		_cargo_cabin,
 		"CabinEndWallBatch",
@@ -2059,7 +2063,8 @@ func _build_cargo_interior() -> void:
 			Transform3D(Basis.IDENTITY, Vector3(0.0, 0.18, 2.55)),
 		],
 		HULL_COLOR,
-		PackedStringArray(["CabinForwardWall", "CabinAftWall"])
+		PackedStringArray(["CabinForwardWall", "CabinAftWall"]),
+		hull_finish
 	)
 	_build_cabin_construction()
 	# The port wall is intentionally open between the split outer shell pieces;
@@ -2073,7 +2078,8 @@ func _build_cargo_interior() -> void:
 			Transform3D(Basis.IDENTITY, Vector3(-0.95, -0.55, 1.10)),
 		],
 		ACCENT_COLOR,
-		PackedStringArray(["LoadmasterSeatBase", "NavigatorSeatBase"])
+		PackedStringArray(["LoadmasterSeatBase", "NavigatorSeatBase"]),
+		accent_finish
 	)
 	_add_visual_box_batch(
 		_cargo_cabin,
@@ -2084,7 +2090,8 @@ func _build_cargo_interior() -> void:
 			Transform3D(Basis.IDENTITY, Vector3(-0.95, 0.08, 1.42)),
 		],
 		ACCENT_COLOR,
-		PackedStringArray(["LoadmasterSeatBack", "NavigatorSeatBack"])
+		PackedStringArray(["LoadmasterSeatBack", "NavigatorSeatBack"]),
+		accent_finish
 	)
 	# These two immutable console shells have always shared the same dimensions,
 	# paint and lifetime. Keep their authored transforms and station identities,
@@ -2098,7 +2105,8 @@ func _build_cargo_interior() -> void:
 			Transform3D(Basis.IDENTITY, Vector3(-0.95, 0.20, 0.42)),
 		],
 		ACCENT_COLOR,
-		PackedStringArray(["LoadmasterConsole", "NavigatorConsole"])
+		PackedStringArray(["LoadmasterConsole", "NavigatorConsole"]),
+		accent_finish
 	)
 	_crew_console_batch.set_meta(
 		&"authored_station_ids",
@@ -2110,7 +2118,8 @@ func _build_cargo_interior() -> void:
 		"LoadmasterStatusPanel",
 		Vector3(-0.15, 0.42, -2.28),
 		Vector3(1.45, 0.72, 0.06),
-		ACCENT_COLOR
+		ACCENT_COLOR,
+		accent_finish
 	)
 	_loadmaster_status_panel.set_meta(&"presentation_only", true)
 	_loadmaster_status_panel.set_meta(&"color_independent", true)
@@ -2283,7 +2292,8 @@ func _add_interior_box(
 		node_name: String,
 		position_value: Vector3,
 		size: Vector3,
-		colour: Color
+		colour: Color,
+		finish: StandardMaterial3D = null
 ) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = node_name
@@ -2291,7 +2301,7 @@ func _add_interior_box(
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	mesh_instance.mesh = mesh
-	mesh_instance.material_override = _material(colour, 0.42, 0.62)
+	mesh_instance.material_override = finish if finish != null else _material(colour, 0.42, 0.62)
 	parent.add_child(mesh_instance)
 	return mesh_instance
 
@@ -2304,7 +2314,8 @@ func _add_visual_box_batch(
 		size: Vector3,
 		transforms: Array[Transform3D],
 		colour: Color,
-		authored_names: PackedStringArray
+		authored_names: PackedStringArray,
+		finish: StandardMaterial3D = null
 	) -> MultiMeshInstance3D:
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -2322,7 +2333,7 @@ func _add_visual_box_batch(
 	var batch := MultiMeshInstance3D.new()
 	batch.name = node_name
 	batch.multimesh = multi
-	batch.material_override = _material(colour, 0.42, 0.62)
+	batch.material_override = finish if finish != null else _material(colour, 0.42, 0.62)
 	batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	batch.set_meta(&"presentation_only", true)
 	batch.set_meta(&"authored_visual_names", authored_names.duplicate())
