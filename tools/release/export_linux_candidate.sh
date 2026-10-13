@@ -125,6 +125,10 @@ fi
 if [[ -n "$dirty_state" ]]; then
 	die "worktree must be clean (tracked and untracked files are present)"
 fi
+
+# Export-plugin messages alone do not make Godot return a failing exit code.
+python3 "$SCRIPT_DIR/check_zenith_export_inputs.py" "$REPO_ROOT" \
+	|| die "Zenith authored export input preflight failed"
 if ! command -v "$godot_bin" >/dev/null 2>&1; then
 	die "configured Godot binary is unavailable: $godot_bin"
 fi

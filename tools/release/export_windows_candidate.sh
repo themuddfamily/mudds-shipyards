@@ -27,6 +27,10 @@ if [[ -n "$dirty_state" ]]; then
 	die "worktree must be clean (tracked and untracked files are present)"
 fi
 
+# Export-plugin messages alone do not make Godot return a failing exit code.
+python3 "$SCRIPT_DIR/check_zenith_export_inputs.py" "$REPO_ROOT" \
+	|| die "Zenith authored export input preflight failed"
+
 commit="$(git -C "$REPO_ROOT" rev-parse --verify 'HEAD^{commit}' 2>/dev/null)" \
 	|| die "HEAD does not resolve to an exact commit"
 if [[ ! "$commit" =~ ^[0-9a-f]{40,64}$ ]]; then
