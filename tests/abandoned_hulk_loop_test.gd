@@ -226,6 +226,26 @@ func _test_component_shape_and_budget() -> void:
 		"every solid piece of the hulk is on the World layer with a real shape"
 	)
 
+	# The intact port rib run has the station's shallow formed edge. It retains
+	# one renderer per rib and the exact authored envelope on each shared mesh.
+	var rib_nodes := hulk.get_node(^"Exterior/HullRibTrim").get_children()
+	var rib_size := Vector3(1.4, 13.6, 1.0)
+	var rib_mesh: Mesh = null
+	var rib_geometry_valid := rib_nodes.size() == 6
+	for rib_node in rib_nodes:
+		var rib := rib_node as MeshInstance3D
+		if rib == null or rib.mesh == null:
+			rib_geometry_valid = false
+			continue
+		if rib_mesh == null:
+			rib_mesh = rib.mesh
+		rib_geometry_valid = rib_geometry_valid \
+			and rib.mesh == rib_mesh \
+			and rib.mesh.get_surface_count() == 1 \
+			and rib.mesh.get_faces().size() == 44 * 3 \
+			and rib.mesh.get_aabb().is_equal_approx(AABB(-rib_size * 0.5, rib_size))
+	_check(rib_geometry_valid, "six intact port ribs share one shallow 44-triangle formed mesh at their authored extents")
+
 	var nearest := INF
 	var furthest := 0.0
 	for candidate in hulk.find_children("*", "Node3D", true, false):

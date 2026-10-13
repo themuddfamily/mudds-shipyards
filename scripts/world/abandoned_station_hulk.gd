@@ -191,6 +191,7 @@ var _lights: Array[OmniLight3D] = []
 var _auxiliary_power_restored := false
 var _materials: Dictionary = {}
 var _box_cache: Dictionary = {}
+var _structural_box_cache: Dictionary = {}
 var _cylinder_cache: Dictionary = {}
 var _built := false
 var _quality_level := 2
@@ -609,7 +610,9 @@ func _build_exterior_detail() -> void:
 			Vector3(-32.0 + float(index) * 13.0, 0.0, -HULL_DEPTH * 0.5 - 0.5),
 			Vector3(1.4, HULL_HEIGHT + 1.6, 1.0),
 			_materials["hulk_trim"],
-			false
+			false,
+			Vector3.ZERO,
+			true
 		)
 	for scorch: Vector3 in [
 		Vector3(-33.0, 3.2, HULL_DEPTH * 0.5 - 0.7),
@@ -1162,9 +1165,17 @@ func _box(
 		size: Vector3,
 		material: Material,
 		collidable: bool = true,
-		box_rotation_degrees: Vector3 = Vector3.ZERO
+		box_rotation_degrees: Vector3 = Vector3.ZERO,
+		structural_edge: bool = false
 	) -> Node3D:
-	var mesh := StationSurfaceKit.rounded_box_mesh_cached(size, _box_cache)
+	var mesh: ArrayMesh
+	if structural_edge:
+		var key := "%0.4f:%0.4f:%0.4f" % [size.x, size.y, size.z]
+		if not _structural_box_cache.has(key):
+			_structural_box_cache[key] = ShipChamferedStock.structural_box_mesh(size)
+		mesh = _structural_box_cache[key] as ArrayMesh
+	else:
+		mesh = StationSurfaceKit.rounded_box_mesh_cached(size, _box_cache)
 	if collidable:
 		var body := StaticBody3D.new()
 		body.name = node_name
