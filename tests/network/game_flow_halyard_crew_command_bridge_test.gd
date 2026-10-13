@@ -7,9 +7,14 @@ const CrewAuthorityType := preload("res://scripts/ships/crew_seat_role_authority
 
 class CrewConfirmationFlow extends GameFlowType:
 	var crew_view: Dictionary = {}
+	var presented := 0
 
 	func _network_physical_crew_view() -> Dictionary:
 		return crew_view
+
+	func _present_network_engineer_seat(_seat: ShipCrewSeat) -> void:
+		presented += 1
+		_network_engineer_pending_seat = null
 
 
 var _assertions := 0
@@ -21,6 +26,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_current_confirmation_precedes_pending_expiry()
 	await _test_orphan_crew_confirmation_is_one_release()
 	var flow := GameFlowType.new()
 	var session := AdapterType.new()
@@ -56,6 +62,45 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _test_current_confirmation_precedes_pending_expiry() -> void:
+	for confirmation in ["current", "missing", "foreign"]:
+		var flow := CrewConfirmationFlow.new()
+		var session := AdapterType.new()
+		var halyard := HalyardType.new()
+		var seat := ShipCrewSeat.new()
+		seat._seat_id = HalyardType.LOADMASTER_STATION_SEAT_ID
+		seat._role = &"passenger"
+		var source := NetworkRemoteBodyIntentSource.new(1)
+		source.bind(&"avatar_7", 1)
+		flow.network_session = session
+		flow._cabin_ship = halyard
+		flow._network_session_mode = &"client"
+		flow._network_remote_body_intent_source = source
+		flow._network_engineer_pending_seat = seat
+		flow._network_engineer_pending_elapsed = 4.0
+		flow.crew_view = {
+			"ship_id": halyard.get_ship_id(), "binding_generation": 1,
+			"entity_generation": 2 if confirmation == "foreign" else 1,
+			"seated": true,
+			"assignment": {"avatar_id": &"avatar_7", "role": &"passenger",
+				"seat_id": seat.get_seat_id(), "seat_generation": 1, "claim_sequence": 1},
+		} if confirmation != "missing" else {}
+		await physics_frame
+		flow._advance_network_engineer(1.0 / 60.0)
+		source.advance(7, {}, 100)
+		_check(flow.presented == (1 if confirmation == "current" else 0),
+			"only the already received current confirmation wins the live request expiry tick: " + confirmation)
+		_check(flow._network_engineer_pending_seat == null and source.get_interaction_request_id() == 0,
+			"expiry processing neither extends the four-second request nor sends a spurious host release: " + confirmation)
+		if confirmation != "current":
+			_check(flow._network_engineer_pending_elapsed > 4.0,
+				"unconfirmed or foreign chair still expires at its original limit: " + confirmation)
+		flow.free()
+		session.free()
+		halyard.free()
+		seat.free()
 
 
 func _test_orphan_crew_confirmation_is_one_release() -> void:

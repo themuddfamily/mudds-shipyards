@@ -132,7 +132,10 @@ func _orchestrate() -> void:
 	# Peers have separate tick clocks. Share this actual wall deadline for their
 	# transit waits; the parent's unchanged monotonic cap still owns all setup.
 	_ember_surface_total_deadline_unix = Time.get_unix_time_from_system() + EMBER_SURFACE_TOTAL_SECONDS
-	_directory = "/tmp/mudds-passenger-peers-%d" % OS.get_process_id()
+	var peer_root := OS.get_environment("TMPDIR")
+	if peer_root.is_empty():
+		peer_root = "/tmp"
+	_directory = peer_root.path_join("mudds-passenger-peers-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(_directory)
 	_port = 26000 + OS.get_process_id() % 15000
 	var host_args := _peer_arguments("host", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))

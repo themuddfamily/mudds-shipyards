@@ -430,10 +430,20 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Bound and retained materials fall by exactly five in both scenarios; every
 # geometry/resource/scene row and the streamed Cinder delta remain unchanged.
 # The packed scene still retains exactly two additional Aurora/Rime local skies.
-const RESIDENT_FINGERPRINT := "806422988ecbd113ffafa8b7ae91964a6fad9e4333abbd9ebee6793214fc3e04"
-const CINDER_LOADED_FINGERPRINT := "e968e9562d379c8980c3663beb81ae0835e7a647899d19d11826d8e5948e6efb"
-const PACKED_RESIDENT_FINGERPRINT := "b6e65a330ceb321cf146cf563e255810c488259d1d80d1076fdd7dbb2453eaab"
-const PACKED_CINDER_LOADED_FINGERPRINT := "f1066fbdd05018321fdffe20237f3b59d22853bf410ec42ae7a68244ac0781c9"
+# Exact multi-surface shadow batching restores all 17 stationary operations
+# totes to their three existing cargo shadow renderers: 51 separate shadow
+# surface submissions disappear, with no new renderer, node or material. The
+# census counts the exact shadow-only copy too, so both scenarios gain precisely
+# 13,476 triangles (4,212 short-line + 2 x 4,632 long-line). Visible geometry,
+# all other census rows, the Cinder bucket and every loaded delta stay fixed.
+# Resident triangles remain 37,667 below the unchanged 1,800,000 ceiling.
+# Clean 9e93b15c7 Windows-PCK measurement confirms the same exact geometry
+# and retains the existing +2 local-skies material difference; its measured
+# packed fingerprints replace the two expected stale-fingerprint failures.
+const RESIDENT_FINGERPRINT := "33e93e7fccadb15e83360e0a56675004df3d6319acf97b630aca2f8cbdc14dbe"
+const CINDER_LOADED_FINGERPRINT := "43988f9ff3c3c374abdf0e7f69b752656c66b690883fe10aaf92b5eb618757bc"
+const PACKED_RESIDENT_FINGERPRINT := "39062fd1918a44ca28eca4032a567dc9d35333372aa0a84026c745e29191c8b8"
+const PACKED_CINDER_LOADED_FINGERPRINT := "e26d83f0deddb4742e74bd775074773ccc726d71b8c2efa47ee30f2f4ace03aa"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -483,11 +493,11 @@ func _run() -> void:
 		"resident report freezes schema, scenario identity, and exact loaded count"
 	)
 	_check(
-		int(resident.get("total_triangles", -1)) == 1748857
+		int(resident.get("total_triangles", -1)) == 1762333
 			and int(resident.get("total_mesh_instances", -1)) == 5047
 			and int(resident.get("total_surfaces", -1)) == 5607
 			and int(resident.get("unique_meshes", -1)) == 2702,
-		"resident geometry freezes 1,748,857 triangles / 5,047 meshes / 5,607 surfaces / 2,702 unique meshes"
+		"resident geometry freezes 1,762,333 triangles / 5,047 meshes / 5,607 surfaces / 2,702 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 653
@@ -552,11 +562,11 @@ func _run() -> void:
 		"loaded report freezes destination identity and one committed generation"
 	)
 	_check(
-		int(loaded.get("total_triangles", -1)) == 1903879
+		int(loaded.get("total_triangles", -1)) == 1917355
 			and int(loaded.get("total_mesh_instances", -1)) == 5304
 			and int(loaded.get("total_surfaces", -1)) == 5868
 			and int(loaded.get("unique_meshes", -1)) == 2875,
-		"loaded geometry freezes 1,903,879 triangles / 5,304 meshes / 5,868 surfaces / 2,875 unique meshes"
+		"loaded geometry freezes 1,917,355 triangles / 5,304 meshes / 5,868 surfaces / 2,875 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 711

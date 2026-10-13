@@ -1387,13 +1387,10 @@ const BUILD_STAGES: Array[Array] = [
 ## a live script variable or already folded into a `MultiMeshInstance3D` — and
 ## they are listed so that stays measured rather than assumed.
 ##
-## `VipReceptionSuite` is deliberately still absent. Its module suite asserts,
-## body by body, that every `StaticBody3D` in the suite owns a `Mesh` and a
-## `Collision` child whose box is exactly the drawn mesh, and that the module
-## presents a floor of visible renderers to its "nothing floats" sweep. A solid
-## batch is one body, one merged renderer and one shape per original piece by
-## design, so neither contract can survive it without being restated per shape —
-## and no audit was relaxed to buy nodes.
+## `VipReceptionSuite` joined in the tenth trim after its authored census and
+## solid mesh/collider pairing checks were taught to inspect each original
+## piece retained by a batch. Its module contracts remain checked after
+## consolidation; see the roster below and StationDressingBatch's authored rows.
 ##
 ## `CentralBerthServiceLine`, `ModernFleetRegistry` and `IndustrialInfrastructure`
 ## joined in the third node trim. Each publishes a frozen per-component *count*

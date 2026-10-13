@@ -504,14 +504,14 @@ func _build_cargo_transfer_line() -> void:
 	# under `CrateUpper` carry a load and so take the unstrapped lid-seam
 	# variant. Positions, sizes and authored solid volumes are unchanged.
 	shadow_sources.append(_box(line, "PalletDeckPort", Vector3(-2.9, 0.09, 1.85), Vector3(2.3, 0.18, 1.25), _materials["graphite"]))
-	_crate(line, "CrateLower", Vector3(-3.4, 0.55, 1.85), Vector3(1.05, 0.74, 1.0), 0, false)
-	_crate(line, "CrateLowerAlt", Vector3(-2.35, 0.55, 1.85), Vector3(0.95, 0.74, 1.0), 1, false)
-	_crate(line, "CrateUpper", Vector3(-2.9, 1.24, 1.85), Vector3(1.5, 0.64, 1.05), 2, true)
+	shadow_sources.append(_crate(line, "CrateLower", Vector3(-3.4, 0.55, 1.85), Vector3(1.05, 0.74, 1.0), 0, false))
+	shadow_sources.append(_crate(line, "CrateLowerAlt", Vector3(-2.35, 0.55, 1.85), Vector3(0.95, 0.74, 1.0), 1, false))
+	shadow_sources.append(_crate(line, "CrateUpper", Vector3(-2.9, 1.24, 1.85), Vector3(1.5, 0.64, 1.05), 2, true))
 	shadow_sources.append(_box(line, "CrateManifest", Vector3(-2.9, 1.3, 1.33), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"]))
 
 	shadow_sources.append(_box(line, "PalletDeckStarboard", Vector3(3.0, 0.09, -1.9), Vector3(2.0, 0.18, 1.2), _materials["graphite"]))
-	_crate(line, "CrateOutbound", Vector3(2.65, 0.52, -1.9), Vector3(1.1, 0.68, 0.98), 1, true)
-	_crate(line, "CrateOutboundSmall", Vector3(3.62, 0.44, -1.9), Vector3(0.7, 0.52, 0.8), 2, true)
+	shadow_sources.append(_crate(line, "CrateOutbound", Vector3(2.65, 0.52, -1.9), Vector3(1.1, 0.68, 0.98), 1, true))
+	shadow_sources.append(_crate(line, "CrateOutboundSmall", Vector3(3.62, 0.44, -1.9), Vector3(0.7, 0.52, 0.8), 2, true))
 
 	var band_transforms: Array[Transform3D] = []
 	for z_side in [-1.0, 1.0]:
@@ -527,13 +527,9 @@ func _build_cargo_transfer_line() -> void:
 	# Only the constructor-owned fixed shell casts through this batch. Colour
 	# nodes retain their materials and solid-volume anchors; movers, existing
 	# MultiMeshes and pulsing readouts keep their own shadow/lifecycle behavior.
-	#
-	# The stores totes are deliberately not in this roster. `StaticShadowBatch`
-	# merges exactly one surface per source and refuses the whole assembly
-	# otherwise, and a tote is three surfaces because it is three finishes on one
-	# object. They therefore keep their own `SHADOW_CASTING_SETTING_ON` renderers,
-	# exactly as the freight berth's ten totes do; the silhouette a player sees is
-	# the real crate rather than the merged envelope's stand-in for it.
+	# All three opaque tote surfaces contribute their exact triangles too;
+	# only their separate shadow submissions disappear. Their named colour
+	# renderers and all three original finishes remain untouched.
 	StaticShadowBatch.build(line, shadow_sources)
 
 	var sled := _add_station_life_mover(line, "AnimatedCargoSled")
@@ -641,15 +637,15 @@ func _build_long_cargo_transfer_line() -> void:
 	# 1.0 × 0.72 × 0.8 m unstrapped totes share one shell the way the three
 	# equally-sized slabs they replace shared one chamfered box.
 	shadow_sources.append(_box(line, "PalletDeckInbound", Vector3(-8.6, 0.09, 1.3), Vector3(3.2, 0.18, 0.8), _materials["graphite"]))
-	_crate(line, "CrateInboundPort", Vector3(-9.5, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), 0, false)
-	_crate(line, "CrateInboundStarboard", Vector3(-7.9, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), 1, false)
-	_crate(line, "CrateInboundTop", Vector3(-8.7, 1.19, 1.3), Vector3(1.5, 0.6, 0.8), 2, true)
+	shadow_sources.append(_crate(line, "CrateInboundPort", Vector3(-9.5, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), 0, false))
+	shadow_sources.append(_crate(line, "CrateInboundStarboard", Vector3(-7.9, 0.54, 1.3), Vector3(1.0, 0.72, 0.8), 1, false))
+	shadow_sources.append(_crate(line, "CrateInboundTop", Vector3(-8.7, 1.19, 1.3), Vector3(1.5, 0.6, 0.8), 2, true))
 	shadow_sources.append(_box(line, "CrateManifest", Vector3(-8.7, 1.25, 0.88), Vector3(0.62, 0.2, 0.04), _materials["sign_lit"]))
 
 	shadow_sources.append(_box(line, "PalletDeckOutbound", Vector3(8.2, 0.09, -1.3), Vector3(2.8, 0.18, 0.8), _materials["graphite"]))
-	_crate(line, "CrateOutboundPort", Vector3(7.5, 0.54, -1.3), Vector3(0.9, 0.72, 0.8), 2, false)
-	_crate(line, "CrateOutboundStarboard", Vector3(8.9, 0.54, -1.3), Vector3(1.0, 0.72, 0.8), 0, false)
-	_crate(line, "CrateOutboundTop", Vector3(8.2, 1.19, -1.3), Vector3(1.3, 0.6, 0.8), 1, true)
+	shadow_sources.append(_crate(line, "CrateOutboundPort", Vector3(7.5, 0.54, -1.3), Vector3(0.9, 0.72, 0.8), 2, false))
+	shadow_sources.append(_crate(line, "CrateOutboundStarboard", Vector3(8.9, 0.54, -1.3), Vector3(1.0, 0.72, 0.8), 0, false))
+	shadow_sources.append(_crate(line, "CrateOutboundTop", Vector3(8.2, 1.19, -1.3), Vector3(1.3, 0.6, 0.8), 1, true))
 
 	# Mid-run, on the apron side. Every outboard position collided with something
 	# that has to be there: at x = -11.0 with the corner beacon, at x = -10.2 with
@@ -661,13 +657,9 @@ func _build_long_cargo_transfer_line() -> void:
 	# Only the constructor-owned fixed shell casts through this batch. Colour
 	# nodes retain their materials and solid-volume anchors; movers, existing
 	# MultiMeshes and pulsing readouts keep their own shadow/lifecycle behavior.
-	#
-	# The stores totes are deliberately not in this roster. `StaticShadowBatch`
-	# merges exactly one surface per source and refuses the whole assembly
-	# otherwise, and a tote is three surfaces because it is three finishes on one
-	# object. They therefore keep their own `SHADOW_CASTING_SETTING_ON` renderers,
-	# exactly as the freight berth's ten totes do; the silhouette a player sees is
-	# the real crate rather than the merged envelope's stand-in for it.
+	# All three opaque tote surfaces contribute their exact triangles too;
+	# only their separate shadow submissions disappear. Their named colour
+	# renderers and all three original finishes remain untouched.
 	StaticShadowBatch.build(line, shadow_sources)
 
 	var sled := _add_station_life_mover(line, "AnimatedLongCargoSled")

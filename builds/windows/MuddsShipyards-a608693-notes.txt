@@ -1,0 +1,19 @@
+Mudds Shipyards provisional combined settings checkpoint — 2026-10-13
+Source: a608693419d606d8c75fb763bb86886b197d380c
+Branch: preparation/candidate-latest-main-seam (pushed)
+Parents: 3fe807a5255fdfa8bbd0ae7bd1c07f23dad40ebb + e0ce8ffea2713c270638c29bce876c07370b47b0
+
+Player-visible changes
+Combines planetary return/recovery, cabin lifetime and remote-body continuity with main's settings default initialization. Fresh profiles and healthy older saves without preferences now initialize defaults through the owning atomic save path; repeat menu launches no longer produce settings_missing warnings. Preserves authored Zenith payloads and Cargo's two immutable cabin finishes.
+
+Actual validation
+Conflict-free merge; no manual conflict resolutions or new features. Focused Godot checks pass745 counted assertions across settings persistence45/adapter53, smoke95, physical cruise90, cabin59/integration75, remote body186/intent72, Cargo gameplay37/census19 and Cargo sharing14. Additional Cargo access-material sentinel check and two Python pilot-export tests pass. All Godot suites exit0, one exact sentinel each, zero runner diagnostics, verified raw hashes and stable source/import cache. First matrix began with already-merged source/index at HEAD3fe; committing changed HEAD to a608 during that run, while source blobs remained unchanged. Follow-up checks ran at clean committed a608; Git HEAD stability is not claimed for the first matrix.
+Fresh import and safe Windows export exit0 in9.851/12.299seconds; clean source HEAD remains unchanged. Each retains the routine root-user warning.
+Four silent Linux-hosted Windows-PCK startup probes (fresh/repeat, copied original failing save/repeat) exit0 under180seconds with one STARTUP_MENU_READY_OK each and zero diagnostics. Preferences present and identical on repeat; original profile, HOME and package unchanged, owned groups absent.
+Standard packaged station checks pass223, all four exits0/exact sentinels/zero diagnostics, raw log hashes verified.
+Strict packaged geometry census passes19 with exit0 and zero diagnostics. Minimal external measurement fixture contains only project configuration, census test and census tool; no runtime scripts/scenes/assets are available for source fallback. Exact five-material reduction and two additional packed Aurora/Rime skies remain required.
+Embedded-PCK inventory parses all1513 entries. EXE SHA256: 48b1ef2fe354e25dd2cdc5f2321770dbe6efad472288f7aaf5f235f2a5e75202
+Checkpoint ZIP CRC and member hashes verified on publication.
+
+Remaining gates
+Prepared development candidate, not merged main or accepted release. Earlier exact3fe core and canonical Ember52/Aurora29/Rime43 plus headless shard2 pass; its shard1 fails the original census expectations and remaining jobs are still live. Those results do not qualify this changed source. Consume remaining original CI, then run complete changed-candidate matrix/canonical journeys and matching Linux consumer acceptance before main integration. Current main3669186 graphical installed Linux startup on isolated Forward+/llvmpipe timed out at180seconds without menu readiness; preserve that failed result rather than claiming graphical Linux qualification here. Native Windows/GPU/device/controller/audio/human, install/update/rollback, trusted signing and final-release gates remain NOT_RUN.

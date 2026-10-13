@@ -11902,12 +11902,17 @@ func _present_network_remote_projectile(packet: Dictionary, result: Dictionary) 
 				CombatAudioPresentation.WEAPON_PROFILE_SIEGE_LANCE
 			)
 	if bool(presented.get("accepted", false)) \
-			and presented.get("status") == &"remote_projectile_presented" \
-			and bool(result.get("first_admission", false)) and launch \
 			and StringName(descriptor.get("kind", &"")) == NetworkRemoteProjectileReplicatorType.KIND_SLUG \
 			and StringName(projectile.get("source_entity_id", &"")) == &"player-mass-driver" \
 			and is_instance_valid(combat_audio):
-		combat_audio.play_player_fire(projectile.get("position") as Vector3, replicator.get_instance_id())
+		if presented.get("status") == &"remote_projectile_presented" \
+				and bool(result.get("first_admission", false)) and launch:
+			combat_audio.play_player_fire(projectile.get("position") as Vector3, replicator.get_instance_id())
+		elif presented.get("status") == &"remote_projectile_terminal_presented" \
+				and StringName((projectile.get("terminal_intent", {}) as Dictionary).get("kind", &"")) == &"impact":
+			# The host marks an impact only after committing damage. Match its
+			# contact cue, including for a peer that quietly joined mid-flight.
+			combat_audio.play_impact(projectile.get("position") as Vector3, 0.9, replicator.get_instance_id())
 	return presented
 
 
@@ -24510,10 +24515,6 @@ func _advance_network_engineer(delta: float) -> void:
 		_network_engineer_binding.advance(delta)
 	if _network_session_mode != &"client" or not is_instance_valid(network_session):
 		return
-	if is_instance_valid(_network_engineer_pending_seat):
-		_network_engineer_pending_elapsed += delta
-		if _network_engineer_pending_elapsed > 4.0:
-			_network_engineer_pending_seat = null
 	var view := _network_physical_crew_view()
 	var assignment := view.get("assignment", {}) as Dictionary
 	var belongs: bool = not assignment.is_empty() and is_instance_valid(_cabin_ship) and view.get("ship_id") == _cabin_ship.get_ship_id() \
@@ -24541,6 +24542,13 @@ func _advance_network_engineer(delta: float) -> void:
 			# local body. Ask the still-owned host body to stand instead.
 			_request_network_orphan_crew_release(view, assignment)
 
+	# Consume the authenticated view already received for this live request
+	# before advancing its clock. Otherwise the expiry tick discards a current
+	# confirmation and asks the host to release the chair it just granted.
+	if is_instance_valid(_network_engineer_pending_seat):
+		_network_engineer_pending_elapsed += delta
+		if _network_engineer_pending_elapsed > 4.0:
+			_network_engineer_pending_seat = null
 
 func _request_network_orphan_crew_release(view: Dictionary, assignment: Dictionary) -> void:
 	# The caller has authenticated this exact current role against the bound

@@ -1,0 +1,18 @@
+Mudds Shipyards provisional combined Linux checkpoint — 2026-10-13
+Source: a608693419d606d8c75fb763bb86886b197d380c
+Branch: preparation/candidate-latest-main-seam
+
+Player-visible changes
+Includes planetary return/recovery, cabin lifetime and remote-body continuity plus main's initial settings persistence. Fresh profiles and healthy older shared saves without preferences now persist authored defaults before other gameplay writes and repeat-launch without settings_missing warnings.
+
+Actual validation
+Existing safe Linux export exits0 from clean unchanged a608source. Raw export metadata retains startup_check NOT_RUN for the export stage; actual consumer acceptance is recorded separately.
+Shipped archive installs its desktop entry into isolated XDG paths. Actual standalone exported ELF launches from that installedentry's Exec, without source/path/script/main-pack overrides. Four headless/Dummy launches (fresh/repeat and copied original3fe failing profile/repeat) each exit0 with exactly one STARTUP_MENU_READY_OK and zero diagnostics. Repeat preferences identical; unrelated namespaces and foreign metadata retained. SourceHEAD/importcache, ELF/archive, originalprofile and HOME unchanged; children absent.
+Four Linux-PCK station suites pass223, actual exits0/exact sentinels/zero diagnostics; raw logs independently hash-verified.
+All1513 embedded payload path hashes are identical to matching Windows a608EXE. Windows-PCK strict census19 and four fresh/repeat startups remain source/package-specific accepted checks; byte parity supports the matching payload claim. ELF/archive hash readback verified on publication.
+Preparedsource focused745 counted Godot assertions plus Cargo sentinel and two generator tests pass. Exact-source core CI38435432007 passes8suites/668assertions, actual exits/sentinels/raw hashes verified and source/cache stable. Full matrix/canonical journeys for a608stilllive; this is not main integration/full release acceptance.
+ELF SHA256: c84b4c68e3f4c9ff932a985b1e4f8f7187b8b47189db497e084636421b0d8474
+Archive SHA256: abb246251397ad02d025e2820237462855deafbc816d50205d2d3ce973086bc5
+
+Remaining gates
+Graphical desktop/menu interaction and native GPU performance unqualified. Main3669186 installedForward+/llvmpipe exceeds the original180sec readiness cap on two isolatedruns; lateCPUstack shows active Lavapipe LLVM shader JIT while the mainthread waits in Vulkan, after the last completed startup-stage report; the exact blocked call is not yet identified. Headlessinstalledstartup passes; no startup readiness deadlock or productionfix is established. Those software timings do not qualify nativeGPU performance or graphicala608acceptance. Retain the failure; no renderer/quality/budget change made. NativeWindows/GPU/device/controller/accessibility, audible/human review, install/update/rollback, trustedsigning and finalrelease remain NOT_RUN.

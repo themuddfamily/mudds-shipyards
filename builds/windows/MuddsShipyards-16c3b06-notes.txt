@@ -1,0 +1,22 @@
+Mudds Shipyards — cargo shadow and crew chair checkpoint (2026-10-13)
+Source: 16c3b06e205f7fe37d0aadd67356f3284250c440 (clean committed main).
+
+Changes:
+- Seventeen stationary cargo totes now share the three existing fixed-shell shadow batches. Their shadow submissions decrease from54 to3. Visible tote geometry, finishes, positioning, colliders, movers and lifecycle remain unchanged.
+- Includes the confirmed remote-chair expiry-tick fix, preceding Aft cap fix and confirmed remote hauler impact cue.
+
+Tradeoff: retains13,476 additional shadow-only triangles. Resident total1,762,333 leaves37,667 triangles (2.09%) below the unchanged1.8m ceiling. Node, light, material and other existing budget overruns remain. Submission consolidation does not establish native GPU frame-time improvement.
+
+Validation:
+- Combined source operations349, chair bridge14 and strict source census19 pass (382 assertions), all actual exits0, unique completion markers, zero runner diagnostics, verified raw hashes and stable source/import cache.
+- Actual embedded Windows-PCK operations349, census19 and bridge14 pass (382), via minimal external tests/tools/class maps with no local scripts/scenes/assets fallback. Package and fixture inputs remain byte-identical, clean source retained.
+- Four standard Windows-PCK probes223 pass with verified actual exits0/unique markers/raw hashes and zero diagnostics.
+- Clean supported Windows export exit0; Linux-hosted silent Windows-PCK startup exit0, exactly one STARTUP_MENU_READY_OK marker, zero ERROR diagnostics.
+- Chair-source actual four-peer cruise116 previously passed within unchanged300-second cap; all peers exit0 and child PIDs absent.
+- Independent runtime reviews found no blocker. Four private x11/Forward+ software-rendered before/after capture pairs: raised views identical; each walking view changes one pixel of518,400 (maximum channel delta4/1). Root inspected the short-line walking pair and independently verified all four pixel comparisons.
+
+Native Windows/GPU performance, ordinary human controls/controllers, audible mix, signing and final installed acceptance remain NOT_RUN. Full combined-candidate CI remains unfinished; candidate-only broader planetary/recovery changes are not included in this main snapshot.
+
+EXE bytes: 184312976
+EXE SHA256: 7c57df16292ab13a25874cd981d57de853eaaedfdfba1a98d423eb57b3b92634
+Raw local records: /root/.cache/mudds-shipyards/roadmap-validation/cargo-shadow-checkpoint-16c3b06e2

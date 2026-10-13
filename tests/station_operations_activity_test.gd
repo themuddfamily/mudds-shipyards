@@ -1,5 +1,6 @@
 extends SceneTree
 
+const StaticShadowBatchFixture := preload("res://scripts/world/static_shadow_batch.gd")
 const ACTIVITY_SCENE := preload("res://scenes/world/components/station_operations_activity.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 
@@ -1614,17 +1615,10 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 			expected_families = {"FootPad": 4, "Column": 4, "ColumnEdge": 4, "OverheadRail": 2, "BridgeBeam": 1}
 		StationOperationsActivity.ActivityProfile.CARGO_LINE:
 			assembly_name = "CargoTransferLine"
-			# FREIGHT-CRATE-001: the five palletised totes left this roster. A
-			# `FreightCrateKit` shell is three surfaces and `StaticShadowBatch`
-			# merges single-surface sources only, so each tote keeps its own
-			# `SHADOW_CASTING_SETTING_ON` renderer and is covered below by the
-			# excluded-branch check instead.
-			expected_families = {"RailBeam": 2, "RailStop": 2, "PalletDeckPort": 1, "CrateManifest": 1, "PalletDeckStarboard": 1, "HoistPost": 2, "HoistBeam": 1, "ControlPedestal": 1, "ControlHousing": 1}
+			expected_families = {"RailBeam": 2, "RailStop": 2, "PalletDeckPort": 1, "CrateLower": 1, "CrateLowerAlt": 1, "CrateUpper": 1, "CrateManifest": 1, "PalletDeckStarboard": 1, "CrateOutbound": 1, "CrateOutboundSmall": 1, "HoistPost": 2, "HoistBeam": 1, "ControlPedestal": 1, "ControlHousing": 1}
 		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG:
 			assembly_name = "LongCargoTransferLine"
-			# FREIGHT-CRATE-001: as on the short line, the six totes are no
-			# longer merged sources and cast through their own renderers.
-			expected_families = {"RailBeam": 2, "RailStop": 2, "HoistPost": 4, "HoistRail": 2, "PalletDeckInbound": 1, "CrateManifest": 1, "PalletDeckOutbound": 1, "ControlPedestal": 1, "ControlHousing": 1}
+			expected_families = {"RailBeam": 2, "RailStop": 2, "HoistPost": 4, "HoistRail": 2, "PalletDeckInbound": 1, "CrateInboundPort": 1, "CrateInboundStarboard": 1, "CrateInboundTop": 1, "CrateManifest": 1, "PalletDeckOutbound": 1, "CrateOutboundPort": 1, "CrateOutboundStarboard": 1, "CrateOutboundTop": 1, "ControlPedestal": 1, "ControlHousing": 1}
 		_:
 			_check(activity.find_children("OpaqueEnvelopeShadowBatch", "MeshInstance3D", true, false).is_empty(), "unrelated profiles gain no shadow batch")
 			return
@@ -1642,6 +1636,8 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 		if expected_names.has(str(child.name)):
 			sources.append(child as MeshInstance3D)
 	_check(sources.size() == expected_names.size(), assembly_name + " retains its exact named colour roster")
+	if activity.activity_profile == StationOperationsActivity.ActivityProfile.CARGO_LINE:
+		_test_multisurface_shadow_rejection(sources)
 	var merged := batch.mesh.surface_get_arrays(0)
 	var vertices: PackedVector3Array = merged[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = merged[Mesh.ARRAY_NORMAL]
@@ -1655,29 +1651,40 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 	var transforms := {}
 	for source in sources:
 		transforms[source.name] = source.transform
-		var arrays := source.mesh.surface_get_arrays(0)
-		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-		var source_indices := PackedInt32Array()
-		if arrays[Mesh.ARRAY_INDEX] != null:
-			source_indices = arrays[Mesh.ARRAY_INDEX]
-		else:
+		for surface_index in source.mesh.get_surface_count():
+			var arrays := source.mesh.surface_get_arrays(surface_index)
+			var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var source_indices := PackedInt32Array()
+			if arrays[Mesh.ARRAY_INDEX] != null:
+				source_indices = arrays[Mesh.ARRAY_INDEX]
+			else:
+				for index in source_vertices.size():
+					source_indices.append(index)
+			var normal_basis := source.basis.inverse().transposed()
+			materials_unchanged = materials_unchanged and activity._materials.values().has(source.get_active_material(surface_index))
+			geometry_matches = geometry_matches and source.visible and source.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			for index in source_vertices.size():
-				source_indices.append(index)
-		var normal_basis := source.basis.inverse().transposed()
-		materials_unchanged = materials_unchanged and activity._materials.values().has(source.material_override)
-		geometry_matches = geometry_matches and source.visible and source.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		for index in source_vertices.size():
-			var expected_vertex := source.transform * source_vertices[index]
-			geometry_matches = geometry_matches and vertices[vertex_offset + index].is_equal_approx(expected_vertex)
-			normal_error = maxf(normal_error, normals[vertex_offset + index].distance_to((normal_basis * source_normals[index]).normalized()))
-			bounds = AABB(expected_vertex, Vector3.ZERO) if vertex_offset + index == 0 else bounds.expand(expected_vertex)
-		for index in source_indices.size():
-			geometry_matches = geometry_matches and indices[index_offset + index] == source_indices[index] + vertex_offset
-		vertex_offset += source_vertices.size()
-		index_offset += source_indices.size()
+				var expected_vertex := source.transform * source_vertices[index]
+				geometry_matches = geometry_matches and vertices[vertex_offset + index].is_equal_approx(expected_vertex)
+				normal_error = maxf(normal_error, normals[vertex_offset + index].distance_to((normal_basis * source_normals[index]).normalized()))
+				bounds = AABB(expected_vertex, Vector3.ZERO) if vertex_offset + index == 0 else bounds.expand(expected_vertex)
+			for index in source_indices.size():
+				geometry_matches = geometry_matches and indices[index_offset + index] == source_indices[index] + vertex_offset
+			vertex_offset += source_vertices.size()
+			index_offset += source_indices.size()
 	_check(geometry_matches and vertices.size() == vertex_offset and indices.size() == index_offset and normal_error <= 0.0002, assembly_name + " retains exact triangles/index order and transformed positions/normal directions")
-	_check(materials_unchanged and batch.material_override == sources[0].material_override and batch.mesh.get_aabb().is_equal_approx(bounds) and batch.transform == Transform3D.IDENTITY and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, assembly_name + " retains original colour materials and tight parent-local shadow bounds")
+	_check(materials_unchanged and batch.mesh.get_surface_count() == 1 and batch.material_override == sources[0].get_active_material(0) and batch.mesh.get_aabb().is_equal_approx(bounds) and batch.transform == Transform3D.IDENTITY and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, assembly_name + " retains original colour materials and tight parent-local shadow bounds")
+	if activity.activity_profile in [StationOperationsActivity.ActivityProfile.CARGO_LINE, StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG]:
+		var previous_shadow_submissions := 1 # This same fixed-shell batch already existed.
+		for source in sources:
+			if source.mesh.get_surface_count() == 3:
+				previous_shadow_submissions += 3
+		var expected_before := 16 if activity.activity_profile == StationOperationsActivity.ActivityProfile.CARGO_LINE else 19
+		_check(previous_shadow_submissions == expected_before and batch.mesh.get_surface_count() == 1,
+			assembly_name + " folds the exact tote shadow surfaces into its existing single submission")
+		print("CARGO_FIXED_SHADOW_SUBMISSIONS: ", assembly_name, " before=", previous_shadow_submissions,
+			" after=", batch.mesh.get_surface_count(), " net_removed=", previous_shadow_submissions - batch.mesh.get_surface_count())
 	# The world consumes only the authored solid roster, independent of the new
 	# aggregate AABB. Removing the renderer cannot change a single physical spec.
 	var solids := activity.get_solid_volume_contract()
@@ -1698,3 +1705,96 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 	activity.set_activity_enabled(true)
 	_check(batch.is_visible_in_tree() and sources[0].is_visible_in_tree() and bool(activity.get_audit_report().valid), assembly_name + " colour and shadows resume without rebuilding")
 	print("FIXED_SHELL_SHADOW_PARITY: ", assembly_name, " sources=", sources.size(), " triangles=", indices.size() / 3, " bounds=", bounds, " max_normal_error=", normal_error)
+
+
+## A late unsupported tote surface must reject the complete roster atomically,
+## including when an otherwise valid single-surface proxy was supplied.
+func _test_multisurface_shadow_rejection(sources: Array[MeshInstance3D]) -> void:
+	var fixture := Node3D.new()
+	root.add_child(fixture)
+	var candidates: Array[MeshInstance3D] = []
+	var original_tote: MeshInstance3D
+	for source in sources:
+		if source.mesh.get_surface_count() == 3:
+			original_tote = source
+			break
+	if original_tote == null:
+		_check(false, "rejection fixture requires a real multi-surface tote")
+		fixture.free()
+		return
+	for original in [sources[0], original_tote]:
+		var copy := original.duplicate() as MeshInstance3D
+		copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		fixture.add_child(copy)
+		candidates.append(copy)
+	var tote := candidates[1]
+	_check(tote.mesh.get_surface_count() == 3, "rejection fixture reaches the real three-surface stores tote")
+	var original_material := tote.get_active_material(2)
+	var proxy := ArrayMesh.new()
+	proxy.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, tote.mesh.surface_get_arrays(0))
+	var proxies: Array[ArrayMesh] = [null, proxy]
+	var mutations := {
+		"alpha": {"transparency": BaseMaterial3D.TRANSPARENCY_ALPHA},
+		"alpha scissor": {"transparency": BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR},
+		"culling": {"cull_mode": BaseMaterial3D.CULL_DISABLED},
+		"depth draw": {"depth_draw_mode": BaseMaterial3D.DEPTH_DRAW_DISABLED},
+		"depth test": {"no_depth_test": true},
+		"billboard": {"billboard_mode": BaseMaterial3D.BILLBOARD_ENABLED},
+		"displacement": {"grow": true},
+		"fixed size": {"fixed_size": true},
+		"proximity fade": {"proximity_fade_enabled": true},
+		"distance fade": {"distance_fade_mode": BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA},
+		"next pass": {"next_pass": StandardMaterial3D.new()},
+	}
+	for mutation: String in mutations:
+		var invalid := original_material.duplicate() as StandardMaterial3D
+		for property: String in mutations[mutation]:
+			invalid.set(property, mutations[mutation][property])
+		tote.set_surface_override_material(2, invalid)
+		_check(
+			StaticShadowBatchFixture.build(fixture, candidates) == null
+				and fixture.get_child_count() == 2
+				and candidates[0].cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				and tote.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
+			"late %s surface rejects the full shadow roster without changing any source" % mutation
+		)
+		_check(
+			StaticShadowBatchFixture.build(fixture, candidates, proxies) == null
+				and fixture.get_child_count() == 2
+				and tote.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
+			"single-surface proxy cannot bypass late %s colour-surface rejection" % mutation
+		)
+	tote.set_surface_override_material(2, ShaderMaterial.new())
+	_check(StaticShadowBatchFixture.build(fixture, candidates) == null and fixture.get_child_count() == 2,
+		"late custom shader fails closed before the first source is changed")
+	tote.set_surface_override_material(2, original_material)
+	var original_mesh := tote.mesh
+	var lines := ArrayMesh.new()
+	for surface_index in 3:
+		var arrays := original_mesh.surface_get_arrays(surface_index)
+		if surface_index == 2:
+			arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1])
+		lines.add_surface_from_arrays(Mesh.PRIMITIVE_LINES if surface_index == 2 else Mesh.PRIMITIVE_TRIANGLES, arrays)
+	tote.mesh = lines
+	_check(StaticShadowBatchFixture.build(fixture, candidates) == null and fixture.get_child_count() == 2,
+		"late non-triangle primitive fails closed without a partial shadow batch")
+	var missing_normals := ArrayMesh.new()
+	for surface_index in 3:
+		var arrays := original_mesh.surface_get_arrays(surface_index)
+		if surface_index == 2:
+			arrays[Mesh.ARRAY_NORMAL] = null
+		missing_normals.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	tote.mesh = missing_normals
+	_check(StaticShadowBatchFixture.build(fixture, candidates) == null and fixture.get_child_count() == 2,
+		"late missing normals rejects the complete roster before any mutation")
+	tote.mesh = original_mesh
+	_check(StaticShadowBatchFixture.build(fixture, candidates) != null
+		and candidates[0].cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and tote.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		"restoring the original tote accepts mixed single/multi-surface sources")
+	fixture.get_node(^"OpaqueEnvelopeShadowBatch").free()
+	for source in candidates:
+		source.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_check(StaticShadowBatchFixture.build(fixture, candidates, proxies) != null,
+		"the tested single-surface proxy is valid when every real tote surface is opaque")
+	fixture.free()
