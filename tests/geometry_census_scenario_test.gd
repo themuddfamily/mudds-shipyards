@@ -460,11 +460,13 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Habitat complete colour arcs consolidate 60 room-local batches into 10.
 # Actual source scenarios each lose 50 nodes/renderers/surfaces and 13 bound
 # meshes; triangles, 27 independent shadows, resources and Cinder deltas stay fixed.
-# Packed fingerprints below retain the previous checkpoint until measured anew.
+# Actual clean e216b1a Windows PCK measurements retain the two local-skies
+# material contract; only its two historical fingerprint expectations failed.
+# The measured packed fingerprints below close those exact stale expectations.
 const RESIDENT_FINGERPRINT := "6c62b22ddf1a063b6e8ca1ddace6319499cbe2b73c8c8040b6434fd72d0cd0e3"
 const CINDER_LOADED_FINGERPRINT := "07b1da592666ecba0715dc47601ab80fed2f5a4ab649a23e15ac9b8c861ad761"
-const PACKED_RESIDENT_FINGERPRINT := "3399939b4291dc7d768e1332e0c3c047196dd2f89065852337efd5f4ef342219"
-const PACKED_CINDER_LOADED_FINGERPRINT := "460828d632c88dbc4ed7c06b7a87ace6c1ae3e864b5e2564352ba087a53bf8ea"
+const PACKED_RESIDENT_FINGERPRINT := "415793c5332be67ee4449a12bf7f8ec5186c90de17e7adaa7edd3c7fdeae4b20"
+const PACKED_CINDER_LOADED_FINGERPRINT := "b390431723e8dc5856f7a48db0d4c99ac4d7e7db41934a1d6c3b069f05f9ae73"
 
 var _assertions := 0
 var _failures := PackedStringArray()
