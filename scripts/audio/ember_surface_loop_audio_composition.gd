@@ -70,6 +70,12 @@ func detach() -> Dictionary:
 	_attached = false
 	return _result(true, &"detached")
 
+
+## Current attachment state without constructing detached presentation reports.
+func is_attached() -> bool:
+	return _attached
+
+
 func get_snapshot() -> Dictionary:
 	return {"attached": _attached, "binding": _binding.get_snapshot() if _binding != null else {"attached": false}, "authority": {"host": false, "movement": false, "landing": false, "audio_cues": true}}.duplicate(true)
 

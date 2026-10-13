@@ -156,6 +156,13 @@ var _boarding_results: Array = []
 var _shim: TransportShim = null
 var _ticker: TickDriver = null
 var _leg_active := false
+var _idle_cruise_binding: PlanetaryCruiseProductionBinding
+var _idle_cruise_engaged_here := false
+var _idle_cruise_coordinate_frame: PlanetaryCoordinateFrame
+var _idle_cruise_result: Dictionary = {}
+var _idle_cruise_first_rejected_tick: Dictionary = {}
+var _idle_cruise_window_start_frame := -1
+var _idle_cruise_minimum_speed := INF
 var _leg_origin := Transform3D.IDENTITY
 var _leg_distance := 0.0
 var _bounds := AABB()
@@ -195,6 +202,7 @@ func _run() -> void:
 	await _assert_the_crowd_budget()
 	await _assert_a_disconnect_releases_the_body()
 	await _assert_reentry_and_rehost_readmit_the_body()
+	await _assert_idle_body_stays_at_its_cruise_waypoint()
 	_report_summary()
 	await _finish_remote_bodies()
 
@@ -916,6 +924,191 @@ func _assert_the_crowd_budget() -> void:
 		"all four crowd bodies are still simulated after the sweep")
 
 
+func _assert_idle_body_stays_at_its_cruise_waypoint() -> void:
+	var body := _body(WALKER_ENTITIES[0])
+	if body == null:
+		return
+	# All old checks precede this leg; re-entry leaves one body and the crowd's
+	# relationship shim hook has already been removed and drained.
+	var activity_before: Dictionary = _game.get_active_activity_snapshot()
+	if bool(activity_before.get("running", false)):
+		# Ordinary climb-out can start the selected activity. Its public reset
+		# persists the reset and preserves pending-reward refusals before cruise.
+		var activity_reset: bool = _game.reset_active_activity()
+		var activity_after: Dictionary = _game.get_active_activity_snapshot()
+		var activity_idle: bool = activity_reset and not bool(activity_after.get("running", false)) \
+			and activity_after.get("state_id", &"") == &"idle"
+		_check(activity_idle, "the running selected activity resets through its persisted public lifecycle before cruise")
+		if not activity_idle:
+			print("REMOTE_BODY_IDLE_CRUISE: ", {"stage": &"activity_reset_rejected",
+				"reset_accepted": activity_reset, "activity_before": activity_before, "activity_after": activity_after})
+			return
+	_idle_cruise_binding = _game.planetary_cruise_binding
+	_idle_cruise_coordinate_frame = _idle_cruise_binding.get_bound_bootstrap().get_coordinate_frame_for_session()
+	var destination: Dictionary = _idle_cruise_coordinate_frame.orbital_to_world_streaming_position(
+		_idle_cruise_binding.get_snapshot().get("canonical_destination_orbital", {}),
+		_idle_cruise_coordinate_frame.get_generation())
+	_check(bool(destination.get("accepted", false)), "the live production cruise binding decodes its authored navigation anchor")
+	if not bool(destination.get("accepted", false)):
+		_close_idle_cruise_binding()
+		return
+	var saved_basis := _craft.global_basis
+	var saved_leg_active := _leg_active
+	# End the crowd's sideways velocity driver before preparing cruise. The
+	# production policy uses hull-forward only at genuinely zero speed.
+	_leg_active = false
+	_set_plan(0, Vector2.ZERO, true)
+	_release_all_flight_controls(_craft)
+	Input.action_press(&"brake")
+	for _brake_tick in 120:
+		await _drive(1)
+		if _craft.velocity.length() == 0.0:
+			break
+	Input.action_release(&"brake")
+	await _drive(1)
+	var host_stopped: bool = _craft.velocity.length() == 0.0 and not _craft.get_last_ship_command().brake
+	_check(host_stopped, "ordinary host braking ends crowd momentum before cruise alignment")
+	if not host_stopped:
+		print("REMOTE_BODY_IDLE_CRUISE: ", {"stage": &"host_momentum_unsettled",
+			"velocity": _craft.velocity, "brake_held": _craft.get_last_ship_command().brake})
+		_close_idle_cruise_binding()
+		_leg_active = saved_leg_active
+		return
+	# As in the shared-cruise route, align the hull to its real retained anchor
+	# before walking/settling. Policy still owns every later propulsion decision.
+	_craft.global_basis = Basis.looking_at(((destination.get("position") as Vector3)
+		- _craft.global_position).normalized(), Vector3.UP)
+	var target := Vector3(1.0, 0.52, -5.8)
+	var settled_ticks := 0
+	for _round in 240:
+		var local := _frame.get_occupant_frame_local_transform(body).origin
+		var error := Vector3(target.x - local.x, 0, target.z - local.z)
+		if error.length() < 0.30:
+			_set_plan(0, Vector2.ZERO, true)
+		else:
+			var demand := body.global_basis.inverse() * (_craft.global_basis * error.normalized())
+			_set_plan(0, Vector2(demand.x, demand.z).limit_length(1.0) * 0.512195, true)
+			settled_ticks = 0
+		await _drive(1)
+		local = _frame.get_occupant_frame_local_transform(body).origin
+		var planar_distance := Vector2(local.x - target.x, local.z - target.z).length()
+		if planar_distance < 0.30 and body.is_on_floor() \
+				and _frame.get_occupant_frame_local_velocity(body).length() < 0.1:
+			settled_ticks += 1
+		else:
+			settled_ticks = 0
+		if settled_ticks >= 15:
+			break
+	_set_plan(0, Vector2.ZERO, true)
+	_check(settled_ticks >= 15, "accepted remote inputs settle the actual body at the off-centre cruise waypoint")
+	if settled_ticks < 15:
+		print("REMOTE_BODY_IDLE_CRUISE: ", {"stage": &"waypoint_unsettled",
+			"local": _frame.get_occupant_frame_local_transform(body).origin,
+			"floor": body.is_on_floor(), "velocity": _frame.get_occupant_frame_local_velocity(body),
+			"containment": body.get_cabin_containment_report()})
+		_craft.global_basis = saved_basis
+		_leg_active = saved_leg_active
+		_close_idle_cruise_binding()
+		return
+	var rest := _frame.get_occupant_frame_local_transform(body).origin
+	var recall_before := int(body.get_cabin_containment_report().get("recall_count", 0))
+	var floor_before := _floor_violations
+	var bounds_before := _bounds_violations
+	var max_drift := 0.0
+	var first_failure: Dictionary = {}
+	var bound: Dictionary = _idle_cruise_binding.request_engage(_craft,
+		_idle_cruise_coordinate_frame.get_generation(), _game._planetary_cruise_gate_reason(),
+		_idle_cruise_binding.get_generation(), true)
+	_idle_cruise_engaged_here = bool(bound.get("accepted", false))
+	_check(_idle_cruise_engaged_here, "the live production binding engages through the actual GameFlow cruise gates")
+	if not _idle_cruise_engaged_here:
+		print("REMOTE_BODY_IDLE_CRUISE: ", {"stage": &"cruise_binding_rejected", "binding": bound,
+			"destination": destination, "ship_attachment": _craft.get_planetary_cruise_attachment_report(),
+			"activity_before": activity_before, "activity_current": _game.get_active_activity_snapshot()})
+		_close_idle_cruise_binding()
+		_craft.global_basis = saved_basis
+		_leg_active = saved_leg_active
+		return
+	# GameFlow's existing coordinator owns the binding's actor samples, envelope
+	# cadence and committed-origin handoff. This fixture observes physics only.
+	# The gentle crowd driver must not overwrite real cruise velocity.
+	_leg_active = false
+	var start := Vector3.ZERO
+	var start_coordinate: Dictionary = {}
+	var window_physics_start := -1
+	var window_ticks := 0
+	var physics_start := int(Engine.get_physics_frames())
+	var observed_speed := (Vector3(0, 3.23589, -206.918) / TICK_SECONDS).length()
+	# The waiting client remained idle for over 21 seconds before the first
+	# recorded obstruction. Allow 30 seconds for production acceleration, then
+	# stream genuine neutral demand for 25 full seconds above the observed speed.
+	for _round in 3300:
+		await _drive(1)
+		var local := _frame.get_occupant_frame_local_transform(body).origin
+		var drift := local.distance_to(rest)
+		max_drift = maxf(max_drift, drift)
+		var containment := body.get_cabin_containment_report()
+		if first_failure.is_empty() and (drift >= 0.05 \
+				or int(containment.get("recall_count", 0)) != recall_before):
+			first_failure = {"physics_frame": Engine.get_physics_frames(), "local": local,
+				"velocity": _frame.get_occupant_frame_local_velocity(body), "floor": body.is_on_floor(),
+				"containment": containment, "craft_position": _craft.global_position}
+		if window_physics_start < 0:
+			if _craft.velocity.length() >= observed_speed:
+				window_physics_start = int(Engine.get_physics_frames())
+				_idle_cruise_window_start_frame = window_physics_start
+				_idle_cruise_minimum_speed = _craft.velocity.length()
+				start = _craft.global_position
+				start_coordinate = _idle_cruise_coordinate_frame.world_streaming_to_orbital_position(
+					start, _idle_cruise_coordinate_frame.get_generation()).get("coordinate", {}) as Dictionary
+			elif int(Engine.get_physics_frames()) - physics_start >= 1800:
+				break
+		else:
+			window_ticks = int(Engine.get_physics_frames()) - window_physics_start
+			if window_ticks >= 1500:
+				break
+	var support := await _settle_on_deck(body)
+	var recall_after := int(body.get_cabin_containment_report().get("recall_count", 0))
+	# Decode the retained physical start in the current origin; a genuine origin
+	# shift must not erase distance travelled or masquerade as hull movement.
+	var rebased_start: Dictionary = _idle_cruise_coordinate_frame.orbital_to_world_streaming_position(
+		start_coordinate, _idle_cruise_coordinate_frame.get_generation()) if not start_coordinate.is_empty() else {}
+	start = rebased_start.get("position", Vector3.ZERO) as Vector3
+	print("REMOTE_BODY_IDLE_CRUISE: ", {"rest_local": rest, "end_local": _frame.get_occupant_frame_local_transform(body).origin,
+		"max_drift_m": max_drift, "recall_before": recall_before, "recall_after": recall_after,
+		"physics_elapsed": int(Engine.get_physics_frames()) - physics_start,
+		"window_physics_start": window_physics_start, "window_ticks": window_ticks,
+		"hull_displacement": _craft.global_position - start, "observed_speed_mps": observed_speed,
+		"actual_speed_mps": _craft.velocity.length(), "cruise_result": _idle_cruise_result,
+		"first_rejected_tick": _idle_cruise_first_rejected_tick,
+		"binding": _idle_cruise_binding.get_snapshot(), "ship_attachment": _craft.get_planetary_cruise_attachment_report(),
+		"minimum_window_speed_mps": _idle_cruise_minimum_speed,
+		"first_failure": first_failure, "support": support})
+	_check(window_ticks == 1500 and _idle_cruise_minimum_speed >= observed_speed,
+		"real cruise physics sustains the observed speed throughout the full neutral window")
+	_check(window_ticks == 1500 and bool(rebased_start.get("accepted", false)) \
+			and _craft.global_position.distance_to(start) > 300000.0,
+		"the real hull physics exercises over 300 km of observed-speed cruise translation")
+	_check(bool(support.get("supported", false)) and _floor_violations == floor_before and _bounds_violations == bounds_before,
+		"neutral remote body retains real floor support inside the cabin at observed cruise speed")
+	_check(recall_after == recall_before and max_drift < 0.05,
+		"neutral remote body stays at its off-centre waypoint without a cabin recall (%.3f m drift, %d recalls)"
+			% [max_drift, recall_after - recall_before])
+	_close_idle_cruise_binding()
+	_craft.global_basis = saved_basis
+	_leg_active = saved_leg_active
+
+
+func _close_idle_cruise_binding() -> void:
+	if is_instance_valid(_idle_cruise_binding) and _idle_cruise_engaged_here:
+		_idle_cruise_binding.request_disengage(_idle_cruise_binding.get_generation(), true)
+	_idle_cruise_engaged_here = false
+	_idle_cruise_binding = null
+	_idle_cruise_coordinate_frame = null
+	_idle_cruise_window_start_frame = -1
+	_idle_cruise_minimum_speed = INF
+
+
 func _run_crowd_profile(size: int, profile: Dictionary) -> void:
 	_shim.configure(float(profile.delay_ms), float(profile.jitter_ms), float(profile.loss))
 	var audit_before: Dictionary = _game.get_network_moving_interior_publication_audit()
@@ -1211,7 +1404,18 @@ func _on_physics_tick() -> void:
 	if _shim != null:
 		_shim.now += TICK_SECONDS
 		_shim.pump()
-	if _leg_active and is_instance_valid(_craft):
+	if _idle_cruise_engaged_here:
+		if _idle_cruise_window_start_frame >= 0:
+			_idle_cruise_minimum_speed = minf(_idle_cruise_minimum_speed, _craft.velocity.length())
+		_idle_cruise_result = (_idle_cruise_binding.get_snapshot().get("last_result", {}) as Dictionary).duplicate(true)
+		if _idle_cruise_first_rejected_tick.is_empty() and not bool(_idle_cruise_result.get("accepted", true)):
+			# Preserve the actual rejected tick before later not_engaged ticks
+			# overwrite it. This late driver samples after GameFlow's physics tick.
+			_idle_cruise_first_rejected_tick = {"physics_frame_at_read": Engine.get_physics_frames(),
+				"read_phase": &"late_driver_after_game_flow_physics", "result": _idle_cruise_result.duplicate(true),
+				"flow_report_at_read": _game.get_planetary_cruise_report(),
+				"activity_at_read": _game.get_active_activity_snapshot()}
+	elif _leg_active and is_instance_valid(_craft):
 		# The hull flies a gentle arc on its own velocity, integrated by its own
 		# physics step, so the frame carries every body through a real leg.
 		_craft.velocity = _craft.global_basis * Vector3(3.0, 0.5, -9.0)
@@ -1322,9 +1526,10 @@ func _report_summary() -> void:
 
 
 func _finish_remote_bodies() -> void:
+	_close_idle_cruise_binding()
 	for action in [
 		&"interact", &"move_forward", &"move_back", &"move_left", &"move_right",
-		&"pitch_up", &"pitch_down", &"sprint_boost", &"hover",
+		&"pitch_up", &"pitch_down", &"sprint_boost", &"hover", &"brake",
 	]:
 		Input.action_release(action)
 	if _ticker != null and is_instance_valid(_ticker):

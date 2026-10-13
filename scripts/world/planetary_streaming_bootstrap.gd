@@ -257,6 +257,11 @@ func get_loaded_instance() -> Node3D:
 		if _configured and is_instance_valid(_coordinator) else null
 
 
+## Current coordinator generation without constructing the bootstrap diagnostics.
+func get_location_generation() -> int:
+	return _current_location_generation()
+
+
 ## Test/integration seam matching WorldStreamingCoordinator. Replacement is
 ## allowed only before the first load attempt while this bootstrap owns a live
 ## scene-tree lifecycle.
@@ -710,8 +715,7 @@ func _root_is_aligned(expected_generation: int) -> bool:
 func _current_location_generation() -> int:
 	if not is_instance_valid(_coordinator):
 		return -1
-	var generations := _coordinator.audit().get("generation_by_id", {}) as Dictionary
-	return int(generations.get(get_location_id(), -1))
+	return _coordinator.get_location_generation(get_location_id())
 
 
 func _finish_transition(

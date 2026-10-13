@@ -9,6 +9,9 @@ const ControllerType := preload(
 const TORRENT_SCENE := preload(
 	"res://scenes/ships/torrent_interceptor.tscn"
 )
+const BULWARK_SCENE := preload("res://scenes/ships/bulwark_heavy_gunship.tscn")
+const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
+const SHIPYARD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const FRAME_GENERATION := 7
 const DESTINATION_DISTANCE_METERS := 8_000_000.0
 
@@ -719,9 +722,223 @@ func _run() -> void:
 		]
 	)
 
+	ship.set_physics_process(false)
+	await _test_bulwark_structural_self_collisions(stage)
+	await _test_arrow_long_clearance(stage)
 	stage.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_bulwark_structural_self_collisions(stage: Node3D) -> void:
+	var ship := BULWARK_SCENE.instantiate() as HeroShip
+	stage.add_child(ship)
+	ship.global_position = Vector3(2000.0, 100.0, 0.0)
+	ship.set_physics_process(false)
+	ship.set_piloted(true)
+	await physics_frame
+	await process_frame
+	var skins := ship.find_children("Cabin*", "StaticBody3D", true, false)
+	var own_skin_count := 0
+	for node in skins:
+		if node.name in [&"CabinPressureSkin", &"CabinFixtures"] \
+				and (node as StaticBody3D).collision_layer == PhysicsLayers.SHIP \
+				and ship.get_collision_exceptions().has(node):
+			own_skin_count += 1
+	_check(own_skin_count == 2, "real Bulwark retains both solid cabin skins as declared structural self bodies")
+	var controller := _bind_new_controller(stage, ship, FRAME_GENERATION)
+	var destination := ship.global_position + Vector3.FORWARD * DESTINATION_DISTANCE_METERS
+	var clear := controller.evaluate_and_submit(destination, false, FRAME_GENERATION, controller.get_generation())
+	var proof: Dictionary = clear.get("proof", {})
+	_check(bool(clear.get("accepted", false)) and not bool(proof.get("obstacle_detected", true))
+		and bool(proof.get("clearance_full_hull", false))
+		and int(proof.get("queried_shape_count", 0)) == int(ship.get_landing_collision_report().get("shape_count", -1))
+		and bool((clear.get("policy", {}) as Dictionary).get("desired_cruise_participation", false)),
+		"real full-hull Bulwark cruise clears its own solid cabin without changing collision layers")
+	var cabin_fixture := ship.find_child("CabinFixtures", true, false) as StaticBody3D
+	var current_proof := ship.build_planetary_cruise_clearance_proof(Vector3.FORWARD,
+		DESTINATION_DISTANCE_METERS, FRAME_GENERATION,
+		int(ship.get_planetary_cruise_attachment_report().ship_attachment_generation), controller.get_instance_id())
+	var candidate := _envelope_from_proof(ship, controller, current_proof, false, 2)
+	ship.remove_collision_exception_with(cabin_fixture)
+	var stale_exception := ship.submit_planetary_cruise_envelope(candidate)
+	_check(not bool(stale_exception.get("accepted", true)) and stale_exception.get("reason") == &"clearance_hull_roster_changed",
+		"removing a declared self exception refuses the previous real hull proof")
+	ship.add_collision_exception_with(cabin_fixture)
+	current_proof = ship.build_planetary_cruise_clearance_proof(Vector3.FORWARD,
+		DESTINATION_DISTANCE_METERS, FRAME_GENERATION,
+		int(ship.get_planetary_cruise_attachment_report().ship_attachment_generation), controller.get_instance_id())
+	candidate = _envelope_from_proof(ship, controller, current_proof, false, 2)
+	var fixture_parent := cabin_fixture.get_parent()
+	cabin_fixture.reparent(stage, true)
+	var stale_owner := ship.submit_planetary_cruise_envelope(candidate)
+	_check(not bool(stale_owner.get("accepted", true)) and stale_owner.get("reason") == &"clearance_hull_roster_changed",
+		"a cabin collider leaving its craft subtree refuses the previous proof despite a retained collision exception")
+	cabin_fixture.reparent(fixture_parent, true)
+
+	var blocker := _make_blocker("ExternalShipLayerBlocker", Vector3(30.0, 30.0, 2.0),
+		ship.global_position + Vector3.FORWARD * 40.0)
+	blocker.collision_layer = PhysicsLayers.SHIP
+	stage.add_child(blocker)
+	ship.add_collision_exception_with(blocker)
+	await physics_frame
+	await process_frame
+	var blocked := controller.evaluate_and_submit(destination, false, FRAME_GENERATION, controller.get_generation())
+	_check(bool((blocked.get("proof", {}) as Dictionary).get("obstacle_detected", false))
+		and (blocked.get("policy", {}) as Dictionary).get("reason") == &"obstacle_detected",
+		"an external ship-layer body remains a cruise obstacle even with an ordinary collision exception")
+	blocker.queue_free()
+	await physics_frame
+	await process_frame
+
+	var crew := CharacterBody3D.new()
+	crew.name = "TransportedCrewCollider"
+	crew.collision_layer = PhysicsLayers.PLAYER
+	crew.collision_mask = PhysicsLayers.NONE
+	var collision := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(1.0, 1.0, 1.0)
+	collision.shape = box
+	crew.add_child(collision)
+	ship.add_child(crew)
+	crew.position = Vector3(0.0, 1.0, 0.0)
+	ship.add_collision_exception_with(crew)
+	await physics_frame
+	await process_frame
+	var occupied := controller.evaluate_and_submit(destination, false, FRAME_GENERATION, controller.get_generation())
+	_check(bool((occupied.get("proof", {}) as Dictionary).get("obstacle_detected", false))
+		and is_zero_approx(float((occupied.get("proof", {}) as Dictionary).get("verified_clearance_meters", -1.0)))
+		and (occupied.get("policy", {}) as Dictionary).get("reason") == &"obstacle_detected",
+		"a transported crew body remains a real initial-overlap obstacle within the craft subtree")
+	crew.collision_layer = PhysicsLayers.NONE
+	var carried := _make_blocker("CrewOwnedCollider", Vector3.ONE, Vector3.ZERO)
+	carried.collision_layer = PhysicsLayers.PLAYER
+	crew.add_child(carried)
+	ship.add_collision_exception_with(carried)
+	await physics_frame
+	await process_frame
+	var carried_result := controller.evaluate_and_submit(destination, false, FRAME_GENERATION, controller.get_generation())
+	_check(bool((carried_result.get("proof", {}) as Dictionary).get("obstacle_detected", false)),
+		"a separate actor's nested collider is not mistaken for the craft's structural body")
+	crew.queue_free()
+	await physics_frame
+	await process_frame
+	var restored := controller.evaluate_and_submit(destination, false, FRAME_GENERATION, controller.get_generation())
+	_check(not bool((restored.get("proof", {}) as Dictionary).get("obstacle_detected", true)),
+		"removing external blockers restores real Bulwark clearance without removing either cabin skin")
+	ship.remove_collision_exception_with(cabin_fixture)
+	ship.set_physics_process(true)
+	await physics_frame
+	await process_frame
+	ship.set_physics_process(false)
+	var consumed := ship.get_planetary_cruise_attachment_report()
+	_check(consumed.get("state") == HeroShip.PLANETARY_CRUISE_STATE_INACTIVE
+		and consumed.get("reason") == &"clearance_hull_roster_changed",
+		"real HeroShip physics refuses an already queued envelope when its self-collision membership changes")
+
+
+## Query-only fixture at the genuine first-refusal pose, with production yard
+## geometry at its authored origin. It stages no canonical journey or progress;
+## the captured fleet roster is not instantiated here. Runtime old/new comparison
+## must establish whether this smaller world reproduces the long-cast refusal.
+func _test_arrow_long_clearance(stage: Node3D) -> void:
+	var yard := SHIPYARD_SCENE.instantiate() as Node3D
+	stage.add_child(yard)
+	var ship := ARROW_SCENE.instantiate() as HeroShip
+	stage.add_child(ship)
+	ship.set_physics_process(false)
+	ship.set_piloted(true)
+	# Published marker values are rounded, so restore a rigid rotation from them.
+	var captured_basis := Basis(Vector3(0.893023, -0.437292, -0.106239),
+		Vector3(0.44099, 0.897418, 0.012997),
+		Vector3(0.089657, -0.058457, 0.994256)).orthonormalized()
+	var captured_position := Vector3(-78.45251, 20.24313, -239.8113)
+	var captured_velocity := Vector3(0.004903, 8.122903, -499.9343)
+	ship.global_transform = Transform3D(captured_basis, captured_position)
+	ship.velocity = captured_velocity
+	await physics_frame
+	await process_frame
+	var controller := _bind_new_controller(stage, ship, FRAME_GENERATION)
+	var attachment := int(ship.get_planetary_cruise_attachment_report().ship_attachment_generation)
+	var direction := Vector3(0.00001, 0.016246, -0.999868).normalized()
+	const HORIZON := 750_000.0
+	var hull := ship.get_node("ArrowHullCollision") as CollisionShape3D
+	var proof := ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment, controller.get_instance_id())
+	_check(bool(proof.get("accepted", false)) and not bool(proof.get("obstacle_detected", true))
+		and float(proof.get("verified_clearance_meters", -1.0)) == HORIZON
+		and bool(proof.get("clearance_full_hull", false))
+		and int(proof.get("enabled_shape_count", 0)) == 9
+		and int(proof.get("queried_shape_count", 0)) == 9
+		and int(proof.get("collision_mask", 0)) == ship.collision_mask,
+		"captured Arrow attitude queries all nine hull shapes across the full clear 750 km route with real yard geometry")
+
+	# Just beyond the split boundary: a clear first half cannot hide the second.
+	var blocker := _make_blocker("ArrowDistantThinBlocker", Vector3(30.0, 30.0, 1.0),
+		hull.global_position + direction * 375_100.0)
+	stage.add_child(blocker)
+	await physics_frame
+	await process_frame
+	proof = ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment, controller.get_instance_id())
+	var safe_meters := float(proof.get("verified_clearance_meters", -1.0))
+	_check(bool(proof.get("accepted", false)) and bool(proof.get("obstacle_detected", false))
+		and float(proof.get("sweep_distance_meters", 0.0)) == HORIZON
+		and bool(proof.get("clearance_full_hull", false))
+		and safe_meters > 370_000.0 and safe_meters < 376_000.0,
+		"real thin obstacle beyond the midpoint stays blocked and maps its safe prefix into the original full horizon [accepted=%s reason=%s obstacle=%s safe=%.6f sweep=%.6f full_hull=%s enabled=%d queried=%d]" % [
+			proof.get("accepted"), proof.get("reason"), proof.get("obstacle_detected"),
+			safe_meters, float(proof.get("sweep_distance_meters", -1.0)),
+			proof.get("clearance_full_hull"), int(proof.get("enabled_shape_count", -1)),
+			int(proof.get("queried_shape_count", -1)),
+		])
+	blocker.queue_free()
+	await physics_frame
+	await process_frame
+
+	blocker = _make_blocker("ArrowInitialOverlap", Vector3.ONE * 0.4, hull.global_position)
+	stage.add_child(blocker)
+	await physics_frame
+	await process_frame
+	proof = ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment, controller.get_instance_id())
+	_check(bool(proof.get("accepted", false)) and bool(proof.get("obstacle_detected", false))
+		and float(proof.get("verified_clearance_meters", -1.0)) == 0.0,
+		"captured Arrow retains actual initial-overlap refusal before any sweep subdivision")
+	blocker.queue_free()
+	await physics_frame
+	await process_frame
+
+	blocker = _make_blocker("ArrowClosedEndpointBlocker", Vector3(30.0, 30.0, 2.0),
+		hull.global_position + direction * HORIZON)
+	stage.add_child(blocker)
+	await physics_frame
+	await process_frame
+	proof = ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment, controller.get_instance_id())
+	_check(bool(proof.get("accepted", false)) and bool(proof.get("obstacle_detected", false))
+		and bool(proof.get("clearance_full_hull", false))
+		and float(proof.get("sweep_distance_meters", 0.0)) == HORIZON,
+		"captured Arrow retains a real closed-endpoint obstacle at the original 750 km horizon")
+	blocker.queue_free()
+	await physics_frame
+	await process_frame
+	proof = ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment, controller.get_instance_id())
+	_check(bool(proof.get("accepted", false)) and not bool(proof.get("obstacle_detected", true))
+		and float(proof.get("verified_clearance_meters", -1.0)) == HORIZON
+		and ship.global_position.is_equal_approx(captured_position)
+		and ship.global_basis.is_equal_approx(captured_basis)
+		and ship.velocity.is_equal_approx(captured_velocity)
+		and int(proof.get("ship_attachment_generation", 0)) == attachment
+		and int(proof.get("controller_instance_id", 0)) == controller.get_instance_id()
+		and int(proof.get("coordinate_frame_generation", 0)) == FRAME_GENERATION,
+		"removing actual obstacles restores full clearance without moving the captured actor or changing current authority")
+	controller.queue_free()
+	ship.queue_free()
+	yard.queue_free()
+	await physics_frame
+	await process_frame
 
 
 func _envelope_from_proof(

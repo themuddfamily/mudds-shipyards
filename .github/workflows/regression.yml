@@ -9,6 +9,12 @@ on:
       - 'ROADMAP.md'
       - 'docs/WINDOWS_INSTALLER.md'
   workflow_dispatch:
+    inputs:
+      full_candidate:
+        description: 'Run full candidate gate (RENDER-001 accepted; raw warnings retained)'
+        type: boolean
+        required: false
+        default: false
   schedule:
     - cron: '23 3 * * 1,4'
 permissions:
@@ -89,3 +95,76 @@ jobs:
           name: broad-${{ matrix.mode }}-regression
           path: artifacts/test-matrix/
           retention-days: 14
+  full-candidate:
+    if: github.event_name == 'workflow_dispatch' && inputs.full_candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retain exact candidate source
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          mkdir -p artifacts/full-candidate-source
+          git rev-parse HEAD > artifacts/full-candidate-source/commit.txt
+          git archive --format=tar.gz HEAD > artifacts/full-candidate-source/source.tar.gz
+          sha256sum artifacts/full-candidate-source/source.tar.gz > artifacts/full-candidate-source/source.sha256
+      - name: Install pinned Godot
+        run: bash tools/release/install_ci_godot.sh
+      - name: Install software rendering display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb mesa-vulkan-drivers
+      # One unfiltered run preserves the broad jobs' 1200s headless / 300s
+      # graphical limits; longer source-declared suite budgets still apply.
+      # RENDER-001 is explicitly accepted, not fixed; raw warnings are retained.
+      # Leave time after the step timeout to upload even incomplete/failing runs.
+      - name: Full final-source regression with Forward+ software rendering
+        timeout-minutes: 330
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          LP_NUM_THREADS: '2'
+          TEST_MATRIX_RUN_ID: full-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          xvfb-run -a -s '-screen 0 2560x1440x24' \
+            bash tools/release/run_test_matrix.sh --mode all --jobs 1 \
+            --display-driver x11 --audio-driver Dummy --accepted-risk RENDER-001 \
+            --timeout 300 --headless-timeout 1200
+          # The serial runner reports cache drift without failing; this full gate
+          # requires a complete, unfiltered, source-stable AND cache-stable run.
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          manifests = list(Path('artifacts/test-matrix').glob('*/run-manifest.txt'))
+          expected = Path('artifacts/test-matrix') / os.environ['TEST_MATRIX_RUN_ID'] / 'run-manifest.txt'
+          if manifests != [expected]:
+              raise SystemExit('Full candidate requires exactly its own completed run manifest')
+          fields = {}
+          for line in expected.read_text().splitlines():
+              key, separator, value = line.partition('=')
+              if not separator or key in fields:
+                  raise SystemExit('Malformed or duplicate full-candidate manifest field')
+              fields[key] = value
+          required = {'overall_status': 'PASS', 'execution_mode': 'all', 'scope_specs': 'all',
+                      'mode_excluded_suite_count': '0', 'jobs_effective': '1',
+                      'failed_suite_count': '0',
+                      'source_manifest_match': 'true', 'godot_cache_stable': 'true'}
+          if any(fields.get(key) != value for key, value in required.items()):
+              raise SystemExit('Full candidate completion, scope, source or cache gate failed')
+          total = fields.get('total_suites', '')
+          if not total.isdigit() or int(total) < 1 or fields.get('discovered_suite_count') != total:
+              raise SystemExit('Full candidate did not complete the entire discovered roster')
+          if not fields.get('run_completed_utc') or fields.get('run_id') != os.environ['TEST_MATRIX_RUN_ID']:
+              raise SystemExit('Full candidate completion identity is missing or incorrect')
+          print('Full candidate complete scope, source and strict cache gates: PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-candidate-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/test-matrix/
+            artifacts/full-candidate-source/
+          retention-days: 30
+          if-no-files-found: error

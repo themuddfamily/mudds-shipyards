@@ -93,7 +93,15 @@ def assess(path: Path, log: Path):
         match[1] for literal in PRINT_LITERAL.findall(path.read_text(encoding="utf-8"))
         if (match := TOKEN.match(literal))
     }
-    completion_matches = [(i, name) for i, name in matches if name in declared_tokens] if declared_tokens else matches
+    # When the source declares its filename token, that is the suite's terminal
+    # contract. Other declared tokens can witness intermediate cleanup/capture
+    # work; they cannot replace it or turn one completion into two. Preserve
+    # source-declared nonfilename forms for suites without that contract.
+    filename_tokens = declared_tokens & {
+        path.stem.upper() + "_" + suffix for suffix in ("OK", "PASS", "PASSED")
+    }
+    required_tokens = filename_tokens or declared_tokens
+    completion_matches = [(i, name) for i, name in matches if name in required_tokens] if required_tokens else matches
     # Several source declarations can describe the same token; count log lines once.
     unique = dict(completion_matches)
     found = next(iter(unique.values()), "<none>")

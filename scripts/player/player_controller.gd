@@ -2822,13 +2822,14 @@ func _camera_relative_direction(input_vector: Vector2) -> Vector3:
 	if camera_forward.is_zero_approx():
 		camera_forward = (-global_basis.z).slide(movement_up).normalized()
 	var camera_right := camera_forward.cross(movement_up).normalized()
-	return (camera_right * input_vector.x + camera_forward * -input_vector.y).normalized()
+	# Preserve stick/action strength after the camera-relative rotation.
+	return (camera_right * input_vector.x + camera_forward * -input_vector.y).limit_length(1.0)
 
 
 func _update_horizontal_velocity(direction: Vector3, sprinting: bool, delta: float) -> void:
 	var speed := sprint_speed if sprinting else walk_speed
 	var movement_up := _get_movement_up_direction()
-	var tangent_direction := direction.slide(movement_up).normalized()
+	var tangent_direction := direction.slide(movement_up).limit_length(1.0)
 	var target_velocity := tangent_direction * speed
 	var up_speed := velocity.dot(movement_up)
 	var horizontal_velocity := velocity - movement_up * up_speed

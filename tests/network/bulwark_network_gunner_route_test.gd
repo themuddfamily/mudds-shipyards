@@ -54,6 +54,7 @@ func _run() -> void:
 	if _role == "host":
 		await _host()
 	else:
+		_write("client.main_ready", {})
 		await _client()
 	for action in [&"interact", &"move_forward", &"move_back", &"move_left", &"move_right", &"fire", &"camera_distance_out"]:
 		Input.action_release(action)
@@ -81,6 +82,9 @@ func _orchestrate() -> void:
 	var client_args := _peer_arguments("client", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
 	var client := _spawn_peer("client", client_args)
 	_check(client > 0, "owned independent client starts")
+	# Cold Main startup has the same separate budget as the host; the original
+	# route deadline starts only when the client's production Main is ready.
+	await _wait_file("client.main_ready", 60.0)
 	await _wait_file("client.done", 120.0)
 	await _wait_file("host.done", 60.0)
 	for role in ["host", "client"]:

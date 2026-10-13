@@ -12,6 +12,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 GODOT_BIN="${GODOT_BIN:-godot}"
 TIMEOUT_SECONDS="${TEST_MATRIX_TIMEOUT_SECONDS:-300}"
+HEADLESS_TIMEOUT_SECONDS=""
 RUN_RESULTS_ROOT="${TEST_MATRIX_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/test-matrix}"
 RUN_ID="${TEST_MATRIX_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${TEST_MATRIX_AUDIO_DRIVER:-Dummy}"
@@ -50,7 +51,7 @@ DIAGNOSTIC_RE='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\bFATAL 
 
 usage() {
 	cat <<EOF
-Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--results-dir DIR]
+Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--headless-timeout SECONDS] [--results-dir DIR]
                         [--audio-driver NAME] [--display-driver NAME] [--jobs N] [--scope SPEC[,SPEC...]]
                         [--manifest-scope PATH[,PATH...]] [--import-gate MODE]
 
@@ -64,6 +65,8 @@ durations, paths, log hashes, or raw log text.
 Options:
   --godot PATH              Godot binary (default: \`godot\`).
   --timeout SECONDS         Per-suite timeout (default: 300).
+  --headless-timeout SECONDS Override the timeout for headless suites only.
+                            Defaults to --timeout; longer suite declarations still apply.
   --results-dir DIR         Results root (default: artifacts/test-matrix).
   --audio-driver NAME       Audio backend passed to --audio-driver (default: Dummy).
   --display-driver NAME     Display backend for graphical suites only (default: engine choice).
@@ -128,6 +131,10 @@ while [[ $# -gt 0 ]]; do
 			TIMEOUT_SECONDS="$2"
 			shift 2
 			;;
+		--headless-timeout)
+			HEADLESS_TIMEOUT_SECONDS="$2"
+			shift 2
+			;;
 		--results-dir)
 			RUN_RESULTS_ROOT="$2"
 			shift 2
@@ -167,6 +174,12 @@ done
 
 if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || (( TIMEOUT_SECONDS < 1 )); then
 	echo "Invalid timeout: $TIMEOUT_SECONDS"
+	exit 2
+fi
+
+if [[ -n "$HEADLESS_TIMEOUT_SECONDS" ]] && \
+	{ ! [[ "$HEADLESS_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || (( HEADLESS_TIMEOUT_SECONDS < 1 )); }; then
+	echo "Invalid --headless-timeout: $HEADLESS_TIMEOUT_SECONDS"
 	exit 2
 fi
 
@@ -555,15 +568,18 @@ if (( mode_excluded_count > 0 )) && [[ "$SCOPE_LABEL" == all ]]; then
 fi
 # A suite whose honest single-run duration exceeds the global timeout (long
 # physical-flight journeys) declares `## test-matrix-timeout-seconds: N` in its
-# first 40 lines. The larger of N and the global timeout applies, so the marker
-# can only lengthen, never shorten, a run.
+# first 40 lines. The larger of N and the selected mode's timeout applies, so
+# the marker can only lengthen, never shorten, a run.
 suite_timeout_seconds() {
-	local declared
+	local declared base_timeout="$TIMEOUT_SECONDS"
+	if [[ "${SUITE_MODES[$1]}" == headless && -n "$HEADLESS_TIMEOUT_SECONDS" ]]; then
+		base_timeout="$HEADLESS_TIMEOUT_SECONDS"
+	fi
 	declared="$(head -n 40 "$1" | sed -n 's/^## test-matrix-timeout-seconds: *\([0-9][0-9]*\) *$/\1/p' | head -n 1)"
-	if [[ -n "$declared" ]] && (( declared > TIMEOUT_SECONDS )); then
+	if [[ -n "$declared" ]] && (( declared > base_timeout )); then
 		printf '%s' "$declared"
 	else
-		printf '%s' "$TIMEOUT_SECONDS"
+		printf '%s' "$base_timeout"
 	fi
 }
 network_suite() {
@@ -970,6 +986,7 @@ run_started_utc=${RUN_STARTED_UTC}
 run_completed_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 godot_binary=${GODOT_BIN}
 timeout_seconds=${TIMEOUT_SECONDS}
+headless_timeout_seconds=${HEADLESS_TIMEOUT_SECONDS:-$TIMEOUT_SECONDS}
 audio_driver=${AUDIO_DRIVER}
 display_driver=${DISPLAY_DRIVER}
 project_root=${PROJECT_ROOT}

@@ -44,6 +44,8 @@ const RESCUE_RETIRE_TICK_BUDGET := 900
 var profile: ProfileType
 var survey: RefCounted
 
+var _shared_arrival := false
+var _shared_cabin_transition_generation := -1
 var _flow: GameFlow
 var state: StringName = &"idle"
 var _ship: HeroShip
@@ -111,6 +113,9 @@ func runtime_state() -> Dictionary:
 			copy = "RETURNING TO MUDDS"
 		else:
 			copy = "APPROACHING %s" % profile.upper_name()
+		if _shared_arrival and state == &"landed":
+			enabled = false
+			copy = "SHARED ARRIVAL — CABIN ACCESS ONLY"
 	elif not enabled:
 		copy = reason
 	return {"status_id": &"ready" if enabled else &"unavailable", "status_text": copy,
@@ -124,6 +129,8 @@ func board_action_text() -> String:
 	var enabled := bool(runtime.get("action_enabled", false))
 	if state in [&"outbound", &"corridor"] and enabled:
 		return "ABANDON APPROACH"
+	if _shared_arrival and state == &"landed":
+		return "SHARED ARRIVAL — CABIN ACCESS ONLY"
 	if state in [&"landed", &"surface"]:
 		return "RETURN TO MUDDS" if enabled else "RETURN REQUIRES PILOT SEAT"
 	return str(runtime.get("status_text", "UNAVAILABLE"))
@@ -132,7 +139,12 @@ func _launch_rejection() -> String:
 	if not _flow._piloting or not is_instance_valid(_flow.active_ship) or not _flow.player.is_seated():
 		return "TAKE A SHIP'S PILOT SEAT"
 	if _flow._network_session_mode in [&"client", &"server"]:
-		return "SOLO EXPLORATION ONLY"
+		if not _flow._network_planetary_journey.ARRIVAL_OWNERS.has(profile.world_id):
+			return "SOLO EXPLORATION ONLY"
+		if not _flow._shared_planetary_host_eligible():
+			return "HOST PILOT SELECTS %s" % profile.upper_name()
+		if _flow._network_planetary_journey.is_active():
+			return "SHARED JOURNEY ACTIVE"
 	if _flow._transition_busy or _flow.active_ship.is_landing_active() or _flow._recovering:
 		return "FINISH THE CURRENT MANOEUVRE"
 	if _flow.active_ship.is_destroyed():
@@ -176,8 +188,21 @@ func _peer_visit_holds_lane() -> bool:
 		return StringName(journey.call(&"get_visit_world_id")) != profile.world_id
 	return false
 
-func request() -> bool:
+func request(shared_admission := false) -> bool:
+	# This public seam must not turn a solo visit into a shared arrival or
+	# cancel an active solo visit merely because a caller supplies true.
+	if shared_admission and (not _flow._network_planetary_journey.ARRIVAL_OWNERS.has(profile.world_id) \
+			or not _flow._network_session_is_live() \
+			or not is_instance_valid(_flow.network_session) \
+			or not _flow.network_session.is_server() \
+			or not _flow._shared_planetary_host_eligible()):
+		return false
 	if is_active():
+		if _shared_arrival:
+			if state in [&"outbound", &"corridor"]:
+				return bool(_flow._network_planetary_journey.cancel(&"player_cancelled").get("accepted", false))
+			_flow.hud.toast("Shared %s arrival" % profile.display_name, "Surface exploration and return are not available for this shared arrival", 3.0)
+			return false
 		if not bool(runtime_state().action_enabled):
 			return false
 		if state in [&"outbound", &"corridor"]:
@@ -187,6 +212,9 @@ func request() -> bool:
 		return true
 	if not _launch_rejection().is_empty():
 		return false
+	if _flow._network_session_is_live() and not shared_admission:
+		return bool(_flow._network_planetary_journey.begin(profile.world_id).get("accepted", false))
+	_shared_arrival = shared_admission
 	var craft := _flow.active_ship
 	var home := _flow.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
 	var departure := craft.global_transform
@@ -217,7 +245,7 @@ func request() -> bool:
 	_committed_rebases_outbound = 0
 	state = &"outbound"
 	_flow._sortie_departed_berth = true
-	var engaged := _flow._planetary_journey.engage_aurora_cruise(_ship, true)
+	var engaged := {"accepted": true} if shared_admission else _flow._planetary_journey.engage_aurora_cruise(_ship, true)
 	if not bool(engaged.get("accepted", false)):
 		_last_leg_result = engaged.duplicate(true)
 		cancel()
@@ -378,6 +406,8 @@ func _advance_outbound() -> void:
 ## Manual controls retain priority. A released override may resume this same
 ## requested visit; repeated failures consume one finite budget until cancelled.
 func _ensure_outbound_cruise() -> bool:
+	if _shared_arrival and _flow._network_planetary_journey.is_preparing():
+		return false
 	if _ship.has_manual_flight_intent():
 		return false
 	var cruise := _flow.planetary_cruise_binding
@@ -498,7 +528,8 @@ func update_presentation() -> void:
 	match state:
 		&"outbound":
 			_flow.hud.set_objective(profile.outbound_objective, heading)
-			_flow.hud.set_interaction("CRUISE ENGAGED")
+			_flow.hud.set_interaction("WAITING FOR AUTHENTICATED CREW"
+				if _shared_arrival and _flow._network_planetary_journey.is_preparing() else "CRUISE ENGAGED")
 		&"corridor":
 			_flow.hud.set_objective(profile.corridor_objective, heading)
 			_flow.hud.set_interaction("FINAL APPROACH — PLEASE WAIT")
@@ -521,6 +552,11 @@ func update_presentation() -> void:
 			_flow.hud.set_objective(survey.objective(), profile.survey_heading)
 			_flow.hud.set_interaction("[ E ]  BOARD YOUR SHIP" if _near_ship() else survey.prompt())
 		&"landed":
+			if _shared_arrival:
+				_flow.hud.set_objective("%s arrival — cabin access available; surface exploration and return are unavailable" % profile.display_name, heading)
+				_flow.hud.set_interaction("[ E ]  STAND IN CABIN")
+				_flow._sync_planetary_cruise_hud()
+				return
 			_flow.hud.set_objective(
 				"Explore %s, or open Esc → Destination Board to return to Mudds" % profile.display_name,
 				heading)
@@ -531,6 +567,11 @@ func update_presentation() -> void:
 	_flow._sync_planetary_cruise_hud()
 
 func request_exit() -> void:
+	if _shared_arrival:
+		if state == &"landed" and not _flow._transition_busy:
+			_flow._leave_seat_into_cabin()
+			_shared_cabin_transition_generation = _flow._transition_generation
+		return
 	if state != &"landed" or _flow._transition_busy:
 		return
 	if not bool(_ship.get_telemetry().get("landed", false)):
@@ -835,6 +876,8 @@ func _navigation_standoff_target() -> Vector3:
 ## the world in is captured: its receipt was retired when the resume was
 ## admitted, so leaving now must record the visit again or it is lost.
 func capture_interrupted_visit() -> Dictionary:
+	if _shared_arrival:
+		return {}
 	if not is_active() or state in [
 		&"outbound", &"corridor", &"retiring",
 		&"return_cruise", &"return_landing",
@@ -997,9 +1040,12 @@ func _retire_saved_visit() -> void:
 
 
 func cancel(preserve_interrupted_visit := false) -> void:
+	var was_shared_arrival := _shared_arrival
+	_shared_arrival = false
+	_shared_cabin_transition_generation = -1
 	if not is_active():
 		return
-	if not preserve_interrupted_visit:
+	if not preserve_interrupted_visit and not was_shared_arrival:
 		_retire_saved_visit()
 	if state in [&"outbound", &"corridor", &"landing", &"return_cruise"]:
 		# Revoking travel leaves the same live pilot in direct control at the
@@ -1152,3 +1198,16 @@ func _streaming_binding() -> PlanetaryStreamingProductionBinding:
 	if not is_instance_valid(value):
 		return null
 	return value as PlanetaryStreamingProductionBinding
+
+
+## Ordinary landed seat exit keeps the existing same-craft cabin owner. The
+## bridge observes that owner rather than extending pilot authority to walkers.
+func shared_arrival_cabin_owner_is_current() -> bool:
+	if not _shared_arrival or state != &"landed" or not is_instance_valid(_ship):
+		return false
+	if _flow._transition_busy:
+		return _flow._is_transition_current(_shared_cabin_transition_generation, _ship, GameFlow.Phase.IN_FLIGHT_CABIN)
+	return _flow.phase == GameFlow.Phase.IN_FLIGHT_CABIN and _flow._cabin_ship == _ship \
+		and is_instance_valid(_flow.player) and _flow.player.is_inside_tree() \
+		and not _flow.player.is_queued_for_deletion() \
+		and _flow.player.is_cabin_containment_active()

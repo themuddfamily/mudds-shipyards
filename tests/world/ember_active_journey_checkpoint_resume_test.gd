@@ -255,22 +255,74 @@ func _run() -> void:
 		).accepted),
 		"an unrelated atomic write advances the store before retirement",
 	)
+	var staged_retirement: Dictionary = stale_flow.get_ember_interrupted_journey_persistence_report().restore_status.retirement_request
+	var strict_stale: Dictionary = stale_binding.retire_interrupted_relay_survey_journey(
+		int(staged_retirement.expected_store_generation), str(staged_retirement.expected_receipt_sha256),
+		str(staged_retirement.commit_id))
+	_check(not strict_stale.accepted and strict_stale.reason == &"survey_active_journey_store_generation_stale"
+		and stale_store.get_generation() == 2 and stale_store.get_snapshot().foreign.retained
+		and stale_store.get_snapshot().has("ember_relay_survey_completion"),
+		"the strict owner API still refuses an old generation without changing the receipt or latest foreign payload")
+	var owner: RefCounted = stale_binding.get("_relay_survey_persistence")
+	var original_record: Dictionary = stale_store.get_snapshot().ember_relay_survey_completion.duplicate(true)
+	var replacement: Dictionary = original_record.duplicate(true)
+	var replacement_journey: Dictionary = replacement.completion
+	replacement_journey["session_id"] = "ember_expedition_replaced"
+	replacement_journey.detached_session["session_id"] = "ember_expedition_replaced"
+	var adapter := PlanetaryReturnPersistenceAdapter.new()
+	replacement_journey["receipt_sha256"] = adapter.call("_digest", {
+		"detached_session": replacement_journey.detached_session,
+		"route_identity": replacement_journey.route_identity,
+		"optional_progress": replacement_journey.optional_progress})
+	replacement["receipt_sha256"] = owner.call("_digest", replacement_journey)
+	var changed_payload: Dictionary = stale_store.get_snapshot()
+	changed_payload["ember_relay_survey_completion"] = replacement
+	_check(stale_store.commit(changed_payload, stale_store.get_generation(), "replace-receipt").accepted
+		and owner.call("validate_interrupted_journey_record", replacement).accepted,
+		"the replacement receipt is valid and hash-consistent before the original observation fence rejects it")
+	var replacement_bytes: PackedByteArray = stale_filesystem.files[STORE_PATH].duplicate()
+	var replacement_refresh: Dictionary = owner.call("load_interrupted_journey", str(staged_retirement.expected_receipt_sha256))
+	_check(not replacement_refresh.accepted and replacement_refresh.reason == &"survey_active_journey_receipt_mismatch"
+		and stale_filesystem.files[STORE_PATH] == replacement_bytes,
+		"refresh rejects a different valid receipt without retiring or rewriting it")
+	var malformed: Dictionary = original_record.duplicate(true)
+	malformed.completion.detached_session.checkpoint["physics_tick"] = "invalid"
+	malformed.completion["receipt_sha256"] = adapter.call("_digest", {
+		"detached_session": malformed.completion.detached_session,
+		"route_identity": malformed.completion.route_identity,
+		"optional_progress": malformed.completion.optional_progress})
+	malformed["receipt_sha256"] = owner.call("_digest", malformed.completion)
+	changed_payload = stale_store.get_snapshot()
+	changed_payload["ember_relay_survey_completion"] = malformed
+	_check(stale_store.commit(changed_payload, stale_store.get_generation(), "malformed-receipt").accepted,
+		"the malformed checkpoint fixture is a real hash-consistent atomic document")
+	var malformed_bytes: PackedByteArray = stale_filesystem.files[STORE_PATH].duplicate()
+	var malformed_refresh: Dictionary = owner.call("load_interrupted_journey", str(staged_retirement.expected_receipt_sha256))
+	_check(not malformed_refresh.accepted and stale_filesystem.files[STORE_PATH] == malformed_bytes,
+		"refresh validates the full detached snapshot and refuses malformed checkpoint data without mutation")
+	changed_payload = stale_store.get_snapshot()
+	changed_payload["ember_relay_survey_completion"] = original_record
+	_check(stale_store.commit(changed_payload, stale_store.get_generation(), "restore-original-receipt").accepted,
+		"the original receipt can be restored while retaining the latest unrelated payload")
+	var generation_before_start: int = stale_store.get_generation()
 	var stale_resume := stale_binding.start_relay_survey()
 	var stale_runtime := (
 		stale_binding.get_snapshot().adapter.activity_reward as Dictionary
 	)
 	_check(
-		not bool(stale_resume.accepted)
-			and stale_resume.reason == &"relay_survey_resume_retirement_failed"
-			and (stale_resume.persistence_retirement as Dictionary).reason \
-				== &"survey_active_journey_store_generation_stale"
-			and stale_runtime.state == &"failed"
-			and stale_store.get_snapshot().has("ember_relay_survey_completion")
-			and stale_binding.submit_relay_survey_position(
-				Vector3(540.0, 120030.0, -210.0)
-			).reason == &"relay_survey_resume_relaunch_required"
+		bool(stale_resume.accepted)
+			and stale_resume.reason == &"activity_sequence_resumed"
+			and (stale_resume.persistence_retirement as Dictionary).accepted
+			and int(stale_resume.persistence_refresh.store_generation) == generation_before_start
+			and stale_runtime.state == &"active"
+			and not stale_store.get_snapshot().has("ember_relay_survey_completion")
+			and stale_store.get_generation() == generation_before_start + 1
+			and stale_store.get_commit_metadata().id == "ember-active-journey-retire-%010d" % (generation_before_start + 1)
+			and stale_store.get_snapshot().foreign.retained
+			and int(stale_director.get_activity_snapshot(&"ember_beacon_survey").generation) == int(first_route.activity_generation)
+			and int(stale_director.get_activity_snapshot(&"ember_beacon_survey").next_checkpoint_index) == 1
 			and _reward_calls == 0,
-		"a stale retirement fails closed, retains the receipt, and blocks reward progress",
+		"normal Start refreshes the same receipt after unrelated commits, adopts the original checkpoint, and retires once with the current generation",
 	)
 	stale_flow.free()
 	stale_binding.queue_free()

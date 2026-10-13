@@ -1204,5 +1204,4 @@ func _array_to_vector3(value: Variant) -> Vector3:
 
 
 func _raw_source_sha256(resource_path: String) -> String:
-	var absolute_path := ProjectSettings.globalize_path(resource_path)
-	return FileAccess.get_sha256(absolute_path) if FileAccess.file_exists(absolute_path) else ""
+	return FileAccess.get_sha256(resource_path) if FileAccess.file_exists(resource_path) else ""

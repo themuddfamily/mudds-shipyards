@@ -5,11 +5,35 @@ const AudioDirectorType := preload("res://scripts/audio/audio_director.gd")
 const HudType := preload("res://scripts/ui/hud.gd")
 const HostType := preload("res://scripts/world/ember_surface_loop_host.gd")
 const ProductionType := preload("res://scripts/world/ember_surface_loop_production_binding.gd")
+const AudioCompositionType := preload("res://scripts/audio/ember_surface_loop_audio_composition.gd")
+const StatusBindingType := preload("res://scripts/ui/ember_surface_return_status_binding.gd")
+const HudAdapterType := preload("res://scripts/ui/ember_surface_return_hud_adapter.gd")
 
 class FlowProbe:
 	extends GameFlowType
 	func _ready() -> void:
 		pass
+
+class CountingAudioComposition:
+	extends AudioCompositionType
+	var snapshot_reads := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_snapshot()
+
+class CountingStatusBinding:
+	extends StatusBindingType
+	var snapshot_reads := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_snapshot()
+
+class CountingHudAdapter:
+	extends HudAdapterType
+	var snapshot_reads := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_snapshot()
 
 class StatusBindingProbe:
 	extends RefCounted
@@ -62,6 +86,9 @@ func _run() -> void:
 	var planetary := PlanetaryCompositionProbe.new()
 	var ship_identity := Node.new()
 	var player_identity := Node.new()
+	var audio_composition := CountingAudioComposition.new()
+	var status_binding := CountingStatusBinding.new()
+	var hud_adapter := CountingHudAdapter.new()
 	director.name = "AudioDirector"
 	hud.name = "HUD"
 	host.name = "EmberSurfaceLoopHost"
@@ -69,6 +96,7 @@ func _run() -> void:
 	planetary.name = "PlanetaryCompositionProbe"
 	ship_identity.name = "ShipIdentityProbe"
 	player_identity.name = "PlayerIdentityProbe"
+	audio_composition.name = "EmberSurfaceLoopAudioComposition"
 	flow.add_child(director)
 	flow.add_child(hud)
 	flow.add_child(host)
@@ -76,6 +104,12 @@ func _run() -> void:
 	production.add_child(planetary)
 	flow.add_child(ship_identity)
 	flow.add_child(player_identity)
+	flow.add_child(audio_composition)
+	flow.set("_ember_surface_loop_audio_composition", audio_composition)
+	flow.set("_ember_surface_return_status_binding", status_binding)
+	flow.set("_ember_surface_return_hud_adapter", hud_adapter)
+	var presentation_owners: Array[Object] = [audio_composition, status_binding, hud_adapter]
+	_check_attachment_parity(presentation_owners, false, "initial")
 	flow.set("audio", director)
 	flow.set("hud", hud)
 	flow.set("ember_surface_loop_host", host)
@@ -118,12 +152,18 @@ func _run() -> void:
 		"GameFlow composes the authenticated idle Host without seizing the route row",
 	)
 	_check(detail != null and not ordinary_detail.is_empty() and detail.text == ordinary_detail, "idle Ember observation leaves ordinary route fallback external")
-	var audio_composition := flow.get("_ember_surface_loop_audio_composition") as Node
-	var status_binding := flow.get("_ember_surface_return_status_binding") as RefCounted
-	var hud_adapter := flow.get("_ember_surface_return_hud_adapter") as RefCounted
 	var identities := [audio_composition.get_instance_id(), status_binding.get_instance_id(), hud_adapter.get_instance_id()]
 	_check(director.get_semantic_audio_binding_count() == 1, "one planetary semantic source is registered")
+	_check_attachment_parity(presentation_owners, true, "attached")
+	var snapshot_reads_before := Vector3i(
+		audio_composition.snapshot_reads, status_binding.snapshot_reads, hud_adapter.snapshot_reads
+	)
 	_check((flow.call("_ensure_ember_surface_presentations") as Dictionary).reason == &"already_attached" and director.get_semantic_audio_binding_count() == 1, "repeated ensure cannot duplicate the planetary source")
+	_check(
+		Vector3i(audio_composition.snapshot_reads, status_binding.snapshot_reads, hud_adapter.snapshot_reads)
+			== snapshot_reads_before,
+		"idempotent GameFlow attachment polls skip all three complete presentation reports",
+	)
 
 	host.set("_phase", HostType.Phase.DESCENT)
 	production._finish_late_signal(&"integration_phase_changed")
@@ -140,6 +180,7 @@ func _run() -> void:
 	_check(not restored_ordinary_detail.is_empty() and detail.text == restored_ordinary_detail, "idempotent composition does not seize ordinary route fallback")
 
 	root.remove_child(flow)
+	_check_attachment_parity(presentation_owners, false, "detached")
 	_check(director.get_semantic_audio_binding_count() == 0, "detach targets and releases the Ember semantic source")
 	_check(not bool((status_binding.call("get_snapshot") as Dictionary).attached) and not bool((hud_adapter.call("get_snapshot") as Dictionary).attached), "detach fences both retained HUD observers")
 	root.add_child(flow)
@@ -157,6 +198,7 @@ func _run() -> void:
 	planetary.snapshot.attachment_generation = 2
 	var reattached := flow.call("_ensure_ember_surface_presentations") as Dictionary
 	_check(bool(reattached.get("accepted", false)), "re-entry restores the production presentation composition")
+	_check_attachment_parity(presentation_owners, true, "reentered")
 	_check([audio_composition.get_instance_id(), status_binding.get_instance_id(), hud_adapter.get_instance_id()] == identities, "re-entry preserves all three exact presentation identities")
 	_check(director.get_semantic_audio_binding_count() == 1, "re-entry restores exactly one planetary semantic source")
 	host.set("_phase", HostType.Phase.ASCENT)
@@ -169,6 +211,14 @@ func _run() -> void:
 	flow.queue_free()
 	await process_frame
 	_finish()
+
+
+func _check_attachment_parity(owners: Array[Object], expected: bool, stage: String) -> void:
+	for owner: Object in owners:
+		var attached: bool = owner.call(&"is_attached")
+		var diagnostic: Dictionary = owner.call(&"get_snapshot")
+		_check(attached == expected and attached == bool(diagnostic.attached),
+			"%s attachment getter preserves its complete report's lifecycle state" % stage)
 
 
 func _on_semantic_cue(
