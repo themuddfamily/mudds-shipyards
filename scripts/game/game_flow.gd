@@ -13764,7 +13764,7 @@ func _advance_network_remote_body_intent_stream() -> void:
 	var frame: MovingInteriorFrame = null
 	if is_instance_valid(_cabin_ship):
 		frame = _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
-	var look_yaw := player.get_look_yaw()
+	var look_yaw: float = player.get_look_yaw() if player.has_method(&"get_look_yaw") else 0.0
 	if _network_client_ember_passenger_surface.is_empty() and is_instance_valid(frame) \
 			and frame.is_occupant_registered(player) and frame._local_prediction_is_current(player) \
 			and _network_local_cabin_prediction_is_current(player, _cabin_ship, network_session) \
