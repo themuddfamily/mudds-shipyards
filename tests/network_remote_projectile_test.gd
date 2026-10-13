@@ -24,8 +24,11 @@ extends SceneTree
 ##   F. a peer that joins mid-flight is sent every live flight;
 ##   G. a flight whose terminal never arrives is retired on the client after its
 ##      published lifetime, and the client never holds combat authority;
-##   H. launch audio plays once for current clients, without local echo, late
-##      join replay, or replay after a visual expires; retirement stays bounded.
+##   H. launch and confirmed-impact audio play once for current clients,
+##      without local echo, late-join launch replay, or replay after a visual
+##      expires; retirement stays bounded;
+##   I. an authored hauler uses the real GameFlow lazy pool and authority before
+##      its first launch, damaging only on the host and voicing the real arrival.
 ##
 ## Named `network_*` so the matrix gives it the per-run flock lane: it opens
 ## real `ENetMultiplayerPeer` sockets.
@@ -39,6 +42,7 @@ const DefenderScene := preload("res://scenes/ships/range_opponent.tscn")
 const PulseScene := preload("res://scenes/effects/pulse_weapon_presentation.tscn")
 const Authority := preload("res://scripts/combat/live_combat_authority.gd")
 const DamageAdapter := preload("res://scripts/combat/lifecycle_damageable_adapter.gd")
+const ResolverProfile := preload("res://scripts/combat/weapon_definition_resolver_profile.gd")
 const AudioScene := preload("res://scenes/audio/combat_audio_presentation.tscn")
 const HOST_STATION_ORIGIN := Vector3(-31.0, -4.0, -48.0)
 const CLIENT_STATION_ORIGIN := Vector3(22.0, 3.0, 17.0)
@@ -94,6 +98,7 @@ var _late_flow: GameFlow
 var _client_audio: CombatAudioPresentation
 var _late_audio: CombatAudioPresentation
 var _last_launch_packet := {}
+var _last_terminal_packet := {}
 
 
 func _initialize() -> void:
@@ -132,6 +137,8 @@ func _initialize() -> void:
 	_client.projectile_replica_packet.connect(func(packet: Dictionary, result: Dictionary) -> void:
 		if not bool(packet.get("terminal", false)):
 			_last_launch_packet = packet.duplicate(true)
+		else:
+			_last_terminal_packet = packet.duplicate(true)
 		_client_flow._on_projectile_replica_packet(packet, result))
 	_late.projectile_replica_packet.connect(_late_flow._on_projectile_replica_packet)
 	var probe := UDPServer.new()
@@ -223,6 +230,15 @@ func _initialize() -> void:
 	_check(int(_client_replicator.get_audit().get("bursts", 0)) == 1, "a slug that hit something bursts")
 	_check(_client_replicator.get_visual_position(slug_id).is_equal_approx(client_origin + Vector3.FORWARD * 50.0),
 		"a terminal burst uses the client's world frame")
+	_check(int(_client_audio.get_state_snapshot().cue_count) == 2
+		and _client_audio.get_state_snapshot().last_cue_id == CombatAudioPresentation.CUE_IMPACT_MEDIUM
+		and (_client_audio.get_state_snapshot().last_world_position as Vector3).is_equal_approx(client_origin + Vector3.FORWARD * 50.0),
+		"the confirmed host slug impact dispatches one spatial impact cue through GameFlow")
+	var duplicate_terminal := _client._apply_projectile_replica_snapshot(_last_terminal_packet)
+	_client_flow._on_projectile_replica_packet(_last_terminal_packet, duplicate_terminal)
+	_check(not bool(duplicate_terminal.get("accepted", true))
+		and int(_client_audio.get_state_snapshot().cue_count) == 2,
+		"a duplicate slug terminal cannot replay its impact cue")
 	var canonical_terminal := _server._projectile_authoritative_records.get(slug_id, {}) as Dictionary
 	_check((canonical_terminal.get("position", Vector3.INF) as Vector3).is_equal_approx(origin - HOST_STATION_ORIGIN + Vector3.FORWARD * 50.0),
 		"canonical terminal retains station-frame position")
@@ -236,11 +252,13 @@ func _initialize() -> void:
 	missed_terminal["terminal_reason"] = &"range"
 	var bursts_before_miss := int(_client_replicator.get_audit().get("bursts", 0))
 	var terminals_before_miss := int(_client_replicator.get_audit().get("terminals", 0))
+	var cues_before_miss := int(_client_audio.get_state_snapshot().cue_count)
 	bolts.bolt_resolved.emit(missed_terminal, {"hit": false, "damaged": false})
 	await _pump(func() -> bool:
 		return int(_client_replicator.get_audit().get("terminals", 0)) == terminals_before_miss + 1)
 	_check(_client_replicator.get_drawn_projectile_ids().is_empty()
-		and int(_client_replicator.get_audit().get("bursts", 0)) == bursts_before_miss,
+		and int(_client_replicator.get_audit().get("bursts", 0)) == bursts_before_miss
+		and int(_client_audio.get_state_snapshot().cue_count) == cues_before_miss,
 		"a slug that missed is retired without a burst (bursts %d -> %d)"
 		% [bursts_before_miss, int(_client_replicator.get_audit().get("bursts", 0))])
 
@@ -420,6 +438,7 @@ func _initialize() -> void:
 
 	_check_launch_descriptor_compatibility(_last_launch_packet)
 	await _check_production_picket_lance(port)
+	await _check_production_hauler_slug(port)
 
 	for adapter in [_late, _client, _server]:
 		adapter.shutdown(&"suite_complete")
@@ -431,6 +450,96 @@ func _initialize() -> void:
 	_late_flow.free()
 	await process_frame
 	_finish()
+
+
+## Authored hauler -> real lazy GameFlow pool -> authority -> actual ENet peers.
+func _check_production_hauler_slug(port: int) -> void:
+	_late.shutdown(&"hauler_midflight_join")
+	await _pump(func() -> bool: return _server.multiplayer.get_peers().size() == 1)
+	_client_replicator.clear_presentation()
+	_late_replicator.clear_presentation()
+	var authority := _host_flow.get_node("CombatAuthority") as LiveCombatAuthority
+	_host_flow.combat_authority = authority
+	var cargo := Cargo.new() as CinderCargoHauler
+	cargo.name = "HostCargoHauler"
+	_host_flow.add_child(cargo)
+	cargo.global_position = HOST_STATION_ORIGIN + Vector3(1800.0, 0.0, 0.0)
+	cargo.set_physics_process(false)
+	cargo.set_process(false)
+	_host_flow.active_ship = cargo
+	var target := DefenderScene.instantiate() as RangeOpponent
+	target.name = "SlugTarget"
+	_host_flow.add_child(target)
+	target.activate(Transform3D(Basis.IDENTITY, cargo.global_position + Vector3.FORWARD * 60.0))
+	target.set_physics_process(false)
+	target.set_process(false)
+	authority.attach_lifecycle_damageable(target, DamageAdapter.LifecycleKind.RANGE_OPPONENT, &"slug_target")
+	var profiles := ResolverProfile.to_resolver_profiles(cargo.get_weapon_definition(), &"shipyard_flight_test",
+		GameFlow.CINDER_CARGO_ORIGIN_TOLERANCE_METERS)
+	_check(authority.register_source(cargo, 1109, &"shipyard_flight_test", profiles),
+		"the authored hauler registers its travelling profile with the host authority")
+	await physics_frame
+	await process_frame
+	var health := target.get_health()
+	var client_cues := int(_client_audio.get_state_snapshot().cue_count)
+	var late_cues := int(_late_audio.get_state_snapshot().cue_count)
+	var published := int(_host_replicator.get_audit().published)
+	var origin := cargo.global_position + Vector3.FORWARD * 7.0
+	_check(_host_flow.get_player_bolt_pool() == null, "the production hauler pool starts unallocated")
+	_host_flow._on_projectile_fired(origin, Vector3.FORWARD, cargo)
+	var pool := _host_flow.get_player_bolt_pool()
+	_check(is_instance_valid(pool) and _host_replicator.is_observing(pool)
+		and int(_host_replicator.get_audit().published) == published + 1
+		and _host_replicator.get_active_flight_count() == 1
+		and is_equal_approx(target.get_health(), health),
+		"the production first slug publishes synchronously before any tick or damage")
+	if not is_instance_valid(pool):
+		return
+	pool.set_physics_process(false)
+	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
+	var slug_id := StringName((_last_launch_packet.projectile as Dictionary).projectile_id)
+	_check(int(_client_audio.get_state_snapshot().cue_count) == client_cues + 1
+		and _client_flow.combat_authority == null,
+		"the actual host hauler launch voices once on a client without combat authority")
+	_check(_late.join("127.0.0.1", port).accepted, "a real client joins during the actual hauler flight")
+	await _pump(func() -> bool: return not _late.get_server_offer().is_empty())
+	_host_replicator.republish_for_peer(_late.multiplayer.get_unique_id())
+	await _pump(func() -> bool: return _late_replicator.get_drawn_projectile_ids().has(slug_id))
+	_check(_late_replicator.get_drawn_projectile_ids().has(slug_id)
+		and int(_late_audio.get_state_snapshot().cue_count) == late_cues,
+		"the real hauler mid-flight join draws the slug without replaying its launch")
+	_client_replicator.set_reduced_flash_enabled(true)
+	pool._physics_process(0.5)
+	await _pump(func() -> bool: return not _client_replicator.get_drawn_projectile_ids().has(slug_id))
+	await _pump(func() -> bool: return not _late_replicator.get_drawn_projectile_ids().has(slug_id))
+	var damage := cargo.get_weapon_definition().damage_per_hit
+	_check(is_equal_approx(target.get_health(), health - damage)
+		and int(_client_audio.get_state_snapshot().cue_count) == client_cues + 2
+		and int(_late_audio.get_state_snapshot().cue_count) == late_cues + 1
+		and _late_audio.get_state_snapshot().last_semantic_cue_id == CombatAudioPresentation.CUE_IMPACT_MEDIUM,
+		"one real hauler arrival damages only on the host and voices the existing semantic impact for both peers")
+	var duplicate := _client._apply_projectile_replica_snapshot(_last_terminal_packet)
+	_client_flow._on_projectile_replica_packet(_last_terminal_packet, duplicate)
+	_check(not bool(duplicate.get("accepted", true))
+		and int(_client_audio.get_state_snapshot().cue_count) == client_cues + 2
+		and is_equal_approx(target.get_health(), health - damage),
+		"duplicate real hauler arrival cannot replay audio or damage")
+	await _wait_seconds(cargo.weapon_cooldown + 0.02)
+	_host_flow._on_projectile_fired(origin, Vector3.UP, cargo)
+	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().size() == 1)
+	var cues_before_unload := int(_client_audio.get_state_snapshot().cue_count)
+	pool.queue_free()
+	await process_frame
+	_host_replicator.advance_host()
+	await _pump(func() -> bool: return _client_replicator.get_drawn_projectile_ids().is_empty())
+	_check(_client_replicator.get_drawn_projectile_ids().is_empty()
+		and int(_client_audio.get_state_snapshot().cue_count) == cues_before_unload,
+		"unloading the actual hauler pool retires its flight without impact audio")
+	_client_flow._clear_network_remote_projectiles()
+	_late_flow._clear_network_remote_projectiles()
+	_check(_client_replicator.get_drawn_projectile_ids().is_empty()
+		and _late_replicator.get_drawn_projectile_ids().is_empty(),
+		"session cleanup drops both peers' remaining hauler presentation")
 
 
 ## Real authored picket -> authority flight -> production GameFlow observer ->
