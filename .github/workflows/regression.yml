@@ -168,3 +168,61 @@ jobs:
             artifacts/full-candidate-source/
           retention-days: 30
           if-no-files-found: error
+  ember-completed-return:
+    if: github.event_name == 'workflow_dispatch' && inputs.full_candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Godot
+        run: bash tools/release/install_ci_godot.sh
+      # The canonical soak is not named *_test.gd and is outside discovery.
+      # Keep its 3600s physical route cap separate from the matrix suite caps.
+      - name: Cold import and canonical Ember completed return
+        timeout-minutes: 72
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          logs=artifacts/ember-completed-return
+          mkdir -p "$logs"
+          git rev-parse HEAD > "$logs/commit.txt"
+          test "$(cat "$logs/commit.txt")" = "$CANDIDATE_SHA"
+          test ! -d .godot
+          profile="$(mktemp -d "$RUNNER_TEMP/ember-completed-return.XXXXXX")"
+          export XDG_DATA_HOME="$profile/data" XDG_CONFIG_HOME="$profile/config"
+          export XDG_CACHE_HOME="$profile/cache" XDG_RUNTIME_DIR="$profile/runtime"
+          mkdir -p "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          diagnostic_re='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\bFATAL ERROR\b|\bObjectDB\b|Resource.*still in use|\bOrphaned\b|\bLeaked\b|^[[:space:]]*FAIL:'
+          import_exit=0
+          timeout --kill-after=10s 600s godot --headless --audio-driver Dummy \
+            --editor --path . --quit > "$logs/import.log" 2>&1 || import_exit=$?
+          printf '%s\n' "$import_exit" > "$logs/import-exit.txt"
+          cat "$logs/import.log"
+          test "$import_exit" -eq 0
+          if grep -E "$diagnostic_re" "$logs/import.log"; then
+            exit 1
+          fi
+          route_exit=0
+          timeout --kill-after=10s 3600s godot --headless --audio-driver Dummy \
+            --path . --script res://tests/ember_transit_movement_soak.gd \
+            -- --ember-completed-return > "$logs/route.log" 2>&1 || route_exit=$?
+          printf '%s\n' "$route_exit" > "$logs/route-exit.txt"
+          cat "$logs/route.log"
+          test "$route_exit" -eq 0
+          if grep -E "$diagnostic_re" "$logs/route.log"; then
+            exit 1
+          fi
+          assessment="$(python3 tools/release/test_suite_catalog.py --assess \
+            tests/ember_transit_movement_soak.gd "$logs/route.log")"
+          printf '%s\n' "$assessment" > "$logs/completion.txt"
+          test "$assessment" = $'EMBER_TRANSIT_MOVEMENT_TEST_OK\t1\tEMBER_TRANSIT_MOVEMENT_TEST_OK\t52'
+          grep -Fxq 'EMBER_TRANSIT_MOVEMENT_TEST_OK: 52 assertions' "$logs/route.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ember-completed-return-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/ember-completed-return/
+          retention-days: 30
+          if-no-files-found: error
