@@ -519,8 +519,12 @@ func _check_canonical_disk_reward(label: String, retired: bool = false) -> void:
 	var record := payload.get(String(GameFlowRewardAuthority.SLOT_ID), {}) as Dictionary
 	var receipt := record.get("last_receipt", {}) as Dictionary
 	var validator := GameFlowRewardAuthority.new()
+	# UserDataStore exposes parsed JSON numbers as floats; the live authority
+	# retains its integer receipt fields. Compare the complete original record
+	# in that same wire representation, keeping the live idempotence check intact.
+	var expected_wire := JSON.parse_string(JSON.stringify(_canonical_reward, "", true, true)) as Dictionary
 	_check(bool(loaded.get("accepted", false)) and loaded.get("source") == &"primary"
-		and bool(validator.validate_record(record).get("accepted", false)) and record == _canonical_reward
+		and bool(validator.validate_record(record).get("accepted", false)) and record == expected_wire
 		and int(record.get("total_receipts", -1)) == 1
 		and int((record.get("reward_counts", {}) as Dictionary).get(String(SurveyType.REWARD_ID), 0)) == 1
 		and StringName(receipt.get("activity_id", &"")) == SurveyType.ACTIVITY_ID
