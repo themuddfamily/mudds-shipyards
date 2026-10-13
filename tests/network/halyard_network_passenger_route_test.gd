@@ -1001,7 +1001,13 @@ func _walk(target_local: Vector3) -> void:
 		var axis := Vector2(direction.dot(right), -direction.dot(forward))
 		# Slow an ordinary analog walk near the authored pose. At low render
 		# cadence several real physics steps can run between input refreshes.
-		if _cinder or _host_gunner_flight or _shared_cruise or _ember_surface:
+		if settle_authoritative:
+			# A delayed host pose can restart feedback after predicted arrival.
+			# Keep this ordinary analog correction just above the authored 0.18
+			# deadzone; the former 0.6 floor drove nearly 3 m/s at the waypoint
+			# and could repeatedly overshoot before the host pose caught up.
+			axis *= clampf(delta.length() / 1.5, 0.2, 1.0)
+		elif _cinder or _host_gunner_flight or _shared_cruise or _ember_surface:
 			axis *= clampf(delta.length() / 1.5, 0.6, 1.0)
 		for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
 			Input.action_release(action)
