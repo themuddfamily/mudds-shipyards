@@ -158,6 +158,11 @@ func _orchestrate() -> void:
 			var observer := _spawn_peer("observer", _peer_arguments("observer", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"])))
 			peers["observer"] = observer
 			_check(observer > 0, "owned late observer starts after actual origin commit")
+			# The host waits for this observer before either crew chair route.
+			# Give its cold Main the same startup gate as the initial clients,
+			# before starting their unchanged 120-second completion budget.
+			if observer > 0:
+				await _wait_file("observer.main_ready", 60.0)
 		var finished := true
 		if _shared_cruise:
 			for role in ["client", "client_b"]:
