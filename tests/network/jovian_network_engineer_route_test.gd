@@ -167,12 +167,22 @@ func _host() -> void:
 	var model := _craft.get_component_damage()
 	for index in [1, 4]:
 		_craft.apply_damage(_craft.maximum_hull * 0.15, _craft.to_global((model.get_component_states()[index] as Dictionary).local_position))
-	var before := model.get_component_integrity(&"engine_bay")
 	_write("host.damage", {})
+	if not await _wait_file("client.repair_selected", 10.0):
+		return
+	# Component selection and its replica handoff may outlast light damage's
+	# passive berth recovery. Stage fresh real damage at the positive FIRE
+	# boundary, as the solo route does, so this assertion measures a kit commit.
+	_craft.apply_damage(_craft.maximum_hull * 0.35, _craft.to_global((model.get_component_states()[4] as Dictionary).local_position))
+	var before := model.get_component_integrity(&"engine_bay")
+	_write("host.repair_ready", {})
 	if not await _wait_file("client.repaired", 35.0):
 		return
-	print("ENGINEER_HOST_REPAIR: wall=", Time.get_unix_time_from_system(), " state=", _craft.get_engineer_repair_state())
-	_check(int(_craft.get_engineer_repair_state().resource_units) == 5, "finite host repair spends exactly one kit")
+	var repair := _craft.get_engineer_repair_state()
+	print("ENGINEER_HOST_REPAIR: wall=", Time.get_unix_time_from_system(), " state=", repair)
+	_check(repair.get("reason") == &"repair_committed" and int(repair.resource_units) == 5
+		and int(((repair.get("receipt", {}) as Dictionary).get("operation", {}) as Dictionary).get("repaired_components", 0)) == 1,
+		"finite host repair commits one actual component and spends exactly one kit")
 	_check(model.get_component_integrity(&"engine_bay") > before, "host actual engine integrity improves through ordinary client FIRE")
 	_write("host.repair_checked", {})
 	if not await _wait_file("client.stood", 20.0):
@@ -254,6 +264,12 @@ func _client() -> void:
 	var old_claim := int((initial.assignment as Dictionary).claim_sequence)
 	await _press(source.camera_distance_out_action)
 	_check(await _until(func(): return StringName(((_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("selection", {}) as Dictionary).get("component_id", &"")) == &"engine_bay", 8.0), "ordinary remappable selector chooses engine bay on host")
+	# Exercise the same berth-tick handoff that can consume light initial
+	# damage, before the host refreshes the finite-kit acceptance target.
+	await _ticks(32)
+	_write("client.repair_selected", {})
+	if not await _wait_file("host.repair_ready", 10.0):
+		return
 	await _press(source.fire_action)
 	_check(await _until(func(): return int(((_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("repair", {}) as Dictionary).get("resource_units", 6)) == 5, 8.0), "ordinary transformed FIRE completes finite repair with replicated stock")
 	print("ENGINEER_CLIENT_REPAIR: wall=", Time.get_unix_time_from_system(), " view=", _game.network_session.get_engineer_replica_snapshot(), " body_source=", _game.get_network_remote_body_intent_source().get_audit())
