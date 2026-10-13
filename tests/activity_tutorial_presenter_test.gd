@@ -18,6 +18,10 @@ const ConvoyHostType := preload("res://scripts/activities/cinder_convoy_escort_h
 const MiningType := preload("res://scripts/world/cinder_mining_platform_activity.gd")
 const ScanType := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 
+const CargoAccessScene := preload("res://scenes/world/components/cinder_cargo_access.tscn")
+const CargoTerminalScene := preload("res://scenes/world/modules/cargo_destination_terminal.tscn")
+const JovianDefinition := preload("res://assets/ships/jovian_provisional.tres")
+
 const STORE_PATH := "memory://activity-tutorial-user-data.json"
 
 var _assertions := 0
@@ -60,6 +64,13 @@ class MemoryFilesystem extends FilesystemType:
 		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
 		files.erase(from_path)
 		return OK
+
+
+# Only the actor identity is a probe; berth, manifests, phases and terminal
+# admission below all use production components.
+class JovianIdentityProbe extends Node3D:
+	func get_ship_id() -> StringName:
+		return &"jovian_provisional"
 
 
 class BindingProbe extends Node3D:
@@ -173,11 +184,29 @@ func _run() -> void:
 			)
 			if activity_id in [&"cinder_platform_mining_run", &"cinder_derelict_structure_scan"]:
 				_check_hold_briefing(detail.text, activity_id)
+			if activity_id == &"cinder_platform_supply_run":
+				_check_supply_briefing(detail.text)
 		_check(
 			seen_titles.size() == Presenter.ACTIVITY_ORDER.size(),
 			"each %s activity kind yields its own distinct briefing" % String(device_family),
 		)
 	await _check_production_hold_behaviors()
+	await _check_production_supply_behaviors()
+	var supply_presenter := Presenter.new()
+	var remapped_supply := supply_presenter.present_snapshot({
+		"activity_id": &"cinder_platform_supply_run", "generation": 1,
+		"glyphs": {&"interact": "CUSTOM INTERACT"}, "input_family": &"keyboard",
+	})
+	_check(remapped_supply.accepted and remapped_supply.prompt.contains("CUSTOM INTERACT")
+		and not remapped_supply.prompt.contains("{interact}"),
+		"supply terminal delivery follows caller-resolved remapped interaction")
+	_check_supply_briefing(remapped_supply.prompt)
+	var accessible_supply := supply_presenter.present_snapshot({
+		"activity_id": &"cinder_platform_supply_run", "generation": 2, "accessible": true,
+	})
+	_check(accessible_supply.accepted and accessible_supply.prompt == accessible_supply.accessible_prompt
+		and not accessible_supply.prompt.contains("{"), "accessible supply instruction is glyph-free")
+	_check_supply_briefing(accessible_supply.prompt)
 	for activity_id: StringName in [&"cinder_platform_mining_run", &"cinder_derelict_structure_scan"]:
 		var hold_presenter := Presenter.new()
 		var remapped := hold_presenter.present_snapshot({
@@ -332,6 +361,17 @@ func _run() -> void:
 			and flow.has_seen_activity_tutorial(activity_id),
 			"the production start seam briefs %s the first time it runs" % String(activity_id),
 		)
+		if activity_id == &"cinder_platform_supply_run":
+			var supply_detail := production_hud.get("_runtime_status_detail") as Label
+			_check_supply_briefing(supply_detail.text)
+			var start_count := binding.starts.size()
+			_check(flow.publish_activity_tutorial_briefing(activity_id, true)
+				and binding.starts.size() == start_count,
+				"re-showing the supply instructions never starts another run")
+			production_hud.clear_activity_tutorial(&"supply_retained_case")
+			_check(flow._republish_activity_tutorial_presentation(),
+				"retained supply briefing republishes after HUD re-entry")
+			_check_supply_briefing(supply_detail.text)
 		if activity_id in [&"cinder_platform_mining_run", &"cinder_derelict_structure_scan"]:
 			var production_detail := production_hud.get("_runtime_status_detail") as Label
 			_check(binding.starts.back() == activity_id
@@ -508,6 +548,96 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _check_supply_briefing(prompt: String) -> void:
+	_check(prompt.contains("activity row's Start") and prompt.contains("cargo is supplied automatically")
+		and prompt.contains("Depart beyond the berth gate") and prompt.contains("return and dock")
+		and prompt.contains("leave the seat") and prompt.contains("platform cargo terminal")
+		and not prompt.contains("take on cargo") and prompt.contains("RESET AND START AGAIN"),
+		"supply briefing separates automatic loading, the physical route and final on-foot terminal delivery")
+
+
+func _check_production_supply_behaviors() -> void:
+	var stage := Node3D.new()
+	root.add_child(stage)
+	var binding := ActivityBindingType.new()
+	binding.add_child(ConvoyHostType.new())
+	stage.add_child(binding)
+	var access := CargoAccessScene.instantiate() as CinderCargoAccess
+	stage.add_child(access)
+	var terminal := CargoTerminalScene.instantiate() as CargoTransferTerminal
+	stage.add_child(terminal)
+	terminal.transform = CinderCargoAccess.DESTINATION_TERMINAL_ROOT_LOCAL
+	var ship := JovianIdentityProbe.new()
+	stage.add_child(ship)
+	var actor := Node3D.new()
+	stage.add_child(actor)
+	await process_frame
+	var bound := binding.bind_cargo_access(access, terminal, access.get_attachment_generation())
+	var not_docked := binding.start_cargo_run()
+	var berth := access.get_berth()
+	var lease := berth.try_reserve(ship, JovianDefinition)
+	var occupied := berth.occupy(ship, lease)
+	ship.global_transform = berth.get_dock_transform()
+	var authority := binding.get_cargo_transfer_authority()
+	var source := binding.get_cargo_source_handle()
+	var destination := binding.get_cargo_destination_handle()
+	var started := binding.start_cargo_run()
+	var loaded := binding.advance_cargo_run_from_caller_sample(0.1, ship.get_instance_id(), ship.global_position)
+	_check(bound.accepted and not not_docked.accepted and occupied and started.accepted
+		and loaded.get("production_phase_id") == &"load_crate"
+		and authority.get_quantity(source, &"cinder_supply_crates") == 2,
+		"a docked Jovian starts with real cargo aboard and advances loading without Interact")
+	actor.global_position = access.get_route_marker(&"berth_exit").global_position
+	var authorized := binding.authorize_cargo_terminal_actor(actor, ship)
+	actor.global_position = terminal.get_node(^"PlayerApproach").global_position
+	terminal.interact(actor)
+	_check(authorized.accepted and binding.get_last_cargo_terminal_request().reason == &"phases_incomplete"
+		and authority.get_quantity(destination, &"cinder_supply_crates") == 0,
+		"terminal interaction cannot deliver before departure and return")
+	var released := berth.release(ship, lease)
+	var inside := binding.advance_cargo_run_from_caller_sample(0.1, ship.get_instance_id(), ship.global_position)
+	ship.global_position = access.get_supply_phase_target_position(&"clear_gate")
+	var cleared := binding.advance_cargo_run_from_caller_sample(0.1, ship.get_instance_id(), ship.global_position)
+	ship.global_transform = berth.get_dock_transform()
+	lease = berth.try_reserve(ship, JovianDefinition)
+	occupied = berth.occupy(ship, lease)
+	var docked := binding.advance_cargo_run_from_caller_sample(0.1, ship.get_instance_id(), ship.global_position)
+	_check(released and int(inside.next_phase_index) == 1
+		and cleared.get("production_phase_id") == &"clear_gate" and occupied
+		and docked.get("production_phase_id") == &"dock_platform"
+		and docked.state == CargoDeliveryActivity.State.ACTIVE,
+		"the real berth gate and return occupancy advance the route but do not deliver the cargo")
+	var expired := binding.advance_cargo_run(120.0)
+	var rejected_restart := binding.start_cargo_run()
+	var reset := binding.reset_cargo_run()
+	var restarted := binding.start_cargo_run()
+	_check(expired.state == CargoDeliveryActivity.State.EXPIRED
+		and not rejected_restart.accepted and rejected_restart.reason == &"reset_required"
+		and reset.accepted and restarted.accepted
+		and authority.get_quantity(source, &"cinder_supply_crates") == 2,
+		"an expired run must Reset then Start again while docked; cargo remains aboard")
+	binding.advance_cargo_run_from_caller_sample(0.1, ship.get_instance_id(), ship.global_position)
+	berth.release(ship, lease)
+	ship.global_position = access.get_supply_phase_target_position(&"clear_gate")
+	binding.advance_cargo_run_from_caller_sample(0.1, ship.get_instance_id(), ship.global_position)
+	ship.global_transform = berth.get_dock_transform()
+	lease = berth.try_reserve(ship, JovianDefinition)
+	berth.occupy(ship, lease)
+	binding.advance_cargo_run_from_caller_sample(0.1, ship.get_instance_id(), ship.global_position)
+	actor.global_position = access.get_route_marker(&"berth_exit").global_position
+	authorized = binding.authorize_cargo_terminal_actor(actor, ship)
+	actor.global_position = terminal.get_node(^"PlayerApproach").global_position
+	var interacted := terminal.interact(actor)
+	var delivered := binding.get_last_cargo_terminal_request()
+	_check(authorized.accepted and interacted and delivered.accepted
+		and binding.get_snapshot().cargo.state == CargoDeliveryActivity.State.COMPLETED
+		and authority.get_quantity(source, &"cinder_supply_crates") == 1
+		and authority.get_quantity(destination, &"cinder_supply_crates") == 1,
+		"only the authorized on-foot terminal interaction after return commits the delivery")
+	stage.queue_free()
+	await process_frame
 
 
 func _check_hold_briefing(prompt: String, activity_id: StringName) -> void:

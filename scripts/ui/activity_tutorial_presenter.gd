@@ -94,11 +94,11 @@ const ACTIVITY_COPY := {
 	&"cinder_platform_supply_run": {
 		"title": "Fly the supply run",
 		"label": "PLATFORM SUPPLY RUN",
-		"controller": "Press {interact} to take on cargo, then deliver it before the clock runs out.",
-		"keyboard": "Press {interact} to take on cargo, then deliver it before the clock runs out.",
-		"accessible": "Use the interact control to take on cargo, then deliver it before the clock runs out.",
-		"next_action": "LOAD CARGO // DELIVER BEFORE THE CLOCK",
-		"recovery": "RUN STALLED // RETURN TO THE SUPPLY PLATFORM",
+		"controller": "The activity row's Start begins the run with your Jovian docked at the Cinder berth; cargo is supplied automatically. Depart beyond the berth gate, return and dock, then leave the seat and press {interact} at the platform cargo terminal before the clock runs out.",
+		"keyboard": "The activity row's Start begins the run with your Jovian docked at the Cinder berth; cargo is supplied automatically. Depart beyond the berth gate, return and dock, then leave the seat and press {interact} at the platform cargo terminal before the clock runs out.",
+		"accessible": "The activity row's Start begins the run with your Jovian docked at the Cinder berth; cargo is supplied automatically. Depart beyond the berth gate, return and dock, then leave the seat and use the interact control at the platform cargo terminal before the clock runs out.",
+		"next_action": "CLEAR THE BERTH GATE // RETURN, DOCK AND USE THE CARGO TERMINAL",
+		"recovery": "RUN EXPIRED OR FAILED // DOCK AT THE CINDER BERTH, THEN CHOOSE RESET AND START AGAIN",
 	},
 	&"cinder_hulk_power_restoration": {
 		"title": "Dock at the abandoned hulk",
