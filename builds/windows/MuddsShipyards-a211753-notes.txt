@@ -1,0 +1,15 @@
+Mudds Shipyards — Windows development checkpoint — 2026-10-13
+Source: a21175368e94517c5271ebe6abd7b2b88e52e088
+
+Player-visible changes
+Low graphics now disables shipyard and Jovian work-mast shadows when each startup stage is attached, before its first rendered frame. Switching to Medium or High restores authored shadow membership. The checkpoint also contains the retained cabin, planetary recovery and complete Ember journey candidate, plus startup timing diagnostics.
+
+Validation
+Exact-source startup regression passes 139 assertions, including early Low shadow snapshots for seven yard masts and both Jovian apron lights. Solar/readability and quality restoration pass 40 assertions. Both exit 0 with no engine errors and independent fresh protected-state/process closure.
+Clean Windows export passes. Silent embedded-package startup exits 0 and prints STARTUP_MENU_READY_OK exactly once; independent fresh all-eight-scope closure passes, with both captured identities absent. EXE and ZIP payload hashes and ZIP CRC are checked after local publication.
+These package checks use Linux Godot loading the Windows EXE embedded PCK. Native Windows execution, native GPU performance, physical controllers, human play/visual review and audible audio review remain NOT_RUN. The earlier 9651 station/home/shared package results are source-specific and do not qualify this new package.
+
+Remaining gates
+The default High graphical startup still exceeds its original 300-second deadline in the isolated software-renderer environment. This Low-only fix does not close that gate. Main runtime integration, complete exact-source CI, matching Linux export, packaged canonical journeys and full release acceptance remain open. On original candidate 9651, core, completed Ember52 and all four headless shards pass; graphical and full-candidate jobs remain live at the latest poll. The complete project roadmap remains open.
+
+EXE SHA-256: 1d4114ab611ca04b502cc3b0921fe2f92550c538a63fadf8c97f20b3a09a5875
