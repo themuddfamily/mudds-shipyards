@@ -13,6 +13,7 @@ import os
 import subprocess
 import tarfile
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -33,7 +34,8 @@ def _run(args, env=None, cwd=None):
 
 def _head():
     return subprocess.check_output(
-        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"], text=True
+        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"], text=True,
+        env=dict(os.environ, GIT_OPTIONAL_LOCKS="0")
     ).strip()
 
 
@@ -145,8 +147,8 @@ class StartupCheck(unittest.TestCase):
         path.chmod(0o755)
         return path
 
-    def _check(self, target, *flags):
-        env = dict(os.environ, TMPDIR=str(self.dir))
+    def _check(self, target, *flags, extra_env=None):
+        env = dict(os.environ, TMPDIR=str(self.dir), **(extra_env or {}))
         return _run([str(STARTUP_SCRIPT), *flags, str(target)], env=env, cwd=self.dir)
 
     def test_dry_run_reports_exact_arguments(self):
@@ -157,6 +159,111 @@ class StartupCheck(unittest.TestCase):
         self.assertEqual(plan["arguments"], ["--headless", "--audio-driver", "Dummy", "--startup-check"])
         self.assertEqual(plan["required_sentinel"], "STARTUP_MENU_READY_OK")
         self.assertFalse((self.dir / (stub.name + ".startup-check.json")).exists())
+
+    def test_graphical_dry_run_reports_rendering_and_private_display(self):
+        stub = self._stub("MuddsShipyards-abcdef0.x86_64", "exit 0\n")
+        result = self._check(stub, "--dry-run", "--graphical")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["arguments"], ["--display-driver", "x11", "--audio-driver", "Dummy",
+                                              "--rendering-method", "gl_compatibility", "--startup-check"])
+        self.assertEqual(plan["xvfb_arguments"], ["-a", "-s",
+                                                "-screen 0 1280x720x24 -nolisten tcp -nolisten unix"])
+        self.assertEqual(plan["timeout_seconds"], 300)
+        self.assertEqual(plan["native_gpu"], "NOT_RUN")
+        self.assertIn("env -i", plan["isolation"])
+        self.assertFalse((self.dir / (stub.name + ".startup-check.json")).exists())
+
+    def _fake_display(self):
+        # This fake executes the actor supervisor/stub, never Xvfb or Godot.
+        commands = self.dir / "commands"
+        commands.mkdir()
+        wrapper = commands / "xvfb-run"
+        wrapper.write_text(
+            '#!/bin/sh\n'
+            'test "$1" = -a && test "$2" = -s || exit 9\n'
+            'test "$3" = "-screen 0 1280x720x24 -nolisten tcp -nolisten unix" || exit 9\n'
+            'shift 3\nexport DISPLAY=:19999\nexec "$@"\n', encoding="utf-8")
+        wrapper.chmod(0o755)
+        return {"PATH": str(commands) + os.pathsep + os.environ["PATH"],
+                "DISPLAY": ":0", "WAYLAND_DISPLAY": "wayland-0", "WAYLAND_SOCKET": "10",
+                "DBUS_SESSION_BUS_ADDRESS": "unix:path=/user/bus", "PULSE_SERVER": "user-audio",
+                "XAUTHORITY": "/user/authority", "SDL_AUDIODRIVER": "user-audio"}
+
+    def test_graphical_executes_exact_actor_args_and_scrubs_user_environment(self):
+        stub = self._stub(
+            "MuddsShipyards-abcdef0.x86_64",
+            'echo "ARGS $*"\necho "HOME $HOME"\necho "DISPLAY $DISPLAY"\n'
+            'echo "WAYLAND ${WAYLAND_DISPLAY:-unset} ${WAYLAND_SOCKET:-unset}"\n'
+            'echo "BUS ${DBUS_SESSION_BUS_ADDRESS:-unset}"\n'
+            'echo "AUDIO ${PULSE_SERVER:-unset} ${SDL_AUDIODRIVER:-unset}"\n'
+            'echo "AUTH ${XAUTHORITY:-unset}"\necho "SOFTWARE $LIBGL_ALWAYS_SOFTWARE"\n'
+            'echo "STARTUP_MENU_READY_OK: {}"\n',
+        )
+        result = self._check(stub, "--graphical", extra_env=self._fake_display())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads((self.dir / (stub.name + ".startup-check.json")).read_text())
+        self.assertEqual(record["schema_version"], 1)
+        self.assertEqual(record["status"], "PASS")
+        self.assertIn("software GL compatibility", record["environment"])
+        self.assertEqual(record["native_gpu"], "NOT_RUN")
+        processes = record["graphical_processes"]
+        self.assertEqual(processes["actor_exit"], 0)
+        self.assertTrue(processes["reaped"])
+        self.assertEqual({p["role"] for p in processes["owned"]}, {"actor", "xvfb-run"})
+        self.assertTrue(all(p["absent"] and int(p["start"]) > 0 for p in processes["owned"]))
+        log = (self.dir / (stub.name + ".startup-check.log")).read_text()
+        self.assertIn("ARGS --display-driver x11 --audio-driver Dummy --rendering-method gl_compatibility --startup-check", log)
+        self.assertNotIn("--headless", log)
+        for expected in ("DISPLAY :19999", "WAYLAND unset unset", "BUS unset", "AUDIO unset unset",
+                         "AUTH unset", "SOFTWARE 1", "mudds-linux-startup-check."):
+            self.assertIn(expected, log)
+
+    def test_graphical_rejects_engine_errors_and_inexact_ready_sentinel(self):
+        environment = self._fake_display()
+        for index, output in enumerate(("STARTUP_MENU_READY_OK_BOGUS", "STARTUP_MENU_READY_OK\nSCRIPT ERROR: invalid")):
+            with self.subTest(output=output):
+                stub = self._stub(f"MuddsShipyards-case{index}.x86_64", f"printf '%s\\n' '{output}'\n")
+                result = self._check(stub, "--graphical", extra_env=environment)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                record = json.loads((self.dir / (stub.name + ".startup-check.json")).read_text())
+                self.assertEqual(record["status"], "FAIL")
+                self.assertIn("missing STARTUP_MENU_READY_OK" if index == 0 else "engine/script errors printed",
+                              record["reasons"])
+
+    def test_graphical_timeout_reaps_owned_stub_processes(self):
+        stub = self._stub("MuddsShipyards-timeout.x86_64", "sleep 30\n")
+        environment = self._fake_display()
+        environment["STARTUP_CHECK_TIMEOUT_SECONDS"] = "1"
+        result = self._check(stub, "--graphical", extra_env=environment)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        record = json.loads((self.dir / (stub.name + ".startup-check.json")).read_text())
+        self.assertEqual(record["exit_code"], 124)
+        self.assertTrue(record["graphical_processes"]["reaped"])
+        self.assertTrue(all(p["absent"] for p in record["graphical_processes"]["owned"]))
+
+    def test_graphical_external_abort_cleans_up_without_game_input(self):
+        stub = self._stub("MuddsShipyards-abort.x86_64", "sleep 30\n")
+        environment = dict(os.environ, TMPDIR=str(self.dir), **self._fake_display())
+        runner = subprocess.Popen([str(STARTUP_SCRIPT), "--graphical", "--keep-profile", str(stub)],
+                                  env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        record_path = None
+        try:
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                matches = list(self.dir.glob("mudds-linux-startup-check.*/processes.json"))
+                if matches:
+                    record_path = matches[0]
+                    break
+                time.sleep(0.01)
+            self.assertIsNotNone(record_path, "stub actor must start before the independent abort")
+        finally:
+            runner.terminate()
+            _stdout, stderr = runner.communicate(timeout=20)
+        self.assertEqual(runner.returncode, 143, stderr)
+        processes = json.loads(record_path.read_text())
+        self.assertTrue(processes["reaped"])
+        self.assertTrue(all(p["absent"] for p in processes["owned"]))
 
     def test_passes_only_with_exit_zero_and_sentinel_in_private_profile(self):
         stub = self._stub(
