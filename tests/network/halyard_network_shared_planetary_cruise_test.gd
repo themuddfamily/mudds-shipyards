@@ -13,6 +13,7 @@ func _run() -> void:
 # The second crew member's turn starts after the first member has completed
 # the shared chair operation. Waiting from its earlier walked marker charges
 # observer readiness and the first turn against its own admission deadline.
+# The observer likewise follows both serial turns before waiting for finish.
 # Keep each existing start/operation barrier at the original sixty-second cap.
 func _wait_file(name: String, seconds: float) -> bool:
 	if _shared_cruise and _role == "client_b" and name == "client_b.chair_go":
@@ -20,6 +21,10 @@ func _wait_file(name: String, seconds: float) -> bool:
 			return false
 		if not await super._wait_file("client.chair_done", seconds):
 			return false
+	if _shared_cruise and _role == "observer" and name == "host.finish":
+		for stage in ["client.chair_go", "client.chair_done", "client_b.chair_go", "client_b.chair_done"]:
+			if not await super._wait_file(stage, seconds):
+				return false
 	return await super._wait_file(name, seconds)
 
 
