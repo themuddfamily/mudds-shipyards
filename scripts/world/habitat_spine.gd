@@ -145,26 +145,27 @@ const GARDEN_RACK_CROWN_COPY_COUNT := 5
 const MESS_MUG_COPY_COUNT := 3
 const BERTH_BOOT_COPY_COUNT := 8
 # Include the independent 27 shadow-only arch renderers in both sides of
-# existing family comparisons. Their colour surfaces and materials stay intact.
-const PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT := 1257
-const PRE_GALLEY_MUG_GEOMETRY_SUBMISSION_COUNT := 1248
-const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 1261
-const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 1270
-const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 1278
-const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 1267
-const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 1264
+# existing family comparisons. Room-local colour batches retire 378 segment
+# renderers into 60 exact mesh/material groups, preserving every drawn copy.
+const PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT := 939
+const PRE_GALLEY_MUG_GEOMETRY_SUBMISSION_COUNT := 930
+const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 943
+const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 952
+const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 960
+const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 949
+const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 946
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
 ## The static common-room display adds one quad renderer/mesh/material to this roster.
-const RENDER_DESCENDANT_COUNT := 1883
-const RENDER_MESH_INSTANCE_COUNT := 1220
-const RENDER_MULTIMESH_BATCH_COUNT := 32
+const RENDER_DESCENDANT_COUNT := 1565
+const RENDER_MESH_INSTANCE_COUNT := 842
+const RENDER_MULTIMESH_BATCH_COUNT := 92
 ## One reusable StationDoor renderer owns a shared MultiMesh resource across the
 ## module's two door instances; all other batches own their component buffer.
-const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 31
+const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 91
 const RENDER_DRAWN_COPY_COUNT := 1413
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 1243
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 925
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
@@ -303,13 +304,18 @@ const STAGED_BUILD_PHASES: Array[Array] = [
 ]
 var _module_enabled := true
 var _hatch_fastener_mesh: Mesh
-# Constructor-owned immutable rosters; no scene scan or independently moving
-# geometry participates. Each arch retains its own tight shadow culling bounds.
+# Constructor-owned transient sources; each roster is released only after its
+# exact shadow merge succeeds. Each arch retains its own shadow culling bounds.
 var _arch_shadow_sources: Array[Array] = []
 ## One shadow-only proxy mesh per source, built by the same arch loop from the
 ## same radius and segment length. See `StationSurfaceKit.shadow_proxy_cylinder_mesh_cached`.
 var _arch_shadow_proxies: Array[Array] = []
 var _arch_shadow_batches: Array[MeshInstance3D] = []
+# Colour instances share only within their owning room and exact stock/material.
+# Piece records own resources/transforms, never retired MeshInstance3D nodes.
+var _arch_visual_pieces: Array[Array] = []
+var _arch_visual_batches: Array[MultiMeshInstance3D] = []
+var _arch_visual_groups: Dictionary = {}
 var _arch_shadow_next_index := 0
 var _arch_shadow_needs_settle := false
 var _hatch_fastener_batch: MultiMeshInstance3D
@@ -4267,6 +4273,53 @@ func _build_next_arch_shadow_batch() -> void:
 	)
 	if batch != null:
 		_arch_shadow_batches.append(batch)
+		_batch_arch_colour_sources(sources)
+		# Clear the module-owned roster before releasing any source. Deferred
+		# deletion would retain invisible renderers through the parent's census.
+		_arch_shadow_sources[_arch_shadow_next_index - 1] = []
+		for source in sources:
+			source.free()
+		if _arch_shadow_next_index == ARCH_SHADOW_BATCH_COUNT:
+			_arch_visual_groups.clear()
+
+
+func _batch_arch_colour_sources(sources: Array[MeshInstance3D]) -> void:
+	var arch := sources[0].get_parent() as Node3D
+	var room := arch.get_parent() as Node3D
+	var pieces: Array[Dictionary] = []
+	var changed_groups: Dictionary = {}
+	for source in sources:
+		var key := "%s/%s/%s/%s" % [
+			room.get_instance_id(), source.mesh.get_instance_id(),
+			source.material_override.get_instance_id(), source.lod_bias,
+		]
+		if not _arch_visual_groups.has(key):
+			var empty_transforms: Array[Transform3D] = []
+			var visual := _multimesh_visual_stock(
+				room, "ArchColourStock%02d" % _arch_visual_batches.size(),
+				source.mesh, source.material_override, empty_transforms, &"TubeSegment"
+			)
+			visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			visual.lod_bias = source.lod_bias
+			_arch_visual_batches.append(visual)
+			_arch_visual_groups[key] = {"batch": visual, "transforms": empty_transforms}
+		var group: Dictionary = _arch_visual_groups[key]
+		var transforms: Array[Transform3D] = group.transforms
+		pieces.append({
+			"mesh": source.mesh, "transform": source.transform,
+			"material_override": source.material_override,
+			"batch": group.batch, "instance_index": transforms.size(),
+		})
+		transforms.append(arch.transform * source.transform)
+		changed_groups[key] = group
+	for group: Dictionary in changed_groups.values():
+		var visual: MultiMeshInstance3D = group.batch
+		var transforms: Array[Transform3D] = group.transforms
+		visual.multimesh.instance_count = transforms.size()
+		visual.multimesh.buffer = _encode_multimesh_transforms(transforms)
+		visual.multimesh.custom_aabb = _transformed_mesh_bounds(visual.multimesh.mesh.get_aabb(), transforms)
+		visual.set_meta("authored_instance_transforms", transforms.duplicate())
+	_arch_visual_pieces.append(pieces)
 
 
 func _style_access_landmarks() -> void:

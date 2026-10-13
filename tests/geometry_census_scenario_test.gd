@@ -440,10 +440,15 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Clean 9e93b15c7 Windows-PCK measurement confirms the same exact geometry
 # and retains the existing +2 local-skies material difference; its measured
 # packed fingerprints replace the two expected stale-fingerprint failures.
-const RESIDENT_FINGERPRINT := "33e93e7fccadb15e83360e0a56675004df3d6319acf97b630aca2f8cbdc14dbe"
-const CINDER_LOADED_FINGERPRINT := "43988f9ff3c3c374abdf0e7f69b752656c66b690883fe10aaf92b5eb618757bc"
-const PACKED_RESIDENT_FINGERPRINT := "39062fd1918a44ca28eca4032a567dc9d35333372aa0a84026c745e29191c8b8"
-const PACKED_CINDER_LOADED_FINGERPRINT := "e26d83f0deddb4742e74bd775074773ccc726d71b8c2efa47ee30f2f4ace03aa"
+# Refrozen from the live Habitat visible-arch batch: 378 original segment
+# renderers become 60 exact room-local stock/material batches. Resident and
+# loaded rows both lose 318 nodes, renderer instances and surfaces; triangles,
+# unique meshes, materials, lights and all Cinder deltas stay unchanged. The
+# packed fingerprints apply the existing +2 retained-material export contract.
+const RESIDENT_FINGERPRINT := "e3fa5ae4bcef131e84698a740088025d5871c28b5318ac3838c43102ed5af341"
+const CINDER_LOADED_FINGERPRINT := "4f225c3305884c398be74ac4a13dbc17555dcdc380e5ff9952b6ce9d93cb92a7"
+const PACKED_RESIDENT_FINGERPRINT := "ead96b01d20a948eee1d7ec96641b6a645742b2b3fb7ad1d5a7da2c6b69efb9c"
+const PACKED_CINDER_LOADED_FINGERPRINT := "29b45953bf95d3e0373b8808d0b911b315d90278f757c1969e0d0753abd54786"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -494,17 +499,17 @@ func _run() -> void:
 	)
 	_check(
 		int(resident.get("total_triangles", -1)) == 1762333
-			and int(resident.get("total_mesh_instances", -1)) == 5047
-			and int(resident.get("total_surfaces", -1)) == 5607
+			and int(resident.get("total_mesh_instances", -1)) == 4729
+			and int(resident.get("total_surfaces", -1)) == 5289
 			and int(resident.get("unique_meshes", -1)) == 2702,
-		"resident geometry freezes 1,762,333 triangles / 5,047 meshes / 5,607 surfaces / 2,702 unique meshes"
+		"resident geometry freezes 1,762,333 triangles / 4,729 meshes / 5,289 surfaces / 2,702 unique meshes"
 	)
 	_check(
 		int(resident.get("bound_phase_unique_materials", -1)) == 653
 			and int(resident.get("retained_reachable_unique_materials", -1)) == (1071 if _packed_scene_resources() else 1069)
 			and int(resident.get("lights", -1)) == 327
-			and int(resident.get("nodes", -1)) == 10302,
-		"resident resource roster freezes exact source/export materials, 327 lights, and 10,302 nodes"
+			and int(resident.get("nodes", -1)) == 9984,
+		"resident resource roster freezes exact source/export materials, 327 lights, and 9,984 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == (PACKED_RESIDENT_FINGERPRINT if _packed_scene_resources() else RESIDENT_FINGERPRINT),
@@ -563,17 +568,17 @@ func _run() -> void:
 	)
 	_check(
 		int(loaded.get("total_triangles", -1)) == 1917355
-			and int(loaded.get("total_mesh_instances", -1)) == 5304
-			and int(loaded.get("total_surfaces", -1)) == 5868
+			and int(loaded.get("total_mesh_instances", -1)) == 4986
+			and int(loaded.get("total_surfaces", -1)) == 5550
 			and int(loaded.get("unique_meshes", -1)) == 2875,
-		"loaded geometry freezes 1,917,355 triangles / 5,304 meshes / 5,868 surfaces / 2,875 unique meshes"
+		"loaded geometry freezes 1,917,355 triangles / 4,986 meshes / 5,550 surfaces / 2,875 unique meshes"
 	)
 	_check(
 		int(loaded.get("bound_phase_unique_materials", -1)) == 711
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1134 if _packed_scene_resources() else 1132)
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 10890,
-		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,890 nodes"
+			and int(loaded.get("nodes", -1)) == 10572,
+		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,572 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}
