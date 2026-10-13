@@ -70,4 +70,3 @@ func run(tree: SceneTree) -> void:
 	stage.queue_free()
 	await tree.process_frame
 	tree.quit(0 if valid else 1)
-
