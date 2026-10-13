@@ -443,12 +443,13 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Refrozen from the live Habitat visible-arch batch: 378 original segment
 # renderers become 60 exact room-local stock/material batches. Resident and
 # loaded rows both lose 318 nodes, renderer instances and surfaces; triangles,
-# unique meshes, materials, lights and all Cinder deltas stay unchanged. The
-# packed fingerprints apply the existing +2 retained-material export contract.
+# unique meshes, materials, lights and all Cinder deltas stay unchanged.
+# Actual packed measurements preserve every sorted bucket and count except the
+# existing +2 retained-material export contract.
 const RESIDENT_FINGERPRINT := "e3fa5ae4bcef131e84698a740088025d5871c28b5318ac3838c43102ed5af341"
 const CINDER_LOADED_FINGERPRINT := "4f225c3305884c398be74ac4a13dbc17555dcdc380e5ff9952b6ce9d93cb92a7"
-const PACKED_RESIDENT_FINGERPRINT := "ead96b01d20a948eee1d7ec96641b6a645742b2b3fb7ad1d5a7da2c6b69efb9c"
-const PACKED_CINDER_LOADED_FINGERPRINT := "29b45953bf95d3e0373b8808d0b911b315d90278f757c1969e0d0753abd54786"
+const PACKED_RESIDENT_FINGERPRINT := "c40755d34d3482cc7e34df5c18e0f311dc4b300f73e0ebe52bc832cd86e0f172"
+const PACKED_CINDER_LOADED_FINGERPRINT := "8c426ab4b3a50d51a495bc1e3bde0df5f827b802589de65bdba3319a7ccc9e27"
 
 var _assertions := 0
 var _failures := PackedStringArray()
