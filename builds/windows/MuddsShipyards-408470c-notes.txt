@@ -1,0 +1,19 @@
+Mudds Shipyards — chair confirmation checkpoint (2026-10-13)
+Source: 408470c3aa73d9ff58c755dfcf4d8f81a874a0af (clean committed main).
+
+Player-visible change: a confirmed remote crew chair claim already received on the request's expiry tick is now accepted before the clock expires it. This avoids discarding the confirmation and immediately asking the host to release the chair. The original four-second timeout and authority checks remain intact.
+Retains the preceding Aft deck cap fix and remote confirmed hauler impact cue.
+
+Validation:
+- Existing focused chair bridge: 14 assertions, exit0, one completion marker, zero diagnostics.
+- Actual isolated four-peer shared planetary cruise: 116 checks, all four peer exits0, parent exit0, one completion marker, zero diagnostics; 108.15 seconds within unchanged300-second cap. All recorded child PIDs absent; source/import cache stable.
+- Clean Windows export: exit0. Linux-hosted embedded PCK startup: exit0, exactly one STARTUP_MENU_READY_OK marker, zero ERROR diagnostics.
+- Four standard embedded-package probes: 223 assertions, all exits0, unique completion markers, zero diagnostics; raw log hashes verified.
+- Exact-source main core CI38443373844: success. Broader candidate CI is still incomplete; this is not full-release qualification.
+- Original private Unix-X11 setup failure occurred before gameplay; that raw result is retained. Accepted cruise used verified private TCP Xvfb, explicit x11 and Dummy audio.
+
+Native Windows, native GPU performance, ordinary human controls/controllers, audible mix, signing and installed-release acceptance remain NOT_RUN. The planetary/cabin/recovery combined candidate remains separate from this main source.
+
+EXE bytes: 184312640
+EXE SHA256: dab56559984a32e163135e172c434513769a6354099b5c624b26f6f758b84310
+Raw local records: /root/.cache/mudds-shipyards/roadmap-validation/chair-checkpoint-408470c3a
