@@ -133,3 +133,11 @@ powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
   -File tools/release/test_windows_startup_check.ps1 `
   -TestDirectory C:\Checks\<fresh-fixture-directory>
 ```
+
+`.github/workflows/windows-startup.yml` runs this fixture suite on a native
+Windows runner with Windows PowerShell when its source/helper/test files change,
+and supports manual dispatch. It uses a fresh `RUNNER_TEMP` directory outside
+APPDATA, LOCALAPPDATA and Downloads, with bounded execution and seven-day
+retention of available JSON results and logs even on failure. These harmless
+managed fixtures do not run Godot or an exported game and do not establish game
+startup, native GPU, gameplay or full-release acceptance.
