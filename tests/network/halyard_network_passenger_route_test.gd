@@ -1817,7 +1817,25 @@ func _shared_client() -> void:
 	await _walk(_craft.to_local(_station_contract().entry_transform.origin))
 	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
 	await _press(&"interact")
-	_check(await _until(func(): return _player.is_seated_at(_station_anchor()) and not _game._transition_busy, 8.0), "ordinary travelling crew reseat after origin shift: " + _role)
+	var chair_reseated: bool = await _until(func(): return _player.is_seated_at(_station_anchor()) and not _game._transition_busy, 8.0)
+	if not chair_reseated:
+		print("SHARED_CREW_CHAIR_UNCONFIRMED: role=", _role, " boundary=reseat",
+			" local=", _craft.to_local(_player.global_position),
+			" floor=", _player.is_on_floor(), " controls=", _player.is_control_enabled(),
+			" phase=", _game.phase, " candidate=", _game.station_interaction_candidate,
+			" reach=", _player.get_interaction_origin().distance_to(_station_contract().entry_transform.origin),
+			" max_reach=", GameFlow.STATION_SEAT_MAX_REACH,
+			" boarding_holds=", _game._network_client_boarding_holds(_craft),
+			" pending_seat=", _game._network_engineer_pending_seat,
+			" pending_elapsed=", _game._network_engineer_pending_elapsed,
+			" client_seat=", _game._network_engineer_client_seat,
+			" transition_busy=", _game._transition_busy,
+			" crew_view=", _game._network_physical_crew_view(),
+			" passenger_view=", _game.network_session.get_passenger_replica_snapshot(),
+			" orphan_release=", _game._network_engineer_orphan_release,
+			" objective=", _objective_text(), " source=", source.get_audit(),
+			" relationship=", _game.network_session.get_moving_interior_latest_relationship(source.get_entity_id()))
+	_check(chair_reseated, "ordinary travelling crew reseat after origin shift: " + _role)
 	await _press(&"interact")
 	await _until(func(): return not _player.is_seated() and not _game._transition_busy, 8.0)
 	# Park clear of the centre aisle before the other client's chair turn.
