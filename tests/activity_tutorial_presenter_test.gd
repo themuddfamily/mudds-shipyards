@@ -12,6 +12,7 @@ const SettingsType := preload("res://scripts/settings/runtime_settings.gd")
 const SeenStoreType := preload("res://scripts/settings/tutorial_prompt_seen_store.gd")
 const StoreType := preload("res://scripts/persistence/user_data_store.gd")
 const FilesystemType := preload("res://scripts/persistence/user_data_filesystem.gd")
+const MAIN_SCENE := preload("res://scenes/main.tscn")
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const ActivityBindingType := preload("res://scripts/world/nearby_sector_activity_binding.gd")
 const ConvoyHostType := preload("res://scripts/activities/cinder_convoy_escort_host.gd")
@@ -191,12 +192,16 @@ func _run() -> void:
 				_check_route_briefing(detail.text, activity_id)
 			if activity_id == &"cinder_relay_patrol":
 				_check_patrol_briefing(detail.text)
+			if activity_id == &"cinder_reach_emberline_convoy":
+				_check_convoy_briefing(detail.text)
 			if activity_id == &"cinder_platform_supply_run":
 				_check_supply_briefing(detail.text)
 		_check(
 			seen_titles.size() == Presenter.ACTIVITY_ORDER.size(),
 			"each %s activity kind yields its own distinct briefing" % String(device_family),
 		)
+	await _check_production_convoy_behaviors()
+	_check_convoy_presentation_variants()
 	await _check_production_route_behaviors()
 	_check_route_presentation_variants()
 	await _check_production_patrol_behaviors()
@@ -926,3 +931,101 @@ func _check(condition: bool, message: String) -> void:
 		print("PASS: %s" % message)
 	else:
 		_failures.append("FAIL: " + message)
+
+
+func _check_convoy_briefing(prompt: String) -> void:
+	_check(prompt.contains("Depart the berth") and prompt.contains("healthy piloted craft")
+		and prompt.contains("marked rendezvous") and prompt.contains("activity row's Start")
+		and prompt.contains("automatically") and prompt.contains("marked route"),
+		"convoy help names berth departure, rendezvous admission and the tender route")
+	_check(prompt.contains("SEPARATED WHILE ACTIVE") and prompt.contains("BEFORE THREE SECONDS")
+		and prompt.contains("CHOOSE RESET") and prompt.contains("FRESH ESCORT")
+		and not prompt.contains("THROTTLE BACK ONTO THE HAULERS"),
+		"convoy help distinguishes active separation recovery from terminal fresh restart")
+
+
+func _check_convoy_presentation_variants() -> void:
+	var presenter := Presenter.new()
+	var remapped := presenter.present_snapshot({
+		"activity_id": &"cinder_reach_emberline_convoy", "generation": 1,
+		"input_family": &"keyboard", "glyphs": {&"fire": "CUSTOM FIRE"},
+	})
+	_check(remapped.accepted and remapped.prompt.contains("CUSTOM FIRE")
+		and not remapped.prompt.contains("{"), "convoy help preserves caller-resolved fire controls")
+	_check_convoy_briefing(remapped.prompt)
+	var accessible := presenter.present_snapshot({
+		"activity_id": &"cinder_reach_emberline_convoy", "generation": 2, "accessible": true,
+	})
+	_check(accessible.accepted and accessible.prompt == accessible.accessible_prompt
+		and accessible.prompt.contains("fire control") and not accessible.prompt.contains("{"),
+		"accessible convoy help is glyph-free")
+	_check_convoy_briefing(accessible.prompt)
+
+
+func _check_production_convoy_behaviors() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	var store := StoreType.new(STORE_PATH, MemoryFilesystem.new())
+	game.configure_runtime_settings_persistence(store, "user://convoy-tutorial-legacy.cfg")
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	game.set_physics_process(false)
+	var host := game.get_node(^"CinderConvoyEscortHost") as CinderConvoyEscortHost
+	var bootstrap := game.get_node(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
+	var ship := game.get_flyable_ships()[1] as HeroShip
+	_check(game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT).accepted,
+		"production convoy selection exposes rendezvous admission")
+	ship.set_piloted(true)
+	game.active_ship = ship
+	game.set("_piloting", true)
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	ship.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	game.set("_sortie_departed_berth", false)
+	var docked := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	_check(not docked.accepted and docked.reason == &"sortie_not_departed",
+		"convoy Start rejects a craft that has not departed its berth")
+	game.set("_sortie_departed_berth", true)
+	ship.global_position += Vector3.RIGHT * (GameFlow.CINDER_CONVOY_ACTIVATION_RADIUS + 0.01)
+	game.call(&"_physics_process", 0.1)
+	for _frame in 20:
+		if bootstrap.get_loaded_instance() != null:
+			break
+		await process_frame
+	var outside := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	_check(not outside.accepted and outside.reason == &"outside_convoy_activation_sphere",
+		"convoy Start requires the actual marked rendezvous sphere")
+	ship.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	var started := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	_check(started.accepted and host.get_snapshot().activity.state_id == &"active",
+		"Start at the rendezvous admits the real production convoy")
+	var generation := host.get_generation()
+	var far := (host.get_snapshot().entity_position as Vector3) + Vector3.RIGHT * 60.0
+	game.call(&"_advance_cinder_convoy", 0.5, far)
+	var separated := host.get_snapshot().activity as Dictionary
+	game.call(&"_advance_cinder_convoy", 0.1, host.get_snapshot().entity_position)
+	var recovered := host.get_snapshot().activity as Dictionary
+	_check(separated.state_id == &"active" and float(separated.separation_elapsed_seconds) > 0.0
+		and recovered.state_id == &"active" and recovered.generation == generation
+		and is_zero_approx(float(recovered.separation_elapsed_seconds)),
+		"returning beside the tender clears separation without Start or a new generation")
+	far = (host.get_snapshot().entity_position as Vector3) + Vector3.RIGHT * 60.0
+	game.call(&"_advance_cinder_convoy", ConvoyHostType.DEFAULT_MAXIMUM_SEPARATION_SECONDS, far)
+	var lost := host.get_snapshot().activity as Dictionary
+	var refused := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID,
+		GameFlow.CINDER_CONVOY_ACTIVATION_CENTER)
+	_check(lost.state_id == &"failed" and lost.terminal_reason == &"escort_separation_exceeded"
+		and not refused.accepted and refused.reason == &"reset_required",
+		"three seconds of separation loses the convoy and Start alone cannot recover it")
+	_check(game.reset_active_activity(), "production Reset admits recovery after convoy loss")
+	ship.global_position = GameFlow.CINDER_CONVOY_ACTIVATION_CENTER
+	var restarted := game.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	var fresh := host.get_snapshot().activity as Dictionary
+	_check(restarted.accepted and fresh.state_id == &"active" and fresh.generation > generation
+		and fresh.completed_leg_count == 0 and is_zero_approx(float(fresh.elapsed_seconds)),
+		"Reset then rendezvous Start creates a fresh escort with cleared route progress")
+	paused = false
+	game.set("_piloting", false)
+	game.queue_free()
+	await process_frame
+	await process_frame

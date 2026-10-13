@@ -40,11 +40,11 @@ const ACTIVITY_COPY := {
 	&"cinder_reach_emberline_convoy": {
 		"title": "Escort the Emberline convoy",
 		"label": "EMBERLINE CONVOY ESCORT",
-		"controller": "Hold station on the convoy's wing, then press {fire} on anything that closes.",
-		"keyboard": "Hold station on the convoy's wing, then press {fire} on anything that closes.",
-		"accessible": "Hold station beside the convoy and use the fire control on any hostile that closes on it.",
-		"next_action": "HOLD CONVOY STATION // ENGAGE CLOSING THREATS",
-		"recovery": "CONVOY SEPARATED // THROTTLE BACK ONTO THE HAULERS",
+		"controller": "Depart the berth in a healthy piloted craft and fly to the marked rendezvous. The activity row's Start begins the escort there; entering the marker can also begin it automatically. Stay beside the tender along its marked route and press {fire} on closing hostiles.",
+		"keyboard": "Depart the berth in a healthy piloted craft and fly to the marked rendezvous. The activity row's Start begins the escort there; entering the marker can also begin it automatically. Stay beside the tender along its marked route and press {fire} on closing hostiles.",
+		"accessible": "Depart the berth in a healthy piloted craft and fly to the marked rendezvous. The activity row's Start begins the escort there; entering the marker can also begin it automatically. Stay beside the tender along its marked route and use the fire control on closing hostiles.",
+		"next_action": "RENDEZVOUS // ESCORT THE TENDER ALONG ITS MARKED ROUTE",
+		"recovery": "SEPARATED WHILE ACTIVE // RETURN BESIDE THE TENDER BEFORE THREE SECONDS; LOST OR FAILED // CHOOSE RESET, RETURN TO THE RENDEZVOUS AND CHOOSE START FOR A FRESH ESCORT",
 	},
 	&"cinder_reach_checkpoint_route": {
 		"title": "Run the checkpoint route",
