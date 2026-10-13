@@ -1926,6 +1926,7 @@ func build_planetary_cruise_clearance_proof(
 	var motion := normalized_direction * sweep_distance_meters
 	var minimum_safe_fraction := 1.0
 	var obstacle_detected := false
+	var first_refusal: Dictionary = {}
 	var queried_shape_count := 0
 	var shape_names := PackedStringArray()
 	var shape_transforms: Array[Transform3D] = []
@@ -1951,6 +1952,10 @@ func build_planetary_cruise_clearance_proof(
 				enabled_shapes.size(),
 				queried_shape_count
 			)
+		if first_refusal.is_empty() and bool(sweep.get("obstacle_detected", false)):
+			first_refusal = (sweep.get("refusal", {}) as Dictionary).duplicate(true)
+			first_refusal["hull_shape"] = str(collision.name)
+			first_refusal["shape_type"] = collision.shape.get_class()
 		minimum_safe_fraction = minf(minimum_safe_fraction, float(sweep.get("safe_fraction", 0.0)))
 		obstacle_detected = obstacle_detected or bool(sweep.get("obstacle_detected", true))
 		queried_shape_count += 1
@@ -1976,6 +1981,20 @@ func build_planetary_cruise_clearance_proof(
 		)
 		closing_speed = ship_speed * alignment_dot
 	var proof_sequence := _planetary_cruise_clearance_proof_sequence + 1
+	if obstacle_detected:
+		# Diagnostic only: retain the unchanged authenticated proof schema and
+		# log evidence from queries already performed, never another collision query.
+		print("PLANETARY_CRUISE_CLEARANCE_REFUSED ", {
+			"ship_instance_id": get_instance_id(),
+			"ship_attachment_generation": _planetary_cruise_attachment_generation,
+			"controller_instance_id": controller_instance_id,
+			"coordinate_frame_generation": coordinate_frame_generation,
+			"proof_sequence": proof_sequence,
+			"physics_frame": int(Engine.get_physics_frames()),
+			"sweep_distance_meters": sweep_distance_meters,
+			"verified_clearance_meters": verified_clearance,
+			"first_refusal": first_refusal,
+		})
 	var proof := {
 		"accepted": true,
 		"reason": &"clearance_proved",
@@ -2029,8 +2048,10 @@ func _planetary_cruise_query_full_sweep(
 	) -> Dictionary:
 	query.transform = start
 	query.motion = Vector3.ZERO
-	if not space.intersect_shape(query, 1).is_empty():
-		return {"accepted": true, "safe_fraction": 0.0, "obstacle_detected": true}
+	var initial_hits := space.intersect_shape(query, 1)
+	if not initial_hits.is_empty():
+		return _planetary_cruise_sweep_refusal(&"initial_overlap", start, motion, depth,
+			0.0, null, initial_hits[0])
 	query.motion = motion
 	var cast_result := space.cast_motion(query)
 	if cast_result.size() != 2 or not is_finite(float(cast_result[0])) \
@@ -2044,18 +2065,21 @@ func _planetary_cruise_query_full_sweep(
 	endpoint.origin += motion
 	query.transform = endpoint
 	query.motion = Vector3.ZERO
-	if not space.intersect_shape(query, 1).is_empty():
-		return {"accepted": true, "safe_fraction": 0.0 if recheck_refusal else safe_fraction,
-			"obstacle_detected": true}
+	var endpoint_hits := space.intersect_shape(query, 1)
+	if not endpoint_hits.is_empty():
+		return _planetary_cruise_sweep_refusal(&"endpoint_overlap", start, motion, depth,
+			0.0 if recheck_refusal else safe_fraction, cast_result, endpoint_hits[0])
 	if safe_fraction == 1.0 and not recheck_refusal:
 		return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
 	if not motion.is_finite() or not start.is_finite() \
 			or is_zero_approx(start.basis.determinant()):
-		return {"accepted": true, "safe_fraction": 0.0, "obstacle_detected": true}
+		return _planetary_cruise_sweep_refusal(&"invalid_sweep_geometry", start, motion,
+			depth, 0.0, cast_result)
 	# Unsupported shapes retain their validated native prefix AND refusal;
 	# they never gain clearance from a box-only corroborating volume.
 	if not query.shape is BoxShape3D:
-		return {"accepted": true, "safe_fraction": safe_fraction, "obstacle_detected": true}
+		return _planetary_cruise_sweep_refusal(&"unsupported_shape_native_refusal",
+			start, motion, depth, safe_fraction, cast_result)
 	if swept_query == null:
 		# One scratch convex resource/query per refused root hull shape, reused
 		# across all its leaves with one geometry build. No persistent cache.
@@ -2070,12 +2094,18 @@ func _planetary_cruise_query_full_sweep(
 	if motion.length() <= PLANETARY_CRUISE_CLEARANCE_SPLIT_MIN_METERS:
 		# Native-refused short leaves remain unresolved; never clear them from
 		# an empty sampled pose or even an empty corroborating volume.
-		if safe_fraction < 1.0 or not _planetary_cruise_swept_box_is_clear(space,
-				query.shape as BoxShape3D, start, motion, swept_query):
-			return {"accepted": true, "safe_fraction": 0.0, "obstacle_detected": true}
+		if safe_fraction < 1.0:
+			return _planetary_cruise_sweep_refusal(&"short_native_refusal", start,
+				motion, depth, 0.0, cast_result)
+		var volume_hit: Dictionary = {}
+		if not _planetary_cruise_swept_box_is_clear(space,
+				query.shape as BoxShape3D, start, motion, swept_query, volume_hit):
+			return _planetary_cruise_sweep_refusal(&"swept_volume_refusal", start,
+				motion, depth, 0.0, cast_result, volume_hit)
 		return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
 	if depth >= PLANETARY_CRUISE_CLEARANCE_SPLIT_MAX_DEPTH:
-		return {"accepted": true, "safe_fraction": 0.0, "obstacle_detected": true}
+		return _planetary_cruise_sweep_refusal(&"split_depth_exhausted", start, motion,
+			depth, 0.0, cast_result)
 	var half_motion := motion * 0.5
 	var midpoint := start
 	midpoint.origin += half_motion
@@ -2090,8 +2120,32 @@ func _planetary_cruise_query_full_sweep(
 	# zero prefix, retaining the earliest unproved segment conservatively.
 	var verified_fraction := float(first.get("safe_fraction", 0.0)) * 0.5 if first_blocked \
 		else 0.5 + float(second.get("safe_fraction", 0.0)) * 0.5
-	return {"accepted": true, "safe_fraction": verified_fraction,
+	var combined := {"accepted": true, "safe_fraction": verified_fraction,
 		"obstacle_detected": first_blocked or bool(second.get("obstacle_detected", true))}
+	if bool(combined.obstacle_detected):
+		combined["refusal"] = (first if first_blocked else second).get("refusal", {})
+	return combined
+
+
+## Failure metadata carries no clearance or movement capability. A collider is
+## named only when one of the existing overlap queries actually returned it.
+func _planetary_cruise_sweep_refusal(
+		reason: StringName, start: Transform3D, motion: Vector3, depth: int,
+		safe_fraction: float, native_cast: Variant = null, hit: Dictionary = {}
+	) -> Dictionary:
+	var refusal := {
+		"reason": reason, "start": start, "motion": motion, "depth": depth,
+		"native_cast": native_cast,
+	}
+	if not hit.is_empty():
+		var collider := hit.get("collider") as Node
+		refusal["collider_instance_id"] = int(hit.get("collider_id", 0))
+		refusal["collider_path"] = str(collider.get_path()) \
+			if is_instance_valid(collider) and collider.is_inside_tree() else ""
+		refusal["collider_shape"] = int(hit.get("shape", -1))
+		refusal["collider_rid"] = str(hit.get("rid", RID()))
+	return {"accepted": true, "safe_fraction": safe_fraction,
+		"obstacle_detected": true, "refusal": refusal}
 
 
 ## Conv(box corners, box corners + local motion) is the entire translated box
@@ -2099,7 +2153,8 @@ func _planetary_cruise_query_full_sweep(
 ## and the scratch query keeps the original fixed basis, mask and exclusions.
 func _planetary_cruise_swept_box_is_clear(
 		space: PhysicsDirectSpaceState3D, box: BoxShape3D, start: Transform3D,
-		motion: Vector3, swept_query: PhysicsShapeQueryParameters3D
+		motion: Vector3, swept_query: PhysicsShapeQueryParameters3D,
+		refusal_hit: Dictionary = {}
 	) -> bool:
 	if not box.size.is_finite() or box.size.x <= 0.0 or box.size.y <= 0.0 or box.size.z <= 0.0:
 		return false
@@ -2130,7 +2185,10 @@ func _planetary_cruise_swept_box_is_clear(
 	if volume.points.size() != 16 or not volume.get_rid().is_valid():
 		return false
 	swept_query.transform = start
-	return space.intersect_shape(swept_query, 1).is_empty()
+	var hits := space.intersect_shape(swept_query, 1)
+	if not hits.is_empty():
+		refusal_hit.merge(hits[0])
+	return hits.is_empty()
 
 
 ## Queues one exact envelope for the next HeroShip physics step. Acceptance does
