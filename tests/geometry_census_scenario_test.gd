@@ -444,12 +444,16 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # renderers become 60 exact room-local stock/material batches. Resident and
 # loaded rows both lose 318 nodes, renderer instances and surfaces; triangles,
 # unique meshes, materials, lights and all Cinder deltas stay unchanged.
-# Actual packed measurements preserve every sorted bucket and count except the
-# existing +2 retained-material export contract.
+# The common-room ceiling lenses now batch six exact lenses into one renderer:
+# resident and loaded rows lose five more nodes, instances and surfaces. All
+# geometry/resource rows and Cinder deltas remain fixed. Actual 302a863 packed
+# measurements retain the existing +2 local-skies material contract and provide
+# the packed fingerprints below; the initial two stale-fingerprint failures remain
+# retained separately from strict acceptance.
 const RESIDENT_FINGERPRINT := "f8d2811403e685bc3647d3bc93cdc61a296e6e9163569ab7b6493821d37b23da"
 const CINDER_LOADED_FINGERPRINT := "63c4318e32ee6d3c3735370a2df9d45550177890e1f9b15955b3226a6016230b"
-const PACKED_RESIDENT_FINGERPRINT := "c40755d34d3482cc7e34df5c18e0f311dc4b300f73e0ebe52bc832cd86e0f172"
-const PACKED_CINDER_LOADED_FINGERPRINT := "8c426ab4b3a50d51a495bc1e3bde0df5f827b802589de65bdba3319a7ccc9e27"
+const PACKED_RESIDENT_FINGERPRINT := "5374edb5a92f4919e2fa088dff4af4122d5f81f7dbadf3684b592993f542bbca"
+const PACKED_CINDER_LOADED_FINGERPRINT := "e08445757fb996421fe36aae5adce00a44744abe33da32aee48307fb3567e73b"
 
 var _assertions := 0
 var _failures := PackedStringArray()
