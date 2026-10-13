@@ -1,0 +1,19 @@
+Mudds Shipyards — Linux development checkpoint — 2026-10-13
+Source: 5d39f453407b7ba94708931dcd3e139c756f9656
+ELF: MuddsShipyards-5d39f45.x86_64
+Archive: MuddsShipyards-5d39f45-linux-x86_64.tar.gz
+ELF SHA-256: 670b5e3705f81f8368059b004e561490605345414bf77b3b0337b2f4cedf7898
+Archive SHA-256: 5cdeea8bdf79e8edbae77b460442c7c6527edaeb1471adaea739e986edcd0548
+
+Changes
+Cargo Hauler cabin construction reuses two local finishes instead of seven duplicate recipes: five fewer material resources per craft. Resources remain isolated per craft; authored geometry, appearance, controls and damage behavior are preserved. No measured FPS or High-startup fix is claimed. Includes the prior remote crew camera-heading and saved Low graphics shadow changes.
+
+Validation
+Fresh independent clean clone; exact-source resource14, geometry/damage74, access67, loading-screen139 and solar/readability40 pass with actual exit 0 and independent fresh protected-state/process closure. Clean Linux export passes; native standalone and archive-extracted ELF each exit 0 with exactly one STARTUP_MENU_READY_OK. Four packaged station suites pass 223 checks, each exit 0, one positive sentinel and zero diagnostics. Fresh closure preserves all eight source/index/cache/build/template/home-data scopes and verifies all 13 captured test identities plus two loopback setup identities absent.
+Archive paths/modes are safe; its ELF bytes match the standalone executable. Both Windows and Linux packages contain the same 1,512-entry roster: 1,446 payload hashes match. 65 scenes differ only in serialized node_ids; one independently imported BC7 texture differs in 96 pixels. Full byte/visual parity is not claimed. Original export-result metadata remains unchanged, including its export-time startup_check NOT_RUN; actual subsequent startup acceptance is recorded here.
+Exact-source core CI passes on run38352486593. Core, Ember and all four headless shards pass on ancestor b2bef run38347344244; its full and graphical jobs remain live at 06:45:06 UTC. No complete-CI claim. Previously published Windows PCK passes packed four-peer crew136; this new Linux package's full crew/canonical journeys are NOT_RUN.
+Two rejected earlier station runs remain retained: root inventory inspection generated a Python cache (removed; source baseline restored), then disk exhaustion interrupted a rerun. System package caches were pruned; the accepted rerun independently passes all original checks.
+
+Open gates
+Rime outbound/landing/survey/saved reward pass, but return cancels with obstacle_detected; full home docking and walking exit remain unaccepted. High software-renderer startup retains its original 300-second deadline failure. Main runtime integration, complete Aurora/Rime and remote-crew/interruption/endurance journeys, full CI and final release remain open. Native Windows, target/minimum GPU, controller, human/visual/accessibility and audible testing remain NOT_RUN.
+Development checkpoint; no phase exit or final-release acceptance.
