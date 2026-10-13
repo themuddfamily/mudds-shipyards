@@ -106,7 +106,78 @@ class LegSampler extends RefCounted:
 		_last_ship_position = Vector3.INF
 		_last_player_position = Vector3.INF
 
+	var physics_sampling := false
+	var physics_phase: StringName = &""
+	var physics_samples := 0
+	var max_physics_frame_gap := 0
+	var max_landing_step_m := 0.0
+	var _physics_tree: SceneTree
+	var _physics_game: WeakRef
+	var _last_physics_frame := -1
+	var _waiting_for_seat := false
+
+	func start_physics_sampling(tree: SceneTree, game: GameFlow, phase: StringName, wait_for_seat: bool = false) -> void:
+		_physics_tree = tree
+		_physics_game = weakref(game)
+		physics_phase = phase
+		physics_sampling = true
+		_waiting_for_seat = wait_for_seat
+		if not wait_for_seat:
+			_baseline_physics_positions(game)
+		tree.physics_frame.connect(_sample_previous_physics_step)
+
+	func _baseline_physics_positions(game: GameFlow) -> void:
+		# A read-only baseline; measured deltas come only from physics callbacks.
+		_last_ship_position = game.active_ship.global_position
+		_last_player_position = game.player.global_position
+		_last_rebase_transactions = int(game.common_world_origin_rebase_owner.get_snapshot().get("transaction_count", 0))
+
+	func stop_physics_sampling() -> void:
+		if not physics_sampling:
+			return
+		# The connected callback runs first and captures the final completed
+		# tick before this waiter disconnects. No post-process sample is added.
+		await _physics_tree.physics_frame
+		_physics_tree.physics_frame.disconnect(_sample_previous_physics_step)
+		physics_sampling = false
+		_physics_game = null
+
+	func _sample_previous_physics_step() -> void:
+		var game := _physics_game.get_ref() as GameFlow
+		if not is_instance_valid(game) or game.is_queued_for_deletion():
+			return
+		if _waiting_for_seat:
+			var craft := game.active_ship as HeroShip
+			var player := game.player as PlayerController
+			var area := craft.get_node(^"ShipBoardingArea") as ShipBoardingArea
+			if not craft.is_piloted() or not player.is_seated_at(craft.get_pilot_seat_anchor()) \
+					or area.get_reservation_token() != player \
+					or game.ember_surface_loop_host.get_phase() < EmberSurfaceLoopHost.Phase.REBOARDED:
+				return
+			# Observe the genuine seat boundary before the first ascent step;
+			# the ordinary boarding pose change is outside flight continuity.
+			_baseline_physics_positions(game)
+			_waiting_for_seat = false
+		var frame := Engine.get_physics_frames()
+		if _last_physics_frame >= 0:
+			max_physics_frame_gap = maxi(max_physics_frame_gap, frame - _last_physics_frame)
+		_last_physics_frame = frame
+		physics_samples += 1
+		# physics_frame precedes EVERY node physics step, so these reads observe
+		# the previous completed step even during several catch-up ticks.
+		_sample(game)
+		if physics_phase == &"outbound" and game.ember_surface_loop_host.get_phase() > EmberSurfaceLoopHost.Phase.IDLE:
+			physics_phase = &"landing"
+		if physics_phase == &"landing":
+			max_landing_step_m = maxf(max_landing_step_m, maxf(last_ship_step_m, last_player_step_m))
+
 	func step(game: GameFlow) -> void:
+		# Existing process-loop calls remain the legacy sampler; completed mode
+		# is measured exclusively by the physics callback, with no double steps.
+		if not physics_sampling:
+			_sample(game)
+
+	func _sample(game: GameFlow) -> void:
 		ticks += 1
 		var craft := game.active_ship as HeroShip
 		var player := game.player as PlayerController
@@ -157,6 +228,7 @@ var _forged_rebase_checks := 0
 var _forged_rebases_rejected := true
 var _replayed_rebase_checked := false
 var _first_outbound_blocker: Dictionary = {}
+var _physics_samplers: Array[LegSampler] = []
 
 
 func _init() -> void:
@@ -373,6 +445,9 @@ func _run() -> void:
 		var reopened := game.begin_ember_surface_journey(host, game.activity_director, Callable(self, &"_on_reward"), 3)
 		_check(bool(reopened.get("accepted", false)), "fresh request after re-entry resumes from current craft position")
 	var sampler := LegSampler.new()
+	if completed_mode:
+		sampler.start_physics_sampling(self, game, &"outbound")
+		_physics_samplers.append(sampler)
 	var last_reason: StringName = &""
 	var ticks_without_motion := 0
 	var handed_off := false
@@ -415,15 +490,20 @@ func _run() -> void:
 	if not completed_mode:
 		_check(_forged_rebase_checks == 3 and _forged_rebases_rejected,
 			"wrong world, request and translation receipts leave live transit unchanged")
+	if completed_mode and not handed_off:
+		await sampler.stop_physics_sampling()
 	_check(handed_off, "physical outbound reaches the authored entry and starts surface handoff")
 	_check(sampler.distance_flown_m > 7_800_000.0, "outbound craft physically covers over 7,800 km")
 	_check(sampler.rebase_count > 700, "outbound crosses hundreds of committed origin rebases")
-	_check(sampler.max_ship_step_m <= TICK_STEP_LIMIT_M and sampler.max_player_step_m <= TICK_STEP_LIMIT_M,
+	_check(sampler.max_ship_step_m <= TICK_STEP_LIMIT_M and sampler.max_player_step_m <= TICK_STEP_LIMIT_M
+		and (not completed_mode or sampler.max_physics_frame_gap <= 1),
 		"craft and seated pilot remain continuous through rebases")
 	_check(sampler.occupancy_failures == 0, "pilot retains seat reservation and piloted state")
 	print("OUTBOUND_RESULT ticks=%d distance=%.1f rebases=%d peak=%.1f max_steps=%.3f/%.3f" % [
 		sampler.ticks, sampler.distance_flown_m, sampler.rebase_count, sampler.max_speed_mps,
-		sampler.max_ship_step_m, sampler.max_player_step_m])
+		sampler.max_ship_step_m, sampler.max_player_step_m],
+		" physics_phase=%s physics_samples=%d max_frame_gap=%d" % [sampler.physics_phase,
+			sampler.physics_samples, sampler.max_physics_frame_gap] if completed_mode else "")
 	if handed_off:
 		var landed := false
 		var landing_max_step := 0.0
@@ -440,14 +520,20 @@ func _run() -> void:
 			if host.get_phase() in [EmberSurfaceLoopHost.Phase.LANDED, EmberSurfaceLoopHost.Phase.FAILED]:
 				landed = host.get_phase() == EmberSurfaceLoopHost.Phase.LANDED
 				break
+		if completed_mode:
+			await sampler.stop_physics_sampling()
+			landing_max_step = sampler.max_landing_step_m
 		_check(landed and bool(craft.get_telemetry().get("landed", false))
 			and game.ember_surface_berth.get_occupant() == craft,
 			"surface Host physically lands the arriving craft")
 		_check(sampler.max_ship_step_m <= TICK_STEP_LIMIT_M
 			and sampler.max_player_step_m <= TICK_STEP_LIMIT_M
-			and sampler.occupancy_failures == 0 and landing_max_step <= landing_step_limit,
+			and sampler.occupancy_failures == 0 and landing_max_step <= landing_step_limit
+			and (not completed_mode or sampler.max_physics_frame_gap <= 1),
 			"physical handoff and landing preserve craft, pilot and seat continuity")
-		print("OUTBOUND_LANDING phase=", host.get_phase(), " max_step=", landing_max_step, " telemetry=", craft.get_telemetry())
+		print("OUTBOUND_LANDING phase=", host.get_phase(), " max_step=", landing_max_step, " telemetry=", craft.get_telemetry(),
+			" physics_phase=%s physics_samples=%d max_frame_gap=%d" % [sampler.physics_phase,
+				sampler.physics_samples, sampler.max_physics_frame_gap] if completed_mode else "")
 		if landed and completed_mode:
 			await _physical_completed_return(game, store, filesystem)
 		elif landed and OS.get_environment("KETH_EMBER_PHYSICAL_RETURN") == "1":
@@ -809,6 +895,9 @@ func _physical_completed_return(
 		"the returning surface pilot walks into the actual boarding interaction")
 	if not nearby or not _failures.is_empty():
 		return
+	var sampler := LegSampler.new()
+	sampler.start_physics_sampling(self, game, &"return", true)
+	_physics_samplers.append(sampler)
 	for _attempt in 12:
 		await _press_live_action(&"interact", 1)
 		for _settle in 6:
@@ -824,7 +913,6 @@ func _physical_completed_return(
 	_check(reboarded, "ordinary E reboards the completed survey pilot with a current real seat reservation")
 	if not reboarded:
 		return
-	var sampler := LegSampler.new()
 	var started_frame := Engine.get_physics_frames()
 	var ascent_frames := int(ceil(COMPLETED_ASCENT_SECONDS * float(Engine.physics_ticks_per_second)))
 	var returning := false
@@ -843,6 +931,7 @@ func _physical_completed_return(
 			break
 	_check(returning, "Host physically takes off and completes its normal ascent into the genuine return cruise")
 	if not returning:
+		await sampler.stop_physics_sampling()
 		return
 	var completed := false
 	var left_ember := false
@@ -861,11 +950,13 @@ func _physical_completed_return(
 			break
 		if craft.is_destroyed() or sampler.occupancy_failures > 0:
 			break
+	if not completed:
+		await sampler.stop_physics_sampling()
 	_check(completed and left_ember and sampler.rebase_count > 700
 		and sampler.distance_flown_m > 7_800_000.0,
 		"the paid expedition physically returns over 7,800 km, unloads Ember and enters the real home corridor")
 	_check(sampler.max_ship_step_m <= TICK_STEP_LIMIT_M and sampler.max_player_step_m <= TICK_STEP_LIMIT_M
-		and sampler.occupancy_failures == 0,
+		and sampler.occupancy_failures == 0 and sampler.max_physics_frame_gap <= 1,
 		"completed return preserves craft and seated pilot continuity without recovery placement")
 	if completed:
 		_check(await _fly_home_berth(game, sampler),
@@ -873,6 +964,7 @@ func _physical_completed_return(
 		var arrival := game.get("_last_planetary_return_physical_arrival_result") as Dictionary
 		_check(bool(arrival.get("accepted", false)) and bool(game.get("_planetary_return_receipt_consumed")),
 			"the actual home berth landing consumes the current production planetary return receipt")
+	await sampler.stop_physics_sampling()
 	var final_store := Store.new(COMPLETED_STORE_PATH, filesystem)
 	var final_load := final_store.load_read_only()
 	_check(_beacon_receipts(store) == 1
@@ -883,7 +975,9 @@ func _physical_completed_return(
 		"the usable home exit retains exactly one earned reward and its paid terminal on disk")
 	print("PHYSICAL_RETURN_RESULT completed=", completed, " ticks=", sampler.ticks,
 		" rebases=", sampler.rebase_count, " distance=", sampler.distance_flown_m,
-		" max_steps=", sampler.max_ship_step_m, "/", sampler.max_player_step_m)
+		" max_steps=", sampler.max_ship_step_m, "/", sampler.max_player_step_m,
+		" physics_phase=", sampler.physics_phase, " physics_samples=", sampler.physics_samples,
+		" max_frame_gap=", sampler.max_physics_frame_gap)
 
 
 func _survey_route(game: GameFlow) -> Dictionary:
@@ -1045,6 +1139,8 @@ func _physical_abandon_return(game: GameFlow) -> void:
 ## A test pilot issues only the same held actions as a player. Cruise has already
 ## handed back authority; no transform, velocity, lease or completion is written.
 func _fly_home_berth(game: GameFlow, sampler: LegSampler) -> bool:
+	if sampler.physics_sampling:
+		sampler.physics_phase = &"home"
 	var craft := game.active_ship as HeroShip
 	var player := game.player as PlayerController
 	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
@@ -1097,12 +1193,14 @@ func _fly_home_berth(game: GameFlow, sampler: LegSampler) -> bool:
 		if landing_requested and not craft.is_landing_active() and not bool(craft.get_telemetry().get("landed", false)):
 			landing_requested = false
 	_release_all_actions()
+	if sampler.physics_sampling:
+		await sampler.stop_physics_sampling()
 	var token := berth.get_reservation_token(craft)
 	if not docked or token.is_empty() \
 			or token != StringName((game.get("_berth_tokens") as Dictionary).get(craft.get_instance_id(), &"")):
 		return false
 	_check(sampler.max_ship_step_m <= TICK_STEP_LIMIT_M and sampler.max_player_step_m <= TICK_STEP_LIMIT_M
-		and sampler.occupancy_failures == 0,
+		and sampler.occupancy_failures == 0 and sampler.max_physics_frame_gap <= 1,
 		"ordinary flight and physical berth landing preserve craft/pilot continuity and occupied seat until disembark")
 	for tick in 900:
 		if not player.is_seated() and player.is_control_enabled() and not bool(game.get("_transition_busy")):
@@ -1430,6 +1528,9 @@ func _wait_until(predicate: Callable, timeout_seconds: float) -> bool:
 
 func _tear_down(game: Node) -> void:
 	_release_all_actions()
+	for sampler: LegSampler in _physics_samplers:
+		await sampler.stop_physics_sampling()
+	_physics_samplers.clear()
 	game.queue_free()
 	for _teardown_frame in 12:
 		await process_frame
