@@ -58,6 +58,7 @@ jobs:
           path: artifacts/test-matrix/
           retention-days: 7
   broad:
+    name: broad (${{ matrix.label }})
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -65,7 +66,12 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        mode: [headless, graphical]
+        include:
+          - {mode: headless, label: 'headless 1/4', shard: '1/4', artifact: broad-headless-regression-1-of-4}
+          - {mode: headless, label: 'headless 2/4', shard: '2/4', artifact: broad-headless-regression-2-of-4}
+          - {mode: headless, label: 'headless 3/4', shard: '3/4', artifact: broad-headless-regression-3-of-4}
+          - {mode: headless, label: 'headless 4/4', shard: '4/4', artifact: broad-headless-regression-4-of-4}
+          - {mode: graphical, label: graphical, artifact: broad-graphical-regression}
     steps:
       - uses: actions/checkout@v4
       - name: Install pinned Godot
@@ -79,9 +85,12 @@ jobs:
       # software/CI hosts. Keep core suites at 180 seconds; preserve real physics.
       # These mode-filtered jobs are regressions, not a full-scope release gate.
       # Full release evidence requires one unfiltered --mode all run with display.
+      # Partition the complete discovered headless roster across independent jobs.
+      # Each cold checkout keeps the original 180-minute job and 1200-second suite
+      # limits; round-robin selection balances the sorted roster without omitting it.
       - name: Broader headless suites
         if: matrix.mode == 'headless'
-        run: bash tools/release/run_test_matrix.sh --mode headless --audio-driver Dummy --jobs 1 --timeout 1200
+        run: bash tools/release/run_test_matrix.sh --mode headless --audio-driver Dummy --jobs 1 --timeout 1200 --shard "${{ matrix.shard }}"
       # bugs.md RENDER-001 remains accepted, not fixed; preserve/report raw warnings.
       - name: Graphical suites with Forward+ software rendering
         if: matrix.mode == 'graphical'
@@ -92,7 +101,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: broad-${{ matrix.mode }}-regression
+          name: ${{ matrix.artifact }}
           path: artifacts/test-matrix/
           retention-days: 14
   full-candidate:

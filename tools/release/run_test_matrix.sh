@@ -19,6 +19,9 @@ AUDIO_DRIVER="${TEST_MATRIX_AUDIO_DRIVER:-Dummy}"
 DISPLAY_DRIVER="${TEST_MATRIX_DISPLAY_DRIVER:-}"
 MODE="${TEST_MATRIX_MODE:-headless}"
 LIST_ONLY=0
+SHARD_SPEC=""
+SHARD_INDEX=0
+SHARD_COUNT=0
 ACCEPTED_RISK=""
 IMPORT_GATE="${TEST_MATRIX_IMPORT_GATE:-auto}"
 ALLOW_CACHE_DRIFT="${TEST_MATRIX_ALLOW_CACHE_DRIFT:-0}"
@@ -53,7 +56,7 @@ usage() {
 	cat <<EOF
 Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--headless-timeout SECONDS] [--results-dir DIR]
                         [--audio-driver NAME] [--display-driver NAME] [--jobs N] [--scope SPEC[,SPEC...]]
-                        [--manifest-scope PATH[,PATH...]] [--import-gate MODE]
+                        [--manifest-scope PATH[,PATH...]] [--import-gate MODE] [--shard INDEX/COUNT]
 
 Recursively run tests/**/*_test.gd files under Godot, one isolated process per suite,
 and write a timestamped matrix manifest. Suites run in parallel by default; the
@@ -81,6 +84,9 @@ Options:
   --jobs N                  Concurrent suites. Default: min(cores/4, available GiB/2, 4), floor 1.
                             Use --jobs 1 for a strictly serial debugging run. Network suites
                             share one per-run flock lane; other workers keep advancing.
+  --shard INDEX/COUNT      Run one 1-based shard of the sorted, mode-filtered selection.
+                            Round-robin shards are disjoint and cover that entire selection.
+                            Each shard retains all import, timeout and result gates.
   --scope SPEC[,SPEC...]    Select a subset of suites. Repeatable. A SPEC may be
                             a suite name (fleet_pbr_test), a file name
                             (fleet_pbr_test.gd), a path (tests/fleet_pbr_test.gd),
@@ -123,6 +129,10 @@ while [[ $# -gt 0 ]]; do
 		--mode) MODE="$2"; shift 2 ;;
 		--display-driver) DISPLAY_DRIVER="$2"; shift 2 ;;
 		--list) LIST_ONLY=1; shift ;;
+		--shard)
+			[[ $# -ge 2 && -n "$2" ]] || { echo "Missing --shard INDEX/COUNT"; exit 2; }
+			[[ -z "$SHARD_SPEC" ]] || { echo "Repeated --shard"; exit 2; }
+			SHARD_SPEC="$2"; shift 2 ;;
 		--godot)
 			GODOT_BIN="$2"
 			shift 2
@@ -171,6 +181,17 @@ while [[ $# -gt 0 ]]; do
 			;;
 	esac
 done
+
+if [[ -n "$SHARD_SPEC" ]]; then
+	if ! [[ "$SHARD_SPEC" =~ ^([1-9][0-9]{0,8})/([1-9][0-9]{0,8})$ ]]; then
+		echo "Invalid --shard: $SHARD_SPEC (expected positive INDEX/COUNT)"; exit 2
+	fi
+	SHARD_INDEX="${BASH_REMATCH[1]}"
+	SHARD_COUNT="${BASH_REMATCH[2]}"
+	if (( SHARD_INDEX > SHARD_COUNT )); then
+		echo "Invalid --shard: index exceeds count"; exit 2
+	fi
+fi
 
 if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || (( TIMEOUT_SECONDS < 1 )); then
 	echo "Invalid timeout: $TIMEOUT_SECONDS"
@@ -549,6 +570,19 @@ for test_file in "${TEST_FILES[@]}"; do
 	fi
 done
 TEST_FILES=("${mode_tests[@]}")
+if [[ -n "$SHARD_SPEC" ]]; then
+	shard_tests=()
+	for (( shard_position = 0; shard_position < ${#TEST_FILES[@]}; shard_position++ )); do
+		if (( shard_position % SHARD_COUNT == SHARD_INDEX - 1 )); then
+			shard_tests+=("${TEST_FILES[$shard_position]}")
+		fi
+	done
+	TEST_FILES=("${shard_tests[@]}")
+	if (( ${#TEST_FILES[@]} == 0 )); then
+		echo "No suites selected for --shard $SHARD_SPEC"; exit 2
+	fi
+	SCOPE_LABEL="$MODE:$SCOPE_LABEL shard=$SHARD_SPEC"
+fi
 if (( LIST_ONLY == 1 )); then
 	for test_file in "${TEST_FILES[@]}"; do
 		printf '%s\t%s\n' "${test_file#"$PROJECT_ROOT"/}" "${SUITE_MODES[$test_file]}"
