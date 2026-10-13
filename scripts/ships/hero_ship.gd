@@ -108,6 +108,11 @@ const PLANETARY_CRUISE_STATE_BRAKING_TO_SPEED: StringName = &"braking_to_speed"
 const PLANETARY_CRUISE_STATE_BRAKING: StringName = &"braking"
 const PLANETARY_CRUISE_STATE_ALIGNING: StringName = &"approach_aligning"
 const PLANETARY_CRUISE_TURN_RATE_RADIANS := PI / 3.0
+# Long convex casts can report a coarse blocked fraction on an otherwise clear
+# route. Recheck the WHOLE span, splitting both halves only after a refusal.
+# At the fixed depth/length bound, an unresolved cast still blocks cruise.
+const PLANETARY_CRUISE_CLEARANCE_SPLIT_MAX_DEPTH := 8
+const PLANETARY_CRUISE_CLEARANCE_SPLIT_MIN_METERS := 4096.0
 const PLANETARY_CRUISE_CLEARANCE_PROOF_KEYS := [
 	"accepted",
 	"reason",
@@ -1789,16 +1794,8 @@ func build_planetary_cruise_clearance_proof(
 		query.collide_with_areas = false
 		query.exclude = [get_rid()]
 		query.margin = 0.0
-		if not space.intersect_shape(query, 1).is_empty():
-			minimum_safe_fraction = 0.0
-			obstacle_detected = true
-			queried_shape_count += 1
-			continue
-		query.motion = motion
-		var cast_result := space.cast_motion(query)
-		if cast_result.size() != 2 \
-			or not is_finite(float(cast_result[0])) \
-			or not is_finite(float(cast_result[1])):
+		var sweep := _planetary_cruise_query_full_sweep(space, query, collision.global_transform, motion, 0)
+		if not bool(sweep.get("accepted", false)):
 			return _planetary_cruise_clearance_receipt(
 				false,
 				&"shape_cast_failed",
@@ -1808,21 +1805,8 @@ func build_planetary_cruise_clearance_proof(
 				enabled_shapes.size(),
 				queried_shape_count
 			)
-		var safe_fraction := clampf(float(cast_result[0]), 0.0, 1.0)
-		minimum_safe_fraction = minf(minimum_safe_fraction, safe_fraction)
-		if safe_fraction < 1.0:
-			obstacle_detected = true
-		else:
-			# `cast_motion()` returns [1, 1] for both a clear sweep and some exact
-			# endpoint contacts. Test the closed endpoint explicitly so the proof
-			# matches the policy's at-or-before boundary.
-			query.motion = Vector3.ZERO
-			query.transform = Transform3D(
-				collision.global_basis,
-				collision.global_position + motion
-			)
-			if not space.intersect_shape(query, 1).is_empty():
-				obstacle_detected = true
+		minimum_safe_fraction = minf(minimum_safe_fraction, float(sweep.get("safe_fraction", 0.0)))
+		obstacle_detected = obstacle_detected or bool(sweep.get("obstacle_detected", true))
 		queried_shape_count += 1
 	var verified_clearance := sweep_distance_meters * minimum_safe_fraction
 	var ship_speed := velocity.length()
@@ -1884,6 +1868,192 @@ func build_planetary_cruise_clearance_proof(
 	_planetary_cruise_pending_clearance_proof = proof.duplicate(true)
 	_planetary_cruise_mutation_active = false
 	return proof.duplicate(true)
+
+
+## A cylinder also corroborates a native-clear long cast with a whole-span
+## enclosing-box volume: native cylinder casts can miss real thin obstacles.
+## If that volume refuses, both complete halves must be proved within the same
+## short-leaf/depth bounds. Native-refused short leaves remain blocked.
+## The original shape/query is never replaced by the scratch enclosing box.
+func _planetary_cruise_query_full_sweep(
+		space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3D,
+		start: Transform3D, motion: Vector3, depth: int,
+		recheck_refusal: bool = false,
+		swept_query: PhysicsShapeQueryParameters3D = null
+	) -> Dictionary:
+	query.transform = start
+	query.motion = Vector3.ZERO
+	var initial_hits := space.intersect_shape(query, 1)
+	if not initial_hits.is_empty():
+		return _planetary_cruise_sweep_refusal(&"initial_overlap", start, motion, depth,
+			0.0, null, initial_hits[0])
+	query.motion = motion
+	var cast_result := space.cast_motion(query)
+	if cast_result.size() != 2 or not is_finite(float(cast_result[0])) \
+			or not is_finite(float(cast_result[1])):
+		return {"accepted": false}
+	var safe_fraction := float(cast_result[0])
+	var unsafe_fraction := float(cast_result[1])
+	if safe_fraction < 0.0 or unsafe_fraction > 1.0 or safe_fraction > unsafe_fraction:
+		return {"accepted": false}
+	var endpoint := start
+	endpoint.origin += motion
+	query.transform = endpoint
+	query.motion = Vector3.ZERO
+	var endpoint_hits := space.intersect_shape(query, 1)
+	if not endpoint_hits.is_empty():
+		return _planetary_cruise_sweep_refusal(&"endpoint_overlap", start, motion, depth,
+			0.0 if recheck_refusal else safe_fraction, cast_result, endpoint_hits[0])
+	if safe_fraction == 1.0 and not recheck_refusal and not query.shape is CylinderShape3D:
+		return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
+	if not motion.is_finite() or not start.is_finite() \
+			or is_zero_approx(start.basis.determinant()):
+		return _planetary_cruise_sweep_refusal(&"invalid_sweep_geometry", start, motion,
+			depth, 0.0, cast_result)
+	# Other unsupported shapes retain their validated native prefix AND refusal;
+	# only boxes and cylinders have a proved conservative enclosing volume.
+	if not query.shape is BoxShape3D and not query.shape is CylinderShape3D:
+		return _planetary_cruise_sweep_refusal(&"unsupported_shape_native_refusal",
+			start, motion, depth, safe_fraction, cast_result)
+	if swept_query == null:
+		# One primitive scratch box/query per root hull shape, reused across
+		# all adaptive spans. No native convex-hull build or persistent cache.
+		swept_query = PhysicsShapeQueryParameters3D.new()
+		swept_query.shape = BoxShape3D.new()
+		swept_query.collision_mask = query.collision_mask
+		swept_query.collide_with_bodies = query.collide_with_bodies
+		swept_query.collide_with_areas = query.collide_with_areas
+		swept_query.exclude = query.exclude
+		swept_query.margin = query.margin
+		swept_query.motion = Vector3.ZERO
+	if query.shape is CylinderShape3D:
+		var cylinder := query.shape as CylinderShape3D
+		if not is_finite(cylinder.radius) or not is_finite(cylinder.height) \
+				or cylinder.radius <= 0.0 or cylinder.height <= 0.0:
+			return _planetary_cruise_sweep_refusal(&"invalid_cylinder_dimensions",
+				start, motion, depth, 0.0, cast_result)
+		var short_leaf := motion.length() <= PLANETARY_CRUISE_CLEARANCE_SPLIT_MIN_METERS
+		if short_leaf and safe_fraction < 1.0:
+			return _planetary_cruise_sweep_refusal(&"short_native_refusal", start,
+				motion, depth, 0.0, cast_result)
+		# The complete cylinder lies within [-r,r] x [-h/2,h/2] x [-r,r].
+		# Sweeping this BOX encloses every point of its translation; no radial
+		# polygon approximates or cuts inside the actual circular silhouette.
+		var enclosure := BoxShape3D.new()
+		enclosure.size = Vector3(cylinder.radius, cylinder.height * 0.5, cylinder.radius) * 2.0
+		var cylinder_hit: Dictionary = {}
+		if _planetary_cruise_swept_box_is_clear(space, enclosure, start, motion,
+				swept_query, cylinder_hit):
+			return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
+		if short_leaf:
+			return _planetary_cruise_sweep_refusal(&"swept_volume_refusal", start,
+				motion, depth, 0.0, cast_result, cylinder_hit)
+		# A nonempty/unresolved long enclosing volume proves no clearance.
+		# Reuse the original cylinder query and cover BOTH halves below.
+	elif motion.length() <= PLANETARY_CRUISE_CLEARANCE_SPLIT_MIN_METERS:
+		# Native-refused short leaves remain unresolved; never clear them from
+		# an empty sampled pose or even an empty corroborating volume.
+		if safe_fraction < 1.0:
+			return _planetary_cruise_sweep_refusal(&"short_native_refusal", start,
+				motion, depth, 0.0, cast_result)
+		var volume_hit: Dictionary = {}
+		if not _planetary_cruise_swept_box_is_clear(space,
+				query.shape as BoxShape3D, start, motion, swept_query, volume_hit):
+			return _planetary_cruise_sweep_refusal(&"swept_volume_refusal", start,
+				motion, depth, 0.0, cast_result, volume_hit)
+		return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
+	if depth >= PLANETARY_CRUISE_CLEARANCE_SPLIT_MAX_DEPTH:
+		return _planetary_cruise_sweep_refusal(&"split_depth_exhausted", start, motion,
+			depth, 0.0, cast_result)
+	var half_motion := motion * 0.5
+	var midpoint := start
+	midpoint.origin += half_motion
+	var first := _planetary_cruise_query_full_sweep(space, query, start, half_motion,
+		depth + 1, true, swept_query)
+	var second := _planetary_cruise_query_full_sweep(space, query, midpoint, half_motion,
+		depth + 1, true, swept_query)
+	if not bool(first.get("accepted", false)) or not bool(second.get("accepted", false)):
+		return {"accepted": false}
+	var first_blocked := bool(first.get("obstacle_detected", true))
+	# The full first half counts only when clear. A blocked leaf contributes
+	# zero prefix, retaining the earliest unproved segment conservatively.
+	var verified_fraction := float(first.get("safe_fraction", 0.0)) * 0.5 if first_blocked \
+		else 0.5 + float(second.get("safe_fraction", 0.0)) * 0.5
+	var combined := {"accepted": true, "safe_fraction": verified_fraction,
+		"obstacle_detected": first_blocked or bool(second.get("obstacle_detected", true))}
+	if bool(combined.obstacle_detected):
+		combined["refusal"] = (first if first_blocked else second).get("refusal", {})
+	return combined
+
+
+## Failure metadata carries no clearance or movement capability. A collider is
+## named only when one of the existing overlap queries actually returned it.
+func _planetary_cruise_sweep_refusal(
+		reason: StringName, start: Transform3D, motion: Vector3, depth: int,
+		safe_fraction: float, native_cast: Variant = null, hit: Dictionary = {}
+	) -> Dictionary:
+	var refusal := {
+		"reason": reason, "start": start, "motion": motion, "depth": depth,
+		"native_cast": native_cast,
+	}
+	if not hit.is_empty():
+		var collider := hit.get("collider") as Node
+		refusal["collider_instance_id"] = int(hit.get("collider_id", 0))
+		refusal["collider_path"] = str(collider.get_path()) \
+			if is_instance_valid(collider) and collider.is_inside_tree() else ""
+		refusal["collider_shape"] = int(hit.get("shape", -1))
+		refusal["collider_rid"] = str(hit.get("rid", RID()))
+	return {"accepted": true, "safe_fraction": safe_fraction,
+		"obstacle_detected": true, "refusal": refusal}
+
+
+## A rigid box aligned with motion encloses the complete translated box.
+## Projecting the original box's support onto each enclosure axis bounds all
+## eight corners; adding the complete projected motion bounds every intervening
+## pose. Primitive box setup avoids native convex-hull coordinate quantization.
+func _planetary_cruise_swept_box_is_clear(
+		space: PhysicsDirectSpaceState3D, box: BoxShape3D, start: Transform3D,
+		motion: Vector3, swept_query: PhysicsShapeQueryParameters3D,
+		refusal_hit: Dictionary = {}
+	) -> bool:
+	if not box.size.is_finite() or box.size.x <= 0.0 or box.size.y <= 0.0 or box.size.z <= 0.0 \
+			or not start.is_finite() or not motion.is_finite() \
+			or is_zero_approx(start.basis.determinant()) or motion.is_zero_approx():
+		return false
+	var volume := swept_query.shape as BoxShape3D
+	if volume == null:
+		return false
+	var direction := motion.normalized()
+	var up := Vector3.RIGHT if absf(direction.dot(Vector3.UP)) > 0.9 else Vector3.UP
+	var enclosure_basis := Basis.looking_at(direction, up)
+	if not enclosure_basis.is_finite() or is_zero_approx(enclosure_basis.determinant()):
+		return false
+	var inverse := enclosure_basis.inverse()
+	var half_size := box.size * 0.5
+	var projected_half_size := (inverse * start.basis.x).abs() * half_size.x \
+		+ (inverse * start.basis.y).abs() * half_size.y \
+		+ (inverse * start.basis.z).abs() * half_size.z
+	var projected_motion := inverse * motion
+	var endpoint := start.origin + motion
+	# Bound float32 rounding in the basis projections, midpoint and dimensions.
+	# Padding expands the enclosure, so unresolved precision can only refuse.
+	var coordinate_scale := maxf(1.0, maxf(start.origin.abs().length(), endpoint.abs().length()))
+	var rounding_padding := coordinate_scale * (8.0 / 8388608.0)
+	var enclosure_size := projected_half_size * 2.0 + projected_motion.abs() \
+		+ Vector3.ONE * (rounding_padding * 2.0)
+	var enclosure_transform := Transform3D(enclosure_basis, start.origin + motion * 0.5)
+	if not enclosure_size.is_finite() or enclosure_size.x <= 0.0 \
+			or enclosure_size.y <= 0.0 or enclosure_size.z <= 0.0 \
+			or not enclosure_transform.is_finite():
+		return false
+	volume.size = enclosure_size
+	if not volume.get_rid().is_valid():
+		return false
+	swept_query.transform = enclosure_transform
+	var hits := space.intersect_shape(swept_query, 1)
+	if not hits.is_empty():
+		refusal_hit.merge(hits[0])
+	return hits.is_empty()
 
 
 ## Queues one exact envelope for the next HeroShip physics step. Acceptance does

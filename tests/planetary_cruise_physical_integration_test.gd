@@ -9,6 +9,7 @@ const ControllerType := preload(
 const TORRENT_SCENE := preload(
 	"res://scenes/ships/torrent_interceptor.tscn"
 )
+const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const FRAME_GENERATION := 7
 const DESTINATION_DISTANCE_METERS := 8_000_000.0
 
@@ -719,9 +720,214 @@ func _run() -> void:
 		]
 	)
 
+	await _test_arrow_rime_return_clearance(stage)
+
 	stage.queue_free()
 	await process_frame
 	_finish()
+
+
+func _test_arrow_rime_return_clearance(stage: Node3D) -> void:
+	var isolated := SubViewport.new()
+	isolated.name = "RimeReturnQueryWorld"
+	isolated.own_world_3d = true
+	stage.add_child(isolated)
+	var space_root := Node3D.new()
+	isolated.add_child(space_root)
+	var ship := ARROW_SCENE.instantiate() as HeroShip
+	space_root.add_child(ship)
+	ship.set_physics_process(false)
+	ship.set_piloted(true)
+	# Retained marker rotations are rounded; reconstitute a rigid basis.
+	var captured_basis := Basis(Vector3(-0.010678, -0.000225, 0.999943),
+		Vector3(0.011893, 0.999929, 0.000352),
+		Vector3(-0.999872, 0.011896, -0.010675)).orthonormalized()
+	var captured_position := Vector3(-75.0705, 845.1884, -1284.631)
+	var captured_velocity := Vector3(99.98653, -1.211884, 1.106596)
+	ship.global_transform = Transform3D(captured_basis, captured_position)
+	ship.velocity = captured_velocity
+	var direction := Vector3(0.999865, -0.012119, 0.011066).normalized()
+	const HORIZON := 750_000.0
+	await physics_frame
+	await process_frame
+	var controller := _bind_new_controller(space_root, ship, FRAME_GENERATION)
+	var attachment := int(ship.get_planetary_cruise_attachment_report().ship_attachment_generation)
+	var proof := ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment, controller.get_instance_id())
+	_check(bool(proof.get("accepted", false)) and not bool(proof.get("obstacle_detected", true))
+		and float(proof.get("verified_clearance_meters", -1.0)) == HORIZON
+		and int(proof.get("queried_shape_count", 0)) == 9,
+		"captured Rime return queries all nine authored shapes over the unchanged clear 750 km horizon in an isolated physics world")
+	var cylinder := ship.get_node("ArrowPortEngineCollarCollision") as CollisionShape3D
+	var blocker := _make_blocker("RimeReturnCylinderThinBlocker", Vector3(30.0, 30.0, 1.0),
+		cylinder.global_position + direction * 375_100.0)
+	space_root.add_child(blocker)
+	blocker.global_basis = Basis.looking_at(direction, Vector3.UP)
+	await physics_frame
+	await process_frame
+	# Confirm the actual published blocker occupies the Cylinder's translated
+	# midpoint in the same private physics space before trusting its long cast.
+	# This moves only a query transform; the genuine Arrow remains untouched.
+	var midpoint_query := PhysicsShapeQueryParameters3D.new()
+	midpoint_query.shape = cylinder.shape
+	midpoint_query.transform = cylinder.global_transform
+	midpoint_query.transform.origin += direction * 375_100.0
+	midpoint_query.collision_mask = ship.collision_mask
+	midpoint_query.collide_with_bodies = true
+	midpoint_query.collide_with_areas = false
+	midpoint_query.exclude = [ship.get_rid()]
+	midpoint_query.margin = 0.0
+	var midpoint_hits := ship.get_world_3d().direct_space_state.intersect_shape(midpoint_query, 1)
+	var midpoint_identity := int(midpoint_hits[0].get("collider_id", 0)) \
+		if not midpoint_hits.is_empty() else 0
+	var same_world := ship.get_world_3d() == blocker.get_world_3d() \
+		and ship.get_world_3d() == isolated.find_world_3d() \
+		and ship.get_world_3d() != stage.get_world_3d()
+	var blocked := _arrow_sweep_detail(ship, cylinder, direction * HORIZON)
+	var refusal := blocked.get("refusal", {}) as Dictionary
+	_check(bool(blocked.get("accepted", false)) and bool(blocked.get("obstacle_detected", false))
+		and float(blocked.get("safe_fraction", 1.0)) < 1.0
+		and not refusal.is_empty() and refusal.has("native_cast")
+		and int(refusal.get("depth", -1)) <= HeroShip.PLANETARY_CRUISE_CLEARANCE_SPLIT_MAX_DEPTH
+		and same_world and midpoint_identity == blocker.get_instance_id(),
+		"captured Rime return cylinder retains an actual distant thin obstacle with published midpoint identity [same_world=%s midpoint_id=%d expected_id=%d cylinder_pose=%s blocker_pose=%s refusal=%s]" % [
+			same_world, midpoint_identity, blocker.get_instance_id(),
+			cylinder.global_transform, blocker.global_transform, refusal])
+	proof = ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment, controller.get_instance_id())
+	_check(bool(proof.get("accepted", false)) and bool(proof.get("obstacle_detected", false))
+		and float(proof.get("verified_clearance_meters", HORIZON)) < 375_100.0
+		and int(proof.get("queried_shape_count", 0)) == 9,
+		"whole Arrow hull proof refuses the actual thin cylinder blocker inside the 750 km span")
+	blocker.free()
+	blocker = _make_blocker("RimeReturnCylinderShortBlocker", Vector3(30.0, 30.0, 1.0),
+		cylinder.global_position + direction * 100.0)
+	space_root.add_child(blocker)
+	blocker.global_basis = Basis.looking_at(direction, Vector3.UP)
+	await physics_frame
+	await process_frame
+	var native_query := PhysicsShapeQueryParameters3D.new()
+	native_query.shape = cylinder.shape
+	native_query.transform = cylinder.global_transform
+	native_query.motion = direction * 200.0
+	native_query.collision_mask = ship.collision_mask
+	native_query.collide_with_bodies = true
+	native_query.collide_with_areas = false
+	native_query.exclude = [ship.get_rid()]
+	native_query.margin = 0.0
+	var native_short := ship.get_world_3d().direct_space_state.cast_motion(native_query)
+	blocked = _arrow_sweep_detail(ship, cylinder, direction * 200.0)
+	refusal = blocked.get("refusal", {}) as Dictionary
+	_check(native_short.size() == 2 and float(native_short[0]) < 1.0
+		and bool(blocked.get("obstacle_detected", false))
+		and float(blocked.get("safe_fraction", -1.0)) == 0.0
+		and refusal.get("reason") == &"short_native_refusal",
+		"native-refused short cylinder leaf never becomes a clear sweep")
+	blocker.free()
+	blocker = _make_blocker("RimeReturnCylinderInitialBlocker", Vector3.ONE * 3.0,
+		cylinder.global_position)
+	space_root.add_child(blocker)
+	await physics_frame
+	await process_frame
+	blocked = _arrow_sweep_detail(ship, cylinder, direction * HORIZON)
+	refusal = blocked.get("refusal", {}) as Dictionary
+	_check(bool(blocked.get("obstacle_detected", false))
+		and float(blocked.get("safe_fraction", -1.0)) == 0.0
+		and refusal.get("reason") == &"initial_overlap"
+		and int(refusal.get("collider_instance_id", 0)) == blocker.get_instance_id(),
+		"captured Rime return cylinder retains initial overlap and reports the real collider")
+	blocker.free()
+	blocker = _make_blocker("RimeReturnCylinderEndpointBlocker", Vector3.ONE * 3.0,
+		cylinder.global_position + direction * HORIZON)
+	space_root.add_child(blocker)
+	await physics_frame
+	await process_frame
+	blocked = _arrow_sweep_detail(ship, cylinder, direction * HORIZON)
+	refusal = blocked.get("refusal", {}) as Dictionary
+	_check(bool(blocked.get("obstacle_detected", false))
+		and refusal.get("reason") == &"endpoint_overlap"
+		and int(refusal.get("collider_instance_id", 0)) == blocker.get_instance_id()
+		and ship.global_transform.is_equal_approx(Transform3D(captured_basis, captured_position))
+		and ship.velocity.is_equal_approx(captured_velocity),
+		"captured Rime return cylinder retains a real endpoint obstacle without moving the query-only actor")
+	blocker.free()
+	await physics_frame
+	await process_frame
+	proof = ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment, controller.get_instance_id())
+	_check(bool(proof.get("accepted", false)) and not bool(proof.get("obstacle_detected", true))
+		and float(proof.get("verified_clearance_meters", -1.0)) == HORIZON,
+		"the complete 750 km hull span becomes clear after authentic blockers are removed")
+	# This exact deterministic direction reproduced native "Too few vertices
+	# per face" with the old 16-point convex enclosure at the captured pose.
+	var warning_direction_rng := RandomNumberGenerator.new()
+	warning_direction_rng.seed = 120613
+	var warning_direction := Vector3.ZERO
+	for _sample in 272:
+		warning_direction = Vector3(warning_direction_rng.randf_range(-1.0, 1.0),
+			warning_direction_rng.randf_range(-1.0, 1.0),
+			warning_direction_rng.randf_range(-1.0, 1.0))
+	warning_direction = warning_direction.normalized()
+	var warning_motion := warning_direction * HORIZON
+	var cylinder_shape := cylinder.shape as CylinderShape3D
+	var box := BoxShape3D.new()
+	box.size = Vector3(cylinder_shape.radius * 2.0, cylinder_shape.height,
+		cylinder_shape.radius * 2.0)
+	var scratch := PhysicsShapeQueryParameters3D.new()
+	scratch.shape = BoxShape3D.new()
+	scratch.collision_mask = ship.collision_mask
+	scratch.collide_with_bodies = true
+	scratch.collide_with_areas = false
+	scratch.exclude = [ship.get_rid()]
+	scratch.margin = 0.0
+	var warning_clear := bool(ship.call(&"_planetary_cruise_swept_box_is_clear",
+		ship.get_world_3d().direct_space_state, box, cylinder.global_transform,
+		warning_motion, scratch))
+	_check(warning_clear and scratch.shape is BoxShape3D,
+		"the reproduced oblique 750 km warning span uses a valid primitive enclosure and stays clear")
+	var contains_entire_sweep := true
+	var enclosure_half_size := (scratch.shape as BoxShape3D).size * 0.5
+	var enclosure_inverse := scratch.transform.affine_inverse()
+	for x in [-1.0, 1.0]:
+		for y in [-1.0, 1.0]:
+			for z in [-1.0, 1.0]:
+				var corner := cylinder.global_transform * (box.size * 0.5 * Vector3(x, y, z))
+				for travel in [Vector3.ZERO, warning_motion]:
+					var projected: Vector3 = (enclosure_inverse * (corner + travel)).abs()
+					contains_entire_sweep = contains_entire_sweep \
+						and projected.x <= enclosure_half_size.x \
+						and projected.y <= enclosure_half_size.y \
+						and projected.z <= enclosure_half_size.z
+	_check(contains_entire_sweep,
+		"primitive enclosure contains all start/end corners and their complete convex translation")
+	blocker = _make_blocker("RimeReturnObliqueThinBlocker", Vector3(30.0, 30.0, 1.0),
+		cylinder.global_position + warning_direction * 375_100.0)
+	space_root.add_child(blocker)
+	blocker.global_basis = Basis.looking_at(warning_direction, Vector3.UP)
+	await physics_frame
+	await process_frame
+	blocked = _arrow_sweep_detail(ship, cylinder, warning_motion)
+	_check(bool(blocked.get("accepted", false)) and bool(blocked.get("obstacle_detected", false))
+		and float(blocked.get("safe_fraction", 1.0)) < 1.0,
+		"the reproduced oblique warning span retains the actual distant thin blocker")
+	blocker.free()
+	isolated.queue_free()
+	await physics_frame
+	await process_frame
+
+
+## Exercise the existing real query directly so authentic blockers verify the
+## failure metadata without changing the strict public proof/envelope schema.
+func _arrow_sweep_detail(ship: HeroShip, hull: CollisionShape3D, motion: Vector3) -> Dictionary:
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = hull.shape
+	query.collision_mask = ship.collision_mask
+	query.collide_with_bodies = true
+	query.collide_with_areas = false
+	query.exclude = [ship.get_rid()]
+	query.margin = 0.0
+	return ship.call(&"_planetary_cruise_query_full_sweep",
+		ship.get_world_3d().direct_space_state, query, hull.global_transform, motion, 0) as Dictionary
 
 
 func _envelope_from_proof(
