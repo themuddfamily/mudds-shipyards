@@ -74,6 +74,28 @@ class InterruptedAftLoader extends StartupLoader:
 		aft.queue_free.call_deferred()
 
 
+class LowShadowLoader extends StartupLoader:
+	var first_world_mast_shadows: Array[bool] = []
+	var first_apron_mast_shadows: Array[bool] = []
+
+	func _on_construction_stage(generation: int, label: String, ratio: float) -> void:
+		super._on_construction_stage(generation, label, ratio)
+		if label != "Lighting the yard" and label != "Preparing Jovian Freight Berth":
+			return
+		var world := get_main().get_node("ShipyardWorld") as ShipyardWorld
+		# The completed-stage callback runs synchronously before the next await,
+		# so these are snapshots before the lights' first rendered frame.
+		if label == "Lighting the yard":
+			for child: Node in world.get_children():
+				if child is SpotLight3D and child.name != &"FleetDockMastSpot":
+					first_world_mast_shadows.append((child as SpotLight3D).shadow_enabled)
+		elif label == "Preparing Jovian Freight Berth":
+			var berth := world.get_node("JovianFreightBerth") as JovianFreightBerth
+			for light: Node in berth.find_children("*", "SpotLight3D", true, false):
+				if String(light.name).begins_with("ApronWorkLight"):
+					first_apron_mast_shadows.append((light as SpotLight3D).shadow_enabled)
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -503,7 +525,7 @@ func _test_atomic_graphics_profile_precedes_world_construction() -> void:
 	_check(bool(committed.accepted), "startup fixture stores validated atomic Low settings")
 	var stored_bytes := FileAccess.get_file_as_bytes(path)
 	var stored_payload: Dictionary = (JSON.parse_string(stored_bytes.get_string_from_utf8()) as Dictionary).payload.runtime_settings
-	var boot := BOOT_SCENE.instantiate() as StartupLoader
+	var boot := LowShadowLoader.new()
 	boot.auto_start = false
 	root.add_child(boot)
 	_check(FileAccess.get_file_as_bytes(path) == stored_bytes,
@@ -517,6 +539,12 @@ func _test_atomic_graphics_profile_precedes_world_construction() -> void:
 		"stored atomic Low reaches the staged world before environment construction")
 	if staged:
 		await boot.startup_completed
+	_check(boot.first_world_mast_shadows.size() == 7
+		and not boot.first_world_mast_shadows.has(true),
+		"stored Low disables all seven yard work-mast shadows before their first frame")
+	_check(boot.first_apron_mast_shadows.size() == 2
+		and not boot.first_apron_mast_shadows.has(true),
+		"stored Low disables both authored freight apron shadows before their first frame")
 	_check(flow != null and flow.runtime_settings.graphics_profile == RuntimeSettings.GraphicsProfile.LOW,
 		"normal GameFlow authority retains the stored Low graphics profile")
 	_check(flow != null and int(flow.get("_runtime_settings_load_attempt_count")) == 1,
