@@ -3,7 +3,9 @@ extends RefCounted
 ## The caller owns the source roster and must share its visibility/lifetime with
 ## the parent. Unsupported inputs leave every source shadow untouched.
 ##
-## By default the merge is exact: every source's own triangles, transformed.
+## By default the merge is exact: every source surface's own triangles,
+## transformed, in authored surface order. All opaque surface materials must
+## share culling/depth semantics; their colour bindings remain on the sources.
 ##
 ## A caller may instead supply one `proxies` mesh per source, which is merged in
 ## that source's place at that source's transform. This exists because a shadow
@@ -53,25 +55,30 @@ static func build(
 				or not is_zero_approx(source.visibility_range_end) \
 				or source.transform.basis.determinant() <= 0.0 \
 				or not source.mesh is ArrayMesh \
-				or source.mesh.get_surface_count() != 1 \
-				or source.mesh.surface_get_primitive_type(0) != Mesh.PRIMITIVE_TRIANGLES:
+				or source.mesh.get_surface_count() == 0:
 			return null
 		if (source.mesh as ArrayMesh).get_blend_shape_count() != 0 \
 				or (source.mesh as ArrayMesh).shadow_mesh != null:
 			return null
-		var candidate := source.get_active_material(0) as StandardMaterial3D
-		if candidate == null or candidate.next_pass != null \
-				or candidate.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED \
-				or candidate.billboard_mode != BaseMaterial3D.BILLBOARD_DISABLED \
-				or candidate.grow or candidate.fixed_size or candidate.proximity_fade_enabled \
-				or candidate.distance_fade_mode != BaseMaterial3D.DISTANCE_FADE_DISABLED:
-			return null
-		if material == null:
-			material = candidate
-		elif candidate.cull_mode != material.cull_mode \
-				or candidate.depth_draw_mode != material.depth_draw_mode \
-				or candidate.no_depth_test != material.no_depth_test:
-			return null
+		# Every surface contributes shadow triangles. Even with a proxy, no
+		# later material may introduce alpha, displacement or different depth/cull
+		# semantics. The complete roster passes before any source is mutated.
+		for surface_index in source.mesh.get_surface_count():
+			if source.mesh.surface_get_primitive_type(surface_index) != Mesh.PRIMITIVE_TRIANGLES:
+				return null
+			var candidate := source.get_active_material(surface_index) as StandardMaterial3D
+			if candidate == null or candidate.next_pass != null \
+					or candidate.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED \
+					or candidate.billboard_mode != BaseMaterial3D.BILLBOARD_DISABLED \
+					or candidate.grow or candidate.fixed_size or candidate.proximity_fade_enabled \
+					or candidate.distance_fade_mode != BaseMaterial3D.DISTANCE_FADE_DISABLED:
+				return null
+			if material == null:
+				material = candidate
+			elif candidate.cull_mode != material.cull_mode \
+					or candidate.depth_draw_mode != material.depth_draw_mode \
+					or candidate.no_depth_test != material.no_depth_test:
+				return null
 		# Every gate above has now passed against the real colour source. Only the
 		# triangles that get merged may come from the proxy, and only when the
 		# proxy is itself an ordinary single-surface triangle mesh that fits
@@ -88,35 +95,36 @@ static func build(
 				return null
 			if proxy != null:
 				merged = proxy
-		var arrays := merged.surface_get_arrays(0)
-		if not arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array \
-				or not arrays[Mesh.ARRAY_NORMAL] is PackedVector3Array \
-				or (arrays[Mesh.ARRAY_INDEX] != null and not arrays[Mesh.ARRAY_INDEX] is PackedInt32Array):
-			return null
-		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-		if source_vertices.is_empty() or source_normals.size() != source_vertices.size():
-			return null
-		var offset := vertices.size()
-		var normal_basis := source.transform.basis.inverse().transposed()
-		for index in source_vertices.size():
-			vertices.append(source.transform * source_vertices[index])
-			normals.append((normal_basis * source_normals[index]).normalized())
-		var source_indices := PackedInt32Array()
-		if arrays[Mesh.ARRAY_INDEX] != null:
-			source_indices = arrays[Mesh.ARRAY_INDEX]
-		if source_indices.is_empty():
-			if source_vertices.size() % 3 != 0:
+		for surface_index in merged.get_surface_count():
+			var arrays := merged.surface_get_arrays(surface_index)
+			if not arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array \
+					or not arrays[Mesh.ARRAY_NORMAL] is PackedVector3Array \
+					or (arrays[Mesh.ARRAY_INDEX] != null and not arrays[Mesh.ARRAY_INDEX] is PackedInt32Array):
 				return null
+			var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			if source_vertices.is_empty() or source_normals.size() != source_vertices.size():
+				return null
+			var offset := vertices.size()
+			var normal_basis := source.transform.basis.inverse().transposed()
 			for index in source_vertices.size():
-				indices.append(offset + index)
-		else:
-			if source_indices.size() % 3 != 0:
-				return null
-			for index in source_indices:
-				if index < 0 or index >= source_vertices.size():
+				vertices.append(source.transform * source_vertices[index])
+				normals.append((normal_basis * source_normals[index]).normalized())
+			var source_indices := PackedInt32Array()
+			if arrays[Mesh.ARRAY_INDEX] != null:
+				source_indices = arrays[Mesh.ARRAY_INDEX]
+			if source_indices.is_empty():
+				if source_vertices.size() % 3 != 0:
 					return null
-				indices.append(offset + index)
+				for index in source_vertices.size():
+					indices.append(offset + index)
+			else:
+				if source_indices.size() % 3 != 0:
+					return null
+				for index in source_indices:
+					if index < 0 or index >= source_vertices.size():
+						return null
+					indices.append(offset + index)
 		seen[source.get_instance_id()] = true
 	var merged_arrays := []
 	merged_arrays.resize(Mesh.ARRAY_MAX)
