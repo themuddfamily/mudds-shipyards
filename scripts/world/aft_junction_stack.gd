@@ -240,8 +240,8 @@ const ROOF_VENT_LOUVRE_POSITIONS := [
 	Vector3(8.34, 5.34, 13.0),
 ]
 ## Five identical pressure-rib arcs cross the operations-room roof. Each arc is
-## still represented by its inert named envelope anchor, while the 14 matching
-## tube recipes are submitted once apiece across all five Z planes. The roof box
+## still represented by its inert named envelope anchor. One merged exact arc
+## recipe draws all fourteen tubes on all five Z planes. The roof box
 ## remains the sole collider and the ribs carry no gameplay or light authority.
 const PRESSURE_RIB_COPY_COUNT := 5
 const PRESSURE_RIB_SEGMENT_COUNT := 14
@@ -306,23 +306,27 @@ const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1204
 # The stair handoff cue's rear face (two chevron strokes and a second header,
 # so the southern approach no longer reads the plate's back) adds three nodes,
 # renderers, copies and submissions, and one TextMesh resource.
-const RENDER_DESCENDANT_NODE_COUNT := 1172
+# The exact pressure-rib arc consolidates fourteen segment batches into one:
+# thirteen fewer nodes/renderers/submissions and six fewer drawn mesh recipes.
+# Five arc instances represent the same seventy tubes, so the drawn-instance
+# census falls by sixty-five while actual triangle totals remain unchanged.
+const RENDER_DESCENDANT_NODE_COUNT := 1159
 const BASELINE_RENDERER_NODE_COUNT := 868
 # Two Ship Services displays now use engine-managed glyph atlases. Keep their
 # authored display slots separate from explicit mesh submissions/resources.
 const SHIP_SERVICE_ATLAS_DISPLAY_COUNT := 2
-const AUTHORED_DISPLAY_NODE_COUNT := 757
+const AUTHORED_DISPLAY_NODE_COUNT := 744
 const RENDERER_NODE_COUNT := AUTHORED_DISPLAY_NODE_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_DRAWN_COPY_COUNT := 878
-const AUTHORED_DISPLAY_COPY_COUNT := 897
+const AUTHORED_DISPLAY_COPY_COUNT := 832
 const DRAWN_COPY_COUNT := AUTHORED_DISPLAY_COPY_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_SURFACE_SUBMISSION_COUNT := 868
-const SURFACE_SUBMISSION_COUNT := 757 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
+const SURFACE_SUBMISSION_COUNT := 744 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_MESH_RESOURCE_COUNT := 332
 # The former header and status each owned one unique TextMesh. The former
 # cyan material was private to the header; the amber material remains on the
 # locator underline. Label3D internal atlas resources are not mesh allocations.
-const MESH_RESOURCE_COUNT := 309 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
+const MESH_RESOURCE_COUNT := 303 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_MATERIAL_RESOURCE_COUNT := 39
 const MATERIAL_RESOURCE_COUNT := 39 - 1
 
@@ -5989,28 +5993,30 @@ func _arch_across_x(
 	return arch
 
 
-## Batch the five collision-free pressure-rib copies by segment recipe. A tube
-## at a given segment index has the same mesh and orientation on every rib; only
-## its Z origin differs. This turns 70 renderer nodes/submissions into 14 while
-## retaining all 70 visible tube copies and the five named visual anchors.
+## Build one immutable exact arc from the fourteen authored tube recipes, then
+## instance it on the five original roof planes. This replaces fourteen live
+## renderer nodes with one without crossing the pressure envelope's lifetime.
+## Only geometry is joined: the five named anchors and roof collider stay put.
 func _build_pressure_rib_batches(envelope: Node3D) -> void:
+	var transforms: Array[Transform3D] = []
 	for rib_index in PRESSURE_RIB_COPY_COUNT:
 		var anchor := Node3D.new()
 		anchor.name = "PressureRib%02d" % rib_index
 		anchor.set_meta("visual_detail_only", true)
 		anchor.set_meta("presentation_only", true)
 		envelope.add_child(anchor)
-
-	var half_width := (PRESSURE_RIB_X_MAX - PRESSURE_RIB_X_MIN) * 0.5
-	var center_x := (PRESSURE_RIB_X_MAX + PRESSURE_RIB_X_MIN) * 0.5
-	var previous_points: Array[Vector3] = []
-	for rib_index in PRESSURE_RIB_COPY_COUNT:
-		previous_points.append(Vector3(
-			PRESSURE_RIB_X_MIN,
-			PRESSURE_RIB_SPRING_HEIGHT,
-			PRESSURE_RIB_Z_START + float(rib_index) * PRESSURE_RIB_Z_STEP
+		transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(0.0, 0.0, PRESSURE_RIB_Z_START + float(rib_index) * PRESSURE_RIB_Z_STEP)
 		))
 
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var tangents := PackedFloat32Array()
+	var half_width := (PRESSURE_RIB_X_MAX - PRESSURE_RIB_X_MIN) * 0.5
+	var center_x := (PRESSURE_RIB_X_MAX + PRESSURE_RIB_X_MIN) * 0.5
+	var previous := Vector3(PRESSURE_RIB_X_MIN, PRESSURE_RIB_SPRING_HEIGHT, 0.0)
 	for segment_index in PRESSURE_RIB_SEGMENT_COUNT:
 		var progress := float(segment_index + 1) / float(PRESSURE_RIB_SEGMENT_COUNT)
 		var x_position := lerpf(PRESSURE_RIB_X_MIN, PRESSURE_RIB_X_MAX, progress)
@@ -6018,37 +6024,47 @@ func _build_pressure_rib_batches(envelope: Node3D) -> void:
 		var curve_height := PRESSURE_RIB_SPRING_HEIGHT + (
 			PRESSURE_RIB_CROWN_HEIGHT - PRESSURE_RIB_SPRING_HEIGHT
 		) * sqrt(maxf(0.0, 1.0 - normalized_x * normalized_x))
-		var transforms: Array[Transform3D] = []
-		var segment_length := 0.0
-		for rib_index in PRESSURE_RIB_COPY_COUNT:
-			var current := Vector3(
-				x_position,
-				curve_height,
-				PRESSURE_RIB_Z_START + float(rib_index) * PRESSURE_RIB_Z_STEP
-			)
-			var previous := previous_points[rib_index]
-			var direction := current - previous
-			segment_length = direction.length()
-			transforms.append(Transform3D(
-				Basis(Quaternion(Vector3.UP, direction.normalized())),
-				(previous + current) * 0.5
-			))
-			previous_points[rib_index] = current
-		_multimesh_mesh(
-			envelope,
-			"PressureRibSegmentBatch%02d" % segment_index,
-			StationSurfaceKit.chamfered_cylinder_mesh_cached(
-				PRESSURE_RIB_RADIUS,
-				PRESSURE_RIB_RADIUS,
-				segment_length,
-				StationSurfaceKit.radial_segments_for(
-					PRESSURE_RIB_RADIUS, PRESSURE_RIB_NEAREST_VIEW_METRES
-				),
-				_chamfered_cylinder_cache
-			),
-			_materials["off_white"],
-			transforms
+		var current := Vector3(x_position, curve_height, 0.0)
+		var direction := current - previous
+		var placement := Transform3D(
+			Basis(Quaternion(Vector3.UP, direction.normalized())),
+			(previous + current) * 0.5
 		)
+		var mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			PRESSURE_RIB_RADIUS, PRESSURE_RIB_RADIUS, direction.length(),
+			StationSurfaceKit.radial_segments_for(
+				PRESSURE_RIB_RADIUS, PRESSURE_RIB_NEAREST_VIEW_METRES
+			), _chamfered_cylinder_cache
+		)
+		var arrays := mesh.surface_get_arrays(0)
+		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var source_uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var source_tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var normal_basis := placement.basis.inverse().transposed()
+		for vertex_index in source_vertices.size():
+			vertices.append(placement * source_vertices[vertex_index])
+			normals.append((normal_basis * source_normals[vertex_index]).normalized())
+		uvs.append_array(source_uvs)
+		for tangent_index in source_vertices.size():
+			var offset := tangent_index * 4
+			var tangent := placement.basis * Vector3(
+				source_tangents[offset], source_tangents[offset + 1], source_tangents[offset + 2]
+			)
+			tangents.append_array(PackedFloat32Array([
+				tangent.x, tangent.y, tangent.z, source_tangents[offset + 3]
+			]))
+		previous = current
+	var merged_arrays := []
+	merged_arrays.resize(Mesh.ARRAY_MAX)
+	merged_arrays[Mesh.ARRAY_VERTEX] = vertices
+	merged_arrays[Mesh.ARRAY_NORMAL] = normals
+	merged_arrays[Mesh.ARRAY_TEX_UV] = uvs
+	merged_arrays[Mesh.ARRAY_TANGENT] = tangents
+	var arc_mesh := ArrayMesh.new()
+	arc_mesh.resource_name = "AftExactPressureRibArc"
+	arc_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, merged_arrays)
+	_multimesh_mesh(envelope, "PressureRibArcBatch", arc_mesh, _materials["off_white"], transforms)
 
 
 func _omni_light(

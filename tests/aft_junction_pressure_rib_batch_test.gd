@@ -34,48 +34,36 @@ func _run() -> void:
 			"pressure rib %02d retains one inert named envelope anchor" % rib_index
 		)
 
-	var expected_by_segment := _expected_transforms_by_segment()
-	var visible_copies := 0
-	var surface_submissions := 0
-	var renderer_nodes := 0
-	for segment_index in AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT:
-		var batch := envelope.get_node_or_null(
-			NodePath("PressureRibSegmentBatch%02d" % segment_index)
-		) as MultiMeshInstance3D
-		var multimesh := batch.multimesh if batch != null else null
-		var mesh := multimesh.mesh if multimesh != null else null
-		var expected: Array[Transform3D] = expected_by_segment[segment_index]
-		_check(
-			batch != null
-			and multimesh != null
-			and mesh != null
-			and multimesh.instance_count == AftJunctionStack.PRESSURE_RIB_COPY_COUNT
-			and multimesh.visible_instance_count == AftJunctionStack.PRESSURE_RIB_COPY_COUNT
-			and multimesh.buffer == _encode_transforms(expected)
-			and multimesh.custom_aabb.is_equal_approx(_transformed_bounds(mesh.get_aabb(), expected))
-			and mesh.get_surface_count() == 1
-			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-			and batch.layers == 1
-			and batch.material_override != null
-			and batch.get_child_count() == 0
-			and batch.get_script() == null
-			and bool(batch.get_meta("visual_detail_only", false)),
-			"segment recipe %02d keeps five exact visible copies in one inert submission" % segment_index
-		)
-		if multimesh != null and mesh != null:
-			renderer_nodes += 1
-			visible_copies += multimesh.visible_instance_count
-			surface_submissions += mesh.get_surface_count()
-
+	var batch := envelope.get_node_or_null(^"PressureRibArcBatch") as MultiMeshInstance3D
+	var multimesh := batch.multimesh if batch != null else null
+	var mesh := multimesh.mesh if multimesh != null else null
+	var expected: Array[Transform3D] = []
+	for rib_index in AftJunctionStack.PRESSURE_RIB_COPY_COUNT:
+		expected.append(Transform3D(Basis.IDENTITY, Vector3(
+			0.0, 0.0, AftJunctionStack.PRESSURE_RIB_Z_START
+				+ float(rib_index) * AftJunctionStack.PRESSURE_RIB_Z_STEP
+		)))
 	_check(
-		renderer_nodes == AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT
-		and visible_copies == AftJunctionStack.PRESSURE_RIB_VISIBLE_COPY_COUNT
-		and surface_submissions == AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT,
-		"70 roof-rib tube copies use 14 renderer nodes and 14 surface submissions"
+		batch != null and multimesh != null and mesh != null
+		and multimesh.instance_count == AftJunctionStack.PRESSURE_RIB_COPY_COUNT
+		and multimesh.visible_instance_count == AftJunctionStack.PRESSURE_RIB_COPY_COUNT
+		and multimesh.buffer == _encode_transforms(expected)
+		and multimesh.custom_aabb.is_equal_approx(_transformed_bounds(mesh.get_aabb(), expected))
+		and mesh.get_surface_count() == 1
+		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		and batch.layers == 1 and batch.material_override != null
+		and batch.material_override.albedo_color.is_equal_approx(Color("cbd0ce"))
+		and batch.visibility_range_begin == 0.0 and batch.visibility_range_end == 0.0
+		and batch.get_child_count() == 0 and batch.get_script() == null
+		and bool(batch.get_meta("visual_detail_only", false)),
+		"five exact arc copies share one inert envelope-owned renderer and submission"
 	)
+	if mesh != null:
+		_test_exact_arc_geometry(mesh)
 	_check(
-		envelope.find_children("TubeSegment*", "MeshInstance3D", true, false).is_empty(),
-		"the 70 legacy child renderers are absent"
+		envelope.find_children("PressureRibSegmentBatch*", "MultiMeshInstance3D", true, false).is_empty()
+		and envelope.find_children("TubeSegment*", "MeshInstance3D", true, false).is_empty(),
+		"the fourteen segment renderers and seventy legacy child renderers are absent"
 	)
 
 	var census := module.get_pod_corner_collar_visual_allocation_audit()
@@ -85,8 +73,24 @@ func _run() -> void:
 		and int(census.current.renderer_nodes) == AftJunctionStack.RENDERER_NODE_COUNT
 		and int(census.current.drawn_copies) == AftJunctionStack.DRAWN_COPY_COUNT
 		and int(census.current.surface_submissions) == AftJunctionStack.SURFACE_SUBMISSION_COUNT,
-		"the production Aft census records the exact 56-node and 56-submission reduction"
+		"the production Aft census records thirteen fewer nodes and submissions"
 	)
+
+	if multimesh != null:
+		multimesh.visible_instance_count = 4
+		_check(not bool(module.get_pod_corner_collar_visual_allocation_audit().valid),
+			"the production allocation contract rejects one missing rib plane")
+		multimesh.visible_instance_count = 5
+		var identity := batch.get_instance_id()
+		module.set_module_enabled(false)
+		_check(not batch.is_visible_in_tree(), "the owner disables the complete arc batch")
+		module.set_module_enabled(true)
+		root.remove_child(module)
+		root.add_child(module)
+		await process_frame
+		_check(batch.is_visible_in_tree() and batch.get_instance_id() == identity
+			and bool(module.get_pod_corner_collar_visual_allocation_audit().valid),
+			"owner reentry restores the same exact renderer without rebuilding")
 
 	module.queue_free()
 	await process_frame
@@ -140,6 +144,52 @@ func _expected_transforms_by_segment() -> Array[Array]:
 			previous_points[rib_index] = current
 		result.append(segment_transforms)
 	return result
+
+
+func _test_exact_arc_geometry(mesh: Mesh) -> void:
+	var actual := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = actual[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = actual[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = actual[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = actual[Mesh.ARRAY_TANGENT]
+	var expected_by_segment := _expected_transforms_by_segment()
+	var previous := Vector3(AftJunctionStack.PRESSURE_RIB_X_MIN,
+		AftJunctionStack.PRESSURE_RIB_SPRING_HEIGHT, 0.0)
+	var offset := 0
+	var exact := true
+	for segment_index in AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT:
+		var placement: Transform3D = expected_by_segment[segment_index][0]
+		placement.origin.z = 0.0
+		var direction := (placement.origin - previous) * 2.0
+		var source := StationSurfaceKit.chamfered_cylinder_mesh(
+			AftJunctionStack.PRESSURE_RIB_RADIUS, AftJunctionStack.PRESSURE_RIB_RADIUS,
+			direction.length(), StationSurfaceKit.radial_segments_for(
+				AftJunctionStack.PRESSURE_RIB_RADIUS, AftJunctionStack.PRESSURE_RIB_NEAREST_VIEW_METRES))
+		var arrays := source.surface_get_arrays(0)
+		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var source_uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var source_tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		for index in source_vertices.size():
+			if offset + index >= vertices.size():
+				exact = false
+				break
+			var expected_normal := (placement.basis * source_normals[index]).normalized()
+			var tangent_offset := index * 4
+			var expected_tangent := placement.basis * Vector3(source_tangents[tangent_offset],
+				source_tangents[tangent_offset + 1], source_tangents[tangent_offset + 2])
+			var actual_tangent_offset := (offset + index) * 4
+			var actual_tangent := Vector3(tangents[actual_tangent_offset],
+				tangents[actual_tangent_offset + 1], tangents[actual_tangent_offset + 2])
+			exact = exact and vertices[offset + index].distance_to(placement * source_vertices[index]) < 0.00001
+			exact = exact and normals[offset + index].distance_to(expected_normal) < 0.0002
+			exact = exact and actual_tangent.distance_to(expected_tangent) < 0.0002
+			exact = exact and tangents[actual_tangent_offset + 3] == source_tangents[tangent_offset + 3]
+			exact = exact and uvs[offset + index].is_equal_approx(source_uvs[index])
+		offset += source_vertices.size()
+		previous += direction
+	_check(exact and vertices.size() == offset and actual[Mesh.ARRAY_INDEX] == null,
+		"all fourteen original tube triangles retain order, vertices, UVs, normals and tangent handedness")
 
 
 func _encode_transforms(transforms: Array[Transform3D]) -> PackedFloat32Array:

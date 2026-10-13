@@ -17,6 +17,8 @@ const ActivityBindingType := preload("res://scripts/world/nearby_sector_activity
 const ConvoyHostType := preload("res://scripts/activities/cinder_convoy_escort_host.gd")
 const MiningType := preload("res://scripts/world/cinder_mining_platform_activity.gd")
 const PatrolRoute := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
+const BeaconType := preload("res://scripts/world/cinder_beacon_traversal_activity.gd")
+const BeltRoute := preload("res://assets/activities/cinder_asteroid_field_threading_run.tres")
 const ScanType := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 
 const CargoAccessScene := preload("res://scenes/world/components/cinder_cargo_access.tscn")
@@ -185,6 +187,8 @@ func _run() -> void:
 			)
 			if activity_id in [&"cinder_platform_mining_run", &"cinder_derelict_structure_scan"]:
 				_check_hold_briefing(detail.text, activity_id)
+			if activity_id in [&"cinder_reach_checkpoint_route", &"cinder_debris_beacon_traversal", &"cinder_asteroid_field_threading_run"]:
+				_check_route_briefing(detail.text, activity_id)
 			if activity_id == &"cinder_relay_patrol":
 				_check_patrol_briefing(detail.text)
 			if activity_id == &"cinder_platform_supply_run":
@@ -193,6 +197,8 @@ func _run() -> void:
 			seen_titles.size() == Presenter.ACTIVITY_ORDER.size(),
 			"each %s activity kind yields its own distinct briefing" % String(device_family),
 		)
+	await _check_production_route_behaviors()
+	_check_route_presentation_variants()
 	await _check_production_patrol_behaviors()
 	var patrol_presenter := Presenter.new()
 	var remapped_patrol := patrol_presenter.present_snapshot({
@@ -388,6 +394,18 @@ func _run() -> void:
 				and binding.starts.size() == start_count,
 				"re-showing patrol help never starts another patrol")
 			_check_patrol_briefing(patrol_detail.text)
+		if activity_id in [&"cinder_reach_checkpoint_route", &"cinder_debris_beacon_traversal"]:
+			var route_detail := production_hud.get("_runtime_status_detail") as Label
+			_check_route_briefing(route_detail.text, activity_id)
+			var start_count := binding.starts.size()
+			_check(flow.publish_activity_tutorial_briefing(activity_id, true)
+				and binding.starts.size() == start_count,
+				"re-showing route help never starts or resets an activity")
+			production_hud.clear_activity_tutorial(&"route_retained_case")
+			_check(flow._republish_activity_tutorial_presentation()
+				and binding.starts.size() == start_count,
+				"retained route help republishes without activating the route")
+			_check_route_briefing(route_detail.text, activity_id)
 		if activity_id == &"cinder_platform_supply_run":
 			var supply_detail := production_hud.get("_runtime_status_detail") as Label
 			_check_supply_briefing(supply_detail.text)
@@ -581,6 +599,113 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _check_route_briefing(prompt: String, activity_id: StringName) -> void:
+	_check(prompt.contains("activity row's Start") and prompt.contains("in order")
+		and prompt.contains("NEXT UNFINISHED") and not prompt.contains("LAST MARKER")
+		and not prompt.contains("LAST LIT BEACON"),
+		"%s help starts explicitly and recovers at the next unfinished target" % activity_id)
+	if activity_id == &"cinder_reach_checkpoint_route":
+		_check(prompt.contains("countdown") and prompt.contains("After the start signal")
+			and prompt.contains("TIME EXPIRED") and prompt.contains("NEW COUNTDOWN"),
+			"race help waits for the start signal and restarts after expiry")
+	elif activity_id == &"cinder_debris_beacon_traversal":
+		_check(prompt.contains("first beacon") and prompt.contains("all four")
+			and prompt.contains("CLEARED BEACONS STAY CLEARED WITHOUT START"),
+			"beacon help names first-beacon admission and retained progress")
+	else:
+		_check(prompt.contains("first gate") and prompt.contains("all five")
+			and prompt.contains("RESET ABANDONS PROGRESS") and prompt.contains("FAILED OR RESET"),
+			"belt help names first-gate admission and deliberate restart recovery")
+
+
+func _check_route_presentation_variants() -> void:
+	for activity_id: StringName in [&"cinder_reach_checkpoint_route",
+			&"cinder_debris_beacon_traversal", &"cinder_asteroid_field_threading_run"]:
+		var presenter := Presenter.new()
+		var presented := presenter.present_snapshot({
+			"activity_id": activity_id, "generation": 1, "input_family": &"keyboard",
+			"glyphs": {&"move_forward": "CUSTOM THROTTLE", &"sprint_boost": "CUSTOM BOOST",
+				&"brake": "CUSTOM BRAKE"},
+		})
+		_check(presented.accepted and not presented.prompt.contains("{")
+			and presented.prompt.contains("CUSTOM "), "route copy uses remapped controls")
+		_check_route_briefing(presented.prompt, activity_id)
+		var retained := presenter.get_snapshot()
+		retained.prompt = "mutated consumer"
+		_check_route_briefing(presenter.get_snapshot().prompt, activity_id)
+		var repeated := presenter.request(&"repeat")
+		_check(repeated.accepted and not presenter.get_snapshot().activity_authority,
+			"repeating route help returns a presentation intent without activity authority")
+		var accessible := presenter.present_snapshot({
+			"activity_id": activity_id, "generation": 2, "accessible": true,
+		})
+		_check(accessible.accepted and accessible.prompt == accessible.accessible_prompt
+			and not accessible.prompt.contains("{"), "accessible route copy is glyph-free")
+		_check_route_briefing(accessible.prompt, activity_id)
+
+
+func _check_production_route_behaviors() -> void:
+	var binding := ActivityBindingType.new()
+	binding.add_child(ConvoyHostType.new())
+	root.add_child(binding)
+	await process_frame
+	var first_beacon := BeaconType.BEACONS[0]
+	var rejected := binding.start_beacon_traversal(BeaconType.BEACONS[1])
+	var started := binding.start_beacon_traversal(first_beacon)
+	var wrong := binding.submit_beacon_traversal(1, BeaconType.BEACONS[1])
+	var cleared := binding.advance_beacon_traversal_from_caller_sample(first_beacon)
+	var left := binding.advance_beacon_traversal_from_caller_sample(Vector3.ZERO)
+	var old := binding.advance_beacon_traversal_from_caller_sample(first_beacon)
+	var returned := binding.advance_beacon_traversal_from_caller_sample(BeaconType.BEACONS[1])
+	_check(not rejected.accepted and rejected.reason == &"outside_first_beacon"
+		and started.accepted and not wrong.accepted and wrong.reason == &"out_of_order_beacon"
+		and cleared.next_beacon_index == 1,
+		"production beacon route needs Start at its first beacon and ordered targets")
+	_check(not left.accepted and not old.accepted and left.next_beacon_index == 1
+		and old.next_beacon_index == 1 and returned.accepted and returned.next_beacon_index == 2
+		and returned.generation == started.generation,
+		"leaving and returning to a cleared beacon cannot advance or reset the active route")
+	var race_start := binding.start_race()
+	var early := binding.submit_race_position(PatrolRoute.get_checkpoint_position(0))
+	binding.advance_race(ActivityBindingType.CINDER_RACE_COUNTDOWN_SECONDS)
+	var gate := binding.submit_race_position(PatrolRoute.get_checkpoint_position(0))
+	var later := binding.submit_race_position(PatrolRoute.get_checkpoint_position(2))
+	var previous := binding.submit_race_position(PatrolRoute.get_checkpoint_position(0))
+	var next := binding.submit_race_position(PatrolRoute.get_checkpoint_position(1))
+	_check(race_start.accepted and not early.accepted and early.reason == &"countdown_in_progress"
+		and gate.accepted and gate.next_checkpoint_index == 1,
+		"production race Start counts down before the first gate can be accepted")
+	_check(not later.accepted and not previous.accepted
+		and later.next_checkpoint_index == 1 and previous.next_checkpoint_index == 1
+		and next.accepted and next.next_checkpoint_index == 2,
+		"missed race gates retain progress and require the next unfinished gate")
+	var expired := binding.advance_race(120.0)
+	var restarted := binding.start_race()
+	_check(expired.state_id == &"failed" and restarted.accepted
+		and restarted.state_id == &"countdown" and restarted.next_checkpoint_index == 0,
+		"an expired production race accepts Start for a fresh countdown and route")
+	var belt_rejected := binding.start_asteroid_field_run(Vector3.ZERO)
+	var belt_started := binding.start_asteroid_field_run(BeltRoute.get_checkpoint_position(0))
+	var belt_first := binding.submit_asteroid_field_run_position(BeltRoute.get_checkpoint_position(0))
+	var belt_wrong := binding.submit_asteroid_field_run_position(BeltRoute.get_checkpoint_position(2))
+	var belt_old := binding.submit_asteroid_field_run_position(BeltRoute.get_checkpoint_position(0))
+	var belt_next := binding.submit_asteroid_field_run_position(BeltRoute.get_checkpoint_position(1))
+	_check(not belt_rejected.accepted and belt_rejected.reason == &"outside_first_gate"
+		and belt_started.accepted and belt_first.next_checkpoint_index == 1
+		and not belt_wrong.accepted and not belt_old.accepted
+		and belt_old.next_checkpoint_index == 1 and belt_next.next_checkpoint_index == 2,
+		"production belt run starts at its first gate and preserves the next unfinished gate")
+	var belt_reset := binding.reset_asteroid_field_run()
+	var belt_not_started := binding.submit_asteroid_field_run_position(BeltRoute.get_checkpoint_position(0))
+	var belt_restarted := binding.start_asteroid_field_run(BeltRoute.get_checkpoint_position(0))
+	_check(belt_reset.accepted and belt_reset.next_checkpoint_index == 0
+		and not belt_not_started.accepted and belt_restarted.accepted
+		and belt_restarted.next_checkpoint_index == 0,
+		"Reset deliberately abandons belt progress; Start at the first gate begins again")
+	binding.queue_free()
+	await process_frame
 
 
 func _check_patrol_briefing(prompt: String) -> void:

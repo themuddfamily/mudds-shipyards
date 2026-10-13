@@ -53,43 +53,38 @@ func _run() -> void:
 	var surface_submissions := 0
 	var material_ids := {}
 	var every_copy_in_frustum := true
-	if envelope != null:
-		for segment_index in AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT:
-			var batch := envelope.get_node_or_null(
-				NodePath("PressureRibSegmentBatch%02d" % segment_index)
-			) as MultiMeshInstance3D
-			var multimesh := batch.multimesh if batch != null else null
-			var mesh := multimesh.mesh if multimesh != null else null
-			valid = valid and batch != null and multimesh != null and mesh != null
-			if batch == null or multimesh == null or mesh == null:
-				continue
-			renderer_nodes += 1
-			visible_copies += multimesh.visible_instance_count
-			surface_submissions += mesh.get_surface_count()
-			if batch.material_override != null:
-				material_ids[batch.material_override.get_instance_id()] = true
-			var expected_bounds := _bounds_for_buffer(mesh.get_aabb(), multimesh.buffer)
-			valid = valid \
-				and multimesh.instance_count == AftJunctionStack.PRESSURE_RIB_COPY_COUNT \
-				and multimesh.visible_instance_count == AftJunctionStack.PRESSURE_RIB_COPY_COUNT \
-				and multimesh.custom_aabb.is_equal_approx(expected_bounds) \
-				and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
-				and batch.visible
-			for copy_index in multimesh.instance_count:
-				every_copy_in_frustum = every_copy_in_frustum and camera.is_position_in_frustum(
-					multimesh.get_instance_transform(copy_index).origin
-				)
-
+	var batch := envelope.get_node_or_null(^"PressureRibArcBatch") as MultiMeshInstance3D if envelope != null else null
+	var multimesh := batch.multimesh if batch != null else null
+	var mesh := multimesh.mesh if multimesh != null else null
+	valid = valid and batch != null and multimesh != null and mesh != null
 	var material: StandardMaterial3D = null
-	if envelope != null:
-		var first_batch := envelope.get_node_or_null(
-			^"PressureRibSegmentBatch00"
-		) as MultiMeshInstance3D
-		material = first_batch.material_override as StandardMaterial3D if first_batch != null else null
+	if batch != null and multimesh != null and mesh != null:
+		renderer_nodes = 1
+		# Each arc instance contains all fourteen original tube copies.
+		visible_copies = multimesh.visible_instance_count * AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT
+		surface_submissions = mesh.get_surface_count()
+		material = batch.material_override as StandardMaterial3D
+		if material != null:
+			material_ids[material.get_instance_id()] = true
+		var expected_bounds := _bounds_for_buffer(mesh.get_aabb(), multimesh.buffer)
+		valid = valid \
+			and multimesh.instance_count == AftJunctionStack.PRESSURE_RIB_COPY_COUNT \
+			and multimesh.visible_instance_count == AftJunctionStack.PRESSURE_RIB_COPY_COUNT \
+			and multimesh.custom_aabb.is_equal_approx(expected_bounds) \
+			and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			and batch.visible \
+			and envelope.find_children("PressureRibSegmentBatch*", "MultiMeshInstance3D", false, false).is_empty()
+		# Preserve all seventy original segment-centre visibility checks. Arc
+		# origins alone would not establish that the complete roof is framed.
+		var midpoints := _pressure_rib_segment_midpoints()
+		for copy_index in multimesh.instance_count:
+			var placement := batch.global_transform * multimesh.get_instance_transform(copy_index)
+			for midpoint in midpoints:
+				every_copy_in_frustum = every_copy_in_frustum and camera.is_position_in_frustum(placement * midpoint)
 	valid = valid \
-		and renderer_nodes == AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT \
+		and renderer_nodes == 1 \
 		and visible_copies == AftJunctionStack.PRESSURE_RIB_VISIBLE_COPY_COUNT \
-		and surface_submissions == AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT \
+		and surface_submissions == 1 \
 		and material_ids.size() == 1 \
 		and material != null \
 		and material.albedo_color.is_equal_approx(Color("cbd0ce")) \
@@ -132,6 +127,24 @@ func _run() -> void:
 	stage.queue_free()
 	await process_frame
 	quit(0 if valid else 1)
+
+
+func _pressure_rib_segment_midpoints() -> PackedVector3Array:
+	var points := PackedVector3Array()
+	var half_width := (AftJunctionStack.PRESSURE_RIB_X_MAX - AftJunctionStack.PRESSURE_RIB_X_MIN) * 0.5
+	var center_x := (AftJunctionStack.PRESSURE_RIB_X_MAX + AftJunctionStack.PRESSURE_RIB_X_MIN) * 0.5
+	var previous := Vector3(AftJunctionStack.PRESSURE_RIB_X_MIN, AftJunctionStack.PRESSURE_RIB_SPRING_HEIGHT, 0.0)
+	for segment_index in AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT:
+		var progress := float(segment_index + 1) / float(AftJunctionStack.PRESSURE_RIB_SEGMENT_COUNT)
+		var x_position := lerpf(AftJunctionStack.PRESSURE_RIB_X_MIN, AftJunctionStack.PRESSURE_RIB_X_MAX, progress)
+		var normalized_x := (x_position - center_x) / half_width
+		var height := AftJunctionStack.PRESSURE_RIB_SPRING_HEIGHT + (
+			AftJunctionStack.PRESSURE_RIB_CROWN_HEIGHT - AftJunctionStack.PRESSURE_RIB_SPRING_HEIGHT
+		) * sqrt(maxf(0.0, 1.0 - normalized_x * normalized_x))
+		var current := Vector3(x_position, height, 0.0)
+		points.append((previous + current) * 0.5)
+		previous = current
+	return points
 
 
 func _build_environment(stage: Node3D) -> void:
