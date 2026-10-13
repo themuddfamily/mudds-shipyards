@@ -453,10 +453,14 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Aft pressure ribs consolidate fourteen segment batches into one exact arc
 # batch: both scenarios lose thirteen nodes/renderers/surfaces and six bound
 # mesh resources; triangles, materials, lights and Cinder deltas are unchanged.
+# Actual clean 30999db Windows-PCK census measures this same arc composition
+# and retains the existing +2 local-skies material contract. Its measured
+# packed fingerprints replace only the two stale expected fingerprints; the
+# initial two-failure log is retained separately from strict acceptance.
 const RESIDENT_FINGERPRINT := "f886819d055093934fb3b300ab3cbb5f30d38f5c26bec4cc4d416f501f7e2a6d"
 const CINDER_LOADED_FINGERPRINT := "8e96f1cd94a4f8180b85c9711684682d2a5d7785f6a8fea478dcb690992daaf8"
-const PACKED_RESIDENT_FINGERPRINT := "5374edb5a92f4919e2fa088dff4af4122d5f81f7dbadf3684b592993f542bbca"
-const PACKED_CINDER_LOADED_FINGERPRINT := "e08445757fb996421fe36aae5adce00a44744abe33da32aee48307fb3567e73b"
+const PACKED_RESIDENT_FINGERPRINT := "3399939b4291dc7d768e1332e0c3c047196dd2f89065852337efd5f4ef342219"
+const PACKED_CINDER_LOADED_FINGERPRINT := "460828d632c88dbc4ed7c06b7a87ace6c1ae3e864b5e2564352ba087a53bf8ea"
 
 var _assertions := 0
 var _failures := PackedStringArray()
