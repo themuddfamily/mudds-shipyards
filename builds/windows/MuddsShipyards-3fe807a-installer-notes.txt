@@ -1,0 +1,27 @@
+Mudds Shipyards 0.12.0+3fe807a — unsigned Windows checkpoint installer
+
+Matching per-user setup for the locally published combined planetary EXE.
+Source: 3fe807a5255fdfa8bbd0ae7bd1c07f23dad40ebb (draft PR #13; not merged).
+
+Player-visible checkpoint: integrated planetary return/recovery, cabin lifetime
+and remote-body work, with current Cargo finish reuse and cylinder cruise safety.
+
+Actual validation: unsigned NSIS v3.09-4 compilation exits 0 in 86.777 seconds
+under an enforced 600-second limit. Source stays clean; exact payload EXE hash
+stays unchanged. Core and all three source canonical journey CI jobs PASS
+(Ember52, Aurora29, Rime43). Full candidate and broad CI remain pending.
+The existing EXE passes its silent Linux-hosted embedded-PCK menu check and
+focused package suites; this does not establish native installed behavior.
+
+Known qualification failure: the matching Linux desktop entry reaches its menu
+on both launches, but the second launch warns about an absent runtime-settings
+section after initial recovery/tutorial persistence. That runtime lifecycle
+repair is in progress and is not included in this installer.
+
+Setup SHA256: 42b94f35e287e857ffb0e81f6c5f9a0a5f167fee673655fab113a949a32cb23e
+Payload SHA256: 6ca4bc2c0203cb9dcc330f0aea951baf3c4b385bfcad041cbfe56cf1444373a2
+
+Native Windows install/update/rollback/uninstall/startup: NOT_RUN.
+Native GPU, physical controller, audible and human review: NOT_RUN.
+Trusted signing: NOT_RUN; this setup is unsigned.
+This checkpoint does not qualify final release or close a roadmap phase.

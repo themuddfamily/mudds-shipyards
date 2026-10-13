@@ -1,0 +1,16 @@
+{
+  "build_label": "0.12.0+3fe807a",
+  "installer": "/root/.cache/mudds-shipyards/roadmap-validation/windows-installer-3fe/MuddsShipyards-3fe807a-setup.exe",
+  "installer_bytes": 87757144,
+  "installer_kind": "nsis-per-user",
+  "installer_sha256": "42b94f35e287e857ffb0e81f6c5f9a0a5f167fee673655fab113a949a32cb23e",
+  "makensis_version": "v3.09-4",
+  "native_verification": "NOT_RUN",
+  "product_version": "0.12.0",
+  "schema_version": 1,
+  "signing": "unsigned",
+  "source_commit": "3fe807a5255fdfa8bbd0ae7bd1c07f23dad40ebb",
+  "source_exe": "/root/mudds-shipyards/builds/windows/MuddsShipyards-3fe807a.exe",
+  "source_exe_bytes": 184404720,
+  "source_exe_sha256": "6ca4bc2c0203cb9dcc330f0aea951baf3c4b385bfcad041cbfe56cf1444373a2"
+}
