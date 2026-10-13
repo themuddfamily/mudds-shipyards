@@ -1,0 +1,27 @@
+Mudd's Shipyards — matching Linux Habitat arc checkpoint (2026-10-13)
+Source: f84dec099265e0e5367d9c874adb5fa2c4c945f2 (exact clean isolated clone).
+
+Player-visible changes
+Habitat coloured ribs now share ten complete room-local arc batches instead of sixty segment groups. They preserve the original triangles, shading, room visibility/culling and staged lifecycle while keeping the 27 independent shadow renderers. The module loses fifty colour renderers/submissions and thirteen bound mesh recipes. The Habitat mess-feet fixture continues to use the production batch index and exact visible foot transforms; no boarding or native-device qualification is implied.
+
+Actual validation
+One final safe Linux x86_64 release export exited 0 in 17.271 seconds from the closed Windows-seeded cache, using private installed template copies. All 1,513 actual Linux/Windows embedded payload entries match exactly by path, size and SHA-256.
+The matching Windows package qualification passed source/actual-PCK census 19/19, full Habitat 434/434 and mess feet 8/8, plus four fresh standard probes totaling 223 (89 playability, 40 interaction, 25 material, 69 central hero). The final narrow test-only material correction uses measured 211 batches / 132 mapped and leaves all packaged resources and complete Windows EXE bytes identical. Full payload parity supports shared content qualification. Those checks ran in Linux Godot loading the Windows PCK; independent root artifact review passes. Standard material qualification retains its declared source-normal PNG reference through the established source-project probe workflow.
+Native direct ELF and archive-extracted startup each exited 0 with exactly one STARTUP_MENU_READY_OK and no error diagnostics: direct 9.265 seconds, archive-extracted 9.366 seconds. Both use headless --startup-check before any user-argument separator, Dummy audio, inherited HOME, seven private mode-700 XDG roots plus TMPDIR, and the original 300-second game cap.
+Archive gzip CRC, exactly five unique safe relative members (root directory and four regular files), no links, expected modes and extracted ELF SHA-256 parity passed. ELF, packaged installer and desktop entry modes are 755; icon and archive are 644.
+The actual archive's installer passed install, reinstall, uninstall and reinstall with both package and private profile paths containing spaces. Installed Exec/Icon/Path resolve to the actual packaged targets and the installed entry mode is 644; reinstall bytes are identical. A separate seeded game user-data file preserved its exact hash after every action. All eight private profile roots are mode 700, HOME is inherited, and no GUI or desktop launch occurred. This shell-only installer acceptance is separate from native Windows release qualification.
+Source/index, frozen postexport cache, read-only shared fixtures, embedded PCK, ELF/archive and installer-protected game data close unchanged through qualification and staging. Bounded command waits and final process-group checks found no surviving owned actors. No observation loops or new /tmp workspace were used.
+
+Package identity
+ELF: MuddsShipyards-f84dec0.x86_64
+ELF bytes: 148560112
+ELF SHA-256: a42bbc0c21c1fc61bce64a4cab2f794b6f542430a78c45e023fa0c4ae9ba8487
+Archive: MuddsShipyards-f84dec0-linux-x86_64.tar.gz
+Archive bytes: 94975426
+Archive SHA-256: e7099c0a493da10fa9651a5f17009aaa99fd84058ce9722b5846d274a31e8f0c
+Matching Windows EXE SHA-256: 26cf33143ae393cafa3c6e9163f1f84ee55e46638018c6c92d8f17586e398b6d
+Embedded PCK SHA-256: 95d60fe2a8a5c497b75c98e5612f7923c3c481b576e3856fdadd7d967f115df0
+Raw qualification evidence: /root/.cache/mudds-shipyards/roadmap-validation/habitat-arc-linux
+
+Remaining gates
+Native Linux ordinary gameplay/graphics and target GPU performance, native Windows execution, physical devices/controllers, human normal-controls/first-time-player and visual review, audible audio mix, full-main rendered regression, broad CI requalification and full release: NOT_RUN. Earlier broad-CI failures and full-main timeout remain unqualified. Independent root artifact review passes; the published artifacts retain the remaining gates above.
