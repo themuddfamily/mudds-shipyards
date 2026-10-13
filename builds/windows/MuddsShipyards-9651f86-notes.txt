@@ -1,0 +1,15 @@
+Mudds Shipyards — Windows development checkpoint — 2026-10-13
+Source: 9651f86df4b45d746654b2d2a0a2117e0c8925d9
+
+Player-visible changes
+Ember's complete outbound flight, landing, survey, one-time durable reward, return flight, physical home docking and walking exit now pass the ordinary-controls journey. Long-distance cruise clearance preserves nearby obstacle refusal. The build includes the integrated cabin and interrupted-survey recovery changes.
+
+Validation
+Exact-source hosted Ember journey passes all 52 assertions; core CI passes. Local source checks pass Bulwark116, Halyard shared127 and home-return64, with real peer exits and fresh preservation/cleanup checks.
+Clean Windows export passes. Silent startup passes exit 0 plus STARTUP_MENU_READY_OK. Four packaged station suites pass all 223 assertions; packaged home-return64 and shared-crew132 pass. All five crew actors load this exact embedded PCK, all four peers exit 0, and final fresh checks confirm all 40 captured identities absent and all eight protected scopes unchanged.
+Startup/package checks use Linux Godot loading the Windows EXE's embedded PCK. Native Windows EXE execution, native GPU performance, physical controllers, human play/visual review and audible audio review remain NOT_RUN.
+
+Remaining gates
+Full-candidate and broad regression CI remain running or queued on run38332746107. Main runtime integration, matching Linux checkpoint qualification, final installed recovery, canonical remote-crew/Aurora/Rime journeys and release acceptance remain open. Earlier failures are retained. This is a development checkpoint; the complete project roadmap remains open.
+
+EXE SHA-256: e92c68b12ef88dd1613b00f74fef7d8f87b8919f1e203347dc7c9aaa5d3cf596
