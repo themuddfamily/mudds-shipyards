@@ -68,7 +68,10 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _orchestrate() -> void:
-	_directory = "/tmp/mudds-engineer-peers-%d" % OS.get_process_id()
+	var receipt_root := OS.get_environment("TMPDIR")
+	if receipt_root.is_empty():
+		receipt_root = OS.get_user_data_dir()
+	_directory = receipt_root.path_join("mudds-engineer-peers-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(_directory)
 	_port = 26000 + OS.get_process_id() % 15000
 	var host_args := _peer_arguments("host", PackedStringArray(["--headless"]))
