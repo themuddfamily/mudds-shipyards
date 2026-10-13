@@ -9,20 +9,14 @@ asset: player collision, cameras, input, boarding traversal and seat authority
 remain in Godot.  Geometry, rigging and animation in this file are original,
 script-assisted work and do not contain third-party mesh or motion-capture data.
 
-Reproducibility, measured rather than assumed: re-running this script on the
-pinned Blender 4.0.2 reproduces the asset semantically but NOT byte for byte.
-Three consecutive runs of the unmodified script produced three different GLB
-digests. Diffing them shows identical glTF JSON and identical vertex, normal,
-skin-weight and animation-sampler data; the only bytes that move are the
-triangle INDEX buffers of five primitives, whose winding order the exporter
-emits in a run-dependent sequence (setting PYTHONHASHSEED does not pin it).
-
-The SHA256 contracts in the manifest, in `pilot_skinned_presentation.gd` and in
-`pilot_blender_asset_test.gd` therefore pin the exact shipped bytes, which is
-what stops the checked-in GLB drifting from the checked-in source unnoticed.
-They are not a claim that a fresh run will reproduce those bytes. After any
-re-run, expect to re-freeze them, and check what actually changed by comparing
-the manifest's rig, bind-bounds, clip and topology fields - not the digests.
+The pinned Blender 4.0.2 exporter can emit identical triangles in a different
+sequence on each run. Before hashing the GLB, this generator canonicalizes only
+triangle index buffers: cyclic rotation preserves winding, and lexicographic
+ordering preserves the triangle multiset. Vertex, normal, skin and animation
+data are untouched. The GLB is reproducible with the pinned tool; the editable
+.blend can still contain Blender session metadata and is not byte reproducible.
+The SHA256 contracts pin the exact shipped artifacts. Existing shipped bytes
+remain valid until an intentional asset regeneration and contract update.
 """
 
 from __future__ import annotations
@@ -31,6 +25,7 @@ import bpy
 import hashlib
 import json
 import math
+import struct
 from pathlib import Path
 from mathutils import Matrix, Vector
 
@@ -118,6 +113,53 @@ ACTION_SPECS = [
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def canonicalize_glb_triangle_indices(path: Path) -> None:
+    """Stabilize exporter face order without changing geometry or winding."""
+    data = bytearray(path.read_bytes())
+    magic, version, length = struct.unpack_from("<4sII", data)
+    if magic != b"glTF" or version != 2 or length != len(data):
+        raise ValueError("Expected a complete glTF 2.0 binary export")
+    document = None
+    binary_offset = None
+    offset = 12
+    while offset < len(data):
+        chunk_length, chunk_type = struct.unpack_from("<II", data, offset)
+        offset += 8
+        if offset + chunk_length > len(data):
+            raise ValueError("Truncated GLB chunk")
+        if chunk_type == 0x4E4F534A:
+            document = json.loads(data[offset:offset + chunk_length])
+        elif chunk_type == 0x004E4942:
+            binary_offset = offset
+        offset += chunk_length
+    if document is None or binary_offset is None:
+        raise ValueError("Expected JSON and binary GLB chunks")
+    for mesh in document.get("meshes", []):
+        for primitive in mesh["primitives"]:
+            if primitive.get("mode", 4) != 4 or "indices" not in primitive:
+                continue
+            accessor = document["accessors"][primitive["indices"]]
+            view = document["bufferViews"][accessor["bufferView"]]
+            if accessor["type"] != "SCALAR" or accessor["count"] % 3:
+                raise ValueError("Expected complete indexed triangles")
+            if "sparse" in accessor or "byteStride" in view or view.get("buffer", 0) != 0:
+                raise ValueError("Expected tightly packed embedded triangle indices")
+            component = {5121: "B", 5123: "H", 5125: "I"}[accessor["componentType"]]
+            count = accessor["count"]
+            index_offset = binary_offset + view.get("byteOffset", 0) + accessor.get("byteOffset", 0)
+            indices = struct.unpack_from(f"<{count}{component}", data, index_offset)
+            triangles = []
+            for index in range(0, count, 3):
+                triangle = indices[index:index + 3]
+                triangles.append(min(triangle, triangle[1:] + triangle[:1], triangle[2:] + triangle[:2]))
+            triangles.sort()
+            struct.pack_into(
+                f"<{count}{component}", data, index_offset,
+                *(index for triangle in triangles for index in triangle),
+            )
+    path.write_bytes(data)
 
 
 def material(
@@ -1661,6 +1703,8 @@ def main() -> None:
         export_cameras=False,
         export_lights=False,
     )
+
+    canonicalize_glb_triangle_indices(GLB_PATH)
 
     manifest = {
         "schema_version": 2,

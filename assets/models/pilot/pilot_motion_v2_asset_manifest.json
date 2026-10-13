@@ -120,7 +120,7 @@
     "source": "Blender Z-up, -Y forward, metres"
   },
   "generator": "tools/blender/generate_pilot_motion_v2.py",
-  "generator_sha256": "1d2dad31a017f232d376ca44daf2a394e67b4ca704f9703edca2247d35f05b9b",
+  "generator_sha256": "d3c22119c6c9e491864fe75de03500342cc0ed51c1bf1a0a3d0ab7aeee610fc4",
   "glb_sha256": "760db1cc8f524770b9290609201806feda546e5cfa6b290ad02d7dd12bc38659",
   "hierarchy_contract": [
     "PilotArt",
