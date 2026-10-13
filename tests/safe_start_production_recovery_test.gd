@@ -22,6 +22,9 @@ class FakeFilesystem extends UserDataFilesystem:
 	var write_count := 0
 	var safe_start_write_count := 0
 	var fail_write_number := -1
+	var fail_safe_start_commit_prefix := ""
+	var failed_primary_bytes := PackedByteArray()
+	var failed_commit_id := ""
 	var fail_reads := false
 
 	func file_exists(path: String) -> bool:
@@ -45,6 +48,7 @@ class FakeFilesystem extends UserDataFilesystem:
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
 		write_count += 1
+		var fail_recovery_staging := false
 		# Count staging attempts, excluding rotated history and malformed fixtures.
 		if path.ends_with(".tmp"):
 			var parser := JSON.new()
@@ -54,7 +58,14 @@ class FakeFilesystem extends UserDataFilesystem:
 					"safe-start-"
 				):
 					safe_start_write_count += 1
-		if write_count == fail_write_number:
+					var commit_id := str((document.get("commit", {}) as Dictionary).get("id", ""))
+					if not fail_safe_start_commit_prefix.is_empty() \
+							and commit_id.begins_with(fail_safe_start_commit_prefix):
+						fail_recovery_staging = true
+						failed_commit_id = commit_id
+						failed_primary_bytes = (files.get(path.trim_suffix(".tmp"), PackedByteArray()) as PackedByteArray).duplicate()
+						fail_safe_start_commit_prefix = ""
+		if write_count == fail_write_number or fail_recovery_staging:
 			files[path] = bytes.slice(0, maxi(1, bytes.size() / 2))
 			return ERR_FILE_CANT_WRITE
 		files[path] = bytes.duplicate()
@@ -105,6 +116,7 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 	await process_frame
 	await process_frame
 	var startup := game.get_safe_start_recovery_report()
+	var settings_startup := game.get_runtime_settings_persistence_report()
 	_check(
 		int(startup.policy_count) == 1
 		and int(startup.policy_instance_id) != 0
@@ -120,11 +132,16 @@ func _test_startup_physics_reentry_and_explicit_shutdown() -> void:
 		"store load, policy restore and STARTING commit precede the first settings consumer"
 	)
 	_check(
-		int(startup.begin_status.store_generation) == 1
+		bool(settings_startup.load_status.accepted)
+		and settings_startup.load_status.reason == &"defaults_initialized"
+		and int(settings_startup.load_status.generation) == 1
+		and int(settings_startup.save_success_count) == 1
+		and int(startup.restore_status.store_generation) == int(settings_startup.load_status.generation)
+		and int(startup.begin_status.store_generation) == int(startup.restore_status.store_generation) + 1
 		and int(startup.transition_success_count) == 1
 		and store.get_generation() >= int(startup.begin_status.store_generation)
 		and store.get_snapshot().has(Policy.PAYLOAD_NAMESPACE)
-		and startup.last_commit_id == "safe-start-begin-0000000001"
+		and startup.last_commit_id == "safe-start-begin-%010d" % int(startup.begin_status.store_generation)
 		and startup.commit_clock == &"store_generation_successor"
 		and not bool(startup.wall_clock_used)
 		and not bool(startup.idle_process_time_used),
@@ -512,7 +529,8 @@ func _test_recommendation_merge_and_atomic_failure() -> void:
 
 func _test_transition_write_failures() -> void:
 	var begin_filesystem := FakeFilesystem.new()
-	begin_filesystem.fail_write_number = 1
+	# Fail the recovery transaction, after valid first-launch settings publish.
+	begin_filesystem.fail_safe_start_commit_prefix = "safe-start-begin-"
 	var begin_store := Store.new(
 		"memory://safe-start-begin-failure.json", begin_filesystem
 	)
@@ -520,15 +538,31 @@ func _test_transition_write_failures() -> void:
 	begin_flow.configure_runtime_settings_persistence(begin_store, LEGACY_PATH)
 	begin_flow._initialize_runtime_settings()
 	var begin_report := begin_flow.get_safe_start_recovery_report()
+	var begin_baseline := JSON.parse_string(begin_filesystem.failed_primary_bytes.get_string_from_utf8()) as Dictionary
+	var begin_reopened := Store.new("memory://safe-start-begin-failure.json", begin_filesystem)
+	var begin_readback := begin_reopened.load_read_only()
 	_check(
 		not bool(begin_report.begin_status.accepted)
 		and begin_report.begin_status.reason == &"store_commit_failed"
 		and begin_report.begin_status.store_reason == &"temp_write_failed"
 		and begin_report.policy_snapshot.state == Record.STATE_IDLE
-		and begin_store.get_generation() == 0
-		and not begin_filesystem.files.has("memory://safe-start-begin-failure.json")
+		and bool(begin_report.restore_status.accepted)
+		and int(begin_report.transition_attempt_count) == 1
+		and int(begin_report.transition_success_count) == 0
+		and begin_flow.get_runtime_settings_persistence_report().load_status.reason == &"defaults_initialized"
+		and int(begin_baseline.generation) == 1
+		and begin_baseline.payload.has(Adapter.SETTINGS_PAYLOAD_KEY)
+		and not begin_baseline.payload.has(Policy.PAYLOAD_NAMESPACE)
+		and begin_store.get_generation() == int(begin_baseline.generation)
+		and begin_filesystem.files.get("memory://safe-start-begin-failure.json") == begin_filesystem.failed_primary_bytes
+		and begin_filesystem.failed_commit_id == "safe-start-begin-%010d" % (int(begin_baseline.generation) + 1)
+		and begin_filesystem.safe_start_write_count == 1
+		and bool(begin_readback.accepted)
+		and begin_readback.source == &"primary"
+		and begin_reopened.get_generation() == int(begin_baseline.generation)
+		and begin_reopened.get_snapshot() == begin_baseline.payload
 		and not begin_filesystem.files.has("memory://safe-start-begin-failure.json.tmp"),
-		"failed STARTING publication preserves empty disk and never advances local policy"
+		"failed STARTING publication preserves initialized settings bytes and never advances local policy"
 	)
 	begin_flow.free()
 
@@ -540,17 +574,36 @@ func _test_transition_write_failures() -> void:
 	stable_flow.configure_runtime_settings_persistence(stable_store, LEGACY_PATH)
 	stable_flow._initialize_runtime_settings()
 	stable_flow.set("_initialized", true)
-	stable_filesystem.fail_write_number = 2
+	var before_stable := stable_flow.get_safe_start_recovery_report()
+	var stable_generation := stable_store.get_generation()
+	var stable_bytes := (stable_filesystem.files["memory://safe-start-stable-failure.json"] as PackedByteArray).duplicate()
+	var recovery_writes_before_stable := stable_filesystem.safe_start_write_count
+	stable_filesystem.fail_safe_start_commit_prefix = "safe-start-stable-"
 	stable_flow._physics_process(GameFlow.SAFE_START_STABILITY_PHYSICS_SECONDS)
 	var stable_report := stable_flow.get_safe_start_recovery_report()
 	var writes_after_failure := stable_filesystem.write_count
 	stable_flow._physics_process(1.0)
+	var stable_reopened := Store.new("memory://safe-start-stable-failure.json", stable_filesystem)
+	var stable_readback := stable_reopened.load_read_only()
 	_check(
 		not bool(stable_report.stable_status.accepted)
 		and stable_report.stable_status.reason == &"store_commit_failed"
+		and stable_report.stable_status.store_reason == &"temp_write_failed"
+		and bool(before_stable.begin_status.accepted)
+		and before_stable.policy_snapshot.state == Record.STATE_STARTING
 		and stable_report.policy_snapshot.state == Record.STATE_STARTING
 		and bool(stable_report.stability_transition_attempted)
-		and stable_store.get_generation() == 1
+		and stable_store.get_generation() == stable_generation
+		and stable_filesystem.failed_commit_id == "safe-start-stable-%010d" % (stable_generation + 1)
+		and stable_filesystem.failed_primary_bytes == stable_bytes
+		and stable_filesystem.files["memory://safe-start-stable-failure.json"] == stable_bytes
+		and stable_filesystem.safe_start_write_count == recovery_writes_before_stable + 1
+		and int(stable_report.transition_attempt_count) == int(before_stable.transition_attempt_count) + 1
+		and int(stable_report.transition_success_count) == int(before_stable.transition_success_count)
+		and bool(stable_readback.accepted)
+		and stable_readback.source == &"primary"
+		and stable_reopened.get_generation() == stable_generation
+		and stable_reopened.get_snapshot()[Policy.PAYLOAD_NAMESPACE].state == Record.STATE_STARTING
 		and stable_filesystem.write_count == writes_after_failure
 		and not stable_filesystem.files.has("memory://safe-start-stable-failure.json.tmp"),
 		"failed STABLE publication remains conservatively STARTING without per-frame write retries"
@@ -709,6 +762,10 @@ func _test_process_lifetime_recreation_identity() -> void:
 	first.set("_runtime_settings_legacy_path", "memory://safe-start-process.cfg")
 	first._initialize_runtime_settings()
 	var first_report := first.get_safe_start_recovery_report()
+	var first_settings := first.get_runtime_settings_persistence_report()
+	var first_generation := store.get_generation()
+	var first_bytes := (filesystem.files["memory://safe-start-process.json"] as PackedByteArray).duplicate()
+	var first_write_count := filesystem.write_count
 	first.free()
 	var recreated := GameFlow.new()
 	recreated._initialize_runtime_settings()
@@ -721,7 +778,12 @@ func _test_process_lifetime_recreation_identity() -> void:
 		and int(recreated_report.transition_attempt_count)
 			== int(first_report.transition_attempt_count)
 		and int(recreated.get_runtime_settings_persistence_report().load_attempt_count) == 1
-		and store.get_generation() == 1,
+		and first_settings.load_status.reason == &"defaults_initialized"
+		and int(first_settings.load_status.generation) == 1
+		and first_generation == int(first_settings.load_status.generation) + 1
+		and store.get_generation() == first_generation
+		and filesystem.files["memory://safe-start-process.json"] == first_bytes
+		and filesystem.write_count == first_write_count,
 		"destroyed/recreated production GameFlow adopts one process policy without reload or restart"
 	)
 	recreated.free()
