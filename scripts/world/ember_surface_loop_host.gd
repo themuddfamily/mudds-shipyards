@@ -509,7 +509,8 @@ func bind_dependencies(
 	expected_generation: int = 0,
 	expected_attachment_generation: int = 0,
 	composition_root: Node = null,
-	origin_owner: CommonWorldOriginRebaseOwner = null
+	origin_owner: CommonWorldOriginRebaseOwner = null,
+	recovery_generations: Dictionary = {}
 ) -> Dictionary:
 	if _mutation_active:
 		return _result(false, &"reentrant_call")
@@ -519,6 +520,17 @@ func bind_dependencies(
 	if expected_attachment_generation != _attachment_generation:
 		return _finish(false, &"stale_attachment_generation")
 	var repeat_bind := _bound_once
+	if not recovery_generations.is_empty():
+		if repeat_bind or _session != null:
+			return _finish(false, &"recovery_generations_require_fresh_session")
+		if recovery_generations.size() != 2 \
+				or recovery_generations.get("run_generation") is not int \
+				or recovery_generations.get("attachment_generation") is not int \
+				or int(recovery_generations.run_generation) < 1 \
+				or int(recovery_generations.run_generation) >= PlanetaryTravelSession.MAX_SAFE_GENERATION \
+				or int(recovery_generations.attachment_generation) < 1 \
+				or int(recovery_generations.attachment_generation) >= PlanetaryTravelSession.MAX_SAFE_GENERATION:
+			return _finish(false, &"recovery_generations_exhausted_or_invalid")
 	var released_visit := _visit_released_detached and _phase == Phase.IDLE
 	if repeat_bind and (
 		_attached or _session == null
@@ -625,6 +637,13 @@ func bind_dependencies(
 			_release_leases()
 			_restore_runtime_bindings()
 			return _finish(false, _configuration_error)
+	if not recovery_generations.is_empty():
+		var initialized := _session.initialize_recovery_generations(
+			int(recovery_generations.run_generation), int(recovery_generations.attachment_generation)
+		)
+		if not bool(initialized.get("accepted", false)):
+			return _finish(false, initialized.get("reason", &"recovery_generations_invalid"))
+		_generation = _session.get_generation()
 	var session_attach := _session.attach(
 		WORLD_ID, _frame, _coordinate_frame_generation,
 		_session.get_generation(), _session.get_attachment_generation()
@@ -1554,6 +1573,17 @@ func detach(
 	return _finish(true, &"detached")
 
 
+## A normal streamed-root release ends no new visit. Its one detach advances
+## only attachment identity; the genuine abandoned generation remains retired.
+func is_idle_abandon_release_current(receipt: Dictionary) -> bool:
+	return is_inside_tree() and not is_queued_for_deletion() \
+		and not receipt.is_empty() and receipt == _last_abandon_receipt \
+		and _phase == Phase.IDLE and _generation == int(receipt.get("generation", -1)) \
+		and _attachment_generation == int(receipt.get("attachment_generation", -1)) + 1 \
+		and not _attached and _visit_released_detached and _runtime_bindings_restored \
+		and _command_source == null
+
+
 ## Clears only visit-scoped evidence after the completed runtime handback. The
 ## retained Host identity and travel session survive; bind_dependencies() must
 ## still validate a fresh streamed Ember root and the same live production
@@ -1676,8 +1706,8 @@ func get_return_status_snapshot() -> Dictionary:
 			"player_instance_id": _player_instance_id,
 		},
 		"actor_state": {
-			"ship_position": _ship.global_position if is_instance_valid(_ship) else Vector3.ZERO,
-			"player_position": _player.global_position if is_instance_valid(_player) else Vector3.ZERO,
+			"ship_position": _ship.global_position if _node_is_current(_ship) else Vector3.ZERO,
+			"player_position": _player.global_position if _node_is_current(_player) else Vector3.ZERO,
 		},
 		"surface_route": {
 			"egress_anchor": _region_local_to_world(_REGION.surface_route_anchor_positions_region_local_m[0]),
@@ -1687,10 +1717,13 @@ func get_return_status_snapshot() -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
+	# Retained composition nodes can be alive after whole-Main removal, or
+	# while Main is being freed. Read world-dependent reports only in the tree.
+	# Every container below is fresh or detached by its explicit copy/getter.
 	var bootstrap_snapshot := _bootstrap.get_snapshot() \
 		if _node_is_current(_bootstrap) and _node_is_current(_scene) else {}
-	var ship_position := _ship.global_position if is_instance_valid(_ship) else Vector3.ZERO
-	var player_position := _player.global_position if is_instance_valid(_player) else Vector3.ZERO
+	var ship_position := _ship.global_position if _node_is_current(_ship) else Vector3.ZERO
+	var player_position := _player.global_position if _node_is_current(_player) else Vector3.ZERO
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"host_id": HOST_ID,
@@ -1716,7 +1749,7 @@ func get_snapshot() -> Dictionary:
 			"terrain_profile_id": TERRAIN_PROFILE_ID,
 			"orbital_frame_id": ORBITAL_FRAME_ID,
 			"ship_definition_id": _ship.get_ship_definition().ship_id \
-				if is_instance_valid(_ship) and _ship.get_ship_definition() != null else &"",
+				if _node_is_current(_ship) and _ship.get_ship_definition() != null else &"",
 			"composition_root_instance_id": _composition_root_instance_id,
 			"loaded_scene_instance_id": _loaded_scene_instance_id,
 			"ship_instance_id": _ship_instance_id,
@@ -1768,9 +1801,9 @@ func get_snapshot() -> Dictionary:
 		"actor_state": {
 			"ship_position": ship_position,
 			"player_position": player_position,
-			"ship_telemetry": _ship.get_telemetry() if is_instance_valid(_ship) else {},
-			"player_seated": _player.is_seated() if is_instance_valid(_player) else false,
-			"player_control_enabled": _player.is_control_enabled() if is_instance_valid(_player) else false,
+			"ship_telemetry": _ship.get_telemetry() if _node_is_current(_ship) else {},
+			"player_seated": _player.is_seated() if _node_is_current(_player) else false,
+			"player_control_enabled": _player.is_control_enabled() if _node_is_current(_player) else false,
 			"host_transform_writes": 0,
 			"host_velocity_writes": 0,
 			"host_move_and_collide_calls": 0,
@@ -1796,15 +1829,15 @@ func get_snapshot() -> Dictionary:
 			"last_ship_sample": _last_ship_gravity_sample.duplicate(true),
 			"ship_report": (
 				_ship.get_planetary_surface_gravity_report()
-				if is_instance_valid(_ship) else {}
+				if _node_is_current(_ship) else {}
 			),
 			"policy": _gravity_policy.get_snapshot() if _gravity_policy != null else {},
 			"application": &"player_public_gravity_multiplier_tangent_projection",
 			"ship_application": &"hero_ship_single_tick_world_vector_ingress",
 		},
-		"berth": _berth.audit() if is_instance_valid(_berth) else {},
+		"berth": _berth.audit() if _node_is_current(_berth) else {},
 		"boarding_reserved_for_player": _boarding_area.get_reservation_token() == _player \
-			if is_instance_valid(_boarding_area) and is_instance_valid(_player) else false,
+			if _node_is_current(_boarding_area) and _node_is_current(_player) else false,
 		"command_source": _command_source.get_snapshot() if is_instance_valid(_command_source) else {},
 		"travel_session": _session.get_presentation_snapshot() if _session != null else {},
 		"world_composition": _world_report.duplicate(true),
@@ -1812,7 +1845,7 @@ func get_snapshot() -> Dictionary:
 		"bootstrap": bootstrap_snapshot,
 		"owned_capabilities": _owned_capabilities(),
 		"adjacent_authority": _adjacent_authority(),
-	}.duplicate(true)
+	}
 
 
 func audit() -> Dictionary:
@@ -2990,13 +3023,15 @@ func _dependency_failure_reason() -> StringName:
 	if is_instance_valid(_frame) \
 			and _frame.get_generation() != _coordinate_frame_generation:
 		return &"stale_coordinate_frame_generation"
-	var bootstrap_snapshot := _bootstrap.get_snapshot()
-	if int(bootstrap_snapshot.get("location_generation", -1)) \
+	var loaded_instance := _bootstrap.get_loaded_instance()
+	var loaded_instance_id := loaded_instance.get_instance_id() \
+		if is_instance_valid(loaded_instance) else 0
+	if _bootstrap.get_location_generation() \
 			!= _location_generation \
-			or int(bootstrap_snapshot.get("loaded_instance_id", 0)) \
+			or loaded_instance_id \
 			!= _loaded_scene_instance_id \
 			or not _node_is_current(_scene) \
-			or _bootstrap.get_loaded_instance() != _scene \
+			or loaded_instance != _scene \
 			or int(_scene.get_meta(LOCATION_GENERATION_META, -1)) \
 			!= _location_generation:
 		return &"stale_loaded_scene_generation"
@@ -3515,7 +3550,7 @@ func _result(accepted: bool, reason: StringName) -> Dictionary:
 	var result := get_snapshot()
 	result["accepted"] = accepted
 	result["reason"] = reason
-	return result.duplicate(true)
+	return result
 
 
 func _owned_capabilities() -> Dictionary:

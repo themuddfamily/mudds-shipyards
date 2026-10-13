@@ -114,17 +114,40 @@ class GraphicalHarnessInventoryTests(unittest.TestCase):
         processor = "extends SceneTree\nfunc go(image):\n image.save_png('/tmp/map.png')\n"
         self.fixture.write("tools/visual_probe.gd", renderer)
         self.fixture.write("tools/generate_maps.gd", processor)
+        self.fixture.write("tests/delegated_capture_test.gd", "extends SceneTree\n"
+                           "func go():\n"
+                           " await preload('res://tests/viewport_capture_helper.gd').new().run(self)\n")
+        self.fixture.write("tests/viewport_capture_helper.gd", renderer.replace("extends SceneTree", "extends RefCounted"))
         second = entry("tools/visual_probe.gd", "visual-probe")
         second["classification"] = "historical"
         second["output"] = {"root": "/tmp/frame.png", "contract": "png"}
         second["review_status"] = "reviewed_historical"
-        self.fixture.register([entry(), second])
+        delegated = copy.deepcopy(second)
+        delegated.update(script="tests/delegated_capture_test.gd", id="delegated-capture")
+        self.fixture.register([entry(), second, delegated])
         result = self.fixture.validate()
         self.assertTrue(result.valid, result.errors)
         self.assertEqual(
             result.discovered,
-            ("tests/capture_alpha.gd", "tools/visual_probe.gd"),
+            ("tests/capture_alpha.gd", "tests/delegated_capture_test.gd", "tools/visual_probe.gd"),
         )
+        self.fixture.register([entry(), second])
+        self.assertIn("unregistered graphical harness: tests/delegated_capture_test.gd",
+                      self.fixture.validate().errors)
+        self.fixture.register([entry(), second, delegated])
+        self.fixture.write("tests/orphan_capture.gd", renderer.replace("extends SceneTree", "extends RefCounted"))
+        non_executable_preloads = (
+            "# preload('res://tests/orphan_capture.gd')\n",
+            'var note = "preload(\'res://tests/orphan_capture.gd\')"\n',
+            "var note = 'preload(\"res://tests/orphan_capture.gd\")'\n",
+            'var note = """\npreload(\'res://tests/orphan_capture.gd\')\n"""\n',
+            "var note = '''\npreload(\"res://tests/orphan_capture.gd\")\n'''\n",
+        )
+        for non_executable in non_executable_preloads:
+            with self.subTest(non_executable=non_executable):
+                self.fixture.write("tests/capture_alpha.gd", "extends SceneTree\n" + non_executable)
+                self.assertIn("unregistered graphical harness: tests/orphan_capture.gd",
+                              self.fixture.validate().errors)
 
     def test_unregistered_and_missing_scripts_fail_closed(self):
         self.fixture.write("tests/capture_beta.gd", "extends SceneTree\n")

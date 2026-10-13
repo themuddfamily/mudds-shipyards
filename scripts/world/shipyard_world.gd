@@ -1904,6 +1904,9 @@ func run_staged_construction(on_stage: Callable = Callable()) -> bool:
 		if not _is_staged_run_current(generation):
 			return false
 		_restore_staged_node_owners(child)
+		if child is JovianFreightBerth:
+			# Apply the retained profile before this authored module's first frame.
+			(child as JovianFreightBerth).set_work_mast_shadows_enabled(visual_quality_level != 0)
 		if child is HabitatSpine:
 			var habitat_ready := await HabitatSpine.run_staged_construction(weakref(child), on_stage)
 			if not _is_staged_run_current(generation):
@@ -6891,7 +6894,7 @@ func _build_environment() -> void:
 		light.spot_angle = 47.0
 		light.spot_angle_attenuation = 0.55
 		light.spot_attenuation = 0.75
-		light.shadow_enabled = true
+		light.shadow_enabled = visual_quality_level != 0
 		_shadowed_work_masts.append(light)
 		light.set_meta("central_berth_key_light", is_hero_work_light)
 		add_child(light)
@@ -6924,8 +6927,9 @@ func _build_environment() -> void:
 		light.spot_angle = 47.0
 		light.spot_angle_attenuation = 0.55
 		light.spot_attenuation = 0.75
-		light.shadow_enabled = bool(mast[5])
-		if light.shadow_enabled:
+		light.shadow_enabled = bool(mast[5]) and visual_quality_level != 0
+		# Keep authored membership so later Medium/High changes restore shadows.
+		if bool(mast[5]):
 			_shadowed_work_masts.append(light)
 		light.set_meta("outer_node_work_mast", true)
 		add_child(light)

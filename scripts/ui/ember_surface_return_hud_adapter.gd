@@ -81,6 +81,11 @@ func detach() -> Dictionary:
 	return {"accepted": true, "reason": &"detached", "generation": _generation, "presentation_only": true}
 
 
+## Current attachment state without constructing detached presentation reports.
+func is_attached() -> bool:
+	return _attached and is_instance_valid(_binding) and is_instance_valid(_hud)
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"attached": _attached and is_instance_valid(_binding) and is_instance_valid(_hud),

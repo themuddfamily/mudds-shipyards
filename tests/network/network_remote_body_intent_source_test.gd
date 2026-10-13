@@ -25,6 +25,9 @@ func _run() -> void:
 	_test_stamp_tracks_the_observed_server_tick()
 	_test_reconciliation_is_bounded()
 	_test_delayed_correction_preserves_newer_movement()
+	_test_reconciliation_between_cadence_samples()
+	_test_prediction_history_on_unsent_physics_ticks()
+	_test_future_authority_observations_do_not_starve_judgment()
 	_test_rejected_opening_recovers()
 	if _failures.is_empty():
 		print("OK: network remote body intent source (%d assertions)" % _assertions)
@@ -225,6 +228,111 @@ func _test_delayed_correction_preserves_newer_movement() -> void:
 	var containment := source.reconcile(108, clamped)
 	_check(containment.correct and (escaped.origin + (containment.correction_delta as Vector3)).is_equal_approx(clamped.origin),
 		"a genuine authoritative cabin-boundary correction still removes the entire out-of-bounds error")
+
+
+func _test_reconciliation_between_cadence_samples() -> void:
+	var source := IntentSource.new(4)
+	source.bind(&"crew_a", 1)
+	# The authority publishes on ticks that do not coincide with the client's
+	# four-tick sends. Only gaps within that cadence may be interpolated.
+	for tick in [100, 104, 108, 112]:
+		source.record_local_pose(tick, Transform3D(Basis.IDENTITY, Vector3(float(tick - 100) * 0.1, 0.5, -4.8)))
+	var correction := source.reconcile(106, Transform3D(Basis.IDENTITY, Vector3(-0.6, 0.5, -4.8)))
+	_check(correction.correct and is_equal_approx(float(correction.error_m), 1.2)
+		and (correction.correction_delta as Vector3).is_equal_approx(Vector3(-1.2, 0.0, 0.0)),
+		"a publication between cadence samples corrects the interpolated historical error")
+	_check(source.get_audit().pose_history == 2,
+		"an interpolated judgment retires only samples at or before its tick")
+	var later := source.reconcile(111, Transform3D(Basis.IDENTITY, Vector3(-0.1, 0.5, -4.8)))
+	_check(not later.correct and later.status == &"within_tolerance" and is_zero_approx(float(later.error_m)),
+		"newer interpolated judgments include the earlier translation without repeating the correction")
+	_check(not source.reconcile(106, Transform3D.IDENTITY).correct
+		and not source.reconcile(114, Transform3D.IDENTITY).correct
+		and source.get_audit().corrections == 1,
+		"retired or future ticks never extrapolate a current-pose correction")
+	source.record_local_pose(120, Transform3D.IDENTITY)
+	_check(not source.reconcile(116, Transform3D.IDENTITY).correct,
+		"a clock gap longer than one intent cadence cannot manufacture a historical pose")
+	source.bind(&"crew_a", 1)
+	source.record_local_pose(200, Transform3D.IDENTITY, 1)
+	source.record_local_pose(204, Transform3D.IDENTITY, 2)
+	_check(not source.reconcile(202, Transform3D.IDENTITY).correct,
+		"a frame replacement discards the prior frame instead of interpolating across it")
+	source.record_local_pose(203, Transform3D(Basis.IDENTITY, Vector3(10.0, 0.0, 0.0)), 2)
+	_check(not source.reconcile(203, Transform3D.IDENTITY).correct,
+		"out-of-order pose samples cannot reopen a retired history interval")
+	source.clear_pose_history()
+	source.record_local_pose(208, Transform3D.IDENTITY, 2)
+	_check(not source.reconcile(206, Transform3D.IDENTITY).correct,
+		"a seat or disembark history reset cannot bridge a physical transition")
+	for replacement_tick in [200, 199]:
+		source.bind(&"crew_a", 1)
+		source.record_local_pose(200, Transform3D(Basis.IDENTITY, Vector3(10.0, 0.0, 0.0)), 1)
+		source.record_local_pose(replacement_tick, Transform3D.IDENTITY, 2)
+		_check(not source.reconcile(200, Transform3D.IDENTITY).correct and source.get_audit().pose_history == 0,
+			"a frame replacement at a repeated or backward clock stamp retires the old frame before tick refusal")
+		source.record_local_pose(201, Transform3D.IDENTITY, 2)
+		_check(not source.reconcile(201, Transform3D.IDENTITY).correct and source.get_audit().pose_history == 0,
+			"the new frame resumes at the next increasing stamp without retaining old-frame divergence")
+
+
+func _test_prediction_history_on_unsent_physics_ticks() -> void:
+	var authority := Authority.new(1)
+	authority.register_avatar(1, 2, &"crew_a", 1)
+	var source := IntentSource.new(4)
+	source.bind(&"crew_a", 1)
+	var sent := 0
+	for tick in range(100, 112):
+		authority.set_server_tick(1, tick)
+		var wire := source.advance(2, _sample(), tick)
+		if not wire.is_empty():
+			sent += 1
+			_check(authority.accept_intent(2, wire).accepted,
+				"the unchanged authority admits the ordinary cadence intent")
+		authority.consume_for_tick(&"crew_a", 1, tick)
+		source.record_local_pose(source.estimated_server_tick(),
+			Transform3D(Basis.IDENTITY, Vector3(float(tick - 100) * 0.1, 0.5, -4.8)))
+	_check(sent == 3 and source.get_audit().pose_history == 12,
+		"twelve simulated physics ticks retain twelve poses while still sending only three packets")
+	var correction := source.reconcile(authority.get_server_tick(),
+		Transform3D(Basis.IDENTITY, Vector3(-0.7, 0.5, -4.8)))
+	_check(correction.correct and is_equal_approx(float(correction.error_m), 1.8),
+		"an actual authoritative tick outside the send phase corrects a hatch-sized body disagreement")
+
+
+func _test_future_authority_observations_do_not_starve_judgment() -> void:
+	var source := IntentSource.new(4)
+	source.bind(&"crew_a", 1)
+	var translation := Vector3.ZERO
+	for tick in range(100, 107):
+		source.record_local_pose(tick, Transform3D(Basis.IDENTITY, Vector3(float(tick - 100) * 0.1, 0.5, -4.8) + translation), 1)
+		# Each real authority sample arrives three ticks ahead. The newest sample
+		# is never directly comparable with history on its delivery tick.
+		var verdict := source.reconcile(tick + 3,
+			Transform3D(Basis.IDENTITY, Vector3(float(tick + 3 - 100) * 0.1 - 1.8, 0.5, -4.8)))
+		if verdict.correct:
+			translation += verdict.correction_delta as Vector3
+		if tick == 102:
+			_check(not verdict.correct and source.get_audit().pending_pose_tick == 103
+				and source.get_audit().last_judged_tick == -1,
+				"future samples retain one actual authority observation without extrapolating or advancing the judged fence")
+	_check(source.get_audit().last_observed_pose_tick == 109 and source.get_audit().last_judged_tick == 106
+		and source.get_audit().corrections == 1 and translation.is_equal_approx(Vector3(-1.8, 0.0, 0.0)),
+		"a continuously advancing future stream eventually judges its retained actual ticks and corrects one historical hatch-sized error")
+	var stale := source.reconcile(105, Transform3D.IDENTITY)
+	_check(not stale.correct and source.get_audit().pending_pose_tick == 109,
+		"older authority traffic cannot replace a pending observation or rewind the observed fence")
+	source.record_local_pose(107, Transform3D.IDENTITY, 2)
+	_check(source.get_audit().pending_pose_tick == -1 and source.get_audit().last_observed_pose_tick == 109,
+		"a frame change retires pending authority work while preserving the observed stream fence")
+	source.reconcile(110, Transform3D.IDENTITY)
+	source.clear_pose_history()
+	_check(source.get_audit().pending_pose_tick == -1,
+		"seat and physical transition history resets also retire future authority observations")
+	source.bind(&"crew_a", 2)
+	_check(source.get_audit().pending_pose_tick == -1 and source.get_audit().last_observed_pose_tick == -1
+		and source.get_audit().last_judged_tick == -1,
+		"a new body stream cannot inherit pending observations or prior tick fences")
 
 
 func _opening_reply(wire: Dictionary, result: Dictionary, server_tick: int) -> Dictionary:

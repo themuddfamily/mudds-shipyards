@@ -673,8 +673,8 @@ func _decode_accepted_entry_observation(snapshot: Dictionary) -> Dictionary:
 			"accepted": true,
 			"binding_generation": arrow_bridge.get("generation", -1),
 			"observation_count": arrow_bridge.get("observation_count", -1),
-			"source": arrow_source.duplicate(true),
-		}.duplicate(true)
+			"source": arrow_source,
+		}
 
 	var fleet_bridge := snapshot.get(
 		"fleet_entry_envelope_presentation", {}

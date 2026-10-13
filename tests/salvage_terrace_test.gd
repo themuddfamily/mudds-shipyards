@@ -1,5 +1,7 @@
 extends SceneTree
 
+## test-matrix-display: input-only
+
 ## Focused contract, mutation, and embodied traversal proof for Salvage Terrace.
 
 const MODULE_SCENE := preload("res://scenes/world/modules/salvage_terrace.tscn")
@@ -11,8 +13,6 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const RUNTIME_SETTINGS := preload("res://scripts/settings/runtime_settings.gd")
 const SETTINGS_ADAPTER := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
 const WORLD_LAYER := 1
-const CAPTURE_PATH := "/tmp/salvage-terrace-forward-plus.png"
-const CLOSE_CAPTURE_PATH := "/tmp/salvage-terrace-bevel-close.png"
 
 var _failures: Array[String] = []
 var _assertions := 0
@@ -75,6 +75,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# Ordinary acceptance needs real physics, Input and live scene/material state,
+	# but no drawn frames. The separate opt-in capture path retains full rendering.
+	RenderingServer.set_render_loop_enabled(false)
 	_test_root = Node3D.new()
 	_test_root.name = "SalvageTerraceTestRoot"
 	root.add_child(_test_root)
@@ -1673,65 +1676,8 @@ func _test_cleanup(module: SalvageTerrace) -> void:
 
 
 func _capture_forward_plus() -> void:
-	root.size = Vector2i(1280, 720)
-	var stage := Node3D.new()
-	stage.name = "SalvageTerraceForwardPlusCapture"
-	root.add_child(stage)
-	var module := MODULE_SCENE.instantiate() as SalvageTerrace
-	stage.add_child(module)
-
-	var world_environment := WorldEnvironment.new()
-	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("111820")
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color("6d8290")
-	environment.ambient_light_energy = 0.48
-	environment.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
-	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	world_environment.environment = environment
-	stage.add_child(world_environment)
-
-	var key_light := DirectionalLight3D.new()
-	key_light.rotation_degrees = Vector3(-52.0, -34.0, 0.0)
-	key_light.light_energy = 1.25
-	key_light.shadow_enabled = true
-	stage.add_child(key_light)
-	var camera := Camera3D.new()
-	var close_capture := OS.get_cmdline_user_args().has("--capture-close")
-	camera.position = Vector3(7.0, 1.6, -1.8) if close_capture else Vector3(45.0, 27.0, -30.0)
-	camera.look_at_from_position(
-		camera.position,
-		Vector3(5.3, -0.15, 1.2) if close_capture else Vector3(5.0, 2.0, 9.0),
-		Vector3.UP
-	)
-	camera.fov = 56.0
-	camera.current = true
-	stage.add_child(camera)
-
-	for _frame in 10:
-		await process_frame
-		await physics_frame
-	await RenderingServer.frame_post_draw
-	var renderer := RenderingServer.get_current_rendering_method()
-	var image := root.get_texture().get_image()
-	var capture_path := CLOSE_CAPTURE_PATH if close_capture else CAPTURE_PATH
-	var save_error := image.save_png(capture_path) if image != null and not image.is_empty() else ERR_CANT_CREATE
-	var valid := (
-		renderer == &"forward_plus"
-		and image != null
-		and image.get_size() == Vector2i(1280, 720)
-		and save_error == OK
-	)
-	print("SALVAGE_TERRACE_FORWARD_PLUS_CAPTURE: ", {
-		"renderer": renderer,
-		"size": image.get_size() if image != null else Vector2i.ZERO,
-		"path": capture_path,
-		"save_error": save_error,
-	})
-	stage.queue_free()
-	await process_frame
-	quit(0 if valid else 1)
+	var capture := preload("res://tests/salvage_terrace_forward_plus_capture.gd").new()
+	await capture.run(self)
 
 
 func _ray(module: Node3D, from: Vector3, to: Vector3) -> Dictionary:

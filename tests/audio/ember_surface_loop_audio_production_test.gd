@@ -1,6 +1,7 @@
 extends SceneTree
 
 const ProductionBinding := preload("res://tests/audio/ember_audio_snapshot_fixture.gd")
+const RuntimeProductionBinding := preload("res://scripts/world/ember_surface_loop_production_binding.gd")
 const AudioBinding := preload("res://scripts/audio/ember_surface_loop_audio_production_binding.gd")
 
 var _assertions := 0
@@ -20,6 +21,13 @@ class LegacyOwner:
 	func publish(snapshot: Dictionary) -> void:
 		observation = snapshot.duplicate(true)
 		state_changed.emit(get_snapshot())
+
+class CountingArrowEntry:
+	extends ArrowEntryPresentationBinding
+	var full_snapshot_reads := 0
+	func get_snapshot() -> Dictionary:
+		full_snapshot_reads += 1
+		return super.get_snapshot()
 
 func _init() -> void:
 	call_deferred("_run")
@@ -137,6 +145,7 @@ func _run() -> void:
 	owner.free()
 	ember_root.free()
 	_test_observation_routes()
+	_test_runtime_owner_observation()
 	await process_frame
 	for failure in _failures:
 		push_error(failure)
@@ -207,6 +216,88 @@ func _test_observation_routes() -> void:
 	for audio in [focused_audio, legacy_audio]:
 		audio.detach()
 	for node in [focused_audio, legacy_audio, focused, legacy, ember_root]:
+		node.free()
+
+## Exercise the actual owner getter and Arrow entry bridge. Sources are injected
+## accepted presentation fixtures; full Arrow flight remains an integration gate.
+func _test_runtime_owner_observation() -> void:
+	var production := RuntimeProductionBinding.new()
+	var entry := CountingArrowEntry.new()
+	var legacy := LegacyOwner.new()
+	var focused_audio := AudioBinding.new()
+	var legacy_audio := AudioBinding.new()
+	var ember_root := FakeEmberRoot.new()
+	for node in [legacy, focused_audio, legacy_audio, ember_root]:
+		root.add_child(node)
+	production.set("_entry_presentation_binding", entry)
+	production.set("_state", EmberSurfaceLoopProductionBinding.State.RUNNING)
+	production.set("_generation", 6)
+	production.set("_loaded_scene_instance_id", ember_root.get_instance_id())
+	entry.set("_generation", 2)
+	var cues: Array = []
+	var legacy_cues: Array = []
+	focused_audio.semantic_surface_cue_emitted.connect(
+		func(cue: StringName, intensity: float): cues.append([cue, intensity]))
+	legacy_audio.semantic_surface_cue_emitted.connect(
+		func(cue: StringName, intensity: float): legacy_cues.append([cue, intensity]))
+	legacy.observation = production.get_snapshot()
+	focused_audio.attach(production)
+	legacy_audio.attach(legacy)
+	for serial in range(1, 5):
+		var source := {
+			"branch_id": &"atmospheric" if serial < 3 else &"airless",
+			"altitude_m": 5_000.0, "vertical_speed_mps": -55.0 if serial == 3 else -5.0,
+			"entry_intensity": 0.95 if serial == 2 else 0.6 if serial == 1 else 0.0,
+			"landing_supported": false,
+		}
+		var accepted := {"accepted": true, "source": source}
+		entry.set("_last_result", accepted.duplicate(true))
+		entry.set("_observation_count", serial)
+		# An empty retained production result exercises the bridge's fallback.
+		production.set("_last_entry_presentation_result", accepted if serial != 4 else {})
+		production.set("_last_prepared_evidence", _altitude_snapshot(
+			6, ember_root, 5_000.0, 12.0, &"descent").last_prepared_evidence)
+		if serial == 4:
+			var reward: Dictionary = _relay_reward_completion_snapshot(6, 12, 3, 7).relay_reward_commit
+			production.set("_relay_reward_authority_commit_count", 1)
+			production.set("_relay_reward_persistence_commit_count", 1)
+			production.set("_relay_reward_authority_receipt", reward.authority_receipt)
+			production.set("_relay_reward_commit_receipt", reward.commit_receipt)
+		var full := production.get_snapshot()
+		var report_reads := entry.full_snapshot_reads
+		production._finish_late_signal(&"test_runtime_audio")
+		legacy.publish(full)
+		_check(entry.full_snapshot_reads == report_reads,
+			"actual owner audio publications avoid Arrow visual diagnostic reports")
+		_check(_comparable_audio(focused_audio) == _comparable_audio(legacy_audio)
+			and cues == legacy_cues,
+			"actual narrow owner preserves entry transitions, beds and persisted reward cues")
+	_check(cues.has([&"planetary_atmospheric_entry", 0.65])
+		and cues.has([&"surface_entry_severe", 1.0])
+		and cues.has([&"surface_entry_severe", 0.9])
+		and cues.has([&"surface_entry_clear", 0.25]),
+		"rising, critical, airless high-sink and clear entry cues remain observable")
+	var before := focused_audio.get_snapshot()
+	var detached := production.get_audio_presentation_snapshot()
+	detached.last_prepared_evidence.actor_sample.position = Vector3.INF
+	detached.entry_presentation.last_result.source.entry_intensity = 1.0
+	detached.relay_reward_commit.commit_receipt.persistence.accepted = false
+	production._finish_late_signal(&"test_runtime_audio_replay")
+	_check(focused_audio.get_snapshot().entry_bed == before.entry_bed
+		and focused_audio.get_snapshot().relay_survey_reward_completion.emitted_cue_count == 1
+		and int(production.get_snapshot().relay_reward_commit.authority_commit_count) == 1
+		and int(production.get_snapshot().relay_reward_commit.persistence_commit_count) == 1,
+		"mutating detached audio inputs cannot alter accepted entry or replay reward authority")
+	var feedback := {"owner_generation": 6, "feedback_generation": 1,
+		"feedback_sequence": 1, "outcome": &"completed", "world_position": Vector3.ZERO}
+	production.service_terminal_repair_feedback.emit(feedback)
+	production.service_terminal_repair_feedback.emit(feedback)
+	_check(focused_audio.get_snapshot().service_repair_feedback.emitted_cue_count == 1,
+		"optimized owner retains once-only authenticated service feedback")
+	for audio in [focused_audio, legacy_audio]:
+		audio.detach()
+	production.free()
+	for node in [legacy, focused_audio, legacy_audio, ember_root]:
 		node.free()
 
 func _comparable_audio(audio: Node) -> Dictionary:

@@ -301,7 +301,8 @@ func configure_planetary_surface(
 		director: ActivityDirector,
 		reward_sink: Callable,
 		atmosphere_composition: Node = null,
-		service_repair_sink: Callable = Callable()
+		service_repair_sink: Callable = Callable(),
+		lifecycle_gate: Callable = Callable()
 	) -> Dictionary:
 	if not _configured or _composition_root == null:
 		return _reject(&"production_binding_unavailable")
@@ -333,7 +334,8 @@ func configure_planetary_surface(
 		Callable(self, &"_commit_relay_reward_through_authority"),
 		_host.get_generation(),
 		service_repair_sink,
-		reward_sink
+		reward_sink,
+		lifecycle_gate
 	)
 	if bool(result.get("accepted", false)) \
 			and _relay_survey_persistence_store != null:
@@ -1567,19 +1569,66 @@ func get_planetary_relay_survey_return_snapshot() -> Dictionary:
 
 
 func detach_planetary_surface() -> Dictionary:
+	if _terminal_station_return_completed():
+		return retire_completed_planetary_return()
 	if _planetary_composition == null:
 		return _reject(&"planetary_composition_unavailable")
 	var result: Dictionary = _planetary_composition.call(&"detach")
+	return _detach_surface_return_components(result)
+
+
+## Home consumes a visit that may already have detached its surface runtimes.
+## Recognize only that same delivered ownership return after physical arrival;
+## strict composition detach remains the operation for a still-bound visit.
+func retire_completed_planetary_return() -> Dictionary:
+	if _planetary_composition == null:
+		return _reject(&"planetary_composition_unavailable")
+	if not _terminal_station_return_completed():
+		return _reject(&"planetary_station_return_not_completed")
+	if _state != State.HANDOFF_PENDING or not _completion_handback_delivered \
+			or _completion_handback.is_empty():
+		return _reject(&"planetary_station_return_handback_unavailable")
+	if not _node_current(_host) or not _node_current(_ship) or not _node_current(_player):
+		return _reject(&"runtime_ownership_return_owner_not_current")
+	if _ship.get_instance_id() != _ship_instance_id \
+			or _player.get_instance_id() != _player_instance_id:
+		return _reject(&"runtime_ownership_return_actor_mismatch")
+	var rejection := _handback_receipt_rejection(
+		_completion_handback, int(_completion_handback.get("retired_attachment_generation", -1))
+	)
+	if not rejection.is_empty():
+		return _reject(rejection)
+	var surface := _planetary_composition.call(&"get_snapshot") as Dictionary
+	var result: Dictionary
+	if StringName(surface.get("state", &"")) == &"detached":
+		if int(surface.get("host_generation", -1)) != int(_completion_handback.generation) \
+				or int(surface.get("attachment_generation", -1)) \
+					!= int(_completion_handback.retired_attachment_generation) \
+				or int((surface.get("adapter", {}) as Dictionary).get("host_instance_id", 0)) \
+					!= _host.get_instance_id():
+			return _reject(&"planetary_station_return_composition_mismatch")
+		# DETACHED is committed only by successful strict composition cleanup.
+		result = {"accepted": true, "reason": &"composition_detached"}
+	else:
+		result = _planetary_composition.call(&"detach") as Dictionary
+	result = _detach_surface_return_components(result)
+	if bool(result.get("accepted", false)):
+		_retire_completed_journey_for_repeat()
+	return result
+
+
+func _detach_surface_return_components(result: Dictionary) -> Dictionary:
 	if bool(result.get("accepted", false)) \
-			and is_instance_valid(_staging_relay_proximity):
+			and is_instance_valid(_staging_relay_proximity) \
+			and bool((_staging_relay_proximity.call(&"get_snapshot") as Dictionary).get("attached", false)):
+		# Streaming may already have retired this presentation when its authored
+		# access marker unloaded. Only a still-attached relay owns a detach here.
 		var diagnostic_detached := _staging_relay_proximity.call(&"detach") \
 			as Dictionary
 		if not bool(diagnostic_detached.get("accepted", false)):
 			return diagnostic_detached
 	if bool(result.get("accepted", false)) and _relay_return_travel != null:
 		_relay_return_travel.call(&"detach")
-	if bool(result.get("accepted", false)) and _terminal_station_return_completed():
-		_retire_completed_journey_for_repeat()
 	return result
 
 
@@ -2054,6 +2103,21 @@ func has_pending_station_return_handoff() -> bool:
 	return not _station_return_handoff_intent.is_empty() and not _station_return_handoff_delivered
 
 
+## Scalar completion observation for physics callers; diagnostic reports remain
+## available separately without being constructed for every readiness poll.
+func has_delivered_completion_handback() -> bool:
+	return _completion_handback_delivered
+
+
+## Fresh tick admission fields when no on-foot survey context is consumed.
+## Complete caller and diagnostic reports remain available unchanged.
+func get_tick_admission_snapshot() -> Dictionary:
+	return {
+		"state_id": _state_id(_state),
+		"identities": {"location_generation": _location_generation},
+	}
+
+
 ## GameFlow observes these fields before preparing a tick, then keeps that
 ## observation through survey admission. All values are fresh detached copies;
 ## the complete diagnostic tree and per-tick signal payload remain unchanged.
@@ -2120,39 +2184,44 @@ func get_return_status_snapshot() -> Dictionary:
 	}
 
 
-## Fresh audio-owner inputs, preserving the complete consumed entry and reward
-## reports without constructing surface, navigation, weather or hazard diagnostics.
+## Fresh detached audio inputs. Copy each retained tree once at this boundary;
+## the complete admitted envelope and diagnostic reports remain in get_snapshot().
 func get_audio_presentation_snapshot() -> Dictionary:
+	var evidence: Dictionary = {}
+	for key: String in ["delta", "actor_sample", "caller_kinematics"]:
+		if _last_prepared_evidence.has(key):
+			var value: Variant = _last_prepared_evidence[key]
+			evidence[key] = value.duplicate(true) if value is Dictionary else value
+	var entry: Dictionary = {"attached": false}
+	if _entry_presentation_binding != null:
+		entry = _entry_presentation_binding.call(&"get_audio_presentation_snapshot") \
+			if _entry_presentation_binding.has_method(&"get_audio_presentation_snapshot") \
+			else (_entry_presentation_binding.get_snapshot() as Dictionary).duplicate(true)
 	return {
 		"generation": _generation,
 		"state_id": _state_id(_state),
 		"identities": {
-			"host_instance_id": _host_instance_id,
-			"composition_root_instance_id": _composition_root_instance_id,
-			"bootstrap_instance_id": _bootstrap_instance_id,
-			"origin_owner_instance_id": _origin_owner_instance_id,
-			"origin_binding_instance_id": _origin_binding_instance_id,
-			"coordinate_frame_instance_id": _frame_instance_id,
 			"ship_instance_id": _ship_instance_id,
-			"player_instance_id": _player_instance_id,
 			"loaded_scene_instance_id": _loaded_scene_instance_id,
-			"location_generation": _location_generation,
-		}.duplicate(true),
-		"last_prepared_evidence": _last_prepared_evidence.duplicate(true),
+		},
+		"last_prepared_evidence": evidence,
 		"relay_reward_commit": {
 			"authority_commit_count": _relay_reward_authority_commit_count,
 			"persistence_commit_count": _relay_reward_persistence_commit_count,
-			"authority_in_flight": _relay_reward_authority_in_flight,
 			"authority_receipt": _relay_reward_authority_receipt.duplicate(true),
 			"commit_receipt": _relay_reward_commit_receipt.duplicate(true),
-			"last_result": _last_relay_reward_commit_result.duplicate(true),
-			"automatic_late_commit": true,
-			"owns_reward_authority": false,
-			"owns_reward_store": false,
-		}.duplicate(true),
-		"entry_presentation": _entry_presentation_binding.get_snapshot() \
-			if _entry_presentation_binding != null else {"attached": false},
-		"last_entry_presentation_result": _last_entry_presentation_result.duplicate(true),
+		},
+		"entry_presentation": entry,
+		"last_entry_presentation_result": {
+			"accepted": _last_entry_presentation_result.get("accepted", false),
+			"source": (
+				(_last_entry_presentation_result.get("source", {}) as Dictionary).duplicate(true)
+			),
+			"landing_wash": {
+				"accepted": (_last_entry_presentation_result.get("landing_wash", {}) \
+					as Dictionary).get("accepted", false),
+			},
+		} if not _last_entry_presentation_result.is_empty() else {},
 		"fleet_landing_wash_presentation": (
 			_fleet_landing_wash_binding.call(&"get_snapshot")
 			if _fleet_landing_wash_binding != null else {
@@ -2170,7 +2239,7 @@ func get_audio_presentation_snapshot() -> Dictionary:
 				"delegated_to_arrow_entry": _ship is ArrowReconShip,
 			}
 		),
-	}.duplicate(true)
+	}
 
 
 func get_snapshot() -> Dictionary:
@@ -2629,7 +2698,9 @@ func _physics_process(_engine_delta: float) -> void:
 		_fail_late(operation.get("reason", &"host_advance_rejected") as StringName)
 		return
 	_advance_count += 1
-	_last_late_result = operation.duplicate(true)
+	# Host.advance_physics returns a fresh detached report. Retain that owned
+	# result; get_snapshot still detaches the complete report for observers.
+	_last_late_result = operation
 	# The real Host commits retained return evidence internally. Publish its
 	# generation-fenced route intent at the first ORBIT_RETURN boundary, leaving
 	# one caller tick for GameFlow to take it before the next late tick atomically
