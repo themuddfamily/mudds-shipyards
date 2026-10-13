@@ -318,7 +318,11 @@ func _run_canonical() -> void:
 			print("RIME_CANONICAL_RETURN tick=", tick, " state=", visit.state,
 				" distance=", returning.distance_flown_m, " rebases=", returning.rebase_count)
 		if not visit.is_active() or craft.is_destroyed():
+			var terminal_return := game._planetary_journey.get_aurora_visit_snapshot() as Dictionary
+			if craft.is_destroyed() or not bool(terminal_return.get("return_handoff_ready", false)):
+				_print_rime_return_rejection(game, craft, visit, returning, tick)
 			break
+	# This shared surface-visit API selects Rime through its actual world_id.
 	var returned := game._planetary_journey.get_aurora_visit_snapshot() as Dictionary
 	var handed_off: bool = bool(returned.get("return_handoff_ready", false)) and not visit.is_active() \
 		and game.phase == GameFlow.Phase.FREE_FLIGHT and game.active_ship == craft \
@@ -348,6 +352,30 @@ func _run_canonical() -> void:
 		" return_m=", returning.distance_flown_m, " outbound_rebases=", outbound.rebase_count,
 		" return_rebases=", returning.rebase_count, " surface_samples=", surface_samples)
 	await _end_canonical(game)
+
+
+func _print_rime_return_rejection(
+		game: GameFlow, craft: HeroShip, visit: RefCounted, sampler: RimeLegSampler, tick: int
+	) -> void:
+	var surface := game.rime_streaming_bootstrap.get_loaded_instance() as Node3D
+	var region := surface.get_node_or_null(^"LandingRegion") as Node3D if is_instance_valid(surface) else null
+	var held_actions: Array[StringName] = []
+	for action: StringName in FLIGHT_CONTROL_ACTIONS:
+		if Input.is_action_pressed(action):
+			held_actions.append(action)
+	print("RIME_CANONICAL_RETURN_REJECTED ", {
+		"observation": tick, "physics_frame": Engine.get_physics_frames(),
+		"visit": visit.get_visit_snapshot(),
+		"current_gate": game._planetary_journey.call(&"_aurora_cruise_gate_reason"),
+		"current_cruise": game.planetary_cruise_binding.get_snapshot(),
+		"attachment": craft.get_planetary_cruise_attachment_report(),
+		"telemetry": craft.get_telemetry(), "craft_pose": craft.global_transform,
+		"craft_velocity": craft.velocity, "player_pose": game.player.global_transform,
+		"ship_region_local": region.to_local(craft.global_position) if is_instance_valid(region) else Vector3.INF,
+		"phase": game.phase, "piloting": game._piloting, "seated": game.player.is_seated(),
+		"manual_intent": craft.has_manual_flight_intent(), "held_actions": held_actions,
+		"return_distance_m": sampler.distance_flown_m, "return_rebases": sampler.rebase_count,
+	})
 
 
 func _start_rime_leg(game: GameFlow, phase_name: StringName) -> RimeLegSampler:
