@@ -13,6 +13,10 @@ const SeenStoreType := preload("res://scripts/settings/tutorial_prompt_seen_stor
 const StoreType := preload("res://scripts/persistence/user_data_store.gd")
 const FilesystemType := preload("res://scripts/persistence/user_data_filesystem.gd")
 const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
+const ActivityBindingType := preload("res://scripts/world/nearby_sector_activity_binding.gd")
+const ConvoyHostType := preload("res://scripts/activities/cinder_convoy_escort_host.gd")
+const MiningType := preload("res://scripts/world/cinder_mining_platform_activity.gd")
+const ScanType := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 
 const STORE_PATH := "memory://activity-tutorial-user-data.json"
 
@@ -167,10 +171,29 @@ func _run() -> void:
 					String(activity_id), String(device_family),
 				],
 			)
+			if activity_id in [&"cinder_platform_mining_run", &"cinder_derelict_structure_scan"]:
+				_check_hold_briefing(detail.text, activity_id)
 		_check(
 			seen_titles.size() == Presenter.ACTIVITY_ORDER.size(),
 			"each %s activity kind yields its own distinct briefing" % String(device_family),
 		)
+	await _check_production_hold_behaviors()
+	for activity_id: StringName in [&"cinder_platform_mining_run", &"cinder_derelict_structure_scan"]:
+		var hold_presenter := Presenter.new()
+		var remapped := hold_presenter.present_snapshot({
+			"activity_id": activity_id, "generation": 1,
+			"glyphs": {&"brake": "CUSTOM BRAKE"}, "input_family": &"keyboard",
+		})
+		_check(remapped.accepted and remapped.prompt.contains("CUSTOM BRAKE")
+			and not remapped.prompt.contains("{brake}"),
+			"%s optional braking follows caller-resolved remapped controls" % activity_id)
+		var accessible_hold := hold_presenter.present_snapshot({
+			"activity_id": activity_id, "generation": 2, "accessible": true,
+		})
+		_check(accessible_hold.accepted and accessible_hold.prompt == accessible_hold.accessible_prompt
+			and not accessible_hold.prompt.contains("{"),
+			"%s accessible hold instruction is glyph-free" % activity_id)
+		_check_hold_briefing(accessible_hold.prompt, activity_id)
 
 	# Accessibility and reduced-motion presets reach the same retained card.
 	var settings := SettingsType.new("user://activity_tutorial_presenter_test.cfg")
@@ -309,6 +332,19 @@ func _run() -> void:
 			and flow.has_seen_activity_tutorial(activity_id),
 			"the production start seam briefs %s the first time it runs" % String(activity_id),
 		)
+		if activity_id in [&"cinder_platform_mining_run", &"cinder_derelict_structure_scan"]:
+			var production_detail := production_hud.get("_runtime_status_detail") as Label
+			_check(binding.starts.back() == activity_id
+				and production_detail.text.contains("Once active")
+				and production_detail.text.contains("hold at the marker"),
+				"%s briefing describes the accepted start's current hold, not a second start" % activity_id)
+			_check_hold_briefing(production_detail.text, activity_id)
+			var start_count := binding.starts.size()
+			_check(flow.publish_activity_tutorial_briefing(activity_id, true)
+				and binding.starts.size() == start_count
+				and production_detail.text.contains("Once active")
+				and not production_detail.text.contains("started at"),
+				"re-showing %s explains the hold without claiming or starting a live activity" % activity_id)
 		production_hud.clear_activity_tutorial(&"production_repeat")
 		flow._activity_tutorial_active_id = &""
 		flow._on_hud_nearby_activity_intent_requested({
@@ -472,6 +508,77 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _check_hold_briefing(prompt: String, activity_id: StringName) -> void:
+	var mining := activity_id == &"cinder_platform_mining_run"
+	_check(prompt.contains("Once active") and prompt.contains("approach marker")
+		and prompt.contains("activity row's Start") and prompt.contains("hold at the marker")
+		and prompt.contains("100%") and not prompt.contains("{interact}")
+		and not prompt.to_lower().contains("pad")
+		and not prompt.to_lower().contains("scan point"),
+		"%s briefing names the activation row and current hold without invented interactions" % activity_id)
+	_check(prompt.contains("LEAVING RESETS PROGRESS")
+		and prompt.contains("CHOOSE START AGAIN") if mining else (
+			prompt.contains("LEAVING PAUSES PROGRESS")
+			and prompt.contains("TO CONTINUE") and not prompt.contains("START AGAIN")),
+		"%s recovery distinguishes a restarted extraction from a continuing scan" % activity_id)
+
+
+func _check_production_hold_behaviors() -> void:
+	var binding := ActivityBindingType.new()
+	binding.add_child(ConvoyHostType.new())
+	root.add_child(binding)
+	await process_frame
+	var pad_rejection := binding.start_mining_activity(MiningType.PLATFORM_ANCHOR)
+	_check(not pad_rejection.accepted and pad_rejection.reason == &"outside_approach_anchor",
+		"landing at the mining platform is outside its real extraction admission sphere")
+	var mining_start := binding.start_mining_activity(MiningType.APPROACH_ANCHOR)
+	var half_extraction := MiningType.EXTRACTION_SECONDS / 2.0
+	var partial_mining := binding.advance_mining_activity_from_caller_sample(
+		half_extraction, MiningType.APPROACH_ANCHOR)
+	_check(mining_start.accepted and partial_mining.accepted
+		and partial_mining.state == MiningType.State.ACTIVE
+		and is_equal_approx(float(partial_mining.elapsed_seconds), half_extraction),
+		"Start at the extraction approach marker admits the real six-second hold")
+	var mining_left := binding.advance_mining_activity_from_caller_sample(
+		1.0, MiningType.PLATFORM_ANCHOR)
+	var mining_return := binding.advance_mining_activity_from_caller_sample(
+		MiningType.EXTRACTION_SECONDS, MiningType.APPROACH_ANCHOR)
+	_check(mining_left.reason == &"extraction_interrupted"
+		and mining_left.state == MiningType.State.RESET
+		and float(mining_left.elapsed_seconds) == 0.0 and not mining_return.accepted,
+		"leaving extraction resets progress; returning alone cannot restart the hold")
+	var mining_restart := binding.start_mining_activity(MiningType.APPROACH_ANCHOR)
+	var mining_complete := binding.advance_mining_activity_from_caller_sample(
+		MiningType.EXTRACTION_SECONDS, MiningType.APPROACH_ANCHOR)
+	_check(mining_restart.accepted and mining_complete.accepted
+		and mining_complete.state == MiningType.State.COMPLETE
+		and mining_complete.generation == mining_start.generation + 1
+		and float(mining_complete.elapsed_seconds) == MiningType.EXTRACTION_SECONDS,
+		"choosing Start again admits a new extraction that completes after the full hold")
+	var scan_start := binding.start_structure_scan(ScanType.APPROACH_ANCHOR)
+	var half_scan := ScanType.SCAN_SECONDS / 2.0
+	var partial_scan := binding.advance_structure_scan_from_caller_sample(
+		half_scan, ScanType.APPROACH_ANCHOR)
+	_check(scan_start.accepted and partial_scan.accepted
+		and partial_scan.state == ScanType.State.SCANNING
+		and is_equal_approx(float(partial_scan.elapsed_seconds), half_scan),
+		"Start at the scan approach marker admits the real four-second hold")
+	var scan_left := binding.advance_structure_scan_from_caller_sample(
+		ScanType.SCAN_SECONDS, ScanType.APPROACH_ANCHOR + Vector3.RIGHT * (ScanType.INTERACTION_RADIUS + 1.0))
+	_check(not scan_left.accepted and scan_left.reason == &"outside_scan_approach"
+		and scan_left.generation == scan_start.generation
+		and is_equal_approx(float(scan_left.elapsed_seconds), half_scan),
+		"leaving the scan sphere pauses without erasing progress or changing generation")
+	var scan_return := binding.advance_structure_scan_from_caller_sample(
+		half_scan, ScanType.APPROACH_ANCHOR)
+	_check(scan_return.accepted and scan_return.state == ScanType.State.COMPLETE
+		and scan_return.generation == scan_start.generation
+		and float(scan_return.elapsed_seconds) == ScanType.SCAN_SECONDS,
+		"returning continues and completes the same scan without another Start or Interact")
+	binding.queue_free()
+	await process_frame
 
 
 func _briefing_card_visible(hud: Variant) -> bool:
