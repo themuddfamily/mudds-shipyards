@@ -1,0 +1,24 @@
+Mudds Shipyards — matching Linux patrol briefing checkpoint (2026-10-13)
+Source: ce581270d122491404bbc35f367199e7ae3313c3 (clean isolated clone, codex/patrol-linux-checkpoint).
+
+Player-visible changes
+Patrol help explains that the activity row's Start begins the selected patrol, then marked waypoints must be visited in order with a continuous two-second hold at each. Leaving a waypoint resets its current hold; while active, re-enter that same unfinished waypoint without pressing Start. Failed or aborted runs require Reset then Start. Keyboard, Xbox and accessible guidance share this route; brake help respects remapped controls. Includes the previously corrected supply, mining and derelict scan briefings.
+
+Actual validation
+Safe Linux x86_64 release export exited 0 in 18.521 seconds using copied private installed templates. Native direct and archive-extracted startup each exited 0 with exactly one STARTUP_MENU_READY_OK and no error diagnostics: direct game 11.973 seconds, archive-extracted game 11.989 seconds (wrapper times 12.202 and 13.102 seconds). Both use headless --startup-check, Dummy audio, inherited HOME, seven private XDG variables and TMPDIR; both retain the original 300-second game cap. Captured actors and native game processes are absent.
+Archive gzip CRC, unique safe relative paths, four regular members plus root directory, no links, expected modes and extracted ELF SHA-256 parity passed. Launcher, icon and optional desktop-entry installer retain the established layout.
+All 1,513 embedded payload entries match the pinned staged Windows EXE exactly by path, size and SHA-256. Complete common-content parity permits reuse of its qualified tutorial's 137 assertions and four standard package probes' 223 assertions (playability 89, interaction 40, material 25, central berth 69); root's final postexport review confirms exit/sentinel/assertion counts, stable source/cache/fixtures/packages and absent processes. These shared checks ran with Linux Godot against the Windows PCK. Native Linux qualification here covers menu startup only.
+Tracked source and index are unchanged through export and qualification. Export changed the clone's private import cache; its frozen postexport hash is unchanged through inventory, extraction and both startup checks. Binary/archive identities remain unchanged through staging.
+
+Package identity
+ELF: MuddsShipyards-ce58127.x86_64
+ELF bytes: 148555968
+ELF SHA-256: e899d6af8521ed984ed2dd6bcef70282b316753cd8694282e29310f41750ac84
+Archive: MuddsShipyards-ce58127-linux-x86_64.tar.gz
+Archive bytes: 94973195
+Archive SHA-256: e83200176a8f9dc784c53dfecdf554c0902933de73c6ef649c5004e51761a150
+Matching staged Windows EXE SHA-256: 3de65825685ae9ad199c9333e6a7b080e2960780f036db7ef18a009ec50498ad
+Raw records: /root/.cache/mudds-shipyards/roadmap-validation/patrol-guidance-checkpoint/linux
+
+Remaining gates
+Native Linux ordinary gameplay/graphics and GPU performance, native Windows execution, physical devices/controllers, human normal-controls/first-time-player and visual review, real audio mix, full final-source regression and full-release qualification: NOT_RUN. No phase is declared complete. Publication awaits root review.
