@@ -1,0 +1,12 @@
+Mudds Shipyards — Linux development checkpoint — 2026-10-13
+Source: 9651f86df4b45d746654b2d2a0a2117e0c8925d9
+
+Player-visible changes
+The complete ordinary-controls solo Ember journey now passes outbound flight, landing, survey, one durable reward, return flight, physical home docking and walking exit. This matches the Windows9651 development checkpoint and includes the integrated cabin/recovery/cruise-clearance changes.
+
+Validation
+Clean Linux export passes. Native standalone and archive-extracted ELF startup each pass exit 0 plus STARTUP_MENU_READY_OK, silently/headlessly. Four packaged station suites pass 223 assertions; exact-PCK home64 and shared132 pass through Linux Godot --main-pack. All five crew actors load the exact PCK, all four peers exit 0, and all 39 captured shared-run identities are absent. Independent fresh checks preserve all eight protected scopes after each operation. All 1,512 embedded Windows/Linux payload hashes match. The committed package-inventory CLI passes; archive member bytes, safe paths and executable modes are verified.
+Exact9651 hosted core and full solo Ember 52 CI pass. Broader/full-candidate regression remains pending. Native graphical/desktop-entry ordinary play, target GPU/controllers, human/audible review, final installed recovery, canonical remote-crew/Aurora/Rime journeys, main runtime integration and release acceptance remain open. Earlier failures remain retained; this checkpoint does not complete the roadmap.
+
+ELF SHA-256: a521f3849c335eb73864c5ed8ff6b6237996a0c713fb8be0c919b5c0ef2c955a
+Archive SHA-256: 9cb007003ab490da3d2c324f68f0dcc4428d276e43f735d702f6e3fec88cff8e
