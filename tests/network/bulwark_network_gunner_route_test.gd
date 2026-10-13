@@ -159,6 +159,11 @@ func _stage_target(name: String = "TargetDrone03") -> Node3D:
 func _host() -> void:
 	_player.set_control_enabled(false)
 	_check(_game.host_network_session(_port).accepted, "production host starts")
+	# ShipyardWorld animates its children; retain the initial shared target
+	# placement through the remote shot using the same owner as moving shots.
+	var world := _game.get_node("ShipyardWorld")
+	var world_was_processing := world.is_processing()
+	world.set_process(false)
 	var target := _stage_target()
 	var health := float(target.get_meta("health", 0.0))
 	var receipts: Array[Dictionary] = []
@@ -168,6 +173,7 @@ func _host() -> void:
 	_write("host.ready", {})
 	if not await _wait_file("client.seated", 60.0):
 		print("GUNNER_HOST_BODY_DEBUG: ", _game.get_network_remote_body_audit())
+		world.set_process(world_was_processing)
 		return
 	var peer := int(_game.network_session.get_admitted_peer_ids()[0])
 	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
@@ -184,10 +190,12 @@ func _host() -> void:
 	_check(jovian.get_component_damage().get_ledger_generation() > prior_lifetime and body.is_seated_at(_craft.get_gunner_station_anchor()) and owner.get_assignment(peer, avatar) == assignment, "unrelated Jovian lifetime refresh preserves actual occupied Bulwark gunner")
 	_write("host.fire_ready", {})
 	if not await _wait_file("client.fired", 25.0):
+		world.set_process(world_was_processing)
 		return
 	_check(float(target.get_meta("health", health)) < health and receipts.any(func(row): return bool(row.get("accepted", false)) and bool(row.get("damaged", false))), "actual existing siege lance damages registered range target on the host")
 	_check(not _craft.is_piloted() and not _craft.get_last_ship_command().fire, "remote gunner never acquires helm or pilot FIRE")
 	print("GUNNER_HOST_DAMAGE: health=", [health, target.get_meta("health")], " receipts=", receipts)
+	world.set_process(world_was_processing)
 	_write("host.damage_checked", {})
 	if not await _wait_file("client.stood", 20.0):
 		return
@@ -243,6 +251,9 @@ func _host() -> void:
 func _client() -> void:
 	_check(_game.join_network_session("127.0.0.1", _port).accepted, "production client joins")
 	await _ticks(100)
+	var world := _game.get_node("ShipyardWorld")
+	var world_was_processing := world.is_processing()
+	world.set_process(false)
 	var target := _stage_target()
 	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.get_boarding_position() + _craft.global_basis.y.normalized() * 0.05))
 	await _ticks(10)
@@ -261,6 +272,7 @@ func _client() -> void:
 	if not await _until(func(): return _player.is_seated_at(_craft.get_gunner_station_anchor()) and not bool(_game.get("_transition_busy")), 8.0):
 		_check(false, "ordinary chair Interact seats client only after host confirms")
 		print("GUNNER_CHAIR_DEBUG: ", _game.network_session.get_gunner_replica_snapshot())
+		world.set_process(world_was_processing)
 		return
 	_check(true, "ordinary chair Interact seats client only after host confirms")
 	var source := _craft.get_local_input_source()
@@ -268,6 +280,7 @@ func _client() -> void:
 	var first := _game.network_session.get_gunner_replica_snapshot()
 	_write("client.seated", {})
 	if not await _wait_file("host.fire_ready", 10.0):
+		world.set_process(world_was_processing)
 		return
 	await _look(target.global_position)
 	_check(_player.is_seated_at(_craft.get_gunner_station_anchor()) and _player.is_station_seated() and _player.is_control_enabled() and source.get_authority_peer_id() == _game.network_session.multiplayer.get_unique_id(), "confirmed client chair retains actual seated station controls and exact transformed source owner before FIRE")
@@ -279,7 +292,9 @@ func _client() -> void:
 	_check(_craft.get_crew_role_authority() == null, "client never acquires role or weapon damage authority")
 	_write("client.fired", {})
 	if not await _wait_file("host.damage_checked", 12.0):
+		world.set_process(world_was_processing)
 		return
+	world.set_process(world_was_processing)
 	await _press(&"interact")
 	_check(await _until(func(): return not _player.is_seated() and not bool(_game.get("_transition_busy")), 8.0), "ordinary stand receives host authorization")
 	await _ticks(20)
