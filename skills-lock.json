@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "godot-characterbody-2d": {
+      "source": "thedivergentai/gd-agentic-skills",
+      "sourceType": "github",
+      "skillPath": "skills/godot-characterbody-2d/SKILL.md",
+      "computedHash": "01552e8f40e74cdc0762cd6db8c2ee17676de0080ee62f3900ac4aa1dc5c472a"
+    },
+    "godot-master": {
+      "source": "thedivergentai/gd-agentic-skills",
+      "sourceType": "github",
+      "skillPath": "skills/godot-master/SKILL.md",
+      "computedHash": "4816163991e811d9991725f1c498286a296e948e8f881787df12ced07fe40172"
+    }
+  }
+}
