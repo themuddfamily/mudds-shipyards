@@ -77,3 +77,59 @@ over 720 files. A clean `ae4ffba` worktree reproduces 713 files and SHA-256
 The artifact and its passing probes remain useful diagnostic evidence, but they
 cannot satisfy the source-binding release gate. A new clean-source export,
 full matrix, package probes, and inventory are required for a PASS record.
+
+## Native Windows checkpoint startup
+
+Run the actual exported EXE or checkpoint ZIP with native Windows PowerShell:
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+  -File tools/release/run_windows_startup_check.ps1 `
+  -Artifact C:\Candidates\MuddsShipyards-<source-sha7>-checkpoint.zip `
+  -ExpectedExeSha256 <64-character-exe-sha256> `
+  -ResultDirectory C:\Checks\<fresh-run-directory>
+```
+
+The result directory must be new and outside real APPDATA, LOCALAPPDATA and
+Downloads. A ZIP must contain exactly `<build>.exe` and `<build>-notes.txt` as
+regular top-level members; duplicates, traversal, links and unexpected files
+fail before extraction. The executable is copied into a private native Windows
+TEMP directory and must match the supplied SHA-256 before it can run.
+
+The child uses `CreateNoWindow`, `--headless --audio-driver Dummy --startup-check`,
+private APPDATA/LOCALAPPDATA/TEMP/TMP, all seven XDG paths and TMPDIR. HOME and
+USERPROFILE stay inherited. Stdout/stderr drain asynchronously. Passing requires
+actual exit 0, exactly one readiness record in both stdout and Godot's log, and
+no engine/script/warning/leak diagnostics. The default 300-second deadline can be
+shortened with `-TimeoutSeconds`; it cannot be increased.
+
+Abort independently from another terminal:
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+  -File tools/release/run_windows_startup_check.ps1 `
+  -Abort -ResultDirectory C:\Checks\<fresh-run-directory>
+```
+
+Abort verifies the canonical generated native TEMP child, the per-run ownership
+marker and result-directory binding, then the live PID, start time and executable
+before writing a request. Invalid or stale records cause no request writes. The
+runner assigns the process to a named kill-on-close Windows Job while it is
+suspended, then resumes it; descendants cannot escape that Job. The independent abort command opens only that bound Job; abort and deadlines
+stop the whole Job, and output draining has a separate ten-second bound. Both success and failure retain `result.json`,
+`owned-process.json` and available stdout/stderr/Godot logs; the private profile
+and copied payload are removed only after no owned actors remain. Sources and
+parent environment are checked unchanged. No installer or input automation runs.
+This checks native Windows headless title-menu readiness; native GPU, gameplay,
+audible audio and human review remain `NOT_RUN`.
+
+The small native failure suite compiles a harmless managed fixture and checks
+nonzero exit, duplicate readiness, script diagnostics, timeout, independent
+abort, a descendant retaining stdout/stderr pipes, malformed abort records that
+must cause no writes, and unsafe ZIP members:
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+  -File tools/release/test_windows_startup_check.ps1 `
+  -TestDirectory C:\Checks\<fresh-fixture-directory>
+```
