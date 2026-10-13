@@ -950,10 +950,13 @@ func _test_instanced_station_family(
 	# Aft replaces fourteen mapped rib-segment batches with one mapped arc
 	# batch, so the measured roster is now 261/182; all 70 tubes and their
 	# ordinary surface bindings, material recipe and scale remain unchanged.
+	# Complete Habitat arcs replace 60 mapped colour batches with 10. Actual
+	# ac5d175 package measurements freeze 211/132; materials and every
+	# source triangle remain unchanged, with all other 24 checks passing.
 	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
 	_check(
-		batches == 261 and mapped == 182,
-		"instanced station structure is exactly 261 batches, 182 of them mapped"
+		batches == 211 and mapped == 132,
+		"instanced station structure is exactly 211 batches, 132 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
