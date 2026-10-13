@@ -1,0 +1,24 @@
+Mudds Shipyards Windows checkpoint — f56bd1a
+Source: f56bd1ad0b28251602504db7963b4471e89b6878 (exact main)
+
+Player-visible changes
+Mining and derelict-scan briefings now describe the activity row's Start at the approach marker and holding until progress reaches 100%, replacing incorrect pad/Interact instructions. Mining explains that leaving resets progress and requires Start again; scan explains that leaving pauses progress and returning continues it. Optional braking uses remapped keyboard/controller glyphs; accessible guidance is glyph-free. Briefings remain factual when repeated or restored.
+
+Actual validation
+Clean-source Windows export passed through the existing safe release wrapper (exit 0, 14.967 seconds). The first isolated export attempt refused missing private-profile templates (exit 1); its raw failure is retained. The successful retry used copied installed templates without source changes.
+Exact-source tutorial: 108 assertions, exit 0, one completion marker. Earlier unchanged mining/approach/scan feedback checks passed 5/3/11 assertions before the final copy revision; their runtime was unchanged.
+Windows EXE embedded-PCK tutorial: 108 assertions, exit 0, one completion marker, 6.134 seconds. Only the unchanged external test and class/UID caches were provided; no filesystem runtime scripts, scenes or assets were available.
+Strict silent Linux-hosted Windows-PCK startup: exit 0, exactly one STARTUP_MENU_READY_OK, mouse-free load, 14.507 seconds. This is embedded-PCK qualification, not native Windows execution.
+All four existing standard package probes: 223 assertions, each exit 0, one success marker and zero diagnostics, within original 300-second suite limits.
+Inventory: Windows x86_64 PE, 1,513 embedded PCK entries; payload safety and compiled-script checks pass.
+Source, import cache, minimal tutorial fixture and package hashes remained unchanged during qualification; all captured owned processes are absent. Logs retain the standard root-user warning; no unexpected runtime diagnostics were observed.
+Exact-main core CI passed: https://github.com/themuddfamily/mudds-shipyards/actions/runs/38460483209 . Broader/full regression was not run by that core CI selection.
+
+Package identity
+EXE: MuddsShipyards-f56bd1a.exe
+Bytes: 184314640
+SHA-256: e312ffbb4cce7f1b52b6a4a568268b1d5d1e22c6096a5a096069efac0380ab77
+ZIP CRC and every member's SHA-256 were verified after packaging.
+
+Remaining gates
+Native Windows execution, native GPU/performance, human normal-controls/first-time-player review, physical controllers, audible mix, full final-source regression, final installation/signing/distribution and full-release acceptance: NOT_RUN. Headless Dummy-audio checks do not qualify those gates.
