@@ -796,7 +796,7 @@ func _test_arch_colour_migration(module: HabitatSpine, snapshots: Array, complet
 			exact = exact and original.node.get_ref() == null and piece.mesh == original.mesh \
 				and piece.material_override == original.material and piece.transform == original.transform \
 				and batch.lod_bias == original.lod_bias \
-				and transforms[piece.instance_index].is_equal_approx(original.room_transform)
+				and (transforms[piece.instance_index] * piece.arc_piece_transform).is_equal_approx(original.room_transform)
 	var drawn_copies := 0
 	var colour_triangles := 0
 	for batch: MultiMeshInstance3D in batches:
@@ -823,11 +823,11 @@ func _test_arch_colour_migration(module: HabitatSpine, snapshots: Array, complet
 				and Basis(Vector3(expected[offset], expected[offset+4], expected[offset+8]), Vector3(expected[offset+1], expected[offset+5], expected[offset+9]), Vector3(expected[offset+2], expected[offset+6], expected[offset+10])).is_equal_approx(value.basis)
 		drawn_copies += transforms.size()
 		colour_triangles += _mesh_triangles(batch.multimesh.mesh) * transforms.size()
-	_check(exact and drawn_copies == completed * 14,
+	_check(exact and drawn_copies == completed,
 		"%d progressive arch migrations preserve current source mesh/material/poses/LOD/bounds and release every consumed node" % completed)
 	if completed == 27:
-		_check(batches.size() == 60 and colour_triangles == 41664,
-			"378 arch colour instances retain 41,664 triangles in 60 local renderers, saving 318 nodes and submissions")
+		_check(batches.size() == 10 and colour_triangles == 41664,
+			"27 complete arch colour instances retain all 378 segments and 41,664 triangles in 10 room-local renderers, saving 368 nodes and submissions")
 		var visible := true
 		for room_path in [^"Structure/PlayerClearConnector", ^"Structure/PressurizedHabitatCorridor/BunkAlcove01", ^"Structure/ObservationCommon"]:
 			var room := module.get_node(room_path) as Node3D
@@ -836,6 +836,70 @@ func _test_arch_colour_migration(module: HabitatSpine, snapshots: Array, complet
 				visible = visible and (batch.is_visible_in_tree() == (batch.get_parent() != room))
 			room.visible = true
 		_check(visible, "connector, private bunk and common-room arch colour families follow their owning room visibility")
+		var batch: MultiMeshInstance3D = batches[0]
+		var original_mesh := batch.multimesh.mesh
+		var altered := original_mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = altered[Mesh.ARRAY_VERTEX]
+		vertices[0] += Vector3(0.01, 0.0, 0.0)
+		altered[Mesh.ARRAY_VERTEX] = vertices
+		var impostor := ArrayMesh.new()
+		impostor.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, altered)
+		batch.multimesh.mesh = impostor
+		_check(not _arch_colour_geometry_matches(module),
+			"arch geometry proof rejects one displaced source triangle")
+		batch.multimesh.mesh = original_mesh
+		batch.multimesh.visible_instance_count = batch.multimesh.instance_count - 1
+		_check(not bool(module.get_render_allocation_report().exact_counts),
+			"production allocation rejects one missing complete colour arc")
+		batch.multimesh.visible_instance_count = -1
+		_check(bool(module.get_render_allocation_report().exact_counts) and _arch_colour_geometry_matches(module),
+			"restoring exact arc geometry and copy count restores the production contract")
+
+
+func _arch_colour_geometry_matches(module: HabitatSpine) -> bool:
+	var rosters: Array = module.get("_arch_visual_pieces")
+	var exact := true
+	for pieces: Array in rosters:
+		var batch: MultiMeshInstance3D = pieces[0].batch
+		var mesh := batch.multimesh.mesh
+		if mesh.get_surface_count() != 1:
+			return false
+		var actual := mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = actual[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = actual[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = actual[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = actual[Mesh.ARRAY_TANGENT]
+		var vertex_offset := 0
+		for piece: Dictionary in pieces:
+			var source := (piece.mesh as Mesh).surface_get_arrays(0)
+			var source_vertices: PackedVector3Array = source[Mesh.ARRAY_VERTEX]
+			var source_normals: PackedVector3Array = source[Mesh.ARRAY_NORMAL]
+			var source_uvs: PackedVector2Array = source[Mesh.ARRAY_TEX_UV]
+			var source_tangents: PackedFloat32Array = source[Mesh.ARRAY_TANGENT]
+			var placement: Transform3D = piece.arc_piece_transform
+			var normal_basis := placement.basis.inverse().transposed()
+			if vertex_offset + source_vertices.size() > vertices.size() \
+					or normals.size() != vertices.size() or uvs.size() != vertices.size() \
+					or tangents.size() != vertices.size() * 4:
+				return false
+			for index in source_vertices.size():
+				var tangent_offset := index * 4
+				var actual_offset := (vertex_offset + index) * 4
+				var expected_tangent := placement.basis * Vector3(
+					source_tangents[tangent_offset], source_tangents[tangent_offset + 1],
+					source_tangents[tangent_offset + 2]
+				)
+				var actual_tangent := Vector3(tangents[actual_offset],
+					tangents[actual_offset + 1], tangents[actual_offset + 2])
+				exact = exact and vertices[vertex_offset + index].distance_to(placement * source_vertices[index]) < 0.00001 \
+					and normals[vertex_offset + index].distance_to((normal_basis * source_normals[index]).normalized()) < 0.0002 \
+					and uvs[vertex_offset + index].is_equal_approx(source_uvs[index]) \
+					and actual_tangent.distance_to(expected_tangent) < 0.0002 \
+					and tangents[actual_offset + 3] == source_tangents[tangent_offset + 3]
+			vertex_offset += source_vertices.size()
+			exact = exact and source[Mesh.ARRAY_INDEX] == null
+		exact = exact and vertices.size() == vertex_offset and actual[Mesh.ARRAY_INDEX] == null
+	return exact
 
 func _test_arch_shadow_batches(module: HabitatSpine) -> void:
 	var rosters: Array = module.get("_arch_visual_pieces")
@@ -928,8 +992,7 @@ func _test_arch_shadow_batches(module: HabitatSpine) -> void:
 			var visual: MultiMeshInstance3D = source.batch
 			var transforms: Array = visual.get_meta("authored_instance_transforms", [])
 			colour_matches = colour_matches and visual.get_parent() == room \
-				and visual.multimesh.mesh == source.mesh \
-				and transforms[source.instance_index].is_equal_approx(arch.transform * source.transform) \
+				and (transforms[source.instance_index] * source.arc_piece_transform).is_equal_approx(arch.transform * source.transform) \
 				and visual.visible and visual.layers == 1 and visual.lod_bias == 1.0 \
 				and visual.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 				and visual.material_override == source.material_override \
@@ -955,6 +1018,8 @@ func _test_arch_shadow_batches(module: HabitatSpine) -> void:
 		"every stand-in is the kit's published shadow recipe for its own stock and stays inside the colour mesh's bounds")
 	_check(retained_source_triangles == 41664 and retained_triangles == 15456,
 		"the 378 colour arch segments cost 41,664 triangles and their shadow-only copies 15,456, not another 41,664")
+	_check(_arch_colour_geometry_matches(module),
+		"complete colour arcs retain all source triangle order, positions, normals, UVs and tangent handedness")
 	_check(colour_matches and bounds_match,
 		"exact room-local arch colour instances and materials retain 27 tightly bounded shadow-only meshes")
 	module.set_module_enabled(false)
@@ -1192,10 +1257,10 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_garden_rack_crown_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1560
+		int(render.descendant_nodes) == 1510
 		and module.find_children("*", "MeshInstance3D", true, false).size() == 836
-		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 93,
-		"visual batching stays frozen at 1560 render nodes, 836 meshes and 93 MultiMeshes"
+		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 43,
+		"visual batching stays frozen at 1510 render nodes, 836 meshes and 43 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -1338,10 +1403,10 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 	_check(
 		int(report.corridor_deck_seam_legacy_submissions) == 9
 		and int(report.corridor_deck_seam_submissions) == 1
-		and int(report.geometry_submissions_before_deck_seam_batch) == 960
-		and int(report.geometry_submissions) == 920
+		and int(report.geometry_submissions_before_deck_seam_batch) == 910
+		and int(report.geometry_submissions) == 870
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
-		and int(report.drawn_copies) == 1413
+		and int(report.drawn_copies) == 1062
 		and bool(report.corridor_deck_seam_authored),
 		"corridor berth gates retain the frozen 9 -> 1 submission allocation"
 	)
@@ -1418,10 +1483,10 @@ func _test_common_ceiling_light_body_batch(module: HabitatSpine) -> void:
 		and int(report.common_ceiling_light_body_legacy_submissions) == 6
 		and int(report.common_ceiling_light_body_submissions) == 1
 		and int(report.common_ceiling_light_body_copies) == 6
-		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 952
-		and int(report.geometry_submissions) == 920
+		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 902
+		and int(report.geometry_submissions) == 870
 		and int(report.geometry_submissions_removed_by_common_ceiling_light_body_batch) == 5
-		and int(report.drawn_copies) == 1413
+		and int(report.drawn_copies) == 1062
 		and bool(report.common_ceiling_light_body_authored),
 		"common ceiling housings measure renderer nodes/submissions 6 -> 1 while all six visible copies remain"
 	)
@@ -1480,8 +1545,8 @@ func _test_galley_door_pull_batch(module: HabitatSpine) -> void:
 		and int(report.galley_door_pull_legacy_submissions) == 4
 		and int(report.galley_door_pull_submissions) == 1
 		and int(report.galley_door_pull_copies) == 4
-		and int(report.geometry_submissions_before_galley_door_pull_batch) == 949
-		and int(report.geometry_submissions) == 920
+		and int(report.geometry_submissions_before_galley_door_pull_batch) == 899
+		and int(report.geometry_submissions) == 870
 		and int(report.geometry_submissions_removed_by_galley_door_pull_batch) == 3
 		and bool(report.galley_door_pull_authored),
 		"galley pulls measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -1553,10 +1618,10 @@ func _test_galley_mug_batch(module: HabitatSpine) -> void:
 		and int(report.galley_mug_legacy_submissions) == 6
 		and int(report.galley_mug_submissions) == 1
 		and int(report.galley_mug_copies) == 6
-		and int(report.geometry_submissions_before_galley_mug_batch) == 930
-		and int(report.geometry_submissions) == 920
+		and int(report.geometry_submissions_before_galley_mug_batch) == 880
+		and int(report.geometry_submissions) == 870
 		and int(report.geometry_submissions_removed_by_galley_mug_batch) == 5
-		and int(report.drawn_copies) == 1413
+		and int(report.drawn_copies) == 1062
 		and bool(report.galley_mug_authored),
 		"galley mugs measure renderer nodes/submissions 6 -> 1 while all six visible copies remain"
 	)
@@ -1690,8 +1755,8 @@ func _test_mess_bench_leg_batch(module: HabitatSpine) -> void:
 		and int(report.mess_bench_leg_legacy_submissions) == 4
 		and int(report.mess_bench_leg_submissions) == 1
 		and int(report.mess_bench_leg_copies) == 4
-		and int(report.geometry_submissions_before_mess_bench_leg_batch) == 946
-		and int(report.geometry_submissions) == 920
+		and int(report.geometry_submissions_before_mess_bench_leg_batch) == 896
+		and int(report.geometry_submissions) == 870
 		and int(report.geometry_submissions_removed_by_mess_bench_leg_batch) == 3
 		and bool(report.mess_bench_leg_authored),
 		"mess-bench legs measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -1715,8 +1780,8 @@ func _test_mess_trestle_foot_batch(module: HabitatSpine) -> void:
 			and int(report.mess_trestle_foot_submissions) == 1
 			and int(report.mess_trestle_foot_copies) == 2
 			and bool(report.mess_trestle_foot_authored)
-			and int(report.geometry_submissions) == 920
-			and int(report.drawn_copies) == 1413,
+			and int(report.geometry_submissions) == 870
+			and int(report.drawn_copies) == 1062,
 		"mess-trestle feet measure renderer nodes/submissions 2 -> 1 while both visible copies remain"
 	)
 
@@ -1836,10 +1901,10 @@ func _test_garden_rack_crown_batch(module: HabitatSpine) -> void:
 		and int(report.garden_rack_crown_legacy_mesh_resources) == 5
 		and int(report.garden_rack_crown_mesh_resources) == 1
 		and int(report.garden_rack_crown_copies) == 5
-		and int(report.geometry_submissions_before_garden_rack_crown_batch) == 943
-		and int(report.geometry_submissions) == 920
+		and int(report.geometry_submissions_before_garden_rack_crown_batch) == 893
+		and int(report.geometry_submissions) == 870
 		and int(report.geometry_submissions_removed_by_garden_rack_crown_batch) == 4
-		and int(report.drawn_copies) == 1413
+		and int(report.drawn_copies) == 1062
 		and bool(report.garden_rack_crown_authored),
 		"garden-rack crowns measure renderer nodes/submissions 5 -> 1 while all five visible copies remain"
 	)
@@ -1908,10 +1973,10 @@ func _test_mess_mug_batch(module: HabitatSpine) -> void:
 		and int(report.mess_mug_legacy_submissions) == 3
 		and int(report.mess_mug_submissions) == 1
 		and int(report.mess_mug_copies) == 3
-		and int(report.geometry_submissions_before_mess_mug_batch) == 939
-		and int(report.geometry_submissions) == 920
+		and int(report.geometry_submissions_before_mess_mug_batch) == 889
+		and int(report.geometry_submissions) == 870
 		and int(report.geometry_submissions_removed_by_mess_mug_batch) == 2
-		and int(report.drawn_copies) == 1413
+		and int(report.drawn_copies) == 1062
 		and bool(report.mess_mug_authored),
 		"mess mugs measure renderer nodes/submissions 3 -> 1 while all three visible copies remain"
 	)
@@ -2065,23 +2130,23 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1560
+		int(report.descendant_nodes) == 1510
 		and int(report.mesh_instances) == 836
-		and int(report.multimesh_batches) == 93,
+		and int(report.multimesh_batches) == 43,
 		"renderer census includes the exact corridor and common-room batches"
 	)
 	_check(
-		int(report.drawn_copies) == 1413
-		and int(report.geometry_submissions) == 920
+		int(report.drawn_copies) == 1062
+		and int(report.geometry_submissions) == 870
 		and int(report.hatch_fastener_copies) == 12,
-		"drawn copies freeze at 1413 while surface submissions hold at 920"
+		"complete arcs reduce drawn instances to 1062 and surface submissions to 870"
 	)
 	_check(
 		int(report.unique_mesh_resources) == HabitatSpine.RENDER_UNIQUE_MESH_RESOURCE_COUNT
 		and int(report.unique_material_resources) == 34
-		and int(report.multimesh_resources) == 92
+		and int(report.multimesh_resources) == 42
 		and int(report.renderer_buffer_floats) == 144,
-		"arch shadow meshes bring mesh/material allocations to 368/34 while the hatch batch retains its 144-float renderer buffer"
+		"arch shadow meshes bring mesh/material allocations to 355/34 while the hatch batch retains its 144-float renderer buffer"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)

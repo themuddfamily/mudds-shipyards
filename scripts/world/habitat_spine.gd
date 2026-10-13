@@ -147,31 +147,33 @@ const MESS_MUG_COPY_COUNT := 3
 const BERTH_BOOT_COPY_COUNT := 8
 # Include the independent 27 shadow-only arch renderers in both sides of
 # existing family comparisons. Room-local colour batches retire 378 segment
-# renderers into 60 exact mesh/material groups, preserving every drawn copy.
-const PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT := 939
-const PRE_GALLEY_MUG_GEOMETRY_SUBMISSION_COUNT := 930
-const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 943
-const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 952
-const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 960
-const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 949
-const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 946
+# renderers into 10 exact room/material arc groups, preserving every triangle.
+# Each complete arc is one instance; the 27 shadow renderers stay independent.
+const PRE_MESS_MUG_GEOMETRY_SUBMISSION_COUNT := 889
+const PRE_GALLEY_MUG_GEOMETRY_SUBMISSION_COUNT := 880
+const PRE_GARDEN_RACK_CROWN_GEOMETRY_SUBMISSION_COUNT := 893
+const PRE_COMMON_CEILING_LIGHT_BODY_GEOMETRY_SUBMISSION_COUNT := 902
+const PRE_DECK_SEAM_GEOMETRY_SUBMISSION_COUNT := 910
+const PRE_GALLEY_DOOR_PULL_GEOMETRY_SUBMISSION_COUNT := 899
+const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 896
 ## Each of the two reusable StationDoors owns one two-copy frame-post batch in
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
 ## The static common-room display adds one quad renderer/mesh/material to this roster.
-const RENDER_DESCENDANT_COUNT := 1560
+const RENDER_DESCENDANT_COUNT := 1510
 const RENDER_MESH_INSTANCE_COUNT := 836
-const RENDER_MULTIMESH_BATCH_COUNT := 93
+const RENDER_MULTIMESH_BATCH_COUNT := 43
 ## One reusable StationDoor renderer owns a shared MultiMesh resource across the
 ## module's two door instances; all other batches own their component buffer.
-const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 92
-const RENDER_DRAWN_COPY_COUNT := 1413
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 920
+const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 42
+const RENDER_DRAWN_COPY_COUNT := 1062
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 870
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
-# The 27 independent shadow-only arch meshes bring the live allocation to 367.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 368
+# Complete colour arcs replace 23 bound stock recipes with 10 exact meshes;
+# the 27 independent shadow meshes keep the live allocation at 355.
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 355
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 34
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
 const OBSERVATION_BACKREST_METALLIC := 0.02
@@ -4327,43 +4329,93 @@ func _build_next_arch_shadow_batch() -> void:
 			_arch_visual_groups.clear()
 
 
+## One exact arc recipe keeps every source triangle and its shading attributes.
+## Matching arcs share a renderer only inside their owning room, so private bunk
+## visibility, room culling and the staged shadow-settle lifecycle remain local.
 func _batch_arch_colour_sources(sources: Array[MeshInstance3D]) -> void:
 	var arch := sources[0].get_parent() as Node3D
 	var room := arch.get_parent() as Node3D
-	var pieces: Array[Dictionary] = []
-	var changed_groups: Dictionary = {}
+	var placement := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, sources[0].position.z))
+	var recipe: Array = []
 	for source in sources:
-		var key := "%s/%s/%s/%s" % [
-			room.get_instance_id(), source.mesh.get_instance_id(),
-			source.material_override.get_instance_id(), source.lod_bias,
-		]
-		if not _arch_visual_groups.has(key):
-			var empty_transforms: Array[Transform3D] = []
-			var visual := _multimesh_visual_stock(
-				room, "ArchColourStock%02d" % _arch_visual_batches.size(),
-				source.mesh, source.material_override, empty_transforms, &"TubeSegment"
-			)
-			visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			visual.lod_bias = source.lod_bias
-			_arch_visual_batches.append(visual)
-			_arch_visual_groups[key] = {"batch": visual, "transforms": empty_transforms}
-		var group: Dictionary = _arch_visual_groups[key]
-		var transforms: Array[Transform3D] = group.transforms
+		recipe.append([source.mesh, placement.affine_inverse() * source.transform,
+			source.material_override, source.lod_bias, source.layers])
+	var group: Dictionary = {}
+	for candidate: Dictionary in _arch_visual_groups.values():
+		var visual: MultiMeshInstance3D = candidate.batch
+		if visual.get_parent() == room and candidate.recipe == recipe \
+				and visual.material_override == sources[0].material_override \
+				and visual.lod_bias == sources[0].lod_bias and visual.layers == sources[0].layers:
+			group = candidate
+			break
+	if group.is_empty():
+		var empty_transforms: Array[Transform3D] = []
+		var visual := _multimesh_visual_stock(
+			room, "ArchColourArc%02d" % _arch_visual_batches.size(),
+			_arch_colour_arc_mesh(recipe), sources[0].material_override,
+			empty_transforms, &"TubeSegment"
+		)
+		visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		visual.lod_bias = sources[0].lod_bias
+		visual.layers = sources[0].layers
+		group = {"batch": visual, "recipe": recipe, "transforms": empty_transforms}
+		_arch_visual_groups[_arch_visual_batches.size()] = group
+		_arch_visual_batches.append(visual)
+	var visual: MultiMeshInstance3D = group.batch
+	var transforms: Array[Transform3D] = group.transforms
+	var pieces: Array[Dictionary] = []
+	for source_index in sources.size():
+		var source := sources[source_index]
 		pieces.append({
 			"mesh": source.mesh, "transform": source.transform,
 			"material_override": source.material_override,
-			"batch": group.batch, "instance_index": transforms.size(),
+			"batch": visual, "instance_index": transforms.size(),
+			"arc_piece_transform": recipe[source_index][1],
 		})
-		transforms.append(arch.transform * source.transform)
-		changed_groups[key] = group
-	for group: Dictionary in changed_groups.values():
-		var visual: MultiMeshInstance3D = group.batch
-		var transforms: Array[Transform3D] = group.transforms
-		visual.multimesh.instance_count = transforms.size()
-		visual.multimesh.buffer = _encode_multimesh_transforms(transforms)
-		visual.multimesh.custom_aabb = _transformed_mesh_bounds(visual.multimesh.mesh.get_aabb(), transforms)
-		visual.set_meta("authored_instance_transforms", transforms.duplicate())
+	transforms.append(arch.transform * placement)
+	visual.multimesh.instance_count = transforms.size()
+	visual.multimesh.buffer = _encode_multimesh_transforms(transforms)
+	visual.multimesh.custom_aabb = _transformed_mesh_bounds(visual.multimesh.mesh.get_aabb(), transforms)
+	visual.set_meta("authored_instance_transforms", transforms.duplicate())
 	_arch_visual_pieces.append(pieces)
+
+
+func _arch_colour_arc_mesh(recipe: Array) -> ArrayMesh:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var tangents := PackedFloat32Array()
+	for piece: Array in recipe:
+		var mesh: ArrayMesh = piece[0]
+		var placement: Transform3D = piece[1]
+		var arrays := mesh.surface_get_arrays(0)
+		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var source_uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var source_tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var normal_basis := placement.basis.inverse().transposed()
+		for vertex_index in source_vertices.size():
+			vertices.append(placement * source_vertices[vertex_index])
+			normals.append((normal_basis * source_normals[vertex_index]).normalized())
+		uvs.append_array(source_uvs)
+		for tangent_index in source_vertices.size():
+			var offset := tangent_index * 4
+			var tangent := placement.basis * Vector3(
+				source_tangents[offset], source_tangents[offset + 1], source_tangents[offset + 2]
+			)
+			tangents.append_array(PackedFloat32Array([
+				tangent.x, tangent.y, tangent.z, source_tangents[offset + 3]
+			]))
+	var merged_arrays := []
+	merged_arrays.resize(Mesh.ARRAY_MAX)
+	merged_arrays[Mesh.ARRAY_VERTEX] = vertices
+	merged_arrays[Mesh.ARRAY_NORMAL] = normals
+	merged_arrays[Mesh.ARRAY_TEX_UV] = uvs
+	merged_arrays[Mesh.ARRAY_TANGENT] = tangents
+	var arc_mesh := ArrayMesh.new()
+	arc_mesh.resource_name = "HabitatExactColourArc"
+	arc_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, merged_arrays)
+	return arc_mesh
 
 
 func _style_access_landmarks() -> void:
