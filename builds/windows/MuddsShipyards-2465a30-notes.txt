@@ -1,0 +1,16 @@
+Mudds Shipyards development checkpoint — 2026-10-13
+Source: 2465a30d83096d17102c26a058994049d330e7f5 (integrated and pushed to main)
+
+Changes
+Planetary cruise now corroborates cylinder movement with the whole swept enclosure, catching a real thin obstacle375.1km into a750km sweep. Long oblique sweeps use a conservative primitive box instead of constructing a quantized convex hull. This removes a reproduced native hull warning/false-clear path. Original authored shapes, exclusions, movement ownership, proof contract and bounded refusal rules remain.
+Includes the integrated Cargo cabin finish reuse and authored Zenith export integration from current main.
+
+Actual validation
+Own-source warm-resource editor/import PASS. Existing physical suite PASS74: original71 predicates retained plus the exact reproduced oblique span, endpoint-corner containment and real distant blocker. Existing Arrow geometry/hierarchy suite PASS. Actual exit0 and zero final diagnostics; source hashes match the final commit. Independent bounded source review APPROVE.
+Clean Windows export PASS. Silent Linux Godot loading the embedded Windows PCK with --startup-check: exit0, exactly one STARTUP_MENU_READY_OK, zero diagnostics.
+Four package-probe station suites PASS223, actual exit0, zero diagnostics.
+Embedded-runtime physical test PASS74, actual exit0 and zero diagnostics, using only the external unchanged fixture and class cache in a private directory; no filesystem scripts/scenes/assets were available as runtime fallback. The fixture itself is excluded from the release PCK, so an earlier direct-without-fixture attempt was rejected and retained.
+EXE SHA256: fa816a9a90d7518a323c46292d4f2ac1ef9ccc23738ae084c8f98f24d17be8ea
+
+Remaining acceptance
+Native Windows/GPU/controller/audio/human qualification NOT_RUN. The complete Rime journey and broader planetary/crew source integration remain unaccepted; this two-file safety port does not import the candidate's broader ownership/publication changes. Original6d55 full journey is retained separately and emitted native hull warnings. Full final-source CI remains open. No phase exit gate is closed by this checkpoint.
