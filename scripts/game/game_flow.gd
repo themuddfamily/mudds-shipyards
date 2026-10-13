@@ -24027,10 +24027,6 @@ func _advance_network_engineer(delta: float) -> void:
 		_network_engineer_binding.advance(delta)
 	if _network_session_mode != &"client" or not is_instance_valid(network_session):
 		return
-	if is_instance_valid(_network_engineer_pending_seat):
-		_network_engineer_pending_elapsed += delta
-		if _network_engineer_pending_elapsed > 4.0:
-			_network_engineer_pending_seat = null
 	var view := _network_physical_crew_view()
 	var assignment := view.get("assignment", {}) as Dictionary
 	var belongs: bool = not assignment.is_empty() and is_instance_valid(_cabin_ship) and view.get("ship_id") == _cabin_ship.get_ship_id() \
@@ -24058,6 +24054,13 @@ func _advance_network_engineer(delta: float) -> void:
 			# local body. Ask the still-owned host body to stand instead.
 			_network_remote_body_intent_source.request_interaction()
 
+	# Consume the authenticated view already received for this live request
+	# before advancing its clock. Otherwise the expiry tick discards a current
+	# confirmation and asks the host to release the chair it just granted.
+	if is_instance_valid(_network_engineer_pending_seat):
+		_network_engineer_pending_elapsed += delta
+		if _network_engineer_pending_elapsed > 4.0:
+			_network_engineer_pending_seat = null
 
 func _present_network_engineer_seat(seat: ShipCrewSeat) -> void:
 	var craft := seat.get_ship()

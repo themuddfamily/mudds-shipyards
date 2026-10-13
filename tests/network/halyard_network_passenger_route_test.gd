@@ -103,7 +103,10 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _orchestrate() -> void:
-	_directory = "/tmp/mudds-passenger-peers-%d" % OS.get_process_id()
+	var peer_root := OS.get_environment("TMPDIR")
+	if peer_root.is_empty():
+		peer_root = "/tmp"
+	_directory = peer_root.path_join("mudds-passenger-peers-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(_directory)
 	_port = 26000 + OS.get_process_id() % 15000
 	var host_args := _peer_arguments("host", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
