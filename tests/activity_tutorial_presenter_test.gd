@@ -16,6 +16,7 @@ const HUD_SCENE := preload("res://scenes/ui/hud.tscn")
 const ActivityBindingType := preload("res://scripts/world/nearby_sector_activity_binding.gd")
 const ConvoyHostType := preload("res://scripts/activities/cinder_convoy_escort_host.gd")
 const MiningType := preload("res://scripts/world/cinder_mining_platform_activity.gd")
+const PatrolRoute := preload("res://assets/activities/cinder_reach_checkpoint_route.tres")
 const ScanType := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
 
 const CargoAccessScene := preload("res://scenes/world/components/cinder_cargo_access.tscn")
@@ -184,12 +185,30 @@ func _run() -> void:
 			)
 			if activity_id in [&"cinder_platform_mining_run", &"cinder_derelict_structure_scan"]:
 				_check_hold_briefing(detail.text, activity_id)
+			if activity_id == &"cinder_relay_patrol":
+				_check_patrol_briefing(detail.text)
 			if activity_id == &"cinder_platform_supply_run":
 				_check_supply_briefing(detail.text)
 		_check(
 			seen_titles.size() == Presenter.ACTIVITY_ORDER.size(),
 			"each %s activity kind yields its own distinct briefing" % String(device_family),
 		)
+	await _check_production_patrol_behaviors()
+	var patrol_presenter := Presenter.new()
+	var remapped_patrol := patrol_presenter.present_snapshot({
+		"activity_id": &"cinder_relay_patrol", "generation": 1,
+		"glyphs": {&"brake": "CUSTOM BRAKE"}, "input_family": &"keyboard",
+	})
+	_check(remapped_patrol.accepted and remapped_patrol.prompt.contains("CUSTOM BRAKE if needed")
+		and not remapped_patrol.prompt.contains("{brake}"),
+		"patrol optional braking follows caller-resolved remapped controls")
+	_check_patrol_briefing(remapped_patrol.prompt)
+	var accessible_patrol := patrol_presenter.present_snapshot({
+		"activity_id": &"cinder_relay_patrol", "generation": 2, "accessible": true,
+	})
+	_check(accessible_patrol.accepted and accessible_patrol.prompt == accessible_patrol.accessible_prompt
+		and not accessible_patrol.prompt.contains("{"), "accessible patrol instruction is glyph-free")
+	_check_patrol_briefing(accessible_patrol.prompt)
 	await _check_production_hold_behaviors()
 	await _check_production_supply_behaviors()
 	var supply_presenter := Presenter.new()
@@ -361,6 +380,14 @@ func _run() -> void:
 			and flow.has_seen_activity_tutorial(activity_id),
 			"the production start seam briefs %s the first time it runs" % String(activity_id),
 		)
+		if activity_id == &"cinder_relay_patrol":
+			var patrol_detail := production_hud.get("_runtime_status_detail") as Label
+			_check_patrol_briefing(patrol_detail.text)
+			var start_count := binding.starts.size()
+			_check(flow.publish_activity_tutorial_briefing(activity_id, true)
+				and binding.starts.size() == start_count,
+				"re-showing patrol help never starts another patrol")
+			_check_patrol_briefing(patrol_detail.text)
 		if activity_id == &"cinder_platform_supply_run":
 			var supply_detail := production_hud.get("_runtime_status_detail") as Label
 			_check_supply_briefing(supply_detail.text)
@@ -461,9 +488,15 @@ func _run() -> void:
 	flow._activity_tutorial_active_id = &"cinder_relay_patrol"
 	_check(
 		flow._republish_activity_tutorial_presentation()
-		and production_title.text == "Fly the relay patrol",
+		and production_title.text == "Fly the patrol route",
 		"whole-Main re-entry republishes the retained briefing on the same channel",
 	)
+	_check_patrol_briefing((production_hud.get("_runtime_status_detail") as Label).text)
+	var alias_start_count := binding.starts.size()
+	_check(flow.publish_activity_tutorial_briefing(GameFlowType.CINDER_PLATFORM_PATROL_ROUTE_ID, true)
+		and production_title.text == "Fly the patrol route" and binding.starts.size() == alias_start_count,
+		"PlatformPatrol re-shows the shared route briefing without starting an activity")
+	_check_patrol_briefing((production_hud.get("_runtime_status_detail") as Label).text)
 	production_hud.presentation_intent_requested.connect(
 		flow._on_hud_presentation_intent_requested
 	)
@@ -548,6 +581,47 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _check_patrol_briefing(prompt: String) -> void:
+	_check(prompt.contains("activity row's Start") and prompt.contains("selected patrol")
+		and prompt.contains("marked waypoints in order") and prompt.contains("hold continuously")
+		and prompt.contains("two seconds") and prompt.contains("if needed")
+		and prompt.contains("LEAVING RESETS THE CURRENT HOLD")
+		and prompt.contains("WHILE ACTIVE, RE-ENTER THE SAME UNFINISHED WAYPOINT WITHOUT START")
+		and prompt.contains("FAILED OR ABORTED") and prompt.contains("CHOOSE RESET THEN START")
+		and not prompt.contains("PATROL LAPSED") and not prompt.contains("last relay"),
+		"shared patrol help describes selected waypoints, continuous holds and state-specific recovery")
+
+
+func _check_production_patrol_behaviors() -> void:
+	var binding := ActivityBindingType.new()
+	binding.add_child(ConvoyHostType.new())
+	root.add_child(binding)
+	var actor := Node3D.new()
+	root.add_child(actor)
+	await process_frame
+	var started := binding.start_patrol(actor)
+	var first_point: Vector3 = PatrolRoute.get_checkpoint_position(0)
+	binding.advance_patrol(0.75, actor, first_point)
+	var interrupted := binding.advance_patrol(0.25, actor,
+		first_point + Vector3.RIGHT * (PatrolRoute.checkpoint_radius + 1.0))
+	_check(started.accepted and interrupted.reason == &"dwell_interrupted"
+		and interrupted.state_id == &"active" and interrupted.generation == started.generation
+		and int(interrupted.next_checkpoint_index) == 0
+		and is_zero_approx(float(interrupted.dwell_elapsed_seconds)),
+		"leaving resets only the current patrol hold while the same generation stays ACTIVE")
+	var returned := binding.advance_patrol(0.75, actor, first_point)
+	var secured := binding.advance_patrol(1.25, actor, first_point)
+	_check(returned.state_id == &"active" and returned.generation == started.generation
+		and int(returned.next_checkpoint_index) == 0
+		and is_equal_approx(float(returned.dwell_elapsed_seconds), 0.75)
+		and secured.generation == started.generation and int(secured.next_checkpoint_index) == 1
+		and int(secured.completed_checkpoint_count) == 1,
+		"re-entry restarts the same unfinished waypoint hold without Start, then targets the next waypoint")
+	actor.queue_free()
+	binding.queue_free()
+	await process_frame
 
 
 func _check_supply_briefing(prompt: String) -> void:
