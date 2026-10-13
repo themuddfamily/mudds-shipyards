@@ -85,6 +85,24 @@ func _run() -> void:
 		and int(persistence.store_instance_id) == _isolated_store.get_instance_id(),
 		"caption integration retains the exact injected settings authority"
 	)
+	# First launch publishes authored preferences before the HUD requests any
+	# changes. Keep that initialization separate from the four transactions below.
+	var baseline_settings := RuntimeSettings.new()
+	var baseline_applied := baseline_settings.apply_user_data_payload(
+		_isolated_store.get_snapshot().get(Adapter.SETTINGS_PAYLOAD_KEY, {})
+	)
+	_check(
+		bool(persistence.load_status.accepted)
+		and persistence.load_status.reason == &"defaults_initialized"
+		and int(persistence.load_status.generation) == 1
+		and int(persistence.save_attempt_count) == 1
+		and int(persistence.save_success_count) == 1
+		and int(persistence.accepted_transaction_count) == 0
+		and _isolated_filesystem.files.has(ISOLATED_STORE_PATH)
+		and bool(baseline_applied.accepted)
+		and baseline_settings.to_dictionary() == game.get_runtime_settings().to_dictionary(),
+		"caption integration verifies the persisted first-launch settings baseline"
+	)
 	var hud := game.get_node_or_null(^"HUD") as GameHUD
 	_check(hud != null, "production Main resolves the real GameHUD")
 	if hud == null:
@@ -248,10 +266,33 @@ func _run() -> void:
 	)
 	var final_persistence := game.get_runtime_settings_persistence_report()
 	_check(
-		int(final_persistence.save_attempt_count) == 4
-		and int(final_persistence.save_success_count) == 4
+		int(final_persistence.save_attempt_count) - int(persistence.save_attempt_count) == 4
+		and int(final_persistence.save_success_count) - int(persistence.save_success_count) == 4
+		and int(final_persistence.accepted_transaction_count)
+			- int(persistence.accepted_transaction_count) == 4
+		and bool(final_persistence.injected_authority)
+		and final_persistence.identity_scope == &"injected_main_lifetime"
+		and int(final_persistence.store_instance_id) == _isolated_store.get_instance_id()
 		and _isolated_filesystem.files.has(ISOLATED_STORE_PATH),
 		"all four caption setting transactions commit only to the in-memory store"
+	)
+	# Reopen the actual atomic document so live state alone cannot satisfy the
+	# persistence contract, including the final caption-disable transaction.
+	var reopened := Store.new(ISOLATED_STORE_PATH, _isolated_filesystem)
+	var persisted := reopened.load_read_only()
+	var persisted_settings := reopened.get_snapshot().get(Adapter.SETTINGS_PAYLOAD_KEY, {}) as Dictionary
+	var persisted_values := persisted_settings.get("values", {}) as Dictionary
+	var restored_settings := RuntimeSettings.new()
+	var restored := restored_settings.apply_user_data_payload(persisted_settings)
+	_check(
+		bool(persisted.accepted)
+		and persisted.source == &"primary"
+		and bool(restored.accepted)
+		and restored_settings.to_dictionary() == game.get_runtime_settings().to_dictionary()
+		and persisted_values.get("captions_enabled") == false
+		and persisted_values.get("reduced_motion") == true
+		and is_equal_approx(float(persisted_values.get("ui_scale", 0.0)), 1.6),
+		"reopened isolated settings preserve caption disable, reduced motion and 1.6 UI scale"
 	)
 	_check(
 		_production_store_snapshot() == _production_store_before,
