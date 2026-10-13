@@ -1,0 +1,14 @@
+Mudds Shipyards gameplay checkpoint — 2026-10-13
+Source: d2b50c09b6db877f955d03a25727eb3b87357fed (main)
+
+Player-visible changes
+Remote peers now receive the existing medium-impact cue for confirmed host hauler slug damage. Mid-flight joiners remain quiet on launch and hear the eventual impact; duplicate, missed and aborted flights do not replay it. Both Aft Junction support caps now sit 5 mm below the walking deck, removing visible dark disks/flickering beneath the brass collars. Collision, walking surface, geometry/material allocations and lights are unchanged.
+
+Actual validation
+Clean committed source exports Windows and Linux successfully through the existing guarded wrappers. Combined-source focused checks pass Aft309 and real ENet projectile72 (381 assertions), actual exits 0, one exact sentinel each, zero runner diagnostics and stable source/import cache. Independent implementation checks also pass mass-driver13, combat-audio27 and audio-accessibility16. Original before/after captures inspected at player height under private Xvfb/x11/Dummy show both repaired caps; software renderer only.
+Windows embedded-runtime checks pass Aft309, ENet projectile72 and strict census19 (400 assertions), using only external test/measurement files and class/UID maps, with no filesystem runtime scripts/scenes/assets for fallback. Actual exits 0, exact sentinels and raw hashes verified, zero diagnostics; package/input bytes unchanged. Standard packaged station checks pass223, with all four raw exits/sentinels/hashes verified. Windows embedded-PCK fresh/repeat startup passes exit0 and one STARTUP_MENU_READY_OK each. Linux native standalone ELF and archive-extracted startup pass the existing strict helper. All 1513 Windows/Linux embedded payload hashes match. Routine root-user warnings in source import/export logs are retained.
+
+Remaining gates
+Development checkpoint, not a final release. Broader prepared planetary/cabin/remote-body candidate a60869341 remains separate and unmerged pending complete exact-source CI; those results do not qualify this source. Full regression on this source, native Windows/GPU, graphical Linux desktop play, physical controls, audible mix, human review, final installed recovery/update/rollback, trusted signing and distribution remain open. Dummy audio checks cue admission and semantic dispatch, not sound quality.
+
+Windows EXE SHA256: 431258f91e23ba5372594e012fbac65f3378d3dd1b263e0240834700700bbd58
