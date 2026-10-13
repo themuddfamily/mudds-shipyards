@@ -153,27 +153,40 @@ static func _run_assembly(binding_ref: WeakRef, staged: bool, on_stage: Callable
 		# Keep the pending settle across cancellation, including detachment from
 		# the final craft's progress callback before it ever reaches this await.
 		if binding._assembly_needs_settle and (staged or binding._assembly_unit_index == get_staged_construction_stage_count()):
+			var settled_unit := binding._assembly_unit_index - 1
+			var settle_started := Time.get_ticks_usec()
+			if staged and on_stage.is_valid():
+				print("STARTUP_STAGE_TIMING fleet frame_wait_begin=unit:%d" % settled_unit)
 			binding = null
 			await tree.process_frame
 			binding = binding_ref.get_ref() as FleetExpansionProductionBinding
 			if not _is_assembly_current(binding, generation):
 				return false
+			if staged and on_stage.is_valid():
+				print("STARTUP_STAGE_TIMING fleet unit=%d frame_wait_usec=%d" % [settled_unit, Time.get_ticks_usec() - settle_started])
 			binding._assembly_needs_settle = false
 			continue
 		var unit := binding._assembly_unit_index
 		binding._assembly_unit_index += 1
 		binding._assembly_needs_settle = true
+		if staged and on_stage.is_valid():
+			print("STARTUP_STAGE_TIMING fleet unit_begin=%d" % unit)
+		var unit_started := Time.get_ticks_usec()
 		binding._build_assembly_unit(unit)
 		if not _is_assembly_current(binding, generation):
 			return false
 		if staged and on_stage.is_valid():
+			print("STARTUP_STAGE_TIMING fleet unit=%d call_usec=%d" % [unit, Time.get_ticks_usec() - unit_started])
 			on_stage.call(
 				"Preparing Cinder fleet berths" if unit == 0
 				else "Preparing %s" % String(CRAFT_SPECS[unit - 1].craft_id).capitalize()
 			)
 		if not _is_assembly_current(binding, generation):
 			return false
+	var finalization_started := Time.get_ticks_usec()
 	var accepted := binding._finish_assembly()
+	if staged and on_stage.is_valid():
+		print("STARTUP_STAGE_TIMING fleet finalization_usec=%d" % (Time.get_ticks_usec() - finalization_started))
 	if _is_assembly_current(binding, generation):
 		binding._assembly_run_active = false
 	return accepted and _is_assembly_current(binding, generation)

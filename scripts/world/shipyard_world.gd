@@ -1896,6 +1896,10 @@ func run_staged_construction(on_stage: Callable = Callable()) -> bool:
 		if not is_instance_valid(child) or child.is_queued_for_deletion():
 			_staged_run_active = false
 			return false
+		var child_label := String(child.name)
+		var attachment_started := Time.get_ticks_usec()
+		if on_stage.is_valid():
+			print("STARTUP_STAGE_TIMING world attachment_begin=%s" % child_label)
 		if child.get_parent() == null:
 			add_child(child)
 		elif child.get_parent() != self:
@@ -1904,6 +1908,8 @@ func run_staged_construction(on_stage: Callable = Callable()) -> bool:
 		if not _is_staged_run_current(generation):
 			return false
 		_restore_staged_node_owners(child)
+		if on_stage.is_valid():
+			print("STARTUP_STAGE_TIMING world attachment=%s call_usec=%d" % [child_label, Time.get_ticks_usec() - attachment_started])
 		if child is HabitatSpine:
 			var habitat_ready := await HabitatSpine.run_staged_construction(weakref(child), on_stage)
 			if not _is_staged_run_current(generation):
@@ -1927,20 +1933,32 @@ func run_staged_construction(on_stage: Callable = Callable()) -> bool:
 			return false
 		# Each module can trigger renderer work as well as its synchronous ready.
 		# Give that work a frame before admitting another authored subtree.
+		var child_wait_started := Time.get_ticks_usec()
+		if on_stage.is_valid():
+			print("STARTUP_STAGE_TIMING world frame_wait_begin=attachment:%s" % child_label)
 		await tree.process_frame
 		if not _is_staged_run_current(generation):
 			return false
+		if on_stage.is_valid():
+			print("STARTUP_STAGE_TIMING world attachment=%s frame_wait_usec=%d" % [child_label, Time.get_ticks_usec() - child_wait_started])
 	_resolve_authored_bindings()
 	var budget_started := Time.get_ticks_usec()
 	while _staged_build_index < BUILD_STAGES.size():
 		if not _is_staged_run_current(generation):
 			return false
 		var stage: Array = BUILD_STAGES[_staged_build_index]
+		# Progress labels below report completed stages. These call boundaries
+		# distinguish construction from the main-loop work during each await.
+		if on_stage.is_valid():
+			print("STARTUP_STAGE_TIMING world stage_begin=%s" % String(stage[0]))
+		var call_started := Time.get_ticks_usec()
 		if stage[0] == &"_apply_sign_geometry_budget":
 			if not await _apply_sign_geometry_budget_staged(generation):
 				return false
 		else:
 			call(stage[0] as StringName)
+			if on_stage.is_valid():
+				print("STARTUP_STAGE_TIMING world stage=%s call_usec=%d" % [String(stage[0]), Time.get_ticks_usec() - call_started])
 		if not _is_staged_run_current(generation):
 			return false
 		if stage[0] == &"_build_provisional_fleet":
@@ -1968,9 +1986,14 @@ func run_staged_construction(on_stage: Callable = Callable()) -> bool:
 			return false
 		if Time.get_ticks_usec() - budget_started < STAGED_BUILD_FRAME_BUDGET_USEC:
 			continue
+		var stage_wait_started := Time.get_ticks_usec()
+		if on_stage.is_valid():
+			print("STARTUP_STAGE_TIMING world frame_wait_begin=stage:%s" % String(stage[0]))
 		await tree.process_frame
 		if not _is_staged_run_current(generation):
 			return false
+		if on_stage.is_valid():
+			print("STARTUP_STAGE_TIMING world stage=%s frame_wait_usec=%d" % [String(stage[0]), Time.get_ticks_usec() - stage_wait_started])
 		budget_started = Time.get_ticks_usec()
 	_built = true
 	_staged_construction = false
@@ -2084,19 +2107,32 @@ func _apply_sign_geometry_budget_staged(generation: int) -> bool:
 		_staged_sign_sweep_started = true
 	var tree := get_tree()
 	var budget_started := Time.get_ticks_usec()
+	var call_usec := 0
+	var frame_wait_usec := 0
+	var steps := 0
+	var frame_waits := 0
+	print("STARTUP_STAGE_TIMING world sign_sweep_begin")
 	while not _staged_sign_pending.is_empty():
 		if not _is_staged_run_current(generation):
 			return false
+		var step_started := Time.get_ticks_usec()
 		SignGeometryBudget.apply_tree_step(self, _staged_sign_pending)
+		call_usec += Time.get_ticks_usec() - step_started
+		steps += 1
 		if not _is_staged_run_current(generation):
 			return false
 		if not _staged_sign_pending.is_empty() \
 				and Time.get_ticks_usec() - budget_started >= STAGED_BUILD_FRAME_BUDGET_USEC:
+			var wait_started := Time.get_ticks_usec()
 			await tree.process_frame
 			if not _is_staged_run_current(generation):
 				return false
+			frame_wait_usec += Time.get_ticks_usec() - wait_started
+			frame_waits += 1
 			budget_started = Time.get_ticks_usec()
+	var finalization_started := Time.get_ticks_usec()
 	_finalize_guide_lens_batches()
+	print("STARTUP_STAGE_TIMING world sign_sweep call_usec=%d frame_wait_usec=%d steps=%d frame_waits=%d finalization_usec=%d" % [call_usec, frame_wait_usec, steps, frame_waits, Time.get_ticks_usec() - finalization_started])
 	return _is_staged_run_current(generation)
 
 
