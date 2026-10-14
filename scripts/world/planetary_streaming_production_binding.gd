@@ -178,8 +178,9 @@ func physics_tick_from_caller_sample(delta: float, sample: Variant) -> Dictionar
 		streaming_result.get("reason", &"streaming_update_rejected") as StringName,
 		{
 			"coordinate_frame_generation": _bound_frame_generation,
-			"absolute_coordinate": absolute_coordinate.duplicate(true),
-			"streaming": streaming_result.duplicate(true),
+			# _result detaches the complete record once, including these children.
+			"absolute_coordinate": absolute_coordinate,
+			"streaming": streaming_result,
 		},
 	)
 	_tick_active = false
@@ -215,7 +216,7 @@ func preview_origin_rebase(expected_frame_generation: int) -> Dictionary:
 		"world_id": get_bound_world_id(),
 		"actor_instance_id": _last_actor_instance_id,
 		"actor_kind": _last_actor_kind,
-		"absolute_coordinate": _last_absolute_coordinate.duplicate(true),
+		"absolute_coordinate": _last_absolute_coordinate,
 		"focus_world_streaming_position": _last_world_streaming_position,
 		"world_translation_delta": -_last_world_streaming_position,
 		"distance_from_origin_meters": evaluation.get(
@@ -310,8 +311,8 @@ func accept_committed_origin_rebase(
 	_external_rebase_commit_count += 1
 	return _result(true, &"external_rebase_accepted", {
 		"coordinate_frame_generation": target_generation,
-		"absolute_coordinate": _last_absolute_coordinate.duplicate(true),
-		"streaming": streaming.duplicate(true),
+		"absolute_coordinate": _last_absolute_coordinate,
+		"streaming": streaming,
 	})
 
 
@@ -388,7 +389,7 @@ func get_snapshot() -> Dictionary:
 		"bootstrap_instance_id": _bootstrap_instance_id,
 		"coordinate_frame_instance_id": _frame_instance_id,
 		"bound_coordinate_frame_generation": _bound_frame_generation,
-		"last_external_rebase_rejection": _last_external_rebase_rejection.duplicate(true),
+		"last_external_rebase_rejection": _last_external_rebase_rejection,
 		"current_coordinate_frame_generation": int(frame_snapshot.get("generation", 0)),
 		"physics_tick_count": _physics_tick_count,
 		"accepted_sample_count": _accepted_sample_count,
@@ -400,9 +401,9 @@ func get_snapshot() -> Dictionary:
 		"last_actor_kind": _last_actor_kind,
 		"last_actor_instance_id": _last_actor_instance_id,
 		"last_world_streaming_position": _last_world_streaming_position,
-		"last_absolute_coordinate": _last_absolute_coordinate.duplicate(true),
-		"last_streaming_result": _last_streaming_result.duplicate(true),
-		"last_tick_result": _last_tick_result.duplicate(true),
+		"last_absolute_coordinate": _last_absolute_coordinate,
+		"last_streaming_result": _last_streaming_result,
+		"last_tick_result": _last_tick_result,
 		"coordinate_frame": frame_snapshot,
 		"bootstrap": bootstrap_snapshot,
 	}.duplicate(true)

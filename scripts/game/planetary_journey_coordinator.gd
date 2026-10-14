@@ -470,7 +470,7 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 	return {
 		"accepted": true,
 		"reason": &"aurora_visit_advanced",
-		"actor_sample": actor_sample.duplicate(true),
+		"actor_sample": actor_sample,
 		"coordinate_frame_generation": coordinate_frame_generation,
 		"streaming_accepted": streaming_accepted,
 		"gate_reason": gate_reason,
@@ -695,17 +695,17 @@ func get_aurora_visit_snapshot() -> Dictionary:
 		"return_active": _aurora_return_active,
 		"return_departure_pending": _aurora_return_departure_pending,
 		"return_handoff_ready": _aurora_return_handoff_ready,
-		"last_return_result": _last_aurora_return_result.duplicate(true),
+		"last_return_result": _last_aurora_return_result,
 		"rebase_commit_count": _aurora_visit_rebase_commit_count,
 		"final_approach_armed": _aurora_final_approach_armed,
 		"final_approach_handoff_ready": _aurora_final_approach_handoff_ready,
 		"final_approach_completion_receipt":
-			_aurora_final_approach_completion_receipt.duplicate(true),
-		"last_streaming_result": _last_aurora_streaming_result.duplicate(true),
-		"last_origin_result": _last_aurora_origin_result.duplicate(true),
-		"last_cruise_result": _last_aurora_cruise_result.duplicate(true),
-		"last_admission_result": _last_aurora_admission_result.duplicate(true),
-		"last_retirement_result": _last_aurora_retirement_result.duplicate(true),
+			_aurora_final_approach_completion_receipt,
+		"last_streaming_result": _last_aurora_streaming_result,
+		"last_origin_result": _last_aurora_origin_result,
+		"last_cruise_result": _last_aurora_cruise_result,
+		"last_admission_result": _last_aurora_admission_result,
+		"last_retirement_result": _last_aurora_retirement_result,
 	}.duplicate(true)
 
 

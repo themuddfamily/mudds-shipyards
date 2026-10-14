@@ -4,7 +4,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 127
+const EXPECTED_ASSERTIONS := 128
 
 class OwnerSubclassProbe extends CommonWorldOriginRebaseOwner:
 	func _init() -> void:
@@ -480,6 +480,19 @@ func _check_aurora_transit_carry(roster_mutation: StringName = &"") -> void:
 	var advanced: Dictionary = journey.call(&"advance_aurora_visit", 1.0 / 60.0,
 		game.call(&"_capture_cinder_actor_sample"))
 	var visit: Dictionary = journey.call(&"get_aurora_visit_snapshot")
+	if roster_mutation.is_empty():
+		var pristine_visit := visit.duplicate(true)
+		var mutable_visit: Dictionary = journey.call(&"get_aurora_visit_snapshot")
+		(mutable_visit.last_streaming_result as Dictionary).clear()
+		((mutable_visit.last_origin_result as Dictionary).receipt as Dictionary).clear()
+		(mutable_visit.last_cruise_result as Dictionary)["accepted"] = false
+		(advanced.actor_sample as Dictionary)["position"] = Vector3.INF
+		_check(
+			journey.call(&"get_aurora_visit_snapshot") == pristine_visit
+			and game.call(&"_capture_cinder_actor_sample").position == ship.global_position,
+			"nested returned visit data cannot mutate retained receipts or the live actor sample")
+		# Restore only the caller-owned record for the existing assertion below.
+		advanced.actor_sample = game.call(&"_capture_cinder_actor_sample")
 	var origin := visit.get("last_origin_result", {}) as Dictionary
 	var adoption := origin.get("adoption", {}) as Dictionary
 	var cruise_adoption := adoption.get("cruise", {}) as Dictionary
