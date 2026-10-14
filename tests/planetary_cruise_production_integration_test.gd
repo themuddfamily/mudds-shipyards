@@ -4,7 +4,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://planetary-cruise-production-settings.json"
-const EXPECTED_ASSERTIONS := 44
+const EXPECTED_ASSERTIONS := 46
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -142,7 +142,8 @@ func _run() -> void:
 	var engage := game.engage_planetary_cruise()
 	_check(
 		bool(engage.get("accepted", false))
-			and bool(binding.get_snapshot().get("engagement_requested", false)),
+			and bool(binding.get_snapshot().get("engagement_requested", false))
+			and binding.is_engagement_requested(),
 		"public engage binds the exact active HeroShip for the next physics tick",
 	)
 	_check(
@@ -158,6 +159,18 @@ func _run() -> void:
 		"nested controller bind signal cannot disengage the outer atomic engage",
 	)
 	_reentry_receipt.clear()
+	_check(
+		bool(game.disengage_planetary_cruise().get("accepted", false))
+			and not binding.is_engagement_requested()
+			and not bool(binding.get_snapshot().get("engagement_requested", true)),
+		"live engagement read observes public cancellation before a physics tick",
+	)
+	_check(
+		bool(game.engage_planetary_cruise().get("accepted", false))
+			and binding.is_engagement_requested()
+			and int(binding.get_snapshot().get("accepted_tick_count", -1)) == 0,
+		"live engagement read observes a fresh request before a physics tick",
+	)
 	var controller_evaluation_reentry := [{}]
 	controller.evaluation_committed.connect(func(_value: Dictionary) -> void:
 		controller_evaluation_reentry[0] = game.disengage_planetary_cruise()

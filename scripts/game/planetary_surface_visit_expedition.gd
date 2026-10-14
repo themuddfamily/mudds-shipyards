@@ -411,7 +411,7 @@ func _ensure_outbound_cruise() -> bool:
 	if _ship.has_manual_flight_intent():
 		return false
 	var cruise := _flow.planetary_cruise_binding
-	if not bool(cruise.get_snapshot().get("engagement_requested", false)):
+	if not cruise.is_engagement_requested():
 		_cruise_resume_attempts += 1
 		if _cruise_resume_attempts > MAX_CRUISE_RESUME_ATTEMPTS:
 			_note_leg_failure(profile.reason("cruise_resume_budget_exhausted"))

@@ -437,7 +437,7 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 	# the visit has landed and disengaged, the lane keeps streaming and rebasing
 	# without pretending a cruise is in flight.
 	if is_instance_valid(_flow.planetary_cruise_binding) and bool(
-		_flow.planetary_cruise_binding.get_snapshot().get("engagement_requested", false)
+		_flow.planetary_cruise_binding.is_engagement_requested()
 	) and not _collision_publication_waiting(gate_reason, _flow._planetary_cruise_combat_active()):
 		if _planetary_cruise_caller_tick >= _flow.PLANETARY_CRUISE_MAX_CALLER_TICK:
 			_flow.planetary_cruise_binding.request_caller_tick_exhausted(
@@ -452,7 +452,7 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 				coordinate_frame_generation,
 				_flow._planetary_cruise_combat_active(),
 				gate_reason,
-				int(bootstrap.get_snapshot().get("location_generation", 0)),
+				bootstrap.get_location_generation(),
 			)
 			_last_aurora_cruise_result = cruise_tick.duplicate(true)
 			_observe_aurora_return_tick(cruise_tick)
@@ -465,7 +465,7 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 					_aurora_final_approach_completion_receipt = consumed.duplicate(true)
 					_aurora_final_approach_handoff_ready = true
 			if not _aurora_final_approach_handoff_ready and not bool(
-					_flow.planetary_cruise_binding.get_snapshot().get("engagement_requested", false)):
+					_flow.planetary_cruise_binding.is_engagement_requested()):
 				_aurora_final_approach_armed = false
 	return {
 		"accepted": true,

@@ -436,7 +436,8 @@ func present_observation(
 		return success
 	_last_transaction = success.duplicate(true)
 	_signal_dispatch_active = true
-	presentation_committed.emit(reason, get_snapshot())
+	if presentation_committed.has_connections():
+		presentation_committed.emit(reason, get_snapshot())
 	_signal_dispatch_active = false
 	return success
 

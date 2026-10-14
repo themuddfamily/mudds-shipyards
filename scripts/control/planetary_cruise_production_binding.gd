@@ -761,6 +761,11 @@ func get_generation() -> int:
 	return _generation
 
 
+## Current request state; callers need no detached diagnostic history to read it.
+func is_engagement_requested() -> bool:
+	return _engagement_requested
+
+
 func get_controller() -> PlanetaryCruisePhysicalController:
 	return _controller
 
