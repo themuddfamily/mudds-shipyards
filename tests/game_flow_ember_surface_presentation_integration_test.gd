@@ -531,7 +531,7 @@ func _check_client_rime_survey_input(server: GameFlow, client: GameFlow, craft: 
 	if not await _client_survey_walk(server, client, body, deck.global_position, mirror_deck.global_position):
 		return
 	await _client_survey_press()
-	var boarded := await _hud_wait(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active()
+	var boarded := await _hud_wait(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active() \
 		and client._network_client_ember_passenger_surface.is_empty() and not client._transition_busy, 3.0)
 	_check(boarded and simulation.get_body(avatar) == body and body.get_instance_id() == body_id and client.player.get_instance_id() == client_body_id
 		and craft.get_command_source() == pilot_source, "ONE physical Rime hatch press reboards the same author and predicted survey bodies")
