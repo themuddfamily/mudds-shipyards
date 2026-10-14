@@ -1,0 +1,19 @@
+Mudd's Shipyards matching Linux checkpoint — 31010ceb4028a35adc6790ec66014611c7a3e894
+
+Player-visible changes
+If local docking publication initially fails, the home docking handoff now retries and recovers once without recalling the crew. Previously accepted Halyard/cabin, caption and landing guidance remain included.
+
+Actual validation
+The accepted safe Linux export used the verified closed 601-file Windows cache, on the same clean source commit. Linux export exited 0 in 15.325 seconds within the original 900-second cap. All 1,513 actual payload entries match Windows by path, size and SHA-256, independently of platform entry offsets or PCK blob bytes.
+Complete payload parity shares only the common-content Windows source/actual-PCK bounded home fixture (39 checks) and standard package probes (223). This does not establish native Linux ordinary gameplay or full shared-return qualification. The original47ff canonical shared-arrival run recorded45 checks and five failures at its120-second wall-clock landing gate; that failure remains preserved. The parser bug belongs to the separate frozen120e shared-return harness; direct parsing passes on310. The source310 completion wrapper initially expected the wrong marker despite actual39/exit0; that wrapper failure and the separate index stat-cache refresh receipt are also preserved. The 310 shared-return script parses, but the full run remains unqualified. Export presets exclude roadmap-validation/**; no committed receipt appears in the game payload. Native Linux direct and archive-extracted ELF each use actual --startup-check, exit 0, exactly one STARTUP_MENU_READY_OK and no errors: direct 10.909s, archive 11.173s, unchanged 300-second game caps.
+Gzip CRC, five unique safe archive members, no links, expected modes and extracted ELF SHA parity pass. Binary/installer/desktop modes 755; archive/icon 644. Fresh packaged installer install/uninstall under private paths with spaces validates Exec/Icon/Path/source pin and preserves seeded game userdata. Prior helper is compared only to establish basename-only change; historical acceptance is not substituted for this actual run.
+Source pin/clean state, Git index bytes/blob tree, frozen postexport cache, export templates, archive/executable hashes, protected installer userdata and owned actors close unchanged. All Godot runs use Dummy audio and isolated headless or private x11 display, seven private mode-700 XDG roots plus TMPDIR, inherited HOME. Root publishes only independently reviewed exclusive copies; the ELF and archive remain unchanged after their actual native tests.
+
+Artifacts
+ELF SHA256: 6c2da0afdf258aad728bd243f23c88296f3bc651f6feada7008b0d9ba13357cd
+Archive SHA256: a7e785534e357bc5468fa116b58e287429e5eb523f9aba28c72beab708d2815d
+Matching Windows EXE SHA256: 6060df67b4f99f4ce980ea4d93e4eb029eb538256cdba8a73e570f98a95fc987
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/docking-retry-linux
+
+Remaining gates
+Root performed actual native Windows direct startup (12.237s) and immutable ZIP startup (15.072s), both PASS with source/payload unchanged. Root independent artifact review and native qualification are recorded separately from this bounded common-content check. Prior physical-return and native recovery receipts retain their original source/artifact scope. This is a focused checkpoint; full final-source CI is not established by package qualification. Native Linux ordinary gameplay/graphics, native Windows ordinary gameplay, native GPU/device performance, audible audio, human normal-controls/visual review, full-main rendered regression, broad CI and full release: NOT_RUN.
