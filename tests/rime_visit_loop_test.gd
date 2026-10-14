@@ -103,7 +103,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--rime-shared-completed-return" in OS.get_cmdline_user_args():
+	if "--rime-shared-completed-return" in OS.get_cmdline_user_args() or "--rime-shared-reboard-diagnostic" in OS.get_cmdline_user_args():
 		await _run_shared_return()
 	elif "--rime-completed-return" in OS.get_cmdline_user_args():
 		await _run_canonical()
@@ -160,23 +160,39 @@ func _shared_board_request(game: GameFlow, adapter: Node, craft: HeroShip, seque
 		1, GameFlow.NETWORK_CABIN_BERTH_ROLE, sequence, game.network_session.get_boarding_server_tick(), action).to_dictionary()
 
 
-func _shared_walk(game: GameFlow, adapter: Node, body: PlayerController, target: Vector3) -> bool:
+func _shared_walk(game: GameFlow, adapter: Node, body: PlayerController, target: Vector3, leg: StringName = &"home_cabin") -> bool:
 	var deadline := Time.get_ticks_msec() + 18000
 	while Time.get_ticks_msec() < deadline and is_instance_valid(body):
 		var tick := Engine.get_physics_frames()
 		game.network_session.set_movement_server_tick(tick)
 		if tick % 4 == 0:
-			var offset := target - body.global_position
-			var moving := Vector2(offset.x, offset.z).length() > 0.7
+			var offset := (target - body.global_position).slide(body.up_direction)
+			var moving := offset.length() > 0.7
+			# Wire yaw is local to the authoritative body's camera parent, just
+			# as production map_body_look_yaw maps a predicted heading to it.
+			var camera_parent := body.get_node("CameraRig") as Node3D
+			var local_heading := camera_parent.global_basis.orthonormalized().inverse() * offset
 			var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
 			adapter.send_movement_intent(NetworkMovementIntent.create(adapter.multiplayer.get_unique_id(), identity.entity_id,
 				int(identity.entity_generation), 1001, _shared_crew_sequence, tick, Vector2(0, -1) if moving else Vector2.ZERO,
-				false, &"", false, atan2(-offset.x, -offset.z)).to_dictionary())
+				false, &"", false, atan2(-local_heading.x, -local_heading.z)).to_dictionary())
 			_shared_crew_sequence += 1
 		game.get_network_remote_body_simulation().advance(tick)
 		await physics_frame
-		if is_instance_valid(body) and body.global_position.distance_to(target) < 1.1 and body.is_on_floor():
+		if is_instance_valid(body) and (body.global_position - target).slide(body.up_direction).length() <= 0.7 and body.is_on_floor():
 			return true
+	var valid := is_instance_valid(body)
+	var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body) if valid else {}
+	print("RIME_SHARED_WALK_FAILED: leg=", leg, " target=", target, " body_valid=", valid,
+		" pose=", body.global_transform if valid else Transform3D.IDENTITY, " velocity=", body.velocity if valid else Vector3.ZERO,
+		" planar_distance=", (target - body.global_position).slide(body.up_direction).length() if valid else INF,
+		" vertical_distance=", (target - body.global_position).dot(body.up_direction) if valid else INF,
+		" yaw=", body.get_look_yaw() if valid else NAN, " admission=", game._network_ember_passenger_surface_is_current(StringName(identity.get("entity_id", &""))) if valid else false,
+		" floor=", body.is_on_floor() if valid else false, " local=", game.active_ship.to_local(body.global_position) if valid else Vector3.INF,
+		" camera_parent_basis=", (body.get_node("CameraRig") as Node3D).global_basis if valid else Basis.IDENTITY,
+		" record=", game.get_network_remote_body_simulation().get_body_record(StringName(identity.get("entity_id", &""))),
+		" movement=", game.network_session.get_movement_avatar_snapshot(StringName(identity.get("entity_id", &""))),
+		" audit=", game.network_session.get_movement_authority_audit())
 	return false
 
 
@@ -288,9 +304,10 @@ func _drive_shared_return(game: GameFlow, adapter: Node, craft: HeroShip, home: 
 	if not exterior:
 		return
 	_check(not owner.request(), "exterior Rime crew cannot be carried home before reboarding")
-	var walked := await _shared_walk(game, adapter, body, region.to_global(Vector3(-8, 0.5, -8)))
-	for point in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
-		walked = walked and await _shared_walk(game, adapter, body, point)
+	var walked := await _shared_walk(game, adapter, body, region.to_global(Vector3(-8, 0, -8)), &"pad_outbound")
+	for marker_name in [^"WalkableInterior/InteriorAccessMarker", ^"WalkableInterior/InteriorDeckMarker"]:
+		var marker := craft.get_node(marker_name) as Marker3D
+		walked = walked and await _shared_walk(game, adapter, body, marker.global_position, StringName(marker.name))
 	_check(walked, "same admitted Rime crew walks ordinary intents out and back through the real hatch")
 	if not walked:
 		return
@@ -309,6 +326,9 @@ func _drive_shared_return(game: GameFlow, adapter: Node, craft: HeroShip, home: 
 	var reboarded := await _shared_wait(func(): return is_instance_valid(body) and not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0)
 	_check(reboarded and simulation.get_body(avatar) == body, "actual authenticated reboard retains the same crew body for home travel")
 	if not reboarded:
+		return
+	if "--rime-shared-reboard-diagnostic" in OS.get_cmdline_user_args():
+		print("RIME_SHARED_REBOARD_DIAGNOSTIC_COMPLETE: return_travel=NOT_RUN")
 		return
 	var reward_before := (game.get("_game_flow_reward_authority") as RefCounted).call(&"get_snapshot") as Dictionary
 	var sampler := SharedReturnSampler.new()
@@ -355,9 +375,10 @@ func _shared_home_crew_exit(game: GameFlow, adapter: Node, craft: HeroShip, home
 	var frame := craft.get_moving_interior_component() as MovingInteriorFrame
 	var applied_before := int(simulation.get_body_record(avatar).get("intents_applied", 0))
 	var start := body.global_position
-	var walked := await _shared_walk(game, adapter, body, craft.to_global(Vector3(0, 0.52, -3)))
 	var marker := craft.call(&"get_interior_deck_marker") as Marker3D
-	walked = walked and is_instance_valid(marker) and await _shared_walk(game, adapter, body, marker.global_position)
+	var walked := is_instance_valid(marker) and await _shared_walk(game, adapter, body,
+		marker.global_position + craft.global_basis.x * 1.75 + craft.global_basis.z * 1.8, &"home_cabin_fresh_input")
+	walked = walked and is_instance_valid(marker) and await _shared_walk(game, adapter, body, marker.global_position, &"home_hatch")
 	_check(walked and is_instance_valid(body) and body.global_position.distance_to(start) > 0.25
 		and int(simulation.get_body_record(avatar).get("intents_applied", 0)) > applied_before
 		and game._network_ember_passenger_at_hatch(body, craft, false),
