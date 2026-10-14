@@ -1,0 +1,23 @@
+Mudd's Shipyards matching Linux checkpoint — 896a7defbc6cbf150926cfd1657da974ad3d29be
+
+Player-visible changes
+Station Defence protects rewards and session progress from older backup adoption. The board shows SAVE RECOVERY REQUIRED when recovery is unsafe; a successful reload clears that refusal so a pending report can be retried. Local docking publication retry and previously accepted Halyard/cabin and caption improvements remain included.
+
+Actual validation
+The accepted safe Linux export used the verified closed 601-file Windows cache, on the same clean source commit. Linux export exited 0 in 16.583 seconds within the original 900-second cap. All 1,513 actual payload entries match Windows by path, size and SHA-256, independently of platform entry offsets or PCK blob bytes.
+Complete payload parity shares only the common-content actual Windows PCK Station Defence recovery check (58), bounded home docking fixture (39) and standard probes (223), after those suites close. Source Station Defence checks 58/52/5 and home docking 39 passed. Full shared arrival/home return remains unqualified; historical test/harness failures retain their original scope. This does not establish native Linux ordinary gameplay or graphics. Export presets exclude roadmap-validation/**; no committed receipt appears in the game payload. Native Linux direct and archive-extracted ELF each use actual --startup-check, exit 0, exactly one STARTUP_MENU_READY_OK and no errors: direct 10.189s, archive 10.099s, unchanged 300-second game caps.
+Gzip CRC, five unique safe archive members, no links, expected modes and extracted ELF SHA parity pass. Binary/installer/desktop modes 755; archive/icon 644. Fresh packaged installer install/uninstall under private paths with spaces validates Exec/Icon/Path/source pin and preserves seeded game userdata. Prior helper is compared only to establish basename-only change; historical acceptance is not substituted for this actual run.
+Source pin/clean state, Git index bytes/blob tree, frozen postexport cache, export templates, archive/executable hashes, protected installer userdata and owned actors close unchanged. All Godot runs use Dummy audio and isolated headless or private x11 display, seven private mode-700 XDG roots plus TMPDIR, inherited HOME. At staging, no publication had occurred.
+
+Artifacts
+ELF SHA256: d1283ea6a609988e24527b543b39a2cde306b729cc8ac80c5706d26b2850e20a
+Archive SHA256: 26a462eeeb269a0a3ee53f0d9da1eacaa5d75df070f713c5ba198b9d6c9d7ec5
+Matching Windows EXE SHA256: 33b057bbe9e07081d4457230292b9681ac662911f753e2ce194a854130ffdb2a
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/station-defense-recovery-linux
+
+Remaining gates
+Native Windows direct probe is not accepted after a harness failure; immutable ZIP native startup is NOT_RUN. The earlier published 310 installed graphical startup hit its unchanged 180-second limit under Forward+/llvmpipe with no menu-ready sentinel. That result remains open and is not rerun by this checkpoint. Independent root artifact review accepts this ELF/archive and bounded checks; final external-note review precedes publication. Prior physical-return and native recovery receipts retain their original source/artifact scope. This is a focused checkpoint; full final-source CI is not established by package qualification. Native Linux ordinary gameplay/graphics, native Windows ordinary gameplay, native GPU/device performance, audible audio, human normal-controls/visual review, full-main rendered regression, broad CI and full release: NOT_RUN.
+
+Later independent review and Windows limitation
+Independent review accepts the ELF, unchanged archive, native headless startup, payload parity and private install/uninstall closure. The archive contains no notes. This external note corrects the original staging note's cache description: the 601-file seed contains zero compiled .gdc files; 511 is the package's compiled-script count. Original staging notes are retained in the validation workspace.
+The first native Windows direct probe failed in the harness despite game exit 0 and one readiness marker in each raw game log. A draft harness repair also remains unqualified; no direct retest or native ZIP launch occurred. Further Windows execution is held after an Avast alert on a separate process-cleanup test helper. It is absent from both distributed game packages. Antivirus classification remains unknown and its block was not bypassed. This does not change the accepted Linux headless results or qualify native Windows startup.
