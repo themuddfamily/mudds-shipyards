@@ -1350,7 +1350,7 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 		bridge._restored_surface_session.surface.token = &"stale-recovered-lease"
 		_check(not bridge.restored_cabin_admission_is_current(peer, request),
 			"an old surface lease cannot authorize fresh recovered-session boarding")
-		bridge._restored_surface_session = adopted
+		bridge._restored_surface_session = adopted.duplicate(true)
 		var pilot_request := request.duplicate(true)
 		pilot_request["role"] = &"pilot"
 		_check(not bridge.restored_cabin_admission_is_current(peer, pilot_request),
