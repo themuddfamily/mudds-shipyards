@@ -16,6 +16,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--halyard-engineer" in OS.get_cmdline_user_args():
+		await _halyard_route()
+		_finish()
+		return
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main scene instantiates")
 	if game == null:
@@ -524,3 +528,120 @@ func _walk_from_ramp(actor: PlayerController, craft: JovianLightFreighter) -> vo
 func _physics_ticks(ticks: int) -> void:
 	for tick in ticks:
 		await physics_frame
+
+
+func _halyard_route() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(UserDataStore.new("user://halyard-engineer-%d.json" % OS.get_process_id()))
+	root.add_child(game)
+	await _settle(4)
+	game.start_shift()
+	await _settle(3)
+	var actor := game.player
+	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	actor.teleport_to(Transform3D(craft.global_basis, craft.get_boarding_position() + Vector3.UP * 0.01))
+	await _settle(12)
+	craft.set_canopy_open(true, 0.0)
+	await _walk_toward(actor, craft, craft.get_interior_deck_marker().position)
+	await _walk_toward(actor, craft, craft.to_local(craft.get_engineer_station_role_contract().entry_transform.origin))
+	var anchor := craft.get_engineer_seat_anchor()
+	await _look_toward(actor, anchor.global_position + Vector3.UP * 1.2)
+	_check(actor.is_on_floor() and game.station_interaction_candidate is ShipCrewSeat
+		and (game.station_interaction_candidate as ShipCrewSeat).get_seat_anchor() == anchor,
+		"ordinary exterior-to-cabin walk discovers grounded Halyard engineer chair")
+	await _press_interact()
+	var seated := await _wait_until(func(): return actor.is_seated_at(anchor) and not game._transition_busy, 4.0)
+	_check(seated and (game.get_solo_crew_seat_status().get("assignment", {}) as Dictionary).get("role") == &"engineer" and not craft.is_piloted(),
+		"ordinary Interact takes Halyard engineer role without helm")
+	if not seated:
+		print("HALYARD_ENGINEER_LOCAL_DEBUG: ", game.get_solo_crew_seat_status(), " pose=", craft.to_local(actor.global_position), " candidate=", game.station_interaction_candidate)
+		game.queue_free()
+		await _settle(3)
+		return
+	var source := craft.get_local_input_source()
+	var profile := game.runtime_settings.get_input_binding_profile()
+	_check(profile.set_bindings(&"fire", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_F13}])
+		and profile.set_bindings(&"camera_distance_out", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_F14}])
+		and game.runtime_settings.set_input_binding_profile(profile), "existing settings remap Halyard repair and selector")
+	source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	await _settle(3)
+	var model := craft.get_component_damage()
+	for index in [1, 4]:
+		craft.apply_damage(craft.maximum_hull * 0.15, craft.to_global((model.get_component_states()[index] as Dictionary).local_position))
+	await _settle(2)
+	var selected := StringName((craft.get_engineer_gameplay_state().selection as Dictionary).get("component_id", &""))
+	_check(not selected.is_empty(), "normal Halyard input selects actual damaged component")
+	await _key(KEY_F14, true)
+	await _key(KEY_F14, false)
+	var cycled := StringName((craft.get_engineer_gameplay_state().selection as Dictionary).get("component_id", &""))
+	_check(cycled != selected, "remapped ordinary Halyard selector cycles damaged components")
+	for target: Dictionary in model.get_component_states():
+		if target.id == cycled:
+			craft.apply_damage(craft.maximum_hull * 0.35, craft.to_global(target.local_position))
+	var before := model.get_component_integrity(cycled)
+	await _key(KEY_F13, true)
+	_check(bool(craft.get_engineer_repair_state().active) and int(craft.get_engineer_repair_state().resource_units) == 6, "ordinary Halyard FIRE starts timed repair without early kit spending")
+	await _key(KEY_F13, false)
+	await _settle(35)
+	_check(craft.get_engineer_repair_state().reason == &"repair_committed"
+		and int(craft.get_engineer_repair_state().resource_units) == 5 and model.get_component_integrity(cycled) > before,
+		"normal Halyard ticks repair actual component and spend exactly one finite kit")
+	_check(String(game.hud.get("_objective_source_text")).contains("KITS 5/6") and not craft.is_piloted(), "Halyard engineer HUD shows stock without flight control")
+	var owner := craft.get_crew_role_authority()
+	await _press_interact()
+	_check(await _wait_until(func(): return not actor.is_seated() and actor.is_on_floor() and actor.is_control_enabled(), 4.0)
+		and owner.get_snapshot().assignments.is_empty() and not actor.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META),
+		"ordinary Halyard stand releases exact engineer claim and restores supported walking")
+	await _look_toward(actor, anchor.global_position + Vector3.UP * 1.2)
+	await _press_interact()
+	_check(await _wait_until(func(): return actor.is_seated_at(anchor) and not game._transition_busy, 4.0), "ordinary Halyard engineer reseat succeeds")
+	owner = craft.get_crew_role_authority()
+	var assignment := owner.get_assignment(1, GameFlow.SOLO_CREW_AVATAR_ID)
+	var cursor := maxi(int(assignment.claim_sequence), int(owner.get_last_intent(1, GameFlow.SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
+	_check(owner.release(1, 1, GameFlow.SOLO_CREW_AVATAR_ID, craft.ENGINEER_SEAT_ID, cursor, int(assignment.seat_generation)).accepted
+		and craft.detach_crew_role_authority(owner), "existing owner APIs retire exact local engineer for ownership-loss boundary")
+	var replacement := CrewSeatRoleAuthority.new(1)
+	replacement.register_halyard_roster()
+	craft.attach_crew_role_authority(replacement)
+	var foreign := replacement.claim(1, 2, &"foreign_engineer", craft.ENGINEER_SEAT_ID, &"engineer", 1)
+	_check(foreign.accepted, "replacement Halyard engineer claim is an explicit negative fixture")
+	_check(await _wait_until(func(): return not actor.is_seated() and actor.is_on_floor() and actor.is_control_enabled(), 4.0), "old owner loss restores ordinary supported Halyard Player")
+	await _key(KEY_F13, true)
+	await _key(KEY_F13, false)
+	_check(replacement.get_assignment(2, &"foreign_engineer") == foreign.assignment
+		and replacement.get_last_intent(2, &"foreign_engineer").is_empty()
+		and not bool(craft.get_engineer_repair_state().active), "old local input cannot repair or release replacement engineer")
+	replacement.release(1, 2, &"foreign_engineer", craft.ENGINEER_SEAT_ID, 2, 1)
+	craft.detach_crew_role_authority(replacement)
+	# Return to the legitimate helm through the actual cabin, then leave it in
+	# flight. All later chair approaches use ordinary movement on the carried deck.
+	await _walk_toward(actor, craft, Vector3(0.0, 0.52, -10.8))
+	await _look_toward(actor, craft.get_pilot_seat_anchor().global_position + Vector3.UP * 1.2)
+	await _press_interact()
+	_check(await _wait_until(func(): return actor.is_seated_at(craft.get_pilot_seat_anchor()) and craft.is_piloted(), 4.0), "ordinary Halyard cabin walk reaches legitimate pilot helm")
+	var berth := craft.global_position
+	source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	Input.action_press(&"move_forward")
+	_check(await _wait_until(func(): return craft.global_position.distance_to(berth) > 100.0, 10.0), "ordinary throttle moves Halyard off berth")
+	Input.action_release(&"move_forward")
+	Input.action_press(&"brake")
+	await _wait_until(func(): return craft.velocity.length() < 30.0, 4.0)
+	Input.action_release(&"brake")
+	await _wait_until(func(): return craft.get_telemetry().engine_state == HeroShip.ENGINE_OFFLINE, HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS + 1.0)
+	var event := InputEventAction.new()
+	event.action = &"interact"
+	event.pressed = true
+	game._unhandled_input(event)
+	_check(await _wait_until(func(): return not actor.is_seated() and actor.is_on_floor() and actor.is_control_enabled(), 4.0), "ordinary leave-helm restores full capsule on moving Halyard deck")
+	await _walk_toward(actor, craft, craft.to_local(craft.get_engineer_station_role_contract().entry_transform.origin))
+	await _look_toward(actor, func(): return anchor.global_position + craft.global_basis.y * 1.2)
+	await _press_interact()
+	_check(await _wait_until(func(): return actor.is_seated_at(anchor) and not game._transition_busy, 4.0) and not craft.is_piloted(), "ordinary moving Halyard walk and Interact claim engineer without helm")
+	source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	await _key(KEY_F13, true)
+	await _key(KEY_F13, false)
+	_check(not bool(craft.get_engineer_repair_state().active) and int(craft.get_engineer_repair_state().resource_units) == 5
+		and not bool(craft.get_engineer_gameplay_state().repair_ready), "airborne Halyard FIRE preserves berth-only policy and finite kit stock")
+	game.release_mouse_capture()
+	game.queue_free()
+	await _settle(3)

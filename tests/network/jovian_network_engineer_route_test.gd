@@ -9,7 +9,8 @@ var _failures: Array[String] = []
 var _directory := ""
 var _role := ""
 var _game: GameFlow
-var _craft: JovianLightFreighter
+var _craft: Variant
+var _halyard := false
 var _player: PlayerController
 var _port := 0
 var _store_path := ""
@@ -20,6 +21,8 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_halyard = "--halyard-engineer" in args
+	args.erase("--halyard-engineer")
 	var package_index := args.find("--package-under-test")
 	if package_index >= 0 and package_index + 1 < args.size():
 		_package_under_test = args[package_index + 1]
@@ -45,7 +48,7 @@ func _run() -> void:
 	_game.configure_runtime_settings_persistence(store)
 	root.add_child(_game)
 	await _ticks(4)
-	_craft = _game.get_node("JovianLightFreighter") as JovianLightFreighter
+	_craft = _game.get_node("HalyardCrewTransport" if _halyard else "JovianLightFreighter")
 	_player = _game.get_node("Player") as PlayerController
 	_game.start_shift()
 	await _ticks(3)
@@ -127,6 +130,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 	if not _package_under_test.is_empty():
 		args.append_array(["--main-pack", _package_under_test])
 	args.append_array(["--script", script, "--", role, _directory, str(_port)])
+	if _halyard:
+		args.append("--halyard-engineer")
 	if not _package_under_test.is_empty():
 		args.append_array(["--package-under-test", _package_under_test])
 	print("ENGINEER_PEER_LAUNCH: ", role, " ", args)
@@ -163,11 +168,15 @@ func _host() -> void:
 	var peer := int(peers[0])
 	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
 	var body := simulation.get_body(avatar)
-	var authority := _craft.get_crew_role_authority()
+	var authority: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
 	var assignment := authority.get_assignment(peer, avatar)
 	_check(body != null and body.is_seated_at(_craft.get_engineer_seat_anchor()), "host production body physically occupies engineer anchor")
 	_check(assignment.get("role") == &"engineer", "actual host role owner claims engineer chair")
-	var model := _craft.get_component_damage()
+	_check(not _craft.is_piloted() and not body.has_meta(HeroShip.SOLO_CREW_ROLE_OCCUPANT_META), "remote engineer owns no pilot helm or local host tag")
+	if _halyard:
+		var binding: NetworkJovianEngineerBinding = _game.get("_network_engineer_binding")
+		_check(binding.passenger.authority == authority and binding.passenger.engineer.authority == authority, "Halyard engineer provider borrows exact single passenger roster")
+	var model: ShipComponentDamage = _craft.get_component_damage()
 	for index in [1, 4]:
 		_craft.apply_damage(_craft.maximum_hull * 0.15, _craft.to_global((model.get_component_states()[index] as Dictionary).local_position))
 	_write("host.damage", {})
@@ -187,12 +196,18 @@ func _host() -> void:
 	})
 	if not await _wait_file("client.repaired", 35.0):
 		return
-	var repair := _craft.get_engineer_repair_state()
+	var repair: Dictionary = _craft.get_engineer_repair_state()
 	print("ENGINEER_HOST_REPAIR: wall=", Time.get_unix_time_from_system(), " state=", repair)
 	_check(repair.get("reason") == &"repair_committed" and int(repair.resource_units) == 5
 		and int(((repair.get("receipt", {}) as Dictionary).get("operation", {}) as Dictionary).get("repaired_components", 0)) == 1,
 		"finite host repair commits one actual component and spends exactly one kit")
 	_check(model.get_component_integrity(&"engine_bay") > before, "host actual engine integrity improves through ordinary client FIRE")
+	if _halyard:
+		# A destroyed sibling provider must not tombstone this craft's occupied
+		# engineer replica. Real damage drives the existing destruction seam.
+		var sibling := _game.get_node("JovianLightFreighter") as JovianLightFreighter
+		sibling.apply_damage(sibling.maximum_hull + 1.0, sibling.global_position, Vector3.UP)
+		_check(sibling.is_destroyed() and body.is_seated_at(_craft.get_engineer_seat_anchor()), "real sibling hull loss preserves current Halyard engineer body")
 	_write("host.repair_checked", {})
 	if not await _wait_file("client.stood", 20.0):
 		return
@@ -202,7 +217,8 @@ func _host() -> void:
 	if not await _wait_file("client.reseated", 20.0):
 		return
 	var new_assignment := authority.get_assignment(peer, avatar)
-	_check(int(new_assignment.get("claim_sequence", 0)) != int(assignment.get("claim_sequence", 0)), "reseating creates distinct authoritative occupancy identity")
+	_check(not new_assignment.is_empty() and body.is_seated_at(_craft.get_engineer_seat_anchor())
+		and int(new_assignment.get("claim_sequence", 0)) > int(assignment.get("claim_sequence", 0)), "reseating creates distinct authoritative occupancy identity")
 	_write("host.reseat_checked", {})
 	if not await _wait_file("client.negatives", 20.0):
 		return
@@ -229,6 +245,9 @@ func _host() -> void:
 	await _ticks(15)
 	_check(authority.get_assignment(peer, avatar).is_empty() and simulation.get_body(avatar) == null, "disconnect retires body, chair claim and repair selection")
 	_check((_craft.get_engineer_gameplay_state().selection as Dictionary).is_empty(), "disconnect clears component selection")
+	if _halyard:
+		var provider: NetworkJovianEngineerBinding = _game._network_engineer_binding.passenger.engineer
+		_check(provider._request_sequences.is_empty() and provider._request_peers.is_empty() and provider._errors.is_empty(), "actual Halyard peer loss retires engineer request and error cursors")
 	_game.shutdown_network_session(&"engineer_host_done")
 	_check(_craft.get_crew_role_authority() == null, "session stop detaches exact empty authority for solo reuse")
 
@@ -262,7 +281,7 @@ func _client() -> void:
 		print("ENGINEER_CHAIR_DEBUG phase=", _game.phase, " pose=", _craft.to_local(_player.global_position), " candidate=", _game.station_interaction_candidate, " view=", _game.network_session.get_engineer_replica_snapshot())
 		return
 	_check(true, "ordinary chair Interact receives host confirmation and seats local player")
-	var source := _craft.get_local_input_source()
+	var source: LocalShipInputSource = _craft.get_local_input_source()
 	# Headless deterministic focus exercises the production transformed source.
 	source.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
 	_write("client.seated", {})
@@ -270,6 +289,7 @@ func _client() -> void:
 		return
 	_check(await _until(func(): return not (_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("selection", {}).is_empty(), 8.0), "actual damaged host components reach automatic ordinary selection")
 	var initial := _game.network_session.get_engineer_replica_snapshot()
+	print("ENGINEER_SELECTION_VIEW: ", initial, " source=", source.get_authority_peer_id(), " enabled=", source.is_enabled_owner(), " sampling=", source.call(&"_is_input_sampling_active"), " transition=", _game.get("_transition_busy"))
 	var old_claim := int((initial.assignment as Dictionary).claim_sequence)
 	await _press(source.camera_distance_out_action)
 	_check(await _until(func(): return StringName(((_game.network_session.get_engineer_replica_snapshot().get("gameplay", {}) as Dictionary).get("selection", {}) as Dictionary).get("component_id", &"")) == &"engine_bay", 8.0), "ordinary remappable selector chooses engine bay on host")
@@ -297,6 +317,12 @@ func _client() -> void:
 	_write("client.repaired", {})
 	if not await _wait_file("host.repair_checked", 10.0):
 		return
+	if _halyard:
+		await _ticks(20)
+		var retained := _game.network_session.get_engineer_replica_snapshot()
+		_check(retained.get("ship_id") == _craft.get_ship_id() and retained.get("seated", false)
+			and int((retained.get("assignment", {}) as Dictionary).get("claim_sequence", 0)) == old_claim,
+			"destroyed Jovian cannot overwrite occupied Halyard engineer replica")
 	await _press(&"interact")
 	_check(await _until(func(): return not _player.is_seated() and not bool(_game.get("_transition_busy")), 8.0), "ordinary stand completes host-authorized exit")
 	await _ticks(20)
@@ -307,7 +333,11 @@ func _client() -> void:
 		return
 	await _look(_craft.get_engineer_seat_anchor().global_position + Vector3.UP * 1.2)
 	await _press(&"interact")
-	_check(await _until(func(): return _player.is_seated_at(_craft.get_engineer_seat_anchor()), 8.0), "ordinary reseat succeeds without fake occupancy")
+	var reseated := await _until(func(): return _player.is_seated_at(_craft.get_engineer_seat_anchor()), 8.0)
+	_check(reseated, "ordinary reseat succeeds without fake occupancy")
+	if not reseated:
+		print("ENGINEER_RESEAT_DEBUG: view=", _game.network_session.get_engineer_replica_snapshot(), " candidate=", _game.station_interaction_candidate, " body=", _game.get_network_remote_body_audit())
+		return
 	_write("client.reseated", {})
 	if not await _wait_file("host.reseat_checked", 10.0):
 		return
@@ -391,7 +421,7 @@ func _repair_target_replica_ready(ready: Dictionary) -> bool:
 		and int((gameplay.get("repair", {}) as Dictionary).get("resource_units", 0)) == 6
 
 func _walk(target_local: Vector3) -> void:
-	var target := _craft.to_global(target_local)
+	var target: Vector3 = _craft.to_global(target_local)
 	print("ENGINEER_WALK_START: local=", _craft.to_local(_player.global_position), " target=", target_local)
 	for _index in 100:
 		var delta := target - _player.global_position

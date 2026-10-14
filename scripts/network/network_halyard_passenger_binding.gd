@@ -7,6 +7,7 @@ signal cinder_navigator_ping_tombstones_forwarded(result: Dictionary)
 ## One authored chair, admitted through the server's existing walking body.
 ## A cabin berth admits entry; only supported overlap grants this physical role.
 var authority: CrewSeatRoleAuthority
+var engineer: NetworkJovianEngineerBinding
 var _session: NetworkEnetSessionAdapter
 var _ship: HeroShip
 var _requests: Dictionary = {}
@@ -45,6 +46,10 @@ func attach(session: NetworkEnetSessionAdapter, ship: HeroShip,
 		_navigator_bridge.attach(session, ship, generation)
 		_navigator_presentation_generation = generation
 	if ship is HalyardCrewTransport:
+		engineer = NetworkJovianEngineerBinding.new()
+		if not engineer.attach_shared(session, ship, simulation, authority, generation):
+			detach()
+			return false
 		_session.gunner_intent_requested.connect(_submit_gunner)
 	_session.peer_disconnected.connect(_peer_disconnected)
 	return true
@@ -55,6 +60,10 @@ func owns(owner: CrewSeatRoleAuthority) -> bool:
 
 
 func next_request_sequence(previous: int) -> int:
+	# Engineer requests and releases advance this same roster. A later chair
+	# claim must follow that translated cursor even after last_intent is erased.
+	if engineer != null:
+		previous = maxi(previous, engineer.get_request_sequence_cursor())
 	_sequence = maxi(_sequence, previous) + 1
 	return _sequence
 
@@ -85,6 +94,8 @@ func claim(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
 func release(record: Dictionary) -> void:
 	if not owns(authority):
 		return
+	if engineer != null:
+		engineer.release(record)
 	var peer := int(record.get("owner_peer_id", 0))
 	var avatar := StringName(record.get("entity_id", &""))
 	var assignment := authority.get_assignment(peer, avatar)
@@ -100,6 +111,8 @@ func release(record: Dictionary) -> void:
 
 
 func _peer_disconnected(peer: int, _receipt: Dictionary) -> void:
+	if engineer != null:
+		engineer.retire_peer_requests(peer)
 	for avatar in _requests.keys():
 		if avatar == GameFlow.network_client_boarding_avatar_id(peer):
 			_requests.erase(avatar)
@@ -128,13 +141,15 @@ func advance(delta: float) -> void:
 		_elapsed = 1.0
 	if _live():
 		for row in authority.get_snapshot().get("assignments", []):
-			if int(row.occupant_peer_id) <= 1 or row.role not in [&"passenger", &"gunner"]:
+			if int(row.occupant_peer_id) <= 1 or row.role not in [&"passenger", &"gunner", &"engineer"]:
 				continue
 			var avatar := StringName(row.avatar_id)
 			var seat := _simulation.get_body_crew_seat(avatar)
 			if seat == null or not _physical_crew_seat_matches(seat) or seat.get_role_contract().is_empty():
 				_simulation.stand_crew_body(avatar)
 				release({"owner_peer_id": row.occupant_peer_id, "entity_id": avatar})
+	if engineer != null:
+		engineer.advance(delta)
 	_elapsed += delta
 	if _elapsed < 0.2:
 		return
@@ -344,6 +359,9 @@ func _result(accepted: bool, status: StringName) -> Dictionary:
 
 
 func _physical_crew_seat_matches(seat: ShipCrewSeat) -> bool:
+	if is_instance_valid(seat) and _ship is HalyardCrewTransport and seat.get_ship() == _ship and seat.get_role() == &"engineer":
+		var contract: Dictionary = _ship.get_engineer_station_role_contract()
+		return contract.get("seat") == seat.get_seat_anchor() and contract.get("seat_id") == seat.get_seat_id()
 	if is_instance_valid(seat) and _ship is HalyardCrewTransport and seat.get_ship() == _ship and seat.get_role() == &"gunner":
 		var contract: Dictionary = _ship.get_gunner_station_role_contract()
 		return contract.get("seat") == seat.get_seat_anchor() and contract.get("seat_id") == seat.get_seat_id()
@@ -368,6 +386,9 @@ func _release_all() -> void:
 
 func detach() -> void:
 	_release_all()
+	if engineer != null:
+		engineer.detach()
+		engineer = null
 	if _navigator_bridge != null:
 		_retire_navigator_publication(&"passenger_binding_detached")
 	_navigator_bridge = null

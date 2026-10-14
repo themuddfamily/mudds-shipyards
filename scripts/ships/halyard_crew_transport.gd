@@ -62,6 +62,7 @@ const HALYARD_CREW_FACTION_ID: StringName = &"shipyard_flight_test"
 const PASSENGER_PING_COOLDOWN_SECONDS := 1.0
 const MAX_PASSENGER_PING_MARKERS := 8
 const MAX_GUNNER_TARGET_GENERATION := 1_000_000
+const ENGINEER_SEAT_ID: StringName = &"crew_port_01"
 const LOADMASTER_STATION_SEAT_ID: StringName = &"crew_port_00"
 const LOADMASTER_MANIFEST_GENERATION_MAX := 1_000_000
 ## Normal aisle-to-seat reading distance for the first port-row role plaque.
@@ -1505,6 +1506,43 @@ func get_passenger_station_role_contract() -> Dictionary:
 		"vessel_id": get_ship_id(), "seat_id": LOADMASTER_STATION_SEAT_ID,
 		"role": &"passenger", "seat": anchor, "frame": _moving_interior_component,
 		"entry_transform": approach, "exit_transform": approach,
+	}
+
+
+## The roster's engineer uses the existing middle port cabin chair.
+func get_engineer_seat_anchor() -> Marker3D:
+	for anchor in _crew_seat_anchors:
+		if StringName(anchor.get_meta("seat_id", &"")) == ENGINEER_SEAT_ID:
+			return anchor
+	return null
+
+
+func get_engineer_station_role_contract() -> Dictionary:
+	var anchor := get_engineer_seat_anchor()
+	if not is_instance_valid(anchor):
+		return {}
+	var approach := global_transform * Transform3D(
+		Basis(Vector3.UP, PI / 2.0), Vector3(0.0, 0.52, to_local(anchor.global_position).z)
+	)
+	return {
+		"vessel_id": get_ship_id(), "seat_id": ENGINEER_SEAT_ID,
+		"role": &"engineer", "role_label": "Engineer", "seat": anchor,
+		"frame": _moving_interior_component,
+		"entry_transform": approach, "exit_transform": approach,
+	}
+
+
+func get_engineer_gameplay_state() -> Dictionary:
+	var repair := get_engineer_repair_state()
+	return {
+		"schema_version": 1, "authority_attached": _crew_role_authority != null,
+		"component_generation": _engineer_component_generation,
+		"selection": _engineer_component_selection.duplicate(true), "repair": repair,
+		"repair_ready": not is_destroyed() and bool(get_telemetry().get("landed", false))
+			and not bool(get_telemetry().get("landing_active", false))
+			and not _engineer_component_selection.is_empty()
+			and bool(repair.get("cooldown_ready", false)) and bool(repair.get("resource_ready", false))
+			and not bool(repair.get("active", false)),
 	}
 
 
@@ -3541,7 +3579,7 @@ func _build_crew_cabin() -> void:
 			anchor.set_meta("seat_id", StringName("crew_%s_%02d" % [side_name.to_lower(), row_index]))
 			seat_root.add_child(anchor)
 			_crew_seat_anchors.append(anchor)
-			if side < 0.0 and row_index == 0:
+			if side < 0.0 and row_index in [0, 1]:
 				preload("res://scripts/interaction/ship_crew_seat.gd").install(anchor, self)
 		# Overhead stowage above the seat rows. The existing pair retains its exact
 		# envelope and node count, but the forward end narrows by
