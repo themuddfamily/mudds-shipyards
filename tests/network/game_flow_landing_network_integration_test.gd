@@ -1350,8 +1350,8 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 				client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 2, BoardingIntent.ACTION_DISEMBARK))
 				var exterior := await _wait_until(func(): return simulation.is_surface_walking(avatar), 5.0)
 				_check(exterior and simulation.get_body(avatar) == body
-					and fresh._network_ember_passenger_surface_is_current(avatar)
-					and not fresh._network_ember_passenger_surface_is_current(old_avatar, old_context),
+					and fresh._network_ember_passenger_surface_is_current(avatar, fresh._network_ember_passenger_surfaces.get(avatar, {}))
+					and not fresh._network_ember_passenger_surface_is_current(avatar, old_context),
 					"ordinary fresh hatch departure owns only the new body and fresh world/session/epoch/lease grant")
 				if exterior:
 					var region := owner.get("_surface").get_node("LandingRegion") as Node3D
@@ -1433,7 +1433,7 @@ func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 		var direction := target - body.global_position
 		if _shared_visit_restore_mode:
 			var rig := body.get_node("CameraRig") as Node3D
-			direction = rig.global_basis.inverse() * direction
+			direction = (rig.get_parent() as Node3D).global_basis.inverse() * direction
 		var packet := _rime_intent_source.advance(client.multiplayer.get_unique_id(), {
 			"move_axis": Vector2(0, -1) if not neutral_movement and Vector2(direction.x, direction.z).length() > 0.8 else Vector2.ZERO,
 			"look_yaw": atan2(-direction.x, -direction.z), "look_pitch": 0.0,
