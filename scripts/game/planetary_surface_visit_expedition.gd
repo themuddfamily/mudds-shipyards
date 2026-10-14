@@ -115,7 +115,7 @@ func runtime_state() -> Dictionary:
 			copy = "APPROACHING %s" % profile.upper_name()
 		if _shared_arrival and profile.world_id != &"aurora_temperate_world" and state == &"landed":
 			enabled = false
-			copy = "SHARED ARRIVAL — CABIN ACCESS ONLY"
+			copy = "SHARED ARRIVAL — RIME PAD ACCESS" if profile.world_id == &"rime_glacial_world" else "SHARED ARRIVAL — CABIN ACCESS ONLY"
 		if _shared_arrival and profile.world_id == &"aurora_temperate_world" and state == &"landed" and enabled:
 			var return_gate: StringName = _flow._network_planetary_journey.shared_aurora_return_gate_reason()
 			enabled = return_gate.is_empty()
@@ -147,7 +147,7 @@ func board_action_text() -> String:
 	if state in [&"outbound", &"corridor"] and enabled:
 		return "ABANDON APPROACH"
 	if _shared_arrival and profile.world_id != &"aurora_temperate_world" and state == &"landed":
-		return "SHARED ARRIVAL — CABIN ACCESS ONLY"
+		return "SHARED ARRIVAL — RIME PAD ACCESS" if profile.world_id == &"rime_glacial_world" else "SHARED ARRIVAL — CABIN ACCESS ONLY"
 	if state in [&"landed", &"surface"]:
 		if _shared_arrival and not enabled:
 			return str(runtime.get("status_text", "RETURN UNAVAILABLE"))
@@ -224,7 +224,7 @@ func request(shared_admission := false) -> bool:
 					and bool(runtime_state().action_enabled):
 				_begin_return()
 				return state == &"return_cruise"
-			_flow.hud.toast("Shared %s arrival" % profile.display_name, ("Board all crew and take the pilot seat to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "Surface exploration and return are not available for this shared arrival"), 3.0)
+			_flow.hud.toast("Shared %s arrival" % profile.display_name, ("Board all crew and take the pilot seat to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "Stay on Rime’s landing pad and reboard; shared ice-core survey and return to Mudds are unavailable"), 3.0)
 			return false
 		if not bool(runtime_state().action_enabled):
 			return false
@@ -578,7 +578,7 @@ func update_presentation() -> void:
 			_flow.hud.set_interaction("[ E ]  BOARD YOUR SHIP" if _near_ship() else survey.prompt())
 		&"landed":
 			if _shared_arrival:
-				_flow.hud.set_objective("Aurora arrival — crew may follow the optional coastal survey; reboard all crew to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "%s arrival — cabin access available; surface exploration and return are unavailable" % profile.display_name, heading)
+				_flow.hud.set_objective("Aurora arrival — crew may follow the optional coastal survey; reboard all crew to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "%s arrival — stay on the landing pad and reboard; shared ice-core survey and return are unavailable" % profile.display_name, heading)
 				_flow.hud.set_interaction("[ E ]  STAND IN CABIN")
 				_flow._sync_planetary_cruise_hud()
 				return

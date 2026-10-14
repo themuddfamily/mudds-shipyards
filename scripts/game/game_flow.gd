@@ -10640,10 +10640,8 @@ func _network_boarding_departure_status(peer_id: int, request: Dictionary) -> St
 	if _network_planetary_journey.is_surface_arrival() \
 			and request.get("ship_id") == shared_arrival.get("ship_id") \
 			and action == NetworkBoardingIntentType.ACTION_DISEMBARK:
-		if shared_arrival.get("world_id") == RimeExpeditionType.WORLD_ID:
-			return &"shared_rime_surface_unavailable"
 		if not _network_ember_passenger_host_is_current(_find_flyable_ship_by_id(StringName(request.ship_id))):
-			return &"shared_aurora_surface_departure_unavailable"
+			return &"shared_rime_surface_departure_unavailable" if shared_arrival.get("world_id") == RimeExpeditionType.WORLD_ID else &"shared_aurora_surface_departure_unavailable"
 	if _network_ember_passenger_surfaces.has(avatar):
 		if action not in [NetworkBoardingIntentType.ACTION_BOARD, NetworkBoardingIntentType.ACTION_BOARD_ANY]:
 			return &"surface_passenger_requires_hatch_return"
@@ -10710,28 +10708,36 @@ func _network_boarding_departure_status(peer_id: int, request: Dictionary) -> St
 
 
 ## The existing retained-body surface path serves only the selected supported
-## world. Rime remains outside this physical egress contract.
+## world. Rime access is confined to its actual supported landing pad.
 func _network_passenger_surface_bootstrap(world_id: StringName = &"") -> PlanetaryStreamingBootstrap:
 	if world_id.is_empty():
 		world_id = StringName(get_network_planetary_journey_snapshot().get("world_id", &"ember_moon"))
 	match world_id:
 		AuroraExpeditionType.WORLD_ID:
 			return aurora_streaming_bootstrap
+		RimeExpeditionType.WORLD_ID:
+			return rime_streaming_bootstrap
 		&"ember_moon":
 			return ember_streaming_bootstrap
 	return null
 
 
 func _network_aurora_passenger_host_is_current(craft: HeroShip) -> bool:
+	return _network_surface_visit_passenger_host_is_current(craft, AuroraExpeditionType.WORLD_ID)
+
+
+func _network_surface_visit_passenger_host_is_current(craft: HeroShip, world_id: StringName) -> bool:
+	if world_id not in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID]:
+		return false
 	var journey := get_network_planetary_journey_snapshot()
-	var owner := _aurora_expedition
-	var bootstrap := _network_passenger_surface_bootstrap(AuroraExpeditionType.WORLD_ID)
+	var owner = _aurora_expedition if world_id == AuroraExpeditionType.WORLD_ID else _rime_expedition
+	var bootstrap := _network_passenger_surface_bootstrap(world_id)
 	var berth := owner.get("_berth") as ShipBerth
 	var scene := bootstrap.get_loaded_instance() if is_instance_valid(bootstrap) else null
 	return is_inside_tree() and not is_queued_for_deletion() \
 		and _network_session_mode == &"server" and _network_session_is_live() \
 		and is_instance_valid(craft) and craft == active_ship and not craft.is_destroyed() \
-		and journey.get("world_id") == AuroraExpeditionType.WORLD_ID and journey.get("phase") == &"landed" \
+		and journey.get("world_id") == world_id and journey.get("phase") == &"landed" \
 		and journey.get("ship_id") == craft.get_ship_id() and int(journey.get("journey_epoch", 0)) > 0 \
 		and owner.is_active() and owner.state == &"landed" and bool(owner.get("_shared_arrival")) \
 		and owner.get_craft() == craft and _network_planetary_journey._surface_arrival_host_is_current() \
@@ -10747,8 +10753,8 @@ func _network_aurora_passenger_host_is_current(craft: HeroShip) -> bool:
 
 func _network_ember_passenger_host_is_current(craft: HeroShip) -> bool:
 	var selected_world := StringName(get_network_planetary_journey_snapshot().get("world_id", &""))
-	if selected_world == AuroraExpeditionType.WORLD_ID:
-		return _network_aurora_passenger_host_is_current(craft)
+	if selected_world in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID]:
+		return _network_surface_visit_passenger_host_is_current(craft, selected_world)
 	if selected_world != &"ember_moon":
 		return false
 	return is_inside_tree() and not is_queued_for_deletion() \
@@ -10785,6 +10791,10 @@ func _network_ember_passenger_gravity_policy() -> PlanetarySurfaceGravityPolicy:
 		world_definition = preload("res://assets/world/planets/aurora_temperate_world.tres")
 		terrain = preload("res://assets/world/planets/aurora_temperate_terrain.tres")
 		reference_gravity = 9.8
+	elif bootstrap == rime_streaming_bootstrap:
+		world_definition = preload("res://assets/world/planets/rime_glacial_world.tres")
+		terrain = preload("res://assets/world/planets/rime_glacial_terrain.tres")
+		reference_gravity = float(ProjectSettings.get_setting("physics/3d/default_gravity", 9.8))
 	var policy := PlanetarySurfaceGravityPolicy.new()
 	var configured := policy.configure(world_definition, terrain,
 		bootstrap.get_coordinate_frame_for_session(), reference_gravity)
@@ -10808,6 +10818,14 @@ func _network_ember_passenger_gravity(position: Vector3, policy: PlanetarySurfac
 
 
 func _network_ember_passenger_surface_is_current(avatar: StringName, expected_context: Variant = null) -> bool:
+	if not _network_ember_passenger_surface_owner_is_current(avatar, expected_context):
+		return false
+	var context := _network_ember_passenger_surfaces[avatar] as Dictionary
+	var scene := _network_passenger_surface_bootstrap(context.world_id).get_loaded_instance()
+	return _network_ember_passenger_on_pad(_network_remote_body_simulation.get_body(avatar), scene)
+
+
+func _network_ember_passenger_surface_owner_is_current(avatar: StringName, expected_context: Variant = null) -> bool:
 	var context := _network_ember_passenger_surfaces.get(avatar, {}) as Dictionary
 	if expected_context is Dictionary and (expected_context.is_empty() or expected_context != context):
 		return false
@@ -10816,28 +10834,41 @@ func _network_ember_passenger_surface_is_current(avatar: StringName, expected_co
 			or not network_session.get_admitted_peer_ids().has(int(context.peer_id)) \
 			or int(get_network_planetary_journey_snapshot().get("journey_epoch", 0)) != int(context.journey_epoch):
 		return false
-	var craft := _find_flyable_ship_by_id(context.ship_id)
 	var world_id := StringName(context.get("world_id", &"ember_moon"))
+	if world_id not in [&"ember_moon", AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID]:
+		return false
+	if world_id == RimeExpeditionType.WORLD_ID:
+		if not is_instance_valid(_network_remote_body_simulation):
+			return false
+		var rime_body := _network_remote_body_simulation.get_body(avatar) as PlayerController
+		if not is_instance_valid(rime_body) or not rime_body.is_inside_tree() or rime_body.is_queued_for_deletion():
+			return false
+		var record := _network_remote_body_simulation.get_body_record(avatar)
+		if int(context.get("session_epoch", -1)) != _network_hud_session_epoch \
+				or int(record.get("owner_peer_id", 0)) != int(context.peer_id) \
+				or int(record.get("entity_generation", 0)) != int(context.get("entity_generation", -1)):
+			return false
+	var craft := _find_flyable_ship_by_id(context.ship_id)
 	if get_network_planetary_journey_snapshot().get("world_id") != world_id:
 		return false
 	var bootstrap := _network_passenger_surface_bootstrap(world_id)
 	var scene := bootstrap.get_loaded_instance() if is_instance_valid(bootstrap) else null
 	var attachment_current := false
-	if world_id == AuroraExpeditionType.WORLD_ID:
-		var berth := _aurora_expedition.get("_berth") as ShipBerth
+	if world_id in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID]:
+		var owner = _aurora_expedition if world_id == AuroraExpeditionType.WORLD_ID else _rime_expedition
+		var berth := owner.get("_berth") as ShipBerth
 		attachment_current = is_instance_valid(berth) and berth.get_instance_id() == int(context.get("berth_instance_id", 0)) \
 			and berth.get_reservation_token(craft) == context.get("surface_token") \
 			and bootstrap.get_location_generation() == int(context.get("location_generation", 0))
 	else:
-		attachment_current = ember_surface_loop_host.get_generation() == int(context.host_generation) \
-			and ember_surface_loop_host.get_attachment_generation() == int(context.attachment_generation)
+		attachment_current = ember_surface_loop_host.get_generation() == int(context.get("host_generation", -1)) \
+			and ember_surface_loop_host.get_attachment_generation() == int(context.get("attachment_generation", -1))
 	var body := _network_remote_body_simulation.get_body(avatar) as PlayerController \
 		if is_instance_valid(_network_remote_body_simulation) else null
 	return _network_ember_passenger_host_is_current(craft) and is_instance_valid(scene) \
 		and scene.get_instance_id() == int(context.scene_id) \
 		and attachment_current \
-		and is_instance_valid(body) and body.get_instance_id() == int(context.body_id) \
-		and _network_ember_passenger_on_pad(body, scene)
+		and is_instance_valid(body) and body.get_instance_id() == int(context.body_id)
 
 
 func _network_aurora_survey_body_is_current(body: PlayerController) -> bool:
@@ -10856,12 +10887,91 @@ func _interact_network_aurora_survey(body: PlayerController) -> bool:
 	return _network_aurora_survey_body_is_current(body) and _aurora_expedition.survey.interact(body)
 
 
+## Rime's authored pad is the complete shared walking envelope. Both the
+## authoritative body and local prediction use this exact scene-owned support.
+var _network_rime_pad_guard_generation := 0
+
+
+func _bind_network_rime_pad_guard(body: PlayerController, context: Dictionary, owner: Callable) -> void:
+	if context.get("world_id") != RimeExpeditionType.WORLD_ID or not is_instance_valid(body):
+		return
+	_network_rime_pad_guard_generation += 1
+	var token := StringName("rime_%s_%s_%s_%s_%s_%s_%s_%s" % [get_instance_id(),
+		_network_rime_pad_guard_generation, context.session_id, context.session_epoch,
+		context.body_id, context.scene_id, context.location_generation, context.entity_generation])
+	context["pad_guard_token"] = token
+	body.set_rime_pad_step_guard(token, owner,
+		Callable(self, "_constrain_network_rime_pad_step").bind(body, context, owner))
+
+
+func _clear_network_rime_pad_guard(body: PlayerController, context: Dictionary) -> void:
+	if is_instance_valid(body) and context.get("world_id") == RimeExpeditionType.WORLD_ID:
+		body.clear_rime_pad_step_guard(StringName(context.get("pad_guard_token", &"")))
+
+
+func _network_client_rime_pad_owner_is_current(expected_context: Dictionary) -> bool:
+	return not expected_context.is_empty() and expected_context == _network_client_ember_passenger_surface \
+		and _network_client_ember_passenger_surface_owner_is_current()
+
+
+func _rime_pad_has_physical_support(collision: CollisionShape3D, point: Vector3, body: Node3D) -> bool:
+	if not is_instance_valid(collision) or not collision.is_inside_tree() or collision.is_queued_for_deletion() \
+			or collision.disabled or not collision.shape is BoxShape3D:
+		return false
+	var half := (collision.shape as BoxShape3D).size * 0.5
+	if absf(point.x) >= half.x or absf(point.z) >= half.z:
+		return false
+	# Query the authored floor plane, independently of a transient airborne
+	# player. A jump keeps real vertical movement; it grants no extra footprint.
+	var query := PhysicsRayQueryParameters3D.create(
+		collision.to_global(Vector3(point.x, half.y + 0.05, point.z)),
+		collision.to_global(Vector3(point.x, half.y - 0.05, point.z)), 1)
+	query.exclude = [body.get_rid()] if body is CollisionObject3D else []
+	var floor := body.get_world_3d().direct_space_state.intersect_ray(query)
+	return not floor.is_empty() and floor.get("collider") == collision.get_parent() \
+		and (floor.normal as Vector3).dot(collision.global_basis.y.normalized()) > 0.7
+
+
+func _constrain_network_rime_pad_step(previous: Vector3, proposed: Vector3,
+		body: PlayerController, context: Dictionary, owner: Callable) -> Dictionary:
+	if not owner.is_valid() or owner.call() != true or context.get("world_id") != RimeExpeditionType.WORLD_ID:
+		return {}
+	var scene := rime_streaming_bootstrap.get_loaded_instance()
+	var pad := scene.get_node_or_null(^"LandingRegion/WalkablePatch/CollisionShape3D") as CollisionShape3D
+	var capsule := body.get_node_or_null(^"PlayerCollision") as CollisionShape3D
+	if not is_instance_valid(pad) or not pad.shape is BoxShape3D \
+			or not is_instance_valid(capsule) or not capsule.shape is CapsuleShape3D:
+		return {}
+	var before := pad.to_local(previous)
+	var after := pad.to_local(proposed)
+	var shape_basis := pad.global_basis.inverse() * capsule.global_basis
+	var radius := (capsule.shape as CapsuleShape3D).radius * maxf(shape_basis.x.length(), shape_basis.z.length())
+	var half := (pad.shape as BoxShape3D).size * 0.5
+	if absf(before.x) > half.x - radius or absf(before.z) > half.z - radius:
+		return {}
+	var normals: Array[Vector3] = []
+	if absf(after.x) > half.x - radius:
+		normals.append(pad.global_basis.x.normalized() * signf(after.x))
+		after.x = before.x
+	if absf(after.z) > half.z - radius:
+		normals.append(pad.global_basis.z.normalized() * signf(after.z))
+		after.z = before.z
+	if normals.is_empty() or not _rime_pad_has_physical_support(pad, before, body) \
+			or not _rime_pad_has_physical_support(pad, after, body) or owner.call() != true:
+		return {}
+	# The solver's vertical result is untouched. Only the measured unsupported
+	# lateral step and outward velocity are removed, so walking back is usable.
+	return {"blocked": true, "position": pad.to_global(after), "outward_normals": normals}
+
+
 func _network_ember_passenger_on_pad(body: Node3D, scene: Node3D) -> bool:
 	var collision := scene.get_node_or_null(^"LandingRegion/WalkablePatch/CollisionShape3D") as CollisionShape3D
 	if not is_instance_valid(collision) or not collision.is_inside_tree() or collision.is_queued_for_deletion() \
 			or collision.disabled or not collision.shape is BoxShape3D:
 		return false
 	var local := collision.to_local(body.global_position)
+	if scene == rime_streaming_bootstrap.get_loaded_instance():
+		return local.y >= -(collision.shape as BoxShape3D).size.y * 0.5 and _rime_pad_has_physical_support(collision, local, body)
 	var half := (collision.shape as BoxShape3D).size * 0.5
 	if absf(local.x) < half.x and absf(local.z) < half.z and local.y >= -half.y:
 		return true
@@ -10905,6 +11015,12 @@ func _network_client_ember_surface_scene_is_current(craft: HeroShip, epoch: int)
 
 
 func _network_client_ember_passenger_surface_is_current() -> bool:
+	if not _network_client_ember_passenger_surface_owner_is_current():
+		return false
+	return _network_ember_passenger_on_pad(player, _network_passenger_surface_bootstrap().get_loaded_instance())
+
+
+func _network_client_ember_passenger_surface_owner_is_current() -> bool:
 	var context := _network_client_ember_passenger_surface
 	if context.is_empty() or not is_instance_valid(network_session) \
 			or network_session.get_instance_id() != int(context.session_id) \
@@ -10926,7 +11042,12 @@ func _network_client_ember_passenger_surface_is_current() -> bool:
 		return false
 	var bootstrap := _network_passenger_surface_bootstrap()
 	var scene := bootstrap.get_loaded_instance() if is_instance_valid(bootstrap) else null
-	return scene.get_instance_id() == int(context.scene_id) and _network_ember_passenger_on_pad(player, scene)
+	if context.get("world_id") == RimeExpeditionType.WORLD_ID and (
+		not player.is_inside_tree() or player.is_queued_for_deletion()
+		or int(context.get("session_epoch", -1)) != _network_hud_session_epoch
+		or bootstrap.get_location_generation() != int(context.get("location_generation", -1))):
+		return false
+	return is_instance_valid(scene) and scene.get_instance_id() == int(context.scene_id)
 
 
 func _network_local_ember_passenger_prediction_is_current(expected_context: Dictionary) -> bool:
@@ -10937,6 +11058,7 @@ func _network_local_ember_passenger_prediction_is_current(expected_context: Dict
 
 func _retire_network_client_ember_passenger_surface(await_authority: bool = false, resume_controls: bool = true) -> void:
 	_clear_network_client_aurora_survey_presentation()
+	_clear_network_rime_pad_guard(player, _network_client_ember_passenger_surface)
 	if await_authority and not _network_client_ember_passenger_surface.is_empty() \
 			and _network_client_boarding_is_live() \
 			and int(get_network_planetary_journey_snapshot().get("journey_epoch", 0)) \
@@ -12837,6 +12959,7 @@ func _ensure_network_remote_body_simulation() -> NetworkRemoteBodySimulationType
 
 func _release_all_network_remote_bodies(reason: StringName) -> void:
 	for context: Dictionary in _network_ember_passenger_surfaces.values():
+		_clear_network_rime_pad_guard(instance_from_id(int(context.body_id)) as PlayerController, context)
 		context.clear()
 	_network_ember_passenger_surfaces.clear()
 	if _network_remote_body_simulation == null \
@@ -12899,6 +13022,7 @@ func admit_network_remote_body(
 
 func release_network_remote_body(entity_id: StringName, reason: StringName = &"released") -> Dictionary:
 	if _network_ember_passenger_surfaces.has(entity_id):
+		_clear_network_rime_pad_guard(_network_remote_body_simulation.get_body(entity_id), _network_ember_passenger_surfaces[entity_id])
 		(_network_ember_passenger_surfaces[entity_id] as Dictionary).clear()
 		_network_ember_passenger_surfaces.erase(entity_id)
 	if _network_remote_body_simulation == null \
@@ -12960,6 +13084,7 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 			var returned := _network_remote_body_simulation.finish_surface_walk(avatar_id)
 			_network_hatch_audit["last_hatch_status"] = returned.status
 			if bool(returned.get("accepted", false)):
+				_clear_network_rime_pad_guard(_network_remote_body_simulation.get_body(avatar_id), _network_ember_passenger_surfaces[avatar_id])
 				(_network_ember_passenger_surfaces[avatar_id] as Dictionary).clear()
 				_network_ember_passenger_surfaces.erase(avatar_id)
 			return
@@ -13029,10 +13154,11 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 				"journey_epoch": int(get_network_planetary_journey_snapshot().journey_epoch),
 				"scene_id": scene.get_instance_id(), "world_id": world_id,
 			}
-			if world_id == AuroraExpeditionType.WORLD_ID:
+			if world_id in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID]:
+				var owner = _aurora_expedition if world_id == AuroraExpeditionType.WORLD_ID else _rime_expedition
 				(_network_ember_passenger_surfaces[avatar_id] as Dictionary).merge({
-					"berth_instance_id": (_aurora_expedition.get("_berth") as ShipBerth).get_instance_id(),
-					"surface_token": _aurora_expedition.get("_surface_token"),
+					"berth_instance_id": (owner.get("_berth") as ShipBerth).get_instance_id(),
+					"surface_token": owner.get("_surface_token"),
 					"location_generation": bootstrap.get_location_generation(),
 				})
 			else:
@@ -13040,11 +13166,17 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 					"host_generation": ember_surface_loop_host.get_generation(),
 					"attachment_generation": ember_surface_loop_host.get_attachment_generation(),
 				})
+			if world_id == RimeExpeditionType.WORLD_ID:
+				(_network_ember_passenger_surfaces[avatar_id] as Dictionary).merge({
+					"session_epoch": _network_hud_session_epoch, "entity_generation": int(record.entity_generation),
+				})
 			var retained := _network_remote_body_simulation.begin_surface_walk(avatar_id,
 				Callable(self, "_network_ember_passenger_surface_is_current").bind(avatar_id, _network_ember_passenger_surfaces[avatar_id]),
 				Callable(self, "_network_ember_passenger_gravity").bind(policy))
 			_network_hatch_audit["last_hatch_status"] = retained.status
 			if bool(retained.get("accepted", false)):
+				_bind_network_rime_pad_guard(body, _network_ember_passenger_surfaces[avatar_id],
+					Callable(self, "_network_ember_passenger_surface_owner_is_current").bind(avatar_id, _network_ember_passenger_surfaces[avatar_id]))
 				# This confirmed passenger's ordinary hatch press opens the actual
 				# host-owned door. Walking, never placement, crosses the airstair.
 				craft.set_canopy_open(true, ShipCabinHatch.MOTION_SECONDS)
@@ -13599,6 +13731,7 @@ func _present_network_client_cabin_boarding(craft: HeroShip, area: ShipBoardingA
 			_retire_network_client_ember_passenger_surface()
 			return
 		player.gravity_multiplier = float(_network_client_ember_passenger_surface.cabin_gravity)
+		_clear_network_rime_pad_guard(player, _network_client_ember_passenger_surface)
 		_network_client_ember_passenger_surface.clear()
 		_boarding_area = area
 		phase = Phase.IN_FLIGHT_CABIN
@@ -13700,6 +13833,9 @@ func _present_network_client_ember_passenger_departure(craft: HeroShip, area: Sh
 		"entity_generation": _network_remote_body_intent_source.get_entity_generation(),
 		"scene_id": scene.get_instance_id(), "policy": policy, "cabin_gravity": player.gravity_multiplier,
 	}
+	if _network_client_ember_passenger_surface.world_id == RimeExpeditionType.WORLD_ID:
+		_network_client_ember_passenger_surface.merge({"session_epoch": _network_hud_session_epoch,
+			"location_generation": _network_passenger_surface_bootstrap().get_location_generation()})
 	_network_client_ember_passenger_retired.clear()
 	if is_instance_valid(area) and area.get_reservation_token() == player:
 		area.release_reservation(player)
@@ -13714,11 +13850,16 @@ func _present_network_client_ember_passenger_departure(craft: HeroShip, area: Sh
 	if not bool(predicted.get("accepted", false)):
 		_retire_network_client_ember_passenger_surface()
 		return
+	_bind_network_rime_pad_guard(player, _network_client_ember_passenger_surface,
+		Callable(self, "_network_client_rime_pad_owner_is_current").bind(_network_client_ember_passenger_surface))
 	hud.set_mode("on-foot")
-	hud.set_objective("Optional coastal survey: follow the amber trail, or return through the hatch whenever ready" \
-		if _network_client_ember_passenger_surface.world_id == AuroraExpeditionType.WORLD_ID \
-		else "Walk the supported caldera; return through the hatch after the saved relay survey")
-	if _network_client_ember_passenger_surface.world_id == AuroraExpeditionType.WORLD_ID:
+	if _network_client_ember_passenger_surface.world_id == RimeExpeditionType.WORLD_ID:
+		hud.set_objective("Stay on Rime’s landing pad and reboard through the hatch; shared ice-core survey and return to Mudds are unavailable")
+	else:
+		hud.set_objective("Optional coastal survey: follow the amber trail, or return through the hatch whenever ready" \
+			if _network_client_ember_passenger_surface.world_id == AuroraExpeditionType.WORLD_ID \
+			else "Walk the supported caldera; return through the hatch after the saved relay survey")
+	if _network_client_ember_passenger_surface.world_id in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID]:
 		_capture_network_client_aurora_survey_presentation()
 
 
@@ -22889,7 +23030,7 @@ func _planetary_cruise_presentation() -> Dictionary:
 				&"preparing": text = "SHARED %s — WAITING FOR CREW" % label
 				&"cruise_stopped": text = "SHARED %s — CRUISE STOPPED" % label
 				&"approaching": text = "SHARED %s — %s LANDING" % [label, "ICEFALL" if label == "RIME" else "COASTAL"]
-				&"landed": text = "SHARED AURORA — LANDING PAD ACCESS" if label == "AURORA" else "SHARED RIME — CABIN ACCESS ONLY"
+				&"landed": text = "SHARED AURORA — LANDING PAD ACCESS" if label == "AURORA" else "SHARED RIME — LANDING PAD ACCESS"
 			return {"status_id": &"queued", "status_text": text,
 				"toggle_enabled": _network_session_mode == &"server" and shared_phase in [&"preparing", &"cruising", &"cruise_stopped", &"approaching"],
 				"engagement_requested": true, "public_gate": &""}

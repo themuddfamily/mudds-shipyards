@@ -162,6 +162,16 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--rime-pad-only"):
+		await _shared_rime_pad_access()
+		if _failures.is_empty():
+			print("OK: Rime shared pad integration (%d assertions)" % _assertions)
+			quit(0)
+		else:
+			for failure in _failures:
+				push_error(failure)
+			quit(1)
+		return
 	var server := LandingAdapterProbe.new()
 	server._is_server = true
 	server._configured = true
@@ -325,6 +335,7 @@ func _run() -> void:
 	world.queue_free()
 	await process_frame
 	await _shared_aurora_home_publication_retry()
+	await _shared_rime_pad_access()
 	if _failures.is_empty():
 		print("OK: GameFlow landing network integration (%d assertions)" % _assertions)
 		quit(0)
@@ -340,6 +351,192 @@ func _check(condition: bool, description: String) -> void:
 		_failures.append("FAIL: " + description)
 	else:
 		print("PASS: " + description)
+
+
+## One staged Rime pad/lease; movement after exterior admission is real intent
+## movement. This does not qualify canonical travel or the ice-core survey.
+func _shared_rime_pad_access() -> void:
+	var game := MainScene.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(UserDataStore.new("memory://rime-pad.json", SurveyFilesystem.new()))
+	root.add_child(game)
+	set_multiplayer(SceneMultiplayer.new(), game.get_path())
+	await process_frame
+	await physics_frame
+	game.start_shift()
+	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	var home := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	game._release_ship_berth(craft)
+	craft.global_transform = home.get_assist_capture_transform()
+	craft.velocity = Vector3.ZERO
+	game.player.teleport_to(Transform3D(craft.global_basis, craft.get_boarding_position()))
+	game._board_ship(craft)
+	var piloting := await _wait_until(func(): return game._piloting and not game._transition_busy, 12.0)
+	_check(piloting, "Rime pad fixture owns a real retained Halyard host pilot")
+	var probe := UDPServer.new()
+	var port_ready := probe.listen(0, "127.0.0.1") == OK
+	var port := probe.get_local_port() if port_ready else 0
+	probe.stop()
+	game._ensure_lan_discovery().discovery_port = 0
+	var hosted := port_ready and bool(game.host_network_session(port, 2).get("accepted", false))
+	var branch := SubViewport.new()
+	root.add_child(branch)
+	set_multiplayer(SceneMultiplayer.new(), branch.get_path())
+	var client := Adapter.new()
+	client.name = GameFlow.NETWORK_SESSION_NODE_NAME
+	branch.add_child(client)
+	if hosted:
+		client.join("127.0.0.1", port)
+	var admitted := hosted and await _wait_until(func(): return not client.get_server_offer().is_empty(), 10.0)
+	_check(piloting and admitted, "Rime pad crew is admitted over the real authenticated ENet session")
+	if piloting and admitted:
+		var peer := client.multiplayer.get_unique_id()
+		var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+		game._ensure_network_boarding_ship_registered(craft)
+		var boarding := _rime_boarding_request(game, client, craft, 1, BoardingIntent.ACTION_BOARD)
+		client.send_boarding_intent(boarding)
+		var boarded := await _wait_until(func(): return game.get_network_remote_body_simulation() != null and game.get_network_remote_body_simulation().has_body(avatar), 12.0)
+		_check(boarded, "Rime crew starts as the actual confirmed cabin body")
+		if boarded:
+			await _rime_pad_body_route(game, client, craft, avatar)
+	client.shutdown()
+	game.shutdown_network_session(&"rime_pad_fixture_done")
+	_check(game._network_ember_passenger_surfaces.is_empty(), "Rime session retirement disposes the retained surface contexts")
+	branch.queue_free()
+	game.queue_free()
+	await process_frame
+	await physics_frame
+
+
+func _rime_boarding_request(game: GameFlow, client: Adapter, craft: HeroShip, sequence: int, action: StringName) -> Dictionary:
+	var peer := client.multiplayer.get_unique_id()
+	return BoardingIntent.create(peer, GameFlow.network_client_boarding_avatar_id(peer), craft.get_ship_id(), 1,
+		StringName("frame_%s" % craft.get_ship_id()), 1, GameFlow.network_cabin_berth_seat_id(craft.get_ship_id(), 1), 1,
+		GameFlow.NETWORK_CABIN_BERTH_ROLE, sequence, game.network_session.get_boarding_server_tick(), action).to_dictionary()
+
+
+func _rime_pad_body_route(game: GameFlow, client: Adapter, craft: HeroShip, avatar: StringName) -> void:
+	game.set_physics_process(false)
+	var owner := game._rime_expedition
+	var bootstrap := game.rime_streaming_bootstrap
+	var binding := game.rime_streaming_binding
+	var lane := game._planetary_journey.admit_aurora_visit(craft, false, &"rime_glacial_world")
+	_check(bool(lane.get("accepted", false)), "Rime pad uses the exact existing world visit lane")
+	craft.global_position = bootstrap.global_position + Vector3(0, 120030, 30)
+	var sample := {"available": true, "position": craft.global_position, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id()}
+	binding.physics_tick_from_caller_sample(0.0, sample)
+	var rebase := game.common_world_origin_rebase_owner.consume_rebase_preview(binding.preview_origin_rebase(bootstrap.get_coordinate_frame_for_session().get_generation()), sample)
+	_check(bool(rebase.get("accepted", false)), "Rime pad commits through the actual common origin owner")
+	var loaded := await _wait_until(func(): return is_instance_valid(bootstrap.get_loaded_instance()), 10.0)
+	_check(loaded, "Rime pad loads its own authored production scene")
+	if not loaded:
+		return
+	var surface := bootstrap.get_loaded_instance()
+	var region := surface.get_node("LandingRegion") as Node3D
+	owner._ship = craft
+	owner._home = game.world.get_berth_node(craft.get_home_berth_id())
+	owner._surface = surface
+	owner._shared_arrival = true
+	owner.state = &"landing"
+	owner.survey.attach(surface)
+	owner._lease_surface_berth(region)
+	var berth := owner._berth as ShipBerth
+	craft.global_transform = berth.get_assist_capture_transform()
+	craft.velocity = Vector3.ZERO
+	craft.request_berth_landing(berth)
+	var docked := await _wait_until(func(): return berth.get_occupant() == craft and not craft.is_landing_active(), 15.0)
+	_check(docked, "Rime's actual physical berth owns the same docked craft and lease")
+	if not docked:
+		return
+	owner.physics_tick(0.0)
+	_check(await _wait_until(func(): return craft.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE, 5.0), "Rime visit performs its ordinary docked propulsion shutdown")
+	var bridge := game._network_planetary_journey
+	bridge._epoch = 1
+	bridge._craft_instance_id = craft.get_instance_id()
+	bridge._pilot_source_ref = weakref(craft.get_command_source())
+	bridge._state = {"journey_epoch": 1, "world_id": &"rime_glacial_world", "ship_id": craft.get_ship_id(), "phase": &"landed"}
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var simulation := game.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	var body_id := body.get_instance_id()
+	var hatch := craft.get_node("WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+	# The only crew placement precedes exterior admission, at the real hatch.
+	body.teleport_to(Transform3D(Basis.IDENTITY, hatch.global_position - Vector3.UP * 0.7))
+	for _tick in 12:
+		await physics_frame
+	client.send_boarding_intent(_rime_boarding_request(game, client, craft, 2, BoardingIntent.ACTION_DISEMBARK))
+	var walking := await _wait_until(func(): return simulation.is_surface_walking(avatar), 5.0)
+	print("RIME_PAD_DEPARTURE: walking=", walking, " answer=", client.get_boarding_intent_result_replica())
+	_check(walking and simulation.get_body(avatar) == body, "authenticated Rime hatch departure retains the same actual walking crew body")
+	if not walking:
+		return
+	_check(absf(body.gravity_multiplier - 1.0) < 0.02, "Rime retained crew uses its actual world and ordinary project gravity")
+	_coastal_sequence = 0
+	_coastal_interaction = 0
+	if not await _checked_coastal_walk(game, game.network_session, client, body, region.to_global(Vector3(-44, 0.5, -8)), "retained Rime body walks ordinary intents to the actual pad edge"):
+		return
+	for _tick in 180:
+		if not is_instance_valid(body):
+			break
+		await _coastal_tick(game, game.network_session, client, body, region.to_global(Vector3(-70, 0.5, -8)))
+	var safe := is_instance_valid(body) and simulation.get_body(avatar) == body and game._network_ember_passenger_surface_is_current(avatar)
+	_check(safe, "ordinary outward Rime input stops at actual supported pad footprint without losing the same body")
+	if not safe:
+		return
+	_check(int(body.get("_rime_pad_blocked_steps")) > 0 and body.get_instance_id() == body_id, "real pad boundary rejects unsupported steps without replacement or cabin recall")
+	var initial_height := body.global_position.y
+	var jump_peak := initial_height
+	for tick in 100:
+		await _coastal_tick(game, game.network_session, client, body, region.to_global(Vector3(-70, 0.5, -8)), tick < 4)
+		jump_peak = maxf(jump_peak, body.global_position.y)
+	_check(jump_peak > initial_height + 0.2 and body.is_on_floor() and game._network_ember_passenger_surface_is_current(avatar),
+		"Rime boundary preserves a real intent-driven jump, vertical gravity and subsequent floor contact")
+	var tangent_start := region.to_local(body.global_position).z
+	for tick in 100:
+		await _coastal_tick(game, game.network_session, client, body, region.to_global(Vector3(-70, 0.5, 12)))
+	_check(region.to_local(body.global_position).z > tangent_start + 1.0 and game._network_ember_passenger_surface_is_current(avatar),
+		"blocked outward Rime input preserves supported tangential walking")
+	var context: Dictionary = game._network_ember_passenger_surfaces[avatar]
+	var previous_guard_token := StringName(context.pad_guard_token)
+	game._bind_network_rime_pad_guard(body, context, Callable(game, "_network_ember_passenger_surface_owner_is_current").bind(avatar, context))
+	body.clear_rime_pad_step_guard(previous_guard_token)
+	_check(StringName(body.get("_rime_pad_guard_token")) == StringName(context.pad_guard_token)
+		and context.pad_guard_token != previous_guard_token, "a superseded guard owner cannot clear the current body's boundary")
+	for field in ["journey_epoch", "location_generation", "session_id", "session_epoch", "entity_generation", "scene_id", "body_id"]:
+		var previous: Variant = context[field]
+		context[field] = int(previous) + 1
+		_check(not game._network_ember_passenger_surface_is_current(avatar), "Rime surface rejects stale " + field)
+		context[field] = previous
+	var token := owner._surface_token
+	owner._surface_token = &"retired_rime_token"
+	_check(not game._network_ember_passenger_surface_is_current(avatar), "Rime cannot use another physical pad lease")
+	owner._surface_token = token
+	bridge._state.world_id = &"unsupported_world"
+	_check(not game._network_ember_passenger_surface_is_current(avatar) and game._network_passenger_surface_bootstrap() == null,
+		"unknown world cannot borrow Ember, Aurora or Rime support")
+	bridge._state.world_id = &"rime_glacial_world"
+	for point in [region.to_global(Vector3(-8, 0.5, -8)), craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
+		if not await _checked_coastal_walk(game, game.network_session, client, body, point, "same Rime body reverses ordinary input and walks back through the physical hatch"):
+			return
+	client.send_boarding_intent(_rime_boarding_request(game, client, craft, 3, BoardingIntent.ACTION_BOARD_ANY))
+	var reboarded := await _wait_until(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0)
+	_check(reboarded and simulation.get_body(avatar) == body and body.get_instance_id() == body_id,
+		"authenticated Rime reboard restores cabin containment on the same body")
+	_check(str(body.get("_rime_pad_guard_token")).is_empty(), "Rime reboard clears only its owned pad movement guard")
+	_check(not owner.request() and not bool(owner.runtime_state().action_enabled) and str(owner.runtime_state().status_text).contains("PAD ACCESS")
+		and int(owner.survey.snapshot().get("state", CheckpointRouteActivity.State.IDLE)) == CheckpointRouteActivity.State.IDLE
+		and not owner.survey.reward_recorded(),
+		"Rime shared pad access offers neither unsupported ice-core survey nor home-return admission")
+	# Real support loss ends this final admission; never restore a removed floor
+	# and pretend the old authority is still current or place a replacement body.
+	client.send_boarding_intent(_rime_boarding_request(game, client, craft, 4, BoardingIntent.ACTION_DISEMBARK))
+	_check(await _wait_until(func(): return simulation.is_surface_walking(avatar), 5.0), "same reboarded Rime crew can make a fresh authenticated hatch departure")
+	var pad := surface.get_node("LandingRegion/WalkablePatch/CollisionShape3D") as CollisionShape3D
+	pad.disabled = true
+	_check(not game._network_ember_passenger_surface_is_current(avatar), "Rime refuses missing actual scene-owned physical floor")
+	game._advance_network_remote_bodies(Engine.get_physics_frames())
+	await physics_frame
+	_check(not simulation.has_body(avatar) and game._network_ember_passenger_surfaces.is_empty(),
+		"actual Rime floor loss retires the old body and grant without a fabricated floor or cabin recall")
 
 
 ## Bounded home-handoff setup only. This fixture does not fly to Aurora or
@@ -713,14 +910,14 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	return true
 
 
-func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3) -> void:
+func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3, jump: bool = false) -> void:
 	var tick := Engine.get_physics_frames()
 	server.set_movement_server_tick(tick)
 	if tick % 4 == 0:
 		var direction := target - body.global_position
 		var moving := Vector2(direction.x, direction.z).length() > 0.8
 		var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
-		var packet: Dictionary = NetworkMovementIntent.create(client.multiplayer.get_unique_id(), identity.entity_id, int(identity.entity_generation), 1001, _coastal_sequence, tick, Vector2(0, -1) if moving else Vector2.ZERO, false, &"", false, atan2(-direction.x, -direction.z), 0.0, false, false, false, _coastal_interaction).to_dictionary()
+		var packet: Dictionary = NetworkMovementIntent.create(client.multiplayer.get_unique_id(), identity.entity_id, int(identity.entity_generation), 1001, _coastal_sequence, tick, Vector2(0, -1) if moving else Vector2.ZERO, false, &"", false, atan2(-direction.x, -direction.z), 0.0, false, false, jump, _coastal_interaction).to_dictionary()
 		_coastal_sequence += 1
 		client.send_movement_intent(packet)
 	game.get_network_remote_body_simulation().advance(tick)
