@@ -18,8 +18,12 @@ class SurveyFilesystem extends UserDataFilesystem:
 	var files: Dictionary = {}
 	var reject_rewards := false
 	var rejected_rewards := 0
-	func exists(path: String) -> bool:
+	func file_exists(path: String) -> bool:
 		return files.has(path)
+	func directory_exists(_path: String) -> bool:
+		return false
+	func ensure_parent_directory(_path: String) -> Error:
+		return OK
 	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
 		if not files.has(path):
 			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
@@ -531,8 +535,11 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	var peer := client.multiplayer.get_unique_id()
 	var seat := GameFlow.network_cabin_berth_seat_id(craft.get_ship_id(), 1)
 	var departure: Dictionary = BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 2, server.get_boarding_server_tick(), BoardingIntent.ACTION_DISEMBARK).to_dictionary()
+	print("COASTAL_HATCH_BEFORE gate=", game._network_boarding_departure_status(peer, departure), " host_current=", game._network_aurora_passenger_host_is_current(craft), " floor=", body.is_on_floor(), " local=", craft.to_local(body.global_position), " hatch=", craft.to_local(hatch.global_position), " intent=", departure)
 	client.send_boarding_intent(departure)
 	var walking := await _wait_until(func(): return simulation.is_surface_walking(avatar), 5.0)
+	if not walking:
+		print("COASTAL_HATCH_AFTER audit=", game.get_network_remote_body_audit(), " answer=", client.get_boarding_intent_result_replica())
 	_check(walking and game._network_aurora_survey_body_is_current(body), "authenticated hatch release retains the actual crew body under the current Aurora surface grant")
 	if walking:
 		var body_id := body.get_instance_id()
