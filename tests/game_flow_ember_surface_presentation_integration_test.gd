@@ -102,6 +102,15 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--rime-shared-survey-client"):
+		RenderingServer.set_render_loop_enabled(false)
+		await _test_client_survey_retirement("rime_survey", &"rime_glacial_world")
+		if _failures.is_empty():
+			print("GAME_FLOW_RIME_CLIENT_SURVEY_TEST_OK (%d assertions)" % _assertions)
+			quit(0)
+		else:
+			_finish()
+		return
 	var flow := FlowProbe.new()
 	var director := AudioDirectorType.new()
 	var hud := HudType.new()
@@ -259,7 +268,7 @@ func _test_client_survey_retirement(scenario: String, world_id: StringName = &"a
 	var client := MainScene.instantiate() as GameFlow
 	for pair: Array in [[server, "host"], [client, "client"]]:
 		var filesystem := SurveySaveFilesystem.new()
-		if scenario == "retired" and pair[0] == server:
+		if scenario in ["retired", "rime_survey"] and pair[0] == server:
 			_hud_survey_filesystem = filesystem
 		var store := UserDataStore.new("user://survey-hud-%s-%s.json" % [scenario, pair[1]], filesystem)
 		store.load()
@@ -302,7 +311,10 @@ func _test_client_survey_retirement(scenario: String, world_id: StringName = &"a
 			_hud_setup_failed = not surface_ready
 			if surface_ready:
 				if world_id == &"rime_glacial_world":
-					await _check_client_rime_controls(scenario, server, client, craft, replica)
+					if scenario == "rime_survey":
+						await _check_client_rime_survey_input(server, client, craft, replica)
+					else:
+						await _check_client_rime_controls(scenario, server, client, craft, replica)
 				else:
 					if scenario == "retired":
 						await _check_client_survey_input(server, client, craft, replica)
@@ -384,6 +396,150 @@ func _stage_client_survey_surface(server: GameFlow, client: GameFlow, craft: Her
 	client.set_physics_process(false)
 	client._update_on_foot_flow()
 	return client._network_client_ember_passenger_surface_is_current() if rime else str(client.hud.get("_objective_source_text")).contains("Optional shared survey")
+
+
+## One full client consumer check: initial arrival/hatch approach are staged;
+## every survey action thereafter is ordinary input and authenticated physics.
+func _check_client_rime_survey_input(server: GameFlow, client: GameFlow, craft: HeroShip, replica: HeroShip) -> void:
+	var survey := server._rime_expedition.survey
+	var region := server.rime_streaming_bootstrap.get_loaded_instance().get_node("LandingRegion") as Node3D
+	var source := client.get_network_remote_body_intent_source()
+	var avatar := source.get_entity_id()
+	var simulation := server.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	var body_id := body.get_instance_id()
+	var client_body_id := client.player.get_instance_id()
+	var pilot_source := craft.get_command_source() as LocalShipInputSource
+	pilot_source.set_input_provider(NeutralHostInput.new())
+	_hud_saved_profile = client.runtime_settings.get_input_binding_profile()
+	var remap := _hud_saved_profile.duplicate_profile()
+	remap.set_bindings(&"interact", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_F14}])
+	_check(client.runtime_settings.set_input_binding_profile(remap), "Rime survey full client accepts the physical Interact remap")
+	_hud_host_manual = false
+	server.set_physics_process(true)
+	client.set_physics_process(true)
+	client.set_process(true)
+	_check(await _hud_wait(func(): return InputMap.action_has_event(&"interact", _survey_key(true)), 2.0)
+		and client.hud.get_action_prompt(&"interact").contains("F14"), "Rime survey InputMap and HUD resolve the accepted physical key")
+	for point in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), region.to_global(Vector3(-24, 0.5, -16))]:
+		if not await _client_survey_walk(server, client, body, point):
+			return
+	_check(await _hud_wait(func(): return str(client.hud.get("_interaction_source_text")).contains("START ICE-CORE"), 3.0)
+		and str((client.hud.get("_interaction_label") as Label).text).contains("F14"), "actual Rime client HUD offers the remapped survey action at its own beacon")
+	Input.parse_input_event(_survey_key(true))
+	var started := await _hud_wait(func(): return int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE, 3.0)
+	var generation := int(survey.snapshot().generation)
+	Input.parse_input_event(_survey_key(true, true))
+	await _hud_wait(func(): return false, 0.35)
+	Input.parse_input_event(_survey_key(false))
+	_check(started and int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE
+		and int(survey.snapshot().generation) == generation and survey.shared_state().participant_entity_id == String(avatar),
+		"held and echoed physical key events start one host-owned survey for the actual Rime client body")
+	if not started:
+		return
+	var cold_heat := float(survey.get_heat_snapshot().heat_s)
+	var cold_frame := Engine.get_physics_frames()
+	for _tick in 120:
+		await _hud_wait(func(): return false, 0.001)
+	var exposure := float(Engine.get_physics_frames() - cold_frame) / float(Engine.physics_ticks_per_second)
+	_check(not survey.get_heat_snapshot().warm and absf(cold_heat - float(survey.get_heat_snapshot().heat_s) - exposure) < 0.15
+		and server.player.is_seated() and server._piloting, "ordinary Rime exposure drains the actual crew suit while its host remains seated")
+	_check(await _hud_wait(func(): return str(client.hud.get("_objective_source_text")).contains("SUIT HEATER"), 3.0),
+		"actual client HUD displays its host-owned active Rime heater")
+	await _client_survey_press()
+	_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.FAILED, "physical Rime Interact abandons the optional survey")
+	await _client_survey_press()
+	_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE, "a fresh physical edge restarts the optional Rime survey")
+	for point in [Vector3(-40, 0.5, -28), Vector3(-52, 0.5, -42), Vector3(-54, 0.5, -46)]:
+		if not await _client_survey_walk(server, client, body, region.to_global(point)):
+			return
+	_check(absf(region.to_local(body.global_position).x) > 48.0 and absf((client.rime_streaming_bootstrap.get_loaded_instance().get_node("LandingRegion") as Node3D).to_local(client.player.global_position).x) > 48.0
+		and server._network_ember_passenger_surface_is_current(avatar) and client._network_client_ember_passenger_surface_is_current(),
+		"authoritative and predicted Rime bodies reach the actual drill beyond the pad with current grants")
+	var warm_heat := float(survey.get_heat_snapshot().heat_s)
+	var warm_frame := Engine.get_physics_frames()
+	_check(survey.get_heat_snapshot().warm, "the actual client participant reaches existing hut warmth")
+	for _tick in 60:
+		await _hud_wait(func(): return false, 0.001)
+	_check(absf(float(survey.get_heat_snapshot().heat_s) - minf(120.0, warm_heat + 10.0 * float(Engine.get_physics_frames() - warm_frame) / float(Engine.physics_ticks_per_second))) < 0.15,
+		"ordinary hut physics refills the crew heater at the unchanged rate")
+	await _client_survey_press()
+	_check(int(survey.snapshot().next_checkpoint_index) == 1
+		and await _hud_wait(func(): return str(client.hud.get("_objective_source_text")).contains("1/2 readings"), 3.0),
+		"real remapped drill interaction updates host progress and the actual peer HUD")
+	for point in [Vector3(-52, 0.5, -42), Vector3(-50, 0.5, -54), Vector3(-30, 0.5, -66), Vector3(-8, 0.5, -68)]:
+		if not await _client_survey_walk(server, client, body, region.to_global(point)):
+			return
+	var jump_key := 0
+	for binding: Dictionary in client.runtime_settings.get_input_binding_profile().get_bindings(&"jump"):
+		if binding.get("device") == &"keyboard" and binding.get("type") == &"key":
+			jump_key = int(binding.physical_keycode)
+			break
+	_check(jump_key > 0, "Rime survey jump uses the actual current physical key binding")
+	var event := InputEventKey.new()
+	event.physical_keycode = jump_key
+	event.pressed = true
+	Input.parse_input_event(event)
+	var host_height := body.global_position.y
+	var client_height := client.player.global_position.y
+	var host_peak := host_height
+	var client_peak := client_height
+	for tick in 100:
+		await _hud_wait(func(): return false, 0.001)
+		if tick == 3:
+			event = InputEventKey.new()
+			event.physical_keycode = jump_key
+			event.pressed = false
+			Input.parse_input_event(event)
+		if not is_instance_valid(body):
+			event = InputEventKey.new()
+			event.physical_keycode = jump_key
+			event.pressed = false
+			Input.parse_input_event(event)
+			_check(false, "ordinary Rime survey jump retains its actual host body")
+			return
+		host_peak = maxf(host_peak, body.global_position.y)
+		client_peak = maxf(client_peak, client.player.global_position.y)
+	_check(host_peak > host_height + 0.2 and client_peak > client_height + 0.2 and body.is_on_floor() and client.player.is_on_floor()
+		and int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE and server._network_rime_survey_body_is_current(body)
+		and client._network_client_ember_passenger_surface_is_current(), "ordinary full-client keyboard jump preserves both floor arcs and active participant authority")
+	for point in [Vector3(14, 0.5, -70), Vector3(28, 0.5, -63), Vector3(30, 0.5, -62)]:
+		if not await _client_survey_walk(server, client, body, region.to_global(point)):
+			return
+	_hud_survey_filesystem.reject_rewards = true
+	await _client_survey_press()
+	_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.COMPLETED and not survey.reward_recorded()
+		and _hud_survey_filesystem.rejected_rewards > 0
+		and await _hud_wait(func(): return str(client.hud.get("_interaction_source_text")).contains("RETRY SAVING"), 3.0),
+		"actual Rime gauge key interaction preserves unpaid readings and displays rejected-save retry")
+	_hud_survey_filesystem.reject_rewards = false
+	await _client_survey_press()
+	_check(survey.reward_recorded() and await _hud_wait(func(): return str(client.hud.get("_objective_source_text")).contains("Rime survey saved"), 3.0),
+		"physical Rime Interact retry saves and publishes the durable ice-core reward")
+	await _client_survey_press()
+	var reloaded := UserDataStore.new("user://survey-hud-rime_survey-host.json")
+	var loaded := reloaded.load()
+	_check(bool(loaded.get("accepted", false)) and int((reloaded.get_snapshot().get("game_flow_reward_store", {}) as Dictionary).get("reward_counts", {}).get("rime_ice_core_record", 0)) == 1,
+		"repeated real Rime Interact leaves exactly one reward across primary store reload")
+	for point in [Vector3(30, 0.5, -60), Vector3(20, 0.5, -40), Vector3(10, 0.5, -24), Vector3(-8, 0.5, -8)]:
+		if not await _client_survey_walk(server, client, body, region.to_global(point)):
+			return
+	if not await _client_survey_walk(server, client, body, craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z))):
+		return
+	var deck := craft.get_node("WalkableInterior/InteriorDeckMarker") as Node3D
+	var mirror_deck := replica.get_node("WalkableInterior/InteriorDeckMarker") as Node3D
+	if not await _client_survey_walk(server, client, body, deck.global_position, mirror_deck.global_position):
+		return
+	await _client_survey_press()
+	var boarded := await _hud_wait(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active()
+		and client._network_client_ember_passenger_surface.is_empty() and not client._transition_busy, 3.0)
+	_check(boarded and simulation.get_body(avatar) == body and body.get_instance_id() == body_id and client.player.get_instance_id() == client_body_id
+		and craft.get_command_source() == pilot_source, "ONE physical Rime hatch press reboards the same author and predicted survey bodies")
+	_check(str(body.get("_rime_pad_guard_token")).is_empty() and str(client.player.get("_rime_pad_guard_token")).is_empty()
+		and not server._network_ember_passenger_surfaces.has(avatar), "survey reboard clears both real guards and current exterior contexts")
+	_check(server._network_planetary_journey.shared_surface_return_gate_reason(&"rime_glacial_world").is_empty(),
+		"full-client Rime survey leaves ordinary all-crew return usable")
+	pilot_source.set_input_provider(null)
 
 
 ## Rime is a separate controls contract: its supported pad must constrain BOTH
