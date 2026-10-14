@@ -58,6 +58,16 @@ var _last_covered_node_count := 0
 var _last_covered_instance_ids := PackedInt64Array()
 var _last_receipt: Dictionary = {}
 var _commit_adapter := Callable()
+# Kinematic transform setters publish at the engine physics step. This internal
+# barrier observes that publication; it never grants clearance or moves actors.
+const COLLISION_PUBLICATION_MAX_PHYSICS_FRAMES := 2
+var _collision_publication_records: Array[Dictionary] = []
+var _collision_publication_roster: Dictionary = {}
+var _collision_publication_shapes: Array[Shape3D] = []
+var _collision_publication_receipt: Dictionary = {}
+var _collision_publication_status: StringName = &"not_pending"
+var _collision_publication_started := 0
+var _collision_publication_roster_revision := 0
 # Cache only topology and lexical paths. Transaction state is always captured live.
 var _roster_tree: SceneTree
 var _roster_host: WeakRef
@@ -84,6 +94,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_finish_collision_publication(&"owner_unavailable")
 	_disconnect_roster_signals()
 	set_process(false)
 	set_physics_process(false)
@@ -326,12 +337,10 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		if not roster_rollback_synchronized:
 			return _reject(&"collision_transform_rollback_desynchronized")
 		return _reject(&"world_roster_changed")
-	# Node3D transforms commit immediately, but broadphase state for inherited
-	# CollisionObject3D transforms can otherwise remain at the pre-translation
-	# coordinates until the next physics flush. Downstream same-tick consumers
-	# (notably HeroShip's full-hull cruise proof) must observe neither a false
-	# obstacle nor a false clear, so synchronize the exact covered collision
-	# roster before the coordinate-frame commit is exposed.
+	# Submit the exact covered collision transforms before committing the frame.
+	# Established kinematic bodies still publish those setters at the engine's
+	# physics step; the post-notification publication barrier below prevents a
+	# cruise consumer from querying that mixed-frame interval.
 	if not _synchronize_collision_transforms(covered):
 		var synchronization_rollback_synchronized := _rollback_world(roots, covered)
 		_cancel_pending_rebases(requests)
@@ -434,6 +443,7 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		"world_generations": _public_world_generations(requests),
 		"world_streaming": binding_commit.get("streaming", {}).duplicate(true),
 	}.duplicate(true)
+	_begin_collision_publication(covered)
 	_mutation_active = false
 	_signal_dispatch_active = true
 	rebase_committed.emit(_last_receipt.duplicate(true))
@@ -444,6 +454,156 @@ func consume_rebase_preview(preview: Variant, actor_sample: Variant) -> Dictiona
 		"receipt": _last_receipt.duplicate(true),
 		"coordinate_frame_generation": target_generation,
 	})
+
+
+## Only the exact committed transaction can authorize a publication wait.
+func get_collision_publication_status(receipt: Dictionary, actor: CollisionObject3D) -> StringName:
+	if _mutation_active or _signal_dispatch_active:
+		return &"reentrant_call"
+	if not is_inside_tree() or is_queued_for_deletion() or not _activated \
+			or not bool(get_live_validation().get("valid", false)):
+		return &"owner_unavailable"
+	if receipt.is_empty() or receipt != _last_receipt or receipt != _collision_publication_receipt:
+		return &"collision_publication_not_current"
+	if (receipt.get("world_generations", {}) as Dictionary).size() != _worlds.size():
+		return &"collision_publication_not_current"
+	for world: Dictionary in _worlds:
+		if (world.frame as PlanetaryCoordinateFrame).get_generation() != int(
+			(receipt.get("world_generations", {}) as Dictionary).get(String(world.world_id), -1)):
+			return &"collision_publication_not_current"
+	if _collision_publication_status == &"pending" \
+			and not _collision_publication_roster_is_current():
+		return &"collision_publication_roster_changed"
+	if not is_instance_valid(actor) or not actor.is_inside_tree() or actor.is_queued_for_deletion() \
+			or not get_parent().is_ancestor_of(actor) \
+			or not _last_covered_instance_ids.has(actor.get_instance_id()):
+		return &"collision_publication_actor_unavailable"
+	for record: Dictionary in _collision_publication_records:
+		if int(record.instance_id) == actor.get_instance_id() and record.rid == actor.get_rid():
+			return _collision_publication_status
+	return &"collision_publication_actor_unavailable"
+
+
+func _begin_collision_publication(covered: Array) -> void:
+	_finish_collision_publication(&"collision_publication_superseded")
+	_collision_publication_records.clear()
+	_collision_publication_roster.clear()
+	_collision_publication_receipt = _last_receipt.duplicate(true)
+	_collision_publication_started = Engine.get_physics_frames()
+	_collision_publication_roster_revision = _roster_revision
+	# Notification recipients can re-express float rounding after the earlier
+	# synchronization. Publish those final transforms, not the pre-notify pose.
+	if not _synchronize_collision_transforms(covered):
+		_collision_publication_status = &"collision_publication_identity_changed"
+		return
+	for value: Dictionary in covered:
+		var node := value.get("node") as Node3D
+		if node is CollisionObject3D or node is CollisionShape3D or node is CollisionPolygon3D:
+			_collision_publication_roster[node.get_instance_id()] = {
+				"node": weakref(node), "path": value.path,
+				"state": _collision_publication_node_state(node),
+			}
+		if node is CollisionShape3D:
+			var shape := (node as CollisionShape3D).shape
+			if shape != null and not _collision_publication_shapes.has(shape):
+				_collision_publication_shapes.append(shape)
+				shape.changed.connect(_collision_publication_geometry_changed)
+		if node is CollisionObject3D:
+			_collision_publication_records.append({
+				"node": weakref(node), "instance_id": node.get_instance_id(),
+				"rid": (node as CollisionObject3D).get_rid(),
+			})
+	_collision_publication_status = &"pending"
+	_observe_collision_publication()
+	if _collision_publication_status == &"pending":
+		get_tree().physics_frame.connect(_observe_collision_publication)
+
+
+func _observe_collision_publication() -> void:
+	if _collision_publication_status != &"pending":
+		return
+	if not is_inside_tree() or is_queued_for_deletion() \
+			or not _collision_publication_roster_is_current():
+		_finish_collision_publication(&"collision_publication_roster_changed")
+		return
+	var coherent := true
+	for record: Dictionary in _collision_publication_records:
+		var node := (record.node as WeakRef).get_ref() as CollisionObject3D
+		if not is_instance_valid(node) or not node.is_inside_tree() or node.is_queued_for_deletion() \
+				or node.get_instance_id() != int(record.instance_id) or node.get_rid() != record.rid:
+			_finish_collision_publication(&"collision_publication_identity_changed")
+			return
+		var published: Transform3D
+		if node is PhysicsBody3D:
+			published = PhysicsServer3D.body_get_state(node.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM)
+		elif node is Area3D:
+			published = PhysicsServer3D.area_get_transform(node.get_rid())
+		else:
+			_finish_collision_publication(&"collision_publication_identity_changed")
+			return
+		coherent = coherent and published.is_equal_approx(node.global_transform)
+	if coherent:
+		_finish_collision_publication(&"ready")
+	elif Engine.get_physics_frames() - _collision_publication_started >= COLLISION_PUBLICATION_MAX_PHYSICS_FRAMES:
+		_finish_collision_publication(&"collision_publication_timeout")
+
+
+func _collision_publication_node_state(node: Node3D) -> Array:
+	var state: Array = [node.get_parent().get_instance_id()]
+	if node is CollisionObject3D:
+		state.append((node as CollisionObject3D).get_rid())
+	elif node is CollisionShape3D:
+		var shape := node as CollisionShape3D
+		state.append_array([shape.transform, shape.disabled,
+			shape.shape.get_rid() if shape.shape != null else RID()])
+	elif node is CollisionPolygon3D:
+		var polygon := node as CollisionPolygon3D
+		state.append_array([polygon.transform, polygon.disabled, polygon.depth, polygon.polygon])
+	return state
+
+
+func _collision_publication_roster_is_current() -> bool:
+	# The global topology revision still guards the atomic origin transaction.
+	# Publication only concerns the frozen collision roster: rebuilding a HUD
+	# Control or other presentation node cannot invalidate the same physics poses.
+	var host := get_parent()
+	for instance_id in _collision_publication_roster:
+		var record: Dictionary = _collision_publication_roster[instance_id]
+		var node := (record.node as WeakRef).get_ref() as Node3D
+		if not is_instance_valid(node) or not node.is_inside_tree() or node.is_queued_for_deletion() \
+				or not host.is_ancestor_of(node) or node.get_instance_id() != int(instance_id) \
+				or _collision_publication_node_state(node) != record.state:
+			return false
+	if _collision_publication_roster_revision == _roster_revision:
+		return true
+	var revision := _roster_revision
+	var collision_count := 0
+	for node: Node in host.find_children("*", "Node3D", true, false):
+		if not (node is CollisionObject3D or node is CollisionShape3D or node is CollisionPolygon3D):
+			continue
+		collision_count += 1
+		var record: Dictionary = _collision_publication_roster.get(node.get_instance_id(), {})
+		if record.is_empty() or str(host.get_path_to(node)) != record.path:
+			return false
+	if collision_count != _collision_publication_roster.size() or revision != _roster_revision:
+		return false
+	_collision_publication_roster_revision = revision
+	return true
+
+
+func _collision_publication_geometry_changed() -> void:
+	if _collision_publication_status == &"pending":
+		_finish_collision_publication(&"collision_publication_roster_changed")
+
+
+func _finish_collision_publication(status: StringName) -> void:
+	_collision_publication_status = status
+	for shape: Shape3D in _collision_publication_shapes:
+		if shape.changed.is_connected(_collision_publication_geometry_changed):
+			shape.changed.disconnect(_collision_publication_geometry_changed)
+	_collision_publication_shapes.clear()
+	if is_inside_tree() and get_tree().physics_frame.is_connected(_observe_collision_publication):
+		get_tree().physics_frame.disconnect(_observe_collision_publication)
 
 
 func get_snapshot() -> Dictionary:
@@ -691,8 +851,16 @@ func _disconnect_roster_signals() -> void:
 	_roster_revision += 1
 
 
-func _invalidate_roster_structure(_node: Node) -> void:
+func _invalidate_roster_structure(node: Node) -> void:
 	_roster_revision += 1
+	# A collider leaving and reentering can restore the same census while losing
+	# its server-space publication. That barrier must stay rejected even if its
+	# identities and transforms are restored before the next physics frame.
+	if _collision_publication_status == &"pending" \
+			and (node is CollisionObject3D or node is CollisionShape3D or node is CollisionPolygon3D) \
+			and (_collision_publication_roster.has(node.get_instance_id())
+				or get_parent().is_ancestor_of(node)):
+		_finish_collision_publication(&"collision_publication_roster_changed")
 
 
 func _capture_live_roster() -> Dictionary:

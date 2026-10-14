@@ -126,10 +126,16 @@ func save_interrupted_journey(
 ## Loads a passive resume description. The caller must separately reconstruct
 ## the correct frame, restore the detached save-session contract with a fresh
 ## attachment generation, and then retire this receipt.
-func load_interrupted_journey() -> Dictionary:
+## An already observed receipt may be re-read by its exact hash immediately
+## before retirement, preserving unrelated commits made since admission.
+func load_interrupted_journey(expected_receipt_sha256: String = "") -> Dictionary:
 	if not _configured():
 		return _result(false, &"survey_persistence_unavailable")
-	if not _loaded_active_journey_receipt.is_empty():
+	var refreshing: bool = not expected_receipt_sha256.is_empty()
+	if refreshing and (expected_receipt_sha256 != _loaded_active_journey_receipt \
+			or _loaded_active_journey_receipt.is_empty()):
+		return _result(false, &"survey_active_journey_receipt_not_observed")
+	if not refreshing and not _loaded_active_journey_receipt.is_empty():
 		return _result(false, &"survey_active_journey_already_loaded")
 	var loaded := _store.call(&"load") as Dictionary
 	if not bool(loaded.get("accepted", false)):
@@ -142,6 +148,9 @@ func load_interrupted_journey() -> Dictionary:
 	var validation := validate_interrupted_journey_record(record)
 	if not bool(validation.get("accepted", false)):
 		return validation
+	if refreshing and str((record as Dictionary).completion.get("receipt_sha256", "")) \
+			!= expected_receipt_sha256:
+		return _result(false, &"survey_active_journey_receipt_mismatch")
 	_active_journey_adapter = ReturnPersistenceAdapterScript.new() as RefCounted
 	var restored := _active_journey_adapter.call(
 		&"restore_interrupted_journey",

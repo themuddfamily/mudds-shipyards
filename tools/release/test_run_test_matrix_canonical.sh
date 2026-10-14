@@ -164,4 +164,57 @@ while IFS=$'\t' read -r _script runtime_dir; do
 done < "$RUNTIME_RECORD"
 [[ -d "$WORK_DIR/inherited-runtime" ]]
 
+# Sharding partitions the actual discovered roster after mode/scope filtering.
+# Lists require no engine and must cover every headless suite exactly once.
+"$MATRIX" --list --mode headless --results-dir "$WORK_DIR/lists" > "$WORK_DIR/headless.tsv"
+for shard in 1 2 3 4; do
+	"$MATRIX" --list --mode headless --shard "$shard/4" \
+		--results-dir "$WORK_DIR/lists" > "$WORK_DIR/shard-$shard.tsv"
+done
+python3 - "$WORK_DIR" <<'PY_SHARDS'
+from pathlib import Path
+import sys
+work = Path(sys.argv[1])
+roster = (work / "headless.tsv").read_text().splitlines()
+assert roster and all(row.endswith("\theadless") for row in roster)
+shards = [(work / f"shard-{index}.tsv").read_text().splitlines() for index in range(1, 5)]
+for index, shard in enumerate(shards):
+    assert shard == roster[index::4], (index, "unstable shard assignment")
+combined = [row for shard in shards for row in shard]
+assert len(combined) == len(set(combined)) == len(roster)
+assert sorted(combined) == sorted(roster)
+print(f"headless shard coverage: {len(roster)} suites, sizes {[len(s) for s in shards]}")
+PY_SHARDS
+"$MATRIX" --list --mode headless --shard 1/4 --results-dir "$WORK_DIR/lists" \
+	> "$WORK_DIR/shard-repeat.tsv"
+cmp "$WORK_DIR/shard-1.tsv" "$WORK_DIR/shard-repeat.tsv"
+for invalid in 0/4 5/4 1/0 1 1/2/3 -1/4 1/04 99999999999999999999/4 ''; do
+	set +e
+	"$MATRIX" --list --shard "$invalid" --results-dir "$WORK_DIR/lists" > /dev/null 2>&1
+	code="$?"
+	set -e
+	[[ "$code" -eq 2 ]]
+done
+for invalid_case in missing repeated empty; do
+	case "$invalid_case" in
+		missing) args=(--shard) ;;
+		repeated) args=(--shard 1/4 --shard 2/4) ;;
+		empty) args=(--scope smoke_test --shard 2/2) ;;
+	esac
+	set +e
+	"$MATRIX" --list --results-dir "$WORK_DIR/lists" "${args[@]}" > /dev/null 2>&1
+	code="$?"
+	set -e
+	[[ "$code" -eq 2 ]]
+done
+# Selection also reaches the ordinary worker and retains source/exit/sentinel gates.
+TEST_MATRIX_RUN_ID=sharded MATRIX_FAKE_MEASUREMENT=8 \
+	"$MATRIX" --godot "$FAKE_GODOT" --import-gate never --jobs 1 \
+	--results-dir "$WORK_DIR/results" --scope smoke_test,ship_command_test --shard 1/2 \
+	--manifest-scope tests/smoke_test.gd,tests/ship_command_test.gd >/dev/null
+[[ "$(wc -l < "$WORK_DIR/results/sharded/results-canonical.tsv")" -eq 2 ]]
+grep -Fx 'scope_specs=headless:smoke_test ship_command_test shard=1/2' \
+	"$WORK_DIR/results/sharded/run-manifest.txt" >/dev/null
+grep -Fx 'source_manifest_match=true' "$WORK_DIR/results/sharded/run-manifest.txt" >/dev/null
+
 echo "matrix canonical evidence check: PASS"

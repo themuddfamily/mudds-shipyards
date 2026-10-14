@@ -27,6 +27,7 @@ func _init() -> void:
 
 func _run() -> void:
 	await _test_current_confirmation_precedes_pending_expiry()
+	await _test_orphan_crew_confirmation_is_one_release()
 	var flow := GameFlowType.new()
 	var session := AdapterType.new()
 	var halyard := HalyardType.new()
@@ -100,6 +101,57 @@ func _test_current_confirmation_precedes_pending_expiry() -> void:
 		session.free()
 		halyard.free()
 		seat.free()
+
+
+func _test_orphan_crew_confirmation_is_one_release() -> void:
+	var flow := CrewConfirmationFlow.new()
+	var session := AdapterType.new()
+	var halyard := HalyardType.new()
+	var source := NetworkRemoteBodyIntentSource.new(1)
+	source.bind(&"avatar_7", 1)
+	flow.network_session = session
+	flow._cabin_ship = halyard
+	flow._network_session_mode = &"client"
+	flow._network_remote_body_intent_source = source
+	flow.crew_view = {
+		"ship_id": halyard.get_ship_id(), "binding_generation": 1,
+		"entity_generation": 1, "seated": true,
+		"assignment": {"avatar_id": &"avatar_7", "role": &"passenger",
+			"seat_id": HalyardType.LOADMASTER_STATION_SEAT_ID, "seat_generation": 1,
+			"claim_sequence": 1},
+	}
+	# An expired confirmation has no pending local chair. The real source runs
+	# across distinct physics frames and sends, exposing repeated host toggles.
+	for _tick in 16:
+		await physics_frame
+		flow._advance_network_engineer(1.0 / 60.0)
+		source.advance(7, {}, 100 + _tick)
+	_check(source.get_interaction_request_id() == 1 and flow._network_engineer_client_seat == null,
+		"a retained orphan confirmation sends one release id and never seats the local player")
+	flow.crew_view.assignment.claim_sequence = 2
+	await physics_frame
+	flow._advance_network_engineer(1.0 / 60.0)
+	source.advance(7, {}, 116)
+	_check(source.get_interaction_request_id() == 2,
+		"a later authenticated chair claim receives its own single orphan release")
+	flow.crew_view.entity_generation = 2
+	await physics_frame
+	flow._advance_network_engineer(1.0 / 60.0)
+	source.advance(7, {}, 117)
+	_check(source.get_interaction_request_id() == 2,
+		"a foreign body generation cannot request an orphan chair release")
+	flow.crew_view.entity_generation = 1
+	flow._cancel_network_engineer()
+	source.unbind()
+	source.bind(&"avatar_7", 1)
+	await physics_frame
+	flow._advance_network_engineer(1.0 / 60.0)
+	source.advance(7, {}, 118)
+	_check(source.get_interaction_request_id() == 3,
+		"a retired crew lifecycle permits one release from its replacement stream")
+	flow.free()
+	session.free()
+	halyard.free()
 
 
 func _check(condition: bool, description: String) -> void:

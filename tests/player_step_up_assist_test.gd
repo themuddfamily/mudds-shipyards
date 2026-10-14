@@ -27,6 +27,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	await _test_analog_locomotion_and_neutral_braking()
 	await _test_assist_contract()
 	await _test_step_height_boundary()
 	await _test_refuses_to_step_into_a_void()
@@ -41,6 +42,78 @@ func _run() -> void:
 	await _test_remote_cabin_interaction_support()
 	await _test_rejected_remote_snap_stays_rejected()
 	_finish()
+
+
+## Both prediction and the authoritative remote body share PlayerController.
+## Partial input must stay partial through camera rotation and acceleration;
+## normalization used to turn every nonzero demand into full walking speed.
+func _test_analog_locomotion_and_neutral_braking() -> void:
+	for remote in [false, true]:
+		var rig := Node3D.new()
+		root.add_child(rig)
+		rig.add_child(_slab(Vector3(96.0, 1.0, 96.0), Vector3(0.0, -0.5, 0.0)))
+		var player := PLAYER_SCENE.instantiate() as PlayerController
+		player.position = Vector3(0.0, 0.05, 0.0)
+		rig.add_child(player)
+		player.set_camera_active(false)
+		player.set_physics_process(false)
+		player.set_remote_drive_enabled(remote)
+		if not remote:
+			player.set_control_enabled(true)
+		var camera_yaw := player.get_node_or_null(^"CameraRig/CameraYaw") as Node3D
+		if camera_yaw == null:
+			_check(false, "analog fixture requires the authored CameraRig/CameraYaw pivot")
+			for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
+				Input.action_release(action)
+			player.clear_remote_intent()
+			# Remove the floor and disabled body before later cases can query them.
+			rig.free()
+			await process_frame
+			return
+		camera_yaw.rotation.y = 0.7
+		var tick := 1.0 / float(Engine.physics_ticks_per_second)
+		for _settle in 20:
+			await physics_frame
+			player._physics_process(tick)
+		_check(player.is_on_floor(), "analog %s player starts on real floor" % ("remote" if remote else "local"))
+		for demand: Vector2 in [Vector2(0.0, -0.6), Vector2(0.0, -1.0), Vector2(0.6, -0.8)]:
+			var sample := demand
+			if remote:
+				player.apply_remote_intent(sample, 0.7, false, false)
+			else:
+				Input.action_press(&"move_forward", -demand.y)
+				Input.action_press(&"move_right", demand.x)
+				sample = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+			var before := player.global_position
+			for _move in 30:
+				await physics_frame
+				player._physics_process(tick)
+			var expected_speed := player.walk_speed * sample.length()
+			var planar_velocity := player.velocity.slide(Vector3.UP)
+			var actual_speed := planar_velocity.length()
+			var intended := Vector3(sample.x, 0.0, sample.y).rotated(Vector3.UP, 0.7)
+			_check(absf(actual_speed - expected_speed) < 0.01 and player.is_on_floor()
+				and planar_velocity.normalized().dot(intended.normalized()) > 0.99
+				and player.global_position.distance_to(before) > 0.1,
+				"%s real-floor demand %s preserves analog magnitude and full/diagonal speed" % ["remote" if remote else "local", demand])
+			if remote:
+				player.clear_remote_intent()
+			else:
+				Input.action_release(&"move_forward")
+				Input.action_release(&"move_right")
+			for _neutral in 8:
+				await physics_frame
+				player._physics_process(tick)
+			if demand.length() < 1.0:
+				_check(player.velocity.slide(Vector3.UP).length() < 0.1 and player.is_on_floor(),
+					"%s partial demand settles after eight actual neutral physics steps" % ("remote" if remote else "local"))
+			for _neutral in 4:
+				await physics_frame
+				player._physics_process(tick)
+			_check(player.velocity.slide(Vector3.UP).is_zero_approx(),
+				"%s full/partial demand retains neutral deceleration" % ("remote" if remote else "local"))
+		rig.queue_free()
+		await process_frame
 
 
 ## The contract is reported from the live capsule, so a future collision-shape

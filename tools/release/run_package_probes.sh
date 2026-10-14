@@ -4,7 +4,9 @@ set -o pipefail
 
 # --in-world-interruption runs one actual kill/restart; --activity=beacon or
 # --activity=mining, --activity=scan, --activity=hulk or --activity=stationdefense selects unpaid recovery
-# (pilot only); default remains convoy.
+# or --activity=ember selects a genuine interrupted planetary survey
+# (pilot only); default remains convoy. Ember excludes canonical outbound and
+# standing-pose restore; each necessary visit discloses initial flight placement.
 # --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
 # --native-export runs PACKAGE_PATH's embedded Linux game directly; it cannot
@@ -45,7 +47,7 @@ RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-prob
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 RECOVERY_CONTEXT="${PACKAGE_PROBE_RECOVERY_CONTEXT:-pilot}"
-if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense && "$PROBE_ACTIVITY" != scan && "$PROBE_ACTIVITY" != hulk ]]; then
+if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense && "$PROBE_ACTIVITY" != scan && "$PROBE_ACTIVITY" != hulk && "$PROBE_ACTIVITY" != ember ]]; then
   echo "Invalid interruption activity" >&2
   exit 2
 fi
@@ -57,7 +59,7 @@ if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY
   echo "Invalid interruption recovery context" >&2
   exit 2
 fi
-if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan || "$PROBE_ACTIVITY" == hulk ) && "$RECOVERY_CONTEXT" != pilot ]]; then
+if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan || "$PROBE_ACTIVITY" == hulk || "$PROBE_ACTIVITY" == ember ) && "$RECOVERY_CONTEXT" != pilot ]]; then
   echo "$PROBE_ACTIVITY interruption currently requires pilot context" >&2
   exit 2
 fi
@@ -190,6 +192,14 @@ def token(log, name):
              if line.endswith("\n") and line.startswith(name + ": ")]
     require(len(lines) <= 1, "duplicate " + name)
     return json.loads(lines[0]) if lines else None
+def ember_document(observation, field):
+    text = observation.get(field)
+    require(isinstance(text, str) and bool(text), "missing actual Ember document text: " + field)
+    document = json.loads(text)
+    require(isinstance(document, dict) and isinstance(document.get("payload"), dict)
+            and isinstance(document["payload"].get("ember_relay_survey_completion"), dict),
+            "invalid actual Ember document text: " + field)
+    return document
 def diagnostics(log):
     expression = r"^\s*(?:SCRIPT\s+ERROR|ERROR:|FAIL:)|\b(?:FATAL ERROR|ObjectDB|Orphaned|Leaked)\b|Resource.*still in use"
     return [line for line in log.read_text(errors="replace").splitlines()
@@ -321,7 +331,39 @@ try:
     require(ready.get("activity", "convoy") == activity, "arm ignored the selected activity")
     before = document.read_bytes()
     saved = json.loads(before)
-    if activity == "hulk":
+    if activity == "ember":
+        ready_document = ember_document(ready, "boundary_document_json")
+        require(ready_document == saved, "Ember readiness document differs from the independently read save")
+        ready_boundary = ready_document["payload"]["ember_relay_survey_completion"]
+        terminal = saved["payload"]["ember_relay_survey_completion"]
+        journey = terminal["completion"]
+        route = journey["route_identity"]
+        require(terminal == ready_boundary and terminal["schema_version"] == 1
+                and terminal["payload_kind"] == "ember_relay_survey_active_journey"
+                and terminal["slot_id"] == "ember_relay_survey_completion",
+                "Ember readiness differs from its actual supported active-journey save")
+        require(journey["marker"] == "interrupted_planetary_journey"
+                and journey["journey_phase_id"] == "on_foot"
+                and journey["world_id"] == "ember_moon"
+                and journey["surface_attachment"] == {"active": False, "state": "detached"}
+                and journey["movement_replay_allowed"] is False
+                and journey["reward_replay_allowed"] is False
+                and route == ready["route"] and route["activity_id"] == "ember_beacon_survey"
+                and route["next_checkpoint_index"] == 1 and route["checkpoint_count"] == 2
+                and route["next_objective_id"] == "ember_return_beacon" and route["complete"] is False
+                and route["activity_generation"] > 0,
+                "Ember arm has no genuine incomplete relay checkpoint")
+        observed = ready["runtime_observation"]
+        require(observed["player_on_floor"] is True and observed["player_control_enabled"] is True
+                and observed["player_seated"] is False and observed["craft_piloted"] is False
+                and saved["payload"]["solo_safe_recovery"] == ready["safe_context"] == {"mode": "unavailable"}
+                and ready["receipts"] == 0
+                and saved["payload"].get("game_flow_reward_store", {}).get("reward_counts", {}).get("ember_beacon_data", 0) == 0,
+                "Ember arm lost its genuine standing actor or invented a pilot preference/payment")
+        require(ready["initial_flight_placements"] == ["orbital_anchor_hold", "initial_corridor_entry"]
+                and ready["canonical_outbound"] == "NOT_RUN" and ready["standing_pose_restore"] == "NOT_SUPPORTED",
+                "Ember acceptance must disclose its actual initial placement and recovery scope")
+    elif activity == "hulk":
         terminal = saved["payload"]["cinder_hulk_power_session"]
         require(terminal == ready["boundary"] and terminal == {"schema_version": 1,
                 "activity_id": "cinder_hulk_power_restoration", "state": 2, "generation": 1, "elapsed_seconds": 3},
@@ -442,13 +484,43 @@ try:
     require(recovered.get("entry") == "startup_completed", "restart did not use Boot's own loaded Main")
     require(recovered.get("activity", "convoy") == activity, "restart ignored the selected activity")
     require(resume_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "), "recovery token is not terminal")
-    require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
+    if activity == "ember":
+        recovered_boundary = ember_document(recovered, "boundary_document_json")["payload"]["ember_relay_survey_completion"]
+        require(recovered_boundary == ready_boundary, "fresh process changed durable Ember journey progress")
+    else:
+        require(recovered["boundary"] == ready["boundary"], "fresh process changed durable host/threat/escort/clock/progress")
     require(recovered["receipts_before"] == ready["receipts"] and recovered["receipts_after"] == ready["receipts"] + (0 if recovery_context == "engineer" else 1),
             "restart lost or duplicated the activity receipt")
     require(recovered["crash_events"] == 1, "actual interruption did not publish one crash event")
     after = document.read_bytes()
     final = json.loads(after)
-    if activity == "hulk":
+    if activity == "ember":
+        paid_document = ember_document(recovered, "paid_document_json")
+        require(paid_document == final, "Ember payment document differs from the independently read save")
+        paid = final["payload"]["ember_relay_survey_completion"]
+        safe = recovered["safe_recovery_observation"]
+        yard = safe["cold_yard_before_boarding"]
+        require(yard["player_seated"] is False and yard["player_control_enabled"] is True
+                and yard["craft_piloted"] is False and safe["player_seated"] is True
+                and safe["craft_piloted"] is True
+                and safe["craft_id"] == ready["runtime_observation"]["craft_id"],
+                "Ember cold yard Resume did not acquire a genuine new pilot boarding")
+        require(recovered["resumed_route"] == route
+                and recovered["host_attachment_generation"] > journey["attachment_generation"]
+                and paid == paid_document["payload"]["ember_relay_survey_completion"]
+                and paid["payload_kind"] == "ember_relay_survey_completion"
+                and paid["completion"]["activity_generation"] == route["activity_generation"]
+                and paid["completion"]["mandatory_route"]["next_checkpoint_index"] == 2
+                and paid["completion"]["mandatory_route"]["complete"] is True
+                and paid["completion"]["reward_replay_allowed"] is False
+                and final["payload"]["game_flow_reward_store"]["reward_counts"]["ember_beacon_data"] == 1,
+                "Ember resumption reset the original survey, lost its successor epoch, or duplicated the real earned receipt")
+        require(recovered["initial_flight_placements"] == ready["initial_flight_placements"]
+                and recovered["canonical_outbound"] == "NOT_RUN"
+                and recovered["standing_pose_restore"] == "NOT_SUPPORTED"
+                and recovered["continuation_method"] == "ordinary_cold_yard_then_real_boarding_disclosed_initial_flight_placements_and_original_survey_resume",
+                "Ember restart concealed its production yard/new-trip recovery limit")
+    elif activity == "hulk":
         paid = final["payload"]["cinder_hulk_power_session"]
         safe = recovered["safe_recovery_observation"]
         require(safe["craft_piloted"] is True and safe["player_seated"] is True

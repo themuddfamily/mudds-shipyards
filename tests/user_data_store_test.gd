@@ -89,6 +89,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_exact_commits_and_detached_snapshots()
+	_test_numeric_precision_and_legacy_checksums()
 	_test_primary_then_backup_recovery()
 	_test_corrupt_and_both_invalid_behavior()
 	_test_future_schema_and_unknown_fields()
@@ -143,6 +144,59 @@ func _test_exact_commits_and_detached_snapshots() -> void:
 	reordered.load()
 	reordered.commit({"alpha": [true, "cargo"], "zeta": 7}, 0, "commit-001")
 	_check(reordered_fs.files[PATH] == first_bytes, "canonical key ordering produces deterministic bytes for equivalent payloads")
+
+
+func _test_numeric_precision_and_legacy_checksums() -> void:
+	var filesystem := FakeFilesystem.new()
+	var store := Store.new(PATH, filesystem)
+	store.load()
+	var maximum := Store.MAX_SAFE_JSON_INTEGER
+	var payload := {
+		"edges": [maximum, -maximum, maximum - 1, float(maximum)],
+		"fraction": 1.2345678901234567,
+	}
+	var expected := {
+		"edges": [float(maximum), float(-maximum), float(maximum - 1), float(maximum)],
+		"fraction": 1.2345678901234567,
+	}
+	var committed := store.commit(payload, 0, "precision-001")
+	_check(bool(committed.accepted) and store.get_snapshot() == expected, "safe integer edges and precise fractions survive strict temporary verification")
+	_check(str(store.get_commit_metadata().get("payload_sha256", "")) == JSON.stringify(expected).sha256_text(), "precise wire encoding preserves the existing canonical checksum representation")
+	var reloaded := Store.new(PATH, filesystem)
+	var loaded := reloaded.load()
+	_check(bool(loaded.accepted) and reloaded.get_snapshot() == expected and reloaded.get_generation() == 1, "exact numeric payload reloads at the committed generation")
+
+	# Construct bytes using the existing schema and its original default serializer.
+	# Loading and advancing that save must retain its checksum and parent identity.
+	var legacy_payload := {"value": 7.0}
+	var legacy := {
+		"schema_version": Store.SCHEMA_VERSION,
+		"generation": 1,
+		"commit": {
+			"id": "legacy-001", "parent_generation": 0, "parent_id": "",
+			"payload_sha256": JSON.stringify(legacy_payload).sha256_text(),
+		},
+		"payload": legacy_payload,
+	}
+	var legacy_bytes := JSON.stringify(legacy).to_utf8_buffer()
+	var legacy_fs := FakeFilesystem.new()
+	legacy_fs.files[PATH] = legacy_bytes.duplicate()
+	var legacy_store := Store.new(PATH, legacy_fs)
+	var legacy_loaded := legacy_store.load()
+	_check(bool(legacy_loaded.accepted) and legacy_store.get_snapshot() == legacy_payload and legacy_fs.files[PATH] == legacy_bytes, "original default-precision save loads without changing its bytes or checksum")
+	var advanced := legacy_store.commit(payload, 1, "precision-002")
+	_check(bool(advanced.accepted) and advanced.commit.parent_id == "legacy-001" and legacy_fs.files.get(PATH + ".bak") == legacy_bytes, "precision-preserving commit advances the original save and retains its exact backup bytes")
+
+	var interrupted_fs := FakeFilesystem.new()
+	interrupted_fs.files[PATH + ".tmp"] = (filesystem.files[PATH] as PackedByteArray).duplicate()
+	var interrupted := Store.new(PATH, interrupted_fs)
+	var interrupted_load := interrupted.load()
+	_check(not bool(interrupted_load.accepted) and interrupted_load.reason == &"interrupted_transaction", "precise numeric temporary document remains an explicit interrupted transaction")
+	interrupted_fs.corrupt_on_rename_to = PATH
+	var failed_recovery := interrupted.recover_interrupted_transaction()
+	_check(not bool(failed_recovery.accepted) and failed_recovery.reason == &"published_verification_failed", "numeric recovery retains strict publication verification after corrupt rename")
+	var retried := interrupted.recover_interrupted_transaction()
+	_check(bool(retried.accepted) and interrupted.get_snapshot() == expected and interrupted.get_generation() == 1, "rewritten recovery stage preserves exact numeric values for a subsequent real retry")
 
 
 func _test_primary_then_backup_recovery() -> void:
@@ -520,10 +574,10 @@ func _test_native_filesystem_round_trip() -> void:
 	var store := Store.new(path)
 	_check(bool(store.load().accepted), "native filesystem starts from an empty store")
 	_check(bool(store.commit({"native": true, "count": 1}, 0, "native-001").accepted), "native filesystem writes flushes verifies and publishes first commit")
-	_check(bool(store.commit({"native": true, "count": 2}, 1, "native-002").accepted), "native filesystem rotates and publishes second commit")
+	_check(bool(store.commit({"native": true, "count": 2, "edge": Store.MAX_SAFE_JSON_INTEGER}, 1, "native-002").accepted), "native filesystem rotates and publishes second commit including the safe integer edge")
 	var reload := Store.new(path)
 	var loaded := reload.load()
-	_check(bool(loaded.accepted) and int(loaded.generation) == 2 and float(loaded.payload.count) == 2.0, "native filesystem JSON reload returns the exact committed generation")
+	_check(bool(loaded.accepted) and int(loaded.generation) == 2 and float(loaded.payload.count) == 2.0 and float(loaded.payload.edge) == float(Store.MAX_SAFE_JSON_INTEGER), "native filesystem JSON reload returns the exact committed generation and safe integer edge")
 	_check(FileAccess.file_exists(path) and FileAccess.file_exists(path + ".bak") and not FileAccess.file_exists(path + ".tmp"), "native transaction leaves primary plus last-known-good backup and no temp")
 	_cleanup_native(path)
 

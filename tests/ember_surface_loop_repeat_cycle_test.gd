@@ -86,23 +86,29 @@ func _run() -> void:
 		"the first public station-to-Ember request uses the retained Main actors",
 	)
 
-	# Model only the already-covered terminal boundary: the real Host/session have
-	# completed and returned runtime ownership, and the physical station receipt
-	# has told the Ember binding to retire its visit-scoped composition. The
-	# regression below is the previously missing production behavior: those same
-	# retained Main identities must admit a fresh public journey.
-	var session := host.get_travel_session_observation_source()
-	session.set("_started_once", true)
-	session.set("_generation", 1)
-	session.set("_state", PlanetaryTravelSession.State.COMPLETED)
-	host.set("_generation", 1)
-	host.set("_phase", EmberSurfaceLoopHost.Phase.COMPLETED)
+	# Stage only the already-covered completed travel/physical station boundary.
+	# First acquire the real Host/session runtime capabilities at its authored
+	# entry, then let production return and deliver those capabilities exactly as
+	# it does after completed travel. Repeat admission must not depend on forged
+	# ownership flags or a detached Host that never acquired the pilot source.
+	var landing_root := game.ember_streaming_bootstrap.get_loaded_instance().get_node(
+		^"LandingRegion"
+	) as Node3D
+	ship.global_transform = landing_root.global_transform * Transform3D(
+		Basis.IDENTITY, EmberSurfaceLoopHost.APPROACH_ENTRY_REGION_LOCAL_M
+	)
+	var previous_host_generation := host.get_generation()
+	host.start(previous_host_generation, host.get_attachment_generation(), frame.get_generation())
 	var first_surface := production.get("_planetary_composition") as Node
 	var adopted_start := first_surface.call(
-		&"adopt_started_host_generation", 0, host.get_attachment_generation()
+		&"adopt_started_host_generation", previous_host_generation,
+		host.get_attachment_generation()
 	) as Dictionary
-	var detached := host.detach(host.get_generation(), host.get_attachment_generation())
-	host.set("_runtime_ownership_returned", true)
+	var session := host.get_travel_session_observation_source()
+	session.set("_state", PlanetaryTravelSession.State.COMPLETED)
+	host.set("_phase", EmberSurfaceLoopHost.Phase.COMPLETED)
+	production.call(&"_complete_handback_late")
+	var detached := production.take_completion_handback(production.get_generation())
 	production.set("_return_berth_adapter", TerminalReturnAdapter.new())
 	var terminal_detach := production.detach_planetary_surface()
 	var rebound := game._ensure_ember_surface_loop_host_bound(true)

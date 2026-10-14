@@ -6,10 +6,22 @@ const AirlessEnvironmentPresentation := preload(
 	"res://scripts/world/ember_airless_environment_presentation.gd"
 )
 const STORE_PATH := "memory://ember-airless-environment-settings.json"
-const EXPECTED_ASSERTIONS := 15
+const EXPECTED_ASSERTIONS := 16
 
 var _assertions := 0
 var _failures := PackedStringArray()
+
+
+class LifecycleAuditLight extends DirectionalLight3D:
+	var bootstrap: EmberMoonStreamingBootstrap
+	var entered_audit_valid := true
+	var ready_audit_valid := true
+
+	func _enter_tree() -> void:
+		entered_audit_valid = bool(bootstrap.audit().valid)
+
+	func _ready() -> void:
+		ready_audit_valid = bool(bootstrap.audit().valid)
 
 
 class MemoryFilesystem extends UserDataFilesystem:
@@ -167,6 +179,29 @@ func _run() -> void:
 		and int(day_presentation.node_budget) == 0
 		and int(day_presentation.resource_budget) == 0,
 		"surface daylight raises bounded relative fill without creating resources",
+	)
+	var extra_light_root := Node3D.new()
+	var extra_light := LifecycleAuditLight.new()
+	extra_light.bootstrap = bootstrap
+	extra_light_root.add_child(extra_light, false, Node.INTERNAL_MODE_BACK)
+	bootstrap.add_child(extra_light_root)
+	var inserted_count := int(bootstrap.call(&"_descendant_directional_light_count"))
+	var inserted_audit := bootstrap.audit()
+	extra_light_root.reparent(game)
+	var removed_count := int(bootstrap.call(&"_descendant_directional_light_count"))
+	extra_light_root.reparent(bootstrap)
+	var reparented_count := int(bootstrap.call(&"_descendant_directional_light_count"))
+	extra_light_root.queue_free()
+	var queued_count := int(bootstrap.call(&"_descendant_directional_light_count"))
+	bootstrap.remove_child(extra_light_root)
+	_check(
+		inserted_count == 2 and not bool(inserted_audit.valid)
+		and not extra_light.entered_audit_valid and not extra_light.ready_audit_valid
+		and removed_count == 1 and reparented_count == 2 and queued_count == 2
+		and int(bootstrap.call(&"_descendant_directional_light_count")) == 1
+		and bool(bootstrap.audit().valid)
+		and environment.ambient_light_energy == day_energy,
+		"live light counts reject duplicates during enter/ready and include internal and queued descendants",
 	)
 
 	var day_preview := binding.preview_origin_rebase(2)
