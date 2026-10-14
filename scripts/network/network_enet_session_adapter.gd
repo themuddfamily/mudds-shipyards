@@ -279,6 +279,7 @@ var _boarding_answer_revision := 0
 ## Production GameFlow supplies physical exterior-departure safety. This
 ## callback owns no seats; the existing ledger still validates every intent.
 var _boarding_departure_guard: Callable
+var _boarding_result_finalizer: Callable
 ## The engine physics frame on which this client last heard the ledger tick
 ## (from admission, a boarding answer or a validated piloted-craft sample), or -1
 ## before it has heard
@@ -460,6 +461,7 @@ func cancel_direct_connect() -> Dictionary:
 
 func shutdown(reason: StringName = &"requested") -> Dictionary:
 	_boarding_departure_guard = Callable()
+	_boarding_result_finalizer = Callable()
 	if not _configured:
 		return _remember(_result(false, &"not_started"))
 	if _is_server:
@@ -970,6 +972,18 @@ func get_boarding_snapshot() -> Dictionary:
 
 func set_boarding_departure_guard(guard: Callable) -> void:
 	_boarding_departure_guard = guard
+
+
+## The server's physical owner finalizes a committed claim before it is
+## announced. Public notification listeners only receive detached copies.
+func set_boarding_result_finalizer(finalizer: Callable) -> void:
+	_boarding_result_finalizer = finalizer
+
+
+func release_exact_server_boarding_occupancy(expected: Dictionary) -> Dictionary:
+	if not is_server():
+		return _result(false, &"authority_required")
+	return _boarding.release_exact_occupancy(AUTHORITY_PEER_ID, expected)
 
 
 ## The authority's answer to one boarding request, addressed to the peer that
@@ -4749,6 +4763,15 @@ func _receive_boarding_intent(wire: Dictionary) -> void:
 		departure_status = _boarding_departure_guard.call(source_peer_id, payload)
 	var result: Dictionary = _boarding.accept_intent(source_peer_id, payload) \
 		if departure_status.is_empty() else _result(false, departure_status)
+	if bool(result.get("accepted", false)) and result.get("status") == &"boarded" \
+			and _boarding_result_finalizer.is_valid():
+		var finalized: Variant = _boarding_result_finalizer.call(result.duplicate(true), payload.duplicate(true))
+		if finalized is Dictionary:
+			result = (finalized as Dictionary).duplicate(true)
+		else:
+			release_exact_server_boarding_occupancy(result.get("occupancy", {}) as Dictionary)
+			result = _result(false, &"boarding_finalization_refused")
+	_remember(result.duplicate(true))
 	boarding_intent_result.emit(result.duplicate(true))
 	# Every answered request is answered *to the peer that asked*. A boarding
 	# claim is the one intent stream whose sender has to know the verdict before

@@ -1351,6 +1351,35 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 		pilot_request["role"] = &"pilot"
 		_check(not bridge.restored_cabin_admission_is_current(peer, pilot_request),
 			"the fresh attachment exception cannot grant a pilot or another cabin role")
+		var finalization_case := {"invalidate_once": true, "failed_claim": {}, "accepted_result": {}}
+		fresh.network_session.set_boarding_result_finalizer(func(result: Dictionary, wire: Dictionary) -> Dictionary:
+			if finalization_case.invalidate_once:
+				finalization_case.invalidate_once = false
+				finalization_case.failed_claim = result.get("occupancy", {}).duplicate(true)
+				bridge._restored_surface_session.journey_epoch += 1
+				var refused := fresh._finalize_network_boarding_result(result, wire)
+				bridge._restored_surface_session = adopted.duplicate(true)
+				return refused
+			var finalized := fresh._finalize_network_boarding_result(result, wire)
+			if bool(finalized.get("accepted", false)):
+				finalization_case.accepted_result = finalized.duplicate(true)
+			return finalized
+		)
+		client.send_boarding_intent(request)
+		var late_answered := await _wait_until(func(): return int(client.get_boarding_intent_result_replica().get("sequence", -1)) == 1, 3.0)
+		_check(late_answered and not client.get_boarding_intent_result_replica().get("accepted", true)
+			and client.get_boarding_intent_result_replica().get("status") == &"surface_return_requires_retained_body"
+			and fresh.network_session.get_boarding_snapshot().get("occupancies", []).is_empty()
+			and not fresh.get_network_remote_body_simulation().has_body(avatar)
+			and not (bridge.get("_restored_crew_admissions") as Dictionary).has(peer),
+			"genuine post-claim epoch loss rolls back that exact seat and sends an actual refused answer without a body or consumed attachment")
+		var revision := int(client.get_boarding_intent_result_replica().get("revision", 0))
+		request["client_tick"] = fresh.network_session.get_boarding_server_tick()
+		client.send_boarding_intent(request)
+		_check(await _wait_until(func(): return int(client.get_boarding_intent_result_replica().get("revision", 0)) > revision, 3.0)
+			and client.get_boarding_intent_result_replica().get("status") == &"stale_sequence",
+			"rolling back the refused claim preserves the accepted intent sequence highwater")
+		request = _rime_boarding_request(fresh, client, craft, 2, BoardingIntent.ACTION_BOARD)
 		var sent := client.send_boarding_intent(request)
 		var boarded := await _wait_until(func(): return fresh.get_network_remote_body_simulation() != null \
 			and fresh.get_network_remote_body_simulation().has_body(avatar), 12.0)
@@ -1384,6 +1413,18 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 		if boarded:
 			var simulation := fresh.get_network_remote_body_simulation()
 			var body := simulation.get_body(avatar) as PlayerController
+			var current_occupancies: Array = fresh.network_session.get_boarding_snapshot().get("occupancies", [])
+			var body_pose := body.global_transform
+			var admissions := int(fresh.get_network_remote_body_audit().get("hatch_admissions", 0))
+			var old_release := fresh.network_session.release_exact_server_boarding_occupancy(finalization_case.failed_claim)
+			_check(not old_release.get("accepted", false) and old_release.get("status") == &"occupancy_changed"
+				and fresh.network_session.get_boarding_snapshot().get("occupancies", []) == current_occupancies
+				and simulation.get_body(avatar) == body and body.global_transform == body_pose,
+				"a stale exact-claim rollback preserves the genuinely newer accepted seat and its current body")
+			var duplicate := fresh._finalize_network_boarding_result(finalization_case.accepted_result, request)
+			_check(duplicate.get("accepted", false) and simulation.get_body(avatar) == body and body.global_transform == body_pose
+				and int(fresh.get_network_remote_body_audit().get("hatch_admissions", 0)) == admissions,
+				"a legitimate duplicate accepted current-body callback preserves the same body and pose without another admission")
 			_check(int((bridge.get("_restored_crew_admissions") as Dictionary).get(peer, 0)) \
 				== int((fresh.network_session.get("_peer_generations") as Dictionary).get(peer, -1))
 				and not bridge.restored_cabin_admission_is_current(peer, request),
@@ -1400,7 +1441,7 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 			var walked := await _checked_coastal_walk(fresh, fresh.network_session, client, body,
 				deck.global_position, "fresh authenticated crew walks ordinarily to the recovered craft's real hatch")
 			if walked:
-				client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 2, BoardingIntent.ACTION_DISEMBARK))
+				client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 3, BoardingIntent.ACTION_DISEMBARK))
 				var exterior := await _wait_until(func(): return simulation.is_surface_walking(avatar), 5.0)
 				_check(exterior and simulation.get_body(avatar) == body
 					and fresh._network_ember_passenger_surface_is_current(avatar, fresh._network_ember_passenger_surfaces.get(avatar, {}))
@@ -1447,7 +1488,7 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 						walked = walked and await _checked_coastal_walk(fresh, fresh.network_session, client, body,
 							target, "late crew physically returns through the existing airstair and hatch")
 					if walked:
-						client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 3, BoardingIntent.ACTION_BOARD_ANY))
+						client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 4, BoardingIntent.ACTION_BOARD_ANY))
 						var reboarded := await _wait_until(func(): return is_instance_valid(body) and not simulation.is_surface_walking(avatar) \
 							and body.is_cabin_containment_active(), 5.0)
 						_check(reboarded and simulation.get_body(avatar) == body and not fresh.player.is_seated()

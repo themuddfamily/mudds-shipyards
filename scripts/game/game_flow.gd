@@ -7010,6 +7010,7 @@ func _on_network_session_started(mode: StringName) -> void:
 	if mode == &"server":
 		if is_instance_valid(network_session):
 			network_session.set_boarding_departure_guard(_network_boarding_departure_status)
+			network_session.set_boarding_result_finalizer(_finalize_network_boarding_result)
 		_ensure_network_remote_body_simulation()
 		# Every craft with a walkable interior is boardable through the hatch
 		# from the first tick of the session, whether or not the host has ever
@@ -13213,6 +13214,56 @@ func release_network_remote_body(entity_id: StringName, reason: StringName = &"r
 ##
 ## Nothing here re-checks what the ledger checked, and nothing here claims a
 ## seat: the ledger did, and a refused claim never reaches this handler.
+func _network_boarded_body_is_current(peer_id: int, avatar: StringName, craft: HeroShip) -> bool:
+	var simulation := _network_remote_body_simulation
+	if not is_instance_valid(simulation) or simulation.get("_session") != network_session \
+			or not is_instance_valid(craft):
+		return false
+	var body := simulation.get_body(avatar) as PlayerController
+	var frame := _resolve_network_moving_interior_frame(craft)
+	return is_instance_valid(body) and body.is_cabin_containment_active() \
+		and body.get_cabin_containment_report().get("frame") == craft \
+		and is_instance_valid(frame) and frame.is_occupant_registered(body) \
+		and int(simulation.get_body_record(avatar).get("owner_peer_id", 0)) == peer_id
+
+
+## Trusted adapter finalization runs after the ledger commits, before copied
+## notifications or the peer's answer. A refusal releases only that exact claim.
+func _finalize_network_boarding_result(result: Dictionary, _request: Dictionary) -> Dictionary:
+	var occupancy := result.get("occupancy", {}) as Dictionary
+	if not bool(result.get("accepted", false)) or result.get("status") != &"boarded" \
+			or occupancy.get("role") != NETWORK_CABIN_BERTH_ROLE:
+		return result.duplicate(true)
+	var session := network_session
+	var peer_id := int(occupancy.get("peer_id", 0))
+	var avatar := StringName(occupancy.get("avatar_id", &""))
+	var craft := _find_flyable_ship_by_id(StringName(occupancy.get("ship_id", &"")))
+	var journey := get_network_planetary_journey_snapshot()
+	var recovered_surface := journey.get("phase") == &"landed" and journey.get("ship_id") == occupancy.get("ship_id")
+	_on_network_boarding_intent_result(result.duplicate(true))
+	var same_session := is_instance_valid(session) and session == network_session and _network_session_is_live()
+	var current_claim := same_session and session.get_boarding_snapshot().get("occupancies", []).has(occupancy)
+	if current_claim and _network_boarded_body_is_current(peer_id, avatar, craft) \
+			and (not recovered_surface or _network_planetary_journey._restored_surface_session_is_current()):
+		_network_planetary_journey.note_restored_crew_admitted(peer_id, avatar)
+		return result.duplicate(true)
+	var simulation := _network_remote_body_simulation
+	var body: PlayerController = simulation.get_body(avatar) if is_instance_valid(simulation) else null
+	var body_id := body.get_instance_id() if is_instance_valid(body) else 0
+	var released := session.release_exact_server_boarding_occupancy(occupancy) \
+		if same_session else {"accepted": false, "status": &"boarding_session_retired"}
+	if bool(released.get("accepted", false)) and body_id != 0 \
+			and is_instance_valid(simulation) and simulation == _network_remote_body_simulation \
+			and simulation.get_body(avatar) == body and body.get_instance_id() == body_id \
+			and body.get_cabin_containment_report().get("frame") == craft \
+			and int(simulation.get_body_record(avatar).get("owner_peer_id", 0)) == peer_id:
+		release_network_remote_body(avatar, &"boarding_finalization_refused")
+	var reason := StringName(_network_hatch_audit.get("last_hatch_status", &"boarding_body_not_current"))
+	if reason in [&"", &"admitted", &"already_admitted"]:
+		reason = &"boarding_body_not_current"
+	return {"accepted": false, "status": reason, "rollback": released}
+
+
 func _on_network_boarding_intent_result(result: Dictionary) -> void:
 	# The same signal carries the authority's own verdict on the server and the
 	# answer this peer was sent on a client. They are different halves of one
@@ -13258,6 +13309,9 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 		if not network_session.get_boarding_snapshot().get("occupancies", []).has(occupancy):
 			_network_hatch_audit["last_hatch_status"] = &"boarding_occupancy_retired"
 			return
+		if _network_boarded_body_is_current(peer_id, avatar_id, craft):
+			_network_hatch_audit["last_hatch_status"] = &"already_admitted"
+			return
 		var journey := get_network_planetary_journey_snapshot()
 		if journey.get("phase") == &"landed" and journey.get("ship_id") == ship_id:
 			var current_request := occupancy.duplicate(true)
@@ -13267,7 +13321,6 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 				return
 		var admitted := admit_network_remote_body(peer_id, avatar_id, craft)
 		if bool(admitted.get("accepted", false)):
-			_network_planetary_journey.note_restored_crew_admitted(peer_id, avatar_id)
 			_network_hatch_audit["hatch_admissions"] = int(_network_hatch_audit["hatch_admissions"]) + 1
 		else:
 			_network_hatch_audit["hatch_refusals"] = int(_network_hatch_audit["hatch_refusals"]) + 1

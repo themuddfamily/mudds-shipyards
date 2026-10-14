@@ -233,6 +233,23 @@ func get_occupancy(peer_id: int, avatar_id: StringName) -> Dictionary:
 	return (value as Dictionary).duplicate(true)
 
 
+## Undo only the claim a trusted consumer could not physically finalize.
+## A newer claim wins; the accepted intent's sequence remains consumed.
+func release_exact_occupancy(source_peer_id: int, expected: Dictionary) -> Dictionary:
+	if source_peer_id != _authority_peer_id:
+		return _remember(_result(false, &"unauthorized_source"))
+	var peer_id := int(expected.get("peer_id", 0))
+	var avatar_id := StringName(expected.get("avatar_id", &""))
+	if peer_id <= 1 or not _valid_id(avatar_id):
+		return _remember(_result(false, &"invalid_occupancy_identity"))
+	var key := _avatar_key(peer_id, avatar_id)
+	if expected.is_empty() or not _occupancies.has(key) or _occupancies[key] != expected:
+		return _remember(_result(false, &"occupancy_changed"))
+	_occupancies.erase(key)
+	_event_sequence += 1
+	return _remember(_result(true, &"exact_occupancy_released", {"occupancy": expected.duplicate(true)}))
+
+
 func get_snapshot() -> Dictionary:
 	var ships: Array = []
 	for value in _ships.values():
