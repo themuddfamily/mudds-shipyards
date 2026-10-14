@@ -14,6 +14,7 @@ var _region: Node3D
 var _anchors: Array[Node3D] = []
 var _adapter := NearbyActivityRewardAdapter.new()
 var _pending_restore: Dictionary = {}
+var _shared_checkpoint_examined := false
 
 func _init(flow: GameFlow, visit: RefCounted) -> void:
 	_flow = flow
@@ -39,6 +40,7 @@ static func valid_progress(candidate: Variant) -> bool:
 	return bool(validator.validate_persistence_state(candidate).get("accepted", false))
 
 func attach(surface: Node3D) -> void:
+	_shared_checkpoint_examined = false
 	_region = surface.get_node_or_null(^"LandingRegion") as Node3D
 	_anchors.clear()
 	for anchor_name in ANCHORS:
@@ -200,7 +202,8 @@ func _save() -> void:
 func _actor_can_observe(body: PlayerController) -> bool:
 	if body == _flow.player:
 		return _on_foot()
-	return _available() and _flow._network_aurora_survey_body_is_current(body) \
+	return _available() and _flow._shared_aurora_survey_store_is_current() \
+		and _flow._network_aurora_survey_body_is_current(body) \
 		and not body.is_seated() and body.is_on_floor()
 
 
@@ -235,3 +238,13 @@ func shared_presentation(surface: Node3D, body: PlayerController, shared: Dictio
 		if state == CheckpointRouteActivity.State.COMPLETED:
 			objective_text = "Observations complete — retry saving at the standing stones, or reboard whenever ready"
 	return {"objective": objective_text, "prompt": interaction}
+
+
+func resume_shared_checkpoint() -> void:
+	if _shared_checkpoint_examined or not _available() \
+			or not _flow._network_aurora_passenger_host_is_current(_flow.active_ship):
+		return
+	_shared_checkpoint_examined = true
+	var restored := _flow.restore_shared_aurora_survey_checkpoint()
+	if bool(restored.get("accepted", false)):
+		_flow.hud.toast("Coastal observations restored", "Your host's optional survey progress is available. Crew must board and reach this visit through the current session.", 5.0)

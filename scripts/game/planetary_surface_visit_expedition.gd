@@ -373,6 +373,8 @@ func physics_tick(delta: float) -> void:
 		_flow.hud.set_mode("piloting")
 		_flow.audio.set_on_foot(false)
 		state = &"landed"
+	if _shared_arrival and profile.world_id == &"aurora_temperate_world" and state == &"landed":
+		survey.resume_shared_checkpoint()
 	# An activity with an on-foot hazard advances from this visit's own tick.
 	if state == &"surface" and survey.has_method(&"physics_tick"):
 		survey.call(&"physics_tick", delta)
@@ -996,6 +998,10 @@ func _begin_return() -> void:
 		return
 	if not _shared_arrival:
 		_retire_saved_visit()
+	elif profile.world_id == &"aurora_temperate_world":
+		var retired := _flow.retire_shared_aurora_survey_checkpoint()
+		if not bool(retired.get("accepted", false)):
+			_flow.hud.toast("Survey progress could not be cleared", "Your current controls and optional return remain available.", 4.0)
 	state = &"return_cruise"
 	_departure_ticks = 0
 	_flow.hud.set_paused(false)

@@ -8,6 +8,11 @@ const Berth := preload("res://scripts/world/ship_berth.gd")
 const MainScene := preload("res://scenes/main.tscn")
 const BoardingIntent := preload("res://scripts/network/network_boarding_intent.gd")
 
+var _survey_restart_phase := 0
+var _survey_restart_filesystem: SurveyFilesystem
+var _interrupted_body_ref: WeakRef
+var _interrupted_context: Dictionary = {}
+var _interrupted_avatar: StringName = &""
 var _coastal_replica: Dictionary = {}
 var _coastal_sequence := 0
 var _coastal_interaction := 0
@@ -17,6 +22,8 @@ var _failures := PackedStringArray()
 
 class SurveyFilesystem extends UserDataFilesystem:
 	var files: Dictionary = {}
+	var reject_checkpoints := false
+	var rejected_checkpoints := 0
 	var reject_rewards := false
 	var rejected_rewards := 0
 	func file_exists(path: String) -> bool:
@@ -32,6 +39,9 @@ class SurveyFilesystem extends UserDataFilesystem:
 		return {"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT, "bytes": bytes.duplicate()}
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
 		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if reject_checkpoints and document is Dictionary and str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with("aurora-shared-survey-"):
+			rejected_checkpoints += 1
+			return ERR_CANT_CREATE
 		if reject_rewards and document is Dictionary and str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with("game-flow-reward-"):
 			rejected_rewards += 1
 			return ERR_CANT_CREATE
@@ -336,7 +346,9 @@ func _check(condition: bool, description: String) -> void:
 ## manufacture a travel receipt. The real host pilot, confirmed cabin crew,
 ## physical berth assist, publication failure and retry owners run at Mudds.
 func _shared_aurora_home_publication_retry() -> void:
-	var filesystem := SurveyFilesystem.new()
+	if _survey_restart_filesystem == null:
+		_survey_restart_filesystem = SurveyFilesystem.new()
+	var filesystem := _survey_restart_filesystem
 	var store := UserDataStore.new("memory://shared-aurora.json", filesystem)
 	var game := MainScene.instantiate() as GameFlow
 	game.configure_runtime_settings_persistence(store)
@@ -345,6 +357,10 @@ func _shared_aurora_home_publication_retry() -> void:
 	await process_frame
 	await physics_frame
 	game.start_shift()
+	if _survey_restart_phase == 2:
+		_check(not game._aurora_expedition.is_active() and not game._planetary_journey.is_aurora_visit_active() and not game._network_session_is_live()
+			and game.get_network_remote_body_simulation() == null and game._network_ember_passenger_surfaces.is_empty(), "fresh Main keeps interrupted shared progress passive at Mudds without crew, session or lease restoration")
+		_check(not game.restore_shared_aurora_survey_checkpoint().get("accepted", false), "offline startup cannot adopt a shared host survey checkpoint")
 	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
 	var home := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
 	game._release_ship_berth(craft)
@@ -411,6 +427,20 @@ func _shared_aurora_home_publication_retry() -> void:
 		branch.queue_free()
 		game.queue_free()
 		await process_frame
+		return
+	if _survey_restart_phase == 1:
+		_interrupted_body_ref = weakref(body)
+		_interrupted_context = game._network_ember_passenger_surfaces[avatar].duplicate(true)
+		_interrupted_avatar = avatar
+		game.shutdown_network_session(&"survey_interrupted")
+		_check(not game._aurora_expedition.is_active() and game._network_ember_passenger_surfaces.is_empty() and game.phase == GameFlow.Phase.APPROACH_SHIP, "actual interrupted host shutdown keeps existing safe-home recovery and retires old crew grants")
+		client.shutdown()
+		branch.queue_free()
+		game.queue_free()
+		await process_frame
+		await physics_frame
+		_survey_restart_phase = 2
+		await _shared_aurora_home_publication_retry()
 		return
 	var bridge := game._network_planetary_journey
 	bridge._epoch = 1
@@ -534,6 +564,16 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	bridge._state = {"journey_epoch": 1, "world_id": &"aurora_temperate_world", "ship_id": craft.get_ship_id(), "phase": &"landed"}
 	game.phase = GameFlow.Phase.FREE_FLIGHT
 	await _wait_until(func(): return game._network_aurora_passenger_host_is_current(craft), 5.0)
+	owner.physics_tick(0.0)
+	if _survey_restart_phase == 2:
+		_check(int(owner.survey.snapshot().get("next_checkpoint_index", 0)) == 1 and int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, "fresh current host Aurora admission restores the genuine interrupted lookout progress on its actual scene")
+		_check(_interrupted_body_ref.get_ref() == null and not game._network_ember_passenger_surface_is_current(_interrupted_avatar, _interrupted_context), "new host admission never resurrects the retired body's old surface grant")
+		var original_payload := store.get_snapshot()
+		var foreign_payload := original_payload.duplicate(true)
+		foreign_payload[GameFlow.AURORA_SHARED_SURVEY_SLOT].craft_home_berth_id = String(game.ship.get_home_berth_id())
+		store.commit(foreign_payload, store.get_generation(), "coastal-foreign-craft")
+		_check(game.restore_shared_aurora_survey_checkpoint().get("reason") == &"aurora_shared_survey_checkpoint_unavailable" and int(owner.survey.snapshot().get("next_checkpoint_index", 0)) == 1, "another registered craft's checkpoint cannot replace this host's restored observations")
+		store.commit(original_payload, store.get_generation(), "coastal-original-craft")
 	var avatar := NetworkRemoteBodySimulation.get_remote_body_identity(body).entity_id as StringName
 	var simulation := game.get_network_remote_body_simulation()
 	# Initial actor staging only; every subsequent coastal leg is real intent movement.
@@ -560,15 +600,17 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		for point in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(-8, 0.52, 22)), region.to_global(Vector3(14, 0.5, 22)), region.to_global(Vector3(14, 0.5, 2)), sign.global_position + Vector3.UP * 0.5]:
 			if not await _checked_coastal_walk(game, server, client, body, point, "retained crew walks from the actual hatch along the authored trail"):
 				return false
-		await _coastal_press(game, server, client, body)
-		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, "real authenticated crew interaction starts the host-owned optional survey")
-		await _coastal_press(game, server, client, body)
-		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.FAILED, "crew may abandon the optional survey without losing its return route")
-		await _coastal_press(game, server, client, body)
+		if _survey_restart_phase == 0:
+			await _coastal_press(game, server, client, body)
+			_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, "real authenticated crew interaction starts the host-owned optional survey")
+			await _coastal_press(game, server, client, body)
+			_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.FAILED, "crew may abandon the optional survey without losing its return route")
+			await _coastal_press(game, server, client, body)
 		for point in [region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(57, 0.5, -20)), lookout.global_position + Vector3(-1.5, -1.0, 0)]:
 			if not await _checked_coastal_walk(game, server, client, body, point, "real crew walking remains admitted on the existing coastal terrain and lookout floor"):
 				return false
-		await _coastal_press(game, server, client, body)
+		if _survey_restart_phase == 0:
+			await _coastal_press(game, server, client, body)
 		bridge._publish(true)
 		_check(await _wait_until(func(): return int((_coastal_replica.get("aurora_survey", {}) as Dictionary).get("progress", {}).get("next_checkpoint_index", 0)) == 1, 3.0), "actual authenticated host publication synchronizes the crew observation progress")
 		_check(int(owner.survey.snapshot().get("next_checkpoint_index", 0)) == 1, "host records the actual lookout observation from the retained crew body")
@@ -579,11 +621,15 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		_check(checkpoint_recorded, "real shared lookout observation survives a primary atomic-store reload as passive host progress")
 		if not checkpoint_recorded:
 			return false
+		if _survey_restart_phase == 0:
+			_survey_restart_phase = 1
+			return true
 		if not await _checked_coastal_walk(game, server, client, body, region.to_global(Vector3(55, 0.5, -20)), "crew returns through the lookout entrance"):
 			return false
 		if not await _checked_coastal_walk(game, server, client, body, stones.global_position + Vector3.UP * 0.5, "crew walks the authored stones branch"):
 			return false
 		filesystem.reject_rewards = true
+		filesystem.reject_checkpoints = true
 		await _coastal_press(game, server, client, body)
 		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.COMPLETED and not owner.survey.reward_recorded() and filesystem.rejected_rewards > 0, "actual atomic reward write rejection retains completed observations without entitlement")
 		bridge._publish(true)
@@ -597,7 +643,16 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		_check(not game._interact_network_aurora_survey(body), "current host refuses a stale surface lease before any progression")
 		_check(owner.survey.capture() == progress and not owner.survey.reward_recorded(), "stale surface lease cannot submit or reward observations")
 		owner._surface_token = token
+		_check(game._aurora_shared_survey_checkpoint_pending and filesystem.rejected_checkpoints > 0, "actual rejected passive checkpoint write retains a pending unpaid completion for teardown retry")
 		filesystem.reject_rewards = false
+		var terminal := owner.survey.snapshot() as Dictionary
+		terminal["state_id"] = &"completed"
+		terminal["outcome"] = &"cleared"
+		var paid: Dictionary = owner.survey._adapter.consume(terminal, int(terminal.generation))
+		_check(paid.get("accepted", false) and game._aurora_shared_survey_checkpoint_pending, "the real earned terminal callback commits a newer paid reward while the rejected unpaid checkpoint is still pending")
+		filesystem.reject_checkpoints = false
+		var flushed := game._flush_shared_aurora_survey_checkpoint()
+		_check(flushed.get("accepted", false) and not game.restore_shared_aurora_survey_checkpoint().get("accepted", false), "flushing stale unpaid progress preserves the current paid receipt and refuses paid-progress restoration")
 		await _coastal_press(game, server, client, body)
 		await _coastal_press(game, server, client, body)
 		var loaded := UserDataStore.new("memory://shared-aurora.json", filesystem)
@@ -605,6 +660,19 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		var authority := GameFlowRewardAuthority.new()
 		var configured := authority.configure(loaded)
 		_check(bool(configured.get("accepted", false)) and owner.survey.reward_recorded() and int(authority.get_snapshot().record.reward_counts.get("aurora_coastal_survey_data", 0)) == 1, "accepted retry persists Aurora data once across real store reload and repeated crew presses")
+		var primary: PackedByteArray = filesystem.files["memory://shared-aurora.json"]
+		filesystem.files["memory://shared-aurora.json"] = "broken primary".to_utf8_buffer()
+		var backup := UserDataStore.new("memory://shared-aurora.json", filesystem)
+		backup.load_read_only()
+		game._runtime_settings_user_data_store = backup
+		_check(backup.get_loaded_source() == &"backup" and game.restore_shared_aurora_survey_checkpoint().get("reason") == &"aurora_shared_survey_store_recovery_required", "actual older-backup adoption cannot resurrect interrupted observations after a newer paid primary")
+		var refused_save := game.save_interrupted_aurora_visit()
+		_check(not refused_save.get("accepted", false) and filesystem.files["memory://shared-aurora.json"] == "broken primary".to_utf8_buffer(), "backup-backed host progress writes cannot overwrite the current primary or paid receipt")
+		game._runtime_settings_user_data_store = UserDataStore.new("memory://unloaded-coastal.json", filesystem)
+		_check(game.restore_shared_aurora_survey_checkpoint().get("reason") == &"aurora_shared_survey_store_recovery_required", "an unknown/unloaded store cannot supply interrupted survey progress")
+		filesystem.files["memory://shared-aurora.json"] = primary
+		game._runtime_settings_user_data_store = store
+		game._flush_shared_aurora_survey_checkpoint()
 		_check(simulation.get_body(avatar) == body and body.get_instance_id() == body_id, "survey progress and save retries retain the same host-owned body")
 	# This bounded fixture finishes its surface attachment before the existing
 	# home-handoff publication test; it does not claim a physical return voyage.

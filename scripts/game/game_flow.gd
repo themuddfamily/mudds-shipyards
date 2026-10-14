@@ -1180,6 +1180,9 @@ var _aurora_expedition_persistence_binding: AuroraExpeditionPersistenceBinding
 var _aurora_interrupted_visit_save_status: Dictionary = {}
 var _aurora_interrupted_visit_restore_status: Dictionary = {}
 var _aurora_interrupted_visit_restore_attempted := false
+const AURORA_SHARED_SURVEY_SLOT := "aurora_shared_coastal_survey"
+var _aurora_shared_survey_checkpoint_pending := false
+var _aurora_shared_survey_checkpoint: Dictionary = {}
 const EMBER_INTERRUPTED_JOURNEY_COMMIT_PREFIX := "ember-active-journey-"
 const EMBER_INTERRUPTED_JOURNEY_RETIRE_PREFIX := "ember-active-journey-retire-"
 const CINDER_RACE_BEST_PERSISTENCE_SLOT: StringName = &"cinder_race_best_result"
@@ -1456,6 +1459,7 @@ func _enter_tree() -> void:
 ## tombstone here, so no client is left drawing a body in a cabin nobody is
 ## flying any more.
 func _on_game_flow_tree_exiting() -> void:
+	_flush_shared_aurora_survey_checkpoint()
 	_cancel_network_exterior_transition()
 	_retire_all_network_moving_interior_occupancy(&"game_flow_detached")
 	# The session adapter's lifetime is this subtree's tree membership, and this
@@ -7024,6 +7028,8 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	# Flush only progress accepted while the prior host/lease was live.
+	_flush_shared_aurora_survey_checkpoint()
 	_network_planetary_journey.detach()
 	if _network_session_mode == &"client" and is_instance_valid(_cabin_ship):
 		var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
@@ -15043,6 +15049,8 @@ func bind_aurora_expedition_persistence() -> Dictionary:
 ## visit that has already started its return leg, and an ordinary shutdown with
 ## no visit at all, both commit nothing.
 func save_interrupted_aurora_visit() -> Dictionary:
+	if bool(_aurora_expedition.get("_shared_arrival")):
+		return _save_shared_aurora_survey_checkpoint()
 	var visit := _aurora_expedition.capture_interrupted_visit()
 	if visit.is_empty():
 		_aurora_interrupted_visit_save_status = {
@@ -15060,6 +15068,82 @@ func save_interrupted_aurora_visit() -> Dictionary:
 			"aurora-active-visit-%s" % str(visit.get("craft_home_berth_id", "")),
 		)
 	return _aurora_interrupted_visit_save_status.duplicate(true)
+
+
+## A shared interruption recovers actors through the existing safe-home path.
+## This checkpoint carries only host-observed optional progress, never crew,
+## world transforms, lease tokens or an entitlement.
+func _shared_aurora_survey_store_is_current() -> bool:
+	return _runtime_settings_user_data_store != null and _runtime_settings_user_data_store.get_loaded_source() == &"primary"
+
+
+func _save_shared_aurora_survey_checkpoint() -> Dictionary:
+	if not _network_aurora_passenger_host_is_current(active_ship):
+		return {"accepted": false, "reason": &"aurora_shared_survey_host_not_current"}
+	var progress: Dictionary = _aurora_expedition.survey.capture()
+	if progress.is_empty() or int(progress.get("generation", 0)) < 1:
+		return {"accepted": true, "reason": &"aurora_shared_survey_not_started"}
+	_aurora_shared_survey_checkpoint = {} if _aurora_expedition.survey.reward_recorded() else {
+		"craft_home_berth_id": String(active_ship.get_home_berth_id()), "survey": progress,
+	}
+	_aurora_shared_survey_checkpoint_pending = true
+	return _flush_shared_aurora_survey_checkpoint()
+
+
+func _flush_shared_aurora_survey_checkpoint() -> Dictionary:
+	if not _aurora_shared_survey_checkpoint_pending:
+		return {"accepted": true, "reason": &"aurora_shared_survey_no_pending_save"}
+	var store := _runtime_settings_user_data_store
+	if store == null or store.get_loaded_source() != &"primary":
+		return {"accepted": false, "reason": &"aurora_shared_survey_store_recovery_required"}
+	var payload := store.get_snapshot()
+	if _aurora_shared_survey_checkpoint.is_empty():
+		payload.erase(AURORA_SHARED_SURVEY_SLOT)
+	else:
+		payload[AURORA_SHARED_SURVEY_SLOT] = _aurora_shared_survey_checkpoint.duplicate(true)
+	var generation := store.get_generation()
+	var saved := store.commit(payload, generation, "aurora-shared-survey-%010d" % (generation + 1))
+	if bool(saved.get("accepted", false)):
+		_aurora_shared_survey_checkpoint_pending = false
+		_aurora_shared_survey_checkpoint.clear()
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, store.get_generation())
+		_sync_production_runtime_settings_state()
+	return saved
+
+
+## Consulted only by a newly admitted current host visit on its real pad.
+## A fresh Main remains at Mudds until the player hosts and makes that visit.
+func restore_shared_aurora_survey_checkpoint() -> Dictionary:
+	if not _network_aurora_passenger_host_is_current(active_ship):
+		return {"accepted": false, "reason": &"aurora_shared_survey_host_not_current"}
+	var store := _runtime_settings_user_data_store
+	if store == null or store.get_loaded_source() != &"primary":
+		return {"accepted": false, "reason": &"aurora_shared_survey_store_recovery_required"}
+	var payload := store.get_snapshot()
+	var reward_record: Variant = payload.get(String(GameFlowRewardAuthority.SLOT_ID), {})
+	if payload.has(String(GameFlowRewardAuthority.SLOT_ID)):
+		if not GameFlowRewardAuthority.validate_record(reward_record).get("accepted", false):
+			return {"accepted": false, "reason": &"aurora_shared_survey_reward_recovery_required"}
+		if int((reward_record.reward_counts as Dictionary).get("aurora_coastal_survey_data", 0)) > 0:
+			return {"accepted": false, "reason": &"aurora_shared_survey_already_recorded"}
+	var record: Variant = payload.get(AURORA_SHARED_SURVEY_SLOT, {})
+	if not record is Dictionary or record.size() != 2 or not record.has("craft_home_berth_id") \
+			or not record.has("survey") or record.craft_home_berth_id != String(active_ship.get_home_berth_id()) \
+			or not _aurora_expedition.survey.valid_progress(record.survey):
+		return {"accepted": false, "reason": &"aurora_shared_survey_checkpoint_unavailable"}
+	var live := _aurora_expedition.survey.snapshot() as Dictionary
+	if int(live.get("state", CheckpointRouteActivity.State.IDLE)) != CheckpointRouteActivity.State.IDLE:
+		return {"accepted": false, "reason": &"aurora_shared_survey_run_already_started"}
+	return activity_director.restore_activity_persistence_state(&"aurora_coastal_observation", record.survey)
+
+
+func retire_shared_aurora_survey_checkpoint() -> Dictionary:
+	if _network_planetary_journey.get_world_id() != AuroraExpeditionType.WORLD_ID \
+			or not (_network_aurora_passenger_host_is_current(active_ship) or _network_planetary_journey._home_return_actors_are_current()):
+		return {"accepted": false, "reason": &"aurora_shared_survey_host_not_current"}
+	_aurora_shared_survey_checkpoint.clear()
+	_aurora_shared_survey_checkpoint_pending = true
+	return _flush_shared_aurora_survey_checkpoint()
 
 
 ## Resumes exactly one recorded Aurora visit, once per `Main`. The receipt is
