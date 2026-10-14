@@ -150,9 +150,9 @@ func _test_contract_and_snapshot_boundary(presenter: CaptionPresenter) -> void:
 
 func _test_simultaneous_cue_readability(presenter: CaptionPresenter) -> void:
 	var cases := [
-		[&"system", "Threat warning", &"combat.alert", 90, 3.01, "[SYSTEM]  HIGH · P90 · 4s"],
-		[&"radio", "Activity board", &"activity.checkpoint", 65, 2.0, "[RADIO]  MED · P65 · 2s"],
-		[&"ambient", "Damage control", &"repair.complete", 45, 0.1, "[AMBIENT]  LOW · P45 · 1s"],
+		[&"system", "Threat warning", &"combat.alert", 90, 3.01, "[SYSTEM]  HIGH · 4s"],
+		[&"radio", "Activity board", &"activity.checkpoint", 65, 2.0, "[RADIO]  MED · 2s"],
+		[&"ambient", "Damage control", &"repair.complete", 45, 0.1, "[AMBIENT]  LOW · 1s"],
 	]
 	for cue: Array in cases:
 		var snapshot := _semantic_snapshot(
@@ -167,6 +167,7 @@ func _test_simultaneous_cue_readability(presenter: CaptionPresenter) -> void:
 		var report := presenter.get_layout_report()
 		_check(
 			str(report.rendered_category) == str(cue[5])
+			and not str(report.rendered_category).contains("P%d" % int(cue[3]))
 			and str(report.rendered_speaker) == "SOURCE · %s" % str(cue[1])
 			and str(report.rendered_text) == "Concurrent semantic cue.",
 			"%s remains identifiable by textual source/category, priority and bounded expiry" % str(cue[2])
@@ -200,7 +201,7 @@ func _test_supported_layout_sweep(viewport: SubViewport, presenter: CaptionPrese
 				and panel.size.y <= float(report.panel_maximum_height) + 0.51
 			)
 			var typography_valid := (
-				str(report.rendered_category) == "[RADIO]  MED · P70 · 9s"
+				str(report.rendered_category) == "[RADIO]  MED · 9s"
 				and str(report.rendered_speaker) == "SOURCE · Mudds Controller"
 				and str(report.rendered_text).length() == 512
 				and int(report.text_line_count) > 1

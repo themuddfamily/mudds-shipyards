@@ -1,0 +1,20 @@
+Mudd's Shipyards matching Linux checkpoint — f346dfb195c7b323dc76f4ba3b65fd089b3473c1
+
+Player-visible changes
+First-sortie landing help now tells you to reach an available compatible berth approach, slow down, level the craft, then enable landing assist and wait for automatic docking. If assist is refused, the help tells you to check approach, speed and attitude before retrying. Keyboard, controller and accessible wording agree.
+Accepted abandoned Ember return/dock/berth/walking, optional Aurora/Rime surface help and Habitat/convoy guidance remain included.
+
+Actual validation
+The accepted safe Linux export used the verified closed 601-file Windows cache (511 compiled scripts), on the same clean source commit. Linux export exited 0 in 15.698 seconds within the original 900-second cap. All 1,513 actual payload entries match Windows by path, size and SHA-256, independently of platform entry offsets or PCK blob bytes.
+Complete payload parity shares the closed Windows source/actual-PCK First Sortie checks: presenter 20, HUD 22, progression 25, walkthrough 14, plus fresh standard package probes 223. All 1,513 payload paths match c8. Three raw payloads differ: the first-sortie presenter and two serialization-order-only class/UID maps. Actual embedded-payload comparison confirms the same 481 class descriptor records and 659 UID/path mappings. The presenter is the sole functional change; c8 check reuse is scoped to unchanged runtime/resources and semantically identical maps. Export presets exclude roadmap-validation/**; no committed receipt appears in the game payload. Native Linux direct and archive-extracted ELF each use actual --startup-check, exit 0, exactly one STARTUP_MENU_READY_OK and no errors: direct 9.828s, archive 11.891s, unchanged 300-second game caps.
+Gzip CRC, five unique safe archive members, no links, expected modes and extracted ELF SHA parity pass. Binary/installer/desktop modes 755; archive/icon 644. Fresh packaged installer install/uninstall under private paths with spaces validates Exec/Icon/Path/source pin and preserves seeded game userdata. Prior helper is compared only to establish basename-only change; historical acceptance is not substituted for this actual run.
+Source pin/clean state, Git index bytes/blob tree, frozen postexport cache, export templates, archive/executable hashes, protected installer userdata and owned actors close unchanged. All Godot runs use Dummy audio and isolated headless or private x11 display, seven private mode-700 XDG roots plus TMPDIR, inherited HOME. No publication occurred.
+
+Artifacts
+ELF SHA256: 03062e14df5b1df66944e28644332fa9e4b2048ba18d1a9ffd61e8cae2f03eb2
+Archive SHA256: d85f6fb1c9cede38bcc9bfaab18bafe40b74731838e4d65260319e18f57a4b3e
+Matching Windows EXE SHA256: ee72044f777f0da0520c5603706442a6ea09875e48a3c6f61da38525a966ecc1
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/first-sortie-linux
+
+Remaining gates
+Physical return/dock/berth/walking acceptance passed on unchanged 6e1 runtime and was retained through 4c to this UI-only checkpoint. Native Windows actual direct EXE and immutable final ZIP startup pass exit 0 with one readiness marker in each stdout/game log, zero diagnostics, empty owned Jobs/processes, removed private namespaces and unchanged real project userdata: direct 11.448s, final ZIP 11.646s. Final ZIP SHA256: 5548b8972922e2f161a7b881c18f5d0d0112450a5b6db449753163b0376aef85. Independent artifact review and local publication are recorded separately. This is a focused checkpoint; existing CI results and native Windows recovery receipts retain their original source/artifact scope. Fresh full CI remains unqualified for this checkpoint. Native Linux ordinary gameplay/graphics, native Windows ordinary gameplay, native GPU/device performance, audible audio, human normal-controls/visual review, full-main rendered regression, broad CI and full release: NOT_RUN.

@@ -351,10 +351,9 @@ func _status_marker(caption: Dictionary) -> String:
 		CaptionPresentationEvent.MIN_DURATION_PHYSICS_SECONDS,
 		CaptionPresentationEvent.MAX_DURATION_PHYSICS_SECONDS
 	)
-	return "[%s]  %s · P%d · %ds" % [
+	return "[%s]  %s · %ds" % [
 		str(caption.get("category_id", &"system")).to_upper(),
 		_priority_label(priority),
-		priority,
 		clampi(ceili(remaining), 1, ceili(CaptionPresentationEvent.MAX_DURATION_PHYSICS_SECONDS)),
 	]
 
