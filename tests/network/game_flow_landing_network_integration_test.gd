@@ -547,7 +547,7 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		var sign := surface.find_child("SurveyTrailSign", true, false) as Node3D
 		var lookout := surface.find_child("SurveyLookout", true, false) as Node3D
 		var stones := surface.find_child("SurveyStones", true, false) as Node3D
-		for point in [region.to_global(Vector3(14, 0.5, 2)), sign.global_position + Vector3.UP * 0.5]:
+		for point in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(-8, 0.52, 14)), region.to_global(Vector3(14, 0.5, 14)), region.to_global(Vector3(14, 0.5, 2)), sign.global_position + Vector3.UP * 0.5]:
 			_check(await _walk_coastal(game, server, client, body, point), "retained crew walks from the actual hatch along the authored trail")
 		await _coastal_press(game, server, client, body)
 		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, "real authenticated crew interaction starts the host-owned optional survey")
@@ -585,7 +585,7 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	# This bounded fixture finishes its surface attachment before the existing
 	# home-handoff publication test; it does not claim a physical return voyage.
 	if walking and is_instance_valid(body):
-		for point in [region.to_global(Vector3(55, 0.5, -20)), region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(30, 0.5, 0)), region.to_global(Vector3(14, 0.5, 2)), craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
+		for point in [region.to_global(Vector3(55, 0.5, -20)), region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(30, 0.5, 0)), region.to_global(Vector3(14, 0.5, 2)), region.to_global(Vector3(14, 0.5, 14)), craft.to_global(Vector3(-8, 0.52, 14)), craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
 			_check(await _walk_coastal(game, server, client, body, point), "survey crew physically follows the trail and airstair back into the cabin")
 		var reboard: Dictionary = BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 3, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
 		client.send_boarding_intent(reboard)
@@ -623,8 +623,11 @@ func _walk_coastal(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 	var deadline := Time.get_ticks_msec() + 18000
 	while Time.get_ticks_msec() < deadline and is_instance_valid(body):
 		await _coastal_tick(game, server, client, body, target)
+		if not is_instance_valid(body):
+			return false
 		if Vector2(body.global_position.x - target.x, body.global_position.z - target.z).length() < 1.0 and body.is_on_floor():
 			return true
+	print("COASTAL_WALK_BLOCKED target=", target, " body_valid=", is_instance_valid(body), " pose=", body.global_position if is_instance_valid(body) else Vector3.INF, " audit=", game.get_network_remote_body_audit())
 	return false
 
 
@@ -632,4 +635,6 @@ func _coastal_press(game: GameFlow, server: Adapter, client: Adapter, body: Play
 	_coastal_interaction += 1
 	var position := body.global_position
 	for _i in 12:
+		if not is_instance_valid(body):
+			return
 		await _coastal_tick(game, server, client, body, position)
