@@ -1539,7 +1539,7 @@ func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 		}, movement_tick)
 		if not packet.is_empty():
 			_rime_last_movement_send = client.send_movement_intent(packet)
-			if neutral_movement and bool(_rime_last_movement_send.get("accepted", false)):
+			if neutral_movement and _rime_last_neutral_packet.is_empty() and bool(_rime_last_movement_send.get("accepted", false)):
 				_rime_last_neutral_packet = packet.duplicate(true)
 			if not bool(_rime_last_movement_send.get("accepted", false)) or _rime_last_movement_send.get("status") != &"queued":
 				print("RIME_MOVEMENT_SEND_FAILED send=", _rime_last_movement_send,
@@ -1575,18 +1575,22 @@ func _walk_coastal(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 			if not _rime_shared_survey_mode:
 				return true
 			# Release the held movement through the ordinary client stream and
-			# wait for its actual host consumption within this same leg budget.
+			# wait for the first neutral command's actual host consumption within
+			# this same leg budget. Later cadence samples also remain neutral.
 			neutral_movement = true
 			if not _rime_last_neutral_packet.is_empty():
 				var avatar := server.get_movement_avatar_snapshot(_rime_intent_source.get_entity_id())
 				var record := game.get_network_remote_body_simulation().get_body_record(_rime_intent_source.get_entity_id())
-				if int(avatar.get("last_sequence", -1)) >= int(_rime_last_neutral_packet.sequence) and int(avatar.get("pending_count", -1)) == 0 \
+				if int(avatar.get("last_sequence", -1)) >= int(_rime_last_neutral_packet.sequence) \
 						and int(record.get("last_intent_tick", -1)) >= int(_rime_last_neutral_packet.client_tick):
 					return true
 		elif _rime_shared_survey_mode:
 			neutral_movement = false
 			_rime_last_neutral_packet.clear()
-	print("COASTAL_WALK_BLOCKED target=", target, " body_valid=", is_instance_valid(body), " pose=", body.global_position if is_instance_valid(body) else Vector3.INF, " audit=", game.get_network_remote_body_audit())
+	print("COASTAL_WALK_BLOCKED target=", target, " body_valid=", is_instance_valid(body), " pose=", body.global_position if is_instance_valid(body) else Vector3.INF,
+		" floor=", body.is_on_floor() if is_instance_valid(body) else false,
+		" velocity=", body.velocity if is_instance_valid(body) else Vector3.INF,
+		" first_neutral=", _rime_last_neutral_packet, " audit=", game.get_network_remote_body_audit())
 	if _rime_shared_survey_mode:
 		print("RIME_MOVEMENT_WALK_AUDIT source=", _rime_intent_source.get_audit(),
 			" send=", _rime_last_movement_send, " transport=", client.get_snapshot(),
