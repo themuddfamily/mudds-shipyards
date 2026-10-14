@@ -54,9 +54,13 @@ func _run() -> void:
 
 	var original_submitter: Callable = hud.get("_caption_event_submitter")
 	hud.set("_caption_event_submitter", func(request: Dictionary) -> bool:
-		_caption_requests.append(request.duplicate(true))
-		return bool(original_submitter.call(request)))
-	hud.set_captions_enabled(true)
+		var accepted := bool(original_submitter.call(request))
+		if accepted:
+			_caption_requests.append(request.duplicate(true))
+		return accepted)
+	hud.setting_change_requested.emit(&"captions_enabled", true)
+	await physics_frame
+	await process_frame
 	_caption_requests.clear()
 	var observed_progress: Array[Dictionary] = []
 	var observe_progress := func(receipt: Dictionary) -> void: observed_progress.append(receipt.duplicate(true))
@@ -74,6 +78,12 @@ func _run() -> void:
 
 	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
 		"accepted passive berth repair captions its start once")
+	await physics_frame
+	await process_frame
+	_check(bool(game.get_caption_presentation_snapshot().get("visible", false))
+		and game.get_caption_presentation_snapshot().get("caption", {}).get("text") == "[ berth component repair started ]"
+		and hud.get_caption_presentation_report().get("rendered_text") == "[ berth component repair started ]",
+		"accepted passive start reaches production caption service and rendered HUD")
 	_check(not observed_progress.is_empty() and observed_progress[0].get("presentation_origin") == &"passive_berth",
 		"owner receipt identifies passive berth presentation without altering repair")
 	torrent.component_repair_progressed.emit(observed_progress[0])
@@ -96,6 +106,9 @@ func _run() -> void:
 
 	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
 		"engineer repair emits no duplicate passive start caption")
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"targeted partial repair preserves the ongoing passive cycle without duplicate start")
 	torrent.component_repair_progressed.disconnect(observe_progress)
 	root.remove_child(game)
 	await process_frame
@@ -148,7 +161,15 @@ func _run() -> void:
 	torrent.get_component_damage().tick_repair(0.10, true)
 	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
 		"repeated passive commits retain one start caption")
+	# Let the already displayed start expire before checking the queued completion.
+	for _frame in range(600):
+		await physics_frame
 	torrent.get_component_damage().tick_repair(100.0, true)
+	await physics_frame
+	await process_frame
+	_check(game.get_caption_presentation_snapshot().get("caption", {}).get("text") == "[ berth component repair complete ]"
+		and hud.get_caption_presentation_report().get("rendered_text") == "[ berth component repair complete ]",
+		"accepted passive completion reaches production service and rendered HUD")
 	_check(_passive_caption_count(hud, &"passive_component_repair_completed") == 1,
 		"accepted passive completion captions once")
 	torrent.get_component_damage().tick_repair(100.0, true)
@@ -159,19 +180,23 @@ func _run() -> void:
 	_caption_requests.clear()
 	var reentrant_done := [false]
 	hud.set("_caption_event_submitter", func(request: Dictionary) -> bool:
-		_caption_requests.append(request.duplicate(true))
+		var accepted := bool(original_submitter.call(request))
+		if accepted:
+			_caption_requests.append(request.duplicate(true))
 		if request.get("cue_id") == &"passive_component_repair_started" and not reentrant_done[0]:
 			reentrant_done[0] = true
 			torrent.get_component_damage().tick_repair(0.10, true)
-		return bool(original_submitter.call(request)))
+		return accepted)
 	torrent.get_component_damage().tick_repair(0.10, true)
 	_check(reentrant_done[0] and _passive_caption_count(hud, &"passive_component_repair_started") == 1
 		and is_equal_approx(float(hud.get_hero_component_hud_snapshot().get("integrity", -1.0)),
 			_component_integrity(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY)),
 		"synchronous caption repair cannot rewind accepted HUD progress or replay start")
 	hud.set("_caption_event_submitter", func(request: Dictionary) -> bool:
-		_caption_requests.append(request.duplicate(true))
-		return bool(original_submitter.call(request)))
+		var accepted := bool(original_submitter.call(request))
+		if accepted:
+			_caption_requests.append(request.duplicate(true))
+		return accepted)
 	hud.set_mode("on-foot")
 	torrent.get_component_damage().tick_repair(100.0, true)
 	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
@@ -181,7 +206,7 @@ func _run() -> void:
 	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
 		"hidden completed repair and fresh damage cannot suppress the next visible start")
 
-	hud.set_captions_enabled(false)
+	hud.setting_change_requested.emit(&"captions_enabled", false)
 	_caption_requests.clear()
 	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
 	torrent.get_component_damage().tick_repair(0.10, true)

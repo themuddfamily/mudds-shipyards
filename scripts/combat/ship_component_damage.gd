@@ -304,7 +304,7 @@ func tick_component_repair(
 	repairing: bool
 ) -> Dictionary:
 	var component_ids: Array[StringName] = [component_id]
-	return _tick_repair_components(component_ids, delta, repairing, &"engineer")
+	return _tick_repair_components(component_ids, delta, repairing, &"targeted")
 
 
 func _tick_repair_components(

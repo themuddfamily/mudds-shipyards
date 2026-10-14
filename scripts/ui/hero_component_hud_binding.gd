@@ -184,7 +184,8 @@ func _on_component_repair_progressed(progress: Dictionary) -> void:
 
 func _present_passive_repair_caption(hud: Node, progress: Dictionary, report: Dictionary) -> void:
 	if StringName(progress.get("presentation_origin", &"")) != &"passive_berth":
-		_passive_repair_caption_active = false
+		if _report_roster_is_nominal(report):
+			_passive_repair_caption_active = false
 		return
 	if not hud.has_method("are_captions_enabled") or not bool(hud.call("are_captions_enabled")):
 		_passive_repair_caption_active = false
