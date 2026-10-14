@@ -290,6 +290,8 @@ func _check(condition: bool, description: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + description)
+	else:
+		print("PASS: " + description)
 
 
 ## Bounded home-handoff setup only. This fixture does not fly to Aurora or
@@ -336,6 +338,7 @@ func _shared_aurora_home_publication_retry() -> void:
 	root.add_child(branch)
 	set_multiplayer(SceneMultiplayer.new(), branch.get_path())
 	var client := Adapter.new()
+	client.name = GameFlow.NETWORK_SESSION_NODE_NAME
 	branch.add_child(client)
 	client.join("127.0.0.1", port)
 	var admitted := await _wait_until(func(): return not client.get_server_offer().is_empty(), 10.0)
