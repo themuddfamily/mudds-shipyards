@@ -1092,6 +1092,11 @@ func _rime_shared_survey_body_route(game: GameFlow, client: Adapter, craft: Hero
 			"a genuine fresh exterior admission keeps the body but cannot inherit its old survey participant grant")
 		if not readmitted:
 			return
+		for target: Vector3 in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)),
+				craft.to_global(Vector3(-8, 0.52, 22))]:
+			if not await _checked_coastal_walk(game, game.network_session, client, body, target,
+					"fresh participant physically exits through the existing cabin and airstair route"):
+				return
 		if not await _checked_coastal_walk(game, game.network_session, client, body,
 				region.to_global(Vector3(-24, 0.5, -16)), "fresh authenticated participant walks back to the beacon"):
 			return
