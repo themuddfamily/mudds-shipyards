@@ -4,7 +4,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 128
+const EXPECTED_ASSERTIONS := 129
 
 class OwnerSubclassProbe extends CommonWorldOriginRebaseOwner:
 	func _init() -> void:
@@ -386,6 +386,21 @@ func _run() -> void:
 			and bool(ember.audit().valid) and bool(aurora.audit().valid),
 		"Aurora's committed rebase streams Aurora's own world in and leaves Ember's generation and adapter intact"
 	)
+
+
+	# The loaded world's presentation return must remain independent of both
+	# the bootstrap's retained result and the real atmosphere rig.
+	var atmosphere_return := aurora._present_environment(aurora._last_body_local_focus,
+		aurora_frame.get_generation(), int(aurora.get_snapshot().location_generation))
+	var atmosphere_retained := aurora.get_snapshot()
+	var atmosphere_rig := (aurora.get("_atmosphere") as PlanetaryAtmosphereComposition).get_atmosphere_rig()
+	var rig_retained := atmosphere_rig.get_snapshot()
+	var atmosphere_accepted := bool(atmosphere_return.get("accepted", false))
+	(atmosphere_return.get("composition", {}) as Dictionary).clear()
+	atmosphere_return["reason"] = &"forged_by_caller"
+	_check(atmosphere_accepted and aurora.get_snapshot() == atmosphere_retained
+		and atmosphere_rig.get_snapshot() == rig_retained,
+		"mutating a loaded atmosphere return cannot change retained bootstrap or rig presentation")
 
 	# A failed commit must roll back exactly as it does for the first world.
 	player.global_position = aurora.global_position + Vector3(0.0, 150_000.0, 0.0)
