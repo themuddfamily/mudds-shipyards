@@ -15122,7 +15122,7 @@ func restore_shared_aurora_survey_checkpoint() -> Dictionary:
 	var payload := store.get_snapshot()
 	var reward_record: Variant = payload.get(String(GameFlowRewardAuthority.SLOT_ID), {})
 	if payload.has(String(GameFlowRewardAuthority.SLOT_ID)):
-		if not GameFlowRewardAuthority.validate_record(reward_record).get("accepted", false):
+		if _game_flow_reward_authority == null or not _game_flow_reward_authority.call(&"validate_record", reward_record).get("accepted", false):
 			return {"accepted": false, "reason": &"aurora_shared_survey_reward_recovery_required"}
 		if int((reward_record.reward_counts as Dictionary).get("aurora_coastal_survey_data", 0)) > 0:
 			return {"accepted": false, "reason": &"aurora_shared_survey_already_recorded"}

@@ -247,4 +247,4 @@ func resume_shared_checkpoint() -> void:
 	_shared_checkpoint_examined = true
 	var restored := _flow.restore_shared_aurora_survey_checkpoint()
 	if bool(restored.get("accepted", false)):
-		_flow.hud.toast("Coastal observations restored", "Your host's optional survey progress is available. Crew must board and reach this visit through the current session.", 5.0)
+		_flow.hud.toast("Coastal observations restored", "Your saved observations are available. Continue the coastal survey or reboard whenever ready.", 5.0)
