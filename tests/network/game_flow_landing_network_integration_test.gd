@@ -1335,8 +1335,9 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 		_check(boarded, "the new session's real boarding ledger creates a fresh confirmed cabin body")
 		if not boarded:
 			var ledger := fresh.network_session.get_boarding_snapshot()
-			var cabin := craft.get_in_flight_cabin_report()
+			var cabin := craft.get_in_flight_cabin_report() if is_instance_valid(craft) else {}
 			var frame := cabin.get("frame") as MovingInteriorFrame
+			var scene: Variant = owner.get("_surface")
 			print("SHARED_RESTORE_BOARDING_REFUSAL: ", {
 				"peer_id": client.multiplayer.get_unique_id(), "avatar_id": avatar,
 				"request": request, "sent": sent, "response": client.get_boarding_intent_result_replica(),
@@ -1345,16 +1346,18 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 				"admitted_peers": fresh.network_session.get_admitted_peer_ids(), "boarding_ledger": ledger,
 				"crew_roles": fresh.network_session.get_crew_role_snapshot(),
 				"body_audit": fresh.get_network_remote_body_audit(),
-				"registered_ships": fresh._network_boarding_entities.keys(), "ship_id": craft.get_ship_id(),
-				"craft_id": craft.get_instance_id(), "active_craft": fresh.active_ship == craft,
+				"registered_ships": fresh._network_boarding_entities.keys(), "ship_id": request.ship_id,
+				"craft_id": craft.get_instance_id() if is_instance_valid(craft) else 0, "active_craft": is_instance_valid(craft) and fresh.active_ship == craft,
 				"cabin_supported": cabin.get("supported"), "frame_valid": is_instance_valid(frame),
 				"frame_in_tree": frame.is_inside_tree() if is_instance_valid(frame) else false,
 				"frame_craft_current": frame.get_moving_frame() == craft if is_instance_valid(frame) else false,
-				"physical_dock": craft.get_landing_contract_report(), "engine": craft.get_telemetry().get("engine_state"),
+				"physical_dock": craft.get_landing_contract_report() if is_instance_valid(craft) else {},
+				"engine": craft.get_telemetry().get("engine_state") if is_instance_valid(craft) else &"",
 				"journey": fresh.get_network_planetary_journey_snapshot(), "visit_state": owner.state,
 				"restored_context": owner.get("_restored_surface_context"),
-				"scene_id": owner.get("_surface").get_instance_id(),
-				"berth_occupied": berth.get_occupant() == craft, "lease_token": berth.get_reservation_token(craft),
+				"scene_id": scene.get_instance_id() if is_instance_valid(scene) else 0,
+				"berth_occupied": is_instance_valid(berth) and is_instance_valid(craft) and berth.get_occupant() == craft,
+				"lease_token": berth.get_reservation_token(craft) if is_instance_valid(berth) and is_instance_valid(craft) else &"",
 			})
 		if boarded:
 			var simulation := fresh.get_network_remote_body_simulation()
