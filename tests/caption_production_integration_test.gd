@@ -164,7 +164,7 @@ func _run() -> void:
 	var snapshot := game.get_caption_presentation_snapshot()
 	var applied := hud.get_caption_presentation_snapshot()
 	var visible_report := hud.get_caption_presentation_report()
-	var expected_category := "[SYSTEM]  MED · P60 · %ds" % ceili(
+	var expected_category := "[SYSTEM]  MED · %ds" % ceili(
 		float(snapshot.caption.remaining_physics_seconds)
 	)
 	_check(
@@ -179,6 +179,7 @@ func _run() -> void:
 	_check(
 		bool(visible_report.visible)
 		and str(visible_report.rendered_category) == expected_category
+		and not str(visible_report.rendered_category).contains("P60")
 		and str(visible_report.rendered_speaker) == "SOURCE · Range control"
 		and str(visible_report.rendered_text) == "[ range target destroyed ]"
 		and not bool(visible_report.text_clipped)
