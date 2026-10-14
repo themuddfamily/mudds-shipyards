@@ -310,18 +310,20 @@ const BASELINE_RENDER_DESCENDANT_NODE_COUNT := 1204
 # thirteen fewer nodes/renderers/submissions and six fewer drawn mesh recipes.
 # Five arc instances represent the same seventy tubes, so the drawn-instance
 # census falls by sixty-five while actual triangle totals remain unchanged.
-const RENDER_DESCENDANT_NODE_COUNT := 1159
+# Twenty decorative rack knobs now share one bank-local renderer. All twenty
+# copies keep the exact turned-stock recipe and poses; nineteen nodes vanish.
+const RENDER_DESCENDANT_NODE_COUNT := 1140
 const BASELINE_RENDERER_NODE_COUNT := 868
 # Two Ship Services displays now use engine-managed glyph atlases. Keep their
 # authored display slots separate from explicit mesh submissions/resources.
 const SHIP_SERVICE_ATLAS_DISPLAY_COUNT := 2
-const AUTHORED_DISPLAY_NODE_COUNT := 744
+const AUTHORED_DISPLAY_NODE_COUNT := 725
 const RENDERER_NODE_COUNT := AUTHORED_DISPLAY_NODE_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_DRAWN_COPY_COUNT := 878
 const AUTHORED_DISPLAY_COPY_COUNT := 832
 const DRAWN_COPY_COUNT := AUTHORED_DISPLAY_COPY_COUNT - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_SURFACE_SUBMISSION_COUNT := 868
-const SURFACE_SUBMISSION_COUNT := 744 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
+const SURFACE_SUBMISSION_COUNT := 725 - SHIP_SERVICE_ATLAS_DISPLAY_COUNT
 const BASELINE_MESH_RESOURCE_COUNT := 332
 # The former header and status each owned one unique TextMesh. The former
 # cyan material was private to the header; the amber material remains on the
@@ -4707,6 +4709,13 @@ func _build_watch_rack_bank(content: Node3D) -> void:
 	bank.name = "WatchRackBank"
 	content.add_child(bank)
 	var rack_card_transforms: Array[Transform3D] = []
+	var rack_knob_transforms: Array[Transform3D] = []
+	var rack_knob_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+	var rack_knob_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		0.032, 0.032, 0.03,
+		StationSurfaceKit.radial_segments_for(0.032, TorusGeometryBudget.NEAR_EYE_METRES),
+		_chamfered_cylinder_cache
+	)
 
 	# The tray is what makes three boxes read as installed plant rather than as
 	# three boxes. It runs the length of the bank and turns east into the service
@@ -4817,16 +4826,8 @@ func _build_watch_rack_bank(content: Node3D) -> void:
 			_box(bank, "RackModuleVent", Vector3(rack_x - 0.36, module_y, 9.985), Vector3(0.46, 0.17, 0.02), _materials["graphite"], false)
 			_box(bank, "RackModuleReadout", Vector3(rack_x + 0.30, module_y + 0.03, 9.985), Vector3(0.40, 0.10, 0.015), _materials["screen_dark"], false)
 			for knob_index in 2:
-				_cylinder(
-					bank,
-					"RackModuleKnob",
-					Vector3(rack_x + 0.16 + float(knob_index) * 0.20, module_y - 0.08, 9.995),
-					0.032,
-					0.03,
-					_materials["brass"],
-					false,
-					Vector3(90, 0, 0)
-				)
+				rack_knob_transforms.append(Transform3D(rack_knob_basis,
+					Vector3(rack_x + 0.16 + float(knob_index) * 0.20, module_y - 0.08, 9.995)))
 
 		# Status lens and breaker. Both read the same state two different ways, and
 		# neither of them is a repaint: the lit lens throws a real practical, the
@@ -4859,6 +4860,10 @@ func _build_watch_rack_bank(content: Node3D) -> void:
 			Vector3(-26 if in_service else 26, 0, 0)
 		)
 
+	# These stationary knobs have no independent state or authority. Their
+	# original bank-local poses and shared brass finish survive one submission.
+	_multimesh_mesh(bank, "RackModuleKnobBatch", rack_knob_mesh,
+		_materials["brass"], rack_knob_transforms)
 	_rack_card_batch = _multimesh_rounded_box(
 		bank,
 		"RackCardRenderBatch",

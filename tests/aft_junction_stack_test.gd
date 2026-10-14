@@ -806,6 +806,36 @@ func _test_operations_contents(module: AftJunctionStack) -> void:
 	var service_wall := module.get_service_wall()
 	_check(service_wall != null and bool(service_wall.get_meta("station_service_wall", false)), "service wall is present and semantically tagged")
 
+	var bank := module.get_node(^"Structure/OperationsRoom/OperationsContent/WatchRackBank") as Node3D
+	var knobs := bank.get_node_or_null(^"RackModuleKnobBatch") as MultiMeshInstance3D
+	_check(knobs != null and knobs.multimesh != null,
+		"twenty static watch-rack knobs use one bank-local renderer")
+	if knobs != null and knobs.multimesh != null:
+		var poses: Array[Transform3D] = []
+		var knob_basis := Basis.from_euler(Vector3(deg_to_rad(90.0), 0.0, 0.0))
+		for rack_index in 3:
+			for module_index in 4:
+				if rack_index == 1 and module_index in [1, 2]:
+					continue
+				for knob_index in 2:
+					poses.append(Transform3D(knob_basis, Vector3(
+						5.15 + float(rack_index) * 1.75 + 0.16 + float(knob_index) * 0.20,
+						0.46 + float(module_index) * 0.44 - 0.08, 9.995)))
+		var expected_mesh := StationSurfaceKit.chamfered_cylinder_mesh_cached(
+			0.032, 0.032, 0.03,
+			StationSurfaceKit.radial_segments_for(0.032, TorusGeometryBudget.NEAR_EYE_METRES),
+			module.get("_chamfered_cylinder_cache") as Dictionary)
+		_check(knobs.multimesh.mesh == expected_mesh
+			and knobs.multimesh.instance_count == 20 and knobs.multimesh.visible_instance_count == 20
+			and knobs.multimesh.buffer == AftJunctionStack._encode_multimesh_transforms(poses)
+			and knobs.multimesh.custom_aabb.is_equal_approx(AftJunctionStack._transformed_mesh_bounds(expected_mesh.get_aabb(), poses))
+			and knobs.get_meta("authored_instance_transforms") == poses and knobs.transform == Transform3D.IDENTITY
+			and knobs.material_override == (module.get("_materials") as Dictionary)["brass"]
+			and knobs.layers == 1 and knobs.lod_bias == 1.0 and knobs.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			and knobs.get_child_count() == 0 and knobs.get_script() == null and knobs.get_groups().is_empty()
+			and bank.find_children("RackModuleKnob*", "MeshInstance3D", false, false).is_empty(),
+			"knob batch preserves twenty exact shared-mesh copies, transforms, bounds, brass and render state without old renderers or authority")
+
 	var room := module.get_node(^"Structure/OperationsRoom") as Node3D
 	var sign := room.get_node_or_null(^"Sign_AFT_OPERATIONS") as MeshInstance3D
 	_check(sign != null and sign.mesh is TextMesh and (sign.mesh as TextMesh).text == "AFT OPERATIONS",
@@ -1149,13 +1179,13 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_mesh_resource_allocations": 4,
 		}
 		and report.current == {
-			"descendant_nodes": 1159,
-			"renderer_nodes": 742,
+			"descendant_nodes": 1140,
+			"renderer_nodes": 723,
 			"drawn_copies": 830,
 			"atlas_display_nodes": 2,
-			"authored_display_nodes": 744,
+			"authored_display_nodes": 725,
 			"authored_display_copies": 832,
-			"surface_submissions": 742,
+			"surface_submissions": 723,
 			"mesh_resource_allocations": 301,
 			"material_resource_allocations": 38,
 			"family_visual_nodes": 4,
@@ -1163,7 +1193,7 @@ func _test_pod_corner_collar_visual_resource_sharing(
 			"family_surface_submissions": 4,
 			"family_mesh_resource_allocations": 1,
 		},
-		"shared collar families plus all three station consoles freeze 1159 descendants, 744 display slots (742 mesh submissions + two atlas labels), 832 displayed copies, and 301 mesh allocations"
+		"static knob batching freezes 1140 descendants, 725 display slots (723 mesh submissions + two atlas labels), 832 displayed copies, and 301 mesh allocations"
 	)
 	_check(
 		report.reductions == {
