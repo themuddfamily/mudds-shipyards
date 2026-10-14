@@ -2050,7 +2050,8 @@ func _planetary_cruise_query_full_sweep(
 	# A live empty conservative volume proves every pose of this complete root
 	# sweep. Avoid costly native long casts only when that stronger whole-span
 	# query is clear; an occupied or invalid volume retains the original path.
-	if depth == 0 and not recheck_refusal:
+	if depth == 0 and not recheck_refusal \
+			and motion.length() > PLANETARY_CRUISE_CLEARANCE_SPLIT_MIN_METERS:
 		var enclosure := query.shape as BoxShape3D
 		if query.shape is CylinderShape3D:
 			var cylinder := query.shape as CylinderShape3D
