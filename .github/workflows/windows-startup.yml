@@ -7,12 +7,16 @@ on:
       - 'tools/release/run_windows_startup_check.ps1'
       - 'tools/release/windows_startup_process.cs'
       - 'tools/release/test_windows_startup_check.ps1'
+      - 'tools/release/run_windows_interruption_check.ps1'
+      - 'tools/release/test_windows_interruption_check.ps1'
       - '.github/workflows/windows-startup.yml'
   pull_request:
     paths:
       - 'tools/release/run_windows_startup_check.ps1'
       - 'tools/release/windows_startup_process.cs'
       - 'tools/release/test_windows_startup_check.ps1'
+      - 'tools/release/run_windows_interruption_check.ps1'
+      - 'tools/release/test_windows_interruption_check.ps1'
       - '.github/workflows/windows-startup.yml'
   workflow_dispatch:
 
@@ -22,7 +26,7 @@ permissions:
 jobs:
   startup-runner-fixtures:
     runs-on: windows-2022
-    timeout-minutes: 10
+    timeout-minutes: 18
     defaults:
       run:
         # The fixture launches $PSHOME/powershell.exe; pwsh is incompatible.
@@ -63,5 +67,43 @@ jobs:
             ${{ runner.temp }}/windows-startup-${{ github.run_id }}-${{ github.run_attempt }}/**/*.json
             ${{ runner.temp }}/windows-startup-${{ github.run_id }}-${{ github.run_attempt }}/**/*.log
             ${{ runner.temp }}/windows-startup-${{ github.run_id }}-${{ github.run_attempt }}-harness.log
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Run native Windows interruption protocol and second-leg abort fixtures
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        env:
+          FIXTURE_DIRECTORY: ${{ runner.temp }}/windows-interruption-${{ github.run_id }}-${{ github.run_attempt }}
+          FIXTURE_TRANSCRIPT: ${{ runner.temp }}/windows-interruption-${{ github.run_id }}-${{ github.run_attempt }}-harness.log
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($PSVersionTable.PSEdition -ne 'Desktop') {
+            throw 'The fixture requires Windows PowerShell.'
+          }
+          $testDirectory = [IO.Path]::GetFullPath($env:FIXTURE_DIRECTORY)
+          foreach ($protected in @($env:APPDATA, $env:LOCALAPPDATA, $env:XDG_DATA_HOME, $env:XDG_CONFIG_HOME, (Join-Path $env:USERPROFILE 'Downloads'))) {
+            if ([string]::IsNullOrEmpty($protected)) { continue }
+            $prefix = [IO.Path]::GetFullPath($protected).TrimEnd([IO.Path]::DirectorySeparatorChar)
+            if ($testDirectory.Equals($prefix, [StringComparison]::OrdinalIgnoreCase) -or
+                $testDirectory.StartsWith($prefix + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+              throw 'Interruption fixture output must stay outside real application data, XDG roots and Downloads.'
+            }
+          }
+          if (Test-Path -LiteralPath $testDirectory) { throw 'Fixture directory must be fresh.' }
+          Start-Transcript -Path $env:FIXTURE_TRANSCRIPT -NoClobber
+          try {
+            & ./tools/release/test_windows_interruption_check.ps1 -TestDirectory $testDirectory
+          } finally {
+            Stop-Transcript
+          }
+      - name: Retain interruption fixture results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-interruption-runner-fixtures
+          path: |
+            ${{ runner.temp }}/windows-interruption-${{ github.run_id }}-${{ github.run_attempt }}/**/*.json
+            ${{ runner.temp }}/windows-interruption-${{ github.run_id }}-${{ github.run_attempt }}/**/*.log
+            ${{ runner.temp }}/windows-interruption-${{ github.run_id }}-${{ github.run_attempt }}-harness.log
           retention-days: 7
           if-no-files-found: warn

@@ -1,0 +1,311 @@
+{
+  "status": "PASS",
+  "artifact": "\\\\wsl.localhost\\Ubuntu\\root\\mudds-shipyards\\builds\\windows\\MuddsShipyards-c8d8b59.exe",
+  "expected_exe_sha256": "98692f95413501b656b624cbe78e760f3d670aaef6ef51e00f101be7331cf941",
+  "timeout_seconds": 300,
+  "recovery_context": "crew",
+  "activity": "convoy",
+  "harness_pid": 156956,
+  "windows_version": "Microsoft Windows NT 10.0.26200.0",
+  "private_root": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e",
+  "scope": "native Windows headless compiled Boot convoy fixture OS interruption and safe-home recovery",
+  "native_gpu": "NOT_RUN",
+  "normal_controls": "NOT_RUN",
+  "original_flight_pose_restore": "NOT_SUPPORTED",
+  "audible_audio": "NOT_RUN",
+  "remote_crew": "NOT_RUN",
+  "human_review": "NOT_RUN",
+  "full_release": "NOT_RUN",
+  "processes": [
+    {
+      "result_directory": "\\\\wsl.localhost\\Ubuntu\\root\\.cache\\mudds-shipyards\\roadmap-work\\native-windows-recovery-command\\roadmap-validation\\native-windows-recovery-command\\native-crew",
+      "pid": 76740,
+      "termination": "TerminateJobObject",
+      "wall_ms": 21662,
+      "final_job_active_processes": 0,
+      "diagnostics": [],
+      "arguments": "--headless --audio-driver Dummy --in-world-interruption-stage=arm --in-world-interruption-context=crew --in-world-interruption-activity=convoy --log-file \"C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\arm-godot.log\"",
+      "job_token": "d3ee8fd974ca4dd2a3206223be381080",
+      "stage": "arm",
+      "run_token": "7602b44133c74c418ccdcf6822c59585",
+      "start_time_utc": "2026-10-14T02:13:35.3049580Z",
+      "exit_code": 1,
+      "exe": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\package\\MuddsShipyards-c8d8b59.exe",
+      "private_root": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e"
+    },
+    {
+      "result_directory": "\\\\wsl.localhost\\Ubuntu\\root\\.cache\\mudds-shipyards\\roadmap-work\\native-windows-recovery-command\\roadmap-validation\\native-windows-recovery-command\\native-crew",
+      "pid": 165788,
+      "wall_ms": 16811,
+      "final_job_active_processes": 0,
+      "diagnostics": [],
+      "arguments": "--headless --audio-driver Dummy --in-world-interruption-stage=resume --in-world-interruption-context=crew --in-world-interruption-activity=convoy --log-file \"C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\resume-godot.log\"",
+      "job_token": "9f642ad4d9014b29b4cf9d18a5028c99",
+      "stage": "resume",
+      "run_token": "7602b44133c74c418ccdcf6822c59585",
+      "start_time_utc": "2026-10-14T02:13:57.3316878Z",
+      "exit_code": 0,
+      "exe": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\package\\MuddsShipyards-c8d8b59.exe",
+      "private_root": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e"
+    }
+  ],
+  "source_sha256": "98692f95413501b656b624cbe78e760f3d670aaef6ef51e00f101be7331cf941",
+  "exe_sha256": "98692f95413501b656b624cbe78e760f3d670aaef6ef51e00f101be7331cf941",
+  "environment": {
+    "APPDATA": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\AppData\\Roaming",
+    "LOCALAPPDATA": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\AppData\\Local",
+    "TEMP": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\Temp",
+    "TMP": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\Temp",
+    "TMPDIR": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\TmpDir",
+    "XDG_CONFIG_HOME": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\XDG\\Config",
+    "XDG_CACHE_HOME": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\XDG\\Cache",
+    "XDG_DATA_HOME": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\XDG\\Data",
+    "XDG_STATE_HOME": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\XDG\\State",
+    "XDG_CONFIG_DIRS": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\XDG\\ConfigDirs",
+    "XDG_DATA_DIRS": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\XDG\\DataDirs",
+    "XDG_RUNTIME_DIR": "C:\\Users\\themu\\AppData\\Local\\Temp\\Mudds interruption e5256d1298644b18b3901591efe2c68e\\profile\\XDG\\Runtime"
+  },
+  "HOME_preserved": true,
+  "USERPROFILE_preserved": true,
+  "ready": {
+    "boundary": {
+      "activity_id": "cinder_reach_emberline_convoy",
+      "activity_kind": "convoy_escort",
+      "escort_ship_id": "halyard_new_design",
+      "host_state": {
+        "activity_id": "cinder_reach_emberline_convoy",
+        "activity_state": {
+          "activity_id": "cinder_reach_emberline_convoy",
+          "configured_escort_proximity_radius": 42.0,
+          "configured_maximum_separation_seconds": 3.0,
+          "configured_timeout_seconds": 90.0,
+          "convoy_generation": 2.0,
+          "convoy_id": "emberline_supply_tender",
+          "convoy_position": {
+            "x": 93.5391464233398,
+            "y": -66.092170715332,
+            "z": -745.940002441406
+          },
+          "convoy_status": 2.0,
+          "elapsed_seconds": 1.0,
+          "escort_distance": 20.4186534881592,
+          "escort_position": {
+            "x": 91.1543579101563,
+            "y": -46.5691299438477,
+            "z": -740.455017089844
+          },
+          "generation": 3.0,
+          "has_entity_sample": true,
+          "next_leg_index": 1.0,
+          "sample_count": 9.0,
+          "schema_version": 1.0,
+          "separation_elapsed_seconds": 0.0,
+          "state": 3.0,
+          "terminal_reason": "convoy_reported_lost",
+          "terminal_result": 3.0
+        },
+        "arrival_committed": false,
+        "arrival_id": "cinder_convoy_safe_arrival",
+        "configured_movement_speed": 24.0,
+        "convoy_id": "emberline_supply_tender",
+        "entity_generation": 2.0,
+        "entity_position": {
+          "x": 93.5391464233398,
+          "y": -66.092170715332,
+          "z": -745.940002441406
+        },
+        "entity_status": 2.0,
+        "has_escort_sample": true,
+        "last_entity_position": {
+          "x": 93.5391464233398,
+          "y": -66.092170715332,
+          "z": -745.940002441406
+        },
+        "last_escort_position": {
+          "x": 91.1543579101563,
+          "y": -46.5691299438477,
+          "z": -740.455017089844
+        },
+        "movement_backlog": 0.0,
+        "movement_distance": 24.0,
+        "next_route_index": 1.0,
+        "phase_id": "escort",
+        "physics_tick_count": 4.0,
+        "reward_granted": false,
+        "reward_id": "return_convoy_credit_to_shipyard",
+        "reward_requested": false,
+        "route_resource_path": "res://assets/activities/cinder_reach_emberline_convoy_route.tres",
+        "sample_publication_count": 9.0,
+        "schema_version": 1.0
+      },
+      "phase_id": "escort",
+      "schema_version": 2.0,
+      "stream_location_id": "cinder_reach",
+      "threat_state": {
+        "attack_clock": -2.0,
+        "attacker_health": 35.0,
+        "attacker_neutralized": false,
+        "generation": 3.0,
+        "schema_version": 1.0,
+        "shots_fired": 0.0,
+        "tender_health": 75.0
+      }
+    },
+    "entry": "startup_completed",
+    "loaded_main_instance_id": 248286022031,
+    "receipts": 1,
+    "recovery_context": "crew",
+    "runtime_observation": {
+      "cabin_containment": true,
+      "craft_id": "halyard_new_design",
+      "craft_instance_id": 254074161883,
+      "craft_piloted": false,
+      "craft_position": [
+        91.1543579101563,
+        -46.5691299438477,
+        -742.454956054688
+      ],
+      "phase": 14,
+      "piloting": false,
+      "player_control_enabled": true,
+      "player_instance_id": 251456916031,
+      "player_on_floor": false,
+      "player_seated": true,
+      "player_sleeping": false
+    }
+  },
+  "recovered": {
+    "assertions": 13,
+    "boundary": {
+      "activity_id": "cinder_reach_emberline_convoy",
+      "activity_kind": "convoy_escort",
+      "escort_ship_id": "halyard_new_design",
+      "host_state": {
+        "activity_id": "cinder_reach_emberline_convoy",
+        "activity_state": {
+          "activity_id": "cinder_reach_emberline_convoy",
+          "configured_escort_proximity_radius": 42.0,
+          "configured_maximum_separation_seconds": 3.0,
+          "configured_timeout_seconds": 90.0,
+          "convoy_generation": 2.0,
+          "convoy_id": "emberline_supply_tender",
+          "convoy_position": {
+            "x": 93.5391464233398,
+            "y": -66.092170715332,
+            "z": -745.940002441406
+          },
+          "convoy_status": 2.0,
+          "elapsed_seconds": 1.0,
+          "escort_distance": 20.4186534881592,
+          "escort_position": {
+            "x": 91.1543579101563,
+            "y": -46.5691299438477,
+            "z": -740.455017089844
+          },
+          "generation": 3.0,
+          "has_entity_sample": true,
+          "next_leg_index": 1.0,
+          "sample_count": 9.0,
+          "schema_version": 1.0,
+          "separation_elapsed_seconds": 0.0,
+          "state": 3.0,
+          "terminal_reason": "convoy_reported_lost",
+          "terminal_result": 3.0
+        },
+        "arrival_committed": false,
+        "arrival_id": "cinder_convoy_safe_arrival",
+        "configured_movement_speed": 24.0,
+        "convoy_id": "emberline_supply_tender",
+        "entity_generation": 2.0,
+        "entity_position": {
+          "x": 93.5391464233398,
+          "y": -66.092170715332,
+          "z": -745.940002441406
+        },
+        "entity_status": 2.0,
+        "has_escort_sample": true,
+        "last_entity_position": {
+          "x": 93.5391464233398,
+          "y": -66.092170715332,
+          "z": -745.940002441406
+        },
+        "last_escort_position": {
+          "x": 91.1543579101563,
+          "y": -46.5691299438477,
+          "z": -740.455017089844
+        },
+        "movement_backlog": 0.0,
+        "movement_distance": 24.0,
+        "next_route_index": 1.0,
+        "phase_id": "escort",
+        "physics_tick_count": 4.0,
+        "reward_granted": false,
+        "reward_id": "return_convoy_credit_to_shipyard",
+        "reward_requested": false,
+        "route_resource_path": "res://assets/activities/cinder_reach_emberline_convoy_route.tres",
+        "sample_publication_count": 9.0,
+        "schema_version": 1.0
+      },
+      "phase_id": "escort",
+      "schema_version": 2.0,
+      "stream_location_id": "cinder_reach",
+      "threat_state": {
+        "attack_clock": -2.0,
+        "attacker_health": 35.0,
+        "attacker_neutralized": false,
+        "generation": 3.0,
+        "schema_version": 1.0,
+        "shots_fired": 0.0,
+        "tender_health": 75.0
+      }
+    },
+    "continuation_method": "real_awake_home_cabin_walk_then_pilot_retake_new_convoy_escort_motion_fixture",
+    "crash_events": 1,
+    "entry": "startup_completed",
+    "loaded_main_instance_id": 248403462543,
+    "receipts_after": 2,
+    "receipts_before": 1,
+    "recovery_context": "crew",
+    "runtime_observation": {
+      "cabin_containment": false,
+      "craft_id": "torrent_provisional",
+      "craft_instance_id": 252312554091,
+      "craft_piloted": false,
+      "craft_position": [
+        0.0,
+        1.14999997615814,
+        -10.0
+      ],
+      "phase": 0,
+      "piloting": false,
+      "player_control_enabled": false,
+      "player_instance_id": 251574356543,
+      "player_on_floor": true,
+      "player_seated": false,
+      "player_sleeping": false
+    },
+    "safe_recovery_observation": {
+      "cabin_containment": true,
+      "craft_id": "halyard_new_design",
+      "craft_instance_id": 254191602395,
+      "craft_piloted": false,
+      "craft_position": [
+        37.0,
+        5.28000020980835,
+        53.2999992370605
+      ],
+      "phase": 14,
+      "piloting": false,
+      "player_control_enabled": true,
+      "player_instance_id": 251574356543,
+      "player_on_floor": true,
+      "player_seated": false,
+      "player_sleeping": false
+    }
+  },
+  "final_owned_actors": [],
+  "protected_real_game_data_unchanged": true,
+  "private_root_removed": true,
+  "source_unchanged": true,
+  "parent_environment_preserved": true
+}

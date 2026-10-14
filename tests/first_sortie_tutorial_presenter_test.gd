@@ -46,11 +46,44 @@ func _run() -> void:
 	_check(fire.title == "Fire at range targets" and fire.prompt.contains("marked RANGE TARGET") and fire.prompt.contains("LMB") and fire.prompt.contains("REACQUIRE THE MARKED RANGE TARGET"), "range-target prompt resolves glyph and recovery")
 	var landing := presenter.present_snapshot({
 		"step_id": &"return_land", "generation": 4, "revision": 4,
-		"glyphs": {&"landing_assist": "L", &"brake": "Down"},
+		"input_family": &"controller",
+		"glyphs": {&"landing_assist": "Y", &"brake": "LT"},
 	})
-	_check(landing.prompt.contains("Press L") and landing.prompt.contains("hold Down") and landing.prompt.contains("FOLLOW RETURN VECTOR"), "return prompt teaches mapped landing-assist and braking controls")
+	_check(
+		landing.prompt.contains("Hold LT")
+		and landing.prompt.contains("then press Y")
+		and landing.prompt.find("Follow the return vector") < landing.prompt.find("then press Y")
+		and landing.prompt.contains("available compatible berth approach")
+		and landing.prompt.contains("Level the craft")
+		and landing.prompt.contains("Wait for automatic docking to finish")
+		and landing.recovery == "ASSIST REFUSED // CHECK APPROACH, SPEED AND ATTITUDE; RETRY",
+		"controller return help teaches capture conditions before mapped assist and the refused-request retry",
+	)
+	var keyboard_landing := presenter.present_snapshot({
+		"step_id": &"return_land", "generation": 4, "revision": 4,
+		"input_family": &"keyboard",
+		"glyphs": {&"landing_assist": "Enter", &"brake": "Space"},
+	})
+	_check(
+		keyboard_landing.accepted
+		and keyboard_landing.prompt.contains("Hold Space")
+		and keyboard_landing.prompt.contains("then press Enter")
+		and keyboard_landing.prompt.contains("available compatible berth approach")
+		and keyboard_landing.prompt.contains("Level the craft")
+		and keyboard_landing.prompt.contains("Wait for automatic docking to finish"),
+		"keyboard return help resolves remapped controls without changing the approach sequence",
+	)
 	var accessible := presenter.present_snapshot({"step_id": &"return_land", "generation": 4, "revision": 5, "accessible": true})
-	_check(accessible.prompt == accessible.accessible_prompt and accessible.prompt.contains("FOLLOW RETURN VECTOR"), "accessible return prompt retains descriptive next-action status")
+	_check(
+		accessible.prompt == accessible.accessible_prompt
+		and accessible.prompt.contains("available compatible berth approach")
+		and accessible.prompt.contains("Brake to slow down. Level the craft, then use the landing assist control")
+		and accessible.prompt.contains("Wait for automatic docking to finish")
+		and accessible.prompt.contains("FOLLOW RETURN VECTOR")
+		and accessible.prompt.contains("CHECK APPROACH, SPEED AND ATTITUDE; RETRY")
+		and not accessible.prompt.contains("{"),
+		"accessible return help teaches the same capture conditions, docking wait and retry without glyphs",
+	)
 	var stale_revision := presenter.present_snapshot({"step_id": &"board", "generation": 4, "revision": 4})
 	_check(not stale_revision.accepted and stale_revision.reason == &"stale_revision" and presenter.get_snapshot().step_id == &"return_land", "older step cannot replace newer authoritative progress")
 	var stale_generation := presenter.present_snapshot({"step_id": &"exit", "generation": 3, "revision": 9})

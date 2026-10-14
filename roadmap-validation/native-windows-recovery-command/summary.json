@@ -1,0 +1,120 @@
+{
+  "status": "PASS",
+  "completed_at_utc": "2026-10-14T02:15:39.967604+00:00",
+  "roadmap_outcome": "ROADMAP section 6 native Windows OS interruption and safe-home recovery command",
+  "driver_base_commit": "ced450167db727e75e298a89510de3f032a5f8ac",
+  "compiled_game_source_commit": "c8d8b5968975b76d7e6fd1438866a80a393a555b",
+  "artifact": "builds/windows/MuddsShipyards-c8d8b59.exe",
+  "exe_sha256": "98692f95413501b656b624cbe78e760f3d670aaef6ef51e00f101be7331cf941",
+  "source_hashes": {
+    "tools/release/run_windows_interruption_check.ps1": "8cb929aa3f36b17683c1306e430661adaf8b73b1d7ac33ded49979f5383ed35e",
+    "tools/release/test_windows_interruption_check.ps1": "46dc3b5f47ffbb7b25d60f0988625f761c5c241ef0674ba45a168e8eacf65cf7",
+    "tools/release/windows_startup_process.cs": "2f1eb68f1c6e7d5575a4e11908a942802843e4963a94ec9344b4ea20a1cb90a9"
+  },
+  "managed_cases": {
+    "count": 7,
+    "status": "PASS",
+    "results": "managed-accepted/test-results.json",
+    "intentionally_failing_runner_cases_are_expected": true
+  },
+  "native_windows_contexts": {
+    "pilot": {
+      "status": "PASS",
+      "result": "native-pilot/result.json",
+      "arm_exit_code": 1,
+      "resume_exit_code": 0,
+      "leg_wall_ms": {
+        "arm": 15800,
+        "resume": 14054
+      },
+      "receipts_before": 1,
+      "receipts_after": 2,
+      "crash_events": 1,
+      "continuation_method": "real_safe_home_berth_boarding_then_escort_motion_fixture",
+      "owned_actors_after": 0,
+      "private_root_removed": true,
+      "protected_real_game_data_unchanged": true
+    },
+    "cabin": {
+      "status": "PASS",
+      "result": "native-cabin/result.json",
+      "arm_exit_code": 1,
+      "resume_exit_code": 0,
+      "leg_wall_ms": {
+        "arm": 20248,
+        "resume": 16535
+      },
+      "receipts_before": 1,
+      "receipts_after": 2,
+      "crash_events": 1,
+      "continuation_method": "real_awake_home_cabin_walk_then_pilot_retake_new_convoy_escort_motion_fixture",
+      "owned_actors_after": 0,
+      "private_root_removed": true,
+      "protected_real_game_data_unchanged": true
+    },
+    "rest": {
+      "status": "PASS",
+      "result": "native-rest/result.json",
+      "arm_exit_code": 1,
+      "resume_exit_code": 0,
+      "leg_wall_ms": {
+        "arm": 21924,
+        "resume": 16916
+      },
+      "receipts_before": 1,
+      "receipts_after": 2,
+      "crash_events": 1,
+      "continuation_method": "real_awake_home_cabin_walk_then_pilot_retake_new_convoy_escort_motion_fixture",
+      "owned_actors_after": 0,
+      "private_root_removed": true,
+      "protected_real_game_data_unchanged": true
+    },
+    "crew": {
+      "status": "PASS",
+      "result": "native-crew/result.json",
+      "arm_exit_code": 1,
+      "resume_exit_code": 0,
+      "leg_wall_ms": {
+        "arm": 21662,
+        "resume": 16811
+      },
+      "receipts_before": 1,
+      "receipts_after": 2,
+      "crash_events": 1,
+      "continuation_method": "real_awake_home_cabin_walk_then_pilot_retake_new_convoy_escort_motion_fixture",
+      "owned_actors_after": 0,
+      "private_root_removed": true,
+      "protected_real_game_data_unchanged": true
+    }
+  },
+  "scope": "Four actual native Windows headless compiled Boot convoy fixture arm/TerminateJobObject/resume pairs; each context owns an independent fresh private profile. Four contexts ran concurrently. No exported script override, desktop input or audible audio.",
+  "caps": "Unchanged 300-second maximum/default per game leg; bounded Job teardown and stream draining.",
+  "closure": {
+    "shared_csharp_helper_unchanged": true,
+    "artifact_source_unchanged": true,
+    "HOME_USERPROFILE_preserved": true,
+    "parent_environment_preserved": true,
+    "protected_real_game_data_unchanged": true,
+    "all_native_jobs_empty": true,
+    "all_native_private_roots_removed": true,
+    "native_driver_exits": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "native_diagnostics": []
+  },
+  "qualification_limits": {
+    "native_GPU": "NOT_RUN",
+    "ordinary_human_controls": "NOT_RUN",
+    "original_airborne_pose_restore": "NOT_SUPPORTED",
+    "remote_crew": "NOT_RUN",
+    "audible_audio": "NOT_RUN",
+    "human_review": "NOT_RUN",
+    "current_game_full_CI": "NOT_QUALIFIED",
+    "current_game_main_runtime_integration": "NOT_QUALIFIED",
+    "full_release": "NOT_RUN"
+  },
+  "raw_evidence_directory": "/root/.cache/mudds-shipyards/roadmap-validation/native-windows-recovery-command"
+}

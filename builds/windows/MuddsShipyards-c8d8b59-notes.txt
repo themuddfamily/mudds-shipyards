@@ -1,0 +1,23 @@
+Mudd's Shipyards Windows checkpoint — c8d8b5968975b76d7e6fd1438866a80a393a555b
+
+Player-visible changes
+Rime low heat now says to warm up and continue; an exhausted heater requires a fresh beacon survey. Aurora and Rime help name the standing stones and ridge gauge for retrying an unsaved reward, with readings retained. Both explain optional on-foot admission, abandonment and boarding, preserving remapped controls and accessible help.
+The previous abandoned Ember return fixes preserve its authenticated owner across origin rebases and enter ordinary yard return after the home approach. Latest Habitat complete-arc and trestle-foot batching, plus Convoy/combat briefings, remain included.
+
+Validation actually performed
+Fresh clean-source cold import passes; source presenter 277 and activity briefings 33 pass, including the corrected Torpedo Run counter regression. Existing safe Windows release export passes with a 900-second cap using the verified previous 601-file Windows import cache; fresh cold-import cache is preserved separately.
+Actual embedded-PCK inventory: 1,513 entries. The path set matches 4c exactly; only scripts/ui/activity_tutorial_presenter.gdc changes payload size/hash. Source and test/documentation changes match the six-path merge review.
+Actual Windows embedded PCK passes presenter 277, activity briefings 33 and census 19. Strict --startup-check exits 0 with exactly one STARTUP_MENU_READY_OK. Standard package batch passes 223: playability 89, interaction 40, material 25, central hero 69. All current suites exit 0, emit one completion, and have no diagnostics within unchanged 300-second caps.
+Previous 4c source/PCK return 67 and isolated rendered Habitat 436 results are retained, with exact unchanged test consumers, return/station runtime, scenes and assets, plus unchanged package payloads. These unaffected suites were not rerun on c8. The updated presenter is covered by the fresh 277/33 checks.
+Accepted physical return on unchanged 6e coordinator source/ad3a observer passed 25 checks in 1,224.140 seconds: after initial staging near Ember arrival, the real return route, canonical home berth, dock shutdown and walking completed. This is scoped physical evidence, not an unstaged whole expedition.
+Source/index, post-export cache, templates, minimal fixtures and package hashes close unchanged across current package qualification. Fixtures contain declared tests/helper/class/UID caches with no runtime scripts/scenes/assets fallback. All owned/private-profile actors are absent. Every Godot run uses Dummy audio and private seven XDG roots plus TMPDIR mode 700, with HOME preserved.
+
+Qualification limits
+Full 4c CI's headless 2/4 failure is retained: stale Torpedo Run counter literal, suite exit 1 with 32 passes; shard 252 suites/9,732 passes, overall FAIL. The focused causal fix passes 33; this does not qualify full CI. New c8 full CI is pending and NOT_QUALIFIED here.
+Native Windows direct EXE headless title-menu startup passes exit0, exactly one readiness marker in stdout and game log, no diagnostics, removed private profiles and zero owned actors in 14.684 seconds. Project-only real Windows userdata snapshots before/after match. Native Windows graphical/gameplay, target GPU/device performance, audible audio, ordinary-controls/human review and full release: NOT_RUN. Exact-source complete CI38495550234 remains pending/NOT_QUALIFIED; main runtime integration requires that acceptance.
+
+EXE SHA256: 98692f95413501b656b624cbe78e760f3d670aaef6ef51e00f101be7331cf941
+Embedded PCK SHA256: a307f49bbf569f057b334091e9177afa044970d677644bbb5466f3b7d31d2d35
+Checkpoint evidence: /root/.cache/mudds-shipyards/roadmap-validation/surface-return-windows
+Accepted physical evidence: /root/.cache/mudds-shipyards/roadmap-validation/shared-abandon-return-oct14
+Retained CI failure: /root/.cache/mudds-shipyards/roadmap-validation/ci-current-followup/accepted-physical-checkpoint/115614865331-failure-lines.txt

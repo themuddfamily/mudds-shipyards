@@ -141,3 +141,72 @@ APPDATA, LOCALAPPDATA and Downloads, with bounded execution and seven-day
 retention of available JSON results and logs even on failure. These harmless
 managed fixtures do not run Godot or an exported game and do not establish game
 startup, native GPU, gameplay or full-release acceptance.
+
+## Native Windows OS interruption and safe-home recovery
+
+Use the compiled convoy probe in a pinned Windows EXE. Each invocation creates a
+fresh private profile, waits for its durable typed arm boundary, terminates that
+exact native Windows Job with `TerminateJobObject`, and starts a distinct resume
+process against the same private profile. No external script override is used.
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+  -File tools/release/run_windows_interruption_check.ps1 `
+  -Artifact builds/windows/MuddsShipyards-<commit>.exe `
+  -ExpectedExeSha256 <64-character-EXE-SHA256> `
+  -RecoveryContext pilot `
+  -ResultDirectory <fresh-explicit-result-directory>
+```
+
+Run `pilot`, `cabin`, `rest`, and `crew` independently with fresh result directories.
+Both legs are headless with Dummy audio, with a maximum/default deadline of 300
+seconds per leg. HOME and USERPROFILE stay inherited; APPDATA, LOCALAPPDATA,
+TEMP, TMP, TMPDIR and all seven XDG variables point into a GUID namespace under
+native Windows TEMP. The command refuses existing results, reparse paths and
+real application-data/Downloads result destinations, checks the source and tested
+copy against the required pin, snapshots real game data read-only before/after,
+and removes only the verified owned namespace once its processes are reaped.
+
+The command requires unique typed markers in stdout and the game log, actual
+resume exit zero, a byte-identical document across termination, unchanged durable
+convoy boundary, one crash event, receipts advancing from one to two, clean final
+crash markers and usable safe-home pilot or awake cabin flags. Logs, process
+identities, interrupted/recovered documents and real-data snapshots remain in the
+result directory. The unchanged startup Job helper bounds descendants and stream
+draining. Abort from another terminal using:
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+  -File tools/release/run_windows_interruption_check.ps1 `
+  -Abort -ResultDirectory <running-result-directory>
+```
+
+Abort validates the private owner marker and live PID/start-time/EXE binding before
+opening only the recorded leg's named Job. Closing the harness Job handle also
+terminates owned descendants. The recovered compiled probe reacquires its real
+safe-home context before using the disclosed escort-motion fixture to finish a
+convoy; cabin/rest/crew contexts walk and retake the pilot before a distinct new
+convoy. This is native OS interruption/recovery qualification for that fixture.
+Native GPU, human ordinary-input acceptance, original airborne pose restoration,
+remote crew and full-release gates remain open.
+
+Focused managed protocol failures and second-leg abort can be checked separately:
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+  -File tools/release/test_windows_interruption_check.ps1 `
+  -TestDirectory <fresh-explicit-test-directory>
+```
+
+Current validation on 2026-10-14: the pinned `c8d8b59` Windows checkpoint passed
+all four actual native headless interruption/recovery contexts, with Job
+termination code 1, distinct restart exit zero, one crash event, receipts 1 to 2,
+clean final markers, zero diagnostics/owned actors, removed private profiles and
+unchanged protected real game data. Seven managed protocol/abort/path failure
+cases passed. The existing native Windows workflow runs these managed checks in
+a separate bounded step when the interruption command or test changes, and
+retains available results/logs on failure. Its startup checks remain in place.
+Managed CI checks do not execute the exported game. [Raw results and closure](../roadmap-validation/native-windows-recovery-command/summary.json)
+retain the exact package and command hashes. The four contexts ran concurrently;
+these timings do not qualify hardware performance. The current game's full CI
+and main runtime integration remain unqualified alongside the gates above.
