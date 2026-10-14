@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
+const BodyIntentSource := preload("res://scripts/network/network_remote_body_intent_source.gd")
 const GameFlow := preload("res://scripts/game/game_flow.gd")
 const Ship := preload("res://scripts/ships/hero_ship.gd")
 const ShipDefinition := preload("res://assets/ships/torrent_provisional.tres")
@@ -20,6 +21,9 @@ var _assertions := 0
 var _failures := PackedStringArray()
 var _rime_shared_survey_mode := false
 var _rime_survey_retirement_case := false
+var _rime_intent_source: NetworkRemoteBodyIntentSource
+var _rime_jump_held := false
+var _rime_last_movement_send: Dictionary = {}
 
 
 class SurveyFilesystem extends UserDataFilesystem:
@@ -1030,11 +1034,22 @@ func _rime_shared_survey_body_route(game: GameFlow, client: Adapter, craft: Hero
 	_coastal_sequence = 0
 	_coastal_interaction = 0
 	_coastal_replica.clear()
+	_rime_intent_source = BodyIntentSource.new()
+	_rime_jump_held = false
+	_rime_last_movement_send.clear()
+	var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
+	var bound := _rime_intent_source.bind(identity.entity_id, int(identity.entity_generation), 1001)
+	_check(bool(bound.get("accepted", false)), "Rime client intent source binds the authentic retained survey body")
+	if not bool(bound.get("accepted", false)):
+		return
+	client.movement_intent_result.connect(_accept_rime_movement_result.bind(client))
 	client.planetary_journey_state_received.connect(_capture_coastal_state)
 	game.set_physics_process(true)
 	if not await _checked_coastal_walk(game, game.network_session, client, body,
 			region.to_global(Vector3(-24, 0.5, -16)), "actual Rime participant walks to the survey beacon under ordinary host physics"):
 		return
+	_check(bool(_rime_intent_source.get_audit().opening_confirmed) and _rime_intent_source.has_authoritative_movement_clock(),
+		"authenticated movement reply confirms the Rime client source opening and actual movement clock")
 	await _coastal_press(game, game.network_session, client, body)
 	var started := await _wait_until(func(): return int(survey.snapshot().get("state", 0)) == CheckpointRouteActivity.State.ACTIVE, 3.0)
 	_check(started and survey.shared_state().participant_entity_id == String(avatar),
@@ -1177,20 +1192,39 @@ func _rime_shared_survey_body_route(game: GameFlow, client: Adapter, craft: Hero
 		"optional Rime survey leaves the ordinary all-crew return manifest usable")
 
 
+func _accept_rime_movement_result(result: Dictionary, client: Adapter) -> void:
+	if int(result.get("sequence", 0)) > 0:
+		_rime_intent_source.accept_clock_refusal(client.multiplayer.get_unique_id(), result)
+	else:
+		_rime_intent_source.accept_opening_result(client.multiplayer.get_unique_id(), result)
+
+
 func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3, jump: bool = false) -> void:
 	if _rime_shared_survey_mode:
-		# The ordinary Main owns both advancement and its actual wire clock.
-		# This mode never sets that clock or manually advances the simulation.
-		var survey_tick := int(game.get("_network_moving_interior_server_tick"))
-		if Engine.get_physics_frames() % 4 == 0:
-			var survey_direction := target - body.global_position
-			var survey_identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
-			var survey_packet: Dictionary = NetworkMovementIntent.create(client.multiplayer.get_unique_id(), survey_identity.entity_id,
-				int(survey_identity.entity_generation), 1001, _coastal_sequence, survey_tick,
-				Vector2(0, -1) if Vector2(survey_direction.x, survey_direction.z).length() > 0.8 else Vector2.ZERO,
-				false, &"", false, atan2(-survey_direction.x, -survey_direction.z), 0.0, false, false, jump, _coastal_interaction).to_dictionary()
-			_coastal_sequence += 1
-			client.send_movement_intent(survey_packet)
+		# The production client source owns cadence, edges and opening recovery.
+		# Ordinary Main physics remains the only host clock/body advancement.
+		if jump and not _rime_jump_held:
+			_rime_intent_source.request_jump()
+		_rime_jump_held = jump
+		var movement_tick := client.get_moving_interior_latest_server_tick()
+		if movement_tick >= 0:
+			_rime_intent_source.observe_movement_clock(movement_tick)
+		elif not _rime_intent_source.has_authoritative_movement_clock():
+			movement_tick = client.get_boarding_server_tick_estimate()
+		var direction := target - body.global_position
+		var packet := _rime_intent_source.advance(client.multiplayer.get_unique_id(), {
+			"move_axis": Vector2(0, -1) if Vector2(direction.x, direction.z).length() > 0.8 else Vector2.ZERO,
+			"look_yaw": atan2(-direction.x, -direction.z), "look_pitch": 0.0,
+			"run": false, "crouch": false,
+		}, movement_tick)
+		if not packet.is_empty():
+			_rime_last_movement_send = client.send_movement_intent(packet)
+			if not bool(_rime_last_movement_send.get("accepted", false)) or _rime_last_movement_send.get("status") != &"queued":
+				print("RIME_MOVEMENT_SEND_FAILED send=", _rime_last_movement_send,
+					" source=", _rime_intent_source.get_audit(), " transport=", client.get_snapshot(),
+					" authority=", server.get_movement_authority_audit())
+				_check(false, "actual Rime client movement transport queues the sampled source packet")
+				quit(1)
 		await physics_frame
 		return
 	var tick := Engine.get_physics_frames()
@@ -1215,11 +1249,18 @@ func _walk_coastal(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 		if Vector2(body.global_position.x - target.x, body.global_position.z - target.z).length() < 1.0 and body.is_on_floor():
 			return true
 	print("COASTAL_WALK_BLOCKED target=", target, " body_valid=", is_instance_valid(body), " pose=", body.global_position if is_instance_valid(body) else Vector3.INF, " audit=", game.get_network_remote_body_audit())
+	if _rime_shared_survey_mode:
+		print("RIME_MOVEMENT_WALK_AUDIT source=", _rime_intent_source.get_audit(),
+			" send=", _rime_last_movement_send, " transport=", client.get_snapshot(),
+			" authority=", server.get_movement_authority_audit(),
+			" avatar=", server.get_movement_avatar_snapshot(_rime_intent_source.get_entity_id()))
 	return false
 
 
 func _coastal_press(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController) -> void:
 	_coastal_interaction += 1
+	if _rime_shared_survey_mode:
+		_rime_intent_source.request_interaction()
 	var position := body.global_position
 	for _i in 12:
 		if not is_instance_valid(body):
