@@ -15,6 +15,7 @@ const ACTIVITY_ID: StringName = &"rime_ice_core_survey"
 const REWARD_ID: StringName = &"rime_ice_core_record"
 const FAILURE_HEAT_DEPLETED: StringName = &"suit_heat_depleted"
 const FAILURE_ABANDONED: StringName = &"player_abandoned"
+const FAILURE_PARTICIPANT_RETIRED: StringName = &"survey_participant_retired"
 const RADIUS := 3.2
 const ANCHORS := ["SurveyBeacon", "SurveyDrillRig", "SurveyStrainGauge"]
 const LABELS := ["Survey beacon", "Drill rig", "Ridge strain gauge"]
@@ -36,6 +37,8 @@ var _pending_restore: Dictionary = {}
 var _heat_s := HEAT_CAPACITY_S
 var _heat_warning_shown := false
 var _heat_failures := 0
+var _participant_ref: WeakRef = weakref(null)
+var _participant_context: Dictionary = {}
 
 
 func _init(flow: GameFlow, visit: RefCounted) -> void:
@@ -77,6 +80,7 @@ static func valid_progress(candidate: Variant) -> bool:
 
 
 func attach(surface: Node3D) -> void:
+	_clear_participant()
 	_surface_ref = weakref(surface)
 	_region = surface.get_node_or_null(^"LandingRegion") as Node3D
 	_anchors.clear()
@@ -105,6 +109,7 @@ func attach(surface: Node3D) -> void:
 ## Drops every reference to a surface that is going away. Progress already in
 ## the director and the store is untouched.
 func detach() -> void:
+	_retire_participant()
 	_surface_ref = weakref(null)
 	_region = null
 	_anchors.clear()
@@ -170,10 +175,17 @@ func get_heat_snapshot() -> Dictionary:
 ## One physics tick of the cold. It only runs while the survey is active and
 ## the explorer is on foot; it never moves or damages anyone.
 func physics_tick(delta: float) -> void:
-	if delta <= 0.0 or not _running() or not _on_foot():
-		if not _running():
+	var shared := _shared_visit()
+	var running := _running()
+	var can_tick := _participant_is_current() if shared else _on_foot()
+	if shared and running and not can_tick:
+		_retire_participant()
+		return
+	if delta <= 0.0 or not running or not can_tick:
+		if not running:
 			_heat_s = HEAT_CAPACITY_S
 			_heat_warning_shown = false
+			_clear_participant()
 		return
 	if _is_warm():
 		_heat_s = minf(HEAT_CAPACITY_S, _heat_s + HEAT_REFILL_PER_S * delta)
@@ -207,9 +219,10 @@ func _running() -> bool:
 
 
 func _is_warm() -> bool:
-	if not is_instance_valid(_flow.player):
+	var actor := _participant_ref.get_ref() as PlayerController if _shared_visit() else _flow.player
+	if not is_instance_valid(actor):
 		return false
-	var position := _flow.player.global_position
+	var position := actor.global_position
 	var surface := _surface_ref.get_ref() as RimeGlacialAuthoredScene
 	if is_instance_valid(surface) and surface.is_inside_tree():
 		var shelter := surface.get_heat_shelter_global_position()
@@ -235,8 +248,9 @@ func _on_foot() -> bool:
 		and _flow.player.is_control_enabled() and _flow.player.is_on_floor()
 
 
-func _near(index: int) -> bool:
-	return _flow.player.global_position.distance_to(_anchors[index].global_position) <= RADIUS
+func _near(index: int, body: PlayerController = null) -> bool:
+	var actor := body if body != null else _flow.player
+	return actor.global_position.distance_to(_anchors[index].global_position) <= RADIUS
 
 
 func target_index() -> int:
@@ -281,16 +295,20 @@ func prompt() -> String:
 	return "WALK TO " + LABELS[target_index()].to_upper()
 
 
-func interact() -> bool:
-	if not _on_foot() or reward_recorded():
+func interact(body: PlayerController = null) -> bool:
+	var actor := body if body != null else _flow.player
+	if not _actor_can_observe(actor) or reward_recorded():
 		return false
 	var route := snapshot()
 	var state := int(route.get("state", CheckpointRouteActivity.State.IDLE))
-	if _near(0) and state != CheckpointRouteActivity.State.COMPLETED:
+	if _near(0, actor) and state != CheckpointRouteActivity.State.COMPLETED:
 		if state == CheckpointRouteActivity.State.ACTIVE:
-			return abandon()
+			return abandon(actor)
 		var started := _flow.activity_director.start_activity(ACTIVITY_ID)
 		if bool(started.get("accepted", false)):
+			if _shared_visit():
+				_participant_ref = weakref(actor)
+				_participant_context = _flow._network_rime_survey_participant_context(actor)
 			_heat_s = HEAT_CAPACITY_S
 			_heat_warning_shown = false
 			_flow.hud.toast("Ice-core survey started",
@@ -298,11 +316,11 @@ func interact() -> bool:
 			_save()
 		return bool(started.get("accepted", false))
 	var index := target_index()
-	if index == 0 or not _near(index):
+	if index == 0 or not _near(index, actor):
 		return false
 	if state == CheckpointRouteActivity.State.ACTIVE:
 		var result := _flow.activity_director.submit_position(ACTIVITY_ID,
-			_region.to_local(_flow.player.global_position), int(route.generation))
+			_region.to_local(actor.global_position), int(route.generation))
 		if not bool(result.get("accepted", false)):
 			return false
 		route = snapshot()
@@ -311,7 +329,7 @@ func interact() -> bool:
 				"Blue compression bands run through the core. Log the pressure ridge's strain gauge past the serac field.", 6.0)
 			_save()
 			return true
-	if int(route.get("state", 0)) == CheckpointRouteActivity.State.COMPLETED:
+	if int(route.get("state", 0)) == CheckpointRouteActivity.State.COMPLETED and _actor_can_observe(actor):
 		var handoff := route.duplicate(true)
 		handoff["state_id"] = &"completed"
 		handoff["outcome"] = &"cleared"
@@ -326,8 +344,9 @@ func interact() -> bool:
 	return false
 
 
-func abandon() -> bool:
-	if not _on_foot():
+func abandon(body: PlayerController = null) -> bool:
+	var actor := body if body != null else _flow.player
+	if not _actor_can_observe(actor):
 		return false
 	var route := snapshot()
 	if not _flow.activity_director.fail_activity(
@@ -337,6 +356,96 @@ func abandon() -> bool:
 	_flow.hud.toast("Survey abandoned", "Explore freely or board your ship. The beacon can start a fresh survey.", 4.0)
 	_save()
 	return true
+
+
+func _shared_visit() -> bool:
+	var visit: RefCounted = _visit_ref.get_ref()
+	return visit != null and bool(visit.get("_shared_arrival"))
+
+
+func _actor_can_observe(body: PlayerController) -> bool:
+	if not _shared_visit():
+		return body == _flow.player and _on_foot()
+	return _available() and _flow._shared_aurora_survey_store_is_current() \
+		and _flow._network_rime_survey_body_is_current(body) \
+		and not body.is_seated() and body.is_on_floor() \
+		and (not _running() or (_participant_is_current() and _participant_ref.get_ref() == body))
+
+
+## The running participant remains current through ordinary jumping. Floor
+## contact is an interaction requirement, not an identity or cold-clock fence.
+func _participant_is_current() -> bool:
+	var actor := _participant_ref.get_ref() as PlayerController
+	return not _participant_context.is_empty() and is_instance_valid(actor) \
+		and _flow._network_rime_survey_participant_is_current(actor, _participant_context)
+
+
+func _clear_participant() -> void:
+	if _participant_context.is_empty() and _participant_ref.get_ref() == null:
+		return
+	_participant_ref = weakref(null)
+	_participant_context.clear()
+
+
+func _retire_participant() -> void:
+	if not _participant_context.is_empty() and _running():
+		var route := snapshot()
+		_flow.activity_director.fail_activity(ACTIVITY_ID, FAILURE_PARTICIPANT_RETIRED,
+			int(route.get("generation", -1)))
+	_clear_participant()
+	_heat_s = HEAT_CAPACITY_S
+	_heat_warning_shown = false
+
+
+func shared_state() -> Dictionary:
+	return {"progress": capture(), "reward_recorded": reward_recorded(),
+		"survey_available": _flow._shared_aurora_survey_store_is_current(),
+		"participant_entity_id": String(_participant_context.get("entity_id", &"")),
+		"heat": get_heat_snapshot()}
+
+
+## Passive host progress against this peer's own streamed anchors. The picture
+## grants no observation, position, heat or reward authority to a client.
+func shared_presentation(surface: Node3D, body: PlayerController, shared: Dictionary,
+		entity_id: StringName) -> Dictionary:
+	if not is_instance_valid(surface) or not is_instance_valid(body) or shared.is_empty():
+		return {}
+	if not bool(shared.get("survey_available", false)):
+		return {"objective": "Survey save recovery required — reboard whenever ready.",
+			"prompt": "SURVEY SAVE RECOVERY REQUIRED"}
+	var route := shared.get("progress", {}) as Dictionary
+	if not valid_progress(route):
+		return {}
+	var paid := bool(shared.get("reward_recorded", false))
+	var state := int(route.get("state", CheckpointRouteActivity.State.IDLE))
+	var index := 0 if state in [CheckpointRouteActivity.State.IDLE, CheckpointRouteActivity.State.FAILED] \
+		else mini(int(route.get("next_checkpoint_index", 0)) + 1, 2)
+	var anchor := surface.find_child(ANCHORS[index], true, false) as Node3D
+	var beacon := surface.find_child(ANCHORS[0], true, false) as Node3D
+	if not is_instance_valid(anchor) or not is_instance_valid(beacon):
+		return {}
+	var objective_text := "Ice-core record logged — Rime survey saved. Reboard whenever ready." if paid \
+		else "%s — %.0f m | Optional shared survey | %d/2 readings" % [LABELS[index],
+			body.global_position.distance_to(anchor.global_position), int(route.get("next_checkpoint_index", 0))]
+	var interaction := "FOLLOW THE ORANGE SURVEY BEACONS"
+	if not paid:
+		if state == CheckpointRouteActivity.State.ACTIVE:
+			var heat := shared.get("heat", {}) as Dictionary
+			objective_text += " | SUIT HEATER %d%%" % roundi(clampf(float(heat.get("fraction", 0.0)), 0.0, 1.0) * 100.0)
+			if StringName(shared.get("participant_entity_id", &"")) != entity_id:
+				return {"objective": objective_text, "prompt": "SURVEY IN PROGRESS — FOLLOW YOUR CREW OR REBOARD"}
+		if body.global_position.distance_to(beacon.global_position) <= RADIUS and state != CheckpointRouteActivity.State.COMPLETED:
+			interaction = "[ E ] ABANDON ICE-CORE SURVEY" if state == CheckpointRouteActivity.State.ACTIVE else "[ E ] START ICE-CORE SURVEY"
+		elif body.global_position.distance_to(anchor.global_position) <= RADIUS and index > 0:
+			interaction = "[ E ] RETRY SAVING RECORD" if state == CheckpointRouteActivity.State.COMPLETED \
+				else ("[ E ] EXTRACT ICE CORE" if index == 1 else "[ E ] LOG RIDGE STRAIN")
+		else:
+			interaction = "WALK TO " + LABELS[index].to_upper()
+		if state == CheckpointRouteActivity.State.COMPLETED:
+			objective_text = "Readings complete — retry saving at the ridge gauge, or reboard whenever ready."
+		elif state == CheckpointRouteActivity.State.FAILED:
+			objective_text = "Survey ended — warm up, then restart at the orange beacon or reboard whenever ready."
+	return {"objective": objective_text, "prompt": interaction}
 
 
 func _save() -> void:

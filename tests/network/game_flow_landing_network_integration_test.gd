@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Adapter := preload("res://scripts/network/network_enet_session_adapter.gd")
+const BodyIntentSource := preload("res://scripts/network/network_remote_body_intent_source.gd")
 const GameFlow := preload("res://scripts/game/game_flow.gd")
 const Ship := preload("res://scripts/ships/hero_ship.gd")
 const ShipDefinition := preload("res://assets/ships/torrent_provisional.tres")
@@ -18,6 +19,12 @@ var _coastal_sequence := 0
 var _coastal_interaction := 0
 var _assertions := 0
 var _failures := PackedStringArray()
+var _rime_shared_survey_mode := false
+var _rime_survey_retirement_case := false
+var _rime_intent_source: NetworkRemoteBodyIntentSource
+var _rime_jump_held := false
+var _rime_last_movement_send: Dictionary = {}
+var _rime_last_neutral_packet: Dictionary = {}
 
 
 class SurveyFilesystem extends UserDataFilesystem:
@@ -162,6 +169,20 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--rime-shared-survey"):
+		_rime_shared_survey_mode = true
+		_rime_survey_retirement_case = true
+		await _shared_rime_pad_access()
+		_rime_survey_retirement_case = false
+		await _shared_rime_pad_access()
+		if _failures.is_empty():
+			print("OK: Rime shared ice-core survey integration (%d assertions)" % _assertions)
+			quit(0)
+		else:
+			for failure in _failures:
+				push_error(failure)
+			quit(1)
+		return
 	if OS.get_cmdline_user_args().has("--rime-pad-only"):
 		await _shared_rime_pad_access()
 		if _failures.is_empty():
@@ -472,6 +493,9 @@ func _rime_pad_body_route(game: GameFlow, client: Adapter, craft: HeroShip, avat
 	if not walking:
 		return
 	_check(absf(body.gravity_multiplier - 1.0) < 0.02, "Rime retained crew uses its actual world and ordinary project gravity")
+	if _rime_shared_survey_mode:
+		await _rime_shared_survey_body_route(game, client, craft, body, region, avatar)
+		return
 	if native_floor_loss_only:
 		var native_floor := surface.get_node("TerrainClipmap/CommittedTerrain/TerrainCollision/TerrainCollisionSurface") as CollisionShape3D
 		# An unannounced replacement still has identical real collision geometry.
@@ -998,7 +1022,214 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	return true
 
 
-func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3, jump: bool = false) -> void:
+## Only initial arrival and hatch approach use the existing bounded staging.
+## After the real exterior grant, ordinary Main physics owns movement, cold,
+## publication and retirement. This is an authenticated Adapter intent check,
+## not full-client keyboard/HUD or canonical travel qualification.
+func _rime_shared_survey_body_route(game: GameFlow, client: Adapter, craft: HeroShip,
+		body: PlayerController, region: Node3D, avatar: StringName) -> void:
+	var owner := game._rime_expedition
+	var survey: RefCounted = owner.survey
+	var body_id := body.get_instance_id()
+	var host_id := game.player.get_instance_id()
+	_coastal_sequence = 0
+	_coastal_interaction = 0
+	_coastal_replica.clear()
+	_rime_intent_source = BodyIntentSource.new()
+	_rime_jump_held = false
+	_rime_last_movement_send.clear()
+	var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
+	var bound := _rime_intent_source.bind(identity.entity_id, int(identity.entity_generation), 1001)
+	_check(bool(bound.get("accepted", false)), "Rime client intent source binds the authentic retained survey body")
+	if not bool(bound.get("accepted", false)):
+		return
+	client.movement_intent_result.connect(_accept_rime_movement_result.bind(client))
+	client.planetary_journey_state_received.connect(_capture_coastal_state)
+	game.set_physics_process(true)
+	if not await _checked_coastal_walk(game, game.network_session, client, body,
+			region.to_global(Vector3(-24, 0.5, -16)), "actual Rime participant walks to the survey beacon under ordinary host physics"):
+		return
+	_check(bool(_rime_intent_source.get_audit().opening_confirmed) and _rime_intent_source.has_authoritative_movement_clock(),
+		"authenticated movement reply confirms the Rime client source opening and actual movement clock")
+	await _coastal_press(game, game.network_session, client, body)
+	var started := await _wait_until(func(): return int(survey.snapshot().get("state", 0)) == CheckpointRouteActivity.State.ACTIVE, 3.0)
+	_check(started and survey.shared_state().participant_entity_id == String(avatar),
+		"accepted retained-body interaction starts the host-owned Rime survey for that actual participant")
+	if not started:
+		return
+	var heat_start := float(survey.get_heat_snapshot().heat_s)
+	var frame_start := Engine.get_physics_frames()
+	for _tick in 120:
+		await _coastal_tick(game, game.network_session, client, body, body.global_position)
+		if not is_instance_valid(body):
+			return
+	var expected_exposure := float(Engine.get_physics_frames() - frame_start) / float(Engine.physics_ticks_per_second)
+	var heat := survey.get_heat_snapshot() as Dictionary
+	_check(not heat.warm and absf(heat_start - float(heat.heat_s) - expected_exposure) < 0.15
+		and game.player.get_instance_id() == host_id and game.player.is_seated() and game._piloting,
+		"natural cold drains the actual exposed crew suit once per physics tick while the seated host remains pilot")
+	var replicated := await _wait_until(func(): return (_coastal_replica.get("rime_survey", {}) as Dictionary).get("participant_entity_id") == String(avatar), 3.0)
+	_check(replicated and int((_coastal_replica.rime_survey.progress as Dictionary).state) == CheckpointRouteActivity.State.ACTIVE
+		and float((_coastal_replica.rime_survey.heat as Dictionary).fraction) < 1.0,
+		"real host publication carries Rime progress and the participant's heater to the admitted peer")
+	var view: Dictionary = survey.shared_presentation(owner._surface, body, _coastal_replica.get("rime_survey", {}), avatar)
+	_check(view.get("prompt", "").contains("ABANDON") and view.get("objective", "").contains("SUIT HEATER"),
+		"passive Rime presentation follows the host's actual participant and heater picture")
+	var before := survey.capture() as Dictionary
+	_check(not survey.interact(game.player) and survey.capture() == before,
+		"the seated host cannot substitute its own body for the active remote survey participant")
+	await _coastal_press(game, game.network_session, client, body)
+	_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.FAILED,
+		"a fresh accepted beacon interaction abandons the optional participant survey")
+	await _coastal_press(game, game.network_session, client, body)
+	_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE,
+		"the same authenticated body can restart a fresh optional survey at the beacon")
+	if _rime_survey_retirement_case:
+		var prior_participant := game._network_rime_survey_participant_context(body)
+		for target: Vector3 in [region.to_global(Vector3(-8, 0.5, -8)),
+				craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)),
+				(craft.get_node("WalkableInterior/InteriorDeckMarker") as Node3D).global_position]:
+			if not await _checked_coastal_walk(game, game.network_session, client, body, target,
+					"active Rime survey participant physically returns through the ordinary hatch"):
+				return
+		_check(survey.get_heat_snapshot().warm, "the actual participant is warmed by the existing craft radius")
+		client.send_boarding_intent(_rime_boarding_request(game, client, craft, 3, BoardingIntent.ACTION_BOARD_ANY))
+		var retirement_simulation := game.get_network_remote_body_simulation()
+		var reboarded := await _wait_until(func(): return not retirement_simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0)
+		_check(reboarded and game._network_planetary_journey.shared_surface_return_gate_reason(&"rime_glacial_world").is_empty(),
+			"an unfinished optional Rime survey does not gate authenticated reboard or the all-crew return manifest")
+		if not reboarded:
+			return
+		client.send_boarding_intent(_rime_boarding_request(game, client, craft, 4, BoardingIntent.ACTION_DISEMBARK))
+		var readmitted := await _wait_until(func(): return retirement_simulation.is_surface_walking(avatar), 5.0)
+		_check(readmitted and retirement_simulation.get_body(avatar) == body and body.get_instance_id() == body_id
+			and game._network_rime_survey_body_is_current(body)
+			and not game._network_rime_survey_participant_is_current(body, prior_participant),
+			"a genuine fresh exterior admission keeps the body but cannot inherit its old survey participant grant")
+		if not readmitted:
+			return
+		for target: Vector3 in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)),
+				craft.to_global(Vector3(-8, 0.52, 22))]:
+			if not await _checked_coastal_walk(game, game.network_session, client, body, target,
+					"fresh participant physically exits through the existing cabin and airstair route"):
+				return
+		if not await _checked_coastal_walk(game, game.network_session, client, body,
+				region.to_global(Vector3(-24, 0.5, -16)), "fresh authenticated participant walks back to the beacon"):
+			return
+		await _coastal_press(game, game.network_session, client, body)
+		_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE,
+			"fresh exterior admission starts a new participant-owned survey rather than resuming old authority")
+		client.shutdown()
+		_check(await _wait_until(func(): return int(survey.snapshot().get("state", 0)) == CheckpointRouteActivity.State.FAILED, 5.0)
+			and survey.snapshot().failure_reason == &"survey_participant_retired"
+			and survey.shared_state().participant_entity_id == "" and not survey.reward_recorded(),
+			"actual participant disconnect retires its optional survey authority without a stale reward")
+		return
+	for point: Vector3 in [Vector3(-40, 0.5, -28), Vector3(-52, 0.5, -42), Vector3(-54, 0.5, -46)]:
+		if not await _checked_coastal_walk(game, game.network_session, client, body, region.to_global(point),
+				"actual Rime survey participant walks to the existing drill and heated hut"):
+			return
+	var arrival_heat := float(survey.get_heat_snapshot().heat_s)
+	var warm_frame := Engine.get_physics_frames()
+	_check(survey.get_heat_snapshot().warm, "the actual crew drill checkpoint is within the existing hut warmth")
+	for _tick in 60:
+		await _coastal_tick(game, game.network_session, client, body, body.global_position)
+	var expected_warm_heat := minf(120.0, arrival_heat + 10.0 * float(Engine.get_physics_frames() - warm_frame) / float(Engine.physics_ticks_per_second))
+	_check(absf(float(survey.get_heat_snapshot().heat_s) - expected_warm_heat) < 0.15,
+		"ordinary ticks refill the participant heater at the hut using the unchanged capacity and warmth rate")
+	await _coastal_press(game, game.network_session, client, body)
+	_check(int(survey.snapshot().next_checkpoint_index) == 1,
+		"accepted actual drill interaction records the first ice-core observation")
+	for point: Vector3 in [Vector3(-52, 0.5, -42), Vector3(-50, 0.5, -54), Vector3(-30, 0.5, -66), Vector3(-8, 0.5, -68)]:
+		if not await _checked_coastal_walk(game, game.network_session, client, body, region.to_global(point),
+				"retained Rime survey participant follows the authored serac trail"):
+			return
+	var jump_start := body.global_position.y
+	var jump_peak := jump_start
+	for tick in 100:
+		await _coastal_tick(game, game.network_session, client, body, body.global_position, tick < 4)
+		if not is_instance_valid(body):
+			return
+		jump_peak = maxf(jump_peak, body.global_position.y)
+	_check(jump_peak > jump_start + 0.2 and body.is_on_floor()
+		and int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE
+		and survey.shared_state().participant_entity_id == String(avatar),
+		"ordinary airborne movement preserves participant identity and active cold ownership")
+	for point: Vector3 in [Vector3(14, 0.5, -70), Vector3(28, 0.5, -63), Vector3(30, 0.5, -62)]:
+		if not await _checked_coastal_walk(game, game.network_session, client, body, region.to_global(point),
+				"actual Rime survey participant reaches the existing ridge gauge"):
+			return
+	var filesystem := game._runtime_settings_user_data_store.get("_filesystem") as SurveyFilesystem
+	filesystem.reject_rewards = true
+	await _coastal_press(game, game.network_session, client, body)
+	_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.COMPLETED
+		and not survey.reward_recorded() and filesystem.rejected_rewards > 0,
+		"real rejected atomic reward write retains the two host-observed readings for retry")
+	filesystem.reject_rewards = false
+	await _coastal_press(game, game.network_session, client, body)
+	await _coastal_press(game, game.network_session, client, body)
+	var loaded := UserDataStore.new("memory://rime-pad.json", filesystem)
+	loaded.load()
+	var authority := GameFlowRewardAuthority.new()
+	var configured := authority.configure(loaded)
+	_check(configured.get("accepted", false) and survey.reward_recorded()
+		and int(authority.get_snapshot().record.reward_counts.get("rime_ice_core_record", 0)) == 1,
+		"accepted current-body retry writes the Rime record once across real store reload and repeated presses")
+	for point: Vector3 in [Vector3(30, 0.5, -60), Vector3(20, 0.5, -40), Vector3(10, 0.5, -24), Vector3(-8, 0.5, -8)]:
+		if not await _checked_coastal_walk(game, game.network_session, client, body, region.to_global(point),
+				"same survey participant follows the real return trail toward the craft warmth"):
+			return
+	for target: Vector3 in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)),
+			(craft.get_node("WalkableInterior/InteriorDeckMarker") as Node3D).global_position]:
+		if not await _checked_coastal_walk(game, game.network_session, client, body, target,
+				"same Rime participant physically walks back through the hatch"):
+			return
+	client.send_boarding_intent(_rime_boarding_request(game, client, craft, 3, BoardingIntent.ACTION_BOARD_ANY))
+	var simulation := game.get_network_remote_body_simulation()
+	_check(await _wait_until(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0)
+		and simulation.get_body(avatar) == body and body.get_instance_id() == body_id,
+		"ordinary authenticated Rime reboard retains the actual survey participant body")
+	_check(game._network_planetary_journey.shared_surface_return_gate_reason(&"rime_glacial_world").is_empty(),
+		"optional Rime survey leaves the ordinary all-crew return manifest usable")
+
+
+func _accept_rime_movement_result(result: Dictionary, client: Adapter) -> void:
+	if int(result.get("sequence", 0)) > 0:
+		_rime_intent_source.accept_clock_refusal(client.multiplayer.get_unique_id(), result)
+	else:
+		_rime_intent_source.accept_opening_result(client.multiplayer.get_unique_id(), result)
+
+
+func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3, jump: bool = false, neutral_movement: bool = false) -> void:
+	if _rime_shared_survey_mode:
+		# The production client source owns cadence, edges and opening recovery.
+		# Ordinary Main physics remains the only host clock/body advancement.
+		if jump and not _rime_jump_held:
+			_rime_intent_source.request_jump()
+		_rime_jump_held = jump
+		var movement_tick := client.get_moving_interior_latest_server_tick()
+		if movement_tick >= 0:
+			_rime_intent_source.observe_movement_clock(movement_tick)
+		elif not _rime_intent_source.has_authoritative_movement_clock():
+			movement_tick = client.get_boarding_server_tick_estimate()
+		var direction := target - body.global_position
+		var packet := _rime_intent_source.advance(client.multiplayer.get_unique_id(), {
+			"move_axis": Vector2(0, -1) if not neutral_movement and Vector2(direction.x, direction.z).length() > 0.8 else Vector2.ZERO,
+			"look_yaw": atan2(-direction.x, -direction.z), "look_pitch": 0.0,
+			"run": false, "crouch": false,
+		}, movement_tick)
+		if not packet.is_empty():
+			_rime_last_movement_send = client.send_movement_intent(packet)
+			if neutral_movement and bool(_rime_last_movement_send.get("accepted", false)):
+				_rime_last_neutral_packet = packet.duplicate(true)
+			if not bool(_rime_last_movement_send.get("accepted", false)) or _rime_last_movement_send.get("status") != &"queued":
+				print("RIME_MOVEMENT_SEND_FAILED send=", _rime_last_movement_send,
+					" source=", _rime_intent_source.get_audit(), " transport=", client.get_snapshot(),
+					" authority=", server.get_movement_authority_audit())
+				_check(false, "actual Rime client movement transport queues the sampled source packet")
+				quit(1)
+		await physics_frame
+		return
 	var tick := Engine.get_physics_frames()
 	server.set_movement_server_tick(tick)
 	if tick % 4 == 0:
@@ -1014,18 +1245,41 @@ func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 
 func _walk_coastal(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3) -> bool:
 	var deadline := Time.get_ticks_msec() + 18000
+	var neutral_movement := false
+	if _rime_shared_survey_mode:
+		_rime_last_neutral_packet.clear()
 	while Time.get_ticks_msec() < deadline and is_instance_valid(body):
-		await _coastal_tick(game, server, client, body, target)
+		await _coastal_tick(game, server, client, body, target, false, neutral_movement)
 		if not is_instance_valid(body):
 			return false
 		if Vector2(body.global_position.x - target.x, body.global_position.z - target.z).length() < 1.0 and body.is_on_floor():
-			return true
+			if not _rime_shared_survey_mode:
+				return true
+			# Release the held movement through the ordinary client stream and
+			# wait for its actual host consumption within this same leg budget.
+			neutral_movement = true
+			if not _rime_last_neutral_packet.is_empty():
+				var avatar := server.get_movement_avatar_snapshot(_rime_intent_source.get_entity_id())
+				var record := game.get_network_remote_body_simulation().get_body_record(_rime_intent_source.get_entity_id())
+				if int(avatar.get("last_sequence", -1)) >= int(_rime_last_neutral_packet.sequence) and int(avatar.get("pending_count", -1)) == 0 \
+						and int(record.get("last_intent_tick", -1)) >= int(_rime_last_neutral_packet.client_tick):
+					return true
+		elif _rime_shared_survey_mode:
+			neutral_movement = false
+			_rime_last_neutral_packet.clear()
 	print("COASTAL_WALK_BLOCKED target=", target, " body_valid=", is_instance_valid(body), " pose=", body.global_position if is_instance_valid(body) else Vector3.INF, " audit=", game.get_network_remote_body_audit())
+	if _rime_shared_survey_mode:
+		print("RIME_MOVEMENT_WALK_AUDIT source=", _rime_intent_source.get_audit(),
+			" send=", _rime_last_movement_send, " transport=", client.get_snapshot(),
+			" authority=", server.get_movement_authority_audit(),
+			" avatar=", server.get_movement_avatar_snapshot(_rime_intent_source.get_entity_id()))
 	return false
 
 
 func _coastal_press(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController) -> void:
 	_coastal_interaction += 1
+	if _rime_shared_survey_mode:
+		_rime_intent_source.request_interaction()
 	var position := body.global_position
 	for _i in 12:
 		if not is_instance_valid(body):

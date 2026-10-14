@@ -376,7 +376,8 @@ func physics_tick(delta: float) -> void:
 	if _shared_arrival and profile.world_id == &"aurora_temperate_world" and state == &"landed":
 		survey.resume_shared_checkpoint()
 	# An activity with an on-foot hazard advances from this visit's own tick.
-	if state == &"surface" and survey.has_method(&"physics_tick"):
+	if (state == &"surface" or (_shared_arrival and profile.world_id == &"rime_glacial_world" \
+			and state == &"landed")) and survey.has_method(&"physics_tick"):
 		survey.call(&"physics_tick", delta)
 	if state == &"surface" and is_instance_valid(_surface) \
 			and _flow.player.global_position.distance_to(
