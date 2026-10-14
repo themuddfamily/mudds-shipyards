@@ -525,6 +525,7 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	bridge._pilot_source_ref = weakref(craft.get_command_source())
 	bridge._state = {"journey_epoch": 1, "world_id": &"aurora_temperate_world", "ship_id": craft.get_ship_id(), "phase": &"landed"}
 	game.phase = GameFlow.Phase.FREE_FLIGHT
+	await _wait_until(func(): return game._network_aurora_passenger_host_is_current(craft), 5.0)
 	var avatar := NetworkRemoteBodySimulation.get_remote_body_identity(body).entity_id as StringName
 	var simulation := game.get_network_remote_body_simulation()
 	# Initial actor staging only; every subsequent coastal leg is real intent movement.
@@ -535,7 +536,7 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	var peer := client.multiplayer.get_unique_id()
 	var seat := GameFlow.network_cabin_berth_seat_id(craft.get_ship_id(), 1)
 	var departure: Dictionary = BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 2, server.get_boarding_server_tick(), BoardingIntent.ACTION_DISEMBARK).to_dictionary()
-	print("COASTAL_HATCH_BEFORE gate=", game._network_boarding_departure_status(peer, departure), " host_current=", game._network_aurora_passenger_host_is_current(craft), " floor=", body.is_on_floor(), " local=", craft.to_local(body.global_position), " hatch=", craft.to_local(hatch.global_position), " intent=", departure)
+	print("COASTAL_HATCH_BEFORE gate=", game._network_boarding_departure_status(peer, departure), " host_current=", game._network_aurora_passenger_host_is_current(craft), " pilot_current=", bridge._surface_arrival_host_is_current(), " eligible=", game._shared_planetary_host_eligible(), " engine=", craft.get_telemetry().get("engine_state"), " lane=", game._planetary_journey.is_aurora_visit_active(), " floor=", body.is_on_floor(), " local=", craft.to_local(body.global_position), " hatch=", craft.to_local(hatch.global_position), " intent=", departure)
 	client.send_boarding_intent(departure)
 	var walking := await _wait_until(func(): return simulation.is_surface_walking(avatar), 5.0)
 	if not walking:
