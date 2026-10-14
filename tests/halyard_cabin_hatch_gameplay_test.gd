@@ -29,7 +29,7 @@ func _run() -> void:
 	craft.set_piloted(true)
 	_check(hatch.is_available(), "landed Halyard crew can use the hatch while an offline pilot retains the helm")
 	craft.request_engine_start()
-	for _i in 180:
+	for _i in int(ceil(craft.engine_start_time * Engine.physics_ticks_per_second)) + 4:
 		await physics_frame
 		await process_frame
 		if craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE:
