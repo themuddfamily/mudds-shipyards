@@ -1,0 +1,16 @@
+Mudd's Shipyards unsigned Windows installer — 61749efc69233eabc997988012f75b431577ed49
+
+Installs the published 61749ef Halyard engineer checkpoint for the current user. The payload contains the physical engineer chair, shared/solo berth-only repair with finite kits, and retained caption/landing/return improvements. Native gameplay and current full-release qualification remain open.
+
+Actual compilation/static validation
+One existing NSIS compile exits 0 in 100.620 seconds under the original 600-second cap. Compiler: v3.09-4; product/build label: 0.12.0+61749ef. Compiler warnings/errors: zero (-WX).
+Static 7-Zip NSIS/LZMA listing and extraction pass without executing the installer. Extracted game payload is exactly the published EXE (SHA256 fb9418276f7da48ff9f1e1baac37285b68ecbabe7aa4f17c75b1ec840cf1957e). Source revision, product metadata, compiler result and generated checksum agree. Installer PE certificate table is empty: unsigned. Source/index and published EXE/ZIP/notes remain unchanged; owned compiler/archive actors close. No Godot, native installer, registry, shortcuts or uninstall actions were invoked.
+
+Native acceptance scope
+Existing verifier can exercise silent install/reinstall, exact payload/provenance, startup, update/rollback and uninstall. It uses a private /D install location and headless Dummy game probes, but it writes the actual current-user HKCU product/uninstall keys. Ordinary mode also writes real Start Menu shortcuts; recovery/InWorld modes request private profile/Start Menu paths while HKCU remains real. Existing keys/install/Start Menu locations are refused and owned cleanup is guarded. A dedicated Windows user/VM or explicit authorization for these real registry effects is required for the next phase. Headless engineer recovery is explicitly unsupported.
+Native install/update/uninstall, registry/shortcut acceptance, native GPU/devices/audio, ordinary controls/human review, trusted signing, distribution rights and full release: NOT_RUN. Earlier EXE/ZIP menu startup results do not qualify this installer.
+
+Installer SHA256: 1ae840318bea989f8cf4e42958e03479e0437be19a84f0c1461177b09658f9e2
+Payload SHA256: fb9418276f7da48ff9f1e1baac37285b68ecbabe7aa4f17c75b1ec840cf1957e
+Compiler metadata remains native_verification=NOT_RUN.
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/halyard-engineer-installer
