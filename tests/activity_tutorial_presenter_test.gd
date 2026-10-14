@@ -196,6 +196,8 @@ func _run() -> void:
 				_check_board_sortie_briefing(detail.text, activity_id)
 			if activity_id == &"cinder_reach_emberline_convoy":
 				_check_convoy_briefing(detail.text)
+			if activity_id in [&"aurora_coastal_observation", &"rime_ice_core_survey"]:
+				_check_surface_survey_briefing(detail.text, activity_id)
 			if activity_id == &"cinder_platform_supply_run":
 				_check_supply_briefing(detail.text)
 		_check(
@@ -204,6 +206,7 @@ func _run() -> void:
 		)
 	await _check_production_board_sortie_briefings()
 	_check_board_sortie_presentation_variants()
+	_check_surface_survey_presentation_variants()
 	await _check_production_convoy_behaviors()
 	_check_convoy_presentation_variants()
 	await _check_production_route_behaviors()
@@ -1123,3 +1126,39 @@ func _check_production_board_sortie_briefings() -> void:
 	game.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _check_surface_survey_briefing(prompt: String, activity_id: StringName) -> void:
+	var aurora := activity_id == &"aurora_coastal_observation"
+	_check(prompt.contains("On foot") and prompt.contains("start this optional survey")
+		and prompt.contains("Board your ship whenever ready") and prompt.contains("OBJECTIVE")
+		and prompt.contains("DISTANCE") and prompt.contains("WHILE ACTIVE // INTERACT TO ABANDON"),
+		"%s help explains on-foot admission, next target and optional departure or abandonment" % activity_id)
+	_check(prompt.contains("REWARD SAVE PENDING") and prompt.contains("RETAINED")
+		and prompt.contains("INTERACT AT THE STANDING STONES TO RETRY" if aurora
+			else "INTERACT AT THE RIDGE GAUGE TO RETRY"),
+		"%s help keeps completed readings and names the actual reward retry landmark" % activity_id)
+	if not aurora:
+		_check(prompt.contains("HEATER LOW // WARM UP") and prompt.contains("THEN CONTINUE;")
+			and prompt.contains("HEATER EMPTY // YOU ARE SAFE; RESTART A FRESH SURVEY")
+			and prompt.contains("refill") and not prompt.contains("THEN RESTART AT THE BEACON"),
+			"low Rime heat preserves survey progress; only exhaustion calls for a fresh survey")
+
+
+func _check_surface_survey_presentation_variants() -> void:
+	for activity_id: StringName in [&"aurora_coastal_observation", &"rime_ice_core_survey"]:
+		var presenter := Presenter.new()
+		var remapped := presenter.present_snapshot({
+			"activity_id": activity_id, "generation": 1, "input_family": &"keyboard",
+			"glyphs": {&"interact": "CUSTOM INTERACT"},
+		})
+		_check(remapped.accepted and remapped.prompt.contains("CUSTOM INTERACT")
+			and not remapped.prompt.contains("{"), "%s survey help preserves remapped interaction" % activity_id)
+		_check_surface_survey_briefing(remapped.prompt, activity_id)
+		var accessible := presenter.present_snapshot({
+			"activity_id": activity_id, "generation": 2, "accessible": true,
+		})
+		_check(accessible.accepted and accessible.prompt == accessible.accessible_prompt
+			and accessible.prompt.contains("interact control") and not accessible.prompt.contains("{"),
+			"%s accessible survey admission is glyph-free" % activity_id)
+		_check_surface_survey_briefing(accessible.prompt, activity_id)
