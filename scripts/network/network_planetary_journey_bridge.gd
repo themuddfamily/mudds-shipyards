@@ -124,7 +124,7 @@ func restored_cabin_admission_is_current(peer_id: int, request: Dictionary, conf
 	# This is the server adapter's authenticated generation, not a wire field.
 	var generation := int((_flow.network_session.get("_peer_generations") as Dictionary).get(peer_id, 0))
 	var avatar := StringName(request.avatar_id)
-	var simulation := _flow.get_network_remote_body_simulation()
+	var simulation: NetworkRemoteBodySimulation = _flow.get_network_remote_body_simulation()
 	if generation <= 0 or int(_restored_crew_admissions.get(peer_id, 0)) == generation \
 			or _flow._network_ember_passenger_surfaces.has(avatar) \
 			or not is_instance_valid(simulation) or simulation.get("_session") != _flow.network_session \
@@ -165,7 +165,7 @@ func restored_cabin_admission_is_current(peer_id: int, request: Dictionary, conf
 func note_restored_crew_admitted(peer_id: int, avatar: StringName) -> void:
 	if not _restored_surface_session_is_current() or avatar != _flow.network_client_boarding_avatar_id(peer_id):
 		return
-	var simulation := _flow.get_network_remote_body_simulation()
+	var simulation: NetworkRemoteBodySimulation = _flow.get_network_remote_body_simulation()
 	var body: PlayerController = simulation.get_body(avatar) if is_instance_valid(simulation) else null
 	var frame := _flow._resolve_network_moving_interior_frame(_flow.active_ship) as MovingInteriorFrame
 	if not is_instance_valid(body) or not body.is_cabin_containment_active() \
