@@ -439,7 +439,7 @@ func _shared_aurora_home_publication_retry() -> void:
 			and craft.global_position.distance_to(home.get_dock_transform().origin) < 0.05
 			and not game.player.is_seated() and game.player.is_control_enabled(), "actual interrupted host shutdown immediately restores its safe-home actors and retires old crew grants")
 		game.set_physics_process(true)
-		_check(await _wait_until(func(): return not game._aurora_expedition.is_active() and not game._planetary_journey.is_aurora_visit_active()
+		_check(await _wait_until(func(): return not game._aurora_expedition.is_active() and not game._planetary_journey.is_aurora_visit_active() \
 			and not is_instance_valid(game.aurora_streaming_bootstrap.get_loaded_instance()), 6.0), "ordinary bounded wind-down completes home origin recovery and retires the old surface visit")
 		client.shutdown()
 		branch.queue_free()
