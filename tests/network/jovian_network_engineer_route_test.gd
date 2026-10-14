@@ -21,7 +21,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
-	_halyard = "--halyard-engineer" in args
+	_halyard = _halyard or "--halyard-engineer" in args
 	args.erase("--halyard-engineer")
 	var package_index := args.find("--package-under-test")
 	if package_index >= 0 and package_index + 1 < args.size():
