@@ -572,6 +572,13 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		bridge._publish(true)
 		_check(await _wait_until(func(): return int((_coastal_replica.get("aurora_survey", {}) as Dictionary).get("progress", {}).get("next_checkpoint_index", 0)) == 1, 3.0), "actual authenticated host publication synchronizes the crew observation progress")
 		_check(int(owner.survey.snapshot().get("next_checkpoint_index", 0)) == 1, "host records the actual lookout observation from the retained crew body")
+		var interrupted_store := UserDataStore.new("memory://shared-aurora.json", filesystem)
+		interrupted_store.load()
+		var saved_checkpoint := interrupted_store.get_snapshot().get("aurora_shared_coastal_survey", {}) as Dictionary
+		var checkpoint_recorded := interrupted_store.get_loaded_source() == &"primary" and int((saved_checkpoint.get("survey", {}) as Dictionary).get("next_checkpoint_index", 0)) == 1
+		_check(checkpoint_recorded, "real shared lookout observation survives a primary atomic-store reload as passive host progress")
+		if not checkpoint_recorded:
+			return false
 		if not await _checked_coastal_walk(game, server, client, body, region.to_global(Vector3(55, 0.5, -20)), "crew returns through the lookout entrance"):
 			return false
 		if not await _checked_coastal_walk(game, server, client, body, stones.global_position + Vector3.UP * 0.5, "crew walks the authored stones branch"):
