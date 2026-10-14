@@ -608,6 +608,31 @@ func _verify_main_unpaid_recovery() -> void:
 	var cargo_before: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path)).payload.jovian_cargo_session
 	var settings_before: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path)).payload.runtime_settings
 	var generation := await _complete_main_defense(first)
+	var policy_path := "user://station_defense_binding_policy_%d.json" % Time.get_ticks_usec()
+	var policy_store := UserDataStore.new(policy_path)
+	var policy_binding := NearbySectorActivityPersistenceBinding.new()
+	_check(policy_binding.configure(policy_store, StationDefenseSessionAdapter.new(), &"station_defense_session", "station_defense_session", true)
+		and policy_binding.load().reason == &"session_absent",
+		"opt-in primary guard permits a genuinely fresh absent defense slot")
+	var earned_snapshot: Dictionary = first.world.get_station_defense_activity_board().get_session_persistence_snapshot()
+	_check(policy_binding.save(earned_snapshot, policy_store.get_generation(), "unit-defense-policy-primary").accepted
+		and policy_binding.load().accepted
+		and policy_binding.save(earned_snapshot, policy_store.get_generation(), "unit-defense-policy-rotate").accepted,
+		"opt-in binding saves and restores a genuinely earned terminal on valid primary")
+	var policy_bytes := FileAccess.get_file_as_bytes(policy_path + ".bak")
+	var invalid_policy: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(policy_path))
+	invalid_policy.commit.payload_sha256 = "0".repeat(64)
+	var policy_file := FileAccess.open(policy_path, FileAccess.WRITE)
+	policy_file.store_string(JSON.stringify(invalid_policy))
+	policy_file.close()
+	var policy_primary_bytes := FileAccess.get_file_as_bytes(policy_path)
+	var refused_policy_load := policy_binding.load()
+	var refused_policy_save := policy_binding.save(earned_snapshot, policy_store.get_generation(), "unit-defense-policy-backup")
+	_check(not refused_policy_load.accepted and refused_policy_load.reason == &"session_store_recovery_required"
+		and not refused_policy_save.accepted and refused_policy_save.reason == &"session_store_recovery_required"
+		and FileAccess.get_file_as_bytes(policy_path) == policy_primary_bytes and FileAccess.get_file_as_bytes(policy_path + ".bak") == policy_bytes,
+		"opt-in binding refuses fallback load and save at its own fresh reload boundary")
+
 	var document: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
 	var terminal: Dictionary = document.payload.get("station_defense_session", {})
 	_check(fault.refused_reward and _main_receipts(first) == 1 and not terminal.is_empty(),
@@ -649,7 +674,8 @@ func _verify_main_unpaid_recovery() -> void:
 	second.player.global_position = board.global_position
 	var handoff := board.get_reward_handoff_snapshot()
 	_check(handoff.get("reward_pending", false) and int(handoff.get("pending_generation", -1)) == generation
-		and "PENDING" in board.get_presentation_snapshot().text and _main_receipts(second) == 1,
+		and "PENDING" in board.get_presentation_snapshot().text
+		and "SAVE RECOVERY REQUIRED" not in board.get_presentation_snapshot().text and _main_receipts(second) == 1,
 		"fresh Main visibly retains the exact genuine unpaid terminal without combat replay")
 	var sources := second.combat_authority.get_resolver().get_registered_source_count()
 	var blocked := board.abort_and_reset(second.player, second.world.get_station_defense_content().get_generation())
@@ -668,7 +694,66 @@ func _verify_main_unpaid_recovery() -> void:
 		and authority_failure.get("store_result", {}).get("reason") == &"published_directory_sync_failed",
 		"real postpublication directory sync refusal leaves one atomic paid receipt and acknowledgement on disk")
 	print("STATION_DEFENSE_PUBLISHED_FAILURE_RAW: ", JSON.stringify(authority_failure.get("store_result", {}).get("reason")))
-	_check(board.interact(second.player) and _main_receipts(second) == 2 and not board.get_reward_handoff_snapshot().get("reward_pending", true),
+	# The paid publication rotated the genuine unpaid terminal into backup.
+	# Losing the primary must not let an ordinary retry publish that older debt.
+	var paid_primary := FileAccess.get_file_as_bytes(path)
+	var unpaid_backup := FileAccess.get_file_as_bytes(path + ".bak")
+	var corrupt := FileAccess.open(path, FileAccess.WRITE)
+	var invalid_primary: Dictionary = JSON.parse_string(paid_primary.get_string_from_utf8())
+	invalid_primary.commit.payload_sha256 = "0".repeat(64)
+	corrupt.store_string(JSON.stringify(invalid_primary))
+	corrupt.close()
+	var corrupt_primary_bytes := FileAccess.get_file_as_bytes(path)
+	var fallback: UserDataStore = second.get("_runtime_settings_user_data_store")
+	_check(fallback.load().accepted and fallback.get_loaded_source() == &"backup"
+		and not fallback.get_snapshot().station_defense_session.session.completion.reward_granted,
+		"paid primary corruption exposes the genuine older unpaid defense backup")
+	var recovery_backup := FileAccess.get_file_as_bytes(path + ".bak")
+	var direct_refused: Dictionary = second.call("_commit_game_flow_activity_reward", {
+		"activity_id": &"shipyard_perimeter_defense", "activity_generation": generation,
+		"reward_id": &"return_defense_report_to_shipyard", "reward_authority": false, "granted": false})
+	_check(not direct_refused.accepted and direct_refused.reason == &"reward_store_recovery_required"
+		and FileAccess.get_file_as_bytes(path) == corrupt_primary_bytes and FileAccess.get_file_as_bytes(path + ".bak") == recovery_backup
+		and fallback.get_snapshot().game_flow_reward_store == JSON.parse_string(unpaid_backup.get_string_from_utf8()).payload.game_flow_reward_store,
+		"direct Main reward consumer refuses fallback debt without publishing or changing its bank")
+	var source_count := second.combat_authority.get_resolver().get_registered_source_count()
+	var retry := board.interact(second.player)
+	var reset := board.abort_and_reset(second.player, second.world.get_station_defense_content().get_generation())
+	var manual_save := board.save_session(fallback.get_generation(), "unit-defense-untrusted-save")
+	_check(not retry and not reset.accepted and not manual_save.accepted
+		and board.get_reward_handoff_snapshot().reward_pending
+		and board.get_reward_handoff_snapshot().last_result.reason == &"session_store_recovery_required"
+		and "SAVE RECOVERY REQUIRED" in board.get_presentation_snapshot().text
+		and FileAccess.get_file_as_bytes(path) == corrupt_primary_bytes
+		and FileAccess.get_file_as_bytes(path + ".bak") == recovery_backup
+		and second.combat_authority.get_resolver().get_registered_source_count() == source_count,
+		"live defense Deploy, Reset and manual Save retain untrusted backup bytes, pending debt and combat sources")
+	# A separate cold Main must also refuse the backup before adopting its debt.
+	var cold := await _main_game(path, UserDataFilesystem.new())
+	var cold_board := cold.world.get_station_defense_activity_board() as StationDefenseActivityBoard
+	cold.player.global_position = cold_board.global_position
+	var cold_load: Dictionary = cold.world.load_station_defense_session()
+	_check(not cold_load.accepted and cold_load.reason == &"session_store_recovery_required"
+		and not cold_board.get_reward_handoff_snapshot().reward_pending
+		and "SAVE RECOVERY REQUIRED" in cold_board.get_presentation_snapshot().text
+		and not cold_board.interact(cold.player)
+		and not cold_board.abort_and_reset(cold.player, cold.world.get_station_defense_content().get_generation()).accepted
+		and FileAccess.get_file_as_bytes(path) == corrupt_primary_bytes
+		and FileAccess.get_file_as_bytes(path + ".bak") == recovery_backup,
+		"cold defense recovery cannot adopt or repay the older unpaid backup")
+	var repaired := FileAccess.open(path, FileAccess.WRITE)
+	repaired.store_buffer(paid_primary)
+	repaired.close()
+	var repaired_backup := FileAccess.open(path + ".bak", FileAccess.WRITE)
+	repaired_backup.store_buffer(unpaid_backup)
+	repaired_backup.close()
+	_check(cold.world.load_station_defense_session().accepted
+		and "SAVE RECOVERY REQUIRED" not in cold_board.get_presentation_snapshot().text
+		and not cold_board.get_reward_handoff_snapshot().reward_pending,
+		"repaired valid paid primary clears the cold board recovery status without reward replay")
+	await _dispose_main(cold)
+	_check(board.interact(second.player) and _main_receipts(second) == 2 and not board.get_reward_handoff_snapshot().get("reward_pending", true)
+		and "SAVE RECOVERY REQUIRED" not in board.get_presentation_snapshot().text,
 		"ordinary board interaction pays the restored generation exactly once after write recovery")
 	_check(JSON.parse_string(FileAccess.get_file_as_string(path)).payload.runtime_settings == settings_before
 		and JSON.parse_string(FileAccess.get_file_as_string(path)).payload.jovian_cargo_session == cargo_before

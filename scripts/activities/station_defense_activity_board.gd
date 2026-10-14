@@ -125,7 +125,7 @@ func configure_session_persistence(store: RefCounted, slot_id: StringName, paylo
 	_session_adapter = SESSION_ADAPTER.new() as RefCounted
 	_persistence_binding = PERSISTENCE_BINDING.new() as RefCounted
 	if not bool(_persistence_binding.call(
-		"configure", store, _session_adapter, slot_id, payload_namespace
+		"configure", store, _session_adapter, slot_id, payload_namespace, not payload_namespace.is_empty()
 	)):
 		_session_adapter = null
 		_persistence_binding = null
@@ -149,6 +149,7 @@ func load_session() -> Dictionary:
 	var loaded: Dictionary = _persistence_binding.call("load")
 	if not bool(loaded.get("accepted", false)):
 		_session_refused = loaded.get("reason") != &"session_absent"
+		_refresh_presentation(_content.get_snapshot())
 		return loaded
 	var session := loaded.get("session", {}) as Dictionary
 	var history := session.get("history", {}) as Dictionary
@@ -157,6 +158,9 @@ func load_session() -> Dictionary:
 	_loading_session = false
 	if not bool(restored.get("accepted", false)):
 		return restored
+	_session_refused = false
+	if _last_reward_result.get("reason") == &"session_store_recovery_required":
+		_last_reward_result.clear()
 	_terminal_history = history.duplicate(true)
 	_completion = (session.get("completion", {}) as Dictionary).duplicate(true)
 	_highest_reward_generation = maxi(
@@ -411,6 +415,12 @@ func _request_completed_reward(_activity_snapshot: Dictionary) -> void:
 			_last_reward_result = loaded
 			_reward_request_active = false
 			return
+		if not _session_store.has_method("get_loaded_source") \
+				or _session_store.call("get_loaded_source") not in [&"primary", &"empty"]:
+			_last_reward_result = _result(false, &"session_store_recovery_required")
+			_reward_request_active = false
+			_refresh_presentation(_content.get_snapshot())
+			return
 		var document: Dictionary = _session_store.call("get_snapshot")
 		var slot_value: Variant = document.get("station_defense_session", {})
 		var saved: Dictionary = {}
@@ -524,6 +534,9 @@ func _refresh_presentation(snapshot: Dictionary) -> void:
 	if _has_pending_reward():
 		status_text = "[!] REPORT PENDING // INTERACT TO RETRY"
 		status_color = STATUS_COLOR_ACTIVE
+	if _session_refused or _last_reward_result.get("reason") == &"session_store_recovery_required":
+		status_text = "[X] SAVE RECOVERY REQUIRED"
+		status_color = STATUS_COLOR_RECOVERY
 	_presentation_generation = generation
 	_presentation_state_id = state_id
 	_presentation_text = status_text

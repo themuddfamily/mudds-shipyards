@@ -238,6 +238,9 @@ func commit(request: Variant) -> Dictionary:
 
 	var station_completion: Dictionary = {}
 	if activity_id == STATION_DEFENSE_ACTIVITY_ID:
+		if not _store.has_method(&"get_loaded_source") or _store.call(&"get_loaded_source") == &"backup":
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
 		var slot: Variant = (payload as Dictionary).get("station_defense_session")
 		if not slot is Dictionary or slot.get("schema_version") != NearbySectorActivityPersistenceBinding.SCHEMA_VERSION \
 				or str(slot.get("payload_kind", "")) != str(NearbySectorActivityPersistenceBinding.PAYLOAD_KIND) \
