@@ -530,7 +530,7 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		await physics_frame
 	var peer := client.multiplayer.get_unique_id()
 	var seat := GameFlow.network_cabin_berth_seat_id(craft.get_ship_id(), 1)
-	var departure := BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 2, server.get_boarding_server_tick(), BoardingIntent.ACTION_DISEMBARK).to_dictionary()
+	var departure: Dictionary = BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 2, server.get_boarding_server_tick(), BoardingIntent.ACTION_DISEMBARK).to_dictionary()
 	client.send_boarding_intent(departure)
 	var walking := await _wait_until(func(): return simulation.is_surface_walking(avatar), 5.0)
 	_check(walking and game._network_aurora_survey_body_is_current(body), "authenticated hatch release retains the actual crew body under the current Aurora surface grant")
@@ -579,7 +579,7 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	if walking and is_instance_valid(body):
 		for point in [region.to_global(Vector3(55, 0.5, -20)), region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(30, 0.5, 0)), region.to_global(Vector3(14, 0.5, 2)), craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
 			_check(await _walk_coastal(game, server, client, body, point), "survey crew physically follows the trail and airstair back into the cabin")
-		var reboard := BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 3, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
+		var reboard: Dictionary = BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 3, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
 		client.send_boarding_intent(reboard)
 		_check(await _wait_until(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0), "ordinary authenticated reboard retains the survey body and restores the return manifest")
 		_check(bridge.shared_aurora_return_gate_reason().is_empty(), "optional Aurora survey leaves the existing shared return admission usable")
@@ -604,7 +604,7 @@ func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 		var direction := target - body.global_position
 		var moving := Vector2(direction.x, direction.z).length() > 0.8
 		var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
-		var packet := NetworkMovementIntent.create(client.multiplayer.get_unique_id(), identity.entity_id, int(identity.entity_generation), 1001, _coastal_sequence, tick, Vector2(0, -1) if moving else Vector2.ZERO, false, &"", false, atan2(-direction.x, -direction.z), 0.0, false, false, false, _coastal_interaction).to_dictionary()
+		var packet: Dictionary = NetworkMovementIntent.create(client.multiplayer.get_unique_id(), identity.entity_id, int(identity.entity_generation), 1001, _coastal_sequence, tick, Vector2(0, -1) if moving else Vector2.ZERO, false, &"", false, atan2(-direction.x, -direction.z), 0.0, false, false, false, _coastal_interaction).to_dictionary()
 		_coastal_sequence += 1
 		client.send_movement_intent(packet)
 	game.get_network_remote_body_simulation().advance(tick)
