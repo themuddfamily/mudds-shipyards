@@ -227,6 +227,70 @@ print('OK: network lane fixture')
                     self.assertEqual(rows[0]['exit_code'], '124' if timeout else '0')
                     self.assertTrue(all(row['status'] == 'PASS' for row in rows[1:]))
 
+    def test_parallel_graphical_display_lane_keeps_headless_parallel_and_wait_outside_clock(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            release = root / 'tools/release'
+            release.mkdir(parents=True)
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
+                shutil.copy2(SUPPORT / name, release / name)
+            scripts = ['network/a_display_test.gd', 'b_headless_test.gd', 'c_headless_test.gd',
+                       'ui/d_input_test.gd', 'ui/e_readback_test.gd']
+            for relative in scripts:
+                script = root / 'tests' / relative
+                script.parent.mkdir(parents=True, exist_ok=True)
+                display = ('await RenderingServer.frame_post_draw\n' if 'readback' in relative
+                           else '## test-matrix-display: input-only\n') if relative.startswith(('network/', 'ui/')) else ''
+                script.write_text(display + 'print("DISPLAY_LANE_TEST_OK: 1 assertions")\n')
+            fake = root / 'fake-godot'
+            fake.write_text('''#!/usr/bin/env python3
+import os,sys,pathlib,time
+root=pathlib.Path(os.environ['DISPLAY_LANE_ROOT'])
+args=sys.argv[1:]
+script=args[args.index('--script')+1]
+assert args[args.index('--audio-driver')+1] == 'Dummy'
+graphical='--headless' not in args
+if graphical:
+    assert args[args.index('--display-driver')+1] == 'x11'
+    active=root/'pointer-owner'
+    try: active.mkdir()
+    except FileExistsError:
+        (root/'collision').touch()
+        print('ERROR: NO GRAB')
+        print('DISPLAY_LANE_TEST_OK: 1 assertions')
+        sys.exit(0)
+    deadline=time.monotonic()+0.5
+    while not (root/'headless-overlap').exists() and time.monotonic()<deadline: time.sleep(0.01)
+    assert (root/'headless-overlap').exists(), 'display lock starved headless workers'
+    time.sleep(1.1)
+    active.rmdir()
+else:
+    own=root/pathlib.Path(script).stem
+    own.touch()
+    deadline=time.monotonic()+0.5
+    while len(list(root.glob('*_headless_test')))<2 and time.monotonic()<deadline: time.sleep(0.01)
+    assert len(list(root.glob('*_headless_test')))==2, 'headless suites no longer overlap'
+    (root/'headless-overlap').touch()
+print('DISPLAY_LANE_TEST_OK: 1 assertions')
+''')
+            fake.chmod(0o755)
+            command = ['bash', str(release / 'run_test_matrix.sh'), '--godot', str(fake),
+                       '--jobs', '3', '--mode', 'all', '--display-driver', 'x11',
+                       '--results-dir', str(root / 'results'), '--manifest-scope', 'tests',
+                       '--import-gate', 'never', '--timeout', '2']
+            result = subprocess.run(command, cwd=root,
+                                    env={**os.environ, 'DISPLAY_LANE_ROOT': str(root),
+                                         'DISPLAY': ':fixture', 'TEST_MATRIX_RUN_ID': 'display-lane'},
+                                    text=True, capture_output=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertFalse((root / 'collision').exists())
+            self.assertFalse((root / 'pointer-owner').exists())
+            with (root / 'results/display-lane/results.tsv').open() as stream:
+                rows = list(csv.DictReader(stream, delimiter='\t'))
+            self.assertEqual(len(rows), len(scripts))
+            self.assertTrue(all(row['status'] == 'PASS' and row['diagnostic_count'] == '0' for row in rows))
+            self.assertTrue(all(int(row['duration_ms']) < 2000 for row in rows))
+
     def test_generic_pass_descriptions_are_not_completion(self):
         with tempfile.TemporaryDirectory() as temporary:
             script = Path(temporary) / 'probe_test.gd'

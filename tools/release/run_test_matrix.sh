@@ -77,7 +77,7 @@ Options:
                             Only an unfiltered --mode all run qualifies as full release scope.
   --jobs N                  Concurrent suites. Default: min(cores/4, available GiB/2, 4), floor 1.
                             Use --jobs 1 for a strictly serial debugging run. Network suites
-                            share one per-run flock lane; other workers keep advancing.
+                            share a per-run flock lane; graphical suites share a display lane.
   --scope SPEC[,SPEC...]    Select a subset of suites. Repeatable. A SPEC may be
                             a suite name (fleet_pbr_test), a file name
                             (fleet_pbr_test.gd), a path (tests/fleet_pbr_test.gd),
@@ -574,6 +574,9 @@ for test_file in "${TEST_FILES[@]}"; do
 	if network_suite "$test_file" && ! command -v flock >/dev/null; then
 		echo "Network suites require flock (util-linux) for the per-run lane."; exit 2
 	fi
+	if [[ "${SUITE_MODES[$test_file]}" != headless ]] && ! command -v flock >/dev/null; then
+		echo "Graphical suites require flock (util-linux) for the per-run display lane."; exit 2
+	fi
 done
 
 if [[ "$import_gate_needed" == "true" ]]; then
@@ -645,6 +648,13 @@ run_suite_worker() {
 		exec {network_lock_fd}>"$WORK_DIR/network.lock"
 		flock "$network_lock_fd"
 	fi
+	# All graphical suites share this run's display, including input-only suites.
+	# Always acquire network then display, and release in reverse order.
+	local display_lock_fd=""
+	if [[ "${SUITE_MODES[$test_file]}" != headless ]]; then
+		exec {display_lock_fd}>"$WORK_DIR/display.lock"
+		flock "$display_lock_fd"
+	fi
 	local start_ms end_ms duration_ms exit_code
 	start_ms="$(now_ms)"
 
@@ -675,6 +685,10 @@ run_suite_worker() {
 		exit_code="$?"
 	fi
 	set -e
+	if [[ -n "$display_lock_fd" ]]; then
+		flock -u "$display_lock_fd"
+		exec {display_lock_fd}>&-
+	fi
 	if [[ -n "$network_lock_fd" ]]; then
 		flock -u "$network_lock_fd"
 		exec {network_lock_fd}>&-
