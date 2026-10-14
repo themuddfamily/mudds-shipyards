@@ -742,7 +742,10 @@ func _restore_simulation_state(occupant: Node3D, state: Dictionary) -> void:
 	if not bool(state.get("simulation_prepared", false)):
 		return
 	var options: Dictionary = state["options"]
-	if bool(options["manage_physics_priority"]):
+	# A seat may take physics ordering before the volume's deferred exit arrives.
+	# Retire only this registration's assignment; preserve a subsequent owner.
+	if bool(options["manage_physics_priority"]) \
+			and occupant.process_physics_priority == int(state["assigned_priority"]):
 		occupant.process_physics_priority = int(state["original_priority"])
 	if occupant is CharacterBody3D:
 		var body := occupant as CharacterBody3D

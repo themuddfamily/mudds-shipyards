@@ -97,6 +97,15 @@ func _test_configuration_and_registration() -> void:
 	_check(occupant.platform_floor_layers == original_floor_layers and occupant.platform_wall_layers == original_wall_layers, "exit restores built-in platform masks")
 	_check(occupant.platform_on_leave == original_leave, "exit restores the original platform leave policy")
 	_check(not occupant.has_meta(MovingFrame.OWNER_META), "exit clears exclusive moving-frame ownership")
+	_check(bool(coordinator.register_occupant(occupant).registered), "a standing body may enter again before taking a seat")
+	var seated_priority := frame.process_physics_priority + 1
+	occupant.process_physics_priority = seated_priority
+	var seated_release: Dictionary = coordinator.unregister_occupant(occupant, false)
+	_check(bool(seated_release.released) and occupant.process_physics_priority == seated_priority,
+		"delayed cabin exit preserves physics ordering already taken by the seat owner")
+	_check(not occupant.has_meta(MovingFrame.OWNER_META) and not coordinator.is_occupant_registered(occupant),
+		"seat priority retention still clears frame ownership and registration")
+	occupant.process_physics_priority = original_priority
 
 	var plain_occupant := Node3D.new()
 	plain_occupant.name = "PlainNodeOccupant"
