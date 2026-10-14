@@ -309,7 +309,7 @@ func _shared_aurora_home_publication_retry() -> void:
 	craft.velocity = Vector3.ZERO
 	game.player.teleport_to(Transform3D(craft.global_basis.orthonormalized(), craft.get_boarding_position()))
 	game._board_ship(craft)
-	var piloting := await _wait_until(func(): return game._piloting and game.player.is_seated_at(craft.get_pilot_seat_anchor())
+	var piloting := await _wait_until(func(): return game._piloting and game.player.is_seated_at(craft.get_pilot_seat_anchor()) \
 		and not game._transition_busy, 12.0)
 	_check(piloting, "bounded home retry uses the actual Halyard host pilot")
 	if not piloting:
@@ -348,7 +348,7 @@ func _shared_aurora_home_publication_retry() -> void:
 		GameFlow.network_cabin_berth_seat_id(ship_id, 1), 1, GameFlow.NETWORK_CABIN_BERTH_ROLE,
 		1, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
 	_check(bool(client.send_boarding_intent(request).get("accepted", false)), "crew uses the real authenticated cabin boarding ledger")
-	var boarded := await _wait_until(func(): return game.get_network_remote_body_simulation() != null
+	var boarded := await _wait_until(func(): return game.get_network_remote_body_simulation() != null \
 		and game.get_network_remote_body_simulation().has_body(avatar), 12.0)
 	_check(boarded, "confirmed cabin occupancy owns a real retained crew body")
 	if not boarded:
@@ -378,7 +378,7 @@ func _shared_aurora_home_publication_retry() -> void:
 	server.fail_landed_publication = true
 	game._try_request_landing()
 	_check(craft.is_landing_active() and game._landing_request_active, "ordinary home assist owns a real pending physical and network landing")
-	var docked := await _wait_until(func(): return not craft.is_landing_active() and home.get_occupant() == craft
+	var docked := await _wait_until(func(): return not craft.is_landing_active() and home.get_occupant() == craft \
 		and server.landed_publication_failures > 0, 12.0)
 	_check(docked and craft.get_landing_contract_report().get("phase") == HeroShip.LANDING_PHASE_DOCKED,
 		"real home docking reaches occupied DOCKED despite injected landed publication rejection")
