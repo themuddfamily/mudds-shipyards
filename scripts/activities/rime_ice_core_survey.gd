@@ -41,6 +41,9 @@ var _participant_ref: WeakRef = weakref(null)
 var _participant_context: Dictionary = {}
 
 
+var _pending_shared_restoration := false
+
+
 func _init(flow: GameFlow, visit: RefCounted) -> void:
 	_flow = flow
 	_visit_ref = weakref(visit)
@@ -79,7 +82,17 @@ static func valid_progress(candidate: Variant) -> bool:
 	return bool(validator.validate_persistence_state(route_progress).get("accepted", false))
 
 
+## A newly recovered visit has progress, not a previous crew capability.
+## Cold resumes only when a current peer actually records its next observation.
+func prepare_shared_restoration() -> void:
+	var visit: RefCounted = _visit_ref.get_ref()
+	_pending_shared_restoration = visit != null and _shared_visit() \
+		and visit.restored_surface_host_is_current() and _running() and not reward_recorded() \
+		and _participant_context.is_empty()
+
+
 func attach(surface: Node3D) -> void:
+	_pending_shared_restoration = false
 	_clear_participant()
 	_surface_ref = weakref(surface)
 	_region = surface.get_node_or_null(^"LandingRegion") as Node3D
@@ -177,6 +190,8 @@ func get_heat_snapshot() -> Dictionary:
 func physics_tick(delta: float) -> void:
 	var shared := _shared_visit()
 	var running := _running()
+	if shared and running and _pending_shared_restoration:
+		return
 	var can_tick := _participant_is_current() if shared else _on_foot()
 	if shared and running and not can_tick:
 		_retire_participant()
@@ -306,6 +321,7 @@ func interact(body: PlayerController = null) -> bool:
 			return abandon(actor)
 		var started := _flow.activity_director.start_activity(ACTIVITY_ID)
 		if bool(started.get("accepted", false)):
+			_pending_shared_restoration = false
 			if _shared_visit():
 				_participant_ref = weakref(actor)
 				_participant_context = _flow._network_rime_survey_participant_context(actor)
@@ -319,6 +335,13 @@ func interact(body: PlayerController = null) -> bool:
 	if index == 0 or not _near(index, actor):
 		return false
 	if state == CheckpointRouteActivity.State.ACTIVE:
+		if _pending_shared_restoration:
+			var context := _flow._network_rime_survey_participant_context(actor)
+			if context.is_empty() or not _flow._network_rime_survey_participant_is_current(actor, context):
+				return false
+			_participant_ref = weakref(actor)
+			_participant_context = context
+			_pending_shared_restoration = false
 		var result := _flow.activity_director.submit_position(ACTIVITY_ID,
 			_region.to_local(actor.global_position), int(route.generation))
 		if not bool(result.get("accepted", false)):
@@ -369,7 +392,8 @@ func _actor_can_observe(body: PlayerController) -> bool:
 	return _available() and _flow._shared_aurora_survey_store_is_current() \
 		and _flow._network_rime_survey_body_is_current(body) \
 		and not body.is_seated() and body.is_on_floor() \
-		and (not _running() or (_participant_is_current() and _participant_ref.get_ref() == body))
+		and (not _running() or _pending_shared_restoration \
+			or (_participant_is_current() and _participant_ref.get_ref() == body))
 
 
 ## The running participant remains current through ordinary jumping. Floor
@@ -381,6 +405,7 @@ func _participant_is_current() -> bool:
 
 
 func _clear_participant() -> void:
+	_pending_shared_restoration = false
 	if _participant_context.is_empty() and _participant_ref.get_ref() == null:
 		return
 	_participant_ref = weakref(null)
@@ -388,6 +413,7 @@ func _clear_participant() -> void:
 
 
 func _retire_participant() -> void:
+	_pending_shared_restoration = false
 	if not _participant_context.is_empty() and _running():
 		var route := snapshot()
 		_flow.activity_director.fail_activity(ACTIVITY_ID, FAILURE_PARTICIPANT_RETIRED,

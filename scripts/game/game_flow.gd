@@ -1462,6 +1462,12 @@ func _enter_tree() -> void:
 ## tombstone here, so no client is left drawing a body in a cabin nobody is
 ## flying any more.
 func _on_game_flow_tree_exiting() -> void:
+	# Save while this Main still owns the settled surface and its live lease;
+	# session retirement below deliberately destroys every transient crew grant.
+	if bool(_aurora_expedition.get("_shared_arrival")):
+		save_interrupted_aurora_visit()
+	if bool(_rime_expedition.get("_shared_arrival")):
+		save_interrupted_rime_visit()
 	_flush_shared_aurora_survey_checkpoint()
 	_cancel_network_exterior_transition()
 	_retire_all_network_moving_interior_occupancy(&"game_flow_detached")
@@ -1599,7 +1605,7 @@ func host_network_session(
 	# The running session keeps its role; the adapter refuses this request.
 	if session.is_session_active():
 		return session.host(port, max_clients)
-	if _planetary_visit_blocks_network_session():
+	if _planetary_visit_blocks_network_session() and not _network_planetary_journey.can_adopt_restored_surface():
 		return _refuse_network_session_during_planetary_visit(&"server")
 	_network_session_mode = &"server"
 	_network_session_retry_mode = &"server"
@@ -1654,10 +1660,9 @@ func shutdown_network_session(reason: StringName = &"requested") -> Dictionary:
 	return result
 
 
-## Planet visits are solo exploration. A cruise or visit moves this game's
-## whole world under the common-world origin rebase, which no peer shares, so a
-## session may not open while one is under way (and none may start while a
-## session is up: `_planetary_cruise_gate_reason`, `_launch_rejection`).
+## New sessions cannot interrupt an active cruise or ordinary solo visit.
+## Hosting alone has a separate, validated recovered-surface adoption gate;
+## joining another host retains this refusal unchanged.
 func _planetary_visit_blocks_network_session() -> bool:
 	if (_aurora_expedition != null and _aurora_expedition.is_active()) \
 			or (_rime_expedition != null and _rime_expedition.is_active()):
@@ -7022,6 +7027,7 @@ func _on_network_session_started(mode: StringName) -> void:
 			_register_network_ship_ownership(fleet_ship)
 	if mode == &"server":
 		_attach_network_engineer_binding()
+		_network_planetary_journey.adopt_restored_surface()
 	_publish_network_session_snapshot(
 		&"connected" if mode == &"server" else &"connecting",
 		mode,
@@ -10749,7 +10755,8 @@ func _network_surface_visit_passenger_host_is_current(craft: HeroShip, world_id:
 		and is_instance_valid(craft) and craft == active_ship and not craft.is_destroyed() \
 		and journey.get("world_id") == world_id and journey.get("phase") == &"landed" \
 		and journey.get("ship_id") == craft.get_ship_id() and int(journey.get("journey_epoch", 0)) > 0 \
-		and owner.is_active() and owner.state == &"landed" and bool(owner.get("_shared_arrival")) \
+		and owner.is_active() and bool(owner.get("_shared_arrival")) \
+		and (owner.state == &"landed" or owner.restored_surface_host_is_current()) \
 		and owner.get_craft() == craft and _network_planetary_journey._surface_arrival_host_is_current() \
 		and is_instance_valid(scene) and scene.is_inside_tree() and not scene.is_queued_for_deletion() \
 		and owner.get("_surface") == scene and is_instance_valid(berth) and berth.is_inside_tree() \
@@ -15381,7 +15388,14 @@ func bind_aurora_expedition_persistence() -> Dictionary:
 ## no visit at all, both commit nothing.
 func save_interrupted_aurora_visit() -> Dictionary:
 	if bool(_aurora_expedition.get("_shared_arrival")):
-		return _save_shared_aurora_survey_checkpoint()
+		if not _shared_aurora_survey_store_is_current():
+			return {"accepted": false, "reason": &"aurora_shared_survey_store_recovery_required"}
+		# queue_free marks Main before tree_exiting; its live child lease still
+		# validates the visit below, while ordinary HUD/interaction gates close.
+		if not is_queued_for_deletion():
+			var checkpoint := _save_shared_aurora_survey_checkpoint()
+			if not bool(checkpoint.get("accepted", false)):
+				return checkpoint
 	var visit := _aurora_expedition.capture_interrupted_visit()
 	if visit.is_empty():
 		_aurora_interrupted_visit_save_status = {
@@ -24941,6 +24955,8 @@ func bind_rime_expedition_persistence() -> Dictionary:
 ## Records a running Rime visit so a whole-`Main` re-entry can resume it. A
 ## visit already on its way home, or no visit at all, commits nothing.
 func save_interrupted_rime_visit() -> Dictionary:
+	if bool(_rime_expedition.get("_shared_arrival")) and not _shared_aurora_survey_store_is_current():
+		return {"accepted": false, "reason": &"rime_shared_survey_store_recovery_required"}
 	var visit := _rime_expedition.capture_interrupted_visit() as Dictionary
 	if visit.is_empty():
 		_rime_interrupted_visit_save_status = {

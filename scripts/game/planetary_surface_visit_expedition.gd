@@ -46,6 +46,8 @@ var survey: RefCounted
 
 var _shared_arrival := false
 var _shared_cabin_transition_generation := -1
+## Fresh physical ownership established by recovery, never read from a save.
+var _restored_surface_context: Dictionary = {}
 var _flow: GameFlow
 var state: StringName = &"idle"
 var _ship: HeroShip
@@ -841,6 +843,11 @@ func _complete_restore(loaded: Node3D) -> void:
 	_flow.hud.set_mode("on-foot")
 	_flow.audio.set_on_foot(true)
 	state = &"surface"
+	_restored_surface_context = {
+		"craft_id": _ship.get_instance_id(), "player_id": _flow.player.get_instance_id(),
+		"scene_id": loaded.get_instance_id(), "berth_id": _berth.get_instance_id(),
+		"token": _surface_token, "location_generation": _bootstrap().get_location_generation(),
+	}
 	_flow.hud.set_objective(
 		"Back on %s - explore, then board your ship to return" % profile.display_name,
 		"%s SURFACE" % profile.upper_name()
@@ -902,7 +909,13 @@ func _navigation_standoff_target() -> Vector3:
 ## the world in is captured: its receipt was retired when the resume was
 ## admitted, so leaving now must record the visit again or it is lost.
 func capture_interrupted_visit() -> Dictionary:
-	if _shared_arrival:
+	if _shared_arrival and (state not in [&"landed", &"surface"] \
+			or not settled_surface_is_current() \
+			or _flow._network_session_mode != &"server" or not _flow._network_session_is_live() \
+			or not _flow._network_planetary_journey.is_active() \
+			or int(_flow.get_network_planetary_journey_snapshot().get("journey_epoch", 0)) \
+				!= int(_flow._network_planetary_journey.get("_epoch")) \
+			or _flow._network_planetary_journey.get_world_id() != profile.world_id):
 		return {}
 	if not is_active() or state in [
 		&"outbound", &"corridor", &"retiring",
@@ -958,6 +971,7 @@ func restore_interrupted_visit(visit: Dictionary) -> Dictionary:
 			"admission_reason": _last_admission.get("reason", &"unknown"),
 		}
 	_ship = craft
+	_restored_surface_context.clear()
 	_home = home
 	# The resumed craft is the one the pilot flew out in, not whichever craft a
 	# fresh `Main` happens to start with. Adopt it before the visit's own
@@ -997,9 +1011,9 @@ func _begin_return() -> void:
 	if not bool(admitted.get("accepted", false)):
 		_last_leg_result = admitted.duplicate(true)
 		return
-	if not _shared_arrival:
-		_retire_saved_visit()
-	elif profile.world_id == &"aurora_temperate_world":
+	_restored_surface_context.clear()
+	_retire_saved_visit()
+	if _shared_arrival and profile.world_id == &"aurora_temperate_world":
 		var retired := _flow.retire_shared_aurora_survey_checkpoint()
 		if not bool(retired.get("accepted", false)):
 			_flow.hud.toast("Survey progress could not be cleared", "Your current controls and optional return remain available.", 4.0)
@@ -1073,12 +1087,12 @@ func _retire_saved_visit() -> void:
 
 
 func cancel(preserve_interrupted_visit := false) -> void:
-	var was_shared_arrival := _shared_arrival
+	_restored_surface_context.clear()
 	_shared_arrival = false
 	_shared_cabin_transition_generation = -1
 	if not is_active():
 		return
-	if not preserve_interrupted_visit and not was_shared_arrival:
+	if not preserve_interrupted_visit:
 		_retire_saved_visit()
 	if state in [&"outbound", &"corridor", &"landing", &"return_cruise"]:
 		# Revoking travel leaves the same live pilot in direct control at the
@@ -1235,6 +1249,70 @@ func _streaming_binding() -> PlanetaryStreamingProductionBinding:
 
 ## Ordinary landed seat exit keeps the existing same-craft cabin owner. The
 ## bridge observes that owner rather than extending pilot authority to walkers.
+func settled_surface_is_current() -> bool:
+	var bootstrap := _bootstrap()
+	return state in [&"surface", &"landed"] and _surface_lease_is_current(bootstrap)
+
+
+func _surface_lease_is_current(bootstrap: PlanetaryStreamingBootstrap) -> bool:
+	return profile.world_id in [&"aurora_temperate_world", &"rime_glacial_world"] \
+		and is_instance_valid(_flow.world) \
+		and is_instance_valid(_ship) and _ship.is_inside_tree() and not _ship.is_queued_for_deletion() \
+		and not _ship.is_destroyed() and _flow.active_ship == _ship \
+		and is_instance_valid(_home) and _home.is_inside_tree() and not _home.is_queued_for_deletion() \
+		and _flow.world.get_berth_node(_ship.get_home_berth_id()) == _home \
+		and _flow._planetary_journey.is_aurora_visit_active() \
+		and _flow._planetary_journey.get_visit_world_id() == profile.world_id \
+		and is_instance_valid(bootstrap) and is_instance_valid(_surface) \
+		and _surface.is_inside_tree() and not _surface.is_queued_for_deletion() \
+		and bootstrap.get_loaded_instance() == _surface \
+		and is_instance_valid(_berth) and _berth.is_inside_tree() and not _berth.is_queued_for_deletion() \
+		and _surface.is_ancestor_of(_berth) and _berth.get_occupant() == _ship \
+		and not _surface_token.is_empty() and _berth.get_reservation_token(_ship) == _surface_token \
+		and _ship.get_landing_contract_report().get("phase") == HeroShip.LANDING_PHASE_DOCKED \
+		and bool(_ship.get_telemetry().get("landed", false)) \
+		and _ship.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE
+
+
+## Recovery establishes these identities in this Main, after physical docking.
+## A saved dictionary cannot install this context or confer a pilot capability.
+func restored_surface_host_is_current() -> bool:
+	var context := _restored_surface_context
+	var bootstrap := _bootstrap()
+	if context.is_empty() or not _surface_lease_is_current(bootstrap) \
+			or _ship.get_instance_id() != int(context.craft_id) \
+			or _surface.get_instance_id() != int(context.scene_id) \
+			or _berth.get_instance_id() != int(context.berth_id) or _surface_token != context.token \
+			or bootstrap.get_location_generation() != int(context.location_generation) \
+			or not is_instance_valid(_flow.player) or not _flow.player.is_inside_tree() \
+			or _flow.player.is_queued_for_deletion() or _flow.player.get_instance_id() != int(context.player_id) \
+			or _flow._recovering:
+		return false
+	if state in [&"opening_boarding", &"boarding"]:
+		return _flow._transition_busy
+	if state not in [&"surface", &"landed"] or _flow._transition_busy:
+		return false
+	return (_flow.phase == GameFlow.Phase.APPROACH_SHIP and not _flow._piloting \
+		and not _flow.player.is_seated()) or (_flow._shared_planetary_host_eligible() \
+		and _flow.player.is_seated_at(_ship.get_pilot_seat_anchor()) \
+		and is_instance_valid(_ship.get_command_source()))
+
+
+func can_share_restored_surface() -> bool:
+	return restored_surface_host_is_current() and state == &"surface" \
+		and not _shared_arrival and not _flow._piloting and not _flow.player.is_seated()
+
+
+func adopt_restored_surface() -> bool:
+	if not can_share_restored_surface() or not _flow._network_session_is_live() \
+			or not _flow.network_session.is_server():
+		return false
+	_shared_arrival = true
+	if survey.has_method(&"prepare_shared_restoration"):
+		survey.call(&"prepare_shared_restoration")
+	return true
+
+
 func shared_arrival_cabin_owner_is_current() -> bool:
 	if not _shared_arrival or state != &"landed" or not is_instance_valid(_ship):
 		return false

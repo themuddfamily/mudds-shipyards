@@ -25,6 +25,8 @@ var _rime_intent_source: NetworkRemoteBodyIntentSource
 var _rime_jump_held := false
 var _rime_last_movement_send: Dictionary = {}
 var _rime_last_neutral_packet: Dictionary = {}
+var _shared_visit_restore_mode := false
+var _shared_visit_restoration_completed := false
 
 
 class SurveyFilesystem extends UserDataFilesystem:
@@ -169,6 +171,22 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--restore-shared-rime") or OS.get_cmdline_user_args().has("--restore-shared-aurora"):
+		_shared_visit_restore_mode = true
+		if OS.get_cmdline_user_args().has("--restore-shared-rime"):
+			_rime_shared_survey_mode = true
+			await _shared_rime_pad_access()
+		else:
+			await _shared_aurora_home_publication_retry()
+		_check(_shared_visit_restoration_completed, "the requested fresh-Main shared restoration route reaches ordinary authenticated reboarding")
+		if _failures.is_empty():
+			print("OK: Shared visit restoration integration (%d assertions)" % _assertions)
+			quit(0)
+		else:
+			for failure in _failures:
+				push_error(failure)
+			quit(1)
+		return
 	if OS.get_cmdline_user_args().has("--rime-shared-survey"):
 		_rime_shared_survey_mode = true
 		_rime_survey_retirement_case = true
@@ -421,10 +439,12 @@ func _shared_rime_pad_access(native_floor_loss_only: bool = false) -> void:
 		if boarded:
 			await _rime_pad_body_route(game, client, craft, avatar, native_floor_loss_only)
 	client.shutdown()
-	game.shutdown_network_session(&"rime_pad_fixture_done")
-	_check(game._network_ember_passenger_surfaces.is_empty(), "Rime session retirement disposes the retained surface contexts")
+	if is_instance_valid(game):
+		game.shutdown_network_session(&"rime_pad_fixture_done")
+		_check(game._network_ember_passenger_surfaces.is_empty(), "Rime session retirement disposes the retained surface contexts")
 	branch.queue_free()
-	game.queue_free()
+	if is_instance_valid(game):
+		game.queue_free()
 	await process_frame
 	await physics_frame
 
@@ -667,9 +687,22 @@ func _shared_aurora_home_publication_retry() -> void:
 	await physics_frame
 	game.start_shift()
 	if _survey_restart_phase == 2:
-		_check(not game._aurora_expedition.is_active() and not game._planetary_journey.is_aurora_visit_active() and not game._network_session_is_live()
-			and game.get_network_remote_body_simulation() == null and game._network_ember_passenger_surfaces.is_empty(), "fresh Main keeps interrupted shared progress passive at Mudds without crew, session or lease restoration")
+		var recovered := await _wait_until(func(): return game._aurora_expedition.can_share_restored_surface(), 20.0)
+		_check(recovered and not game._network_session_is_live() and not game.player.is_seated()
+			and game.get_network_remote_body_simulation() == null and game._network_ember_passenger_surfaces.is_empty(), "fresh Main recovers Aurora's physical visit on foot without old session, bodies or grants")
 		_check(not game.restore_shared_aurora_survey_checkpoint().get("accepted", false), "offline startup cannot adopt a shared host survey checkpoint")
+		if not recovered:
+			game.queue_free()
+			await process_frame
+			return
+		# Existing public expedition rescue ends this recovered visit; the next
+		# staged admission below remains a separate passive-progress consumer.
+		game._aurora_expedition.cancel(true)
+		if not await _wait_until(func(): return not game._aurora_expedition.is_active(), 6.0):
+			_check(false, "ordinary recovered-visit cancellation returns the host safely before the next admission")
+			game.queue_free()
+			await process_frame
+			return
 	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
 	var home := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
 	game._release_ship_berth(craft)
@@ -732,9 +765,11 @@ func _shared_aurora_home_publication_retry() -> void:
 	var frame := craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
 	if not await _shared_aurora_coastal_observations(game, server, client, craft, body, filesystem, store):
 		client.shutdown()
-		game.shutdown_network_session(&"coastal_fixture_failed")
+		if is_instance_valid(game):
+			game.shutdown_network_session(&"coastal_fixture_failed")
 		branch.queue_free()
-		game.queue_free()
+		if is_instance_valid(game):
+			game.queue_free()
 		await process_frame
 		return
 	if _survey_restart_phase == 1:
@@ -933,6 +968,9 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		bridge._publish(true)
 		_check(await _wait_until(func(): return int((_coastal_replica.get("aurora_survey", {}) as Dictionary).get("progress", {}).get("next_checkpoint_index", 0)) == 1, 3.0), "actual authenticated host publication synchronizes the crew observation progress")
 		_check(int(owner.survey.snapshot().get("next_checkpoint_index", 0)) == 1, "host records the actual lookout observation from the retained crew body")
+		if _shared_visit_restore_mode:
+			await _restore_shared_visit_with_fresh_crew(game, client, body, &"aurora_temperate_world")
+			return false
 		var interrupted_store := UserDataStore.new("memory://shared-aurora.json", filesystem)
 		interrupted_store.load()
 		var saved_checkpoint := interrupted_store.get_snapshot().get("aurora_shared_coastal_survey", {}) as Dictionary
@@ -1140,6 +1178,9 @@ func _rime_shared_survey_body_route(game: GameFlow, client: Adapter, craft: Hero
 	await _coastal_press(game, game.network_session, client, body)
 	_check(int(survey.snapshot().next_checkpoint_index) == 1,
 		"accepted actual drill interaction records the first ice-core observation")
+	if _shared_visit_restore_mode:
+		await _restore_shared_visit_with_fresh_crew(game, client, body, &"rime_glacial_world")
+		return
 	for point: Vector3 in [Vector3(-52, 0.5, -42), Vector3(-50, 0.5, -54), Vector3(-30, 0.5, -66), Vector3(-8, 0.5, -68)]:
 		if not await _checked_coastal_walk(game, game.network_session, client, body, region.to_global(point),
 				"retained Rime survey participant follows the authored serac trail"):
@@ -1193,6 +1234,183 @@ func _rime_shared_survey_body_route(game: GameFlow, client: Adapter, craft: Hero
 		"optional Rime survey leaves the ordinary all-crew return manifest usable")
 
 
+
+## The old arrival is staged by the existing feature fixture. The saved
+## observation is real; the new Main uses production recovery and public host
+## startup. Every fresh crew step/interaction below travels over real ENet.
+func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
+		old_body: PlayerController, world_id: StringName) -> void:
+	var is_rime := world_id == &"rime_glacial_world"
+	var owner = game._rime_expedition if is_rime else game._aurora_expedition
+	var store := game._runtime_settings_user_data_store
+	var filesystem := store.get("_filesystem") as SurveyFilesystem
+	var path := "memory://rime-pad.json" if is_rime else "memory://shared-aurora.json"
+	var home_id: StringName = owner.get_craft().get_home_berth_id()
+	var old_avatar := StringName(NetworkRemoteBodySimulation.get_remote_body_identity(old_body).entity_id)
+	var old_context: Dictionary = game._network_ember_passenger_surfaces[old_avatar].duplicate(true)
+	var old_body_ref := weakref(old_body)
+	var saved_progress: Dictionary = owner.survey.capture()
+	var saved := game.save_interrupted_rime_visit() if is_rime else game.save_interrupted_aurora_visit()
+	_check(bool(saved.get("accepted", false)), "actual shared observation commits a resumable visit through the atomic store")
+	var binding = game._rime_expedition_persistence_binding if is_rime else game._aurora_expedition_persistence_binding
+	var loaded: Dictionary = binding.load_interrupted_visit()
+	_check(loaded.get("accepted", false) and loaded.visit.size() == 4
+		and loaded.visit.craft_home_berth_id == String(home_id)
+		and int(loaded.visit.survey.next_checkpoint_index) == 1,
+		"the existing visit receipt contains only craft, phase, on-foot state and observed progress")
+	if not saved.get("accepted", false) or not loaded.get("accepted", false):
+		return
+	game.queue_free()
+	await process_frame
+	await physics_frame
+	old_client.shutdown()
+	_check(old_body_ref.get_ref() == null, "whole-Main teardown disposes the old shared crew body")
+	var fresh := MainScene.instantiate() as GameFlow
+	fresh.configure_runtime_settings_persistence(UserDataStore.new(path, filesystem))
+	root.add_child(fresh)
+	set_multiplayer(SceneMultiplayer.new(), fresh.get_path())
+	await process_frame
+	await physics_frame
+	fresh.start_shift()
+	owner = fresh._rime_expedition if is_rime else fresh._aurora_expedition
+	var recovered := await _wait_until(func(): return owner.can_share_restored_surface(), 20.0)
+	_check(recovered and fresh.active_ship.get_home_berth_id() == home_id
+		and not fresh.player.is_seated() and not fresh._piloting and fresh.player.is_control_enabled()
+		and not fresh._network_session_is_live() and not fresh._network_planetary_journey.is_active()
+		and fresh.get_network_remote_body_simulation() == null,
+		"fresh Main physically restores the same world's registered craft and standing host without old network authority")
+	if not recovered:
+		fresh.queue_free()
+		await process_frame
+		return
+	var craft := owner.get_craft() as HalyardCrewTransport
+	var berth: ShipBerth = owner.get("_berth")
+	var token := berth.get_reservation_token(craft)
+	var pose := fresh.player.global_transform
+	_check(owner.settled_surface_is_current() and not token.is_empty()
+		and berth.get_occupant() == craft and int(owner.survey.snapshot().next_checkpoint_index) == 1,
+		"restoration owns a fresh real occupied lease and retains the saved observation")
+	_check(not fresh._network_ember_passenger_surface_is_current(old_avatar, old_context),
+		"the retired body's saved world/session/lease context cannot enter the fresh Main")
+	var probe := UDPServer.new()
+	var port_ready := probe.listen(0, "127.0.0.1") == OK
+	var port := probe.get_local_port() if port_ready else 0
+	probe.stop()
+	fresh._ensure_lan_discovery().discovery_port = 0
+	var context: Dictionary = owner.get("_restored_surface_context").duplicate(true)
+	owner._restored_surface_context.token = &"forged-restored-token"
+	_check(not fresh.host_network_session(port, 2).get("accepted", false),
+		"the public host action refuses a restored visit with a stale lease identity")
+	owner._restored_surface_context = context
+	_check(not fresh.join_network_session("127.0.0.1", port).get("accepted", false),
+		"a recovered planetary host cannot join another session through the hosting exception")
+	var hosted := port_ready and bool(fresh.host_network_session(port, 2).get("accepted", false))
+	_check(hosted and fresh._network_planetary_journey.get_world_id() == world_id
+		and fresh.get_network_planetary_journey_snapshot().phase == &"landed"
+		and fresh.player.global_transform == pose and not fresh.player.is_seated()
+		and not fresh._shared_planetary_host_eligible() and owner.restored_surface_host_is_current(),
+		"public hosting adopts only this fresh world and lease while preserving the intentional standing host")
+	_check(not fresh._network_planetary_journey.adopt_restored_surface().get("accepted", false)
+		and fresh._network_planetary_journey.shared_surface_return_gate_reason(world_id) == fresh._network_planetary_journey._arrival_reason(world_id, "return_requires_host_pilot"),
+		"duplicate adoption is refused and standing recovery grants no return pilot capability")
+	var branch := SubViewport.new()
+	root.add_child(branch)
+	set_multiplayer(SceneMultiplayer.new(), branch.get_path())
+	var client := Adapter.new()
+	client.name = GameFlow.NETWORK_SESSION_NODE_NAME
+	branch.add_child(client)
+	client.planetary_journey_state_received.connect(_capture_coastal_state)
+	_coastal_replica.clear()
+	if hosted:
+		client.join("127.0.0.1", port)
+	var admitted := hosted and await _wait_until(func(): return not client.get_server_offer().is_empty()
+		and _coastal_replica.get("world_id") == world_id and _coastal_replica.get("phase") == &"landed", 10.0)
+	_check(admitted, "a newly authenticated late crew receives the actual recovered world's current journey publication")
+	if admitted:
+		var avatar := GameFlow.network_client_boarding_avatar_id(client.multiplayer.get_unique_id())
+		client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 1, BoardingIntent.ACTION_BOARD))
+		var boarded := await _wait_until(func(): return fresh.get_network_remote_body_simulation() != null
+			and fresh.get_network_remote_body_simulation().has_body(avatar), 12.0)
+		_check(boarded, "the new session's real boarding ledger creates a fresh confirmed cabin body")
+		if boarded:
+			var simulation := fresh.get_network_remote_body_simulation()
+			var body := simulation.get_body(avatar) as PlayerController
+			var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
+			_rime_intent_source = BodyIntentSource.new()
+			_rime_intent_source.bind(identity.entity_id, int(identity.entity_generation), 1001)
+			client.movement_intent_result.connect(_accept_rime_movement_result.bind(client))
+			_rime_shared_survey_mode = true
+			_rime_jump_held = false
+			_coastal_sequence = 0
+			_coastal_interaction = 0
+			var deck := craft.get_node("WalkableInterior/InteriorDeckMarker") as Node3D
+			var walked := await _checked_coastal_walk(fresh, fresh.network_session, client, body,
+				deck.global_position, "fresh authenticated crew walks ordinarily to the recovered craft's real hatch")
+			if walked:
+				client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 2, BoardingIntent.ACTION_DISEMBARK))
+				var exterior := await _wait_until(func(): return simulation.is_surface_walking(avatar), 5.0)
+				_check(exterior and simulation.get_body(avatar) == body
+					and fresh._network_ember_passenger_surface_is_current(avatar)
+					and not fresh._network_ember_passenger_surface_is_current(old_avatar, old_context),
+					"ordinary fresh hatch departure owns only the new body and fresh world/session/epoch/lease grant")
+				if exterior:
+					var region := owner.get("_surface").get_node("LandingRegion") as Node3D
+					for target: Vector3 in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)),
+							craft.to_global(Vector3(-8, 0.52, 22)), region.to_global(Vector3(-8, 0.5, -8))]:
+						walked = walked and await _checked_coastal_walk(fresh, fresh.network_session, client, body,
+							target, "late crew uses ordinary retained-body intents on the recovered actual surface")
+					if is_rime:
+						var frozen_heat := float(owner.survey.get_heat_snapshot().heat_s)
+						for _tick in 30:
+							if not is_instance_valid(body):
+								break
+							await _coastal_tick(fresh, fresh.network_session, client, body, body.global_position)
+						_check(owner.survey.get("_pending_shared_restoration") and owner.survey.shared_state().participant_entity_id == ""
+							and is_equal_approx(float(owner.survey.get_heat_snapshot().heat_s), frozen_heat)
+							and int(owner.survey.snapshot().next_checkpoint_index) == int(saved_progress.next_checkpoint_index),
+							"restored Rime progress and heater wait for a new authenticated observation instead of reviving the old participant")
+						for point: Vector3 in [Vector3(-24, 0.5, -16), Vector3(-40, 0.5, -28), Vector3(-52, 0.5, -42),
+								Vector3(-50, 0.5, -54), Vector3(-30, 0.5, -66), Vector3(-8, 0.5, -68),
+								Vector3(14, 0.5, -70), Vector3(28, 0.5, -63), Vector3(30, 0.5, -62)]:
+							walked = walked and await _checked_coastal_walk(fresh, fresh.network_session, client, body,
+								region.to_global(point), "fresh Rime participant follows the actual trail to the remaining saved observation")
+						if walked:
+							filesystem.reject_rewards = true
+							await _coastal_press(fresh, fresh.network_session, client, body)
+							_check(not owner.survey.get("_pending_shared_restoration") and int(owner.survey.snapshot().state) == CheckpointRouteActivity.State.COMPLETED
+								and not owner.survey.reward_recorded() and filesystem.rejected_rewards > 0,
+								"a real current observation binds the fresh participant and rejected saving leaves completion unpaid")
+							filesystem.reject_rewards = false
+							await _coastal_press(fresh, fresh.network_session, client, body)
+							await _coastal_press(fresh, fresh.network_session, client, body)
+							var reloaded := UserDataStore.new(path, filesystem)
+							reloaded.load()
+							_check(owner.survey.reward_recorded() and int((reloaded.get_snapshot().get(String(GameFlowRewardAuthority.SLOT_ID), {}) as Dictionary).get("reward_counts", {}).get("rime_ice_core_record", 0)) == 1,
+								"the freshly observed restored Rime survey retries and reloads exactly one durable reward")
+						for point: Vector3 in [Vector3(30, 0.5, -52), Vector3(30, 0.5, -30), Vector3(28, 0.5, -14), Vector3(14, 0.5, 2), Vector3(-8, 0.5, -8)]:
+							walked = walked and await _checked_coastal_walk(fresh, fresh.network_session, client, body,
+								region.to_global(point), "restored Rime observer physically follows the cyan return trail")
+					for target: Vector3 in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), deck.global_position]:
+						walked = walked and await _checked_coastal_walk(fresh, fresh.network_session, client, body,
+							target, "late crew physically returns through the existing airstair and hatch")
+					if walked:
+						client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 3, BoardingIntent.ACTION_BOARD_ANY))
+						var reboarded := await _wait_until(func(): return is_instance_valid(body) and not simulation.is_surface_walking(avatar)
+							and body.is_cabin_containment_active(), 5.0)
+						_check(reboarded and simulation.get_body(avatar) == body and not fresh.player.is_seated()
+							and berth.get_occupant() == craft and berth.get_reservation_token(craft) == token
+							and (owner.survey.reward_recorded() if is_rime else not owner.survey.reward_recorded()),
+							"fresh crew reboards the same physical body without moving the standing host, changing its lease or duplicating a reward")
+						_shared_visit_restoration_completed = reboarded
+	client.shutdown()
+	fresh.shutdown_network_session(&"shared_restoration_fixture_done")
+	_check(fresh._network_ember_passenger_surfaces.is_empty(), "restored session retirement clears its fresh grants")
+	branch.queue_free()
+	fresh.queue_free()
+	await process_frame
+	await physics_frame
+
+
 func _accept_rime_movement_result(result: Dictionary, client: Adapter) -> void:
 	if int(result.get("sequence", 0)) > 0:
 		_rime_intent_source.accept_clock_refusal(client.multiplayer.get_unique_id(), result)
@@ -1213,6 +1431,9 @@ func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 		elif not _rime_intent_source.has_authoritative_movement_clock():
 			movement_tick = client.get_boarding_server_tick_estimate()
 		var direction := target - body.global_position
+		if _shared_visit_restore_mode:
+			var rig := body.get_node("CameraRig") as Node3D
+			direction = rig.global_basis.inverse() * direction
 		var packet := _rime_intent_source.advance(client.multiplayer.get_unique_id(), {
 			"move_axis": Vector2(0, -1) if not neutral_movement and Vector2(direction.x, direction.z).length() > 0.8 else Vector2.ZERO,
 			"look_yaw": atan2(-direction.x, -direction.z), "look_pitch": 0.0,

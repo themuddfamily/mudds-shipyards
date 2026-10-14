@@ -59,6 +59,35 @@ func begin(world_id: StringName = WORLD_ID) -> Dictionary:
 func is_active() -> bool:
 	return not _state.is_empty()
 
+
+## Only a completed recovery in this Main may open a session on a surface.
+## Old network identities are absent; the new adapter admits its own peers.
+func can_adopt_restored_surface() -> bool:
+	if is_active() or _flow._transition_busy or _flow._recovering:
+		return false
+	for world_id: StringName in ARRIVAL_OWNERS:
+		if _arrival_owner(world_id).can_share_restored_surface():
+			return true
+	return false
+
+
+func adopt_restored_surface() -> Dictionary:
+	if not can_adopt_restored_surface() or not _flow._network_session_is_live() \
+			or not _flow.network_session.is_server() or _flow._network_session_mode != &"server":
+		return {"accepted": false, "reason": &"restored_surface_unavailable"}
+	for world_id: StringName in ARRIVAL_OWNERS:
+		if not _arrival_owner(world_id).adopt_restored_surface():
+			continue
+		_craft_instance_id = _flow.active_ship.get_instance_id()
+		_pilot_source_ref = null
+		_epoch += 1
+		_ready_peers.clear()
+		_state = {"journey_epoch": _epoch, "world_id": world_id,
+			"ship_id": _flow.active_ship.get_ship_id(), "phase": &"landed"}
+		_publish(true)
+		return {"accepted": true, "reason": &"restored_surface_admitted"}
+	return {"accepted": false, "reason": &"restored_surface_unavailable"}
+
 func get_world_id() -> StringName:
 	return StringName(_state.get("world_id", &""))
 
@@ -313,7 +342,7 @@ func detach() -> void:
 	_flow._planetary_journey.retire_shared_ember_abandon_return(&"network_session_retired")
 	if is_surface_arrival() and _flow._network_session_mode == &"server" \
 			and _arrival_owner(get_world_id()).is_active():
-		_arrival_owner(get_world_id()).cancel()
+		_arrival_owner(get_world_id()).cancel(true)
 	_retire_client_observer()
 	_flow._planetary_journey.retire_shared_ember_surface(&"network_session_retired")
 	# Withdraw an outbound request before its physical Host starts. A running
@@ -399,7 +428,8 @@ func _surface_arrival_host_is_current() -> bool:
 		and _flow._planetary_journey.get_visit_world_id() == get_world_id() \
 		and ((_flow._shared_planetary_host_eligible() and _pilot_source_ref != null \
 			and _pilot_source_ref.get_ref() == craft.get_command_source()) \
-			or _arrival_owner(get_world_id()).shared_arrival_cabin_owner_is_current())
+			or _arrival_owner(get_world_id()).shared_arrival_cabin_owner_is_current() \
+			or _arrival_owner(get_world_id()).restored_surface_host_is_current())
 
 
 func _before_surface_arrival_tick() -> void:
@@ -462,7 +492,7 @@ func _after_surface_arrival_tick() -> void:
 	match _arrival_owner(get_world_id()).state:
 		&"corridor", &"landing":
 			next_phase = &"approaching"
-		&"landed":
+		&"landed", &"surface":
 			next_phase = &"landed"
 		&"return_cruise":
 			next_phase = &"returning"
@@ -513,6 +543,7 @@ func admit_shared_surface_return(world_id: StringName) -> bool:
 	if not shared_surface_return_gate_reason(world_id).is_empty():
 		return false
 	var craft: HeroShip = _flow.active_ship
+	_pilot_source_ref = weakref(craft.get_command_source())
 	var owner := _arrival_owner(world_id)
 	var berth := owner.get("_berth") as ShipBerth
 	var home := _flow.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
