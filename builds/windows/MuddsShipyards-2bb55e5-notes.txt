@@ -1,0 +1,16 @@
+Mudd's Shipyards Windows crew clock recovery checkpoint — 2bb55e5a4478b37d28d6305d7753c5dec6840df1
+
+Player-visible change
+Shared crew movement can resume after authenticated host clock feedback repairs a rejected stream. Local prediction samples resume at that repaired clock while existing pose/lease fences remain intact. Survey recovery/HUD cleanup, Station Defence backup trust, docking retry and prepared crew gameplay remain included.
+
+Actual validation
+Clean-source import and focused intent88/real-adapter96 pass. Actual Windows embedded PCK passes88/96, standard223(89/40/25/69), and strict --startup-check exit0 with exactly one STARTUP_MENU_READY_OK, using Linux Godot headless/Dummy. All focused caps remain300; one safe export retains900 and uses only the verified closed58 cache snapshot. Cold cache is preserved.
+The owner's separate exact2bb four-peer source route passed132 checks in118.505s under its original300 cap. Real GameFlow naturally reported clock recoveries client1/client_b8. NO host pause occurred: the exact path guard refused a trailing slash; no SIGSTOP or resume helper ran. This supports natural production feedback, not injected-pause recovery or an explanation for older CI failures.
+Actual1513 payload paths match58. Only changed compiled scripts: scripts/game/game_flow.gdc, scripts/network/network_enet_session_adapter.gdc, scripts/network/network_remote_body_intent_source.gdc; every other payload byte is exact, with no packaged validation receipts. The external fixture contains only two declared tests and class/UID caches, no runtime scripts/scenes/assets fallback. Source/index, accepted cache, templates, fixture, package/inventory remain unchanged across qualification; creation identities and private namespace actors close absent. Seven XDG roots/TMPDIR and parents are700 with umask077; HOME is inherited. No current wrapper failure or source change was needed.
+
+Limits
+Windows-native execution remains held after the Avast startup-temp alert. No Windows game, PowerShell/helper, native fixture, registry, desktop or audible audio actions occurred. Full crew restoration, canonical Aurora travel, full client input/HUD, native GPU/human/audio, full CI/main and release remain open. Earlier failures/proofs retain their original scope. Root owns independent review and any later explicitly authorized publication/native qualification.
+
+EXE SHA256: d5e5725e11e8df480c6b9cee34fd2a3907b3ffb3a0e0e9718935e4c0fb9b6699
+PCK SHA256: d7f484499a3e0aadcde1ad9a1644d639188c8e3158bc1350de32064726b5c3b5
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/clock-recovery-windows
