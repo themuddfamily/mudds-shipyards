@@ -10,6 +10,24 @@ const StatusBindingType := preload("res://scripts/ui/ember_surface_return_status
 const HudAdapterType := preload("res://scripts/ui/ember_surface_return_hud_adapter.gd")
 const MainScene := preload("res://scenes/main.tscn")
 
+class NeutralHostInput:
+	extends RefCounted
+	func is_action_pressed(_action: StringName) -> bool:
+		return false
+	func get_action_strength(_action: StringName) -> float:
+		return 0.0
+
+class SurveySaveFilesystem:
+	extends UserDataFilesystem
+	var reject_rewards := false
+	var rejected_rewards := 0
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if reject_rewards and document is Dictionary and str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with("game-flow-reward-"):
+			rejected_rewards += 1
+			return ERR_CANT_CREATE
+		return super.write_bytes_and_flush(path, bytes)
+
 class FlowProbe:
 	extends GameFlowType
 	func _ready() -> void:
@@ -75,6 +93,8 @@ var _cues: Array[StringName] = []
 var _hud_host: GameFlow
 var _hud_host_manual := false
 var _hud_setup_failed := false
+var _hud_survey_filesystem: SurveySaveFilesystem
+var _hud_saved_profile: InputBindingProfile
 
 
 func _init() -> void:
@@ -238,7 +258,10 @@ func _test_client_survey_retirement(scenario: String) -> void:
 	var server := MainScene.instantiate() as GameFlow
 	var client := MainScene.instantiate() as GameFlow
 	for pair: Array in [[server, "host"], [client, "client"]]:
-		var store := UserDataStore.new("user://survey-hud-%s-%s.json" % [scenario, pair[1]])
+		var filesystem := SurveySaveFilesystem.new()
+		if scenario == "retired" and pair[0] == server:
+			_hud_survey_filesystem = filesystem
+		var store := UserDataStore.new("user://survey-hud-%s-%s.json" % [scenario, pair[1]], filesystem)
 		store.load()
 		(pair[0] as GameFlow).configure_runtime_settings_persistence(store)
 	host_view.add_child(server)
@@ -278,7 +301,15 @@ func _test_client_survey_retirement(scenario: String) -> void:
 			_check(surface_ready, "%s: real exterior grant makes the client's surface context current" % scenario)
 			_hud_setup_failed = not surface_ready
 			if surface_ready:
+				if scenario == "retired":
+					await _check_client_survey_input(server, client, craft, replica)
 				await _check_client_survey_retirement(scenario, server, client)
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+		Input.action_release(action)
+	Input.parse_input_event(_survey_key(false))
+	if _hud_saved_profile != null:
+		client.runtime_settings.set_input_binding_profile(_hud_saved_profile)
+		_hud_saved_profile = null
 	_hud_host_manual = false
 	_hud_host = null
 	client.shutdown_network_session(&"hud_fixture_done")
@@ -346,6 +377,171 @@ func _stage_client_survey_surface(server: GameFlow, client: GameFlow, craft: Her
 	return str(client.hud.get("_objective_source_text")).contains("Optional shared survey")
 
 
+## Only the initial arrival/hatch approach is staged. From this point the same
+## bodies walk using ordinary client input and press an accepted physical remap;
+## no direct survey callback, intent packet, progress or reward is injected.
+func _check_client_survey_input(server: GameFlow, client: GameFlow, craft: HeroShip, replica: HeroShip) -> void:
+	var survey := server._aurora_expedition.survey
+	var surface := server.aurora_streaming_bootstrap.get_loaded_instance()
+	var region := surface.get_node("LandingRegion") as Node3D
+	var sign := surface.find_child("SurveyTrailSign", true, false) as Node3D
+	var lookout := surface.find_child("SurveyLookout", true, false) as Node3D
+	var stones := surface.find_child("SurveyStones", true, false) as Node3D
+	var source := client.get_network_remote_body_intent_source()
+	var avatar := source.get_entity_id()
+	var body := server.get_network_remote_body_simulation().get_body(avatar) as PlayerController
+	var body_id := body.get_instance_id()
+	var client_body_id := client.player.get_instance_id()
+	var pilot_source := craft.get_command_source() as LocalShipInputSource
+	# Two Main peers share Input in this process. Only the host sampler is neutral;
+	# its retained source, seated pilot and all host authorities remain real.
+	pilot_source.set_input_provider(NeutralHostInput.new())
+	var original_profile := client.runtime_settings.get_input_binding_profile()
+	_hud_saved_profile = original_profile
+	var remapped := original_profile.duplicate_profile()
+	remapped.set_bindings(&"interact", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_F14}])
+	_check(client.runtime_settings.set_input_binding_profile(remapped), "full client accepts the real Interact physical-key remap")
+	_hud_host_manual = false
+	server.set_physics_process(true)
+	client.set_physics_process(true)
+	client.set_process(true)
+	await _hud_wait(func(): return InputMap.action_has_event(&"interact", _survey_key(true)), 2.0)
+	_check(client.hud.get_action_prompt(&"interact").contains("F14"), "actual client prompt resolver displays the accepted Interact remap before walking")
+	print("SURVEY_INPUT_FRAME client_basis=", client.player.global_basis, " host_basis=", body.global_basis, " client_yaw=", client.player.get_look_yaw(), " host_yaw=", body.get_look_yaw(), " client_forward=", -client.player.get_camera().global_basis.z, " host_forward=", -body.get_camera().global_basis.z)
+	for point in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(-8, 0.52, 22)), region.to_global(Vector3(14, 0.5, 22)), region.to_global(Vector3(14, 0.5, 2)), sign.global_position + Vector3.UP * 0.5]:
+		if not await _client_survey_walk(server, client, body, point):
+			_hud_setup_failed = true
+			return
+	_diagnose_client_survey("sign", server, client)
+	_check(str((client.hud.get("_interaction_label") as Label).text).contains("F14") and str(client.hud.get("_interaction_source_text")).contains("START COASTAL"), "actual client HUD shows the remapped survey key at the real sign")
+	Input.parse_input_event(_survey_key(true))
+	await _hud_wait(func(): return int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, 3.0)
+	var generation := int(survey.snapshot().get("generation", -1))
+	# A held key and operating-system echo cannot toggle the optional activity.
+	Input.parse_input_event(_survey_key(true, true))
+	await _hud_wait(func(): return false, 0.35)
+	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE and int(survey.snapshot().get("generation", -1)) == generation, "held and repeated remapped events produce one authenticated survey start")
+	Input.parse_input_event(_survey_key(false))
+	await _hud_wait(func(): return false, 0.12)
+	await _client_survey_press()
+	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.FAILED, "a new physical Interact edge abandons the optional survey")
+	await _client_survey_press()
+	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, "another physical edge restarts through host-owned activity authority")
+	for point in [region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(57, 0.5, -20)), lookout.global_position + Vector3(-1.5, -1.0, 0)]:
+		if not await _client_survey_walk(server, client, body, point):
+			_hud_setup_failed = true
+			return
+	await _client_survey_press()
+	_diagnose_client_survey("lookout", server, client)
+	_check(int(survey.snapshot().get("next_checkpoint_index", 0)) == 1 and str(client.hud.get("_objective_source_text")).contains("1/2 observations"), "real remapped client interaction records the lookout and updates the peer HUD")
+	for point in [region.to_global(Vector3(55, 0.5, -20)), stones.global_position + Vector3.UP * 0.5]:
+		if not await _client_survey_walk(server, client, body, point):
+			_hud_setup_failed = true
+			return
+	_hud_survey_filesystem.reject_rewards = true
+	await _client_survey_press()
+	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.COMPLETED and not survey.reward_recorded() and _hud_survey_filesystem.rejected_rewards > 0 and str(client.hud.get("_interaction_source_text")).contains("RETRY SAVING"), "actual remapped completion retains unpaid observations and presents rejected-save retry")
+	_diagnose_client_survey("rejected_stones", server, client)
+	_hud_survey_filesystem.reject_rewards = false
+	await _client_survey_press()
+	_diagnose_client_survey("accepted_retry", server, client)
+	_check(survey.reward_recorded() and str(client.hud.get("_objective_source_text")).contains("Aurora data saved"), "physical Interact retry commits and publishes the real durable reward")
+	await _client_survey_press()
+	var reloaded := UserDataStore.new("user://survey-hud-retired-host.json")
+	reloaded.load()
+	var record := reloaded.get_snapshot().get("game_flow_reward_store", {}) as Dictionary
+	_check(int((record.get("reward_counts", {}) as Dictionary).get("aurora_coastal_survey_data", 0)) == 1, "repeated physical Interact leaves exactly one reward after an actual store reload")
+	for point in [region.to_global(Vector3(52, 0.5, -33)), region.to_global(Vector3(52, 0.5, -27)), region.to_global(Vector3(55, 0.5, -20)), region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(30, 0.5, 0)), region.to_global(Vector3(14, 0.5, 2)), region.to_global(Vector3(14, 0.5, 22)), craft.to_global(Vector3(-8, 0.52, 22)), craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
+		if not await _client_survey_walk(server, client, body, point):
+			_hud_setup_failed = true
+			return
+	_diagnose_client_hatch("center_endpoint", server, client, body, avatar)
+	if not server._network_ember_passenger_at_hatch(body, craft, true):
+		# A loose center waypoint can stop beyond the real hatch/floor/cabin
+		# admission. Enter at each craft's authored marker before pressing.
+		var deck := craft.get_node("WalkableInterior/InteriorDeckMarker") as Node3D
+		var mirror_deck := replica.get_node("WalkableInterior/InteriorDeckMarker") as Node3D
+		if not await _client_survey_walk(server, client, body, deck.global_position, mirror_deck.global_position):
+			_hud_setup_failed = true
+			return
+		_diagnose_client_hatch("authored_deck_entry", server, client, body, avatar)
+	await _client_survey_press()
+	_diagnose_client_hatch("pressed", server, client, body, avatar)
+	var reboarded := await _hud_wait(func(): return not server.get_network_remote_body_simulation().is_surface_walking(avatar) and body.is_cabin_containment_active() and client._network_client_ember_passenger_surface.is_empty() and not client._transition_busy, 3.0)
+	_diagnose_client_hatch("settled", server, client, body, avatar)
+	_check(reboarded, "the same remapped Interact key gives the actual hatch reboard priority")
+	_check(body.get_instance_id() == body_id and client.player.get_instance_id() == client_body_id and craft.get_command_source() == pilot_source, "observations, reward retry and reboarding retain both real bodies and the host pilot source")
+	# A second fresh hatch edge re-admits this same visit for the retirement checks.
+	await _client_survey_press()
+	var departed := await _hud_wait(func(): return client._network_client_ember_passenger_surface_is_current() and server.get_network_remote_body_simulation().is_surface_walking(avatar) and not client._transition_busy, 3.0)
+	_check(departed, "ordinary hatch disembark remains usable after survey reboarding")
+	client.set_physics_process(false)
+	client.set_process(false)
+	pilot_source.set_input_provider(null)
+	client._update_on_foot_flow()
+
+
+func _diagnose_client_hatch(stage: String, server: GameFlow, client: GameFlow, body: PlayerController, avatar: StringName) -> void:
+	var craft := server._find_flyable_ship_by_id(server._network_planetary_journey.get_ship_id()) as HeroShip
+	var hatch := craft.get_node("WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+	var cabin := craft.get_in_flight_cabin_report()
+	print("SURVEY_CLIENT_HATCH ", stage, " host_local=", craft.to_local(body.global_position), " floor=", body.is_on_floor(), " near_hatch=", body.get_nearby_interactables().has(hatch), " reach=", body.get_interaction_origin().distance_to(hatch.global_position), " in_cabin=", (cabin.local_bounds as AABB).has_point(craft.to_local(body.global_position)), " host_surface=", server.get_network_remote_body_simulation().is_surface_walking(avatar), " host_cabin=", body.is_cabin_containment_active(), " client_context_empty=", client._network_client_ember_passenger_surface.is_empty(), " transition=", client._transition_busy, " request=", client.get_network_client_boarding_audit(), " result=", client.network_session.get_boarding_intent_result_replica())
+
+
+func _diagnose_client_survey(stage: String, server: GameFlow, client: GameFlow) -> void:
+	print("SURVEY_CLIENT_INPUT_STAGE ", stage, " host=", server._aurora_expedition.survey.snapshot(), " paid=", server._aurora_expedition.survey.reward_recorded(), " rejected=", _hud_survey_filesystem.rejected_rewards, " peer=", client.get_network_planetary_journey_snapshot().get("aurora_survey", {}), " objective=", client.hud.get("_objective_source_text"), " prompt=", client.hud.get("_interaction_source_text"), " body=", server.get_network_remote_body_simulation().get_body_record(client.get_network_remote_body_intent_source().get_entity_id()), " registered=", client._cabin_ship.get_moving_interior_component().is_occupant_registered(client.player), " source=", client.get_network_remote_body_intent_source().get_audit(), " store=", server._runtime_settings_user_data_store.get_snapshot().get("game_flow_reward_store", {}))
+
+
+func _survey_key(pressed: bool, echo: bool = false) -> InputEventKey:
+	var event := InputEventKey.new()
+	event.physical_keycode = KEY_F14
+	event.pressed = pressed
+	event.echo = echo
+	return event
+
+
+func _client_survey_press() -> void:
+	Input.parse_input_event(_survey_key(true))
+	await _hud_wait(func(): return false, 0.25)
+	Input.parse_input_event(_survey_key(false))
+	await _hud_wait(func(): return false, 0.25)
+
+
+func _client_survey_walk(server: GameFlow, client: GameFlow, body: PlayerController, target: Vector3, peer_target: Vector3 = Vector3.INF) -> bool:
+	var deadline := Time.get_ticks_msec() + 18000
+	var settled := 0
+	var host_region := server.aurora_streaming_bootstrap.get_loaded_instance().get_node("LandingRegion") as Node3D
+	var client_region := client.aurora_streaming_bootstrap.get_loaded_instance().get_node("LandingRegion") as Node3D
+	var client_target := peer_target if peer_target.is_finite() else client_region.to_global(host_region.to_local(target))
+	while Time.get_ticks_msec() < deadline and is_instance_valid(body):
+		var local_delta := client_target - client.player.global_position
+		var host_delta := target - body.global_position
+		# Each peer uses the same authored waypoint in its own streamed scene.
+		local_delta.y = 0.0
+		host_delta.y = 0.0
+		var delta := (local_delta + host_delta) * 0.5
+		for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+			Input.action_release(action)
+		if local_delta.length() < 0.8 and host_delta.length() < 0.8:
+			settled = settled + 1 if body.is_on_floor() else 0
+			if settled >= 8:
+				return true
+		else:
+			settled = 0
+			var forward: Vector3 = (-client.player.get_camera().global_basis.z).slide(Vector3.UP).normalized()
+			var right: Vector3 = forward.cross(Vector3.UP).normalized()
+			var direction := delta.normalized()
+			var axis := Vector2(direction.dot(right), -direction.dot(forward)) * clampf(delta.length() / 1.5, 0.2, 1.0)
+			Input.action_press(&"move_left" if axis.x < 0.0 else &"move_right", absf(axis.x))
+			Input.action_press(&"move_forward" if axis.y < 0.0 else &"move_back", absf(axis.y))
+		await _hud_wait(func(): return false, 0.001)
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+		Input.action_release(action)
+	_check(false, "full client ordinary walk reaches the same retained host-body waypoint")
+	print("SURVEY_INPUT_WALK_BLOCKED target=", target, " client=", client.player.global_position, " host=", body.global_position if is_instance_valid(body) else Vector3.INF, " client_target=", client_target, " host_region=", host_region.global_transform, " client_region=", client_region.global_transform, " client_basis=", client.player.global_basis, " host_basis=", body.global_basis, " client_yaw=", client.player.get_look_yaw(), " host_yaw=", body.get_look_yaw(), " host_floor=", body.is_on_floor(), " client_floor=", client.player.is_on_floor(), " settled=", settled, " current=", client._network_client_ember_passenger_surface_is_current(), " registered=", client._cabin_ship.get_moving_interior_component().is_occupant_registered(client.player), " source=", client.get_network_remote_body_intent_source().get_audit(), " audit=", server.get_network_remote_body_simulation().get_audit())
+	return false
+
+
 func _check_client_survey_retirement(scenario: String, server: GameFlow, client: GameFlow) -> void:
 	var bridge := server._network_planetary_journey
 	var epoch := int(client.get_network_planetary_journey_snapshot().journey_epoch)
@@ -379,6 +575,30 @@ func _check_client_survey_retirement(scenario: String, server: GameFlow, client:
 		_check(not str(client.hud.get("_objective_source_text")).contains("Optional shared survey"),
 			"local scene loss immediately retires the owned survey objective")
 	if scenario == "session":
+		var profile := client.runtime_settings.get_input_binding_profile()
+		_hud_saved_profile = profile
+		var remap := profile.duplicate_profile()
+		remap.set_bindings(&"interact", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_F14}])
+		_check(client.runtime_settings.set_input_binding_profile(remap), "body fence uses an accepted physical Interact remap")
+		await _hud_wait(func(): return InputMap.action_has_event(&"interact", _survey_key(true)), 2.0)
+		var source := client.get_network_remote_body_intent_source()
+		var sent := int(source.get_audit().sent)
+		var body_id := client.player.get_instance_id()
+		var progress: Dictionary = server._aurora_expedition.survey.capture()
+		var edges := [0]
+		var count_edge := func(): edges[0] += 1
+		client.player.interact_requested.connect(count_edge)
+		# An exterior picture identifying another body cannot retain this body's
+		# input authority, even while its admitted session and host scene are live.
+		client._network_client_ember_passenger_surface.body_id = body_id + 1
+		client.set_physics_process(true)
+		await _client_survey_press()
+		client.set_physics_process(false)
+		client.player.interact_requested.disconnect(count_edge)
+		_check(int(edges[0]) == 1 and client.player.get_instance_id() == body_id and not source.is_bound() and int(source.get_audit().sent) == sent,
+			"real Player Interact cannot send stale exterior authority for a different body")
+		_check(server._aurora_expedition.survey.capture() == progress and not server._aurora_expedition.survey.reward_recorded(),
+			"stale current-body picture cannot record host observations or grant a reward")
 		client.shutdown_network_session(&"survey_hud_session_loss")
 	else:
 		bridge.cancel(&"survey_hud_retired")
@@ -406,6 +626,8 @@ func _hud_wait(predicate: Callable, seconds: float) -> bool:
 		if _hud_host_manual and is_instance_valid(_hud_host) and _hud_host._network_session_is_live():
 			_hud_host._advance_network_boarding_authority()
 			_hud_host._advance_network_moving_interior_publication()
+			if not _hud_host._network_planetary_journey._state.is_empty():
+				_hud_host._network_planetary_journey._publish(false)
 			# Publish the real craft telemetry/pose through its existing authority;
 			# staged setup pauses only the expedition's automatic cabin transition.
 			var attachment := _hud_host._attach_network_ship_authority_composition()
