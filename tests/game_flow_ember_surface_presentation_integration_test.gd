@@ -365,8 +365,8 @@ func _stage_client_survey_surface(server: GameFlow, client: GameFlow, craft: Her
 	bridge._pilot_source_ref = weakref(craft.get_command_source())
 	bridge._state = {"journey_epoch": 2, "world_id": world_id, "ship_id": craft.get_ship_id(), "phase": &"landed"}
 	bridge._publish(true)
-	if not await _hud_wait(func(): return server._network_aurora_passenger_host_is_current(craft) and client._network_client_ember_surface_scene_is_current(replica, 2), 12.0):
-		print("SURVEY_HUD_SETUP_CURRENT server=", server._network_aurora_passenger_host_is_current(craft), " client=", client._network_client_ember_surface_scene_is_current(replica, 2), " journey=", client.get_network_planetary_journey_snapshot(), " pose=", client._network_craft_pose_stream.latest_sample(replica.get_ship_id()))
+	if not await _hud_wait(func(): return server._network_surface_visit_passenger_host_is_current(craft, world_id) and client._network_client_ember_surface_scene_is_current(replica, 2), 12.0):
+		print("SURVEY_HUD_SETUP_CURRENT server=", server._network_surface_visit_passenger_host_is_current(craft, world_id), " client=", client._network_client_ember_surface_scene_is_current(replica, 2), " journey=", client.get_network_planetary_journey_snapshot(), " pose=", client._network_craft_pose_stream.latest_sample(replica.get_ship_id()))
 		return false
 	var avatar := client.get_network_remote_body_intent_source().get_entity_id()
 	var body := server.get_network_remote_body_simulation().get_body(avatar) as PlayerController
@@ -379,7 +379,7 @@ func _stage_client_survey_surface(server: GameFlow, client: GameFlow, craft: Her
 		await _hud_wait(func(): return false, 0.001)
 	var departure := client._request_network_client_boarding(replica, area)
 	if not bool(departure.get("accepted", false)) or not await _hud_wait(func(): return client._network_client_ember_passenger_surface_is_current(), 12.0):
-		print("SURVEY_HUD_SETUP_DEPARTURE asked=", departure, " answer=", client.network_session.get_boarding_intent_result_replica(), " context=", client._network_client_ember_passenger_surface, " host=", server._network_aurora_passenger_host_is_current(craft))
+		print("SURVEY_HUD_SETUP_DEPARTURE asked=", departure, " answer=", client.network_session.get_boarding_intent_result_replica(), " context=", client._network_client_ember_passenger_surface, " host=", server._network_surface_visit_passenger_host_is_current(craft, world_id))
 		return false
 	client.set_physics_process(false)
 	client._update_on_foot_flow()
