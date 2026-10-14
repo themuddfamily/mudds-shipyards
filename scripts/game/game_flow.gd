@@ -8112,12 +8112,19 @@ func _refresh_interaction_targets() -> void:
 
 func _update_on_foot_flow() -> void:
 	_refresh_interaction_targets()
-	if _network_client_ember_passenger_surface.get("world_id") == AuroraExpeditionType.WORLD_ID \
+	var shared_world := StringName(_network_client_ember_passenger_surface.get("world_id", &""))
+	if shared_world in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID] \
 			and _network_client_ember_passenger_surface_is_current():
-		var view: Dictionary = _aurora_expedition.survey.shared_presentation(aurora_streaming_bootstrap.get_loaded_instance(), player,
-			get_network_planetary_journey_snapshot().get("aurora_survey", {}) as Dictionary)
+		var view: Dictionary
+		var shared := get_network_planetary_journey_snapshot()
+		if shared_world == AuroraExpeditionType.WORLD_ID:
+			view = _aurora_expedition.survey.shared_presentation(aurora_streaming_bootstrap.get_loaded_instance(), player,
+				shared.get("aurora_survey", {}) as Dictionary)
+		else:
+			view = _rime_expedition.survey.shared_presentation(rime_streaming_bootstrap.get_loaded_instance(), player,
+				shared.get("rime_survey", {}) as Dictionary, StringName(_network_client_ember_passenger_surface.entity_id))
 		if not view.is_empty():
-			hud.set_objective(view.objective, "AURORA COASTAL OBSERVATION")
+			hud.set_objective(view.objective, "AURORA COASTAL OBSERVATION" if shared_world == AuroraExpeditionType.WORLD_ID else "RIME ICE-CORE SURVEY")
 			hud.set_interaction(station_interaction_candidate.get_interaction_prompt() if station_interaction_candidate is ShipCabinHatch else view.prompt)
 			_capture_network_client_aurora_survey_presentation(not station_interaction_candidate is ShipCabinHatch)
 			return
@@ -10893,7 +10900,46 @@ func _network_aurora_survey_body_is_current(body: PlayerController) -> bool:
 
 
 func _interact_network_aurora_survey(body: PlayerController) -> bool:
+	if _network_rime_survey_body_is_current(body):
+		return _rime_expedition.survey.interact(body)
 	return _network_aurora_survey_body_is_current(body) and _aurora_expedition.survey.interact(body)
+
+
+func _network_rime_survey_body_is_current(body: PlayerController) -> bool:
+	if not is_instance_valid(body) or not NetworkRemoteBodySimulation.is_remote_body(body):
+		return false
+	var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
+	var avatar := StringName(identity.get("entity_id", &""))
+	var context := _network_ember_passenger_surfaces.get(avatar, {}) as Dictionary
+	return context.get("world_id") == RimeExpeditionType.WORLD_ID \
+		and _network_ember_passenger_surface_is_current(avatar, context) \
+		and _network_remote_body_simulation.get_body(avatar) == body \
+		and _network_remote_body_simulation.is_surface_walking(avatar)
+
+
+func _network_rime_survey_participant_context(body: PlayerController) -> Dictionary:
+	if not _network_rime_survey_body_is_current(body):
+		return {}
+	var avatar := StringName(NetworkRemoteBodySimulation.get_remote_body_identity(body).entity_id)
+	var current := _network_ember_passenger_surfaces[avatar] as Dictionary
+	var participant := {"entity_id": avatar}
+	for field in ["peer_id", "session_id", "session_epoch", "ship_id", "body_id", "journey_epoch",
+			"scene_id", "world_id", "entity_generation", "location_generation", "berth_instance_id", "surface_token"]:
+		participant[field] = current[field]
+	return participant
+
+
+func _network_rime_survey_participant_is_current(body: PlayerController, participant: Dictionary) -> bool:
+	if participant.is_empty() or not _network_rime_survey_body_is_current(body):
+		return false
+	var avatar := StringName(NetworkRemoteBodySimulation.get_remote_body_identity(body).entity_id)
+	if avatar != participant.get("entity_id"):
+		return false
+	var current := _network_ember_passenger_surfaces[avatar] as Dictionary
+	for field in participant:
+		if field != "entity_id" and participant[field] != current.get(field):
+			return false
+	return true
 
 
 ## Both retained bodies use the same bounded authored route and original floor
@@ -13967,7 +14013,7 @@ func _present_network_client_ember_passenger_departure(craft: HeroShip, area: Sh
 		Callable(self, "_network_client_rime_pad_owner_is_current").bind(_network_client_ember_passenger_surface))
 	hud.set_mode("on-foot")
 	if _network_client_ember_passenger_surface.world_id == RimeExpeditionType.WORLD_ID:
-		hud.set_objective("Follow the marked icefall trail, then reboard through the hatch; the host can return all crew to Mudds. Shared ice-core survey is unavailable.")
+		hud.set_objective("Optional ice-core survey: follow the orange beacons and warm up at the hut. Reboard whenever ready for the host to return all crew to Mudds.")
 	else:
 		hud.set_objective("Optional coastal survey: follow the amber trail, or return through the hatch whenever ready" \
 			if _network_client_ember_passenger_surface.world_id == AuroraExpeditionType.WORLD_ID \
