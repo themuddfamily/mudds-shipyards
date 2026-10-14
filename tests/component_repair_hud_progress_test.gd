@@ -110,6 +110,7 @@ func _run() -> void:
 	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
 		"targeted partial repair preserves the ongoing passive cycle without duplicate start")
 	torrent.component_repair_progressed.disconnect(observe_progress)
+	var retained_snapshot := hud.get_hero_component_hud_snapshot()
 	root.remove_child(game)
 	await process_frame
 	_check(not label.visible and label.text.is_empty(), "whole-Main detach clears in-progress repair text")
@@ -121,7 +122,7 @@ func _run() -> void:
 		and label.text.contains("ENGINE BAY")
 		and label.text.contains("REPAIRING")
 		and int(hud.get_hero_component_hud_snapshot().get("percentage", -1))
-		== int(second_snapshot.get("percentage", -2)),
+		== int(retained_snapshot.get("percentage", -2)),
 		"whole-Main re-entry restores the retained repair progress without another mutation"
 	)
 
