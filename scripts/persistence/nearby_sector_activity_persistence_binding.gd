@@ -11,15 +11,17 @@ var _store: RefCounted
 var _adapter: RefCounted
 var _slot_id: StringName = &""
 var _namespace := ""
+var _require_primary_source := false
 
 
-func configure(store: RefCounted, adapter: RefCounted, slot_id: StringName, payload_namespace: String = "") -> bool:
+func configure(store: RefCounted, adapter: RefCounted, slot_id: StringName, payload_namespace: String = "", require_primary_source: bool = false) -> bool:
 	if store == null or adapter == null or str(slot_id).strip_edges().is_empty():
 		return false
 	_store = store
 	_adapter = adapter
 	_slot_id = slot_id
 	_namespace = payload_namespace
+	_require_primary_source = require_primary_source
 	return true
 
 
@@ -39,6 +41,8 @@ func save(binding_snapshot: Dictionary, expected_generation: int, commit_id: Str
 		var loaded: Dictionary = _store.call("load")
 		if not loaded.get("accepted", false):
 			return loaded
+		if not _loaded_source_is_trusted():
+			return _result(false, &"session_store_recovery_required")
 		document = (_store.call("get_snapshot") as Dictionary).duplicate(true)
 		var previous: Variant = document.get(_namespace, {})
 		if not previous is Dictionary:
@@ -62,6 +66,8 @@ func load() -> Dictionary:
 	var loaded: Dictionary = _store.call("load")
 	if not bool(loaded.get("accepted", false)):
 		return loaded
+	if not _loaded_source_is_trusted():
+		return _result(false, &"session_store_recovery_required")
 	var payload := loaded.get("payload", {}) as Dictionary
 	if not _namespace.is_empty():
 		if not payload.has(_namespace):
@@ -76,6 +82,13 @@ func load() -> Dictionary:
 	if not bool(restored.get("accepted", false)):
 		return restored
 	return {"accepted": true, "reason": &"loaded", "generation": int(payload.get("activity_generation", -1)), "session": restored}
+
+
+## Opt-in earned reward consumers must not adopt or publish an older fallback.
+## Check immediately after load; a source cached before reload is insufficient.
+func _loaded_source_is_trusted() -> bool:
+	return not _require_primary_source or (_store.has_method("get_loaded_source")
+		and _store.call("get_loaded_source") in [&"primary", &"empty"])
 
 
 func _configured() -> bool:
