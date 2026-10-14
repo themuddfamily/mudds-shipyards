@@ -1323,13 +1323,13 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 	_coastal_replica.clear()
 	if hosted:
 		client.join("127.0.0.1", port)
-	var admitted := hosted and await _wait_until(func(): return not client.get_server_offer().is_empty()
+	var admitted := hosted and await _wait_until(func(): return not client.get_server_offer().is_empty() \
 		and _coastal_replica.get("world_id") == world_id and _coastal_replica.get("phase") == &"landed", 10.0)
 	_check(admitted, "a newly authenticated late crew receives the actual recovered world's current journey publication")
 	if admitted:
 		var avatar := GameFlow.network_client_boarding_avatar_id(client.multiplayer.get_unique_id())
 		client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 1, BoardingIntent.ACTION_BOARD))
-		var boarded := await _wait_until(func(): return fresh.get_network_remote_body_simulation() != null
+		var boarded := await _wait_until(func(): return fresh.get_network_remote_body_simulation() != null \
 			and fresh.get_network_remote_body_simulation().has_body(avatar), 12.0)
 		_check(boarded, "the new session's real boarding ledger creates a fresh confirmed cabin body")
 		if boarded:
@@ -1395,7 +1395,7 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 							target, "late crew physically returns through the existing airstair and hatch")
 					if walked:
 						client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 3, BoardingIntent.ACTION_BOARD_ANY))
-						var reboarded := await _wait_until(func(): return is_instance_valid(body) and not simulation.is_surface_walking(avatar)
+						var reboarded := await _wait_until(func(): return is_instance_valid(body) and not simulation.is_surface_walking(avatar) \
 							and body.is_cabin_containment_active(), 5.0)
 						_check(reboarded and simulation.get_body(avatar) == body and not fresh.player.is_seated()
 							and berth.get_occupant() == craft and berth.get_reservation_token(craft) == token
