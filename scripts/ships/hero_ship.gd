@@ -2050,15 +2050,35 @@ func _planetary_cruise_query_full_sweep(
 	# A live empty conservative volume proves every pose of this complete root
 	# sweep. Avoid costly native long casts only when that stronger whole-span
 	# query is clear; an occupied or invalid volume retains the original path.
+	var convex_volume_refusal: Dictionary = {}
 	if depth == 0 and not recheck_refusal \
 			and motion.length() > PLANETARY_CRUISE_CLEARANCE_SPLIT_MIN_METERS:
 		var enclosure := query.shape as BoxShape3D
+		var enclosure_start := start
 		if query.shape is CylinderShape3D:
 			var cylinder := query.shape as CylinderShape3D
 			if is_finite(cylinder.radius) and is_finite(cylinder.height) \
 					and cylinder.radius > 0.0 and cylinder.height > 0.0:
 				enclosure = BoxShape3D.new()
 				enclosure.size = Vector3(cylinder.radius * 2.0, cylinder.height, cylinder.radius * 2.0)
+		elif query.shape is ConvexPolygonShape3D:
+			var points := (query.shape as ConvexPolygonShape3D).points
+			var lower := Vector3.INF
+			var upper := -Vector3.INF
+			var valid_points := points.size() >= 4
+			for point in points:
+				if not point.is_finite():
+					valid_points = false
+					break
+				lower = lower.min(point)
+				upper = upper.max(point)
+			var size := upper - lower
+			if valid_points and size.is_finite() and size.x > 0.0 and size.y > 0.0 and size.z > 0.0:
+				# Every convex combination of these actual points lies in this
+				# local box. Retain its off-origin center through the live basis.
+				enclosure = BoxShape3D.new()
+				enclosure.size = size
+				enclosure_start.origin = start * ((lower + upper) * 0.5)
 		if enclosure != null:
 			var complete_query := PhysicsShapeQueryParameters3D.new()
 			complete_query.shape = BoxShape3D.new()
@@ -2068,8 +2088,11 @@ func _planetary_cruise_query_full_sweep(
 			complete_query.exclude = query.exclude
 			complete_query.margin = query.margin
 			complete_query.motion = Vector3.ZERO
-			if _planetary_cruise_swept_box_is_clear(space, enclosure, start, motion, complete_query):
+			var volume_hit: Dictionary = {}
+			if _planetary_cruise_swept_box_is_clear(space, enclosure, enclosure_start, motion, complete_query, volume_hit):
 				return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
+			if query.shape is ConvexPolygonShape3D and not volume_hit.is_empty():
+				convex_volume_refusal = volume_hit
 	query.transform = start
 	query.motion = Vector3.ZERO
 	var initial_hits := space.intersect_shape(query, 1)
@@ -2093,6 +2116,12 @@ func _planetary_cruise_query_full_sweep(
 	if not endpoint_hits.is_empty():
 		return _planetary_cruise_sweep_refusal(&"endpoint_overlap", start, motion, depth,
 			0.0 if recheck_refusal else safe_fraction, cast_result, endpoint_hits[0])
+	if not convex_volume_refusal.is_empty():
+		# An occupied enclosure does not prove a convex collision, but its
+		# unresolved span cannot become clear from a native false-negative cast.
+		# Keep genuine initial/closed-endpoint identities above this decision.
+		return _planetary_cruise_sweep_refusal(&"convex_conservative_volume_unresolved",
+			start, motion, depth, 0.0, cast_result, convex_volume_refusal)
 	if safe_fraction == 1.0 and not recheck_refusal and not query.shape is CylinderShape3D:
 		return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
 	if not motion.is_finite() or not start.is_finite() \

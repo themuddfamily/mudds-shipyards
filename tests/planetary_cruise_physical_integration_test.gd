@@ -10,6 +10,7 @@ const TORRENT_SCENE := preload(
 	"res://scenes/ships/torrent_interceptor.tscn"
 )
 const BULWARK_SCENE := preload("res://scenes/ships/bulwark_heavy_gunship.tscn")
+const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
 const ARROW_SCENE := preload("res://scenes/ships/arrow_recon_ship.tscn")
 const SHIPYARD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
 const FRAME_GENERATION := 7
@@ -726,6 +727,7 @@ func _run() -> void:
 	await _test_bulwark_structural_self_collisions(stage)
 	await _test_arrow_long_clearance(stage)
 	await _test_arrow_rime_return_clearance(stage)
+	await _test_halyard_rime_convex_clearance(stage)
 	stage.queue_free()
 	await process_frame
 	_finish()
@@ -1154,6 +1156,124 @@ func _test_arrow_rime_return_clearance(stage: Node3D) -> void:
 
 ## Exercise the existing real query directly so authentic blockers verify the
 ## failure metadata without changing the strict public proof/envelope schema.
+
+func _test_halyard_rime_convex_clearance(stage: Node3D) -> void:
+	var isolated := SubViewport.new()
+	isolated.name = "HalyardCapturedConvexQueryWorld"
+	isolated.own_world_3d = true
+	stage.add_child(isolated)
+	var space_root := Node3D.new()
+	isolated.add_child(space_root)
+	var ship := HALYARD_SCENE.instantiate() as HeroShip
+	space_root.add_child(ship)
+	ship.set_physics_process(false)
+	ship.set_piloted(true)
+	# Query-only reproduction of the retained physical-return refusal. No
+	# journey, grant or actor movement is manufactured by this geometry probe.
+	var captured := Transform3D(Basis(Vector3(-0.010688, -0.000219, 0.999943),
+		Vector3(0.0119, 0.999929, 0.000346),
+		Vector3(-0.999872, 0.011903, -0.010685)).orthonormalized(),
+		Vector3(-94.6301, 1180.247, -713.7318))
+	ship.global_transform = captured
+	var direction := Vector3(749899.1, -9089.373, 8299.334).normalized()
+	const HORIZON := 750_000.0
+	var motion := direction * HORIZON
+	await physics_frame
+	await process_frame
+	var hull := ship.get_node("PortAirstairCollision") as CollisionShape3D
+	var points := (hull.shape as ConvexPolygonShape3D).points
+	var lower := Vector3.INF
+	var upper := -Vector3.INF
+	for point in points:
+		lower = lower.min(point)
+		upper = upper.max(point)
+	var box := BoxShape3D.new()
+	box.size = upper - lower
+	var centered := hull.global_transform
+	centered.origin = hull.global_transform * ((lower + upper) * 0.5)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = hull.shape
+	query.transform = hull.global_transform
+	query.motion = motion
+	query.collision_mask = ship.collision_mask
+	query.collide_with_bodies = true
+	query.collide_with_areas = false
+	query.exclude = ship.call(&"_planetary_cruise_self_collision_exclusions")
+	query.margin = 0.0
+	var space := ship.get_world_3d().direct_space_state
+	var native := space.cast_motion(query)
+	var volume_query := PhysicsShapeQueryParameters3D.new()
+	volume_query.shape = BoxShape3D.new()
+	volume_query.collision_mask = query.collision_mask
+	volume_query.collide_with_bodies = query.collide_with_bodies
+	volume_query.collide_with_areas = query.collide_with_areas
+	volume_query.exclude = query.exclude
+	volume_query.margin = query.margin
+	var empty: bool = ship.call(&"_planetary_cruise_swept_box_is_clear", space, box, centered, motion, volume_query)
+	var contains_points := true
+	var half := (volume_query.shape as BoxShape3D).size * 0.5
+	for point in points:
+		for displacement in [Vector3.ZERO, motion]:
+			var local: Vector3 = volume_query.transform.affine_inverse() * (hull.global_transform * point + displacement)
+			contains_points = contains_points and local.abs().x <= half.x and local.abs().y <= half.y and local.abs().z <= half.z
+	print("HALYARD_CONVEX_CAPTURED_QUERY: native=", native, " full_volume_empty=", empty,
+		" contains_all_start_end_points=", contains_points, " lower=", lower, " upper=", upper)
+	_check(empty and contains_points and points.size() == 8
+		and ship.get_world_3d() == isolated.find_world_3d() and ship.get_world_3d() != stage.get_world_3d(),
+		"actual offcenter Halyard convex points and every translated endpoint fit the empty conservative complete volume")
+	var detail := _arrow_sweep_detail(ship, hull, motion)
+	_check(bool(detail.get("accepted", false)) and not bool(detail.get("obstacle_detected", true))
+		and float(detail.get("safe_fraction", 0.0)) == 1.0,
+		"captured Halyard convex sweep proves the complete clear 750km span [native=%s detail=%s]" % [native, detail])
+	var contact := lower.lerp(upper, 0.5)
+	contact.y = lerpf(lower.y, upper.y, 0.2)
+	for distance in [375_100.0, 562_500.0]:
+		var blocker := _make_blocker("HalyardConvexThinBlocker", Vector3(8.0, 8.0, 0.2),
+			hull.global_transform * contact + direction * distance)
+		space_root.add_child(blocker)
+		blocker.global_basis = Basis.looking_at(direction, Vector3.UP)
+		await physics_frame
+		await process_frame
+		query.transform = hull.global_transform
+		query.transform.origin += direction * distance
+		query.motion = Vector3.ZERO
+		var hits := space.intersect_shape(query, 1)
+		detail = _arrow_sweep_detail(ship, hull, motion)
+		_check(not hits.is_empty() and int(hits[0].get("collider_id", 0)) == blocker.get_instance_id()
+			and bool(detail.get("obstacle_detected", false)) and float(detail.get("safe_fraction", 1.0)) < 1.0,
+			"actual Halyard convex thin obstacle at %.0fm retains published collider identity and refuses the full span [hits=%s detail=%s]" % [distance, hits, detail])
+		blocker.free()
+		await physics_frame
+	for endpoint in [false, true]:
+		var blocker := _make_blocker("HalyardConvexClosedBlocker", Vector3.ONE * 0.2,
+			hull.global_transform * contact + (motion if endpoint else Vector3.ZERO))
+		space_root.add_child(blocker)
+		await physics_frame
+		await process_frame
+		detail = _arrow_sweep_detail(ship, hull, motion)
+		var refusal := detail.get("refusal", {}) as Dictionary
+		_check(bool(detail.get("obstacle_detected", false))
+			and refusal.get("reason") == (&"endpoint_overlap" if endpoint else &"initial_overlap")
+			and int(refusal.get("collider_instance_id", 0)) == blocker.get_instance_id(),
+			"actual Halyard convex %s overlap retains its real collider identity" % ("closed endpoint" if endpoint else "initial"))
+		blocker.free()
+		await physics_frame
+	var controller := _bind_new_controller(space_root, ship, FRAME_GENERATION)
+	var attachment := int(ship.get_planetary_cruise_attachment_report().ship_attachment_generation)
+	var proof := ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment, controller.get_instance_id())
+	_check(bool(proof.get("accepted", false)) and not bool(proof.get("obstacle_detected", true))
+		and int(proof.get("queried_shape_count", 0)) == 22
+		and float(proof.get("verified_clearance_meters", -1.0)) == HORIZON,
+		"all22 actual Halyard hull shapes regain full clearance after real blockers are removed")
+	var stale := ship.build_planetary_cruise_clearance_proof(direction, HORIZON,
+		FRAME_GENERATION, attachment - 1, controller.get_instance_id())
+	_check(not bool(stale.get("accepted", true)) and ship.global_transform.is_equal_approx(captured),
+		"convex clearance retains current attachment generation and leaves the query-only Halyard actor unchanged")
+	isolated.queue_free()
+	await process_frame
+
+
 func _arrow_sweep_detail(ship: HeroShip, hull: CollisionShape3D, motion: Vector3) -> Dictionary:
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = hull.shape
