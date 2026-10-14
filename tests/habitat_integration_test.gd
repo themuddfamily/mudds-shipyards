@@ -24,6 +24,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# Ordinary acceptance needs real physics, Input and live scene state,
+	# but no drawn frames. The separate opt-in capture path retains full rendering.
+	RenderingServer.set_render_loop_enabled(false)
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
 	await process_frame

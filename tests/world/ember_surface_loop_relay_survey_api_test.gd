@@ -3,6 +3,16 @@ extends SceneTree
 const BindingScript := preload("res://scripts/world/ember_surface_loop_production_binding.gd")
 
 
+class CountingBinding:
+	extends EmberSurfaceLoopProductionBinding
+
+	var full_snapshot_reads := 0
+
+	func get_snapshot() -> Dictionary:
+		full_snapshot_reads += 1
+		return super.get_snapshot()
+
+
 class FakeHost:
 	extends EmberSurfaceLoopHost
 
@@ -101,7 +111,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_production_position_dispatch()
-	var binding := BindingScript.new()
+	var binding := CountingBinding.new()
 	_check_caller_snapshot(binding, null, "before configuration")
 	var methods := [
 		&"start_planetary_relay_survey",
@@ -261,6 +271,7 @@ func _run() -> void:
 	)
 
 	_check_caller_snapshot(binding, composition, "after reentry")
+	_test_completion_handback_observation(binding)
 	print("EMBER_SURFACE_LOOP_RELAY_SURVEY_API_TEST_OK")
 	quit(0)
 
@@ -284,6 +295,11 @@ func _test_production_position_dispatch() -> void:
 
 func _check_caller_snapshot(binding: Node, composition: Node, phase: String) -> void:
 	var full: Dictionary = binding.get_snapshot()
+	var full_reads := int(binding.full_snapshot_reads)
+	_check(binding.has_delivered_completion_handback()
+		== bool(full.completion_handback_delivered)
+		and int(binding.full_snapshot_reads) == full_reads,
+		"completion observation matches diagnostics without constructing them " + phase)
 	var expected := {
 		"state_id": full.state_id,
 		"generation": full.generation,
@@ -319,6 +335,43 @@ func _check_caller_snapshot(binding: Node, composition: Node, phase: String) -> 
 	caller.pending_intent.clear()
 	_check(binding.get_caller_snapshot() == expected,
 		"caller mutation leaves retained state intact " + phase)
+
+
+func _test_completion_handback_observation(binding: CountingBinding) -> void:
+	var retained_report := {
+		"accepted": true,
+		"reason": &"host_advanced",
+		"origin_adoption": {"receipt": {"nodes": [{"instance_id": 42}]}},
+	}
+	binding.set("_last_late_result", retained_report)
+	binding.set("_state", EmberSurfaceLoopProductionBinding.State.HANDOFF_PENDING)
+	binding.set("_completion_handback", {"accepted": true, "receipt": {"ship_instance_id": 42}})
+	_check(not binding.has_delivered_completion_handback(),
+		"pending handback is not delivered")
+	var stale := binding.take_completion_handback(binding.get_generation() - 1)
+	_check(stale.reason == &"stale_generation" and not binding.has_delivered_completion_handback(),
+		"rejected stale handback preserves the completion observation")
+	var delivered := binding.take_completion_handback(binding.get_generation())
+	_check(bool(delivered.accepted) and binding.has_delivered_completion_handback(),
+		"the real once-only handback mutation updates the scalar observation")
+	_check(binding.take_completion_handback(binding.get_generation()).reason == &"handback_already_delivered"
+		and binding.has_delivered_completion_handback(),
+		"duplicate delivery retains the once-only observation")
+	var full_reads := binding.full_snapshot_reads
+	for _tick in range(120):
+		_check(binding.has_delivered_completion_handback(), "repeated completion observation stays delivered")
+	_check(binding.full_snapshot_reads == full_reads,
+		"repeated completion polling constructs no diagnostic reports")
+	var report := binding.get_snapshot().last_late_result as Dictionary
+	_check(report == retained_report, "public late diagnostics preserve the complete retained Host report")
+	report.origin_adoption.receipt.nodes[0].instance_id = 99
+	delivered.last_late_result.origin_adoption.receipt.nodes.clear()
+	_check(binding.get_snapshot().last_late_result == retained_report,
+		"public snapshots and handback results cannot mutate retained late diagnostics")
+	root.remove_child(binding)
+	_check(binding.has_delivered_completion_handback(), "detachment retains delivered completion observation")
+	root.add_child(binding)
+	_check(binding.has_delivered_completion_handback(), "reentry retains delivered completion observation")
 
 
 func _grant_reward(request: Dictionary) -> Dictionary:

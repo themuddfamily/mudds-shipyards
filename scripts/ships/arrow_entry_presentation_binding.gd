@@ -221,6 +221,24 @@ func detach() -> Dictionary:
 	return _result(true, &"detached")
 
 
+## Detached inputs consumed by surface audio without copying the cockpit,
+## exterior visuals or heat diagnostic trees on every physics publication.
+func get_audio_presentation_snapshot() -> Dictionary:
+	return {
+		"generation": _generation,
+		"observation_count": _observation_count,
+		"last_result": {
+			"accepted": _last_result.get("accepted", false),
+			"source": (_last_result.get("source", {}) as Dictionary).duplicate(true),
+		},
+		"landing_wash": _landing_wash.call(&"get_snapshot") \
+			if _landing_wash != null else {
+				"visible": false, "intensity": 0.0,
+				"last_reason": &"detached_zero",
+			},
+	}
+
+
 func get_snapshot() -> Dictionary:
 	return {
 		"component_id": COMPONENT_ID,

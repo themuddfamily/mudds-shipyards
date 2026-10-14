@@ -99,6 +99,9 @@ const RELAY_ANCHOR := Vector3(180.0, 120009.0, -44.0)
 const RETURN_ANCHOR := Vector3(540.0, 120030.0, -210.0)
 const CHECKPOINT_TICK_BUDGET := 240
 const ORBIT_RETURN_TICK_BUDGET := 6000
+# Same normal boosted 20 km ascent allowance as shared_ember_surface_activity_test;
+# count actual physics frames so render cadence cannot shorten simulated time.
+const COMPLETED_ASCENT_SECONDS := 240.0
 
 
 var _failures: Array[String] = []
@@ -176,8 +179,7 @@ func _run() -> void:
 	_check(int(shown.get("total_receipts", -1)) == receipts_after_survey
 			and str(shown.get("last_reward_label", "")) == "Survey data accepted",
 		"the HUD reward summary shows the saved survey receipt (%s)" % shown)
-	var cruising := await _wait_for(
-		func() -> bool: return _return_cruising(game, craft), ORBIT_RETURN_TICK_BUDGET)
+	var cruising := await _wait_for_completed_ascent(game, craft, host, berth)
 	_check(cruising, "the Host's ascent hands the craft to the cruise home (host %d, last %s)" % [
 		host.get_phase(),
 		(game.get("_last_mudds_return_approach_result") as Dictionary).get("reason", &"?")])
@@ -477,6 +479,41 @@ func _walk_until(
 		await physics_frame
 		await process_frame
 	return reached_within_deadline if count_physics_steps else bool(predicate.call())
+
+
+func _wait_for_completed_ascent(
+		game: GameFlow, craft: HeroShip, host: EmberSurfaceLoopHost, berth: EmberSurfaceBerth
+	) -> bool:
+	var started_physics_frame := Engine.get_physics_frames()
+	var started_msec := Time.get_ticks_msec()
+	var frame_budget := int(ceil(COMPLETED_ASCENT_SECONDS * float(Engine.physics_ticks_per_second)))
+	while Engine.get_physics_frames() - started_physics_frame <= frame_budget:
+		if _return_cruising(game, craft):
+			return true
+		if Engine.get_physics_frames() - started_physics_frame == frame_budget:
+			break
+		await physics_frame
+		await process_frame
+	var snapshot := host.get_snapshot()
+	var current_source := craft.get_command_source()
+	var host_source := host.get("_command_source") as ShipCommandSource
+	print("EMBER_COMPLETED_RETURN_ASCENT_FAILED: ", {
+		"actual_physics_frames": Engine.get_physics_frames() - started_physics_frame,
+		"physics_frame_budget": frame_budget,
+		"wall_seconds": float(Time.get_ticks_msec() - started_msec) / 1000.0,
+		"altitude_m": (craft.global_position - berth.global_position).dot(berth.global_basis.y.normalized()),
+		"speed_mps": craft.velocity.length(),
+		"current_source_instance_id": current_source.get_instance_id() if is_instance_valid(current_source) else 0,
+		"host_source_instance_id": host_source.get_instance_id() if is_instance_valid(host_source) else 0,
+		"host_source_current": is_instance_valid(host_source) and current_source == host_source,
+		"host_phase": snapshot.phase_id,
+		"host_generation": snapshot.generation,
+		"host_attachment_generation": snapshot.attachment_generation,
+		"host_phase_elapsed_seconds": snapshot.phase_elapsed_seconds,
+		"host_physics_advance_count": snapshot.physics_advance_count,
+		"host_command_source": snapshot.command_source,
+	})
+	return false
 
 
 func _wait_for(predicate: Callable, tick_budget: int) -> bool:

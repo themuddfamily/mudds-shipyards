@@ -100,6 +100,11 @@ func apply_return_manifest_receipt(receipt: Dictionary, reduced_motion: bool = f
 	return _publish(reduced_motion)
 
 
+## Current attachment state without constructing detached presentation reports.
+func is_attached() -> bool:
+	return _attached
+
+
 func get_snapshot() -> Dictionary:
 	return {"attached": _attached, "generation": _generation, "view": _view.duplicate(true), "last_result": _last_result.duplicate(true), "presentation_only": true, "movement_authority": false, "landing_authority": false, "reward_authority": false}.duplicate(true)
 

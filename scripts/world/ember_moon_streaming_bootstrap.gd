@@ -50,17 +50,10 @@ var _environment_detach_count := 0
 
 
 func _descendant_directional_light_count() -> int:
-	# Match find_children's complete, current descendant scope, including
-	# internal and queued nodes, without name matching or script-class lookup.
-	var count := 0
-	var pending: Array[Node] = get_children(true)
-	while not pending.is_empty():
-		var node: Node = pending.pop_back()
-		if node is DirectionalLight3D:
-			count += 1
-		if node.get_child_count(true) > 0:
-			pending.append_array(node.get_children(true))
-	return count
+	# Native traversal retains the complete live descendant scope, including
+	# internal, ownerless and queued nodes, even during enter/ready callbacks.
+	# The empty name pattern avoids matching every name; only type is filtered.
+	return find_children("", "DirectionalLight3D", true, false).size()
 
 
 func _create_profile() -> Dictionary:

@@ -665,7 +665,41 @@ func _test_volume_provenance_and_handoff() -> void:
 	for _tick in range(3):
 		await physics_frame
 	_check(coordinator.is_occupant_registered(occupant), "reconnecting an Area discovers bodies that already overlap it")
+	occupant.global_position = Vector3(12, 0, 0)
+	for _tick in range(3):
+		await physics_frame
+	_check(not coordinator.is_occupant_registered(occupant), "an automatic-only occupant is released by a real Area exit")
+	occupant.global_position = Vector3.ZERO
+	for _tick in range(3):
+		await physics_frame
+	_check(coordinator.is_occupant_registered(occupant), "an automatic-only occupant can reenter before explicit cabin admission")
+	var before_adoption := _frame_step_snapshot(coordinator, occupant)
+	var admission_revision := coordinator.get_occupancy_revision()
+	var adoption := coordinator.register_occupant(occupant, {
+		"require_inside_bounds": false,
+		"registration_source": &"in_flight_cabin",
+	})
+	_check(adoption["status"] == &"already_registered" \
+		and coordinator.get_occupancy_revision() == admission_revision \
+		and _frame_step_snapshot(coordinator, occupant) == before_adoption,
+		"explicit cabin admission adopts an automatic registration without changing pose, kinematics, or roster revision")
+	occupant.global_position = Vector3(12, 0, 0)
+	for _tick in range(3):
+		await physics_frame
+	_check(coordinator.is_occupant_registered(occupant) \
+		and coordinator.get_occupancy_revision() == admission_revision,
+		"a real Area exit preserves an automatic-first occupant adopted by explicit cabin admission")
+	occupant.global_position = Vector3.ZERO
+	for _tick in range(3):
+		await physics_frame
+	occupant.global_position = Vector3(12, 0, 0)
+	for _tick in range(3):
+		await physics_frame
+	_check(coordinator.is_occupant_registered(occupant) \
+		and coordinator.get_occupancy_revision() == admission_revision,
+		"later Area entry and exit cannot reclaim an explicitly adopted cabin occupant")
 	coordinator.unregister_occupant(occupant, false)
+	_check(not coordinator.is_occupant_registered(occupant), "explicit cabin release still removes the adopted registration")
 	coordinator.set_interior_bounds(AABB(Vector3(-4, 0.5, -4), Vector3(8, 3.5, 8)))
 	occupant.global_position = Vector3(12, 0.2, 0)
 	for _tick in range(2):

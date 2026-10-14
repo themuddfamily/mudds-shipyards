@@ -66,6 +66,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if recovery_context == "engineer":
 		await _run_engineer(game, store, entry)
 		return
+	if activity == "ember":
+		await _run_ember(game, store, entry)
+		return
 	if activity == "hulk":
 		await _run_hulk(game, store, entry)
 		return
@@ -1749,3 +1752,427 @@ func _run_hulk(game: GameFlow, store: UserDataStore, entry: String) -> void:
 		"receipts_at_boot": receipts_at_boot, "payment_stage": "boot" if receipts_at_boot == 1 else "running_retry",
 		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}))
 	get_tree().quit(0)
+
+
+## Installed active-visit acceptance. As in the existing Ember soak, only the
+## orbital-anchor hold and initial corridor-entry pose are staged. This excludes
+## canonical outbound travel. Cold production recovery returns to the ordinary
+## yard on foot; another admitted trip resumes the saved survey, never its standing pose.
+const EMBER_PROBE_PLACEMENTS := ["orbital_anchor_hold", "initial_corridor_entry"]
+
+
+func _ember_surface(game: GameFlow) -> Dictionary:
+	return game.ember_surface_loop_production_binding.get_planetary_surface_snapshot()
+
+
+func _ember_route(game: GameFlow) -> Dictionary:
+	return (_ember_surface(game).get("relay_survey", {}) as Dictionary).get("mandatory_route", {}) as Dictionary
+
+
+func _ember_receipts(game: GameFlow) -> int:
+	var record := game.get_activity_reward_report().get("authority", {}).get("record", {}) as Dictionary
+	return int((record.get("reward_counts", {}) as Dictionary).get("ember_beacon_data", 0))
+
+
+func _ember_wait_phase(game: GameFlow, phase_id: int, budget: int) -> bool:
+	for _tick in budget:
+		var host := game.ember_surface_loop_host
+		if host.get_phase() == phase_id:
+			return true
+		if host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED:
+			return false
+		await get_tree().physics_frame
+		await get_tree().process_frame
+	return game.ember_surface_loop_host.get_phase() == phase_id
+
+
+func _ember_walk_axis(game: GameFlow, axis: String, bound: float, greater: bool,
+		action: StringName, budget: int) -> bool:
+	var loaded := game.ember_streaming_bootstrap.get_loaded_instance()
+	if not is_instance_valid(loaded):
+		return false
+	var region := loaded.get_node("LandingRegion") as Node3D
+	var initial := region.to_local(game.player.global_position)
+	var initial_axis := initial.x if axis == "x" else initial.z
+	var walk_speed: float = game.player.walk_speed
+	var physics_hz := Engine.physics_ticks_per_second
+	if not initial.is_finite() or not is_finite(bound) or not is_finite(walk_speed) \
+			or walk_speed <= 0.0 or physics_hz <= 0 or budget <= 0:
+		return false
+	var distance := maxf(bound - initial_axis if greater else initial_axis - bound, 0.0)
+	# This inner fixture deadline now allows ordinary travel time plus the old
+	# budget / physics_hz allowance for acceleration and settling. Count actual
+	# physics frames, since a physics/process observation pair can span many.
+	# Route, held actions, walking speed and acceptance checks stay unchanged;
+	# the runner's original 300 s stage and 1200 s overall caps still apply.
+	var frame_allowance := int(ceil(distance / walk_speed * float(physics_hz))) + budget
+	var started_frame := Engine.get_physics_frames()
+	var reached := false
+	Input.action_press(action)
+	while Engine.get_physics_frames() - started_frame <= frame_allowance:
+		var local := region.to_local(game.player.global_position)
+		var value := local.x if axis == "x" else local.z
+		if (value >= bound if greater else value <= bound):
+			reached = true
+			break
+		if not game.player.is_control_enabled() or game.player.is_seated() 				or game.ember_surface_loop_host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED:
+			break
+		if Engine.get_physics_frames() - started_frame == frame_allowance:
+			break
+		await get_tree().physics_frame
+		await get_tree().process_frame
+	Input.action_release(action)
+	await _settle_frames(4)
+	return reached and game.player.is_on_floor()
+
+
+func _ember_visit_observation(game: GameFlow, craft: HeroShip) -> Dictionary:
+	var source := craft.get_local_input_source()
+	var command := craft.get_last_ship_command()
+	var telemetry := craft.get_telemetry()
+	return {
+		"runtime": _interruption_runtime_observation(game),
+		"input": {
+			"focused": bool(source.get("_application_focused")),
+			"paused": bool(source.get("_scene_tree_paused")),
+			"enabled_owner": source.is_enabled_owner(),
+			"current_command_source": craft.get_command_source() == source,
+			"configuration_valid": source.is_input_configuration_valid(),
+			"hover_pressed": Input.is_action_pressed(&"hover"),
+			"forward_strength": Input.get_action_strength(&"move_forward"),
+		},
+		"last_consumed_command": command.to_dictionary() if command != null else {},
+		"engine_state": telemetry.get("engine_state", &""),
+		"throttle": telemetry.get("throttle", 0.0),
+		"speed": telemetry.get("speed", 0.0),
+	}
+
+
+func _ember_visit_rejected(game: GameFlow, craft: HeroShip, checkpoint: String,
+		details: Dictionary = {}) -> bool:
+	var local_player_position: Variant = null
+	var loaded := game.ember_streaming_bootstrap.get_loaded_instance()
+	if is_instance_valid(loaded):
+		var region := loaded.get_node_or_null("LandingRegion") as Node3D
+		if is_instance_valid(region):
+			var local := region.to_local(game.player.global_position)
+			local_player_position = [local.x, local.y, local.z]
+	print("EMBER_INTERRUPTION_VISIT_REJECTED: " + JSON.stringify({
+		"stage": stage, "checkpoint": checkpoint, "details": details,
+		"observation": _ember_visit_observation(game, craft),
+		"surface_player": {"position_region_local_m": local_player_position,
+			"on_floor": game.player.is_on_floor(), "control_enabled": game.player.is_control_enabled()},
+		"host_phase": game.ember_surface_loop_host.get_phase(),
+		"persistence": game.get_ember_interrupted_journey_persistence_report(),
+		"cruise": game.get_planetary_cruise_report(),
+		"host": game.ember_surface_loop_host.get_snapshot(),
+	}, "", true, true))
+	return false
+
+
+func _ember_staging_collision_observation(game: GameFlow, craft: HeroShip) -> Dictionary:
+	var proof: Dictionary = game.planetary_cruise_binding.get_snapshot().get(
+		"last_result", {}).get("evidence", {}).get("proof", {})
+	var names := proof.get("shape_names", PackedStringArray()) as PackedStringArray
+	var transforms := proof.get("shape_transforms", []) as Array
+	var motion := (proof.get("direction_world", Vector3.ZERO) as Vector3) * float(
+		proof.get("sweep_distance_meters", 0.0))
+	var collisions := []
+	var space := craft.get_world_3d().direct_space_state
+	for child in craft.get_children():
+		var collision := child as CollisionShape3D
+		if collision == null or collision.disabled or collision.shape == null:
+			continue
+		var index := names.find(str(collision.name))
+		if index < 0 or index >= transforms.size():
+			continue
+		# Repeat only the refused proof's physical query, without submitting a new
+		# capability or touching any collision, flight or authority state.
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = collision.shape
+		query.transform = transforms[index] as Transform3D
+		query.collision_mask = int(proof.get("collision_mask", craft.collision_mask))
+		query.collide_with_bodies = true
+		query.collide_with_areas = false
+		query.exclude = [craft.get_rid()]
+		query.margin = 0.0
+		var hits := space.intersect_shape(query, 4)
+		query.motion = motion
+		var fractions := space.cast_motion(query)
+		if hits.is_empty() and fractions.size() == 2 and float(fractions[0]) < 1.0:
+			query.motion = Vector3.ZERO
+			var contact_transform := query.transform
+			contact_transform.origin += motion * float(fractions[1])
+			query.transform = contact_transform
+			hits = space.intersect_shape(query, 4)
+		for hit: Dictionary in hits:
+			var collider: Object = hit.get("collider")
+			collisions.append({
+				"shape": str(collision.name), "safe_unsafe_fractions": fractions,
+				"collider_id": hit.get("collider_id", 0),
+				"collider_path": str((collider as Node).get_path()) if collider is Node else "",
+				"collider_class": collider.get_class() if collider != null else "",
+				"collider_layer": (collider as CollisionObject3D).collision_layer if collider is CollisionObject3D else 0,
+				"collider_position": (collider as Node3D).global_position if collider is Node3D else Vector3.ZERO,
+			})
+	var roster := []
+	for candidate: HeroShip in game.get_flyable_ships():
+		roster.append({"ship_id": candidate.get_ship_id(), "selected": candidate == craft,
+			"position": candidate.global_position})
+	var frame := game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	return {"coordinate_frame": frame.get_snapshot(), "roster": roster,
+		"proof_ship_position": proof.get("ship_position_world", Vector3.INF),
+		"proof_sequence": proof.get("proof_sequence", 0), "collisions": collisions}
+
+
+func _ember_enter_on_foot(game: GameFlow, craft: HeroShip) -> bool:
+	# Select before departure: ordinary FREE_FLIGHT starts the selected family,
+	# while convoy activation waits for its real rendezvous instead of launch.
+	var selected := game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
+	if not selected.get("accepted", false):
+		return _ember_visit_rejected(game, craft, "activity_selection", {"result": selected})
+	# Ordinary launch controls establish FREE_FLIGHT and release the yard lease.
+	Input.action_press(&"hover")
+	Input.action_press(&"move_forward")
+	for _tick in 240:
+		await get_tree().physics_frame
+		if game.phase == GameFlow.Phase.FREE_FLIGHT:
+			break
+	await _settle_frames(24)
+	var held_launch := _ember_visit_observation(game, craft)
+	Input.action_release(&"hover")
+	Input.action_release(&"move_forward")
+	await _settle_frames(4)
+	if game.phase != GameFlow.Phase.FREE_FLIGHT:
+		return _ember_visit_rejected(game, craft, "ordinary_launch", {"held_launch": held_launch})
+	var admitted: Dictionary = game.call("_begin_player_ember_surface_journey", 1)
+	if not admitted.get("accepted", false):
+		return _ember_visit_rejected(game, craft, "ember_admission", {"result": admitted})
+	var cruise := game.planetary_cruise_binding
+	var frame := game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	var canonical := cruise.get_snapshot().get("canonical_destination_orbital", {}) as Dictionary
+	var activated := false
+	var last_staging := {}
+	for _tick in 420:
+		var decoded := frame.orbital_to_world_streaming_position(canonical, frame.get_generation())
+		var navigation := decoded.get("position", Vector3.INF) as Vector3
+		if not navigation.is_finite():
+			return _ember_visit_rejected(game, craft, "orbital_anchor_decode", {"canonical": canonical})
+		craft.global_position = navigation + Vector3.BACK * 500.0
+		craft.global_basis = Basis.IDENTITY
+		craft.velocity = (navigation - craft.global_position).normalized() * 8.0
+		last_staging = {"decoded": decoded, "placed_position": craft.global_position,
+			"coordinate_frame_generation": frame.get_generation(), "tick": _tick}
+		await get_tree().physics_frame
+		var approach := cruise.get_snapshot().get("controller", {}).get("final_approach", {}) as Dictionary
+		if StringName(approach.get("state_id", &"")) == &"final_approach":
+			activated = true
+			break
+	if not activated:
+		return _ember_visit_rejected(game, craft, "final_approach_staging", {
+			"last_staging": last_staging,
+			"collision_observation": _ember_staging_collision_observation(game, craft),
+		})
+	var host := game.ember_surface_loop_host
+	var loaded := game.ember_streaming_bootstrap.get_loaded_instance()
+	if not is_instance_valid(loaded):
+		return _ember_visit_rejected(game, craft, "surface_residency")
+	var region := loaded.get_node("LandingRegion") as Node3D
+	var corridor := host.get_snapshot().get("approach_entry", {}).get("envelope", {}).get(
+		"corridor_transform_region_local_m", Transform3D.IDENTITY) as Transform3D
+	craft.global_transform = region.global_transform * corridor
+	craft.velocity = Vector3.ZERO
+	if not await _ember_wait_phase(game, EmberSurfaceLoopHost.Phase.LANDED, 3000):
+		return _ember_visit_rejected(game, craft, "landed_wait", {
+			"target_phase": EmberSurfaceLoopHost.Phase.LANDED, "budget": 3000})
+	var berth := game.ember_surface_berth
+	_check(berth.get_occupant() == craft and not berth.get_reservation_token(craft).is_empty(),
+		"the actual Ember Host lands the actual craft under its real caldera berth lease")
+	if not await _ember_wait_phase(game, EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, 600):
+		return _ember_visit_rejected(game, craft, "surface_outbound_wait", {
+			"target_phase": EmberSurfaceLoopHost.Phase.SURFACE_OUTBOUND, "budget": 600})
+	# The authored pad egress avoids the parked craft, then reaches staging.
+	for leg: Array in [["x", -9.0, false, &"move_back", 90],
+		["z", 8.0, true, &"move_right", 120], ["x", 17.5, true, &"move_forward", 150],
+		["z", 0.5, false, &"move_left", 120], ["x", 41.5, true, &"move_forward", 150]]:
+		if not await _ember_walk_axis(game, leg[0], leg[1], leg[2], leg[3], leg[4]):
+			return _ember_visit_rejected(game, craft, "authored_egress_leg", {
+				"leg": leg, "axis": leg[0], "bound": leg[1], "greater": leg[2],
+				"action": leg[3], "budget": leg[4]})
+	if not await _ember_wait_phase(game, EmberSurfaceLoopHost.Phase.ON_FOOT, 180):
+		return _ember_visit_rejected(game, craft, "on_foot_wait", {
+			"target_phase": EmberSurfaceLoopHost.Phase.ON_FOOT, "budget": 180})
+	return true
+
+
+func _ember_document_text(store: UserDataStore, boundary: Dictionary) -> String:
+	# Transport the actual wire text: parsing and re-encoding a JSON number can
+	# change its final digits even with full-precision output.
+	var text := FileAccess.get_file_as_string(str(store.get("_path")))
+	var document: Variant = JSON.parse_string(text)
+	_check(document is Dictionary \
+		and document.get("payload") is Dictionary \
+		and document.get("payload", {}).get("ember_relay_survey_completion", {}) == boundary \
+		and int(document.get("generation", -1)) == store.get_generation() \
+		and document.get("commit", {}) == store.get_commit_metadata(),
+		"the actual persisted Ember document matches the retained runtime boundary")
+	return text
+
+
+func _run_ember(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	if recovery_context != "pilot":
+		_fail("Ember interruption supports only a real pilot boarding for each production visit")
+		return
+	var main_id := game.get_instance_id()
+	var boundary: Dictionary = store.get_snapshot().get("ember_relay_survey_completion", {})
+	var boundary_document_json := ""
+	var receipt_before := {"store_generation": store.get_generation(),
+		"commit": store.get_commit_metadata(), "receipt": boundary.duplicate(true)}
+	var before_receipts := _ember_receipts(game)
+	var crash_events := 0
+	var safe_observation := {}
+	var craft: HeroShip
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		craft = game.get_flyable_ships()[1] as HeroShip
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		game.start_shift()
+		game.call("_board_ship", craft)
+		_check(await _wait_for_real_pilot(game, craft), "Ember arm acquires the real yard pilot before disclosed flight placement")
+	else:
+		boundary_document_json = _ember_document_text(store, boundary)
+		var recovery := game.get_recovery_available_snapshot()
+		for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+			if event.get("event_code") == "crash_detected":
+				crash_events += 1
+		craft = game.get_flyable_ships()[1] as HeroShip
+		_check(not boundary.is_empty() and boundary.get("payload_kind") == "ember_relay_survey_active_journey"
+			and before_receipts == 0 and crash_events == 1 and not recovery.is_empty(),
+			"a fresh Boot process observes the genuine interrupted Ember receipt without replaying activity or reward")
+		if not is_instance_valid(craft) or not _failures.is_empty():
+			_fail("the genuine Ember receipt must be present before ordinary cold Resume")
+			return
+		var stale: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start",
+			int(recovery.session_id) + 1, int(recovery.startup_generation))
+		_check(not stale.get("accepted", false), "ordinary Resume refuses a stale recovery fence")
+		var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start",
+			int(recovery.session_id), int(recovery.startup_generation))
+		game.canopy_motion_time = 0.01
+		game.boarding_motion_time = 0.02
+		game.start_shift()
+		await _settle_frames(4)
+		_check(resumed.get("accepted", false) and not game.player.is_seated()
+			and game.player.is_control_enabled() and not game.active_ship.is_piloted()
+			and boundary == store.get_snapshot().get("ember_relay_survey_completion", {}),
+			"fenced cold Resume returns to the ordinary yard on foot while the exact Ember checkpoint remains passive")
+		var yard_observation := _interruption_runtime_observation(game)
+		game.call("_board_ship", craft)
+		var settled := await _wait_for_real_pilot(game, craft)
+		var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+		var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		_check(settled and area.get_reservation_token() == game.player and berth.get_occupant() == craft
+			and berth.get_reservation_owner() == craft
+			and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1
+			and boundary == store.get_snapshot().get("ember_relay_survey_completion", {}),
+			"a real new boarding acquires the home pilot for the return trip without consuming the saved survey")
+		safe_observation = _interruption_runtime_observation(game)
+		safe_observation["cold_yard_before_boarding"] = yard_observation
+	if not _failures.is_empty() or not await _ember_enter_on_foot(game, craft):
+		_fail("the real Ember cruise, Host landing, disembark and authored egress must reach on-foot survey admission")
+		return
+	var host := game.ember_surface_loop_host
+	var session := host.get_travel_session_observation_source()
+	var identities := host.get_snapshot().get("identities", {}) as Dictionary
+	_check(is_instance_valid(session) and identities.get("player_instance_id") == game.player.get_instance_id()
+		and identities.get("ship_instance_id") == craft.get_instance_id()
+		and game.player.is_on_floor() and not game.player.is_seated() and game.player.is_control_enabled(),
+		"the current real Host, session and fresh process actors own the admitted standing survey")
+	if stage == "arm":
+		_check(await _ember_walk_axis(game, "z", -44.0, false, &"move_left", 600)
+			and await _ember_walk_axis(game, "x", 180.0, true, &"move_forward", 1800),
+			"ordinary held walking reaches the authored relay checkpoint on real surface support")
+		var route := _ember_route(game).duplicate(true)
+		var saved := game.save_interrupted_ember_journey()
+		boundary = store.get_snapshot().get("ember_relay_survey_completion", {})
+		boundary_document_json = _ember_document_text(store, boundary)
+		_check(route.get("next_checkpoint_index") == 1 and not route.get("complete", true)
+			and saved.get("accepted", false) and saved.get("binding_reason") == &"active_journey_saved"
+			and before_receipts == 0 and _ember_receipts(game) == 0,
+			"the genuine first relay checkpoint is durable as an incomplete unpaid active journey")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var ready := {"boundary": boundary, "boundary_document_json": boundary_document_json,
+			"route": route, "receipts": 0,
+			"runtime_observation": _interruption_runtime_observation(game),
+			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context,
+			"activity": activity, "initial_flight_placements": EMBER_PROBE_PLACEMENTS,
+			"host_attachment_generation": host.get_attachment_generation(),
+			"safe_context": store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {}),
+			"canonical_outbound": "NOT_RUN", "standing_pose_restore": "NOT_SUPPORTED"}
+		get_tree().paused = true
+		# Match UserDataStore's full-precision wire encoding for exact checkpoint comparison.
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify(ready, "", true, true))
+		return
+	var saved_route: Dictionary = boundary.completion.route_identity
+	var route := _ember_route(game).duplicate(true)
+	var restore := game.get_ember_interrupted_journey_persistence_report()
+	var resumed: bool = (restore.restore_status.get("accepted", false) and restore.restore_status.checkpoint_resume.get("accepted", false)
+		and _canonical(route) == saved_route and not store.get_snapshot().has("ember_relay_survey_completion")
+		and _ember_receipts(game) == before_receipts)
+	if not resumed:
+		print("EMBER_INTERRUPTED_SURVEY_START_REJECTED: " + JSON.stringify({
+			"survey_start_result": restore.get("survey_start_result", {}), "restore": restore,
+			"saved_route": saved_route, "live_route": route, "surface": _ember_surface(game),
+			"receipt_before": receipt_before, "receipt_after": {"store_generation": store.get_generation(),
+				"commit": store.get_commit_metadata(),
+				"receipt": store.get_snapshot().get("ember_relay_survey_completion", {})},
+			"receipts_before": before_receipts, "receipts_after": _ember_receipts(game),
+		}, "", true, true))
+	_check(resumed,
+		"ordinary production survey Start adopts the original checkpoint/generation and only then retires its receipt")
+	if not _failures.is_empty():
+		_fail("the genuine saved route must be adopted before continuation")
+		return
+	# Walk from staging through the relay, then outside the hazard arc to the
+	# authored return beacon. No caller position sample substitutes for movement.
+	_check(await _ember_walk_axis(game, "z", -44.0, false, &"move_left", 600)
+		and await _ember_walk_axis(game, "x", 180.0, true, &"move_forward", 1800)
+		and await _ember_walk_axis(game, "z", -210.0, false, &"move_left", 2100)
+		and await _ember_walk_axis(game, "x", 540.0, true, &"move_forward", 4200),
+		"the resumed real actor walks to the authored return beacon without checkpoint placement")
+	await _settle_frames(12)
+	game.call("_retry_owed_game_flow_activity_rewards")
+	game.call("_retry_owed_game_flow_activity_rewards")
+	var paid: Dictionary = store.get_snapshot().get("ember_relay_survey_completion", {})
+	_check(_ember_receipts(game) == before_receipts + 1 and paid.get("payload_kind") == "ember_relay_survey_completion"
+		and paid.get("completion", {}).get("activity_generation") == saved_route.activity_generation
+		and paid.get("completion", {}).get("mandatory_route", {}).get("complete", false),
+		"the preserved original survey completes and commits its real beacon-data receipt once despite reward retries")
+	var counts := (store.get_snapshot().get("game_flow_reward_store", {}) as Dictionary).get("reward_counts", {}) as Dictionary
+	await _settle_frames(12)
+	game.save_interrupted_ember_journey()
+	game.save_interrupted_ember_journey()
+	_check(store.get_snapshot().get("ember_relay_survey_completion", {}) == paid
+		and store.get_snapshot().get("game_flow_reward_store", {}).get("reward_counts", {}) == counts,
+		"late repeated journey saves and production cadence preserve the paid terminal and exact reward ledger")
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.get("accepted", false) and game.get_instance_id() == main_id and game.get_tree() == get_tree(),
+		"the recovered Boot Main retains its owners and closes both existing recovery markers")
+	var paid_document_json := _ember_document_text(store, paid)
+	if _failures.is_empty():
+		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify({"boundary": boundary, "paid_boundary": paid,
+			"boundary_document_json": boundary_document_json, "paid_document_json": paid_document_json,
+			"receipts_before": before_receipts, "receipts_after": _ember_receipts(game), "crash_events": crash_events,
+			"safe_recovery_observation": safe_observation, "runtime_observation": _interruption_runtime_observation(game),
+			"resumed_route": route, "host_attachment_generation": host.get_attachment_generation(),
+			"assertions": _assertions, "entry": entry,
+			"loaded_main_instance_id": main_id, "recovery_context": recovery_context, "activity": activity,
+			"initial_flight_placements": EMBER_PROBE_PLACEMENTS,
+			"continuation_method": "ordinary_cold_yard_then_real_boarding_disclosed_initial_flight_placements_and_original_survey_resume",
+			"canonical_outbound": "NOT_RUN", "standing_pose_restore": "NOT_SUPPORTED"}, "", true, true))
+		get_tree().quit(0)
+	else:
+		print("IN_WORLD_RECOVERY_FAILED")
+		get_tree().quit(1)

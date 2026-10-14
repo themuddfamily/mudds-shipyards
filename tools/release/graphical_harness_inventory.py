@@ -4,7 +4,8 @@
 The discovery rule is intentionally based on observable source properties, not
 on a hand-maintained directory list.  A GDScript below ``tests/`` or ``tools/``
 is a graphical harness when it is explicitly capture/render named, or when it
-both reads a rendered viewport and writes a PNG.
+both reads a rendered viewport and writes a PNG. A literal-preload-owned
+RefCounted capture helper contributes those capabilities to its SceneTree entry.
 """
 
 from __future__ import annotations
@@ -66,6 +67,17 @@ MANDATORY_REQUIRED_IDS = frozenset(MANDATORY_REQUIRED_IMAGE_COUNTS)
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 ENV_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+# Consume comments and complete string literals before looking for a code
+# preload. Capture-looking text inside either cannot own a helper.
+PRELOAD_OWNERSHIP_TOKENS = re.compile(
+    r"\#[^\n]*"
+    r'|"""(?:\\.|(?!""")[\s\S])*"""'
+    r"|'''(?:\\.|(?!''')[\s\S])*'''"
+    r'|"(?:\\.|[^"\\\r\n])*"'
+    r"|'(?:\\.|[^'\\\r\n])*'"
+    r'''|\bpreload\(\s*(?P<quote>["'])res://(?P<path>[^"']+\.gd)(?P=quote)\s*\)''',
+    re.DOTALL,
+)
 TOP_LEVEL_KEYS = frozenset(("schema_version", "harnesses"))
 ENTRY_KEYS = frozenset(
     (
@@ -217,7 +229,8 @@ def _is_render_harness(path: Path, source: str) -> bool:
 
 
 def discover_harnesses(root: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    found: list[str] = []
+    found: set[str] = set()
+    sources: dict[str, str] = {}
     errors: list[str] = []
     for directory_name in DISCOVERY_ROOTS:
         directory = root / directory_name
@@ -232,8 +245,24 @@ def discover_harnesses(root: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
                     f"cannot read discovery candidate {path.relative_to(root).as_posix()}: {error}"
                 )
                 continue
-            if _is_render_harness(path, source):
-                found.append(path.relative_to(root).as_posix())
+            sources[path.relative_to(root).as_posix()] = source
+    owners: dict[str, set[str]] = {}
+    for entry, source in sources.items():
+        if not re.search(r"(?m)^\s*extends\s+SceneTree\b", source):
+            continue
+        for token in PRELOAD_OWNERSHIP_TOKENS.finditer(source):
+            dependency = token.group("path")
+            if dependency is not None:
+                owners.setdefault(dependency, set()).add(entry)
+    for relative, source in sources.items():
+        if not _is_render_harness(Path(relative), source):
+            continue
+        if re.search(r"(?m)^\s*extends\s+RefCounted\b", source) and owners.get(relative):
+            # The helper cannot run as --script. Preserve discovery and gating
+            # at the actual executable entry that dispatches its capture.
+            found.update(owners[relative])
+        else:
+            found.add(relative)
     return tuple(sorted(found)), tuple(sorted(errors))
 
 

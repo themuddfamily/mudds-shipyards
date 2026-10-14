@@ -1139,6 +1139,10 @@ func _run_roll_peer() -> void:
 
 
 func _roll_peer_step(send_helm: bool = true) -> void:
+	# Later helm scenarios deliberately stop Main's automatic physics. Keep the
+	# cabin's real authority intent/correction owner running once in that mode.
+	if not _host.is_physics_processing():
+		_host._advance_network_remote_body_intent_stream()
 	_craft._physics_process(1.0 / 60.0)
 	if send_helm: _host._advance_network_remote_helm_stream()
 	_host._advance_network_craft_pose_replica(1.0 / 60.0)
@@ -1551,7 +1555,6 @@ func _peer_take_pilot_from_cabin() -> void:
 	if not presented:
 		return
 	_physical_interact_trace(&"cockpit_pose_ready")
-	_host.player.teleport_to(_craft.get_in_flight_cabin_report().get("stand_transform"))
 	await _roll_peer_step(false)
 	_host._refresh_interaction_targets()
 	print("DOCK_REUSE_COCKPIT_BEFORE: ", {"phase": _host.phase, "busy": _host._transition_busy,
@@ -1564,7 +1567,13 @@ func _peer_take_pilot_from_cabin() -> void:
 	var seat_local := _craft.to_local(_craft.get_pilot_seat_anchor().global_position)
 	var stand_local := _craft.to_local(supported_approach.origin)
 	supported_approach.origin = _craft.to_global(Vector3(seat_local.x, stand_local.y, seat_local.z + 1.0))
-	_host.player.teleport_to(supported_approach)
+	# A client-only placement is corrected to the host's unchanged standing
+	# body before Interact. Reach this same supported waypoint through physical
+	# walking keys so both owners observe the approach, without changing reach.
+	var approached := await _peer_walk_to_cockpit(supported_approach.origin, cockpit_deadline)
+	_check(approached, "ordinary held walking reaches the supported cockpit approach under host body authority")
+	if not approached:
+		return
 	await _roll_peer_step(false)
 	# The physical passenger chair is now available behind this approach.
 	# Aim at the cockpit through ordinary mouse input before the same E key.
@@ -1586,6 +1595,31 @@ func _peer_take_pilot_from_cabin() -> void:
 		"claim": _host._network_client_boarding_claim, "request": _host._network_client_boarding_request,
 		"boarding": _host.get_network_client_boarding_audit(), "player_local": _craft.to_local(_host.player.global_position)})
 	_check(cockpit_reused, "physical cockpit key returns the same client to the confirmed pilot seat")
+
+
+func _peer_walk_to_cockpit(target: Vector3, deadline: int) -> bool:
+	var actions: Array[StringName] = [&"move_left", &"move_right", &"move_forward", &"move_back"]
+	var reached := false
+	while Time.get_ticks_msec() < deadline:
+		var actor := _host.player as PlayerController
+		var offset := (target - actor.global_position).slide(actor.up_direction)
+		if offset.length() <= 0.25 and actor.is_on_floor():
+			reached = true
+			break
+		_peer_look_toward_cockpit()
+		var yaw := actor.get_node("%CameraYaw") as Node3D
+		var forward := -yaw.global_basis.z.slide(actor.up_direction).normalized()
+		var right := yaw.global_basis.x.slide(actor.up_direction).normalized()
+		var axes := Vector2(offset.normalized().dot(right), -offset.normalized().dot(forward))
+		var held: Array[bool] = [axes.x < -0.1, axes.x > 0.1, axes.y < -0.1, axes.y > 0.1]
+		for index in actions.size():
+			if Input.is_action_pressed(actions[index]) != held[index]:
+				_roll_key_action(actions[index], held[index])
+		await _roll_peer_step(false)
+	for action in actions:
+		_roll_key_action(action, false)
+	await _roll_peer_step(false)
+	return reached
 
 
 func _peer_look_toward_cockpit() -> void:

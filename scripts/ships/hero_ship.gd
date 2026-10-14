@@ -533,6 +533,16 @@ var _planetary_cruise_reason: StringName = &"never_engaged"
 var _planetary_cruise_pending_envelope: Dictionary = {}
 var _planetary_cruise_last_envelope: Dictionary = {}
 var _planetary_cruise_pending_clearance_proof: Dictionary = {}
+## Retained through envelope queueing so the physical consumer rechecks the
+## same structural-body membership that supplied its accepted clearance proof.
+var _planetary_cruise_proof_self_exclusions: Array[RID] = []
+var _planetary_cruise_observed_exceptions: Dictionary = {}
+var _planetary_cruise_publication_owner: WeakRef
+var _planetary_cruise_publication_receipt: Dictionary = {}
+var _planetary_cruise_publication_controller := 0
+var _planetary_cruise_publication_attachment := 0
+var _planetary_cruise_publication_last_owner := 0
+var _planetary_cruise_publication_last_transaction := 0
 var _planetary_cruise_clearance_proof_sequence := 0
 var _planetary_cruise_controller_instance_id := 0
 var _planetary_cruise_last_controller_generation := 0
@@ -1694,15 +1704,149 @@ func attach_planetary_cruise_controller(
 	_planetary_cruise_mutation_active = true
 	_planetary_cruise_controller_instance_id = controller_instance_id
 	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_proof_self_exclusions.clear()
 	_planetary_cruise_reason = &"controller_attached"
 	_planetary_cruise_mutation_active = false
 	_emit_planetary_cruise_state_changed()
 	return _planetary_cruise_receipt(true, &"attached")
 
 
+## Called after the controller adopts the owner's genuine committed frame.
+func await_planetary_cruise_collision_publication(
+	owner: CommonWorldOriginRebaseOwner, receipt: Dictionary,
+	controller_instance_id: int, attachment_generation: int
+) -> StringName:
+	if _reset_for_reuse_mutation_blocked() or _planetary_cruise_mutation_active \
+			or _planetary_cruise_signal_dispatch_active:
+		return &"reentrant_call"
+	if not _planetary_cruise_body_is_live() or _destroyed or not _piloted or _landing_active \
+			or controller_instance_id <= 0 or controller_instance_id != _planetary_cruise_controller_instance_id \
+			or attachment_generation != _planetary_cruise_attachment_generation \
+			or int(receipt.get("target_generation", 0)) != _planetary_cruise_coordinate_frame_generation:
+		return &"collision_publication_attachment_mismatch"
+	var controller := instance_from_id(controller_instance_id) as Node
+	if not is_instance_valid(controller) or not controller.is_inside_tree() or controller.is_queued_for_deletion():
+		return &"collision_publication_attachment_mismatch"
+	if not is_instance_valid(owner) or owner.get_parent() != get_parent():
+		return &"collision_publication_owner_unavailable"
+	var transaction := int(receipt.get("transaction_index", 0))
+	if owner.get_instance_id() == _planetary_cruise_publication_last_owner \
+			and transaction <= _planetary_cruise_publication_last_transaction:
+		return &"collision_publication_replayed"
+	var status := owner.get_collision_publication_status(receipt, self)
+	if status not in [&"pending", &"ready"]:
+		return status
+	_planetary_cruise_publication_last_owner = owner.get_instance_id()
+	_planetary_cruise_publication_last_transaction = transaction
+	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_proof_self_exclusions.clear()
+	_planetary_cruise_pending_envelope.clear()
+	if status == &"pending":
+		_planetary_cruise_publication_owner = weakref(owner)
+		_planetary_cruise_publication_receipt = receipt.duplicate(true)
+		_planetary_cruise_publication_controller = controller_instance_id
+		_planetary_cruise_publication_attachment = attachment_generation
+	return status
+
+
+func get_planetary_cruise_collision_publication_status() -> StringName:
+	if _planetary_cruise_publication_receipt.is_empty():
+		return &"not_pending"
+	if _planetary_cruise_publication_controller != _planetary_cruise_controller_instance_id \
+			or _planetary_cruise_publication_attachment != _planetary_cruise_attachment_generation \
+			or int(_planetary_cruise_publication_receipt.get("target_generation", 0)) \
+				!= _planetary_cruise_coordinate_frame_generation:
+		return &"collision_publication_attachment_mismatch"
+	var controller := instance_from_id(_planetary_cruise_publication_controller) as Node
+	if not is_instance_valid(controller) or not controller.is_inside_tree() or controller.is_queued_for_deletion():
+		return &"collision_publication_attachment_mismatch"
+	var owner := _planetary_cruise_publication_owner.get_ref() as CommonWorldOriginRebaseOwner
+	if not is_instance_valid(owner):
+		return &"collision_publication_owner_unavailable"
+	return owner.get_collision_publication_status(_planetary_cruise_publication_receipt, self)
+
+
+func _clear_planetary_cruise_collision_publication() -> void:
+	_planetary_cruise_publication_owner = null
+	_planetary_cruise_publication_receipt.clear()
+
+
+func _planetary_cruise_self_collision_exclusions() -> Array[RID]:
+	var exclusions: Array[RID] = [get_rid()]
+	var declared := _planetary_cruise_live_exception_rids()
+	if declared.is_empty():
+		return exclusions
+	var pending: Array[Node] = []
+	pending.assign(get_children())
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if not is_instance_valid(node) or not node.is_inside_tree() or node.is_queued_for_deletion() \
+				or node is CharacterBody3D or node is RigidBody3D:
+			continue
+		if node is CollisionObject3D:
+			var body_rid := (node as CollisionObject3D).get_rid()
+			if declared.has(body_rid):
+				exclusions.append(body_rid)
+		pending.append_array(node.get_children())
+	exclusions.sort_custom(func(left: RID, right: RID) -> bool: return left.get_id() < right.get_id())
+	return exclusions
+
+
+func _planetary_cruise_live_exception_rids() -> Array[RID]:
+	# The public object getter resolves every native exception RID. Watch bodies
+	# while live so queued destruction removes their exception before that lookup.
+	# Only previously observed exceptions can be cleaned up through this seam.
+	for observed_rid: RID in _planetary_cruise_observed_exceptions.keys():
+		var observed := (_planetary_cruise_observed_exceptions[observed_rid] as WeakRef).get_ref() as Node
+		if not is_instance_valid(observed) or _planetary_cruise_exception_is_being_deleted(observed):
+			PhysicsServer3D.body_remove_collision_exception(get_rid(), observed_rid)
+			_planetary_cruise_observed_exceptions.erase(observed_rid)
+	var declared: Array[RID] = []
+	for body: PhysicsBody3D in get_collision_exceptions():
+		if not is_instance_valid(body):
+			continue
+		var body_rid := body.get_rid()
+		declared.append(body_rid)
+		if not _planetary_cruise_observed_exceptions.has(body_rid):
+			_planetary_cruise_observed_exceptions[body_rid] = weakref(body)
+			body.tree_exiting.connect(_on_planetary_cruise_exception_tree_exiting.bind(body_rid))
+	# Ordinary unregistering remains authoritative and releases its watcher.
+	for observed_rid: RID in _planetary_cruise_observed_exceptions.keys():
+		if declared.has(observed_rid):
+			continue
+		var observed := (_planetary_cruise_observed_exceptions[observed_rid] as WeakRef).get_ref() as Node
+		var callback := _on_planetary_cruise_exception_tree_exiting.bind(observed_rid)
+		if is_instance_valid(observed) and observed.tree_exiting.is_connected(callback):
+			observed.tree_exiting.disconnect(callback)
+		_planetary_cruise_observed_exceptions.erase(observed_rid)
+	return declared
+
+
+func _planetary_cruise_exception_is_being_deleted(body: Node) -> bool:
+	var ancestor := body
+	while is_instance_valid(ancestor):
+		if ancestor.is_queued_for_deletion():
+			return true
+		ancestor = ancestor.get_parent()
+	return false
+
+
+func _on_planetary_cruise_exception_tree_exiting(body_rid: RID) -> void:
+	var observed_ref := _planetary_cruise_observed_exceptions.get(body_rid) as WeakRef
+	if observed_ref == null:
+		return
+	var body := observed_ref.get_ref() as Node
+	# Reparenting also emits tree_exiting and must retain the ordinary exception.
+	# Children of a queued actor are removed before their own body RID is freed.
+	if is_instance_valid(body) and _planetary_cruise_exception_is_being_deleted(body):
+		PhysicsServer3D.body_remove_collision_exception(get_rid(), body_rid)
+		_planetary_cruise_observed_exceptions.erase(body_rid)
+
+
 ## Performs the current-generation, fixed-orientation sweep proof used by the
 ## pure PlanetaryCruisePolicy. Every enabled direct collision shape on this body
-## is queried with this body's mask; the body itself is the only exclusion.
+## is queried with this body's mask. Only this body and its declared structural
+## self-collision exceptions are excluded; other actors remain obstacles.
 func build_planetary_cruise_clearance_proof(
 	direction_world: Vector3,
 	sweep_distance_meters: float,
@@ -1723,6 +1867,7 @@ func build_planetary_cruise_clearance_proof(
 	# stale request therefore cannot leave an older clear route or already queued
 	# envelope reusable before the body's next physics tick.
 	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_proof_self_exclusions.clear()
 	_planetary_cruise_pending_envelope.clear()
 	var rejection := _validate_planetary_cruise_query_context(
 		direction_world,
@@ -1776,10 +1921,12 @@ func build_planetary_cruise_clearance_proof(
 			enabled_shapes.size()
 		)
 	var space := get_world_3d().direct_space_state
+	var self_exclusions := _planetary_cruise_self_collision_exclusions()
 	var normalized_direction := direction_world.normalized()
 	var motion := normalized_direction * sweep_distance_meters
 	var minimum_safe_fraction := 1.0
 	var obstacle_detected := false
+	var first_refusal: Dictionary = {}
 	var queried_shape_count := 0
 	var shape_names := PackedStringArray()
 	var shape_transforms: Array[Transform3D] = []
@@ -1792,7 +1939,7 @@ func build_planetary_cruise_clearance_proof(
 		query.collision_mask = collision_mask
 		query.collide_with_bodies = true
 		query.collide_with_areas = false
-		query.exclude = [get_rid()]
+		query.exclude = self_exclusions
 		query.margin = 0.0
 		var sweep := _planetary_cruise_query_full_sweep(space, query, collision.global_transform, motion, 0)
 		if not bool(sweep.get("accepted", false)):
@@ -1805,6 +1952,10 @@ func build_planetary_cruise_clearance_proof(
 				enabled_shapes.size(),
 				queried_shape_count
 			)
+		if first_refusal.is_empty() and bool(sweep.get("obstacle_detected", false)):
+			first_refusal = (sweep.get("refusal", {}) as Dictionary).duplicate(true)
+			first_refusal["hull_shape"] = str(collision.name)
+			first_refusal["shape_type"] = collision.shape.get_class()
 		minimum_safe_fraction = minf(minimum_safe_fraction, float(sweep.get("safe_fraction", 0.0)))
 		obstacle_detected = obstacle_detected or bool(sweep.get("obstacle_detected", true))
 		queried_shape_count += 1
@@ -1830,6 +1981,20 @@ func build_planetary_cruise_clearance_proof(
 		)
 		closing_speed = ship_speed * alignment_dot
 	var proof_sequence := _planetary_cruise_clearance_proof_sequence + 1
+	if obstacle_detected:
+		# Diagnostic only: retain the unchanged authenticated proof schema and
+		# log evidence from queries already performed, never another collision query.
+		print("PLANETARY_CRUISE_CLEARANCE_REFUSED ", {
+			"ship_instance_id": get_instance_id(),
+			"ship_attachment_generation": _planetary_cruise_attachment_generation,
+			"controller_instance_id": controller_instance_id,
+			"coordinate_frame_generation": coordinate_frame_generation,
+			"proof_sequence": proof_sequence,
+			"physics_frame": int(Engine.get_physics_frames()),
+			"sweep_distance_meters": sweep_distance_meters,
+			"verified_clearance_meters": verified_clearance,
+			"first_refusal": first_refusal,
+		})
 	var proof := {
 		"accepted": true,
 		"reason": &"clearance_proved",
@@ -1866,6 +2031,7 @@ func build_planetary_cruise_clearance_proof(
 	_planetary_cruise_mutation_active = true
 	_planetary_cruise_clearance_proof_sequence = proof_sequence
 	_planetary_cruise_pending_clearance_proof = proof.duplicate(true)
+	_planetary_cruise_proof_self_exclusions = self_exclusions.duplicate()
 	_planetary_cruise_mutation_active = false
 	return proof.duplicate(true)
 
@@ -2105,6 +2271,7 @@ func retarget_planetary_cruise_coordinate_frame(
 	_planetary_cruise_mutation_active = true
 	_planetary_cruise_pending_envelope.clear()
 	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_proof_self_exclusions.clear()
 	_planetary_cruise_coordinate_frame_generation = coordinate_frame_generation
 	_planetary_cruise_mutation_active = false
 	return _planetary_cruise_receipt(true, &"coordinate_frame_retargeted")
@@ -2126,7 +2293,9 @@ func disengage_planetary_cruise(
 		return _planetary_cruise_receipt(false, &"attachment_generation_mismatch")
 	_planetary_cruise_pending_envelope.clear()
 	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_proof_self_exclusions.clear()
 	_planetary_cruise_controller_instance_id = 0
+	_clear_planetary_cruise_collision_publication()
 	if brake_to_stop and _planetary_cruise_can_brake() and velocity.length() > 0.0:
 		_planetary_cruise_state = PLANETARY_CRUISE_STATE_BRAKING
 		_planetary_cruise_reason = &"explicit_disengage"
@@ -3799,6 +3968,16 @@ func _update_planetary_cruise_physics(delta: float) -> bool:
 	if _destroyed or not _piloted or _landing_active or not is_inside_tree():
 		_retire_planetary_cruise(&"lifecycle_gate", true)
 		return false
+	var publication := get_planetary_cruise_collision_publication_status()
+	if publication == &"pending":
+		# Consume this genuine transition tick without motion, acceleration or
+		# reuse of an old proof. Normal command/lifecycle gates ran above.
+		return true
+	if publication == &"ready":
+		_clear_planetary_cruise_collision_publication()
+	elif publication != &"not_pending":
+		_retire_planetary_cruise(publication, true)
+		return true
 	var had_pending := not _planetary_cruise_pending_envelope.is_empty()
 	if had_pending:
 		var envelope := _planetary_cruise_pending_envelope.duplicate(true)
@@ -3936,6 +4115,11 @@ func _validate_planetary_cruise_query_context(
 	if coordinate_frame_generation < 1 \
 		or coordinate_frame_generation > PLANETARY_CRUISE_MAX_SAFE_INTEGER:
 		return &"coordinate_frame_generation_out_of_bounds"
+	var publication := get_planetary_cruise_collision_publication_status()
+	if publication == &"pending":
+		return &"collision_publication_pending"
+	if publication not in [&"ready", &"not_pending"]:
+		return publication
 	if not direction_world.is_finite() \
 		or absf(direction_world.length() - 1.0) > PLANETARY_CRUISE_DIRECTION_EPSILON:
 		return &"direction_not_normalized"
@@ -4097,7 +4281,10 @@ func _validate_planetary_cruise_envelope(
 		or StringName(envelope.policy_reason) \
 		!= StringName(policy_result.get("reason", &"")):
 		return &"policy_result_mismatch"
-	if not allow_pending_identity:
+	if allow_pending_identity:
+		if _planetary_cruise_self_collision_exclusions() != _planetary_cruise_proof_self_exclusions:
+			return &"clearance_hull_roster_changed"
+	else:
 		var proof_reason := _validate_planetary_cruise_proof_capability(
 			envelope,
 			observation
@@ -4186,6 +4373,8 @@ func _validate_planetary_cruise_proof_capability(
 		!= velocity.length() \
 		or int(proof.get("collision_mask", -1)) != collision_mask:
 		return &"clearance_proof_no_longer_current"
+	if _planetary_cruise_self_collision_exclusions() != _planetary_cruise_proof_self_exclusions:
+		return &"clearance_hull_roster_changed"
 	var current_shape_names := PackedStringArray()
 	var current_shape_transforms: Array[Transform3D] = []
 	var current_shapes: Array[CollisionShape3D] = []
@@ -4281,12 +4470,14 @@ func _planetary_cruise_can_brake() -> bool:
 
 
 func _retire_planetary_cruise(reason: StringName, advance_generation: bool) -> void:
+	_clear_planetary_cruise_collision_publication()
 	var changed := _planetary_cruise_state != PLANETARY_CRUISE_STATE_INACTIVE \
 		or not _planetary_cruise_pending_envelope.is_empty() \
 		or _planetary_cruise_controller_instance_id != 0 \
 		or _planetary_cruise_reason != reason
 	_planetary_cruise_pending_envelope.clear()
 	_planetary_cruise_pending_clearance_proof.clear()
+	_planetary_cruise_proof_self_exclusions.clear()
 	_planetary_cruise_controller_instance_id = 0
 	_planetary_cruise_state = PLANETARY_CRUISE_STATE_INACTIVE
 	_planetary_cruise_reason = reason

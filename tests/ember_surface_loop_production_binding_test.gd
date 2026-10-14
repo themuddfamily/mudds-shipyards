@@ -46,9 +46,17 @@ class MemoryFilesystem extends UserDataFilesystem:
 class CountingProduction:
 	extends EmberSurfaceLoopProductionBinding
 	var snapshot_count := 0
+	var caller_snapshot_count := 0
+	var tick_admission_snapshot_count := 0
 	func get_snapshot() -> Dictionary:
 		snapshot_count += 1
 		return super.get_snapshot()
+	func get_caller_snapshot() -> Dictionary:
+		caller_snapshot_count += 1
+		return super.get_caller_snapshot()
+	func get_tick_admission_snapshot() -> Dictionary:
+		tick_admission_snapshot_count += 1
+		return super.get_tick_admission_snapshot()
 
 
 class EarlyCaller:
@@ -71,6 +79,9 @@ class EarlyCaller:
 	var facade_probe_physical_refreshed := false
 	var journey_cadence_enabled := false
 	var journey_cadence_samples := 0
+	var ascent_cadence_samples := 0
+	var ascent_caller_report_reads := 0
+	var ascent_admission_reads := 0
 	var actor_kind: StringName = &"ship"
 	var sample_count := 0
 	var last_prepare: Dictionary = {}
@@ -185,10 +196,17 @@ class EarlyCaller:
 				and rack.collision_layer == 0 and not bunker_marker.visible \
 				and not rack_marker.visible and response.collision_layer == 0
 		elif journey_cadence_enabled:
+			var phase_before := production.get_host_phase()
+			var caller_reports_before := int(production.get("caller_snapshot_count"))
+			var admission_reads_before := int(production.get("tick_admission_snapshot_count"))
 			last_prepare = journey_flow._advance_ember_surface_loop_cadence(
 				CALLER_DELTA, last_sample, last_origin, current_generation,
 			)
 			journey_cadence_samples += 1
+			if phase_before == EmberSurfaceLoopHost.Phase.ASCENT:
+				ascent_cadence_samples += 1
+				ascent_caller_report_reads += int(production.get("caller_snapshot_count")) - caller_reports_before
+				ascent_admission_reads += int(production.get("tick_admission_snapshot_count")) - admission_reads_before
 		else:
 			last_prepare = production.prepare_early_tick(
 				serial, CALLER_DELTA, last_sample, last_origin,
@@ -955,6 +973,9 @@ func _test_real_scheduler_complete_loop() -> void:
 	_check(await _wait_binding_state(
 		fixture, EmberSurfaceLoopProductionBinding.State.HANDOFF_PENDING, 2700
 	), "real physical loop reaches completion and atomic handback")
+	_check(early.ascent_cadence_samples > 0 and early.ascent_caller_report_reads == 0
+			and early.ascent_admission_reads == early.ascent_cadence_samples,
+		"every real ASCENT cadence tick reads only admission scalars, while the full on-foot survey and atomic handback still complete")
 	var final_snapshot := production.get_snapshot()
 	var production_intent := early.station_intent_take.get("intent", {}) as Dictionary
 	_check(

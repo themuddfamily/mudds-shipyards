@@ -30,12 +30,40 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_cold_recovery_generation_allocation()
 	_test_atmospheric_complete_loop_and_clock()
 	_test_airless_branch_and_report_schema()
 	await _test_absolute_coordinates_detach_reentry_and_rebase()
 	_test_abort_fail_reset_and_deep_snapshots()
 	_test_committed_signals_and_reentry_guard()
 	_finish()
+
+
+func _test_cold_recovery_generation_allocation() -> void:
+	var fixture := _fixture(false)
+	var session := fixture.session as PlanetaryTravelSession
+	var frame := fixture.frame as PlanetaryCoordinateFrame
+	var ordinary := _fixture(false).session as PlanetaryTravelSession
+	_check(ordinary.get_attachment_generation() == 0, "ordinary fresh sessions keep their default zero counter")
+	var before := session.get_presentation_snapshot()
+	for generations: Array in [[0, 1], [1, 0], [1, SessionScript.MAX_SAFE_GENERATION], [SessionScript.MAX_SAFE_GENERATION, 1]]:
+		_check(not session.initialize_recovery_generations(generations[0], generations[1]).accepted
+			and session.get_presentation_snapshot() == before,
+			"invalid or exhausted cold epochs reject atomically before attachment")
+	_check(session.initialize_recovery_generations(7, 1).accepted
+		and session.attach(WORLD_ID, frame, 1, 6, 1).accepted
+		and session.get_attachment_generation() == 2 and session.start(6, 2).accepted
+		and session.get_generation() == 7,
+		"a fresh real session preserves the saved run and allocates the successor of cold attachment one")
+	var live := session.get_presentation_snapshot()
+	_check(not session.initialize_recovery_generations(7, 2).accepted
+		and session.get_presentation_snapshot() == live,
+		"a live session cannot reseed either recovery counter")
+	session.detach(session.get_generation(), session.get_attachment_generation())
+	var detached := session.get_presentation_snapshot()
+	_check(not session.initialize_recovery_generations(8, 3).accepted
+		and session.get_presentation_snapshot() == detached,
+		"a previously attached session cannot reinitialize its epoch after detach")
 
 
 func _test_atmospheric_complete_loop_and_clock() -> void:

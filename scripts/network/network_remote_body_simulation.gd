@@ -1,5 +1,5 @@
 class_name NetworkRemoteBodySimulation
-extends Node
+extends Node3D
 
 ## Server-owned on-foot bodies for remote occupants of moving interiors.
 ##
@@ -159,6 +159,10 @@ func admit(
 	# Its first ready callback must already know that this body owns neither
 	# the host's camera nor local input, even during synchronous construction.
 	body.set_remote_drive_enabled(true)
+	# Keep physical coordinates near the rebased world origin. The simulation
+	# retains lifetime ownership; the common origin owner translates this body
+	# once as a nested top-level root instead of inheriting its distant parent.
+	body.top_level = true
 	add_child(body)
 	body.global_transform = stand
 	body.velocity = Vector3.ZERO
@@ -274,6 +278,8 @@ func advance(server_tick: int) -> Dictionary:
 			lost.append(entity_variant)
 			continue
 		var body := record.get("body") as CharacterBody3D
+		if record.has("surface_gravity"):
+			(body as PlayerController).gravity_multiplier = (record.surface_gravity as Callable).call(body.global_position)
 		var delivered: Dictionary = _session.consume_movement_intent(
 			StringName(entity_variant), int(record.get("entity_generation", 1)), server_tick
 		)
@@ -325,6 +331,51 @@ func get_body_entity_ids() -> Array:
 
 func get_body_count() -> int:
 	return _bodies.size()
+
+
+## A confirmed landed hatch departure changes containment, not movement identity
+## or pose. The stationary craft frame keeps publishing this same physical body;
+## the caller's live lease gate must retire it before the craft can carry it away.
+func begin_surface_walk(entity_id: StringName, admission: Callable, gravity: Callable) -> Dictionary:
+	var record := _bodies.get(entity_id, {}) as Dictionary
+	var body := get_body(entity_id) as PlayerController
+	if record.is_empty() or body == null or not _record_is_live(record) \
+			or record.has("surface_admission") or record.get("seat_state") != &"standing" \
+			or body.is_seated() or not body.is_on_floor() \
+			or not admission.is_valid() or admission.call() != true or not gravity.is_valid():
+		return _result(false, &"surface_body_not_admitted")
+	var multiplier: float = gravity.call(body.global_position)
+	if not is_finite(multiplier) or multiplier <= 0.0:
+		return _result(false, &"surface_gravity_unavailable")
+	record["surface_admission"] = admission
+	record["surface_gravity"] = gravity
+	record["cabin_gravity_multiplier"] = body.gravity_multiplier
+	body.clear_cabin_containment()
+	body.gravity_multiplier = multiplier
+	return _result(true, &"surface_body_retained", {"body_instance_id": body.get_instance_id()})
+
+
+func finish_surface_walk(entity_id: StringName) -> Dictionary:
+	var record := _bodies.get(entity_id, {}) as Dictionary
+	var body := get_body(entity_id) as PlayerController
+	if body == null or not record.has("surface_admission") or not _record_is_live(record):
+		return _result(false, &"surface_body_not_current")
+	var craft := record.get("craft") as HeroShip
+	var cabin := craft.get_in_flight_cabin_report()
+	var bounds: AABB = cabin.get("local_bounds", AABB())
+	if not bounds.has_point(craft.to_local(body.global_position)) or not body.is_on_floor():
+		return _result(false, &"surface_return_requires_cabin_entry")
+	if not body.set_cabin_containment(craft, bounds, body.global_transform):
+		return _result(false, &"surface_cabin_unavailable")
+	body.gravity_multiplier = float(record.cabin_gravity_multiplier)
+	record.erase("surface_admission")
+	record.erase("surface_gravity")
+	record.erase("cabin_gravity_multiplier")
+	return _result(true, &"surface_body_returned", {"body_instance_id": body.get_instance_id()})
+
+
+func is_surface_walking(entity_id: StringName) -> bool:
+	return (_bodies.get(entity_id, {}) as Dictionary).has("surface_admission")
 
 
 ## What the body is doing, on `NetworkMovingInteriorRelationship`'s scale.
@@ -386,6 +437,11 @@ func get_audit() -> Dictionary:
 
 func _handle_interaction(record: Dictionary) -> void:
 	_audit["interactions"] = int(_audit["interactions"]) + 1
+	if record.has("surface_admission"):
+		# Exterior hatch admission uses the boarding ledger's own ordered RPC.
+		# A movement edge cannot grant an interior crew role from the terrain.
+		_audit["interactions_refused"] = int(_audit["interactions_refused"]) + 1
+		return
 	match StringName(record.get("seat_state", &"standing")):
 		&"standing":
 			_try_sit(record)
@@ -631,6 +687,14 @@ func _record_is_live(record: Dictionary) -> bool:
 		return false
 	if not is_instance_valid(frame_variant) or not frame_variant.is_occupant_registered(body_variant):
 		return false
+	if record.has("surface_admission"):
+		var admission: Callable = record.surface_admission
+		var gravity: Callable = record.surface_gravity
+		if not admission.is_valid() or admission.call() != true or not gravity.is_valid():
+			return false
+		var multiplier: float = gravity.call((body_variant as Node3D).global_position)
+		if not is_finite(multiplier) or multiplier <= 0.0:
+			return false
 	return true
 
 
