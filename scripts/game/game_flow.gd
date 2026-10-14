@@ -10970,7 +10970,7 @@ func _network_ember_passenger_on_pad(body: Node3D, scene: Node3D) -> bool:
 			or collision.disabled or not collision.shape is BoxShape3D:
 		return false
 	var local := collision.to_local(body.global_position)
-	if scene == rime_streaming_bootstrap.get_loaded_instance():
+	if is_instance_valid(rime_streaming_bootstrap) and scene == rime_streaming_bootstrap.get_loaded_instance():
 		return local.y >= -(collision.shape as BoxShape3D).size.y * 0.5 and _rime_pad_has_physical_support(collision, local, body)
 	var half := (collision.shape as BoxShape3D).size * 0.5
 	if absf(local.x) < half.x and absf(local.z) < half.z and local.y >= -half.y:
