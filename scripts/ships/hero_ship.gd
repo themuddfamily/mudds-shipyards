@@ -2047,6 +2047,28 @@ func _planetary_cruise_query_full_sweep(
 		recheck_refusal: bool = false,
 		swept_query: PhysicsShapeQueryParameters3D = null
 	) -> Dictionary:
+	# A live empty conservative volume proves every pose of this complete root
+	# sweep. Avoid costly native long casts only when that stronger whole-span
+	# query is clear; an occupied or invalid volume retains the original path.
+	if depth == 0 and not recheck_refusal:
+		var enclosure := query.shape as BoxShape3D
+		if query.shape is CylinderShape3D:
+			var cylinder := query.shape as CylinderShape3D
+			if is_finite(cylinder.radius) and is_finite(cylinder.height) \
+					and cylinder.radius > 0.0 and cylinder.height > 0.0:
+				enclosure = BoxShape3D.new()
+				enclosure.size = Vector3(cylinder.radius * 2.0, cylinder.height, cylinder.radius * 2.0)
+		if enclosure != null:
+			var complete_query := PhysicsShapeQueryParameters3D.new()
+			complete_query.shape = BoxShape3D.new()
+			complete_query.collision_mask = query.collision_mask
+			complete_query.collide_with_bodies = query.collide_with_bodies
+			complete_query.collide_with_areas = query.collide_with_areas
+			complete_query.exclude = query.exclude
+			complete_query.margin = query.margin
+			complete_query.motion = Vector3.ZERO
+			if _planetary_cruise_swept_box_is_clear(space, enclosure, start, motion, complete_query):
+				return {"accepted": true, "safe_fraction": 1.0, "obstacle_detected": false}
 	query.transform = start
 	query.motion = Vector3.ZERO
 	var initial_hits := space.intersect_shape(query, 1)
