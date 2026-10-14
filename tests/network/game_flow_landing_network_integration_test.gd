@@ -480,7 +480,7 @@ func _rime_pad_body_route(game: GameFlow, client: Adapter, craft: HeroShip, avat
 		native_floor.shape = native_floor.shape.duplicate()
 		_check(not game._network_ember_passenger_surface_is_current(avatar),
 			"an unannounced native floor replacement refuses the old retained Rime grant")
-		var old_body := weakref(body)
+		var old_body: WeakRef = weakref(body)
 		game._advance_network_remote_bodies(Engine.get_physics_frames())
 		await physics_frame
 		await process_frame
