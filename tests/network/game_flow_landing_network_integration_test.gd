@@ -24,6 +24,7 @@ var _rime_survey_retirement_case := false
 var _rime_intent_source: NetworkRemoteBodyIntentSource
 var _rime_jump_held := false
 var _rime_last_movement_send: Dictionary = {}
+var _rime_last_neutral_packet: Dictionary = {}
 
 
 class SurveyFilesystem extends UserDataFilesystem:
@@ -1199,7 +1200,7 @@ func _accept_rime_movement_result(result: Dictionary, client: Adapter) -> void:
 		_rime_intent_source.accept_opening_result(client.multiplayer.get_unique_id(), result)
 
 
-func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3, jump: bool = false) -> void:
+func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3, jump: bool = false, neutral_movement: bool = false) -> void:
 	if _rime_shared_survey_mode:
 		# The production client source owns cadence, edges and opening recovery.
 		# Ordinary Main physics remains the only host clock/body advancement.
@@ -1213,12 +1214,14 @@ func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 			movement_tick = client.get_boarding_server_tick_estimate()
 		var direction := target - body.global_position
 		var packet := _rime_intent_source.advance(client.multiplayer.get_unique_id(), {
-			"move_axis": Vector2(0, -1) if Vector2(direction.x, direction.z).length() > 0.8 else Vector2.ZERO,
+			"move_axis": Vector2(0, -1) if not neutral_movement and Vector2(direction.x, direction.z).length() > 0.8 else Vector2.ZERO,
 			"look_yaw": atan2(-direction.x, -direction.z), "look_pitch": 0.0,
 			"run": false, "crouch": false,
 		}, movement_tick)
 		if not packet.is_empty():
 			_rime_last_movement_send = client.send_movement_intent(packet)
+			if neutral_movement and bool(_rime_last_movement_send.get("accepted", false)):
+				_rime_last_neutral_packet = packet.duplicate(true)
 			if not bool(_rime_last_movement_send.get("accepted", false)) or _rime_last_movement_send.get("status") != &"queued":
 				print("RIME_MOVEMENT_SEND_FAILED send=", _rime_last_movement_send,
 					" source=", _rime_intent_source.get_audit(), " transport=", client.get_snapshot(),
@@ -1242,12 +1245,28 @@ func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 
 func _walk_coastal(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3) -> bool:
 	var deadline := Time.get_ticks_msec() + 18000
+	var neutral_movement := false
+	if _rime_shared_survey_mode:
+		_rime_last_neutral_packet.clear()
 	while Time.get_ticks_msec() < deadline and is_instance_valid(body):
-		await _coastal_tick(game, server, client, body, target)
+		await _coastal_tick(game, server, client, body, target, false, neutral_movement)
 		if not is_instance_valid(body):
 			return false
 		if Vector2(body.global_position.x - target.x, body.global_position.z - target.z).length() < 1.0 and body.is_on_floor():
-			return true
+			if not _rime_shared_survey_mode:
+				return true
+			# Release the held movement through the ordinary client stream and
+			# wait for its actual host consumption within this same leg budget.
+			neutral_movement = true
+			if not _rime_last_neutral_packet.is_empty():
+				var avatar := server.get_movement_avatar_snapshot(_rime_intent_source.get_entity_id())
+				var record := game.get_network_remote_body_simulation().get_body_record(_rime_intent_source.get_entity_id())
+				if int(avatar.get("last_sequence", -1)) >= int(_rime_last_neutral_packet.sequence) and int(avatar.get("pending_count", -1)) == 0 \
+						and int(record.get("last_intent_tick", -1)) >= int(_rime_last_neutral_packet.client_tick):
+					return true
+		elif _rime_shared_survey_mode:
+			neutral_movement = false
+			_rime_last_neutral_packet.clear()
 	print("COASTAL_WALK_BLOCKED target=", target, " body_valid=", is_instance_valid(body), " pose=", body.global_position if is_instance_valid(body) else Vector3.INF, " audit=", game.get_network_remote_body_audit())
 	if _rime_shared_survey_mode:
 		print("RIME_MOVEMENT_WALK_AUDIT source=", _rime_intent_source.get_audit(),
