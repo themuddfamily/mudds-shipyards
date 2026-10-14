@@ -10924,7 +10924,7 @@ func _network_rime_survey_participant_context(body: PlayerController) -> Diction
 	var current := _network_ember_passenger_surfaces[avatar] as Dictionary
 	var participant := {"entity_id": avatar}
 	for field in ["peer_id", "session_id", "session_epoch", "ship_id", "body_id", "journey_epoch",
-			"scene_id", "world_id", "entity_generation", "location_generation", "berth_instance_id", "surface_token"]:
+			"scene_id", "world_id", "entity_generation", "location_generation", "berth_instance_id", "surface_token", "pad_guard_token"]:
 		participant[field] = current[field]
 	return participant
 
