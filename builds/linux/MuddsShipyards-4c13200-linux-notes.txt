@@ -1,0 +1,24 @@
+Mudd's Shipyards matching Linux checkpoint — 4c13200507708e519a445ed335c213b44c2fdf5e
+
+Player-visible changes
+After abandoning an Ember expedition, reboarding and taking off, origin rebasing preserves the authenticated return instead of rebinding its released surface Host. Completing the home approach enters RETURN_TO_YARD so the normal station docking lifecycle can proceed. Earlier recovery, crew and return repairs remain included in this combined candidate.
+Habitat complete-arc and trestle-foot batching, plus Convoy and combat deck-board briefings, remain included.
+
+Actual validation
+Fresh independent clean-source cold import/export completed under unchanged 900-second caps. Its generated scene bytes differed from Windows; that artifact and its startup results are preserved under cold-independent-export and are not the matching checkpoint.
+The accepted safe Linux export used the verified closed 601-file Windows cache (511 compiled scripts), on the same clean source commit. Linux export exited 0 in 15.308 seconds within the original 900-second cap. All 1,513 actual payload entries match Windows by path, size and SHA-256, independently of platform entry offsets or PCK blob bytes.
+Complete payload parity shares the closed Windows actual-PCK qualification: return 67, tutorial 253, census 19, isolated x11/llvmpipe Habitat 436 and standard package probes 223. Native Linux direct and archive-extracted ELF each use actual --startup-check, exit 0, exactly one STARTUP_MENU_READY_OK and no errors: direct 10.191s, archive 10.097s, unchanged 300-second game caps.
+Gzip CRC, five unique safe archive members, no links, expected modes and extracted ELF SHA parity pass. Binary/installer/desktop modes 755; archive/icon 644. Fresh packaged installer install/uninstall under private paths with spaces validates Exec/Icon/Path/source pin and preserves seeded game userdata. Prior helper is compared only to establish basename-only change; historical acceptance is not substituted for this actual run.
+Source pin/clean state, Git index bytes/blob tree, frozen postexport cache, export templates, archive/executable hashes, protected installer userdata and owned actors close unchanged. All Godot runs use Dummy audio and isolated headless or private x11 display, seven private mode-700 XDG roots plus TMPDIR, inherited HOME. Independent artifact review accepts this matching package scope.
+
+Artifacts
+ELF SHA256: 88e7faf83f43713acfd8d6829b0bb156fbdc598ef03d5e2364adbd2cac37409e
+Archive SHA256: ee89d8b3dea51f0793ee362c59dad1d31b98d04865a0d711854dd8437b2970b9
+Matching Windows EXE SHA256: 192429c8904db1245d5d755fb7ea90a1e80cbe6b0e5069f50d68c1cbbc40160f
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/shared-return-linux
+
+Remaining gates
+Native Windows direct EXE and exact final ZIP headless startup pass exit0 with one readiness marker in stdout and game log, no diagnostics and closed owned profiles/actors, in12.292/11.001 seconds; real Windows userdata snapshots match. The frozen-source physical abandonment scenario and independent artifact review pass, within the scope below. Native Linux ordinary gameplay/graphics, native Windows ordinary gameplay, native GPU/device performance, audible audio, human normal-controls/visual review and full release: NOT_RUN. Exact-source CI38490678218 passes core and all three canonical journeys. Headless2 fails new_activity_briefings_test: the Torpedo Run briefing names both counters (suite exit1/6.981 seconds,32 passing checks); full and other broad jobs remain running or queued. This retained failure requires a verified correction and new stable-candidate acceptance before main runtime integration; the checkpoint does not qualify complete regression.
+
+Physical source acceptance
+The clean 6e1f98bae physical abandonment scenario passes all 25 checks with actual exit0 in 1224.140 seconds: real cancellation/reboarding, thrust above1200m, cruise with origin rebases and Ember unload, typed home approach, ordinary station berth flight, strict supported dock with current physical lease and matching canonical network landing, no successful survey manifest/save/reward, then ordinary Interact and supported walking. Initial arrival is staged near Ember before real typed landing; this is not a full canonical outbound or remote-client crew qualification. The coordinator packaged in 4c1320050 is byte-identical to reviewed 6e1. Original720/800/2400-second caps and real movement/support/lease criteria remain unchanged; only the off-tree observer reads canonical landing records instead of an ordinary-unused diagnostic. Independent review and exact source/index/cache/fixture/actor closure pass.
