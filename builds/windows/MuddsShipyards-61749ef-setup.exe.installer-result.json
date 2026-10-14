@@ -1,0 +1,16 @@
+{
+  "build_label": "0.12.0+61749ef",
+  "installer": "/root/.cache/mudds-shipyards/roadmap-work/halyard-engineer-installer/builds/windows/MuddsShipyards-61749ef-setup.exe",
+  "installer_bytes": 87767773,
+  "installer_kind": "nsis-per-user",
+  "installer_sha256": "1ae840318bea989f8cf4e42958e03479e0437be19a84f0c1461177b09658f9e2",
+  "makensis_version": "v3.09-4",
+  "native_verification": "NOT_RUN",
+  "product_version": "0.12.0",
+  "schema_version": 1,
+  "signing": "unsigned",
+  "source_commit": "61749efc69233eabc997988012f75b431577ed49",
+  "source_exe": "/root/.cache/mudds-shipyards/roadmap-work/halyard-engineer-installer/builds/windows/MuddsShipyards-61749ef.exe",
+  "source_exe_bytes": 184414464,
+  "source_exe_sha256": "fb9418276f7da48ff9f1e1baac37285b68ecbabe7aa4f17c75b1ec840cf1957e"
+}

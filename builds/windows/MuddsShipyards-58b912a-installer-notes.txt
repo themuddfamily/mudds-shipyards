@@ -1,0 +1,22 @@
+Mudd's Shipyards unsigned Windows installer — 58b912a8d93fc00f516397fbd9e49af10b12231a
+
+Packages the frozen 58b912a survey recovery checkpoint for per-user installation. Valid saved host Aurora survey progress resumes through fresh host admission; recovery guidance explains retained progress. Retiring a client surface lease, including confirmed return home, clears that lease's survey HUD ownership so stale objective, reward and placement indicators do not survive. Ordinary recovery wind-down remains in use. This static installer stage makes no new gameplay acceptance claim; full crew-body restoration and full client Input/HUD qualification remain open.
+
+Actual compilation/static validation
+One existing NSIS compile exits 0 in 92.410 seconds under the original 600-second cap. Compiler: v3.09-4; product/build label: 0.12.0+58b912a. Compiler warnings/errors: zero (-WX).
+Static 7-Zip NSIS/LZMA listing and extraction pass without executing the installer. Extracted game payload is exactly the published EXE (SHA256 2923b0fae898c082c4628d9a5f892ddb61b69dbe05fc63b3d62333fa59abd43c). Source revision, product metadata, compiler result and generated checksum agree. Installer PE certificate table is empty: unsigned. Source/index, staged input EXE and protected prior 951 artifacts remain unchanged; owned compiler/archive actors close. No Godot, native installer, registry, shortcuts or uninstall actions were invoked.
+
+Checkpoint qualification/protocol scope
+The exported EXE is closed and immutable. Installer staging is provisional until the checkpoint package checks and independent review are accepted; this compiler/static extraction proof does not substitute for those checks. The Windows checkpoint's initial post-source raw-index guard failed for an unknown reason; tracked source/cache bytes remained unchanged and the staged tree was semantically repinned against frozen HEAD before export. The failed guard is preserved in survey-recovery-windows/source-orchestration.log. No cause is claimed from the index filename. This installer clone is independently clean and its source/index close unchanged.
+This phase uses umask 077 and verifies every private profile parent and XDG/TMPDIR environment directory is mode 700 before each Linux tool launch. Prior 951 permission-limit receipts/artifacts remain unchanged; no post-run permission correction is used for this phase.
+
+Native acceptance scope
+Native verification remains NOT_RUN. Windows execution is on hold after the reported Avast alert on descendant.exe from a separate locally compiled cleanup fixture; that fixture is not embedded in this installer. Its exact antivirus classification remains unknown. No Windows executable, PowerShell, managed fixture, installer, registry, shortcut, user creation or VM action ran in this phase; no antivirus exclusion or quarantine restoration was used.
+The existing native verifier writes real current-user HKCU product/uninstall keys, and ordinary mode also writes Start Menu shortcuts. Static extraction does not exercise those effects. Native install/update/rollback/uninstall, registry/shortcut acceptance, native menu startup for 58b, ordinary controls/HUD, native GPU/devices/audio, human review, trusted signing, distribution rights and full release remain NOT_RUN or NOT_QUALIFIED. Canonical Aurora shared travel, full crew-body restoration, full client Input/HUD and current full CI/main qualification remain open. Prior menu checks for other artifacts do not qualify this installer.
+
+Installer SHA256: eb2c68dee54e2759bb30cfc1fe9a056631f5907dd855964d8fa4da68ba3f3115
+Payload SHA256: 2923b0fae898c082c4628d9a5f892ddb61b69dbe05fc63b3d62333fa59abd43c
+Compiler metadata remains native_verification=NOT_RUN.
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/survey-recovery-installer
+
+Final root review: matching 58b source, paired checkpoint packages and static installer preparation are accepted within their documented scopes and published locally. This supersedes the provisional checkpoint-review status above. Native installation remains NOT_RUN; Windows execution remains on hold.

@@ -1,0 +1,27 @@
+Mudd's Shipyards Windows checkpoint — 4be1c7844909813a6357d31c225b5287e6ee5487
+
+Player-visible changes
+Leaving a moving cabin no longer restores an old walking priority over the pilot seat's newer physics priority, so the seated pilot follows the craft after boarding.
+Grounded Halyard crew can open and close the physical hatch while an offline pilot keeps the helm. Running propulsion and airborne craft still refuse that crew hatch access. The engineer chair now requires looking within its 45-degree approach cone, preserving the nearby hatch interaction when looking at the door.
+The existing engineer finite-kit/berth-only repairs, readable captions, landing help and return recovery remain included.
+
+Validation actually performed
+Fresh clean-source import and intended focused suites pass: hatch 14, session recovery 172, moving frame 130, ordinary local Halyard engineer 19 and real separate-peer Halyard wrapper 73. Exact test paths/unique terminals are checked; source/index/cache close unchanged. Local input and remote client use private TCP Xvfb with explicit x11/GL compatibility and the disabled render loop.
+Supplemental shared Ember default mode passes 20 checks. Its initial flight envelope is staged, then real typed approach, touchdown, disembarkation, first host-owned survey checkpoint and cancellation execute. Outbound canonical travel, full roundtrip and remote crew are not claimed.
+One existing safe Windows release export passes within the original 900-second cap using the verified/read-back 617 601-file cache after exact asset/scene/import-setting/config input checks. Fresh cold-import cache is preserved separately. Actual embedded-PCK inventory has 1,513 entries and the same paths as 617. Only three reviewed compiled runtime scripts change; class/UID metadata bytes remain exact, with the same 481 descriptors and 659 mappings. All other payloads match, and no roadmap-validation/ receipts are packaged.
+Actual Windows embedded PCK passes hatch 14, session recovery 172, frame 130, census 19, local engineer 19, separate-peer engineer wrapper 76 (three additional actual-PCK load checks), standard package 223 (89/40/25/69), and strict --startup-check exit 0 with exactly one STARTUP_MENU_READY_OK. All accepted runs exit 0 with unique completion and no errors within unchanged 300-second caps.
+The initial frozen 270 hatch test passed 13 and failed its new ONLINE check because it waited 180 ticks (3 seconds) for authored 4.6-second startup. That failure is retained. Current 4be changes only that test wait to the authored duration plus four ticks; runtime remains exactly 270. The corrected 14-check run passes. A different safe-start suite was accidentally run and passed its own 35 assertions; it is retained as extra scope and is not substituted for the actual session-recovery 172 result. Original incorrect external count expectations are retained. No passed runtime suite was repeated to manufacture a result.
+Source/index, accepted post-export cache, templates, minimal read-only fixtures, EXE/PCK and inventory hashes close unchanged across package qualification. Declared external tests/helpers and class/UID caches have no source runtime scripts/scenes/assets fallback. All owned/private-profile actors are absent. Every Godot invocation uses Dummy audio; all seven XDG roots and TMPDIR are private mode 700 and HOME is preserved.
+
+Qualification limits
+The independent Aurora 785 canonical journey work is not part of this frozen source. Current full CI/full release remain NOT_QUALIFIED. Native Windows direct/final-ZIP startup now passes as recorded below. Native physical engineer/crew controls, target GPU/device performance, audible audio, human graphics/control review and full-main rendered regression remain NOT_RUN. Earlier native results qualify their own artifacts. The inherited previously disclosed Fabric BC7 import difference versus the old c1 cache is unchanged from 617; no new graphics equivalence claim is made. Root owns independent review, current native/archive probes and publication.
+
+EXE SHA256: a33dbeeba1bb7626f05dd734e2531d206310f3a31d3a148c30f214d0e4730992
+Embedded PCK SHA256: 3f73d272a5d93f80f945107b6ecc95f1150f7a64f64ff9dd497c38732bfccb0d
+Checkpoint evidence: /root/.cache/mudds-shipyards/roadmap-validation/halyard-crew-windows
+
+Native Windows validation after archive staging
+Actual native headless Dummy-audio startup passes for the direct EXE (10.503s) and this immutable final ZIP (10.911s), each exit 0 with exactly one STARTUP_MENU_READY_OK in stdout and the game log, empty stderr and no diagnostics, under unchanged 300-second caps. Both real userdata JSON snapshot pairs match; owned creation-bound Jobs/actors close, private profiles are removed, and source/index/cache/templates/fixtures/environment remain unchanged. No installer or native gameplay/control/GPU/human qualification is implied.
+Final ZIP SHA256: 3d4fcbd5c7785cddf87edb8d3a2096a1301e10de29076231a25ac277635d2bfb
+The ZIP retains corrected staging notes; this external note adds later native Windows results. The archive and EXE are unchanged after their actual checks.
+Native evidence: /root/.cache/mudds-shipyards/roadmap-validation/halyard-crew-native-windows
