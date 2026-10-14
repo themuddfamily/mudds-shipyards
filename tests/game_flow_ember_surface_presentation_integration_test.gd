@@ -506,6 +506,28 @@ func _check_client_rime_controls(scenario: String, server: GameFlow, client: Gam
 		if is_instance_valid(host_scene):
 			host_scene.queue_free()
 	var retired := await _hud_wait(func(): return not simulation.has_body(avatar) and not server._network_ember_passenger_surfaces.has(avatar) and str(client.player.get("_rime_pad_guard_token")).is_empty() and not source.is_bound(), 6.0)
+	var body_alive := is_instance_valid(body)
+	var client_alive := is_instance_valid(client.player)
+	var host_post := server._network_ember_passenger_surfaces.get(avatar, {}) as Dictionary
+	var client_post := client._network_client_ember_passenger_surface
+	print("RIME_FULL_CLIENT_RETIREMENT ", {
+		"scenario": scenario, "retired_predicate": retired,
+		"expected_host_body_id": body_id, "expected_client_body_id": client_body_id,
+		"host_body_alive": body_alive,
+		"host_body_id": body.get_instance_id() if body_alive else 0,
+		"host_live_token": StringName(body.get("_rime_pad_guard_token")) if body_alive else &"disposed",
+		"simulation_has_body": simulation.has_body(avatar),
+		"host_context_present": server._network_ember_passenger_surfaces.has(avatar),
+		"host_context_token": host_post.get("pad_guard_token", &""),
+		"client_body_alive": client_alive,
+		"client_body_id": client.player.get_instance_id() if client_alive else 0,
+		"client_token": StringName(client.player.get("_rime_pad_guard_token")) if client_alive else &"disposed",
+		"client_context_present": not client_post.is_empty(),
+		"client_context_token": client_post.get("pad_guard_token", &""),
+		"source_bound": source.is_bound(),
+		"tree_exiting_observed": StringName(exiting_token[0]) != &"not_observed",
+		"tree_exiting_token": StringName(exiting_token[0]),
+	})
 	_check(retired and StringName(exiting_token[0]).is_empty(), "%s: actual retirement clears the exact host guard before body disposal and clears client stale guard/stream" % scenario)
 	client.set_physics_process(false)
 	client.set_process(false)
