@@ -1,0 +1,23 @@
+Mudd's Shipyards Windows checkpoint — c1f5b7c91e01509dd9fbcfb4e8cd50a445f77479
+
+Player-visible changes
+Caption headers show their HIGH/MED/LOW category without the internal P-number priority score. Category labels, duration, caption text, speaker labels, queue behavior and thresholds remain unchanged.
+Previous first-sortie landing help, Rime warming/retry and optional Aurora survey briefings, abandoned Ember return recovery, Habitat trestle geometry and convoy/combat briefing improvements remain included.
+
+Validation actually performed
+Fresh clean-source cold import and focused caption checks pass 95 assertions: layout 28, production integration 20, presentation service 47. Source/index/cache close unchanged.
+One existing safe Windows release export passes within a 900-second cap using the verified/read-back f346 601-file cache; fresh cold-import cache remains preserved separately. Actual embedded-PCK inventory has 1,513 entries and exactly the previous f346 paths. ONLY scripts/ui/caption_presenter.gdc changes payload size/hash; all other payloads, including class/UID metadata, match exactly. No roadmap-validation/ receipt files are packaged. All 481 class descriptors and 659 UID/path mappings also match.
+Actual Windows embedded PCK passes the same caption 95 assertions. Strict --startup-check exits 0 with exactly one STARTUP_MENU_READY_OK. Standard package probes pass 223: playability 89, interaction 40, material 25, central hero 69. All current suites exit 0 with unique completion and no diagnostics under unchanged 300-second caps.
+Author 1dc's reviewed before/after 1600x900 capture passes with the unchanged harness in isolated Forward+ llvmpipe. Current presenter/layout/production test blobs match exactly. Pixel changes are restricted to the visible priority-score header rectangle (406,683–478,697). The render establishes software-renderer behavior; no duplicate rendered capture was run here.
+Unchanged f346 source/PCK first-sortie 81 (20/22/25/14) and previously retained c8 survey 277/activity briefings 33, return 67, isolated Habitat 436, four native c8 pilot/cabin/rest/crew recovery outcomes, and scoped 6e physical return 25 remain referenced after exact consumer/runtime/assets and package payload parity. These unaffected checks were not rerun. Physical return evidence includes initial near-Ember arrival staging, then the real home route, berth docking and walking; it is not an unstaged whole expedition.
+Source/index, accepted post-export cache, templates, minimal read-only fixtures and package hashes close unchanged across qualification. Fixtures contain declared tests/class/UID caches with no runtime scripts/scenes/assets fallback. All owned/private-profile actors are absent. Every Godot invocation uses Dummy audio and seven private XDG roots plus TMPDIR mode 700, with HOME preserved.
+
+Qualification limits
+Current full CI remains NOT_QUALIFIED; prior failures and unfinished broader jobs are retained. No full c1f5 CI result is claimed.
+Current native Windows direct EXE headless title-menu startup passes exit 0 with exactly one STARTUP_MENU_READY_OK in stdout and game log, empty stderr and no diagnostics. Startup takes 12.430 seconds; owned Job/process/private-profile closure passes. HOME, USERPROFILE, parent environment and source EXE remain unchanged; exact project-only real Windows userdata snapshots before/after match. Final checkpoint ZIP startup results are recorded separately in the native evidence directory, keeping these notes byte-identical inside the tested archive. Native target GPU/device performance, audible audio, human/ordinary-controls review, full-main rendered regression and full release remain NOT_RUN. Root owns independent review and publication.
+
+EXE SHA256: ef7385015aa6146b1d6dab4779f75595c7c29440fc1f44547bfb1890476f846c
+Embedded PCK SHA256: 8bfd9bfc32044a0267d3f1fedd04f3c59b22f751dcf05b35897548c68c99b5f7
+Checkpoint evidence: /root/.cache/mudds-shipyards/roadmap-validation/readable-caption-windows
+Reviewed author visual evidence: /root/.cache/mudds-shipyards/roadmap-validation/caption-required-capture/after
+Native direct/archive startup evidence: /root/.cache/mudds-shipyards/roadmap-validation/readable-caption-native-windows

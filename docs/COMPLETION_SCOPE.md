@@ -2,7 +2,7 @@
 
 This is the working roster for [roadmap task 0](../ROADMAP.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), checked against main `bbc5f7945d392cbd9e07d4881700e4a0ffa7cb38` on 2026-10-14. It names the original promises and the next work needed to deliver them. It does not reduce scope, assign owners or estimates, set a date, or close phase gates.
 
-Main and a published checkpoint are different candidates. The latest published paired checkpoint is `f346dfb195c7b323dc76f4ba3b65fd089b3473c1`; its [Windows notes](../builds/windows/MuddsShipyards-f346dfb-notes.txt) and [Linux notes](../builds/linux/MuddsShipyards-f346dfb-linux-notes.txt) preserve actual validation. Main still needs the accepted preparation-branch gameplay integration described at the top of [ROADMAP](../ROADMAP.md). Candidate-specific successes, failures and active CI belong there and in build notes; older `155d6420c` results are historical, not current qualification.
+Main and a published checkpoint are different candidates. The latest published paired checkpoint is `c1f5b7c91e01509dd9fbcfb4e8cd50a445f77479`; its [Windows notes](../builds/windows/MuddsShipyards-c1f5b7c-notes.txt) and [Linux notes](../builds/linux/MuddsShipyards-c1f5b7c-linux-notes.txt) preserve actual validation. It adds readable caption headers to the retained f346 landing guidance; the roster mappings below remain unchanged. Main still needs the accepted preparation-branch gameplay integration described at the top of [ROADMAP](../ROADMAP.md). Candidate-specific successes, failures and active CI belong there and in build notes; older `155d6420c` results are historical, not current qualification.
 
 Status vocabulary used in every table:
 
