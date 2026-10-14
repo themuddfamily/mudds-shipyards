@@ -1,7 +1,6 @@
 extends SceneTree
 
 const RigScene := preload("res://scenes/audio/ship_audio_rig.tscn")
-const PLAYBACK_TEARDOWN_DRAIN_SECONDS := 0.05
 
 
 class QueueCandidateRig extends ShipAudioRig:
@@ -19,6 +18,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var fixture_root := Node3D.new()
+	var retired_playbacks: Array[WeakRef] = []
 	root.add_child(fixture_root)
 	var rig := RigScene.instantiate() as ShipAudioRig
 	rig.set_script(QueueCandidateRig)
@@ -48,8 +48,10 @@ func _run() -> void:
 		and alarm_player.stream.get_instance_id() == int(resource_ids[ShipAudioRig.LOOP_DAMAGE_ALARM]),
 		"engine cue, combat cue, and damage alarm retain three distinct simultaneous resources"
 	)
+	_capture_native_playbacks(rig, retired_playbacks)
 	_check(
-		(rig.get_state_snapshot().queued_voice_ids as PackedStringArray).size() == 6,
+		(rig.get_state_snapshot().queued_voice_ids as PackedStringArray).size() == 6
+		and retired_playbacks.size() == 6,
 		"all four propulsion/alarm loops and both transient channels retain the six-voice ceiling"
 	)
 	paused = true
@@ -73,6 +75,7 @@ func _run() -> void:
 	)
 	_check(bool(rig.get_audit_report().valid), "simultaneous replacement reuse remains deeply auditable")
 
+	_capture_native_playbacks(rig, retired_playbacks)
 	rig.set_rig_enabled(false)
 	_check(_all_players_detached(rig), "disable detaches every playback handle")
 	_assert_stream_allocation(rig, "ordinary disable")
@@ -82,6 +85,7 @@ func _run() -> void:
 		"ordinary re-enable reuses the same bounded allocation generation"
 	)
 
+	_capture_native_playbacks(rig, retired_playbacks)
 	fixture_root.remove_child(rig)
 	await process_frame
 	_check(
@@ -100,6 +104,7 @@ func _run() -> void:
 		"re-entry retains perspective, accessibility, and all independent desired loops"
 	)
 
+	_capture_native_playbacks(rig, retired_playbacks)
 	rig.set_rig_enabled(false)
 	await process_frame
 	engine_player = null
@@ -108,10 +113,13 @@ func _run() -> void:
 	rig.queue_free()
 	await process_frame
 	await process_frame
-	# QueueCandidateRig intentionally exercises accepted playback on the Dummy
-	# backend. Let its audio-thread playback handles observe the rig's detach
-	# before the SceneTree exits, just as a streamed-scene unload does at runtime.
-	await create_timer(PLAYBACK_TEARDOWN_DRAIN_SECONDS).timeout
+	# Stop/detach retires public player ownership before the audio mixer erases
+	# its native playback handles. Player deletion also releases pending handles
+	# that were stopped before their physics-frame start. Observe every captured
+	# generation's actual release; elapsed time cannot establish that ownership.
+	# These WeakRefs never keep a playback or its WAV base alive themselves.
+	while not _native_playbacks_released(retired_playbacks):
+		await process_frame
 	fixture_root.queue_free()
 	await process_frame
 	await process_frame
@@ -119,6 +127,20 @@ func _run() -> void:
 		push_error(failure)
 	print("ship_audio_rig_stream_allocation_test: %d assertions" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _capture_native_playbacks(rig: ShipAudioRig, playbacks: Array[WeakRef]) -> void:
+	for candidate in rig.find_children("*", "AudioStreamPlayer3D", true, false):
+		var player := candidate as AudioStreamPlayer3D
+		if player.has_stream_playback():
+			playbacks.append(weakref(player.get_stream_playback()))
+
+
+func _native_playbacks_released(playbacks: Array[WeakRef]) -> bool:
+	for playback in playbacks:
+		if playback.get_ref() != null:
+			return false
+	return true
 
 
 func _assert_stream_allocation(rig: ShipAudioRig, phase: String) -> void:
