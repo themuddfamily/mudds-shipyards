@@ -13,6 +13,7 @@ var _client: Adapter
 var _server_admissions: Array[Dictionary] = []
 var _client_applies: Array[Dictionary] = []
 var _movement_results: Array[Dictionary] = []
+var _client_movement_results: Array[Dictionary] = []
 var _boarding_results: Array[Dictionary] = []
 var _projectile_results: Array[Dictionary] = []
 var _landing_results: Array[Dictionary] = []
@@ -47,6 +48,9 @@ func _initialize() -> void:
 	)
 	_server.movement_intent_result.connect(func(result: Dictionary) -> void:
 		_movement_results.append(result)
+	)
+	_client.movement_intent_result.connect(func(result: Dictionary) -> void:
+		_client_movement_results.append(result)
 	)
 	_server.boarding_intent_result.connect(func(result: Dictionary) -> void:
 		_boarding_results.append(result)
@@ -103,6 +107,23 @@ func _initialize() -> void:
 		_movement_results.size() == 3 and _movement_results[2].get("status") == &"spoofed_peer",
 		"server rejects a movement packet that spoofs its peer identity"
 	)
+	var future_intent = MovementIntent.create(client_peer_id, &"avatar-1", 1, 1, 1, 100, Vector2.LEFT)
+	_client.send_movement_intent(future_intent.to_dictionary())
+	await _pump_until(func(): return not _client_movement_results.is_empty() and int(_client_movement_results[-1].get("sequence", 0)) == 1, 3.0)
+	var clock_reply: Dictionary = _client_movement_results[-1] if not _client_movement_results.is_empty() else {}
+	_check(clock_reply.get("status") == &"client_tick_too_far_ahead" and clock_reply.get("accepted") == false
+		and int(clock_reply.get("recipient_peer_id", 0)) == client_peer_id and clock_reply.get("entity_id") == &"avatar-1"
+		and int(clock_reply.get("accepted_sequence", -1)) == 0 and int(clock_reply.get("accepted_client_tick", -1)) == 1,
+		"actual admitted peer receives current body's exact rejected stamp and accepted-ledger clock floor")
+	var received := _client_movement_results.size()
+	if clock_reply.size() == 14:
+		for field in ["recipient_peer_id", "session_generation", "migration_generation"]:
+			var wrong := clock_reply.duplicate(true)
+			wrong[field] = int(wrong[field]) + 1
+			_server._broadcast_movement_opening.rpc_id(client_peer_id, wrong)
+		await _pump_until(func(): return false, 0.1)
+	_check(_client_movement_results.size() == received,
+		"real clock-refusal RPC consumer rejects wrong peer, session and migration envelopes")
 	_check(
 		bool(_server.register_boarding_ship(&"ship-1", 1, &"frame-1", 1).get("accepted", false)),
 		"server registers the boarding ship and moving frame generations"

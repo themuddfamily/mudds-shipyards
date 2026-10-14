@@ -4656,6 +4656,32 @@ func _receive_movement_intent(wire: Dictionary) -> void:
 	var result: Dictionary = _movement.accept_intent(source_peer_id, payload)
 	movement_intent_result.emit(result.duplicate(true))
 	_reply_movement_opening(source_peer_id, payload, result)
+	_reply_movement_clock_refusal(source_peer_id, payload, result)
+
+
+func _reply_movement_clock_refusal(peer_id: int, payload: Dictionary, result: Dictionary) -> void:
+	if bool(result.get("accepted", false)) or result.get("status") != &"client_tick_too_far_ahead":
+		return
+	var intent = MovementIntent.from_dictionary(payload)
+	if not intent.is_valid() or intent.get_sequence() <= 0 or intent.get_peer_id() != peer_id \
+			or peer_id not in get_admitted_peer_ids():
+		return
+	var body: Dictionary = _movement.get_avatar_snapshot(intent.get_entity_id())
+	if body.is_empty() or int(body.owner_peer_id) != peer_id \
+			or int(body.entity_generation) != intent.get_entity_generation() \
+			or int(body.stream_id) != intent.get_stream_id() or int(body.last_sequence) < 0 \
+			or int(body.last_sequence) >= intent.get_sequence() or int(body.last_client_tick) < 0:
+		return
+	_broadcast_movement_opening.rpc_id(peer_id, {
+		"recipient_peer_id": peer_id, "peer_generation": int(_peer_generations.get(peer_id, 0)),
+		"session_generation": int(_transport.get_snapshot().session_generation),
+		"migration_generation": int(_migration.get_snapshot().migration_generation),
+		"entity_id": intent.get_entity_id(), "entity_generation": intent.get_entity_generation(),
+		"stream_id": intent.get_stream_id(), "sequence": intent.get_sequence(),
+		"client_tick": intent.get_client_tick(), "server_tick": _movement.get_server_tick(),
+		"accepted": false, "status": &"client_tick_too_far_ahead",
+		"accepted_sequence": int(body.last_sequence), "accepted_client_tick": int(body.last_client_tick),
+	})
 
 
 func _reply_movement_opening(peer_id: int, payload: Dictionary, result: Dictionary) -> void:
@@ -4682,8 +4708,9 @@ func _reply_movement_opening(peer_id: int, payload: Dictionary, result: Dictiona
 
 @rpc("authority", "call_remote", "reliable", 0)
 func _broadcast_movement_opening(packet: Dictionary) -> void:
+	var clock_refusal := packet.get("sequence") is int and int(packet.sequence) > 0
 	if is_server() or not is_session_active() or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID \
-			or packet.size() != 12:
+			or packet.size() != (14 if clock_refusal else 12):
 		return
 	for field in ["recipient_peer_id", "peer_generation", "session_generation", "migration_generation", "entity_generation", "stream_id", "sequence", "client_tick", "server_tick"]:
 		if not packet.get(field) is int or int(packet[field]) < 0 or int(packet[field]) > 9007199254740991:
@@ -4696,8 +4723,16 @@ func _broadcast_movement_opening(packet: Dictionary) -> void:
 			or int(packet.peer_generation) != _next_peer_generation - 1 \
 			or int(packet.session_generation) != int(_transport.get_snapshot().session_generation) \
 			or int(packet.migration_generation) != int(_migration.get_snapshot().migration_generation) \
-			or int(packet.entity_generation) <= 0 or int(packet.sequence) != 0:
+			or int(packet.entity_generation) <= 0:
 		return
+	if clock_refusal:
+		for field in ["accepted_sequence", "accepted_client_tick"]:
+			if not packet.get(field) is int or int(packet[field]) < 0 or int(packet[field]) > 9007199254740991:
+				return
+		if packet.accepted or packet.status != &"client_tick_too_far_ahead" \
+				or int(packet.accepted_sequence) >= int(packet.sequence) \
+				or int(packet.accepted_client_tick) >= int(packet.client_tick):
+			return
 	movement_intent_result.emit(packet.duplicate(true))
 
 

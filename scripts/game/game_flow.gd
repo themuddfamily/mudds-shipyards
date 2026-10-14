@@ -13091,7 +13091,10 @@ func bind_network_remote_body(entity_id: StringName, entity_generation: int = 1)
 func _on_network_movement_intent_result(result: Dictionary) -> void:
 	if _network_session_mode == &"client" and is_instance_valid(network_session) \
 			and _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound():
-		_network_remote_body_intent_source.accept_opening_result(_network_client_peer_id(), result)
+		if int(result.get("sequence", 0)) > 0:
+			_network_remote_body_intent_source.accept_clock_refusal(_network_client_peer_id(), result)
+		else:
+			_network_remote_body_intent_source.accept_opening_result(_network_client_peer_id(), result)
 
 
 func unbind_network_remote_body() -> Dictionary:

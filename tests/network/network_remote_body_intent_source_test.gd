@@ -29,6 +29,7 @@ func _run() -> void:
 	_test_prediction_history_on_unsent_physics_ticks()
 	_test_future_authority_observations_do_not_starve_judgment()
 	_test_rejected_opening_recovers()
+	_test_established_future_clock_recovers()
 	if _failures.is_empty():
 		print("OK: network remote body intent source (%d assertions)" % _assertions)
 		quit(0)
@@ -40,6 +41,68 @@ func _run() -> void:
 
 func _sample(move_axis: Vector2 = Vector2.ZERO, run: bool = false) -> Dictionary:
 	return {"move_axis": move_axis, "look_yaw": 0.5, "look_pitch": 0.1, "run": run, "crouch": false}
+
+
+func _clock_refusal_reply(wire: Dictionary, result: Dictionary, authority: RefCounted) -> Dictionary:
+	var reply := _opening_reply(wire, result, authority.get_server_tick())
+	var ledger: Dictionary = authority.get_avatar_snapshot(wire.entity_id)
+	reply["accepted_sequence"] = ledger.last_sequence
+	reply["accepted_client_tick"] = ledger.last_client_tick
+	return reply
+
+
+func _consume_clock_refusal(source: RefCounted, peer: int, reply: Dictionary) -> Dictionary:
+	return source.call(&"accept_clock_refusal", peer, reply) if source.has_method(&"accept_clock_refusal") else {}
+
+
+func _test_established_future_clock_recovers() -> void:
+	var authority := Authority.new(1)
+	authority.configure_tick_window(1, 60, 6)
+	authority.register_avatar(1, 2, &"crew_clock", 3)
+	authority.set_server_tick(1, 200)
+	var source := IntentSource.new(1)
+	source.bind(&"crew_clock", 3)
+	source.request_interaction()
+	var opening: Dictionary = source.advance(2, _sample(), 200)
+	var opened: Dictionary = authority.accept_intent(2, opening)
+	source.accept_opening_result(2, _opening_reply(opening, opened, 200))
+	var first: Dictionary = authority.consume_for_tick(&"crew_clock", 3, 200)
+	_check(opened.accepted and first.accepted and first.intent.interaction_request_id == 1,
+		"established clock fixture delivers its original interaction once through the real ledger")
+	var speculative: Dictionary = {}
+	for _tick in 40:
+		speculative = source.advance(2, _sample(Vector2(-1, 0)), -1)
+	var refused: Dictionary = authority.accept_intent(2, speculative)
+	_check(refused.status == &"client_tick_too_far_ahead", "real +6 authority refuses speculative established-stream timestamp after host stall")
+	authority.set_server_tick(1, 201)
+	source.observe_movement_clock(201)
+	var stranded: Dictionary = source.advance(2, _sample(Vector2(-1, 0)), 201)
+	var still_refused: Dictionary = authority.accept_intent(2, stranded)
+	_check(stranded.client_tick > 207 and still_refused.status == &"client_tick_too_far_ahead",
+		"fresh authentic host sample alone cannot discard the previous rejected sent floor")
+	var reply := _clock_refusal_reply(stranded, still_refused, authority)
+	var before := source.get_audit()
+	for field in ["recipient_peer_id", "entity_generation", "stream_id", "client_tick", "accepted_sequence"]:
+		var wrong := reply.duplicate(true)
+		wrong[field] = int(wrong[field]) + (100 if field == "accepted_sequence" else 1)
+		_check(not bool(_consume_clock_refusal(source, 2, wrong).get("accepted", false)) and source.get_audit() == before,
+			"clock repair refuses mismatched " + field + " without changing current source")
+	_check(not bool(_consume_clock_refusal(source, 3, reply).get("accepted", false)), "clock repair cannot be consumed by another owner peer")
+	var repaired := _consume_clock_refusal(source, 2, reply)
+	_check(source.estimated_server_tick() == 201, "fresh refusal also retires extrapolated time when its host tick matches the latest sample")
+	authority.set_server_tick(1, 202)
+	var current: Dictionary = source.advance(2, _sample(Vector2(1, 0)), 202)
+	var accepted: Dictionary = authority.accept_intent(2, current)
+	_check(bool(repaired.get("accepted", false)) and accepted.accepted and current.sequence > stranded.sequence and current.stream_id == opening.stream_id,
+		"fresh exact ledger refusal repairs only speculative stamps within original +6 gate and same ordered stream")
+	var delivered: Dictionary = authority.consume_for_tick(&"crew_clock", 3, int(current.client_tick))
+	_check(delivered.accepted and Intent.from_dictionary(delivered.intent).get_move_axis() == Vector2(1, 0)
+		and delivered.intent.interaction_request_id == first.intent.interaction_request_id and not bool(delivered.intent.jump),
+		"repair builds a current input sample without replaying rejected movement or inventing a new interaction edge")
+	_check(not bool(_consume_clock_refusal(source, 2, reply).get("accepted", false)) and not authority.accept_intent(2, opening).accepted,
+		"duplicate clock refusal and already accepted opening cannot replay host actions")
+	source.bind(&"crew_clock", 3)
+	_check(not bool(_consume_clock_refusal(source, 2, reply).get("accepted", false)), "retired stream cannot repair a rebound source")
 
 
 func _test_cadence_and_framing() -> void:

@@ -79,6 +79,10 @@ var _opening_jump := false
 var _opening_retries := 0
 var _opening_retry_clock := -1
 var _movement_clock_received := false
+var _sent_clock_stamps: Dictionary = {}
+var _clock_refusal_sequence := -1
+var _clock_refusal_server_tick := -1
+var _clock_recoveries := 0
 
 
 func _init(p_cadence_ticks: int = DEFAULT_CADENCE_TICKS) -> void:
@@ -186,6 +190,8 @@ func advance(peer_id: int, sample: Dictionary, observed_server_tick: int) -> Dic
 	var client_tick := maxi(estimate, _last_client_tick + 1)
 	_sequence += 1
 	_last_client_tick = client_tick
+	_sent_clock_stamps[_sequence] = client_tick
+	_sent_clock_stamps.erase(_sequence - 32)
 	var interact := _interact_latched
 	if interact:
 		_interaction_request_id += 1
@@ -261,6 +267,38 @@ func has_authoritative_movement_clock() -> bool:
 	return _movement_clock_received
 
 
+## Only the adapter's authenticated current body-ledger refusal reaches here.
+## Discard rejected speculative stamps, never commands or accepted host work.
+func accept_clock_refusal(peer_id: int, result: Dictionary) -> Dictionary:
+	if not is_bound() or not _opening_confirmed:
+		return _result(false, &"ignored_clock_refusal")
+	for field in ["recipient_peer_id", "entity_generation", "stream_id", "sequence", "client_tick", "server_tick", "accepted_sequence", "accepted_client_tick"]:
+		if not result.get(field) is int or int(result[field]) < 0 or int(result[field]) > 9007199254740991:
+			return _result(false, &"invalid_clock_refusal")
+	var sequence := int(result.sequence)
+	if not result.get("accepted") is bool or result.accepted or result.get("status") != &"client_tick_too_far_ahead" \
+			or peer_id != _opening_peer or int(result.recipient_peer_id) != peer_id \
+			or result.get("entity_id") != _entity_id or int(result.entity_generation) != _entity_generation \
+			or int(result.stream_id) != _stream_id or sequence <= _clock_refusal_sequence \
+			or not _sent_clock_stamps.has(sequence) or int(result.client_tick) != int(_sent_clock_stamps[sequence]) \
+			or int(result.server_tick) < _clock_refusal_server_tick \
+			or int(result.accepted_sequence) >= sequence or int(result.accepted_client_tick) >= int(result.client_tick):
+		return _result(false, &"ignored_clock_refusal")
+	_clock_refusal_sequence = sequence
+	_clock_refusal_server_tick = int(result.server_tick)
+	_anchor_movement_clock(int(result.server_tick))
+	_ticks_since_observation = 0
+	_last_client_tick = maxi(int(result.accepted_client_tick), _observed_server_tick - 1)
+	for sent_sequence in _sent_clock_stamps.keys():
+		if int(sent_sequence) <= sequence:
+			_sent_clock_stamps.erase(sent_sequence)
+	clear_pose_history()
+	_clock_recoveries += 1
+	# The next normal cadence samples live input. Edge latches, interaction
+	# highwater, stream identity and sequence ordering remain unchanged.
+	return _result(true, &"clock_repaired")
+
+
 ## Called only for an actual authoritative movement relationship. Boarding
 ## may seed an unknown opening, but it never establishes this clock's trust.
 func observe_movement_clock(server_tick: int) -> void:
@@ -278,6 +316,9 @@ func _anchor_movement_clock(server_tick: int) -> void:
 
 
 func _clear_opening() -> void:
+	_sent_clock_stamps.clear()
+	_clock_refusal_sequence = -1
+	_clock_refusal_server_tick = -1
 	_movement_clock_received = false
 	_observed_server_tick = -1
 	_ticks_since_observation = 0
@@ -463,6 +504,7 @@ func get_audit() -> Dictionary:
 		"opening_confirmed": _opening_confirmed,
 		"movement_clock_received": _movement_clock_received,
 		"opening_retries": _opening_retries,
+		"clock_recoveries": _clock_recoveries,
 		"last_client_tick": _last_client_tick,
 		"observed_server_tick": _observed_server_tick,
 		"estimated_server_tick": estimated_server_tick(),
