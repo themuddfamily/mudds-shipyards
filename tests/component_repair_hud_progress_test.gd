@@ -4,6 +4,7 @@ const ShipComponentDamageType := preload("res://scripts/combat/ship_component_da
 
 var _assertions := 0
 var _failures: PackedStringArray = []
+var _caption_requests: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -51,6 +52,15 @@ func _run() -> void:
 		"ordinary damage wording remains visible before repair starts"
 	)
 
+	var original_submitter: Callable = hud.get("_caption_event_submitter")
+	hud.set("_caption_event_submitter", func(request: Dictionary) -> bool:
+		_caption_requests.append(request.duplicate(true))
+		return bool(original_submitter.call(request)))
+	hud.set_captions_enabled(true)
+	_caption_requests.clear()
+	var observed_progress: Array[Dictionary] = []
+	var observe_progress := func(receipt: Dictionary) -> void: observed_progress.append(receipt.duplicate(true))
+	torrent.component_repair_progressed.connect(observe_progress)
 	var berth_first := torrent.get_component_damage().tick_repair(0.10, true)
 	var berth_snapshot := hud.get_hero_component_hud_snapshot()
 	var first_integrity := float(berth_snapshot.get("integrity", -1.0))
@@ -62,6 +72,13 @@ func _run() -> void:
 		"an authorized passive berth commit immediately shows REPAIRING and rising integrity"
 	)
 
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"accepted passive berth repair captions its start once")
+	_check(not observed_progress.is_empty() and observed_progress[0].get("presentation_origin") == &"passive_berth",
+		"owner receipt identifies passive berth presentation without altering repair")
+	torrent.component_repair_progressed.emit(observed_progress[0])
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"duplicate committed receipt cannot replay passive caption")
 	var engineer_second := torrent.get_component_damage().tick_component_repair(
 		ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.10, true
 	)
@@ -77,6 +94,9 @@ func _run() -> void:
 		"targeted engineer commits advance the displayed percentage without requiring a stage crossing"
 	)
 
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"engineer repair emits no duplicate passive start caption")
+	torrent.component_repair_progressed.disconnect(observe_progress)
 	root.remove_child(game)
 	await process_frame
 	_check(not label.visible and label.text.is_empty(), "whole-Main detach clears in-progress repair text")
@@ -121,6 +141,26 @@ func _run() -> void:
 		"the explicit repair state clears at nominal integrity and returns to damage wording"
 	)
 
+
+	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
+	_caption_requests.clear()
+	torrent.get_component_damage().tick_repair(0.10, true)
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"repeated passive commits retain one start caption")
+	torrent.get_component_damage().tick_repair(100.0, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_completed") == 1,
+		"accepted passive completion captions once")
+	torrent.get_component_damage().tick_repair(100.0, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_completed") == 1,
+		"already nominal repair cannot replay completion")
+	hud.set_captions_enabled(false)
+	_caption_requests.clear()
+	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 0,
+		"disabled captions suppress passive repair announcements")
+
 	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
 	torrent.get_component_damage().tick_component_repair(
 		ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.10, true
@@ -142,9 +182,18 @@ func _run() -> void:
 		"disembark clears repair progress and disconnects the retained craft"
 	)
 
+	hud.set("_caption_event_submitter", original_submitter)
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+func _passive_caption_count(_hud: GameHUD, cue: StringName) -> int:
+	var count := 0
+	for entry in _caption_requests:
+		if StringName(entry.get("cue_id", &"")) == cue:
+			count += 1
+	return count
 
 
 func _damage_component_to(ship: HeroShip, component_id: StringName, target_integrity: float) -> void:
