@@ -51,6 +51,9 @@ var _failures: Array[String] = []
 
 func _initialize() -> void:
 	var capture_path := OS.get_environment("MUDDS_BULWARK_MAIN_CAPTURE")
+	if capture_path.is_empty():
+		# Registration checks need scene processing, but do not consume rendered frames.
+		RenderingServer.set_render_loop_enabled(false)
 	if not capture_path.is_empty():
 		root.size = Vector2i(1600, 900)
 		root.content_scale_size = Vector2i.ZERO
