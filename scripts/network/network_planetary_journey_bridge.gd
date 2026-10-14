@@ -282,7 +282,7 @@ func cancel(reason: StringName) -> Dictionary:
 		_flow._planetary_journey.retire_shared_ember_abandon_return(reason)
 		if is_surface_arrival():
 			if _arrival_owner(get_world_id()).state == &"landed" and reason == &"player_cancelled":
-				_flow.hud.toast("Shared %s arrival" % _arrival_owner(get_world_id()).profile.display_name, "Surface exploration and return are not available for this shared arrival", 3.0)
+				_flow.hud.toast("Shared %s arrival" % _arrival_owner(get_world_id()).profile.display_name, ("Crew can walk Aurora's landing pad and reboard; shared return to Mudds is not available" if get_world_id() == &"aurora_temperate_world" else "Surface exploration and return are not available for this shared arrival"), 3.0)
 				return {"accepted": false, "reason": _arrival_reason(get_world_id(), "return_unavailable")}
 			_arrival_owner(get_world_id()).cancel()
 		elif _flow._planetary_journey.shared_ember_surface_was_admitted():
