@@ -336,6 +336,7 @@ func _run() -> void:
 	await process_frame
 	await _shared_aurora_home_publication_retry()
 	await _shared_rime_pad_access()
+	await _shared_rime_pad_access(true)
 	if _failures.is_empty():
 		print("OK: GameFlow landing network integration (%d assertions)" % _assertions)
 		quit(0)
@@ -355,7 +356,7 @@ func _check(condition: bool, description: String) -> void:
 
 ## One staged Rime pad/lease; movement after exterior admission is real intent
 ## movement. This does not qualify canonical travel or the ice-core survey.
-func _shared_rime_pad_access() -> void:
+func _shared_rime_pad_access(native_floor_loss_only: bool = false) -> void:
 	var game := MainScene.instantiate() as GameFlow
 	game.configure_runtime_settings_persistence(UserDataStore.new("memory://rime-pad.json", SurveyFilesystem.new()))
 	root.add_child(game)
@@ -397,7 +398,7 @@ func _shared_rime_pad_access() -> void:
 		var boarded := await _wait_until(func(): return game.get_network_remote_body_simulation() != null and game.get_network_remote_body_simulation().has_body(avatar), 12.0)
 		_check(boarded, "Rime crew starts as the actual confirmed cabin body")
 		if boarded:
-			await _rime_pad_body_route(game, client, craft, avatar)
+			await _rime_pad_body_route(game, client, craft, avatar, native_floor_loss_only)
 	client.shutdown()
 	game.shutdown_network_session(&"rime_pad_fixture_done")
 	_check(game._network_ember_passenger_surfaces.is_empty(), "Rime session retirement disposes the retained surface contexts")
@@ -414,7 +415,8 @@ func _rime_boarding_request(game: GameFlow, client: Adapter, craft: HeroShip, se
 		GameFlow.NETWORK_CABIN_BERTH_ROLE, sequence, game.network_session.get_boarding_server_tick(), action).to_dictionary()
 
 
-func _rime_pad_body_route(game: GameFlow, client: Adapter, craft: HeroShip, avatar: StringName) -> void:
+func _rime_pad_body_route(game: GameFlow, client: Adapter, craft: HeroShip, avatar: StringName,
+		native_floor_loss_only: bool = false) -> void:
 	game.set_physics_process(false)
 	var owner := game._rime_expedition
 	var bootstrap := game.rime_streaming_bootstrap
@@ -470,6 +472,22 @@ func _rime_pad_body_route(game: GameFlow, client: Adapter, craft: HeroShip, avat
 	if not walking:
 		return
 	_check(absf(body.gravity_multiplier - 1.0) < 0.02, "Rime retained crew uses its actual world and ordinary project gravity")
+	if native_floor_loss_only:
+		var native_floor := surface.get_node("TerrainClipmap/CommittedTerrain/TerrainCollision/TerrainCollisionSurface") as CollisionShape3D
+		# An unannounced replacement still has identical real collision geometry.
+		# It cannot inherit an already-issued floor identity; never restore it or
+		# fabricate another body to make this old grant current again.
+		native_floor.shape = native_floor.shape.duplicate()
+		_check(not game._network_ember_passenger_surface_is_current(avatar),
+			"an unannounced native floor replacement refuses the old retained Rime grant")
+		var old_body: WeakRef = weakref(body)
+		game._advance_network_remote_bodies(Engine.get_physics_frames())
+		await physics_frame
+		await process_frame
+		_check(not simulation.has_body(avatar) and game._network_ember_passenger_surfaces.is_empty()
+			and old_body.get_ref() == null,
+			"actual native floor replacement retires the old body and grant without recall or floor repair")
+		return
 	_coastal_sequence = 0
 	_coastal_interaction = 0
 	if not await _checked_coastal_walk(game, game.network_session, client, body, region.to_global(Vector3(-44, 0.5, -8)), "retained Rime body walks ordinary intents to the actual pad edge"):
@@ -516,6 +534,40 @@ func _rime_pad_body_route(game: GameFlow, client: Adapter, craft: HeroShip, avat
 	_check(not game._network_ember_passenger_surface_is_current(avatar) and game._network_passenger_surface_bootstrap() == null,
 		"unknown world cannot borrow Ember, Aurora or Rime support")
 	bridge._state.world_id = &"rime_glacial_world"
+	# The original native terrain already physically supports this authored
+	# route. Only the retained current grant is being extended beyond the pad.
+	for point: Vector3 in [Vector3(-24, 0.5, -16), Vector3(-40, 0.5, -28),
+			Vector3(-52, 0.5, -42), Vector3(-54, 0.5, -46), Vector3(-52, 0.5, -42),
+			Vector3(-50, 0.5, -54), Vector3(-30, 0.5, -66), Vector3(-8, 0.5, -68)]:
+		if not await _checked_coastal_walk(game, game.network_session, client, body, region.to_global(point),
+				"authenticated retained Rime crew walks the existing authored survey route beyond the pad"):
+			return
+	_check(simulation.get_body(avatar) == body and body.get_instance_id() == body_id
+		and game._network_ember_passenger_surface_is_current(avatar),
+		"native icefall support retains the original authenticated body and current lease")
+	var trail_height := body.global_position.y
+	var trail_jump_peak := trail_height
+	for tick in 100:
+		await _coastal_tick(game, game.network_session, client, body, body.global_position, tick < 4)
+		if not is_instance_valid(body):
+			break
+		trail_jump_peak = maxf(trail_jump_peak, body.global_position.y)
+	_check(is_instance_valid(body) and trail_jump_peak > trail_height + 0.2 and body.is_on_floor()
+		and game._network_ember_passenger_surface_is_current(avatar),
+		"ordinary Rime jump and gravity return to the current original terrain outside the pad")
+	if not is_instance_valid(body):
+		return
+	for point: Vector3 in [Vector3(14, 0.5, -70), Vector3(28, 0.5, -63), Vector3(30, 0.5, -62),
+			Vector3(30, 0.5, -60), Vector3(20, 0.5, -40), Vector3(10, 0.5, -24)]:
+		if not await _checked_coastal_walk(game, game.network_session, client, body, region.to_global(point),
+				"same Rime crew reaches the gauge and follows the authored return trail"):
+			return
+	var native_root := surface.get_node("TerrainClipmap/CommittedTerrain") as Node3D
+	var native_generation: Variant = native_root.get_meta(&"terrain_generation")
+	native_root.set_meta(&"terrain_generation", int(native_generation) + 1)
+	_check(not game._network_ember_passenger_surface_is_current(avatar),
+		"a stale native terrain generation cannot retain the original Rime grant")
+	native_root.set_meta(&"terrain_generation", native_generation)
 	for point in [region.to_global(Vector3(-8, 0.5, -8)), craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
 		if not await _checked_coastal_walk(game, game.network_session, client, body, point, "same Rime body reverses ordinary input and walks back through the physical hatch"):
 			return
