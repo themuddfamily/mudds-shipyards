@@ -1043,7 +1043,11 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 				return false
 		var reboard: Dictionary = BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 3, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
 		client.send_boarding_intent(reboard)
-		_check(await _wait_until(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0), "ordinary authenticated reboard retains the survey body and restores the return manifest")
+		_check((bridge.get("_restored_surface_session") as Dictionary).is_empty() \
+			and await _wait_until(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0) \
+			and simulation.get_body(avatar) == body \
+			and not server.get_boarding_snapshot().get("occupancies", []).is_empty(), \
+			"ordinary authenticated reboard retains the survey body and seat without a restored-session tuple")
 		_check(bridge.shared_aurora_return_gate_reason().is_empty(), "optional Aurora survey leaves the existing shared return admission usable")
 	owner._release_surface_lease()
 	owner.state = &"idle"

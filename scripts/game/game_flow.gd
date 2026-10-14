@@ -13239,12 +13239,26 @@ func _finalize_network_boarding_result(result: Dictionary, _request: Dictionary)
 	var avatar := StringName(occupancy.get("avatar_id", &""))
 	var craft := _find_flyable_ship_by_id(StringName(occupancy.get("ship_id", &"")))
 	var journey := get_network_planetary_journey_snapshot()
-	var recovered_surface: bool = journey.get("phase") == &"landed" and journey.get("ship_id") == occupancy.get("ship_id")
-	_on_network_boarding_intent_result(result.duplicate(true))
+	var simulation_before := _network_remote_body_simulation
+	var retained_body: PlayerController = simulation_before.get_body(avatar) if is_instance_valid(simulation_before) else null
+	var retained_surface := _network_ember_passenger_surfaces.has(avatar)
+	# The ordinary return consumes its current surface context. Validate it
+	# before that transition, then require the same retained body afterward.
+	var retained_surface_current := retained_surface and _network_ember_passenger_surface_is_current(avatar)
+	var initial_restored_attachment: bool = journey.get("phase") == &"landed" \
+		and journey.get("ship_id") == occupancy.get("ship_id") and not retained_surface \
+		and not _network_boarded_body_is_current(peer_id, avatar, craft)
+	if not retained_surface or retained_surface_current:
+		_on_network_boarding_intent_result(result.duplicate(true))
+	else:
+		_network_hatch_audit["last_hatch_status"] = &"surface_body_not_current"
 	var same_session := is_instance_valid(session) and session == network_session and _network_session_is_live()
 	var current_claim: bool = same_session and session.get_boarding_snapshot().get("occupancies", []).has(occupancy)
 	if current_claim and _network_boarded_body_is_current(peer_id, avatar, craft) \
-			and (not recovered_surface or _network_planetary_journey._restored_surface_session_is_current()):
+			and (not retained_surface or (retained_surface_current \
+				and simulation_before == _network_remote_body_simulation \
+				and simulation_before.get_body(avatar) == retained_body)) \
+			and (not initial_restored_attachment or _network_planetary_journey._restored_surface_session_is_current()):
 		_network_planetary_journey.note_restored_crew_admitted(peer_id, avatar)
 		return result.duplicate(true)
 	var simulation := _network_remote_body_simulation
