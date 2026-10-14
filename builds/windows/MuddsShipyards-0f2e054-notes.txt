@@ -1,0 +1,17 @@
+Mudd's Shipyards Windows shared Rime pad checkpoint — 0f2e054f24bc0d58fc8162665e6b9686b0456f2a
+
+Player-visible changes
+Shared Rime crew can walk the supported landing pad and reboard through ordinary controls. Unsupported sideways steps are constrained while floor contact, jumping and gravity remain with the normal solver. Scene/session retirement clears that pad ownership safely. Freed berth/body references are checked before use during teardown. Rime's board/HUD clearly says pad access only: shared ice-core survey and return to Mudds are unavailable.
+Existing Aurora coastal survey, save retry/HUD cleanup, clock recovery, Station Defence backup trust and prepared crew gameplay remain included.
+
+Actual validation
+Owner source37 Rime and97 Aurora on exact9aa are independently accepted. This frozen0f2 differs only by Godot's genuine generated test UID companion; all runtime, assets and test-GD bytes remain identical. Builder performs clean import, not repeated source37/97 runs. Original9aa import's clean-status failure is retained: the new test generated an untracked UID; root committed that exact4cf92a...902a59 companion. No status guard was bypassed.
+One safe export retains900 cap and verified closed2bb601-cache seed. Actual embedded Windows PCK under Linux Godot passes Rime37 and Aurora97, each original300 cap, standard223(89/40/25/69), strict startup exit0 with exactly one STARTUP_MENU_READY_OK. Every accepted run uses headless/Dummy, private700 parents/seven XDG/TMP, umask077, inherited HOME and git optional locks off. All actual process creation identities/private namespace actors close absent.
+Actual1513 paths match2bb. Four compiled scripts change: scripts/game/game_flow.gdc, scripts/game/planetary_surface_visit_expedition.gdc, scripts/network/network_planetary_journey_bridge.gdc, scripts/player/player_controller.gdc. Two raw cache files differ only in serialization ordering: all481 class descriptors and659 UID-to-path mappings match exactly. Every other payload byte, scene and asset is exact. Minimal external fixture contains the two declared test GDs, committed test UID and authentic class/UID caches; no copied production source/assets fallback. Source/index, post-export cache/templates, fixtures and package/inventory close unchanged.
+
+Limits
+Initial arrival is staged. This qualifies Rime pad controls and retained Aurora fixture behavior, not canonical travel, Rime survey/home return or world completion. Rime home-return work remains separate/unqualified. Windows game/PowerShell/helper/native fixture execution remains held; no such action, installer, registry, desktop/audio action, CI dispatch or publication occurs. Full client/native/human/GPU controls, current main/full CI and full release remain open. Prior58/2bb artifacts/fixtures/cache snapshots and earlier failures keep their original scope. Root owns review and publication.
+
+EXE SHA256: d273f2eff22614981eb6e29c0b694003b5a0345e866f1efd5838e0135b225114
+PCK SHA256: 9319f2b644b0679cee51bacd71c07a4ca4b37a37e888424bed30b4928ac52ced
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/clock-recovery-windows/rime-pad-9aa3b51
