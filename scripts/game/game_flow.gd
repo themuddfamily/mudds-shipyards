@@ -11403,12 +11403,21 @@ func _advance_network_remote_pilots(tick: int) -> void:
 func _advance_network_remote_landing_handoffs() -> void:
 	for ship_id: Variant in _network_landing_handoffs.keys():
 		var handoff := _network_landing_handoffs[ship_id] as Dictionary
-		if int(handoff.get("remote_pilot_peer_id", 0)) <= 1:
-			continue
 		var craft := _find_flyable_ship_by_id(StringName(ship_id))
 		if not is_instance_valid(craft) or craft.is_landing_active():
 			continue
 		var landed := bool(craft.get_telemetry().get("landed", true))
+		if int(handoff.get("remote_pilot_peer_id", 0)) <= 1:
+			# A local pilot's physical completion is still pending when landed
+			# publication fails. Retry only its same current handoff; accepted
+			# ordinary completion clears the intent before activity/tutorial work.
+			if landed and craft == active_ship and _landing_request_active \
+					and _active_landing_berth_id == handoff.get("target_id") \
+					and handoff.get("state") in [&"landing_pending", &"landed"] \
+					and int(handoff.get("entity_generation", 0)) == int(_network_landing_entities.get(ship_id, -1)) \
+					and handoff.get("physical_token") == _berth_tokens.get(craft.get_instance_id()):
+				_on_landing_completed(craft)
+			continue
 		if handoff.get("state") in [&"landing_pending", &"abort_pending_publication"] \
 				or (handoff.get("state") == &"landed" and bool(handoff.get("completion_retry", false))):
 			_finish_network_remote_landing(craft, &"" if landed else &"assist_aborted")
@@ -14743,9 +14752,9 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 				)
 		return
 	var completed_berth_id := _active_landing_berth_id
-	_landing_request_active = false
-	_active_landing_berth_id = &""
 	if not _ensure_landed_berth_occupancy(active_ship):
+		_landing_request_active = false
+		_active_landing_berth_id = &""
 		_release_ship_berth(active_ship)
 		hud.set_interaction("", false)
 		hud.set_objective("Docking claim interrupted — keep the pad clear and retry the approach")
@@ -14762,6 +14771,8 @@ func _on_landing_completed(source_ship: HeroShip = null) -> void:
 		hud.set_objective("Docking network handoff interrupted — keep the pad clear")
 		hud.toast("Docking coordination fault", "The authoritative landing was not published; do not exit", 3.5)
 		return
+	_landing_request_active = false
+	_active_landing_berth_id = &""
 	if _selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY:
 		_complete_cargo_delivery_on_return()
 	else:
