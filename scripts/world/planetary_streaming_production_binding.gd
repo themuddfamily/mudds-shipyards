@@ -172,7 +172,7 @@ func physics_tick_from_caller_sample(delta: float, sample: Variant) -> Dictionar
 	_last_actor_instance_id = int(sample_dictionary.get("actor_instance_id", 0))
 	_last_world_streaming_position = position
 	_last_absolute_coordinate = absolute_coordinate.duplicate(true)
-	_last_streaming_result = streaming_result.duplicate(true)
+	_last_streaming_result = streaming_result
 	_last_tick_result = _result(
 		bool(streaming_result.get("accepted", false)),
 		streaming_result.get("reason", &"streaming_update_rejected") as StringName,
