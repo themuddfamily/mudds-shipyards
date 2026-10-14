@@ -434,6 +434,9 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	# Peer release can remove this body before GameFlow's context sweep. The
+	# body lifetime owns this cleanup, including the tree_exiting observation.
+	clear_rime_pad_step_guard(_rime_pad_guard_token)
 	_unbind_viewport_field_of_view_policy()
 
 

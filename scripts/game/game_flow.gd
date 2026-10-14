@@ -10732,7 +10732,10 @@ func _network_surface_visit_passenger_host_is_current(craft: HeroShip, world_id:
 	var journey := get_network_planetary_journey_snapshot()
 	var owner = _aurora_expedition if world_id == AuroraExpeditionType.WORLD_ID else _rime_expedition
 	var bootstrap := _network_passenger_surface_bootstrap(world_id)
-	var berth := owner.get("_berth") as ShipBerth
+	var berth_value: Variant = owner.get("_berth")
+	if not is_instance_valid(berth_value):
+		return false
+	var berth := berth_value as ShipBerth
 	var scene := bootstrap.get_loaded_instance() if is_instance_valid(bootstrap) else null
 	return is_inside_tree() and not is_queued_for_deletion() \
 		and _network_session_mode == &"server" and _network_session_is_live() \
@@ -10856,7 +10859,10 @@ func _network_ember_passenger_surface_owner_is_current(avatar: StringName, expec
 	var attachment_current := false
 	if world_id in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID]:
 		var owner = _aurora_expedition if world_id == AuroraExpeditionType.WORLD_ID else _rime_expedition
-		var berth := owner.get("_berth") as ShipBerth
+		var berth_value: Variant = owner.get("_berth")
+		if not is_instance_valid(berth_value):
+			return false
+		var berth := berth_value as ShipBerth
 		attachment_current = is_instance_valid(berth) and berth.get_instance_id() == int(context.get("berth_instance_id", 0)) \
 			and berth.get_reservation_token(craft) == context.get("surface_token") \
 			and bootstrap.get_location_generation() == int(context.get("location_generation", 0))
