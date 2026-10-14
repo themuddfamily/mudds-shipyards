@@ -857,6 +857,12 @@ func _client_survey_walk(server: GameFlow, client: GameFlow, body: PlayerControl
 			Input.action_press(&"move_left" if axis.x < 0.0 else &"move_right", absf(axis.x))
 			Input.action_press(&"move_forward" if axis.y < 0.0 else &"move_back", absf(axis.y))
 		await _hud_wait(func(): return false, 0.001)
+	var held_input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+		Input.action_release(action)
+	_check(false, "full client ordinary walk reaches the same retained host-body waypoint")
+	var host_alive := is_instance_valid(body)
+	var client_alive := is_instance_valid(client.player)
 	var contacts: Array = []
 	for actor in [body, client.player]:
 		if not is_instance_valid(actor):
@@ -867,11 +873,8 @@ func _client_survey_walk(server: GameFlow, client: GameFlow, body: PlayerControl
 			var collider := collision.get_collider()
 			slides.append({"collider": str(collider.get_path()) if is_instance_valid(collider) and collider is Node else "unavailable", "normal": collision.get_normal(), "position": collision.get_position()})
 		contacts.append({"body_id": actor.get_instance_id(), "velocity": actor.velocity, "slides": slides})
-	print("SURVEY_INPUT_WALK_CONTACTS contacts=", contacts, " input=", Input.get_vector("move_left", "move_right", "move_forward", "move_back"), " elapsed_ms=", Time.get_ticks_msec() - (deadline - 18000), " physics_start=", start_physics_frame, " physics_end=", Engine.get_physics_frames(), " sent_delta=", int(source.get_audit().get("sent", 0)) - start_sent, " applied_delta=", int(simulation.get_body_record(source.get_entity_id()).get("intents_applied", 0)) - start_applied)
-	print("SURVEY_INPUT_WALK_BLOCKED target=", target, " client=", client.player.global_position, " host=", body.global_position if is_instance_valid(body) else Vector3.INF, " client_target=", client_target, " host_region=", host_region.global_transform, " client_region=", client_region.global_transform, " client_basis=", client.player.global_basis, " host_basis=", body.global_basis, " client_yaw=", client.player.get_look_yaw(), " host_yaw=", body.get_look_yaw(), " host_floor=", body.is_on_floor(), " client_floor=", client.player.is_on_floor(), " settled=", settled, " current=", client._network_client_ember_passenger_surface_is_current(), " registered=", client._cabin_ship.get_moving_interior_component().is_occupant_registered(client.player), " source=", client.get_network_remote_body_intent_source().get_audit(), " audit=", server.get_network_remote_body_simulation().get_audit())
-	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
-		Input.action_release(action)
-	_check(false, "full client ordinary walk reaches the same retained host-body waypoint")
+	print("SURVEY_INPUT_WALK_CONTACTS contacts=", contacts, " input=", held_input, " elapsed_ms=", Time.get_ticks_msec() - (deadline - 18000), " physics_start=", start_physics_frame, " physics_end=", Engine.get_physics_frames(), " sent_delta=", int(source.get_audit().get("sent", 0)) - start_sent, " applied_delta=", int(simulation.get_body_record(source.get_entity_id()).get("intents_applied", 0)) - start_applied)
+	print("SURVEY_INPUT_WALK_BLOCKED target=", target, " client=", client.player.global_position if client_alive else Vector3.INF, " host=", body.global_position if host_alive else Vector3.INF, " client_target=", client_target, " host_region=", host_region.global_transform, " client_region=", client_region.global_transform, " client_basis=", client.player.global_basis if client_alive else Basis.IDENTITY, " host_basis=", body.global_basis if host_alive else Basis.IDENTITY, " client_yaw=", client.player.get_look_yaw() if client_alive else NAN, " host_yaw=", body.get_look_yaw() if host_alive else NAN, " host_floor=", host_alive and body.is_on_floor(), " client_floor=", client_alive and client.player.is_on_floor(), " settled=", settled, " current=", client_alive and client._network_client_ember_passenger_surface_is_current(), " registered=", client_alive and is_instance_valid(client._cabin_ship) and is_instance_valid(client._cabin_ship.get_moving_interior_component()) and client._cabin_ship.get_moving_interior_component().is_occupant_registered(client.player), " source=", client.get_network_remote_body_intent_source().get_audit(), " audit=", server.get_network_remote_body_simulation().get_audit())
 	return false
 
 
