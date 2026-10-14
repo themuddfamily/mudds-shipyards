@@ -292,7 +292,7 @@ func _record_weighted_damage(amount: float, weights: Dictionary, located: bool) 
 
 
 func tick_repair(delta: float, repairing: bool) -> Dictionary:
-	return _tick_repair_components(COMPONENT_ORDER, delta, repairing)
+	return _tick_repair_components(COMPONENT_ORDER, delta, repairing, &"passive_berth")
 
 
 ## Applies an authorized repair pulse to one named component. Engineer-role
@@ -304,13 +304,14 @@ func tick_component_repair(
 	repairing: bool
 ) -> Dictionary:
 	var component_ids: Array[StringName] = [component_id]
-	return _tick_repair_components(component_ids, delta, repairing)
+	return _tick_repair_components(component_ids, delta, repairing, &"targeted")
 
 
 func _tick_repair_components(
 	component_ids: Array[StringName],
 	delta: float,
-	repairing: bool
+	repairing: bool,
+	presentation_origin: StringName
 ) -> Dictionary:
 	var report := {
 		"accepted": false,
@@ -378,6 +379,7 @@ func _tick_repair_components(
 			"state_id": state_id_for(get_component_state(component_id)),
 		})
 	component_repair_committed.emit({
+		"presentation_origin": presentation_origin,
 		"generation": _ledger.get_generation(),
 		"revision": _revision,
 		"component_count": repaired_states.size(),

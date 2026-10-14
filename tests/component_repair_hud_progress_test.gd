@@ -4,6 +4,7 @@ const ShipComponentDamageType := preload("res://scripts/combat/ship_component_da
 
 var _assertions := 0
 var _failures: PackedStringArray = []
+var _caption_requests: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -51,6 +52,19 @@ func _run() -> void:
 		"ordinary damage wording remains visible before repair starts"
 	)
 
+	var original_submitter: Callable = hud.get("_caption_event_submitter")
+	hud.set("_caption_event_submitter", func(request: Dictionary) -> bool:
+		var accepted := bool(original_submitter.call(request))
+		if accepted:
+			_caption_requests.append(request.duplicate(true))
+		return accepted)
+	hud.setting_change_requested.emit(&"captions_enabled", true)
+	await physics_frame
+	await process_frame
+	_caption_requests.clear()
+	var observed_progress: Array[Dictionary] = []
+	var observe_progress := func(receipt: Dictionary) -> void: observed_progress.append(receipt.duplicate(true))
+	torrent.component_repair_progressed.connect(observe_progress)
 	var berth_first := torrent.get_component_damage().tick_repair(0.10, true)
 	var berth_snapshot := hud.get_hero_component_hud_snapshot()
 	var first_integrity := float(berth_snapshot.get("integrity", -1.0))
@@ -62,6 +76,19 @@ func _run() -> void:
 		"an authorized passive berth commit immediately shows REPAIRING and rising integrity"
 	)
 
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"accepted passive berth repair captions its start once")
+	await physics_frame
+	await process_frame
+	_check(bool(game.get_caption_presentation_snapshot().get("visible", false))
+		and game.get_caption_presentation_snapshot().get("caption", {}).get("text") == "[ berth component repair started ]"
+		and hud.get_caption_presentation_report().get("rendered_text") == "[ berth component repair started ]",
+		"accepted passive start reaches production caption service and rendered HUD")
+	_check(not observed_progress.is_empty() and observed_progress[0].get("presentation_origin") == &"passive_berth",
+		"owner receipt identifies passive berth presentation without altering repair")
+	torrent.component_repair_progressed.emit(observed_progress[0])
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"duplicate committed receipt cannot replay passive caption")
 	var engineer_second := torrent.get_component_damage().tick_component_repair(
 		ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.10, true
 	)
@@ -77,6 +104,12 @@ func _run() -> void:
 		"targeted engineer commits advance the displayed percentage without requiring a stage crossing"
 	)
 
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"engineer repair emits no duplicate passive start caption")
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"targeted partial repair preserves the ongoing passive cycle without duplicate start")
+	torrent.component_repair_progressed.disconnect(observe_progress)
 	root.remove_child(game)
 	await process_frame
 	_check(not label.visible and label.text.is_empty(), "whole-Main detach clears in-progress repair text")
@@ -121,6 +154,65 @@ func _run() -> void:
 		"the explicit repair state clears at nominal integrity and returns to damage wording"
 	)
 
+
+	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
+	_caption_requests.clear()
+	torrent.get_component_damage().tick_repair(0.10, true)
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"repeated passive commits retain one start caption")
+	# Let the already displayed start expire before checking the queued completion.
+	for _frame in range(600):
+		await physics_frame
+	torrent.get_component_damage().tick_repair(100.0, true)
+	await physics_frame
+	await process_frame
+	_check(game.get_caption_presentation_snapshot().get("caption", {}).get("text") == "[ berth component repair complete ]"
+		and hud.get_caption_presentation_report().get("rendered_text") == "[ berth component repair complete ]",
+		"accepted passive completion reaches production service and rendered HUD")
+	_check(_passive_caption_count(hud, &"passive_component_repair_completed") == 1,
+		"accepted passive completion captions once")
+	torrent.get_component_damage().tick_repair(100.0, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_completed") == 1,
+		"already nominal repair cannot replay completion")
+
+	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
+	_caption_requests.clear()
+	var reentrant_done := [false]
+	hud.set("_caption_event_submitter", func(request: Dictionary) -> bool:
+		var accepted := bool(original_submitter.call(request))
+		if accepted:
+			_caption_requests.append(request.duplicate(true))
+		if request.get("cue_id") == &"passive_component_repair_started" and not reentrant_done[0]:
+			reentrant_done[0] = true
+			torrent.get_component_damage().tick_repair(0.10, true)
+		return accepted)
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(reentrant_done[0] and _passive_caption_count(hud, &"passive_component_repair_started") == 1
+		and is_equal_approx(float(hud.get_hero_component_hud_snapshot().get("integrity", -1.0)),
+			_component_integrity(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY)),
+		"synchronous caption repair cannot rewind accepted HUD progress or replay start")
+	hud.set("_caption_event_submitter", func(request: Dictionary) -> bool:
+		var accepted := bool(original_submitter.call(request))
+		if accepted:
+			_caption_requests.append(request.duplicate(true))
+		return accepted)
+	hud.set_mode("on-foot")
+	torrent.get_component_damage().tick_repair(100.0, true)
+	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
+	hud.set_mode("piloting")
+	_caption_requests.clear()
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"hidden completed repair and fresh damage cannot suppress the next visible start")
+
+	hud.setting_change_requested.emit(&"captions_enabled", false)
+	_caption_requests.clear()
+	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 0,
+		"disabled captions suppress passive repair announcements")
+
 	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
 	torrent.get_component_damage().tick_component_repair(
 		ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.10, true
@@ -142,9 +234,18 @@ func _run() -> void:
 		"disembark clears repair progress and disconnects the retained craft"
 	)
 
+	hud.set("_caption_event_submitter", original_submitter)
 	game.queue_free()
 	await process_frame
 	_finish()
+
+
+func _passive_caption_count(_hud: GameHUD, cue: StringName) -> int:
+	var count := 0
+	for entry in _caption_requests:
+		if StringName(entry.get("cue_id", &"")) == cue:
+			count += 1
+	return count
 
 
 func _damage_component_to(ship: HeroShip, component_id: StringName, target_integrity: float) -> void:

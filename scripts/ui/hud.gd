@@ -79,6 +79,8 @@ const MUTED := PaletteType.ROLE_MUTED
 ## backend is unavailable. Cues with no entry here are deliberately silent in the
 ## caption channel; footsteps in particular would drown every other line.
 const CAPTION_CUES := {
+	&"passive_component_repair_started": [&"system", "Berth service", "[ berth component repair started ]", 45],
+	&"passive_component_repair_completed": [&"system", "Berth service", "[ berth component repair complete ]", 45],
 	&"ui_confirm": [&"system", "Interface", "[ interface confirm ]", 30],
 	&"impact": [&"ambient", "Hull sensors", "[ hull impact ]", 65],
 	&"target_destroyed": [&"system", "Range control", "[ range target destroyed ]", 60],

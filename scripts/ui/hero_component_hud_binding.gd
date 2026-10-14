@@ -13,6 +13,7 @@ var _repairing_component_id: StringName = &""
 var _accepted_ledger_generation := 0
 var _accepted_report_revision := -1
 var _accepted_report: Dictionary = {}
+var _passive_repair_caption_active := false
 
 
 func attach(hud: Node, ship: Node) -> bool:
@@ -39,6 +40,7 @@ func attach(hud: Node, ship: Node) -> bool:
 
 
 func detach() -> void:
+	_passive_repair_caption_active = false
 	var ship := _get_ship()
 	if is_instance_valid(ship):
 		_disconnect_if_connected(ship, &"component_damage_changed", _on_component_damage_changed)
@@ -95,6 +97,7 @@ func refresh() -> bool:
 	if order < 0:
 		return false
 	if order > 0:
+		_passive_repair_caption_active = false
 		# An unpaired report advance is damage/reset observation, not evidence of
 		# repair. A repair marker may only arrive through its matching receipt.
 		_repairing_component_id = &""
@@ -175,6 +178,32 @@ func _on_component_repair_progressed(progress: Dictionary) -> void:
 	_repairing_component_id = StringName(repair_match.get("component_id", &""))
 	_accept_report(report)
 	_present_report(hud, report)
+	if _get_hud() == hud and _get_ship() == ship and _presentation_requested and not _tree_suspended:
+		_present_passive_repair_caption(hud, progress, report)
+
+
+func _present_passive_repair_caption(hud: Node, progress: Dictionary, report: Dictionary) -> void:
+	if StringName(progress.get("presentation_origin", &"")) != &"passive_berth":
+		if _report_roster_is_nominal(report):
+			_passive_repair_caption_active = false
+		return
+	if not hud.has_method("are_captions_enabled") or not bool(hud.call("are_captions_enabled")):
+		_passive_repair_caption_active = false
+		return
+	if not hud.has_method("caption_cue"):
+		return
+	var complete := _report_roster_is_nominal(report)
+	var cue: StringName = &""
+	if not _passive_repair_caption_active:
+		cue = &"passive_component_repair_completed" if complete else &"passive_component_repair_started"
+		_passive_repair_caption_active = true
+	elif complete:
+		cue = &"passive_component_repair_completed"
+	if complete:
+		_passive_repair_caption_active = false
+	if cue.is_empty():
+		return
+	hud.call("caption_cue", cue)
 
 
 func _match_repair_progress(progress: Dictionary, report: Dictionary) -> Dictionary:
