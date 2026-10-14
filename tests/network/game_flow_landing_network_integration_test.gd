@@ -1248,7 +1248,7 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 	var home_id: StringName = owner.get_craft().get_home_berth_id()
 	var old_avatar := StringName(NetworkRemoteBodySimulation.get_remote_body_identity(old_body).entity_id)
 	var old_context: Dictionary = game._network_ember_passenger_surfaces[old_avatar].duplicate(true)
-	var old_body_ref := weakref(old_body)
+	var old_body_ref: WeakRef = weakref(old_body)
 	var saved_progress: Dictionary = owner.survey.capture()
 	var saved := game.save_interrupted_rime_visit() if is_rime else game.save_interrupted_aurora_visit()
 	_check(bool(saved.get("accepted", false)), "actual shared observation commits a resumable visit through the atomic store")
