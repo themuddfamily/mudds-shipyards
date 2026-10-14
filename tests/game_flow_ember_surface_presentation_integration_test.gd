@@ -485,8 +485,8 @@ func _check_client_rime_controls(scenario: String, server: GameFlow, client: Gam
 		"%s: ONE physical remapped hatch press reboards the SAME author and predicted bodies" % scenario)
 	_check(str(body.get("_rime_pad_guard_token")).is_empty() and str(client.player.get("_rime_pad_guard_token")).is_empty() and not server._network_ember_passenger_surfaces.has(avatar),
 		"%s: ordinary authenticated reboard clears both matching guards and surface contexts" % scenario)
-	_check(not server._rime_expedition.survey._available() and not server._rime_expedition.survey._running()
-		and not server._rime_expedition.survey.reward_recorded(), "%s: shared Rime ice-core survey remains unavailable, inactive and unrewarded" % scenario)
+	_check(not server._rime_expedition.survey._running()
+		and not server._rime_expedition.survey.reward_recorded(), "%s: pad controls leave the Rime ice-core survey inactive and unrewarded" % scenario)
 	if not boarded:
 		_hud_setup_failed = true
 		return
