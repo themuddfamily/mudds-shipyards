@@ -150,3 +150,11 @@ agent with an open-ended mandate.
 Evaluate the policy by outcomes: correctness, required evidence, latency, and
 cost. Raise an effort tier only when representative work shows a material
 quality improvement; lower it when the same acceptance bar is met reliably.
+
+## GitHub CI budget hold
+
+- The owner disabled GitHub Actions on 2026-10-14 to stop CI spending.
+- Do not enable workflows, dispatch GitHub runs, or restore automatic triggers
+  unless the owner explicitly requests it. This applies to every agent.
+- Use appropriate local checks while continuing roadmap work. Keep unperformed
+  hosted, native-hardware and human-review gates open.
