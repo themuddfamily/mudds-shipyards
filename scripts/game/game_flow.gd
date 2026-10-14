@@ -13239,10 +13239,10 @@ func _finalize_network_boarding_result(result: Dictionary, _request: Dictionary)
 	var avatar := StringName(occupancy.get("avatar_id", &""))
 	var craft := _find_flyable_ship_by_id(StringName(occupancy.get("ship_id", &"")))
 	var journey := get_network_planetary_journey_snapshot()
-	var recovered_surface := journey.get("phase") == &"landed" and journey.get("ship_id") == occupancy.get("ship_id")
+	var recovered_surface: bool = journey.get("phase") == &"landed" and journey.get("ship_id") == occupancy.get("ship_id")
 	_on_network_boarding_intent_result(result.duplicate(true))
 	var same_session := is_instance_valid(session) and session == network_session and _network_session_is_live()
-	var current_claim := same_session and session.get_boarding_snapshot().get("occupancies", []).has(occupancy)
+	var current_claim: bool = same_session and session.get_boarding_snapshot().get("occupancies", []).has(occupancy)
 	if current_claim and _network_boarded_body_is_current(peer_id, avatar, craft) \
 			and (not recovered_surface or _network_planetary_journey._restored_surface_session_is_current()):
 		_network_planetary_journey.note_restored_crew_admitted(peer_id, avatar)
