@@ -154,6 +154,33 @@ func _run() -> void:
 	torrent.get_component_damage().tick_repair(100.0, true)
 	_check(_passive_caption_count(hud, &"passive_component_repair_completed") == 1,
 		"already nominal repair cannot replay completion")
+
+	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
+	_caption_requests.clear()
+	var reentrant_done := [false]
+	hud.set("_caption_event_submitter", func(request: Dictionary) -> bool:
+		_caption_requests.append(request.duplicate(true))
+		if request.get("cue_id") == &"passive_component_repair_started" and not reentrant_done[0]:
+			reentrant_done[0] = true
+			torrent.get_component_damage().tick_repair(0.10, true)
+		return bool(original_submitter.call(request)))
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(reentrant_done[0] and _passive_caption_count(hud, &"passive_component_repair_started") == 1
+		and is_equal_approx(float(hud.get_hero_component_hud_snapshot().get("integrity", -1.0)),
+			_component_integrity(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY)),
+		"synchronous caption repair cannot rewind accepted HUD progress or replay start")
+	hud.set("_caption_event_submitter", func(request: Dictionary) -> bool:
+		_caption_requests.append(request.duplicate(true))
+		return bool(original_submitter.call(request)))
+	hud.set_mode("on-foot")
+	torrent.get_component_damage().tick_repair(100.0, true)
+	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)
+	hud.set_mode("piloting")
+	_caption_requests.clear()
+	torrent.get_component_damage().tick_repair(0.10, true)
+	_check(_passive_caption_count(hud, &"passive_component_repair_started") == 1,
+		"hidden completed repair and fresh damage cannot suppress the next visible start")
+
 	hud.set_captions_enabled(false)
 	_caption_requests.clear()
 	_damage_component_to(torrent, ShipComponentDamageType.COMPONENT_ENGINE_BAY, 0.58)

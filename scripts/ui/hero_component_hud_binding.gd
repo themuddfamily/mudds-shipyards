@@ -97,8 +97,7 @@ func refresh() -> bool:
 	if order < 0:
 		return false
 	if order > 0:
-		if _strict_int(report, "ledger_generation", -1) != _accepted_ledger_generation:
-			_passive_repair_caption_active = false
+		_passive_repair_caption_active = false
 		# An unpaired report advance is damage/reset observation, not evidence of
 		# repair. A repair marker may only arrive through its matching receipt.
 		_repairing_component_id = &""
@@ -176,10 +175,11 @@ func _on_component_repair_progressed(progress: Dictionary) -> void:
 	var repair_match := _match_repair_progress(progress, report)
 	if not bool(repair_match.get("accepted", false)):
 		return
-	_present_passive_repair_caption(hud, progress, report)
 	_repairing_component_id = StringName(repair_match.get("component_id", &""))
 	_accept_report(report)
 	_present_report(hud, report)
+	if _get_hud() == hud and _get_ship() == ship and _presentation_requested and not _tree_suspended:
+		_present_passive_repair_caption(hud, progress, report)
 
 
 func _present_passive_repair_caption(hud: Node, progress: Dictionary, report: Dictionary) -> void:
