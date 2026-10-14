@@ -855,6 +855,9 @@ var _network_client_boarding_claim: Dictionary = {}
 const AURORA_COASTAL_WALK_PATH := [Vector3(14, 0, 2), Vector3(33, 0, 2), Vector3(43, 0, -8), Vector3(57, 0, -20), Vector3(68, 0, -17)]
 var _network_ember_passenger_surfaces: Dictionary = {}
 var _network_client_ember_passenger_surface: Dictionary = {}
+## Presentation owned by this client survey, independent of a revoked floor.
+## Identity and text comparisons protect replacement HUDs and newer objectives.
+var _network_client_aurora_survey_presentation: Dictionary = {}
 ## Local support loss can precede the authenticated retirement packet. This
 ## identity may await that packet; it grants neither prediction nor recovery.
 var _network_client_ember_passenger_retired: Dictionary = {}
@@ -8116,6 +8119,7 @@ func _update_on_foot_flow() -> void:
 		if not view.is_empty():
 			hud.set_objective(view.objective, "AURORA COASTAL OBSERVATION")
 			hud.set_interaction(station_interaction_candidate.get_interaction_prompt() if station_interaction_candidate is ShipCabinHatch else view.prompt)
+			_capture_network_client_aurora_survey_presentation(not station_interaction_candidate is ShipCabinHatch)
 			return
 	_activity_board_proximity_prompt_rendered = false
 	if phase in [Phase.BOARDING, Phase.DISEMBARKING, Phase.FAILED, Phase.RECOVERING]:
@@ -10932,6 +10936,7 @@ func _network_local_ember_passenger_prediction_is_current(expected_context: Dict
 
 
 func _retire_network_client_ember_passenger_surface(await_authority: bool = false, resume_controls: bool = true) -> void:
+	_clear_network_client_aurora_survey_presentation()
 	if await_authority and not _network_client_ember_passenger_surface.is_empty() \
 			and _network_client_boarding_is_live() \
 			and int(get_network_planetary_journey_snapshot().get("journey_epoch", 0)) \
@@ -10958,6 +10963,27 @@ func _retire_network_client_ember_passenger_surface(await_authority: bool = fals
 		if resume_controls:
 			player.set_control_enabled(true)
 		phase = Phase.APPROACH_SHIP
+
+
+func _capture_network_client_aurora_survey_presentation(owns_prompt: bool = false) -> void:
+	_network_client_aurora_survey_presentation = {
+		"hud_id": hud.get_instance_id(), "objective": hud.get("_objective_source_text"),
+		"kicker": (hud.get("_objective_kicker") as Label).text,
+	}
+	if owns_prompt:
+		_network_client_aurora_survey_presentation["prompt"] = hud.get("_interaction_source_text")
+
+
+func _clear_network_client_aurora_survey_presentation() -> void:
+	var owned := _network_client_aurora_survey_presentation
+	_network_client_aurora_survey_presentation = {}
+	if owned.is_empty() or not is_instance_valid(hud) or hud.get_instance_id() != int(owned.hud_id):
+		return
+	var kicker := hud.get("_objective_kicker") as Label
+	if is_instance_valid(kicker) and hud.get("_objective_source_text") == owned.objective and kicker.text == owned.kicker:
+		hud.set_objective("")
+	if owned.has("prompt") and hud.get("_interaction_source_text") == owned.prompt:
+		hud.set_interaction("", false)
 
 
 ## Called only by the authenticated current-epoch bridge retirement consumer.
@@ -13689,6 +13715,8 @@ func _present_network_client_ember_passenger_departure(craft: HeroShip, area: Sh
 	hud.set_objective("Optional coastal survey: follow the amber trail, or return through the hatch whenever ready" \
 		if _network_client_ember_passenger_surface.world_id == AuroraExpeditionType.WORLD_ID \
 		else "Walk the supported caldera; return through the hatch after the saved relay survey")
+	if _network_client_ember_passenger_surface.world_id == AuroraExpeditionType.WORLD_ID:
+		_capture_network_client_aurora_survey_presentation()
 
 
 func _release_network_client_boarding_presentation(

@@ -8,6 +8,7 @@ const ProductionType := preload("res://scripts/world/ember_surface_loop_producti
 const AudioCompositionType := preload("res://scripts/audio/ember_surface_loop_audio_composition.gd")
 const StatusBindingType := preload("res://scripts/ui/ember_surface_return_status_binding.gd")
 const HudAdapterType := preload("res://scripts/ui/ember_surface_return_hud_adapter.gd")
+const MainScene := preload("res://scenes/main.tscn")
 
 class FlowProbe:
 	extends GameFlowType
@@ -71,6 +72,9 @@ class PlanetaryCompositionProbe:
 var _assertions := 0
 var _failures: PackedStringArray = []
 var _cues: Array[StringName] = []
+var _hud_host: GameFlow
+var _hud_host_manual := false
+var _hud_setup_failed := false
 
 
 func _init() -> void:
@@ -210,7 +214,209 @@ func _run() -> void:
 
 	flow.queue_free()
 	await process_frame
+	RenderingServer.set_render_loop_enabled(false)
+	for scenario in ["retired", "local_loss", "session", "newer", "replacement"]:
+		await _test_client_survey_retirement(scenario)
+		if _hud_setup_failed:
+			break
 	_finish()
+
+
+## Staged real Main peers and authenticated boarding/retirement. This checks the
+## client's real HUD producer, not canonical travel or a restored survey save.
+func _test_client_survey_retirement(scenario: String) -> void:
+	var host_view := SubViewport.new()
+	var client_view := SubViewport.new()
+	host_view.own_world_3d = true
+	client_view.own_world_3d = true
+	host_view.world_3d = World3D.new()
+	client_view.world_3d = World3D.new()
+	root.add_child(host_view)
+	root.add_child(client_view)
+	set_multiplayer(SceneMultiplayer.new(), host_view.get_path())
+	set_multiplayer(SceneMultiplayer.new(), client_view.get_path())
+	var server := MainScene.instantiate() as GameFlow
+	var client := MainScene.instantiate() as GameFlow
+	for pair: Array in [[server, "host"], [client, "client"]]:
+		var store := UserDataStore.new("user://survey-hud-%s-%s.json" % [scenario, pair[1]])
+		store.load()
+		(pair[0] as GameFlow).configure_runtime_settings_persistence(store)
+	host_view.add_child(server)
+	client_view.add_child(client)
+	_hud_host = server
+	await process_frame
+	await physics_frame
+	server.start_shift()
+	client.start_shift()
+	server.set_process(false)
+	client.set_process(false)
+	var craft := server.get_node("HalyardCrewTransport") as HeroShip
+	var replica := client.get_node("HalyardCrewTransport") as HeroShip
+	server.player.teleport_to(Transform3D(craft.global_basis, craft.get_boarding_position()))
+	server._board_ship(craft)
+	var pilot_ready := await _hud_wait(func(): return server._piloting and not server._transition_busy, 12.0)
+	_check(pilot_ready, "%s: actual Main host seats its retained Halyard pilot" % scenario)
+	var port_probe := UDPServer.new()
+	var port_ready := port_probe.listen(0, "127.0.0.1") == OK
+	var port := port_probe.get_local_port() if port_ready else 0
+	port_probe.stop()
+	server._ensure_lan_discovery().discovery_port = 0
+	var hosted := port_ready and bool(server.host_network_session(port, 2).get("accepted", false))
+	var joined := hosted and bool(client.join_network_session("127.0.0.1", port).get("accepted", false))
+	var admitted := joined and await _hud_wait(func(): return client._network_client_peer_id() > 1 and not client.network_session.get_server_offer().is_empty(), 10.0)
+	_check(admitted, "%s: two real Main sessions authenticate the client" % scenario)
+	_hud_setup_failed = not pilot_ready or not admitted
+	if pilot_ready and admitted:
+		client.player.teleport_to(Transform3D(replica.global_basis, replica.get_boarding_position()))
+		var area := replica.get_node("ShipBoardingArea") as ShipBoardingArea
+		var asked := client._request_network_client_boarding(replica, area)
+		var boarded := bool(asked.get("accepted", false)) and await _hud_wait(func(): return client._network_client_boarding_holds(replica) and not client._transition_busy, 12.0)
+		_check(boarded, "%s: full client presents only its authenticated cabin grant" % scenario)
+		_hud_setup_failed = not boarded
+		if boarded:
+			var surface_ready := await _stage_client_survey_surface(server, client, craft, replica, area)
+			_check(surface_ready, "%s: real exterior grant makes the client's surface context current" % scenario)
+			_hud_setup_failed = not surface_ready
+			if surface_ready:
+				await _check_client_survey_retirement(scenario, server, client)
+	_hud_host_manual = false
+	_hud_host = null
+	client.shutdown_network_session(&"hud_fixture_done")
+	server.shutdown_network_session(&"hud_fixture_done")
+	host_view.queue_free()
+	client_view.queue_free()
+	for _frame in 6:
+		await process_frame
+		await physics_frame
+
+
+func _stage_client_survey_surface(server: GameFlow, client: GameFlow, craft: HeroShip, replica: HeroShip, area: ShipBoardingArea) -> bool:
+	server.set_physics_process(false)
+	_hud_host_manual = true
+	var owner := server._aurora_expedition
+	var bootstrap := server.aurora_streaming_bootstrap
+	var binding := server.aurora_streaming_binding
+	if not bool(server._planetary_journey.admit_aurora_visit(craft, false).get("accepted", false)):
+		return false
+	server._release_ship_berth(craft)
+	craft.global_position = bootstrap.global_position + Vector3(0, 120030, 30)
+	var sample := {"available": true, "position": craft.global_position, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id()}
+	binding.physics_tick_from_caller_sample(0.0, sample)
+	server.common_world_origin_rebase_owner.consume_rebase_preview(binding.preview_origin_rebase(bootstrap.get_coordinate_frame_for_session().get_generation()), sample)
+	if not await _hud_wait(func(): return is_instance_valid(bootstrap.get_loaded_instance()), 10.0):
+		return false
+	var surface := bootstrap.get_loaded_instance()
+	owner._ship = craft
+	owner._home = server.world.get_berth_node(craft.get_home_berth_id())
+	owner._surface = surface
+	owner._shared_arrival = true
+	owner.state = &"landed"
+	owner.survey.attach(surface)
+	owner._lease_surface_berth(surface.get_node("LandingRegion"))
+	var berth := owner._berth as ShipBerth
+	craft.global_transform = berth.get_assist_capture_transform()
+	craft.velocity = Vector3.ZERO
+	craft.request_berth_landing(berth)
+	if not await _hud_wait(func(): return berth.get_occupant() == craft and not craft.is_landing_active(), 15.0):
+		return false
+	var bridge := server._network_planetary_journey
+	bridge._epoch = 2
+	bridge._craft_instance_id = craft.get_instance_id()
+	bridge._pilot_source_ref = weakref(craft.get_command_source())
+	bridge._state = {"journey_epoch": 2, "world_id": &"aurora_temperate_world", "ship_id": craft.get_ship_id(), "phase": &"landed"}
+	bridge._publish(true)
+	if not await _hud_wait(func(): return server._network_aurora_passenger_host_is_current(craft) and client._network_client_ember_surface_scene_is_current(replica, 2), 12.0):
+		print("SURVEY_HUD_SETUP_CURRENT server=", server._network_aurora_passenger_host_is_current(craft), " client=", client._network_client_ember_surface_scene_is_current(replica, 2), " journey=", client.get_network_planetary_journey_snapshot(), " pose=", client._network_craft_pose_stream.latest_sample(replica.get_ship_id()))
+		return false
+	var avatar := client.get_network_remote_body_intent_source().get_entity_id()
+	var body := server.get_network_remote_body_simulation().get_body(avatar) as PlayerController
+	var hatch := craft.get_node("WalkableInterior/CabinHatchInteraction") as Node3D
+	var mirror_hatch := replica.get_node("WalkableInterior/CabinHatchInteraction") as Node3D
+	# Initial hatch approach staging precedes the authenticated exterior grant.
+	body.teleport_to(Transform3D(Basis.IDENTITY, hatch.global_position - Vector3.UP * 0.7))
+	client.player.teleport_to(Transform3D(Basis.IDENTITY, mirror_hatch.global_position - Vector3.UP * 0.7))
+	for _frame in 12:
+		await _hud_wait(func(): return false, 0.001)
+	var departure := client._request_network_client_boarding(replica, area)
+	if not bool(departure.get("accepted", false)) or not await _hud_wait(func(): return client._network_client_ember_passenger_surface_is_current(), 12.0):
+		print("SURVEY_HUD_SETUP_DEPARTURE asked=", departure, " answer=", client.network_session.get_boarding_intent_result_replica(), " context=", client._network_client_ember_passenger_surface, " host=", server._network_aurora_passenger_host_is_current(craft))
+		return false
+	client.set_physics_process(false)
+	client._update_on_foot_flow()
+	return str(client.hud.get("_objective_source_text")).contains("Optional shared survey")
+
+
+func _check_client_survey_retirement(scenario: String, server: GameFlow, client: GameFlow) -> void:
+	var bridge := server._network_planetary_journey
+	var epoch := int(client.get_network_planetary_journey_snapshot().journey_epoch)
+	var objective := str(client.hud.get("_objective_source_text"))
+	var kicker := client.hud.get("_objective_kicker") as Label
+	_check(kicker.text == "AURORA COASTAL OBSERVATION", "%s: current-context producer renders the real survey objective" % scenario)
+	# A genuine host packet with an old journey epoch must not clear this view.
+	var live := bridge._state.duplicate(true)
+	var context := client._network_client_ember_passenger_surface.duplicate(true)
+	bridge._state["journey_epoch"] = epoch - 1
+	bridge._state["phase"] = &"retired"
+	bridge._publish(true)
+	await _hud_wait(func(): return false, 0.05)
+	bridge._state = live
+	_check(client._network_client_ember_passenger_surface == context and int(client.get_network_planetary_journey_snapshot().get("journey_epoch", 0)) == epoch and str(client.hud.get("_objective_source_text")) == objective,
+		"%s: authenticated stale retirement cannot erase a current survey view" % scenario)
+	if scenario == "newer":
+		client.hud.set_objective("New unrelated objective", "NEW OBJECTIVE")
+	elif scenario == "replacement":
+		var replacement := HudType.new()
+		client.add_child(replacement)
+		client.hud = replacement
+		replacement.set_objective(objective, "AURORA COASTAL OBSERVATION")
+	if scenario == "local_loss":
+		# Real local scene loss revokes prediction before the host's tombstone.
+		client.aurora_streaming_bootstrap.get_loaded_instance().queue_free()
+		await process_frame
+		client._advance_network_remote_body_intent_stream()
+		_check(client._network_client_ember_passenger_surface.is_empty() and not client._network_client_ember_passenger_retired.is_empty(),
+			"local scene loss retains only the pending authenticated recall identity")
+		_check(not str(client.hud.get("_objective_source_text")).contains("Optional shared survey"),
+			"local scene loss immediately retires the owned survey objective")
+	if scenario == "session":
+		client.shutdown_network_session(&"survey_hud_session_loss")
+	else:
+		bridge.cancel(&"survey_hud_retired")
+	await _hud_wait(func(): return client._network_client_ember_passenger_surface.is_empty(), 3.0)
+	client._update_on_foot_flow()
+	if scenario == "newer":
+		_check(str(client.hud.get("_objective_source_text")) == "New unrelated objective" and (client.hud.get("_objective_kicker") as Label).text == "NEW OBJECTIVE",
+			"retirement preserves a newer unrelated objective and kicker")
+	elif scenario == "replacement":
+		_check(str(client.hud.get("_objective_source_text")) == objective,
+			"retirement cannot clear matching text on a replacement HUD instance")
+	else:
+		_check(not str(client.hud.get("_objective_source_text")).contains("Optional shared survey") and (client.hud.get("_objective_kicker") as Label).text != "AURORA COASTAL OBSERVATION",
+			"%s: retirement clears owned survey text and kicker through the real client consumer" % scenario)
+		_check(not str(client.hud.get("_interaction_source_text")).contains("COASTAL"), "%s: retired survey prompt cannot persist" % scenario)
+	_check(client._network_client_ember_passenger_surface.is_empty() and not client.get_network_remote_body_intent_source().is_bound() and client.player.is_control_enabled(),
+		"%s: existing authority cleanup leaves the same client body usable without survey prediction" % scenario)
+
+
+func _hud_wait(predicate: Callable, seconds: float) -> bool:
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if predicate.call():
+			return true
+		if _hud_host_manual and is_instance_valid(_hud_host) and _hud_host._network_session_is_live():
+			_hud_host._advance_network_boarding_authority()
+			_hud_host._advance_network_moving_interior_publication()
+			# Publish the real craft telemetry/pose through its existing authority;
+			# staged setup pauses only the expedition's automatic cabin transition.
+			var attachment := _hud_host._attach_network_ship_authority_composition()
+			if bool(attachment.get("accepted", false)):
+				_hud_host._network_ship_event_sequence += 1
+				_hud_host._network_ship_authority_composition.submit_server_physics_tick(
+					maxi(_hud_host._network_boarding_server_tick, _hud_host._network_ship_event_sequence),
+					_hud_host._network_ship_event_sequence, _hud_host._build_network_craft_pose_entries())
+		await physics_frame
+		await process_frame
+	return bool(predicate.call())
 
 
 func _check_attachment_parity(owners: Array[Object], expected: bool, stage: String) -> void:
