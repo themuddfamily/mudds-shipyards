@@ -1029,6 +1029,29 @@ func _check_shared_abandon_return() -> void:
 		and (journey.get("_mudds_return_handback_receipt") as Dictionary).is_empty(),
 		"genuine Host abandonment restores the same pilot and retains shared manual departure without fabricating completion")
 	var committed_attachment := host.get_attachment_generation()
+	# A homeward origin shift leaves Ember resident. Releasing the idle Host
+	# must preserve its exact abandoned receipt rather than bind a new visit.
+	var return_frame_generation := frame.get_generation()
+	var return_rebase := _commit_origin_translation(game, craft, Vector3(0.0, 0.0, 11000.0))
+	journey.call(&"_ensure_ember_surface_loop_host_bound", true)
+	journey.call(&"_ensure_ember_surface_loop_host_bound", true)
+	print("ABANDON_REBASE_RELEASE: ", {"rebase_reason": return_rebase.get("reason"),
+		"source_frame": return_frame_generation, "frame": frame.get_generation(),
+		"same_loaded_scene": bootstrap.get_loaded_instance() == streamed_scene,
+		"host_attached": host.is_attached(), "attachment": host.get_attachment_generation(),
+		"receipt_current": host.is_idle_abandon_release_current(authentic_receipt)})
+	_check(bool(return_rebase.get("accepted", false))
+		and frame.get_generation() == return_frame_generation + 1
+		and bootstrap.get_loaded_instance() == streamed_scene
+		and not host.is_attached() and host.get_attachment_generation() == committed_attachment + 1
+		and host.is_idle_abandon_release_current(authentic_receipt)
+		and journey.call(&"shared_ember_abandon_return_is_current")
+		and craft.get_command_source() == pilot_source
+		and game.player.is_seated_at(craft.get_pilot_seat_anchor()),
+		"real homeward rebase preserves the released abandoned Host while its same Ember scene remains loaded")
+	if not _failures.is_empty():
+		game.free()
+		return
 	var station_coordinate := NearbySectorOrbitalRegistry.new().get_coordinate(
 		NearbySectorOrbitalRegistry.STATION_DATUM_ID)
 	var unloaded := bootstrap.update_absolute_focus(station_coordinate, frame.get_generation())
@@ -1129,11 +1152,28 @@ func _check_shared_abandon_return() -> void:
 		host.set("_visit_released_detached", true)
 	journey.set("_shared_ember_abandon_return_context", context.duplicate(true))
 	journey.set("_ember_abandon_return_arm_pending", true)
+	var reloaded := bootstrap.update_absolute_focus(
+		NearbySectorOrbitalRegistry.new().get_coordinate(NearbySectorOrbitalRegistry.EMBER_BODY_CENTER_ID),
+		frame.get_generation())
+	await process_frame
+	await process_frame
+	var resident_scene := bootstrap.get_loaded_instance()
+	journey.call(&"_ensure_ember_surface_loop_host_bound", true)
+	var release_retained: bool = not host.is_attached() \
+		and host.is_idle_abandon_release_current(authentic_receipt) \
+		and journey.call(&"shared_ember_abandon_return_is_current")
 	game.shutdown_network_session(&"shared_abandon_return_test_done")
-	_check(not journey.call(&"is_return_departure_pending")
+	_check(release_retained and not journey.call(&"is_return_departure_pending")
 		and not journey.call(&"shared_ember_abandon_return_was_admitted")
 		and game.get_network_planetary_journey_snapshot().get("journey_epoch", 0) == 0,
 		"actual session shutdown retires the retained abandoned return and its shared epoch synchronously")
+	var rebound: Dictionary = journey.call(&"_ensure_ember_surface_loop_host_bound", true)
+	_check(bool(reloaded.get("accepted", false)) and is_instance_valid(resident_scene)
+		and bool(rebound.get("accepted", false)) and host.is_attached()
+		and bootstrap.get_loaded_instance() == resident_scene
+		and not journey.call(&"shared_ember_abandon_return_was_admitted")
+		and craft.get_command_source() == pilot_source,
+		"ending the authenticated abandoned return permits normal Host binding to the same resident scene")
 	game.free()
 
 

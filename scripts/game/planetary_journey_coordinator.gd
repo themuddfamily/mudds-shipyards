@@ -843,6 +843,13 @@ func _ensure_ember_surface_loop_host_bound(streaming_ready: bool) -> Dictionary:
 		)
 		if not bool(released.get("accepted", false)):
 			return released
+	# A homeward rebase can release the idle Host while Ember remains resident.
+	# The authenticated abandoned return owns that exact one-step release; a
+	# fresh bind would replace its attachment and retire the returning pilot.
+	# Bind a new visit only after the retained return owner has ended.
+	if not _flow.ember_surface_loop_host.is_attached() \
+			and shared_ember_abandon_return_is_current():
+		return {"accepted": false, "reason": &"shared_abandon_return_host_released"}
 	if _flow.ember_surface_loop_production_binding.is_configured():
 		return {"accepted": true, "reason": &"already_configured"}
 	var loaded_scene := _flow.ember_streaming_bootstrap.get_loaded_instance() \
