@@ -10708,7 +10708,7 @@ func _network_boarding_departure_status(peer_id: int, request: Dictionary) -> St
 
 
 ## The existing retained-body surface path serves only the selected supported
-## world. Rime access is confined to its actual supported landing pad.
+## world. Rime access uses its original pad and bounded authored survey route.
 func _network_passenger_surface_bootstrap(world_id: StringName = &"") -> PlanetaryStreamingBootstrap:
 	if world_id.is_empty():
 		world_id = StringName(get_network_planetary_journey_snapshot().get("world_id", &"ember_moon"))
@@ -10825,7 +10825,7 @@ func _network_ember_passenger_surface_is_current(avatar: StringName, expected_co
 		return false
 	var context := _network_ember_passenger_surfaces[avatar] as Dictionary
 	var scene := _network_passenger_surface_bootstrap(context.world_id).get_loaded_instance()
-	return _network_ember_passenger_on_pad(_network_remote_body_simulation.get_body(avatar), scene)
+	return _network_ember_passenger_on_pad(_network_remote_body_simulation.get_body(avatar), scene, context)
 
 
 func _network_ember_passenger_surface_owner_is_current(avatar: StringName, expected_context: Variant = null) -> bool:
@@ -10856,6 +10856,9 @@ func _network_ember_passenger_surface_owner_is_current(avatar: StringName, expec
 		return false
 	var bootstrap := _network_passenger_surface_bootstrap(world_id)
 	var scene := bootstrap.get_loaded_instance() if is_instance_valid(bootstrap) else null
+	if world_id == RimeExpeditionType.WORLD_ID \
+			and not _network_rime_surface_support_is_current(scene, context.get("surface_support", {})):
+		return false
 	var attachment_current := false
 	if world_id in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID]:
 		var owner = _aurora_expedition if world_id == AuroraExpeditionType.WORLD_ID else _rime_expedition
@@ -10893,9 +10896,100 @@ func _interact_network_aurora_survey(body: PlayerController) -> bool:
 	return _network_aurora_survey_body_is_current(body) and _aurora_expedition.survey.interact(body)
 
 
-## Rime's authored pad is the complete shared walking envelope. Both the
-## authoritative body and local prediction use this exact scene-owned support.
+## Both retained bodies use the same bounded authored route and original floor
+## identities. A changed floor requires a fresh authenticated admission.
 var _network_rime_pad_guard_generation := 0
+
+
+func _capture_network_rime_surface_support(scene: Node3D) -> Dictionary:
+	if not is_instance_valid(scene) or not scene is RimeGlacialAuthoredScene:
+		return {}
+	var nodes: Array[Dictionary] = []
+	for path in [^"LandingRegion", ^"LandingRegion/WalkablePatch",
+			^"LandingRegion/WalkablePatch/CollisionShape3D", ^"TerrainClipmap",
+			^"TerrainClipmap/CommittedTerrain", ^"TerrainClipmap/CommittedTerrain/TerrainCollision",
+			^"TerrainClipmap/CommittedTerrain/TerrainCollision/TerrainCollisionSurface"]:
+		var node := scene.get_node_or_null(path) as Node3D
+		if not is_instance_valid(node) or not node.is_inside_tree() or node.is_queued_for_deletion():
+			return {}
+		nodes.append({"path": path, "id": node.get_instance_id(), "transform": node.transform})
+	var pad := scene.get_node(nodes[2].path) as CollisionShape3D
+	var terrain := scene.get_node(nodes[6].path) as CollisionShape3D
+	if not pad.shape is BoxShape3D or not terrain.shape is ConcavePolygonShape3D:
+		return {}
+	var committed := scene.get_node(nodes[4].path)
+	var support := {"nodes": nodes, "pad_shape_id": pad.shape.get_instance_id(),
+		"pad_size": (pad.shape as BoxShape3D).size, "terrain_shape_id": terrain.shape.get_instance_id(),
+		"terrain_generation": committed.get_meta(&"terrain_generation", -1),
+		"terrain_revision": committed.get_meta(&"terrain_revision", -1)}
+	return support if _network_rime_surface_support_is_current(scene, support) else {}
+
+
+func _network_rime_surface_support_is_current(scene: Node3D, support: Dictionary) -> bool:
+	if not is_instance_valid(scene) or not scene is RimeGlacialAuthoredScene or support.is_empty():
+		return false
+	var nodes := support.get("nodes", []) as Array
+	if nodes.size() != 7:
+		return false
+	for record: Dictionary in nodes:
+		var node := scene.get_node_or_null(record.path) as Node3D
+		if not is_instance_valid(node) or not node.is_inside_tree() or node.is_queued_for_deletion() \
+				or node.get_instance_id() != int(record.id) or node.transform != record.transform:
+			return false
+	var pad := scene.get_node(nodes[2].path) as CollisionShape3D
+	var terrain := scene.get_node(nodes[6].path) as CollisionShape3D
+	var committed := scene.get_node(nodes[4].path)
+	return not pad.disabled and pad.shape is BoxShape3D \
+		and pad.get_parent() is StaticBody3D and terrain.get_parent() is StaticBody3D \
+		and pad.shape.get_instance_id() == int(support.pad_shape_id) \
+		and (pad.shape as BoxShape3D).size == support.pad_size \
+		and (pad.get_parent() as StaticBody3D).collision_layer == 1 \
+		and not terrain.disabled and terrain.shape is ConcavePolygonShape3D \
+		and terrain.shape.get_instance_id() == int(support.terrain_shape_id) \
+		and (terrain.get_parent() as StaticBody3D).collision_layer == 1 \
+		and committed.get_meta(&"terrain_generation", -1) == support.terrain_generation \
+		and committed.get_meta(&"terrain_revision", -1) == support.terrain_revision
+
+
+func _network_rime_position_supported(body: Node3D, scene: Node3D, position: Vector3,
+		support: Dictionary, inset: float = 0.0) -> bool:
+	if not _network_rime_surface_support_is_current(scene, support):
+		return false
+	var region := scene.get_node(^"LandingRegion") as Node3D
+	var pad := scene.get_node(^"LandingRegion/WalkablePatch/CollisionShape3D") as CollisionShape3D
+	var local := region.to_local(position)
+	var half := (pad.shape as BoxShape3D).size * 0.5
+	var pad_point := pad.to_local(position)
+	var admitted := absf(pad_point.x) < half.x - inset and absf(pad_point.z) < half.z - inset
+	var flat := Vector3(local.x, 0, local.z)
+	# The finite authored survey and return paths, including the drill's existing
+	# approach from the trail. This grants no general ice-shelf exploration.
+	for path in [RimeGlacialAuthoredScene.SURVEY_TRAIL, RimeGlacialAuthoredScene.RETURN_TRAIL]:
+		for index in range(path.size() - 1):
+			admitted = admitted or flat.distance_to(Geometry3D.get_closest_point_to_segment(
+				flat, path[index], path[index + 1])) < 3.2 - inset
+	for anchor: Vector3 in RimeGlacialAuthoredScene.SURVEY_ANCHOR_POSITIONS:
+		admitted = admitted or flat.distance_to(anchor) < 3.2 - inset
+	if not admitted:
+		return false
+	var query := PhysicsRayQueryParameters3D.create(
+		region.to_global(Vector3(local.x, 0.5, local.z)),
+		region.to_global(Vector3(local.x, -0.5, local.z)), 1)
+	query.exclude = [body.get_rid()] if body is CollisionObject3D else []
+	var floor := body.get_world_3d().direct_space_state.intersect_ray(query)
+	if floor.is_empty():
+		return false
+	var terrain_body := scene.get_node(^"TerrainClipmap/CommittedTerrain/TerrainCollision")
+	var collider: Variant = floor.get("collider")
+	var floor_height := region.to_local(floor.position).y
+	if collider not in [pad.get_parent(), terrain_body]:
+		return false
+	var shape_owner: Variant = (collider as CollisionObject3D).shape_owner_get_owner(
+		(collider as CollisionObject3D).shape_find_owner(int(floor.get("shape", -1))))
+	var terrain_shape := scene.get_node(^"TerrainClipmap/CommittedTerrain/TerrainCollision/TerrainCollisionSurface")
+	return shape_owner == (pad if collider == pad.get_parent() else terrain_shape) \
+		and (floor.normal as Vector3).dot(region.global_basis.y.normalized()) > 0.7 \
+		and local.y >= floor_height - 0.05 and local.y <= floor_height + 4.0
 
 
 func _bind_network_rime_pad_guard(body: PlayerController, context: Dictionary, owner: Callable) -> void:
@@ -10943,41 +11037,51 @@ func _constrain_network_rime_pad_step(previous: Vector3, proposed: Vector3,
 	if not owner.is_valid() or owner.call() != true or context.get("world_id") != RimeExpeditionType.WORLD_ID:
 		return {}
 	var scene := rime_streaming_bootstrap.get_loaded_instance()
-	var pad := scene.get_node_or_null(^"LandingRegion/WalkablePatch/CollisionShape3D") as CollisionShape3D
+	var region := scene.get_node_or_null(^"LandingRegion") as Node3D
 	var capsule := body.get_node_or_null(^"PlayerCollision") as CollisionShape3D
-	if not is_instance_valid(pad) or not pad.shape is BoxShape3D \
+	if not is_instance_valid(region) \
 			or not is_instance_valid(capsule) or not capsule.shape is CapsuleShape3D:
 		return {}
-	var before := pad.to_local(previous)
-	var after := pad.to_local(proposed)
-	var shape_basis := pad.global_basis.inverse() * capsule.global_basis
+	var before := region.to_local(previous)
+	var after := region.to_local(proposed)
+	var shape_basis := region.global_basis.inverse() * capsule.global_basis
 	var radius := (capsule.shape as CapsuleShape3D).radius * maxf(shape_basis.x.length(), shape_basis.z.length())
-	var half := (pad.shape as BoxShape3D).size * 0.5
-	if absf(before.x) > half.x - radius or absf(before.z) > half.z - radius:
+	var support := context.get("surface_support", {}) as Dictionary
+	if _network_rime_position_supported(body, scene, proposed, support, radius) \
+			or not _network_rime_position_supported(body, scene, previous, support, radius):
 		return {}
 	var normals: Array[Vector3] = []
-	if absf(after.x) > half.x - radius:
-		normals.append(pad.global_basis.x.normalized() * signf(after.x))
+	var x_stopped := Vector3(before.x, after.y, after.z)
+	var z_stopped := Vector3(after.x, after.y, before.z)
+	if _network_rime_position_supported(body, scene, region.to_global(x_stopped), support, radius):
+		normals.append(region.global_basis.x.normalized() * signf(after.x - before.x))
 		after.x = before.x
-	if absf(after.z) > half.z - radius:
-		normals.append(pad.global_basis.z.normalized() * signf(after.z))
+	elif _network_rime_position_supported(body, scene, region.to_global(z_stopped), support, radius):
+		normals.append(region.global_basis.z.normalized() * signf(after.z - before.z))
 		after.z = before.z
-	if normals.is_empty() or not _rime_pad_has_physical_support(pad, before, body) \
-			or not _rime_pad_has_physical_support(pad, after, body) or owner.call() != true:
+	else:
+		normals.append(region.global_basis.x.normalized() * signf(after.x - before.x))
+		normals.append(region.global_basis.z.normalized() * signf(after.z - before.z))
+		after.x = before.x
+		after.z = before.z
+	if owner.call() != true:
 		return {}
 	# The solver's vertical result is untouched. Only the measured unsupported
 	# lateral step and outward velocity are removed, so walking back is usable.
-	return {"blocked": true, "position": pad.to_global(after), "outward_normals": normals}
+	return {"blocked": true, "position": region.to_global(after), "outward_normals": normals}
 
 
-func _network_ember_passenger_on_pad(body: Node3D, scene: Node3D) -> bool:
+func _network_ember_passenger_on_pad(body: Node3D, scene: Node3D, context: Dictionary = {}) -> bool:
 	var collision := scene.get_node_or_null(^"LandingRegion/WalkablePatch/CollisionShape3D") as CollisionShape3D
 	if not is_instance_valid(collision) or not collision.is_inside_tree() or collision.is_queued_for_deletion() \
 			or collision.disabled or not collision.shape is BoxShape3D:
 		return false
 	var local := collision.to_local(body.global_position)
 	if is_instance_valid(rime_streaming_bootstrap) and scene == rime_streaming_bootstrap.get_loaded_instance():
-		return local.y >= -(collision.shape as BoxShape3D).size.y * 0.5 and _rime_pad_has_physical_support(collision, local, body)
+		var support := context.get("surface_support", {}) as Dictionary
+		if context.is_empty():
+			support = _capture_network_rime_surface_support(scene)
+		return _network_rime_position_supported(body, scene, body.global_position, support)
 	var half := (collision.shape as BoxShape3D).size * 0.5
 	if absf(local.x) < half.x and absf(local.z) < half.z and local.y >= -half.y:
 		return true
@@ -11023,7 +11127,7 @@ func _network_client_ember_surface_scene_is_current(craft: HeroShip, epoch: int)
 func _network_client_ember_passenger_surface_is_current() -> bool:
 	if not _network_client_ember_passenger_surface_owner_is_current():
 		return false
-	return _network_ember_passenger_on_pad(player, _network_passenger_surface_bootstrap().get_loaded_instance())
+	return _network_ember_passenger_on_pad(player, _network_passenger_surface_bootstrap().get_loaded_instance(), _network_client_ember_passenger_surface)
 
 
 func _network_client_ember_passenger_surface_owner_is_current() -> bool:
@@ -11051,7 +11155,8 @@ func _network_client_ember_passenger_surface_owner_is_current() -> bool:
 	if context.get("world_id") == RimeExpeditionType.WORLD_ID and (
 		not player.is_inside_tree() or player.is_queued_for_deletion()
 		or int(context.get("session_epoch", -1)) != _network_hud_session_epoch
-		or bootstrap.get_location_generation() != int(context.get("location_generation", -1))):
+		or bootstrap.get_location_generation() != int(context.get("location_generation", -1))
+		or not _network_rime_surface_support_is_current(scene, context.get("surface_support", {}))):
 		return false
 	return is_instance_valid(scene) and scene.get_instance_id() == int(context.scene_id)
 
@@ -13175,6 +13280,7 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 			if world_id == RimeExpeditionType.WORLD_ID:
 				(_network_ember_passenger_surfaces[avatar_id] as Dictionary).merge({
 					"session_epoch": _network_hud_session_epoch, "entity_generation": int(record.entity_generation),
+					"surface_support": _capture_network_rime_surface_support(scene),
 				})
 			var retained := _network_remote_body_simulation.begin_surface_walk(avatar_id,
 				Callable(self, "_network_ember_passenger_surface_is_current").bind(avatar_id, _network_ember_passenger_surfaces[avatar_id]),
@@ -13841,7 +13947,8 @@ func _present_network_client_ember_passenger_departure(craft: HeroShip, area: Sh
 	}
 	if _network_client_ember_passenger_surface.world_id == RimeExpeditionType.WORLD_ID:
 		_network_client_ember_passenger_surface.merge({"session_epoch": _network_hud_session_epoch,
-			"location_generation": _network_passenger_surface_bootstrap().get_location_generation()})
+			"location_generation": _network_passenger_surface_bootstrap().get_location_generation(),
+			"surface_support": _capture_network_rime_surface_support(scene)})
 	_network_client_ember_passenger_retired.clear()
 	if is_instance_valid(area) and area.get_reservation_token() == player:
 		area.release_reservation(player)
@@ -13860,7 +13967,7 @@ func _present_network_client_ember_passenger_departure(craft: HeroShip, area: Sh
 		Callable(self, "_network_client_rime_pad_owner_is_current").bind(_network_client_ember_passenger_surface))
 	hud.set_mode("on-foot")
 	if _network_client_ember_passenger_surface.world_id == RimeExpeditionType.WORLD_ID:
-		hud.set_objective("Stay on Rime’s landing pad and reboard through the hatch; shared ice-core survey and return to Mudds are unavailable")
+		hud.set_objective("Follow the marked icefall trail, then reboard through the hatch; shared ice-core survey and return to Mudds are unavailable")
 	else:
 		hud.set_objective("Optional coastal survey: follow the amber trail, or return through the hatch whenever ready" \
 			if _network_client_ember_passenger_surface.world_id == AuroraExpeditionType.WORLD_ID \
