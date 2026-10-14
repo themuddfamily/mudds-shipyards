@@ -203,7 +203,7 @@ func _run_shared_return() -> void:
 	var port := socket.get_local_port()
 	socket.stop()
 	game.network_discovery_port = 0
-	var hosted := game.host_network_session(port, "127.0.0.1")
+	var hosted := game.host_network_session(port, 2)
 	_check(bool(hosted.get("accepted", false)), "shared return owns a real authoritative host session")
 	var branch := SubViewport.new()
 	root.add_child(branch)
@@ -339,9 +339,45 @@ func _drive_shared_return(game: GameFlow, adapter: Node, craft: HeroShip, home: 
 		_check(not bridge.is_active() and bridge._home_return_context.is_empty() and home.get_occupant() == craft
 			and simulation.get_body(avatar) == body and body.get_instance_id() == body_id,
 			"accepted home docking retires the shared journey without moving or replacing the retained crew")
+		if is_instance_valid(body) and simulation.get_body(avatar) == body:
+			await _shared_home_crew_exit(game, adapter, craft, home, body, avatar)
 	_check_rime_leg(sampler, "shared return and ordinary home docking")
 	_check((game.get("_game_flow_reward_authority") as RefCounted).call(&"get_snapshot") == reward_before and not owner.survey.reward_recorded(),
 		"shared Rime return grants no unsupported survey reward or duplicate reward")
+
+
+func _shared_home_crew_exit(game: GameFlow, adapter: Node, craft: HeroShip, home: ShipBerth,
+		body: PlayerController, avatar: StringName) -> void:
+	var simulation := game.get_network_remote_body_simulation()
+	var frame := craft.get_moving_interior_component() as MovingInteriorFrame
+	var applied_before := int(simulation.get_body_record(avatar).get("intents_applied", 0))
+	var start := body.global_position
+	var walked := await _shared_walk(game, adapter, body, craft.to_global(Vector3(0, 0.52, -3)))
+	var marker := craft.call(&"get_interior_deck_marker") as Marker3D
+	walked = walked and is_instance_valid(marker) and await _shared_walk(game, adapter, body, marker.global_position)
+	_check(walked and is_instance_valid(body) and body.global_position.distance_to(start) > 0.25
+		and int(simulation.get_body_record(avatar).get("intents_applied", 0)) > applied_before
+		and game._network_ember_passenger_at_hatch(body, craft, false),
+		"retained home crew accepts fresh ordinary movement and physically walks to the actual hatch")
+	if not walked or not is_instance_valid(body):
+		return
+	_check(home.get_occupant() == craft and game._ship_owns_exact_occupied_berth(craft, home.get_berth_id()),
+		"ordinary crew exit still owns the exact accepted physical home lease")
+	adapter.send_boarding_intent(_shared_board_request(game, adapter, craft, 4, NetworkBoardingIntent.ACTION_DISEMBARK))
+	var released := await _shared_wait(func(): return not simulation.has_body(avatar), 5.0)
+	print("RIME_HOME_CREW_EXIT: ", adapter.get_boarding_intent_result_replica())
+	var result: Dictionary = adapter.get_boarding_intent_result_replica()
+	var held := false
+	for occupancy: Dictionary in game.network_session.get_boarding_snapshot().get("occupancies", []):
+		held = held or occupancy.get("avatar_id") == avatar
+	var frame_holds := false
+	for occupant: Node3D in frame.get_registered_occupants():
+		frame_holds = frame_holds or NetworkRemoteBodySimulation.get_remote_body_identity(occupant).get("entity_id") == avatar
+	_check(released and bool(result.get("accepted", false)) and result.get("status") == &"disembarked"
+		and not held and not frame_holds and game.network_session.get_movement_avatar_snapshot(avatar).is_empty(),
+		"fresh authenticated home hatch exit releases only its cabin body, seat, frame and old movement stream")
+	# This independent Adapter has no local GameFlow ground avatar. It proves
+	# ordinary owned cabin release, not client-side walking on the yard ground.
 
 
 ## Opt-in long route. The only actor placement is the disclosed initial yard
