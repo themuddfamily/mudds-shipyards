@@ -36,9 +36,16 @@ func _physics_process(delta: float) -> void:
 
 
 func is_available() -> bool:
-	return is_instance_valid(_ship) and not _ship.is_destroyed() \
-		and not _ship.is_piloted() and bool(_ship.get_telemetry().get("landed", false)) \
-		and _motion_remaining <= 0.0
+	if not is_instance_valid(_ship) or _ship.is_destroyed() \
+			or not bool(_ship.get_telemetry().get("landed", false)) or _motion_remaining > 0.0:
+		return false
+	if not _ship.is_piloted():
+		return true
+	# A grounded Halyard's walking crew share this same physical control while
+	# the host retains the helm. Propulsion must remain stopped for that access.
+	return _ship is HalyardCrewTransport \
+		and bool(_ship.get_in_flight_cabin_report().get("supported", false)) \
+		and StringName(_ship.get_telemetry().get("engine_state", &"")) == HeroShip.ENGINE_OFFLINE
 
 
 func get_interaction_prompt() -> String:
