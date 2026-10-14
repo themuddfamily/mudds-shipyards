@@ -528,6 +528,9 @@ func _wait_until(predicate: Callable, seconds: float) -> bool:
 ## Staged feature fixture: one production-streamed world and physical dock.
 ## It exercises authenticated crew observations, not canonical world travel.
 func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client: Adapter, craft: HeroShip, body: PlayerController, filesystem: SurveyFilesystem, store: UserDataStore) -> bool:
+	_coastal_replica.clear()
+	_coastal_sequence = 0
+	_coastal_interaction = 0
 	client.planetary_journey_state_received.connect(_capture_coastal_state)
 	game.set_physics_process(false)
 	var owner := game._aurora_expedition
