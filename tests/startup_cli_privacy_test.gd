@@ -68,6 +68,23 @@ func _run() -> void:
 	_check(not StartupLoaderType.in_world_probe_request(hulk_args, "x11", "Dummy").accepted
 		and not StartupLoaderType.in_world_probe_request(hulk_args, "headless", "PulseAudio").accepted,
 		"hulk refuses active display and audible driver before Main loading")
+	var ember_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=ember"])
+	_check(StartupLoaderType.in_world_probe_request(ember_args, "headless", "Dummy").accepted,
+		"ember interruption admits its supported pilot recovery")
+	for context in ["cabin", "rest", "crew", "engineer"]:
+		var unsupported := ember_args.duplicate()
+		unsupported.append("--in-world-interruption-context=" + context)
+		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
+			"ember refuses unsupported context before Main loading: %s" % context)
+	_check(not StartupLoaderType.in_world_probe_request(ember_args, "x11", "Dummy").accepted
+		and not StartupLoaderType.in_world_probe_request(ember_args, "headless", "PulseAudio").accepted,
+		"ember refuses active display and audible driver before Main loading")
+	for malformed in [
+		PackedStringArray(["--in-world-interruption-activity=ember"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=ember", "--in-world-interruption-activity=ember"]),
+	]:
+		_check(not StartupLoaderType.in_world_probe_request(malformed, "headless", "Dummy").accepted,
+			"Ember refuses a missing stage or duplicate selector before Main loading")
 	var defense_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=stationdefense"])
 	_check(StartupLoaderType.in_world_probe_request(defense_args, "headless", "Dummy").accepted,
 		"station-defense interruption admits only its supported pilot recovery")
@@ -96,7 +113,7 @@ func _run() -> void:
 		"engineer refuses unowned X11 and audible input")
 	_check(not StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy", true).accepted,
 		"private engineer input marker cannot broaden other contexts")
-	for other_activity in ["beacon", "mining", "stationdefense", "scan", "hulk"]:
+	for other_activity in ["beacon", "mining", "stationdefense", "scan", "hulk", "ember"]:
 		var incompatible := engineer_args.duplicate()
 		incompatible.append("--in-world-interruption-activity=" + other_activity)
 		_check(not StartupLoaderType.in_world_probe_request(incompatible, "X11", "Dummy", true).accepted,

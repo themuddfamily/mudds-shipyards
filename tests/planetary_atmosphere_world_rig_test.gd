@@ -3,7 +3,7 @@ extends SceneTree
 const RIG_SCENE := preload(
 	"res://scenes/world/components/planetary_atmosphere_world_rig.tscn"
 )
-const EXPECTED_ASSERTIONS := 40
+const EXPECTED_ASSERTIONS := 41
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -397,6 +397,19 @@ func _test_strict_inputs_and_signal_reentry(
 		and _root_signal_events.size() == duplicate_signals,
 		"exact repeated observation is deterministic and signal-free"
 	)
+	rig.presentation_committed.disconnect(_on_root_presentation_committed)
+	var disconnected_observation := _observation(2_500.0, 3.0)
+	var unobserved := rig.present_observation(disconnected_observation, 1)
+	var unobserved_snapshot := rig.get_snapshot()
+	_check(
+		unobserved.accepted and unobserved.reason == &"observation_presented"
+		and unobserved_snapshot.last_observation.altitude_m == 2_500.0
+		and int(unobserved_snapshot.revision) == int(before_duplicate.revision) + 1
+		and _root_signal_events.size() == duplicate_signals
+		and rig.get_snapshot() == unobserved_snapshot,
+		"unconnected presentation still commits and snapshot reads remain pure",
+	)
+	rig.presentation_committed.connect(_on_root_presentation_committed)
 
 
 func _test_partial_failure_and_exact_retry(

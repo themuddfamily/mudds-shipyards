@@ -96,9 +96,25 @@ func _run() -> void:
 		"the Rime briefing explains the suit heater and where to warm up",
 	)
 	var torpedo := Presenter.ACTIVITY_COPY[&"shipyard_torpedo_run"] as Dictionary
+	# The seeker loses lock when the pilot crosses its path; a fire hit can
+	# destroy it. Protect those counters and their remappable actions, rather
+	# than the older "break hard across its nose" wording.
+	var torpedo_counters_complete := true
+	for family: String in ["controller", "keyboard"]:
+		var prompt := str(torpedo[family])
+		torpedo_counters_complete = torpedo_counters_complete \
+			and prompt.contains("across its path") \
+			and prompt.contains("{pitch_up}") \
+			and prompt.contains("{sprint_boost}") \
+			and prompt.contains("shoot it down") \
+			and prompt.contains("{fire}")
+	var torpedo_accessible := str(torpedo.accessible)
 	_check(
-		str(torpedo.controller).contains("break hard across its nose")
-		and str(torpedo.controller).contains("shoot it down"),
+		torpedo_counters_complete
+		and torpedo_accessible.contains("across its path")
+		and torpedo_accessible.contains("boost")
+		and torpedo_accessible.contains("shoot it down")
+		and torpedo_accessible.contains("fire control"),
 		"the Torpedo Run briefing names both counters",
 	)
 	_check(

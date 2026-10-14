@@ -26,6 +26,27 @@ func _run() -> void:
 	var outside := await _walk_to(player, craft, craft.to_local(craft.get_boarding_position()), 180)
 	_check(bool(outside.reached) and bool(outside.grounded), "normal walking returns down airstair to exterior")
 	_check(not player.is_seated() and not craft.is_piloted(), "hatch use never takes pilot seat")
+	craft.set_piloted(true)
+	_check(hatch.is_available(), "landed Halyard crew can use the hatch while an offline pilot retains the helm")
+	craft.request_engine_start()
+	for _i in int(ceil(craft.engine_start_time * Engine.physics_ticks_per_second)) + 4:
+		await physics_frame
+		await process_frame
+		if craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE:
+			break
+	_check(craft.get_telemetry().engine_state == HeroShip.ENGINE_ONLINE and not hatch.is_available(),
+		"online propulsion refuses the retained-pilot crew hatch")
+	craft.get_local_input_source().notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_IN)
+	Input.action_press(&"move_forward")
+	for _i in 180:
+		await physics_frame
+		await process_frame
+		if not bool(craft.get_telemetry().landed):
+			break
+	Input.action_release(&"move_forward")
+	craft.request_engine_stop(false)
+	_check(not bool(craft.get_telemetry().landed) and not hatch.is_available(),
+		"an airborne Halyard refuses the hatch after propulsion stops")
 	game.queue_free()
 	await process_frame
 	_finish()

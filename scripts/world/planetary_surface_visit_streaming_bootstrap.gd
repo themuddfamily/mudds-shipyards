@@ -219,7 +219,7 @@ func _present_environment(
 		{
 			"coordinate_frame_generation": frame_generation,
 			"location_generation": location_generation,
-			"composition": presented.duplicate(true),
+			"composition": presented,
 		},
 	)
 	_last_atmosphere_result = result.duplicate(true)
@@ -227,7 +227,7 @@ func _present_environment(
 		_present_surface_audio(
 			maxf(0.0, body_local_observer.length() - _body_radius_m())
 		)
-	return result.duplicate(true)
+	return result
 
 
 func _present_surface_audio(altitude: float) -> void:

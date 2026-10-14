@@ -2,6 +2,7 @@ extends SceneTree
 
 const GameFlowScript := preload("res://scripts/game/game_flow.gd")
 const FrameScript := preload("res://scripts/world/planetary_coordinate_frame.gd")
+const ContractScript := preload("res://scripts/world/planetary_save_session_contract.gd")
 const PersistenceScript := preload(
 	"res://scripts/persistence/ember_relay_survey_persistence_binding.gd"
 )
@@ -174,6 +175,41 @@ func _run() -> void:
 			and int((first_store.get_snapshot().foreign as Dictionary).retained) == 91,
 		"the normal GameFlow save boundary atomically stores one detached journey",
 	)
+	var allocation := first_flow._get_ember_cold_visit_recovery_generations()
+	_check(allocation.get("accepted", false) and allocation.generations == {
+		"run_generation": 1, "attachment_generation": 6}
+		and int(first_store.get_generation()) == 2 and first_binding.active_load_calls == 0,
+		"cold allocation validates the existing legacy receipt without consuming it or its store generation")
+	for value: Variant in [1, 1.0, 7, 7.0]:
+		_check(GameFlowScript._ember_cold_recovery_generation_is_valid(value),
+			"cold saved counters preserve integral JSON numeric values")
+	for value: Variant in [null, true, "7", 0, -1, 7.5, NAN, INF, PlanetaryTravelSession.MAX_SAFE_GENERATION]:
+		_check(not GameFlowScript._ember_cold_recovery_generation_is_valid(value),
+			"cold saved counters refuse malformed or exhausted values before integer conversion")
+	# Hash-consistent malformed optional counters reach the actual GameFlow
+	# inspector; typed Session arguments alone would hide coercion defects.
+	for saved_run: Variant in [7.0, "7", 7.5, true, 0, PlanetaryTravelSession.MAX_SAFE_GENERATION]:
+		var payload := first_store.get_snapshot()
+		var record := payload[String(SLOT)] as Dictionary
+		var journey := record.completion as Dictionary
+		journey["optional_progress"] = {"source_run_generation": saved_run,
+			"source_attachment_generation": 6.0}
+		journey["receipt_sha256"] = PlanetaryReturnPersistenceAdapter.new().call("_digest", {
+			"detached_session": journey.detached_session, "route_identity": journey.route_identity,
+			"optional_progress": journey.optional_progress})
+		record["receipt_sha256"] = PersistenceScript.new().call("_digest", journey)
+		var isolated := StoreScript.new("memory://cold-counter-check.json", MemoryFilesystem.new())
+		isolated.load()
+		_check(isolated.commit(payload, 0, "counter-inspection").accepted,
+			"the malformed-counter fixture uses a real atomic store commit")
+		var inspecting_flow := LifecycleFlow.new()
+		inspecting_flow.configure_runtime_settings_persistence(isolated)
+		var inspected := inspecting_flow._get_ember_cold_visit_recovery_generations()
+		_check(inspected.get("accepted", false) == (saved_run is float and saved_run == 7.0),
+			"the actual store inspector accepts integral JSON epochs and refuses hash-consistent malformed sources")
+		_check(isolated.get_generation() == 1,
+			"counter inspection never mutates the persisted receipt")
+		inspecting_flow.free()
 	first_flow.free()
 
 	var second_store = StoreScript.new(STORE_PATH, filesystem)
@@ -184,13 +220,39 @@ func _run() -> void:
 			and bool(second_flow.bind_ember_relay_survey_persistence(second_binding).accepted),
 		"a relaunched Main binds the same production persistence slot",
 	)
-	second_flow.restore_frame = _frame()
+	# A fresh process can use a newer origin and a different local surface basis.
+	# The saved absolute point, rather than its old tangent coordinates, survives.
+	var current_frame: PlanetaryCoordinateFrame = _frame(Vector3.RIGHT)
+	second_flow.restore_frame = current_frame
+	var rebase: Dictionary = current_frame.request_rebase(Vector3(5_000.0, 0, 0), 1)
+	_check(rebase.accepted and current_frame.commit_rebase(int(rebase.request.request_id), 1).accepted,
+		"the fresh recovery frame advances its real origin generation")
+	var saved_boundary := (first_store.get_snapshot()[String(SLOT)] as Dictionary).completion.detached_session as Dictionary
+	var strict_contract := ContractScript.new(&"ember_moon", current_frame)
+	_check(strict_contract.restore_detached_snapshot(saved_boundary, 7, 2).reason == &"surface_checkpoint_generation_mismatch",
+		"direct restore continues to reject the old surface frame generation")
+	var saved_bytes := (filesystem.files[STORE_PATH] as PackedByteArray).duplicate()
 	var admission_restore := second_flow._restore_ember_surface_persistence_for_admission()
 	var recovery := admission_restore.get("recovery", {}) as Dictionary
 	var contract := admission_restore.get("contract", {}) as Dictionary
 	var route := admission_restore.get("route_identity", {}) as Dictionary
 	var authority := admission_restore.get("authority", {}) as Dictionary
 	var checkpoint_resume := admission_restore.get("checkpoint_resume", {}) as Dictionary
+	var restored_checkpoint := contract.get("checkpoint", {}) as Dictionary
+	var current_tangent: Array = restored_checkpoint.get("surface_tangent_meters", [])
+	var restored_position := {"accepted": false}
+	if current_tangent.size() == 3:
+		restored_position = current_frame.surface_tangent_to_body_local(
+			Vector3(current_tangent[0], current_tangent[1], current_tangent[2]), 2)
+	_check(restored_position.accepted and (restored_position.position as Vector3).is_equal_approx(body_local.position as Vector3)
+		and current_tangent != [float(tangent.x), float(tangent.y), float(tangent.z)]
+		and int(contract.frame_generation) == 2 and int(restored_checkpoint.frame_generation) == 2
+		and restored_checkpoint.orbital_coordinate == saved_boundary.checkpoint.orbital_coordinate
+		and int(contract.checkpoint_generation) == int(saved_boundary.checkpoint_generation)
+		and int(contract.physics_tick) == int(saved_boundary.physics_tick)
+		and restored_checkpoint.payload == saved_boundary.checkpoint.payload
+		and filesystem.files[STORE_PATH] == saved_bytes,
+		"passive recovery reexpresses the same absolute checkpoint in the current basis while preserving progress and the original receipt bytes")
 	_check(
 		bool(admission_restore.get("accepted", false))
 			and admission_restore.reason == &"ember_active_journey_passively_adopted"
@@ -225,10 +287,12 @@ func _run() -> void:
 	_check(
 		bool(report.adopted)
 			and bool(report.restore_attempted)
+			and report.restore_status == admission_restore
+			and bool(report.restore_status.checkpoint_resume.get("accepted", false))
 			and int(second_store.get_generation()) == 2
 			and second_store.get_snapshot().has(String(SLOT))
 			and int((second_store.get_snapshot().foreign as Dictionary).retained) == 91,
-		"passive admission exposes its report and retains the slot until activity resumes",
+		"passive admission exposes its complete staging result and retains the slot until activity resumes",
 	)
 	var replay := second_flow._restore_ember_surface_persistence_for_admission()
 	_check(
@@ -269,7 +333,7 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 
-func _frame():
+func _frame(surface_reference: Vector3 = Vector3.BACK):
 	var frame = FrameScript.new()
 	var origin := {
 		"schema_version": FrameScript.COORDINATE_SCHEMA_VERSION,
@@ -281,7 +345,7 @@ func _frame():
 	}
 	var configured: Dictionary = frame.configure(
 		&"ember_moon", 1_000.0, &"nearby_sector", 10_000.0,
-		origin, Vector3.BACK, Vector3.UP, 5_000.0, origin
+		origin, surface_reference, Vector3.UP, 5_000.0, origin
 	)
 	if not bool(configured.accepted):
 		_failures.append("frame fixture failed: %s" % configured)

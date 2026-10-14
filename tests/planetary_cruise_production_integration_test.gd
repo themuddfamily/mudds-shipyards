@@ -4,7 +4,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://planetary-cruise-production-settings.json"
-const EXPECTED_ASSERTIONS := 40
+const EXPECTED_ASSERTIONS := 46
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -142,7 +142,8 @@ func _run() -> void:
 	var engage := game.engage_planetary_cruise()
 	_check(
 		bool(engage.get("accepted", false))
-			and bool(binding.get_snapshot().get("engagement_requested", false)),
+			and bool(binding.get_snapshot().get("engagement_requested", false))
+			and binding.is_engagement_requested(),
 		"public engage binds the exact active HeroShip for the next physics tick",
 	)
 	_check(
@@ -158,6 +159,18 @@ func _run() -> void:
 		"nested controller bind signal cannot disengage the outer atomic engage",
 	)
 	_reentry_receipt.clear()
+	_check(
+		bool(game.disengage_planetary_cruise().get("accepted", false))
+			and not binding.is_engagement_requested()
+			and not bool(binding.get_snapshot().get("engagement_requested", true)),
+		"live engagement read observes public cancellation before a physics tick",
+	)
+	_check(
+		bool(game.engage_planetary_cruise().get("accepted", false))
+			and binding.is_engagement_requested()
+			and int(binding.get_snapshot().get("accepted_tick_count", -1)) == 0,
+		"live engagement read observes a fresh request before a physics tick",
+	)
 	var controller_evaluation_reentry := [{}]
 	controller.evaluation_committed.connect(func(_value: Dictionary) -> void:
 		controller_evaluation_reentry[0] = game.disengage_planetary_cruise()
@@ -276,6 +289,8 @@ func _run() -> void:
 		"an uncommitted required common-origin rebase retires cruise before it can queue a source-frame envelope",
 	)
 	game._physics_process(1.0 / 60.0)
+	await _await_collision_publication(game, ship)
+	game._physics_process(1.0 / 60.0)
 	var rebound := binding.get_snapshot()
 	var rebound_pending := (
 		ship.get_planetary_cruise_attachment_report().get("pending_envelope", {})
@@ -333,6 +348,8 @@ func _run() -> void:
 		"clear lifecycle can request a fresh cruise before a second rebase",
 	)
 	game._physics_process(1.0 / 60.0)
+	await _await_collision_publication(game, ship)
+	game._physics_process(1.0 / 60.0)
 	_check(
 		frame.get_generation() == 3
 			and blocker.global_position.is_equal_approx(
@@ -340,7 +357,7 @@ func _run() -> void:
 			)
 			and binding.get_snapshot().get("last_reason") == &"obstacle_detected"
 			and not bool(binding.get_snapshot().get("engagement_requested", true)),
-		"same-tick translated blocker cannot become a stale-broadphase false clear",
+		"published translated blocker cannot become a stale-broadphase false clear",
 	)
 	blocker.queue_free()
 	await physics_frame
@@ -635,6 +652,34 @@ func _test_post_rebase_streaming_pending_gate() -> void:
 		"a pending accepted Ember load retires cruise before it queues an envelope",
 	)
 	await _cleanup(game)
+
+
+func _await_collision_publication(game: GameFlow, ship: HeroShip) -> void:
+	var binding := game.planetary_cruise_binding
+	var before := ship.get_planetary_cruise_attachment_report()
+	var pose := ship.global_transform
+	var velocity := ship.velocity
+	var generation := binding.get_generation()
+	var accepted_ticks := int(binding.get_snapshot().get("accepted_tick_count", -1))
+	var held := ship._update_planetary_cruise_physics(1.0 / 60.0)
+	_check(ship.get_planetary_cruise_collision_publication_status() == &"pending"
+		and held and ship.global_transform == pose and ship.velocity == velocity
+		and (ship.get_planetary_cruise_attachment_report().pending_envelope as Dictionary).is_empty()
+		and (ship.get_planetary_cruise_attachment_report().pending_clearance_proof as Dictionary).is_empty(),
+		"committed kinematic publication waits without motion or stale proof-bearing intent")
+	for _publication_frame in 3:
+		await physics_frame
+		if ship.get_planetary_cruise_collision_publication_status() != &"pending":
+			break
+	var after := ship.get_planetary_cruise_attachment_report()
+	_check(ship.get_planetary_cruise_collision_publication_status() == &"ready"
+		and binding.get_generation() == generation
+		and int(binding.get_snapshot().get("accepted_tick_count", -2)) == accepted_ticks
+		and bool(binding.get_snapshot().get("engagement_requested", false))
+		and after.controller_instance_id == before.controller_instance_id
+		and after.ship_attachment_generation == before.ship_attachment_generation
+		and ship.global_transform == pose,
+		"actual physics publication retains exact owner and attachment before the fresh proof")
 
 
 func _has_exact_zero_common_authority(audit: Dictionary) -> bool:

@@ -346,6 +346,46 @@ var _remote_jump_pending := false
 ## actual collision movement can replace that cached result safely.
 var _remote_floor_support_rejected := false
 
+## The shared Rime pad owner constrains only unsupported lateral steps. The
+## normal solver continues to own floor contact, jumping and vertical gravity.
+var _rime_pad_guard_token: StringName = &""
+var _rime_pad_guard_owner: Callable
+var _rime_pad_guard_step: Callable
+var _rime_pad_blocked_steps := 0
+
+
+func set_rime_pad_step_guard(token: StringName, owner: Callable, step: Callable) -> void:
+	if token.is_empty() or not owner.is_valid() or not step.is_valid():
+		return
+	_rime_pad_guard_token = token
+	_rime_pad_guard_owner = owner
+	_rime_pad_guard_step = step
+	_rime_pad_blocked_steps = 0
+
+
+func clear_rime_pad_step_guard(token: StringName) -> void:
+	if token != _rime_pad_guard_token:
+		return
+	_rime_pad_guard_token = &""
+	_rime_pad_guard_owner = Callable()
+	_rime_pad_guard_step = Callable()
+
+
+func _constrain_rime_pad_step(previous_position: Vector3, token: StringName) -> void:
+	if token.is_empty() or token != _rime_pad_guard_token:
+		return
+	if not _rime_pad_guard_owner.is_valid() or not _rime_pad_guard_step.is_valid() or _rime_pad_guard_owner.call() != true:
+		clear_rime_pad_step_guard(token)
+		return
+	var result: Dictionary = _rime_pad_guard_step.call(previous_position, global_position)
+	if token != _rime_pad_guard_token or _rime_pad_guard_owner.call() != true \
+			or not result.get("blocked", false):
+		return
+	global_position = result.position
+	for normal: Vector3 in result.outward_normals:
+		velocity -= normal * maxf(0.0, velocity.dot(normal))
+	_rime_pad_blocked_steps += 1
+
 
 func _ready() -> void:
 	# Captured before anything can touch it. Selecting a presentation authority
@@ -394,6 +434,9 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	# Peer release can remove this body before GameFlow's context sweep. The
+	# body lifetime owns this cleanup, including the tree_exiting observation.
+	clear_rime_pad_step_guard(_rime_pad_guard_token)
 	_unbind_viewport_field_of_view_policy()
 
 
@@ -590,6 +633,8 @@ func _get_interior_collision_transform() -> Transform3D:
 
 
 func _move_in_interior_collision_frame(delta: float) -> void:
+	var previous_world_position := global_position
+	var pad_token := _rime_pad_guard_token
 	var collision_transform := _get_interior_collision_transform()
 	var shifted := not collision_transform.is_equal_approx(Transform3D.IDENTITY)
 	if shifted:
@@ -608,6 +653,8 @@ func _move_in_interior_collision_frame(delta: float) -> void:
 		global_transform = carried_transform * global_transform
 		velocity = carried_transform.basis * velocity
 		up_direction = carried_transform.basis * up_direction
+
+	_constrain_rime_pad_step(previous_world_position, pad_token)
 
 
 ## GodotPhysics can overestimate a capsule's downward snap sweep against a
@@ -2822,13 +2869,14 @@ func _camera_relative_direction(input_vector: Vector2) -> Vector3:
 	if camera_forward.is_zero_approx():
 		camera_forward = (-global_basis.z).slide(movement_up).normalized()
 	var camera_right := camera_forward.cross(movement_up).normalized()
-	return (camera_right * input_vector.x + camera_forward * -input_vector.y).normalized()
+	# Preserve stick/action strength after the camera-relative rotation.
+	return (camera_right * input_vector.x + camera_forward * -input_vector.y).limit_length(1.0)
 
 
 func _update_horizontal_velocity(direction: Vector3, sprinting: bool, delta: float) -> void:
 	var speed := sprint_speed if sprinting else walk_speed
 	var movement_up := _get_movement_up_direction()
-	var tangent_direction := direction.slide(movement_up).normalized()
+	var tangent_direction := direction.slide(movement_up).limit_length(1.0)
 	var target_velocity := tangent_direction * speed
 	var up_speed := velocity.dot(movement_up)
 	var horizontal_velocity := velocity - movement_up * up_speed

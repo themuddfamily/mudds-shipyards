@@ -761,6 +761,11 @@ func get_generation() -> int:
 	return _generation
 
 
+## Current request state; callers need no detached diagnostic history to read it.
+func is_engagement_requested() -> bool:
+	return _engagement_requested
+
+
 func get_controller() -> PlanetaryCruisePhysicalController:
 	return _controller
 
@@ -773,7 +778,7 @@ func accept_committed_origin_rebase(
 	var preflight := _mutation_preflight(expected_generation)
 	if not preflight.is_empty():
 		return _result(false, preflight)
-	if not _engagement_requested or not _carry_transit:
+	if not _engagement_requested:
 		return _result(false, &"not_engaged")
 	if receipt.get("reason", &"") != &"rebase_committed" \
 			or not receipt.get("source_generation") is int \
@@ -798,6 +803,38 @@ func accept_committed_origin_rebase(
 		return _result(false, &"origin_receipt_not_current")
 	_mutation_active = true
 	var ship := _resolve_engaged_ship_even_if_detached()
+	if not _carry_transit:
+		# Ordinary cruise retires and rebinds at an adjacent frame change.
+		# Do that at the authenticated commit so its new attachment can hold
+		# collision publication before the next caller tick builds a proof.
+		var identity_reason := _identity_preflight()
+		if identity_reason.is_empty():
+			identity_reason = _validate_engaged_ship(ship)
+		if not identity_reason.is_empty():
+			_mutation_active = false
+			return _result(false, identity_reason)
+		var current := _ensure_current_frame_binding(ship, _bound_frame_generation)
+		if not bool(current.get("accepted", false)):
+			_mutation_active = false
+			return _result(false, StringName(current.get("reason", &"frame_rebind_rejected")))
+		var rebound := _ensure_current_frame_binding(ship, target_generation)
+		if bool(rebound.get("accepted", false)):
+			var attachment := ship.get_planetary_cruise_attachment_report()
+			rebound = ship.retarget_planetary_cruise_coordinate_frame(
+				_controller_instance_id,
+				int(attachment.get("ship_attachment_generation", 0)), target_generation)
+		if not bool(rebound.get("accepted", false)):
+			var reason := StringName(rebound.get("reason", &"frame_rebind_rejected"))
+			var retired := _retire_engagement_guarded(reason, true)
+			_mutation_active = false
+			if bool(retired.get("accepted", false)):
+				_emit_engagement_changed()
+			return _result(false, reason, {"retirement": retired.duplicate(true)})
+		_mutation_active = false
+		return _result(true, &"origin_translation_accepted", {
+			"target_generation": target_generation,
+			"world_translation_delta": delta,
+		})
 	var carried := _controller.rebind_coordinate_frame(
 		ship, target_generation, _controller.get_generation(), delta)
 	if not bool(carried.get("accepted", false)):

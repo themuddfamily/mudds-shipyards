@@ -15,6 +15,14 @@ var _failures := PackedStringArray()
 var _original_time_scale := 1.0
 
 
+class CountingBootstrap:
+	extends EmberMoonStreamingBootstrap
+	var snapshot_reads := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_snapshot()
+
+
 func _init() -> void:
 	call_deferred(&"_run")
 
@@ -22,6 +30,7 @@ func _init() -> void:
 func _run() -> void:
 	_original_time_scale = Engine.time_scale
 	Engine.time_scale = TEST_TIME_SCALE
+	await _test_cold_recovery_generation_allocation()
 	await _test_berth_configuration_requires_empty_lease()
 	await _test_read_only_approach_ready_probe()
 	await _test_shared_composition_and_measured_entry()
@@ -49,6 +58,35 @@ func _run() -> void:
 		await _test_transition_terminal_atomicity(phase, &"queued_surface")
 	Engine.time_scale = _original_time_scale
 	_finish()
+
+
+func _test_cold_recovery_generation_allocation() -> void:
+	var fixture := await _fixture(false, false, false)
+	if fixture.is_empty():
+		return
+	var host := fixture.host as EmberSurfaceLoopHost
+	var rejected := host.bind_dependencies(fixture.bootstrap, fixture.berth, fixture.ship,
+		fixture.player, 1.62, 1, 0, 0, null, null,
+		{"run_generation": 7, "attachment_generation": PlanetaryTravelSession.MAX_SAFE_GENERATION})
+	_check(not rejected.accepted and host.get_generation() == 0
+		and host.get_attachment_generation() == 0 and not host.is_attached(),
+		"the real fresh Host refuses exhausted saved counters without acquiring ownership")
+	var bound := host.bind_dependencies(fixture.bootstrap, fixture.berth, fixture.ship,
+		fixture.player, 1.62, 1, 0, 0, null, null,
+		{"run_generation": 7, "attachment_generation": 1})
+	var started := _start_host(fixture)
+	_check(bound.accepted and started.accepted and host.get_generation() == 7
+		and host.get_attachment_generation() == 2
+		and host.get_travel_session_observation_source().get_attachment_generation() == 2,
+		"the actual cold Host starts the preserved run on a newer real session attachment than saved epoch one")
+	var live_generation := host.get_generation()
+	var replay := host.bind_dependencies(fixture.bootstrap, fixture.berth, fixture.ship,
+		fixture.player, 1.62, 1, live_generation, host.get_attachment_generation(), null, null,
+		{"run_generation": 8, "attachment_generation": 2})
+	_check(not replay.accepted and host.get_generation() == live_generation
+		and host.get_attachment_generation() == 2,
+		"a live real Host cannot reapply cold generation allocation")
+	await _cleanup(fixture)
 
 
 func _test_berth_configuration_requires_empty_lease() -> void:
@@ -402,6 +440,13 @@ func _test_shared_composition_and_measured_entry() -> void:
 			and host.get_snapshot() == return_before_completion,
 		"runtime ownership return is completion-only and state-preserving while the loop runs",
 	)
+	var retained_result_before: Dictionary = early_return.duplicate(true)
+	early_return["approach_entry"]["accepted_measurement"]["reason"] = &"caller_mutated_result"
+	_check(
+		host.get("_last_result") == retained_result_before
+			and host.get_snapshot() == return_before_completion,
+		"caller mutation of a nested operation result leaves retained results and fresh snapshots detached",
+	)
 	_check(
 		host.detach(host.get_generation(), host.get_attachment_generation()).accepted
 			and ship.get_command_source() == original_source
@@ -606,6 +651,14 @@ func _test_committed_origin_receipt_adoption() -> void:
 		replay.reason == &"origin_receipt_generation_mismatch"
 			and host.get_snapshot() == replay_before,
 		"a committed receipt is single-generation evidence and cannot replay",
+	)
+	var published_snapshot := host.get_snapshot()
+	var retained_result_before: Dictionary = (host.get("_last_result") as Dictionary).duplicate(true)
+	(published_snapshot.origin_rebase.last_adopted_receipt.root_roster as Array).clear()
+	published_snapshot["bootstrap"]["coordinate_frame"]["generation"] = -1
+	_check(
+		host.get_snapshot() == replay_before and host.get("_last_result") == retained_result_before,
+		"nested published origin receipt and child report mutation leaves Host and retained results detached",
 	)
 	(receipt.root_roster as Array).clear()
 	_check(
@@ -815,10 +868,12 @@ func _test_normal_public_actor_loop() -> void:
 	)
 	var takeoff_lease_seen := false
 	var completed := false
+	var last_takeoff_tick := {}
 	for _index in 2700:
 		var was_landed := bool(ship.get_telemetry().get("landed", true))
 		var token_before := berth.get_reservation_token(ship)
 		var tick := await _tick(fixture)
+		last_takeoff_tick = tick
 		if was_landed and not token_before.is_empty():
 			takeoff_lease_seen = true
 		if not bool(tick.get("accepted", false)):
@@ -832,6 +887,13 @@ func _test_normal_public_actor_loop() -> void:
 			and berth.get_reservation_token(ship).is_empty(),
 		"real takeoff keeps the berth through landed=true then releases it before orbit completion",
 	)
+	if not completed:
+		print("TAKEOFF_COMPLETION_DIAGNOSTIC: phase=%s terminal=%s reason=%s telemetry=%s" % [
+			host.get_return_status_snapshot().phase_id, host.get_snapshot().terminal_reason,
+			last_takeoff_tick.get("reason", &"budget_exhausted"), ship.get_telemetry(),
+		])
+		await _cleanup(fixture)
+		return
 	var audit := host.audit()
 	var route_snapshot := host.get_snapshot().surface_route as Dictionary
 	_check(
@@ -864,9 +926,16 @@ func _test_normal_public_actor_loop() -> void:
 			)),
 		"completion atomically returns command and gravity ownership while continuously retaining the seated Player reservation",
 	)
+	if not bool(returned.get("accepted", false)) or return_receipt.is_empty():
+		print("OWNERSHIP_RETURN_DIAGNOSTIC: reason=%s phase=%s receipt=%s" % [
+			returned.get("reason", &"missing_result"),
+			host.get_return_status_snapshot().phase_id, return_receipt,
+		])
+		await _cleanup(fixture)
+		return
 	return_receipt["ship_instance_id"] = -1
 	_check(
-		int(((host.get_snapshot().runtime_ownership_return as Dictionary).last_receipt as Dictionary).ship_instance_id)
+		int(((host.get_snapshot().runtime_ownership_return as Dictionary).last_receipt as Dictionary).get("ship_instance_id", 0))
 			== ship.get_instance_id(),
 		"runtime ownership return receipt is deeply detached for a later production owner",
 	)
@@ -880,6 +949,121 @@ func _test_normal_public_actor_loop() -> void:
 		"retired attachment cannot repeat or drop an already returned reservation",
 	)
 	await _cleanup(fixture)
+
+
+## Model bare whole-composition Host/pilot reentry after real physical ASCENT.
+## This fixture has no Main: explicitly perform its exact one-shot seated-pilot
+## lifecycle handoff. It does not cover retaining a live shared network journey;
+## real Main retires that journey when it exits.
+func _check_detached_ascent_queries_and_reentry(fixture: Dictionary) -> void:
+	var host := fixture.host as EmberSurfaceLoopHost
+	var composition := fixture.composition_root as Node
+	var ship := fixture.ship as ArrowReconShip
+	var player := fixture.player as PlayerController
+	var area := fixture.area as ShipBoardingArea
+	var anchor := ship.get_pilot_seat_anchor()
+	var fixture_scope_current: bool = not composition is GameFlow \
+		and composition.is_ancestor_of(host) and composition.is_ancestor_of(ship) \
+		and composition.is_ancestor_of(player) and area.get_ship() == ship \
+		and player.is_seated_at(anchor) and ship.is_piloted() and not ship.is_destroyed() \
+		and area.get_reservation_token() == player
+	_check(fixture_scope_current,
+		"bare shared ASCENT fixture captures the exact settled pilot, ship, area and anchor")
+	if not fixture_scope_current:
+		return
+	var session := host.get_travel_session_observation_source()
+	var parent := composition.get_parent()
+	var source_before := ship.get_command_source()
+	var before := host.get_snapshot()
+	var session_before := session.get_presentation_snapshot() as Dictionary
+	var ship_pose_before := ship.transform
+	var player_pose_before := player.transform
+	var velocity_before := ship.velocity
+	parent.remove_child(composition)
+	await process_frame
+	var detached := host.get_snapshot()
+	var status := host.get_return_status_snapshot()
+	var rejected := host.advance_physics(
+		PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
+		host.get_coordinate_frame_generation(), host.get_location_generation()
+	)
+	for query in [detached, status, rejected]:
+		var actors := query.actor_state as Dictionary
+		var route := query.surface_route as Dictionary
+		_check(
+			actors.ship_position == Vector3.ZERO
+				and actors.player_position == Vector3.ZERO
+				and route.egress_anchor == Vector3.ZERO
+				and route.staging_anchor == Vector3.ZERO,
+			"retained off-tree ASCENT snapshot/status/result use detached spatial fallbacks",
+		)
+	_check(
+		(detached.actor_state.ship_telemetry as Dictionary).is_empty()
+			and not bool(detached.actor_state.player_seated)
+			and not bool(detached.actor_state.player_control_enabled)
+			and (detached.gravity.ship_report as Dictionary).is_empty()
+			and (detached.berth as Dictionary).is_empty()
+			and (detached.bootstrap as Dictionary).is_empty()
+			and not bool(detached.boarding_reserved_for_player),
+		"off-tree ASCENT diagnostic queries do not call retained actor or berth world reports",
+	)
+	_check(
+		not composition.is_inside_tree() and not host.is_inside_tree()
+			and host.is_attached() and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT
+			and not bool(rejected.accepted) and rejected.reason == &"host_detached"
+			and host.get_snapshot() == detached
+			and detached.generation == before.generation
+			and detached.attachment_generation == before.attachment_generation
+			and detached.physics_advance_count == before.physics_advance_count
+			and detached.transition_count == before.transition_count
+			and detached.elapsed_seconds == before.elapsed_seconds
+			and detached.phase_elapsed_seconds == before.phase_elapsed_seconds
+			and session.get_presentation_snapshot() == session_before
+			and ship.get_command_source() == source_before
+			and ship.transform == ship_pose_before and player.transform == player_pose_before
+			and ship.velocity == velocity_before,
+		"off-tree ASCENT queries and rejected advancement preserve live visit authority and clock",
+	)
+	# The detached query assertions above are read-only. This separate lifecycle
+	# step models Main._capture_pilot_reservation_for_reentry after children exit.
+	var detach_generation := area.consume_detached_reservation(player)
+	_check(
+		detach_generation > 0 and area.consume_detached_reservation(player) == 0
+			and not area.is_inside_tree() and area.get_reservation_token() == null
+			and host.get_generation() == int(before.generation)
+			and host.get_attachment_generation() == int(before.attachment_generation),
+		"off-tree seated-pilot lifecycle consumes its real detached claim exactly once",
+	)
+	parent.add_child(composition)
+	# Match Main._restore_pilot_reservation_after_reentry without creating or
+	# changing a token, identity or generation. The area's public API validates
+	# and consumes the real lifecycle ticket while ordinary boarding stays gated.
+	var witness_current: bool = host.get_generation() == int(before.generation) \
+		and host.get_attachment_generation() == int(before.attachment_generation) \
+		and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT \
+		and fixture.ship == ship and fixture.player == player and fixture.area == area \
+		and area.get_ship() == ship and ship.get_pilot_seat_anchor() == anchor \
+		and player.is_seated_at(anchor) and ship.is_piloted() and not ship.is_destroyed()
+	var pilot_restored: bool = witness_current and area.restore_seated_pilot_reservation(
+		player, ship, anchor, detach_generation
+	)
+	_check(
+		pilot_restored and area.get_reservation_token() == player
+			and not area.restore_seated_pilot_reservation(player, ship, anchor, detach_generation),
+		"reentered exact seated pilot restores its real claim once and rejects lifecycle replay",
+	)
+	var reentered := host.get_return_status_snapshot()
+	_check(
+		host.is_attached() and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT
+			and host.get_generation() == int(before.generation)
+			and host.get_attachment_generation() == int(before.attachment_generation)
+			and reentered.actor_state.ship_position == ship.global_position
+			and reentered.actor_state.player_position == player.global_position
+			and int(host.get_snapshot().composition_reentry_count)
+				== int(before.composition_reentry_count) + 1
+			and StringName(host.get_snapshot().terminal_reason).is_empty(),
+		"whole-composition ASCENT reentry restores current presentation and retains the same visit",
+	)
 
 
 func _test_authenticated_focus_builds_collision_corridor() -> void:
@@ -1140,15 +1324,34 @@ func _test_exact_generation_and_loaded_root_freshness() -> void:
 	)
 	await _cleanup(fixture)
 
-	fixture = await _fixture()
+	fixture = await _fixture(true, false, true, ARROW_SCENE, true)
 	if fixture.is_empty():
 		return
 	host = fixture.host as EmberSurfaceLoopHost
-	var bootstrap := fixture.bootstrap as EmberMoonStreamingBootstrap
+	var bootstrap := fixture.bootstrap as CountingBootstrap
 	frame = fixture.frame as PlanetaryCoordinateFrame
+	var original_loaded_id := bootstrap.get_loaded_instance().get_instance_id()
+	var snapshot_reads_before := bootstrap.snapshot_reads
+	var advanced := await _tick(fixture)
+	_check(
+		bool(advanced.get("accepted", false))
+			and bootstrap.snapshot_reads == snapshot_reads_before + 1,
+		"live Host tick builds only its public bootstrap report, without a second full report for dependency scalars",
+	)
+	var diagnostic := advanced.get("bootstrap", {}) as Dictionary
+	_check(
+		bootstrap.get_location_generation() == int(diagnostic.get("location_generation", -1))
+			and int(diagnostic.get("loaded_instance_id", 0)) == original_loaded_id,
+		"focused generation and loaded identity preserve the full bootstrap report's live authority",
+	)
+	(diagnostic.coordinator.generation_by_id as Dictionary)[bootstrap.get_location_id()] = -99
+	_check(bootstrap.get_location_generation() == 1,
+		"mutating the returned full diagnostic cannot change the coordinator generation")
 	var far := _absolute(frame, Vector3(0.0, 300_001.0, 0.0))
 	_check(bootstrap.update_absolute_focus(far, frame.get_generation()).accepted, "loaded root unload advances to N+1")
 	await process_frame
+	_check(bootstrap.get_location_generation() == 2 and bootstrap.get_loaded_instance() == null,
+		"focused bootstrap queries observe the genuine N+1 unload")
 	_check(
 		host.get_phase() == EmberSurfaceLoopHost.Phase.FAILED
 			and host.get_snapshot().terminal_reason == &"loaded_scene_detached",
@@ -1158,6 +1361,9 @@ func _test_exact_generation_and_loaded_root_freshness() -> void:
 	_check(bootstrap.update_absolute_focus(near, frame.get_generation()).accepted, "loaded root reload advances to N+2")
 	await process_frame
 	await process_frame
+	_check(bootstrap.get_location_generation() == 3
+			and bootstrap.get_location_generation() == int(bootstrap.get_snapshot().location_generation),
+		"focused generation observes the genuine N+2 reload with unchanged diagnostic semantics")
 	var replay := host.advance_physics(
 		PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
 		frame.get_generation(), 1
@@ -1494,6 +1700,47 @@ func _test_composition_reentry_preserves_the_live_visit() -> void:
 		"the re-entered Host keeps advancing its own phase (%s)"
 			% advanced.get("reason", &"?"),
 	)
+	if not bool(advanced.get("accepted", false)):
+		await _cleanup(fixture)
+		return
+	var outbound := await _walk_outbound_route(fixture)
+	_check(outbound, "shared re-entry fixture completes its real outbound surface route")
+	if not outbound:
+		await _cleanup(fixture)
+		return
+	var returned_to_craft := await _walk_return_to_boarding(fixture)
+	_check(returned_to_craft, "shared re-entry fixture returns to its real BoardingArea")
+	if not returned_to_craft:
+		await _cleanup(fixture)
+		return
+	var reboard := host.request_reboard(host.get_generation(), host.get_attachment_generation())
+	_check(bool(reboard.get("accepted", false)), "shared re-entry fixture begins public reboarding")
+	if not bool(reboard.get("accepted", false)):
+		await _cleanup(fixture)
+		return
+	var reboarded := await _drive_to_phase(fixture, EmberSurfaceLoopHost.Phase.REBOARDED, 20)
+	_check(reboarded, "shared re-entry fixture completes public reboarding")
+	if not reboarded:
+		await _cleanup(fixture)
+		return
+	var takeoff := host.request_takeoff(host.get_generation(), host.get_attachment_generation())
+	_check(bool(takeoff.get("accepted", false)), "shared re-entry fixture requests public takeoff")
+	if not bool(takeoff.get("accepted", false)):
+		await _cleanup(fixture)
+		return
+	var reached_ascent := await _drive_to_phase(fixture, EmberSurfaceLoopHost.Phase.ASCENT, 2700)
+	_check(reached_ascent, "shared re-entry fixture reaches ASCENT through real actor physics")
+	if not reached_ascent:
+		await _cleanup(fixture)
+		return
+	await _check_detached_ascent_queries_and_reentry(fixture)
+	var restored := await _tick(fixture)
+	_check(
+		bool(restored.get("accepted", false))
+			and host.is_attached() and host.get_phase() == EmberSurfaceLoopHost.Phase.ASCENT,
+		"the re-entered ASCENT Host accepts its next restored physics tick (%s)"
+			% restored.get("reason", &"?"),
+	)
 	await _cleanup(fixture)
 
 
@@ -1750,7 +1997,8 @@ func _fixture(
 	auto_start: bool = true,
 	shared_composition_root: bool = false,
 	bind_now: bool = true,
-	ship_scene: PackedScene = ARROW_SCENE
+	ship_scene: PackedScene = ARROW_SCENE,
+	count_bootstrap_reports: bool = false
 ) -> Dictionary:
 	var world: Node3D
 	var host := EmberSurfaceLoopHost.new()
@@ -1762,7 +2010,8 @@ func _fixture(
 	else:
 		world = host
 		root.add_child(world)
-	var bootstrap := BOOTSTRAP_SCENE.instantiate() as EmberMoonStreamingBootstrap
+	var bootstrap: EmberMoonStreamingBootstrap = CountingBootstrap.new() \
+		if count_bootstrap_reports else BOOTSTRAP_SCENE.instantiate() as EmberMoonStreamingBootstrap
 	bootstrap.name = "EmberMoonStreamingBootstrap"
 	world.add_child(bootstrap)
 	var frame := bootstrap.get_coordinate_frame_for_session()

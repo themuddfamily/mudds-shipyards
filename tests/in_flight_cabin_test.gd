@@ -57,6 +57,7 @@ func _run() -> void:
 	await _test_cabin_containment()
 	await _test_containment_preserves_supported_axes()
 	await _test_frame_relative_seat_transitions()
+	await _test_retained_frame_seat_exit_order()
 	await _test_collision_frame_arrival()
 
 	_test_root.queue_free()
@@ -469,6 +470,114 @@ func _run_seat_transition(bind_to_frame: bool) -> Dictionary:
 	await process_frame
 	await physics_frame
 	return result
+
+
+## A real Player's exit restores ordinary standing priority while its cabin
+## registration is retained. Production's binder must restore frame ordering
+## before the next walking tick; one cruise-sized hull step must never recall it.
+func _test_retained_frame_seat_exit_order() -> void:
+	var jovian := JOVIAN_SCENE.instantiate() as JovianLightFreighter
+	_test_root.add_child(jovian)
+	jovian.global_position = Vector3(600.0, 500.0, 600.0)
+	jovian.set_physics_process(false)
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	_test_root.add_child(player)
+	await process_frame
+	await physics_frame
+	await process_frame
+	player.set_control_enabled(false)
+	player.set_camera_active(false)
+	player.teleport_to(jovian.get_cabin_stand_transform())
+	var flow := GameFlow.new()
+	flow.player = player
+	flow._cabin_ship = jovian
+	flow._bind_cabin_occupancy(jovian)
+	var frame := jovian.get_moving_interior_component() as MovingInteriorFrame
+	var revision := frame.get_occupancy_revision()
+	var body_id := player.get_instance_id()
+	var registration_exits: Array = []
+	frame.occupant_unregistered.connect(func(body: Node3D, exit_velocity: Vector3, reason: StringName) -> void:
+		if body == player:
+			registration_exits.append({"reason": reason, "exit_velocity": exit_velocity,
+				"physics_frame": Engine.get_physics_frames(), "local": jovian.to_local(body.global_position),
+				"inside_live_bounds": frame.contains_world_position(body.global_position),
+				"player_priority": player.process_physics_priority}))
+	var anchor := jovian.get_pilot_seat_anchor()
+	_check(player.begin_boarding(anchor.global_transform, anchor, 0.0, jovian),
+		"retained cabin Player starts an actual seat transition")
+	await player.boarding_completed
+	var completion := {}
+	player.disembarking_completed.connect(func() -> void:
+		completion["standing_priority"] = player.process_physics_priority
+		completion["before_bind"] = player.global_transform
+		flow._bind_cabin_occupancy(jovian)
+		completion["after_bind"] = player.global_transform,
+		CONNECT_ONE_SHOT)
+	_check(player.begin_disembark(jovian.get_cabin_stand_transform(), 0.0, jovian),
+		"retained cabin Player completes its actual frame-relative disembark")
+	await player.disembarking_completed
+	_check(int(completion.standing_priority) < frame.process_physics_priority,
+		"actual disembark completion restores the ordinary priority before cabin handoff")
+	_check(player.process_physics_priority > frame.process_physics_priority,
+		"production cabin handoff restores carry-before-walk ordering immediately")
+	_check(completion.before_bind == completion.after_bind and player.get_instance_id() == body_id
+		and frame.get_occupancy_revision() == revision,
+		"retained cabin handoff preserves the same body, pose and occupancy revision")
+	var initial_local := jovian.to_local(player.global_position)
+	var recalls := int(player.get_cabin_containment_report().recall_count)
+	var before_walk := {
+		"player_world": player.global_transform, "local": initial_local,
+		"floor": player.is_on_floor(), "velocity": player.velocity, "up": player.up_direction,
+		"recall_count": recalls, "player_priority": player.process_physics_priority,
+		"frame_priority": frame.process_physics_priority,
+		"hull_world": jovian.global_transform,
+		"hull_published": PhysicsServer3D.body_get_state(jovian.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM),
+		"to_collision": frame.get_occupant_collision_transform(player),
+		"deck_collision_poses": _cabin_deck_collision_poses(jovian),
+	}
+	player.set_control_enabled(true)
+	Input.action_press(&"move_forward", 0.6)
+	jovian.global_position += -jovian.global_basis.z * 204.0
+	await physics_frame
+	await process_frame
+	Input.action_release(&"move_forward")
+	var local_delta := jovian.to_local(player.global_position) - initial_local
+	var floor := player.is_on_floor()
+	var recalls_after := int(player.get_cabin_containment_report().recall_count)
+	var carried_walk := local_delta.length() < 0.30 and floor and recalls_after == recalls
+	if not carried_walk:
+		print("RETAINED_CABIN_FIRST_WALK_FAILURE: before=", before_walk,
+			" after=", {"local_delta": local_delta, "local_distance": local_delta.length(),
+				"player_world": player.global_transform, "local": jovian.to_local(player.global_position),
+				"floor": floor, "recall_count": recalls_after,
+				"velocity": player.velocity, "up": player.up_direction,
+				"frame_priority": frame.process_physics_priority, "player_priority": player.process_physics_priority,
+				"hull_world": jovian.global_transform,
+				"hull_published": PhysicsServer3D.body_get_state(jovian.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM),
+				"to_collision": frame.get_occupant_collision_transform(player),
+				"frame_status": frame.get_status_report(), "registration_exits": registration_exits,
+				"deck_collision_poses": _cabin_deck_collision_poses(jovian)})
+	_check(carried_walk,
+		"first ordinary walking tick follows one cruise-sized hull step without a floor loss or recall")
+	flow.free()
+	player.queue_free()
+	jovian.queue_free()
+	await process_frame
+	await physics_frame
+
+
+func _cabin_deck_collision_poses(craft: HeroShip) -> Array:
+	var poses: Array = []
+	for collider_name: String in WALKABLE_DECK_COLLIDERS:
+		var shape := craft.get_node_or_null(NodePath(collider_name)) as CollisionShape3D
+		if not is_instance_valid(shape):
+			continue
+		var body := shape.get_parent() as PhysicsBody3D
+		if is_instance_valid(body):
+			poses.append({"shape": collider_name, "shape_world": shape.global_transform,
+				"body_path": craft.get_path_to(body), "body_world": body.global_transform,
+				"body_published": PhysicsServer3D.body_get_state(body.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM)})
+	return poses
 
 
 func _check(condition: bool, description: String) -> void:

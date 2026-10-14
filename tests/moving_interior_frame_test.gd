@@ -97,6 +97,15 @@ func _test_configuration_and_registration() -> void:
 	_check(occupant.platform_floor_layers == original_floor_layers and occupant.platform_wall_layers == original_wall_layers, "exit restores built-in platform masks")
 	_check(occupant.platform_on_leave == original_leave, "exit restores the original platform leave policy")
 	_check(not occupant.has_meta(MovingFrame.OWNER_META), "exit clears exclusive moving-frame ownership")
+	_check(bool(coordinator.register_occupant(occupant).registered), "a standing body may enter again before taking a seat")
+	var seated_priority := frame.process_physics_priority + 1
+	occupant.process_physics_priority = seated_priority
+	var seated_release: Dictionary = coordinator.unregister_occupant(occupant, false)
+	_check(bool(seated_release.released) and occupant.process_physics_priority == seated_priority,
+		"delayed cabin exit preserves physics ordering already taken by the seat owner")
+	_check(not occupant.has_meta(MovingFrame.OWNER_META) and not coordinator.is_occupant_registered(occupant),
+		"seat priority retention still clears frame ownership and registration")
+	occupant.process_physics_priority = original_priority
 
 	var plain_occupant := Node3D.new()
 	plain_occupant.name = "PlainNodeOccupant"
@@ -665,7 +674,41 @@ func _test_volume_provenance_and_handoff() -> void:
 	for _tick in range(3):
 		await physics_frame
 	_check(coordinator.is_occupant_registered(occupant), "reconnecting an Area discovers bodies that already overlap it")
+	occupant.global_position = Vector3(12, 0, 0)
+	for _tick in range(3):
+		await physics_frame
+	_check(not coordinator.is_occupant_registered(occupant), "an automatic-only occupant is released by a real Area exit")
+	occupant.global_position = Vector3.ZERO
+	for _tick in range(3):
+		await physics_frame
+	_check(coordinator.is_occupant_registered(occupant), "an automatic-only occupant can reenter before explicit cabin admission")
+	var before_adoption := _frame_step_snapshot(coordinator, occupant)
+	var admission_revision := coordinator.get_occupancy_revision()
+	var adoption := coordinator.register_occupant(occupant, {
+		"require_inside_bounds": false,
+		"registration_source": &"in_flight_cabin",
+	})
+	_check(adoption["status"] == &"already_registered" \
+		and coordinator.get_occupancy_revision() == admission_revision \
+		and _frame_step_snapshot(coordinator, occupant) == before_adoption,
+		"explicit cabin admission adopts an automatic registration without changing pose, kinematics, or roster revision")
+	occupant.global_position = Vector3(12, 0, 0)
+	for _tick in range(3):
+		await physics_frame
+	_check(coordinator.is_occupant_registered(occupant) \
+		and coordinator.get_occupancy_revision() == admission_revision,
+		"a real Area exit preserves an automatic-first occupant adopted by explicit cabin admission")
+	occupant.global_position = Vector3.ZERO
+	for _tick in range(3):
+		await physics_frame
+	occupant.global_position = Vector3(12, 0, 0)
+	for _tick in range(3):
+		await physics_frame
+	_check(coordinator.is_occupant_registered(occupant) \
+		and coordinator.get_occupancy_revision() == admission_revision,
+		"later Area entry and exit cannot reclaim an explicitly adopted cabin occupant")
 	coordinator.unregister_occupant(occupant, false)
+	_check(not coordinator.is_occupant_registered(occupant), "explicit cabin release still removes the adopted registration")
 	coordinator.set_interior_bounds(AABB(Vector3(-4, 0.5, -4), Vector3(8, 3.5, 8)))
 	occupant.global_position = Vector3(12, 0.2, 0)
 	for _tick in range(2):

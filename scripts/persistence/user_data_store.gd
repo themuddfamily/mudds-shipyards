@@ -205,7 +205,7 @@ func recover_interrupted_transaction() -> Dictionary:
 			or int(staged_commit.parent_generation) != int(authority.generation) \
 			or str(staged_commit.parent_id) != str(authority_commit.id):
 			return _commit_result(false, &"unsafe_transaction_parent")
-	var encoded := JSON.stringify(staged).to_utf8_buffer()
+	var encoded := JSON.stringify(staged, "", true, true).to_utf8_buffer()
 	var moved_primary := false
 	if bool(primary.valid):
 		if bool(backup.valid):
@@ -376,7 +376,10 @@ func commit(payload: Variant, expected_generation: int, commit_id: String) -> Di
 		},
 		"payload": canonical_payload,
 	}
-	var encoded := JSON.stringify(envelope).to_utf8_buffer()
+	# Preserve numeric values on disk, including the JSON-safe integer boundary.
+	# Keep payload_json's existing default-precision checksum representation: old
+	# saves and old readers validate the same digest independently of wire tokens.
+	var encoded := JSON.stringify(envelope, "", true, true).to_utf8_buffer()
 	if encoded.size() > MAX_DOCUMENT_BYTES:
 		return _commit_result(false, &"document_too_large")
 	var intended_parser := JSON.new()

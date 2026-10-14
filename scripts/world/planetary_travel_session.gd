@@ -244,6 +244,22 @@ func is_configuration_valid() -> bool:
 	return _configuration_errors.is_empty()
 
 
+## A cold visit allocates its next attachment beyond the authenticated saved
+## epoch while retaining that visit's run identity. Only an entirely fresh,
+## detached session can initialize these counters; no actor state is adopted.
+func initialize_recovery_generations(saved_run_generation: int, saved_attachment_generation: int) -> Dictionary:
+	if _is_reentrant():
+		return _result(false, &"reentrant_call")
+	if _attached or _started_once or _generation != 0 or _attachment_generation != 0:
+		return _result(false, &"recovery_generations_require_fresh_session")
+	if saved_run_generation < 1 or saved_run_generation >= MAX_SAFE_GENERATION \
+			or saved_attachment_generation < 1 or saved_attachment_generation >= MAX_SAFE_GENERATION:
+		return _result(false, &"recovery_generations_exhausted_or_invalid")
+	_generation = saved_run_generation - 1
+	_attachment_generation = saved_attachment_generation
+	return _result(true, &"recovery_generations_initialized")
+
+
 func attach(
 		world_id: StringName,
 		coordinate_frame: PlanetaryCoordinateFrame,

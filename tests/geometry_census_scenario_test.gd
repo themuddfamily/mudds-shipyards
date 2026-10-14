@@ -463,10 +463,15 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # Actual clean e216b1a Windows PCK measurements retain the two local-skies
 # material contract; only its two historical fingerprint expectations failed.
 # The measured packed fingerprints below close those exact stale expectations.
-const RESIDENT_FINGERPRINT := "6c62b22ddf1a063b6e8ca1ddace6319499cbe2b73c8c8040b6434fd72d0cd0e3"
-const CINDER_LOADED_FINGERPRINT := "07b1da592666ecba0715dc47601ab80fed2f5a4ab649a23e15ac9b8c861ad761"
-const PACKED_RESIDENT_FINGERPRINT := "415793c5332be67ee4449a12bf7f8ec5186c90de17e7adaa7edd3c7fdeae4b20"
-const PACKED_CINDER_LOADED_FINGERPRINT := "b390431723e8dc5856f7a48db0d4c99ac4d7e7db41934a1d6c3b069f05f9ae73"
+# Halyard physical engineer admission adds one Area3D and its discovery shape.
+# Actual source measurements retain every renderer/resource/light count. Packed
+# fingerprints remain a separate package measurement gate.
+const RESIDENT_FINGERPRINT := "a2aa788cf8be7c53e4493f2c4996f6c878bd6ccb70b03b56788d9800dbcbbf11"
+const CINDER_LOADED_FINGERPRINT := "26f31375d3b27d103725e134e7dbdfda1f455afa9b8a0dc2d599522d451e8188"
+# Packed fingerprints measured from the clean b942 Windows export on 2026-10-14;
+# the original 17 passing count/resource checks and two stale-hash failures are retained.
+const PACKED_RESIDENT_FINGERPRINT := "cebed0e029ed88e1e1cab38a8d59d18e1b7fe9454f78d7669a25b18832d6ddff"
+const PACKED_CINDER_LOADED_FINGERPRINT := "aa396b32eabf584c91207c01a2e2e78094ccfacecb661228d04563b1adc84ef2"
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -526,8 +531,8 @@ func _run() -> void:
 		int(resident.get("bound_phase_unique_materials", -1)) == 653
 			and int(resident.get("retained_reachable_unique_materials", -1)) == (1071 if _packed_scene_resources() else 1069)
 			and int(resident.get("lights", -1)) == 327
-			and int(resident.get("nodes", -1)) == 9916,
-		"resident resource roster freezes exact source/export materials, 327 lights, and 9,916 nodes"
+			and int(resident.get("nodes", -1)) == 9918,
+		"resident resource roster freezes exact source/export materials, 327 lights, and 9,918 nodes"
 	)
 	_check(
 		str(resident.get("measurement_fingerprint", "")) == (PACKED_RESIDENT_FINGERPRINT if _packed_scene_resources() else RESIDENT_FINGERPRINT),
@@ -595,8 +600,8 @@ func _run() -> void:
 		int(loaded.get("bound_phase_unique_materials", -1)) == 711
 			and int(loaded.get("retained_reachable_unique_materials", -1)) == (1134 if _packed_scene_resources() else 1132)
 			and int(loaded.get("lights", -1)) == 362
-			and int(loaded.get("nodes", -1)) == 10504,
-		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,504 nodes"
+			and int(loaded.get("nodes", -1)) == 10506,
+		"loaded resource roster freezes exact source/export materials, 362 lights, and 10,506 nodes"
 	)
 	var cinder_bucket := (loaded.get("buckets", {}) as Dictionary).get(
 		"CinderStreamingBootstrap", {}

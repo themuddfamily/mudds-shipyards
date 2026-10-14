@@ -154,6 +154,65 @@ func detach_session(
 	return _result(true, &"detached")
 
 
+## Re-expresses a detached surface checkpoint from its absolute orbital point
+## through the current frame. This returns a passive copy; it neither installs
+## a session nor changes checkpoint progress or the caller's saved receipt.
+func reexpress_detached_surface_checkpoint(
+		candidate: Dictionary, expected_frame_generation: int
+	) -> Dictionary:
+	if not is_configuration_valid():
+		return _result(false, &"invalid_configuration")
+	if _state != STATE_IDLE:
+		return _result(false, &"session_already_started")
+	var decoded := decode_snapshot(candidate)
+	if not bool(decoded.accepted):
+		return _result(false, StringName(decoded.reason))
+	var snapshot := decoded.snapshot as Dictionary
+	if snapshot.get("state") != str(STATE_DETACHED):
+		return _result(false, &"snapshot_not_detached")
+	if snapshot.get("world_id") != str(_world_id):
+		return _result(false, &"world_id_mismatch")
+	var frame_check := _check_current_frame_generation(expected_frame_generation)
+	if not bool(frame_check.accepted):
+		return frame_check
+	var checkpoint := snapshot.get("checkpoint", {}) as Dictionary
+	if checkpoint.get("phase") != str(PHASE_SURFACE):
+		return _result(false, &"surface_checkpoint_required")
+	var coordinate := _decode_orbital_coordinate(checkpoint.get("orbital_coordinate"))
+	if not bool(coordinate.accepted):
+		return _result(false, StringName(coordinate.reason))
+	var body_local := _frame.orbital_to_body_local_position(
+		coordinate.coordinate, expected_frame_generation
+	)
+	if not bool(body_local.accepted):
+		return _result(false, StringName(body_local.reason))
+	var tangent := _frame.body_local_to_surface_tangent(
+		body_local.position, expected_frame_generation
+	)
+	if not bool(tangent.accepted):
+		return _result(false, StringName(tangent.reason))
+	var position := tangent.position as Vector3
+	var checked_body_local := _frame.surface_tangent_to_body_local(position, expected_frame_generation)
+	if not bool(checked_body_local.accepted):
+		return _result(false, StringName(checked_body_local.reason))
+	var checked_orbit := _frame.body_local_to_orbital_position(
+		checked_body_local.position, expected_frame_generation
+	)
+	if not bool(checked_orbit.accepted) \
+			or _encode_orbital_coordinate(checked_orbit.coordinate) \
+				!= _encode_orbital_coordinate(coordinate.coordinate):
+		return _result(false, &"surface_orbital_mismatch")
+	var source_generation := int(checkpoint.frame_generation)
+	checkpoint["surface_tangent_meters"] = [float(position.x), float(position.y), float(position.z)]
+	checkpoint["frame_generation"] = expected_frame_generation
+	snapshot["checkpoint"] = checkpoint
+	snapshot["frame_generation"] = expected_frame_generation
+	return _result(true, &"surface_checkpoint_reexpressed", {
+		"snapshot": snapshot, "source_frame_generation": source_generation,
+		"current_frame_generation": expected_frame_generation,
+	})
+
+
 ## Installs a detached snapshot into a fresh contract. Orbit saves survive a
 ## frame generation change because they carry an absolute coordinate. Surface
 ## saves fail closed until the caller has decoded/re-saved them at the current

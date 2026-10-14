@@ -190,6 +190,8 @@ func get_occupant_volume() -> Area3D:
 ## - `compensate_world_gravity` (false): pre-correct a controller known to add
 ##   world gravity later in the same tick so its net gravity points deck-down.
 ## - `require_inside_bounds`: overrides the component default.
+## - `registration_source`: an explicit non-volume source adopts an existing
+##   automatic registration's lifetime without replacing its simulation state.
 func register_occupant(occupant: Node3D, options: Dictionary = {}) -> Dictionary:
 	var result := _registration_result(occupant)
 	if _tearing_down or is_queued_for_deletion() or not is_inside_tree():
@@ -213,6 +215,21 @@ func register_occupant(occupant: Node3D, options: Dictionary = {}) -> Dictionary
 		result["status"] = &"already_registered"
 		result["registered"] = true
 		result["simulation_authority"] = _can_simulate_occupant(occupant)
+		# A retained cabin occupant can finish a seat transition by restoring its
+		# ordinary standing priority. Reassert our existing schedule before its
+		# next walking tick without replacing the registration or frame history.
+		var retained: Dictionary = _occupants[occupant_id]
+		var requested_source := StringName(options.get("registration_source", &""))
+		if StringName(retained.get("registration_source", &"manual")) == &"volume" \
+			and requested_source != &"" and requested_source != &"volume":
+			# Area admission may precede an explicit cabin bind. That bind owns the
+			# occupant's lifetime even when its capsule later leaves the Area.
+			retained["registration_source"] = requested_source
+			_volume_registered_ids.erase(occupant_id)
+			_pending_volume_occupants.erase(occupant_id)
+		if bool(result["simulation_authority"]) and bool(retained.get("simulation_prepared", false)):
+			_assign_occupant_priority(occupant, retained)
+		_occupants[occupant_id] = retained
 		return result
 
 	var prior_owner_ref: Variant = occupant.get_meta(REGISTRATION_META) \
@@ -495,7 +512,10 @@ func step_frame(delta: float, step_token: int = -1) -> Dictionary:
 		var occupant_delta := current_frame * occupant_previous_frame.affine_inverse()
 		state["previous_frame_transform"] = current_frame
 		if bool(state["simulation_prepared"]) and not authority_changed:
-			_apply_frame_delta(occupant, state, occupant_delta, delta)
+			_apply_frame_delta(
+				occupant, state, occupant_delta,
+				occupant_previous_frame.origin, current_frame.origin, delta
+			)
 			applied_count += 1
 		_occupants[occupant_id] = state
 
@@ -540,6 +560,8 @@ func reset_frame_tracking(
 					occupant,
 					state,
 					current_frame * prior_frame.affine_inverse(),
+					prior_frame.origin,
+					current_frame.origin,
 					0.0
 				)
 		_previous_frame_transform = current_frame
@@ -673,11 +695,15 @@ func _apply_frame_delta(
 		occupant: Node3D,
 		state: Dictionary,
 		frame_delta: Transform3D,
+		previous_frame_origin: Vector3,
+		current_frame_origin: Vector3,
 		delta: float
 	) -> void:
 	var options: Dictionary = state["options"]
 	var original_transform := _node_world_transform(occupant)
-	var transformed_origin := frame_delta * original_transform.origin
+	# Rotate the nearby frame-relative offset before adding the current origin;
+	# composing world translations first loses cabin precision during fast travel.
+	var transformed_origin := current_frame_origin + frame_delta.basis * (original_transform.origin - previous_frame_origin)
 	var transformed_basis := original_transform.basis
 	if bool(options["rotate_basis"]):
 		transformed_basis = frame_delta.basis * transformed_basis
@@ -716,7 +742,10 @@ func _restore_simulation_state(occupant: Node3D, state: Dictionary) -> void:
 	if not bool(state.get("simulation_prepared", false)):
 		return
 	var options: Dictionary = state["options"]
-	if bool(options["manage_physics_priority"]):
+	# A seat may take physics ordering before the volume's deferred exit arrives.
+	# Retire only this registration's assignment; preserve a subsequent owner.
+	if bool(options["manage_physics_priority"]) \
+			and occupant.process_physics_priority == int(state["assigned_priority"]):
 		occupant.process_physics_priority = int(state["original_priority"])
 	if occupant is CharacterBody3D:
 		var body := occupant as CharacterBody3D

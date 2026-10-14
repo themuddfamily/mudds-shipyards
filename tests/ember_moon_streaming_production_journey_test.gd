@@ -3,7 +3,7 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const STORE_PATH := "memory://ember-streaming-production-settings.json"
-const EXPECTED_ASSERTIONS := 35
+const EXPECTED_ASSERTIONS := 37
 
 var _assertions := 0
 var _failures: Array[String] = []
@@ -149,6 +149,29 @@ func _test_composition_and_absolute_observation(
 			and int(absolute.get("cell_z", -1)) == 0
 			and absolute.get("offset_meters") == local_position,
 		"one caller physics sample becomes the exact station-datum absolute coordinate",
+	)
+	var expected_result := result.duplicate(true)
+	var retained_before := binding.get_snapshot()
+	var bootstrap_before := bootstrap.get_snapshot()
+	(result.absolute_coordinate as Dictionary)["cell_z"] = 99
+	(result.streaming as Dictionary).clear()
+	_check(
+		binding.get_snapshot() == retained_before
+		and bootstrap.get_snapshot() == bootstrap_before
+		and binding.physics_tick_from_caller_sample(
+			1.0 / 60.0, _sample(local_position, &"player", 101)
+		) == expected_result,
+		"mutating nested returned receipts cannot alter retained state or the next real tick",
+	)
+	var pristine := binding.get_snapshot()
+	var mutable_snapshot := binding.get_snapshot()
+	((mutable_snapshot.last_tick_result as Dictionary).streaming as Dictionary).clear()
+	(mutable_snapshot.last_streaming_result as Dictionary)["reason"] = &"forged"
+	(mutable_snapshot.last_absolute_coordinate as Dictionary)["cell_z"] = 88
+	_check(
+		binding.get_snapshot() == pristine
+		and (binding.get_snapshot().last_tick_result as Dictionary) == expected_result,
+		"one outer snapshot copy detaches every nested private receipt",
 	)
 	var preview := binding.preview_origin_rebase(1)
 	_check(

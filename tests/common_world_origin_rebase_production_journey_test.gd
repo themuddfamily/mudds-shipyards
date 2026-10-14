@@ -4,7 +4,7 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Layers := preload("res://scripts/core/physics_layers.gd")
 const STORE_PATH := "memory://common-origin-owner-settings.json"
-const EXPECTED_ASSERTIONS := 78
+const EXPECTED_ASSERTIONS := 129
 
 class OwnerSubclassProbe extends CommonWorldOriginRebaseOwner:
 	func _init() -> void:
@@ -65,6 +65,9 @@ func _init() -> void:
 
 func _run() -> void:
 	await _check_aurora_transit_carry()
+	for mutation in [&"body_added", &"body_removed", &"body_reparented", &"body_reentered",
+			&"shape_added", &"shape_replaced", &"shape_moved", &"shape_resized"]:
+		await _check_aurora_transit_carry(mutation)
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates")
 	if game == null: _finish(); return
@@ -384,6 +387,21 @@ func _run() -> void:
 		"Aurora's committed rebase streams Aurora's own world in and leaves Ember's generation and adapter intact"
 	)
 
+
+	# The loaded world's presentation return must remain independent of both
+	# the bootstrap's retained result and the real atmosphere rig.
+	var atmosphere_return := aurora._present_environment(aurora._last_body_local_focus,
+		aurora_frame.get_generation(), int(aurora.get_snapshot().location_generation))
+	var atmosphere_retained := aurora.get_snapshot()
+	var atmosphere_rig := (aurora.get("_atmosphere") as PlanetaryAtmosphereComposition).get_atmosphere_rig()
+	var rig_retained := atmosphere_rig.get_snapshot()
+	var atmosphere_accepted := bool(atmosphere_return.get("accepted", false))
+	(atmosphere_return.get("composition", {}) as Dictionary).clear()
+	atmosphere_return["reason"] = &"forged_by_caller"
+	_check(atmosphere_accepted and aurora.get_snapshot() == atmosphere_retained
+		and atmosphere_rig.get_snapshot() == rig_retained,
+		"mutating a loaded atmosphere return cannot change retained bootstrap or rig presentation")
+
 	# A failed commit must roll back exactly as it does for the first world.
 	player.global_position = aurora.global_position + Vector3(0.0, 150_000.0, 0.0)
 	var aurora_rollback_sample := _sample(player)
@@ -434,7 +452,7 @@ func _run() -> void:
 	_finish()
 
 
-func _check_aurora_transit_carry() -> void:
+func _check_aurora_transit_carry(roster_mutation: StringName = &"") -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	game.configure_runtime_settings_persistence(
 		Store.new("memory://aurora-carry.json", MemoryFilesystem.new()),
@@ -445,6 +463,15 @@ func _check_aurora_transit_carry() -> void:
 	await process_frame
 	game.set_process(false)
 	game.set_physics_process(false)
+	var roster_probe: StaticBody3D
+	var roster_shape: CollisionShape3D
+	if not roster_mutation.is_empty():
+		roster_probe = StaticBody3D.new()
+		roster_probe.name = "CollisionPublicationRosterProbe"
+		roster_shape = CollisionShape3D.new()
+		roster_shape.shape = BoxShape3D.new()
+		roster_probe.add_child(roster_shape)
+		game.add_child(roster_probe)
 	var ship := game.active_ship
 	ship.set_physics_process(false)
 	ship.set_piloted(true)
@@ -468,6 +495,19 @@ func _check_aurora_transit_carry() -> void:
 	var advanced: Dictionary = journey.call(&"advance_aurora_visit", 1.0 / 60.0,
 		game.call(&"_capture_cinder_actor_sample"))
 	var visit: Dictionary = journey.call(&"get_aurora_visit_snapshot")
+	if roster_mutation.is_empty():
+		var pristine_visit := visit.duplicate(true)
+		var mutable_visit: Dictionary = journey.call(&"get_aurora_visit_snapshot")
+		(mutable_visit.last_streaming_result as Dictionary).clear()
+		((mutable_visit.last_origin_result as Dictionary).receipt as Dictionary).clear()
+		(mutable_visit.last_cruise_result as Dictionary)["accepted"] = false
+		(advanced.actor_sample as Dictionary)["position"] = Vector3.INF
+		_check(
+			journey.call(&"get_aurora_visit_snapshot") == pristine_visit
+			and game.call(&"_capture_cinder_actor_sample").position == ship.global_position,
+			"nested returned visit data cannot mutate retained receipts or the live actor sample")
+		# Restore only the caller-owned record for the existing assertion below.
+		advanced.actor_sample = game.call(&"_capture_cinder_actor_sample")
 	var origin := visit.get("last_origin_result", {}) as Dictionary
 	var adoption := origin.get("adoption", {}) as Dictionary
 	var cruise_adoption := adoption.get("cruise", {}) as Dictionary
@@ -477,6 +517,135 @@ func _check_aurora_transit_carry() -> void:
 		and cruise_adoption.get("reason") == &"origin_translation_accepted"
 		and (advanced.get("actor_sample", {}) as Dictionary).get("position") == ship.global_position,
 		"the Aurora caller adopts its real common-origin receipt before the next cruise tick")
+	var owner := game.common_world_origin_rebase_owner
+	var receipt := origin.get("receipt", {}) as Dictionary
+	var controller_id := binding.get_controller().get_instance_id()
+	var attachment := int(ship.get_planetary_cruise_attachment_report().get("ship_attachment_generation", 0))
+	var held_pose := ship.global_transform
+	var held_velocity := ship.velocity
+	var binding_generation := binding.get_generation()
+	_check(ship.get_planetary_cruise_collision_publication_status() == &"pending"
+		and not (PhysicsServer3D.body_get_state(ship.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM)
+			as Transform3D).is_equal_approx(held_pose),
+		"a genuine committed moving kinematic rebase retains an actual unpublished collision pose")
+	if not roster_mutation.is_empty():
+		match roster_mutation:
+			&"body_added":
+				var added_body := StaticBody3D.new()
+				var added_shape := CollisionShape3D.new()
+				added_shape.shape = BoxShape3D.new()
+				added_body.add_child(added_shape)
+				game.add_child(added_body)
+			&"body_removed":
+				game.remove_child(roster_probe)
+			&"body_reparented":
+				roster_probe.reparent(game.get_node(^"ShipyardWorld"), true)
+			&"body_reentered":
+				game.remove_child(roster_probe)
+				game.add_child(roster_probe)
+			&"shape_added":
+				var added_shape := CollisionShape3D.new()
+				added_shape.shape = BoxShape3D.new()
+				roster_probe.add_child(added_shape)
+			&"shape_replaced":
+				roster_shape.shape = BoxShape3D.new()
+			&"shape_moved":
+				roster_shape.position += Vector3.RIGHT
+			&"shape_resized":
+				(roster_shape.shape as BoxShape3D).size += Vector3.ONE
+		var stale := ship.build_planetary_cruise_clearance_proof(Vector3.RIGHT, 1000.0,
+			int(receipt.target_generation), attachment, controller_id)
+		_check(ship.get_planetary_cruise_collision_publication_status()
+			== &"collision_publication_roster_changed"
+			and not bool(stale.get("accepted", true))
+			and stale.get("reason") == &"collision_publication_roster_changed"
+			and not bool(stale.get("clearance_full_hull", true))
+			and int(stale.get("queried_shape_count", -1)) == 0,
+			"%s rejects a changed collision roster before granting any clearance" % roster_mutation)
+		await physics_frame
+		_check(owner.get_collision_publication_status(receipt, ship)
+			== &"collision_publication_roster_changed"
+			and ship.global_transform == held_pose and ship.velocity == held_velocity,
+			"%s cannot publish or move the held hull through the stale barrier" % roster_mutation)
+		if roster_mutation == &"body_removed":
+			roster_probe.free()
+		journey.call(&"retire_aurora_visit")
+		ship.set_piloted(false)
+		game.set("_piloting", false)
+		await _cleanup(game)
+		return
+	# This ordinary HUD setting rebuilds real Control children while the same
+	# production collision transaction is waiting for PhysicsServer publication.
+	game.hud.call(&"set_reticle_style", &"large")
+	var presentation := Node3D.new()
+	game.add_child(presentation)
+	presentation.name = "RenamedCollisionFreePresentation"
+	game.remove_child(presentation)
+	presentation.free()
+	_check(ship.get_planetary_cruise_collision_publication_status() == &"pending",
+		"ordinary HUD rebuild and collision-free node churn preserve the exact pending barrier")
+	var forged := receipt.duplicate(true)
+	forged["transaction_index"] = int(receipt.transaction_index) + 1
+	_check(ship.await_planetary_cruise_collision_publication(owner, forged, controller_id, attachment)
+		== &"collision_publication_not_current"
+		and ship.await_planetary_cruise_collision_publication(owner, receipt, controller_id, attachment)
+		== &"collision_publication_replayed",
+		"forged and replayed transactions cannot renew the publication wait")
+	var waiting_proof := ship.build_planetary_cruise_clearance_proof(Vector3.RIGHT, 1000.0,
+		int(receipt.target_generation), attachment, controller_id)
+	_check(not bool(waiting_proof.get("accepted", true))
+		and waiting_proof.get("reason") == &"collision_publication_pending",
+		"pending collision publication cannot masquerade as an accepted clearance proof")
+	var held_tick := ship._update_planetary_cruise_physics(1.0 / 60.0)
+	var held_report := ship.get_planetary_cruise_attachment_report()
+	_check(held_tick and ship.global_transform == held_pose and ship.velocity == held_velocity
+		and int(held_report.controller_instance_id) == controller_id
+		and int(held_report.ship_attachment_generation) == attachment
+		and (held_report.pending_envelope as Dictionary).is_empty()
+		and (held_report.pending_clearance_proof as Dictionary).is_empty(),
+		"the authentic wait consumes a tick without movement, acceleration, old proof or ownership retirement")
+	for _publication_frame in 3:
+		await physics_frame
+		if ship.get_planetary_cruise_collision_publication_status() != &"pending":
+			break
+	_check(ship.get_planetary_cruise_collision_publication_status() == &"ready"
+		and binding.get_generation() == binding_generation
+		and int(ship.get_planetary_cruise_attachment_report().controller_instance_id) == controller_id
+		and int(ship.get_planetary_cruise_attachment_report().ship_attachment_generation) == attachment
+		and ship.global_transform == held_pose
+		and (PhysicsServer3D.body_get_state(ship.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM)
+			as Transform3D).is_equal_approx(held_pose),
+		"real physics publication releases the wait with the exact hull and controller attachment retained")
+	var blocker := StaticBody3D.new()
+	blocker.collision_layer = ship.collision_mask
+	var blocker_shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(200.0, 200.0, 200.0)
+	blocker_shape.shape = box
+	blocker.add_child(blocker_shape)
+	game.add_child(blocker)
+	blocker.global_position = ship.global_position + Vector3.RIGHT * 250.0
+	blocker.force_update_transform()
+	PhysicsServer3D.body_set_state(blocker.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, blocker.global_transform)
+	var blocked := ship.build_planetary_cruise_clearance_proof(Vector3.RIGHT, 1000.0,
+		int(receipt.target_generation), attachment, controller_id)
+	_check(bool(blocked.get("accepted", false)) and bool(blocked.get("obstacle_detected", false))
+		and float(blocked.get("verified_clearance_meters", INF)) < 250.0,
+		"the released current-generation full hull still detects a genuine live blocker")
+	blocker.queue_free()
+	await physics_frame
+	var fresh := binding.get_controller().evaluate_and_submit(
+		ship.global_position + Vector3.RIGHT * 8_000_000.0, false,
+		int(receipt.target_generation), binding.get_controller().get_generation())
+	_check(bool(fresh.get("accepted", false))
+		and not (ship.get_planetary_cruise_attachment_report().pending_envelope as Dictionary).is_empty(),
+		"publication release resumes only with a fresh current-generation strict proof and envelope")
+	ship._update_planetary_cruise_physics(1.0 / 60.0)
+	ship._update_planetary_cruise_physics(1.0 / 60.0)
+	_check(ship.get_planetary_cruise_collision_publication_status() == &"not_pending"
+		and int(ship.get_planetary_cruise_attachment_report().ship_attachment_generation) > attachment
+		and int(ship.get_planetary_cruise_attachment_report().controller_instance_id) == 0,
+		"ordinary missing-envelope retirement remains strict after publication release")
 	var repeated := binding.accept_committed_origin_rebase(
 		origin.get("receipt", {}) as Dictionary, binding.get_generation())
 	_check(not bool(repeated.get("accepted", false)),
