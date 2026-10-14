@@ -1,5 +1,5 @@
 extends RefCounted
-## Session-owned physical Ember journey and bounded Aurora/Rime arrivals. Absolute
+## Session-owned physical Ember/Aurora journeys and bounded Rime arrivals. Absolute
 ## focus crosses the wire; each machine retains its own local coordinate-frame generation and origin owner.
 ## Clients observe streaming only. Pilot, ship movement and saves stay on host.
 
@@ -29,6 +29,9 @@ var _client_rebases := 0
 var _craft_instance_id := 0
 var _pilot_source_ref: WeakRef
 var _client_observer_admitted := false
+var _home_return_context: Dictionary = {}
+var _home_return_crew: Dictionary = {}
+var _home_approach := false
 
 func _init(flow: Node) -> void:
 	_flow = flow
@@ -281,7 +284,9 @@ func cancel(reason: StringName) -> Dictionary:
 	if is_active() and _flow.network_session.is_server():
 		_flow._planetary_journey.retire_shared_ember_abandon_return(reason)
 		if is_surface_arrival():
-			if _arrival_owner(get_world_id()).state == &"landed" and reason == &"player_cancelled":
+			if get_world_id() == AURORA_WORLD_ID and _arrival_owner(get_world_id()).state == &"landed" and reason == &"player_cancelled":
+				return {"accepted": _arrival_owner(get_world_id()).request(), "reason": &"shared_aurora_return_requested"}
+			if get_world_id() == RIME_WORLD_ID and _arrival_owner(get_world_id()).state == &"landed" and reason == &"player_cancelled":
 				_flow.hud.toast("Shared %s arrival" % _arrival_owner(get_world_id()).profile.display_name, ("Crew can walk Aurora's landing pad and reboard; shared return to Mudds is not available" if get_world_id() == &"aurora_temperate_world" else "Surface exploration and return are not available for this shared arrival"), 3.0)
 				return {"accepted": false, "reason": _arrival_reason(get_world_id(), "return_unavailable")}
 			_arrival_owner(get_world_id()).cancel()
@@ -300,6 +305,9 @@ func cancel(reason: StringName) -> Dictionary:
 		_publish(true)
 	_retire_client_observer()
 	_state.clear()
+	_home_return_context.clear()
+	_home_return_crew.clear()
+	_home_approach = false
 	_ready_peers.clear()
 	_last_ack_origin = -1
 	return {"accepted": true, "reason": reason}
@@ -320,6 +328,9 @@ func detach() -> void:
 	if is_active() and is_instance_valid(_flow.planetary_cruise_binding):
 		_flow.planetary_cruise_binding.request_disengage(_flow.planetary_cruise_binding.get_generation(), true)
 	_state.clear()
+	_home_return_context.clear()
+	_home_return_crew.clear()
+	_home_approach = false
 	_ready_peers.clear()
 	_epoch = 0
 	_last_ack_origin = -1
@@ -377,6 +388,8 @@ func _retire_client_observer() -> void:
 
 func _surface_arrival_host_is_current() -> bool:
 	var craft: HeroShip = _flow.active_ship
+	if _home_approach:
+		return _home_return_actors_are_current()
 	return is_instance_valid(craft) and craft.is_inside_tree() and not craft.is_queued_for_deletion() \
 		and not craft.is_destroyed() and craft.get_instance_id() == _craft_instance_id \
 		and craft.get_ship_id() == _state.get("ship_id") \
@@ -389,6 +402,9 @@ func _surface_arrival_host_is_current() -> bool:
 
 
 func _before_surface_arrival_tick() -> void:
+	if not _home_return_context.is_empty() and not _home_return_actors_are_current():
+		cancel(&"shared_aurora_return_owner_lost")
+		return
 	if not _surface_arrival_host_is_current():
 		cancel(&"pilot_ownership_lost")
 		return
@@ -415,16 +431,40 @@ func _before_surface_arrival_tick() -> void:
 
 
 func _after_surface_arrival_tick() -> void:
-	if not _arrival_owner(get_world_id()).is_active():
+	if not _home_return_context.is_empty() and _arrival_owner(get_world_id()).state == &"landed" \
+			and not bool(_flow._planetary_journey.get_aurora_visit_snapshot().get("return_active", false)):
+		# The existing departure owner can withdraw a return before takeoff.
+		# The same retained pad/body authority must still hold before retrying.
+		if not _home_return_actors_are_current():
+			cancel(&"shared_aurora_return_owner_lost")
+			return
+		_home_return_context.clear()
+		_home_return_crew.clear()
+	if not _home_return_context.is_empty() and not _arrival_owner(get_world_id()).is_active():
+		var visit: Dictionary = _flow._planetary_journey.get_aurora_visit_snapshot()
+		if not bool(visit.get("return_handoff_ready", false)) or not _home_return_actors_are_current():
+			cancel(&"shared_aurora_return_handoff_lost")
+			return
+		# The existing typed shell receipt ended the expedition. Retain the
+		# journey and crew while normal flight/landing owns the last home leg.
+		_home_approach = true
+		if _home_dock_is_current():
+			cancel(&"shared_aurora_home_docked")
+			return
+	if not _home_approach and not _arrival_owner(get_world_id()).is_active():
 		cancel(&"shared_landing_owner_retired")
 		return
 	_ticks += 1
 	var next_phase := StringName(_state.get("phase", &""))
+	if _home_approach:
+		next_phase = &"returning"
 	match _arrival_owner(get_world_id()).state:
 		&"corridor", &"landing":
 			next_phase = &"approaching"
 		&"landed":
 			next_phase = &"landed"
+		&"return_cruise":
+			next_phase = &"returning"
 		&"outbound":
 			if not is_preparing():
 				next_phase = &"cruising" if bool(_flow.planetary_cruise_binding.get_snapshot().get("engagement_requested", false)) else &"cruise_stopped"
@@ -433,3 +473,125 @@ func _after_surface_arrival_tick() -> void:
 		_publish(true)
 	elif _ticks % PUBLICATION_TICKS == 0:
 		_publish(false)
+
+
+## Aurora's supported pad return uses the same visit and pilot authorities.
+## Exterior/unconfirmed crew must physically reboard before takeoff; no grant
+## here creates a body, moves an actor, or bypasses a survey/reward contract.
+func shared_aurora_return_gate_reason() -> StringName:
+	if not is_active() or get_world_id() != AURORA_WORLD_ID or is_preparing() \
+			or not _home_return_context.is_empty():
+		return &"shared_aurora_return_unavailable"
+	if not _surface_arrival_host_is_current() or not _flow._shared_planetary_host_eligible() \
+			or not _flow.player.is_seated_at(_flow.active_ship.get_pilot_seat_anchor()) \
+			or _flow._transition_busy:
+		return &"shared_aurora_return_requires_host_pilot"
+	if not _flow._network_aurora_passenger_host_is_current(_flow.active_ship):
+		return &"shared_aurora_return_requires_current_pad"
+	if not _flow._network_ember_passenger_surfaces.is_empty():
+		return &"shared_aurora_return_requires_reboarded_crew"
+	var home := _flow.world.get_berth_node(_flow.active_ship.get_home_berth_id()) as ShipBerth
+	if not is_instance_valid(home) or not home.is_inside_tree() or home.is_queued_for_deletion():
+		return &"shared_aurora_return_requires_home_berth"
+	var crew := _current_cabin_crew()
+	return &"" if bool(crew.get("accepted", false)) else &"shared_aurora_return_requires_confirmed_crew"
+
+
+func admit_shared_aurora_return() -> void:
+	var craft: HeroShip = _flow.active_ship
+	var owner := _arrival_owner(AURORA_WORLD_ID)
+	var berth := owner.get("_berth") as ShipBerth
+	var home := _flow.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	_home_return_context = {
+		"session_id": _flow.network_session.get_instance_id(),
+		"session_epoch": _flow._network_hud_session_epoch,
+		"journey_epoch": _epoch, "world_id": AURORA_WORLD_ID,
+		"player_id": _flow.player.get_instance_id(),
+		"scene_id": _bootstrap().get_loaded_instance().get_instance_id(),
+		"location_generation": _bootstrap().get_location_generation(),
+		"berth_id": berth.get_instance_id(), "surface_token": owner.get("_surface_token"),
+		"home_id": home.get_instance_id(), "home_berth_id": home.get_berth_id(),
+	}
+	_home_return_crew = _current_cabin_crew().crew
+	_state["phase"] = &"returning"
+	_publish(true)
+
+
+func _current_cabin_crew() -> Dictionary:
+	var craft: HeroShip = _flow.active_ship
+	var frame := craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var simulation: NetworkRemoteBodySimulation = _flow.get_network_remote_body_simulation()
+	if not is_instance_valid(frame) or not is_instance_valid(simulation):
+		return {"accepted": false}
+	var crew: Dictionary = {}
+	for held: Dictionary in _flow.network_session.get_boarding_snapshot().get("occupancies", []):
+		if held.get("ship_id") != get_ship_id() or int(held.get("peer_id", 0)) <= 1:
+			continue
+		var avatar := StringName(held.get("avatar_id", &""))
+		var body := simulation.get_body(avatar) as PlayerController
+		var record := simulation.get_body_record(avatar)
+		if not _flow.network_session.get_admitted_peer_ids().has(int(held.peer_id)) \
+				or held.get("role") != _flow.NETWORK_CABIN_BERTH_ROLE \
+				or not is_instance_valid(body) or not body.is_inside_tree() or body.is_queued_for_deletion() \
+				or not frame.is_occupant_registered(body) or not body.is_cabin_containment_active() \
+				or simulation.is_surface_walking(avatar) \
+				or int(record.get("owner_peer_id", 0)) != int(held.peer_id) \
+				or record.get("frame_id") != StringName("frame_%s" % get_ship_id()):
+			return {"accepted": false}
+		crew[avatar] = {"body_id": body.get_instance_id(), "peer_id": held.peer_id,
+			"entity_generation": record.entity_generation, "seat_id": held.seat_id,
+			"ship_generation": held.ship_generation, "frame_generation": held.frame_generation,
+			"seat_generation": held.seat_generation}
+	for body: Node3D in frame.get_registered_occupants():
+		if NetworkRemoteBodySimulation.is_remote_body(body):
+			var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
+			if not crew.has(identity.get("entity_id")):
+				return {"accepted": false}
+	return {"accepted": true, "crew": crew}
+
+
+func _home_return_actors_are_current() -> bool:
+	var context := _home_return_context
+	var craft: HeroShip = _flow.active_ship
+	if context.is_empty() or not _flow._shared_planetary_host_eligible() \
+			or get_world_id() != context.world_id or _epoch != int(context.journey_epoch) \
+			or _flow.network_session.get_instance_id() != int(context.session_id) \
+			or _flow._network_hud_session_epoch != int(context.session_epoch) \
+			or craft.get_instance_id() != _craft_instance_id or craft.get_ship_id() != get_ship_id() \
+			or _pilot_source_ref == null or not is_instance_valid(_pilot_source_ref.get_ref()) \
+			or craft.get_command_source() != _pilot_source_ref.get_ref() \
+			or _flow.player.get_instance_id() != int(context.player_id) \
+			or not _flow.player.is_seated_at(craft.get_pilot_seat_anchor()):
+		return false
+	var home := _flow.world.get_berth_node(context.home_berth_id) as ShipBerth
+	if not is_instance_valid(home) or home.get_instance_id() != int(context.home_id) \
+			or not home.is_inside_tree() or home.is_queued_for_deletion():
+		return false
+	var crew := _current_cabin_crew()
+	if not bool(crew.get("accepted", false)) or crew.crew != _home_return_crew:
+		return false
+	if not _home_approach and bool(craft.get_telemetry().get("landed", false)):
+		var owner := _arrival_owner(AURORA_WORLD_ID)
+		var berth := owner.get("_berth") as ShipBerth
+		var scene := _bootstrap().get_loaded_instance()
+		return is_instance_valid(berth) and berth.get_instance_id() == int(context.berth_id) \
+			and is_instance_valid(scene) and scene.get_instance_id() == int(context.scene_id) \
+			and owner.get("_surface") == scene and scene.is_ancestor_of(berth) \
+			and _bootstrap().get_location_generation() == int(context.location_generation) \
+			and owner.get("_surface_token") == context.surface_token \
+			and berth.get_reservation_token(craft) == context.surface_token and berth.get_occupant() == craft
+	return true
+
+
+func _home_dock_is_current() -> bool:
+	var craft: HeroShip = _flow.active_ship
+	var handoff: Dictionary = _flow._network_landing_handoffs.get(craft.get_ship_id(), {})
+	# Physical docking alone does not prove the ordinary authoritative landing
+	# published successfully. Only its accepted lifecycle reaches SHUT_DOWN.
+	return _flow.phase == GameFlow.Phase.SHUT_DOWN and _flow._return_registered \
+		and bool(craft.get_telemetry().get("landed", false)) and not craft.is_landing_active() \
+		and craft.get_landing_contract_report().get("phase") == HeroShip.LANDING_PHASE_DOCKED \
+		and _flow._ship_owns_exact_occupied_berth(craft, StringName(_home_return_context.home_berth_id)) \
+		and handoff.get("state") == &"landed" and handoff.get("target_id") == _home_return_context.home_berth_id \
+		and handoff.get("physical_token") == _flow._berth_tokens.get(craft.get_instance_id()) \
+		and int(handoff.get("entity_generation", 0)) == int(_flow._network_landing_entities.get(craft.get_ship_id(), -1))

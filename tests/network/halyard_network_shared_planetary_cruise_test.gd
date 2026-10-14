@@ -4,7 +4,8 @@ extends "res://tests/network/halyard_network_passenger_route_test.gd"
 ## The ordinary matrix runs the same real-peer shared journey harness.
 func _run() -> void:
 	_rime_arrival = "--rime-shared-arrival" in OS.get_cmdline_user_args()
-	_surface_arrival = _rime_arrival or "--aurora-shared-arrival" in OS.get_cmdline_user_args()
+	_home_return = not _rime_arrival and "--aurora-shared-home-return" in OS.get_cmdline_user_args()
+	_surface_arrival = _rime_arrival or _home_return or "--aurora-shared-arrival" in OS.get_cmdline_user_args()
 	_arrival_world_id = &"rime_glacial_world" if _rime_arrival else &"aurora_temperate_world"
 	_shared_cruise = not _surface_arrival
 	await super._run()
@@ -35,7 +36,9 @@ func _orchestrate() -> void:
 		_shared_cruise = false
 	await super._orchestrate()
 	if _failures.is_empty():
-		if _surface_arrival:
+		if _home_return:
+			print("HALYARD_NETWORK_SHARED_AURORA_HOME_RETURN_OK")
+		elif _surface_arrival:
 			print("HALYARD_NETWORK_SHARED_RIME_ARRIVAL_OK" if _rime_arrival else "HALYARD_NETWORK_SHARED_AURORA_ARRIVAL_OK")
 		else:
 			print("HALYARD_NETWORK_SHARED_PLANETARY_CRUISE_TEST_OK")
@@ -45,6 +48,7 @@ func _orchestrate() -> void:
 # its original 2400-second total deadline and every ordinary stage cap. Default
 # invocation still runs the existing two-crew Ember readiness/rebase route.
 var _surface_arrival := false
+var _home_return := false
 var _rime_arrival := false
 var _arrival_world_id: StringName = &"aurora_temperate_world"
 var _arrival_distance := 0.0
@@ -118,6 +122,8 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 		args[script_index + 1] = "res://tests/network/halyard_network_shared_planetary_cruise_test.gd"
 	if _surface_arrival:
 		args.append("--rime-shared-arrival" if _rime_arrival else "--aurora-shared-arrival")
+	if _home_return:
+		args.append("--aurora-shared-home-return")
 	return args
 
 
@@ -235,7 +241,9 @@ func _ember_surface_host() -> void:
 		and _craft.get_command_source() == source and simulation.get_body(avatar).get_instance_id() == body_id
 		and _game._network_moving_interior_server_tick > crew_tick, "cruise/landing preserves exact pilot source and same published real crew body without travel placement")
 	_check(is_equal_approx(float(_craft.get_telemetry().get("hull", 0)), float(_craft.get_telemetry().get("maximum_hull", -1))), "physical shared arrival retains full hull health")
-	_check(not owner.request() and owner.state == &"landed" and owner.capture_interrupted_visit().is_empty(), "partial shared arrival refuses surface return and solo persistence")
+	_check(owner.capture_interrupted_visit().is_empty(), "shared arrival cannot create solo visit persistence")
+	if _rime_arrival:
+		_check(not owner.request() and owner.state == &"landed", "partial Rime arrival refuses unsupported return")
 	_write("host.landed", {})
 	# The existing arrival-support boundary retains its total sixty-second cap.
 	var support_deadline := Time.get_ticks_msec() + 60_000
@@ -250,6 +258,14 @@ func _ember_surface_host() -> void:
 			"ordinary Aurora egress retains same authoritative body grounded outside the cabin")
 		_check(berth.get_occupant() == _craft and _game._piloting and _craft.get_command_source() == source,
 			"crew surface walking preserves actual Aurora lease and existing host helm")
+		var pose := _craft.global_transform
+		var blocked: Dictionary = _game._planetary_journey.begin_aurora_return()
+		_check(not owner.request() and not bool(blocked.get("accepted", true))
+			and blocked.get("reason") == &"shared_aurora_return_requires_reboarded_crew"
+			and owner.state == &"landed" and _craft.global_transform == pose and berth.get_occupant() == _craft,
+			"actual exterior Aurora crew refuses both visible and direct home admission without movement")
+		_check(owner.runtime_state().get("status_text") == "BOARD ALL CREW TO RETURN"
+			and owner.board_action_text() == "BOARD ALL CREW TO RETURN", "visible Aurora return action names the actual crew reboard requirement")
 		_write("host.aurora_terrain_checked", {})
 	if not await _wait_file("client.arrival_supported", maxf(0.0, float(support_deadline - Time.get_ticks_msec()) / 1000.0)):
 		return
@@ -264,10 +280,17 @@ func _ember_surface_host() -> void:
 	_check(await _until(func(): return _game.phase == GameFlow.Phase.IN_FLIGHT_CABIN and not _player.is_seated() \
 		and _player.is_on_floor() and _player.is_control_enabled() and not _game._transition_busy, 8.0), "landed host ordinary Exit restores supported cabin standing")
 	_check(berth.get_occupant() == _craft and _game.get_network_planetary_journey_snapshot().get("phase") == &"landed", "host cabin standing preserves ordinary berth and shared arrival owner")
+	if _home_return:
+		if not await _aurora_home_host(owner, avatar, body_id, source):
+			return
 	_write("host.finish", {})
 	await _wait_file("client.disconnected", 30.0)
 	_game.shutdown_network_session(&"surface_arrival_test_done")
 	_check(not bool(owner.get("_shared_arrival")) and _game.get_network_planetary_journey_snapshot().get("journey_epoch", 0) == 0, "actual session stop retires shared arrival and resets visit flag through ordinary recovery")
+	if _home_return:
+		_check(not _game._network_session_is_live() and not owner.is_active()
+			and _craft.get_command_source() == source and _player.is_on_floor() and _player.is_control_enabled()
+			and not _game._planetary_journey.is_aurora_visit_active(), "home session shutdown hands the same usable pilot and craft back to solo play")
 
 
 func _observe_surface_approach(owner: RefCounted, target: StringName, seconds: float) -> bool:
@@ -354,6 +377,9 @@ func _ember_surface_client() -> void:
 		if not await _aurora_crew_surface_walk(source, body_id, hatch):
 			return
 	_write("client.arrival_supported", {})
+	if _home_return:
+		if not await _aurora_home_client(source, body_id, hatch):
+			return
 	if not await _wait_file("host.finish", 60.0):
 		return
 	_game.shutdown_network_session(&"surface_arrival_test_done")
@@ -436,3 +462,217 @@ func _aurora_surface_refused_request(source: NetworkRemoteBodyIntentSource, seat
 	_check(answered and not bool(answer.get("accepted", true)) and answer.get("status") == expected_status
 		and _game._network_client_ember_passenger_surface_is_current() and source.is_bound()
 		and not _game._network_client_boarding_holds(_craft), "authenticated Aurora refuses %s without granting cabin or retiring body" % expected_status)
+
+
+## Full return is opt-in; the original arrival-only route and all its caps
+## remain intact. These legs use the existing 2400-second overall deadline.
+func _aurora_home_host(owner: RefCounted, avatar: StringName, body_id: int, pilot_source: Object) -> bool:
+	var pilot := _craft.get_pilot_seat_anchor()
+	await _walk(Vector3(0.0, 0.52, -9.2))
+	await _walk(_craft.to_local(pilot.global_position) + Vector3(-0.6, 0.0, 0.6))
+	await _look(pilot.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return _game._piloting and _player.is_seated_at(pilot)
+		and not _game._transition_busy, 12.0), "ordinary host cabin re-seat restores return pilot")
+	if not _game._piloting or not await _wait_file("client.return_seated", 20.0):
+		return false
+	var pose := _craft.global_transform
+	var velocity := _craft.velocity
+	var berth := owner.get("_berth") as ShipBerth
+	var token := StringName(owner.get("_surface_token"))
+	# A stale real lease cannot authorize a return even with seated crew.
+	owner.set("_surface_token", &"retired_aurora_lease")
+	var refused: Dictionary = _game._planetary_journey.begin_aurora_return()
+	owner.set("_surface_token", token)
+	_check(not bool(refused.get("accepted", true)) and owner.state == &"landed"
+		and _craft.global_transform == pose and berth.get_reservation_token(_craft) == token,
+		"stale Aurora berth grant refuses direct home return without changing actors")
+	_game.hud.open_planetary_destination_board()
+	var button := _game.hud.find_child("PlanetaryDestinationAction_aurora_temperate_world", true, false) as Button
+	_check(button != null and not button.disabled, "current reboarded seated crew enables ordinary Aurora return row")
+	if button == null or button.disabled:
+		return false
+	button.pressed.emit()
+	_check(owner.state == &"return_cruise" and _craft.global_transform == pose and _craft.velocity == velocity
+		and berth.get_occupant() == _craft and berth.get_reservation_token(_craft) == token,
+		"ordinary return admission retains exact physical pose and occupied surface lease")
+	if owner.state != &"return_cruise":
+		return false
+	var sampler := SharedHomeSampler.new()
+	sampler.game = _game
+	sampler.avatar = avatar
+	sampler.body_id = body_id
+	sampler.pilot_source = pilot_source
+	_game.add_child(sampler)
+	_write("host.return_started", {})
+	var pad_basis := _craft.global_basis
+	var climb := (pad_basis.y * 0.85 - pad_basis.z * 0.5).normalized()
+	var height := 0.0
+	Input.action_press(&"move_forward")
+	for _tick in 1800:
+		var local := _craft.global_basis.inverse() * climb
+		_home_signed_action(&"move_right", &"move_left", atan2(local.x, -local.z) * 3.0)
+		_home_signed_action(&"pitch_up", &"pitch_down", atan2(local.y, Vector2(local.x, local.z).length()) * 3.0)
+		await _ticks(1)
+		height = (_craft.global_position - (owner.call("_landing_region_origin") as Vector3)).dot(pad_basis.y)
+		if height >= 1200.0:
+			break
+	_home_release_controls()
+	_check(height >= 1200.0 and not bool(_craft.get_telemetry().get("landed", true))
+		and not is_instance_valid(owner.get("_berth")), "ordinary host pitch/thrust physically clears Aurora and releases its lease")
+	var handed_back := await _until(func(): return not owner.is_active(), minf(700.0, _ember_surface_seconds_remaining()))
+	var visit := _game._planetary_journey.get_aurora_visit_snapshot()
+	_check(handed_back and bool(visit.get("return_handoff_ready", false))
+		and not bool(visit.get("active", true)) and _game.phase == GameFlow.Phase.FREE_FLIGHT
+		and _game.get_network_planetary_journey_snapshot().get("phase") == &"returning"
+		and not is_instance_valid(_game.aurora_streaming_bootstrap.get_loaded_instance()),
+		"typed Mudds shell handoff ends Aurora lane while retaining shared return and real cabin crew")
+	_write("host.home_handoff", {})
+	var docked := handed_back and await _aurora_home_dock()
+	await _ticks(2)
+	_check(docked and not _game._network_planetary_journey.is_active()
+		and _game.get_network_remote_body_simulation().get_body(avatar).get_instance_id() == body_id
+		and sampler.failures == 0 and sampler.max_ship_step < 335.0 and sampler.max_body_step < 335.0
+		and _game.phase == GameFlow.Phase.SHUT_DOWN and _game._return_registered
+		and sampler.rebases > 1100 and sampler.distance > 11_800_000.0
+		and _craft.get_command_source() == pilot_source and int(owner.get_visit_snapshot().get("staging_events", -1)) == 0,
+		"physical canonical home flight/dock retains exact crew body and helm across every sampled tick without placements")
+	sampler.queue_free()
+	if not docked:
+		return false
+	_write("host.home_docked", {})
+	if not await _wait_file("client.home_walked", 30.0):
+		return false
+	await _press(&"interact")
+	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor()
+		and _player.is_control_enabled() and not _game._transition_busy, 12.0), "ordinary home pilot exit restores supported controls")
+	return _failures.is_empty()
+
+
+func _aurora_home_client(source: NetworkRemoteBodyIntentSource, body_id: int, hatch: ShipCabinHatch) -> bool:
+	await _walk(_craft.to_local(_station_contract().entry_transform.origin))
+	await _look(_station_anchor().global_position + Vector3.UP * 1.2)
+	await _press(&"interact")
+	_check(await _until(func(): return _player.is_seated_at(_station_anchor()) and not _game._transition_busy, 8.0),
+		"reboarded crew keeps supported passenger chair through physical home return")
+	_write("client.return_seated", {})
+	if not await _wait_file("host.return_started", 20.0) \
+			or not await _wait_file("host.home_handoff", minf(700.0, _ember_surface_seconds_remaining())) \
+			or not await _wait_file("host.home_docked", minf(700.0, _ember_surface_seconds_remaining())):
+		return false
+	_check(await _until(func(): return not _game._network_planetary_journey.is_active(), 12.0)
+		and _player.get_instance_id() == body_id and source == _game.get_network_remote_body_intent_source()
+		and source.is_bound() and _player.is_seated_at(_station_anchor()),
+		"successful home retirement retains the client's same seated body and predictor without recall")
+	await _press(&"interact")
+	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and not _game._transition_busy, 8.0),
+		"home passenger chair stand restores supported cabin walking")
+	await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
+	await _look(hatch.global_position)
+	await _press(&"interact")
+	_check(await _until(func(): return not _game._network_client_boarding_holds(_craft)
+		and _player.is_on_floor() and _player.is_control_enabled() and not _game._transition_busy, 12.0)
+		and _player.get_instance_id() == body_id, "ordinary Mudds hatch disembark retains supported client body")
+	var start := _player.global_position
+	Input.action_press(&"move_right")
+	await _ticks(20)
+	Input.action_release(&"move_right")
+	_check(_player.is_on_floor() and _player.is_control_enabled()
+		and _player.global_position.distance_to(start) > 0.25, "returned crew physically walks on the home apron")
+	_write("client.home_walked", {})
+	return _failures.is_empty()
+
+
+func _aurora_home_dock() -> bool:
+	var home := _game.world.get_berth_node(_craft.get_home_berth_id()) as ShipBerth
+	var approach_leg := 0
+	var requested := false
+	var deadline := Time.get_ticks_msec() + int(minf(700.0, _ember_surface_seconds_remaining()) * 1000.0)
+	while Time.get_ticks_msec() < deadline and not _craft.is_destroyed():
+		_home_release_controls()
+		var report := _game._get_active_landing_assist_report()
+		if not requested and report.get("selected_berth_id") == home.get_berth_id() \
+				and bool(report.get("assist_capture_accepted", false)):
+			Input.action_press(&"landing_assist")
+			requested = true
+		elif not requested:
+			var waypoint := home.get_dock_transform() * Vector3(0.0, 120.0, -200.0) \
+				if approach_leg == 0 else home.get_assist_capture_transform().origin
+			var offset := waypoint - _craft.global_position
+			if approach_leg == 0 and offset.length() < 12.0 and _craft.velocity.length() < 10.0:
+				approach_leg = 1
+			var local := _craft.global_basis.inverse() * offset.normalized()
+			var yaw := atan2(local.x, -local.z)
+			var pitch := atan2(local.y, Vector2(local.x, local.z).length())
+			_home_signed_action(&"move_right", &"move_left", yaw * 3.0)
+			_home_signed_action(&"pitch_up", &"pitch_down", pitch * 3.0)
+			var up := home.global_basis.y.normalized()
+			_home_signed_action(&"roll_right", &"roll_left", atan2(up.dot(_craft.global_basis.x), up.dot(_craft.global_basis.y)) * 3.0)
+			var speed := minf(_craft.maximum_speed * 0.9, sqrt(maxf(0.0, offset.length() - 5.0) * _craft.brake_acceleration) * 0.6)
+			Input.action_press(&"move_forward" if absf(yaw) < 0.08 and absf(pitch) < 0.08 \
+				and _craft.velocity.length() < speed else &"brake")
+		await _ticks(1)
+		if bool(_craft.get_telemetry().get("landed", false)) and not _craft.is_landing_active() and home.get_occupant() == _craft:
+			_home_release_controls()
+			if _game.phase == GameFlow.Phase.SHUT_DOWN and _game._return_registered:
+				return _game._ship_owns_exact_occupied_berth(_craft, home.get_berth_id())
+		if requested and not _craft.is_landing_active() and not bool(_craft.get_telemetry().get("landed", false)):
+			requested = false
+	_home_release_controls()
+	return false
+
+
+func _home_signed_action(positive: StringName, negative: StringName, strength: float) -> void:
+	Input.action_release(positive)
+	Input.action_release(negative)
+	if absf(strength) > 0.005:
+		Input.action_press(positive if strength > 0.0 else negative, minf(absf(strength), 1.0))
+
+
+func _home_release_controls() -> void:
+	for action in [&"move_forward", &"move_left", &"move_right", &"pitch_up", &"pitch_down", &"roll_left", &"roll_right", &"brake", &"landing_assist"]:
+		Input.action_release(action)
+
+
+class SharedHomeSampler extends Node:
+	var game: GameFlow
+	var avatar: StringName
+	var body_id: int
+	var pilot_source: Object
+	var failures := 0
+	var rebases := 0
+	var distance := 0.0
+	var max_ship_step := 0.0
+	var max_body_step := 0.0
+	var _ship_position := Vector3.INF
+	var _body_position := Vector3.INF
+	var _translation := Vector3.ZERO
+
+	func _ready() -> void:
+		process_physics_priority = 1000
+		game.common_world_origin_rebase_owner.rebase_committed.connect(_on_rebase)
+
+	func _exit_tree() -> void:
+		game.common_world_origin_rebase_owner.rebase_committed.disconnect(_on_rebase)
+
+	func _on_rebase(receipt: Dictionary) -> void:
+		_translation += receipt.get("world_translation_delta", Vector3.ZERO) as Vector3
+		rebases += 1
+
+	func _physics_process(_delta: float) -> void:
+		var craft := game.active_ship
+		var body := game.get_network_remote_body_simulation().get_body(avatar) as PlayerController
+		if not is_instance_valid(body) or body.get_instance_id() != body_id:
+			failures += 1
+			return
+		if _ship_position.is_finite():
+			var step := craft.global_position.distance_to(_ship_position + _translation)
+			distance += step
+			max_ship_step = maxf(max_ship_step, step)
+			max_body_step = maxf(max_body_step, body.global_position.distance_to(_body_position + _translation))
+		_ship_position = craft.global_position
+		_body_position = body.global_position
+		_translation = Vector3.ZERO
+		failures += int(craft.is_destroyed() or not craft.is_piloted()
+			or craft.get_command_source() != pilot_source or not game.player.is_seated_at(craft.get_pilot_seat_anchor())
+			or not body.is_cabin_containment_active())
