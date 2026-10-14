@@ -2097,6 +2097,7 @@ func _consume_mudds_return_approach_completion(receipt: Dictionary) -> Dictionar
 		_ember_abandon_return_active = false
 		_planetary_return_physical_arrival_required = false
 		_flow._sortie_departed_berth = true
+		_flow.phase = _flow.Phase.RETURN_TO_YARD
 		if is_instance_valid(_flow.hud):
 			_flow.hud.set_objective(
 				"Re-align with a compatible registered berth and land",
