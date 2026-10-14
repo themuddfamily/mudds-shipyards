@@ -5,6 +5,8 @@ const GameFlow := preload("res://scripts/game/game_flow.gd")
 const Ship := preload("res://scripts/ships/hero_ship.gd")
 const ShipDefinition := preload("res://assets/ships/torrent_provisional.tres")
 const Berth := preload("res://scripts/world/ship_berth.gd")
+const MainScene := preload("res://scenes/main.tscn")
+const BoardingIntent := preload("res://scripts/network/network_boarding_intent.gd")
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -16,6 +18,15 @@ class LandingAdapterProbe extends Adapter:
 	var fail_landed_publication := false
 	var fail_flying_publication := false
 	var abort_call_count := 0
+	var landed_publication_failures := 0
+	var landed_publication_successes := 0
+	var journey_retirements := 0
+
+	func publish_planetary_journey_state(state: Dictionary, reliable: bool = false, recipient: int = 0) -> Dictionary:
+		var result := super.publish_planetary_journey_state(state, reliable, recipient)
+		if state.get("phase") == &"retired" and bool(result.get("accepted", false)):
+			journey_retirements += 1
+		return result
 
 	func release_server_landing(
 		entity_id: StringName,
@@ -45,12 +56,16 @@ class LandingAdapterProbe extends Adapter:
 		server_tick: int = 0,
 	) -> Dictionary:
 		if fail_landed_publication and state == &"landed":
+			landed_publication_failures += 1
 			return {"accepted": false, "status": &"injected_landed_publication_failure"}
 		if fail_flying_publication and state == &"flying":
 			return {"accepted": false, "status": &"injected_flying_publication_failure"}
-		return super.publish_landing_snapshot(
+		var result := super.publish_landing_snapshot(
 			entity_id, entity_generation, position, state, recipients, server_tick
 		)
+		if state == &"landed" and bool(result.get("accepted", false)):
+			landed_publication_successes += 1
+		return result
 
 
 class LandingFlowProbe extends GameFlow:
@@ -261,6 +276,7 @@ func _run() -> void:
 	bomber.queue_free()
 	world.queue_free()
 	await process_frame
+	await _shared_aurora_home_publication_retry()
 	if _failures.is_empty():
 		print("OK: GameFlow landing network integration (%d assertions)" % _assertions)
 		quit(0)
@@ -274,3 +290,155 @@ func _check(condition: bool, description: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + description)
+
+
+## Bounded home-handoff setup only. This fixture does not fly to Aurora or
+## manufacture a travel receipt. The real host pilot, confirmed cabin crew,
+## physical berth assist, publication failure and retry owners run at Mudds.
+func _shared_aurora_home_publication_retry() -> void:
+	var game := MainScene.instantiate() as GameFlow
+	root.add_child(game)
+	set_multiplayer(SceneMultiplayer.new(), game.get_path())
+	await process_frame
+	await physics_frame
+	game.start_shift()
+	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	var home := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	game._release_ship_berth(craft)
+	craft.global_transform = home.get_assist_capture_transform()
+	craft.velocity = Vector3.ZERO
+	game.player.teleport_to(Transform3D(craft.global_basis.orthonormalized(), craft.get_boarding_position()))
+	game._board_ship(craft)
+	var piloting := await _wait_until(func(): return game._piloting and game.player.is_seated_at(craft.get_pilot_seat_anchor())
+		and not game._transition_busy, 12.0)
+	_check(piloting, "bounded home retry uses the actual Halyard host pilot")
+	if not piloting:
+		game.queue_free()
+		await process_frame
+		return
+	game._retire_network_session(&"home_retry_probe")
+	await process_frame
+	var server := LandingAdapterProbe.new()
+	server.name = GameFlow.NETWORK_SESSION_NODE_NAME
+	game.add_child(server)
+	game.network_session = server
+	for binding: Array in game._network_session_signal_bindings():
+		game._connect_signal_once(server, StringName(binding[0]), binding[1] as Callable)
+	game._attach_network_halyard_command_bridge()
+	game._attach_network_ship_authority_composition()
+	var port_probe := UDPServer.new()
+	var port_ready := port_probe.listen(0, "127.0.0.1") == OK
+	var port := port_probe.get_local_port() if port_ready else 0
+	port_probe.stop()
+	game._ensure_lan_discovery().discovery_port = 0
+	_check(port_ready and bool(game.host_network_session(port, 2).get("accepted", false)), "bounded retry opens the real authoritative host session")
+	var branch := SubViewport.new()
+	root.add_child(branch)
+	set_multiplayer(SceneMultiplayer.new(), branch.get_path())
+	var client := Adapter.new()
+	branch.add_child(client)
+	client.join("127.0.0.1", port)
+	var admitted := await _wait_until(func(): return not client.get_server_offer().is_empty(), 10.0)
+	_check(admitted, "bounded retry admits a real independent crew adapter")
+	var peer := client.multiplayer.get_unique_id()
+	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
+	var ship_id := craft.get_ship_id()
+	game._ensure_network_boarding_ship_registered(craft)
+	var request := BoardingIntent.create(peer, avatar, ship_id, 1, StringName("frame_%s" % ship_id), 1,
+		GameFlow.network_cabin_berth_seat_id(ship_id, 1), 1, GameFlow.NETWORK_CABIN_BERTH_ROLE,
+		1, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
+	_check(bool(client.send_boarding_intent(request).get("accepted", false)), "crew uses the real authenticated cabin boarding ledger")
+	var boarded := await _wait_until(func(): return game.get_network_remote_body_simulation() != null
+		and game.get_network_remote_body_simulation().has_body(avatar), 12.0)
+	_check(boarded, "confirmed cabin occupancy owns a real retained crew body")
+	if not boarded:
+		client.shutdown()
+		game.shutdown_network_session(&"test_failed")
+		branch.queue_free()
+		game.queue_free()
+		await process_frame
+		return
+	var simulation := game.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	var frame := craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	var bridge := game._network_planetary_journey
+	bridge._epoch = 1
+	bridge._craft_instance_id = craft.get_instance_id()
+	bridge._pilot_source_ref = weakref(craft.get_command_source())
+	bridge._state = {"journey_epoch": 1, "world_id": &"aurora_temperate_world", "ship_id": ship_id, "phase": &"returning"}
+	bridge._home_return_context = {"session_id": server.get_instance_id(), "session_epoch": game._network_hud_session_epoch,
+		"journey_epoch": 1, "world_id": &"aurora_temperate_world", "player_id": game.player.get_instance_id(),
+		"home_id": home.get_instance_id(), "home_berth_id": home.get_berth_id()}
+	bridge._home_return_crew = bridge._current_cabin_crew().crew
+	bridge._home_approach = true
+	game._planetary_journey._aurora_return_handoff_ready = true
+	game._sortie_departed_berth = true
+	game._return_registered = false
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	server.fail_landed_publication = true
+	game._try_request_landing()
+	_check(craft.is_landing_active() and game._landing_request_active, "ordinary home assist owns a real pending physical and network landing")
+	var docked := await _wait_until(func(): return not craft.is_landing_active() and home.get_occupant() == craft
+		and server.landed_publication_failures > 0, 12.0)
+	_check(docked and craft.get_landing_contract_report().get("phase") == HeroShip.LANDING_PHASE_DOCKED,
+		"real home docking reaches occupied DOCKED despite injected landed publication rejection")
+	game.set_physics_process(false)
+	var ship_pose := craft.global_transform
+	var pilot_pose := game.player.global_transform
+	var body_pose := body.global_transform
+	var body_parent := body.get_parent()
+	var crew := bridge._home_return_crew.duplicate(true)
+	var context := bridge._home_return_context.duplicate(true)
+	var token := home.get_reservation_token(craft)
+	_check(game._landing_request_active and game._active_landing_berth_id == home.get_berth_id()
+		and not game._return_registered and game.phase == GameFlow.Phase.FREE_FLIGHT,
+		"failed local landed publication retains ordinary completion intent for retry")
+	bridge.after_world_tick()
+	_check(bridge.is_active() and server.journey_retirements == 0 and bridge._home_return_crew == crew
+		and bridge._home_return_context == context and home.get_reservation_token(craft) == token
+		and simulation.get_body(avatar) == body and body.get_parent() == body_parent
+		and frame.is_occupant_registered(body) and craft.global_transform == ship_pose
+		and game.player.global_transform == pilot_pose and body.global_transform == body_pose,
+		"publication rejection retains journey, exact bodies, poses, parent and occupied lease without recall")
+	server.fail_landed_publication = false
+	game._advance_network_remote_landing_handoffs()
+	_check(game.phase == GameFlow.Phase.SHUT_DOWN and game._return_registered
+		and server.landed_publication_successes == 1 and not game._landing_request_active,
+		"normal per-craft heartbeat republishes and finishes local landing once")
+	var handoff: Dictionary = game._network_landing_handoffs[ship_id].duplicate(true)
+	for changed: Dictionary in [{"target_id": &"retired_home"}, {"physical_token": &"retired_home_lease"},
+			{"entity_generation": int(handoff.entity_generation) - 1}]:
+		var stale := handoff.duplicate(true)
+		stale.merge(changed, true)
+		game._network_landing_handoffs[ship_id] = stale
+		bridge.after_world_tick()
+		_check(bridge.is_active() and server.journey_retirements == 0 and simulation.get_body(avatar) == body
+			and craft.global_transform == ship_pose and body.global_transform == body_pose,
+			"stale home landing target/token/generation cannot retire the retained crew journey")
+	game._network_landing_handoffs[ship_id] = handoff
+	bridge.after_world_tick()
+	game._advance_network_remote_landing_handoffs()
+	bridge.after_world_tick()
+	_check(not bridge.is_active() and server.journey_retirements == 1 and server.landed_publication_successes == 1
+		and game.phase == GameFlow.Phase.SHUT_DOWN and game._return_registered
+		and simulation.get_body(avatar) == body and body.get_parent() == body_parent
+		and frame.is_occupant_registered(body) and body.is_cabin_containment_active()
+		and craft.global_transform == ship_pose and game.player.global_transform == pilot_pose and body.global_transform == body_pose
+		and home.get_reservation_token(craft) == token and home.get_occupant() == craft,
+		"successful ordinary publication permits one retirement with unchanged actors and no duplicate completion")
+	client.shutdown()
+	game.shutdown_network_session(&"test_complete")
+	branch.queue_free()
+	game.queue_free()
+	await process_frame
+	await physics_frame
+
+
+func _wait_until(predicate: Callable, seconds: float) -> bool:
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if predicate.call():
+			return true
+		await physics_frame
+		await process_frame
+	return false
