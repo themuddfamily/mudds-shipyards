@@ -433,7 +433,14 @@ func _shared_aurora_home_publication_retry() -> void:
 		_interrupted_context = game._network_ember_passenger_surfaces[avatar].duplicate(true)
 		_interrupted_avatar = avatar
 		game.shutdown_network_session(&"survey_interrupted")
-		_check(not game._aurora_expedition.is_active() and game._network_ember_passenger_surfaces.is_empty() and game.phase == GameFlow.Phase.APPROACH_SHIP, "actual interrupted host shutdown keeps existing safe-home recovery and retires old crew grants")
+		print("COASTAL_SHUTDOWN state=", game._aurora_expedition.state, " phase=", game.phase, " grants=", game._network_ember_passenger_surfaces.size(), " remote_body=", simulation.has_body(avatar), " home_distance_m=", craft.global_position.distance_to(home.get_dock_transform().origin), " player_seated=", game.player.is_seated(), " controls=", game.player.is_control_enabled())
+		_check(game._aurora_expedition.state in [&"retiring", &"idle"] and game._network_ember_passenger_surfaces.is_empty()
+			and not simulation.has_body(avatar) and game.phase == GameFlow.Phase.APPROACH_SHIP
+			and craft.global_position.distance_to(home.get_dock_transform().origin) < 0.05
+			and not game.player.is_seated() and game.player.is_control_enabled(), "actual interrupted host shutdown immediately restores its safe-home actors and retires old crew grants")
+		game.set_physics_process(true)
+		_check(await _wait_until(func(): return not game._aurora_expedition.is_active() and not game._planetary_journey.is_aurora_visit_active()
+			and not is_instance_valid(game.aurora_streaming_bootstrap.get_loaded_instance()), 6.0), "ordinary bounded wind-down completes home origin recovery and retires the old surface visit")
 		client.shutdown()
 		branch.queue_free()
 		game.queue_free()
@@ -669,6 +676,10 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		backup.load_read_only()
 		game._runtime_settings_user_data_store = backup
 		_check(backup.get_loaded_source() == &"backup" and game.restore_shared_aurora_survey_checkpoint().get("reason") == &"aurora_shared_survey_store_recovery_required", "actual older-backup adoption cannot resurrect interrupted observations after a newer paid primary")
+		bridge._publish(true)
+		_check(await _wait_until(func(): return (_coastal_replica.get("aurora_survey", {}) as Dictionary).get("survey_available") == false, 3.0), "host publishes actual recovery-required survey availability to crew")
+		var recovery_view: Dictionary = owner.survey.shared_presentation(surface, body, _coastal_replica.aurora_survey)
+		_check(recovery_view.get("prompt") == "SURVEY SAVE RECOVERY REQUIRED" and str(recovery_view.get("objective", "")).contains("reboard whenever ready"), "crew receives actionable survey recovery guidance while return stays optional")
 		var refused_save := game.save_interrupted_aurora_visit()
 		_check(not refused_save.get("accepted", false) and filesystem.files["memory://shared-aurora.json"] == "broken primary".to_utf8_buffer(), "backup-backed host progress writes cannot overwrite the current primary or paid receipt")
 		game._runtime_settings_user_data_store = UserDataStore.new("memory://unloaded-coastal.json", filesystem)

@@ -208,7 +208,8 @@ func _actor_can_observe(body: PlayerController) -> bool:
 
 
 func shared_state() -> Dictionary:
-	return {"progress": capture(), "reward_recorded": reward_recorded()}
+	return {"progress": capture(), "reward_recorded": reward_recorded(),
+		"survey_available": _flow._shared_aurora_survey_store_is_current()}
 
 
 ## Read-only client presentation against this machine's streamed anchors.
@@ -216,6 +217,9 @@ func shared_state() -> Dictionary:
 func shared_presentation(surface: Node3D, body: PlayerController, shared: Dictionary) -> Dictionary:
 	if not is_instance_valid(surface) or not is_instance_valid(body) or shared.is_empty():
 		return {}
+	if not bool(shared.get("survey_available", true)):
+		return {"objective": "Survey save recovery required — reboard whenever ready.",
+			"prompt": "SURVEY SAVE RECOVERY REQUIRED"}
 	var route := shared.get("progress", {}) as Dictionary
 	if not valid_progress(route):
 		return {}
