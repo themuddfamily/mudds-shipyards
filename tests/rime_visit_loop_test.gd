@@ -202,7 +202,7 @@ func _run_shared_return() -> void:
 	socket.listen(0, "127.0.0.1")
 	var port := socket.get_local_port()
 	socket.stop()
-	game.network_discovery_port = 0
+	game._ensure_lan_discovery().discovery_port = 0
 	var hosted := game.host_network_session(port, 2)
 	_check(bool(hosted.get("accepted", false)), "shared return owns a real authoritative host session")
 	var branch := SubViewport.new()
@@ -236,7 +236,10 @@ func _drive_shared_return(game: GameFlow, adapter: Node, craft: HeroShip, home: 
 	var binding := game.rime_streaming_binding
 	var station_environment := game.get_viewport().world_3d.environment
 	var station_visible := game.world.visible
-	_check(bool(game._planetary_journey.admit_aurora_visit(craft, false, DESTINATION_ID).get("accepted", false)), "shared return selects Rime's actual visit lane")
+	var selected := game._planetary_journey.admit_aurora_visit(craft, false, DESTINATION_ID)
+	_check(bool(selected.get("accepted", false)), "shared return selects Rime's actual visit lane")
+	if not bool(selected.get("accepted", false)):
+		return
 	craft.global_position = bootstrap.global_position + Vector3(0, 120030, 30)
 	var sample := {"available": true, "position": craft.global_position, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id()}
 	binding.physics_tick_from_caller_sample(0.0, sample)
@@ -303,7 +306,7 @@ func _drive_shared_return(game: GameFlow, adapter: Node, craft: HeroShip, home: 
 		game.get_network_remote_body_simulation().advance(tick)
 		await physics_frame
 	adapter.send_boarding_intent(_shared_board_request(game, adapter, craft, 3, NetworkBoardingIntent.ACTION_BOARD_ANY))
-	var reboarded := await _shared_wait(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0)
+	var reboarded := await _shared_wait(func(): return is_instance_valid(body) and not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0)
 	_check(reboarded and simulation.get_body(avatar) == body, "actual authenticated reboard retains the same crew body for home travel")
 	if not reboarded:
 		return
@@ -331,7 +334,7 @@ func _drive_shared_return(game: GameFlow, adapter: Node, craft: HeroShip, home: 
 	var handed_off := bool(receipt.get("return_handoff_ready", false)) and not owner.is_active() and bridge._home_approach
 	_check(handed_off and sampler.distance_flown_m > 9_800_000.0 and sampler.rebase_count > 900,
 		"real shared Rime cruise crosses 9.8Mm and900 rebases before its typed home handoff")
-	_check(sampler.crew_failures == 0 and sampler.maximum_cabin_step <= body.walk_speed / float(Engine.physics_ticks_per_second) + 0.01
+	_check(sampler.crew_failures == 0 and is_instance_valid(body) and sampler.maximum_cabin_step <= body.walk_speed / float(Engine.physics_ticks_per_second) + 0.01
 		and simulation.get_body(avatar) == body and body.get_instance_id() == body_id,
 		"every shared return tick preserves the same confirmed crew body and ordinary cabin continuity")
 	if handed_off:
