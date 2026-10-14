@@ -1,23 +1,8 @@
 name: Native Windows startup runner fixtures
 
+# GitHub CI is disabled at the owner's request. No automatic runs.
+# The workflow is also disabled in GitHub; re-enable only on explicit request.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'tools/release/run_windows_startup_check.ps1'
-      - 'tools/release/windows_startup_process.cs'
-      - 'tools/release/test_windows_startup_check.ps1'
-      - 'tools/release/run_windows_interruption_check.ps1'
-      - 'tools/release/test_windows_interruption_check.ps1'
-      - '.github/workflows/windows-startup.yml'
-  pull_request:
-    paths:
-      - 'tools/release/run_windows_startup_check.ps1'
-      - 'tools/release/windows_startup_process.cs'
-      - 'tools/release/test_windows_startup_check.ps1'
-      - 'tools/release/run_windows_interruption_check.ps1'
-      - 'tools/release/test_windows_interruption_check.ps1'
-      - '.github/workflows/windows-startup.yml'
   workflow_dispatch:
 
 permissions:
