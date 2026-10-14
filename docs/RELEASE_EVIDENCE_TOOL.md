@@ -203,7 +203,10 @@ all four actual native headless interruption/recovery contexts, with Job
 termination code 1, distinct restart exit zero, one crash event, receipts 1 to 2,
 clean final markers, zero diagnostics/owned actors, removed private profiles and
 unchanged protected real game data. Seven managed protocol/abort/path failure
-cases passed. [Raw results and closure](../roadmap-validation/native-windows-recovery-command/summary.json)
+cases passed. The existing native Windows workflow runs these managed checks in
+a separate bounded step when the interruption command or test changes, and
+retains available results/logs on failure. Its startup checks remain in place.
+Managed CI checks do not execute the exported game. [Raw results and closure](../roadmap-validation/native-windows-recovery-command/summary.json)
 retain the exact package and command hashes. The four contexts ran concurrently;
 these timings do not qualify hardware performance. The current game's full CI
 and main runtime integration remain unqualified alongside the gates above.
