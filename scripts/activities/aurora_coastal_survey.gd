@@ -102,8 +102,9 @@ func _on_foot() -> bool:
 		and not _flow._piloting and not _flow.player.is_seated() and not _flow._station_seated \
 		and _flow.player.is_control_enabled() and _flow.player.is_on_floor()
 
-func _near(index: int) -> bool:
-	return _flow.player.global_position.distance_to(_anchors[index].global_position) <= RADIUS
+func _near(index: int, body: PlayerController = null) -> bool:
+	var actor := body if body != null else _flow.player
+	return actor.global_position.distance_to(_anchors[index].global_position) <= RADIUS
 
 func target_index() -> int:
 	var route := snapshot()
@@ -137,25 +138,26 @@ func prompt() -> String:
 		return "[ E ]  READ COASTAL WATERLINE" if target_index() == 1 else "[ E ]  RECORD STONE WEATHERING"
 	return "WALK TO " + LABELS[target_index()].to_upper()
 
-func interact() -> bool:
-	if not _on_foot() or reward_recorded():
+func interact(body: PlayerController = null) -> bool:
+	var actor := body if body != null else _flow.player
+	if not _actor_can_observe(actor) or reward_recorded():
 		return false
 	var route := snapshot()
 	var state := int(route.get("state", CheckpointRouteActivity.State.IDLE))
-	if _near(0) and state != CheckpointRouteActivity.State.COMPLETED:
+	if _near(0, actor) and state != CheckpointRouteActivity.State.COMPLETED:
 		if state == CheckpointRouteActivity.State.ACTIVE:
-			return abandon()
+			return abandon(actor)
 		var started := _flow.activity_director.start_activity(ACTIVITY_ID)
 		if bool(started.get("accepted", false)):
 			_flow.hud.toast("Coastal survey started", "Follow the amber trail. Read the waterline through the lookout instrument.", 5.0)
 			_save()
 		return bool(started.get("accepted", false))
 	var index := target_index()
-	if index == 0 or not _near(index):
+	if index == 0 or not _near(index, actor):
 		return false
 	if state == CheckpointRouteActivity.State.ACTIVE:
 		var result := _flow.activity_director.submit_position(ACTIVITY_ID,
-			_region.to_local(_flow.player.global_position), int(route.generation))
+			_region.to_local(actor.global_position), int(route.generation))
 		if not bool(result.get("accepted", false)):
 			return false
 		route = snapshot()
@@ -163,7 +165,7 @@ func interact() -> bool:
 			_flow.hud.toast("Waterline observed — 1/2", "Pale tidal bands mark the sheltered coast. Compare their height with weathering on the standing stones.", 6.0)
 			_save()
 			return true
-	if int(route.get("state", 0)) == CheckpointRouteActivity.State.COMPLETED:
+	if int(route.get("state", 0)) == CheckpointRouteActivity.State.COMPLETED and _actor_can_observe(actor):
 		var handoff := route.duplicate(true)
 		handoff["state_id"] = &"completed"
 		handoff["outcome"] = &"cleared"
@@ -176,8 +178,9 @@ func interact() -> bool:
 		return true
 	return false
 
-func abandon() -> bool:
-	if not _on_foot():
+func abandon(body: PlayerController = null) -> bool:
+	var actor := body if body != null else _flow.player
+	if not _actor_can_observe(actor):
 		return false
 	var route := snapshot()
 	if not _flow.activity_director.fail_activity(ACTIVITY_ID, &"player_abandoned", int(route.get("generation", -1))):
@@ -190,3 +193,45 @@ func _save() -> void:
 	var saved := _flow.save_interrupted_aurora_visit()
 	if not bool(saved.get("accepted", false)):
 		_flow.hud.toast("Survey progress not saved", "Your observations remain available for this visit; saving can be retried on exit.", 5.0)
+
+
+## A remote observer is the retained server body, admitted by the current
+## surface lease. A client never submits a position or a completion receipt.
+func _actor_can_observe(body: PlayerController) -> bool:
+	if body == _flow.player:
+		return _on_foot()
+	return _available() and _flow._network_aurora_survey_body_is_current(body) \
+		and not body.is_seated() and body.is_on_floor()
+
+
+func shared_state() -> Dictionary:
+	return {"progress": capture(), "reward_recorded": reward_recorded()}
+
+
+## Read-only client presentation against this machine's streamed anchors.
+## The host's progress picture grants no activity or reward authority.
+func shared_presentation(surface: Node3D, body: PlayerController, shared: Dictionary) -> Dictionary:
+	if not is_instance_valid(surface) or not is_instance_valid(body) or shared.is_empty():
+		return {}
+	var route := shared.get("progress", {}) as Dictionary
+	if not valid_progress(route):
+		return {}
+	var paid := bool(shared.get("reward_recorded", false))
+	var state := int(route.get("state", CheckpointRouteActivity.State.IDLE))
+	var index := 0 if state in [CheckpointRouteActivity.State.IDLE, CheckpointRouteActivity.State.FAILED] else mini(int(route.get("next_checkpoint_index", 0)) + 1, 2)
+	var anchor := surface.find_child(ANCHORS[index], true, false) as Node3D
+	var sign := surface.find_child(ANCHORS[0], true, false) as Node3D
+	if not is_instance_valid(anchor) or not is_instance_valid(sign):
+		return {}
+	var objective_text := "Coastal survey recorded — Aurora data saved. Reboard whenever ready." if paid else "%s — %.0f m | Optional shared survey | %d/2 observations" % [LABELS[index], body.global_position.distance_to(anchor.global_position), int(route.get("next_checkpoint_index", 0))]
+	var interaction := "WALK THE COASTAL TRAIL"
+	if not paid:
+		if body.global_position.distance_to(sign.global_position) <= RADIUS and state != CheckpointRouteActivity.State.COMPLETED:
+			interaction = "[ E ] ABANDON COASTAL SURVEY" if state == CheckpointRouteActivity.State.ACTIVE else "[ E ] START COASTAL SURVEY"
+		elif body.global_position.distance_to(anchor.global_position) <= RADIUS and index > 0:
+			interaction = "[ E ] RETRY SAVING SURVEY" if state == CheckpointRouteActivity.State.COMPLETED else ("[ E ] READ COASTAL WATERLINE" if index == 1 else "[ E ] RECORD STONE WEATHERING")
+		else:
+			interaction = "WALK TO " + LABELS[index].to_upper()
+		if state == CheckpointRouteActivity.State.COMPLETED:
+			objective_text = "Observations complete — retry saving at the standing stones, or reboard whenever ready"
+	return {"objective": objective_text, "prompt": interaction}

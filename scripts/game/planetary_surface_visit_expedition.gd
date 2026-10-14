@@ -576,7 +576,7 @@ func update_presentation() -> void:
 			_flow.hud.set_interaction("[ E ]  BOARD YOUR SHIP" if _near_ship() else survey.prompt())
 		&"landed":
 			if _shared_arrival:
-				_flow.hud.set_objective("Aurora arrival — walk the landing pad, then reboard all crew and use Esc → Destination Board to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "%s arrival — cabin access available; surface exploration and return are unavailable" % profile.display_name, heading)
+				_flow.hud.set_objective("Aurora arrival — crew may follow the optional coastal survey; reboard all crew to return to Mudds" if profile.world_id == &"aurora_temperate_world" else "%s arrival — cabin access available; surface exploration and return are unavailable" % profile.display_name, heading)
 				_flow.hud.set_interaction("[ E ]  STAND IN CABIN")
 				_flow._sync_planetary_cruise_hud()
 				return

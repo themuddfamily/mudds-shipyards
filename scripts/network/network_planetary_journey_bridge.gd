@@ -352,6 +352,8 @@ func _publish(reliable: bool, recipient: int = 0) -> void:
 	if int(_state.get("origin_revision", -1)) != frame.get_generation():
 		_ready_peers.clear()
 	_state["origin_revision"] = frame.get_generation()
+	if get_world_id() == AURORA_WORLD_ID:
+		_state["aurora_survey"] = _arrival_owner(AURORA_WORLD_ID).survey.shared_state()
 	_flow.network_session.publish_planetary_journey_state(_state, reliable, recipient)
 
 

@@ -67,6 +67,7 @@ const MAX_BODIES := 16
 
 var crew_seat_claim: Callable
 var crew_seat_release: Callable
+var surface_interaction: Callable
 
 var _session: Node = null
 var _bodies: Dictionary = {}
@@ -438,6 +439,8 @@ func get_audit() -> Dictionary:
 func _handle_interaction(record: Dictionary) -> void:
 	_audit["interactions"] = int(_audit["interactions"]) + 1
 	if record.has("surface_admission"):
+		if surface_interaction.is_valid() and surface_interaction.call(record.get("body")) == true:
+			return
 		# Exterior hatch admission uses the boarding ledger's own ordered RPC.
 		# A movement edge cannot grant an interior crew role from the terrain.
 		_audit["interactions_refused"] = int(_audit["interactions_refused"]) + 1

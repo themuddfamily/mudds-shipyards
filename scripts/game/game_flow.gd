@@ -852,6 +852,7 @@ var _network_client_boarding_request: Dictionary = {}
 var _network_client_boarding_claim: Dictionary = {}
 ## Confirmed Ember passengers retain one movement body while the landed Host
 ## owns the caldera lease. These are embodiment contexts, never seat/reward grants.
+const AURORA_COASTAL_WALK_PATH := [Vector3(14, 0, 2), Vector3(33, 0, 2), Vector3(43, 0, -8), Vector3(57, 0, -20), Vector3(68, 0, -17)]
 var _network_ember_passenger_surfaces: Dictionary = {}
 var _network_client_ember_passenger_surface: Dictionary = {}
 ## Local support loss can precede the authenticated retirement packet. This
@@ -8102,6 +8103,14 @@ func _refresh_interaction_targets() -> void:
 
 func _update_on_foot_flow() -> void:
 	_refresh_interaction_targets()
+	if _network_client_ember_passenger_surface.get("world_id") == AuroraExpeditionType.WORLD_ID \
+			and _network_client_ember_passenger_surface_is_current():
+		var view: Dictionary = _aurora_expedition.survey.shared_presentation(aurora_streaming_bootstrap.get_loaded_instance(), player,
+			get_network_planetary_journey_snapshot().get("aurora_survey", {}) as Dictionary)
+		if not view.is_empty():
+			hud.set_objective(view.objective, "AURORA COASTAL OBSERVATION")
+			hud.set_interaction(station_interaction_candidate.get_interaction_prompt() if station_interaction_candidate is ShipCabinHatch else view.prompt)
+			return
 	_activity_board_proximity_prompt_rendered = false
 	if phase in [Phase.BOARDING, Phase.DISEMBARKING, Phase.FAILED, Phase.RECOVERING]:
 		hud.set_interaction("", false)
@@ -10821,6 +10830,22 @@ func _network_ember_passenger_surface_is_current(avatar: StringName, expected_co
 		and _network_ember_passenger_on_pad(body, scene)
 
 
+func _network_aurora_survey_body_is_current(body: PlayerController) -> bool:
+	if not is_instance_valid(body) or not NetworkRemoteBodySimulation.is_remote_body(body):
+		return false
+	var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
+	var avatar := StringName(identity.get("entity_id", &""))
+	var context := _network_ember_passenger_surfaces.get(avatar, {}) as Dictionary
+	return context.get("world_id") == AuroraExpeditionType.WORLD_ID \
+		and _network_ember_passenger_surface_is_current(avatar, context) \
+		and _network_remote_body_simulation.get_body(avatar) == body \
+		and _network_remote_body_simulation.is_surface_walking(avatar)
+
+
+func _interact_network_aurora_survey(body: PlayerController) -> bool:
+	return _network_aurora_survey_body_is_current(body) and _aurora_expedition.survey.interact(body)
+
+
 func _network_ember_passenger_on_pad(body: Node3D, scene: Node3D) -> bool:
 	var collision := scene.get_node_or_null(^"LandingRegion/WalkablePatch/CollisionShape3D") as CollisionShape3D
 	if not is_instance_valid(collision) or not collision.is_inside_tree() or collision.is_queued_for_deletion() \
@@ -10828,7 +10853,31 @@ func _network_ember_passenger_on_pad(body: Node3D, scene: Node3D) -> bool:
 		return false
 	var local := collision.to_local(body.global_position)
 	var half := (collision.shape as BoxShape3D).size * 0.5
-	return absf(local.x) < half.x and absf(local.z) < half.z and local.y >= -half.y
+	if absf(local.x) < half.x and absf(local.z) < half.z and local.y >= -half.y:
+		return true
+	if not scene is AuroraTemperateAuthoredScene:
+		return false
+	# The authored coastal branch lies beyond the pad. Admit only its narrow
+	# existing trail/deck envelope and a live scene-owned physical floor below
+	# this body; neither a visual shelf nor another world's collider is support.
+	var region := scene.get_node_or_null(^"LandingRegion") as Node3D
+	if not is_instance_valid(region):
+		return false
+	var point := region.to_local(body.global_position)
+	var path := AURORA_COASTAL_WALK_PATH
+	var near_trail := false
+	var flat := Vector3(point.x, 0, point.z)
+	for i in range(path.size() - 1):
+		near_trail = near_trail or flat.distance_to(Geometry3D.get_closest_point_to_segment(flat, path[i], path[i + 1])) <= 6.0
+	near_trail = near_trail or flat.distance_to(Geometry3D.get_closest_point_to_segment(flat, Vector3(55, 0, -20), Vector3(53, 0, -33))) <= 6.0
+	if not near_trail or point.y < -1.0 or point.y > 4.0:
+		return false
+	var up := region.global_basis.y.normalized()
+	var query := PhysicsRayQueryParameters3D.create(body.global_position + up * 0.5, body.global_position - up * 4.5, 1)
+	query.exclude = [body.get_rid()] if body is CollisionObject3D else []
+	var floor := body.get_world_3d().direct_space_state.intersect_ray(query)
+	var collider := floor.get("collider") as Node
+	return is_instance_valid(collider) and scene.is_ancestor_of(collider) and (floor.normal as Vector3).dot(up) > 0.7
 
 
 func _network_client_ember_surface_scene_is_current(craft: HeroShip, epoch: int) -> bool:
@@ -12746,6 +12795,7 @@ func _ensure_network_remote_body_simulation() -> NetworkRemoteBodySimulationType
 		add_child(_network_remote_body_simulation)
 	elif _network_remote_body_simulation.get_parent() == null:
 		add_child(_network_remote_body_simulation)
+	_network_remote_body_simulation.surface_interaction = _interact_network_aurora_survey
 	_network_remote_body_simulation.attach(network_session)
 	network_session.configure_movement_tick_window(
 		NETWORK_REMOTE_BODY_MAX_TICK_BEHIND, NETWORK_REMOTE_BODY_MAX_TICK_AHEAD
@@ -13630,7 +13680,7 @@ func _present_network_client_ember_passenger_departure(craft: HeroShip, area: Sh
 		_retire_network_client_ember_passenger_surface()
 		return
 	hud.set_mode("on-foot")
-	hud.set_objective("Walk Aurora's landing pad; return through the hatch to reclaim your cabin berth" \
+	hud.set_objective("Optional coastal survey: follow the amber trail, or return through the hatch whenever ready" \
 		if _network_client_ember_passenger_surface.world_id == AuroraExpeditionType.WORLD_ID \
 		else "Walk the supported caldera; return through the hatch after the saved relay survey")
 

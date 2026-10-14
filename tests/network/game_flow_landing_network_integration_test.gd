@@ -8,8 +8,41 @@ const Berth := preload("res://scripts/world/ship_berth.gd")
 const MainScene := preload("res://scenes/main.tscn")
 const BoardingIntent := preload("res://scripts/network/network_boarding_intent.gd")
 
+var _coastal_sequence := 0
+var _coastal_interaction := 0
 var _assertions := 0
 var _failures := PackedStringArray()
+
+
+class SurveyFilesystem extends UserDataFilesystem:
+	var files: Dictionary = {}
+	var reject_rewards := false
+	var rejected_rewards := 0
+	func exists(path: String) -> bool:
+		return files.has(path)
+	func read_bytes(path: String, maximum_bytes: int) -> Dictionary:
+		if not files.has(path):
+			return {"error": ERR_FILE_NOT_FOUND, "bytes": PackedByteArray()}
+		var bytes: PackedByteArray = files[path]
+		return {"error": OK if bytes.size() <= maximum_bytes else ERR_FILE_CORRUPT, "bytes": bytes.duplicate()}
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if reject_rewards and document is Dictionary and str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with("game-flow-reward-"):
+			rejected_rewards += 1
+			return ERR_CANT_CREATE
+		files[path] = bytes.duplicate()
+		return OK
+	func remove_path(path: String) -> Error:
+		if not files.has(path):
+			return ERR_FILE_NOT_FOUND
+		files.erase(path)
+		return OK
+	func rename_path(from_path: String, to_path: String) -> Error:
+		if not files.has(from_path):
+			return ERR_FILE_NOT_FOUND
+		files[to_path] = files[from_path]
+		files.erase(from_path)
+		return OK
 
 
 class LandingAdapterProbe extends Adapter:
@@ -298,7 +331,10 @@ func _check(condition: bool, description: String) -> void:
 ## manufacture a travel receipt. The real host pilot, confirmed cabin crew,
 ## physical berth assist, publication failure and retry owners run at Mudds.
 func _shared_aurora_home_publication_retry() -> void:
+	var filesystem := SurveyFilesystem.new()
+	var store := UserDataStore.new("memory://shared-aurora.json", filesystem)
 	var game := MainScene.instantiate() as GameFlow
+	game.configure_runtime_settings_persistence(store)
 	root.add_child(game)
 	set_multiplayer(SceneMultiplayer.new(), game.get_path())
 	await process_frame
@@ -364,6 +400,7 @@ func _shared_aurora_home_publication_retry() -> void:
 	var simulation := game.get_network_remote_body_simulation()
 	var body := simulation.get_body(avatar) as PlayerController
 	var frame := craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
+	await _shared_aurora_coastal_observations(game, server, client, craft, body, filesystem, store)
 	var bridge := game._network_planetary_journey
 	bridge._epoch = 1
 	bridge._craft_instance_id = craft.get_instance_id()
@@ -445,3 +482,146 @@ func _wait_until(predicate: Callable, seconds: float) -> bool:
 		await physics_frame
 		await process_frame
 	return false
+
+
+## Staged feature fixture: one production-streamed world and physical dock.
+## It exercises authenticated crew observations, not canonical world travel.
+func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client: Adapter, craft: HeroShip, body: PlayerController, filesystem: SurveyFilesystem, store: UserDataStore) -> void:
+	game.set_physics_process(false)
+	var owner := game._aurora_expedition
+	var bootstrap := game.aurora_streaming_bootstrap
+	var binding := game.aurora_streaming_binding
+	_check(bool(game._planetary_journey.admit_aurora_visit(craft, false).get("accepted", false)), "staged survey admits the actual Aurora visit lane")
+	craft.global_position = bootstrap.global_position + Vector3(0, 120030, 30)
+	var sample := {"available": true, "position": craft.global_position, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id()}
+	binding.physics_tick_from_caller_sample(0.0, sample)
+	var rebased := game.common_world_origin_rebase_owner.consume_rebase_preview(binding.preview_origin_rebase(bootstrap.get_coordinate_frame_for_session().get_generation()), sample)
+	_check(bool(rebased.get("accepted", false)), "staged survey uses the real common origin owner")
+	await _wait_until(func(): return is_instance_valid(bootstrap.get_loaded_instance()), 10.0)
+	var surface := bootstrap.get_loaded_instance()
+	if not is_instance_valid(surface):
+		_check(false, "staged survey loads the real coastal scene")
+		return
+	var region := surface.get_node("LandingRegion") as Node3D
+	owner._ship = craft
+	owner._home = game.world.get_berth_node(craft.get_home_berth_id())
+	owner._surface = surface
+	owner._shared_arrival = true
+	owner.state = &"landed"
+	owner.survey.attach(surface)
+	owner._lease_surface_berth(region)
+	var berth := owner._berth as ShipBerth
+	craft.global_transform = berth.get_assist_capture_transform()
+	craft.velocity = Vector3.ZERO
+	craft.request_berth_landing(berth)
+	_check(await _wait_until(func(): return berth.get_occupant() == craft and not craft.is_landing_active(), 15.0), "staged survey physically docks the retained Halyard on the actual Aurora lease")
+	var bridge := game._network_planetary_journey
+	bridge._epoch = 1
+	bridge._craft_instance_id = craft.get_instance_id()
+	bridge._pilot_source_ref = weakref(craft.get_command_source())
+	bridge._state = {"journey_epoch": 1, "world_id": &"aurora_temperate_world", "ship_id": craft.get_ship_id(), "phase": &"landed"}
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var avatar := NetworkRemoteBodySimulation.get_remote_body_identity(body).entity_id as StringName
+	var simulation := game.get_network_remote_body_simulation()
+	# Initial actor staging only; every subsequent coastal leg is real intent movement.
+	var hatch := craft.get_node("WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+	body.teleport_to(Transform3D(Basis.IDENTITY, hatch.global_position - Vector3.UP * 0.7))
+	for _i in 12:
+		await physics_frame
+	var peer := client.multiplayer.get_unique_id()
+	var seat := GameFlow.network_cabin_berth_seat_id(craft.get_ship_id(), 1)
+	var departure := BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 2, server.get_boarding_server_tick(), BoardingIntent.ACTION_DISEMBARK).to_dictionary()
+	client.send_boarding_intent(departure)
+	var walking := await _wait_until(func(): return simulation.is_surface_walking(avatar), 5.0)
+	_check(walking and game._network_aurora_survey_body_is_current(body), "authenticated hatch release retains the actual crew body under the current Aurora surface grant")
+	if walking:
+		var body_id := body.get_instance_id()
+		var sign := surface.find_child("SurveyTrailSign", true, false) as Node3D
+		var lookout := surface.find_child("SurveyLookout", true, false) as Node3D
+		var stones := surface.find_child("SurveyStones", true, false) as Node3D
+		for point in [region.to_global(Vector3(14, 0.5, 2)), sign.global_position + Vector3.UP * 0.5]:
+			_check(await _walk_coastal(game, server, client, body, point), "retained crew walks from the actual hatch along the authored trail")
+		await _coastal_press(game, server, client, body)
+		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, "real authenticated crew interaction starts the host-owned optional survey")
+		await _coastal_press(game, server, client, body)
+		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.FAILED, "crew may abandon the optional survey without losing its return route")
+		await _coastal_press(game, server, client, body)
+		for point in [region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(57, 0.5, -20)), lookout.global_position + Vector3(-1.5, -1.0, 0)]:
+			_check(await _walk_coastal(game, server, client, body, point), "real crew walking remains admitted on the existing coastal terrain and lookout floor")
+		await _coastal_press(game, server, client, body)
+		_check(int(owner.survey.snapshot().get("next_checkpoint_index", 0)) == 1, "host records the actual lookout observation from the retained crew body")
+		_check(await _walk_coastal(game, server, client, body, region.to_global(Vector3(55, 0.5, -20))), "crew returns through the lookout entrance")
+		_check(await _walk_coastal(game, server, client, body, stones.global_position + Vector3.UP * 0.5), "crew walks the authored stones branch")
+		filesystem.reject_rewards = true
+		await _coastal_press(game, server, client, body)
+		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.COMPLETED and not owner.survey.reward_recorded() and filesystem.rejected_rewards > 0, "actual atomic reward write rejection retains completed observations without entitlement")
+		bridge._publish(true)
+		var shared := bridge.get_snapshot().get("aurora_survey", {}) as Dictionary
+		var view := owner.survey.shared_presentation(surface, body, shared) as Dictionary
+		_check(str(view.get("prompt", "")).contains("RETRY SAVING"), "shared progress gives crew actionable rejected-save guidance")
+		var progress := owner.survey.capture() as Dictionary
+		var token := owner._surface_token
+		owner._surface_token = &"expired_surface_lease"
+		_check(not game._interact_network_aurora_survey(body), "current host refuses a stale surface lease before any progression")
+		_check(owner.survey.capture() == progress and not owner.survey.reward_recorded(), "stale surface lease cannot submit or reward observations")
+		owner._surface_token = token
+		filesystem.reject_rewards = false
+		await _coastal_press(game, server, client, body)
+		await _coastal_press(game, server, client, body)
+		var loaded := UserDataStore.new("memory://shared-aurora.json", filesystem)
+		loaded.load()
+		var authority := GameFlowRewardAuthority.new()
+		var configured := authority.configure(loaded)
+		_check(bool(configured.get("accepted", false)) and owner.survey.reward_recorded() and int(authority.get_snapshot().record.reward_counts.get("aurora_coastal_survey_data", 0)) == 1, "accepted retry persists Aurora data once across real store reload and repeated crew presses")
+		_check(simulation.get_body(avatar) == body and body.get_instance_id() == body_id, "survey progress and save retries retain the same host-owned body")
+	# This bounded fixture finishes its surface attachment before the existing
+	# home-handoff publication test; it does not claim a physical return voyage.
+	if walking and is_instance_valid(body):
+		for point in [region.to_global(Vector3(55, 0.5, -20)), region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(30, 0.5, 0)), region.to_global(Vector3(14, 0.5, 2)), craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
+			_check(await _walk_coastal(game, server, client, body, point), "survey crew physically follows the trail and airstair back into the cabin")
+		var reboard := BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 3, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
+		client.send_boarding_intent(reboard)
+		_check(await _wait_until(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0), "ordinary authenticated reboard retains the survey body and restores the return manifest")
+		_check(bridge.shared_aurora_return_gate_reason().is_empty(), "optional Aurora survey leaves the existing shared return admission usable")
+	owner._release_surface_lease()
+	owner.state = &"idle"
+	owner._ship = null
+	owner._surface = null
+	owner._shared_arrival = false
+	game._planetary_journey.retire_aurora_visit()
+	bridge._state.clear()
+	craft.global_transform = game.world.get_berth_node(craft.get_home_berth_id()).get_assist_capture_transform()
+	var home_sample := {"available": true, "position": craft.global_position, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id()}
+	binding.physics_tick_from_caller_sample(0.0, home_sample)
+	game.common_world_origin_rebase_owner.consume_rebase_preview(binding.preview_origin_rebase(bootstrap.get_coordinate_frame_for_session().get_generation()), home_sample)
+	game.set_physics_process(true)
+
+
+func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3) -> void:
+	var tick := Engine.get_physics_frames()
+	server.set_movement_server_tick(tick)
+	if tick % 4 == 0:
+		var direction := target - body.global_position
+		var moving := Vector2(direction.x, direction.z).length() > 0.8
+		var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
+		var packet := NetworkMovementIntent.create(client.multiplayer.get_unique_id(), identity.entity_id, int(identity.entity_generation), 1001, _coastal_sequence, tick, Vector2(0, -1) if moving else Vector2.ZERO, false, &"", false, atan2(-direction.x, -direction.z), 0.0, false, false, false, _coastal_interaction).to_dictionary()
+		_coastal_sequence += 1
+		client.send_movement_intent(packet)
+	game.get_network_remote_body_simulation().advance(tick)
+	await physics_frame
+
+
+func _walk_coastal(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3) -> bool:
+	var deadline := Time.get_ticks_msec() + 18000
+	while Time.get_ticks_msec() < deadline and is_instance_valid(body):
+		await _coastal_tick(game, server, client, body, target)
+		if Vector2(body.global_position.x - target.x, body.global_position.z - target.z).length() < 1.0 and body.is_on_floor():
+			return true
+	return false
+
+
+func _coastal_press(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController) -> void:
+	_coastal_interaction += 1
+	var position := body.global_position
+	for _i in 12:
+		await _coastal_tick(game, server, client, body, position)
