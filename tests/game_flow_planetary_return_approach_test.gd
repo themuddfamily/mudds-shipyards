@@ -1174,7 +1174,53 @@ func _check_shared_abandon_return() -> void:
 		and not journey.call(&"shared_ember_abandon_return_was_admitted")
 		and craft.get_command_source() == pilot_source,
 		"ending the authenticated abandoned return permits normal Host binding to the same resident scene")
+	await _check_abandoned_typed_home_handoff(game, craft)
 	game.free()
+
+
+func _check_abandoned_typed_home_handoff(game: GameFlow, craft: HeroShip) -> void:
+	# Stage only this focused shell observation, as in the completed-return case.
+	# The production binding/controller still issue and consume the typed proof.
+	craft.set_physics_process(false)
+	var home: Transform3D = game.world.get_ship_spawn()
+	craft.global_transform = Transform3D(home.basis, home * Vector3(0.0, 0.0, 50_000.0))
+	craft.velocity = Vector3.ZERO
+	craft.set("_last_ship_command", ShipCommand.new())
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var frame := game.ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	var journey = game.get("_planetary_journey")
+	var cruise := game.planetary_cruise_binding
+	var target_result: Dictionary = journey.call(&"_build_mudds_return_approach_target")
+	var engaged := cruise.request_engage(craft, frame.get_generation(), &"", cruise.get_generation(), true)
+	var armed := cruise.request_return_approach(target_result.get("target", {}),
+		frame.get_generation(), cruise.get_generation(), game.world.ship_spawn)
+	journey.set("_mudds_return_approach_active", true)
+	journey.set("_mudds_return_approach_completion_attempted", false)
+	journey.set("_ember_abandon_return_active", true)
+	var controller := cruise.get_node(^"PlanetaryCruisePhysicalController") as PlanetaryCruisePhysicalController
+	controller.set("_final_approach_state", PlanetaryCruisePhysicalController.FinalApproachState.ACTIVE)
+	var completed := cruise.physics_tick_from_caller_sample(
+		int(cruise.get_snapshot().get("last_caller_tick", 0)) + 1,
+		game._capture_cinder_actor_sample(), craft, frame.get_generation(), false, &"")
+	var before_handoff := craft.global_transform
+	var pilot_source := craft.get_command_source()
+	var handed_off: Dictionary = journey.call(&"_consume_mudds_return_approach_completion", completed)
+	var replay: Dictionary = journey.call(&"_consume_mudds_return_approach_completion", completed)
+	print("ABANDON_TYPED_HOME_HANDOFF: ", {"engaged": engaged.get("accepted"),
+		"armed": armed.get("accepted"), "completion": completed.get("reason"),
+		"handoff": handed_off.get("reason"), "phase": game.phase})
+	_check(bool(engaged.get("accepted", false)) and bool(armed.get("accepted", false))
+		and completed.get("reason") == &"return_approach_handoff_ready"
+		and handed_off.get("reason") == &"abandoned_return_handed_to_station_lifecycle"
+		and game.phase == GameFlow.Phase.RETURN_TO_YARD
+		and not bool(journey.get("_planetary_return_physical_arrival_required"))
+		and not bool(journey.get("_planetary_return_receipt_consumed"))
+		and not bool(game.get("_return_registered"))
+		and craft.global_transform == before_handoff and craft.get_command_source() == pilot_source
+		and craft.is_piloted() and game.player.is_seated_at(craft.get_pilot_seat_anchor())
+		and (journey.get("_ember_survey_return_manifest") as Dictionary).is_empty()
+		and replay.get("reason") == &"return_approach_completion_replayed",
+		"authentic abandoned typed home completion enters ordinary yard return without successful arrival entitlement")
 
 
 func _station_return_intent(
