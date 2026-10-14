@@ -67,12 +67,16 @@ func _test_established_future_clock_recovers() -> void:
 	var opened: Dictionary = authority.accept_intent(2, opening)
 	source.accept_opening_result(2, _opening_reply(opening, opened, 200))
 	var first: Dictionary = authority.consume_for_tick(&"crew_clock", 3, 200)
+	source.record_local_pose(200, Transform3D.IDENTITY, 77)
+	source.reconcile(200, Transform3D.IDENTITY)
 	_check(opened.accepted and first.accepted and first.intent.interaction_request_id == 1,
 		"established clock fixture delivers its original interaction once through the real ledger")
 	var speculative: Dictionary = {}
 	for _tick in 40:
 		speculative = source.advance(2, _sample(Vector2(-1, 0)), -1)
 	var refused: Dictionary = authority.accept_intent(2, speculative)
+	source.record_local_pose(int(speculative.client_tick), Transform3D.IDENTITY, 77)
+	source.reconcile(201, Transform3D.IDENTITY)
 	_check(refused.status == &"client_tick_too_far_ahead", "real +6 authority refuses speculative established-stream timestamp after host stall")
 	authority.set_server_tick(1, 201)
 	source.observe_movement_clock(201)
@@ -99,6 +103,13 @@ func _test_established_future_clock_recovers() -> void:
 	_check(delivered.accepted and Intent.from_dictionary(delivered.intent).get_move_axis() == Vector2(1, 0)
 		and delivered.intent.interaction_request_id == first.intent.interaction_request_id and not bool(delivered.intent.jump),
 		"repair builds a current input sample without replaying rejected movement or inventing a new interaction edge")
+	source.record_local_pose(int(current.client_tick), Transform3D(Basis.IDENTITY, Vector3(2, 0, 0)), 77)
+	var pose_audit := source.get_audit()
+	_check(int(pose_audit.pose_history) == 1 and int(pose_audit.last_observed_pose_tick) == 201 and int(pose_audit.last_judged_tick) == 200,
+		"repaired clock immediately retains a new local pose while preserving authority observation and judgment fences")
+	var correction := source.reconcile(int(current.client_tick), Transform3D.IDENTITY, 0.05)
+	_check(bool(correction.get("correct", false)) and (correction.get("correction_delta", Vector3.ZERO) as Vector3).is_equal_approx(Vector3(-2, 0, 0)),
+		"first repaired-clock local pose immediately reconciles against its real authoritative tick")
 	_check(not bool(_consume_clock_refusal(source, 2, reply).get("accepted", false)) and not authority.accept_intent(2, opening).accepted,
 		"duplicate clock refusal and already accepted opening cannot replay host actions")
 	source.bind(&"crew_clock", 3)

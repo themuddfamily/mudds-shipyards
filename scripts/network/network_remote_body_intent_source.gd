@@ -293,6 +293,9 @@ func accept_clock_refusal(peer_id: int, result: Dictionary) -> Dictionary:
 		if int(sent_sequence) <= sequence:
 			_sent_clock_stamps.erase(sent_sequence)
 	clear_pose_history()
+	# A rejected speculative pose stamp is not an authority judgment. Let
+	# repaired-clock samples enter immediately without reopening judged ticks.
+	_last_pose_tick = _last_judged_tick
 	_clock_recoveries += 1
 	# The next normal cadence samples live input. Edge latches, interaction
 	# highwater, stream identity and sequence ordering remain unchanged.
