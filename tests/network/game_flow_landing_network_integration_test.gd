@@ -1328,10 +1328,34 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 	_check(admitted, "a newly authenticated late crew receives the actual recovered world's current journey publication")
 	if admitted:
 		var avatar := GameFlow.network_client_boarding_avatar_id(client.multiplayer.get_unique_id())
-		client.send_boarding_intent(_rime_boarding_request(fresh, client, craft, 1, BoardingIntent.ACTION_BOARD))
+		var request := _rime_boarding_request(fresh, client, craft, 1, BoardingIntent.ACTION_BOARD)
+		var sent := client.send_boarding_intent(request)
 		var boarded := await _wait_until(func(): return fresh.get_network_remote_body_simulation() != null \
 			and fresh.get_network_remote_body_simulation().has_body(avatar), 12.0)
 		_check(boarded, "the new session's real boarding ledger creates a fresh confirmed cabin body")
+		if not boarded:
+			var ledger := fresh.network_session.get_boarding_snapshot()
+			var cabin := craft.get_in_flight_cabin_report()
+			var frame := cabin.get("frame") as MovingInteriorFrame
+			print("SHARED_RESTORE_BOARDING_REFUSAL: ", {
+				"peer_id": client.multiplayer.get_unique_id(), "avatar_id": avatar,
+				"request": request, "sent": sent, "response": client.get_boarding_intent_result_replica(),
+				"current_guard": fresh._network_boarding_departure_status(client.multiplayer.get_unique_id(), request),
+				"host_session": fresh.network_session.get_snapshot(), "client_session": client.get_snapshot(),
+				"admitted_peers": fresh.network_session.get_admitted_peer_ids(), "boarding_ledger": ledger,
+				"crew_roles": fresh.network_session.get_crew_role_snapshot(),
+				"body_audit": fresh.get_network_remote_body_audit(),
+				"registered_ships": fresh._network_boarding_entities.keys(), "ship_id": craft.get_ship_id(),
+				"craft_id": craft.get_instance_id(), "active_craft": fresh.active_ship == craft,
+				"cabin_supported": cabin.get("supported"), "frame_valid": is_instance_valid(frame),
+				"frame_in_tree": frame.is_inside_tree() if is_instance_valid(frame) else false,
+				"frame_craft_current": frame.get_moving_frame() == craft if is_instance_valid(frame) else false,
+				"physical_dock": craft.get_landing_contract_report(), "engine": craft.get_telemetry().get("engine_state"),
+				"journey": fresh.get_network_planetary_journey_snapshot(), "visit_state": owner.state,
+				"restored_context": owner.get("_restored_surface_context"),
+				"scene_id": owner.get("_surface").get_instance_id(),
+				"berth_occupied": berth.get_occupant() == craft, "lease_token": berth.get_reservation_token(craft),
+			})
 		if boarded:
 			var simulation := fresh.get_network_remote_body_simulation()
 			var body := simulation.get_body(avatar) as PlayerController
