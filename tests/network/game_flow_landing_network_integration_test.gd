@@ -1329,6 +1329,28 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 	if admitted:
 		var avatar := GameFlow.network_client_boarding_avatar_id(client.multiplayer.get_unique_id())
 		var request := _rime_boarding_request(fresh, client, craft, 1, BoardingIntent.ACTION_BOARD)
+		var peer := client.multiplayer.get_unique_id()
+		var bridge := fresh._network_planetary_journey
+		var adopted: Dictionary = bridge.get("_restored_surface_session").duplicate(true)
+		_check(bridge.restored_cabin_admission_is_current(peer, request)
+			and fresh._network_boarding_departure_status(peer, request).is_empty(),
+			"only this authenticated fresh recovered-session cabin request reaches the ordinary boarding ledger")
+		bridge._restored_surface_session.clear()
+		_check(fresh._network_boarding_departure_status(peer, request) == &"surface_return_requires_retained_body",
+			"an ordinary landed shared journey retains its blanket no-new-body boarding guard")
+		bridge._restored_surface_session = adopted.duplicate(true)
+		bridge._restored_surface_session.journey_epoch += 1
+		_check(not bridge.restored_cabin_admission_is_current(peer, request),
+			"a stale adopted journey epoch cannot admit fresh recovered crew")
+		bridge._restored_surface_session = adopted.duplicate(true)
+		bridge._restored_surface_session.surface.token = &"stale-recovered-lease"
+		_check(not bridge.restored_cabin_admission_is_current(peer, request),
+			"an old surface lease cannot authorize fresh recovered-session boarding")
+		bridge._restored_surface_session = adopted
+		var pilot_request := request.duplicate(true)
+		pilot_request["role"] = &"pilot"
+		_check(not bridge.restored_cabin_admission_is_current(peer, pilot_request),
+			"the fresh attachment exception cannot grant a pilot or another cabin role")
 		var sent := client.send_boarding_intent(request)
 		var boarded := await _wait_until(func(): return fresh.get_network_remote_body_simulation() != null \
 			and fresh.get_network_remote_body_simulation().has_body(avatar), 12.0)
@@ -1362,6 +1384,10 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 		if boarded:
 			var simulation := fresh.get_network_remote_body_simulation()
 			var body := simulation.get_body(avatar) as PlayerController
+			_check(int((bridge.get("_restored_crew_admissions") as Dictionary).get(peer, 0)) \
+				== int((fresh.network_session.get("_peer_generations") as Dictionary).get(peer, -1))
+				and not bridge.restored_cabin_admission_is_current(peer, request),
+				"ordinary confirmed body creation consumes one fresh attachment for this authenticated peer generation")
 			var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
 			_rime_intent_source = BodyIntentSource.new()
 			_rime_intent_source.bind(identity.entity_id, int(identity.entity_generation), 1001)

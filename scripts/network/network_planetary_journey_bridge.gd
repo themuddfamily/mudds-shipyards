@@ -32,6 +32,8 @@ var _client_observer_admitted := false
 var _home_return_context: Dictionary = {}
 var _home_return_crew: Dictionary = {}
 var _home_approach := false
+var _restored_surface_session: Dictionary = {}
+var _restored_crew_admissions: Dictionary = {}
 
 func _init(flow: Node) -> void:
 	_flow = flow
@@ -84,9 +86,97 @@ func adopt_restored_surface() -> Dictionary:
 		_ready_peers.clear()
 		_state = {"journey_epoch": _epoch, "world_id": world_id,
 			"ship_id": _flow.active_ship.get_ship_id(), "phase": &"landed"}
+		_restored_surface_session = {
+			"session_id": _flow.network_session.get_instance_id(), "session_epoch": _flow._network_hud_session_epoch,
+			"journey_epoch": _epoch, "world_id": world_id,
+			"surface": _arrival_owner(world_id).get("_restored_surface_context").duplicate(true),
+		}
+		_restored_crew_admissions.clear()
 		_publish(true)
 		return {"accepted": true, "reason": &"restored_surface_admitted"}
 	return {"accepted": false, "reason": &"restored_surface_unavailable"}
+
+
+func _restored_surface_session_is_current() -> bool:
+	var context := _restored_surface_session
+	return not context.is_empty() and is_active() and _state.get("phase") == &"landed" \
+		and ARRIVAL_OWNERS.has(get_world_id()) and get_world_id() == context.world_id \
+		and _epoch > 0 and _epoch == int(context.journey_epoch) \
+		and int(_state.get("journey_epoch", 0)) == _epoch \
+		and _flow._network_session_mode == &"server" and _flow._network_session_is_live() \
+		and _flow.network_session.is_server() and _flow.network_session.get_instance_id() == int(context.session_id) \
+		and _flow._network_hud_session_epoch == int(context.session_epoch) \
+		and _arrival_owner(get_world_id()).get("_restored_surface_context") == context.surface \
+		and _flow._network_surface_visit_passenger_host_is_current(_flow.active_ship, get_world_id())
+
+
+## Only initial attachment to this newly recovered session can create a body.
+## The normal ledger still validates ordering, vacancy and every generation.
+func restored_cabin_admission_is_current(peer_id: int, request: Dictionary, confirmed: Dictionary = {}) -> bool:
+	if not _restored_surface_session_is_current() or peer_id <= 1 \
+			or not _flow.network_session.get_admitted_peer_ids().has(peer_id) \
+			or int(request.get("peer_id", 0)) != peer_id \
+			or request.get("avatar_id") != _flow.network_client_boarding_avatar_id(peer_id) \
+			or request.get("ship_id") != get_ship_id() \
+			or request.get("role") != _flow.NETWORK_CABIN_BERTH_ROLE \
+			or request.get("action") not in [NetworkBoardingIntent.ACTION_BOARD, NetworkBoardingIntent.ACTION_BOARD_ANY]:
+		return false
+	# This is the server adapter's authenticated generation, not a wire field.
+	var generation := int((_flow.network_session.get("_peer_generations") as Dictionary).get(peer_id, 0))
+	var avatar := StringName(request.avatar_id)
+	var simulation := _flow.get_network_remote_body_simulation()
+	if generation <= 0 or int(_restored_crew_admissions.get(peer_id, 0)) == generation \
+			or _flow._network_ember_passenger_surfaces.has(avatar) \
+			or not is_instance_valid(simulation) or simulation.get("_session") != _flow.network_session \
+			or simulation.has_body(avatar):
+		return false
+	var craft: HeroShip = _flow.active_ship
+	var cabin := craft.get_in_flight_cabin_report()
+	var frame_value: Variant = cabin.get("frame")
+	if not bool(cabin.get("supported", false)) or not is_instance_valid(frame_value):
+		return false
+	var frame := frame_value as MovingInteriorFrame
+	if not is_instance_valid(frame) or not frame.is_inside_tree() or frame.is_queued_for_deletion() \
+			or not craft.is_ancestor_of(frame) or frame.get_moving_frame() != craft:
+		return false
+	var ledger: Dictionary = _flow.network_session.get_boarding_snapshot()
+	var current_confirmation := false
+	for occupancy: Dictionary in ledger.get("occupancies", []):
+		if int(occupancy.get("peer_id", 0)) == peer_id or occupancy.get("avatar_id") == avatar:
+			if confirmed.is_empty() or occupancy != confirmed:
+				return false
+			current_confirmation = true
+	if not confirmed.is_empty() and not current_confirmation:
+		return false
+	for seat: Dictionary in ledger.get("seats", []):
+		if seat.get("seat_id") == request.get("seat_id") and seat.get("ship_id") == get_ship_id() \
+				and seat.get("role") == _flow.NETWORK_CABIN_BERTH_ROLE \
+				and _flow.is_network_cabin_berth_seat(get_ship_id(), StringName(seat.seat_id)) \
+				and int(seat.ship_generation) == int(request.get("ship_generation", -1)) \
+				and seat.frame_id == request.get("frame_id") \
+				and int(seat.frame_generation) == int(request.get("frame_generation", -1)) \
+				and int(seat.seat_generation) == int(request.get("seat_generation", -1)):
+			return true
+	return false
+
+
+## Called only after the ordinary confirmed-board path created its real body.
+## Disposing that body later cannot turn another request into a fresh arrival.
+func note_restored_crew_admitted(peer_id: int, avatar: StringName) -> void:
+	if not _restored_surface_session_is_current() or avatar != _flow.network_client_boarding_avatar_id(peer_id):
+		return
+	var simulation := _flow.get_network_remote_body_simulation()
+	var body: PlayerController = simulation.get_body(avatar) if is_instance_valid(simulation) else null
+	var frame := _flow._resolve_network_moving_interior_frame(_flow.active_ship) as MovingInteriorFrame
+	if not is_instance_valid(body) or not body.is_cabin_containment_active() \
+			or not is_instance_valid(frame) or not frame.is_occupant_registered(body) \
+			or simulation.get("_session") != _flow.network_session \
+			or body.get_cabin_containment_report().get("frame") != _flow.active_ship \
+			or int(simulation.get_body_record(avatar).get("owner_peer_id", 0)) != peer_id:
+		return
+	var generation := int((_flow.network_session.get("_peer_generations") as Dictionary).get(peer_id, 0))
+	if generation > 0:
+		_restored_crew_admissions[peer_id] = generation
 
 func get_world_id() -> StringName:
 	return StringName(_state.get("world_id", &""))
@@ -331,6 +421,8 @@ func cancel(reason: StringName) -> Dictionary:
 		_publish(true)
 	_retire_client_observer()
 	_state.clear()
+	_restored_surface_session.clear()
+	_restored_crew_admissions.clear()
 	_home_return_context.clear()
 	_home_return_crew.clear()
 	_home_approach = false
@@ -354,6 +446,8 @@ func detach() -> void:
 	if is_active() and is_instance_valid(_flow.planetary_cruise_binding):
 		_flow.planetary_cruise_binding.request_disengage(_flow.planetary_cruise_binding.get_generation(), true)
 	_state.clear()
+	_restored_surface_session.clear()
+	_restored_crew_admissions.clear()
 	_home_return_context.clear()
 	_home_return_crew.clear()
 	_home_approach = false

@@ -10676,7 +10676,8 @@ func _network_boarding_departure_status(peer_id: int, request: Dictionary) -> St
 	var journey := get_network_planetary_journey_snapshot()
 	if action in [NetworkBoardingIntentType.ACTION_BOARD, NetworkBoardingIntentType.ACTION_BOARD_ANY] \
 			and journey.get("phase") == &"landed" and request.get("ship_id") == journey.get("ship_id"):
-		return &"surface_return_requires_retained_body"
+		if not _network_planetary_journey.restored_cabin_admission_is_current(peer_id, request):
+			return &"surface_return_requires_retained_body"
 	if action != NetworkBoardingIntentType.ACTION_DISEMBARK:
 		return &""
 	var held: Dictionary = {}
@@ -13252,8 +13253,21 @@ func _on_network_boarding_intent_result(result: Dictionary) -> void:
 				(_network_ember_passenger_surfaces[avatar_id] as Dictionary).clear()
 				_network_ember_passenger_surfaces.erase(avatar_id)
 			return
+		# Re-read the current ledger before constructing a body. A deferred or
+		# reentrant callback cannot resurrect an occupancy already withdrawn.
+		if not network_session.get_boarding_snapshot().get("occupancies", []).has(occupancy):
+			_network_hatch_audit["last_hatch_status"] = &"boarding_occupancy_retired"
+			return
+		var journey := get_network_planetary_journey_snapshot()
+		if journey.get("phase") == &"landed" and journey.get("ship_id") == ship_id:
+			var current_request := occupancy.duplicate(true)
+			current_request["action"] = NetworkBoardingIntentType.ACTION_BOARD
+			if not _network_planetary_journey.restored_cabin_admission_is_current(peer_id, current_request, occupancy):
+				_network_hatch_audit["last_hatch_status"] = &"surface_return_requires_retained_body"
+				return
 		var admitted := admit_network_remote_body(peer_id, avatar_id, craft)
 		if bool(admitted.get("accepted", false)):
+			_network_planetary_journey.note_restored_crew_admitted(peer_id, avatar_id)
 			_network_hatch_audit["hatch_admissions"] = int(_network_hatch_audit["hatch_admissions"]) + 1
 		else:
 			_network_hatch_audit["hatch_refusals"] = int(_network_hatch_audit["hatch_refusals"]) + 1
