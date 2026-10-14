@@ -427,13 +427,13 @@ func _check_client_rime_survey_input(server: GameFlow, client: GameFlow, craft: 
 	_check(await _hud_wait(func(): return str(client.hud.get("_interaction_source_text")).contains("START ICE-CORE"), 3.0)
 		and str((client.hud.get("_interaction_label") as Label).text).contains("F14"), "actual Rime client HUD offers the remapped survey action at its own beacon")
 	Input.parse_input_event(_survey_key(true))
-	var started := await _hud_wait(func(): return int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE, 3.0)
-	var generation := int(survey.snapshot().generation)
+	var started := await _hud_wait(func(): return int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, 3.0)
+	var generation := int(survey.snapshot().get("generation", -1))
 	Input.parse_input_event(_survey_key(true, true))
 	await _hud_wait(func(): return false, 0.35)
 	Input.parse_input_event(_survey_key(false))
-	_check(started and int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE
-		and int(survey.snapshot().generation) == generation and survey.shared_state().participant_entity_id == String(avatar),
+	_check(started and int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE
+		and int(survey.snapshot().get("generation", -1)) == generation and survey.shared_state().participant_entity_id == String(avatar),
 		"held and echoed physical key events start one host-owned survey for the actual Rime client body")
 	if not started:
 		return
@@ -447,9 +447,9 @@ func _check_client_rime_survey_input(server: GameFlow, client: GameFlow, craft: 
 	_check(await _hud_wait(func(): return str(client.hud.get("_objective_source_text")).contains("SUIT HEATER"), 3.0),
 		"actual client HUD displays its host-owned active Rime heater")
 	await _client_survey_press()
-	_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.FAILED, "physical Rime Interact abandons the optional survey")
+	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.FAILED, "physical Rime Interact abandons the optional survey")
 	await _client_survey_press()
-	_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE, "a fresh physical edge restarts the optional Rime survey")
+	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, "a fresh physical edge restarts the optional Rime survey")
 	for point in [Vector3(-40, 0.5, -28), Vector3(-52, 0.5, -42), Vector3(-54, 0.5, -46)]:
 		if not await _client_survey_walk(server, client, body, region.to_global(point)):
 			return
@@ -464,7 +464,7 @@ func _check_client_rime_survey_input(server: GameFlow, client: GameFlow, craft: 
 	_check(absf(float(survey.get_heat_snapshot().heat_s) - minf(120.0, warm_heat + 10.0 * float(Engine.get_physics_frames() - warm_frame) / float(Engine.physics_ticks_per_second))) < 0.15,
 		"ordinary hut physics refills the crew heater at the unchanged rate")
 	await _client_survey_press()
-	_check(int(survey.snapshot().next_checkpoint_index) == 1
+	_check(int(survey.snapshot().get("next_checkpoint_index", -1)) == 1
 		and await _hud_wait(func(): return str(client.hud.get("_objective_source_text")).contains("1/2 readings"), 3.0),
 		"real remapped drill interaction updates host progress and the actual peer HUD")
 	for point in [Vector3(-52, 0.5, -42), Vector3(-50, 0.5, -54), Vector3(-30, 0.5, -66), Vector3(-8, 0.5, -68)]:
@@ -501,14 +501,14 @@ func _check_client_rime_survey_input(server: GameFlow, client: GameFlow, craft: 
 		host_peak = maxf(host_peak, body.global_position.y)
 		client_peak = maxf(client_peak, client.player.global_position.y)
 	_check(host_peak > host_height + 0.2 and client_peak > client_height + 0.2 and body.is_on_floor() and client.player.is_on_floor()
-		and int(survey.snapshot().state) == CheckpointRouteActivity.State.ACTIVE and server._network_rime_survey_body_is_current(body)
+		and int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE and server._network_rime_survey_body_is_current(body)
 		and client._network_client_ember_passenger_surface_is_current(), "ordinary full-client keyboard jump preserves both floor arcs and active participant authority")
 	for point in [Vector3(14, 0.5, -70), Vector3(28, 0.5, -63), Vector3(30, 0.5, -62)]:
 		if not await _client_survey_walk(server, client, body, region.to_global(point)):
 			return
 	_hud_survey_filesystem.reject_rewards = true
 	await _client_survey_press()
-	_check(int(survey.snapshot().state) == CheckpointRouteActivity.State.COMPLETED and not survey.reward_recorded()
+	_check(int(survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.COMPLETED and not survey.reward_recorded()
 		and _hud_survey_filesystem.rejected_rewards > 0
 		and await _hud_wait(func(): return str(client.hud.get("_interaction_source_text")).contains("RETRY SAVING"), 3.0),
 		"actual Rime gauge key interaction preserves unpaid readings and displays rejected-save retry")
