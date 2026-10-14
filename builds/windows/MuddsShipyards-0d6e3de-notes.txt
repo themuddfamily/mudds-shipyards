@@ -1,0 +1,16 @@
+Mudd's Shipyards Windows passive repair caption checkpoint — 0d6e3de2eede509deb2531513ee6753d245b3a60
+
+Player-visible changes
+Component repair progress reaches the HUD and caption feed during repeated passive repair pulses and after reconnecting its binding. Passive nonrepair telemetry stays quiet. Existing shared Rime cold/survey observations, once-only saved reward, real client controls and reboarding remain included, together with guarded shared home-return guidance and streaming allocation fixes.
+
+Actual validation
+Fresh exact0d6 source checks: repair HUD30, component damage96 and caption production20. These are the new source receipts; previous40608 Rime37/Aurora97/shared-client24 results retain their prior source scope and are not relabeled as fresh source qualification.
+ONE safe Windows export uses the actual accepted immutable40608 closed601-file cache, preserving the new source cache. Original export900 cap remains. Actual embedded Windows PCK under Linux Godot passes repair30/damage96/caption20, shared-client24/Rime37/Aurora97 each original300, standard223(89/40/25/69), and strict startup exit0 with exactly one STARTUP_MENU_READY_OK. Automated Godot uses Dummy and headless or private explicitx11; private700 parents/sevenXDG/TMP, umask077, inherited HOME and git optional locks off. All actual captured process identities and private namespace actors close absent.
+Actual1513 payload paths match40608; exactly the three expected compiled scripts differ: scripts/combat/ship_component_damage.gdc, scripts/ui/hero_component_hud_binding.gdc, scripts/ui/hud.gdc. Raw cache ordering changes: none. All481 class descriptors and659 UID mappings match; every asset and other payload byte is exact. External fixtures contain only the declared existing test GD/UID files and authentic class/UID cache, no copied production fallback. Current source/index/cache/templates/readonlyfixtures/EXE/inventory match their qualification snapshots before staging.
+
+Limits
+Initial arrival is staged. Full shared/canonical home return and save/crew restoration remain unqualified; original900 return timeout/budget bound is preserved. Extended budget needs separate authorization. Current main/full CI/full release/nativeWindows/GPU/human/audio gates remain open. Windows execution remains held and hosted CI stays disabled by user instruction. No native game/PowerShell/managed fixture, installer/registry/desktop/audio, publication or external push occurs. Allocation changes do not establish isolated speed improvement. All published40608 artifacts and receipts remain immutable. Producer0d6 and the original failed Aurora waypoint attempt remain frozen. Aurora97 uses the corrected external fixture committed at db1813104d68b5b550bd5c85fb3bbd8f38ab8d0c (SHA256 80a09f411c40122ac8d70aa9b8f0ea706a74da6a6fb03fba5de3a72f211bdda9); its authored path crosses the real clear gap. The original97 RED is preserved, and passing original consumers retain their original fixture scope.
+
+EXE SHA256: a481cee44aafe93b7afb30569c1a49d546373b93fa8d5689452fd74dc1c362a2
+PCK SHA256: 6ce6d956c62a6e173bfc6af8da94b0abcf2e2dbfa5067ae3fa1c913ef5347b41
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/clock-recovery-windows/rime-home-trail-084a348/passive-repair-0d6e3de
