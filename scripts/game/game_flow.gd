@@ -13860,7 +13860,7 @@ func _present_network_client_ember_passenger_departure(craft: HeroShip, area: Sh
 		Callable(self, "_network_client_rime_pad_owner_is_current").bind(_network_client_ember_passenger_surface))
 	hud.set_mode("on-foot")
 	if _network_client_ember_passenger_surface.world_id == RimeExpeditionType.WORLD_ID:
-		hud.set_objective("Stay on Rime’s landing pad and reboard through the hatch; shared ice-core survey and return to Mudds are unavailable")
+		hud.set_objective("Stay on Rime’s landing pad and reboard through the hatch; the host can return all crew to Mudds. Shared ice-core survey is unavailable.")
 	else:
 		hud.set_objective("Optional coastal survey: follow the amber trail, or return through the hatch whenever ready" \
 			if _network_client_ember_passenger_surface.world_id == AuroraExpeditionType.WORLD_ID \

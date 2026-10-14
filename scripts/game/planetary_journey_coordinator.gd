@@ -487,10 +487,11 @@ func begin_aurora_return() -> Dictionary:
 	if not is_instance_valid(_flow.active_ship) or not _flow.active_ship.is_piloted():
 		return {"accepted": false, "reason": &"pilot_unseated"}
 	if _flow._network_session_is_live():
-		var gate: StringName = _flow._network_planetary_journey.shared_aurora_return_gate_reason()
+		var gate: StringName = _flow._network_planetary_journey.shared_surface_return_gate_reason(_visit_world_id)
 		if not gate.is_empty():
 			return {"accepted": false, "reason": gate}
-		_flow._network_planetary_journey.admit_shared_aurora_return()
+		if not _flow._network_planetary_journey.admit_shared_surface_return(_visit_world_id):
+			return {"accepted": false, "reason": &"shared_surface_return_owner_changed"}
 	_aurora_final_approach_source_ref = null
 	_aurora_final_approach_armed = false
 	_aurora_return_active = true

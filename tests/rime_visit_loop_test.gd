@@ -103,10 +103,245 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--rime-completed-return" in OS.get_cmdline_user_args():
+	if "--rime-shared-completed-return" in OS.get_cmdline_user_args():
+		await _run_shared_return()
+	elif "--rime-completed-return" in OS.get_cmdline_user_args():
 		await _run_canonical()
 	else:
 		await _run_bounded()
+
+
+## Opt-in shared RETURN leg. Initial Rime arrival/cabin positioning is staged;
+## every step after exterior admission, takeoff, home cruise and docking is real.
+var _shared_crew_sequence := 0
+
+
+class SharedReturnSampler extends RimeLegSampler:
+	var body_ref: WeakRef
+	var body_id := 0
+	var crew_failures := 0
+	var maximum_cabin_step := 0.0
+	var previous_cabin_position := Vector3.INF
+
+	func _sample(game: GameFlow) -> void:
+		super._sample(game)
+		var candidate: Variant = body_ref.get_ref() if body_ref != null else null
+		if not is_instance_valid(candidate):
+			crew_failures += 1
+			return
+		var body := candidate as PlayerController
+		var craft := game.active_ship as HeroShip
+		if not is_instance_valid(craft):
+			crew_failures += 1
+			return
+		var frame := craft.get_moving_interior_component() as MovingInteriorFrame
+		crew_failures += int(body.get_instance_id() != body_id or not body.is_cabin_containment_active()
+			or not is_instance_valid(frame) or not frame.is_occupant_registered(body))
+		var local := craft.to_local(body.global_position)
+		if previous_cabin_position.is_finite():
+			maximum_cabin_step = maxf(maximum_cabin_step, local.distance_to(previous_cabin_position))
+		previous_cabin_position = local
+
+
+func _shared_wait(predicate: Callable, seconds: float) -> bool:
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if predicate.call():
+			return true
+		await physics_frame
+		await process_frame
+	return predicate.call() == true
+
+
+func _shared_board_request(game: GameFlow, adapter: Node, craft: HeroShip, sequence: int, action: StringName) -> Dictionary:
+	var peer: int = adapter.multiplayer.get_unique_id()
+	return NetworkBoardingIntent.create(peer, GameFlow.network_client_boarding_avatar_id(peer), craft.get_ship_id(),
+		1, StringName("frame_%s" % craft.get_ship_id()), 1, GameFlow.network_cabin_berth_seat_id(craft.get_ship_id(), 1),
+		1, GameFlow.NETWORK_CABIN_BERTH_ROLE, sequence, game.network_session.get_boarding_server_tick(), action).to_dictionary()
+
+
+func _shared_walk(game: GameFlow, adapter: Node, body: PlayerController, target: Vector3) -> bool:
+	var deadline := Time.get_ticks_msec() + 18000
+	while Time.get_ticks_msec() < deadline and is_instance_valid(body):
+		var tick := Engine.get_physics_frames()
+		game.network_session.set_movement_server_tick(tick)
+		if tick % 4 == 0:
+			var offset := target - body.global_position
+			var moving := Vector2(offset.x, offset.z).length() > 0.7
+			var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
+			adapter.send_movement_intent(NetworkMovementIntent.create(adapter.multiplayer.get_unique_id(), identity.entity_id,
+				int(identity.entity_generation), 1001, _shared_crew_sequence, tick, Vector2(0, -1) if moving else Vector2.ZERO,
+				false, &"", false, atan2(-offset.x, -offset.z)).to_dictionary())
+			_shared_crew_sequence += 1
+		game.get_network_remote_body_simulation().advance(tick)
+		await physics_frame
+		if is_instance_valid(body) and body.global_position.distance_to(target) < 1.1 and body.is_on_floor():
+			return true
+	return false
+
+
+func _run_shared_return() -> void:
+	var game := MAIN.instantiate() as GameFlow
+	root.add_child(game)
+	set_multiplayer(SceneMultiplayer.new(), game.get_path())
+	await process_frame
+	await physics_frame
+	game.start_shift()
+	game.select_activity_kind(GameFlow.ACTIVITY_KIND_CONVOY_ESCORT)
+	var craft := game.get_node("HalyardCrewTransport") as HeroShip
+	var home := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	home.release(craft, home.get_reservation_token(craft))
+	game._reserved_berth_ids.erase(craft.get_instance_id())
+	game._berth_tokens.erase(craft.get_instance_id())
+	craft.global_transform = home.get_assist_capture_transform()
+	game.player.teleport_to(Transform3D(craft.global_basis, craft.get_boarding_position()))
+	game._board_ship(craft)
+	var pilot_ready := await _shared_wait(func(): return game._piloting and game.player.is_seated_at(craft.get_pilot_seat_anchor()) and not game._transition_busy, 12.0)
+	_check(pilot_ready, "shared return stages the actual occupied Halyard host pilot")
+	var socket := UDPServer.new()
+	socket.listen(0, "127.0.0.1")
+	var port := socket.get_local_port()
+	socket.stop()
+	game.network_discovery_port = 0
+	var hosted := game.host_network_session(port, "127.0.0.1")
+	_check(bool(hosted.get("accepted", false)), "shared return owns a real authoritative host session")
+	var branch := SubViewport.new()
+	root.add_child(branch)
+	set_multiplayer(SceneMultiplayer.new(), branch.get_path())
+	var adapter := preload("res://scripts/network/network_enet_session_adapter.gd").new()
+	adapter.name = String(GameFlow.NETWORK_SESSION_NODE_NAME)
+	branch.add_child(adapter)
+	adapter.join("127.0.0.1", port)
+	var admitted := await _shared_wait(func(): return not adapter.get_server_offer().is_empty(), 10.0)
+	_check(admitted, "shared return admits independent authenticated ENet crew")
+	if admitted:
+		adapter.send_boarding_intent(_shared_board_request(game, adapter, craft, 1, NetworkBoardingIntent.ACTION_BOARD))
+	var avatar := GameFlow.network_client_boarding_avatar_id(adapter.multiplayer.get_unique_id())
+	var boarded := admitted and await _shared_wait(func(): return game.get_network_remote_body_simulation() != null and game.get_network_remote_body_simulation().has_body(avatar), 12.0)
+	_check(boarded, "shared return retains the actual confirmed cabin crew body")
+	if boarded and pilot_ready:
+		await _drive_shared_return(game, adapter, craft, home, avatar)
+	_release_all_actions()
+	adapter.shutdown()
+	game.shutdown_network_session(&"shared_rime_return_fixture_done")
+	branch.queue_free()
+	await _tear_down(game)
+	_finish()
+
+
+func _drive_shared_return(game: GameFlow, adapter: Node, craft: HeroShip, home: ShipBerth, avatar: StringName) -> void:
+	game.set_physics_process(false)
+	var owner := game._rime_expedition
+	var bootstrap := game.rime_streaming_bootstrap
+	var binding := game.rime_streaming_binding
+	var station_environment := game.get_viewport().world_3d.environment
+	var station_visible := game.world.visible
+	_check(bool(game._planetary_journey.admit_aurora_visit(craft, false, DESTINATION_ID).get("accepted", false)), "shared return selects Rime's actual visit lane")
+	craft.global_position = bootstrap.global_position + Vector3(0, 120030, 30)
+	var sample := {"available": true, "position": craft.global_position, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id()}
+	binding.physics_tick_from_caller_sample(0.0, sample)
+	_check(bool(game.common_world_origin_rebase_owner.consume_rebase_preview(binding.preview_origin_rebase(bootstrap.get_coordinate_frame_for_session().get_generation()), sample).get("accepted", false)), "staged Rime arrival uses the actual common origin owner")
+	var loaded := await _shared_wait(func(): return is_instance_valid(bootstrap.get_loaded_instance()), 10.0)
+	_check(loaded, "shared return loads Rime's real production scene")
+	if not loaded:
+		return
+	var scene := bootstrap.get_loaded_instance()
+	var region := scene.get_node("LandingRegion") as Node3D
+	owner._ship = craft
+	owner._home = home
+	owner._surface = scene
+	owner._station_environment = station_environment
+	owner._station_visible = station_visible
+	owner._shared_arrival = true
+	owner.state = &"landing"
+	owner.survey.attach(scene)
+	owner._lease_surface_berth(region)
+	var berth := owner._berth as ShipBerth
+	craft.global_transform = berth.get_assist_capture_transform()
+	craft.velocity = Vector3.ZERO
+	craft.request_berth_landing(berth)
+	var docked := await _shared_wait(func(): return berth.get_occupant() == craft and not craft.is_landing_active(), 15.0)
+	_check(docked, "shared return starts on Rime's actual occupied physical lease")
+	if not docked:
+		return
+	owner.physics_tick(0.0)
+	var bridge := game._network_planetary_journey
+	bridge._epoch = 1
+	bridge._craft_instance_id = craft.get_instance_id()
+	bridge._pilot_source_ref = weakref(craft.get_command_source())
+	bridge._state = {"journey_epoch": 1, "world_id": DESTINATION_ID, "ship_id": craft.get_ship_id(), "phase": &"landed"}
+	game.phase = GameFlow.Phase.FREE_FLIGHT
+	var simulation := game.get_network_remote_body_simulation()
+	var body := simulation.get_body(avatar) as PlayerController
+	var body_id := body.get_instance_id()
+	var hatch := craft.get_node("WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
+	# Last actor placement is before exterior admission, at the actual hatch.
+	body.teleport_to(Transform3D(Basis.IDENTITY, hatch.global_position - Vector3.UP * 0.7))
+	for tick in 12:
+		await physics_frame
+	adapter.send_boarding_intent(_shared_board_request(game, adapter, craft, 2, NetworkBoardingIntent.ACTION_DISEMBARK))
+	var exterior := await _shared_wait(func(): return simulation.is_surface_walking(avatar), 5.0)
+	_check(exterior, "shared return crew exits by its authenticated ordinary hatch request")
+	if not exterior:
+		return
+	_check(not owner.request(), "exterior Rime crew cannot be carried home before reboarding")
+	var walked := await _shared_walk(game, adapter, body, region.to_global(Vector3(-8, 0.5, -8)))
+	for point in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
+		walked = walked and await _shared_walk(game, adapter, body, point)
+	_check(walked, "same admitted Rime crew walks ordinary intents out and back through the real hatch")
+	if not walked:
+		return
+	# Stop through fresh accepted neutral inputs, preserving the real stream.
+	for settle in 12:
+		var tick := Engine.get_physics_frames()
+		game.network_session.set_movement_server_tick(tick)
+		if tick % 4 == 0:
+			var identity := NetworkRemoteBodySimulation.get_remote_body_identity(body)
+			adapter.send_movement_intent(NetworkMovementIntent.create(adapter.multiplayer.get_unique_id(), identity.entity_id,
+				int(identity.entity_generation), 1001, _shared_crew_sequence, tick).to_dictionary())
+			_shared_crew_sequence += 1
+		game.get_network_remote_body_simulation().advance(tick)
+		await physics_frame
+	adapter.send_boarding_intent(_shared_board_request(game, adapter, craft, 3, NetworkBoardingIntent.ACTION_BOARD_ANY))
+	var reboarded := await _shared_wait(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0)
+	_check(reboarded and simulation.get_body(avatar) == body, "actual authenticated reboard retains the same crew body for home travel")
+	if not reboarded:
+		return
+	var reward_before := (game.get("_game_flow_reward_authority") as RefCounted).call(&"get_snapshot") as Dictionary
+	var sampler := SharedReturnSampler.new()
+	sampler.player_id = game.player.get_instance_id()
+	sampler.craft_id = craft.get_instance_id()
+	sampler.body_ref = weakref(body)
+	sampler.body_id = body_id
+	sampler.start_physics_sampling(self, game, &"shared_rime_return", false)
+	_physics_samplers.append(sampler)
+	game.set_physics_process(true)
+	_check(_press_rime_canonical_destination(game) and owner.state == &"return_cruise", "actual Rime Destination Board queues the authenticated shared home return")
+	if owner.state != &"return_cruise" or not await _clear_rime_canonical_surface(game, craft, owner):
+		await sampler.stop_physics_sampling()
+		return
+	for tick in CANONICAL_RETURN_TICKS:
+		await physics_frame
+		await process_frame
+		if tick % 1200 == 0:
+			print("RIME_SHARED_RETURN tick=", tick, " distance_m=", sampler.distance_flown_m, " rebases=", sampler.rebase_count, " state=", owner.state)
+		if not owner.is_active() or craft.is_destroyed():
+			break
+	var receipt := game._planetary_journey.get_aurora_visit_snapshot()
+	var handed_off := bool(receipt.get("return_handoff_ready", false)) and not owner.is_active() and bridge._home_approach
+	_check(handed_off and sampler.distance_flown_m > 9_800_000.0 and sampler.rebase_count > 900,
+		"real shared Rime cruise crosses 9.8Mm and900 rebases before its typed home handoff")
+	_check(sampler.crew_failures == 0 and sampler.maximum_cabin_step <= body.walk_speed / float(Engine.physics_ticks_per_second) + 0.01
+		and simulation.get_body(avatar) == body and body.get_instance_id() == body_id,
+		"every shared return tick preserves the same confirmed crew body and ordinary cabin continuity")
+	if handed_off:
+		_check(await _fly_home_berth(game, sampler), "ordinary controls dock at the original home berth, disembark and walk on supported yard ground")
+		_check(not bridge.is_active() and bridge._home_return_context.is_empty() and home.get_occupant() == craft
+			and simulation.get_body(avatar) == body and body.get_instance_id() == body_id,
+			"accepted home docking retires the shared journey without moving or replacing the retained crew")
+	_check_rime_leg(sampler, "shared return and ordinary home docking")
+	_check((game.get("_game_flow_reward_authority") as RefCounted).call(&"get_snapshot") == reward_before and not owner.survey.reward_recorded(),
+		"shared Rime return grants no unsupported survey reward or duplicate reward")
 
 
 ## Opt-in long route. The only actor placement is the disclosed initial yard

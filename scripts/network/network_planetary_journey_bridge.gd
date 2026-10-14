@@ -284,11 +284,8 @@ func cancel(reason: StringName) -> Dictionary:
 	if is_active() and _flow.network_session.is_server():
 		_flow._planetary_journey.retire_shared_ember_abandon_return(reason)
 		if is_surface_arrival():
-			if get_world_id() == AURORA_WORLD_ID and _arrival_owner(get_world_id()).state == &"landed" and reason == &"player_cancelled":
-				return {"accepted": _arrival_owner(get_world_id()).request(), "reason": &"shared_aurora_return_requested"}
-			if get_world_id() == RIME_WORLD_ID and _arrival_owner(get_world_id()).state == &"landed" and reason == &"player_cancelled":
-				_flow.hud.toast("Shared %s arrival" % _arrival_owner(get_world_id()).profile.display_name, ("Crew can walk Aurora's landing pad and reboard; shared return to Mudds is not available" if get_world_id() == &"aurora_temperate_world" else "Stay on Rime’s landing pad and reboard; shared ice-core survey and return to Mudds are unavailable"), 3.0)
-				return {"accepted": false, "reason": _arrival_reason(get_world_id(), "return_unavailable")}
+			if get_world_id() in [AURORA_WORLD_ID, RIME_WORLD_ID] and _arrival_owner(get_world_id()).state == &"landed" and reason == &"player_cancelled":
+				return {"accepted": _arrival_owner(get_world_id()).request(), "reason": _arrival_reason(get_world_id(), "return_requested")}
 			_arrival_owner(get_world_id()).cancel()
 		elif _flow._planetary_journey.shared_ember_surface_was_admitted():
 			if reason == &"player_cancelled":
@@ -405,7 +402,7 @@ func _surface_arrival_host_is_current() -> bool:
 
 func _before_surface_arrival_tick() -> void:
 	if not _home_return_context.is_empty() and not _home_return_actors_are_current():
-		cancel(&"shared_aurora_return_owner_lost")
+		cancel(_arrival_reason(get_world_id(), "return_owner_lost"))
 		return
 	if not _surface_arrival_host_is_current():
 		cancel(&"pilot_ownership_lost")
@@ -438,20 +435,20 @@ func _after_surface_arrival_tick() -> void:
 		# The existing departure owner can withdraw a return before takeoff.
 		# The same retained pad/body authority must still hold before retrying.
 		if not _home_return_actors_are_current():
-			cancel(&"shared_aurora_return_owner_lost")
+			cancel(_arrival_reason(get_world_id(), "return_owner_lost"))
 			return
 		_home_return_context.clear()
 		_home_return_crew.clear()
 	if not _home_return_context.is_empty() and not _arrival_owner(get_world_id()).is_active():
 		var visit: Dictionary = _flow._planetary_journey.get_aurora_visit_snapshot()
 		if not bool(visit.get("return_handoff_ready", false)) or not _home_return_actors_are_current():
-			cancel(&"shared_aurora_return_handoff_lost")
+			cancel(_arrival_reason(get_world_id(), "return_handoff_lost"))
 			return
 		# The existing typed shell receipt ended the expedition. Retain the
 		# journey and crew while normal flight/landing owns the last home leg.
 		_home_approach = true
 		if _home_dock_is_current():
-			cancel(&"shared_aurora_home_docked")
+			cancel(_arrival_reason(get_world_id(), "home_docked"))
 			return
 	if not _home_approach and not _arrival_owner(get_world_id()).is_active():
 		cancel(&"shared_landing_owner_retired")
@@ -477,37 +474,50 @@ func _after_surface_arrival_tick() -> void:
 		_publish(false)
 
 
-## Aurora's supported pad return uses the same visit and pilot authorities.
+## Each supported world's pad return uses the same visit and pilot authorities.
 ## Exterior/unconfirmed crew must physically reboard before takeoff; no grant
 ## here creates a body, moves an actor, or bypasses a survey/reward contract.
 func shared_aurora_return_gate_reason() -> StringName:
-	if not is_active() or get_world_id() != AURORA_WORLD_ID or is_preparing() \
+	return shared_surface_return_gate_reason(AURORA_WORLD_ID)
+
+
+func shared_surface_return_gate_reason(world_id: StringName) -> StringName:
+	if world_id not in [AURORA_WORLD_ID, RIME_WORLD_ID]:
+		return &"shared_surface_return_unavailable"
+	if not is_active() or get_world_id() != world_id or is_preparing() \
+			or int(_state.get("journey_epoch", 0)) != _epoch or _epoch <= 0 \
 			or not _home_return_context.is_empty():
-		return &"shared_aurora_return_unavailable"
+		return _arrival_reason(world_id, "return_unavailable")
 	if not _surface_arrival_host_is_current() or not _flow._shared_planetary_host_eligible() \
 			or not _flow.player.is_seated_at(_flow.active_ship.get_pilot_seat_anchor()) \
 			or _flow._transition_busy:
-		return &"shared_aurora_return_requires_host_pilot"
-	if not _flow._network_aurora_passenger_host_is_current(_flow.active_ship):
-		return &"shared_aurora_return_requires_current_pad"
+		return _arrival_reason(world_id, "return_requires_host_pilot")
+	if not _flow._network_surface_visit_passenger_host_is_current(_flow.active_ship, world_id):
+		return _arrival_reason(world_id, "return_requires_current_pad")
 	if not _flow._network_ember_passenger_surfaces.is_empty():
-		return &"shared_aurora_return_requires_reboarded_crew"
+		return _arrival_reason(world_id, "return_requires_reboarded_crew")
 	var home := _flow.world.get_berth_node(_flow.active_ship.get_home_berth_id()) as ShipBerth
 	if not is_instance_valid(home) or not home.is_inside_tree() or home.is_queued_for_deletion():
-		return &"shared_aurora_return_requires_home_berth"
+		return _arrival_reason(world_id, "return_requires_home_berth")
 	var crew := _current_cabin_crew()
-	return &"" if bool(crew.get("accepted", false)) else &"shared_aurora_return_requires_confirmed_crew"
+	return &"" if bool(crew.get("accepted", false)) else _arrival_reason(world_id, "return_requires_confirmed_crew")
 
 
 func admit_shared_aurora_return() -> void:
+	admit_shared_surface_return(AURORA_WORLD_ID)
+
+
+func admit_shared_surface_return(world_id: StringName) -> bool:
+	if not shared_surface_return_gate_reason(world_id).is_empty():
+		return false
 	var craft: HeroShip = _flow.active_ship
-	var owner := _arrival_owner(AURORA_WORLD_ID)
+	var owner := _arrival_owner(world_id)
 	var berth := owner.get("_berth") as ShipBerth
 	var home := _flow.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
 	_home_return_context = {
 		"session_id": _flow.network_session.get_instance_id(),
 		"session_epoch": _flow._network_hud_session_epoch,
-		"journey_epoch": _epoch, "world_id": AURORA_WORLD_ID,
+		"journey_epoch": _epoch, "world_id": world_id,
 		"player_id": _flow.player.get_instance_id(),
 		"scene_id": _bootstrap().get_loaded_instance().get_instance_id(),
 		"location_generation": _bootstrap().get_location_generation(),
@@ -518,6 +528,7 @@ func admit_shared_aurora_return() -> void:
 	_state["phase"] = &"returning"
 	_publish(true)
 
+	return true
 
 func _current_cabin_crew() -> Dictionary:
 	var craft: HeroShip = _flow.active_ship
@@ -573,8 +584,11 @@ func _home_return_actors_are_current() -> bool:
 	if not bool(crew.get("accepted", false)) or crew.crew != _home_return_crew:
 		return false
 	if not _home_approach and bool(craft.get_telemetry().get("landed", false)):
-		var owner := _arrival_owner(AURORA_WORLD_ID)
-		var berth := owner.get("_berth") as ShipBerth
+		var owner := _arrival_owner(StringName(context.world_id))
+		var berth_value: Variant = owner.get("_berth")
+		if not is_instance_valid(berth_value):
+			return false
+		var berth := berth_value as ShipBerth
 		var scene := _bootstrap().get_loaded_instance()
 		return is_instance_valid(berth) and berth.get_instance_id() == int(context.berth_id) \
 			and is_instance_valid(scene) and scene.get_instance_id() == int(context.scene_id) \

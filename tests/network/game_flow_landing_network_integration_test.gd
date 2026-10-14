@@ -483,6 +483,8 @@ func _rime_pad_body_route(game: GameFlow, client: Adapter, craft: HeroShip, avat
 	if not safe:
 		return
 	_check(int(body.get("_rime_pad_blocked_steps")) > 0 and body.get_instance_id() == body_id, "real pad boundary rejects unsupported steps without replacement or cabin recall")
+	_check(bridge.shared_surface_return_gate_reason(&"rime_glacial_world") == &"shared_rime_return_requires_reboarded_crew",
+		"Rime return requires exterior crew to physically reboard")
 	var initial_height := body.global_position.y
 	var jump_peak := initial_height
 	for tick in 100:
@@ -522,10 +524,44 @@ func _rime_pad_body_route(game: GameFlow, client: Adapter, craft: HeroShip, avat
 	_check(reboarded and simulation.get_body(avatar) == body and body.get_instance_id() == body_id,
 		"authenticated Rime reboard restores cabin containment on the same body")
 	_check(str(body.get("_rime_pad_guard_token")).is_empty(), "Rime reboard clears only its owned pad movement guard")
-	_check(not owner.request() and not bool(owner.runtime_state().action_enabled) and str(owner.runtime_state().status_text).contains("PAD ACCESS")
+	_check(bool(owner.runtime_state().action_enabled) and bridge.shared_surface_return_gate_reason(&"rime_glacial_world").is_empty()
 		and int(owner.survey.snapshot().get("state", CheckpointRouteActivity.State.IDLE)) == CheckpointRouteActivity.State.IDLE
-		and not owner.survey.reward_recorded(),
-		"Rime shared pad access offers neither unsupported ice-core survey nor home-return admission")
+		and not owner.survey.reward_recorded(), "reboarded Rime crew can return without admitting or rewarding the unsupported ice-core survey")
+	var saved_epoch := bridge._epoch
+	bridge._epoch += 1
+	_check(not owner.request() and bridge._home_return_context.is_empty(), "a stale Rime journey epoch cannot start home return")
+	bridge._epoch = saved_epoch
+	_check(not bridge.admit_shared_surface_return(&"aurora_temperate_world") and bridge._home_return_context.is_empty(),
+		"Rime cannot borrow another world's return authority")
+	var home := owner._home as ShipBerth
+	var home_parent := home.get_parent()
+	home_parent.remove_child(home)
+	_check(not owner.request() and bridge._home_return_context.is_empty(), "missing physical home berth refuses Rime return")
+	home_parent.add_child(home)
+	var return_pose := craft.global_transform
+	var return_body_pose := body.global_transform
+	_check(owner.request() and owner.state == &"return_cruise" and game._planetary_journey.is_return_departure_pending()
+		and craft.global_transform == return_pose and body.global_transform == return_body_pose and berth.get_occupant() == craft,
+		"authenticated Rime return queues manual takeoff with unchanged actors and occupied surface lease")
+	for field in ["session_id", "session_epoch", "journey_epoch", "scene_id", "location_generation", "home_id"]:
+		var previous: Variant = bridge._home_return_context[field]
+		bridge._home_return_context[field] = int(previous) + 1
+		_check(not bridge._home_return_actors_are_current(), "Rime return rejects stale retained " + field)
+		bridge._home_return_context[field] = previous
+	var return_world: Variant = bridge._home_return_context.world_id
+	bridge._home_return_context.world_id = &"aurora_temperate_world"
+	_check(not bridge._home_return_actors_are_current(), "Rime return rejects a different retained world")
+	bridge._home_return_context.world_id = return_world
+	var return_token: Variant = bridge._home_return_context.surface_token
+	bridge._home_return_context.surface_token = &"retired_rime_return_lease"
+	_check(not bridge._home_return_actors_are_current(), "Rime return rejects a stale physical surface lease")
+	bridge._home_return_context.surface_token = return_token
+	game._planetary_journey.cancel_return_departure(&"focused_return_withdrawn")
+	owner.physics_tick(0.0)
+	bridge._after_surface_arrival_tick()
+	_check(owner.state == &"landed" and bridge._home_return_context.is_empty() and craft.global_transform == return_pose
+		and body.global_transform == return_body_pose and berth.get_occupant() == craft,
+		"withdrawing Rime return before takeoff preserves the same reboarded crew, pad lease and retry controls")
 	# Real support loss ends this final admission; never restore a removed floor
 	# and pretend the old authority is still current or place a replacement body.
 	client.send_boarding_intent(_rime_boarding_request(game, client, craft, 4, BoardingIntent.ACTION_DISEMBARK))
