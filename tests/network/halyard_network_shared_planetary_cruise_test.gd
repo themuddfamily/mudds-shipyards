@@ -472,7 +472,7 @@ func _aurora_home_host(owner: RefCounted, avatar: StringName, body_id: int, pilo
 	await _walk(_craft.to_local(pilot.global_position) + Vector3(-0.6, 0.0, 0.6))
 	await _look(pilot.global_position)
 	await _press(&"interact")
-	_check(await _until(func(): return _game._piloting and _player.is_seated_at(pilot)
+	_check(await _until(func(): return _game._piloting and _player.is_seated_at(pilot) \
 		and not _game._transition_busy, 12.0), "ordinary host cabin re-seat restores return pilot")
 	if not _game._piloting or not await _wait_file("client.return_seated", 20.0):
 		return false
@@ -544,7 +544,7 @@ func _aurora_home_host(owner: RefCounted, avatar: StringName, body_id: int, pilo
 	if not await _wait_file("client.home_walked", 30.0):
 		return false
 	await _press(&"interact")
-	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor()
+	_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() \
 		and _player.is_control_enabled() and not _game._transition_busy, 12.0), "ordinary home pilot exit restores supported controls")
 	return _failures.is_empty()
 
@@ -560,7 +560,7 @@ func _aurora_home_client(source: NetworkRemoteBodyIntentSource, body_id: int, ha
 			or not await _wait_file("host.home_handoff", minf(700.0, _ember_surface_seconds_remaining())) \
 			or not await _wait_file("host.home_docked", minf(700.0, _ember_surface_seconds_remaining())):
 		return false
-	_check(await _until(func(): return not _game._network_planetary_journey.is_active(), 12.0)
+	_check(await _until(func(): return not _game._network_planetary_journey.is_active(), 12.0) \
 		and _player.get_instance_id() == body_id and source == _game.get_network_remote_body_intent_source()
 		and source.is_bound() and _player.is_seated_at(_station_anchor()),
 		"successful home retirement retains the client's same seated body and predictor without recall")
@@ -570,7 +570,7 @@ func _aurora_home_client(source: NetworkRemoteBodyIntentSource, body_id: int, ha
 	await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
 	await _look(hatch.global_position)
 	await _press(&"interact")
-	_check(await _until(func(): return not _game._network_client_boarding_holds(_craft)
+	_check(await _until(func(): return not _game._network_client_boarding_holds(_craft) \
 		and _player.is_on_floor() and _player.is_control_enabled() and not _game._transition_busy, 12.0)
 		and _player.get_instance_id() == body_id, "ordinary Mudds hatch disembark retains supported client body")
 	var start := _player.global_position

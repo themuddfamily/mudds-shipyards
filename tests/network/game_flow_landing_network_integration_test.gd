@@ -344,7 +344,7 @@ func _shared_aurora_home_publication_retry() -> void:
 	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
 	var ship_id := craft.get_ship_id()
 	game._ensure_network_boarding_ship_registered(craft)
-	var request := BoardingIntent.create(peer, avatar, ship_id, 1, StringName("frame_%s" % ship_id), 1,
+	var request: Dictionary = BoardingIntent.create(peer, avatar, ship_id, 1, StringName("frame_%s" % ship_id), 1,
 		GameFlow.network_cabin_berth_seat_id(ship_id, 1), 1, GameFlow.NETWORK_CABIN_BERTH_ROLE,
 		1, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
 	_check(bool(client.send_boarding_intent(request).get("accepted", false)), "crew uses the real authenticated cabin boarding ledger")
