@@ -468,8 +468,10 @@ const MAIN_SCENE := preload("res://scenes/main.tscn")
 # fingerprints remain a separate package measurement gate.
 const RESIDENT_FINGERPRINT := "a2aa788cf8be7c53e4493f2c4996f6c878bd6ccb70b03b56788d9800dbcbbf11"
 const CINDER_LOADED_FINGERPRINT := "26f31375d3b27d103725e134e7dbdfda1f455afa9b8a0dc2d599522d451e8188"
-const PACKED_RESIDENT_FINGERPRINT := "415793c5332be67ee4449a12bf7f8ec5186c90de17e7adaa7edd3c7fdeae4b20"
-const PACKED_CINDER_LOADED_FINGERPRINT := "b390431723e8dc5856f7a48db0d4c99ac4d7e7db41934a1d6c3b069f05f9ae73"
+# Packed fingerprints measured from the clean b942 Windows export on 2026-10-14;
+# the original 17 passing count/resource checks and two stale-hash failures are retained.
+const PACKED_RESIDENT_FINGERPRINT := "cebed0e029ed88e1e1cab38a8d59d18e1b7fe9454f78d7669a25b18832d6ddff"
+const PACKED_CINDER_LOADED_FINGERPRINT := "aa396b32eabf584c91207c01a2e2e78094ccfacecb661228d04563b1adc84ef2"
 
 var _assertions := 0
 var _failures := PackedStringArray()
