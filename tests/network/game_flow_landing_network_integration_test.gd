@@ -8,6 +8,7 @@ const Berth := preload("res://scripts/world/ship_berth.gd")
 const MainScene := preload("res://scenes/main.tscn")
 const BoardingIntent := preload("res://scripts/network/network_boarding_intent.gd")
 
+var _coastal_replica: Dictionary = {}
 var _coastal_sequence := 0
 var _coastal_interaction := 0
 var _assertions := 0
@@ -404,7 +405,13 @@ func _shared_aurora_home_publication_retry() -> void:
 	var simulation := game.get_network_remote_body_simulation()
 	var body := simulation.get_body(avatar) as PlayerController
 	var frame := craft.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
-	await _shared_aurora_coastal_observations(game, server, client, craft, body, filesystem, store)
+	if not await _shared_aurora_coastal_observations(game, server, client, craft, body, filesystem, store):
+		client.shutdown()
+		game.shutdown_network_session(&"coastal_fixture_failed")
+		branch.queue_free()
+		game.queue_free()
+		await process_frame
+		return
 	var bridge := game._network_planetary_journey
 	bridge._epoch = 1
 	bridge._craft_instance_id = craft.get_instance_id()
@@ -490,7 +497,8 @@ func _wait_until(predicate: Callable, seconds: float) -> bool:
 
 ## Staged feature fixture: one production-streamed world and physical dock.
 ## It exercises authenticated crew observations, not canonical world travel.
-func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client: Adapter, craft: HeroShip, body: PlayerController, filesystem: SurveyFilesystem, store: UserDataStore) -> void:
+func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client: Adapter, craft: HeroShip, body: PlayerController, filesystem: SurveyFilesystem, store: UserDataStore) -> bool:
+	client.planetary_journey_state_received.connect(_capture_coastal_state)
 	game.set_physics_process(false)
 	var owner := game._aurora_expedition
 	var bootstrap := game.aurora_streaming_bootstrap
@@ -505,7 +513,7 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	var surface := bootstrap.get_loaded_instance()
 	if not is_instance_valid(surface):
 		_check(false, "staged survey loads the real coastal scene")
-		return
+		return false
 	var region := surface.get_node("LandingRegion") as Node3D
 	owner._ship = craft
 	owner._home = game.world.get_berth_node(craft.get_home_berth_id())
@@ -542,29 +550,38 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	if not walking:
 		print("COASTAL_HATCH_AFTER audit=", game.get_network_remote_body_audit(), " answer=", client.get_boarding_intent_result_replica())
 	_check(walking and game._network_aurora_survey_body_is_current(body), "authenticated hatch release retains the actual crew body under the current Aurora surface grant")
+	if not walking:
+		return false
 	if walking:
 		var body_id := body.get_instance_id()
 		var sign := surface.find_child("SurveyTrailSign", true, false) as Node3D
 		var lookout := surface.find_child("SurveyLookout", true, false) as Node3D
 		var stones := surface.find_child("SurveyStones", true, false) as Node3D
-		for point in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(-8, 0.52, 14)), region.to_global(Vector3(14, 0.5, 14)), region.to_global(Vector3(14, 0.5, 2)), sign.global_position + Vector3.UP * 0.5]:
-			_check(await _walk_coastal(game, server, client, body, point), "retained crew walks from the actual hatch along the authored trail")
+		for point in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(-8, 0.52, 22)), region.to_global(Vector3(14, 0.5, 22)), region.to_global(Vector3(14, 0.5, 2)), sign.global_position + Vector3.UP * 0.5]:
+			if not await _checked_coastal_walk(game, server, client, body, point, "retained crew walks from the actual hatch along the authored trail"):
+				return false
 		await _coastal_press(game, server, client, body)
 		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.ACTIVE, "real authenticated crew interaction starts the host-owned optional survey")
 		await _coastal_press(game, server, client, body)
 		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.FAILED, "crew may abandon the optional survey without losing its return route")
 		await _coastal_press(game, server, client, body)
 		for point in [region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(57, 0.5, -20)), lookout.global_position + Vector3(-1.5, -1.0, 0)]:
-			_check(await _walk_coastal(game, server, client, body, point), "real crew walking remains admitted on the existing coastal terrain and lookout floor")
+			if not await _checked_coastal_walk(game, server, client, body, point, "real crew walking remains admitted on the existing coastal terrain and lookout floor"):
+				return false
 		await _coastal_press(game, server, client, body)
+		bridge._publish(true)
+		_check(await _wait_until(func(): return int((_coastal_replica.get("aurora_survey", {}) as Dictionary).get("progress", {}).get("next_checkpoint_index", 0)) == 1, 3.0), "actual authenticated host publication synchronizes the crew observation progress")
 		_check(int(owner.survey.snapshot().get("next_checkpoint_index", 0)) == 1, "host records the actual lookout observation from the retained crew body")
-		_check(await _walk_coastal(game, server, client, body, region.to_global(Vector3(55, 0.5, -20))), "crew returns through the lookout entrance")
-		_check(await _walk_coastal(game, server, client, body, stones.global_position + Vector3.UP * 0.5), "crew walks the authored stones branch")
+		if not await _checked_coastal_walk(game, server, client, body, region.to_global(Vector3(55, 0.5, -20)), "crew returns through the lookout entrance"):
+			return false
+		if not await _checked_coastal_walk(game, server, client, body, stones.global_position + Vector3.UP * 0.5, "crew walks the authored stones branch"):
+			return false
 		filesystem.reject_rewards = true
 		await _coastal_press(game, server, client, body)
 		_check(int(owner.survey.snapshot().get("state", -1)) == CheckpointRouteActivity.State.COMPLETED and not owner.survey.reward_recorded() and filesystem.rejected_rewards > 0, "actual atomic reward write rejection retains completed observations without entitlement")
 		bridge._publish(true)
-		var shared := bridge.get_snapshot().get("aurora_survey", {}) as Dictionary
+		_check(await _wait_until(func(): return int((_coastal_replica.get("aurora_survey", {}) as Dictionary).get("progress", {}).get("state", -1)) == CheckpointRouteActivity.State.COMPLETED, 3.0), "actual host publication delivers completed unpaid observations to the peer")
+		var shared := _coastal_replica.get("aurora_survey", {}) as Dictionary
 		var view := owner.survey.shared_presentation(surface, body, shared) as Dictionary
 		_check(str(view.get("prompt", "")).contains("RETRY SAVING"), "shared progress gives crew actionable rejected-save guidance")
 		var progress := owner.survey.capture() as Dictionary
@@ -585,8 +602,9 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	# This bounded fixture finishes its surface attachment before the existing
 	# home-handoff publication test; it does not claim a physical return voyage.
 	if walking and is_instance_valid(body):
-		for point in [region.to_global(Vector3(55, 0.5, -20)), region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(30, 0.5, 0)), region.to_global(Vector3(14, 0.5, 2)), region.to_global(Vector3(14, 0.5, 14)), craft.to_global(Vector3(-8, 0.52, 14)), craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
-			_check(await _walk_coastal(game, server, client, body, point), "survey crew physically follows the trail and airstair back into the cabin")
+		for point in [region.to_global(Vector3(55, 0.5, -20)), region.to_global(Vector3(43, 0.5, -8)), region.to_global(Vector3(30, 0.5, 0)), region.to_global(Vector3(14, 0.5, 2)), region.to_global(Vector3(14, 0.5, 22)), craft.to_global(Vector3(-8, 0.52, 22)), craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), craft.to_global(Vector3(0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))]:
+			if not await _checked_coastal_walk(game, server, client, body, point, "survey crew physically follows the trail and airstair back into the cabin"):
+				return false
 		var reboard: Dictionary = BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 3, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
 		client.send_boarding_intent(reboard)
 		_check(await _wait_until(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0), "ordinary authenticated reboard retains the survey body and restores the return manifest")
@@ -603,6 +621,7 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	binding.physics_tick_from_caller_sample(0.0, home_sample)
 	game.common_world_origin_rebase_owner.consume_rebase_preview(binding.preview_origin_rebase(bootstrap.get_coordinate_frame_for_session().get_generation()), home_sample)
 	game.set_physics_process(true)
+	return true
 
 
 func _coastal_tick(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3) -> void:
@@ -638,3 +657,13 @@ func _coastal_press(game: GameFlow, server: Adapter, client: Adapter, body: Play
 		if not is_instance_valid(body):
 			return
 		await _coastal_tick(game, server, client, body, position)
+
+
+func _checked_coastal_walk(game: GameFlow, server: Adapter, client: Adapter, body: PlayerController, target: Vector3, description: String) -> bool:
+	var reached := await _walk_coastal(game, server, client, body, target)
+	_check(reached, description)
+	return reached
+
+
+func _capture_coastal_state(packet: Dictionary) -> void:
+	_coastal_replica = packet.duplicate(true)
