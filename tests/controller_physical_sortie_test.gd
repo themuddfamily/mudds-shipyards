@@ -10,6 +10,8 @@ extends SceneTree
 ##
 ## The shift start, controls overlay, and pause/resume steps are driven by real
 ## joypad button events so the loop needs no keyboard at any point.
+## --production-input-route instead enters through Boot and keeps authored tuning
+## and the default Input-backed sampler; its event driver is never a provider.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
@@ -30,6 +32,7 @@ const BUTTON_RIGHT_SHOULDER := 10
 const BUTTON_DPAD_LEFT := 13
 
 const EXPECTED_ASSERTIONS := 44
+const PRODUCTION_INPUT_ASSERTIONS := 47
 
 ## Nominal durations for the two locomotion budgets. These are no longer wall-clock
 ## timeouts: each is converted into a number of simulated frames by
@@ -47,6 +50,8 @@ const FRAME_BUDGET_GRACE := 30
 
 var _failures := PackedStringArray()
 var _assertions := 0
+var _production_input_route := false
+var _boot: StartupLoader
 
 
 class ControllerStateProvider:
@@ -88,19 +93,108 @@ class ControllerStateProvider:
 		)
 
 
+class ControllerInputEvents:
+	extends ControllerStateProvider
+
+	var _flight_actions: Array[StringName] = []
+
+	func _init(source: LocalShipInputSource) -> void:
+		if source == null:
+			return
+		_flight_actions.assign([
+			source.throttle_forward_action, source.throttle_reverse_action,
+			source.yaw_left_action, source.yaw_right_action, source.pitch_up_action, source.pitch_down_action,
+			source.roll_left_action, source.roll_right_action, source.brake_action, source.fire_action,
+		])
+
+	func set_button(button_index: int, pressed: bool) -> void:
+		var event := InputEventJoypadButton.new()
+		event.device = 0
+		event.button_index = button_index
+		event.pressed = pressed
+		Input.parse_input_event(event)
+
+	func set_axis(axis_index: int, value: float) -> void:
+		var event := InputEventJoypadMotion.new()
+		event.device = 0
+		event.axis = axis_index
+		event.axis_value = clampf(value, -1.0, 1.0)
+		# Guidance requests resolved action strength, like the legacy provider.
+		# Native joystick events first cross InputMap's deadzone; invert that map.
+		if event.axis_value != 0.0:
+			var action := _bound_axis_action(axis_index, event.axis_value)
+			if not action.is_empty():
+				var deadzone := InputMap.action_get_deadzone(action)
+				event.axis_value = signf(event.axis_value) * (deadzone + (1.0 - deadzone) * absf(event.axis_value))
+		Input.parse_input_event(event)
+
+	func _bound_axis_action(axis_index: int, direction: float) -> StringName:
+		for action: StringName in _flight_actions:
+			for binding: InputEvent in InputMap.action_get_events(action):
+				if not binding is InputEventJoypadMotion:
+					continue
+				var motion := binding as InputEventJoypadMotion
+				if motion.axis == axis_index and motion.device in [-1, 0] \
+						and signf(motion.axis_value) == signf(direction):
+					return action
+		return &""
+
+	func steering_strengths_match() -> bool:
+		var matched := true
+		for axis in [0, 3]:
+			for value in [-1.0, -0.4, -0.05, 0.05, 0.4, 1.0]:
+				var action := _bound_axis_action(axis, value)
+				set_axis(axis, value)
+				Input.flush_buffered_events()
+				var observed := Input.get_action_strength(action) if not action.is_empty() else -1.0
+				if not is_equal_approx(observed, absf(value)):
+					print("CONTROLLER_INPUT_SCALAR_MISMATCH: axis=", axis, " action=", action,
+						" desired=", value, " raw=", Input.get_joy_axis(0, axis), " observed=", observed)
+					matched = false
+				set_axis(axis, 0.0)
+				Input.flush_buffered_events()
+				if not action.is_empty() and Input.get_action_strength(action) != 0.0:
+					matched = false
+		return matched
+
+	func release_all() -> void:
+		for axis in [0, 1, 2, 3, 4, 5]:
+			set_axis(axis, 0.0)
+		for button in [0, 2, 3, 4, 6, 7, 10, 13]:
+			set_button(button, false)
+
+
 func _init() -> void:
 	call_deferred("_run")
 
 
 func _run() -> void:
-	var game := MAIN_SCENE.instantiate() as GameFlow
+	_production_input_route = "--production-input-route" in OS.get_cmdline_user_args()
+	var game: GameFlow
+	if _production_input_route:
+		var boot_scene: PackedScene = load("res://scenes/boot.tscn")
+		_boot = boot_scene.instantiate() as StartupLoader
+		root.add_child(_boot)
+		var completed_main: Node = await _boot.startup_completed
+		game = completed_main as GameFlow
+	else:
+		game = MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates for the physical controller sortie")
 	if game == null:
 		_finish()
 		return
-	root.add_child(game)
+	if not _production_input_route:
+		root.add_child(game)
 	await process_frame
 	await physics_frame
+	if _production_input_route:
+		root.grab_focus()
+		var menu_ready := await _wait_until(func() -> bool: return _boot.get_main() == game and StartupLoader.is_title_menu_ready(game) and not is_instance_valid(_boot.get_loading_screen()) and root.has_focus(), 2.0)
+		_check(menu_ready, "ordinary Boot completes and presents an interactive focused Begin Shift menu")
+		if not menu_ready:
+			await _clean_up(game, null)
+			_finish()
+			return
 
 	var player := game.get_node_or_null("Player") as PlayerController
 	var torrent := game.get_node_or_null("TorrentInterceptor") as HeroShip
@@ -115,18 +209,20 @@ func _run() -> void:
 		_finish()
 		return
 
-	# These are public editor-facing tuning properties, not state transitions.
-	game.canopy_motion_time = 0.0
-	game.boarding_motion_time = 0.08
-	game.disembarking_motion_time = 0.08
-	torrent.weapon_cooldown = 0.06
-	torrent.maximum_speed = 70.0
-	torrent.thrust_acceleration = 72.0
-	torrent.brake_acceleration = 80.0
-	torrent.passive_drag = 8.0
-	torrent.throttle_response = 30.0
-	torrent.yaw_speed_degrees = 180.0
-	torrent.flight_assist_strength = 12.0
+	var authored_tuning: Dictionary = _sortie_tuning(game, torrent) if _production_input_route else {}
+	if not _production_input_route:
+		# The original accelerated fixture remains distinct from ordinary controls.
+		game.canopy_motion_time = 0.0
+		game.boarding_motion_time = 0.08
+		game.disembarking_motion_time = 0.08
+		torrent.weapon_cooldown = 0.06
+		torrent.maximum_speed = 70.0
+		torrent.thrust_acceleration = 72.0
+		torrent.brake_acceleration = 80.0
+		torrent.passive_drag = 8.0
+		torrent.throttle_response = 30.0
+		torrent.yaw_speed_degrees = 180.0
+		torrent.flight_assist_strength = 12.0
 
 	var spawn_position := player.global_position
 	var parked_transform := torrent.global_transform
@@ -200,7 +296,7 @@ func _run() -> void:
 	_check(
 		await _wait_until(
 			func() -> bool: return game.phase == GameFlow.Phase.START_ENGINES,
-			1.2
+			game.canopy_motion_time + game.boarding_motion_time + 1.0 if _production_input_route else 1.2
 		),
 		"controller X drives the physical canopy, boarding path, and pilot-seat handoff"
 	)
@@ -210,16 +306,21 @@ func _run() -> void:
 	)
 
 	var source := torrent.get_command_source() as LocalShipInputSource
-	var provider := ControllerStateProvider.new()
+	var provider: ControllerStateProvider = ControllerInputEvents.new(source) if _production_input_route else ControllerStateProvider.new()
 	_check(source != null, "the piloted Torrent exposes its production local command source")
 	if source == null:
 		await _clean_up(game, provider)
 		_finish()
 		return
-	source.set_input_provider(
-		provider,
-		LocalShipInputSource.INPUT_PROVIDER_INPUT_MAP_RESOLVED,
-	)
+	if _production_input_route:
+		_check(source == torrent.get_local_input_source() and source.get_input_provider() == null \
+			and source.is_enabled_owner() and (provider as ControllerInputEvents).steering_strengths_match(),
+			"ordinary flight retains the default sampler and exact native steering strengths without an injected provider")
+	else:
+		source.set_input_provider(
+			provider,
+			LocalShipInputSource.INPUT_PROVIDER_INPUT_MAP_RESOLVED,
+		)
 
 	var initial_distance := torrent.get_chase_camera_distance()
 	await _tap_provider_button(provider, BUTTON_RIGHT_SHOULDER)
@@ -334,10 +435,32 @@ func _run() -> void:
 		func() -> bool: return not opponent.is_active(),
 		3.5
 	)
+	if _production_input_route and not opponent_destroyed:
+		var shot := game.get_last_player_shot_result()
+		var reason := ""
+		var raw_reason := str(shot.get("reason", "")).left(80)
+		for character_index: int in raw_reason.length():
+			var character := raw_reason[character_index]
+			reason += character if character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" else "_"
+		var status := ""
+		var raw_status := str(shot.get("status", "")).left(80)
+		for character_index: int in raw_status.length():
+			var character := raw_status[character_index]
+			status += character if character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" else "_"
+		print("CONTROLLER_OPPONENT_SHOT_FAILURE: accepted=%d resolved=%d hit=%d damaged=%d applied_damage=%.3f remaining_health=%.3f last_sequence=%d reason=%s status=%s" % [
+			int(bool(shot.get("accepted", false))), int(bool(shot.get("resolved", false))),
+			int(bool(shot.get("hit", false))), int(bool(shot.get("damaged", false))),
+			float(shot.get("applied_damage", 0.0)), float(shot.get("remaining_health", -1.0)),
+			int(shot.get("last_sequence", -1)), reason, status,
+		])
 	_check(
 		opponent_destroyed and game.phase == GameFlow.Phase.RETURN_TO_YARD,
 		"controller dogfighting defeats the live interceptor and authorizes return"
 	)
+	if _production_input_route and (not opponent_destroyed or game.phase != GameFlow.Phase.RETURN_TO_YARD):
+		await _clean_up(game, provider)
+		_finish()
+		return
 	_check(
 		not torrent.is_destroyed() and float(torrent.get_telemetry().get("hull", 0.0)) > 0.0,
 		"the continuous physical sortie retains a live return-capable craft"
@@ -353,15 +476,26 @@ func _run() -> void:
 		3.5
 	)
 	_check(
-		await _fly_to_waypoint(torrent, provider, return_waypoint, 1.0),
+		await _fly_to_waypoint(torrent, provider, return_waypoint, 1.0, 0.45 if _production_input_route else -1.0),
 		"controller steering physically returns the Torrent to its broad landing capture"
 	)
 	await _brake_ship(torrent, provider, 0.45, 2.5)
 	var nose_to_dock := (parked_transform.origin - torrent.global_position).normalized()
+	var nose_aligned := await _align_ship(torrent, provider, nose_to_dock, 0.995, 2.5)
 	_check(
-		await _align_ship(torrent, provider, nose_to_dock, 0.995, 2.5),
+		nose_aligned,
 		"controller yaw and pitch point the visible nose toward the berth"
 	)
+	if _production_input_route and not nose_aligned:
+		print("CONTROLLER_RETURN_STAGING_FAILURE: ship_x=%.6f ship_y=%.6f ship_z=%.6f waypoint_x=%.6f waypoint_y=%.6f waypoint_z=%.6f parked_x=%.6f parked_y=%.6f parked_z=%.6f speed=%.6f" % [
+			torrent.global_position.x, torrent.global_position.y, torrent.global_position.z,
+			return_waypoint.x, return_waypoint.y, return_waypoint.z,
+			parked_transform.origin.x, parked_transform.origin.y, parked_transform.origin.z,
+			torrent.velocity.length(),
+		])
+		await _clean_up(game, provider)
+		_finish()
+		return
 	await _brake_ship(torrent, provider, 0.35, 1.2)
 	landing_approach_distance_m = torrent.global_position.distance_to(parked_transform.origin)
 	var capture_report := world.get_landing_assist_report(torrent, berth_id)
@@ -422,7 +556,7 @@ func _run() -> void:
 					and player.is_control_enabled()
 					and game.phase == GameFlow.Phase.COMPLETE
 				),
-			1.5
+			game.canopy_motion_time + game.disembarking_motion_time + 1.0 if _production_input_route else 1.5
 		),
 		"controller X drives the physical canopy and disembarking path back to deck"
 	)
@@ -456,9 +590,22 @@ func _run() -> void:
 	print(
 		"CONTROLLER_PHYSICAL_SORTIE_INPUTS: left-stick/L3/X/Back/Start/RB/Y/right-stick/LT/RT/A/D-pad-Left"
 	)
+	if _production_input_route:
+		_check(source.get_input_provider() == null and _sortie_tuning(game, torrent) == authored_tuning,
+			"Boot-to-exit ordinary input route preserves all authored sortie tuning and the default sampler")
+		print("CONTROLLER_PRODUCTION_INPUT_ROUTE: Boot > Begin Shift > same-body sortie > docked exit; one run, not three fresh runs or native controls")
 
 	await _clean_up(game, provider)
 	_finish()
+
+
+func _sortie_tuning(game: GameFlow, ship: HeroShip) -> Dictionary:
+	return {
+		"canopy": game.canopy_motion_time, "boarding": game.boarding_motion_time, "exit": game.disembarking_motion_time,
+		"weapon_cooldown": ship.weapon_cooldown, "maximum_speed": ship.maximum_speed,
+		"thrust": ship.thrust_acceleration, "brake": ship.brake_acceleration, "drag": ship.passive_drag,
+		"throttle_response": ship.throttle_response, "yaw": ship.yaw_speed_degrees, "assist": ship.flight_assist_strength,
+	}
 
 
 func _walk_player_to_ship(
@@ -498,17 +645,30 @@ func _fly_to_waypoint(
 	ship: HeroShip,
 	provider: ControllerStateProvider,
 	waypoint: Vector3,
-	arrival_radius: float
+	arrival_radius: float,
+	arrival_stop_speed: float = -1.0
 	) -> bool:
 	var frame_budget := _frame_budget(FLIGHT_TRAVEL_SECONDS)
 	var frames := 0
+	var initial_sequence := -1
+	var initial_basis := Basis.IDENTITY
+	if _production_input_route:
+		var initial_command := ship.get_last_ship_command()
+		initial_sequence = initial_command.sequence if initial_command != null else -1
+		initial_basis = ship.global_basis.orthonormalized()
 	while frames < frame_budget:
 		frames += 1
 		var offset := waypoint - ship.global_position
 		var distance := offset.length()
 		if distance <= arrival_radius:
 			_neutralize_flight_axes(provider)
-			return true
+			if arrival_stop_speed < 0.0 or ship.velocity.length() <= arrival_stop_speed:
+				return true
+			# The ordinary return must stop at its approach marker before aiming
+			# at the berth. Crossing the marker at speed is not settled staging.
+			provider.set_axis(AXIS_LEFT_TRIGGER, 1.0)
+			await physics_frame
+			continue
 		var desired := offset.normalized()
 		var local_desired := ship.global_basis.orthonormalized().inverse() * desired
 		var alignment := (-ship.global_basis.z.normalized()).dot(desired)
@@ -530,7 +690,15 @@ func _fly_to_waypoint(
 		# machine load rather than of the controller behaviour under test.
 		await physics_frame
 	_neutralize_flight_axes(provider)
-	return ship.global_position.distance_to(waypoint) <= arrival_radius
+	var arrived := ship.global_position.distance_to(waypoint) <= arrival_radius \
+		and (arrival_stop_speed < 0.0 or ship.velocity.length() <= arrival_stop_speed)
+	if _production_input_route and not arrived:
+		_print_guidance_failure(ship, waypoint - ship.global_position, frames, 0, initial_sequence, initial_basis)
+		print("CONTROLLER_WAYPOINT_STAGING_FAILURE: ship_x=%.6f ship_y=%.6f ship_z=%.6f waypoint_x=%.6f waypoint_y=%.6f waypoint_z=%.6f speed=%.6f" % [
+			ship.global_position.x, ship.global_position.y, ship.global_position.z,
+			waypoint.x, waypoint.y, waypoint.z, ship.velocity.length(),
+		])
+	return arrived
 
 
 func _brake_ship(
@@ -560,6 +728,12 @@ func _align_ship(
 	var direction := desired_direction.normalized()
 	var frame_budget := _frame_budget(nominal_seconds)
 	var frames := 0
+	var initial_sequence := -1
+	var initial_basis := Basis.IDENTITY
+	if _production_input_route:
+		var initial_command := ship.get_last_ship_command()
+		initial_sequence = initial_command.sequence if initial_command != null else -1
+		initial_basis = ship.global_basis.orthonormalized()
 	provider.set_button(BUTTON_A, true)
 	while frames < frame_budget:
 		frames += 1
@@ -583,10 +757,13 @@ func _align_ship(
 	_neutralize_flight_axes(provider)
 	provider.set_button(BUTTON_A, false)
 	await physics_frame
-	return (
+	var aligned := (
 		(-ship.global_basis.z.normalized()).dot(direction) >= minimum_dot
 		and ship.global_basis.y.dot(Vector3.UP) > 0.94
 	)
+	if _production_input_route and not aligned:
+		_print_guidance_failure(ship, direction, frames, 1, initial_sequence, initial_basis)
+	return aligned
 
 
 func _aim_and_fire_until_removed(
@@ -598,6 +775,17 @@ func _aim_and_fire_until_removed(
 	) -> bool:
 	var frame_budget := _frame_budget(nominal_seconds)
 	var frames := 0
+	var minimum_alignment := 1.0
+	var maximum_alignment := -1.0
+	var gate_frames := 0
+	var consumed_fire_frames := 0
+	var initial_sample := Vector2(-1.0, -1.0)
+	var initial_health := -1.0
+	var previous_camera_position := Vector3.INF
+	if _production_input_route:
+		initial_sample = _aim_diagnostic_sample(ship, target)
+		if target is RangeOpponent:
+			initial_health = (target as RangeOpponent).get_health()
 	while frames < frame_budget and not bool(completion.call()):
 		frames += 1
 		if not is_instance_valid(target):
@@ -609,18 +797,96 @@ func _aim_and_fire_until_removed(
 		var desired := offset.normalized()
 		var local_desired := ship.global_basis.orthonormalized().inverse() * desired
 		var alignment := (-ship.global_basis.z.normalized()).dot(desired)
-		provider.set_axis(AXIS_LEFT_X, clampf(local_desired.x * 4.2, -1.0, 1.0))
+		if _production_input_route:
+			minimum_alignment = minf(minimum_alignment, alignment)
+			maximum_alignment = maxf(maximum_alignment, alignment)
+			gate_frames += int(alignment >= 0.997)
+		var yaw_demand := local_desired.x * 4.2
+		var pitch_demand := local_desired.y * 4.2
+		if _production_input_route and target is RangeOpponent:
+			# Follow the observed line-of-sight angular motion with ordinary stick
+			# demand; the existing positional feedback and fire gate stay intact.
+			var camera_velocity := ship.velocity
+			if previous_camera_position.is_finite():
+				camera_velocity = (aiming_origin - previous_camera_position) / ship.get_physics_process_delta_time()
+			previous_camera_position = aiming_origin
+			var relative_velocity := (target as RangeOpponent).velocity - camera_velocity
+			var angular_velocity := offset.cross(relative_velocity) / offset.length_squared()
+			var local_angular_velocity := ship.global_basis.orthonormalized().inverse() * angular_velocity
+			var turn_rate := deg_to_rad(ship.yaw_speed_degrees) * float(ship.get_telemetry().get("engine_power", 0.0))
+			if turn_rate > 0.000001:
+				yaw_demand -= local_angular_velocity.y / turn_rate
+				pitch_demand += local_angular_velocity.x / turn_rate
+		provider.set_axis(AXIS_LEFT_X, clampf(yaw_demand, -1.0, 1.0))
 		provider.set_axis(AXIS_LEFT_Y, 0.0)
 		provider.set_axis(AXIS_RIGHT_X, 0.0)
-		provider.set_axis(AXIS_RIGHT_Y, -clampf(local_desired.y * 4.2, -1.0, 1.0))
+		provider.set_axis(AXIS_RIGHT_Y, -clampf(pitch_demand, -1.0, 1.0))
 		provider.set_axis(AXIS_LEFT_TRIGGER, 1.0)
 		provider.set_axis(AXIS_RIGHT_TRIGGER, 1.0 if alignment >= 0.997 else 0.0)
 		# One simulation step per aim/fire update, for the reason given on
 		# [method _fly_to_waypoint]. The firing gate reads `alignment` sampled on this
 		# same tick, so an idle await here would fire against a stale alignment.
 		await physics_frame
+		if _production_input_route:
+			var consumed := ship.get_last_ship_command()
+			if consumed != null:
+				consumed_fire_frames += int(consumed.fire)
 	_neutralize_flight_axes(provider)
-	return bool(completion.call())
+	var completed := bool(completion.call())
+	if _production_input_route and not completed:
+		var final_sample := _aim_diagnostic_sample(ship, target)
+		var final_health := (target as RangeOpponent).get_health() if is_instance_valid(target) and target is RangeOpponent else -1.0
+		print("CONTROLLER_AIM_FAILURE: frames=%d min_alignment=%.6f max_alignment=%.6f gate_frames=%d consumed_fire_frames=%d initial_health=%.3f final_health=%.3f initial_angular_rad_s=%.6f final_angular_rad_s=%.6f initial_camera_alignment=%.6f final_camera_alignment=%.6f" % [
+			frames, minimum_alignment, maximum_alignment, gate_frames, consumed_fire_frames,
+			initial_health, final_health, initial_sample.x, final_sample.x,
+			initial_sample.y, final_sample.y,
+		])
+	return completed
+
+
+## Numeric-only failure detail for unchanged waypoint/attitude guidance.
+## kind=0 is waypoint travel; kind=1 is attitude alignment.
+func _print_guidance_failure(ship: HeroShip, direction: Vector3, frames: int, kind: int, initial_sequence: int, initial_basis: Basis) -> void:
+	var normalized := direction.normalized()
+	var local_direction := ship.global_basis.orthonormalized().inverse() * normalized
+	var consumed := ship.get_last_ship_command()
+	print("CONTROLLER_GUIDANCE_FAILURE: kind=%d frames=%d local_x=%.6f local_y=%.6f local_z=%.6f forward_dot=%.6f upright_dot=%.6f consumed_hover=%d consumed_yaw=%.6f consumed_pitch=%.6f speed=%.6f" % [
+		kind, frames, local_direction.x, local_direction.y, local_direction.z,
+		(-ship.global_basis.z.normalized()).dot(normalized), ship.global_basis.y.dot(Vector3.UP),
+		int(consumed.hover) if consumed != null else -1,
+		consumed.yaw if consumed != null else 0.0, consumed.pitch if consumed != null else 0.0,
+		ship.velocity.length(),
+	])
+	var telemetry := ship.get_telemetry()
+	var forward := -ship.global_basis.z.normalized()
+	var up := ship.global_basis.y.normalized()
+	var basis_change := initial_basis.get_rotation_quaternion().angle_to(ship.global_basis.orthonormalized().get_rotation_quaternion())
+	print("CONTROLLER_GUIDANCE_BRANCH_FAILURE: kind=%d tree_paused=%d can_process=%d physics_processing=%d piloted=%d landed=%d engine_state=%s engine_power=%.6f docked_latch=%d departure_lift_active=%d landing_active=%d start_sequence=%d end_sequence=%d basis_change_rad=%.6f desired_world_x=%.6f desired_world_y=%.6f desired_world_z=%.6f forward_x=%.6f forward_y=%.6f forward_z=%.6f up_x=%.6f up_y=%.6f up_z=%.6f" % [
+		kind, int(paused), int(ship.can_process()), int(ship.is_physics_processing()),
+		int(ship.is_piloted()), int(bool(telemetry.get("landed", false))),
+		str(telemetry.get("engine_state", &"")), float(telemetry.get("engine_power", 0.0)),
+		int(bool(ship.get("_docked_latch"))), int(bool(ship.get("_departure_lift_active"))),
+		int(ship.is_landing_active()), initial_sequence, consumed.sequence if consumed != null else -1,
+		basis_change, normalized.x, normalized.y, normalized.z,
+		forward.x, forward.y, forward.z, up.x, up.y, up.z,
+	])
+
+
+## Read-only motion and reticle diagnostics; unavailable samples use -1.
+func _aim_diagnostic_sample(ship: HeroShip, target: Node3D) -> Vector2:
+	if not is_instance_valid(target):
+		return Vector2(-1.0, -1.0)
+	var camera := ship.get_camera()
+	var offset := target.global_position - camera.global_position
+	if offset.length_squared() <= 0.001:
+		return Vector2(-1.0, -1.0)
+	var angular_speed := -1.0
+	if target is CharacterBody3D:
+		var relative_velocity := (target as CharacterBody3D).velocity - ship.velocity
+		angular_speed = offset.cross(relative_velocity).length() / offset.length_squared()
+	var screen_center := camera.get_viewport().get_visible_rect().size * 0.5
+	var camera_alignment := camera.project_ray_normal(screen_center).normalized().dot(offset.normalized())
+	return Vector2(angular_speed, camera_alignment)
 
 
 func _neutralize_flight_axes(provider: ControllerStateProvider) -> void:
@@ -718,7 +984,9 @@ func _clean_up(game: Node, provider: ControllerStateProvider) -> void:
 	_release_physical_joypad()
 	if provider != null:
 		provider.release_all()
-	if is_instance_valid(game):
+	if is_instance_valid(_boot):
+		_boot.queue_free()
+	elif is_instance_valid(game):
 		game.queue_free()
 	await process_frame
 	await physics_frame
@@ -735,10 +1003,11 @@ func _check(condition: bool, description: String) -> void:
 
 
 func _finish() -> void:
-	if _assertions != EXPECTED_ASSERTIONS:
+	var expected := PRODUCTION_INPUT_ASSERTIONS if _production_input_route else EXPECTED_ASSERTIONS
+	if _assertions != expected:
 		_failures.append(
 			"assertion contract drifted: expected %d, observed %d"
-			% [EXPECTED_ASSERTIONS, _assertions]
+			% [expected, _assertions]
 		)
 	if _failures.is_empty():
 		print("CONTROLLER_PHYSICAL_SORTIE_TEST_OK: %d assertions" % _assertions)
