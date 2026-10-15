@@ -1485,7 +1485,7 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 							reloaded.load()
 							_check(owner.survey.reward_recorded() and int((reloaded.get_snapshot().get(String(GameFlowRewardAuthority.SLOT_ID), {}) as Dictionary).get("reward_counts", {}).get("rime_ice_core_record", 0)) == 1,
 								"the freshly observed restored Rime survey retries and reloads exactly one durable reward")
-						for point: Vector3 in [Vector3(30, 0.5, -52), Vector3(30, 0.5, -30), Vector3(28, 0.5, -14), Vector3(14, 0.5, 2), Vector3(-8, 0.5, -8)]:
+						for point: Vector3 in [Vector3(30, 0.5, -60), Vector3(20, 0.5, -40), Vector3(10, 0.5, -24), Vector3(-8, 0.5, -8)]:
 							walked = walked and await _checked_coastal_walk(fresh, fresh.network_session, client, body,
 								region.to_global(point), "restored Rime observer physically follows the cyan return trail")
 					for target: Vector3 in [craft.to_global(Vector3(-5, 0.52, HalyardCrewTransport.AIRSTAIR_Z)), deck.global_position]:
