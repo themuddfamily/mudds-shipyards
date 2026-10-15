@@ -2,10 +2,10 @@ extends SceneTree
 
 const PORT := 29140
 const PEER_SCRIPT := "res://tests/network/network_authority_peer.gd"
-const LOG_ROOT := "/tmp/mudds_network_authority_wave9"
 
 var _pids: Array[int] = []
 var _logs: Array[String] = []
+var _log_root := ""
 
 
 func _init() -> void:
@@ -13,11 +13,15 @@ func _init() -> void:
 
 
 func _run() -> void:
-	DirAccess.make_dir_absolute(LOG_ROOT)
+	var directory_base := OS.get_environment("TMPDIR")
+	if directory_base.is_empty():
+		directory_base = OS.get_user_data_dir()
+	_log_root = directory_base.path_join("mudds-network-authority-%d" % OS.get_process_id())
+	DirAccess.make_dir_recursive_absolute(_log_root)
 	var executable := OS.get_executable_path()
 	var script_path := ProjectSettings.globalize_path(PEER_SCRIPT)
 	for role in ["server", "client_a", "client_b"]:
-		var log_path := "%s/%s.log" % [LOG_ROOT, role]
+		var log_path := _log_root.path_join("%s.log" % role)
 		var log_file := FileAccess.open(log_path, FileAccess.WRITE)
 		if log_file != null:
 			log_file.close()
@@ -142,7 +146,7 @@ func _evidence_complete() -> bool:
 
 
 func _read_log(role: String) -> String:
-	var path := "%s/%s.log" % [LOG_ROOT, role]
+	var path := _log_root.path_join("%s.log" % role)
 	if not FileAccess.file_exists(path):
 		return ""
 	var file := FileAccess.open(path, FileAccess.READ)
