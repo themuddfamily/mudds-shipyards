@@ -1,0 +1,40 @@
+Subject: [PATCH] RD: release reflection atlas colour allocations safely
+
+Based on upstream a2917e57c09a4341fed99d829495453ac6b8f9e9 by m-bo-one:
+https://github.com/godotengine/godot/commit/a2917e5
+Related issue: https://github.com/godotengine/godot/issues/122498
+
+Local safety adjustment: retain faces -> views -> cube teardown order, but
+check framebuffer_is_valid / texture_is_valid before each new free so
+partial allocations do not emit invalid-RID errors. Always clear stored RIDs.
+No other engine changes. Applies to official Godot 4.7.1 (a13da4feb).
+
+diff --git a/servers/rendering/renderer_rd/storage_rd/light_storage.cpp b/servers/rendering/renderer_rd/storage_rd/light_storage.cpp
+--- a/servers/rendering/renderer_rd/storage_rd/light_storage.cpp
++++ b/servers/rendering/renderer_rd/storage_rd/light_storage.cpp
+@@ -1559,6 +1559,25 @@
+ 	RD::get_singleton()->free_rid(p_reflection_atlas->reflection);
+ 	p_reflection_atlas->reflection = RID();
+ 
++	// Faces first, then their views, then the cube they slice.
++	// Guard partial allocations before freeing; clear stored RIDs in either case.
++	for (int i = 0; i < 6; i++) {
++		if (RD::get_singleton()->framebuffer_is_valid(p_reflection_atlas->color_fbs[i])) {
++			RD::get_singleton()->free_rid(p_reflection_atlas->color_fbs[i]);
++		}
++		p_reflection_atlas->color_fbs[i] = RID();
++
++		if (RD::get_singleton()->texture_is_valid(p_reflection_atlas->color_views[i])) {
++			RD::get_singleton()->free_rid(p_reflection_atlas->color_views[i]);
++		}
++		p_reflection_atlas->color_views[i] = RID();
++	}
++
++	if (RD::get_singleton()->texture_is_valid(p_reflection_atlas->color_buffer)) {
++		RD::get_singleton()->free_rid(p_reflection_atlas->color_buffer);
++	}
++	p_reflection_atlas->color_buffer = RID();
++
+ 	RD::get_singleton()->free_rid(p_reflection_atlas->depth_fb);
+ 	p_reflection_atlas->depth_fb = RID();
+ 
