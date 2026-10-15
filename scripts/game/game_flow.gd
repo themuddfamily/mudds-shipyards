@@ -3947,6 +3947,7 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 	var payload := store.get_snapshot()
 	var has_visits := _aurora_shared_survey_checkpoint_pending
 	for slot in [String(AURORA_EXPEDITION_PERSISTENCE_SLOT), String(RIME_EXPEDITION_PERSISTENCE_SLOT),
+			"cinder_structure_scan_session", String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT),
 			String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT), String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT) + "_declined",
 			AURORA_SHARED_SURVEY_SLOT, AURORA_DECLINED_SHARED_SURVEY_SLOT,
 			String(AURORA_EXPEDITION_PERSISTENCE_SLOT) + "_declined", String(RIME_EXPEDITION_PERSISTENCE_SLOT) + "_declined"]:
@@ -3960,6 +3961,52 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 		return paid
 	var generation := store.get_generation()
 	var next := payload.duplicate(true)
+	var nearby := _get_nearby_activity_binding()
+	# These activities have independent owners, including when their streamed
+	# world is absent at the title. Keep same-generation reset tombstones so a
+	# retained writer cannot restore the abandoned progress on a later boot.
+	if next.has("cinder_structure_scan_session"):
+		var checked := CinderAbandonedStructureScanActivity.validate_persistence_record(next.cinder_structure_scan_session)
+		if not bool(checked.get("accepted", false)):
+			return checked
+		var scan: Dictionary = next.cinder_structure_scan_session
+		var entry: Dictionary = scan.activities[0]
+		if int(entry.state) == CinderAbandonedStructureScanActivity.State.SCANNING:
+			if is_instance_valid(nearby):
+				var live := nearby.call("get_activity_snapshot", &"structure_scan") as Dictionary
+				if int(live.get("state", -1)) == CinderAbandonedStructureScanActivity.State.COMPLETE \
+						and int(live.get("generation", -1)) >= int(entry.generation):
+					return {"accepted": false, "reason": &"scan_terminal_save_pending"}
+			entry.state = CinderAbandonedStructureScanActivity.State.RESET
+			entry.reward_requested = false
+			entry.reward_granted = false
+			entry.progress.state = CinderAbandonedStructureScanActivity.State.RESET
+			entry.progress.elapsed_seconds = 0.0
+			entry.progress.reward_requested = false
+			checked = CinderAbandonedStructureScanActivity.validate_persistence_record(scan)
+			if not bool(checked.get("accepted", false)):
+				return checked
+	if next.has(String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)):
+		var mining := CinderMiningCapacityPersistence.new()
+		mining.configure(store, CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)
+		var checked := mining.validate_record(next[String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)])
+		if not bool(checked.get("accepted", false)):
+			return checked
+		var record: Dictionary = next[String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)]
+		# Legacy capacity-only receipts and every completed extraction stay exact.
+		var session := record.get("session", {}) as Dictionary
+		if int(session.get("state", -1)) == CinderMiningPlatformActivity.State.ACTIVE:
+			if is_instance_valid(nearby):
+				var live := nearby.call("get_activity_snapshot", &"mining") as Dictionary
+				if int(live.get("state", -1)) == CinderMiningPlatformActivity.State.COMPLETE \
+						and int(live.get("generation", -1)) >= int(session.generation):
+					return {"accepted": false, "reason": &"mining_terminal_save_pending"}
+			session.state = CinderMiningPlatformActivity.State.RESET
+			session.elapsed_seconds = 0.0
+			session.reward_requested = false
+			checked = mining.validate_record(record)
+			if not bool(checked.get("accepted", false)):
+				return checked
 	var ember := EmberRelaySurveyPersistenceBinding.new()
 	ember.configure(store, EMBER_RELAY_SURVEY_PERSISTENCE_SLOT)
 	var ember_decline := ember.plan_decline(next)
@@ -4096,14 +4143,29 @@ func get_declined_surface_survey_completion(world_id: StringName) -> Dictionary:
 ## in-progress activity the startup restored from the interrupted session, so
 ## the pilot begins a new sortie from the dock instead of mid-mission.
 func _start_fresh_after_interrupted_session() -> Dictionary:
+	var binding := _get_nearby_activity_binding()
+	if is_instance_valid(binding):
+		# The primary transaction has already retired saved progress. Synchronize
+		# any current live owners before the recovery notice can disappear.
+		for activity in [
+				{"key": &"structure_scan", "id": CinderAbandonedStructureScanActivity.ACTIVITY_ID,
+					"active": CinderAbandonedStructureScanActivity.State.SCANNING},
+				{"key": &"mining", "id": CinderMiningPlatformActivity.ACTIVITY_ID,
+					"active": CinderMiningPlatformActivity.State.ACTIVE}]:
+			var snapshot := binding.call("get_activity_snapshot", activity.key) as Dictionary
+			if int(snapshot.get("state", -1)) == int(activity.active):
+				var reset := _reset_nearby_activity(binding, activity.id)
+				if not bool(reset.get("accepted", false)):
+					return reset
 	if _active_activity_id.is_empty():
 		return {"accepted": true, "reason": &"no_activity_in_progress", "abandoned_activity": false}
 	var state_id := StringName(str(get_active_activity_snapshot().get("state_id", &"idle")))
 	if state_id in [&"", &"idle", &"completed", &"failed", &"aborted", &"expired"]:
 		# Nothing was mid-mission; an idle or finished activity is left as is.
 		return {"accepted": true, "reason": &"no_activity_in_progress", "abandoned_activity": false}
-	var abandoned := _fail_active_activity(&"returned_to_shipyard")
-	_reset_terminal_activity_for_next_sortie()
+	# The typed reset stages and saves an isolated candidate before touching the
+	# live session. A refused save leaves the original run available for retry.
+	var abandoned := _reset_active_activity_with_persistence()
 	return {
 		"accepted": abandoned,
 		"reason": &"activity_abandoned" if abandoned else &"activity_abandon_rejected",
@@ -18697,6 +18759,13 @@ func reset_active_activity() -> bool:
 	if _cinder_family_selection_active or not _can_recover_live_activity():
 		return false
 	_retry_owed_game_flow_activity_rewards()
+	return _reset_active_activity_with_persistence()
+
+
+## Start Fresh uses the same transactional reset without initiating payment.
+func _reset_active_activity_with_persistence() -> bool:
+	if _cinder_family_selection_active or not _can_recover_live_activity():
+		return false
 	if _has_pending_jovian_cargo_reward():
 		if is_instance_valid(hud):
 			hud.toast("Delivery reward pending", "Save the delivery credit before resetting this run.", 3.2, true)
@@ -20324,11 +20393,11 @@ func _ensure_cinder_scan_session(binding: Object) -> Dictionary:
 	return {"accepted": true, "reason": &"scan_session_ready"}
 
 
-func _save_cinder_scan_session(binding: Object) -> Dictionary:
+func _save_cinder_scan_session(binding: Object, candidate_record: Dictionary = {}) -> Dictionary:
 	var ready := _ensure_cinder_scan_session(binding)
 	if not bool(ready.get("accepted", false)):
 		return ready
-	var record := binding.call("capture_structure_scan_session") as Dictionary
+	var record := candidate_record.duplicate(true) if not candidate_record.is_empty() else binding.call("capture_structure_scan_session") as Dictionary
 	var checked := CinderAbandonedStructureScanActivity.validate_persistence_record(record)
 	if not checked.accepted:
 		return checked
@@ -20357,6 +20426,8 @@ func _save_cinder_scan_session(binding: Object) -> Dictionary:
 			})
 			return binding.call("acknowledge_structure_scan_reward", payload.cinder_structure_scan_session) as Dictionary
 		if int(next.generation) < int(old.generation) or int(next.generation) > int(old.generation) + 1 \
+				or (int(next.generation) == int(old.generation) and int(old.state) == CinderAbandonedStructureScanActivity.State.RESET \
+					and int(next.state) != CinderAbandonedStructureScanActivity.State.RESET) \
 				or (old.reward_requested and not old.reward_granted and record != payload.cinder_structure_scan_session) \
 				or (int(next.generation) == int(old.generation) and int(next.state) != CinderAbandonedStructureScanActivity.State.RESET \
 					and float(next.progress.elapsed_seconds) < float(old.progress.elapsed_seconds)):
@@ -21813,9 +21884,21 @@ func _reset_nearby_activity(binding: Node, activity_id: StringName) -> Dictionar
 			var ready := _ensure_cinder_scan_session(binding)
 			if _game_flow_reward_authority != null and not bool(ready.get("accepted", false)):
 				return ready
+			if _game_flow_reward_authority == null:
+				return binding.call(&"reset_structure_scan") as Dictionary
+			var before := binding.call("capture_structure_scan_session") as Dictionary
+			var prepared := binding.call("prepare_structure_scan_reset") as Dictionary
+			if not bool(prepared.get("accepted", false)):
+				return prepared
+			var saved := _save_cinder_scan_session(binding, prepared.session_record)
+			if not bool(saved.get("accepted", false)):
+				return {"accepted": false, "reason": &"scan_reset_save_pending", "persistence_result": saved}
+			if not is_inside_tree() or is_queued_for_deletion() or not is_instance_valid(binding) \
+					or binding.is_queued_for_deletion() or binding != _get_nearby_activity_binding() \
+					or (binding.call("capture_structure_scan_session") as Dictionary) != before:
+				return {"accepted": false, "reason": &"scan_reset_owner_changed", "persistence_result": saved}
 			var reset := binding.call(&"reset_structure_scan") as Dictionary
-			if bool(reset.get("accepted", false)) and _game_flow_reward_authority != null:
-				reset["persistence_result"] = _save_cinder_scan_session(binding)
+			reset["persistence_result"] = saved
 			return reset
 		&"cinder_debris_beacon_traversal":
 			var ready := _ensure_cinder_beacon_session(binding)

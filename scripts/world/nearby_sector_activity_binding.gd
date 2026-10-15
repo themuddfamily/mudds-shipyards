@@ -1384,11 +1384,10 @@ func advance_mining_activity_from_caller_sample(
 		or caller_position.distance_to(MINING_ACTIVITY.APPROACH_ANCHOR)
 			> MINING_ACTIVITY.INTERACTION_RADIUS
 	):
-		var interrupted := _mining_activity.call("reset") as Dictionary
+		var interrupted := reset_mining_activity()
 		if bool(interrupted.get("accepted", false)):
 			_last_mining_feedback_reason = &"outside_extraction_radius"
 			interrupted["reason"] = &"extraction_interrupted"
-			_persist_mining_session()
 		_publish_mining_presentation()
 		return interrupted
 	_last_mining_feedback_reason = &""
@@ -1529,14 +1528,39 @@ func reset_mining_activity() -> Dictionary:
 			return admission
 	if _has_pending_mining_capacity_receipt():
 		return _result(false, &"mining_capacity_save_pending")
-	var result: Dictionary = _mining_activity.call("reset")
+	var owner := _mining_activity
+	var before := owner.call("get_snapshot") as Dictionary
+	if int(before.get("state", -1)) == MINING_ACTIVITY.State.IDLE:
+		return _result(false, &"already_idle")
+	if _mining_capacity_persistence != null:
+		var persistence := _mining_capacity_persistence
+		var paid := _mining_capacity_paid
+		var capacity := _restored_mining_capacity.duplicate(true)
+		var candidate := before.duplicate(true)
+		candidate["state"] = MINING_ACTIVITY.State.RESET
+		candidate["elapsed_seconds"] = 0.0
+		candidate["reward_requested"] = false
+		candidate["resume_required"] = false
+		var commit_id := "cinder-mining-session-%010d" % (int(persistence.call(&"get_store_generation")) + 1)
+		# Save the reset boundary before changing the live extraction owner.
+		var saved := persistence.call(&"save_session", candidate, paid,
+			capacity if paid else {}, commit_id) as Dictionary
+		_last_mining_capacity_persistence_result = saved.duplicate(true)
+		if not bool(saved.get("accepted", false)):
+			_publish_mining_presentation()
+			return saved
+		# Store callbacks may reenter the binding; never reset a changed owner.
+		if _mining_activity != owner or _mining_capacity_persistence != persistence \
+				or owner.call("get_snapshot") != before or _mining_capacity_paid != paid \
+				or _restored_mining_capacity != capacity:
+			return _result(false, &"mining_reset_state_changed")
+	var result: Dictionary = owner.call("reset")
 	if bool(result.get("accepted", false)):
 		_last_mining_feedback_reason = &""
 		_last_mining_reward_result.clear()
-		_persist_mining_session()
+		_mining_checkpoint_elapsed = 0.0
 	_publish_mining_presentation()
 	return result
-
 
 
 ## Save start/reset/terminal transitions immediately and active progress at a
@@ -1828,6 +1852,31 @@ func _has_pending_structure_scan_discovery() -> bool:
 		and not bool(_last_structure_scan_reward_result.get("discovery_persisted", false))
 		and int(request.get("generation", -1)) == int(snapshot.get("generation", 0))
 	)
+
+
+## Read-only candidate for GameFlow's commit-before-live recovery choice.
+func prepare_structure_scan_reset() -> Dictionary:
+	if _scan_activity == null:
+		return _result(false, &"not_ready")
+	if _has_pending_structure_scan_reward():
+		return _result(false, &"structure_scan_reward_save_pending")
+	if _has_pending_structure_scan_discovery():
+		return _result(false, &"scan_discovery_save_pending")
+	var state := _scan_activity.call("get_persistence_snapshot") as Dictionary
+	if int(state.get("state", -1)) == SCAN_ACTIVITY.State.IDLE:
+		return _result(false, &"already_idle")
+	state["state"] = SCAN_ACTIVITY.State.RESET
+	state["elapsed_seconds"] = 0.0
+	state["reward_requested"] = false
+	var record := NearbySectorActivitySessionAdapter.new().capture({"structure_scan": state})
+	var entry := record.activities[0] as Dictionary
+	entry.reward_requested = false
+	entry.reward_granted = false
+	var prepared := state.duplicate(true)
+	prepared["accepted"] = true
+	prepared["reason"] = &"reset"
+	prepared["session_record"] = JSON.parse_string(JSON.stringify(record)) as Dictionary
+	return prepared
 
 
 func reset_structure_scan() -> Dictionary:

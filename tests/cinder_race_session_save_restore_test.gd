@@ -47,7 +47,12 @@ class MemoryFilesystem extends Filesystem:
 
 class RejectingDiskFilesystem extends Filesystem:
 	var reject_writes := false
+	var reject_rewards := false
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if reject_rewards:
+			var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+			if document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("game-flow-reward-"):
+				return ERR_UNAVAILABLE
 		return ERR_UNAVAILABLE if reject_writes else super.write_bytes_and_flush(path, bytes)
 	func remove_path(path: String) -> Error:
 		return ERR_UNAVAILABLE if reject_writes else super.remove_path(path)
@@ -351,6 +356,7 @@ func _run() -> void:
 
 	await _retire_game(second)
 	await _test_race_fallback_refusal(active_document, unpaid_document, paid_document)
+	await _test_start_fresh_recovery(active_document, unpaid_document, paid_document)
 	await _test_race_write_recovery()
 	await _test_saved_race_progress_write_recovery()
 	await _test_running_race_progress_publication()
@@ -728,6 +734,103 @@ func _test_running_race_progress_publication() -> void:
 		fresh.call("_retry_owed_game_flow_activity_rewards")
 		_check(_race_receipts(fresh) == 2, "repeated retry after published %s cannot invent another reward" % terminal_kind)
 		await _retire_game(fresh)
+
+
+func _test_start_fresh_recovery(active: PackedByteArray, unpaid: PackedByteArray, paid: PackedByteArray) -> void:
+	# These are genuine captures from the physical race above. Reload them into
+	# real Main instances; no recovery receipt, route or reward is manufactured.
+	var directory := ProjectSettings.globalize_path("user://cinder-race-start-fresh-%d" % Time.get_ticks_usec())
+	_check(DirAccess.make_dir_recursive_absolute(directory) == OK,
+		"Start Fresh race checks use a private user-data directory")
+	for kind: String in ["active", "unpaid", "paid"]:
+		var path := directory.path_join(kind + ".json")
+		var document: PackedByteArray = active if kind == "active" else (unpaid if kind == "unpaid" else paid)
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		_check(file != null, "the genuine %s capture can be seeded for cold Main" % kind)
+		if file == null:
+			continue
+		file.store_buffer(document)
+		file.close()
+		var filesystem := RejectingDiskFilesystem.new()
+		# Earned but unpaid completion must stay owed while startup performs its
+		# ordinary retry. Other session/diagnostic writes remain available.
+		filesystem.reject_rewards = kind == "unpaid"
+		var store := Store.new(path, filesystem) as UserDataStore
+		var game := await _make_game(store)
+		game.set_physics_process(false)
+		var recovery := game.get_recovery_available_snapshot()
+		var actions := game.hud.get("_recovery_prompt_actions") as HBoxContainer
+		var fresh := actions.get_child(2) as Button if actions != null and actions.get_child_count() > 2 else null
+		_check(not recovery.is_empty() and fresh != null and fresh.text == "Start Fresh"
+			and fresh.is_visible_in_tree() and not fresh.disabled,
+			"cold %s race Main exposes the actual fenced title Start Fresh button" % kind)
+		if recovery.is_empty() or fresh == null or not fresh.is_visible_in_tree() or fresh.disabled:
+			await _retire_game(game)
+			continue
+		var owner := game.cinder_race_session
+		var before := owner.capture_persistence_state()
+		var boundary: Dictionary = (store.get_snapshot()[String(SLOT)] as Dictionary).duplicate(true)
+		var rewards: Dictionary = (store.get_snapshot().get("game_flow_reward_store", {}) as Dictionary).duplicate(true)
+		var generation := owner.get_session_generation()
+		if kind != "active":
+			filesystem.reject_writes = true
+			fresh.pressed.emit()
+			var status := game.get("_session_recovery_hud_status") as Dictionary
+			_check(bool(status.get("accepted", false)) and game.get_recovery_available_snapshot().is_empty()
+				and owner.capture_persistence_state() == before
+				and store.get_snapshot()[String(SLOT)] == boundary
+				and store.get_snapshot().get("game_flow_reward_store", {}) == rewards
+				and game.get_active_activity_snapshot().state_id == &"completed"
+				and bool(boundary.activities[0].reward_requested)
+				and bool(boundary.activities[0].reward_granted) == (kind == "paid"),
+				"Start Fresh leaves %s terminal race, reward debt and paid receipt inert" % kind)
+			await _retire_game(game)
+			continue
+		_check(game.get_active_activity_snapshot().state_id == &"active"
+			and int(game.get_active_activity_snapshot().next_checkpoint_index) == 2,
+			"cold Main adopts the actual saved ACTIVE gate before Start Fresh")
+		var bytes := FileAccess.get_file_as_bytes(path)
+		var store_generation := store.get_generation()
+		filesystem.reject_writes = true
+		fresh.pressed.emit()
+		var refused := game.get("_session_recovery_hud_status") as Dictionary
+		var deadline := Time.get_ticks_msec() + 2_000
+		while is_instance_valid(fresh) and fresh.disabled and Time.get_ticks_msec() < deadline:
+			await process_frame
+			await physics_frame
+		var notice: Dictionary = game.hud.get_session_recovery_notice_snapshot()
+		var retry_ready := is_instance_valid(fresh) and fresh.is_visible_in_tree() and not fresh.disabled \
+			and bool(notice.get("active", false)) and not bool(notice.get("choice_latched", true)) \
+			and int(notice.get("recovery_token", 0)) == int(recovery.session_id) \
+			and int(notice.get("recovery_generation", 0)) == int(recovery.startup_generation)
+		_check(not bool(refused.get("accepted", false)) and retry_ready
+			and game.get_recovery_available_snapshot() == recovery
+			and store.get_generation() == store_generation
+			and store.get_snapshot()[String(SLOT)] == boundary
+			and store.get_snapshot().get("game_flow_reward_store", {}) == rewards
+			and FileAccess.get_file_as_bytes(path) == bytes,
+			"rejected ACTIVE Start Fresh retains the same usable notice and fence, exact durable progress and reward ledger")
+		filesystem.reject_writes = false
+		if not retry_ready:
+			await _retire_game(game)
+			continue
+		fresh.pressed.emit()
+		var accepted := game.get("_session_recovery_hud_status") as Dictionary
+		_check(bool(accepted.get("accepted", false)) and game.get_recovery_available_snapshot().is_empty()
+			and game.get_active_activity_snapshot().state_id == &"idle"
+			and owner.get_session_generation() == generation + 1
+			and store.get_snapshot().get("game_flow_reward_store", {}) == rewards,
+			"explicit same-fence Start Fresh retry publishes one durable IDLE generation without reward")
+		var idle := owner.capture_persistence_state()
+		await _retire_game(game)
+		var cold := await _make_game(Store.new(path, RejectingDiskFilesystem.new()))
+		cold.set_physics_process(false)
+		var cold_store := cold.get("_runtime_settings_user_data_store") as UserDataStore
+		_check(cold.get_active_activity_snapshot().state_id == &"idle"
+			and cold.cinder_race_session.capture_persistence_state() == idle
+			and cold_store.get_snapshot().get("game_flow_reward_store", {}) == rewards,
+			"later cold Main keeps the accepted Start Fresh IDLE instead of resurrecting ACTIVE progress")
+		await _retire_game(cold)
 
 
 func _make_game(store: UserDataStore) -> GameFlow:

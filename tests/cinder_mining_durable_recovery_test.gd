@@ -3,6 +3,14 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const StoreScript := preload("res://scripts/persistence/user_data_store.gd")
 const FilesystemScript := preload("res://scripts/persistence/user_data_filesystem.gd")
+const RecoveryFixture := preload("res://tests/game_flow_session_recovery_hud_integration_test.gd")
+
+class RejectedChoiceFilesystem extends FilesystemScript:
+	var reject_writes := false
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if reject_writes:
+			return ERR_FILE_CANT_WRITE
+		return super.write_bytes_and_flush(path, bytes)
 
 class PublicationSyncFilesystem extends FilesystemScript:
 	var fail_published_sync := false
@@ -32,7 +40,7 @@ func _run() -> void:
 		print("CINDER_MINING_DURABLE_RECOVERY_TEST_%s: %d assertions" % ["OK" if _failures.is_empty() else "FAILED", _assertions])
 		quit(0 if _failures.is_empty() else 1)
 		return
-	var directory := "/tmp/mudds-mining-durable-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()]
+	var directory := ProjectSettings.globalize_path("user://mudds-mining-durable-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()])
 	DirAccess.make_dir_recursive_absolute(directory)
 	var path := directory.path_join("profile.json")
 	var seed := StoreScript.new(path)
@@ -123,6 +131,7 @@ func _run() -> void:
 	_check((fourth.store.get_snapshot().foreign as Dictionary).cargo == "keep"
 		and int((fourth.store.get_snapshot().foreign as Dictionary).setting) == 17, "all mining commits preserve unrelated cargo and settings")
 	await _retire(fourth.game)
+	await _test_start_fresh_active(directory.path_join("start-fresh.json"))
 	await _test_published_sync(directory.path_join("sync.json"))
 	_test_record_compatibility(path)
 	var cleanup := DirAccess.open(directory)
@@ -131,6 +140,153 @@ func _run() -> void:
 	for failure in _failures: push_error(failure)
 	print("CINDER_MINING_DURABLE_RECOVERY_TEST_%s: %d assertions" % ["OK" if _failures.is_empty() else "FAILED", _assertions])
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _test_start_fresh_active(path: String) -> void:
+	# Independent profile keeps the original Resume and terminal-capacity controls intact.
+	var first := await _main(path)
+	_mining_intent(first.game, &"start_requested")
+	first.game.call(&"_advance_cinder_mining_extraction", 2.0, first.sample)
+	var active: Dictionary = first.binding.get_activity_snapshot(&"mining")
+	_check(active.state_id == &"active" and is_equal_approx(float(active.elapsed_seconds), 2.0),
+		"Start Fresh fixture earns two seconds through actual Main mining intent and production advance")
+	await _retire(first.game)
+	var filesystem := RejectedChoiceFilesystem.new()
+	var cold := await _main(path, false, filesystem)
+	var binding := cold.binding as NearbySectorActivityBinding
+	var restored := binding.get_activity_snapshot(&"mining")
+	_check(restored.state_id == &"active" and bool(restored.resume_required)
+		and int(restored.generation) == int(active.generation)
+		and is_equal_approx(float(restored.elapsed_seconds), 2.0),
+		"cold Main restores the active mining generation and timer before the recovery choice")
+	var game := cold.game as GameFlow
+	var bridge := RecoveryFixture.RecoveryBridgeProbe.new()
+	bridge.install(701, 9)
+	game.set("_session_diagnostics_bridge", bridge)
+	game.call("_publish_recovery_choice_to_hud")
+	var buttons: Dictionary = game.hud.get("_session_recovery_action_buttons")
+	var button := buttons.get(&"discard") as Button
+	var offered: bool = is_instance_valid(button) and button.is_visible_in_tree() and not button.disabled
+	_check(offered, "actual Main HUD offers an enabled fenced Start Fresh for the cold mining owner")
+	if not offered:
+		await _retire(game)
+		return
+	var store := cold.store as UserDataStore
+	var payload := store.get_snapshot()
+	var generation := store.get_generation()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var notice: Dictionary = game.hud.get_session_recovery_notice_snapshot()
+	filesystem.reject_writes = true
+	button.pressed.emit()
+	var failed: Dictionary = game.get("_session_recovery_hud_status")
+	filesystem.reject_writes = false
+	var deadline := Time.get_ticks_msec() + 2_000
+	while is_instance_valid(button) and button.disabled and Time.get_ticks_msec() < deadline:
+		await process_frame
+		await physics_frame
+	var retry_notice: Dictionary = game.hud.get_session_recovery_notice_snapshot()
+	var rearmed: bool = is_instance_valid(button) and not button.disabled and button.is_visible_in_tree() \
+		and bool(retry_notice.get("active", false)) \
+		and retry_notice.get("recovery_token") == notice.get("recovery_token") \
+		and retry_notice.get("recovery_generation") == notice.get("recovery_generation")
+	_check(not bool(failed.get("accepted", false)) and rearmed
+		and store.get_generation() == generation and store.get_snapshot() == payload
+		and FileAccess.get_file_as_bytes(path) == bytes
+		and binding.get_activity_snapshot(&"mining") == restored,
+		"rejected Start Fresh preserves the same usable fenced notice, live mining progress and exact disk state")
+	if not rearmed:
+		await _retire(game)
+		return
+	button.pressed.emit()
+	await process_frame
+	var choice: Dictionary = game.get("_session_recovery_hud_status")
+	var reset := binding.get_activity_snapshot(&"mining")
+	_check(bool(choice.get("accepted", false)) and reset.state_id == &"reset"
+		and int(reset.generation) == int(active.generation)
+		and is_zero_approx(float(reset.elapsed_seconds)) and not bool(reset.resume_required)
+		and not bool(reset.reward_requested) and game.get_recovery_available_snapshot().is_empty(),
+		"explicit same-button retry resets active mining durably before consuming the recovery notice")
+	var saved := store.get_snapshot()
+	for key: String in payload:
+		if key != "cinder_mining_capacity":
+			_check(saved.get(key) == payload[key], "mining Start Fresh preserves unrelated saved namespace: %s" % key)
+	await _retire(game)
+	var later := await _main(path)
+	var later_binding := later.binding as NearbySectorActivityBinding
+	var cold_reset := later_binding.get_activity_snapshot(&"mining")
+	_check(cold_reset.state_id == &"reset" and int(cold_reset.generation) == int(active.generation)
+		and is_zero_approx(float(cold_reset.elapsed_seconds)) and not bool(cold_reset.resume_required),
+		"later cold Main cannot resurrect the declined mining timer or resume requirement")
+	_mining_intent(later.game, &"start_requested")
+	var next := later_binding.get_activity_snapshot(&"mining")
+	_check(next.state_id == &"active" and int(next.generation) == int(active.generation) + 1
+		and is_zero_approx(float(next.elapsed_seconds)) and not bool(next.reward_requested),
+		"ordinary mining Start after durable abandonment admits exactly the next generation without elapsed progress")
+	# API-reachable pending-notice case, not ordinary Begin Shift (which consumes
+	# the notice): a failed terminal write leaves disk ACTIVE but live work owed.
+	var later_game := later.game as GameFlow
+	later_game.call(&"_advance_cinder_mining_extraction", 2.0, later.sample)
+	var pending_bridge := RecoveryFixture.RecoveryBridgeProbe.new()
+	pending_bridge.install(702, 10)
+	later_game.set("_session_diagnostics_bridge", pending_bridge)
+	later_game.call("_publish_recovery_choice_to_hud")
+	var pending_buttons: Dictionary = later_game.hud.get("_session_recovery_action_buttons")
+	var pending_button := pending_buttons.get(&"discard") as Button
+	var pending_offered: bool = is_instance_valid(pending_button) and pending_button.is_visible_in_tree() and not pending_button.disabled
+	_check(pending_offered, "terminal write-failure case retains an actual fenced pending recovery choice")
+	if not pending_offered:
+		await _retire(later_game)
+		return
+	var later_store := later.store as UserDataStore
+	var active_payload := later_store.get_snapshot()
+	var active_bytes := FileAccess.get_file_as_bytes(path)
+	var active_generation := later_store.get_generation()
+	var terminal_notice: Dictionary = later_game.hud.get_session_recovery_notice_snapshot()
+	# Existing later owner used the ordinary filesystem; block only its next
+	# atomic temporary-file publication without replacing the store or activity.
+	DirAccess.make_dir_absolute(path + ".tmp")
+	later_game.call(&"_advance_cinder_mining_extraction", 4.0, later.sample)
+	var owed := later_binding.get_activity_snapshot(&"mining")
+	_check(owed.state_id == &"complete" and not bool(owed.get("capacity_persisted", false))
+		and bool(owed.get("persistence_retry_available", false))
+		and int(active_payload.cinder_mining_capacity.session.state) == CinderMiningPlatformActivity.State.ACTIVE
+		and later_store.get_snapshot() == active_payload and FileAccess.get_file_as_bytes(path) == active_bytes,
+		"rejected terminal publication leaves genuine live unpaid completion over the durable ACTIVE checkpoint")
+	DirAccess.remove_absolute(path + ".tmp")
+	pending_button.pressed.emit()
+	var refused_choice: Dictionary = later_game.get("_session_recovery_hud_status")
+	var terminal_deadline := Time.get_ticks_msec() + 2_000
+	while is_instance_valid(pending_button) and pending_button.disabled and Time.get_ticks_msec() < terminal_deadline:
+		await process_frame
+		await physics_frame
+	var retained_notice: Dictionary = later_game.hud.get_session_recovery_notice_snapshot()
+	var terminal_rearmed: bool = is_instance_valid(pending_button) and not pending_button.disabled \
+		and pending_button.is_visible_in_tree() and bool(retained_notice.get("active", false)) \
+		and retained_notice.get("recovery_token") == terminal_notice.get("recovery_token") \
+		and retained_notice.get("recovery_generation") == terminal_notice.get("recovery_generation")
+	_check(not bool(refused_choice.get("accepted", false)) and terminal_rearmed
+		and later_binding.get_activity_snapshot(&"mining") == owed
+		and later_store.get_generation() == active_generation and later_store.get_snapshot() == active_payload
+		and FileAccess.get_file_as_bytes(path) == active_bytes,
+		"Start Fresh refuses live unpaid completion before resetting disk and preserves its usable recovery notice")
+	if not terminal_rearmed:
+		await _retire(later_game)
+		return
+	var persisted := later_binding.retry_mining_capacity_persistence()
+	var paid_terminal := later_binding.get_activity_snapshot(&"mining")
+	_check(bool(persisted.get("accepted", false)) and bool(paid_terminal.get("capacity_persisted", false))
+		and paid_terminal.state_id == &"complete" and int(paid_terminal.generation) == int(next.generation),
+		"the preserved genuine completion retries capacity persistence successfully after writes recover")
+	var paid_record: Dictionary = later_store.get_snapshot().cinder_mining_capacity
+	pending_button.pressed.emit()
+	await process_frame
+	var terminal_choice: Dictionary = later_game.get("_session_recovery_hud_status")
+	_check(bool(terminal_choice.get("accepted", false)) and later_game.get_recovery_available_snapshot().is_empty()
+		and later_binding.get_activity_snapshot(&"mining") == paid_terminal
+		and later_store.get_snapshot().cinder_mining_capacity == paid_record
+		and not bool(later_binding.request_mining_reward().get("accepted", false)),
+		"Start Fresh after reward retry accepts the pending choice while preserving paid terminal capacity exactly once")
+	await _retire(later_game)
 
 
 ## Mining's real capacity owner pays its six-second extraction, rotating the

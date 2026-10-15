@@ -120,6 +120,7 @@ class RejectingPatrolFilesystem extends UserDataFilesystem:
 
 var _assertions := 0
 var _failures := PackedStringArray()
+var _main_ordinal := 0
 
 
 func _init() -> void:
@@ -1401,22 +1402,43 @@ func _canonical(state: Dictionary) -> Dictionary:
 
 
 func _make_game(store: UserDataStore) -> GameFlow:
+	_main_ordinal += 1
+	var started_ms := Time.get_ticks_msec()
+	print("PATROL_MAIN_TIMING ", {"stage": &"make_begin", "ordinal": _main_ordinal,
+		"elapsed_ms": Time.get_ticks_msec() - started_ms,
+		"physics_frame": Engine.get_physics_frames(), "assertions": _assertions})
 	var game := MAIN_SCENE.instantiate() as GameFlow
+	print("PATROL_MAIN_TIMING ", {"stage": &"make_instantiated", "ordinal": _main_ordinal,
+		"elapsed_ms": Time.get_ticks_msec() - started_ms,
+		"physics_frame": Engine.get_physics_frames(), "assertions": _assertions})
 	if game == null or not game.configure_runtime_settings_persistence(store):
 		_check(false, "the isolated GameFlow accepts its one injected atomic store")
 		return null
 	root.add_child(game)
+	print("PATROL_MAIN_TIMING ", {"stage": &"make_added", "ordinal": _main_ordinal,
+		"elapsed_ms": Time.get_ticks_msec() - started_ms,
+		"physics_frame": Engine.get_physics_frames(), "assertions": _assertions})
 	await process_frame
 	await physics_frame
 	await process_frame
+	print("PATROL_MAIN_TIMING ", {"stage": &"make_end", "ordinal": _main_ordinal,
+		"elapsed_ms": Time.get_ticks_msec() - started_ms,
+		"physics_frame": Engine.get_physics_frames(), "assertions": _assertions})
 	return game
 
 
 func _retire_game(game: GameFlow) -> void:
+	var started_ms := Time.get_ticks_msec()
+	print("PATROL_MAIN_TIMING ", {"stage": &"retire_begin", "ordinal": _main_ordinal,
+		"elapsed_ms": Time.get_ticks_msec() - started_ms,
+		"physics_frame": Engine.get_physics_frames(), "assertions": _assertions})
 	game.set("_piloting", false)
 	game.queue_free()
 	for _frame in 3:
 		await process_frame
+	print("PATROL_MAIN_TIMING ", {"stage": &"retire_end", "ordinal": _main_ordinal,
+		"elapsed_ms": Time.get_ticks_msec() - started_ms,
+		"physics_frame": Engine.get_physics_frames(), "assertions": _assertions})
 
 
 func _check(condition: bool, message: String) -> void:

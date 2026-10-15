@@ -4,6 +4,7 @@ extends SceneTree
 ## fresh Main owners. Approach samples are positioned; this is not a flight journey.
 const Main := preload("res://scenes/main.tscn")
 const Scan := preload("res://scripts/world/cinder_abandoned_structure_scan_activity.gd")
+const RecoveryFixture := preload("res://tests/game_flow_session_recovery_hud_integration_test.gd")
 
 class FaultFilesystem extends UserDataFilesystem:
 	var reject_rewards := true
@@ -65,6 +66,7 @@ func _run() -> void:
 		_finish()
 		return
 	await _progress_recovery()
+	await _start_fresh_active()
 	await _legacy_discovery_compatibility()
 	var path := "user://scan_durable_%d.json" % Time.get_ticks_usec()
 	var first_fs := FaultFilesystem.new()
@@ -92,6 +94,14 @@ func _run() -> void:
 	_check(restored.state_id == &"complete" and int(restored.generation) == generation
 		and restored.elapsed_seconds == Scan.SCAN_SECONDS and restored.reward_pending and _receipts(second) == 0,
 		"fresh Main restores the exact genuine unpaid completion and visible pending handoff")
+	var unpaid_store: UserDataStore = second.get("_runtime_settings_user_data_store")
+	var unpaid_before: Dictionary = unpaid_store.get_snapshot()
+	var unpaid_choice: Dictionary = await _press_start_fresh(second)
+	_check(unpaid_choice.get("accepted", false)
+		and unpaid_store.get_snapshot().cinder_structure_scan_session == unpaid_before.cinder_structure_scan_session
+		and second_binding.get_activity_snapshot(&"structure_scan").state_id == &"complete"
+		and _receipts(second) == 0,
+		"actual Start Fresh preserves the genuine completed-unpaid scan for its ordinary retry")
 	_button(second, 3).emit_signal("pressed")
 	if _button(second, 3).text == "CONFIRM RESET":
 		_button(second, 3).emit_signal("pressed")
@@ -110,6 +120,13 @@ func _run() -> void:
 	var paid_restore := third_binding.get_activity_snapshot(&"structure_scan")
 	_check(paid_restore.reward_requested and paid_restore.reward_committed and paid_restore.discovery_persisted and _receipts(third) == 1,
 		"another fresh Main restores paid completion with legacy discovery presentation and without a second entitlement")
+	var paid_store: UserDataStore = third.get("_runtime_settings_user_data_store")
+	var paid_before: Dictionary = paid_store.get_snapshot()
+	var paid_choice: Dictionary = await _press_start_fresh(third)
+	_check(paid_choice.get("accepted", false) and paid_store.get_snapshot() == paid_before
+		and third_binding.get_activity_snapshot(&"structure_scan").discovery_persisted
+		and _receipts(third) == 1,
+		"actual Start Fresh leaves the paid scan, discovery and reward ledger unchanged")
 	var duplicate := third_binding.request_structure_scan_reward()
 	_check(not duplicate.accepted and _receipts(third) == 1, "the recovered paid scan terminal never pays twice")
 	_check(JSON.parse_string(FileAccess.get_file_as_string(path)).payload.runtime_settings == settings_before,
@@ -320,6 +337,176 @@ func _scan_recovery_artifacts(path: String) -> Dictionary:
 	return result
 
 
+func _start_fresh_active() -> void:
+	# Independent profile: the original Resume control below keeps its exact
+	# original save and replay behavior. Only approach samples are staged.
+	var path := "user://scan_start_fresh_%d.json" % Time.get_ticks_usec()
+	var first := await _game(path, UserDataFilesystem.new())
+	await _board(first)
+	var binding := await _binding(first)
+	first.active_ship.global_position = first.call("_cinder_authored_frame_to_world", Scan.APPROACH_ANCHOR)
+	_button(first, 2).pressed.emit()
+	first.call("_advance_cinder_structure_scan", 1.5, first.call("_capture_cinder_actor_sample"))
+	var progress: Dictionary = binding.get_activity_snapshot(&"structure_scan")
+	_check(progress.state_id == &"active" and is_equal_approx(progress.elapsed_seconds, 1.5),
+		"Start Fresh fixture earns its incomplete scan through ordinary HUD Start and production samples")
+	var active_document := FileAccess.get_file_as_bytes(path)
+	if progress.state_id != &"active":
+		await _dispose(first)
+		return
+	var fault := FaultFilesystem.new()
+	fault.reject_rewards = false
+	var fresh := await _game(path, fault)
+	var live := await _binding(fresh)
+	var store: UserDataStore = fresh.get("_runtime_settings_user_data_store")
+	var restored: Dictionary = live.get_activity_snapshot(&"structure_scan")
+	_check(restored.state_id == &"active" and int(restored.generation) == int(progress.generation)
+		and is_equal_approx(restored.elapsed_seconds, 1.5),
+		"the actual cold owner restores the active scan before the Start Fresh decision")
+	var button := _offer_start_fresh(fresh)
+	if not is_instance_valid(button) or not button.is_visible_in_tree() or button.disabled:
+		await _dispose(fresh)
+		await _dispose(first)
+		return
+	var snapshot: Dictionary = store.get_snapshot()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var generation := store.get_generation()
+	var notice: Dictionary = fresh.hud.get_session_recovery_notice_snapshot()
+	fault.reject_all = true
+	button.pressed.emit()
+	var failed: Dictionary = fresh.get("_session_recovery_hud_status")
+	fault.reject_all = false
+	var deadline := Time.get_ticks_msec() + 2_000
+	while is_instance_valid(button) and button.disabled and Time.get_ticks_msec() < deadline:
+		await process_frame
+		await physics_frame
+	var retry_notice: Dictionary = fresh.hud.get_session_recovery_notice_snapshot()
+	var rearmed: bool = is_instance_valid(button) and not button.disabled and button.is_visible_in_tree() \
+		and bool(retry_notice.get("active", false)) \
+		and retry_notice.get("recovery_token") == notice.get("recovery_token") \
+		and retry_notice.get("recovery_generation") == notice.get("recovery_generation")
+	_check(not failed.get("accepted", false) and rearmed
+		and store.get_generation() == generation and store.get_snapshot() == snapshot
+		and FileAccess.get_file_as_bytes(path) == bytes
+		and live.get_activity_snapshot(&"structure_scan") == restored,
+		"refused actual Start Fresh leaves the same usable notice, live scan and exact durable progress")
+	if not rearmed:
+		await _dispose(fresh)
+		await _dispose(first)
+		return
+	button.pressed.emit()
+	await process_frame
+	var choice: Dictionary = fresh.get("_session_recovery_hud_status")
+	var reset: Dictionary = live.get_activity_snapshot(&"structure_scan")
+	_check(choice.get("accepted", false) and reset.state_id == &"reset"
+		and int(reset.generation) == int(progress.generation) and reset.elapsed_seconds == 0.0
+		and not reset.reward_requested and _receipts(fresh) == 0
+		and fresh.get_recovery_available_snapshot().is_empty(),
+		"explicit same-button retry durably resets incomplete scan and consumes the recovery choice")
+	var retained_payload: Dictionary = store.get_snapshot()
+	for key: String in snapshot:
+		if key != "cinder_structure_scan_session":
+			_check(retained_payload.get(key) == snapshot[key], "scan abandonment preserves unrelated saved namespace: %s" % key)
+	var reset_bytes := FileAccess.get_file_as_bytes(path)
+	var stale_save: Dictionary = first.call("_save_cinder_scan_session", binding)
+	_check(not stale_save.get("accepted", false)
+		and binding.get_activity_snapshot(&"structure_scan").state_id == &"active"
+		and live.get_activity_snapshot(&"structure_scan").state_id == &"reset"
+		and FileAccess.get_file_as_bytes(path) == reset_bytes,
+		"the retained old scan writer cannot resurrect same-generation ACTIVE progress over durable RESET")
+	await _dispose(first)
+	await _dispose(fresh)
+	var second := await _game(path, UserDataFilesystem.new())
+	var second_binding := await _binding(second)
+	var second_reset: Dictionary = second_binding.get_activity_snapshot(&"structure_scan")
+	_check(second_reset.state_id == &"reset" and second_reset.elapsed_seconds == 0.0
+		and int(second_reset.generation) == int(progress.generation) and _receipts(second) == 0,
+		"the first later cold Main cannot resurrect the declined scan timer")
+	await _dispose(second)
+	var third := await _game(path, UserDataFilesystem.new())
+	var third_binding := await _binding(third)
+	var third_reset: Dictionary = third_binding.get_activity_snapshot(&"structure_scan")
+	_check(third_reset.state_id == &"reset" and third_reset.elapsed_seconds == 0.0
+		and int(third_reset.generation) == int(progress.generation),
+		"a second later cold Main still observes the durable reset boundary")
+	await _board(third)
+	third.active_ship.global_position = third.call("_cinder_authored_frame_to_world", Scan.APPROACH_ANCHOR)
+	_button(third, 2).pressed.emit()
+	var next: Dictionary = third_binding.get_activity_snapshot(&"structure_scan")
+	_check(next.state_id == &"active" and next.elapsed_seconds == 0.0
+		and int(next.generation) == int(progress.generation) + 1 and _receipts(third) == 0,
+		"ordinary Start admits exactly the next generation without inheriting declined progress or reward")
+	await _dispose(third)
+	await _start_fresh_without_binding(active_document, int(progress.generation))
+
+
+func _start_fresh_without_binding(active_document: PackedByteArray, scan_generation: int) -> void:
+	# Copy the genuine earlier ACTIVE disk image, including its checksum. This
+	# branch exercises the title decision before Cinder has streamed any owner.
+	var path := "user://scan_unloaded_start_fresh_%d.json" % Time.get_ticks_usec()
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	_check(file != null, "the unloaded-world fixture opens its independent real-profile image")
+	if file == null:
+		return
+	file.store_buffer(active_document)
+	file.flush()
+	file.close()
+	var store := UserDataStore.new(path)
+	var loaded: Dictionary = store.load()
+	var bare := GameFlow.new()
+	var authority := GameFlowRewardAuthority.new()
+	var configured: Dictionary = authority.configure(store)
+	var ready: bool = bool(loaded.get("accepted", false)) and bool(configured.get("accepted", false)) \
+		and bare.configure_runtime_settings_persistence(store)
+	bare.set("_game_flow_reward_authority", authority)
+	_check(ready and bare.call("_get_nearby_activity_binding") == null,
+		"the real stored ACTIVE scan is available to a bare recovery owner with no streamed binding")
+	if not ready:
+		bare.free()
+		return
+	var before: Dictionary = store.get_snapshot()
+	var declined: Dictionary = bare.call("_decline_interrupted_planetary_visits")
+	var after: Dictionary = store.get_snapshot()
+	var record: Dictionary = after.get("cinder_structure_scan_session", {})
+	_check(declined.get("accepted", false) and not record.is_empty()
+		and int(record.activities[0].state) == Scan.State.RESET
+		and int(record.activities[0].generation) == scan_generation
+		and float(record.activities[0].progress.elapsed_seconds) == 0.0,
+		"decline persists the same-generation RESET even when no nearby scan binding exists")
+	for key: String in before:
+		if key != "cinder_structure_scan_session":
+			_check(after.get(key) == before[key], "unloaded scan decline preserves unrelated saved namespace: %s" % key)
+	bare.free()
+	var later := await _game(path, UserDataFilesystem.new())
+	var binding := await _binding(later)
+	var restored: Dictionary = binding.get_activity_snapshot(&"structure_scan")
+	_check(restored.state_id == &"reset" and restored.elapsed_seconds == 0.0
+		and int(restored.generation) == scan_generation and _receipts(later) == 0,
+		"later actual Main streaming restores RESET instead of resurrecting the unloaded-world scan")
+	await _dispose(later)
+
+
+func _offer_start_fresh(game: GameFlow) -> Button:
+	var bridge := RecoveryFixture.RecoveryBridgeProbe.new()
+	bridge.install(701, 9)
+	game.set("_session_diagnostics_bridge", bridge)
+	game.call("_publish_recovery_choice_to_hud")
+	var buttons: Dictionary = game.hud.get("_session_recovery_action_buttons")
+	var button := buttons.get(&"discard") as Button
+	_check(is_instance_valid(button) and button.is_visible_in_tree() and not button.disabled,
+		"the actual Main HUD offers a visible enabled fenced Start Fresh button")
+	return button
+
+
+func _press_start_fresh(game: GameFlow) -> Dictionary:
+	var button := _offer_start_fresh(game)
+	if not is_instance_valid(button) or not button.is_visible_in_tree() or button.disabled:
+		return {"accepted": false, "reason": &"fixture_recovery_choice_unavailable"}
+	button.pressed.emit()
+	await process_frame
+	return game.get("_session_recovery_hud_status") as Dictionary
+
+
 func _progress_recovery() -> void:
 	var path := "user://scan_progress_%d.json" % Time.get_ticks_usec()
 	var first := await _game(path, UserDataFilesystem.new())
@@ -427,6 +614,70 @@ func _all_writes_failed() -> void:
 	var fresh_binding := await _binding(fresh)
 	_check(fresh_binding.get_activity_snapshot(&"structure_scan").state_id == &"idle" and _receipts(fresh) == 0,
 		"without a valid durable terminal fresh Main safely offers a new scan and no entitlement")
+	# API-reachable pending-choice boundary: normal Begin Shift consumes the
+	# notice, so this deliberately republishes the existing recovery fixture's
+	# fenced notice before advancing the actual live scan to completion.
+	await _board(fresh)
+	fresh.active_ship.global_position = fresh.call("_cinder_authored_frame_to_world", Scan.APPROACH_ANCHOR)
+	_button(fresh, 2).pressed.emit()
+	fresh.call("_advance_cinder_structure_scan", 1.5, fresh.call("_capture_cinder_actor_sample"))
+	var store: UserDataStore = fresh.get("_runtime_settings_user_data_store")
+	var active: Dictionary = store.get_snapshot().get("cinder_structure_scan_session", {})
+	_check(not active.is_empty() and int(active.activities[0].state) == Scan.State.SCANNING,
+		"the terminal-save refusal case has a genuine persisted incomplete scan first")
+	if active.is_empty() or int(active.activities[0].state) != Scan.State.SCANNING:
+		await _dispose(fresh)
+		return
+	var button := _offer_start_fresh(fresh)
+	if not is_instance_valid(button) or not button.is_visible_in_tree() or button.disabled:
+		await _dispose(fresh)
+		return
+	var notice: Dictionary = fresh.hud.get_session_recovery_notice_snapshot()
+	var original_filesystem: RefCounted = store.get("_filesystem")
+	var terminal_fault := FaultFilesystem.new()
+	terminal_fault.reject_all = true
+	store.set("_filesystem", terminal_fault)
+	await _complete(fresh, fresh_binding)
+	store.set("_filesystem", original_filesystem)
+	var completed: Dictionary = fresh_binding.get_activity_snapshot(&"structure_scan")
+	var before: Dictionary = store.get_snapshot()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var generation := store.get_generation()
+	_check(completed.state_id == &"complete" and not completed.reward_requested
+		and before.cinder_structure_scan_session == active and _receipts(fresh) == 0,
+		"failed terminal publication leaves earned live completion ahead of the saved ACTIVE checkpoint")
+	button.pressed.emit()
+	var refusal: Dictionary = fresh.get("_session_recovery_hud_status")
+	var deadline := Time.get_ticks_msec() + 2_000
+	while is_instance_valid(button) and button.disabled and Time.get_ticks_msec() < deadline:
+		await process_frame
+		await physics_frame
+	var retry_notice: Dictionary = fresh.hud.get_session_recovery_notice_snapshot()
+	var rearmed: bool = is_instance_valid(button) and not button.disabled and button.is_visible_in_tree() \
+		and bool(retry_notice.get("active", false)) \
+		and retry_notice.get("recovery_token") == notice.get("recovery_token") \
+		and retry_notice.get("recovery_generation") == notice.get("recovery_generation")
+	_check(not refusal.get("accepted", false) and rearmed
+		and fresh_binding.get_activity_snapshot(&"structure_scan").state_id == &"complete"
+		and int(fresh_binding.get_activity_snapshot(&"structure_scan").generation) == int(completed.generation)
+		and store.get_snapshot() == before and store.get_generation() == generation
+		and FileAccess.get_file_as_bytes(path) == bytes and _receipts(fresh) == 0,
+		"Start Fresh refuses before RESET when a failed terminal save left newer earned live work")
+	if not rearmed:
+		await _dispose(fresh)
+		return
+	_button(fresh, 2).pressed.emit()
+	var paid: Dictionary = fresh_binding.get_activity_snapshot(&"structure_scan")
+	_check(paid.state_id == &"complete" and paid.reward_committed and paid.discovery_persisted
+		and _receipts(fresh) == 1,
+		"ordinary scan Start retries the retained completion and durably pays once after writes recover")
+	var paid_payload: Dictionary = store.get_snapshot()
+	button.pressed.emit()
+	await process_frame
+	var accepted: Dictionary = fresh.get("_session_recovery_hud_status")
+	_check(accepted.get("accepted", false) and fresh.get_recovery_available_snapshot().is_empty()
+		and store.get_snapshot() == paid_payload and _receipts(fresh) == 1,
+		"the same Start Fresh choice accepts after terminal retry without changing completed payment or discovery")
 	await _dispose(fresh)
 
 func _unsupported_record(path: String) -> void:
