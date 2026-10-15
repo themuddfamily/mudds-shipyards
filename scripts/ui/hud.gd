@@ -3019,6 +3019,12 @@ func _request_settings_reset() -> void:
 func _confirm_settings_reset() -> void:
 	if is_instance_valid(_settings_reset_confirmation):
 		_settings_reset_confirmation.visible = false
+	# Confirm retires its focused control just like Cancel. Restore the live
+	# Settings entry before notifying the caller-owned reset/persistence flow.
+	if is_instance_valid(_settings_page) and _settings_page.is_visible_in_tree():
+		var reset_button := _settings_page.find_child("SettingsResetButton", true, false) as Button
+		if is_instance_valid(reset_button):
+			reset_button.grab_focus()
 	settings_reset_requested.emit()
 	set_settings_status("RESET REQUESTED", true)
 
