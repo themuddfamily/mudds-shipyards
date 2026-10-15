@@ -1,0 +1,14 @@
+Subject: Cancel queued reflection capture when a retained instance leaves its scenario
+
+The scenario-removal branch must unlink pending capture like base destruction
+already does. Re-entry culling queues a fresh capture from step zero.
+Exact before/after source hashes in the build recipe guard this insertion.
+
+--- a/servers/rendering/renderer_scene_cull.cpp
++++ b/servers/rendering/renderer_scene_cull.cpp
+@@ -854,0 +855,5 @@
++				// A retained instance can leave its scenario while capture is queued.
++				// Retire that work before its owner loses the scenario below.
++				if (reflection_probe->update_list.in_list()) {
++					reflection_probe_render_list.remove(&reflection_probe->update_list);
++				}

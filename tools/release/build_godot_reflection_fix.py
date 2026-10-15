@@ -6,6 +6,7 @@ Default: print the plan, without writes or network access.
 --build: prepare, apply the reviewed guarded patch, and compile (max 4 jobs).
 --target: editor (default) or template_release for private Linux release exports.
 --mesh-content-revision: opt in to the separate RD mesh revision feature build.
+--retained-probe-lifecycle: cancel pending probe capture on scenario detach.
 
 Neither target changes installed engines/templates. This recipe pins inputs and
 options, not host compiler binaries. Template results stay separate from editor
@@ -82,6 +83,12 @@ MESH_TARGETS = {
         "a3c6e47f3ad2d7bd21ff1c924dd9c9f27467260391fb8c35f567e1b3fdabeca8"),
 }
 
+PROBE_PATCH = PATCH.with_name("godot-4.7.1-retained-probe-lifecycle.patch")
+PROBE_PATCH_SHA = "0bd2ecfbce331baf2f5fd7fbfd1bb085d1c1271e83f14bbc37e7e30d10368aea"
+PROBE_TARGET = "servers/rendering/renderer_scene_cull.cpp"
+PROBE_BEFORE_SHA = "80f0761682f6df8abe683f843f6fc8fd1fc9a646783298491d597f2634b5e810"
+PROBE_AFTER_SHA = "811f5b85bf66e05b8dc755d4257cc7934c7760491f2c7d78ad27e413ecd243fa"
+
 
 class Cancelled(Exception):
     pass
@@ -117,7 +124,7 @@ def download(url, path, expected):
     require(not path.is_symlink() and sha(path) == expected, "Input SHA mismatch: " + str(path))
 
 
-def source_tree(archive, source, mesh_content_revision=False):
+def source_tree(archive, source, mesh_content_revision=False, retained_probe_lifecycle=False):
     """Reject unsafe members; verify shipped source on every reuse."""
     with tarfile.open(archive, "r:xz") as tar:
         members = tar.getmembers()
@@ -142,6 +149,9 @@ def source_tree(archive, source, mesh_content_revision=False):
                 require(sha(path) in (BEFORE_SHA, AFTER_SHA), "Unexpected patch target bytes")
             elif mesh_content_revision and str(relative) in MESH_TARGETS:
                 require(sha(path) in MESH_TARGETS[str(relative)], "Unexpected mesh revision target bytes")
+            elif retained_probe_lifecycle and str(relative) == PROBE_TARGET:
+                require(sha(path) in (PROBE_BEFORE_SHA, PROBE_AFTER_SHA),
+                        "Unexpected retained probe target bytes")
             else:
                 with tar.extractfile(member) as stream:
                     expected = hashlib.file_digest(stream, "sha256").hexdigest()
@@ -158,6 +168,18 @@ def apply_mesh_patch(source, env, log):
                         env, source, log, 30))
     require(all(sha(source / name) == hashes[1] for name, hashes in MESH_TARGETS.items()),
             "Patched mesh revision target SHA mismatch")
+    return rows
+
+
+def apply_retained_probe_patch(source, env, log):
+    target = source / PROBE_TARGET
+    actual = sha(target)
+    require(actual in (PROBE_BEFORE_SHA, PROBE_AFTER_SHA), "Unexpected retained probe source bytes")
+    rows = []
+    if actual == PROBE_BEFORE_SHA:
+        rows.append(run(["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", str(PROBE_PATCH)],
+                        env, source, log, 30))
+    require(sha(target) == PROBE_AFTER_SHA, "Patched retained probe target SHA mismatch")
     return rows
 
 
@@ -233,6 +255,7 @@ def main():
     action.add_argument("--build", action="store_true")
     parser.add_argument("--target", choices=("editor", "template_release"), default="editor")
     parser.add_argument("--mesh-content-revision", action="store_true")
+    parser.add_argument("--retained-probe-lifecycle", action="store_true")
     parser.add_argument("--jobs", type=int, choices=range(1, 5), default=2)
     parser.add_argument("--timeout", type=int, default=3600, help="Compile wall cap, at most 3600s")
     args = parser.parse_args()
@@ -240,14 +263,21 @@ def main():
     source = CACHE / SOURCE_NAME
     suffix = MESH_SUFFIX if args.mesh_content_revision else SUFFIX
     build_name = MESH_BUILD_NAME if args.mesh_content_revision else BUILD_NAME
+    if args.retained_probe_lifecycle:
+        suffix += "_retained_probe_lifecycle"
+        build_name += "_retained_probe_lifecycle"
     binary = source / (f"bin/godot.linuxbsd.{args.target}.x86_64." + suffix)
     options = ["target=" + args.target if option.startswith("target=") else option for option in OPTIONS]
     options = ["extra_suffix=" + suffix if option.startswith("extra_suffix=") else option for option in options]
     mode = "-mesh-content-revision" if args.mesh_content_revision else ""
+    if args.retained_probe_lifecycle:
+        mode += "-retained-probe-lifecycle"
     target_suffix = "" if args.target == "editor" else "-template_release"
     log = CACHE / f"build{mode}{target_suffix}.log"
     result = CACHE / f"build-result{mode}{target_suffix}.json"
     template_directory = "export_templates-mesh-content-revision" if args.mesh_content_revision else "export_templates"
+    if args.retained_probe_lifecycle:
+        template_directory += "-retained-probe-lifecycle"
     template = (CACHE / template_directory / "4.7.1.stable/linux_release.x86_64"
                 if args.target == "template_release" else None)
     plan = {"source_commit": SOURCE_COMMIT, "source_url": SOURCE_URL, "source_sha256": SOURCE_SHA,
@@ -260,6 +290,9 @@ def main():
     if args.mesh_content_revision:
         plan.update(mesh_content_revision=True, mesh_patch=str(MESH_PATCH),
                     mesh_patch_sha256=MESH_PATCH_SHA)
+    if args.retained_probe_lifecycle:
+        plan.update(retained_probe_lifecycle=True, retained_probe_patch=str(PROBE_PATCH),
+                    retained_probe_patch_sha256=PROBE_PATCH_SHA)
     print(json.dumps(plan, indent=2), flush=True)
     if not (args.prepare or args.build):
         return
@@ -270,6 +303,8 @@ def main():
     require(sha(PATCH) == PATCH_SHA, "Reviewed patch bytes changed")
     if args.mesh_content_revision:
         require(sha(MESH_PATCH) == MESH_PATCH_SHA, "Reviewed mesh revision patch bytes changed")
+    if args.retained_probe_lifecycle:
+        require(sha(PROBE_PATCH) == PROBE_PATCH_SHA, "Reviewed retained probe patch bytes changed")
     os.umask(0o077)
     CACHE.mkdir(mode=0o700, parents=True, exist_ok=True)
     CACHE.chmod(0o700)
@@ -288,7 +323,8 @@ def main():
                    GIT_OPTIONAL_LOCKS="0", BUILD_NAME=build_name, SOURCE_DATE_EPOCH="0")
         archive = CACHE / (SOURCE_NAME + ".tar.xz")
         download(SOURCE_URL, archive, SOURCE_SHA)
-        source_tree(archive, source, mesh_content_revision=args.mesh_content_revision)
+        source_tree(archive, source, mesh_content_revision=args.mesh_content_revision,
+                    retained_probe_lifecycle=args.retained_probe_lifecycle)
         wheel = CACHE / WHEEL_NAME
         download(WHEEL_URL, wheel, WHEEL_SHA)
         python = CACHE / "venv/bin/python"
@@ -305,6 +341,8 @@ def main():
         require(sha(source / TARGET) == AFTER_SHA, "Patched target SHA mismatch")
         if args.mesh_content_revision:
             rows.extend(apply_mesh_patch(source, env, log))
+        if args.retained_probe_lifecycle:
+            rows.extend(apply_retained_probe_patch(source, env, log))
         rows.append(run([str(python), "-m", "SCons", f"-j{args.jobs}", *options],
                         env, source, log, args.timeout))
         require(binary.is_file(), "Expected target binary missing")
@@ -312,7 +350,8 @@ def main():
             require(stream.read(4) == b"\x7fELF", "Expected target ELF missing")
         rows.append(run([str(binary), "--headless", "--audio-driver", "Dummy", "--version"],
                         env, CACHE, log, 30))
-        source_tree(archive, source, mesh_content_revision=args.mesh_content_revision)
+        source_tree(archive, source, mesh_content_revision=args.mesh_content_revision,
+                    retained_probe_lifecycle=args.retained_probe_lifecycle)
         if template:
             template.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             require(not template.is_symlink(), "Private release template must not be a symlink")

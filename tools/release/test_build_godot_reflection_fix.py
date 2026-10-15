@@ -138,7 +138,70 @@ class BuildTargets(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Unexpected mesh revision target bytes"):
                 builder.source_tree(archive, source, mesh_content_revision=True)
 
-    def simulate_release(self, stale_template=False, mesh_content_revision=False):
+    def test_retained_probe_opt_in_keeps_existing_options_and_separates_all_outputs(self):
+        for mesh in (False, True):
+            for target in ("editor", "template_release"):
+                with self.subTest(mesh=mesh, target=target):
+                    args = ["--target", target] + (["--mesh-content-revision"] if mesh else [])
+                    original = self.plan(*args)
+                    feature = self.plan(*args, "--retained-probe-lifecycle")
+                    self.assertNotIn("retained_probe_lifecycle", original)
+                    self.assertTrue(feature["retained_probe_lifecycle"])
+                    self.assertEqual(feature["retained_probe_patch_sha256"], builder.sha(builder.PROBE_PATCH))
+                    for key in ("binary", "custom_build_name", "log", "result"):
+                        self.assertNotEqual(original[key], feature[key])
+                    self.assertEqual(feature["options"][:-1], original["options"][:-1])
+                    self.assertEqual(feature["options"][-1], original["options"][-1] + "_retained_probe_lifecycle")
+                    if target == "template_release":
+                        self.assertNotEqual(original["release_template"], feature["release_template"])
+                    self.assertEqual(feature["patch_sha256"], builder.PATCH_SHA)
+                    if mesh:
+                        self.assertEqual(feature["mesh_patch_sha256"], builder.MESH_PATCH_SHA)
+
+    def test_retained_probe_patch_guards_and_idempotence(self):
+        source = self.cache / builder.SOURCE_NAME
+        target = source / builder.PROBE_TARGET
+        target.parent.mkdir(parents=True)
+        before, after = b"official probe lifecycle", b"reviewed probe lifecycle"
+        with patch.object(builder, "PROBE_BEFORE_SHA", hashlib.sha256(before).hexdigest()), \
+                patch.object(builder, "PROBE_AFTER_SHA", hashlib.sha256(after).hexdigest()), \
+                patch.object(builder, "run") as run:
+            target.write_bytes(b"unexpected source")
+            with self.assertRaisesRegex(RuntimeError, "Unexpected retained probe source bytes"):
+                builder.apply_retained_probe_patch(source, {}, self.cache / "unused.log")
+            run.assert_not_called()
+            target.write_bytes(after)
+            self.assertEqual(builder.apply_retained_probe_patch(source, {}, self.cache / "unused.log"), [])
+            run.assert_not_called()
+            target.write_bytes(before)
+            run.side_effect = lambda *args: target.write_bytes(after)
+            builder.apply_retained_probe_patch(source, {}, self.cache / "unused.log")
+            self.assertEqual(run.call_args.args[0], ["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", str(builder.PROBE_PATCH)])
+            self.assertEqual(target.read_bytes(), after)
+
+    def test_retained_probe_source_verification_requires_opt_in(self):
+        source = self.cache / builder.SOURCE_NAME
+        target = source / builder.PROBE_TARGET
+        target.parent.mkdir(parents=True)
+        before, after = b"official probe lifecycle", b"reviewed probe lifecycle"
+        archive = self.cache / "probe-fixture.tar.xz"
+        with tarfile.open(archive, "w:xz") as tar:
+            info = tarfile.TarInfo(builder.SOURCE_NAME + "/" + builder.PROBE_TARGET)
+            info.size = len(before)
+            tar.addfile(info, io.BytesIO(before))
+        with patch.object(builder, "PROBE_BEFORE_SHA", hashlib.sha256(before).hexdigest()), \
+                patch.object(builder, "PROBE_AFTER_SHA", hashlib.sha256(after).hexdigest()):
+            target.write_bytes(before)
+            builder.source_tree(archive, source)
+            target.write_bytes(after)
+            builder.source_tree(archive, source, retained_probe_lifecycle=True)
+            with self.assertRaisesRegex(RuntimeError, "Changed shipped source"):
+                builder.source_tree(archive, source, mesh_content_revision=True)
+            target.write_bytes(b"unexpected source")
+            with self.assertRaisesRegex(RuntimeError, "Unexpected retained probe target bytes"):
+                builder.source_tree(archive, source, retained_probe_lifecycle=True)
+
+    def simulate_release(self, stale_template=False, mesh_content_revision=False, retained_probe_lifecycle=False):
         source = self.cache / builder.SOURCE_NAME
         target = source / builder.TARGET
         target.parent.mkdir(parents=True)
@@ -155,10 +218,24 @@ class BuildTargets(unittest.TestCase):
                 self.cache / "build-template_release.log", self.cache / "build-result-template_release.json",
                 self.cache / "export_templates/4.7.1.stable/linux_release.x86_64",
             ])
+        if retained_probe_lifecycle:
+            for previous_mode, previous_suffix, previous_templates in (
+                ("", builder.SUFFIX, "export_templates"),
+                ("-mesh-content-revision", builder.MESH_SUFFIX, "export_templates-mesh-content-revision"),
+            ):
+                for previous_target, target_suffix in (("editor", ""), ("template_release", "-template_release")):
+                    protected.extend([
+                        source / (f"bin/godot.linuxbsd.{previous_target}.x86_64." + previous_suffix),
+                        self.cache / f"build{previous_mode}{target_suffix}.log",
+                        self.cache / f"build-result{previous_mode}{target_suffix}.json",
+                    ])
+                protected.append(self.cache / previous_templates / "4.7.1.stable/linux_release.x86_64")
         for path in protected:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"accepted editor artifact")
         template_dir = "export_templates-mesh-content-revision" if mesh_content_revision else "export_templates"
+        if retained_probe_lifecycle:
+            template_dir += "-retained-probe-lifecycle"
         template = self.cache / template_dir / "4.7.1.stable/linux_release.x86_64"
         if stale_template:
             template.parent.mkdir(parents=True)
@@ -166,11 +243,16 @@ class BuildTargets(unittest.TestCase):
         calls = []
         mode = "-mesh-content-revision" if mesh_content_revision else ""
         suffix = builder.MESH_SUFFIX if mesh_content_revision else builder.SUFFIX
+        expected_build_name = builder.MESH_BUILD_NAME if mesh_content_revision else builder.BUILD_NAME
+        if retained_probe_lifecycle:
+            mode += "-retained-probe-lifecycle"
+            suffix += "_retained_probe_lifecycle"
+            expected_build_name += "_retained_probe_lifecycle"
 
         def inert_run(command, env, cwd, log, timeout):
             calls.append(command)
             self.assertEqual(log, self.cache / f"build{mode}-template_release.log")
-            self.assertEqual(env["BUILD_NAME"], builder.MESH_BUILD_NAME if mesh_content_revision else builder.BUILD_NAME)
+            self.assertEqual(env["BUILD_NAME"], expected_build_name)
             self.assertEqual(env.get("HOME"), os.environ.get("HOME"))
             self.assertNotIn("DISPLAY", env)
             self.assertNotIn("WAYLAND_DISPLAY", env)
@@ -187,9 +269,11 @@ class BuildTargets(unittest.TestCase):
                     patch.object(builder, "AFTER_SHA", hashlib.sha256(target.read_bytes()).hexdigest()), \
                     patch.object(builder, "install_cancellation"), patch.object(builder, "download"), \
                     patch.object(builder, "source_tree"), patch.object(builder, "apply_mesh_patch", return_value=[]) as mesh_patch, \
+                    patch.object(builder, "apply_retained_probe_patch", return_value=[]) as probe_patch, \
                     patch.object(builder, "run", side_effect=inert_run), \
                     patch.object(sys, "argv", [str(SCRIPT), "--build", "--target", "template_release"] +
-                                 (["--mesh-content-revision"] if mesh_content_revision else [])), \
+                                 (["--mesh-content-revision"] if mesh_content_revision else []) +
+                                 (["--retained-probe-lifecycle"] if retained_probe_lifecycle else [])), \
                     contextlib.redirect_stdout(io.StringIO()):
                 if stale_template:
                     with self.assertRaisesRegex(RuntimeError, "Existing private release template differs"):
@@ -197,6 +281,7 @@ class BuildTargets(unittest.TestCase):
                 else:
                     builder.main()
                 self.assertEqual(mesh_patch.call_count, int(mesh_content_revision))
+                self.assertEqual(probe_patch.call_count, int(retained_probe_lifecycle))
         finally:
             os.umask(old_umask)
         for path in protected:
@@ -223,6 +308,20 @@ class BuildTargets(unittest.TestCase):
         record = json.loads((self.cache / "build-result-mesh-content-revision-template_release.json").read_text())
         self.assertEqual(record["release_template_sha256"], hashlib.sha256(template.read_bytes()).hexdigest())
         self.assertEqual(len(calls), 3)
+
+
+    def test_retained_probe_release_staging_preserves_all_existing_artifacts(self):
+        for mesh in (False, True):
+            with self.subTest(mesh=mesh):
+                # Each simulated target has an independent cache, as with a
+                # clean fixture; the real recipe uses one common build lock.
+                self.cache = Path(self.tmp.name) / ("probe-mesh" if mesh else "probe-only")
+                template, calls = self.simulate_release(mesh_content_revision=mesh, retained_probe_lifecycle=True)
+                self.assertEqual(template.read_bytes(), b"\x7fELFrelease fixture")
+                mode = "-mesh-content-revision" if mesh else ""
+                record = json.loads((self.cache / f"build-result{mode}-retained-probe-lifecycle-template_release.json").read_text())
+                self.assertEqual(record["release_template_sha256"], hashlib.sha256(template.read_bytes()).hexdigest())
+                self.assertEqual(len(calls), 3)
 
 
 if __name__ == "__main__":
