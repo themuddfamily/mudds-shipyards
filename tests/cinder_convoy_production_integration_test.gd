@@ -293,6 +293,76 @@ func _test_exact_activation_and_shared_sampling(
 	)
 
 
+func _test_raider_visual(threat: CinderConvoyThreat) -> void:
+	var attacker := threat.get_attacker()
+	var state_before := threat.capture_persistence_state()
+	var hull := attacker.get_node(^"RaiderHull") as MeshInstance3D
+	var hurtbox := attacker.get_node(^"Hurtbox") as CollisionShape3D
+	var mesh := hull.mesh as ArrayMesh
+	_check(mesh != null and mesh.get_surface_count() == 1
+		and hull.transform == Transform3D.IDENTITY
+		and hurtbox.transform == Transform3D.IDENTITY and hurtbox.shape is BoxShape3D
+		and (hurtbox.shape as BoxShape3D).size == Vector3(4.0, 2.5, 5.0),
+		"authored raider replaces the placeholder visual without moving or resizing its authoritative hurtbox")
+	if mesh == null:
+		return
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var geometry_valid := vertices.size() == 564 and normals.size() == vertices.size() and colors.size() == vertices.size()
+	var red_vertices := 0
+	var dark_vertices := 0
+	for index in vertices.size():
+		var point := vertices[index]
+		geometry_valid = geometry_valid and point.is_finite() and absf(point.x) <= 2.0 \
+			and absf(point.y) <= 1.25 and absf(point.z) <= 2.5
+		if index < normals.size():
+			geometry_valid = geometry_valid and normals[index].is_finite() and is_equal_approx(normals[index].length(), 1.0)
+		if index < colors.size():
+			if colors[index].is_equal_approx(Color("dd5c4d")): red_vertices += 1
+			if colors[index].is_equal_approx(Color("20262b")): dark_vertices += 1
+	if geometry_valid:
+		for index in range(0, vertices.size(), 3):
+			var cross_product := (vertices[index + 1] - vertices[index]).cross(vertices[index + 2] - vertices[index])
+			geometry_valid = geometry_valid and cross_product.length_squared() > 0.000001 \
+				and cross_product.dot(normals[index]) < 0.0
+	_check(geometry_valid and red_vertices > 0 and dark_vertices > 0,
+		"one 188-triangle raider mesh has finite clockwise armor, canopy and hostile shape cues entirely inside its old hit envelope")
+	var material := hull.material_override as StandardMaterial3D
+	_check(material != null and material.vertex_color_use_as_albedo
+		and material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED and not material.emission_enabled
+		and attacker.find_children("*", "MeshInstance3D", true, false).size() == 1
+		and attacker.find_children("*", "Light3D", true, false).is_empty(),
+		"hostile silhouette uses one opaque renderer with constant painted cues and no flashing hull or added lights")
+	var tint_probe := threat.call("_make_target", "VisualTintProbe", Vector3(4.0, 2.5, 5.0),
+		Color("d6b16b"), CinderConvoyThreat.ATTACKER_FACTION) as Area3D
+	var repeat_probe := threat.call("_make_target", "VisualRepeatProbe", Vector3(4.0, 2.5, 5.0),
+		Color("dd5c4d"), CinderConvoyThreat.ATTACKER_FACTION) as Area3D
+	var tinted_hull := tint_probe.get_node(^"RaiderHull") as MeshInstance3D
+	var repeated_hull := repeat_probe.get_node(^"RaiderHull") as MeshInstance3D
+	var tinted_colors: PackedColorArray = tinted_hull.mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+	_check(repeated_hull.mesh == mesh and tinted_hull.mesh != mesh
+		and tinted_colors.has(Color("d6b16b")) and not tinted_colors.has(Color("dd5c4d"))
+		and tinted_hull.material_override == material,
+		"same-tint raiders share geometry while another caller tint retains distinct baked cues without duplicating the opaque material")
+	tint_probe.free()
+	repeat_probe.free()
+	var replica := NetworkEmberlineActorPresenter.new()
+	replica.configure(null, attacker)
+	var remote := replica.get_visual(NetworkEmberlineActorPresenter.RAIDER_ID)
+	var remote_hull := remote.get_node(^"RaiderHull") as MeshInstance3D
+	var remote_material := remote_hull.material_override as StandardMaterial3D
+	replica.set_reduced_flash_enabled(true)
+	_check(remote_hull.mesh == mesh and remote_hull.transform == hull.transform
+		and remote_material != material and remote_material.vertex_color_use_as_albedo
+		and not remote_material.emission_enabled
+		and remote.find_children("*", "CollisionObject3D", true, false).is_empty()
+		and threat.capture_persistence_state() == state_before,
+		"remote raider shares the exact authored hull while detaching health shading and retaining collision-free reduced-flash presentation")
+	replica.free()
+
+
 func _test_reentry_completion_and_lifecycle_failures(
 	game: GameFlow,
 	host: CinderConvoyEscortHost,
@@ -303,6 +373,7 @@ func _test_reentry_completion_and_lifecycle_failures(
 	) -> void:
 	var threat := game.cinder_convoy_threat as CinderConvoyThreat
 	var threat_before := threat.get_snapshot()
+	_test_raider_visual(threat)
 	_check(
 		bool(threat_before.get("active", false))
 		and int(threat_before.get("generation", 0)) == host.get_generation()

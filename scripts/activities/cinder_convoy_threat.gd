@@ -37,6 +37,10 @@ const ATTACKER_OFFSET := Vector3(17.0, 8.0, -3.0)
 const PERSISTENCE_SCHEMA_VERSION := 1
 const MAX_PERSISTED_COUNTER := 9_007_199_254_740_991
 
+# Immutable visual resources are shared by the host and remote visual clones.
+static var _raider_meshes: Dictionary = {}
+static var _raider_material: StandardMaterial3D
+
 var _host: CinderConvoyEscortHost
 var _authority: LiveCombatAuthority
 var _attacker: Area3D
@@ -312,17 +316,117 @@ func _make_target(target_name: String, size: Vector3, tint: Color, faction: Stri
 	if rendered:
 		var visual := MeshInstance3D.new()
 		visual.name = "RaiderHull"
-		var mesh := BoxMesh.new()
-		mesh.size = size
-		visual.mesh = mesh
-		var material := StandardMaterial3D.new()
-		material.albedo_color = tint
-		material.emission_enabled = true
-		material.emission = tint
-		material.emission_energy_multiplier = 1.2
-		visual.material_override = material
+		visual.mesh = _build_raider_visual(tint)
+		visual.material_override = _raider_material
 		target.add_child(visual)
 	return target
+
+
+## One opaque surface: the silhouette and painted role cues survive the existing
+## remote presenter's mesh sharing and detached material_override health tint.
+## No lights, flashing emission, moving pieces or additional hit geometry.
+static func _build_raider_visual(tint: Color) -> ArrayMesh:
+	if _raider_meshes.has(tint):
+		return _raider_meshes[tint] as ArrayMesh
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var armor := Color("655b53")
+	var dark := Color("20262b")
+	# A narrow bow, broad armored shoulders and clipped stern, facing local -Z.
+	_raider_loft(tool, Vector3.ZERO, [Vector3(0.18, 0.16, -2.5),
+		Vector3(0.75, 0.48, -1.35), Vector3(0.78, 0.45, 1.25),
+		Vector3(0.48, 0.28, 1.9)], armor, dark)
+	for side: float in [-1.0, 1.0]:
+		# Engines and swept wings stay inside the unchanged 4 x 2.5 x 5 hurtbox.
+		_raider_loft(tool, Vector3(side * 1.6, -0.15, 0.0),
+			[Vector3(0.34, 0.34, -0.5), Vector3(0.34, 0.34, 2.4)], armor, tint)
+		var wing := PackedVector3Array([Vector3(side * 0.5, 0.0, -0.8),
+			Vector3(side * 1.85, 0.0, 1.0), Vector3(side * 0.5, 0.0, 1.4)])
+		_raider_plate(tool, wing, Vector3(0.0, 0.08, 0.0), armor)
+		# Painted forward chevrons read by shape as well as hostile red hue.
+		var a := Vector3(side * 0.87, 0.085, 0.15)
+		var b := Vector3(side * 1.48, 0.085, 0.88)
+		var c := Vector3(side * 1.13, 0.085, 0.70)
+		var d := Vector3(side * 0.86, 0.085, 0.62)
+		_raider_triangle(tool, a, b, c, Vector3.UP, tint)
+		_raider_triangle(tool, a, c, d, Vector3.UP, tint)
+	# Raised smoked canopy and tall aft fin make fore/aft and side views distinct.
+	_raider_loft(tool, Vector3(0.0, 0.45, 0.0),
+		[Vector3(0.25, 0.20, -1.3), Vector3(0.32, 0.20, -0.4)], dark, dark)
+	_raider_plate(tool, PackedVector3Array([Vector3(0.0, 0.3, 0.5),
+		Vector3(0.0, 1.2, 1.7), Vector3(0.0, 0.3, 2.1)]),
+		Vector3(0.065, 0.0, 0.0), tint)
+	var mesh := tool.commit()
+	_raider_meshes[tint] = mesh
+	if _raider_material == null:
+		_raider_material = StandardMaterial3D.new()
+		_raider_material.vertex_color_use_as_albedo = true
+		_raider_material.albedo_color = Color.WHITE
+		_raider_material.roughness = 0.72
+		# Painted armor is dielectric; its cues do not depend on void reflections.
+		_raider_material.metallic = 0.0
+	return mesh
+
+
+## Convex chamfered rings; flat face normals retain the authored armor facets.
+static func _raider_loft(tool: SurfaceTool, center: Vector3, sections: Array,
+		color: Color, stern_color: Color) -> void:
+	var rings: Array[PackedVector3Array] = []
+	for section: Vector3 in sections:
+		var ring := PackedVector3Array()
+		for corner: Vector2 in [Vector2(-0.6, -1.0), Vector2(0.6, -1.0),
+			Vector2(1.0, -0.6), Vector2(1.0, 0.6), Vector2(0.6, 1.0),
+			Vector2(-0.6, 1.0), Vector2(-1.0, 0.6), Vector2(-1.0, -0.6)]:
+			ring.append(center + Vector3(corner.x * section.x, corner.y * section.y, section.z))
+		rings.append(ring)
+	var middle: Vector3 = center + Vector3(0.0, 0.0, (sections[0].z + sections[-1].z) * 0.5)
+	for index in rings.size() - 1:
+		for side in 8:
+			var a := rings[index][side]
+			var b := rings[index][(side + 1) % 8]
+			var c := rings[index + 1][(side + 1) % 8]
+			var d := rings[index + 1][side]
+			var outward := (a + b + c + d) * 0.25 - middle
+			_raider_triangle(tool, a, b, c, outward, color)
+			_raider_triangle(tool, a, c, d, outward, color)
+	for end in [0, rings.size() - 1]:
+		var cap := center + Vector3(0.0, 0.0, sections[end].z)
+		var outward := Vector3.FORWARD if end == 0 else Vector3.BACK
+		for side in 8:
+			_raider_triangle(tool, cap, rings[end][side], rings[end][(side + 1) % 8],
+				outward, color if end == 0 else stern_color)
+
+
+static func _raider_plate(tool: SurfaceTool, points: PackedVector3Array,
+		half_thickness: Vector3, color: Color) -> void:
+	var center := (points[0] + points[1] + points[2]) / 3.0
+	for sign_value: float in [-1.0, 1.0]:
+		_raider_triangle(tool, points[0] + half_thickness * sign_value,
+			points[1] + half_thickness * sign_value, points[2] + half_thickness * sign_value,
+			half_thickness * sign_value, color)
+	for index in 3:
+		var next := (index + 1) % 3
+		var a := points[index] - half_thickness
+		var b := points[next] - half_thickness
+		var c := points[next] + half_thickness
+		var d := points[index] + half_thickness
+		var outward := (points[index] + points[next]) * 0.5 - center
+		_raider_triangle(tool, a, b, c, outward, color)
+		_raider_triangle(tool, a, c, d, outward, color)
+
+
+static func _raider_triangle(tool: SurfaceTool, a: Vector3, b: Vector3,
+		c: Vector3, outward: Vector3, color: Color) -> void:
+	# Godot's front faces wind clockwise; retain matching outward flat normals.
+	if (b - a).cross(c - a).dot(outward) > 0.0:
+		var swap := b
+		b = c
+		c = swap
+	var normal := (c - a).cross(b - a).normalized()
+	for point: Vector3 in [a, b, c]:
+		tool.set_normal(normal)
+		tool.set_color(color)
+		tool.add_vertex(point)
 
 
 func _sync_positions() -> void:
