@@ -17,6 +17,7 @@ func _run() -> void:
 	_test_gamepad_layouts_and_axes()
 	_test_last_active_selection_and_override()
 	_test_deadzone_and_event_observation()
+	_test_mouse_look_device_feedback()
 	_test_deterministic_deep_copy_audit()
 	_test_unknown_fallbacks()
 	_finish()
@@ -164,6 +165,45 @@ func _test_deadzone_and_event_observation() -> void:
 	echo.pressed = true
 	echo.echo = true
 	_check(not resolver.observe_input_event(echo), "keyboard repeat does not masquerade as a new active-device transition")
+
+
+func _test_mouse_look_device_feedback() -> void:
+	var resolver := Resolver.new()
+	resolver.observe_binding_activity(
+		_joy_button(JOY_BUTTON_A), 1.0, 0.18,
+		{"device_class": "gamepad", "layout": "xbox"}
+	)
+	var motion := InputEventMouseMotion.new()
+	_check(
+		not resolver.observe_input_event(motion)
+		and resolver.get_preferred_device_family() == Resolver.FAMILY_GAMEPAD_XBOX,
+		"empty mouse motion keeps the active controller prompts"
+	)
+	motion.relative = Vector2(NAN, 2.0)
+	_check(
+		not resolver.observe_input_event(motion)
+		and resolver.get_preferred_device_family() == Resolver.FAMILY_GAMEPAD_XBOX,
+		"non-finite mouse motion cannot replace active controller prompts"
+	)
+	motion.relative = Vector2(4.0, -2.0)
+	_check(
+		resolver.observe_input_event(motion)
+		and resolver.get_preferred_device_family() == Resolver.FAMILY_MOUSE
+		and resolver.resolve_action(_profile(), &"fire").glyph_token == &"mouse.left",
+		"mouse look restores mouse Fire feedback before a click or key press"
+	)
+	resolver.set_explicit_device_family_override(Resolver.FAMILY_GAMEPAD_PLAYSTATION)
+	_check(
+		resolver.observe_input_event(motion)
+		and resolver.get_last_active_device_family() == Resolver.FAMILY_MOUSE
+		and resolver.get_preferred_device_family() == Resolver.FAMILY_GAMEPAD_PLAYSTATION,
+		"mouse look records activity while respecting an explicit glyph-family choice"
+	)
+	resolver.clear_explicit_device_family_override()
+	_check(
+		resolver.resolve_action(_profile(), &"fire").glyph_token == &"mouse.left",
+		"clearing an explicit glyph choice reveals the last active mouse"
+	)
 
 
 func _test_deterministic_deep_copy_audit() -> void:

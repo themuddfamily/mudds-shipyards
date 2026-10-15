@@ -190,6 +190,14 @@ func observe_input_event(
 			return false
 		_last_active_family = FAMILY_KEYBOARD
 		return true
+	if event is InputEventMouseMotion:
+		var motion := event as InputEventMouseMotion
+		# Aiming and looking are mouse activity even before the player clicks.
+		# Empty motion (including a cursor recapture) cannot steal pad prompts.
+		if not motion.relative.is_finite() or motion.relative.is_zero_approx():
+			return false
+		_last_active_family = FAMILY_MOUSE
+		return true
 	if event is InputEventMouseButton:
 		var mouse := event as InputEventMouseButton
 		if not mouse.pressed:

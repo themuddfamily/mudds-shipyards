@@ -90,6 +90,24 @@ func _test_intro_start_prompt(hud: GameHUD) -> void:
 	_check(start.text == "BEGIN SHIFT   [ T ]", "returning to keyboard refreshes the retained startup button")
 	_apply_start_profile(hud, defaults)
 	_check(start.text == "BEGIN SHIFT   [ E ]", "restoring defaults restores exact startup copy")
+	var pad := InputEventJoypadButton.new()
+	pad.button_index = JOY_BUTTON_GUIDE
+	pad.pressed = true
+	root.push_input(pad)
+	await process_frame
+	var resolver: InputGlyphResolver = hud.get("_input_glyph_resolver")
+	_check(resolver.get_preferred_device_family() == &"gamepad_generic",
+		"native pad input selects controller prompts before the mouse handover")
+	pad.pressed = false
+	root.push_input(pad)
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(4.0, -2.0)
+	root.push_input(motion)
+	await process_frame
+	_check(resolver.get_preferred_device_family() == &"mouse",
+		"native mouse look reaches the retained HUD resolver without a click")
+	_check(hud.get_action_prompt(&"fire") == "Left Mouse",
+		"the retained HUD refreshes Fire to the mouse binding on mouse look")
 
 
 func _apply_start_profile(hud: GameHUD, profile: InputBindingProfile) -> void:
