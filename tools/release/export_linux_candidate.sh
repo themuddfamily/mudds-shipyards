@@ -19,6 +19,8 @@
 #   GODOT_BIN                     Godot 4.7.1 binary (default: godot)
 #   GODOT_EXPORT_TEMPLATES_DIR    directory holding 4.7.1.stable/ (default:
 #                                 ${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates)
+#   GODOT_EXPECTED_LINUX_TEMPLATE_SHA256
+#                                optional release-template pin; rejects preset overrides
 #   EXPORT_TIMEOUT_SECONDS        wall-clock abort for the Godot export (default 900)
 #
 # --dry-run validates arguments and prints the planned outputs as JSON without
@@ -88,6 +90,11 @@ installer_basename="install-desktop-entry.sh"
 build_root="$REPO_ROOT/builds/linux"
 
 templates_dir="${GODOT_EXPORT_TEMPLATES_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates}"
+release_template="$templates_dir/$GODOT_TEMPLATE_VERSION/linux_release.x86_64"
+expected_template_sha="${GODOT_EXPECTED_LINUX_TEMPLATE_SHA256:-}"
+if [[ -n "$expected_template_sha" && ! "$expected_template_sha" =~ ^[0-9a-f]{64}$ ]]; then
+	die "GODOT_EXPECTED_LINUX_TEMPLATE_SHA256 must be a lowercase SHA-256"
+fi
 godot_bin="${GODOT_BIN:-godot}"
 timeout_seconds="${EXPORT_TIMEOUT_SECONDS:-900}"
 if [[ ! "$timeout_seconds" =~ ^[1-9][0-9]*$ ]]; then
@@ -102,10 +109,10 @@ if (( dry_run == 1 )); then
 	python3 - "$commit" "$short_commit" "$build_root" "$output_basename" \
 		"$tarball_basename" "$result_basename" "$package_dir_name" \
 		"$templates_dir/$GODOT_TEMPLATE_VERSION" "$PRESET_NAME" \
-		"$([[ -z "$dirty_state" ]] && echo true || echo false)" <<'PY'
+		"$([[ -z "$dirty_state" ]] && echo true || echo false)" "$expected_template_sha" <<'PY'
 import json, sys
 (commit, short, root, binary, tarball, result, package_dir,
- templates, preset, clean) = sys.argv[1:]
+ templates, preset, clean, expected_template_sha) = sys.argv[1:]
 print(json.dumps({
     "dry_run": True,
     "source_commit": commit,
@@ -116,6 +123,7 @@ print(json.dumps({
     "result": f"{root}/{result}",
     "tarball_root": package_dir,
     "export_templates": templates,
+    "expected_release_template_sha256": expected_template_sha or None,
     "worktree_clean": clean == "true",
 }, indent=2, sort_keys=True))
 PY
@@ -136,10 +144,29 @@ for required_tool in awk cp gzip head ln od mkdir mktemp python3 realpath rm sha
 	command -v "$required_tool" >/dev/null 2>&1 \
 		|| die "required tool is unavailable: $required_tool"
 done
-for template in linux_release.x86_64 linux_debug.x86_64; do
-	[[ -f "$templates_dir/$GODOT_TEMPLATE_VERSION/$template" ]] \
-		|| die "missing export template: $templates_dir/$GODOT_TEMPLATE_VERSION/$template"
-done
+# This command exports release only; a debug template is neither selected nor needed.
+[[ -f "$release_template" ]] || die "missing export template: $release_template"
+verify_release_template() {
+	[[ -n "$expected_template_sha" ]] || return 0
+	python3 - "$REPO_ROOT/export_presets.cfg" "$PRESET_NAME" \
+		"$release_template" "$expected_template_sha" <<'PY' || die "release template pin failed"
+import configparser, hashlib, pathlib, sys
+presets, name, template, expected = sys.argv[1:]
+parser = configparser.ConfigParser(interpolation=None)
+parser.optionxform = str
+parser.read(presets, encoding="utf-8")
+sections = [s for s in parser.sections() if parser.get(s, "name", fallback="") == f'"{name}"']
+if len(sections) != 1:
+    sys.exit("Pinned export requires exactly one matching preset")
+if parser.get(sections[0] + ".options", "custom_template/release", fallback='""').strip() != '""':
+    sys.exit("Pinned export rejects custom_template/release override")
+with pathlib.Path(template).open("rb") as stream:
+    actual = hashlib.file_digest(stream, "sha256").hexdigest()
+if actual != expected:
+    sys.exit(f"Release template SHA-256 mismatch: expected {expected}, got {actual}")
+PY
+}
+verify_release_template
 icon_source="$REPO_ROOT/assets/keth-icon.png"
 [[ -f "$icon_source" ]] || die "missing application icon: $icon_source"
 
@@ -223,6 +250,7 @@ cat -- "$export_log"
 (( export_status == 0 )) || die "Godot export failed with exit code $export_status"
 
 require_stable_source_tree
+verify_release_template
 if [[ -L "$staged_binary" || ! -f "$staged_binary" || ! -s "$staged_binary" ]]; then
 	die "Godot did not create a nonempty Linux executable"
 fi
@@ -312,9 +340,9 @@ godot_version="$(
 )"
 staged_result="$work_dir/$result_basename"
 python3 - "$staged_result" "$commit" "$PRESET_NAME" "$godot_version" \
-	"$binary_path" "$tarball_path" "$package_dir_name" <<'PY'
+	"$binary_path" "$tarball_path" "$package_dir_name" "$release_template" "$expected_template_sha" <<'PY'
 import hashlib, json, os, sys
-out, commit, preset, godot_version, binary, tarball, package_dir = sys.argv[1:]
+out, commit, preset, godot_version, binary, tarball, package_dir, template, expected_template_sha = sys.argv[1:]
 
 def describe(path):
     digest = hashlib.sha256()
@@ -336,6 +364,9 @@ record = {
     "signing": "unsigned",
     "startup_check": "NOT_RUN",
 }
+if expected_template_sha:
+    record["release_template"] = describe(template)
+    record["release_template"]["expected_sha256"] = expected_template_sha
 with open(out, "w", encoding="utf-8") as handle:
     json.dump(record, handle, indent=2, sort_keys=True)
     handle.write("\n")
@@ -347,6 +378,7 @@ ln -- "$staged_result" "$result_path" || die "cannot publish $result_path"
 published+=("$result_path")
 
 require_stable_source_tree
+verify_release_template
 successful=1
 printf 'path=%s\n' "$binary_path"
 printf 'bytes=%s\n' "$(stat -Lc '%s' -- "$binary_path")"

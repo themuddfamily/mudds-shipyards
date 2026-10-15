@@ -8,6 +8,7 @@ in export_presets.cfg. No test runs Godot or exports anything.
 """
 
 import configparser
+import hashlib
 import json
 import os
 import shutil
@@ -130,6 +131,108 @@ class LinuxPreset(unittest.TestCase):
 
     def test_windows_preset_stays_first(self):
         self.assertEqual(self.parser["preset.0"]["name"], '"Windows Desktop"')
+
+
+class ReleaseTemplatePin(unittest.TestCase):
+    """Run the shell pipeline with inert Git/editor stand-ins, never Godot."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+        self.repo = self.dir / "fixture"
+        release = self.repo / "tools/release"
+        release.mkdir(parents=True)
+        self.script = release / EXPORT_SCRIPT.name
+        shutil.copy2(EXPORT_SCRIPT, self.script)
+        (release / "check_zenith_export_inputs.py").write_text("raise SystemExit(0)\n")
+        (self.repo / "assets").mkdir()
+        (self.repo / "assets/keth-icon.png").write_bytes(b"fixture-icon")
+        self.preset = self.repo / "export_presets.cfg"
+        self._preset('""')
+        self.templates = self.dir / "templates/4.7.1.stable"
+        self.templates.mkdir(parents=True)
+        self.template = self.templates / "linux_release.x86_64"
+        self.template.write_bytes(b"\x7fELFprivate-release-template")
+        self.digest = hashlib.sha256(self.template.read_bytes()).hexdigest()
+        self.trace = self.dir / "editor-calls"
+        tools = self.dir / "bin"
+        tools.mkdir()
+        git = tools / "git"
+        git.write_text(
+            '#!/bin/sh\ncase "$*" in\n'
+            ' *--show-toplevel*) printf "%s\\n" "$FIXTURE_ROOT";;\n'
+            ' *rev-parse*) printf "%s\\n" 0123456789012345678901234567890123456789;;\n'
+            ' *status*) :;;\n *show*) echo 1700000000;;\n *) exit 99;;\nesac\n'
+        )
+        git.chmod(0o755)
+        editor = tools / "inert-editor"
+        editor.write_text(
+            '#!/usr/bin/env python3\nimport os,pathlib,sys\n'
+            'with open(os.environ["EDITOR_TRACE"],"a") as f:f.write(repr(sys.argv[1:])+"\\n")\n'
+            'if "--version" in sys.argv:\n print("4.7.1.stable.fixture");sys.exit(0)\n'
+            'assert "--export-release" in sys.argv\n'
+            'p=pathlib.Path(os.environ["XDG_DATA_HOME"])/"godot/export_templates/4.7.1.stable/linux_release.x86_64"\n'
+            'pathlib.Path(sys.argv[-1]).write_bytes(p.read_bytes())\n'
+            'if os.environ.get("MUTATE_TEMPLATE"):\n p.write_bytes(b"changed during export")\n'
+        )
+        editor.chmod(0o755)
+        self.env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ["PATH"],
+                        FIXTURE_ROOT=str(self.repo), EDITOR_TRACE=str(self.trace),
+                        GODOT_BIN=str(editor), GODOT_EXPORT_TEMPLATES_DIR=str(self.templates.parent),
+                        GODOT_EXPECTED_LINUX_TEMPLATE_SHA256=self.digest)
+
+    def _preset(self, override):
+        self.preset.write_text('[preset.0]\nname="Linux"\n[preset.0.options]\n'
+                               'custom_template/release=' + override + '\n')
+
+    def _export(self):
+        return _run([str(self.script)], env=self.env, cwd=self.repo)
+
+    def test_private_release_only_template_selected_and_pinned(self):
+        self.assertFalse((self.templates / "linux_debug.x86_64").exists())
+        result = self._export()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = self.repo / "builds/linux/MuddsShipyards-0123456.x86_64"
+        self.assertEqual(output.read_bytes(), self.template.read_bytes())
+        record = json.loads(Path(str(output) + ".export-result.json").read_text())
+        self.assertEqual(record["release_template"]["path"], str(self.template))
+        self.assertEqual(record["release_template"]["sha256"], self.digest)
+        self.assertEqual(record["release_template"]["expected_sha256"], self.digest)
+
+    def test_wrong_hash_rejected_before_editor_is_called(self):
+        self.env["GODOT_EXPECTED_LINUX_TEMPLATE_SHA256"] = "0" * 64
+        result = self._export()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Release template SHA-256 mismatch", result.stderr)
+        self.assertFalse(self.trace.exists())
+
+    def test_preset_override_cannot_bypass_pin(self):
+        self._preset('"/other/runtime"')
+        result = self._export()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("rejects custom_template/release", result.stderr)
+        self.assertFalse(self.trace.exists())
+
+    def test_post_export_template_mutation_rejected_without_outputs(self):
+        self.env["MUTATE_TEMPLATE"] = "1"
+        result = self._export()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Release template SHA-256 mismatch", result.stderr)
+        self.assertTrue(self.trace.exists())
+        self.assertEqual(list((self.repo / "builds/linux").iterdir()), [])
+
+    def test_pin_remains_optional(self):
+        self.env.pop("GODOT_EXPECTED_LINUX_TEMPLATE_SHA256")
+        result = self._export()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_invalid_pin_rejected_even_in_dry_run(self):
+        self.env["GODOT_EXPECTED_LINUX_TEMPLATE_SHA256"] = "not-a-sha"
+        result = _run([str(self.script), "--dry-run"], env=self.env, cwd=self.repo)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("must be a lowercase SHA-256", result.stderr)
+        self.assertFalse(self.trace.exists())
 
 
 class StartupCheck(unittest.TestCase):

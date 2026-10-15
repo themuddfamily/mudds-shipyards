@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Opt-in, isolated Godot 4.7.1 editor build for the reflection-atlas fix.
+"""Opt-in, isolated Godot 4.7.1 build for the reflection-atlas fix.
 
 Default: print the plan, without writes or network access.
 --prepare: verify/download official source and pinned SCons; do not apply/build.
 --build: prepare, apply the reviewed guarded patch, and compile (max 4 jobs).
+--target: editor (default) or template_release for private Linux release exports.
 
-Output is a custom editor for explicit GODOT_BIN use, never an installation or
-an export template. This recipe pins inputs/options, not host compiler binaries.
+Neither target changes installed engines/templates. This recipe pins inputs and
+options, not host compiler binaries. Template results stay separate from editor
+results; GODOT_BIN alone selects the exporting editor, not the packaged runtime.
 """
 
 import argparse
@@ -187,16 +189,24 @@ def main():
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--prepare", action="store_true")
     action.add_argument("--build", action="store_true")
+    parser.add_argument("--target", choices=("editor", "template_release"), default="editor")
     parser.add_argument("--jobs", type=int, choices=range(1, 5), default=2)
     parser.add_argument("--timeout", type=int, default=3600, help="Compile wall cap, at most 3600s")
     args = parser.parse_args()
     require(0 < args.timeout <= 3600, "Compile timeout must be 1..3600 seconds")
     source = CACHE / SOURCE_NAME
-    binary = source / ("bin/godot.linuxbsd.editor.x86_64." + SUFFIX)
+    binary = source / (f"bin/godot.linuxbsd.{args.target}.x86_64." + SUFFIX)
+    options = ["target=" + args.target if option.startswith("target=") else option for option in OPTIONS]
+    log = CACHE / ("build.log" if args.target == "editor" else "build-template_release.log")
+    result = CACHE / ("build-result.json" if args.target == "editor" else "build-result-template_release.json")
+    template = (CACHE / "export_templates/4.7.1.stable/linux_release.x86_64"
+                if args.target == "template_release" else None)
     plan = {"source_commit": SOURCE_COMMIT, "source_url": SOURCE_URL, "source_sha256": SOURCE_SHA,
             "patch": str(PATCH), "patch_sha256": PATCH_SHA, "scons_version": "4.10.1",
             "scons_wheel_sha256": WHEEL_SHA, "cache": str(CACHE), "binary": str(binary),
-            "custom_build_name": BUILD_NAME, "options": OPTIONS, "jobs": args.jobs,
+            "custom_build_name": BUILD_NAME, "options": options, "jobs": args.jobs,
+            "target": args.target, "log": str(log), "result": str(result),
+            "release_template": str(template) if template else None,
             "compile_timeout": args.timeout, "default_engine_templates_changed": False}
     print(json.dumps(plan, indent=2), flush=True)
     if not (args.prepare or args.build):
@@ -230,7 +240,6 @@ def main():
         python = CACHE / "venv/bin/python"
         if not python.exists():
             venv.EnvBuilder(with_pip=True).create(CACHE / "venv")
-        log = CACHE / "build.log"
         rows = [run([str(python), "-m", "pip", "install", "--no-index", "--no-deps",
                      "--disable-pip-version-check", str(wheel)], env, CACHE, log, 120)]
         if not args.build:
@@ -240,17 +249,27 @@ def main():
             rows.append(run(["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", str(PATCH)],
                             env, source, log, 30))
         require(sha(source / TARGET) == AFTER_SHA, "Patched target SHA mismatch")
-        rows.append(run([str(python), "-m", "SCons", f"-j{args.jobs}", *OPTIONS],
+        rows.append(run([str(python), "-m", "SCons", f"-j{args.jobs}", *options],
                         env, source, log, args.timeout))
-        require(binary.is_file(), "Expected editor binary missing")
+        require(binary.is_file(), "Expected target binary missing")
         with binary.open("rb") as stream:
-            require(stream.read(4) == b"\x7fELF", "Expected editor ELF missing")
+            require(stream.read(4) == b"\x7fELF", "Expected target ELF missing")
         rows.append(run([str(binary), "--headless", "--audio-driver", "Dummy", "--version"],
                         env, CACHE, log, 30))
         source_tree(archive, source)
+        if template:
+            template.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            require(not template.is_symlink(), "Private release template must not be a symlink")
+            if not template.exists():
+                with binary.open("rb") as input_file, template.open("xb") as output_file:
+                    shutil.copyfileobj(input_file, output_file)
+                template.chmod(0o755)
+            require(sha(template) == sha(binary), "Existing private release template differs from built target")
+            plan["release_template_sha256"] = sha(template)
         plan.update(binary_sha256=sha(binary), binary_bytes=binary.stat().st_size, commands=rows,
-                    purpose="Explicit GODOT_BIN for station traversal/ReflectionProbe validation; not qualified")
-        (CACHE / "build-result.json").write_text(json.dumps(plan, indent=2) + "\n")
+                    purpose=("Private Linux --export-release template; runtime qualification NOT_RUN"
+                             if template else "Explicit GODOT_BIN for station traversal/ReflectionProbe validation; not qualified"))
+        result.write_text(json.dumps(plan, indent=2) + "\n")
         print(f"BUILT {binary}\nSHA256 {plan['binary_sha256']}", flush=True)
 
 
