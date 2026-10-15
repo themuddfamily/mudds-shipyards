@@ -2,7 +2,7 @@
 
 This ledger contains only unresolved or explicitly accepted issues. Fixed and closed records are removed once their fixes are verified.
 
-## RENDER-002 — Pending reflection captures outlive a retained scenario — **REPRODUCED**
+## RENDER-002 — Pending reflection captures outlive a retained scenario — **FIXING**
 
 - Severity: **P2**; owner: root. Reported 2026-10-15 during the current five-feature integration, based on `814fc5e7d`.
 - Reproduction: run `tests/caption_production_integration_test.gd` with Dummy audio, X11 and Forward+ on an isolated display. Its existing whole-Main detach/re-entry scenario removes Main while reflection captures are pending, then reattaches it.
@@ -10,7 +10,7 @@ This ledger contains only unresolved or explicitly accepted issues. Fixed and cl
 - Confirmed environment: WSL, experimental Dozen/Microsoft Direct3D12 RTX 5070 Ti, pinned mesh-revision editor SHA-256 `ddfdd7a08c4d2a9b4cc546537a2adc92e70414339b49f880bd9c0c366a472d32`, private X11 display, Dummy audio and isolated user profile. No physical controller, audible or native Windows qualification is implied.
 - Preserved log: `/root/.cache/mudds-shipyards/roadmap-validation/aurora-client-hud-retirement/stable-custom-full/parallel-five-ui-reviewed/caption_production_integration_test.log`, SHA-256 `c8a4d234d8f5c0ab3deff9e7b8fc2f2f66ea14cf44b4f6f4fd20d3026d61bab8`.
 - Cause: the engine's scenario-removal reflection-probe branch releases its atlas entry but leaves its pending update linked; subsequent rendering consumes that entry after the scenario is cleared. Instance destruction already removes it, so retained detach needs equivalent cleanup.
-- Remaining fix/acceptance: unlink that pending update on scenario removal, build a separate pinned engine/template, rerun the rendered lifecycle without diagnostics and verify capture resumes after re-entry. The native patch is prepared but has not been built or runtime-qualified. Do not suppress diagnostics or add fixture delays to hide the stale queue.
+- Fix in progress: `673efcc93` adds the native queue unlink and an opt-in `--retained-probe-lifecycle` build mode. All 14 recipe checks pass; separate editor compilation is running. Existing accepted engines/templates are preserved. Remaining acceptance: finish the separate editor/template builds, rerun the rendered lifecycle without diagnostics and verify capture resumes after re-entry. The fix is not runtime-qualified. Do not suppress diagnostics or add fixture delays to hide the stale queue.
 
 ## RENDER-001 — Seven `Texture` RIDs leak at `RenderingDevice::finalize()` on every rendered run — **ACCEPTED_RISK**
 

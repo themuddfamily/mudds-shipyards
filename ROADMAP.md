@@ -16,9 +16,9 @@ Native Windows execution remains on hold while the Avast alert is unresolved. Do
 
 Latest published paired checkpoint: `fe0a15812`. See its [Windows notes](builds/windows/MuddsShipyards-fe0a158-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-fe0a158-linux-notes.txt) for validation and limitations.
 
-The complete ordinary-input guided sortie now passes 47 source checks and three consecutive fresh-process runs against the published Linux PCK through the pinned Linux editor. Experimental WSL rendering does not qualify native hardware or the complete Gate C journeys.
+At `fe0a15812`, the complete ordinary-input guided sortie passes 47 source checks and three consecutive fresh-process runs against that published Linux PCK through the pinned Linux editor. Those results do not qualify newer source. Experimental WSL rendering does not qualify native hardware or the complete Gate C journeys.
 
-Current source improves station shadow batching, patrol retry prompts, compact minimap labels, display-confirmation focus and paused caption previews. Twelve focused suites pass. Rendered retained-Main re-entry still reports reflection-probe errors, tracked as RENDER-002 in [bugs.md](bugs.md). Full current-source regression, complete Sandbox/settings journeys and applicable hardware acceptance remain open.
+The `c650732b8` batch improves station shadow batching, patrol retry prompts, compact minimap labels, display-confirmation focus and paused caption previews; twelve focused suites pass. New source also restores mouse prompts on mouse look and explains multiplayer host loss in plain language; six relevant suites pass 126 assertions. The separate engine fix for retained-Main reflection-probe errors is compiling and remains unqualified (RENDER-002 in [bugs.md](bugs.md)). Full-resolution station rendering, full current-source regression, complete Sandbox/settings journeys and applicable hardware acceptance remain open.
 
 ## Remaining tasks to complete the project
 
