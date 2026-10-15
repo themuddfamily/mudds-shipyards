@@ -953,6 +953,7 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		body.teleport_to(Transform3D(Basis.IDENTITY, hatch.global_position - Vector3.UP * 0.7))
 	var deck := craft.get_node("WalkableInterior/InteriorDeckMarker") as Node3D
 	var hatch_deadline := Time.get_ticks_msec() + 5000
+	var applied_before := int(simulation.get_body_record(avatar).get("intents_applied", 0))
 	var hatch_ready := false
 	while Time.get_ticks_msec() < hatch_deadline and is_instance_valid(body) \
 			and is_instance_valid(simulation) and simulation == game.get_network_remote_body_simulation() \
@@ -964,6 +965,9 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 		if is_instance_valid(body) and is_instance_valid(simulation) \
 				and simulation == game.get_network_remote_body_simulation() and simulation.get_body(avatar) == body \
 				and body.is_cabin_containment_active() and game._network_aurora_passenger_host_is_current(craft) \
+				and int(simulation.get_body_record(avatar).get("intents_applied", 0)) > applied_before \
+				and not bool(simulation.get_body_record(avatar).get("frozen", true)) \
+				and body.get_remote_drive_audit().get("move_axis") == Vector2.ZERO \
 				and game._network_ember_passenger_at_hatch(body, craft, false):
 			hatch_ready = true
 			break
