@@ -658,6 +658,8 @@ var _dispatching_changes := false
 var _dispatch_remaining: Array[StringName] = []
 var _input_rebind_service: InputRebindService
 var _input_binding_profile: InputBindingProfile
+var _display_apply_generation := 0
+var _pending_display_refit := Callable()
 
 static var _captured_project_input_defaults: InputBindingProfile
 
@@ -1293,7 +1295,27 @@ func apply_window_mode(window_id: int = DisplayServer.MAIN_WINDOW_ID) -> Diction
 	return {"applied": true, "reason": &"", "window_mode": descriptor["id"]}
 
 
+## Fits a requested client rectangle inside the monitor's usable desktop area.
+## Frame measurements come from the live window, including title bar/borders.
+## The desired resolution remains a preference even on a smaller monitor.
+static func fit_window_to_usable_rect(
+		requested: Rect2i, usable: Rect2i,
+		frame_offset: Vector2i = Vector2i.ZERO, frame_extra: Vector2i = Vector2i.ZERO
+	) -> Rect2i:
+	if usable.size.x <= 0 or usable.size.y <= 0:
+		return requested
+	var client_size := requested.size.min((usable.size - frame_extra).max(Vector2i.ONE))
+	var minimum_position := usable.position + frame_offset
+	var maximum_position := (usable.end - client_size - frame_extra + frame_offset).max(minimum_position)
+	return Rect2i(requested.position.clamp(minimum_position, maximum_position), client_size)
+
+
 func apply_display_settings(window_id: int = DisplayServer.MAIN_WINDOW_ID) -> Dictionary:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null and _pending_display_refit.is_valid() and tree.process_frame.is_connected(_pending_display_refit):
+		tree.process_frame.disconnect(_pending_display_refit)
+	_pending_display_refit = Callable()
+	_display_apply_generation += 1
 	var resolution := get_display_resolution_descriptor()
 	var vsync := get_vsync_descriptor()
 	var report := {
@@ -1306,7 +1328,20 @@ func apply_display_settings(window_id: int = DisplayServer.MAIN_WINDOW_ID) -> Di
 	if DisplayServer.get_name() == "headless":
 		report.reason = &"headless"
 		return report
-	DisplayServer.window_set_size(Vector2i(int(resolution.width), int(resolution.height)), window_id)
+	var requested_size := Vector2i(int(resolution.width), int(resolution.height))
+	if DisplayServer.window_get_mode(window_id) == DisplayServer.WINDOW_MODE_WINDOWED:
+		_fit_display_window(window_id, requested_size)
+		# Window managers can acknowledge a mode/decorations change after these
+		# setters return. Recheck once after desktop events, without reviving an
+		# older preview after Keep, rollback or another display application.
+		if tree != null:
+			_pending_display_refit = _refit_display_window_after_frame.bind(
+				window_id, requested_size, _display_apply_generation
+			)
+			tree.process_frame.connect(_pending_display_refit, CONNECT_ONE_SHOT)
+	else:
+		# Fullscreen dimensions and placement remain controlled by the backend.
+		DisplayServer.window_set_size(requested_size, window_id)
 	# Vulkan marks the surface for resize even when this setter repeats its
 	# current mode. Read the live window, since another owner can change it.
 	if DisplayServer.window_get_vsync_mode(window_id) != int(vsync.backend_mode):
@@ -1314,6 +1349,30 @@ func apply_display_settings(window_id: int = DisplayServer.MAIN_WINDOW_ID) -> Di
 		report.vsync_applied = true
 	report.applied = true
 	return report
+
+
+func _refit_display_window_after_frame(window_id: int, requested_size: Vector2i, generation: int) -> void:
+	if generation != _display_apply_generation:
+		return
+	_pending_display_refit = Callable()
+	if DisplayServer.get_name() == "headless":
+		return
+	if not DisplayServer.get_window_list().has(window_id):
+		return
+	if DisplayServer.window_get_mode(window_id) == DisplayServer.WINDOW_MODE_WINDOWED:
+		_fit_display_window(window_id, requested_size)
+
+
+func _fit_display_window(window_id: int, requested_size: Vector2i) -> void:
+	var position := DisplayServer.window_get_position(window_id)
+	var frame_offset := position - DisplayServer.window_get_position_with_decorations(window_id)
+	var frame_extra := DisplayServer.window_get_size_with_decorations(window_id) - DisplayServer.window_get_size(window_id)
+	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen(window_id))
+	var fitted := fit_window_to_usable_rect(Rect2i(position, requested_size), usable, frame_offset, frame_extra)
+	if fitted.size != DisplayServer.window_get_size(window_id):
+		DisplayServer.window_set_size(fitted.size, window_id)
+	if fitted.position != position:
+		DisplayServer.window_set_position(fitted.position, window_id)
 
 
 func _decode_user_data_payload(candidate: Variant) -> Dictionary:
