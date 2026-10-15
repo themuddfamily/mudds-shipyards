@@ -797,9 +797,15 @@ func _run_settings_reentry() -> void:
 		and bool(game.hud.get_accessibility_report().captions_enabled) \
 		and is_zero_approx(ship.maximum_chase_camera_rotation_lag_degrees),
 		"saved preferences reach the real player, HUD and free-sortie camera")
+	print("SETTINGS_BEGIN_BEFORE: %s" % JSON.stringify(_settings_begin_context(game, player)))
 	await _settings_tap(desktop, &"interact")
-	_check(await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.APPROACH_SHIP and player.is_control_enabled(), GameHUD.INTRO_FADE_SECONDS + 0.5),
+	var began := await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.APPROACH_SHIP and player.is_control_enabled(), GameHUD.INTRO_FADE_SECONDS + 0.5)
+	print("SETTINGS_BEGIN_AFTER: %s" % JSON.stringify(_settings_begin_context(game, player)))
+	_check(began,
 		"native keyboard Begin completes the authored title fade")
+	if not began:
+		await _settings_abort(game, desktop, pad)
+		return
 	for driver: SettingsNativeInputEvents in [desktop, pad]:
 		await _settings_on_foot_controls(game, player, driver)
 		if not _failures.is_empty():
@@ -848,6 +854,21 @@ func _run_settings_reentry() -> void:
 		await process_frame
 	_check(false, "ordinary Exit must terminate this process with exit 0")
 	await _settings_abort(game, desktop, pad)
+
+
+func _settings_begin_context(game: GameFlow, player: PlayerController) -> Dictionary:
+	var intro := game.hud.get("_intro") as Control
+	var focus := root.gui_get_focus_owner()
+	return {
+		"phase": game.phase, "control_enabled": player.is_control_enabled(),
+		"seated": player.is_seated(), "piloting": game.get("_piloting"),
+		"transition_busy": game.get("_transition_busy"),
+		"recovery_context": game.get("_solo_safe_recovery_context"),
+		"recovery_pending": game.get("_solo_safe_recovery_pending"),
+		"hud_started": game.hud.get("_started"),
+		"intro_visible": intro != null and intro.visible,
+		"focus": str(focus.get_path()) if focus != null else "",
+	}
 
 
 func _settings_saved_preferences_match(game: GameFlow) -> bool:
