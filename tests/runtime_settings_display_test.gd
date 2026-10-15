@@ -38,11 +38,50 @@ func _run() -> void:
 	_check(resolution_descriptor.id == &"2560x1440" and (resolution_descriptor.supported_ids as PackedStringArray).has("1920x1080"), "resolution descriptor is bounded")
 	var vsync_descriptor := restored.get_vsync_descriptor()
 	_check(vsync_descriptor.id == &"adaptive" and (vsync_descriptor.supported_ids as PackedStringArray).has("off"), "VSync descriptor exposes supported modes")
+	var original_vsync := DisplayServer.VSYNC_ENABLED
+	var original_size := Vector2i.ZERO
+	var original_window_mode := DisplayServer.WINDOW_MODE_WINDOWED
+	if DisplayServer.get_name() != "headless":
+		original_vsync = DisplayServer.window_get_vsync_mode()
+		original_size = DisplayServer.window_get_size()
+		original_window_mode = DisplayServer.window_get_mode()
 	var report := restored.apply_display_settings()
 	if DisplayServer.get_name() == "headless":
-		_check(not bool(report.applied) and report.reason == &"headless", "headless startup reports display as not applied")
+		_check(not bool(report.applied) and report.reason == &"headless" \
+			and not bool(report.vsync_applied), "headless startup reports display as not applied")
 	else:
+		# Exercise the live display only after its pending resize has presented.
+		await process_frame
+		await RenderingServer.frame_post_draw
 		_check(bool(report.applied), "desktop startup applies display settings")
+		# Adaptive may legitimately fall back to enabled on this backend. Exercise
+		# exact live-state idempotence with the supported enabled/disabled modes.
+		restored.vsync_mode = Settings.VSyncMode.ON
+		var before_on := DisplayServer.window_get_vsync_mode()
+		var enabled := restored.apply_display_settings()
+		_check(bool(enabled.vsync_applied) == (before_on != DisplayServer.VSYNC_ENABLED)
+			and DisplayServer.window_get_vsync_mode() == DisplayServer.VSYNC_ENABLED,
+			"display application changes VSync only when the live window differs")
+		var repeated := restored.apply_display_settings()
+		_check(bool(repeated.applied) and not bool(repeated.vsync_applied),
+			"reapplying matching display settings does not request another VSync resize")
+		restored.vsync_mode = Settings.VSyncMode.OFF
+		var changed := restored.apply_display_settings()
+		_check(bool(changed.vsync_applied) and DisplayServer.window_get_vsync_mode() == DisplayServer.VSYNC_DISABLED,
+			"a genuinely changed VSync preference still reaches the live window")
+		var changed_repeat := restored.apply_display_settings()
+		_check(not bool(changed_repeat.vsync_applied), "the changed preference also skips redundant application")
+		# A separate live owner can change the window without changing this settings
+		# object. The next application must observe that change, not a cached value.
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
+		var corrected := restored.apply_display_settings()
+		_check(bool(corrected.vsync_applied) and DisplayServer.window_get_vsync_mode() == DisplayServer.VSYNC_DISABLED,
+			"unchanged preferences correct an external live VSync change")
+		DisplayServer.window_set_vsync_mode(original_vsync)
+		if DisplayServer.window_get_mode() != original_window_mode:
+			DisplayServer.window_set_mode(original_window_mode)
+		if DisplayServer.window_get_size() != original_size:
+			DisplayServer.window_set_size(original_size)
 	for path in ["user://runtime_settings_display_test.cfg", "user://runtime_settings_display_test_restore.cfg", "user://runtime_settings_display_test_legacy.cfg"]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

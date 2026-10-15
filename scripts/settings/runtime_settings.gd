@@ -1301,12 +1301,17 @@ func apply_display_settings(window_id: int = DisplayServer.MAIN_WINDOW_ID) -> Di
 		"reason": &"",
 		"resolution": resolution,
 		"vsync": vsync,
+		"vsync_applied": false,
 	}
 	if DisplayServer.get_name() == "headless":
 		report.reason = &"headless"
 		return report
 	DisplayServer.window_set_size(Vector2i(int(resolution.width), int(resolution.height)), window_id)
-	DisplayServer.window_set_vsync_mode(int(vsync.backend_mode), window_id)
+	# Vulkan marks the surface for resize even when this setter repeats its
+	# current mode. Read the live window, since another owner can change it.
+	if DisplayServer.window_get_vsync_mode(window_id) != int(vsync.backend_mode):
+		DisplayServer.window_set_vsync_mode(int(vsync.backend_mode), window_id)
+		report.vsync_applied = true
 	report.applied = true
 	return report
 
