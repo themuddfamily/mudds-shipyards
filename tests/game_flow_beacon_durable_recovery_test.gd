@@ -72,6 +72,10 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--start-fresh-recovery"):
+		await _start_fresh_recovery()
+		_finish()
+		return
 	# Optional bounded diagnosis leaves every default recovery route unchanged.
 	if OS.get_cmdline_user_args().has("--beacon-backup-trust-only"):
 		await _backup_trust_reproduction()
@@ -153,6 +157,227 @@ func _run() -> void:
 	await _all_writes_failed()
 	await _unsupported_record(path)
 	_finish()
+
+func _start_fresh_recovery() -> void:
+	var path := "user://beacon_start_fresh_%d.json" % Time.get_ticks_usec()
+	var source := await _game(path, UserDataFilesystem.new())
+	await _board(source)
+	var binding := await _binding(source)
+	source.call("_on_settings_save_requested")
+	var store: UserDataStore = source.get("_runtime_settings_user_data_store")
+	var seeded := store.get_snapshot()
+	seeded["beacon_fresh_unrelated"] = {"stock": 7, "note": "retain caller data"}
+	_check(store.commit(seeded, store.get_generation(), "unit-beacon-fresh-unrelated").accepted,
+		"Start Fresh fixture seeds independent data beside actual settings")
+	source.active_ship.global_position = source.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+	_button(source, 2).pressed.emit()
+	for index in 2:
+		source.active_ship.global_position = source.call("_cinder_authored_frame_to_world", Beacon.BEACONS[index])
+		source.call("_advance_cinder_beacon_traversal", 0.0, source.call("_capture_cinder_actor_sample"))
+	var active := binding.capture_beacon_traversal_session()
+	_check(int(active.activities[0].state) == Beacon.State.ACTIVE
+		and int(active.activities[0].progress.next_beacon_index) == 2,
+		"the real ordered beacon owner saves two observations before interruption")
+	var published_reset: Dictionary = source.call("_decline_interrupted_planetary_visits")
+	var source_reset := binding.capture_beacon_traversal_session()
+	_check(published_reset.accepted and int(source_reset.activities[0].state) == Beacon.State.RESET
+		and int(source_reset.activities[0].generation) == int(active.activities[0].generation)
+		and store.get_snapshot().cinder_beacon_session == source_reset,
+		"successful decline publication resets only its exact live owner after committing the intended primary")
+	source.active_ship.global_position = source.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+	_button(source, 2).pressed.emit()
+	for index in 2:
+		source.active_ship.global_position = source.call("_cinder_authored_frame_to_world", Beacon.BEACONS[index])
+		source.call("_advance_cinder_beacon_traversal", 0.0, source.call("_capture_cinder_actor_sample"))
+	active = binding.capture_beacon_traversal_session()
+	_check(int(active.activities[0].state) == Beacon.State.ACTIVE
+		and int(active.activities[0].generation) == int(source_reset.activities[0].generation) + 1
+		and int(active.activities[0].progress.next_beacon_index) == 2,
+		"successful publication releases the owner for the next real ordered traversal")
+	await _dispose(source)
+	var fault := FaultFilesystem.new()
+	var game := await _game(path, fault)
+	binding = await _binding(game)
+	store = game.get("_runtime_settings_user_data_store")
+	var recovery := game.get_recovery_available_snapshot()
+	var fresh := _fresh_button(game)
+	_check(not recovery.is_empty() and is_instance_valid(fresh) and fresh.is_visible_in_tree() and not fresh.disabled
+		and binding.capture_beacon_traversal_session() == active,
+		"cold Main offers actual title Start Fresh with the restored active beacon owner")
+	if recovery.is_empty() or not is_instance_valid(fresh) or not fresh.is_visible_in_tree() or fresh.disabled:
+		await _dispose(game)
+		return
+	var before := store.get_snapshot()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var stale: Dictionary = game.call("_handle_hud_session_recovery_choice", &"discard",
+		int(recovery.session_id), int(recovery.startup_generation) + 1)
+	_check(not stale.accepted and store.get_snapshot() == before and binding.capture_beacon_traversal_session() == active,
+		"a stale recovery fence cannot retire beacon observations")
+	fault.reject_all = true
+	fresh.pressed.emit()
+	var refused := game.get("_session_recovery_hud_status") as Dictionary
+	_check(await _fresh_retry_ready(game, fresh, recovery)
+		and not bool(refused.get("accepted", false)) and store.get_snapshot() == before
+		and FileAccess.get_file_as_bytes(path) == bytes and binding.capture_beacon_traversal_session() == active,
+		"a rejected actual Start Fresh write retains its same usable fence, live cursor and primary document")
+	var released := binding.start_beacon_traversal(Beacon.BEACONS[0])
+	_check(not released.accepted and released.reason == &"already_active"
+		and binding.capture_beacon_traversal_session() == active,
+		"a refused decline releases publication protection without resetting or stranding its actual owner")
+	if not is_instance_valid(fresh) or fresh.disabled:
+		fault.reject_all = false
+		await _dispose(game)
+		return
+	fault.reject_all = false
+	var live_at_publication := {}
+	var publication_results: Array[Dictionary] = []
+	fault.on_reset_write = func() -> void:
+		live_at_publication["record"] = binding.capture_beacon_traversal_session()
+		# These are the actual remaining ordered observations, valid for the
+		# retained ACTIVE owner; the publication window must reject them.
+		for index in range(2, Beacon.BEACONS.size()):
+			publication_results.append(binding.submit_beacon_traversal(index, Beacon.BEACONS[index]))
+		publication_results.append(binding.advance_beacon_traversal_from_caller_sample(Beacon.BEACONS[2]))
+		publication_results.append(binding.start_beacon_traversal(Beacon.BEACONS[0]))
+		publication_results.append(binding.request_beacon_traversal_reward())
+		publication_results.append(binding.reset_beacon_traversal())
+	fault.fail_published_reset_sync = true
+	fresh.pressed.emit()
+	refused = game.get("_session_recovery_hud_status") as Dictionary
+	var callback_refused := publication_results.size() == 6
+	for result in publication_results:
+		callback_refused = callback_refused and not bool(result.get("accepted", false)) \
+			and result.get("reason") == &"beacon_reset_publication_in_progress"
+	var published: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path)).payload.cinder_beacon_session
+	_check(await _fresh_retry_ready(game, fresh, recovery)
+		and not bool(refused.get("accepted", false)) and callback_refused
+		and live_at_publication.get("record") == active and binding.capture_beacon_traversal_session() == published
+		and int(published.activities[0].state) == Beacon.State.RESET,
+		"real publication callbacks cannot earn or pay during RESET, and refused sync reconciles exact primary RESET while retaining the notice")
+	var old_run_inactive := true
+	for index in range(2, Beacon.BEACONS.size()):
+		released = binding.submit_beacon_traversal(index, Beacon.BEACONS[index])
+		old_run_inactive = old_run_inactive and not released.accepted and released.reason == &"not_active"
+	_check(old_run_inactive and binding.capture_beacon_traversal_session() == published,
+		"publication protection releases with a coherent RESET, so ordinary remaining observations cannot earn an unpayable old completion")
+	if not is_instance_valid(fresh) or fresh.disabled:
+		await _dispose(game)
+		return
+	_check(store.load().accepted and store.get_loaded_source() == &"primary",
+		"retry observes the genuinely published primary RESET after the sync refusal")
+	fresh.pressed.emit()
+	var accepted := game.get("_session_recovery_hud_status") as Dictionary
+	var reset := binding.capture_beacon_traversal_session()
+	var payload := store.get_snapshot()
+	_check(bool(accepted.get("accepted", false)) and game.get_recovery_available_snapshot().is_empty()
+		and live_at_publication.get("record") == active and payload.cinder_beacon_session == reset
+		and int(reset.activities[0].state) == Beacon.State.RESET
+		and int(reset.activities[0].generation) == int(active.activities[0].generation)
+		and int(reset.activities[0].progress.next_beacon_index) == 0
+		and not reset.activities[0].reward_requested and not reset.activities[0].reward_granted,
+		"same-fence retry saves same-generation RESET before publishing the live reset")
+	_check(payload.runtime_settings == before.runtime_settings and payload.beacon_fresh_unrelated == before.beacon_fresh_unrelated
+		and payload.get("game_flow_reward_store") == before.get("game_flow_reward_store"),
+		"beacon Start Fresh preserves settings, caller inventory and the exact reward ledger")
+	bytes = FileAccess.get_file_as_bytes(path)
+	var old_writer: Dictionary = game.call("_save_cinder_beacon_session", binding, active)
+	_check(not old_writer.accepted and old_writer.reason == &"beacon_session_stale_or_unpaid"
+		and store.get_snapshot() == payload and FileAccess.get_file_as_bytes(path) == bytes,
+		"the abandoned same-generation ACTIVE writer cannot overwrite the durable RESET")
+	await _dispose(game)
+	fault = FaultFilesystem.new()
+	game = await _game(path, fault)
+	await _board(game)
+	binding = await _binding(game)
+	store = game.get("_runtime_settings_user_data_store")
+	_check(binding.capture_beacon_traversal_session() == reset and _receipts(game) == 0,
+		"later cold Main restores RESET without resurrecting old beacon progress or reward")
+	game.active_ship.global_position = game.call("_cinder_authored_frame_to_world", Beacon.BEACONS[0])
+	_button(game, 2).pressed.emit()
+	game.call("_advance_cinder_beacon_traversal", 0.0, game.call("_capture_cinder_actor_sample"))
+	var next := binding.capture_beacon_traversal_session()
+	_check(int(next.activities[0].state) == Beacon.State.ACTIVE
+		and int(next.activities[0].generation) == int(active.activities[0].generation) + 1
+		and int(next.activities[0].progress.next_beacon_index) == 1,
+		"ordinary beacon Start after recovery admits only the next genuine generation")
+	fault.reject_all = true
+	for index in range(1, Beacon.BEACONS.size()):
+		game.active_ship.global_position = game.call("_cinder_authored_frame_to_world", Beacon.BEACONS[index])
+		game.call("_advance_cinder_beacon_traversal", 0.0, game.call("_capture_cinder_actor_sample"))
+	var earned := binding.capture_beacon_traversal_session()
+	before = store.get_snapshot()
+	_check(int(earned.activities[0].state) == Beacon.State.COMPLETE
+		and int(before.cinder_beacon_session.activities[0].state) == Beacon.State.ACTIVE,
+		"the next real traversal earns completion while its terminal save is refused")
+	# Normal boarding acknowledged this Main's title choice. Exercise the same
+	# transaction planner against its real live completion without inventing a
+	# replacement recovery notice or bypassing the pilot sample authority.
+	refused = game.call("_decline_interrupted_planetary_visits") as Dictionary
+	_check(not bool(refused.get("accepted", false)) and refused.reason == &"beacon_terminal_save_pending"
+		and store.get_snapshot() == before and binding.capture_beacon_traversal_session() == earned,
+		"Start Fresh refuses to erase a live earned completion over the older saved ACTIVE record")
+	fault.reject_all = false
+	var saved: Dictionary = game.call("_save_cinder_beacon_session", binding)
+	_check(saved.accepted, "the ordinary beacon save publishes the earned terminal when storage recovers")
+	await _dispose(game)
+	fault = FaultFilesystem.new()
+	game = await _game(path, fault)
+	binding = await _binding(game)
+	store = game.get("_runtime_settings_user_data_store")
+	fresh = _fresh_button(game)
+	if game.get_recovery_available_snapshot().is_empty() or not is_instance_valid(fresh) \
+			or not fresh.is_visible_in_tree() or fresh.disabled:
+		_check(false, "the unpaid cold Main exposes the actual title Start Fresh choice")
+		await _dispose(game)
+		return
+	before = store.get_snapshot()
+	fresh.pressed.emit()
+	accepted = game.get("_session_recovery_hud_status") as Dictionary
+	_check(bool(accepted.get("accepted", false)) and game.get_recovery_available_snapshot().is_empty()
+		and store.get_snapshot() == before and binding.capture_beacon_traversal_session() == earned and _receipts(game) == 0,
+		"actual Start Fresh keeps completed unpaid beacon debt inert without paying or resetting it")
+	fault.reject_rewards = false
+	_button(game, 2).pressed.emit()
+	_check(_receipts(game) == 1 and binding.get_activity_snapshot(&"beacon_traversal").reward_committed,
+		"ordinary reward retry pays the preserved completion once after Start Fresh")
+	await _dispose(game)
+	game = await _game(path, UserDataFilesystem.new())
+	binding = await _binding(game)
+	store = game.get("_runtime_settings_user_data_store")
+	before = store.get_snapshot()
+	earned = binding.capture_beacon_traversal_session()
+	fresh = _fresh_button(game)
+	if game.get_recovery_available_snapshot().is_empty() or not is_instance_valid(fresh) \
+			or not fresh.is_visible_in_tree() or fresh.disabled:
+		_check(false, "the paid cold Main exposes the actual Start Fresh choice")
+		await _dispose(game)
+		return
+	fresh.pressed.emit()
+	accepted = game.get("_session_recovery_hud_status") as Dictionary
+	_check(bool(accepted.get("accepted", false)) and game.get_recovery_available_snapshot().is_empty()
+		and store.get_snapshot() == before and binding.capture_beacon_traversal_session() == earned
+		and earned.activities[0].reward_granted and _receipts(game) == 1,
+		"paid cold completion and its ledger remain exact through actual Start Fresh")
+	await _dispose(game)
+
+
+func _fresh_button(game: GameFlow) -> Button:
+	var actions := game.hud.get("_recovery_prompt_actions") as HBoxContainer
+	return actions.get_child(2) as Button if actions != null and actions.get_child_count() > 2 else null
+
+
+func _fresh_retry_ready(game: GameFlow, button: Button, recovery: Dictionary) -> bool:
+	var deadline := Time.get_ticks_msec() + 2_000
+	while is_instance_valid(button) and button.disabled and Time.get_ticks_msec() < deadline:
+		await process_frame
+		await physics_frame
+	var notice: Dictionary = game.hud.get_session_recovery_notice_snapshot()
+	return is_instance_valid(button) and button.is_visible_in_tree() and not button.disabled \
+		and bool(notice.get("active", false)) and not bool(notice.get("choice_latched", true)) \
+		and int(notice.get("recovery_token", 0)) == int(recovery.session_id) \
+		and int(notice.get("recovery_generation", 0)) == int(recovery.startup_generation) \
+		and game.get_recovery_available_snapshot() == recovery
+
 
 func _finish() -> void:
 	for failure in _failures:
@@ -406,7 +631,54 @@ func _reset_owner_changed() -> void:
 	var disk: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path)).payload.cinder_beacon_session
 	_check(int(disk.activities[0].state) == Beacon.State.RESET and _receipts(game) == 0,
 		"the changed-owner refusal preserves the actual published outcome without rollback or entitlement")
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var stale_active: Dictionary = game.call("_save_cinder_beacon_session", binding, live)
+	var forged := live.duplicate(true)
+	var forged_entry := forged.activities[0] as Dictionary
+	forged_entry.state = Beacon.State.COMPLETE
+	forged_entry.reward_requested = true
+	forged_entry.reward_granted = false
+	forged_entry.progress.state = Beacon.State.COMPLETE
+	forged_entry.progress.next_beacon_index = Beacon.BEACONS.size()
+	forged_entry.progress.reward_requested = false
+	var forged_terminal: Dictionary = game.call("_save_cinder_beacon_session", binding, forged)
+	_check(Beacon.validate_persistence_record(forged).accepted
+		and not stale_active.accepted and not forged_terminal.accepted
+		and FileAccess.get_file_as_bytes(path) == bytes,
+		"ordinary changed-owner recovery still rejects old ACTIVE and prospective counterfeit completion over RESET")
+	var parent := binding.get_parent()
+	parent.remove_child(binding)
+	var retired: Dictionary = game.call("_save_cinder_beacon_session", binding)
+	_check(not retired.accepted and retired.reason == &"beacon_session_owner_unavailable"
+		and FileAccess.get_file_as_bytes(path) == bytes,
+		"a retired streamed binding cannot restore progress over its published RESET")
+	parent.add_child(binding)
+	await process_frame
+	game.call("_sync_activity_hud")
+	fault.reject_rewards = true
+	for index in range(2, Beacon.BEACONS.size()):
+		game.active_ship.global_position = game.call("_cinder_authored_frame_to_world", Beacon.BEACONS[index])
+		game.call("_advance_cinder_beacon_traversal", 0.0, game.call("_capture_cinder_actor_sample"))
+	var earned := binding.capture_beacon_traversal_session()
+	var saved: Dictionary = game.call("_save_cinder_beacon_session", binding)
+	var store: UserDataStore = game.get("_runtime_settings_user_data_store")
+	_check(saved.accepted and int(earned.activities[0].state) == Beacon.State.COMPLETE
+		and int(earned.activities[0].generation) == int(disk.activities[0].generation)
+		and store.get_snapshot().cinder_beacon_session == earned
+		and fault.refused_reward and _receipts(game) == 0,
+		"the exact current owner can save its genuinely completed remaining observations and retain refused payment")
+	fault.reject_rewards = false
+	_button(game, 2).pressed.emit()
+	var paid := binding.capture_beacon_traversal_session()
+	var duplicate: Dictionary = game.call("_request_cinder_beacon_traversal_reward", binding)
+	_check(paid.activities[0].reward_granted and _receipts(game) == 1 and not duplicate.accepted,
+		"ordinary reward retry pays this changed-owner completion once and rejects repeated payment")
 	await _dispose(game)
+	var cold := await _game(path, UserDataFilesystem.new())
+	var cold_binding := await _binding(cold)
+	_check(cold_binding.capture_beacon_traversal_session() == paid and _receipts(cold) == 1,
+		"cold Main retains the actual paid changed-owner completion without replay or stranded debt")
+	await _dispose(cold)
 
 func _published_payment_retry() -> void:
 	var path := "user://beacon_published_payment_%d.json" % Time.get_ticks_usec()

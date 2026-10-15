@@ -74,6 +74,7 @@ var _station_defense_snapshot_provider: Callable
 var _mining_activity: RefCounted
 var _scan_activity: RefCounted
 var _beacon_activity: RefCounted
+var _beacon_reset_publication_active := false
 var _race_presentation_consumers: Array[Callable] = []
 var _patrol_presentation_consumers: Array[Callable] = []
 var _mining_presentation_consumers: Array[Callable] = []
@@ -194,6 +195,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_beacon_reset_publication_active = false
 	_clear_structure_scan_feedback()
 	if _patrol != null and bool(
 		_patrol.get_presentation_snapshot().get("attached", false)
@@ -1289,6 +1291,8 @@ func _persist_race_best_result(reward_consumed: bool) -> void:
 
 
 func request_beacon_reward(expected_generation: int) -> Dictionary:
+	if _beacon_reset_publication_active:
+		return _result(false, &"beacon_reset_publication_in_progress")
 	if _beacon_activity == null or _station_reward_adapter == null:
 		return _result(false, &"beacon_reward_unavailable")
 	var beacon := _beacon_activity.call("get_snapshot") as Dictionary
@@ -2014,6 +2018,12 @@ func capture_beacon_traversal_session() -> Dictionary:
 
 
 func prepare_beacon_traversal_reset() -> Dictionary:
+	if _beacon_reset_publication_active:
+		return _result(false, &"beacon_reset_publication_in_progress")
+	return _prepare_beacon_traversal_reset()
+
+
+func _prepare_beacon_traversal_reset() -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	if _has_pending_beacon_traversal_reward():
@@ -2028,6 +2038,35 @@ func prepare_beacon_traversal_reset() -> Dictionary:
 	return prepared
 
 
+## The title decline publishes its existing reset synchronously. Filesystem
+## callbacks cannot advance or pay this exact owner during that publication.
+func begin_beacon_reset_publication(expected: Dictionary, intended: Dictionary) -> Dictionary:
+	if _beacon_reset_publication_active or not is_inside_tree() or is_queued_for_deletion() \
+			or capture_beacon_traversal_session() != expected \
+			or int(expected.get("activities", [{}])[0].get("state", -1)) != BEACON_ACTIVITY.State.ACTIVE:
+		return _result(false, &"beacon_reset_owner_changed")
+	var prepared := _prepare_beacon_traversal_reset()
+	if not bool(prepared.get("accepted", false)) or prepared.get("session_record") != intended:
+		return _result(false, &"beacon_reset_owner_changed")
+	_beacon_reset_publication_active = true
+	return {"accepted": true, "reason": &"beacon_reset_publication_started"}
+
+
+func finish_beacon_reset_publication(expected: Dictionary, intended: Dictionary, published: bool) -> Dictionary:
+	var result := {"accepted": false, "reason": &"beacon_reset_owner_changed"}
+	if _beacon_reset_publication_active:
+		if not published:
+			result = {"accepted": true, "reason": &"beacon_reset_publication_released"}
+		elif is_inside_tree() and not is_queued_for_deletion() and capture_beacon_traversal_session() == expected:
+			var prepared := _prepare_beacon_traversal_reset()
+			if bool(prepared.get("accepted", false)) and prepared.get("session_record") == intended:
+				result = _reset_beacon_traversal()
+	# Release on success, refusal and retirement. Reset presentation callbacks
+	# run while protected, after its actual state has become RESET.
+	_beacon_reset_publication_active = false
+	return result
+
+
 func _capture_beacon_traversal_state(state: Dictionary) -> Dictionary:
 	var record := NearbySectorActivitySessionAdapter.new().capture({"beacon_traversal": state})
 	var entry := record.activities[0] as Dictionary
@@ -2037,6 +2076,8 @@ func _capture_beacon_traversal_state(state: Dictionary) -> Dictionary:
 
 
 func acknowledge_beacon_traversal_reward(record: Dictionary) -> Dictionary:
+	if _beacon_reset_publication_active:
+		return _result(false, &"beacon_reset_publication_in_progress")
 	if _beacon_activity == null or not _beacon_traversal_reward_sink.is_valid():
 		return _result(false, &"not_ready")
 	var acknowledged := _beacon_activity.call("acknowledge_persisted_reward", record) as Dictionary
@@ -2046,6 +2087,8 @@ func acknowledge_beacon_traversal_reward(record: Dictionary) -> Dictionary:
 
 
 func restore_beacon_traversal_session(record: Dictionary) -> Dictionary:
+	if _beacon_reset_publication_active:
+		return _result(false, &"beacon_reset_publication_in_progress")
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	var restored := _beacon_activity.call("restore_persistence_record", record) as Dictionary
@@ -2055,6 +2098,8 @@ func restore_beacon_traversal_session(record: Dictionary) -> Dictionary:
 
 
 func start_beacon_traversal(caller_position: Vector3) -> Dictionary:
+	if _beacon_reset_publication_active:
+		return _result(false, &"beacon_reset_publication_in_progress")
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	if _has_pending_beacon_traversal_reward():
@@ -2074,6 +2119,8 @@ func start_beacon_traversal(caller_position: Vector3) -> Dictionary:
 
 
 func submit_beacon_traversal(index: int, caller_position: Vector3) -> Dictionary:
+	if _beacon_reset_publication_active:
+		return _result(false, &"beacon_reset_publication_in_progress")
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	var result: Dictionary = _beacon_activity.call("submit_beacon", index, caller_position)
@@ -2092,6 +2139,8 @@ func submit_beacon_traversal(index: int, caller_position: Vector3) -> Dictionary
 func advance_beacon_traversal_from_caller_sample(
 		caller_position: Vector3,
 	) -> Dictionary:
+	if _beacon_reset_publication_active:
+		return _result(false, &"beacon_reset_publication_in_progress")
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	var before := _beacon_activity.call("get_snapshot") as Dictionary
@@ -2137,6 +2186,8 @@ func advance_beacon_traversal_from_caller_sample(
 
 
 func request_beacon_traversal_reward() -> Dictionary:
+	if _beacon_reset_publication_active:
+		return _result(false, &"beacon_reset_publication_in_progress")
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	var before := _beacon_activity.call("get_snapshot") as Dictionary
@@ -2201,6 +2252,12 @@ func _has_pending_beacon_traversal_reward() -> bool:
 
 
 func reset_beacon_traversal() -> Dictionary:
+	if _beacon_reset_publication_active:
+		return _result(false, &"beacon_reset_publication_in_progress")
+	return _reset_beacon_traversal()
+
+
+func _reset_beacon_traversal() -> Dictionary:
 	if _beacon_activity == null:
 		return _result(false, &"not_ready")
 	if _has_pending_beacon_traversal_reward():

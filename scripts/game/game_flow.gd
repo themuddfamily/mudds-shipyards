@@ -3947,7 +3947,7 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 	var payload := store.get_snapshot()
 	var has_visits := _aurora_shared_survey_checkpoint_pending
 	for slot in [String(AURORA_EXPEDITION_PERSISTENCE_SLOT), String(RIME_EXPEDITION_PERSISTENCE_SLOT),
-			"cinder_structure_scan_session", String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT),
+			"cinder_structure_scan_session", "cinder_beacon_session", String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT),
 			String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT), String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT) + "_declined",
 			AURORA_SHARED_SURVEY_SLOT, AURORA_DECLINED_SHARED_SURVEY_SLOT,
 			String(AURORA_EXPEDITION_PERSISTENCE_SLOT) + "_declined", String(RIME_EXPEDITION_PERSISTENCE_SLOT) + "_declined"]:
@@ -3984,6 +3984,26 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 			entry.progress.elapsed_seconds = 0.0
 			entry.progress.reward_requested = false
 			checked = CinderAbandonedStructureScanActivity.validate_persistence_record(scan)
+			if not bool(checked.get("accepted", false)):
+				return checked
+	if next.has("cinder_beacon_session"):
+		var checked := CinderBeaconTraversalActivity.validate_persistence_record(next.cinder_beacon_session)
+		if not bool(checked.get("accepted", false)):
+			return checked
+		var entry: Dictionary = next.cinder_beacon_session.activities[0]
+		if int(entry.state) == CinderBeaconTraversalActivity.State.ACTIVE:
+			if is_instance_valid(nearby):
+				var live := nearby.call("get_activity_snapshot", &"beacon_traversal") as Dictionary
+				if int(live.get("state", -1)) == CinderBeaconTraversalActivity.State.COMPLETE \
+						and int(live.get("generation", -1)) >= int(entry.generation):
+					return {"accepted": false, "reason": &"beacon_terminal_save_pending"}
+			entry.state = CinderBeaconTraversalActivity.State.RESET
+			entry.reward_requested = false
+			entry.reward_granted = false
+			entry.progress.state = CinderBeaconTraversalActivity.State.RESET
+			entry.progress.next_beacon_index = 0
+			entry.progress.reward_requested = false
+			checked = CinderBeaconTraversalActivity.validate_persistence_record(next.cinder_beacon_session)
 			if not bool(checked.get("accepted", false)):
 				return checked
 	if next.has(String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)):
@@ -4066,9 +4086,44 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 				and visit_progress != shared_progress:
 			return {"accepted": false, "reason": &"declined_survey_completion_conflict"}
 	if next != payload or _aurora_shared_survey_checkpoint_pending:
+		var beacon_guard: NearbySectorActivityBinding
+		var beacon_before: Dictionary = {}
+		var beacon_reset: Dictionary = {}
+		if is_instance_valid(nearby) and payload.has("cinder_beacon_session") \
+				and int(payload.cinder_beacon_session.activities[0].state) == CinderBeaconTraversalActivity.State.ACTIVE:
+			beacon_guard = nearby as NearbySectorActivityBinding
+			if not is_instance_valid(beacon_guard):
+				return {"accepted": false, "reason": &"beacon_reset_owner_changed"}
+			beacon_before = beacon_guard.capture_beacon_traversal_session()
+			# Match the existing codec and committed primary's parsed wire numbers.
+			beacon_reset = JSON.parse_string(JSON.stringify(next.cinder_beacon_session, "", true, true)) as Dictionary
+			var guarded := beacon_guard.begin_beacon_reset_publication(beacon_before, beacon_reset)
+			if not bool(guarded.get("accepted", false)):
+				return guarded
 		var committed := store.commit(next, generation, "decline-planetary-visits-%010d" % (generation + 1))
+		var beacon_published := bool(committed.get("accepted", false))
+		if is_instance_valid(beacon_guard) and not beacon_published and bool(committed.get("published", false)):
+			# Directory sync may refuse after publication. Reconcile only the exact
+			# primary outcome, while its live beacon owner is still protected.
+			var loaded := store.load()
+			var planned: Dictionary = JSON.parse_string(JSON.stringify(next, "", true, true))
+			beacon_published = bool(loaded.get("accepted", false)) \
+				and store.get_loaded_source() == &"primary" and store.get_snapshot() == planned
+		var beacon_finished := {"accepted": true}
+		if not beacon_before.is_empty():
+			if is_instance_valid(beacon_guard):
+				var current := beacon_guard == _get_nearby_activity_binding() \
+					and beacon_guard.is_inside_tree() and not beacon_guard.is_queued_for_deletion()
+				beacon_finished = beacon_guard.finish_beacon_reset_publication(
+					beacon_before, beacon_reset, beacon_published and current)
+				if not current:
+					beacon_finished = {"accepted": false, "reason": &"beacon_reset_owner_changed"}
+			else:
+				beacon_finished = {"accepted": false, "reason": &"beacon_reset_owner_changed"}
 		if not bool(committed.get("accepted", false)):
 			return committed
+		if not bool(beacon_finished.get("accepted", false)):
+			return beacon_finished
 		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, store.get_generation())
 		_sync_production_runtime_settings_state()
 	# Only a successful transaction may retire the pending shared writer.
@@ -4150,6 +4205,8 @@ func _start_fresh_after_interrupted_session() -> Dictionary:
 		for activity in [
 				{"key": &"structure_scan", "id": CinderAbandonedStructureScanActivity.ACTIVITY_ID,
 					"active": CinderAbandonedStructureScanActivity.State.SCANNING},
+				{"key": &"beacon_traversal", "id": CinderBeaconTraversalActivity.ACTIVITY_ID,
+					"active": CinderBeaconTraversalActivity.State.ACTIVE},
 				{"key": &"mining", "id": CinderMiningPlatformActivity.ACTIVITY_ID,
 					"active": CinderMiningPlatformActivity.State.ACTIVE}]:
 			var snapshot := binding.call("get_activity_snapshot", activity.key) as Dictionary
@@ -20571,7 +20628,21 @@ func _save_cinder_beacon_session(binding: Object, prospective_record: Dictionary
 				"reward_authority": false, "granted": false,
 			})
 			return binding.call("acknowledge_beacon_traversal_reward", payload.cinder_beacon_session) as Dictionary
+		# Ordinary reset refuses a publication callback that changes its owner.
+		# Preserve a real completion subsequently observed on that exact current
+		# binding; prospective records and stale ACTIVE writers cannot claim it.
+		var current_completion := false
+		if prospective_record.is_empty() and int(old.state) == CinderBeaconTraversalActivity.State.RESET \
+				and int(next.state) == CinderBeaconTraversalActivity.State.COMPLETE \
+				and int(next.generation) == int(old.generation):
+			var current := binding as NearbySectorActivityBinding
+			current_completion = is_instance_valid(current) and current.is_inside_tree() \
+				and not current.is_queued_for_deletion() and current == _get_nearby_activity_binding() \
+				and _cinder_beacon_session_owner != null and _cinder_beacon_session_owner.get_ref() == current \
+				and JSON.parse_string(JSON.stringify(record, "", true, true)) == current.capture_beacon_traversal_session()
 		if int(next.generation) < int(old.generation) or int(next.generation) > int(old.generation) + 1 \
+				or (int(next.generation) == int(old.generation) and int(old.state) == CinderBeaconTraversalActivity.State.RESET \
+					and int(next.state) != CinderBeaconTraversalActivity.State.RESET and not current_completion) \
 				or (old.reward_requested and not old.reward_granted and record != payload.cinder_beacon_session) \
 				or (int(next.generation) == int(old.generation) and int(next.state) != CinderBeaconTraversalActivity.State.RESET \
 					and int(next.progress.next_beacon_index) < int(old.progress.next_beacon_index)):
