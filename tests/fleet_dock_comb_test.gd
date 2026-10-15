@@ -445,9 +445,10 @@ func _test_trunk_expansion_joint_batch(module: FleetDockComb) -> void:
 	var render := module.get_render_batch_contract()
 	_check(
 		int(render.descendant_nodes) == FleetDockComb.RENDER_DESCENDANT_COUNT
-		and int(render.mesh_instances) == 83
+		and int(render.mesh_instances) == 37
+		and 83 - int(render.mesh_instances) == 46
 		and int(render.multimesh_batches) == 12,
-		"renderer census includes all twelve bounded visual-detail batches"
+		"renderer census removes 46 hidden renderers while retaining all twelve visual-detail batches"
 	)
 	_check(
 		int(render.drawn_copies) == 101
@@ -523,24 +524,20 @@ func _test_trunk_route_light_batch(module: FleetDockComb) -> void:
 	var expected: Array[Transform3D] = []
 	for z_position in [5.0, 20.0, 35.0]:
 		expected.append(Transform3D(Basis.IDENTITY, Vector3(0, 0.020, float(z_position))))
-	var anchors: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	for raw_node in detail.get_children():
-		var anchor := raw_node as MeshInstance3D
-		if (
-			anchor != null
-			and anchor.mesh != null
-			and anchor.mesh.get_aabb().size.is_equal_approx(Vector3(0.22, 0.05, 1.25))
-			and not anchor.visible
-		):
-			anchors.append(anchor)
+		var anchor := raw_node as Marker3D
+		if anchor != null and not anchor.visible:
+			for expected_transform in expected:
+				if anchor.transform.is_equal_approx(expected_transform):
+					anchors.append(anchor)
+					break
 	var anchors_exact := anchors.size() == expected.size()
 	for index in mini(anchors.size(), expected.size()):
 		anchors_exact = (
 			anchors_exact
 			and anchors[index].transform.is_equal_approx(expected[index])
 			and not anchors[index].visible
-			and anchors[index].mesh != null
-			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(0.22, 0.05, 1.25))
 			and anchors[index].get_child_count() == 0
 			and anchors[index].get_script() == null
 		)
@@ -553,7 +550,7 @@ func _test_trunk_route_light_batch(module: FleetDockComb) -> void:
 		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.22, 0.05, 1.25))
 		and multi.mesh.get_surface_count() == 1
 		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
-		and batch.material_override == anchors[0].material_override
+		and batch.material_override == (module.get("_materials") as Dictionary)["cyan"]
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
@@ -620,16 +617,14 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 				Vector3(15.0 + corner.x, float(slab[1]), float(slab[0]) + corner.y)
 			))
 
-	var anchors: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	for raw_node in detail.get_children():
-		var instance := raw_node as MeshInstance3D
-		if (
-			instance != null
-			and instance.mesh != null
-			and instance.mesh.get_aabb().size.is_equal_approx(Vector3(0.48, 0.12, 0.48))
-			and not instance.visible
-		):
-			anchors.append(instance)
+		var instance := raw_node as Marker3D
+		if instance != null and not instance.visible:
+			for expected_transform in expected:
+				if instance.transform.is_equal_approx(expected_transform):
+					anchors.append(instance)
+					break
 	var anchors_exact := anchors.size() == expected.size()
 	for index in mini(anchors.size(), expected.size()):
 		anchors_exact = (
@@ -637,11 +632,11 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 			and anchors[index].transform.is_equal_approx(expected[index])
 			and anchors[index].get_child_count() == 0
 			and anchors[index].get_script() == null
-			and anchors[index].material_override == anchors[0].material_override
+			and bool(anchors[index].get_meta("visual_detail_only", false))
 		)
 	_check(
 		anchors_exact,
-		"all twelve legacy beacon anchors retain exact transforms, mesh, material and childless paths"
+		"all twelve legacy beacon anchors retain exact transforms, hidden state and childless marker paths"
 	)
 	var multi := batch.multimesh
 	var authored := batch.get_meta("authored_instance_transforms", []) as Array
@@ -654,7 +649,7 @@ func _test_slab_corner_beacon_batch(module: FleetDockComb) -> void:
 		and authored_exact
 		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.48, 0.12, 0.48))
 		and anchors.size() == 12
-		and batch.material_override == anchors[0].material_override
+		and batch.material_override == (module.get("_materials") as Dictionary)["amber"]
 		and batch.get_child_count() == 0
 		and batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
 		"batch preserves every copy, extent and amber material with no collision descendants"
@@ -719,30 +714,26 @@ func _test_slab_support_batch(module: FleetDockComb) -> void:
 				Basis.IDENTITY,
 				Vector3(float(support_x), float(slab_spec[1]), float(slab_spec[0]))
 			))
-	var anchors: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	for raw_node in underframe.get_children():
-		var instance := raw_node as MeshInstance3D
-		if (
-			instance != null
-			and instance.mesh != null
-			and instance.mesh.get_aabb().size.is_equal_approx(Vector3(0.55, 2.5, 0.55))
-			and not instance.visible
-		):
-			anchors.append(instance)
+		var instance := raw_node as Marker3D
+		if instance != null and not instance.visible:
+			for expected_transform in expected:
+				if instance.transform.is_equal_approx(expected_transform):
+					anchors.append(instance)
+					break
 	var anchors_exact := anchors.size() == expected.size()
 	for index in mini(anchors.size(), expected.size()):
 		anchors_exact = (
 			anchors_exact
 			and anchors[index].transform.is_equal_approx(expected[index])
-			and anchors[index].mesh != null
-			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(0.55, 2.5, 0.55))
 			and not anchors[index].visible
 			and anchors[index].get_child_count() == 0
 			and anchors[index].get_script() == null
 		)
 	_check(
 		anchors_exact,
-		"all six slab-support MeshInstance anchors retain exact transforms and geometry"
+		"all six slab-support markers retain exact transforms and hidden state"
 	)
 	var multi := batch.multimesh
 	var render := module.get_render_batch_contract()
@@ -753,7 +744,7 @@ func _test_slab_support_batch(module: FleetDockComb) -> void:
 		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.55, 2.5, 0.55))
 		and multi.mesh.get_surface_count() == 1
 		and anchors.size() == FleetDockComb.SLAB_SUPPORT_COPY_COUNT
-		and (anchors.is_empty() or batch.material_override == anchors[0].material_override)
+		and batch.material_override == (module.get("_materials") as Dictionary)["frame"]
 		and batch.get_child_count() == 0
 		and batch.find_children("*", "CollisionObject3D", true, false).is_empty(),
 		"support batch preserves copies, frame material, root transform and collision-free ownership"
@@ -823,16 +814,14 @@ func _test_rung_edge_cue_batch(module: FleetDockComb) -> void:
 				Basis.IDENTITY,
 				Vector3(5.5, 0.025, float(rung_z) + float(side) * 1.62)
 			))
-	var anchors: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	for raw_node in detail.get_children():
-		var instance := raw_node as MeshInstance3D
-		if (
-			instance != null
-			and instance.mesh != null
-			and instance.mesh.get_aabb().size.is_equal_approx(Vector3(6.7, 0.06, 0.1))
-			and not instance.visible
-		):
-			anchors.append(instance)
+		var instance := raw_node as Marker3D
+		if instance != null and not instance.visible:
+			for expected_transform in expected:
+				if instance.transform.is_equal_approx(expected_transform):
+					anchors.append(instance)
+					break
 	var anchors_exact := anchors.size() == expected.size()
 	for index in mini(anchors.size(), expected.size()):
 		anchors_exact = (
@@ -850,7 +839,7 @@ func _test_rung_edge_cue_batch(module: FleetDockComb) -> void:
 		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(6.7, 0.06, 0.1))
 		and multi.mesh.get_surface_count() == 1
 		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
-		and (anchors.is_empty() or batch.material_override == anchors[0].material_override)
+		and batch.material_override == (module.get("_materials") as Dictionary)["amber"]
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
@@ -915,10 +904,10 @@ func _test_mooring_cleat_pad_batch(module: FleetDockComb) -> void:
 			expected_names.append(
 				"DockMooringCleatPad%02d_%s" % [slab_index + 1, "A" if side < 0.0 else "B"]
 			)
-	var anchors: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	for raw_node in service.get_children():
 		if str(raw_node.name).begins_with("DockMooringCleatPad"):
-			var anchor := raw_node as MeshInstance3D
+			var anchor := raw_node as Marker3D
 			if anchor != null:
 				anchors.append(anchor)
 	var anchors_exact := anchors.size() == expected.size()
@@ -928,8 +917,6 @@ func _test_mooring_cleat_pad_batch(module: FleetDockComb) -> void:
 			and str(anchors[index].name) == expected_names[index]
 			and anchors[index].transform.is_equal_approx(expected[index])
 			and not anchors[index].visible
-			and anchors[index].mesh != null
-			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(0.66, 0.05, 0.66))
 			and anchors[index].get_child_count() == 0
 			and anchors[index].get_script() == null
 		)
@@ -942,7 +929,7 @@ func _test_mooring_cleat_pad_batch(module: FleetDockComb) -> void:
 		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.66, 0.05, 0.66))
 		and multi.mesh.get_surface_count() == 1
 		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
-		and batch.material_override == anchors[0].material_override
+		and batch.material_override == (module.get("_materials") as Dictionary)["grip"]
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
@@ -1002,10 +989,10 @@ func _test_mooring_cleat_bollard_batch(module: FleetDockComb) -> void:
 			expected_names.append(
 				"DockMooringCleatBollard%02d_%s" % [slab_index + 1, "A" if side < 0.0 else "B"]
 			)
-	var anchors: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	for raw_node in service.get_children():
 		if str(raw_node.name).begins_with("DockMooringCleatBollard"):
-			var anchor := raw_node as MeshInstance3D
+			var anchor := raw_node as Marker3D
 			if anchor != null:
 				anchors.append(anchor)
 	var anchors_exact := anchors.size() == expected.size()
@@ -1015,8 +1002,6 @@ func _test_mooring_cleat_bollard_batch(module: FleetDockComb) -> void:
 			and str(anchors[index].name) == expected_names[index]
 			and anchors[index].transform.is_equal_approx(expected[index])
 			and not anchors[index].visible
-			and anchors[index].mesh != null
-			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(0.4, 0.17, 0.4))
 			and anchors[index].get_child_count() == 0
 			and anchors[index].get_script() == null
 		)
@@ -1026,10 +1011,10 @@ func _test_mooring_cleat_bollard_batch(module: FleetDockComb) -> void:
 		anchors_exact
 		and multi.instance_count == FleetDockComb.MOORING_CLEAT_BOLLARD_COPY_COUNT
 		and multi.visible_instance_count == -1
-		and multi.mesh == anchors[0].mesh
+		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.4, 0.17, 0.4))
 		and multi.mesh.get_surface_count() == 1
 		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
-		and batch.material_override == anchors[0].material_override
+		and batch.material_override == (module.get("_materials") as Dictionary)["underframe"]
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
@@ -1073,7 +1058,7 @@ func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
 	var mast_batch := module.get_node_or_null(
 		^"GeneratedComb/SurfaceDetail/DockArmService/ServiceMastBatch"
 	) as MultiMeshInstance3D
-	var frame_reference := service.get_node_or_null(^"DockServiceBracket01") as MeshInstance3D \
+	var frame_reference := service.get_node_or_null(^"DockServiceBrackets") as MultiMeshInstance3D \
 		if service != null else null
 	_check(service != null and batch != null and batch.multimesh != null, "three dock mast caps resolve as one service MultiMesh")
 	if service == null or batch == null or batch.multimesh == null:
@@ -1081,10 +1066,10 @@ func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
 	var expected: Array[Transform3D] = []
 	for cap_spec in [[8.5, 3.98], [25.0, 3.98], [40.0, 6.38]]:
 		expected.append(Transform3D(Basis.IDENTITY, Vector3(21.9, float(cap_spec[1]), float(cap_spec[0]))))
-	var anchors: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	for raw_node in service.get_children():
 		if str(raw_node.name).begins_with("DockMastCap"):
-			var anchor := raw_node as MeshInstance3D
+			var anchor := raw_node as Marker3D
 			if anchor != null:
 				anchors.append(anchor)
 	var anchors_exact := anchors.size() == expected.size()
@@ -1094,8 +1079,6 @@ func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
 			and str(anchors[index].name) == "DockMastCap%02d" % (index + 1)
 			and anchors[index].transform.is_equal_approx(expected[index])
 			and not anchors[index].visible
-			and anchors[index].mesh != null
-			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(0.86, 0.22, 0.86))
 			and anchors[index].get_child_count() == 0
 			and anchors[index].get_script() == null
 		)
@@ -1109,7 +1092,7 @@ func _test_dock_mast_cap_batch(module: FleetDockComb) -> void:
 		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.86, 0.22, 0.86))
 		and multi.mesh.get_surface_count() == 1
 		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
-		and batch.material_override == anchors[0].material_override
+		and batch.material_override == (module.get("_materials") as Dictionary)["frame"]
 		and frame_reference != null
 		and batch.material_override == frame_reference.material_override
 		and mast_batch != null
@@ -1165,10 +1148,10 @@ func _test_dock_service_mast_batch(module: FleetDockComb) -> void:
 		Transform3D(Basis.IDENTITY, Vector3(21.9, 1.8, 25.0)),
 		Transform3D(Basis.IDENTITY, Vector3(21.9, 4.2, 40.0)),
 	]
-	var anchors: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	for raw_node in service.get_children():
 		if str(raw_node.name).begins_with("DockServiceMast"):
-			var anchor := raw_node as MeshInstance3D
+			var anchor := raw_node as Marker3D
 			if anchor != null:
 				anchors.append(anchor)
 	var anchors_exact := anchors.size() == expected.size()
@@ -1178,8 +1161,6 @@ func _test_dock_service_mast_batch(module: FleetDockComb) -> void:
 			and str(anchors[index].name) == "DockServiceMast%02d" % (index + 1)
 			and anchors[index].transform.is_equal_approx(expected[index])
 			and not anchors[index].visible
-			and anchors[index].mesh != null
-			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(0.52, 4.2, 0.52))
 			and bool(anchors[index].get_meta("visual_detail_only", false))
 			and bool(anchors[index].get_meta("non_authoritative_visual", false))
 			and str(anchors[index].get_meta("non_walkable_reason", "")).contains("outboard")
@@ -1195,7 +1176,7 @@ func _test_dock_service_mast_batch(module: FleetDockComb) -> void:
 		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(0.52, 4.2, 0.52))
 		and multi.mesh.get_surface_count() == 1
 		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
-		and batch.material_override == anchors[0].material_override
+		and batch.material_override == (module.get("_materials") as Dictionary)["deck_light"]
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
@@ -1245,10 +1226,10 @@ func _test_dock_service_bracket_batch(module: FleetDockComb) -> void:
 		Transform3D(Basis.IDENTITY, Vector3(20.9, -0.3, 25.0)),
 		Transform3D(Basis.IDENTITY, Vector3(20.9, 2.1, 40.0)),
 	]
-	var anchors: Array[MeshInstance3D] = []
+	var anchors: Array[Marker3D] = []
 	for raw_node in service.get_children():
 		if str(raw_node.name).begins_with("DockServiceBracket"):
-			var anchor := raw_node as MeshInstance3D
+			var anchor := raw_node as Marker3D
 			if anchor != null:
 				anchors.append(anchor)
 	var anchors_exact := anchors.size() == expected.size()
@@ -1258,8 +1239,6 @@ func _test_dock_service_bracket_batch(module: FleetDockComb) -> void:
 			and str(anchors[index].name) == "DockServiceBracket%02d" % (index + 1)
 			and anchors[index].transform.is_equal_approx(expected[index])
 			and not anchors[index].visible
-			and anchors[index].mesh != null
-			and anchors[index].mesh.get_aabb().size.is_equal_approx(Vector3(2.6, 0.34, 0.90))
 			and bool(anchors[index].get_meta("visual_detail_only", false))
 			and bool(anchors[index].get_meta("non_authoritative_visual", false))
 			and str(anchors[index].get_meta("non_walkable_reason", "")).contains("outboard")
@@ -1275,7 +1254,7 @@ func _test_dock_service_bracket_batch(module: FleetDockComb) -> void:
 		and multi.mesh.get_aabb().size.is_equal_approx(Vector3(2.6, 0.34, 0.90))
 		and multi.mesh.get_surface_count() == 1
 		and batch.transform.is_equal_approx(Transform3D.IDENTITY)
-		and batch.material_override == anchors[0].material_override
+		and batch.material_override == (module.get("_materials") as Dictionary)["frame"]
 		and batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		and batch.layers == 1
 		and batch.get_child_count() == 0
@@ -1344,6 +1323,12 @@ func _test_performance_contract(module: FleetDockComb) -> void:
 	)
 	_check(int(performance.labels) == 6 and int(performance.lights) == 7, "presentation contains exactly three ship labels, three dock-number fascias and seven practical light nodes")
 	_check(int(performance.process_loops) == 0, "static module allocates no frame or physics process loop")
+	var inspection_markers := 0
+	for raw_node in module.find_children("*", "Marker3D", true, false):
+		var marker := raw_node as Marker3D
+		if bool(marker.get_meta("visual_detail_only", false)) and not marker.visible:
+			inspection_markers += 1
+	_check(inspection_markers == 46, "all 46 former hidden renderers retain non-rendering inspection markers")
 	var practicals_are_restrained := true
 	var lights := module.find_children("*", "Light3D", true, false)
 	for raw_light in lights:
@@ -1477,13 +1462,43 @@ func _test_dock_arm_service_hardware(module: FleetDockComb) -> void:
 	# Local x extent of every walkable plate in the module: the trunk reaches
 	# x = 2.4, the rungs x = 9.0, the slabs x = 21.0.
 	var outboard_of_every_plate := 21.0
+	var detail_pieces: Array[Array] = []
 	for raw in detail.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance := raw as MeshInstance3D
-		if mesh_instance.mesh == null:
+		detail_pieces.append([raw, (raw as MeshInstance3D).mesh])
+	# Hidden inspection nodes still take part in the original mounting and void
+	# checks; their geometry now comes from the batch that owns their draw.
+	for raw in detail.find_children("*", "Marker3D", true, false):
+		var marker := raw as Marker3D
+		if not bool(marker.get_meta("visual_detail_only", false)):
+			continue
+		var source_mesh: Mesh
+		for batch_name in [
+			"TrunkRouteLights", "SlabCornerBeacons", "RungEdgeCues",
+			"DockMooringCleatPads", "MooringCleatBollardBatch",
+			"DockMastCaps", "ServiceMastBatch", "DockServiceBrackets",
+		]:
+			var batch := marker.get_parent().get_node_or_null(NodePath(batch_name)) as MultiMeshInstance3D
+			if batch == null or batch.multimesh == null:
+				continue
+			var authored := batch.get_meta("authored_instance_transforms", []) as Array
+			for transform_value in authored:
+				if marker.transform.is_equal_approx(transform_value as Transform3D):
+					source_mesh = batch.multimesh.mesh
+					break
+			if source_mesh != null:
+				break
+		if source_mesh == null:
+			floating.append("missing batch geometry for %s" % marker.name)
+		else:
+			detail_pieces.append([marker, source_mesh])
+	for piece in detail_pieces:
+		var mesh_instance := piece[0] as Node3D
+		var source_mesh := piece[1] as Mesh
+		if source_mesh == null:
 			continue
 		# Rule 2 is scoped to the service group, whose node names are all authored
 		# and unique. The older repeated cues are renamed by the engine to
-		# `@MeshInstance3D@N`, and a generated name can contain "03" by accident,
+		# engine-generated duplicate names, and a generated name can contain "03" by accident,
 		# which would score a slab-03 beacon against the lower deck and flag it.
 		var in_service_group := service.is_ancestor_of(mesh_instance)
 		var local_box := AABB()
@@ -1491,7 +1506,7 @@ func _test_dock_arm_service_hardware(module: FleetDockComb) -> void:
 		for x_ratio in [0.0, 1.0]:
 			for y_ratio in [0.0, 1.0]:
 				for z_ratio in [0.0, 1.0]:
-					var mesh_aabb := mesh_instance.mesh.get_aabb()
+					var mesh_aabb := source_mesh.get_aabb()
 					var corner := mesh_aabb.position + mesh_aabb.size * Vector3(x_ratio, y_ratio, z_ratio)
 					var local_point := module.global_transform.affine_inverse() \
 						* (mesh_instance.global_transform * corner)
@@ -1509,7 +1524,7 @@ func _test_dock_arm_service_hardware(module: FleetDockComb) -> void:
 		if in_service_group and local_box.end.y - plate_top > 0.25 and local_box.position.x < outboard_of_every_plate:
 			standing_on_a_plate.append("%s @ %s" % [str(mesh_instance.name), str(local_box)])
 
-		var world_box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
+		var world_box := (mesh_instance.global_transform * source_mesh.get_aabb()).abs()
 		var grown := world_box.grow(0.001)
 		var touched := false
 		for index in module_boxes.size():

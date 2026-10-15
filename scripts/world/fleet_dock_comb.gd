@@ -103,7 +103,9 @@ const PRE_DOCK_STATUS_STRIPE_GEOMETRY_SUBMISSION_COUNT := 53
 ## and their six shapes and no renderer at all.
 const RENDER_DESCENDANT_COUNT := 141 \
 	+ SERVICE_PYLON_COLLISION_BODY_COUNT + SERVICE_PYLON_COLLISION_SHAPE_COUNT
-const RENDER_MESH_INSTANCE_COUNT := 83
+## Forty-six hidden mesh anchors are now non-rendering Marker3D nodes.
+## Node count, twelve batches, 101 drawn copies and 49 submissions are unchanged.
+const RENDER_MESH_INSTANCE_COUNT := 37
 const RENDER_MULTIMESH_BATCH_COUNT := 12
 const RENDER_DRAWN_COPY_COUNT := 101
 const RENDER_GEOMETRY_SUBMISSION_COUNT := 49
@@ -1499,15 +1501,13 @@ func _build_surface_detail() -> void:
 		# small enough to have been missed. Centre moved 0.045 -> 0.020 so the cue
 		# enters the deck by 0.005 m. Length, width, section, spacing, colour and
 		# the practical above it are untouched.
-		var route_light_anchor := _visual_box(
+		var route_light_anchor := _inspection_anchor(
 			detail,
 			"TrunkRouteLight",
-			Vector3(0, 0.020, float(z_position)),
-			Vector3(0.22, 0.05, 1.25),
-			_materials["cyan"]
+			Vector3(0, 0.020, float(z_position))
 		)
 		_trunk_route_light_transforms.append(route_light_anchor.transform)
-		# Preserve the authored named MeshInstance as an inspection anchor. The
+		# Preserve the authored name and transform without a renderer. The
 		# shared batch owns only this family's three visible copies.
 		route_light_anchor.visible = false
 	_trunk_route_light_batch = _multimesh_boxes(
@@ -1553,16 +1553,14 @@ func _build_surface_detail() -> void:
 			Transform3D(Basis.IDENTITY, top_center + Vector3(0, 0.038, 0))
 		)
 		for corner in [Vector2(-5.1, -5.1), Vector2(-5.1, 5.1), Vector2(5.1, -5.1), Vector2(5.1, 5.1)]:
-			var beacon_anchor := _visual_box(
+			var beacon_anchor := _inspection_anchor(
 				detail,
 				"SlabCornerBeacon%02d" % (index + 1),
-				Vector3(15.0 + corner.x, elevation + 0.08, top_center.z + corner.y),
-				Vector3(0.48, 0.12, 0.48),
-				_materials["amber"]
+				Vector3(15.0 + corner.x, elevation + 0.08, top_center.z + corner.y)
 			)
 			_slab_corner_beacon_transforms.append(beacon_anchor.transform)
-			# Keep the established names, transforms, meshes and material handles as
-			# stable inspection anchors. The single batch below owns their draw.
+			# Keep the established names and transforms as inspection anchors.
+			# The single batch below owns their geometry and material.
 			beacon_anchor.visible = false
 		# One practical per slab, over the slab centre, carrying the amber of the
 		# four corner beacons it stands between. Amber for all three rather than
@@ -1610,16 +1608,14 @@ func _build_surface_detail() -> void:
 	_rung_edge_cue_transforms.clear()
 	for rung_z in [10.0, 25.0]:
 		for side in [-1.0, 1.0]:
-			var cue_anchor := _visual_box(
+			var cue_anchor := _inspection_anchor(
 				detail,
 				"RungEdgeCue",
-				Vector3(5.5, 0.025, float(rung_z) + float(side) * 1.62),
-				Vector3(6.7, 0.06, 0.1),
-				_materials["amber"]
+				Vector3(5.5, 0.025, float(rung_z) + float(side) * 1.62)
 			)
 			_rung_edge_cue_transforms.append(cue_anchor.transform)
-			# Preserve the existing MeshInstance nodes as stable transform/material
-			# inspection anchors. The batch alone owns their four visible draws.
+			# Preserve the existing names and transforms as inspection anchors.
+			# The batch alone owns their four visible draws.
 			cue_anchor.visible = false
 	_rung_edge_cue_batch = _multimesh_boxes(
 		detail,
@@ -1713,12 +1709,10 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		# Bolted through the slab's own section: 1.4 m of this bracket is inside
 		# the plate (x 19.6…21.0) and 1.2 m cantilevers past it, which is what the
 		# mast stands on.
-		var bracket_anchor := _service_box(
+		var bracket_anchor := _inspection_anchor(
 			service,
 			"DockServiceBracket" + suffix,
 			Vector3(20.9, elevation - 0.30, slab_z),
-			Vector3(2.6, 0.34, 0.90),
-			_materials["frame"],
 			"cantilevered service bracket outboard of a walkable dock slab"
 		)
 		_dock_service_bracket_transforms.append(bracket_anchor.transform)
@@ -1733,15 +1727,9 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		# so it takes the same `deck_light` plate the decks are made of and
 		# silhouettes against space. The bracket, head and boom stay dark, which is
 		# what gives the assembly its light/dark separation instead of one grey mass.
-		var mast := MeshInstance3D.new()
+		var mast := Marker3D.new()
 		mast.name = "DockServiceMast" + suffix
 		mast.position = Vector3(21.9, elevation + 1.80, slab_z)
-		mast.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			0.26, 0.26, 4.20,
-			StationSurfaceKit.radial_segments_for(0.26, TorusGeometryBudget.NEAR_EYE_METRES, 16),
-			_chamfered_cylinder_cache
-		)
-		mast.material_override = _materials["deck_light"]
 		mast.set_meta("visual_detail_only", true)
 		mast.set_meta("non_authoritative_visual", true)
 		mast.set_meta("non_walkable_reason", "dock service mast standing outboard of the slab over open void")
@@ -1759,16 +1747,10 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 			_materials["underframe"],
 			"umbilical head carried on a dock service mast"
 		)
-		var mast_cap_anchor := _service_box(
+		var mast_cap_anchor := _inspection_anchor(
 			service,
 			"DockMastCap" + suffix,
 			Vector3(21.9, elevation + 3.98, slab_z),
-			Vector3(0.86, 0.22, 0.86),
-			# The cap used to continue the mast's pale walked-deck material, so this
-			# broad, hard-edged head disappeared into the shaft along the live Dock
-			# 01/02 approach. Dark structural frame stock gives the existing chamfer
-			# a contrasting highlight without changing its mesh or service envelope.
-			_materials["frame"],
 			"mast head cap over open void outboard of the slab"
 		)
 		_dock_mast_cap_transforms.append(mast_cap_anchor.transform)
@@ -1880,27 +1862,19 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 				edge_trim.set_meta("authenticated_original_geometry", false)
 		for side: float in [-1.0, 1.0]:
 			var cleat_z := slab_z + side * 4.4
-			var cleat_pad_anchor := _service_box(
+			var cleat_pad_anchor := _inspection_anchor(
 				service,
 				"DockMooringCleatPad%s_%s" % [suffix, "A" if side < 0.0 else "B"],
 				Vector3(9.5, elevation + 0.02, cleat_z),
-				Vector3(0.66, 0.05, 0.66),
-				_materials["grip"],
 				""
 			)
 			_mooring_cleat_pad_transforms.append(cleat_pad_anchor.transform)
 			# Retain the established named pad as a semantic and transform anchor;
 			# the shared batch below owns its visible copy.
 			cleat_pad_anchor.visible = false
-			var bollard := MeshInstance3D.new()
+			var bollard := Marker3D.new()
 			bollard.name = "DockMooringCleatBollard%s_%s" % [suffix, "A" if side < 0.0 else "B"]
 			bollard.position = Vector3(9.5, elevation + 0.10, cleat_z)
-			bollard.mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-				0.20, 0.20, 0.17,
-				StationSurfaceKit.radial_segments_for(0.20, TorusGeometryBudget.NEAR_EYE_METRES, 16),
-				_chamfered_cylinder_cache
-			)
-			bollard.material_override = _materials["underframe"]
 			bollard.set_meta("visual_detail_only", true)
 			service.add_child(bollard)
 			_mooring_cleat_bollard_transforms.append(bollard.transform)
@@ -1938,6 +1912,8 @@ func _build_dock_arm_service(detail: Node3D) -> void:
 		_materials["underframe"],
 		_mooring_cleat_bollard_transforms
 	)
+	# Dark frame stock separates the existing caps from the pale masts without
+	# changing their chamfered geometry or service envelope.
 	_dock_mast_cap_batch = _multimesh_boxes(
 		service,
 		"DockMastCaps",
@@ -2118,16 +2094,14 @@ func _build_understructure() -> void:
 		var slab_z := float(slab_spec[0])
 		var support_y := float(slab_spec[1])
 		for support_x in [11.0, 19.0]:
-			var support_anchor := _visual_box(
+			var support_anchor := _inspection_anchor(
 				underframe,
 				"SlabSupport",
-				Vector3(float(support_x), support_y, slab_z),
-				Vector3(0.55, 2.5, 0.55),
-				_materials["frame"]
+				Vector3(float(support_x), support_y, slab_z)
 			)
 			_slab_support_transforms.append(support_anchor.transform)
-			# Preserve every established named MeshInstance path as a transform,
-			# material and inspection anchor; the batch owns their visible draw.
+			# Preserve every established name and transform as an inspection anchor;
+			# the batch owns the geometry, material and visible draw.
 			support_anchor.visible = false
 	_slab_support_batch = _multimesh_boxes(
 		underframe,
@@ -2267,6 +2241,27 @@ func _surface_box(
 	collision.shape = shape
 	body.add_child(collision)
 	return body
+
+
+## Named inspection identity for geometry already owned by a visual batch.
+## Keep the original hidden state and semantic metadata without allocating a
+## RenderingServer instance or a duplicate mesh/material holder.
+func _inspection_anchor(
+		parent: Node3D,
+		node_name: String,
+		local_position: Vector3,
+		reason: String = ""
+	) -> Marker3D:
+	var anchor := Marker3D.new()
+	anchor.name = node_name
+	anchor.position = local_position
+	anchor.visible = false
+	anchor.set_meta("visual_detail_only", true)
+	if not reason.is_empty():
+		anchor.set_meta("non_authoritative_visual", true)
+		anchor.set_meta("non_walkable_reason", reason)
+	parent.add_child(anchor)
+	return anchor
 
 
 func _visual_box(parent: Node3D, node_name: String, local_position: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
