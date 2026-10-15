@@ -117,6 +117,9 @@ class ControllerInputEvents:
 		event.button_index = button_index
 		event.pressed = pressed
 		Input.parse_input_event(event)
+		# Deliver this synthetic physics-tick input before the next ship sample;
+		# outer process-frame flushing can span several catch-up physics ticks.
+		Input.flush_buffered_events()
 
 	func set_axis(axis_index: int, value: float) -> void:
 		var event := InputEventJoypadMotion.new()
@@ -131,6 +134,8 @@ class ControllerInputEvents:
 				var deadzone := InputMap.action_get_deadzone(action)
 				event.axis_value = signf(event.axis_value) * (deadzone + (1.0 - deadzone) * absf(event.axis_value))
 		Input.parse_input_event(event)
+		# Keep synthetic guidance delivery on its existing physics-tick cadence.
+		Input.flush_buffered_events()
 
 	func _bound_axis_action(axis_index: int, direction: float) -> StringName:
 		for action: StringName in _flight_actions:
@@ -145,20 +150,25 @@ class ControllerInputEvents:
 
 	func steering_strengths_match() -> bool:
 		var matched := true
-		for axis in [0, 3]:
+		for axis in [0, 1, 3]:
 			for value in [-1.0, -0.4, -0.05, 0.05, 0.4, 1.0]:
 				var action := _bound_axis_action(axis, value)
 				set_axis(axis, value)
-				Input.flush_buffered_events()
 				var observed := Input.get_action_strength(action) if not action.is_empty() else -1.0
 				if not is_equal_approx(observed, absf(value)):
 					print("CONTROLLER_INPUT_SCALAR_MISMATCH: axis=", axis, " action=", action,
 						" desired=", value, " raw=", Input.get_joy_axis(0, axis), " observed=", observed)
 					matched = false
 				set_axis(axis, 0.0)
-				Input.flush_buffered_events()
 				if not action.is_empty() and Input.get_action_strength(action) != 0.0:
 					matched = false
+		var brake_action := _bound_axis_action(AXIS_LEFT_TRIGGER, 1.0)
+		set_axis(AXIS_LEFT_TRIGGER, 1.0)
+		if brake_action.is_empty() or not Input.is_action_pressed(brake_action):
+			matched = false
+		set_axis(AXIS_LEFT_TRIGGER, 0.0)
+		if not brake_action.is_empty() and Input.is_action_pressed(brake_action):
+			matched = false
 		return matched
 
 	func release_all() -> void:
@@ -1045,6 +1055,7 @@ func _sortie_timing_sample(stage: String) -> void:
 
 func _sortie_guidance_sample(kind: String, ship: HeroShip, desired: Vector3, distance: float, step: int) -> void:
 	var command := ship.get_last_ship_command()
+	var telemetry := ship.get_telemetry()
 	_sortie_timing_sample("%s_step_%d" % [kind, step])
 	print("SORTIE_DIAGNOSTICS_GUIDANCE: kind=%s step=%d position_x=%.6f position_y=%.6f position_z=%.6f desired_x=%.6f desired_y=%.6f desired_z=%.6f distance=%.6f speed=%.6f forward_dot=%.6f consumed_sequence=%d consumed_yaw=%.6f consumed_pitch=%.6f consumed_throttle=%.6f consumed_brake=%d" % [
 		kind, step, ship.global_position.x, ship.global_position.y, ship.global_position.z,
@@ -1053,6 +1064,20 @@ func _sortie_guidance_sample(kind: String, ship: HeroShip, desired: Vector3, dis
 		command.yaw if command != null else 0.0, command.pitch if command != null else 0.0,
 		command.throttle if command != null else 0.0, int(command.brake) if command != null else -1,
 	])
+	print("SORTIE_DIAGNOSTICS_CONTACT_STATE: kind=%s step=%d actual_throttle=%.6f engine_power=%.6f slide_collision_count=%d" % [
+		kind, step, float(telemetry.get("throttle", 0.0)), float(telemetry.get("engine_power", 1.0)),
+		ship.get_slide_collision_count(),
+	])
+	for collision_index: int in ship.get_slide_collision_count():
+		var collision := ship.get_slide_collision(collision_index)
+		var normal := collision.get_normal()
+		var local_shape := collision.get_local_shape()
+		var shape_name := str((local_shape as Node).name).c_escape().replace(" ", "_") if local_shape is Node else "unknown"
+		var collider := collision.get_collider()
+		print("SORTIE_DIAGNOSTICS_CONTACT: kind=%s step=%d index=%d normal_x=%.6f normal_y=%.6f normal_z=%.6f local_shape=%s collider_class=%s" % [
+			kind, step, collision_index, normal.x, normal.y, normal.z, shape_name,
+			collider.get_class() if is_instance_valid(collider) else "none",
+		])
 
 
 func _finish() -> void:
