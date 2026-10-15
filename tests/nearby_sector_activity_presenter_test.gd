@@ -111,6 +111,37 @@ func _initialize() -> void:
 	var beacon_card := _card(view, &"cinder_debris_beacon_traversal")
 	_check("WRONG ORDER" in str(beacon_card.get("text", "")) and beacon_card.beacon_feedback.objective_text == "RETURN TO EXPECTED BEACON 2", "beacon rejection exposes order-safe recovery")
 	_check("EXPECTED BEACON 2/4" in str(beacon_card.get("text", "")) and int(beacon_card.beacon_feedback.next_beacon_index) == 1, "beacon snapshot exposes next target")
+	var beacon_id: StringName = &"cinder_debris_beacon_traversal"
+	var pending_beacon := _card(presenter.present({"beacon_traversal": {
+		"state": 2, "state_id": &"complete", "generation": 4,
+		"next_beacon_index": 4, "beacon_count": 4,
+		"reward_pending": true, "reward_committed": false,
+		"reward_handoff_reason": &"beacon_traversal_reward_handoff_rejected",
+	}}), beacon_id)
+	_check(bool(pending_beacon.reward_pending)
+		and "START TO RETRY REWARD SAVE" in str(pending_beacon.text)
+		and "CLEARED ROUTE RETAINED" in str(pending_beacon.objective_text)
+		and bool(presenter.start_intent(beacon_id).accepted)
+		and not bool(pending_beacon.reward_authority),
+		"an unpaid completed beacon route names the real Start retry while retaining its completion")
+	var paid_beacon := _card(presenter.present({"beacon_traversal": {
+		"state": 2, "state_id": &"complete", "generation": 4,
+		"next_beacon_index": 4, "beacon_count": 4,
+		"reward_pending": false, "reward_committed": true,
+	}}), beacon_id)
+	_check(not bool(paid_beacon.reward_pending)
+		and "NAVIGATION DATA RECEIPT SAVED" in str(paid_beacon.text)
+		and not "RETRY" in str(paid_beacon.text)
+		and not "RETRY" in str(paid_beacon.objective_text),
+		"acknowledged beacon payment clears the save retry guidance")
+	for next_state: int in [0, 1, 3]:
+		var fresh_beacon := _card(presenter.present({"beacon_traversal": {
+			"state": next_state, "generation": 5, "next_beacon_index": 0,
+			"beacon_count": 4, "reward_pending": false, "reward_committed": false,
+		}}), beacon_id)
+		_check(not "RETRY REWARD SAVE" in str(fresh_beacon.text)
+			and not "RETRY REWARD SAVE" in str(fresh_beacon.objective_text),
+			"a new, active or reset route cannot retain a previous completion's save retry")
 	var selected := presenter.select(&"cinder_debris_beacon_traversal")
 	_check(bool(selected.get("accepted", false)), "known activity selection is accepted")
 	var intent := presenter.start_intent()

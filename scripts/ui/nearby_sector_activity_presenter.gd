@@ -499,12 +499,12 @@ func _beacon_feedback(state: Dictionary) -> Dictionary:
 				)
 				summary = "ROUTE COMPLETE  //  %s" % (
 					"NAVIGATION DATA RECEIPT SAVED" if reward_committed else (
-						"REWARD PENDING" if reward_pending else "NAVIGATION DATA READY"
+						"REWARD PENDING  //  START TO RETRY REWARD SAVE" if reward_pending else "NAVIGATION DATA READY"
 					)
 				)
 				objective = "RETURN THE RECORDED ROUTE DATA TO THE SHIPYARD" \
 					if reward_committed else (
-						"AWAIT NAVIGATION DATA HANDOFF"
+						"CHOOSE START TO RETRY REWARD SAVE; CLEARED ROUTE RETAINED"
 						if reward_pending else "REQUEST NAVIGATION DATA REWARD"
 					)
 			3:

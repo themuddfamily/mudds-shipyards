@@ -43,6 +43,12 @@ func _run() -> void:
 	var revert_button := hud.get("_display_confirmation_revert_button") as Button
 	_check(confirmation.visible and confirmation_label.text.contains("REVERT IN: 15 SECONDS"), "display preview exposes an explicit seconds countdown")
 	_check(summary_label.text == "PENDING DISPLAY  //  1280 × 720  //  Fullscreen", "display preview names pending resolution and window mode")
+	var display_selection := (controls[&"display_resolution"] as OptionButton).selected
+	var window_selection := (controls[&"window_mode"] as OptionButton).selected
+	hud.set_settings_snapshot({"ui_scale": 1.25})
+	hud.call("show_display_settings_confirmation", 7, 14.0)
+	_check(summary_label.text == "PENDING DISPLAY  //  1280 × 720  //  Fullscreen", "accessibility-only refresh preserves the pending display summary")
+	_check((controls[&"display_resolution"] as OptionButton).selected == display_selection and (controls[&"window_mode"] as OptionButton).selected == window_selection, "accessibility-only refresh retains display control selections")
 	_check(keep_button.text == "KEEP DISPLAY" and revert_button.text == "REVERT DISPLAY", "display preview exposes text-first keep and revert actions")
 	_check(keep_button.tooltip_text.contains("Keep") and revert_button.tooltip_text.contains("Revert"), "display actions expose nonvisual descriptions")
 	_check(keep_button.focus_mode == Control.FOCUS_ALL and revert_button.focus_mode == Control.FOCUS_ALL, "display actions remain keyboard/controller focusable")

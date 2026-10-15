@@ -89,7 +89,7 @@ const ACTIVITY_COPY := {
 		"keyboard": "The activity row's Start begins the traversal at the first beacon. Fly through all four beacons in order. Use {brake} if needed to line up on the next unfinished beacon.",
 		"accessible": "The activity row's Start begins the traversal at the first beacon. Fly through all four beacons in order, braking if needed to line up on the next unfinished beacon.",
 		"next_action": "NEXT UNFINISHED BEACON // FOUR BEACONS IN ORDER",
-		"recovery": "LINE LOST // RETURN TO THE NEXT UNFINISHED BEACON; CLEARED BEACONS STAY CLEARED WITHOUT START",
+		"recovery": "LINE LOST // RETURN TO THE NEXT UNFINISHED BEACON; CLEARED BEACONS STAY CLEARED WITHOUT START; REWARD SAVE PENDING // CLEARED ROUTE RETAINED; CHOOSE START TO RETRY REWARD SAVE",
 	},
 	&"cinder_platform_supply_run": {
 		"title": "Fly the supply run",

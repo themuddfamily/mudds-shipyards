@@ -32,6 +32,7 @@ func _run() -> void:
 	await _test_contract_and_snapshot_boundary(presenter)
 	await _test_simultaneous_cue_readability(presenter)
 	await _test_supported_layout_sweep(viewport, presenter)
+	await _test_reentry_requires_current_caption(viewport)
 	await _test_detached_layout_currentness(viewport, presenter)
 	await _test_queued_layout_currentness(viewport)
 	await _test_hidden_and_reduced_flash(presenter)
@@ -244,6 +245,64 @@ func _test_supported_layout_sweep(viewport: SubViewport, presenter: CaptionPrese
 		and _contrast_ratio(CaptionPresenter.PANEL_BORDER, CaptionPresenter.PANEL_BACKGROUND) >= 7.0,
 		"body, speaker, category and border each retain high contrast against the panel"
 	)
+
+
+func _test_reentry_requires_current_caption(viewport: SubViewport) -> void:
+	var retained := PRESENTER_SCENE.instantiate() as CaptionPresenter
+	viewport.add_child(retained)
+	await _settle()
+	var service := CaptionPresentationService.new()
+	service.enqueue(CaptionPresentationEvent.new(
+		&"radio.reentry-first", CaptionPresentationEvent.Category.RADIO,
+		"Departed controller", "Clear the corridor.", 1.0, 70
+	))
+	service.enqueue(CaptionPresentationEvent.new(
+		&"radio.reentry-next", CaptionPresentationEvent.Category.RADIO,
+		"Current controller", "Corridor is clear.", 2.0, 70
+	))
+	retained.apply_presentation_snapshot(service.get_presentation_snapshot())
+	await _settle()
+	_check(retained.visible, "live first cue is visible before detaching the retained presenter")
+	viewport.remove_child(retained)
+	service.set_presentation_flags(false, false)
+	service.advance_physics(1.0)
+	_check(
+		not retained.apply_presentation_snapshot(service.get_presentation_snapshot()),
+		"disabled caption updates reject while the presenter is detached"
+	)
+	viewport.add_child(retained)
+	await _settle()
+	_check(
+		not retained.visible and not bool(retained.get_layout_report().visible),
+		"re-entry cannot flash an expired speaker before the caller refreshes disabled captions"
+	)
+	retained.apply_presentation_snapshot(service.get_presentation_snapshot())
+	service.set_presentation_flags(true, false)
+	retained.apply_presentation_snapshot(service.get_presentation_snapshot())
+	await _settle()
+	var promoted := retained.get_layout_report()
+	_check(
+		retained.visible
+		and str(promoted.rendered_speaker) == "SOURCE · Current controller"
+		and str(promoted.rendered_text) == "Corridor is clear.",
+		"fresh enabled snapshot presents the queued cue with its current speaker"
+	)
+	viewport.remove_child(retained)
+	service.advance_physics(2.0)
+	viewport.add_child(retained)
+	await _settle()
+	_check(not retained.visible, "re-entry stays hidden when the last cue expired off-tree")
+	retained.apply_presentation_snapshot(service.get_presentation_snapshot())
+	await _settle()
+	var expired := retained.get_layout_report()
+	_check(
+		not retained.visible
+		and str(expired.rendered_speaker).is_empty()
+		and str(expired.rendered_text).is_empty(),
+		"fresh idle snapshot clears the expired retained speaker and body"
+	)
+	retained.queue_free()
+	await process_frame
 
 
 func _test_detached_layout_currentness(viewport: SubViewport, presenter: CaptionPresenter) -> void:

@@ -15,7 +15,7 @@ const STEP_COPY := {
 	&"launch": {"title": "Throttle and steer", "controller": "Hold {move_forward} for throttle. Steer with {move_left}/{move_right} and {pitch_up}/{pitch_down}.", "keyboard": "Hold {move_forward} for throttle. Steer with {move_left}/{move_right} and {pitch_up}/{pitch_down}.", "accessible": "Apply forward throttle, then use the yaw and pitch controls to steer clear of the bay."},
 	&"fire": {"title": "Fire at range targets", "controller": "Line up a marked RANGE TARGET, then press {fire} to fire.", "keyboard": "Line up a marked RANGE TARGET, then press {fire} to fire.", "accessible": "Line up a marked range target, then use the fire control."},
 	&"return_land": {"title": "Return and land", "controller": "Follow the return vector to an available compatible berth approach. Hold {brake} to slow down. Level the craft, then press {landing_assist}. Wait for automatic docking to finish.", "keyboard": "Follow the return vector to an available compatible berth approach. Hold {brake} to slow down. Level the craft, then press {landing_assist}. Wait for automatic docking to finish.", "accessible": "Follow the return vector to an available compatible berth approach. Brake to slow down. Level the craft, then use the landing assist control. Wait for automatic docking to finish."},
-	&"exit": {"title": "Exit the craft", "controller": "Press {interact} after coming to a complete stop.", "keyboard": "Press {interact} after coming to a complete stop.", "accessible": "Come to a complete stop, then use the interact control to exit."},
+	&"exit": {"title": "Exit the craft", "controller": "Come to a complete stop. Release {brake} and all flight controls. Wait for propulsion to shut down automatically, then press {interact} to exit.", "keyboard": "Come to a complete stop. Release {brake} and all flight controls. Wait for propulsion to shut down automatically, then press {interact} to exit.", "accessible": "Come to a complete stop. Release the brake and all flight controls. Wait for propulsion to shut down automatically, then use the interact control to exit."},
 }
 const STEP_STATUS := {
 	&"walk_interact": {"next_action": "REACH CRAFT // INTERACT", "recovery": "PROMPT LOST // RETURN TO THE CRAFT"},
@@ -24,7 +24,7 @@ const STEP_STATUS := {
 	&"launch": {"next_action": "THROTTLE UP // STEER CLEAR OF BAY", "recovery": "LAUNCH HELD // CENTER THE CRAFT AND REAPPLY THROTTLE"},
 	&"fire": {"next_action": "ALIGN RANGE TARGET // FIRE", "recovery": "TARGET LOST // REACQUIRE THE MARKED RANGE TARGET"},
 	&"return_land": {"next_action": "FOLLOW RETURN VECTOR // SLOW AND LEVEL // LANDING ASSIST", "recovery": "ASSIST REFUSED // CHECK APPROACH, SPEED AND ATTITUDE; RETRY"},
-	&"exit": {"next_action": "FULL STOP // EXIT CRAFT", "recovery": "EXIT BLOCKED // STOP COMPLETELY AND INTERACT AGAIN"},
+	&"exit": {"next_action": "FULL STOP // RELEASE FLIGHT CONTROLS // WAIT FOR PROPULSION OFFLINE // EXIT CRAFT", "recovery": "EXIT BLOCKED // RELEASE BRAKE AND FLIGHT CONTROLS; WAIT FOR PROPULSION OFFLINE, THEN INTERACT AGAIN"},
 }
 
 var _snapshot: Dictionary = {}

@@ -65,6 +65,10 @@ func _ready() -> void:
 
 
 func _enter_tree() -> void:
+	# A retained snapshot cannot establish current visibility after time spent
+	# detached: its cue may have expired or captions may have been disabled.
+	# Wait for the caller's next live snapshot before showing the old speaker.
+	visible = false
 	# Deferred layout work dropped during a detached turn must not mutate the
 	# retained Control hierarchy off-tree. Re-entry schedules one current pass.
 	_queue_layout()

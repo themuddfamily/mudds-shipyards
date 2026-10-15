@@ -626,6 +626,9 @@ func _check_route_briefing(prompt: String, activity_id: StringName) -> void:
 		_check(prompt.contains("first beacon") and prompt.contains("all four")
 			and prompt.contains("CLEARED BEACONS STAY CLEARED WITHOUT START"),
 			"beacon help names first-beacon admission and retained progress")
+		_check(prompt.contains("REWARD SAVE PENDING // CLEARED ROUTE RETAINED")
+			and prompt.contains("CHOOSE START TO RETRY REWARD SAVE"),
+			"beacon help names the existing Start retry for an unpaid completed route")
 	else:
 		_check(prompt.contains("first gate") and prompt.contains("all five")
 			and prompt.contains("RESET ABANDONS PROGRESS") and prompt.contains("FAILED OR RESET"),

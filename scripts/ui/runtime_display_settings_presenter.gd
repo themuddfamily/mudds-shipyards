@@ -29,9 +29,11 @@ func attach(settings: RuntimeSettings) -> Dictionary:
 func attach_snapshot(snapshot: Dictionary) -> Dictionary:
 	if not snapshot is Dictionary:
 		return _reject(&"snapshot_invalid")
-	var resolution := String(snapshot.get("display_resolution", Settings.DEFAULT_DISPLAY_RESOLUTION_ID))
-	var vsync := _stable_id(snapshot.get("vsync_mode", &"on"), [&"off", &"on", &"adaptive"])
-	var window_mode := _stable_id(snapshot.get("window_mode", &"windowed"), [&"windowed", &"borderless", &"fullscreen"])
+	# HUD snapshots may update only an accessibility preference. Keep omitted
+	# display fields aligned with the controls and the pending-preview summary.
+	var resolution := String(snapshot.get("display_resolution", _resolution_id))
+	var vsync := _stable_id(snapshot.get("vsync_mode", _vsync_id), [&"off", &"on", &"adaptive"])
+	var window_mode := _stable_id(snapshot.get("window_mode", _window_mode_id), [&"windowed", &"borderless", &"fullscreen"])
 	if not Settings.SUPPORTED_DISPLAY_RESOLUTION_IDS.has(resolution):
 		return _reject(&"unsupported_resolution")
 	if not [&"off", &"on", &"adaptive"].has(vsync):

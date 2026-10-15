@@ -137,6 +137,7 @@ func _run() -> void:
 	_check(not disabled.accepted and disabled.reason == &"tutorials_disabled" and not disabled.has("completion_intent"), "disabled tutorial policy hides prompts without completion")
 	var invalid := presenter.present_snapshot({"step_id": &"combat", "generation": 1, "revision": 1})
 	_check(not invalid.accepted, "unknown tutorial step fails closed")
+	_test_exit_shutdown_guidance()
 	if _failures.is_empty():
 		print("FIRST_SORTIE_TUTORIAL_PRESENTER_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
@@ -144,6 +145,49 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _test_exit_shutdown_guidance() -> void:
+	# A held brake is propulsion demand even at zero speed, and GameFlow refuses
+	# to exit while the engine is online. The preceding landing step teaches
+	# holding that brake, so exit must explicitly teach releasing it and waiting.
+	var presenter := Presenter.new()
+	for family: StringName in [&"controller", &"keyboard"]:
+		var brake := "LT" if family == &"controller" else "Space"
+		var interact := "X" if family == &"controller" else "Tab"
+		var exit := presenter.present_snapshot({
+			"step_id": &"exit", "generation": 1, "revision": 6,
+			"input_family": family,
+			"glyphs": {&"brake": brake, &"interact": interact},
+		})
+		var release := "Release %s and all flight controls." % brake
+		var wait := "Wait for propulsion to shut down automatically"
+		var action := "then press %s to exit." % interact
+		_check(
+			exit.accepted and exit.prompt.contains(release)
+			and exit.prompt.contains(wait) and exit.prompt.contains(action)
+			and exit.prompt.find(release) < exit.prompt.find(wait)
+			and exit.prompt.find(wait) < exit.prompt.find(action)
+			and not exit.prompt.contains("{"),
+			"%s exit teaches mapped brake release and automatic shutdown before interaction" % family,
+		)
+		_check(
+			exit.next_action.contains("WAIT FOR PROPULSION OFFLINE")
+			and exit.recovery.contains("RELEASE BRAKE AND FLIGHT CONTROLS")
+			and exit.recovery.contains("WAIT FOR PROPULSION OFFLINE, THEN INTERACT AGAIN")
+			and exit.completion_intent.revision == 6,
+			"%s exit recovery explains the stopped-but-online block without changing progress" % family,
+		)
+	var accessible := presenter.present_snapshot({
+		"step_id": &"exit", "generation": 1, "revision": 6, "accessible": true,
+	})
+	_check(
+		accessible.accepted and accessible.prompt == accessible.accessible_prompt
+		and accessible.prompt.contains("Release the brake and all flight controls.")
+		and accessible.prompt.contains("Wait for propulsion to shut down automatically, then use the interact control to exit.")
+		and not accessible.prompt.contains("{"),
+		"accessible exit teaches the same release, shutdown and interaction sequence",
+	)
 
 
 func _check(condition: bool, message: String) -> void:
