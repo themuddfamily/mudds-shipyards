@@ -12,16 +12,12 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 GODOT_BIN="${GODOT_BIN:-godot}"
 TIMEOUT_SECONDS="${TEST_MATRIX_TIMEOUT_SECONDS:-300}"
-HEADLESS_TIMEOUT_SECONDS=""
 RUN_RESULTS_ROOT="${TEST_MATRIX_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/test-matrix}"
 RUN_ID="${TEST_MATRIX_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${TEST_MATRIX_AUDIO_DRIVER:-Dummy}"
 DISPLAY_DRIVER="${TEST_MATRIX_DISPLAY_DRIVER:-}"
 MODE="${TEST_MATRIX_MODE:-headless}"
 LIST_ONLY=0
-SHARD_SPEC=""
-SHARD_INDEX=0
-SHARD_COUNT=0
 ACCEPTED_RISK=""
 IMPORT_GATE="${TEST_MATRIX_IMPORT_GATE:-auto}"
 ALLOW_CACHE_DRIFT="${TEST_MATRIX_ALLOW_CACHE_DRIFT:-0}"
@@ -54,9 +50,9 @@ DIAGNOSTIC_RE='^[[:space:]]*SCRIPT[[:space:]]+ERROR|^[[:space:]]*ERROR:|\bFATAL 
 
 usage() {
 	cat <<EOF
-Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--headless-timeout SECONDS] [--results-dir DIR]
+Usage: $(basename "$0") [--godot PATH] [--timeout SECONDS] [--results-dir DIR]
                         [--audio-driver NAME] [--display-driver NAME] [--jobs N] [--scope SPEC[,SPEC...]]
-                        [--manifest-scope PATH[,PATH...]] [--import-gate MODE] [--shard INDEX/COUNT]
+                        [--manifest-scope PATH[,PATH...]] [--import-gate MODE]
 
 Recursively run tests/**/*_test.gd files under Godot, one isolated process per suite,
 and write a timestamped matrix manifest. Suites run in parallel by default; the
@@ -68,8 +64,6 @@ durations, paths, log hashes, or raw log text.
 Options:
   --godot PATH              Godot binary (default: \`godot\`).
   --timeout SECONDS         Per-suite timeout (default: 300).
-  --headless-timeout SECONDS Override the timeout for headless suites only.
-                            Defaults to --timeout; longer suite declarations still apply.
   --results-dir DIR         Results root (default: artifacts/test-matrix).
   --audio-driver NAME       Audio backend passed to --audio-driver (default: Dummy).
   --display-driver NAME     Display backend for graphical suites only (default: engine choice).
@@ -83,10 +77,7 @@ Options:
                             Only an unfiltered --mode all run qualifies as full release scope.
   --jobs N                  Concurrent suites. Default: min(cores/4, available GiB/2, 4), floor 1.
                             Use --jobs 1 for a strictly serial debugging run. Network suites
-                            share one per-run flock lane; other workers keep advancing.
-  --shard INDEX/COUNT      Run one 1-based shard of the sorted, mode-filtered selection.
-                            Round-robin shards are disjoint and cover that entire selection.
-                            Each shard retains all import, timeout and result gates.
+                            share a per-run flock lane; graphical suites share a display lane.
   --scope SPEC[,SPEC...]    Select a subset of suites. Repeatable. A SPEC may be
                             a suite name (fleet_pbr_test), a file name
                             (fleet_pbr_test.gd), a path (tests/fleet_pbr_test.gd),
@@ -129,20 +120,12 @@ while [[ $# -gt 0 ]]; do
 		--mode) MODE="$2"; shift 2 ;;
 		--display-driver) DISPLAY_DRIVER="$2"; shift 2 ;;
 		--list) LIST_ONLY=1; shift ;;
-		--shard)
-			[[ $# -ge 2 && -n "$2" ]] || { echo "Missing --shard INDEX/COUNT"; exit 2; }
-			[[ -z "$SHARD_SPEC" ]] || { echo "Repeated --shard"; exit 2; }
-			SHARD_SPEC="$2"; shift 2 ;;
 		--godot)
 			GODOT_BIN="$2"
 			shift 2
 			;;
 		--timeout)
 			TIMEOUT_SECONDS="$2"
-			shift 2
-			;;
-		--headless-timeout)
-			HEADLESS_TIMEOUT_SECONDS="$2"
 			shift 2
 			;;
 		--results-dir)
@@ -182,25 +165,8 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-if [[ -n "$SHARD_SPEC" ]]; then
-	if ! [[ "$SHARD_SPEC" =~ ^([1-9][0-9]{0,8})/([1-9][0-9]{0,8})$ ]]; then
-		echo "Invalid --shard: $SHARD_SPEC (expected positive INDEX/COUNT)"; exit 2
-	fi
-	SHARD_INDEX="${BASH_REMATCH[1]}"
-	SHARD_COUNT="${BASH_REMATCH[2]}"
-	if (( SHARD_INDEX > SHARD_COUNT )); then
-		echo "Invalid --shard: index exceeds count"; exit 2
-	fi
-fi
-
 if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || (( TIMEOUT_SECONDS < 1 )); then
 	echo "Invalid timeout: $TIMEOUT_SECONDS"
-	exit 2
-fi
-
-if [[ -n "$HEADLESS_TIMEOUT_SECONDS" ]] && \
-	{ ! [[ "$HEADLESS_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || (( HEADLESS_TIMEOUT_SECONDS < 1 )); }; then
-	echo "Invalid --headless-timeout: $HEADLESS_TIMEOUT_SECONDS"
 	exit 2
 fi
 
@@ -570,19 +536,6 @@ for test_file in "${TEST_FILES[@]}"; do
 	fi
 done
 TEST_FILES=("${mode_tests[@]}")
-if [[ -n "$SHARD_SPEC" ]]; then
-	shard_tests=()
-	for (( shard_position = 0; shard_position < ${#TEST_FILES[@]}; shard_position++ )); do
-		if (( shard_position % SHARD_COUNT == SHARD_INDEX - 1 )); then
-			shard_tests+=("${TEST_FILES[$shard_position]}")
-		fi
-	done
-	TEST_FILES=("${shard_tests[@]}")
-	if (( ${#TEST_FILES[@]} == 0 )); then
-		echo "No suites selected for --shard $SHARD_SPEC"; exit 2
-	fi
-	SCOPE_LABEL="$MODE:$SCOPE_LABEL shard=$SHARD_SPEC"
-fi
 if (( LIST_ONLY == 1 )); then
 	for test_file in "${TEST_FILES[@]}"; do
 		printf '%s\t%s\n' "${test_file#"$PROJECT_ROOT"/}" "${SUITE_MODES[$test_file]}"
@@ -602,18 +555,15 @@ if (( mode_excluded_count > 0 )) && [[ "$SCOPE_LABEL" == all ]]; then
 fi
 # A suite whose honest single-run duration exceeds the global timeout (long
 # physical-flight journeys) declares `## test-matrix-timeout-seconds: N` in its
-# first 40 lines. The larger of N and the selected mode's timeout applies, so
-# the marker can only lengthen, never shorten, a run.
+# first 40 lines. The larger of N and the global timeout applies, so the marker
+# can only lengthen, never shorten, a run.
 suite_timeout_seconds() {
-	local declared base_timeout="$TIMEOUT_SECONDS"
-	if [[ "${SUITE_MODES[$1]}" == headless && -n "$HEADLESS_TIMEOUT_SECONDS" ]]; then
-		base_timeout="$HEADLESS_TIMEOUT_SECONDS"
-	fi
+	local declared
 	declared="$(head -n 40 "$1" | sed -n 's/^## test-matrix-timeout-seconds: *\([0-9][0-9]*\) *$/\1/p' | head -n 1)"
-	if [[ -n "$declared" ]] && (( declared > base_timeout )); then
+	if [[ -n "$declared" ]] && (( declared > TIMEOUT_SECONDS )); then
 		printf '%s' "$declared"
 	else
-		printf '%s' "$base_timeout"
+		printf '%s' "$TIMEOUT_SECONDS"
 	fi
 }
 network_suite() {
@@ -623,6 +573,9 @@ network_suite() {
 for test_file in "${TEST_FILES[@]}"; do
 	if network_suite "$test_file" && ! command -v flock >/dev/null; then
 		echo "Network suites require flock (util-linux) for the per-run lane."; exit 2
+	fi
+	if [[ "${SUITE_MODES[$test_file]}" != headless ]] && ! command -v flock >/dev/null; then
+		echo "Graphical suites require flock (util-linux) for the per-run display lane."; exit 2
 	fi
 done
 
@@ -695,6 +648,13 @@ run_suite_worker() {
 		exec {network_lock_fd}>"$WORK_DIR/network.lock"
 		flock "$network_lock_fd"
 	fi
+	# All graphical suites share this run's display, including input-only suites.
+	# Always acquire network then display, and release in reverse order.
+	local display_lock_fd=""
+	if [[ "${SUITE_MODES[$test_file]}" != headless ]]; then
+		exec {display_lock_fd}>"$WORK_DIR/display.lock"
+		flock "$display_lock_fd"
+	fi
 	local start_ms end_ms duration_ms exit_code
 	start_ms="$(now_ms)"
 
@@ -725,6 +685,10 @@ run_suite_worker() {
 		exit_code="$?"
 	fi
 	set -e
+	if [[ -n "$display_lock_fd" ]]; then
+		flock -u "$display_lock_fd"
+		exec {display_lock_fd}>&-
+	fi
 	if [[ -n "$network_lock_fd" ]]; then
 		flock -u "$network_lock_fd"
 		exec {network_lock_fd}>&-
@@ -1020,7 +984,6 @@ run_started_utc=${RUN_STARTED_UTC}
 run_completed_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 godot_binary=${GODOT_BIN}
 timeout_seconds=${TIMEOUT_SECONDS}
-headless_timeout_seconds=${HEADLESS_TIMEOUT_SECONDS:-$TIMEOUT_SECONDS}
 audio_driver=${AUDIO_DRIVER}
 display_driver=${DISPLAY_DRIVER}
 project_root=${PROJECT_ROOT}

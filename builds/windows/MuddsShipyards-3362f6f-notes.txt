@@ -1,0 +1,17 @@
+Mudd's Shipyards Windows shared-visit recovery checkpoint
+Producer: 3362f6f09287b83027f800fa69c6b57890bb982f
+
+Player-visible changes
+Interrupted Aurora and Rime shared surface visits restore saved survey progress through a fresh authenticated crew session. Restored visits receive current-session boarding/body grants without reviving stale authority. Fresh observers resume Rime cold/observation progress, normal saving retry records one durable reward, and ordinary reboarding retires restored-session grants. Existing passive repair captions and shared Rime controls/rewards remain included.
+
+Actual validation
+ONE Linux-hosted Windows export from clean producer3362; original900 cap and accepted immutable0d601-file cache. Actual1513payloadpaths differ from0d only in six expected runtime scripts; every asset/other payload is byte-exact, no test files enter the package.
+Actual embedded Windows PCK under Linux Godot: restoredAurora53/67.98s and restoredRime74/99.16s use the frozen3362 fixture; standard223 and strictstartup exit0/one STARTUP_MENU_READY_OK retain their original receipts. An additional default journey191 passes in 206.51s with the corrected external consumer committed at 930b9848b9d9345c317fdaa54601281c6a793f96 (GD SHA256 064f753661547ad067da0d29be10c1ba9786037a97866e83aefe8834abbc3ec1). It exercises interrupted ACTIVE continuation, public host/helm and reward callbacks. Each focused consumer keeps its original300 cap, same existing f399 network.lock inode5405031 acquired before the clock, headless/Dummy/private0700 sevenXDG+TMP and inheritedHOME. External fixtures contain declared tests/authenticclassUIDcache only, no copied production fallback. Source/index/cache/templates/EXE/inventory/old and corrected fixtures remain exact, captured actors absent.
+Source default191/205.904s, boardingauthority21 and adapter96 pass on external9eaeec; only the integration test differs from producer3362. Earlier Aurora53source61fefa retains its scope (production exact3362), and Rime74source3362 retains its own scope. Original3362 source defaultRED182pass/9fail and the separate9eaeec packaged defaultRED141pass/1fail/152.21s remain preserved. The930 consumer uses real deck-walking intents and confirmed neutral input before supported-hatch release within the same5s; it does not teleport the crew body. The held original ZIP/notes and all earlier receipts remain byte-exact. No re-export or binary/source change occurred.
+
+Limits
+Initial arrival is staged; focused continuation/reboarding does not qualify canonical full travel/home return or full crew/save restoration. Existing full matrix has five failures; broader regressions/full release remain open. Original900 shared-return timeout/budget bound and earlier failures remain retained. NativeWindows/PowerShell execution stays HELD, nativeGPU/human/audio NOT_RUN, hosted CI disabled. No native/registry/desktop/installer actions or publication occur. No isolated speed gain is claimed.
+
+EXE SHA256: c38fca0ab2ec59660e655553038f783d710776d8bf026104351df900f4632a04
+PCK SHA256: fd79e41d1aef94ca3c0ae16412c05afe68cf6c54a6cc3af5eb7c69635d6d1152
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/clock-recovery-windows/rime-home-trail-084a348/shared-visit-3362f6f

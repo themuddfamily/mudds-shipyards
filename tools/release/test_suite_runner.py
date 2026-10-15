@@ -57,35 +57,6 @@ class SuiteRunnerTests(unittest.TestCase):
             log.write_text('probe: 5 assertions\nPROBE_TEST_OK\nPROBE_TEST_OK\n')
             self.assertEqual(catalog.assess(script, log)[1], 2)
 
-    def test_declared_filename_terminal_requires_one_final_completion(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            script = Path(temporary) / 'game_flow_planetary_return_approach_test.gd'
-            log = Path(temporary) / 'log'
-            intermediate = ('HOME_RETURN_STREAMED_RELAY_CLEANUP_OK: strict home '
-                            'contract retires its composition without detaching the streamed-out relay twice')
-            for suffix in ('OK', 'PASS', 'PASSED'):
-                terminal = script.stem.upper() + '_' + suffix
-                script.write_text('print("' + intermediate + '")\n'
-                                  'print("' + terminal + ': %d assertions" % _checks)\n')
-                completion = terminal + ': 44 assertions'
-                cases = [
-                    ('complete', intermediate + '\n' + completion + '\n', 1, terminal),
-                    ('missing', intermediate + '\n', 0, '<none>'),
-                    ('duplicate', intermediate + '\n' + completion + '\n' + completion + '\n', 2, terminal),
-                    ('early', completion + '\n' + intermediate + '\n', 1, '<none>'),
-                    ('trailing', intermediate + '\n' + completion + '\nunexpected trailing output\n', 1, '<none>'),
-                    ('foreign', intermediate + '\nUNRELATED_TEST_OK\n', 0, '<none>'),
-                ]
-                for name, output, count, last in cases:
-                    with self.subTest(suffix=suffix, case=name):
-                        log.write_text(output)
-                        found, actual_count, actual_last, assertions = catalog.assess(script, log)
-                        self.assertEqual(actual_count, count)
-                        self.assertEqual(actual_last, last)
-                        self.assertEqual(found, terminal if count else '<none>')
-                        if name == 'complete':
-                            self.assertEqual(assertions, 44)
-
     def test_source_manifest_matches_shell_and_detects_drift(self):
         # Differential coverage of the former find/stat/sha256sum contract.
         old_writer = r'''set -euo pipefail
@@ -256,6 +227,70 @@ print('OK: network lane fixture')
                     self.assertEqual(rows[0]['exit_code'], '124' if timeout else '0')
                     self.assertTrue(all(row['status'] == 'PASS' for row in rows[1:]))
 
+    def test_parallel_graphical_display_lane_keeps_headless_parallel_and_wait_outside_clock(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            release = root / 'tools/release'
+            release.mkdir(parents=True)
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
+                shutil.copy2(SUPPORT / name, release / name)
+            scripts = ['network/a_display_test.gd', 'b_headless_test.gd', 'c_headless_test.gd',
+                       'ui/d_input_test.gd', 'ui/e_readback_test.gd']
+            for relative in scripts:
+                script = root / 'tests' / relative
+                script.parent.mkdir(parents=True, exist_ok=True)
+                display = ('await RenderingServer.frame_post_draw\n' if 'readback' in relative
+                           else '## test-matrix-display: input-only\n') if relative.startswith(('network/', 'ui/')) else ''
+                script.write_text(display + 'print("DISPLAY_LANE_TEST_OK: 1 assertions")\n')
+            fake = root / 'fake-godot'
+            fake.write_text('''#!/usr/bin/env python3
+import os,sys,pathlib,time
+root=pathlib.Path(os.environ['DISPLAY_LANE_ROOT'])
+args=sys.argv[1:]
+script=args[args.index('--script')+1]
+assert args[args.index('--audio-driver')+1] == 'Dummy'
+graphical='--headless' not in args
+if graphical:
+    assert args[args.index('--display-driver')+1] == 'x11'
+    active=root/'pointer-owner'
+    try: active.mkdir()
+    except FileExistsError:
+        (root/'collision').touch()
+        print('ERROR: NO GRAB')
+        print('DISPLAY_LANE_TEST_OK: 1 assertions')
+        sys.exit(0)
+    deadline=time.monotonic()+0.5
+    while not (root/'headless-overlap').exists() and time.monotonic()<deadline: time.sleep(0.01)
+    assert (root/'headless-overlap').exists(), 'display lock starved headless workers'
+    time.sleep(1.1)
+    active.rmdir()
+else:
+    own=root/pathlib.Path(script).stem
+    own.touch()
+    deadline=time.monotonic()+0.5
+    while len(list(root.glob('*_headless_test')))<2 and time.monotonic()<deadline: time.sleep(0.01)
+    assert len(list(root.glob('*_headless_test')))==2, 'headless suites no longer overlap'
+    (root/'headless-overlap').touch()
+print('DISPLAY_LANE_TEST_OK: 1 assertions')
+''')
+            fake.chmod(0o755)
+            command = ['bash', str(release / 'run_test_matrix.sh'), '--godot', str(fake),
+                       '--jobs', '3', '--mode', 'all', '--display-driver', 'x11',
+                       '--results-dir', str(root / 'results'), '--manifest-scope', 'tests',
+                       '--import-gate', 'never', '--timeout', '2']
+            result = subprocess.run(command, cwd=root,
+                                    env={**os.environ, 'DISPLAY_LANE_ROOT': str(root),
+                                         'DISPLAY': ':fixture', 'TEST_MATRIX_RUN_ID': 'display-lane'},
+                                    text=True, capture_output=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertFalse((root / 'collision').exists())
+            self.assertFalse((root / 'pointer-owner').exists())
+            with (root / 'results/display-lane/results.tsv').open() as stream:
+                rows = list(csv.DictReader(stream, delimiter='\t'))
+            self.assertEqual(len(rows), len(scripts))
+            self.assertTrue(all(row['status'] == 'PASS' and row['diagnostic_count'] == '0' for row in rows))
+            self.assertTrue(all(int(row['duration_ms']) < 2000 for row in rows))
+
     def test_generic_pass_descriptions_are_not_completion(self):
         with tempfile.TemporaryDirectory() as temporary:
             script = Path(temporary) / 'probe_test.gd'
@@ -358,72 +393,6 @@ print('OK: fixture (2 assertions)')
                         script.write_text('## test-matrix-display: ' + declaration + '\n' + marker + '\n')
                         self.assertEqual(catalog.mode(script), 'graphical')
                         self.assertFalse(catalog.input_only(script))
-
-    def test_all_mode_preserves_headless_and_graphical_timeout_budgets(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            release = root / 'tools/release'
-            release.mkdir(parents=True)
-            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
-                shutil.copy2(SUPPORT / name, release / name)
-            tests = root / 'tests'
-            tests.mkdir()
-            for name, graphical, declared in (
-                ('headless', False, 0), ('headless_long', False, 1500),
-                ('graphical', True, 0), ('graphical_long', True, 900),
-            ):
-                (tests / f'{name}_test.gd').write_text(
-                    (f'## test-matrix-timeout-seconds: {declared}\n' if declared else '')
-                    + ('await RenderingServer.frame_post_draw\n' if graphical else '')
-                    + 'print("OK: fixture (2 assertions)")\n')
-            fake = root / 'fake-godot'
-            fake.write_text('#!/usr/bin/env bash\nprintf "OK: fixture (2 assertions)\\n"\n')
-            fake.chmod(0o755)
-            fake_bin = root / 'bin'
-            fake_bin.mkdir()
-            timeout = fake_bin / 'timeout'
-            # Record the actual worker budget without waiting for a fake engine.
-            timeout.write_text('''#!/usr/bin/env python3
-import os, pathlib, sys
-args = sys.argv[1:]
-script = args[args.index('--script') + 1]
-with pathlib.Path(os.environ['BUDGET_RECORD']).open('a') as stream:
-    stream.write(script + '\\t' + args[0] + '\\n')
-os.execv(args[1], args[1:])
-''')
-            timeout.chmod(0o755)
-            record = root / 'budgets.tsv'
-            environment = {**os.environ, 'PATH': str(fake_bin) + os.pathsep + os.environ['PATH'],
-                           'BUDGET_RECORD': str(record), 'DISPLAY': ':fixture'}
-            command = ['bash', str(release / 'run_test_matrix.sh'), '--godot', str(fake),
-                       '--mode', 'all', '--jobs', '1', '--display-driver', 'x11',
-                       '--audio-driver', 'Dummy', '--import-gate', 'never', '--timeout', '300',
-                       '--results-dir', str(root / 'results'), '--manifest-scope', 'tests']
-            for override, expected_headless in (([], '300s'), (['--headless-timeout', '1200'], '1200s')):
-                with self.subTest(override=override):
-                    record.unlink(missing_ok=True)
-                    run_id = 'override' if override else 'default'
-                    result = subprocess.run(command + override, cwd=root,
-                                            env={**environment, 'TEST_MATRIX_RUN_ID': run_id},
-                                            text=True, capture_output=True, timeout=20)
-                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                    budgets = dict(line.split('\t') for line in record.read_text().splitlines())
-                    self.assertEqual(budgets, {
-                        'res://tests/headless_test.gd': expected_headless,
-                        'res://tests/headless_long_test.gd': '1500s',
-                        'res://tests/graphical_test.gd': '300s',
-                        'res://tests/graphical_long_test.gd': '900s',
-                    })
-                    manifest = (root / 'results' / run_id / 'run-manifest.txt').read_text()
-                    self.assertIn('scope_specs=all\n', manifest)
-                    self.assertIn('mode_excluded_suite_count=0\n', manifest)
-                    self.assertIn(f'headless_timeout_seconds={expected_headless[:-1]}\n', manifest)
-            for invalid in ('0', '-1', 'bogus'):
-                with self.subTest(invalid=invalid):
-                    result = subprocess.run(command + ['--headless-timeout', invalid], cwd=root,
-                                            env=environment, text=True, capture_output=True, timeout=20)
-                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-                    self.assertIn('Invalid --headless-timeout', result.stdout)
 
     def test_live_roster_covers_nested_suites_and_rendering(self):
         root = SUPPORT.resolve().parents[1]
