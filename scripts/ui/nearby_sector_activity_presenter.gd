@@ -826,6 +826,11 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 					stage_id = &"discovery_save_pending"
 					summary = "DISCOVERY SAVE PENDING  //  SHIPYARD REWARD SAVED"
 					objective = "CHOOSE START TO RETRY DISCOVERY SAVE"
+				elif not discovery_persisted and not reward_committed \
+						and StringName(state.get("reward_handoff_reason", &"")) \
+						== &"structure_scan_reward_handoff_rejected":
+					summary = "SCAN COMPLETE  //  REWARD NOT FILED  //  START TO RETRY"
+					objective = "CHOOSE START TO RETRY THE MATERIAL SAMPLE REWARD; COMPLETED SCAN RETAINED"
 			3:
 				stage_id = &"interrupted"
 				summary = "PROGRESS RESET  //  RETURN TO SCAN MARKER"

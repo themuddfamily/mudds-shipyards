@@ -105,6 +105,35 @@ func _initialize() -> void:
 	_check("COMPLETED" in str(mining_card.get("text", "")) and bool(mining_card.get("reward_pending", false)), "completed mining text includes state and pending reward")
 	var scan_card := _card(view, &"cinder_derelict_structure_scan")
 	_check(scan_card.get("state_id") == &"wrong_position" and "MOVE TO DERELICT SCAN MARKER" in str(scan_card.get("text", "")) and is_equal_approx(float(scan_card.scan_feedback.progress), 0.25), "scan rejection exposes progress and recovery reason")
+	var scan_id: StringName = &"cinder_derelict_structure_scan"
+	var rejected_scan := _card(presenter.present({"structure_scan": {
+		"state": 2, "state_id": &"complete", "generation": 4,
+		"reward_requested": false, "reward_pending": false,
+		"reward_committed": false, "discovery_persisted": false,
+		"reward_handoff_reason": &"structure_scan_reward_handoff_rejected",
+	}}), scan_id)
+	_check("REWARD NOT FILED" in str(rejected_scan.text)
+		and "START TO RETRY" in str(rejected_scan.text)
+		and "COMPLETED SCAN RETAINED" in str(rejected_scan.objective_text)
+		and bool(presenter.start_intent(scan_id).accepted)
+		and not bool(rejected_scan.reward_authority),
+		"a rejected scan reward names the ordinary Start retry without treating refusal as payment")
+	var saved_scan := _card(presenter.present({"structure_scan": {
+		"state": 2, "state_id": &"complete", "generation": 4,
+		"reward_committed": true, "discovery_persisted": true,
+		"reward_handoff_reason": &"structure_scan_reward_handoff_rejected",
+	}}), scan_id)
+	_check("DISCOVERY RECORDED" in str(saved_scan.text)
+		and not "RETRY" in str(saved_scan.text)
+		and not "RETRY" in str(saved_scan.objective_text),
+		"saved scan authority overrides an older reward refusal")
+	for scan_state: int in [0, 1, 3]:
+		var next_scan := _card(presenter.present({"structure_scan": {
+			"state": scan_state, "generation": 5,
+			"reward_handoff_reason": &"structure_scan_reward_handoff_rejected",
+		}}), scan_id)
+		_check(not "RETRY THE MATERIAL SAMPLE REWARD" in str(next_scan.objective_text),
+			"an idle, active or reset scan never offers a previous completion's reward retry")
 	var cargo_card := _card(view, &"cinder_platform_supply_run")
 	_check("EXPIRED" in str(cargo_card.get("text", "")) and "RECOVER EXPIRED RUN: RETURN TO THE CINDER BERTH" in str(cargo_card.get("text", "")), "cargo failure exposes state and recovery reason")
 	_check(int(cargo_card.cargo_progress.next_phase_index) == 1 and cargo_card.cargo_progress.next_phase_id == &"clear_gate" and "EXPIRED 2/3" in str(cargo_card.get("text", "")), "cargo snapshot exposes ordered phase progress")

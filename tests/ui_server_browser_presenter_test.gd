@@ -216,6 +216,7 @@ func _run() -> void:
 		and receipt_after_legacy.status == &"ready" and receipt_after_legacy.source_sequence == 3,
 		"legacy server-tick and local receipt sequences remain independently monotonic public cursor shapes")
 	_check_filter_sort_lifecycle(entries)
+	_check_failure_action_guidance()
 	var audit := presenter.audit()
 	_check(bool(audit.presentation_only) and bool(audit.filters_stale_rows) and not bool(audit.browser_owns_join_authority) and bool(audit.exact_source_cursor_fencing), "audit records presentation and exact cursor boundaries")
 	if _failures.is_empty():
@@ -272,3 +273,20 @@ func _check_filter_sort_lifecycle(entries: Array) -> void:
 	var sorted_closed := lifecycle.set_sort(&"latency")
 	_check(sorted_closed.status == &"idle" and not sorted_closed.attached
 		and sorted_closed.rows.is_empty(), "sorting a detached browser retains its idle lifecycle")
+
+
+func _check_failure_action_guidance() -> void:
+	var presenter := Presenter.new()
+	for reason: StringName in [&"directory_timeout", &"directory_unavailable", &"join_failed"]:
+		var terminal := presenter.present_result({"accepted": false, "reason": reason, "retryable": false})
+		_check(terminal.status == &"error" and terminal.focus_target == &"cancel"
+			and terminal.actions.size() == 1 and terminal.actions[0].id == &"cancel"
+			and terminal.next_action == "CANCEL AND RETURN"
+			and terminal.error_message.contains("NEXT ACTION // CANCEL AND RETURN")
+			and not terminal.error_message.contains("Retry is available"),
+			"%s never promises retry when the owner permits cancel only" % reason)
+		var retryable := presenter.present_result({"accepted": false, "reason": reason, "retryable": true})
+		_check(retryable.status == &"error" and retryable.focus_target == &"retry"
+			and retryable.actions.size() == 2 and retryable.actions[0].id == &"retry"
+			and retryable.error_message.contains("NEXT ACTION // RETRY SERVER LIST OR CANCEL"),
+			"%s retains explicit retry guidance when the owner permits another request" % reason)

@@ -761,10 +761,10 @@ func _sort_summary() -> String:
 
 func _status_reason_message(reason: StringName, fallback: String) -> String:
 	var known := {
-		&"directory_timeout": "Server directory timed out. Retry is available.",
-		&"directory_unavailable": "Server directory is unavailable. Retry is available.",
+		&"directory_timeout": "Server directory timed out.",
+		&"directory_unavailable": "Server directory is unavailable.",
 		&"directory_closed": "Server directory is closed. Cancel to return.",
 		&"session_full": "That session is full. Choose another server.",
-		&"join_failed": "Joining the selected session failed. Retry is available.",
+		&"join_failed": "Joining the selected session failed.",
 	}
 	return str(known.get(reason, fallback if not fallback.is_empty() else "Server directory unavailable."))
