@@ -1,0 +1,8 @@
+Mudds Shipyards e08c7f1 Windows checkpoint
+Source: e08c7f1c141a322fe26224d215b3ec503ff07019
+
+After stopping, exit guidance tells players to release the mapped brake and flight controls, wait for propulsion to go OFFLINE, then interact. Beacon reward retry guidance remains visible until the retry state changes. Captions hide stale text during reentry. Partial display-settings snapshots retain omitted display preferences and the correct pending confirmation summary. Newly staged fleet ships receive their berth placement before they become ready.
+
+Validation: 16 focused source suites, 844 assertions, in separately retained receipts. Actual embedded Windows PCK checked under the custom Linux Godot editor: strict startup exit 0 and exactly one STARTUP_MENU_READY_OK; seven focused consumer suites, 447 assertions, all exit 0 without script/resource/leak diagnostics. Actual 1,513 payload paths; exactly six reviewed compiled scripts changed from 0f57, all other payload bytes identical. Official Windows release-template code section matched read-only. This does not execute the Windows PE.
+
+Limits: the source rendered startup attempt reached its original 300-second deadline without readiness; that failure remains open and is not package acceptance or a performance claim. Initial source fleet fixture failure and its authored-transform correction remain retained. Current full matrix, native Windows, native GPU and human playtesting were not performed for this checkpoint; CI remains disabled.
