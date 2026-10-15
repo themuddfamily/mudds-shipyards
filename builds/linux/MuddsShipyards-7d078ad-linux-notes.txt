@@ -1,0 +1,8 @@
+Mudds Shipyards 7d078ad Linux checkpoint
+Source: 7d078ad00e5f5b797aed22de32fcc5bc0dc3d537
+
+Window fitting now resizes through the attached game Window so the rendering viewport stays synchronized with the fitted native window. Windowed and borderless views fit inside the usable screen while preserving the requested resolution preference. Fullscreen ownership, safe fallback and latest-application behavior are retained.
+
+Validation: one Linux export using the guarded custom Godot 4.7.1 release template. Native Linux direct and archive-extracted --startup-check each exited 0 with exactly one STARTUP_MENU_READY_OK and zero script/resource/leak diagnostics, headless with Dummy audio. Safe five-member archive (one directory, four files), modes and template .text/.rodata identity verified. Private install/reinstall/uninstall in a path with spaces preserved seeded saved data. All 1,513 payload path/size/SHA values exactly match the sealed Windows checkpoint; only runtime_settings.gdc changed from fade8f1. Shared-content checks against that actual Windows PCK passed 15 headless and 28 graphical display assertions under the custom Linux editor, authenticated isolated X11/private Openbox/Forward+/Vulkan/software LVP. Separately scoped source checks passed 15 headless, 28 WM graphical and 21 rendered transaction assertions.
+
+Limits: graphical display-component checks do not qualify full-scene graphical startup or ordinary gameplay controls; earlier failures remain open. Current full matrix, native GPU, native Windows and human playtesting were not performed. CI remains disabled. Controller fixture WIP is excluded.

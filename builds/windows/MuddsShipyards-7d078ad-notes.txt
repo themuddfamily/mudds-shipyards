@@ -1,0 +1,8 @@
+Mudds Shipyards 7d078ad Windows checkpoint
+Source: 7d078ad00e5f5b797aed22de32fcc5bc0dc3d537
+
+Windowed display settings now resize through the attached game Window, keeping its rendering viewport synchronized with the fitted native window. Windowed and borderless views fit inside the usable screen while preserving the requested resolution preference. Fullscreen ownership, deferred-latest application and safe fallback behavior are retained.
+
+Validation: source-focused checks passed 15 headless, 28 isolated-window-manager graphical and 21 rendered display-transaction assertions. Actual embedded Windows PCK checked using the custom Linux editor: strict startup exited 0 with exactly one STARTUP_MENU_READY_OK; display component passed 15 headless and 28 graphical assertions with zero script/resource/leak diagnostics. Graphical component used authenticated isolated TCP X11, private Openbox/Clearlooks, Forward+/Vulkan/software LVP and Dummy audio. All 1,513 actual payloads match fade8f1 except runtime_settings.gdc; other 1,512 are byte-identical. Official Windows release-template .text matched read-only. Checkpoint ZIP has exactly the EXE and notes, with CRC and member hashes verified.
+
+Limits: component rendering does not qualify full-scene graphical startup or ordinary gameplay controls. Earlier ordinary-route/full-scene failures remain open; no current full matrix, native Windows, native GPU or human-playtest acceptance is claimed. CI remains disabled. Controller fixture WIP is excluded.
