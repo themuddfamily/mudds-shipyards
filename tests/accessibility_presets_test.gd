@@ -541,7 +541,7 @@ func _test_hud_scale_and_motion() -> void:
 	hud.set_ui_scale(1.4)
 	var scaled := hud.get_accessibility_report()
 	_check(is_equal_approx(hud.get_ui_scale(), 1.4), "UI scale accepts an in-range request")
-	_check(int(scaled["scaled_layer_count"]) == 2, "both the gameplay panels and the pause panels scale")
+	_check(int(scaled["scaled_layer_count"]) == 3, "gameplay, recovery and pause panels all scale")
 	_check(
 		is_equal_approx(float(scaled["scaled_layer_scale"]), hud.get_effective_ui_scale()),
 		"the scaled layer adopts exactly the effective factor"

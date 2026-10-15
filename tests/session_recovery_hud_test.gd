@@ -39,6 +39,7 @@ func _run() -> void:
 	}
 	var authentic_recovery := recovery.duplicate(true)
 	var authentic_recommendation := recommendation.duplicate(true)
+	hud.set_session_recovery_save_summary("Resume Last Save keeps your saved coastal observations.")
 	var presented := hud.present_session_recovery_notice(recovery, recommendation)
 	_check(
 		bool(presented.accepted)
@@ -51,6 +52,30 @@ func _run() -> void:
 	var panel := hud.get("_recovery_prompt_panel") as PanelContainer
 	var detail := hud.get("_recovery_prompt_detail") as Label
 	var actions := hud.get("_recovery_prompt_actions") as HBoxContainer
+	hud.show_intro()
+	_check(
+		(hud.get("_intro") as Control).is_visible_in_tree()
+		and not (hud.get("_hud") as Control).is_visible_in_tree()
+		and panel.is_visible_in_tree()
+		and (actions.get_child(2) as Button).is_visible_in_tree()
+		and not (actions.get_child(2) as Button).disabled
+		and (actions.get_child(3) as Button).is_visible_in_tree()
+		and detail.text.contains("Resume Last Save keeps your saved coastal observations."),
+		"show_intro exposes Start Fresh and support alongside the saved-progress summary while ordinary gameplay HUD stays hidden"
+	)
+	_check(
+		root.gui_get_focus_owner() == actions.get_child(0),
+		"show_intro keeps controller focus on the unresolved recovery choices"
+	)
+	hud.set_ui_scale(1.4)
+	var recovery_layer := hud.get("_recovery_prompt_layer") as Control
+	_check(
+		panel.get_parent() == recovery_layer
+		and recovery_layer.get_parent() == hud.get("_root")
+		and recovery_layer.scale == (hud.get("_hud_panels") as Control).scale
+		and is_equal_approx(recovery_layer.scale.x, hud.get_effective_ui_scale()),
+		"the visible title recovery card keeps the ordinary effective UI scale on its own layer"
+	)
 	_check(
 		panel.visible
 		and detail.text.contains("Session 41 did not close cleanly")
@@ -203,7 +228,8 @@ func _run() -> void:
 	_check(
 		not bool(hud.get_session_recovery_notice_snapshot().active)
 		and not panel.visible
-		and actions.get_child_count() == 0,
+		and actions.get_child_count() == 0
+		and root.gui_get_focus_owner() == hud.get("_intro_start_button"),
 		"explicit reset clears presentation, focus actions, token, generation, and detached state"
 	)
 	var continue_recovery := authentic_recovery.duplicate(true)
@@ -219,11 +245,15 @@ func _run() -> void:
 	var discard_recovery := authentic_recovery.duplicate(true)
 	discard_recovery["session_id"] = 43
 	discard_recovery["startup_generation"] = 9
+	var discard_presented := hud.present_session_recovery_notice(discard_recovery, authentic_recommendation)
+	hud.show_intro()
+	var title_discard := actions.get_child(2) as Button
+	title_discard.pressed.emit()
 	_check(
-		bool(hud.present_session_recovery_notice(discard_recovery, authentic_recommendation).accepted)
-		and hud._request_session_recovery_action(&"discard", 43, 9)
+		bool(discard_presented.accepted)
+		and title_discard.is_visible_in_tree() and title_discard.disabled
 		and _requests.back() == {"action": &"discard", "token": 43, "generation": 9},
-		"a fresh notice can emit the dedicated Discard request"
+		"the actual visible title Start Fresh button emits its dedicated fenced Discard request"
 	)
 	hud.reset_session_recovery_notice()
 	var fresh_recovery := authentic_recovery.duplicate(true)
@@ -240,6 +270,21 @@ func _run() -> void:
 		and actions.get_child_count() == 0,
 		"tree exit performs the same complete recovery cleanup"
 	)
+	root.add_child(hud)
+	await process_frame
+	var reentered := authentic_recovery.duplicate(true)
+	reentered["session_id"] = 44
+	reentered["startup_generation"] = 11
+	var reentered_notice := hud.present_session_recovery_notice(reentered, authentic_recommendation)
+	hud.show_intro()
+	_check(
+		bool(reentered_notice.accepted) and panel.is_visible_in_tree()
+		and not (hud.get("_hud") as Control).is_visible_in_tree()
+		and root.gui_get_focus_owner() == actions.get_child(0)
+		and (actions.get_child(2) as Button).is_visible_in_tree(),
+		"retained HUD reentry admits fresh title recovery controls without reviving the retired notice"
+	)
+	root.remove_child(hud)
 	hud.free()
 	_finish()
 

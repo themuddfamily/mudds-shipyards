@@ -698,6 +698,7 @@ var _safe_start_recovery_presenter := SafeStartRecoveryPresenterType.new()
 ## alive at the same time. Their presenter cursors must therefore be separate:
 ## changing one surface cannot replace the other surface's available actions.
 var _safe_start_status_presenter := SafeStartRecoveryPresenterType.new()
+var _recovery_prompt_layer: Control
 var _recovery_prompt_panel: PanelContainer
 var _recovery_prompt_title: Label
 var _recovery_prompt_detail: Label
@@ -4235,6 +4236,8 @@ func clear_session_recovery_notice(restore_runtime_cards: bool = true) -> void:
 		_recovery_prompt_panel.visible = false
 	if restore_runtime_cards and was_visible:
 		_refresh_runtime_status_cards()
+	if was_visible and is_instance_valid(_intro) and _intro.visible:
+		_focus_intro_start_button()
 
 
 func reset_session_recovery_notice() -> void:
@@ -4316,6 +4319,8 @@ func dismiss_recovery_prompt() -> void:
 	if is_instance_valid(_recovery_prompt_panel) and _recovery_prompt_panel.visible:
 		_recovery_prompt_panel.visible = false
 		_refresh_runtime_status_cards()
+		if is_instance_valid(_intro) and _intro.visible:
+			_focus_intro_start_button()
 
 
 func get_recovery_prompt_snapshot() -> Dictionary:
@@ -4323,6 +4328,14 @@ func get_recovery_prompt_snapshot() -> Dictionary:
 
 
 func _build_recovery_prompt_panel() -> void:
+	# Recovery is available before Begin Shift, while ordinary gameplay panels
+	# remain hidden. Keep its existing logical layout on an independent scaled
+	# sibling rather than inheriting the gameplay HUD's visibility.
+	_recovery_prompt_layer = Control.new()
+	_recovery_prompt_layer.name = "RecoveryScaledPanels"
+	_recovery_prompt_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_recovery_prompt_layer)
+	_scaled_layers.append(_recovery_prompt_layer)
 	_recovery_prompt_panel = PanelContainer.new()
 	_recovery_prompt_panel.name = "RecoveryChoicePrompt"
 	_recovery_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -4331,7 +4344,7 @@ func _build_recovery_prompt_panel() -> void:
 	_recovery_prompt_panel.position = Vector2(-300.0, -120.0)
 	_recovery_prompt_panel.size = Vector2(600.0, 240.0)
 	_recovery_prompt_panel.visible = false
-	_hud_panels.add_child(_recovery_prompt_panel)
+	_recovery_prompt_layer.add_child(_recovery_prompt_panel)
 	var margin := _margin(18, 16, 18, 16)
 	_recovery_prompt_panel.add_child(margin)
 	var stack := VBoxContainer.new()
@@ -7027,6 +7040,14 @@ func _add_intro_server_browser_button(stack: Control, start: Button) -> void:
 
 
 func _focus_intro_start_button() -> void:
+	# Showing the title again must not steal controller focus from an unresolved
+	# recovery choice. Begin Shift keeps its existing explicit Resume behavior.
+	if is_instance_valid(_recovery_prompt_panel) and _recovery_prompt_panel.is_visible_in_tree():
+		for child in _recovery_prompt_actions.get_children():
+			if child is Button and child.is_visible_in_tree() and not child.disabled:
+				(child as Button).grab_focus()
+				return
+		return
 	if is_instance_valid(_intro_start_button) and _intro_start_button.is_inside_tree() \
 			and _intro_start_button.is_visible_in_tree():
 		_intro_start_button.grab_focus()
