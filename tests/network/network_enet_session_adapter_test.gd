@@ -507,6 +507,7 @@ func _initialize() -> void:
 		(_server.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []).is_empty(),
 		"server shutdown leaves no admitted peer records"
 	)
+	await _test_late_join_migration_epoch()
 	for branch in _branches:
 		var branch_root := branch.get("root") as Node
 		var branch_path: NodePath = branch.get("path")
@@ -515,6 +516,70 @@ func _initialize() -> void:
 		set_multiplayer(null, branch_path)
 	print("NETWORK_ENET_SESSION_ADAPTER_TEST_OK (%d assertions)" % _assertions)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _test_late_join_migration_epoch() -> void:
+	var peers: Array[Adapter] = []
+	for label in ["LateEpochServer", "LateEpochClient"]:
+		var branch := SubViewport.new()
+		branch.name = label
+		root.add_child(branch)
+		set_multiplayer(SceneMultiplayer.new(), branch.get_path())
+		var adapter := Adapter.new()
+		adapter.name = "NetworkSession"
+		branch.add_child(adapter)
+		peers.append(adapter)
+		_branches.append({"root": branch, "path": branch.get_path()})
+	var host: Adapter = peers[0]
+	var client: Adapter = peers[1]
+	var hosted: Dictionary = host.host(_reserve_udp_port(), 1)
+	var rotated: Dictionary = host.rotate_session_migration()
+	_check(hosted.accepted and rotated.accepted, "late-join host rotates before any client connects")
+	var admitted_epochs: Array[Dictionary] = []
+	client.peer_admitted.connect(func(_peer_id: int, _receipt: Dictionary): admitted_epochs.append(client.get_migration_snapshot()))
+	var joined: Dictionary = client.join("127.0.0.1", host.get_local_port())
+	await _pump_until(func(): return not admitted_epochs.is_empty(), 3.0)
+	_check(joined.accepted and admitted_epochs.size() == 1 \
+		and int(admitted_epochs[0].session_generation) == 2 and int(admitted_epochs[0].migration_generation) == 2 \
+		and client.get_moving_interior_presentation_generation() == 2,
+		"fresh admission adopts the host's existing epoch before publishing peer_admitted")
+	if admitted_epochs.is_empty():
+		host.shutdown()
+		client.shutdown()
+		return
+	var offer: Dictionary = client.get_server_offer()
+	var epoch_before: Dictionary = client.get_migration_snapshot()
+	var cursors_before: Dictionary = client.get_presentation_cursor_audit()
+	var clock_before: Variant = client.get("_boarding_heard_physics_frame")
+	var peer_id := client.multiplayer.get_unique_id()
+	var malformed: Array[Dictionary] = [offer.duplicate(true), offer.duplicate(true), offer.duplicate(true), offer.duplicate(true)]
+	malformed[0]["migration"] = []
+	malformed[1].migration.epoch["session_generation"] = "2"
+	malformed[2].migration.epoch["package_generation"] = 999
+	malformed[3].transport["peer_id"] = peer_id + 1
+	for invalid in malformed:
+		host._send_server_offer.rpc_id(peer_id, invalid)
+		await create_timer(0.05).timeout
+		_check(client.get_server_offer() == offer and client.get_migration_snapshot() == epoch_before \
+			and client.get_presentation_cursor_audit() == cursors_before and client.get("_boarding_heard_physics_frame") == clock_before \
+			and admitted_epochs.size() == 1, "invalid authority offers preserve admitted identity, epoch, clock and presentation")
+	client.call("_send_server_offer", offer)
+	_check(admitted_epochs.size() == 1 and client.get_server_offer() == offer, "local offer caller cannot manufacture authenticated admission")
+	var notices: Array[Dictionary] = []
+	client.migration_result.connect(func(result: Dictionary): notices.append(result.duplicate(true)))
+	var next_rotation: Dictionary = host.rotate_session_migration()
+	await _pump_until(func(): return not notices.is_empty(), 3.0)
+	_check(next_rotation.accepted and notices.size() == 1 \
+		and int(client.get_migration_snapshot().session_generation) == 3 and int(client.get_migration_snapshot().migration_generation) == 3,
+		"late-admitted client accepts the next real authority rotation from two to three")
+	var epoch_after: Dictionary = client.get_migration_snapshot()
+	host._send_server_offer.rpc_id(peer_id, offer)
+	await create_timer(0.05).timeout
+	_check(client.get_migration_snapshot() == epoch_after and admitted_epochs.size() == 1 \
+		and (client.get_boarding_snapshot().occupancies as Array).is_empty() and not client.is_server(),
+		"delayed admission cannot roll back the epoch or grant a seat or server authority")
+	host.shutdown()
+	client.shutdown()
 
 
 var _assertions := 0

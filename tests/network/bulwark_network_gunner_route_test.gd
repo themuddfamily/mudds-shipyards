@@ -72,7 +72,10 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _orchestrate() -> void:
-	_directory = "/tmp/mudds-gunner-peers-%d" % OS.get_process_id()
+	var directory_base := OS.get_environment("TMPDIR")
+	if directory_base.is_empty():
+		directory_base = OS.get_user_data_dir()
+	_directory = directory_base.path_join("mudds-gunner-peers-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(_directory)
 	_port = 26000 + OS.get_process_id() % 15000
 	var host_args := _peer_arguments("host", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
@@ -526,7 +529,18 @@ func _client_pilot_host_gunner() -> void:
 	var join_result: Dictionary = _game.join_network_session("127.0.0.1", _port)
 	_check(join_result.accepted, "fresh ordinary client joins the retained host for pilot duty")
 	_print_fresh_pilot_state(&"after_join", join_result)
-	await _ticks(100)
+	# Stage at the hatch only after authenticated admission and its current craft
+	# presentation arrive; a fixed wait needlessly consumes the host's moving-seat budget.
+	var boarding_ready := false
+	for _index in 100:
+		if _fresh_pilot_boarding_ready():
+			boarding_ready = true
+			break
+		await _ticks(1)
+	_check(boarding_ready, "fresh pilot receives current authenticated admission and boardable craft pose")
+	if not boarding_ready:
+		_print_fresh_pilot_readiness_failure()
+		return
 	_player.teleport_to(Transform3D(_craft.global_basis.orthonormalized(), _craft.get_boarding_position() + _craft.global_basis.y.normalized() * 0.05))
 	await _ticks(10)
 	_print_fresh_pilot_state(&"before_hatch_press")
@@ -570,7 +584,70 @@ func _client_pilot_host_gunner() -> void:
 		and _game._network_client_boarding_request.is_empty() and _game._network_client_helm_input_sources.is_empty(), "pilot disconnect restores the exact usable solo pilot and clears network ownership")
 	_write("client.pilot_disconnected", {})
 
-## Read-only admission observations expose failures buffered until client.done.
+func _print_fresh_pilot_readiness_failure() -> void:
+	if not is_instance_valid(_game) or not is_instance_valid(_game.network_session) or not is_instance_valid(_craft) or not is_instance_valid(_player):
+		print("GUNNER_FRESH_PILOT_READINESS_FAILURE: required owner retired")
+		return
+	_print_fresh_pilot_state(&"boarding_readiness_failed")
+	var session := _game.network_session
+	var offer: Dictionary = session.get_server_offer()
+	var admission: Dictionary = offer.get("admission", {})
+	var transport: Dictionary = offer.get("transport", {})
+	var current: Dictionary = session.get_migration_snapshot()
+	var sample: Dictionary = _game._network_craft_pose_stream.latest_sample(_craft.get_ship_id())
+	var operation: Dictionary = _craft.get_network_operation_presentation_audit().get("state", {})
+	var pose: Dictionary = {}
+	for key in ["ship_id", "craft_epoch", "entity_generation", "pose_tick", "operation_tick", "pose_active", "destroyed"]:
+		pose[key] = sample.get(key)
+	print("GUNNER_FRESH_PILOT_READINESS_FAILURE: ", {
+		"session_active": session.is_session_active(), "local_peer": session.multiplayer.get_unique_id(),
+		"admission_accepted": admission.get("accepted"), "admitted_peer": admission.get("peer", {}),
+		"transport_peer": transport.get("peer_id"), "transport_generation": transport.get("peer_generation"),
+		"offered_epoch": (offer.get("migration", {}) as Dictionary).get("epoch", {}),
+		"current_epoch": [current.get("package_generation"), current.get("session_generation"), current.get("migration_generation")],
+		"sample_empty": sample.is_empty(), "sample": pose, "stream_clock": _game._network_craft_pose_stream.get_clock(),
+		"operation_empty": operation.is_empty(), "operation_engine": operation.get("engine"), "operation_grade": operation.get("grade"),
+		"boardable": _craft.is_boardable(), "phase": _game.phase, "transition_busy": _game.get("_transition_busy"),
+		"player_valid": is_instance_valid(_player), "player_controls": _player.is_control_enabled() if is_instance_valid(_player) else false,
+		"player_seated": _player.is_seated() if is_instance_valid(_player) else false,
+	})
+
+func _fresh_pilot_boarding_ready() -> bool:
+	var session := _game.network_session
+	if not session.is_session_active() or session.is_server():
+		return false
+	var link: MultiplayerPeer = session.multiplayer.multiplayer_peer
+	if link == null or link.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return false
+	var offer: Dictionary = session.get_server_offer()
+	var admission: Dictionary = offer.get("admission", {})
+	var peer: Dictionary = admission.get("peer", {})
+	var transport: Dictionary = offer.get("transport", {})
+	var epoch: Dictionary = (offer.get("migration", {}) as Dictionary).get("epoch", {})
+	var current: Dictionary = session.get_migration_snapshot()
+	if not bool(admission.get("accepted", false)) or int(peer.get("peer_id", 0)) != session.multiplayer.get_unique_id() \
+			or int(peer.get("peer_generation", 0)) <= 0 \
+			or int(transport.get("peer_id", 0)) != session.multiplayer.get_unique_id() \
+			or int(transport.get("peer_generation", 0)) != int(peer.get("peer_generation", 0)):
+		return false
+	for key in ["package_generation", "session_generation", "migration_generation"]:
+		if int(epoch.get(key, 0)) <= 0 or epoch.get(key) != current.get(key):
+			return false
+	var stream := _game._network_craft_pose_stream
+	var sample: Dictionary = stream.latest_sample(_craft.get_ship_id())
+	var clock := stream.get_clock()
+	var operation: Dictionary = _craft.get_network_operation_presentation_audit().get("state", {})
+	var grade: Array = operation.get("grade", [])
+	# Settled poses retain pose_tick; operation_tick still tracks current host facts.
+	return not sample.is_empty() and not bool(sample.get("destroyed", true)) \
+		and int(sample.get("craft_epoch", 0)) > 0 and int(sample.get("entity_generation", 0)) > 0 \
+		and not grade.is_empty() and int(grade[0]) == int(sample.get("entity_generation", 0)) \
+		and int(sample.get("operation_tick", -1)) >= 0 \
+		and clock >= 0.0 and maxf(0.0, clock - float(sample.operation_tick)) <= NetworkRemoteCraftPoseStream.STALE_SAMPLE_TICKS \
+		and operation.get("engine", &"") == HeroShip.ENGINE_OFFLINE and _craft.is_boardable() \
+		and _game.phase == GameFlow.Phase.APPROACH_SHIP and not bool(_game.get("_transition_busy")) \
+		and _player.is_control_enabled() and not _player.is_seated()
+
 # The local pilot predicts motion before the host necessarily has it. Keep
 # the original five-second budget, but publish readiness from an accepted new
 # host pose so the host's unchanged twelve-step displacement check starts moving.
@@ -589,6 +666,7 @@ func _host_confirmed_pilot_motion_after(pose_tick: int) -> bool:
 	var forward := (sample.rotation as Quaternion) * Vector3.FORWARD
 	return (sample.velocity_world as Vector3).dot(forward) > HeroShip.DEPARTURE_SPEED_THRESHOLD
 
+## Read-only admission observations expose failures buffered until client.done.
 func _print_fresh_pilot_state(stage: StringName, join_result: Dictionary = {}) -> void:
 	print("GUNNER_FRESH_PILOT_STATE: stage=", stage, " monotonic_ms=", Time.get_ticks_msec(), " physics_tick=", Engine.get_physics_frames(), " pending_failures=", _failures, " join_result=", join_result, " game_valid=", is_instance_valid(_game))
 	if not is_instance_valid(_game):

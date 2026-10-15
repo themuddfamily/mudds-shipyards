@@ -24,6 +24,7 @@ const SeatAuthority := preload("res://scripts/network/network_seat_authority.gd"
 const CrewRoleAuthority := preload("res://scripts/network/network_crew_role_authority.gd")
 const CrewCommandAuthority := preload("res://scripts/network/network_crew_command_authority.gd")
 const SessionMigration := preload("res://scripts/network/network_session_migration.gd")
+const SessionHandshake := preload("res://scripts/network/network_session_handshake.gd")
 const PredictionGuard := preload("res://scripts/network/network_prediction_correction_guard.gd")
 const ServerBrowser := preload("res://scripts/network/network_server_browser.gd")
 const EndpointValidator := preload("res://scripts/network/network_endpoint_validator.gd")
@@ -2988,18 +2989,22 @@ func _broadcast_session_migration(packet: Dictionary) -> void:
 			or int(packet.session_generation) != int(prior.session_generation) + 1 \
 			or int(packet.migration_generation) != int(prior.migration_generation) + 1:
 		return
-	_migration = SessionMigration.new(AUTHORITY_PEER_ID, int(packet.protocol_version),
-		int(packet.package_generation), int(packet.session_generation), int(packet.migration_generation))
-	_reset_moving_interior_jitter(int(packet.migration_generation))
-	_engineer_replica_snapshot.clear()
-	_gunner_replica_snapshot.clear()
-	_passenger_replica_snapshot.clear()
-	_passenger_snapshot_revision = 0
+	_adopt_client_migration_epoch(int(packet.protocol_version), packet)
 	migration_result.emit(_result(true, &"server_rotation_presented", {
 		"migration_generation": int(packet.migration_generation), "presentation_only": true,
 	}))
 	if bool(packet.rebind_available):
 		_send_peer_hello()
+
+
+func _adopt_client_migration_epoch(protocol_version: int, epoch: Dictionary) -> void:
+	_migration = SessionMigration.new(AUTHORITY_PEER_ID, protocol_version,
+		int(epoch.package_generation), int(epoch.session_generation), int(epoch.migration_generation))
+	_reset_moving_interior_jitter(int(epoch.migration_generation))
+	_engineer_replica_snapshot.clear()
+	_gunner_replica_snapshot.clear()
+	_passenger_replica_snapshot.clear()
+	_passenger_snapshot_revision = 0
 
 
 func accept_migration_packet(source_peer_id: int, packet: Dictionary) -> Dictionary:
@@ -4958,19 +4963,53 @@ func _send_admission_refused(status: String) -> void:
 func _send_server_offer(offer: Dictionary) -> void:
 	if is_server() or not _configured or multiplayer.get_remote_sender_id() != AUTHORITY_PEER_ID:
 		return
-	var identity: Dictionary = (offer.get("admission", {}) as Dictionary).get("peer", {})
-	if int(identity.get("peer_id", 0)) != multiplayer.get_unique_id() \
-			or int(identity.get("peer_generation", 0)) != _next_peer_generation - 1:
+	for field in ["admission", "migration", "transport"]:
+		if not offer.get(field) is Dictionary:
+			return
+	var admission: Dictionary = offer.admission
+	var migration: Dictionary = offer.migration
+	var transport: Dictionary = offer.transport
+	if admission.get("accepted") != true or migration.get("accepted") != true \
+			or not admission.get("peer") is Dictionary or not migration.get("epoch") is Dictionary:
+		return
+	var identity: Dictionary = admission.peer
+	var epoch: Dictionary = migration.epoch
+	for field in ["schema_version", "protocol_version", "package_generation", "peer_id", "peer_generation"]:
+		if not identity.get(field) is int or int(identity[field]) <= 0 or int(identity[field]) > SessionMigration.MAX_SAFE_INTEGER:
+			return
+	if identity.schema_version != SessionHandshake.SCHEMA_VERSION \
+			or identity.get("protocol_id") != SessionHandshake.PROTOCOL_ID \
+			or identity.protocol_version != _handshake_protocol_version \
+			or identity.package_generation != _handshake_package_generation \
+			or identity.peer_id != multiplayer.get_unique_id() or identity.peer_generation != _next_peer_generation - 1:
+		return
+	for field in ["peer_id", "peer_generation"]:
+		if not transport.get(field) is int or transport[field] != identity[field] \
+				or not migration.get(field) is int or migration[field] != identity[field]:
+			return
+	if epoch.size() != 3:
+		return
+	for field in ["package_generation", "session_generation", "migration_generation"]:
+		if not epoch.get(field) is int or int(epoch[field]) <= 0 or int(epoch[field]) > SessionMigration.MAX_SAFE_INTEGER:
+			return
+	var current_epoch: Dictionary = _migration.get_snapshot()
+	if epoch.package_generation != _handshake_package_generation \
+			or int(epoch.session_generation) < int(current_epoch.session_generation) \
+			or int(epoch.migration_generation) < int(current_epoch.migration_generation) \
+			or int(epoch.session_generation) - int(current_epoch.session_generation) != int(epoch.migration_generation) - int(current_epoch.migration_generation):
 		return
 	var current_identity: Dictionary = (_server_offer.get("admission", {}) as Dictionary).get("peer", {})
 	if int(current_identity.get("peer_generation", 0)) >= int(identity.peer_generation):
 		return
+	# A new peer can join after several host rotations without receiving their
+	# earlier notices. Adopt that authenticated epoch before publishing admission.
+	if epoch.session_generation != current_epoch.session_generation or epoch.migration_generation != current_epoch.migration_generation:
+		_adopt_client_migration_epoch(int(identity.protocol_version), epoch)
 	_server_offer = offer.duplicate(true)
 	if offer.get("boarding_server_tick") is int and int(offer.get("boarding_server_tick")) >= 0:
 		_note_boarding_server_tick_heard(int(offer.get("boarding_server_tick")))
-	var peer: Dictionary = offer.get("transport", {}) as Dictionary
 	_transport.register_peer(
-		AUTHORITY_PEER_ID, int(peer.get("peer_id", 0)), int((offer.get("admission", {}) as Dictionary).get("peer", {}).get("peer_generation", 0))
+		AUTHORITY_PEER_ID, int(transport.peer_id), int(identity.peer_generation)
 	)
 	peer_admitted.emit(
 		int((offer.get("admission", {}) as Dictionary).get("peer", {}).get("peer_id", 0)),
