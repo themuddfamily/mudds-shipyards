@@ -14,7 +14,7 @@ Completed foundations include the core walk/board/fly/fight/land/recover loop, s
 
 Native Windows execution remains on hold while the Avast alert is unresolved. Do not bypass antivirus protection. Appropriate local Linux checks and read-only Windows package inspection may continue; they do not establish native Windows, GPU, controller, audible or human acceptance.
 
-Latest published checkpoint: `614a0c54c`. See its [Windows notes](builds/windows/MuddsShipyards-614a0c5-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-614a0c5-linux-notes.txt) for actual validation and limitations.
+Latest published checkpoint: `48504dbe0`. See its [Windows notes](builds/windows/MuddsShipyards-48504db-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-48504db-linux-notes.txt) for actual validation and limitations.
 
 ## Remaining tasks to complete the project
 
