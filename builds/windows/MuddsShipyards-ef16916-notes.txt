@@ -1,0 +1,17 @@
+Mudd's Shipyards Windows checkpoint — ef16916
+Source: ef1691675f68dcb502af0c9f8edefc216ffdcb01
+
+The fleet dock removes 46 unused renderer instances. Its mesh-instance count falls from 83 to 37; its visible geometry still uses the same 12 batches. Frame-rate and startup improvements have not been measured.
+
+Validation performed
+- Existing fleet-dock unit and integrated-world suites: 195 assertions passed, exit 0, zero diagnostics.
+- Clean-source Windows export under Linux: exit 0 in 4.792 seconds.
+- Actual embedded Windows package loaded by the pinned custom Linux Godot editor: headless startup with Dummy audio, exit 0 in 10.692 seconds and exactly one STARTUP_MENU_READY_OK marker; zero diagnostics. This checks the Windows package contents under Linux, not native Windows execution.
+- 1,513 package entries inspected; test and evidence files excluded. ZIP CRC and executable/notes readback passed.
+- Source/index and protected engines, templates and prior artifacts passed their guards. Export normally changed two cache files; subsequent package checks preserved the post-export cache. All captured test processes closed.
+
+Remaining acceptance
+Native Windows execution remains on hold. Native GPU, controller, audio and human review are NOT_RUN. The official Windows runtime template does not contain the custom Linux reflection-atlas cleanup patch. The separate a753ab0 Linux rendered-startup timeout at 300 seconds remains unresolved. Canonical shared journeys and full release gates remain open. GitHub Actions remains disabled.
+
+EXE SHA256: 3336ce8a1791872a39399aabda968b61e7004ac9035cc27d4f8aa487840d29ea
+Validation: /root/.cache/mudds-shipyards/roadmap-validation/shared-visit-restoration/windows-ef1691675
