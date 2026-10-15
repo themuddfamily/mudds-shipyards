@@ -61,6 +61,34 @@ func _run() -> void:
 		"the real dwell interruption becomes an actionable recovery cue",
 	)
 
+	# Terminal patrols already support Start directly; the visible board row
+	# must name that action without requiring an unnecessary Reset first.
+	for terminal_id: StringName in [&"failed", &"aborted"]:
+		var terminal := binding.fail_patrol(&"route_obstructed") if terminal_id == &"failed" \
+			else binding.abort_patrol(&"player_requested")
+		var terminal_snapshot := binding.get_snapshot()
+		var terminal_generation := int((terminal_snapshot.patrol as Dictionary).generation)
+		view = hud.set_nearby_activity_snapshot(terminal_snapshot)
+		var terminal_card := _patrol_card(view)
+		_check(bool(terminal.get("accepted", false))
+			and terminal_card.state_id == terminal_id
+			and (terminal_card.patrol_feedback as Dictionary).stage_id == terminal_id
+			and _patrol_text(_patrol_row(hud)).count("START TO RETRY") == 1
+			and str(terminal_card.objective_text) == "CHOOSE START TO RETRY THE PATROL"
+			and _patrol_row(hud).get_instance_id() == retained_id
+			and binding.get_snapshot() == terminal_snapshot,
+			"failed and aborted patrol rows name the supported direct Start retry without mutating authority")
+		var restarted := binding.start_patrol(patrol_actor)
+		view = hud.set_nearby_activity_snapshot(binding.get_snapshot())
+		var restarted_card := _patrol_card(view)
+		_check(bool(restarted.get("accepted", false))
+			and int(restarted.get("generation", 0)) > terminal_generation
+			and restarted_card.state_id == &"active"
+			and int((restarted_card.patrol_feedback as Dictionary).next_checkpoint_index) == 0
+			and not "START TO RETRY" in _patrol_text(_patrol_row(hud))
+			and _reward_requests.is_empty(),
+			"the advertised direct retry starts a fresh patrol and clears terminal guidance without requesting a reward")
+
 	var final := binding.advance_patrol(
 		NearbySectorActivityBinding.CINDER_PATROL_DWELL_SECONDS, patrol_actor, first_point
 	)

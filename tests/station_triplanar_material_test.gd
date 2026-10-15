@@ -748,15 +748,15 @@ func _test_live_station_coverage(
 	# fc4828756 (chair arm pads, coordinator headrests) fold 14 mapped 0.28 m
 	# surfaces into dressing batches, 643 -> 629; restoring those names to
 	# PROTECTED_DRESSING_NAMES restores exactly 1972 / 643.
-	# Habitat's 378 pressure/privacy arch segments retain their exact mapped
-	# stock/materials in 60 room-local batches: ordinary 1958 -> 1580, 0.28 m
-	# surfaces 629 -> 251. The 0.22/0.30 m scales and all drawn copies stay fixed.
+	# ef1691675 removes 27 hidden Fleet Dock bindings at 0.30; batches retain materials.
+	# 7f7b35625 merges chair structural bindings, removing eight ordinary bindings at 0.28.
+	# Pylon adds one at 0.30; ordinary mapped material bindings include shadow-only meshes.
 	_check(
-		mapped_surface_count == 1580
+		mapped_surface_count == 1546
 		and scale_022_count == 45
-		and scale_028_count == 251
-		and scale_030_count == 1284,
-		"live static station binds exactly 1580 ordinary mapped surfaces with all seven couriers dispatched"
+		and scale_028_count == 243
+		and scale_030_count == 1258,
+		"live static station has exactly 1546 ordinary mapped material bindings with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")

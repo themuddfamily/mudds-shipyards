@@ -187,8 +187,9 @@ static var _shared_visual_mesh_catalog: Dictionary = {}
 ## family independently. It keeps the three meshes, materials and tight family
 ## bounds while moving 9 visual leaves to 3 batches: nodes 44 -> 38,
 ## MeshInstances 33 -> 24, submissions 33 -> 27 and visible copies stay 33.
-## Fixed shells add one shadow-only renderer to FULL, GANTRY and each cargo
-## profile. Original colour copies, materials and declared solids stay unchanged.
+## Fixed shells add one shadow-only renderer to FULL, GANTRY, SIGNAGE_PYLON
+## and each cargo profile. Original colour copies, materials and declared solids
+## stay unchanged.
 const PROFILE_PERFORMANCE_BUDGETS := {
 	ActivityProfile.FULL: {
 		"node_count": 83,
@@ -256,15 +257,16 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.SIGNAGE_PYLON: {
-		"node_count": 45,
-		"mesh_instances": 33,
+		# Includes one fixed-shell shadow mesh; all colour renderers remain.
+		"node_count": 46,
+		"mesh_instances": 34,
 		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
-		"geometry_submissions": 33,
+		"geometry_submissions": 34,
 		"drawn_copies": 33,
 		"animated_assemblies": 1,
 	},
@@ -362,17 +364,19 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## surface overrides each out of five new shared recipes. Nodes, MeshInstances,
 ## batches, batched copies, submissions and the 461 drawn copies are unchanged,
 ## because a tote is the same one renderer at the same authored size.
+## The pylon's fixed-shell shadow batch adds one node, MeshInstance and
+## geometry submission to the exact roster. Visible copies remain 461.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 500,
-	"mesh_instances": 359,
+	"node_count": 501,
+	"mesh_instances": 360,
 	"unique_materials": 22,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
 	"multimesh_batches": 24,
 	"multimesh_instances": 107,
-	"geometry_submissions": 383,
+	"geometry_submissions": 384,
 	"drawn_copies": 461,
 	"animated_assemblies": 21,
 }

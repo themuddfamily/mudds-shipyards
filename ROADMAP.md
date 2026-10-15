@@ -16,7 +16,9 @@ Native Windows execution remains on hold while the Avast alert is unresolved. Do
 
 Latest published paired checkpoint: `fe0a15812`. See its [Windows notes](builds/windows/MuddsShipyards-fe0a158-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-fe0a158-linux-notes.txt) for validation and limitations.
 
-This checkpoint fixes on-foot camera switching over tutorial focus and preserves active Help focus. Linux uses native mesh-revision caching; Windows retains the exact existing mesh-integrity fallback. Both packages have matching 1,513-entry payloads. Scoped package checks pass 569 assertions on Windows content and 347 on Linux content; native Linux direct/archive startup and private install/reinstall/uninstall pass. Full current-source regression, complete ordinary-controls journeys and applicable hardware acceptance remain open. Earlier failures and timeouts remain retained.
+The complete ordinary-input guided sortie now passes 47 source checks and three consecutive fresh-process runs against the published Linux PCK through the pinned Linux editor. Experimental WSL rendering does not qualify native hardware or the complete Gate C journeys.
+
+Current source improves station shadow batching, patrol retry prompts, compact minimap labels, display-confirmation focus and paused caption previews. Twelve focused suites pass. Rendered retained-Main re-entry still reports reflection-probe errors, tracked as RENDER-002 in [bugs.md](bugs.md). Full current-source regression, complete Sandbox/settings journeys and applicable hardware acceptance remain open.
 
 ## Remaining tasks to complete the project
 

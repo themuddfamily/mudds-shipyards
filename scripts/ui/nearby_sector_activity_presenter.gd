@@ -585,7 +585,8 @@ func _patrol_feedback(state: Dictionary) -> Dictionary:
 					"PATROL FAILED" if state_id == &"failed" else "PATROL INTERRUPTED",
 					("  //  " + reason_text) if not reason_text.is_empty() else "",
 				]
-				objective = "RESET THE PATROL TO TRY AGAIN"
+				summary += "  //  START TO RETRY"
+				objective = "CHOOSE START TO RETRY THE PATROL"
 	return {
 		"stage_id": stage_id,
 		"phase_id": phase_id,

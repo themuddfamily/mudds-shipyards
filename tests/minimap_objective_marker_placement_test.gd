@@ -44,6 +44,16 @@ func _run() -> void:
 	]
 	for marker_case: Dictionary in cases:
 		await _check_case(map, marker_case)
+	# Every shipped objective must retain its complete name and distance on
+	# the compact map used when the scaled objective card consumes its gutter.
+	map.size = Vector2(180.0, 180.0)
+	for legend: Dictionary in map.get_objective_marker_legend():
+		for direction: Vector3 in [Vector3.RIGHT, Vector3.BACK]:
+			await _check_case(map, {
+				"name": "compact %s %s" % [legend.id, direction],
+				"position": direction * 100000.0,
+				"id": legend.id, "glyph": legend.glyph, "label": legend.label,
+			})
 	map.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -64,13 +74,13 @@ func _check_case(map: ObjectiveTextWitness, marker_case: Dictionary) -> void:
 		"player_position": Vector3.ZERO,
 		"heading_radians": 0.0,
 		"objective_markers": [
-			{"id": &"active_route_checkpoint", "position": world, "generation": 1},
+			{"id": marker_case.get("id", &"active_route_checkpoint"), "position": world, "generation": 1},
 		],
 	}), "%s: the marker snapshot is accepted" % marker_case["name"])
 	map.queue_redraw()
 	await process_frame
-	var center := MAP_SIZE * 0.5
-	var radius := minf(MAP_SIZE.x, MAP_SIZE.y) * 0.5 - 8.0
+	var center := map.size * 0.5
+	var radius := minf(map.size.x, map.size.y) * 0.5 - 8.0
 	# North (-Z) is up and east (+X) is right. A target beyond range is clamped
 	# inside the rim so the frame ring cannot cover it.
 	var projected := Vector2(world.x, world.z) * (radius / RANGE_METERS)
@@ -78,8 +88,8 @@ func _check_case(map: ObjectiveTextWitness, marker_case: Dictionary) -> void:
 	if projected.length() > rim:
 		projected = projected.normalized() * rim
 	var expected := center + projected
-	var glyph := "◎"
-	var bounds := Rect2(Vector2.ZERO, MAP_SIZE)
+	var glyph := str(marker_case.get("glyph", "◎"))
+	var bounds := Rect2(Vector2.ZERO, map.size).grow(-Minimap.OBJECTIVE_TEXT_INSET)
 	var glyph_center := Vector2.INF
 	var all_inside := not map.calls.is_empty()
 	var outside: PackedStringArray = []
@@ -106,6 +116,14 @@ func _check_case(map: ObjectiveTextWitness, marker_case: Dictionary) -> void:
 		"%s: the marker glyph is centred on the projected position %s (drawn at %s)"
 		% [marker_case["name"], expected, glyph_center]
 	)
+	if marker_case.has("label"):
+		var has_name := false
+		var has_distance := false
+		for call: Dictionary in map.calls:
+			has_name = has_name or str(call.text).begins_with(str(marker_case.label))
+			has_distance = has_distance or str(call.text) == "100000M"
+		_check(has_name and has_distance,
+			"%s: complete objective name and full distance are drawn" % marker_case["name"])
 	_check(
 		all_inside,
 		"%s: glyph, label and distance stay inside the minimap %s"

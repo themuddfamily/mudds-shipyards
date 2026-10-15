@@ -325,9 +325,29 @@ func _draw() -> void:
 		var label_width := prefix_advance + font.get_string_size(
 			distance_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, OBJECTIVE_FONT_SIZE
 		).x
+		# Compact HUD layouts can reduce the map to 180 px. Keep the full
+		# objective name and distance readable when their combined line is wider
+		# than the frame; changing only its starting X still clipped its end.
+		var split_readout := label_width > size.x - OBJECTIVE_TEXT_INSET * 2.0
+		var readout_height := line_height * (2.0 if split_readout else 1.0)
 		var label_top := point.y + line_height * 0.5
-		if label_top + line_height > size.y - OBJECTIVE_TEXT_INSET:
-			label_top = point.y - line_height * 1.5
+		if label_top + readout_height > size.y - OBJECTIVE_TEXT_INSET:
+			label_top = point.y - line_height * 0.5 - readout_height
+		if split_readout:
+			var name_width := font.get_string_size(
+				label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, OBJECTIVE_FONT_SIZE
+			).x
+			var distance_width := font.get_string_size(
+				distance_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, OBJECTIVE_FONT_SIZE
+			).x
+			for line_index in 2:
+				var line_width := name_width if line_index == 0 else distance_width
+				var line_text := label if line_index == 0 else distance_text
+				var line_x := clampf(point.x - line_width * 0.5, OBJECTIVE_TEXT_INSET,
+					maxf(size.x - OBJECTIVE_TEXT_INSET - line_width, OBJECTIVE_TEXT_INSET))
+				_draw_objective_text(font,
+					Vector2(line_x, label_top + ascent + line_height * line_index), line_text, marker_color)
+			continue
 		var text_position := Vector2(
 			clampf(
 				point.x - label_width * 0.5,

@@ -745,6 +745,18 @@ func _build_wayfinding_pylon() -> void:
 	for index in 3:
 		_box(pylon, "NoticeSheet", Vector3(-0.32 + float(index) * 0.32, 1.5, -0.325), Vector3(0.26, 0.5, 0.03), _materials["ceramic"])
 
+	# Keep every named colour renderer and its exact material/placement. Only
+	# these fifteen immutable boxes share one shadow submission; the chased
+	# chevrons, labels, rotating drum and safety beacons keep their own settings.
+	var shadow_sources: Array[MeshInstance3D] = []
+	for source_name in [
+		"BasePlinth", "BaseHazardBand", "Mast", "MastEdge", "MastEdge2",
+		"SignBoard", "SignFace", "SignRule", "ChevronRail", "BayPlaque",
+		"BayGlyph", "NoticeBoard", "NoticeSheet", "NoticeSheet2", "NoticeSheet3",
+	]:
+		shadow_sources.append(pylon.get_node(NodePath(source_name)) as MeshInstance3D)
+	StaticShadowBatch.build(pylon, shadow_sources)
+
 	var drum := _add_station_life_mover(pylon, "AnimatedIdentifierDrum")
 	_cylinder(drum, "DrumBody", Vector3.ZERO, 0.42, 0.5, _materials["ceramic"])
 	_cylinder(drum, "DrumBand", Vector3(0.0, -0.16, 0.0), 0.44, 0.12, _materials["frame_edge"])

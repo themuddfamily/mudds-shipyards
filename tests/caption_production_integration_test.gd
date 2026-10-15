@@ -243,6 +243,7 @@ func _run() -> void:
 		int(game.get_caption_integration_report().caption_accepted_count) == accepted_before + 1,
 		"production audio continues to enqueue through the restored binding"
 	)
+	await _test_paused_settings_preview(game, hud)
 	hud.setting_change_requested.emit(&"captions_enabled", false)
 	await process_frame
 	var hidden := hud.get_caption_presentation_report()
@@ -251,6 +252,15 @@ func _run() -> void:
 		and not bool(hidden.visible)
 		and bool(hidden.input_transparent),
 		"disabling captions hides the presenter without exposing or duplicating service state"
+	)
+	var preview_timer := hud.get("_caption_preview_timer") as Timer
+	hud.call(&"_expire_caption_preview")
+	_check(
+		preview_timer.is_stopped()
+		and int(hud.get("_caption_preview_active_revision")) == 0
+		and not bool(hud.get_caption_presentation_report().visible)
+		and not hud.preview_caption(),
+		"disabling captions cancels the sample timer and prevents stale timeout restoration or another preview"
 	)
 	var authority := game.get_caption_integration_report()
 	_check(
@@ -301,6 +311,80 @@ func _run() -> void:
 	)
 
 	await _finish_fixture(game)
+
+
+func _test_paused_settings_preview(game: GameFlow, hud: GameHUD) -> void:
+	hud.set_paused(true)
+	hud.call(&"_show_settings_page")
+	var underlying := game.get_caption_presentation_snapshot()
+	var service_before := game.get_caption_integration_report()
+	_check(
+		paused and (hud.get("_settings_page") as Control).is_visible_in_tree()
+		and hud.preview_caption(),
+		"actual paused Settings displays a temporary caption sample"
+	)
+	var first_revision := int(hud.get_caption_presentation_snapshot().revision)
+	await create_timer(1.0, true, false, true).timeout
+	_check(hud.preview_caption(), "repeated settings preview restarts its UI sample lifetime")
+	await create_timer(3.1, true, false, true).timeout
+	_check(
+		bool(hud.get_caption_presentation_report().visible)
+		and int(hud.get_caption_presentation_snapshot().revision) > first_revision
+		and hud.get_caption_presentation_snapshot().caption.stable_id == &"settings.caption-preview",
+		"a repeated sample remains visible past the original four-second deadline while gameplay is paused"
+	)
+	await create_timer(1.1, true, false, true).timeout
+	var service_after := game.get_caption_integration_report()
+	_check(
+		hud.get_caption_presentation_snapshot() == underlying
+		and game.get_caption_presentation_snapshot() == underlying
+		and int(service_after.service_revision) == int(service_before.service_revision)
+		and int(service_after.caption_request_count) == int(service_before.caption_request_count),
+		"UI timer restores the original service cue after four seconds without advancing paused gameplay or submitting audio-caption events"
+	)
+	_check(hud.preview_caption(), "a new sample can be shown after expiry")
+	var service := game.get("_caption_presentation_service") as CaptionPresentationService
+	service.advance_physics(0.01)
+	var newer := game.get_caption_presentation_snapshot()
+	var preview_timer := hud.get("_caption_preview_timer") as Timer
+	hud.call(&"_expire_caption_preview")
+	_check(
+		preview_timer.is_stopped()
+		and hud.get_caption_presentation_snapshot() == newer
+		and bool(hud.get_caption_presentation_report().visible)
+		and int(newer.revision) > int(underlying.revision),
+		"newer genuine service snapshot cancels the sample and stale timeout cannot restore the old cue"
+	)
+	_check(hud.preview_caption(), "preview is available before testing retained HUD detach")
+	var parent := hud.get_parent()
+	parent.remove_child(hud)
+	_check(
+		preview_timer.is_stopped()
+		and int(hud.get("_caption_preview_active_revision")) == 0,
+		"HUD detach cancels the sample timer and saved restoration state"
+	)
+	parent.add_child(hud)
+	await process_frame
+	_check(hud.preview_caption(), "retained HUD can preview again before any fresh service snapshot arrives")
+	hud.call(&"_expire_caption_preview")
+	_check(
+		not bool(hud.get_caption_presentation_report().visible)
+		and (hud.get_caption_presentation_snapshot().caption as Dictionary).is_empty(),
+		"re-entry sample expiry cannot restore the cancelled retained sample indefinitely"
+	)
+	_check(hud.preview_caption(), "local caption gate has a sample to cancel")
+	hud.set_captions_enabled(false)
+	hud.set_captions_enabled(true)
+	_check(hud.preview_caption(), "local disable and re-enable permits a fresh sample without a service refresh")
+	hud.call(&"_expire_caption_preview")
+	_check(
+		not bool(hud.get_caption_presentation_report().visible)
+		and (hud.get_caption_presentation_snapshot().caption as Dictionary).is_empty(),
+		"local disable and re-enable cannot retain an expired sample as the underlying caption"
+	)
+	hud.apply_caption_presentation_snapshot(game.get_caption_presentation_snapshot())
+	_check(hud.preview_caption(), "preview is available before the existing authoritative caption-disable transaction")
+	hud.set_paused(false)
 
 
 func _settle() -> void:

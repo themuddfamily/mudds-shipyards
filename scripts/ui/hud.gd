@@ -666,6 +666,9 @@ var _bomber_payload_help_snapshot: Dictionary = {}
 var _bomber_payload_help_button: Button
 var _captions_enabled := false
 var _caption_preview_revision := 0
+var _caption_preview_active_revision := 0
+var _caption_preview_restore_snapshot: Dictionary = {}
+var _caption_preview_timer: Timer
 ## Containers whose contents scale with the UI-scale preference. The reticle,
 ## flight-path cue, and damage flash are deliberately excluded: they are
 ## registered against camera-space pixels and must stay 1:1 with the viewport.
@@ -807,6 +810,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	_cancel_caption_preview()
 	if is_queued_for_deletion():
 		# A queued glyph/profile refresh must not repopulate presentation state
 		# while the HUD is being destroyed. Retained subtree exits deliberately
@@ -2978,12 +2982,27 @@ func present_display_settings_result(message: String) -> void:
 
 
 func clear_display_settings_confirmation(result_message: String = "") -> void:
+	var viewport := get_viewport() if is_inside_tree() else null
+	var focused := viewport.gui_get_focus_owner() if viewport != null else null
+	var restore_settings_focus := (
+		is_instance_valid(_display_confirmation_panel)
+		and is_instance_valid(_settings_page)
+		and _settings_page.is_visible_in_tree()
+		and focused != null
+		and _display_confirmation_panel.is_ancestor_of(focused)
+	)
 	if _display_confirmation_panel != null:
 		if not result_message.strip_edges().is_empty():
 			present_display_settings_result(result_message)
 		else:
 			_display_confirmation_panel.visible = false
 	_display_confirmation_generation = -1
+	# Keep/Revert and timeout retire their focused controls. Preserve controller
+	# navigation on a usable settings action without stealing another row's focus.
+	if restore_settings_focus and not is_queued_for_deletion():
+		var save := _settings_page.find_child("SettingsSaveButton", true, false) as Button
+		if save != null and save.is_visible_in_tree() and not save.disabled:
+			save.grab_focus()
 
 
 ## Caller-owned persistence result. The HUD never writes settings; it only
@@ -3720,6 +3739,8 @@ func get_toast_fade_seconds() -> float:
 
 func set_captions_enabled(enabled: bool) -> void:
 	_captions_enabled = enabled
+	if not enabled:
+		_cancel_caption_preview()
 	# Production immediately follows with a service snapshot commit. This local
 	# gate also preserves the public HUD setter's fail-closed behavior for an
 	# isolated or currently detached HUD, without fabricating service state.
@@ -4440,7 +4461,12 @@ func unbind_caption_event_submitter(submitter: Callable) -> bool:
 func apply_caption_presentation_snapshot(snapshot: Dictionary) -> bool:
 	if not is_instance_valid(_caption_presenter):
 		return false
-	return _caption_presenter.apply_presentation_snapshot(snapshot)
+	var accepted := _caption_presenter.apply_presentation_snapshot(snapshot)
+	if accepted:
+		# A genuine service commit supersedes the temporary settings sample.
+		# Rejecting a malformed input must leave the current sample untouched.
+		_cancel_caption_preview()
+	return accepted
 
 
 func get_caption_presentation_snapshot() -> Dictionary:
@@ -8756,8 +8782,16 @@ func preview_caption() -> bool:
 	if not _captions_enabled or not is_instance_valid(_caption_presenter):
 		set_settings_status("ENABLE AUDIO CUE CAPTIONS TO PREVIEW", false)
 		return false
+	if not is_inside_tree() or is_queued_for_deletion():
+		return false
+	var underlying := get_caption_presentation_snapshot()
+	var underlying_caption := underlying.get("caption", {}) as Dictionary
+	if StringName(underlying_caption.get("stable_id", &"")) == &"settings.caption-preview":
+		# Disable or detach can cancel a sample before a service refresh arrives.
+		# A retained sample is never a valid underlying gameplay caption.
+		underlying = {}
 	_caption_preview_revision += 1
-	var accepted := apply_caption_presentation_snapshot({
+	var accepted := _caption_presenter.apply_presentation_snapshot({
 		"schema_version": 1,
 		"service_id": &"caption-presentation-service",
 		"generation": 0,
@@ -8779,8 +8813,54 @@ func preview_caption() -> bool:
 		},
 	})
 	if accepted:
+		# A repeated sample keeps the original underlying cue, rather than
+		# restoring an earlier preview when its renewed UI deadline expires.
+		if _caption_preview_active_revision == 0:
+			_caption_preview_restore_snapshot = underlying.duplicate(true)
+		_caption_preview_active_revision = _caption_preview_revision
+		if not is_instance_valid(_caption_preview_timer):
+			_caption_preview_timer = Timer.new()
+			_caption_preview_timer.name = "CaptionPreviewTimer"
+			_caption_preview_timer.one_shot = true
+			_caption_preview_timer.process_mode = Node.PROCESS_MODE_ALWAYS
+			_caption_preview_timer.ignore_time_scale = true
+			_caption_preview_timer.timeout.connect(_expire_caption_preview)
+			add_child(_caption_preview_timer)
+		_caption_preview_timer.start(4.0)
 		set_settings_status("CAPTION PREVIEW // TEXT ONLY")
 	return accepted
+
+
+## The settings sample has a UI lifetime independent of paused gameplay.
+## Ordinary caption timing and all audio remain owned by GameFlow's service.
+func _expire_caption_preview() -> void:
+	if _caption_preview_active_revision == 0:
+		return
+	var current := get_caption_presentation_snapshot()
+	var caption := current.get("caption", {}) as Dictionary
+	var owns_current := (
+		int(current.get("revision", -1)) == _caption_preview_active_revision
+		and StringName(caption.get("stable_id", &"")) == &"settings.caption-preview"
+	)
+	var restore := _caption_preview_restore_snapshot.duplicate(true)
+	_cancel_caption_preview()
+	if not owns_current or not is_inside_tree() or is_queued_for_deletion():
+		return
+	if not _captions_enabled or not is_instance_valid(_caption_presenter):
+		return
+	if restore.is_empty():
+		# An isolated HUD may not have received any service snapshot yet.
+		restore = current.duplicate(true)
+		restore["visible"] = false
+		restore["caption"] = {}
+	_caption_presenter.apply_presentation_snapshot(restore)
+
+
+func _cancel_caption_preview() -> void:
+	if is_instance_valid(_caption_preview_timer):
+		_caption_preview_timer.stop()
+	_caption_preview_active_revision = 0
+	_caption_preview_restore_snapshot.clear()
 
 
 func _on_controller_glyph_family_selected(index: int) -> void:

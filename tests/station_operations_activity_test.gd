@@ -279,10 +279,10 @@ func _run() -> void:
 		"shared catalog preserves the exact visible material-key roster"
 	)
 	_check(
-		int(roster_catalog.bound_material_references) == 383
+		int(roster_catalog.bound_material_references) == 384
 		and int(roster_catalog.dynamic_lens_count) == 57
 		and bool(roster_catalog.dynamic_lens_bindings_valid),
-		"sharing leaves all 383 real renderer bindings and 57 per-instance dynamic lens bindings intact"
+		"sharing leaves all 384 renderer bindings and 57 per-instance dynamic lens bindings intact"
 	)
 	var frame_parameters := visible_parameters.frame as Dictionary
 	var amber_parameters := visible_parameters.amber_lit as Dictionary
@@ -328,17 +328,18 @@ func _run() -> void:
 	# family-local batches: nodes/submissions -6, MeshInstances -9, batches +3.
 	# Two presentation-only wayfinding labels then move nodes 493 -> 495 without
 	# changing geometry copies, materials, collision, or activity authority.
-	_check(int((roster_audit.counts as Dictionary).node_count) == 500, "ten production placements have the exact 500-node aggregate")
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 359, "ten production placements have the exact 359 MeshInstance aggregate")
+	# The pylon adds one shadow-only renderer without replacing colour geometry.
+	_check(int((roster_audit.counts as Dictionary).node_count) == 501, "ten production placements have the exact 501-node aggregate")
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 360, "ten production placements have the exact 360 MeshInstance aggregate")
 	_check(
 		int((roster_audit.counts as Dictionary).multimesh_batches) == 24
 		and int((roster_audit.counts as Dictionary).multimesh_instances) == 107,
 		"instanced structure is reported exactly rather than vanishing from the mesh count"
 	)
 	_check(
-		int((roster_audit.counts as Dictionary).geometry_submissions) == 383
+		int((roster_audit.counts as Dictionary).geometry_submissions) == 384
 		and int((roster_audit.counts as Dictionary).drawn_copies) == 461,
-		"production retains all 461 visible geometry copies without proxy renderers"
+		"production retains exactly 461 visible geometry copies while counting shadow allocations separately"
 	)
 	_check(int((roster_audit.counts as Dictionary).instance_count) == 10, "the recommended production roster is exactly ten placements")
 	var mutated_profile := profile_instances[1] as StationOperationsActivity
@@ -1619,6 +1620,13 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 		StationOperationsActivity.ActivityProfile.CARGO_LINE_LONG:
 			assembly_name = "LongCargoTransferLine"
 			expected_families = {"RailBeam": 2, "RailStop": 2, "HoistPost": 4, "HoistRail": 2, "PalletDeckInbound": 1, "CrateInboundPort": 1, "CrateInboundStarboard": 1, "CrateInboundTop": 1, "CrateManifest": 1, "PalletDeckOutbound": 1, "CrateOutboundPort": 1, "CrateOutboundStarboard": 1, "CrateOutboundTop": 1, "ControlPedestal": 1, "ControlHousing": 1}
+		StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON:
+			assembly_name = "WayfindingPylon"
+			expected_families = {
+				"BasePlinth": 1, "BaseHazardBand": 1, "Mast": 1, "MastEdge": 2,
+				"SignBoard": 1, "SignFace": 1, "SignRule": 1, "ChevronRail": 1,
+				"BayPlaque": 1, "BayGlyph": 1, "NoticeBoard": 1, "NoticeSheet": 3,
+			}
 		_:
 			_check(activity.find_children("OpaqueEnvelopeShadowBatch", "MeshInstance3D", true, false).is_empty(), "unrelated profiles gain no shadow batch")
 			return
@@ -1685,6 +1693,15 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 			assembly_name + " folds the exact tote shadow surfaces into its existing single submission")
 		print("CARGO_FIXED_SHADOW_SUBMISSIONS: ", assembly_name, " before=", previous_shadow_submissions,
 			" after=", batch.mesh.get_surface_count(), " net_removed=", previous_shadow_submissions - batch.mesh.get_surface_count())
+	elif activity.activity_profile == StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON:
+		var previous_shadow_submissions := 0
+		for source in sources:
+			previous_shadow_submissions += source.mesh.get_surface_count()
+		_check(sources.size() == 15 and previous_shadow_submissions == 15
+			and batch.mesh.get_surface_count() == 1,
+			"WayfindingPylon folds exactly fifteen fixed-box shadow submissions into one")
+		print("PYLON_FIXED_SHADOW_SUBMISSIONS: before=", previous_shadow_submissions,
+			" after=", batch.mesh.get_surface_count(), " net_removed=", previous_shadow_submissions - batch.mesh.get_surface_count())
 	# The world consumes only the authored solid roster, independent of the new
 	# aggregate AABB. Removing the renderer cannot change a single physical spec.
 	var solids := activity.get_solid_volume_contract()
@@ -1694,6 +1711,11 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 	var excluded_unchanged := true
 	for child in assembly.find_children("*", "GeometryInstance3D", true, false):
 		if child == batch or (child is MeshInstance3D and sources.has(child)):
+			continue
+		if activity.activity_profile == StationOperationsActivity.ActivityProfile.SIGNAGE_PYLON \
+				and child is Label3D:
+			# Label3D is shadow-off by default; batching must preserve that.
+			excluded_unchanged = excluded_unchanged and (child as Label3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			continue
 		excluded_unchanged = excluded_unchanged and (child as GeometryInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	activity.set_activity_time(8.25)
