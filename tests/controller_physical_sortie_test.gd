@@ -907,7 +907,7 @@ func _settings_walk_to_ship(player: PlayerController, ship: HeroShip, game: Game
 		if offset.length() < 3.1 and game.boarding_candidate == ship:
 			break
 		var desired := offset.normalized()
-		var yaw := player.get_node("CameraYaw") as Node3D
+		var yaw := player.get_node("%CameraYaw") as Node3D
 		var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
 		var right := forward.cross(Vector3.UP).normalized()
 		driver.set_axis(AXIS_LEFT_X, desired.dot(right) if absf(desired.dot(right)) > 0.08 else 0.0)
