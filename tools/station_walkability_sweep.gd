@@ -199,10 +199,31 @@ func _collect_renderers(render_root: Node3D, player: CharacterBody3D) -> void:
 			continue
 		if visual is MeshInstance3D and (visual as MeshInstance3D).mesh == null:
 			continue
+		if not StationDressingBatch.authored_piece_index(visual).is_empty():
+			for piece in _authored_render_piece_boxes(visual):
+				_add_render_box(piece["aabb"] as AABB, "%s#%s" % [path, piece["name"]], false)
+			continue
 		var local := visual.get_aabb()
 		if local.size.length_squared() <= 0.0:
 			continue
 		_add_render_box(visual.global_transform * local, path, false)
+
+
+## A merged renderer's union also contains the air between its original pieces.
+## Resolve the existing authored index in its batch-parent frame, just as the
+## station's named-piece audits do, rather than treating that air as geometry.
+static func _authored_render_piece_boxes(visual: VisualInstance3D) -> Array[Dictionary]:
+	var pieces: Array[Dictionary] = []
+	for raw_record in StationDressingBatch.authored_piece_index(visual):
+		var record := (raw_record as Dictionary).duplicate()
+		if not bool(record.get("visible", true)):
+			continue
+		record["node"] = visual
+		record["batched"] = true
+		var box := StationDressingBatch.authored_piece_global_aabb(record)
+		if box.size.length_squared() > 0.0:
+			pieces.append({"name": str(record.get("name", "")), "aabb": box})
+	return pieces
 
 
 func _collect_multimesh(batch: MultiMeshInstance3D, path: String) -> void:

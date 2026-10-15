@@ -6,6 +6,7 @@ extends SceneTree
 ## probes use continuous real InputMap actions and never press jump.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
+const WALKABILITY_SWEEP := preload("res://tools/station_walkability_sweep.gd")
 const WORLD_LAYER := PhysicsLayers.WORLD
 # Halyard now splits the port pressure wall around its operable hatch; include
 # the closed PortHatchDoorCollision in the full parked-flight collision roster.
@@ -173,6 +174,7 @@ func _run() -> void:
 	await _test_salvage_terrace_siting(world, game.get_flyable_ships())
 	_test_shared_bevel_rules(world)
 	_test_station_panel_material_bindings(world)
+	_test_authored_piece_discovery(world)
 	await _test_discovered_walkable_surface_support(world)
 	_test_fleet_expansion_surface_honesty(world)
 	_test_no_station_collision_without_visible_geometry(world)
@@ -1475,6 +1477,109 @@ func _is_live_ship_mesh(mesh_instance: MeshInstance3D, world: ShipyardWorld) -> 
 	return false
 
 
+## Keep the original piece's local dimensions, up axis and metadata for the
+## support rule; only its placement is resolved through the live batch parent.
+func _drawn_support_pieces(render_root: Node3D) -> Array[Dictionary]:
+	var pieces: Array[Dictionary] = []
+	for candidate in render_root.find_children("*", "MeshInstance3D", true, false):
+		var visual := candidate as MeshInstance3D
+		if not _is_drawn_support_mesh(visual):
+			continue
+		var index := StationDressingBatch.authored_piece_index(visual)
+		if index.is_empty():
+			pieces.append({
+				"node": visual, "aabb": visual.mesh.get_aabb(),
+				"global_transform": visual.global_transform,
+				"name": str(visual.get_parent().name) if visual.name == &"Mesh" else str(visual.name),
+				"path": str(visual.get_path()),
+			})
+			continue
+		var parent := visual.get_parent() as Node3D
+		if parent == null:
+			continue
+		for raw_record in index:
+			var record := (raw_record as Dictionary).duplicate()
+			if not bool(record.get("visible", true)) \
+					or int(record.get("cast_shadow", GeometryInstance3D.SHADOW_CASTING_SETTING_ON)) \
+					== GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+				continue
+			record["node"] = visual
+			record["batched"] = true
+			record["global_transform"] = parent.global_transform \
+				* (record.get("transform", Transform3D.IDENTITY) as Transform3D)
+			record["path"] = "%s#%s" % [visual.get_path(), record.get("name", "")]
+			pieces.append(record)
+	return pieces
+
+
+func _test_authored_piece_discovery(world: ShipyardWorld) -> void:
+	var habitat := world.get_node_or_null(^"HabitatSpine") as Node3D
+	var seats := 0
+	for piece in _drawn_support_pieces(habitat) if habitat != null else []:
+		var visual := piece["node"] as MeshInstance3D
+		var chair := visual.get_parent()
+		if chair is StaticBody3D:
+			chair = chair.get_parent()
+		if str(piece.get("name", "")) != "Seat" or not bool(chair.get_meta("station_chair", false)):
+			continue
+		var local_box := piece["aabb"] as AABB
+		var placement := piece["global_transform"] as Transform3D
+		if local_box.size.is_equal_approx(Vector3(0.94, 0.2, 0.9)) \
+				and placement.basis.y.normalized().dot(Vector3.UP) >= 0.72:
+			seats += 1
+	_check(seats == 8, "support discovery retains all eight original common-chair seat pieces")
+	# A generic two-piece index isolates a gap which the renderer union fills.
+	# Both discovery consumers must retain that gap, including under parent yaw.
+	var fixture := Node3D.new()
+	fixture.position = Vector3(3.0, 2.0, -5.0)
+	fixture.rotation.y = 0.4
+	root.add_child(fixture)
+	var visual := MeshInstance3D.new()
+	fixture.add_child(visual)
+	var index: Array = [
+		{"name": "Seat", "aabb": AABB(Vector3(-0.5, -0.1, -0.5), Vector3(1.0, 0.2, 1.0)),
+			"transform": Transform3D(Basis.IDENTITY, Vector3(-2, 0, 0)), "visible": true, "metadata": {}},
+		{"name": "Support", "aabb": AABB(Vector3(-0.1, -0.7, -0.1), Vector3(0.2, 1.4, 0.2)),
+			"transform": Transform3D(Basis.IDENTITY, Vector3(2, 0, 0)), "visible": true, "metadata": {}},
+	]
+	var split_mesh := ArrayMesh.new()
+	for record in index:
+		var stock := BoxMesh.new()
+		stock.size = (record["aabb"] as AABB).size
+		var arrays := stock.get_mesh_arrays()
+		var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+		for vertex_index in vertices.size():
+			vertices[vertex_index] = (record["transform"] as Transform3D) * vertices[vertex_index]
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		split_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	visual.mesh = split_mesh
+	visual.set_meta(StationDressingBatch.AUTHORED_PIECE_INDEX_META, index)
+	var support_pieces := _drawn_support_pieces(fixture)
+	var sweep_pieces := WALKABILITY_SWEEP._authored_render_piece_boxes(visual)
+	var support_exact := support_pieces.size() == 2
+	var sweep_exact := sweep_pieces.size() == 2
+	for i in mini(support_pieces.size(), 2):
+		var record := support_pieces[i]
+		var expected := fixture.global_transform * (index[i]["transform"] as Transform3D) * (index[i]["aabb"] as AABB)
+		support_exact = support_exact \
+			and (record["global_transform"] as Transform3D).is_equal_approx(fixture.global_transform * (index[i]["transform"] as Transform3D)) \
+			and StationDressingBatch.authored_piece_global_aabb(record).is_equal_approx(expected) \
+			and not expected.has_point(fixture.global_position)
+	for i in mini(sweep_pieces.size(), 2):
+		var expected := fixture.global_transform * (index[i]["transform"] as Transform3D) * (index[i]["aabb"] as AABB)
+		sweep_exact = sweep_exact \
+			and (sweep_pieces[i]["aabb"] as AABB).is_equal_approx(expected) \
+			and not (sweep_pieces[i]["aabb"] as AABB).has_point(fixture.global_position)
+	_check(support_exact, "support discovery resolves split-piece bounds without filling the empty gap")
+	_check(sweep_exact, "walkability renderer discovery resolves split-piece bounds without filling the empty gap")
+	_check(support_pieces.size() == 2 \
+		and (support_pieces[0]["aabb"] as AABB).size.is_equal_approx(Vector3(1.0, 0.2, 1.0)) \
+		and (support_pieces[1]["aabb"] as AABB).size.is_equal_approx(Vector3(0.2, 1.4, 0.2)) \
+		and (visual.global_transform * visual.get_aabb()).has_point(fixture.global_position),
+		"a broad thin seat remains discoverable beside its tall support while their union contains empty air")
+	fixture.free()
+
+
 func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 	# This intentionally supplements the curated ownership roster. It discovers
 	# every broad, thin, upward-facing mesh whose top centre lies in a reachable
@@ -1496,19 +1601,18 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 	var unsupported_paths := PackedStringArray()
 	var unreasoned_visual_paths := PackedStringArray()
 	var space := world.get_world_3d().direct_space_state
-	for candidate in world.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance := candidate as MeshInstance3D
-		if not _is_drawn_support_mesh(mesh_instance):
-			continue
-		var exclusion_reason := _intentional_non_walkable_reason(mesh_instance, world)
+	for piece in _drawn_support_pieces(world):
+		var mesh_instance := piece["node"] as MeshInstance3D
+		var exclusion_reason := _intentional_non_walkable_reason(mesh_instance, world, piece)
 		if not exclusion_reason.is_empty():
 			explicitly_tagged_decorations += 1
 			continue
-		var local_aabb := mesh_instance.mesh.get_aabb()
+		var local_aabb := piece["aabb"] as AABB
 		var local_size := local_aabb.size
-		var world_up := mesh_instance.global_basis.y.normalized()
+		var placement := piece["global_transform"] as Transform3D
+		var world_up := placement.basis.y.normalized()
 		var top_local := local_aabb.position + Vector3(local_size.x * 0.5, local_size.y, local_size.z * 0.5)
-		var top_world := mesh_instance.global_transform * top_local
+		var top_world := placement * top_local
 		var in_route_envelope := false
 		for envelope: AABB in route_envelopes:
 			if envelope.has_point(top_world):
@@ -1519,9 +1623,10 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 			and local_size.y <= 0.82 \
 			and world_up.dot(Vector3.UP) >= 0.72
 		if not broad_thin_upward or not in_route_envelope:
-			if bool(mesh_instance.get_meta("non_authoritative_visual", false)):
-				if str(mesh_instance.get_meta("non_walkable_reason", "")).is_empty():
-					unreasoned_visual_paths.append(str(mesh_instance.get_path()))
+			var metadata := piece.get("metadata", {}) as Dictionary
+			if bool(metadata.get("non_authoritative_visual", mesh_instance.get_meta("non_authoritative_visual", false))):
+				if str(metadata.get("non_walkable_reason", mesh_instance.get_meta("non_walkable_reason", ""))).is_empty():
+					unreasoned_visual_paths.append(str(piece["path"]))
 				else:
 					explicitly_tagged_decorations += 1
 			continue
@@ -1546,7 +1651,7 @@ func _test_discovered_walkable_surface_support(world: ShipyardWorld) -> void:
 		ray.collide_with_bodies = true
 		var hit := space.intersect_ray(ray)
 		if hit.is_empty():
-			unsupported_paths.append(str(mesh_instance.get_path()))
+			unsupported_paths.append(str(piece["path"]))
 		else:
 			supported += 1
 	unsupported_paths.sort()
@@ -1636,11 +1741,8 @@ func _test_no_station_collision_without_visible_geometry(world: ShipyardWorld) -
 	# One 2 m XZ bucket grid over every drawn mesh, so each probe column compares
 	# against a handful of candidates instead of the whole 2800-mesh world.
 	var buckets := {}
-	for candidate in world.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance := candidate as MeshInstance3D
-		if not _is_drawn_support_mesh(mesh_instance):
-			continue
-		var box := (mesh_instance.global_transform * mesh_instance.mesh.get_aabb()).abs()
+	for piece in _drawn_support_pieces(world):
+		var box := StationDressingBatch.authored_piece_global_aabb(piece).abs()
 		_bucket_drawn_aabb(buckets, box)
 	for candidate in world.find_children("*", "MultiMeshInstance3D", true, false):
 		var batch := candidate as MultiMeshInstance3D
@@ -1897,9 +1999,12 @@ func _bucket_drawn_aabb(buckets: Dictionary, box: AABB) -> void:
 			(buckets[key] as Array).append(box)
 
 
-func _intentional_non_walkable_reason(mesh_instance: MeshInstance3D, world: ShipyardWorld) -> String:
-	if bool(mesh_instance.get_meta("non_authoritative_visual", false)):
-		return str(mesh_instance.get_meta("non_walkable_reason", ""))
+func _intentional_non_walkable_reason(
+		mesh_instance: MeshInstance3D, world: ShipyardWorld, piece: Dictionary = {}
+	) -> String:
+	var metadata := piece.get("metadata", {}) as Dictionary
+	if bool(metadata.get("non_authoritative_visual", mesh_instance.get_meta("non_authoritative_visual", false))):
+		return str(metadata.get("non_walkable_reason", mesh_instance.get_meta("non_walkable_reason", "")))
 	var cursor := mesh_instance.get_parent()
 	var declaring_activity: StationOperationsActivity = null
 	var activity_cursor := cursor
@@ -1914,7 +2019,7 @@ func _intentional_non_walkable_reason(mesh_instance: MeshInstance3D, world: Ship
 			# meshes now declare sibling World collision. Do not exempt those drawn
 			# surfaces merely because their presentation ancestor remains tagged.
 			if declaring_activity != null \
-				and _mesh_matches_declared_solid(mesh_instance, declaring_activity):
+				and _mesh_matches_declared_solid(mesh_instance, declaring_activity, piece):
 				return ""
 			return "tagged presentation-only component with collision_policy=presentation_only_nonblocking"
 		cursor = cursor.get_parent()
@@ -1923,12 +2028,14 @@ func _intentional_non_walkable_reason(mesh_instance: MeshInstance3D, world: Ship
 
 func _mesh_matches_declared_solid(
 		mesh_instance: MeshInstance3D,
-		activity: StationOperationsActivity
+		activity: StationOperationsActivity,
+		piece: Dictionary = {}
 	) -> bool:
 	if mesh_instance.mesh == null:
 		return false
-	var activity_local := activity.global_transform.affine_inverse() * mesh_instance.global_transform
-	var mesh_size := mesh_instance.mesh.get_aabb().size
+	var placement: Transform3D = piece.get("global_transform", mesh_instance.global_transform)
+	var activity_local := activity.global_transform.affine_inverse() * placement
+	var mesh_size := (piece.get("aabb", mesh_instance.mesh.get_aabb()) as AABB).size
 	for volume in activity.get_solid_volume_contract():
 		var expected := Transform3D(
 			volume.get("basis", Basis.IDENTITY) as Basis,

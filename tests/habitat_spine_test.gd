@@ -542,49 +542,29 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 		and bool(render_before_material_probe.exact_counts),
 		"eight chair-only modern backrests lift albedo/response with no geometry, collision, light, or submission growth"
 	)
-	var bearing_material: Material = null
 	var bearings_exact := true
-	var bearing_triangles_before := 0
 	var bearing_triangles_after := 0
 	for chair in chairs:
-		var bearing := chair.get_node_or_null("Bearing") as MeshInstance3D
-		var mesh := bearing.mesh as TorusMesh if bearing != null else null
-		if bearing == null or mesh == null:
+		var piece := StationDressingBatch.find_authored_piece(chair, "Bearing")
+		var mesh := piece.get("mesh") as TorusMesh
+		if mesh == null:
 			bearings_exact = false
 			continue
-		var before_aabb := mesh.get_aabb()
-		bearing_triangles_before += 32 * 13 * 2
-		TorusGeometryBudget.apply_profile(
-			mesh,
-			1.0,
-			StringName(bearing.get_meta(TorusGeometryBudget.PROFILE_META, &""))
-		)
 		bearing_triangles_after += TorusGeometryBudget.triangles_of(mesh)
-		if bearing_material == null:
-			bearing_material = bearing.material_override
+		var placement: Transform3D = piece.transform
 		bearings_exact = bearings_exact \
-			and bearing.position.is_equal_approx(Vector3(0.0, 0.72, 0.0)) \
-			and bearing.rotation.is_zero_approx() \
-			and bearing.material_override == bearing_material \
-			and bearing.get_child_count() == 0 \
-			and StringName(bearing.get_meta(TorusGeometryBudget.PROFILE_META, &"")) \
-			== TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING \
-			and is_equal_approx(mesh.inner_radius, 0.16) \
-			and is_equal_approx(mesh.outer_radius, 0.24) \
-			and mesh.rings == 24 \
-			and mesh.ring_segments == 8 \
+			and placement.origin.is_equal_approx(Vector3(0.0, 0.72, 0.0)) \
+			and placement.basis == Basis.IDENTITY \
+			and (piece.materials as Array)[0] == (module.get("_materials") as Dictionary)["copper"] \
+			and StringName((piece.metadata as Dictionary).get(TorusGeometryBudget.PROFILE_META, &"")) 				== TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING \
+			and is_equal_approx(mesh.inner_radius, 0.16) and is_equal_approx(mesh.outer_radius, 0.24) \
+			and mesh.rings == 24 and mesh.ring_segments == 8 \
 			and is_equal_approx(TorusGeometryBudget.nearest_view_for(mesh), 1.0) \
 			and mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX].size() == 384 * 3 \
-			and mesh.get_surface_count() == 1 \
-			and mesh.get_aabb().is_equal_approx(before_aabb)
-	_check(
-		bearings_exact,
-		"all eight visual-only bearings retain transforms, copper material, radii, bounds, one-metre view and 384-triangle surfaces"
-	)
-	_check(
-		bearing_triangles_before == 6656 and bearing_triangles_after == 3072,
-		"chair-bearing family freezes at 6656 -> 3072 triangles across eight unchanged instances"
-	)
+			and mesh.get_surface_count() == 1
+	_check(bearings_exact and bearing_triangles_after == 3072,
+		"eight indexed chair bearings retain exact copper, poses and the finalized 24x8/384-triangle profile")
+	await _test_common_chair_batches(module, chairs)
 
 	_check(module.get_window_pane_count() >= 9, "common area exposes broad multi-pane glazing")
 	var glazing := module.find_children("*", "StaticBody3D", true, false).filter(
@@ -603,6 +583,212 @@ func _test_common_room_glazing_and_furniture(module: HabitatSpine) -> void:
 		_check(bool((rear_glass_hit.collider as Node).get_meta("station_glazing", false)), "rear sightline terminates on glazing rather than invisible wall")
 	var outside_point := module.to_global(Vector3(0, 1.0, 30.0))
 	_check(not module.contains_room(&"observation-common", outside_point), "space beyond broad window is outside common-room volume")
+
+
+func _test_common_chair_batches(module: HabitatSpine, chairs: Array) -> void:
+	var shared: Mesh
+	var exact := chairs.size() == 8
+	var bodies := 0
+	var shapes := 0
+	var backrests_exact := true
+	var back_size := Vector3(0.92, 1.28, 0.2)
+	var original_back_mesh := StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
+		back_size, StationSurfaceKit.proportional_bevel_for_size(back_size, 0.18), {},
+		StationSurfaceKit.BevelUV.UNIT_PER_QUAD
+	)
+	var bounds := AABB()
+	var source_box_union := AABB()
+	var first_bound := true
+	var first_vertex := true
+	for chair in chairs:
+		var visual := chair.get_node_or_null("ChairRenderBatch") as MeshInstance3D
+		if visual == null or visual.mesh == null or visual.mesh.get_surface_count() != 5:
+			exact = false
+			continue
+		if shared == null:
+			shared = visual.mesh
+		exact = exact and visual.mesh == shared and visual.transform == Transform3D.IDENTITY \
+			and visual.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+			and visual.layers == 1 and visual.lod_bias == 1.0 \
+			and visual.material_override == null and visual.material_overlay == null \
+			and visual.get_groups().is_empty() and visual.get_child_count() == 0 \
+			and chair.find_children("*", "MeshInstance3D", true, false).size() == 2 \
+			and chair.find_children("*", "StationSeat", true, false).size() == 1
+		var pieces := StationDressingBatch.authored_piece_index(visual)
+		exact = exact and pieces.size() == 8
+		var back := chair.get_node_or_null("Back") as StaticBody3D
+		var back_mesh := chair.get_node_or_null("Back/Mesh") as MeshInstance3D
+		var back_collision := chair.get_node_or_null("Back/Collision") as CollisionShape3D
+		var back_exact := back != null and back_mesh != null and back_collision != null
+		if back_exact:
+			bodies += 1
+			shapes += 1
+			back_exact = back.position == Vector3(0, 1.43, -0.38) \
+				and back.rotation_degrees.is_equal_approx(Vector3(-6, 0, 0)) \
+				and back.scale == Vector3.ONE and back.collision_layer == WORLD_LAYER and back.collision_mask == 0 \
+				and back_mesh.transform == Transform3D.IDENTITY and back_mesh.visible \
+				and back_mesh.layers == 1 and back_mesh.lod_bias == 1.0 \
+				and back_mesh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON \
+				and back_mesh.gi_mode == GeometryInstance3D.GI_MODE_STATIC \
+				and back_mesh.material_override == (module.get("_materials") as Dictionary)["observation_backrest"] \
+				and back_mesh.material_overlay == null and back_mesh.get_groups().is_empty() \
+				and back_mesh.mesh != null and back_mesh.mesh.get_surface_count() == 1 \
+				and back_mesh.mesh.surface_get_arrays(0) == original_back_mesh.surface_get_arrays(0) \
+				and back_collision.transform == Transform3D.IDENTITY and not back_collision.disabled \
+				and back_collision.shape is BoxShape3D \
+				and (back_collision.shape as BoxShape3D).size == back_size
+		backrests_exact = backrests_exact and back_exact
+		for piece: Dictionary in pieces:
+			var source_mesh := piece.mesh as Mesh
+			var placement: Transform3D = piece.transform
+			var piece_bound := (placement * source_mesh.get_aabb()).abs()
+			if first_bound:
+				source_box_union = piece_bound
+				first_bound = false
+			else:
+				source_box_union = source_box_union.merge(piece_bound)
+			# A rotated chamfered box does not occupy its AABB's sharp corners.
+			# Exact baked bounds follow the original vertices, while the transformed
+			# source boxes remain an independent conservative enclosure below.
+			var source_vertices: PackedVector3Array = source_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+			for vertex in source_vertices:
+				var point := placement * vertex
+				if first_vertex:
+					bounds = AABB(point, Vector3.ZERO)
+					first_vertex = false
+				else:
+					bounds = bounds.expand(point)
+			exact = exact and String(piece.name) != "Back" and source_mesh != shared \
+				and source_mesh.get_surface_count() == 1 \
+				and source_mesh.get_aabb() == (piece.aabb as AABB) \
+				and visual.get_active_material(int(piece.surface_index)) == (piece.materials as Array)[0]
+			var body := chair.get_node_or_null(NodePath(String(piece.name))) as StaticBody3D
+			if body != null:
+				bodies += 1
+				var collision := body.get_node_or_null("Collision") as CollisionShape3D
+				exact = exact and body.transform == placement and body.collision_layer == WORLD_LAYER \
+					and body.collision_mask == 0 and collision != null and not collision.disabled
+				if collision != null:
+					shapes += 1
+					var expected_size: Vector3 = piece.aabb.size
+					if collision.shape is BoxShape3D:
+						exact = exact and (collision.shape as BoxShape3D).size.is_equal_approx(expected_size)
+					elif collision.shape is CylinderShape3D:
+						var cylinder := collision.shape as CylinderShape3D
+						exact = exact and is_equal_approx(cylinder.height, expected_size.y) \
+							and is_equal_approx(cylinder.radius * 2.0, expected_size.x)
+					else:
+						exact = false
+		for surface_index in 5:
+			exact = exact and _chair_surface_matches_sources(visual, pieces, surface_index)
+	_check(exact and bodies == 32 and shapes == 32,
+		"eight independently owned five-finish batches retain original geometry channels, materials, seats and all 32 collider poses")
+	_check(backrests_exact,
+		"eight backrests retain their original body-to-mesh hierarchy, GPU transforms, mesh channels, material and renderer state")
+	_check(shared != null and shared.get_aabb().is_equal_approx(bounds),
+		"the baked chair retains the exact bound of its transformed original vertices")
+	_check(shared != null and source_box_union.grow(0.00001).encloses(shared.get_aabb()),
+		"the transformed original source boxes conservatively enclose the baked chair")
+	if chairs.size() < 2:
+		return
+	var first := chairs[0] as Node3D
+	var other := chairs[1] as Node3D
+	var first_visual := first.get_node("ChairRenderBatch") as MeshInstance3D
+	var other_visual := other.get_node("ChairRenderBatch") as MeshInstance3D
+	var first_back := first.get_node("Back/Mesh") as MeshInstance3D
+	var other_back := other.get_node("Back/Mesh") as MeshInstance3D
+	var other_pose := other_visual.global_transform
+	var other_back_pose := other_back.global_transform
+	var original_pose := first.transform
+	first.hide()
+	_check(not first_visual.is_visible_in_tree() and not first_back.is_visible_in_tree() \
+		and other_visual.is_visible_in_tree() and other_back.is_visible_in_tree(),
+		"hiding one chair hides both its renderers and leaves the other seven chairs independently visible")
+	first.show()
+	first.position += Vector3(0.17, 0.0, 0.0)
+	_check(first_visual.global_transform == first.global_transform \
+		and first_back.global_transform == first.global_transform * (first.get_node("Back") as Node3D).transform \
+		and other_visual.global_transform == other_pose and other_back.global_transform == other_back_pose,
+		"moving one chair carries both its renderers without moving another chair")
+	first.transform = original_pose
+	var backrest := first_back.material_override
+	first_back.material_override = (module.get("_materials") as Dictionary)["fabric_dark"]
+	_check(not bool(module.get_observation_chair_material_audit().valid) \
+		and module.get_validation_errors().has("observation backrest material scope drift") \
+		and other_back.material_override == backrest,
+		"the material audit rejects a real wrong backrest binding without contaminating another chair")
+	first_back.material_override = backrest
+	_check(bool(module.get_observation_chair_material_audit().valid), "restoring the actual binding restores the chair material contract")
+	var arm_material := first_visual.get_active_material(4)
+	first_visual.set_surface_override_material(4, backrest)
+	_check(not bool(module.get_observation_chair_material_audit().valid) \
+		and module.get_validation_errors().has("observation arm material hierarchy drift") \
+		and other_visual.get_active_material(4) == arm_material,
+		"the material audit rejects a real wrong baked arm binding without contaminating another chair")
+	first_visual.set_surface_override_material(4, arm_material)
+	_check(bool(module.get_observation_chair_material_audit().valid), "restoring the baked binding restores the chair material contract")
+	# Query the unchanged physical seat after the independent transform exercise.
+	await physics_frame
+	var seat := first.get_node("Seat") as StaticBody3D
+	var hit := await _ray_local(module, module.to_local(first.to_global(Vector3(0, 1.5, 0))), module.to_local(first.to_global(Vector3(0, 0.1, 0))))
+	_check(not hit.is_empty() and hit.collider == seat, "the drawn cushion still has its original physical seat below it")
+
+
+func _chair_surface_matches_sources(visual: MeshInstance3D, pieces: Array, surface_index: int) -> bool:
+	var actual := visual.mesh.surface_get_arrays(surface_index)
+	var positions: PackedVector3Array = actual[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = actual[Mesh.ARRAY_NORMAL]
+	var tangents: PackedFloat32Array = actual[Mesh.ARRAY_TANGENT]
+	var uvs: PackedVector2Array = actual[Mesh.ARRAY_TEX_UV]
+	var indices: PackedInt32Array = actual[Mesh.ARRAY_INDEX]
+	var vertex_offset := 0
+	var index_offset := 0
+	for piece: Dictionary in pieces:
+		if int(piece.surface_index) != surface_index:
+			continue
+		var source := (piece.mesh as Mesh).surface_get_arrays(0)
+		var source_positions: PackedVector3Array = source[Mesh.ARRAY_VERTEX]
+		var source_normals: PackedVector3Array = source[Mesh.ARRAY_NORMAL]
+		var source_tangents: PackedFloat32Array = source[Mesh.ARRAY_TANGENT]
+		var source_uvs: PackedVector2Array = source[Mesh.ARRAY_TEX_UV]
+		var placement: Transform3D = piece.transform
+		var normal_basis := placement.basis.inverse().transposed()
+		if positions.size() < vertex_offset + source_positions.size():
+			return false
+		for index in source_positions.size():
+			var at := vertex_offset + index
+			var expected_tangent := placement.basis * Vector3(source_tangents[index * 4], source_tangents[index * 4 + 1], source_tangents[index * 4 + 2])
+			var actual_tangent := Vector3(tangents[at * 4], tangents[at * 4 + 1], tangents[at * 4 + 2])
+			if positions[at].distance_to(placement * source_positions[index]) > 0.00001 \
+				or normals[at].distance_to((normal_basis * source_normals[index]).normalized()) > 0.0002 \
+				or not uvs[at].is_equal_approx(source_uvs[index]) \
+				or actual_tangent.distance_to(expected_tangent) > 0.0002 \
+				or tangents[at * 4 + 3] != source_tangents[index * 4 + 3]:
+				return false
+		for channel in [Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_COLOR]:
+			var source_values = source[channel]
+			var actual_values = actual[channel]
+			for index in source_positions.size():
+				var expected_value = Vector2.ZERO if channel == Mesh.ARRAY_TEX_UV2 else Color.WHITE
+				if source_values != null and source_values.size() > 0:
+					expected_value = source_values[index]
+				if actual_values != null and actual_values.size() > 0:
+					if actual_values[vertex_offset + index] != expected_value:
+						return false
+				elif source_values != null and source_values.size() > 0:
+					return false
+		var source_indices := PackedInt32Array()
+		if source[Mesh.ARRAY_INDEX] is PackedInt32Array:
+			source_indices = source[Mesh.ARRAY_INDEX]
+		if source_indices.is_empty():
+			for index in source_positions.size():
+				source_indices.append(index)
+		for index in source_indices:
+			if index_offset >= indices.size() or indices[index_offset] != vertex_offset + index:
+				return false
+			index_offset += 1
+		vertex_offset += source_positions.size()
+	return positions.size() == vertex_offset and indices.size() == index_offset
 
 
 func _test_common_room_display(module: HabitatSpine) -> void:
@@ -1257,10 +1443,10 @@ func _test_service_and_visual_detail(module: HabitatSpine) -> void:
 	_test_garden_rack_crown_batch(module)
 	var render := module.get_render_allocation_report()
 	_check(
-		int(render.descendant_nodes) == 1510
-		and module.find_children("*", "MeshInstance3D", true, false).size() == 836
+		int(render.descendant_nodes) == 1454
+		and module.find_children("*", "MeshInstance3D", true, false).size() == 780
 		and module.find_children("*", "MultiMeshInstance3D", true, false).size() == 43,
-		"visual batching stays frozen at 1510 render nodes, 836 meshes and 43 MultiMeshes"
+		"visual batching stays frozen at 1454 render nodes, 780 meshes and 43 MultiMeshes"
 	)
 	var performance := module.get_performance_contract()
 	_check(
@@ -1404,9 +1590,9 @@ func _test_corridor_deck_seam_batch(module: HabitatSpine) -> void:
 		int(report.corridor_deck_seam_legacy_submissions) == 9
 		and int(report.corridor_deck_seam_submissions) == 1
 		and int(report.geometry_submissions_before_deck_seam_batch) == 910
-		and int(report.geometry_submissions) == 870
+		and int(report.geometry_submissions) == 846
 		and int(report.geometry_submissions_removed_by_deck_seam_batch) == 8
-		and int(report.drawn_copies) == 1062
+		and int(report.drawn_copies) == 1006
 		and bool(report.corridor_deck_seam_authored),
 		"corridor berth gates retain the frozen 9 -> 1 submission allocation"
 	)
@@ -1484,9 +1670,9 @@ func _test_common_ceiling_light_body_batch(module: HabitatSpine) -> void:
 		and int(report.common_ceiling_light_body_submissions) == 1
 		and int(report.common_ceiling_light_body_copies) == 6
 		and int(report.geometry_submissions_before_common_ceiling_light_body_batch) == 902
-		and int(report.geometry_submissions) == 870
+		and int(report.geometry_submissions) == 846
 		and int(report.geometry_submissions_removed_by_common_ceiling_light_body_batch) == 5
-		and int(report.drawn_copies) == 1062
+		and int(report.drawn_copies) == 1006
 		and bool(report.common_ceiling_light_body_authored),
 		"common ceiling housings measure renderer nodes/submissions 6 -> 1 while all six visible copies remain"
 	)
@@ -1546,7 +1732,7 @@ func _test_galley_door_pull_batch(module: HabitatSpine) -> void:
 		and int(report.galley_door_pull_submissions) == 1
 		and int(report.galley_door_pull_copies) == 4
 		and int(report.geometry_submissions_before_galley_door_pull_batch) == 899
-		and int(report.geometry_submissions) == 870
+		and int(report.geometry_submissions) == 846
 		and int(report.geometry_submissions_removed_by_galley_door_pull_batch) == 3
 		and bool(report.galley_door_pull_authored),
 		"galley pulls measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -1619,9 +1805,9 @@ func _test_galley_mug_batch(module: HabitatSpine) -> void:
 		and int(report.galley_mug_submissions) == 1
 		and int(report.galley_mug_copies) == 6
 		and int(report.geometry_submissions_before_galley_mug_batch) == 880
-		and int(report.geometry_submissions) == 870
+		and int(report.geometry_submissions) == 846
 		and int(report.geometry_submissions_removed_by_galley_mug_batch) == 5
-		and int(report.drawn_copies) == 1062
+		and int(report.drawn_copies) == 1006
 		and bool(report.galley_mug_authored),
 		"galley mugs measure renderer nodes/submissions 6 -> 1 while all six visible copies remain"
 	)
@@ -1756,7 +1942,7 @@ func _test_mess_bench_leg_batch(module: HabitatSpine) -> void:
 		and int(report.mess_bench_leg_submissions) == 1
 		and int(report.mess_bench_leg_copies) == 4
 		and int(report.geometry_submissions_before_mess_bench_leg_batch) == 896
-		and int(report.geometry_submissions) == 870
+		and int(report.geometry_submissions) == 846
 		and int(report.geometry_submissions_removed_by_mess_bench_leg_batch) == 3
 		and bool(report.mess_bench_leg_authored),
 		"mess-bench legs measure renderer nodes/submissions 4 -> 1 while all four visible copies remain"
@@ -1780,8 +1966,8 @@ func _test_mess_trestle_foot_batch(module: HabitatSpine) -> void:
 			and int(report.mess_trestle_foot_submissions) == 1
 			and int(report.mess_trestle_foot_copies) == 2
 			and bool(report.mess_trestle_foot_authored)
-			and int(report.geometry_submissions) == 870
-			and int(report.drawn_copies) == 1062,
+			and int(report.geometry_submissions) == 846
+			and int(report.drawn_copies) == 1006,
 		"mess-trestle feet measure renderer nodes/submissions 2 -> 1 while both visible copies remain"
 	)
 
@@ -1902,9 +2088,9 @@ func _test_garden_rack_crown_batch(module: HabitatSpine) -> void:
 		and int(report.garden_rack_crown_mesh_resources) == 1
 		and int(report.garden_rack_crown_copies) == 5
 		and int(report.geometry_submissions_before_garden_rack_crown_batch) == 893
-		and int(report.geometry_submissions) == 870
+		and int(report.geometry_submissions) == 846
 		and int(report.geometry_submissions_removed_by_garden_rack_crown_batch) == 4
-		and int(report.drawn_copies) == 1062
+		and int(report.drawn_copies) == 1006
 		and bool(report.garden_rack_crown_authored),
 		"garden-rack crowns measure renderer nodes/submissions 5 -> 1 while all five visible copies remain"
 	)
@@ -1974,9 +2160,9 @@ func _test_mess_mug_batch(module: HabitatSpine) -> void:
 		and int(report.mess_mug_submissions) == 1
 		and int(report.mess_mug_copies) == 3
 		and int(report.geometry_submissions_before_mess_mug_batch) == 889
-		and int(report.geometry_submissions) == 870
+		and int(report.geometry_submissions) == 846
 		and int(report.geometry_submissions_removed_by_mess_mug_batch) == 2
-		and int(report.drawn_copies) == 1062
+		and int(report.drawn_copies) == 1006
 		and bool(report.mess_mug_authored),
 		"mess mugs measure renderer nodes/submissions 3 -> 1 while all three visible copies remain"
 	)
@@ -2130,23 +2316,23 @@ func _test_hatch_fastener_batch(module: HabitatSpine) -> void:
 
 	var report := module.get_render_allocation_report()
 	_check(
-		int(report.descendant_nodes) == 1510
-		and int(report.mesh_instances) == 836
+		int(report.descendant_nodes) == 1454
+		and int(report.mesh_instances) == 780
 		and int(report.multimesh_batches) == 43,
 		"renderer census includes the exact corridor and common-room batches"
 	)
 	_check(
-		int(report.drawn_copies) == 1062
-		and int(report.geometry_submissions) == 870
+		int(report.drawn_copies) == 1006
+		and int(report.geometry_submissions) == 846
 		and int(report.hatch_fastener_copies) == 12,
-		"complete arcs reduce drawn instances to 1062 and surface submissions to 870"
+		"complete arcs reduce drawn instances to 1006 and surface submissions to 846"
 	)
 	_check(
 		int(report.unique_mesh_resources) == HabitatSpine.RENDER_UNIQUE_MESH_RESOURCE_COUNT
 		and int(report.unique_material_resources) == 34
 		and int(report.multimesh_resources) == 42
 		and int(report.renderer_buffer_floats) == 144,
-		"arch shadow meshes bring mesh/material allocations to 355/34 while the hatch batch retains its 144-float renderer buffer"
+		"arch shadow meshes bring mesh/material allocations to 349/34 while the hatch batch retains its 144-float renderer buffer"
 	)
 	_check(
 		bool(report.renderer_buffer_matches_authored)

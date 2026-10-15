@@ -160,20 +160,21 @@ const PRE_MESS_BENCH_LEG_GEOMETRY_SUBMISSION_COUNT := 896
 ## addition to its indicator batch. Those runtime children are part of this
 ## module's live renderer census even though their implementation is shared.
 ## The static common-room display adds one quad renderer/mesh/material to this roster.
-const RENDER_DESCENDANT_COUNT := 1510
-const RENDER_MESH_INSTANCE_COUNT := 836
+const RENDER_DESCENDANT_COUNT := 1454
+const RENDER_MESH_INSTANCE_COUNT := 780
 const RENDER_MULTIMESH_BATCH_COUNT := 43
 ## One reusable StationDoor renderer owns a shared MultiMesh resource across the
 ## module's two door instances; all other batches own their component buffer.
 const RENDER_UNIQUE_MULTIMESH_RESOURCE_COUNT := 42
-const RENDER_DRAWN_COPY_COUNT := 1062
-const RENDER_GEOMETRY_SUBMISSION_COUNT := 870
+const RENDER_DRAWN_COPY_COUNT := 1006
+const RENDER_GEOMETRY_SUBMISSION_COUNT := 846
 # The shallow, interior-visible common-room ribs resolve through two symmetric
 # cached cylinder lengths rather than the former seven-length exterior curve.
 # All 70 copies remain, while unique generated mesh recipes fall 345 -> 340.
-# Complete colour arcs replace 23 bound stock recipes with 10 exact meshes;
-# the 27 independent shadow meshes keep the live allocation at 355.
-const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 355
+# Complete colour arcs replace 23 bound stock recipes with 10 exact meshes.
+# Chairs retain seven source recipes for inspection and share one baked mesh;
+# replacing eight private bearings reduces the retained mesh roster by six.
+const RENDER_UNIQUE_MESH_RESOURCE_COUNT := 349
 const RENDER_UNIQUE_MATERIAL_RESOURCE_COUNT := 34
 const OBSERVATION_BACKREST_COLOR := Color("365c63")
 const OBSERVATION_BACKREST_METALLIC := 0.02
@@ -276,6 +277,13 @@ var _route_markers: Dictionary = {}
 var _bunk_markers: Array[Marker3D] = []
 var _bunk_nodes: Array[Node3D] = []
 var _chair_nodes: Array[Node3D] = []
+# Module-local immutable chair geometry; each chair retains its own renderer,
+# original backrest mesh, surface bindings, transform, seat and four physical bodies.
+var _common_chair_mesh: ArrayMesh
+var _common_chair_parts: Array[Dictionary] = []
+const COMMON_CHAIR_MATERIAL_KEYS := [
+	"structural", "graphite", "copper", "fabric", "fabric_dark",
+]
 var _service_nodes: Array[Node3D] = []
 var _window_panes: Array[Node3D] = []
 var _built := false
@@ -639,31 +647,65 @@ func get_observation_chair_material_audit() -> Dictionary:
 	var backrest_count := 0
 	var collision_count := 0
 	for chair in _chair_nodes:
+		var visual := chair.get_node_or_null(^"ChairRenderBatch") as MeshInstance3D
 		var back := chair.get_node_or_null(^"Back") as StaticBody3D
-		var back_mesh := back.get_node_or_null(^"Mesh") as MeshInstance3D if back != null else null
 		var collision := back.get_node_or_null(^"Collision") as CollisionShape3D if back != null else null
-		var seat := chair.get_node_or_null(^"Seat") as StaticBody3D
-		var seat_mesh := seat.get_node_or_null(^"Mesh") as MeshInstance3D if seat != null else null
+		var back_mesh := back.get_node_or_null(^"Mesh") as MeshInstance3D if back != null else null
+		if visual == null or visual.mesh != _common_chair_mesh \
+			or visual.mesh.get_surface_count() != COMMON_CHAIR_MATERIAL_KEYS.size():
+			errors.append("observation chair renderer scope drift")
+			continue
 		if back_mesh == null or back_mesh.material_override != backrest_material:
 			errors.append("observation backrest material scope drift")
 		else:
 			backrest_count += 1
-		if collision == null or collision.shape == null:
+		if back == null or collision == null or not collision.shape is BoxShape3D \
+			or not (collision.shape as BoxShape3D).size.is_equal_approx(Vector3(0.92, 1.28, 0.2)) \
+			or back.position != Vector3(0, 1.43, -0.38) \
+			or not back.rotation_degrees.is_equal_approx(Vector3(-6, 0, 0)) \
+			or back.collision_layer != (WORLD_LAYER if _module_enabled else 0) or back.collision_mask != 0 \
+			or collision.disabled or collision.transform != Transform3D.IDENTITY:
 			errors.append("observation backrest collision drift")
 		else:
 			collision_count += 1
-		if seat_mesh == null or seat_mesh.material_override != fabric_material:
+		if back_mesh == null or back_mesh.mesh != _rounded_box_mesh(Vector3(0.92, 1.28, 0.2)) \
+			or back_mesh.transform != Transform3D.IDENTITY or not back_mesh.visible \
+			or back_mesh.layers != 1 or back_mesh.material_overlay != null \
+			or back_mesh.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("observation backrest renderer state drift")
+		for part: Dictionary in _common_chair_parts:
+			if String(part.name) not in ["Pedestal", "Foot", "Seat"]:
+				continue
+			var body := chair.get_node_or_null(NodePath(String(part.name))) as StaticBody3D
+			var shape_node := body.get_node_or_null("Collision") as CollisionShape3D if body != null else null
+			var correct := body != null and body.transform == (part.transform as Transform3D) \
+				and body.collision_layer == (WORLD_LAYER if _module_enabled else 0) and body.collision_mask == 0 \
+				and shape_node != null and not shape_node.disabled and shape_node.transform == Transform3D.IDENTITY
+			if correct:
+				var expected_size: Vector3 = part.aabb.size
+				if shape_node.shape is BoxShape3D:
+					correct = (shape_node.shape as BoxShape3D).size.is_equal_approx(expected_size)
+				elif shape_node.shape is CylinderShape3D:
+					var cylinder := shape_node.shape as CylinderShape3D
+					correct = is_equal_approx(cylinder.height, expected_size.y) \
+						and is_equal_approx(cylinder.radius * 2.0, expected_size.x)
+				else:
+					correct = false
+			if not correct:
+				errors.append("observation chair collider roster drift")
+		if visual.get_active_material(3) != fabric_material:
 			errors.append("observation seat material hierarchy drift")
-		# Arm pads are visual-only dressing the station pass may fold into one
-		# renderer per chair; the piece index still answers each pad's own
-		# resolved material, which is the material its override bound.
 		var arm_pads := StationDressingBatch.find_authored_child_pieces(chair, "ArmPad*")
 		if arm_pads.size() != 2:
 			errors.append("observation arm pad roster drift")
-		for arm: Dictionary in arm_pads:
-			for arm_material in arm.get("materials", []) as Array:
-				if arm_material != dark_material:
-					errors.append("observation arm material hierarchy drift")
+		if visual.get_active_material(4) != dark_material:
+			errors.append("observation arm material hierarchy drift")
+		for surface_index in COMMON_CHAIR_MATERIAL_KEYS.size():
+			if visual.get_active_material(surface_index) != _materials[COMMON_CHAIR_MATERIAL_KEYS[surface_index]]:
+				errors.append("observation chair material binding drift")
+		if visual.transform != Transform3D.IDENTITY or not visual.visible \
+			or visual.layers != 1 or visual.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			errors.append("observation chair renderer state drift")
 	if backrest_material == null \
 			or not backrest_material.albedo_color.is_equal_approx(OBSERVATION_BACKREST_COLOR) \
 			or not is_equal_approx(backrest_material.metallic, OBSERVATION_BACKREST_METALLIC) \
@@ -794,6 +836,7 @@ func get_validation_errors() -> PackedStringArray:
 		errors.append("station structure must not query collision through a mask")
 	if not bool(collision.all_shapes_present_and_enabled):
 		errors.append("a walkable surface is missing an enabled collision shape")
+	errors.append_array(get_observation_chair_material_audit().errors as PackedStringArray)
 	if not bool(get_performance_contract().within_budget):
 		errors.append("module component counts exceed the declared quality budget")
 	var render := get_render_allocation_report()
@@ -1089,8 +1132,15 @@ func get_render_allocation_report() -> Dictionary:
 		if instance.mesh == null:
 			continue
 		mesh_resource_ids[instance.mesh.get_instance_id()] = true
-		if instance.material_override != null:
-			material_resource_ids[instance.material_override.get_instance_id()] = true
+		for surface_index in instance.mesh.get_surface_count():
+			var material := instance.get_active_material(surface_index)
+			if material != null:
+				material_resource_ids[material.get_instance_id()] = true
+		if instance.name == &"ChairRenderBatch":
+			for part: Dictionary in StationDressingBatch.authored_piece_index(instance):
+				var source_mesh := part.get("mesh") as Mesh
+				if source_mesh != null:
+					mesh_resource_ids[source_mesh.get_instance_id()] = true
 		if not instance.visible:
 			continue
 		drawn_copies += 1
@@ -2915,32 +2965,168 @@ func _build_common_chair(parent: Node3D, index: int, chair_position: Vector3, ya
 	chair.set_meta("evidence_status", EVIDENCE_STATUS)
 	parent.add_child(chair)
 	_chair_nodes.append(chair)
-	# The cushion top is y = 0.94 and PlayerController's hips sit 0.72 m
-	# above its feet-frame root. These chairs have their backs on local -Z, so
-	# the interaction frame turns the occupant to face local +Z.
+	# Preserve the interaction frame and the four independently owned colliders.
 	StationSeat.install(chair, 0.22, 180.0, 1.2, 0.0, "COMMON CHAIR %02d" % (index + 1))
-	_cylinder(chair, "Pedestal", Vector3(0, 0.42, 0), 0.16, 0.84, _materials["structural"], true)
-	_cylinder(chair, "Foot", Vector3(0, 0.08, 0), 0.46, 0.14, _materials["graphite"], true)
-	var bearing := _torus(
-		chair, "Bearing", Vector3(0, 0.72, 0), 0.16, 0.24, _materials["copper"],
-		Vector3.ZERO, null, COMMON_CHAIR_BEARING_NEAREST_VIEW_METRES
-	)
-	# Eight identical visual-only bearings sit inside the pedestal/seat overlap.
-	# Their circular sweep keeps the global floor; the torus budget alone owns the
-	# cheaper occluded tube cross-section. Collision and chair identity live on the
-	# unchanged pedestal, foot, seat, and chair root rather than this trim mesh.
-	bearing.set_meta(
-		TorusGeometryBudget.PROFILE_META,
-		TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING
-	)
-	_box(chair, "Seat", Vector3(0, 0.84, 0), Vector3(0.94, 0.2, 0.9), _materials["fabric"], true)
+	_prepare_common_chair_mesh()
+	for part: Dictionary in _common_chair_parts:
+		var part_name := String(part.name)
+		if part_name not in ["Pedestal", "Foot", "Seat"]:
+			continue
+		var body := StaticBody3D.new()
+		body.name = part_name
+		body.transform = part.transform
+		body.collision_layer = WORLD_LAYER
+		body.collision_mask = 0
+		chair.add_child(body)
+		var collision := CollisionShape3D.new()
+		collision.name = "Collision"
+		if part_name in ["Pedestal", "Foot"]:
+			var shape := CylinderShape3D.new()
+			shape.radius = 0.16 if part_name == "Pedestal" else 0.46
+			shape.height = 0.84 if part_name == "Pedestal" else 0.14
+			collision.shape = shape
+		else:
+			var shape := BoxShape3D.new()
+			shape.size = Vector3(0.94, 0.2, 0.9)
+			collision.shape = shape
+		body.add_child(collision)
+	# Keep the tilted backrest on its original GPU transform and material path.
 	_box(chair, "Back", Vector3(0, 1.43, -0.38), Vector3(0.92, 1.28, 0.2), _materials["observation_backrest"], true, Vector3(-6, 0, 0))
-	for side in [-1.0, 1.0]:
-		var arm_x := float(side) * 0.54
-		_beam_between(chair, "ArmSupport", Vector3(arm_x, 0.83, -0.05), Vector3(arm_x, 1.17, -0.05), 0.045, _materials["structural"], false)
-		# Side-suffixed: two siblings both named `ArmPad` leave the second one
-		# engine-renamed to `@MeshInstance3D@N`, which no audit can address.
-		_box(chair, "ArmPadPort" if side < 0.0 else "ArmPadStarboard", Vector3(arm_x, 1.2, 0), Vector3(0.14, 0.1, 0.58), _materials["fabric_dark"], false)
+	var visual := MeshInstance3D.new()
+	visual.name = "ChairRenderBatch"
+	visual.mesh = _common_chair_mesh
+	for surface_index in COMMON_CHAIR_MATERIAL_KEYS.size():
+		visual.set_surface_override_material(surface_index, _materials[COMMON_CHAIR_MATERIAL_KEYS[surface_index]])
+	# The established piece index preserves per-part support discovery and named
+	# inspection without treating the empty space inside a chair's union as solid.
+	visual.set_meta(StationDressingBatch.AUTHORED_PIECE_INDEX_META, _common_chair_parts.duplicate(true))
+	chair.add_child(visual)
+
+
+func _prepare_common_chair_mesh() -> void:
+	if _common_chair_mesh != null:
+		return
+	var bearing := TorusMesh.new()
+	bearing.inner_radius = 0.16
+	bearing.outer_radius = 0.24
+	bearing.rings = 48
+	bearing.ring_segments = 16
+	TorusGeometryBudget.declare_nearest_view(bearing, COMMON_CHAIR_BEARING_NEAREST_VIEW_METRES)
+	# Finalize the existing profile before baking: the later TorusMesh sweep
+	# cannot retessellate an ArrayMesh, and the intended recipe is 24 x 8 / 384.
+	TorusGeometryBudget.apply_profile(bearing, 1.0, TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING)
+	_common_chair_parts = [
+		_common_chair_part("Pedestal", _common_chair_cylinder(0.16, 0.84), Vector3(0, 0.42, 0), 0),
+		_common_chair_part("Foot", _common_chair_cylinder(0.46, 0.14), Vector3(0, 0.08, 0), 1),
+		_common_chair_part("Bearing", bearing, Vector3(0, 0.72, 0), 2),
+		_common_chair_part("Seat", _rounded_box_mesh(Vector3(0.94, 0.2, 0.9)), Vector3(0, 0.84, 0), 3),
+	]
+	(_common_chair_parts[2].metadata as Dictionary)[TorusGeometryBudget.PROFILE_META] = TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING
+	for side: float in [-1.0, 1.0]:
+		var suffix := "Port" if side < 0.0 else "Starboard"
+		var arm_x := side * 0.54
+		var arm_from := Vector3(arm_x, 0.83, -0.05)
+		var arm_to := Vector3(arm_x, 1.17, -0.05)
+		_common_chair_parts.append(_common_chair_part(
+			"ArmSupport" + suffix, _common_chair_cylinder(0.045, (arm_to - arm_from).length()),
+			(arm_from + arm_to) * 0.5, 0
+		))
+		_common_chair_parts.append(_common_chair_part(
+			"ArmPad" + suffix, _rounded_box_mesh(Vector3(0.14, 0.1, 0.58)), Vector3(side * 0.54, 1.2, 0), 4
+		))
+	_common_chair_mesh = ArrayMesh.new()
+	_common_chair_mesh.resource_name = "HabitatCommonChairExactFiveFinishes"
+	for surface_index in COMMON_CHAIR_MATERIAL_KEYS.size():
+		_common_chair_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _common_chair_surface(surface_index))
+
+
+func _common_chair_cylinder(radius: float, height: float) -> ArrayMesh:
+	return StationSurfaceKit.chamfered_cylinder_mesh_cached(
+		radius, radius, height, StationSurfaceKit.radial_segments_for(radius), _chamfered_cylinder_cache
+	)
+
+
+func _common_chair_part(
+		part_name: String, mesh: Mesh, position: Vector3, surface_index: int,
+		rotation_degrees_value: Vector3 = Vector3.ZERO
+	) -> Dictionary:
+	var placement := Transform3D(Basis.from_euler(rotation_degrees_value * PI / 180.0), position)
+	return {
+		"name": part_name, "transform": placement, "local_transform": placement,
+		"mesh": mesh, "mesh_id": mesh.get_instance_id(), "mesh_retained": true,
+		"aabb": mesh.get_aabb(), "metadata": {}, "surfaces": 1,
+		"materials": [_materials[COMMON_CHAIR_MATERIAL_KEYS[surface_index]]],
+		"surface_index": surface_index, "visible": true,
+		"cast_shadow": GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
+		"gi_mode": GeometryInstance3D.GI_MODE_STATIC,
+	}
+
+
+## Same indexed triangle arithmetic as StationDressingBatch, scoped to the
+## rigid chair recipe. Source UVs, tangent handedness and triangle order survive.
+func _common_chair_surface(surface_index: int) -> Array:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var tangents := PackedFloat32Array()
+	var uvs := PackedVector2Array()
+	var uv2s := PackedVector2Array()
+	var colors := PackedColorArray()
+	var has_uv2 := false
+	var has_colors := false
+	var indices := PackedInt32Array()
+	for part: Dictionary in _common_chair_parts:
+		if int(part.surface_index) != surface_index:
+			continue
+		var mesh := part.mesh as Mesh
+		var source := mesh.surface_get_arrays(0)
+		var positions: PackedVector3Array = source[Mesh.ARRAY_VERTEX]
+		var source_normals: PackedVector3Array = source[Mesh.ARRAY_NORMAL]
+		var source_tangents: PackedFloat32Array = source[Mesh.ARRAY_TANGENT]
+		var placement: Transform3D = part.transform
+		var normal_basis := placement.basis.inverse().transposed()
+		var offset := vertices.size()
+		for index in positions.size():
+			vertices.append(placement * positions[index])
+			normals.append((normal_basis * source_normals[index]).normalized())
+			var tangent := placement.basis * Vector3(
+				source_tangents[index * 4], source_tangents[index * 4 + 1], source_tangents[index * 4 + 2]
+			)
+			tangents.append_array(PackedFloat32Array([tangent.x, tangent.y, tangent.z, source_tangents[index * 4 + 3]]))
+		uvs.append_array(source[Mesh.ARRAY_TEX_UV] as PackedVector2Array)
+		var source_uv2 = source[Mesh.ARRAY_TEX_UV2]
+		var source_colors = source[Mesh.ARRAY_COLOR]
+		for index in positions.size():
+			if source_uv2 is PackedVector2Array and source_uv2.size() == positions.size():
+				uv2s.append(source_uv2[index])
+				has_uv2 = true
+			else:
+				uv2s.append(Vector2.ZERO)
+			if source_colors is PackedColorArray and source_colors.size() == positions.size():
+				colors.append(source_colors[index])
+				has_colors = true
+			else:
+				colors.append(Color.WHITE)
+		var source_indices := PackedInt32Array()
+		if source[Mesh.ARRAY_INDEX] is PackedInt32Array:
+			source_indices = source[Mesh.ARRAY_INDEX]
+		if source_indices.is_empty():
+			for index in positions.size():
+				indices.append(offset + index)
+		else:
+			for index in source_indices:
+				indices.append(offset + index)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TANGENT] = tangents
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	if has_uv2:
+		arrays[Mesh.ARRAY_TEX_UV2] = uv2s
+	if has_colors:
+		arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_INDEX] = indices
+	return arrays
 
 
 func _build_service_detail(structure: Node3D) -> void:
