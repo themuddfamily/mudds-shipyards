@@ -55,6 +55,10 @@ func _initialize() -> void:
 
 func _test_staged_assembly_reentry() -> void:
 	var binding := BINDING.new()
+	# Match the production FleetDockComb's quarter-turn. The authored access
+	# clearance audit compares axis-aligned world boxes, so arbitrary rotations
+	# would widen those boxes and audit a different circulation envelope.
+	binding.transform = Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(21.0, 8.0, -13.0))
 	binding.prepare_staged_construction()
 	root.add_child(binding)
 	await process_frame
@@ -70,6 +74,13 @@ func _test_staged_assembly_reentry() -> void:
 		for spec in BINDING.CRAFT_SPECS:
 			var craft := binding.get_node_or_null(NodePath(spec.craft_id)) as HeroShip
 			if craft != null:
+				var berths := binding.get("_berths") as Node3D
+				var landing_contract: Dictionary = berths.call("get_landing_contract", spec.pad_id)
+				_check(craft.global_transform.is_equal_approx(landing_contract.landing_transform),
+					"%s enters its first staged frame at the authored berth pose under a transformed binding" % spec.craft_id)
+				var berth := berths.get_node(NodePath(spec.pad_id)) as ShipBerth
+				_check(berth.get_occupant() == null and berth.get_reservation_owner() == null,
+					"%s keeps reservation and occupancy with the final attachment" % spec.craft_id)
 				if identities.has(spec.craft_id):
 					_check(identities[spec.craft_id] == craft.get_instance_id(),
 						"partial fleet construction retains existing craft identities")
@@ -94,8 +105,9 @@ func _test_staged_assembly_reentry() -> void:
 		"resuming the final craft still waits a process frame before attachment")
 	await process_frame
 	await process_frame
-	_check(binding.is_composition_ready() and bool(binding.get_audit_report().valid),
-		"resumed staged fleet completes its live production audit and attachments")
+	var resumed_audit := binding.get_audit_report()
+	_check(binding.is_composition_ready() and bool(resumed_audit.valid),
+		"resumed staged fleet completes its live production audit and attachments: %s" % str(resumed_audit.errors))
 	var separated := frames.size() == BINDING.get_staged_construction_stage_count()
 	for index in range(1, frames.size()):
 		separated = separated and frames[index] > frames[index - 1]

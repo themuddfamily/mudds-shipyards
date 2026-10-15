@@ -196,6 +196,14 @@ func _build_assembly_unit(unit: int) -> void:
 	var craft := (spec.get("script") as GDScript).new() as Node3D
 	craft.name = String(spec.craft_id)
 	craft.set_meta(&"evidence_status", &"NEW")
+	if _staged_construction:
+		# Each staged craft gets a real frame before attachment. Enter at the
+		# authored berth pose so its initial renderer and deferred component work
+		# never runs on a temporary pile of hulls at the binding's origin. The
+		# ordinary final attachment still owns reservation and occupancy.
+		var landing_contract: Dictionary = _berths.call("get_landing_contract", spec.pad_id)
+		var landing_transform := landing_contract.landing_transform as Transform3D
+		craft.transform = global_transform.affine_inverse() * landing_transform
 	var ship_audio_rig := ShipAudioRigScene.instantiate() as Node3D
 	ship_audio_rig.set("profile_id", RIG_PROFILE_BY_RECIPE[AUDIO_RECIPE_BY_CRAFT[spec.craft_id]])
 	craft.add_child(ship_audio_rig)
