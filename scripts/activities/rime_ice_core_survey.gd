@@ -383,7 +383,7 @@ func abandon(body: PlayerController = null) -> bool:
 
 func _shared_visit() -> bool:
 	var visit: RefCounted = _visit_ref.get_ref()
-	return visit != null and bool(visit.get("_shared_arrival"))
+	return visit != null and visit.get("_shared_arrival") == true
 
 
 func _actor_can_observe(body: PlayerController) -> bool:
