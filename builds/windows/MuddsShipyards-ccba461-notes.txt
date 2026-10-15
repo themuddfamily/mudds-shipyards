@@ -1,0 +1,7 @@
+Mudds Shipyards — Windows checkpoint ccba461
+
+Long caption source names wrap instead of being shortened. Offscreen minimap distance labels stay inside the map without covering their directional markers. After a scan reward is saved, failed discovery-record saves show Start-to-retry guidance on the Activity Board.
+
+Validation: six focused source suites passed287 checks. Expected caption/scan regressions and corrected old-minimap mutation failure are retained; an earlier mutation fixture parse failure is also retained. Actual Windows embedded PCK ran under pinned Linux Godot: caption40, offscreen minimap135 and retained-scan11 assertions passed (186 total), plus strict startup exit0/exactly one readiness marker/zero diagnostics. Inventory1513 has exactly three reviewed UI compiled-script deltas; all other payload bytes match1b. Official Windows release-template .text matches. Safe two-member ZIP readback and scoped source/index/cache/installed-input/artifact/userdata guards pass; owned actors closed. Initial missing-private-template configuration failure and a wrapper assertion expecting nonexistent Linux-style Windows metadata are preserved. The profile-only read-only template link corrected configuration; the actual successful EXE was not re-exported.
+
+Native Windows execution was not performed. This component/headless checkpoint does not establish full-matrix, ordinary-controls, renderer, native-GPU or human-playtesting qualification. Earlier ordinary-route timeouts remain retained. GitHub Actions stays disabled.
