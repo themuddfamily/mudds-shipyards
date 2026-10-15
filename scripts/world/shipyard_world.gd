@@ -1163,6 +1163,7 @@ var _tie_down_socket_mesh: TorusMesh
 var _dock_mast_collar_mesh: TorusMesh
 var _exterior_target_core_mesh: SphereMesh
 var _exterior_target_lamp_mesh: SphereMesh
+var _projectile_impact_mesh: SphereMesh
 var _targets: Array[StaticBody3D] = []
 var _warning_lights: Array[OmniLight3D] = []
 var _crane_trolley: Node3D
@@ -10180,7 +10181,8 @@ func present_authorized_target_destruction(
 
 func _spawn_impact(world_position: Vector3, color: Color) -> MeshInstance3D:
 	var impact_material := _material(color, 0.0, 0.3, color, 6.0)
-	var impact := _sphere(self, "ProjectileImpact", world_position, 0.16, impact_material, false)
+	var impact := _sphere(self, "ProjectileImpact", world_position, 0.16, impact_material, false,
+		_shared_projectile_impact_mesh())
 	impact.top_level = true
 	impact.global_position = world_position
 	var tween := create_tween()
@@ -10189,6 +10191,19 @@ func _spawn_impact(world_position: Vector3, color: Color) -> MeshInstance3D:
 	tween.tween_property(impact, "rotation", Vector3(0.5, 1.2, 0.8), 0.18)
 	tween.chain().tween_callback(impact.queue_free)
 	return impact
+
+
+## Only the node transform and its private material animate. Repeated hits keep
+## the same immutable sphere instead of rebuilding its buffers for every flash.
+## The cache belongs to this world, matching the other shared visual families.
+func _shared_projectile_impact_mesh() -> SphereMesh:
+	if not is_instance_valid(_projectile_impact_mesh):
+		_projectile_impact_mesh = SphereMesh.new()
+		_projectile_impact_mesh.radius = 0.16
+		_projectile_impact_mesh.height = 0.32
+		_projectile_impact_mesh.radial_segments = 24
+		_projectile_impact_mesh.rings = 12
+	return _projectile_impact_mesh
 
 
 func _spawn_target_burst(world_position: Vector3) -> Node3D:
