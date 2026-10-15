@@ -4,7 +4,7 @@ extends SceneTree
 ## presenter. This script saves exactly one PNG and is never a matrix capture.
 
 const PRESENTER_SCENE := preload("res://scenes/ui/caption_presenter.tscn")
-const OUTPUT_PATH := "/tmp/caption-presenter-forward-plus.png"
+const OUTPUT_BASENAME := "caption-presenter-forward-plus.png"
 
 
 func _initialize() -> void:
@@ -52,8 +52,16 @@ func _run() -> void:
 	for _frame in 6:
 		await process_frame
 	await RenderingServer.frame_post_draw
+	var output_directory := OS.get_environment("MUDDS_CAPTION_CAPTURE_DIR")
+	if output_directory.is_empty():
+		output_directory = OS.get_user_data_dir().path_join("captures")
+	if DirAccess.make_dir_recursive_absolute(output_directory) != OK:
+		push_error("CAPTION_PRESENTER_FORWARD_RENDER_FAILED: output directory %s" % output_directory)
+		quit(1)
+		return
+	var output_path := output_directory.path_join(OUTPUT_BASENAME)
 	var image := viewport.get_texture().get_image()
-	if image == null or image.is_empty() or image.save_png(OUTPUT_PATH) != OK:
+	if image == null or image.is_empty() or image.save_png(output_path) != OK:
 		push_error("CAPTION_PRESENTER_FORWARD_RENDER_FAILED")
 		quit(1)
 		return
@@ -62,7 +70,7 @@ func _run() -> void:
 		" adapter=", RenderingServer.get_video_adapter_name(),
 		" size=", image.get_size(),
 		" report=", presenter.get_layout_report(),
-		" path=", OUTPUT_PATH
+		" path=", output_path
 	)
 	quit(0)
 

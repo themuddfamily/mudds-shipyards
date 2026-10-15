@@ -3,7 +3,7 @@ extends SceneTree
 ## Exactly one normal-resolution Forward+ frame of the production Main/HUD
 ## caption seam. Visual evidence only; this is not a performance benchmark.
 
-const OUTPUT_PATH := "/tmp/caption-production-forward-plus.png"
+const OUTPUT_BASENAME := "caption-production-forward-plus.png"
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Store := preload("res://scripts/persistence/user_data_store.gd")
 const Adapter := preload("res://scripts/settings/runtime_settings_store_adapter.gd")
@@ -157,8 +157,15 @@ func _run() -> void:
 	if not _verify_isolation(game, persistence_before, expected_save_delta):
 		return
 	await RenderingServer.frame_post_draw
+	var output_directory := OS.get_environment("MUDDS_CAPTION_CAPTURE_DIR")
+	if output_directory.is_empty():
+		output_directory = OS.get_user_data_dir().path_join("captures")
+	if DirAccess.make_dir_recursive_absolute(output_directory) != OK:
+		_fail_closed("output directory %s" % output_directory)
+		return
+	var output_path := output_directory.path_join(OUTPUT_BASENAME)
 	var image := root.get_texture().get_image()
-	if image == null or image.is_empty() or image.save_png(OUTPUT_PATH) != OK:
+	if image == null or image.is_empty() or image.save_png(output_path) != OK:
 		push_error("CAPTION_PRODUCTION_FORWARD_RENDER_FAILED: image save")
 		quit(1)
 		return
@@ -168,7 +175,7 @@ func _run() -> void:
 		" size=", image.get_size(),
 		" caption=", hud.get_caption_presentation_report(),
 		" panels=", hud.get_hud_panel_rects(),
-		" path=", OUTPUT_PATH
+		" path=", output_path
 	)
 	quit(0)
 
