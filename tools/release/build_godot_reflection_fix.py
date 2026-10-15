@@ -179,6 +179,7 @@ def run(command, env, cwd, log, timeout):
     remaining = session_actors(process.pid)
     if remaining:
         close_session(process)
+        remaining = session_actors(process.pid)
     require(not remaining, f"Owned session actors remain: {remaining}")
     return {"command": command, "exit": code, "pid": process.pid,
             "start_ticks": start_tick, "seconds": round(time.monotonic() - started, 3)}

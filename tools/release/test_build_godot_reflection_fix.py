@@ -11,7 +11,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 SCRIPT = Path(__file__).with_name("build_godot_reflection_fix.py")
@@ -34,6 +34,39 @@ class BuildTargets(unittest.TestCase):
             run.assert_not_called()
         self.assertFalse(self.cache.exists())
         return json.loads(output.getvalue())
+
+    def test_successful_command_rescans_after_residual_session_cleanup(self):
+        process = Mock(pid=1234)
+        process.wait.return_value = 0
+        stat = "1234 (inert tool) " + " ".join(["0"] * 19 + ["5678"])
+        with patch.object(builder.subprocess, "Popen", return_value=process), \
+                patch.object(builder.Path, "read_text", return_value=stat), \
+                patch.object(builder, "session_actors", side_effect=[[("2345", "6789")], []]) as actors, \
+                patch.object(builder, "close_session") as close, \
+                contextlib.redirect_stdout(io.StringIO()):
+            result = builder.run(["inert-tool"], {}, Path(self.tmp.name),
+                                 Path(self.tmp.name) / "run.log", 300)
+        self.assertEqual(result["exit"], 0)
+        self.assertEqual(result["start_ticks"], "5678")
+        self.assertEqual(actors.call_count, 2)
+        actors.assert_called_with(process.pid)
+        close.assert_called_once_with(process)
+        process.wait.assert_called_once_with(timeout=300)
+
+    def test_successful_command_rejects_actors_still_present_after_cleanup(self):
+        process = Mock(pid=1234)
+        process.wait.return_value = 0
+        stat = "1234 (inert tool) " + " ".join(["0"] * 19 + ["5678"])
+        with patch.object(builder.subprocess, "Popen", return_value=process), \
+                patch.object(builder.Path, "read_text", return_value=stat), \
+                patch.object(builder, "session_actors", return_value=[("2345", "6789")]) as actors, \
+                patch.object(builder, "close_session") as close, \
+                contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(RuntimeError, "Owned session actors remain.*2345"):
+                builder.run(["inert-tool"], {}, Path(self.tmp.name),
+                            Path(self.tmp.name) / "run.log", 300)
+        self.assertEqual(actors.call_count, 2)
+        close.assert_called_once_with(process)
 
     def test_default_editor_plan_keeps_accepted_paths(self):
         p = self.plan()
