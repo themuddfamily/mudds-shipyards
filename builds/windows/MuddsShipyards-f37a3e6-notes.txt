@@ -1,0 +1,16 @@
+Mudd's Shipyards — title recovery / Start Fresh checkpoint
+Source: f37a3e634046941f01deb8c90789f007f2304a02
+
+Player-visible changes
+Recovery choices are visible on the title screen. Start Fresh durably declines saved Aurora or Rime locations. Completed, unpaid survey rewards remain owed and require a genuine arrival before being offered; declining a location does not erase that completed work. If saving the choice is rejected, recovery remains available so the same choice can be retried normally. Current gameplay and the earlier graphics/VSync improvements remain included.
+
+Actual validation
+Source checks passed 112 assertions: HUD 29 and integration 12 in the earlier focused invocation, then corrected surface fixture 71 in its own invocation. The first invocation's overall fixture-parse failure and prior five numeric failures remain preserved; it is not presented as an all-green matrix.
+ONE safe Windows export from clean source, original 900-second limit, pinned custom Linux editor and official Windows template. Actual embedded Windows PCK passes strict startup (exit 0, exactly one STARTUP_MENU_READY_OK, zero diagnostics) and all three committed external consumers: HUD 29, integration 12, surface 71. Original limits remain 300/300/600 seconds for those consumers. The valid HUD result was not rerun after an external wrapper incorrectly required individual PASS lines; that wrapper failure is preserved separately.
+All 1,513 payload paths match the preceding 72c2ba9 checkpoint; only GameFlow, expedition, persistence binding and HUD compiled scripts change. All other assets/payloads remain byte-exact. The official Windows PE code section is verified without executing it. External fixtures contain only three committed tests/UIDs and authenticated class/UID metadata; no runtime source or assets are exposed as fallback. Sealed export-cache, source/index, templates/editor, EXE/inventory and fixture guards match; owned process identities are closed. The separate Linux exporter owns subsequent live-cache transitions. ZIP contains only this EXE and these notes with CRC and member-hash readback.
+
+Limits
+Native Windows, native GPU, controller, audio, human review and final/full-release qualification are NOT_RUN. This is Linux-hosted Windows-PCK validation, using private headless/Dummy profiles with inherited HOME. It does not qualify canonical travel or native presentation/input. The custom Linux engine patch is not in the official Windows template. Windows PE/Wine/PowerShell execution remains held; hosted CI is disabled. No cold rendered retry, FPS claim, publication or external push is part of this staging step. Earlier failures and checkpoints remain preserved.
+
+EXE SHA256: bec28a5de5cbf7749e5b7eeafba14200a4788d4da57230334115096b268565bb
+Evidence: /root/.cache/mudds-shipyards/roadmap-validation/shared-visit-restoration/windows-f37a3e6
