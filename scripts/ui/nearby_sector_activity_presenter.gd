@@ -330,6 +330,8 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		bool(state.get("reward_pending", state.get("reward_requested", false)))
 		or bool(cargo_progress.get("reward_retry_available", false))
 	)
+	if not mining_feedback.is_empty():
+		reward_pending = bool(mining_feedback.get("reward_pending", false))
 	if activity_id == &"cinder_asteroid_field_threading_run":
 		# This binding acknowledges payment with reward_requested; it is not debt.
 		reward_pending = state_id == &"completed" and not bool(state.get("reward_requested", false))
@@ -702,9 +704,14 @@ func _mining_feedback(state: Dictionary) -> Dictionary:
 	var progress := clampf(elapsed / duration, 0.0, 1.0) if duration > 0.0 else 0.0
 	var percentage := clampi(roundi(progress * 100.0), 0, 100)
 	var remaining := maxf(duration - elapsed, 0.0)
-	var reward_pending := bool(state.get("reward_requested", false))
 	var capacity_persisted := bool(state.get("capacity_persisted", false))
 	var persistence_retry := bool(state.get("persistence_retry_available", false))
+	# A retained request identifies the paid generation too. Its durable
+	# capacity receipt takes precedence over request and retry presentation.
+	var reward_pending := not capacity_persisted and (
+		bool(state.get("reward_pending", state.get("reward_requested", false)))
+		or persistence_retry
+	)
 	var stage_id: StringName = &"available"
 	var summary := "EXTRACTION READY  //  0%"
 	var objective := "APPROACH THE CINDER EXTRACTION PLATFORM"

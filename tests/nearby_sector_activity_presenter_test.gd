@@ -103,6 +103,36 @@ func _initialize() -> void:
 		"the hulk row has no board path to start, reset or claim salvage")
 	var mining_card := _card(view, &"cinder_platform_mining_run")
 	_check("COMPLETED" in str(mining_card.get("text", "")) and bool(mining_card.get("reward_pending", false)), "completed mining text includes state and pending reward")
+	var mining_id: StringName = &"cinder_platform_mining_run"
+	var paid_mining_view := presenter.present({
+		"host": {"activity": {"state_id": &"active"}},
+		"mining": {"state": 2, "state_id": &"complete", "generation": 4,
+			"reward_requested": true, "capacity_persisted": true,
+			"persistence_retry_available": false},
+	})
+	var paid_mining := _card(paid_mining_view, mining_id)
+	_check(not bool(paid_mining.reward_pending)
+		and not bool(paid_mining.mining_feedback.reward_pending)
+		and paid_mining.mining_feedback.stage_id == &"capacity_recorded"
+		and "EXTRACTION RECEIPT SAVED" in str(paid_mining.text)
+		and paid_mining.priority_id == &"standard"
+		and paid_mining_view.cards[0].activity_id == &"cinder_reach_emberline_convoy",
+		"a paid live mining generation retains its receipt without outranking active work as pending")
+	var unpaid_mining_view := presenter.present({
+		"host": {"activity": {"state_id": &"active"}},
+		"mining": {"state": 2, "state_id": &"complete", "generation": 4,
+			"reward_requested": true, "capacity_persisted": false,
+			"persistence_retry_available": true},
+	})
+	var unpaid_mining := _card(unpaid_mining_view, mining_id)
+	_check(bool(unpaid_mining.reward_pending)
+		and bool(unpaid_mining.mining_feedback.reward_pending)
+		and unpaid_mining.mining_feedback.stage_id == &"save_retry"
+		and "SAVE FAILED  //  START TO RETRY" in str(unpaid_mining.text)
+		and unpaid_mining.priority_id == &"reward_pending"
+		and unpaid_mining_view.cards[0].activity_id == mining_id
+		and not bool(unpaid_mining.reward_authority),
+		"an unpaid rejected capacity save retains retry guidance and outranks active work")
 	var scan_card := _card(view, &"cinder_derelict_structure_scan")
 	_check(scan_card.get("state_id") == &"wrong_position" and "MOVE TO DERELICT SCAN MARKER" in str(scan_card.get("text", "")) and is_equal_approx(float(scan_card.scan_feedback.progress), 0.25), "scan rejection exposes progress and recovery reason")
 	var scan_id: StringName = &"cinder_derelict_structure_scan"
