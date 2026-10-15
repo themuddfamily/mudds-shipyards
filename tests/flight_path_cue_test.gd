@@ -81,6 +81,8 @@ func _test_hud_contract() -> void:
 	hud.set_mode("piloting")
 	await process_frame
 	var keyboard_rows := hud._help_rows_for_mode(GameHUD.MODE_PILOTING) as Array
+	_check(_prompt_for_detail(keyboard_rows, "STEER") == "Mouse",
+		"desktop piloting help retains mouse steering")
 	_check(
 		_prompt_for_detail(keyboard_rows, "PITCH") == "Up / Down",
 		"ship help names the current Up and Down keyboard pitch bindings"
@@ -106,10 +108,13 @@ func _test_hud_contract() -> void:
 	_check(
 		_prompt_for_detail(gamepad_rows, "FORWARD / REVERSE  //  AUTO POWER") == "Left Stick"
 		and _prompt_for_detail(gamepad_rows, "PITCH") == "Right Stick"
+		and _prompt_for_detail(gamepad_rows, "YAW") == "Left Stick"
 		and _prompt_for_detail(gamepad_rows, "ROLL") == "Right Stick"
 		and _prompt_for_detail(gamepad_rows, "LEAVE SEAT: AUTO-OFFLINE") == "Left Face Button",
 		"ship help resolves the current gamepad bindings instead of a stale static summary"
 	)
+	_check(_prompt_for_detail(gamepad_rows, "STEER").is_empty(),
+		"gamepad piloting help omits the mouse-derived generic steer row")
 	_check(_all_controls_passthrough(gameplay_hud), "the complete gameplay HUD remains transparent to look and fire input")
 
 	var retained_telemetry := _hud_telemetry(center + Vector2(84.0, 22.0))

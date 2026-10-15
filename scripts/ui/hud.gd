@@ -1244,9 +1244,8 @@ func _help_rows_for_mode(mode: StringName) -> Array:
 			var primary_action_label := (
 				"RELEASE PAYLOAD" if _has_cinder_bomber_identity() else "FIRE"
 			)
-			return [
+			var rows := [
 				[_action_prompts([&"move_forward", &"move_back"]), "FORWARD / REVERSE  //  AUTO POWER"],
-				[_look_prompt(), "STEER"],
 				[_action_prompts([&"pitch_up", &"pitch_down"]), "PITCH"],
 				[_action_prompts([&"move_left", &"move_right"]), "YAW"],
 				[_action_prompts([&"roll_left", &"roll_right"]), "ROLL"],
@@ -1258,6 +1257,13 @@ func _help_rows_for_mode(mode: StringName) -> Array:
 				[_action_prompts([&"interact"]), "LEAVE SEAT: AUTO-OFFLINE"],
 				[_action_prompts([&"toggle_controls_overlay"]), "CONTROLS"],
 			]
+			# Mouse motion steers both axes. Pad axes are described by their
+			# bound pitch/yaw/roll rows, rather than the on-foot look stick.
+			if not InputGlyphResolverType.GAMEPAD_FAMILIES.has(
+				_input_glyph_resolver.get_preferred_device_family()
+			):
+				rows.insert(1, [_look_prompt(), "STEER"])
+			return rows
 		MODE_DRIVING:
 			# The tractor brakes on `brake` *or* `jump`, steers on A/D, and hands
 			# the seat back on `interact` only once it has come to a stop.
