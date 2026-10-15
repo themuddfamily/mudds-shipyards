@@ -695,28 +695,21 @@ func _shared_aurora_home_publication_retry() -> void:
 			game.queue_free()
 			await process_frame
 			return
-		# Existing public expedition rescue ends this recovered visit; the next
-		# staged admission below remains a separate passive-progress consumer.
-		game._aurora_expedition.cancel(true)
-		if not await _wait_until(func(): return not game._aurora_expedition.is_active(), 6.0):
-			_check(false, "ordinary recovered-visit cancellation returns the host safely before the next admission")
+	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
+	var home := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	if _survey_restart_phase != 2:
+		game._release_ship_berth(craft)
+		craft.global_transform = home.get_assist_capture_transform()
+		craft.velocity = Vector3.ZERO
+		game.player.teleport_to(Transform3D(craft.global_basis.orthonormalized(), craft.get_boarding_position()))
+		game._board_ship(craft)
+		var piloting := await _wait_until(func(): return game._piloting and game.player.is_seated_at(craft.get_pilot_seat_anchor()) \
+			and not game._transition_busy, 12.0)
+		_check(piloting, "bounded home retry uses the actual Halyard host pilot")
+		if not piloting:
 			game.queue_free()
 			await process_frame
 			return
-	var craft := game.get_node("HalyardCrewTransport") as HalyardCrewTransport
-	var home := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
-	game._release_ship_berth(craft)
-	craft.global_transform = home.get_assist_capture_transform()
-	craft.velocity = Vector3.ZERO
-	game.player.teleport_to(Transform3D(craft.global_basis.orthonormalized(), craft.get_boarding_position()))
-	game._board_ship(craft)
-	var piloting := await _wait_until(func(): return game._piloting and game.player.is_seated_at(craft.get_pilot_seat_anchor()) \
-		and not game._transition_busy, 12.0)
-	_check(piloting, "bounded home retry uses the actual Halyard host pilot")
-	if not piloting:
-		game.queue_free()
-		await process_frame
-		return
 	game._retire_network_session(&"home_retry_probe")
 	await process_frame
 	var server := LandingAdapterProbe.new()
@@ -733,6 +726,17 @@ func _shared_aurora_home_publication_retry() -> void:
 	port_probe.stop()
 	game._ensure_lan_discovery().discovery_port = 0
 	_check(port_ready and bool(game.host_network_session(port, 2).get("accepted", false)), "bounded retry opens the real authoritative host session")
+	if _survey_restart_phase == 2:
+		# The public restored-surface host action ran while standing. Retake
+		# this actual visit's helm through its ordinary physical boarding owner.
+		game._aurora_expedition.interact()
+		var piloting := await _wait_until(func(): return game._piloting and game.player.is_seated_at(craft.get_pilot_seat_anchor()) \
+			and not game._transition_busy and game._aurora_expedition.state == &"landed", 12.0)
+		_check(piloting, "bounded home retry uses the actual Halyard host pilot")
+		if not piloting:
+			game.queue_free()
+			await process_frame
+			return
 	var branch := SubViewport.new()
 	root.add_child(branch)
 	set_multiplayer(SceneMultiplayer.new(), branch.get_path())
@@ -887,36 +891,48 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 	var owner := game._aurora_expedition
 	var bootstrap := game.aurora_streaming_bootstrap
 	var binding := game.aurora_streaming_binding
-	_check(bool(game._planetary_journey.admit_aurora_visit(craft, false).get("accepted", false)), "staged survey admits the actual Aurora visit lane")
-	craft.global_position = bootstrap.global_position + Vector3(0, 120030, 30)
-	var sample := {"available": true, "position": craft.global_position, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id()}
-	binding.physics_tick_from_caller_sample(0.0, sample)
-	var rebased := game.common_world_origin_rebase_owner.consume_rebase_preview(binding.preview_origin_rebase(bootstrap.get_coordinate_frame_for_session().get_generation()), sample)
-	_check(bool(rebased.get("accepted", false)), "staged survey uses the real common origin owner")
+	if _survey_restart_phase == 2:
+		_check(owner.settled_surface_is_current() and game._planetary_journey.get_visit_world_id() == &"aurora_temperate_world",
+			"continuation retains the actual recovered Aurora visit lane")
+		_check(owner._surface == bootstrap.get_loaded_instance() and game._network_planetary_journey._restored_surface_session_is_current(),
+			"continuation retains the recovered current scene and common origin")
+	else:
+		_check(bool(game._planetary_journey.admit_aurora_visit(craft, false).get("accepted", false)), "staged survey admits the actual Aurora visit lane")
+		craft.global_position = bootstrap.global_position + Vector3(0, 120030, 30)
+		var sample := {"available": true, "position": craft.global_position, "actor_kind": &"ship", "actor_instance_id": craft.get_instance_id()}
+		binding.physics_tick_from_caller_sample(0.0, sample)
+		var rebased := game.common_world_origin_rebase_owner.consume_rebase_preview(binding.preview_origin_rebase(bootstrap.get_coordinate_frame_for_session().get_generation()), sample)
+		_check(bool(rebased.get("accepted", false)), "staged survey uses the real common origin owner")
 	await _wait_until(func(): return is_instance_valid(bootstrap.get_loaded_instance()), 10.0)
 	var surface := bootstrap.get_loaded_instance()
 	if not is_instance_valid(surface):
 		_check(false, "staged survey loads the real coastal scene")
 		return false
 	var region := surface.get_node("LandingRegion") as Node3D
-	owner._ship = craft
-	owner._home = game.world.get_berth_node(craft.get_home_berth_id())
-	owner._surface = surface
-	owner._shared_arrival = true
-	owner.state = &"landed"
-	owner.survey.attach(surface)
-	owner._lease_surface_berth(region)
 	var berth := owner._berth as ShipBerth
-	craft.global_transform = berth.get_assist_capture_transform()
-	craft.velocity = Vector3.ZERO
-	craft.request_berth_landing(berth)
-	_check(await _wait_until(func(): return berth.get_occupant() == craft and not craft.is_landing_active(), 15.0), "staged survey physically docks the retained Halyard on the actual Aurora lease")
+	if _survey_restart_phase == 2:
+		_check(is_instance_valid(berth) and berth.get_occupant() == craft and owner.settled_surface_is_current(),
+			"continuation retains the actual recovered occupied Aurora berth")
+	else:
+		owner._ship = craft
+		owner._home = game.world.get_berth_node(craft.get_home_berth_id())
+		owner._surface = surface
+		owner._shared_arrival = true
+		owner.state = &"landed"
+		owner.survey.attach(surface)
+		owner._lease_surface_berth(region)
+		berth = owner._berth as ShipBerth
+		craft.global_transform = berth.get_assist_capture_transform()
+		craft.velocity = Vector3.ZERO
+		craft.request_berth_landing(berth)
+		_check(await _wait_until(func(): return berth.get_occupant() == craft and not craft.is_landing_active(), 15.0), "staged survey physically docks the retained Halyard on the actual Aurora lease")
 	var bridge := game._network_planetary_journey
-	bridge._epoch = 1
-	bridge._craft_instance_id = craft.get_instance_id()
-	bridge._pilot_source_ref = weakref(craft.get_command_source())
-	bridge._state = {"journey_epoch": 1, "world_id": &"aurora_temperate_world", "ship_id": craft.get_ship_id(), "phase": &"landed"}
-	game.phase = GameFlow.Phase.FREE_FLIGHT
+	if _survey_restart_phase != 2:
+		bridge._epoch = 1
+		bridge._craft_instance_id = craft.get_instance_id()
+		bridge._pilot_source_ref = weakref(craft.get_command_source())
+		bridge._state = {"journey_epoch": 1, "world_id": &"aurora_temperate_world", "ship_id": craft.get_ship_id(), "phase": &"landed"}
+		game.phase = GameFlow.Phase.FREE_FLIGHT
 	await _wait_until(func(): return game._network_aurora_passenger_host_is_current(craft), 5.0)
 	owner.physics_tick(0.0)
 	if _survey_restart_phase == 2:
@@ -1043,11 +1059,12 @@ func _shared_aurora_coastal_observations(game: GameFlow, server: Adapter, client
 				return false
 		var reboard: Dictionary = BoardingIntent.create(peer, avatar, craft.get_ship_id(), 1, StringName("frame_%s" % craft.get_ship_id()), 1, seat, 1, GameFlow.NETWORK_CABIN_BERTH_ROLE, 3, server.get_boarding_server_tick(), BoardingIntent.ACTION_BOARD).to_dictionary()
 		client.send_boarding_intent(reboard)
-		_check((bridge.get("_restored_surface_session") as Dictionary).is_empty() \
+		_check(((bridge.get("_restored_surface_session") as Dictionary).is_empty() if _survey_restart_phase != 2 \
+			else bridge._restored_surface_session_is_current()) \
 			and await _wait_until(func(): return not simulation.is_surface_walking(avatar) and body.is_cabin_containment_active(), 5.0) \
 			and simulation.get_body(avatar) == body \
 			and not server.get_boarding_snapshot().get("occupancies", []).is_empty(), \
-			"ordinary authenticated reboard retains the survey body and seat without a restored-session tuple")
+			"ordinary authenticated reboard retains the survey body and seat under its current visit authority")
 		_check(bridge.shared_aurora_return_gate_reason().is_empty(), "optional Aurora survey leaves the existing shared return admission usable")
 	owner._release_surface_lease()
 	owner.state = &"idle"
