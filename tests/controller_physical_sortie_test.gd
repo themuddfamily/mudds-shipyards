@@ -51,6 +51,10 @@ const FRAME_BUDGET_GRACE := 30
 var _failures := PackedStringArray()
 var _assertions := 0
 var _production_input_route := false
+var _sortie_diagnostics := false
+var _diagnostic_wall_ms := -1
+var _diagnostic_physics_frame := -1
+var _diagnostic_process_frame := -1
 var _boot: StartupLoader
 
 
@@ -170,6 +174,8 @@ func _init() -> void:
 
 func _run() -> void:
 	_production_input_route = "--production-input-route" in OS.get_cmdline_user_args()
+	_sortie_diagnostics = _production_input_route and "--sortie-diagnostics" in OS.get_cmdline_user_args()
+	_sortie_timing_sample("boot_begin")
 	var game: GameFlow
 	if _production_input_route:
 		var boot_scene: PackedScene = load("res://scenes/boot.tscn")
@@ -648,6 +654,7 @@ func _fly_to_waypoint(
 	arrival_radius: float,
 	arrival_stop_speed: float = -1.0
 	) -> bool:
+	_sortie_timing_sample("fly_begin")
 	var frame_budget := _frame_budget(FLIGHT_TRAVEL_SECONDS)
 	var frames := 0
 	var initial_sequence := -1
@@ -660,9 +667,12 @@ func _fly_to_waypoint(
 		frames += 1
 		var offset := waypoint - ship.global_position
 		var distance := offset.length()
+		if _sortie_diagnostics and (frames == 1 or frames % 120 == 0):
+			_sortie_guidance_sample("fly", ship, offset.normalized(), distance, frames)
 		if distance <= arrival_radius:
 			_neutralize_flight_axes(provider)
 			if arrival_stop_speed < 0.0 or ship.velocity.length() <= arrival_stop_speed:
+				_sortie_timing_sample("fly_end_arrived")
 				return true
 			# The ordinary return must stop at its approach marker before aiming
 			# at the berth. Crossing the marker at speed is not settled staging.
@@ -698,6 +708,7 @@ func _fly_to_waypoint(
 			ship.global_position.x, ship.global_position.y, ship.global_position.z,
 			waypoint.x, waypoint.y, waypoint.z, ship.velocity.length(),
 		])
+	_sortie_timing_sample("fly_end_budget")
 	return arrived
 
 
@@ -707,6 +718,7 @@ func _brake_ship(
 	maximum_speed: float,
 	nominal_seconds: float
 	) -> bool:
+	_sortie_timing_sample("brake_begin")
 	_neutralize_flight_axes(provider)
 	provider.set_axis(AXIS_LEFT_TRIGGER, 1.0)
 	var stopped := await _wait_until(
@@ -715,6 +727,7 @@ func _brake_ship(
 	)
 	provider.set_axis(AXIS_LEFT_TRIGGER, 0.0)
 	await physics_frame
+	_sortie_timing_sample("brake_end")
 	return stopped
 
 
@@ -725,6 +738,7 @@ func _align_ship(
 	minimum_dot: float,
 	nominal_seconds: float
 	) -> bool:
+	_sortie_timing_sample("align_begin")
 	var direction := desired_direction.normalized()
 	var frame_budget := _frame_budget(nominal_seconds)
 	var frames := 0
@@ -738,10 +752,13 @@ func _align_ship(
 	while frames < frame_budget:
 		frames += 1
 		var forward := -ship.global_basis.z.normalized()
+		if _sortie_diagnostics and (frames == 1 or frames % 120 == 0):
+			_sortie_guidance_sample("align", ship, direction, -1.0, frames)
 		if forward.dot(direction) >= minimum_dot and ship.global_basis.y.dot(Vector3.UP) > 0.94:
 			_neutralize_flight_axes(provider)
 			provider.set_button(BUTTON_A, false)
 			await physics_frame
+			_sortie_timing_sample("align_end_aligned")
 			return true
 		var local_desired := ship.global_basis.orthonormalized().inverse() * direction
 		provider.set_axis(AXIS_LEFT_X, clampf(local_desired.x * 3.8, -1.0, 1.0))
@@ -763,6 +780,7 @@ func _align_ship(
 	)
 	if _production_input_route and not aligned:
 		_print_guidance_failure(ship, direction, frames, 1, initial_sequence, initial_basis)
+	_sortie_timing_sample("align_end_budget")
 	return aligned
 
 
@@ -995,11 +1013,46 @@ func _clean_up(game: Node, provider: ControllerStateProvider) -> void:
 
 func _check(condition: bool, description: String) -> void:
 	_assertions += 1
+	if _sortie_diagnostics:
+		_sortie_timing_sample("check_%d" % _assertions)
 	if condition:
 		print("PASS: ", description)
 	else:
 		_failures.append(description)
 		push_error("FAIL: " + description)
+
+
+## Optional latest CPU/render monitor samples, not stage averages or GPU times.
+func _sortie_timing_sample(stage: String) -> void:
+	if not _sortie_diagnostics:
+		return
+	var wall_ms := Time.get_ticks_msec()
+	var physics_frame_count := Engine.get_physics_frames()
+	var process_frame_count := Engine.get_process_frames()
+	print("SORTIE_DIAGNOSTICS_SAMPLE: stage=%s wall_ms=%d delta_wall_ms=%d physics_frames=%d delta_physics_frames=%d process_frames=%d delta_process_frames=%d fps=%.3f latest_process_ms=%.6f latest_physics_ms=%.6f latest_draw_calls=%d latest_primitives=%d" % [
+		stage, wall_ms, wall_ms - _diagnostic_wall_ms if _diagnostic_wall_ms >= 0 else 0,
+		physics_frame_count, physics_frame_count - _diagnostic_physics_frame if _diagnostic_physics_frame >= 0 else 0,
+		process_frame_count, process_frame_count - _diagnostic_process_frame if _diagnostic_process_frame >= 0 else 0,
+		Engine.get_frames_per_second(), Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
+	])
+	_diagnostic_wall_ms = wall_ms
+	_diagnostic_physics_frame = physics_frame_count
+	_diagnostic_process_frame = process_frame_count
+
+
+func _sortie_guidance_sample(kind: String, ship: HeroShip, desired: Vector3, distance: float, step: int) -> void:
+	var command := ship.get_last_ship_command()
+	_sortie_timing_sample("%s_step_%d" % [kind, step])
+	print("SORTIE_DIAGNOSTICS_GUIDANCE: kind=%s step=%d position_x=%.6f position_y=%.6f position_z=%.6f desired_x=%.6f desired_y=%.6f desired_z=%.6f distance=%.6f speed=%.6f forward_dot=%.6f consumed_sequence=%d consumed_yaw=%.6f consumed_pitch=%.6f consumed_throttle=%.6f consumed_brake=%d" % [
+		kind, step, ship.global_position.x, ship.global_position.y, ship.global_position.z,
+		desired.x, desired.y, desired.z, distance, ship.velocity.length(),
+		(-ship.global_basis.z.normalized()).dot(desired), command.sequence if command != null else -1,
+		command.yaw if command != null else 0.0, command.pitch if command != null else 0.0,
+		command.throttle if command != null else 0.0, int(command.brake) if command != null else -1,
+	])
 
 
 func _finish() -> void:
