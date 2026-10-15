@@ -47,6 +47,7 @@ func _run() -> void:
 	await _test_cabin_containment_currentness()
 	await _test_seat_suspends_and_restores_without_losing_the_choice()
 	await _test_binding_is_bound_and_documented()
+	await _test_focused_gameplay_camera_input()
 	await _test_ultrawide_policy_reaches_the_on_foot_rig()
 	await process_frame
 	_finish()
@@ -435,8 +436,202 @@ func _test_binding_is_bound_and_documented() -> void:
 		if label.text.contains("1ST / 3RD PERSON"):
 			documented = true
 	_check(documented, "the on-foot controls card documents the view toggle")
+	for kind: StringName in [&"tutorial", &"activity_tutorial"]:
+		hud.set_runtime_status_card(kind, {
+			"title": "Camera input regression",
+			"actions": [{"id": &"continue", "label": "Continue"}],
+		})
+		var tutorial_action := hud.find_child("RuntimeStatusContinueButton", true, false) as Control
+		_check(tutorial_action != null and tutorial_action.is_in_group(&"gameplay_input_passthrough"),
+			"%s actions explicitly preserve captured gameplay input" % kind)
+		hud.clear_runtime_status_card(kind)
+	await _test_help_keeps_focus_over_tutorial_updates(hud)
 	hud.queue_free()
 	await process_frame
+
+
+func _test_help_keeps_focus_over_tutorial_updates(hud: Node) -> void:
+	var restore_mouse_mode := Input.mouse_mode
+	var begin_binding: InputEventKey
+	var help_binding: InputEventKey
+	var camera_binding: InputEventJoypadButton
+	for binding: InputEvent in InputMap.action_get_events(&"interact"):
+		if binding is InputEventKey:
+			begin_binding = binding as InputEventKey
+	for binding: InputEvent in InputMap.action_get_events(&"toggle_controls_overlay"):
+		if binding is InputEventKey:
+			help_binding = binding as InputEventKey
+	for binding: InputEvent in InputMap.action_get_events(&"toggle_first_person"):
+		if binding is InputEventJoypadButton:
+			camera_binding = binding as InputEventJoypadButton
+	_check(begin_binding != null and help_binding != null and camera_binding != null,
+		"help focus regression uses current native Begin, Help and camera bindings")
+	if begin_binding == null or help_binding == null or camera_binding == null:
+		return
+	await _tap_camera_binding(begin_binding)
+	await create_timer(GameHUD.INTRO_FADE_SECONDS + 0.1).timeout
+	var player := await _spawn_player()
+	var help_panel := hud.get("_help_panel") as Control
+	var close := hud.find_child("HelpCloseButton", true, false) as Control
+	_check(help_panel.visible, "ordinary Begin retains the authored default controls card")
+	hud.set_runtime_status_card(&"tutorial", {
+		"title": "Tutorial over the passive default controls card",
+		"actions": [{"id": &"continue", "label": "Continue"}],
+	})
+	await process_frame
+	var default_action := hud.find_child("RuntimeStatusContinueButton", true, false) as Control
+	_check(default_action != null and default_action.has_focus(),
+		"tutorial publication claims its real action focus while the default controls card is passive")
+	hud.clear_runtime_status_card(&"tutorial")
+	for kind: StringName in [&"tutorial", &"activity_tutorial"]:
+		# The previous native D-pad check may navigate to another control.
+		# Reopen through the real binding so each publication starts from the
+		# same Help-owned focus, rather than assuming focus cannot move.
+		if help_panel.visible:
+			await _tap_camera_binding(help_binding)
+		await _tap_camera_binding(help_binding)
+		_check(help_panel.visible and close != null and close.has_focus(),
+			"native Help opening focuses its real Close control before %s" % kind)
+		hud.set_runtime_status_card(kind, {
+			"title": "Updated tutorial while Help is open",
+			"actions": [{"id": &"continue", "label": "Updated continue"}],
+		})
+		await process_frame
+		_check(close != null and close.has_focus(),
+			"changed %s publication retains visible Help focus" % kind)
+		var original_mode: int = player.get_camera_view_mode()
+		await _tap_camera_binding(camera_binding)
+		_check(player.get_camera_view_mode() == original_mode,
+			"visible Help navigation prevents %s from claiming the gameplay camera" % kind)
+		hud.clear_runtime_status_card(kind)
+	player.queue_free()
+	Input.mouse_mode = restore_mouse_mode
+	await process_frame
+
+
+## D-pad Right is both GUI navigation and the authored camera binding. Native
+## input must reach the Player once during captured play, while real GUI entry
+## retains normal navigation. Headless cannot establish OS cursor capture, so
+## that positive case requires a silent private X11 display.
+func _test_focused_gameplay_camera_input() -> void:
+	var player := await _spawn_player()
+	var restore_mouse_mode := Input.mouse_mode
+	var pad_binding: InputEventJoypadButton
+	var key_binding: InputEventKey
+	for binding: InputEvent in InputMap.action_get_events(&"toggle_first_person"):
+		if binding is InputEventJoypadButton:
+			pad_binding = binding as InputEventJoypadButton
+		elif binding is InputEventKey:
+			key_binding = binding as InputEventKey
+	_check(pad_binding != null and key_binding != null, "focused camera regression uses the current native InputMap bindings")
+	if pad_binding == null or key_binding == null:
+		player.queue_free()
+		await process_frame
+		return
+	var panel := HBoxContainer.new()
+	var passive := Button.new()
+	passive.text = "Tutorial continue"
+	passive.add_to_group(&"gameplay_input_passthrough")
+	panel.add_child(passive)
+	var ordinary := Button.new()
+	ordinary.text = "Menu action"
+	panel.add_child(ordinary)
+	var entry := LineEdit.new()
+	panel.add_child(entry)
+	root.add_child(panel)
+	passive.focus_neighbor_right = passive.get_path_to(ordinary)
+	ordinary.focus_neighbor_right = ordinary.get_path_to(entry)
+	await process_frame
+	var original_mode: int = player.get_camera_view_mode()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if DisplayServer.get_name() != "headless":
+		_check(Input.mouse_mode == Input.MOUSE_MODE_CAPTURED, "private rendered camera regression establishes cursor capture")
+		passive.grab_focus()
+		await _tap_camera_binding(pad_binding)
+		_check(player.get_camera_view_mode() != original_mode and passive.has_focus(),
+			"current native gamepad camera binding switches once over passive tutorial focus")
+		await _tap_camera_binding(key_binding)
+		_check(player.get_camera_view_mode() == original_mode and passive.has_focus(),
+			"native keyboard camera binding switches back once over passive tutorial focus")
+	else:
+		print("CAPTURED_GAMEPAD_CAMERA_NOT_RUN_HEADLESS: requires private rendered X11")
+	ordinary.grab_focus()
+	var ordinary_mode: int = player.get_camera_view_mode()
+	await _tap_camera_binding(pad_binding)
+	_check(player.get_camera_view_mode() == ordinary_mode,
+		"ordinary menu focus keeps its native gamepad navigation")
+	entry.grab_focus()
+	# D-pad navigation deliberately focuses a LineEdit without editing it.
+	# Enter its real edit mode through the current native submit binding.
+	if not entry.is_editing():
+		var submit_binding: InputEventKey
+		for binding: InputEvent in InputMap.action_get_events(&"ui_text_submit"):
+			if binding is InputEventKey:
+				submit_binding = binding as InputEventKey
+				break
+		_check(submit_binding != null, "text entry has a native submit binding to begin editing")
+		if submit_binding != null:
+			await _tap_camera_binding(submit_binding)
+	var entry_mode: int = player.get_camera_view_mode()
+	_check(entry.has_focus() and entry.is_editing(),
+		"text entry establishes focus and editing before camera key (focus=%s editing=%s mode=%d text=%s)" % [
+			str(root.gui_get_focus_owner()), str(entry.is_editing()), entry_mode, entry.text,
+		])
+	await _tap_camera_binding(key_binding)
+	_check(player.get_camera_view_mode() == entry_mode,
+		"text entry keeps camera unchanged (before=%d after=%d focus=%s editing=%s text=%s)" % [
+			entry_mode, player.get_camera_view_mode(), str(root.gui_get_focus_owner()),
+			str(entry.is_editing()), entry.text,
+		])
+	_check(not entry.text.is_empty(),
+		"text entry accepts camera character (focus=%s editing=%s text=%s keycode=%d physical=%d unicode=%d)" % [
+			str(root.gui_get_focus_owner()), str(entry.is_editing()), entry.text,
+			key_binding.keycode, key_binding.physical_keycode, key_binding.unicode,
+		])
+	passive.grab_focus()
+	paused = true
+	var paused_mode: int = player.get_camera_view_mode()
+	await _tap_camera_binding(pad_binding)
+	_check(player.get_camera_view_mode() == paused_mode, "paused tutorial focus cannot change the player camera")
+	paused = false
+	player.set_control_enabled(false)
+	passive.grab_focus()
+	var disabled_mode: int = player.get_camera_view_mode()
+	await _tap_camera_binding(pad_binding)
+	_check(player.get_camera_view_mode() == disabled_mode, "disabled player control cannot claim a focused camera binding")
+	player.set_control_enabled(true)
+	player.set_camera_active(false)
+	passive.grab_focus()
+	var inactive_mode: int = player.get_camera_view_mode()
+	await _tap_camera_binding(pad_binding)
+	_check(player.get_camera_view_mode() == inactive_mode, "inactive player camera cannot claim a focused camera binding")
+	player.set_camera_active(true)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	passive.grab_focus()
+	var released_mode: int = player.get_camera_view_mode()
+	await _tap_camera_binding(pad_binding)
+	_check(player.get_camera_view_mode() == released_mode, "released cursor preserves tutorial GUI navigation")
+	panel.queue_free()
+	player.queue_free()
+	Input.mouse_mode = restore_mouse_mode
+	await process_frame
+
+
+func _tap_camera_binding(binding: InputEvent) -> void:
+	for pressed: bool in [true, false]:
+		var event := binding.duplicate() as InputEvent
+		if event is InputEventJoypadButton:
+			(event as InputEventJoypadButton).device = 0
+			(event as InputEventJoypadButton).pressed = pressed
+		elif event is InputEventKey:
+			(event as InputEventKey).pressed = pressed
+			if (event as InputEventKey).keycode == 0:
+				(event as InputEventKey).keycode = (event as InputEventKey).physical_keycode
+			var codepoint := int((event as InputEventKey).physical_keycode)
+			(event as InputEventKey).unicode = codepoint if codepoint <= 0x10ffff else 0
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		await process_frame
 
 
 func _spawn_player() -> Node3D:

@@ -736,6 +736,24 @@ func _process(delta: float) -> void:
 	_update_avatar_self_culling()
 
 
+func _input(event: InputEvent) -> void:
+	# A retained tutorial action can keep GUI focus during captured gameplay.
+	# Its D-pad navigation must not consume the player's mapped camera control.
+	# Only explicitly passive gameplay actions opt in; menus and text entry keep
+	# the normal GUI-first route, and this controller remains the camera owner.
+	if not _camera_active or not _control_enabled or _sleeping_context \
+			or get_tree().paused or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		return
+	if event.is_action_pressed(&"pause"):
+		return
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused == null or not focused.is_in_group(&"gameplay_input_passthrough"):
+		return
+	if event.is_action_pressed(&"toggle_first_person"):
+		toggle_camera_view_mode()
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _camera_active or not _control_enabled:
 		return

@@ -5,6 +5,11 @@ extends SceneTree
 ## own change signals, GameFlow's injected atomic store, the retained legacy
 ## ConfigFile compatibility transaction, a simulated restart, and a whole-Main
 ## detach/re-entry.
+## Optional --settings-process-write and --settings-process-read run in two
+## separate OS processes with the SAME isolated XDG_DATA_HOME. They exercise
+## Boot, native menu input and the real durable store, without the fixture below.
+## Require exit 0 and SETTINGS_PROCESS_WRITE_OK / SETTINGS_PROCESS_READ_OK.
+## This bounded roundtrip does not qualify Gate C's full control roster.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const Settings := preload("res://scripts/settings/runtime_settings.gd")
@@ -79,6 +84,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var arguments := OS.get_cmdline_user_args()
+	if "--settings-process-write" in arguments or "--settings-process-read" in arguments:
+		await _run_settings_process("--settings-process-write" in arguments)
+		return
 	_temp_path = "user://accessibility_integration_%d.cfg" % Time.get_ticks_usec()
 	_cleanup()
 
@@ -140,6 +149,251 @@ func _run() -> void:
 	await _clean_up(game)
 	_cleanup()
 	_finish()
+
+
+func _run_settings_process(write: bool) -> void:
+	# Refuse accidental writes to a developer's ordinary profile. The caller
+	# creates the isolated directory and reuses it for the second invocation.
+	var isolated_home := OS.get_environment("XDG_DATA_HOME").simplify_path()
+	var profile := OS.get_user_data_dir().simplify_path()
+	_check(
+		isolated_home.is_absolute_path()
+		and isolated_home != "/"
+		and isolated_home != (OS.get_environment("HOME") + "/.local/share").simplify_path()
+		and profile.begins_with(isolated_home + "/"),
+		"process roundtrip requires an explicitly isolated XDG_DATA_HOME"
+	)
+	var store_path := "user://mudds_user_data.json"
+	_check(
+		FileAccess.file_exists(store_path) != write,
+		"write starts with no durable document; read requires the previous process document"
+	)
+	if not _failures.is_empty():
+		_finish()
+		return
+	var boot_scene: PackedScene = load("res://scenes/boot.tscn")
+	var boot := boot_scene.instantiate() as StartupLoader
+	root.add_child(boot)
+	var completed_main: Node = await boot.startup_completed
+	var game := completed_main as GameFlow
+	_check(game != null, "ordinary Boot hands off its production Main")
+	if game == null:
+		_finish()
+		return
+	for frame in 120:
+		if StartupLoader.is_title_menu_ready(game) and not is_instance_valid(boot.get_loading_screen()):
+			break
+		await process_frame
+	_check(StartupLoader.is_title_menu_ready(game), "Boot presents the ordinary Begin Shift menu")
+	var settings := game.get_runtime_settings()
+	var hud := game.hud
+	var player := game.get_node_or_null("Player") as PlayerController
+	_check(settings != null and hud != null and player != null,
+		"Boot exposes the production settings, HUD and on-foot player")
+	if settings == null or hud == null or player == null:
+		await _clean_up(game)
+		_finish()
+		return
+	if not write:
+		_check(
+			_settings_process_values_match(settings)
+			and bool(game.get_runtime_settings_persistence_report().load_status.get("accepted", false)),
+			"fresh OS process loads the exact preferences saved by the prior process"
+		)
+		_check(
+			is_equal_approx(float(hud.get_accessibility_report().ui_scale), 1.2)
+			and bool(hud.get_accessibility_report().reduced_motion)
+			and bool(hud.get_accessibility_report().captions_enabled),
+			"cold startup applies durable preferences to the live HUD"
+		)
+	if DisplayServer.get_name() != "headless":
+		# Match the ordinary sortie's window-focus prerequisite on the caller's
+		# isolated display; this does not select or activate a GUI control.
+		root.grab_focus()
+		for frame in ceili(float(Engine.physics_ticks_per_second) * 2.0) + 30:
+			if root.has_focus():
+				break
+			await physics_frame
+			await process_frame
+		_check(root.has_focus(), "rendered native input owns its isolated game window focus")
+	_process_camera_diagnostic(game, player, "before_begin")
+	# X is the production Begin Shift gamepad binding, not a signal emission.
+	await _process_joy_tap(JOY_BUTTON_X)
+	# Begin hands over authority after the authored 0.45-second title fade.
+	# Use the ordinary sortie's half-second physics budget plus frame grace,
+	# rather than checking while the transition is still in progress.
+	var begin_frame_budget := ceili(float(Engine.physics_ticks_per_second) * 0.5) + 30
+	for frame in begin_frame_budget:
+		if game.phase == GameFlow.Phase.APPROACH_SHIP and player.is_control_enabled():
+			break
+		await physics_frame
+		await process_frame
+	_process_camera_diagnostic(game, player, "after_begin")
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP and player.is_control_enabled(),
+		"native controller X begins the ordinary on-foot shift")
+	await _process_key_tap(KEY_ESCAPE)
+	var pause_panel := hud.get("_pause") as Control
+	_check(paused and pause_panel.visible, "native Escape pauses the running shift")
+	if not _failures.is_empty():
+		await _clean_up(game)
+		_finish()
+		return
+	var pause_main := hud.get("_pause_main_page") as Control
+	if write:
+		if not await _process_activate(pause_main.find_child("SettingsOpenButton", true, false) as Control):
+			_finish()
+			return
+		var controls := hud.get("_settings_controls") as Dictionary
+		for key: StringName in [&"camera_fov", &"ui_scale"]:
+			var slider := controls.get(key) as HSlider
+			if not await _process_focus(slider):
+				_finish()
+				return
+			var target := 91.0 if key == &"camera_fov" else 1.2
+			for step in 80:
+				if is_equal_approx(slider.value, target):
+					break
+				await _process_key_tap(KEY_RIGHT if slider.value < target else KEY_LEFT)
+			_check(is_equal_approx(slider.value, target), "native arrows adjust %s" % key)
+		for key: StringName in [&"reduced_motion", &"captions_enabled"]:
+			var toggle := controls.get(key) as CheckButton
+			if not await _process_focus(toggle):
+				_finish()
+				return
+			if not toggle.button_pressed:
+				await _process_key_tap(KEY_SPACE)
+			_check(toggle.button_pressed, "native Space enables %s" % key)
+		var save_before := int(game.get_runtime_settings_persistence_report().save_success_count)
+		var settings_page := hud.get("_settings_page") as Control
+		if not await _process_activate(settings_page.find_child("SettingsSaveButton", true, false) as Control):
+			_finish()
+			return
+		var persistence := game.get_runtime_settings_persistence_report()
+		_check(
+			_settings_process_values_match(settings)
+			and int(persistence.save_success_count) == save_before + 1
+			and bool(persistence.last_save_status.get("accepted", false))
+			and not bool(persistence.unsaved_changes)
+			and FileAccess.file_exists(store_path),
+			"native APPLY + SAVE commits the changed preferences through the real atomic store"
+		)
+		if not await _process_activate(settings_page.find_child("SettingsBackButton", true, false) as Control):
+			_finish()
+			return
+		_check(pause_main.visible, "native Back returns from Settings to the pause menu")
+	else:
+		# Exercise both input families through production dispatch. Each camera
+		# transition must reach the real player and its settings owner.
+		await _process_joy_tap(JOY_BUTTON_START)
+		_check(not paused and not pause_panel.visible, "native controller Start resumes after restart")
+		var original_mode := player.get_camera_view_mode()
+		await _process_camera_key_tap()
+		_check(player.get_camera_view_mode() != original_mode,
+			"native keyboard camera binding switches the live on-foot camera")
+		_process_camera_diagnostic(game, player, "before_gamepad")
+		await _process_camera_joy_tap()
+		_process_camera_diagnostic(game, player, "after_gamepad")
+		_check(player.get_camera_view_mode() == original_mode,
+			"native current gamepad camera binding switches the live on-foot camera back")
+		_check(_settings_process_values_match(settings), "pause/resume and cameras retain saved presentation preferences")
+		await _process_key_tap(KEY_ESCAPE)
+	if not _failures.is_empty():
+		await _clean_up(game)
+		_finish()
+		return
+	# Success still requires the actual orderly Exit-to-desktop route and OS
+	# exit 0; the marker alone is deliberately insufficient.
+	var exit_button := pause_main.find_child("ExitButton", true, false) as Control
+	if not await _process_focus(exit_button):
+		_finish()
+		return
+	print("SETTINGS_PROCESS_WRITE_OK" if write else "SETTINGS_PROCESS_READ_OK")
+	await _process_key_tap(KEY_ENTER)
+	for frame in 120:
+		await process_frame
+	_check(false, "native Exit to desktop must terminate this OS process")
+	_finish()
+
+
+func _settings_process_values_match(settings: RuntimeSettings) -> bool:
+	return (
+		is_equal_approx(settings.camera_fov, 91.0)
+		and is_equal_approx(settings.ui_scale, 1.2)
+		and settings.reduced_motion
+		and settings.captions_enabled
+	)
+
+
+func _process_focus(target: Control) -> bool:
+	if is_instance_valid(target):
+		for step in 160:
+			if root.gui_get_focus_owner() == target:
+				return true
+			await _process_key_tap(KEY_TAB)
+	_check(false, "native Tab navigation reaches %s" % (target.name if is_instance_valid(target) else "missing control"))
+	return false
+
+
+func _process_activate(target: Control) -> bool:
+	if not await _process_focus(target):
+		return false
+	await _process_key_tap(KEY_ENTER)
+	return true
+
+
+func _process_key_tap(key: Key) -> void:
+	for pressed: bool in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = key
+		event.physical_keycode = key
+		event.pressed = pressed
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		await physics_frame
+		await process_frame
+
+
+func _process_joy_tap(button: JoyButton) -> void:
+	for pressed: bool in [true, false]:
+		var event := InputEventJoypadButton.new()
+		event.device = 0
+		event.button_index = button
+		event.pressed = pressed
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		await physics_frame
+		await process_frame
+
+
+func _process_camera_key_tap() -> void:
+	for binding: InputEvent in InputMap.action_get_events(&"toggle_first_person"):
+		if binding is InputEventKey:
+			var key := binding as InputEventKey
+			await _process_key_tap(key.physical_keycode if key.physical_keycode != 0 else key.keycode)
+			return
+	_check(false, "the production on-foot camera action has a keyboard binding")
+
+
+func _process_camera_joy_tap() -> void:
+	for binding: InputEvent in InputMap.action_get_events(&"toggle_first_person"):
+		if binding is InputEventJoypadButton:
+			await _process_joy_tap((binding as InputEventJoypadButton).button_index)
+			return
+	_check(false, "the production on-foot camera action has a gamepad binding")
+
+
+func _process_camera_diagnostic(game: GameFlow, player: PlayerController, stage: String) -> void:
+	if "--settings-input-diagnostics" not in OS.get_cmdline_user_args():
+		return
+	var focused := root.gui_get_focus_owner()
+	print("SETTINGS_CAMERA_INPUT ", JSON.stringify({
+		"stage": stage, "phase": game.phase,
+		"camera_mode": player.get_camera_view_mode(), "mouse_mode": Input.mouse_mode,
+		"paused": paused, "window_focused": root.has_focus(),
+		"controls_enabled": player.is_control_enabled(),
+		"focus": str(focused.get_path()) if is_instance_valid(focused) else "",
+		"passive_focus": is_instance_valid(focused) and focused.is_in_group(&"gameplay_input_passthrough"),
+	}))
 
 
 func _test_live_application(

@@ -5541,6 +5541,8 @@ func _render_runtime_status_card(
 		var button := _menu_button(str(action.get("label", "Action")), NOMINAL)
 		button.name = "RuntimeStatus" + String(action.get("id", &"Action")).to_pascal_case() + "Button"
 		button.focus_mode = Control.FOCUS_ALL
+		if kind in [&"tutorial", &"activity_tutorial"]:
+			button.add_to_group(&"gameplay_input_passthrough")
 		var action_id := StringName(str(action.get("id", &"")))
 		if kind == &"bomber" and action_id == &"release_payload":
 			button.tooltip_text = "Release bomber payload. " + str(snapshot.get("message", "Payload release unavailable."))
@@ -5588,10 +5590,19 @@ func _render_runtime_status_card(
 
 
 func _runtime_status_can_claim_focus() -> bool:
+	var viewport := get_viewport() if is_inside_tree() else null
+	var focused := viewport.gui_get_focus_owner() if viewport != null else null
+	var help_owns_focus := (
+		_help_panel != null
+		and _help_panel.visible
+		and focused != null
+		and (_help_panel == focused or _help_panel.is_ancestor_of(focused))
+	)
 	return (
 		is_inside_tree()
 		and not is_queued_for_deletion()
 		and (_pause == null or not _pause.visible)
+		and not help_owns_focus
 		and (_recovery_prompt_panel == null or not _recovery_prompt_panel.visible)
 	)
 
