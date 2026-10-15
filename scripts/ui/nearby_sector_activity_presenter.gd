@@ -831,7 +831,7 @@ func _scan_feedback(state: Dictionary) -> Dictionary:
 				)
 				if not discovery_persisted and bool(state.get("persistence_retry_available", false)):
 					stage_id = &"discovery_save_pending"
-					summary = "DISCOVERY SAVE PENDING  //  SHIPYARD REWARD SAVED"
+					summary = "DISCOVERY SAVE PENDING  //  SHIPYARD REWARD SAVED  //  START TO RETRY DISCOVERY SAVE"
 					objective = "CHOOSE START TO RETRY DISCOVERY SAVE"
 				elif not discovery_persisted and not reward_committed \
 						and StringName(state.get("reward_handoff_reason", &"")) \

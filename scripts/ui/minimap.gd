@@ -461,15 +461,26 @@ func _draw_offscreen_marker(center: Vector2, radius: float) -> void:
 		])
 		draw_colored_polygon(arrow, marker_color)
 	var distance_text := "%s  %.0f M" % [_offscreen_marker.marker, float(_offscreen_marker.distance_m)]
-	draw_string(
-		ThemeDB.fallback_font,
-		point + Vector2(-30.0, 22.0),
-		distance_text,
-		HORIZONTAL_ALIGNMENT_CENTER,
-		60.0,
-		10,
-		marker_color
+	var font := ThemeDB.fallback_font
+	var text_size := font.get_string_size(distance_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, OBJECTIVE_FONT_SIZE)
+	var ascent := font.get_ascent(OBJECTIVE_FONT_SIZE)
+	text_size.y = ascent + font.get_descent(OBJECTIVE_FONT_SIZE)
+	# Keep the directional glyph on the rim, but fit its complete readout
+	# separately: south/east targets used to clip the distance at the edge.
+	var label_top := point.y + 22.0 - ascent
+	if label_top + text_size.y > size.y - OBJECTIVE_TEXT_INSET:
+		label_top = point.y - 12.0 - text_size.y
+	var text_top := Vector2(
+		clampf(point.x - text_size.x * 0.5, OBJECTIVE_TEXT_INSET,
+			maxf(size.x - OBJECTIVE_TEXT_INSET - text_size.x, OBJECTIVE_TEXT_INSET)),
+		clampf(label_top, OBJECTIVE_TEXT_INSET,
+			maxf(size.y - OBJECTIVE_TEXT_INSET - text_size.y, OBJECTIVE_TEXT_INSET))
 	)
+	_draw_offscreen_text(font, text_top + Vector2(0.0, ascent), distance_text, marker_color)
+
+
+func _draw_offscreen_text(font: Font, baseline: Vector2, text: String, color: Color) -> void:
+	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, OBJECTIVE_FONT_SIZE, color)
 
 
 func _project(

@@ -52,11 +52,12 @@ var _host_bottom_safe_margin := -1.0
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_enforce_input_transparency()
-	# Speaker text is bounded to 64 characters by the service, but that can still
-	# exceed a narrow composed-HUD centre band. Preserve the full semantic text
-	# property while keeping its visible header inside the panel.
-	_speaker_label.clip_text = true
-	_speaker_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	# Valid source names can exceed the composed HUD's narrow centre band.
+	# Wrap them at the requested text scale so the player can still identify the
+	# complete source, including a distinguishing suffix on similar names.
+	_speaker_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_speaker_label.clip_text = false
+	_speaker_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	visible = false
 	if not resized.is_connected(_queue_layout):
 		resized.connect(_queue_layout)

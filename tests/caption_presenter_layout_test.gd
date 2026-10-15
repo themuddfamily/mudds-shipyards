@@ -32,6 +32,7 @@ func _run() -> void:
 	await _test_contract_and_snapshot_boundary(presenter)
 	await _test_simultaneous_cue_readability(presenter)
 	await _test_supported_layout_sweep(viewport, presenter)
+	await _test_narrow_source_readability(viewport, presenter)
 	await _test_reentry_requires_current_caption(viewport)
 	await _test_detached_layout_currentness(viewport, presenter)
 	await _test_queued_layout_currentness(viewport)
@@ -245,6 +246,49 @@ func _test_supported_layout_sweep(viewport: SubViewport, presenter: CaptionPrese
 		and _contrast_ratio(CaptionPresenter.PANEL_BORDER, CaptionPresenter.PANEL_BACKGROUND) >= 7.0,
 		"body, speaker, category and border each retain high contrast against the panel"
 	)
+
+
+func _test_narrow_source_readability(viewport: SubViewport, presenter: CaptionPresenter) -> void:
+	# A composed HUD owns the outer columns. Exercise proportional bands and
+	# a constrained physical band at maximum scale on the smaller viewport.
+	presenter.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	var speaker := "Fabrication Annex Traffic Controller — West Approach Dispatch"
+	var cases := [
+		[Vector2i(1920, 1080), 500.0, 1.0],
+		[Vector2i(1920, 1080), 800.0, 1.6],
+		[Vector2i(1280, 720), 500.0, 1.6],
+	]
+	for layout_case: Array in cases:
+		viewport.size = layout_case[0] as Vector2i
+		var band_width := float(layout_case[1])
+		var scale := float(layout_case[2])
+		presenter.position = Vector2(390.0, 0.0)
+		presenter.size = Vector2(band_width, float(viewport.size.y))
+		presenter.set_ui_scale(scale)
+		var snapshot := _snapshot(false, "Hold for crossing traffic.")
+		(snapshot.caption as Dictionary)["speaker"] = speaker
+		_check(presenter.apply_presentation_snapshot(snapshot), "long source snapshot is accepted in a narrow composed HUD band")
+		await _settle()
+		var source := presenter.get_node("%SpeakerLabel") as Label
+		var report := presenter.get_layout_report()
+		var source_rect := source.get_global_rect()
+		var panel := report.panel_rect as Rect2
+		_check(
+			source.get_line_count() > 1
+			and source.get_visible_line_count() == source.get_line_count()
+			and not source.clip_text
+			and source.text_overrun_behavior == TextServer.OVERRUN_NO_TRIMMING
+			and source.text == "SOURCE · %s" % speaker
+			and source_rect.position.x >= panel.position.x
+			and source_rect.end.x <= panel.end.x
+			and source_rect.position.y >= panel.position.y
+			and source_rect.end.y <= (report.text_rect as Rect2).position.y
+			and not bool(report.text_clipped),
+			"full distinguishing source wraps visibly in %.0fpx band at %.1f scale without ellipsis or body clipping" % [band_width, scale]
+		)
+	presenter.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	presenter.set_ui_scale(1.0)
+	await _settle()
 
 
 func _test_reentry_requires_current_caption(viewport: SubViewport) -> void:

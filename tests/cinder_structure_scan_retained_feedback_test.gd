@@ -148,10 +148,13 @@ func _initialize() -> void:
 	hud.set_activity_objective("Derelict scan", save_pending.merged({"state_id": &"complete"}))
 	_check(feedback.stage_id == &"discovery_save_pending"
 		and "SAVE PENDING" in _scan_text(_scan_row(hud))
+		and _scan_text(_scan_row(hud)).count("START TO RETRY DISCOVERY SAVE") == 1
+		and "SHIPYARD REWARD SAVED" in _scan_text(_scan_row(hud))
+		and _scan_row(hud).get_instance_id() == retained_id
 		and "START" in str(feedback.objective_text)
 		and not "REWARD PENDING" in _scan_text(_scan_row(hud))
 		and "START TO RETRY" in str(hud.get_activity_objective_report().text),
-		"paid discovery save failure stays readable on the retained row and standing objective")
+		"paid discovery save failure names the Start retry once on the retained row and standing objective")
 	save_pending["discovery_persisted"] = true
 	save_pending["persistence_retry_available"] = false
 	view = hud.set_nearby_activity_snapshot({"structure_scan": save_pending})
@@ -159,6 +162,8 @@ func _initialize() -> void:
 	hud.set_activity_objective("Derelict scan", save_pending.merged({"state_id": &"complete"}))
 	_check(feedback.stage_id == &"discovery_recorded"
 		and not "START" in str(feedback.objective_text)
+		and not "START TO RETRY" in _scan_text(_scan_row(hud))
+		and "DISCOVERY RECORDED" in _scan_text(_scan_row(hud))
 		and not "START TO RETRY" in str(hud.get_activity_objective_report().text),
 		"recorded discovery clears save retry guidance on both retained and standing views")
 
