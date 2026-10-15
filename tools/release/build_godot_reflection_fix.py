@@ -5,6 +5,7 @@ Default: print the plan, without writes or network access.
 --prepare: verify/download official source and pinned SCons; do not apply/build.
 --build: prepare, apply the reviewed guarded patch, and compile (max 4 jobs).
 --target: editor (default) or template_release for private Linux release exports.
+--mesh-content-revision: opt in to the separate RD mesh revision feature build.
 
 Neither target changes installed engines/templates. This recipe pins inputs and
 options, not host compiler binaries. Template results stay separate from editor
@@ -55,6 +56,31 @@ OPTIONS = [
     "precision=single", "dev_build=no", "debug_symbols=no", "optimize=speed",
     "lto=none", "extra_suffix=" + SUFFIX,
 ]
+MESH_PATCH = PATCH.with_name("godot-4.7.1-mesh-content-revision.patch")
+MESH_PATCH_SHA = "8f8669557317a9abce99062c5483f4ba1961ddbecea6645fbe2beb509ad85ba9"
+MESH_SUFFIX = SUFFIX + "_mesh_revision"
+MESH_BUILD_NAME = BUILD_NAME + "_mesh_revision"
+# Original and reviewed patched bytes; unsupported modes reject these changes.
+MESH_TARGETS = {
+    "servers/rendering/rendering_server.h": (
+        "5e0e9b836f0c2e41c7237c0a72b76c5d60f632bd8294294a5f28ff1b975c2cd8",
+        "262c70bb1273babf5a5d449b6e93f823baafaf813741f00283d5c91dcf2321c4"),
+    "servers/rendering/rendering_server.cpp": (
+        "b108f62d9d6113061dd1261e7bef51515fbdba9080b4393245e84cecc67ad7ca",
+        "5a6516dc446a7ab6e4e3622b9dcb68d1dbddf0e783e432242b5bbc140ac151ab"),
+    "servers/rendering/rendering_server_default.h": (
+        "eff3cdd80dcfdb7643d5651f3a96fac12011414e4d5f8ecb3645638dfb43481b",
+        "d1072c77f467f4edc8bfacb0ae83bed0a6527b797e129ad3f7eb3a665494ef31"),
+    "servers/rendering/storage/mesh_storage.h": (
+        "4a0e0f91b33770cbb9ebed127f78725fb8811fc6ead1e5fff45b31858f96df17",
+        "e846f576b07e416f9dcabf8f4658a5c1fd6144e0d8419df69c4bb2f62e26fc55"),
+    "servers/rendering/renderer_rd/storage_rd/mesh_storage.h": (
+        "9ae96a7d399d3f2ae1fdca43f1817bb3676fe6eeb5b189dacdedbc5f8725b660",
+        "1e0f659ffbf3fd42b5aa22a63be23881c66b33622a37d73001d4cd635133834b"),
+    "servers/rendering/renderer_rd/storage_rd/mesh_storage.cpp": (
+        "d610f7f4b89ab4b10b038fabf3522bd9497add4fd9438ea5770597a6857a3bad",
+        "a3c6e47f3ad2d7bd21ff1c924dd9c9f27467260391fb8c35f567e1b3fdabeca8"),
+}
 
 
 class Cancelled(Exception):
@@ -91,7 +117,7 @@ def download(url, path, expected):
     require(not path.is_symlink() and sha(path) == expected, "Input SHA mismatch: " + str(path))
 
 
-def source_tree(archive, source):
+def source_tree(archive, source, mesh_content_revision=False):
     """Reject unsafe members; verify shipped source on every reuse."""
     with tarfile.open(archive, "r:xz") as tar:
         members = tar.getmembers()
@@ -114,10 +140,25 @@ def source_tree(archive, source):
             require(not path.is_symlink(), "Source symlink: " + str(path))
             if str(relative) == TARGET:
                 require(sha(path) in (BEFORE_SHA, AFTER_SHA), "Unexpected patch target bytes")
+            elif mesh_content_revision and str(relative) in MESH_TARGETS:
+                require(sha(path) in MESH_TARGETS[str(relative)], "Unexpected mesh revision target bytes")
             else:
                 with tar.extractfile(member) as stream:
                     expected = hashlib.file_digest(stream, "sha256").hexdigest()
                 require(sha(path) == expected, "Changed shipped source: " + str(relative))
+
+
+def apply_mesh_patch(source, env, log):
+    before = all(sha(source / name) == hashes[0] for name, hashes in MESH_TARGETS.items())
+    after = all(sha(source / name) == hashes[1] for name, hashes in MESH_TARGETS.items())
+    require(before or after, "Mixed or unexpected mesh revision source; refusing partial patch")
+    rows = []
+    if before:
+        rows.append(run(["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", str(MESH_PATCH)],
+                        env, source, log, 30))
+    require(all(sha(source / name) == hashes[1] for name, hashes in MESH_TARGETS.items()),
+            "Patched mesh revision target SHA mismatch")
+    return rows
 
 
 def session_actors(session):
@@ -191,24 +232,34 @@ def main():
     action.add_argument("--prepare", action="store_true")
     action.add_argument("--build", action="store_true")
     parser.add_argument("--target", choices=("editor", "template_release"), default="editor")
+    parser.add_argument("--mesh-content-revision", action="store_true")
     parser.add_argument("--jobs", type=int, choices=range(1, 5), default=2)
     parser.add_argument("--timeout", type=int, default=3600, help="Compile wall cap, at most 3600s")
     args = parser.parse_args()
     require(0 < args.timeout <= 3600, "Compile timeout must be 1..3600 seconds")
     source = CACHE / SOURCE_NAME
-    binary = source / (f"bin/godot.linuxbsd.{args.target}.x86_64." + SUFFIX)
+    suffix = MESH_SUFFIX if args.mesh_content_revision else SUFFIX
+    build_name = MESH_BUILD_NAME if args.mesh_content_revision else BUILD_NAME
+    binary = source / (f"bin/godot.linuxbsd.{args.target}.x86_64." + suffix)
     options = ["target=" + args.target if option.startswith("target=") else option for option in OPTIONS]
-    log = CACHE / ("build.log" if args.target == "editor" else "build-template_release.log")
-    result = CACHE / ("build-result.json" if args.target == "editor" else "build-result-template_release.json")
-    template = (CACHE / "export_templates/4.7.1.stable/linux_release.x86_64"
+    options = ["extra_suffix=" + suffix if option.startswith("extra_suffix=") else option for option in options]
+    mode = "-mesh-content-revision" if args.mesh_content_revision else ""
+    target_suffix = "" if args.target == "editor" else "-template_release"
+    log = CACHE / f"build{mode}{target_suffix}.log"
+    result = CACHE / f"build-result{mode}{target_suffix}.json"
+    template_directory = "export_templates-mesh-content-revision" if args.mesh_content_revision else "export_templates"
+    template = (CACHE / template_directory / "4.7.1.stable/linux_release.x86_64"
                 if args.target == "template_release" else None)
     plan = {"source_commit": SOURCE_COMMIT, "source_url": SOURCE_URL, "source_sha256": SOURCE_SHA,
             "patch": str(PATCH), "patch_sha256": PATCH_SHA, "scons_version": "4.10.1",
             "scons_wheel_sha256": WHEEL_SHA, "cache": str(CACHE), "binary": str(binary),
-            "custom_build_name": BUILD_NAME, "options": options, "jobs": args.jobs,
+            "custom_build_name": build_name, "options": options, "jobs": args.jobs,
             "target": args.target, "log": str(log), "result": str(result),
             "release_template": str(template) if template else None,
             "compile_timeout": args.timeout, "default_engine_templates_changed": False}
+    if args.mesh_content_revision:
+        plan.update(mesh_content_revision=True, mesh_patch=str(MESH_PATCH),
+                    mesh_patch_sha256=MESH_PATCH_SHA)
     print(json.dumps(plan, indent=2), flush=True)
     if not (args.prepare or args.build):
         return
@@ -217,6 +268,8 @@ def main():
     for tool in ("gcc", "g++", "ar", "pkg-config", "patch"):
         require(shutil.which(tool), "Missing build dependency: " + tool)
     require(sha(PATCH) == PATCH_SHA, "Reviewed patch bytes changed")
+    if args.mesh_content_revision:
+        require(sha(MESH_PATCH) == MESH_PATCH_SHA, "Reviewed mesh revision patch bytes changed")
     os.umask(0o077)
     CACHE.mkdir(mode=0o700, parents=True, exist_ok=True)
     CACHE.chmod(0o700)
@@ -232,10 +285,10 @@ def main():
             path.chmod(0o700)
             env[key] = str(path)
         env.update(PYTHONDONTWRITEBYTECODE="1", PYTHONNOUSERSITE="1", PIP_CONFIG_FILE=os.devnull,
-                   GIT_OPTIONAL_LOCKS="0", BUILD_NAME=BUILD_NAME, SOURCE_DATE_EPOCH="0")
+                   GIT_OPTIONAL_LOCKS="0", BUILD_NAME=build_name, SOURCE_DATE_EPOCH="0")
         archive = CACHE / (SOURCE_NAME + ".tar.xz")
         download(SOURCE_URL, archive, SOURCE_SHA)
-        source_tree(archive, source)
+        source_tree(archive, source, mesh_content_revision=args.mesh_content_revision)
         wheel = CACHE / WHEEL_NAME
         download(WHEEL_URL, wheel, WHEEL_SHA)
         python = CACHE / "venv/bin/python"
@@ -250,6 +303,8 @@ def main():
             rows.append(run(["patch", "--batch", "--forward", "--fuzz=0", "-p1", "-i", str(PATCH)],
                             env, source, log, 30))
         require(sha(source / TARGET) == AFTER_SHA, "Patched target SHA mismatch")
+        if args.mesh_content_revision:
+            rows.extend(apply_mesh_patch(source, env, log))
         rows.append(run([str(python), "-m", "SCons", f"-j{args.jobs}", *options],
                         env, source, log, args.timeout))
         require(binary.is_file(), "Expected target binary missing")
@@ -257,7 +312,7 @@ def main():
             require(stream.read(4) == b"\x7fELF", "Expected target ELF missing")
         rows.append(run([str(binary), "--headless", "--audio-driver", "Dummy", "--version"],
                         env, CACHE, log, 30))
-        source_tree(archive, source)
+        source_tree(archive, source, mesh_content_revision=args.mesh_content_revision)
         if template:
             template.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             require(not template.is_symlink(), "Private release template must not be a symlink")

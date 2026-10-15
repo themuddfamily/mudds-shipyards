@@ -1,0 +1,214 @@
+--- a/servers/rendering/rendering_server.h
++++ b/servers/rendering/rendering_server.h
+@@ -229,6 +229,8 @@
+ 	virtual RenderingServerTypes::SurfaceData mesh_get_surface(RID p_mesh, int p_surface) const = 0;
+ 
+ 	virtual int mesh_get_surface_count(RID p_mesh) const = 0;
++	// Zero means this backend cannot provide a reliable content revision.
++	virtual int64_t mesh_get_content_revision(RID p_mesh) const { return 0; }
+ 
+ 	virtual void mesh_set_custom_aabb(RID p_mesh, const AABB &p_aabb) = 0;
+ 	virtual AABB mesh_get_custom_aabb(RID p_mesh) const = 0;
+--- a/servers/rendering/rendering_server.cpp
++++ b/servers/rendering/rendering_server.cpp
+@@ -2376,6 +2376,7 @@
+ 	ClassDB::bind_method(D_METHOD("mesh_surface_get_arrays", "mesh", "surface"), &RenderingServer::mesh_surface_get_arrays);
+ 	ClassDB::bind_method(D_METHOD("mesh_surface_get_blend_shape_arrays", "mesh", "surface"), &RenderingServer::mesh_surface_get_blend_shape_arrays);
+ 	ClassDB::bind_method(D_METHOD("mesh_get_surface_count", "mesh"), &RenderingServer::mesh_get_surface_count);
++	ClassDB::bind_method(D_METHOD("mesh_get_content_revision", "mesh"), &RenderingServer::mesh_get_content_revision);
+ 	ClassDB::bind_method(D_METHOD("mesh_set_custom_aabb", "mesh", "aabb"), &RenderingServer::mesh_set_custom_aabb);
+ 	ClassDB::bind_method(D_METHOD("mesh_get_custom_aabb", "mesh"), &RenderingServer::mesh_get_custom_aabb);
+ 	ClassDB::bind_method(D_METHOD("mesh_surface_remove", "mesh", "surface"), &RenderingServer::mesh_surface_remove);
+--- a/servers/rendering/rendering_server_default.h
++++ b/servers/rendering/rendering_server_default.h
+@@ -408,6 +408,7 @@
+ 	FUNC2RC(RenderingServerTypes::SurfaceData, mesh_get_surface, RID, int)
+ 
+ 	FUNC1RC(int, mesh_get_surface_count, RID)
++	FUNC1RC(int64_t, mesh_get_content_revision, RID)
+ 
+ 	FUNC2(mesh_set_custom_aabb, RID, const AABB &)
+ 	FUNC1RC(AABB, mesh_get_custom_aabb, RID)
+--- a/servers/rendering/storage/mesh_storage.h
++++ b/servers/rendering/storage/mesh_storage.h
+@@ -68,6 +68,8 @@
+ 	virtual RenderingServerTypes::SurfaceData mesh_get_surface(RID p_mesh, int p_surface) const = 0;
+ 
+ 	virtual int mesh_get_surface_count(RID p_mesh) const = 0;
++	// Zero means this backend cannot provide a reliable content revision.
++	virtual int64_t mesh_get_content_revision(RID p_mesh) const { return 0; }
+ 
+ 	virtual void mesh_set_custom_aabb(RID p_mesh, const AABB &p_aabb) = 0;
+ 	virtual AABB mesh_get_custom_aabb(RID p_mesh) const = 0;
+--- a/servers/rendering/renderer_rd/storage_rd/mesh_storage.h
++++ b/servers/rendering/renderer_rd/storage_rd/mesh_storage.h
+@@ -153,6 +153,14 @@
+ 			RID uniform_set;
+ 		};
+ 
++		// Mesh-owned: never wraps or becomes reusable after exhaustion.
++		int64_t content_revision = 1;
++		void content_changed() {
++			if (content_revision != 0) {
++				content_revision = content_revision == INT64_MAX ? 0 : content_revision + 1;
++			}
++		}
++
+ 		uint32_t blend_shape_count = 0;
+ 		RSE::BlendShapeMode blend_shape_mode = RSE::BLEND_SHAPE_MODE_NORMALIZED;
+ 
+@@ -393,6 +401,7 @@
+ 	virtual RenderingServerTypes::SurfaceData mesh_get_surface(RID p_mesh, int p_surface) const override;
+ 
+ 	virtual int mesh_get_surface_count(RID p_mesh) const override;
++	virtual int64_t mesh_get_content_revision(RID p_mesh) const override;
+ 
+ 	virtual void mesh_set_custom_aabb(RID p_mesh, const AABB &p_aabb) override;
+ 	virtual AABB mesh_get_custom_aabb(RID p_mesh) const override;
+--- a/servers/rendering/renderer_rd/storage_rd/mesh_storage.cpp
++++ b/servers/rendering/renderer_rd/storage_rd/mesh_storage.cpp
+@@ -242,6 +242,7 @@
+ 		for (Mesh *E : mesh->shadow_owners) {
+ 			Mesh *shadow_owner = E;
+ 			shadow_owner->shadow_mesh = RID();
++			shadow_owner->content_changed();
+ 			shadow_owner->dependency.changed_notify(Dependency::DEPENDENCY_CHANGED_MESH);
+ 		}
+ 	}
+@@ -257,6 +258,7 @@
+ 	ERR_FAIL_COND(mesh->surface_count > 0); //surfaces already exist
+ 
+ 	mesh->blend_shape_count = p_blend_shape_count;
++	mesh->content_changed();
+ }
+ 
+ /// Returns stride
+@@ -498,6 +500,7 @@
+ 	mesh->surfaces = (Mesh::Surface **)memrealloc(mesh->surfaces, sizeof(Mesh::Surface *) * (mesh->surface_count + 1));
+ 	mesh->surfaces[mesh->surface_count] = s;
+ 	mesh->surface_count++;
++	mesh->content_changed();
+ 
+ 	for (MeshInstance *mi : mesh->instances) {
+ 		_mesh_instance_add_surface(mi, mesh, mesh->surface_count - 1);
+@@ -508,6 +511,7 @@
+ 	for (Mesh *E : mesh->shadow_owners) {
+ 		Mesh *shadow_owner = E;
+ 		shadow_owner->shadow_mesh = RID();
++		shadow_owner->content_changed();
+ 		shadow_owner->dependency.changed_notify(Dependency::DEPENDENCY_CHANGED_MESH);
+ 	}
+ 
+@@ -560,6 +564,7 @@
+ 	ERR_FAIL_INDEX((int)p_mode, 2);
+ 
+ 	mesh->blend_shape_mode = p_mode;
++	mesh->content_changed();
+ }
+ 
+ RSE::BlendShapeMode MeshStorage::mesh_get_blend_shape_mode(RID p_mesh) const {
+@@ -578,6 +583,7 @@
+ 	uint64_t data_size = p_data.size();
+ 	const uint8_t *r = p_data.ptr();
+ 
++	mesh->content_changed();
+ 	RD::get_singleton()->buffer_update(mesh->surfaces[p_surface]->vertex_buffer, p_offset, data_size, r);
+ }
+ 
+@@ -591,6 +597,7 @@
+ 	uint64_t data_size = p_data.size();
+ 	const uint8_t *r = p_data.ptr();
+ 
++	mesh->content_changed();
+ 	RD::get_singleton()->buffer_update(mesh->surfaces[p_surface]->attribute_buffer, p_offset, data_size, r);
+ }
+ 
+@@ -604,6 +611,7 @@
+ 	uint64_t data_size = p_data.size();
+ 	const uint8_t *r = p_data.ptr();
+ 
++	mesh->content_changed();
+ 	RD::get_singleton()->buffer_update(mesh->surfaces[p_surface]->skin_buffer, p_offset, data_size, r);
+ }
+ 
+@@ -617,6 +625,7 @@
+ 	uint64_t data_size = p_data.size();
+ 	const uint8_t *r = p_data.ptr();
+ 
++	mesh->content_changed();
+ 	RD::get_singleton()->buffer_update(mesh->surfaces[p_surface]->index_buffer, p_offset, data_size, r);
+ }
+ 
+@@ -625,6 +634,7 @@
+ 	ERR_FAIL_NULL(mesh);
+ 	ERR_FAIL_UNSIGNED_INDEX((uint32_t)p_surface, mesh->surface_count);
+ 	mesh->surfaces[p_surface]->material = p_material;
++	mesh->content_changed();
+ 
+ 	mesh->dependency.changed_notify(Dependency::DEPENDENCY_CHANGED_MATERIAL);
+ 	mesh->material_cache.clear();
+@@ -692,10 +702,16 @@
+ 	return mesh->surface_count;
+ }
+ 
++int64_t MeshStorage::mesh_get_content_revision(RID p_mesh) const {
++	const Mesh *mesh = mesh_owner.get_or_null(p_mesh);
++	return mesh ? mesh->content_revision : 0;
++}
++
+ void MeshStorage::mesh_set_custom_aabb(RID p_mesh, const AABB &p_aabb) {
+ 	Mesh *mesh = mesh_owner.get_or_null(p_mesh);
+ 	ERR_FAIL_NULL(mesh);
+ 	mesh->custom_aabb = p_aabb;
++	mesh->content_changed();
+ 
+ 	mesh->dependency.changed_notify(Dependency::DEPENDENCY_CHANGED_AABB);
+ }
+@@ -832,6 +848,7 @@
+ 	ERR_FAIL_NULL(mesh);
+ 
+ 	mesh->path = p_path;
++	mesh->content_changed();
+ }
+ 
+ String MeshStorage::mesh_get_path(RID p_mesh) const {
+@@ -851,6 +868,7 @@
+ 		shadow_mesh->shadow_owners.erase(mesh);
+ 	}
+ 	mesh->shadow_mesh = p_shadow_mesh;
++	mesh->content_changed();
+ 
+ 	shadow_mesh = mesh_owner.get_or_null(mesh->shadow_mesh);
+ 
+@@ -879,6 +897,7 @@
+ 
+ 	mesh->surfaces = nullptr;
+ 	mesh->surface_count = 0;
++	mesh->content_changed();
+ 	mesh->material_cache.clear();
+ 	mesh->has_bone_weights = false;
+ 	mesh->aabb = AABB();
+@@ -887,6 +906,7 @@
+ 	for (Mesh *E : mesh->shadow_owners) {
+ 		Mesh *shadow_owner = E;
+ 		shadow_owner->shadow_mesh = RID();
++		shadow_owner->content_changed();
+ 		shadow_owner->dependency.changed_notify(Dependency::DEPENDENCY_CHANGED_MESH);
+ 	}
+ }
+@@ -908,6 +928,7 @@
+ 	}
+ 	mesh->surfaces = (Mesh::Surface **)memrealloc(mesh->surfaces, sizeof(Mesh::Surface *) * (mesh->surface_count - 1));
+ 	--mesh->surface_count;
++	mesh->content_changed();
+ 
+ 	mesh->material_cache.clear();
+ 
+@@ -937,6 +958,7 @@
+ 	for (Mesh *E : mesh->shadow_owners) {
+ 		Mesh *shadow_owner = E;
+ 		shadow_owner->shadow_mesh = RID();
++		shadow_owner->content_changed();
+ 		shadow_owner->dependency.changed_notify(Dependency::DEPENDENCY_CHANGED_MESH);
+ 	}
+ }

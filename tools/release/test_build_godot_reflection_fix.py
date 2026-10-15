@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import tarfile
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -86,7 +87,58 @@ class BuildTargets(unittest.TestCase):
         self.assertTrue(p["binary"].endswith("godot.linuxbsd.template_release.x86_64.mudds_reflection_atlas"))
         self.assertEqual(p["release_template"], str(self.cache / "export_templates/4.7.1.stable/linux_release.x86_64"))
 
-    def simulate_release(self, stale_template=False):
+    def test_mesh_feature_requires_explicit_opt_in_and_separate_artifacts(self):
+        for target in ("editor", "template_release"):
+            with self.subTest(target=target):
+                original = self.plan("--target", target)
+                feature = self.plan("--mesh-content-revision", "--target", target)
+                for key in ("binary", "custom_build_name", "log", "result"):
+                    self.assertNotEqual(original[key], feature[key])
+                self.assertEqual(feature["mesh_patch_sha256"], builder.sha(builder.MESH_PATCH))
+                self.assertEqual(feature["patch_sha256"], builder.PATCH_SHA)
+                self.assertIn("extra_suffix=" + builder.MESH_SUFFIX, feature["options"])
+                if target == "template_release":
+                    self.assertNotEqual(original["release_template"], feature["release_template"])
+                self.assertNotIn("mesh_content_revision", original)
+
+    def test_mesh_patch_rejects_partial_source_before_running_tools(self):
+        source = self.cache / builder.SOURCE_NAME
+        for index, name in enumerate(builder.MESH_TARGETS):
+            path = source / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"before" if index else b"after")
+        hashes = {name: (hashlib.sha256(b"before").hexdigest(), hashlib.sha256(b"after").hexdigest())
+                  for name in builder.MESH_TARGETS}
+        with patch.object(builder, "MESH_TARGETS", hashes), patch.object(builder, "run") as run:
+            with self.assertRaisesRegex(RuntimeError, "Mixed or unexpected mesh revision source"):
+                builder.apply_mesh_patch(source, {}, self.cache / "unused.log")
+            run.assert_not_called()
+
+    def test_source_verification_only_allows_reviewed_mesh_bytes_with_opt_in(self):
+        source = self.cache / builder.SOURCE_NAME
+        name = next(iter(builder.MESH_TARGETS))
+        path = source / name
+        path.parent.mkdir(parents=True)
+        archive = self.cache / "fixture.tar.xz"
+        original, reviewed = b"official source\n", b"reviewed mesh revision\n"
+        with tarfile.open(archive, "w:xz") as tar:
+            info = tarfile.TarInfo(builder.SOURCE_NAME + "/" + name)
+            info.size = len(original)
+            tar.addfile(info, io.BytesIO(original))
+        hashes = {name: (hashlib.sha256(original).hexdigest(), hashlib.sha256(reviewed).hexdigest())}
+        with patch.object(builder, "MESH_TARGETS", hashes):
+            path.write_bytes(original)
+            builder.source_tree(archive, source)
+            builder.source_tree(archive, source, mesh_content_revision=True)
+            path.write_bytes(reviewed)
+            builder.source_tree(archive, source, mesh_content_revision=True)
+            with self.assertRaisesRegex(RuntimeError, "Changed shipped source"):
+                builder.source_tree(archive, source)
+            path.write_bytes(b"unreviewed content")
+            with self.assertRaisesRegex(RuntimeError, "Unexpected mesh revision target bytes"):
+                builder.source_tree(archive, source, mesh_content_revision=True)
+
+    def simulate_release(self, stale_template=False, mesh_content_revision=False):
         source = self.cache / builder.SOURCE_NAME
         target = source / builder.TARGET
         target.parent.mkdir(parents=True)
@@ -97,17 +149,28 @@ class BuildTargets(unittest.TestCase):
         editor = source / "bin/godot.linuxbsd.editor.x86_64.mudds_reflection_atlas"
         editor.parent.mkdir()
         protected = [editor, self.cache / "build.log", self.cache / "build-result.json"]
+        if mesh_content_revision:
+            protected.extend([
+                source / "bin/godot.linuxbsd.template_release.x86_64.mudds_reflection_atlas",
+                self.cache / "build-template_release.log", self.cache / "build-result-template_release.json",
+                self.cache / "export_templates/4.7.1.stable/linux_release.x86_64",
+            ])
         for path in protected:
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"accepted editor artifact")
-        template = self.cache / "export_templates/4.7.1.stable/linux_release.x86_64"
+        template_dir = "export_templates-mesh-content-revision" if mesh_content_revision else "export_templates"
+        template = self.cache / template_dir / "4.7.1.stable/linux_release.x86_64"
         if stale_template:
             template.parent.mkdir(parents=True)
             template.write_bytes(b"previous different release")
         calls = []
+        mode = "-mesh-content-revision" if mesh_content_revision else ""
+        suffix = builder.MESH_SUFFIX if mesh_content_revision else builder.SUFFIX
 
         def inert_run(command, env, cwd, log, timeout):
             calls.append(command)
-            self.assertEqual(log, self.cache / "build-template_release.log")
+            self.assertEqual(log, self.cache / f"build{mode}-template_release.log")
+            self.assertEqual(env["BUILD_NAME"], builder.MESH_BUILD_NAME if mesh_content_revision else builder.BUILD_NAME)
             self.assertEqual(env.get("HOME"), os.environ.get("HOME"))
             self.assertNotIn("DISPLAY", env)
             self.assertNotIn("WAYLAND_DISPLAY", env)
@@ -115,7 +178,7 @@ class BuildTargets(unittest.TestCase):
             if "SCons" in command:
                 self.assertIn("target=template_release", command)
                 self.assertEqual(timeout, 3600)
-                (source / "bin/godot.linuxbsd.template_release.x86_64.mudds_reflection_atlas").write_bytes(b"\x7fELFrelease fixture")
+                (source / ("bin/godot.linuxbsd.template_release.x86_64." + suffix)).write_bytes(b"\x7fELFrelease fixture")
             return {"command": command, "exit": 0}
 
         old_umask = os.umask(0o077)
@@ -123,14 +186,17 @@ class BuildTargets(unittest.TestCase):
             with patch.object(builder, "CACHE", self.cache), \
                     patch.object(builder, "AFTER_SHA", hashlib.sha256(target.read_bytes()).hexdigest()), \
                     patch.object(builder, "install_cancellation"), patch.object(builder, "download"), \
-                    patch.object(builder, "source_tree"), patch.object(builder, "run", side_effect=inert_run), \
-                    patch.object(sys, "argv", [str(SCRIPT), "--build", "--target", "template_release"]), \
+                    patch.object(builder, "source_tree"), patch.object(builder, "apply_mesh_patch", return_value=[]) as mesh_patch, \
+                    patch.object(builder, "run", side_effect=inert_run), \
+                    patch.object(sys, "argv", [str(SCRIPT), "--build", "--target", "template_release"] +
+                                 (["--mesh-content-revision"] if mesh_content_revision else [])), \
                     contextlib.redirect_stdout(io.StringIO()):
                 if stale_template:
                     with self.assertRaisesRegex(RuntimeError, "Existing private release template differs"):
                         builder.main()
                 else:
                     builder.main()
+                self.assertEqual(mesh_patch.call_count, int(mesh_content_revision))
         finally:
             os.umask(old_umask)
         for path in protected:
@@ -150,6 +216,13 @@ class BuildTargets(unittest.TestCase):
         template, _ = self.simulate_release(stale_template=True)
         self.assertEqual(template.read_bytes(), b"previous different release")
         self.assertFalse((self.cache / "build-result-template_release.json").exists())
+
+    def test_mesh_release_staging_preserves_all_accepted_artifacts(self):
+        template, calls = self.simulate_release(mesh_content_revision=True)
+        self.assertEqual(template.read_bytes(), b"\x7fELFrelease fixture")
+        record = json.loads((self.cache / "build-result-mesh-content-revision-template_release.json").read_text())
+        self.assertEqual(record["release_template_sha256"], hashlib.sha256(template.read_bytes()).hexdigest())
+        self.assertEqual(len(calls), 3)
 
 
 if __name__ == "__main__":

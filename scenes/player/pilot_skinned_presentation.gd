@@ -1189,8 +1189,8 @@ func _clear_material_property_names_cache() -> void:
 func _mesh_signature(mesh: Mesh, portable_source: bool = false) -> String:
 	var instance_id := mesh.get_instance_id()
 	# Metadata setters and deserialization through _surfaces can be silent.
-	# Compare the packed surface buffers directly, avoiding vertex decoding,
-	# Variant serialization and SHA work unless the actual content has changed.
+	# Supported engines track server mutations without downloading GPU buffers.
+	# Keep the packed-buffer guard for official and unsupported renderers.
 	var guard := [
 		mesh.get_surface_count(), mesh.get_blend_shape_mode(),
 		mesh.get_aabb(), mesh.custom_aabb,
@@ -1198,7 +1198,14 @@ func _mesh_signature(mesh: Mesh, portable_source: bool = false) -> String:
 	for index in mesh.get_blend_shape_count():
 		guard.append(mesh.get_blend_shape_name(index))
 	if mesh is ArrayMesh:
-		guard.append(mesh.get("_surfaces"))
+		var mesh_rid := mesh.get_rid()
+		var content_revision := 0
+		if RenderingServer.has_method(&"mesh_get_content_revision"):
+			content_revision = int(RenderingServer.call(&"mesh_get_content_revision", mesh_rid))
+		if content_revision > 0:
+			guard.append([mesh_rid, content_revision])
+		else:
+			guard.append(mesh.get("_surfaces"))
 		var shadow := (mesh as ArrayMesh).shadow_mesh
 		guard.append(shadow != null)
 		guard.append(shadow.resource_path if shadow != null else "")

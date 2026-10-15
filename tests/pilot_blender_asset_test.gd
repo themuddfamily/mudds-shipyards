@@ -43,6 +43,18 @@ class MaterialPropertyProbe extends PilotSkinnedPresentation:
 		property_list_scans += 1
 		return super._scan_resource_storage_property_names(resource)
 
+
+class MeshSignatureProbe extends PilotSkinnedPresentation:
+	var mesh_hashes := 0
+
+	func _ready() -> void:
+		pass
+
+	func _variant_sha256(domain: StringName, value: Variant) -> String:
+		if domain == &"pilot_mesh_v2" or domain == &"pilot_source_mesh_v2":
+			mesh_hashes += 1
+		return super._variant_sha256(domain, value)
+
 var _failures: Array[String] = []
 var _assertions := 0
 
@@ -67,6 +79,7 @@ func _run() -> void:
 	_test_imported_motion_library(presentation)
 	_test_authored_deformation(presentation)
 	_test_material_property_metadata(presentation)
+	_test_mesh_content_revision(presentation)
 	await _test_integrity_fail_closed(presentation)
 	_test_manifest()
 
@@ -401,6 +414,174 @@ func _test_authored_deformation(presentation: PilotSkinnedPresentation) -> void:
 	_check(skeleton.get_bone_pose_rotation(left_thigh).angle_to(Quaternion.IDENTITY) > 1.1, "boarding ends in a compact authored seated thigh pose")
 	_check(skeleton.get_bone_pose_rotation(right_thigh).angle_to(Quaternion.IDENTITY) > 1.1, "boarding deforms both legs rather than moving a rigid avatar")
 	player.stop()
+
+
+func _test_mesh_content_revision(presentation: PilotSkinnedPresentation) -> void:
+	var suit := presentation.get_visual_root().find_child("PilotSuit", true, false) as MeshInstance3D
+	var mesh := suit.mesh.duplicate() as ArrayMesh
+	var probe := MeshSignatureProbe.new()
+	root.add_child(probe)
+	probe._force_resource_scan = false
+	var baseline := probe._mesh_signature(mesh)
+	var hashes := probe.mesh_hashes
+	_check(probe._mesh_signature(mesh) == baseline and probe.mesh_hashes == hashes,
+		"unchanged mesh reuses the exact live signature")
+	if OS.get_cmdline_user_args().has("--pilot-mesh-cache-benchmark"):
+		for iteration in 16:
+			probe._mesh_signature(mesh)
+		var samples := PackedFloat64Array()
+		for batch in 5:
+			var last := ""
+			var started := Time.get_ticks_usec()
+			for iteration in 64:
+				last = probe._mesh_signature(mesh)
+			samples.append(float(Time.get_ticks_usec() - started) / 64.0)
+			_check(last == baseline and probe.mesh_hashes == hashes,
+				"benchmark uses unchanged cached mesh signatures")
+		samples.sort()
+		print("PILOT_MESH_CACHE_US_PER_CALL median=", samples[2],
+			" min=", samples[0], " max=", samples[4],
+			" surfaces=", mesh.get_surface_count(),
+			" signature=", baseline,
+			" revision_supported=", _mesh_revision(mesh.get_rid()) > 0)
+	var revision := _mesh_revision(mesh.get_rid())
+	var guard: Array = probe._mesh_signature_cache[mesh.get_instance_id()]["guard"]
+	if revision > 0:
+		_check(guard[4] == [mesh.get_rid(), revision], "supported mesh guard uses RID and content revision")
+		_check(_mesh_revision(mesh.get_rid()) == revision, "unchanged server revision is stable")
+	else:
+		_check(guard[4] == mesh.get("_surfaces"), "unsupported engine preserves the exact packed-surface guard")
+		print("PILOT_MESH_REVISION_UNSUPPORTED: using packed-surface fallback")
+	probe._force_resource_scan = true
+	_check(probe._mesh_signature(mesh) == baseline and probe.mesh_hashes == hashes + 1,
+		"forced mesh scan reproduces the exact signature")
+	probe._force_resource_scan = false
+	var original_surfaces: Array = mesh.get("_surfaces")
+	var edited_surfaces := original_surfaces.duplicate(true)
+	var edited_data: PackedByteArray = edited_surfaces[0]["vertex_data"]
+	edited_data[0] = edited_data[0] ^ 128
+	edited_surfaces[0]["vertex_data"] = edited_data
+	mesh.set("_surfaces", edited_surfaces)
+	if revision > 0:
+		_check(_mesh_revision(mesh.get_rid()) > revision, "silent serialized surface rebuild immediately advances revision")
+	_check(probe._mesh_signature(mesh) != baseline, "silent serialized surface rebuild invalidates cached signature")
+	mesh.set("_surfaces", original_surfaces)
+	_check(probe._mesh_signature(mesh) == baseline, "serialized surface restore recovers exact mesh signature")
+	if revision > 0:
+		_test_mesh_region_revisions(probe)
+		_test_mesh_metadata_revisions(mesh)
+		_test_mesh_shadow_owner_revisions()
+	probe.queue_free()
+
+
+func _mesh_revision(mesh_rid: RID) -> int:
+	if not RenderingServer.has_method(&"mesh_get_content_revision"):
+		return 0
+	return int(RenderingServer.call(&"mesh_get_content_revision", mesh_rid))
+
+
+func _test_mesh_region_revisions(probe: MeshSignatureProbe) -> void:
+	# An isolated uncompressed triangle gives all four uploads known encodings:
+	# float32 positions/UVs, uint16 bones, and uint16 indices. Every mutation
+	# stays finite and within the fixture's vertex/bone ranges, then is restored
+	# before a frame can render. The imported pilot keeps its exact source data.
+	var mesh := ArrayMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2.ZERO, Vector2.RIGHT, Vector2.UP])
+	arrays[Mesh.ARRAY_BONES] = PackedInt32Array([0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0])
+	arrays[Mesh.ARRAY_WEIGHTS] = PackedFloat32Array([.75, .25, 0, 0, .75, .25, 0, 0, .75, .25, 0, 0])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_FLAG_USE_DYNAMIC_UPDATE)
+	var updates := {
+		&"mesh_surface_update_vertex_region": "vertex_data",
+		&"mesh_surface_update_attribute_region": "attribute_data",
+		&"mesh_surface_update_skin_region": "skin_data",
+		&"mesh_surface_update_index_region": "index_data",
+	}
+	for method: StringName in updates:
+		var exercised := false
+		for index in mesh.get_surface_count():
+			var surface := RenderingServer.mesh_get_surface(mesh.get_rid(), index) as Dictionary
+			var bytes: PackedByteArray = surface.get(updates[method], PackedByteArray())
+			if bytes.is_empty():
+				continue
+			var baseline := probe._mesh_signature(mesh)
+			var hashes := probe.mesh_hashes
+			var edited_bytes := bytes.duplicate()
+			match method:
+				&"mesh_surface_update_vertex_region":
+					edited_bytes.encode_float(0, .125)
+				&"mesh_surface_update_attribute_region":
+					edited_bytes.encode_float(0, .25)
+				&"mesh_surface_update_skin_region":
+					edited_bytes.encode_u16(0, 1)
+				&"mesh_surface_update_index_region":
+					edited_bytes.encode_u16(0, 1)
+					edited_bytes.encode_u16(2, 0)
+			_check(edited_bytes != bytes, "%s fixture changes actual buffer bytes" % method)
+			var before := _mesh_revision(mesh.get_rid())
+			RenderingServer.call(method, mesh.get_rid(), index, 0, edited_bytes)
+			var after := _mesh_revision(mesh.get_rid())
+			_check(after > before, "%s immediately advances revision after queued upload" % method)
+			_check(_mesh_revision(mesh.get_rid()) == after, "%s revision remains stable without writes" % method)
+			_check(probe._mesh_signature(mesh) != baseline and probe.mesh_hashes == hashes + 1,
+				"%s immediately invalidates cached production signature" % method)
+			var changed_surface := RenderingServer.mesh_get_surface(mesh.get_rid(), index) as Dictionary
+			_check(changed_surface.get(updates[method]) == edited_bytes, "%s reads back the changed buffer" % method)
+			RenderingServer.call(method, mesh.get_rid(), index, 0, bytes)
+			_check(_mesh_revision(mesh.get_rid()) > after, "%s restore immediately advances revision" % method)
+			_check(probe._mesh_signature(mesh) == baseline and probe.mesh_hashes == hashes + 2,
+				"%s restore recovers the exact production signature" % method)
+			var restored_surface := RenderingServer.mesh_get_surface(mesh.get_rid(), index) as Dictionary
+			_check(restored_surface.get(updates[method]) == bytes, "%s restores the original buffer bytes" % method)
+			exercised = true
+			break
+		_check(exercised, "%s has a real buffer fixture" % method)
+
+
+func _test_mesh_shadow_owner_revisions() -> void:
+	var arrays := BoxMesh.new().get_mesh_arrays()
+	for operation in [&"add", &"remove", &"clear", &"free"]:
+		var owner := RenderingServer.mesh_create()
+		var shadow := RenderingServer.mesh_create()
+		RenderingServer.mesh_add_surface_from_arrays(shadow, RenderingServer.PRIMITIVE_TRIANGLES, arrays)
+		RenderingServer.mesh_set_shadow_mesh(owner, shadow)
+		var before := _mesh_revision(owner)
+		match operation:
+			&"add":
+				RenderingServer.mesh_add_surface_from_arrays(shadow, RenderingServer.PRIMITIVE_TRIANGLES, arrays)
+			&"remove":
+				RenderingServer.mesh_surface_remove(shadow, 0)
+			&"clear":
+				RenderingServer.mesh_clear(shadow)
+			&"free":
+				RenderingServer.free_rid(shadow)
+		_check(_mesh_revision(owner) > before, "shadow %s immediately invalidates its owner revision" % operation)
+		if operation != &"free":
+			RenderingServer.free_rid(shadow)
+		RenderingServer.free_rid(owner)
+
+
+func _test_mesh_metadata_revisions(mesh: ArrayMesh) -> void:
+	var mesh_rid := mesh.get_rid()
+	var writes := [
+		[&"mesh_set_blend_shape_mode", [mesh_rid, mesh.get_blend_shape_mode()]],
+		[&"mesh_set_custom_aabb", [mesh_rid, mesh.custom_aabb]],
+		[&"mesh_surface_set_material", [mesh_rid, 0, mesh.surface_get_material(0).get_rid()]],
+		[&"mesh_set_shadow_mesh", [mesh_rid, RID()]],
+	]
+	for write: Array in writes:
+		var before := _mesh_revision(mesh_rid)
+		RenderingServer.callv(write[0], write[1])
+		_check(_mesh_revision(mesh_rid) > before, "%s immediately advances revision" % write[0])
+	var empty_mesh := ArrayMesh.new()
+	var initial := _mesh_revision(empty_mesh.get_rid())
+	_check(initial > 0, "new RD mesh starts with a positive revision")
+	empty_mesh.add_blend_shape(&"RevisionFixture")
+	_check(_mesh_revision(empty_mesh.get_rid()) > initial, "blend shape count immediately advances revision")
+	_check(_mesh_revision(RID()) == 0, "invalid mesh RID returns unsupported revision zero")
 
 
 func _test_material_property_metadata(presentation: PilotSkinnedPresentation) -> void:
