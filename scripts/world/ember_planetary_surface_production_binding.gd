@@ -413,9 +413,17 @@ func start_relay_survey() -> Dictionary:
 	var result: Dictionary
 	var interrupted_resume := not _pending_relay_survey_route_resume.is_empty()
 	if interrupted_resume:
-		result = _relay_survey.resume_mandatory_route(
-			_adapter, _pending_relay_survey_route_resume
-		)
+		if bool(_pending_relay_survey_route_resume.get("complete", false)):
+			var debt: Dictionary = _relay_survey_persistence.call(&"validate_completed_debt",
+				_pending_relay_survey_route_resume, str(_pending_relay_survey_retirement.expected_receipt_sha256))
+			if not bool(debt.get("accepted", false)):
+				return debt
+			result = _relay_survey.call(&"resume_completed_mandatory_route",
+				_adapter, _pending_relay_survey_route_resume) as Dictionary
+		else:
+			result = _relay_survey.resume_mandatory_route(
+				_adapter, _pending_relay_survey_route_resume
+			)
 	else:
 		result = _relay_survey.begin(_adapter, _navigation)
 	if bool(result.get("accepted", false)):
@@ -426,9 +434,11 @@ func start_relay_survey() -> Dictionary:
 		var terminal := service.get("service_terminal", {}) as Dictionary
 		if int(terminal.get("terminal_generation", -1)) > 0:
 			_survey_interaction.call(&"reset_service_terminal", next_generation)
-		var rack_activation := _sample_rack_interaction.call(
-			&"activate_for_activity_generation", next_generation
-		) as Dictionary
+		var rack_activation := {"accepted": true}
+		if not interrupted_resume or not bool(_pending_relay_survey_route_resume.get("complete", false)):
+			rack_activation = _sample_rack_interaction.call(
+				&"activate_for_activity_generation", next_generation
+			) as Dictionary
 		if not bool(rack_activation.get("accepted", false)):
 			if interrupted_resume:
 				var aborted := _adapter.call(
@@ -461,6 +471,14 @@ func start_relay_survey() -> Dictionary:
 				optional_rejected["optional_progress_restore"] = optional_restored
 				optional_rejected["resume_abort"] = optional_abort
 				return optional_rejected
+			if bool(_pending_relay_survey_route_resume.get("complete", false)):
+				# The existing reward authority removes this debt in its payment CAS.
+				# Retiring it now would lose the reward on a process interruption.
+				_pending_relay_survey_route_resume.clear()
+				_pending_relay_survey_optional_progress.clear()
+				_pending_relay_survey_retirement.clear()
+				_apply_relay_survey_presentation()
+				return result
 			# Ordinary session/settings commits can advance the shared store during
 			# the landing. Re-observe only this original receipt after actual route
 			# adoption, then retire against that exact current generation.
@@ -518,9 +536,9 @@ func stage_interrupted_relay_survey_resume(
 			optional_progress = (
 				journey.get("optional_progress", {}) as Dictionary
 			).duplicate(true)
-	var validated: Dictionary = _relay_survey.validate_mandatory_route_resume(
-		route_value
-	)
+	var completed: bool = route_value is Dictionary and (route_value as Dictionary).get("complete") == true
+	var validated: Dictionary = _relay_survey.call(
+		&"validate_completed_mandatory_route_resume" if completed else &"validate_mandatory_route_resume", route_value)
 	if not bool(validated.get("accepted", false)):
 		return _result(
 			false,
@@ -1880,18 +1898,26 @@ func _restore_interrupted_optional_progress() -> Dictionary:
 		_relay_survey.OPTIONAL_CHECKPOINT_ID, {}
 	) as Dictionary
 	if bool(bunker.get("completed", false)):
-		var bunker_restored := _survey_interaction.call(
-			&"restore_interrupted_completion", bunker
-		) as Dictionary
+		var bunker_restored: Dictionary
+		if bool(_pending_relay_survey_route_resume.get("complete", false)):
+			bunker_restored = _survey_interaction.call(&"restore_completed_survey_observation",
+				bunker, _pending_relay_survey_route_resume) as Dictionary
+		else:
+			bunker_restored = _survey_interaction.call(
+				&"restore_interrupted_completion", bunker) as Dictionary
 		if not bool(bunker_restored.get("accepted", false)):
 			return _result(false, &"survey_interrupted_presentation_restore_rejected")
 	var rack := checkpoints.get(
 		_relay_survey.SAMPLE_RACK_CHECKPOINT_ID, {}
 	) as Dictionary
 	if bool(rack.get("completed", false)):
-		var rack_restored := _sample_rack_interaction.call(
-			&"restore_interrupted_completion", rack
-		) as Dictionary
+		var rack_restored: Dictionary
+		if bool(_pending_relay_survey_route_resume.get("complete", false)):
+			rack_restored = _sample_rack_interaction.call(&"restore_completed_survey_observation",
+				rack, _pending_relay_survey_route_resume) as Dictionary
+		else:
+			rack_restored = _sample_rack_interaction.call(
+				&"restore_interrupted_completion", rack) as Dictionary
 		if not bool(rack_restored.get("accepted", false)):
 			return _result(false, &"sample_rack_interrupted_presentation_restore_rejected")
 	return restored

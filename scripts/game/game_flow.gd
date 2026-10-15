@@ -3936,7 +3936,7 @@ func _apply_solo_safe_recovery() -> void:
 		_solo_safe_recovery_boarding_ship = null
 
 
-## Both world records and Aurora's older shared checkpoint move in one store
+## All world records and Aurora's older shared checkpoint move in one store
 ## transaction. Passive records never participate in automatic location resume.
 func _decline_interrupted_planetary_visits() -> Dictionary:
 	var store := _runtime_settings_user_data_store
@@ -3947,6 +3947,7 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 	var payload := store.get_snapshot()
 	var has_visits := _aurora_shared_survey_checkpoint_pending
 	for slot in [String(AURORA_EXPEDITION_PERSISTENCE_SLOT), String(RIME_EXPEDITION_PERSISTENCE_SLOT),
+			String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT), String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT) + "_declined",
 			AURORA_SHARED_SURVEY_SLOT, AURORA_DECLINED_SHARED_SURVEY_SLOT,
 			String(AURORA_EXPEDITION_PERSISTENCE_SLOT) + "_declined", String(RIME_EXPEDITION_PERSISTENCE_SLOT) + "_declined"]:
 		has_visits = has_visits or payload.has(slot)
@@ -3959,9 +3960,17 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 		return paid
 	var generation := store.get_generation()
 	var next := payload.duplicate(true)
+	var ember := EmberRelaySurveyPersistenceBinding.new()
+	ember.configure(store, EMBER_RELAY_SURVEY_PERSISTENCE_SLOT)
+	var ember_decline := ember.plan_decline(next)
+	if not bool(ember_decline.get("accepted", false)):
+		return ember_decline
+	next = ember_decline.payload
 	for entry in [
-			{"binding": _aurora_expedition_persistence_binding, "paid": paid.aurora},
-			{"binding": _rime_expedition_persistence_binding, "paid": paid.rime}]:
+			{"binding": _aurora_expedition_persistence_binding, "paid": paid.aurora, "slot": String(AURORA_EXPEDITION_PERSISTENCE_SLOT)},
+			{"binding": _rime_expedition_persistence_binding, "paid": paid.rime, "slot": String(RIME_EXPEDITION_PERSISTENCE_SLOT)}]:
+		if not next.has(entry.slot) and not next.has(String(entry.slot) + "_declined"):
+			continue
 		var binding: RefCounted = entry.binding
 		if binding == null:
 			return {"accepted": false, "reason": &"planetary_visit_persistence_unavailable"}
@@ -15879,6 +15888,30 @@ func restore_interrupted_ember_journey() -> Dictionary:
 ## of the shared slot. Only its explicit active-journey marker selects passive
 ## recovery, so the two persisted meanings can never be applied together.
 func _restore_ember_surface_persistence_for_admission() -> Dictionary:
+	# A new physical visit may collect earned observations, but never the old
+	# declined location, session, or unfinished route.
+	if _runtime_settings_user_data_store != null:
+		var inspector := EmberRelaySurveyPersistenceBinding.new()
+		inspector.configure(_runtime_settings_user_data_store, EMBER_RELAY_SURVEY_PERSISTENCE_SLOT)
+		var declined := inspector.load_declined_completion()
+		if bool(declined.get("accepted", false)):
+			var recovery: Dictionary = declined.recovery
+			var checked := inspector.validate_completed_debt(recovery.route_identity, str(recovery.receipt_sha256))
+			if not bool(checked.get("accepted", false)):
+				return checked
+			if _ember_relay_survey_persistence_binding == null or not _ember_relay_survey_persistence_binding.has_method(&"stage_interrupted_relay_survey_resume"):
+				return {"accepted": false, "reason": &"relay_survey_resume_unavailable"}
+			var staged: Dictionary = _ember_relay_survey_persistence_binding.call(
+				&"stage_interrupted_relay_survey_resume",
+				{"route_identity": recovery.route_identity, "optional_progress": recovery.get("optional_progress", {})},
+				{"expected_store_generation": declined.store_generation,
+					"expected_receipt_sha256": recovery.receipt_sha256,
+					"commit_id": "ember-declined-completion"})
+			staged["persistence_kind"] = &"declined_completion"
+			staged["location_resumed"] = false
+			return staged
+		if declined.get("reason") != &"survey_declined_completion_not_found":
+			return declined
 	var terminal := restore_ember_relay_survey_persistence()
 	if StringName(terminal.get("reason", &"")) \
 			== &"survey_persistence_active_journey_present":

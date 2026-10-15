@@ -388,6 +388,19 @@ func reenter(next_attachment_generation: int) -> Dictionary:
 ## Reapplies a persistence-validated active-journey completion without
 ## emitting another survey event or reopening the unrelated service action.
 func restore_interrupted_completion(completion: Variant) -> Dictionary:
+	return _restore_completion_observation(completion, {})
+
+
+## A completed survey can be collected on a genuinely new visit. Keep its
+## old receipt as passive provenance; do not emit an interaction or service.
+func restore_completed_survey_observation(completion: Variant, route: Variant) -> Dictionary:
+	var checked := EmberSurfaceRelaySurveyActivity.new().validate_completed_mandatory_route_resume(route)
+	if not bool(checked.get("accepted", false)):
+		return _result(false, &"survey_interrupted_restore_invalid")
+	return _restore_completion_observation(completion, route as Dictionary)
+
+
+func _restore_completion_observation(completion: Variant, completed_route: Dictionary) -> Dictionary:
 	if not _current() or _completed or not completion is Dictionary:
 		return _result(false, &"survey_interrupted_restore_invalid")
 	var saved := completion as Dictionary
@@ -398,10 +411,14 @@ func restore_interrupted_completion(completion: Variant) -> Dictionary:
 				!= &"ember_bunker_gantry_log" \
 			or StringName(saved.get("interaction_id", &"")) != INTERACTION_ID \
 			or int(saved.get("activity_generation", -1)) < 1 \
-			or int(saved.get("run_generation", -1)) != _host_generation \
+			or int(saved.get("run_generation", -1)) < 1 \
 			or int(saved.get("attachment_generation", -1)) < 1 \
-			or int(saved.get("attachment_generation", -1)) >= _attachment_generation \
-			or not saved.get("receipt", {}) is Dictionary:
+			or not saved.get("receipt") is Dictionary:
+		return _result(false, &"survey_interrupted_restore_invalid")
+	if completed_route.is_empty():
+		if int(saved.run_generation) != _host_generation or int(saved.attachment_generation) >= _attachment_generation:
+			return _result(false, &"survey_interrupted_restore_invalid")
+	elif int(saved.activity_generation) != int(completed_route.activity_generation):
 		return _result(false, &"survey_interrupted_restore_invalid")
 	_completed = true
 	_completion_attachment_generation = _attachment_generation
@@ -416,6 +433,8 @@ func restore_interrupted_completion(completion: Variant) -> Dictionary:
 		"completion_response_id": COMPLETION_RESPONSE_ID,
 		"restored_interrupted_presentation": true,
 	}.duplicate(true)
+	if not completed_route.is_empty():
+		_last_receipt = (saved.receipt as Dictionary).duplicate(true)
 	_apply_presentation()
 	return {
 		"accepted": true,

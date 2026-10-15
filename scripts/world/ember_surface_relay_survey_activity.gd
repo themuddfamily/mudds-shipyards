@@ -115,6 +115,59 @@ func validate_mandatory_route_resume(route_identity: Variant) -> Dictionary:
 		return {"accepted": false, "reason": &"invalid_mandatory_route_identity"}
 	return {"accepted": true, "reason": &"mandatory_route_identity_valid"}
 
+
+## Completed-unpaid restoration is distinct from ACTIVE route admission. The
+## caller must first authenticate the saved receipt against current paid state.
+func resume_completed_mandatory_route(adapter: Object, route_identity: Variant) -> Dictionary:
+	var validation := validate_completed_mandatory_route_resume(route_identity)
+	if not bool(validation.get("accepted", false)):
+		return validation
+	if adapter == null or not adapter.has_method(&"resume_completed_activity_sequence"):
+		return {"accepted": false, "reason": &"activity_adapter_unavailable"}
+	var route := route_identity as Dictionary
+	var state := {
+		"schema_version": CheckpointRouteActivity.PERSISTENCE_SCHEMA_VERSION,
+		"activity_id": String(ACTIVITY_ID),
+		"state": CheckpointRouteActivity.State.COMPLETED,
+		"generation": int(route.activity_generation),
+		"next_checkpoint_index": 2,
+		"failure_reason": "",
+	}
+	var ids: Array[StringName] = [ACTIVITY_ID]
+	var resumed := adapter.call(&"resume_completed_activity_sequence", ids, state) as Dictionary
+	if bool(resumed.get("accepted", false)):
+		_reconcile_optional_checkpoint_generation(_adapter_observation(adapter))
+		_apply_authoritative_route_result(resumed)
+	return resumed
+
+
+func validate_completed_mandatory_route_resume(route_identity: Variant) -> Dictionary:
+	if not route_identity is Dictionary:
+		return {"accepted": false, "reason": &"invalid_completed_mandatory_route_identity"}
+	var route := route_identity as Dictionary
+	var names := {"source": &"activity_director_checkpoint_result", "activity_id": ACTIVITY_ID, "next_objective_id": &""}
+	if route.size() != 8 or not route.get("complete") is bool or route.get("complete") != true:
+		return {"accepted": false, "reason": &"invalid_completed_mandatory_route_identity"}
+	for key: String in names:
+		var value: Variant = route.get(key)
+		if not (value is String or value is StringName) or StringName(value) != names[key]:
+			return {"accepted": false, "reason": &"invalid_completed_mandatory_route_identity"}
+	for key in ["activity_generation", "checkpoint_count", "next_checkpoint_index"]:
+		var value: Variant = route.get(key)
+		if not (value is int or value is float) or not is_finite(float(value)) \
+				or float(value) != floor(float(value)) or float(value) < 1.0 \
+				or float(value) > CheckpointRouteActivity.MAX_PERSISTED_GENERATION \
+				or (key != "activity_generation" and int(value) != 2):
+			return {"accepted": false, "reason": &"invalid_completed_mandatory_route_identity"}
+	var authority: Variant = route.get("authority")
+	if not authority is Dictionary or (authority as Dictionary).size() != 3:
+		return {"accepted": false, "reason": &"invalid_completed_mandatory_route_identity"}
+	for key in ["navigation", "movement", "reward"]:
+		if not authority.get(key) is bool or authority.get(key) != false:
+			return {"accepted": false, "reason": &"invalid_completed_mandatory_route_identity"}
+	return {"accepted": true, "reason": &"completed_mandatory_route_identity_valid"}
+
+
 func submit_landmark(adapter: Object, landmark_id: StringName, position: Vector3) -> Dictionary:
 	if adapter == null or not adapter.has_method(&"submit_activity_landmark_discovery") \
 			or not position.is_finite() or landmark_id.is_empty():
@@ -397,14 +450,21 @@ func restore_interrupted_optional_progress(
 		return {"accepted": false, "reason": &"optional_progress_runtime_unavailable"}
 	var saved := candidate as Dictionary
 	var runtime := _adapter_observation(adapter).get("activity_reward", {}) as Dictionary
-	if StringName(runtime.get("state", &"")) != &"active" \
+	var completed_route := StringName(runtime.get("state", &"")) == &"awaiting_reward" \
+		and bool(validate_completed_mandatory_route_resume(route_identity).get("accepted", false))
+	if (StringName(runtime.get("state", &"")) != &"active" and not completed_route) \
 			or StringName(runtime.get("activity_id", &"")) != ACTIVITY_ID \
 			or int(runtime.get("activity_generation", -1)) \
-				!= int((route_identity as Dictionary).get("activity_generation", -2)) \
-			or int(runtime.get("run_generation", -1)) \
-				!= int(saved.get("source_run_generation", -2)) \
-			or int(runtime.get("attachment_generation", -1)) \
-				<= int(saved.get("source_attachment_generation", -2)):
+				!= int((route_identity as Dictionary).get("activity_generation", -2)):
+		return {"accepted": false, "reason": &"stale_interrupted_optional_progress"}
+	# Completed observations are passive provenance from a previous Host, not
+	# counters or capabilities to import into the fresh current attachment.
+	if completed_route:
+		if int(runtime.get("run_generation", -1)) < 1 \
+				or int(runtime.get("attachment_generation", -1)) < 1:
+			return {"accepted": false, "reason": &"stale_interrupted_optional_progress"}
+	elif int(runtime.get("run_generation", -1)) != int(saved.get("source_run_generation", -2)) \
+			or int(runtime.get("attachment_generation", -1)) <= int(saved.get("source_attachment_generation", -2)):
 		return {"accepted": false, "reason": &"stale_interrupted_optional_progress"}
 	var checkpoints := saved.get("checkpoints", {}) as Dictionary
 	var bunker := checkpoints.get(OPTIONAL_CHECKPOINT_ID, {}) as Dictionary

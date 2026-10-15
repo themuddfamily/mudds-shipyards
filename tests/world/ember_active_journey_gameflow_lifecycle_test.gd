@@ -8,6 +8,11 @@ const PersistenceScript := preload(
 )
 const StoreScript := preload("res://scripts/persistence/user_data_store.gd")
 const FilesystemScript := preload("res://scripts/persistence/user_data_filesystem.gd")
+const SurfaceBindingScript := preload("res://scripts/world/ember_planetary_surface_production_binding.gd")
+const DirectorScript := preload("res://scripts/activities/activity_director.gd")
+const RecoveryBridgeScript := preload("res://scripts/diagnostics/session_diagnostic_lifecycle_bridge.gd")
+const RewardAuthorityScript := preload("res://scripts/game/game_flow_reward_authority.gd")
+const RewardWrapperScript := preload("res://scripts/world/ember_surface_loop_production_binding.gd")
 
 const STORE_PATH := "memory://ember-active-gameflow.json"
 const SLOT: StringName = &"ember_relay_survey_completion"
@@ -15,6 +20,8 @@ const SLOT: StringName = &"ember_relay_survey_completion"
 
 class MemoryFilesystem extends FilesystemScript:
 	var files: Dictionary = {}
+	var reject_writes := false
+	var writes_until_refusal := -1
 	func file_exists(path: String) -> bool: return files.has(path)
 	func directory_exists(_path: String) -> bool: return false
 	func ensure_parent_directory(_path: String) -> Error: return OK
@@ -27,6 +34,10 @@ class MemoryFilesystem extends FilesystemScript:
 			"bytes": bytes if bytes.size() <= maximum_bytes else PackedByteArray(),
 		}
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if reject_writes or writes_until_refusal == 0:
+			return ERR_CANT_CREATE
+		if writes_until_refusal > 0:
+			writes_until_refusal -= 1
 		files[path] = bytes.duplicate()
 		return OK
 	func remove_path(path: String) -> Error:
@@ -119,8 +130,36 @@ class LifecycleFlow extends GameFlowScript:
 		return restore_frame
 
 
+class RecoveryChoiceBridge extends RecoveryBridgeScript:
+	var receipt := {"session_id": 51, "startup_generation": 4}
+	func _init() -> void: super(null, null, null)
+	func get_recovery_available_snapshot() -> Dictionary: return receipt.duplicate(true)
+	func discard_recovery() -> Dictionary:
+		receipt.clear()
+		return {"accepted": true, "reason": &"recovery_discarded"}
+
+
+class SurfaceHost extends EmberSurfaceLoopHost:
+	var session := RefCounted.new()
+	var actor_id := 0
+	var craft_id := 0
+	var run_generation := 31
+	var attachment := 7
+	func get_generation() -> int: return run_generation
+	func get_attachment_generation() -> int: return attachment
+	func get_phase() -> int: return EmberSurfaceLoopHost.Phase.ON_FOOT
+	func get_travel_session_observation_source() -> Object: return session
+	func get_return_status_snapshot() -> Dictionary: return get_snapshot()
+	func get_snapshot() -> Dictionary:
+		return {"host_id": &"ember_surface_loop", "attached": true,
+			"generation": run_generation, "attachment_generation": attachment, "phase_id": &"on_foot",
+			"identities": {"world_id": &"ember_moon",
+				"player_instance_id": actor_id, "ship_instance_id": craft_id}}
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
+var _reward_calls := 0
 
 
 func _init() -> void:
@@ -211,6 +250,9 @@ func _run() -> void:
 			"counter inspection never mutates the persisted receipt")
 		inspecting_flow.free()
 	first_flow.free()
+	# Independent disk image: the original Resume assertions below still consume
+	# exactly the same interrupted receipt through their unchanged admission seam.
+	await _exercise_start_fresh(filesystem.files.duplicate(true))
 
 	var second_store = StoreScript.new(STORE_PATH, filesystem)
 	var second_binding := PersistenceForwarder.new()
@@ -323,6 +365,9 @@ func _run() -> void:
 		"terminal completion keeps its existing result shape and cannot enter active recovery",
 	)
 	terminal_flow.free()
+	await _exercise_paid_start_fresh()
+	await _exercise_completed_debt()
+	await _exercise_active_payment()
 
 	for failure in _failures:
 		push_error(failure)
@@ -331,6 +376,346 @@ func _run() -> void:
 		% _assertions
 	)
 	quit(0 if _failures.is_empty() else 1)
+
+
+func _exercise_start_fresh(saved_files: Dictionary) -> void:
+	var filesystem := MemoryFilesystem.new()
+	filesystem.files = saved_files
+	var store := StoreScript.new(STORE_PATH, filesystem)
+	var loaded: Dictionary = store.load()
+	_check(loaded.accepted, "Start Fresh observes the loaded primary store, as production startup does")
+	if not loaded.accepted:
+		return
+	var choice_flow := LifecycleFlow.new()
+	var forwarder := PersistenceForwarder.new()
+	_check(choice_flow.configure_runtime_settings_persistence(store)
+		and choice_flow.bind_ember_relay_survey_persistence(forwarder).accepted,
+		"Start Fresh binds the real saved Ember record before activity admission")
+	choice_flow.bind_aurora_expedition_persistence()
+	choice_flow.bind_rime_expedition_persistence()
+	var before: Dictionary = store.get_snapshot()
+	var bridge := RecoveryChoiceBridge.new()
+	choice_flow.set("_session_diagnostics_bridge", bridge)
+	var choice: Dictionary = choice_flow._handle_hud_session_recovery_choice(&"discard", 51, 4)
+	_check(choice.accepted and bridge.get_recovery_available_snapshot().is_empty(),
+		"the actual fenced Start Fresh choice succeeds before a later Ember admission")
+	_check(store.get_snapshot().get("foreign") == before.get("foreign"),
+		"Start Fresh preserves unrelated durable data")
+	choice_flow.free()
+	if not choice.accepted:
+		return
+	var cold_store := StoreScript.new(STORE_PATH, filesystem)
+	var surface := await _make_surface(cold_store)
+	var flow: GameFlow = surface.flow
+	var binding: Node = surface.binding
+	var admission: Dictionary = flow._restore_ember_surface_persistence_for_admission()
+	_check(not flow.get_ember_interrupted_journey_persistence_report().adopted
+		and not admission.get("checkpoint_resume", {}).get("accepted", false),
+		"a cold admission after Start Fresh does not adopt or stage the declined incomplete survey")
+	var started: Dictionary = binding.call(&"start_relay_survey")
+	var route: Dictionary = (binding.call(&"get_snapshot") as Dictionary).relay_survey.mandatory_route
+	_check(started.accepted and int(route.next_checkpoint_index) == 0
+		and route.next_objective_id == &"ember_relay_tower" and _reward_calls == 0,
+		"ordinary survey start after Start Fresh begins at the first beacon without a reward")
+	await _retire_surface(surface)
+	var second_cold := await _make_surface(StoreScript.new(STORE_PATH, filesystem))
+	var second_admission: Dictionary = (second_cold.flow as GameFlow)._restore_ember_surface_persistence_for_admission()
+	_check(not (second_cold.flow as GameFlow).get_ember_interrupted_journey_persistence_report().adopted
+		and not second_admission.get("checkpoint_resume", {}).get("accepted", false),
+		"another cold boot still ignores the archived incomplete route")
+	await _retire_surface(second_cold)
+
+
+func _exercise_paid_start_fresh() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var store := StoreScript.new(STORE_PATH, filesystem)
+	store.load()
+	var surface := await _make_surface(store)
+	var binding: Node = surface.binding
+	var started: Dictionary = binding.call(&"start_relay_survey")
+	var relay: Dictionary = binding.call(&"submit_relay_survey_position", Vector3(180.0, 120009.0, -44.0))
+	var returned: Dictionary = binding.call(&"submit_relay_survey_position", Vector3(540.0, 120030.0, -210.0))
+	var paid: Dictionary = binding.call(&"commit_relay_survey_reward")
+	_check(started.accepted and relay.accepted and returned.accepted and paid.accepted
+		and paid.persistence.accepted and _reward_calls == 1,
+		"the paid control earns and persists a real terminal survey receipt")
+	if not paid.get("accepted", false) or not paid.get("persistence", {}).get("accepted", false):
+		await _retire_surface(surface)
+		return
+	var before: Dictionary = store.get_snapshot()
+	var flow: GameFlow = surface.flow
+	flow.set("_session_diagnostics_bridge", RecoveryChoiceBridge.new())
+	var choice: Dictionary = flow._handle_hud_session_recovery_choice(&"discard", 51, 4)
+	_check(choice.accepted and store.get_snapshot() == before,
+		"Start Fresh leaves the already-paid Ember terminal receipt unchanged")
+	await _retire_surface(surface)
+	var cold := await _make_surface(StoreScript.new(STORE_PATH, filesystem))
+	var restored: Dictionary = (cold.flow as GameFlow)._restore_ember_surface_persistence_for_admission()
+	_check(restored.accepted and restored.reason == &"survey_completion_restored"
+		and not restored.reward_replay_allowed and _reward_calls == 1,
+		"cold paid-receipt admission remains readable without replaying a reward")
+	await _retire_surface(cold)
+
+
+func _exercise_completed_debt() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var store := StoreScript.new(STORE_PATH, filesystem)
+	# A genuinely earlier paid survey must not act as a global one-shot guard
+	# against this repeatable activity's later completed obligation.
+	var prior := await _make_surface(store, true, 1, 1)
+	var prior_binding: Node = prior.binding
+	prior_binding.call(&"start_relay_survey")
+	prior_binding.call(&"submit_relay_survey_position", Vector3(180.0, 120009.0, -44.0))
+	prior_binding.call(&"submit_relay_survey_position", Vector3(540.0, 120030.0, -210.0))
+	var prior_payment := await _pay_surface(prior)
+	_check(prior_payment.is_empty() and int(store.get_snapshot().game_flow_reward_store.reward_counts.ember_beacon_data) == 1,
+		"an earlier actual evidenced Ember payment exists before the new debt (result: %s)" % prior_payment)
+	await _retire_surface(prior)
+	if not prior_payment.is_empty():
+		return
+	var earned := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true, 1, 1)
+	store = (earned.flow as GameFlow).get("_runtime_settings_user_data_store")
+	var binding: Node = earned.binding
+	var started: Dictionary = binding.call(&"start_relay_survey")
+	var relay: Dictionary = binding.call(&"submit_relay_survey_position", Vector3(180.0, 120009.0, -44.0))
+	var returned: Dictionary = binding.call(&"submit_relay_survey_position", Vector3(540.0, 120030.0, -210.0))
+	_check(started.accepted and relay.accepted and returned.accepted
+		and (binding.call(&"get_activity_reward_snapshot") as Dictionary).state == &"awaiting_reward",
+		"real new route observations create completed unpaid work without invoking payment")
+	if not started.accepted or not relay.accepted or not returned.accepted:
+		await _retire_surface(earned)
+		return
+	var saved := _save_surface_progress(earned)
+	_check(saved.accepted and store.get_snapshot().has(String(SLOT)),
+		"ordinary interrupted-journey save persists the actual completed unpaid route")
+	if not saved.accepted or not store.get_snapshot().has(String(SLOT)):
+		await _retire_surface(earned)
+		return
+	var flow: GameFlow = earned.flow
+	var bridge := RecoveryChoiceBridge.new()
+	flow.set("_session_diagnostics_bridge", bridge)
+	var before: Dictionary = store.get_snapshot()
+	var generation: int = store.get_generation()
+	filesystem.reject_writes = true
+	var refused: Dictionary = flow._handle_hud_session_recovery_choice(&"discard", 51, 4)
+	filesystem.reject_writes = false
+	_check(not refused.accepted and not bridge.get_recovery_available_snapshot().is_empty()
+		and store.get_generation() == generation and store.get_snapshot() == before,
+		"a rejected Start Fresh write retains the actual notice, complete debt and ledger")
+	var retry: Dictionary = flow._handle_hud_session_recovery_choice(&"discard", 51, 4)
+	var archive := String(SLOT) + "_declined"
+	_check(retry.accepted and bridge.get_recovery_available_snapshot().is_empty()
+		and not store.get_snapshot().has(String(SLOT)) and store.get_snapshot().has(archive),
+		"retry of the same actual choice atomically archives completed debt")
+	if not retry.accepted or not store.get_snapshot().has(archive):
+		await _retire_surface(earned)
+		return
+	var archived: Dictionary = store.get_snapshot()[archive]
+	var disk_before: Dictionary = store.get_snapshot()
+	# Two individually valid receipts with the same activity generation but a
+	# different detached physical checkpoint are distinct obligations.
+	var conflict: Dictionary = archived.duplicate(true)
+	conflict.completion.detached_session.checkpoint.payload["fixture_conflict"] = "different checkpoint"
+	var persistence := PersistenceScript.new()
+	persistence.configure(store, SLOT)
+	var conflicting_evidence := {
+		"detached_session": conflict.completion.detached_session,
+		"route_identity": conflict.completion.route_identity}
+	if conflict.completion.has("optional_progress"):
+		conflicting_evidence["optional_progress"] = conflict.completion.optional_progress
+	conflict.completion.receipt_sha256 = PlanetaryReturnPersistenceAdapter.new().call("_digest", conflicting_evidence)
+	conflict.receipt_sha256 = persistence.call("_digest", conflict.completion)
+	var conflict_payload := disk_before.duplicate(true)
+	conflict_payload[String(SLOT)] = conflict
+	_check(persistence.validate_interrupted_journey_record(conflict).accepted,
+		"the same-generation conflict is a valid distinct saved receipt")
+	var collision: Dictionary = persistence.plan_decline(conflict_payload)
+	_check(not collision.accepted and store.get_snapshot() == disk_before,
+		"a distinct same-generation completed obligation cannot replace archived debt")
+	await _retire_surface(earned)
+	var cold := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true, 1, 1)
+	store = (cold.flow as GameFlow).get("_runtime_settings_user_data_store")
+	var admission: Dictionary = (cold.flow as GameFlow)._restore_ember_surface_persistence_for_admission()
+	_check(admission.accepted and admission.persistence_kind == &"declined_completion"
+		and not admission.location_resumed
+		and not (cold.flow as GameFlow).get_ember_interrupted_journey_persistence_report().adopted,
+		"cold new arrival stages only completed observations, without restoring the declined location or contract")
+	if not admission.accepted:
+		await _retire_surface(cold)
+		return
+	var adopted: Dictionary = (cold.binding as Node).call(&"start_relay_survey")
+	var runtime: Dictionary = (cold.binding as Node).call(&"get_activity_reward_snapshot")
+	_check(adopted.accepted and runtime.state == &"awaiting_reward"
+		and store.get_snapshot()[archive] == archived
+		and int(store.get_snapshot().game_flow_reward_store.reward_counts.ember_beacon_data) == 1,
+		"new run-one attachment-one start restores awaiting reward without retiring or paying the archived completion")
+	if not adopted.accepted or runtime.state != &"awaiting_reward":
+		await _retire_surface(cold)
+		return
+	var unpaid: Dictionary = store.get_snapshot()
+	var resaved: Dictionary = _save_surface_progress(cold)
+	_check(resaved.accepted and store.get_snapshot() == unpaid,
+		"an ordinary shutdown save retains the exact original completed receipt after fresh admission")
+	generation = store.get_generation()
+	filesystem.reject_writes = true
+	var rejected_payment := await _pay_surface(cold)
+	filesystem.reject_writes = false
+	_check(not rejected_payment.is_empty() and store.get_snapshot() == unpaid
+		and store.get_generation() == generation
+		and (cold.binding.call(&"get_activity_reward_snapshot") as Dictionary).state == &"awaiting_reward",
+		"real evidenced payment rejection preserves archive, ledger and retryable completion")
+	# Permit exactly the reward CAS, then reject the later best-effort terminal
+	# presentation save: this is the crash window between those durable writes.
+	filesystem.writes_until_refusal = 1
+	var interrupted_payment := await _pay_surface(cold)
+	filesystem.writes_until_refusal = -1
+	var paid_payload: Dictionary = store.get_snapshot()
+	_check(interrupted_payment == &"relay_reward_persistence_commit_rejected"
+		and not paid_payload.has(archive) and not paid_payload.has(String(SLOT))
+		and int(paid_payload.game_flow_reward_store.reward_counts.ember_beacon_data) == 2,
+		"the reward CAS removes debt and increments the existing ledger even if terminal save then fails")
+	await _retire_surface(cold)
+	var after_crash := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true, 1, 1)
+	var after_store: RefCounted = (after_crash.flow as GameFlow).get("_runtime_settings_user_data_store")
+	var no_debt: Dictionary = (after_crash.flow as GameFlow)._restore_ember_surface_persistence_for_admission()
+	var fresh: Dictionary = after_crash.binding.call(&"start_relay_survey")
+	_check(no_debt.get("persistence_kind", &"") != &"declined_completion" and fresh.accepted
+		and (after_crash.binding.call(&"get_activity_reward_snapshot") as Dictionary).state == &"active"
+		and int(after_store.get_snapshot().game_flow_reward_store.reward_counts.ember_beacon_data) == 2,
+		"cold boot after payment but before terminal save cannot replay the already-paid debt")
+	await _retire_surface(after_crash)
+
+
+func _exercise_active_payment() -> void:
+	var filesystem := MemoryFilesystem.new()
+	var surface := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true)
+	var binding: Node = surface.binding
+	var store: RefCounted = (surface.flow as GameFlow).get("_runtime_settings_user_data_store")
+	var started: Dictionary = binding.call(&"start_relay_survey")
+	var relay: Dictionary = binding.call(&"submit_relay_survey_position", Vector3(180.0, 120009.0, -44.0))
+	var saved: Dictionary = _save_surface_progress(surface)
+	_check(started.accepted and relay.accepted and saved.accepted
+		and store.get_snapshot().has(String(SLOT))
+		and not store.get_snapshot()[String(SLOT)].completion.route_identity.complete,
+		"the last ordinary autosave can contain an incomplete route before its remaining observation")
+	if not started.accepted or not relay.accepted or not saved.accepted or not store.get_snapshot().has(String(SLOT)):
+		await _retire_surface(surface)
+		return
+	var returned: Dictionary = binding.call(&"submit_relay_survey_position", Vector3(540.0, 120030.0, -210.0))
+	filesystem.writes_until_refusal = 1
+	var payment: StringName = await _pay_surface(surface)
+	filesystem.writes_until_refusal = -1
+	_check(returned.accepted and payment == &"relay_reward_persistence_commit_rejected"
+		and not store.get_snapshot().has(String(SLOT))
+		and int(store.get_snapshot().game_flow_reward_store.reward_counts.ember_beacon_data) == 1,
+		"the actual reward CAS clears its same-generation incomplete autosave before a failed terminal save")
+	await _retire_surface(surface)
+	var cold := await _make_surface(StoreScript.new(STORE_PATH, filesystem), true)
+	var admission: Dictionary = (cold.flow as GameFlow)._restore_ember_surface_persistence_for_admission()
+	_check(not (cold.flow as GameFlow).get_ember_interrupted_journey_persistence_report().adopted
+		and not admission.get("checkpoint_resume", {}).get("accepted", false),
+		"a cold admission cannot replay the stale incomplete autosave of an already-paid survey")
+	await _retire_surface(cold)
+
+
+func _save_surface_progress(surface: Dictionary) -> Dictionary:
+	var flow = surface.flow
+	var route: Dictionary = surface.binding.get_snapshot().relay_survey.mandatory_route
+	var frame: RefCounted = _frame()
+	var tangent := Vector3(24.0, 8.0, -13.0)
+	var body_local: Dictionary = frame.surface_tangent_to_body_local(tangent, 1)
+	var orbital: Dictionary = frame.body_local_to_orbital_position(body_local.position, 1)
+	flow.set("_ember_surface_journey_active", true)
+	flow.save_evidence = {"accepted": true, "frame": frame,
+		"host": {"generation": surface.host.get_generation(), "attachment_generation": surface.host.get_attachment_generation(),
+			"coordinate_frame_generation": 1, "physics_advance_count": 1440, "phase_id": &"on_foot"},
+		"route": route, "coordinate": {"orbital_coordinate": orbital.coordinate,
+			"surface_tangent_position": tangent}}
+	return flow.save_interrupted_ember_journey()
+
+
+func _pay_surface(surface: Dictionary) -> StringName:
+	await physics_frame
+	var frame := int(Engine.get_physics_frames())
+	var wrapper: Node = surface.wrapper
+	wrapper.set("_last_consumed_caller_serial", 9)
+	wrapper.set("_last_consumed_physics_frame", frame)
+	var envelope := {"actor_sample": {"actor_kind": &"player",
+		"actor_instance_id": surface.actor.get_instance_id()},
+		"host_generation": surface.host.get_generation(), "host_attachment_generation": surface.host.get_attachment_generation(),
+		"caller_serial": 9, "physics_frame": frame}
+	var runtime: Dictionary = surface.binding.get_activity_reward_snapshot()
+	return wrapper.call(&"_commit_pending_relay_reward", envelope, runtime)
+
+
+func _make_surface(store: RefCounted, real_rewards := false, run_generation := 31, attachment := 7) -> Dictionary:
+	_check(store.load().accepted, "the surface fixture loads its actual durable store")
+	var director := DirectorScript.new()
+	root.add_child(director)
+	var binding := SurfaceBindingScript.new()
+	root.add_child(binding)
+	var host := SurfaceHost.new()
+	host.run_generation = run_generation
+	host.attachment = attachment
+	root.add_child(host)
+	var authority: RefCounted = null
+	var wrapper: Node = null
+	var actor: Node = null
+	var craft: Node = null
+	var sink := Callable(self, "_reward_sink")
+	if real_rewards:
+		authority = RewardAuthorityScript.new()
+		_check(authority.configure(store).accepted, "the debt fixture configures the real GameFlow reward authority")
+		actor = Node.new()
+		craft = Node.new()
+		root.add_child(actor)
+		root.add_child(craft)
+		host.actor_id = actor.get_instance_id()
+		host.craft_id = craft.get_instance_id()
+		wrapper = RewardWrapperScript.new()
+		root.add_child(wrapper)
+		# Same bounded owner setup as the existing relay-survey API fixture;
+		# actual production evidence construction/validation remains unmodified.
+		wrapper.set("_configured", true)
+		wrapper.set("_generation", 6)
+		wrapper.set("_state", EmberSurfaceLoopProductionBinding.State.RUNNING)
+		wrapper.set("_host", host)
+		wrapper.set("_host_instance_id", host.get_instance_id())
+		wrapper.set("_player_instance_id", host.actor_id)
+		wrapper.set("_ship_instance_id", host.craft_id)
+		wrapper.set("_planetary_composition", binding)
+		wrapper.set("_relay_survey_persistence_store", store)
+		wrapper.set("_relay_survey_persistence_slot", SLOT)
+		wrapper.set("_planetary_reward_authority", Callable(authority, "commit"))
+		sink = Callable(wrapper, "_commit_relay_reward_through_authority")
+	var configured: Dictionary = binding.configure(host, director, sink, run_generation)
+	var flow := LifecycleFlow.new()
+	flow.restore_frame = _frame()
+	_check(configured.accepted and flow.configure_runtime_settings_persistence(store)
+		and flow.bind_ember_relay_survey_persistence(binding).accepted,
+		"the cold fixture uses the real surface binding, Director and persistence consumer")
+	flow.bind_aurora_expedition_persistence()
+	flow.bind_rime_expedition_persistence()
+	if real_rewards:
+		flow.set("_game_flow_reward_authority", authority)
+	return {"flow": flow, "binding": binding, "director": director, "host": host,
+		"authority": authority, "wrapper": wrapper, "actor": actor, "craft": craft}
+
+
+func _retire_surface(surface: Dictionary) -> void:
+	(surface.flow as GameFlow).free()
+	(surface.binding as Node).queue_free()
+	(surface.director as Node).queue_free()
+	(surface.host as Node).queue_free()
+	for key: String in ["wrapper", "actor", "craft"]:
+		if is_instance_valid(surface.get(key)):
+			(surface[key] as Node).queue_free()
+	await process_frame
+
+
+func _reward_sink(_receipt: Dictionary) -> Dictionary:
+	_reward_calls += 1
+	return {"accepted": true, "reason": &"game_flow_reward_committed"}
 
 
 func _frame(surface_reference: Vector3 = Vector3.BACK):

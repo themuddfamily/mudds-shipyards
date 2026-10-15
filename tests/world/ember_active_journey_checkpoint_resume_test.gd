@@ -44,6 +44,8 @@ class MemoryFilesystem extends FilesystemScript:
 class FakeHost:
 	var generation := 31
 	var attachment_generation := 6
+	var attached := true
+	var phase_id: StringName = &"on_foot"
 	var player_instance_id := 101
 	var session := RefCounted.new()
 	func get_generation() -> int: return generation
@@ -53,10 +55,10 @@ class FakeHost:
 	func get_snapshot() -> Dictionary:
 		return {
 			"host_id": &"ember_surface_loop",
-			"attached": true,
+			"attached": attached,
 			"generation": generation,
 			"attachment_generation": attachment_generation,
-			"phase_id": &"on_foot",
+			"phase_id": phase_id,
 			"identities": {
 				"world_id": &"ember_moon",
 				"player_instance_id": player_instance_id,
@@ -76,6 +78,8 @@ class LifecycleFlow extends GameFlowScript:
 var _assertions := 0
 var _failures := PackedStringArray()
 var _reward_calls := 0
+var _deny_reward := false
+var _reward_receipts: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -436,6 +440,23 @@ func _run() -> void:
 			and _reward_calls == 0,
 		"fresh player evidence completes the remaining checkpoint without auto-committing reward",
 	)
+	var completed_route := (second_binding.get_snapshot().relay_survey.mandatory_route as Dictionary).duplicate(true)
+	var completed_optional := second_binding.capture_interrupted_relay_survey_optional_progress()
+	second_flow.set("_ember_surface_journey_active", true)
+	second_flow.save_evidence = {
+		"accepted": true, "frame": second_flow.restore_frame,
+		"host": {"generation": 31, "attachment_generation": 7,
+			"coordinate_frame_generation": 1, "physics_advance_count": 1440,
+			"phase_id": &"on_foot"},
+		"route": completed_route, "optional_progress": completed_optional.optional_progress,
+		"coordinate": {"orbital_coordinate": orbital.coordinate,
+			"surface_tangent_position": tangent},
+	}
+	var completed_saved := second_flow.save_interrupted_ember_journey()
+	_check(bool(completed_saved.accepted) and completed_saved.binding_reason == &"active_journey_saved",
+		"the normal save boundary retains completed unpaid route and both optional observations")
+	await _test_completed_unpaid_resume(actor, completed_route, completed_optional.optional_progress,
+		second_director, filesystem)
 	second_flow.free()
 	second_binding.queue_free()
 	second_director.queue_free()
@@ -471,6 +492,157 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 
+func _test_completed_unpaid_resume(
+		actor: Node3D, completed_route: Dictionary, optional_progress: Dictionary,
+		completed_director: ActivityDirector, filesystem: MemoryFilesystem
+	) -> void:
+	var facade := EmberSurfaceRelaySurveyActivity.new()
+	# The archive crosses JSON, so accept integral JSON numbers but never coerced
+	# booleans, strings, fractional values or nonfinite progress.
+	var route: Dictionary = JSON.parse_string(JSON.stringify(completed_route))
+	var malformed: Array[Dictionary] = []
+	for field in ["activity_generation", "checkpoint_count", "next_checkpoint_index"]:
+		for value in [true, "2", 1.5, NAN, INF, -1, 2147483648]:
+			var changed := route.duplicate(true)
+			changed[field] = value
+			malformed.append(changed)
+	for value in [false, "true", 1]:
+		var changed := route.duplicate(true)
+		changed["complete"] = value
+		malformed.append(changed)
+	var forged_authority := route.duplicate(true)
+	forged_authority["authority"] = {"navigation": false, "movement": false, "reward": true}
+	malformed.append(forged_authority)
+	var old_objective := route.duplicate(true)
+	old_objective["next_objective_id"] = "ember_return_beacon"
+	malformed.append(old_objective)
+	_check(bool(facade.validate_completed_mandatory_route_resume(route).accepted)
+		and not bool(facade.validate_mandatory_route_resume(route).accepted),
+		"completed unpaid route has a separate strict admission and never broadens ACTIVE resume")
+	var conflicting_runtime := PlanetaryActivityRewardRuntime.new()
+	conflicting_runtime.bind(completed_director, Callable(self, "_reward_sink"))
+	var completed_state := completed_director.capture_activity_persistence_state(&"ember_beacon_survey")
+	var retained_director := completed_director.get_activity_snapshot(&"ember_beacon_survey")
+	_check(not bool(conflicting_runtime.resume_completed_activity(
+		&"ember_beacon_survey", completed_state, 31, 8).accepted)
+		and completed_director.get_activity_snapshot(&"ember_beacon_survey") == retained_director
+		and conflicting_runtime.get_snapshot().state == &"ready",
+		"completed adoption cannot overwrite an existing earned Director route")
+	var retry_filesystem := MemoryFilesystem.new()
+	retry_filesystem.files = filesystem.files.duplicate(true)
+	var retry_store = StoreScript.new(STORE_PATH, retry_filesystem)
+	_check(bool(retry_store.load().accepted), "completed optional retry reloads the actual primary document")
+	var persistence := EmberRelaySurveyPersistenceBinding.new()
+	var configured := persistence.configure(retry_store, &"ember_relay_survey_completion")
+	var declined := persistence.plan_decline(retry_store.get_snapshot())
+	_check(bool(configured.accepted) and bool(declined.accepted)
+		and bool(retry_store.commit(declined.payload, retry_store.get_generation(), "decline-completed-optionals").accepted)
+		and not retry_store.get_snapshot().has("ember_relay_survey_completion")
+		and bool(persistence.load_declined_completion().accepted),
+		"the persistence owner archives the real completed document before a fresh visit")
+	var host := FakeHost.new()
+	host.generation = 1
+	host.attachment_generation = 1
+	host.player_instance_id = actor.get_instance_id()
+	var director := DirectorScript.new()
+	root.add_child(director)
+	var binding := BindingScript.new()
+	root.add_child(binding)
+	_check(bool(binding.configure(host, director, Callable(self, "_reward_sink"), 1).accepted),
+		"completed retry binds a fresh ordinary Host and Director composition")
+	var flow := LifecycleFlow.new()
+	_check(flow.configure_runtime_settings_persistence(retry_store)
+		and bool(flow.bind_ember_relay_survey_persistence(binding).accepted),
+		"fresh completed retry binds the ordinary persistence consumer")
+	var adapter := binding.get("_adapter") as PlanetarySurfaceActivityRewardAdapter
+	var before_adapter := adapter.get_snapshot()
+	var before_director := director.get_activity_snapshot(&"ember_beacon_survey")
+	var rejected_all := true
+	for candidate in malformed:
+		rejected_all = rejected_all and not bool(facade.resume_completed_mandatory_route(adapter, candidate).accepted)
+	host.attached = false
+	var detached := facade.resume_completed_mandatory_route(adapter, route)
+	host.attached = true
+	host.phase_id = &"inside_cabin"
+	var not_on_foot := facade.resume_completed_mandatory_route(adapter, route)
+	host.phase_id = &"on_foot"
+	host.generation = 0
+	var invalid_generation := facade.resume_completed_mandatory_route(adapter, route)
+	host.generation = 1
+	_check(rejected_all and not bool(detached.accepted) and not bool(not_on_foot.accepted)
+		and not bool(invalid_generation.accepted) and adapter.get_snapshot() == before_adapter
+		and director.get_activity_snapshot(&"ember_beacon_survey") == before_director,
+		"malformed completion and unavailable or stale Host leave route, runtime and sequence untouched")
+	var signals: Array[StringName] = []
+	director.activity_started.connect(func(_id: StringName, _generation: int) -> void: signals.append(&"started"))
+	director.activity_checkpoint_reached.connect(func(_id: StringName, _index: int, _generation: int) -> void: signals.append(&"checkpoint"))
+	director.activity_completed.connect(func(_id: StringName, _generation: int) -> void: signals.append(&"completed"))
+	var bunker := binding.get_node(^"OwnedSurveyBunkerInteraction")
+	var rack := binding.get_node(^"OwnedSampleRackInteraction")
+	bunker.connect(&"survey_completed", func(_receipt: Dictionary) -> void: signals.append(&"bunker"))
+	rack.connect(&"sample_rack_completed", func(_receipt: Dictionary) -> void: signals.append(&"rack"))
+	var reward_calls_before := _reward_calls
+	var admitted := flow._restore_ember_surface_persistence_for_admission()
+	_check(bool(admitted.accepted) and admitted.persistence_kind == &"declined_completion"
+		and not bool(admitted.location_resumed)
+		and director.get_activity_snapshot(&"ember_beacon_survey").is_empty(),
+		"fresh admission stages the completed archive without adopting old position, session or route")
+	var resumed := binding.start_relay_survey()
+	var pending: Dictionary = adapter.get_activity_reward_snapshot().pending_reward.duplicate(true)
+	_check(bool(resumed.accepted) and adapter.get_activity_reward_snapshot().state == &"awaiting_reward"
+		and int(pending.activity_generation) == int(route.activity_generation)
+		and int(pending.run_generation) == 1 and int(pending.attachment_generation) == 1
+		and signals.is_empty() and _reward_calls == reward_calls_before
+		and bool(binding.get_snapshot().relay_survey.mandatory_route.complete),
+		"Director adopts completed progress without replay and rebuilds only current-generation unpaid handoff")
+	var restored_picture := binding.get_snapshot()
+	var saved_checkpoints := optional_progress.checkpoints as Dictionary
+	_check(bool(resumed.get("optional_progress_restore", {}).get("accepted", false))
+		and int(restored_picture.relay_survey.optional_progress.completed_count) == 2
+		and bool(restored_picture.survey_interaction.completed)
+		and bool(restored_picture.sample_rack_interaction.completed)
+		and restored_picture.survey_interaction.last_receipt == saved_checkpoints.ember_bunker_gantry_log.receipt
+		and restored_picture.sample_rack_interaction.last_receipt == saved_checkpoints.ember_sample_rack_analysis_log.receipt
+		and not bool(restored_picture.relay_survey.optional_checkpoints.ember_bunker_gantry_log.eligible)
+		and not bool(restored_picture.relay_survey.optional_checkpoints.ember_sample_rack_analysis_log.eligible),
+		"fresh Host with smaller counters restores both real markers and exact passive optional provenance")
+	var bunker_replay: Dictionary = bunker.call(&"submit_interaction", actor, 1, 1)
+	var rack_replay: Dictionary = rack.call(&"submit_interaction", actor, 1, 1, int(route.activity_generation))
+	_check(not bool(bunker_replay.accepted) and not bool(rack_replay.accepted)
+		and signals.is_empty() and _reward_calls == reward_calls_before,
+		"restored physical optional markers refuse interaction replay without signals or rewards")
+	host.generation = 2
+	var stale_commit := facade.commit_reward(adapter)
+	host.generation = 1
+	_deny_reward = true
+	var refused := facade.commit_reward(adapter)
+	_deny_reward = false
+	_check(not bool(stale_commit.accepted) and not bool(refused.accepted)
+		and adapter.get_activity_reward_snapshot().state == &"awaiting_reward"
+		and adapter.get_activity_reward_snapshot().pending_reward == pending
+		and _reward_calls == reward_calls_before + 1,
+		"stale Host cannot pay and an ordinary denied reward sink retains exact unpaid debt")
+	var paid := binding.commit_relay_survey_reward()
+	var repeated := binding.commit_relay_survey_reward()
+	_check(bool(paid.accepted) and not bool(repeated.accepted)
+		and adapter.get_activity_reward_snapshot().state == &"completed"
+		and adapter.get_activity_reward_snapshot().pending_reward.is_empty()
+		and _reward_calls == reward_calls_before + 2 and _reward_receipts.back() == pending
+		and signals.is_empty(),
+		"ordinary commit retries completed debt once, then refuses duplicate payment without historical signals")
+	var terminal := persistence.load()
+	_check(bool(paid.get("persistence", {}).get("accepted", false)) and bool(terminal.accepted)
+		and bool(terminal.completion.optional_checkpoint.completed)
+		and int(terminal.completion.optional_checkpoint.source_run_generation) == 31
+		and int(terminal.completion.optional_checkpoint.source_attachment_generation) == 6
+		and not bool(terminal.reward_replay_allowed),
+		"the real terminal save and reload retain the old optional observation after fresh-visit reward commitment")
+	flow.free()
+	binding.queue_free()
+	director.queue_free()
+	await process_frame
+
+
 func _frame():
 	var frame = FrameScript.new()
 	var origin := {
@@ -490,8 +662,11 @@ func _frame():
 	return frame
 
 
-func _reward_sink(_receipt: Dictionary) -> Dictionary:
+func _reward_sink(receipt: Dictionary) -> Dictionary:
 	_reward_calls += 1
+	_reward_receipts.append(receipt.duplicate(true))
+	if _deny_reward:
+		return {"accepted": false, "reason": &"test_reward_write_refused"}
 	return {"accepted": true, "reason": &"test_reward"}
 
 

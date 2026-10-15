@@ -111,6 +111,15 @@ func save_interrupted_journey(
 	}
 	var expected_generation := int(_store.call(&"get_generation"))
 	var payload := _store.call(&"get_snapshot") as Dictionary
+	var debts := _completed_debts(payload)
+	if not bool(debts.get("accepted", false)):
+		return debts
+	if not (debts.records as Array).is_empty():
+		if debts.records[0].completion.route_identity != recovery.route_identity:
+			return _result(false, &"survey_completed_debt_conflict")
+		# Keep the original durable identity through adoption and shutdown. Only
+		# the reward authority's atomic payment may remove this obligation.
+		return _result(true, &"survey_completed_debt_retained")
 	payload[String(_slot_id)] = record
 	var committed := _store.call(
 		&"commit", payload, expected_generation, commit_id
@@ -212,6 +221,137 @@ func retire_interrupted_journey(
 
 func get_store_generation() -> int:
 	return int(_store.call(&"get_generation")) if _configured() else -1
+
+
+func get_declined_slot_id() -> String:
+	return String(_slot_id) + "_declined"
+
+
+## Plan inside Main's single Start Fresh transaction. The original envelope
+## stays passive; neither its coordinates nor incomplete route can be resumed.
+func plan_decline(payload: Dictionary) -> Dictionary:
+	if not _configured():
+		return _result(false, &"survey_persistence_unavailable")
+	var key := String(_slot_id)
+	var archive := get_declined_slot_id()
+	if payload.has(archive):
+		var checked := validate_interrupted_journey_record(payload[archive])
+		if not bool(checked.get("accepted", false)):
+			return checked
+	if not payload.has(key):
+		return {"accepted": true, "payload": payload}
+	if not payload[key] is Dictionary:
+		return _result(false, &"survey_active_journey_payload_corrupt")
+	var record := payload[key] as Dictionary
+	if str(record.get("payload_kind", "")) == PAYLOAD_KIND:
+		var checked := validate_record(record)
+		if not bool(checked.get("accepted", false)):
+			return checked
+		return {"accepted": true, "payload": payload}
+	var checked := validate_interrupted_journey_record(record)
+	if not bool(checked.get("accepted", false)):
+		return checked
+	var next := payload.duplicate(true)
+	if next.has(archive) and next[archive] != record \
+			and bool(next[archive].completion.route_identity.complete):
+		# A completed obligation must be paid before another trip can replace it.
+		return _result(false, &"survey_declined_completion_pending")
+	next[archive] = record.duplicate(true)
+	next.erase(key)
+	return {"accepted": true, "payload": next}
+
+
+## Only completed observations are useful on a genuinely new arrival. No
+## detached session/position is adopted by this reader.
+func load_declined_completion() -> Dictionary:
+	if not _configured():
+		return _result(false, &"survey_persistence_unavailable")
+	var payload := _store.call(&"get_snapshot") as Dictionary
+	var key := get_declined_slot_id()
+	if not payload.has(key):
+		return _result(false, &"survey_declined_completion_not_found")
+	if not _store.has_method(&"get_loaded_source") \
+			or _store.call(&"get_loaded_source") != &"primary":
+		return _result(false, &"survey_declined_store_untrusted")
+	var checked := validate_interrupted_journey_record(payload[key])
+	if not bool(checked.get("accepted", false)):
+		return checked
+	var recovery := (payload[key].completion as Dictionary).duplicate(true)
+	if not bool(recovery.route_identity.complete):
+		return _result(false, &"survey_declined_completion_not_found")
+	return {"accepted": true, "reason": &"survey_declined_completion_loaded",
+		"recovery": recovery, "store_generation": get_store_generation()}
+
+
+func validate_completed_debt(route: Dictionary, receipt: String) -> Dictionary:
+	if not _configured() or not _store.has_method(&"get_loaded_source") \
+			or _store.call(&"get_loaded_source") != &"primary":
+		return _result(false, &"survey_declined_store_untrusted")
+	var debts := _completed_debts(_store.call(&"get_snapshot") as Dictionary)
+	if not bool(debts.get("accepted", false)):
+		return debts
+	if (debts.records as Array).is_empty():
+		return _result(false, &"survey_completed_debt_not_found")
+	var recovery: Dictionary = debts.records[0].completion
+	# Use the existing wire numeric representation for strict dictionary equality.
+	var normalized := _wire_copy(route) as Dictionary
+	if recovery.route_identity != normalized or str(recovery.receipt_sha256) != receipt:
+		return _result(false, &"survey_completed_debt_changed")
+	return _result(true, &"survey_completed_debt_valid")
+
+
+## Called by the existing reward authority while constructing its one CAS.
+## Removing debt and granting its reward must never be separate writes.
+func plan_completed_payment(payload: Dictionary, activity_generation: int) -> Dictionary:
+	var debts := _completed_debts(payload)
+	if not bool(debts.get("accepted", false)):
+		return debts
+	var next := payload.duplicate(true)
+	for record: Dictionary in debts.records:
+		if int(record.completion.route_identity.activity_generation) != activity_generation:
+			return _result(false, &"survey_completed_debt_generation_mismatch")
+	for key: String in debts.get("keys", []):
+		next.erase(key)
+	var active_key := String(_slot_id)
+	if next.has(active_key) and str(next[active_key].get("payload_kind", "")) == ACTIVE_JOURNEY_PAYLOAD_KIND:
+		# The last autosave may precede the final observation. It must not be
+		# another recovery path for an activity whose reward is now committed.
+		var route: Dictionary = next[active_key].completion.route_identity
+		if int(route.activity_generation) != activity_generation:
+			return _result(false, &"survey_completed_debt_generation_mismatch")
+		next.erase(active_key)
+	return {"accepted": true, "payload": next}
+
+
+func _completed_debts(payload: Dictionary) -> Dictionary:
+	var records: Array[Dictionary] = []
+	var keys: Array[String] = []
+	var other_record := false
+	for key: String in [String(_slot_id), get_declined_slot_id()]:
+		if not payload.has(key):
+			continue
+		var value: Variant = payload[key]
+		if key == String(_slot_id) and value is Dictionary \
+				and str(value.get("payload_kind", "")) == PAYLOAD_KIND:
+			var terminal := validate_record(value)
+			if not bool(terminal.get("accepted", false)):
+				return terminal
+			other_record = true
+			continue
+		var checked := validate_interrupted_journey_record(value)
+		if not bool(checked.get("accepted", false)):
+			return checked
+		var record := value as Dictionary
+		if not bool(record.completion.route_identity.complete):
+			other_record = other_record or key == String(_slot_id)
+			continue
+		if not records.is_empty() and records[0] != record:
+			return _result(false, &"survey_completed_debt_conflict")
+		records.append(record.duplicate(true))
+		keys.append(key)
+	if not records.is_empty() and other_record:
+		return _result(false, &"survey_completed_debt_conflict")
+	return {"accepted": true, "records": records, "keys": keys}
 
 
 func capture(surface_snapshot: Variant) -> Dictionary:

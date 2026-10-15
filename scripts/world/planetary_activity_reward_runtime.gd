@@ -218,6 +218,50 @@ func submit_position(
 	return _with_runtime(result, true, &"activity_position_submitted")
 
 
+## Adopts authenticated completed-but-unpaid progress without replaying a
+## completion signal. The normal pending-reward owner remains the only payer.
+func resume_completed_activity(
+		activity_id: StringName,
+		route_state: Variant,
+		expected_run_generation: int,
+		expected_attachment_generation: int
+	) -> Dictionary:
+	if _state != State.READY or _active_activity_id != &"" \
+			or _completed_activity_id != &"" or not _pending_reward.is_empty() \
+			or not _committed_reward.is_empty():
+		return _reject(&"activity_not_available")
+	if not _bound_once or _director == null or not is_instance_valid(_director) \
+			or not _director.is_inside_tree() or _director.is_queued_for_deletion():
+		return _reject(&"activity_director_unavailable")
+	if not _valid_generation(expected_run_generation) or not _valid_generation(expected_attachment_generation):
+		return _reject(&"invalid_generation")
+	if not _reward_sink.is_valid() or not _validate_manifest().is_empty():
+		return _reject(&"invalid_configuration")
+	if _manifest.activity_ids.find(String(activity_id)) < 0:
+		return _reject(&"unknown_planetary_activity")
+	if not route_state is Dictionary \
+			or (route_state as Dictionary).get("state") != CheckpointRouteActivity.State.COMPLETED:
+		return _reject(&"completed_route_state_required")
+	var validated := _director.validate_activity_persistence_state(activity_id, route_state) as Dictionary
+	if not bool(validated.get("accepted", false)):
+		return _reject(validated.get("reason", &"activity_restore_rejected") as StringName)
+	var current := _director.get_activity_snapshot(activity_id)
+	if not current.is_empty() and (int(current.get("state", -1)) != CheckpointRouteActivity.State.IDLE \
+			or int(current.get("generation", -1)) != 0 or int(current.get("next_checkpoint_index", -1)) != 0):
+		return _reject(&"activity_restore_already_live")
+	var restored := _director.restore_activity_persistence_state(activity_id, route_state) as Dictionary
+	if not bool(restored.get("accepted", false)):
+		return _reject(restored.get("reason", &"activity_restore_rejected") as StringName)
+	var snapshot := _director.get_activity_snapshot(activity_id)
+	_run_generation = expected_run_generation
+	_attachment_generation = expected_attachment_generation
+	_activity_generation = int(snapshot.generation)
+	_active_activity_id = activity_id
+	_failure_reason = &""
+	_set_pending_reward(activity_id, _activity_generation)
+	return _with_runtime(snapshot, true, &"completed_activity_resumed")
+
+
 ## Commits exactly one reward through the existing external reward authority.
 ## The caller must present the completion generation and IDs returned by this
 ## bridge; no arbitrary activity or reward key can be substituted.
@@ -330,6 +374,10 @@ func _on_activity_completed(activity_id: StringName, generation: int) -> void:
 	if _state != State.ACTIVE or activity_id != _active_activity_id \
 			or generation != _activity_generation:
 		return
+	_set_pending_reward(activity_id, generation)
+
+
+func _set_pending_reward(activity_id: StringName, generation: int) -> void:
 	var index := _manifest.activity_ids.find(String(activity_id))
 	if index < 0 or index >= _manifest.reward_ids.size():
 		_state = State.FAILED

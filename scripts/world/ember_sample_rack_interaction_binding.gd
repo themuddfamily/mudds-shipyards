@@ -29,6 +29,7 @@ var _activity_generation := -1
 var _configured := false
 var _attached := false
 var _completed := false
+var _restored_completed_survey_observation := false
 var _completion_attachment_generation := -1
 var _definition: Dictionary = {}
 var _last_receipt: Dictionary = {}
@@ -160,6 +161,7 @@ func activate_for_activity_generation(next_activity_generation: int) -> Dictiona
 		return _result(false, &"sample_rack_activation_invalid")
 	_activity_generation = next_activity_generation
 	_completed = false
+	_restored_completed_survey_observation = false
 	_completion_attachment_generation = -1
 	_last_receipt.clear()
 	_apply_presentation()
@@ -269,7 +271,25 @@ func reenter(next_attachment_generation: int) -> Dictionary:
 ## Reapplies a persistence-validated completion to the current physical
 ## interaction without submitting or emitting a second checkpoint receipt.
 func restore_interrupted_completion(completion: Variant) -> Dictionary:
-	if not _current() or _completed or not completion is Dictionary:
+	return _restore_completion_observation(completion, {})
+
+
+## Restore only the presentation of a completed observation on a new Host.
+## The saved receipt remains provenance, with no interaction or reward replay.
+func restore_completed_survey_observation(completion: Variant, route: Variant) -> Dictionary:
+	var checked := EmberSurfaceRelaySurveyActivity.new().validate_completed_mandatory_route_resume(route)
+	if not bool(checked.get("accepted", false)):
+		return _result(false, &"sample_rack_interrupted_restore_invalid")
+	return _restore_completion_observation(completion, route as Dictionary)
+
+
+func _restore_completion_observation(completion: Variant, completed_route: Dictionary) -> Dictionary:
+	if _completed or not completion is Dictionary:
+		return _result(false, &"sample_rack_interrupted_restore_invalid")
+	if completed_route.is_empty():
+		if not _current():
+			return _result(false, &"sample_rack_interrupted_restore_invalid")
+	elif not _current_host() or _activity_generation > 0:
 		return _result(false, &"sample_rack_interrupted_restore_invalid")
 	var saved := completion as Dictionary
 	if saved.size() != 7 \
@@ -277,12 +297,19 @@ func restore_interrupted_completion(completion: Variant) -> Dictionary:
 			or not bool(saved.get("completed", false)) \
 			or StringName(saved.get("checkpoint_id", &"")) != CHECKPOINT_ID \
 			or StringName(saved.get("interaction_id", &"")) != INTERACTION_ID \
-			or int(saved.get("activity_generation", -1)) != _activity_generation \
-			or int(saved.get("run_generation", -1)) != _host_generation \
+			or (completed_route.is_empty() and int(saved.get("activity_generation", -1)) != _activity_generation) \
+			or int(saved.get("run_generation", -1)) < 1 \
 			or int(saved.get("attachment_generation", -1)) < 1 \
-			or int(saved.get("attachment_generation", -1)) >= _attachment_generation \
-			or not saved.get("receipt", {}) is Dictionary:
+			or not saved.get("receipt") is Dictionary:
 		return _result(false, &"sample_rack_interrupted_restore_invalid")
+	if completed_route.is_empty():
+		if int(saved.run_generation) != _host_generation or int(saved.attachment_generation) >= _attachment_generation:
+			return _result(false, &"sample_rack_interrupted_restore_invalid")
+	elif int(saved.activity_generation) != int(completed_route.activity_generation):
+		return _result(false, &"sample_rack_interrupted_restore_invalid")
+	if not completed_route.is_empty():
+		_activity_generation = int(completed_route.activity_generation)
+		_restored_completed_survey_observation = true
 	_completed = true
 	_completion_attachment_generation = _attachment_generation
 	_last_receipt = {
@@ -298,6 +325,8 @@ func restore_interrupted_completion(completion: Variant) -> Dictionary:
 		"completion_response_id": COMPLETION_RESPONSE_ID,
 		"restored_interrupted_presentation": true,
 	}.duplicate(true)
+	if not completed_route.is_empty():
+		_last_receipt = (saved.receipt as Dictionary).duplicate(true)
 	_apply_presentation()
 	return {
 		"accepted": true,
@@ -397,7 +426,7 @@ func _apply_presentation() -> void:
 func _apply_current_presentation(active: bool) -> void:
 	collision_layer = INTERACTION_LAYER if active else 0
 	if _marker != null:
-		_marker.visible = active
+		_marker.visible = active or (_restored_completed_survey_observation and _completed and _current_host())
 		_marker.text = "SAMPLE RACK\nANALYSIS COMPLETE" if _completed \
 			else "SAMPLE RACK\nANALYSIS READY"
 		_marker.modulate = COMPLETE_COLOR if _completed else READY_COLOR

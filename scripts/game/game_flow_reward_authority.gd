@@ -533,6 +533,24 @@ func commit(request: Variant) -> Dictionary:
 		_commit_active = false
 		return _reject(&"reward_store_generation_exhausted")
 	var next_payload := (payload as Dictionary).duplicate(true)
+	if activity_id == EMBER_RELAY_ACTIVITY_ID:
+		if not _store.has_method(&"get_loaded_source"):
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
+		var source := StringName(_store.call(&"get_loaded_source"))
+		# A genuinely empty first profile has no primary yet. It may earn its
+		# first reward; recovered or unobserved stores still cannot pay debt.
+		var first_save: bool = source == &"empty" and store_generation == 0 and (payload as Dictionary).is_empty()
+		if source != &"primary" and not first_save:
+			_commit_active = false
+			return _reject(&"reward_store_recovery_required")
+		var persistence := EmberRelaySurveyPersistenceBinding.new()
+		persistence.configure(_store, &"ember_relay_survey_completion")
+		var payment := persistence.plan_completed_payment(next_payload, activity_generation)
+		if not bool(payment.get("accepted", false)):
+			_commit_active = false
+			return _reject(StringName(payment.get("reason", &"reward_terminal_handoff_invalid")))
+		next_payload = payment.payload
 	next_payload[String(SLOT_ID)] = next_record
 	if not breach_completion.is_empty():
 		next_payload[HeavyBreachActivityBoard.SESSION_SLOT].session.completion.reward_granted = true

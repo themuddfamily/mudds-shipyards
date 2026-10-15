@@ -150,6 +150,32 @@ func resume_active_activity_sequence(
 	return _with_adapter(resumed, true, &"activity_sequence_resumed")
 
 
+## Completed debt uses its own admission path; ACTIVE resume remains strict.
+## Only the current on-foot Host can attach it to the ordinary reward runtime.
+func resume_completed_activity_sequence(
+		activity_ids: Array[StringName], route_state: Variant
+	) -> Dictionary:
+	var rejection := _live_host_rejection()
+	if not rejection.is_empty():
+		return _reject(rejection)
+	if StringName(_host_status_snapshot().get("phase_id", &"")) != REQUIRED_PHASE:
+		return _reject(&"host_not_on_foot")
+	if _state != State.READY or not _sequence_ids.is_empty() or _sequence_index != -1:
+		return _reject(&"adapter_not_ready")
+	if activity_ids.size() != 1 or activity_ids[0] != &"ember_beacon_survey" or not route_state is Dictionary:
+		return _reject(&"completed_activity_resume_invalid")
+	var generations := _host_generations()
+	var resumed := _runtime.resume_completed_activity(
+		activity_ids[0], route_state, generations.run, generations.attachment
+	) as Dictionary
+	if not bool(resumed.get("accepted", false)):
+		return _with_adapter(resumed, false, resumed.get("reason", &"activity_resume_rejected") as StringName)
+	_sequence_ids = activity_ids.duplicate()
+	_sequence_index = 0
+	_state = State.ACTIVE
+	return _with_adapter(resumed, true, &"completed_activity_sequence_resumed")
+
+
 ## Starts an activity sequence alongside the authored surface route. Route
 ## evidence is consumed by the navigation runtime; this adapter only admits
 ## the next activity after the current reward is already committed.
