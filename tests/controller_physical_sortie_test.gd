@@ -178,11 +178,144 @@ class ControllerInputEvents:
 			set_button(button, false)
 
 
+## Native event driver for the optional Settings/re-entry release scenario.
+## This object is never installed as a LocalShipInputSource provider.
+class SettingsNativeInputEvents:
+	extends ControllerStateProvider
+
+	var desktop := false
+	var ship: HeroShip
+	var missing: Array[StringName] = []
+	var held: Dictionary = {}
+
+	func _init(use_desktop: bool, controlled_ship: HeroShip = null) -> void:
+		desktop = use_desktop
+		ship = controlled_ship
+
+	func set_action(action: StringName, strength: float, mouse: bool = false) -> void:
+		if strength <= 0.0:
+			if held.has(action):
+				_emit(held[action], 0.0, action)
+				held.erase(action)
+			return
+		var selected: InputEvent
+		for binding: InputEvent in InputMap.action_get_events(action):
+			if desktop and ((mouse and binding is InputEventMouseButton) \
+					or (not mouse and binding is InputEventKey)):
+				selected = binding
+				break
+			if not desktop and (binding is InputEventJoypadButton or binding is InputEventJoypadMotion):
+				selected = binding
+				break
+		if selected == null:
+			if action not in missing:
+				missing.append(action)
+			return
+		held[action] = selected
+		_emit(selected, strength, action)
+
+	func _emit(binding: InputEvent, strength: float, action: StringName) -> void:
+		var event := binding.duplicate() as InputEvent
+		if event is InputEventKey:
+			var key := event as InputEventKey
+			key.pressed = strength > 0.0
+			if key.keycode == 0:
+				key.keycode = key.physical_keycode
+			if key.physical_keycode == 0:
+				key.physical_keycode = key.keycode
+			key.unicode = int(key.keycode) if int(key.keycode) < 0x110000 else 0
+		elif event is InputEventMouseButton:
+			(event as InputEventMouseButton).pressed = strength > 0.0
+		elif event is InputEventJoypadButton:
+			(event as InputEventJoypadButton).device = 0
+			(event as InputEventJoypadButton).pressed = strength > 0.0
+		elif event is InputEventJoypadMotion:
+			var motion := event as InputEventJoypadMotion
+			motion.device = 0
+			var deadzone := InputMap.action_get_deadzone(action)
+			motion.axis_value = signf(motion.axis_value) * (deadzone + (1.0 - deadzone) * strength) if strength > 0.0 else 0.0
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+
+	func motion(relative: Vector2) -> void:
+		var event := InputEventMouseMotion.new()
+		event.relative = relative
+		event.screen_relative = relative
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+
+	func wheel(outward: bool) -> void:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_WHEEL_DOWN if outward else MOUSE_BUTTON_WHEEL_UP
+		event.pressed = true
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+		event = event.duplicate() as InputEventMouseButton
+		event.pressed = false
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+
+	func set_button(button_index: int, pressed: bool) -> void:
+		if desktop and button_index in [JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_RIGHT_SHOULDER]:
+			if pressed:
+				wheel(button_index == JOY_BUTTON_RIGHT_SHOULDER)
+			return
+		var actions := {
+			JOY_BUTTON_A: &"hover", JOY_BUTTON_B: &"barrel_roll", JOY_BUTTON_X: &"interact",
+			JOY_BUTTON_Y: &"toggle_ship_camera_view", JOY_BUTTON_BACK: &"toggle_controls_overlay",
+			JOY_BUTTON_START: &"pause", JOY_BUTTON_LEFT_STICK: &"sprint_boost",
+			JOY_BUTTON_LEFT_SHOULDER: &"camera_distance_in", JOY_BUTTON_RIGHT_SHOULDER: &"camera_distance_out",
+			JOY_BUTTON_DPAD_LEFT: &"landing_assist",
+		}
+		if actions.has(button_index):
+			set_action(actions[button_index], 1.0 if pressed else 0.0)
+
+	func set_axis(axis_index: int, value: float) -> void:
+		# Existing guidance requests resolved analogue strength. Desktop guidance
+		# supplies the same angular demand as native mouse pixels per physics tick.
+		if desktop and ship != null and axis_index in [AXIS_LEFT_X, AXIS_RIGHT_Y]:
+			var pixels := value * deg_to_rad(ship.yaw_speed_degrees) \
+				* ship.get_physics_process_delta_time() / maxf(ship.mouse_sensitivity, 0.000001)
+			if axis_index == AXIS_LEFT_X:
+				motion(Vector2(pixels, 0.0))
+			else:
+				motion(Vector2(0.0, -pixels if ship.invert_mouse_y else pixels))
+			return
+		var pairs := {
+			AXIS_LEFT_X: [&"move_left", &"move_right"],
+			AXIS_LEFT_Y: [&"move_forward", &"move_back"],
+			AXIS_RIGHT_X: [&"roll_left", &"roll_right"],
+			AXIS_RIGHT_Y: [&"pitch_up", &"pitch_down"],
+		}
+		if pairs.has(axis_index):
+			var pair: Array = pairs[axis_index]
+			# Opposite actions may share one physical joy axis. Release the old
+			# direction before pressing its replacement so a late release cannot
+			# overwrite the new native axis value with zero.
+			if value < 0.0:
+				set_action(pair[1], 0.0)
+				set_action(pair[0], -value)
+			else:
+				set_action(pair[0], 0.0)
+				set_action(pair[1], value)
+		elif axis_index == AXIS_LEFT_TRIGGER:
+			set_action(&"brake", value, desktop)
+		elif axis_index == AXIS_RIGHT_TRIGGER:
+			set_action(&"fire", value, desktop)
+
+	func release_all() -> void:
+		for action: StringName in held.keys():
+			set_action(action, 0.0)
+
+
 func _init() -> void:
 	call_deferred("_run")
 
 
 func _run() -> void:
+	if "--settings-reentry-input-route" in OS.get_cmdline_user_args():
+		await _run_settings_reentry()
+		return
 	_production_input_route = "--production-input-route" in OS.get_cmdline_user_args()
 	_sortie_diagnostics = _production_input_route and "--sortie-diagnostics" in OS.get_cmdline_user_args()
 	_sortie_timing_sample("boot_begin")
@@ -613,6 +746,367 @@ func _run() -> void:
 
 	await _clean_up(game, provider)
 	_finish()
+
+
+## External orchestration first runs accessibility_reentry_integration_test's
+## --settings-process-write to exit 0, then starts this distinct process with
+## --settings-reentry-input-route and the SAME isolated XDG_DATA_HOME.
+## Run on a private rendered display with --audio-driver Dummy and an unchanged
+## outer 300-second deadline. Source synthetic input is not physical hardware.
+func _run_settings_reentry() -> void:
+	_production_input_route = true
+	_sortie_diagnostics = "--sortie-diagnostics" in OS.get_cmdline_user_args()
+	var desktop := SettingsNativeInputEvents.new(true)
+	var pad := SettingsNativeInputEvents.new(false)
+	var isolated := OS.get_environment("XDG_DATA_HOME").simplify_path()
+	_check(DisplayServer.get_name() != "headless", "Settings input scenario requires a private rendered display for real captured mouse input")
+	_check(isolated.is_absolute_path() and isolated != "/" \
+		and isolated != (OS.get_environment("HOME") + "/.local/share").simplify_path() \
+		and OS.get_user_data_dir().simplify_path().begins_with(isolated + "/") \
+		and FileAccess.file_exists("user://mudds_user_data.json"),
+		"distinct read process requires the prior UI writer's isolated durable profile")
+	if not _failures.is_empty():
+		await _settings_abort(null, desktop, pad)
+		return
+	var boot_scene: PackedScene = load("res://scenes/boot.tscn")
+	_boot = boot_scene.instantiate() as StartupLoader
+	root.add_child(_boot)
+	var completed: Node = await _boot.startup_completed
+	var game := completed as GameFlow
+	_check(game != null, "ordinary Boot supplies Settings scenario Main")
+	if game == null:
+		await _settings_abort(game, desktop, pad)
+		return
+	_check(await _wait_until(func() -> bool: return StartupLoader.is_title_menu_ready(game) \
+		and not is_instance_valid(_boot.get_loading_screen()) and root.has_focus(), 2.0),
+		"fresh process reaches the ordinary interactive title menu")
+	var player := game.get_node_or_null("Player") as PlayerController
+	var ship := game.get_node_or_null("ArrowReconShip") as HeroShip
+	var world := game.get_node_or_null("ShipyardWorld") as ShipyardWorld
+	var settings := game.get_runtime_settings()
+	_check(player != null and ship != null and world != null and settings != null, "Settings scenario resolves production player, free-sortie Arrow, world and preferences")
+	if player == null or ship == null or world == null or settings == null:
+		await _settings_abort(game, desktop, pad)
+		return
+	var tuning := _sortie_tuning(game, ship)
+	_check(_settings_saved_preferences_match(game) \
+		and bool(game.get_runtime_settings_persistence_report().load_status.get("accepted", false)),
+		"fresh Boot loads the UI writer's actual 91 FOV, 1.2 scale, reduced motion and captions")
+	_check(is_equal_approx(player.get_authored_camera_fov(), 91.0) \
+		and is_equal_approx(float(game.hud.get_accessibility_report().ui_scale), 1.2) \
+		and bool(game.hud.get_accessibility_report().captions_enabled) \
+		and is_zero_approx(ship.maximum_chase_camera_rotation_lag_degrees),
+		"saved preferences reach the real player, HUD and free-sortie camera")
+	await _settings_tap(desktop, &"interact")
+	_check(await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.APPROACH_SHIP and player.is_control_enabled(), GameHUD.INTRO_FADE_SECONDS + 0.5),
+		"native keyboard Begin completes the authored title fade")
+	for driver: SettingsNativeInputEvents in [desktop, pad]:
+		await _settings_on_foot_controls(game, player, driver)
+		if not _failures.is_empty():
+			await _settings_abort(game, desktop, pad)
+			return
+	# Restore a hidden Help overlay through its native action before mouse work.
+	var help := game.hud.get("_help_panel") as Control
+	if help.visible:
+		await _settings_tap(desktop, &"toggle_controls_overlay")
+	var camera_basis := player.get_camera().global_basis
+	desktop.motion(Vector2(12.0, 6.0))
+	await physics_frame
+	await process_frame
+	_check(not player.get_camera().global_basis.is_equal_approx(camera_basis), "native captured on-foot mouse motion turns the real camera")
+	desktop.motion(Vector2(-12.0, -6.0))
+	await physics_frame
+	await process_frame
+	for driver: SettingsNativeInputEvents in [desktop, pad]:
+		if not await _settings_free_sortie(game, player, ship, world, driver):
+			await _settings_abort(game, desktop, pad)
+			return
+	_check(_settings_saved_preferences_match(game) and _sortie_tuning(game, ship) == tuning \
+		and ship.get_local_input_source().get_input_provider() == null,
+		"both ordinary control families preserve saved preferences, authored tuning and the Input-backed sampler")
+	_check(desktop.missing.is_empty() and pad.missing.is_empty(),
+		"all exercised controls have current InputMap bindings (desktop=%s pad=%s)" % [desktop.missing, pad.missing])
+	if not _failures.is_empty():
+		await _settings_abort(game, desktop, pad)
+		return
+	await _settings_tap(desktop, &"pause")
+	var pause_main := game.hud.get("_pause_main_page") as Control
+	var exit_button := pause_main.find_child("ExitButton", true, false) as Control
+	for step in 100:
+		if root.gui_get_focus_owner() == exit_button:
+			break
+		await _settings_tap(desktop, &"ui_focus_next")
+	_check(paused and root.gui_get_focus_owner() == exit_button, "native keyboard navigation reaches ordinary Exit to desktop")
+	if not _failures.is_empty():
+		await _settings_abort(game, desktop, pad)
+		return
+	desktop.release_all()
+	pad.release_all()
+	print("SETTINGS_REENTRY_INPUT_ROUTE_TEST_OK: %d assertions; two authored free sorties after actual saved-profile restart; native synthetic desktop/gamepad input, physical hardware NOT_RUN" % _assertions)
+	await _settings_tap(desktop, &"ui_accept")
+	for frame in 120:
+		await process_frame
+	_check(false, "ordinary Exit must terminate this process with exit 0")
+	await _settings_abort(game, desktop, pad)
+
+
+func _settings_saved_preferences_match(game: GameFlow) -> bool:
+	var settings := game.get_runtime_settings()
+	return is_equal_approx(settings.camera_fov, 91.0) and is_equal_approx(settings.ui_scale, 1.2) \
+		and settings.reduced_motion and settings.captions_enabled
+
+
+func _settings_tap(driver: SettingsNativeInputEvents, action: StringName) -> void:
+	driver.set_action(action, 1.0)
+	await physics_frame
+	await process_frame
+	driver.set_action(action, 0.0)
+	await physics_frame
+	await process_frame
+
+
+func _settings_on_foot_controls(game: GameFlow, player: PlayerController, driver: SettingsNativeInputEvents) -> void:
+	var family := "desktop" if driver.desktop else "current gamepad"
+	var help := game.hud.get("_help_panel") as Control
+	var was_visible := help.visible
+	await _settings_tap(driver, &"toggle_controls_overlay")
+	_check(help.visible != was_visible, "%s toggles the real controls overlay" % family)
+	await _settings_tap(driver, &"toggle_controls_overlay")
+	_check(help.visible == was_visible, "%s toggles the real controls overlay back" % family)
+	if help.visible:
+		await _settings_tap(driver, &"toggle_controls_overlay")
+	await _settings_tap(driver, &"pause")
+	_check(paused, "%s pauses the live shift" % family)
+	await _settings_tap(driver, &"pause")
+	_check(not paused and player.is_control_enabled(), "%s resumes the same live player" % family)
+	var mode := player.get_camera_view_mode()
+	await _settings_tap(driver, &"toggle_first_person")
+	_check(player.get_camera_view_mode() != mode, "%s selects the other on-foot camera" % family)
+	await _settings_tap(driver, &"toggle_first_person")
+	_check(player.get_camera_view_mode() == mode, "%s restores the original on-foot camera" % family)
+	for action: StringName in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+		var position := player.global_position
+		driver.set_action(action, 1.0)
+		for frame in 6:
+			await physics_frame
+			await process_frame
+		driver.set_action(action, 0.0)
+		_check(player.global_position.distance_to(position) > 0.001, "%s physically walks with %s" % [family, action])
+	_check(await _wait_until(func() -> bool: return player.is_on_floor(), 2.0), "%s reaches supported ground before Jump" % family)
+	var height := player.global_position.y
+	await _settings_tap(driver, &"jump")
+	_check(await _wait_until(func() -> bool: return player.global_position.y > height + 0.03, 0.5), "%s Jump lifts the actual supported player" % family)
+	_check(await _wait_until(func() -> bool: return player.is_on_floor(), 2.0), "%s returns to usable floor support" % family)
+
+
+func _settings_walk_to_ship(player: PlayerController, ship: HeroShip, game: GameFlow, driver: SettingsNativeInputEvents) -> bool:
+	driver.ship = null
+	driver.set_action(&"sprint_boost", 1.0)
+	for frame in _frame_budget(WALK_TRAVEL_SECONDS):
+		var offset := (ship.get_boarding_position() - player.get_interaction_origin()).slide(Vector3.UP)
+		if offset.length() < 3.1 and game.boarding_candidate == ship:
+			break
+		var desired := offset.normalized()
+		var yaw := player.get_node("CameraYaw") as Node3D
+		var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
+		var right := forward.cross(Vector3.UP).normalized()
+		driver.set_axis(AXIS_LEFT_X, desired.dot(right) if absf(desired.dot(right)) > 0.08 else 0.0)
+		driver.set_axis(AXIS_LEFT_Y, -desired.dot(forward) if absf(desired.dot(forward)) > 0.08 else 0.0)
+		await physics_frame
+	driver.release_all()
+	await physics_frame
+	await process_frame
+	return game.boarding_candidate == ship and player.get_interaction_origin().distance_to(ship.get_boarding_position()) < 3.2
+
+
+func _settings_free_sortie(game: GameFlow, player: PlayerController, ship: HeroShip, world: ShipyardWorld, driver: SettingsNativeInputEvents) -> bool:
+	var family := "desktop" if driver.desktop else "current gamepad"
+	_check(await _settings_walk_to_ship(player, ship, game, driver), "%s physically approaches the free-sortie Arrow using movement and sprint" % family)
+	if not _failures.is_empty():
+		return false
+	await _settings_tap(driver, &"interact")
+	_check(await _wait_until(func() -> bool: return ship.is_piloted() and player.is_seated() \
+		and game.get_active_ship() == ship, game.canopy_motion_time + game.boarding_motion_time + 1.0),
+		"%s physically boards Arrow through its ordinary interaction" % family)
+	if not _failures.is_empty():
+		return false
+	driver.ship = ship
+	var source := ship.get_local_input_source()
+	_check(source != null and source.get_input_provider() == null and source.is_enabled_owner(), "%s retains the default Input-backed ship owner" % family)
+	if not _failures.is_empty():
+		return false
+	var berth_id := ship.get_home_berth_id()
+	var parked := world.get_berth_transform(berth_id)
+	var berth := world.get_berth_node(berth_id) as ShipBerth
+	var initial_zoom := ship.get_chase_camera_distance()
+	await _tap_provider_button(driver, JOY_BUTTON_RIGHT_SHOULDER)
+	_check(is_equal_approx(ship.get_chase_camera_distance(), initial_zoom + ship.chase_camera_zoom_step), "%s zooms the real chase camera outward" % family)
+	await _tap_provider_button(driver, JOY_BUTTON_LEFT_SHOULDER)
+	_check(is_equal_approx(ship.get_chase_camera_distance(), initial_zoom), "%s zooms the real chase camera inward" % family)
+	var view := ship.get_camera_view()
+	await _settings_tap(driver, &"toggle_ship_camera_view")
+	_check(ship.get_camera_view() != view and ship.get_camera().current, "%s selects the live cockpit camera" % family)
+	await _settings_tap(driver, &"toggle_ship_camera_view")
+	_check(ship.get_camera_view() == view and ship.get_camera().current, "%s restores the live chase camera" % family)
+	driver.set_action(&"move_forward", 1.0)
+	_check(await _wait_until(func() -> bool: return ship.get_telemetry().engine_state == &"ONLINE" \
+		and not bool(ship.get_telemetry().landed) and game.phase == GameFlow.Phase.FREE_FLIGHT, 2.0),
+		"%s thrust automatically wakes propulsion and physically releases the berth" % family)
+	driver.release_all()
+	_check(berth.get_occupant() == null and berth.get_reservation_owner() == null, "%s departure releases the real berth lease" % family)
+	if not _failures.is_empty():
+		return false
+	var outbound := parked * Vector3(0.0, 8.0, -30.0)
+	_check(await _fly_to_waypoint(ship, driver, outbound, 1.5, 0.6), "%s physically flies to clear control-test airspace" % family)
+	if not _failures.is_empty():
+		return false
+	# Both families cross the complete ordinary held-control roster. Directional
+	# checks also require physical attitude changes; no command is injected.
+	for row: Array in [
+		[&"move_back", &"throttle", -1.0], [&"move_left", &"yaw", -1.0],
+		[&"move_right", &"yaw", 1.0], [&"pitch_up", &"pitch", 1.0],
+		[&"pitch_down", &"pitch", -1.0], [&"roll_left", &"roll", -1.0],
+		[&"roll_right", &"roll", 1.0],
+		[&"hover", &"hover", true], [&"brake", &"brake", true],
+	]:
+		await _settings_probe_control(ship, driver, row[0], row[1], row[2])
+		if not _failures.is_empty():
+			return false
+	await _settings_boost_acceleration(ship, driver)
+	if not _failures.is_empty():
+		return false
+	if driver.desktop:
+		var basis := ship.global_basis
+		var mouse_axes_seen := false
+		for frame in 4:
+			driver.motion(Vector2(10.0, -5.0))
+			await physics_frame
+			await process_frame
+			var mouse_command := ship.get_last_ship_command()
+			mouse_axes_seen = mouse_axes_seen or (mouse_command != null \
+				and absf(mouse_command.look_yaw_delta) > 0.001 and absf(mouse_command.look_pitch_delta) > 0.001)
+		var mouse_rotation := (basis.inverse() * ship.global_basis).get_euler()
+		_check(mouse_axes_seen and absf(mouse_rotation.x) > 0.0001 and absf(mouse_rotation.y) > 0.0001,
+			"desktop captured mouse yaw and pitch reach the real command and rotate both hull axes")
+		await _settings_probe_control(ship, driver, &"brake", &"brake", true, true)
+	# Fire is witnessed both at the consumed input and the real weapon signal.
+	await _settings_fire(ship, driver, false)
+	if driver.desktop:
+		await _settings_fire(ship, driver, true)
+	var before_roll := ship.global_basis
+	await _settings_tap(driver, &"barrel_roll")
+	_check(float(ship.get("_roll_animation")) > 0.0 and not ship.global_basis.is_equal_approx(before_roll), "%s barrel-roll press starts the real completed-over-time roll" % family)
+	_check(await _wait_until(func() -> bool: return float(ship.get("_roll_animation")) <= 0.001, \
+		360.0 / (ship.roll_speed_degrees * 2.2) + 0.5), "%s barrel roll finishes without a held or injected control" % family)
+	if not _failures.is_empty():
+		return false
+	var capture := parked * Vector3(0.0, 8.0, -15.0)
+	_check(await _fly_to_waypoint(ship, driver, capture, 1.0, 0.45), "%s physically returns to the registered berth capture" % family)
+	_check(await _align_ship(ship, driver, (parked.origin - ship.global_position).normalized(), 0.995, 3.5), "%s native steering and hover align the actual landing approach" % family)
+	await _brake_ship(ship, driver, 0.35, 1.2)
+	var report := world.get_landing_assist_report(ship, berth_id)
+	_check(bool(report.get("assist_capture_accepted", false)), "%s reaches its real landing capture contract" % family)
+	if not _failures.is_empty():
+		return false
+	await _settings_tap(driver, &"landing_assist")
+	_check(await _wait_until(func() -> bool: return ship.is_landing_active(), 0.6), "%s landing binding acquires ordinary landing assist" % family)
+	_check(await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.SHUT_DOWN, 4.5), "%s physically lands through the production shutdown phase" % family)
+	driver.release_all()
+	_check(await _wait_until(func() -> bool: return ship.get_telemetry().engine_state == &"OFFLINE", 2.0), "%s neutral controls reach the authored 1.5-second automatic shutdown" % family)
+	_check(berth.get_occupant() == ship and berth.get_reservation_owner() == ship \
+		and bool(ship.get_landing_contract_report().get("strict_dock_acceptance", false)), "%s landing restores exact berth and craft ownership" % family)
+	if not _failures.is_empty():
+		return false
+	await _settings_tap(driver, &"interact")
+	_check(await _wait_until(func() -> bool: return not ship.is_piloted() and not player.is_seated() \
+		and player.is_control_enabled(), game.canopy_motion_time + game.disembarking_motion_time + 1.0),
+		"%s physically exits to usable on-foot controls at the real craft exit" % family)
+	_check(player.global_position.distance_to(ship.get_exit_transform().origin) < 0.25, "%s exit retains the actual physical disembark location" % family)
+	driver.ship = null
+	return _failures.is_empty()
+
+
+func _settings_probe_control(ship: HeroShip, driver: SettingsNativeInputEvents, action: StringName, field: StringName, expected: Variant, mouse: bool = false) -> void:
+	var before := ship.global_basis
+	var observed := false
+	var reversed := false
+	driver.set_action(action, 1.0, mouse)
+	for frame in range(18 if action == &"move_back" else 6):
+		await physics_frame
+		await process_frame
+		var command := ship.get_last_ship_command()
+		if command != null:
+			observed = observed or (bool(command.get(field)) == bool(expected) if expected is bool \
+				else float(command.get(field)) * float(expected) > 0.5)
+			reversed = reversed or ship.velocity.dot(-ship.global_basis.z.normalized()) < -0.01
+	driver.release_all()
+	if action == &"move_back":
+		_check(reversed, "%s reverse thrust physically moves the craft backwards" % ("desktop" if driver.desktop else "current gamepad"))
+	var directional := field in [&"yaw", &"pitch", &"roll"]
+	var physical := not ship.global_basis.is_equal_approx(before) if directional else true
+	_check(observed and physical, "%s native %s reaches consumed %s%s%s" % [
+		"desktop" if driver.desktop else "current gamepad", action, field, " via mouse" if mouse else "",
+		" and rotates the real hull" if directional else ""])
+
+
+func _settings_boost_acceleration(ship: HeroShip, driver: SettingsNativeInputEvents) -> void:
+	# Compare two short real velocity windows under steady native thrust. No
+	# camera, velocity, engine state or tuning is assigned by this scenario.
+	var family := "desktop" if driver.desktop else "current gamepad"
+	await _brake_ship(ship, driver, 0.25, 2.0)
+	driver.set_action(&"move_forward", 1.0)
+	_check(await _wait_until(func() -> bool: return float(ship.get_telemetry().throttle) >= 0.99, 1.0),
+		"%s reaches steady ordinary thrust before comparing boost acceleration" % family)
+	if not _failures.is_empty():
+		driver.release_all()
+		return
+	var forward := -ship.global_basis.z.normalized()
+	var velocity_before := ship.velocity.dot(forward)
+	var frame_before := Engine.get_physics_frames()
+	for frame in 6:
+		await physics_frame
+	var normal_time := float(Engine.get_physics_frames() - frame_before) / float(Engine.physics_ticks_per_second)
+	var normal_acceleration := (ship.velocity.dot(forward) - velocity_before) / normal_time
+	driver.set_action(&"sprint_boost", 1.0)
+	velocity_before = ship.velocity.dot(forward)
+	frame_before = Engine.get_physics_frames()
+	var boost_consumed := false
+	for frame in 6:
+		await physics_frame
+		var command := ship.get_last_ship_command()
+		boost_consumed = boost_consumed or (command != null and command.boost and command.throttle > 0.99)
+	var boost_time := float(Engine.get_physics_frames() - frame_before) / float(Engine.physics_ticks_per_second)
+	var boost_acceleration := (ship.velocity.dot(forward) - velocity_before) / boost_time
+	var authored_extra := ship.thrust_acceleration * (ship.boost_multiplier - 1.0) \
+		* float(ship.get_telemetry().engine_power)
+	driver.release_all()
+	# Both windows stay at low speed; the 25% margin admits residual throttle
+	# settling while still requiring the authored boost's added acceleration.
+	_check(boost_consumed and authored_extra > 0.0 and normal_acceleration > 0.0 \
+		and boost_acceleration - normal_acceleration > authored_extra * 0.75,
+		"%s native boost increases real forward acceleration (ordinary=%.3f boosted=%.3f authored_extra=%.3f m/s²)" % [
+			family, normal_acceleration, boost_acceleration, authored_extra,
+		])
+
+
+func _settings_fire(ship: HeroShip, driver: SettingsNativeInputEvents, mouse: bool) -> void:
+	_check(await _wait_until(func() -> bool: return bool(ship.get_telemetry().weapon_ready), 2.5), "ordinary weapon cooldown permits the next native fire probe")
+	var shots := [0]
+	var on_shot := func(_origin: Vector3, _direction: Vector3) -> void: shots[0] += 1
+	ship.projectile_fired.connect(on_shot)
+	await _settings_probe_control(ship, driver, &"fire", &"fire", true, mouse)
+	ship.projectile_fired.disconnect(on_shot)
+	_check(shots[0] > 0, "%s native fire emits a real weapon shot%s" % ["desktop" if driver.desktop else "current gamepad", " via mouse" if mouse else ""])
+
+
+func _settings_abort(game: GameFlow, desktop: SettingsNativeInputEvents, pad: SettingsNativeInputEvents) -> void:
+	desktop.release_all()
+	pad.release_all()
+	paused = false
+	await _clean_up(game, null)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	print("SETTINGS_REENTRY_INPUT_ROUTE_TEST_FAILED: ", "; ".join(_failures))
+	quit(1)
 
 
 func _sortie_tuning(game: GameFlow, ship: HeroShip) -> Dictionary:
