@@ -1,6 +1,7 @@
 extends SceneTree
 
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
+const StatusPresenter := preload("res://scripts/ui/network_session_status_presenter.gd")
 
 class HudProbe extends CanvasLayer:
 	var snapshots: Array[Dictionary] = []
@@ -36,6 +37,19 @@ func _run() -> void:
 	flow._on_network_session_stopped(&"requested")
 	_check(probe.snapshots.back().get("state") == &"disconnected", "shutdown presents disconnected")
 	_check(flow.get_network_session() == null, "status wiring does not create an opt-in network node")
+	var presenter := StatusPresenter.new()
+	flow._on_network_session_stopped(&"server_disconnected")
+	var host_lost := presenter.present_snapshot(probe.snapshots.back())
+	_check(host_lost.message.begins_with("Connection to the session host was lost."),
+		"the production host-loss receipt presents a readable explanation")
+	flow._on_network_session_started(&"client")
+	var retrying := presenter.present_snapshot(probe.snapshots.back())
+	_check(retrying.state == &"connecting" and not retrying.message.contains("was lost"),
+		"a new production session clears the retired host-loss receipt")
+	flow._on_network_session_stopped(&"connection_failed")
+	var unreachable := presenter.present_snapshot(probe.snapshots.back())
+	_check(unreachable.message.begins_with("Could not reach the session host."),
+		"the production initial-connection failure presents readable recovery guidance")
 	flow.free()
 	probe.free()
 	if _failures.is_empty():

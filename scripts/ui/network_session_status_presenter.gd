@@ -49,6 +49,15 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		return _snapshot.duplicate(true)
 	var role := StringName(str(source.get("role", &"client")))
 	var detail := str(source.get("detail", "" )).strip_edges()
+	# GameFlow forwards these terminal transport reasons as detail strings.
+	# Translate only known disconnected receipts; caller-authored copy and
+	# active connection messages remain authoritative.
+	if state == &"disconnected":
+		match detail:
+			"Session closed: server_disconnected":
+				detail = "Connection to the session host was lost."
+			"Session closed: connection_failed":
+				detail = "Could not reach the session host. Check the address and whether the host is running."
 	var retryable := bool(source.get("retryable", state == &"failed"))
 	var attempt := clampi(int(source.get("attempt", 0)), 0, 99)
 	var seconds_remaining := clampf(float(source.get("seconds_remaining", 0.0)), 0.0, 300.0)

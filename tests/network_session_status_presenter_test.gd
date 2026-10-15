@@ -21,6 +21,21 @@ func _run() -> void:
 	var failed := presenter.present_snapshot({"state": &"failed", "detail": "Admission was refused.", "retryable": true})
 	_check(failed.title == "Connection Failed" and failed.actions.size() == 2 and failed.actions[0].id == &"retry", "failed state exposes retry and cancel actions")
 	_check(presenter.request_retry().accepted and presenter.request_cancel().accepted, "failure actions return external intents")
+	var host_lost := presenter.present_snapshot({
+		"state": &"disconnected", "role": &"client",
+		"detail": "Session closed: server_disconnected", "retryable": true,
+	})
+	_check(host_lost.message.begins_with("Connection to the session host was lost.") and host_lost.message.contains("NEXT ACTION // RETRY CONNECTION"), "host loss names the lost connection and available recovery action")
+	_check(presenter.request_retry().accepted and not presenter.request_disconnect().accepted, "host loss preserves caller-owned retry intent without an active disconnect")
+	var unreachable := presenter.present_snapshot({
+		"state": &"disconnected", "role": &"client",
+		"detail": "Session closed: connection_failed", "retryable": true,
+	})
+	_check(unreachable.message.begins_with("Could not reach the session host.") and unreachable.message.contains("Check the address"), "failed initial connection gives readable host troubleshooting")
+	var reconnect_started := presenter.present_snapshot({
+		"state": &"connecting", "role": &"client", "detail": "Contacting the session host.",
+	})
+	_check(reconnect_started.message.begins_with("Contacting the session host.") and not reconnect_started.message.contains("was lost") and reconnect_started.actions[0].id == &"cancel", "retry replaces terminal host-loss copy with current connecting guidance")
 	var invalid := presenter.present_snapshot({"state": &"mystery"})
 	_check(invalid.state == &"failed" and invalid.actions[0].focusable and not presenter.request_retry().accepted, "unknown state fails closed without retry authority")
 
@@ -92,7 +107,7 @@ func _run() -> void:
 		"detach clears the cursor and cached authoritative rows before reuse"
 	)
 	if _failures.is_empty():
-		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 15 assertions")
+		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 20 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)
