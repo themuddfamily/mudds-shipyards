@@ -1184,6 +1184,7 @@ var _aurora_interrupted_visit_save_status: Dictionary = {}
 var _aurora_interrupted_visit_restore_status: Dictionary = {}
 var _aurora_interrupted_visit_restore_attempted := false
 const AURORA_SHARED_SURVEY_SLOT := "aurora_shared_coastal_survey"
+const AURORA_DECLINED_SHARED_SURVEY_SLOT := AURORA_SHARED_SURVEY_SLOT + "_declined"
 var _aurora_shared_survey_checkpoint_pending := false
 var _aurora_shared_survey_checkpoint: Dictionary = {}
 const EMBER_INTERRUPTED_JOURNEY_COMMIT_PREFIX := "ember-active-journey-"
@@ -3634,10 +3635,17 @@ func _handle_hud_session_recovery_choice(
 			result = acknowledge_recovery()
 			_solo_safe_recovery_pending = bool(result.get("accepted", false))
 		&"discard":
-			result = discard_recovery()
+			# Declining a location is durable before its recovery notice disappears.
+			# Rejected writes leave both world receipts and the decision available.
+			result = _decline_interrupted_planetary_visits()
 			if bool(result.get("accepted", false)):
-				_solo_safe_recovery_pending = false
-				result["start_fresh"] = _start_fresh_after_interrupted_session()
+				var fresh := _start_fresh_after_interrupted_session()
+				if bool(fresh.get("accepted", false)):
+					result = discard_recovery()
+					_solo_safe_recovery_pending = false
+				else:
+					result = fresh.duplicate(true)
+				result["start_fresh"] = fresh
 		_:
 			result = {"accepted": false, "reason": &"invalid_recovery_choice"}
 	var status := _record_session_recovery_hud_result(
@@ -3649,8 +3657,8 @@ func _handle_hud_session_recovery_choice(
 		result
 	)
 	# Re-observe bridge truth after the request. Success removes the notice only
-	# when the bridge actually retired its receipt; failure leaves the latched
-	# decision visible and cannot manufacture a fresh choice generation.
+	# when the bridge actually retired its receipt; a refused current choice
+	# rearms presentation under that same fence without manufacturing a decision.
 	if get_recovery_available_snapshot().is_empty():
 		# A Button is locked while its pressed signal is on the stack. Defer the
 		# presentation cleanup past that emission boundary; no choice or bridge
@@ -3662,6 +3670,12 @@ func _handle_hud_session_recovery_choice(
 				&"apply_recovery_choice_snapshot",
 				{"available": false, "requires_caller_choice": false}
 			)
+	elif not bool(status.get("accepted", false)) \
+			and choice in [&"safe_graphics_windowed", &"normal_start", &"discard"] \
+			and is_instance_valid(hud) and hud.has_method(&"present_session_recovery_choice_failure"):
+		# Changing disabled while Button.pressed is active is deferred as well.
+		# The HUD checks this original token/generation again before rearming.
+		hud.call_deferred(&"present_session_recovery_choice_failure", token, generation)
 	return status
 
 
@@ -3920,6 +3934,153 @@ func _apply_solo_safe_recovery() -> void:
 		_solo_safe_recovery_boarding_ship = craft
 		_board_ship(craft)
 		_solo_safe_recovery_boarding_ship = null
+
+
+## Both world records and Aurora's older shared checkpoint move in one store
+## transaction. Passive records never participate in automatic location resume.
+func _decline_interrupted_planetary_visits() -> Dictionary:
+	var store := _runtime_settings_user_data_store
+	# Bare coordinators and recovery-only consumers have no planetary store.
+	if store == null:
+		return {"accepted": not _aurora_shared_survey_checkpoint_pending,
+			"reason": &"planetary_visit_store_unavailable" if _aurora_shared_survey_checkpoint_pending else &"no_planetary_visit_store"}
+	var payload := store.get_snapshot()
+	var has_visits := _aurora_shared_survey_checkpoint_pending
+	for slot in [String(AURORA_EXPEDITION_PERSISTENCE_SLOT), String(RIME_EXPEDITION_PERSISTENCE_SLOT),
+			AURORA_SHARED_SURVEY_SLOT, AURORA_DECLINED_SHARED_SURVEY_SLOT,
+			String(AURORA_EXPEDITION_PERSISTENCE_SLOT) + "_declined", String(RIME_EXPEDITION_PERSISTENCE_SLOT) + "_declined"]:
+		has_visits = has_visits or payload.has(slot)
+	if not has_visits:
+		return {"accepted": true, "reason": &"no_interrupted_planetary_visit"}
+	if store.get_loaded_source() != &"primary":
+		return {"accepted": false, "reason": &"planetary_visit_save_recovery_required"}
+	var paid := _planetary_survey_paid_state(payload)
+	if not bool(paid.get("accepted", false)):
+		return paid
+	var generation := store.get_generation()
+	var next := payload.duplicate(true)
+	for entry in [
+			{"binding": _aurora_expedition_persistence_binding, "paid": paid.aurora},
+			{"binding": _rime_expedition_persistence_binding, "paid": paid.rime}]:
+		var binding: RefCounted = entry.binding
+		if binding == null:
+			return {"accepted": false, "reason": &"planetary_visit_persistence_unavailable"}
+		var planned: Dictionary = binding.call(&"plan_decline", next, bool(entry.paid))
+		if not bool(planned.get("accepted", false)):
+			return planned
+		next = planned.payload
+	for key in [AURORA_SHARED_SURVEY_SLOT, AURORA_DECLINED_SHARED_SURVEY_SLOT]:
+		if next.has(key) and not _shared_aurora_checkpoint_record_valid(next[key]):
+			return {"accepted": false, "reason": &"aurora_shared_survey_checkpoint_invalid"}
+	# A failed save may leave the only earned completion in this owned queue.
+	# Include it before planning the archive, even when no world slot exists.
+	if _aurora_shared_survey_checkpoint_pending and not _aurora_shared_survey_checkpoint.is_empty():
+		var pending := _aurora_shared_survey_checkpoint.duplicate(true)
+		if not _shared_aurora_checkpoint_record_valid(pending):
+			return {"accepted": false, "reason": &"aurora_shared_survey_checkpoint_invalid"}
+		# Match UserDataStore's full-precision JSON representation: its reloaded
+		# numbers are floats, while this live queue can still contain integers.
+		# Dictionary equality is type-strict. The owned queue itself stays intact.
+		pending = JSON.parse_string(JSON.stringify(pending, "", true, true)) as Dictionary
+		var keep_committed_debt := false
+		if next.has(AURORA_SHARED_SURVEY_SLOT) and next[AURORA_SHARED_SURVEY_SLOT] != pending:
+			var stored := next[AURORA_SHARED_SURVEY_SLOT] as Dictionary
+			keep_committed_debt = int((stored.survey as Dictionary).get("state", -1)) == CheckpointRouteActivity.State.COMPLETED and not bool(paid.aurora)
+			if keep_committed_debt and int((pending.survey as Dictionary).get("state", -1)) == CheckpointRouteActivity.State.COMPLETED:
+				return {"accepted": false, "reason": &"aurora_pending_survey_completion_conflict"}
+		if not keep_committed_debt:
+			next[AURORA_SHARED_SURVEY_SLOT] = pending
+	# An empty queued retirement does not delete an archived unpaid obligation.
+	if next.has(AURORA_SHARED_SURVEY_SLOT):
+		var shared := next[AURORA_SHARED_SURVEY_SLOT] as Dictionary
+		if next.has(AURORA_DECLINED_SHARED_SURVEY_SLOT) and next[AURORA_DECLINED_SHARED_SURVEY_SLOT] != shared:
+			var previous := next[AURORA_DECLINED_SHARED_SURVEY_SLOT] as Dictionary
+			if int((previous.survey as Dictionary).get("state", -1)) == CheckpointRouteActivity.State.COMPLETED and not bool(paid.aurora):
+				return {"accepted": false, "reason": &"aurora_declined_survey_payment_pending"}
+		next[AURORA_DECLINED_SHARED_SURVEY_SLOT] = shared.duplicate(true)
+		next.erase(AURORA_SHARED_SURVEY_SLOT)
+	# Do not accept a decline that would park contradictory unpaid obligations
+	# which the ordinary arrival reader must subsequently refuse to adopt.
+	var aurora_archive := String(AURORA_EXPEDITION_PERSISTENCE_SLOT) + "_declined"
+	if not bool(paid.aurora) and next.has(aurora_archive) and next.has(AURORA_DECLINED_SHARED_SURVEY_SLOT):
+		var visit_progress := (next[aurora_archive].visit as Dictionary).get("survey", {}) as Dictionary
+		var shared_progress := next[AURORA_DECLINED_SHARED_SURVEY_SLOT].survey as Dictionary
+		if int(visit_progress.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED \
+				and int(shared_progress.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED \
+				and visit_progress != shared_progress:
+			return {"accepted": false, "reason": &"declined_survey_completion_conflict"}
+	if next != payload or _aurora_shared_survey_checkpoint_pending:
+		var committed := store.commit(next, generation, "decline-planetary-visits-%010d" % (generation + 1))
+		if not bool(committed.get("accepted", false)):
+			return committed
+		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, store.get_generation())
+		_sync_production_runtime_settings_state()
+	# Only a successful transaction may retire the pending shared writer.
+	_aurora_shared_survey_checkpoint.clear()
+	_aurora_shared_survey_checkpoint_pending = false
+	return {"accepted": true, "reason": &"planetary_visits_declined"}
+
+
+func _planetary_survey_paid_state(payload: Dictionary) -> Dictionary:
+	var record: Variant = payload.get(String(GameFlowRewardAuthority.SLOT_ID), {})
+	if payload.has(String(GameFlowRewardAuthority.SLOT_ID)):
+		if _game_flow_reward_authority == null \
+				or not bool(_game_flow_reward_authority.call(&"validate_record", record).get("accepted", false)):
+			return {"accepted": false, "reason": &"planetary_survey_reward_recovery_required"}
+	var counts := (record as Dictionary).get("reward_counts", {}) as Dictionary
+	return {"accepted": true, "aurora": int(counts.get("aurora_coastal_survey_data", 0)) > 0,
+		"rime": int(counts.get("rime_ice_core_record", 0)) > 0}
+
+
+func _shared_aurora_checkpoint_record_valid(candidate: Variant) -> bool:
+	return candidate is Dictionary and candidate.size() == 2 \
+		and candidate.has("craft_home_berth_id") and candidate.craft_home_berth_id is String \
+		and not String(candidate.craft_home_berth_id).strip_edges().is_empty() \
+		and candidate.has("survey") and _aurora_expedition.survey.valid_progress(candidate.survey)
+
+
+## Data only: the expedition must still establish an ordinary current arrival.
+## Paid authority is always observed from this primary, never the old archive.
+func get_declined_surface_survey_completion(world_id: StringName) -> Dictionary:
+	var store := _runtime_settings_user_data_store
+	if store == null or store.get_loaded_source() != &"primary":
+		return {"accepted": false, "reason": &"planetary_visit_save_recovery_required"}
+	if world_id not in [&"aurora_temperate_world", &"rime_glacial_world"]:
+		return {"accepted": false, "reason": &"unsupported_planetary_visit"}
+	var payload := store.get_snapshot()
+	var paid := _planetary_survey_paid_state(payload)
+	if not bool(paid.get("accepted", false)):
+		return paid
+	var aurora := world_id == &"aurora_temperate_world"
+	if bool(paid.aurora if aurora else paid.rime):
+		return {"accepted": false, "reason": &"planetary_survey_already_recorded"}
+	var binding: RefCounted = _aurora_expedition_persistence_binding if aurora else _rime_expedition_persistence_binding
+	if binding == null:
+		return {"accepted": false, "reason": &"planetary_visit_persistence_unavailable"}
+	var loaded: Dictionary = binding.call(&"load_declined_visit")
+	var candidates: Array[Dictionary] = []
+	if bool(loaded.get("accepted", false)):
+		var archived_progress := (loaded.visit as Dictionary).get("survey", {}) as Dictionary
+		if int(archived_progress.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED:
+			candidates.append(archived_progress.duplicate(true))
+	elif payload.has(String(binding.call(&"get_declined_slot_id"))):
+		return loaded
+	if aurora and payload.has(AURORA_DECLINED_SHARED_SURVEY_SLOT):
+		var shared: Variant = payload[AURORA_DECLINED_SHARED_SURVEY_SLOT]
+		if not _shared_aurora_checkpoint_record_valid(shared):
+			return {"accepted": false, "reason": &"aurora_shared_survey_checkpoint_invalid"}
+		if int((shared.survey as Dictionary).get("state", -1)) == CheckpointRouteActivity.State.COMPLETED:
+			candidates.append((shared.survey as Dictionary).duplicate(true))
+	if candidates.is_empty():
+		return {"accepted": false, "reason": &"declined_survey_has_no_unpaid_completion"}
+	var progress := candidates[0].duplicate(true)
+	# Cold belongs to the new trip. Completed observations alone remain owed.
+	progress.erase("heat_s")
+	for candidate in candidates:
+		candidate.erase("heat_s")
+		if candidate != progress:
+			return {"accepted": false, "reason": &"declined_survey_completion_conflict"}
+	return {"accepted": true, "reason": &"declined_survey_completion_available", "progress": progress}
 
 
 ## "Start Fresh" keeps settings and earned progress but abandons whichever

@@ -5,6 +5,7 @@ const HudType := preload("res://scripts/ui/hud.gd")
 var _assertions := 0
 var _failures: PackedStringArray = []
 var _requests: Array[Dictionary] = []
+var _support_requests: Array[Vector2i] = []
 
 
 func _init() -> void:
@@ -19,6 +20,8 @@ func _run() -> void:
 	hud.session_recovery_safe_requested.connect(_capture_request.bind(&"safe"))
 	hud.session_recovery_continue_requested.connect(_capture_request.bind(&"continue"))
 	hud.session_recovery_discard_requested.connect(_capture_request.bind(&"discard"))
+	hud.session_recovery_support_export_requested.connect(func(token: int, generation: int) -> void:
+		_support_requests.append(Vector2i(token, generation)))
 	var recovery := {
 		"schema_version": 1,
 		"state": "running",
@@ -192,6 +195,15 @@ func _run() -> void:
 		and _requests.is_empty(),
 		"action dispatch fences both the exact token and generation"
 	)
+	var support := actions.get_child(3) as Button
+	support.pressed.emit()
+	support.pressed.emit()
+	_check(
+		_support_requests == [Vector2i(41, 7)] and support.disabled
+		and bool(hud.get_session_recovery_notice_snapshot().support_export_latched)
+		and not bool(hud.get_session_recovery_notice_snapshot().choice_latched),
+		"title support export stays once-only without consuming the recovery choice"
+	)
 	safe.pressed.emit()
 	continue_button.pressed.emit()
 	discard.pressed.emit()
@@ -201,6 +213,32 @@ func _run() -> void:
 		and safe.disabled and continue_button.disabled and discard.disabled
 		and panel.visible,
 		"one explicit choice latches the notice and repeated or cross-choice presses cannot emit"
+	)
+	_check(
+		not hud.present_session_recovery_choice_failure(41, 6)
+		and not hud.present_session_recovery_choice_failure(42, 7)
+		and safe.disabled and bool(hud.get_session_recovery_notice_snapshot().choice_latched),
+		"a failed choice with either wrong fence cannot rearm the current notice"
+	)
+	_check(
+		hud.present_session_recovery_choice_failure(41, 7)
+		and not bool(hud.get_session_recovery_notice_snapshot().choice_latched)
+		and not safe.disabled and not continue_button.disabled and not discard.disabled
+		and support.disabled and _support_requests == [Vector2i(41, 7)]
+		and root.gui_get_focus_owner() == safe
+		and _requests == [{"action": &"safe", "token": 41, "generation": 7}],
+		"a fenced failure rearms the same visible buttons and focus without repeating support export or choosing automatically"
+	)
+	_check(
+		not hud.present_session_recovery_choice_failure(41, 7),
+		"failure rearm requires an outstanding latched choice"
+	)
+	safe.pressed.emit()
+	_check(
+		_requests == [{"action": &"safe", "token": 41, "generation": 7},
+			{"action": &"safe", "token": 41, "generation": 7}]
+		and safe.disabled and bool(hud.get_session_recovery_notice_snapshot().choice_latched),
+		"pressing the rearmed real button retries the same recovery fence once"
 	)
 	var report := hud.get_session_recovery_notice_snapshot()
 	_check(
@@ -263,6 +301,15 @@ func _run() -> void:
 		bool(hud.present_session_recovery_notice(fresh_recovery, authentic_recommendation).accepted),
 		"a reset accepts a fresh caller-owned recovery generation"
 	)
+	var replacement_choice := actions.get_child(0) as Button
+	replacement_choice.pressed.emit()
+	_check(
+		not hud.present_session_recovery_choice_failure(43, 9)
+		and replacement_choice.disabled
+		and bool(hud.get_session_recovery_notice_snapshot().choice_latched)
+		and int(hud.get_session_recovery_notice_snapshot().recovery_generation) == 10,
+		"a deferred failure for a replaced notice cannot unlock the replacement's outstanding choice"
+	)
 	root.remove_child(hud)
 	_check(
 		not bool(hud.get_session_recovery_notice_snapshot().active)
@@ -270,6 +317,8 @@ func _run() -> void:
 		and actions.get_child_count() == 0,
 		"tree exit performs the same complete recovery cleanup"
 	)
+	_check(not hud.present_session_recovery_choice_failure(43, 10),
+		"a detached retired notice cannot rearm recovery controls")
 	root.add_child(hud)
 	await process_frame
 	var reentered := authentic_recovery.duplicate(true)

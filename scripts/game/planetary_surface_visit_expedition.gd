@@ -73,6 +73,7 @@ var _last_leg_result: Dictionary = {}
 var _fade_layer: CanvasLayer
 var _fade: ColorRect
 var _fade_opacity := 0.0
+var _declined_completion_examined := false
 var _surface_audio_settings_instance_id := 0
 var _surface_audio_reduced_dynamic_range := false
 
@@ -375,6 +376,7 @@ func physics_tick(delta: float) -> void:
 		_flow.hud.set_mode("piloting")
 		_flow.audio.set_on_foot(false)
 		state = &"landed"
+	_adopt_declined_survey_completion()
 	if _shared_arrival and profile.world_id == &"aurora_temperate_world" and state == &"landed":
 		survey.resume_shared_checkpoint()
 	# An activity with an on-foot hazard advances from this visit's own tick.
@@ -387,6 +389,27 @@ func physics_tick(delta: float) -> void:
 			) > 20_000.0:
 		_flow.player.teleport_to(_ship.get_exit_transform())
 		_flow.hud.toast("Surface rescue", "Returned to your ship's access ramp")
+
+
+func _adopt_declined_survey_completion() -> void:
+	if _declined_completion_examined or not settled_surface_is_current():
+		return
+	if _shared_arrival and not _flow._network_surface_visit_passenger_host_is_current(_ship, profile.world_id):
+		return
+	_declined_completion_examined = true
+	var current := survey.snapshot() as Dictionary
+	if not current.is_empty() and (int(current.get("state", -1)) != CheckpointRouteActivity.State.IDLE \
+			or int(current.get("generation", -1)) != 0):
+		return
+	var debt := _flow.get_declined_surface_survey_completion(profile.world_id)
+	if not bool(debt.get("accepted", false)) \
+			or _flow.activity_director.get_definition(StringName(str(debt.progress.activity_id))) == null:
+		return
+	# Only genuine completed observations resume. No ACTIVE/FAILED run, old
+	# heater budget, body, scene, or lease is restored by this passive record.
+	_flow.activity_director.restore_activity_persistence_state(
+		StringName(str(debt.progress.activity_id)), debt.progress
+	)
 
 
 ## Streaming becomes resident during physical braking, then the same carried
@@ -688,6 +711,7 @@ func _compose_streamed_surface(loaded: Node3D) -> void:
 		return
 	_surface = loaded
 	survey.attach(loaded)
+	_declined_completion_examined = false
 	_lease_surface_berth(region)
 	if _surface_token.is_empty():
 		_last_compose_result = {
@@ -818,6 +842,7 @@ func _complete_restore(loaded: Node3D) -> void:
 		return
 	_surface = loaded
 	survey.attach(loaded)
+	_declined_completion_examined = false
 	_lease_surface_berth(region)
 	if _surface_token.is_empty():
 		cancel()

@@ -73,6 +73,60 @@ func is_configured() -> bool:
 	return _store != null and not str(_slot_id).strip_edges().is_empty()
 
 
+## One bounded passive slot, using the existing validated visit format. Only
+## active slots participate in automatic location recovery.
+func get_declined_slot_id() -> String:
+	return String(_slot_id) + "_declined"
+
+
+## Stages a decline in the caller's shared-store transaction. No write or live
+## owner mutation happens here: Main commits both worlds and the shared Aurora
+## checkpoint together before acknowledging the player's choice.
+func plan_decline(payload: Dictionary, reward_recorded: bool) -> Dictionary:
+	if not is_configured():
+		return _result(false, _reason("visit_persistence_unavailable"))
+	var active_key := String(_slot_id)
+	var passive_key := get_declined_slot_id()
+	if payload.has(passive_key):
+		var old_validation := validate_record(payload[passive_key])
+		if not bool(old_validation.get("accepted", false)):
+			return old_validation
+	if not payload.has(active_key):
+		return _result(true, _reason("visit_not_found"), {"payload": payload})
+	var validation := validate_record(payload[active_key])
+	if not bool(validation.get("accepted", false)):
+		return validation
+	var record := payload[active_key] as Dictionary
+	if payload.has(passive_key) and payload[passive_key] != record:
+		var previous := payload[passive_key] as Dictionary
+		var progress := (previous.visit as Dictionary).get("survey", {}) as Dictionary
+		if int(progress.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED and not reward_recorded:
+			return _result(false, _reason("declined_survey_payment_pending"))
+	var next := payload.duplicate(true)
+	next[passive_key] = record.duplicate(true)
+	next.erase(active_key)
+	return _result(true, _reason("visit_decline_planned"), {"payload": next})
+
+
+## Passive data cannot admit a world or resurrect a participant. A current
+## surface owner may consult completed debt after genuine arrival only.
+func load_declined_visit() -> Dictionary:
+	if not is_configured() or not _store.has_method(&"get_loaded_source") \
+			or _store.call(&"get_loaded_source") != &"primary":
+		return _result(false, _reason("declined_visit_store_untrusted"))
+	var payload := _store.call(&"get_snapshot") as Dictionary
+	var key := get_declined_slot_id()
+	if not payload.has(key):
+		return _result(false, _reason("declined_visit_not_found"))
+	var validation := validate_record(payload[key])
+	if not bool(validation.get("accepted", false)):
+		return validation
+	return _result(true, _reason("declined_visit_loaded"), {
+		"visit": (payload[key].visit as Dictionary).duplicate(true),
+		"receipt_sha256": String(payload[key].receipt_sha256),
+	})
+
+
 ## Atomically replaces this slot with the detached visit description.
 func save_interrupted_visit(visit: Variant, commit_id: String) -> Dictionary:
 	if not is_configured() or commit_id.strip_edges().is_empty():

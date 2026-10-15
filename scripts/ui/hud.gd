@@ -4169,6 +4169,27 @@ func _request_session_recovery_action(
 	return true
 
 
+## A refused caller-owned recovery transaction leaves the same choice available.
+## Re-enable controls in place: this can be deferred past a button's pressed
+## signal without replacing its nodes or granting any recovery authority.
+func present_session_recovery_choice_failure(recovery_token: int, recovery_generation: int) -> bool:
+	if not is_inside_tree() or is_queued_for_deletion() \
+			or not is_instance_valid(_recovery_prompt_panel) or not _recovery_prompt_panel.visible \
+			or _session_recovery_token <= 0 or _session_recovery_generation <= 0 \
+			or recovery_token != _session_recovery_token or recovery_generation != _session_recovery_generation \
+			or not _session_recovery_choice_latched:
+		return false
+	_session_recovery_choice_latched = false
+	for action: StringName in _session_recovery_action_buttons:
+		var button := _session_recovery_action_buttons[action] as Button
+		if is_instance_valid(button):
+			button.disabled = action == &"support_export" and _session_recovery_support_export_latched
+	var first_choice := _session_recovery_action_buttons.get(&"safe") as Button
+	if is_instance_valid(first_choice) and first_choice.is_visible_in_tree():
+		first_choice.grab_focus()
+	return true
+
+
 ## Bounded presentation-only feedback for the one receipt-fenced local export.
 ## Paths, snapshots, and sink errors never enter the HUD copy.
 func present_session_recovery_support_export_result(
