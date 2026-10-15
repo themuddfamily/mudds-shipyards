@@ -66,6 +66,7 @@ func _init() -> void:
 func _run() -> void:
 	_test_binding_blend_is_continuous()
 	await _test_live_voices_cross_fade()
+	await _test_streamed_audio_accumulates_small_steps()
 	await _test_flight_effects_eases_transitions()
 	if _failures.is_empty():
 		print("PASS planetary_interior_exterior_audio_transition_test (%d assertions)" % _assertions)
@@ -159,6 +160,76 @@ func _test_live_voices_cross_fade() -> void:
 	)
 	world.queue_free()
 	await process_frame
+
+
+func _test_streamed_audio_accumulates_small_steps() -> void:
+	var bootstrap := AuroraTemperateStreamingBootstrap.new()
+	root.add_child(bootstrap)
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	var request := frame.request_rebase(bootstrap.position, frame.get_generation())
+	bootstrap.position += request.request.world_translation_delta
+	frame.commit_rebase(request.request.request_id, frame.get_generation())
+	var surface: Dictionary = frame.body_local_to_orbital_position(
+		Vector3.UP * (BODY_RADIUS_M + 2.0), frame.get_generation()
+	).coordinate
+	bootstrap.update_absolute_focus(surface, frame.get_generation())
+	await process_frame
+	await process_frame
+	var world := bootstrap.get_loaded_instance() as AuroraTemperateAuthoredScene
+	_check(is_instance_valid(world), "the real bootstrap streams Aurora for audio publication")
+	if not is_instance_valid(world):
+		bootstrap.queue_free()
+		await process_frame
+		return
+	bootstrap.set_surface_atmosphere_state(0.4, 0.3, 0.0)
+	var exterior := world.get_node(^"SurfaceAmbience/ExteriorVoice") as AudioStreamPlayer
+	var initial_volume := exterior.volume_db
+	var baseline := int(world.get_surface_audio_snapshot().last_source_generation)
+	for step in range(1, 13):
+		bootstrap.set_surface_atmosphere_state(0.4 + float(step) * 0.0004, 0.3, float(step))
+	var blended := world.get_surface_audio_snapshot()
+	_check(int(blended.last_source_generation) == baseline + 4
+		and is_equal_approx(float(blended.interior_blend), 0.4048)
+		and exterior.volume_db < initial_volume,
+		"tiny boarding steps accumulate into four bounded publications and quieter live exterior")
+	baseline = int(blended.last_source_generation)
+	var initial_wind := float(blended.mix.wind)
+	for step in range(1, 13):
+		bootstrap.set_surface_atmosphere_state(0.4048, 0.3 + float(step) * 0.002, 12.0 + float(step))
+	var windy := world.get_surface_audio_snapshot()
+	_check(int(windy.last_source_generation) == baseline + 4
+		and float(windy.mix.wind) > initial_wind,
+		"tiny gust steps accumulate past the wind threshold without a focus update")
+	baseline = int(windy.last_source_generation)
+	for step in 12:
+		bootstrap.set_surface_atmosphere_state(0.4048, 0.324, 30.0 + float(step))
+	_check(int(world.get_surface_audio_snapshot().last_source_generation) == baseline,
+		"unchanged blend and wind suppress duplicate publications even as the clock advances")
+	bootstrap.clear_surface_atmosphere_state()
+	bootstrap.set_surface_atmosphere_state(0.4048, 0.324, 0.0)
+	_check(int(world.get_surface_audio_snapshot().last_source_generation) == baseline + 1,
+		"clearing the caller state resets its publication baseline")
+	var previous_world := world.get_instance_id()
+	var far: Dictionary = frame.body_local_to_orbital_position(
+		Vector3.UP * 400_000.0, frame.get_generation()
+	).coordinate
+	bootstrap.update_absolute_focus(far, frame.get_generation())
+	await process_frame
+	await process_frame
+	bootstrap.update_absolute_focus(surface, frame.get_generation())
+	await process_frame
+	await process_frame
+	world = bootstrap.get_loaded_instance() as AuroraTemperateAuthoredScene
+	_check(is_instance_valid(world) and world.get_instance_id() != previous_world
+		and is_equal_approx(float(world.get_surface_audio_snapshot().interior_blend), 1.0),
+		"a new streamed visit starts from its own cockpit fallback, not the retired publication")
+	bootstrap.set_surface_atmosphere_state(0.4048, 0.324, 0.0)
+	_check(is_instance_valid(world)
+		and is_equal_approx(float(world.get_surface_audio_snapshot().interior_blend), 0.4048),
+		"the new visit accepts the same initial caller blend as the previous visit")
+	bootstrap.queue_free()
+	await process_frame
+	await create_timer(0.25).timeout
 
 
 func _test_flight_effects_eases_transitions() -> void:

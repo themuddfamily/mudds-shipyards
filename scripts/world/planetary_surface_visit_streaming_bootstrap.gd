@@ -36,6 +36,8 @@ var _last_surface_audio_result: Dictionary = {}
 ## rest.
 var _surface_audio_interior_blend := -1.0
 var _surface_audio_wind_strength := -1.0
+var _presented_surface_audio_interior_blend := -1.0
+var _presented_surface_audio_wind_strength := -1.0
 var _weather_clock_seconds := 0.0
 var _last_surface_audio_altitude_m := -1.0
 
@@ -101,8 +103,10 @@ func set_surface_atmosphere_state(
 		return {"accepted": false, "reason": &"invalid_atmosphere_state"}
 	var blend := interior_blend if interior_blend >= 0.0 else -1.0
 	var wind := wind_strength if wind_strength >= 0.0 else -1.0
-	var audible_change := absf(blend - _surface_audio_interior_blend) > 0.001 \
-		or absf(wind - _surface_audio_wind_strength) > 0.005
+	# Measure against playback's last accepted state so small caller steps can
+	# accumulate across the publication threshold while the listener is still.
+	var audible_change := absf(blend - _presented_surface_audio_interior_blend) > 0.001 \
+		or absf(wind - _presented_surface_audio_wind_strength) > 0.005
 	_surface_audio_interior_blend = blend
 	_surface_audio_wind_strength = wind
 	_weather_clock_seconds = weather_clock_seconds
@@ -115,6 +119,8 @@ func set_surface_atmosphere_state(
 func clear_surface_atmosphere_state() -> void:
 	_surface_audio_interior_blend = -1.0
 	_surface_audio_wind_strength = -1.0
+	_presented_surface_audio_interior_blend = -1.0
+	_presented_surface_audio_wind_strength = -1.0
 	_weather_clock_seconds = 0.0
 
 
@@ -255,6 +261,9 @@ func _present_surface_audio(altitude: float) -> void:
 	_last_surface_audio_result = world.call(
 		&"present_surface_audio_snapshot", snapshot
 	) as Dictionary
+	if bool(_last_surface_audio_result.get("accepted", false)):
+		_presented_surface_audio_interior_blend = _surface_audio_interior_blend
+		_presented_surface_audio_wind_strength = _surface_audio_wind_strength
 
 
 func _retire_environment(reason: StringName) -> void:
@@ -300,6 +309,8 @@ func _collect_presentation_contract_errors(
 func _retire_atmosphere(reason: StringName) -> void:
 	_surface_audio_source_generation = 0
 	_last_surface_audio_altitude_m = -1.0
+	_presented_surface_audio_interior_blend = -1.0
+	_presented_surface_audio_wind_strength = -1.0
 	_last_surface_audio_result.clear()
 	if not is_instance_valid(_atmosphere):
 		_atmosphere = null
