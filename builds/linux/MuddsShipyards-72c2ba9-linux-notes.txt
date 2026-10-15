@@ -1,0 +1,13 @@
+Mudd's Shipyards Linux VSync guard checkpoint — 72c2ba9181ebae639d38480e8e02b27207519b89
+
+Settings compare live VSync mode before calling the backend setter. Applying the same mode avoids a redundant resize request; real setting changes and external drift still apply. Current gameplay, Habitat common-chair batching and the fleet-dock renderer trim remain included.
+
+Actual validation
+Five source focused suites361 assertions passed, including16 graphical. ONE Linux export12.408s/original900 uses custom editor98d and pinned patched Linux release88e. Native ELF headless startup9.551s and archive startup10.469s each pass exit0/oneREADY at original300; private install/uninstall passes with unchanged test userdata. All1513 embedded payload paths/sizes/hashes exactly match the paired Windows package. Both exports' normal cache transitions are recorded; post-export source/index/cache/templates/ICD/protected-artifact guards and all owned creation identities are closed and exact.
+The ONE changed-source native Linux rendered run reached actual STARTUP_MENU_READY_OK once, zero diagnostics, time_to_interactive262.906s FROM BOOT under original300/authenticated Xvfb1600x900/x11/Forward+/Vulkan LVP/Dummy. Exact process wall time was not retained. The existing helper passed process exit0 before raising an outer cleanup assertion on its stale pre-cleanup Xvfb actor list. Its successful cleanup and final independent actor census show zero remaining actors; root verified that control-flow proof. The raw outer wrapper exit1/traceback, original terminal closure/log and original exported archive remain preserved; no render/export rerun occurred.
+
+Limits
+The historical Linuxa753 rendered300 timeout remains a separate preserved failure. This changed-source result does not prove that failure's unique cause or a general FPS/startup performance gain. NativeGPU/human/audio/full-release/canonical gates remain open. Native Windows PE execution stays HELD; paired Windows startup runs its PCK under Linux, and the custom Linux engine patch is absent from official Windows templates. Hosted CI remains disabled. Publication is a separate owner action.
+
+ELF SHA256: bb1bd8d3be937a812fb3878f8c9b13cd5f3ca64ba644a7519fba43b8b513791f
+Evidence: /root/.cache/mudds-shipyards/godot-4.7.1-reflection-atlas/linux-export-72c2ba9
