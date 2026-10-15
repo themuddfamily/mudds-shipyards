@@ -806,9 +806,11 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		)
 	_check(
 		console_family_exact
-		and (console_batch.multimesh.mesh as BoxMesh).size.is_equal_approx(
+		and console_batch.multimesh.mesh is ArrayMesh
+		and console_batch.multimesh.mesh.get_aabb().is_equal_approx(AABB(
+			-ObservationLogisticsSpur.OBSERVATION_CONSOLE_SIZE * 0.5,
 			ObservationLogisticsSpur.OBSERVATION_CONSOLE_SIZE
-		)
+		))
 		and console_batch.multimesh.custom_aabb.is_equal_approx(
 			ObservationLogisticsSpur.OBSERVATION_CONSOLE_CULLING_BOUNDS
 		)
@@ -823,6 +825,30 @@ func _test_visual_resource_sharing(module: ObservationLogisticsSpur) -> void:
 		and bool(performance.observation_console_identities_exact),
 		"three collidable console identities keep exact shells, poses and collision while one bounded renderer draws them"
 	)
+	var console_mesh := console_batch.multimesh.mesh
+	var console_geometry := StationSurfaceKit.structural_bevel_contract(
+		console_mesh, ObservationLogisticsSpur.OBSERVATION_CONSOLE_SIZE,
+		ObservationLogisticsSpur.OBSERVATION_CONSOLE_BEVEL_M
+	)
+	var diagonal_normals := 0
+	var arrays := console_mesh.surface_get_arrays(0)
+	for normal: Vector3 in arrays[Mesh.ARRAY_NORMAL]:
+		var normal_axes := int(absf(normal.x) > 0.01) \
+			+ int(absf(normal.y) > 0.01) + int(absf(normal.z) > 0.01)
+		if normal_axes > 1:
+			diagonal_normals += 1
+	_check(bool(console_geometry.valid) and diagonal_normals > 0
+		and console_batch.multimesh.instance_count == 3
+		and console_batch.multimesh.visible_instance_count == 3,
+		"three survey housings share one actual cut-edge surface with diagonal bevel normals")
+	var stock_box := BoxMesh.new()
+	stock_box.size = ObservationLogisticsSpur.OBSERVATION_CONSOLE_SIZE
+	console_batch.multimesh.mesh = stock_box
+	_check(not bool(module.get_visual_resource_contract().exact),
+		"red mutation: a same-bounds stock cube cannot replace the authored instrument housing")
+	console_batch.multimesh.mesh = console_mesh
+	_check(bool(module.get_visual_resource_contract().exact),
+		"restoring the shared chamfered instrument mesh restores the visual contract")
 	var original_console_bounds := console_batch.multimesh.custom_aabb
 	console_batch.multimesh.custom_aabb = original_console_bounds.grow(0.2)
 	_check(

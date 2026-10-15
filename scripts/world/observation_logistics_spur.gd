@@ -162,6 +162,9 @@ const OBSERVATION_LENS_COPY_COUNT := 3
 const BASELINE_OBSERVATION_LENS_RENDERER_NODE_COUNT := 3
 const OBSERVATION_LENS_RENDERER_NODE_COUNT := 1
 const OBSERVATION_CONSOLE_SIZE := Vector3(0.72, 0.96, 1.35)
+## Cut-back housing edges distinguish the three survey instruments from cargo
+## stock, without moving the original shell bounds or its conservative collider.
+const OBSERVATION_CONSOLE_BEVEL_M := 0.08
 const OBSERVATION_CONSOLE_POSITIONS := [
 	Vector3(-9.45, 0.48, 28.6),
 	Vector3(-9.45, 0.48, 31.4),
@@ -347,6 +350,7 @@ const CONTENT_NOTE := (
 
 var _materials: Dictionary = {}
 var _observation_lens_mesh: BoxMesh
+var _observation_console_mesh: ArrayMesh
 var _practical_lens_mesh: BoxMesh
 ## Immutable visual resource only; every named case retains its StaticBody3D
 ## and CollisionShape3D while the six identical cargo-case renderers share it.
@@ -621,7 +625,7 @@ func get_visual_resource_contract() -> Dictionary:
 	for console_position in OBSERVATION_CONSOLE_POSITIONS:
 		expected_console_transforms.append(Transform3D(Basis.IDENTITY, console_position))
 	if console_identities_exact:
-		var console_mesh := console_batch.multimesh.mesh as BoxMesh
+		var console_mesh := console_batch.multimesh.mesh as ArrayMesh
 		if console_mesh != null:
 			console_mesh_resource_ids[console_mesh.get_instance_id()] = true
 		authored_console_transforms = console_batch.get_meta(
@@ -629,7 +633,11 @@ func get_visual_resource_contract() -> Dictionary:
 		) as Array
 		console_identities_exact = (
 			console_mesh != null
-			and console_mesh.size.is_equal_approx(OBSERVATION_CONSOLE_SIZE)
+			and console_mesh == _observation_console_mesh
+			and console_mesh.get_surface_count() == 1
+			and console_mesh.get_aabb().is_equal_approx(AABB(
+				-OBSERVATION_CONSOLE_SIZE * 0.5, OBSERVATION_CONSOLE_SIZE
+			))
 			and console_batch.material_override == _materials.get("shell")
 			and console_batch.transform.is_equal_approx(Transform3D.IDENTITY)
 			and console_batch.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -1728,6 +1736,9 @@ func _build_dressing(parent: Node3D) -> void:
 	# centre and inner edge stay clear for the alternate-return circulation.
 	_observation_lens_mesh = BoxMesh.new()
 	_observation_lens_mesh.size = OBSERVATION_LENS_SIZE
+	_observation_console_mesh = StationSurfaceKit.rounded_box_mesh_with_bevel(
+		OBSERVATION_CONSOLE_SIZE, OBSERVATION_CONSOLE_BEVEL_M
+	)
 	var observation_lens_transforms: Array[Transform3D] = []
 	var observation_console_transforms: Array[Transform3D] = []
 	for console_index in 3:
@@ -1762,7 +1773,8 @@ func _build_dressing(parent: Node3D) -> void:
 		"ObservationConsoleRenderBatch",
 		OBSERVATION_CONSOLE_SIZE,
 		_materials["shell"],
-		observation_console_transforms
+		observation_console_transforms,
+		_observation_console_mesh
 	)
 	observation_console_batch.multimesh.visible_instance_count = OBSERVATION_CONSOLE_COPY_COUNT
 	observation_console_batch.multimesh.buffer = _encode_multimesh_transforms(
@@ -2343,15 +2355,16 @@ func _multimesh_boxes(
 		size: Vector3,
 		material: Material,
 		transforms: Array[Transform3D],
-		shared_mesh: BoxMesh = null
+		shared_mesh: Mesh = null
 	) -> MultiMeshInstance3D:
-	var box := shared_mesh
-	if box == null:
-		box = BoxMesh.new()
+	var mesh := shared_mesh
+	if mesh == null:
+		var box := BoxMesh.new()
 		box.size = size
+		mesh = box
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
-	multi.mesh = box
+	multi.mesh = mesh
 	multi.instance_count = transforms.size()
 	for transform_index in transforms.size():
 		multi.set_instance_transform(transform_index, transforms[transform_index])
