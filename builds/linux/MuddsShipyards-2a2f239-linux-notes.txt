@@ -1,0 +1,8 @@
+Mudds Shipyards 2a2f239 Linux checkpoint
+Source: 2a2f239e9efb67009baa5282035960f88c9b3a64
+
+The server browser no longer promises Retry when its owner only supports Cancel. Nearby-activity guidance explains how to retry a completed scan reward whose save was rejected, using Start.
+
+Validation: one Linux export using the guarded custom Godot 4.7.1 release template. Native Linux direct and archive-extracted --startup-check each exited 0 with exactly one STARTUP_MENU_READY_OK and zero script/resource/leak diagnostics, headless with Dummy audio. Safe five-member archive (one directory, four files), modes and template .text/.rodata identity verified. Private install/reinstall/uninstall in a path with spaces preserved seeded saved data. All 1,513 payload path/size/SHA values exactly match the sealed Windows checkpoint; only the two presenter GDCs changed from 7d078ad. Shared-content presenter consumers against the actual Windows PCK passed server64 and nearby33 assertions under the Linux editor; source-focused validation separately passed seven suites/212 assertions, with the two initial expected RED results preserved.
+
+Limits: no current full matrix, full-scene graphical startup, native Windows, native GPU or human-playtest acceptance is claimed. The earlier ordinary-controls final-alignment failure and original 300-second timeout remain preserved; controller fixture WIP is excluded. CI remains disabled.
