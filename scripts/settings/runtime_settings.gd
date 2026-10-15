@@ -1369,7 +1369,14 @@ func _fit_display_window(window_id: int, requested_size: Vector2i) -> void:
 	var frame_extra := DisplayServer.window_get_size_with_decorations(window_id) - DisplayServer.window_get_size(window_id)
 	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen(window_id))
 	var fitted := fit_window_to_usable_rect(Rect2i(position, requested_size), usable, frame_offset, frame_extra)
-	if fitted.size != DisplayServer.window_get_size(window_id):
+	var window := instance_from_id(DisplayServer.window_get_attached_instance_id(window_id)) as Window
+	if window != null:
+		# Window owns the viewport's screen attachment. A direct backend resize
+		# can update native cached dimensions before its resize callback, leaving
+		# this owner and its rendered image at the previous startup dimensions.
+		if window.size != fitted.size or fitted.size != DisplayServer.window_get_size(window_id):
+			window.size = fitted.size
+	elif fitted.size != DisplayServer.window_get_size(window_id):
 		DisplayServer.window_set_size(fitted.size, window_id)
 	if fitted.position != position:
 		DisplayServer.window_set_position(fitted.position, window_id)

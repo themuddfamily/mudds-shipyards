@@ -68,6 +68,18 @@ func _run() -> void:
 		await process_frame
 		await RenderingServer.frame_post_draw
 		_check(bool(report.applied), "desktop startup applies display settings")
+		var attached_window := instance_from_id(DisplayServer.window_get_attached_instance_id()) as Window
+		var native_size := DisplayServer.window_get_size()
+		var owner_matches_native := attached_window != null and attached_window.size == native_size
+		if not owner_matches_native:
+			if attached_window != null:
+				print("WINDOW_VIEWPORT_SIZE_DIAGNOSTIC owner=%s native=%s texture=%s content_scale_mode=%s content_scale_size=%s content_scale_aspect=%s" % [
+					attached_window.size, native_size, attached_window.get_texture().get_size(),
+					attached_window.content_scale_mode, attached_window.content_scale_size, attached_window.content_scale_aspect,
+				])
+			else:
+				print("WINDOW_VIEWPORT_SIZE_DIAGNOSTIC owner=missing native=%s" % native_size)
+		_check(owner_matches_native, "display application synchronizes the Window viewport owner with the native size")
 		var desktop := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
 		var window_frame := Rect2i(DisplayServer.window_get_position_with_decorations(), DisplayServer.window_get_size_with_decorations())
 		_check(desktop.encloses(window_frame), "actual window recovers fully inside the usable desktop")
@@ -114,7 +126,8 @@ func _run() -> void:
 		)
 		var borderless_fits := (DisplayServer.window_get_flag(DisplayServer.WINDOW_FLAG_BORDERLESS)
 			and borderless_client.size == borderless_expected.size
-			and desktop.encloses(window_frame) and restored.display_resolution == "2560x1440")
+			and desktop.encloses(window_frame) and restored.display_resolution == "2560x1440"
+			and attached_window != null and attached_window.size == borderless_client.size)
 		if not borderless_fits:
 			print("BORDERLESS_FIT_DIAGNOSTIC expected=%s client=%s decorated=%s frame_extra=%s borderless=%s usable=%s" % [
 				borderless_expected,
@@ -138,7 +151,8 @@ func _run() -> void:
 		window_frame = Rect2i(DisplayServer.window_get_position_with_decorations(), DisplayServer.window_get_size_with_decorations())
 		var windowed_fits := (DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_WINDOWED
 			and not DisplayServer.window_get_flag(DisplayServer.WINDOW_FLAG_BORDERLESS)
-			and desktop.encloses(window_frame))
+			and desktop.encloses(window_frame)
+			and attached_window != null and attached_window.size == DisplayServer.window_get_size())
 		if not windowed_fits:
 			var windowed_client := Rect2i(DisplayServer.window_get_position(), DisplayServer.window_get_size())
 			print("WINDOWED_RETURN_DIAGNOSTIC mode=%s borderless=%s client=%s decorated=%s usable=%s frame_offset=%s frame_extra=%s" % [
