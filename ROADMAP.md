@@ -14,7 +14,9 @@ Completed foundations include the core walk/board/fly/fight/land/recover loop, s
 
 Native Windows execution remains on hold while the Avast alert is unresolved. Do not bypass antivirus protection. Appropriate local Linux checks and read-only Windows package inspection may continue; they do not establish native Windows, GPU, controller, audible or human acceptance.
 
-Latest published checkpoint: `48504dbe0`. See its [Windows notes](builds/windows/MuddsShipyards-48504db-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-48504db-linux-notes.txt) for actual validation and limitations.
+Latest published checkpoint: `82c678225`. See its [Windows notes](builds/windows/MuddsShipyards-82c6782-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-82c6782-linux-notes.txt) for actual validation and limitations.
+
+This checkpoint delivers durable active-beacon Start Fresh reset while preserving completed rewards, focus restoration after confirming Settings reset, shared chamfered Observation console housings, and a rounded Freight dispatch bench with outward-facing bench/header geometry. Settings reset confirmation already existed; the rejected Aft candidate is excluded. Actual Windows-PCK checks pass 474 checks across seven scopes. Matching Linux packages have identical 1,513-entry payloads; strict direct/archive headless startup passes in 20.467/20.869 seconds, and private install/reinstall/uninstall passes. The current 1,043-suite matrix is not yet qualified; older full-regression results do not qualify this source.
 
 ## Remaining tasks to complete the project
 
