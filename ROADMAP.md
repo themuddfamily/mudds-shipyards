@@ -14,9 +14,9 @@ Completed foundations include the core walk/board/fly/fight/land/recover loop, s
 
 Native Windows execution remains on hold while the Avast alert is unresolved. Do not bypass antivirus protection. Appropriate local Linux checks and read-only Windows package inspection may continue; they do not establish native Windows, GPU, controller, audible or human acceptance.
 
-Latest published checkpoint: `e08c7f1c1`. See its [Windows notes](builds/windows/MuddsShipyards-e08c7f1-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-e08c7f1-linux-notes.txt) for actual validation and limitations.
+Latest published paired checkpoint: `fade8f1850`. See its [Windows notes](builds/windows/MuddsShipyards-fade8f1-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-fade8f1-linux-notes.txt) for actual validation and limitations.
 
-This checkpoint improves exit instructions, beacon reward retry guidance, caption re-entry, partial display updates and staged fleet placement. Sixteen focused source suites pass (844 checks); seven Windows-PCK consumers pass 447 checks, with strict startup in 15.654 seconds. Matching Linux packages have identical 1,513-entry payloads; direct/archive headless startup passes in 20.536/20.855 seconds, and private install/reinstall/uninstall passes. Isolated GL/llvmpipe source startup still times out at its original 300-second limit before menu readiness. Current rendered-package acceptance and the full current-source matrix remain NOT_RUN; earlier passes do not qualify this source.
+This checkpoint keeps windowed and borderless controls within the usable screen, preserves the requested resolution and prevents stale display previews from overriding newer settings. Focused source checks pass 63 assertions; actual Windows-PCK display checks pass 15 headless and 27 graphical assertions, plus strict startup. Matching Linux packages contain identical 1,513-entry payloads; native direct/archive startup and private install/reinstall/uninstall pass. The full current-source matrix and full-scene rendered/ordinary-controls acceptance remain open. The earlier `e08c7f1c1` ordinary-input route cleared all four range targets but failed the interceptor fight and return; its software-rendered startup timeout is also retained.
 
 ## Remaining tasks to complete the project
 

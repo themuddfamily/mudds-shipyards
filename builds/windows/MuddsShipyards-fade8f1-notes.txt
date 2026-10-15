@@ -1,0 +1,8 @@
+Mudds Shipyards fade8f1 Windows checkpoint
+Source: fade8f1850ce3ba857b231c33adf75909cd5db9d
+
+Windowed and borderless display settings fit the decorated window inside the usable screen area, preserving your requested resolution preference. Returning from fullscreen restores a visible window. Deferred fits from an older settings application cannot override the latest one.
+
+Validation: source-focused checks passed with 15 headless assertions, 27 assertions under an isolated window manager, and 21 rendered display-transaction assertions. Actual embedded Windows PCK checked using the custom Linux editor: strict startup exit 0 with exactly one STARTUP_MENU_READY_OK, then the runtime-settings display consumer passed 15 headless and 27 graphical assertions without script/resource/leak diagnostics. The graphical component check used authenticated isolated X11/Forward+/Vulkan/software LVP with a private window manager. All 1,513 payload paths match e08; only runtime_settings.gdc changed, all other 1,512 payloads are byte-identical. Official Windows release-template .text identity verified read-only. Safe two-member checkpoint ZIP checked by CRC and member hashes.
+
+Limits: full-scene graphical startup and native Windows execution were not performed. The earlier ordinary-controls route/rendered startup failures remain open. No current full-matrix, native GPU or human-playtest acceptance is claimed. CI remains disabled. Controller fixture WIP is excluded from this source and package.

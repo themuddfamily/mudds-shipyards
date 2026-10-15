@@ -1,0 +1,8 @@
+Mudds Shipyards fade8f1 Linux checkpoint
+Source: fade8f1850ce3ba857b231c33adf75909cd5db9d
+
+Windowed and borderless display settings fit the decorated window inside the usable screen area while preserving your requested resolution preference. Returning from fullscreen restores a visible window. Deferred fits from an older application cannot override the latest settings.
+
+Validation: one Linux export with the guarded custom Godot 4.7.1 release template. Actual native Linux direct and archive-extracted --startup-check each exited 0 with exactly one STARTUP_MENU_READY_OK and no script/resource/leak diagnostics, headless with Dummy audio. Safe five-member archive (one directory, four files), executable modes and template .text/.rodata identity verified. Private install/reinstall/uninstall in a path with spaces preserved seeded saved data. All 1,513 actual payload path/size/SHA values exactly match the sealed Windows checkpoint; only runtime_settings.gdc changed from e08. Shared-content display checks under the Linux editor against the actual Windows PCK passed 15 headless and 27 graphical assertions, the latter on authenticated isolated X11/Forward+/Vulkan/software LVP with a private window manager. Source-focused checks separately passed 15 headless, 27 window-manager-rendered and 21 rendered transaction assertions.
+
+Limits: the graphical component check does not qualify full-scene startup or the ordinary-controls route; their earlier failures remain open. Current full matrix, native GPU, native Windows and human playtesting were not performed. CI remains disabled. Controller fixture WIP is excluded.
