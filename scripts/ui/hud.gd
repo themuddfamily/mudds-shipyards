@@ -9607,14 +9607,28 @@ func _refresh_help_page() -> void:
 func _previous_help_page() -> void:
 	_help_page_index = maxi(_help_page_index - 1, 0)
 	_refresh_help_page()
-	_help_previous_button.grab_focus()
+	# A boundary refresh disables the activated button. Keep controller focus
+	# on an actionable page control instead of requesting disabled focus.
+	if _help_previous_button.disabled:
+		if not _help_next_button.disabled:
+			_help_next_button.grab_focus()
+		else:
+			_help_close_button.grab_focus()
+	else:
+		_help_previous_button.grab_focus()
 
 
 func _next_help_page() -> void:
 	var page_count := maxi(1, ceili(float(_help_rows.size()) / float(HELP_ROWS_PER_PAGE)))
 	_help_page_index = mini(_help_page_index + 1, page_count - 1)
 	_refresh_help_page()
-	_help_next_button.grab_focus()
+	if _help_next_button.disabled:
+		if not _help_previous_button.disabled:
+			_help_previous_button.grab_focus()
+		else:
+			_help_close_button.grab_focus()
+	else:
+		_help_next_button.grab_focus()
 
 
 func _close_help_panel() -> void:

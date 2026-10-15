@@ -35,6 +35,18 @@ func _run() -> void:
 	_check(page.text == "PAGE 2 / 3" and not previous.disabled and not next.disabled, "next page has stable state and focus controls")
 	hud.call("_previous_help_page")
 	_check(page.text == "PAGE 1 / 3", "previous page returns deterministically")
+	_check(next.has_focus(), "first-page boundary keeps focus on enabled Next instead of disabled Previous")
+	next.pressed.emit()
+	next.pressed.emit()
+	_check(page.text == "PAGE 3 / 3" and next.disabled and previous.has_focus(),
+		"controller reaching the last help page retains enabled Previous focus")
+	previous.pressed.emit()
+	_check(page.text == "PAGE 2 / 3" and previous.has_focus(),
+		"focused Previous remains usable to leave the final help page")
+	previous.pressed.emit()
+	_check(page.text == "PAGE 1 / 3" and previous.disabled and next.has_focus(),
+		"controller returning to the first help page retains enabled Next focus")
+
 	_check(not str((rows[0] as Dictionary).key.text).is_empty() and not str((rows[0] as Dictionary).detail.text).is_empty(), "help rows retain published device glyph/text pairs")
 	var activity_rows := hud.call("_help_rows_with_role_context", &"piloting") as Array
 	var activity_text := " ".join(activity_rows.map(func(row: Variant) -> String: return "%s %s" % [str((row as Array)[0]), str((row as Array)[1])]))
