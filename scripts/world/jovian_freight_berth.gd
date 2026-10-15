@@ -92,6 +92,12 @@ const FREIGHT_CONTROL_HEADER_SIZE := Vector3(0.42, 1.3, 4.05)
 const FREIGHT_CONTROL_HEADER_END_RADIUS := 0.65
 const FREIGHT_CONTROL_HEADER_CURVE_SEGMENTS := 8
 
+## Dispatch furniture repeats the doorway's pressure-rounded silhouette at
+## hand height. Only the visible plinth changes; its box-backed walking envelope
+## and the three independently authored screen transforms remain unchanged.
+const DISPATCH_WORKBENCH_SIZE := Vector3(1.65, 1.45, 4.7)
+const DISPATCH_WORKBENCH_CURVE_SEGMENTS := 8
+
 ## Painted handling bays. Both sit on the apron flanks outside the parked hull's
 ## protected width, which is what makes the wide empty middle of the apron read
 ## as reserved for the craft rather than as unfinished floor.
@@ -2231,7 +2237,17 @@ func _build_service_room() -> void:
 
 	# Physical workbench, dispatch console, and utility trunks make this a room
 	# rather than a decorative box.
-	var workbench := _rounded_box(room, "DispatchWorkbench", Vector3(20.65, 0.82, 29.0), Vector3(1.65, 1.45, 4.7), _materials["graphite"])
+	var workbench_mesh := _yz_extruded_capsule_mesh(
+		DISPATCH_WORKBENCH_SIZE,
+		DISPATCH_WORKBENCH_SIZE.y * 0.5,
+		DISPATCH_WORKBENCH_CURVE_SEGMENTS
+	)
+	workbench_mesh.resource_name = "jovian_dispatch_pressure_rounded_plinth"
+	var workbench := _rounded_box(
+		room, "DispatchWorkbench", Vector3(20.65, 0.82, 29.0),
+		DISPATCH_WORKBENCH_SIZE, _materials["graphite"], true,
+		Vector3.ZERO, workbench_mesh
+	)
 	workbench.set_meta("station_workbench", true)
 	_service_details.append(workbench)
 	var dispatch_headings := [
@@ -3688,7 +3704,8 @@ func _rounded_box(
 		size: Vector3,
 		material: Material,
 		collidable: bool = true,
-		rotation_value: Vector3 = Vector3.ZERO
+		rotation_value: Vector3 = Vector3.ZERO,
+		mesh_override: Mesh = null
 	) -> Node3D:
 	var container: Node3D
 	if collidable:
@@ -3703,7 +3720,7 @@ func _rounded_box(
 	container.rotation_degrees = rotation_value
 	parent.add_child(container, true)
 
-	var mesh := _rounded_box_mesh(size)
+	var mesh: Mesh = mesh_override if mesh_override != null else _rounded_box_mesh(size)
 	if collidable:
 		var mesh_instance := MeshInstance3D.new()
 		mesh_instance.name = "Mesh"
@@ -3937,22 +3954,22 @@ func _yz_extruded_capsule_mesh(
 		var next_uv := Vector2(next.x / size.z + 0.5, next.y / size.y + 0.5)
 		# Service-approach cap, outward toward local -X.
 		_emit_capsule_vertex(surface, Vector3(-half_depth, 0.0, 0.0), Vector3.LEFT, Vector2(0.5, 0.5))
-		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), Vector3.LEFT, current_uv)
 		_emit_capsule_vertex(surface, Vector3(-half_depth, next.y, next.x), Vector3.LEFT, next_uv)
+		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), Vector3.LEFT, current_uv)
 		# Room-side cap, outward toward local +X.
 		_emit_capsule_vertex(surface, Vector3(half_depth, 0.0, 0.0), Vector3.RIGHT, Vector2(0.5, 0.5))
-		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), Vector3.RIGHT, next_uv)
 		_emit_capsule_vertex(surface, Vector3(half_depth, current.y, current.x), Vector3.RIGHT, current_uv)
+		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), Vector3.RIGHT, next_uv)
 		# Constant-depth rim following the rounded outline.
 		var rim_normal := Vector3(0.0, current.x - next.x, next.y - current.y).normalized()
 		var rim_u := float(index) / float(boundary.size())
 		var rim_next_u := float(index + 1) / float(boundary.size())
 		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
 		_emit_capsule_vertex(surface, Vector3(half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 1.0))
-		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
 		_emit_capsule_vertex(surface, Vector3(-half_depth, current.y, current.x), rim_normal, Vector2(rim_u, 0.0))
-		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
 		_emit_capsule_vertex(surface, Vector3(-half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 0.0))
+		_emit_capsule_vertex(surface, Vector3(half_depth, next.y, next.x), rim_normal, Vector2(rim_next_u, 1.0))
 	surface.generate_tangents()
 	var mesh := surface.commit()
 	mesh.resource_name = "jovian_freight_control_capsule_header_v1"

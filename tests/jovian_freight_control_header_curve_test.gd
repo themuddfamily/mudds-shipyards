@@ -166,7 +166,7 @@ func _all_triangles_face_their_normals(
 		var declared := (
 			normals[index] + normals[index + 1] + normals[index + 2]
 		).normalized()
-		if geometric.dot(declared) < 0.99:
+		if geometric.dot(declared) > -0.99:
 			return false
 	return true
 

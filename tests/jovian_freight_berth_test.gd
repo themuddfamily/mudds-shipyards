@@ -48,6 +48,8 @@ func _run() -> void:
 	await _test_animated_equipment(module)
 	await _test_direct_world_berth_lifecycle(module)
 	_test_materials_signage_and_detail(module)
+	_test_dispatch_workbench_silhouette(module)
+	_test_capsule_front_faces(module)
 	_test_gantry_header_distance_identity(module)
 	await _test_jovian_handoff_route_identity(module)
 	_test_floor_label_orientation(module)
@@ -526,6 +528,105 @@ func _test_materials_signage_and_detail(module: JovianFreightBerth) -> void:
 	_check(visual != null and visual.mesh is ArrayMesh, "load-bearing deck renders custom chamfered geometry")
 	_check(module.find_children("*", "CylinderMesh", true, false).is_empty(), "scene does not mistake resources for nodes")
 	_check(module.find_children("*", "MeshInstance3D", true, false).size() >= 150, "module has a high-detail rendered assembly rather than a generic blockout")
+
+
+func _test_capsule_front_faces(module: JovianFreightBerth) -> void:
+	for path in [
+		^"FreightControlRoom/DispatchWorkbench/Mesh",
+		^"FreightControlDoorHeader/Mesh",
+	]:
+		var visual := module.get_node_or_null(path) as MeshInstance3D
+		var mesh := visual.mesh as ArrayMesh if visual != null else null
+		_check(mesh != null and mesh.get_surface_count() == 1, "%s retains one capsule surface" % path)
+		if mesh == null or mesh.get_surface_count() != 1:
+			continue
+		var arrays := mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var arrays_valid := vertices.size() == 216 and normals.size() == vertices.size() \
+			and uvs.size() == vertices.size() and tangents.size() == vertices.size() * 4
+		if arrays_valid:
+			for index in vertices.size():
+				var tangent := Vector3(tangents[index * 4], tangents[index * 4 + 1], tangents[index * 4 + 2])
+				arrays_valid = arrays_valid and vertices[index].is_finite() \
+					and normals[index].is_finite() and uvs[index].is_finite() \
+					and tangent.is_finite() and is_equal_approx(tangent.length(), 1.0) \
+					and is_equal_approx(absf(tangents[index * 4 + 3]), 1.0)
+		_check(arrays_valid, "%s retains 72 triangles with finite vertex, normal, UV and tangent frames" % path)
+		if not arrays_valid:
+			continue
+		var all_clockwise := true
+		var minimum_dot := INF
+		var maximum_dot := -INF
+		for index in range(0, vertices.size(), 3):
+			var cross_product := (vertices[index + 1] - vertices[index]).cross(vertices[index + 2] - vertices[index])
+			var outward := (normals[index] + normals[index + 1] + normals[index + 2]).normalized()
+			var signed_dot := cross_product.dot(outward)
+			minimum_dot = minf(minimum_dot, signed_dot)
+			maximum_dot = maxf(maximum_dot, signed_dot)
+			all_clockwise = all_clockwise and signed_dot < -0.000001
+		_check(
+			all_clockwise,
+			"%s all 72 triangles face outward under Godot clockwise winding (cross-dot range %.6f..%.6f)"
+			% [path, minimum_dot, maximum_dot]
+		)
+
+
+func _test_dispatch_workbench_silhouette(module: JovianFreightBerth) -> void:
+	var room := module.get_node_or_null(^"FreightControlRoom") as Node3D
+	var body := module.get_node_or_null(^"FreightControlRoom/DispatchWorkbench") as StaticBody3D
+	var visual := body.get_node_or_null(^"Mesh") as MeshInstance3D if body != null else null
+	var collision := body.get_node_or_null(^"Collision") as CollisionShape3D if body != null else null
+	var shape := collision.shape as BoxShape3D if collision != null else null
+	var size := Vector3(1.65, 1.45, 4.7)
+	_check(
+		body != null and body.position.is_equal_approx(Vector3(20.65, 0.82, 29.0))
+		and body.rotation.is_zero_approx() and body.scale.is_equal_approx(Vector3.ONE)
+		and shape != null and shape.size.is_equal_approx(size)
+		and collision.transform.is_equal_approx(Transform3D.IDENTITY)
+		and body.collision_layer == WORLD_LAYER and body.collision_mask == 0,
+		"curved dispatch furniture retains the exact solid walking envelope and transform"
+	)
+	_check(visual != null and visual.mesh is ArrayMesh, "dispatch plinth has authored array geometry")
+	if visual == null or not visual.mesh is ArrayMesh:
+		return
+	var mesh := visual.mesh as ArrayMesh
+	_check(
+		mesh.get_surface_count() == 1
+		and mesh.get_aabb().is_equal_approx(AABB(-size * 0.5, size)),
+		"rounded dispatch silhouette stays in its original exact bounds with one surface"
+	)
+	var vertices: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var has_curved_end := false
+	var has_stock_corner := false
+	for vertex in vertices:
+		has_curved_end = has_curved_end or (
+			absf(vertex.z) > 1.7 and absf(vertex.z) < 2.3
+			and absf(vertex.y) > 0.1 and absf(vertex.y) < 0.7
+		)
+		has_stock_corner = has_stock_corner or (
+			is_equal_approx(absf(vertex.z), size.z * 0.5)
+			and is_equal_approx(absf(vertex.y), size.y * 0.5)
+		)
+	_check(has_curved_end and not has_stock_corner, "dispatch plinth replaces stock corners with readable rounded ends")
+	var mullion := room.get_node_or_null(^"WindowMullion") as MeshInstance3D
+	_check(
+		mullion != null and visual.material_override == mullion.material_override
+		and body.get_child_count() == 2 and visual.get_child_count() == 0
+		and visual.transform.is_equal_approx(Transform3D.IDENTITY),
+		"dispatch plinth keeps its shared graphite finish and two-child body without extra renderers or lights"
+	)
+	var screens := room.find_children("DispatchScreen*", "MeshInstance3D", false, false)
+	var screens_unchanged := screens.size() == 3
+	for index in screens.size():
+		var screen := screens[index] as MeshInstance3D
+		var expected_z: float = [27.6, 29.0, 30.4][index] if index < 3 else 0.0
+		screens_unchanged = screens_unchanged \
+			and screen.position.is_equal_approx(Vector3(19.79, 1.55, expected_z)) \
+			and screen.rotation_degrees.is_equal_approx(Vector3(0.0, 0.0, -12.0))
+	_check(screens_unchanged, "all three existing dispatch screens retain their authored transforms")
 
 
 ## The freight crane's skyline member used to be only the collision-backed pale
