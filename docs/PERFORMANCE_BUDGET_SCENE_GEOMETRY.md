@@ -60,6 +60,49 @@ triangle ceiling is a coarse headroom marker, not the binding constraint.
 
 ## The budget
 
+### Current resident scene — 2026-10-15
+
+The runtime and focused checks committed as `7f7b3562502963ff5239018261f6f7c57a9a994c`
+measure as follows. The census ran on parent `b810e1603` with the five frozen
+changes later committed unchanged, using a fresh private profile, the default
+eight-frame `station_resident` sample and High visual quality. The clean
+`ef1691675` comparison used the same engine, sample and quality.
+
+| Metric | Current measured | Existing ceiling | Status |
+| --- | ---: | ---: | --- |
+| Scene triangles | 1,757,185 | 1,800,000 | 42,815 under |
+| Mesh instances | 4,583 | 4,200 | **383 over** |
+| Surfaces (draw-call upper bound) | 5,167 | 4,300 | **867 over** |
+| Unique meshes | 2,665 | 2,200 | **465 over** |
+| Materials | 653 bound / 1,069 retained | 550 | **103 / 519 over** |
+| Unique shaders | 9 | 8 | **1 over** |
+| Textures / uncompressed bytes | 44 / 88.51 MiB | 40 / 192 MiB | **4 textures over**; bytes under |
+| Lights / shadow-casting | 327 / 20 | 240 / 16 | **87 / 4 over** |
+| Particle systems | 57 | 24 | **33 over** |
+| Scene-tree nodes | 9,886 | 7,000 | **2,886 over** |
+| TextMesh lettering | 78,546 / 4.47% | 80,000 and ≤ 5% | Under both |
+| Worst sign | 4,141 | 6,000 | 1,859 under |
+
+Chair fitting consolidation reduces the resident scene by **32 nodes and mesh
+instances, 8 surfaces and 18 unique meshes**, from 9,918 / 4,615 / 5,175 / 2,683
+respectively. Only the Habitat bucket changes: 1,033 to 1,001 nodes, 428 to 396
+renderers and 571 to 563 surfaces. Triangles, material counts, shaders, textures,
+lights, particles and lettering are unchanged. These are assembled-world savings;
+the module's pre-batching renderer reduction is not the resident-world result.
+
+All four existing focused suites pass 752 assertions. The two-view Forward+
+software-rendered comparison passes an explicitly reviewed maximum one-code
+8-bit RGB difference at every full-frame pixel, with exact alpha/format/size and
+byte-exact bounded chair details. Eight wide-view and 22 transverse-view pixels
+differ by one code; the former strict whole-frame comparisons remain failed
+historical results. The original backrest GPU transform is retained, and geometry,
+materials, 32 colliders, eight seats and independent chair ownership stay covered.
+The 607-file cache and protected inputs remain stable, and owned processes close.
+This is a scene-resource improvement, not a frame-time, native-GPU or human-review
+qualification. The ceilings above remain unchanged and the performance track open.
+
+### Retained historical baseline — `33bd5a9`
+
 Measured with the documented headless command and independently with Forward+
 Vulkan under Xvfb/llvmpipe.
 

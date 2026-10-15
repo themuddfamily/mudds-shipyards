@@ -1,0 +1,16 @@
+Mudd's Shipyards — Habitat chair checkpoint
+Source: 7f7b3562502963ff5239018261f6f7c57a9a994c
+
+Common-room chair fittings now share geometry while each chair retains its original backrest transform, seat and collision. The resident scene uses 32 fewer nodes/renderers, 8 fewer surfaces and 18 fewer meshes. Triangle count remains 1,757,185. Earlier gameplay and fleet-dock changes are included; no FPS or startup gain is claimed.
+
+Validation
+- Four focused local suites: 752 assertions passed, zero diagnostics.
+- Two-view Forward+ software-rendered capture: 246 checks passed. Close-up chair regions are byte-exact. Full frames use an explicit maximum one-code 8-bit RGB difference at every pixel, with exact alpha, dimensions and format; 8 wide-view and 22 transverse-view pixels differ. Earlier strict comparisons remain failed historical results.
+- One safe export from clean source: exit 0 in 4.800 seconds.
+- Actual embedded Windows PCK loaded under Linux Godot: headless/Dummy startup passed in 10.781 seconds, exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics.
+- All 1,513 payload paths match the prior ef16916 checkpoint; only habitat_spine.gdc changed. ZIP CRC/member readback passed. Source/index, post-export cache, pinned engines/templates and prior artifacts remained stable; owned processes closed. Export changed only the normal filesystem cache.
+
+Open gates
+Native Windows execution remains HELD after the separate antivirus alert. Native GPU, devices, audible audio, human review, canonical shared journeys and final release remain open. Linux-loaded PCK checks do not qualify Windows execution; the custom Linux engine patch is absent from the official Windows runtime. The separate a753 Linux rendered-startup failure remains unresolved. GitHub CI stays disabled.
+
+EXE SHA256: 08965f5fa2d27a3b02b5fec0b75e1a98aafa8b49740e1528cf645a133f53e32e
