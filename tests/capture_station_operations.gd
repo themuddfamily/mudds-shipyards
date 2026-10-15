@@ -771,6 +771,9 @@ func _capture_original_identity_backdrop() -> void:
 
 
 func _capture_wayfinding_pylon() -> void:
+	# Main applies the saved display size during startup, after the harness's
+	# initial viewport setup. Restore the authored capture size before framing.
+	_configure_capture_viewport()
 	var signage: StationOperationsActivity
 	for activity in _activities:
 		if activity.get_activity_profile_id() == &"signage_pylon":
@@ -825,6 +828,9 @@ func _capture_wayfinding_pylon() -> void:
 	var image := root.get_texture().get_image()
 	_check(image != null and not image.is_empty(), "player-eye wayfinding frame renders")
 	if image != null and not image.is_empty():
+		_check(image.get_size() == CAPTURE_RESOLUTION, "player-eye wayfinding frame uses the authored capture resolution")
+		if image.get_size() != CAPTURE_RESOLUTION:
+			return
 		var output_absolute := ProjectSettings.globalize_path(OUTPUT_DIR)
 		var directory_error := DirAccess.make_dir_recursive_absolute(output_absolute)
 		_check(
