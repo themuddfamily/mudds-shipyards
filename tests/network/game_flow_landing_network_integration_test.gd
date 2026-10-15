@@ -1580,9 +1580,19 @@ func _walk_coastal(game: GameFlow, server: Adapter, client: Adapter, body: Playe
 			neutral_movement = true
 			if not _rime_last_neutral_packet.is_empty():
 				var avatar := server.get_movement_avatar_snapshot(_rime_intent_source.get_entity_id())
-				var record := game.get_network_remote_body_simulation().get_body_record(_rime_intent_source.get_entity_id())
-				if int(avatar.get("last_sequence", -1)) >= int(_rime_last_neutral_packet.sequence) \
-						and int(record.get("last_intent_tick", -1)) >= int(_rime_last_neutral_packet.client_tick):
+				var simulation := game.get_network_remote_body_simulation()
+				var record := simulation.get_body_record(_rime_intent_source.get_entity_id())
+				# Read the existing authority FIFO without consuming or altering it.
+				# Acceptance/tick cursors alone do not prove this command was applied.
+				var authority_avatar: Dictionary = server.get("_movement").get("_avatars").get(_rime_intent_source.get_entity_id(), {})
+				var pending: Array = authority_avatar.get("pending", [])
+				var first_dequeued: bool = pending.is_empty() or int(pending[0].sequence) > int(_rime_last_neutral_packet.sequence)
+				if int(avatar.get("entity_generation", -1)) == int(_rime_last_neutral_packet.entity_generation) \
+						and int(avatar.get("stream_id", -1)) == int(_rime_last_neutral_packet.stream_id) \
+						and int(avatar.get("last_sequence", -1)) >= int(_rime_last_neutral_packet.sequence) \
+						and first_dequeued and simulation.get_body(_rime_intent_source.get_entity_id()) == body \
+						and not bool(record.get("frozen", true)) \
+						and body.get_remote_drive_audit().get("move_axis") == Vector2.ZERO:
 					return true
 		elif _rime_shared_survey_mode:
 			neutral_movement = false
