@@ -1,0 +1,22 @@
+Mudd's Shipyards — construction checkpoint 4f5dda0
+Source commit: 4f5dda0fafb0952908739a8723d4654a633b64f6
+Engine: verified official Godot 4.7.1 a13da4feb editor/release templates.
+
+Changes:
+- Aft and Habitat lettering receives the existing sign budget before the renderer first consumes it, avoiding discarded extruded/high-resolution rebuilds. Final glyph surfaces, text, bounds, placement and materials are unchanged.
+- Station activities resolve already-canonical box, cylinder and crate recipes before emitting duplicate geometry. Exact recipe keys and fresh stored-property fingerprints preserve sharing and external-mutation quarantine; renderer nodes, movers and material overrides stay instance-local.
+
+Validation and measured scope:
+- Independent review approves both changes. All sixteen production-module sign builds retain exact text/font/pixel/depth/AABB/full surface arrays/transforms/materials across six alternating comparisons: about 1.06s before -> 0.544s after.
+- Ten-placement activity warm builds fall from about 0.56-0.59s to 0.33-0.35s. Cold rosters improve about 40-80ms. All 8,716,244 bytes of the production ArrayMesh snapshot match exactly; drifted box/cylinder/crate/beacon meshes are rebuilt without healing or contaminating earlier users. Existing activity/sharing/collision-count contracts remain intact.
+- Actual three-Main comparison, baseline 90371abf3 ->this candidate: first add_child 12.483->12.029s, readiness 15.262->14.832s. Warm readiness median 14.810->14.156s (4.42%, only two warm observations per side). All per-case node/renderer/sign counts match, and all 42 complete sign geometry/placement fingerprints match. This is isolated headless construction evidence, not a general frame-rate or native hardware claim.
+- Recovery profiling first excluded persistence as the bottleneck: all store work costs 0.19-0.30s inside 15.29s fresh-Main readiness; real active patrol restoration succeeds. Transaction durability and fresh validation were preserved.
+- Actual Windows embedded payload through the Linux editor passes 424 assertions: sign budget 54, station activity 357, enhanced mesh sharing 10 and beacon sharing 3; zero diagnostics. The source sign suite also passes 54, and the station candidate's focused suites pass. One temporary timing-driver parse failure is retained separately; only corrected clean runs support the comparison.
+- Original beacon durable-recovery suite: FAIL, exit 124 in 300.175s, 68 recorded passing assertions. The original 300s cap, all fresh-Main cases, reward/reset/atomicity rules and assertions are unchanged; one candidate run, no retry. This result does not qualify other recovery suites or the complete current-source matrix.
+- Safe Windows/Linux exports from an isolated clean worktree at this exact commit; matching 1,515-entry inventories and trusted Windows x86_64 code section. Windows payload and extracted Linux archive each pass --startup-check: exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics. Linux archive bytes/executable mode and Windows ZIP CRC/member bytes verified.
+
+Retained/open acceptance:
+- Frozen 636814418 full matrix remains FAIL: 1,027 PASS / 18 FAIL of 1,045 suites; later focused results do not erase those failures. Full current-source regression, remaining recovery suites, Rime and broader canonical shared journeys remain open. The preceding checkpoint's shared Ember cancellation pass remains scoped to that staged-entry cancellation journey.
+- Native Windows execution stays NOT_RUN under the antivirus hold. Native GPU/performance, physical controller, audible and human review stay NOT_RUN. Every automated Godot check uses Dummy audio and checks run headlessly or on isolated displays. GitHub Actions stays disabled under the owner budget hold. All ten phase exit gates remain open.
+
+ELF SHA-256: e4b24990c9c9d6590ef514c1df14fb0a9db07cf47dc4ea9a1c594fc9734c8c78
