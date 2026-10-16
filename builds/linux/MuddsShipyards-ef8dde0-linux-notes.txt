@@ -1,0 +1,22 @@
+Mudd's Shipyards — fleet construction checkpoint ef8dde0
+Source: ef8dde052dc7468249686b27ae13708b2bb71e97
+Engine: verified official Godot 4.7.1 a13da4feb and pinned stock release templates.
+
+Player-visible changes:
+- Shorter station/fleet construction during startup and fresh-session recovery. Cockpit upholstery keeps its existing geometry and materials.
+- Cushion builders reuse private pre-upload surface data, while every fitting receives a fresh mutable mesh and its requested material. The cache retains at most 32 recipes (12 observed recipes serialize to 408,768 bytes).
+- Live fitout reference scans skip recursive scalar leaf calls while still reading every getter and preserving current object/container references, dynamic fields and dictionary traversal order.
+
+Actual validation:
+- Independent semantic reviews approve both changes. Source focused checks pass 97 assertions: reference scan/consolidation 30; Torrent/cockpit consolidation and mutation isolation 67. Actual Windows embedded payload through the Linux editor repeats all 97 with zero diagnostics.
+- All 12 captured cushion recipes match the original complete uploaded surface arrays, formats and bounds. Repeated callers retain independent meshes/material binding after returned-array, native surface and material mutations. Exact nearby float keys, bounded eviction and rebuilding are covered. Earlier external helper benchmark retained its root-user warning; the final focused source/package checks are silent and diagnostic-free.
+- The actual 54-call cushion sequence improves median helper time 252.921 -> 59.150 ms including first-use misses. Six alternating full-Main reference scans preserve all 5,045 held identities, median about 282 -> 270 ms. These are component measurements.
+- Controlled three-Main comparison against clean 4ca5775aa: first readiness 14.823 -> 14.399 s; warm median 14.111 -> 13.662 s (3.18%, two warm observations per side). Per-case node/renderer/sign counts and all 42 sign geometry/placement fingerprints match. Isolated headless measurements do not qualify general frame rate or native GPU performance.
+- Original source beacon durable-recovery suite: PASS, exit 0 in 290.314s, 71 recorded passing assertions. The original 300-second limit, all fresh-Main cases, atomicity/reward/reset rules and assertions are unchanged; one combined-candidate run, no retry.
+- Clean-commit Windows/Linux exports pass matching 1,515-entry inventories and trusted Windows x86_64 code-section verification. Windows payload, Linux direct binary and archive-extracted binary each pass --startup-check with exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics. Linux archive member bytes/executable mode and Windows ZIP CRC/member bytes are verified.
+
+Open acceptance:
+- Full current-source matrix and full packaged recovery suite remain NOT_RUN. Frozen 636814418 remains FAIL (1,027 PASS / 18 FAIL); later focused runs do not erase it. Remaining recovery, Rime, broader shared journeys and all ten phase exit gates stay open.
+- Checkpoint binaries remain unsigned; trusted signing is still open. Native Windows execution stays NOT_RUN under the antivirus hold. Native hardware/GPU, controller, audible and human-review gates remain NOT_RUN. Every automated Godot run uses Dummy audio and headless or isolated display execution. GitHub Actions remains disabled under the owner's CI budget hold.
+
+ELF SHA-256: d2c7fb41ec0f05f8802cb95f888805d73d41382e4d367f77ac5a3d17189ff863
