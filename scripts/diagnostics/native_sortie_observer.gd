@@ -53,7 +53,7 @@ func _physics_process(delta: float) -> void:
 	var camera_yaw := _player.get_node("CameraYaw") as Node3D
 	var command := _ship.get_last_ship_command()
 	var shot := _game.get_last_player_shot_result()
-	var capture := _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
+	var capture: Dictionary = _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
 	var contract := _ship.get_landing_contract_report()
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify({
 		"frame": Engine.get_physics_frames(), "phase": GameFlow.Phase.keys()[_game.phase],
