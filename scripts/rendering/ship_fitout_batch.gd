@@ -1567,7 +1567,12 @@ static func _visit_script_variables(
 	for property in properties:
 		if int(property.get("usage", 0)) & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
 			continue
-		_visit_variant(value.get(property["name"]), referenced, visited)
+		# Read even scalar getters: they may update later references. Only object
+		# and container values can lead to held identities; skip leaf recursion.
+		var field: Variant = value.get(property["name"])
+		match typeof(field):
+			TYPE_OBJECT, TYPE_ARRAY, TYPE_DICTIONARY:
+				_visit_variant(field, referenced, visited)
 
 
 static func _visit_variant(value: Variant, referenced: Dictionary, visited: Dictionary) -> void:
@@ -1589,8 +1594,15 @@ static func _visit_variant(value: Variant, referenced: Dictionary, visited: Dict
 			_visit_script_variables(object, referenced, visited)
 		TYPE_ARRAY:
 			for entry in value as Array:
-				_visit_variant(entry, referenced, visited)
+				match typeof(entry):
+					TYPE_OBJECT, TYPE_ARRAY, TYPE_DICTIONARY:
+						_visit_variant(entry, referenced, visited)
 		TYPE_DICTIONARY:
 			for key in value as Dictionary:
-				_visit_variant(key, referenced, visited)
-				_visit_variant((value as Dictionary)[key], referenced, visited)
+				match typeof(key):
+					TYPE_OBJECT, TYPE_ARRAY, TYPE_DICTIONARY:
+						_visit_variant(key, referenced, visited)
+				var entry: Variant = (value as Dictionary)[key]
+				match typeof(entry):
+					TYPE_OBJECT, TYPE_ARRAY, TYPE_DICTIONARY:
+						_visit_variant(entry, referenced, visited)

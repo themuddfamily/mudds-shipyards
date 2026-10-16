@@ -40,6 +40,11 @@ class ReferenceBase:
 class ReferenceChild:
 	extends ReferenceBase
 	var nested: Dictionary
+	var scalar_reads := 0
+	var scalar: int:
+		get:
+			scalar_reads += 1
+			return 7
 
 
 class DynamicReferenceHolder:
@@ -443,7 +448,8 @@ func _test_inherited_dynamic_and_mutated_references() -> void:
 	var later := Node3D.new()
 	holder.helper = ReferenceChild.new()
 	holder.helper.inherited = weakref(inherited)
-	holder.helper.nested = {nested: [weakref(dynamic)]}
+	holder.helper.nested = {nested: [null, true, 7, 1.5, "leaf",
+		Vector3.ONE, PackedInt32Array([1, 2]), {"mixed": [weakref(dynamic)]}]}
 	holder.helper.held_mesh = ArrayMesh.new()
 	holder.target = later
 	var first: Dictionary = BATCH._collect_script_referenced_objects(holder)
@@ -451,6 +457,8 @@ func _test_inherited_dynamic_and_mutated_references() -> void:
 		and first.has(dynamic.get_instance_id()) and first.has(later.get_instance_id())
 		and first.has(holder.helper.held_mesh.get_instance_id()),
 		"reference scan preserves inherited helper variables, weak refs, dictionary keys, meshes and dynamic fields")
+	_check(holder.helper.scalar_reads == 1,
+		"scalar property getters still execute exactly once during reference scanning")
 	# A second scan must observe live variable values, not reuse earlier results.
 	holder.helper.inherited = weakref(later)
 	holder.helper.nested = {}
@@ -459,6 +467,8 @@ func _test_inherited_dynamic_and_mutated_references() -> void:
 	_check(not second.has(inherited.get_instance_id()) and not second.has(nested.get_instance_id())
 		and second.has(later.get_instance_id()) and second.has(dynamic.get_instance_id()),
 		"each reference scan observes current helper and dynamic values")
+	_check(holder.helper.scalar_reads == 2,
+		"a fresh scan reads scalar getters again without caching values")
 	holder.free()
 	inherited.free()
 	nested.free()
