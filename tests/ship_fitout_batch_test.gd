@@ -309,12 +309,13 @@ func _test_shared_stock_and_bands_stand() -> void:
 		banded.visibility_range_end_margin = 10.0
 
 	# Native mesh LODs also have to survive consolidation. Each mesh is unique,
-	# so resource sharing cannot accidentally protect this fixture.
+	# so resource sharing cannot accidentally protect this fixture. Two uncolored
+	# sources exercise the LOD guard independently of the color guard.
 	var lod_bay := Node3D.new()
 	lod_bay.name = "NativeLODBay"
 	craft.add_child(lod_bay)
 	var lod_meshes: Array[ArrayMesh] = []
-	for index in 2:
+	for index in 3:
 		var detailed := _stock(Vector3(0.2, 0.2, 0.2), finish)
 		var arrays := detailed.surface_get_arrays(0)
 		if index == 1:
@@ -334,7 +335,7 @@ func _test_shared_stock_and_bands_stand() -> void:
 		lod_meshes.append(lod_mesh)
 
 	BATCH.consolidate([craft], PackedStringArray(), root)
-	for index in 2:
+	for index in 3:
 		var kept := lod_bay.get_node_or_null("NativeLOD%02d" % index) as MeshInstance3D
 		_check(kept != null and kept.mesh == lod_meshes[index]
 			and not (lod_meshes[index].get("_surfaces")[0].get("lods", []) as Array).is_empty(),
