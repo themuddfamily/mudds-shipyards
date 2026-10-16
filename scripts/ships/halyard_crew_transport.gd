@@ -4742,8 +4742,7 @@ static func _crew_role_state_matches_actor(
 
 
 func _update_halyard_presentation(_delta: float) -> void:
-	var telemetry := get_telemetry()
-	var engine_state := StringName(telemetry.get("engine_state", &"OFFLINE"))
+	var engine_state := _engine_state
 	var engine_level := 0.0
 	if engine_state == ENGINE_STARTING:
 		# The longest spool in the fleet, so the run-up is worth showing.
@@ -4752,11 +4751,11 @@ func _update_halyard_presentation(_delta: float) -> void:
 		engine_level = 0.42 + clampf(velocity.length() / maxf(maximum_speed, 1.0), 0.0, 1.0) * 0.58
 	if is_destroyed():
 		engine_level = 0.0
-	_apply_engine_level(engine_level)
+	_apply_engine_level(engine_level, engine_state)
 
 
 func _sync_halyard_engine_presentation_immediately() -> void:
-	var engine_state := StringName(get_telemetry().get("engine_state", &"OFFLINE"))
+	var engine_state := _engine_state
 	var engine_level := 0.0
 	if engine_state == ENGINE_STARTING:
 		engine_level = 0.2
@@ -4764,11 +4763,12 @@ func _sync_halyard_engine_presentation_immediately() -> void:
 		engine_level = 0.42
 	if is_destroyed():
 		engine_level = 0.0
-	_apply_engine_level(engine_level)
+	_apply_engine_level(engine_level, engine_state)
 
 
-func _apply_engine_level(engine_level: float) -> void:
-	var engine_state := StringName(get_telemetry().get("engine_state", &"OFFLINE"))
+func _apply_engine_level(engine_level: float, engine_state: StringName) -> void:
+	# Both callers just sampled this state without crossing a callback or mutation.
+	# Reuse that synchronous value instead of rebuilding the full telemetry view.
 	var engine_active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
 	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	engine_level *= float(exhaust_profile.get("intensity_multiplier", 1.0))
