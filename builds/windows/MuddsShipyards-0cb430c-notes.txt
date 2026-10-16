@@ -1,0 +1,24 @@
+Mudd's Shipyards — Jovian cargo roof checkpoint 0cb430c — 2026-10-17
+Source: 0cb430c0cfc8d1abdc23c02a32b122622c59ad38
+Engine: pinned official Godot 4.7.1 a13da4feb; stock release templates.
+
+Player-visible changes:
+- Distant cargo cooling grilles use continuous crown-fitting surfaces, reducing dense moire while retaining every detailed bar nearby. Godot's existing screen-space LOD selection controls the transition; camera, lighting, quality and viewport thresholds are unchanged.
+- Roof triangles use their actual face normals. Aft access gaskets sit above their crossing cover straps. The cabin repair display remains visible.
+- Thin distant gasket/edge outlines and bonnet grille noise remain OPEN as JOVIAN-ROOF-001. This is a scoped cargo improvement, not complete roof visual acceptance.
+
+Actual validation:
+- Near positions, normals, tangents, UVs and triangle/material order retain exact parity. 5,410 near roof triangles / 16,230 referenced near vertices remain; 240 far-only vertices bring stored vertices to 16,470. Cargo grilles select 80 far triangles instead of 1,792. No added mesh instance, surface or material. Estimated added GPU buffer payload: 42,672 bytes, excluding allocation overhead. Native ArrayMesh LOD only; no runtime ImporterMesh generation.
+- Independent static review; batching now retains native LOD and vertex-colour meshes. Its focused regression fails exactly the two LOD-survival assertions on the old merger and passes all 32 on the correction. Proxy linear albedo is area-weighted; rendered shading is approximate, retaining thermal paint material properties.
+- Normal/plane errors above 0.1 degrees fall from 595 roof triangles to zero. Local gasket/strap intersections fall from 34 to zero; mirrored clearance rises from -1.385 to +4.015mm. The 156 affected vertex occurrences rise 6mm, retaining footprints and peak lifts.
+- Unchanged original full four-view capture passes at this exact clean frozen source, original 300s cap, exit 0, one success marker and zero diagnostics. Four 1280x720 PNGs; source, complete import cache and registry unchanged. Cold fresh private XDG DATA/CONFIG/CACHE/RUNTIME, private Xvfb x11, Dummy audio, Forward+ Vulkan llvmpipe. Original-resolution agent inspection confirms the scoped cargo improvement and retained near/cabin views; no human or native GPU review is implied.
+- Source CSV SHA-256: 0595da27aedde8a69285060cc3d109228a2981d3d29004ebf397ea6a3bd74cbf
+- Image inventory CSV SHA-256: 7cba7583c6f994148bcb48b8866a040d8ccb2014a8350bf7128619086b0109c2
+- Raw captures, manifests and logs: artifacts/jovian-freighter-0cb430c0c/. Supplemental warm diagnostics were not used for this frozen qualification.
+- Clean isolated Windows/Linux exports have matching 1,515-entry inventories; Windows x86_64 code section matches the trusted stock template. Windows embedded payload through the Linux editor, native Linux binary and archive-extracted binary each pass --startup-check: exit 0, exactly one STARTUP_MENU_READY_OK, zero diagnostics.
+- Actual Windows-payload focused suites pass 752 assertions/checks: {'windows-payload-startup': 0, 'linux-direct-startup': 0, 'linux-archive-startup': 0, 'ship_fitout_batch_test': 32, 'jovian_crew_engineer_gameplay_test': 67, 'jovian_light_freighter_test': 653}. Archive bytes, executable mode and Windows ZIP CRC/member bytes verified. Automated Godot runs use Dummy audio and headless/private displays; hosted CI remains disabled.
+
+Open acceptance:
+All ten roadmap phase exit gates remain open. Full current-source matrix, broader fleet/planetary/recovery acceptance and twelve other required capture sets remain pending. Unsigned. Trusted signing and applicable native GPU/controller/audible/human review remain NOT_RUN. Native Windows execution remains NOT_RUN under antivirus hold; owner-excluded gates are not represented as performed.
+
+EXE SHA-256: d06c7c257d0e1f58cd6f49bb9d28aa27da1a9c659798508fbadc07a18671c7e7

@@ -43,7 +43,7 @@ satisfies the human-review stage. The report never upgrades a state, inspects
 pixels, or infers human approval from `review_status`.
 
 At this revision the freighter's source-freeze and four-image inventory are
-verified at exact source `20438f5f9`; its human-review readiness is `ready`, not
+verified at exact source `0cb430c0c`; its human-review readiness is `ready`, not
 `reviewed`. The other twelve rows remain pending. The human-inclusive report
 therefore has `ready=0`, `required=13`, and 37 blockers: 24 machine stages and
 13 human stages. Human stages are excluded from the owner's completion
@@ -55,19 +55,22 @@ The unchanged original freighter harness completed all four 1280×720 views
 within its original 300-second cap, on a clean frozen imported checkout under
 private Xvfb x11 / Dummy / Forward+ Vulkan llvmpipe. Source, registry and complete
 import cache stayed unchanged. Original-resolution agent inspection confirms
-the cabin readout is visible; shaded roof stippling remains open in
+the cabin readout is visible and cargo grille moire is reduced by native mesh LOD;
+thin distant gasket/edge outlines and bonnet grille noise remain open in
 `bugs.md` (`JOVIAN-ROOF-001`). Earlier `5c76d023c` passed the capture contract but
 failed that visual inspection because a separate housing still covered the
 text; its raw images and unaccepted exports are preserved. The final source
 corrects the housing clearance and passes actual merged-triangle visibility
-checks. No human or native GPU qualification is implied.
+checks. The current roof also corrects per-triangle normals and a local aft
+gasket/strap crossing; native LOD preserves all near-detail triangles and fitout
+batching retains LOD/color data. No human or native GPU qualification is implied.
 
 Actual manifests, PNGs and logs are retained locally under
-`artifacts/jovian-freighter-20438f5f9/`; source CSV SHA-256 is
-`375ab22833fcb7e1fb7f44a346fdbbd26e87abdb6b2875acb5d146072b53185e`, and image-inventory CSV SHA-256 is `101c039ef07e1f8e1f4d594b7bd477fc773c9c4d4125786c4749837b840fb7ef`.
-[Checkpoint notes](../builds/windows/MuddsShipyards-20438f5-notes.txt) identify
-exact packaged source and validation. Later registry/documentation changes are
-not part of the captured or exported source.
+`artifacts/jovian-freighter-0cb430c0c/`; source CSV SHA-256 is
+`0595da27aedde8a69285060cc3d109228a2981d3d29004ebf397ea6a3bd74cbf`, and image-inventory CSV SHA-256 is `7cba7583c6f994148bcb48b8866a040d8ccb2014a8350bf7128619086b0109c2`.
+[Checkpoint notes](../builds/windows/MuddsShipyards-0cb430c-notes.txt) identify
+exact packaged source and validation. Later test, registry and documentation
+changes are not part of the captured or exported source.
 
 The new `cinder-streaming-transition-render` requirement freezes 24 declared
 HIGH/LOW × normal/reduced-motion transition frames. Its exact state, camera,

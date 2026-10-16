@@ -2,13 +2,14 @@
 
 This ledger contains only unresolved or explicitly accepted issues. Fixed and closed records are removed once their fixes are verified.
 
-## JOVIAN-ROOF-001 — Stippled shading on roof service plates — **OPEN**
+## JOVIAN-ROOF-001 — Distant roof edge and bonnet noise — **OPEN**
 
-- Severity: **P2**; owner/reporter: root, 2026-10-17. Observed on frozen `c5c55d680`, `5c76d023c` and `20438f5f9` under private Xvfb x11, Forward+ Vulkan llvmpipe, pinned Godot 4.7.1 and Dummy audio. Native GPU reproduction is NOT_RUN.
-- Reproduction: run unchanged `tests/capture_jovian_freighter.gd` with its original lighting/cameras. The original-resolution exterior shows dense dark stippling on raised roof service fields. Expected: coherent shading that leaves fittings readable. The capture contract itself passes.
-- Evidence: local `artifacts/jovian-freighter-20438f5f9/captures/jovian_freighter_exterior.png` and complete source/cache/PNG inventories alongside it; earlier images are retained separately. A supplemental one-frame unshaded diagnostic removes most stippling, suggesting a lighting/shadow interaction; this does not prove a particular renderer cause or qualify the original full capture.
-- Fixed separately: fittings formerly sank through supporting covers; exposed-thickness edge roll now preserves ordering with unchanged 16,230 vertices / 5,410 triangles. That geometry correction does not close this shading issue.
-- Remaining acceptance: correct the demonstrated shading cause while retaining the original capture lighting, quality, detail and mesh budgets; inspect affected original-resolution views. Keep target-GPU qualification separate.
+- Severity: **P2**; owner/reporter: root, 2026-10-17. Original dense service-field stippling was observed on frozen `c5c55d680`, `5c76d023c` and `20438f5f9`. Native GPU reproduction is NOT_RUN.
+- Reproduction: unchanged `tests/capture_jovian_freighter.gd`, original exterior camera/lighting/quality, pinned Godot 4.7.1, private Xvfb x11 / Dummy / Forward+ Vulkan llvmpipe. Thin service-field gasket/edge outlines and bonnet grille noise remain visible at distance. Expected: coherent distant fittings while retaining close detail.
+- Current evidence: `artifacts/jovian-freighter-0cb430c0c/` contains the clean frozen original four-view PASS, PNG/source/cache inventories and logs. Original-resolution agent inspection finds substantially reduced cargo grille moire, with retained close-view bars/cabin display; the remaining edge/bonnet noise prevents closure.
+- Delivered in `0cb430c0c`: native cargo grille LOD uses 80 far triangles instead of 1,792; all 5,410 near roof triangles remain, with 240 far-only vertices and estimated 42,672 added GPU buffer bytes. Existing camera, lighting, quality, screen-space threshold and material/surface/node counts remain. The proxy averages linear albedo; its rendered shading remains an approximation. Fitout batching now retains LOD and vertex-color meshes.
+- Corrected separately: per-triangle normals remove 595 plane/normal errors above 0.1 degrees; the aft gasket/strap correction removes 34 local emitted intersections. These corrections alone did not remove the distant pattern. Original-material, lighting and unshaded geometry diagnostics support fine-geometry aliasing; no particular native GPU cause is established.
+- Remaining acceptance: resolve demonstrated distant edge/bonnet noise with preserved near detail and original capture contract; inspect affected original-resolution views. Keep target-GPU qualification separate.
 
 ## INPUT-RECOVERY — Begin can board a saved on-foot player — **VERIFYING**
 
