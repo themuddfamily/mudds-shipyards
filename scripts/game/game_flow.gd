@@ -7342,7 +7342,8 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	# Flush only progress accepted while the prior host/lease was live.
 	_flush_shared_aurora_survey_checkpoint()
 	_network_planetary_journey.detach()
-	if _network_session_mode == &"client" and is_instance_valid(_cabin_ship):
+	if _network_session_mode == &"client" and is_instance_valid(_cabin_ship) \
+			and _cabin_ship.is_inside_tree() and not _cabin_ship.is_queued_for_deletion():
 		var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
 		if is_instance_valid(frame):
 			frame.clear_local_prediction(player)
@@ -13380,10 +13381,18 @@ func _ensure_network_moving_interior_presenter() -> NetworkMovingInteriorPresent
 ## does not dirty the presenter.
 func _sync_network_moving_interior_presenter() -> void:
 	if _network_moving_interior_presenter == null \
-			or not is_instance_valid(_network_moving_interior_presenter):
+			or not is_instance_valid(_network_moving_interior_presenter) \
+			or not _network_moving_interior_presenter.is_inside_tree() \
+			or _network_moving_interior_presenter.is_queued_for_deletion():
 		return
 	for fleet_ship in ships:
-		if not is_instance_valid(fleet_ship) or not fleet_ship.supports_in_flight_cabin_access():
+		# Session retirement can run after the fleet subtree has left the tree.
+		# Capability reports may read cabin global transforms, so fence their
+		# presentation queries before asking a detached or retiring craft.
+		if not is_instance_valid(fleet_ship) or not fleet_ship.is_inside_tree() \
+				or fleet_ship.is_queued_for_deletion():
+			continue
+		if not fleet_ship.supports_in_flight_cabin_access():
 			continue
 		_network_moving_interior_presenter.register_frame(
 			StringName("frame_%s" % String(fleet_ship.get_ship_id())), 1, fleet_ship
