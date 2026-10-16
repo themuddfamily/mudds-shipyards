@@ -219,15 +219,15 @@ func _present_environment(
 		"cloud_scalar": _observation_cloud_scalar(),
 		"caller_time_seconds": _weather_clock_seconds,
 	}, _atmosphere_generation)
-	var result := _presentation_result(
-		bool(presented.get("accepted", false)),
-		presented.get("reason", &"atmosphere_presentation_rejected") as StringName,
-		{
-			"coordinate_frame_generation": frame_generation,
-			"location_generation": location_generation,
-			"composition": presented,
-		},
-	)
+	# The composition returned this call's detached record. Only retention
+	# needs another copy; the fresh result is handed to the streaming caller.
+	var result := {
+		"accepted": bool(presented.get("accepted", false)),
+		"reason": presented.get("reason", &"atmosphere_presentation_rejected") as StringName,
+		"coordinate_frame_generation": frame_generation,
+		"location_generation": location_generation,
+		"composition": presented,
+	}
 	_last_atmosphere_result = result.duplicate(true)
 	if bool(presented.get("accepted", false)):
 		_present_surface_audio(

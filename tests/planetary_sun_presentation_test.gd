@@ -46,7 +46,15 @@ const CAPABILITY_KEYS := [
 	"calibrated_colorimetry_implemented", "shadow_or_occlusion_implemented",
 	"clock_or_ephemeris_implemented", "environment_or_sky_implemented",
 ]
-const EXPECTED_ASSERTIONS := 49
+const EXPECTED_ASSERTIONS := 53
+
+class SnapshotCountingPresentation:
+	extends PresentationScript
+	var snapshot_reads := 0
+	func get_state_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_state_snapshot()
+
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -66,6 +74,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_signal_payload_tracks_current_listeners()
 	await _test_configuration_rejections()
 	_make_main_fixture()
 	_test_configuration_and_source_detachment()
@@ -816,3 +825,40 @@ func _finish() -> void:
 		return
 	print("PLANETARY_SUN_PRESENTATION_TEST_FAILURES: %s" % _failures)
 	quit(1)
+
+
+func _test_signal_payload_tracks_current_listeners() -> void:
+	var adapter := SnapshotCountingPresentation.new()
+	var host := Node3D.new()
+	root.add_child(host)
+	var light := _make_light()
+	host.add_child(light)
+	host.add_child(adapter)
+	var configured := adapter.configure(_make_world(true), ProfileScript.new(), light, BASELINE_ENERGY, BASELINE_COLOR)
+	var first := adapter.present_observation(_observation(Vector3.UP, BODY_RADIUS_M + 3000.0), 1)
+	_check(configured.accepted and first.accepted and adapter.snapshot_reads == 0
+		and int(first.revision) == int(configured.revision) + 1,
+		"listener-free sun commits retain state and revision without a signal payload")
+	var events: Array[Dictionary] = []
+	var listener := func(reason: StringName, snapshot: Dictionary) -> void:
+		events.append({"reason": reason, "snapshot": snapshot})
+	adapter.presentation_committed.connect(listener)
+	var connected := adapter.present_observation(_observation(Vector3.UP, BODY_RADIUS_M + 3100.0), 1)
+	_check(connected.accepted and adapter.snapshot_reads == 1 and events.size() == 1
+		and int(events[0].snapshot.revision) == int(connected.revision)
+		and events[0].snapshot.renderer.actual == _renderer_values(light),
+		"new sun listener receives the current committed renderer and revision")
+	adapter.presentation_committed.disconnect(listener)
+	var disconnected := adapter.present_observation(_observation(Vector3.UP, BODY_RADIUS_M + 3200.0), 1)
+	_check(disconnected.accepted and adapter.snapshot_reads == 1 and events.size() == 1
+		and int(disconnected.revision) == int(connected.revision) + 1,
+		"disconnecting sun listener resumes commits without building another payload")
+	adapter.presentation_committed.connect(listener)
+	var reconnected := adapter.present_observation(_observation(Vector3.UP, BODY_RADIUS_M + 3300.0), 1)
+	_check(reconnected.accepted and adapter.snapshot_reads == 2 and events.size() == 2
+		and int(events[1].snapshot.revision) == int(disconnected.revision) + 1
+		and int(events[1].snapshot.revision) == int(reconnected.revision)
+		and events[1].snapshot.renderer.actual == _renderer_values(light)
+		and events[1].snapshot != events[0].snapshot,
+		"reconnecting sun listener receives fresh state after the unobserved revision")
+	host.queue_free()

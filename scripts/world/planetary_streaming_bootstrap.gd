@@ -348,7 +348,7 @@ func update_absolute_focus(
 			"body_center_world_distance_meters": body_center_distance,
 			"coordinate_frame_generation": expected_coordinate_frame_generation,
 			"location_generation": _current_location_generation(),
-			_environment_result_key(): presentation.duplicate(true),
+			_environment_result_key(): presentation,
 		})
 
 	if radial_distance <= float(_profile.get("load_radius_meters", 0.0)):
@@ -745,7 +745,11 @@ func _finish_update(
 		extra: Dictionary = {}
 	) -> Dictionary:
 	_update_count += 1
-	var result := _update_result(accepted, reason, extra)
+	# Callers provide fresh scalar fields and detached presentation/transition
+	# outcomes. Detach for retention once, then return this call's owned record.
+	var result := {"accepted": accepted, "reason": reason}
+	for key: Variant in extra:
+		result[key] = extra[key]
 	_last_update_result = result.duplicate(true)
 	_update_active = false
 	return result

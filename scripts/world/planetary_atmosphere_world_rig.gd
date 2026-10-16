@@ -386,7 +386,8 @@ func present_observation(
 	for adapter_index: int in ADAPTER_ORDER.size():
 		var adapter_id: StringName = ADAPTER_ORDER[adapter_index]
 		var receipt := (calls[adapter_id] as Callable).call() as Dictionary
-		receipts[adapter_id] = receipt.duplicate(true)
+		# Adapter results are detached; _result copies the complete transaction.
+		receipts[adapter_id] = receipt
 		if not bool(receipt.get("accepted", false)):
 			failure_id = adapter_id
 			unattempted = _adapter_suffix(adapter_index + 1)

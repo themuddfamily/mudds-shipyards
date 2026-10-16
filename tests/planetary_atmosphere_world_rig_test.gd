@@ -3,7 +3,7 @@ extends SceneTree
 const RIG_SCENE := preload(
 	"res://scenes/world/components/planetary_atmosphere_world_rig.tscn"
 )
-const EXPECTED_ASSERTIONS := 41
+const EXPECTED_ASSERTIONS := 42
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -643,6 +643,16 @@ func _test_structured_scene_mutations(
 
 
 func _test_detached_reports(rig: PlanetaryAtmosphereWorldRig) -> void:
+	var observation := _observation(1500.0, 5.0)
+	var receipt := rig.present_observation(observation, rig.get_generation())
+	var before := rig.get_snapshot()
+	observation["weather_scalar"] = 0.0
+	(receipt.adapter_receipts as Dictionary).clear()
+	(receipt.observation as Dictionary).clear()
+	_check(bool(receipt.accepted) and rig.get_snapshot() == before
+		and not (before.last_transaction.adapter_receipts as Dictionary).is_empty()
+		and float(before.last_observation.weather_scalar) == 1.0,
+		"mutating nested observation receipts and caller input cannot alter the retained rig transaction")
 	var snapshot := rig.get_snapshot()
 	var audit := rig.audit()
 	(snapshot.world as Dictionary).clear()

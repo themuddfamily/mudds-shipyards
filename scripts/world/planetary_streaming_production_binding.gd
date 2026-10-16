@@ -173,16 +173,15 @@ func physics_tick_from_caller_sample(delta: float, sample: Variant) -> Dictionar
 	_last_world_streaming_position = position
 	_last_absolute_coordinate = absolute_coordinate.duplicate(true)
 	_last_streaming_result = streaming_result
-	_last_tick_result = _result(
-		bool(streaming_result.get("accepted", false)),
-		streaming_result.get("reason", &"streaming_update_rejected") as StringName,
-		{
-			"coordinate_frame_generation": _bound_frame_generation,
-			# _result detaches the complete record once, including these children.
-			"absolute_coordinate": absolute_coordinate,
-			"streaming": streaming_result,
-		},
-	)
+	# Both child records are private results of this call. Retain them directly
+	# and detach the complete record once at the public return below.
+	_last_tick_result = {
+		"accepted": bool(streaming_result.get("accepted", false)),
+		"reason": streaming_result.get("reason", &"streaming_update_rejected") as StringName,
+		"coordinate_frame_generation": _bound_frame_generation,
+		"absolute_coordinate": absolute_coordinate,
+		"streaming": streaming_result,
+	}
 	_tick_active = false
 	return _last_tick_result.duplicate(true)
 

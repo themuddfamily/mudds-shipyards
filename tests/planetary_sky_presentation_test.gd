@@ -6,7 +6,7 @@ const ProfileScript := preload(
 const PresentationScript := preload(
 	"res://scripts/world/planetary_sky_presentation.gd"
 )
-const EXPECTED_ASSERTIONS := 48
+const EXPECTED_ASSERTIONS := 52
 const EXPECTED_RENDERER_PROPERTIES := [
 	"sky_top_color", "sky_horizon_color", "ground_horizon_color",
 ]
@@ -31,6 +31,14 @@ const CAPABILITY_KEYS := [
 	"tree_reentry_reapplies_current_generation",
 ]
 
+class SnapshotCountingPresentation:
+	extends PresentationScript
+	var snapshot_reads := 0
+	func get_state_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_state_snapshot()
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 var _events: Array[Dictionary] = []
@@ -50,6 +58,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_signal_payload_tracks_current_listeners()
 	_test_configuration_rejections()
 	var fixture := _make_fixture()
 	_adapter = fixture.adapter
@@ -858,3 +867,37 @@ func _finish() -> void:
 	else:
 		print("PLANETARY_SKY_PRESENTATION_TEST_FAILED: ", ", ".join(_failures))
 		quit(1)
+
+
+func _test_signal_payload_tracks_current_listeners() -> void:
+	var adapter := SnapshotCountingPresentation.new()
+	var target := _make_target()
+	root.add_child(adapter)
+	var configured := adapter.configure(ProfileScript.new(), target.environment)
+	var first := adapter.present_observation(3000.0, Vector3.FORWARD, Vector3.UP, Vector3.UP, 1)
+	_check(configured.accepted and first.accepted and adapter.snapshot_reads == 0
+		and int(first.revision) == int(configured.revision) + 1,
+		"listener-free sky commits retain state and revision without a signal payload")
+	var events: Array[Dictionary] = []
+	var listener := func(reason: StringName, snapshot: Dictionary) -> void:
+		events.append({"reason": reason, "snapshot": snapshot})
+	adapter.presentation_committed.connect(listener)
+	var connected := adapter.present_observation(3100.0, Vector3.FORWARD, Vector3.UP, Vector3.UP, 1)
+	_check(connected.accepted and adapter.snapshot_reads == 1 and events.size() == 1
+		and int(events[0].snapshot.revision) == int(connected.revision)
+		and events[0].snapshot.renderer.actual == _renderer_values(target.material),
+		"new sky listener receives the current committed renderer and revision")
+	adapter.presentation_committed.disconnect(listener)
+	var disconnected := adapter.present_observation(3200.0, Vector3.FORWARD, Vector3.UP, Vector3.UP, 1)
+	_check(disconnected.accepted and adapter.snapshot_reads == 1 and events.size() == 1
+		and int(disconnected.revision) == int(connected.revision) + 1,
+		"disconnecting sky listener resumes commits without building another payload")
+	adapter.presentation_committed.connect(listener)
+	var reconnected := adapter.present_observation(3300.0, Vector3.FORWARD, Vector3.UP, Vector3.UP, 1)
+	_check(reconnected.accepted and adapter.snapshot_reads == 2 and events.size() == 2
+		and int(events[1].snapshot.revision) == int(disconnected.revision) + 1
+		and int(events[1].snapshot.revision) == int(reconnected.revision)
+		and events[1].snapshot.renderer.actual == _renderer_values(target.material)
+		and events[1].snapshot != events[0].snapshot,
+		"reconnecting sky listener receives fresh state after the unobserved revision")
+	adapter.queue_free()

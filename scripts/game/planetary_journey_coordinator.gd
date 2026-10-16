@@ -386,7 +386,8 @@ func advance_aurora_visit(delta: float, actor_sample: Dictionary) -> Dictionary:
 		return {"accepted": false, "reason": &"aurora_composition_unavailable",
 			"actor_sample": actor_sample.duplicate(true)}
 	var streaming_tick := binding.physics_tick_from_caller_sample(delta, actor_sample)
-	_last_aurora_streaming_result = streaming_tick.duplicate(true)
+	# The binding already detached this private tick record from its state.
+	_last_aurora_streaming_result = streaming_tick
 	var streaming_accepted := bool(streaming_tick.get("accepted", false))
 	var coordinate_frame_generation := int(
 		streaming_tick.get("coordinate_frame_generation", 0)

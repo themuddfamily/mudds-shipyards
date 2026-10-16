@@ -600,6 +600,8 @@ func _is_reentrant() -> bool:
 
 func _commit(reason: StringName) -> void:
 	_revision += 1
+	if not presentation_committed.has_connections():
+		return
 	var snapshot := get_state_snapshot()
 	_signal_dispatch_active = true
 	presentation_committed.emit(reason, snapshot.duplicate(true))
