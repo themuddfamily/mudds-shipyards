@@ -15,7 +15,7 @@ Validation:
 
 Open acceptance:
 - Frozen 636814418 full 1,045-suite regression continues with failures/timeouts; this newer checkpoint has no full-matrix pass. Keep original failures in artifacts/test-matrix/20261016T171251Z.
-- Source gunner previously passes 117 checks on 496fce9, but the subsequent 496 embedded-package run misses the original host 60s seating deadline. Its failure is retained. A 670 package check is queued behind both network/display lanes with unchanged deadlines; no current packaged crew qualification is claimed.
+- Serialized 670 embedded-package gunner route passes 120 checks, zero diagnostics, one completion and both peer OS exits 0 within the original deadlines. All three processes confirm loading the selected payload. The earlier 496 seating-deadline failure remains retained; full crew/native acceptance stays open.
 - External peer probes now share the matrix network lane as well as its display lane: private displays/ENet ports still share LAN discovery. The frozen Emberline run's discovery-port warning and client-ready failure remain retained.
 - Latest 496 presenter image is readable/unclipped; production caption capture still times out at 300s, even with retained private shader caches. No broader graphical gate is closed.
 - NOT_RUN: native Windows (antivirus hold), native GPU/performance, physical controller, audible/human review and final release acceptance. Hosted GitHub Actions stays disabled.
