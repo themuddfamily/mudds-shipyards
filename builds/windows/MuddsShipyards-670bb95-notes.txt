@@ -1,0 +1,24 @@
+Mudd's Shipyards — fleet construction checkpoint 670bb95
+Source commit: 670bb95c3a9112ae05d8ca81ab99ce4fcaea01ae
+Engine: checksum-verified official Godot 4.7.1 a13da4feb editor/release templates.
+
+Changes:
+- Fleet fitout construction avoids enumerating native properties when scanning ordinary script variables. Inherited/exported variables and instance property hooks retain their existing protection from mesh consolidation.
+- Includes the prior station dressing and Halyard engineer startup/presentation optimizations.
+
+Validation:
+- Safe Windows/Linux exports completed from the exact clean source commit.
+- Integrated source and actual Windows payload through the Linux editor each pass ship-fitout (28) and fleet surface-winding (141) assertions (169 total), exit 0, one completion per suite and no diagnostics. Source/import-cache manifests remain unchanged.
+- Controlled same-live-world reference scan median: 399.530 -> 355.315 ms (~11% scan CPU reduction); all three comparisons retain exactly 4,857 object IDs. Attached/detached fixture reports and serialized merged geometry match exactly. Whole-startup/FPS gains are not established.
+- Windows payload silent --startup-check exits 0 with exactly one STARTUP_MENU_READY_OK and no diagnostics. Native Linux direct/archive startup also pass exit 0 plus one marker.
+- Both embedded inventories pass 1,513 entries and compiled-token/payload integrity; PE code matches the pinned release template. Linux archive bytes, executable mode and safe paths match.
+
+Open acceptance:
+- Frozen 636814418 full 1,045-suite regression continues with failures/timeouts; this newer checkpoint has no full-matrix pass. Keep original failures in artifacts/test-matrix/20261016T171251Z.
+- Source gunner previously passes 117 checks on 496fce9, but the subsequent 496 embedded-package run misses the original host 60s seating deadline. Its failure is retained. A 670 package check is queued behind both network/display lanes with unchanged deadlines; no current packaged crew qualification is claimed.
+- External peer probes now share the matrix network lane as well as its display lane: private displays/ENet ports still share LAN discovery. The frozen Emberline run's discovery-port warning and client-ready failure remain retained.
+- Latest 496 presenter image is readable/unclipped; production caption capture still times out at 300s, even with retained private shader caches. No broader graphical gate is closed.
+- NOT_RUN: native Windows (antivirus hold), native GPU/performance, physical controller, audible/human review and final release acceptance. Hosted GitHub Actions stays disabled.
+This is a development checkpoint; broad roadmap acceptance remains open.
+
+EXE SHA-256: 9f9dd3bb5ddcb5b4b168fcda8e1ba5d1e245d41b895c5849864040ee6b14ecf7
