@@ -1,0 +1,22 @@
+Mudd's Shipyards — fleet presentation checkpoint 6fc15f8
+Source commit: 6fc15f8b0ac256de956106b31bd9018f90e0c18f
+Engine: verified official Godot 4.7.1 a13da4feb editor/release templates.
+
+Changes:
+- Parked fleet craft avoid redundant visual-root bank and camera basis writes, reducing propagation through large retained visual trees. Real bank motion, externally disturbed poses and shear repair still update in the same tick.
+- Includes the earlier sun validation, fullscreen settings and detached cabin shutdown fixes, plus default input-only station walkability execution.
+
+Validation:
+- Independent semantic review approves exact live comparisons and same-value setter repair, including all six rotation orders. Source reset/reuse regression passes 46 assertions; flight/input passes 177. Actual Windows embedded payload through the Linux editor passes the same two suites (223 passing assertions), zero diagnostics.
+- Matched two-Main Rime diagnostic retains 120 ticks, 240 GameFlow physics callbacks, 2,160 HeroShip presentation/physics calls and 360 player physics calls. HeroShip presentation CPU 299.180 -> 221.385 ms (26.0% reduction); ship physics 1,103.685 -> 1,049.110 ms. Whole window 5,477.216 -> 5,429.977 ms (0.86%, one pair, noise-sized); GameFlow physics worsens 2,089.267 -> 2,142.944 ms. No material global performance or native GPU claim follows. Invalid/provisional profile attempts remain separate.
+- Safe exports from this exact clean source; Windows and Linux compiled inventories each contain 1,515 entries with matching sorted path manifests. Windows x86_64 code section matches the trusted release template. Extracted Linux archive matches binary bytes and executable mode.
+- Windows payload and extracted Linux archive each pass silent --startup-check: exit 0, exactly one STARTUP_MENU_READY_OK, zero diagnostics. Windows ZIP CRC and member bytes verified.
+- Native Linux packaged normal-input sortie passes in 54.417s: OS XTest input through private Xvfb x11 and the default sampler completes walk, board, launch, target practice, interceptor engagement, return, docking, shutdown and exit. Authored tuning stays unchanged; same player/ship retained. Inputs released and all owned helper/game/display processes reaped. Dummy audio/rendering; no pixel or hardware-performance qualification.
+
+Open acceptance:
+- Original Rime route remains FAIL: unchanged 300s suite cap times out (exit 124) after 16 completed walks; 17th starts at wall 298.723s. No failed walk terminal was logged, but the suite never finishes and its assertion total is NOT_REPORTED. Original 18s walk limit, settling requirement and route remain unchanged; no retry.
+- Frozen 636814418 full matrix remains terminal FAIL: 1,027 PASS / 18 FAIL of 1,045 suites. Later focused passes do not erase its failures or qualify the complete combined current source. Full Ember/shared journeys, repeated-Main recovery and final current-source regression remain open.
+- A separate iterative startup reference-walk experiment preserved 5,119 live identities but showed no timing benefit and was dropped; review also found a freed-sibling semantic difference. No experiment code is included.
+- Native Windows execution remains NOT_RUN under the antivirus hold. Native GPU/performance, physical controller, audible and human review remain NOT_RUN. All ten phase exit gates remain open. GitHub Actions remains disabled under the owner's CI budget hold.
+
+EXE SHA-256: 9a30165ced4a94df0752b2d8b0dd5bbff96ee4a625755af170ec672bcc9d0ccc
