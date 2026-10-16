@@ -72,7 +72,7 @@ func _physics_process(delta: float) -> void:
 		"opponent_health": _opponent.get_health(), "opponent_velocity": _v(_opponent.velocity),
 		"destroyed_targets": _game.world.get_destroyed_target_count(), "destroyed": _ship.is_destroyed(),
 		"telemetry": {"engine": _ship.get_telemetry().get("engine_state"), "hull": _ship.get_telemetry().get("hull")},
-		"default_sampler": source != null and source.get_input_provider() == null,
+		"default_sampler": source != null and _ship.get("_command_source") == source and source.get_input_provider() == null,
 		"tuning_unchanged": _sortie_tuning() == _tuning, "tuning": _tuning,
 		"landed": _ship.get_telemetry().get("landed"), "landing_active": _ship.is_landing_active(),
 		"capture": bool(capture.get("assist_capture_accepted", false)),
@@ -84,4 +84,9 @@ func _physics_process(delta: float) -> void:
 		"guided_complete": _game.is_guided_activity_complete(), "upright": _ship.global_basis.y.dot(Vector3.UP),
 		"shot_accepted": bool(shot.get("accepted", false)) and bool(shot.get("resolved", false)) and shot.get("source_entity") == _ship,
 		"command_fire": command.fire if command != null else false,
+		"command_interact": command.interact if command != null else false,
+		"native_interact": Input.is_action_pressed("interact"),
+		"source_enabled": source.is_enabled_owner() if source != null else false,
+		"application_focused": source.get("_application_focused") if source != null else false,
+		"transition_busy": _game.get("_transition_busy"),
 	}))

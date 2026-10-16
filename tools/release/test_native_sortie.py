@@ -26,6 +26,16 @@ class NativeSortieSafetyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'regular executable'):
                 native.validate_binary(link)
 
+    def test_input_helper_ipc_failure_still_reaps_helper(self):
+        # A native Xlib failure may close IPC without a Python exception in the
+        # helper. The supervisor must still run the bounded reaping path.
+        desktop = object.__new__(native.Desktop)
+        with patch.object(desktop, '_send', side_effect=EOFError('native helper exit')), \
+                patch.object(desktop, '_reap') as reap:
+            with self.assertRaises(EOFError):
+                desktop.close()
+            reap.assert_called_once()
+
     def test_failed_cleanup_still_attempts_other_child_and_removes_private_profile(self):
         with tempfile.TemporaryDirectory() as root:
             output = Path(root)/'result'

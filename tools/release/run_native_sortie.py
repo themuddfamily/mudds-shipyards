@@ -10,6 +10,7 @@ import ctypes as C
 import hashlib
 import json
 import math
+import multiprocessing
 import os
 from pathlib import Path
 import re
@@ -24,6 +25,10 @@ import time
 
 PREFIX = b"NATIVE_SORTIE_OBSERVATION: "
 CAP = 300
+
+
+def require(condition, description):
+    if not condition: raise AssertionError(description)
 
 
 def sub(a, b): return [x-y for x, y in zip(a, b)]
@@ -43,7 +48,7 @@ def validate_binary(path):
     return path
 
 
-class Desktop:
+class _XDesktop:
     """Connection to this invocation's authenticated, private X server only."""
     def __init__(self, display):
         self.x = C.CDLL('libX11.so.6')
@@ -56,6 +61,12 @@ class Desktop:
         self.x.XKeysymToKeycode.restype = C.c_uint
         self.x.XSetInputFocus.argtypes = [C.c_void_p, C.c_ulong, C.c_int, C.c_ulong]
         self.x.XFlush.argtypes = [C.c_void_p]
+        self.x.XSync.argtypes = [C.c_void_p, C.c_int]
+        self.errors = []
+        self.error_handler_type = C.CFUNCTYPE(C.c_int, C.c_void_p, C.c_void_p)
+        self.error_handler = self.error_handler_type(lambda _display, _event: self.errors.append('X11 protocol error') or 0)
+        self.x.XSetErrorHandler.argtypes = [self.error_handler_type]
+        self.x.XSetErrorHandler(self.error_handler)
         self.x.XCloseDisplay.argtypes = [C.c_void_p]
         self.xt.XTestFakeKeyEvent.argtypes = [C.c_void_p, C.c_uint, C.c_int, C.c_ulong]
         self.xt.XTestFakeButtonEvent.argtypes = [C.c_void_p, C.c_uint, C.c_int, C.c_ulong]
@@ -90,6 +101,83 @@ class Desktop:
         self.x.XCloseDisplay(self.d)
 
 
+def _input_worker(display, authority, connection):
+    # Xlib can terminate a process on server loss. Confine it to this helper;
+    # the supervisor retains the independent abort and owned-child cleanup.
+    os.environ['XAUTHORITY'] = authority
+    desktop = None
+    try:
+        desktop = _XDesktop(display)
+        connection.send({'ready': True})
+        while True:
+            command = connection.recv()
+            kind = command[0]
+            if kind == 'focus':
+                desktop.x.XSetInputFocus(desktop.d, command[1], 1, 0)
+            elif kind == 'keys': desktop.keys(command[1])
+            elif kind == 'mouse': desktop.mouse(*command[1:])
+            elif kind == 'close':
+                desktop.close()
+                desktop = None
+                connection.send({'ok': True})
+                break
+            else: raise ValueError('unknown private input command')
+            desktop.x.XSync(desktop.d, False)
+            if desktop.errors: raise RuntimeError(desktop.errors[-1])
+            connection.send({'ok': True})
+    except Exception as error:
+        try: connection.send({'error': str(error)})
+        except (EOFError, BrokenPipeError): pass
+    finally:
+        if desktop:
+            try: desktop.close()
+            except Exception: pass
+        connection.close()
+
+
+class Desktop:
+    """Bounded IPC supervisor for the fallible private Xlib input helper."""
+    def __init__(self, display, authority):
+        context = multiprocessing.get_context('spawn')
+        self.connection, child = context.Pipe()
+        self.process = context.Process(target=_input_worker, args=(display, authority, child))
+        self.process.start()
+        child.close()
+        try: self._receive()
+        except Exception:
+            self._reap()
+            raise
+
+    def _receive(self):
+        if not self.connection.poll(2):
+            raise RuntimeError('private input helper timed out')
+        try: reply = self.connection.recv()
+        except EOFError as error: raise RuntimeError('private input helper exited') from error
+        if 'error' in reply: raise RuntimeError(reply['error'])
+
+    def _send(self, command):
+        self.connection.send(command)
+        self._receive()
+
+    def focus(self, window): self._send(('focus', window))
+    def keys(self, keys): self._send(('keys', sorted(keys)))
+    def mouse(self, dx, dy, fire): self._send(('mouse', dx, dy, fire))
+
+    def _reap(self):
+        self.process.join(timeout=1)
+        if self.process.is_alive():
+            self.process.terminate()
+            self.process.join(timeout=2)
+        if self.process.is_alive():
+            self.process.kill()
+            self.process.join(timeout=2)
+        self.connection.close()
+
+    def close(self):
+        try: self._send(('close',))
+        finally: self._reap()
+
+
 class Pilot:
     def __init__(self):
         self.stage = 'boot'
@@ -121,7 +209,7 @@ class Pilot:
             self.tap_until = now + .08
             self.tap_cooldown = now + .6
 
-    def aim(self, s, target, gain=.55):
+    def aim(self, s, target, gain=.15):
         desired = unit(sub(target, s['camera']))
         local = [dot(desired, s[a]) for a in ('right', 'up', 'back')]
         # Ordinary mouse controls map pixels directly to local craft attitude.
@@ -138,10 +226,12 @@ class Pilot:
         ids = (s['player_id'], s['ship_id'])
         if self.identities is None:
             self.identities = ids
-            assert s['lease'], 'initial occupied central berth lease'
-        assert self.identities == ids, 'same actor identities throughout'
-        assert s['default_sampler'] and s['tuning_unchanged'], 'authored controls and tuning'
-        assert phase != 'FAILED' and not s['destroyed'], 'live sortie'
+            require(s['lease'], 'initial occupied central berth lease')
+            require(len(s['targets']) == 4, 'four authored live range drones at startup')
+            self.parked_forward = [-v for v in s['back']]
+        require(self.identities == ids, 'same actor identities throughout')
+        require(s['default_sampler'] and s['tuning_unchanged'], 'authored controls and tuning')
+        require(phase != 'FAILED' and not s['destroyed'], 'live sortie')
         self.shot |= s['shot_accepted']
         self.fired |= s['command_fire']
         self.max_walk = max(self.max_walk, norm(sub(s['player'], s['spawn'])))
@@ -160,7 +250,7 @@ class Pilot:
             off = s['walk_offset'][:]
             off[1] = 0
             if norm(off) <= 3.1 and s['candidate']:
-                assert self.max_walk > 8, 'physical walk from spawn'
+                require(self.max_walk > 8, 'physical walk from spawn')
                 self.enter('board', s)
                 self.tap('e', now)
             else:
@@ -172,21 +262,21 @@ class Pilot:
                 if z > .2: keys.add('w')
                 if z < -.2: keys.add('s')
         elif self.stage == 'board' and phase == 'START_ENGINES':
-            assert s['piloted'] and s['seated'] and s['active_ship']
+            require(s['piloted'] and s['seated'] and s['active_ship'], "s['piloted'] and s['seated'] and s['active_ship']")
             self.enter('launch', s)
         elif self.stage == 'launch':
             target = [0, 8, -78]
             off = sub(target, s['position'])
             dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
             dist = norm(off)
-            stopping = speed*speed/(2*s['tuning']['brake'])
-            if dist < stopping+5.75: keys.add('End')
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+            if dist < stopping+5.75: keys.add('Prior')
             elif align > .72: keys.add('w')
             if dist <= 5 and phase == 'TARGET_PRACTICE':
-                assert self.departed and s['position'][2] < -66
+                require(self.departed and s['position'][2] < -66, "self.departed and s['position'][2] < -66")
                 self.enter('range', s)
         elif self.stage == 'range':
-            keys.add('End')
+            keys.add('Prior')
             if speed > .8:
                 pass
             elif s['targets']:
@@ -194,50 +284,61 @@ class Pilot:
                 dx, dy, align = self.aim(s, target['position'])
                 fire = align >= .997
             else:
-                assert s['destroyed_targets'] == 4 and phase == 'INTERCEPTOR_ENGAGEMENT' and s['opponent_active']
+                require(s['destroyed_targets'] == 4 and phase == 'INTERCEPTOR_ENGAGEMENT' and s['opponent_active'], "s['destroyed_targets'] == 4 and phase == 'INTERCEPTOR_ENGAGEMENT' and s['opponent_active']")
                 self.enter('interceptor', s)
         elif self.stage == 'interceptor':
-            keys.add('End')
-            dx, dy, align = self.aim(s, s['opponent'], .8)
+            keys.add('Prior')
+            dx, dy, align = self.aim(s, s['opponent'], .2)
             fire = align >= .997
             if not s['opponent_active'] and phase == 'RETURN_TO_YARD':
-                assert self.shot and self.fired and s['telemetry']['hull'] > 0
+                require(self.shot and self.fired and s['telemetry']['hull'] > 0, "self.shot and self.fired and s['telemetry']['hull'] > 0")
+                self.enter('return_align', s)
+        elif self.stage == 'return_align':
+            # Match ordinary flight staging: brake and use the authored hover
+            # control to recover upright attitude before approaching the dock.
+            keys.update(('Prior','h'))
+            off = sub([0, 2, -18], s['position'])
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            if align > .98 and s['upright'] > .94 and speed <= .8:
                 self.enter('return', s)
         elif self.stage == 'return':
             waypoint = [0, 2, -18]
             off = sub(waypoint, s['position'])
             distance = norm(off)
             dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
-            stopping = speed*speed/(2*s['tuning']['brake'])
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
             if distance < stopping+1.75: self.return_braking = True
             if speed <= .45 and distance > 1: self.return_braking = False
-            if distance <= 1 or self.return_braking: keys.add('End')
+            if distance <= 1 or self.return_braking: keys.add('Prior')
             elif align > .72: keys.add('w')
             if distance <= 1 and speed <= .45:
                 self.enter('align_berth', s)
         elif self.stage == 'align_berth':
-            keys.add('End')
+            keys.update(('Prior','h'))
             off = sub(s['parked'], s['position'])
             dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
             if align > .995 and s['upright'] > .94 and speed <= .35:
-                assert s['capture'], 'registered broad landing capture'
+                require(s['capture'], 'registered broad landing capture')
+                require(dot([-v for v in s['back']], self.parked_forward) < -.95, 'nose-first return opposite the parked heading')
                 self.landing_distance = norm(off)
                 self.enter('land', s)
                 self.tap('l', now)
         elif self.stage == 'land':
             if phase == 'SHUT_DOWN':
-                assert s['contract'] and s['parked_exact'] and s['lease'], 'exact secured home berth'
+                require(s['contract'] and s['parked_exact'] and s['lease'], 'exact secured home berth')
                 self.enter('shutdown', s)
         elif self.stage == 'shutdown' and s['telemetry']['engine'] == 'OFFLINE':
             self.enter('exit', s)
             self.tap('e', now)
+        elif self.stage == 'exit' and phase == 'SHUT_DOWN' and s['telemetry']['engine'] == 'OFFLINE':
+            self.tap('e', now)
         elif self.stage == 'exit' and phase == 'COMPLETE':
-            assert not s['piloted'] and not s['seated'] and s['control_enabled']
-            assert s['guided_complete'] and s['active_ship'] and s['exit_error'] < .25
-            assert norm(sub(s['player'], s['spawn'])) > 8
-            assert s['lease'] and s['parked_exact'] and s['contract']
+            require(not s['piloted'] and not s['seated'] and s['control_enabled'], "not s['piloted'] and not s['seated'] and s['control_enabled']")
+            require(s['guided_complete'] and s['active_ship'] and s['exit_error'] < .25, "s['guided_complete'] and s['active_ship'] and s['exit_error'] < .25")
+            require(norm(sub(s['player'], s['spawn'])) > 8, "norm(sub(s['player'], s['spawn'])) > 8")
+            require(s['lease'] and s['parked_exact'] and s['contract'], "s['lease'] and s['parked_exact'] and s['contract']")
             expected = ['APPROACH_SHIP','START_ENGINES','LAUNCH','TARGET_PRACTICE','INTERCEPTOR_ENGAGEMENT','RETURN_TO_YARD','SHUT_DOWN','COMPLETE']
-            assert all(p in self.phases for p in expected), 'all genuine gameplay phases'
+            require(all(p in self.phases for p in expected), 'all genuine gameplay phases')
             self.enter('complete', s)
             self.result = {'phases': self.phases, 'stages': self.stages, 'walked_m': self.max_walk,
                            'excursion_m': self.max_excursion, 'landing_approach_m': self.landing_distance,
@@ -260,9 +361,9 @@ def stop(process):
 
 def run(binary, output):
     output.mkdir(parents=True, exist_ok=False)
-    game = xvfb = desktop = None
+    game = xvfb = desktop = pilot = None
     temporary_profile = None
-    result = {'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
+    result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
               'human_review': 'NOT_RUN', 'input_route': 'OS XTest → X11 → Godot Input → default sampler'}
     start = time.monotonic()
     def abort(_signal, _frame): raise TimeoutError('independent abort/deadline')
@@ -304,13 +405,11 @@ def run(binary, output):
                         except OSError: pass
                     time.sleep(.05)
                 else: raise RuntimeError('owned Xvfb did not become ready')
-                # Xlib reads XAUTHORITY itself; never open the inherited desktop.
-                previous_auth = os.environ.get('XAUTHORITY')
-                os.environ['XAUTHORITY'] = str(auth)
-                try: desktop = Desktop(env['DISPLAY'])
-                finally:
-                    if previous_auth is None: os.environ.pop('XAUTHORITY',None)
-                    else: os.environ['XAUTHORITY'] = previous_auth
+                # Remove X server pointer acceleration only on our private display.
+                # Mouse pixels then retain the authored game's sensitivity.
+                subprocess.run(['xset','m','1/1','0'],env=env,check=True,timeout=5)
+                desktop = Desktop(env['DISPLAY'], str(auth))
+                result['input_helper_pid'] = desktop.process.pid
                 args = [str(binary),'--audio-driver','Dummy','--display-driver','x11',
                         '--rendering-driver','dummy','--disable-render-loop','--native-sortie-observer']
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
@@ -324,13 +423,16 @@ def run(binary, output):
                     tree = subprocess.run(['xwininfo','-root','-tree'],env=env,capture_output=True,text=True,timeout=2).stdout
                     for candidate in re.findall(r'^\s*(0x[0-9a-f]+)',tree,re.M):
                         prop = subprocess.run(['xprop','-id',candidate,'_NET_WM_PID'],env=env,capture_output=True,text=True,timeout=2).stdout
-                        if re.search(r'=\s*'+str(game.pid)+r'\s*$',prop): window=int(candidate,16); break
+                        if re.search(r'=\s*'+str(game.pid)+r'\s*$',prop):
+                            stats = subprocess.run(['xwininfo','-id',candidate,'-stats'],env=env,capture_output=True,text=True,timeout=2).stdout
+                            if 'Map State: IsViewable' in stats:
+                                window=int(candidate,16)
+                                break
                     if window: break
                     time.sleep(.05)
                 if not window: raise RuntimeError('no X11 window owned by exact game PID')
                 result['window'] = hex(window)
-                desktop.x.XSetInputFocus(desktop.d,window,1,0)
-                desktop.x.XFlush(desktop.d)
+                desktop.focus(window)
                 pilot = Pilot()
                 selector = selectors.DefaultSelector()
                 selector.register(game.stdout,selectors.EVENT_READ)
@@ -354,6 +456,8 @@ def run(binary, output):
                                 desktop.keys(keys); desktop.mouse(dx,dy,fire)
                     result.update(success=True,sortie=pilot.result)
     except Exception as error:
+        if pilot is not None:
+            result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
         result['error'] = f'{type(error).__name__}: {error}'
     finally:
         signal.setitimer(signal.ITIMER_REAL,0)
@@ -367,6 +471,9 @@ def run(binary, output):
                 result['inputs_released'] = True
             except Exception as error:
                 cleanup_errors.append('release input: '+str(error))
+        result['input_helper_reaped'] = desktop is None or not desktop.process.is_alive()
+        if not result['input_helper_reaped']:
+            cleanup_errors.append('private input helper remains alive after bounded cleanup')
         for name, process in [('game',game),('xvfb',xvfb)]:
             try: stop(process)
             except Exception as error: cleanup_errors.append(name+': '+str(error))
@@ -392,7 +499,7 @@ def main():
     except ValueError as error: parser.error(str(error))
     result=run(binary,args.output.absolute())
     print(json.dumps(result,indent=2))
-    return 0 if result['success'] and result.get('inputs_released') and result['game_reaped'] and result['xvfb_reaped'] else 1
+    return 0 if result['success'] and result.get('inputs_released') and result['game_reaped'] and result['xvfb_reaped'] and result['input_helper_reaped'] else 1
 
 
 if __name__=='__main__': raise SystemExit(main())
