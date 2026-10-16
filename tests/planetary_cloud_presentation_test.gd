@@ -6,7 +6,7 @@ const ProfileScript := preload(
 const PresentationScript := preload(
 	"res://scripts/world/planetary_cloud_presentation.gd"
 )
-const EXPECTED_ASSERTIONS := 45
+const EXPECTED_ASSERTIONS := 49
 const SHADER_CODE := """shader_type spatial;
 uniform float cloud_base_radius_m = 100.0;
 uniform float cloud_top_radius_m = 200.0;
@@ -55,6 +55,16 @@ const CAPABILITY_KEYS := [
 	"tree_exit_restores_baseline", "tree_reentry_reapplies_current_generation",
 ]
 
+class SnapshotCountingPresentation:
+	extends PlanetaryCloudPresentation
+
+	var snapshot_reads := 0
+
+	func get_state_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_state_snapshot()
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 var _events: Array[Dictionary] = []
@@ -75,6 +85,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_configuration_rejections()
+	_test_signal_payload_tracks_current_listeners()
 	var fixture := _make_fixture()
 	_adapter = fixture.adapter
 	_profile = fixture.profile
@@ -650,6 +661,48 @@ func _on_material_changed() -> void:
 		_shader.code = SHADER_CODE.replace(
 			"uniform float cloud_coverage_unitless = 0.1;\n", ""
 		)
+
+
+func _test_signal_payload_tracks_current_listeners() -> void:
+	var adapter := SnapshotCountingPresentation.new()
+	var material := _make_material()
+	root.add_child(adapter)
+	var configured := adapter.configure(ProfileScript.new(), material)
+	var first := adapter.present_observation(3000.0, 1.0, 0.5, 0.5, 1)
+	_check(
+		configured.accepted and first.accepted
+		and int(first.revision) == int(configured.revision) + 1 and adapter.snapshot_reads == 0,
+		"listener-free cloud commits advance revision without building a signal snapshot"
+	)
+	var events: Array[Dictionary] = []
+	var listener := func(reason: StringName, snapshot: Dictionary) -> void:
+		events.append({"reason": reason, "snapshot": snapshot})
+	adapter.presentation_committed.connect(listener)
+	var connected := adapter.present_observation(3100.0, 2.0, 0.6, 0.6, 1)
+	_check(
+		connected.accepted and adapter.snapshot_reads == 1 and events.size() == 1
+		and int(events[0].snapshot.revision) == int(connected.revision)
+		and events[0].snapshot.renderer.actual == _parameter_values(material),
+		"a newly connected listener receives the fresh committed cloud revision and actual material values"
+	)
+	adapter.presentation_committed.disconnect(listener)
+	var disconnected := adapter.present_observation(3200.0, 3.0, 0.7, 0.7, 1)
+	_check(
+		disconnected.accepted and int(disconnected.revision) == int(connected.revision) + 1
+		and adapter.snapshot_reads == 1 and events.size() == 1,
+		"disconnecting resumes listener-free commits without constructing another payload"
+	)
+	adapter.presentation_committed.connect(listener)
+	var reconnected := adapter.present_observation(3300.0, 4.0, 0.8, 0.8, 1)
+	_check(
+		reconnected.accepted and adapter.snapshot_reads == 2 and events.size() == 2
+		and int(events[1].snapshot.revision) == int(disconnected.revision) + 1
+		and int(events[1].snapshot.revision) == int(reconnected.revision)
+		and events[1].snapshot.renderer.actual == _parameter_values(material)
+		and events[1].snapshot.last_observation != events[0].snapshot.last_observation,
+		"reconnecting receives current cloud state after the unobserved revision"
+	)
+	adapter.queue_free()
 
 
 func _make_fixture() -> Dictionary:
