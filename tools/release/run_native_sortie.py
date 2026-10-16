@@ -355,13 +355,27 @@ def run(binary, output):
         result['error'] = f'{type(error).__name__}: {error}'
     finally:
         signal.setitimer(signal.ITIMER_REAL,0)
+        # A second cancel must not strand the other owned child midway through
+        # bounded cleanup. Each independent cleanup runs even if another fails.
+        for sig in old_signals: signal.signal(sig,signal.SIG_IGN)
+        cleanup_errors = []
         if desktop:
-            try: desktop.close(); result['inputs_released']=True
-            except Exception as error: result['input_cleanup_error']=str(error)
-        stop(game); stop(xvfb)
-        if temporary_profile: temporary_profile.cleanup()
-        result.update(game_reaped=game is None or game.poll() is not None, xvfb_reaped=xvfb is None or xvfb.poll() is not None,
-                      elapsed_seconds=round(time.monotonic()-start,3))
+            try:
+                desktop.close()
+                result['inputs_released'] = True
+            except Exception as error:
+                cleanup_errors.append('release input: '+str(error))
+        for name, process in [('game',game),('xvfb',xvfb)]:
+            try: stop(process)
+            except Exception as error: cleanup_errors.append(name+': '+str(error))
+            result[name+'_reaped'] = process is None or process.poll() is not None
+        if temporary_profile:
+            try: temporary_profile.cleanup()
+            except Exception as error: cleanup_errors.append('profile: '+str(error))
+        if cleanup_errors:
+            result['cleanup_errors'] = cleanup_errors
+            result['success'] = False
+        result['elapsed_seconds'] = round(time.monotonic()-start,3)
         for sig,handler in old_signals.items(): signal.signal(sig,handler)
         (output/'result.json').write_text(json.dumps(result,indent=2)+'\n')
     return result
