@@ -238,7 +238,8 @@ class Pilot:
         require(phase != 'FAILED' and not s['destroyed'], 'live sortie')
         self.shot |= s['shot_accepted']
         self.fired |= s['command_fire']
-        self.max_walk = max(self.max_walk, norm(sub(s['player'], s['spawn'])))
+        if self.stage == 'walk':
+            self.max_walk = max(self.max_walk, norm(sub(s['player'], s['spawn'])))
         self.max_excursion = max(self.max_excursion, norm(sub(s['position'], s['parked'])))
         self.departed |= s['lease_free'] and not s['landed'] and self.max_excursion > .01
         keys = set()
