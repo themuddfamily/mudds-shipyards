@@ -128,6 +128,18 @@ func _ready() -> void:
 		probe.set("activity", interruption.activity)
 		add_child(probe)
 		startup_completed.connect(probe.on_startup_completed)
+	var native_sortie := native_sortie_request(command_line, DisplayServer.get_name(),
+		AudioServer.get_driver_name(), OS.get_environment("MUDDS_PRIVATE_PROBE_INPUT") == "native-sortie-x11")
+	if bool(native_sortie.requested):
+		if not bool(native_sortie.accepted):
+			print("NATIVE_SORTIE_REJECTED: private X11/Dummy observer inputs required")
+			_early_cli_exit_code = 2
+			call_deferred("_quit_after_cli_output")
+			return
+		var observer := load("res://scripts/diagnostics/native_sortie_observer.gd").new() as Node
+		observer.name = "NativeSortieObserver"
+		add_child(observer)
+		startup_completed.connect(observer.on_startup_completed)
 	var early_cli_mode := cli_mode(command_line)
 	if early_cli_mode == &"support_export":
 		_run_early_support_export(cli_support_export_path(command_line))
@@ -194,6 +206,23 @@ static func cli_mode(args: PackedStringArray) -> StringName:
 	if CLI_VERSION in args:
 		return &"version"
 	return &""
+
+
+## Read-only telemetry is lazy and available only to the owned silent X11 driver.
+static func native_sortie_request(args: PackedStringArray, display_name: String, audio_driver_name: String, private_input_owned: bool = false) -> Dictionary:
+	var count := 0
+	for argument in args:
+		if argument.begins_with("--native-sortie-observer"):
+			count += 1
+	if count == 0:
+		return {"requested": false, "accepted": false}
+	var accepted := count == 1 and "--native-sortie-observer" in args \
+		and display_name.to_lower() == "x11" and audio_driver_name == "Dummy" and private_input_owned
+	for argument in args:
+		if argument in ["--version", "--help", "--support-info", "--support-export", "--startup-check", "--frame-capture", "--reflection-reentry-check"] \
+				or argument.begins_with("--in-world-interruption-"):
+			accepted = false
+	return {"requested": true, "accepted": accepted}
 
 
 ## Only the silent release driver may use headless or its private engineer X11 input.

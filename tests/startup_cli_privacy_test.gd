@@ -10,6 +10,21 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var native_args := PackedStringArray(["--native-sortie-observer"])
+	_check(not StartupLoaderType.native_sortie_request(PackedStringArray(), "X11", "Dummy", true).requested,
+		"ordinary Boot leaves the native sortie observer unloaded")
+	_check(StartupLoaderType.native_sortie_request(native_args, "X11", "Dummy", true).accepted,
+		"native sortie observation admits the explicit silent private X11 route")
+	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(native_args, row[0], row[1], row[2]).accepted,
+			"native observer rejects unsupported display/audio/ownership")
+	for conflict in ["--native-sortie-observer", "--startup-check", "--frame-capture", "--version", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+		var conflicting := native_args.duplicate()
+		conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(conflicting, "X11", "Dummy", true).accepted,
+			"native observer rejects duplicate or competing mode: %s" % conflict)
+	_check(not StartupLoaderType.native_sortie_request(PackedStringArray(["--native-sortie-observer=wrong"]), "X11", "Dummy", true).accepted,
+		"native observer rejects malformed selector")
 	for script_path in [
 		"res://scripts/game/game_flow.gd",
 		"res://scripts/world/shipyard_world.gd",
