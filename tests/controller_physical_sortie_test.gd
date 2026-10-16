@@ -1453,6 +1453,15 @@ func _fly_to_waypoint(
 	_sortie_timing_sample("fly_begin")
 	var frame_budget := _frame_budget(FLIGHT_TRAVEL_SECONDS)
 	var frames := 0
+	var trace_return := provider is SettingsNativeInputEvents and arrival_stop_speed >= 0.0
+	var trace_wall_start := Time.get_ticks_msec()
+	var trace_physics_start := Engine.get_physics_frames()
+	var trace_process_start := Engine.get_process_frames()
+	var return_samples: Array[Dictionary] = []
+	var requested: Dictionary = {}
+	if trace_return:
+		return_samples.append(_settings_return_flight_sample(ship, waypoint, frames, requested,
+			trace_wall_start, trace_physics_start, trace_process_start))
 	var initial_sequence := -1
 	var initial_basis := Basis.IDENTITY
 	if _production_input_route:
@@ -1473,7 +1482,12 @@ func _fly_to_waypoint(
 			# The ordinary return must stop at its approach marker before aiming
 			# at the berth. Crossing the marker at speed is not settled staging.
 			provider.set_axis(AXIS_LEFT_TRIGGER, 1.0)
+			if trace_return:
+				requested = {"yaw_axis": 0.0, "throttle": 0.0, "pitch_axis": 0.0, "brake": true}
 			await physics_frame
+			if trace_return and frames % 120 == 0:
+				return_samples.append(_settings_return_flight_sample(ship, waypoint, frames, requested,
+					trace_wall_start, trace_physics_start, trace_process_start))
 			continue
 		var desired := offset.normalized()
 		var local_desired := ship.global_basis.orthonormalized().inverse() * desired
@@ -1489,15 +1503,31 @@ func _fly_to_waypoint(
 		provider.set_axis(AXIS_RIGHT_Y, -clampf(local_desired.y * 3.4, -1.0, 1.0))
 		provider.set_axis(AXIS_LEFT_TRIGGER, 1.0 if should_brake else 0.0)
 		provider.set_axis(AXIS_RIGHT_TRIGGER, 0.0)
+		if trace_return:
+			requested = {"yaw_axis": clampf(local_desired.x * 3.4, -1.0, 1.0),
+				"throttle": throttle, "pitch_axis": -clampf(local_desired.y * 3.4, -1.0, 1.0),
+				"brake": should_brake}
 		# Advance exactly one simulation step per guidance update. `HeroShip` samples
 		# one immutable command per `_physics_process` tick, so awaiting an idle frame
 		# as well would run a load-dependent number of ticks against stale axes and
 		# make the flown trajectory — and therefore the arrival pose — a function of
 		# machine load rather than of the controller behaviour under test.
 		await physics_frame
+		if trace_return and frames % 120 == 0:
+			return_samples.append(_settings_return_flight_sample(ship, waypoint, frames, requested,
+				trace_wall_start, trace_physics_start, trace_process_start))
+	if trace_return:
+		return_samples.append(_settings_return_flight_sample(ship, waypoint, frames, requested,
+			trace_wall_start, trace_physics_start, trace_process_start))
 	_neutralize_flight_axes(provider)
 	var arrived := ship.global_position.distance_to(waypoint) <= arrival_radius \
 		and (arrival_stop_speed < 0.0 or ship.velocity.length() <= arrival_stop_speed)
+	if trace_return and not arrived:
+		print("SETTINGS_RETURN_FLIGHT_FAILED: %s" % JSON.stringify({
+			"desktop": (provider as SettingsNativeInputEvents).desktop,
+			"arrival_radius": arrival_radius, "arrival_stop_speed": arrival_stop_speed,
+			"frame_budget": frame_budget, "samples": return_samples,
+		}))
 	if _production_input_route and not arrived:
 		_print_guidance_failure(ship, waypoint - ship.global_position, frames, 0, initial_sequence, initial_basis)
 		print("CONTROLLER_WAYPOINT_STAGING_FAILURE: ship_x=%.6f ship_y=%.6f ship_z=%.6f waypoint_x=%.6f waypoint_y=%.6f waypoint_z=%.6f speed=%.6f" % [
@@ -1506,6 +1536,33 @@ func _fly_to_waypoint(
 		])
 	_sortie_timing_sample("fly_end_budget")
 	return arrived
+
+
+## Sparse, read-only snapshots are printed only if the existing return fails.
+## Observe before neutralization so the final report cannot erase its own input.
+func _settings_return_flight_sample(ship: HeroShip, waypoint: Vector3, steps: int,
+		requested: Dictionary, wall_start: int, physics_start: int, process_start: int) -> Dictionary:
+	var offset := waypoint - ship.global_position
+	var desired := offset.normalized()
+	var local_desired := ship.global_basis.orthonormalized().inverse() * desired
+	var command := ship.get_last_ship_command()
+	var source := ship.get_local_input_source()
+	return {
+		"steps": steps, "wall_ms": Time.get_ticks_msec() - wall_start,
+		"physics_frames": Engine.get_physics_frames() - physics_start,
+		"render_frames": Engine.get_process_frames() - process_start,
+		"position": str(ship.global_position), "velocity": str(ship.velocity), "target": str(waypoint),
+		"distance": offset.length(), "local_desired": str(local_desired),
+		"forward_dot": (-ship.global_basis.z.normalized()).dot(desired),
+		"upright_dot": ship.global_basis.y.dot(Vector3.UP), "requested": requested.duplicate(),
+		"native_throttle": Input.get_action_strength("move_forward") - Input.get_action_strength("move_back"),
+		"native_brake": Input.get_action_strength("brake"), "mouse_mode": Input.mouse_mode,
+		"pending_mouse": str(source.get("_pending_look_motion")) if source != null else "no_source",
+		"consumed": {"sequence": command.sequence, "throttle": command.throttle,
+			"yaw": command.yaw, "pitch": command.pitch, "roll": command.roll,
+			"look_yaw": command.look_yaw_delta, "look_pitch": command.look_pitch_delta,
+			"brake": command.brake, "hover": command.hover} if command != null else {},
+	}
 
 
 func _brake_ship(
