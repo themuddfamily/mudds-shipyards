@@ -751,12 +751,15 @@ func _test_live_station_coverage(
 	# ef1691675 removes 27 hidden Fleet Dock bindings at 0.30; batches retain materials.
 	# 7f7b35625 merges chair structural bindings, removing eight ordinary bindings at 0.28.
 	# Pylon adds one at 0.30; ordinary mapped material bindings include shadow-only meshes.
+	# Aft roof collars and Habitat collar siblings move four ordinary mapped
+	# 0.30 bindings into two batches; restoring the Salvage ring adds one back.
+	# The integrated ordinary roster therefore moves 1546/1258 -> 1543/1255.
 	_check(
-		mapped_surface_count == 1546
+		mapped_surface_count == 1543
 		and scale_022_count == 45
 		and scale_028_count == 243
-		and scale_030_count == 1258,
-		"live static station has exactly 1546 ordinary mapped material bindings with all seven couriers dispatched"
+		and scale_030_count == 1255,
+		"live static station has exactly 1543 ordinary mapped material bindings with all seven couriers dispatched"
 	)
 	_check(exact_recipe, "every mapped station surface uses the matched world-triplanar albedo/normal/roughness recipe")
 	_check(forbidden_ship_atlas_count == 0, "no live station surface reuses the Arrow or Jovian directional ship atlases")
@@ -951,12 +954,14 @@ func _test_instanced_station_family(
 	# batch, so the measured roster is now 261/182; all 70 tubes and their
 	# ordinary surface bindings, material recipe and scale remain unchanged.
 	# Complete Habitat arcs replace 60 mapped colour batches with 10. Actual
-	# ac5d175 package measurements freeze 211/132; materials and every
-	# source triangle remain unchanged, with all other 24 checks passing.
+	# ac5d175 package measurements freeze 211/132. Aft roof collars and Habitat
+	# collar siblings add two mapped batches; Aft watch-rack knobs add one
+	# unmapped batch. The integrated roster is 214/134 with materials and
+	# every source triangle retained.
 	print("LIVE_STATION_INSTANCED_FAMILY: batches=", batches, " mapped=", mapped)
 	_check(
-		batches == 211 and mapped == 132,
-		"instanced station structure is exactly 211 batches, 132 of them mapped"
+		batches == 214 and mapped == 134,
+		"instanced station structure is exactly 214 batches, 134 of them mapped"
 	)
 	_check(exact, "every mapped instanced batch uses the same recipe and frozen scale as drawn surfaces")
 
@@ -999,8 +1004,9 @@ func _test_recent_module_material_rosters(world: ShipyardWorld) -> void:
 		"ExposedDockLattice/ObservationLogisticsConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/ObservationLogisticsServiceCourier": [7, 5, 0, 0],
 		# The emissive-dressing merge removes one unmapped ordinary renderer;
-		# mapped surfaces and the six batches stay unchanged.
-		"SalvageTerrace": [30, 28, 6, 5],
+		# restoring the mapped PipeStackRing adds one ordinary surface without
+		# changing the six batches.
+		"SalvageTerrace": [31, 29, 6, 5],
 		"ExposedDockLattice/SalvageTerraceConnector": [3, 3, 0, 0],
 		"OperationalLattice/ServiceAgents/SalvageTerraceServiceCourier": [7, 5, 0, 0],
 	}
