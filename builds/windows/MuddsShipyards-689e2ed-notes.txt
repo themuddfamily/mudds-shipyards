@@ -1,0 +1,22 @@
+Mudd's Shipyards — Freight Control sign checkpoint 689e2ed — 2026-10-17
+Source: 689e2ed0e303d642099a160436a95f9435316739
+Engine: pinned official Godot 4.7.1 a13da4feb; stock release templates.
+
+Player-visible change:
+The exterior FREIGHT CONTROL legend is readable from the normal walking approach. Its existing fascia now seats on the actual StationDoor header's outward face; the lettering sits 10mm outside the fascia. The old text was hidden behind both the fascia and door frame. Materials, text size, doorway/collision geometry, routes and component budgets are unchanged.
+
+Actual validation:
+- Independent root review of production/test geometry and original-resolution before/after images. The paired warm diagnostic keeps full module, walking camera, lighting, TAA/MSAA and wait frames identical; only the two authored X coordinates change. Before is blank; after shows the complete FREIGHT CONTROL legend. Supplemental frames are 1400x787 and do not satisfy the separate canonical capture contract. An initial incomplete candidate exposed only glyph tops and remains unaccepted.
+- The existing focused header/door regression passes 15 assertions, including actual retained StationDoor-header/fascia support overlap, 10mm glyph clearance, normal depth testing, unchanged collider/material/budgets, ordinary door opening and player-capsule clearance.
+- Standalone freight capture now calls Boot's production display-aspect policy. A readback probe proved KEEP produces 1400x787 pixels in a 1400x900 window; production EXPAND produces the declared 1400x900. The earlier b7c275d77 baseline remains a resolution FAIL despite its own marker/exit0. The existing harness now checks exact 1400x900. Original cameras, lighting, TAA/MSAA, 10/8 waits, door physics budget and 300s deadline remain.
+- Corrected canonical two-view capture passes at this exact clean frozen source: exit0, success marker exactly once, exact two 1400x900 PNGs, zero diagnostics. Source, complete import cache and registry unchanged; cold fresh private XDG DATA/CONFIG/CACHE/RUNTIME, private Xvfb x11, Dummy audio, Forward+ Vulkan llvmpipe. Root inspected both originals. Overview wayfinding and control-room readouts remain coherent; this does not qualify the whole station or native GPU presentation.
+- Source CSV SHA-256: 19ee9d4ddac93c07842b2510f2f6a305d2b61e7ee36f13d23464dcb8700ace5d
+- Image inventory CSV SHA-256: 2e056bfb5d320daac70eafb96b7a82a3ba9679572fe16efc080ff984e26d33dc
+- Canonical captures/manifests/logs and separate sign comparison: artifacts/jovian-freight-berth-689e2ed0e/.
+- Clean isolated Windows/Linux exports have matching 1,515-entry inventories. Read-only Windows x86_64 code section matches trusted stock template. Windows embedded payload through Linux editor, native Linux executable and archive-extracted executable pass --startup-check: exit0, exactly one STARTUP_MENU_READY_OK, zero diagnostics.
+- Actual Windows-payload focused suites: 309 assertions/checks, {'windows-payload-startup': 0, 'linux-direct-startup': 0, 'linux-archive-startup': 0, 'ship_fitout_batch_test': 33, 'jovian_freight_control_header_curve_test': 15, 'jovian_freight_berth_test': 261}. Archive bytes/executable mode and Windows ZIP member bytes/CRC verified. All automated Godot invocations use Dummy audio and headless/private displays. Hosted CI remains disabled.
+
+Open acceptance:
+All ten roadmap exit gates remain open. Full current-source matrix, remaining station/fleet/planetary/recovery and final-candidate capture acceptance remain open. Earlier roof qualification is source-specific; fine roof-edge and bonnet noise remains OPEN. Unsigned. Trusted signing and applicable native GPU/controller/audible/human review remain NOT_RUN. Native Windows execution remains NOT_RUN under antivirus hold; owner-excluded gates are not represented as performed.
+
+EXE SHA-256: ec2e33f0025e257a951777691e90fbbded7b976c4b86d7c97bc8d6fa0282b475

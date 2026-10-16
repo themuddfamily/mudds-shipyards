@@ -42,14 +42,16 @@ bounded evidence reference after verified source and image declarations,
 satisfies the human-review stage. The report never upgrades a state, inspects
 pixels, or infers human approval from `review_status`.
 
-At this revision the freighter's source-freeze and four-image inventory are
-verified at exact source `0cb430c0c`; its human-review readiness is `ready`, not
-`reviewed`. The other twelve rows remain pending. The human-inclusive report
-therefore has `ready=0`, `required=13`, and 37 blockers: 24 machine stages and
-13 human stages. Human stages are excluded from the owner's completion
-requirement, without representing them as performed. Both text and JSON reports
-still state `render_execution=false` and `human_review_performed=false` because
-the report itself only reads metadata.
+At this revision two source/image declarations are verified: freighter at exact
+`0cb430c0c` and freight berth at exact `689e2ed0e`. Both human-review readiness
+values are `ready`, not `reviewed`; the other eleven rows remain pending.
+The human-inclusive report has `ready=0`, `required=13`, and 35 blockers:
+22 machine stages and 13 human stages. Human stages are excluded from the
+owner's completion requirement without representing them as performed.
+Both text and JSON reports still state `render_execution=false` and
+`human_review_performed=false` because the report itself only reads metadata.
+These source-specific captures do not qualify all thirteen harnesses on one
+final frozen candidate.
 
 The unchanged original freighter harness completed all four 1280×720 views
 within its original 300-second cap, on a clean frozen imported checkout under
@@ -72,6 +74,23 @@ Actual manifests, PNGs and logs are retained locally under
 exact packaged source and validation. Later test, registry and documentation
 changes are not part of the captured or exported source.
 
+The freight berth's two required views pass on frozen `689e2ed0e` with exact
+1400×900 PNGs, exit 0, one success marker, zero diagnostics and unchanged
+source/registry/complete import cache. The original cameras, environment,
+TAA/MSAA, 10/8 waits, real door physics budget and 300s cap remain. Direct
+SceneTree capture now calls Boot's production display-aspect policy; the old
+KEEP path rendered 1400×787 inside a 1400×900 window. That `b7c275d77` baseline
+remains a resolution FAIL. Root inspected both corrected originals; the
+separate controlled walking-view pair proves the formerly hidden exterior
+FREIGHT CONTROL legend is now fully readable. The two required views alone
+do not expose that entire legend. Supplemental pairs are not canonical frames.
+Raw final artifacts are `artifacts/jovian-freight-berth-689e2ed0e/`, including
+separate before/after sign images. Source CSV SHA-256: `19ee9d4ddac93c07842b2510f2f6a305d2b61e7ee36f13d23464dcb8700ace5d`;
+image-inventory CSV SHA-256: `2e056bfb5d320daac70eafb96b7a82a3ba9679572fe16efc080ff984e26d33dc`.
+[Freight checkpoint notes](../builds/windows/MuddsShipyards-689e2ed-notes.txt)
+identify the exact source/package and remaining scope. No native GPU or human
+review is claimed. Later handoff metadata is outside that captured source.
+
 The new `cinder-streaming-transition-render` requirement freezes 24 declared
 HIGH/LOW × normal/reduced-motion transition frames. Its exact state, camera,
 threshold, and manifest contract is documented in
@@ -84,7 +103,7 @@ The current source inventory contains **13 required harnesses and 143 PNGs**.
 Berth feedback now includes the Bulwark's three states, for **18**, and varied
 encounters includes `plate_04b_scatter_fan.png`, for **18**. The registry and
 validator require these complete source inventories, replacing their stale
-15/17 declarations (139 total). Only the freighter source/image stages are
+15/17 declarations (139 total). Only the freighter and freight-berth source/image stages are
 verified as described above; matching a declared count alone does not qualify
 any captured image.
 

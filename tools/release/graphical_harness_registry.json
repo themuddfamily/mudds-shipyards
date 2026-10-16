@@ -129,9 +129,9 @@
       "output": {"root": "res://artifacts", "contract": "png_set"},
       "render": {"required": true, "profile": "project_forward_plus"},
       "review_status": "pending",
-      "source_freeze": {"status": "pending", "manifest_sha256": null},
-      "image_inventory": {"status": "pending", "expected_png_count": 2, "inventory_sha256": null},
-      "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
+      "source_freeze": {"status": "verified", "manifest_sha256": "19ee9d4ddac93c07842b2510f2f6a305d2b61e7ee36f13d23464dcb8700ace5d"},
+      "image_inventory": {"status": "verified", "expected_png_count": 2, "inventory_sha256": "2e056bfb5d320daac70eafb96b7a82a3ba9679572fe16efc080ff984e26d33dc"},
+      "human_review": {"readiness": "ready", "original_resolution_required": true, "evidence_reference": null}
     },
     {
       "id": "capture-jovian-freighter",
