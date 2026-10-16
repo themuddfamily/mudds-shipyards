@@ -336,7 +336,7 @@ func _card(activity_id: StringName, state: Dictionary) -> Dictionary:
 		# This binding acknowledges payment with reward_requested; it is not debt.
 		reward_pending = state_id == &"completed" and not bool(state.get("reward_requested", false))
 		recovery = "START TO RETRY REWARD SAVE" if reward_pending else (
-			"RESET BEFORE RETRYING" if state_id == &"failed" else ""
+			"RETURN TO THE FIRST BELT GATE AND CHOOSE START TO RETRY" if state_id == &"failed" else ""
 		)
 	var status_suffix := ""
 	if reward_pending and cargo_progress.is_empty() and station_defense_feedback.is_empty() and beacon_feedback.is_empty() and patrol_feedback.is_empty() and race_feedback.is_empty() and scan_feedback.is_empty() \

@@ -18,7 +18,13 @@ func _run() -> void:
 	hud.set_paused(true)
 	hud.call("_show_settings_page")
 	await process_frame
-	hud.settings_reset_requested.connect(func() -> void: _reset_requests += 1)
+	hud.settings_reset_requested.connect(func() -> void:
+		_reset_requests += 1
+		hud.set_settings_status(
+			"DEFAULTS ACTIVE  //  SAVE FAILED" if _reset_requests == 1 else "DEFAULTS RESTORED + SAVED",
+			_reset_requests > 1
+		)
+	)
 	var controls := hud.get("_settings_controls") as Dictionary
 	var captions := controls.get(&"captions_enabled") as CheckButton
 	captions.button_pressed = not captions.button_pressed
@@ -33,6 +39,8 @@ func _run() -> void:
 	reset.pressed.emit()
 	confirm.pressed.emit()
 	_check(not confirmation.visible and _reset_requests == 1, "confirm emits existing reset intent")
+	var status_label := hud.get("_settings_status_label") as Label
+	_check(status_label.text == "DEFAULTS ACTIVE  //  SAVE FAILED", "confirmed reset preserves synchronous failure feedback")
 	_check(reset.has_focus(), "confirm returns controller focus to the visible settings reset control")
 	hud.call("_show_pause_main")
 	hud.call("_show_settings_page")
@@ -43,6 +51,9 @@ func _run() -> void:
 	cancel.pressed.emit()
 	_check(reset.has_focus() and _reset_requests == 1, "cancel after confirmed reset retains navigation without another intent")
 	_check(hud.has_unsaved_settings(), "confirmation does not pretend reset persistence completed")
+	reset.pressed.emit()
+	confirm.pressed.emit()
+	_check(_reset_requests == 2 and status_label.text == "DEFAULTS RESTORED + SAVED", "confirmed reset preserves synchronous success feedback")
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

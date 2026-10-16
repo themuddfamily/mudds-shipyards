@@ -58,7 +58,8 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 				detail = "Connection to the session host was lost."
 			"Session closed: connection_failed":
 				detail = "Could not reach the session host. Check the address and whether the host is running."
-			"Session closed: protocol_mismatch":
+			"Session closed: protocol_mismatch", "Session closed: protocol_version_mismatch", \
+					"Session closed: schema_version_mismatch", "Session closed: package_generation_mismatch":
 				detail = "Your game and the host use incompatible session protocols. Check that both players are running the same game version."
 			"Session closed: session_full":
 				detail = "The session is full. Wait for a player to leave before retrying."

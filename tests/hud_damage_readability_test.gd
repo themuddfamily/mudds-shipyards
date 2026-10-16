@@ -14,8 +14,13 @@ func _run() -> void:
 	hud.update_ship_telemetry({"hull": 18.0, "maximum_hull": 100.0, "damage_status": "critical", "engine_power": 0.42, "weapon_power": 0.63, "targeting_power": 0.27})
 	var label := hud.get("_damage_status_label") as Label
 	_check(label.text.contains("!! CRITICAL !!") and label.text.contains("ENGINE OUTPUT  042%") and label.text.contains("WEAPONS  063%") and label.text.contains("TARGETING  027%") and label.text.contains("HULL INTEGRITY  018%"), "critical damage exposes text-only severity, engine, weapon, targeting, and hull integrity")
+	var critical_color := label.modulate
+	hud.update_ship_telemetry({"hull": 0.0, "maximum_hull": 100.0, "damage_status": "destroyed", "engine_power": 0.0})
+	_check(label.text.contains("!! DESTROYED !!") and not label.text.contains("HULL  //  OK") and label.text.contains("HULL INTEGRITY  000%") and label.modulate.is_equal_approx(critical_color), "terminal damage displays destruction with the existing danger colour instead of healthy status")
 	hud.set_reduced_motion(true)
 	hud.set_accessibility({"ui_scale": 1.4, "colorblind_palette_id": &"deuteranopia", "reduced_motion": true})
+	var palette := HudType.PaletteType.get_palette(&"deuteranopia")
+	_check(label.text.contains("!! DESTROYED !!") and label.modulate.is_equal_approx(palette[HudType.DANGER]), "an active terminal damage label follows the selected semantic danger palette")
 	hud.update_ship_telemetry({"hull": 76.0, "maximum_hull": 100.0, "damage_status": "healthy", "engine_power": 1.0})
 	var accessibility := hud.get_accessibility_report()
 	_check(label.text.contains("HULL  //  OK") and label.text.contains("HULL INTEGRITY  076%") and hud.is_reduced_motion(), "healthy component status remains readable with reduced motion")

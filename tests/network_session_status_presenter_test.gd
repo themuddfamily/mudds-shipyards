@@ -55,6 +55,21 @@ func _run() -> void:
 		"state": &"connecting", "role": &"client", "detail": "Contacting the session host.",
 	})
 	_check(after_capacity_retry.message.begins_with("Contacting the session host.") and not after_capacity_retry.message.contains("session is full") and after_capacity_retry.actions[0].id == &"cancel", "a fresh connection replaces stale capacity guidance with current connecting status")
+	for reason: String in ["protocol_version_mismatch", "schema_version_mismatch", "package_generation_mismatch"]:
+		var incompatible := presenter.present_snapshot({
+			"state": &"disconnected", "role": &"client",
+			"detail": "Session closed: %s" % reason, "retryable": true,
+		})
+		_check(incompatible.state == &"disconnected" and incompatible.message.begins_with("Your game and the host use incompatible session protocols.") and incompatible.message.contains("same game version"), "%s explains how to resolve the incompatible game version" % reason)
+		_check(presenter.request_retry().accepted and not presenter.request_disconnect().accepted, "%s preserves caller-owned disconnected recovery" % reason)
+	var incompatible_without_retry := presenter.present_snapshot({
+		"state": &"disconnected", "detail": "Session closed: protocol_version_mismatch", "retryable": false,
+	})
+	_check(incompatible_without_retry.actions.is_empty() and not presenter.request_retry().accepted, "version guidance cannot enable retry when the caller forbids it")
+	var after_version_retry := presenter.present_snapshot({
+		"state": &"connecting", "detail": "Contacting the session host.",
+	})
+	_check(after_version_retry.message.begins_with("Contacting the session host.") and not after_version_retry.message.contains("incompatible") and after_version_retry.actions[0].id == &"cancel", "a fresh connection clears incompatible-version guidance")
 	var invalid := presenter.present_snapshot({"state": &"mystery"})
 	_check(invalid.state == &"failed" and invalid.actions[0].focusable and not presenter.request_retry().accepted, "unknown state fails closed without retry authority")
 
@@ -126,7 +141,7 @@ func _run() -> void:
 		"detach clears the cursor and cached authoritative rows before reuse"
 	)
 	if _failures.is_empty():
-		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 27 assertions")
+		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 35 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)

@@ -7,6 +7,7 @@ extends SceneTree
 ## start seam publishing exactly one briefing per kind.
 
 const Presenter := preload("res://scripts/ui/activity_tutorial_presenter.gd")
+const ActivityCardPresenter := preload("res://scripts/ui/nearby_sector_activity_presenter.gd")
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const SettingsType := preload("res://scripts/settings/runtime_settings.gd")
 const SeenStoreType := preload("res://scripts/settings/tutorial_prompt_seen_store.gd")
@@ -766,6 +767,24 @@ func _check_production_route_behaviors() -> void:
 		and not belt_not_started.accepted and belt_restarted.accepted
 		and belt_restarted.next_checkpoint_index == 0,
 		"Reset deliberately abandons belt progress; Start at the first gate begins again")
+	var belt_director := binding.get("_asteroid_run_director") as ActivityDirector
+	var belt_failed := belt_director.fail_activity(
+		ActivityBindingType.ASTEROID_RUN_ACTIVITY_ID, &"asteroid_impact", int(belt_restarted.generation))
+	var failed_belt := binding.get_activity_snapshot(&"asteroid_field_run")
+	var failed_view := ActivityCardPresenter.new().present(binding.get_snapshot())
+	var retry_card: Dictionary = {}
+	for card: Dictionary in failed_view.cards:
+		if card.activity_id == ActivityBindingType.ASTEROID_RUN_ACTIVITY_ID:
+			retry_card = card
+	_check(belt_failed and failed_belt.state_id == &"failed"
+		and str(retry_card.get("text", "")).contains("RETURN TO THE FIRST BELT GATE AND CHOOSE START TO RETRY")
+		and not str(retry_card.get("text", "")).contains("RESET BEFORE RETRYING"),
+		"the failed belt's ordinary activity card names first-gate Start without an invented Reset prerequisite")
+	var impact_retry := binding.start_asteroid_field_run(BeltRoute.get_checkpoint_position(0))
+	_check(impact_retry.accepted and impact_retry.state_id == &"active"
+		and impact_retry.generation == failed_belt.generation + 1
+		and impact_retry.next_checkpoint_index == 0,
+		"Start at the first belt gate directly retries an impact failure as a fresh generation")
 	binding.queue_free()
 	await process_frame
 

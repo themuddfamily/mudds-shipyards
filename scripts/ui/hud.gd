@@ -3052,8 +3052,9 @@ func _confirm_settings_reset() -> void:
 		var reset_button := _settings_page.find_child("SettingsResetButton", true, false) as Button
 		if is_instance_valid(reset_button):
 			reset_button.grab_focus()
-	settings_reset_requested.emit()
+	# The caller may synchronously publish the completed reset or save failure.
 	set_settings_status("RESET REQUESTED", true)
+	settings_reset_requested.emit()
 
 
 ## Renders only the detached status published by the caller-owned repair
@@ -9847,13 +9848,15 @@ func _c(role: StringName) -> Color:
 
 
 func _damage_status_color(damage_status: String) -> Color:
-	if damage_status == "CRITICAL":
+	if damage_status in ["CRITICAL", "DESTROYED"]:
 		return _c(DANGER)
 	return _c(CAUTION) if damage_status == "DAMAGED" else _c(MUTED)
 
 
 func _damage_status_accessible_text(damage_status: String) -> String:
 	match damage_status:
+		"DESTROYED":
+			return "HULL  //  !! DESTROYED !!"
 		"CRITICAL":
 			return "HULL  //  !! CRITICAL !!"
 		"DAMAGED":
