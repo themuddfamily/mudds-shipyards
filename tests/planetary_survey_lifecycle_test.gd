@@ -147,6 +147,10 @@ func _survey_case(game: GameFlow, store: RejectingStore, script: GDScript, label
 		"%s: a rejected reward write keeps the completed readings unrecorded" % label)
 	_check(String(survey.prompt()).begins_with("[ E ]"),
 		"%s: the final anchor still offers E to retry the reward" % label)
+	if script == RIME_SURVEY:
+		_check(String(survey.prompt()) == "[ E ]  RETRY SAVING RECORD"
+				and String(survey.objective()).contains("retry saving"),
+			"Rime: completed unpaid readings label the next interaction as save retry, not another strain reading")
 	store.reject = false
 	_check(survey.interact() and survey.reward_recorded() and _reward_count(game, survey) == 1,
 		"%s: the retry records the reward once" % label)

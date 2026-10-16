@@ -14,13 +14,15 @@ Completed foundations include the core walk/board/fly/fight/land/recover loop, s
 
 Native Windows execution remains on hold while the Avast alert is unresolved. Do not bypass antivirus protection. Appropriate local Linux checks and read-only Windows package inspection may continue; they do not establish native Windows, GPU, controller, audible or human acceptance.
 
-Latest published checkpoint: Windows and Linux `d750f76d9`, with identical packaged game content. See the [Windows notes](builds/windows/MuddsShipyards-d750f76-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-d750f76-linux-notes.txt).
+Latest published checkpoint: Windows and Linux `064f573b2`, with identical packaged game content. See the [Windows notes](builds/windows/MuddsShipyards-064f573-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-064f573-linux-notes.txt).
 
-The checkpoint refreshes confirmed crew status immediately, preserves Destination Board navigation across refreshes, starts new briefings at the top, and corrects narrow caption layout for the tested long-source/short-cue case. Damage effects retain 72 fewer materials in each census scenario; existing performance ceilings remain open. Eight focused source UI suites pass 589 assertions; those suites plus four damage suites pass 747 assertions against the actual Windows PCK through the Linux editor. Both exports and strict startup checks pass.
+The checkpoint preserves actual Settings reset/save feedback, labels destroyed hulls explicitly, explains incompatible multiplayer versions and corrects asteroid-impact retry guidance. Six focused source suites and the same six against the actual Windows PCK each pass 409 assertions with zero diagnostics. Both platform exports and strict headless startup checks pass; the Windows payload ran through the Linux editor without executing the PE.
 
-Complete Settings acceptance remains open. The original source writer saved successfully. The latest source restart completes the keyboard-and-mouse sortie and gamepad outbound/control probes, then reaches the unchanged 300-second cap during gamepad return. The published Windows payload, run as data through the Linux editor, separately completes the keyboard-and-mouse sortie and reaches gamepad flight before the same cap. Both timeouts remain failures; neither qualifies complete Settings acceptance. Full current-source regression, complete ordinary-controls journeys and applicable hardware acceptance remain open.
+Complete Settings acceptance remains open. The original writer saved successfully. The latest source restart completes keyboard-and-mouse flight and gamepad outbound/control probes before the unchanged 300-second cap during gamepad return. The earlier d750 Windows payload separately completes keyboard-and-mouse flight and reaches gamepad flight before the same cap. Both timeouts remain failures; neither qualifies complete Settings acceptance.
 
-Four subsequent UI fixes preserve the actual Settings reset/save result, label destroyed hulls explicitly, explain incompatible multiplayer versions and correct asteroid-impact retry guidance. Six focused source suites pass 409 assertions; matching new-package checks are pending.
+The exact `064f573b2` unfiltered local regression is running. Complete ordinary-controls journeys, required graphical captures and applicable hardware acceptance remain open.
+
+Draft `05f46af` adds external capture output routing and clarifies Rime save-retry and full-server prompts. Patch applicability and whitespace checks pass; runtime qualification is `NOT_RUN`.
 
 ## Remaining tasks to complete the project
 

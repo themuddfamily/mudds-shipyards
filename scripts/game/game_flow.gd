@@ -1020,6 +1020,7 @@ var _first_sortie_tutorial_completed_steps: Dictionary = {}
 var _first_sortie_tutorial_dismissed_generation := -1
 var _first_sortie_tutorial_active_step: StringName = &""
 var _first_sortie_tutorial_craft_context: Dictionary = {}
+var _first_sortie_tutorial_fire_target: StringName = &""
 ## First-time nearby-sector activity briefings. Same tutorial channel and same
 ## fencing discipline as the first-sortie steps; the seen-set is persistent.
 ## The sector's own places, as the Destination Board lists them. These are not
@@ -7698,6 +7699,9 @@ func publish_first_sortie_tutorial_phase(
 		return false
 	_first_sortie_tutorial_revision += 1
 	_first_sortie_tutorial_active_step = step_id
+	_first_sortie_tutorial_fire_target = (
+		&"live_interceptor" if phase == Phase.INTERCEPTOR_ENGAGEMENT else &"range_targets"
+	) if step_id == &"fire" else &""
 	_first_sortie_tutorial_craft_context = (
 		_first_sortie_tutorial_context_for_craft(context_craft)
 		if step_id == &"board" else {}
@@ -7714,6 +7718,8 @@ func publish_first_sortie_tutorial_phase(
 		snapshot["craft_display_name"] = str(
 			_first_sortie_tutorial_craft_context.get("craft_display_name", "")
 		)
+	if not _first_sortie_tutorial_fire_target.is_empty():
+		snapshot["fire_target"] = _first_sortie_tutorial_fire_target
 	return apply_first_sortie_tutorial_snapshot(snapshot)
 
 
@@ -7728,6 +7734,7 @@ func _advance_first_sortie_tutorial_source(reason: StringName) -> void:
 	_first_sortie_tutorial_revision = 0
 	_first_sortie_tutorial_active_step = &""
 	_first_sortie_tutorial_craft_context.clear()
+	_first_sortie_tutorial_fire_target = &""
 	_first_sortie_tutorial_dismissed_generation = -1
 
 
@@ -7746,6 +7753,8 @@ func _republish_first_sortie_tutorial_presentation() -> bool:
 		snapshot["craft_display_name"] = str(
 			_first_sortie_tutorial_craft_context.get("craft_display_name", "")
 		)
+	if not _first_sortie_tutorial_fire_target.is_empty():
+		snapshot["fire_target"] = _first_sortie_tutorial_fire_target
 	return apply_first_sortie_tutorial_snapshot(snapshot)
 
 
@@ -16800,6 +16809,7 @@ func _begin_interceptor_engagement() -> void:
 	)
 	hud.set_objective("Dogfight the live range-defence interceptor")
 	hud.toast("Live contact launched", "Break, pursue, and destroy the opposing spacecraft", 4.0)
+	publish_first_sortie_tutorial_phase(&"fire", _first_sortie_tutorial_generation)
 	audio.play_combat_alert()
 
 

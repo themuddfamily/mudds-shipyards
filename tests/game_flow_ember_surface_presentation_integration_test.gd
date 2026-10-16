@@ -254,6 +254,9 @@ func _run() -> void:
 ## Staged real Main peers and authenticated boarding/retirement. This checks the
 ## client's real HUD producer, not canonical travel or a restored survey save.
 func _test_client_survey_retirement(scenario: String, world_id: StringName = &"aurora_temperate_world") -> void:
+	var started_ms := Time.get_ticks_msec()
+	var started_physics := Engine.get_physics_frames()
+	print("SURVEY_CLIENT_SCENARIO begin scenario=", scenario, " wall_ms=", started_ms, " physics_frame=", started_physics)
 	var host_view := SubViewport.new()
 	var client_view := SubViewport.new()
 	host_view.own_world_3d = true
@@ -334,6 +337,7 @@ func _test_client_survey_retirement(scenario: String, world_id: StringName = &"a
 	for _frame in 6:
 		await process_frame
 		await physics_frame
+	print("SURVEY_CLIENT_SCENARIO end scenario=", scenario, " wall_ms=", Time.get_ticks_msec(), " elapsed_ms=", Time.get_ticks_msec() - started_ms, " physics_frame=", Engine.get_physics_frames(), " physics_elapsed=", Engine.get_physics_frames() - started_physics)
 
 
 func _stage_client_survey_surface(server: GameFlow, client: GameFlow, craft: HeroShip, replica: HeroShip, area: ShipBoardingArea, world_id: StringName = &"aurora_temperate_world") -> bool:
@@ -787,7 +791,9 @@ func _check_client_survey_input(server: GameFlow, client: GameFlow, craft: HeroS
 	_check(body.get_instance_id() == body_id and client.player.get_instance_id() == client_body_id and craft.get_command_source() == pilot_source, "observations, reward retry and reboarding retain both real bodies and the host pilot source")
 	# A second fresh hatch edge re-admits this same visit for the retirement checks.
 	await _client_survey_press()
+	_diagnose_client_hatch("departure_pressed", server, client, body, avatar)
 	var departed := await _hud_wait(func(): return client._network_client_ember_passenger_surface_is_current() and server.get_network_remote_body_simulation().is_surface_walking(avatar) and not client._transition_busy, 3.0)
+	_diagnose_client_hatch("departure_settled", server, client, body, avatar)
 	_check(departed, "ordinary hatch disembark remains usable after survey reboarding")
 	client.set_physics_process(false)
 	client.set_process(false)
@@ -799,7 +805,7 @@ func _diagnose_client_hatch(stage: String, server: GameFlow, client: GameFlow, b
 	var craft := server._find_flyable_ship_by_id(server._network_planetary_journey.get_ship_id()) as HeroShip
 	var hatch := craft.get_node("WalkableInterior/CabinHatchInteraction") as ShipCabinHatch
 	var cabin := craft.get_in_flight_cabin_report()
-	print("SURVEY_CLIENT_HATCH ", stage, " host_local=", craft.to_local(body.global_position), " floor=", body.is_on_floor(), " near_hatch=", body.get_nearby_interactables().has(hatch), " reach=", body.get_interaction_origin().distance_to(hatch.global_position), " in_cabin=", (cabin.local_bounds as AABB).has_point(craft.to_local(body.global_position)), " host_surface=", server.get_network_remote_body_simulation().is_surface_walking(avatar), " host_cabin=", body.is_cabin_containment_active(), " client_context_empty=", client._network_client_ember_passenger_surface.is_empty(), " transition=", client._transition_busy, " request=", client.get_network_client_boarding_audit(), " result=", client.network_session.get_boarding_intent_result_replica())
+	print("SURVEY_CLIENT_HATCH ", stage, " wall_ms=", Time.get_ticks_msec(), " physics_frame=", Engine.get_physics_frames(), " host_local=", craft.to_local(body.global_position), " floor=", body.is_on_floor(), " near_hatch=", body.get_nearby_interactables().has(hatch), " reach=", body.get_interaction_origin().distance_to(hatch.global_position), " in_cabin=", (cabin.local_bounds as AABB).has_point(craft.to_local(body.global_position)), " host_surface=", server.get_network_remote_body_simulation().is_surface_walking(avatar), " host_cabin=", body.is_cabin_containment_active(), " client_context_empty=", client._network_client_ember_passenger_surface.is_empty(), " transition=", client._transition_busy, " request=", client.get_network_client_boarding_audit(), " result=", client.network_session.get_boarding_intent_result_replica())
 
 
 func _diagnose_client_survey(stage: String, server: GameFlow, client: GameFlow) -> void:
@@ -1148,6 +1154,7 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + message)
+		printerr("FAIL: " + message)
 
 
 func _finish() -> void:

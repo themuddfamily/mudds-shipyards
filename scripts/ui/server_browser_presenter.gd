@@ -499,12 +499,13 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"capacity_generation": capacity_generation,
 		"full": is_full,
 		"selectable": true,
-		"focus_label": "[ ] %s  //  %s  //  %s  //  %s  //  %s  //  SELECT TO REQUEST JOINING" % [
+		"focus_label": "[ ] %s  //  %s  //  %s  //  %s  //  %s  //  %s" % [
 			str(source.get("title", "Server")),
 			ping_label,
 			"%d/%d players" % [players, maximum],
 			password_label,
 			compatibility_label,
+			"SESSION FULL // REFRESH SERVER LIST" if is_full else "SELECT TO REQUEST JOINING",
 		],
 		"focus_marker": "[ ]",
 		"stale": false,
@@ -570,7 +571,7 @@ func _next_action(status: StringName, retryable: bool) -> String:
 		&"refreshing": return "WAIT FOR RESULTS OR RETURN"
 		&"ready": return "SELECT A SESSION TO REQUEST JOINING OR REFRESH"
 		&"full": return "REFRESH SERVER LIST OR RETURN"
-		&"empty": return "REFRESH SERVER LIST"
+		&"empty": return "CLEAR FILTERS OR REFRESH SERVER LIST" if _has_active_filters() else "REFRESH SERVER LIST"
 		&"expired": return "RETRY SERVER LIST OR CANCEL"
 		&"error": return "RETRY SERVER LIST OR CANCEL" if retryable else "CANCEL AND RETURN"
 		&"idle": return "REFRESH SERVER LIST"

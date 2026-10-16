@@ -2,6 +2,8 @@ extends SceneTree
 
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const SettingsType := preload("res://scripts/settings/runtime_settings.gd")
+const MAIN := preload("res://scenes/main.tscn")
+const MemoryStoreFixture := preload("res://tests/ember_transit_movement_soak.gd")
 
 class HudProbe extends CanvasLayer:
 	var snapshots: Array[Dictionary] = []
@@ -97,6 +99,7 @@ func _run() -> void:
 	flow.free()
 	hud.free()
 	jovian.free()
+	await _check_actual_interceptor_publication()
 	if _failures.is_empty():
 		print("FIRST_SORTIE_TUTORIAL_GAME_FLOW_PROGRESSION_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
@@ -104,6 +107,39 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _check_actual_interceptor_publication() -> void:
+	# Transition-focused component coverage, not a physical sortie claim.
+	# Both normal range completion and the already-cleared launch path call
+	# this same production transition; no phase, target ledger or hull is injected.
+	for prior_step: StringName in [&"fire", &"launch"]:
+		var game := MAIN.instantiate() as GameFlow
+		game.configure_runtime_settings_persistence(MemoryStoreFixture.Store.new(
+			"memory://fire-target.json", MemoryStoreFixture.MemoryFilesystem.new()), "memory://fire-target.cfg")
+		root.add_child(game)
+		await process_frame
+		await physics_frame
+		game.publish_first_sortie_tutorial_phase(prior_step)
+		var presenter: Variant = game.hud.get("_first_sortie_tutorial_presenter")
+		var before := presenter.get_snapshot() as Dictionary
+		game._begin_interceptor_engagement()
+		var live := presenter.get_snapshot() as Dictionary
+		_check(game.phase == GameFlow.Phase.INTERCEPTOR_ENGAGEMENT and game.opponent.is_active()
+			and live.step_id == &"fire" and live.fire_target == &"live_interceptor"
+			and live.generation == before.generation and live.revision == before.revision + 1
+			and not live.prompt.contains("RANGE TARGET"),
+			"actual interceptor transition replaces %s guidance with the current contact in a new revision" % prior_step)
+		game._detach_first_sortie_tutorial_presentation(&"test_replay")
+		_check(game._republish_first_sortie_tutorial_presentation()
+			and presenter.get_snapshot() == live,
+			"retained replay restores the same live target, glyphs and progress fence")
+		game._advance_first_sortie_tutorial_source(&"test_source_retired")
+		_check(game._first_sortie_tutorial_fire_target.is_empty() and presenter.get_snapshot().is_empty(),
+			"source retirement clears retained combat guidance")
+		game.queue_free()
+		await process_frame
+		await physics_frame
 
 
 func _check(condition: bool, message: String) -> void:

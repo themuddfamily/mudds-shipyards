@@ -383,6 +383,9 @@ func _test_objective_is_never_occluded() -> void:
 				if key == "objective":
 					continue
 				var other: Rect2 = rects[key]
+				if key == "caption" and other.position.x <= objective.end.x:
+					covered.append("caption has no positive gap beside objective at %.0fx%.0f @%.2f"
+						% [viewport.x, viewport.y, scale_request])
 				var overlap := objective.intersection(other)
 				if overlap.size.x > 0.0 and overlap.size.y > 0.0:
 					covered.append("%s covers objective by %.0fx%.0f at %.0fx%.0f @%.2f"

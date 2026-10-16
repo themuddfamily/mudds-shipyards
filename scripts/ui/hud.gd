@@ -239,6 +239,9 @@ const MIN_PAUSE_LOGICAL_HEIGHT := 760.0
 ## it into a neighbour.
 const PANEL_MARGIN := 28.0
 const PANEL_LEFT_COLUMN_WIDTH := 350.0
+## Reserve two logical pixels between the objective and captions. Both panels
+## retain their widths; the objective uses its unused outer margin.
+const PANEL_OBJECTIVE_CAPTION_CLEARANCE := 2.0
 ## Autowrapped labels otherwise report a one-pixel minimum width while the HUD
 ## is hidden during construction. A safe-area position update can make the
 ## PanelContainer cache that narrow measurement, producing a viewport-tall
@@ -3643,7 +3646,7 @@ func _apply_safe_area_offsets(left: float, top: float, right: float, bottom: flo
 		_brand_block.position.x = 30.0 + left
 		_brand_block.position.y = 26.0 + top
 	if is_instance_valid(_objective_panel):
-		_objective_panel.position.x = 28.0 + left
+		_objective_panel.position.x = PANEL_MARGIN - PANEL_OBJECTIVE_CAPTION_CLEARANCE + left
 		_objective_panel.position.y = 126.0 + top
 	if is_instance_valid(_help_panel):
 		_help_panel.offset_left = -(PANEL_HELP_WIDTH + PANEL_MARGIN + right)
@@ -4741,7 +4744,7 @@ func _build_hud() -> void:
 	# wraps to one more line instead of being occluded by that readout.
 	_objective_panel = PanelContainer.new()
 	_objective_panel.name = "ObjectivePanel"
-	_objective_panel.position = Vector2(28.0, 126.0)
+	_objective_panel.position = Vector2(PANEL_MARGIN - PANEL_OBJECTIVE_CAPTION_CLEARANCE, 126.0)
 	_objective_panel.custom_minimum_size = Vector2(PANEL_LEFT_COLUMN_WIDTH, 112.0)
 	_objective_panel.size = Vector2(PANEL_LEFT_COLUMN_WIDTH, 112.0)
 	_objective_panel.add_theme_stylebox_override("panel", _panel_box(PANEL, 8, Color("315367")))

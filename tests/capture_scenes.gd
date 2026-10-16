@@ -19,11 +19,13 @@ const MAIN_SCENE_PATH := "res://scenes/main.tscn"
 const HUD_SCENE_PATH := "res://scenes/ui/hud.tscn"
 const HUD_SCRIPT_PATH := "res://scripts/ui/hud.gd"
 const PARSE_ONLY_ENVIRONMENT_VARIABLE := "KETH_CAPTURE_SCENES_PARSE_ONLY"
-const OUTPUT_DIR := "res://artifacts"
+const DEFAULT_OUTPUT_DIR := "res://artifacts"
+var _output_override := OS.get_environment("MUDDS_CAPTURE_OUTPUT_DIR")
+var OUTPUT_DIR := DEFAULT_OUTPUT_DIR if _output_override.is_empty() else _output_override
 const STAGING_DIR := "user://keth_phase2_gameplay_capture_staging"
-const EVIDENCE_MANIFEST_PATH := OUTPUT_DIR + "/gameplay_evidence_manifest.json"
-const SOURCE_MANIFEST_PATH := OUTPUT_DIR + "/gameplay_source_manifest.sha256"
-const CAPTURE_LOG_PATH := OUTPUT_DIR + "/capture_scenes_forward_plus_2560x1440.log"
+var EVIDENCE_MANIFEST_PATH := OUTPUT_DIR + "/gameplay_evidence_manifest.json"
+var SOURCE_MANIFEST_PATH := OUTPUT_DIR + "/gameplay_source_manifest.sha256"
+var CAPTURE_LOG_PATH := OUTPUT_DIR + "/capture_scenes_forward_plus_2560x1440.log"
 const CAPTURE_RESOLUTION := Vector2i(2560, 1440)
 const CAPTURE_FILES: Array[String] = [
 	"title.png",
@@ -200,6 +202,18 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# An explicit override must name one canonical local filesystem directory.
+	var absolute_output := OUTPUT_DIR.begins_with("/") and not OUTPUT_DIR.begins_with("//")
+	if OS.get_name() == "Windows":
+		absolute_output = OUTPUT_DIR.length() > 3 and OUTPUT_DIR.substr(1, 2) == ":/" \
+			and "ABCDEFGHIJKLMNOPQRSTUVWXYZ".contains(OUTPUT_DIR.left(1).to_upper())
+	if not _output_override.is_empty() and (not absolute_output \
+			or OUTPUT_DIR.contains("\\") or OUTPUT_DIR.ends_with("/") \
+			or OUTPUT_DIR != OUTPUT_DIR.strip_edges() or OUTPUT_DIR != OUTPUT_DIR.simplify_path()):
+		push_error("MUDDS_CAPTURE_OUTPUT_DIR must be a canonical absolute local directory")
+		quit(1)
+		return
+
 	if OS.get_environment(PARSE_ONLY_ENVIRONMENT_VARIABLE) == "1":
 		print("CAPTURE_SCENES_PARSE_OK: 27-state source-current evidence inventory")
 		quit(0)
