@@ -3416,6 +3416,7 @@ func _create_jovian_materials() -> void:
 	_jovian_materials.freight_shell = _jovian_material(Color("65716d"), 0.12, 0.79)
 	_jovian_materials.deck = _jovian_material(DECK_GREY, 0.40, 0.74)
 	_jovian_materials.thermal_cover = _jovian_material(Color("697779"), 0.12, 0.77)
+	_jovian_materials.thermal_cover.vertex_color_use_as_albedo = true
 	_jovian_materials.engine = _jovian_material(ENGINE_AQUA, 0.1, 0.16, ENGINE_AQUA, 3.2)
 	_jovian_materials.nav_red = _jovian_material(JOVIAN_NAV_RED, 0.08, 0.2, JOVIAN_NAV_RED, 2.4)
 	_jovian_materials.nav_green = _jovian_material(JOVIAN_NAV_GREEN, 0.08, 0.2, JOVIAN_NAV_GREEN, 2.4)
@@ -6425,6 +6426,8 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 		var tool := SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		tool.set_material(_jovian_materials[finish])
+		if finish == "thermal_cover":
+			tool.set_color(Color.WHITE)
 		batch[finish] = tool
 	var tool: SurfaceTool = batch[finish]
 	# The patch follows the crown transversely, so its step count comes from the
@@ -6523,9 +6526,56 @@ func _roof_service_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3,
 
 func _finish_roof_service_mesh(batch: Dictionary, node_name: String) -> void:
 	var mesh := ArrayMesh.new()
-	for tool: SurfaceTool in batch.values():
+	for finish: String in batch:
+		var tool: SurfaceTool = batch[finish]
 		tool.generate_tangents()
-		tool.commit(mesh)
+		# Keep raw near attributes through their first upload; decoding a mesh
+		# and uploading it again would quantize its normals and tangents twice.
+		var arrays := tool.commit_to_arrays()
+		var lods := {}
+		if node_name == "RoofServiceAssembly" and finish == "thermal_cover":
+			var near_count: int = arrays[Mesh.ARRAY_VERTEX].size()
+			var near_indices := PackedInt32Array()
+			near_indices.resize(near_count)
+			for index in near_count:
+				near_indices[index] = index
+			arrays[Mesh.ARRAY_INDEX] = near_indices
+			# The 28 separate bars become a crown-fitting average only once
+			# their vertical relief is smaller than the viewport's pixel limit.
+			# This is a native mesh error in metres, not a camera distance.
+			var front := -1.94
+			var rear := -1.94 + 27.0 * 0.365 + 0.14
+			var coverage := 28.0 * 0.14 / (rear - front)
+			var backing_lift := 0.057
+			var bar_lift := 0.103
+			var mean_lift := lerpf(backing_lift, bar_lift, coverage)
+			var proxy_batch := {}
+			for side in [-1.0, 1.0]:
+				_roof_service_patch(proxy_batch, finish, side, 2.075, 3.245,
+					front, rear, mean_lift, false, backing_lift)
+			var proxy_tool: SurfaceTool = proxy_batch[finish]
+			proxy_tool.generate_tangents()
+			var proxy_arrays := proxy_tool.commit_to_arrays()
+			var paint: Color = _jovian_materials.thermal_cover.albedo_color.srgb_to_linear()
+			var mean_paint: Color = _jovian_materials.dark.albedo_color.srgb_to_linear().lerp(paint, coverage)
+			var proxy_color := Color(mean_paint.r / paint.r, mean_paint.g / paint.g,
+				mean_paint.b / paint.b, 1.0)
+			var colors: PackedColorArray = proxy_arrays[Mesh.ARRAY_COLOR]
+			colors.fill(proxy_color)
+			proxy_arrays[Mesh.ARRAY_COLOR] = colors
+			var proxy_count: int = proxy_arrays[Mesh.ARRAY_VERTEX].size()
+			for channel in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT,
+					Mesh.ARRAY_TEX_UV, Mesh.ARRAY_COLOR]:
+				var combined: Variant = arrays[channel]
+				combined.append_array(proxy_arrays[channel])
+				arrays[channel] = combined
+			var far_indices := PackedInt32Array()
+			far_indices.resize(proxy_count)
+			for index in proxy_count:
+				far_indices[index] = near_count + index
+			lods[maxf(bar_lift - mean_lift, mean_lift - backing_lift)] = far_indices
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, _jovian_materials[finish])
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
 	instance.mesh = mesh

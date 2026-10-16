@@ -33,6 +33,7 @@ func _run() -> void:
 	_test_fitout_cpu_surface_parity(jovian)
 	_test_formed_roof(jovian)
 	_test_roof_service_layer_clearances(jovian)
+	_test_roof_service_lod(jovian)
 	_test_formed_forward_shell(jovian)
 	await _test_freighter_windscreen(jovian)
 	await _test_pilot_doorway(jovian)
@@ -133,8 +134,70 @@ func _test_roof_service_layer_clearances(jovian: JovianLightFreighter) -> void:
 				"%s %s remains above supporting %s at %s (%.6f m)" % [sample[0].name,
 					sample[1], sample[2], point, upper - lower])
 
+func _test_roof_service_lod(jovian: JovianLightFreighter) -> void:
+	var roof := jovian.get_jovian_visual_root().get_node("RoofServiceAssembly") as MeshInstance3D
+	var materials := jovian.get_variant_materials()
+	var surface := -1
+	for index in roof.mesh.get_surface_count():
+		if roof.mesh.surface_get_material(index) == materials.thermal_cover:
+			surface = index
+	var arrays := roof.mesh.surface_get_arrays(surface)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var near_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var reference_batch := {}
+	for side in [-1.0, 1.0]:
+		for slat in 28:
+			var z := -1.94 + float(slat) * 0.365
+			jovian._roof_service_patch(reference_batch, "thermal_cover", side,
+				2.075, 3.245, z, z + 0.14, 0.103)
+	var reference_tool: SurfaceTool = reference_batch.thermal_cover
+	reference_tool.generate_tangents()
+	var reference := reference_tool.commit()
+	var expected := reference.surface_get_arrays(0)
+	var near_unchanged := near_indices.size() == 5376
+	for channel in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT, Mesh.ARRAY_TEX_UV]:
+		near_unchanged = near_unchanged and arrays[channel].slice(0, expected[channel].size()) == expected[channel]
+	for index in near_indices.size():
+		near_unchanged = near_unchanged and near_indices[index] == index and colors[index] == Color.WHITE
+	_check(near_unchanged, "cargo grille LOD preserves every original near triangle, normal, tangent and UV with white vertex colour")
+	var lods: Array = roof.mesh.get("_surfaces")[surface].get("lods", [])
+	_check(lods.size() == 2, "cargo cooling field has exactly one native mesh LOD without another draw surface")
+	if lods.size() != 2:
+		return
+	var far_bytes: PackedByteArray = lods[1]
+	var far_indices := PackedInt32Array()
+	far_indices.resize(far_bytes.size() / 2)
+	var valid_far := far_indices.size() > 0 and far_indices.size() < near_indices.size() and far_indices.size() % 3 == 0
+	for index in far_indices.size():
+		far_indices[index] = far_bytes.decode_u16(index * 2)
+		valid_far = valid_far and far_indices[index] >= near_indices.size() and far_indices[index] < vertices.size()
+	_check(valid_far, "far cooling field selects only appended proxy triangles and reduces submitted grille triangles")
+	var coverage := 28.0 * 0.14 / (8.055 + 1.94)
+	var paint: Color = materials.thermal_cover.albedo_color.srgb_to_linear()
+	var mean_paint: Color = materials.dark.albedo_color.srgb_to_linear().lerp(paint, coverage)
+	var valid_proxy: bool = materials.thermal_cover.vertex_color_use_as_albedo and not materials.thermal_cover.vertex_color_is_srgb
+	for index in range(near_indices.size(), vertices.size()):
+		var mixed := colors[index] * paint
+		valid_proxy = valid_proxy and absf(mixed.r - mean_paint.r) < 0.001 and absf(mixed.g - mean_paint.g) < 0.001 and absf(mixed.b - mean_paint.b) < 0.001
+		var point := vertices[index]
+		var clearance := point.y - jovian._roof_service_height(point.x, point.z, false)
+		valid_proxy = valid_proxy and clearance >= -0.0001 and clearance < 0.103 and absf(point.x) >= 2.075 - 0.0001 and absf(point.x) <= 3.245 + 0.0001 and point.z >= -1.9401 and point.z <= 8.0551
+	_check(valid_proxy, "far field averages actual bar coverage in linear colour within the original grille envelope")
+	_check(absf(float(lods[0]) - (0.103 - lerpf(0.057, 0.103, coverage))) < 0.00001,
+		"native LOD uses the missing bar relief in metres with default viewport and instance thresholds")
+	for side in [-1.0, 1.0]:
+		for z in [-1.8, 0.0, 3.0, 7.9]:
+			var point := Vector2(side * 2.5, z)
+			var upper := _roof_finish_height(roof, materials.thermal_cover, point, far_indices)
+			var lower := _roof_finish_height(roof, materials.dark, point)
+			_check(is_finite(upper) and upper - lower > 0.001,
+				"far cooling field stays above its actual curved backing at %s" % point)
 
-func _roof_finish_height(instance: MeshInstance3D, material: Material, at: Vector2) -> float:
+
+
+func _roof_finish_height(instance: MeshInstance3D, material: Material, at: Vector2,
+		requested_indices := PackedInt32Array()) -> float:
 	var height := -INF
 	for surface in instance.mesh.get_surface_count():
 		if instance.mesh.surface_get_material(surface) != material:
@@ -142,12 +205,19 @@ func _roof_finish_height(instance: MeshInstance3D, material: Material, at: Vecto
 		var arrays := instance.mesh.surface_get_arrays(surface)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-		for triangle in range(0, vertices.size(), 3):
-			if normals[triangle].y < 0.5:
+		var indices: PackedInt32Array = requested_indices
+		if indices.is_empty() and arrays[Mesh.ARRAY_INDEX] != null:
+			indices = arrays[Mesh.ARRAY_INDEX]
+		var count := vertices.size() if indices.is_empty() else indices.size()
+		for triangle in range(0, count, 3):
+			var first_index := triangle if indices.is_empty() else indices[triangle]
+			var second_index := triangle + 1 if indices.is_empty() else indices[triangle + 1]
+			var third_index := triangle + 2 if indices.is_empty() else indices[triangle + 2]
+			if normals[first_index].y < 0.5:
 				continue
-			var a := vertices[triangle]
-			var b := vertices[triangle + 1]
-			var c := vertices[triangle + 2]
+			var a := vertices[first_index]
+			var b := vertices[second_index]
+			var c := vertices[third_index]
 			var origin := Vector2(a.x, a.z)
 			var first := Vector2(b.x, b.z) - origin
 			var second := Vector2(c.x, c.z) - origin
