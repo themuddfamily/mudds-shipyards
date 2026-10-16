@@ -121,6 +121,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_network_journey_world_identity()
+	if OS.get_cmdline_user_args().has("--journey-world-identity-only"):
+		_finish()
+		return
 	if OS.get_cmdline_user_args().has("--rime-shared-survey-client"):
 		RenderingServer.set_render_loop_enabled(false)
 		await _test_client_survey_retirement("rime_survey", &"rime_glacial_world")
@@ -137,6 +141,51 @@ func _run() -> void:
 		if _hud_setup_failed:
 			break
 	_finish()
+
+
+func _test_network_journey_world_identity() -> void:
+	var flow := FlowProbe.new()
+	var bridge := flow._network_planetary_journey
+	var ember := EmberMoonStreamingBootstrap.new()
+	var aurora := AuroraTemperateStreamingBootstrap.new()
+	var rime := RimeGlacialStreamingBootstrap.new()
+	flow.ember_streaming_bootstrap = ember
+	flow.aurora_streaming_bootstrap = aurora
+	flow.rime_streaming_bootstrap = rime
+	for state: Dictionary in [{}, {"world_id": &""}, {"world_id": null},
+			{"world_id": &"ember_moon"}, {"world_id": &"aurora_temperate_world"},
+			{"world_id": &"rime_glacial_world"}, {"world_id": "rime_glacial_world"}]:
+		bridge.set("_state", state)
+		var snapshot := flow.get_network_planetary_journey_snapshot()
+		var exact := true
+		for fallback: Variant in [null, &"", &"ember_moon"]:
+			var value: Variant = bridge.get_world_id_value(fallback)
+			var expected: Variant = snapshot.get("world_id", fallback)
+			exact = exact and value == expected and typeof(value) == typeof(expected)
+		_check(exact, "world-only reads preserve the full snapshot's missing, empty, null and typed identity: " + str(state))
+		if state.get("world_id", &"ember_moon") != null:
+			var selected := StringName(snapshot.get("world_id", &"ember_moon"))
+			var expected_bootstrap: PlanetaryStreamingBootstrap = ember if selected == &"ember_moon" \
+				else aurora if selected == &"aurora_temperate_world" \
+				else rime if selected == &"rime_glacial_world" else null
+			_check(flow._network_passenger_surface_bootstrap() == expected_bootstrap,
+				"passenger bootstrap retains the exact missing-field fallback without promoting explicit empty identity")
+	var malformed := {"nested": [&"rime_glacial_world"]}
+	bridge.set("_state", {"world_id": malformed})
+	var detached: Dictionary = bridge.get_world_id_value()
+	(detached.nested as Array).clear()
+	_check(bridge.get_world_id_value() == malformed,
+		"malformed mutable world identities cannot expose retained bridge state")
+	bridge.set("_state", {"world_id": &"rime_glacial_world"})
+	var current := bridge.get("_state") as Dictionary
+	current["world_id"] = &"aurora_temperate_world"
+	_check(bridge.get_world_id_value() == flow.get_network_planetary_journey_snapshot().world_id
+		and flow._network_passenger_surface_bootstrap() == aurora,
+		"each world-only lookup observes a current mutation rather than retaining a previous identity")
+	flow.free()
+	ember.free()
+	aurora.free()
+	rime.free()
 
 
 func _test_local_presentations() -> void:
@@ -592,6 +641,27 @@ func _check_client_rime_survey_input(server: GameFlow, client: GameFlow, craft: 
 	pilot_source.set_input_provider(null)
 
 
+func _check_surface_world_identity_fences(server: GameFlow, client: GameFlow, avatar: StringName) -> void:
+	for pair: Array in [[server, false], [client, true]]:
+		var flow := pair[0] as GameFlow
+		var is_client := bool(pair[1])
+		var is_current := func() -> bool:
+			return flow._network_client_ember_passenger_surface_owner_is_current() if is_client \
+				else flow._network_ember_passenger_surface_owner_is_current(avatar)
+		var state := flow._network_planetary_journey.get("_state") as Dictionary
+		var before := flow.get_network_planetary_journey_snapshot()
+		var admitted: bool = is_current.call()
+		state["world_id"] = &"aurora_temperate_world"
+		var world_refused: bool = not is_current.call()
+		state["world_id"] = before.world_id
+		state["journey_epoch"] = int(before.journey_epoch) + 1
+		var epoch_refused: bool = not is_current.call()
+		state["journey_epoch"] = before.journey_epoch
+		_check(admitted and world_refused and epoch_refused and is_current.call()
+			and flow.get_network_planetary_journey_snapshot() == before,
+			"live %s surface owner rejects fresh world/epoch drift and recovers only its unchanged authenticated context" % ("client" if is_client else "host"))
+
+
 ## Rime is a separate controls contract: its supported pad must constrain BOTH
 ## the server body and ordinary local prediction. Initial arrival only is staged.
 func _check_client_rime_controls(scenario: String, server: GameFlow, client: GameFlow, craft: HeroShip, replica: HeroShip) -> void:
@@ -603,6 +673,7 @@ func _check_client_rime_controls(scenario: String, server: GameFlow, client: Gam
 	var client_body_id := client.player.get_instance_id()
 	var host_context := server._network_ember_passenger_surfaces.get(avatar, {}) as Dictionary
 	var client_context := client._network_client_ember_passenger_surface
+	_check_surface_world_identity_fences(server, client, avatar)
 	var host_token := StringName(host_context.get("pad_guard_token", &""))
 	var client_token := StringName(client_context.get("pad_guard_token", &""))
 	_check(not host_token.is_empty() and not client_token.is_empty() and StringName(body.get("_rime_pad_guard_token")) == host_token and StringName(client.player.get("_rime_pad_guard_token")) == client_token,

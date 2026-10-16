@@ -178,6 +178,14 @@ func note_restored_crew_admitted(peer_id: int, avatar: StringName) -> void:
 	if generation > 0:
 		_restored_crew_admissions[peer_id] = generation
 
+## World-only admission checks need the exact current value, including a
+## caller's missing-field default and an explicitly empty or null identity.
+## Keep diagnostics on get_snapshot(); malformed containers stay detached too.
+func get_world_id_value(default_value: Variant = null) -> Variant:
+	var value: Variant = _state.get("world_id", default_value)
+	return value.duplicate(true) if value is Dictionary or value is Array else value
+
+
 func get_world_id() -> StringName:
 	return StringName(_state.get("world_id", &""))
 

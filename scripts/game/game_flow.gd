@@ -11036,7 +11036,7 @@ func _network_boarding_departure_status(peer_id: int, request: Dictionary) -> St
 ## world. Rime access uses its original pad and bounded authored survey route.
 func _network_passenger_surface_bootstrap(world_id: StringName = &"") -> PlanetaryStreamingBootstrap:
 	if world_id.is_empty():
-		world_id = StringName(get_network_planetary_journey_snapshot().get("world_id", &"ember_moon"))
+		world_id = StringName(_network_planetary_journey.get_world_id_value(&"ember_moon"))
 	match world_id:
 		AuroraExpeditionType.WORLD_ID:
 			return aurora_streaming_bootstrap
@@ -11081,7 +11081,7 @@ func _network_surface_visit_passenger_host_is_current(craft: HeroShip, world_id:
 
 
 func _network_ember_passenger_host_is_current(craft: HeroShip) -> bool:
-	var selected_world := StringName(get_network_planetary_journey_snapshot().get("world_id", &""))
+	var selected_world := StringName(_network_planetary_journey.get_world_id_value(&""))
 	if selected_world in [AuroraExpeditionType.WORLD_ID, RimeExpeditionType.WORLD_ID]:
 		return _network_surface_visit_passenger_host_is_current(craft, selected_world)
 	if selected_world != &"ember_moon":
@@ -11178,7 +11178,7 @@ func _network_ember_passenger_surface_owner_is_current(avatar: StringName, expec
 				or int(record.get("entity_generation", 0)) != int(context.get("entity_generation", -1)):
 			return false
 	var craft := _find_flyable_ship_by_id(context.ship_id)
-	if get_network_planetary_journey_snapshot().get("world_id") != world_id:
+	if _network_planetary_journey.get_world_id_value() != world_id:
 		return false
 	var bootstrap := _network_passenger_surface_bootstrap(world_id)
 	var scene := bootstrap.get_loaded_instance() if is_instance_valid(bootstrap) else null
@@ -11509,7 +11509,7 @@ func _network_client_ember_passenger_surface_owner_is_current() -> bool:
 		return false
 	# The existing authenticated release removes this relationship. That closes
 	# local prediction even while the craft's last landed picture is unchanged.
-	if get_network_planetary_journey_snapshot().get("world_id") != context.get("world_id", &"ember_moon"):
+	if _network_planetary_journey.get_world_id_value() != context.get("world_id", &"ember_moon"):
 		return false
 	var relationship := network_session.get_moving_interior_latest_relationship(context.entity_id)
 	if int(relationship.get("entity_generation", 0)) != int(context.entity_generation) \
