@@ -1,0 +1,23 @@
+Mudd's Shipyards — atmosphere performance checkpoint 51f5370
+Source commit: 51f5370ad6dc8ba05973f43d77f08a98b673c0bd
+
+Changes:
+- Planetary Sun updates perform fresh policy checks without constructing discarded diagnostic reports.
+- Cloud updates skip unused signal snapshots; revisions and connected-listener behavior remain intact.
+- Shared-survey checks now observe the actual HUD after peer processing; scan recovery checks use independent physics worlds.
+- Geometry expectations are reconciled with the recovered station content; existing budgets remain open.
+
+Validation:
+- Clean-commit safe Windows export; 1,513 embedded PCK entries verified, compiled-token integrity checked.
+- x64 PE metadata and code section match the verified official Windows template. The PE was not executed.
+- Six focused source suites: 206 assertions, no diagnostics, unchanged source manifests and Godot cache.
+- Same six suites against this actual embedded package through the pinned Linux editor: 206 assertions, no diagnostics.
+- Silent isolated package --startup-check through the Linux editor: exit 0, exactly one STARTUP_MENU_READY_OK, no engine/script/leak diagnostics.
+- Separate paired call measurements: Sun observation cost about 20% lower; listener-free cloud observation cost about 40% lower. These are isolated call measurements, not overall FPS or target-hardware performance.
+- Full Ember and Rime suites both exceeded their unchanged 300-second limits. The former three survey HUD assertion failures are resolved; neither complete journey suite passes.
+
+NOT_RUN: native Windows execution, native GPU performance, physical controller, audible/human review, complete current-source regression and final-release qualification.
+Windows PE/Wine/PowerShell execution remains on hold. GitHub Actions remain disabled; no hosted CI was run.
+This is a development checkpoint, not a completed-game release. Linux checkpoint 064f573 remains older and differs in content.
+
+EXE SHA-256: 25cc7a66fd387cc4d0ba17e186f3462f503cfa9c01c9e20d1d4d1dc05d9ba541
