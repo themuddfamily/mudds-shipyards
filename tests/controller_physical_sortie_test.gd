@@ -996,6 +996,10 @@ func _settings_on_foot_controls(game: GameFlow, player: PlayerController, driver
 
 
 func _settings_walk_to_ship(player: PlayerController, ship: HeroShip, game: GameFlow, driver: SettingsNativeInputEvents) -> bool:
+	# Candidate refresh runs in idle after disembark. The idle signal precedes
+	# node callbacks, so wait for physics next to observe that completed refresh.
+	await process_frame
+	await physics_frame
 	var world := game.world as ShipyardWorld
 	if world == null or not is_finite(player.sprint_speed) or player.sprint_speed <= 0.0 \
 			or not is_finite(player.ground_acceleration) or player.ground_acceleration <= 0.0 \
