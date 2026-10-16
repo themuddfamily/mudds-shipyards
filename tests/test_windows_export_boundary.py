@@ -1,4 +1,5 @@
 from pathlib import Path
+import configparser
 import hashlib
 import json
 import os
@@ -22,8 +23,21 @@ class WindowsExportBoundaryTest(unittest.TestCase):
         self.assertIn("builds/*", gitignore)
         self.assertIn("!builds/.gdignore", gitignore)
 
-        preset = (ROOT / "export_presets.cfg").read_text(encoding="utf-8")
-        self.assertIn('exclude_filter="tests/**,artifacts/**,tools/**,builds/**"', preset)
+        presets = configparser.ConfigParser(interpolation=None)
+        presets.read(ROOT / "export_presets.cfg", encoding="utf-8")
+        checked_platforms = set()
+        for section in presets.sections():
+            if not section.startswith("preset.") or section.endswith(".options"):
+                continue
+            platform = presets[section]["platform"].strip('"')
+            with self.subTest(platform=platform):
+                exclusions = set(presets[section]["exclude_filter"].strip('"').split(","))
+                self.assertTrue(
+                    {"tests/**", "artifacts/**", "tools/**", "builds/**", "roadmap-validation/**"}
+                    <= exclusions
+                )
+            checked_platforms.add(platform)
+        self.assertTrue({"Windows Desktop", "Linux"} <= checked_platforms)
 
 
 class AuthoredExportInputTest(unittest.TestCase):
