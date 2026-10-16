@@ -5194,6 +5194,9 @@ func _text_sign(
 	mesh.depth = 0.02
 	mesh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mesh.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Finish the existing world sign budget before the renderer first consumes
+	# the mesh, so it never tessellates the discarded extruded lettering.
+	SignGeometryBudget.apply(mesh, float(mesh.font_size) * mesh.pixel_size)
 	var instance := MeshInstance3D.new()
 	instance.name = "Sign_%s" % text_value.replace(" ", "_").replace("/", "")
 	instance.position = text_position

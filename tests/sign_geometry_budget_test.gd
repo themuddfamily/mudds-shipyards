@@ -43,6 +43,7 @@ func _init() -> void:
 
 func _run() -> void:
 	await _check_world_signs()
+	_check_module_signs_start_budgeted()
 	_check_world_size_is_preserved()
 	_check_sweep_is_idempotent()
 	_check_apply_only_geometry_parity()
@@ -103,6 +104,46 @@ func _check_world_signs() -> void:
 
 	world.queue_free()
 	await process_frame
+
+
+func _check_module_signs_start_budgeted() -> void:
+	for module_script in [preload("res://scripts/world/aft_junction_stack.gd"), preload("res://scripts/world/habitat_spine.gd")]:
+		var module := module_script.new() as Node3D
+		var holder := Node3D.new()
+		root.add_child(holder)
+		var entering_settings: Array = []
+		holder.child_entered_tree.connect(func(child: Node):
+			var mesh := (child as MeshInstance3D).mesh as TextMesh
+			entering_settings.append([mesh.font_size, mesh.depth]))
+		var material := StandardMaterial3D.new()
+		var at := Vector3(1.5, 2.0, -3.0)
+		var rotation := Vector3(0.0, 90.0, -12.0)
+		var sign: MeshInstance3D = module._text_sign(holder,
+			"UPPER OPERATIONS  //  STORES", at, rotation, 0.35, material)
+		var mesh := sign.mesh as TextMesh
+		_check(entering_settings == [[SignGeometryBudget.FONT_SIZE, SignGeometryBudget.DEPTH]],
+			"module lettering enters the tree already budgeted")
+		var expected := TextMesh.new()
+		expected.text = mesh.text
+		expected.font_size = 64
+		expected.pixel_size = 0.012
+		expected.depth = 0.02
+		expected.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		expected.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		SignGeometryBudget.apply(expected, float(expected.font_size) * expected.pixel_size)
+		var arrays := mesh.surface_get_arrays(0)
+		_check(arrays == expected.surface_get_arrays(0)
+			and mesh.get_aabb() == expected.get_aabb()
+			and mesh.pixel_size == expected.pixel_size,
+			"early module lettering exactly matches the final world sweep geometry")
+		_check(sign.position == at and sign.rotation_degrees.is_equal_approx(rotation)
+			and sign.scale == Vector3.ONE * 0.35 and sign.material_override == material,
+			"early budgeting retains authored sign placement and material")
+		SignGeometryBudget.apply_tree(holder)
+		_check(sign.mesh == mesh and mesh.surface_get_arrays(0) == arrays,
+			"the later world sweep retains the same mesh and exact lettering")
+		holder.free()
+		module.free()
 
 
 ## The saving is only acceptable because it does not resize anything. A sign that
