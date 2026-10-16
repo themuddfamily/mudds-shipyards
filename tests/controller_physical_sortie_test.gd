@@ -1294,7 +1294,9 @@ func _settings_free_sortie(game: GameFlow, player: PlayerController, ship: HeroS
 		return false
 	var capture := parked * Vector3(0.0, 8.0, -15.0)
 	_check(await _fly_to_waypoint(ship, driver, capture, 1.0, 0.45), "%s physically returns to the registered berth capture" % family)
-	_check(await _align_ship(ship, driver, (parked.origin - ship.global_position).normalized(), 0.995, 3.5), "%s native steering and hover align the actual landing approach" % family)
+	# The berth stages upright above the dock before its authored descent.
+	# Aim along that staging basis rather than pitching down toward the dock.
+	_check(await _align_ship(ship, driver, (-berth.get_assist_staging_transform().basis.z).normalized(), 0.995, 3.5), "%s native steering and hover align the actual landing approach" % family)
 	await _brake_ship(ship, driver, 0.35, 1.2)
 	var report := world.get_landing_assist_report(ship, berth_id)
 	_check(bool(report.get("assist_capture_accepted", false)), "%s reaches its real landing capture contract" % family)
