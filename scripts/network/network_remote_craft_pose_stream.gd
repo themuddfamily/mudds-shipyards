@@ -236,7 +236,7 @@ func clear_host() -> void:
 ## stream's entries are read; everything else in the section is ignored. A
 ## sample no newer than the newest one already held for that craft (the
 ## canonical republish of an older movement section, say) changes nothing.
-func consume_movement_section(movement: Array, physics_frame: int = -1, station_origin: Vector3 = Vector3.ZERO) -> int:
+func consume_movement_section(movement: Array, physics_frame: int = -1, station_origin: Vector3 = Vector3.ZERO, orbital_origin: Vector3 = Vector3.INF) -> int:
 	var accepted := 0
 	var display_batch := _display_batch_from_movement(movement)
 	for entry_variant in movement:
@@ -245,7 +245,7 @@ func consume_movement_section(movement: Array, physics_frame: int = -1, station_
 		var entry := entry_variant as Dictionary
 		if StringName(entry.get("mode", &"")) != MODE:
 			continue
-		var sample := _sample_from_entry(entry, display_batch, station_origin)
+		var sample := _sample_from_entry(entry, display_batch, station_origin, orbital_origin)
 		if sample.is_empty():
 			_rejected += 1
 			continue
@@ -568,7 +568,7 @@ func _display_batch_from_movement(movement: Array) -> Dictionary:
 			return {}
 		var facts: Dictionary = {}
 		for item: Variant in decoded:
-			if not item is Array or item.size() != 11 or not (item[0] is StringName or item[0] is String):
+			if not item is Array or item.size() not in [11, 12] or not (item[0] is StringName or item[0] is String):
 				return {}
 			var identity := pose_entity_id(StringName(item[0]))
 			if facts.has(identity):
@@ -578,14 +578,14 @@ func _display_batch_from_movement(movement: Array) -> Dictionary:
 	return {}
 
 
-func _sample_from_entry(entry: Dictionary, display_batch: Dictionary = {}, station_origin: Vector3 = Vector3.ZERO) -> Dictionary:
+func _sample_from_entry(entry: Dictionary, display_batch: Dictionary = {}, station_origin: Vector3 = Vector3.ZERO, orbital_origin: Vector3 = Vector3.INF) -> Dictionary:
 	var display: Dictionary = entry
 	if not entry.has("ship_id"):
 		var identity := StringName(entry.get("entity_id", &""))
 		if not display_batch.has(identity):
 			return {}
 		var decoded: Variant = display_batch[identity]
-		if not decoded is Array or decoded.size() != 11 or not decoded[9] is Array or decoded[9].size() != 10:
+		if not decoded is Array or decoded.size() not in [11, 12] or not decoded[9] is Array or decoded[9].size() != 10:
 			return {}
 		entry = entry.duplicate()
 		var fields := ["ship_id", "pose_tick", "operation_tick", "pose_active", "craft_epoch", "rotation", "velocity_world", "destroyed", "hull_presentation"]
@@ -614,7 +614,12 @@ func _sample_from_entry(entry: Dictionary, display_batch: Dictionary = {}, stati
 		entry["operation_presentation"] = operation
 		if not decoded[10] is Vector3 or not (decoded[10] as Vector3).is_finite():
 			return {}
-		entry["position"] = (decoded[10] as Vector3) + station_origin
+		var position_origin := station_origin
+		if decoded.size() == 12:
+			if not decoded[11] is bool or decoded[11] != true or not orbital_origin.is_finite():
+				return {}
+			position_origin = orbital_origin
+		entry["position"] = (decoded[10] as Vector3) + position_origin
 		display = entry
 		var packed_hull: Variant = display.get("hull_presentation")
 		if not packed_hull is Array or packed_hull.size() != 5 or not packed_hull[3] is Array \
@@ -788,6 +793,10 @@ static func pack_display_facts(entries: Array) -> Array:
 		var facts: Array = [entry.ship_id, entry.pose_tick, entry.operation_tick, entry.pose_active,
 			entry.craft_epoch, entry.rotation, entry.velocity_world, entry.destroyed,
 			[hull.health, hull.maximum_health, hull.component_generation, components, hash(placements)], operation_fields, entry.position]
+		# Carry the coordinate choice in this same ordered pose row. A separate
+		# journey-state packet may arrive before or after the pose transition.
+		if bool(entry.get("orbital_frame", false)):
+			facts.append(true)
 		batch.append(facts)
 		packed_entries.append(wire)
 	if not packed_entries.is_empty():

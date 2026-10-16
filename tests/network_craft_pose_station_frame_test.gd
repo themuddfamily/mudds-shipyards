@@ -22,6 +22,11 @@ func _initialize() -> void:
 func _run() -> void:
 	Engine.max_fps = 60
 	var args := OS.get_cmdline_user_args()
+	_check_repeated_origin_rounding()
+	if args.has("--origin-rounding-only"):
+		print("NETWORK_STATION_ORIGIN_ROUNDING: %d checks, %d failures" % [_assertions, _failures.size()])
+		quit(0 if _failures.is_empty() else 1)
+		return
 	var package_index := args.find("--package-under-test")
 	if package_index >= 0 and package_index + 1 < args.size():
 		_package_under_test = args[package_index + 1]
@@ -618,3 +623,83 @@ func _check(condition: bool, description: String) -> void:
 	else:
 		_failures.append(description)
 		push_error("FAIL: " + description)
+
+
+func _check_repeated_origin_rounding() -> void:
+	var flow := GameFlow.new()
+	var station := Node3D.new()
+	var parked := Node3D.new()
+	var bootstrap := EmberMoonStreamingBootstrap.new()
+	root.add_child(station)
+	root.add_child(parked)
+	root.add_child(bootstrap)
+	parked.position = Vector3(10.0, 0.0, 20.0)
+	flow.world = station
+	flow.ember_streaming_bootstrap = bootstrap
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	var registry := NearbySectorOrbitalRegistry.new()
+	var raw_station := Vector3.ZERO
+	var all_committed := true
+	for index in 777:
+		var focus := Vector3(0.0, 161.60145, -10331.909)
+		var generation := frame.get_generation()
+		var requested := frame.request_rebase(focus, generation)
+		if not bool(requested.get("accepted", false)):
+			all_committed = false
+			break
+		var request := requested.request as Dictionary
+		var committed := frame.commit_rebase(int(request.request_id), generation)
+		if not bool(committed.get("accepted", false)):
+			all_committed = false
+			break
+		var delta := request.world_translation_delta as Vector3
+		raw_station += delta
+		station.global_position += delta
+		parked.global_position += delta
+		bootstrap.global_position += delta
+		flow.notify_common_world_translation(delta, frame.get_generation())
+		bootstrap.notify_common_world_translation(delta, frame.get_generation())
+	var canonical := frame.orbital_to_world_streaming_position(
+		registry.get_coordinate(NearbySectorOrbitalRegistry.STATION_DATUM_ID), frame.get_generation())
+	var expected := canonical.position as Vector3
+	print("NETWORK_STATION_ROUNDING: physical_error=", raw_station - expected,
+		" orbital_error=", flow._network_orbital_frame_origin() - expected, " generation=", frame.get_generation())
+	_check(all_committed and frame.get_generation() == 778, "777 genuine frame commits exercise long outbound origin accumulation")
+	_check(raw_station.distance_to(expected) > 20.0, "float station root reproduces tens of metres of canonical drift")
+	_check(station.global_position == raw_station and parked.global_position - station.global_position == Vector3(10.0, 0.0, 20.0),
+		"canonical network datum leaves physical station and parked sibling berth relation unchanged")
+	_check(flow._network_orbital_frame_origin() == expected, "shared craft datum remains canonical across repeated origins")
+	var craft := HeroShip.new()
+	root.add_child(craft)
+	craft.set_physics_process(false)
+	craft.global_position = bootstrap.global_position + Vector3(0.0, 120001.1, 0.0)
+	var host_surface := craft.global_position
+	flow._network_planetary_journey._state = {"ship_id": craft.get_ship_id(), "world_id": &"ember_moon", "phase": &"landed"}
+	var entry := Pose.build_pose_entry(craft, craft.get_ship_id(), 1, 60)
+	entry["craft_epoch"] = 1
+	var tagged := flow._shift_network_craft_pose_entries([entry], -station.global_position)
+	var wire := Pose.pack_display_facts(tagged)
+	var replica := Pose.new()
+	replica.ensure_replica_craft_presentations([craft])
+	_check(replica.consume_movement_section(wire, 60, Vector3.ZERO, expected) == 1,
+		"existing packed pose channel accepts explicitly canonical shared craft position")
+	var sample := replica.latest_sample(craft.get_ship_id())
+	# The existing Vector3 wire datum rounds at eight-million-metre magnitude;
+	# it must not accumulate drift beyond one float spacing.
+	_check(not sample.is_empty() and (sample.position as Vector3).distance_to(host_surface) <= 0.5,
+		"canonical landed craft replica aligns with planet despite a different physical station origin")
+	var unconfigured := Pose.new()
+	unconfigured.ensure_replica_craft_presentations([craft])
+	_check(unconfigured.consume_movement_section(wire, 60, Vector3.ZERO) == 0,
+		"tagged orbital pose fails closed without a current canonical datum")
+	flow._network_planetary_journey._state.clear()
+	var physical_wire := Pose.pack_display_facts(flow._shift_network_craft_pose_entries([entry], -station.global_position))
+	var physical := Pose.new()
+	physical.ensure_replica_craft_presentations([craft])
+	_check(physical.consume_movement_section(physical_wire, 60, station.global_position) == 1,
+		"ordinary craft retain the original physical station frame without an orbital dependency")
+	flow.free()
+	craft.free()
+	parked.free()
+	station.free()
+	bootstrap.free()

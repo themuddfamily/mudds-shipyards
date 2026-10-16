@@ -2,6 +2,20 @@ extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
+class ReboardBinding extends EmberSurfaceLoopProductionBinding:
+	var reboard_requests := 0
+	func get_caller_snapshot() -> Dictionary:
+		return {"state_id": &"running", "last_intent_serial": 0,
+			"pending_envelope": {"physics_frame": Engine.get_physics_frames()}}
+	func queue_reboard_intent(_serial: int, _generation: int) -> Dictionary:
+		reboard_requests += 1
+		return {"accepted": true}
+
+class CrewHUD extends GameHUD:
+	var message := ""
+	func toast(title: String, detail: String = "", _duration: float = 3.2, _important: bool = false) -> void:
+		message = title + ": " + detail
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -9,6 +23,9 @@ func _reward(_receipt: Dictionary) -> Dictionary:
 	return {"accepted": true, "reason": &"caller_reward"}
 
 func _run() -> void:
+	if not _test_shared_reboard_crew_guard():
+		quit(1)
+		return
 	var main := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(main)
 	# This test drives the retained cruise binding explicitly. Disable Main's
@@ -74,3 +91,35 @@ func _run() -> void:
 		return
 	print("EMBER_SURFACE_LOOP_DEFERRED_START_TEST_OK: pending/cancel fenced before stream activation")
 	quit(0)
+
+
+func _test_shared_reboard_crew_guard() -> bool:
+	# Exercise the coordinator's intent boundary without a physical expedition;
+	# the real-peer route separately supplies an actual admitted exterior body.
+	var flow := GameFlow.new()
+	var ship := HalyardCrewTransport.new()
+	var binding := ReboardBinding.new()
+	var hud := CrewHUD.new()
+	flow.active_ship = ship
+	flow.hud = hud
+	flow.ember_surface_loop_production_binding = binding
+	flow._planetary_journey.set("_shared_ember_landing_active", true)
+	flow._network_ember_passenger_surfaces[&"crew"] = {"ship_id": ship.get_ship_id()}
+	var refused: Dictionary = flow._planetary_journey._queue_ember_surface_intent(&"reboard")
+	var protected: bool = not bool(refused.get("accepted", true)) \
+		and refused.get("reason") == &"ember_surface_crew_return_pending" \
+		and binding.reboard_requests == 0 \
+		and hud.message == "Crew return pending: Wait for your crew to board before returning to the pilot seat"
+	flow._network_ember_passenger_surfaces.erase(&"crew")
+	var admitted: Dictionary = flow._planetary_journey._queue_ember_surface_intent(&"reboard")
+	var valid: bool = protected and bool(admitted.get("accepted", false)) and binding.reboard_requests == 1
+	flow.ember_surface_loop_production_binding = null
+	flow.active_ship = null
+	flow.hud = null
+	hud.free()
+	binding.free()
+	ship.free()
+	flow.free()
+	if not valid:
+		push_error("shared host reboard must wait for exterior crew without consuming an intent: %s / %s" % [refused, admitted])
+	return valid
