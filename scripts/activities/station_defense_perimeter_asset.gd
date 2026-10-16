@@ -35,6 +35,7 @@ const PRESENTATION_SAFE_CORE_SCALE := Vector3(1.0, 1.0, 1.0)
 ## form after physical failure. Renewal returns exactly to the intact form.
 const PRESENTATION_ATTACK_RING_SCALE := Vector3(1.32, 0.72, 1.32)
 const PRESENTATION_ATTACK_CORE_SCALE := Vector3(0.82, 1.34, 0.82)
+const PRESENTATION_LANE_CUE_NEUTRAL_YAW := 0.0
 
 const _AUTHORITY_EXCLUSIONS := {
 	"combat_resolution": false,
@@ -62,6 +63,7 @@ var _presentation_root: Node3D
 var _signal_ring: MeshInstance3D
 var _signal_core: MeshInstance3D
 var _signal_light: OmniLight3D
+var _approach_lane_cue: MeshInstance3D
 var _presentation_state: StringName = &"safe"
 var _presentation_source_snapshot: Dictionary = {}
 var _wave_presentation_state: StringName = &"idle"
@@ -292,6 +294,12 @@ func get_protected_asset_presentation_snapshot() -> Dictionary:
 		"hostile_bearing_source": _hostile_bearing_source_snapshot.duplicate(true),
 		"core_position": _signal_core.position if is_instance_valid(_signal_core) else Vector3.INF,
 		"ring_yaw": _signal_ring.rotation.y if is_instance_valid(_signal_ring) else INF,
+		"approach_lane_cue_visible": (
+			_approach_lane_cue.visible if is_instance_valid(_approach_lane_cue) else false
+		),
+		"approach_lane_cue_yaw": (
+			_approach_lane_cue.rotation.y if is_instance_valid(_approach_lane_cue) else INF
+		),
 		"ring_visible": _signal_ring.visible if is_instance_valid(_signal_ring) else false,
 		"ring_scale": _signal_ring.scale.x if is_instance_valid(_signal_ring) else 0.0,
 		"ring_scale_vector": _signal_ring.scale if is_instance_valid(_signal_ring) else Vector3.ZERO,
@@ -304,8 +312,8 @@ func get_protected_asset_presentation_snapshot() -> Dictionary:
 		"light_energy": _signal_light.light_energy if is_instance_valid(_signal_light) else 0.0,
 		"light_range": _signal_light.omni_range if is_instance_valid(_signal_light) else 0.0,
 		"budget": {
-			"presentation_nodes": 4,
-			"mesh_instances": 2,
+			"presentation_nodes": 5,
+			"mesh_instances": 3,
 			"lights": 1,
 			"runtime_node_allocation": false,
 			"runtime_resource_allocation": false,
@@ -454,6 +462,7 @@ func _resolve_presentation_nodes() -> void:
 	_signal_ring = get_node_or_null(^"Presentation/SignalRing") as MeshInstance3D
 	_signal_core = get_node_or_null(^"Presentation/Core") as MeshInstance3D
 	_signal_light = get_node_or_null(^"Presentation/SignalLight") as OmniLight3D
+	_approach_lane_cue = get_node_or_null(^"Presentation/ApproachLaneCue") as MeshInstance3D
 
 
 func _presentation_nodes_valid() -> bool:
@@ -462,9 +471,12 @@ func _presentation_nodes_valid() -> bool:
 		and is_instance_valid(_signal_ring)
 		and is_instance_valid(_signal_core)
 		and is_instance_valid(_signal_light)
+		and is_instance_valid(_approach_lane_cue)
 		and _signal_ring.get_parent() == _presentation_root
 		and _signal_core.get_parent() == _presentation_root
 		and _signal_light.get_parent() == _presentation_root
+		and _approach_lane_cue.get_parent() == _presentation_root
+		and _approach_lane_cue.mesh is PrismMesh
 	)
 
 
@@ -523,10 +535,16 @@ func _apply_composed_presentation_state() -> void:
 
 
 func _apply_hostile_bearing_cue() -> void:
-	if not is_instance_valid(_signal_core) or not is_instance_valid(_signal_ring):
+	if (
+		not is_instance_valid(_signal_core)
+		or not is_instance_valid(_signal_ring)
+		or not is_instance_valid(_approach_lane_cue)
+	):
 		return
 	_signal_core.position = PRESENTATION_CORE_BASE_POSITION
 	_signal_ring.rotation.y = PRESENTATION_RING_NEUTRAL_YAW
+	_approach_lane_cue.visible = false
+	_approach_lane_cue.rotation.y = PRESENTATION_LANE_CUE_NEUTRAL_YAW
 	if _hostile_bearing_active:
 		_signal_core.position += _hostile_bearing_local * PRESENTATION_BEARING_OFFSET
 		# The already-vertical ring becomes a steady shield face toward the
@@ -536,6 +554,11 @@ func _apply_hostile_bearing_cue() -> void:
 			_hostile_bearing_local.x,
 			_hostile_bearing_local.z
 		)
+		# A triangular wedge carries the same caller-resolved bearing at flight
+		# distance. Its steady silhouette remains legible without relying
+		# on hue, flashing, animation, a new light, or any collision/targeting.
+		_approach_lane_cue.visible = _effective_presentation_state != &"destroyed"
+		_approach_lane_cue.rotation.y = _signal_ring.rotation.y
 
 
 func _clear_hostile_bearing_presentation() -> void:

@@ -17,6 +17,7 @@ func _run() -> void:
 
 	var ring := asset.get_node(^"Presentation/SignalRing") as MeshInstance3D
 	var core := asset.get_node(^"Presentation/Core") as MeshInstance3D
+	var lane_cue := asset.get_node(^"Presentation/ApproachLaneCue") as MeshInstance3D
 	var collision := asset.get_node(^"CollisionShape3D") as CollisionShape3D
 	var ring_id := ring.get_instance_id()
 	var ring_mesh_id := ring.mesh.get_instance_id()
@@ -25,6 +26,10 @@ func _run() -> void:
 	var initial_child_count := asset.get_node(^"Presentation").get_child_count()
 	var initial_collision_layer := asset.collision_layer
 	var initial_collision_mask := asset.collision_mask
+	var initial_light_count := asset.find_children("*", "Light3D", true, false).size()
+	var initial_collision_shape_count := asset.find_children(
+		"*", "CollisionShape3D", true, false
+	).size()
 	var handle := asset.get_asset_handle()
 	var pristine_presentation := asset.get_protected_asset_presentation_snapshot()
 	var starboard_snapshot := {
@@ -39,9 +44,22 @@ func _run() -> void:
 		bool(toward_starboard.accepted)
 		and bool(starboard.hostile_bearing_active)
 		and is_equal_approx(float(starboard.ring_yaw), PI * 0.5)
+		and bool(starboard.approach_lane_cue_visible)
+		and is_equal_approx(float(starboard.approach_lane_cue_yaw), PI * 0.5)
+		and lane_cue.visible
+		and lane_cue.mesh is PrismMesh
+		and lane_cue.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		and ring.basis.y.normalized().is_equal_approx(Vector3.RIGHT)
 		and (starboard.core_position as Vector3).is_equal_approx(Vector3(0.85, 2.65, 0.0)),
-		"the existing vertical shield ring and core steadily face the supplied hostile approach"
+		"the shape-coded chevron, vertical shield ring and core steadily face the supplied hostile approach"
+	)
+	var starboard_cue_transform := lane_cue.transform
+	for _frame in 4:
+		await process_frame
+	_check(
+		lane_cue.transform.is_equal_approx(starboard_cue_transform)
+		and lane_cue.visible,
+		"the approach chevron remains steady across frames without a flash or process callback"
 	)
 
 	var renewal_signal_handle: Dictionary = {}
@@ -104,6 +122,8 @@ func _run() -> void:
 	_check(
 		bool(toward_port.accepted)
 		and is_equal_approx(float(port.ring_yaw), -PI * 0.5)
+		and bool(port.approach_lane_cue_visible)
+		and is_equal_approx(float(port.approach_lane_cue_yaw), -PI * 0.5)
 		and (port.core_position as Vector3).is_equal_approx(Vector3(-0.85, 2.65, 0.0)),
 		"the renewed generation can intentionally select its own approach face"
 	)
@@ -151,6 +171,8 @@ func _run() -> void:
 		and collision.get_instance_id() == collision_id
 		and collision.shape.get_instance_id() == collision_shape_id
 		and is_equal_approx(absf(float(readded_presentation.ring_yaw)), PI)
+		and bool(readded_presentation.approach_lane_cue_visible)
+		and is_equal_approx(absf(float(readded_presentation.approach_lane_cue_yaw)), PI)
 		and (readded_presentation.core_position as Vector3).is_equal_approx(
 			Vector3(0.0, 2.65, -0.85)
 		),
@@ -177,13 +199,16 @@ func _run() -> void:
 		and asset.get_node(^"Presentation").get_child_count() == initial_child_count
 		and asset.collision_layer == initial_collision_layer
 		and asset.collision_mask == initial_collision_mask
-		and int(budget.presentation_nodes) == 4
-		and int(budget.mesh_instances) == 2
+		and int(budget.presentation_nodes) == 5
+		and int(budget.mesh_instances) == 3
 		and int(budget.lights) == 1
+		and asset.find_children("*", "Light3D", true, false).size() == initial_light_count
+		and asset.find_children("*", "CollisionShape3D", true, false).size() \
+			== initial_collision_shape_count
 		and int(budget.process_callbacks) == 0
 		and not bool(budget.runtime_node_allocation)
 		and not bool(budget.runtime_resource_allocation),
-		"the approach face reuses fixed presentation geometry without touching collision or authority"
+		"the bounded lane cue adds no light, collision, runtime allocation, or authority"
 	)
 
 	asset.queue_free()
@@ -217,4 +242,6 @@ func _is_neutral_bearing(presentation: Dictionary, expected_source_generation :=
 		and (source.is_empty() or source_is_current)
 		and (presentation.core_position as Vector3).is_equal_approx(Vector3(0.0, 2.65, 0.0))
 		and is_zero_approx(float(presentation.ring_yaw))
+		and not bool(presentation.approach_lane_cue_visible)
+		and is_zero_approx(float(presentation.approach_lane_cue_yaw))
 	)
