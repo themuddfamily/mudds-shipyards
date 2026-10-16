@@ -129,6 +129,40 @@ func _test_destination_board_refresh_keeps_back_focus(hud: GameHUD) -> void:
 		root.gui_get_focus_owner() == back,
 		"catalog refresh preserves Back instead of moving controller focus onto travel"
 	)
+	# Navigate again before the refresh's deferred queue can drain. The old
+	# restore captured the site button and undid this newer choice of Back.
+	await _tap_key(KEY_UP)
+	var site := hud.find_child("PlanetaryDestinationAction_relay_site", true, false) as Button
+	var ember := hud.find_child("PlanetaryDestinationAction_ember_moon", true, false) as Button
+	_check(root.gui_get_focus_owner() == site, "keyboard Up selects the briefing row")
+	(refreshed.destinations[0] as Dictionary).travel_summary = "Second authored travel briefing."
+	_check(hud.set_planetary_destination_snapshot(refreshed), "a second catalog refresh is accepted")
+	await _tap_joy(BUTTON_DPAD_DOWN)
+	_check(root.gui_get_focus_owner() == back,
+		"refresh cannot undo controller navigation received before the deferred queue drains")
+
+	await _tap_key(KEY_UP)
+	var disabled := refreshed.duplicate(true)
+	(disabled.sector_sites[0] as Dictionary).action_enabled = false
+	disabled.available_sector_site_ids = PackedStringArray()
+	_check(hud.set_planetary_destination_snapshot(disabled), "the focused briefing action can become unavailable")
+	await process_frame
+	_check(root.gui_get_focus_owner() == ember and site.disabled,
+		"a disabled focused action falls back to the first enabled destination")
+
+	_check(hud.set_planetary_destination_snapshot(refreshed), "the briefing action becomes available again")
+	await _tap_joy(BUTTON_DPAD_DOWN)
+	_check(root.gui_get_focus_owner() == site, "controller navigation returns to the available briefing")
+	var removed := refreshed.duplicate(true)
+	removed.sector_sites = []
+	removed.sector_site_count = 0
+	removed.available_sector_site_ids = PackedStringArray()
+	_check(hud.set_planetary_destination_snapshot(removed), "the focused briefing row can leave the catalog")
+	await process_frame
+	_check(root.gui_get_focus_owner() == ember,
+		"a removed focused action falls back to the first enabled destination")
+	await _tap_joy(BUTTON_DPAD_DOWN)
+	_check(root.gui_get_focus_owner() == back, "Back remains reachable after row removal")
 	await _tap_joy(BUTTON_A)
 	var page := hud.get("_planetary_destination_page") as Control
 	var main_page := hud.get("_pause_main_page") as Control
@@ -138,6 +172,10 @@ func _test_destination_board_refresh_keeps_back_focus(hud: GameHUD) -> void:
 			and root.gui_get_focus_owner() == destinations,
 		"controller A after refresh activates the chosen Back action"
 	)
+	_check(hud.set_planetary_destination_snapshot(refreshed), "the hidden board accepts a later refresh")
+	await process_frame
+	_check(root.gui_get_focus_owner() == destinations,
+		"a hidden board refresh leaves the current pause-page focus alone")
 	hud.set_paused(false)
 	paused = false
 	await process_frame

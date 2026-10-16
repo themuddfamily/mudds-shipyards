@@ -207,6 +207,7 @@ func _run() -> void:
 			seen_titles.size() == Presenter.ACTIVITY_ORDER.size(),
 			"each %s activity kind yields its own distinct briefing" % String(device_family),
 		)
+	await _check_briefing_scroll_lifecycle(hud)
 	await _check_production_board_sortie_briefings()
 	_check_board_sortie_presentation_variants()
 	_check_surface_survey_presentation_variants()
@@ -614,6 +615,49 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _check_briefing_scroll_lifecycle(hud: Variant) -> void:
+	hud.clear_activity_tutorial(&"scroll_case")
+	var applied: bool = hud.apply_activity_tutorial_snapshot({
+		"activity_id": &"shipyard_torpedo_run", "generation": 1, "revision": 1,
+	})
+	await process_frame
+	await process_frame
+	var scroll := hud.get("_runtime_status_scroll") as ScrollContainer
+	scroll.scroll_vertical = 24
+	await process_frame
+	var reading_position := scroll.scroll_vertical
+	_check(applied and reading_position > 0,
+		"the authored torpedo briefing can be scrolled to its later guidance")
+	var detail := hud.get("_runtime_status_detail") as Label
+	var controller_copy := detail.text
+	var glyph_presenter: Variant = hud.get("_runtime_input_glyph_presenter")
+	glyph_presenter.set_device_family(&"keyboard")
+	hud.call(&"_refresh_input_prompts")
+	await process_frame
+	await process_frame
+	_check(detail.text != controller_copy and scroll.scroll_vertical == reading_position,
+		"a live keyboard glyph refresh preserves the same briefing's reading position")
+	applied = hud.apply_activity_tutorial_snapshot({
+		"activity_id": &"shipyard_heavy_breach", "generation": 2, "revision": 1,
+	})
+	await process_frame
+	await process_frame
+	_check(applied and scroll.scroll_vertical == 0,
+		"a distinct activity briefing opens at its activation instruction instead of the prior recovery text")
+	scroll.scroll_vertical = 24
+	await process_frame
+	_check(scroll.scroll_vertical > 0,
+		"the authored heavy-breach briefing also has a later reading position")
+	applied = hud.apply_activity_tutorial_snapshot({
+		"activity_id": &"shipyard_heavy_breach", "generation": 3, "revision": 1,
+	})
+	await process_frame
+	await process_frame
+	_check(applied and scroll.scroll_vertical == 0,
+		"re-showing an activity as a fresh briefing generation starts at the top")
+	hud.clear_activity_tutorial(&"scroll_done")
 
 
 func _check_route_briefing(prompt: String, activity_id: StringName) -> void:

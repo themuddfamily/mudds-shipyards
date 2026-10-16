@@ -770,6 +770,7 @@ var _network_session_max_clients := NetworkSessionAdapterType.DEFAULT_MAX_CLIENT
 var _network_hud_snapshot_generation := 0
 var _network_hud_session_epoch := 0
 var _network_hud_session_retired := false
+var _network_hud_session_state: StringName = &""
 var _network_hud_migration_generation := 0
 var _network_damage_entities: Dictionary = {}
 var _network_damage_server_tick := 0
@@ -7162,12 +7163,22 @@ func _publish_network_session_snapshot(
 	presentation["role"] = role
 	presentation["detail"] = detail
 	presentation["retryable"] = retryable
+	_network_hud_session_state = state
 	hud.call(
 		&"update_network_session_status",
 		presentation
 	)
 	if state == &"disconnected":
 		_network_hud_session_retired = true
+
+
+## Crew presentation changes may refresh an already connected client only.
+## They cannot promote a joining, failed, migrating or retired session.
+func _publish_network_crew_role_status() -> void:
+	if _network_session_mode != &"client" or _network_hud_session_state != &"connected" \
+			or not _network_session_is_live():
+		return
+	_publish_network_session_snapshot(&"connected", &"client", "Crew position updated.")
 
 
 func _network_local_role_presentation() -> Dictionary:
@@ -7334,7 +7345,7 @@ func _on_network_session_stopped(reason: StringName) -> void:
 		var frame := _cabin_ship.get_in_flight_cabin_report().get("frame") as MovingInteriorFrame
 		if is_instance_valid(frame):
 			frame.clear_local_prediction(player)
-	_cancel_network_engineer()
+	_cancel_network_engineer(false)
 	_cancel_solo_crew_seat()
 	if _network_engineer_binding != null:
 		_network_engineer_binding.detach()
@@ -7542,7 +7553,7 @@ func _on_network_migration_result(result: Dictionary) -> void:
 	# Migration retires physical crew claims on the host. Release this
 	# confirmed chair and its borrowed input producer in the same boundary,
 	# before relationship recovery can make the body appear on foot.
-	_cancel_network_engineer()
+	_cancel_network_engineer(false)
 	if generation > 0 and generation != _network_picket_actor_migration_generation and is_instance_valid(_network_picket_actor_presenter):
 		_network_picket_actor_presenter.clear_replica()
 		_network_picket_actor_migration_generation = generation
@@ -25613,6 +25624,7 @@ func _present_network_engineer_seat(seat: ShipCrewSeat) -> void:
 	player.set_station_seated_context(true)
 	player.set_control_enabled(true)
 	_transition_busy = false
+	_publish_network_crew_role_status()
 	if seat.get_role() == &"passenger" and not craft is CinderCargoHauler:
 		hud.set_objective("Passenger aboard %s — stand [%s] to walk the cabin" % [craft.get_display_name(), hud.get_action_prompt(&"interact")])
 		return
@@ -25647,9 +25659,10 @@ func _finish_network_engineer_stand() -> void:
 	# cabin frame restore carry-before-walk ordering before input resumes.
 	_bind_cabin_occupancy(_cabin_ship)
 	player.set_control_enabled(true)
+	_publish_network_crew_role_status()
 
 
-func _cancel_network_engineer() -> void:
+func _cancel_network_engineer(publish_role_change := true) -> void:
 	_network_engineer_orphan_release.clear()
 	_network_engineer_client_claim = 0
 	_network_engineer_pending_seat = null
@@ -25670,6 +25683,8 @@ func _cancel_network_engineer() -> void:
 		if is_instance_valid(_cabin_ship) and not _cabin_ship.is_destroyed():
 			_bind_cabin_occupancy(_cabin_ship)
 
+	if publish_role_change:
+		_publish_network_crew_role_status()
 
 func _restore_network_engineer_input_source() -> void:
 	# Only the confirmed client chair borrows this producer. Do not overwrite

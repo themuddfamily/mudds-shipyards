@@ -727,6 +727,8 @@ var _first_sortie_tutorial_source_snapshot: Dictionary = {}
 ## activity copy from colliding with first-sortie step progress.
 var _activity_tutorial_presenter := ActivityTutorialPresenterType.new()
 var _activity_tutorial_source_snapshot: Dictionary = {}
+## Presentation identity of the briefing last drawn in the shared scroll body.
+var _activity_tutorial_scroll_cursor: Dictionary = {}
 var _runtime_status_kind: StringName = &""
 ## Runtime cards are retained by producer instead of sharing one mutable slot.
 ## The serial selects the most recently updated ordinary card; bomber has an
@@ -5207,6 +5209,7 @@ func request_activity_tutorial_action(action: StringName) -> Dictionary:
 func clear_activity_tutorial(reason: StringName = &"detached") -> Dictionary:
 	var result := _activity_tutorial_presenter.detach(reason)
 	_activity_tutorial_source_snapshot.clear()
+	_activity_tutorial_scroll_cursor.clear()
 	if _runtime_status_kind == &"activity_tutorial" and is_instance_valid(_runtime_status_panel):
 		var viewport := get_viewport()
 		var focus_owner := viewport.gui_get_focus_owner() if viewport != null else null
@@ -5560,6 +5563,17 @@ func _render_runtime_status_card(
 			detail += "\nUNAVAILABLE // %s" % gunner_reason.to_upper()
 	detail_label.text = detail
 	if kind != &"bomber" and is_instance_valid(_runtime_status_scroll):
+		var briefing_cursor: Dictionary = {}
+		if kind == &"activity_tutorial":
+			briefing_cursor = {
+				"activity_id": snapshot.get("activity_id", &""),
+				"generation": snapshot.get("generation", -1),
+			}
+			# A fresh briefing opens at its activation instruction. A glyph refresh
+			# of the same briefing keeps the player's current reading position.
+			if briefing_cursor != _activity_tutorial_scroll_cursor:
+				_runtime_status_scroll.scroll_vertical = 0
+		_activity_tutorial_scroll_cursor = briefing_cursor
 		_runtime_status_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 		_runtime_status_scroll.get_v_scroll_bar().mouse_filter = Control.MOUSE_FILTER_STOP
 	var action_buttons: Array[Button] = []
@@ -6161,7 +6175,9 @@ func set_planetary_destination_snapshot(snapshot: Dictionary) -> bool:
 	_planetary_destination_snapshot = snapshot.duplicate(true)
 	_render_planetary_destination_rows()
 	if _planetary_destination_page.visible:
-		call_deferred(&"_restore_planetary_destination_focus", focused_id, focused_back)
+		# Retained/new buttons and their focus chain are already ready. Restore
+		# now so a queued refresh cannot undo the player's next navigation input.
+		_restore_planetary_destination_focus(focused_id, focused_back)
 	return true
 
 

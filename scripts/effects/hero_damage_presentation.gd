@@ -145,6 +145,11 @@ var _explosion_core: MeshInstance3D
 var _shockwave: MeshInstance3D
 var _destruction_debris: Array[Dictionary] = []
 var _transient_effects: Array[Dictionary] = []
+# These nine recipes are constant across craft. Only particle, light and mesh
+# instance properties animate; the material resources remain immutable. Keep
+# per-rig dictionaries while sharing the identical renderer resources.
+static var _shared_material_catalog: Dictionary = {}
+
 var _materials: Dictionary = {}
 var _meshes: Dictionary = {}
 
@@ -1882,6 +1887,9 @@ func _restart_particles_cleared(particles: CPUParticles3D) -> void:
 
 
 func _create_materials() -> void:
+	if not _shared_material_catalog.is_empty():
+		_materials = _shared_material_catalog.duplicate()
+		return
 	_materials.spark = _emissive_material(DAMAGE_ORANGE, 4.6)
 	_materials.impact_flash = _emissive_material(Color("ffd08a"), 4.2)
 	_materials.explosion = _emissive_material(Color("fff0b0"), 6.2)
@@ -1917,6 +1925,7 @@ func _create_materials() -> void:
 	shockwave.emission_energy_multiplier = 3.5
 	shockwave.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_materials.shockwave = shockwave
+	_shared_material_catalog = _materials.duplicate()
 
 
 func _create_shared_meshes() -> void:

@@ -308,6 +308,18 @@ class SettingsNativeInputEvents:
 			set_action(action, 0.0)
 
 
+## Observe each consumed command after the production ship, before a later
+## neutral physics tick can replace its one-tick mouse impulse.
+class SettingsFlightMouseWitness extends Node:
+	var ship: HeroShip
+	var mouse_axes_seen := false
+
+	func _physics_process(_delta: float) -> void:
+		var command := ship.get_last_ship_command()
+		mouse_axes_seen = mouse_axes_seen or (command != null \
+			and absf(command.look_yaw_delta) > 0.001 and absf(command.look_pitch_delta) > 0.001)
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -984,61 +996,210 @@ func _settings_on_foot_controls(game: GameFlow, player: PlayerController, driver
 
 
 func _settings_walk_to_ship(player: PlayerController, ship: HeroShip, game: GameFlow, driver: SettingsNativeInputEvents) -> bool:
+	var world := game.world as ShipyardWorld
+	if world == null or not is_finite(player.sprint_speed) or player.sprint_speed <= 0.0 \
+			or not is_finite(player.ground_acceleration) or player.ground_acceleration <= 0.0 \
+			or not is_finite(player.ground_deceleration) or player.ground_deceleration <= 0.0 \
+			or Engine.physics_ticks_per_second <= 0:
+		driver.release_all()
+		return false
+	var branch := world.get_node_or_null(^"ExposedDockLattice/PortBranchArm") as StaticBody3D
+	var north_rail := world.get_node_or_null(^"ExposedDockLattice/BranchRail/Collision") as CollisionShape3D
+	var branch_cargo := world.get_node_or_null(^"OperationalLattice/Activities/PortBranchCargoLine") as StationOperationsActivity
+	var apron := world.get_node_or_null(^"ExposedDockLattice/PortBerthNode") as StaticBody3D
+	var apron_collision: CollisionShape3D = apron.get_node_or_null(^"Collision") as CollisionShape3D if apron != null else null
+	var player_collision := player.get_node_or_null(^"PlayerCollision") as CollisionShape3D
+	if branch == null or north_rail == null or not north_rail.shape is BoxShape3D \
+			or branch_cargo == null or apron_collision == null or not apron_collision.shape is BoxShape3D \
+			or player_collision == null or not player_collision.shape is CapsuleShape3D:
+		driver.release_all()
+		return false
+	var radius := (player_collision.shape as CapsuleShape3D).radius
+	var apron_shape := apron_collision.shape as BoxShape3D
+	if not is_finite(radius) or radius <= 0.0 or not apron_shape.size.is_finite():
+		driver.release_all()
+		return false
+	var start := world.to_local(player.global_position)
+	var apron_corner := world.to_local(apron_collision.to_global(Vector3(
+		apron_shape.size.x * 0.5 - radius * 2.0,
+		apron_shape.size.y * 0.5,
+		apron_shape.size.z * 0.5 - radius * 2.0)))
+	var boarding := world.to_local(ship.get_boarding_position())
+	# Arrow already publishes its ground route around the wing. Resolve it
+	# from the physical tail apron on the marker's side, before the climb.
+	# The deck-max inset used before crossed the registry slab's 0.40m side;
+	# the public ground strip crosses the existing threshold near its toe.
+	var ground_entry := ship.get_exterior_boarding_waypoints(world.to_global(
+		Vector3(apron_corner.x, apron_corner.y, boarding.z)))
+	if ground_entry.size() < 2:
+		driver.release_all()
+		return false
+	var ground_strip := world.to_local(ground_entry[0].origin)
+	if not ground_strip.is_finite() or not ground_entry[1].origin.is_finite() \
+			or absf(ground_strip.y - apron_corner.y) >= radius:
+		driver.release_all()
+		return false
+	apron_corner.z = ground_strip.z
+	# Branch centerz15.5 is inside the actual transfer machinery. Follow the
+	# north-side embodied corridor using its physical rail and cargo declarations.
+	var rail_shape := north_rail.shape as BoxShape3D
+	var rail_inner_z := world.to_local(north_rail.to_global(Vector3(0.0, 0.0, rail_shape.size.z * 0.5))).z
+	var branch_lane_z := rail_inner_z + radius * 2.0
+	var cargo_front_z := INF
+	for volume: Dictionary in branch_cargo.get_solid_volume_contract():
+		var position: Vector3 = volume.position
+		var size: Vector3 = volume.size
+		cargo_front_z = minf(cargo_front_z, world.to_local(branch_cargo.to_global(
+			position - Vector3(0.0, 0.0, size.z * 0.5))).z)
+	if not is_finite(cargo_front_z) or branch_lane_z + radius >= cargo_front_z:
+		driver.release_all()
+		return false
+	# These are physical deck anchors, not a diagonal across the intentional void.
+	var apron_start := apron_collision.to_local(player.global_position)
+	var starts_on_apron := absf(apron_start.x) <= apron_shape.size.x * 0.5 \
+		and absf(apron_start.z) <= apron_shape.size.z * 0.5
+	var route: Array[Vector3] = []
+	if starts_on_apron:
+		# After the desktop sortie, Arrow remains reboard-blocked until the
+		# walker leaves its interaction reach. Go outward from the port-flank
+		# exit, then along the aft strip to the tail apron before returning.
+		# Returning inward to branch center first would cross the parked wing.
+		route.append(world.to_global(Vector3(start.x, apron_corner.y, apron_corner.z)))
+		route.append(world.to_global(apron_corner))
+	else:
+		# Enter PortBranchArm via CentralJunction and skirt the Arrow's tail.
+		route.append(world.to_global(Vector3(start.x, apron_corner.y, branch_lane_z)))
+		route.append(world.to_global(Vector3(apron_corner.x, apron_corner.y, branch_lane_z)))
+		route.append(world.to_global(apron_corner))
+	route.append(ground_entry[1].origin)
+	route.append(ship.get_boarding_position())
+	var path_distance := 0.0
+	var previous := player.global_position
+	for waypoint: Vector3 in route:
+		path_distance += (waypoint - previous).slide(Vector3.UP).length()
+		previous = waypoint
+	# Bound the supported path by authored sprint speed and the original
+	# 30-tick reserve. Digital diagonals can project only cos(45deg) of full
+	# speed along a leg; account for that geometry for desktop key input only.
+	var projection := sqrt(0.5) if driver.desktop else 1.0
+	var frame_budget := _frame_budget(maxf(WALK_TRAVEL_SECONDS,
+		path_distance / (player.sprint_speed * projection)))
 	driver.ship = null
 	driver.set_action(&"sprint_boost", 1.0)
+	var started := Engine.get_physics_frames()
 	var frames := 0
+	var leg := 0
+	var segment_origin := player.global_position
+	var corner_braking := false
+	var physics_delta := 1.0 / float(Engine.physics_ticks_per_second)
 	var requested_axes := Vector2.ZERO
-	_settings_walk_sample("start", player, ship, game, driver, frames, requested_axes)
-	for frame in _frame_budget(WALK_TRAVEL_SECONDS):
-		var offset := (ship.get_boarding_position() - player.get_interaction_origin()).slide(Vector3.UP)
-		if offset.length() < 3.1 and game.boarding_candidate == ship:
+	var arrived := false
+	var intact := true
+	while frames <= frame_budget:
+		# Abort while still near deck height, well before Main's below-yard rescue.
+		# A recalled player can never turn this route into a successful approach.
+		if not player.is_control_enabled() or player.is_seated() \
+				or game.phase != GameFlow.Phase.APPROACH_SHIP \
+				or world.to_local(player.global_position).y < apron_corner.y - radius:
+			intact = false
 			break
+		var final_distance := player.get_interaction_origin().distance_to(ship.get_boarding_position())
+		if game.boarding_candidate == ship and final_distance < 3.1 and player.is_on_floor():
+			arrived = true
+			break
+		if frames == frame_budget:
+			break
+		var horizontal_velocity := player.velocity.slide(Vector3.UP)
+		var horizontal_speed := horizontal_velocity.length()
+		# A corner cannot be captured at sprint speed: the real neutral stopping
+		# distance is ~1.01m, exceeding the existing .38m capsule tolerance.
+		# Keep neutral braking latched until stopped, then either advance inside
+		# that same tolerance or reapproach if the stop ended outside it.
+		if corner_braking and horizontal_velocity.is_zero_approx():
+			corner_braking = false
+		while leg < route.size() - 1 and horizontal_velocity.is_zero_approx() \
+				and (route[leg] - player.global_position).slide(Vector3.UP).length() <= radius:
+			segment_origin = route[leg]
+			leg += 1
+		var offset := ((ship.get_boarding_position() - player.get_interaction_origin()) \
+			if leg == route.size() - 1 else route[leg] - player.global_position).slide(Vector3.UP)
+		var stopping_distance := horizontal_speed * horizontal_speed / (2.0 * player.ground_deceleration)
+		if leg < route.size() - 1 and not corner_braking and horizontal_speed > 0.0 \
+				and offset.length() <= stopping_distance + horizontal_speed * physics_delta:
+			corner_braking = true
 		var desired := offset.normalized()
+		var predicted_cross := Vector3.ZERO
+		if corner_braking:
+			# Zero movement uses the actual Player's ground_deceleration. A
+			# reverse or lateral key would instead keep accelerating at 34m/s².
+			desired = Vector3.ZERO
+		elif driver.desktop:
+			var segment := (route[leg] - segment_origin).slide(Vector3.UP)
+			var segment_length := segment.length()
+			if segment_length > 0.0:
+				var along := segment / segment_length
+				var from_start := (player.global_position - segment_origin).slide(Vector3.UP)
+				var along_distance := from_start.dot(along)
+				var cross := from_start - along * along_distance
+				var cross_velocity := horizontal_velocity - along * horizontal_velocity.dot(along)
+				# Predict signed lateral stopping displacement under the real
+				# corrective acceleration, plus one tick of input observation.
+				var cross_drift := cross_velocity * (cross_velocity.length() / (2.0 * player.ground_acceleration) + physics_delta)
+				predicted_cross = cross + cross_drift
+				if predicted_cross.length() > radius:
+					# Recover the canonical segment before pursuing its far end.
+					desired = -predicted_cross.normalized()
+				else:
+					var lookahead_distance := clampf(along_distance + radius * 2.0, 0.0, segment_length)
+					var lookahead := segment_origin + along * lookahead_distance
+					desired = ((lookahead - player.global_position).slide(Vector3.UP) - cross_drift).normalized()
 		var yaw := player.get_node("%CameraYaw") as Node3D
 		var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
 		var right := forward.cross(Vector3.UP).normalized()
 		requested_axes = Vector2(desired.dot(right) if absf(desired.dot(right)) > 0.08 else 0.0,
 			-desired.dot(forward) if absf(desired.dot(forward)) > 0.08 else 0.0)
+		if driver.desktop:
+			# Native keys are binary. Preserve the desired heading by choosing
+			# its nearest realizable key direction, rather than pressing both
+			# keys for every small analog component at a non-cardinal camera yaw.
+			requested_axes = _settings_nearest_key_direction(requested_axes)
 		driver.set_axis(AXIS_LEFT_X, requested_axes.x)
 		driver.set_axis(AXIS_LEFT_Y, requested_axes.y)
 		await physics_frame
-		frames += 1
-		if frames % maxi(Engine.physics_ticks_per_second, 1) == 0:
-			_settings_walk_sample("progress", player, ship, game, driver, frames, requested_axes)
-	_settings_walk_sample("before_release", player, ship, game, driver, frames, requested_axes)
+		frames = Engine.get_physics_frames() - started
 	driver.release_all()
 	await physics_frame
 	await process_frame
-	_settings_walk_sample("end", player, ship, game, driver, frames, Vector2.ZERO)
-	return game.boarding_candidate == ship and player.get_interaction_origin().distance_to(ship.get_boarding_position()) < 3.2
+	var succeeded := intact and arrived and frames <= frame_budget \
+		and game.boarding_candidate == ship and player.is_on_floor() \
+		and player.get_interaction_origin().distance_to(ship.get_boarding_position()) < 3.2
+	if not succeeded:
+		print("SETTINGS_WALK_FAILED: %s" % JSON.stringify({
+			"desktop": driver.desktop, "frames": frames, "frame_budget": frame_budget,
+			"leg": leg, "position": str(player.global_position), "velocity": str(player.velocity),
+			"floor": player.is_on_floor(), "route_intact": intact,
+			"candidate_matches": game.boarding_candidate == ship,
+			"distance": player.get_interaction_origin().distance_to(ship.get_boarding_position()),
+		}))
+	return succeeded
 
 
-func _settings_walk_sample(label: String, player: PlayerController, ship: HeroShip, game: GameFlow, driver: SettingsNativeInputEvents, frames: int, requested_axes: Vector2) -> void:
-	var target := ship.get_boarding_position()
-	var offset := target - player.get_interaction_origin()
-	var sampled_input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var yaw := player.get_node("%CameraYaw") as Node3D
-	var collision_report: Dictionary = {}
-	var collision_count := player.get_slide_collision_count()
-	if collision_count > 0:
-		var contact := player.get_slide_collision(collision_count - 1)
-		var collider: Object = contact.get_collider()
-		collision_report = {"collider": str((collider as Node).get_path()) if collider is Node else str(collider),
-			"position": str(contact.get_position()), "normal": str(contact.get_normal()),
-			"travel": str(contact.get_travel()), "remainder": str(contact.get_remainder())}
-	print("SETTINGS_WALK: %s" % JSON.stringify({
-		"label": label, "desktop": driver.desktop, "frames": frames,
-		"frame_budget": _frame_budget(WALK_TRAVEL_SECONDS), "physics_frame": Engine.get_physics_frames(),
-		"position": str(player.global_position), "interaction_origin": str(player.get_interaction_origin()),
-		"target": str(target), "distance": offset.length(), "horizontal_distance": offset.slide(Vector3.UP).length(),
-		"velocity": str(player.velocity), "floor": player.is_on_floor(), "floor_normal": str(player.get_floor_normal()),
-		"candidate": str(game.boarding_candidate.get_path()) if is_instance_valid(game.boarding_candidate) else "",
-		"target_path": str(ship.get_path()), "phase": game.phase, "control_enabled": player.is_control_enabled(),
-		"camera_forward": str((-yaw.global_basis.z).slide(Vector3.UP).normalized()),
-		"requested_axes": [requested_axes.x, requested_axes.y], "native_move": [sampled_input.x, sampled_input.y],
-		"native_sprint": Input.is_action_pressed("sprint_boost"),
-		"collision_count": collision_count, "last_collision": collision_report,
-	}))
+func _settings_nearest_key_direction(desired: Vector2) -> Vector2:
+	if desired.is_zero_approx():
+		return Vector2.ZERO
+	var heading := desired.normalized()
+	var nearest := Vector2.ZERO
+	var best_alignment := -INF
+	for x: int in [-1, 0, 1]:
+		for y: int in [-1, 0, 1]:
+			var candidate := Vector2(x, y).normalized()
+			if candidate.is_zero_approx():
+				continue
+			var alignment := candidate.dot(heading)
+			if alignment > best_alignment:
+				best_alignment = alignment
+				nearest = candidate
+	return nearest
 
 
 func _settings_free_sortie(game: GameFlow, player: PlayerController, ship: HeroShip, world: ShipyardWorld, driver: SettingsNativeInputEvents) -> bool:
@@ -1099,15 +1260,24 @@ func _settings_free_sortie(game: GameFlow, player: PlayerController, ship: HeroS
 		return false
 	if driver.desktop:
 		var basis := ship.global_basis
-		var mouse_axes_seen := false
+		var witness := SettingsFlightMouseWitness.new()
+		witness.process_physics_priority = ship.process_physics_priority + 1
+		witness.ship = ship
+		ship.add_child(witness)
 		for frame in 4:
 			driver.motion(Vector2(10.0, -5.0))
 			await physics_frame
 			await process_frame
-			var mouse_command := ship.get_last_ship_command()
-			mouse_axes_seen = mouse_axes_seen or (mouse_command != null \
-				and absf(mouse_command.look_yaw_delta) > 0.001 and absf(mouse_command.look_pitch_delta) > 0.001)
 		var mouse_rotation := (basis.inverse() * ship.global_basis).get_euler()
+		witness.set_physics_process(false)
+		var mouse_axes_seen := witness.mouse_axes_seen
+		witness.queue_free()
+		print("SETTINGS_FLIGHT_MOUSE_RESULT: %s" % JSON.stringify({
+			"mouse_axes_seen": mouse_axes_seen,
+			"x_rotation_seen": absf(mouse_rotation.x) > 0.0001,
+			"y_rotation_seen": absf(mouse_rotation.y) > 0.0001,
+			"rotation": [mouse_rotation.x, mouse_rotation.y, mouse_rotation.z],
+		}))
 		_check(mouse_axes_seen and absf(mouse_rotation.x) > 0.0001 and absf(mouse_rotation.y) > 0.0001,
 			"desktop captured mouse yaw and pitch reach the real command and rotate both hull axes")
 		await _settings_probe_control(ship, driver, &"brake", &"brake", true, true)

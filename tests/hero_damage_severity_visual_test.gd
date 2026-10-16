@@ -68,6 +68,7 @@ func _run() -> void:
 		"severity presentation does not invent a new authoritative damage stage"
 	)
 
+	await _test_two_rig_presentation_isolation(host, presentation)
 	await _test_continuous_particles_survive_same_state(presentation)
 
 	host.queue_free()
@@ -86,6 +87,55 @@ func _check(condition: bool, message: String) -> void:
 		print("PASS: %s" % message)
 		return
 	_failures.append(message)
+
+
+## Exercise two real rigs while they use the same immutable finishes: severity,
+## accessibility caps and one effect's fade must never bleed into the other.
+func _test_two_rig_presentation_isolation(host: Node3D, first: HeroDamagePresentation) -> void:
+	var second := HeroDamagePresentationType.new() as HeroDamagePresentation
+	host.add_child(second)
+	first.set_process(false)
+	second.set_process(false)
+	first.set_reduced_flash_enabled(true)
+	second.set_reduced_flash_enabled(false)
+	first.update_state(0.08, HeroDamagePresentation.STATE_ACTIVE)
+	second.update_state(0.68, HeroDamagePresentation.STATE_ACTIVE)
+	var first_hull := first.get_node("DamageSparks") as CPUParticles3D
+	var second_hull := second.get_node("DamageSparks") as CPUParticles3D
+	var second_smoke := second.get_node("EngineSmoke") as CPUParticles3D
+	_check(first.get_damage_stage() == HeroDamagePresentation.DamageStage.CRITICAL
+		and second.get_damage_stage() == HeroDamagePresentation.DamageStage.DAMAGED
+		and first_hull.amount > second_hull.amount and not second_smoke.emitting,
+		"simultaneous critical and damaged rigs retain independent particle severity")
+	first.present_impact(Vector3(-3.0, 0.0, 0.0))
+	var first_root := root.get_child(root.get_child_count() - 1) as Node3D
+	second.present_impact(Vector3(3.0, 0.0, 0.0))
+	var second_root := root.get_child(root.get_child_count() - 1) as Node3D
+	var first_flash := first_root.get_node("ImpactFlash") as MeshInstance3D
+	var second_flash := second_root.get_node("ImpactFlash") as MeshInstance3D
+	var first_light := first_root.get_node("ImpactLight") as OmniLight3D
+	var second_light := second_root.get_node("ImpactLight") as OmniLight3D
+	var second_energy := second_light.light_energy
+	_check(first_flash.mesh.surface_get_material(0) == second_flash.mesh.surface_get_material(0)
+		and first_light.light_energy <= HeroDamagePresentation.REDUCED_FLASH_IMPACT_LIGHT_PEAK
+		and second_energy > HeroDamagePresentation.REDUCED_FLASH_IMPACT_LIGHT_PEAK,
+		"shared impact finishes retain independent reduced-flash light caps")
+	first.call("_update_transient_effects", 0.4)
+	_check(first_flash.transparency > 0.0 and is_zero_approx(second_flash.transparency)
+		and first_light.light_energy < second_energy
+		and is_equal_approx(second_light.light_energy, second_energy)
+		and second.get_health_ratio() == 0.68
+		and second_hull.amount == HeroDamagePresentation.HULL_SPARK_DAMAGED_AMOUNT,
+		"aging one shared-finish impact leaves the other flash, light and damage state unchanged")
+	first.reset_for_reuse(1.0, HeroDamagePresentation.STATE_POWERED_DOWN)
+	_check(not first_hull.emitting and second_hull.emitting
+		and second.get_damage_stage() == HeroDamagePresentation.DamageStage.DAMAGED
+		and is_equal_approx(second_light.light_energy, second_energy),
+		"repairing one rig preserves the other rig's ongoing damage and impact")
+	first.set_reduced_flash_enabled(false)
+	second.queue_free()
+	await process_frame
+	first.set_process(true)
 
 
 func _test_continuous_particles_survive_same_state(presentation: HeroDamagePresentation) -> void:
