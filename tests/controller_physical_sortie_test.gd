@@ -1457,11 +1457,10 @@ func _fly_to_waypoint(
 	var trace_wall_start := Time.get_ticks_msec()
 	var trace_physics_start := Engine.get_physics_frames()
 	var trace_process_start := Engine.get_process_frames()
-	var return_samples: Array[Dictionary] = []
 	var requested: Dictionary = {}
 	if trace_return:
-		return_samples.append(_settings_return_flight_sample(ship, waypoint, frames, requested,
-			trace_wall_start, trace_physics_start, trace_process_start))
+		_print_settings_return_flight_sample(ship, waypoint, frames, requested,
+			trace_wall_start, trace_physics_start, trace_process_start)
 	var initial_sequence := -1
 	var initial_basis := Basis.IDENTITY
 	if _production_input_route:
@@ -1477,6 +1476,9 @@ func _fly_to_waypoint(
 		if distance <= arrival_radius:
 			_neutralize_flight_axes(provider)
 			if arrival_stop_speed < 0.0 or ship.velocity.length() <= arrival_stop_speed:
+				if trace_return:
+					_print_settings_return_flight_sample(ship, waypoint, frames, requested,
+						trace_wall_start, trace_physics_start, trace_process_start)
 				_sortie_timing_sample("fly_end_arrived")
 				return true
 			# The ordinary return must stop at its approach marker before aiming
@@ -1486,8 +1488,8 @@ func _fly_to_waypoint(
 				requested = {"yaw_axis": 0.0, "throttle": 0.0, "pitch_axis": 0.0, "brake": true}
 			await physics_frame
 			if trace_return and frames % 120 == 0:
-				return_samples.append(_settings_return_flight_sample(ship, waypoint, frames, requested,
-					trace_wall_start, trace_physics_start, trace_process_start))
+				_print_settings_return_flight_sample(ship, waypoint, frames, requested,
+					trace_wall_start, trace_physics_start, trace_process_start)
 			continue
 		var desired := offset.normalized()
 		var local_desired := ship.global_basis.orthonormalized().inverse() * desired
@@ -1514,20 +1516,14 @@ func _fly_to_waypoint(
 		# machine load rather than of the controller behaviour under test.
 		await physics_frame
 		if trace_return and frames % 120 == 0:
-			return_samples.append(_settings_return_flight_sample(ship, waypoint, frames, requested,
-				trace_wall_start, trace_physics_start, trace_process_start))
+			_print_settings_return_flight_sample(ship, waypoint, frames, requested,
+				trace_wall_start, trace_physics_start, trace_process_start)
 	if trace_return:
-		return_samples.append(_settings_return_flight_sample(ship, waypoint, frames, requested,
-			trace_wall_start, trace_physics_start, trace_process_start))
+		_print_settings_return_flight_sample(ship, waypoint, frames, requested,
+			trace_wall_start, trace_physics_start, trace_process_start)
 	_neutralize_flight_axes(provider)
 	var arrived := ship.global_position.distance_to(waypoint) <= arrival_radius \
 		and (arrival_stop_speed < 0.0 or ship.velocity.length() <= arrival_stop_speed)
-	if trace_return and not arrived:
-		print("SETTINGS_RETURN_FLIGHT_FAILED: %s" % JSON.stringify({
-			"desktop": (provider as SettingsNativeInputEvents).desktop,
-			"arrival_radius": arrival_radius, "arrival_stop_speed": arrival_stop_speed,
-			"frame_budget": frame_budget, "samples": return_samples,
-		}))
 	if _production_input_route and not arrived:
 		_print_guidance_failure(ship, waypoint - ship.global_position, frames, 0, initial_sequence, initial_basis)
 		print("CONTROLLER_WAYPOINT_STAGING_FAILURE: ship_x=%.6f ship_y=%.6f ship_z=%.6f waypoint_x=%.6f waypoint_y=%.6f waypoint_z=%.6f speed=%.6f" % [
@@ -1538,16 +1534,16 @@ func _fly_to_waypoint(
 	return arrived
 
 
-## Sparse, read-only snapshots are printed only if the existing return fails.
-## Observe before neutralization so the final report cannot erase its own input.
-func _settings_return_flight_sample(ship: HeroShip, waypoint: Vector3, steps: int,
-		requested: Dictionary, wall_start: int, physics_start: int, process_start: int) -> Dictionary:
+## Stream sparse Settings return snapshots so the outer cap retains them.
+## End-of-budget observation precedes neutralization of the final input.
+func _print_settings_return_flight_sample(ship: HeroShip, waypoint: Vector3, steps: int,
+		requested: Dictionary, wall_start: int, physics_start: int, process_start: int) -> void:
 	var offset := waypoint - ship.global_position
 	var desired := offset.normalized()
 	var local_desired := ship.global_basis.orthonormalized().inverse() * desired
 	var command := ship.get_last_ship_command()
 	var source := ship.get_local_input_source()
-	return {
+	print("SETTINGS_RETURN_FLIGHT: %s" % JSON.stringify({
 		"steps": steps, "wall_ms": Time.get_ticks_msec() - wall_start,
 		"physics_frames": Engine.get_physics_frames() - physics_start,
 		"render_frames": Engine.get_process_frames() - process_start,
@@ -1562,7 +1558,7 @@ func _settings_return_flight_sample(ship: HeroShip, waypoint: Vector3, steps: in
 			"yaw": command.yaw, "pitch": command.pitch, "roll": command.roll,
 			"look_yaw": command.look_yaw_delta, "look_pitch": command.look_pitch_delta,
 			"brake": command.brake, "hover": command.hover} if command != null else {},
-	}
+	}))
 
 
 func _brake_ship(
