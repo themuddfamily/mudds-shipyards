@@ -1,0 +1,16 @@
+# Mudds Shipyards — Linux checkpoint 1461227
+
+Source: 14612276c523e7a3a61f9a79e22fc94fc8abe14c. Extract the TAR archive and run MuddsShipyards-1461227.x86_64.
+
+Player-visible change: choosing Begin after restoring an on-foot shift no longer leaks that title-confirm press into gameplay Interact and accidentally boards the nearby saved craft. A fresh interaction press is required before boarding.
+
+Matching source checks passed 129 assertions across four focused commands. The previously published eadc150 Windows payload reproduced the expected Begin-input failure; this exact 1461227 Windows payload passed the same four keyboard/gamepad and reduced-motion recovery cases (40 assertions), silently through the Linux editor. No Windows PE was executed.
+
+Both 1461227 packages contain the same 1,513 game payload entries. Only player_controller.gdc differs from eadc150. Windows executable code still matches the official export template; Linux native code and read-only data match the retained-probe-fix template. Existing station shadow/sign, patrol retry, compact minimap, display-focus, paused-caption, readable host-loss and mouse-prompt improvements remain included.
+
+The separate Settings reader still FAILS at its Arrow boarding attempt into the intentional-void test fixture; that journey remains unqualified. Full release-matrix, native GPU and complete controls qualification remain NOT_RUN. Native Windows execution remains NOT_RUN under the PE hold. GitHub Actions remain disabled.
+
+Native Linux direct and extracted-TAR startup both passed headlessly with Dummy audio: exit 0, STARTUP_MENU_READY_OK once, no errors. This does not establish native GPU or complete-controls qualification.
+
+Executable SHA-256: d71b5db1886d6eb60f5d83befaaf73d1180f0e95209e51f7d5f673d3636c681d
+Archive SHA-256: 930729a622f05deca30760c7ed5ba1504ea4aa7088cac25c894c2c3f58ade02e
