@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMPONENT_ID: StringName = &"network-session-status-presenter"
 const STATES := [&"connecting", &"reconnecting", &"connected", &"failed", &"rejected", &"disconnected", &"migrating"]
-const LOCAL_ROLES := [&"pilot", &"passenger", &"engineer", &"observer"]
+const LOCAL_ROLES := [&"pilot", &"passenger", &"engineer", &"gunner", &"observer"]
 const REPAIR_STATES := [&"started", &"progress", &"completed", &"aborted"]
 const MAX_REPAIR_PRESENTATIONS := 8
 const SESSION_END_MESSAGES := {
@@ -364,6 +364,7 @@ func _next_action(
 				&"pilot": "CONTINUE AS PILOT OR DISCONNECT",
 				&"passenger": "CONTINUE AS PASSENGER OR DISCONNECT",
 				&"engineer": "SELECT COMPONENT, REPAIR AT BERTH OR STAND",
+				&"gunner": "CONTINUE AS GUNNER OR DISCONNECT",
 				&"observer": "WAIT FOR HOST ASSIGNMENT OR DISCONNECT",
 			}[local_role]
 		&"failed", &"rejected":

@@ -18,6 +18,11 @@ func _run() -> void:
 	_check(presenter.request_disconnect().accepted and not presenter.request_retry().accepted, "connected intents remain bounded to disconnect")
 	var engineer := presenter.present_snapshot({"state": &"connected", "role": &"client", "local_role": &"engineer"})
 	_check(engineer.local_role == &"engineer" and engineer.ownership_text == "ENGINEER" and engineer.next_action.contains("REPAIR AT BERTH"), "confirmed engineer role retains explicit ownership and usable controls guidance")
+	var gunner := presenter.present_snapshot({"state": &"connected", "role": &"client", "local_role": &"gunner"})
+	_check(gunner.local_role == &"gunner" and gunner.ownership_text == "GUNNER" and gunner.next_action == "CONTINUE AS GUNNER OR DISCONNECT", "confirmed gunner is named correctly rather than being told to wait for assignment")
+	_check(presenter.request_disconnect().accepted and not presenter.request_retry().accepted and not presenter.request_cancel().accepted, "gunner presentation keeps the existing connected-session intent boundary")
+	var unknown_role := presenter.present_snapshot({"state": &"connected", "local_role": &"unknown_crew_role"})
+	_check(unknown_role.local_role == &"observer" and unknown_role.ownership_text == "OBSERVER" and unknown_role.next_action == "WAIT FOR HOST ASSIGNMENT OR DISCONNECT", "an unknown role still falls back to observer after a confirmed gunner")
 	var failed := presenter.present_snapshot({"state": &"failed", "detail": "Admission was refused.", "retryable": true})
 	_check(failed.title == "Connection Failed" and failed.actions.size() == 2 and failed.actions[0].id == &"retry", "failed state exposes retry and cancel actions")
 	_check(presenter.request_retry().accepted and presenter.request_cancel().accepted, "failure actions return external intents")
@@ -121,7 +126,7 @@ func _run() -> void:
 		"detach clears the cursor and cached authoritative rows before reuse"
 	)
 	if _failures.is_empty():
-		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 24 assertions")
+		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 27 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)

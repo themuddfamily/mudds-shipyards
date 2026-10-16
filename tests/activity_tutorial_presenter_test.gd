@@ -34,6 +34,7 @@ var _failures: PackedStringArray = []
 
 class MemoryFilesystem extends FilesystemType:
 	var files: Dictionary = {}
+	var fail_writes := false
 
 	func file_exists(path: String) -> bool:
 		return files.has(path)
@@ -53,6 +54,8 @@ class MemoryFilesystem extends FilesystemType:
 		return {"error": OK, "bytes": bytes}
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		if fail_writes:
+			return ERR_CANT_CREATE
 		files[path] = bytes.duplicate()
 		return OK
 
@@ -876,7 +879,10 @@ func _check_hold_briefing(prompt: String, activity_id: StringName) -> void:
 		and not prompt.to_lower().contains("scan point"),
 		"%s briefing names the activation row and current hold without invented interactions" % activity_id)
 	_check(prompt.contains("LEAVING RESETS PROGRESS")
-		and prompt.contains("CHOOSE START AGAIN") if mining else (
+		and prompt.contains("CHOOSE START AGAIN")
+		and prompt.contains("IF CAPACITY SAVE FAILS AFTER COMPLETION")
+		and prompt.contains("CHOOSE START TO RETRY THE CAPACITY RECEIPT")
+		and prompt.contains("COMPLETED EXTRACTION RETAINED") if mining else (
 			prompt.contains("LEAVING PAUSES PROGRESS")
 			and prompt.contains("TO CONTINUE") and not prompt.contains("START AGAIN")
 			and prompt.contains("IF REWARD NOT FILED AFTER COMPLETION")
@@ -889,6 +895,12 @@ func _check_production_hold_behaviors() -> void:
 	binding.add_child(ConvoyHostType.new())
 	root.add_child(binding)
 	await process_frame
+	var mining_filesystem := MemoryFilesystem.new()
+	var mining_store := StoreType.new(STORE_PATH, mining_filesystem)
+	var mining_loaded := mining_store.load()
+	var mining_configured := binding.configure_cinder_mining_capacity_persistence(mining_store)
+	_check(mining_loaded.accepted and mining_configured.accepted,
+		"the extraction briefing scenario uses the production capacity persistence binding")
 	var pad_rejection := binding.start_mining_activity(MiningType.PLATFORM_ANCHOR)
 	_check(not pad_rejection.accepted and pad_rejection.reason == &"outside_approach_anchor",
 		"landing at the mining platform is outside its real extraction admission sphere")
@@ -916,6 +928,29 @@ func _check_production_hold_behaviors() -> void:
 		and mining_complete.generation == mining_start.generation + 1
 		and float(mining_complete.elapsed_seconds) == MiningType.EXTRACTION_SECONDS,
 		"choosing Start again admits a new extraction that completes after the full hold")
+	# A failed terminal save retains extraction. The ordinary Start consumer
+	# retries its capacity receipt without asking the player to repeat the hold.
+	mining_filesystem.fail_writes = true
+	var unsaved_capacity := binding.request_mining_reward()
+	var retained_mining := binding.get_activity_snapshot(&"mining")
+	_check(unsaved_capacity.accepted and not unsaved_capacity.capacity_persisted
+		and retained_mining.persistence_retry_available
+		and retained_mining.state == MiningType.State.COMPLETE
+		and retained_mining.generation == mining_complete.generation,
+		"a capacity save failure retains the completed extraction and exposes receipt retry")
+	mining_filesystem.fail_writes = false
+	var mining_retry_flow := GameFlowType.new()
+	var saved_capacity := mining_retry_flow._start_nearby_activity(binding, &"cinder_platform_mining_run")
+	var saved_mining := binding.get_activity_snapshot(&"mining")
+	var duplicate_capacity := binding.retry_mining_capacity_persistence()
+	_check(saved_capacity.accepted and saved_capacity.capacity_persisted
+		and saved_mining.capacity_persisted and not saved_mining.persistence_retry_available
+		and saved_mining.state == MiningType.State.COMPLETE
+		and saved_mining.generation == mining_complete.generation
+		and is_equal_approx(float(saved_mining.elapsed_seconds), MiningType.EXTRACTION_SECONDS)
+		and not duplicate_capacity.accepted,
+		"the briefing's Start action saves the retained capacity receipt once without another extraction")
+	mining_retry_flow.free()
 	var scan_start := binding.start_structure_scan(ScanType.APPROACH_ANCHOR)
 	var half_scan := ScanType.SCAN_SECONDS / 2.0
 	var partial_scan := binding.advance_structure_scan_from_caller_sample(

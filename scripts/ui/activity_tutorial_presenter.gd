@@ -71,7 +71,7 @@ const ACTIVITY_COPY := {
 		"keyboard": "The activity row's Start begins extraction at the Cinder extraction approach marker. Once active, use {brake} if needed and hold at the marker until progress reaches 100%.",
 		"accessible": "The activity row's Start begins extraction at the Cinder extraction approach marker. Once active, brake if needed and hold at the marker until progress reaches 100%.",
 		"next_action": "HOLD AT THE EXTRACTION APPROACH MARKER // REACH 100%",
-		"recovery": "LEAVING RESETS PROGRESS // RETURN TO THE APPROACH MARKER AND CHOOSE START AGAIN",
+		"recovery": "LEAVING RESETS PROGRESS // RETURN TO THE APPROACH MARKER AND CHOOSE START AGAIN; IF CAPACITY SAVE FAILS AFTER COMPLETION, CHOOSE START TO RETRY THE CAPACITY RECEIPT; COMPLETED EXTRACTION RETAINED",
 	},
 	&"cinder_derelict_structure_scan": {
 		"title": "Scan the derelict",

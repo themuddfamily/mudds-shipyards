@@ -23,7 +23,9 @@ const MAX_ROWS := 12
 var _built := false
 var _presentation_sequence := 0
 var _last_snapshot: Dictionary = {}
-var _screen_text := "FLEET STATUS\nPRESS E TO REFRESH"
+# The nearby HUD prompt supplies the live binding; the physical screen must
+# also remain accurate for remapped keys and controller input.
+var _screen_text := "FLEET STATUS\nINTERACT TO REFRESH"
 var _status_label: Label3D
 
 
