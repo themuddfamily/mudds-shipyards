@@ -698,13 +698,24 @@ func _unsupported_record(path: String) -> void:
 	await _dispose(fresh)
 
 func _game(path: String, filesystem: UserDataFilesystem) -> GameFlow:
+	var started := Time.get_ticks_usec()
+	var physics_started := Engine.get_physics_frames()
 	var game := Main.instantiate() as GameFlow
+	var instantiated := Time.get_ticks_usec()
 	game.configure_runtime_settings_persistence(UserDataStore.new(path, filesystem), path + ".legacy.cfg")
 	root.add_child(game)
+	var attached := Time.get_ticks_usec()
 	await process_frame
 	await physics_frame
 	await process_frame
 	game.set_physics_process(false)
+	print("SCAN_FRESH_MAIN_TIMING: ", {
+		"fixture": path.get_file(),
+		"instantiate_ms": (instantiated - started) / 1000.0,
+		"attach_ready_ms": (attached - instantiated) / 1000.0,
+		"settle_ms": (Time.get_ticks_usec() - attached) / 1000.0,
+		"physics_frames": Engine.get_physics_frames() - physics_started,
+	})
 	return game
 
 func _board(game: GameFlow) -> void:
@@ -764,3 +775,4 @@ func _check(ok: bool, message: String) -> void:
 		print("PASS: ", message)
 	else:
 		_failures.append("FAIL: " + message)
+		printerr("FAIL: ", message)

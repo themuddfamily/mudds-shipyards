@@ -14,15 +14,15 @@ Completed foundations include the core walk/board/fly/fight/land/recover loop, s
 
 Native Windows execution remains on hold while the Avast alert is unresolved. Do not bypass antivirus protection. Appropriate local Linux checks and read-only Windows package inspection may continue; they do not establish native Windows, GPU, controller, audible or human acceptance.
 
-Latest published checkpoint: Windows and Linux `064f573b2`, with identical packaged game content. See the [Windows notes](builds/windows/MuddsShipyards-064f573-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-064f573-linux-notes.txt).
+Latest published checkpoints: Windows `807851f91` ([notes](builds/windows/MuddsShipyards-807851f-notes.txt)) and Linux `064f573b2` ([notes](builds/linux/MuddsShipyards-064f573-linux-notes.txt)). Their game content differs; neither qualifies the current complete game.
 
-The checkpoint preserves actual Settings reset/save feedback, labels destroyed hulls explicitly, explains incompatible multiplayer versions and corrects asteroid-impact retry guidance. Six focused source suites and the same six against the actual Windows PCK each pass 409 assertions with zero diagnostics. Both platform exports and strict headless startup checks pass; the Windows payload ran through the Linux editor without executing the PE.
+The Windows checkpoint includes the recovered Salvage overlook, defense approach cue, shared planetary alignment and crew-return fixes, airless guidance and render batching. Its notes and the [branch review](docs/BRANCH_REVIEW_2026-10-16.md) record focused checks and package startup. Complete regression, ordinary-controls journeys, graphical captures and applicable hardware acceptance remain open.
 
 Complete Settings acceptance remains open. The original writer saved successfully. The latest source restart completes keyboard-and-mouse flight and gamepad outbound/control probes before the unchanged 300-second cap during gamepad return. The earlier d750 Windows payload separately completes keyboard-and-mouse flight and reaches gamepad flight before the same cap. Both timeouts remain failures; neither qualifies complete Settings acceptance.
 
-The exact `064f573b2` unfiltered local regression is running. Complete ordinary-controls journeys, required graphical captures and applicable hardware acceptance remain open.
+The exact `064f573b2` unfiltered local regression was interrupted at the owner's request after 644 passes and seven failures; it is incomplete. On resumed main `122cf6122`, eight focused UI/activity suites pass 284 assertions without diagnostics. The global geometry snapshot and Habitat batch fixture fail; the remaining survey/recovery timeout investigations are still open.
 
-Draft `05f46af` adds external capture output routing and clarifies Rime save-retry and full-server prompts. Patch applicability and whitespace checks pass; runtime qualification is `NOT_RUN`.
+Capture output routing and the Rime, browser, HUD-spacing, defense retry and live-interceptor tutorial changes are merged into main. The focused checks above cover their UI/activity behavior; complete graphical, package and journey qualification is still required.
 
 ## Remaining tasks to complete the project
 

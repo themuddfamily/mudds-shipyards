@@ -828,8 +828,11 @@ func _client_survey_press() -> void:
 
 
 func _client_survey_walk(server: GameFlow, client: GameFlow, body: PlayerController, target: Vector3, peer_target: Vector3 = Vector3.INF) -> bool:
-	var deadline := Time.get_ticks_msec() + 18000
+	var start_wall_ms := Time.get_ticks_msec()
+	var deadline := start_wall_ms + 18000
 	var start_physics_frame := Engine.get_physics_frames()
+	var start_host_blocked_steps := int(body.get("_rime_pad_blocked_steps"))
+	var start_client_blocked_steps := int(client.player.get("_rime_pad_blocked_steps"))
 	var source := client.get_network_remote_body_intent_source()
 	var simulation := server.get_network_remote_body_simulation()
 	var start_sent := int(source.get_audit().get("sent", 0))
@@ -841,6 +844,7 @@ func _client_survey_walk(server: GameFlow, client: GameFlow, body: PlayerControl
 	var host_region := host_bootstrap.get_loaded_instance().get_node("LandingRegion") as Node3D
 	var client_region := client_bootstrap.get_loaded_instance().get_node("LandingRegion") as Node3D
 	var client_target := peer_target if peer_target.is_finite() else client_region.to_global(host_region.to_local(target))
+	print("SURVEY_INPUT_WALK_BEGIN wall_ms=", start_wall_ms, " physics_frame=", start_physics_frame, " physics_ticks_per_second=", Engine.physics_ticks_per_second, " host=", body.global_position, " client=", client.player.global_position, " target=", target, " client_target=", client_target, " host_blocked_steps=", start_host_blocked_steps, " client_blocked_steps=", start_client_blocked_steps)
 	while Time.get_ticks_msec() < deadline and is_instance_valid(body):
 		var local_delta := client_target - client.player.global_position
 		var host_delta := target - body.global_position
@@ -853,6 +857,7 @@ func _client_survey_walk(server: GameFlow, client: GameFlow, body: PlayerControl
 		if local_delta.length() < 0.8 and host_delta.length() < 0.8:
 			settled = settled + 1 if body.is_on_floor() else 0
 			if settled >= 8:
+				print("SURVEY_INPUT_WALK_END reached=true wall_ms=", Time.get_ticks_msec(), " elapsed_ms=", Time.get_ticks_msec() - start_wall_ms, " physics_frame=", Engine.get_physics_frames(), " physics_elapsed=", Engine.get_physics_frames() - start_physics_frame, " host=", body.global_position, " client=", client.player.global_position, " host_blocked_delta=", int(body.get("_rime_pad_blocked_steps")) - start_host_blocked_steps, " client_blocked_delta=", int(client.player.get("_rime_pad_blocked_steps")) - start_client_blocked_steps)
 				return true
 		else:
 			settled = 0
@@ -869,6 +874,7 @@ func _client_survey_walk(server: GameFlow, client: GameFlow, body: PlayerControl
 	_check(false, "full client ordinary walk reaches the same retained host-body waypoint")
 	var host_alive := is_instance_valid(body)
 	var client_alive := is_instance_valid(client.player)
+	print("SURVEY_INPUT_WALK_END reached=false wall_ms=", Time.get_ticks_msec(), " elapsed_ms=", Time.get_ticks_msec() - start_wall_ms, " physics_frame=", Engine.get_physics_frames(), " physics_elapsed=", Engine.get_physics_frames() - start_physics_frame, " host=", body.global_position if host_alive else Vector3.INF, " client=", client.player.global_position if client_alive else Vector3.INF, " host_blocked_delta=", int(body.get("_rime_pad_blocked_steps")) - start_host_blocked_steps if host_alive else -1, " client_blocked_delta=", int(client.player.get("_rime_pad_blocked_steps")) - start_client_blocked_steps if client_alive else -1)
 	var contacts: Array = []
 	for actor in [body, client.player]:
 		if not is_instance_valid(actor):

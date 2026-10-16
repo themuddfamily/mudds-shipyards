@@ -64,7 +64,7 @@
       "render": {"required": true, "profile": "forward_plus_2560x1440"},
       "review_status": "reviewed_current",
       "source_freeze": {"status": "pending", "manifest_sha256": null},
-      "image_inventory": {"status": "pending", "expected_png_count": 15, "inventory_sha256": null},
+      "image_inventory": {"status": "pending", "expected_png_count": 18, "inventory_sha256": null},
       "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
     },
     {
@@ -284,7 +284,7 @@
       "render": {"required": true, "profile": "forward_plus_1600x900"},
       "review_status": "reviewed_current",
       "source_freeze": {"status": "pending", "manifest_sha256": null},
-      "image_inventory": {"status": "pending", "expected_png_count": 17, "inventory_sha256": null},
+      "image_inventory": {"status": "pending", "expected_png_count": 18, "inventory_sha256": null},
       "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
     },
     {
@@ -1121,6 +1121,17 @@
       "review_status": "pending",
       "source_freeze": {"status": "pending", "manifest_sha256": null},
       "image_inventory": {"status": "pending", "expected_png_count": null, "inventory_sha256": null},
+      "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
+    },
+    {
+      "id": "capture-station-defense-approach-lane-cue",
+      "script": "tests/capture_station_defense_approach_lane_cue.gd",
+      "classification": "supplementary",
+      "output": {"root": "user://captures/station-defense-approach-lane/station_defense_approach_lane_forward_plus.png", "contract": "png", "runtime_override_env": "MUDDS_CAPTURE_OUTPUT_DIR"},
+      "render": {"required": true, "profile": "forward_plus_1600x900"},
+      "review_status": "reviewed_current",
+      "source_freeze": {"status": "pending", "manifest_sha256": null},
+      "image_inventory": {"status": "pending", "expected_png_count": 1, "inventory_sha256": null},
       "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
     },
     {

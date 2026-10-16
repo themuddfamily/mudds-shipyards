@@ -52,7 +52,7 @@ MANDATORY_REQUIRED_IMAGE_COUNTS = {
     "caption-presenter-forward-render": 1,
     "caption-production-forward-render": 1,
     "cinder-streaming-transition-render": 24,
-    "capture-berth-feedback": 15,
+    "capture-berth-feedback": 18,
     "capture-combat-visuals": 7,
     "capture-hero-cell": 18,
     "capture-jovian-freight-berth": 2,
@@ -60,7 +60,7 @@ MANDATORY_REQUIRED_IMAGE_COUNTS = {
     "capture-player-motion": 9,
     "capture-scenes": 27,
     "capture-station-operations": 7,
-    "capture-varied-encounters": 17,
+    "capture-varied-encounters": 18,
     "capture-zenith-visuals": 7,
 }
 MANDATORY_REQUIRED_IDS = frozenset(MANDATORY_REQUIRED_IMAGE_COUNTS)

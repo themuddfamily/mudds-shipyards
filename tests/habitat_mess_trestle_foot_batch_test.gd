@@ -93,16 +93,19 @@ func _run() -> void:
 	# and nodes, 56 drawn copies and 24 submissions. The existing arc and
 	# ceiling-lens batches and all independent shadow arches remain.
 	# The trestle family's own 2->1 renderer reduction is unchanged.
+	# c56cb0b6e batches the two collar siblings: one fewer node/submission,
+	# two fewer ordinary meshes and one additional MultiMesh resource/batch.
 	_check(
 		bool(render.exact_counts)
-			and int(render.descendant_nodes) == 1454
-			and int(render.mesh_instances) == 780
-			and int(render.multimesh_batches) == 43
-			and int(render.multimesh_resources) == 42
+			and int(render.descendant_nodes) == 1453
+			and int(render.mesh_instances) == 778
+			and int(render.multimesh_batches) == 44
+			and int(render.multimesh_resources) == 43
 			and int(render.drawn_copies) == 1006
-			and int(render.geometry_submissions) == 846
+			and int(render.geometry_submissions) == 845
 			and bool(audit.valid),
-		"Habitat stays allocation-green at 2->1 foot renderers and 846 module submissions"
+		"Habitat stays allocation-green at 2->1 foot renderers and 845 module submissions; actual: %s"
+		% [render]
 	)
 	if batch != null and batch.multimesh != null:
 		var original_buffer := batch.multimesh.buffer

@@ -56,6 +56,92 @@ threshold, and manifest contract is documented in
 `docs/CINDER_STREAMING_TRANSITION_EVIDENCE.md`; all three registry evidence
 stages remain pending and no human pixel review is claimed.
 
+## Current required capture commands
+
+The current source inventory contains **13 required harnesses and 143 PNGs**.
+Berth feedback now includes the Bulwark's three states, for **18**, and varied
+encounters includes `plate_04b_scatter_fan.png`, for **18**. The registry and
+validator require these complete source inventories, replacing their stale
+15/17 declarations (139 total). All source/image/human-review stages remain
+pending; matching the declared count does not qualify any captured image.
+
+The table names the exact source-owned filename sets. Counts exclude manifests,
+logs, import sidecars, and the station-operations optional wayfinding-only PNG.
+
+| Harness script under `tests/` | PNGs | Resolution | Filename set |
+| --- | ---: | --- | --- |
+| `caption_presenter_forward_render.gd` | 1 | 1600×900 | `caption-presenter-forward-plus.png` |
+| `caption_production_forward_render.gd` | 1 | 1600×900 | `caption-production-forward-plus.png` |
+| `cinder_streaming_transition_render.gd` | 24 | 2560×1440 | `%02d_<scenario>_<state>.png`, ordered `SCENARIOS` × `STATES` |
+| `capture_berth_feedback.gd` | 18 | 2560×1440 | `CAPTURE_FILES`, including Bulwark frames 16–18 |
+| `capture_combat_visuals.gd` | 7 | 2560×1440 | `CAPTURE_FILES` |
+| `capture_hero_cell.gd` | 18 | 2560×1440 | `CAPTURE_FILES` |
+| `capture_jovian_freight_berth.gd` | 2 | 1400×900 | `freight_berth_overview.png`, `freight_control_room.png` |
+| `capture_jovian_freighter.gd` | 4 | 1280×720 | `jovian_freighter_exterior.png`, `jovian_cargo_ramp.png`, `jovian_cargo_interior.png`, `jovian_passenger_cabin.png` |
+| `capture_player_motion.gd` | 9 | 2560×1440 | `CAPTURE_FILES` |
+| `capture_scenes.gd` | 27 | 2560×1440 | `CAPTURE_FILES` |
+| `capture_station_operations.gd` | 7 | 2560×1440 | `CAPTURE_FILES`; exclude separate `08_wayfinding_pylon_player_eye.png` |
+| `capture_varied_encounters.gd` | 18 | 1600×900 | `play_01`–`play_07`, `plate_01`–`plate_10`, plus `plate_04b_scatter_fan.png` |
+| `capture_zenith_visuals.gd` | 7 | 2560×1440 | `CAPTURE_FILES` |
+
+Run serially only in the owner's prepared private Xvfb session, with its explicit
+X11/DZN environment and isolated user data. `GODOT_BIN` must name the pinned
+editor, `PROJECT_ROOT` the frozen imported checkout, and `CAPTURE_ROOT` a fresh
+canonical absolute directory outside the checkout and protected old outputs.
+Provide a separate private user-data profile for each invocation. Clear inherited
+parse-only, staging-only, and wayfinding-only capture flags. These scripts are
+outside the matrix's `*_test.gd` discovery; graphical matrix completion does not
+run this image roster. The existing 300-second outer cap is retained below;
+individual capture scripts do not declare a separate wall-clock cap.
+
+```bash
+: "${GODOT_BIN:?}" "${PROJECT_ROOT:?}" "${CAPTURE_ROOT:?}" "${DISPLAY:?}" "${XAUTHORITY:?}"
+capture=(env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET timeout 300s "$GODOT_BIN"
+  --path "$PROJECT_ROOT" --display-driver x11 --audio-driver Dummy
+  --rendering-method forward_plus --rendering-driver vulkan)
+
+env MUDDS_CAPTION_CAPTURE_DIR="$CAPTURE_ROOT/caption-presenter" "${capture[@]}" --resolution 1600x900 --script res://tests/caption_presenter_forward_render.gd
+env MUDDS_CAPTION_CAPTURE_DIR="$CAPTURE_ROOT/caption-production" "${capture[@]}" --resolution 1600x900 --script res://tests/caption_production_forward_render.gd
+env KETH_CINDER_TRANSITION_CAPTURE_DIR="$CAPTURE_ROOT/cinder-transitions" "${capture[@]}" --resolution 2560x1440 --script res://tests/cinder_streaming_transition_render.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/berth-feedback" "${capture[@]}" --resolution 2560x1440 --script res://tests/capture_berth_feedback.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/combat-visuals" "${capture[@]}" --resolution 2560x1440 --script res://tests/capture_combat_visuals.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/hero-cell" "${capture[@]}" --resolution 2560x1440 --script res://tests/capture_hero_cell.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/jovian-freight-berth" "${capture[@]}" --resolution 1400x900 --script res://tests/capture_jovian_freight_berth.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/jovian-freighter" "${capture[@]}" --resolution 1280x720 --script res://tests/capture_jovian_freighter.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/player-motion" "${capture[@]}" --resolution 2560x1440 --script res://tests/capture_player_motion.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/scenes" "${capture[@]}" --resolution 2560x1440 --script res://tests/capture_scenes.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/station-operations" "${capture[@]}" --resolution 2560x1440 --script res://tests/capture_station_operations.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/varied-encounters" "${capture[@]}" --resolution 1600x900 --script res://tests/capture_varied_encounters.gd
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/zenith-visuals" "${capture[@]}" --resolution 2560x1440 --script res://tests/capture_zenith_visuals.gd
+```
+
+The ten `MUDDS_CAPTURE_OUTPUT_DIR` consumers route their published PNGs and
+applicable manifests together, retaining their exact legacy defaults when unset.
+Gameplay capture retains its existing private `user://` temporary staging.
+Separate output directories are mandatory: gameplay and freighter captures share
+some PNG basenames. External logs must follow each harness's declared log path.
+Require exit 0, its full-capture success marker, the complete correctly sized
+image set, and unchanged frozen inputs. Parse/staging success is not capture
+success. Source/image verification and original-resolution human review remain
+pending until actually performed; these commands claim no execution or approval.
+
+The current optional `capture-station-defense-approach-lane-cue` witness is
+registered as `supplementary`, not one of the thirteen broad required captures.
+It renders one HUD-free 1600×900 frame of the steady approach chevron from more
+than thirty metres, with a capture-only reference deck and camera. Its exact
+filename is `station_defense_approach_lane_forward_plus.png`; the default is
+`user://captures/station-defense-approach-lane`, or set `MUDDS_CAPTURE_OUTPUT_DIR`
+to a canonical absolute directory. Output ancestors and the PNG leaf reject
+links, including broken links. In the same private session it can be invoked as:
+
+```bash
+env MUDDS_CAPTURE_OUTPUT_DIR="$CAPTURE_ROOT/station-defense-approach" "${capture[@]}" --resolution 1600x900 --script res://tests/capture_station_defense_approach_lane_cue.gd
+```
+
+Require exit 0, `STATION_DEFENSE_APPROACH_LANE_CAPTURE_OK`, and that one complete
+PNG. Its source/image verification and original-resolution human review remain
+pending. This scoped witness does not qualify broad station/combat art review.
+
 ## Discovery boundary
 
 The validator scans all `.gd` files recursively below `tests/` and `tools/`. A

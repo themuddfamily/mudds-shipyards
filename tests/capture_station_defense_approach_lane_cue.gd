@@ -6,7 +6,11 @@ extends SceneTree
 ## only to make scale and direction legible in this review frame.
 
 const ASSET_SCENE := preload("res://scenes/activities/station_defense_perimeter_asset.tscn")
-const OUTPUT_PATH := "/tmp/shipyard-branch-review/station_defense_approach_lane_forward_plus.png"
+const DEFAULT_OUTPUT_DIR := "user://captures/station-defense-approach-lane"
+const OUTPUT_FILENAME := "station_defense_approach_lane_forward_plus.png"
+var _output_override := OS.get_environment("MUDDS_CAPTURE_OUTPUT_DIR")
+var _output_dir := DEFAULT_OUTPUT_DIR if _output_override.is_empty() else _output_override
+var OUTPUT_PATH := _output_dir.path_join(OUTPUT_FILENAME)
 const CAPTURE_SIZE := Vector2i(1600, 900)
 
 var _failures: Array[String] = []
@@ -17,6 +21,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if not _capture_output_is_safe():
+		_finish()
+		return
 	root.size = CAPTURE_SIZE
 	root.content_scale_size = Vector2i.ZERO
 	root.msaa_3d = Viewport.MSAA_4X
@@ -99,13 +106,54 @@ func _run() -> void:
 		"stable gameplay-distance frame renders at 1600x900",
 	)
 	if image != null and not image.is_empty():
-		DirAccess.make_dir_recursive_absolute(OUTPUT_PATH.get_base_dir())
-		_check(image.save_png(OUTPUT_PATH) == OK, "Forward+ review frame saves successfully")
-		print("STATION_DEFENSE_APPROACH_LANE_CAPTURE: ", OUTPUT_PATH)
+		var directory_error := DirAccess.make_dir_recursive_absolute(
+			ProjectSettings.globalize_path(_output_dir))
+		_check(directory_error == OK or directory_error == ERR_ALREADY_EXISTS,
+			"review output directory is available")
+		if (directory_error == OK or directory_error == ERR_ALREADY_EXISTS) and _capture_output_is_safe():
+			_check(image.save_png(OUTPUT_PATH) == OK, "Forward+ review frame saves successfully")
+			print("STATION_DEFENSE_APPROACH_LANE_CAPTURE: ", OUTPUT_PATH)
 
 	stage.queue_free()
 	await process_frame
 	_finish()
+
+
+func _capture_output_is_safe() -> bool:
+	var absolute_output := _output_dir.begins_with("/") and not _output_dir.begins_with("//")
+	if OS.get_name() == "Windows":
+		absolute_output = _output_dir.length() > 3 and _output_dir.substr(1, 2) == ":/" \
+			and "ABCDEFGHIJKLMNOPQRSTUVWXYZ".contains(_output_dir.left(1).to_upper())
+	if not _output_override.is_empty() and (not absolute_output \
+			or _output_dir.contains("\\") or _output_dir.ends_with("/") \
+			or _output_dir != _output_dir.strip_edges() or _output_dir != _output_dir.simplify_path()):
+		_check(false, "MUDDS_CAPTURE_OUTPUT_DIR must be a canonical absolute local directory")
+		return false
+	# Keep user:// as the default trust anchor. Overrides walk from their actual
+	# root/drive, checking each entry through its parent before following it.
+	var current_path := "user://"
+	if not _output_override.is_empty():
+		current_path = _output_dir.left(3) if OS.get_name() == "Windows" else "/"
+	for component in _output_dir.trim_prefix(current_path).split("/", false):
+		var parent := DirAccess.open(current_path)
+		if parent == null:
+			_check(false, "cannot inspect capture output ancestor: %s" % current_path)
+			return false
+		if parent.is_link(component):
+			_check(false, "refusing linked capture output ancestor: %s" % current_path.path_join(component))
+			return false
+		if not parent.dir_exists(component):
+			return true
+		current_path = current_path.path_join(component)
+	var directory := DirAccess.open(current_path)
+	if directory == null:
+		_check(false, "cannot inspect capture output directory")
+		return false
+	# Check before file existence so a broken link cannot redirect the PNG write.
+	if directory.is_link(OUTPUT_FILENAME) or directory.dir_exists(OUTPUT_FILENAME):
+		_check(false, "refusing linked or directory capture output file")
+		return false
+	return true
 
 
 func _install_environment(stage: Node3D) -> void:
