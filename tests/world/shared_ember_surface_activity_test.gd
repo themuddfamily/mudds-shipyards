@@ -1,3 +1,4 @@
+## test-matrix-network: required
 extends SceneTree
 
 ## Focused shared surface owner test. Only the initial flight envelope is staged;

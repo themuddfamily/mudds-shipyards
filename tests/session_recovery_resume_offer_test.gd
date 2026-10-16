@@ -1,3 +1,4 @@
+## test-matrix-network: required
 extends SceneTree
 
 ## Unclean shutdown -> resume offer. A running marker left by a session that

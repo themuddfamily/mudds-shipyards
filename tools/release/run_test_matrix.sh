@@ -560,6 +560,14 @@ while IFS=$'\t' read -r path kind; do
 	INPUT_ONLY_SUITES["$PROJECT_ROOT/$path"]=1
 done < "$WORK_DIR/input-only.tsv"
 
+# Real ENet consumers may live with their gameplay component's tests rather
+# than under tests/network/. Explicit declarations join the same existing lane.
+declare -A NETWORK_SUITES=()
+python3 "$SCRIPT_DIR/test_suite_catalog.py" --root "$PROJECT_ROOT" --network > "$WORK_DIR/network.tsv"
+while IFS=$'\t' read -r path kind; do
+	NETWORK_SUITES["$PROJECT_ROOT/$path"]=1
+done < "$WORK_DIR/network.tsv"
+
 mode_tests=()
 mode_excluded_count=0
 for test_file in "${TEST_FILES[@]}"; do
@@ -621,8 +629,7 @@ suite_timeout_seconds() {
 	fi
 }
 network_suite() {
-	local relative="${1#"$PROJECT_ROOT"/}"
-	[[ "$relative" == tests/network/* || ( "$relative" == tests/network_* && "${relative#tests/}" != */* ) ]]
+	[[ -n "${NETWORK_SUITES[$1]:-}" ]]
 }
 for test_file in "${TEST_FILES[@]}"; do
 	if network_suite "$test_file" && ! command -v flock >/dev/null; then

@@ -1,3 +1,4 @@
+## test-matrix-network: required
 extends SceneTree
 
 ## Focused embodied interaction contract: public ShipBoardingArea discovery and

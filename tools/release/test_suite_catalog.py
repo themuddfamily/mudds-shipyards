@@ -18,6 +18,7 @@ RENDER_MARKERS = (
     "root.get_texture()",
     "viewport.get_texture()",
 )
+NETWORK_REQUIRED = re.compile(r"^## test-matrix-network: required[ \t]*$", re.MULTILINE)
 DISPLAY_INPUT_ONLY = re.compile(r"^## test-matrix-display: input-only[ \t]*$", re.MULTILINE)
 PRINT_LITERAL = re.compile(r'''\bprint\(\s*["']([^"'\n]+)["']''')
 TOKEN = re.compile(r"^([A-Z][A-Z0-9_]*(?:_OK|_PASSED|_PASS))(?=[:\s]|$)")
@@ -36,6 +37,13 @@ def input_only(path: Path) -> bool:
     """Disable drawing only for an explicit input consumer with no readback."""
     source = path.read_text(encoding="utf-8")
     return bool(DISPLAY_INPUT_ONLY.search(source)) and not any(marker in source for marker in RENDER_MARKERS)
+
+
+def requires_network(path: Path, root: Path) -> bool:
+    relative = path.relative_to(root)
+    return (relative.parts[:2] == ("tests", "network")
+            or (relative.parent == Path("tests") and relative.name.startswith("network_"))
+            or bool(NETWORK_REQUIRED.search(path.read_text(encoding="utf-8"))))
 
 
 def completion_patterns(path: Path):
@@ -142,6 +150,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--mode", choices=("all", "headless", "graphical"), default="all")
+    parser.add_argument("--network", action="store_true", help="list suites requiring the serialized ENet/network lane")
     parser.add_argument("--input-only", action="store_true", help="list only declared display input consumers without rendering readback")
     parser.add_argument("--assess", nargs=2, metavar=("SCRIPT", "LOG"))
     parser.add_argument("--render-001-assessment-log", nargs=2, metavar=("RAW", "ASSESSMENT"))
@@ -154,7 +163,7 @@ def main():
     else:
         for path in suites(args.root):
             kind = mode(path)
-            if args.mode in ("all", kind) and (not args.input_only or input_only(path)):
+            if args.mode in ("all", kind) and (not args.input_only or input_only(path)) and (not args.network or requires_network(path, args.root)):
                 print(f"{path.relative_to(args.root).as_posix()}\t{kind}")
 
 

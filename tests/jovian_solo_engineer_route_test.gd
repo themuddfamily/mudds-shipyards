@@ -1,3 +1,4 @@
+## test-matrix-network: required
 ## test-matrix-display: input-only
 extends SceneTree
 

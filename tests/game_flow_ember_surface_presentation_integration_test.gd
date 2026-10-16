@@ -1,3 +1,4 @@
+## test-matrix-network: required
 extends SceneTree
 
 const GameFlowType := preload("res://scripts/game/game_flow.gd")

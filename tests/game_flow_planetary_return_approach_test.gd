@@ -1,3 +1,4 @@
+## test-matrix-network: required
 extends SceneTree
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")

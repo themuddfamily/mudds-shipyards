@@ -1,3 +1,4 @@
+## test-matrix-network: required
 extends "res://tests/ember_transit_movement_soak.gd"
 ## test-matrix-timeout-seconds: 900
 ## Drives one complete Rime visit through a real composed `Main`, modelled on

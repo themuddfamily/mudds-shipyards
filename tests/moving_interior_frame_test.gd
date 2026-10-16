@@ -1,3 +1,4 @@
+## test-matrix-network: required
 extends SceneTree
 
 const MovingFrame := preload("res://scripts/physics/moving_interior_frame.gd")

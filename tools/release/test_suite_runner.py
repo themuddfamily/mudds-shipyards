@@ -196,18 +196,18 @@ done < <(LC_ALL=C sort -z "$paths")
             release.mkdir(parents=True)
             for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py', 'suite_process.py'):
                 shutil.copy2(SUPPORT / name, release / name)
-            scripts = ['network/a_test.gd', 'network/b_test.gd', 'network/c_test.gd', 'network_top_test.gd', 'z_other_test.gd']
+            scripts = ['network/a_test.gd', 'network/b_test.gd', 'network/c_test.gd', 'network_top_test.gd', 'world/shared_test.gd', 'z_other_test.gd']
             for relative in scripts:
                 script = root / 'tests' / relative
                 script.parent.mkdir(parents=True, exist_ok=True)
-                script.write_text('print("OK: network lane fixture")')
+                script.write_text(('## test-matrix-network: required\n' if relative == 'world/shared_test.gd' else '') + 'print("OK: network lane fixture")')
             fake = root / 'fake-godot'
             fake.write_text('''#!/usr/bin/env python3
 import os,sys,pathlib,time,signal,fcntl
 root=pathlib.Path(os.environ['LANE_FIXTURE_ROOT'])
 args=sys.argv[1:]
 script=args[args.index('--script')+1]
-network='/network/' in script or script.endswith('/network_top_test.gd')
+network='/network/' in script or script.endswith(('/network_top_test.gd', '/world/shared_test.gd'))
 active=root/'active-network'
 def stop(*_):
     if network and active.exists(): active.rmdir()
@@ -252,7 +252,7 @@ print('OK: network lane fixture')
                     self.assertFalse((root / 'collision').exists())
                     self.assertFalse((root / 'active-network').exists())
                     completed = (root / 'network-complete').read_text().splitlines()
-                    self.assertEqual(len(completed), 3 if timeout else 4)
+                    self.assertEqual(len(completed), 4 if timeout else 5)
                     with (root / 'results' / run_id / 'results.tsv').open() as stream:
                         rows = list(csv.DictReader(stream, delimiter='\t'))
                     self.assertEqual([row['test_path'] for row in rows], sorted('tests/' + item for item in scripts))
