@@ -1,0 +1,25 @@
+Mudd's Shipyards — locomotion performance checkpoint 63869a0
+Source commit: 63869a0fd683bac1cd38dda5ef80e7be27fc840c
+
+Changes:
+- Stable imported pilot motion performs one complete authority check before advancing, avoiding a duplicate check on ordinary walking frames.
+- Animation transitions, repairs, direct calls and same-frame mutation recovery retain their checks.
+- Scene regression contracts now account for recovered geometry batching and the Salvage breaker overlook without raising budgets.
+
+Validation:
+- Clean-commit safe Windows export; 1,513 embedded PCK entries and compiled-token integrity verified.
+- x64 PE code section matches the pinned official Windows template. The PE was not executed.
+- Five focused source motion suites pass (447 anchored assertions), including three new mutation/callback checks; original source Ember integration passes 97 assertions in 283 seconds within its unchanged 300-second limit.
+- The same five motion suites pass against this actual embedded package through the pinned Linux editor (447 anchored assertions), with no engine/script/leak diagnostics.
+- Silent isolated package --startup-check through the Linux editor: exit 0 and exactly one STARTUP_MENU_READY_OK, no diagnostics.
+- Packaged Ember integration FAIL: unchanged 300-second limit reached during the final replacement case, no assertion diagnostics, no completion sentinel. Full packaged Ember acceptance remains open.
+- Six corrected scene suites pass 238 source assertions. The previous full regression at 70a3c1bdc remains 1,038 PASS / 7 FAIL; no new full-run pass is claimed.
+- Original failed startup invocation and false-positive log assessment are retained in the validation directory; corrected startup and the repository runner's diagnostic rules establish only the passes listed above.
+
+Export refreshed the import cache for an ignored test screenshot plus the editor filesystem cache; no tracked source changed, and the screenshot is absent from the PCK. Protected artifacts, real user data, installed templates/libraries and driver inputs remain unchanged.
+
+NOT_RUN: native Windows execution, native GPU performance, physical controller, audible/human review and final-release qualification. A green current-source full regression remains required.
+Windows PE/Wine/PowerShell execution remains on hold. GitHub Actions remain disabled.
+This is a development checkpoint with the package timeout above, not a completed-game release. Linux checkpoint 064f573 remains older and differs in content.
+
+EXE SHA-256: 5cc1e4253086f7f0bd4ecb190ef06086c9d874ee40eeda74f46b843c95c264c0
