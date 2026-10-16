@@ -35,6 +35,7 @@ const TEXT_INK := Color("f3f9fd")
 @onready var _panel: PanelContainer = %PanelShell
 @onready var _margin: MarginContainer = %PanelMargin
 @onready var _stack: VBoxContainer = %CaptionStack
+@onready var _header: BoxContainer = %Header
 @onready var _category_label: Label = %CategoryLabel
 @onready var _speaker_label: Label = %SpeakerLabel
 @onready var _divider: HSeparator = %Divider
@@ -61,6 +62,10 @@ func _ready() -> void:
 	visible = false
 	if not resized.is_connected(_queue_layout):
 		resized.connect(_queue_layout)
+	# Text shaping can change wrapped minimum heights after the host resize
+	# pass. Remeasure on that change, not only when our outer frame changes.
+	if not _stack.minimum_size_changed.is_connected(_queue_layout):
+		_stack.minimum_size_changed.connect(_queue_layout)
 	_apply_scale_theme()
 	_queue_layout()
 
@@ -411,6 +416,28 @@ func _layout_pass_one(token: int) -> void:
 	var available_width := maxf(1.0, _layout_viewport_size.x - safe_margin_x * 2.0)
 	var panel_width := minf(BASE_MAX_PANEL_WIDTH * _ui_scale, available_width)
 	panel_width = maxf(minf(BASE_MIN_PANEL_WIDTH * _ui_scale, available_width), panel_width)
+	# Below the component's normal minimum width, the category's fixed-width
+	# column leaves too little room for a distinguishing source name. Give each
+	# header label the full row instead of growing many narrow source lines.
+	var narrow := panel_width < BASE_MIN_PANEL_WIDTH * _ui_scale
+	if _header.vertical != narrow:
+		_header.vertical = narrow
+	var header_separation := 0 if narrow else 16
+	if _header.get_theme_constant("separation") != header_separation:
+		_header.add_theme_constant_override("separation", header_separation)
+	var source_alignment := HORIZONTAL_ALIGNMENT_LEFT if narrow else HORIZONTAL_ALIGNMENT_RIGHT
+	if _speaker_label.horizontal_alignment != source_alignment:
+		_speaker_label.horizontal_alignment = source_alignment
+	# The narrow host needs the same full-size text, with less decorative
+	# framing: one normal stack gap between header and body, no divider row,
+	# and that same spacing as its vertical inset. Wide framing is unchanged.
+	if _divider.visible == narrow:
+		_divider.visible = not narrow
+	var vertical_inset := BASE_STACK_SEPARATION if narrow else BASE_MARGIN_Y
+	var inset_pixels := roundi(vertical_inset * _ui_scale)
+	for margin_name: StringName in [&"margin_top", &"margin_bottom"]:
+		if _margin.get_theme_constant(margin_name) != inset_pixels:
+			_margin.add_theme_constant_override(margin_name, inset_pixels)
 	var bottom_margin := _safe_margin_bottom()
 	var maximum_height := _maximum_panel_height(_layout_viewport_size)
 	_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
@@ -418,22 +445,18 @@ func _layout_pass_one(token: int) -> void:
 	_panel.offset_right = panel_width * 0.5
 	_panel.offset_bottom = -bottom_margin
 	_panel.offset_top = -bottom_margin - maximum_height
-	_panel.custom_minimum_size = Vector2(panel_width, 0.0)
+	if _panel.custom_minimum_size != Vector2(panel_width, 0.0):
+		_panel.custom_minimum_size = Vector2(panel_width, 0.0)
 	call_deferred("_layout_pass_two", token)
 
 
 func _layout_pass_two(token: int) -> void:
 	if is_queued_for_deletion() or not is_inside_tree() or token != _layout_token or _panel == null:
 		return
-	var header_height := maxf(
-		_category_label.get_combined_minimum_size().y,
-		_speaker_label.get_combined_minimum_size().y
-	)
-	var divider_height := maxf(_divider.get_combined_minimum_size().y, 1.0)
-	var content_height := maxf(float(_text_label.get_content_height()), float(roundi(BASE_TEXT_FONT_SIZE * _ui_scale)))
-	var vertical_margins := float(roundi(BASE_MARGIN_Y * _ui_scale) * 2)
-	var separations := float(roundi(BASE_STACK_SEPARATION * _ui_scale) * 2)
-	var desired_height := vertical_margins + separations + header_height + divider_height + content_height
+	# The container minimum includes current text shaping, visible children,
+	# their actual gaps/margins and the panel style's borders. A second manual
+	# sum can retain an old wrapped height or count a hidden decorative row.
+	var desired_height := _panel.get_combined_minimum_size().y
 	var maximum_height := _maximum_panel_height(_layout_viewport_size)
 	var panel_height := clampf(desired_height, BASE_MIN_PANEL_HEIGHT * _ui_scale, maximum_height)
 	var bottom_margin := _safe_margin_bottom()

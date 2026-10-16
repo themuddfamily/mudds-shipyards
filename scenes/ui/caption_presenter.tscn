@@ -57,7 +57,8 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
 
-[node name="Header" type="HBoxContainer" parent="PanelShell/PanelMargin/CaptionStack"]
+[node name="Header" type="BoxContainer" parent="PanelShell/PanelMargin/CaptionStack"]
+unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 16

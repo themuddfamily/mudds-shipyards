@@ -316,6 +316,24 @@ func _check_composed_rects(hud: GameHUD, active_key: StringName) -> void:
 					"" if overlaps.is_empty() else " (overlaps " + ", ".join(overlaps) + ")",
 				],
 			)
+			if not composed_clear:
+				var caption := hud.get("_caption_presenter") as CaptionPresenter
+				var caption_report := caption.get_layout_report()
+				var header := caption.get_node("%Header") as BoxContainer
+				var source := caption.get_node("%SpeakerLabel") as Label
+				print("COMPOSITION_CAPTION_FAILURE: header_vertical=%s header=%s header_min=%s category=%s source=%s source_min=%s source_lines=%d source_visible_lines=%d body=%s body_lines=%d body_content=%.1f clipped=%s" % [
+					str(header.vertical), str(header.get_global_rect()), str(header.get_combined_minimum_size()),
+					str(caption_report.category_rect), str(caption_report.speaker_rect),
+					str(source.get_combined_minimum_size()), source.get_line_count(), source.get_visible_line_count(),
+					str(caption_report.text_rect), int(caption_report.text_line_count),
+					float(caption_report.text_content_height), str(caption_report.text_clipped),
+				])
+				print("COMPOSITION_FAILURE: viewport=%s effective=%.4f card=%s caption=%s reticle=%s interaction=%s card_reticle=%s caption_reticle=%s card_caption=%s card_interaction=%s" % [
+					str(viewport), effective, str(active_physical), str(caption_physical),
+					str(reticle_rect), str(interaction_physical), str(card_reticle_overlap),
+					str(caption_reticle_overlap), str(card_caption_overlap),
+					str(card_interaction_overlap),
+				])
 			_check(
 				composed_clear,
 				(

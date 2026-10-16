@@ -33,6 +33,7 @@ func _run() -> void:
 	await _test_simultaneous_cue_readability(presenter)
 	await _test_supported_layout_sweep(viewport, presenter)
 	await _test_narrow_source_readability(viewport, presenter)
+	await _test_header_resize_lifecycle(viewport, presenter)
 	await _test_reentry_requires_current_caption(viewport)
 	await _test_detached_layout_currentness(viewport, presenter)
 	await _test_queued_layout_currentness(viewport)
@@ -288,6 +289,67 @@ func _test_narrow_source_readability(viewport: SubViewport, presenter: CaptionPr
 		)
 	presenter.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	presenter.set_ui_scale(1.0)
+	await _settle()
+
+
+func _test_header_resize_lifecycle(viewport: SubViewport, presenter: CaptionPresenter) -> void:
+	viewport.size = Vector2i(1180, 690)
+	presenter.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	presenter.position = Vector2(378.0, 0.0)
+	presenter.set_ui_scale(1.0)
+	presenter.set_host_bottom_safe_margin(126.0)
+	var snapshot := _snapshot(false, "[ hostile craft destroyed ]")
+	(snapshot.caption as Dictionary)["speaker"] = "S".repeat(CaptionPresentationEvent.MAX_SPEAKER_LENGTH)
+	presenter.apply_presentation_snapshot(snapshot)
+	var header := presenter.get_node("%Header") as BoxContainer
+	for band_width: float in [462.0, 1024.0, 462.0]:
+		presenter.size = Vector2(band_width, 690.0)
+		await _settle()
+		var report := presenter.get_layout_report()
+		var panel := report.panel_rect as Rect2
+		var category := report.category_rect as Rect2
+		var source := report.speaker_rect as Rect2
+		var narrow := band_width == 462.0
+		var settled_token := int(presenter.get("_layout_token"))
+		await _settle()
+		var panel_node := presenter.get_node("%PanelShell") as PanelContainer
+		var intrinsic_height := clampf(panel_node.get_combined_minimum_size().y,
+			CaptionPresenter.BASE_MIN_PANEL_HEIGHT, float(report.panel_maximum_height))
+		_check(int(presenter.get("_layout_token")) == settled_token
+			and panel_node.get_global_rect() == panel
+			and is_equal_approx(panel.size.y, intrinsic_height),
+			"caption remeasurement converges to the actual child minimum without a perpetual layout loop")
+		var header_valid := (header.vertical == narrow
+			and str(report.rendered_speaker) == "SOURCE · %s" % snapshot.caption.speaker
+			and str(report.rendered_text) == "[ hostile craft destroyed ]"
+			and not bool(report.text_clipped)
+			and panel.encloses(category) and panel.encloses(source)
+			and (source.position.y >= category.end.y if narrow else (source.position.y < category.end.y and category.position.y < source.end.y)))
+		if not header_valid or (narrow and (panel.position.y < 394.0 or panel.end.y > 564.0)):
+			var source_label := presenter.get_node("%SpeakerLabel") as Label
+			var stack := presenter.get_node("%CaptionStack") as VBoxContainer
+			print("CAPTION_HEADER_FAILURE: band=%.0f vertical=%s header_valid=%s panel=%s header=%s header_min=%s stack=%s stack_min=%s category=%s source=%s source_min=%s source_lines=%d source_visible_lines=%d source_flags=%d body=%s body_lines=%d body_content=%.1f clipped=%s" % [
+				band_width, str(header.vertical), str(header_valid), str(panel),
+				str(header.get_global_rect()), str(header.get_combined_minimum_size()),
+				str(stack.get_global_rect()), str(stack.get_combined_minimum_size()),
+				str(category), str(source), str(source_label.get_combined_minimum_size()),
+				source_label.get_line_count(), source_label.get_visible_line_count(),
+				source_label.size_flags_horizontal, str(report.text_rect),
+				int(report.text_line_count), float(report.text_content_height), str(report.text_clipped),
+			])
+		_check(header.vertical == narrow
+			and (presenter.get_node("%Divider") as Control).visible == (not narrow)
+			and str(report.rendered_speaker) == "SOURCE · %s" % snapshot.caption.speaker
+			and str(report.rendered_text) == "[ hostile craft destroyed ]"
+			and not bool(report.text_clipped)
+			and panel.encloses(category) and panel.encloses(source)
+			and (source.position.y >= category.end.y if narrow else (source.position.y < category.end.y and category.position.y < source.end.y)),
+			"caption header reflows narrow/wide/narrow without dropping source, markers or body")
+		if narrow:
+			_check(panel.position.y >= 394.0 and panel.end.y <= 564.0,
+				"the minimum HUD band's full source clears the measured reticle and interaction rows")
+	presenter.clear_host_bottom_safe_margin()
+	presenter.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	await _settle()
 
 
