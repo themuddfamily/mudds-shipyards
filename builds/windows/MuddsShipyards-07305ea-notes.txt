@@ -1,0 +1,22 @@
+# Mudds Shipyards — Windows checkpoint 07305ea
+
+Source: 07305ea0ebdb7b022e80cdf1730f4bf42071e253. Extract the ZIP and run MuddsShipyards-07305ea.exe.
+
+Player-visible changes:
+
+- Full multiplayer sessions explain that a player must leave before retrying.
+- Scan help explains how to retry an unfiled material-sample reward while retaining the completed scan.
+
+This checkpoint also adds the private packaged reflection lifecycle check. The earlier Begin-input fix remains included.
+
+Five canonical focused source suites and the same five actual Windows-payload suites passed 602 checks, including capacity feedback, scan help, startup CLI privacy and loading behavior. The Windows payload ran through the Linux editor; the Windows PE was never executed.
+
+Native Linux release reflection lifecycle passed in the recorded isolated display environment: pending-capture cancellation, a quiet interval with no reflection work and fresh recapture steps 1 through 7. This qualifies that bounded lifecycle behavior only; it does not qualify native GPU performance, Windows execution or a full release matrix.
+
+Both packages contain the same 1,513 payload entries. Relative to 0355c19, only startup_loader.gdc, activity_tutorial_presenter.gdc and network_session_status_presenter.gdc changed. Windows executable code matches the official export template; Linux native code and read-only data match the retained-probe-fix template.
+
+Settings completion, full release-matrix, native GPU and complete controls qualification remain NOT_RUN. Native Windows remains NOT_RUN under the PE hold. GitHub Actions remain disabled. Artifacts are local to this repository's builds folders.
+
+Strict menu startup passed for this embedded Windows payload through the Linux editor: exit 0, STARTUP_MENU_READY_OK once, no errors.
+
+EXE SHA-256: 9550f106e266b55c2100e51ff9aec0c2e183084870b0fa783cc48ad0ccebd6bf

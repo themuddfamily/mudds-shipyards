@@ -14,11 +14,11 @@ Completed foundations include the core walk/board/fly/fight/land/recover loop, s
 
 Native Windows execution remains on hold while the Avast alert is unresolved. Do not bypass antivirus protection. Appropriate local Linux checks and read-only Windows package inspection may continue; they do not establish native Windows, GPU, controller, audible or human acceptance.
 
-Latest published checkpoint: Windows and Linux `0355c1965`, with identical packaged game content. See the [Windows notes](builds/windows/MuddsShipyards-0355c19-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-0355c19-linux-notes.txt) for their different runtime checks and limitations.
+Latest published checkpoint: Windows and Linux `07305ea0e`, with identical packaged game content. See the [Windows notes](builds/windows/MuddsShipyards-07305ea-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-07305ea-linux-notes.txt) for their different runtime checks and limitations.
 
 At `fe0a15812`, the complete ordinary-input guided sortie passes 47 source checks and three consecutive fresh-process runs against that published Linux PCK through the pinned Linux editor. Those results do not qualify newer source. Experimental WSL rendering does not qualify native hardware or the complete Gate C journeys.
 
-The new checkpoint adds readable version-mismatch guidance, correct patrol retry help and Central berth directions. Five focused source and matching Windows-PCK suites each pass 392 assertions; strict package startup and a reviewed 2560×1440 directory capture pass. An external packaged Settings diagnostic confirms the Begin fix and on-foot controls, then stops against cargo-transfer equipment on its Arrow approach; the route remains under investigation. Rendered release-template acceptance, full current-source regression, complete Sandbox/settings journeys and applicable hardware acceptance remain open; see [bugs.md](bugs.md).
+The new checkpoint explains full-session rejection and retrying an unfiled scan reward. Five focused source and matching Windows-PCK suites each pass 602 assertions; strict package startup passes. The native Linux release also passes retained reflection cancellation/re-entry with quiet and fresh GPU traces in the isolated experimental WSL environment. The packaged Settings diagnostic now walks the supported Arrow approach and boards normally, then fails a captured flight-mouse check; diagnosis continues. Full current-source regression, complete Sandbox/settings journeys and applicable hardware acceptance remain open; see [bugs.md](bugs.md).
 
 ## Remaining tasks to complete the project
 
