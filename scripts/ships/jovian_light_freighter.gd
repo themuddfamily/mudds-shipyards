@@ -4596,11 +4596,12 @@ func _build_passenger_cabin() -> void:
 				_cabin_portal_upright_mesh
 			)
 		_box(_passenger_cabin, "CabinPortalHeader", Vector3(0.0, 3.68, bulkhead_z), Vector3(3.05, 0.18, 0.2), _jovian_materials.cabin_shell)
-	_box(_passenger_cabin, "CabinStatusPanel", Vector3(0.0, 2.5, -3.13), Vector3(1.05, 0.58, 0.04), _materials.display_substrate)
+	# Seat the display on the cabin face of the separate suspended housing.
+	_box(_passenger_cabin, "CabinStatusPanel", Vector3(0.0, 2.5, -3.275), Vector3(1.05, 0.58, 0.04), _materials.display_substrate)
 	_engineer_status_readout = Label3D.new()
 	_engineer_status_readout.name = "EngineerRepairReadout"
 	# Present the text on the cabin face, toward the physical engineer seat.
-	_engineer_status_readout.position = Vector3(0.0, 2.5, -3.16)
+	_engineer_status_readout.position = Vector3(0.0, 2.5, -3.305)
 	_engineer_status_readout.rotation.y = PI
 	_engineer_status_readout.font_size = 28
 	_engineer_status_readout.pixel_size = 0.003

@@ -343,6 +343,26 @@ func _check_readout_fits(craft: HeroShip, state: String) -> void:
 		_check(bounds.intersects_segment(inverse * engineer.global_position,
 			inverse * label.global_position) == null,
 			"display substrate does not hide the readout from its engineer in " + state)
+	# Inspect the rendered meshes after fitout consolidation, including the
+	# separate solid display housing. Authored-name node searches miss batches.
+	var cabin := label.get_parent() as Node3D
+	var meshes := cabin.find_children("*", "MeshInstance3D", true, false)
+	_check(not meshes.is_empty(), "live cabin meshes exist for readout visibility in " + state)
+	var blockers: Array[String] = []
+	var eye := engineer.global_position + engineer.global_basis.y * 0.75
+	for housing: MeshInstance3D in meshes:
+		if not housing.is_visible_in_tree() or housing.mesh == null:
+			continue
+		var inverse := housing.global_transform.affine_inverse()
+		var start := inverse * eye
+		var end := inverse * label.global_position
+		var faces := housing.mesh.get_faces()
+		for triangle in range(0, faces.size(), 3):
+			if Geometry3D.segment_intersects_triangle(start, end,
+					faces[triangle], faces[triangle + 1], faces[triangle + 2]) != null:
+				blockers.append(String(housing.name))
+				break
+	_check(blockers.is_empty(), "physical cabin leaves the engineer readout visible in %s: %s" % [state, blockers])
 	var font := label.font if label.font != null else ThemeDB.fallback_font
 	var widest := 0.0
 	for line in label.text.split("\n"):
