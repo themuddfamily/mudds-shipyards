@@ -15,10 +15,11 @@ var _snapshot: Dictionary = {}
 
 func present_snapshot(source: Dictionary) -> Dictionary:
 	var altitude := maxf(0.0, float(source.get("altitude_m", 0.0)))
-	var branch_id := StringName(source.get("branch_id", &"atmospheric"))
+	var branch_id := _branch_id(source)
 	var has_atmosphere := branch_id == &"atmospheric"
-	var intensity := clampf(float(source.get("entry_intensity", 0.0)), 0.0, 1.0) \
-		if has_atmosphere else 0.0
+	var raw_intensity := _entry_intensity(source)
+	var atmosphere_weight := _atmosphere_weight(source, has_atmosphere)
+	var intensity := raw_intensity * atmosphere_weight if has_atmosphere else 0.0
 	var landing_supported := bool(source.get("landing_supported", false))
 	var reduced_flash := bool(source.get("reduced_flash", false))
 	var reduced_motion := bool(source.get("reduced_motion", false))
@@ -45,13 +46,15 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	_snapshot = {
 		"component_id": COMPONENT_ID,
 		"state": state,
-		"title": _title(state),
+		"title": _title(state, StringName(str(source.get("world_id", &"")))),
 		"guidance": "%s\n%s\n%s" % [
 			marker, descent_advisory.copy, _guidance(state),
 		],
 		"altitude_m": altitude,
 		"branch_id": branch_id,
 		"has_atmosphere": has_atmosphere,
+		"raw_entry_intensity": raw_intensity,
+		"atmosphere_weight": atmosphere_weight,
 		"entry_intensity": intensity,
 		"intensity_marker": marker,
 		"vertical_speed_mps": vertical_speed_mps,
@@ -62,7 +65,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"reduced_flash": reduced_flash,
 		"reduced_motion": reduced_motion,
 		"attention_cue_policy": &"steady_text_no_flash" \
-			if reduced_flash else &"text_severity",
+			if reduced_flash or not has_atmosphere else &"text_severity",
 		"transition_policy": &"static" if reduced_motion else &"standard",
 		"landing_supported": landing_supported,
 		"recovery_receipt_id": StringName(str(recovery.get("receipt_id", &""))),
@@ -125,6 +128,34 @@ func _intent(action: StringName, reason: StringName) -> Dictionary:
 	return {"accepted": false, "reason": &"action_unavailable", "action": action, "presentation_only": true}
 
 
+func _branch_id(source: Dictionary) -> StringName:
+	var supplied: Variant = source.get("branch_id", &"")
+	if (supplied is StringName or supplied is String) \
+			and StringName(str(supplied)) in [&"atmospheric", &"airless"]:
+		return StringName(str(supplied))
+	if source.get("has_atmosphere") is bool:
+		return &"atmospheric" if bool(source.has_atmosphere) else &"airless"
+	return &"atmospheric"
+
+
+func _entry_intensity(source: Dictionary) -> float:
+	var supplied: Variant = source.get("entry", {})
+	var entry: Dictionary = supplied if supplied is Dictionary else {}
+	return clampf(float(entry.get(
+		"heat_intensity_unitless", source.get("entry_intensity", 0.0)
+	)), 0.0, 1.0)
+
+
+func _atmosphere_weight(source: Dictionary, has_atmosphere: bool) -> float:
+	if not has_atmosphere:
+		return 0.0
+	var supplied: Variant = source.get("envelope", {})
+	var envelope: Dictionary = supplied if supplied is Dictionary else {}
+	var supplied_weights: Variant = envelope.get("weights", {})
+	var weights: Dictionary = supplied_weights if supplied_weights is Dictionary else {}
+	return clampf(float(weights.get("atmosphere_unitless", 1.0)), 0.0, 1.0)
+
+
 func _intensity_marker(state: StringName, reduced_flash: bool) -> StringName:
 	if state == &"airless_descent":
 		return &"[ AIRLESS // ENTRY HEAT ZERO ]"
@@ -139,9 +170,11 @@ func _intensity_marker(state: StringName, reduced_flash: bool) -> StringName:
 	return &"[ ENTRY NOMINAL ]"
 
 
-func _title(state: StringName) -> String:
+func _title(state: StringName, world_id: StringName) -> String:
+	if state == &"airless_descent" and world_id == &"ember_moon":
+		return "Ember Airless Descent"
 	return {
-		&"airless_descent": "Ember Airless Descent",
+		&"airless_descent": "Airless Descent",
 		&"critical_entry": "Critical Atmospheric Entry",
 		&"entry_watch": "Atmospheric Entry Watch",
 		&"landing_supported": "Landing Support Ready",
