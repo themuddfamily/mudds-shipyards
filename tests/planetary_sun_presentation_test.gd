@@ -46,7 +46,7 @@ const CAPABILITY_KEYS := [
 	"calibrated_colorimetry_implemented", "shadow_or_occlusion_implemented",
 	"clock_or_ephemeris_implemented", "environment_or_sky_implemented",
 ]
-const EXPECTED_ASSERTIONS := 46
+const EXPECTED_ASSERTIONS := 49
 
 var _assertions := 0
 var _failures := PackedStringArray()
@@ -69,6 +69,7 @@ func _run() -> void:
 	await _test_configuration_rejections()
 	_make_main_fixture()
 	_test_configuration_and_source_detachment()
+	_test_policy_validation_is_fresh_between_observations()
 	_test_exact_baseline_relative_mapping()
 	_test_strict_observations_and_generation()
 	_test_renderer_drift_and_forbidden_properties()
@@ -203,6 +204,38 @@ func _test_configuration_and_source_detachment() -> void:
 		and bool(_adapter.audit().valid),
 		"source Resource mutation cannot retune the private detached policy"
 	)
+
+
+func _test_policy_validation_is_fresh_between_observations() -> void:
+	var fixture := _make_fixture(true)
+	var adapter := fixture.adapter as PlanetarySunPresentation
+	var light := fixture.light as DirectionalLight3D
+	var first := adapter.present_observation(_observation(Vector3.UP), 1)
+	_check(first.accepted, "fresh policy guard admits the first actual daylight observation")
+	var before := adapter.get_state_snapshot()
+	var renderer_before := _renderer_values(light)
+	var policy := adapter.get("_policy") as PlanetarySunLightingPolicy
+	var frozen_world := policy.get("_world_snapshot") as Dictionary
+	var body := frozen_world.get("body", {}) as Dictionary
+	var radius := float(body.radius_metres)
+	body.radius_metres = -1.0
+	var rejected := adapter.present_observation(_observation(Vector3.RIGHT), 1)
+	_check(
+		not rejected.accepted and rejected.reason == &"policy_unavailable"
+		and adapter.get_state_snapshot() == before
+		and _renderer_values(light) == renderer_before,
+		"policy corruption between observations rejects without changing light, generation or retained state"
+	)
+	body.radius_metres = radius
+	var restored := adapter.present_observation(_observation(Vector3.RIGHT), 1)
+	_check(
+		restored.accepted and restored.reason == &"observation_presented"
+		and adapter.get_generation() == int(before.generation)
+		and _renderer_values(light) == restored.renderer_values
+		and float(light.light_energy) == 0.0,
+		"restoring the frozen policy admits the next actual horizon observation in the same generation"
+	)
+	(fixture.host as Node).queue_free()
 
 
 func _test_exact_baseline_relative_mapping() -> void:

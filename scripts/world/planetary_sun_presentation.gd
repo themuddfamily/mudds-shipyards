@@ -227,7 +227,7 @@ func present_observation(
 	if is_queued_for_deletion() or not is_inside_tree() \
 			or light.is_queued_for_deletion() or not light.is_inside_tree():
 		return _result(false, &"presentation_detached")
-	if _policy == null or not bool(_policy.audit().get("valid", false)):
+	if _policy == null or not _policy.has_valid_configuration():
 		return _result(false, &"policy_unavailable")
 
 	var policy_result := _policy.evaluate(observation)

@@ -267,7 +267,7 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
-func audit() -> Dictionary:
+func _validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if not _configured:
 		errors.append("sun_lighting_policy_not_configured")
@@ -294,6 +294,16 @@ func audit() -> Dictionary:
 	if not _evidence_contract_is_valid(EVIDENCE):
 		errors.append("evidence_contract_drift")
 	errors.sort()
+	return errors
+
+
+## Fresh runtime guard without constructing the detached diagnostic report.
+func has_valid_configuration() -> bool:
+	return _validation_errors().is_empty()
+
+
+func audit() -> Dictionary:
+	var errors := _validation_errors()
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"policy_version": POLICY_VERSION,
