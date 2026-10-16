@@ -165,6 +165,10 @@ func _run() -> void:
 		await _run_automatic_propulsion_witness()
 		return
 
+	if not _capture_output_ancestors_are_safe():
+		quit(1)
+		return
+
 	_reset_capture_transaction()
 	_source_paths = _collect_source_paths()
 	_source_snapshot = _snapshot_source_files(_source_paths)
@@ -1000,11 +1004,13 @@ func _write_evidence_manifest() -> void:
 
 
 func _reset_capture_transaction() -> void:
+	if not _capture_transaction_tree_is_safe(TRANSACTION_DIR):
+		return
 	var output_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
 	_check(output_error == OK or output_error == ERR_ALREADY_EXISTS, "Zenith visual output directory is available")
 	_remove_file_if_present(EVIDENCE_MANIFEST_PATH, "prior evidence sentinel clears")
-	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(TRANSACTION_DIR)):
-		_remove_transaction_tree(TRANSACTION_DIR)
+	if not _remove_transaction_tree(TRANSACTION_DIR):
+		return
 	var transaction_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(TRANSACTION_DIR))
 	_check(transaction_error == OK or transaction_error == ERR_ALREADY_EXISTS, "fresh isolated Zenith capture transaction is available")
 
@@ -1064,7 +1070,69 @@ func _remove_file_if_present(path: String, description: String) -> bool:
 	return error == OK
 
 
+func _capture_output_ancestors_are_safe() -> bool:
+	# Inspect each component from its parent before opening it, including broken
+	# links. Explicit overrides start at the filesystem root or Windows drive.
+	var current_path := "res://"
+	if not _output_override.is_empty():
+		current_path = OUTPUT_DIR.left(3) if OS.get_name() == "Windows" else "/"
+	for component in OUTPUT_DIR.trim_prefix(current_path).split("/", false):
+		var parent := DirAccess.open(current_path)
+		if parent == null:
+			_fail("cannot inspect capture output ancestor: %s" % current_path)
+			return false
+		if parent.is_link(component):
+			_fail("refusing linked capture output ancestor: %s" % current_path.path_join(component))
+			return false
+		if not parent.dir_exists(component):
+			return true
+		current_path = current_path.path_join(component)
+	return true
+
+
+func _capture_transaction_tree_is_safe(path: String) -> bool:
+	# Preflight the whole bounded tree before deleting any entry. Never open or
+	# recurse through a linked transaction root or descendant, even a broken link.
+	if path.is_empty() or path.contains("\\") or path != path.simplify_path() \
+			or (path != TRANSACTION_DIR and not path.begins_with(TRANSACTION_DIR + "/")):
+		_fail("refusing cleanup outside bounded transaction: %s" % path)
+		return false
+	if not _capture_output_ancestors_are_safe():
+		return false
+	var parent := DirAccess.open(path.get_base_dir())
+	if parent != null and parent.is_link(path.get_file()):
+		_fail("refusing linked capture transaction entry: %s" % path)
+		return false
+	if not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(path)):
+		if FileAccess.file_exists(path):
+			_fail("capture transaction directory is a file: %s" % path)
+			return false
+		return true
+	var directory := DirAccess.open(path)
+	if directory == null or directory.list_dir_begin() != OK:
+		_fail("cannot inspect capture transaction directory: %s" % path)
+		return false
+	var subdirectories := PackedStringArray()
+	var entry := directory.get_next()
+	while not entry.is_empty():
+		if entry != "." and entry != "..":
+			if directory.is_link(entry):
+				directory.list_dir_end()
+				_fail("refusing linked capture transaction entry: %s" % path.path_join(entry))
+				return false
+			if directory.current_is_dir():
+				subdirectories.append(entry)
+		entry = directory.get_next()
+	directory.list_dir_end()
+	for subdirectory in subdirectories:
+		if not _capture_transaction_tree_is_safe(path.path_join(subdirectory)):
+			return false
+	return true
+
+
 func _remove_transaction_tree(path: String) -> bool:
+	if not _capture_transaction_tree_is_safe(path):
+		return false
 	if path != TRANSACTION_DIR and not path.begins_with(TRANSACTION_DIR + "/"):
 		_fail("refusing cleanup outside bounded transaction: %s" % path)
 		return false
