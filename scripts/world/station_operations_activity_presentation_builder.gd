@@ -742,17 +742,39 @@ func _build_wayfinding_pylon() -> void:
 	_box(pylon, "BayGlyph", Vector3(0.0, 1.2, 0.3), Vector3(0.7, 0.28, 0.03), _materials["amber_lit"])
 
 	_box(pylon, "NoticeBoard", Vector3(0.0, 1.5, -0.265), Vector3(1.1, 0.7, 0.09), _materials["graphite"])
+	var notice_sheet_transforms: Array[Transform3D] = []
 	for index in 3:
-		_box(pylon, "NoticeSheet", Vector3(-0.32 + float(index) * 0.32, 1.5, -0.325), Vector3(0.26, 0.5, 0.03), _materials["ceramic"])
+		notice_sheet_transforms.append(Transform3D(
+			Basis.IDENTITY,
+			Vector3(-0.32 + float(index) * 0.32, 1.5, -0.325)
+		))
+	# The three printed sheets are immutable, childless dressing on the back of
+	# the pylon. They have one size, material, shadow/layer contract and no lens,
+	# mover, collision, topology or addressable activity role. Bake their exact
+	# transforms into one surface: all three pieces remain visible while three
+	# nodes and renderer submissions become one. Unlike a MultiMesh this adds no
+	# extra batch to the production roster and needs no renderer-buffer lifecycle.
+	var notice_sheets := _box_composite(
+		pylon,
+		"NoticeSheets",
+		Vector3(0.26, 0.5, 0.03),
+		notice_sheet_transforms,
+		_materials["ceramic"]
+	)
+	notice_sheets.set_meta("authored_visual_names", PackedStringArray([
+		"NoticeSheet", "NoticeSheet2", "NoticeSheet3",
+	]))
+	notice_sheets.set_meta("authored_visible_copy_count", 3)
+	notice_sheets.set_meta("authored_part_transforms", notice_sheet_transforms.duplicate())
 
-	# Keep every named colour renderer and its exact material/placement. Only
-	# these fifteen immutable boxes share one shadow submission; the chased
-	# chevrons, labels, rotating drum and safety beacons keep their own settings.
+	# Keep the twelve fixed boxes and the three-sheet composite in the same
+	# single shadow submission. Chased chevrons, labels, the rotating drum and
+	# safety beacons keep their own settings.
 	var shadow_sources: Array[MeshInstance3D] = []
 	for source_name in [
 		"BasePlinth", "BaseHazardBand", "Mast", "MastEdge", "MastEdge2",
 		"SignBoard", "SignFace", "SignRule", "ChevronRail", "BayPlaque",
-		"BayGlyph", "NoticeBoard", "NoticeSheet", "NoticeSheet2", "NoticeSheet3",
+		"BayGlyph", "NoticeBoard", "NoticeSheets",
 	]:
 		shadow_sources.append(pylon.get_node(NodePath(source_name)) as MeshInstance3D)
 	StaticShadowBatch.build(pylon, shadow_sources)
@@ -1174,6 +1196,31 @@ func _box_batch(
 		material: Material
 	) -> MultiMeshInstance3D:
 	return _instanced(parent, node_name, _rounded_box_mesh(size), transforms, material)
+
+
+## One immutable MeshInstance drawing several copies baked into one surface.
+## This is for static visual-only families whose members never need independent
+## renderer state. The source recipe is the same cached chamfered box used by
+## `_box()`, so the visible vertices, normals, UVs and outer extents are retained.
+func _box_composite(
+		parent: Node3D,
+		node_name: String,
+		size: Vector3,
+		transforms: Array[Transform3D],
+		material: Material
+	) -> MeshInstance3D:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var source_mesh := _rounded_box_mesh(size)
+	for transform_value in transforms:
+		tool.append_from(source_mesh, 0, transform_value)
+	var composite := MeshInstance3D.new()
+	composite.name = node_name
+	composite.mesh = tool.commit()
+	composite.material_override = material
+	composite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	parent.add_child(composite, true)
+	return composite
 
 
 func _cylinder_batch(

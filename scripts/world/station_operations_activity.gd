@@ -257,16 +257,16 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 		"animated_assemblies": 2,
 	},
 	ActivityProfile.SIGNAGE_PYLON: {
-		# Includes one fixed-shell shadow mesh; all colour renderers remain.
-		"node_count": 46,
-		"mesh_instances": 34,
+		# Includes the fixed-shell shadow mesh and one three-sheet composite.
+		"node_count": 44,
+		"mesh_instances": 32,
 		"unique_materials": 22,
 		"lights": 0,
 		"particle_emitters": 0,
 		"collision_nodes": 0,
 		"multimesh_batches": 0,
 		"multimesh_instances": 0,
-		"geometry_submissions": 34,
+		"geometry_submissions": 32,
 		"drawn_copies": 33,
 		"animated_assemblies": 1,
 	},
@@ -366,17 +366,20 @@ const PROFILE_PERFORMANCE_BUDGETS := {
 ## because a tote is the same one renderer at the same authored size.
 ## The pylon's fixed-shell shadow batch adds one node, MeshInstance and
 ## geometry submission to the exact roster. Visible copies remain 461.
+## Three immutable notice sheets now share one colour renderer, retaining
+## their exact visible copies and the existing fixed-shell shadow submission.
+## This removes two nodes and two submissions from the current roster.
 const RECOMMENDED_PRODUCTION_ROSTER_BUDGET := {
 	"instance_count": 10,
-	"node_count": 501,
-	"mesh_instances": 360,
+	"node_count": 499,
+	"mesh_instances": 358,
 	"unique_materials": 22,
 	"lights": 0,
 	"particle_emitters": 0,
 	"collision_nodes": 0,
 	"multimesh_batches": 24,
 	"multimesh_instances": 107,
-	"geometry_submissions": 384,
+	"geometry_submissions": 382,
 	"drawn_copies": 461,
 	"animated_assemblies": 21,
 }
@@ -2470,7 +2473,9 @@ func _count_runtime_resources(node: Node, counts: Dictionary, material_ids: Dict
 		counts["mesh_instances"] = int(counts.mesh_instances) + 1
 		# Shadow-only triangles are renderer work, not additional visible solids.
 		if (node as MeshInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
-			counts["drawn_copies"] = int(counts.drawn_copies) + 1
+			counts["drawn_copies"] = int(counts.drawn_copies) + int(
+				node.get_meta(&"authored_visible_copy_count", 1)
+			)
 		var material := (node as MeshInstance3D).material_override
 		if material != null:
 			material_ids[material.get_instance_id()] = true
