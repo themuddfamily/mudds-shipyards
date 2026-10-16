@@ -235,15 +235,19 @@ mkdir -p "$LOG_DIR"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/test-matrix-XXXXXX")"
 
 kill_children() {
-	local pid child
+	local pid child has_child
 	for pid in $(jobs -p 2>/dev/null); do
-		# The worker subshell's own child is `timeout`, which forwards SIGTERM
-		# to Godot; without this sweep an interrupted run leaks a pool of
-		# headless Godot processes.
+		# Let the worker wait for its supervisor's complete child teardown.
+		# Killing the worker too would let `wait` return while the supervisor
+		# was still reaping detached peers from a now-deleted WORK_DIR.
+		has_child=0
 		for child in $(pgrep -P "$pid" 2>/dev/null || true); do
+			has_child=1
 			kill -TERM "$child" 2>/dev/null || true
 		done
-		kill -TERM "$pid" 2>/dev/null || true
+		if (( has_child == 0 )); then
+			kill -TERM "$pid" 2>/dev/null || true
+		fi
 	done
 }
 
@@ -725,15 +729,9 @@ run_suite_worker() {
 		GODOT_ARGS+=(--audio-driver "$AUDIO_DRIVER")
 	fi
 
-	if (( HAVE_TIMEOUT_BIN == 1 )); then
-		"${suite_environment[@]}" \
-			timeout "$(suite_timeout_seconds "$test_file")s" "${GODOT_ARGS[@]}" > "$log_path" 2>&1
-		exit_code="$?"
-	else
-		"${suite_environment[@]}" \
-			"${GODOT_ARGS[@]}" > "$log_path" 2>&1
-		exit_code="$?"
-	fi
+	python3 "$SCRIPT_DIR/suite_process.py" --timeout "$(suite_timeout_seconds "$test_file")" -- \
+		"${suite_environment[@]}" "${GODOT_ARGS[@]}" > "$log_path" 2>&1
+	exit_code="$?"
 	set -e
 	if [[ -n "$display_lock_fd" ]]; then
 		flock -u "$display_lock_fd"

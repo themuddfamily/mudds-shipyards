@@ -3,8 +3,11 @@ import csv
 import hashlib
 import os
 import shutil
+import signal
 import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 import test_suite_catalog as catalog
@@ -141,7 +144,7 @@ done < <(LC_ALL=C sort -z "$paths")
             root = Path(temporary)
             release = root / 'tools/release'
             release.mkdir(parents=True)
-            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py', 'suite_process.py'):
                 shutil.copy2(SUPPORT / name, release / name)
             (root / 'tests').mkdir()
             (root / 'tests/probe_test.gd').write_text('print("PROBE_TEST_OK")')
@@ -191,7 +194,7 @@ done < <(LC_ALL=C sort -z "$paths")
             root = Path(temporary)
             release = root / 'tools/release'
             release.mkdir(parents=True)
-            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py', 'suite_process.py'):
                 shutil.copy2(SUPPORT / name, release / name)
             scripts = ['network/a_test.gd', 'network/b_test.gd', 'network/c_test.gd', 'network_top_test.gd', 'z_other_test.gd']
             for relative in scripts:
@@ -261,7 +264,7 @@ print('OK: network lane fixture')
             root = Path(temporary)
             release = root / 'tools/release'
             release.mkdir(parents=True)
-            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py', 'suite_process.py'):
                 shutil.copy2(SUPPORT / name, release / name)
             scripts = ['network/a_display_test.gd', 'b_headless_test.gd', 'c_headless_test.gd',
                        'ui/d_input_test.gd', 'ui/e_readback_test.gd']
@@ -340,7 +343,7 @@ print('DISPLAY_LANE_TEST_OK: 1 assertions')
             root = Path(temporary)
             release = root / 'tools/release'
             release.mkdir(parents=True)
-            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py', 'suite_process.py'):
                 shutil.copy2(SUPPORT / name, release / name)
             for relative in ('a/probe_test.gd', 'b/probe_test.gd', 'ui/render_test.gd', 'ui/input_test.gd', 'ui/declared_readback_test.gd'):
                 script = root / 'tests' / relative
@@ -428,7 +431,7 @@ print('OK: fixture (2 assertions)')
             root = Path(temporary)
             release = root / 'tools/release'
             release.mkdir(parents=True)
-            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py'):
+            for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py', 'suite_process.py'):
                 shutil.copy2(SUPPORT / name, release / name)
             tests = root / 'tests'
             tests.mkdir()
@@ -443,27 +446,24 @@ print('OK: fixture (2 assertions)')
             fake = root / 'fake-godot'
             fake.write_text('#!/usr/bin/env bash\nprintf "OK: fixture (2 assertions)\\n"\n')
             fake.chmod(0o755)
-            fake_bin = root / 'bin'
-            fake_bin.mkdir()
-            timeout = fake_bin / 'timeout'
             # Record the actual worker budget without waiting for a fake engine.
-            timeout.write_text('''#!/usr/bin/env python3
+            supervisor = release / 'suite_process.py'
+            supervisor.write_text('''#!/usr/bin/env python3
 import os, pathlib, sys
 args = sys.argv[1:]
 script = args[args.index('--script') + 1]
 with pathlib.Path(os.environ['BUDGET_RECORD']).open('a') as stream:
-    stream.write(script + '\\t' + args[0] + '\\n')
-os.execv(args[1], args[1:])
+    stream.write(script + '\\t' + args[args.index('--timeout') + 1] + '\\n')
+command = args[args.index('--') + 1:]
+os.execvp(command[0], command)
 ''')
-            timeout.chmod(0o755)
             record = root / 'budgets.tsv'
-            environment = {**os.environ, 'PATH': str(fake_bin) + os.pathsep + os.environ['PATH'],
-                           'BUDGET_RECORD': str(record), 'DISPLAY': ':fixture'}
+            environment = {**os.environ, 'BUDGET_RECORD': str(record), 'DISPLAY': ':fixture'}
             command = ['bash', str(release / 'run_test_matrix.sh'), '--godot', str(fake),
                        '--mode', 'all', '--jobs', '1', '--display-driver', 'x11',
                        '--audio-driver', 'Dummy', '--import-gate', 'never', '--timeout', '300',
                        '--results-dir', str(root / 'results'), '--manifest-scope', 'tests']
-            for override, expected_headless in (([], '300s'), (['--headless-timeout', '1200'], '1200s')):
+            for override, expected_headless in (([], '300'), (['--headless-timeout', '1200'], '1200')):
                 with self.subTest(override=override):
                     record.unlink(missing_ok=True)
                     run_id = 'override' if override else 'default'
@@ -474,20 +474,63 @@ os.execv(args[1], args[1:])
                     budgets = dict(line.split('\t') for line in record.read_text().splitlines())
                     self.assertEqual(budgets, {
                         'res://tests/headless_test.gd': expected_headless,
-                        'res://tests/headless_long_test.gd': '1500s',
-                        'res://tests/graphical_test.gd': '300s',
-                        'res://tests/graphical_long_test.gd': '900s',
+                        'res://tests/headless_long_test.gd': '1500',
+                        'res://tests/graphical_test.gd': '300',
+                        'res://tests/graphical_long_test.gd': '900',
                     })
                     manifest = (root / 'results' / run_id / 'run-manifest.txt').read_text()
                     self.assertIn('scope_specs=all\n', manifest)
                     self.assertIn('mode_excluded_suite_count=0\n', manifest)
-                    self.assertIn(f'headless_timeout_seconds={expected_headless[:-1]}\n', manifest)
+                    self.assertIn(f'headless_timeout_seconds={expected_headless}\n', manifest)
             for invalid in ('0', '-1', 'bogus'):
                 with self.subTest(invalid=invalid):
                     result = subprocess.run(command + ['--headless-timeout', invalid], cwd=root,
                                             env=environment, text=True, capture_output=True, timeout=20)
                     self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
                     self.assertIn('Invalid --headless-timeout', result.stdout)
+
+    def test_failed_suite_and_matrix_cancel_reap_detached_peers_before_return(self):
+        from test_suite_process import FIXTURE
+        for mode in ('0', 'wait'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                release = root / 'tools/release'
+                release.mkdir(parents=True)
+                for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py', 'suite_process.py'):
+                    shutil.copy2(SUPPORT / name, release / name)
+                (root / 'tests').mkdir()
+                (root / 'tests/probe_test.gd').write_text('print("PROBE_TEST_OK")')
+                fixture = root / 'fixture.py'
+                fixture.write_text(FIXTURE)
+                fake = root / 'fake-godot'
+                fake.write_text('#!/usr/bin/env python3\nimport os,sys\n'
+                                f'os.execv(sys.executable, [sys.executable, {str(fixture)!r}, '
+                                f'{str(root)!r}, "root", {mode!r}])\n')
+                fake.chmod(0o755)
+                command = ['bash', str(release / 'run_test_matrix.sh'), '--godot', str(fake),
+                           '--jobs', '1', '--results-dir', str(root / 'results'),
+                           '--manifest-scope', 'tests', '--import-gate', 'never']
+                process = subprocess.Popen(command, cwd=root, stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE, text=True)
+                try:
+                    if mode == 'wait':
+                        deadline = time.monotonic() + 10
+                        while not (root / 'leaf.pid').exists() and time.monotonic() < deadline:
+                            time.sleep(.01)
+                        self.assertTrue((root / 'leaf.pid').exists(), 'detached peer starts')
+                        process.send_signal(signal.SIGTERM)
+                    stdout, stderr = process.communicate(timeout=15)
+                    self.assertEqual(process.returncode, 130 if mode == 'wait' else 1, stdout + stderr)
+                    if mode == '0':
+                        self.assertIn('owned child processes running', stdout)
+                    for role in ('root', 'middle', 'leaf'):
+                        pid = int((root / (role + '.pid')).read_text())
+                        with self.assertRaises(ProcessLookupError, msg=role):
+                            os.kill(pid, 0)
+                finally:
+                    if process.poll() is None:
+                        process.terminate()
+                        process.communicate(timeout=15)
 
     def test_live_roster_covers_nested_suites_and_rendering(self):
         root = SUPPORT.resolve().parents[1]
