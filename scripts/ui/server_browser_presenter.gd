@@ -499,12 +499,13 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"capacity_generation": capacity_generation,
 		"full": is_full,
 		"selectable": true,
-		"focus_label": "[ ] %s  //  %s  //  %s  //  %s  //  %s  //  SELECT TO REQUEST JOINING" % [
+		"focus_label": "[ ] %s  //  %s  //  %s  //  %s  //  %s  //  %s" % [
 			str(source.get("title", "Server")),
 			ping_label,
 			"%d/%d players" % [players, maximum],
 			password_label,
 			compatibility_label,
+			"SESSION FULL // REFRESH SERVER LIST" if is_full else "SELECT TO REQUEST JOINING",
 		],
 		"focus_marker": "[ ]",
 		"stale": false,

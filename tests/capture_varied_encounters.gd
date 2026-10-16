@@ -27,7 +27,9 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 
 const STAGING_ONLY_ENVIRONMENT_VARIABLE := "MUDDS_CAPTURE_VARIED_STAGING_ONLY"
-const OUTPUT_DIR := "res://artifacts/varied_encounter_visuals"
+const DEFAULT_OUTPUT_DIR := "res://artifacts/varied_encounter_visuals"
+var _output_override := OS.get_environment("MUDDS_CAPTURE_OUTPUT_DIR")
+var OUTPUT_DIR := DEFAULT_OUTPUT_DIR if _output_override.is_empty() else _output_override
 ## Open space well outside the yard. The production WorldEnvironment and key
 ## light are global, so section B is lit exactly as it is in play without a
 ## harness light and without station structure crowding the silhouettes.
@@ -48,6 +50,18 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# An explicit override must name one canonical local filesystem directory.
+	var absolute_output := OUTPUT_DIR.begins_with("/") and not OUTPUT_DIR.begins_with("//")
+	if OS.get_name() == "Windows":
+		absolute_output = OUTPUT_DIR.length() > 3 and OUTPUT_DIR.substr(1, 2) == ":/" \
+			and "ABCDEFGHIJKLMNOPQRSTUVWXYZ".contains(OUTPUT_DIR.left(1).to_upper())
+	if not _output_override.is_empty() and (not absolute_output \
+			or OUTPUT_DIR.contains("\\") or OUTPUT_DIR.ends_with("/") \
+			or OUTPUT_DIR != OUTPUT_DIR.strip_edges() or OUTPUT_DIR != OUTPUT_DIR.simplify_path()):
+		push_error("MUDDS_CAPTURE_OUTPUT_DIR must be a canonical absolute local directory")
+		quit(1)
+		return
+
 	if OS.get_environment(STAGING_ONLY_ENVIRONMENT_VARIABLE) == "1":
 		await _play_encounter(true)
 		if _failures.is_empty():

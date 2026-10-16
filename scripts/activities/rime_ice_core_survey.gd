@@ -306,6 +306,8 @@ func prompt() -> String:
 		return "[ E ]  ABANDON ICE-CORE SURVEY" if state == CheckpointRouteActivity.State.ACTIVE \
 			else "[ E ]  START ICE-CORE SURVEY"
 	if target_index() > 0 and _near(target_index()):
+		if state == CheckpointRouteActivity.State.COMPLETED:
+			return "[ E ]  RETRY SAVING RECORD"
 		return "[ E ]  EXTRACT ICE CORE" if target_index() == 1 else "[ E ]  LOG RIDGE STRAIN"
 	return "WALK TO " + LABELS[target_index()].to_upper()
 

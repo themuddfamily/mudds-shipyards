@@ -11,7 +11,9 @@ extends SceneTree
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const PARSE_ONLY_ENVIRONMENT_VARIABLE := "KETH_CAPTURE_PLAYER_MOTION_PARSE_ONLY"
-const OUTPUT_DIR := "res://artifacts/player_motion"
+const DEFAULT_OUTPUT_DIR := "res://artifacts/player_motion"
+var _output_override := OS.get_environment("MUDDS_CAPTURE_OUTPUT_DIR")
+var OUTPUT_DIR := DEFAULT_OUTPUT_DIR if _output_override.is_empty() else _output_override
 const PILOT_GLTF_PATH := "res://assets/models/pilot/pilot_motion_v2.glb"
 const PILOT_BLEND_PATH := "res://art_source/pilot/pilot_motion_v2.blend"
 const PILOT_MANIFEST_PATH := "res://assets/models/pilot/pilot_motion_v2_asset_manifest.json"
@@ -131,6 +133,18 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# An explicit override must name one canonical local filesystem directory.
+	var absolute_output := OUTPUT_DIR.begins_with("/") and not OUTPUT_DIR.begins_with("//")
+	if OS.get_name() == "Windows":
+		absolute_output = OUTPUT_DIR.length() > 3 and OUTPUT_DIR.substr(1, 2) == ":/" \
+			and "ABCDEFGHIJKLMNOPQRSTUVWXYZ".contains(OUTPUT_DIR.left(1).to_upper())
+	if not _output_override.is_empty() and (not absolute_output \
+			or OUTPUT_DIR.contains("\\") or OUTPUT_DIR.ends_with("/") \
+			or OUTPUT_DIR != OUTPUT_DIR.strip_edges() or OUTPUT_DIR != OUTPUT_DIR.simplify_path()):
+		push_error("MUDDS_CAPTURE_OUTPUT_DIR must be a canonical absolute local directory")
+		quit(1)
+		return
+
 	if OS.get_environment(PARSE_ONLY_ENVIRONMENT_VARIABLE) == "1":
 		print("PLAYER_MOTION_CAPTURE_PARSE_OK")
 		quit(0)

@@ -23,6 +23,8 @@ func _run() -> void:
 	_check(snapshot.rows[1].full and snapshot.rows[1].occupancy_label == "4/4 players", "occupancy label exposes full state")
 	_check(snapshot.rows[0].capacity_label == "AVAILABLE" and snapshot.rows[1].capacity_label == "FULL", "capacity state is textual and color-independent")
 	_check(str(snapshot.rows[0].focus_label).begins_with("[ ]") and str(snapshot.accessibility_prompts.focus_marker) == "[FOCUS]", "server rows expose high-contrast textual focus labels")
+	_check(str(snapshot.rows[1].focus_label).ends_with("SESSION FULL // REFRESH SERVER LIST") and not "SELECT TO REQUEST JOINING" in snapshot.rows[1].focus_label, "disabled full rows explain capacity and refresh recovery without offering selection")
+	_check(str(snapshot.rows[0].focus_label).ends_with("SELECT TO REQUEST JOINING"), "available rows retain caller-owned join guidance")
 	var rich_snapshot := presenter.present_result({
 		"accepted": true,
 		"rows": [

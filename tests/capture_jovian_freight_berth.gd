@@ -5,7 +5,9 @@ extends SceneTree
 ## treated as source assets.
 
 const MODULE_SCENE := preload("res://scenes/world/modules/jovian_freight_berth.tscn")
-const OUTPUT_DIR := "res://artifacts"
+const DEFAULT_OUTPUT_DIR := "res://artifacts"
+var _output_override := OS.get_environment("MUDDS_CAPTURE_OUTPUT_DIR")
+var OUTPUT_DIR := DEFAULT_OUTPUT_DIR if _output_override.is_empty() else _output_override
 ## Extra simulated physics frames granted on top of the frames a wait's nominal
 ## duration implies. A frame count, never a wall-clock grace.
 const FRAME_BUDGET_GRACE := 30
@@ -24,6 +26,18 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# An explicit override must name one canonical local filesystem directory.
+	var absolute_output := OUTPUT_DIR.begins_with("/") and not OUTPUT_DIR.begins_with("//")
+	if OS.get_name() == "Windows":
+		absolute_output = OUTPUT_DIR.length() > 3 and OUTPUT_DIR.substr(1, 2) == ":/" \
+			and "ABCDEFGHIJKLMNOPQRSTUVWXYZ".contains(OUTPUT_DIR.left(1).to_upper())
+	if not _output_override.is_empty() and (not absolute_output \
+			or OUTPUT_DIR.contains("\\") or OUTPUT_DIR.ends_with("/") \
+			or OUTPUT_DIR != OUTPUT_DIR.strip_edges() or OUTPUT_DIR != OUTPUT_DIR.simplify_path()):
+		push_error("MUDDS_CAPTURE_OUTPUT_DIR must be a canonical absolute local directory")
+		quit(1)
+		return
+
 	root.size = Vector2i(1400, 900)
 	var renderer := RenderingServer.get_current_rendering_method()
 	_check(renderer == &"forward_plus", "capture uses the real Forward+ renderer")

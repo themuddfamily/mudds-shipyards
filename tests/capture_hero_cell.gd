@@ -28,12 +28,14 @@ const PILOT_SCENE := preload("res://scenes/player/player.tscn")
 
 const PARSE_ONLY_ENVIRONMENT_VARIABLE := "KETH_CAPTURE_HERO_CELL_PARSE_ONLY"
 const STAGING_ONLY_ENVIRONMENT_VARIABLE := "KETH_CAPTURE_HERO_CELL_STAGING_ONLY"
-const OUTPUT_DIR := "res://artifacts/hero_cell"
-const EVIDENCE_MANIFEST_PATH := OUTPUT_DIR + "/evidence_manifest.json"
-const SOURCE_MANIFEST_PATH := OUTPUT_DIR + "/source_manifest.sha256"
-const TRANSACTION_DIR := OUTPUT_DIR + "/.capture_transaction"
-const STAGED_EVIDENCE_MANIFEST_PATH := TRANSACTION_DIR + "/evidence_manifest.json"
-const STAGED_SOURCE_MANIFEST_PATH := TRANSACTION_DIR + "/source_manifest.sha256"
+const DEFAULT_OUTPUT_DIR := "res://artifacts/hero_cell"
+var _output_override := OS.get_environment("MUDDS_CAPTURE_OUTPUT_DIR")
+var OUTPUT_DIR := DEFAULT_OUTPUT_DIR if _output_override.is_empty() else _output_override
+var EVIDENCE_MANIFEST_PATH := OUTPUT_DIR + "/evidence_manifest.json"
+var SOURCE_MANIFEST_PATH := OUTPUT_DIR + "/source_manifest.sha256"
+var TRANSACTION_DIR := OUTPUT_DIR + "/.capture_transaction"
+var STAGED_EVIDENCE_MANIFEST_PATH := TRANSACTION_DIR + "/evidence_manifest.json"
+var STAGED_SOURCE_MANIFEST_PATH := TRANSACTION_DIR + "/source_manifest.sha256"
 const CAPTURE_RESOLUTION := Vector2i(2560, 1440)
 const CAPTURE_DISPLAY_SERVERS := ["X11", "Windows"]
 const RECONSTRUCTION_AUDIT_METHOD := &"get_torrent_reconstruction_audit_report"
@@ -254,6 +256,18 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# An explicit override must name one canonical local filesystem directory.
+	var absolute_output := OUTPUT_DIR.begins_with("/") and not OUTPUT_DIR.begins_with("//")
+	if OS.get_name() == "Windows":
+		absolute_output = OUTPUT_DIR.length() > 3 and OUTPUT_DIR.substr(1, 2) == ":/" \
+			and "ABCDEFGHIJKLMNOPQRSTUVWXYZ".contains(OUTPUT_DIR.left(1).to_upper())
+	if not _output_override.is_empty() and (not absolute_output \
+			or OUTPUT_DIR.contains("\\") or OUTPUT_DIR.ends_with("/") \
+			or OUTPUT_DIR != OUTPUT_DIR.strip_edges() or OUTPUT_DIR != OUTPUT_DIR.simplify_path()):
+		push_error("MUDDS_CAPTURE_OUTPUT_DIR must be a canonical absolute local directory")
+		quit(1)
+		return
+
 	if OS.get_environment(PARSE_ONLY_ENVIRONMENT_VARIABLE) == "1":
 		print("HERO_CELL_CAPTURE_PARSE_OK: 18-frame v5 acceptance inventory")
 		quit(0)
@@ -2778,11 +2792,13 @@ func _is_strict_transaction_path(path: String) -> bool:
 
 
 func _capture_output_ancestors_are_safe() -> bool:
-	# res:// is the trusted anchor. Inspect each existing component from its
-	# already-open parent so neither `artifacts` nor `hero_cell` can redirect the
-	# bounded transaction cleanup. A missing component is safe for later creation.
+	# Keep the legacy resource anchor; explicit overrides walk from the actual
+	# filesystem root/drive. Inspect links before existence, including broken
+	# links, through each already-open parent before any bounded cleanup.
 	var current_path := "res://"
-	for component in OUTPUT_DIR.trim_prefix("res://").split("/", false):
+	if not _output_override.is_empty():
+		current_path = OUTPUT_DIR.left(3) if OS.get_name() == "Windows" else "/"
+	for component in OUTPUT_DIR.trim_prefix(current_path).split("/", false):
 		var parent_directory := DirAccess.open(current_path)
 		if parent_directory == null:
 			_fail("transaction cleanup cannot inspect output ancestor: %s" % current_path)
