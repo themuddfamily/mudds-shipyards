@@ -1,0 +1,23 @@
+Mudd's Shipyards — shared-world identity checkpoint bc2c5c0 — 2026-10-17
+Source: bc2c5c079f3e2d9da694e46cd87fa00dfae9ee4e
+Engine: verified official Godot 4.7.1 a13da4feb and pinned stock release templates.
+
+Changes:
+- Four hot shared-surface guards read the current world identity directly rather than building a complete diagnostic snapshot. Missing-field fallbacks, explicit empty/null values and string types retain their exact behavior; malformed mutable values remain detached. Public full diagnostics and current lifecycle/epoch/scene/support checks are preserved.
+- The local matrix now serializes the inherited Rime controls fixture in the ENet lane, alongside its actual host/client setup. Hosted CI remains disabled.
+
+Actual validation and measured scope:
+- Independent semantic review approves the change. Focused source world-identity checks pass 15 assertions. Actual Windows embedded payload through the Linux editor passes the same 15 plus 41 local surface-presentation assertions, with zero diagnostics.
+- The live host/client fixture rejects world and epoch mutations, then admits only the restored authenticated context. The bounded 120-tick diagnostic reaches these checks without failures; this is not a full-suite pass.
+- 10,000 live world lookups cost 87,716us through full snapshots and 9,053us through direct reads. Overall 120-tick time is unchanged: 4,677.640 -> 4,679.415ms (+0.04%). No active-window speedup or native performance claim is made.
+- Original full source Rime controls remains FAIL: exit 1 after 197.003s. A returning walking leg takes 18.165s/464 physics ticks and reaches only 6/8 required settle frames. Both actors remain grounded/current; the original 18-second walking limit, eight settle frames, 300-second suite cap, routes, input cadence and all original assertions remain in place. No terminal assertion total was emitted and no retry was run.
+- Further bounded profiling finds larger costs in live atmosphere, motion-authority, pad-support, command-sampling and camera-boundary work. Identical native transforms cost only a few milliseconds. Those profiles justify no speculative physics/presentation change.
+- Original cargo integration on earlier source 92664bf47 now passes 120 assertions in 258.730s within its unchanged 300s cap, actual exit 0 and zero diagnostics. The temporary launcher's punctuation assumption was corrected with the committed source-declared catalog; raw log and original classification are retained, with no runtime retry. This earlier-source result does not qualify cargo on this newer candidate.
+- Two release-runner tests pass; actual catalog output includes Rime controls in the serialized network lane. Source test completion rules and timeout limits remain unchanged.
+- Safe Windows/Linux exports from an isolated clean worktree at this exact commit; matching 1,515-entry inventories and trusted Windows x86_64 code section. Windows payload, Linux direct binary and archive-extracted binary each pass --startup-check with exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics. Linux archive member bytes/executable mode and Windows ZIP CRC/member bytes are verified.
+
+Open acceptance:
+- Full current-source matrix and full packaged Rime/cargo journeys remain NOT_RUN. Current source Rime failure stays open. Frozen 636814418 remains FAIL (1,027 PASS / 18 FAIL); later focused results do not erase it. Broader recovery/shared journeys and all ten phase exit gates remain open.
+- Checkpoints remain unsigned. Trusted signing, applicable native hardware/GPU/controller/audible gates and human review remain unperformed. Native Windows execution remains NOT_RUN under the antivirus hold. Every automated Godot invocation uses Dummy audio and runs headlessly or on an isolated display; no hosted CI runs were enabled or dispatched.
+
+ELF SHA-256: cafe202ed5d76a39b571fb64eeffd6052ab0bc41a8af2d34eae5c1c7f62cda4b
