@@ -15,6 +15,14 @@ const FIRST_TARGET := Transform3D(
 )
 const HOSTILE_TARGET := Transform3D(Basis.IDENTITY, Vector3(900.0, 800.0, 700.0))
 
+class TransformWitness:
+	extends Node3D
+	var transform_changes := 0
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_TRANSFORM_CHANGED:
+			transform_changes += 1
+
+
 var _failures := PackedStringArray()
 var _assertions := 0
 var _test_root: Node3D
@@ -44,6 +52,7 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 
+	_test_stationary_visual_transform_updates(torrent)
 	await _test_adopted_instrument_readout(jovian)
 	_test_schema_invalid_and_cancel(torrent)
 	_test_dependency_currentness(torrent)
@@ -60,6 +69,40 @@ func _run() -> void:
 	await process_frame
 	await physics_frame
 	_finish()
+
+
+func _test_stationary_visual_transform_updates(ship: HeroShip) -> void:
+	var visual := ship.get("_visual_root") as Node3D
+	var original_transform := visual.transform
+	var witness := TransformWitness.new()
+	visual.add_child(witness)
+	witness.set_notify_transform(true)
+	ship.set("_visual_bank", 0.0)
+	visual.rotation.z = 0.0
+	witness.force_update_transform()
+	witness.transform_changes = 0
+	for _tick in 8:
+		ship.call("_update_presentation", 1.0 / 60.0, ShipCommand.neutral())
+		witness.force_update_transform()
+	_check(witness.transform_changes == 0,
+		"stationary ship presentation leaves retained visual descendant transforms clean")
+	visual.rotation.z = 0.2
+	ship.call("_update_presentation", 1.0 / 60.0, ShipCommand.neutral())
+	_check(visual.rotation.z == 0.0,
+		"same-tick presentation repairs a disturbed live visual bank without a cached pose")
+	visual.basis = Basis(Vector3.RIGHT, Vector3.UP, Vector3(0.4, 0.0, 1.0))
+	var canonical_basis := Basis.from_euler(visual.rotation, visual.rotation_order) * Basis.from_scale(visual.scale)
+	ship.call("_update_presentation", 1.0 / 60.0, ShipCommand.neutral())
+	_check(visual.basis == canonical_basis,
+		"same-bank presentation retains the original setter repair of a sheared live basis")
+	visual.transform = Transform3D.IDENTITY
+	ship.set("_visual_bank", 0.15)
+	ship.call("_update_presentation", 1.0 / 60.0, ShipCommand.neutral())
+	_check(is_equal_approx(visual.rotation.z, lerpf(0.15, 0.0, 1.0 - exp(-7.0 / 60.0))),
+		"bank interpolation retains its original per-tick response")
+	ship.set("_visual_bank", 0.0)
+	visual.transform = original_transform
+	witness.free()
 
 
 func _test_adopted_instrument_readout(ship: JovianLightFreighter) -> void:

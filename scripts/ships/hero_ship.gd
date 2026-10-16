@@ -5468,7 +5468,18 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 		var bank_input := command.yaw if _piloted and _engine_state == ENGINE_ONLINE else 0.0
 		var bank_target := -bank_input * deg_to_rad(visual_bank_degrees)
 		_visual_bank = lerpf(_visual_bank, bank_target, 1.0 - exp(-7.0 * delta))
-		_visual_root.rotation.z = _visual_bank
+		# An unchanged Node3D setter still dirties every descendant transform.
+		# Parked fleet craft retain large visual trees; compare the live value so
+		# real bank motion and any externally disturbed pose still update this tick.
+		var visual_rotation := _visual_root.rotation
+		# The old same-angle setter also removed shear. Preserve that repair
+		# rather than treating matching Euler angles alone as an unchanged pose.
+		var canonical_visual_basis := (
+			Basis.from_euler(visual_rotation, _visual_root.rotation_order)
+			* Basis.from_scale(_visual_root.scale)
+		)
+		if visual_rotation.z != _visual_bank or _visual_root.basis != canonical_visual_basis:
+			_visual_root.rotation.z = _visual_bank
 	if _camera_pivot != null:
 		_target_chase_camera_distance = _clamp_chase_camera_distance(
 			_target_chase_camera_distance
@@ -5505,9 +5516,13 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 		# Only the boom orbit is softened. The optical basis is forced back to the
 		# physical hull so the reticle, muzzle convergence, and visible nose never
 		# disagree about where the craft is pointing.
-		_camera_pivot.global_basis = Basis(_chase_follow_rotation) * bank_basis
+		var pivot_basis := Basis(_chase_follow_rotation) * bank_basis
+		if _camera_pivot.global_basis != pivot_basis:
+			_camera_pivot.global_basis = pivot_basis
 		if _camera != null:
-			_camera.global_basis = ship_basis * bank_basis
+			var optical_basis := ship_basis * bank_basis
+			if _camera.global_basis != optical_basis:
+				_camera.global_basis = optical_basis
 	var engine_level := 0.0
 	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	if _engine_state == ENGINE_STARTING:
