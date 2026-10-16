@@ -10,6 +10,12 @@ const StatusBindingType := preload("res://scripts/ui/ember_surface_return_status
 const HudAdapterType := preload("res://scripts/ui/ember_surface_return_hud_adapter.gd")
 const MainScene := preload("res://scenes/main.tscn")
 
+class PeerProcessTail:
+	extends Node
+	signal phase_complete
+	func _process(_delta: float) -> void:
+		phase_complete.emit()
+
 class NeutralHostInput:
 	extends RefCounted
 	func is_action_pressed(_action: StringName) -> bool:
@@ -91,6 +97,7 @@ var _assertions := 0
 var _failures: PackedStringArray = []
 var _cues: Array[StringName] = []
 var _hud_host: GameFlow
+var _hud_process_tail: PeerProcessTail
 var _hud_host_manual := false
 var _hud_setup_failed := false
 var _hud_survey_filesystem: SurveySaveFilesystem
@@ -278,6 +285,12 @@ func _test_client_survey_retirement(scenario: String, world_id: StringName = &"a
 		(pair[0] as GameFlow).configure_runtime_settings_persistence(store)
 	host_view.add_child(server)
 	client_view.add_child(client)
+	_hud_process_tail = PeerProcessTail.new()
+	# Both Main instances currently use the default process priority (0).
+	# Derive the tail priority so their real HUD producers finish first even
+	# if that authored priority changes. The peer viewport owns its lifetime.
+	_hud_process_tail.process_priority = maxi(server.process_priority, client.process_priority) + 1
+	client_view.add_child(_hud_process_tail)
 	_hud_host = server
 	await process_frame
 	await physics_frame
@@ -330,6 +343,7 @@ func _test_client_survey_retirement(scenario: String, world_id: StringName = &"a
 		_hud_saved_profile = null
 	_hud_host_manual = false
 	_hud_host = null
+	_hud_process_tail = null
 	client.shutdown_network_session(&"hud_fixture_done")
 	server.shutdown_network_session(&"hud_fixture_done")
 	host_view.queue_free()
@@ -985,7 +999,9 @@ func _hud_wait(predicate: Callable, seconds: float) -> bool:
 					maxi(_hud_host._network_boarding_server_tick, _hud_host._network_ship_event_sequence),
 					_hud_host._network_ship_event_sequence, _hud_host._build_network_craft_pose_entries())
 		await physics_frame
-		await process_frame
+		# SceneTree.process_frame precedes Main._process; its signal alone can
+		# expose a newly received survey snapshot with the previous HUD text.
+		await _hud_process_tail.phase_complete
 	return bool(predicate.call())
 
 
