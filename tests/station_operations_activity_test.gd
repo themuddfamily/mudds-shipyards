@@ -279,10 +279,10 @@ func _run() -> void:
 		"shared catalog preserves the exact visible material-key roster"
 	)
 	_check(
-		int(roster_catalog.bound_material_references) == 384
+		int(roster_catalog.bound_material_references) == 382
 		and int(roster_catalog.dynamic_lens_count) == 57
 		and bool(roster_catalog.dynamic_lens_bindings_valid),
-		"sharing leaves all 384 renderer bindings and 57 per-instance dynamic lens bindings intact"
+		"sharing retains 382 renderer bindings and 57 per-instance dynamic lens bindings intact"
 	)
 	var frame_parameters := visible_parameters.frame as Dictionary
 	var amber_parameters := visible_parameters.amber_lit as Dictionary
@@ -329,15 +329,15 @@ func _run() -> void:
 	# Two presentation-only wayfinding labels then move nodes 493 -> 495 without
 	# changing geometry copies, materials, collision, or activity authority.
 	# The pylon adds one shadow-only renderer without replacing colour geometry.
-	_check(int((roster_audit.counts as Dictionary).node_count) == 501, "ten production placements have the exact 501-node aggregate")
-	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 360, "ten production placements have the exact 360 MeshInstance aggregate")
+	_check(int((roster_audit.counts as Dictionary).node_count) == 499, "ten production placements have the exact 499-node aggregate")
+	_check(int((roster_audit.counts as Dictionary).mesh_instances) == 358, "ten production placements have the exact 358 MeshInstance aggregate")
 	_check(
 		int((roster_audit.counts as Dictionary).multimesh_batches) == 24
 		and int((roster_audit.counts as Dictionary).multimesh_instances) == 107,
 		"instanced structure is reported exactly rather than vanishing from the mesh count"
 	)
 	_check(
-		int((roster_audit.counts as Dictionary).geometry_submissions) == 384
+		int((roster_audit.counts as Dictionary).geometry_submissions) == 382
 		and int((roster_audit.counts as Dictionary).drawn_copies) == 461,
 		"production retains exactly 461 visible geometry copies while counting shadow allocations separately"
 	)
@@ -1625,7 +1625,7 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 			expected_families = {
 				"BasePlinth": 1, "BaseHazardBand": 1, "Mast": 1, "MastEdge": 2,
 				"SignBoard": 1, "SignFace": 1, "SignRule": 1, "ChevronRail": 1,
-				"BayPlaque": 1, "BayGlyph": 1, "NoticeBoard": 1, "NoticeSheet": 3,
+				"BayPlaque": 1, "BayGlyph": 1, "NoticeBoard": 1, "NoticeSheets": 1,
 			}
 		_:
 			_check(activity.find_children("OpaqueEnvelopeShadowBatch", "MeshInstance3D", true, false).is_empty(), "unrelated profiles gain no shadow batch")
@@ -1697,9 +1697,9 @@ func _check_fixed_shell_shadow_batch(activity: StationOperationsActivity) -> voi
 		var previous_shadow_submissions := 0
 		for source in sources:
 			previous_shadow_submissions += source.mesh.get_surface_count()
-		_check(sources.size() == 15 and previous_shadow_submissions == 15
+		_check(sources.size() == 13 and previous_shadow_submissions == 13
 			and batch.mesh.get_surface_count() == 1,
-			"WayfindingPylon folds exactly fifteen fixed-box shadow submissions into one")
+			"WayfindingPylon folds twelve fixed boxes and the three-sheet composite into one shadow submission")
 		print("PYLON_FIXED_SHADOW_SUBMISSIONS: before=", previous_shadow_submissions,
 			" after=", batch.mesh.get_surface_count(), " net_removed=", previous_shadow_submissions - batch.mesh.get_surface_count())
 	# The world consumes only the authored solid roster, independent of the new
