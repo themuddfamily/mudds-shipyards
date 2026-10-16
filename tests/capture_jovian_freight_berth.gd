@@ -39,6 +39,9 @@ func _run() -> void:
 		return
 
 	root.size = Vector2i(1400, 900)
+	# Direct SceneTree captures bypass Boot: use its production aspect policy
+	# so the documented 1400 x 900 frame is not letterboxed to 1400 x 787.
+	root.content_scale_aspect = StartupLoader.stretch_aspect_for_display(DisplayServer.get_name())
 	var renderer := RenderingServer.get_current_rendering_method()
 	_check(renderer == &"forward_plus", "capture uses the real Forward+ renderer")
 	var output_absolute := ProjectSettings.globalize_path(OUTPUT_DIR)
@@ -174,7 +177,7 @@ func _capture(file_name: String) -> void:
 	if image == null or image.is_empty():
 		_fail("empty viewport image: " + file_name)
 		return
-	_check(image.get_width() >= 1280 and image.get_height() >= 720, "%s has desktop evidence resolution" % file_name)
+	_check(image.get_width() == 1400 and image.get_height() == 900, "%s has the declared 1400 x 900 evidence resolution" % file_name)
 	var range_value := _sample_luminance_range(image)
 	_check(range_value >= 0.14, "%s has useful luminance range" % file_name)
 	var path := "%s/%s" % [OUTPUT_DIR, file_name]
