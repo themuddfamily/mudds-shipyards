@@ -4599,7 +4599,9 @@ func _build_passenger_cabin() -> void:
 	_box(_passenger_cabin, "CabinStatusPanel", Vector3(0.0, 2.5, -3.13), Vector3(1.05, 0.58, 0.04), _materials.display_substrate)
 	_engineer_status_readout = Label3D.new()
 	_engineer_status_readout.name = "EngineerRepairReadout"
-	_engineer_status_readout.position = Vector3(0.0, 2.5, -3.10)
+	# Present the text on the cabin face, toward the physical engineer seat.
+	_engineer_status_readout.position = Vector3(0.0, 2.5, -3.16)
+	_engineer_status_readout.rotation.y = PI
 	_engineer_status_readout.font_size = 28
 	_engineer_status_readout.pixel_size = 0.003
 	_engineer_status_readout.modulate = Color("b9f1e4")

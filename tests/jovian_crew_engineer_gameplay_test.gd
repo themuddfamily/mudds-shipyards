@@ -7,6 +7,7 @@ extends SceneTree
 const JOVIAN_SCENE := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
+const FitoutBatch := preload("res://scripts/rendering/ship_fitout_batch.gd")
 
 var _checks := 0
 var _failures: Array[String] = []
@@ -328,6 +329,20 @@ func _run() -> void:
 
 func _check_readout_fits(craft: HeroShip, state: String) -> void:
 	var label := craft.get("_engineer_status_readout") as Label3D
+	var engineer: Marker3D = craft.get_engineer_seat_anchor()
+	_check(label.global_basis.z.dot(engineer.global_position - label.global_position) > 0.0,
+		"engineer sees the front of the live readout in " + state)
+	var panels := FitoutBatch.find_authored_pieces(craft, "CabinStatusPanel")
+	_check(panels.size() == 1, "physical cabin display has one substrate in " + state)
+	if panels.size() == 1:
+		var panel: Dictionary = panels[0]
+		var holder := panel["node"] as Node3D
+		var panel_world: Transform3D = holder.get_parent().global_transform * panel["transform"]
+		var inverse := panel_world.affine_inverse()
+		var bounds: AABB = panel["aabb"]
+		_check(bounds.intersects_segment(inverse * engineer.global_position,
+			inverse * label.global_position) == null,
+			"display substrate does not hide the readout from its engineer in " + state)
 	var font := label.font if label.font != null else ThemeDB.fallback_font
 	var widest := 0.0
 	for line in label.text.split("\n"):
