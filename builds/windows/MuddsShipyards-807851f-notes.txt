@@ -1,0 +1,28 @@
+Mudd's Shipyards — recovered branch checkpoint 807851f
+Source commit: 807851f919217e9fa4f2b167439a2bc416cc5ca5
+
+Player-visible changes:
+- Guarded Salvage breaker overlook with real traversal and two route markers.
+- Steady station-defense hostile approach chevron.
+- Shared planetary craft retain canonical alignment; host waits for exterior Ember crew.
+- Correct airless-world guidance, formed hulk ribs, and fewer station/payload renderers.
+- Safe capture-output cleanup; GitHub Actions remain disabled and dispatch-only.
+
+Validation:
+- Clean-commit safe Windows export; source preflight and export completed successfully.
+- Focused Aft, Habitat, bomber, hulk, Operations, defense, guidance and UI suites pass.
+- Shared station-frame independent-peer suite: 186 assertions pass.
+- Salvage gameplay: 136 assertions; census 84 surfaces/6 ramps/420 supported samples.
+- Survey lifecycle: 41 assertions with isolated persistence; sprint reentry: 6.
+- Integrated material/UV census: 25 assertions; source diff checks pass.
+- Defense cue rendered on isolated Xvfb x11 Forward+ llvmpipe, software renderer.
+- Native Windows extracted-package startup PASS: exit 0, exactly one STARTUP_MENU_READY_OK,
+  no engine/script/leak diagnostics, isolated temporary profile and CreateNoWindow.
+  Arguments: --headless --audio-driver Dummy --startup-check; 180-second abort deadline.
+
+NOT_RUN: native GPU performance, physical controller, human visual/gameplay review,
+complete project matrix, and canonical matching-package multiplayer journeys.
+No hosted CI, audible tests, active-desktop rendered checks, or Downloads publication.
+
+Full source SHA: 807851f919217e9fa4f2b167439a2bc416cc5ca5
+EXE SHA-256: dcfa6d3d5ee1052b2fe26e128e44181d01015766b919a40cb1c87f30ecd74d96
