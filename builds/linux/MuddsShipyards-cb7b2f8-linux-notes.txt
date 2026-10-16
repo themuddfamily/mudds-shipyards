@@ -1,0 +1,22 @@
+Mudd's Shipyards — fullscreen settings checkpoint cb7b2f8
+Source commit: cb7b2f84ad41cb8527a89b7655013515657594b6
+Engine: verified official Godot 4.7.1 a13da4feb editor/release templates.
+
+Player-visible change:
+- Applying display settings preserves fullscreen instead of unexpectedly returning to a window. Fullscreen dimensions stay owned by the display backend; ordinary and borderless windows retain usable-screen fitting and the desired saved resolution.
+- Includes the earlier shared planetary copying reduction and detached cabin shutdown fix.
+
+Validation:
+- Original display regression reproduces the baseline failure; unchanged regression passes 28 assertions after the production-only fix. Existing runtime settings checks pass 156 assertions. No assertions or limits changed.
+- Actual Windows embedded payload through the Linux editor passes the same 156 settings checks and rendered 28-assertion display regression with zero diagnostics. Rendered test uses a private 1600x900 Xvfb x11 display and software Vulkan, Dummy audio, independent watchdog and owned cleanup.
+- Safe Windows/Linux exports from this exact clean commit; compiled inventories pass 1,515 entries each. Windows x86_64 code section matches the verified release template.
+- Windows embedded payload and extracted native Linux archive each pass silent --startup-check: exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics. Archive binary bytes and executable mode match; Windows ZIP member bytes and CRC verified.
+- A separate original-cap isolated Emberline source check on preceding 7b02e20d5 passes 154 assertions in 151.745s, zero diagnostics, unchanged source/import cache. Its four independent processes complete live/late/retired projectile and actor lifecycle plus shutdown. This does not erase its original frozen-matrix failure.
+
+Open acceptance:
+- Frozen 636814418 full matrix remains live: 871 completed, 857 PASS/14 FAIL at this snapshot. Retained failures include the original fullscreen regression and a newly observed session-recovery resume-offer 300s timeout after 114 checks. Later focused fixes do not retroactively qualify that source.
+- Rime's original 18s settling gate and full Ember original 300s route remain unresolved. Complete source-current regression, broader crew/world/recovery and capture acceptance remain open.
+- Native Windows execution is NOT_RUN under the antivirus hold. Native GPU/performance, physical controller, audible and human review remain NOT_RUN. Isolated software-rendered results do not qualify target hardware.
+- GitHub Actions remains disabled under the owner's CI budget hold. All ten phase exit gates remain open.
+
+ELF SHA-256: e94cd3b9c88341700c3aa4c49937893529e856925deb9580e84bd1ea58883233
