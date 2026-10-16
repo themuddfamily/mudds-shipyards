@@ -1323,9 +1323,10 @@ func _settings_probe_control(ship: HeroShip, driver: SettingsNativeInputEvents, 
 	var observed := false
 	var reversed := false
 	driver.set_action(action, 1.0, mouse)
+	# Hold native controls for these physics ticks. An idle wait would stretch
+	# the same input across a load-dependent number of extra simulation ticks.
 	for frame in range(18 if action == &"move_back" else 6):
 		await physics_frame
-		await process_frame
 		var command := ship.get_last_ship_command()
 		if command != null:
 			observed = observed or (bool(command.get(field)) == bool(expected) if expected is bool \
@@ -1454,6 +1455,7 @@ func _fly_to_waypoint(
 	var frame_budget := _frame_budget(FLIGHT_TRAVEL_SECONDS)
 	var frames := 0
 	var trace_return := provider is SettingsNativeInputEvents and arrival_stop_speed >= 0.0
+	var staging_brake_latched := false
 	var trace_wall_start := Time.get_ticks_msec()
 	var trace_physics_start := Engine.get_physics_frames()
 	var trace_process_start := Engine.get_process_frames()
@@ -1485,6 +1487,7 @@ func _fly_to_waypoint(
 			# at the berth. Crossing the marker at speed is not settled staging.
 			provider.set_axis(AXIS_LEFT_TRIGGER, 1.0)
 			if trace_return:
+				staging_brake_latched = true
 				requested = {"yaw_axis": 0.0, "throttle": 0.0, "pitch_axis": 0.0, "brake": true}
 			await physics_frame
 			if trace_return and frames % 120 == 0:
@@ -1498,6 +1501,15 @@ func _fly_to_waypoint(
 		var should_brake := distance < stopping_distance + arrival_radius + 0.75
 		if ship.velocity.length() < 1.0 and distance > arrival_radius:
 			should_brake = false
+		if trace_return:
+			# A native stopping leg must finish its brake before chasing again.
+			# Releasing as the distance envelope shrinks leaves residual velocity
+			# circling the marker under passive drag instead of reaching rest.
+			if should_brake:
+				staging_brake_latched = true
+			if ship.velocity.length() <= arrival_stop_speed:
+				staging_brake_latched = false
+			should_brake = staging_brake_latched
 		var throttle := 1.0 if alignment > 0.72 and not should_brake else 0.0
 		provider.set_axis(AXIS_LEFT_X, clampf(local_desired.x * 3.4, -1.0, 1.0))
 		provider.set_axis(AXIS_LEFT_Y, -throttle)
