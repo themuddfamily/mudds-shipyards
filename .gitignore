@@ -4,7 +4,8 @@
 builds/*
 !builds/
 !builds/.gdignore
-artifacts/
+artifacts/*
+!artifacts/.gdignore
 *.log
 __pycache__/
 *.pyc
