@@ -168,7 +168,7 @@ flowchart LR
   FA --- OLC["Observation connector / 2.0 m²"]
   OLC --- OLS["Observation Logistics Spur / 366.0 m²"]
   FA --- STC["Salvage connector / 3.9312 m²"]
-  STC --- ST["Salvage Terrace / 456.0 m²"]
+  STC --- ST["Salvage Terrace / 411.0 m²"]
   C --- AF["AftSpine"]
   AF --- AC["AftModuleConnector"]
   AC --- AJ2["Aft Junction Stack"]
@@ -194,8 +194,8 @@ continuity is a walkability fact, not a recorded graph edge.
 | `hub_endpoint_count` | 7 |
 | `connection_slot_count` | 7 |
 | `edge_count` | 7 |
-| `route_marker_count` | 49 |
-| `resolved_route_marker_count` | 49 |
+| `route_marker_count` | 51 |
+| `resolved_route_marker_count` | 51 |
 | `dangling_slot_count` | 0 |
 | `overclaimed_slot_count` | 0 |
 | `authority_claim_count` | 0 |
@@ -242,7 +242,7 @@ source inspired the module and never raises its confidence.
 | `habitat-spine` | `approach`, `common-entry`, `deferred-branch`, `habitat-corridor`, `observation`, `threshold` | `approach` | — |
 | `jovian-freight-berth` | `approach`, `apron-threshold`, `boarding-staging`, `cargo-rack`, `cargo-transfer`, `service-room`, `service-threshold` | `approach` | — |
 | `observation-logistics-spur` | `connector-midpoint`, `cross-landing`, `far-return`, `logistics-pad`, `observation-pad`, `origin` | `origin` | `logistics-pad`, `observation-pad` |
-| `salvage-terrace` | `connector`, `entry`, `inspection-pad`, `inspection-ramp-base`, `lower-pad`, `main-ramp-base`, `upper-pad` | `connector` | — |
+| `salvage-terrace` | `breaker-overlook`, `breaker-ramp-base`, `connector`, `entry`, `inspection-pad`, `inspection-ramp-base`, `lower-pad`, `main-ramp-base`, `upper-pad` | `connector` | — |
 
 <!-- LIVE-GRAPH-ROUTES:END -->
 
@@ -350,16 +350,16 @@ standalone module budget:
   cargo stacks, across A/B/C, through the port and starboard work bays and rear
   cross aisle, and back. The test presses only `move_forward`; it never jumps or
   teleports between route legs.
-- The walkable-area census is frozen at 77 surfaces / five ramps:
-  8510.131183 m² gross declared, 8256.775617 m² coplanar union, and
-  8271.597742 m² true surface. Fabrication contributes its exact standalone
-  480 m² plus the connector's exact 99 m²; Observation contributes its exact
-  366 m² plus the connector's exact 2 m²; Salvage contributes its exact 456 m²
-  plus the connector's exact 3.9312 m². Live-derived ramp totals are
-  140.479998 m² projected / 155.302123 m² true. Against the original
-  6849.844560 m² station baseline,
-  the live union adds 1406.931057 m² / 20.539605602%, within the frozen 18–22%
-  expansion band with 100.034746 m² remaining to the upper bound.
+- The current live walkable-area census includes the compacted lower Salvage
+  pad and the breaker overlook: 84 surfaces / six ramps, 8592.079173 m² gross
+  declared, 8421.793383 m² coplanar union, and 8437.193255 m² true surface.
+  Salvage contributes its exact 411 m² plus the connector's exact 3.9312 m².
+  Live-derived ramp totals are 147.979998 m² projected / 163.379870 m² true.
+  All 420 pedestrian support probes and the separately reported four Cinder
+  landing decks' 20 probes have live World support. Against the original
+  6849.844560 m² station baseline, the live union adds 1571.948823 m² /
+  22.948678751%, within the existing 18–23% expansion band with 3.515426 m²
+  remaining to its upper bound.
 - The live station material census is 2632 mapped MeshInstance surfaces at
   `0.22/0.28/0.30 = 130/862/1640`, plus 41 MultiMesh batches, 14 mapped.
   Navigation is seven edges over fourteen endpoints and seven presentation couriers;
@@ -428,10 +428,10 @@ standalone module budget:
 ### Salvage Terrace production integration audit
 
 - The Terrace root is identity yaw at `(84, 0.38, 52.91)`, with exact world
-  footprint `x=65.9…111.3, y=-1.42…7.48, z=52.21…71.01`. Its six uniquely
-  tagged, non-overlapping surfaces contribute 456.0 m² horizontally: 384.0 m²
-  level and 72.0 m² projected ramp area. The two ramps contribute 78.954163 m²
-  true area, for 462.954163 m² total true module surface.
+  footprint `x=65.9…111.3, y=-1.42…7.48, z=52.21…71.01`. Its eight uniquely
+  tagged, non-overlapping surfaces contribute 411.0 m² horizontally: 331.5 m²
+  level and 79.5 m² projected ramp area. The three ramps contribute 87.031910 m²
+  true area, for 418.531910 m² total true module surface.
 - The world connector deck is centred `(84, 0.18, 52.455)`, size
   `(4.32, 0.40, 0.91)`, exactly 3.9312 m². Its rails are centred at
   `(81.92, 1.03, 52.45)` and `(86.08, 1.03, 52.45)`, each
@@ -444,19 +444,23 @@ standalone module budget:
   marker remains at the physical seam `(84, 0.53, 52)`. The complete line to
   the Terrace `connector` at `(84, 0.53, 52.91)` is sampled every 0.05 m and is
   continuously backed by Fabrication, connector, or apron collision.
-- The production Player starts in Fabrication, crosses that handoff, visits the
-  spatially separate lower pad, climbs both broad ramps to the top inspection
-  pad, and returns using real movement input without jump or between-leg
-  teleport. The station flood also reaches all six Terrace surfaces.
-- The nearest authoritative berth-volume separation is 21.919998 m. All 82
-  enabled physical shapes across all five parked production craft clear the
-  module/connector; the closest is 24.550051 m. All 20 Halyard shapes clear all
-  21 samples of the live staging-to-dock assist path, 420 per-shape witnesses,
-  with the same 24.550051 m minimum. The broad Halyard assist-capture volume
+- The production surface roster resolves all eight Terrace surfaces. The
+  focused production-Player proof also crosses the lower-pad gate and climbs the
+  raised breaker-overlook spur using real movement input without jump. The
+  current lower pad remains 7 m deep: the 2.5 m-wide spur starts at local
+  `(-7.5, 0, 9)`, rises 1.2 m over 3 m, and reaches its 7.5 m² pad at
+  `(-7.5, 1.2, 13.5)`. It passes beside the retained sorting machinery and
+  inspection bench. Its three guarded exposed edges, four deck-height supports
+  and amber end legend add no interaction, activity or persistence authority.
+- The nearest authoritative berth-volume separation is 8.060792 m. All 157
+  enabled physical shapes across the exact nine-ship production roster clear the
+  module/connector; the closest is 10.066622 m. All 22 Halyard shapes clear all
+  21 samples of the live staging-to-dock assist path, 462 per-shape witnesses,
+  with a 24.622694 m minimum. The broad Halyard assist-capture volume
   also remains separate, with an exact minimum gap of 4.919998 m.
-- Salvage retains its standalone renderer/physics budget: 30 ordinary meshes,
-  three MultiMesh batches / 20 copies, 33 submissions, 50 visible copies, 26
-  bodies/shapes, 96 nodes, one label, zero lights, and zero process loops. The
+- Salvage retains its standalone renderer/physics budget: 31 ordinary meshes,
+  six MultiMesh batches / 202 copies, 37 submissions, 240 visible copies, 34
+  bodies/shapes, 133 nodes, two labels, three bounded lights, and zero process loops. The
   Terrace owns no ship, berth, combat, interaction, audio, activity, lease,
   spawn, reward, or network authority; an injected Area3D turns its audit red.
 

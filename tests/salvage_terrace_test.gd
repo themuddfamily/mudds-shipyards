@@ -98,6 +98,7 @@ func _run() -> void:
 	await _test_exact_surface_union(module)
 	_test_surface_visual_geometry(module)
 	_test_rails_dressing_and_authority(module)
+	_test_breaker_overlook_identity(module)
 	_test_short_side_rail_visual_sharing(module)
 	_test_hazard_dressing_batch(module)
 	_test_machine_dressing_batch(module)
@@ -208,9 +209,10 @@ func _test_evidence_and_shared_contract(module: SalvageTerrace) -> void:
 func _test_origin_slot_and_routes(module: SalvageTerrace) -> void:
 	var expected_routes: Array[StringName] = [
 		&"connector", &"entry", &"lower-pad", &"main-ramp-base", &"upper-pad",
-		&"inspection-ramp-base", &"inspection-pad",
+		&"inspection-ramp-base", &"inspection-pad", &"breaker-ramp-base",
+		&"breaker-overlook",
 	]
-	_check(module.get_route_ids() == expected_routes, "route API publishes the exact ordered seven-node local path")
+	_check(module.get_route_ids() == expected_routes, "route API publishes the exact ordered nine-node local path")
 	for route_id in expected_routes:
 		_check(
 			module.has_route_marker(route_id)
@@ -250,21 +252,21 @@ func _test_paired_ramp_beacons(module: SalvageTerrace) -> void:
 		if batch != null and batch.multimesh != null else null
 	)
 	var batches_are_exact := batch != null and batch.multimesh != null \
-		and batch.multimesh.instance_count == 10 \
+		and batch.multimesh.instance_count == 12 \
 		and rail_batch != null and rail_batch.multimesh != null \
-		and rail_batch.multimesh.instance_count == 126
+		and rail_batch.multimesh.instance_count == 152
 	_check(
 		batches_are_exact
 		and mesh != null and mesh.size.is_equal_approx(SalvageTerrace.SERVICE_BEACON_SIZE)
 		and batch.material_override == (module.get("_materials") as Dictionary).emissive
 		and str(batch.get_meta("non_walkable_reason", ""))
 			== "paired ramp-gate cues and flush upper-turn chevrons with no dynamic light or authority",
-		"four passive emissive gate cues share one batch with six upper-turn deck strokes"
+		"six passive emissive gate cues share one batch with six upper-turn deck strokes"
 	)
 	var cue_transforms: Array[Transform3D] = []
 	var cues_contact_live_posts := batches_are_exact
 	if batches_are_exact:
-		for cue_index in 4:
+		for cue_index in 6:
 			var cue_transform := _decode_multimesh_transform(batch.multimesh.buffer, cue_index)
 			cue_transforms.append(cue_transform)
 			var cue_bottom := cue_transform.origin \
@@ -289,25 +291,32 @@ func _test_paired_ramp_beacons(module: SalvageTerrace) -> void:
 					matching_post_count += 1
 			cues_contact_live_posts = cues_contact_live_posts and matching_post_count == 1
 	var main_midpoint := (cue_transforms[0].origin + cue_transforms[1].origin) * 0.5 \
-		if cue_transforms.size() == 4 else Vector3.INF
+		if cue_transforms.size() == 6 else Vector3.INF
 	var inspection_midpoint := (cue_transforms[2].origin + cue_transforms[3].origin) * 0.5 \
-		if cue_transforms.size() == 4 else Vector3.INF
+		if cue_transforms.size() == 6 else Vector3.INF
+	var breaker_midpoint := (cue_transforms[4].origin + cue_transforms[5].origin) * 0.5 \
+		if cue_transforms.size() == 6 else Vector3.INF
 	var main_route := module.get_route_marker(&"main-ramp-base")
 	var inspection_route := module.get_route_marker(&"inspection-ramp-base")
-	var cues_bracket_thresholds := cue_transforms.size() == 4 \
+	var breaker_route := module.get_route_marker(&"breaker-ramp-base")
+	var cues_bracket_thresholds := cue_transforms.size() == 6 \
 		and Vector2(main_midpoint.x, main_midpoint.z).distance_to(
 			Vector2(main_route.position.x, main_route.position.z)
 		) < 0.5 \
 		and Vector2(inspection_midpoint.x, inspection_midpoint.z).distance_to(
 			Vector2(inspection_route.position.x, inspection_route.position.z)
 		) < 0.5 \
+		and Vector2(breaker_midpoint.x, breaker_midpoint.z).distance_to(
+			Vector2(breaker_route.position.x, breaker_route.position.z)
+		) < 0.5 \
 		and cue_transforms[0].origin.distance_to(cue_transforms[1].origin) > 5.5 \
-		and cue_transforms[2].origin.distance_to(cue_transforms[3].origin) > 5.5
+		and cue_transforms[2].origin.distance_to(cue_transforms[3].origin) > 5.5 \
+		and cue_transforms[4].origin.distance_to(cue_transforms[5].origin) > 2.25
 	_check(
 		cues_contact_live_posts and cues_bracket_thresholds
 		and module.find_children("*", "OmniLight3D", true, false).size() == 3
 		and module.get_node_or_null(^"GeneratedRoot/HazardDressingBatch") != null,
-		"ramp-gate cues contact live sloped posts and bracket both thresholds without changing lights or hazard dressing"
+		"ramp-gate cues contact live sloped posts and bracket all three thresholds without changing lights or authority"
 	)
 
 
@@ -328,6 +337,7 @@ func _test_exact_surface_union(module: SalvageTerrace) -> void:
 	var expected_ids := PackedStringArray([
 		"connection-apron", "lower-salvage-pad", "main-service-ramp",
 		"upper-inspection-pad", "inspection-ramp", "top-inspection-pad",
+		"breaker-overlook-ramp", "breaker-overlook-pad",
 	])
 	var live_ids := PackedStringArray()
 	var projected_sum := 0.0
@@ -354,10 +364,10 @@ func _test_exact_surface_union(module: SalvageTerrace) -> void:
 	live_ids.sort()
 	expected_ids.sort()
 	_check(
-		surfaces.size() == 6 and unique_bodies.size() == 6 and live_ids == expected_ids,
+		surfaces.size() == 8 and unique_bodies.size() == 8 and live_ids == expected_ids,
 		"every standable surface has one unique stable id and collision body"
 	)
-	_check(all_supported, "all six authoritative usable bodies carry exact census tags and real World support")
+	_check(all_supported, "all eight authoritative usable bodies carry exact census tags and real World support")
 	var area := module.get_walkable_area_contract()
 	print("SALVAGE_TERRACE_AREA: ", area)
 	_check(
@@ -366,35 +376,37 @@ func _test_exact_surface_union(module: SalvageTerrace) -> void:
 		and bool(area.live_geometry_valid)
 		and bool(area.projection_axis_aligned)
 		and bool(area.non_overlapping)
-		and is_equal_approx(float(area.projected_surface_sum_m2), 396.0)
-		and is_equal_approx(float(area.level_area_m2), 324.0)
-		and is_equal_approx(float(area.ramp_projected_area_m2), 72.0)
-		and is_equal_approx(float(area.horizontal_walkable_area_m2), 396.0)
-		and is_equal_approx(projected_sum, 396.0),
-		"compacted non-overlapping horizontal union is exactly 396.0 square metres"
+		and is_equal_approx(float(area.projected_surface_sum_m2), 411.0)
+		and is_equal_approx(float(area.level_area_m2), 331.5)
+		and is_equal_approx(float(area.ramp_projected_area_m2), 79.5)
+		and is_equal_approx(float(area.horizontal_walkable_area_m2), 411.0)
+		and is_equal_approx(projected_sum, 411.0),
+		"non-overlapping horizontal union is exactly 411.0 square metres"
 	)
 	_check(
 		is_equal_approx(float(area.main_ramp_true_area_m2), 52.636109)
 		and is_equal_approx(float(area.inspection_ramp_true_area_m2), 26.318054)
-		and is_equal_approx(float(area.ramp_true_area_m2), 78.954163)
-		and is_equal_approx(true_sum, 402.954163)
+		and is_equal_approx(float(area.breaker_ramp_true_area_m2), 8.077747)
+		and is_equal_approx(float(area.ramp_true_area_m2), 87.031910)
+		and is_equal_approx(true_sum, 418.531910)
 		and not bool(area.baseline_share_claimed),
 		"true ramp areas are explicit and no unsupported station-baseline percentage is claimed"
 	)
 	var roster := module.get_component_roster()
 	_check(
-		int(roster.usable_pad_count) == 3
+		int(roster.usable_pad_count) == 4
 		and (roster.usable_pad_ids as PackedStringArray) == PackedStringArray([
 			"lower-salvage-pad", "upper-inspection-pad", "top-inspection-pad",
+			"breaker-overlook-pad",
 		])
-		and int(roster.ramp_count) == 2,
-		"three spatially distinct usable pads are joined by two declared broad ramps"
+		and int(roster.ramp_count) == 3,
+		"four spatially distinct usable pads are joined by three declared broad ramps"
 	)
 	var by_surface := area.by_surface as Dictionary
 	_check(
 		float((by_surface[&"lower-salvage-pad"] as Dictionary).horizontal_area_m2) == 84.0
 		and float((by_surface[&"connection-apron"] as Dictionary).horizontal_area_m2) == 96.0,
-		"only the lower pad's redundant aft strip changes: 144 -> 84 m2 while the 96 m2 apron seam stays exact"
+		"the compacted lower pad retains 84 m2 and the apron seam stays exactly 96 m2 beside the raised spur"
 	)
 	var lower_pad := module.get_node(^"GeneratedRoot/LowerSalvagePad") as StaticBody3D
 	var lower_shape := (lower_pad.get_node(^"Collision") as CollisionShape3D).shape as BoxShape3D
@@ -407,8 +419,9 @@ func _test_exact_surface_union(module: SalvageTerrace) -> void:
 	)
 	_check(
 		float((by_surface[&"main-service-ramp"] as Dictionary).horizontal_area_m2) == 48.0
-		and float((by_surface[&"inspection-ramp"] as Dictionary).horizontal_area_m2) == 24.0,
-		"both broad ramps publish exact projected contribution rather than hidden stair area"
+		and float((by_surface[&"inspection-ramp"] as Dictionary).horizontal_area_m2) == 24.0
+		and float((by_surface[&"breaker-overlook-ramp"] as Dictionary).horizontal_area_m2) == 7.5,
+		"all three broad ramps publish exact projected contribution rather than hidden stair area"
 	)
 
 
@@ -453,17 +466,17 @@ func _test_surface_visual_geometry(module: SalvageTerrace) -> void:
 			and visual.material_override == (module.get("_materials") as Dictionary).deck
 		)
 	print(
-		"SALVAGE_TERRACE_SURFACE_VISUAL_MESHES: metre-sized allocations %d, triangles 72->264, submissions 6->6" % [
+		"SALVAGE_TERRACE_SURFACE_VISUAL_MESHES: metre-sized allocations %d, triangles 96->352, submissions 8->8" % [
 			surface_mesh_ids.size(),
 		]
 	)
 	_check(
-		contracts.size() == 6
-		and surface_mesh_ids.size() == 6
-		and collision_shape_ids.size() == 6
+		contracts.size() == 8
+		and surface_mesh_ids.size() == 8
+		and collision_shape_ids.size() == 8
 		and metric_chamfers
 		and exact_visual_recipe,
-		"six deck/ramp renderers retain exact AABBs and private collisions with equal metre-scale chamfers"
+		"eight deck/ramp renderers retain exact AABBs and private collisions with equal metre-scale chamfers"
 	)
 
 
@@ -471,11 +484,11 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 	var roster := module.get_component_roster()
 	var collision := module.get_collision_contract()
 	_check(
-		int(roster.safety_rail_count) == 20
-		and int(collision.safety_rail_count) == 20
+		int(roster.safety_rail_count) == 26
+		and int(collision.safety_rail_count) == 26
 		and bool(collision.all_layers_match_lifecycle)
 		and bool(collision.all_masks_zero),
-		"twenty continuous physical rail segments guard exposed terrace and ramp edges"
+		"twenty-six physical rail segments guard every terrace, ramp, and overlook edge while leaving the spur gate clear"
 	)
 	var rail_shapes_valid := true
 	for raw_rail in module.find_children("*", "StaticBody3D", true, false):
@@ -504,7 +517,7 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 			)
 	_check(
 		hidden_rail_colliders and rail_detail != null and rail_detail.multimesh != null
-		and rail_detail.multimesh.instance_count == 126,
+		and rail_detail.multimesh.instance_count == 152,
 		"conservative rail colliders are invisible while one batch draws open top/mid rails and regular posts"
 	)
 	_check(
@@ -559,6 +572,69 @@ func _test_rails_dressing_and_authority(module: SalvageTerrace) -> void:
 		and int(authority.interaction_authority_count) == 0
 		and int(authority.station_activity_authority_count) == 0,
 		"module owns zero ship, berth, combat, interaction, audio, and station-activity authority"
+	)
+
+
+func _test_breaker_overlook_identity(module: SalvageTerrace) -> void:
+	var ramp := module.get_node(^"GeneratedRoot/BreakerOverlookRamp") as StaticBody3D
+	var pad := module.get_node(^"GeneratedRoot/BreakerOverlookPad") as StaticBody3D
+	var label := module.get_node(^"GeneratedRoot/BreakerOverlookIdentity") as Label3D
+	var support_batch := module.get_node(^"GeneratedRoot/TerraceSupportBatch") as MultiMeshInstance3D
+	var header_renderer := module.get_node(^"GeneratedRoot/HazardDressingBatch") as MeshInstance3D
+	var header_parts := header_renderer.get_meta(
+		"salvage_terrace_hazard_dressing_parts", []
+	) as Array
+	var header := header_parts[5] as Dictionary if header_parts.size() == 6 else {}
+	var supports_meet_overlook := support_batch != null and support_batch.multimesh != null \
+		and support_batch.multimesh.instance_count == 14
+	if supports_meet_overlook:
+		var support_mesh := support_batch.multimesh.mesh as BoxMesh
+		for support_index in range(10, 14):
+			var support_transform := _decode_multimesh_transform(
+				support_batch.multimesh.buffer, support_index
+			)
+			var support_height := support_mesh.size.y * support_transform.basis.y.length()
+			var support_top := support_transform.origin.y + support_height * 0.5
+			supports_meet_overlook = supports_meet_overlook and is_equal_approx(
+				support_top, SalvageTerrace.BREAKER_OVERLOOK_ELEVATION - SalvageTerrace.SURFACE_THICKNESS
+			)
+	var rail_gate_clear := module.get_node_or_null(^"GeneratedRoot/LowerAft") == null \
+		and module.get_node_or_null(^"GeneratedRoot/LowerAftOutboard") is StaticBody3D \
+		and module.get_node_or_null(^"GeneratedRoot/LowerAftInboard") is StaticBody3D
+	_check(
+		ramp != null and pad != null
+		and bool(ramp.get_meta("walkable_surface", false))
+		and bool(pad.get_meta("walkable_surface", false))
+		and is_equal_approx(float((module.get_walkable_area_contract().by_surface[
+			&"breaker-overlook-pad"
+		] as Dictionary).true_area_m2), 7.5)
+		and is_equal_approx(pad.position.y + SalvageTerrace.SURFACE_THICKNESS * 0.5, 1.2)
+		and rail_gate_clear and supports_meet_overlook,
+		"breaker overlook is a raised 7.5 m² collision-backed work zone reached through a guarded 2.5-metre spur and carried by four deck-height supports"
+	)
+	var header_transform := header.get("transform", Transform3D.IDENTITY) as Transform3D
+	var header_size := header.get("size", Vector3.ZERO) as Vector3
+	var backing_inboard_face_z := header_transform.origin.z - header_size.z * 0.5
+	var legend_forward := label.basis.z.normalized() if label != null else Vector3.ZERO
+	var route_viewer := module.get_route_marker(&"breaker-overlook")
+	var toward_route_viewer := (
+		Vector3(
+			route_viewer.position.x - label.position.x,
+			0.0,
+			route_viewer.position.z - label.position.z
+		).normalized()
+		if label != null and route_viewer != null else Vector3.ZERO
+	)
+	_check(
+		label != null and label.text == "BREAKER\nOVERLOOK"
+		and label.position.is_equal_approx(Vector3(-7.5, 2.2, 15.08))
+		and is_equal_approx(backing_inboard_face_z, 15.125)
+		and backing_inboard_face_z - label.position.z >= 0.04
+		and legend_forward.dot(Vector3.FORWARD) > 0.999
+		and legend_forward.dot(toward_route_viewer) > 0.95
+		and not label.is_processing() and not label.is_physics_processing()
+		and str(label.get_meta("non_walkable_reason", "")).contains("physical end rail"),
+		"static amber legend sits 4.5 cm clear of the opaque inboard header face and faces -Z toward the exact route viewer without lifecycle or gameplay authority"
 	)
 
 
@@ -656,12 +732,12 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 	var long_report := module.get_long_rail_visual_allocation_audit()
 	_check(
 		bool(long_report.valid)
-		and int(long_report.visual_copies) == 3
-		and int(long_report.legacy_mesh_resource_allocations) == 3
+		and int(long_report.visual_copies) == 2
+		and int(long_report.legacy_mesh_resource_allocations) == 2
 		and int(long_report.mesh_resource_allocations) == 1
-		and int(long_report.mesh_resource_allocation_delta) == -2
-		and int(long_report.collision_resource_allocations) == 3,
-		"three long safety rails share 3->1 visual meshes while retaining three private collision shapes"
+		and int(long_report.mesh_resource_allocation_delta) == -1
+		and int(long_report.collision_resource_allocations) == 2,
+		"two compatible long safety rails share 2->1 visual meshes while retaining two private collision shapes"
 	)
 	var four_meter_report := module.get_four_meter_rail_visual_allocation_audit()
 	_check(
@@ -734,13 +810,13 @@ func _test_short_side_rail_visual_sharing(module: SalvageTerrace) -> void:
 			and bool(module.get_audit_report().valid),
 			"splitting one oriented 4 m rail visual mesh turns the full audit red and restores cleanly"
 		)
-	var long_aft := module.get_node(^"GeneratedRoot/LowerAft/Mesh") as MeshInstance3D
-	if long_aft != null:
-		var original_long_mesh := long_aft.mesh
-		long_aft.mesh = original_long_mesh.duplicate() as BoxMesh
+	var long_forward := module.get_node(^"GeneratedRoot/LowerForward/Mesh") as MeshInstance3D
+	if long_forward != null:
+		var original_long_mesh := long_forward.mesh
+		long_forward.mesh = original_long_mesh.duplicate() as BoxMesh
 		var long_red := module.get_long_rail_visual_allocation_audit()
 		var full_audit_red := module.get_audit_report()
-		long_aft.mesh = original_long_mesh
+		long_forward.mesh = original_long_mesh
 		_check(
 			not bool(long_red.valid)
 			and (long_red.errors as PackedStringArray).has("long_rail_visual_mesh_count_drift")
@@ -790,16 +866,16 @@ func _test_hazard_dressing_batch(module: SalvageTerrace) -> void:
 		bool(report.valid)
 		and renderer != null
 		and renderer.material_override == (module.get("_materials") as Dictionary).hazard
-		and int(report.authored_visible_copies) == 5
+		and int(report.authored_visible_copies) == 6
 		and int(report.renderer_nodes) == 1
 		and int(report.geometry_submissions) == 1
 		and int(report.legacy_renderer_nodes) == 5
 		and int(report.legacy_geometry_submissions) == 5
 		and int(report.renderer_node_delta) == -4
 		and int(report.geometry_submission_delta) == -4,
-		"five immutable hazard dressing pieces share one material-bound static surface, reducing nodes and submissions 5->1"
+		"six immutable hazard dressing pieces share one material-bound static surface with no added submission"
 	)
-	var exact_parts := parts.size() == 5
+	var exact_parts := parts.size() == 6
 	if exact_parts:
 		var expected := [
 			[&"InspectionGantryBoom", Vector3(23.25, 5.8, 7.5), Vector3(7.5, 0.35, 0.35)],
@@ -807,6 +883,7 @@ func _test_hazard_dressing_batch(module: SalvageTerrace) -> void:
 			[&"CrusherFeedHood", Vector3(-12.4, 2.55, 10.35), Vector3(2.2, 0.35, 1.8)],
 			[&"CraneBridge", Vector3(-12.0, 4.05, 5.5), Vector3(9.4, 0.28, 0.38)],
 			[&"CraneHook", Vector3(-10.1, 2.68, 5.5), Vector3(0.35, 0.22, 0.35)],
+			[&"BreakerOverlookHeader", Vector3(-7.5, 2.2, 15.25), Vector3(2.3, 1.5, 0.25)],
 		]
 		for index in expected.size():
 			var part := parts[index] as Dictionary
@@ -860,10 +937,11 @@ func _test_supports_clear_every_walking_surface(module: SalvageTerrace) -> void:
 	var tops := PackedFloat64Array()
 	for contract: Dictionary in module.get_standable_surface_contract():
 		tops.append(float(contract.get("top_elevation", INF)))
-	var caps_seated := batch != null and buffer.size() == 10 * 12 and not tops.is_empty()
+	var caps_seated := batch != null and buffer.size() == 14 * 12 and not tops.is_empty()
 	var closest := INF
 	for index in int(buffer.size() / 12):
-		var cap_y := float(buffer[index * 12 + 7]) + cap_half
+		var support_transform := _decode_multimesh_transform(buffer, index)
+		var cap_y := support_transform.origin.y + cap_half * support_transform.basis.y.length()
 		for top: float in tops:
 			closest = minf(closest, absf(top - cap_y))
 			# Below-deck columns may only reach a deck's underside, never its top
@@ -967,33 +1045,33 @@ func _test_performance_and_lifecycle(module: SalvageTerrace) -> void:
 	print("SALVAGE_TERRACE_PERFORMANCE: ", performance)
 	_check(bool(performance.within_budget) and bool(performance.exact_census), "module exactly matches every published performance count")
 	_check(
-		int(performance.mesh_instances) == 30
-		and int(performance.static_bodies) == 26
-		and int(performance.collision_shapes) == 26
+		int(performance.mesh_instances) == 31
+		and int(performance.static_bodies) == 34
+		and int(performance.collision_shapes) == 34
 		and int(performance.lights) == 3
-		and int(performance.labels) == 1
+		and int(performance.labels) == 2
 		and int(performance.multimesh_batches) == 6
-		and int(performance.multimesh_instances) == 170
-		and int(performance.multimesh_drawn_copies) == 170
-		and int(performance.multimesh_buffer_floats) == 2040
-		and int(performance.geometry_submissions) == 36
-		and int(performance.visible_geometry_copies) == 206
-		and int(performance.nodes) == 106
+		and int(performance.multimesh_instances) == 202
+		and int(performance.multimesh_drawn_copies) == 202
+		and int(performance.multimesh_buffer_floats) == 2424
+		and int(performance.geometry_submissions) == 37
+		and int(performance.visible_geometry_copies) == 240
+		and int(performance.nodes) == 133
 		and int(performance.process_loops) == 0
 		and int(performance.physics_process_loops) == 0,
-		"exact census freezes 36 submissions, 206 authored copies, 26 bodies/shapes, 106 nodes, one label, three bounded lights, and zero loops"
+		"exact census freezes 37 submissions, 240 authored copies, 34 bodies/shapes, 133 nodes, two labels, three bounded lights, and zero loops"
 	)
 	_check(
 		bool(performance.buffers_match_authored)
 		and (performance.batch_instance_counts as Dictionary) == {
-			&"TerraceSupportBatch": 10,
+			&"TerraceSupportBatch": 14,
 			&"SalvageCageBatch": 6,
-			&"ServiceBeaconBatch": 10,
+			&"ServiceBeaconBatch": 12,
 			&"SalvageFrameBatch": 10,
 			&"SortingMachineryBatch": 8,
-			&"RailDetailBatch": 126,
+			&"RailDetailBatch": 152,
 		},
-		"six MultiMesh batches freeze all 170 structural, machinery, wayfinding, and open-rail transforms in 2040 raw buffer floats"
+		"six MultiMesh batches freeze all 202 structural, machinery, cue, and open-rail transforms in 2424 raw buffer floats"
 	)
 	var before := module.get_lifecycle_contract()
 	module.set_module_enabled(false)
@@ -1151,6 +1229,30 @@ func _test_real_player_ramp_traversal(module: SalvageTerrace) -> void:
 		crossed_upper and inspection_reached
 		and final_local.z >= 14.5 and final_local.y >= 5.2 and player.is_on_floor(),
 		"same player crosses the upper pad and climbs the second broad ramp without jumping"
+	)
+
+	# Exercise the lower-pad branch with the same production controller. This is a
+	# separate route start, but all movement from the lower pad onto the raised
+	# overlook is embodied and uses no jump action or scripted displacement.
+	var branch_basis := Basis.looking_at(module.global_basis * Vector3.BACK, Vector3.UP)
+	player.teleport_to(Transform3D(branch_basis, module.to_global(Vector3(-7.5, 0.15, 6.0))))
+	for _settle in 8:
+		await physics_frame
+	Input.action_press(&"move_forward")
+	Input.action_press(&"sprint_boost")
+	var overlook_reached := await _wait_until(
+		func() -> bool:
+			var local := module.to_local(player.global_position)
+			return local.z >= 12.5 and local.y >= 1.05,
+		140
+	)
+	_release_actions()
+	await physics_frame
+	var overlook_local := module.to_local(player.global_position)
+	_check(
+		overlook_reached and overlook_local.z >= 12.5
+		and overlook_local.y >= 1.05 and player.is_on_floor(),
+		"real production player crosses the lower-pad rail gate and climbs the raised breaker-overlook spur without jump input"
 	)
 	player.queue_free()
 	await process_frame
@@ -1585,7 +1687,7 @@ func _test_mutations_turn_audit_red(module: SalvageTerrace) -> void:
 	surface_shape.size.x += 0.5
 	var widened_area := module.get_walkable_area_contract()
 	_check(
-		not is_equal_approx(float(widened_area.projected_surface_sum_m2), 396.0)
+		not is_equal_approx(float(widened_area.projected_surface_sum_m2), 411.0)
 		and _errors_include(module.get_validation_errors(), "live walkable-area union"),
 		"MUTATION: widening the live collision shape changes derived area and turns the union audit red"
 	)
@@ -1601,7 +1703,7 @@ func _test_mutations_turn_audit_red(module: SalvageTerrace) -> void:
 	var overlapping_area := module.get_walkable_area_contract()
 	_check(
 		not bool(overlapping_area.non_overlapping)
-		and float(overlapping_area.horizontal_walkable_area_m2) < 396.0
+		and float(overlapping_area.horizontal_walkable_area_m2) < 411.0
 		and _errors_include(module.get_validation_errors(), "live walkable-area union"),
 		"MUTATION: overlapping one live surface transform reduces the derived union and turns audit red"
 	)

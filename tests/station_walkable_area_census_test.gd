@@ -2,17 +2,18 @@ extends SceneTree
 
 const CENSUS := preload("res://tools/station_walkable_area_census.gd")
 const WORLD_SCENE := preload("res://scenes/world/shipyard_world.tscn")
-# Phase 10 walkability pass: the freight branch's connection leaf B grew 0.30 m
+# Current walkability baseline: the freight branch's connection leaf B grew 0.30 m
 # eastward over its 4.2 m depth so its edge meets the registry shelf instead of
 # stopping short of it over open space (+1.259996 m2 raw). Leaves A and C already
 # lap that strip for 0.30 m at each end, so the coplanar union counts 1.094984 m2
-# of it. The 82-surface roster, the five ramps and all 410 support probes remain.
-const EXPECTED_GROSS_PROJECTED_M2 := 8577.079173
-const EXPECTED_COUNTED_PROJECTED_M2 := 8406.793383
-const EXPECTED_TRUE_SURFACE_M2 := 8421.615508
+# of it. The breaker overlook adds two surfaces and one ramp (15 m2 projected);
+# all 420 representative support probes remain backed by live World collision.
+const EXPECTED_GROSS_PROJECTED_M2 := 8592.079173
+const EXPECTED_COUNTED_PROJECTED_M2 := 8421.793383
+const EXPECTED_TRUE_SURFACE_M2 := 8437.193255
 const ORIGINAL_STATION_BASELINE_M2 := 6849.844560
-const EXPECTED_EXPANSION_M2 := 1556.948823
-const EXPECTED_EXPANSION_PERCENT := 22.729695679
+const EXPECTED_EXPANSION_M2 := 1571.948823
+const EXPECTED_EXPANSION_PERCENT := 22.948678751
 
 var _failures: Array[String] = []
 
@@ -73,10 +74,10 @@ func _test_production_baseline(world: Node3D, report: Dictionary) -> void:
 		and int(report.landing_deck_support_samples_total) == 20,
 		"four Cinder landing decks report 2595.880005 m2 separately with live support at every probe"
 	)
-	_check(int(report.surface_count) == 82 and int(report.ramp_count) == 5, "trimmed station roster contains exactly 82 surfaces and five ramps")
-	_check(_near(report.gross_projected_horizontal_m2, EXPECTED_GROSS_PROJECTED_M2), "raw declared footprint is frozen at 8577.079173 m2")
-	_check(_near(report.total_projected_horizontal_m2, EXPECTED_COUNTED_PROJECTED_M2), "coplanar-unioned walkable baseline is frozen at 8406.793383 m2")
-	_check(_near(report.total_true_surface_m2, EXPECTED_TRUE_SURFACE_M2), "true-surface baseline is frozen at 8421.615508 m2")
+	_check(int(report.surface_count) == 84 and int(report.ramp_count) == 6, "trimmed station roster contains exactly 84 surfaces and six ramps")
+	_check(_near(report.gross_projected_horizontal_m2, EXPECTED_GROSS_PROJECTED_M2), "raw declared footprint is frozen at 8592.079173 m2")
+	_check(_near(report.total_projected_horizontal_m2, EXPECTED_COUNTED_PROJECTED_M2), "coplanar-unioned walkable baseline is frozen at 8421.793383 m2")
+	_check(_near(report.total_true_surface_m2, EXPECTED_TRUE_SURFACE_M2), "true-surface baseline is frozen at 8437.193255 m2")
 	var expansion_m2 := float(report.total_projected_horizontal_m2) - ORIGINAL_STATION_BASELINE_M2
 	var expansion_percent := expansion_m2 / ORIGINAL_STATION_BASELINE_M2 * 100.0
 	_check(
@@ -84,16 +85,16 @@ func _test_production_baseline(world: Node3D, report: Dictionary) -> void:
 		and absf(expansion_percent - EXPECTED_EXPANSION_PERCENT) <= 0.0000005
 		and expansion_percent >= 18.0
 		and expansion_percent <= 23.0,
-		"live merged union adds exactly 1556.948823 m2 / 22.729695679 percent against the original 6849.844560 m2 baseline"
+		"live merged union adds exactly 1571.948823 m2 / 22.948678751 percent against the original 6849.844560 m2 baseline"
 	)
 	_check(
-		_near(report.ramp_projected_horizontal_m2, 140.479998)
-		and _near(report.ramp_true_surface_m2, 155.302123),
+		_near(report.ramp_projected_horizontal_m2, 147.979998)
+		and _near(report.ramp_true_surface_m2, 163.379870),
 		"ramps separately report exact projected and inclined surface area"
 	)
 	_check(
-		int(report.physics_support_samples) == 410
-		and int(report.physics_support_samples_total) == 410,
+		int(report.physics_support_samples) == 420
+		and int(report.physics_support_samples_total) == 420,
 		"all five representative points on every trimmed-station surface have live World support"
 	)
 	var fleet_owner := (report.owner_totals as Array).filter(

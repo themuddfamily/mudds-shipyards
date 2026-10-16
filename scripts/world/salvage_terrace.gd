@@ -5,9 +5,9 @@ extends Node3D
 ##
 ## This module is NEW work with evidence status `modern_interpretation`.
 ## Nothing here claims recovered station geometry, historical salvage practice,
-## or an original adjacency. Six collision-backed surfaces form three broad,
-## spatially distinct working terraces joined by two continuous ramps. The
-## connector is exactly the local origin and no traversal requires a jump.
+## or an original adjacency. Eight collision-backed surfaces form four broad,
+## spatially distinct work zones joined by three continuous ramps. The connector
+## is exactly the local origin and no traversal requires a jump.
 
 const SCHEMA_VERSION := 1
 const MODULE_ID: StringName = &"salvage-terrace"
@@ -19,12 +19,15 @@ const CONNECTION_SLOT_ID: StringName = &"hub-salvage-terrace"
 const LOWER_ELEVATION := 0.0
 const UPPER_ELEVATION := 3.6
 const INSPECTION_ELEVATION := 5.4
+const BREAKER_OVERLOOK_ELEVATION := 1.2
 const SURFACE_THICKNESS := 0.30
 const TERRACE_SUPPORT_SIZE := Vector3(0.65, 1.8, 0.65)
 const MAIN_RAMP_WIDTH := 6.0
 const MAIN_RAMP_HORIZONTAL_RUN := 8.0
 const INSPECTION_RAMP_WIDTH := 6.0
 const INSPECTION_RAMP_HORIZONTAL_RUN := 4.0
+const BREAKER_RAMP_WIDTH := 2.5
+const BREAKER_RAMP_HORIZONTAL_RUN := 3.0
 const PANEL_SURFACE_SCALE := 0.30
 
 ## Exact non-overlapping horizontal projection. Shared boundaries have zero area.
@@ -33,12 +36,13 @@ const PANEL_SURFACE_SCALE := 0.30
 const LOWER_PAD_DEPTH := 7.0
 const LOWER_PAD_CENTER_Z := 5.5
 const LOWER_PAD_AFT_Z := 9.0
-const LEVEL_WALKABLE_AREA_M2 := 324.0
-const RAMP_PROJECTED_AREA_M2 := 72.0
-const HORIZONTAL_WALKABLE_AREA_M2 := 396.0
+const LEVEL_WALKABLE_AREA_M2 := 331.5
+const RAMP_PROJECTED_AREA_M2 := 79.5
+const HORIZONTAL_WALKABLE_AREA_M2 := 411.0
 const MAIN_RAMP_TRUE_AREA_M2 := 52.636109
 const INSPECTION_RAMP_TRUE_AREA_M2 := 26.318054
-const RAMP_TRUE_AREA_M2 := 78.954163
+const BREAKER_RAMP_TRUE_AREA_M2 := 8.077747
+const RAMP_TRUE_AREA_M2 := 87.031910
 
 const FOOTPRINT_MIN := Vector3(-18.1, -1.8, -0.7)
 const FOOTPRINT_MAX := Vector3(27.3, 7.1, 18.1)
@@ -50,11 +54,14 @@ const SURFACE_IDS := [
 	&"upper-inspection-pad",
 	&"inspection-ramp",
 	&"top-inspection-pad",
+	&"breaker-overlook-ramp",
+	&"breaker-overlook-pad",
 ]
 const PAD_IDS := [
 	&"lower-salvage-pad",
 	&"upper-inspection-pad",
 	&"top-inspection-pad",
+	&"breaker-overlook-pad",
 ]
 const ROUTE_IDS := [
 	&"connector",
@@ -64,33 +71,35 @@ const ROUTE_IDS := [
 	&"upper-pad",
 	&"inspection-ramp-base",
 	&"inspection-pad",
+	&"breaker-ramp-base",
+	&"breaker-overlook",
 ]
 
 ## Exact focused-census budgets. These are frozen to the finished standalone
 ## build rather than padded during integration, so any added submission/node
 ## turns audit red.
 const PERFORMANCE_BUDGET := {
-	"mesh_instances": 30,
+	"mesh_instances": 31,
 	"multimesh_batches": 6,
-	"multimesh_instances": 170,
-	"geometry_submissions": 36,
-	"visible_geometry_copies": 206,
-	"multimesh_buffer_floats": 2040,
-	"static_bodies": 26,
-	"collision_shapes": 26,
-	"labels": 1,
+	"multimesh_instances": 202,
+	"geometry_submissions": 37,
+	"visible_geometry_copies": 240,
+	"multimesh_buffer_floats": 2424,
+	"static_bodies": 34,
+	"collision_shapes": 34,
+	"labels": 2,
 	"lights": 3,
-	"nodes": 106,
+	"nodes": 133,
 	"process_loops": 0,
 	"physics_process_loops": 0,
 }
 const MULTIMESH_INSTANCE_COUNTS := {
-	"TerraceSupportBatch": 10,
+	"TerraceSupportBatch": 14,
 	"SalvageCageBatch": 6,
-	"ServiceBeaconBatch": 10,
+	"ServiceBeaconBatch": 12,
 	"SalvageFrameBatch": 10,
 	"SortingMachineryBatch": 8,
-	"RailDetailBatch": 126,
+	"RailDetailBatch": 152,
 }
 const SERVICE_BEACON_SIZE := Vector3(0.18, 0.42, 0.18)
 ## Three two-stroke chevrons make the upper-terrace turn toward the inspection
@@ -142,6 +151,18 @@ const HAZARD_DRESSING_PARTS := [
 		"size": Vector3(0.35, 0.22, 0.35),
 		"reason": "high suspended crane hook outside route contact",
 	},
+	{
+		"id": &"BreakerOverlookHeader",
+		"position": Vector3(-7.5, 2.2, 15.25),
+		"size": Vector3(2.3, 1.5, 0.25),
+		"reason": "breaker-overlook identity header beyond the physical end rail",
+	},
+]
+
+const BREAKER_OVERLOOK_RAIL_NAMES := [
+	"LowerAftOutboard", "LowerAftInboard", "BreakerRampOutboard",
+	"BreakerRampInboard", "BreakerOverlookAft", "BreakerOverlookOutboard",
+	"BreakerOverlookInboard",
 ]
 const MACHINE_DRESSING_RENDER_NAME := &"MachineDressingBatch"
 const MACHINE_DRESSING_PARTS := [
@@ -194,8 +215,8 @@ const SHORT_SIDE_RAIL_ORIGINS := [
 ]
 const SHORT_SIDE_RAIL_VISUAL_COUNT := 4
 const LONG_RAIL_VISUAL_SIZE := Vector3(12.0, 1.3, 0.16)
-const LONG_RAIL_NAMES := [&"LowerForward", &"LowerAft", &"UpperForward"]
-const LONG_RAIL_VISUAL_COUNT := 3
+const LONG_RAIL_NAMES := [&"LowerForward", &"UpperForward"]
+const LONG_RAIL_VISUAL_COUNT := 2
 const ENTRY_FRONT_RAIL_VISUAL_SIZE := Vector3(4.0, 1.3, 0.16)
 const ENTRY_FRONT_RAIL_NAMES := [&"EntryFrontPort", &"EntryFrontStarboard"]
 const TOP_SIDE_RAIL_VISUAL_SIZE := Vector3(0.16, 1.3, 4.0)
@@ -208,6 +229,7 @@ const SLOPED_RAIL_VISUAL_COUNT := 4
 const CONTENT_NOTE := (
 	"Salvage Terrace is a NEW modern interpretation. No source authenticates its "
 	+ "terraces, ramps, salvage racks, inspection gantry, dimensions, colours, "
+	+ "breaker overlook, "
 	+ "operating role, or station adjacency. It owns presentation and static World "
 	+ "collision only; it owns no ship, berth, combat, interaction, activity, lease, "
 	+ "spawn, audio, or network authority."
@@ -357,6 +379,7 @@ func get_walkable_area_contract() -> Dictionary:
 	)
 	var main_ramp := by_surface.get(&"main-service-ramp", {}) as Dictionary
 	var inspection_ramp := by_surface.get(&"inspection-ramp", {}) as Dictionary
+	var breaker_ramp := by_surface.get(&"breaker-overlook-ramp", {}) as Dictionary
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"surface_union": (
@@ -376,6 +399,7 @@ func get_walkable_area_contract() -> Dictionary:
 		"ramp_true_area_m2": ramp_true_area,
 		"main_ramp_true_area_m2": float(main_ramp.get("true_area_m2", 0.0)),
 		"inspection_ramp_true_area_m2": float(inspection_ramp.get("true_area_m2", 0.0)),
+		"breaker_ramp_true_area_m2": float(breaker_ramp.get("true_area_m2", 0.0)),
 		"baseline_share_claimed": false,
 		"by_surface": by_surface.duplicate(true),
 	}
@@ -389,7 +413,7 @@ func get_component_roster() -> Dictionary:
 	roster["surface_count"] = _surface_nodes.size()
 	roster["usable_pad_ids"] = PackedStringArray(PAD_IDS)
 	roster["usable_pad_count"] = PAD_IDS.size()
-	roster["ramp_count"] = 2
+	roster["ramp_count"] = 3
 	roster["safety_rail_count"] = _rail_nodes.size()
 	roster["identity_label_count"] = find_children("*", "Label3D", true, false).size()
 	roster["multimesh_batch_count"] = find_children("*", "MultiMeshInstance3D", true, false).size()
@@ -713,8 +737,8 @@ func get_long_rail_visual_allocation_audit() -> Dictionary:
 		"visual_copies": LONG_RAIL_VISUAL_COUNT,
 		"mesh_resource_allocations": mesh_ids.size(),
 		"collision_resource_allocations": collision_ids.size(),
-		"legacy_mesh_resource_allocations": 3,
-		"mesh_resource_allocation_delta": -2,
+		"legacy_mesh_resource_allocations": 2,
+		"mesh_resource_allocation_delta": -1,
 	}.duplicate(true)
 
 
@@ -892,7 +916,7 @@ func get_unit_box_batch_mesh_allocation_audit() -> Dictionary:
 		errors.append("unit_box_batch_mesh_count_drift")
 	if multimesh_ids.size() != UNIT_BOX_BATCH_NAMES.size():
 		errors.append("unit_box_batch_submission_identity_drift")
-	if instance_count != 144 or visible_copy_count != 144:
+	if instance_count != 170 or visible_copy_count != 170:
 		errors.append("unit_box_batch_visible_copy_count_drift")
 	errors.sort()
 	return {
@@ -977,11 +1001,11 @@ func get_validation_errors() -> PackedStringArray:
 		_route_markers.size() != ROUTE_IDS.size()
 		or PackedStringArray(get_route_ids()) != PackedStringArray(ROUTE_IDS)
 	):
-		errors.append("route marker roster differs from the exact seven-node contract")
+		errors.append("route marker roster differs from the exact nine-node contract")
 	if not _connection_slot_is_exact():
 		errors.append("connector slot must remain clear and exactly at the local origin")
 	if _surface_nodes.size() != SURFACE_IDS.size():
-		errors.append("standable surface roster must contain exactly six authoritative surfaces")
+		errors.append("standable surface roster must contain exactly eight authoritative surfaces")
 	if not _walkable_tags_are_exact():
 		errors.append("walkable surface census tags differ from their stable id/kind contract")
 	if not _surface_geometry_matches_contract():
@@ -994,11 +1018,11 @@ func get_validation_errors() -> PackedStringArray:
 		or not bool(area.non_overlapping)
 		or not is_equal_approx(float(area.projected_surface_sum_m2), HORIZONTAL_WALKABLE_AREA_M2)
 		or not is_equal_approx(float(area.level_area_m2), LEVEL_WALKABLE_AREA_M2)
-		or not is_equal_approx(float(area.ramp_projected_area_m2), 72.0)
+		or not is_equal_approx(float(area.ramp_projected_area_m2), RAMP_PROJECTED_AREA_M2)
 		or not is_equal_approx(float(area.horizontal_walkable_area_m2), HORIZONTAL_WALKABLE_AREA_M2)
 		or not is_equal_approx(float(area.ramp_true_area_m2), RAMP_TRUE_AREA_M2)
 	):
-		errors.append("live walkable-area union differs from the compacted exact non-overlapping 396 square metre contract")
+		errors.append("live walkable-area union differs from the exact non-overlapping 411 square metre contract")
 	if PAD_IDS.size() < 2 or _surface_nodes.get(&"lower-salvage-pad") == _surface_nodes.get(&"upper-inspection-pad"):
 		errors.append("module requires spatially distinct usable terrace pads")
 	if _rail_nodes.size() < 12 or not _rails_are_live_and_physical():
@@ -1075,6 +1099,12 @@ func audit() -> Dictionary:
 
 
 func _index_routes() -> void:
+	var breaker_ramp_base := _generated_route_marker(
+		"RouteBreakerRampBase", Vector3(-7.5, 0.15, 9.0)
+	)
+	var breaker_overlook := _generated_route_marker(
+		"RouteBreakerOverlook", Vector3(-7.5, BREAKER_OVERLOOK_ELEVATION + 0.15, 13.5)
+	)
 	_route_markers = {
 		&"connector": _route_connector,
 		&"entry": _route_entry,
@@ -1083,12 +1113,22 @@ func _index_routes() -> void:
 		&"upper-pad": _route_upper_pad,
 		&"inspection-ramp-base": _route_inspection_ramp_base,
 		&"inspection-pad": _route_inspection_pad,
+		&"breaker-ramp-base": breaker_ramp_base,
+		&"breaker-overlook": breaker_overlook,
 	}
 	for route_id in _route_markers:
 		var marker := _route_markers[route_id] as Marker3D
 		marker.set_meta("station_route_marker", true)
 		marker.set_meta("route_id", route_id)
 	_route_connector.set_meta(StationModuleContract.CONNECTION_SLOT_META, CONNECTION_SLOT_ID)
+
+
+func _generated_route_marker(node_name: String, position_value: Vector3) -> Marker3D:
+	var marker := Marker3D.new()
+	marker.name = node_name
+	marker.position = position_value
+	_build_root.add_child(marker)
+	return marker
 
 
 func _build_surfaces() -> void:
@@ -1115,6 +1155,17 @@ func _build_surfaces() -> void:
 		INSPECTION_RAMP_WIDTH
 	)
 	_add_level_surface(&"top-inspection-pad", Vector3(23.0, INSPECTION_ELEVATION, 16.0), Vector2(6.0, 4.0))
+	_add_ramp_surface(
+		&"breaker-overlook-ramp",
+		Vector3(-7.5, LOWER_ELEVATION, 9.0),
+		Vector3(-7.5, BREAKER_OVERLOOK_ELEVATION, 12.0),
+		BREAKER_RAMP_WIDTH
+	)
+	_add_level_surface(
+		&"breaker-overlook-pad",
+		Vector3(-7.5, BREAKER_OVERLOOK_ELEVATION, 13.5),
+		Vector2(2.5, 3.0)
+	)
 
 
 func _add_level_surface(
@@ -1223,19 +1274,11 @@ func _build_safety_rails() -> void:
 		6
 	)
 	_add_rail("LowerForward", Transform3D(Basis.IDENTITY, Vector3(-12.0, 0.65, 2.0)), Vector3(12.0, 1.3, 0.16))
-	_add_rail(
-		"LowerAft",
-		Transform3D(Basis.IDENTITY, Vector3(-12.0, 0.65, LOWER_PAD_AFT_Z)),
-		Vector3(12.0, 1.3, 0.16),
-		# Denser posts resolve the compacted sorting-line boundary while keeping
-		# the established open-rail silhouette and renderer allocation.
-		8
-	)
-	_add_rail(
-		"LowerInboardAft",
-		Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 8.5)),
-		Vector3(0.16, 1.3, 1.0)
-	)
+	# Split the former aft barrier into a 2.5-metre physical gate for the raised
+	# breaker-overlook spur. The untouched ends still guard the lower pad.
+	_add_rail("LowerAftOutboard", Transform3D(Basis.IDENTITY, Vector3(-13.375, 0.65, 9.0)), Vector3(9.25, 1.3, 0.16))
+	_add_rail("LowerAftInboard", Transform3D(Basis.IDENTITY, Vector3(-6.125, 0.65, 9.0)), Vector3(0.25, 1.3, 0.16))
+	_add_rail("LowerInboardAft", Transform3D(Basis.IDENTITY, Vector3(-6.0, 0.65, 8.5)), Vector3(0.16, 1.3, 1.0))
 	_add_sloped_rail("MainRampForward", Vector3(6.0, 0.0, 2.0), Vector3(14.0, 3.6, 2.0), _main_ramp_rail_visual_mesh)
 	_add_sloped_rail("MainRampAft", Vector3(6.0, 0.0, 8.0), Vector3(14.0, 3.6, 8.0), _main_ramp_rail_visual_mesh)
 	_add_rail("UpperOutboard", Transform3D(Basis.IDENTITY, Vector3(26.0, 4.25, 5.0)), Vector3(0.16, 1.3, 10.0))
@@ -1248,6 +1291,17 @@ func _build_safety_rails() -> void:
 	_add_rail("TopAft", Transform3D(Basis.IDENTITY, Vector3(23.0, 6.05, 18.0)), Vector3(6.0, 1.3, 0.16))
 	_add_rail("TopPort", Transform3D(Basis.IDENTITY, Vector3(20.0, 6.05, 16.0)), Vector3(0.16, 1.3, 4.0))
 	_add_rail("TopStarboard", Transform3D(Basis.IDENTITY, Vector3(26.0, 6.05, 16.0)), Vector3(0.16, 1.3, 4.0))
+	_add_sloped_rail(
+		"BreakerRampOutboard", Vector3(-8.75, 0.0, 9.0),
+		Vector3(-8.75, BREAKER_OVERLOOK_ELEVATION, 12.0), _main_ramp_rail_visual_mesh
+	)
+	_add_sloped_rail(
+		"BreakerRampInboard", Vector3(-6.25, 0.0, 9.0),
+		Vector3(-6.25, BREAKER_OVERLOOK_ELEVATION, 12.0), _main_ramp_rail_visual_mesh
+	)
+	_add_rail("BreakerOverlookAft", Transform3D(Basis.IDENTITY, Vector3(-7.5, 1.85, 15.0)), Vector3(2.5, 1.3, 0.16))
+	_add_rail("BreakerOverlookOutboard", Transform3D(Basis.IDENTITY, Vector3(-8.75, 1.85, 13.5)), Vector3(0.16, 1.3, 3.0))
+	_add_rail("BreakerOverlookInboard", Transform3D(Basis.IDENTITY, Vector3(-6.25, 1.85, 13.5)), Vector3(0.16, 1.3, 3.0))
 	_add_multimesh_batch(
 		"RailDetailBatch", Vector3.ONE, _rail_detail_transforms, _materials.rail,
 		"open top and mid rails with regular posts over conservative hidden collision"
@@ -1260,7 +1314,9 @@ func _add_rail(
 		shared_visual_mesh: BoxMesh = null
 	) -> void:
 	var visual_mesh := shared_visual_mesh
-	var omit_hidden_renderer := node_name in SHORT_SIDE_RAIL_NAMES
+	var omit_hidden_renderer := (
+		node_name in SHORT_SIDE_RAIL_NAMES or node_name in BREAKER_OVERLOOK_RAIL_NAMES
+	)
 	if visual_mesh == null:
 		if StringName(node_name) in LONG_RAIL_NAMES:
 			visual_mesh = _long_rail_visual_mesh
@@ -1354,6 +1410,19 @@ func _build_batched_supports_and_dressing() -> void:
 		_support_center(25.0, INSPECTION_ELEVATION, 16.0),
 	]:
 		support_transforms.append(Transform3D(Basis.IDENTITY, support as Vector3))
+	# Four scaled columns meet the raised overlook underside at y=0.9 and the
+	# module's established support datum at y=-1.8. They are visual structure;
+	# the deck itself remains the authoritative World collider.
+	for support_position in [
+		Vector3(-8.4, -0.45, 12.5), Vector3(-6.6, -0.45, 12.5),
+		Vector3(-8.4, -0.45, 14.5), Vector3(-6.6, -0.45, 14.5),
+	]:
+		support_transforms.append(
+			Transform3D(
+				Basis.IDENTITY.scaled(Vector3(1.0, 1.5, 1.0)),
+				support_position as Vector3
+			)
+		)
 	_add_multimesh_batch("TerraceSupportBatch", TERRACE_SUPPORT_SIZE, support_transforms, _materials.frame, "structural support below walkable decks")
 
 	# Salvage cages sit outside the compacted walkable union behind the lower
@@ -1493,6 +1562,23 @@ func _build_identity_sign() -> void:
 	label.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 	label.set_meta("non_walkable_reason", "bounded entry identity and inspection-direction label")
 	_build_root.add_child(label)
+	var overlook_label := Label3D.new()
+	overlook_label.name = "BreakerOverlookIdentity"
+	overlook_label.text = "BREAKER\nOVERLOOK"
+	overlook_label.font_size = 42
+	overlook_label.outline_size = 7
+	overlook_label.modulate = Color("ffd09a")
+	overlook_label.outline_modulate = Color("321d13")
+	# The route approaches from -Z. Put the glyph plane on the header's inboard
+	# (-Z) face with a small positive depth offset so the opaque orange backing
+	# cannot occlude or z-fight the legend.
+	overlook_label.position = Vector3(-7.5, 2.2, 15.08)
+	overlook_label.rotation_degrees.y = 180.0
+	overlook_label.set_meta(
+		"non_walkable_reason",
+		"static breaker-overlook identity mounted beyond the physical end rail"
+	)
+	_build_root.add_child(overlook_label)
 
 
 func _add_multimesh_batch(
@@ -1610,9 +1696,9 @@ func _visual_box(
 	return result
 
 
-## These five authored hazard pieces are immutable, collision-free dressing with
-## one material. Bake their exact rounded meshes at their authored transforms
-## into one retained surface, leaving the five source meshes transient.
+## These authored hazard pieces are immutable, collision-free dressing with one
+## material. Bake their exact rounded meshes at their authored transforms into
+## one retained surface, leaving the source meshes transient.
 func _build_hazard_dressing_render() -> void:
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -1641,7 +1727,7 @@ func _build_hazard_dressing_render() -> void:
 	renderer.name = HAZARD_DRESSING_RENDER_NAME
 	renderer.mesh = tool.commit()
 	renderer.material_override = _materials.hazard
-	renderer.set_meta("non_walkable_reason", "five merged collision-free hazard dressing pieces outside every traversal corridor")
+	renderer.set_meta("non_walkable_reason", "merged collision-free hazard dressing pieces outside every traversal corridor")
 	renderer.set_meta("salvage_terrace_hazard_dressing_parts", authored_parts)
 	renderer.set_meta("authored_visible_copy_count", authored_parts.size())
 	_build_root.add_child(renderer)
@@ -1741,7 +1827,7 @@ func _create_materials() -> void:
 	# kit's clearcoat hierarchy changes, so geometry, collisions, transforms,
 	# lights and renderer allocations stay untouched.
 	var finish_by_key := {
-		# All six authoritative pads and ramps are trafficked deck plate.
+		# All eight authoritative pads and ramps are trafficked deck plate.
 		"deck": StationSurfaceKit.PanelFinish.WALKED_DECK,
 		# Supports, portal framing, gantry mast and sign backing remain load-bearing
 		# dark alloy rather than painted equipment.

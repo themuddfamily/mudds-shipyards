@@ -131,6 +131,8 @@ const SALVAGE_TERRACE_SURFACE_PATHS := [
 	"GeneratedRoot/UpperInspectionPad",
 	"GeneratedRoot/InspectionRamp",
 	"GeneratedRoot/TopInspectionPad",
+	"GeneratedRoot/BreakerOverlookRamp",
+	"GeneratedRoot/BreakerOverlookPad",
 ]
 
 var _failures: Array[String] = []
@@ -223,7 +225,7 @@ func _test_collision_backed_surface_roster(world: ShipyardWorld) -> void:
 		every_surface_exact = _surface_roster_matches(observation, OBSERVATION_LOGISTICS_SURFACE_PATHS) and every_surface_exact
 	if salvage != null:
 		every_surface_exact = _surface_roster_matches(salvage, SALVAGE_TERRACE_SURFACE_PATHS) and every_surface_exact
-	_check(every_surface_exact, "all 71 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
+	_check(every_surface_exact, "all 73 visible route floors, decks, shelves, slabs, rungs, and ramps own matching World collision")
 
 
 func _surface_roster_matches(owner: Node3D, paths: Array) -> bool:
@@ -898,7 +900,7 @@ func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) 
 		var marker := salvage.get_route_marker(route_id)
 		slot_exact = slot_exact and marker != null \
 			and (marker.has_meta(&"station_connection_slot") == (route_id == &"connector"))
-	_check(slot_exact, "Salvage publishes only its honest local-origin connector slot; all six internal routes remain non-slots")
+	_check(slot_exact, "Salvage publishes only its honest local-origin connector slot; all eight internal routes remain non-slots")
 
 	var owned_bodies: Array[StaticBody3D] = []
 	for candidate in connector.find_children("*", "StaticBody3D", true, false):
@@ -1035,12 +1037,12 @@ func _test_salvage_terrace_siting(world: ShipyardWorld, ships: Array[HeroShip]) 
 	print("SALVAGE_PRODUCTION_AUDIT: ", audit)
 	_check(
 		bool(audit.valid) \
-		and is_equal_approx(float(area.horizontal_walkable_area_m2), 396.0) \
-		and is_equal_approx(float(area.ramp_projected_area_m2), 72.0) \
-		and absf(float(area.ramp_true_area_m2) - 78.954163) <= 0.00001 \
+		and is_equal_approx(float(area.horizontal_walkable_area_m2), 411.0) \
+		and is_equal_approx(float(area.ramp_projected_area_m2), 79.5) \
+		and absf(float(area.ramp_true_area_m2) - 87.031910) <= 0.00001 \
 		and bool(performance.exact_census) \
 		and bool(performance.within_budget),
-		"production Salvage audit preserves its compacted exact 396 m2 projected / 402.954163 m2 true standalone surface contract and budgets"
+		"production Salvage audit preserves its compacted exact 411 m2 projected / 418.531910 m2 true standalone surface contract and budgets"
 	)
 	_check(
 		(authority.authority_ids as PackedStringArray).is_empty() \
