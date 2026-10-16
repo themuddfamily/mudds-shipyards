@@ -878,7 +878,9 @@ func _check_hold_briefing(prompt: String, activity_id: StringName) -> void:
 	_check(prompt.contains("LEAVING RESETS PROGRESS")
 		and prompt.contains("CHOOSE START AGAIN") if mining else (
 			prompt.contains("LEAVING PAUSES PROGRESS")
-			and prompt.contains("TO CONTINUE") and not prompt.contains("START AGAIN")),
+			and prompt.contains("TO CONTINUE") and not prompt.contains("START AGAIN")
+			and prompt.contains("IF REWARD NOT FILED AFTER COMPLETION")
+			and prompt.contains("CHOOSE START TO RETRY THE MATERIAL SAMPLE REWARD")),
 		"%s recovery distinguishes a restarted extraction from a continuing scan" % activity_id)
 
 
@@ -934,6 +936,32 @@ func _check_production_hold_behaviors() -> void:
 		and scan_return.generation == scan_start.generation
 		and float(scan_return.elapsed_seconds) == ScanType.SCAN_SECONDS,
 		"returning continues and completes the same scan without another Start or Interact")
+	# A refused reward leaves a completed scan. The real Start consumer retries
+	# that handoff rather than starting another hold at the approach marker.
+	var reward_attempts := [0]
+	var configured := binding.configure_structure_scan_reward_handoff(
+		func(_request: Dictionary) -> Dictionary:
+			reward_attempts[0] += 1
+			return {"accepted": reward_attempts[0] > 1, "granted": reward_attempts[0] > 1}
+	)
+	var refused_reward := binding.request_structure_scan_reward()
+	var retained_scan := binding.get_snapshot().structure_scan as Dictionary
+	_check(configured.accepted and not refused_reward.accepted
+		and refused_reward.reason == &"structure_scan_reward_handoff_rejected"
+		and retained_scan.state == ScanType.State.COMPLETE
+		and retained_scan.generation == scan_start.generation
+		and not retained_scan.reward_requested,
+		"refused sample reward retains the completed scan instead of requiring another hold")
+	var retry_flow := GameFlowType.new()
+	var retried_reward := retry_flow._start_nearby_activity(binding, &"cinder_derelict_structure_scan")
+	var paid_scan := binding.get_snapshot().structure_scan as Dictionary
+	_check(retried_reward.accepted and retried_reward.reward_committed
+		and reward_attempts[0] == 2 and paid_scan.reward_requested
+		and paid_scan.state == ScanType.State.COMPLETE
+		and paid_scan.generation == scan_start.generation
+		and is_equal_approx(float(paid_scan.elapsed_seconds), ScanType.SCAN_SECONDS),
+		"the briefing's Start action retries the retained sample reward without restarting the scan")
+	retry_flow.free()
 	binding.queue_free()
 	await process_frame
 

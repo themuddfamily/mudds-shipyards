@@ -36,6 +36,20 @@ func _run() -> void:
 		"state": &"connecting", "role": &"client", "detail": "Contacting the session host.",
 	})
 	_check(reconnect_started.message.begins_with("Contacting the session host.") and not reconnect_started.message.contains("was lost") and reconnect_started.actions[0].id == &"cancel", "retry replaces terminal host-loss copy with current connecting guidance")
+	var full_source := {
+		"state": &"disconnected", "role": &"client",
+		"detail": "Session closed: session_full", "retryable": true,
+	}
+	var full := presenter.present_snapshot(full_source)
+	_check(full.message.begins_with("The session is full. Wait for a player to leave before retrying.") and full.state == &"disconnected", "full admission explains capacity rather than displaying the transport token")
+	_check(presenter.request_retry().accepted and not presenter.request_disconnect().accepted, "capacity guidance preserves the caller-owned retry intent without an active session")
+	full_source["retryable"] = false
+	var full_without_retry := presenter.present_snapshot(full_source)
+	_check(full_without_retry.actions.is_empty() and not presenter.request_retry().accepted, "capacity guidance cannot enable retry when the caller forbids it")
+	var after_capacity_retry := presenter.present_snapshot({
+		"state": &"connecting", "role": &"client", "detail": "Contacting the session host.",
+	})
+	_check(after_capacity_retry.message.begins_with("Contacting the session host.") and not after_capacity_retry.message.contains("session is full") and after_capacity_retry.actions[0].id == &"cancel", "a fresh connection replaces stale capacity guidance with current connecting status")
 	var invalid := presenter.present_snapshot({"state": &"mystery"})
 	_check(invalid.state == &"failed" and invalid.actions[0].focusable and not presenter.request_retry().accepted, "unknown state fails closed without retry authority")
 
@@ -107,7 +121,7 @@ func _run() -> void:
 		"detach clears the cursor and cached authoritative rows before reuse"
 	)
 	if _failures.is_empty():
-		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 20 assertions")
+		print("NETWORK_SESSION_STATUS_PRESENTER_TEST_OK: 24 assertions")
 	else:
 		for failure in _failures:
 			push_error(failure)

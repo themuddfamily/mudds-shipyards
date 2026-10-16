@@ -80,7 +80,7 @@ const ACTIVITY_COPY := {
 		"keyboard": "The activity row's Start begins the scan at the derelict scan approach marker. Once active, use {brake} if needed and hold at the marker until progress reaches 100%.",
 		"accessible": "The activity row's Start begins the scan at the derelict scan approach marker. Once active, brake if needed and hold at the marker until progress reaches 100%.",
 		"next_action": "HOLD AT THE SCAN APPROACH MARKER // REACH 100%",
-		"recovery": "LEAVING PAUSES PROGRESS // RETURN TO THE APPROACH MARKER TO CONTINUE",
+		"recovery": "LEAVING PAUSES PROGRESS // RETURN TO THE APPROACH MARKER TO CONTINUE; IF REWARD NOT FILED AFTER COMPLETION, CHOOSE START TO RETRY THE MATERIAL SAMPLE REWARD; COMPLETED SCAN RETAINED",
 	},
 	&"cinder_debris_beacon_traversal": {
 		"title": "Run the beacon line",

@@ -48,6 +48,7 @@ const CLI_VERSION := &"--version"
 const CLI_SUPPORT_INFO := &"--support-info"
 const CLI_SUPPORT_EXPORT := &"--support-export"
 const CLI_STARTUP_CHECK := &"--startup-check"
+const CLI_REFLECTION_REENTRY := &"--reflection-reentry-check"
 const CLI_IN_WORLD_STAGE := "--in-world-interruption-stage="
 const CLI_IN_WORLD_CONTEXT := "--in-world-interruption-context="
 const CLI_IN_WORLD_ACTIVITY := "--in-world-interruption-activity="
@@ -88,6 +89,7 @@ var _last_frame_usec := 0
 var _display_settings_report: Dictionary = {}
 var _startup_graphics_profile := RuntimeSettings.DEFAULT_GRAPHICS_PROFILE
 var _early_cli_exit_code := 0
+var _reflection_reentry_requested := false
 ## The scene resource load has one explicit owner. Keeping this handle on Boot
 ## lets `_exit_tree()` join it even if Boot is cancelled while the worker is in
 ## ResourceLoader, so no thread or returned Resource can outlive the scene that
@@ -100,6 +102,16 @@ var _startup_textures: Array[Texture2D] = []
 
 func _ready() -> void:
 	var command_line := OS.get_cmdline_args()
+	var reflection := reflection_reentry_probe_request(command_line, DisplayServer.get_name(),
+		AudioServer.get_driver_name(), RenderingServer.get_current_rendering_method(),
+		_has_private_reflection_profile(), int(ProjectSettings.get_setting_with_override("debug/settings/profiler/max_timestamp_query_elements")))
+	if bool(reflection.requested):
+		if not bool(reflection.accepted):
+			print("REFLECTION_RELEASE_REENTRY_FAILED: private X11/Dummy/4096-query diagnostic inputs required")
+			_early_cli_exit_code = 2
+			call_deferred("_quit_after_cli_output")
+			return
+		_reflection_reentry_requested = true
 	var interruption := in_world_probe_request(command_line, DisplayServer.get_name(), AudioServer.get_driver_name(),
 		OS.get_environment("MUDDS_PRIVATE_PROBE_INPUT") == "engineer-x11")
 	if bool(interruption.requested):
@@ -222,6 +234,29 @@ static func in_world_probe_request(args: PackedStringArray, display_name: String
 	return {"requested": true, "accepted": true, "stage": stages[0], "recovery_context": context, "activity": activity}
 
 
+## The release template executes this packaged path itself; no --script override.
+static func reflection_reentry_probe_request(args: PackedStringArray, display_name: String, audio_name: String, renderer: String, private_profile: bool, capacity: int) -> Dictionary:
+	if CLI_REFLECTION_REENTRY not in args:
+		return {"requested": false, "accepted": false}
+	var accepted := args.count(CLI_REFLECTION_REENTRY) == 1 and display_name.to_lower() == "x11" \
+		and audio_name == "Dummy" and renderer == "forward_plus" and private_profile and capacity == 4096
+	for argument in args:
+		if argument in [CLI_STARTUP_CHECK, "--frame-capture", CLI_VERSION, CLI_SUPPORT_INFO, CLI_SUPPORT_EXPORT] \
+			or argument.begins_with("--in-world-interruption-"):
+			accepted = false
+	return {"requested": true, "accepted": accepted}
+
+
+func _has_private_reflection_profile() -> bool:
+	var isolated := OS.get_environment("XDG_DATA_HOME").simplify_path()
+	return OS.get_environment("MUDDS_PRIVATE_PROBE_INPUT") == "reflection-x11" \
+		and OS.get_environment("DISPLAY").begins_with("127.0.0.1:") \
+		and FileAccess.file_exists(OS.get_environment("XAUTHORITY")) \
+		and isolated.is_absolute_path() and isolated != "/" \
+		and isolated != (OS.get_environment("HOME") + "/.local/share").simplify_path() \
+		and OS.get_user_data_dir().simplify_path().begins_with(isolated + "/")
+
+
 static func cli_support_export_path(args: PackedStringArray) -> String:
 	var flag_index := args.find(CLI_SUPPORT_EXPORT)
 	if flag_index < 0 or flag_index + 1 >= args.size():
@@ -278,6 +313,11 @@ func _exit_tree() -> void:
 		if incomplete_main.get_parent() == self:
 			remove_child(incomplete_main)
 		incomplete_main.queue_free()
+	# During the explicit probe's quiet window Main is retained outside Boot.
+	# Normal child destruction cannot own it if the executable is interrupted.
+	if _reflection_reentry_requested and is_instance_valid(_main) and _main.get_parent() == null:
+		_main.free()
+		_main = null
 
 
 ## Loads and constructs Main behind the loading screen. Awaitable; also safe to
@@ -391,7 +431,9 @@ func run_startup() -> Node:
 	_note_stage("handoff", "Opening title menu")
 	_finish_startup(startup_generation)
 	startup_completed.emit(_main)
-	if CLI_STARTUP_CHECK in OS.get_cmdline_args():
+	if _reflection_reentry_requested:
+		_check_retained_reflection_reentry.call_deferred(startup_generation)
+	elif CLI_STARTUP_CHECK in OS.get_cmdline_args():
 		_check_presented_menu.call_deferred(startup_generation)
 	return _main
 
@@ -421,6 +463,97 @@ func _check_presented_menu(startup_generation: int) -> void:
 	if is_instance_valid(_main) and _main.has_method(&"mark_orderly_shutdown"):
 		_main.call(&"mark_orderly_shutdown")
 	tree.quit(0 if ready else 1)
+
+
+## Opt-in packaged release lifecycle check. Gameplay authority, preferences,
+## geometry, quality and flight tuning remain with the actual loaded Main.
+## External ownership still requires the original 300-second abort, zero errors
+## and fresh native GPU postprocess steps after the detached quiet interval.
+func _check_retained_reflection_reentry(generation: int) -> void:
+	var tree := get_tree()
+	while is_instance_valid(_screen) and _screen.is_inside_tree():
+		await tree.process_frame
+		if not _reflection_probe_current(generation):
+			return
+	if not is_title_menu_ready(_main):
+		_reflection_probe_finish(false, "ordinary title menu is unavailable")
+		return
+	var original_main := _main.get_instance_id()
+	var probes := _reflection_probe_ids(_main)
+	var persistence: Dictionary = _main.call(&"get_runtime_settings_persistence_report")
+	var settings := _main.call(&"get_runtime_settings") as Resource
+	if probes.size() != 5 or bool(persistence.get("injected_authority", true)) or settings == null:
+		_reflection_probe_finish(false, "five authored probes and the production settings owner are required")
+		return
+	var preferences: Dictionary = settings.call(&"to_dictionary")
+	print("REFLECTION_PROFILE_TIMESTAMP_CAPACITY=%d" % int(ProjectSettings.get_setting_with_override("debug/settings/profiler/max_timestamp_query_elements")))
+	# Prime fresh pending work through actual scenario re-entry, then cancel it
+	# after one drawn frame. Do not wait for captures to settle before this case.
+	remove_child(_main)
+	await tree.process_frame
+	await tree.process_frame
+	if not _reflection_probe_current(generation):
+		return
+	add_child(_main)
+	await tree.process_frame
+	await RenderingServer.frame_post_draw
+	if not _reflection_probe_current(generation):
+		return
+	remove_child(_main)
+	print("REFLECTION_REENTRY_PENDING_CAPTURE_DETACHED")
+	print("REFLECTION_REENTRY_DRAIN_BEGIN")
+	if not await _reflection_probe_window(generation, 2200, 16):
+		return
+	print("REFLECTION_REENTRY_QUIET_BEGIN")
+	if not await _reflection_probe_window(generation, 1200, 16):
+		return
+	print("REFLECTION_REENTRY_QUIET_END")
+	print("REFLECTION_REENTRY_RECAPTURE_BEGIN")
+	add_child(_main)
+	if not await _reflection_probe_window(generation, 1200, 96):
+		return
+	print("REFLECTION_REENTRY_RECAPTURE_END")
+	var restored: Dictionary = _main.call(&"get_runtime_settings_persistence_report")
+	_reflection_probe_finish(_main.get_instance_id() == original_main and _main.get_parent() == self \
+		and _reflection_probe_ids(_main) == probes and is_title_menu_ready(_main) \
+		and settings.call(&"to_dictionary") == preferences \
+		and restored.get("store_instance_id") == persistence.get("store_instance_id") \
+		and not bool(restored.get("injected_authority", true)), "retained Main/probes/settings and interactive menu")
+
+
+func _reflection_probe_current(generation: int) -> bool:
+	return is_inside_tree() and not is_queued_for_deletion() \
+		and generation == _startup_generation and is_instance_valid(_main)
+
+
+func _reflection_probe_ids(main: Node) -> PackedInt64Array:
+	var result := PackedInt64Array()
+	for probe: Node in main.find_children("*", "ReflectionProbe", true, false):
+		result.append(probe.get_instance_id())
+	result.sort()
+	return result
+
+
+func _reflection_probe_window(generation: int, minimum_msec: int, minimum_frames: int) -> bool:
+	var began := Time.get_ticks_msec()
+	var frames := 0
+	while frames < minimum_frames or Time.get_ticks_msec() - began < minimum_msec:
+		await get_tree().process_frame
+		if not _reflection_probe_current(generation):
+			return false
+		await RenderingServer.frame_post_draw
+		if not _reflection_probe_current(generation):
+			return false
+		frames += 1
+	return true
+
+
+func _reflection_probe_finish(accepted: bool, reason: String) -> void:
+	if is_instance_valid(_main):
+		_main.call(&"mark_orderly_shutdown")
+	_release_mouse()
+	print("REFLECTION_RELEASE_REENTRY_%s: %s" % ["OK" if accepted else "FAILED", reason])
+	get_tree().quit(0 if accepted else 1)
 
 
 static func is_title_menu_ready(main: Node) -> bool:

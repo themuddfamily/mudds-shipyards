@@ -17,6 +17,20 @@ func _run() -> void:
 	]:
 		_check(not ResourceLoader.has_cached(script_path),
 			"early Boot and CLI compilation leaves %s for the Main worker" % script_path.get_file())
+	var reflection_args := PackedStringArray(["--reflection-reentry-check"])
+	_check(not StartupLoaderType.reflection_reentry_probe_request(PackedStringArray(), "X11", "Dummy", "forward_plus", true, 4096).requested,
+		"ordinary Boot does not opt into the packaged reflection lifecycle check")
+	_check(StartupLoaderType.reflection_reentry_probe_request(reflection_args, "X11", "Dummy", "forward_plus", true, 4096).accepted,
+		"packaged reflection lifecycle admits exact isolated rendered diagnostic inputs")
+	for row: Array in [["headless", "Dummy", "forward_plus", true, 4096], ["X11", "PulseAudio", "forward_plus", true, 4096],
+		["X11", "Dummy", "gl_compatibility", true, 4096], ["X11", "Dummy", "forward_plus", false, 4096], ["X11", "Dummy", "forward_plus", true, 256]]:
+		_check(not StartupLoaderType.reflection_reentry_probe_request(reflection_args, row[0], row[1], row[2], row[3], row[4]).accepted,
+			"reflection lifecycle refuses unsupported renderer/audio/profile/capacity input")
+	for conflict in ["--reflection-reentry-check", "--startup-check", "--frame-capture", "--version", "--support-info", "--support-export", "--in-world-interruption-stage=arm"]:
+		var conflicting := reflection_args.duplicate()
+		conflicting.append(conflict)
+		_check(not StartupLoaderType.reflection_reentry_probe_request(conflicting, "X11", "Dummy", "forward_plus", true, 4096).accepted,
+			"reflection lifecycle refuses duplicate or competing modes: %s" % conflict)
 	var probe_args := PackedStringArray(["--in-world-interruption-stage=arm"])
 	_check(not bool(StartupLoaderType.in_world_probe_request(PackedStringArray(), "headless", "Dummy").requested),
 		"ordinary boot does not opt into the in-world fixture")
