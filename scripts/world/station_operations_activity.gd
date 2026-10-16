@@ -90,10 +90,8 @@ const RECOMMENDED_MAX_INSTANCES := 6
 static var _shared_material_catalog: Dictionary = {}
 
 ## Geometry recipes are immutable after the presentation builder returns. The
-## builder's shape caches deliberately live for only one build, however, so ten
-## production activities otherwise retain duplicate allocations for any
-## box/cylinder recipe repeated between placements (apart from the beacon base's
-## older special case). Keep the
+## builder resolves repeated box, cylinder and crate recipes through this
+## catalog before emitting geometry. Keep the
 ## renderer-facing nodes and MultiMeshes instance-local, but canonicalise their
 ## contained Mesh resources here, at the production component boundary.
 ##
@@ -102,6 +100,9 @@ static var _shared_material_catalog: Dictionary = {}
 ## again before reuse so external in-place drift fails every existing user of
 ## that shared mesh but cannot contaminate a later build.
 static var _shared_visual_mesh_catalog: Dictionary = {}
+## Recipe keys only locate a canonical entry; its stored geometry is always
+## fingerprinted again before a later build can use it.
+static var _shared_visual_mesh_recipe_keys: Dictionary = {}
 
 ## Exact, not merely bounding: `get_validation_errors()` rejects a live count that
 ## differs from its profile row in either direction.
@@ -511,7 +512,8 @@ func _ready() -> void:
 		PROFILE_IDS.get(_built_profile, &"invalid") as StringName,
 		DRONE_COUNT,
 		BEACON_SEAT_HEIGHT,
-		_shared_material_catalog
+		_shared_material_catalog,
+		_resolve_visual_mesh_recipe
 	)
 	_adopt_presentation_builder_state()
 	_share_immutable_visual_meshes()
@@ -564,6 +566,24 @@ func _share_immutable_visual_meshes() -> void:
 			(candidate as MeshInstance3D).mesh = shared_mesh
 		else:
 			((candidate as MultiMeshInstance3D).multimesh as MultiMesh).mesh = shared_mesh
+
+
+## Called only on a builder-local recipe miss. Validation is scoped to this
+## synchronous build: external changes between builds can never inherit a
+## previously successful validity result.
+func _resolve_visual_mesh_recipe(recipe: String, factory: Callable) -> ArrayMesh:
+	var previous_key: String = _shared_visual_mesh_recipe_keys.get(recipe, "")
+	var previous := _shared_visual_mesh_catalog.get(previous_key) as ArrayMesh
+	if previous != null and _visual_mesh_cache_key(previous) == previous_key:
+		return previous
+	var mesh := factory.call() as ArrayMesh
+	var cache_key := _visual_mesh_cache_key(mesh)
+	var canonical := _shared_visual_mesh_catalog.get(cache_key) as ArrayMesh
+	if canonical == null or _visual_mesh_cache_key(canonical) != cache_key:
+		canonical = mesh
+		_shared_visual_mesh_catalog[cache_key] = canonical
+	_shared_visual_mesh_recipe_keys[recipe] = cache_key
+	return canonical
 
 
 func _visual_mesh_cache_key(mesh: Mesh) -> String:

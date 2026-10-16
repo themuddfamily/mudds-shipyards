@@ -107,12 +107,9 @@ var _rounded_box_cache: Dictionary = {}
 var _chamfered_cylinder_cache: Dictionary = {}
 var _crate_mesh_cache: Dictionary = {}
 
-# Every production profile carries the same four childless beacon pedestals.
-# Per-builder cylinder caches already collapse the four local copies to one mesh,
-# but the ten-placement production roster still built ten identical ArrayMeshes.
-# This resource has no material or mutable activity state, so all builders can
-# safely retain one process-wide geometry allocation while each named Base node
-# keeps its own transform, material binding, visibility and shadow settings.
+var _resolve_visual_mesh_recipe: Callable
+# Preserve the standalone builder's existing beacon-sharing contract. Production
+# activities instead resolve this recipe through their drift-checked catalog.
 static var _shared_safety_beacon_base_mesh: ArrayMesh
 
 
@@ -121,8 +118,10 @@ func build(
 		profile_id: StringName,
 		drone_count: int,
 		beacon_seat_height: float,
-		shared_material_catalog: Dictionary = {}
+		shared_material_catalog: Dictionary = {},
+		resolve_visual_mesh_recipe: Callable = Callable()
 	) -> void:
+	_resolve_visual_mesh_recipe = resolve_visual_mesh_recipe
 	_presentation_root = presentation_root
 	_profile_id = profile_id
 	_drone_count = drone_count
@@ -1175,7 +1174,10 @@ func _crate_mesh(size: Vector3, strapped: bool) -> ArrayMesh:
 		size.x, size.y, size.z, "strapped" if strapped else "lidded",
 	]
 	if not _crate_mesh_cache.has(cache_key):
-		_crate_mesh_cache[cache_key] = FreightCrateKit.shell_mesh(size, strapped)
+		_crate_mesh_cache[cache_key] = _resolve_recipe(
+			"crate:" + var_to_bytes([size, strapped]).hex_encode(),
+			func(): return FreightCrateKit.shell_mesh(size, strapped)
+		)
 	return _crate_mesh_cache[cache_key] as ArrayMesh
 
 
@@ -1234,11 +1236,7 @@ func _cylinder_batch(
 	return _instanced(
 		parent,
 		node_name,
-		StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			radius * 0.88, radius, height,
-			StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 12),
-			_chamfered_cylinder_cache, 1
-		),
+		_chamfered_cylinder_mesh(radius, height),
 		transforms,
 		material
 	)
@@ -1296,21 +1294,49 @@ func _transformed_mesh_bounds(
 ## along each axis is preserved exactly, so `get_aabb()` still returns the
 ## requested size and no footprint, collider or published envelope moves.
 func _rounded_box_mesh(size: Vector3) -> ArrayMesh:
-	return StationSurfaceKit.rounded_box_mesh_with_bevel_cached(
-		size,
-		StationSurfaceKit.proportional_bevel_for_size(size, 0.2),
-		_rounded_box_cache,
-		StationSurfaceKit.BevelUV.FACE_GRID
-	)
+	var key := "%0.4f:%0.4f:%0.4f" % [size.x, size.y, size.z]
+	if not _rounded_box_cache.has(key):
+		var bevel := StationSurfaceKit.proportional_bevel_for_size(size, 0.2)
+		var uv_mode := StationSurfaceKit.BevelUV.FACE_GRID
+		var recipe := "box:" + var_to_bytes([size, bevel, uv_mode]).hex_encode()
+		_rounded_box_cache[key] = _resolve_recipe(recipe, func():
+			return StationSurfaceKit.rounded_box_mesh_with_bevel(size, bevel, uv_mode)
+		)
+	return _rounded_box_cache[key] as ArrayMesh
+
+
+func _chamfered_cylinder_mesh(radius: float, height: float) -> ArrayMesh:
+	var top_radius := radius * 0.88
+	var segments := StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 12)
+	var chamfer := StationSurfaceKit.rim_chamfer_for_cylinder(top_radius, radius, height)
+	# Keep the kit's existing per-build key, but cross-build lookup must retain
+	# exact recipe parameters rather than widening that local quantization.
+	var key := "cyl:%0.4f:%0.4f:%0.4f:%d:1:1:1:%0.4f:0" % [
+		top_radius, radius, height, segments, chamfer,
+	]
+	if not _chamfered_cylinder_cache.has(key):
+		var recipe := "cylinder:" + var_to_bytes([
+			top_radius, radius, height, segments, 1, true, true, chamfer,
+		]).hex_encode()
+		_chamfered_cylinder_cache[key] = _resolve_recipe(recipe, func():
+			return StationSurfaceKit.chamfered_cylinder_mesh_cached(
+				top_radius, radius, height, segments, {}, 1
+			)
+		)
+	return _chamfered_cylinder_cache[key] as ArrayMesh
+
+
+func _resolve_recipe(key: String, factory: Callable) -> ArrayMesh:
+	if _resolve_visual_mesh_recipe.is_valid():
+		return _resolve_visual_mesh_recipe.call(key, factory) as ArrayMesh
+	return factory.call() as ArrayMesh
 
 
 func _safety_beacon_base_mesh() -> ArrayMesh:
+	if _resolve_visual_mesh_recipe.is_valid():
+		return _chamfered_cylinder_mesh(0.24, 0.18)
 	if _shared_safety_beacon_base_mesh == null:
-		_shared_safety_beacon_base_mesh = StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			0.24 * 0.88, 0.24, 0.18,
-			StationSurfaceKit.radial_segments_for(0.24, TorusGeometryBudget.NEAR_EYE_METRES, 12),
-			_chamfered_cylinder_cache, 1
-		)
+		_shared_safety_beacon_base_mesh = _chamfered_cylinder_mesh(0.24, 0.18)
 	return _shared_safety_beacon_base_mesh
 
 
@@ -1334,11 +1360,7 @@ func _cylinder(
 	mesh_instance.mesh = (
 		mesh_override
 		if mesh_override != null
-		else StationSurfaceKit.chamfered_cylinder_mesh_cached(
-			radius * 0.88, radius, height,
-			StationSurfaceKit.radial_segments_for(radius, TorusGeometryBudget.NEAR_EYE_METRES, 12),
-			_chamfered_cylinder_cache, 1
-		)
+		else _chamfered_cylinder_mesh(radius, height)
 	)
 	mesh_instance.material_override = material
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON

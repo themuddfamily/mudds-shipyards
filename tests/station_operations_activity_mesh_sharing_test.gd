@@ -12,6 +12,8 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--benchmark" in OS.get_cmdline_user_args():
+		_benchmark_production_roster()
 	var first := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
 	var peer := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
 	root.add_child(first)
@@ -65,11 +67,114 @@ func _run() -> void:
 		"METRIC: two FULL activities retain %d unique meshes for %d visual references (corresponding resources shared)"
 		% [retained_resource_ids.size(), first_meshes.size() + peer_meshes.size()]
 	)
+	_test_exact_recipe_identity(first)
+	_test_recipe_reuse_and_drift(first)
 	if _failures.is_empty():
 		print("STATION_OPERATIONS_ACTIVITY_MESH_SHARING_TEST_OK")
 		quit(0)
 	else:
 		quit(1)
+
+
+func _test_exact_recipe_identity(owner: StationOperationsActivity) -> void:
+	var first := owner.PresentationBuilder.new()
+	var peer := owner.PresentationBuilder.new()
+	first._resolve_visual_mesh_recipe = owner._resolve_visual_mesh_recipe
+	peer._resolve_visual_mesh_recipe = owner._resolve_visual_mesh_recipe
+	# Each pair collides under the old per-builder rounded key. Those local
+	# semantics must never become an alias between distinct builds.
+	var pairs := [
+		[first._rounded_box_mesh(Vector3(0.844441, 0.7, 0.6)),
+			peer._rounded_box_mesh(Vector3(0.844442, 0.7, 0.6))],
+		[first._chamfered_cylinder_mesh(0.344441, 0.7),
+			peer._chamfered_cylinder_mesh(0.344442, 0.7)],
+		[first._crate_mesh(Vector3(0.944441, 0.7, 0.6), false),
+			peer._crate_mesh(Vector3(0.944442, 0.7, 0.6), false)],
+	]
+	var exact_recipes_remain_distinct := true
+	for pair: Array in pairs:
+		var left := pair[0] as ArrayMesh
+		var right := pair[1] as ArrayMesh
+		exact_recipes_remain_distinct = exact_recipes_remain_distinct and (
+			left != right
+			and var_to_bytes(left.surface_get_arrays(0)) != var_to_bytes(right.surface_get_arrays(0))
+		)
+	_check(exact_recipes_remain_distinct,
+		"cross-build box, cylinder and crate recipe keys retain exact parameters despite local rounded-key collisions")
+
+
+func _test_recipe_reuse_and_drift(owner: StationOperationsActivity) -> void:
+	var cargo := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
+	cargo.activity_profile = StationOperationsActivity.ActivityProfile.CARGO_LINE
+	root.add_child(cargo)
+	var emissions := {"count": 0}
+	for profile: StringName in [&"full", &"cargo_line"]:
+		var presentation := Node3D.new()
+		var builder := owner.PresentationBuilder.new()
+		builder.build(presentation, profile, owner.DRONE_COUNT, owner.BEACON_SEAT_HEIGHT,
+			owner._materials, func(recipe: String, factory: Callable) -> ArrayMesh:
+				return owner._resolve_visual_mesh_recipe(recipe, func() -> ArrayMesh:
+					emissions.count += 1
+					return factory.call() as ArrayMesh
+				)
+		)
+		presentation.free()
+	_check(emissions.count == 0,
+		"warm FULL and CARGO_LINE builders reuse canonical recipes before any box, cylinder or crate geometry emission")
+
+	var dirty_meshes: Array[ArrayMesh] = [
+		owner._presentation_builder._rounded_box_cache.values()[0],
+		owner._presentation_builder._chamfered_cylinder_cache.values()[0],
+		cargo._presentation_builder._crate_mesh_cache.values()[0],
+		owner._presentation_builder._safety_beacon_base_mesh(),
+	]
+	for mesh_index in dirty_meshes.size():
+		var dirty := dirty_meshes[mesh_index]
+		var expected_arrays: Array = []
+		for surface in dirty.get_surface_count():
+			expected_arrays.append(dirty.surface_get_arrays(surface))
+		var original_key := owner._visual_mesh_cache_key(dirty)
+		# Modify the same live resource already retained by earlier activities.
+		dirty.clear_surfaces()
+		var rebuilt := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
+		rebuilt.activity_profile = (StationOperationsActivity.ActivityProfile.CARGO_LINE
+			if mesh_index == 2 else StationOperationsActivity.ActivityProfile.FULL)
+		root.add_child(rebuilt)
+		var restored := false
+		for fresh: Mesh in _visual_meshes_by_path(rebuilt).values():
+			if owner._visual_mesh_cache_key(fresh) == original_key:
+				var actual_arrays: Array = []
+				for surface in fresh.get_surface_count():
+					actual_arrays.append(fresh.surface_get_arrays(surface))
+				restored = fresh != dirty and var_to_bytes(actual_arrays) == var_to_bytes(expected_arrays)
+				break
+		_check(restored and bool(rebuilt.get_audit_report().valid),
+			"recipe family %d quarantines external geometry drift and rebuilds exact original arrays" % mesh_index)
+		rebuilt.free()
+	_check(not bool(owner.get_audit_report().valid) and not bool(cargo.get_audit_report().valid),
+		"existing users still report their externally mutated shared resources")
+	cargo.free()
+
+
+func _benchmark_production_roster() -> void:
+	# Same ten profiles and order as ShipyardWorld's production placements.
+	var profiles := [0, 2, 3, 1, 4, 8, 8, 7, 6, 5]
+	var elapsed: Array[int] = []
+	var all_profiles_valid := true
+	for iteration in 8:
+		var activities: Array[StationOperationsActivity] = []
+		var started := Time.get_ticks_usec()
+		for profile: int in profiles:
+			var activity := ACTIVITY_SCENE.instantiate() as StationOperationsActivity
+			activity.activity_profile = profile
+			root.add_child(activity)
+			activities.append(activity)
+		elapsed.append(Time.get_ticks_usec() - started)
+		for activity in activities:
+			all_profiles_valid = all_profiles_valid and bool(activity.get_audit_report().valid)
+			activity.free()
+	_check(all_profiles_valid, "all benchmarked activities preserve their exact profile contracts")
+	print("WHOLE_ACTIVITY_ROSTER_USEC ", elapsed)
 
 
 func _visual_meshes_by_path(activity: StationOperationsActivity) -> Dictionary:
