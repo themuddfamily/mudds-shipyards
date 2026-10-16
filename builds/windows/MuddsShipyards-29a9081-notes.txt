@@ -1,0 +1,25 @@
+Mudd's Shipyards — sun validation checkpoint 29a9081
+Source commit: 29a90813c9c4a42895b235dc8fb1d0ab1e29fb50
+Engine: verified official Godot 4.7.1 a13da4feb editor/release templates.
+
+Changes:
+- Sun lighting checks the atmosphere sampler's current validity and profile identity directly, using the exact validation shared with diagnostics. It avoids constructing diagnostic snapshots on every observation.
+- Includes the fullscreen settings preservation and earlier detached cabin shutdown fix.
+
+Validation:
+- Independent review approves fresh validation, field/identity drift detection and recovery, detached diagnostic reports, and unchanged update cadence. Source sampler/policy/sun/rig/composition checks pass 177 assertions with zero diagnostics; the actual Windows payload through the Linux editor passes the same 177.
+- Matched 120-tick two-Main Aurora diagnostic: sun guard CPU 46.813 -> 21.565 ms and sun adapter 208.650 -> 192.940 ms. Diagnostic audit calls 240 -> 0 and snapshots 482 -> 2; 240 fresh policy checks, 1,921 samples, 1,200 live rig checks, 480 binding checks and 241 audio updates remain. Raw aborted/failed diagnostic attempts are retained separately from these fresh-profile comparisons.
+- Whole walking window 5.065369 -> 5.318998s and coordinator CPU 1.193196 -> 1.231314s do NOT demonstrate global performance improvement. Only the local guard/allocation reduction is established; no frame-rate, target-GPU or full-route claim follows.
+- Safe clean-source Windows/Linux exports; both compiled inventories pass 1,515 entries and Windows x86_64 code section matches the verified template. Extracted Linux archive bytes and executable mode verified; Windows ZIP CRC and member bytes verified.
+- Actual Windows payload also passes all 93 original station capsule/geometry checks through the Linux editor (35.543s, zero diagnostics, private Xvfb/dummy rendering). These bounded staged walk checks do not qualify complete normal-controls station travel or pixel captures.
+- Later release-test commit 69fbb3810 separates the three opt-in station image captures from default input-only checks: unchanged 900s cap and all 93 assertions pass in 43.041s with stable source/import cache. Existing 13 catalog/runner tests, capture dispatch and explicit unsupported-renderer rejection pass; actual pixel captures remain NOT_RUN. The exact capture bodies retain their original camera/frame/image checks.
+- Windows embedded payload and extracted native Linux archive each pass silent --startup-check: exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics.
+
+Open acceptance:
+- Rime original-cap source boundary-controls journey remains failed (exit 1): the long leg takes 18.205s/408 physics ticks with both actors within 0.35m, grounded and unblocked, but only 4/8 required settle frames. Original 18s walking/settling and 300s suite limits were preserved; no retry. Raw terminal output is retained.
+- Full default Ember acceptance remains open; the prior original 300s attempt timed out after one scenario finished at 261.064s. It was not repeated for this narrow guard change.
+- Frozen 636814418 full matrix remains live: 1001 completed, 984 PASS/17 FAIL at this snapshot. Original failures/timeouts remain retained; later fixes do not qualify that frozen source. Complete source-current regression, canonical shared trips, broader recovery and capture acceptance remain open.
+- Native Windows execution remains NOT_RUN under the antivirus hold. Native GPU/performance, physical controller, audible and human review remain NOT_RUN. Private Xvfb/dummy-renderer checks do not qualify target hardware.
+- GitHub Actions remains disabled under the owner's CI budget hold. All ten phase exit gates remain open.
+
+EXE SHA-256: 417f68df186fbb660185f98310290d4dc0690fdb283972087b9fd9d687c2f7cc
