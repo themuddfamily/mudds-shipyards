@@ -1,3 +1,4 @@
+## test-matrix-network: required
 extends "res://tests/game_flow_ember_surface_presentation_integration_test.gd"
 ## Separate Rime boundary controls contract; reuses the actual two-Main fixture.
 ## Staged arrival is not canonical travel, shared ice-core survey or return.
