@@ -437,6 +437,12 @@ func _on_authored_hazard_presentation_changed(_snapshot: Dictionary) -> void:
 	_signal_dispatch_active = false
 
 
+## Presence only: presentation still authenticates the current surface snapshot
+## when attaching. An approaching visit has no surface composition to observe.
+func has_planetary_surface_composition() -> bool:
+	return is_instance_valid(_planetary_composition)
+
+
 func get_planetary_surface_snapshot() -> Dictionary:
 	return _planetary_composition.call(&"get_snapshot") as Dictionary \
 		if _planetary_composition != null else {}

@@ -24089,6 +24089,13 @@ func _ensure_ember_surface_presentations() -> Dictionary:
 			or not ember_surface_loop_production_binding.is_configured():
 		return {"accepted": false, "reason": &"ember_production_not_bound"}
 
+	# Shared arrival composes the surface only after physical landing. Until
+	# then the return presenter cannot authenticate it; avoid repeatedly binding
+	# and rolling back audio/HUD observers for a source that does not exist yet.
+	# This is a fresh presence read, not a replacement for attach authentication.
+	if not ember_surface_loop_production_binding.has_planetary_surface_composition():
+		return {"accepted": false, "reason": &"planetary_surface_not_bound"}
+
 	# The authored trailhead offer points are composed with the surface, but
 	# only this owner may answer their presses. Installing the seam here keeps
 	# it on the same idempotent pass that owns every other Ember presentation.

@@ -42,6 +42,17 @@ class FlowProbe:
 
 class CountingAudioComposition:
 	extends AudioCompositionType
+	var attach_attempts := 0
+	func attach(audio_director: Node, owner: Node, perspective: StringName = &"exterior") -> Dictionary:
+		attach_attempts += 1
+		return super.attach(audio_director, owner, perspective)
+	var snapshot_reads := 0
+	func get_snapshot() -> Dictionary:
+		snapshot_reads += 1
+		return super.get_snapshot()
+
+class CountingProduction:
+	extends ProductionType
 	var snapshot_reads := 0
 	func get_snapshot() -> Dictionary:
 		snapshot_reads += 1
@@ -119,11 +130,21 @@ func _run() -> void:
 		else:
 			_finish()
 		return
+	await _test_local_presentations()
+	RenderingServer.set_render_loop_enabled(false)
+	for scenario in ["retired", "local_loss", "session", "newer", "replacement"]:
+		await _test_client_survey_retirement(scenario)
+		if _hud_setup_failed:
+			break
+	_finish()
+
+
+func _test_local_presentations() -> void:
 	var flow := FlowProbe.new()
 	var director := AudioDirectorType.new()
 	var hud := HudType.new()
 	var host := HostType.new()
-	var production := ProductionType.new()
+	var production := CountingProduction.new()
 	var planetary := PlanetaryCompositionProbe.new()
 	var ship_identity := Node.new()
 	var player_identity := Node.new()
@@ -186,6 +207,23 @@ func _run() -> void:
 	})
 	var detail := hud.get("_runtime_status_detail") as Label
 	var ordinary_detail := detail.text
+	# During a real shared approach there is no surface composition yet. These
+	# polls must not create observers that authentication immediately rolls back.
+	production.set("_planetary_composition", null)
+	var production_reads_before := production.snapshot_reads
+	var audio_attempts_before := audio_composition.attach_attempts
+	for _poll in 3:
+		var waiting := flow.call("_ensure_ember_surface_presentations") as Dictionary
+		_check(not bool(waiting.get("accepted", true))
+			and waiting.get("reason") == &"planetary_surface_not_bound",
+			"approaching visit waits for its actual surface composition")
+	_check(production.snapshot_reads == production_reads_before
+		and audio_composition.attach_attempts == audio_attempts_before
+		and director.get_semantic_audio_binding_count() == 0,
+		"pre-surface polling creates no full reports or transient audio bindings")
+	_check(not status_binding.is_attached() and not hud_adapter.is_attached(),
+		"return observers remain detached while physical arrival is pending")
+	production.set("_planetary_composition", planetary)
 	var attached := flow.call("_ensure_ember_surface_presentations") as Dictionary
 	_check(
 		bool(attached.get("accepted", false))
@@ -251,13 +289,6 @@ func _run() -> void:
 
 	flow.queue_free()
 	await process_frame
-	RenderingServer.set_render_loop_enabled(false)
-	for scenario in ["retired", "local_loss", "session", "newer", "replacement"]:
-		await _test_client_survey_retirement(scenario)
-		if _hud_setup_failed:
-			break
-	_finish()
-
 
 ## Staged real Main peers and authenticated boarding/retirement. This checks the
 ## client's real HUD producer, not canonical travel or a restored survey save.
