@@ -89,20 +89,20 @@ func _run() -> void:
 
 	var render := habitat.get_render_allocation_report()
 	var audit := habitat.get_audit_report()
-	# Module census includes the 368-renderer complete arc colour and
-	# five-renderer ceiling-lens batching reductions;
-	# submissions now total 870 while all independent shadow arches remain.
+	# The later chair consolidation in 7f7b35625 removes 56 module renderers
+	# and nodes, 56 drawn copies and 24 submissions. The existing arc and
+	# ceiling-lens batches and all independent shadow arches remain.
 	# The trestle family's own 2->1 renderer reduction is unchanged.
 	_check(
 		bool(render.exact_counts)
-			and int(render.descendant_nodes) == 1510
-			and int(render.mesh_instances) == 836
+			and int(render.descendant_nodes) == 1454
+			and int(render.mesh_instances) == 780
 			and int(render.multimesh_batches) == 43
 			and int(render.multimesh_resources) == 42
-			and int(render.drawn_copies) == 1062
-			and int(render.geometry_submissions) == 870
+			and int(render.drawn_copies) == 1006
+			and int(render.geometry_submissions) == 846
 			and bool(audit.valid),
-		"Habitat stays allocation-green at 2->1 foot renderers and 870 module submissions"
+		"Habitat stays allocation-green at 2->1 foot renderers and 846 module submissions"
 	)
 	if batch != null and batch.multimesh != null:
 		var original_buffer := batch.multimesh.buffer

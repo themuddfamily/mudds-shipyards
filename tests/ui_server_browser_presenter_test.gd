@@ -219,6 +219,7 @@ func _run() -> void:
 		"legacy server-tick and local receipt sequences remain independently monotonic public cursor shapes")
 	_check_filter_sort_lifecycle(entries)
 	_check_failure_action_guidance()
+	_check_filtered_empty_recovery()
 	var audit := presenter.audit()
 	_check(bool(audit.presentation_only) and bool(audit.filters_stale_rows) and not bool(audit.browser_owns_join_authority) and bool(audit.exact_source_cursor_fencing), "audit records presentation and exact cursor boundaries")
 	if _failures.is_empty():
@@ -292,3 +293,24 @@ func _check_failure_action_guidance() -> void:
 			and retryable.actions.size() == 2 and retryable.actions[0].id == &"retry"
 			and retryable.error_message.contains("NEXT ACTION // RETRY SERVER LIST OR CANCEL"),
 			"%s retains explicit retry guidance when the owner permits another request" % reason)
+
+
+func _check_filtered_empty_recovery() -> void:
+	var presenter := Presenter.new()
+	var directory := {"accepted": true, "rows": [{"session_id": &"other_build", "title": "Other Build", "compatible": false, "player_count": 1, "max_players": 4}]}
+	presenter.present_result(directory)
+	var filtered := presenter.set_accessibility_filters({"compatible_only": true})
+	_check(filtered.status == &"empty" and filtered.next_action == "CLEAR FILTERS OR REFRESH SERVER LIST"
+		and filtered.error_message.contains("NEXT ACTION // CLEAR FILTERS OR REFRESH SERVER LIST"),
+		"filtering every row names the existing clear-filters recovery action")
+	var refreshed := presenter.present_result(directory)
+	_check(refreshed.status == &"empty" and refreshed.next_action == filtered.next_action,
+		"fresh results hidden by retained filters keep clear-filters guidance")
+	var cleared := presenter.clear_accessibility_filters()
+	_check(cleared.status == &"ready" and cleared.row_count == 1
+		and cleared.rows[0].session_id == &"other_build" and not cleared.join_authority,
+		"clearing filters restores the retained row without granting join authority")
+	var empty := presenter.present_result({"accepted": true, "rows": []})
+	_check(empty.status == &"empty" and empty.next_action == "REFRESH SERVER LIST"
+		and not empty.error_message.contains("CLEAR FILTERS"),
+		"an unfiltered empty directory retains refresh guidance")

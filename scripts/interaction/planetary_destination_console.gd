@@ -144,9 +144,9 @@ func _ember_status_copy(status_id: StringName) -> String:
 		&"accelerating", &"cruising":
 			return "EN ROUTE"
 		&"braking_to_speed":
-			return "FINAL APPROACH"
+			return "BRAKING TO SPEED"
 		&"braking":
-			return "HOLDING"
+			return "BRAKING"
 		_:
 			return "ROUTE LOCKED"
 

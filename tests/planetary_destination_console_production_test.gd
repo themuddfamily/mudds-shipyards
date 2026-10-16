@@ -71,6 +71,34 @@ func _run() -> void:
 		"invalid route counts fail closed without repainting the retained display",
 	)
 
+	# These are real cruise states, not arrival/holding: overspeed reduction
+	# retains cruise participation, while ordinary braking can still be moving.
+	var route_label := console.find_child(
+		"PlanetaryDestinationEmberStatus", true, false
+	) as MeshInstance3D
+	for braking: Array in [
+		[&"braking_to_speed", "EMBER // BRAKING TO SPEED"],
+		[&"braking", "EMBER // BRAKING"],
+	]:
+		var accepted := bool(console.call(&"present_catalog_status",
+			int(retained_report.destination_count),
+			int(retained_report.routed_destination_count), braking[0]))
+		var braking_report := console.call(&"get_presentation_snapshot") as Dictionary
+		_check(
+			accepted and is_instance_valid(route_label) and route_label.mesh is TextMesh
+			and (route_label.mesh as TextMesh).text == braking[1]
+			and braking_report.get("route_text") == braking[1]
+			and braking_report.get("ember_status_id") == braking[0]
+			and braking_report.get("status_text") == retained_report.status_text
+			and braking_report.get("authority") == authority,
+			"the physical terminal reports %s without claiming arrival or holding, changing the catalog, or acquiring authority" % braking[0],
+		)
+	_check(bool(console.call(&"present_catalog_status",
+		int(retained_report.destination_count), int(retained_report.routed_destination_count),
+		retained_report.ember_status_id))
+		and console.call(&"get_presentation_snapshot") == retained_report,
+		"the next live catalog status replaces braking feedback on the same terminal")
+
 	var approach := console.global_position + Vector3(0.0, 0.0, -1.05)
 	player.teleport_to(Transform3D(Basis(Vector3.UP, PI), approach))
 	await physics_frame
