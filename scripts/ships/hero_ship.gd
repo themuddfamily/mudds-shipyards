@@ -387,6 +387,12 @@ var _chase_camera_rotation_lag_degrees := 0.0
 ## Instance-owned, so the meshes are freed with the craft and never outlive it.
 var _chamfered_cylinder_cache: Dictionary = {}
 
+## Repeated authored seats across the fleet reuse only their generated surface
+## data. Each fitting still owns a fresh mesh and the caller's exact material.
+## Packed arrays are copy-on-write; no mesh or material is retained here.
+const _COCKPIT_CUSHION_CACHE_CAPACITY := 32
+static var _cockpit_cushion_surface_cache: Dictionary = {}
+
 var _visual_root: Node3D
 var _cockpit_root: Node3D
 var _canopy_pivot: Node3D
@@ -7841,6 +7847,15 @@ func _cockpit_control_mesh(sections: Array[Vector4], material: Material, boot: b
 ## Interpolating within authored stations retains the occupied envelope; short
 ## elliptical end rolls tuck the upholstery into its existing supporting shell.
 func _cockpit_cushion_mesh(sections: Array[Vector4], material: Material, shell: bool) -> ArrayMesh:
+	# Serialize the exact stations and shell flag: nearby authored dimensions
+	# must never alias through a rounded or approximate geometry key.
+	var key := var_to_bytes([sections, shell]).hex_encode()
+	if _cockpit_cushion_surface_cache.has(key):
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,
+			_cockpit_cushion_surface_cache[key].duplicate(true))
+		mesh.surface_set_material(0, material)
+		return mesh
 	const ARC_STEPS := 32
 	const SPAN_STEPS := 4
 	var samples: Array[Vector4] = []
@@ -7898,7 +7913,16 @@ func _cockpit_cushion_mesh(sections: Array[Vector4], material: Material, shell: 
 	tool.index()
 	tool.generate_normals()
 	tool.generate_tangents()
-	return tool.commit()
+	# Retain the pre-upload arrays. Reading back an uploaded mesh and uploading
+	# those decoded normals/tangents again could compound their quantization.
+	var arrays := tool.commit_to_arrays()
+	if _cockpit_cushion_surface_cache.size() >= _COCKPIT_CUSHION_CACHE_CAPACITY:
+		_cockpit_cushion_surface_cache.erase(_cockpit_cushion_surface_cache.keys()[0])
+	_cockpit_cushion_surface_cache[key] = arrays
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays.duplicate(true))
+	mesh.surface_set_material(0, material)
+	return mesh
 
 
 ## Refit the inherited renderer owners, retaining the live readout subtree and

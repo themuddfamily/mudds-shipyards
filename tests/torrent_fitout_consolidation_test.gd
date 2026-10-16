@@ -37,6 +37,7 @@ func _run() -> void:
 	_test_glob_lookup_answers_batched_and_live_pieces()
 	await _test_torrent_consolidates_its_own_fitout()
 	await _test_fleet_cockpit_restraints_fold()
+	_test_cockpit_cushion_surface_reuse()
 
 	if _failures.is_empty():
 		print("TORRENT_FITOUT_CONSOLIDATION_TEST_OK: %d assertions" % _assertions)
@@ -172,3 +173,76 @@ func _test_fleet_cockpit_restraints_fold() -> void:
 	)
 	arrow.queue_free()
 	await process_frame
+
+
+## Reuse avoids rebuilding the shared seat geometry without giving two fittings
+## the same mutable Mesh or remembering any caller's material.
+func _test_cockpit_cushion_surface_reuse() -> void:
+	var craft := HeroShip.new()
+	var recipes := HeroShip._cockpit_cushion_surface_cache.keys()
+	_check(not recipes.is_empty(), "live cockpit builds populate the cushion recipes")
+	HeroShip._cockpit_cushion_surface_cache.clear()
+	var first_material := StandardMaterial3D.new()
+	var second_material := StandardMaterial3D.new()
+	for key: String in recipes:
+		var recipe: Array = bytes_to_var(key.hex_decode())
+		var sections: Array[Vector4] = recipe[0]
+		var shell: bool = recipe[1]
+		var first := craft._cockpit_cushion_mesh(sections, first_material, shell)
+		var second := craft._cockpit_cushion_mesh(sections, second_material, shell)
+		var expected := var_to_bytes(first.surface_get_arrays(0))
+		_check(var_to_bytes(second.surface_get_arrays(0)) == expected,
+			"first generation and reuse preserve every uploaded surface array")
+		_check(first.get_surface_count() == 1 and second.get_surface_count() == 1
+			and second.surface_get_format(0) == first.surface_get_format(0)
+			and second.surface_get_primitive_type(0) == first.surface_get_primitive_type(0)
+			and second.get_aabb() == first.get_aabb(),
+			"reuse preserves the single triangle surface, format and bounds")
+		_check(first != second and first.surface_get_material(0) == first_material
+			and second.surface_get_material(0) == second_material,
+			"every fitting owns an independent mesh with its exact requested material")
+		# Mutate both a packed array obtained from one returned mesh and that
+		# mesh's surface/material. Later requests must retain the original data.
+		var changed := first.surface_get_arrays(0)
+		var vertices: PackedVector3Array = changed[Mesh.ARRAY_VERTEX]
+		vertices[0] += Vector3(3.0, 2.0, 1.0)
+		changed[Mesh.ARRAY_VERTEX] = vertices
+		first.clear_surfaces()
+		first.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, changed)
+		first.surface_set_material(0, second_material)
+		var third := craft._cockpit_cushion_mesh(sections, first_material, shell)
+		_check(var_to_bytes(second.surface_get_arrays(0)) == expected
+			and var_to_bytes(third.surface_get_arrays(0)) == expected
+			and third != first and third != second
+			and third.surface_get_material(0) == first_material,
+			"returned packed arrays, surface edits and material edits cannot poison reuse")
+		# Duplicate containers retain packed-array COW behavior: mutation of
+		# the upload copy must detach from the private cached source as well.
+		var cached: Array = HeroShip._cockpit_cushion_surface_cache[key]
+		var cached_bytes := var_to_bytes(cached)
+		var upload: Array = cached.duplicate(true)
+		var upload_vertices: PackedVector3Array = upload[Mesh.ARRAY_VERTEX]
+		upload_vertices[0] += Vector3.ONE
+		upload[Mesh.ARRAY_VERTEX] = upload_vertices
+		upload[Mesh.ARRAY_INDEX] = PackedInt32Array()
+		_check(var_to_bytes(cached) == cached_bytes,
+			"packed-array copy-on-write and duplicated containers isolate the cached source")
+	# Close authored station values stay distinct, and an unusual stream of
+	# recipes cannot leave an unbounded process-lifetime geometry collection.
+	var shape: Array[Vector4] = [Vector4(0.6, -0.1, 0.1, -0.4), Vector4(0.7, -0.1, 0.1, 0.4)]
+	var close_shape := shape.duplicate()
+	close_shape[0].x += 0.00000006
+	var shape_mesh := craft._cockpit_cushion_mesh(shape, first_material, false)
+	var close_mesh := craft._cockpit_cushion_mesh(close_shape, first_material, false)
+	_check(var_to_bytes(shape_mesh.surface_get_arrays(0)) != var_to_bytes(close_mesh.surface_get_arrays(0)),
+		"adjacent float station dimensions do not alias in the recipe key")
+	for index in HeroShip._COCKPIT_CUSHION_CACHE_CAPACITY + 1:
+		var unique_shape := shape.duplicate()
+		unique_shape[0].x += float(index) * 0.001
+		craft._cockpit_cushion_mesh(unique_shape, first_material, false)
+	_check(HeroShip._cockpit_cushion_surface_cache.size() == HeroShip._COCKPIT_CUSHION_CACHE_CAPACITY,
+		"raw cushion surface reuse has a fixed recipe capacity")
+	var after_eviction := craft._cockpit_cushion_mesh(shape, first_material, false)
+	_check(var_to_bytes(after_eviction.surface_get_arrays(0)) == var_to_bytes(shape_mesh.surface_get_arrays(0)),
+		"evicted recipes rebuild the same geometry")
+	craft.free()
