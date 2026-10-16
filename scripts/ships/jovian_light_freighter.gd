@@ -6335,6 +6335,7 @@ func _formed_pressure_member(node_name: String, rings: Array[PackedVector3Array]
 ## pressure skin. Geometry is collected by finish, not one draw per fitting.
 func _build_pressure_shell_panels() -> void:
 	var roof := {}
+	var strap_stations := [0.10, 2.82, 5.54]
 	for side in [-1.0, 1.0]:
 		var inner := 1.82
 		var outer := 5.31
@@ -6357,7 +6358,13 @@ func _build_pressure_shell_panels() -> void:
 		for access_span: Vector2 in [Vector2(-1.97, 0.08), Vector2(5.68, 7.99)]:
 			var front := access_span.x
 			var rear := access_span.y
-			_roof_service_patch(roof, "dark", side, 3.51, 5.03, front, rear, 0.125, false, 0.10)
+			# A gasket crossing a reinforcement strap rolls above that strap,
+			# rather than sinking through it toward the lower continuous cover.
+			var gasket_support_lift := 0.10
+			for strap_z in strap_stations:
+				if strap_z < rear and strap_z + 0.20 > front:
+					gasket_support_lift = 0.12
+			_roof_service_patch(roof, "dark", side, 3.51, 5.03, front, rear, 0.125, false, gasket_support_lift)
 			_roof_service_patch(roof, "hull_warm", side, 3.555, 4.985, front + 0.045, rear - 0.045, 0.137, false, 0.125)
 			# Folded stiffening channel is part of the lid, with a seated root.
 			_roof_service_patch(roof, "hull_cool", side, 4.48, 4.60, front + 0.15, rear - 0.15, 0.164, false, 0.137)
@@ -6368,7 +6375,7 @@ func _build_pressure_shell_panels() -> void:
 			_roof_service_patch(roof, "structure", side, 3.745, 3.845, latch_z - 0.11, latch_z + 0.105, 0.16, false, 0.142)
 		# The cover straps land at the existing transverse rib stations while
 		# the inboard thermal field continues uninterrupted past them.
-		for strap_z in [0.10, 2.82, 5.54]:
+		for strap_z in strap_stations:
 			_roof_service_patch(roof, "hull_cool", side, 3.43, outer - 0.025,
 				strap_z, strap_z + 0.20, 0.12, false, 0.10)
 

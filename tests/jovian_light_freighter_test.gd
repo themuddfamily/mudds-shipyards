@@ -113,6 +113,7 @@ func _test_roof_service_layer_clearances(jovian: JovianLightFreighter) -> void:
 	var samples := [
 		[roof, "dark", "structure", Vector2(2.8483, -2.079)],
 		[roof, "dark", "hull_cool", Vector2(4.7037, 0.079)],
+		[roof, "dark", "hull_cool", Vector2(4.0, 5.69)],
 		[roof, "hull_warm", "dark", Vector2(4.27, 0.034)],
 		[roof, "hull_cool", "hull_warm", Vector2(4.54, -1.0)],
 		[roof, "dark", "hull_warm", Vector2(3.80, -1.10)],
