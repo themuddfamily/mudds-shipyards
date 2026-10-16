@@ -1339,9 +1339,8 @@ func apply_display_settings(window_id: int = DisplayServer.MAIN_WINDOW_ID) -> Di
 				window_id, requested_size, _display_apply_generation
 			)
 			tree.process_frame.connect(_pending_display_refit, CONNECT_ONE_SHOT)
-	else:
-		# Fullscreen dimensions and placement remain controlled by the backend.
-		DisplayServer.window_set_size(requested_size, window_id)
+	# Other modes retain backend-owned dimensions and placement. A direct
+	# resize in fullscreen can return the native window to windowed mode.
 	# Vulkan marks the surface for resize even when this setter repeats its
 	# current mode. Read the live window, since another owner can change it.
 	if DisplayServer.window_get_vsync_mode(window_id) != int(vsync.backend_mode):
