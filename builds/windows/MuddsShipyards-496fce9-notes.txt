@@ -13,12 +13,13 @@ Validation:
 - Actual Windows payload through the Linux editor passes the same 77 assertions: exit 0, one completion per suite, no diagnostics. Silent isolated --startup-check exits 0 with exactly one STARTUP_MENU_READY_OK and no diagnostics.
 - Both embedded inventories pass: 1,513 entries each, including compiled-token and payload integrity. PE code matches the pinned Windows release template. Linux archive bytes, executable mode and safe paths match.
 - Direct and archive-extracted Linux strict startup both pass exit 0 plus one menu-ready marker.
+- The actual Windows payload through the Linux editor passes the guided first-sortie tutorial: 14 assertions, exit 0, no diagnostics. This fixture accelerates flight/transition settings; it does not qualify default-controls or hardware acceptance.
 - Independent source gunner run passes 117 checks with zero diagnostics, owned peer exits 0 and unchanged 60/120/300-second budgets. Earlier source and packaged warning failures remain retained.
 - Isolated 600-piece merge median: 164.167 -> 57.884 ms. All six before/after surface-array hashes match exactly. One world consolidation probe: 1469 -> 984 ms. Whole-startup and native FPS gains are not established.
 
 Open acceptance:
-- The frozen 636814418 full 1,045-suite regression continues. Its gunner and shared planetary crew failures remain failures; the newer candidate has no complete matrix pass. Results: artifacts/test-matrix/20261016T171251Z.
-- Predecessor a9ac937 caption presenter capture passes at 1600x900 and is readable/unclipped at original resolution. Production caption capture times out at the unchanged 300-second cap without an image; source/cache unchanged and owned processes reaped. A separate frozen 496fce9 capture with retained private shader caches is pending. No broad graphical gate is closed.
+- The frozen 636814418 full 1,045-suite regression continues. Its gunner/shared planetary crew failures and Bulwark-registration/cargo-integration timeouts remain failures; the newer candidate has no complete matrix pass. Results: artifacts/test-matrix/20261016T171251Z.
+- Frozen 496fce9 and predecessor a9ac937 caption presenter captures pass at 1600x900 and are readable/unclipped at original resolution. Both production caption captures time out at the unchanged 300-second cap without an image, including the 496fce9 run seeded only with prior private shader caches. Source/cache stay unchanged and owned processes are reaped. No broad graphical gate is closed.
 - NOT_RUN: native Windows (antivirus hold), native GPU/performance, physical controller, audible/human review and final release acceptance. Hosted GitHub Actions remains disabled.
 This is a development checkpoint; broad roadmap acceptance remains open.
 
