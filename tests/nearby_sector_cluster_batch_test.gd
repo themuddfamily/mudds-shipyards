@@ -53,14 +53,16 @@ func _run() -> void:
 	# chamfers instead of 12-triangle boxes: +352 visible triangles only.
 	# The Cinder Reach art pass (fcd9389bc) adds the hulk's merged silhouette
 	# renderer: +1 mesh renderer and copy, +5 finish surfaces, +1,264 triangles.
+	# Six hulk trim ribs now use 44-triangle structural stock instead of
+	# 108-triangle rounded stock: -384 triangles, with other counts unchanged.
 	var census := _census(cluster)
 	_check(
 		int(census["mesh_nodes"]) == 232
 		and int(census["batch_nodes"]) == 25
 		and int(census["submissions"]) == 261
 		and int(census["visible_copies"]) == 926
-		and int(census["triangles"]) == 147382,
-		"the belt keeps 261 submissions and 147382 triangles within 232 Mesh + 25 MultiMesh renderers"
+		and int(census["triangles"]) == 146998,
+		"the belt keeps 261 submissions and 146998 triangles within 232 Mesh + 25 MultiMesh renderers"
 	)
 	cluster.queue_free()
 	await process_frame

@@ -83,8 +83,8 @@ func _initialize() -> void:
 	)
 	_check(
 		collision_shape_ids.size() == 4
-			and module.find_children("*", "CollisionShape3D", true, false).size() == 26
-			and module.get_component_roster().safety_rail_count == 20,
+			and module.find_children("*", "CollisionShape3D", true, false).size() == 34
+			and module.get_component_roster().safety_rail_count == 26,
 		"four independent collision resources and every physical safety rail remain intact"
 	)
 
@@ -106,17 +106,18 @@ func _initialize() -> void:
 	_check(
 		bool(performance.within_budget)
 			and bool(performance.resource_sharing_matches_authored)
-			and int(performance.mesh_instances) == 30
+			and int(performance.mesh_instances) == 31
 			and int(performance.multimesh_batches) == 6
-			and int(performance.geometry_submissions) == 36
-			and int(performance.visible_geometry_copies) == 206,
-		"the exact production census and all six established structural batches remain unchanged"
+			and int(performance.geometry_submissions) == 37
+			and int(performance.visible_geometry_copies) == 240,
+		"the breaker-overlook production census retains all six established structural batches"
 	)
+	# Shared unit-box copies: 152 rail details + 10 frame parts + 8 sorting parts.
 	_check(
 		bool(unit_box_batches.valid)
 			and int(unit_box_batches.batch_count) == 3
 			and int(unit_box_batches.geometry_submissions) == 3
-			and int(unit_box_batches.visible_geometry_copies) == 144
+			and int(unit_box_batches.visible_geometry_copies) == 170
 			and int(unit_box_batches.mesh_resource_allocations) == 1
 			and int(unit_box_batches.legacy_mesh_resource_allocations) == 3
 			and int(unit_box_batches.mesh_resource_allocation_delta) == -2
@@ -170,7 +171,7 @@ func _finish(module: SalvageTerrace) -> void:
 	_check(not is_instance_valid(module), "the optimized terrace still exits the lifecycle cleanly")
 	if _failures.is_empty():
 		print("SALVAGE_TERRACE_SLOPED_RAIL_SHARING: mesh_resources 4->2 renderer_nodes 4->4 geometry_submissions 4->4")
-		print("SALVAGE_TERRACE_UNIT_BOX_BATCH_SHARING: mesh_resources 3->1 batches 3->3 visible_copies 144->144")
+		print("SALVAGE_TERRACE_UNIT_BOX_BATCH_SHARING: mesh_resources 3->1 batches 3->3 visible_copies 170->170")
 		print("PASS salvage_terrace_sloped_rail_resource_sharing_test (%d assertions)" % _assertions)
 		quit(0)
 	else:

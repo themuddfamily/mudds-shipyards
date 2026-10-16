@@ -201,7 +201,9 @@ func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -
 		# rear UPPER OPERATIONS header): 724 -> 727 built. e7a80561e moved
 		# the two Ship Services TextMeshes to exact glyph-atlas display slots:
 		# 725 explicit meshes + two labels, with the combined 843-slot ceiling.
-		and int(aft_performance.mesh_instances) == 725
+		# 77ff2dc8f batched twenty rack knobs and e0e654107 batched two roof
+		# collars: 725 - 20 - 2 = 703 ordinary meshes; budgets stay unchanged.
+		and int(aft_performance.mesh_instances) == 703
 		and int(aft_performance.labels) == 2
 		and int(aft_performance.budgets.mesh_instances) == 837
 		and int(aft_performance.budgets.labels) == 6
@@ -211,7 +213,7 @@ func _test_exact_scene_contracts(aft: AftJunctionStack, habitat: HabitatSpine) -
 		and int(aft_render.descendant_nodes) == AftJunctionStack.RENDER_DESCENDANT_NODE_COUNT
 		and int(aft_render.renderer_nodes) == AftJunctionStack.RENDERER_NODE_COUNT
 		and bool(aft_performance.within_budget),
-		"Aft keeps 50 lights and its current batched renderer budgets including the embodied console displays"
+		"Aft keeps 50 lights and its current batched renderer budgets including the embodied console displays (actual mesh instances: %d)" % int(aft_performance.mesh_instances)
 	)
 	_check(
 		int(habitat_performance.lights) == 35

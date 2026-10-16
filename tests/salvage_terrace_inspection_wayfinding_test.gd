@@ -39,12 +39,12 @@ func _test_wayfinding_batch(module: SalvageTerrace) -> void:
 	var batch := module.get_node_or_null(^"GeneratedRoot/ServiceBeaconBatch") as MultiMeshInstance3D
 	var mesh := batch.multimesh.mesh as BoxMesh if batch != null and batch.multimesh != null else null
 	_check(
-		batch != null and batch.multimesh != null and batch.multimesh.instance_count == 10
+		batch != null and batch.multimesh != null and batch.multimesh.instance_count == 12
 		and batch.multimesh.visible_instance_count == -1
 		and mesh != null and mesh.size.is_equal_approx(SalvageTerrace.SERVICE_BEACON_SIZE),
-		"the existing ramp-cue submission now carries four gate fixtures and six deck strokes"
+		"the existing ramp-cue submission now carries six gate fixtures and six deck strokes"
 	)
-	if batch == null or batch.multimesh == null or batch.multimesh.instance_count != 10:
+	if batch == null or batch.multimesh == null or batch.multimesh.instance_count != 12:
 		return
 
 	var expected_scale := Vector3(
@@ -52,8 +52,8 @@ func _test_wayfinding_batch(module: SalvageTerrace) -> void:
 		SalvageTerrace.INSPECTION_ROUTE_CHEVRON_STROKE_SIZE.y / SalvageTerrace.SERVICE_BEACON_SIZE.y,
 		SalvageTerrace.INSPECTION_ROUTE_CHEVRON_STROKE_SIZE.z / SalvageTerrace.SERVICE_BEACON_SIZE.z
 	)
-	var deck_strokes_exact := true
-	var cue_index := 4
+	var deck_strokes_exact := SalvageTerrace.INSPECTION_ROUTE_CHEVRON_CENTERS.size() == 3
+	var cue_index := 6
 	for center in SalvageTerrace.INSPECTION_ROUTE_CHEVRON_CENTERS:
 		for x_sign in [-1.0, 1.0]:
 			var transform := _decode_transform(batch.multimesh.buffer, cue_index)
@@ -71,7 +71,7 @@ func _test_wayfinding_batch(module: SalvageTerrace) -> void:
 			)
 			cue_index += 1
 	_check(
-		deck_strokes_exact,
+		deck_strokes_exact and cue_index == 12,
 		"three exact two-stroke chevrons point from the main-ramp crest toward the inspection ramp"
 	)
 	_check(
@@ -95,9 +95,16 @@ func _test_arrival_identity(module: SalvageTerrace) -> void:
 		and str(label.get_meta("non_walkable_reason", "")).contains("inspection-direction"),
 		"the existing approach-side entry sign's left cue directs arrivals along the +X inspection route"
 	)
+	var overlook_label := module.get_node_or_null(^"GeneratedRoot/BreakerOverlookIdentity") as Label3D
 	_check(
-		module.find_children("*", "Label3D", true, false).size() == 1,
-		"arrival identity reuses the single existing label instead of adding presentation nodes"
+		module.find_children("*", "Label3D", true, false).size() == 2
+		and overlook_label != null
+		and overlook_label.text == "BREAKER\nOVERLOOK"
+		and overlook_label.position.is_equal_approx(Vector3(-7.5, 2.2, 15.08))
+		and overlook_label.rotation_degrees.is_equal_approx(Vector3(0.0, 180.0, 0.0))
+		and overlook_label.font_size == 42
+		and str(overlook_label.get_meta("non_walkable_reason", "")).contains("breaker-overlook identity"),
+		"the arrival identity and named breaker-overlook label remain the exact two presentation labels"
 	)
 
 
@@ -106,8 +113,13 @@ func _test_route_and_authority_boundaries(module: SalvageTerrace) -> void:
 		&"upper-pad": Vector3(18.0, 3.75, 5.0),
 		&"inspection-ramp-base": Vector3(23.0, 3.75, 10.0),
 		&"inspection-pad": Vector3(23.0, 5.55, 16.0),
+		&"breaker-ramp-base": Vector3(-7.5, 0.15, 9.0),
+		&"breaker-overlook": Vector3(-7.5, 1.35, 13.5),
 	}
-	var anchors_exact := module.get_route_ids().size() == 7
+	var anchors_exact := PackedStringArray(module.get_route_ids()) == PackedStringArray([
+		"connector", "entry", "lower-pad", "main-ramp-base", "upper-pad",
+		"inspection-ramp-base", "inspection-pad", "breaker-ramp-base", "breaker-overlook",
+	])
 	for route_id: StringName in expected_routes:
 		var marker := module.get_route_marker(route_id)
 		anchors_exact = (
@@ -117,20 +129,21 @@ func _test_route_and_authority_boundaries(module: SalvageTerrace) -> void:
 		)
 	var authority := module.get_authority_contract()
 	var performance := module.get_performance_contract()
-	_check(anchors_exact, "upper, ramp-base, and inspection route anchors retain their authored transforms")
+	_check(anchors_exact, "original upper and inspection anchors plus both breaker-spur anchors retain their authored transforms")
 	_check(
-		module.find_children("*", "StaticBody3D", true, false).size() == 26
-		and module.find_children("*", "CollisionShape3D", true, false).size() == 26
+		module.find_children("*", "StaticBody3D", true, false).size() == 34
+		and module.find_children("*", "CollisionShape3D", true, false).size() == 34
 		and module.find_children("*", "OmniLight3D", true, false).size() == 3,
-		"wayfinding adds no collision body, shape, or practical light"
+		"the breaker overlook retains 34 collision bodies/shapes and three practical lights"
 	)
 	_check(
 		bool(performance.exact_census)
-		and int(performance.geometry_submissions) == 36
-		and int(performance.multimesh_instances) == 170
-		and int(performance.visible_geometry_copies) == 206
+		and int(performance.multimesh_batches) == 6
+		and int(performance.geometry_submissions) == 37
+		and int(performance.multimesh_instances) == 202
+		and int(performance.visible_geometry_copies) == 240
 		and bool(module.get_audit_report().valid),
-		"six added strokes stay inside the existing submission and keep the exact module audit green"
+		"six deck strokes stay in the existing batch within the exact breaker-overlook module census"
 	)
 	_check(
 		int(authority.ship_berth_count) == 0

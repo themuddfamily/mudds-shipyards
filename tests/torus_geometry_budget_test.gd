@@ -365,10 +365,14 @@ func _check_world_rings() -> void:
 		var batch := candidate as MultiMeshInstance3D
 		if batch.multimesh != null and batch.multimesh.mesh is TorusMesh:
 			batched_triangles += TorusGeometryBudget.triangles_of(batch.multimesh.mesh as TorusMesh) * batch.multimesh.instance_count
+	# Chair bearings are now baked into ArrayMesh surfaces. Count their live
+	# indexed geometry too, after checking it against the retained torus recipe.
+	var baked_chairs := _inspect_baked_chair_bearings(world)
+	var baked_chair_triangles := int(baked_chairs["triangles_after"])
 	_check(
-		total + batched_triangles <= WORLD_TORUS_TRIANGLE_CEILING,
+		total + batched_triangles + baked_chair_triangles <= WORLD_TORUS_TRIANGLE_CEILING,
 		"world ring geometry stays inside its budget (%d triangles, ceiling %d)" % [
-			total + batched_triangles, WORLD_TORUS_TRIANGLE_CEILING,
+			total + batched_triangles + baked_chair_triangles, WORLD_TORUS_TRIANGLE_CEILING,
 		]
 	)
 	_check(
@@ -382,17 +386,18 @@ func _check_world_rings() -> void:
 		TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING, {}
 	) as Dictionary
 	_check(
-		chair_bearing_profiles == 8
-		and int(chair_report.get("resources", 0)) == 8
-		and int(chair_report.get("instances", 0)) == 8,
-		"the bounded observation-chair family remains eight independent visual rings/resources"
+		chair_bearing_profiles == 0 and chair_report.is_empty()
+		and bool(baked_chairs["exact"])
+		and int(baked_chairs["resources"]) == 1
+		and int(baked_chairs["instances"]) == 8,
+		"eight independently placed baked chair bearings retain one exact shared torus recipe"
 	)
 	# Eight bearings at 24x8: the occluded eight-edge tube as before, with the
 	# major sweep now solved at the family's declared metre.
 	_check(
-		int(chair_report.get("triangles_baseline", 0)) == 6656
-		and int(chair_report.get("triangles_after", 0)) == 3072
-		and int(chair_report.get("surfaces", 0)) == 8,
+		int(baked_chairs["triangles_baseline"]) == 6656
+		and baked_chair_triangles == 3072
+		and int(baked_chairs["surfaces"]) == 8,
 		"chair bearings freeze at 6656 -> 3072 triangles while eight instances/surfaces stay exact"
 	)
 	var aft_report := profiles.get(
@@ -430,14 +435,13 @@ func _check_world_rings() -> void:
 		and int(freight_report.get("surfaces", 0)) == 8,
 		"freight lashing rings freeze at 6144 -> 2560 triangles while eight instances/surfaces stay exact"
 	)
-	# Refrozen 2026-09-15 for the ninth trim: the same 133 copies, 111,584 ->
-	# 87,008 triangles, every saving from a ring whose builder declared its
-	# nearest view (deck-flush sockets and connectors, the habitat service run,
-	# the Aft roof and underfloor families, the recessed lashing rings, the
-	# exterior range at its hull approach). No ring was added or removed.
+	# Eight chair bearings moved into ArrayMesh surfaces; two garden-column
+	# collars and two roof-vent collars moved into MultiMeshes. Their unchanged
+	# 3072 + 2560 + 640 triangles remain counted above, outside the ordinary
+	# renderer roster: 133 - 12 copies and 87520 - 6272 triangles.
 	_check(
-		total == 87520 and rings.size() == 133,
-		"the ordinary world-subtree TorusMesh renderers retain 87520 triangles across 133 copies (got %d across %d)"
+		total == 81248 and rings.size() == 121,
+		"the ordinary world-subtree TorusMesh renderers retain 81248 triangles across 121 copies (got %d across %d)"
 			% [total, rings.size()]
 	)
 
@@ -449,6 +453,60 @@ func _check_world_rings() -> void:
 	_check(bool(shock.valid), "the six batched console shock collars preserve their exact reviewed profile and authored renderer contract")
 
 	world.queue_free()
+
+
+## Read the actual baked bearing surface, not just the authored-piece claims:
+## the copper surface contains only this torus, with its original index order
+## and vertices translated into the chair frame.
+func _inspect_baked_chair_bearings(world: ShipyardWorld) -> Dictionary:
+	var chairs := world.get_node("HabitatSpine").find_children("CommonChair*", "Node3D", true, false)
+	var exact := chairs.size() == 8
+	var resources := {}
+	var triangles_baseline := 0
+	var triangles_after := 0
+	var surfaces := 0
+	for chair in chairs:
+		var visual := chair.get_node_or_null("ChairRenderBatch") as MeshInstance3D
+		var piece := StationDressingBatch.find_authored_piece(chair, "Bearing")
+		var mesh := piece.get("mesh") as TorusMesh
+		if mesh == null or visual == null or visual.mesh == null:
+			exact = false
+			continue
+		var surface_index := int(piece.get("surface_index", -1))
+		if surface_index != 2 or visual.mesh.get_surface_count() != 5:
+			exact = false
+			continue
+		resources[mesh.get_instance_id()] = true
+		var placement: Transform3D = piece.transform
+		var source := mesh.surface_get_arrays(0)
+		var baked := visual.mesh.surface_get_arrays(surface_index)
+		var source_vertices: PackedVector3Array = source[Mesh.ARRAY_VERTEX]
+		var baked_vertices: PackedVector3Array = baked[Mesh.ARRAY_VERTEX]
+		var source_indices: PackedInt32Array = source[Mesh.ARRAY_INDEX]
+		var baked_indices: PackedInt32Array = baked[Mesh.ARRAY_INDEX]
+		var materials := piece.get("materials", []) as Array
+		exact = exact and bool(piece.get("batched", false)) and piece.get("node") == visual \
+			and visual.transform == Transform3D.IDENTITY and visual.visible \
+			and placement == Transform3D(Basis.IDENTITY, Vector3(0, 0.72, 0)) \
+			and StringName((piece.metadata as Dictionary).get(TorusGeometryBudget.PROFILE_META, &"")) \
+				== TorusGeometryBudget.PROFILE_OCCLUDED_CHAIR_BEARING \
+			and is_equal_approx(mesh.inner_radius, 0.16) and is_equal_approx(mesh.outer_radius, 0.24) \
+			and mesh.rings == 24 and mesh.ring_segments == 8 \
+			and is_equal_approx(TorusGeometryBudget.nearest_view_for(mesh), 1.0) \
+			and materials.size() == 1 and visual.get_active_material(surface_index) == materials[0] \
+			and source_indices.size() == 384 * 3 and baked_indices == source_indices \
+			and baked_vertices.size() == source_vertices.size()
+		for index in mini(source_vertices.size(), baked_vertices.size()):
+			exact = exact and baked_vertices[index].is_equal_approx(placement * source_vertices[index])
+		var baseline := TorusGeometryBudget.plan(mesh.outer_radius, mesh.inner_radius)
+		triangles_baseline += int(baseline["rings"]) * int(baseline["ring_segments"]) * 2
+		triangles_after += baked_indices.size() / 3
+		surfaces += 1
+	return {
+		"exact": exact, "resources": resources.size(), "instances": chairs.size(),
+		"triangles_baseline": triangles_baseline, "triangles_after": triangles_after,
+		"surfaces": surfaces,
+	}
 
 
 func _check_sweep_is_idempotent() -> void:

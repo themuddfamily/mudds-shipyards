@@ -129,12 +129,14 @@ const EXPECTED_GANTRY_RAIL_FAMILY_ID: StringName = &"nearby-gantry-rails"
 # The Cinder Reach art pass (fcd9389bc) merged the hulk's silhouette dressing
 # into one presentation-only renderer with five finish surfaces and 1,264
 # triangles: +1 mesh renderer and copy, +5 submissions, +1,264 triangles.
+# Six hulk trim ribs subsequently use 44-triangle structural stock instead
+# of 108-triangle rounded stock: -384 triangles with all other counts fixed.
 const EXPECTED_LOCAL_MESH_NODES := 232
 const EXPECTED_LOCAL_MULTIMESH_NODES := 25
 const EXPECTED_LOCAL_RENDERER_NODES := 257
 const EXPECTED_LOCAL_VISIBLE_COPIES := 926
 const EXPECTED_LOCAL_SURFACE_SUBMISSIONS := 261
-const EXPECTED_LOCAL_TRIANGLES := 147382
+const EXPECTED_LOCAL_TRIANGLES := 146998
 const EXPECTED_LOCAL_STATIC_BODIES := 109
 const EXPECTED_LOCAL_COLLISION_SHAPES := 111
 ## The dock gate's four fixed rails remain one renderer/submission, but now
@@ -1005,7 +1007,7 @@ func _test_processing_spine_rib_batch(cluster: NearbySectorCluster) -> void:
 		int(geometry["visible_copies"]) == EXPECTED_LOCAL_VISIBLE_COPIES
 		and int(geometry["surface_submissions"]) == EXPECTED_LOCAL_SURFACE_SUBMISSIONS
 		and int(geometry["triangles"]) == EXPECTED_LOCAL_TRIANGLES,
-		"the local census freezes 926 renderer copies, 147382 triangles, and 261 submissions"
+		"the local census freezes 926 renderer copies, 146998 triangles, and 261 submissions"
 	)
 	_check(
 		int(geometry["static_bodies"]) == EXPECTED_LOCAL_STATIC_BODIES
