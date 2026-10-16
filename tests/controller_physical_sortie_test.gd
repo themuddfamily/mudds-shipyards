@@ -986,6 +986,9 @@ func _settings_on_foot_controls(game: GameFlow, player: PlayerController, driver
 func _settings_walk_to_ship(player: PlayerController, ship: HeroShip, game: GameFlow, driver: SettingsNativeInputEvents) -> bool:
 	driver.ship = null
 	driver.set_action(&"sprint_boost", 1.0)
+	var frames := 0
+	var requested_axes := Vector2.ZERO
+	_settings_walk_sample("start", player, ship, game, driver, frames, requested_axes)
 	for frame in _frame_budget(WALK_TRAVEL_SECONDS):
 		var offset := (ship.get_boarding_position() - player.get_interaction_origin()).slide(Vector3.UP)
 		if offset.length() < 3.1 and game.boarding_candidate == ship:
@@ -994,13 +997,48 @@ func _settings_walk_to_ship(player: PlayerController, ship: HeroShip, game: Game
 		var yaw := player.get_node("%CameraYaw") as Node3D
 		var forward := (-yaw.global_basis.z).slide(Vector3.UP).normalized()
 		var right := forward.cross(Vector3.UP).normalized()
-		driver.set_axis(AXIS_LEFT_X, desired.dot(right) if absf(desired.dot(right)) > 0.08 else 0.0)
-		driver.set_axis(AXIS_LEFT_Y, -desired.dot(forward) if absf(desired.dot(forward)) > 0.08 else 0.0)
+		requested_axes = Vector2(desired.dot(right) if absf(desired.dot(right)) > 0.08 else 0.0,
+			-desired.dot(forward) if absf(desired.dot(forward)) > 0.08 else 0.0)
+		driver.set_axis(AXIS_LEFT_X, requested_axes.x)
+		driver.set_axis(AXIS_LEFT_Y, requested_axes.y)
 		await physics_frame
+		frames += 1
+		if frames % maxi(Engine.physics_ticks_per_second, 1) == 0:
+			_settings_walk_sample("progress", player, ship, game, driver, frames, requested_axes)
+	_settings_walk_sample("before_release", player, ship, game, driver, frames, requested_axes)
 	driver.release_all()
 	await physics_frame
 	await process_frame
+	_settings_walk_sample("end", player, ship, game, driver, frames, Vector2.ZERO)
 	return game.boarding_candidate == ship and player.get_interaction_origin().distance_to(ship.get_boarding_position()) < 3.2
+
+
+func _settings_walk_sample(label: String, player: PlayerController, ship: HeroShip, game: GameFlow, driver: SettingsNativeInputEvents, frames: int, requested_axes: Vector2) -> void:
+	var target := ship.get_boarding_position()
+	var offset := target - player.get_interaction_origin()
+	var sampled_input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var yaw := player.get_node("%CameraYaw") as Node3D
+	var collision_report: Dictionary = {}
+	var collision_count := player.get_slide_collision_count()
+	if collision_count > 0:
+		var contact := player.get_slide_collision(collision_count - 1)
+		var collider: Object = contact.get_collider()
+		collision_report = {"collider": str((collider as Node).get_path()) if collider is Node else str(collider),
+			"position": str(contact.get_position()), "normal": str(contact.get_normal()),
+			"travel": str(contact.get_travel()), "remainder": str(contact.get_remainder())}
+	print("SETTINGS_WALK: %s" % JSON.stringify({
+		"label": label, "desktop": driver.desktop, "frames": frames,
+		"frame_budget": _frame_budget(WALK_TRAVEL_SECONDS), "physics_frame": Engine.get_physics_frames(),
+		"position": str(player.global_position), "interaction_origin": str(player.get_interaction_origin()),
+		"target": str(target), "distance": offset.length(), "horizontal_distance": offset.slide(Vector3.UP).length(),
+		"velocity": str(player.velocity), "floor": player.is_on_floor(), "floor_normal": str(player.get_floor_normal()),
+		"candidate": str(game.boarding_candidate.get_path()) if is_instance_valid(game.boarding_candidate) else "",
+		"target_path": str(ship.get_path()), "phase": game.phase, "control_enabled": player.is_control_enabled(),
+		"camera_forward": str((-yaw.global_basis.z).slide(Vector3.UP).normalized()),
+		"requested_axes": [requested_axes.x, requested_axes.y], "native_move": [sampled_input.x, sampled_input.y],
+		"native_sprint": Input.is_action_pressed("sprint_boost"),
+		"collision_count": collision_count, "last_collision": collision_report,
+	}))
 
 
 func _settings_free_sortie(game: GameFlow, player: PlayerController, ship: HeroShip, world: ShipyardWorld, driver: SettingsNativeInputEvents) -> bool:
