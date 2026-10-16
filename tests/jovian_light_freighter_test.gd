@@ -32,6 +32,7 @@ func _run() -> void:
 
 	_test_fitout_cpu_surface_parity(jovian)
 	_test_formed_roof(jovian)
+	_test_roof_service_layer_clearances(jovian)
 	_test_formed_forward_shell(jovian)
 	await _test_freighter_windscreen(jovian)
 	await _test_pilot_doorway(jovian)
@@ -95,6 +96,64 @@ func _test_roof_service_construction(jovian: JovianLightFreighter, lid: MeshInst
 		"%s seats perimeter folds on the curved roof without occupying the cabin" % lid.name)
 	_check(outward_winding, "%s has outward clockwise faces" % lid.name)
 	_check(valid_tangent_space, "%s has nondegenerate UVs and finite generated tangents" % lid.name)
+
+
+## Test the emitted triangles: analytic lift alone missed rolled edges sinking
+## through their supporting covers when narrow patches had only one span.
+func _test_roof_service_layer_clearances(jovian: JovianLightFreighter) -> void:
+	var visual := jovian.get_jovian_visual_root()
+	var roof := visual.get_node("RoofServiceAssembly") as MeshInstance3D
+	var bonnet := visual.get_node("FlightDeckAvionicsBonnet") as MeshInstance3D
+	var materials := jovian.get_variant_materials()
+	var samples := [
+		[roof, "dark", "structure", Vector2(2.8483, -2.079)],
+		[roof, "dark", "hull_cool", Vector2(4.7037, 0.079)],
+		[roof, "hull_warm", "dark", Vector2(4.27, 0.034)],
+		[roof, "hull_cool", "hull_warm", Vector2(4.54, -1.0)],
+		[roof, "dark", "hull_warm", Vector2(3.80, -1.10)],
+		[bonnet, "dark", "hull_cool", Vector2(0.9536, -8.4649)],
+		[bonnet, "thermal_cover", "dark", Vector2(0.0, -7.284)],
+		[bonnet, "hull_cool", "thermal_cover", Vector2(0.0, -4.56)],
+	]
+	for sample in samples:
+		var at: Vector2 = sample[3]
+		var positions: Array[Vector2] = [at]
+		if not is_zero_approx(at.x):
+			positions.append(Vector2(-at.x, at.y))
+		for point in positions:
+			var upper := _roof_finish_height(sample[0], materials[sample[1]], point)
+			var lower := _roof_finish_height(sample[0], materials[sample[2]], point)
+			_check(is_finite(upper) and is_finite(lower) and upper - lower > 0.001,
+				"%s %s remains above supporting %s at %s (%.6f m)" % [sample[0].name,
+					sample[1], sample[2], point, upper - lower])
+
+
+func _roof_finish_height(instance: MeshInstance3D, material: Material, at: Vector2) -> float:
+	var height := -INF
+	for surface in instance.mesh.get_surface_count():
+		if instance.mesh.surface_get_material(surface) != material:
+			continue
+		var arrays := instance.mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		for triangle in range(0, vertices.size(), 3):
+			if normals[triangle].y < 0.5:
+				continue
+			var a := vertices[triangle]
+			var b := vertices[triangle + 1]
+			var c := vertices[triangle + 2]
+			var origin := Vector2(a.x, a.z)
+			var first := Vector2(b.x, b.z) - origin
+			var second := Vector2(c.x, c.z) - origin
+			var offset := at - origin
+			var area := first.cross(second)
+			if absf(area) < 0.00000001:
+				continue
+			var u := offset.cross(second) / area
+			var v := first.cross(offset) / area
+			if u >= -0.00001 and v >= -0.00001 and u + v <= 1.00001:
+				height = maxf(height, a.y + u * (b.y - a.y) + v * (c.y - a.y))
+	return height
 
 
 func _test_formed_aft_machinery_housing(jovian: JovianLightFreighter) -> void:

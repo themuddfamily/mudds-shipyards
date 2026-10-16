@@ -6343,7 +6343,7 @@ func _build_pressure_shell_panels() -> void:
 			_roof_service_patch(roof, "hull_cool", side, edge, edge + 0.125, -2.14, 8.23, 0.11)
 		# One long cooling field reads as a ship system instead of four tiled
 		# grille/hatch pairs. Its rolled edges remain seated along the crown.
-		_roof_service_patch(roof, "dark", side, 2.00, 3.32, -2.08, 8.10, 0.057)
+		_roof_service_patch(roof, "dark", side, 2.00, 3.32, -2.08, 8.10, 0.057, false, 0.048)
 		for lip in [2.00, 3.24]:
 			_roof_service_patch(roof, "hull_cool", side, lip, lip + 0.08, -2.08, 8.10, 0.12)
 		for slat in 28:
@@ -6356,20 +6356,20 @@ func _build_pressure_shell_panels() -> void:
 		for access_span: Vector2 in [Vector2(-1.97, 0.08), Vector2(5.68, 7.99)]:
 			var front := access_span.x
 			var rear := access_span.y
-			_roof_service_patch(roof, "dark", side, 3.51, 5.03, front, rear, 0.125)
-			_roof_service_patch(roof, "hull_warm", side, 3.555, 4.985, front + 0.045, rear - 0.045, 0.137)
+			_roof_service_patch(roof, "dark", side, 3.51, 5.03, front, rear, 0.125, false, 0.10)
+			_roof_service_patch(roof, "hull_warm", side, 3.555, 4.985, front + 0.045, rear - 0.045, 0.137, false, 0.125)
 			# Folded stiffening channel is part of the lid, with a seated root.
-			_roof_service_patch(roof, "hull_cool", side, 4.48, 4.60, front + 0.15, rear - 0.15, 0.164)
+			_roof_service_patch(roof, "hull_cool", side, 4.48, 4.60, front + 0.15, rear - 0.15, 0.164, false, 0.137)
 			for hinge_z in [front + 0.27, rear - 0.27]:
-				_roof_service_patch(roof, "structure", side, 4.92, 5.11, hinge_z, hinge_z + 0.19, 0.166)
+				_roof_service_patch(roof, "structure", side, 4.92, 5.11, hinge_z, hinge_z + 0.19, 0.166, false, 0.137)
 			var latch_z := (front + rear) * 0.5
-			_roof_service_patch(roof, "dark", side, 3.67, 3.92, latch_z - 0.155, latch_z + 0.155, 0.142)
-			_roof_service_patch(roof, "structure", side, 3.745, 3.845, latch_z - 0.11, latch_z + 0.105, 0.16)
+			_roof_service_patch(roof, "dark", side, 3.67, 3.92, latch_z - 0.155, latch_z + 0.155, 0.142, false, 0.137)
+			_roof_service_patch(roof, "structure", side, 3.745, 3.845, latch_z - 0.11, latch_z + 0.105, 0.16, false, 0.142)
 		# The cover straps land at the existing transverse rib stations while
 		# the inboard thermal field continues uninterrupted past them.
 		for strap_z in [0.10, 2.82, 5.54]:
 			_roof_service_patch(roof, "hull_cool", side, 3.43, outer - 0.025,
-				strap_z, strap_z + 0.20, 0.12)
+				strap_z, strap_z + 0.20, 0.12, false, 0.10)
 
 	_finish_roof_service_mesh(roof, "RoofServiceAssembly")
 
@@ -6378,17 +6378,17 @@ func _build_pressure_shell_panels() -> void:
 	var avionics := {}
 	_roof_service_patch(avionics, "structure", 1.0, -1.46, 1.46, -8.90, -3.43, 0.055, true)
 	_roof_service_patch(avionics, "hull_cool", 1.0, -1.40, 1.40, -8.82, -3.49, 0.135, true)
-	_roof_service_patch(avionics, "dark", 1.0, -1.18, 1.18, -7.36, -4.13, 0.14, true)
-	_roof_service_patch(avionics, "thermal_cover", 1.0, -1.115, 1.115, -7.285, -4.205, 0.151, true)
+	_roof_service_patch(avionics, "dark", 1.0, -1.18, 1.18, -7.36, -4.13, 0.14, true, 0.135)
+	_roof_service_patch(avionics, "thermal_cover", 1.0, -1.115, 1.115, -7.285, -4.205, 0.151, true, 0.14)
 	for side in [-1.0, 1.0]:
-		_roof_service_patch(avionics, "dark", side, 0.26, 1.07, -8.53, -7.63, 0.14, true)
+		_roof_service_patch(avionics, "dark", side, 0.26, 1.07, -8.53, -7.63, 0.14, true, 0.135)
 		for slat in 5:
 			var z := -8.47 + float(slat) * 0.16
-			_roof_service_patch(avionics, "structure", side, 0.28, 1.05, z, z + 0.075, 0.172, true)
+			_roof_service_patch(avionics, "structure", side, 0.28, 1.05, z, z + 0.075, 0.172, true, 0.14)
 		for z in [-6.96, -4.73]:
-			_roof_service_patch(avionics, "structure", side, 1.06, 1.31, z, z + 0.22, 0.18, true)
-	_roof_service_patch(avionics, "dark", 1.0, -0.25, 0.25, -4.70, -4.43, 0.16, true)
-	_roof_service_patch(avionics, "hull_cool", 1.0, -0.17, 0.17, -4.64, -4.49, 0.18, true)
+			_roof_service_patch(avionics, "structure", side, 1.06, 1.31, z, z + 0.22, 0.18, true, 0.151)
+	_roof_service_patch(avionics, "dark", 1.0, -0.25, 0.25, -4.70, -4.43, 0.16, true, 0.151)
+	_roof_service_patch(avionics, "hull_cool", 1.0, -0.17, 0.17, -4.64, -4.49, 0.18, true, 0.16)
 	_finish_roof_service_mesh(avionics, "FlightDeckAvionicsBonnet")
 
 
@@ -6411,7 +6411,8 @@ func _roof_service_height(x: float, z: float, cabin: bool) -> float:
 ## A shallow pressed patch with a rolled edge and an open underside. Station
 ## cuts follow the formed pressure shell so long frames cannot bridge in air.
 func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: float,
-		outer: float, front: float, rear: float, lift: float, cabin := false) -> void:
+		outer: float, front: float, rear: float, lift: float, cabin := false,
+		support_lift := 0.0) -> void:
 	if not batch.has(finish):
 		var tool := SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -6440,6 +6441,9 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 		for sample in count:
 			fitted_stations.append(lerpf(stations[station], stations[station + 1], float(sample) / count))
 	fitted_stations.append(stations[-1])
+	# Roll only through the exposed thickness above the supporting cover. Using
+	# total roof clearance here buries narrow fittings and crosses layered lids.
+	var edge_drop := minf((lift - support_lift) * 0.3, 0.035)
 	var rings: Array[PackedVector3Array] = []
 	for z in fitted_stations:
 		var end := is_equal_approx(z, front) or is_equal_approx(z, rear)
@@ -6449,7 +6453,7 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 		for step in across + 1:
 			var x := side * lerpf(xmin, xmax, float(step) / float(across))
 			var edge := end or step == 0 or step == across
-			ring.append(Vector3(x, _roof_service_height(x, z, cabin) + lift - (minf(lift * 0.3, 0.035) if edge else 0.0), z))
+			ring.append(Vector3(x, _roof_service_height(x, z, cabin) + lift - (edge_drop if edge else 0.0), z))
 		rings.append(ring)
 	for station in rings.size() - 1:
 		for step in across:
