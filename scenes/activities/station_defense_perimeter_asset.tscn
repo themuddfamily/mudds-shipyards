@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/activities/station_defense_perimeter_asset.gd" id="1_asset"]
 [ext_resource type="Script" path="res://scripts/combat/damageable.gd" id="2_damageable"]
@@ -13,6 +13,12 @@ albedo_color = Color(0.282, 0.859, 0.886, 1)
 emission_enabled = true
 emission = Color(0.282, 0.859, 0.886, 1)
 emission_energy_multiplier = 2.2
+
+[sub_resource type="StandardMaterial3D" id="Material_lane_signal"]
+albedo_color = Color(1, 0.55, 0.12, 1)
+emission_enabled = true
+emission = Color(1, 0.34, 0.045, 1)
+emission_energy_multiplier = 1.15
 
 [sub_resource type="CylinderMesh" id="Mesh_mast"]
 material = SubResource("Material_shell")
@@ -35,6 +41,10 @@ radius = 0.7
 height = 1.4
 radial_segments = 12
 rings = 6
+
+[sub_resource type="PrismMesh" id="Mesh_lane_signal"]
+material = SubResource("Material_lane_signal")
+size = Vector3(5.4, 4.2, 0.3)
 
 [sub_resource type="CylinderShape3D" id="Shape_asset"]
 radius = 2.0
@@ -71,6 +81,13 @@ mesh = SubResource("Mesh_ring")
 [node name="Core" type="MeshInstance3D" parent="Presentation"]
 position = Vector3(0, 2.65, 0)
 mesh = SubResource("Mesh_core")
+
+[node name="ApproachLaneCue" type="MeshInstance3D" parent="Presentation"]
+position = Vector3(0, 3.5, 0)
+rotation = Vector3(1.5708, 0, 0)
+visible = false
+cast_shadow = 0
+mesh = SubResource("Mesh_lane_signal")
 
 [node name="SignalLight" type="OmniLight3D" parent="Presentation"]
 position = Vector3(0, 2.65, 0)

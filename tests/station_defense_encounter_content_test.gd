@@ -736,8 +736,8 @@ func _test_checked_in_encounter_content() -> void:
 	)
 	asset.apply_activity_presentation_snapshot(content.get_snapshot().host.activity)
 	_check(
-		int(presentation_budget.presentation_nodes) == 4
-		and int(presentation_budget.mesh_instances) == 2
+		int(presentation_budget.presentation_nodes) == 5
+		and int(presentation_budget.mesh_instances) == 3
 		and int(presentation_budget.lights) == 1
 		and not bool(presentation_budget.runtime_node_allocation)
 		and not bool(presentation_budget.runtime_resource_allocation)
@@ -747,7 +747,7 @@ func _test_checked_in_encounter_content() -> void:
 		and not bool(safe_presentation.authority.targeting)
 		and not bool(safe_presentation.authority.objective)
 		and not bool(safe_presentation.authority.rewards),
-		"asset danger presentation reuses the exact fixed 4-node/2-mesh/1-light authority-free budget"
+		"asset presentation uses the exact fixed 5-node/3-mesh/1-light authority-free budget"
 	)
 	var forged_presentation := asset.get_snapshot()
 	(forged_presentation.asset_handle as Dictionary)["generation"] = 999
