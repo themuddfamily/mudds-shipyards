@@ -7,7 +7,18 @@ const SamplerScript := preload(
 	"res://scripts/world/planetary_atmosphere_sampler.gd"
 )
 
-const EXPECTED_ASSERTIONS := 22
+const EXPECTED_ASSERTIONS := 32
+class DiagnosticCountingSampler:
+	extends SamplerScript
+	var diagnostic_reads := 0
+	func audit() -> Dictionary:
+		diagnostic_reads += 1
+		return super.audit()
+	func get_snapshot() -> Dictionary:
+		diagnostic_reads += 1
+		return super.get_snapshot()
+
+
 var _assertions := 0
 var _failures := PackedStringArray()
 
@@ -21,6 +32,7 @@ func _run() -> void:
 	_test_density_optics_and_vacuum_boundaries()
 	_test_cloud_wind_entry_and_optional_scalars()
 	_test_timestep_independence_and_detached_audit()
+	_test_runtime_guard_checks_fresh_state_without_diagnostics()
 	_finish()
 
 
@@ -566,3 +578,44 @@ func _finish() -> void:
 	for failure in _failures:
 		printerr(" - ", failure)
 	quit(1)
+
+
+func _test_runtime_guard_checks_fresh_state_without_diagnostics() -> void:
+	var sampler := DiagnosticCountingSampler.new()
+	var profile := _profile()
+	var profile_id: StringName = profile.profile_id
+	_check(not sampler.is_runtime_contract_valid(profile_id),
+		"the fresh sampler runtime guard rejects an unconfigured sampler")
+	sampler.configure(profile)
+	sampler.diagnostic_reads = 0
+	_check(sampler.is_runtime_contract_valid(profile_id)
+		and not sampler.is_runtime_contract_valid(&"other-profile")
+		and sampler.diagnostic_reads == 0,
+		"runtime validity checks the expected profile without building diagnostic reports")
+	var mutations := [
+		{"field": "_configured", "value": false},
+		{"field": "_profile_id", "value": &""},
+		{"field": "_source_profile_schema_version", "value": 0},
+		{"field": "_geometry", "key": "planet_radius_m", "value": NAN},
+		{"field": "_density", "key": "density_scale_height_m", "value": 1},
+		{"field": "_optics", "key": "rayleigh_scattering_per_m", "value": Color(NAN, 0.0, 0.0)},
+		{"field": "_weather", "key": "wind_velocity_mps", "value": Vector3.INF},
+		{"field": "_entry_effects", "key": "full_speed_mps", "value": INF},
+	]
+	for mutation: Dictionary in mutations:
+		var field := StringName(mutation.field)
+		var original: Variant = sampler.get(field)
+		var changed: Variant = mutation.value
+		if mutation.has("key"):
+			changed = (original as Dictionary).duplicate(true)
+			changed[mutation.key] = mutation.value
+		sampler.set(field, changed)
+		var rejected_without_diagnostics := not sampler.is_runtime_contract_valid(profile_id) \
+			and sampler.diagnostic_reads == 0
+		var audit_rejected := not bool(sampler.audit().valid)
+		sampler.set(field, original)
+		sampler.diagnostic_reads = 0
+		_check(rejected_without_diagnostics and audit_rejected
+			and sampler.is_runtime_contract_valid(profile_id)
+			and sampler.diagnostic_reads == 0,
+			"runtime guard and detached audit freshly reject and recover from %s drift" % field)

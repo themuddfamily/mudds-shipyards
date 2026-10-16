@@ -123,7 +123,7 @@ func get_snapshot() -> Dictionary:
 	}.duplicate(true)
 
 
-func audit() -> Dictionary:
+func _validation_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if not _configured:
 		errors.append("atmosphere sampler is not configured")
@@ -133,6 +133,17 @@ func audit() -> Dictionary:
 		_geometry, _density, _optics, _weather, _entry_effects
 	):
 		errors.append("frozen atmosphere profile contract is invalid")
+	return errors
+
+
+## Fresh runtime guard using the same validation as audit, without allocating
+## a detached diagnostic snapshot. Profile identity is checked on every call.
+func is_runtime_contract_valid(expected_profile_id: StringName) -> bool:
+	return _validation_errors().is_empty() and _profile_id == expected_profile_id
+
+
+func audit() -> Dictionary:
+	var errors := _validation_errors()
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"equation_version": EQUATION_VERSION,

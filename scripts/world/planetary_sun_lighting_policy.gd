@@ -282,9 +282,7 @@ func _validation_errors() -> PackedStringArray:
 			errors.append("frozen_configuration_contract_drift")
 		if _has_atmosphere and (
 			_sampler == null
-			or not bool(_sampler.audit().get("valid", false))
-			or _sampler.get_snapshot().get("profile_id", &"")
-			!= _atmosphere_profile_id
+			or not _sampler.is_runtime_contract_valid(_atmosphere_profile_id)
 		):
 			errors.append("sampler_contract_drift")
 		if not _has_atmosphere and _sampler != null:

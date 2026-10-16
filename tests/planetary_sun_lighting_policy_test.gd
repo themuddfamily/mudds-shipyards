@@ -10,7 +10,7 @@ const ProfileScript := preload(
 	"res://scripts/world/definitions/planetary_atmosphere_profile.gd"
 )
 const BODY_RADIUS_M := 120_000.0
-const EXPECTED_ASSERTIONS := 36
+const EXPECTED_ASSERTIONS := 38
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -55,6 +55,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_configuration_matrix_and_freeze()
+	_test_runtime_guard_follows_sampler_drift()
 	_test_strict_observation_boundary()
 	_test_airless_surface_geometry()
 	_test_elevated_spherical_horizon()
@@ -629,3 +630,23 @@ func _finish() -> void:
 			% ", ".join(_failures)
 		)
 		quit(1)
+
+
+func _test_runtime_guard_follows_sampler_drift() -> void:
+	var policy := PolicyScript.new() as PlanetarySunLightingPolicy
+	policy.configure(_world(true), ProfileScript.new())
+	var sampler := policy.get("_sampler") as PlanetaryAtmosphereSampler
+	var original_profile_id: StringName = sampler.get("_profile_id")
+	sampler.set("_profile_id", &"different-profile")
+	var identity_rejected := not policy.has_valid_configuration()
+	sampler.set("_profile_id", original_profile_id)
+	_check(identity_rejected and policy.has_valid_configuration(),
+		"the sun runtime guard freshly rejects sampler identity drift and accepts its repair")
+	var original_weather := sampler.get("_weather") as Dictionary
+	var invalid_weather := original_weather.duplicate(true)
+	invalid_weather.wind_velocity_mps = Vector3.INF
+	sampler.set("_weather", invalid_weather)
+	var payload_rejected := not policy.has_valid_configuration()
+	sampler.set("_weather", original_weather)
+	_check(payload_rejected and policy.has_valid_configuration(),
+		"the sun runtime guard freshly rejects non-finite sampler payload drift and accepts its repair")
