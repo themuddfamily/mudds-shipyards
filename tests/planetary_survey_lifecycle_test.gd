@@ -14,6 +14,7 @@ extends SceneTree
 ##   attaches it afresh to each visit's surface.
 
 const MAIN := preload("res://scenes/main.tscn")
+const MemoryStoreFixture := preload("res://tests/ember_transit_movement_soak.gd")
 const AURORA_SURVEY := preload("res://scripts/activities/aurora_coastal_survey.gd")
 const RIME_SURVEY := preload("res://scripts/activities/rime_ice_core_survey.gd")
 const SUCCESS_MARKER := "PLANETARY_SURVEY_LIFECYCLE_TEST_OK"
@@ -58,6 +59,12 @@ func _init() -> void:
 
 func _run() -> void:
 	var game := MAIN.instantiate() as GameFlow
+	# Exercise real reward commits without inheriting paid surveys from another
+	# test or the player's profile, and without writing these rewards to disk.
+	var isolated := game.configure_runtime_settings_persistence(MemoryStoreFixture.Store.new(
+		"memory://planetary-survey-lifecycle.json", MemoryStoreFixture.MemoryFilesystem.new()),
+		"memory://planetary-survey-lifecycle.cfg")
+	_check(isolated, "survey lifecycle uses an isolated production persistence store")
 	root.add_child(game)
 	await process_frame
 	await physics_frame
