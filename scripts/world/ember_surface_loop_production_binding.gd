@@ -2693,7 +2693,7 @@ func _physics_process(_engine_delta: float) -> void:
 	if phase == EmberSurfaceLoopHost.Phase.COMPLETED:
 		_complete_handback_late()
 		return
-	operation = _host.advance_physics(
+	operation = _host.advance_production_physics(
 		float(envelope.get("delta", -1.0)),
 		_host.get_generation(),
 		_host.get_attachment_generation(),
@@ -2704,8 +2704,8 @@ func _physics_process(_engine_delta: float) -> void:
 		_fail_late(operation.get("reason", &"host_advance_rejected") as StringName)
 		return
 	_advance_count += 1
-	# Host.advance_physics returns a fresh detached report. Retain that owned
-	# result; get_snapshot still detaches the complete report for observers.
+	# Retain the fresh scalar tick outcome. Full live Host diagnostics are read
+	# on demand; a running cadence does not need a new nested audit each tick.
 	_last_late_result = operation
 	# The real Host commits retained return evidence internally. Publish its
 	# generation-fenced route intent at the first ORBIT_RETURN boundary, leaving

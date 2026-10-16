@@ -1344,6 +1344,36 @@ func _test_exact_generation_and_loaded_root_freshness() -> void:
 			and int(diagnostic.get("loaded_instance_id", 0)) == original_loaded_id,
 		"focused generation and loaded identity preserve the full bootstrap report's live authority",
 	)
+	var full_before_tick := host.get_snapshot()
+	snapshot_reads_before = bootstrap.snapshot_reads
+	await physics_frame
+	var compact := host.advance_production_physics(
+		PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
+		frame.get_generation(), 1
+	)
+	_check(bool(compact.get("accepted", false))
+			and bootstrap.snapshot_reads == snapshot_reads_before
+			and int(compact.physics_advance_count) == int(full_before_tick.physics_advance_count) + 1
+			and is_equal_approx(float(compact.elapsed_seconds),
+				float(full_before_tick.elapsed_seconds) + PHYSICS_DELTA),
+		"production tick advances the same real Host clock without constructing diagnostic bootstrap reports")
+	var current := host.get_snapshot()
+	for key in compact:
+		if key not in ["accepted", "reason"]:
+			_check(compact[key] == current[key], "compact tick retains the exact current Host scalar: " + key)
+	compact["generation"] = -99
+	(current.bootstrap.coordinator.generation_by_id as Dictionary)[bootstrap.get_location_id()] = -99
+	_check(host.get_generation() == int(full_before_tick.generation)
+			and bootstrap.get_location_generation() == 1,
+		"compact outcomes and on-demand full diagnostics cannot mutate live Host ownership")
+	var ticks_before_rejection := int(current.physics_advance_count)
+	var stale_compact := host.advance_production_physics(
+		PHYSICS_DELTA, host.get_generation(), host.get_attachment_generation(),
+		frame.get_generation(), 2
+	)
+	_check(stale_compact.reason == &"stale_location_generation"
+			and int(host.get_snapshot().physics_advance_count) == ticks_before_rejection,
+		"compact cadence applies the same fresh location-generation admission without advancing rejected ticks")
 	(diagnostic.coordinator.generation_by_id as Dictionary)[bootstrap.get_location_id()] = -99
 	_check(bootstrap.get_location_generation() == 1,
 		"mutating the returned full diagnostic cannot change the coordinator generation")

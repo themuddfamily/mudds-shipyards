@@ -1061,6 +1061,33 @@ func advance_physics(
 	expected_coordinate_frame_generation: int,
 	expected_location_generation: int
 ) -> Dictionary:
+	return _advance_physics(delta, expected_generation, expected_attachment_generation,
+		expected_coordinate_frame_generation, expected_location_generation, true)
+
+
+## The production cadence consumes only the tick outcome. Keep the same fresh
+## admission, gravity, physics clock and phase mutations as the diagnostic API,
+## without building a bootstrap/berth audit tree after every successful tick.
+## Complete live diagnostics remain available through get_snapshot()/audit().
+func advance_production_physics(
+	delta: float,
+	expected_generation: int,
+	expected_attachment_generation: int,
+	expected_coordinate_frame_generation: int,
+	expected_location_generation: int
+) -> Dictionary:
+	return _advance_physics(delta, expected_generation, expected_attachment_generation,
+		expected_coordinate_frame_generation, expected_location_generation, false)
+
+
+func _advance_physics(
+	delta: float,
+	expected_generation: int,
+	expected_attachment_generation: int,
+	expected_coordinate_frame_generation: int,
+	expected_location_generation: int,
+	include_diagnostics: bool
+) -> Dictionary:
 	if _mutation_active:
 		return _result(false, &"reentrant_call")
 	_mutation_active = true
@@ -1097,7 +1124,7 @@ func advance_physics(
 		_pending_failure_reason = &""
 		return _commit_failure(pending)
 	if is_zero_approx(delta):
-		return _finish(true, &"no_delta")
+		return _finish_physics(&"no_delta", include_diagnostics)
 	var clock := _session.advance_physics(delta, _generation, _session.get_attachment_generation())
 	if not bool(clock.get("accepted", false)):
 		return _commit_failure(&"travel_clock_desynchronized")
@@ -1114,7 +1141,7 @@ func advance_physics(
 		return _commit_failure(pending_after_phase)
 	if not bool(phase_result.get("accepted", false)):
 		return _commit_failure(phase_result.get("reason", &"phase_advance_failed") as StringName)
-	return _finish(true, phase_result.get("reason", &"advanced") as StringName)
+	return _finish_physics(phase_result.get("reason", &"advanced") as StringName, include_diagnostics)
 
 
 func request_disembark(
@@ -3533,6 +3560,30 @@ func _set_phase(next_phase: int) -> void:
 	_phase = next_phase
 	_phase_elapsed_seconds = 0.0
 	_transition_count += 1
+
+
+func _finish_physics(reason: StringName, include_diagnostics: bool) -> Dictionary:
+	if include_diagnostics or not _pending_failure_reason.is_empty():
+		return _finish(true, reason)
+	_mutation_active = false
+	# All values are scalars; neither the caller nor the retained late report can
+	# mutate Host state. Failure/abandon transactions keep their full receipts.
+	_last_result = {
+		"accepted": true,
+		"reason": reason,
+		"host_id": HOST_ID,
+		"attached": _attached,
+		"phase": _phase,
+		"phase_id": _phase_id(_phase),
+		"generation": _generation,
+		"attachment_generation": _attachment_generation,
+		"coordinate_frame_generation": _coordinate_frame_generation,
+		"location_generation": _location_generation,
+		"elapsed_seconds": _elapsed_seconds,
+		"phase_elapsed_seconds": _phase_elapsed_seconds,
+		"physics_advance_count": _physics_advance_count,
+	}
+	return _last_result.duplicate()
 
 
 func _finish(accepted: bool, reason: StringName) -> Dictionary:

@@ -297,7 +297,7 @@ class PartialReceiptHost:
 		fake_generation += 1
 		fake_phase = EmberSurfaceLoopHost.Phase.ORBIT_APPROACH
 		return {"accepted": true, "reason": &"started"}
-	func advance_physics(_d: float, _g: int, _a: int, _f: int, _l: int) -> Dictionary:
+	func advance_production_physics(_d: float, _g: int, _a: int, _f: int, _l: int) -> Dictionary:
 		fake_phase = EmberSurfaceLoopHost.Phase.COMPLETED
 		return {"accepted": true, "reason": &"completed"}
 	func return_runtime_ownership(_g: int, _a: int) -> Dictionary:
