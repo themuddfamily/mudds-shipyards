@@ -20,7 +20,7 @@ const APPROACH_ROUTE_ID: StringName = &"approach"
 const EXPECTED_MODULE_COUNT := 7
 const EXPECTED_HUB_ENDPOINT_COUNT := 7
 const EXPECTED_CONNECTION_SLOT_COUNT := 7
-const EXPECTED_ROUTE_MARKER_COUNT := 49
+const EXPECTED_ROUTE_MARKER_COUNT := 51
 
 const EXPECTED_MODULE_IDS: Array[StringName] = [
 	&"aft-junction-stack",
@@ -147,7 +147,7 @@ func _test_exact_module_roster(world: ShipyardWorld) -> void:
 	_check(int(report.get("module_count", -1)) == EXPECTED_MODULE_COUNT, "registry records exactly seven station modules")
 	_check(int(report.get("hub_endpoint_count", -1)) == EXPECTED_HUB_ENDPOINT_COUNT, "world publishes exactly seven station hub endpoints")
 	_check(int(report.get("connection_slot_count", -1)) == EXPECTED_CONNECTION_SLOT_COUNT, "exactly seven connection slot ids exist across the station")
-	_check(int(report.get("route_marker_count", -1)) == EXPECTED_ROUTE_MARKER_COUNT, "registry accounts for all forty-nine production route markers")
+	_check(int(report.get("route_marker_count", -1)) == EXPECTED_ROUTE_MARKER_COUNT, "registry accounts for all fifty-one production route markers")
 
 	var modules := report.get("modules", {}) as Dictionary
 	var roster_is_exact := modules.size() == EXPECTED_MODULE_IDS.size()
@@ -298,7 +298,7 @@ func _test_only_approach_markers_are_connection_slots(world: ShipyardWorld) -> v
 			and tagged_routes.size() == 1 \
 			and tagged_routes[0] == (EXPECTED_SLOT_ROUTES.get(module.get_module_id(), &"") as StringName)
 	_check(every_module_tags_only_approach, "each module tags exactly its one reviewed inbound/approach marker as a connection slot")
-	_check(total_route_markers == EXPECTED_ROUTE_MARKER_COUNT, "the live modules expose exactly forty-nine route markers")
+	_check(total_route_markers == EXPECTED_ROUTE_MARKER_COUNT, "the live modules expose exactly fifty-one route markers")
 
 	var every_dead_end_untagged := true
 	var dead_end_count := 0
