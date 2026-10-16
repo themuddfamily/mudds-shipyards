@@ -6,7 +6,7 @@ The latest published checkpoints are Windows `807851f91` ([notes](../builds/wind
 
 Complete Settings acceptance remains open. The original writer passes. The latest source restart and earlier d750 Windows payload each complete keyboard-and-mouse flight but reach the unchanged 300-second cap during gamepad flight. Both failures remain retained. The `064f573b2` unfiltered regression was interrupted at the owner's request after 644 passes and seven failures. Complete ordinary-controls, graphical and applicable hardware qualification remain open. Earlier source/package checks cannot qualify newer source.
 
-The capture-routing and feedback branch is merged into main. On resumed `122cf6122`, eight focused UI/activity suites pass 284 assertions without diagnostics; global geometry snapshots and the Habitat batch fixture fail. Survey/recovery timeouts remain under investigation. Full current-source and package qualification is still required.
+The capture-routing and feedback work is merged into main. Focused UI/activity suites pass 284 assertions, and the corrected Habitat fixture passes. Scan recovery now passes 130 assertions with independent physics worlds. Source geometry and the actual `807851f` package each pass 19 checks without diagnostics; existing geometry budgets remain open. Ember and Rime journeys still exceed their unchanged 300-second limits. Full current-source and package qualification is still required.
 
 GitHub CI stays disabled. Native Windows execution remains held after the Avast alert; the owner excluded mandatory native Windows validation and human playtesting/review. Historical NOT_RUN records remain factual.
 
