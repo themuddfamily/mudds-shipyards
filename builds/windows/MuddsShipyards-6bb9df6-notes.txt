@@ -1,0 +1,25 @@
+Mudd's Shipyards — Ember arrival runtime checkpoint 6bb9df6
+Source commit: 6bb9df697661775ba1b071cf2139c3c14edf710e
+Engine: verified official Godot 4.7.1 a13da4feb editor/release templates.
+
+Player-visible changes:
+- Ember arrival waits for the actual surface composition before attaching return HUD/audio observers. Approaching visits avoid repeatedly creating and rolling back audio bindings; normal attachment and re-entry remain immediate once the surface exists.
+- Surface Host production ticks return compact scalar outcomes through the same live validation/physics path. Full public diagnostic results and failure receipts remain available.
+- Includes earlier fleet visual propagation, sun validation, fullscreen and detached cabin fixes.
+
+Validation:
+- Independent review approves both runtime changes. The new pre-surface churn regression fails on the old GameFlow code and passes with the fix. The existing local presentation fixture passes 41 assertions, including untouched normal attachment, cues, ordinary route fallback and re-entry. This is local fixture coverage, not the full five-scenario retirement suite.
+- Reviewed Host patch passes the full existing Host suite (205 assertions, 266s), production binding (83 assertions, 263s) and relay API (7s), under unchanged caps, each with one expected completion and zero diagnostics. Forged/partial handbacks remain refused. These source suites were run on that patch before integration of the separate presence guard.
+- A controlled same-fixture 120-call zero-delta report benchmark measures full API 118,916us versus compact 5,304us. This establishes report cost only, not end-to-end frame rate or hardware performance.
+- Original default shared Ember cancellation: PASS, exit 0 in 179.492s, 20 passing assertions. Original 120s arrival predicate, 20/50s walk limits and 300s suite cap remain unchanged; this combined candidate ran once. Initial flight envelope is staged by the existing fixture; typed physical landing, support, disembarkation, walking and subsequent survey/cancellation checks use production ownership and normal time scale. It does not qualify outbound canonical cruise, remote crew or a successful complete return journey.
+- Actual Windows embedded payload through the Linux editor passes targeted Host freshness/compact checks (33 assertions), local presentation (41) and relay API, with zero diagnostics. This qualifies 74 focused assertions plus the relay API contract, not the complete Host or binding suite on the package.
+- Matching safe Windows/Linux exports from an isolated clean worktree at this exact commit; 1,515-entry compiled inventories with matching path manifests. Windows x86_64 code section matches the trusted release template. Windows payload and extracted Linux archive pass --startup-check with exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics. Linux archive bytes/mode and Windows ZIP CRC/member bytes verified.
+- Network lane commit c8e7fec21 adds explicit declarations for eight actual ENet gameplay suites outside the legacy network filenames. All 13 runner tests pass, including concurrent legacy/declared consumers, ordinary parallel work and timeout lock release. Network-before-display lock order and clocks after locks are retained; deadlines/assertions are unchanged. No new full matrix was run.
+
+Retained failures and open acceptance:
+- Host-only compact candidate still fails the original arrival predicate (exit 1,154s): 1,170 ticks /19.5 simulated seconds in valid normal descent. It remains retained separately from this combined candidate.
+- Exploratory actual-Ember profiling captured its 60-tick window but the temporary diagnostic stop subsequently emitted a fixture failure during cleanup. It is not a clean validation run or a full-route pass. No exploratory instrumentation is included.
+- Frozen 636814418 full matrix remains terminal FAIL,1,027 PASS/18 FAIL of1,045 suites. Current-source full regression, broader recovery, Rime, canonical shared journeys and remaining roadmap gates stay open. Later focused results do not erase original failures.
+- Native Windows execution remains NOT_RUN under the antivirus hold. Native GPU/performance, physical controller, audible and human review remain NOT_RUN. All automated Godot checks use Dummy audio; display work remains isolated. GitHub Actions stays disabled under the owner budget hold. All ten phase exit gates remain open.
+
+EXE SHA-256: 4dbaa2cc1850ab2f36d9a760d251d14164832bd28191e3416594603113c03f9f
