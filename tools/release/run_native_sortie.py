@@ -346,6 +346,8 @@ def run(binary, output):
                             log.write(chunk); log.flush()
                             pending += chunk
                             lines = pending.split(b'\n'); pending=lines.pop()
+                            if any(b'SCRIPT ERROR:' in line or line.startswith(b'NATIVE_SORTIE_REJECTED:') for line in lines):
+                                raise RuntimeError('native game diagnostic failed; see game.log')
                             observations = [json.loads(line[len(PREFIX):]) for line in lines if line.startswith(PREFIX)]
                             if observations:
                                 keys,dx,dy,fire=pilot.update(observations[-1],time.monotonic())

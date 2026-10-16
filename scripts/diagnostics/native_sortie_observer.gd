@@ -50,7 +50,7 @@ func _physics_process(delta: float) -> void:
 			targets.append({"name": str(target.name), "position": _v((target as Node3D).global_position)})
 	var source := _ship.get_local_input_source()
 	var berth := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
-	var camera_yaw := _player.get_node("CameraYaw") as Node3D
+	var camera_yaw := _player.get_node("%CameraYaw") as Node3D
 	var command := _ship.get_last_ship_command()
 	var shot := _game.get_last_player_shot_result()
 	var capture: Dictionary = _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
