@@ -13,6 +13,11 @@ Validation:
 - Windows payload silent --startup-check exits 0 with exactly one STARTUP_MENU_READY_OK and no diagnostics. Native Linux direct/archive startup also pass exit 0 plus one marker.
 - Both embedded inventories pass 1,513 entries and compiled-token/payload integrity; PE code matches the pinned release template. Linux archive bytes, executable mode and safe paths match.
 
+- Existing Windows payload station walkability/interaction/material/central-berth probes pass 227 assertions across four suites, exit 0 and zero diagnostics.
+- Five-process Windows payload shared-cruise route passes 137 checks with zero diagnostics, all five payload guards and four clean peer exits, within the original 300-second cap. The corrected source fixture passes 132 checks; host setup precedes crew admission without changing physical boarding or stage deadlines.
+- Three fresh-process Windows payload Boot-to-exit sorties each pass 47 assertions with unchanged authored tuning/default sampler and zero diagnostics. These use synthetic controller events through the Linux editor; native OS/device input and rendered acceptance remain open.
+- Private archive-extracted native Linux beacon pilot interruption/recovery passes: owned SIGKILL, distinct native restart, receipt 0 -> 1, one crash event and exact durable boundary retention. Source/cache guards and owned-process cleanup pass. Setup is scripted; normal controls and pilot-seat/world-pose restoration remain NOT_RUN.
+
 Open acceptance:
 - Frozen 636814418 full 1,045-suite regression continues with failures/timeouts; this newer checkpoint has no full-matrix pass. Keep original failures in artifacts/test-matrix/20261016T171251Z.
 - Serialized 670 embedded-package gunner route passes 120 checks, zero diagnostics, one completion and both peer OS exits 0 within the original deadlines. All three processes confirm loading the selected payload. The earlier 496 seating-deadline failure remains retained; full crew/native acceptance stays open.
