@@ -39,6 +39,9 @@ func _init() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	if "--exit-receipt-only" in args:
+		await _test_exit_receipt_wait()
+		return
 	_ember_surface = "--ember-surface" in args
 	args.erase("--ember-surface")
 	_ember_surface_loss = "--ember-surface-loss" in args
@@ -1113,10 +1116,34 @@ func _ticks(count: int) -> void:
 		await process_frame
 
 func _wait_file(name: String, seconds: float) -> bool:
-	var result := await _until(func(): return FileAccess.file_exists(_directory.path_join(name)) or ((name in ["host.ready", "host.rebased"] or (_ember_surface and name.begins_with("host."))) and FileAccess.file_exists(_directory.path_join("host.done"))), seconds)
+	# A finished host cannot reach further gameplay boundaries, but its shell
+	# still needs the full existing exit deadline to reap the actual process.
+	var host_gameplay_boundary := name in ["host.ready", "host.rebased"] \
+		or (_ember_surface and name.begins_with("host.") and name != "host.exit")
+	var result := await _until(func(): return FileAccess.file_exists(_directory.path_join(name)) or (host_gameplay_boundary and FileAccess.file_exists(_directory.path_join("host.done"))), seconds)
 	result = result and FileAccess.file_exists(_directory.path_join(name))
 	_check(result, "peer boundary arrives: " + name)
 	return result
+
+func _test_exit_receipt_wait() -> void:
+	_ember_surface = true
+	_directory = "/tmp/mudds-passenger-exit-receipt-%d" % OS.get_process_id()
+	DirAccess.make_dir_recursive_absolute(_directory)
+	_write("host.done", {})
+	# Gameplay completion precedes the wrapper's actual OS exit receipt.
+	var delayed_exit := create_timer(0.2)
+	delayed_exit.timeout.connect(func(): _write("host.exit", {}))
+	var received := await _wait_file("host.exit", 10.0)
+	_check(received, "host completion still waits for the separately published exit receipt")
+	if delayed_exit.time_left > 0.0:
+		await delayed_exit.timeout
+	for name in ["host.done", "host.exit"]:
+		DirAccess.remove_absolute(_directory.path_join(name))
+	DirAccess.remove_absolute(_directory)
+	for failure in _failures:
+		push_error(failure)
+	print("PASSENGER_EXIT_RECEIPT: %d checks, %d failures" % [_checks, _failures.size()])
+	quit(0 if _failures.is_empty() else 1)
 
 func _write(name: String, data: Dictionary) -> void:
 	var target := _directory.path_join(name)

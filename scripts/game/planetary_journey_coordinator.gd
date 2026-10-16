@@ -1082,6 +1082,10 @@ func _advance_ember_survey_lifecycle(binding_snapshot: Dictionary) -> Dictionary
 func _queue_ember_surface_intent(intent_id: StringName) -> Dictionary:
 	if not is_instance_valid(_flow.ember_surface_loop_production_binding):
 		return {"accepted": false, "reason": &"ember_surface_binding_unavailable"}
+	if intent_id == &"reboard" and _shared_ember_crew_return_pending():
+		if is_instance_valid(_flow.hud):
+			_flow.hud.toast("Crew return pending", "Wait for your crew to board before returning to the pilot seat")
+		return {"accepted": false, "reason": &"ember_surface_crew_return_pending"}
 	var snapshot := _flow.ember_surface_loop_production_binding.get_caller_snapshot()
 	if StringName(snapshot.get("state_id", &"")) != &"running":
 		return {"accepted": false, "reason": &"ember_surface_intent_out_of_order"}
@@ -1105,6 +1109,18 @@ func _queue_ember_surface_intent(intent_id: StringName) -> Dictionary:
 				intent_serial, _flow.ember_surface_loop_production_binding.get_generation()
 			)
 	return {"accepted": false, "reason": &"ember_surface_intent_invalid"}
+
+
+func _shared_ember_crew_return_pending() -> bool:
+	if not _shared_ember_landing_active or not is_instance_valid(_flow.active_ship):
+		return false
+	# BOARDING retires the landed exterior movement admission. Keep the Host
+	# on foot until confirmed same-body returns (or disconnect cleanup) remove
+	# its exterior participants; refusing here does not consume an intent serial.
+	for context: Dictionary in _flow._network_ember_passenger_surfaces.values():
+		if context.get("ship_id") == _flow.active_ship.get_ship_id():
+			return true
+	return false
 
 
 func _consume_ember_surface_reboard_interaction() -> bool:

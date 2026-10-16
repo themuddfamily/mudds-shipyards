@@ -12279,6 +12279,20 @@ func _network_station_frame_origin() -> Vector3:
 	return world.global_position if is_instance_valid(world) else Vector3.ZERO
 
 
+## Canonical station datum for the shared planetary craft only. The physical
+## station and its parked siblings retain their common translated frame.
+func _network_orbital_frame_origin() -> Vector3:
+	if not is_instance_valid(ember_streaming_bootstrap):
+		return Vector3.INF
+	var frame := ember_streaming_bootstrap.get_coordinate_frame_for_session()
+	if frame == null:
+		return Vector3.INF
+	var station := frame.orbital_to_world_streaming_position(
+		NearbySectorOrbitalRegistry.new().get_coordinate(NearbySectorOrbitalRegistry.STATION_DATUM_ID),
+		frame.get_generation())
+	return station.position if bool(station.get("accepted", false)) else Vector3.INF
+
+
 ## Projectiles share the craft stream's station frame. Shift only finite,
 ## explicitly positional fields of shipped presentation records; direction,
 ## velocity, normals and identity stay exact. Malformed fields remain intact
@@ -12302,8 +12316,8 @@ func _shift_network_projectile_record(record: Dictionary, offset: Vector3) -> Di
 ## `entries` with every craft-pose position moved by `offset`; other movement
 ## entries and every non-positional field are passed through untouched.
 func _shift_network_craft_pose_entries(entries: Array, offset: Vector3) -> Array:
-	if offset == Vector3.ZERO:
-		return entries
+	var orbital_origin := _network_orbital_frame_origin()
+	var shared_ship := _network_planetary_journey.get_ship_id() if _network_planetary_journey.is_active() else &""
 	var shifted: Array = []
 	for entry_variant: Variant in entries:
 		if entry_variant is Dictionary \
@@ -12311,7 +12325,11 @@ func _shift_network_craft_pose_entries(entries: Array, offset: Vector3) -> Array
 					== NetworkRemoteCraftPoseStreamType.MODE \
 				and (entry_variant as Dictionary).get("position") is Vector3:
 			var entry := (entry_variant as Dictionary).duplicate()
-			entry["position"] = (entry.get("position") as Vector3) + offset
+			if not String(shared_ship).is_empty() and entry.get("ship_id") == shared_ship and orbital_origin.is_finite():
+				entry["position"] = (entry.get("position") as Vector3) - orbital_origin
+				entry["orbital_frame"] = true
+			else:
+				entry["position"] = (entry.get("position") as Vector3) + offset
 			shifted.append(entry)
 		else:
 			shifted.append(entry_variant)
@@ -12333,7 +12351,7 @@ func _on_network_snapshot_applied(result: Dictionary) -> void:
 		var ship_id := piloted.get_ship_id() if is_instance_valid(piloted) else &""
 		var previous := _network_craft_pose_stream.latest_sample(ship_id)
 		_network_craft_pose_stream.consume_movement_section(
-			movement as Array, -1, _network_station_frame_origin()
+			movement as Array, -1, _network_station_frame_origin(), _network_orbital_frame_origin()
 		)
 		var sample := _network_craft_pose_stream.latest_sample(ship_id)
 		# Only the stream's newly accepted current sample may refresh this clock.
