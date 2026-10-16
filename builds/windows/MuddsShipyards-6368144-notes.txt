@@ -1,0 +1,23 @@
+Mudd's Shipyards — Halyard engineer performance checkpoint 6368144
+Source commit: 636814418f111655871d3877ab2c7feaec1204e0
+Engine: official Godot 4.7.1 a13da4feb; stock editor and release templates, checksum verified.
+
+Changes:
+- Halyard engineer status and active repair checks avoid discarded full telemetry reports while preserving current landing, destruction and recovery decisions.
+- Includes the prior fleet engine/pilot-motion improvements and recovered station/planetary content.
+- Desktop export regression now checks required exclusions on both Windows and Linux without requiring an exact filter ordering.
+
+Validation:
+- Fresh headless Dummy editor import: exit 0. Safe exports completed from clean source.
+- Source engineer gameplay 70, Halyard damage/silhouette 13 and fleet exhaust 131 assertions pass. The new allocation regression check fails on the previous runtime as intended.
+- Actual embedded Windows package through the Linux editor: same three suites pass 214 assertions, each exit 0 and one completion marker; no diagnostics. Silent isolated --startup-check exits 0 with exactly one STARTUP_MENU_READY_OK and no diagnostics. This is package logic validation, not Windows execution.
+- Windows embedded inventory: 1,513 entries, compiled-token integrity and payload hashes verified. PE code section matches the pinned release template.
+- Linux ELF embedded inventory passes; archive binary bytes, executable mode and safe paths match. Direct and archive-extracted Linux --startup-check both exit 0 with exactly one STARTUP_MENU_READY_OK.
+- Existing package inventory Python tests: 13 pass. Desktop export boundary tests: 2 pass.
+- Isolated 10,000 engineer query-pair benchmark median: 643,488 -> 100,867 microseconds (about 84% lower query CPU cost). No whole-game FPS or GPU claim.
+- New unfiltered 1,045-suite --mode all matrix is RUNNING on this frozen commit in /tmp/mudds-qualification, isolated Xvfb x11, Dummy audio, software Vulkan and 3 workers, unchanged timeout contracts. Results: artifacts/test-matrix/20261016T171251Z. No full-pass claim until terminal results and source/cache guards are inspected.
+
+NOT_RUN: native Windows execution (antivirus hold), native GPU, physical controller, audible/human review and final release acceptance. GitHub Actions remains disabled. Stock engine used here; no custom reflection/mesh revision build is implied.
+This is a development checkpoint. Broad roadmap acceptance remains open.
+
+EXE SHA-256: 15baf6fc45895a91ea710050318d3679b8fa14ade6ae8e2f9cd657ce90f264ea
