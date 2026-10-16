@@ -14,6 +14,7 @@ const LEGACY_PATH := "memory://on-foot-camera-mode-persistence-legacy.cfg"
 var _assertions := 0
 var _failures: PackedStringArray = []
 var _player_signal_count := 0
+var _begin_interact_count := 0
 
 
 class FakeFilesystem extends UserDataFilesystem:
@@ -56,6 +57,12 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--begin-recovery-input-only" in OS.get_cmdline_user_args():
+		for reduced_motion: bool in [true, false]:
+			for gamepad: bool in [false, true]:
+				await _test_recovered_begin_boundary(reduced_motion, gamepad)
+		_finish()
+		return
 	var store := Store.new(STORE_PATH, FakeFilesystem.new())
 	var legacy_settings := Settings.new(LEGACY_PATH)
 	var schema_eight_payload := legacy_settings.to_user_data_payload()
@@ -110,7 +117,136 @@ func _run() -> void:
 
 	restarted.queue_free()
 	await process_frame
+	await _test_recovered_begin_boundary(true, false)
 	_finish()
+
+
+## Save the context through a real first shift, then cold-load it. No authored
+## Player/ship positions or gameplay/recovery state are injected by this test.
+func _test_recovered_begin_boundary(reduced_motion: bool, gamepad: bool) -> void:
+	var filesystem := FakeFilesystem.new()
+	var store := Store.new(STORE_PATH, filesystem)
+	_check(bool(store.load().accepted), "Begin recovery opens an empty store")
+	var settings := Settings.new(LEGACY_PATH)
+	settings.reduced_motion = reduced_motion
+	_check(bool(store.commit(
+		{Adapter.SETTINGS_PAYLOAD_KEY: settings.to_user_data_payload()}, 0, "begin-recovery"
+	).accepted), "Begin recovery saves the motion preference")
+	var first := await _instantiate_with_store(store)
+	# Jump is an ordinary title-confirm control and does not request boarding.
+	var jump := InputEventKey.new()
+	jump.physical_keycode = KEY_SPACE
+	jump.keycode = KEY_SPACE
+	jump.pressed = true
+	Input.parse_input_event(jump)
+	Input.flush_buffered_events()
+	await physics_frame
+	await process_frame
+	jump = jump.duplicate() as InputEventKey
+	jump.pressed = false
+	Input.parse_input_event(jump)
+	Input.flush_buffered_events()
+	for _tick in range(180):
+		await physics_frame
+		await process_frame
+		var saved := store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {}) as Dictionary
+		if saved.get("mode", "") == "on_foot":
+			break
+	var context := store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {}) as Dictionary
+	_check(context.get("mode", "") == "on_foot" and not first.player.is_seated(),
+		"first ordinary shift produces a real settled on-foot recovery context")
+	first.queue_free()
+	await process_frame
+	await physics_frame
+	# A separate store reloads bytes written by the previous Main.
+	var cold_store := Store.new(STORE_PATH, filesystem)
+	var game := await _instantiate_with_store(cold_store)
+	var label := "reduced_motion=%s gamepad=%s" % [str(reduced_motion), str(gamepad)]
+	_check(
+		game.phase == GameFlow.Phase.INTRO and not game.player.is_control_enabled()
+		and not game.player.is_seated() and not bool(game.get("_piloting"))
+		and (game.get("_solo_safe_recovery_context") as Dictionary).get("mode", "") == "on_foot",
+		"%s cold baseline is restored on-foot context, never a saved pilot" % label
+	)
+	_begin_interact_count = 0
+	game.player.interact_requested.connect(_on_begin_probe_interact)
+	var press := _begin_binding_event(gamepad, true)
+	_check(press != null, "%s has a physical Interact binding" % label)
+	if press == null:
+		game.queue_free()
+		await process_frame
+		return
+	Input.parse_input_event(press)
+	Input.flush_buffered_events()
+	# Match SettingsNativeInputEvents/_settings_tap's first press/flush frame.
+	await physics_frame
+	await process_frame
+	Input.parse_input_event(_begin_binding_event(gamepad, false))
+	Input.flush_buffered_events()
+	await physics_frame
+	await process_frame
+	for _tick in range(120):
+		if game.phase != GameFlow.Phase.INTRO:
+			break
+		await physics_frame
+		await process_frame
+	await physics_frame
+	await process_frame
+	print("BEGIN_RECOVERY_INPUT // %s // phase=%s // controls=%s // piloting=%s // seated=%s // interactions=%d // candidate=%s" % [
+		label, str(game.phase), str(game.player.is_control_enabled()),
+		str(game.get("_piloting")), str(game.player.is_seated()),
+		_begin_interact_count, str(game.get("boarding_candidate")),
+	])
+	_check(_begin_interact_count == 0,
+		"%s title-confirm press emits no gameplay Interact after on-foot restore" % label)
+	_check(game.phase == GameFlow.Phase.APPROACH_SHIP and game.player.is_control_enabled()
+		and not game.player.is_seated() and not bool(game.get("_piloting"))
+		and not bool(game.get("_transition_busy")),
+		"%s real recovery stays on foot after Begin" % label)
+	if game.phase == GameFlow.Phase.APPROACH_SHIP and game.player.is_control_enabled():
+		var before := _begin_interact_count
+		# Exercise the production control-handoff API with E/pad Interact held.
+		# No Player physics runs between enabling control, release, and repress:
+		# the fence cannot expire naturally before this fresh deliberate edge.
+		game.player.set_control_enabled(false)
+		Input.parse_input_event(_begin_binding_event(gamepad, true))
+		Input.flush_buffered_events()
+		game.player.set_control_enabled(true)
+		Input.parse_input_event(_begin_binding_event(gamepad, false))
+		Input.flush_buffered_events()
+		Input.parse_input_event(_begin_binding_event(gamepad, true))
+		Input.flush_buffered_events()
+		await physics_frame
+		await process_frame
+		_check(_begin_interact_count == before + 1,
+			"%s held-Interact control handoff admits release/repress before its first physics tick" % label)
+	Input.parse_input_event(_begin_binding_event(gamepad, false))
+	Input.flush_buffered_events()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	game.queue_free()
+	await process_frame
+	await physics_frame
+
+
+func _begin_binding_event(gamepad: bool, pressed: bool) -> InputEvent:
+	for binding: InputEvent in InputMap.action_get_events(&"interact"):
+		if (gamepad and binding is InputEventJoypadButton) \
+				or (not gamepad and binding is InputEventKey):
+			var event := binding.duplicate() as InputEvent
+			if event is InputEventKey:
+				var key := event as InputEventKey
+				key.pressed = pressed
+				if key.keycode == 0:
+					key.keycode = key.physical_keycode
+			else:
+				(event as InputEventJoypadButton).device = 0
+				(event as InputEventJoypadButton).pressed = pressed
+			return event
+	return null
+
+
+func _on_begin_probe_interact() -> void:
+	_begin_interact_count += 1
 
 
 func _instantiate_with_store(store: UserDataStore) -> GameFlow:

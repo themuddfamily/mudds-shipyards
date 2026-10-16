@@ -259,6 +259,10 @@ var _target_body_yaw: float = 0.0
 var _motion_state: StringName = &""
 
 var _embodiment_state := EmbodimentState.ON_FOOT
+# A press inherited when UI hands control back is not a gameplay interaction.
+# Keep its physics edge fenced until it expires or a release/new press arrives.
+var _interact_handoff_blocked := false
+var _interact_handoff_released := false
 ## Ordinary fixed furniture keeps this controller's own camera and interaction
 ## input while locomotion remains suspended. Pilot and vehicle seats never set
 ## this flag and retain their existing external-camera/control ownership.
@@ -447,7 +451,7 @@ func _physics_process(delta: float) -> void:
 			_station_seated_context
 			and _control_enabled
 			and _embodiment_state == EmbodimentState.SEATED
-			and Input.is_action_just_pressed("interact")
+			and _gameplay_interact_just_pressed()
 		):
 			interact_requested.emit()
 		_update_embodiment(delta)
@@ -470,7 +474,7 @@ func _physics_process(delta: float) -> void:
 			if existing_up_speed < 0.0:
 				velocity -= movement_up * existing_up_speed
 			velocity += movement_up * jump_velocity
-		if _control_enabled and Input.is_action_just_pressed("interact"):
+		if _control_enabled and _gameplay_interact_just_pressed():
 			interact_requested.emit()
 	else:
 		_decelerate_horizontal_velocity(delta)
@@ -737,6 +741,14 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Observe before camera/control/UI guards: a GUI-handled release must still
+	# retire the old press, including release/repress between physics ticks.
+	if _interact_handoff_blocked:
+		if event.is_action_released(&"interact") and not Input.is_action_pressed(&"interact"):
+			_interact_handoff_released = true
+		elif _interact_handoff_released and event.is_action_pressed(&"interact"):
+			_interact_handoff_blocked = false
+			_interact_handoff_released = false
 	# A retained tutorial action can keep GUI focus during captured gameplay.
 	# Its D-pad navigation must not consume the player's mapped camera control.
 	# Only explicitly passive gameplay actions opt in; menus and text entry keep
@@ -800,6 +812,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _gameplay_interact_just_pressed() -> bool:
+	if _interact_handoff_blocked:
+		# A release alone can leave just_pressed true for this physics tick.
+		# Clear only after that edge expires; a fresh event clears it in _input.
+		if not Input.is_action_pressed(&"interact") \
+				and not Input.is_action_just_pressed(&"interact"):
+			_interact_handoff_blocked = false
+			_interact_handoff_released = false
+		return false
+	return Input.is_action_just_pressed(&"interact")
+
+
 ## Enables or suspends on-foot movement and interaction input.
 func set_control_enabled(enabled: bool) -> void:
 	if enabled and _remote_drive_enabled:
@@ -812,6 +836,10 @@ func set_control_enabled(enabled: bool) -> void:
 		and not (_station_seated_context and _embodiment_state == EmbodimentState.SEATED)
 	):
 		return
+	if enabled and not _control_enabled:
+		_interact_handoff_blocked = Input.is_action_pressed(&"interact") \
+			or Input.is_action_just_pressed(&"interact")
+		_interact_handoff_released = not Input.is_action_pressed(&"interact")
 	_control_enabled = enabled
 	if not enabled:
 		# Stop only deck-tangent locomotion. Zeroing world X/Z corrupts the local

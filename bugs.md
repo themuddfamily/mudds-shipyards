@@ -2,6 +2,16 @@
 
 This ledger contains only unresolved or explicitly accepted issues. Fixed and closed records are removed once their fixes are verified.
 
+## INPUT-RECOVERY — Begin can board a saved on-foot player — **VERIFYING**
+
+- Severity: **P1**; owner/reporter: root, 2026-10-16. Observed on source `2625eb246`; package acceptance is not yet run.
+- Reproduction: persist an on-foot home-berth context with reduced motion enabled, restart, then press and release the ordinary Interact binding once to Begin. Expected: restore controllable on-foot play. Actual: the same press emits a gameplay interaction and boards the nearby Torrent. The rendered run changes from saved `on_foot`, unseated/INTRO to seated/piloting/START_ENGINES. A separate cold-load regression reproduces the extra interaction before any fix.
+- Cause: HUD handles Begin, but newly enabled Player input independently polls its global just-pressed Interact edge. On-foot recovery places the player beside the craft; only a saved `pilot` context should initiate automatic boarding.
+- Environment: WSL2 Linux 6.18.40.1, Intel i9-14900, 94.1 GiB RAM, experimental Dozen/Microsoft Direct3D12 RTX 5070 Ti, pinned editor `6fdc84b5f6f178bd454c77ebaf5d3dd51e62c0ffd9b919d6ab8ea66c1c7c1fca`, private 3200×1800 X11 screen (application viewport not captured), Dummy audio and isolated saved profile. Native Windows/device qualification is not implied.
+- Witness: `/root/.cache/mudds-shipyards/roadmap-validation/aurora-client-hud-retirement/stable-custom-full/settings-reentry-reader-walk-trace/settings-reentry-input-route.log`, SHA-256 `6416d846eb0591cba88e0ccac4a546d5e47765341ee9e2fa89539e1e03ae2389`. The on-foot context and resulting pilot state are logged immediately before/after Begin; all integrity and cleanup guards pass. Focused regression output: `begin-recovery-input-red/` beside that run.
+- Fix candidate: Player fences an inherited Interact edge when controls become enabled, observes physical releases before GUI routing, and accepts a fresh release/repress even before the next physics tick. The cold-load regression fails on both keyboard and gamepad with reduced motion before the fix; all four keyboard/gamepad × motion cases pass after it. The default camera suite includes the regression; it and station-interaction/sleep checks pass (129 assertions across four commands), with source/cache/user-data guards unchanged. Results: `begin-recovery-input-red/` and `begin-recovery-input-green/` beside the witness.
+- Remaining: rendered ordinary recovery, matching package and full current-source regression acceptance. The Arrow walking failure remains a separate unresolved observation. No time limit, movement tuning, saved location or binding was changed to obtain these results.
+
 ## RENDER-002 — Pending reflection captures outlive a retained scenario — **VERIFYING**
 
 - Severity: **P2**; owner: root. Reported 2026-10-15 during the current five-feature integration, based on `814fc5e7d`.
