@@ -1538,8 +1538,7 @@ func get_engineer_gameplay_state() -> Dictionary:
 		"schema_version": 1, "authority_attached": _crew_role_authority != null,
 		"component_generation": _engineer_component_generation,
 		"selection": _engineer_component_selection.duplicate(true), "repair": repair,
-		"repair_ready": not is_destroyed() and bool(get_telemetry().get("landed", false))
-			and not bool(get_telemetry().get("landing_active", false))
+		"repair_ready": not is_destroyed() and _landed and not _landing_active
 			and not _engineer_component_selection.is_empty()
 			and bool(repair.get("cooldown_ready", false)) and bool(repair.get("resource_ready", false))
 			and not bool(repair.get("active", false)),
@@ -2171,11 +2170,9 @@ func _advance_engineer_repair(delta: float) -> void:
 
 
 func _engineer_repair_interruption_reason() -> StringName:
-	var telemetry := get_telemetry()
-	if bool(telemetry.get("destroyed", false)):
+	if is_destroyed():
 		return &"ship_destroyed"
-	if not bool(telemetry.get("landed", false)) \
-			or bool(telemetry.get("landing_active", false)):
+	if not _landed or _landing_active:
 		return &"left_berth"
 	if _engineer_component_selection.is_empty():
 		return &"selection_lost"

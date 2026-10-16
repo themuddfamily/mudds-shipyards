@@ -8,6 +8,14 @@ const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
 const ShipComponentDamageType := preload("res://scripts/combat/ship_component_damage.gd")
 
+class TelemetryCountingHalyard extends HalyardCrewTransport:
+	var telemetry_reads := 0
+
+	func get_telemetry() -> Dictionary:
+		telemetry_reads += 1
+		return super.get_telemetry()
+
+
 var _failures: Array[String] = []
 var _assertions := 0
 
@@ -17,6 +25,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_check_engineer_scalar_state_reads()
 	var craft := HALYARD_SCENE.instantiate() as HalyardCrewTransport
 	root.add_child(craft)
 	await process_frame
@@ -668,6 +677,30 @@ func _run() -> void:
 		quit(1)
 		return
 	quit(0)
+
+
+func _check_engineer_scalar_state_reads() -> void:
+	var probe := TelemetryCountingHalyard.new()
+	probe.set("_engineer_component_selection", {"component_id": &"engine_bay", "component_generation": 1})
+	probe.set("_engineer_repair_state", {"component_id": &"engine_bay", "component_generation": 1})
+	for boundary in [
+		[true, false, false, true, &"authority_detached"],
+		[false, false, false, false, &"left_berth"],
+		[true, true, false, false, &"left_berth"],
+		[true, false, true, false, &"ship_destroyed"],
+		[true, false, false, true, &"authority_detached"],
+	]:
+		probe.set("_landed", boundary[0])
+		probe.set("_landing_active", boundary[1])
+		probe.set("_destroyed", boundary[2])
+		_check(
+			bool(probe.get_engineer_gameplay_state().get("repair_ready", false)) == boundary[3]
+				and probe.call(&"_engineer_repair_interruption_reason") == boundary[4],
+			"engineer readiness and interruption observe current berth, landing and destruction boundaries"
+		)
+	_check(probe.telemetry_reads == 0,
+		"engineer readiness and per-tick interruption do not construct discarded telemetry")
+	probe.free()
 
 
 func _first_damaged_system(model: ShipComponentDamage) -> StringName:
