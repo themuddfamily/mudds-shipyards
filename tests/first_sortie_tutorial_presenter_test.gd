@@ -138,6 +138,7 @@ func _run() -> void:
 	var invalid := presenter.present_snapshot({"step_id": &"combat", "generation": 1, "revision": 1})
 	_check(not invalid.accepted, "unknown tutorial step fails closed")
 	_test_exit_shutdown_guidance()
+	_test_fire_target_context()
 	if _failures.is_empty():
 		print("FIRST_SORTIE_TUTORIAL_PRESENTER_TEST_OK (%d assertions)" % _assertions)
 		quit(0)
@@ -145,6 +146,52 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _test_fire_target_context() -> void:
+	var presenter := Presenter.new()
+	var range_prompt := presenter.present_snapshot({"step_id": &"fire", "generation": 2, "revision": 1})
+	_check(range_prompt.fire_target == &"range_targets" and range_prompt.title == "Fire at range targets",
+		"legacy fire snapshots retain range-target guidance")
+	var live := presenter.present_snapshot({
+		"step_id": &"fire", "generation": 2, "revision": 2,
+		"fire_target": &"live_interceptor", "glyphs": {&"fire": "LMB"},
+	})
+	_check(live.accepted and live.title == "Engage the live interceptor"
+		and live.prompt.contains("LMB") and live.next_action == "TRACK LIVE INTERCEPTOR // FIRE"
+		and live.recovery.contains("LIVE RANGE-DEFENCE INTERCEPTOR") and not live.prompt.contains("RANGE TARGET"),
+		"authoritative live-contact context replaces obsolete range-target instruction and recovery")
+	var conflicting := presenter.present_snapshot({
+		"step_id": &"fire", "generation": 2, "revision": 2, "fire_target": &"range_targets",
+	})
+	_check(not conflicting.accepted and conflicting.reason == &"conflicting_revision"
+		and presenter.get_snapshot().fire_target == &"live_interceptor",
+		"one revision cannot switch the accepted combat target")
+	for invalid: Variant in [&"unknown", 1, {}, null]:
+		var rejected := presenter.present_snapshot({
+			"step_id": &"fire", "generation": 2, "revision": 3, "fire_target": invalid,
+		})
+		_check(not rejected.accepted and rejected.reason == &"invalid_fire_target"
+			and presenter.get_snapshot() == live, "invalid target identity/type retains the accepted prompt")
+	var redraw := presenter.present_snapshot({
+		"step_id": &"fire", "generation": 2, "revision": 2,
+		"fire_target": &"live_interceptor", "glyphs": {&"fire": "R2"},
+	})
+	_check(redraw.accepted and redraw.prompt.contains("R2") and not redraw.prompt.contains("LMB")
+		and redraw.completion_intent == live.completion_intent, "live-target remap redraw preserves the progress fence")
+	var accessible := presenter.present_snapshot({
+		"step_id": &"fire", "generation": 2, "revision": 2,
+		"fire_target": &"live_interceptor", "accessible": true,
+	})
+	_check(accessible.accepted and accessible.prompt == accessible.accessible_prompt
+		and accessible.prompt.contains("live range-defence interceptor") and not accessible.prompt.contains("{"),
+		"accessible live-contact guidance remains glyph-free")
+	var landing := presenter.present_snapshot({"step_id": &"return_land", "generation": 2, "revision": 3})
+	_check(landing.accepted and landing.fire_target.is_empty() and not landing.prompt.contains("INTERCEPTOR"),
+		"combat context does not leak into the next tutorial step")
+	presenter.detach()
+	var reused := presenter.present_snapshot({"step_id": &"fire", "generation": 0, "revision": 0})
+	_check(reused.accepted and reused.fire_target == &"range_targets", "detached presenter cannot inherit an earlier live contact")
 
 
 func _test_exit_shutdown_guidance() -> void:

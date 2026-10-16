@@ -201,6 +201,43 @@ func _initialize() -> void:
 		_check(not "RETRY REWARD SAVE" in str(fresh_beacon.text)
 			and not "RETRY REWARD SAVE" in str(fresh_beacon.objective_text),
 			"a new, active or reset route cannot retain a previous completion's save retry")
+	var timeout_view := presenter.present({
+		"host": {"activity": {"state_id": &"active"}},
+		"beacon_traversal": {"state": 2, "reward_pending": true},
+		"station_defense": {"state_id": &"timed_out", "generation": 3},
+	})
+	var timeout_card := _card(timeout_view, &"station_defense")
+	_check(timeout_view.cards[0].activity_id == &"station_defense"
+		and timeout_card.priority_id == &"critical"
+		and timeout_card.state_id == &"timed_out"
+		and "TIMED OUT" in str(timeout_card.text)
+		and timeout_card.objective_text == "RESET AT THE DEFENSE BOARD TO TRY AGAIN"
+		and not bool(timeout_card.reward_authority),
+		"a timed-out defense exposes its reset guidance before active work and pending rewards without changing its terminal state")
+	var defense_id: StringName = &"station_defense"
+	var first_timeout_reset := presenter.reset_intent(defense_id)
+	var refreshed_timeout := presenter.present(presenter.get_snapshot().snapshot)
+	_check(not bool(first_timeout_reset.accepted)
+		and first_timeout_reset.reason == &"reset_confirmation_requested"
+		and not bool(first_timeout_reset.emit_intent)
+		and bool(_card(refreshed_timeout, defense_id).reset_confirmation_pending),
+		"a timeout reset asks for confirmation and retains it across a same-generation refresh")
+	var confirmed_timeout_reset := presenter.reset_intent(defense_id)
+	_check(bool(confirmed_timeout_reset.accepted)
+		and confirmed_timeout_reset.reason == &"reset_requested"
+		and not bool(confirmed_timeout_reset.authority),
+		"a second same-generation timeout reset emits only the caller-owned reset request")
+	var old_generation_reset := presenter.reset_intent(defense_id)
+	var newer_timeout := presenter.present({
+		"station_defense": {"state_id": &"timed_out", "generation": 4},
+	})
+	var newer_timeout_reset := presenter.reset_intent(defense_id)
+	_check(old_generation_reset.reason == &"reset_confirmation_requested"
+		and not bool(_card(newer_timeout, defense_id).reset_confirmation_pending)
+		and not bool(newer_timeout_reset.accepted)
+		and newer_timeout_reset.reason == &"reset_confirmation_requested"
+		and not bool(newer_timeout_reset.emit_intent),
+		"a previous timeout generation's confirmation cannot authorize resetting a newer generation")
 	var selected := presenter.select(&"cinder_debris_beacon_traversal")
 	_check(bool(selected.get("accepted", false)), "known activity selection is accepted")
 	var intent := presenter.start_intent()

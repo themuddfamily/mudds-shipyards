@@ -103,7 +103,7 @@ func _priority_rank(card: Dictionary) -> int:
 	var state_id := StringName(card.get("state_id", &"available"))
 	var convoy := card.get("convoy_feedback", {}) as Dictionary
 	var cargo := card.get("cargo_progress", {}) as Dictionary
-	if state_id in [&"failed", &"lost_hostile", &"expired", &"interrupted", &"wrong_order", &"wrong_position", &"missed_gate"] \
+	if state_id in [&"failed", &"lost_hostile", &"expired", &"timed_out", &"interrupted", &"wrong_order", &"wrong_position", &"missed_gate"] \
 			or StringName(convoy.get("threat_id", &"")) in [&"critical", &"lost", &"separated"] \
 			or StringName(cargo.get("deadline_state", &"")) == &"critical":
 		return 0
@@ -1153,6 +1153,8 @@ func _state_label(state: Dictionary) -> String:
 
 
 func _state_text(state_id: StringName) -> String:
+	if state_id == &"timed_out":
+		return "TIMED OUT"
 	return {&"idle": "AVAILABLE", &"unavailable": "OUT OF RANGE", &"active": "ACTIVE", &"started": "ACTIVE", &"traversing": "ACTIVE", &"countdown": "COUNTDOWN", &"missed_gate": "MISSED GATE", &"wrong_order": "WRONG ORDER", &"wrong_position": "WRONG POSITION", &"interrupted": "INTERRUPTED", &"completed": "COMPLETED", &"complete": "COMPLETED", &"failed": "FAILED", &"expired": "EXPIRED", &"reset": "AVAILABLE"}.get(state_id, str(state_id).to_upper())
 
 

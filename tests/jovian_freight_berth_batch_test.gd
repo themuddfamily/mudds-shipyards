@@ -58,10 +58,13 @@ func _run() -> void:
 		# Dispatch wayfinding subsequently added three childless Label3D
 		# DispatchReadout nodes to the existing service-room screens. Only
 		# descendants change: 893 -> 896; mesh geometry and collision stay exact.
+		# 82c678225 replaces the dispatch plinth's 60-triangle rounded box
+		# with an 18-edge extruded capsule (4 triangles per edge): +12.
+		# Every other census field and the production budgets remain unchanged.
 		census == {
 			"descendant_nodes": 896, "mesh_instance_nodes": 389, "multimesh_nodes": 16,
 			"geometry_submissions": 449, "visible_geometry_copies": 477,
-			"drawn_triangles": 102044, "static_bodies": 206, "collision_shapes": 209,
+			"drawn_triangles": 102056, "static_bodies": 206, "collision_shapes": 209,
 		},
 		"current standalone census includes later immutable batches and dispatch readouts: 896 nodes, 449 submissions, 477 visible copies, and collision exact"
 	)

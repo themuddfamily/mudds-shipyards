@@ -32,6 +32,7 @@ var _source_generation := -1
 var _source_revision := -1
 var _source_step: StringName = &""
 var _source_craft_display_name := ""
+var _source_fire_target: StringName = &""
 var _attached := false
 
 
@@ -60,6 +61,14 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	if not revision_value is int or int(revision_value) < 0:
 		return _reject(&"invalid_revision")
 	var revision := int(revision_value)
+	var fire_target: StringName = &""
+	if step_id == &"fire":
+		var target_value: Variant = source.get("fire_target", &"range_targets")
+		if not (target_value is String or target_value is StringName):
+			return _reject(&"invalid_fire_target")
+		fire_target = StringName(target_value)
+		if fire_target not in [&"range_targets", &"live_interceptor"]:
+			return _reject(&"invalid_fire_target")
 	var craft_context := _resolve_board_craft_context(source, step_id)
 	if not bool(craft_context.get("accepted", false)):
 		return _reject(craft_context.get("reason", &"invalid_craft_context") as StringName)
@@ -72,6 +81,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			and revision == _source_revision and (
 				step_id != _source_step
 				or craft_display_name != _source_craft_display_name
+				or fire_target != _source_fire_target
 			):
 		return _reject(&"conflicting_revision")
 	var copy := (STEP_COPY[step_id] as Dictionary).duplicate(true)
@@ -84,6 +94,13 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 			"Use the interact control to board %s." % craft_display_name
 		)
 		status["next_action"] = "BOARD SELECTED CRAFT // INTERACT"
+	if step_id == &"fire" and fire_target == &"live_interceptor":
+		copy["title"] = "Engage the live interceptor"
+		copy["controller"] = "Track the live range-defence interceptor, then press {fire} to fire."
+		copy["keyboard"] = copy.controller
+		copy["accessible"] = "Track the live range-defence interceptor, then use the fire control."
+		status["next_action"] = "TRACK LIVE INTERCEPTOR // FIRE"
+		status["recovery"] = "CONTACT LOST // REACQUIRE THE LIVE RANGE-DEFENCE INTERCEPTOR"
 	var family := StringName(str(source.get("input_family", &"controller")))
 	var accessible := bool(source.get("accessible", false))
 	var prompt := str(copy.accessible if accessible else (copy.keyboard if family == &"keyboard" else copy.controller))
@@ -102,6 +119,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 	_source_revision = revision
 	_source_step = step_id
 	_source_craft_display_name = craft_display_name
+	_source_fire_target = fire_target
 	_attached = true
 	_snapshot = {
 		"component_id": COMPONENT_ID,
@@ -115,6 +133,7 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 		"prompt": prompt,
 		"accessible_prompt": accessible_prompt,
 		"craft_display_name": craft_display_name,
+		"fire_target": fire_target,
 		"contextual_craft": not craft_display_name.is_empty(),
 		"progress_label": progress_label,
 		"next_action": next_action,
@@ -182,6 +201,7 @@ func _clear_state() -> void:
 	_source_revision = -1
 	_source_step = &""
 	_source_craft_display_name = ""
+	_source_fire_target = &""
 	_attached = false
 
 
