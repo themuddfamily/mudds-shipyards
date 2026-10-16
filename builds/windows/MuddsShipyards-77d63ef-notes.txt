@@ -1,0 +1,16 @@
+Mudds Shipyards checkpoint 77d63ef (windows)
+Source: 77d63ef8066f69602df1fd4dde2da672f9d239b8
+
+- Confirmed gunners are identified correctly in session status.
+- Fleet Registry instructions work with remapped and controller interaction.
+- Mining help explains retrying a failed capacity save without repeating extraction.
+
+Actual package: MuddsShipyards-77d63ef.exe
+SHA-256: 4418fe58355af8b16ea4a6229ed60445f082310e12303a873ba2d852e64c48e0
+Silent headless startup: exit 0 and STARTUP_MENU_READY_OK exactly once, no errors.
+The Windows PE was not executed; its embedded game payload ran through the Linux editor.
+Payload inventory: 1,513 entries; exact reviewed delta versus 0355c19. Cross-platform parity is recorded by whichever selected platform runs second.
+Native Windows, native GPU, rendered release-template, full release-matrix and complete-controls qualification remain NOT_RUN. Hosted CI remains disabled.
+
+Focused local validation: four source suites and the same four suites against this Windows embedded game content via Linux editor pass 340 assertions each, with zero diagnostics and unchanged integrity guards. Suites: network HUD/status, activity tutorial, physical Fleet Registry interaction.
+Complete current-source regression, the corrected Settings journey and target-hardware qualification remain open.
