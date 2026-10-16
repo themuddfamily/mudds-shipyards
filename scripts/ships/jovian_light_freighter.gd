@@ -5305,8 +5305,7 @@ func _set_interior_operational(enabled: bool) -> void:
 
 
 func _update_jovian_presentation(delta: float) -> void:
-	var telemetry := get_telemetry()
-	var engine_state := StringName(telemetry.get("engine_state", &"OFFLINE"))
+	var engine_state := _engine_state
 	var engine_active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
 	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	var engine_level := 0.0
@@ -5336,8 +5335,7 @@ func _update_jovian_presentation(delta: float) -> void:
 
 
 func _sync_jovian_engine_presentation_immediately() -> void:
-	var telemetry := get_telemetry()
-	var state := StringName(telemetry.get("engine_state", ENGINE_OFFLINE))
+	var state := _engine_state
 	var active := not is_destroyed() and state in [ENGINE_STARTING, ENGINE_ONLINE]
 	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	var engine_level := 0.22 if state == ENGINE_STARTING else (0.46 if state == ENGINE_ONLINE else 0.0)

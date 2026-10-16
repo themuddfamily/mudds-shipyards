@@ -5145,8 +5145,7 @@ static func _transformed_aabb(source: AABB, transform_value: Transform3D) -> AAB
 
 
 func _update_zenith_engine_presentation(delta: float) -> void:
-	var telemetry := get_telemetry()
-	var engine_state := StringName(telemetry.get("engine_state", ENGINE_OFFLINE))
+	var engine_state := _engine_state
 	var active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
 	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	var target_level := 0.0
@@ -5176,8 +5175,7 @@ func _update_zenith_engine_presentation(delta: float) -> void:
 
 
 func _sync_zenith_engine_presentation_immediately() -> void:
-	var telemetry := get_telemetry()
-	var engine_state := StringName(telemetry.get("engine_state", ENGINE_OFFLINE))
+	var engine_state := _engine_state
 	var active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
 	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	var target_level := 0.28 if engine_state == ENGINE_STARTING else (0.48 if engine_state == ENGINE_ONLINE else 0.0)

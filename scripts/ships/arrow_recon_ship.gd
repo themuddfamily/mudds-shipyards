@@ -2324,8 +2324,7 @@ func _update_arrow_presentation(delta: float) -> void:
 				sin(_elapsed_arrow * SENSOR_SWEEP_PITCH_RATE)
 				* SENSOR_SWEEP_PITCH_AMPLITUDE
 			)
-	var telemetry := get_telemetry()
-	var engine_state := StringName(telemetry.get("engine_state", &"OFFLINE"))
+	var engine_state := _engine_state
 	var engine_active := not is_destroyed() and engine_state in [ENGINE_STARTING, ENGINE_ONLINE]
 	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	var engine_level := 0.0
@@ -2402,8 +2401,7 @@ func _sync_core_systems_damage_silhouette() -> void:
 
 
 func _sync_arrow_engine_presentation_immediately() -> void:
-	var telemetry := get_telemetry()
-	var state := StringName(telemetry.get("engine_state", ENGINE_OFFLINE))
+	var state := _engine_state
 	var active := not is_destroyed() and state in [ENGINE_STARTING, ENGINE_ONLINE]
 	var exhaust_profile := get_engine_exhaust_damage_presentation_profile()
 	var engine_level := 0.25 if state == ENGINE_STARTING else (0.48 if state == ENGINE_ONLINE else 0.0)
