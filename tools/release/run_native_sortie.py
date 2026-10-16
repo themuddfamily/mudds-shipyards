@@ -188,8 +188,11 @@ class Pilot:
         self.fired = False
         self.target = None
         self.tap_until = 0
+        self.tap_frame = 0
+        self.frame = 0
         self.tap_key = None
         self.tap_cooldown = 0
+        self.tap_release_frame = -100
         self.return_braking = False
         self.max_walk = 0
         self.max_excursion = 0
@@ -204,10 +207,10 @@ class Pilot:
         print(json.dumps(event), flush=True)
 
     def tap(self, key, now):
-        if now >= self.tap_cooldown:
+        if self.tap_key is None and now >= self.tap_cooldown and self.frame >= self.tap_release_frame + 6:
             self.tap_key = key
-            self.tap_until = now + .08
-            self.tap_cooldown = now + .6
+            self.tap_until = now + .15
+            self.tap_frame = self.frame
 
     def aim(self, s, target, gain=.15):
         desired = unit(sub(target, s['camera']))
@@ -220,6 +223,7 @@ class Pilot:
         return clamp(yaw*gain/sensitivity), clamp(-pitch*gain/sensitivity), -local[2]
 
     def update(self, s, now):
+        self.frame = s['frame']
         phase = s['phase']
         if not self.phases or self.phases[-1] != phase:
             self.phases.append(phase)
@@ -324,6 +328,8 @@ class Pilot:
                 self.enter('land', s)
                 self.tap('l', now)
         elif self.stage == 'land':
+            if phase == 'RETURN_TO_YARD' and not s['landing_active']:
+                self.tap('l', now)
             if phase == 'SHUT_DOWN':
                 require(s['contract'] and s['parked_exact'] and s['lease'], 'exact secured home berth')
                 self.enter('shutdown', s)
@@ -344,7 +350,16 @@ class Pilot:
                            'excursion_m': self.max_excursion, 'landing_approach_m': self.landing_distance,
                            'exit_error_m': s['exit_error'], 'same_player_id': ids[0], 'same_ship_id': ids[1],
                            'authored_tuning': s['tuning'], 'default_sampler': True, 'shot_accepted': self.shot}
-        if now < self.tap_until: keys.add(self.tap_key)
+        # A short wall-clock pulse can fall wholly inside a busy engine frame.
+        # Keep it down until six actual physics observations have passed, then
+        # observe a release interval before a fresh physical press may begin.
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
         return keys, dx, dy, fire
 
 
