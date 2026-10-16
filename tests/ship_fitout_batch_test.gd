@@ -31,6 +31,35 @@ class ReferenceHolder:
 	var kept: MeshInstance3D
 
 
+class ReferenceBase:
+	extends RefCounted
+	var inherited: WeakRef
+	@export var held_mesh: Mesh
+
+
+class ReferenceChild:
+	extends ReferenceBase
+	var nested: Dictionary
+
+
+class DynamicReferenceHolder:
+	extends Node3D
+	var helper: ReferenceChild
+	var target: Node
+
+	func _get_property_list() -> Array[Dictionary]:
+		return [{"name": "dynamic_reference", "type": TYPE_OBJECT,
+			"usage": PROPERTY_USAGE_SCRIPT_VARIABLE}]
+
+	func _get(property: StringName) -> Variant:
+		return target if property == &"dynamic_reference" else null
+
+	func _validate_property(property: Dictionary) -> void:
+		# Only the dynamic field exposes target to the scan.
+		if property.name == "target":
+			property.usage = PROPERTY_USAGE_NONE
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -93,6 +122,7 @@ func _batches(root: Node) -> Array[MeshInstance3D]:
 
 
 func _run() -> void:
+	_test_inherited_dynamic_and_mutated_references()
 	_test_merge_is_lossless_and_local()
 	_test_authority_is_never_folded()
 	_test_shared_stock_and_bands_stand()
@@ -403,3 +433,34 @@ func _test_authored_census_reproduces_the_roster() -> void:
 	)
 	root.remove_child(craft)
 	craft.free()
+
+
+func _test_inherited_dynamic_and_mutated_references() -> void:
+	var holder := DynamicReferenceHolder.new()
+	var inherited := Node3D.new()
+	var nested := Node3D.new()
+	var dynamic := Node3D.new()
+	var later := Node3D.new()
+	holder.helper = ReferenceChild.new()
+	holder.helper.inherited = weakref(inherited)
+	holder.helper.nested = {nested: [weakref(dynamic)]}
+	holder.helper.held_mesh = ArrayMesh.new()
+	holder.target = later
+	var first: Dictionary = BATCH._collect_script_referenced_objects(holder)
+	_check(first.has(inherited.get_instance_id()) and first.has(nested.get_instance_id())
+		and first.has(dynamic.get_instance_id()) and first.has(later.get_instance_id())
+		and first.has(holder.helper.held_mesh.get_instance_id()),
+		"reference scan preserves inherited helper variables, weak refs, dictionary keys, meshes and dynamic fields")
+	# A second scan must observe live variable values, not reuse earlier results.
+	holder.helper.inherited = weakref(later)
+	holder.helper.nested = {}
+	holder.target = dynamic
+	var second: Dictionary = BATCH._collect_script_referenced_objects(holder)
+	_check(not second.has(inherited.get_instance_id()) and not second.has(nested.get_instance_id())
+		and second.has(later.get_instance_id()) and second.has(dynamic.get_instance_id()),
+		"each reference scan observes current helper and dynamic values")
+	holder.free()
+	inherited.free()
+	nested.free()
+	dynamic.free()
+	later.free()

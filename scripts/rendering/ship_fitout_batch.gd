@@ -1556,7 +1556,15 @@ static func _visit_script_variables(
 	if visited.has(id):
 		return
 	visited[id] = true
-	for property in value.get_property_list():
+	# Script properties include inherited variables without materializing every
+	# native Node/Resource property. Instance hooks can add or reclassify fields,
+	# so retain the full instance list whenever either hook participates.
+	var properties: Array[Dictionary]
+	if value.has_method("_get_property_list") or value.has_method("_validate_property"):
+		properties = value.get_property_list()
+	else:
+		properties = (value.get_script() as Script).get_script_property_list()
+	for property in properties:
 		if int(property.get("usage", 0)) & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
 			continue
 		_visit_variant(value.get(property["name"]), referenced, visited)
