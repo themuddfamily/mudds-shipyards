@@ -483,8 +483,7 @@ func _physics_process(delta: float) -> void:
 	_move_in_interior_collision_frame(delta)
 	_resolve_cabin_containment()
 	_update_facing(desired_direction, delta)
-	_update_authored_locomotion(is_sprinting, delta)
-	_advance_motion_animation(delta)
+	_update_authored_locomotion(is_sprinting, delta, true)
 	_update_grounded_foot_placement()
 
 
@@ -2610,14 +2609,8 @@ func _select_fallback_motion_authority() -> bool:
 	return _repair_cached_motion_state(true)
 
 
-func _ensure_motion_authority(run_integrity_probe: bool = false) -> bool:
-	if _ensuring_motion_authority:
-		return _motion_animation_player != null and is_instance_valid(_motion_animation_player)
-	_ensuring_motion_authority = true
-	# A healthy imported driver needs no writes. Recheck its complete authority
-	# contract on every call, but avoid stop()/mount setters and a second legacy
-	# audit when all state those setters would restore is already exact.
-	if (
+func _imported_motion_authority_needs_no_repair() -> bool:
+	return (
 		_using_imported_pilot_presentation
 		and _imported_mount_contract_is_live()
 		and is_finite(_target_body_yaw)
@@ -2627,7 +2620,17 @@ func _ensure_motion_authority(run_integrity_probe: bool = false) -> bool:
 		and _body_pivot.rotation == Vector3(0.0, _get_body_pivot_target_yaw(), 0.0)
 		and _pilot_presentation.transform == Transform3D.IDENTITY
 		and _imported_motion_authority_is_healthy()
-	):
+	)
+
+
+func _ensure_motion_authority(run_integrity_probe: bool = false) -> bool:
+	if _ensuring_motion_authority:
+		return _motion_animation_player != null and is_instance_valid(_motion_animation_player)
+	_ensuring_motion_authority = true
+	# A healthy imported driver needs no writes. Recheck its complete authority
+	# contract on every call, but avoid stop()/mount setters and a second legacy
+	# audit when all state those setters would restore is already exact.
+	if _imported_motion_authority_needs_no_repair():
 		var imported_healthy := true
 		if run_integrity_probe:
 			var asset_audit := _pilot_presentation.get_asset_audit_report(false)
@@ -3208,7 +3211,11 @@ func _clear_landing_recovery() -> void:
 	_landing_recovery_remaining = 0.0
 
 
-func _update_authored_locomotion(sprinting: bool, delta: float) -> void:
+func _update_authored_locomotion(
+		sprinting: bool,
+		delta: float,
+		advance_animation: bool = false
+		) -> void:
 	var movement_up := _get_movement_up_direction()
 	var horizontal_speed := (velocity - movement_up * velocity.dot(movement_up)).length()
 	if not is_on_floor():
@@ -3217,9 +3224,9 @@ func _update_authored_locomotion(sprinting: bool, delta: float) -> void:
 		_landing_recovery_remaining = 0.0
 		var upward_speed := velocity.dot(movement_up)
 		_last_airborne_descent_speed = maxf(0.0, -upward_speed)
-		_set_motion_state(
+		_apply_authored_locomotion_state(
 			MOTION_JUMP if upward_speed > 0.25 else MOTION_AIRBORNE,
-			MOTION_BLEND_TIME
+			MOTION_BLEND_TIME, 1.0, false, delta, advance_animation
 		)
 		return
 	if _was_airborne:
@@ -3232,31 +3239,86 @@ func _update_authored_locomotion(sprinting: bool, delta: float) -> void:
 		_last_airborne_descent_speed = 0.0
 		if real_impact and _using_imported_pilot_presentation:
 			_landing_recovery_remaining = LANDING_RECOVERY_LENGTH
-			_set_motion_state(MOTION_LANDING_RECOVERY, LANDING_RECOVERY_BLEND_TIME, 1.0, true)
+			_apply_authored_locomotion_state(
+				MOTION_LANDING_RECOVERY, LANDING_RECOVERY_BLEND_TIME,
+				1.0, true, delta, advance_animation
+			)
 			return
 	if _landing_recovery_remaining > 0.0 and _using_imported_pilot_presentation:
 		_landing_recovery_remaining = maxf(0.0, _landing_recovery_remaining - delta)
 		if _landing_recovery_remaining > 0.0:
-			_set_motion_state(MOTION_LANDING_RECOVERY, LANDING_RECOVERY_BLEND_TIME)
+			_apply_authored_locomotion_state(
+				MOTION_LANDING_RECOVERY, LANDING_RECOVERY_BLEND_TIME,
+				1.0, false, delta, advance_animation
+			)
 			return
 
 	if horizontal_speed <= 0.15:
-		_set_motion_state(MOTION_IDLE, MOTION_BLEND_TIME)
-		return
-
-	if sprinting or horizontal_speed > walk_speed * 1.08:
-		_set_motion_state(
-			MOTION_RUN,
-			MOTION_BLEND_TIME,
-			clampf(horizontal_speed / maxf(sprint_speed, 0.1), 0.72, 1.3)
+		_apply_authored_locomotion_state(
+			MOTION_IDLE, MOTION_BLEND_TIME, 1.0, false, delta, advance_animation
 		)
 		return
 
-	_set_motion_state(
+	if sprinting or horizontal_speed > walk_speed * 1.08:
+		_apply_authored_locomotion_state(
+			MOTION_RUN,
+			MOTION_BLEND_TIME,
+			clampf(horizontal_speed / maxf(sprint_speed, 0.1), 0.72, 1.3),
+			false, delta, advance_animation
+		)
+		return
+
+	_apply_authored_locomotion_state(
 		MOTION_WALK,
 		MOTION_BLEND_TIME,
-		clampf(horizontal_speed / maxf(walk_speed, 0.1), 0.62, 1.28)
+		clampf(horizontal_speed / maxf(walk_speed, 0.1), 0.62, 1.28),
+		false, delta, advance_animation
 	)
+
+
+func _apply_authored_locomotion_state(
+		state: StringName,
+		blend_time: float,
+		playback_rate: float,
+		restart: bool,
+		delta: float,
+		advance_animation: bool
+		) -> void:
+	if advance_animation:
+		_set_and_advance_motion_state(state, blend_time, playback_rate, restart, delta)
+	else:
+		_set_motion_state(state, blend_time, playback_rate, restart)
+
+
+func _set_and_advance_motion_state(
+		state: StringName,
+		blend_time: float,
+		playback_rate: float,
+		restart: bool,
+		delta: float
+		) -> void:
+	# Reuse one complete, read-only authority fence only within this stable
+	# synchronous operation. No foot-placement call, repair, play or seek may
+	# intervene: those can invoke callbacks that edit Animation resources silently.
+	if (
+		not restart
+		and state in [MOTION_IDLE, MOTION_WALK, MOTION_RUN, MOTION_LANDING_RECOVERY]
+		and _motion_state == state
+		and is_finite(playback_rate)
+		and playback_rate > 0.0
+		and not _ensuring_motion_authority
+		and _motion_animation_player != null
+		and is_instance_valid(_motion_animation_player)
+		and _motion_animation_player.assigned_animation == state
+		and _motion_animation_player.is_playing()
+		and _imported_motion_authority_needs_no_repair()
+	):
+		_motion_playback_rate = playback_rate
+		_motion_animation_player.speed_scale = playback_rate
+		_motion_animation_player.advance(delta)
+		return
+	_set_motion_state(state, blend_time, playback_rate, restart)
+	_advance_motion_animation(delta)
 
 
 func _set_motion_state(

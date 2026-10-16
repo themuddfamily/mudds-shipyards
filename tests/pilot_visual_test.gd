@@ -113,6 +113,7 @@ func _run() -> void:
 		_test_imported_motion_library(player, presentation)
 		_test_skeleton_pose_witnesses(player, presentation)
 		await _test_motion_authority_intrusion_recovery(player, presentation)
+		_test_combined_motion_authority_fences(player, presentation)
 	await _test_authored_locomotion_state_machine(player, fixture)
 	await _test_standing_and_seated_lifecycle(player, fixture)
 	await _test_periodic_integrity_fallback(fixture)
@@ -522,6 +523,52 @@ func _test_skeleton_pose_witnesses(
 			and skeleton.get_bone_pose_rotation(right_forearm).angle_to(idle_right_forearm) <= 0.0001,
 		"idle frame zero restores sampled skinned limbs to the exact authored idle pose"
 	)
+
+
+func _test_combined_motion_authority_fences(
+		player: PlayerController,
+		presentation: PilotSkinnedPresentation
+		) -> void:
+	var imported := presentation.get_animation_player()
+	var legacy := player.get_node("MotionAnimationPlayer") as AnimationPlayer
+	player.call("_set_motion_state", &"idle", 0.0, 1.0, true, true)
+	var position_before := imported.current_animation_position
+	player.call("_set_and_advance_motion_state", &"idle", 0.0, 1.25, false, 0.016)
+	_check(
+		imported.current_animation_position > position_before
+		and is_equal_approx(imported.speed_scale, 1.25),
+		"combined stable motion selection applies playback rate and samples the imported driver"
+	)
+	var tail_clip := &"disembark_recovery"
+	var tail_animation := legacy.get_animation(tail_clip)
+	var tail_track := tail_animation.get_track_count() - 1
+	var tail_key := tail_animation.track_get_key_count(tail_track) - 1
+	var tail_value: Variant = tail_animation.track_get_key_value(tail_track, tail_key)
+	tail_animation.track_set_key_value(tail_track, tail_key, tail_value + Vector3(0.1, 0.0, 0.0))
+	player.call("_set_and_advance_motion_state", &"idle", 0.0, 1.0, false, 0.016)
+	_check(
+		legacy.get_animation(tail_clip) != tail_animation
+		and legacy.get_animation(tail_clip).track_get_key_value(tail_track, tail_key) == tail_value,
+		"a second same-frame combined motion call repairs a silent final-key edit before sampling"
+	)
+	# A transition's play() emits synchronously after its first authority fence.
+	# The combined helper must retain the separate advance fence in this case.
+	var callback_observed := [false]
+	var mutate_during_play := func(clip_name: StringName) -> void:
+		if clip_name == &"walk":
+			callback_observed[0] = true
+			legacy.get_animation(tail_clip).track_set_key_value(
+				tail_track, tail_key, tail_value + Vector3(0.2, 0.0, 0.0)
+			)
+	imported.animation_started.connect(mutate_during_play)
+	player.call("_set_and_advance_motion_state", &"walk", 0.0, 1.0, false, 0.016)
+	imported.animation_started.disconnect(mutate_during_play)
+	_check(
+		callback_observed[0]
+		and legacy.get_animation(tail_clip).track_get_key_value(tail_track, tail_key) == tail_value,
+		"combined transitions recheck authority after an animation-start callback silently edits a legacy key"
+	)
+	player.call("_set_motion_state", &"idle", 0.0, 1.0, true, true)
 
 
 func _test_authored_locomotion_state_machine(player: PlayerController, fixture: Node3D) -> void:
