@@ -17,7 +17,7 @@ Validation:
 - Three additional fresh final-driver runs against compiled source 58c0f2730 pass in 61.468s, 65.091s and 62.262s; final driver hash 98465801dac4e7c3e16e6f691be9f72130c7f4dfb233e1161363d26c456e5286. Independent review confirms every sample retains the active default sampler/authored tuning, zero diagnostics and complete cleanup. The exact integrated dfed249 run above separately qualifies this checkpoint.
 
 Open acceptance:
-- The original frozen 636814418 full matrix remains running with eight retained failures/timeouts; this checkpoint has no full-matrix pass.
+- The original frozen 636814418 full matrix remains running with retained failures/timeouts; this checkpoint has no full-matrix pass.
 - This run establishes native Linux executable OS-input behavior on Xvfb with the dummy renderer. Native Windows execution (antivirus hold), native GPU/performance, physical controller, audible and human review remain NOT_RUN. Graphical capture and broader remote-crew/world/recovery/final-release gates remain open.
 - GitHub Actions remains disabled under the owner's CI budget hold.
 Development checkpoint; all ten roadmap phases remain open.
