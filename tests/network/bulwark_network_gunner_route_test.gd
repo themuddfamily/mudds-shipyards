@@ -78,11 +78,13 @@ func _orchestrate() -> void:
 	_directory = directory_base.path_join("mudds-gunner-peers-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(_directory)
 	_port = 26000 + OS.get_process_id() % 15000
-	var host_args := _peer_arguments("host", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
+	# Match the parent input-only contract: keep private window input and real
+	# physics without allocating rendering resources that this suite never reads.
+	var host_args := _peer_arguments("host", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]))
 	var host := _spawn_peer("host", host_args)
 	_check(host > 0, "owned independent host starts")
 	await _wait_file("host.ready", 60.0)
-	var client_args := _peer_arguments("client", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
+	var client_args := _peer_arguments("client", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]))
 	var client := _spawn_peer("client", client_args)
 	_check(client > 0, "owned independent client starts")
 	# Cold Main startup has the same separate budget as the host; the original
