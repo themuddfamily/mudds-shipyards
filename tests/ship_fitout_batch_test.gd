@@ -308,7 +308,37 @@ func _test_shared_stock_and_bands_stand() -> void:
 		banded.visibility_range_end = 100.0
 		banded.visibility_range_end_margin = 10.0
 
+	# Native mesh LODs also have to survive consolidation. Each mesh is unique,
+	# so resource sharing cannot accidentally protect this fixture.
+	var lod_bay := Node3D.new()
+	lod_bay.name = "NativeLODBay"
+	craft.add_child(lod_bay)
+	var lod_meshes: Array[ArrayMesh] = []
+	for index in 2:
+		var detailed := _stock(Vector3(0.2, 0.2, 0.2), finish)
+		var arrays := detailed.surface_get_arrays(0)
+		if index == 1:
+			var colours := PackedColorArray()
+			colours.resize((arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size())
+			colours.fill(Color(0.3, 0.5, 0.7))
+			arrays[Mesh.ARRAY_COLOR] = colours
+		var far_indices := PackedInt32Array([0, 1, 2])
+		var lod_mesh := ArrayMesh.new()
+		lod_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {0.1: far_indices})
+		lod_mesh.surface_set_material(0, finish)
+		var visual := MeshInstance3D.new()
+		visual.name = "NativeLOD%02d" % index
+		visual.mesh = lod_mesh
+		visual.position = Vector3(float(index) * 0.4, 0.0, 0.0)
+		lod_bay.add_child(visual)
+		lod_meshes.append(lod_mesh)
+
 	BATCH.consolidate([craft], PackedStringArray(), root)
+	for index in 2:
+		var kept := lod_bay.get_node_or_null("NativeLOD%02d" % index) as MeshInstance3D
+		_check(kept != null and kept.mesh == lod_meshes[index]
+			and not (lod_meshes[index].get("_surfaces")[0].get("lods", []) as Array).is_empty(),
+			"native mesh LOD %d retains its renderer, base mesh and far indices" % index)
 
 	# Live primitive stock and banded furniture still stand piece by piece: one
 	# is re-tessellated after this pass, the other carries a per-instance

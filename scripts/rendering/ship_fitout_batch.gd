@@ -834,6 +834,18 @@ static func _mesh_is_mergeable(visual: MeshInstance3D, shared: Dictionary) -> bo
 		return false
 	if array_mesh.get_blend_shape_count() != 0 or array_mesh.shadow_mesh != null:
 		return false
+	# Vertex colours are not copied by _merge_surface. Reject them through
+	# the format flags before reading stored LOD payloads.
+	for surface_index in mesh.get_surface_count():
+		if array_mesh.surface_get_format(surface_index) & Mesh.ARRAY_FORMAT_COLOR:
+			return false
+	# The merge copies only the base triangle stream. Native mesh LODs carry
+	# alternate indices (including distant cooling-field proxies); folding those
+	# would silently discard their distance-dependent geometry.
+	var stored_surfaces: Array = array_mesh.get("_surfaces")
+	for surface in stored_surfaces:
+		if not (surface.get("lods", []) as Array).is_empty():
+			return false
 	for surface_index in mesh.get_surface_count():
 		if array_mesh.surface_get_primitive_type(surface_index) != Mesh.PRIMITIVE_TRIANGLES:
 			return false
