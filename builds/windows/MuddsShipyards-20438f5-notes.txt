@@ -1,0 +1,25 @@
+Mudd's Shipyards — Jovian visual checkpoint 20438f5 — 2026-10-17
+Source: 20438f5f9bed4b86be54c3a7b8184f8c71aa84e7
+Engine: official pinned Godot 4.7.1 a13da4feb with stock release templates.
+
+Player-visible changes:
+- The Jovian cabin repair display faces the engineer and passengers. Its text is now on the visible side of the physical panel through repair, completion and reuse.
+- Raised roof fittings stay above their supporting covers. Edge roll uses exposed layer thickness; original footprint, peak heights, materials and mesh budgets remain intact.
+- Generated captures and CSV manifests no longer enter Godot's asset/translation import pipeline.
+
+Actual validation:
+- Existing engineer gameplay test: 67 checks / 0 failures; original orientation fails 10 visibility checks across five states. Intermediate5c76d023c still fails five actual merged-housing triangle checks; its machine-pass images and unaccepted exports are retained under artifacts/jovian-unaccepted-5c76d023c/. The corrected source passes both substrate and actual rendered-cabin geometry checks. Existing freighter test: 636 passing assertions, including 14 mirrored emitted-triangle clearances. Original geometry fails all eight original-side samples; corrected geometry passes. All 126 roof patch recipes retain 16,230 vertices / 5,410 triangles.
+- Unchanged full four-image freighter capture passes at this exact frozen commit under its original 300s cap, silent private Xvfb x11 / Forward+ Vulkan llvmpipe; exact four 1280x720 PNGs, exit 0, one full success marker, no diagnostics, source/cache/registry unchanged and private process closure. Agent inspected original-resolution images; this is not human or native GPU acceptance.
+- Capture source CSV SHA-256: 375ab22833fcb7e1fb7f44a346fdbbd26e87abdb6b2875acb5d146072b53185e
+- Capture image-inventory CSV SHA-256: 101c039ef07e1f8e1f4d594b7bd477fc773c9c4d4125786c4749837b840fb7ef
+- Capture files and raw evidence: artifacts/jovian-freighter-20438f5f9/.
+- Safe Windows/Linux exports from a clean isolated checkout at this exact source; matching 1,515-entry inventories and trusted Windows x86_64 code section. Windows embedded payload through the Linux editor, native Linux direct binary and archive-extracted Linux binary each pass --startup-check with exit 0, exactly one STARTUP_MENU_READY_OK and no diagnostics. Four focused actual Windows-payload suites pass 735 assertions/checks: {'windows-payload-startup': 0, 'linux-direct-startup': 0, 'linux-archive-startup': 0, 'jovian_crew_engineer_gameplay_test': 67, 'jovian_engineer_repair_console_test': 14, 'jovian_engineer_repair_presentation_test': 18, 'jovian_light_freighter_test': 636}.
+- Before/after actual editor-import fixture: ordinary assets import in both cases; generated evidence CSV only imports as a translation before the new artifact boundary. Evidence source bytes stay unchanged.
+- Archive member bytes/modes, ZIP member bytes and CRC are verified. Every automated Godot process uses Dummy audio and runs headlessly or on a private display. Hosted CI remains disabled.
+
+Open acceptance:
+- Remaining shaded roof speckling is not claimed resolved. A supplemental one-frame unshaded diagnostic suggests lighting/shadow aliasing; it is not a replacement for the original four-view capture.
+- This is a scoped Jovian checkpoint, not a new full-matrix pass or complete fleet/graphical acceptance. Twelve other required capture harnesses and all ten phase exit gates remain open; prior Rime/full-matrix failures remain retained.
+- Unsigned. Trusted signing, applicable native GPU/controller/audible and human review remain NOT_RUN. Native Windows execution remains NOT_RUN under the antivirus hold; owner-excluded gates are not represented as performed.
+
+EXE SHA-256: 9f0c2472618e27d0f1d7d13b6bbe5512444823dff85a83d4068a177be5a89f0a

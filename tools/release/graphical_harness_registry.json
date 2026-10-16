@@ -140,9 +140,9 @@
       "output": {"root": "res://artifacts", "contract": "png_set"},
       "render": {"required": true, "profile": "project_forward_plus"},
       "review_status": "pending",
-      "source_freeze": {"status": "pending", "manifest_sha256": null},
-      "image_inventory": {"status": "pending", "expected_png_count": 4, "inventory_sha256": null},
-      "human_review": {"readiness": "pending", "original_resolution_required": true, "evidence_reference": null}
+      "source_freeze": {"status": "verified", "manifest_sha256": "375ab22833fcb7e1fb7f44a346fdbbd26e87abdb6b2875acb5d146072b53185e"},
+      "image_inventory": {"status": "verified", "expected_png_count": 4, "inventory_sha256": "101c039ef07e1f8e1f4d594b7bd477fc773c9c4d4125786c4749837b840fb7ef"},
+      "human_review": {"readiness": "ready", "original_resolution_required": true, "evidence_reference": null}
     },
     {
       "id": "capture-map-traversal-fix",

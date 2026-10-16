@@ -42,13 +42,32 @@ bounded evidence reference after verified source and image declarations,
 satisfies the human-review stage. The report never upgrades a state, inspects
 pixels, or infers human approval from `review_status`.
 
-At this revision all thirteen required rows truthfully remain pending in all
-three stages, so the deterministic report has `ready=0`, `required=13`, and 39
-blockers. The listed PNG counts are declarations frozen by the registry policy,
-not a claim that those image files exist or were reviewed. Both text and JSON
-outputs explicitly state `render_execution=false` and
-`human_review_performed=false`; neither report mode invokes Godot, a capture
-script, a renderer, or an external review service.
+At this revision the freighter's source-freeze and four-image inventory are
+verified at exact source `20438f5f9`; its human-review readiness is `ready`, not
+`reviewed`. The other twelve rows remain pending. The human-inclusive report
+therefore has `ready=0`, `required=13`, and 37 blockers: 24 machine stages and
+13 human stages. Human stages are excluded from the owner's completion
+requirement, without representing them as performed. Both text and JSON reports
+still state `render_execution=false` and `human_review_performed=false` because
+the report itself only reads metadata.
+
+The unchanged original freighter harness completed all four 1280×720 views
+within its original 300-second cap, on a clean frozen imported checkout under
+private Xvfb x11 / Dummy / Forward+ Vulkan llvmpipe. Source, registry and complete
+import cache stayed unchanged. Original-resolution agent inspection confirms
+the cabin readout is visible; shaded roof stippling remains open in
+`bugs.md` (`JOVIAN-ROOF-001`). Earlier `5c76d023c` passed the capture contract but
+failed that visual inspection because a separate housing still covered the
+text; its raw images and unaccepted exports are preserved. The final source
+corrects the housing clearance and passes actual merged-triangle visibility
+checks. No human or native GPU qualification is implied.
+
+Actual manifests, PNGs and logs are retained locally under
+`artifacts/jovian-freighter-20438f5f9/`; source CSV SHA-256 is
+`375ab22833fcb7e1fb7f44a346fdbbd26e87abdb6b2875acb5d146072b53185e`, and image-inventory CSV SHA-256 is `101c039ef07e1f8e1f4d594b7bd477fc773c9c4d4125786c4749837b840fb7ef`.
+[Checkpoint notes](../builds/windows/MuddsShipyards-20438f5-notes.txt) identify
+exact packaged source and validation. Later registry/documentation changes are
+not part of the captured or exported source.
 
 The new `cinder-streaming-transition-render` requirement freezes 24 declared
 HIGH/LOW × normal/reduced-motion transition frames. Its exact state, camera,
@@ -62,8 +81,9 @@ The current source inventory contains **13 required harnesses and 143 PNGs**.
 Berth feedback now includes the Bulwark's three states, for **18**, and varied
 encounters includes `plate_04b_scatter_fan.png`, for **18**. The registry and
 validator require these complete source inventories, replacing their stale
-15/17 declarations (139 total). All source/image/human-review stages remain
-pending; matching the declared count does not qualify any captured image.
+15/17 declarations (139 total). Only the freighter source/image stages are
+verified as described above; matching a declared count alone does not qualify
+any captured image.
 
 The table names the exact source-owned filename sets. Counts exclude manifests,
 logs, import sidecars, and the station-operations optional wayfinding-only PNG.

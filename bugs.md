@@ -2,6 +2,14 @@
 
 This ledger contains only unresolved or explicitly accepted issues. Fixed and closed records are removed once their fixes are verified.
 
+## JOVIAN-ROOF-001 — Stippled shading on roof service plates — **OPEN**
+
+- Severity: **P2**; owner/reporter: root, 2026-10-17. Observed on frozen `c5c55d680`, `5c76d023c` and `20438f5f9` under private Xvfb x11, Forward+ Vulkan llvmpipe, pinned Godot 4.7.1 and Dummy audio. Native GPU reproduction is NOT_RUN.
+- Reproduction: run unchanged `tests/capture_jovian_freighter.gd` with its original lighting/cameras. The original-resolution exterior shows dense dark stippling on raised roof service fields. Expected: coherent shading that leaves fittings readable. The capture contract itself passes.
+- Evidence: local `artifacts/jovian-freighter-20438f5f9/captures/jovian_freighter_exterior.png` and complete source/cache/PNG inventories alongside it; earlier images are retained separately. A supplemental one-frame unshaded diagnostic removes most stippling, suggesting a lighting/shadow interaction; this does not prove a particular renderer cause or qualify the original full capture.
+- Fixed separately: fittings formerly sank through supporting covers; exposed-thickness edge roll now preserves ordering with unchanged 16,230 vertices / 5,410 triangles. That geometry correction does not close this shading issue.
+- Remaining acceptance: correct the demonstrated shading cause while retaining the original capture lighting, quality, detail and mesh budgets; inspect affected original-resolution views. Keep target-GPU qualification separate.
+
 ## INPUT-RECOVERY — Begin can board a saved on-foot player — **VERIFYING**
 
 - Severity: **P1**; owner/reporter: root, 2026-10-16. Observed on source `2625eb246` and the published `eadc150` PCK; fixed `1461227` PCK passes the focused recovery regression.
