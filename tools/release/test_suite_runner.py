@@ -266,8 +266,10 @@ print('OK: network lane fixture')
             release.mkdir(parents=True)
             for name in ('run_test_matrix.sh', 'test_suite_catalog.py', 'source_manifest.py', 'suite_process.py'):
                 shutil.copy2(SUPPORT / name, release / name)
-            scripts = ['network/a_display_test.gd', 'b_headless_test.gd', 'c_headless_test.gd',
-                       'ui/d_input_test.gd', 'ui/e_readback_test.gd']
+            # Both queued graphical suites sort before runnable headless work.
+            # Queued graphical suites must leave slots for runnable headless work.
+            scripts = ['network/a_display_test.gd', 'ui/d_input_test.gd', 'ui/e_readback_test.gd',
+                       'z_b_headless_test.gd', 'z_c_headless_test.gd']
             for relative in scripts:
                 script = root / 'tests' / relative
                 script.parent.mkdir(parents=True, exist_ok=True)
@@ -291,17 +293,19 @@ if graphical:
         print('ERROR: NO GRAB')
         print('DISPLAY_LANE_TEST_OK: 1 assertions')
         sys.exit(0)
-    deadline=time.monotonic()+0.5
-    while not (root/'headless-overlap').exists() and time.monotonic()<deadline: time.sleep(0.01)
-    assert (root/'headless-overlap').exists(), 'display lock starved headless workers'
+    if os.environ['DISPLAY_LANE_JOBS'] != '1':
+        deadline=time.monotonic()+1
+        while not (root/'headless-overlap').exists() and time.monotonic()<deadline: time.sleep(0.01)
+        assert (root/'headless-overlap').exists(), 'display lock starved headless workers'
     time.sleep(1.1)
     active.rmdir()
 else:
     own=root/pathlib.Path(script).stem
     own.touch()
-    deadline=time.monotonic()+0.5
-    while len(list(root.glob('*_headless_test')))<2 and time.monotonic()<deadline: time.sleep(0.01)
-    assert len(list(root.glob('*_headless_test')))==2, 'headless suites no longer overlap'
+    if os.environ['DISPLAY_LANE_JOBS'] != '1':
+        deadline=time.monotonic()+1
+        while len(list(root.glob('*_headless_test')))<2 and time.monotonic()<deadline: time.sleep(0.01)
+        assert len(list(root.glob('*_headless_test')))==2, 'headless suites no longer overlap'
     (root/'headless-overlap').touch()
 print('DISPLAY_LANE_TEST_OK: 1 assertions')
 ''')
@@ -310,18 +314,27 @@ print('DISPLAY_LANE_TEST_OK: 1 assertions')
                        '--jobs', '3', '--mode', 'all', '--display-driver', 'x11',
                        '--results-dir', str(root / 'results'), '--manifest-scope', 'tests',
                        '--import-gate', 'never', '--timeout', '2']
-            result = subprocess.run(command, cwd=root,
-                                    env={**os.environ, 'DISPLAY_LANE_ROOT': str(root),
-                                         'DISPLAY': ':fixture', 'TEST_MATRIX_RUN_ID': 'display-lane'},
-                                    text=True, capture_output=True, timeout=15)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertFalse((root / 'collision').exists())
-            self.assertFalse((root / 'pointer-owner').exists())
-            with (root / 'results/display-lane/results.tsv').open() as stream:
-                rows = list(csv.DictReader(stream, delimiter='\t'))
-            self.assertEqual(len(rows), len(scripts))
-            self.assertTrue(all(row['status'] == 'PASS' and row['diagnostic_count'] == '0' for row in rows))
-            self.assertTrue(all(int(row['duration_ms']) < 2000 for row in rows))
+            for jobs in (3, 1):
+                with self.subTest(jobs=jobs):
+                    for marker in ('z_b_headless_test', 'z_c_headless_test', 'headless-overlap', 'collision'):
+                        (root / marker).unlink(missing_ok=True)
+                    if (root / 'pointer-owner').exists():
+                        (root / 'pointer-owner').rmdir()
+                    run_id = f'display-lane-{jobs}'
+                    result = subprocess.run(command + ['--jobs', str(jobs)], cwd=root,
+                                            env={**os.environ, 'DISPLAY_LANE_ROOT': str(root),
+                                                 'DISPLAY_LANE_JOBS': str(jobs),
+                                                 'DISPLAY': ':fixture', 'TEST_MATRIX_RUN_ID': run_id},
+                                            text=True, capture_output=True, timeout=15)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertFalse((root / 'collision').exists())
+                    self.assertFalse((root / 'pointer-owner').exists())
+                    with (root / 'results' / run_id / 'results.tsv').open() as stream:
+                        rows = list(csv.DictReader(stream, delimiter='\t'))
+                    self.assertEqual([row['test_path'] for row in rows],
+                                     sorted('tests/' + item for item in scripts))
+                    self.assertTrue(all(row['status'] == 'PASS' and row['diagnostic_count'] == '0' for row in rows))
+                    self.assertTrue(all(int(row['duration_ms']) < 2000 for row in rows))
 
     def test_generic_pass_descriptions_are_not_completion(self):
         with tempfile.TemporaryDirectory() as temporary:

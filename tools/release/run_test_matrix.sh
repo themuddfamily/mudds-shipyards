@@ -888,38 +888,71 @@ flush_ready() {
 	done
 }
 
-# A blocked lock must not occupy every pool slot. Queue at most one network
-# worker, letting the remaining slots run unrelated suites; publish by index.
+# Admit at most one worker per exclusive lane, including workers waiting for
+# its lock. Keep free slots available for headless work and publish by index.
 network_indices=()
-other_indices=()
+headless_indices=()
+display_indices=()
 for (( index = 0; index < TOTAL_SUITES; index++ )); do
 	if network_suite "${TEST_FILES[$index]}"; then
 		network_indices+=("$index")
+	elif [[ "${SUITE_MODES[${TEST_FILES[$index]}]}" == headless ]]; then
+		headless_indices+=("$index")
 	else
-		other_indices+=("$index")
+		display_indices+=("$index")
 	fi
 done
 network_next=0
-other_next=0
+headless_next=0
+display_next=0
 network_active=-1
 network_pid=0
+display_active=-1
+display_pid=0
 next=0
 running=0
 while (( next < TOTAL_SUITES || running > 0 )); do
 	while (( running < EFFECTIVE_JOBS && next < TOTAL_SUITES )); do
-		if (( network_next < ${#network_indices[@]} )) && \
-			{ (( network_active < 0 )) || [[ -f "$WORK_DIR/$network_active.done" ]] || ! kill -0 "$network_pid" 2>/dev/null; }; then
-			index="${network_indices[$network_next]}"
-			network_next=$(( network_next + 1 ))
-			network_active="$index"
-		elif (( other_next < ${#other_indices[@]} )); then
-			index="${other_indices[$other_next]}"
-			other_next=$(( other_next + 1 ))
-		else
-			break
+		if (( network_active >= 0 )) && \
+			{ [[ -f "$WORK_DIR/$network_active.done" ]] || ! kill -0 "$network_pid" 2>/dev/null; }; then
+			network_active=-1
+		fi
+		if (( display_active >= 0 )) && \
+			{ [[ -f "$WORK_DIR/$display_active.done" ]] || ! kill -0 "$display_pid" 2>/dev/null; }; then
+			display_active=-1
+		fi
+		index=-1
+		if (( network_next < ${#network_indices[@]} && network_active < 0 )); then
+			candidate="${network_indices[$network_next]}"
+			if [[ "${SUITE_MODES[${TEST_FILES[$candidate]}]}" == headless ]] || (( display_active < 0 )); then
+				index="$candidate"
+				network_next=$(( network_next + 1 ))
+			fi
+		fi
+		if (( index < 0 )); then
+			if (( headless_next < ${#headless_indices[@]} )); then
+				index="${headless_indices[$headless_next]}"
+			fi
+			if (( display_next < ${#display_indices[@]} && display_active < 0 )) && \
+				{ (( index < 0 )) || (( display_indices[display_next] < index )); }; then
+				index="${display_indices[$display_next]}"
+				display_next=$(( display_next + 1 ))
+			elif (( index >= 0 )); then
+				headless_next=$(( headless_next + 1 ))
+			else
+				break
+			fi
 		fi
 		run_suite_worker "$index" "${TEST_FILES[$index]}" &
-		if [[ "$index" == "$network_active" ]]; then network_pid="$!"; fi
+		worker_pid="$!"
+		if network_suite "${TEST_FILES[$index]}"; then
+			network_active="$index"
+			network_pid="$worker_pid"
+		fi
+		if [[ "${SUITE_MODES[${TEST_FILES[$index]}]}" != headless ]]; then
+			display_active="$index"
+			display_pid="$worker_pid"
+		fi
 		running=$(( running + 1 ))
 		next=$(( next + 1 ))
 	done
