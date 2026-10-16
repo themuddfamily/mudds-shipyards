@@ -63,6 +63,7 @@ func _run() -> void:
 	_test_static_floor_support()
 	_test_deferred_berths(world, signage)
 	await _test_follows_registry_marker(world, signage)
+	_test_central_berth_directory(world, signage)
 	await _test_origin_rebase(game, world, signage)
 
 	await _cleanup(game)
@@ -332,6 +333,52 @@ func _test_deferred_berths(world: ShipyardWorld, signage: StationWayfindingSigna
 	_check(signage.get_sign_batch() == batch, "repeated berth refresh retains the same renderer")
 
 
+## The directory uses its spare ninth row for the real Central/Torrent berth,
+## without replacing any module or the existing VIP destination.
+func _test_central_berth_directory(world: ShipyardWorld, signage: StationWayfindingSignage) -> void:
+	var directory := _sign_by_id(signage.get_wayfinding_report(), "station_directory")
+	var rows := directory.get("front", []) as Array
+	var labels := {}
+	for row: Dictionary in rows:
+		labels[StringName(row.get("label", &""))] = row
+	var all_destinations := labels.has(&"vip_reception") and labels.has(&"central_berth")
+	for label: StringName in WAYFINDING.MODULE_TITLES.values():
+		all_destinations = all_destinations and labels.has(label)
+	_check(rows.size() == 9 and all_destinations,
+		"directory uses its ninth row for Central berth while retaining every module and VIP destination")
+	var central := labels.get(&"central_berth", {}) as Dictionary
+	_check(String(central.get("text", "")) == "CENTRAL BERTH"
+		and String(central.get("source", "")) == "berth:central_berth"
+		and (central.get("target", Vector3.INF) as Vector3).is_equal_approx(
+			world.get_berth_transform(&"central_berth").origin),
+		"Central berth directory arrow targets the live canonical berth")
+	# Move the existing berth only within this synchronous test, then restore it.
+	# Its presentation must refresh when the berth moves relative to the world.
+	var berth := world.get_berth_node(&"central_berth")
+	_check(berth != null, "Central directory destination resolves its production berth")
+	if berth == null:
+		return
+	var original := berth.global_transform
+	var before := int(signage.get_wayfinding_report().get("build_count", 0))
+	berth.global_position += Vector3(4.0, 0.0, 0.0)
+	var refreshed := signage.refresh_berths(world)
+	var moved := _directory_central_row(refreshed)
+	_check(int(refreshed.get("build_count", 0)) == before + 1
+		and (moved.get("target", Vector3.INF) as Vector3).is_equal_approx(
+			world.get_berth_transform(&"central_berth").origin),
+		"a Central berth pose change refreshes its directory target")
+	berth.global_transform = original
+	signage.refresh_berths(world)
+
+
+func _directory_central_row(report: Dictionary) -> Dictionary:
+	var directory := _sign_by_id(report, "station_directory")
+	for row: Dictionary in (directory.get("front", []) as Array):
+		if StringName(row.get("label", &"")) == &"central_berth":
+			return row
+	return {}
+
+
 ## Moving a registry route marker moves the sign derived from it.
 func _test_follows_registry_marker(world: ShipyardWorld, signage: StationWayfindingSignage) -> void:
 	var comb := world.get_fleet_dock_comb()
@@ -385,6 +432,13 @@ func _test_origin_rebase(game: Node, world: ShipyardWorld, signage: StationWayfi
 		"a rebuild after an origin rebase places every sign where it was, translated (drift=%s count %d->%d)"
 			% [drift, int(before.get("sign_count", -1)), int(rebuilt.get("sign_count", -1))]
 	)
+	var central_before := _directory_central_row(before)
+	var central_after := _directory_central_row(rebuilt)
+	_check(not central_before.is_empty() and not central_after.is_empty()
+		and ((central_after.get("target", Vector3.INF) as Vector3) - offset).is_equal_approx(
+			central_before.get("target", Vector3.ZERO) as Vector3)
+		and int(central_after.get("arrow_degrees", 999)) == int(central_before.get("arrow_degrees", -999)),
+		"Central berth target rebases with the station while its directory arrow keeps the same bearing")
 	for child in game.get_children():
 		if child is Node3D:
 			(child as Node3D).global_position -= offset

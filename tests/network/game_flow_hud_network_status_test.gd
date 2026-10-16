@@ -50,6 +50,25 @@ func _run() -> void:
 	var unreachable := presenter.present_snapshot(probe.snapshots.back())
 	_check(unreachable.message.begins_with("Could not reach the session host."),
 		"the production initial-connection failure presents readable recovery guidance")
+	flow._on_network_session_started(&"client")
+	presenter.present_snapshot(probe.snapshots.back())
+	flow._on_network_session_stopped(&"protocol_mismatch")
+	_check(probe.snapshots.back().get("detail") == "Session closed: protocol_mismatch",
+		"admission refusal reaches the presenter through the actual protocol-mismatch detail")
+	var incompatible := presenter.present_snapshot(probe.snapshots.back())
+	_check(incompatible.message.begins_with("Your game and the host use incompatible session protocols.")
+		and incompatible.message.contains("same game version"),
+		"the production incompatible-host receipt explains how to resolve the mismatch")
+	_check(incompatible.state == &"disconnected" and presenter.request_retry().accepted
+		and not presenter.request_disconnect().accepted,
+		"protocol guidance preserves the caller-owned disconnected retry choices")
+	flow._on_network_session_started(&"client")
+	var after_protocol_retry := presenter.present_snapshot(probe.snapshots.back())
+	_check(after_protocol_retry.state == &"connecting"
+		and after_protocol_retry.message.begins_with("Contacting the session host.")
+		and not after_protocol_retry.message.contains("incompatible")
+		and after_protocol_retry.actions[0].id == &"cancel",
+		"a fresh production attempt replaces protocol-mismatch guidance with current connecting status")
 	flow.free()
 	probe.free()
 	if _failures.is_empty():

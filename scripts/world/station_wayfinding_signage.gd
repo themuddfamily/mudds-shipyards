@@ -9,7 +9,7 @@ extends Node3D
 ##
 ## * one **station directory** in front of the player spawn names every
 ##   registered module (and the Aft VIP landmark) with an arrow toward that
-##   module's hub endpoint;
+##   module's hub endpoint, plus the live Central berth;
 ## * one **threshold panel** per registry edge stands between the hub anchor and
 ##   the module's connection-slot marker, facing the player arriving from the hub,
 ##   naming the module and its nearest landmarks, and pointing back to the hub on
@@ -283,7 +283,7 @@ func rebuild(world: Node3D) -> Dictionary:
 	return build(world)
 
 
-## Fleet composition can notify more than once. Comparing three berth poses is
+## Fleet composition can notify more than once. Comparing four berth poses is
 ## cheap and avoids another world collision walk after dressing consolidation.
 func refresh_berths(world: Node3D) -> Dictionary:
 	if not _built:
@@ -297,7 +297,11 @@ func _read_berth_poses(world: Node) -> Dictionary:
 	var poses := {}
 	if world == null or not world.has_method(&"has_berth") or not world.has_method(&"get_berth_transform"):
 		return poses
-	for berth_id: StringName in BERTH_LANDMARKS:
+	var berth_ids := BERTH_LANDMARKS.keys()
+	# The Central berth occupies the directory's existing ninth row. Track its
+	# live pose alongside deferred berths so a relative move refreshes its arrow.
+	berth_ids.append(&"central_berth")
+	for berth_id: StringName in berth_ids:
 		if bool(world.call(&"has_berth", berth_id)):
 			poses[berth_id] = (world.call(&"get_berth_transform", berth_id) as Transform3D).origin
 	return poses
@@ -547,6 +551,12 @@ func _plan_sites(world: Node, report: Dictionary, modules: Dictionary, destinati
 
 	# 1. Station directory in front of the spawn.
 	var directory_rows: Array = []
+	if _berth_poses.has(&"central_berth"):
+		directory_rows.append({
+			"label": &"central_berth",
+			"position": _berth_poses[&"central_berth"],
+			"source": "berth:central_berth",
+		})
 	for module_id: StringName in module_ids:
 		var destination := destinations[module_id] as Dictionary
 		directory_rows.append({

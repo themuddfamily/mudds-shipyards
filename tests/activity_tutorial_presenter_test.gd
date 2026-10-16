@@ -729,7 +729,8 @@ func _check_patrol_briefing(prompt: String) -> void:
 		and prompt.contains("two seconds") and prompt.contains("if needed")
 		and prompt.contains("LEAVING RESETS THE CURRENT HOLD")
 		and prompt.contains("WHILE ACTIVE, RE-ENTER THE SAME UNFINISHED WAYPOINT WITHOUT START")
-		and prompt.contains("FAILED OR ABORTED") and prompt.contains("CHOOSE RESET THEN START")
+		and prompt.contains("FAILED OR ABORTED // CHOOSE START TO RETRY")
+		and not prompt.contains("CHOOSE RESET THEN START")
 		and not prompt.contains("PATROL LAPSED") and not prompt.contains("last relay"),
 		"shared patrol help describes selected waypoints, continuous holds and state-specific recovery")
 
@@ -759,6 +760,18 @@ func _check_production_patrol_behaviors() -> void:
 		and secured.generation == started.generation and int(secured.next_checkpoint_index) == 1
 		and int(secured.completed_checkpoint_count) == 1,
 		"re-entry restarts the same unfinished waypoint hold without Start, then targets the next waypoint")
+	# The shared briefing and retained patrol row must advertise the same
+	# terminal recovery: Start already accepts a failed or aborted patrol.
+	for terminal_id: StringName in [&"failed", &"aborted"]:
+		var terminal := binding.fail_patrol(&"route_obstructed") if terminal_id == &"failed" \
+			else binding.abort_patrol(&"player_requested")
+		var terminal_generation := int((binding.get_snapshot().patrol as Dictionary).generation)
+		var restarted := binding.start_patrol(actor)
+		_check(bool(terminal.get("accepted", false)) and bool(restarted.get("accepted", false))
+			and restarted.state_id == &"active" and int(restarted.generation) > terminal_generation
+			and int(restarted.next_checkpoint_index) == 0
+			and int(restarted.completed_checkpoint_count) == 0,
+			"%s patrol accepts the briefing's direct Start retry as a fresh route without Reset" % terminal_id)
 	actor.queue_free()
 	binding.queue_free()
 	await process_frame

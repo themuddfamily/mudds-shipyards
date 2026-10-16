@@ -62,7 +62,7 @@ const ACTIVITY_COPY := {
 		"keyboard": "The activity row's Start begins the selected patrol. Visit its marked waypoints in order and hold continuously at each for two seconds. Use {brake} if needed to stay inside the waypoint.",
 		"accessible": "The activity row's Start begins the selected patrol. Visit its marked waypoints in order and hold continuously at each for two seconds. Brake if needed to stay inside the waypoint.",
 		"next_action": "NEXT MARKED WAYPOINT // HOLD CONTINUOUSLY FOR TWO SECONDS",
-		"recovery": "LEAVING RESETS THE CURRENT HOLD // WHILE ACTIVE, RE-ENTER THE SAME UNFINISHED WAYPOINT WITHOUT START; FAILED OR ABORTED // CHOOSE RESET THEN START",
+		"recovery": "LEAVING RESETS THE CURRENT HOLD // WHILE ACTIVE, RE-ENTER THE SAME UNFINISHED WAYPOINT WITHOUT START; FAILED OR ABORTED // CHOOSE START TO RETRY",
 	},
 	&"cinder_platform_mining_run": {
 		"title": "Work the mining platform",

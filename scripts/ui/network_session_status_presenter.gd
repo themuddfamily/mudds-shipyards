@@ -58,6 +58,8 @@ func present_snapshot(source: Dictionary) -> Dictionary:
 				detail = "Connection to the session host was lost."
 			"Session closed: connection_failed":
 				detail = "Could not reach the session host. Check the address and whether the host is running."
+			"Session closed: protocol_mismatch":
+				detail = "Your game and the host use incompatible session protocols. Check that both players are running the same game version."
 	var retryable := bool(source.get("retryable", state == &"failed"))
 	var attempt := clampi(int(source.get("attempt", 0)), 0, 99)
 	var seconds_remaining := clampf(float(source.get("seconds_remaining", 0.0)), 0.0, 300.0)
