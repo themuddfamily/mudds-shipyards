@@ -1,10 +1,12 @@
 extends SceneTree
 ## test-matrix-timeout-seconds: 900
+## test-matrix-display: input-only
 
 ## Production-capsule coverage for every authored station stair/ramp and the
 ## collision-backed floor roster used by reachable station routes. Movement
 ## probes use continuous real InputMap actions and never press jump.
 
+const INTEGRATION_CAPTURE := preload("res://tools/release/station_integration_capture.gd")
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const WALKABILITY_SWEEP := preload("res://tools/station_walkability_sweep.gd")
 const WORLD_LAYER := PhysicsLayers.WORLD
@@ -143,6 +145,13 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# Reject opt-in readback before any frame wait when this invocation cannot draw.
+	if INTEGRATION_CAPTURE.requested():
+		var capture_error := INTEGRATION_CAPTURE.renderer_error()
+		if not capture_error.is_empty():
+			_check(false, capture_error)
+			_finish()
+			return
 	_test_shadow_only_mesh_is_not_drawn_support()
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates for station surface playability")
@@ -185,12 +194,9 @@ func _run() -> void:
 	await _test_spawn_adjacent_stair(world, player)
 	await _test_aft_stair_mount_and_climb(world, player)
 	await _test_fleet_comb_ramp(world, player)
-	if OS.get_cmdline_user_args().has("--capture-fabrication-integration"):
-		await _capture_fabrication_integration_frame(game, world)
-	if OS.get_cmdline_user_args().has("--capture-observation-integration"):
-		await _capture_observation_integration_frame(game, world)
-	if OS.get_cmdline_user_args().has("--capture-salvage-integration"):
-		await _capture_salvage_integration_frame(game, world)
+	if INTEGRATION_CAPTURE.requested():
+		var capture := INTEGRATION_CAPTURE.new(self, _check)
+		await capture.capture_requested(game, world)
 
 	_release_actions()
 	game.queue_free()
@@ -2255,98 +2261,6 @@ func _walk_forward_until(
 func _release_actions() -> void:
 	for action in [&"move_forward", &"move_back", &"move_left", &"move_right", &"sprint_boost", &"jump"]:
 		Input.action_release(action)
-
-
-func _capture_fabrication_integration_frame(game: GameFlow, world: ShipyardWorld) -> void:
-	var annex := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
-	var connector := world.get_node_or_null(^"ExposedDockLattice/FabricationAnnexConnector") as Node3D
-	_check(annex != null and connector != null, "integrated Forward+ frame resolves the live Annex and connector")
-	if annex == null or connector == null:
-		return
-	var hud := game.get_node_or_null(^"HUD") as CanvasLayer
-	if hud != null:
-		hud.visible = false
-	var camera := Camera3D.new()
-	camera.name = "FabricationIntegrationEvidenceCamera"
-	camera.position = Vector3(112.0, 34.0, 8.0)
-	camera.look_at_from_position(camera.position, Vector3(70.0, 0.8, 38.0), Vector3.UP)
-	camera.fov = 52.0
-	camera.current = true
-	game.add_child(camera)
-	for _frame in 8:
-		await process_frame
-		await physics_frame
-	await RenderingServer.frame_post_draw
-	var image := root.get_viewport().get_texture().get_image()
-	var output_path := "/tmp/fabrication-annex-integrated-forward-plus.png"
-	var error := image.save_png(output_path)
-	_check(
-		error == OK and image.get_width() >= 1280 and image.get_height() >= 720,
-		"exactly one normal-resolution integrated Forward+ frame is captured"
-	)
-	print("FABRICATION_INTEGRATED_FRAME: %s %s" % [output_path, image.get_size()])
-
-
-func _capture_observation_integration_frame(game: GameFlow, world: ShipyardWorld) -> void:
-	var spur := world.get_node_or_null(^"ObservationLogisticsSpur") as ObservationLogisticsSpur
-	var connector := world.get_node_or_null(^"ExposedDockLattice/ObservationLogisticsConnector") as Node3D
-	var annex := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
-	_check(spur != null and connector != null and annex != null, "integrated Forward+ frame resolves Observation, its world connector, and Fabrication gate")
-	if spur == null or connector == null or annex == null:
-		return
-	var hud := game.get_node_or_null(^"HUD") as CanvasLayer
-	if hud != null:
-		hud.visible = false
-	var camera := Camera3D.new()
-	camera.name = "ObservationIntegrationEvidenceCamera"
-	camera.position = Vector3(154.0, 38.0, 7.0)
-	camera.look_at_from_position(camera.position, Vector3(111.0, 1.0, 38.0), Vector3.UP)
-	camera.fov = 55.0
-	camera.current = true
-	game.add_child(camera)
-	for _frame in 8:
-		await process_frame
-		await physics_frame
-	await RenderingServer.frame_post_draw
-	var image := root.get_viewport().get_texture().get_image()
-	var output_path := "/tmp/observation-logistics-integrated-forward-plus.png"
-	var error := image.save_png(output_path)
-	_check(
-		error == OK and image.get_width() >= 1280 and image.get_height() >= 720,
-		"exactly one normal-resolution integrated Observation Forward+ frame is captured"
-	)
-	print("OBSERVATION_INTEGRATED_FRAME: %s %s" % [output_path, image.get_size()])
-
-
-func _capture_salvage_integration_frame(game: GameFlow, world: ShipyardWorld) -> void:
-	var salvage := world.get_node_or_null(^"SalvageTerrace") as SalvageTerrace
-	var connector := world.get_node_or_null(^"ExposedDockLattice/SalvageTerraceConnector") as Node3D
-	var annex := world.get_node_or_null(^"FabricationAnnex") as FabricationAnnex
-	_check(salvage != null and connector != null and annex != null, "integrated Forward+ frame resolves Salvage, its world connector, and Fabrication seam")
-	if salvage == null or connector == null or annex == null:
-		return
-	var hud := game.get_node_or_null(^"HUD") as CanvasLayer
-	if hud != null:
-		hud.visible = false
-	var camera := Camera3D.new()
-	camera.name = "SalvageIntegrationEvidenceCamera"
-	camera.position = Vector3(126.0, 32.0, 94.0)
-	camera.look_at_from_position(camera.position, Vector3(88.0, 2.4, 58.0), Vector3.UP)
-	camera.fov = 56.0
-	camera.current = true
-	game.add_child(camera)
-	for _frame in 8:
-		await process_frame
-		await physics_frame
-	await RenderingServer.frame_post_draw
-	var image := root.get_viewport().get_texture().get_image()
-	var output_path := "/tmp/salvage-terrace-integrated-forward-plus.png"
-	var error := image.save_png(output_path)
-	_check(
-		error == OK and image.get_width() >= 1280 and image.get_height() >= 720,
-		"exactly one normal-resolution integrated Salvage Forward+ frame is captured"
-	)
-	print("SALVAGE_INTEGRATED_FRAME: %s %s" % [output_path, image.get_size()])
 
 
 func _check(condition: bool, description: String) -> void:
