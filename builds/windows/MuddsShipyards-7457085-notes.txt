@@ -1,0 +1,21 @@
+Mudd's Shipyards — fleet presentation performance checkpoint 7457085
+Source commit: 7457085762d9aba5b05d8e2f22858c89a274888f
+
+Changes:
+- Halyard, Arrow, Jovian and Zenith engine presentation reads fresh engine state without constructing unused full telemetry reports.
+- Damage grades, exhaust profiles, physical cores, destruction, repair and reuse retain their existing behavior.
+- Includes the earlier stable pilot-motion optimization and recovered station/planetary content.
+
+Validation:
+- Safe export from this exact clean commit; 1,513 embedded PCK entries and compiled-token integrity verified. PE code section matches the pinned Windows release template; the PE was not executed.
+- Source fleet exhaust suite passes 131 assertions across all nine craft. Halyard's focused damage/silhouette and fleet exhaust checks previously pass 144 assertions on the same Halyard change. No diagnostics; source and import cache unchanged during those checks.
+- This actual embedded package passes fleet exhaust (131 assertions) and complete Ember multiplayer presentation (97 assertions, 263 seconds within the unchanged 300-second limit) through the pinned Linux editor; exit 0, one completion marker per suite, no diagnostics.
+- Silent isolated package --startup-check: exit 0, exactly one STARTUP_MENU_READY_OK, no diagnostics.
+- Isolated Halyard presentation measurement: median 352 ms -> 57 ms per 4,000 calls, about 84% lower cost in that function. This is not an overall FPS or native GPU measurement.
+- The prior 63869a0 package timeout remains retained. The previous full source regression at 70a3c1bdc remains 1,038 PASS / 7 FAIL; focused corrections pass, but a new green full regression is still required.
+
+NOT_RUN: native Windows execution, native GPU performance, physical-controller, audible/human review and final-release qualification.
+Windows PE/Wine/PowerShell execution remains on hold. GitHub Actions remain disabled.
+This is a development checkpoint, not a completed-game release. Linux checkpoint 064f573 remains older and differs in content.
+
+EXE SHA-256: 7423beaf7c45406e9ca35de6c6b4c6989b9c5c93841a550d4927b1f4a190fd25
