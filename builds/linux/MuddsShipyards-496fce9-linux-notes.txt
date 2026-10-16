@@ -1,0 +1,25 @@
+Mudd's Shipyards — matching Linux checkpoint 496fce9
+Source commit: 496fce9244c59ff89864d13380affbbcb1fd2c81
+Engine: checksum-verified official Godot 4.7.1 a13da4feb editor and release templates.
+
+Changes:
+- Station dressing construction reuses shared mesh data and direction transforms within each merge, reducing repeated startup work while preserving placements, materials and collision.
+- Bulwark multiplayer input checks now keep peers on the same dummy renderer as their input-only parent, preserving private window input and real physics without unused OpenGL work.
+- Includes earlier Halyard engineer/fleet optimizations and detached-test-peer cleanup.
+
+Validation:
+- Safe Windows and Linux exports completed from this exact clean commit.
+- Source dressing (44 assertions), winding (13) and full-world structural (20) checks pass on the reviewed change. The first two also pass on integrated source with unchanged source/import-cache guards.
+- Actual Windows payload through the Linux editor passes the same 77 assertions: exit 0, one completion per suite, no diagnostics. Silent isolated --startup-check exits 0 with exactly one STARTUP_MENU_READY_OK and no diagnostics.
+- Both embedded inventories pass: 1,513 entries each, including compiled-token and payload integrity. PE code matches the pinned Windows release template. Linux archive bytes, executable mode and safe paths match.
+- Direct and archive-extracted Linux strict startup both pass exit 0 plus one menu-ready marker.
+- Independent source gunner run passes 117 checks with zero diagnostics, owned peer exits 0 and unchanged 60/120/300-second budgets. Earlier source and packaged warning failures remain retained.
+- Isolated 600-piece merge median: 164.167 -> 57.884 ms. All six before/after surface-array hashes match exactly. One world consolidation probe: 1469 -> 984 ms. Whole-startup and native FPS gains are not established.
+
+Open acceptance:
+- The frozen 636814418 full 1,045-suite regression continues. Its gunner and shared planetary crew failures remain failures; the newer candidate has no complete matrix pass. Results: artifacts/test-matrix/20261016T171251Z.
+- Predecessor a9ac937 caption presenter capture passes at 1600x900 and is readable/unclipped at original resolution. Production caption capture times out at the unchanged 300-second cap without an image; source/cache unchanged and owned processes reaped. A separate frozen 496fce9 capture with retained private shader caches is pending. No broad graphical gate is closed.
+- NOT_RUN: native Windows (antivirus hold), native GPU/performance, physical controller, audible/human review and final release acceptance. Hosted GitHub Actions remains disabled.
+This is a development checkpoint; broad roadmap acceptance remains open.
+
+ELF SHA-256: b1e01683e63536509d2e69547320808b54e0de7084524d13124b6e9bcddee018
