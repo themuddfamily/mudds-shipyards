@@ -1,0 +1,25 @@
+Mudd's Shipyards — native-input checkpoint dfed249
+Source commit: dfed2499ea3fcb64af06df67f5f1fd4b4d103142
+Engine: checksum-verified official Godot 4.7.1 a13da4feb editor/release templates.
+
+Changes:
+- Adds an opt-in read-only native Linux sortie observer and an owned X11 OS keyboard/mouse acceptance driver for the full walk, board, launch, fight, return, dock, shutdown and physical exit journey.
+- The driver owns an authenticated isolated display, private profile and input helper; independent cancellation/deadline and cleanup cover fatal Xlib errors.
+- Includes prior fleet startup improvements and corrected shared-cruise/cargo test execution.
+
+Validation:
+- Safe Windows and Linux exports from this exact clean source commit.
+- Source and Windows embedded payload each pass 152 startup CLI privacy assertions, exit 0 and zero diagnostics; three focused driver safety tests pass. Independent review includes real X-server-loss containment.
+- Exact integrated native Linux ELF completes the full OS-input journey in 66.788s under the unchanged 300s cap. Actual on-foot walk 17.691m, all four targets and interceptor defeated through accepted shots, exact secured berth/strict contract, engines offline, same-player physical exit COMPLETE. Active default input sampler and authored tuning checked throughout. Zero diagnostics; inputs released and helper/game/display reaped and absent.
+- Windows embedded payload through the Linux editor and archive-extracted native Linux both pass silent --startup-check: exit 0, one STARTUP_MENU_READY_OK and zero diagnostics.
+- Both compiled payload inventories pass 1,515 entries. Windows x86_64 code section matches the verified release template. Linux archive binary bytes and executable mode verified.
+
+- Three additional fresh final-driver runs against compiled source 58c0f2730 pass in 61.468s, 65.091s and 62.262s; final driver hash 98465801dac4e7c3e16e6f691be9f72130c7f4dfb233e1161363d26c456e5286. Independent review confirms every sample retains the active default sampler/authored tuning, zero diagnostics and complete cleanup. The exact integrated dfed249 run above separately qualifies this checkpoint.
+
+Open acceptance:
+- The original frozen 636814418 full matrix remains running with eight retained failures/timeouts; this checkpoint has no full-matrix pass.
+- This run establishes native Linux executable OS-input behavior on Xvfb with the dummy renderer. Native Windows execution (antivirus hold), native GPU/performance, physical controller, audible and human review remain NOT_RUN. Graphical capture and broader remote-crew/world/recovery/final-release gates remain open.
+- GitHub Actions remains disabled under the owner's CI budget hold.
+Development checkpoint; all ten roadmap phases remain open.
+
+EXE SHA-256: 9f75d27c91de2977281328da1537d06b9dfd1aebf1c9c5470dacb364282f9bf3
