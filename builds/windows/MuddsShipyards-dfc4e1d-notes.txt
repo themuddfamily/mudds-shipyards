@@ -1,0 +1,26 @@
+Mudd's Shipyards — shared planetary/runtime checkpoint dfc4e1d
+Source commit: dfc4e1d1fa45e0343f84c1693fd1c407df63e99c
+Engine: checksum-verified official Godot 4.7.1 a13da4feb editor/release templates.
+
+Player-visible changes:
+- Reduces repeated copying during shared planetary visits while preserving observation, live validation, audio and physics update cadence.
+- Closing a live network session no longer asks detached or retiring cabin actors/presenters for world-space geometry.
+
+Validation:
+- Independent semantic review approved detached dictionary ownership, signal reconnect behavior, fresh live checks and cabin teardown/re-entry cleanup.
+- Matched two-Main Aurora 120-frame walking diagnostic: planetary visit CPU 1.528287s -> 1.265963s (~17% lower); walking window 5.754228s -> 5.476262s (~5% shorter). Observation/live-check/audio-update counts preserved. Isolated Xvfb/dummy rendering measurements do not establish target-GPU performance.
+- Source focused atmosphere/sky/sun/rig/composition checks pass 203 assertions; production Ember streaming journey passes 37. Common-world-origin journey functionally passes all 129 assertions under its original 300s cap, with a root startup warning retained. An earlier incorrectly capped 120s attempt was incomplete; its complete raw stdout was overwritten and only a captured excerpt/status survives. No pass is attributed to that attempt.
+- Cabin integration passes 22 assertions after nine targeted failures on baseline. Existing moving-interior frame regression also passes. A real admitted two-Main network session exits while live with CABIN_LIVE_SESSION_SHUTDOWN_READY_OK, exit 0 and zero teardown diagnostics.
+- Safe Windows/Linux exports from the exact clean source above; both compiled inventories pass 1,515 entries. Windows x86_64 .text equals the trusted template. Extracted Linux archive binary bytes and executable mode verified.
+- Actual Windows embedded payload through the Linux editor passes atmosphere/sky/sun/rig/composition/cabin suites (225 assertions), exit 0 and zero diagnostics.
+- Windows embedded payload and extracted native Linux archive each pass silent --startup-check: exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics.
+
+Open acceptance:
+- Rime original 18s waypoint still fails: 18.029s/392 ticks, both peers within 0.8m but only 2/8 required settle frames. No timeout, tolerance, route or gameplay tuning was relaxed.
+- Default full Ember presentation journey times out at its original 300s cap (exit 124). The complete first retired-session scenario finishes at 261.064s; local_loss begins, with later scenarios unqualified. Acceptance remains open and terminal output is retained.
+- Frozen 636814418 full matrix remains running: 817 completed, 804 PASS/13 FAIL at this snapshot. Original failures/timeouts remain retained; no whole-game regression pass is claimed.
+- Native Windows execution remains NOT_RUN under the antivirus hold. Native GPU/performance, physical controller, audible and human review remain NOT_RUN. Broader crew/world/recovery, captures and final-release acceptance remain open.
+- GitHub Actions remains disabled under the owner's CI budget hold.
+Development checkpoint; all ten roadmap phases remain open.
+
+EXE SHA-256: ad884fbdbbaa4a409dc1128a52a72a9e6cc1d161b2ac697709fa2dc30300715e
