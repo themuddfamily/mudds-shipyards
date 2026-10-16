@@ -147,6 +147,7 @@ func _census(node: Node) -> Dictionary:
 
 
 func _run() -> void:
+	_check_repeated_stock_placements()
 	var material := StandardMaterial3D.new()
 	var other_material := StandardMaterial3D.new()
 	var holder := ReferenceHolder.new()
@@ -510,3 +511,68 @@ func _finish() -> void:
 	for failure in _failures:
 		printerr("STATION_DRESSING_BATCH_TEST_FAILED: %s" % failure)
 	quit(1)
+
+
+## Shared stock repeats at translated, rotated, stretched and mirrored placements.
+## Every channel must still follow its own placement when CPU work is reused.
+func _check_repeated_stock_placements() -> void:
+	var shared := _box_mesh(Vector3(0.3, 1.2, 0.4))
+	var source: Array = shared.surface_get_arrays(0)
+	var rotation := Basis(Vector3.UP, 0.37).scaled(Vector3(1.4, 0.7, 1.1))
+	var mirror := rotation * Basis.from_scale(Vector3(-1, 1, 1))
+	var offsets: Array[Transform3D] = [
+		Transform3D(rotation, Vector3(-2, 1, 0)),
+		Transform3D(rotation, Vector3(2, 3, 1)),
+		Transform3D(mirror, Vector3(4, 1, 0)),
+		Transform3D(mirror, Vector3(6, 3, 1)),
+	]
+	var visuals: Array[MeshInstance3D] = []
+	var material := StandardMaterial3D.new()
+	for placement in offsets:
+		var visual := MeshInstance3D.new()
+		visual.mesh = shared
+		visual.material_override = material
+		visuals.append(visual)
+	var result: Dictionary = BATCH._merge(visuals, offsets)
+	_check(not result.is_empty(), "repeated stock with distinct placement bases merges")
+	if not result.is_empty():
+		var actual: Array = (result["mesh"] as ArrayMesh).surface_get_arrays(0)
+		var points: PackedVector3Array = source[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = source[Mesh.ARRAY_NORMAL]
+		var tangents: PackedFloat32Array = source[Mesh.ARRAY_TANGENT]
+		var positions_match := true
+		var directions_match := true
+		var winding_matches := true
+		for piece in offsets.size():
+			var placement := offsets[piece]
+			var normal_basis := placement.basis.inverse().transposed()
+			for vertex in points.size():
+				var at := piece * points.size() + vertex
+				positions_match = positions_match and (actual[Mesh.ARRAY_VERTEX][at] as Vector3)\
+					.is_equal_approx(placement * points[vertex])
+				# ArrayMesh packs directions; allow its octahedral quantization.
+				directions_match = directions_match and (actual[Mesh.ARRAY_NORMAL][at] as Vector3)\
+					.distance_to((normal_basis * normals[vertex]).normalized()) < 0.001
+				var expected_tangent := (placement.basis * Vector3(
+					tangents[vertex * 4], tangents[vertex * 4 + 1], tangents[vertex * 4 + 2]
+				)).normalized()
+				var actual_tangent := Vector3(
+					actual[Mesh.ARRAY_TANGENT][at * 4], actual[Mesh.ARRAY_TANGENT][at * 4 + 1],
+					actual[Mesh.ARRAY_TANGENT][at * 4 + 2]
+				)
+				directions_match = directions_match and actual_tangent.distance_to(expected_tangent) < 0.001
+				var sign_flip := -1.0 if placement.basis.determinant() < 0 else 1.0
+				directions_match = directions_match and is_equal_approx(
+					actual[Mesh.ARRAY_TANGENT][at * 4 + 3], tangents[vertex * 4 + 3] * sign_flip
+				)
+			for triangle in points.size() / 3:
+				var base := piece * points.size() + triangle * 3
+				var mirrored := placement.basis.determinant() < 0
+				winding_matches = winding_matches and actual[Mesh.ARRAY_INDEX][base] == base \
+					and actual[Mesh.ARRAY_INDEX][base + 1] == base + (2 if mirrored else 1) \
+					and actual[Mesh.ARRAY_INDEX][base + 2] == base + (1 if mirrored else 2)
+		_check(positions_match, "repeated stock preserves each translated vertex")
+		_check(directions_match, "repeated stock preserves inverse-transpose normals and tangent handedness per basis")
+		_check(winding_matches, "repeated stock reverses only mirrored triangle winding")
+	for visual in visuals:
+		visual.free()

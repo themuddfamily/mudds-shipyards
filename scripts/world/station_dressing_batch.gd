@@ -1355,10 +1355,18 @@ static func _merge_surface(
 	var indices := PackedInt32Array()
 	var has_tangents := true
 	var has_uvs := true
+	# Sources commonly repeat one stock mesh at translated placements. Keep CPU
+	# decoding local to this merge, and share direction transforms by basis;
+	# translation affects only positions. No cache outlives mutable source data.
+	var surface_cache := {}
+	var direction_cache := {}
 	for member_variant in members:
 		var member := member_variant as Vector2i
 		var mesh := sources[member.x].mesh as ArrayMesh
-		var arrays := mesh.surface_get_arrays(member.y)
+		var surface_key := [mesh, member.y]
+		if not surface_cache.has(surface_key):
+			surface_cache[surface_key] = mesh.surface_get_arrays(member.y)
+		var arrays: Array = surface_cache[surface_key]
 		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var source_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		if source_vertices.is_empty() or source_normals.size() != source_vertices.size():
@@ -1373,26 +1381,39 @@ static func _merge_surface(
 		var mirrored := placement.basis.determinant() < 0.0
 		var normal_basis := placement.basis.inverse().transposed()
 		var offset := vertices.size()
-		for index in source_vertices.size():
-			vertices.append(placement * source_vertices[index])
-			normals.append((normal_basis * source_normals[index]).normalized())
-		if has_tangents and arrays[Mesh.ARRAY_TANGENT] is PackedFloat32Array \
-				and (arrays[Mesh.ARRAY_TANGENT] as PackedFloat32Array).size() \
-					== source_vertices.size() * 4:
-			var source_tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
-			for index in source_vertices.size():
-				var tangent := (placement.basis * Vector3(
-					source_tangents[index * 4],
-					source_tangents[index * 4 + 1],
-					source_tangents[index * 4 + 2]
-				)).normalized()
-				tangents.append(tangent.x)
-				tangents.append(tangent.y)
-				tangents.append(tangent.z)
-				tangents.append(
-					-source_tangents[index * 4 + 3] if mirrored
-					else source_tangents[index * 4 + 3]
-				)
+		vertices.append_array(placement * source_vertices)
+		if not direction_cache.has(surface_key):
+			direction_cache[surface_key] = {}
+		var by_basis: Dictionary = direction_cache[surface_key]
+		if not by_basis.has(placement.basis):
+			var transformed_normals := PackedVector3Array()
+			transformed_normals.resize(source_normals.size())
+			for index in source_normals.size():
+				transformed_normals[index] = (normal_basis * source_normals[index]).normalized()
+			var transformed_tangents := PackedFloat32Array()
+			if arrays[Mesh.ARRAY_TANGENT] is PackedFloat32Array \
+					and (arrays[Mesh.ARRAY_TANGENT] as PackedFloat32Array).size() \
+						== source_vertices.size() * 4:
+				var source_tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+				transformed_tangents.resize(source_tangents.size())
+				for index in source_vertices.size():
+					var tangent := (placement.basis * Vector3(
+						source_tangents[index * 4],
+						source_tangents[index * 4 + 1],
+						source_tangents[index * 4 + 2]
+					)).normalized()
+					transformed_tangents[index * 4] = tangent.x
+					transformed_tangents[index * 4 + 1] = tangent.y
+					transformed_tangents[index * 4 + 2] = tangent.z
+					transformed_tangents[index * 4 + 3] = (
+						-source_tangents[index * 4 + 3] if mirrored
+						else source_tangents[index * 4 + 3]
+					)
+			by_basis[placement.basis] = [transformed_normals, transformed_tangents]
+		var directions: Array = by_basis[placement.basis]
+		normals.append_array(directions[0] as PackedVector3Array)
+		if has_tangents and not (directions[1] as PackedFloat32Array).is_empty():
+			tangents.append_array(directions[1] as PackedFloat32Array)
 		else:
 			has_tangents = false
 		if has_uvs and arrays[Mesh.ARRAY_TEX_UV] is PackedVector2Array \
