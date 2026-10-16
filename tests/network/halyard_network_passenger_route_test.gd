@@ -141,7 +141,9 @@ func _orchestrate() -> void:
 	_directory = peer_root.path_join("mudds-passenger-peers-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(_directory)
 	_port = 26000 + OS.get_process_id() % 15000
-	var host_args := _peer_arguments("host", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
+	# Preserve each peer's private input window and real physics while matching
+	# this suite's input-only renderer contract; no peer reads rendered pixels.
+	var host_args := _peer_arguments("host", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]))
 	var host := _spawn_peer("host", host_args)
 	_check(host > 0, "owned independent host starts")
 	var peers := {"host": host}
@@ -150,7 +152,7 @@ func _orchestrate() -> void:
 		host_ready = await _wait_file("host.ready", 60.0)
 	if host_ready:
 		for role in (["client", "client_b"] if _shared_cruise else ["client"]):
-			var client_args := _peer_arguments(role, PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"]))
+			var client_args := _peer_arguments(role, PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]))
 			var client := _spawn_peer(role, client_args)
 			peers[role] = client
 			_check(client > 0, "owned independent peer starts: " + role)
@@ -161,7 +163,7 @@ func _orchestrate() -> void:
 			for role in ["client", "client_b"]:
 				shared_clients_ready = await _wait_file(role + ".main_ready", 60.0) and shared_clients_ready
 		if _shared_cruise and shared_clients_ready and await _wait_file("host.rebased", 60.0):
-			var observer := _spawn_peer("observer", _peer_arguments("observer", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-method", "gl_compatibility"])))
+			var observer := _spawn_peer("observer", _peer_arguments("observer", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"])))
 			peers["observer"] = observer
 			_check(observer > 0, "owned late observer starts after actual origin commit")
 			# The host waits for this observer before either crew chair route.
@@ -1629,15 +1631,18 @@ func _shared_host() -> void:
 	_check(await _until(func(): return _craft.is_canopy_open(), 5.0), "host ordinary airstair hatch Interact opens physical cabin")
 	await _walk(Vector3(-1.35, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
 	await _walk(Vector3(0.0, 0.52, HalyardCrewTransport.AIRSTAIR_Z))
-	_write("host.ready", {})
-	if not await _wait_file("client.cabin", 60.0) or not await _wait_file("client_b.cabin", 60.0):
-		return
+	# Finish the ordinary cockpit approach before admitting independent peers.
+	# Their unchanged preparation deadline must not pay for host setup walking.
 	var pilot := _craft.get_pilot_seat_anchor()
 	await _walk(Vector3(0.0, 0.52, -9.2))
 	await _walk(_craft.to_local(pilot.global_position) + Vector3(-0.6, 0.0, 0.6))
 	await _look(pilot.global_position)
 	_game._refresh_interaction_targets()
 	print("SHARED_HOST_COCKPIT_APPROACH: local=", _craft.to_local(_player.global_position), " phase=", _game.phase, " boarding=", _game.boarding_candidate, " candidate=", _game.station_interaction_candidate, " near=", _player.get_nearby_interactables(), " floor=", _player.is_on_floor())
+	_write("host.ready", {})
+	if not await _wait_file("client.cabin", 60.0) or not await _wait_file("client_b.cabin", 60.0):
+		return
+	# Leave the physical hatch open until both crew have actually boarded.
 	await _press(&"interact")
 	_check(await _until(func(): return _game._piloting and _player.is_seated_at(pilot) and not _game._transition_busy, 12.0), "host ordinary cockpit Interact owns the actual pilot seat")
 	if not _game._piloting:
