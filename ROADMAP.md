@@ -14,11 +14,11 @@ Completed foundations include the core walk/board/fly/fight/land/recover loop, s
 
 Native Windows execution remains on hold while the Avast alert is unresolved. Do not bypass antivirus protection. Appropriate local Linux checks and read-only Windows package inspection may continue; they do not establish native Windows, GPU, controller, audible or human acceptance.
 
-Latest published paired checkpoint: `fe0a15812`. See its [Windows notes](builds/windows/MuddsShipyards-fe0a158-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-fe0a158-linux-notes.txt) for validation and limitations.
+Latest published content checkpoint: Windows `eadc15034` and Linux `4fa5006d6`, with identical packaged game content. See the [Windows notes](builds/windows/MuddsShipyards-eadc150-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-4fa5006-probe-fix-linux-notes.txt) for their different runtime checks and limitations.
 
 At `fe0a15812`, the complete ordinary-input guided sortie passes 47 source checks and three consecutive fresh-process runs against that published Linux PCK through the pinned Linux editor. Those results do not qualify newer source. Experimental WSL rendering does not qualify native hardware or the complete Gate C journeys.
 
-The `c650732b8` batch improves station shadow batching, patrol retry prompts, compact minimap labels, display-confirmation focus and paused caption previews; twelve focused suites pass. New source also restores mouse prompts on mouse look and explains multiplayer host loss in plain language; six relevant suites pass 126 assertions. The separate engine fix for retained-Main reflection-probe errors is compiling and remains unqualified (RENDER-002 in [bugs.md](bugs.md)). Full-resolution station rendering, full current-source regression, complete Sandbox/settings journeys and applicable hardware acceptance remain open.
+The published content includes station shadow batching, patrol retry prompts, compact minimap labels, display-confirmation focus, paused caption previews, mouse-look prompt updates and readable multiplayer host-loss messages. Six relevant suites pass 126 assertions against the Windows PCK, and its matching Linux PCK has a clean 2560×1440 station capture through the pinned editor. The retained-Main reflection fix passes editor lifecycle and recapture checks; its separate Linux release template passes packaged headless startup. Rendered release-template acceptance, full current-source regression, complete Sandbox/settings journeys and applicable hardware acceptance remain open; see RENDER-002 in [bugs.md](bugs.md).
 
 ## Remaining tasks to complete the project
 

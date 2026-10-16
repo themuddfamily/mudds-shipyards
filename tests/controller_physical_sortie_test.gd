@@ -797,13 +797,29 @@ func _run_settings_reentry() -> void:
 		and bool(game.hud.get_accessibility_report().captions_enabled) \
 		and is_zero_approx(ship.maximum_chase_camera_rotation_lag_degrees),
 		"saved preferences reach the real player, HUD and free-sortie camera")
+	var recovery: Dictionary = (game.get("_solo_safe_recovery_context") as Dictionary).duplicate(true)
+	var resume_home_pilot: bool = recovery.get("location", "") == "mudds_home_berth" \
+		and recovery.get("mode", "") == "pilot"
 	print("SETTINGS_BEGIN_BEFORE: %s" % JSON.stringify(_settings_begin_context(game, player)))
 	await _settings_tap(desktop, &"interact")
-	var began := await _wait_until(func() -> bool: return game.phase == GameFlow.Phase.APPROACH_SHIP and player.is_control_enabled(), GameHUD.INTRO_FADE_SECONDS + 0.5)
+	# Saved home pilots traverse the authored boarding path after the title fade.
+	# Fresh/on-foot starts retain the original on-foot phase and fade budget.
+	var begin_budget := GameHUD.INTRO_FADE_SECONDS + 0.5
+	if resume_home_pilot:
+		begin_budget += 2.0 * game.canopy_motion_time + game.boarding_motion_time
+	var began := await _wait_until(func() -> bool:
+		if resume_home_pilot:
+			return game.phase == GameFlow.Phase.START_ENGINES and bool(game.get("_piloting")) \
+				and player.is_seated() and not bool(game.get("_transition_busy"))
+		return game.phase == GameFlow.Phase.APPROACH_SHIP and player.is_control_enabled(), begin_budget)
 	print("SETTINGS_BEGIN_AFTER: %s" % JSON.stringify(_settings_begin_context(game, player)))
 	_check(began,
-		"native keyboard Begin completes the authored title fade")
+		"native keyboard Begin completes the saved home-pilot recovery" if resume_home_pilot \
+		else "native keyboard Begin completes the authored title fade")
 	if not began:
+		await _settings_abort(game, desktop, pad)
+		return
+	if resume_home_pilot and not await _settings_exit_recovered_home_pilot(game, player, world, desktop, recovery):
 		await _settings_abort(game, desktop, pad)
 		return
 	for driver: SettingsNativeInputEvents in [desktop, pad]:
@@ -854,6 +870,53 @@ func _run_settings_reentry() -> void:
 		await process_frame
 	_check(false, "ordinary Exit must terminate this process with exit 0")
 	await _settings_abort(game, desktop, pad)
+
+
+func _settings_exit_recovered_home_pilot(game: GameFlow, player: PlayerController, world: ShipyardWorld, driver: SettingsNativeInputEvents, recovery: Dictionary) -> bool:
+	var craft := game.get_active_ship()
+	_check(craft != null and craft in game.ships and not craft.is_destroyed() \
+		and String(craft.get_ship_id()) == recovery.get("craft_id", "") \
+		and String(craft.get_home_berth_id()) == recovery.get("berth_id", "") \
+		and craft.is_piloted() and player.is_seated_at(craft.get_pilot_seat_anchor()),
+		"Begin resumes the exact saved home craft and physical pilot seat")
+	if not _failures.is_empty():
+		return false
+	var berth_id := craft.get_home_berth_id()
+	var berth := world.get_berth_node(berth_id) as ShipBerth
+	_check(berth != null and berth.get_occupant() == craft and berth.get_reservation_owner() == craft \
+		and berth.get_reserved_ship_id() == craft.get_ship_definition().ship_id \
+		and craft.global_transform.is_equal_approx(world.get_berth_transform(berth_id)) \
+		and bool(craft.get_telemetry().landed) and not craft.is_landing_active(),
+		"Recovered pilot remains physically docked at its exact occupied home berth")
+	var source := craft.get_local_input_source()
+	_check(source != null and source.get_input_provider() == null and source.is_enabled_owner(),
+		"Recovered pilot retains its ordinary Input-backed lifecycle owner")
+	if not _failures.is_empty():
+		return false
+	driver.release_all()
+	_check(await _wait_until(func() -> bool: return craft.get_telemetry().engine_state == &"OFFLINE", 2.0),
+		"Neutral native controls permit the recovered craft's authored automatic shutdown")
+	if not _failures.is_empty():
+		return false
+	var settled_exit := player.settle_exit_onto_support(craft.get_exit_transform())
+	var seated_position := player.global_position
+	var exit_completions := [0]
+	var on_exit_completed := func() -> void: exit_completions[0] += 1
+	player.disembarking_completed.connect(on_exit_completed)
+	await _settings_tap(driver, &"interact")
+	var exited := await _wait_until(func() -> bool: return not craft.is_piloted() and not player.is_seated() \
+		and not bool(game.get("_piloting")) and not bool(game.get("_transition_busy")) \
+		and game.phase in [GameFlow.Phase.APPROACH_SHIP, GameFlow.Phase.COMPLETE] \
+		and player.is_control_enabled() and player.is_on_floor(),
+		2.0 * game.canopy_motion_time + game.disembarking_motion_time + 1.0)
+	player.disembarking_completed.disconnect(on_exit_completed)
+	_check(exited and exit_completions[0] == 1 \
+		and player.global_position.distance_to(seated_position) > 0.25 \
+		and player.global_position.distance_to(settled_exit.origin) < 0.25 \
+		and berth.get_occupant() == craft and berth.get_reservation_owner() == craft \
+		and bool(craft.get_telemetry().landed),
+		"Native E physically disembarks the recovered pilot onto the home deck while retaining the docked craft")
+	return _failures.is_empty()
 
 
 func _settings_begin_context(game: GameFlow, player: PlayerController) -> Dictionary:
