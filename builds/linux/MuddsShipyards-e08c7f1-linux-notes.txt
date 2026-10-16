@@ -1,8 +1,0 @@
-Mudds Shipyards e08c7f1 Linux checkpoint
-Source: e08c7f1c141a322fe26224d215b3ec503ff07019
-
-The exit tutorial asks you to brake, release the controls and wait for the engine to go OFFLINE. Beacon reward guidance explains when to retry. Captions hide stale text on reentry. Partial display-settings snapshots preserve omitted settings. Newly staged fleet ships receive their berth placement before becoming ready.
-
-Validation: one Linux export with the guarded custom Godot 4.7.1 release template. Actual native Linux direct and archive-extracted --startup-check each exited 0 with exactly one STARTUP_MENU_READY_OK and no script/resource/leak diagnostics, headless with Dummy audio. Safe five-member archive, executable modes and template .text/.rodata identity verified. Private installation, reinstallation and uninstallation in a path with spaces preserved seeded saved data. All 1,513 actual payload path/size/SHA values exactly match the sealed Windows checkpoint; shared-content package checks are seven external consumers totaling 447 assertions. Separately retained source-focused validation totals 844 assertions across 16 suites.
-
-Limits: rendered source startup timed out at its original 300-second cap; this failure remains open. No rendered Linux, native GPU, native Windows, human playtesting or current full-matrix acceptance is claimed. CI remains disabled. Historical source fixture failure and its authored-transform correction are preserved.

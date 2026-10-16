@@ -1,8 +1,0 @@
-Mudds Shipyards 1b01897 Windows checkpoint
-Source: 1b018970cd5d2759ac567615c6f3c2a12a52b686
-
-Saved mining rewards no longer remain pending or outrank active work. Unpaid rejected capacity saves still show Start-to-retry guidance and keep their recovery priority.
-
-Validation: source RED reproduced the old paid-receipt priority error, then three GREEN suites passed nearby presenter35, retained feedback5 and persistence roundtrip22 assertions (62 total), without unexpected diagnostics. Actual embedded Windows PCK under the custom Linux editor passed strict --startup-check (exit0/exactly one STARTUP_MENU_READY_OK) and committed external nearby-presenter35, headless with Dummy audio and zero script/resource/leak diagnostics. Only authentic class/UID metadata and actual PCK production resources were used. Actual 1,513 payload paths match 9d7cd93; only nearby_sector_activity_presenter.gdc changed, other 1,512 payloads are byte-identical. Official release-template .text matched read-only. Two-member ZIP CRC and member hashes verified.
-
-Limits: presentation-component scope only; no current full-matrix, ordinary-controls, full-scene graphical, native Windows, native GPU or human-playtest acceptance. Earlier deadlines and shutdown diagnostics remain retained. No GPU probe or full47 run was performed. CI remains disabled.

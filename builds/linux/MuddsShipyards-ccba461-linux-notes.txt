@@ -1,7 +1,0 @@
-Mudds Shipyards — Linux checkpoint ccba461
-
-Long caption source names wrap instead of being shortened. Offscreen minimap route arrows and labels stay inside the map. When a scan discovery record fails to save after its reward is paid, the Activity Board names Start to retry the discovery save.
-
-Validation: six focused source suites passed287 checks, with expected regressions and earlier fixture failures retained. Actual Windows embedded-PCK caption40, offscreen minimap135 and retained-scan11 checks passed (186 total). All1513 payload paths/sizes/SHA256 hashes match this Linux package. Native Linux direct and archive-extracted headless startup both exited0 with exactly one readiness marker and zero diagnostics. Release-template .text/.rodata match pinned guarded Godot4.7.1 template. Safe five-member archive/modes and private spaced install/reinstall/uninstall preserve seeded saved data. All scoped source/index/cache, installed-input, prior-artifact and real-userdata guards pass; owned actors closed. Windows configuration/wrapper failures remain preserved; its successful EXE was not re-exported.
-
-Component/headless package scope only: current full matrix, ordinary controls, rendered startup, native GPU and human playtesting were not run. Native Windows execution was not performed. Earlier ordinary-route timeouts remain retained. GitHub Actions stays disabled.

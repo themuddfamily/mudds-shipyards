@@ -1,8 +1,0 @@
-Mudds Shipyards 2a2f239 Windows checkpoint
-Source: 2a2f239e9efb67009baa5282035960f88c9b3a64
-
-The server browser no longer promises Retry when its owner only supports Cancel. Nearby-activity guidance now tells you how to retry a completed scan reward whose save was rejected, using Start rather than leaving the recovery action unclear.
-
-Validation: seven focused source suites passed 212 assertions; the initial two expected RED results remain preserved. Actual embedded Windows PCK checked with the custom Linux editor: strict startup exited 0 with exactly one STARTUP_MENU_READY_OK and zero script/resource/leak diagnostics. Committed external presenter consumers passed server browser64 and nearby activity33 assertions, headless with Dummy audio, using only authentic class/UID metadata and production resources from the actual PCK. All 1,513 payload paths match 7d078ad; only the two reviewed presenter GDCs changed, all other 1,511 payloads are byte-identical. Official Windows release-template .text matched read-only. Safe two-member ZIP verified by CRC and member hashes.
-
-Limits: no current full matrix, full-scene graphical startup, native Windows, native GPU or human-playtest acceptance is claimed. The prior ordinary-controls run failed final alignment and reached its original 300-second deadline; it remains open. Controller fixture WIP is excluded. CI remains disabled.

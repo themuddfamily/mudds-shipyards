@@ -1,9 +1,0 @@
-Mudds Shipyards provisional unsigned Windows installer — 2026-10-13
-Source: a608693419d606d8c75fb763bb86886b197d380c
-Build label: 0.12.0+a608693
-
-Installs the matching combined planetary/cabin/remote-body checkpoint with settings-default persistence fixes using the existing per-user NSIS installer.
-
-Actual validation: NSIS v3.09-4 build exited 0 in 87.820 seconds under the existing 600-second cap. Clean source HEAD and input EXE were unchanged. Published setup and sidecars were verified against original hashes. Setup is 87,766,858 bytes; SHA256 3eccc6f8078a7856bc9bf48e10ba33e97334d6387ba9f3965af30f6c1bb18b3c. Input EXE is 184,406,272 bytes; SHA256 48b1ef2fe354e25dd2cdc5f2321770dbe6efad472288f7aaf5f235f2a5e75202.
-
-This is an unsigned development installer. Native Windows install, upgrade, rollback, uninstall, trust/signing, GPU/controller/audio and human review remain NOT_RUN. Complete changed-source CI remains required before main integration; this installer build does not qualify those gates. Checkpoint startup and packaged gameplay validation are documented separately in MuddsShipyards-a608693-notes.txt.

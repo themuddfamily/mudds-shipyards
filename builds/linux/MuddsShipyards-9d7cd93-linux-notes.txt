@@ -1,8 +1,0 @@
-Mudds Shipyards 9d7cd93 Linux checkpoint
-Source: 9d7cd93e4607a3dec7efc2611a06b37ad44a49bb
-
-Piloting help no longer falsely labels the gamepad right stick as STEER. Desktop Mouse STEER and the actual PITCH, YAW and ROLL mappings are unchanged.
-
-Validation: one Linux export using the guarded custom Godot 4.7.1 release template. Native Linux direct and archive-extracted --startup-check each exited 0 with exactly one STARTUP_MENU_READY_OK and zero script/resource/leak diagnostics, headless with Dummy audio. Safe five-member archive (one directory, four files), modes and template .text/.rodata identity verified. Private install/reinstall/uninstall in a path with spaces preserved seeded saved data. All 1,513 payload path/size/SHA values exactly match the sealed Windows checkpoint; only HUD.gdc changed from 2a2f239. Shared-content committed flight-cue consumer against the actual Windows PCK passed its unique FLIGHT_PATH_CUE_TEST_OK sentinel under the Linux editor. It prints no assertion count, so none is claimed. Source-focused flight-cue sentinel, input-glyph HUD31 and bomber controls-overlay15 passed separately; old-HUD expected RED retained.
-
-Limits: UI-component scope only. Current ordinary-controls/full-scene/full-matrix, native Windows, native GPU and human-playtest acceptance are not claimed. Prior original-300 deadlines and shutdown diagnostics remain preserved. No new GPU candidate probe was run. CI remains disabled.

@@ -1,7 +1,0 @@
-Mudds Shipyards — Windows checkpoint fe0a158
-
-On-foot camera switching keeps working over passive tutorial focus. Help retains its active focus through tutorial updates. Windows keeps the exact pilot-mesh integrity fallback; Linux pairs this content with the custom mesh-revision runtime. Earlier caption wrapping, fitted minimap route markers and discovery-save retry guidance remain included. Scan discovery retry follows an already-paid reward.
-
-Validation: actual Windows PCK first-person85 and pilot fallback298 ran on private X11/Forward+/Dozen; caption40/minimap135/scan11 passed headlessly (569 assertions), plus strict startup exit0/one readiness marker/zero unexpected diagnostics. Pilot consumer omits only3 unavailable raw authoring-file hash checks, explicitly NOT_APPLICABLE_TO_PCK; all runtime imported-mesh/rig/material/signature checks remain. Source-only API/benchmark and fresh settings-process evidence stay separate. Inventory1513 differs from ccba only pilot presentation/player controller/HUD scripts; official7626 PE.text matches. Safe2-member ZIP and scoped guards/actor closure pass.
-
-Native Windows execution, full current matrix, ordinary journeys and native-hardware/human qualification were not run. Private Dozen is experimental and not native-GPU performance proof. Earlier failures/timeouts remain retained; GitHub Actions stays disabled.

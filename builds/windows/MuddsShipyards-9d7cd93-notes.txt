@@ -1,8 +1,0 @@
-Mudds Shipyards 9d7cd93 Windows checkpoint
-Source: 9d7cd93e4607a3dec7efc2611a06b37ad44a49bb
-
-Piloting help no longer falsely labels the gamepad right stick as STEER. The desktop Mouse STEER hint and the actual PITCH, YAW and ROLL control mappings are unchanged.
-
-Validation: focused source flight-path-cue test passed its unique FLIGHT_PATH_CUE_TEST_OK sentinel, plus input-glyph HUD31 and bomber controls-overlay15 assertions; the old-HUD expected RED failure remains preserved. Actual embedded Windows PCK checked using the custom Linux editor: strict startup exited 0 with exactly one STARTUP_MENU_READY_OK, and the committed external flight-cue test exited 0 with exactly one FLIGHT_PATH_CUE_TEST_OK, both without script/resource/leak diagnostics and with headless Dummy audio. The cue test prints no assertion count, so none is claimed. Only authentic class/UID metadata and actual PCK production resources were used. Actual 1,513 payload paths match 2a2f239; only HUD.gdc changed, all other 1,512 payloads are byte-identical. Official release-template .text matched read-only; the two-member checkpoint ZIP was CRC/member-hash checked.
-
-Limits: UI-component scope only. Current ordinary-controls/full-scene/full-matrix, native Windows, native GPU and human-playtest acceptance are not claimed; prior original-300 deadlines and shutdown diagnostics remain preserved. No GPU candidate probe was performed for this build. CI remains disabled.

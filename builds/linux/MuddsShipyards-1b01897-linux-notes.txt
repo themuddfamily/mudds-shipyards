@@ -1,7 +1,0 @@
-Mudds Shipyards — Linux checkpoint 1b01897
-
-Saved mining rewards no longer remain pending or outrank active work. Unpaid rejected capacity saves still show Start-to-retry guidance and retain recovery priority.
-
-Validation: focused source regression failed before the fix; presenter35, retained-feedback5 and capacity-roundtrip22 assertions then passed (62 total). Actual Windows embedded-PCK presenter35 passed. All 1,513 payload paths, sizes and SHA256 hashes match this Linux package. Native Linux direct and archive-extracted headless --startup-check both exited0 with exactly one readiness sentinel and zero diagnostics. Release-template .text/.rodata match pinned guarded Godot4.7.1 template. Safe five-member archive and private spaced-path install/reinstall/uninstall preserve seeded saved data. All scoped source/index/cache, installed-input, artifact and real-userdata guards pass; owned actors closed. Two orchestration assertion failures are retained (correct PNG mode and colon-suffixed readiness syntax); neither required re-export or a direct startup repeat.
-
-Scope: component/headless package checks only. Current full matrix, ordinary controls, rendered startup, native GPU and human playtesting were not run. Native Windows execution was not performed. Earlier graphical/ordinary-route failures remain retained. GitHub Actions remains disabled.

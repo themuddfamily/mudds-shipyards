@@ -1,0 +1,18 @@
+Mudds Shipyards checkpoint 064f573 (windows)
+Source: 064f573b2f83b517a722a7d7fd856573535e2885
+
+- Settings reset keeps the actual saved or save-failed result visible.
+- Destroyed ships show an explicit danger label instead of HULL OK.
+- Multiplayer version incompatibility explains how to reconnect.
+- Asteroid-impact retry directs you back to the first gate and Start.
+
+Actual package: MuddsShipyards-064f573.exe
+SHA-256: 13d0d4ae1513cd26abb6bd478e3f0e46e073394c8cb8ed4a225371c12c4631dd
+Silent headless startup: exit 0 and STARTUP_MENU_READY_OK exactly once, no errors.
+The Windows PE was not executed; its embedded game payload ran through the Linux editor.
+Payload inventory: 1,513 entries; exact reviewed delta versus 0355c19. Cross-platform parity is recorded by whichever selected platform runs second.
+Native Windows, native GPU, rendered release-template, full release-matrix and complete-controls qualification remain NOT_RUN. Hosted CI remains disabled.
+
+Focused behavior validation: six existing source suites and the same six suites against this exact Windows PCK each pass 409 assertions with zero diagnostics. Packaged production is loaded through the Linux editor; no loose production scripts are in the test fixture.
+Complete Settings acceptance remains open. Prior full source 9a89b3763 and prior d750f76 Windows payload both hit the unchanged 300-second cap during gamepad flight after completing the keyboard-and-mouse sortie. Those failures are retained; complete current-candidate Settings is NOT_RUN.
+The unfiltered local regression is pending. This checkpoint does not qualify full ordinary-controls, native GPU, physical controller or audible acceptance. GitHub Actions remains disabled; Windows PE execution remains on hold.
