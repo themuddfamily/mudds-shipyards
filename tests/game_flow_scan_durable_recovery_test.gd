@@ -357,6 +357,18 @@ func _start_fresh_active() -> void:
 	var fault := FaultFilesystem.new()
 	fault.reject_rewards = false
 	var fresh := await _game(path, fault)
+	# These are independent cold owners sharing durable storage, not a shared
+	# physical session. The retained writer must not supply the fresh floor.
+	var floor_query := PhysicsRayQueryParameters3D.create(
+		fresh.player.global_position + Vector3.UP,
+		fresh.player.global_position - Vector3.UP * 3.0, 1)
+	floor_query.collide_with_bodies = true
+	floor_query.collide_with_areas = false
+	var floor_hit := fresh.player.get_world_3d().direct_space_state.intersect_ray(floor_query)
+	var floor_collider := floor_hit.get("collider") as Node
+	_check(first.get_world_3d().space != fresh.get_world_3d().space
+		and is_instance_valid(floor_collider) and fresh.is_ancestor_of(floor_collider),
+		"overlapping retained and cold scan owners have independent worlds and the fresh player hits its own authored floor")
 	var live := await _binding(fresh)
 	var store: UserDataStore = fresh.get("_runtime_settings_user_data_store")
 	var restored: Dictionary = live.get_activity_snapshot(&"structure_scan")
@@ -703,7 +715,13 @@ func _game(path: String, filesystem: UserDataFilesystem) -> GameFlow:
 	var game := Main.instantiate() as GameFlow
 	var instantiated := Time.get_ticks_usec()
 	game.configure_runtime_settings_persistence(UserDataStore.new(path, filesystem), path + ".legacy.cfg")
-	root.add_child(game)
+	var viewport := SubViewport.new()
+	viewport.name = "ScanOwnerWorld"
+	viewport.size = root.size
+	viewport.own_world_3d = true
+	viewport.world_3d = World3D.new()
+	root.add_child(viewport)
+	viewport.add_child(game)
 	var attached := Time.get_ticks_usec()
 	await process_frame
 	await physics_frame
@@ -762,9 +780,22 @@ func _button(game: GameFlow, index: int) -> Button:
 	return null
 
 func _dispose(game: GameFlow) -> void:
+	var viewport := game.get_parent() as SubViewport
+	var owned_nodes: Array[WeakRef] = [weakref(game)]
+	if is_instance_valid(viewport):
+		owned_nodes.append(weakref(viewport))
+	for node: Node in game.find_children("*", "", true, false):
+		owned_nodes.append(weakref(node))
 	game.queue_free()
 	await process_frame
+	if is_instance_valid(viewport):
+		viewport.queue_free()
 	await process_frame
+	var surviving_nodes := 0
+	for reference: WeakRef in owned_nodes:
+		surviving_nodes += int(is_instance_valid(reference.get_ref()))
+	_check(surviving_nodes == 0,
+		"disposing a scan owner retires its Main, private viewport and every owned node")
 
 func _receipts(game: GameFlow) -> int:
 	return int(game.get_activity_reward_report().authority.record.total_receipts)
