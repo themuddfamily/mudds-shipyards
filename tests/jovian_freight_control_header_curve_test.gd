@@ -99,11 +99,30 @@ func _test_curved_header(module: JovianFreightBerth) -> void:
 	var fascia := module.get_node_or_null(^"FreightControlSignFascia") as MeshInstance3D
 	_check(
 		freight_sign != null and freight_sign.visible
-		and freight_sign.position.is_equal_approx(Vector3(16.05, 3.95, 29.0))
+		and freight_sign.position.is_equal_approx(Vector3(15.27, 3.95, 29.0))
 		and freight_sign.rotation_degrees.is_equal_approx(Vector3(0.0, -90.0, 0.0))
-		and fascia != null and fascia.position.is_equal_approx(Vector3(16.0, 3.95, 29.0)),
+		and fascia != null and fascia.position.is_equal_approx(Vector3(15.38, 3.95, 29.0)),
 		"FREIGHT CONTROL legend and its contrast fascia remain at their readable approach transforms"
 	)
+	if freight_sign != null and fascia != null and fascia.mesh != null:
+		var sign_on_fascia := fascia.to_local(freight_sign.global_position)
+		var outward_face_x := fascia.mesh.get_aabb().position.x
+		_check(
+			is_equal_approx(outward_face_x - sign_on_fascia.x, 0.01)
+			and not freight_sign.no_depth_test,
+			"control legend sits 10 mm outside the fascia approach face with normal depth testing"
+		)
+		var door_header := module.get_node_or_null(^"ServiceAccess/FrameVisuals/Header") as MeshInstance3D
+		var header_bounds := module.global_transform.affine_inverse() * door_header.global_transform * door_header.mesh.get_aabb() \
+			if door_header != null and door_header.mesh != null else AABB()
+		var fascia_bounds := module.global_transform.affine_inverse() * fascia.global_transform * fascia.mesh.get_aabb()
+		_check(
+			door_header != null and header_bounds.has_volume()
+			and fascia_bounds.intersects(header_bounds)
+			and is_equal_approx(header_bounds.position.x - fascia_bounds.position.x, 0.11)
+			and freight_sign.position.x < fascia_bounds.position.x,
+			"fascia beds into the retained StationDoor header and carries the legend outside both occluding faces"
+		)
 
 	var evidence := module.get_evidence_metadata()
 	var audit := module.get_audit_report()

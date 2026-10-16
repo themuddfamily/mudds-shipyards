@@ -2582,7 +2582,7 @@ func _build_approach_portal() -> void:
 	_rounded_box(
 		self,
 		"FreightControlSignFascia",
-		Vector3(16.0, 3.95, 29.0),
+		Vector3(15.38, 3.95, 29.0),
 		Vector3(0.2, 0.7, 3.4),
 		_materials["deep_blue"],
 		false
@@ -3502,7 +3502,10 @@ func _build_lighting_and_signage() -> void:
 	_sign_practical(presentation, "FreightNodeSignWash", Vector3(0.0, 4.35, PORTAL_Z - 0.55), Color("8fe6dd"), 0.5, 5.0)
 	_label(presentation, "BERTH F-01", Vector3(0, 0.14, 9.8), 0.46, Color("ffb45b"), Vector3(-90, 0, 180))
 	_sign_practical(presentation, "BerthLegendWash", Vector3(0.0, 0.55, 9.8), Color("f7b866"), 0.44, 4.4)
-	_label(presentation, "FREIGHT CONTROL", Vector3(16.05, 3.95, 29.0), 0.42, Color("8df2ed"), Vector3(0, -90, 0))
+	# The fascia beds into the real StationDoor header's x = 15.39 approach
+	# face. Its own front is x = 15.28, with the glyphs seated 10 mm outside.
+	# The former x = 16.05 text sat behind both fascia and door header.
+	_label(presentation, "FREIGHT CONTROL", Vector3(15.27, 3.95, 29.0), 0.42, Color("8df2ed"), Vector3(0, -90, 0))
 	_sign_practical(presentation, "ControlSignWash", Vector3(15.62, 3.7, 29.0), Color("8df2ed"), 0.4, 3.6)
 	# This stencil sits at the transfer-lane decision point and is read while
 	# walking toward Freight Control. Keep the established safety instruction,
