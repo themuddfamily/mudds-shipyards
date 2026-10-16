@@ -6494,18 +6494,24 @@ func _roof_service_transverse_sagitta(inner: float, outer: float, z: float,
 func _roof_service_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3,
 		d: Vector3, reverse: bool) -> void:
 	var points := [a, d, c, b] if reverse else [a, b, c, d]
-	var normal: Vector3 = (points[1] - points[0]).cross(points[2] - points[0]).normalized()
-	for index in [0, 2, 1, 0, 3, 2]:
-		var point: Vector3 = points[index]
-		tool.set_normal(normal)
-		# Side walls need their own projection to preserve UV area/tangents.
-		var uv := Vector2(point.x, point.z)
-		if absf(normal.x) > absf(normal.y):
-			uv = Vector2(point.z, point.y)
-		elif absf(normal.z) > absf(normal.y):
-			uv = Vector2(point.x, point.y)
-		tool.set_uv(uv)
-		tool.add_vertex(point)
+	var projection_normal: Vector3 = (points[1] - points[0]).cross(points[2] - points[0]).normalized()
+	# Crown and rolled corners make these quads nonplanar. Each triangle needs
+	# its own face normal, rather than borrowing the first triangle's normal
+	# across a diagonal where the surface direction changes.
+	for triangle in [[0, 2, 1], [0, 3, 2]]:
+		var normal: Vector3 = (points[triangle[2]] - points[triangle[0]]).cross(
+			points[triangle[1]] - points[triangle[0]]).normalized()
+		for index in triangle:
+			var point: Vector3 = points[index]
+			tool.set_normal(normal)
+			# Side walls need their own projection to preserve UV area/tangents.
+			var uv := Vector2(point.x, point.z)
+			if absf(projection_normal.x) > absf(projection_normal.y):
+				uv = Vector2(point.z, point.y)
+			elif absf(projection_normal.z) > absf(projection_normal.y):
+				uv = Vector2(point.x, point.y)
+			tool.set_uv(uv)
+			tool.add_vertex(point)
 
 
 func _finish_roof_service_mesh(batch: Dictionary, node_name: String) -> void:

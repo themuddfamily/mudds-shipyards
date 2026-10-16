@@ -70,6 +70,7 @@ func _test_roof_service_construction(jovian: JovianLightFreighter, lid: MeshInst
 	var outside_pressure_skin := true
 	var valid_tangent_space := true
 	var outward_winding := true
+	var face_aligned_normals := true
 	for surface in lid.mesh.get_surface_count():
 		var arrays := lid.mesh.surface_get_arrays(surface)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -87,7 +88,10 @@ func _test_roof_service_construction(jovian: JovianLightFreighter, lid: MeshInst
 			var a := vertices[triangle]
 			var b := vertices[triangle + 1]
 			var c := vertices[triangle + 2]
+			var face_normal := (c - a).cross(b - a).normalized()
 			outward_winding = outward_winding and (b - a).cross(c - a).dot(normals[triangle]) < -0.00000001
+			for corner in 3:
+				face_aligned_normals = face_aligned_normals and face_normal.dot(normals[triangle + corner]) > 0.99999
 			var uv_area := (uvs[triangle + 1] - uvs[triangle]).cross(uvs[triangle + 2] - uvs[triangle])
 			valid_tangent_space = valid_tangent_space and absf(uv_area) > 0.00000001
 		for tangent in tangents:
@@ -95,6 +99,7 @@ func _test_roof_service_construction(jovian: JovianLightFreighter, lid: MeshInst
 	_check(outside_pressure_skin and seated_vertices > 100,
 		"%s seats perimeter folds on the curved roof without occupying the cabin" % lid.name)
 	_check(outward_winding, "%s has outward clockwise faces" % lid.name)
+	_check(face_aligned_normals, "%s lights each nonplanar crown and rolled-edge triangle with its own face normal" % lid.name)
 	_check(valid_tangent_space, "%s has nondegenerate UVs and finite generated tangents" % lid.name)
 
 
