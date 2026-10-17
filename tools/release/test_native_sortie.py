@@ -84,6 +84,42 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertIsNone(pilot.result)
         self.assertEqual(native.CAP, 300)
 
+    def test_hulk_preserves_guided_prelude_commands_with_unchanged_facing(self):
+        for stage in ('launch', 'interceptor'):
+            with self.subTest(stage=stage):
+                guided, hulk = native.Pilot(), self.hulk_pilot()
+                for pilot in (guided, hulk):
+                    pilot.stage = stage
+                    pilot.identities = (1, 2)
+                    pilot.departed = pilot.shot = pilot.fired = True
+                s = self.hulk_observation()
+                s.update(position=[-5, 14, -50], back=[0, 0, 1],
+                         shot_accepted=True, command_fire=True, opponent=[10, 20, -100],
+                         phase='LAUNCH' if stage == 'launch' else 'RETURN_TO_YARD')
+                for frame in (100, 101):
+                    s['frame'] = frame
+                    expected = guided.update(s, 1 + (frame - 100) / 60)
+                    self.assertNotEqual(expected[1:3], (0, 0))
+                    self.assertEqual(hulk.update(s, 1 + (frame - 100) / 60), expected)
+                    self.assertIsNone(hulk.mouse_pending)
+                    # The transition tick still belongs to Guided; the next
+                    # update performs the explicit HULK diversion.
+                    if stage == 'interceptor':
+                        self.assertEqual(hulk.stage, 'return_align')
+                        self.assertIsNone(hulk.departure_receipt)
+                        break
+
+    def test_hulk_stages_acknowledge_mouse_before_repeating_sweep(self):
+        pilot, s = self.hulk_pilot(), self.hulk_observation()
+        s['position'] = [-80, 40, -400]
+        first = pilot.update(s, 1)
+        self.assertNotEqual(first[1:3], (0, 0))
+        self.assertEqual(pilot.stage, 'hulk_transit')
+        s['frame'] += 1
+        self.assertEqual(pilot.update(s, 1.02)[1:3], (0, 0))
+        s.update(frame=s['frame'] + 1, back=[.1, 0, -.995])
+        self.assertNotEqual(pilot.update(s, 1.04)[1:3], (0, 0))
+
     def test_hulk_arrival_requires_live_exact_contract_and_supported_normal_exit(self):
         pilot, s = self.hulk_pilot(), self.hulk_observation()
         pilot.update(s, 1)
