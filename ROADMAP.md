@@ -135,6 +135,12 @@ Filesystem-only checks completed while Ember owns the runtime lanes.
 
 Source/miniature-bundle acceptance does not qualify the shipped archive.
 Journal retirement precedes cleanup: a later kill can leave an unused generation.
+Package preparation is pinned to `4141d94ddf01317062886e1becd2c67d1048af40`
+at `/srv/mudds-work/linux-update-package-20261017`; clean export dry run passes.
+Pinned engine/template and private profile are prepared under
+`/srv/mudds-work/linux-update-package-results-20261017/`. No export/import or
+startup engine has run there. Next: after Ember closes and releases lanes, run
+the existing safe Linux export and actual archive checks on that same checkout.
 Any failure ends that task with its actual result and a named follow-up. The
 Aurora benchmark candidate stays unscheduled while this production gap is open.
 
