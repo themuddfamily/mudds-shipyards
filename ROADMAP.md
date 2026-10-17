@@ -108,7 +108,7 @@ work remain intact, with source refs and unique raw results preserved.
 
 ## Next batch — Rime journey with two independent crew clients
 
-**ROADMAP-SLICE planning DONE. Four child tasks remain in this batch: one READY,
+**ROADMAP-SLICE planning DONE. Four child tasks remain in this batch: one IN PROGRESS,
 three GATED. No runtime check ran during planning.** These children implement
 and qualify an executable integration route through existing gameplay; they
 are not four new gameplay features. All four belong to
@@ -116,7 +116,7 @@ are not four new gameplay features. All four belong to
 
 | Order / task | Status | Observable finish | Work estimate; separate checks |
 | --- | --- | --- | --- |
-| 1. RIME-CREW-ARRIVAL | READY | Host lands Halyard after canonical outbound travel; both independent crew clients walk onto Rime and physically reboard. | 60–90 min driver integration; existing arrival allowance below. |
+| 1. RIME-CREW-ARRIVAL | IN PROGRESS | Host lands Halyard after canonical outbound travel; both independent crew clients walk onto Rime and physically reboard. | 60–90 min driver integration; existing arrival allowance below. |
 | 2. RIME-CREW-SURVEY | GATED on 1 | One actual remote participant walks both readings, manages warmth and earns exactly one disk-backed survey record; second crew retains usable controls. | 60–90 min driver integration; one extended arrival/survey run. |
 | 3. RIME-CREW-HOME | GATED on 2 | The same crew/craft continues from Mudds through survey, ascent and physical home dock, then exits to usable play. | 60–90 min driver integration; one continuous source journey. |
 | 4. RIME-CREW-PACKAGE | GATED on 3 | Matching published development packages, with the complete journey demonstrated on the exact Linux package. | 30–45 min packaging setup/closure; exports, startup/privacy and one package journey separately. |
@@ -171,7 +171,12 @@ are not four new gameplay features. All four belong to
   proposed driver additions, not currently runnable commands. Freeze the exact
   source, command, stage assertions and outer abort deadline before each launch.
 
-### 1. RIME-CREW-ARRIVAL — READY, implementation and qualification
+### 1. RIME-CREW-ARRIVAL — IN PROGRESS, implementation and qualification
+
+Owner: implementation agent in `/srv/mudds-work/rime-crew-arrival-20261018`;
+root coordinates one independent review and guarded qualification. Raw/abort
+runner is under `/srv/mudds-work/rime-crew-arrival-results-20261018/`.
+Implementation started from `192008620`; no runtime result is claimed yet.
 
 - **Next action:** extend the existing shared fixture's Rime arrival path to
   start and coordinate client/client_b; replace obsolete refusal assertions
