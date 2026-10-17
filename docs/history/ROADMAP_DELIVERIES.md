@@ -1388,3 +1388,16 @@ former/current paths. No raw failure was discarded or historical result
 promoted; remaining ignored files were disposable Python/Godot caches and
 generated import sidecars. Exact branch/clean/process-cwd checks were repeated
 by root before removal. Ember retains its original live supervisor and cap.
+
+
+Third bounded cleanup removed three more clean, idle retired checkouts,
+approximately836MB: `mudds-light-freeze-8d7f06ec9-20261017`,
+`mudds-display-settings`, `mudds-jovian-roof`. Independent inventory and root
+recheck found only generated Godot caches/import sidecars, no unique raw/build
+artifacts or untracked work. Source8d7f06ec9b70abf689f3fc5493144d05eebea24b
+remains reachable from main; named branches `fix/runtime-display-fit`
+(95379b3a3bae06dfb6e423d0f2803533c4ab78e4) and `fix/jovian-roof-edges`
+(481625bab2caeff32ea7846011d2226b31a183a4) were retained. No process working
+directory used the checkouts. Total nine retired checkouts removed across these
+three bounded batches; this remains housekeeping rather than gameplay delivery.
+Ember continues on the same original run; no route restart or extra test.
