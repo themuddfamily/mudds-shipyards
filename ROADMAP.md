@@ -122,15 +122,17 @@ saves/pending notes/other desktop. Focused installer12/12 pass with no skips;
 root export pipeline23/23 pass. Raw before/after:
 `/srv/mudds-work/linux-first-install-recovery-results-20261017/`.
 
-**Next single action:** freeze this integrated clean source, launch the existing
-guarded Linux export/check workflow in
+**Next single action:** observe the existing live guarded export/check driver,
+PID367912/start ticks107543544, verified in `/proc`; frozen package source
+`b41c3cc7a2988fd416d0a175a9ff203d0289a058` in
 `/srv/mudds-work/linux-first-install-package-20261017`. Prepared raw supervisor,
 abort and actual archive-manager check:
 `/srv/mudds-work/linux-first-install-package-results-20261017/`.
 Expected shipped check36 assertions/9 commands, including two realSIGKILL cuts;
 direct and extracted startup each exit0 + exactly one STARTUP_MENU_READY_OK.
 Import600s/export930s/shipped180s/startups330s caps; headless/Dummy/private
-profiles. No engine launched yet. Stop first actual failure; no unchanged retry.
+profiles. Use existing `active-owner.json`/stage status/logs and `abort.py`; do not
+relaunch on an observation timeout. Stop first actual failure; no unchanged retry.
 
 All ten phase gates remain open. Q4 startup stays parked without a justified
 construction candidate. Latest paired gameplay checkpoint remains b6af782;
