@@ -233,3 +233,21 @@ default two routes and public 3,600/60s warmup plus18,000/600s sample floors sta
 Full-duration, rendered/native performance and canonical planetary journeys are
 NOT_RUN. These export-excluded changes do not change gameplay; latest playable
 remains b6af782. No additional benchmark work is authorized by this completion.
+
+## ACT-HUD · Hulk restoration instruction (DONE)
+
+After engaging the breaker, the objective now says “Auxiliary bus powering up;
+securing the salvaged cell” instead of asking the player to hold the gallery.
+The existing activity design advances automatically while the sector is loaded;
+this corrects the instruction without inventing a proximity rule. Source review
+confirms exactly one executable objective literal changed; the adjacent comment
+now describes actual behavior. `git diff --check` passes. No engine test or new
+checkpoint for this wording-only correction; latest playable remains b6af782.
+Canonical hulk flight/walking/revisit remains unqualified: the existing integration
+suite stages positions rather than driving continuous ordinary traversal.
+
+Cleanup removed the ancestor-integrated, clean and inactive retired checkout
+`/srv/mudds-work/retired-worktrees/mudds-network-snapshot-cost-20261017`
+(244,210,371 logical bytes). Verified no process cwd/path arguments referenced it
+and no ignored files outside generated `.godot` existed. Other retired worktrees
+with unique changes or captures are preserved. No test/qualification claim follows.

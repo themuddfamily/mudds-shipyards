@@ -34,30 +34,33 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 - Schedule only the next 3–5 concrete deliveries when their contracts are known.
   Uninstantiated backlog templates are not scheduled work or measurable progress.
 
-## Last delivery: E2 · Ember surface walking benchmark — DONE
+## Last delivery: ACT-HUD[hulk restoration instruction] — DONE
 
-Accepted on `00ffaa045`: selectable normal walking on Main's streamed Ember
-surface, with real origin rebase and production-policy gravity adapter.
+After throwing the breaker, the objective describes the bus powering up and
+securing the salvaged cell. The old instruction to “Hold the gallery” incorrectly
+implied a proximity requirement. Root changed the objective and corrected the
+adjacent comment; timer, reward and persistence logic are unchanged.
 
 | Step | Result |
 | --- | --- |
-| E2.1 · Preserve existing routes | Default 152 and combat 19 checks PASS; Python record tests 15 PASS. |
-| E2.2 · Accept the new walk | Surface 24 checks PASS: 135.65m sampled walk, outbound/return visits, support/gravity, report and active-walk abort. |
-| E2.3 · Close delivery | Independent input/process cleanup review passes; temporary checkout removed; raw results retained. |
+| Correct instruction | DONE; one objective literal changed in `game_flow.gd`. |
+| Verify | DONE; exact diff confirms no executable logic changes; whitespace check passes. No engine test needed for this wording edit. |
+| Close | DONE; removed a verified inactive/integrated clean retired checkout (244MB logical); unique work/captures retained. |
 
-**Remaining in E2: zero.** See [recorded result](docs/history/ROADMAP_DELIVERIES.md#e2--ember-surface-walking-benchmark-done)
-and [runner usage](docs/PERFORMANCE_BENCHMARK_RUNNER.md). Full-duration/native
-performance, Host journey binding and canonical planetary journeys remain open.
-This tools/test-only delivery leaves the latest playable at b6af782.
+**Remaining in this delivery: zero.** [Recorded result](docs/history/ROADMAP_DELIVERIES.md#act-hud--hulk-restoration-instruction-done).
+Latest playable stays b6af782; this minor wording correction needs no new gameplay
+checkpoint. Prior E2 benchmark delivery is complete in the same history document.
 
-## Selecting the next delivery
+## Next selection
 
-After E2 closes, select a named production gap from the backlog and write its
-outcome, component, dependencies, acceptance, estimate and stop point here.
-Do not automatically launch another diagnostic or expand benchmark coverage.
-A newly found E2 defect gets one bounded repair card before an unrelated task.
-Unresolved capacity choice, missing original Settings artifacts and missing
-Aurora reproduction inputs remain in the backlog; do not ask again without new information.
+Select one named production gap from the backlog and record its outcome,
+component, exact acceptance, estimate and stopping point before execution.
+Hulk continuous ordinary traversal is still unqualified; its staged integration
+suite cannot substitute for that acceptance. Do not rerun it unchanged merely
+to increase check counts. Do not add a proximity rule absent a design requirement.
+Capacity choice and missing original Settings/Aurora inputs remain waiting;
+do not repeat settled questions. Full-project task count remains undefined
+until unscheduled parent templates have named instances.
 
 ## Working constraints
 

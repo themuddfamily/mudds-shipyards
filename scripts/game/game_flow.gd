@@ -22968,14 +22968,14 @@ func _on_hulk_breaker_engaged(_actor: Node) -> void:
 		_hulk_power_breaker.call(&"set_engaged", true)
 	if bool(_last_hulk_power_result.get("accepted", false)) and is_instance_valid(hud):
 		hud.set_objective(
-			"Hold the gallery while the auxiliary bus comes up",
+			"Auxiliary bus powering up; securing the salvaged cell",
 			"AUXILIARY POWER RESTORING"
 		)
 
 
-## Caller physics delta only, and only while the pilot is actually on foot with
-## the sector loaded. Completion crosses the shared reward adapter, which is
-## what produces the one committed receipt.
+## Caller physics delta only, while the sector remains loaded. Once the breaker
+## is thrown, the bus powers up automatically. Completion crosses the shared
+## reward adapter, which produces the one committed receipt.
 func _advance_hulk_power_restoration(delta: float) -> void:
 	if _hulk_power_activity == null or _hulk_power_activity.is_claimed():
 		return
