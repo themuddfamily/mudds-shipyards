@@ -142,7 +142,7 @@ remain in [completed deliveries](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinar
 This does not close the full HULK parent. Split its remaining physical journey
 at the observable home-exit boundary, rather than one expanding return/revisit job.
 
-### HULK-HOME-INPUT — IN PROGRESS implementation
+### HULK-HOME-INPUT — IN PROGRESS qualification
 
 - **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Add an opt-in release qualification route continuing the accepted breaker run
@@ -150,7 +150,7 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
   supported yard collision with cell count1 retained. This checks existing
   gameplay; it does not claim new gameplay until a demonstrated defect is fixed.
 - **Owner/boundary:** root integration, `hulk_home_implement` implementation;
-  base9c2653f02 (runtime81536a7b3). Existing native Python
+  candidateef67f3e95 from base9c2653f02 (prior runtime81536a7b3). Existing native Python
   runner, read-only observer, startup mode allowlist and focused existing tests.
   No gameplay/pose/timing/ledger changes without a reproduced defect.
 - **Normal sequence:** reverse recorded walk through unchanged interior/aperture
@@ -159,7 +159,7 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
   START_ENGINES→FREE_FLIGHT. Fly existing home approach, capture/one L, strict
   occupied home dock, neutral OFFLINE/one E, actual supported walking exit.
 - **Proof:** proposed select-only `--route hulk-home`, distinct
-  `NATIVE_HULK_HOME_OK` (not implemented yet), original cumulative300s cap.
+  `NATIVE_HULK_HOME_OK` (implemented; runtime NOT_RUN), original cumulative300s cap.
   Preserve complete breaker receipt; same Player/ship/capsule and authored
   controls; occupied HULK lease actually released before actual Cinder unload;
   strict home token/occupant/exact parking, controllable unseated supported exit.
@@ -168,9 +168,11 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
 - **Budget/stop:**45–90m implementation, checks/export/one300s route separately.
   Stop first unsupported control/actual failure or estimate boundary; no retries,
   rescue, direct boarding/docking calls or clock changes.
-- **Next action:** add read-only absent-HULK activity/streaming/lease and home
-  berth/support observations; append the return states to the existing driver.
-  Require actual outside650m Cinder retirement/unload, not elapsed-time assumption.
+- **Next action:** root runs clean candidate import/observer parse/privacy, Linux
+  export/direct and archive startup, then one cumulative300s home route.
+  Candidate37 focused Python checks pass; prior route classes are unchanged.
+  Read-only observations and return states are committed; no gameplay pass is
+  claimed yet. Actual outside650m Cinder retirement/unload remains required.
 - **Close:** exact result/source/build, commit/push, working checkpoint and owned
   cleanup. Revisit/new generation and disk interruption remain separate.
 
