@@ -2078,3 +2078,130 @@ phase gates remain open; three workflow cards are one recovery delivery.
 Checkpoint505d419 final independent review: GO. Owned clean source checkout
 removed (266 MB); unique raw results retained. Published artifact identities and
 all46 owned process closures independently verified without rerunning checks.
+
+## Archived Linux uninstall task contracts
+
+## Next batch — retry an interrupted Linux uninstall
+
+**Three bounded tasks DONE, delivering one installation recovery behavior.** The failed Rime driver and its type repair are closed and
+withheld; survey/home/package children are parked with their parent, not silently
+dropped. [Failure, original contracts and priority review](ROADMAP_DELIVERIES.md#rime-arrival-closed--landing-gate-failure-and-priority-review).
+No further Rime probe, repair or unchanged run is selected.
+
+| Task | Status | Observable finish | Work estimate; separate checks |
+| --- | --- | --- | --- |
+| LINUX-UNINSTALL-CUT | DONE on published a8f563e | Actual SIGKILL after menu-entry removal produces a distinct-process retry result on the published manager, with protected data intact. | 20–30 min setup/closure; bounded child waits up to 10 s each, overall 120 s. |
+| LINUX-UNINSTALL-RETRY | DONE on 505d41968 | Rerunning uninstall completes that interrupted removal safely, once and without deleting saves/unrelated files. | 60–90 min implementation; existing 12 installer tests plus focused cut/refusal checks, overall 120 s. |
+| LINUX-UNINSTALL-SHIP | DONE on checkpoint 505d419 | A fresh downloadable Linux archive contains the fixed manager and passes the same real cut/retry; paired checkpoint has actual startup/artifact results. | 30–45 min setup/closure; export/startup/privacy allowances separately below. |
+
+### LINUX-UNINSTALL-CUT — DONE, bounded reproduction
+
+Actual shipped manager SHA `ebd03b09e7f901bd469c2bb7d175404e8263e51e1b0e6345f2c096a6876c1057`
+matches source. Install exits 0; exact paused uninstall PID/start is verified,
+SIGKILL exits -9, and distinct CLI retry exits 1 with the predicted missing
+desktop refusal. Only the menu entry disappeared; payload/manifest/protected
+bytes remain exact, and retry makes no additional mutation. Children are reaped.
+Raw `/srv/mudds-work/linux-uninstall-recovery-20261018/results/reproduction/`
+is retained. This closes reproduction, not recovery acceptance.
+
+- **Parent/owner:** [INSTALL-LINUX](../ROADMAP_BACKLOG.md#recovery-packages-captures-and-release);
+  root assigns one implementation agent, root owns integration and checks.
+  Work belongs under one `/srv/mudds-work/linux-uninstall-recovery-20261018/`
+  directory; remove its disposable clean checkout at close and retain raw.
+- **Exact case:** use published `builds/linux/MuddsShipyards-a8f563e-linux-x86_64.tar.gz`
+  (SHA256 `964784cf05a1b38c96c5a358cf402592623fd952af37fa4387a9386894653eb9`).
+  Verify/extract its shipped manager; install that archive into explicit private
+  install/applications paths. Seed unrelated files in the runtime generation
+  and install root, plus private Godot user-data sentinels. Never use real user
+  installation/profile paths or launch the game in this reproduction.
+- **Existing seam:** `tools/release/install_linux_desktop.py::uninstall` removes
+  the desktop entry before payload/manifest cleanup. `read_install` requires
+  that entry on retry. This is a source-level predicted gap, not yet an observed
+  SIGKILL result. Reuse the real child-process pause/kill/retry pattern already
+  in `tools/release/test_install_linux_desktop.py`; no validator/framework.
+- **Proof/next action:** run the actual shipped uninstall, pause immediately
+  after its desktop unlink and before the first payload unlink, then send owned
+  SIGKILL and require actual exit -9. Start a distinct ordinary CLI uninstall
+  process with the same paths. Record its exit/stdout/stderr and exact owned/
+  protected-file state. Predicted old result is refusal mentioning changed or
+  missing owned desktop entry, retaining payload/manifest and all protected bytes.
+  This expected defect reproduction is not accepted uninstall recovery.
+- **Budget/stop:** 20–30 min setup, child waits up to 10 s, single 120 s outer
+  cap. No production edits, other interruption cuts, power-loss claims or engine
+  calls. If the predicted failure is not reproduced, stop and reassess rather
+  than implementing a speculative fix. Commit/push actual result; leave task 2
+  gated until its defect and unchanged acceptance are explicit.
+
+### LINUX-UNINSTALL-RETRY — DONE on 505d41968
+
+Accepted source `505d41968158750aab256a7af8b95b311508f648` adds verified removal
+intent before desktop deletion and strict safe retry. One full focused run
+passes 14 tests (all 12 originals plus two new), no skips, exit 0 in 2.833 s,
+with actual SIGKILL/fresh CLI recovery, refusal/idempotence and protected bytes.
+Source/index/cache/Python guards pass; supervisor is reaped. Independent
+prelaunch review found no blocker. Raw is retained under the batch's
+`results/focused/`. The shipped-new-manager acceptance below also passes.
+
+- **Result/boundary:** repair the existing manager so an ordinary uninstall
+  retry safely finishes the named interrupted operation. Own only
+  `tools/release/install_linux_desktop.py` and its existing test file. The game,
+  launcher format and unrelated install/update behavior stay outside this fix.
+- **Next action once ungated:** preserve verified removal intent before the
+  destructive boundary and resume only that authenticated owned operation.
+  Use the existing lock/atomic-write/ownership machinery. This is a production
+  transaction consumed by the manager, not an evidence schema or validator.
+  Do not broadly accept missing/modified desktop entries without valid intent.
+- **Proof:** the same actual SIGKILL cut followed by a distinct CLI retry exits
+  0; only originally owned menu entry, payload, manifest and removal intent are
+  gone. A repeated uninstall succeeds. Every seeded save/unrelated byte remains.
+  Modified surviving owned files or a foreign/edited desktop entry must refuse
+  before further mutation; retain existing unsafe-path and install/update guards.
+  Run all 12 existing installer tests plus the smallest regression protecting
+  this cut/refusal behavior, using Python bytecode disabled and private paths.
+- **Budget/stop:** 60–90 min implementation; focused Python checks have one
+  120 s outer cap with original child limits. Stop first unexpected failure and
+  retain its exact source; schedule any repair separately. Do not bundle another
+  cut, a crash matrix or a new installer architecture. Commit/push accepted code.
+
+### LINUX-UNINSTALL-SHIP — DONE, checkpoint 505d419
+
+Published seven artifacts from clean source505d41968. All eight checkpoint
+stages exit0; all three startups reach STARTUP_MENU_READY_OK. Actual shipped
+manager cut exits-9, distinct retry/repeat exit0, exact owned removal and
+protected bytes/modes pass. Privacy207, strict1515-entry byte parity, stock PE,
+Linux archive and exact EXE/notes ZIP checks pass. All46 owned process identities
+are closed. Raw and public artifact hashes remain in
+`/srv/mudds-work/linux-uninstall-recovery-20261018/results/`.
+
+
+- **Result/next action:** export from the clean accepted commit using existing
+  safe scripts; publish EXE/ZIP/notes in `builds/windows/` and matching Linux
+  ELF/archive/notes in `builds/linux/`. Notes describe the installer retry change;
+  no new gameplay or native Windows execution is implied.
+- **Proof:** exact source manager bytes occur inside the new Linux archive.
+  Repeat task 2's real cut/retry once using that extracted shipped script and
+  archive, with protected data intact. Run the existing focused installer checks,
+  strict direct/archive Linux and silent Windows-payload startup (exit 0 plus
+  `STARTUP_MENU_READY_OK`), privacy and archive/payload identity checks. Game
+  startup uses headless/Dummy; no active desktop, audible output or hosted CI.
+- **Budget/close:** 30–45 min setup/closure; exports up to 930 s each, three
+  startups up to 330 s each, privacy up to 300 s, installer consumer up to 120 s.
+  Stop first required failure, retain the previous accepted packages and raw;
+  no automatic rerun. On acceptance commit/push notes/source, remove owned clean
+  checkout and preserve exact published artifacts. Broader install cuts, power
+  loss, native platform/device/audio/performance and full-release gates stay open.
+
+## Roadmap next cards — planning DONE, 2026-10-18
+
+From clean baseline main8e254a7d0, read-only mapping selected four bounded cards:
+BROWSER-CANCEL (production UI), FIRE-RESTART (qualification), RACE-PAGE-RESET
+(diagnosis) and NEXT-CHECKPOINT (gated release work). Exact result, boundaries,
+owner/dependencies, proof, budgets, first action, failure and cleanup rules are
+in ROADMAP.md. Closed Linux uninstall contracts moved here; original36-parent
+crosswalk, original scope and roster preserved. No engine/test runs or gameplay
+changes during planning. Independent medium-effort network and activity mapping
+identified the actual browser affordance gap and the unverified race reset seam;
+a bounded card review added explicit dependencies and controlled pending-session
+preconditions. Added local links/anchors resolve and diff whitespace checks pass.
+Next action: implement BROWSER-CANCEL; do not restart parked Rime/HULK/startup
+investigations. Planning closes no broad parent or phase gate.

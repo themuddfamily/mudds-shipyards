@@ -1,7 +1,7 @@
 # Development roadmap
 
 The game is a playable development alpha. **All ten phase exit gates remain
-open.** This file contains bounded tasks and the next roadmap planning pass. The
+open.** This file contains the next four bounded tasks. The
 [backlog and 36-parent crosswalk](docs/ROADMAP_BACKLOG.md),
 [original specifications](docs/history/ROADMAP_SCOPE_20261017.md) and
 [production roster](docs/COMPLETION_SCOPE.md) retain the full project scope.
@@ -106,145 +106,166 @@ No unchanged Ember rerun or further HULK diagnosis/repair is selected.
 Retired-directory cleanup removed 16 clean checkouts; three containing uncommitted
 work remain intact, with source refs and unique raw results preserved.
 
-## Next batch — retry an interrupted Linux uninstall
+## Next queue — four bounded tasks
 
-**Three bounded tasks DONE, delivering one installation recovery behavior.** The failed Rime driver and its type repair are closed and
-withheld; survey/home/package children are parked with their parent, not silently
-dropped. [Failure, original contracts and priority review](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-closed--landing-gate-failure-and-priority-review).
-No further Rime probe, repair or unchanged run is selected.
+ROADMAP-NEXT-CARDS is **DONE**: read-only source mapping produced these four
+cards and archived the completed installer contracts. No engine checks ran in
+this planning pass. No gameplay or parent completion is claimed for planning.
+Baseline for selection: main `8e254a7d0`; each execution records its exact clean
+candidate before running. Root owns integration, verification, commit/push and
+cleanup. Implementers use separate owned worktrees; do not edit shared files
+concurrently. Priority1 runs first. The two independent investigations can be
+assigned alongside it without authorizing runtime edits to shared HUD/GameFlow.
 
-| Task | Status | Observable finish | Work estimate; separate checks |
+| Priority / task | Status / type | Observable finish | Work budget; checks separately |
 | --- | --- | --- | --- |
-| LINUX-UNINSTALL-CUT | DONE on published a8f563e | Actual SIGKILL after menu-entry removal produces a distinct-process retry result on the published manager, with protected data intact. | 20–30 min setup/closure; bounded child waits up to 10 s each, overall 120 s. |
-| LINUX-UNINSTALL-RETRY | DONE on 505d41968 | Rerunning uninstall completes that interrupted removal safely, once and without deleting saves/unrelated files. | 60–90 min implementation; existing 12 installer tests plus focused cut/refusal checks, overall 120 s. |
-| LINUX-UNINSTALL-SHIP | DONE on checkpoint 505d419 | A fresh downloadable Linux archive contains the fixed manager and passes the same real cut/retry; paired checkpoint has actual startup/artifact results. | 30–45 min setup/closure; export/startup/privacy allowances separately below. |
+| 1 BROWSER-CANCEL | READY / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
+| 2 FIRE-RESTART | READY / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
+| 3 RACE-PAGE-RESET | READY / bounded diagnosis | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
+| 4 NEXT-CHECKPOINT | GATED / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
 
-### LINUX-UNINSTALL-CUT — DONE, bounded reproduction
+### BROWSER-CANCEL — pending Manual Join
 
-Actual shipped manager SHA `ebd03b09e7f901bd469c2bb7d175404e8263e51e1b0e6345f2c096a6876c1057`
-matches source. Install exits 0; exact paused uninstall PID/start is verified,
-SIGKILL exits -9, and distinct CLI retry exits 1 with the predicted missing
-desktop refusal. Only the menu entry disappeared; payload/manifest/protected
-bytes remain exact, and retry makes no additional mutation. Children are reaped.
-Raw `/srv/mudds-work/linux-uninstall-recovery-20261018/results/reproduction/`
-is retained. This closes reproduction, not recovery acceptance.
+- **Parent/result:** [NET-BROWSER](docs/ROADMAP_BACKLOG.md#multiplayer).
+  While Manual Join is connecting, the browser presents a focusable
+  **Cancel Connection** action. Activating it closes the attempt, keeps the
+  browser usable and permits a new attempt. Connected sessions retain Disconnect.
+- **Known gap:** `scripts/ui/hud.gd::_update_server_browser_disconnect` and
+  `_request_server_browser_disconnect` only permit connected state. Existing
+  `tests/server_browser_hud_integration_test.gd` explicitly expects the button
+  disabled while connecting. The session status presenter already advertises
+  cancel; GameFlow already routes that intent to shutdown. This is an absent
+  browser affordance, not a diagnosed transport defect.
+- **Owner/boundary:** root assigns one medium-effort implementer who owns `scripts/ui/hud.gd`,
+  `tests/server_browser_hud_integration_test.gd`,
+  `tests/server_browser_focus_navigation_test.gd` and a bounded cancellation mode
+  in `tests/network/game_flow_server_browser_integration_test.gd`. Reuse
+  `scripts/ui/network_session_status_presenter.gd` and GameFlow's existing cancel
+  route. Dependency: none beyond a clean baseline checkout.
+  No transport rewrite, planetary routes, capacity or hardware work.
+  Reconnect/migration qualification remains separate; derive labels/actions from
+  the existing presenter rather than inventing a second session state machine.
+- **Proof:** actual visible Manual Join → pending session → focus/activate Cancel
+  Connection → inactive transport/disconnected presentation → browser navigation
+  still works → new Manual Join starts. Use ordinary UI accept activation. Also
+  require offline button disabled, connected Disconnect preserved and a newer
+  tutorial card unable to hide the browser action. Extend the two existing HUD
+  tests and add only the missing live cancellation scenario to the existing
+  coordinator. Give the fixture an owned non-admitting endpoint/controlled
+  handshake so pending state lasts until Cancel is activated; an arbitrary
+  unreachable address is not a deterministic precondition. The current live
+  modes prove admission/disconnect; they do not
+  already prove cancellation. Write its exact command before the first run.
+- **Budget/stop:** implementation60–90min; checks separately≤15min. Use existing
+  `tools/release/suite_process.py` with300s per focused/live suite, not a reduced
+  deadline. Live coordinator retains original internal limits and owned private
+  Xvfb peers with x11/Dummy; headless HUD checks use Dummy. Stop first failure;
+  record source/defect and schedule a separate repair. After one repair, priority
+  review is mandatory before another probe/run.
+- **Next/close:** inspect the two named HUD methods and reuse presenter action
+  state; commit the candidate before checks. Integrate accepted behavior, record
+  exact focused/live results and gate NEXT-CHECKPOINT on it. Remove owned clean
+  checkout after publication; preserve unique work/failure logs.
 
-- **Parent/owner:** [INSTALL-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release);
-  root assigns one implementation agent, root owns integration and checks.
-  Work belongs under one `/srv/mudds-work/linux-uninstall-recovery-20261018/`
-  directory; remove its disposable clean checkout at close and retain raw.
-- **Exact case:** use published `builds/linux/MuddsShipyards-a8f563e-linux-x86_64.tar.gz`
-  (SHA256 `964784cf05a1b38c96c5a358cf402592623fd952af37fa4387a9386894653eb9`).
-  Verify/extract its shipped manager; install that archive into explicit private
-  install/applications paths. Seed unrelated files in the runtime generation
-  and install root, plus private Godot user-data sentinels. Never use real user
-  installation/profile paths or launch the game in this reproduction.
-- **Existing seam:** `tools/release/install_linux_desktop.py::uninstall` removes
-  the desktop entry before payload/manifest cleanup. `read_install` requires
-  that entry on retry. This is a source-level predicted gap, not yet an observed
-  SIGKILL result. Reuse the real child-process pause/kill/retry pattern already
-  in `tools/release/test_install_linux_desktop.py`; no validator/framework.
-- **Proof/next action:** run the actual shipped uninstall, pause immediately
-  after its desktop unlink and before the first payload unlink, then send owned
-  SIGKILL and require actual exit -9. Start a distinct ordinary CLI uninstall
-  process with the same paths. Record its exit/stdout/stderr and exact owned/
-  protected-file state. Predicted old result is refusal mentioning changed or
-  missing owned desktop entry, retaining payload/manifest and all protected bytes.
-  This expected defect reproduction is not accepted uninstall recovery.
-- **Budget/stop:** 20–30 min setup, child waits up to 10 s, single 120 s outer
-  cap. No production edits, other interruption cuts, power-loss claims or engine
-  calls. If the predicted failure is not reproduced, stop and reassess rather
-  than implementing a speculative fix. Commit/push actual result; leave task 2
-  gated until its defect and unchanged acceptance are explicit.
+### FIRE-RESTART — one keyboard binding
 
-### LINUX-UNINSTALL-RETRY — DONE on 505d41968
+- **Parent/result:** [INPUT-REMAP](docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
+  Qualify changing Fire to F13 from the visible Settings row, saving to the real
+  private production store, exiting and reloading in a distinct process. The
+  reloaded row, InputMap and production local input sampler must agree.
+- **Known evidence boundary:** `tests/settings_ui_test.gd` covers row capture
+  and live map; `tests/runtime_settings_production_persistence_test.gd` injects
+  a fake filesystem and recreates Main in-process. Neither inspected fixture
+  proves this exact real-file/distinct-process composition. No remapping bug is
+  claimed. This does not replace the externally blocked original Settings route.
+- **Owner/boundary:** root (may delegate to one medium-effort qualification agent);
+  fixture ownership stays under `tests/` beside the existing settings tests.
+  Reuse HUD `begin_input_binding_capture`, GameFlow's production settings store
+  and `scripts/control/local_ship_input_source.gd` sampling. No production edits
+  until a specific defect is reproduced; any repair becomes a separate card.
+  Dependency: none beyond a clean baseline checkout and private writable store.
+  No physical-device, controller or full Settings acceptance claim.
+- **Proof:** writer uses the visible row and raw F13 key event, production save,
+  and exits0. A different PID loads the same private disk store through normal
+  Main startup, shows F13 for Fire and samples Fire on F13 press/release through
+  the production input source; former desktop binding must not fire. Preserve
+  existing gamepad bindings and unrelated seeded store data. Do not substitute
+  `Input.action_press`, direct profile seeding or MemoryFilesystem for this path.
+  Both processes must exit0 with explicit stage completion, then be reaped.
+- **Budget/stop:**45–60min fixture/setup; one writer and one reader≤300s each,
+  headless/Dummy/private XDG. First action: extend the smallest existing fixture
+  with writer/reader modes and record exact invocation/isolation before execution.
+  If no clean way to observe the sampler is found within the budget, stop with
+  that missing seam; do not build a generic framework. Stop first failure; retain
+  source and exact bytes. A pass closes this case without a gratuitous rerun.
+- **Close:** record exact commit/process/file/result scope, commit/push useful
+  qualification fixture and remove owned disposable checkout. No new build is
+  required for a test-only pass; a runtime repair requires NEXT-CHECKPOINT.
 
-Accepted source `505d41968158750aab256a7af8b95b311508f648` adds verified removal
-intent before desktop deletion and strict safe retry. One full focused run
-passes 14 tests (all 12 originals plus two new), no skips, exit 0 in 2.833 s,
-with actual SIGKILL/fresh CLI recovery, refusal/idempotence and protected bytes.
-Source/index/cache/Python guards pass; supervisor is reaped. Independent
-prelaunch review found no blocker. Raw is retained under the batch's
-`results/focused/`. The shipped-new-manager acceptance below also passes.
+### RACE-PAGE-RESET — reconcile one ordinary route
 
-- **Result/boundary:** repair the existing manager so an ordinary uninstall
-  retry safely finishes the named interrupted operation. Own only
-  `tools/release/install_linux_desktop.py` and its existing test file. The game,
-  launcher format and unrelated install/update behavior stay outside this fix.
-- **Next action once ungated:** preserve verified removal intent before the
-  destructive boundary and resume only that authenticated owned operation.
-  Use the existing lock/atomic-write/ownership machinery. This is a production
-  transaction consumed by the manager, not an evidence schema or validator.
-  Do not broadly accept missing/modified desktop entries without valid intent.
-- **Proof:** the same actual SIGKILL cut followed by a distinct CLI retry exits
-  0; only originally owned menu entry, payload, manifest and removal intent are
-  gone. A repeated uninstall succeeds. Every seeded save/unrelated byte remains.
-  Modified surviving owned files or a foreign/edited desktop entry must refuse
-  before further mutation; retain existing unsafe-path and install/update guards.
-  Run all 12 existing installer tests plus the smallest regression protecting
-  this cut/refusal behavior, using Python bytecode disabled and private paths.
-- **Budget/stop:** 60–90 min implementation; focused Python checks have one
-  120 s outer cap with original child limits. Stop first unexpected failure and
-  retain its exact source; schedule any repair separately. Do not bundle another
-  cut, a crash matrix or a new installer architecture. Commit/push accepted code.
+- **Parent/result:** [ACT-HUD](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys),
+  Race only. This is diagnosis: establish whether completed/paid race → Cinder
+  page Reset → select Race → Start → fresh Main agrees with persisted state.
+  No discrepancy or repair is assumed.
+- **Known seam:** GameFlow `_reset_nearby_activity` dispatches the Cinder race
+  to `nearby_sector_activity_binding.gd::reset_race`; production lifecycle tests
+  instead exercise `reset_active_activity`. Detached retained-feedback tests
+  supply snapshots. Trace whether both paths actually share durable ownership.
+- **Owner/boundary:** root (may delegate to one medium-effort reader), read-only
+  production ownership. Dependency: none beyond a clean baseline checkout.
+  Inspect `scripts/game/game_flow.gd`,
+  `scripts/world/nearby_sector_activity_binding.gd` and
+  `scripts/ui/nearby_sector_activity_presenter.gd`; anchors are existing
+  `tests/cinder_race_retained_feedback_test.gd` and
+  `tests/cinder_race_session_save_restore_test.gd`. Do not rerun the known-timeout
+  full lifecycle suite or touch other activity families.
+- **Proof/budget:**30min static trace, at most one concrete hypothesis and one
+  ≤300s headless/Dummy/private-store probe if necessary. Record authority state,
+  durable race record, rendered row and enabled actions across reset/start and
+  fresh Main; check pending reward, retained best and generation/once-only state.
+  Seed only declared fixture preconditions; do not claim canonical flight or a
+  real completed journey. Write exact probe command before running it.
+- **Next/stop/close:** trace the two reset paths first. End with either an exact
+  reproduced mismatch and responsible runtime owner plus a30–90min repair card,
+  a demonstrated consistent route (no repair), or the precise unresolved fact.
+  No second hypothesis/probe, production edits, new validators or checkpoint
+  during diagnosis. Record actual result, commit/push and clean owned scratch.
 
-### LINUX-UNINSTALL-SHIP — DONE, checkpoint 505d419
+### NEXT-CHECKPOINT — accepted runtime changes only
 
-Published seven artifacts from clean source505d41968. All eight checkpoint
-stages exit0; all three startups reach STARTUP_MENU_READY_OK. Actual shipped
-manager cut exits-9, distinct retry/repeat exit0, exact owned removal and
-protected bytes/modes pass. Privacy207, strict1515-entry byte parity, stock PE,
-Linux archive and exact EXE/notes ZIP checks pass. All46 owned process identities
-are closed. Raw and public artifact hashes remain in
-`/srv/mudds-work/linux-uninstall-recovery-20261018/results/`.
+- **Parents/result:** [PACKAGE-WIN / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
+  Publish paired playable packages exposing BROWSER-CANCEL and any separately
+  accepted runtime fix. This is release work, not a second gameplay outcome.
+- **Dependency/owner:** root; GATED until a clean integrated runtime commit and
+  its focused checks pass. FIRE-RESTART/RACE-PAGE-RESET do not block a passing UI
+  change merely because their independent qualification/diagnosis is unfinished.
+- **Boundary/proof:** existing safe export scripts; Windows EXE/ZIP/notes in
+  `builds/windows/`, matching Linux ELF/archive/notes/export result in
+  `builds/linux/`. Require direct/archive Linux and Windows-payload startup exit0
+  plus STARTUP_MENU_READY_OK, existing privacy check, exact package membership,
+  manager/binary bytes and modes, ZIP CRC, stock PE and strict PCK entry-byte
+  comparison. Record actual mismatches; do not silently accept them. Native
+  Windows remains NOT_RUN under the execution hold.
+- **Budget/stop:**30–45min setup/closure; import≤600s, each export≤930s, each
+  startup≤330s, privacy≤300s. Existing focused checks retain their limits; no
+  automatic whole-matrix or unrelated installed-transaction rerun. Headless/Dummy,
+  independent abort and owned child cleanup. Stop at first required failure,
+  retain previous accepted505d419 and schedule any repair separately.
+- **Next/close:** once ungated export from the exact clean accepted commit;
+  publish verified artifacts with concise player-visible notes and actual limits.
+  Independently review package scope, remove the owned clean source checkout,
+  retain unique raw results, update latest checkpoint and commit/push. No hosted
+  CI, Downloads, native hardware/audio/human/full-release claim.
 
+## Later decomposition
 
-- **Result/next action:** export from the clean accepted commit using existing
-  safe scripts; publish EXE/ZIP/notes in `builds/windows/` and matching Linux
-  ELF/archive/notes in `builds/linux/`. Notes describe the installer retry change;
-  no new gameplay or native Windows execution is implied.
-- **Proof:** exact source manager bytes occur inside the new Linux archive.
-  Repeat task 2's real cut/retry once using that extracted shipped script and
-  archive, with protected data intact. Run the existing focused installer checks,
-  strict direct/archive Linux and silent Windows-payload startup (exit 0 plus
-  `STARTUP_MENU_READY_OK`), privacy and archive/payload identity checks. Game
-  startup uses headless/Dummy; no active desktop, audible output or hosted CI.
-- **Budget/close:** 30–45 min setup/closure; exports up to 930 s each, three
-  startups up to 330 s each, privacy up to 300 s, installer consumer up to 120 s.
-  Stop first required failure, retain the previous accepted packages and raw;
-  no automatic rerun. On acceptance commit/push notes/source, remove owned clean
-  checkout and preserve exact published artifacts. Broader install cuts, power
-  loss, native platform/device/audio/performance and full-release gates stay open.
-
-## Next task — ROADMAP-NEXT-CARDS (planning, READY)
-
-- **Result/parent:** turn the next priorities from the 36-parent backlog into
-  3–5 achievable cards using the required fields above. This is planning, with
-  zero gameplay outcomes claimed.
-- **Boundary:** ROADMAP.md and its existing backlog/history only. Prefer
-  independent player-visible deliveries; do not start implementation, engine
-  runs, new validators or another investigation during this pass.
-- **Proof:** each card links one original parent, states one observable result,
-  exact acceptance and existing verification seam, dependencies, owner, status,
-  work/check budgets and the first action. An unresolved acceptance gets a
-  bounded definition task rather than an implementation estimate. Preserve every
-  original requirement and factual external gate.
-- **Budget/stop:** 30–45 minutes, then publish the concrete cards and any missing
-  facts. Do not expand all 36 parents speculatively. A task exceeding90 minutes
-  of implementation must split before execution.
-- **Owner/next action:** root; read the existing crosswalk, compare available
-  player-visible outcomes, select3–5 and write their finish conditions. Commit/
-  push the reviewed queue; begin implementation only after this planning task
-  closes. A failure plus one repair triggers priority review, not another loop.
-
-## Decomposing later work
-
-The backlog is not yet fully decomposed. After this batch,
-select at most the next 3–5 known instances. Each needs the required card above;
-unknown acceptance gets one bounded definition task. Archive closed cards and
-failures in existing delivery history. A planning pass has a 30–45 min budget,
-no engine runs, and ends with reviewed cards and a commit/push. Planning and
-benchmark diagnostics do not count as delivered gameplay or native performance.
+Keep only the next3–5 executable cards here; archive closed cards in existing
+[delivery history](docs/history/ROADMAP_DELIVERIES.md). Other36-parent instances
+remain unscheduled in the backlog. Unknown work gets one bounded definition
+child. Finishing this queue does not close the whole parent, all settings,
+all networking or the ten phase gates. Do not count diagnosis, tests or build
+artifacts as extra gameplay features.
 
 ## Working constraints
 
@@ -256,7 +277,3 @@ EXE/ZIP/notes and strict startup exit 0 plus `STARTUP_MENU_READY_OK`; artifacts
 belong in repository `builds/`. Scratch belongs under `/srv/mudds-work/`.
 Project completion still requires every original promise and final-candidate gate,
 or an explicit owner deferral beside that promise. No percentage from tests or commits.
-
-Checkpoint505d419 final independent review: GO. Owned clean source checkout
-removed (266 MB); unique raw results retained. Published artifact identities and
-all46 owned process closures independently verified without rerunning checks.

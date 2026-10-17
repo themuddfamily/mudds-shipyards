@@ -41,8 +41,10 @@ Arrival candidate6f29e4f15 failed parsing; its one-line repair68cc7d989 passes
 parsing and reaches Rime approach (970 rebases, zero staging), then fails the
 original120s physical landing gate. Both remain withheld, owned checkout removed,
 raw/remote source refs retained. Survey/home/package children remain unqualified
-and parked with that parent. Recorded priority review selects the independent
-Linux uninstall-interruption/retry/ship batch in ROADMAP.md. No further Rime
+and parked with that parent. Recorded priority review selected the independent
+Linux uninstall-interruption/retry/ship batch, now DONE on505d419. The next
+working queue is BROWSER-CANCEL, FIRE-RESTART, RACE-PAGE-RESET and a gated paired
+checkpoint; see ROADMAP.md for exact contracts. No further Rime
 probe, repair or unchanged run is selected.
 One failed task plus its attempted repair requires a recorded priority review
 before further repair; a new task name does not reset that boundary.
