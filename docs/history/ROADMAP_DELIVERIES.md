@@ -359,7 +359,7 @@ ray probes independently of the real capsule approach. No acceptance weakening,
 new geometry, expanded physics or deadline change. All raw failures remain.
 
 Root independently reviews source-specific guards11873/index/cache645/engine,
-actual private headless/Dummy environments and all16 owned process identities
+actual private headless/Dummy environments and all14 recorded owned process identities
 across onset, abort, failed preflight and final run. All are absent; sockets,
 displays and ordered lanes close. Clean checkout removed; donor cache retained.
 Raw `/srv/mudds-work/hulk-continuous-walk-results-20261017/`; accepted run
