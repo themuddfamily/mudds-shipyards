@@ -121,7 +121,7 @@ assigned alongside it without authorizing runtime edits to shared HUD/GameFlow.
 | --- | --- | --- | --- |
 | 1 BROWSER-CANCEL | IN PROGRESS / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
 | 2 FIRE-RESTART | READY / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
-| 3 RACE-PAGE-RESET | IN PROGRESS / bounded diagnosis | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
+| 3 RACE-PAGE-RESET | DONE / bounded diagnosis; contract question retained | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
 | 4 NEXT-CHECKPOINT | GATED / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
 
 ### BROWSER-CANCEL — pending Manual Join
@@ -162,7 +162,8 @@ loopback UDP endpoint withholding ENet handshakes. No active desktop is used.
   unreachable address is not a deterministic precondition. The current live
   modes prove admission/disconnect; they do not
   already prove cancellation. Write its exact command before the first run.
-- **Budget/stop:** implementation60–90min; checks separately≤15min. Use existing
+- **Budget/stop:** implementation60–90min; checks separately≤15min; cold import≤600s counts as setup, outside
+  the three300s checks. Use existing
   `tools/release/suite_process.py` with300s per focused/live suite, not a reduced
   deadline. Live coordinator retains original internal limits and owned private
   Xvfb peers with x11/Dummy; headless HUD checks use Dummy. Stop first failure;
@@ -210,9 +211,15 @@ loopback UDP endpoint withholding ENet handshakes. No active desktop is used.
 
 ### RACE-PAGE-RESET — reconcile one ordinary route
 
-Execution: `roadmap_activity_card` traces the two reset paths read-only, in
-parallel with the UI implementation. It must report its one hypothesis and
-exact command before any probe so root can coordinate isolated runtime lanes.
+Result: static trace complete on `29a8d9d75` source (unchanged production
+files on current main). Cinder page owns a separate best-result/receipt-only
+session; Activity Board owns the durable GameFlow race session. Existing comments
+and `cinder_race_best_persistence_roundtrip_test.gd` explicitly require fresh
+binding idle with retained best, consumed receipt and no replayable completion.
+Page Select chooses a presenter card, not GameFlow's selected activity. No defect
+is established and no engine/probe ran. Do not silently unify these owners. A
+future unification needs an explicit product requirement; this diagnosis is not
+fresh-process runtime qualification. Exact trace is in delivery history.
 
 - **Parent/result:** [ACT-HUD](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys),
   Race only. This is diagnosis: establish whether completed/paid race → Cinder

@@ -2205,3 +2205,28 @@ a bounded card review added explicit dependencies and controlled pending-session
 preconditions. Added local links/anchors resolve and diff whitespace checks pass.
 Next action: implement BROWSER-CANCEL; do not restart parked Rime/HULK/startup
 investigations. Planning closes no broad parent or phase gate.
+
+## RACE-PAGE-RESET — static diagnosis DONE, contract question retained
+
+Read-only source trace on29a8d9d75: Cinder page Start/Reset dispatch through
+GameFlow lines21848/22000 to binding's private race session (construction150,
+reset614 in nearby_sector_activity_binding.gd). Activity Board instead owns
+GameFlow cinder_race_session (construction2302); reset_active_activity18863 uses
+transactional reset_with_persistence18914 and save_cinder_race_session2438.
+Page Select is presenter-only (nearby_sector_activity_presenter.gd121);
+GameFlow selected handler21772 refreshes HUD without select_activity_kind.
+
+This owner separation is deliberate in inspected contracts: GameFlow15599 and
+binding1214 document best-result/receipt-only persistence without live/completed
+authority restoration. Existing cinder_race_best_persistence_roundtrip_test.gd129
+expects reload idle, best+consumed receipt and no replayable completion;147 keeps
+a replacement countdown session-scoped without a store write. Existing
+nearby_activity_game_flow_integration_test.gd176 expects page Reset to use binding.
+
+No runtime defect or justified repair identified. The unresolved product question
+is whether Cinder page actions should now control GameFlow's durable race instead
+of the documented best-only session. A runtime probe cannot resolve intended
+scope. No engine/test invocation, code change, probe, new scratch or checkpoint;
+no fresh-Main runtime qualification claimed. Do not schedule speculative owner
+unification. Browser cancellation continues independently. This closes diagnosis,
+not ACT-HUD's broad runtime acceptance or any phase gate.
