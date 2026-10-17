@@ -38,6 +38,22 @@ Latest actual result and remaining uncertainty:
 Next single action:
 ```
 
+Execution limits:
+
+- Keep one active delivery in the main thread. Independent agents may own
+  separate named cards; each has its own finish line and file ownership.
+- Before starting, list at most three steps: implement, verify, package when
+  required. Each step ends in an observable result. A new defect is recorded as
+  a separate repair with its own estimate, rather than appended indefinitely.
+- At the estimate boundary, stop expanding the task. Record what works, what
+  failed and the exact remaining action before choosing whether to continue.
+  Preserve required test durations; an effort budget does not change acceptance.
+- A passing acceptance check ends that step. Run it again only after a relevant
+  change or a specific unresolved concern; do not add proof of the same result.
+- Closing a delivery includes removing its disposable clean worktrees and
+  unused scratch files. Preserve unique work and raw failures; record any
+  cleanup deferred until a running process or package check finishes.
+
 The selected task must fit one focused delivery: normally one defect, one route, one craft component or one packaging capability. Split it again if it requires unrelated fixes or an open-ended audit. A diagnostic task gets **one stated hypothesis and one probe**; after the result, choose a concrete fix, a different justified hypothesis or a named blocker. Do not repeat an unchanged failed run. Preserve its raw failure, deadline and physical criteria.
 
 Size ordinary implementation cards for roughly 30–120 minutes of active work.
@@ -113,8 +129,12 @@ and each card until an implementer is assigned. D1 and D5 are complete in their
 recorded scope; their clean temporary worktrees are removed. D2 is now complete
 on its named source and its clean worktree is removed. D3 implementation is
 delivered the opt-in mode in `55975dd6d`, but its first live check failed at
-visible Disconnect on both peers. No assignment is active; the clean D3 checkout
-is removed. Next: the bounded production repair D3-REPAIR below, before D4.
+visible Disconnect on both peers; that original clean D3 checkout is removed.
+D3-REPAIR source work is committed through `b6af78202`. The accepted run reports
+default7/live108 passing assertions, UI-driven disconnect and browser reuse on
+both peers, actual exits0 and owned closure. Root has read the terminal receipts;
+independent input/artifact review and the clean checkpoint remain pending.
+D4 stays gated on the completed D3 repair.
 The original five-task batch has three accepted tasks (D1/D2/D5); D3 and D4 remain open.
 D2 and D3/D4 are independent of D1, but engine network/display lanes remain
 serialized. D4 depends on D3. D5 can be implemented independently. Do not expand
@@ -124,9 +144,22 @@ this batch automatically or count its checks as complete parent outcomes.
 | --- | --- | --- | --- |
 | D1 · GUIDED[f676c50 Linux package] | Qualification · DONE | Current exact package completes original Guided 3/3; Sandbox and Settings remain open. | Runs49.503/51.084/49.409s; total effort not timed |
 | D2 · NET-CREW[Halyard moving shared-cruise source route] | Qualification · DONE on `7412a6e50` | Original moving/rebase/two-passenger/chair/late-observer route passes132 checks, zero diagnostics. Source only; canonical landing/package qualification remain open. | Suite213.078s; total effort not timed |
-| D3 · NET-BROWSER[live menu host and first guest] | Mode implemented on `55975dd6d`; live validation FAIL | Host/discovery/advertised join/authentication pass; visible Disconnect unavailable. Cleanup shutdown cannot qualify menu leave. Repair below takes priority. | Default7 passes; one live run ends at first UI gap; total effort not timed |
+| D3 · NET-BROWSER[live menu host and first guest] | Source route passes on `b6af78202`; checkpoint pending | Both peers use stable browser Disconnect, guest count0→1→0 and browser reuse pass. Initial failure is retained. Review and packaging below must finish before DONE. | Remaining checkpoint/review estimate30–60min; total effort not timed |
 | D4 · NET-BROWSER[second independent menu guest] | Executable release check · GATED on D3 | Same host accepts two distinct real guests and releases both cleanly. | 1–2 h implementation; 15–30 min focused checks |
 | D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · DONE on `53e63831a` | Selectable physical aisle shuttle works; partial reports cannot qualify full performance protocol. | Final suite ~206s; total effort not timed |
+
+The next actions are finite steps within D3/D4, not additional parent outcomes:
+
+| Step | Finish line | State |
+| --- | --- | --- |
+| D3 source repair | Existing HUD/focus/manual/default checks and full real one-guest menu route pass with UI leave and browser reuse. | Implementation committed; source checks pass; root review pending. |
+| D3 checkpoint | Review accepted inputs/results; create clean Windows EXE/ZIP/notes and matching Linux package; pass existing focused package/startup checks; remove disposable worktrees. | NEXT; prepared workflow has not run. Stop at package result or first concrete blocker. |
+| D4 implementation | Extend the existing menu test to a second real guest; commit one exact invocation and unchanged bounds. | GATED on D3. No new harness family. |
+| D4 acceptance | Run that route once: distinct identities, counts0→1→2→1→0, remaining guest connected, all exits0 and owned closure. | GATED on implementation. A runtime defect becomes one bounded repair. |
+
+Batch count: **3 of 5 outcomes DONE; 2 remain**, with D3 awaiting review and
+packaging. This is not the total project remainder. Do not select another batch
+until these two outcomes pass or a specific blocker is recorded.
 
 **D1 — Current-package Guided playthrough.** Parent: normal-controls core
 playthrough, Guided subcriterion only. Input: exact
@@ -189,7 +222,7 @@ A demonstrated runtime defect gets one separately bounded repair; production
 owners are `scripts/game/game_flow.gd`, ENet adapter and LAN discovery, selected
 by the failure. Do not add flight/combat/endurance or another harness family.
 
-**D3-REPAIR — Stable Disconnect in the server browser (next action).**
+**D3-REPAIR — Stable Disconnect in the server browser (IN PROGRESS).**
 Parent: D3 production browser/connection flow. One player-visible outcome: a
 connected host or guest can always leave from the server-browser page, regardless
 of which gameplay runtime card is in front. The retained first run on `55975dd6d`
