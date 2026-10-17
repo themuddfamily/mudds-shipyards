@@ -202,3 +202,34 @@ PowerShell execution under the Windows hold. Stop after executable selection,
 focused checks and usage docs. No new report version, hardware claim, moving-cabin
 claim or replacement of existing full performance acceptance.
 
+
+## E2 · Ember surface walking benchmark (DONE)
+
+Accepted source `00ffaa045cf13a4a5e2ba2ae949551dabbb1e32e` adds selected
+`ember_surface_walk_route` to the existing runner. Actual Main streaming and
+origin rebase load Ember; held movement walks the authored nine-leg path.
+Default 152, combat 19 and surface 24 Godot checks pass, each at the unchanged
+300-second cap, zero diagnostics. Python record tests pass 15/15 on this source.
+The 45-second focused primitive records 135.6478m sampled walking, one sampled
+outbound and return visit, supported/enabled control, stable world/frame identity
+and gravity 1.62m/s². Smoke/report roundtrip, invalid-progress rejection and
+Escape during sampled walking pass; original gravity is restored before Player
+exit, inputs/cursor released and Main removed. The explicit benchmark adapter
+uses the production gravity policy; actual Host journey binding is unqualified.
+
+Root independently verifies all 11,871 tracked inputs/index, cache645, pinned
+engine and six before/after stage guards; actual three engine environments use
+headless/Dummy and correct exclusive modes/private profiles. All eight owned
+process identities are absent; socket/display and ordered runtime lanes close.
+The clean author checkout is removed; donor cache and raw results retained at
+`/srv/mudds-work/ember-surface-benchmark-results-20261017/`.
+Surface log SHA256:
+`74269c6049d74b4827df033feda36c262510e3f6f47852c923ee0d1756ba0bd4`.
+
+All three remaining steps E2.1–E2.3 are complete. Observed guarded batch took 410.1s; earlier implementation effort
+and manual closure effort were not timed. Selected
+reports remain false/null for full-protocol/performance admission; schema1,
+default two routes and public 3,600/60s warmup plus18,000/600s sample floors stay.
+Full-duration, rendered/native performance and canonical planetary journeys are
+NOT_RUN. These export-excluded changes do not change gameplay; latest playable
+remains b6af782. No additional benchmark work is authorized by this completion.
