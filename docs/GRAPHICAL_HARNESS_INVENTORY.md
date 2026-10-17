@@ -87,6 +87,25 @@ this evidence. Raw stage log, native samples and logging patch remain in
 `artifacts/caption-production-driver-diagnostic/`; the original timeout and
 pending production-HUD source/image declarations remain unchanged.
 
+A later original station-operations capture diagnostic on clean `418f3fe16`
+confirms a worker executing Mesa NIR optimization during graphics-pipeline
+creation while Main waits. Matching driver symbols and a captured source hash
+identify two identical dumped modules as Godot 4.7.1's built-in Forward+
+color-pass ubershader: eight uint push constants, no specialization constants,
+clustered bindings and built-in lighting constants agree. The scene material
+owner is unknown. The engine has no project setting to disable its fallback
+ubershader; the already-default pipeline cache only permits compatible later
+reuse. No custom shader rewrite or capture quality change is justified.
+The symbolized and dump runs retain FAIL124 at the original 300s cap,
+0/7 PNGs, unchanged source/cache/index/status, and complete actor/display/lane
+closure. These are station diagnostics, not production-caption acceptance or
+native GPU qualification. Raw results are under
+`/srv/mudds-work/station-shader-identity-20261017/` and
+`/srv/mudds-work/station-spirv-dump-20261017/`. Engine references:
+[clustered push constants/bindings](https://github.com/godotengine/godot/blob/4.7.1-stable/servers/rendering/renderer_rd/shaders/forward_clustered/scene_forward_clustered_inc.glsl),
+[fallback pipeline selection](https://github.com/godotengine/godot/blob/4.7.1-stable/servers/rendering/renderer_rd/forward_clustered/render_forward_clustered.cpp),
+[cache setting](https://github.com/godotengine/godot/blob/4.7.1-stable/doc/classes/ProjectSettings.xml).
+
 The unchanged original freighter harness completed all four 1280×720 views
 within its original 300-second cap on clean frozen source and import cache,
 under private Xvfb x11 / Dummy / Forward+ Vulkan llvmpipe with fresh private XDG
