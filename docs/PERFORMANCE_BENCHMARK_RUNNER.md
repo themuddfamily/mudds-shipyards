@@ -75,11 +75,60 @@ combat selection retains the original 3,600/60-second warm-up and
 one staged range target, not surface combat, an entire journey, native hardware
 performance or release qualification.
 
+
+The select-only `ember_surface_walk_route` stages the production Player once at
+Ember's authored caldera pad egress, initially (-5, 0.2, 0.5) metres in the
+landing-region frame. The production coordinate frame converts that authored
+body coordinate to the initial world position. Main's normal
+`PlanetaryJourneyCoordinator.advance_world` observes the real on-foot actor;
+its existing Ember streaming binding loads the real `EmberMoonAuthoredScene`,
+and `CommonWorldOriginRebaseOwner` commits the required world translation.
+Staging requires that committed frame generation, the actual Main-owned
+loaded scene, and floor contact with its own `LandingRegion/WalkablePatch`.
+There is no standalone surface scene, simulated Host, or manufactured travel,
+phase, admission, landing or session state.
+
+The route freezes the same ordered boundaries as
+`tests/ember_loop_soak_evidence.gd::_walk_surface_route`: outbound x≤-9,
+z≥8, x≥17.5, z≤0.5, x≥41.5; return x≤18.5, z≥8, x≤-9, z≤0.5.
+Camera heading maps forward to region +X and right to +Z; the original held
+forward/back/left/right actions walk those legs continuously and repeat the
+finite path. There are no actor pose or health writes after staging. One
+repeat covers about 131 metres at the live player's 5.8 m/s walking speed.
+
+The runner's small surface adapter composes the **existing**
+`PlanetarySurfaceGravityPolicy` at Ember's authored 1.62 m/s² reference and
+reuses GameFlow's read-only `_network_ember_passenger_gravity` projection helper
+without a network session. It applies only the public player gravity multiplier
+and restores its original value before Main exits, including failed staging and
+abort. Reports label this `gravity_source=production_policy_benchmark_adapter`;
+this does not qualify the solo Host's journey gravity binding. Per-physics
+observations record actual projected gravity and player multiplier ranges,
+player/scene/landing-region/floor identities and generations, held input,
+floor support, enabled unseated control, bounded steps, local path and endpoint
+visits. Sampling has separate path, observations and endpoint counts. Idle,
+warm-up-only, unsupported, wrong-world or discontinuous movement fails.
+Full routes require both sampled endpoint visits and at least 100 metres of
+sampled walking. Full selection retains the original 3,600/60-second warm-up
+and 18,000/600-second sample floors; short smoke requires positive sampled
+walking only. Surface staging/loading/settling is outside measurement.
+
+This is a staged planetary walking benchmark only. Outbound travel, landing,
+return travel, rewards, endurance, Host journey gravity binding, native hardware
+and release qualification remain open. Exercise its independent focused fixture
+with `KETH_BENCHMARK_TEST_EMBER_SURFACE=1` in the existing
+`tests/performance_benchmark_runner_test.gd` (silent, isolated automation only).
+It checks selected smoke/JSON round trip, failure mutations, a 45-second
+physical out-and-back primitive, and Escape during sampled walking with gravity
+restoration. The original default fixture workload and 300-second cap are
+unchanged; this focused mode has its own 300-second supervisor cap.
+
 Omit selection to run both scenarios in the order above. Set
 `KETH_BENCHMARK_SCENARIO=station_embodied_route` or
 `KETH_BENCHMARK_SCENARIO=nearby_sector_ship_flight_route` or
 `KETH_BENCHMARK_SCENARIO=halyard_cabin_walk_route` or
-`KETH_BENCHMARK_SCENARIO=torrent_range_combat_reuse_route` to run only that route.
+`KETH_BENCHMARK_SCENARIO=torrent_range_combat_reuse_route` or
+`KETH_BENCHMARK_SCENARIO=ember_surface_walk_route` to run only that route.
 Unknown names fail before Main instantiation. A selected run keeps the same
 per-route timing and progress requirements but is diagnostic-only: its
 `configuration.scenario_order` contains only the selected name,

@@ -11,6 +11,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_environment("KETH_BENCHMARK_TEST_EMBER_SURFACE") == "1":
+		await _test_live_ember_surface()
+		_finish()
+		return
 	# Keep the original multi-Main fixture inside its existing 300-second cap.
 	# Run this independent route with KETH_BENCHMARK_TEST_COMBAT=1.
 	if OS.get_environment("KETH_BENCHMARK_TEST_COMBAT") == "1":
@@ -513,6 +517,124 @@ func _test_live_cabin_shuttle() -> void:
 	_check(root.get_node_or_null("Main") == null and not Input.is_action_pressed(&"move_forward") and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "cabin success frees walker and releases movement/cursor")
 	print("PERFORMANCE_BENCHMARK_CABIN_SHUTTLE_PROGRESS: ", JSON.stringify(progress))
 	guard.free()
+
+
+func _test_live_ember_surface() -> void:
+	var selection := "ember_surface_walk_route"
+	var smoke := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true, selection)
+	var errors := RUNNER.validate_selected_diagnostic_report(smoke, selection)
+	_check(errors.is_empty(), "selected Ember surface smoke validates: " + "; ".join(errors))
+	if not smoke.has("scenarios"):
+		return
+	var scenario := smoke.scenarios[0] as Dictionary
+	var progress := scenario.get("scenario_progress", {}) as Dictionary
+	print("PERFORMANCE_BENCHMARK_EMBER_SURFACE_STAGING: ", JSON.stringify(scenario.get("deterministic_inputs", {})))
+	print("PERFORMANCE_BENCHMARK_EMBER_SURFACE_SMOKE_PROGRESS: ", JSON.stringify(progress))
+	if progress.is_empty():
+		return
+	var round_trip := JSON.parse_string(JSON.stringify(smoke)) as Dictionary
+	_check(RUNNER.validate_selected_diagnostic_report(round_trip, selection).is_empty(),
+		"saved Ember surface JSON round trip validates")
+	_check(not RUNNER.validate_report(smoke).is_empty() and not smoke.representativeness.representative_pass \
+		and smoke.representativeness.performance_budget_pass == null,
+		"Ember selection cannot qualify the default protocol or performance")
+	var staged := scenario.deterministic_inputs as Dictionary
+	_check(staged.get("streamed_location_id") == "ember_moon" \
+		and int(staged.get("streamed_generation", 0)) > 0 \
+		and int(staged.get("coordinate_frame_generation", 0)) > int(staged.get("initial_coordinate_frame_generation", 0)) \
+		and int(staged.get("initial_player_placements", 0)) == 1,
+		"Ember stages one Player placement with a real streamed generation and committed origin rebase")
+	_check(float(progress.get("sample_local_path_distance_m", 0.0)) > RUNNER.MINIMUM_SMOKE_MOVEMENT_METERS,
+		"short Ember smoke walks physically during sampling")
+	for mutation in ["idle", "warmup_only", "unsupported", "disabled", "wrong_world", "wrong_scene", "wrong_gravity", "no_input", "teleport", "fake_progress", "warmup_endpoints"]:
+		var changed := progress.duplicate(true)
+		match mutation:
+			"idle": changed.local_path_distance_m = 0.0
+			"warmup_only": changed.sample_local_path_distance_m = 0.0
+			"unsupported": changed.support_throughout = false
+			"disabled": changed.control_throughout = false
+			"wrong_world": changed.world_id = "station"
+			"wrong_scene": changed.world_identity_throughout = false
+			"wrong_gravity": changed.minimum_gravity_mps2 = 9.8
+			"no_input": changed.held_input_throughout = false
+			"teleport": changed.maximum_physics_step_m = 5.0
+			"fake_progress":
+				changed.policy = "full_route"
+				changed.sample_outbound_visits = 1
+				changed.sample_return_visits = 1
+				changed.sample_local_path_distance_m = 0.0
+			"warmup_endpoints":
+				changed.policy = "full_route"
+				changed.outbound_visits = 1
+				changed.return_visits = 1
+				changed.sample_outbound_visits = 0
+				changed.sample_return_visits = 0
+		_check(not RUNNER.validate_scenario_progress(StringName(selection), changed).is_empty(), "Ember rejects " + mutation)
+	_check(root.get_node_or_null("Main") == null and not _ember_movement_pressed() \
+		and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "Ember smoke frees Main and releases movement/cursor")
+	var guard := RUNNER.BenchmarkInputGuard.new()
+	root.add_child(guard)
+	# Focused full-path primitive; never bypasses the public full benchmark's
+	# 3,600/60-second and 18,000/600-second timing floors.
+	var route := await RUNNER._run_scenario(self, StringName(selection), 15, 180, 0, false,
+		{"warmup": 0.5, "sample": 45.0}, Vector2i(640, 360), guard)
+	var route_progress := route.get("scenario_progress", {}) as Dictionary
+	_check(bool(route.get("completed", false)), "Ember completes the physical authored out-and-back: " + str(route.get("error", "")))
+	_check(int(route_progress.get("sample_outbound_visits", 0)) > 0 \
+		and int(route_progress.get("sample_return_visits", 0)) > 0 \
+		and float(route_progress.get("sample_local_path_distance_m", 0.0)) >= 100.0,
+		"focused Ember sample visits both endpoints through actual walking")
+	_check(root.get_node_or_null("Main") == null and not _ember_movement_pressed(),
+		"Ember full-path success frees Main and releases movement")
+	print("PERFORMANCE_BENCHMARK_EMBER_SURFACE_ROUTE_PROGRESS: ", JSON.stringify(route_progress))
+	guard.free()
+	call_deferred("_abort_live_ember_walk")
+	var aborted := await RUNNER.run_benchmark(self, 1, 300, Vector2i(640, 360), 0, {}, true, selection)
+	_check(bool(aborted.get("aborted", false)) and not aborted.has("scenarios") \
+		and not aborted.has("representativeness"), "active Ember Escape emits no qualifying report")
+	_check(root.get_node_or_null("Main") == null and not _ember_movement_pressed() \
+		and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "active Ember abort frees Main and releases movement/cursor")
+
+
+func _ember_movement_pressed() -> bool:
+	for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+		if Input.is_action_pressed(action):
+			return true
+	return false
+
+
+func _abort_live_ember_walk() -> void:
+	await process_frame
+	var originating_guard: RUNNER.BenchmarkInputGuard
+	for child in root.get_children():
+		if child is RUNNER.BenchmarkInputGuard:
+			originating_guard = child
+	if originating_guard == null:
+		_check(false, "Ember abort binds its own guard")
+		return
+	var deadline := Time.get_ticks_msec() + RUNNER.BEGIN_SHIFT_READY_TIMEOUT_MS + 30_000
+	while is_instance_valid(originating_guard) and Time.get_ticks_msec() < deadline:
+		var game := root.get_node_or_null("Main")
+		if game != null:
+			for child in game.get_children():
+				if child is RUNNER.BenchmarkEmberWalker and child.guard == originating_guard \
+						and float(child.sampled_path) > 0.02 and _ember_movement_pressed():
+					var body := child.player as PlayerController
+					var original_multiplier := float(child.original_gravity)
+					body.tree_exiting.connect(func() -> void:
+						_check(is_equal_approx(body.gravity_multiplier, original_multiplier),
+							"Ember abort restores original gravity before Player exits"), CONNECT_ONE_SHOT)
+					paused = true
+					var escape := InputEventKey.new()
+					escape.physical_keycode = KEY_ESCAPE
+					escape.pressed = true
+					root.window_input.emit(escape)
+					_check(true, "Ember Escape reaches active sampled walking independently of game pause")
+					return
+		await process_frame
+	_check(false, "Ember abort reaches sampled walking before startup deadline")
+	if is_instance_valid(originating_guard):
+		originating_guard.request_abort("Ember abort observer deadline")
 
 
 func _test_live_range_combat() -> void:

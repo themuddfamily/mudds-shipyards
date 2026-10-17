@@ -15,11 +15,27 @@ const MINIMUM_SAMPLE_SECONDS := 600.0
 const SMOKE_WARMUP_FRAMES := 2
 const SMOKE_SAMPLE_FRAMES := 4
 const DEFAULT_SCENARIO_ORDER := [&"station_embodied_route", &"nearby_sector_ship_flight_route"]
-const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_route", &"halyard_cabin_walk_route", &"torrent_range_combat_reuse_route"]
+const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_route", &"halyard_cabin_walk_route", &"torrent_range_combat_reuse_route", &"ember_surface_walk_route"]
 const MINIMUM_SMOKE_MOVEMENT_METERS := 0.001
 const MINIMUM_FULL_STATION_PATH_METERS := 1.0
 const FLIGHT_ENDPOINT_RADIUS_METERS := 20.0
 const STREAMING_READY_FRAME_BUDGET := 24
+const EMBER_REGION := preload("res://assets/world/planets/ember_caldera_landing_region.tres")
+const EMBER_WORLD := preload("res://assets/world/planets/ember_moon_world.tres")
+const EMBER_TERRAIN := preload("res://assets/world/planets/ember_basalt_terrain.tres")
+# Exact ordered tangent-frame boundaries from ember_loop_soak_evidence.gd.
+# A complete repeat covers about 131 metres at the production 5.8 m/s walk.
+const EMBER_ROUTE_LEGS: Array = [
+	["x", -9.0, false, &"move_back"],
+	["z", 8.0, true, &"move_right"],
+	["x", 17.5, true, &"move_forward"],
+	["z", 0.5, false, &"move_left"],
+	["x", 41.5, true, &"move_forward"],
+	["x", 18.5, false, &"move_back"],
+	["z", 8.0, true, &"move_right"],
+	["x", -9.0, false, &"move_back"],
+	["z", 0.5, false, &"move_left"],
+]
 # Software-rendered startup may advance the production fade slowly. This wait
 # remains outside measurement and keeps the independent abort guard active.
 const BEGIN_SHIFT_READY_TIMEOUT_MS := 60_000
@@ -143,6 +159,172 @@ class BenchmarkCabinWalker extends Node:
 		var parent_direction := camera_parent.global_basis.inverse() * world_direction
 		camera_yaw.rotation.y = atan2(-parent_direction.x, -parent_direction.z)
 		Input.action_press(&"move_forward")
+
+
+## Surface-only benchmark adapter: production policy and its existing read-only
+## projection helper compose the public multiplier. This is not a Host journey.
+class BenchmarkEmberWalker extends Node:
+	var player: PlayerController
+	var game: GameFlow
+	var scene: EmberMoonAuthoredScene
+	var region: Node3D
+	var patch: StaticBody3D
+	var policy: PlanetarySurfaceGravityPolicy
+	var guard: BenchmarkInputGuard
+	var original_gravity := 1.0
+	var frame_generation := 0
+	var location_generation := 0
+	var destination := 0
+	var previous_local := Vector3.ZERO
+	var start_local := Vector3.ZERO
+	var local_path := 0.0
+	var maximum_local_displacement := 0.0
+	var maximum_step := 0.0
+	var minimum_gravity := INF
+	var maximum_gravity := 0.0
+	var minimum_multiplier := INF
+	var maximum_multiplier := 0.0
+	var observations := 0
+	var sampling := false
+	var sampled_path := 0.0
+	var sampled_observations := 0
+	var outbound_visits := 0
+	var return_visits := 0
+	var sampled_outbound_visits := 0
+	var sampled_return_visits := 0
+	var support_valid := true
+	var control_valid := true
+	var world_valid := true
+	var gravity_valid := true
+	var input_valid := true
+	var bounded_valid := true
+	var stopped := false
+
+	func _ready() -> void:
+		previous_local = region.to_local(player.global_position)
+		start_local = previous_local
+
+	func _physics_process(_delta: float) -> void:
+		observe()
+		apply_input()
+
+	func observe() -> void:
+		if stopped or guard.aborted:
+			return
+		var bootstrap := game.ember_streaming_bootstrap
+		world_valid = world_valid and is_instance_valid(scene) and is_instance_valid(region) \
+			and bootstrap.get_loaded_instance() == scene and scene.get_parent() != null \
+			and game.is_ancestor_of(scene) and bootstrap.get_world_id() == &"ember_moon" \
+			and bootstrap.get_location_generation() == location_generation \
+			and bootstrap.get_coordinate_frame_for_session().get_generation() == frame_generation \
+			and scene.get_node_or_null(^"LandingRegion") == region \
+			and region.get_node_or_null(^"WalkablePatch") == patch
+		if not world_valid:
+			return
+		var local := region.to_local(player.global_position)
+		var step := Vector2(local.x - previous_local.x, local.z - previous_local.z).length()
+		local_path += step
+		maximum_step = maxf(maximum_step, step)
+		maximum_local_displacement = maxf(maximum_local_displacement, local.distance_to(start_local))
+		bounded_valid = bounded_valid and local.is_finite() and absf(local.x) < 45.0 \
+			and local.z > -2.0 and local.z < 11.0 and absf(local.y) < 0.5 and step < 0.5
+		previous_local = local
+		control_valid = control_valid and player.is_control_enabled() and not player.is_seated()
+		support_valid = support_valid and BenchmarkEmberWalker.has_support(player, region, patch)
+		var commanded := false
+		for action in [&"move_forward", &"move_back", &"move_left", &"move_right"]:
+			commanded = commanded or Input.is_action_pressed(action)
+		input_valid = input_valid and (step <= 0.001 or commanded)
+		var multiplier := game._network_ember_passenger_gravity(player.global_position, policy)
+		var gravity := multiplier * float(ProjectSettings.get_setting("physics/3d/default_gravity", 9.8))
+		gravity_valid = gravity_valid and is_finite(multiplier) and multiplier > 0.0 \
+			and is_equal_approx(player.gravity_multiplier, multiplier) and gravity > 1.60 and gravity < 1.64
+		minimum_gravity = minf(minimum_gravity, gravity)
+		maximum_gravity = maxf(maximum_gravity, gravity)
+		minimum_multiplier = minf(minimum_multiplier, player.gravity_multiplier)
+		maximum_multiplier = maxf(maximum_multiplier, player.gravity_multiplier)
+		observations += 1
+		if sampling:
+			sampled_path += step
+			sampled_observations += 1
+
+	func apply_input() -> void:
+		BenchmarkInputGuard.release_inputs()
+		if stopped or guard.aborted or not world_valid or not is_instance_valid(player):
+			return
+		var multiplier := game._network_ember_passenger_gravity(player.global_position, policy)
+		if not is_finite(multiplier) or multiplier <= 0.0:
+			gravity_valid = false
+			return
+		player.gravity_multiplier = multiplier
+		var local := region.to_local(player.global_position)
+		var leg := EMBER_ROUTE_LEGS[destination] as Array
+		var value := local.x if str(leg[0]) == "x" else local.z
+		if (value >= float(leg[1]) if bool(leg[2]) else value <= float(leg[1])):
+			if destination == 4:
+				outbound_visits += 1
+				if sampling:
+					sampled_outbound_visits += 1
+			if destination == 8:
+				return_visits += 1
+				if sampling:
+					sampled_return_visits += 1
+			destination = (destination + 1) % EMBER_ROUTE_LEGS.size()
+			leg = EMBER_ROUTE_LEGS[destination] as Array
+		var camera_yaw := player.get_node(^"CameraRig/CameraYaw") as Node3D
+		var camera_parent := camera_yaw.get_parent() as Node3D
+		var direction := camera_parent.global_basis.inverse() * region.global_basis.x
+		camera_yaw.rotation.y = atan2(-direction.x, -direction.z)
+		Input.action_press(StringName(leg[3]))
+
+	func start_sampling() -> void:
+		# Observe completed warm-up motion before marking the first sample.
+		observe()
+		sampling = true
+
+	func stop() -> void:
+		if stopped:
+			return
+		stopped = true
+		set_physics_process(false)
+		BenchmarkInputGuard.release_inputs()
+		if is_instance_valid(player):
+			player.gravity_multiplier = original_gravity
+
+	func _exit_tree() -> void:
+		stop()
+
+	func finish() -> Dictionary:
+		return {
+			"actor_type": "PlayerController", "world_id": "ember_moon",
+			"route_source": "authored_ember_pad_egress_staging_loop",
+			"gravity_source": "production_policy_benchmark_adapter",
+			"scene_instance_id": scene.get_instance_id() if is_instance_valid(scene) else 0,
+			"region_instance_id": region.get_instance_id() if is_instance_valid(region) else 0,
+			"patch_instance_id": patch.get_instance_id() if is_instance_valid(patch) else 0,
+			"player_instance_id": player.get_instance_id() if is_instance_valid(player) else 0,
+			"coordinate_frame_generation": frame_generation, "location_generation": location_generation,
+			"observations": observations, "sample_observations": sampled_observations,
+			"support_throughout": support_valid, "control_throughout": control_valid,
+			"world_identity_throughout": world_valid, "gravity_throughout": gravity_valid,
+			"held_input_throughout": input_valid, "bounded_path_throughout": bounded_valid,
+			"local_path_distance_m": local_path, "sample_local_path_distance_m": sampled_path,
+			"maximum_local_displacement_m": maximum_local_displacement, "maximum_physics_step_m": maximum_step,
+			"minimum_gravity_mps2": minimum_gravity, "maximum_gravity_mps2": maximum_gravity,
+			"minimum_gravity_multiplier": minimum_multiplier, "maximum_gravity_multiplier": maximum_multiplier,
+			"outbound_visits": outbound_visits, "return_visits": return_visits,
+			"sample_outbound_visits": sampled_outbound_visits, "sample_return_visits": sampled_return_visits,
+		}
+
+	static func has_support(body: PlayerController, landing: Node3D, floor_patch: StaticBody3D) -> bool:
+		if not body.is_on_floor():
+			return false
+		var up := landing.global_basis.y.normalized()
+		var query := PhysicsRayQueryParameters3D.create(body.global_position + up * 0.5,
+			body.global_position - up * 2.5, PhysicsLayers.WORLD_BODY_LAYER, [body.get_rid()])
+		query.collide_with_areas = false
+		var hit := body.get_world_3d().direct_space_state.intersect_ray(query)
+		return hit.get("collider") == floor_patch
 
 
 ## Drives the production local weapon and observes its existing authority. The
@@ -516,8 +698,10 @@ static func _run_scenario(
 		game.queue_free()
 		await tree.process_frame
 		return {"completed": false}
+	var original_player_gravity := player.gravity_multiplier
 	var inputs := await _stage_scenario(tree, game, world, player, ship, scenario_name, input_guard)
 	if input_guard.aborted or not bool(inputs.get("staging_valid", false)):
+		player.gravity_multiplier = original_player_gravity
 		_release_inputs()
 		if is_instance_valid(ship):
 			ship.set_piloted(false)
@@ -544,6 +728,21 @@ static func _run_scenario(
 		combat.guard = input_guard
 		combat.process_physics_priority = ship.process_physics_priority - 1
 		game.add_child(combat)
+	var surface_walker: BenchmarkEmberWalker
+	if scenario_name == &"ember_surface_walk_route":
+		surface_walker = BenchmarkEmberWalker.new()
+		surface_walker.player = player
+		surface_walker.game = game
+		surface_walker.guard = input_guard
+		surface_walker.original_gravity = original_player_gravity
+		surface_walker.scene = game.ember_streaming_bootstrap.get_loaded_instance() as EmberMoonAuthoredScene
+		surface_walker.region = surface_walker.scene.get_node(^"LandingRegion") as Node3D
+		surface_walker.patch = surface_walker.region.get_node(^"WalkablePatch") as StaticBody3D
+		surface_walker.policy = _ember_gravity_policy(game)
+		surface_walker.frame_generation = int(inputs.coordinate_frame_generation)
+		surface_walker.location_generation = int(inputs.streamed_generation)
+		surface_walker.process_physics_priority = player.process_physics_priority - 1
+		game.add_child(surface_walker)
 	var cabin_walker: BenchmarkCabinWalker
 	if scenario_name == &"halyard_cabin_walk_route":
 		cabin_walker = BenchmarkCabinWalker.new()
@@ -567,7 +766,7 @@ static func _run_scenario(
 	# One declared activation tick guarantees that a short smoke actually offers
 	# its input to the production physics authority before timing continues.
 	if not input_guard.aborted:
-		_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames, flight_pilot, cabin_walker, combat)
+		_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames, flight_pilot, cabin_walker, combat, surface_walker)
 	await tree.physics_frame
 	await tree.process_frame
 	_update_scenario_progress(progress_tracker, player, ship, scenario_name)
@@ -580,8 +779,8 @@ static func _run_scenario(
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup):
 		var route_frame := int(warmup_frames * phase_progress(actual_warmup_frames, warmup_frames,
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup))
-		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker, combat)
-		if smoke_run and (cabin_walker != null or combat != null):
+		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker, combat, surface_walker)
+		if smoke_run and (cabin_walker != null or combat != null or surface_walker != null):
 			await tree.physics_frame
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
@@ -595,6 +794,8 @@ static func _run_scenario(
 		monitor_samples[monitor_name] = [] as Array[float]
 	var sample_path_start := float(progress_tracker.path_distance_m)
 	var sample_local_path_start := float(progress_tracker.get("local_path_distance_m", 0.0))
+	if surface_walker != null:
+		surface_walker.start_sampling()
 	if combat != null:
 		combat.start_sampling()
 	var sample_started := Time.get_ticks_usec()
@@ -603,8 +804,8 @@ static func _run_scenario(
 			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, maxf(float(durations.sample), 8.0 if combat != null and smoke_run else 0.0)):
 		var route_frame := warmup_frames + int(sample_frames * phase_progress(frame_deltas.size(), sample_frames,
 			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample))
-		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker, combat)
-		if smoke_run and (cabin_walker != null or combat != null):
+		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker, combat, surface_walker)
+		if smoke_run and (cabin_walker != null or combat != null or surface_walker != null):
 			await tree.physics_frame
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
@@ -614,6 +815,11 @@ static func _run_scenario(
 		_capture_monitor_sample(monitor_samples)
 
 	var sample_elapsed := float(Time.get_ticks_usec() - sample_started) / 1_000_000.0
+	var surface_progress := {}
+	if surface_walker != null:
+		surface_walker.observe()
+		surface_progress = surface_walker.finish()
+		surface_walker.stop()
 	var combat_progress := {}
 	if combat != null:
 		combat.set_physics_process(false)
@@ -638,6 +844,8 @@ static func _run_scenario(
 		progress["sample_local_path_distance_m"] = float(progress_tracker.local_path_distance_m) - sample_local_path_start
 	if flight_pilot != null:
 		progress["sample_path_distance_m"] = float(progress_tracker.path_distance_m) - sample_path_start
+	if surface_walker != null:
+		progress.merge(surface_progress)
 	if combat != null:
 		progress.merge(combat_progress)
 	var progress_errors := validate_scenario_progress(scenario_name, progress)
@@ -814,7 +1022,7 @@ static func _finish_scenario_progress(
 		for field in ["local_path_distance_m", "maximum_local_displacement_m", "support_throughout", "occupancy_throughout", "control_throughout", "inside_throughout", "stationary_throughout", "healthy_throughout", "outbound_reached", "return_reached"]:
 			result[field] = tracker[field]
 		return result
-	if scenario_name == &"station_embodied_route":
+	if scenario_name in [&"station_embodied_route", &"ember_surface_walk_route"]:
 		result["actor_type"] = "PlayerController"
 		result["control_enabled_end"] = player.is_control_enabled()
 		return result
@@ -854,6 +1062,8 @@ static func validate_scenario_progress(
 		return errors
 	if scenario_name == &"torrent_range_combat_reuse_route":
 		return _validate_combat_progress(progress)
+	if scenario_name == &"ember_surface_walk_route":
+		return _validate_ember_progress(progress)
 	if not _finite_number(progress.get("path_distance_m")) \
 		or float(progress.get("path_distance_m", 0.0)) <= MINIMUM_SMOKE_MOVEMENT_METERS:
 		errors.append("actor path did not advance")
@@ -973,6 +1183,8 @@ static func _stage_scenario(
 		hud.start_requested.disconnect(on_begin)
 	if input_guard.aborted or not began[0]:
 		return {"staging_valid": false, "staging_error": "benchmark aborted" if input_guard.aborted else "Begin Shift transition did not complete"}
+	if scenario_name == &"ember_surface_walk_route":
+		return await _stage_ember_surface(tree, game, player, input_guard)
 	if scenario_name == &"station_embodied_route":
 		player.teleport_to(world.get_player_spawn())
 		player.set_control_enabled(true)
@@ -1151,6 +1363,123 @@ static func _stage_scenario(
 	}
 
 
+static func _ember_gravity_policy(game: GameFlow) -> PlanetarySurfaceGravityPolicy:
+	var policy := PlanetarySurfaceGravityPolicy.new()
+	var configured := policy.configure(EMBER_WORLD, EMBER_TERRAIN,
+		game.ember_streaming_bootstrap.get_coordinate_frame_for_session(), 1.62)
+	return policy if bool(configured.get("accepted", false)) else null
+
+
+static func _stage_ember_surface(tree: SceneTree, game: GameFlow,
+		player: PlayerController, guard: BenchmarkInputGuard) -> Dictionary:
+	var bootstrap := game.ember_streaming_bootstrap
+	if not is_instance_valid(bootstrap) or not is_instance_valid(game.common_world_origin_rebase_owner):
+		return {"staging_valid": false, "staging_error": "Main Ember streaming/origin owners unavailable"}
+	var frame := bootstrap.get_coordinate_frame_for_session()
+	var initial_generation := frame.get_generation()
+	var body_local: Vector3 = EMBER_REGION.body_local_center_m \
+		+ EMBER_REGION.body_local_basis * Vector3(-5.0, 0.2, 0.5)
+	var encoded := frame.body_local_to_orbital_position(body_local, initial_generation)
+	if not bool(encoded.get("accepted", false)):
+		return {"staging_valid": false, "staging_error": "Ember initial body coordinate unavailable"}
+	var decoded := frame.orbital_to_world_streaming_position(encoded.coordinate, initial_generation)
+	if not bool(decoded.get("accepted", false)):
+		return {"staging_valid": false, "staging_error": "Ember initial world coordinate unavailable"}
+	# The only actor placement. Main observes this real Player on the next tick,
+	# loads Ember through its binding, and commits the common-world rebase.
+	player.teleport_to(Transform3D(Basis.IDENTITY, decoded.position as Vector3))
+	player.set_control_enabled(true)
+	var scene: EmberMoonAuthoredScene
+	var region: Node3D
+	var patch: StaticBody3D
+	var ready := false
+	var policy: PlanetarySurfaceGravityPolicy
+	var started := Time.get_ticks_msec()
+	for _index in 240:
+		await tree.physics_frame
+		await tree.process_frame
+		if guard.aborted or Time.get_ticks_msec() - started > 15_000:
+			break
+		scene = bootstrap.get_loaded_instance() as EmberMoonAuthoredScene
+		if not is_instance_valid(scene) or frame.get_generation() <= initial_generation:
+			continue
+		region = scene.get_node_or_null(^"LandingRegion") as Node3D
+		patch = scene.get_node_or_null(^"LandingRegion/WalkablePatch") as StaticBody3D
+		if not is_instance_valid(region) or not is_instance_valid(patch) or not game.is_ancestor_of(scene):
+			continue
+		policy = _ember_gravity_policy(game)
+		if policy == null:
+			break
+		var multiplier := game._network_ember_passenger_gravity(player.global_position, policy)
+		if not is_finite(multiplier) or multiplier <= 0.0:
+			break
+		player.gravity_multiplier = multiplier
+		if BenchmarkEmberWalker.has_support(player, region, patch):
+			ready = true
+			break
+	if not ready:
+		return {"staging_valid": false, "staging_error": "real Ember generation, committed origin rebase, gravity or floor support unavailable"}
+	var legs: Array = []
+	for leg: Array in EMBER_ROUTE_LEGS:
+		legs.append([str(leg[0]), float(leg[1]), bool(leg[2]), String(leg[3])])
+	return {
+		"staging_valid": true, "actor": "production PlayerController",
+		"route_source": "authored_ember_pad_egress_staging_loop",
+		"route_legs_region_local": legs, "initial_region_local_m": [-5.0, 0.2, 0.5],
+		"streamed_location_id": String(bootstrap.get_location_id()),
+		"streamed_generation": bootstrap.get_location_generation(),
+		"coordinate_frame_generation": frame.get_generation(),
+		"initial_coordinate_frame_generation": initial_generation,
+		"streaming_owner": "Main/PlanetaryJourneyCoordinator/EmberMoonStreamingBootstrap",
+		"origin_owner": "Main/CommonWorldOriginRebaseOwner", "initial_player_placements": 1,
+		"gravity_source": "production_policy_benchmark_adapter",
+		"global_rng_seed": _scenario_seed(&"ember_surface_walk_route"),
+		"start_transform": _transform_record(player.global_transform),
+		"sequence": "held authored movement actions in landing tangent frame; repeat five outbound and four return legs",
+		"scope": "staged surface only; outbound/landing/return travel, Host journey gravity binding, rewards, endurance and native hardware NOT_RUN",
+	}
+
+
+static func _validate_ember_progress(progress: Dictionary) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if progress.get("actor_type") != "PlayerController" or progress.get("world_id") != "ember_moon" \
+		or progress.get("route_source") != "authored_ember_pad_egress_staging_loop" \
+		or progress.get("gravity_source") != "production_policy_benchmark_adapter":
+		errors.append("Ember requires its production actor, world, route and gravity source")
+	for field in ["scene_instance_id", "region_instance_id", "patch_instance_id", "player_instance_id",
+			"coordinate_frame_generation", "location_generation", "observations", "sample_observations"]:
+		if not _positive_json_integer(progress.get(field)):
+			errors.append("Ember requires positive exact identity/count: " + field)
+	for field in ["support_throughout", "control_throughout", "world_identity_throughout",
+			"gravity_throughout", "held_input_throughout", "bounded_path_throughout"]:
+		if progress.get(field) != true:
+			errors.append("Ember requires " + field)
+	for field in ["path_distance_m", "maximum_displacement_m", "local_path_distance_m",
+			"maximum_local_displacement_m", "sample_local_path_distance_m"]:
+		if not _finite_number(progress.get(field)) or float(progress.get(field, 0.0)) <= MINIMUM_SMOKE_MOVEMENT_METERS:
+			errors.append("Ember did not move: " + field)
+	for field in ["minimum_gravity_mps2", "maximum_gravity_mps2"]:
+		if not _finite_number(progress.get(field)) or float(progress.get(field, 0.0)) < 1.60 or float(progress.get(field, 0.0)) > 1.64:
+			errors.append("Ember gravity outside production surface range: " + field)
+	for field in ["minimum_gravity_multiplier", "maximum_gravity_multiplier"]:
+		if not _finite_number(progress.get(field)) or float(progress.get(field, 0.0)) <= 0.0:
+			errors.append("Ember multiplier invalid: " + field)
+	if not _finite_number(progress.get("maximum_physics_step_m")) or float(progress.get("maximum_physics_step_m", INF)) >= 0.5:
+		errors.append("Ember route contains a discontinuous step")
+	for field in ["outbound_visits", "return_visits", "sample_outbound_visits", "sample_return_visits"]:
+		var count: Variant = progress.get(field)
+		if not _finite_number(count) or float(count) < 0.0 or floorf(float(count)) != float(count):
+			errors.append("Ember endpoint count invalid: " + field)
+	if float(progress.get("sample_local_path_distance_m", INF)) > float(progress.get("local_path_distance_m", 0.0)) + 0.001 \
+		or float(progress.get("sample_observations", INF)) > float(progress.get("observations", 0.0)):
+		errors.append("Ember sampling exceeds observed physical progress")
+	if progress.get("policy") == "full_route":
+		if not _positive_json_integer(progress.get("sample_outbound_visits")) or not _positive_json_integer(progress.get("sample_return_visits")) \
+			or float(progress.get("sample_local_path_distance_m", 0.0)) < 100.0:
+			errors.append("Ember sampling did not walk the authored out-and-back")
+	return errors
+
+
 static func capture_resolution(
 		tree: SceneTree, requested: Vector2i, input_guard: BenchmarkInputGuard = null
 	) -> Dictionary:
@@ -1209,8 +1538,11 @@ static func phase_progress(frames: int, minimum_frames: int, elapsed: float, min
 static func _apply_scenario_input(
 		scenario_name: StringName, frame: int, total_frames: int,
 		flight_pilot: BenchmarkFlightPilot = null, cabin_walker: BenchmarkCabinWalker = null,
-		combat: BenchmarkRangeCombat = null
+		combat: BenchmarkRangeCombat = null, surface_walker: BenchmarkEmberWalker = null
 	) -> void:
+	if surface_walker != null:
+		surface_walker.apply_input()
+		return
 	if combat != null:
 		combat.apply_input()
 		return
@@ -1248,7 +1580,7 @@ static func _release_inputs() -> void:
 	BenchmarkInputGuard.release_inputs()
 
 static func _scenario_seed(scenario_name: StringName) -> int:
-	return 9003 if scenario_name == &"torrent_range_combat_reuse_route" else (9001 if scenario_name == &"station_embodied_route" else 9002)
+	return 9004 if scenario_name == &"ember_surface_walk_route" else (9003 if scenario_name == &"torrent_range_combat_reuse_route" else (9001 if scenario_name == &"station_embodied_route" else 9002))
 
 
 static func percentile(samples: Array[float], fraction: float) -> float:
