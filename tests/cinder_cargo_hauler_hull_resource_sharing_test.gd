@@ -91,6 +91,8 @@ func _initialize() -> void:
 			and second.get_cargo_hold_root() != null,
 		"cockpit, boarding and the cargo-access anchor bridge remain per craft"
 	)
+	# Clearance belongs to the active view; parked fleet cameras do no boundary work.
+	first.set_piloted(true)
 	var cockpit_view := first.get_cockpit_quality_report()
 	var chase_view := first.get_chase_camera_self_hull_boundary_report()
 	_check(

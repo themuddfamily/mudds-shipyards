@@ -747,9 +747,10 @@ func set_piloted(piloted: bool) -> void:
 	# retain their explicitly managed stream identity.
 	if _command_source is LocalShipInputSource:
 		(_command_source as LocalShipInputSource).reset_stream()
-	_set_camera_current(piloted)
 	if piloted:
 		_snap_chase_camera_response()
+	_set_camera_current(piloted)
+	if piloted:
 		boarded.emit()
 		if DisplayServer.get_name() != "headless":
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -8306,8 +8307,16 @@ func _ensure_camera_view_input_action() -> void:
 
 
 func _set_camera_current(active: bool) -> void:
+	var chase_active := active and not _cockpit_view
+	if _camera_boundary_mount != null:
+		# Dormant fleet and cockpit cameras need no recurring envelope traversal.
+		# On activation, repair the final snapped pose before any frame can draw;
+		# subsequent passes still follow SpringArm's obstruction sweep at priority 100.
+		_camera_boundary_mount.set_physics_process(chase_active)
+		if chase_active:
+			_enforce_chase_camera_self_hull_boundary()
 	if _camera != null:
-		_camera.current = active and not _cockpit_view
+		_camera.current = chase_active
 	if _cockpit_camera != null:
 		_cockpit_camera.current = active and _cockpit_view
 

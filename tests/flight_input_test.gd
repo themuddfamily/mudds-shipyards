@@ -77,6 +77,7 @@ func _run() -> void:
 	await _test_variant_launch_thresholds(stage)
 	await _test_ultrawide_field_of_view_policy(stage, ship_scene)
 	await _test_chase_camera_self_hull_envelope_covers_drawn_hull(stage)
+	await _test_dormant_chase_camera_lifecycle(stage, ship_scene)
 	await _test_fleet_chase_camera_boundaries(stage)
 	await _test_live_chase_collision_bounds(stage, ship_scene)
 	await _test_controller_only_command_path(stage, ship_scene)
@@ -510,6 +511,38 @@ func _test_controller_only_command_path(stage: Node3D, ship_scene: PackedScene) 
 	await process_frame
 
 
+func _test_dormant_chase_camera_lifecycle(stage: Node3D, ship_scene: PackedScene) -> void:
+	var craft := ship_scene.instantiate() as HeroShip
+	stage.add_child(craft)
+	craft.set_physics_process(false)
+	var mount := craft.get_node("CameraRig/CameraCollisionArm/CameraBoundaryMount") as Node3D
+	var camera := craft.get_camera()
+	_check(not mount.is_physics_processing(), "unpiloted chase boundary has no recurring physics work")
+	camera.position = Vector3(0.0, 30.0, 0.0)
+	for _tick in 3:
+		await physics_frame
+	_check(camera.position.is_equal_approx(Vector3(0.0, 30.0, 0.0)), "dormant boundary leaves camera correction untouched across physics ticks")
+	# Put the arm's resolved child inside the hull, as with a near-aft wall.
+	# Boarding must repair the point and all near-plane corners before returning.
+	mount.global_position = craft.to_global(craft.get_chase_camera_self_hull_envelope().bounds.get_center())
+	craft.rotation = Vector3(0.1, 0.3, -0.2)
+	craft.set_piloted(true)
+	_check(mount.is_physics_processing() and mount.process_physics_priority == 100, "active chase retains the later-priority boundary pass")
+	_check(bool(craft.get_chase_camera_self_hull_boundary_report().valid), "boarding corrects the chase near plane synchronously after snapping its pose")
+	craft.set_cockpit_view(true)
+	_check(not mount.is_physics_processing(), "cockpit view suspends chase boundary physics")
+	camera.position = Vector3.ZERO
+	craft.set_cockpit_view(false)
+	_check(mount.is_physics_processing() and bool(craft.get_chase_camera_self_hull_boundary_report().valid), "returning from cockpit corrects chase clearance without a physics wait")
+	craft.set_piloted(false)
+	_check(not mount.is_physics_processing(), "disembarking suspends chase boundary physics")
+	camera.position = Vector3.ZERO
+	craft.set_piloted(true)
+	_check(bool(craft.get_chase_camera_self_hull_boundary_report().valid), "reboarding repairs stale dormant clearance without a physics wait")
+	craft.queue_free()
+	await process_frame
+
+
 func _test_live_chase_collision_bounds(stage: Node3D, ship_scene: PackedScene) -> void:
 	var craft := ship_scene.instantiate() as HeroShip
 	stage.add_child(craft)
@@ -740,6 +773,7 @@ func _test_fleet_chase_camera_boundaries(stage: Node3D) -> void:
 			continue
 		stage.add_child(craft)
 		craft.global_position = Vector3(400.0 + float(fleet_index) * 80.0, 20.0, 0.0)
+		craft.set_piloted(true)
 		for _settle in 3:
 			await physics_frame
 		var collision_before := craft.get_landing_collision_report()
