@@ -2,9 +2,9 @@
 
 This is the working roster for [roadmap task 0](../ROADMAP.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
-Latest paired checkpoints: clean `f676c5016fb810a58ee1a1b0bf7e316bbddbc716` ([Windows notes](../builds/windows/MuddsShipyards-f676c50-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-f676c50-linux-notes.txt)). Settings/browser labels now correctly call the remote-only counts guests and explain that the host is excluded. Existing numeric/settings/protocol behavior is retained. Fresh source and actual Windows-payload checks each pass 254 assertions; three strict startups and all 1,515 matching payload entries verify, with only compiled HUD/presenter changed from d0e129f. Final release capacity is still an owner decision; no crowd, endurance, full-matrix or phase gate closes.
+Latest paired checkpoints: clean `b6af782021ef89c2ef200033c6c72573f4cf238b` ([Windows notes](../builds/windows/MuddsShipyards-b6af782-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-b6af782-linux-notes.txt)). A stable server-browser Disconnect button lets connected hosts/guests leave and reuse the browser; existing shutdown/capacity rules remain. Fresh source and actual Windows-payload checks each pass262 assertions; three strict startups and all1,515 matching payload entries verify. Against f676c50, HUD code changes and65 generated scenes differ only within their equally sized node-ID arrays; every other decoded scene byte matches. The initial comparison failure is preserved; unrun package checks resumed on those exact exports without rebuilding. Native Windows/GPU/device/audio, full matrix and final release gates remain unqualified. Earlier f676c50 guest-count wording remains included; its historical gameplay results below qualify that earlier package only.
 
-Subsequent exact-package Guided qualification (D1): the current f676c50 Linux ELF
+Earlier exact-package Guided qualification (D1): the f676c50 Linux ELF
 completes the unchanged original ordinary-input route **3/3**, in
 49.503 / 51.084 / 49.409s, each exit0 and zero diagnostics under the original300s
 cap. All walk/board/launch/practice/interceptor/return/land/shutdown/physical-exit
@@ -230,19 +230,20 @@ are staged; no actual-package, canonical planetary landing, full original
 server/two-client baseline, endurance or final-capacity acceptance is claimed.
 Raw: `/srv/mudds-work/moving-halyard-source-results-20261017/result.json`.
 
-D3's new opt-in real-menu check is committed on `55975dd6d`; it is **not qualified**.
-Default fixture passes7 unchanged. Actual independent Main host creation, real LAN
-refresh/row selection and authenticated guest admission pass, but both peers fail
-at the visible Disconnect control after Begin Shift. Their OS exits are1. Guest
-count returning to0 is failure cleanup, not successful menu disconnect. The exact
-foreground card was not captured; the network action is available only on the
-foreground runtime card and the browser has no stable Disconnect control.
-Next bounded production repair is a stable browser Disconnect action, existing
-intent/focus integration, unchanged full one-guest check and a fresh UI checkpoint.
-Source/index/cache/engine remain stable; recorded live process/display/socket/lane
-closure independently checked. Default actual `/proc` environment capture was
-missed and is not reconstructed. No retry or runtime change occurred in this run.
-Raw: `/srv/mudds-work/live-menu-admission-results-20261017/result.json`.
+D3 now passes on `b6af78202`: full independent-Main real-menu one-guest route108
+assertions, unchanged default7. Both peers authenticate through actual LAN
+refresh/select/join, enter gameplay, use pause → browser → Disconnect, then reuse
+Refresh/Back/Resume. UI guest counts0→1→0, matching identities and actual exits0
+verify. Existing focused HUD29/focus54/manual13 pass; fresh clean paired checkpoint
+and package checks are recorded above. Independent source/index/cache/engine and
+captured process/environment/display/socket/lane reviews pass; both disposable
+worktrees and duplicate archive extraction are removed. Dummy audio and owned
+headless/X11 displays establish those environments only. Initial missing-button,
+compile and numeric-array assertion failures remain separate in raw records.
+D4's second independent guest is next; packaged multiplayer, capacity, endurance,
+canonical journeys and the full original baseline remain open.
+Raw: `/srv/mudds-work/browser-disconnect-fix-results-20261017/accepted/`;
+`artifacts/checkpoint-b6af782/`.
 
 Patrol Q4 diagnosis on `e8f24ff00` still fails the original300s full scenario:
 18 of30 Main lifetimes complete; Main19 completes synchronous initialization but

@@ -4,7 +4,7 @@ This is the working task list, restructured on 2026-10-17. The game is a playabl
 
 The [preserved scope and history](docs/history/ROADMAP_SCOPE_20261017.md) contains the complete previous roadmap, including original Phase 1–10 specifications, numerical limits, routes and acceptance conditions. Those requirements remain binding. The [production roster](docs/COMPLETION_SCOPE.md) names current content and remaining gaps. Use this file to select a small task; use those references to check its full contract. Historical passes qualify only their recorded source and scenario.
 
-Latest playable checkpoint: `f676c5016fb810a58ee1a1b0bf7e316bbddbc716`, with [Windows notes](builds/windows/MuddsShipyards-f676c50-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-f676c50-linux-notes.txt). Settings and browser occupancy now describe guest slots, excluding the host, without changing capacity or network behavior. Fresh source and actual package checks each pass 254 assertions; three strict silent startups pass. All 1,515 Windows/Linux payload entries match; only compiled HUD and browser presenter change against d0e129f. Full current-source matrix is **NOT_RUN**. The last unfiltered matrix, `f85957f`, failed 11 of 1,045 suites; later focused fixes do not rewrite that result.
+Latest playable checkpoint: `b6af782021ef89c2ef200033c6c72573f4cf238b`, with [Windows notes](builds/windows/MuddsShipyards-b6af782-notes.txt) and [Linux notes](builds/linux/MuddsShipyards-b6af782-linux-notes.txt). Connected hosts and guests can leave through a stable server-browser Disconnect button and reuse the browser. Fresh source and actual Windows-payload checks each pass262 assertions; three strict silent startups pass. All1,515 Windows/Linux payload entries match. Against f676c50, compiled HUD changes and65 generated scenes have regenerated node IDs only; every other decoded scene byte matches. Full current-source matrix is **NOT_RUN**. The last unfiltered matrix, `f85957f`, failed11 of1,045 suites; later focused fixes do not rewrite that result.
 
 Native Windows execution/validation and human playtesting/review are owner-excluded mandatory completion gates. Keep unperformed results **NOT_RUN**, without treating those exclusions as new blockers. The Windows antivirus execution hold remains in force. Applicable native GPU, physical-device, audible, Linux runtime, signing and other release requirements remain separate. GitHub Actions stays disabled under the owner's CI budget hold.
 
@@ -123,45 +123,46 @@ Q4's original300s full Patrol FAIL remains unchanged.
 
 ### Next delivery batch: five concrete tasks
 
-This batch replaces the completed Q1–Q6 diagnostic batch. These are **five
-scheduled assignments, not five tasks left in the project**. Root owns integration
-and each card until an implementer is assigned. D1 and D5 are complete in their
-recorded scope; their clean temporary worktrees are removed. D2 is now complete
-on its named source and its clean worktree is removed. D3 implementation is
-delivered the opt-in mode in `55975dd6d`, but its first live check failed at
-visible Disconnect on both peers; that original clean D3 checkout is removed.
-D3-REPAIR source work is committed through `b6af78202`. The accepted run reports
-default7/live108 passing assertions, UI-driven disconnect and browser reuse on
-both peers, actual exits0 and owned closure. Root has read the terminal receipts;
-independent input/artifact review and the clean checkpoint remain pending.
-D4 stays gated on the completed D3 repair.
-The original five-task batch has three accepted tasks (D1/D2/D5); D3 and D4 remain open.
-D2 and D3/D4 are independent of D1, but engine network/display lanes remain
-serialized. D4 depends on D3. D5 can be implemented independently. Do not expand
-this batch automatically or count its checks as complete parent outcomes.
+This batch contains **five scheduled outcomes, not five tasks left in the
+project**. Four are accepted: D1, D2, D3 and D5, each only on its recorded
+source/package and scenario. Their disposable clean worktrees are removed.
+**Next: D4 implementation**, then its one acceptance run. Root owns integration;
+assign one implementer to the existing menu-test component. Keep engine
+network/display lanes serialized. Do not expand this batch automatically or
+count its checks as complete parent outcomes.
 
 | Order / existing family instance | Kind / status | Observable result | Working estimate |
 | --- | --- | --- | --- |
-| D1 · GUIDED[f676c50 Linux package] | Qualification · DONE | Current exact package completes original Guided 3/3; Sandbox and Settings remain open. | Runs49.503/51.084/49.409s; total effort not timed |
+| D1 · GUIDED[f676c50 Linux package] | Qualification · DONE | Recorded f676c50 package completes original Guided 3/3; Sandbox and Settings remain open. | Runs49.503/51.084/49.409s; total effort not timed |
 | D2 · NET-CREW[Halyard moving shared-cruise source route] | Qualification · DONE on `7412a6e50` | Original moving/rebase/two-passenger/chair/late-observer route passes132 checks, zero diagnostics. Source only; canonical landing/package qualification remain open. | Suite213.078s; total effort not timed |
-| D3 · NET-BROWSER[live menu host and first guest] | Source route passes on `b6af78202`; checkpoint pending | Both peers use stable browser Disconnect, guest count0→1→0 and browser reuse pass. Initial failure is retained. Review and packaging below must finish before DONE. | Remaining checkpoint/review estimate30–60min; total effort not timed |
-| D4 · NET-BROWSER[second independent menu guest] | Executable release check · GATED on D3 | Same host accepts two distinct real guests and releases both cleanly. | 1–2 h implementation; 15–30 min focused checks |
+| D3 · NET-BROWSER[live menu host and first guest] | Runtime repair and checkpoint · DONE on `b6af78202` | Stable browser Disconnect works for both peers; source full menu route, guest count0→1→0 and browser reuse pass. Fresh paired checkpoint passes focused UI and startup checks. | Source live/default108/7; source/package262 each; total effort not timed |
+| D4 · NET-BROWSER[second independent menu guest] | Executable release check · READY | Same host accepts two distinct real guests and releases both cleanly. | 1–2 h implementation; 15–30 min focused checks |
 | D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · DONE on `53e63831a` | Selectable physical aisle shuttle works; partial reports cannot qualify full performance protocol. | Final suite ~206s; total effort not timed |
 
 The next actions are finite steps within D3/D4, not additional parent outcomes:
 
 | Step | Finish line | State |
 | --- | --- | --- |
-| D3 source repair | Existing HUD/focus/manual/default checks and full real one-guest menu route pass with UI leave and browser reuse. | Implementation committed; source checks pass; root review pending. |
-| D3 checkpoint | Review accepted inputs/results; create clean Windows EXE/ZIP/notes and matching Linux package; pass existing focused package/startup checks; remove disposable worktrees. | NEXT; prepared workflow has not run. Stop at package result or first concrete blocker. |
-| D4 implementation | Extend the existing menu test to a second real guest; commit one exact invocation and unchanged bounds. | GATED on D3. No new harness family. |
+| D3 source repair | Existing HUD/focus/manual/default checks and full real one-guest menu route pass with UI leave and browser reuse. | DONE; independently reviewed on b6af78202. |
+| D3 checkpoint | Clean Windows EXE/ZIP/notes and matching Linux package; focused payload/startup checks; remove disposable worktrees. | DONE; 8 package checks pass,262 assertions and3 strict startups; cleanup complete. |
+| D4 implementation | Extend the existing menu test to a second real guest; commit one exact invocation and unchanged bounds. | NEXT / READY. No new harness family. |
 | D4 acceptance | Run that route once: distinct identities, counts0→1→2→1→0, remaining guest connected, all exits0 and owned closure. | GATED on implementation. A runtime defect becomes one bounded repair. |
 
-Batch count: **3 of 5 outcomes DONE; 2 remain**, with D3 awaiting review and
-packaging. This is not the total project remainder. Do not select another batch
-until these two outcomes pass or a specific blocker is recorded.
+Batch count: **4 of 5 outcomes DONE; 1 remains (D4)**. This is not the total
+project remainder. Do not select another batch until D4 passes or a specific
+blocker is recorded.
 
-**D1 — Current-package Guided playthrough.** Parent: normal-controls core
+D3 packaging retained an initial comparison failure: a fresh import regenerated
+node IDs in65 scenes. Independent decoded comparisons found every other byte
+unchanged; runtime IDs are not assumed semantically irrelevant. Only the unrun
+package checks resumed on the same exports, all passing. Source/index/cache/engine
+and process/socket/lane closure verify. Two disposable worktrees and the duplicate
+archive extraction are removed (~1.08GB logical). Raw source:
+`/srv/mudds-work/browser-disconnect-fix-results-20261017/accepted/`;
+package records: `artifacts/checkpoint-b6af782/` and
+`/srv/mudds-work/browser-disconnect-checkpoint-20261017/`.
+
+**D1 — Guided playthrough on f676c50.** Parent: normal-controls core
 playthrough, Guided subcriterion only. Input: exact
 `builds/linux/MuddsShipyards-f676c50.x86_64`, SHA256
 `05042e1a8158d41c805f0cced7521452b0bea969b205f87e66429642b2916f21`.
@@ -202,71 +203,24 @@ is not actual-package, canonical planetary landing, 30-minute endurance or final
 capacity qualification; those parent requirements remain open. No automatic
 package variant or unchanged retry follows.
 
-**D3 — Real menu host and first guest.** Parent: production server-browser flow
-and the original server/two-client baseline; this is its first implementation
-step, not baseline acceptance. Owner/files: root assigns one implementation agent
-`tests/network/game_flow_server_browser_integration_test.gd`; reuse the existing
-passenger harness's owned-process/receipt pattern. Existing browser coverage uses
-a bare GameFlow, HudProbe and injected directory, so no current invocation proves
-this slice. Deliver an explicit independent-Main mode, documented in that file,
-with real HUD controls: host creates a session; guest refreshes, selects and joins
-the actual advertised server, then disconnects. Acceptance: two actual Main
-processes, distinct authenticated host/guest identities, guest count0→1→0, usable
-menus and cleared guest admission/ownership. No injected directory, fake HUD,
-manual occupancy or direct adapter join may stand in for the menu action.
-Keep current test default intact. Commit the mode's exact invocation and stage
-limits with implementation before running it; use original 300 s matrix ceiling,
-private profiles, owned x11/Dummy displays and actual child exit/abort cleanup.
-Stop when this executable slice passes or its first concrete blocker is recorded.
-A demonstrated runtime defect gets one separately bounded repair; production
-owners are `scripts/game/game_flow.gd`, ENet adapter and LAN discovery, selected
-by the failure. Do not add flight/combat/endurance or another harness family.
-
-**D3-REPAIR — Stable Disconnect in the server browser (IN PROGRESS).**
-Parent: D3 production browser/connection flow. One player-visible outcome: a
-connected host or guest can always leave from the server-browser page, regardless
-of which gameplay runtime card is in front. The retained first run on `55975dd6d`
-passes default7, real menu host creation, LAN discovery/advertised join and
-matching authenticated peer generations, then both peers fail visible/enabled
-`RuntimeStatusDisconnectButton`. Both exit1. Subsequent guest count0 is failure
-cleanup, **not UI disconnect acceptance**. Exact foreground card was not recorded;
-source confirms the runtime card is the only existing Disconnect surface, newest
-card wins, and the browser has no Disconnect control or runtime-card selector.
-Raw: `/srv/mudds-work/live-menu-admission-results-20261017/result.json`.
-Root verified source11,871/index/cache645/engine stability and closure of the ten
-recorded live processes/three engines/displays/sockets/lanes. Actual default-stage
-`/proc` environment capture was missed; intended launch environment is retained.
-Do not repeat this unchanged run or claim the initial transport success closes D3.
-
-Owner: root assigns one implementation agent `scripts/ui/hud.gd`, existing
-`tests/server_browser_hud_integration_test.gd`,
-`tests/server_browser_focus_navigation_test.gd` and the D3 mode in
-`tests/network/game_flow_server_browser_integration_test.gd`; existing manual-
-controls HUD check is relevant regression coverage. Add one stable
-`ServerBrowserDisconnectButton`, enabled from current connected network
-presentation, emitting the existing `network`/`disconnect` intent. Integrate its
-keyboard/controller focus order, disable it after shutdown, and preserve retained
-runtime cards. No transport protocol, timeout, host capacity or shutdown semantics
-change. Update D3 to use ordinary pause → browser → Disconnect (and verify the
-browser still works after leaving), without forcing card visibility or calling
-shutdown directly as the user action.
-
-Acceptance: existing HUD/focus/manual-control checks, unchanged default browser
-regression and one corrected full live one-guest route with authenticated
-identities, UI-driven guest counts0→1→0, actual exits0 and owned closure; retain
-original300s/stage caps. Then a fresh clean-source Windows EXE/ZIP/notes, relevant
-actual-payload HUD checks and strict silent startup (`exit0` plus
-`STARTUP_MENU_READY_OK`), using the safe existing paired export workflow in
-repository builds/. This is a meaningful UI checkpoint; native Windows/GPU/device
-and full-release gates remain factual NOT_RUN. Estimate30–90min implementation,
-15–30min focused checks, 30–60min packaging/review. Stop after this concrete repair
-and checkpoint, or a first different reproducible blocker; do not bundle D4,
-redesign runtime-card arbitration or add a networking audit. D3 completes only
-when its full menu-admission/disconnect acceptance passes.
+**D3 — Real menu host, first guest and stable browser Disconnect (DONE).**
+Parent: production browser and first slice of original server/two-client baseline.
+Production owner: `scripts/ui/hud.gd`; existing HUD/focus tests and
+`tests/network/game_flow_server_browser_integration_test.gd` retain the contract.
+Exact source `b6af78202` passes default7 and live108 using
+`--live-menu-one-guest --live-results <owned-output>` at original300s bounds.
+Real independent Main peers use Host, LAN Refresh/select/Join, authenticate,
+Begin Shift, pause → browser → Disconnect, then Refresh/Back/Resume. Counts0→1→0,
+matching authenticated identities, both actual exits0 and owned closure verify.
+HUD/focus/manual regression passes; [clean paired checkpoint notes](builds/windows/MuddsShipyards-b6af782-notes.txt)
+record fresh source/package checks. Initial missing-button, compile and numeric-
+array comparison failures remain in raw records; corrected runs are separate.
+No package multiplayer, two-guest, capacity, flight, endurance or phase closure.
+Stop reached; next task is D4, without extending this one.
 
 **D4 — Two guests on the same menu-hosted session.** Parent: same original
 server/two-client baseline; depends on D3's working independent-Main mode.
-Owner/files: same agent/component, sequential with D3. Extend that mode to a
+Owner/files: root assigns one implementer to the same existing test component. Extend that mode to a
 second independent client using the same live refresh/select/join path.
 Acceptance: host plus two live Main clients, distinct authenticated peer/player
 identities, host excluded from guest count, guests0→1→2→1→0, remaining guest stays
