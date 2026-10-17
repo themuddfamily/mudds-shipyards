@@ -4,7 +4,33 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local checkpoint: `ca0afc449` — 2026-10-17
+## Latest local checkpoint: `e085a95ca` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-e085a95.x86_64),
+[archive](../builds/linux/MuddsShipyards-e085a95-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-e085a95-linux-notes.txt) contain the legacy
+Convoy Reset repair from clean `e085a95cae5e85a64d0ee47f8abd8031ee4ebe79`.
+An ambiguous old completed run can reset without an inferred reward; a later
+real Convoy can earn its own credit. Genuine requested-but-unpaid debt stays
+protected. The 1,515 Windows/Linux payload entries match, with only the compiled
+Convoy persistence entry changed against ca0. Three strict silent startups and
+233 printed/reported privacy/activity/host assertions pass; ZIP and archived
+ELF bytes/modes verify. Source and Windows-payload full session checks both
+retain their original 300s timeout failures; observed legacy reset and subsequent
+payment do not establish complete regression. Full current-source matrix,
+wider recovery and graphical desktop/native GPU/device/audio acceptance remain
+open. Raw package checks: `artifacts/checkpoint-e085a95/`.
+
+The exact ELF passes the original Guided ordinary-input route 3/3 in fresh
+processes/profiles: 49.825 / 49.774 / 50.721s. XTest on private X11 reaches combat,
+return, landing, the original 91 neutral shutdown frames and physical exit,
+with unchanged authored tuning/default sampler, zero diagnostics and complete
+source/cache/artifact/input/process/profile closure. Rendering is disabled and
+audio uses Dummy; this establishes no GPU/device/audio/human acceptance. Full
+Gate C remains open for Sandbox and Settings/re-entry. Raw results:
+`/srv/mudds-work/e085-guided-acceptance-20261017/`.
+
+## Earlier local checkpoint: `ca0afc449` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-ca0afc4.x86_64),
 [archive](../builds/linux/MuddsShipyards-ca0afc4-linux-x86_64.tar.gz) and

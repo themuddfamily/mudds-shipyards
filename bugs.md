@@ -2,6 +2,15 @@
 
 This ledger contains only unresolved or explicitly accepted issues. Fixed and closed records are removed once their fixes are verified.
 
+## LEGACY-CONVOY-RESET — Ambiguous old completion blocks Reset — **VERIFYING**
+
+- Severity: **P2**; owner/reporter: root, 2026-10-17. Fixed in `e085a95ca`; complete regression acceptance remains open.
+- Reproduction: restore a valid completed Convoy record with both `reward_requested` and `reward_granted` false, then use Reset. The old transition rejects `COMPLETED` → `IDLE` as `unproven_convoy_generation`, leaving activity selection locked even though no reward debt is established.
+- Fix: admit the legacy false/false reset alongside the existing paid true/true reset. Requested-but-unpaid true/false debt remains protected; corrupt false/true records, generation jumps, escort changes and entity-epoch changes remain rejected. The existing transactional reset writes the candidate before publishing live changes.
+- Source validation: independent semantic review and the existing extended Main regression exercise same-generation flag preservation, refused-write atomicity, real unpaid-debt refusal, fresh-Main selectable IDLE and a later genuine Convoy reward. The run visibly saves legacy IDLE generation 6 and later completed generation 7 with four Convoy receipts versus three beforehand. The whole suite still times out at its original 300s limit (300176ms, exit 124, no terminal assertion total); source/cache are unchanged, with no functional test error reported. The superuser warning and supervisor timeout remain in the raw log. Results: `/srv/mudds-work/legacy-convoy-reset-20261017-validation/`.
+- Package validation: matching clean `e085a95` Windows/Linux checkpoints pass three strict silent startup probes and 233 printed/reported privacy/activity/host assertions. The Windows embedded payload through the Linux engine retains the full-session timeout at 300.167s with no terminal marker; its actual legacy document is generation 7 COMPLETED with four Convoy receipts plus one race receipt. Only the compiled persistence entry differs from ca0. ZIP/archive integrity and source/cache guards pass. See `artifacts/checkpoint-e085a95/` and the build notes.
+- Remaining: complete the original full session regression and current-source normal-controls/recovery acceptance; partial observations do not establish a whole-suite pass.
+
 ## INPUT-RECOVERY — Begin can board a saved on-foot player — **VERIFYING**
 
 - Severity: **P1**; owner/reporter: root, 2026-10-16. Observed on source `2625eb246` and the published `eadc150` PCK; fixed `1461227` PCK passes the focused recovery regression.

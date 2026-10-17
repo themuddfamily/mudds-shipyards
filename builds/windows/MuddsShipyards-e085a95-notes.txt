@@ -1,0 +1,56 @@
+Mudd's Shipyards — Convoy legacy reset checkpoint e085a95 — 2026-10-17
+Clean exported source: e085a95cae5e85a64d0ee47f8abd8031ee4ebe79
+Engine: pinned official Godot 4.7.1 a13da4feb; stock release templates.
+
+Delivered change:
+After restoring an old completed Convoy run whose reward flags are both unset,
+Reset now clears that ambiguous completion without inventing a reward; a later
+real Convoy can earn its own reward. Genuine requested-but-unpaid rewards retain
+their debt. Paid completions keep their existing reset behavior.
+
+Actual package validation (all Godot invocations headless and Dummy audio):
+- windows-payload-startup: PASS, exit 0, 25.635936s, 1 completion marker(s), 0 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- linux-direct-startup: PASS, exit 0, 21.797516s, 1 completion marker(s), 0 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- linux-archive-startup: PASS, exit 0, 21.375656s, 1 completion marker(s), 0 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- startup-cli-privacy: PASS, exit 0, 1.008006s, 1 completion marker(s), 0 diagnostic(s); 159 printed PASS lines; no suite assertion total reported.
+- convoy-escort-activity: PASS, exit 0, 0.847307s, 1 completion marker(s), 0 diagnostic(s); 38 reported assertions.
+- cinder-convoy-escort-host: PASS, exit 0, 0.950795s, 1 completion marker(s), 0 diagnostic(s); 36 reported assertions.
+- cinder-convoy-session-save-restore: FAIL, exit 124, 300.167359s, 0 completion marker(s), 1 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- Three startup probes require exit 0 and exactly one STARTUP_MENU_READY_OK.
+- All 1515 Windows/Linux PCK entries match by path,
+  size and SHA256. Windows PE .text matches the pinned trusted release template.
+- Against ca0afc4, exactly one of the 1,515 payload entries changes:
+  scripts/persistence/cinder_convoy_session_persistence.gdc. All other compiled
+  runtime/content entries are identical; this comparison is not full qualification.
+- Exact-source external test harnesses exercise the actual Windows embedded
+  production payload through the Linux engine; no Windows executable is
+  launched. Harness SHA256 values are retained. Linux archive bytes and modes match
+  the direct exported ELF. Source/index/cache remain unchanged after export.
+- Logs and exact package outcomes: artifacts/checkpoint-e085a95/.
+  Private profiles, execution owner and abort helper: /srv/mudds-work/legacy-convoy-checkpoint-20261017/.
+
+Exact-source focused session check before export:
+The original 300s source suite retains FAIL: exit 124 at 300176ms, no completion
+marker or assertion total. Source/cache guards stayed stable and actors were
+cleaned up. Before timeout, observations reached legacy generation 6 IDLE with
+both reward flags false, then retained generation 7 COMPLETED with both flags
+true: four Convoy rewards plus one race reward (total five), versus three plus
+one before. This partial observed behavior does not establish a full suite pass.
+Raw results: /srv/mudds-work/legacy-convoy-reset-20261017-validation/.
+
+Open gates:
+The full Convoy session result above is retained under its original 300s cap;
+focused package checks do not close complete core/shared/recovery regression or
+any phase exit gate. Full current-source matrix is NOT_RUN. Earlier retained
+full-regression failures remain open. Native Windows installation/startup,
+native GPU/hardware, physical controller/audio and human review are NOT_RUN;
+antivirus hold is preserved. Trusted signing and final-release qualification
+remain open. Hosted CI stays disabled. Local repository builds only; no
+Downloads or public release publication.
+
+EXE SHA256: d95cc3f092ad8295168e60ccc62373502223675d59e525e56d11a49e58eaf2ec
+
+Subsequent native Linux original Guided acceptance (2026-10-17):
+Three fresh-process/profile runs PASS in 49.825 / 49.774 / 50.721s on this exact ELF. The unchanged original driver uses OS XTest->isolated private X11->Godot Input->default sampler with Dummy audio and rendering disabled. Every run completes the Guided walk/board/launch/target-practice/interceptor/return/landing/shutdown/physical-exit route. Authored tuning and the original 300s cap remain; shutdown observes 91 neutral frames and exit error is 0.17m. Each exits 0 with zero diagnostics, released inputs and reaped helper/game/Xvfb. Source/cache/package guards are unchanged, private temporary profiles removed and ordered runtime lanes released. This meets Guided3/3 on this exact Linux package, not rendered/native-GPU/physical-device/human acceptance. Complete Gate C remains open: ca0 full Sandbox remains FAIL before reuse and original Settings/re-entry replay remains unavailable/unqualified. Full source and Windows-payload Convoy session failures above remain retained.
+Raw results: /srv/mudds-work/e085-guided-acceptance-20261017/run-{1,2,3}/result.json
+Packaged legacy fixture observation: the actual Windows embedded production payload's retained synthetic legacy document reaches generation7 COMPLETED with both reward flags true and four Convoy receipts plus one race receipt (total5). This matches one new reward after ambiguous reset; it does not convert the full-session timeout into a pass.
