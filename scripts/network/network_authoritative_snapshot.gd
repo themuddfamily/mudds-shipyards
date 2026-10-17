@@ -211,6 +211,8 @@ func apply_replica(source_peer_id: int, packet: Dictionary) -> Dictionary:
 
 
 func get_snapshot() -> Dictionary:
+	# _copy_sections already detaches every array and nested record; the
+	# envelope contains only scalar metadata, so no second deep copy is needed.
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"policy_version": POLICY_VERSION,
@@ -219,7 +221,7 @@ func get_snapshot() -> Dictionary:
 		"event_sequence": _event_sequence,
 		"revision": _revision,
 		"sections": _copy_sections(_sections),
-	}.duplicate(true)
+	}
 
 
 func get_section(section_name: StringName) -> Array:

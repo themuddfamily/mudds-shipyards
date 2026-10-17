@@ -16,6 +16,7 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_server_publication_and_detachment()
+	_test_nested_snapshot_detachment_and_freshness()
 	_test_order_and_generation_guards()
 	_test_landing_lifecycle_guards()
 	_test_damage_respawn_lifecycle_guards()
@@ -77,6 +78,40 @@ func _test_server_publication_and_detachment() -> void:
 		and bool(audit.landing_records_are_presentation_only)
 		and not bool(audit.client_can_mutate_snapshot),
 		"audit exposes one server-owned synchronization boundary without replica mutation"
+	)
+
+
+func _test_nested_snapshot_detachment_and_freshness() -> void:
+	var authority := Authority.new(99)
+	var sections := _sections()
+	sections.movement[0]["presentation"] = {"samples": [{"position": Vector3.ONE}]}
+	var published := authority.publish(99, 40, 12, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing)
+	_check(published.accepted, "nested snapshot fixture publishes")
+	var first := authority.get_snapshot()
+	var retained := authority.get_snapshot()
+	first["server_tick"] = -1
+	first.sections.movement[0].presentation.samples[0]["position"] = Vector3.ZERO
+	(first.sections.movement[0].presentation.samples as Array).clear()
+	published.snapshot.sections.movement[0].presentation.samples[0]["position"] = Vector3.ZERO
+	sections.movement[0].presentation.samples[0]["position"] = Vector3(2.0, 3.0, 4.0)
+	_check(
+		authority.get_snapshot() == retained
+		and retained.sections.movement[0].presentation.samples[0].position == Vector3.ONE,
+		"nested caller and getter mutations leave authority and another getter result detached"
+	)
+	_check(
+		authority.get_last_result().snapshot == retained,
+		"mutating a publication receipt leaves the retained receipt and getter result detached"
+	)
+	var next := authority.publish(99, 41, 13, sections.movement, sections.ownership, sections.projectiles, sections.boarding, sections.respawn, sections.landing)
+	var current := authority.get_snapshot()
+	_check(
+		next.accepted and int(current.server_tick) == 41
+		and int(current.event_sequence) == 13 and int(current.revision) == 2
+		and current.sections.movement[0].presentation.samples[0].position == Vector3(2.0, 3.0, 4.0)
+		and int(retained.server_tick) == 40
+		and retained.sections.movement[0].presentation.samples[0].position == Vector3.ONE,
+		"a fresh getter reads the latest publication while an earlier result stays unchanged"
 	)
 
 
