@@ -2,8 +2,8 @@
 """Fly the embedded Linux game with OS XTest keys/mouse on an owned Xvfb.
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
-Use --route sandbox-walk for the five-branch on-foot prerequisite only; it does
-not qualify the full Sandbox fleet/crash/reuse scenario. The default is Guided.
+Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
+Use --route sandbox-walk for the on-foot prerequisite only. The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
 """
@@ -485,6 +485,9 @@ class SandboxWalkPilot(Pilot):
         self.door_opened = False
         self.door_requested = False
 
+    def waypoint_reached(self, name, target, s):
+        return False
+
     def update(self, s, now):
         self.frame = s['frame']
         sandbox = s.get('sandbox')
@@ -523,7 +526,8 @@ class SandboxWalkPilot(Pilot):
                 self.visited.append({'waypoint': name, 'frame': self.frame, 'player': s['player']})
                 self.index += 1
                 print(json.dumps(self.visited[-1]), flush=True)
-                if self.index == len(self.WAYPOINTS):
+                interrupted = self.waypoint_reached(name, target, s)
+                if self.index == len(self.WAYPOINTS) and not interrupted:
                     require(self.door_opened, 'ordinary Habitat door interaction observed open')
                     self.enter('complete', s)
                     self.result = {'scope': 'five-branch ordinary station walk only',
@@ -560,6 +564,359 @@ class SandboxWalkPilot(Pilot):
         return keys, dx, 0, False
 
 
+class SandboxPilot(SandboxWalkPilot):
+    """One uninterrupted station/fleet/crash/reuse route through OS controls."""
+    TRIGGERS = {
+        'arrow_aft_clearance': 'arrow_provisional',
+        'Freight': 'jovian_provisional',
+        'fleet_trunk_forward': 'zenith_b7_observed',
+        'fleet_trunk_mid': 'halyard_new_design',
+        'Fleet Dock': 'bulwark_heavy_gunship',
+    }
+    CINDER = ('cinder_cargo_hauler', 'cinder_long_range_bomber', 'cinder_light_interceptor')
+
+    def __init__(self):
+        super().__init__()
+        self.craft_key = None
+        self.resume_target = None
+        self.pending_walk = []
+        self.completed = []
+        self.excursion = 0
+        self.craft_departed = False
+        self.shutdown_frame = None
+        self.crashed = False
+        self.recovered = False
+        self.regenerated = False
+        self.reusing = False
+        self.recovery_walk = 0
+        self.dive_previous = None
+        self.crash_receipt = None
+        self.foot_previous = None
+        self.mouse_pending = None
+        self.last_state = None
+
+    def enter(self, stage, s):
+        self.stage = stage
+        craft = s['sandbox']['fleet'].get(self.craft_key)
+        event = {'stage': stage, 'frame': s['frame'], 'phase': s['phase'],
+                 'craft': self.craft_key, 'player': s['player'],
+                 'position': craft['position'] if craft is not None else s['position']}
+        self.stages.append(event)
+        print(json.dumps(event), flush=True)
+
+    def waypoint_reached(self, name, target, s):
+        if name in self.TRIGGERS:
+            self.resume_target = target
+            self.begin_craft(self.TRIGGERS[name], s)
+            return True
+        return False
+
+    def begin_craft(self, key, s):
+        self.craft_key = key
+        self.excursion = 0
+        self.craft_departed = False
+        self.shutdown_frame = None
+        craft = s['sandbox']['fleet'][key]
+        boarding = craft['boarding']
+        # Stay on the existing freight apron and comb rungs before following
+        # the physical boarding marker; these are walking goals only.
+        if key == 'arrow_provisional':
+            self.pending_walk = [[boarding[0], 0, 22], boarding]
+        elif key == 'jovian_provisional':
+            self.pending_walk = [[-41, .38, 40], [-41, .38, boarding[2]], boarding]
+        elif key == 'zenith_b7_observed':
+            self.pending_walk = [[22, 4.2, 68.3], [20.2, 4.2, 59.2], [18.6, 4.2, 58.6], [18.2, 4.2, 58.2]]
+        elif key == 'halyard_new_design':
+            self.pending_walk = [[37, 4.2, 68.3], [32.4, 4.2, 68.2], [32, 4.2, 62.2], [32, 4.2, 54.2]]
+        elif key == 'bulwark_heavy_gunship':
+            self.pending_walk = [[52, 4.2, 68.3], [50.2, 6.6, 59.2], [49, 6.6, 59.2]]
+        elif key == 'cinder_cargo_hauler':
+            self.pending_walk = [[46.5, 6.6, 58.75], [49.2, 6.6, 59.2], [50.2, 6.6, 59.2],
+                                 [50.2, 4.2343, 66.2], [35.2, 4.2, 69.4], [25.4, 4.2, 70.6],
+                                 [23, 4.18, 72.8], [22.2, 4.18, 75.2], [11.8, 4.18, 85.6]]
+        elif key == 'cinder_long_range_bomber':
+            # Leave the cargo ramp to the north before crossing its outboard
+            # deck. The existing west Aft aisle clears muster furniture/ribs;
+            # its 20mm bridge lip uses PlayerController's normal step-up.
+            self.pending_walk = [[7, 4.18, 90], [22.2, 4.18, 90], [22.2, 4.18, 75.2],
+                                 [23, 4.18, 72.8], [25.4, 4.2, 70.6], [25.4, 4.2, 68.3],
+                                 [-9.2, 4.2, 68.3], [-9.2, 4.2, 61.4], [-10.8, 4.22, 61.4],
+                                 [-10.8, 4.2, boarding[2]], boarding]
+        elif key == 'cinder_light_interceptor':
+            self.pending_walk = [[56, 4.2, 68.3], [56, 4.2, boarding[2]], boarding]
+            if not self.reusing:
+                self.pending_walk = [[-10.8, 4.2, s['player'][2]], [-10.8, 4.22, 61.4],
+                                     [-9.2, 4.2, 61.4], [-9.2, 4.2, 68.3]] + self.pending_walk
+        else:
+            self.pending_walk = [boarding]
+        self.approach_path = self.pending_walk[:]
+        self.return_path = list(reversed(self.approach_path[:-1]))
+        if key == 'zenith_b7_observed':
+            # The disembarking pilot starts on the port side of the wing;
+            # reversing the distant approach goal would cut through that wing.
+            self.return_path = [[14.8, 4.2, 57.2], [20.4, 4.2, 59.2], [22, 4.2, 68.3]]
+        self.enter('craft_approach', s)
+
+    def walk(self, s, target, keys):
+        off = sub(target, s['player'])
+        horizontal = [off[0], 0, off[2]]
+        distance = norm(horizontal)
+        if distance <= .30 and abs(off[1]) <= .65 and s['sandbox']['grounded']:
+            return 0, True
+        direction = unit(horizontal)
+        yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+        dx = round(max(-60, min(60, yaw * .5 / s['sandbox']['walk_mouse'])))
+        if abs(yaw) < .08:
+            keys.add('w')
+            if distance > 3: keys.add('Shift_L')
+        return dx, False
+
+    def clear_station_prompt(self, s):
+        # Station interactions take priority over boarding in GameFlow. Look
+        # away from that actual selected object before sending the ship's E.
+        off = sub(s['player'], s['sandbox']['station_candidate']['position'])
+        off[1] = 0
+        direction = unit(off)
+        yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+        return round(max(-60, min(60, yaw * .5 / s['sandbox']['walk_mouse'])))
+
+    def pulse(self, keys, now):
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+
+    def update(self, s, now):
+        self.last_state = {'frame': s['frame'], 'phase': s['phase'], 'player': s['player'],
+                           'craft': self.craft_key, 'fleet': s['sandbox']['fleet']}
+        previous = self.foot_previous
+        normal_foot = s['control_enabled'] and not s['seated'] and not s['transition_busy']
+        if self.stage in ('walk_station', 'craft_approach', 'return_walk', 'crash_reboard_clear', 'crash_approach', 'recovery_walk'):
+            require(normal_foot and s['phase'] in ('APPROACH_SHIP', 'COMPLETE'),
+                    'ordinary foot legs cannot hide an unplanned control or recovery transition')
+        if previous is not None and normal_foot and previous['normal']:
+            frames = s['frame'] - previous['frame']
+            require(frames > 0, 'fresh physics observation')
+            require(norm(sub(s['player'], previous['player'])) <= 9.2 * frames / 60 + 1.5,
+                    'continuous ordinary walking without recovery teleport')
+        self.foot_previous = dict(frame=s['frame'], player=s['player'], normal=normal_foot)
+        result = self._update_route(s, now)
+        keys, dx, dy, fire = result
+        # Several physics observations can precede one OS-event dispatch. A
+        # repeated unacknowledged relative sweep would accumulate into a large
+        # turn. Send the next sweep only after observed attitude changes.
+        craft = s['sandbox']['fleet'].get(self.craft_key, {})
+        facing = s['walk_forward'] if not s['seated'] else craft.get('back', s['back'])
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001:
+                dx = dy = 0
+            else:
+                self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        return keys, dx, dy, fire
+
+    def _update_route(self, s, now):
+        if self.stage in ('boot', 'begin_shift', 'walk_station'):
+            return super().update(s, now)
+        self.frame = s['frame']
+        fleet = s['sandbox']['fleet']
+        require(set(fleet) == self.FLEET, 'complete nine-craft fleet observed')
+        require(self.fleet_ids == {k: c['ship_id'] for k, c in fleet.items()}
+                and self.player_id == s['player_id'], 'same world fleet and player')
+        require(all(c['default_sampler'] and c['tuning_unchanged'] for c in fleet.values()),
+                'authored fleet controls and tuning')
+        require(all(not c['destroyed'] and not c['piloted'] and c['parked_exact']
+                    for k, c in fleet.items() if k != self.craft_key), 'other craft remain safe and parked')
+        craft = fleet[self.craft_key]
+        if self.stage not in ('craft_approach', 'craft_board'):
+            require(craft['active_ship'], 'same active craft throughout sortie lifecycle')
+        if craft['active_ship']:
+            require(craft['details_current'], 'fresh live active-craft acceptance telemetry')
+        state = dict(s, **craft)
+        keys = set()
+        dx = dy = 0
+        speed = norm(craft['velocity'])
+        self.excursion = max(self.excursion, norm(sub(craft['position'], craft['parked'])))
+        self.craft_departed |= craft['lease_free'] and not craft['landed'] and self.excursion > 8
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        require(not craft['destroyed'] or self.stage in ('crash_dive', 'recover', 'regenerate'),
+                'only the deliberate crash may destroy a craft')
+        if self.stage == 'craft_approach':
+            require(craft['parked_exact'] and not craft['piloted'] and not craft['destroyed'],
+                    'walk up to the live parked production craft')
+            if craft['candidate'] and s['sandbox']['station_candidate']:
+                dx = self.clear_station_prompt(s)
+            elif craft['candidate'] and s['control_enabled']:
+                self.tap('e', now)
+                self.enter('craft_board', s)
+            else:
+                dx, reached = self.walk(s, self.pending_walk[0], keys)
+                if reached and len(self.pending_walk) > 1: self.pending_walk.pop(0)
+        elif self.stage == 'craft_board':
+            if craft['piloted'] and s['seated'] and craft['active_ship'] and s['phase'] == 'START_ENGINES':
+                self.enter('craft_launch', s)
+            elif s['phase'] in ('APPROACH_SHIP', 'COMPLETE') and not s['transition_busy']:
+                if s['sandbox']['station_candidate']: dx = self.clear_station_prompt(s)
+                elif craft['candidate']: self.tap('e', now)
+        elif self.stage == 'craft_launch':
+            # Fly along the parked axis toward this berth's authored broad
+            # capture centre. Reverse thrust is an ordinary default control.
+            off = sub(craft['capture_position'], craft['position'])
+            off[1] = 0
+            forward = [-v for v in craft['back']]
+            signed = dot(off, forward)
+            if self.craft_departed and (craft['capture'] or abs(signed) < 6):
+                keys.add('Prior')
+                if speed <= .35 and craft['capture']:
+                    self.enter('craft_land', s)
+                    self.tap('l', now)
+            else:
+                keys.add('w' if signed >= 0 else 's')
+        elif self.stage == 'craft_land':
+            keys.add('Prior')
+            if craft['landed'] and s['phase'] == 'SHUT_DOWN':
+                require(self.craft_departed and craft['contract'] and craft['lease'] and craft['parked_exact'],
+                        'physical departure followed by strict exact occupied home berth')
+                keys.clear()
+                self.shutdown_frame = self.frame
+                self.enter('craft_shutdown', s)
+            elif not craft['landing_active'] and craft['capture']:
+                self.tap('l', now)
+        elif self.stage == 'craft_shutdown':
+            # Neutral input for the full authored 1.5 physics seconds. The
+            # actual engine state must independently reach OFFLINE.
+            if self.frame - self.shutdown_frame >= 90 and craft['telemetry']['engine'] == 'OFFLINE':
+                self.enter('craft_exit', s)
+                self.tap('e', now)
+        elif self.stage == 'craft_exit':
+            if not s['seated'] and not craft['piloted'] and s['control_enabled'] and not s['transition_busy']:
+                require(craft['lease'] and craft['contract'] and craft['parked_exact'], 'secured berth retained after exit')
+                require(norm(sub(s['player'], craft['exit'])) < .65, 'physical craft exit')
+                self.completed.append({'craft': self.craft_key, 'frame': self.frame,
+                                       'excursion_m': self.excursion, 'reuse': self.reusing})
+                print(json.dumps(self.completed[-1]), flush=True)
+                if self.reusing:
+                    require(self.crashed and self.recovered and self.regenerated and self.recovery_walk > 8,
+                            'deliberate crash, ordinary recall, on-foot recovery, regenerated craft reused')
+                    require(set(c['craft'] for c in self.completed) == self.FLEET - {'torrent_provisional'},
+                            'all eight required craft launched landed and exited')
+                    require(len(self.visited) == len(self.WAYPOINTS) and self.door_opened, 'all five branches and Habitat door physically traversed')
+                    self.enter('complete', s)
+                    self.result = {'scope': 'full Gate C Sandbox', 'gate_c_sandbox': 'COMPLETED',
+                                   'completion_marker': 'NATIVE_SANDBOX_OK', 'visited': self.visited,
+                                   'craft_sorties': self.completed, 'same_player_id': self.player_id,
+                                   'same_fleet_ids': self.fleet_ids, 'deliberate_crash': self.crash_receipt,
+                                   'on_foot_recovery_m': self.recovery_walk, 'regenerated_and_reused': self.craft_key,
+                                   'phases': self.phases, 'stages': self.stages}
+                elif self.craft_key == self.CINDER[-1]:
+                    self.enter('crash_reboard_clear', s)
+                elif self.craft_key == 'bulwark_heavy_gunship' or self.craft_key in self.CINDER:
+                    # All station waypoints are already visited. Continue from
+                    # this actual exit to the next craft's clear walking route.
+                    self.resume_target = None
+                    next_key = self.CINDER[0] if self.craft_key == 'bulwark_heavy_gunship' else self.CINDER[self.CINDER.index(self.craft_key)+1]
+                    self.begin_craft(next_key, s)
+                else:
+                    self.pending_walk = self.return_path[:]
+                    if self.resume_target is not None: self.pending_walk.append(self.resume_target)
+                    self.enter('return_walk', s)
+            elif s['phase'] == 'SHUT_DOWN' and craft['telemetry']['engine'] == 'OFFLINE': self.tap('e', now)
+        elif self.stage == 'return_walk':
+            if self.pending_walk:
+                dx, reached = self.walk(s, self.pending_walk[0], keys)
+                if reached: self.pending_walk.pop(0)
+            elif self.resume_target is not None:
+                self.resume_target = None
+                if self.index == len(self.WAYPOINTS): self.begin_craft(self.CINDER[0], s)
+                else: self.enter('walk_station', s)
+            else:
+                self.begin_craft(self.CINDER[self.CINDER.index(self.craft_key)+1], s)
+        elif self.stage == 'crash_reboard_clear':
+            # Disembarking deliberately blocks immediate reboarding until the
+            # player leaves the hatch sphere. Walk away, then acquire it again.
+            target = [56, s['player'][1], craft['boarding'][2]]
+            dx, reached = self.walk(s, target, keys)
+            if reached:
+                self.pending_walk = [craft['boarding']]
+                self.enter('crash_approach', s)
+        elif self.stage == 'crash_approach':
+            if craft['candidate'] and s['sandbox']['station_candidate']:
+                dx = self.clear_station_prompt(s)
+            elif craft['candidate']:
+                self.tap('e', now)
+                self.enter('crash_board', s)
+            else: dx, _ = self.walk(s, craft['boarding'], keys)
+        elif self.stage == 'crash_board':
+            if craft['piloted'] and s['seated'] and s['phase'] == 'START_ENGINES':
+                self.enter('crash_launch', s)
+        elif self.stage == 'crash_launch':
+            keys.add('s')
+            if not craft['landed'] and craft['lease_free'] and norm(sub(craft['position'], craft['parked'])) > craft['departure_lift'] + 2:
+                self.mouse_pending = None
+                self.enter('crash_climb', s)
+        elif self.stage == 'crash_climb':
+            surface = s['sandbox']['crash_surface']
+            require(surface and dot(surface['normal'], [0, 1, 0]) > .99, 'observed existing upward crash surface')
+            target = [surface['position'][0], surface['position'][1]+220, surface['position'][2]]
+            off = sub(target, craft['position'])
+            dx, dy, align = self.aim(state, [state['camera'][i]+off[i] for i in range(3)], .3)
+            distance = norm(off)
+            if distance < speed*speed/(2*craft['tuning']['brake']) + 3:
+                keys.add('Prior')
+            elif align > .99: keys.update(('w', 'Shift_L'))
+            if distance < 5 and speed < .5:
+                self.enter('crash_align', s)
+        elif self.stage == 'crash_align':
+            keys.add('Prior')
+            dx, dy, align = self.aim(state, s['sandbox']['crash_surface']['position'], .3)
+            if align > .9999 and speed < .2: self.enter('crash_dive', s)
+        elif self.stage == 'crash_dive':
+            dx, dy, align = self.aim(state, s['sandbox']['crash_surface']['position'], .15)
+            if craft['destroyed']:
+                previous = self.dive_previous
+                require(previous is not None and previous['hull'] > 0 and previous['throttle'] > 0 and previous['boost'] and craft['telemetry']['hull'] <= 0,
+                        'observed live hull then actual terminal destruction')
+                normal = s['sandbox']['crash_surface']['normal']
+                closing = -dot(previous['velocity'], normal)
+                require(closing > craft['tuning']['impact_threshold'] + craft['tuning']['maximum_hull']/craft['tuning']['impact_scale'],
+                        'ordinary boosted dive reached physically destructive normal speed')
+                self.crash_receipt = dict(previous, destroyed_frame=self.frame,
+                                          destroyed_position=craft['position'], destroyed_hull=craft['telemetry']['hull'],
+                                          surface=s['sandbox']['crash_surface'])
+                self.crashed = True
+                self.enter('recover', s)
+            else:
+                self.dive_previous = {'frame': self.frame, 'velocity': craft['velocity'],
+                                      'position': craft['position'], 'hull': craft['telemetry']['hull'],
+                                      'throttle': craft['command_throttle'], 'boost': craft['command_boost']}
+                keys.update(('w', 'Shift_L'))
+        elif self.stage == 'recover':
+            if not s['seated'] and s['control_enabled'] and s['sandbox']['grounded'] and not s['transition_busy']:
+                require(norm(sub(s['player'], s['spawn'])) < 2, 'production destruction recall returns same player to deck')
+                self.recovered = True
+                self.enter('regenerate', s)
+        elif self.stage == 'regenerate':
+            if not craft['destroyed'] and not craft['regeneration_pending']:
+                require(craft['lease'] and craft['parked_exact'] and craft['landed'], 'production regeneration restores exact occupied berth')
+                self.regenerated = True
+                self.reusing = True
+                # Reuse the already walked central→Aft→Fleet Dock route after
+                # production recall; no observer or driver writes the avatar.
+                self.pending_walk = [p for name,p in self.WAYPOINTS[40:]]
+                self.enter('recovery_walk', s)
+        elif self.stage == 'recovery_walk':
+            self.recovery_walk = max(self.recovery_walk, norm(sub(s['player'], s['spawn'])))
+            dx, reached = self.walk(s, self.pending_walk[0], keys)
+            if reached:
+                self.pending_walk.pop(0)
+                if not self.pending_walk: self.begin_craft(self.craft_key, s)
+        self.pulse(keys, now)
+        return keys, dx, dy, False
+
+
 def stop(process):
     if process and process.poll() is None:
         process.terminate()
@@ -572,7 +929,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -625,7 +982,7 @@ def run(binary, output, route="guided"):
                 result['input_helper_pid'] = desktop.process.pid
                 args = [str(binary),'--audio-driver','Dummy','--display-driver','x11',
                         '--rendering-driver','dummy','--disable-render-loop',
-                        '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer=sandbox-walk']
+                        '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+route]
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
                 game = subprocess.Popen(args,cwd=binary.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
@@ -647,7 +1004,7 @@ def run(binary, output, route="guided"):
                 if not window: raise RuntimeError('no X11 window owned by exact game PID')
                 result['window'] = hex(window)
                 desktop.focus(window)
-                pilot = Pilot() if route == "guided" else SandboxWalkPilot()
+                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot}[route]()
                 selector = selectors.DefaultSelector()
                 selector.register(game.stdout,selectors.EVENT_READ)
                 pending = b''
@@ -670,6 +1027,9 @@ def run(binary, output, route="guided"):
     except Exception as error:
         if pilot is not None:
             result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
+            if isinstance(pilot, SandboxPilot):
+                result['partial_sortie'].update(visited=pilot.visited, craft_sorties=pilot.completed,
+                                               last_state=pilot.last_state, deliberate_crash=pilot.crash_receipt)
         result['error'] = f'{type(error).__name__}: {error}'
     finally:
         signal.setitimer(signal.ITIMER_REAL,0)
@@ -719,8 +1079,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk'), default='guided',
-                        help='sandbox-walk covers station traversal only; full Sandbox gate remains open')
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox'), default='guided',
+                        help='sandbox runs the full fleet/crash/reuse route; sandbox-walk covers station traversal only')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))

@@ -26,6 +26,95 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     'tuning_unchanged': True} for index, key in enumerate(sorted(native.SandboxWalkPilot.FLEET))},
                     'doors': [], 'grounded': True, 'walk_mouse': .0025}}
 
+    def full_observation(self):
+        s = self.walk_observation()
+        s.update(transition_busy=False, back=[0, 0, 1], menu_ready=False)
+        s['sandbox']['station_candidate'] = {}
+        for craft in s['sandbox']['fleet'].values():
+            craft.update(position=[0, 1, 0], parked=[0, 1, 0], velocity=[0, 0, 0],
+                         capture_position=[0, 10, -18], back=[0, 0, 1],
+                         boarding=[0, 0, 0], exit=[0, 0, 0],
+                         telemetry={'engine': 'OFFLINE', 'hull': 100}, landed=True,
+                         lease=True, lease_free=False, contract=True, capture=True,
+                         active_ship=False, candidate=False, regeneration_pending=False)
+        return s
+
+    def test_full_route_acknowledges_mouse_before_repeating_sweep(self):
+        pilot = native.SandboxPilot()
+        pilot.stage = 'walk_station'
+        s = self.full_observation()
+        s['player'] = [-8.5, 0, 11]
+        first = pilot.update(s, 1)
+        self.assertNotEqual(first[1], 0)
+        s = dict(s, frame=s['frame']+1)
+        self.assertEqual(pilot.update(s, 1.02)[1], 0)
+        s = dict(s, frame=s['frame']+1)
+        s['walk_forward'] = [.3, 0, -.95]
+        self.assertNotEqual(pilot.update(s, 1.04)[1], 0)
+
+    def test_full_route_boarding_press_does_not_activate_a_station_prompt(self):
+        pilot = native.SandboxPilot()
+        s = self.full_observation()
+        pilot.update(s, 1)
+        pilot.stage = 'craft_approach'
+        pilot.craft_key = 'arrow_provisional'
+        s['sandbox']['fleet'][pilot.craft_key]['candidate'] = True
+        s['sandbox']['station_candidate'] = {'position': [1, 0, 15.5]}
+        keys, dx, *_ = pilot.update(dict(s, frame=101), 1.02)
+        self.assertNotIn('e', keys)
+        self.assertNotEqual(dx, 0)
+        self.assertEqual(pilot.stage, 'craft_approach')
+        s['sandbox']['station_candidate'] = {}
+        keys, *_ = pilot.update(dict(s, frame=102), 1.04)
+        self.assertIn('e', keys)
+        self.assertEqual(pilot.stage, 'craft_board')
+
+    def test_full_route_does_not_exempt_unplanned_recovery_during_a_foot_leg(self):
+        pilot = native.SandboxPilot()
+        s = self.full_observation()
+        pilot.update(s, 1)
+        pilot.stage = 'craft_approach'
+        with self.assertRaisesRegex(AssertionError, 'unplanned control or recovery'):
+            pilot.update(dict(s, frame=101, control_enabled=False, transition_busy=True,
+                              phase='RECOVERING'), 1.02)
+
+    def test_full_route_rejects_replaced_or_cached_active_craft_during_acceptance(self):
+        pilot = native.SandboxPilot()
+        s = self.full_observation()
+        pilot.update(s, 1)
+        pilot.stage = 'craft_shutdown'
+        pilot.craft_key = 'arrow_provisional'
+        with self.assertRaisesRegex(AssertionError, 'same active craft'):
+            pilot.update(dict(s, frame=101), 1.02)
+        s['sandbox']['fleet'][pilot.craft_key].update(active_ship=True, details_current=False)
+        with self.assertRaisesRegex(AssertionError, 'fresh live active-craft'):
+            pilot.update(dict(s, frame=102), 1.04)
+
+    def test_full_route_rejects_teleport_between_ordinary_foot_sublegs(self):
+        pilot = native.SandboxPilot()
+        s = self.full_observation()
+        pilot.update(s, 1)
+        # A distinct full-route leg must not bypass the walk continuity fence.
+        pilot.stage = 'recovery_walk'
+        s['frame'] += 1
+        s['player'] = [100, 0, 15.5]
+        with self.assertRaisesRegex(AssertionError, 'recovery teleport'):
+            pilot.update(s, 1.02)
+
+    def test_full_route_continues_after_fleet_dock_instead_of_claiming_walk_success(self):
+        pilot = native.SandboxPilot()
+        s = self.full_observation()
+        pilot.update(s, 1)
+        pilot.stage = 'return_walk'
+        pilot.index = len(pilot.WAYPOINTS)
+        pilot.craft_key = 'bulwark_heavy_gunship'
+        s['sandbox']['fleet'][pilot.craft_key].update(active_ship=True, details_current=True)
+        pilot.resume_target = pilot.WAYPOINTS[-1][1]
+        pilot.update(dict(s, frame=101), 1.02)
+        self.assertEqual(pilot.stage, 'craft_approach')
+        self.assertEqual(pilot.craft_key, 'cinder_cargo_hauler')
+        self.assertIsNone(pilot.result)
+
     def test_scoped_walk_cannot_claim_full_sandbox_gate(self):
         pilot = native.SandboxWalkPilot()
         pilot.stage = 'walk_station'

@@ -18,6 +18,12 @@ func _run() -> void:
 	var sandbox_args := PackedStringArray(["--native-sortie-observer=sandbox-walk"])
 	_check(StartupLoaderType.native_sortie_request(sandbox_args, "X11", "Dummy", true).accepted,
 		"scoped station walking uses the same explicit private observer admission")
+	var fleet_args := PackedStringArray(["--native-sortie-observer=sandbox"])
+	_check(StartupLoaderType.native_sortie_request(fleet_args, "X11", "Dummy", true).accepted,
+		"full Sandbox observation admits only the same silent private input route")
+	for row: Array in [["headless", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(fleet_args, row[0], row[1], row[2]).accepted,
+			"full Sandbox preserves private display and silent audio admission")
 	_check(not StartupLoaderType.native_sortie_request(sandbox_args, "X11", "Dummy", false).accepted,
 		"station walking cannot enable telemetry on an unowned display")
 	_check(not StartupLoaderType.native_sortie_request(PackedStringArray([

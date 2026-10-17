@@ -11,7 +11,10 @@ var _parked := Transform3D.IDENTITY
 var _tuning := {}
 var _elapsed := 0.0
 var _sandbox := false
+var _full_sandbox := false
 var _fleet_initial := {}
+var _crash_surface := {}
+var _fleet_details := {}
 
 
 func on_startup_completed(main: Node) -> void:
@@ -24,7 +27,8 @@ func on_startup_completed(main: Node) -> void:
 	_spawn = _player.global_position
 	_parked = _ship.global_transform
 	_tuning = _sortie_tuning()
-	_sandbox = "--native-sortie-observer=sandbox-walk" in OS.get_cmdline_args()
+	_full_sandbox = "--native-sortie-observer=sandbox" in OS.get_cmdline_args()
+	_sandbox = "--native-sortie-observer=sandbox-walk" in OS.get_cmdline_args() or "--native-sortie-observer=sandbox" in OS.get_cmdline_args()
 	if _sandbox:
 		for craft: HeroShip in _game.get_flyable_ships():
 			_fleet_initial[str(craft.get_ship_id())] = {
@@ -45,14 +49,17 @@ func _craft_tuning(craft: HeroShip) -> Dictionary:
 		"maximum_speed": craft.maximum_speed, "thrust": craft.thrust_acceleration,
 		"brake": craft.brake_acceleration, "drag": craft.passive_drag,
 		"response": craft.throttle_response, "yaw": craft.yaw_speed_degrees,
-		"assist": craft.flight_assist_strength, "mouse": craft.mouse_sensitivity}
+		"assist": craft.flight_assist_strength, "mouse": craft.mouse_sensitivity,
+		"boost_speed": craft.boost_speed, "boost_multiplier": craft.boost_multiplier,
+		"maximum_hull": craft.maximum_hull, "impact_threshold": craft.impact_damage_threshold,
+		"impact_scale": craft.impact_damage_scale, "impact_cooldown": craft.impact_damage_cooldown}
 
 
 func _physics_process(delta: float) -> void:
 	if _game == null:
 		return
 	_elapsed += delta
-	if _elapsed < 1.0 / 60.0:
+	if _elapsed < 1.0 / (20.0 if _full_sandbox else 60.0):
 		return
 	_elapsed = 0.0
 	var targets: Array = []
@@ -113,17 +120,80 @@ func _sandbox_observation() -> Dictionary:
 		if not _fleet_initial.has(key):
 			continue
 		var initial: Dictionary = _fleet_initial[key]
+		if _full_sandbox and key == "cinder_light_interceptor" and _crash_surface.is_empty():
+			# Observe an existing physical crash surface over the craft's own
+			# soon-vacated pad. The ray excludes only that hull and the avatar.
+			var parked: Vector3 = (initial.pose as Transform3D).origin
+			var ray := PhysicsRayQueryParameters3D.create(parked + Vector3.UP * 220.0,
+				parked - Vector3.UP * 20.0, craft.collision_mask, [craft.get_rid(), _player.get_rid()])
+			var hit := craft.get_world_3d().direct_space_state.intersect_ray(ray)
+			if not hit.is_empty():
+				_crash_surface = {"position": _v(hit.position), "normal": _v(hit.normal),
+					"collider": str((hit.collider as Node).get_path())}
 		var source := craft.get_local_input_source()
+		if not _full_sandbox:
+			fleet[key] = {
+				"ship_id": craft.get_instance_id(), "piloted": craft.is_piloted(),
+				"destroyed": craft.is_destroyed(),
+				"parked_exact": craft.global_transform.is_equal_approx(initial.pose),
+				"default_sampler": source != null and craft.get("_command_source") == source and source.get_input_provider() == null,
+				"tuning_unchanged": _craft_tuning(craft) == initial.tuning,
+			}
+			continue
+		if _fleet_details.has(key) and _game.get_active_ship() != craft:
+			# Inactive, exactly parked hulls need no repeated expensive cockpit
+			# telemetry/capture calculation. Live safety and identity are still
+			# observed; an active sortie always gets a fresh full snapshot.
+			fleet[key] = (_fleet_details[key] as Dictionary).duplicate()
+			fleet[key].merge({"ship_id": craft.get_instance_id(), "piloted": craft.is_piloted(),
+				"active_ship": false, "details_current": false, "destroyed": craft.is_destroyed(),
+				"parked_exact": craft.global_transform.is_equal_approx(initial.pose),
+				"candidate": _game.boarding_candidate == craft,
+				"default_sampler": source != null and craft.get("_command_source") == source and source.get_input_provider() == null,
+				"tuning_unchanged": _craft_tuning(craft) == initial.tuning}, true)
+			continue
+		var berth := _game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+		var capture: Dictionary = _game.world.get_landing_assist_report(craft, craft.get_home_berth_id())
+		var contract := craft.get_landing_contract_report()
+		var telemetry := craft.get_telemetry()
+		var command := craft.get_last_ship_command()
 		fleet[key] = {
 			"ship_id": craft.get_instance_id(), "piloted": craft.is_piloted(),
-			"destroyed": craft.is_destroyed(),
+			"destroyed": craft.is_destroyed(), "active_ship": _game.get_active_ship() == craft, "details_current": true,
 			"parked_exact": craft.global_transform.is_equal_approx(initial.pose),
+			"position": _v(craft.global_position), "parked": _v((initial.pose as Transform3D).origin),
+			"velocity": _v(craft.velocity), "right": _v(craft.global_basis.x),
+			"up": _v(craft.global_basis.y), "back": _v(craft.global_basis.z),
+			"parked_forward": _v(-(initial.pose as Transform3D).basis.z),
+			"camera": _v(craft.get_camera().global_position),
+			"boarding": _v(craft.get_boarding_position()),
+			"walk_offset": _v(craft.get_boarding_position() - _player.get_interaction_origin()),
+			"exit": _v(craft.get_exit_transform().origin),
+			"candidate": _game.boarding_candidate == craft,
+			"landed": telemetry.get("landed"), "telemetry": {
+				"engine": telemetry.get("engine_state"), "hull": telemetry.get("hull")},
+			"landing_active": craft.is_landing_active(), "upright": craft.global_basis.y.dot(Vector3.UP),
+			"capture": bool(capture.get("assist_capture_accepted", false)),
+			"capture_position": _v(berth.get_assist_capture_transform().origin),
+			"departure_lift": berth.get_departure_lift_height(),
+			"contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false)) and contract.get("berth_id", &"") == craft.get_home_berth_id(),
+			"lease": berth.get_occupant() == craft and berth.get_reservation_owner() == craft and berth.get_reserved_ship_id() == craft.get_ship_definition().ship_id,
+			"lease_free": berth.get_occupant() == null and berth.get_reservation_owner() == null,
+			"regeneration_pending": (_game.get("_regeneration_pending") as Dictionary).has(craft.get_instance_id()),
+			"command_throttle": command.throttle if command != null else 0.0,
+			"command_boost": command.boost if command != null else false,
 			"default_sampler": source != null and craft.get("_command_source") == source and source.get_input_provider() == null,
-			"tuning_unchanged": _craft_tuning(craft) == initial.tuning,
+			"tuning_unchanged": _craft_tuning(craft) == initial.tuning, "tuning": initial.tuning,
 		}
+		_fleet_details[key] = fleet[key]
 	var doors: Array = []
 	var door := _game.world.get_node(^"HabitatSpine/MainAccess") as StationDoor
 	doors.append({"position": _v(door.global_position), "open": door.is_open(),
 		"candidate": _game.station_interaction_candidate == door})
-	return {"fleet": fleet, "doors": doors, "grounded": _player.is_on_floor(),
+	var station_candidate := {}
+	if _full_sandbox and is_instance_valid(_game.station_interaction_candidate):
+		station_candidate = {"position": _v(_game.station_interaction_candidate.global_position),
+			"path": str(_game.station_interaction_candidate.get_path())}
+	return {"fleet": fleet, "doors": doors, "station_candidate": station_candidate,
+		"crash_surface": _crash_surface, "grounded": _player.is_on_floor(),
 		"walk_mouse": _player.mouse_sensitivity}
