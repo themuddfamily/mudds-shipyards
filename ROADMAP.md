@@ -119,18 +119,23 @@ assigned alongside it without authorizing runtime edits to shared HUD/GameFlow.
 
 | Priority / task | Status / type | Observable finish | Work budget; checks separately |
 | --- | --- | --- | --- |
-| 1 BROWSER-CANCEL | IN PROGRESS / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
+| 1 BROWSER-CANCEL | DONE on a39e93af4 / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
 | 2 FIRE-RESTART | READY / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
 | 3 RACE-PAGE-RESET | DONE / bounded diagnosis; contract question retained | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
-| 4 NEXT-CHECKPOINT | GATED / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
+| 4 NEXT-CHECKPOINT | IN PROGRESS / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
 
 ### BROWSER-CANCEL — pending Manual Join
 
-Execution: implementation agent `browser_cancel_impl` owns the four declared
-files in `/srv/mudds-work/browser-cancel-20261018/worktree`, based on
-`29a8d9d75`. Root prepares the original-cap focused/live checks; no run until
-the candidate is committed and reviewed. The live fixture uses an owned
-loopback UDP endpoint withholding ENet handshakes. No active desktop is used.
+Result: accepted clean source `a39e93af4e3083d002ad15b8610fe70620f5e983`.
+Cold import, HUD integration33, focus navigation57 and live cancellation59 all
+pass with exit0 and no diagnostics. Actual Xvfb/x11/Dummy actor performs two
+visible Manual Join/ui_accept Cancel cycles, observes inactive/disconnected
+transport and reusable browser, and exits0. Owned loopback endpoint receives
+real handshake traffic. Source/index/cache/engine guards pass; all15 observed
+owned process identities and display:99 close. Raw commands/receipts/results:
+`/srv/mudds-work/browser-cancel-20261018/results/focused/`.
+This delivers pending-connection cancellation; reconnect/migration/native-device
+qualification remains open. NEXT-CHECKPOINT now exports this exact clean source.
 
 - **Parent/result:** [NET-BROWSER](docs/ROADMAP_BACKLOG.md#multiplayer).
   While Manual Join is connecting, the browser presents a focusable
@@ -254,7 +259,8 @@ fresh-process runtime qualification. Exact trace is in delivery history.
 - **Parents/result:** [PACKAGE-WIN / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
   Publish paired playable packages exposing BROWSER-CANCEL and any separately
   accepted runtime fix. This is release work, not a second gameplay outcome.
-- **Dependency/owner:** root; GATED until a clean integrated runtime commit and
+- **Dependency/owner:** root; now ungated by accepted a39e93af4, exporting that clean commit.
+  Requires a clean integrated runtime commit and
   its focused checks pass. FIRE-RESTART/RACE-PAGE-RESET do not block a passing UI
   change merely because their independent qualification/diagnosis is unfinished.
 - **Boundary/proof:** existing safe export scripts; Windows EXE/ZIP/notes in

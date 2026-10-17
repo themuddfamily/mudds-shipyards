@@ -34,6 +34,16 @@ extends SceneTree
 ## after it finishes, guest completion20s then host completion30s. No wider D3 timeout.
 
 
+## BROWSER-CANCEL mode uses the same isolated invocation and suite_process.py
+## --timeout 300 ownership as D3, replacing its mode with --live-menu-cancel.
+## One private Xvfb/x11/Dummy Main actor uses ordinary ui_accept for Manual Join
+## and Cancel Connection twice. The coordinator holds a loopback UDP socket open
+## without replying to ENet handshakes. Original Main60s/UI5s/actor100s/cleanup10s
+## limits and coordinator230s work deadline remain; no external host is needed.
+## Success: GAME_FLOW_LIVE_MENU_CANCEL_TEST_OK, cancel.reusable attempts=2 and
+## cancelled=2, plus zero actual actor exit and reaped actor/wrapper/display.
+
+
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const SessionType := preload("res://scripts/network/network_enet_session_adapter.gd")
 
@@ -57,7 +67,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args():
+	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args() or "--live-menu-cancel" in OS.get_cmdline_user_args():
 		await _live_run()
 		return
 	var flow := GameFlowType.new()
@@ -134,11 +144,14 @@ var _live_game: GameFlow
 var _live_peers: Dictionary = {}
 var _live_deadline := 0
 var _live_two_guests := false
+var _live_cancel := false
+var _live_pending_endpoint: PacketPeerUDP
 
 
 func _live_run() -> void:
 	var args := OS.get_cmdline_user_args()
 	_live_two_guests = "--live-menu-two-guests" in args
+	_live_cancel = "--live-menu-cancel" in args
 	var peer_index := args.find("--live-peer")
 	if peer_index >= 0 and peer_index + 3 < args.size():
 		_live_role = args[peer_index + 1]
@@ -155,28 +168,32 @@ func _live_run() -> void:
 		_live_finish()
 		return
 	DirAccess.make_dir_recursive_absolute(_live_directory)
-	_live_port = 26000 + OS.get_process_id() % 15000
-	_live_peers.host = _live_spawn("host")
-	_check(int(_live_peers.host) > 0, "independent Main host wrapper starts")
-	var reached := int(_live_peers.host) > 0 and await _live_wait_file("host.main_ready", 60.0)
-	if reached:
-		reached = await _live_wait_file("host.ready", 15.0)
-	if reached:
-		_live_peers.guest = _live_spawn("guest")
-		_check(int(_live_peers.guest) > 0, "independent Main guest wrapper starts")
-		reached = int(_live_peers.guest) > 0 and await _live_wait_file("guest.main_ready", 60.0)
-	if reached and _live_two_guests:
-		reached = await _live_boundary(func(): return FileAccess.file_exists(_live_directory.path_join("host.admitted")) and FileAccess.file_exists(_live_directory.path_join("guest.admitted")), 50.0, "first guest admission is acknowledged by both independent peers before guest2 starts")
+	var reached := false
+	if _live_cancel:
+		reached = await _live_cancel_coordinator()
+	else:
+		_live_port = 26000 + OS.get_process_id() % 15000
+		_live_peers.host = _live_spawn("host")
+		_check(int(_live_peers.host) > 0, "independent Main host wrapper starts")
+		reached = int(_live_peers.host) > 0 and await _live_wait_file("host.main_ready", 60.0)
 		if reached:
-			_live_peers.guest2 = _live_spawn("guest2")
-			_check(int(_live_peers.guest2) > 0, "second independent Main guest wrapper starts after first admission")
-			reached = int(_live_peers.guest2) > 0 and await _live_wait_file("guest2.main_ready", 60.0)
+			reached = await _live_wait_file("host.ready", 15.0)
 		if reached:
-			reached = await _live_wait_file("guest2.done", 100.0)
-	if reached:
-		reached = await _live_wait_file("guest.done", 20.0 if _live_two_guests else 100.0)
-	if reached:
-		reached = await _live_wait_file("host.done", 30.0)
+			_live_peers.guest = _live_spawn("guest")
+			_check(int(_live_peers.guest) > 0, "independent Main guest wrapper starts")
+			reached = int(_live_peers.guest) > 0 and await _live_wait_file("guest.main_ready", 60.0)
+		if reached and _live_two_guests:
+			reached = await _live_boundary(func(): return FileAccess.file_exists(_live_directory.path_join("host.admitted")) and FileAccess.file_exists(_live_directory.path_join("guest.admitted")), 50.0, "first guest admission is acknowledged by both independent peers before guest2 starts")
+			if reached:
+				_live_peers.guest2 = _live_spawn("guest2")
+				_check(int(_live_peers.guest2) > 0, "second independent Main guest wrapper starts after first admission")
+				reached = int(_live_peers.guest2) > 0 and await _live_wait_file("guest2.main_ready", 60.0)
+			if reached:
+				reached = await _live_wait_file("guest2.done", 100.0)
+		if reached:
+			reached = await _live_wait_file("guest.done", 20.0 if _live_two_guests else 100.0)
+		if reached:
+			reached = await _live_wait_file("host.done", 30.0)
 	if not reached:
 		_live_write("abort", {"reason": "first_failed_boundary"})
 	for role: String in _live_peers:
@@ -195,7 +212,7 @@ func _live_run() -> void:
 		_check(wrapper_gone, role + " xvfb-run wrapper and owned display close")
 		if not wrapper_gone and wrapper > 0:
 			OS.kill(wrapper)
-	if _failures.is_empty():
+	if _failures.is_empty() and not _live_cancel:
 		var host := _live_read("host.admitted")
 		var guest := _live_read("guest.admitted")
 		_check(int(host.get("pid", 0)) != int(guest.get("pid", 0)), "host and guest are distinct actual Main processes")
@@ -207,7 +224,94 @@ func _live_run() -> void:
 		else:
 			_check(counts.size() == 3 and counts[0] == 0 and counts[1] == 1 and counts[2] == 0,
 				"real host guest counts reconcile 0 → 1 → 0")
+	if _live_pending_endpoint != null:
+		_live_pending_endpoint.close()
 	_live_finish()
+
+
+func _live_cancel_coordinator() -> bool:
+	# An owned loopback UDP endpoint accepts datagrams but never answers ENet's
+	# handshake. No external address, admission race or transport override.
+	_live_pending_endpoint = PacketPeerUDP.new()
+	var error := _live_pending_endpoint.bind(0, "127.0.0.1")
+	_check(error == OK, "coordinator owns non-admitting loopback endpoint")
+	if error != OK:
+		return false
+	_live_port = _live_pending_endpoint.get_local_port()
+	_live_write("endpoint.ready", {"pid": OS.get_process_id(), "port": _live_port})
+	_live_peers.cancel = _live_spawn("cancel")
+	_check(int(_live_peers.cancel) > 0, "independent cancellation Main wrapper starts")
+	if int(_live_peers.cancel) <= 0 or not await _live_wait_file("cancel.main_ready", 60.0) or not await _live_wait_file("cancel.done", 100.0):
+		return false
+	var received := _live_pending_endpoint.get_available_packet_count() > 0
+	_check(received, "owned non-admitting endpoint receives the real Manual Join handshake")
+	return received
+
+
+func _live_cancel_guest() -> void:
+	if not await _live_button("IntroServerBrowserButton"):
+		return
+	var hud := _live_game.hud as GameHUD
+	var address := hud.get("_server_browser_address") as LineEdit
+	var port := hud.get("_server_browser_port") as LineEdit
+	var player_name := hud.get("_server_browser_player_name") as LineEdit
+	address.text = "127.0.0.1"
+	port.text = str(_live_port)
+	player_name.text = "Cancel Probe"
+	var offline := hud.find_child("ServerBrowserDisconnectButton", true, false) as Button
+	_check(offline != null and offline.is_visible_in_tree() and offline.disabled,
+		"visible offline browser action starts disabled")
+	if not _failures.is_empty():
+		return
+	for attempt in [1, 2]:
+		if not await _live_button("ServerBrowserManualJoinButton"):
+			return
+		if not await _live_boundary(_live_pending_join, 5.0, "visible Manual Join starts pending attempt %d" % attempt):
+			return
+		_live_write("cancel.pending%d" % attempt, {"port": _live_port, "active": true, "state": "connecting"})
+		var cancel := hud.find_child("ServerBrowserDisconnectButton", true, false) as Button
+		var manual := hud.find_child("ServerBrowserManualJoinButton", true, false) as Button
+		var back := hud.find_child("ServerBrowserBackButton", true, false) as Button
+		var available := cancel != null and cancel.is_visible_in_tree() and not cancel.disabled and cancel.text == "CANCEL CONNECTION" and cancel.focus_mode == Control.FOCUS_ALL and manual.focus_neighbor_right == manual.get_path_to(cancel) and cancel.focus_neighbor_right == cancel.get_path_to(back)
+		_check(available, "pending browser exposes focusable Cancel Connection in controller graph")
+		if not available:
+			return
+		cancel.grab_focus()
+		await process_frame
+		if attempt == 1:
+			var card := hud.apply_first_sortie_tutorial_snapshot({"step_id": &"board", "generation": 500, "revision": 1})
+			_check(card and cancel.is_visible_in_tree() and not cancel.disabled and root.gui_get_focus_owner() == cancel,
+				"newer tutorial leaves browser Cancel Connection visible and focused")
+			if not _failures.is_empty():
+				return
+		if not await _live_activate(cancel):
+			return
+		if not await _live_boundary(_live_cancelled_join, 5.0, "ui_accept Cancel closes transport and presents disconnected"):
+			return
+		_check(cancel.disabled and cancel.focus_mode == Control.FOCUS_NONE and root.gui_get_focus_owner() == back,
+			"cancel completion restores browser focus to Back")
+		if not _failures.is_empty():
+			return
+		_live_write("cancel.cancelled%d" % attempt, {"active": false, "state": "disconnected"})
+		if not await _live_button("ServerBrowserRefreshButton") or not await _live_button("ServerBrowserBackButton") or not await _live_button("IntroServerBrowserButton"):
+			return
+		_check(address.text == "127.0.0.1" and port.text == str(_live_port),
+			"browser remains usable and retains Manual Join endpoint after cancellation")
+		if not _failures.is_empty():
+			return
+	_live_write("cancel.reusable", {"attempts": 2, "cancelled": 2})
+
+
+func _live_pending_join() -> bool:
+	var session := _live_game.network_session
+	var snapshot: Dictionary = _live_game.hud.get("_network_status_presenter").get_snapshot()
+	return is_instance_valid(session) and session.is_session_active() and session.get_server_offer().is_empty() and snapshot.get("state", &"") == &"connecting"
+
+
+func _live_cancelled_join() -> bool:
+	var session := _live_game.network_session
+	var snapshot: Dictionary = _live_game.hud.get("_network_status_presenter").get_snapshot()
+	return is_instance_valid(session) and not session.is_session_active() and session.get_server_offer().is_empty() and session.get_admitted_peer_ids().is_empty() and snapshot.get("state", &"") == &"disconnected"
 
 
 func _live_check_two_guest_receipts(host: Dictionary, guest: Dictionary, counts: Array) -> void:
@@ -228,7 +332,7 @@ func _live_spawn(role: String) -> int:
 		DirAccess.make_dir_recursive_absolute(profile.path_join(folder))
 		_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile.path_join(folder)])) == 0, "private profile directory permissions: " + folder)
 	_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile])) == 0, "private peer profile root permissions")
-	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-two-guests" if _live_two_guests else "--live-menu-one-guest", "--live-peer", role, _live_directory, str(_live_port)])
+	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-cancel" if _live_cancel else ("--live-menu-two-guests" if _live_two_guests else "--live-menu-one-guest"), "--live-peer", role, _live_directory, str(_live_port)])
 	# Positional argv protects path text from shell evaluation. The shell waits
 	# for the actual Godot child; a .done receipt is never treated as OS exit.
 	var command := 'trap \'kill "$child" 2>/dev/null; wait "$child"; exit 143\' TERM INT HUP; /usr/bin/env -i DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "$@" > "$0.log" 2>&1 & child=$!; printf "%s" "$child" > "$0.pid"; wait "$child"; status=$?; printf "%s" "$status" > "$0.exit"; exit "$status"'
@@ -253,11 +357,13 @@ func _live_actor() -> void:
 	_live_write(_live_role + ".main_ready", {"pid": OS.get_process_id()})
 	_check(_live_game.hud is GameHUD and _live_game.get_node_or_null("Player") is PlayerController, "actual Main owns real HUD and player")
 	if _failures.is_empty():
-		if _live_role == "host":
+		if _live_cancel:
+			await _live_cancel_guest()
+		elif _live_role == "host":
 			await _live_host()
 		else:
 			await _live_guest()
-	if _live_two_guests and not _failures.is_empty():
+	if (_live_two_guests or _live_cancel) and not _failures.is_empty():
 		_live_write("abort", {"reason": "first_failed_boundary", "role": _live_role})
 	# Cleanup is independent of menu success, focus, pause state or input capture.
 	var release := InputEventAction.new()
@@ -572,7 +678,7 @@ func _live_wait_file(name: String, seconds: float) -> bool:
 		if FileAccess.file_exists(_live_directory.path_join(name)):
 			return true
 		# A finished peer cannot reach a later gameplay boundary.
-		for role in (["host", "guest", "guest2"] if _live_two_guests else ["host", "guest"]):
+		for role in (["cancel"] if _live_cancel else (["host", "guest", "guest2"] if _live_two_guests else ["host", "guest"])):
 			if name.begins_with(role + ".") and name != role + ".done" and FileAccess.file_exists(_live_directory.path_join(role + ".done")):
 				return true
 		return false, seconds)
@@ -618,7 +724,7 @@ func _live_finish() -> void:
 	for failure in _failures:
 		push_error(failure)
 	print("LIVE_MENU_ARTIFACTS: ", _live_directory)
-	var label := "GAME_FLOW_LIVE_MENU_TWO_GUESTS" if _live_two_guests else "GAME_FLOW_LIVE_MENU_ONE_GUEST"
+	var label := "GAME_FLOW_LIVE_MENU_CANCEL" if _live_cancel else ("GAME_FLOW_LIVE_MENU_TWO_GUESTS" if _live_two_guests else "GAME_FLOW_LIVE_MENU_ONE_GUEST")
 	print(label + ": %d assertions, %d failures" % [_assertions, _failures.size()])
 	if _failures.is_empty() and _live_role == "coordinator":
 		print(label + "_TEST_OK")

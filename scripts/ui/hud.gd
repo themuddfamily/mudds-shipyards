@@ -7213,15 +7213,17 @@ func _configure_server_browser_focus_order(
 func _update_server_browser_disconnect() -> void:
 	if not is_instance_valid(_server_browser_disconnect):
 		return
-	var connected: bool = _network_status_presenter.get_snapshot().get("state", &"") == &"connected"
+	var session_action := _server_browser_session_action(_network_status_presenter.get_snapshot())
+	var available := not session_action.is_empty()
+	_server_browser_disconnect.text = str(session_action.get("label", "Disconnect")).to_upper()
 	var had_focus := _server_browser_disconnect.has_focus()
-	_server_browser_disconnect.disabled = not connected
-	_server_browser_disconnect.focus_mode = Control.FOCUS_ALL if connected else Control.FOCUS_NONE
+	_server_browser_disconnect.disabled = not available
+	_server_browser_disconnect.focus_mode = Control.FOCUS_ALL if available else Control.FOCUS_NONE
 	var manual := _server_browser_actions.get_node("ServerBrowserManualJoinButton") as Button
 	var back := _server_browser_actions.get_node("ServerBrowserBackButton") as Button
-	var next := _server_browser_disconnect if connected else back
+	var next := _server_browser_disconnect if available else back
 	manual.focus_neighbor_bottom = manual.get_path_to(next)
-	back.focus_neighbor_top = back.get_path_to(_server_browser_disconnect if connected else manual)
+	back.focus_neighbor_top = back.get_path_to(_server_browser_disconnect if available else manual)
 	_server_browser_disconnect.focus_neighbor_top = _server_browser_disconnect.get_path_to(manual)
 	_server_browser_disconnect.focus_neighbor_bottom = _server_browser_disconnect.get_path_to(back)
 	var action_order: Array[Control] = [
@@ -7229,14 +7231,14 @@ func _update_server_browser_disconnect() -> void:
 		_server_browser_actions.get_node("ServerBrowserHostButton") as Control,
 		manual,
 	]
-	if connected:
+	if available:
 		action_order.append(_server_browser_disconnect)
 	action_order.append(back)
 	for index in action_order.size():
 		var action := action_order[index]
 		action.focus_neighbor_left = action.get_path_to(action_order[maxi(0, index - 1)])
 		action.focus_neighbor_right = action.get_path_to(action_order[mini(action_order.size() - 1, index + 1)])
-	if not connected:
+	if not available:
 		if _server_browser_focus_target == _server_browser_disconnect:
 			_server_browser_focus_target = back
 		if had_focus and back.is_visible_in_tree():
@@ -7245,8 +7247,16 @@ func _update_server_browser_disconnect() -> void:
 
 func _request_server_browser_disconnect() -> void:
 	var presentation := _network_status_presenter.get_snapshot()
-	if presentation.get("state", &"") == &"connected":
-		presentation_intent_requested.emit(&"network", {"action": &"disconnect", "snapshot": presentation})
+	var action := _server_browser_session_action(presentation)
+	if not action.is_empty():
+		presentation_intent_requested.emit(&"network", {"action": action.id, "snapshot": presentation})
+
+
+func _server_browser_session_action(presentation: Dictionary) -> Dictionary:
+	for action: Dictionary in presentation.get("actions", []):
+		if action.get("id", &"") in [&"cancel", &"disconnect"] and bool(action.get("focusable", false)):
+			return action
+	return {}
 
 
 func _show_server_browser_page() -> void:

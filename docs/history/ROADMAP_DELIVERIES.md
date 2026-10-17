@@ -2230,3 +2230,31 @@ scope. No engine/test invocation, code change, probe, new scratch or checkpoint;
 no fresh-Main runtime qualification claimed. Do not schedule speculative owner
 unification. Browser cancellation continues independently. This closes diagnosis,
 not ACT-HUD's broad runtime acceptance or any phase gate.
+
+## Browser pending connection cancellation — source DONE, checkpoint in progress
+
+Accepted clean source `a39e93af4e3083d002ad15b8610fe70620f5e983` changes the
+browser session button to derive available cancel/disconnect label and intent
+from the retained network presenter snapshot. Pending Manual Join can be
+cancelled from ordinary browser controls; connected Disconnect, offline disable,
+focus restoration and visibility under a newer tutorial card remain covered.
+Four owned files only: HUD and its existing HUD/focus/live-coordinator tests.
+
+One cold import exits0. Existing HUD integration33 and focus navigation57 pass;
+new isolated live mode `--live-menu-cancel` completes59 coordinator assertions,
+exit0 and exactly one GAME_FLOW_LIVE_MENU_CANCEL_TEST_OK. A real Main actor uses
+visible Manual Join and ui_accept Cancel twice, observes inactive/disconnected
+transport, retains its endpoint and navigates browser Refresh/Back/reopen before
+reusing it. Coordinator owns a non-admitting loopback UDP endpoint and observes
+real handshake datagrams, then closes it. Both actual actor/wrapper exits and
+receipts pass. This is one production UI operation, not capacity/endurance or
+reconnect/migration qualification.
+
+All original limits remain: import600s setup, three suites300s each, existing
+Main/UI/actor/coordinator/cleanup limits unchanged. Frozen source/index/cache/
+engine checks pass; helper exits0 after full closure. All15 observed process
+identities, private display:99 and owned socket/authority paths close. No desktop
+focus, audible output, native Windows or hosted CI. Independent prelaunch review
+GO. Exact commands/environment snapshots, results and receipts retained under
+`/srv/mudds-work/browser-cancel-20261018/results/focused/`.
+Paired checkpoint is next; no new package acceptance claimed yet.
