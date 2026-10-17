@@ -119,12 +119,18 @@ assigned alongside it without authorizing runtime edits to shared HUD/GameFlow.
 
 | Priority / task | Status / type | Observable finish | Work budget; checks separately |
 | --- | --- | --- | --- |
-| 1 BROWSER-CANCEL | READY / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
+| 1 BROWSER-CANCEL | IN PROGRESS / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
 | 2 FIRE-RESTART | READY / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
-| 3 RACE-PAGE-RESET | READY / bounded diagnosis | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
+| 3 RACE-PAGE-RESET | IN PROGRESS / bounded diagnosis | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
 | 4 NEXT-CHECKPOINT | GATED / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
 
 ### BROWSER-CANCEL — pending Manual Join
+
+Execution: implementation agent `browser_cancel_impl` owns the four declared
+files in `/srv/mudds-work/browser-cancel-20261018/worktree`, based on
+`29a8d9d75`. Root prepares the original-cap focused/live checks; no run until
+the candidate is committed and reviewed. The live fixture uses an owned
+loopback UDP endpoint withholding ENet handshakes. No active desktop is used.
 
 - **Parent/result:** [NET-BROWSER](docs/ROADMAP_BACKLOG.md#multiplayer).
   While Manual Join is connecting, the browser presents a focusable
@@ -203,6 +209,10 @@ assigned alongside it without authorizing runtime edits to shared HUD/GameFlow.
   required for a test-only pass; a runtime repair requires NEXT-CHECKPOINT.
 
 ### RACE-PAGE-RESET — reconcile one ordinary route
+
+Execution: `roadmap_activity_card` traces the two reset paths read-only, in
+parallel with the UI implementation. It must report its one hypothesis and
+exact command before any probe so root can coordinate isolated runtime lanes.
 
 - **Parent/result:** [ACT-HUD](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys),
   Race only. This is diagnosis: establish whether completed/paid race → Cinder
