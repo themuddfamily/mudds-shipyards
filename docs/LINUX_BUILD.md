@@ -4,14 +4,30 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest paired gameplay checkpoint: `b6af78202` — 2026-10-17
+## Latest Linux package: `4141d94dd` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-4141d94.x86_64),
+[archive](../builds/linux/MuddsShipyards-4141d94-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-4141d94-linux-notes.txt) ship the interrupted
+update recovery repair from clean source `4141d94ddf01317062886e1becd2c67d1048af40`.
+The actual shipped manager passes20 package checks: old-version install,
+SIGKILL at desktop-published/manifest-pending, fresh ordinary retry, uninstall
+and repeated uninstall, preserving settings/saves/unrelated files and exact
+owned bytes/modes. Direct and archive-extracted startup each exit0 with exactly
+one `STARTUP_MENU_READY_OK` and zero diagnostics. Source/cache/process guards
+pass; disposable checkout removed. Source installer10/export23 tests also pass.
+This Linux packaging delivery has no new paired Windows build; latest pair is
+b6af782. Whole-game matrix, full packaged journeys, interrupted initial install/
+uninstall, power loss and graphical/native/device/audio gates remain unqualified.
+
+## Earlier paired gameplay checkpoint: `b6af78202` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-b6af782.x86_64),
 [archive](../builds/linux/MuddsShipyards-b6af782-linux-x86_64.tar.gz) and
 [notes](../builds/linux/MuddsShipyards-b6af782-linux-notes.txt) include the stable
 server-browser Disconnect button. Source and actual Windows-payload focused
 checks each pass262 assertions; three strict startups pass. The Linux manager
-repair below is newer source work and is **not included in this archive**.
+repair is newer work shipped in4141d94 and is **not included in this archive**.
 
 ## Earlier guest-count checkpoint: `f676c5016` — 2026-10-17
 
@@ -440,7 +456,7 @@ both files are complete; a small ownership manifest records their paths and
 hashes. A normal publication error restores the previous launcher and removes
 the failed generation.
 
-The newer repository manager also records a pending update before switching
+The manager shipped in4141d94 also records a pending update before switching
 the launcher. If that update is forcibly terminated after the launcher switches
 but before its manifest is published, rerun the ordinary `install` command
 using the newer manager. It verifies both owned payloads, the manifest and exact
@@ -448,7 +464,7 @@ launcher before restoring the previous consistent installation and installing
 the requested archive. Modified payloads, an edited launcher or invalid recovery
 data cause refusal without mutation. Saves and unrelated files are preserved.
 This boundary passes an actual SIGKILL and distinct-process CLI retry in the
-filesystem suite; delivery in a new archive is still pending. Older shipped
+filesystem suite and the actual4141d94 archive's shipped script. Older shipped
 scripts do not acquire this repair automatically. A kill during subsequent
 cleanup can leave an unused generation. Initial-install/uninstall interruption
 and power-loss durability remain unqualified.

@@ -8,10 +8,10 @@ open.** This file contains the active delivery only. The
 [Completed deliveries](docs/history/ROADMAP_DELIVERIES.md) retain their recorded
 source, checks, failures and limitations. Moving them does not close requirements.
 
-Latest playable: **b6af782**, with [Windows build notes](builds/windows/MuddsShipyards-b6af782-notes.txt)
-and [Linux build notes](builds/linux/MuddsShipyards-b6af782-linux-notes.txt).
-The browser Disconnect improvement is playable there. Later benchmark/test-only
-changes do not require a new gameplay checkpoint. Current full matrix: NOT_RUN;
+Latest Windows checkpoint: **b6af782**, with [notes](builds/windows/MuddsShipyards-b6af782-notes.txt).
+Latest Linux package: **4141d94**, with [notes](builds/linux/MuddsShipyards-4141d94-linux-notes.txt),
+including interrupted-update recovery. The last paired gameplay checkpoint is
+b6af782, including the browser Disconnect improvement. Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
 replace it. Native Windows execution and human review remain owner-excluded
 mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
@@ -75,44 +75,41 @@ Package, ABANDON, repeat/shared, hardware and full phase gates stay open.
 Previous [HULK interior walk](docs/history/ROADMAP_DELIVERIES.md#hulk--continuous-interior-traversal-done-on9cffc99a2)
 also remains source-specific; flight/docking/fringe-rebase setup there is staged.
 
-## Current delivery: INSTALL-LINUX[interrupted update publication]
+**Linux interrupted-update recovery shipped on4141d94:** actual shipped-script
+SIGKILL/fresh retry and protected-file checks pass20; direct/archive strict
+startup both pass. [Result and limits](docs/history/ROADMAP_DELIVERIES.md#linux-interrupted-update-recovery--shipped-on-4141d94dd).
+Clean export checkout and duplicate extracted ELF removed. No new Windows build.
 
-**Player result:** an update killed after publishing its desktop entry can be
-retried normally, without leaving the installer stuck or damaging saves.
-Parent: [installation/update recovery](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
-Boundary: `tools/release/install_linux_desktop.py`, its existing consolidated
-test and Linux build documentation. Initial-install/uninstall interruption,
-power loss and graphical launch remain separate. No new game behavior or
-Windows gameplay checkpoint is implied by this Linux manager repair.
-Source repair integrated on `d3259aa21`, independently reviewed by root.
-Filesystem-only source checks completed during Ember's run; Ember is now closed.
+## Next delivery: PERF-ROUTE[Aurora coastal walking]
 
-| Task | Proof / stopping condition | State / budget |
+**One result:** the existing production benchmark runner can select a physical
+Aurora coastal walk. Parent: original performance surface-route coverage in the
+[backlog](docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
+This is an executable benchmark capability, not native performance acceptance.
+**Boundary:** existing `tools/performance/benchmark_runner.gd`,
+`run_native_windows_benchmark.ps1` selection allowlist, consolidated runner/record
+checks and `docs/PERFORMANCE_BENCHMARK_RUNNER.md`. Reuse the authored coastal
+points/frame handling in `tests/aurora_visit_loop_test.gd`; use actual Main-owned
+Aurora terrain and held movement. Disclose initial benchmark staging; no actor
+placement during sampled walking. No production gameplay/gravity/physics changes, canonical
+flight/reward/save qualification, new schemas or validator families.
+**Owner:** root integrates one bounded implementation agent. Base f863725f6;
+freeze the implementation commit before engine checks. No engine is active now.
+
+| Task | Exact finish line / stopping condition | State / estimate |
 | --- | --- | --- |
-| LINUX-UPDATE-REPRO | Actual child killed/reaped -9 at desktop-published/manifest-pending cut; distinct CLI retry exits1 with exact launcher mismatch. Raw original failure retained. | DONE; no widened diagnosis |
-| LINUX-UPDATE-FIX | Production recovery record allows fresh CLI retry, including a newer third archive, with consistent desktop/manifest/hashes and protected files retained. Ten installer tests pass, no skips; existing bundle integration passes; root runs all23 existing Linux export unit tests successfully. Refusal/normal rollback behavior retained. | DONE on d3259aa21; filesystem checks under5s each |
-| LINUX-UPDATE-SHIP | Existing updated manager must ship byte-for-byte in fresh clean Linux archive; actual shipped-script update/kill/retry/uninstall preserves protected files; strict startup exit0/`STARTUP_MENU_READY_OK`. Record hashes/limits, commit/push, remove disposable checkout. | IN PROGRESS; root; cold import launched; allow30 min for package/checks, reassess at boundary |
+| AURORA-WALK-IMPLEMENT | Add select-only `aurora_surface_walk_route` through existing runner, reset fresh local route targets across origin changes, preserve original two-route default. Own only the named runner/allowlist/test/docs seams. | READY; implementation60–90 min maximum |
+| AURORA-WALK-VERIFY | Existing `tests/performance_benchmark_runner_test.gd`, headless/Dummy, original300s cap: original default, combat and Ember selections retain acceptance; new selected smoke proves positive sampled physical path, real terrain support, endpoint completion, JSON round-trip and abort/input cleanup. Existing Python record checks pass; no timing/quality/schema relaxation. | GATED; checks5–10 min separately |
+| AURORA-WALK-CLOSE | Record actual source/result/limits, commit/push and remove clean disposable checkout. Keep full3600-frame/60s warmup and18000-frame/600s sample floors, selected smoke performance acceptance false/null; native hardware remains NOT_RUN. | GATED; 10 min |
 
-Source/miniature-bundle acceptance does not qualify the shipped archive.
-Journal retirement precedes cleanup: a later kill can leave an unused generation.
-Package preparation is pinned to `4141d94ddf01317062886e1becd2c67d1048af40`
-at `/srv/mudds-work/linux-update-package-20261017`; clean export dry run passes.
-Pinned engine/template and private profile are prepared under
-`/srv/mudds-work/linux-update-package-results-20261017/`. Driver
-PID355194/start107319076 is launched with its prepared private environment;
-follow the live stage owner in `active-owner.json`, verifying actual `/proc`
-start ticks before waiting. The reviewed sequence uses existing cold import/export/startup
-commands and `check_shipped_manager.py`, which reuses the consolidated SIGKILL
-helper against the actual shipped script/archives. All prepared scripts pass
-static syntax review. Next: inspect the same cold-import result, then subsequent
-gated stages; actual export/archive/startup acceptance remains pending. Abort:
-`python3 /srv/mudds-work/linux-update-package-results-20261017/abort.py`.
-Any failure ends that task with its actual result and a named follow-up. The
-Aurora benchmark candidate stays unscheduled while this production gap is open.
+**Next single action:** assign the runner extension in one clean owned worktree,
+using the existing Ember selected-route seam and Aurora's existing authored
+coastal walking route. Stop at the first staging/support failure and name one
+bounded follow-up; do not turn it into an open-ended planetary investigation.
 
 All ten phase gates remain open. Q4 startup stays parked after the bounded
 five-file source review found no justified construction candidate. Latest
-playable remains b6af782; definition/qualification alone needs no new build.
+paired gameplay checkpoint remains b6af782; Linux manager package is4141d94.
 
 ## Working constraints
 

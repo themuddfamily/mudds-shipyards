@@ -4,6 +4,40 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Linux interrupted-update recovery — shipped on 4141d94dd
+
+Source repair `d3259aa21` ships from clean
+`4141d94ddf01317062886e1becd2c67d1048af40`, pinned Godot4.7.1/Linux template.
+Actual shipped manager passes20 checks: install b6af782, kill/reap update
+exit-9 at desktop-published/manifest-pending, ordinary fresh CLI retry exit0,
+uninstall/repeated uninstall exit0. Exact owned bytes/modes, six archive members,
+manager/source identity, recovery manifest/launcher and protected settings,
+saves/unrelated files verify. Source installer10/export23 tests also pass.
+Direct/archive native ELF startup each exits0 with exactly one menu-ready
+sentinel and zero diagnostics. These are headless/Dummy startup checks.
+
+All11,873 tracked hashes/index/engine remain unchanged. Cold import320 files;
+export generates/updates208 editor/export-cache files only; all527 resulting
+cache files stay unchanged through subsequent checks. Root verifies current
+source/cache bytes and all53 captured process identities absent, free lanes
+and closure reports with no remnants. Initial publication-review assumption
+about the editor root-notice flag was corrected after inspecting the existing
+native startup wrapper's clean environment; no engine/test/export was rerun.
+Raw details: `/srv/mudds-work/linux-update-package-results-20261017/`.
+
+Verified ELF148,802,416 bytes and archive95,218,365 bytes copied into
+`builds/linux/`; [player changes, hashes and actual validation](../../builds/linux/MuddsShipyards-4141d94-linux-notes.txt).
+ELF SHA256 `cb46cc17227043b04e6842cb3444d98424336fa3d33b10b5163d9c8861ec4d64`;
+archive SHA256 `54b60e054dffc792a5f93644a1a08679e890306d1b763a52dcba580c5a7f1f34`.
+Clean export checkout and duplicate extracted ELF removed; unique raw results,
+shipped script and protected-file sentinels retained. Latest paired gameplay
+checkpoint remains b6af782. Full packaged journeys/current matrix, initial-
+install/uninstall interruption, power loss and graphical/native/device/audio
+qualification remain open. A kill during later cleanup may leave an unused
+generation. Export-time metadata stays immutable with its build-time NOT_RUN;
+completed startup results are in notes/raw records. This closes only the named
+update publication/retry delivery, not a platform or phase gate.
+
 ## Ember — canonical completed source journey DONE on bf452ed868
 
 Pinned source `bf452ed8689e51379e0621299378ea29a7b111e7`, Godot4.7.1:
