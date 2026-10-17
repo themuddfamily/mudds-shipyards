@@ -7,6 +7,7 @@ Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
 Use --route hulk-breaker to continue that arrival through the interior breaker.
 Use --route hulk-home to carry that earned cell back to a supported yard exit.
+Use --route hulk-revisit to revisit a newly streamed HULK and refuse a second cell.
 The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -1215,6 +1216,444 @@ class HulkHomePilot(HulkBreakerPilot):
         return keys, dx, dy, False
 
 
+class HulkRevisitPilot(HulkHomePilot):
+    """Preserve the complete home prefix, then make one ordinary new-generation visit."""
+    MARKER = 'NATIVE_HULK_REVISIT_OK'
+    CLEARANCE = [-11, -.02, -9.25]
+
+    def __init__(self):
+        super().__init__()
+        self.home_result = None
+        self.revisit_previous = None
+        self.revisit_clearance = None
+        self.revisit_board_press = None
+        self.revisit_boarded = None
+        self.revisit_departure = None
+        self.revisit_lift_seen = False
+        self.revisit_departure_complete = None
+        self.revisit_reload = None
+        self.revisit_ids = None
+        self.revisit_leg_ready = None
+        self.revisit_legs = []
+        self.revisit_braking = False
+        self.revisit_header_samples = []
+        self.revisit_header_crossing = None
+        self.revisit_landing_seen = False
+        self.revisit_arrival = None
+        self.revisit_exit = None
+        self.revisit_route = None
+        self.revisit_visited = []
+        self.revisit_walked = 0
+        self.revisit_support = set()
+        self.revisit_max_step = 0
+        self.revisit_press = None
+        self.revisit_native_previous = None
+        self.revisit_native_edges = []
+        self.revisit_event_initial = None
+
+    def update(self, s, now):
+        self.last_state = s
+        if self.home_result is None:
+            commands = super().update(s, now)
+            if self.result is None:
+                return commands
+            self.home_result = json.loads(json.dumps(self.result))
+            self.home_result['completion_marker'] = HulkHomePilot.MARKER
+            self.result = None
+            require(self.cinder_unload is not None and not s['hulk']['available']
+                    and not s['hulk_home']['streaming']['loaded'],
+                    'actual original Cinder unload precedes the new sortie')
+            self.revisit_previous = s
+            self.tap_key = None
+            self.tap_release_frame = s['frame']
+            self.tap_cooldown = now + .3
+            self.mouse_pending = None
+            self.enter('revisit_clearance', s)
+            return set(), 0, 0, False
+        # Never call any prefix update after home: its old-world and unclaimed
+        # predicates intentionally describe the previous journey only.
+        keys, dx, dy, fire = self.update_revisit(s, now)
+        facing = s['walk_forward'] if not s['seated'] else s['back']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001:
+                dx = dy = 0
+            else:
+                self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        return keys, dx, dy, fire
+
+    def observe_revisit_streaming(self, s):
+        streaming = s['hulk_home']['streaming']
+        initial, unloaded = self.streaming_initial, self.cinder_unload['streaming']
+        require(streaming['unload_radius_m'] == initial['unload_radius_m'] == 650
+                and streaming['unload_count'] == unloaded['unload_count']
+                and streaming['load_failure_count'] == 0
+                and streaming['load_request_count'] in (initial['load_request_count'], initial['load_request_count'] + 1),
+                'one new Cinder request without another unload or load failure')
+        require(streaming['generation'] >= unloaded['generation'],
+                'Cinder generation cannot precede the observed actual unload')
+        if streaming['loaded']:
+            require(self.revisit_departure is not None
+                    and streaming['generation'] > unloaded['generation']
+                    and streaming['loaded_generation'] == streaming['generation']
+                    and streaming['load_request_count'] == initial['load_request_count'] + 1
+                    and streaming['loaded_instance_id'] not in (0, initial['loaded_instance_id']),
+                    'new Cinder load follows actual prior unload with a newer live generation and distinct cluster')
+        if self.revisit_reload is not None:
+            observed = self.revisit_reload['streaming']
+            require(streaming['loaded'] and not streaming['loading']
+                    and streaming['generation'] == observed['generation']
+                    and streaming['loaded_generation'] == observed['loaded_generation']
+                    and streaming['loaded_instance_id'] == observed['loaded_instance_id'],
+                    'same newly loaded Cinder generation throughout revisit')
+        if not s['hulk']['available']:
+            require(self.revisit_reload is None, 'new streamed HULK remains resident after binding')
+            return
+        hulk, interior = s['hulk'], s['hulk']['interior']
+        require(streaming['loaded'] and not streaming['loading'], 'live new HULK belongs to completed Cinder load')
+        ids = (hulk['hulk_id'], hulk['berth_instance_id'], interior['breaker_id'])
+        require(hulk['berth_id'] == self.BERTH and ids[0] != self.hulk_ids[0]
+                and ids[1] != self.hulk_ids[1] and ids[2] != self.interior_initial['breaker_id'],
+                'distinct replacement HULK berth and breaker after old-world retirement')
+        if self.revisit_ids is None:
+            self.revisit_ids = ids
+            self.revisit_reload = {'frame': s['frame'], 'streaming': json.loads(json.dumps(streaming)),
+                                   'hulk_id': ids[0], 'berth_instance_id': ids[1], 'breaker_id': ids[2]}
+            self.revisit_event_initial = json.loads(json.dumps(interior['breaker_event']))
+            require(self.revisit_event_initial['count'] == 0,
+                    'new breaker has no interaction before the ordinary revisit walk')
+        require(ids == self.revisit_ids, 'same new HULK berth and breaker throughout revisit')
+
+    def observe_revisit_header(self, s):
+        previous = self.revisit_previous
+        if max(previous['position'][2], s['position'][2]) < -130 \
+                or min(previous['position'][2], s['position'][2]) > -110:
+            return
+        require(len(self.revisit_legs) >= 1 and self.revisit_leg_ready is not None,
+                'settled outward staging and aligned leg before RangeHeader crossing')
+        for sample in (previous, s):
+            require(1.4 <= sample['position'][1] <= 3.8,
+                    'outward RangeHeader crossing stays in ship-origin clearance band')
+            require(sample['telemetry']['hull'] >= self.revisit_legs[0]['hull'],
+                    'outward RangeHeader crossing has no extra hull loss')
+            if not self.revisit_header_samples or self.revisit_header_samples[-1]['frame'] != sample['frame']:
+                self.revisit_header_samples.append({'frame': sample['frame'], 'position': sample['position'][:],
+                                                    'hull': sample['telemetry']['hull']})
+        if previous['position'][2] >= -130 >= s['position'][2] and self.revisit_header_crossing is None:
+            self.revisit_header_crossing = {'entry_frame': self.revisit_header_samples[0]['frame'],
+                'exit_frame': s['frame'], 'origin_z_interval': [-130, -110], 'origin_y_band': [1.4, 3.8],
+                'hull_before': self.revisit_legs[0]['hull'], 'hull_after': s['telemetry']['hull'],
+                'min_y': min(v['position'][1] for v in self.revisit_header_samples),
+                'max_y': max(v['position'][1] for v in self.revisit_header_samples),
+                'samples': self.revisit_header_samples}
+
+    def require_revisit_dock(self, s):
+        hulk = s['hulk']
+        require(s['landed'] and hulk['contract'] and hulk['lease'] and hulk['parked_exact']
+                and hulk['occupant_id'] == s['ship_id'] and s['lease_free'],
+                'strict token-bound exact occupied new HULK dock with released home lease')
+
+    def update_revisit(self, s, now):
+        self.frame = s['frame']
+        previous = self.revisit_previous
+        frames = self.frame - previous['frame']
+        home, hulk = s['hulk_home'], s['hulk']
+        initial = self.interior_initial
+        require(frames > 0, 'fresh revisit physics observation')
+        require(self.identities == (s['player_id'], s['ship_id']) and s['active_ship']
+                and not s['destroyed'] and s['phase'] not in ('FAILED', 'RECOVERING'),
+                'same live Player and Torrent throughout revisit without recovery')
+        require(s['default_sampler'] and s['tuning_unchanged'] and s['guided_complete']
+                and home['walk_tuning'] == initial['walk_tuning']
+                and home['physics_ticks'] == 60 and home['time_scale'] == 1,
+                'authored controls, normal physics and Guided completion retained throughout revisit')
+        require((home['home']['berth_id'], home['home']['berth_instance_id']) == self.home_berth_identity
+                and home['capsule_id'] == initial['capsule_id'] and home['shape_id'] == initial['shape_id'],
+                'same home berth and Player collision capsule throughout revisit')
+        self.require_retained_cell(home)
+        self.observe_revisit_streaming(s)
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        keys = set()
+        dx = dy = 0
+        speed = norm(s['velocity'])
+        walking = self.stage in ('revisit_clearance', 'revisit_board_approach', 'revisit_walk',
+                                  'revisit_breaker_aim', 'revisit_breaker_press')
+        if walking:
+            require(s['phase'] == 'COMPLETE' and not s['piloted'] and not s['seated']
+                    and s['control_enabled'] and not s['transition_busy'] and home['capsule_enabled'],
+                    'ordinary controllable on-foot revisit walk')
+            step = norm(sub(s['player'], previous['player']))
+            require(step <= (initial['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                    'continuous ordinary revisit movement without placement or recovery teleport')
+            if self.stage in ('revisit_clearance', 'revisit_board_approach'):
+                self.require_home_dock(s)
+                berth = home['home']
+                require(berth['grounded'] and berth['supported'] and berth['support_collider']
+                        and s['telemetry']['engine'] == 'OFFLINE', 'continuous supported home clearance walk')
+            else:
+                self.require_revisit_dock(s)
+                interior = hulk['interior']
+                self.require_claimed(interior)
+                require(hulk['grounded'] and interior['support_owned'] and hulk['support_collider']
+                        and s['telemetry']['engine'] == 'OFFLINE', 'continuous actual new HULK interior support')
+                require(interior['capsule_enabled'] and interior['capsule_id'] == initial['capsule_id']
+                        and interior['shape_id'] == initial['shape_id']
+                        and interior['walk_tuning'] == initial['walk_tuning']
+                        and interior['physics_ticks'] == 60 and interior['time_scale'] == 1,
+                        'same enabled capsule and authored movement in new HULK')
+                require(interior['route'] == self.revisit_authored_route
+                        and tuple(interior['space_ids']) == self.SPACES,
+                        'unchanged authored new HULK interior route')
+                self.revisit_walked += step
+                self.revisit_max_step = max(self.revisit_max_step, step/frames)
+                self.revisit_support.add(hulk['support_collider'])
+                native_pressed = bool(s['native_interact'])
+                if native_pressed != self.revisit_native_previous:
+                    self.revisit_native_edges.append({'pressed': native_pressed, 'frame': self.frame,
+                        'breaker_candidate': interior['breaker_candidate']})
+                self.revisit_native_previous = native_pressed
+                event = interior['breaker_event']
+                require(event['count'] == self.revisit_event_initial['count']
+                        or self.stage == 'revisit_breaker_press',
+                        'new breaker untouched before completed ordinary interior walk')
+        if self.stage == 'revisit_clearance':
+            dx, reached = self.home_walk_to(s, self.CLEARANCE, keys, frames)
+            if reached:
+                require(norm(s['walk_offset']) > 7,
+                        'actual interaction-origin boarding offset exceeds production seven-metre reboard block')
+                self.revisit_clearance = {'frame': self.frame, 'waypoint': self.CLEARANCE[:],
+                    'player': s['player'][:], 'boarding': home['boarding'][:],
+                    'walk_offset': s['walk_offset'][:], 'distance_m': norm(s['walk_offset']),
+                    'speed_m_s': norm([home['player_velocity'][0], 0, home['player_velocity'][2]]),
+                    'support_collider': home['home']['support_collider']}
+                self.enter('revisit_board_approach', s)
+        elif self.stage == 'revisit_board_approach':
+            offset = s['walk_offset'][:]
+            offset[1] = 0
+            if norm(offset) <= 3.1 and s['candidate']:
+                require(self.revisit_clearance is not None and not home['station_candidate'],
+                        'cleared reboard block and live boarding candidate without conflicting station action')
+                if norm([home['player_velocity'][0], 0, home['player_velocity'][2]]) <= .35:
+                    self.tap('e', now)
+                    if self.tap_key == 'e':
+                        self.revisit_board_press = {'frame': self.frame, 'player': s['player'][:],
+                            'boarding': home['boarding'][:], 'walk_offset': s['walk_offset'][:],
+                            'candidate': True, 'station_candidate': home['station_candidate']}
+                        self.enter('revisit_board', s)
+            else:
+                dx, reached = self.home_walk_to(s, home['boarding'], keys, frames)
+                require(not reached, 'live home boarding point reached without an ordinary boarding candidate')
+        elif self.stage == 'revisit_board':
+            self.require_home_dock(s)
+            if s['phase'] == 'START_ENGINES':
+                require(s['piloted'] and s['seated'] and not s['transition_busy'],
+                        'one ordinary E reboards the same home-docked Torrent into START_ENGINES')
+                self.revisit_boarded = {'frame': self.frame, 'phase': s['phase']}
+                self.enter('revisit_departure', s)
+            else:
+                require(s['phase'] in ('COMPLETE', 'BOARDING'), 'ordinary home reboarding without another tutorial')
+                if s['phase'] == 'COMPLETE' and not s['transition_busy']:
+                    require(self.frame <= self.revisit_board_press['frame'] + 120,
+                            'ordinary home E did not begin reboarding; no retry')
+                require(self.frame <= self.revisit_board_press['frame'] + 600,
+                        'ordinary home E did not finish reboarding; no retry')
+        elif self.stage == 'revisit_departure':
+            require(s['piloted'] and s['seated'] and not s['transition_busy']
+                    and s['phase'] in ('START_ENGINES', 'FREE_FLIGHT'),
+                    'ordinary home departure keeps seated controls through the authored lift')
+            self.revisit_lift_seen |= s['departure_lift_active']
+            if self.revisit_departure is None and not s['landed'] and s['phase'] == 'FREE_FLIGHT':
+                require(s['lease_free'] and not home['home']['lease'] and home['home']['occupant_id'] == 0
+                        and norm(sub(s['position'], home['home']['dock'])) > .01,
+                        'physical outward departure releases home occupant and reservation')
+                self.revisit_departure = {'frame': self.frame, 'position': s['position'][:],
+                    'phase': s['phase'], 'home_lease_free': s['lease_free'], 'occupant_id': 0}
+            if self.revisit_lift_seen and not s['departure_lift_active'] and self.revisit_departure is not None:
+                require(not s['landed'] and s['phase'] == 'FREE_FLIGHT' and s['lease_free'],
+                        'observed authored lift completion follows actual home lease release')
+                self.revisit_departure_complete = {'frame': self.frame, 'position': s['position'][:],
+                    'phase': s['phase'], 'landed': s['landed'], 'departure_lift_active': False,
+                    'lift_active_observed': True, 'home_lease_free': s['lease_free']}
+                self.enter('revisit_flight_0', s)
+                keys.add('Prior')
+            else:
+                keys.add('w')
+        elif self.stage.startswith('revisit_flight_'):
+            require(s['piloted'] and s['seated'] and not s['transition_busy']
+                    and s['phase'] in ('START_ENGINES', 'FREE_FLIGHT'),
+                    'later outward thrust uses START_ENGINES then FREE_FLIGHT')
+            require(self.revisit_departure_complete is not None and not s['departure_lift_active']
+                    and s['phase'] == 'FREE_FLIGHT' and not s['landed'] and s['lease_free'],
+                    'completed actual departure lift precedes every translational readiness fence')
+            index = int(self.stage.rsplit('_', 1)[1])
+            target = ([0, 2.7, -64], [0, 2.7, -150], hulk['approach'])[index]
+            off = sub(target, s['position'])
+            distance = norm(off)
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            if self.revisit_leg_ready is None:
+                direction = unit(off)
+                nose_pitch = math.degrees(math.asin(max(-1, min(1, -s['back'][1]))))
+                target_pitch = math.degrees(math.asin(max(-1, min(1, direction[1]))))
+                pitch_error = abs(nose_pitch - target_pitch)
+                if speed <= .01 and align >= .9999 and pitch_error <= .5:
+                    self.revisit_leg_ready = {'frame': self.frame, 'position': s['position'][:],
+                        'velocity': s['velocity'][:], 'speed_m_s': speed, 'direction_alignment': align,
+                        'nose_pitch_deg': nose_pitch, 'target_pitch_deg': target_pitch, 'pitch_error_deg': pitch_error}
+            if index == 1: self.observe_revisit_header(s)
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+            if distance < stopping+1.75: self.revisit_braking = True
+            if speed <= .45 and distance > 1: self.revisit_braking = False
+            if self.revisit_leg_ready is None or distance <= 1 or self.revisit_braking: keys.add('Prior')
+            elif align > .72: keys.add('w')
+            if distance <= 1 and speed <= .35 and self.revisit_leg_ready is not None:
+                require(self.revisit_departure is not None, 'actual released home departure precedes outward staging')
+                if index == 1:
+                    require(self.revisit_header_crossing is not None, 'safe outward RangeHeader crossing before HULK transit')
+                if index != 2 or self.revisit_reload is not None:
+                    self.revisit_legs.append({'index': index, 'frame': self.frame, 'waypoint': target[:],
+                        'position': s['position'][:], 'distance_m': distance, 'speed_m_s': speed,
+                        'hull': s['telemetry']['hull'], 'ready': self.revisit_leg_ready})
+                    self.revisit_leg_ready = None
+                    self.revisit_braking = False
+                    self.enter('revisit_align' if index == 2 else 'revisit_flight_'+str(index+1), s)
+        elif self.stage == 'revisit_align':
+            require(s['phase'] == 'FREE_FLIGHT' and s['piloted'] and s['seated'] and not s['landed'],
+                    'ordinary new HULK approach in FREE_FLIGHT')
+            keys.update(('Prior', 'h'))
+            target = [s['camera'][i]+hulk['dock_forward'][i]*100 for i in range(3)]
+            dx, dy, align = self.aim(s, target)
+            if align > .995 and s['upright'] > .94 and speed <= .35:
+                require(hulk['capture'] and hulk['selected_berth_id'] == self.BERTH,
+                        'production preview selects actual new HULK berth')
+                self.tap('l', now)
+                if self.tap_key == 'l':
+                    self.request_frame = self.frame
+                    self.enter('revisit_land', s)
+        elif self.stage == 'revisit_land':
+            keys.add('Prior')
+            self.revisit_landing_seen |= s['landing_active']
+            require(not hulk['landing_abort_reason'], 'new HULK landing aborted: '+hulk['landing_abort_reason'])
+            if self.revisit_landing_seen and not s['landing_active'] and not s['landed']:
+                require(False, 'new HULK landing ended without docking')
+            if s['landed'] and s['phase'] == 'SHUT_DOWN':
+                require(self.revisit_landing_seen, 'one ordinary L starts observed new HULK landing')
+                self.require_revisit_dock(s)
+                self.revisit_arrival = {'frame': self.frame, 'position': s['position'][:],
+                    'berth_id': hulk['berth_id'], 'berth_instance_id': hulk['berth_instance_id'],
+                    'contract': hulk['contract'], 'lease': hulk['lease'],
+                    'occupant_id': hulk['occupant_id'], 'parked_exact': hulk['parked_exact']}
+                self.shutdown_frame = self.frame
+                self.enter('revisit_shutdown', s)
+                keys.clear()
+            elif not self.revisit_landing_seen:
+                require(self.frame <= self.request_frame + 120, 'ordinary L did not start new HULK landing; no retry')
+        elif self.stage == 'revisit_shutdown':
+            self.require_revisit_dock(s)
+            require(s['phase'] == 'SHUT_DOWN' and s['piloted'] and s['seated'], 'secured new HULK during neutral shutdown')
+            if self.frame - self.shutdown_frame >= 90 and s['telemetry']['engine'] == 'OFFLINE':
+                self.tap('e', now)
+                if self.tap_key == 'e':
+                    self.request_frame = self.frame
+                    self.enter('revisit_exit', s)
+        elif self.stage == 'revisit_exit':
+            self.require_revisit_dock(s)
+            require(s['telemetry']['engine'] == 'OFFLINE', 'powered-down new HULK retained throughout ordinary exit')
+            if not s['piloted'] and not s['seated'] and s['control_enabled'] and not s['transition_busy'] \
+                    and hulk['grounded'] and hulk['shelf_supported']:
+                interior = hulk['interior']
+                require(s['phase'] == 'COMPLETE' and home['capsule_enabled']
+                        and norm(interior['player_velocity']) <= .35 and interior['support_owned']
+                        and len(interior['route']) == 6 and tuple(interior['space_ids']) == self.SPACES,
+                        'ordinary new HULK exit settles on the supported shelf before authored walk')
+                self.revisit_exit = {'frame': self.frame, 'player': s['player'][:],
+                                     'support_collider': hulk['support_collider']}
+                self.revisit_authored_route = json.loads(json.dumps(interior['route']))
+                self.revisit_route = [[s['player'][0], s['player'][1]+1, s['player'][2]]] + self.revisit_authored_route[1:]
+                self.revisit_visited.append({'index': 0, 'frame': self.frame, 'player': s['player'][:],
+                    'support_collider': hulk['support_collider'], 'speed': norm(interior['player_velocity'])})
+                self.revisit_native_previous = bool(s['native_interact'])
+                self.tap_key = None
+                self.tap_release_frame = self.frame
+                self.tap_cooldown = now + .3
+                self.enter('revisit_walk', s)
+            else:
+                require(self.frame <= self.request_frame + 600, 'ordinary E did not finish supported new HULK exit; no retry')
+        elif self.stage == 'revisit_walk':
+            target = self.revisit_route[len(self.revisit_visited)]
+            dx, reached = self.home_walk_to(s, target, keys, frames)
+            if reached:
+                self.revisit_visited.append({'index': len(self.revisit_visited), 'frame': self.frame,
+                    'player': s['player'][:], 'support_collider': hulk['support_collider'],
+                    'speed': norm([home['player_velocity'][0], 0, home['player_velocity'][2]])})
+                if len(self.revisit_visited) == len(self.revisit_route):
+                    minimum = sum(norm(sub(a, b)) for a, b in zip(self.revisit_route, self.revisit_route[1:])) - .6*(len(self.revisit_route)-1)
+                    require(self.revisit_walked >= minimum, 'ordinary revisit walk covers every authored interior space')
+                    self.enter('revisit_breaker_aim', s)
+        elif self.stage == 'revisit_breaker_aim':
+            interior = hulk['interior']
+            off = sub(interior['breaker_position'], s['player'])
+            off[1] = 0
+            yaw = math.atan2(dot(unit(off), s['walk_right']), dot(unit(off), s['walk_forward']))
+            dx = round(max(-360, min(360, yaw/initial['walk_tuning']['mouse'])))
+            if abs(yaw) < .08 and norm([home['player_velocity'][0], 0, home['player_velocity'][2]]) <= .35 \
+                    and interior['breaker_candidate'] and not s['native_interact']:
+                self.tap('e', now)
+                if self.tap_key == 'e':
+                    self.revisit_press = {'frame': self.frame, 'breaker_id': interior['breaker_id'],
+                        'candidate': True, 'event_before': json.loads(json.dumps(interior['breaker_event']))}
+                    self.enter('revisit_breaker_press', s)
+        elif self.stage == 'revisit_breaker_press':
+            interior = hulk['interior']
+            event, repeated = interior['breaker_event'], interior['last_breaker_result']
+            before = self.revisit_press['event_before']
+            require(event['count'] in (before['count'], before['count']+1), 'one ordinary new-breaker interaction only')
+            dispatched = event['count'] == before['count']+1
+            if dispatched:
+                require(self.revisit_press['frame'] <= event['frame'] <= self.frame
+                        and event['breaker_id'] == self.revisit_ids[2] and event['actor_id'] == s['player_id'],
+                        'fresh public breaker event belongs to new breaker and same Player after ordinary E')
+                if any(e['pressed'] and e['frame'] > self.revisit_press['frame'] for e in self.revisit_native_edges) \
+                        and not s['native_interact'] and self.tap_key is None:
+                    require(not repeated.get('accepted') and repeated.get('reason') == 'power_already_restored',
+                            'fresh ordinary new-breaker E refuses duplicate cell')
+                    self.enter('complete', s)
+                    self.result = {'scope': 'Torrent full home prefix and ordinary new-generation HULK revisit',
+                        'completion_marker': self.MARKER, 'home': self.home_result,
+                        'clearance': self.revisit_clearance, 'boarding_press': self.revisit_board_press,
+                        'boarded': self.revisit_boarded, 'home_departure': self.revisit_departure,
+                        'departure_complete': self.revisit_departure_complete,
+                        'cinder_reload': self.revisit_reload, 'outward_legs': self.revisit_legs,
+                        'outward_header_crossing': self.revisit_header_crossing,
+                        'arrival': self.revisit_arrival, 'exit': self.revisit_exit,
+                        'authored_route': self.revisit_authored_route, 'walk_route': self.revisit_route,
+                        'visited': self.revisit_visited, 'space_ids': list(self.SPACES),
+                        'walked_interior_m': self.revisit_walked, 'max_step_per_physics_tick_m': self.revisit_max_step,
+                        'support_colliders': sorted(self.revisit_support), 'breaker_press': self.revisit_press,
+                        'breaker_event': event, 'native_interact_edges': self.revisit_native_edges,
+                        'repeated_result': repeated, 'same_player_id': s['player_id'], 'same_ship_id': s['ship_id'],
+                        'same_capsule_id': initial['capsule_id'], 'same_shape_id': initial['shape_id'],
+                        'new_hulk_id': self.revisit_ids[0], 'new_berth_instance_id': self.revisit_ids[1],
+                        'new_breaker_id': self.revisit_ids[2], 'final_reward_count': interior['reward_count'],
+                        'final_generation': interior['activity']['generation'], 'reward_receipt': interior['reward_receipt'],
+                        'lights': interior['lights'], 'restored_bus_lighting': True,
+                        'authored_tuning': s['tuning'], 'walk_tuning': home['walk_tuning'], 'default_sampler': True,
+                        'phases': self.phases, 'stages': self.stages,
+                        'remaining': ['disk reload and OS interruption', 'native hardware and human review']}
+            require(self.result is not None or self.frame <= self.revisit_press['frame'] + 120,
+                    'ordinary new-breaker E did not dispatch duplicate refusal; no retry')
+        else:
+            require(False, 'known revisit stage')
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+        self.revisit_previous = s
+        return keys, dx, dy, False
+
+
 class SandboxWalkPilot(Pilot):
     """Five station branches through ordinary controls; fleet/crash gate stays open.
 
@@ -1862,7 +2301,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "hulk-revisit"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -1937,7 +2376,7 @@ def run(binary, output, route="guided"):
                 if not window: raise RuntimeError('no X11 window owned by exact game PID')
                 result['window'] = hex(window)
                 desktop.focus(window)
-                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot, "hulk-home": HulkHomePilot}[route]()
+                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot, "hulk-home": HulkHomePilot, "hulk-revisit": HulkRevisitPilot}[route]()
                 selector = selectors.DefaultSelector()
                 selector.register(game.stdout,selectors.EVENT_READ)
                 pending = b''
@@ -2014,8 +2453,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home'), default='guided',
-                        help='hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'hulk-revisit'), default='guided',
+                        help='hulk-revisit carries the full home prefix into a new-generation HULK duplicate refusal; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))

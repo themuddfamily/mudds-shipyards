@@ -15,6 +15,8 @@ var _full_sandbox := false
 var _hulk_arrival := false
 var _hulk_breaker := false
 var _hulk_home := false
+var _hulk_revisit := false
+var _breaker_events: Dictionary = {}
 var _fleet_initial := {}
 var _crash_surface := {}
 var _fleet_details := {}
@@ -30,7 +32,8 @@ func on_startup_completed(main: Node) -> void:
 	_spawn = _player.global_position
 	_parked = _ship.global_transform
 	_tuning = _sortie_tuning()
-	_hulk_home = "--native-sortie-observer=hulk-home" in OS.get_cmdline_args()
+	_hulk_revisit = "--native-sortie-observer=hulk-revisit" in OS.get_cmdline_args()
+	_hulk_home = "--native-sortie-observer=hulk-home" in OS.get_cmdline_args() or _hulk_revisit
 	_hulk_breaker = "--native-sortie-observer=hulk-breaker" in OS.get_cmdline_args() or _hulk_home
 	_hulk_arrival = "--native-sortie-observer=hulk-arrival" in OS.get_cmdline_args() or _hulk_breaker
 	_full_sandbox = "--native-sortie-observer=sandbox" in OS.get_cmdline_args()
@@ -114,6 +117,8 @@ func _physics_process(delta: float) -> void:
 		"application_focused": source.get("_application_focused") if source != null else false,
 		"transition_busy": _game.get("_transition_busy"),
 	}
+	if _hulk_revisit:
+		observation["departure_lift_active"] = bool(_ship.get("_departure_lift_active"))
 	if _hulk_arrival:
 		observation["hulk"] = _hulk_arrival_observation()
 	if _hulk_home:
@@ -264,6 +269,8 @@ func _hulk_breaker_observation(hulk: AbandonedStationHulk, support_collider: Nod
 	for point: Vector3 in hulk.get_interior_route_points():
 		route.append(_v(point))
 	var breaker: Area3D = hulk.get_breaker()
+	if _hulk_revisit:
+		_observe_breaker_signal(breaker)
 	var capsule: CollisionShape3D = _player.get_node(^"PlayerCollision") as CollisionShape3D
 	var activity: Dictionary = _game.get_hulk_power_restoration_snapshot()
 	var reward_report: Dictionary = _game.get_activity_reward_report()
@@ -301,11 +308,29 @@ func _hulk_breaker_observation(hulk: AbandonedStationHulk, support_collider: Nod
 		"breaker_candidate": _game.station_interaction_candidate == breaker,
 		"breaker_engaged": bool(breaker.call("is_engaged")),
 		"last_breaker_result": last_breaker_result,
+		"breaker_event": (_breaker_events.get(breaker.get_instance_id(), {}) as Dictionary).duplicate(),
 		"activity": activity, "reward_count": int(counts.get("hulk_auxiliary_power_cell", 0)),
 		"reward_receipt": record.get("last_receipt", {}),
 		"power_restored": hulk.is_auxiliary_power_restored(), "lights": lights,
 		"bus_lights_restored": restored_interiors == 7 and dock_lights == 1 and lights.size() == 8,
 		"emergency_lights": emergency_interiors == 7 and dock_lights == 1 and lights.size() == 8}
+
+
+## Listen to the public interaction signal without changing its source or owners.
+## Only this observer's dictionary is written; each replacement breaker starts at zero.
+func _observe_breaker_signal(breaker: Area3D) -> void:
+	var breaker_id: int = breaker.get_instance_id()
+	if _breaker_events.has(breaker_id):
+		return
+	_breaker_events[breaker_id] = {"count": 0, "frame": 0, "breaker_id": breaker_id, "actor_id": 0}
+	breaker.connect(&"breaker_engaged", _on_observed_breaker_engaged.bind(breaker_id))
+
+
+func _on_observed_breaker_engaged(actor: Node, breaker_id: int) -> void:
+	var previous: Dictionary = _breaker_events[breaker_id] as Dictionary
+	_breaker_events[breaker_id] = {"count": int(previous["count"]) + 1,
+		"frame": Engine.get_physics_frames(), "breaker_id": breaker_id,
+		"actor_id": actor.get_instance_id() if is_instance_valid(actor) else 0}
 
 
 ## Select-only return observations survive retirement of the streamed HULK.
