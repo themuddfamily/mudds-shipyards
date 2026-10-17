@@ -83,6 +83,8 @@ Full ordinary route passes81.864s,76.79m interior walk, one committed cell and
 separate repeated E refusing another credit. Paired checkpoint7dd70a9 is ready;
 Linux is the exact tested binary. Home return/revisit are the next two children.
 [Result and exact limits](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinary-breaker--done-checkpoint7dd70a9a4).
+Latest home attempt52e3e7f69 stops at the unchanged clearance guard; see the
+failed repair and next15m diagnosis below. No home/revisit pass is claimed.
 Sandbox, Convoy and Q4 remain parked at their recorded failures; no automatic retries.
 
 ## ROADMAP-SPLIT — ongoing planning rule
@@ -182,7 +184,7 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
   Windows checkpoint was not launched; latest accepted package remains7dd70a9.
   Full route repair is a separate card; revisit remains gated.
 
-### HULK-HOME-CLEARANCE — IN PROGRESS bounded repair
+### HULK-HOME-CLEARANCE — FAILED qualification; candidate withheld
 
 - **Parent/result:** HULK-HOME-INPUT. Correct the release driver's inbound line
   so Torrent flies under the existing range header before approaching home.
@@ -205,11 +207,40 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
 - **Budget/stop:**30–45m implementation; one300s route separately. Stop at
   first concrete failure or estimate boundary. No extra probe, new framework,
   checkpoint export or unchanged startup checks before the route result.
-- **Next action:** root runs one guarded full route: corrected driver52e3e7f69,
-  same exact ef67f3e95 Linux binary/cache. Candidate39 focused checks pass; only
-  existing Python driver/tests differ. No unchanged export/startup repetition.
-- **Close:** record exact result/source/build; commit/push, working checkpoint
-  if qualified, and remove disposable checkout. Revisit remains separate/gated.
+- **Actual result:** driver52e3e7f69,39 focused Python checks pass; same exact
+  ef67f3e95 Linux binary/cache. The single full route stops154.594s at its first
+  clearance guard failure. Actual staging reached frame5005 at
+  (-.355,2.856,-150.747); next flight enters the guarded interval at frame5081,
+  (3.302,1.266,-129.544), below the unchanged1.4m lower bound. Hull stays89.
+  Header crossing, Cinder unload, home docking/exit/walk remain unqualified.
+- **Close:** no third attempt or criterion relaxation. Source/index/engine/cache
+  guards pass, zero diagnostics, all8 observed owned identities independently
+  absent, inputs released and private display264/authority/sockets closed; both
+  runtime lanes available. Candidate52e3e7f69 held on
+  `hold/hulk-home-clearance-20261017`, excluded from main/published checkpoints.
+  Both owned worktrees removed. Exact failed Linux binary/archive/metadata moved
+  into retained raw (hashes verified), rather than exported again.
+  Raw: `/srv/mudds-work/hulk-home-results-20261017/clearance/`; relocation map:
+  `/srv/mudds-work/hulk-home-results-20261017/retained-artifacts.json`.
+
+### HULK-HOME-ATTITUDE — READY bounded diagnosis; not started
+
+- **Parent/result:** HULK-HOME-INPUT. Identify why the first ordinary departure
+  from a settled clearance waypoint loses altitude below the existing safe band.
+  Diagnosis is separate from a delivered gameplay or release capability.
+- **Owner/boundary:** root assigns one read-only source/log reviewer; inspect
+  held driver52e3e7f69 and retained ef67f3e95 trace, especially frames5005–5081.
+  One hypothesis: thrust resumes while craft attitude/vertical velocity still
+  drives descent after the staging target changes. No engine, edits or retry.
+- **Proof:** identify the exact controller/input boundary and smallest repair
+  with file/line plus retained observations, or report the single missing fact
+  for one later probe. Settled position alone is not proof of flight readiness.
+- **Budget/stop:**15m, stop at causal seam or missing fact. Keep original300s
+  cumulative route, clearance band1.4–3.8 and all home physical criteria.
+- **Next action:** inspect first staging→home approach transition against the
+  existing mouse/thrust response and retained attitude/velocity observations.
+  Schedule any implementation or engine probe as a separate bounded task.
+- **Close:** record result/source and next action, commit/push; retain failures.
 
 ### HULK-REVISIT-INPUT — GATED on home route
 

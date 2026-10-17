@@ -1080,3 +1080,36 @@ clearance without hull loss and all original physical gates under the same300s;
 no production collider/tuning change or automatic retry is authorized by this
 finding. The retained checkout is reused for this bounded consumer to avoid
 another scratch checkout/export; raw failed source/cache hashes remain intact.
+
+
+## HULK home clearance — failed qualification on 52e3e7f69
+
+Driver-only repair `52e3e7f693a09289adfa8878e6228e68ab5f35cb` adds an ordinary
+inbound staging point(0,2.7,-150) and a sampled safe-header crossing guard.39
+focused Python checks pass. Only existing Python driver/tests change; exact
+original ef67f3e95 Linux game binary and imported cache are reused, without
+repeating unchanged import/export/startup checks or modifying gameplay/geometry.
+
+The single full corrected route fails154.594s at its first clearance assertion,
+with the original300s cap unchanged. Full prefix/reverse/reboard succeeds and
+staging is reached frame5005 at(-.355458,2.855578,-150.746719), within1m and
+speed≤.35. First guarded crossing observation frame5081 is
+(3.301533,1.265986,-129.543930), velocity(3.000104,-1.401972,36.272644), below
+unchanged documented shared lower bound1.4m. Previous frame5080 is already
+at y1.289353/z-130.148468. Hull stays89, no impact loss shown in this attempt.
+No passing header crossing, fade/unload, home dock/shutdown/exit/walk or full
+HULK return claim follows. Cinder remains loaded, distance577.680m.
+
+Raw `/srv/mudds-work/hulk-home-results-20261017/clearance/` retains source/commands,
+trace, terminal results and failure. Source/index/engine/cache guards pass; zero
+diagnostics, inputs released, helper/game/Xvfb reaped. All8 observed identities
+independently absent; private display264/authority/sockets closed and both runtime
+lanes available. No third run, band/cap relaxation, Windows checkpoint, main
+integration or new public package. Candidate pushed to
+`hold/hulk-home-clearance-20261017`; first failed candidate remains separately
+held. Both owned implementation/acceptance worktrees removed. Exact Linux
+binary/archive/metadata relocated with verified hashes under raw `retained-linux/`;
+`retained-artifacts.json` maps old paths to retained files. Latest accepted
+checkpoint remains7dd70a9. Unlaunched conditional Windows helper is not evidence
+of a Windows build/check. HOME-ATTITUDE is next: one15m source/log diagnosis of
+the staging→approach attitude/thrust transition, not started and no retry implied.
