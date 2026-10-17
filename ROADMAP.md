@@ -1,7 +1,7 @@
 # Development roadmap
 
 The game is a playable development alpha. **All ten phase exit gates remain
-open.** This file contains the current three-task batch. The
+open.** This file contains the next two executable tasks. The
 [backlog and 36-parent crosswalk](docs/ROADMAP_BACKLOG.md),
 [original specifications](docs/history/ROADMAP_SCOPE_20261017.md) and
 [production roster](docs/COMPLETION_SCOPE.md) retain the full project scope.
@@ -96,169 +96,111 @@ Latest public checkpoint remains `ef67f3e`; accepted HULK home and failed revisi
 results retain their exact scopes. No unchanged Ember rerun is selected.
 Sandbox, Convoy and Q4 remain parked at their recorded failures; no automatic retries.
 
-## Current batch — 1 accepted, 1 failed, 1 gated
+## Previous batch closed — 1 accepted, 1 failed, 1 gated
 
-This is a count of **two qualifications and one conditional package delivery**,
-not three new gameplay features or a project completion estimate. The departure
-repair is saved, but its one full-route attempt FAILED at the original deadline.
-Task 3 is DONE on its exact clean source; task 2 remains gated. No task is running.
-The 36 parent outcomes and all ten phase gates remain open.
+EMBER-ABANDON-SOURCE is DONE on `e85157b4d` (exact 31, physical home dock/walk).
+HULK revisit failed its original 300 s deadline on `2298e4889`; that candidate
+remains withheld, and its checkpoint is GATED. Both results and the priority
+review are retained in [delivery history](docs/history/ROADMAP_DELIVERIES.md).
+No unchanged Ember rerun or further HULK diagnosis/repair is selected.
+Retired-directory cleanup removed 16 clean checkouts; three containing uncommitted
+work remain intact, with source refs and unique raw results preserved.
 
-| Order / task | Kind / status | Observable finish | Work estimate; separate check allowance |
+## Next batch — two tasks, one new benchmark capability
+
+| Order / task | Status | Observable finish | Work estimate; separate check allowance |
 | --- | --- | --- | --- |
-| 1. [HULK-REVISIT-DEPARTURE](#1-hulk-revisit-departure--failed-at-original-deadline) | Qualification; FAILED, candidate withheld | Return to a newly streamed HULK and prove its breaker refuses a second cell after the full home journey. | Preparation/review/closure 30–45 min; setup/export/startups up to 47 min, then one 300 s route plus 45 s supervisor cleanup allowance. |
-| 2. [HULK-REVISIT-CHECKPOINT](#2-hulk-revisit-checkpoint--gated-on-task-1) | Build delivery; GATED on task 1 PASS | Accepted source integrated and matching playable Windows/Linux packages, with accurate notes, published in repository builds. | Packaging/integration/closure 30–45 min; export/payload checks up to 26 min. |
-| 3. [EMBER-ABANDON-SOURCE](#3-ember-abandon-source--done-on-e85157b4d) | Qualification; DONE on e85157b4d | Physically abandon an Ember visit, reboard, fly home, dock and walk out. | Preparation/closure 30–45 min; cold import up to 600 s, route up to 7,200 s. |
+| 1. [RIME-BENCH-ROUTE](#rime-bench-route--ready) | READY | Select `rime_surface_walk_route` in the existing runner and physically walk the authored icefall survey/return trail, recording a valid diagnostic report. | Implementation 60–90 min; cold import up to 600 s and four focused modes up to 300 s each. |
+| 2. [RIME-BENCH-CHECKPOINT](#rime-bench-checkpoint--gated-on-route-acceptance) | GATED on task 1 | Accepted source integrated, matching development packages/startup results and accurate source-benchmark instructions published. | Integration/package/closure 30–45 min; exports up to 930 s each, three strict startups up to 330 s each and privacy up to 300 s. |
 
-**Priority review after task 1:** the original revisit attempt failed, its bounded
-repair was implemented, and the one changed-candidate qualification also failed.
-Six setup stages passed; the route consumed its original 300 s allowance
-(304.438 s including cleanup). The unreached result is the new HULK's full
-interior walk and fresh duplicate-reward refusal. Independent Ember ABANDON
-was READY and tested a different required journey. **Task 3 is now DONE**, leaving
-HULK parked and task 2 GATED. No further HULK diagnosis, repair or rerun is selected.
-This decision does not change the route limit or claim a gameplay cause.
-Next action is the bounded next-batch planning pass below; no automatic repair
-or unchanged qualification rerun follows this result.
+The actual gap is one missing selectable benchmark route, not missing Rime
+terrain, survey gameplay or native performance evidence. Existing surface walks
+cover Ember and Aurora. Two cards separate executable route acceptance from
+artifact publication; they are not two new gameplay features. Unknown work is
+not added to this batch merely to fill a task count. No task is running yet.
 
-### 1. HULK-REVISIT-DEPARTURE — FAILED at original deadline
+### RIME-BENCH-ROUTE — READY
 
-- **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
-  Qualify the existing full home-and-revisit journey with the external driver
-  corrected to follow the home berth's actual optional lift configuration.
-- **State/source:** candidate `2298e48893163dfc8d6d174fcd3957a20fc4739b`,
-  saved on `hold/hulk-revisit-departure-20261017`, excluded from main/public builds.
-  Agent's 53 focused Python checks pass; all six setup stages pass, including
-  privacy 226, fresh Linux export and strict direct/archive startup. The single
-  full attempt FAILS at the original 300 s deadline, 304.438 s including cleanup,
-  with no diagnostics. Latest public checkpoint remains `ef67f3e`.
-  [Failure, achieved route and retained artifacts](docs/history/ROADMAP_DELIVERIES.md#hulk-revisit-departure--deadline-failure-on-2298e4889).
-- **Owner/boundary:** root qualified the saved agent work; the owned temporary
-  checkout has been removed after retaining exact artifacts. Repair touched only
-  `scripts/diagnostics/native_sortie_observer.gd`,
-  `tools/release/run_native_sortie.py`, and its existing Python tests.
-  Zero configured lift requires actual released, inactive FREE_FLIGHT departure;
-  positive lift still requires observed active then inactive. No further
-  implementation, geometry, controls, timing or cap changes belong to this card.
-- **Proof:** fresh clean import, observer parse, existing privacy test, Linux
-  export and direct/archive strict startup; then exactly one existing
-  `run_native_sortie.py <fresh ELF> --route hulk-revisit --output <owned-run>`.
-  Require exit 0, `NATIVE_HULK_REVISIT_OK`, original cumulative 300 s cap, clean
-  diagnostics and owned input/process/display cleanup. Full accepted HOME prefix,
-  supported walk-away/reboard, real departure, pre-leg attitude fences, safe
-  outward header, actual prior unload followed by newer streamed HULK/berth/
-  breaker, strict dock, supported authored interior walk and fresh ordinary E
-  dispatch/refusal all remain required. Same player/craft/capsule, one cell,
-  exact receipt/activity generation and restored bus lighting must be retained.
-  Frozen numeric fences in the saved driver/prepared runner remain unchanged:
-  boarding separation >7 m; each flight leg starts at speed ≤.01 m/s, alignment
-  ≥.9999 and pitch error ≤.5°; header z−130…−110 m stays within y1.4…3.8 m
-  without hull loss. Neither an old refusal dictionary nor focused tests proves
-  this route.
-- **Budget/stop:** 30–45 min review/preparation/closure, no remaining repair
-  budget. Separate existing stage caps: import 600 s, parse 300 s, privacy 300 s,
-  export 930 s, two startups 330 s each, route supervisor 345 s enclosing the
-  unchanged 300 s route. Stop at first failure or budget boundary; close this
-  attempt and apply the priority review above.
-- **Actual result:** home prefix completes at frame 5883; ordinary zero-height
-  departure advances at 6239. New HULK generation 3/request 2 loads after the
-  original unload; strict docking, shutdown and supported exit pass. Deadline
-  stops `revisit_walk` at last processed frame 8798. Fresh new-breaker event count
-  is 0; its stale refusal dictionary is not accepted as a new interaction.
-- **Close/next action:** FAILED and parked; no remaining action in this card.
-  Independent reviewer confirmed all 44 owned process identities absent, inputs
-  released, helper/game/Xvfb reaped and display 189/socket/authority/profile cleanup.
-  All source/index/engine/cache guards passed. Exact ELF/archive/export metadata
-  and raw results are retained under
-  `/srv/mudds-work/hulk-revisit-results-20261017/departure/`; the relocation manifest
-  records hashes/former paths. Conditional Windows helper was not launched.
-  Task 2 stays gated; task 3 is the selected next action.
+- **Parent/result:** [PERF-ROUTE](docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
+  Add the missing Rime icefall survey/return walk to the existing benchmark runner,
+  alongside the delivered Ember/Aurora surface selections.
+- **Owner/boundary:** one implementation agent; root review and guarded runtime
+  checks. Own `tools/performance/benchmark_runner.gd`, its existing focused test
+  `tests/performance_benchmark_runner_test.gd`, and the scenario allowlist in
+  `tools/performance/run_native_windows_benchmark.ps1`. Root owns documentation,
+  source freeze, integration and packaging. No nested agents or new benchmark/
+  validator system. Read existing `rime_glacial_authored_scene.gd` trail constants
+  and region/world/terrain definitions; production world/Player/gravity/streaming
+  owners remain unchanged.
+- **Behavior:** select-only `rime_surface_walk_route`; original two default
+  scenarios remain unchanged. Stream the real Rime scene through Main's existing
+  binding and commit its origin frame. Disclose any benchmark observation/gravity
+  adapter, as for Aurora. One initial placement before timing; held production
+  movement then visits every ordered SURVEY_TRAIL and RETURN_TRAIL point and
+  returns to the start without further placement. Resolve waypoints in the live
+  region frame after origin changes. Record real support, control, path and
+  gravity continuity; active abort releases held input/cursor, restores gravity
+  and frees Main.
+- **Proof:** extend the existing benchmark test with select-only
+  `KETH_BENCHMARK_TEST_RIME_SURFACE=1`, headless/Dummy, original 300 s focused cap.
+  Require exit 0, the existing success marker/catalog and explicit new route
+  assertions: real streamed identity, one placement, full supported walk,
+  every ordered survey/return waypoint and a completed loop back within 0.5 m
+  horizontally of its start (recorded at loop closure), valid JSON round trip,
+  wrong-world/gravity/refused progress rejection and actual mid-walk abort cleanup. Freeze the mode's exact
+  assertion count before launching. Run existing default/Ember/Aurora focused
+  modes once because their shared helper is affected; preserve their original
+  limits. Review PowerShell's selection contract without executing native Windows.
+- **Budget/stop:** 60–90 min implementation; separate cold import 600 s, focused
+  Rime/default/Ember/Aurora caps 300 s each. Stop first concrete failure or work
+  budget boundary, retain raw and record a separate bounded repair if justified.
+  No automatic extra probe, route rescue, geometry change or timing relaxation.
+  Full benchmark still requires at least 3,600 frames/60 s warmup and
+  18,000 frames/600 s measurement. Focused diagnostics do not qualify those floors,
+  native GPU timing, hardware, real audio, canonical travel or survey rewards.
+- **Next action:** freeze a clean implementation source, implement only this
+  selection through the existing surface staging/walker/report/abort owners,
+  then root reviews source and freezes the four commands before running them.
+- **Close:** record actual source/result, commit/push candidate. PASS unlocks the
+  checkpoint; failure ends this card and does not silently extend implementation.
 
-### 2. HULK-REVISIT-CHECKPOINT — GATED on task 1
+### RIME-BENCH-CHECKPOINT — GATED on route acceptance
 
 - **Parent/result:** [PACKAGE-WIN / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
-  Deliver the accepted revisit release capability and matching checkpoint packages.
-  Player notes must distinguish qualified existing gameplay from a new feature.
-- **Owner/dependency:** root; task 1 failed. A future explicitly selected and
-  successful revisit qualification is required before this card can run. Integrate
-  the candidate with its source identity retained after exporting from its clean
-  qualified checkout using existing release scripts. No new packaging framework
-  or gameplay work.
-- **Proof:** conditional Windows export and silent isolated payload startup/privacy
-  using the existing safe Linux-engine workflow. Startup requires exit 0 and
-  `STARTUP_MENU_READY_OK`. Inspect exact EXE/ZIP/notes, stock PE metadata and
-  Linux archive members/modes; retain the exact task-1-tested ELF. Compare actual
-  embedded payload inventories and disclose any differences; never infer full
-  cross-platform behavior from source identity or startup alone. Publish EXE,
-  ZIP and notes in `builds/windows/`, matching ELF/archive/notes in `builds/linux/`.
-  Native Windows execution, hardware and human-review gates stay NOT_RUN.
-- **Budget/stop:** 30–45 min integration/packaging/closure; separate export 930 s,
-  startup 330 s, privacy 300 s caps. Stop at first required-gate failure, retain
-  raw results and latest accepted `ef67f3e` packages. A parity mismatch must be
-  disclosed with its actual scope; it is not permission for an investigation loop.
-- **Next action:** none while gated. After an explicitly selected successful
-  revisit qualification, rebind the prepared conditional runner
-  `/srv/mudds-work/hulk-revisit-results-20261017/departure/checkpoint/run.py`
-  to that accepted source/checkout and require all seven stages and exact
-  source/cache/ELF. Do not launch its now-retired checkout path. Run it once,
-  integrate accepted source, package and update the latest checkpoint references.
-- **Close:** commit/push integration and accurate notes/references, verify published
-  artifacts, remove the owned disposable clean checkout and duplicate scratch
-  packages. Preserve exact published bytes, source refs and raw failures.
-
-### 3. EMBER-ABANDON-SOURCE — DONE on e85157b4d
-
-- **Parent/result:** [WORLD-ABANDON](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
-  Qualify one physical Ember ABANDON round trip: outbound flight, surface exit/
-  abandon/reboard/ascent, physical home return/dock/walking exit.
-- **Owner/boundary:** root; clean integrated source `e85157b4d072a9f07a9764c429be20d2766faf81`
-  tested in an owned checkout, now removed after closure. No HULK prerequisite. Existing
-  `tests/ember_transit_movement_soak.gd` ABANDON branch, Torrent and
-  MemoryFilesystem only. Initial guided state/on-foot placement and short
-  canopy/boarding timings are fixtures. Accepted completed-survey journey stays
-  DONE; this card claims no completed survey, durable disk reward, package, shared
-  journey, hardware or whole-world acceptance.
-- **Proof:** [existing mode command](docs/EMBER_LOOP_SOAK.md#what-is-real-and-what-is-staged),
-  pinned Godot 4.7.1, `KETH_EMBER_PHYSICAL_RETURN=1`,
-  `--headless --audio-driver Dummy --fixed-fps 60`, existing script and original
-  7,200 s route cap. Unset arrival diagnostic; omit completed-return argument.
-  Require exit 0, `EMBER_TRANSIT_MOVEMENT_TEST_OK: 31 assertions`, clean diagnostics,
-  physical route/occupied home lease/supported walking checks and owned cleanup.
-- **Budget/stop:** preparation/closure 30–45 min; separate cold import cap 600 s
-  and route cap 7,200 s. This long existing journey is explicitly a qualification,
-  not a two-hour implementation task. Do not split away required travel or shorten
-  it to make the estimate look smaller. Stop at first failure or unchanged cap.
-- **Actual result:** one full route PASS, exit 0 and exact 31-assertion/catalog
-  result, approximately 2,474.7 s under the original 7,200 s cap. Outbound
-  8,009,427.7 m/800 origin shifts, accepted surface dock/hull 100. Abandonment,
-  live reboarding and surface-clear departure pass. Physical return/unload/
-  corridor handoff, matching occupied home lease, disembarkation and 20-tick
-  supported walking all pass. Return sampler records 8,222,916.231 m/796 shifts,
-  zero continuity/occupancy failures. Cold import passes separately.
-- **Close/next action:** DONE; independent audit confirms exact source, all tracked
-  bytes/cache/engine, both stage guards, correct private ABANDON-only environment,
-  no diagnostics and all 7 owned identities/sockets/displays absent. Raw retained
-  at `/srv/mudds-work/ember-abandon-source-results-20261017/`; owned clean checkout
-  removed. The guarded pre/post-route index hashes match; index bytes differed
-  after a later root status inspection, with staged/worktree content verified
-  equal to HEAD and disclosed in cleanup.json. No rerun or source change.
-  Packaged ABANDON, durable disk rewards and wider WORLD-ABANDON requirements
-  remain open. Select the next bounded batch; do not repeat this accepted source run.
+  Publish a paired development checkpoint from the accepted source, with exact
+  package/startup results and usable instructions for selecting its source benchmark.
+- **Owner/dependency:** root; task 1 must PASS, including affected existing modes.
+  Preserve the exact accepted commit through integration and export from its
+  clean checkout using existing release scripts. No new packaging framework.
+- **Proof:** fresh Windows EXE/ZIP/notes in `builds/windows/` and matching Linux
+  ELF/archive/notes in `builds/linux/`; exact artifact bytes/modes, inventory and
+  ZIP/archive checks. Direct/archive Linux startup and silent Windows-payload
+  startup require exit 0 plus `STARTUP_MENU_READY_OK`; existing privacy test must
+  pass. Reuse the accepted source/import cache; record actual cross-platform
+  payload differences without inferring equivalence. Do not run native Windows,
+  hosted CI, active-desktop or audible tests.
+- **Scope:** the source checkout runs the benchmark tool. Exported game packages
+  exclude `tools/`; notes must state this and must not claim the EXE exposes the
+  benchmark, new Rime gameplay, native performance or full-release acceptance.
+  This is a development checkpoint, with native/human/hardware gates NOT_RUN.
+- **Budget/stop:** integration/package/closure 30–45 min; separate Linux/Windows
+  exports 930 s each, three startup stages 330 s each, privacy 300 s. Stop at first
+  required-gate failure; preserve the accepted route and latest public `ef67f3e`
+  checkpoint. No parity investigation or unchanged qualification retry follows.
+- **Next action after task 1 PASS:** review exact source and existing safe export
+  commands, run the conditional package checks once, publish and update references.
+- **Close:** commit/push integration and concise honest notes/references; verify
+  published bytes and remove owned clean disposable checkout/duplicate packages.
+  Preserve exact source refs, unique raw results and published artifacts.
 
 ## Decomposing later work
 
-This batch replaces the stale active cards; it does not claim all 36 parents
-have been decomposed. **Next selected action: a 30–45 min planning pass**,
-no engine runs. Select only the next 3–5 known instances from the backlog. Each
-needs the required card above. Unknown acceptance
-gets one bounded definition task before implementation. Keep original parent
-requirements and dependencies linked; archive closed cards and failures in the
-existing delivery history, rather than growing this file into a run log.
-
-A planning pass has a 30–45 min budget and ends with reviewed cards and a commit/
-push. It performs no game runs and counts as planning progress only. Progress
-updates give the named outcome, accepted/failed result, next action and separate
-work/check estimates; they do not turn broad parent counts into a project ETA.
+This batch does not claim all 36 parents have been decomposed. At its boundary,
+select at most the next 3–5 known instances. Each needs the required card above;
+unknown acceptance gets one bounded definition task. Archive closed cards and
+failures in existing delivery history. A planning pass has a 30–45 min budget,
+no engine runs, and ends with reviewed cards and a commit/push. Planning and
+benchmark diagnostics do not count as delivered gameplay or native performance.
 
 ## Working constraints
 

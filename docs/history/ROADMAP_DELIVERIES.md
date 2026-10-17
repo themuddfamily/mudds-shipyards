@@ -1514,3 +1514,23 @@ Current three-card batch:1accepted (Ember source),1failed (HULK revisit deadline
 1gated (revisit checkpoint). No broad parent or phase gate closes. Next action is
 the existing bounded next-batch planning pass, with no automatic HULK repair or
 unchanged Ember rerun.
+
+
+## Next bounded batch — Rime benchmark route selected 2026-10-18
+
+Planning pass inspected the existing benchmark runner/test and Rime authored
+trails. Existing six selections cover Ember/Aurora but omit Rime; native Windows
+launcher's explicit allowlist also lacks Rime. Select RIME-BENCH-ROUTE, one missing
+executable source benchmark capability, using production streaming/Player/terrain
+and authored survey/return points. Preserve original default scenarios and full
+warmup/measurement floors; focused proof remains diagnostic. Its conditional
+development checkpoint is a separate artifact-delivery card. Exported games
+exclude tools, so notes must not advertise an EXE benchmark or new Rime gameplay.
+Only these two known tasks are queued; do not pad the batch with speculative work.
+
+Read-only Annex patch check found tracing callbacks only, not a demonstrated
+player-facing fix. Its dirty checkout stays preserved and is not scheduled as a
+feature. No further runtime investigation or engine runs occurred in planning.
+Accepted Ember original31 source run stays DONE; HULK revisit stays parked at
+its failed original300s attempt, candidate withheld/checkpoint gated. Original
+36 parent outcomes and ten phase gates remain open.
