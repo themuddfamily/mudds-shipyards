@@ -43,22 +43,52 @@ Keep completed entries short: instance, outcome, source/build and check referenc
 
 ## Current task and next queue
 
-**Completed: PLAN — replace the sprawling roadmap with bounded tasks (2026-10-17).** Owner: primary agent. All 36 parent outcomes are mapped; the original requirements are preserved verbatim apart from relative-link rebasing; local link targets, incoming anchors and formatting checks pass. Independent review approves coverage and bounded acceptance. This documentation delivery changes no game behavior and needs no new build. **Completed: LINUX-BUNDLE[managed installer] — `653c1459d`.** The actual Linux download includes the standalone manager; 31 focused tests, six shipped-script install/upgrade/uninstall transactions and both strict silent startup checks pass. Exact runtime bytes match df86280; saves/unrelated files survive. [Package notes](builds/linux/MuddsShipyards-653c145-linux-notes.txt) record limits and the retained initial cache-guard stop. No parent or phase gate closes. **Completed diagnosis: BASE-DIAG[Rime pad-controls second scenario] — source `3e39ed8da`.** The corrected catalogue-headless full run still FAILS at the unchanged 300s limit. The first scenario completes (return 17.099s <18s). The second authenticates and completes all three outbound walks, then enters its original 180-wait held-edge loop at264.733s; last recorded progress is91/180 at291.862s before timeout. Its jump/return/reboard/scene-retirement checks are not reached. The first identical edge takes55.013s/1,440 physics ticks, exceeding the35.267s left when the second starts. This locates the incomplete boundary; it does not uniquely assign all CPU cost or prove a new retirement defect.
+Completed bounded tasks below retain their detailed results in Git, build notes
+or the named raw report. None closes a parent or phase gate.
 
-The mistaken initial Xvfb/software-renderer probe is retained separately: first return fails18.054s and second scenario is NOT_RUN; it cannot qualify the original headless result. Both probes retain original routes/limits, source/cache closure and process cleanup. Raw report, original/instrumented fixture, patch and logs: `/srv/mudds-work/rime-pad-boundary-results-20261017/report.txt`; corrected log SHA-256 `26cbdd2498d56acd037a710b4da4a3af97284356e84ed83b00f9d5b44c60df80`. No runtime change or package is claimed. **Completed: PERF-FIX[dormant chase cameras] — `d0e129f8d`.** The same 18-craft/240-tick dormant probe drops actual correction calls from 4,320/605.576ms to 0; this is isolated routine work, not FPS/native-GPU qualification. The new regression fails 7 assertions on old runtime; fixed flight 185 and cargo 14 assertions pass. Independent review approves lifecycle/activation ordering and unchanged geometric coverage. Fresh clean-source checks and actual Windows-payload checks each pass 358 assertions; all three strict startups, payload/PE/ZIP/archive identity and source/cache guards pass. Matching [Windows](builds/windows/MuddsShipyards-d0e129f-notes.txt) and [Linux](builds/linux/MuddsShipyards-d0e129f-linux-notes.txt) checkpoints are delivered. No Rime300s, phase or parent closure is claimed. **SCOPE-LIMIT[session capacity]: definition/proposal delivered; final release target WAITING on owner choice.** [Capacity contract](docs/COMPLETION_SCOPE.md#session-capacity-contract-and-pending-release-target) records remote-guest counting, all nine craft's authored seats/overlapping roles, narrower current evidence and the required first two-client acceptance profile. Default 8 means 8 guests, excluding host; recommendation is to retain it as the release qualification target (9 total with playing host), without claiming support or reducing other promises. Owner question is pending. The original server/two-client baseline is already authorized and can proceed independently; missing Settings artifacts remain WAITING.
+| Task | Outcome / source |
+| --- | --- |
+| PLAN | Bounded roadmap and 36-parent scope crosswalk delivered in `5d3476af5`; original requirements preserved in the reference. |
+| LINUX-BUNDLE | Managed installer shipped and actual archive transactions verified in `653c1459d`; [package notes](builds/linux/MuddsShipyards-653c145-linux-notes.txt). |
+| BASE-DIAG[Rime second scenario] | `89974fce0` locates original 300s timeout inside second held-edge loop; full suite still FAIL. Raw report: `/srv/mudds-work/rime-pad-boundary-results-20261017/report.txt`. Failed rendered-mode attempt retained separately; no runtime fix claimed. |
+| PERF-FIX[dormant chase cameras] | `d0e129f8d` removes dormant correction work and preserves active/activation clearance; reviewed, measured and [packaged](builds/windows/MuddsShipyards-d0e129f-notes.txt). No FPS/Rime300s claim. |
+| SCOPE-LIMIT definition | `43111884d` records guest counting, nine-craft seat/role facts and a finite [release-target proposal](docs/COMPLETION_SCOPE.md#session-capacity-contract-and-pending-release-target). Final target remains WAITING on owner choice. |
+| NET-BROWSER[guest-capacity wording] | `f676c5016` corrects labels without count/protocol changes; existing UI checks and [matching checkpoint](builds/windows/MuddsShipyards-f676c50-notes.txt) pass. |
+| NET-CREW[Jovian engineer] functional probe | Current `f676c5016` package route passes 72 checks with host/one client; one retained Xvfb VSync warning leaves strict zero-diagnostic qualification open. Details below. |
 
-**Completed: NET-BROWSER[guest-capacity wording] — `f676c5016`.** Settings explain that Guest capacity excludes the host, and browser occupancy/focus labels say guests. Settings/protocol keys, defaults, limits, counts and full-session behavior retain their existing semantics. Fresh source and actual Windows-payload UI/privacy checks each pass 254 assertions; three strict startups and exact payload/PE/ZIP/archive/source/cache guards pass. Matching checkpoint notes above retain limits. No player-count, occupancy, endurance, full-matrix or phase qualification is claimed. No child is currently active; next work may select one original two-client baseline route while the release-target decision is pending.
+**Latest result: NET-CREW[Jovian engineer ordinary route] functional PASS.**
+The unchanged fixture from `43111884d` exercised actual `f676c5016` production
+payload in an orchestrator and two independent Main peers (host + one client).
+All three explicitly loaded the requested package. It passes 72 checks, with
+host 28/client 32 and all OS exits 0 in 77.118s under original 300s/internal limits.
+Ordinary cabin input, physical engineer chair, component selection/repair
+(kits 6→5), stand/reseat, generation-rotation cancellation and disconnect recovery
+pass. Hatch placement, component damage, clock stress and migration rotation are
+scripted fixtures; transformed input names are exercised, not a settings-remap UI.
 
-The following is a proposed execution order after PLAN, not permission to combine the rows into one job. Select and fill one task card at a time. Estimates below are planning ranges, not promises; reassess after the first probe.
+One retained llvmpipe/Xvfb VSync warning means **strict zero-diagnostic qualification
+remains open**; no script/resource/error diagnostics occurred. No third gameplay
+participant, two-client baseline, endurance, capacity, native GPU/device/audio,
+canonical journey or final-candidate claim follows. No runtime or test changes
+were made, so no new build was manufactured for this check. Source, 645 cached
+files, engine/package/fixture hashes, child receipts, owned cleanup and ordered
+lane release verify. Raw report: `/srv/mudds-work/jovian-engineer-candidate-results-20261017/report.txt`.
+Raw log SHA-256: `dd663123ae3476c5f0e8adc1df7d5cc149f82953d4a7732dc3ca0552580d20c9`.
 
-| Order / instance | Status and dependency | Concrete result and stopping check | Initial effort |
-| --- | --- | --- | --- |
-| 1. LINUX-BUNDLE[managed installer] | DONE on `653c1459d`; package notes above | Include the managed installer in the Linux archive so installation needs no repository checkout. Extend `export_linux_candidate.sh` and existing export/installer tests; preserve support for existing five-member archives and allow only the explicitly named added member. Stop at successful archive install/update/uninstall, saved-data preservation and exact ELF identity checks. | 1–3 hours implementation and local checks; export time separate |
-| 2. BASE-DIAG[Rime pad-controls second scenario] | DONE diagnosis; full suite still FAIL | Corrected original headless run locates timeout inside second held-edge loop; result and retained mode error above. Do not repeat unchanged. | Completed |
-| 2a. PERF-FIX[dormant chase cameras] | DONE on `d0e129f8d`; checkpoints above | In `hero_ship.gd`, avoid repeated self-hull boundary work for dormant chase views while enforcing the full boundary synchronously on activation and during active use. Existing b9a profiler reports4,320 mount calls/240ticks and475.882ms self across18 cameras; denominator percentages are invalid and must not be reused. Verify reduced dormant work, first-frame activation, cockpit/chase switching, SpringArm/world/ship obstruction and five-sample near-plane clearance through existing `flight_input_test.gd` and `cinder_cargo_hauler_hull_resource_sharing_test.gd`, independent review and checkpoint. Stop at measured cost reduction with camera behavior preserved; do not claim it alone fixes Rime300. | 1–3 hours plus checkpoint; hardware qualification separate |
-| 3. SETTINGS-INPUT[original artifacts] | WAITING; original runner, saved profile and raw logs unavailable | Recover the exact originals from their custodian, or record the precise missing-artifact handoff. A substitute cannot close the original Gate C. Stop at recovered identity/paths or a named external dependency. | Bounded inventory already done; external wait unknown |
-| 4. SCOPE-LIMIT[session capacity] | Proposal delivered; release target WAITING on owner choice | Concrete remote-guest counting contract, nine-craft authored seat/role table, current evidence limits and two-client first-acceptance profile are in COMPLETION_SCOPE. No configured or physical count is accepted capacity. | Definition complete; decision wait separate |
-| 4a. NET-BROWSER[guest-capacity wording] | DONE on `f676c5016`; matching checkpoints above | Settings explain that guest capacity excludes host; browser occupancy labels show guests. Existing UI/persistence/join/count behavior must remain intact. Stop after focused checks and exact package checkpoint. | Bounded wording fix and checkpoint |
+No child is currently active. Next ready instance: NET-CREW[Halyard engineer]
+using its existing alias of the same owned-peer fixture; name its source/package,
+original mode/limits and expected receipts in a new task card before running.
+
+Select only one child at a time. The required two-client baseline is already
+authorized regardless of the pending final release-capacity choice. A configured
+or physical seat count is never accepted session capacity.
+
+| Next instance | Status / dependency | Stopping check |
+| --- | --- | --- |
+| NET-CREW[Jovian engineer] | Functional probe complete; strict diagnostic gate remains open | Do not repeat unchanged to hide the software-driver warning; any final qualification needs an actually suitable environment. |
+| NET-CREW[Halyard engineer] | READY after any shared-owner blocker found above is handled | One separate existing Halyard ordinary engineer route on a named package; no whole-fleet assignment. |
+| SCOPE-LIMIT[final release target] | WAITING on owner choice; question already asked | Record selected remote-guest count and playing-host participation, preserving all other promises; do not change default or claim support by inference. |
+| SETTINGS-INPUT[original artifacts] | WAITING on exact original runner/profile/logs | Recover identified originals or leave precise missing-artifact handoff; a substitute cannot inherit Gate C. |
 
 ## Baseline and ordinary controls
 
@@ -92,7 +122,7 @@ The last full matrix's eleven failed suites are below. `BASE-DIAG` selects **one
 | `game_flow_ember_surface_presentation_integration_test.gd` | Original 300s timeout; separate setup from first incomplete integration boundary. |
 | `game_flow_scan_durable_recovery_test.gd` | Half-second retry fixed; later full suite still times out after 96 printed passes. Diagnose remaining boundary. |
 | `session_recovery_resume_offer_test.gd` | Original 300s timeout; one-boundary diagnosis required. |
-| `game_flow_rime_client_pad_controls_test.gd` | On3e39ed8da corrected headless run first scenario completes, return17.099s; second held-edge starts264.733s and still progresses at291.862s before original300s timeout. Diagnosis above; preserve180 edge waits/1,440-tick exposure and100 jump waits. Next: reduce a measured production hotpath, then affected original checks; no unchanged rerun or timing relaxation. |
+| `game_flow_rime_client_pad_controls_test.gd` | On3e39ed8da corrected headless run first scenario completes, return17.099s; second held-edge starts264.733s and still progresses at291.862s before original 300s timeout. Diagnosis above; preserve180 edge waits/1,440-tick exposure and100 jump waits. Next: reduce a measured production hotpath, then affected original checks; no unchanged rerun or timing relaxation. |
 | `network_emberline_bolt_test.gd` | Late-peer startup/retry failure at original 44/45s boundary. Identify startup/protocol boundary before a runtime fix. |
 | `station_light_overlap_census_test.gd` | Historical expected rows/environment unresolved; mismatch repeats on its own freeze. Recover measurement basis before changing expectations; never replace hashes just to pass. |
 
