@@ -187,6 +187,21 @@ repeat, package pass or native qualification follows. Fixture restored, exact
 inputs/source/cache and owned teardown verified, temporary checkout removed.
 Raw report: `/srv/mudds-work/emberline-boundary-results-20261017/report.txt`.
 
+Current-package Halyard **default stationary passenger** route passes on actual
+`f676c5016` with unchanged `d336c07be` external fixture: 73 checks, host33/client25,
+all three engine OS exits0, ~80.10s under original300s/internal limits. Host and
+one authenticated client use actual `halyard_new_design`, passenger chair
+`crew_port_00` and `halyard_walkable_interior`. Physical chair/stand, supported aisle
+walk/return, reseat, migration-generation rotation/authenticated rebind and seated
+disconnect cleanup pass. Each exterior approach is staged by teleport. No moving
+craft, actual host termination, two-client, capacity or canonical journey claim;
+those requirements remain open. Zero emitted runtime diagnostics; standard
+`GODOT_SILENCE_ROOT_WARNING=1` is disclosed. Exact inputs/source/cache, actual raw
+receipts and owned process/display/socket/lane closure independently verified;
+clean temporary checkout removed, no runtime/test changes or new build.
+Raw report: `/srv/mudds-work/halyard-passenger-candidate-results-20261017/report.txt`;
+log SHA-256 `eff417eb95e9e8f401bbeb8eacefce63593bb62e082297aa7fdac795e3c97090`.
+
 ## Session capacity contract and pending release target
 
 **Counting contract:** the capacity setting and browser count **remote guests, excluding the host**. The setting defaults to8 and permits 1–32; GameFlow passes it unchanged as `max_clients`. ENet admission inserts only remote hello senders into `_peer_generations`; the capacity snapshot and LAN/directory publishers use that dictionary directly. Thus 8 configured guests can mean 9 total players when the host also plays, or 8 players with a dedicated server. This is configuration, not accepted support. Handshake/migration and interest ceilings are independent safeguards, not extra guest slots. Settings/protocol keys retain their existing names for compatibility; player-facing wording now says guests in checkpoint `f676c5016`.

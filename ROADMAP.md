@@ -63,25 +63,27 @@ or the named raw report. None closes a parent or phase gate.
 | NET-CREW[Bulwark gunner] | Current `f676c5016` route passes: remote and moving-host gunner shots each damage registered targets 100→78; stand/reseat and pilot-disconnect ownership checks pass. Scope in COMPLETION_SCOPE. |
 | Q1 · BASE-DIAG[Emberline late peer] | Historical first unmet dependency identified: later dead-peer baseline before reset. One instrumented `e026cf620` isolated original-cap probe passes; no production fix/root cause claimed. |
 | Q2 · PERF-SELECT[existing benchmark scenarios] | `47adf7c6e` adds one-route selection while preserving default two-route/full-protocol acceptance; 127 focused assertions and 11 Python checks pass. [Usage](docs/PERFORMANCE_BENCHMARK_RUNNER.md). |
+| Q3 · NET-CREW[Halyard passenger default route] | Actual `f676c5016` stationary-cabin chair/walk/reseat and migration-generation rebind/disconnect route passes 73 checks, no emitted runtime diagnostics; moving-craft acceptance remains open. |
 
-**Latest completed result: Q2 benchmark scenario selection.**
-`47adf7c6e` accepts `KETH_BENCHMARK_SCENARIO` or launcher `-Scenario` for either
-existing route; unset still runs both. Unknown names reject before Main/window
-mutation. Selected reports stay diagnostic-only; strict full-protocol gates still
-require both routes. Full frame/time floors and input/abort cleanup are enforced.
-The existing focused headless/Dummy suite passes 127 assertions in ~157s under
-its original 300s cap; 11 Python gate tests pass. A separate unknown-name runner
-invocation exits 1 as expected and creates no report. Source/cache/input hashes
-and owned teardown verify; independent review finds no blocker. Native Windows
-launcher execution and native performance remain NOT_RUN. Tools/tests are excluded
-from game export, so current playable checkpoint remains `f676c5016`. Clean
-temporary checkout removed; raw report:
-`/srv/mudds-work/benchmark-selection-results-20261017/report.txt`.
+**Latest completed result: Q3 default Halyard passenger route.**
+The unchanged `d336c07be` external fixture loads actual `f676c5016` production
+payload in an orchestrator and host/one-client peers. All three package markers
+match; all OS exits are 0. The route passes 73 checks (host33/client25) in ~80.10s
+under original 300s/internal limits. Physical `crew_port_00` passenger sit/stand,
+supported stationary cabin aisle walk/return, reseat, migration-generation
+rotation/authenticated rebind and seated-disconnect ownership cleanup pass.
+Exterior hatch approaches are staged by teleport; no craft-translation phase,
+actual host termination, two-client, capacity or canonical journey is qualified.
+Zero runtime diagnostics emitted; the standard root-context notice suppression
+flag remains disclosed. Exact source/cache/input hashes, raw receipts and owned
+process/display/socket/lane closure independently verified. Clean temporary
+checkout removed; no runtime/test change or new build. Raw report:
+`/srv/mudds-work/halyard-passenger-candidate-results-20261017/report.txt`.
 
 ### Next execution batch: six named tasks
 
 These are **six scheduled tasks, not six tasks left in the project**. Root owns
-integration and updates each card before assigning it. **Q1 and Q2 are complete; Q3 is next.**
+integration and updates each card before assigning it. **Q1–Q3 are complete in their recorded scope; Q4 is next.**
 Any later demonstrated repair takes priority over another unrelated diagnosis. Independent work can proceed only with disjoint
 ownership; runtime network/display lanes remain serialized. No task in this batch
 closes a phase or substitutes for final integrated acceptance.
@@ -98,16 +100,20 @@ preceding crew probes; a source-only matrix pass cannot replace its package chec
 | --- | --- | --- | --- |
 | Q1 · BASE-DIAG[Emberline late peer] | Diagnosis · DONE; failure not reproduced | Historical unmet dead-baseline dependency identified; one original-cap current instrumented probe passes. Root cause/fix unproven; next combined matrix retains coverage. | Probe ~136s; total effort not timed |
 | Q2 · PERF-SELECT[existing benchmark scenarios] | Release capability · DONE on `47adf7c6e` | Either existing route runs by name; default both and full-protocol rejection of partial reports verified. | Checks ~174s; total effort not timed |
-| Q3 · NET-CREW[Halyard passenger] | Qualification · READY | Current-package passenger chair/walk/return and recovery result, with exact participant scope. | 30–60 minutes |
+| Q3 · NET-CREW[Halyard passenger default route] | Qualification · DONE on `f676c5016` | Stationary physical passenger route passes; no moving-craft acceptance inferred. | Route ~80s; total effort not timed |
 | Q4 · BASE-DIAG[Patrol restore] | Diagnosis · READY | First incomplete persistence/recovery operation and one named repair owner. | 1–2 hours |
 | Q5 · BASE-DIAG[Resume offer] | Diagnosis · READY | First failing cold-recovery context and responsible production owner. | 1–2 hours |
 | Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · READY for bounded artifact lookup | Exact canonical failing command, initial state and expected landing result, or the specific missing artifact. | 30–60 minutes |
 
-No child is active. Next task: **Q3**, one current-package Halyard passenger
-route. Fill its source/build/owner/check card before starting. Q1's historical
-full-matrix failure remains open for the next integrated run; do not restart its
-completed isolated diagnosis. Q2's selection work is complete; missing benchmark
-routes and native hardware measurements remain separate tasks below.
+No child is active. Next task: **Q4**, first incomplete Patrol save/restore
+operation. Start from retained output, name one hypothesis and fill its task card
+before probing. Q1's old full-matrix failure remains open for integrated coverage;
+Q2's native hardware/extra-route requirements remain separate.
+
+**Q3 scope correction:** the default fixture exercises a stationary cabin; the
+initial batch wording incorrectly called it moving. Q3 closes that default route
+only. Actual moving-craft passenger use remains open under CRAFT-ROLE /
+WORLD-SHARED. No alternate shared-cruise or host-flight variant was silently added.
 
 **Q1 — Emberline late peer.** Player outcome sought: a joining peer sees the live
 travelling weapon at the authoritative position. Start from the retained matrix
@@ -141,9 +147,10 @@ route, report version or hardware qualification. Full warmup/sample floors stay
 3,600 frames/60s and 18,000 frames/600s. Native Windows launcher execution remains
 NOT_RUN under the hold; review its argument forwarding without launching it.
 
-**Q3 — Halyard passenger.** Player outcome checked: an authenticated remote
-passenger can sit, stand, walk the moving deck, return and recover ownership through
-the fixture's applicable lifecycle cases. Owner: existing
+**Q3 — Halyard passenger default route.** Player outcome checked: an authenticated
+remote passenger can sit, stand, walk the stationary cabin aisle, return to the
+chair and recover ownership through the fixture's applicable lifecycle cases.
+Moving-craft acceptance remains a separate unqualified requirement, as noted above. Owner: existing
 `tests/network/halyard_network_passenger_route_test.gd`; production is unchanged.
 Prerequisite: exact package `f676c5016`, unchanged external fixture, private profiles,
 owned displays and network/display lanes. Proof: one existing default full route, input-only, with the original 300s outer
