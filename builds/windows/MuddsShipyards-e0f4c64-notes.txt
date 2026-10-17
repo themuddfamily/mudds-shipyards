@@ -1,0 +1,18 @@
+Mudd's Shipyards — atmospheric update CPU checkpoint e0f4c64 — 2026-10-17
+Clean exported source: e0f4c647e8b8c3e472b092ecc035d553a3372d5f
+Engine: pinned official Godot 4.7.1 a13da4feb, stock release templates.
+
+Delivered change:
+Sun-light updates avoid copying receipt dictionaries immediately before the result builder copies them again. Every observation still evaluates the live model and guards; retained state, public getters, signal payloads, lighting equations and renderer values keep their existing isolation. Atmosphere topology guards also avoid allocating empty child arrays for leaves. Lighting and controls retain their existing behavior.
+
+Actual validation:
+- Independent reviews approve both changes. Fresh exact-source seven-suite focused matrix passes 148 recorded assertions with zero diagnostics, unchanged source/cache and original 300-second suite limits. It covers Sun policy 38, Sun presentation 55, atmosphere rig 43, composition 12, aerial response, cloud shadows and retained recipes. Changed/unchanged receipt mutation preserves retained state; nested topology counting rejects added descendants and recovers after removal.
+- Sixteen alternating same-process original/current configured batches: Sun median 57.7645 -> 50.1505ms per 120 calls (13.18% lower, 16/16 faster); complete rig 239.4985 -> 233.0865ms (2.68% lower, 14/16 faster). All 4,382 compared receipts and 574 state comparisons agree, excluding only instance IDs. Old fixtures use original 54a5ecd adapter and policy implementations. These are headless configured-component timings, not whole-game, frame-rate or GPU qualification. The separate leaf guard benchmark improves 4.4%; its full-presentation benefit is marginal.
+- Actual Windows embedded payload through the Linux editor passes Sun policy 38, presentation 55, rig 43, composition 12 and startup-CLI privacy 159, each exit 0 / one completion / zero diagnostics. Both exports share all 1,515 embedded entries by path, size and SHA-256; Windows PE code matches the pinned stock template.
+- Three strict startup probes each exit 0 with exactly one STARTUP_MENU_READY_OK and zero diagnostics: windows-payload-startup 25.743696s, linux-direct-startup 21.431192s, linux-archive-startup 21.562563s. Linux direct/archive startup, extracted executable mode and member bytes pass. Windows is read-only PE verification plus payload execution through Linux; no native Windows execution occurred.
+- Source matrix: artifacts/test-matrix/20261017T060711Z-e0f4c6-focused/. Package logs/inventories: artifacts/checkpoint-e0f4c64/. Benchmark/baselines: /srv/mudds-sun-receipts-benchmark-20261017/. The initial packaging wrapper's six-character filename error is retained in /srv/mudds-sun-checkpoint-e0f4c6-console.log; the completed Windows export was reused with verified bytes, and Linux/package checks then completed under the correct seven-character name.
+
+Open acceptance:
+The complete matrix on this source is NOT_RUN. Earlier exact 7f9627e remains FAIL: 1,032 PASS / 13 FAIL across 1,045 suites. Its remaining failures are retained; focused fixture corrections and these component optimizations do not close full regression. Full Sandbox, Settings/re-entry, canonical shared journeys, installed recovery and all ten phase gates remain open. Native Windows stays NOT_RUN under the antivirus hold; native GPU/hardware, controller, audible and human-review gates remain NOT_RUN. Hosted CI remains disabled. Unsigned local checkpoint; files stay under repository builds/, with no Downloads publication.
+
+EXE SHA-256: 705ae3fb64eb547bc6c7c6ebb6fd4f9e82b9c7f8f7adc78897cf4b8762a3b9e2
