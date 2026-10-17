@@ -140,23 +140,39 @@ threshold only at the final observation. No blocking geometry/control failure
 is evidenced. [Recorded boundary](docs/history/ROADMAP_DELIVERIES.md#sandbox-recovery-walking--retained-observation-boundary).
 No new engine run or gameplay repair claimed.
 
-## Next bounded task: SANDBOX-PACING-CANDIDATE
+## Sandbox pacing candidate — one supported correction
 
-**Diagnosis/planning only.** Parent: original full Sandbox normal-input/crash/
-recall/reuse acceptance. Owner `sandbox_recovery_boundary`, IN PROGRESS.
+Read-only original observations identify an unnecessary backward camera sweep
+while braking inside an already reached station waypoint. At
+`tractor_east_clearance`, distance0.0198m/speed3m/s, the driver keeps aiming at the
+old point behind the player; facing swings backward before settling at0.0648m.
+The next leg then needs2.51rad correction. This identifies an input-controller
+candidate; no measured saving or full-route success is claimed.
 
-| Field | Contract |
-| --- | --- |
-| Result | Identify one demonstrably avoidable earlier controller/input delay from original stage frames and actual observations, or report NONE. |
-| Boundary | Same exact original driver and `/srv/mudds-work/ca0-sandbox-acceptance-20261017/` receipts. Read-only; inspect only longest plausible avoidable branch, no engines/edits/new profiles/validators or broad startup audit. |
-| Proof | Actual frame/state/position interval plus exact driver branch supporting unnecessary waiting; total duration alone is insufficient. Preserve all54 ordered waypoints, eight sorties, real crash/recall/regeneration/recovery/reuse, default physical sampler, original waits/criteria and300s cap. |
-| Budget |15 min artifact review, stop at candidate or NONE. |
-| Close | Root schedules one supported correction separately, with full original acceptance; do not relabel a modified driver as unchanged. If NONE, park with no repeated run/profile. |
+## Next delivery: SANDBOX-SETTLE-FACING
 
-**Next single action:** review the assigned bounded pacing finding. No engines
-active. Do not rerun accepted Guided/package/benchmark checks. All ten phase
-gates remain open. Q4/Convoy remain parked without a justified construction
-candidate. Latest paired gameplay checkpoint remains b6af782; Linux isb41c3cc.
+**One result:** correct only that camera sweep, then complete the entire
+original Sandbox route/criteria at300s using a distinctly identified corrected
+driver. Parent: [SANDBOX](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls).
+
+| Task | Exact finish / stop | State / budget |
+| --- | --- | --- |
+| SANDBOX-SETTLE-IMPLEMENT | Only suppress old-target mouse correction inside unchanged grounded distance/height envelope while waiting for unchanged settled speed. Preserve braking, door/through-point handling, all54 ordered waypoints/eight initial sorties/crash/recall/regeneration/recovery/reuse, tuning, waits/thresholds/cap and Guided logic. | DONE candidate7cb633d52, root reviewed; not integrated |
+| SANDBOX-SETTLE-VERIFY | One complete actual b41c3cc ELF route under privateX11/Dummy/default physical sampler, original300s plus345s outer cleanup. Confirm backward sweep removed without early waypoint admission AND NATIVE_SANDBOX_OK/full criteria, zero diagnostics/owned cleanup/source guards. No shortened route/rescue/retry. | READY; normally5 min, original cap retained |
+| SANDBOX-SETTLE-CLOSE | Integrate/push only after actual full pass and review. If failure, record it and withhold candidate; no automatic extra profile/pacing cycle. Preserve raw/candidate, remove disposable checkout. | GATED on actual result |
+
+**Owner:** `sandbox_recovery_boundary` delivered clean candidate
+`7cb633d5202386afb40b2d77bb1bed4cacf2f674`, parent e850a974e. Corrected driver SHA256
+`c713234df624e5f0191d9622aa85cdc5a8617f19f6cfaa2452083ecff431e1af`.
+AST normalization proves only the new mouse guard differs; original arrival
+predicate and every other class/function unchanged. Game ELF remains b41c3cc.
+**Next single action:** freeze candidate acceptance checkout and launch ONE
+full Sandbox run. Raw:
+`/srv/mudds-work/sandbox-settle-facing-results-20261017/`. No engine active now.
+Future observer selects actual `/proc/PID/exe`, correcting the prior space-parser
+capture gap; completed older raw results are untouched. No new game build.
+All ten phase gates remain open. Q4/Convoy remain parked without a justified
+construction candidate. Latest paired gameplay checkpoint b6af782; Linuxb41c3cc.
 
 ## Working constraints
 
