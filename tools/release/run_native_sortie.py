@@ -653,17 +653,21 @@ class SandboxPilot(SandboxWalkPilot):
                                  [22.2, 4.18, 90], [8.8, 4.18, 90]]
         elif key == 'cinder_long_range_bomber':
             # Leave the cargo ramp to the north before crossing its outboard
-            # deck. The existing west Aft aisle clears muster furniture/ribs;
-            # its 20mm bridge lip uses PlayerController's normal step-up.
+            # deck. Follow the east Aft lane, then pass south of the workpost
+            # before crossing to the west aisle. The diagonal clears the
+            # muster locker; the 20mm bridge lip uses normal step-up.
             self.pending_walk = [[7, 4.18, 90], [22.2, 4.18, 90], [22.2, 4.18, 75.2],
                                  [23, 4.18, 72.8], [25.4, 4.2, 70.6], [25.4, 4.2, 68.3],
-                                 [-9.2, 4.2, 68.3], [-9.2, 4.2, 61.4], [-10.8, 4.22, 61.4],
+                                 [-3.5, 4.2, 68.3], [-3.5, 4.2, 64.2], [-4.1, 4.2, 62.8],
+                                 [-5.7, 4.2, 61.2], [-9.2, 4.2, 61.2], [-9.2, 4.2, 61.4],
+                                 [-10.8, 4.22, 61.4],
                                  [-10.8, 4.2, boarding[2]], boarding]
         elif key == 'cinder_light_interceptor':
             self.pending_walk = [[56, 4.2, 68.3], [56, 4.2, boarding[2]], boarding]
             if not self.reusing:
                 self.pending_walk = [[-10.8, 4.2, s['player'][2]], [-10.8, 4.22, 61.4],
-                                     [-9.2, 4.2, 61.4], [-9.2, 4.2, 68.3]] + self.pending_walk
+                                     [-9.2, 4.2, 61.4], [-9.2, 4.2, 61.2], [-5.7, 4.2, 61.2],
+                                     [-4.1, 4.2, 62.8], [-3.5, 4.2, 64.2], [-3.5, 4.2, 68.3]] + self.pending_walk
         else:
             self.pending_walk = [boarding]
         self.approach_path = self.pending_walk[:]
