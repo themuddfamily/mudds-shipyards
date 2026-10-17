@@ -110,16 +110,20 @@ production gameplay changes, uninstall-kill or power-loss qualification.
 
 | Task | Exact finish line / stop | State / budget |
 | --- | --- | --- |
-| LINUX-FIRST-INSTALL-REPRO | Existing real child-process cut, first install only; kill after desktop publication/before manifest, reap, then fresh ordinary CLI retry. Record actual failure or supported success; no assumed bug. | IN PROGRESS;15 min |
-| LINUX-FIRST-INSTALL-FIX | If reproduced, repair the existing ownership transaction, pass focused tests including prior update recovery, tampered inputs and protected saves/untracked files. No permissive ownership fallback. | GATED on reproduction;45–60 min implementation, focused checks separately |
+| LINUX-FIRST-INSTALL-REPRO | Existing real child-process cut, first install only; kill after desktop publication/before manifest, reap, then fresh ordinary CLI retry. Record actual failure or supported success; no assumed bug. | DONE; actual SIGKILL/fresh retry exits1, refusal of desktop without manifest |
+| LINUX-FIRST-INSTALL-FIX | If reproduced, repair the existing ownership transaction, pass focused tests including prior update recovery, tampered inputs and protected saves/untracked files. No permissive ownership fallback. | IN PROGRESS;45–60 min implementation, focused checks separately |
 | LINUX-FIRST-INSTALL-SHIP | Clean-source Linux archive includes exact repaired manager; actual shipped-manager first-install kill/fresh retry and update checks, exact artifact/member bytes, direct/extracted strict startup exit0 + STARTUP_MENU_READY_OK; notes and cleanup. | GATED on fix; export/smoke5–15 min plus original caps |
 
 **Owner:** `linux_first_install_recovery`, isolated worktree
 `/srv/mudds-work/linux-first-install-recovery-20261017`, base09bf654c3;
 root owns integration, roadmap and actual package checks.
-**Next single action:** finish the assigned first-install reproduction using the
-existing real-kill helper, then fix only that transaction if confirmed. Raw
-before/after: `/srv/mudds-work/linux-first-install-recovery-results-20261017/`.
+**Reproduction:** existing helper killed/reaped the real production child at
+publication; no previous install, manifest or journal. Fresh ordinary retry
+exits1 refusing the desktop entry. Raw `before-fix.json` and cut filesystem retained.
+**Next single action:** review the implementer's transaction repair and focused
+checks, then freeze clean integrated source for the existing Linux export flow.
+`linux_first_install_package_check` prepares the actual shipped-manager check
+independently; no engines launched. Raw before/after: `/srv/mudds-work/linux-first-install-recovery-results-20261017/`.
 No engines or package export is assigned. Stop at first unexpected boundary and
 record it before any separately bounded follow-up.
 
