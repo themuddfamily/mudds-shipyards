@@ -1,6 +1,6 @@
 # Completion scope and production roster
 
-This is the working roster for [roadmap task 0](../ROADMAP.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
+This is the working roster for [roadmap task 0](ROADMAP_BACKLOG.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
 Latest paired checkpoints: clean `b6af782021ef89c2ef200033c6c72573f4cf238b` ([Windows notes](../builds/windows/MuddsShipyards-b6af782-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-b6af782-linux-notes.txt)). A stable server-browser Disconnect button lets connected hosts/guests leave and reuse the browser; existing shutdown/capacity rules remain. Fresh source and actual Windows-payload checks each pass262 assertions; three strict startups and all1,515 matching payload entries verify. Against f676c50, HUD code changes and65 generated scenes differ only within their equally sized node-ID arrays; every other decoded scene byte matches. The initial comparison failure is preserved; unrun package checks resumed on those exact exports without rebuilding. Native Windows/GPU/device/audio, full matrix and final release gates remain unqualified. Earlier f676c50 guest-count wording remains included; its historical gameplay results below qualify that earlier package only.
 
@@ -309,7 +309,7 @@ Current evidence boundaries: `network_enet_session_capacity_test.gd` uses cap 1 
 
 ## Phase-wide acceptance still required
 
-The roster tables name content; the following shared commitments still apply to every required item. Detailed remaining tasks and historical results stay in [ROADMAP](../ROADMAP.md#remaining-tasks-to-complete-the-project).
+The roster tables name content; the following shared commitments still apply to every required item. Detailed remaining tasks and historical results stay in [ROADMAP](ROADMAP_BACKLOG.md#remaining-tasks-to-complete-the-project).
 
 | Original commitment | Phase | Current seam / status | Concrete next action and acceptance scenario |
 | --- | --- | --- | --- |
