@@ -33,6 +33,36 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
   disposable clean worktrees/scratch. Preserve unique work and raw failures.
 - Schedule only the next 3–5 concrete deliveries when their contracts are known.
   Uninstantiated backlog templates are not scheduled work or measurable progress.
+- Every scheduled task must fit the task card below. A broad parent such as
+  “finish planetary travel” stays in the backlog until specific children exist.
+- A failed check ends the qualification task with a recorded failure. Diagnosis
+  and repair are separate bounded tasks; neither silently extends the original.
+  After one inconclusive diagnostic probe, report the missing fact and choose
+  the next task explicitly before doing more investigation.
+- Report progress as the named result, proof obtained, remaining action and
+  revised time estimate. Planning, diagnostics and test infrastructure do not
+  count as a delivered gameplay outcome.
+
+## Required card for the next scheduled tasks
+
+Keep cards here, beside the work, rather than creating another tracking system.
+Define only the next 3–5 tasks; refine later backlog items when their dependencies
+are known. Do not turn every possible test combination into a speculative queue.
+
+| Field | Required content |
+| --- | --- |
+| Task / parent | Stable short name, linked parent requirement and one concrete instance. |
+| Result | One sentence describing what the player can do, what the build delivers, or which existing behavior is being qualified. Label qualification and planning explicitly. |
+| Boundary | Affected component/files and explicit exclusions; new findings become separate tasks. |
+| Proof | Existing command or ordinary player action, exact expected result, source/build and unchanged limits. A test count alone is insufficient. |
+| Budget | Implementation/diagnosis estimate, check runtime separately, and the point at which work stops for reassessment. |
+| Execution | Owner, dependency, READY/GATED/IN PROGRESS/DONE/FAILED/WAITING, and one exact next action. |
+| Close | Actual result and limitation, commit/build reference, cleanup of owned disposable files. |
+
+Start with tasks expected to take 30–90 minutes of implementation. Split larger
+work before execution. Long established checks retain their required duration
+and are estimated separately. A parent closes only when its original acceptance
+holds; completing a small child does not close the parent.
 
 ## Latest accepted result
 
@@ -58,14 +88,21 @@ remain disclosed. Current source alone; package, native/rendered/device/menu,
 interruption, repeat/shared and full release requirements remain separate.
 **Owner:** root, sequential supervised execution. No new implementation needed.
 
-| Step | State / exact finish line | Estimate |
-| --- | --- | --- |
-| Freeze and cold import | READY; clean pinned source/engine, no `.godot`, fresh private import profile; import exit0/no diagnostics within600s, tracked source/index unchanged. Freeze generated cache. | Up to10 min plus5 min setup |
-| Full completed journey | GATED; fresh separate route profile, original3600s command, exit0, zero diagnostics, exact52 marker and catalog result; inspect actual paid store and physical continuity/home result. Stop at first failure. | Up to60 min; no deadline extension |
-| Close | GATED; verify inputs/actual process/socket/lane closure, remove disposable clean checkout, record accepted or precise failure, commit/push. | 10 min |
+These are three bounded qualification tasks under the same parent, with root
+as owner. They use the existing harness and release supervisor; no gameplay,
+route, fixture, deadline or validator changes are included. They do not establish
+three new gameplay features. A failure ends the affected task and gates the rest.
 
-**Next single action:** create a clean owned checkout of the selected full
-commit and launch the cold-import stage using the existing supervisor. Record
+| Task | State / exact finish line | Estimate |
+| --- | --- | --- |
+| EMBER-IMPORT: qualify cold startup | READY; clean pinned source/engine, no `.godot`, fresh private import profile; import exit0/no diagnostics within600s, tracked source/index unchanged. Freeze generated cache. | Up to10 min plus5 min setup |
+| EMBER-ROUNDTRIP: qualify completed journey | GATED on EMBER-IMPORT; fresh separate route profile, original3600s command, exit0, zero diagnostics, exact52 marker and catalog result; inspect actual paid store and physical continuity/home result. Stop at first failure. | Up to60 min; no deadline extension |
+| EMBER-CLOSE: record result and clean up | GATED on terminal run result, including failure; verify inputs/actual process/socket/lane closure, remove disposable clean checkout, record accepted or precise failure, commit/push. | 10 min |
+
+**Next single action:** verify the prepared clean owned checkout at
+`/srv/mudds-work/ember-completed-journey-20261017` is still pinned to
+`bf452ed8689e51379e0621299378ea29a7b111e7` with no `.godot`, then launch the
+cold-import stage using the prepared supervisor. Record
 actual owner PID/start ticks before waiting; retain them at handoff and never
 restart solely because an observation expires. No engine is active now.
 Do not run default/outbound-only, ABANDON or staged-loop mode as a substitute.
