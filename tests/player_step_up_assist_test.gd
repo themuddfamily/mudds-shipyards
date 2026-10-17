@@ -37,6 +37,7 @@ func _run() -> void:
 	await _test_steps_along_ship_local_up()
 	await _test_ember_pad_floor_contact()
 	await _test_ember_pad_snap_penetration()
+	await _test_hulk_shelf_first_landing_and_walk()
 	await _test_floor_snap_descends_walkable_slope()
 	await _test_floor_snap_recovery_requires_headroom()
 	await _test_remote_cabin_interaction_support()
@@ -527,6 +528,62 @@ func _test_ember_pad_snap_penetration() -> void:
 	rig.queue_free()
 	await process_frame
 	Engine.time_scale = original_time_scale
+
+
+## The recorded hulk stall left feet 0.197 m inside this broad shelf, with only
+## floor contacts consuming held-input travel. Pin both first landing and later
+## walking using the authored size/world pose and the full hulk test's starting
+## placement; no body pose or velocity is written after tree entry.
+func _test_hulk_shelf_first_landing_and_walk() -> void:
+	var rig := Node3D.new()
+	root.add_child(rig)
+	var shelf_center := AbandonedStationHulk.HULK_ANCHOR + AbandonedStationHulk.DOCK_SHELF_CENTER
+	var shelf := _slab(AbandonedStationHulk.DOCK_SHELF_SIZE, shelf_center)
+	shelf.name = "DockShelf"
+	rig.add_child(shelf)
+	var floor_y := shelf_center.y + AbandonedStationHulk.DOCK_SHELF_SIZE.y * 0.5
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	player.position = Vector3(shelf_center.x, floor_y + 2.0, shelf_center.z)
+	rig.add_child(player)
+	player.set_camera_active(false)
+	player.set_control_enabled(true)
+	var start := player.global_position
+	var before_landing := start
+	var landed := false
+	for _settle in 60:
+		before_landing = player.global_position
+		await physics_frame
+		if player.is_on_floor():
+			landed = true
+			break
+	print("HULK_SHELF_FIRST_LANDING: before=", before_landing,
+		" after=", player.global_position, " slides=", player.get_slide_collision_count())
+	_check(landed and start.y - player.global_position.y > 1.0
+		and player.global_position.y >= floor_y - player.safe_margin
+		and player.global_position.y <= before_landing.y + player.safe_margin
+		and (player.global_position - start).slide(Vector3.UP).length() <= player.safe_margin,
+		"ordinary first gravity landing stays above the actual hulk shelf without tangent displacement")
+	var contact := KinematicCollision3D.new()
+	_check(player.test_move(player.global_transform, Vector3.DOWN * 0.01,
+		contact, player.safe_margin, true) and contact.get_collider() == shelf
+		and contact.get_normal().dot(Vector3.UP) > 0.99,
+		"first hulk landing is supported by the real authored broad shelf collider")
+	var walk_start := player.global_position
+	var kept_floor := landed
+	var minimum_feet_y := walk_start.y
+	Input.action_press(&"move_forward")
+	for _frame in 60:
+		await physics_frame
+		kept_floor = kept_floor and player.is_on_floor()
+		minimum_feet_y = minf(minimum_feet_y, player.global_position.y)
+	Input.action_release(&"move_forward")
+	_check(kept_floor and walk_start.z - player.global_position.z > 4.0
+		and absf(player.global_position.x - walk_start.x) <= player.safe_margin
+		and minimum_feet_y >= floor_y - player.safe_margin
+		and is_equal_approx(player.floor_snap_length, 0.35),
+		"held ordinary input walks along the hulk shelf after first landing with solid floor contact")
+	rig.queue_free()
+	await process_frame
 
 
 func _test_floor_snap_descends_walkable_slope() -> void:
