@@ -4,7 +4,29 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local checkpoint: `e085a95ca` — 2026-10-17
+## Latest local checkpoint: `418f3fe16` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-418f3fe.x86_64),
+[archive](../builds/linux/MuddsShipyards-418f3fe-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-418f3fe-linux-notes.txt) use clean source
+`418f3fe1638e0d76187dfec27fbf96d522dbf130`. Legacy completed Cargo deliveries
+with unset reward flags can reset without invented payment; genuine unpaid
+debt remains protected. Scan checkpoint write failures now retain the existing
+half-second retry interval, while completion forces its durable save.
+
+Fresh combined-source focused checks pass 229 assertions. All three strict
+silent startups and 229 focused package assertions pass. Exact-source external
+harnesses against the actual Windows embedded payload through the Linux engine
+pass full Cargo integration (124 assertions, 256.149s). Full Scan remains FAIL
+at its original 300s cap after 96 printed passes, with only the supervisor
+timeout. All 1,515 Windows/Linux payload entries match; only compiled GameFlow
+and cargo persistence differ from e085. Trusted PE code, ZIP integrity, archived
+ELF bytes/modes and source/cache guards verify. Full current-source matrix is
+NOT_RUN; earlier Guided and recovery results do not qualify this candidate.
+Graphical desktop, native GPU/device/audio and final-release acceptance remain
+open. Raw checks: `artifacts/checkpoint-418f3fe/`.
+
+## Earlier local checkpoint: `e085a95ca` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-e085a95.x86_64),
 [archive](../builds/linux/MuddsShipyards-e085a95-linux-x86_64.tar.gz) and

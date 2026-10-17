@@ -1,0 +1,57 @@
+Mudd's Shipyards — Cargo and Scan recovery checkpoint 418f3fe — 2026-10-17
+Clean exported source: 418f3fe1638e0d76187dfec27fbf96d522dbf130
+Engine: pinned official Godot 4.7.1 a13da4feb; stock release templates.
+
+Delivered changes:
+- Reset now clears an ambiguous old completed Jovian Cargo delivery whose reward
+  flags are both unset without inventing payment. Requested-but-unpaid rewards
+  remain protected and cargo inventory is conserved.
+- When a Scan checkpoint write fails, periodic retries wait for the next half-
+  second checkpoint interval instead of retrying every physics tick. Scan
+  completion still forces an immediate save before any reward payment.
+
+Actual package validation (all Godot invocations headless and Dummy audio):
+- Fresh clean combined-source focused matrix passes all three small suites,
+  229 actual assertions, before export. Existing runner uses
+  original 300s caps, jobs=1, import-always; source/cache guards match. Results:
+  artifacts/checkpoint-418f3fe/focused-source/combined-source/.
+- windows-payload-startup: PASS, exit 0, 25.584180s, 1 completion marker(s), 0 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- linux-direct-startup: PASS, exit 0, 21.703059s, 1 completion marker(s), 0 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- linux-archive-startup: PASS, exit 0, 21.417864s, 1 completion marker(s), 0 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- startup-cli-privacy: PASS, exit 0, 0.852113s, 1 completion marker(s), 0 diagnostic(s); 159 printed PASS lines; no suite assertion total reported.
+- cargo-delivery-contract: PASS, exit 0, 0.955240s, 1 completion marker(s), 0 diagnostic(s); 58 reported assertions.
+- cinder-scan-presentation: PASS, exit 0, 2.265476s, 1 completion marker(s), 0 diagnostic(s); 12 reported assertions.
+- cargo-delivery-production: PASS, exit 0, 256.149408s, 1 completion marker(s), 0 diagnostic(s); 124 reported assertions.
+- game-flow-scan-durable-recovery: FAIL, exit 124, 300.218910s, 0 completion marker(s), 1 diagnostic(s); 96 printed PASS lines; no suite assertion total reported.
+- Three startup probes require exit 0 and exactly one STARTUP_MENU_READY_OK.
+- All 1515 Windows/Linux PCK entries match by path,
+  size and SHA256. Windows PE .text matches the pinned trusted release template.
+- Against e085a95, exactly two of the 1,515 payload entries change:
+  scripts/game/game_flow.gdc and
+  scripts/persistence/jovian_cargo_session_persistence.gdc. All other compiled
+  runtime/content entries are identical; this comparison is not full qualification.
+- Exact-source external test harnesses exercise the actual Windows embedded
+  production payload through the Linux engine; no Windows executable is
+  launched. Harness SHA256 values are retained. Linux archive bytes and modes match
+  the direct exported ELF. Source/index/cache remain unchanged after export.
+- Logs and exact package outcomes: artifacts/checkpoint-418f3fe/.
+  Private profiles, execution owner and abort helper: /srv/mudds-work/cargo-scan-recovery-checkpoint-20261017/.
+
+Focused source validation before integration:
+Focused pre-integration sources are base033a0a63f plus the exact owned runtime/test changes, independently compared to the committed files. They are separate worktrees, not a whole combined-candidate full-matrix qualification.
+- Scan retry regression: unchanged production with the new existing-suite checks reports both new cadence failures; its owner is deliberately aborted143 after reproduction, not a baseline full-suite result. With dcf786aa9's exact GameFlow/test changes, both new checks PASS, fresh Main restores the original1.5s progress, and durable unpaid completion is saved before a refused reward. The whole original scan suite still FAILS at300225ms (exit124,91 printed PASS, no terminal sentinel, only supervisor timeout); source/cache unchanged. Raw runs: /srv/mudds-work/scan-checkpoint-retry-validation-20261017/.
+- Cargo recovery: initial revised fixture fails5 assertions because its cold saved IDLE race remains selected, so Reset targets Race. First actual FAIL retained unchanged. The fixture is corrected to press the ordinary Cargo HUD control and assert cargo selection before rollback/reset; production eligibility is unchanged. Corrected original-cap focused matrix PASS: contract58 assertions/1.031s; FULL production integration124 assertions/268.228s, each exit0/one sentinel/zero diagnostics. All existing fallback/unsaved lifecycle cases and new cold legacy/no-entitlement/resetG+1/failed-write conservation/legitimate next exactly-once rewards run to completion. Source/cache unchanged. Raw runs: /srv/mudds-work/legacy-cargo-reset-validation-20261017/; corrected results: results-hud-fixed/legacy-cargo-reset-hud-fixed/.
+- Both changes received independent semantic review. All owned source-test processes exit and ordered runtime lanes release. Fresh combined-source focused checks below and actual packaged full suites qualify only their stated scopes. Original caps, route geometry, activity timing and reward fences are retained; broader full current-source matrix and release gates remain open.
+
+Open gates:
+Both full production suite results above retain their original 300s caps;
+focused package checks do not close complete core/shared/recovery regression or
+any phase exit gate. Full current-source matrix is NOT_RUN. Earlier retained
+full-regression failures remain open. Earlier Guided 3 and recovery results do
+not qualify this candidate. Native Windows installation/startup,
+native GPU/hardware, physical controller/audio and human review are NOT_RUN;
+antivirus hold is preserved. Trusted signing and final-release qualification
+remain open. Hosted CI stays disabled. Local repository builds only; no
+Downloads or public release publication.
+
+EXE SHA256: 809d9ee9ac800c728931b2a603f01b61fab29fdab406f849442fa029c773d9a4
