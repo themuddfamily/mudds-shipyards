@@ -31,7 +31,7 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
   silently extend scope, lower physical criteria or shorten required test durations.
 - Close by recording the actual result, committing/pushing, and removing owned
   disposable clean worktrees/scratch. Preserve unique work and raw failures.
-- Schedule only the next 3–5 concrete deliveries when their contracts are known.
+- Schedule at most the next 3–5 concrete deliveries when their contracts are known.
   Uninstantiated backlog templates are not scheduled work or measurable progress.
 - Every scheduled task must fit the task card below. A broad parent such as
   “finish planetary travel” stays in the backlog until specific children exist.
@@ -46,7 +46,7 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 ## Required card for the next scheduled tasks
 
 Keep cards here, beside the work, rather than creating another tracking system.
-Define only the next 3–5 tasks; refine later backlog items when their dependencies
+Define at most the next 3–5 tasks; refine later backlog items when their dependencies
 are known. Do not turn every possible test combination into a speculative queue.
 
 | Field | Required content |
@@ -64,119 +64,90 @@ work before execution. Long established checks retain their required duration
 and are estimated separately. A parent closes only when its original acceptance
 holds; completing a small child does not close the parent.
 
-## Latest accepted result
+## Current position
 
-**Ember completed source journey DONE on bf452ed868:** real outbound/landing,
-walked survey and one durable reward, physical return, home docking and supported
-walking exit. Exact52 assertions/catalog, exit0, no diagnostics; approximately
-49m51s within the original60-minute cap. Source/cache/process guards pass within
-recorded scopes; disposable checkout removed. [Result and limits](docs/history/ROADMAP_DELIVERIES.md#ember--canonical-completed-source-journey-done-on-bf452ed868).
-Package, ABANDON, repeat/shared, hardware and full phase gates stay open.
-Previous [HULK interior walk](docs/history/ROADMAP_DELIVERIES.md#hulk--continuous-interior-traversal-done-on9cffc99a2)
-also remains source-specific; flight/docking/fringe-rebase setup there is staged.
+**36 broad parent outcomes remain open; the remaining executable-job count is
+not yet known.** Parent scope lives in the backlog. Only named cards below are
+scheduled tasks; their steps are not separate delivered outcomes. Planning and
+diagnosis are reported separately from playable changes.
 
-**Linux interrupted-update recovery shipped on4141d94:** actual shipped-script
-SIGKILL/fresh retry and protected-file checks pass20; direct/archive strict
-startup both pass. [Result and limits](docs/history/ROADMAP_DELIVERIES.md#linux-interrupted-update-recovery--shipped-on-4141d94dd).
-Clean export checkout and duplicate extracted ELF removed. No new Windows build.
+Recent accepted results: Ember completed physical source journey on bf452ed868,
+Aurora coastal benchmark route on c47b5cd55, Linux first-install recovery/package
+b41c3cc, and managed installed Guided3/3. See
+[completed deliveries](docs/history/ROADMAP_DELIVERIES.md) for exact proof/limits.
+These do not close their broad parents or the ten phase gates.
 
-## Latest bounded delivery: Aurora coastal walking — DONE
+**Latest closed task: SANDBOX-SETTLE-FACING — FAILED qualification.** The one
+original300s trial reached recovery_walk after all54 waypoints/eight initial
+sorties/crash/recall/regeneration, but did not finish recovery/reuse. Local mouse
+correction worked without early waypoint admission; full acceptance failed.
+Candidate7cb633d52 withheld, raw retained, owned processes/display closed and
+clean disposable worktrees removed.
+[Result](docs/history/ROADMAP_DELIVERIES.md#sandbox-settle-facing--qualification-failed-candidate-withheld).
+No automatic retry or further pacing investigation. Convoy/Q4 also remain parked.
 
-The runner now selects `aurora_surface_walk_route` using the actual Main Player,
-streamed terrain and authored lookout. Frozen source c47b5cd55 passes Aurora27,
-default152, combat19 and Ember24 focused assertions with no diagnostics. Aurora
-sampled258.008m through held-input walking, both endpoints, real terrain/lookout
-support and paused Escape cleanup. Source/index/engine/cache guards passed;
-38 recorded identities absent, lanes free. Author and acceptance checkouts
-removed; raw failures/results retained. [Result and limitations](docs/history/ROADMAP_DELIVERIES.md#aurora-coastal-walking-benchmark--done-on-c47b5cd55).
-Initial placement, streaming observation and gravity adapters are disclosed;
-full timed/native performance and canonical planetary journeys remain NOT_RUN.
+## Next task: ROADMAP-SPLIT — planning
 
-## Linux first-install interruption recovery — DONE
+**Outcome:** turn the next selected parent into a small executable task before
+resuming implementation. This initial rewrite distinguishes eligible templates
+from scheduled jobs, closes the stale live-run entry, and prepares two concrete
+children below. It does not claim that all36 parents have been decomposed.
 
-Fresh ordinary CLI retries now recover the named first-install publication cut
-using the existing validated ownership journal. Actual before-fix retry refused;
-after-fix source and actual shipped-manager retries succeed while preserving
-settings/saves/notes/unrelated files. Source53663cc12; packageb41c3cc. Installer12,
-export pipeline23, actual shipped manager36 checks/9 commands pass. Direct and
-archive-extracted native startup each exit0 + exactly one STARTUP_MENU_READY_OK,
-no diagnostics. Source/index/engine/cache guards pass; all57 recorded identities
-absent, lanes free. Clean worktrees and duplicate ELF removed; raw evidence kept.
-[Artifacts, proof and limits](docs/history/ROADMAP_DELIVERIES.md#linux-first-install-recovery--shipped-on-b41c3cc7a).
-Old unjournaled orphan entries remain refused; other kill cuts/power loss,
-desktop gameplay, hardware and full matrix stay unqualified. No Windows build.
+For each subsequent batch, select at most3–5 children; do not pad the queue with
+unverified tasks. Each child must have one player/build outcome, exact affected
+component, dependencies, acceptance, work estimate, check duration and stop.
+Use ordinary language in progress updates: what finished, what failed, what is
+next, and the estimate for that task. Never infer a whole-project ETA from the
+number of parent headings.
 
-## Convoy position probe — DONE; original qualification still FAIL
+**Owner:** root. **Budget:** 30–45 minutes per batch of decomposition, no engine
+runs. **Done:** cards are independently startable, linked to their parent, and
+each ends at an observable result or precise blocker. Review docs/links, commit/
+push. **Stop:** unknown acceptance becomes a bounded definition task, rather
+than an open-ended implementation assignment. Refining future parents happens
+when their dependencies are known; it must not become another giant planning loop.
 
-The one original300s print-only probe timed out124 after70 passing checks.
-Seventeen Main lifetimes returned; their synchronous add_child cost192.606s,
-existing post-add_child waits40.965s. The17th returned298.534s, before the first
-`missed_abort` check. No game assertion error or Convoy-specific repair candidate;
-known generic Main cost alone does not justify another profile. This diagnosis
-is stopped/parked. [Raw result and limits](docs/history/ROADMAP_DELIVERIES.md#convoy-restore--one-position-probe-qualification-still-fail).
-Declared-source/index/engine/cache guards pass, all6 recorded identities absent,
-lanes free, trace patch retained and clean temporary checkout removed.
+## Prepared child: EMBER-ABANDON-SOURCE — qualification, not started
 
-## Managed installed Linux Guided route — DONE3/3
+- **Parent/result:** [WORLD-ABANDON](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
+  Qualify one existing physical Ember ABANDON round trip: outbound flight,
+  surface exit/abandon/reboard/ascent, physical home return/dock/walking exit.
+- **Boundary:** existing `tests/ember_transit_movement_soak.gd` ABANDON branch,
+  Torrent and MemoryFilesystem. Initial guided state/on-foot placement and short
+  canopy/boarding timings are fixtures. No completed-survey, durable disk reward,
+  package, shared, hardware or whole-world acceptance. Completed52 journey stays DONE.
+- **Proof:** [existing mode command](docs/EMBER_LOOP_SOAK.md),
+  `KETH_EMBER_PHYSICAL_RETURN=1`, `--headless --audio-driver Dummy --fixed-fps 60`,
+  original7200s route cap; arrival diagnostic unset, no completed-return argument.
+  Exit0 plus `EMBER_TRANSIT_MOVEMENT_TEST_OK: 31 assertions`, clean diagnostics,
+  actual physical route checks and owned cleanup. Do not attribute the other
+  mode's disk/reward assertions to this mode.
+- **Budget:** preparation/closure30–45m; separate cold import allowance600s and
+  route allowance7200s. Long qualification duration is explicit, not an expanding
+  implementation estimate. Stop at first actual failure or unchanged cap.
+- **Execution:** root; PLANNED pending completion of roadmap planning and freezing
+  a clean exact source. Next action: record source/runner identity and existing
+  guarded invocation before launch; this planning task does not launch it.
+- **Close:** retain actual result/source/raw; remove owned disposable checkout.
+  Failure ends this card; any repair needs a separate named defect card.
 
-The actual shipped b41c3cc manager installed its archive in a private managed
-prefix with spaces. Unchanged original Guided driver passes3/3 in50.839s,
-50.035s,50.518s; all phases,91 neutral shutdown frames,0.17m exit error, zero
-diagnostics. Actual uninstall/repeated uninstall preserve protected files.
-Source/index/public artifacts stable, all39 recorded identities absent, three
-private displays/authority paths closed, lanes free; clean checkout removed.
-[Result and capture limit](docs/history/ROADMAP_DELIVERIES.md#managed-installed-linux-b41c3cc--guided33-done).
-The extra observer missed native environment snapshots because of spaces in its
-command parser; actual process/argument/display/route/closure records remain.
-No rerun merely for paperwork. Direct installed ELF only: desktop-entry launch,
-rendered/native GPU, devices, Sandbox/Settings and full phase gates stay open.
+## Prepared child: HULK-ORDINARY-CONTRACT — definition, not started
 
-## Sandbox recovery boundary — DONE diagnosis, original route still FAIL
-
-Retained ca0afc4 original observations show only12 frames/0.20 physics seconds
-between completed regeneration/recovery_walk entry and deadline. The first
-recovery waypoint40 is9.65m away; responsive turning reaches forward-input
-threshold only at the final observation. No blocking geometry/control failure
-is evidenced. [Recorded boundary](docs/history/ROADMAP_DELIVERIES.md#sandbox-recovery-walking--retained-observation-boundary).
-No new engine run or gameplay repair claimed.
-
-## Sandbox pacing candidate — one supported correction
-
-Read-only original observations identify an unnecessary backward camera sweep
-while braking inside an already reached station waypoint. At
-`tractor_east_clearance`, distance0.0198m/speed3m/s, the driver keeps aiming at the
-old point behind the player; facing swings backward before settling at0.0648m.
-The next leg then needs2.51rad correction. This identifies an input-controller
-candidate; no measured saving or full-route success is claimed.
-
-## Next delivery: SANDBOX-SETTLE-FACING
-
-**One result:** correct only that camera sweep, then complete the entire
-original Sandbox route/criteria at300s using a distinctly identified corrected
-driver. Parent: [SANDBOX](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls).
-
-| Task | Exact finish / stop | State / budget |
-| --- | --- | --- |
-| SANDBOX-SETTLE-IMPLEMENT | Only suppress old-target mouse correction inside unchanged grounded distance/height envelope while waiting for unchanged settled speed. Preserve braking, door/through-point handling, all54 ordered waypoints/eight initial sorties/crash/recall/regeneration/recovery/reuse, tuning, waits/thresholds/cap and Guided logic. | DONE candidate7cb633d52, root reviewed; not integrated |
-| SANDBOX-SETTLE-VERIFY | One complete actual b41c3cc ELF route under privateX11/Dummy/default physical sampler, original300s plus345s outer cleanup. Confirm backward sweep removed without early waypoint admission AND NATIVE_SANDBOX_OK/full criteria, zero diagnostics/owned cleanup/source guards. No shortened route/rescue/retry. | IN PROGRESS; original300s route/345s cleanup caps |
-| SANDBOX-SETTLE-CLOSE | Integrate/push only after actual full pass and review. If failure, record it and withhold candidate; no automatic extra profile/pacing cycle. Preserve raw/candidate, remove disposable checkout. | GATED on actual result |
-
-**Owner:** `sandbox_recovery_boundary` delivered clean candidate
-`7cb633d5202386afb40b2d77bb1bed4cacf2f674`, parent e850a974e. Corrected driver SHA256
-`c713234df624e5f0191d9622aa85cdc5a8617f19f6cfaa2452083ecff431e1af`.
-AST normalization proves only the new mouse guard differs; original arrival
-predicate and every other class/function unchanged. Game ELF remains b41c3cc.
-**Next single action:** observe the existing ONE full Sandbox run, driver
-PID375661/start ticks107721709, verified live at launch, candidate source
-7cb633d5202386afb40b2d77bb1bed4cacf2f674. Acceptance checkout
-`/srv/mudds-work/sandbox-settle-facing-check-20261017`; raw:
-`/srv/mudds-work/sandbox-settle-facing-results-20261017/`.
-Existing `active-owner.json`, stage status/logs and `abort.py` identify the live
-handle. Do not relaunch on a polling timeout; stop first actual failure.
-Future observer selects actual `/proc/PID/exe`, correcting the prior space-parser
-capture gap; completed older raw results are untouched. No new game build.
-All ten phase gates remain open. Q4/Convoy remain parked without a justified
-construction candidate. Latest paired gameplay checkpoint b6af782; Linuxb41c3cc.
+- **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
+  Define one ordinary-input salvage round trip with actual flight/docking,
+  interior access, breaker Interact, reward and usable return/revisit.
+- **Boundary:** inspect existing `tests/abandoned_hulk_loop_test.gd` and its direct
+  production interaction owners. Preserve accepted source interior traversal;
+  its staged flight/docking and direct breaker call do not close this task.
+- **Proof/done:** one concrete existing command and complete observable acceptance,
+  or one exact missing driver/runtime interaction with file owner and a bounded
+  implementation card. No new generic test framework or speculative fleet work.
+- **Budget:**30m read-only definition; no engine/check runtime. Stop when the
+  command/acceptance or precise missing interaction is identified.
+- **Execution:** root; PLANNED. Independent of Ember; next action read the existing
+  runner and identify the staged steps needing ordinary controls.
+- **Close:** record the contract/blocker in this file, commit/push; planning is not
+  a new gameplay delivery and does not reopen the completed interior test.
 
 ## Working constraints
 

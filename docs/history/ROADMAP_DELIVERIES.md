@@ -790,3 +790,27 @@ observation log. No new engine run. Next separate15-minute artifact analysis may
 select one demonstrably avoidable earlier input/controller delay, preserving
 all54 waypoints/eight initial sorties/crash/recall/regeneration/recovery/reuse and
 all original waits/criteria/cap. If none supported, park rather than rerun/profile.
+
+## Sandbox settle facing — qualification FAILED; candidate withheld
+
+The single corrected-driver trial on candidate
+`7cb633d5202386afb40b2d77bb1bed4cacf2f674` reached the original300s deadline
+in recovery_walk. All54 waypoints/eight initial sorties, crash, recall and
+regeneration completed; recovery entered f16818, last observation f16956.
+No NATIVE_SANDBOX_OK or completed reuse. Native cleanup finished at306.358s,
+outer supervisor exit1, zero diagnostics. The local backward sweep was removed;
+waypoint admission still waited for the original settled speed. This local
+correction does not establish complete-route success or attributable time savings.
+Candidate is withheld from main under the agreed full-pass acceptance.
+
+Actual b41c3cc ELF, corrected driver SHA256
+`c713234df624e5f0191d9622aa85cdc5a8617f19f6cfaa2452083ecff431e1af`,
+private X11/Dummy/default physical sampler, unchanged route/thresholds/cap.
+Source/index/engine/public artifact and absent-cache guards pass. All10 recorded
+process identities independently absent, both lanes free, recorded socket set
+without remnants; display/authority/native profile paths removed. One actual
+native executable environment captured via /proc/PID/exe. Raw retained at
+`/srv/mudds-work/sandbox-settle-facing-results-20261017/`.
+Candidate preserved at branch `hold/sandbox-settle-facing-20261017`; clean
+author and acceptance worktrees removed. No new game build. Investigation
+stopped: no automatic rerun, extra pacing change or profiling loop.
