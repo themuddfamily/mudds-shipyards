@@ -178,7 +178,9 @@ func _live_run() -> void:
 		_check(int(host.get("pid", 0)) != int(guest.get("pid", 0)), "host and guest are distinct actual Main processes")
 		_check(int(host.get("guest_peer_id", 0)) == int(guest.get("peer_id", -1)) and int(host.get("guest_generation", 0)) == int(guest.get("peer_generation", -1)), "host and guest agree on authenticated peer identity and generation")
 		_check(host.get("player", {}) != guest.get("player", {}) and int(host.get("host_peer_id", 0)) == 1 and int(guest.get("peer_id", 0)) > 1, "independent actual Main players accompany distinct authenticated network peer identities")
-		_check((_live_read("host.done").get("guest_counts", []) as Array) == [0, 1, 0], "real host guest counts reconcile 0 → 1 → 0")
+		var counts := _live_read("host.done").get("guest_counts", []) as Array
+		_check(counts.size() == 3 and counts[0] == 0 and counts[1] == 1 and counts[2] == 0,
+			"real host guest counts reconcile 0 → 1 → 0")
 	_live_finish()
 
 
