@@ -142,12 +142,13 @@ remain in [completed deliveries](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinar
 This does not close the full HULK parent. Split its remaining physical journey
 at the observable home-exit boundary, rather than one expanding return/revisit job.
 
-### HULK-HOME-INPUT — READY implementation
+### HULK-HOME-INPUT — IN PROGRESS implementation
 
 - **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Continue the accepted breaker run back through the interior, reboard, fly home,
   dock/shut down/exit and walk on supported yard collision with cell count1 retained.
-- **Owner/boundary:** root; integrated source81536a7b3. Existing native Python
+- **Owner/boundary:** root integration, `hulk_home_implement` implementation;
+  base9c2653f02 (runtime81536a7b3). Existing native Python
   runner, read-only observer, startup mode allowlist and focused existing tests.
   No gameplay/pose/timing/ledger changes without a reproduced defect.
 - **Normal sequence:** reverse recorded walk through unchanged interior/aperture
