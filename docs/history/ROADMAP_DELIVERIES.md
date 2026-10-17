@@ -1198,3 +1198,20 @@ interruption, multiplayer, current full matrix, native hardware/Windows/GPU/
 devices/audio/signing and human review remain open/NOT_RUN. Native Windows/human
 review stay owner-excluded mandatory gates. All ten phase gates remain open.
 Next is bounded15–20m REVISIT-CONTRACT definition before implementation.
+
+
+HULK-REVISIT-CONTRACT DONE, read-only on452d5c202 without engine. Accepted final
+player(-6.88739,-.02,-9.23441), live boarding(-3.2,1.2,-9.35), interaction-origin
+separation3.375306m; reboard block still active. Finite supported walk-away target
+(-11,-.02,-9.25) lies on HeroBerthNode (x±12.75,z−25…7.75,top−.02), clears source
+rack/locker and exceeds7m. Reapproach live candidate/E, ordinary FREE_FLIGHT,
+production launch aim(0,2.7,-64), accepted clearance point(0,2.7,-150), live HULK
+approach; tight attitude/settled-velocity fence before each leg. Existing telemetry
+already covers stream/receipt/identities; add only observer-local event capture
+from new breaker's public breaker_engaged signal. Old last_breaker_result already
+contains duplicate refusal, so another unchanged dictionary/input edge is not
+fresh dispatch evidence. Subclass intercepts complete home receipt and restores
+its marker; independent revisit dispatch avoids parent old-HULK/unclaimed/reload
+predicates. Relative newer stream generation/one additional load/distinct nodes,
+normal strict dock/exit/interior/E/once-only receipt remain original300s criteria.
+No finite source blocker; source support is not an actual runtime pass.

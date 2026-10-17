@@ -159,47 +159,43 @@ failures and the bounded inconclusive comparison probe remain recorded in
 Both owned implementation/acceptance checkouts and large scratch duplicates are
 removed; exact published artifacts and raw failures are retained.
 
-### HULK-REVISIT-CONTRACT — READY definition task; not started
+### HULK-REVISIT-INPUT — IN PROGRESS implementation
 
-- **Parent/result:** HULK-REVISIT-INPUT. Freeze one ordinary home walk-away/
-  reapproach route and the accepted unload→new-generation observations before
-  assigning revisit implementation. Definition is not a gameplay delivery.
-- **Owner/boundary:** root assigns one bounded read-only reviewer. Existing
-  driver `7e251f8af`, production boarding/support owners and final accepted home
-  observations. No engine, gameplay edits, reset or new evidence framework.
-- **Proof:** name supported waypoint(s) for the source-required >7m clearance,
-  live boarding candidate/no conflicting station action, and driver extension
-  seam preserving the full accepted prefix. Require actual prior unload, newer
-  streaming generation/distinct HULK, retained receipt/activity generation 1.
-- **Budget/stop:**15–20 minutes, stop when ownership, route and acceptance are known or
-  report one missing fact. Keep original cumulative300s cap and physical criteria.
-- **Next action:** inspect final home exit/support/boarding observations against
-  the existing reboard-block owner; freeze the next implementation card.
-- **Close:** record finite contract/blocker, commit/push; no speculative queue.
-
-### HULK-REVISIT-INPUT — GATED on bounded departure contract
-
-- **One result:** after the now-qualified home exit, reboard, revisit a genuinely new
-  streamed HULK, walk to its breaker and refuse a second cell.
-- **Owner/boundary:** root; same native runner/read-only observer/allowlist and
-  focused tests. Preserve all accepted outbound/breaker/home criteria.
-- **Required ordinary step:** walk more than7m from live home boarding position
-  to clear the production reboard block, then approach/candidate/E. Immediate
-  exit→E is unsupported. Later sortie is FREE_FLIGHT; no tutorial/menu/reset.
-- **Proof:** proposed `--route hulk-revisit`/`NATIVE_HULK_REVISIT_OK`, cumulative
-  original 300 s cap, exact successor command/source frozen before READY. Observe
-  actual prior unload and newer Cinder load generation/counters, distinct
-  HULK/berth/breaker identities, same Player/ship. Normal dock/shutdown/exit and
-  authored interior walk; new live breaker E refuses duplicate, restored light
-  properties and cell count 1/receipt/activity-generation 1 retained. Streaming
-  generation is separate; do not hardcode normal1→3 or treat replacement as resume.
-- **Budget/stop:**45–90 minutes implementation after home, check runtime separately.
-  Stop first failure/estimate boundary; no automatic extra probe or route retry.
-- **Next action after dependency:** freeze home-clearance waypoint/support and
-  explicit unload/reload observations, then extend the driver. The old prefix's
-  unclaimed/old-HULK checks must not be applied to the already-earned revisit.
-- **Close:** record observed result/source/build, commit/push, checkpoint/cleanup.
-  Fresh disk reload/OS interruption, endurance, shared and hardware remain open.
+- **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
+  Extend the accepted home route through ordinary reboarding, a genuinely new
+  streamed HULK and interior traversal, then refuse a second cell at its breaker.
+  This adds executable release qualification of existing gameplay.
+- **Owner/boundary:** one implementation agent in clean base452d5c202 checkout;
+  root review/runtime/integration. Existing native driver/read-only observer/
+  startup allowlist and their two focused tests only. No gameplay/geometry/
+  control/timer changes without a separately reproduced defect.
+- **Frozen contract:** accepted final home frame5960 is only3.375m from live
+  boarding interaction origin, reboard block active. Walk/settle at
+  (-11,-.02,-9.25), on HeroBerthNode (x±12.75,z−25…7.75), require actual >7m
+  separation, then reapproach live unconflicted candidate and one E. Ordinary
+  START_ENGINES→FREE_FLIGHT through (0,2.7,-64), (0,2.7,-150), then live HULK
+  approach. Brake/aim readiness before each thrust leg: speed≤.01, alignment
+  ≥.9999, pitch error≤.5°. Outward header crossing keeps y1.4–3.8/no hull loss.
+- **Lifecycle:** preserve full accepted home receipt and identities; actual
+  prior unload precedes reload. Require newer streaming generation, loaded
+  generation equality, one additional load/no failure/unload unchanged, distinct
+  cluster/HULK/berth/breaker. Do not hardcode normal1→3 or apply old parent
+  unclaimed/RETURN_TO_YARD/original-HULK predicates after prefix completion.
+- **Proof:** select-only `--route hulk-revisit`/`NATIVE_HULK_REVISIT_OK`, original
+  cumulative300s cap. Normal one-L strict dock, neutral OFFLINE shutdown/one-E
+  supported exit; authored interior points from actual new shelf exit. Fresh
+  ordinary E must produce new breaker's public signal with actual breaker/actor
+  IDs and event frame after press, then duplicate refusal. Existing stale refusal
+  dictionary is insufficient. Observer listener changes observer-local data only.
+  Count1/exact receipt/activity generation1/restored lights retained throughout.
+- **Budget/stop:**45–90 minutes implementation; checks/export/one300s route
+  separately. Stop first concrete failure or estimate boundary. No rescue,
+  automatic second attempt, cap relaxation, new validator or framework.
+- **Next action:** implement subclass/observer freshness/selector and focused
+  regressions; root freezes exact candidate/acceptance before one guarded route.
+  Runtime source contract is DONE; actual revisit/package checks are NOT_RUN.
+- **Close:** exact result/source/build, commit/push, checkpoint if qualified and
+  cleanup. Disk reload/OS interruption, shared/endurance/hardware remain open.
 
 ## Working constraints
 
