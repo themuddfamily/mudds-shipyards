@@ -608,14 +608,28 @@ static func rounded_box_mesh_with_bevel(
 		var v_inner := maxf(0.0, v_extent - bevel)
 		var u_values := PackedFloat32Array([-u_extent, -u_inner, u_inner, u_extent])
 		var v_values := PackedFloat32Array([-v_extent, -v_inner, v_inner, v_extent])
+		# A face's nine quads share this 4x4 grid. Resolve each rounded point
+		# once, then retain the original triangle/UV emission order below.
+		var rounded_points := PackedVector3Array()
+		var rounded_normals := PackedVector3Array()
+		rounded_points.resize(16)
+		rounded_normals.resize(16)
+		for u_index in 4:
+			for v_index in 4:
+				var point: Vector3 = face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index]
+				var closest := Vector3(
+					clampf(point.x, -inner_half.x, inner_half.x),
+					clampf(point.y, -inner_half.y, inner_half.y),
+					clampf(point.z, -inner_half.z, inner_half.z)
+				)
+				var offset := point - closest
+				var normal := offset.normalized() if offset.length_squared() > 0.000001 else Vector3.UP
+				var grid_index := u_index * 4 + v_index
+				rounded_points[grid_index] = closest + normal * bevel
+				rounded_normals[grid_index] = normal
 		for u_index in u_values.size() - 1:
 			for v_index in v_values.size() - 1:
-				var points := [
-					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index],
-					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index],
-					face_center + u_axis * u_values[u_index + 1] + v_axis * v_values[v_index + 1],
-					face_center + u_axis * u_values[u_index] + v_axis * v_values[v_index + 1],
-				]
+				var grid_index := u_index * 4 + v_index
 				var u0 := 0.0
 				var u1 := 1.0
 				var v0 := 0.0
@@ -638,12 +652,12 @@ static func rounded_box_mesh_with_bevel(
 				# the kit box was a black shell where the engine box was a normally
 				# shaded cube. Vertices, normals, UVs and tangents are untouched;
 				# only the order they are emitted in is reversed.
-				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(u0, v0))
-				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(u1, v1))
-				_add_rounded_vertex(tool, points[1], inner_half, bevel, Vector2(u1, v0))
-				_add_rounded_vertex(tool, points[0], inner_half, bevel, Vector2(u0, v0))
-				_add_rounded_vertex(tool, points[3], inner_half, bevel, Vector2(u0, v1))
-				_add_rounded_vertex(tool, points[2], inner_half, bevel, Vector2(u1, v1))
+				_emit_rounded_vertex(tool, rounded_points[grid_index], rounded_normals[grid_index], Vector2(u0, v0))
+				_emit_rounded_vertex(tool, rounded_points[grid_index + 5], rounded_normals[grid_index + 5], Vector2(u1, v1))
+				_emit_rounded_vertex(tool, rounded_points[grid_index + 4], rounded_normals[grid_index + 4], Vector2(u1, v0))
+				_emit_rounded_vertex(tool, rounded_points[grid_index], rounded_normals[grid_index], Vector2(u0, v0))
+				_emit_rounded_vertex(tool, rounded_points[grid_index + 1], rounded_normals[grid_index + 1], Vector2(u0, v1))
+				_emit_rounded_vertex(tool, rounded_points[grid_index + 5], rounded_normals[grid_index + 5], Vector2(u1, v1))
 	# Without this the committed surface still carries a tangent array, but every
 	# tangent is the SurfaceTool default rather than the face's own U direction,
 	# so a normal map is resolved in an arbitrary frame. The station panel family
@@ -987,20 +1001,12 @@ static func _apply_panel_finish(material: StandardMaterial3D, finish: PanelFinis
 	material.clearcoat_roughness = clearcoat_roughness
 
 
-static func _add_rounded_vertex(
+static func _emit_rounded_vertex(
 		tool: SurfaceTool,
 		point: Vector3,
-		inner_half: Vector3,
-		bevel: float,
+		normal: Vector3,
 		uv: Vector2
 	) -> void:
-	var closest := Vector3(
-		clampf(point.x, -inner_half.x, inner_half.x),
-		clampf(point.y, -inner_half.y, inner_half.y),
-		clampf(point.z, -inner_half.z, inner_half.z)
-	)
-	var offset := point - closest
-	var normal := offset.normalized() if offset.length_squared() > 0.000001 else Vector3.UP
 	tool.set_normal(normal)
 	tool.set_uv(uv)
-	tool.add_vertex(closest + normal * bevel)
+	tool.add_vertex(point)
