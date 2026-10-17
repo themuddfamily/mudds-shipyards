@@ -240,8 +240,16 @@ captured process/environment/display/socket/lane reviews pass; both disposable
 worktrees and duplicate archive extraction are removed. Dummy audio and owned
 headless/X11 displays establish those environments only. Initial missing-button,
 compile and numeric-array assertion failures remain separate in raw records.
-D4's second independent guest is next; packaged multiplayer, capacity, endurance,
-canonical journeys and the full original baseline remain open.
+D4 subsequently passes on99d57eb82: default7, one-guest108 and two-guest181,
+zero diagnostics, original300s caps. Actual host and two Main guests use the same
+LAN/menu actions; distinct authenticated identities agree, counts0→1→2→1→0 and
+remaining-guest authentication pass. All five live-peer OS exits are0. Source/
+index/cache/engine and six stage guards match; all eight engine environments and
+29 process identities/display/socket/lane closure independently verify. Temporary
+clean worktree removed (~259MB logical). This changes only the existing excluded
+test, so b6af782 stays latest playable; actual-package multiplayer, capacity,
+endurance, canonical journeys and full original baseline remain open.
+D4 raw: `/srv/mudds-work/two-guest-menu-results-20261017/`.
 Raw: `/srv/mudds-work/browser-disconnect-fix-results-20261017/accepted/`;
 `artifacts/checkpoint-b6af782/`.
 

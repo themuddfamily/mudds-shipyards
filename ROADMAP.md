@@ -121,36 +121,35 @@ preparation removed. Raw patch/results/report:
 `/srv/mudds-work/station-startup-fix-results-20261017/`.
 Q4's original300s full Patrol FAIL remains unchanged.
 
-### Next delivery batch: five concrete tasks
+### Delivery batch D1–D5: complete
 
-This batch contains **five scheduled outcomes, not five tasks left in the
-project**. Four are accepted: D1, D2, D3 and D5, each only on its recorded
-source/package and scenario. Their disposable clean worktrees are removed.
-**Next: D4 implementation**, then its one acceptance run. Root owns integration;
-assign one implementer to the existing menu-test component. Keep engine
-network/display lanes serialized. Do not expand this batch automatically or
-count its checks as complete parent outcomes.
+All **five scheduled outcomes** are accepted only on their recorded source/build
+and scenario. This is a completed batch, not project completion. Disposable
+worktrees are removed. No assignment is currently active; the next planning step
+is to select3–5 concrete production deliveries from the remaining parent scope,
+with one outcome, acceptance check and stopping point each. Do not automatically
+expand the completed network-menu checks into capacity, flight or endurance work.
 
 | Order / existing family instance | Kind / status | Observable result | Working estimate |
 | --- | --- | --- | --- |
 | D1 · GUIDED[f676c50 Linux package] | Qualification · DONE | Recorded f676c50 package completes original Guided 3/3; Sandbox and Settings remain open. | Runs49.503/51.084/49.409s; total effort not timed |
 | D2 · NET-CREW[Halyard moving shared-cruise source route] | Qualification · DONE on `7412a6e50` | Original moving/rebase/two-passenger/chair/late-observer route passes132 checks, zero diagnostics. Source only; canonical landing/package qualification remain open. | Suite213.078s; total effort not timed |
 | D3 · NET-BROWSER[live menu host and first guest] | Runtime repair and checkpoint · DONE on `b6af78202` | Stable browser Disconnect works for both peers; source full menu route, guest count0→1→0 and browser reuse pass. Fresh paired checkpoint passes focused UI and startup checks. | Source live/default108/7; source/package262 each; total effort not timed |
-| D4 · NET-BROWSER[second independent menu guest] | Executable release check · READY | Same host accepts two distinct real guests and releases both cleanly. | 1–2 h implementation; 15–30 min focused checks |
+| D4 · NET-BROWSER[second independent menu guest] | Executable release check · DONE on `99d57eb82` | Same real menu host admits two distinct guests; UI-driven counts0→1→2→1→0, remaining authentication and all actual exits0 pass. | Default7 / one-guest108 / two-guest181; total effort not timed |
 | D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · DONE on `53e63831a` | Selectable physical aisle shuttle works; partial reports cannot qualify full performance protocol. | Final suite ~206s; total effort not timed |
 
-The next actions are finite steps within D3/D4, not additional parent outcomes:
+Completed execution steps within D3/D4, not additional parent outcomes:
 
 | Step | Finish line | State |
 | --- | --- | --- |
 | D3 source repair | Existing HUD/focus/manual/default checks and full real one-guest menu route pass with UI leave and browser reuse. | DONE; independently reviewed on b6af78202. |
 | D3 checkpoint | Clean Windows EXE/ZIP/notes and matching Linux package; focused payload/startup checks; remove disposable worktrees. | DONE; 8 package checks pass,262 assertions and3 strict startups; cleanup complete. |
-| D4 implementation | Extend the existing menu test to a second real guest; commit one exact invocation and unchanged bounds. | NEXT / READY. No new harness family. |
-| D4 acceptance | Run that route once: distinct identities, counts0→1→2→1→0, remaining guest connected, all exits0 and owned closure. | GATED on implementation. A runtime defect becomes one bounded repair. |
+| D4 implementation | Extend the existing menu test to a second real guest; commit one exact invocation and unchanged bounds. | DONE; existing test extended, reviewed and committed before execution. |
+| D4 acceptance | Run that route once: distinct identities, counts0→1→2→1→0, remaining guest connected, all exits0 and owned closure. | DONE on99d57eb82; first run passes, no runtime repair needed. |
 
-Batch count: **4 of 5 outcomes DONE; 1 remains (D4)**. This is not the total
-project remainder. Do not select another batch until D4 passes or a specific
-blocker is recorded.
+Batch count: **5 of 5 outcomes DONE; zero remain in this batch**. Remaining
+project outcomes and all ten phase exit gates stay open. D4 changes only an
+export-excluded test; the latest playable checkpoint remains b6af782.
 
 D3 packaging retained an initial comparison failure: a fresh import regenerated
 node IDs in65 scenes. Independent decoded comparisons found every other byte
@@ -216,21 +215,27 @@ HUD/focus/manual regression passes; [clean paired checkpoint notes](builds/windo
 record fresh source/package checks. Initial missing-button, compile and numeric-
 array comparison failures remain in raw records; corrected runs are separate.
 No package multiplayer, two-guest, capacity, flight, endurance or phase closure.
-Stop reached; next task is D4, without extending this one.
+Stop reached; D4 below records the separate two-guest follow-up.
 
-**D4 — Two guests on the same menu-hosted session.** Parent: same original
-server/two-client baseline; depends on D3's working independent-Main mode.
-Owner/files: root assigns one implementer to the same existing test component. Extend that mode to a
-second independent client using the same live refresh/select/join path.
-Acceptance: host plus two live Main clients, distinct authenticated peer/player
-identities, host excluded from guest count, guests0→1→2→1→0, remaining guest stays
-connected when the first leaves, final admissions/ownership clear, actual exits 0
-and clean teardown. Keep D3's one-guest mode and bounds. Exact two-client invocation
-and receipt assertions ship in the same existing test before execution. Stop at
-this slice's result; no seat race, flight, damage, canonical journey or 30-minute
-claim. The low-level three-process authority test's 24 s cap stays unchanged; its
-protocol fixtures cannot substitute for these real menus. No owner capacity
-answer is needed for the already authorized two-guest profile.
+**D4 — Two guests on the same menu-hosted session (DONE).** Parent: original
+server/two-client baseline, menu-admission slice only. Existing
+`tests/network/game_flow_server_browser_integration_test.gd` now supports
+`--live-menu-two-guests --live-results <owned-output>`. Root-reviewed source
+`99d57eb821c9ba3953eab473c161d26ff62e4d79` passes unchanged default7, existing
+one-guest108 and new two-guest181, zero diagnostics, each at original300s cap.
+Actual host and two Main guests use real LAN Refresh/row/Join and browser
+Disconnect. Distinct authenticated identities/player instances agree; counts
+0→1→2→1→0 and remaining guest authentication after first departure pass. All five
+peer OS exits across the two live modes are0. Root independently verifies11,871
+source files/index/cache645/engine and all six stage guards; eight actual engine
+environments and29 recorded process identities, display paths/authority and
+socket/lane closure verify. Private headless/X11, Dummy audio; stock-root notice
+flag disclosed. Temporary clean worktree removed (~259MB logical); raw records:
+`/srv/mudds-work/two-guest-menu-results-20261017/`. Production files are unchanged;
+b6af782 remains latest playable. No actual-package multiplayer, capacity, flight,
+seat-race, damage, canonical journey, endurance or full-baseline claim. Original
+three-process authority24s cap is unchanged. Stop reached; no further menu cases
+are implied by this completed card.
 
 **D5 — Executable Halyard cabin benchmark.** Parent: required fleet/cabin
 performance scenarios; native-machine measurement is a separate dependent task.
