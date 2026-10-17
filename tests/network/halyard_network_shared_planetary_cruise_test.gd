@@ -435,7 +435,7 @@ func _rime_host_return_blocked(owner: RefCounted, berth: ShipBerth, source: Obje
 	var pose := _craft.global_transform
 	var velocity := _craft.velocity
 	var blocked: Dictionary = _game._planetary_journey.begin_aurora_return()
-	var refused := not owner.request() and not bool(blocked.get("accepted", true)) \
+	var refused: bool = not owner.request() and not bool(blocked.get("accepted", true)) \
 		and blocked.get("reason") == &"shared_rime_return_requires_reboarded_crew" \
 		and owner.state == &"landed" and _craft.global_transform == pose and _craft.velocity == velocity \
 		and berth.get_occupant() == _craft and _game._piloting and _craft.get_command_source() == source
