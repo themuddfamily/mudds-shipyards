@@ -34,37 +34,44 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 - Schedule only the next 3–5 concrete deliveries when their contracts are known.
   Uninstantiated backlog templates are not scheduled work or measurable progress.
 
-## Active repair: HULK-FIX[first-landing shelf penetration]
+## Current result: HULK[shelf stall] — unresolved
 
-**Observed defect:** on `7f2056d22`, held raw/sampled forward input is nonzero,
-Player is unpaused ON_FOOT and processing normally, but actual hulk DockShelf
-slide contacts report upward normals, 0.199348m penetration and zero travel.
-The first movement leg fails after52 passing checks. The contact diagnostic is
-complete; no input/menu fix or geometry change is justified.
+Contact diagnostic `7f2056d22` proves held input is reaching a processing ON_FOOT
+Player; actual DockShelf floor contacts report 0.199348m penetration and zero
+travel. Full hulk route still passes52/fails1 at its first movement leg.
 
-**Owner/files:** `hulk_shelf_floor_repair`, Player controller and existing
-`player_step_up_assist_test.gd`; root independent review/integration/checks.
-**Hypothesis/candidate:** prevent descending first-landing penetration through
-the existing bounded vertical overlap recovery. Its current admission excludes
-first landings and all slide contacts. Preserve pre-descent lift cap, tangent
-position, headroom/wall/slope rejection and authored snap; no generic rescue.
-A focused actual-shelf regression must demonstrate the causal path before
-acceptance. Do not treat this candidate as a proven fix.
+**Repair candidate withheld:** admitting first-landing/floor-only contacts into
+the existing bounded recovery is not causally proven. The standalone actual-size
+shelf regression on unchanged controller `395a392ca` passes first landing and
+ordinary walking, plus the complete Player suite. It does not reproduce the
+full-scene failure. The extra fixture was reverted; both patches/raw runs are
+preserved. No runtime fix, changed geometry or new checkpoint is claimed.
+Clean temporary checkout removed. Latest playable remains b6af782.
 
-| Step | State / finish line | Estimate |
-| --- | --- | --- |
-| Implement/review | IN PROGRESS; smallest safe recovery extension plus actual first-landing/normal-walk regression in existing test. | 30–60 min |
-| Verify | GATED; focused Player regression then unchanged full hulk route, each original300s, headless/Dummy. Exit0, original success markers, zero diagnostics, stable guards/teardown. Stop at first failure. | 10–20 min |
-| Package/close | GATED on actual runtime fix; fresh clean Windows checkpoint EXE/ZIP/notes, focused and strict silent startup checks, remove clean checkout, commit/push. | 20–40 min |
+## Next bounded task: HULK-DIAG[full-scene landing onset]
 
-**Next single action:** review candidate commit. No engine is running.
-Checkout `/srv/mudds-work/hulk-continuous-walk-20261017` is retained for this
-active repair; remove it on closure. Original and traced failures remain at
-`/srv/mudds-work/hulk-continuous-walk-results-20261017/` and `contact-trace/`.
-Root independently verified traced source/index/cache645/engine, actual isolated
-engine environment and all4 owned process/socket/lane closure. Full hulk
-ordinary walking and canonical packaged expedition remain unaccepted.
-Latest playable remains b6af782 until a new checkpoint is actually validated.
+**Missing fact:** which motor stage first penetrates the shelf. Full Main reuses
+an already-running Player; the standalone starts fresh. Existing teleport does
+not clear native floor flags, moving-frame ownership or cabin containment.
+Determine whether staging context or normal collision movement causes this stall.
+**Owner/components:** root; existing Player motor and hulk regression only.
+**Estimate:** 15–30 min trace instrumentation; one existing-cap run/review 10 min.
+
+1. Arm a read-only trace immediately before the existing shelf placement. Record
+   live capsule/shelf shapes/transforms once; each motor tick records delta,
+   prior floor state, gravity/up, frame owner/transform, pre-slide pose/velocity,
+   post-slide contacts/pose, post-recovery pose and final pose after containment.
+2. Run the full hulk test once, original300s/headless/Dummy. Trace ends at first
+   penetration plus3 ticks, bounded by the existing60 settling ticks. No extra
+   standalone fixture, longer deadline, changed placement or generic rescue.
+3. Stop with the first responsible stage/context and one bounded repair or exact
+   missing fact. Do not integrate the withheld recovery candidate on suspicion.
+
+**Next single action:** add this opt-in, bounded onset trace to the existing
+failure reproduction. No processes are running; raw original, contact and
+standalone-baseline runs are under
+`/srv/mudds-work/hulk-continuous-walk-results-20261017/`.
+Hulk continuous ordinary walking and full packaged expedition remain open.
 
 ## Working constraints
 

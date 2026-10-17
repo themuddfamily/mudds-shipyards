@@ -301,3 +301,23 @@ Raw `.../hulk-continuous-walk-results-20261017/contact-trace/`; log SHA256
 `6be10102c9220d20a34ef4bf38b80e0ac3aacf22045b5b5354479c59e58786e9`.
 Clean checkout is retained only for the named next runtime repair; no checkpoint
 or continuous-walk acceptance is claimed.
+
+## HULK-FIX · First-landing recovery candidate (WITHHELD)
+
+Candidate `a6cf457d8` would admit first-landing/floor-only contacts into existing
+bounded overlap recovery. It was not integrated. The actual-size shelf fixture
+was integrated alone as `395a392ca`; unchanged Player passes the complete
+`player_step_up_assist_test.gd`, including first landing at22.00008 above shelf22
+and >4m ordinary walking. Thus it does not reproduce the full-Main stall and
+cannot prove the candidate repairs it. The redundant fixture was reverted in
+`4ecc25317`; runtime and Player test bytes match pre-attempt source.
+
+Baseline guard/source/index/cache645/engine, actual isolated headless/Dummy
+profile and all4 owned process/socket/lane closure independently verify. Log
+SHA256 `7aec9d18238c792d6d3e8fe507d21d4e82201a63b5b95afe206da058eed21020`.
+Raw `.../hulk-continuous-walk-results-20261017/floor-repair/baseline/`; fixture
+and withheld candidate patches are in its parent. Clean checkout removed.
+No runtime change/checkpoint follows. Next single missing fact is full-scene
+landing onset: actual motor stage, native prior floor flags, moving-frame and
+containment context on the reused Player versus the standalone's fresh Player.
+Trace the existing placement, not another isolated fixture or generic rescue.
