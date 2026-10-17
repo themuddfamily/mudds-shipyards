@@ -88,6 +88,20 @@ class NativeSortieSafetyTests(unittest.TestCase):
             observation['sandbox']['doors'][0]['position'] = [48.9, 0, 15.5]
             keys, *_ = pilot.update(observation, 1)
             self.assertEqual('e' in keys, expected)
+            if candidate:
+                # The actual package repeatedly reversed its .8s opening:
+                # the driver used to send E again after its .3s cooldown.
+                for frame, now in [(110, 2), (130, 3)]:
+                    observation = json.loads(json.dumps(observation))
+                    observation['frame'] = frame
+                    keys, *_ = pilot.update(observation, now)
+                    self.assertNotIn('e', keys)
+                observation = json.loads(json.dumps(observation))
+                observation['frame'] = 140
+                observation['sandbox']['doors'][0]['open'] = True
+                keys, *_ = pilot.update(observation, 4)
+                self.assertNotIn('e', keys)
+                self.assertTrue(pilot.door_opened)
 
     def test_launch_resumes_thrust_when_braking_stops_outside_waypoint(self):
         # Actual e159ac3 route stopped here for 240+ observations: the brake

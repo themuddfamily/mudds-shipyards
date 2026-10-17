@@ -483,6 +483,7 @@ class SandboxWalkPilot(Pilot):
         self.previous = None
         self.visited = []
         self.door_opened = False
+        self.door_requested = False
 
     def update(self, s, now):
         self.frame = s['frame']
@@ -544,8 +545,11 @@ class SandboxWalkPilot(Pilot):
                     # The readonly candidate proves production selected this door.
                     if door['open']:
                         self.door_opened = True
-                    elif door['candidate'] and norm(sub(door['position'], s['player'])) < 3:
+                    elif not self.door_requested and door['candidate'] and norm(sub(door['position'], s['player'])) < 3:
+                        # E reverses a moving StationDoor. One accepted physical
+                        # press must finish its authored opening before passage.
                         self.tap('e', now)
+                        self.door_requested = self.tap_key == 'e'
         if self.tap_key is not None:
             if now < self.tap_until or self.frame < self.tap_frame + 6:
                 keys.add(self.tap_key)
