@@ -106,39 +106,48 @@ absent, lanes free. Clean worktrees and duplicate ELF removed; raw evidence kept
 Old unjournaled orphan entries remain refused; other kill cuts/power loss,
 desktop gameplay, hardware and full matrix stay unqualified. No Windows build.
 
-## Cinder Convoy restore — static diagnosis stopped on missing position
+## Convoy position probe — DONE; original qualification still FAIL
 
-**Original qualification remains FAIL at300s.** f85957f full matrix and the
-retained after-Reset run each contain only the engine banner/timeout; no passed
-assertion position was printed. Existing `_check` reports failures only and
-`_finish` prints the total. Recorded pass=0 does not prove zero checks ran.
-No raw receipt selects a restore/runtime culprit; do not infer one from retained
-save contents. Read-only review complete; no gameplay repair claimed.
+The one original300s print-only probe timed out124 after70 passing checks.
+Seventeen Main lifetimes returned; their synchronous add_child cost192.606s,
+existing post-add_child waits40.965s. The17th returned298.534s, before the first
+`missed_abort` check. No game assertion error or Convoy-specific repair candidate;
+known generic Main cost alone does not justify another profile. This diagnosis
+is stopped/parked. [Raw result and limits](docs/history/ROADMAP_DELIVERIES.md#convoy-restore--one-position-probe-qualification-still-fail).
+Declared-source/index/engine/cache guards pass, all6 recorded identities absent,
+lanes free, trace patch retained and clean temporary checkout removed.
 
-## Next bounded task: CONVOY-POSITION-PROBE
+## Next delivery: managed installed Linux ELF Guided route
 
-This is one **diagnostic measurement**, not gameplay qualification. Parent:
-[BASE-DIAG](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls).
+**One result / qualification:** a real managed installation of b41c3cc can run
+the unchanged Guided walk/board/fly/combat/return/land/shutdown/exit route3/3,
+then uninstall without touching protected files. Parent:
+[INSTALL-LINUX / direct ELF ordinary route](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
+Existing b41 startup/update checks and earlier archive/direct Guided results do
+not qualify this managed installed-path context.
 
-| Field | Contract |
-| --- | --- |
-| Result | Recover last completed check and first unfinished Main creation/retirement/restore boundary using actual elapsed/physics-frame traces. |
-| Boundary | Temporary print-only patch to existing `tests/cinder_convoy_session_save_restore_test.gd`, preserved raw; no changed route, assertions, conditions, waits, runtime, scene setup or extra awaits. No permanent validator/suite. |
-| Proof | One original300s headless/Dummy run on pinned c2ad94184 + exact declared trace patch; separate cold import600s. Capture original command/env, source/index/cache/engine/process/socket guards, exact timeout/failure/completion and trace. No fixed FPS. |
-| Budget |10–15 min trace preparation;600s import/300s probe caps separately; one probe only. |
-| Execution | IN PROGRESS; `convoy_restore_boundary` prepares trace-only checkout, root freezes/runs/interprets. |
-| Close | Stop first actual failure or original deadline; preserve actual result/trace then remove disposable checkout. A supported runtime repair is a separate card; generic known Main cost does not justify another profile. |
+**Boundary:** published b41c3cc archive, its exact shipped manager, new private
+prefix/applications directories with spaces, and unchanged
+`tools/release/run_native_sortie.py` SHA256
+`a63a3dd9c35d91f9985e5cf4d3b731c081a1a2ecd13e9178fc66e2532f61c991`.
+No runtime/driver/route/waits/tuning changes. Original OS XTest → private X11 →
+Godot Input/default sampler, x11/Dummy/rendering-driver dummy/disabled render
+loop, independent abort and owned input/process cleanup. Desktop-entry launch,
+rendered/native GPU, physical devices, Sandbox/Settings are separate.
 
-**Next single action:** observe the existing guarded probe driverPID370856,
-start ticks107600376, verified live at launch. Frozen basec2ad94184; only the
-trace test differs, SHA256
-`b279c5c95fab12f16984027e26bc1779628b0565fb17dfd407aa4490097b2f5d`.
-Removing the eight added prints reproduces base source byte-for-byte. All other
-tracked hashes/index/engine/cache remain guarded. Raw:
-`/srv/mudds-work/convoy-position-probe-results-20261017/`.
-Use existing stage status/log and `abort.py`; never relaunch on a polling
-timeout. Do not rerun accepted package/benchmark checks.
-All ten phase gates remain open. Q4 startup remains parked without a justified
+| Task | Exact finish line / stop | State / estimate |
+| --- | --- | --- |
+| INSTALL-GUIDED-PREPARE | Actual shipped manager CLI installs the actual archive in private managed prefix; exact installed ELF/manifest/digests/modes/desktop and protected sentinels recorded. | READY;1–2 min actual check, helpers prepared syntax-only |
+| INSTALL-GUIDED-RUN | Existing original Guided3/3, fresh profiles/processes, each original300s cap with345s outer cleanup cap. Preserve all phases,91 neutral shutdown frames and physical exit criteria; zero diagnostics; release/reap input/game/display. Stop first failure. | GATED on install; normally3–5 min, original caps unchanged |
+| INSTALL-GUIDED-CLOSE | Exact installed payload/manager/archive and protected files unchanged through runs; actual manager uninstall/repeated uninstall succeed; guards/lane/owned-process closure, record scope, commit/push and cleanup. | GATED on passes;5–10 min |
+
+**Owner:** root freezes/runs/interprets; `installed_guided_preparation` prepared
+only raw helpers (no execution/engines). Raw existing guarded-driver adaptation:
+`/srv/mudds-work/linux-installed-guided-results-20261017/`.
+**Next single action:** freeze a clean source checkout and launch the guarded
+install/Guided3/3/uninstall workflow after helper review. No engine active now.
+No new build is needed; use exact published ELF/archive hashes.
+All ten phase gates remain open. Q4/Convoy remain parked without a justified
 construction candidate. Latest paired gameplay checkpoint remains b6af782;
 Linux package isb41c3cc.
 

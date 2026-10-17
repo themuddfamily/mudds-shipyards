@@ -701,3 +701,29 @@ Windows build. Last paired gameplay checkpoint remains b6af782.
 Only the named publication cuts are qualified. Old unjournaled orphan adoption,
 uninstall/other cuts, power loss, actual desktop/input/GPU/audio, full packaged
 journeys, full matrix and final release stay unperformed. All phase gates open.
+
+## Convoy restore — one position probe, qualification still FAIL
+
+Original f85957f matrix and after-Reset logs recorded no execution position. One
+separately scheduled300s diagnostic used c2ad94184 plus eight temporary print
+lines only; removing them reproduced the original test byte-for-byte. No route,
+wait, assertion condition, runtime or physics changes; no fixed FPS. Trace SHA:
+`b279c5c95fab12f16984027e26bc1779628b0565fb17dfd407aa4490097b2f5d`.
+
+Cold import exit0; probe timeout124 at the original300s. All70 completed checks
+were true, including legacy Reset and `missed_failed` recovery/next distinct
+credit. Seventeen Main lifetimes returned: instantiate280ms total, synchronous
+add_child192,606ms, existing post-add_child waits40,965ms. The17th returned at
+298,534ms; next `missed_abort` block (prepare craft through first early-save
+assertion) had not printed its first check. No evidence selects a Convoy restore
+culprit or a different avoidable construction change. Known generic Main cost
+is not a justified new repair; stop/park, with no repeated profile scheduled.
+
+All11,873 tracked hashes with only declared trace patch/index/engine/cache320
+stayed stable; all6 recorded process identities absent, lanes free, closure
+reports no owned socket/display remnants. Source/index/cache independently
+rechecked. Raw patch, logs, timing analysis and guards:
+`/srv/mudds-work/convoy-position-probe-results-20261017/`. Probe log SHA256:
+`324a2e6dae0a85f740243929b66eeb101480be2d682850d50a220190e1e55c7d`.
+Exact owned trace restored after preservation; clean temporary checkout removed.
+This is diagnosis, not completed gameplay or a passing full suite.
