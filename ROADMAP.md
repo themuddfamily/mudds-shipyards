@@ -96,12 +96,12 @@ flight/reward/save qualification, new schemas or validator families.
 **Owner:** `aurora_coastal_benchmark` implements in its own worktree; root
 reviews/integrates. Base d09dfabf68575583469373fa3a1d4e027b2825d6;
 Implementation integrated as `44c92bc65e22b91c39d10b4ff3acd792c08ec9e4`;
-first focused engine attempt is recorded below. The repaired commit is under a new frozen acceptance run.
+first focused engine attempt is recorded below. The repaired-source staging check failed; no engine remains active.
 
 | Task | Exact finish line / stopping condition | State / estimate |
 | --- | --- | --- |
 | AURORA-WALK-IMPLEMENT | Add select-only `aurora_surface_walk_route` through existing runner, reset fresh local route targets across origin changes, preserve original two-route default. Own only the named runner/allowlist/test/docs seams. | DONE on61d702642; single explicit-bool repair integrated |
-| AURORA-WALK-VERIFY | Existing `tests/performance_benchmark_runner_test.gd`, headless/Dummy, original300s cap: original default, combat and Ember selections retain acceptance; new selected smoke proves positive sampled physical path, real terrain support, endpoint completion, JSON round-trip and abort/input cleanup. Existing Python record checks pass; no timing/quality/schema relaxation. | IN PROGRESS on61d702642 after recorded compile repair |
+| AURORA-WALK-VERIFY | Existing `tests/performance_benchmark_runner_test.gd`, headless/Dummy, original300s cap: original default, combat and Ember selections retain acceptance; new selected smoke proves positive sampled physical path, real terrain support, endpoint completion, JSON round-trip and abort/input cleanup. Existing Python record checks pass; no timing/quality/schema relaxation. | FAILED on61d702642 at initial supported staging; later modes NOT_RUN |
 | AURORA-WALK-CLOSE | Record actual source/result/limits, commit/push and remove clean disposable checkout. Keep full3600-frame/60s warmup and18000-frame/600s sample floors, selected smoke performance acceptance false/null; native hardware remains NOT_RUN. | GATED; 10 min |
 
 **First qualification FAILED:** cold import exit0, no diagnostics. Selected
@@ -112,13 +112,21 @@ unchanged; seven recorded process identities absent, lanes free, closure reports
 no owned socket/display remnants. Raw failure retained:
 `/srv/mudds-work/aurora-coastal-acceptance-results-20261017/`.
 
-**Next single action:** observe the existing repaired-source acceptance driver,
-then inspect actual results. Source `61d702642190f8e8aee5a44ffb48851cdb1a6eab`;
-driver PID360476/start ticks107417605, verified live in `/proc` at launch.
-Raw/status/abort: the retained raw directory's `typed-terrain/` subdirectory.
-Expected Aurora27, default152, combat19, Ember24 assertions. Original
-import600s/mode300s caps remain; stop at first failure. Do not relaunch a live
-handle or change acceptance to obtain a pass.
+**Second qualification FAILED on61d702642:** compile issue resolved; cold
+import exit0. Aurora failed initial streamed/rebased/gravity/floor readiness
+before walking. No rescue placement or criteria change. Supervisor stopped143;
+later modes NOT_RUN. Tracked source/HEAD/status/engine/cache unchanged, but index
+bytes changed. Existing `capture_source_state()` executes `git status` without
+optional-lock suppression; next private runtime env must include
+`GIT_OPTIONAL_LOCKS=0` while retaining the exact index guard. Cached diff against
+HEAD is empty. Six recorded process identities absent, lanes free, closure
+reports no owned socket/display remnants. Raw: retained `typed-terrain/` bundle.
+
+**Next single action:** finish a15-minute read-only diagnosis of the initial
+coordinate against real floor geometry. One supported staging hypothesis or one
+named missing fact; no engine probe or broad planetary investigation. Root then
+schedules the smallest justified repair separately. The original route,
+import600s/mode300s caps and Aurora27/default152/combat19/Ember24 acceptance stay.
 
 All ten phase gates remain open. Q4 startup stays parked after the bounded
 five-file source review found no justified construction candidate. Latest

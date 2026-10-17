@@ -551,3 +551,21 @@ socket/display remnants. Raw failure and guards:
 Separate bounded repair: explicit bool at the metadata seam,15 minutes maximum,
 then a newly frozen clean-source attempt with unchanged route, timings and
 criteria. This failed qualification does not establish an executable route.
+
+## Aurora coastal benchmark — supported staging FAILED on61d702642
+
+The explicit-bool compile repair succeeded. Fresh cold import passed exit0 with
+no diagnostics; the first Aurora smoke then failed initial real streamed scene,
+committed origin, gravity/floor readiness before walking. Supervisor stopped143
+at the first failed assertion; later default/combat/Ember modes NOT_RUN.
+Raw: `/srv/mudds-work/aurora-coastal-acceptance-results-20261017/typed-terrain/`.
+
+Tracked source/HEAD/status/engine and post-import cache were unchanged. Index
+bytes changed, so the strict combined guard did not pass. Existing runner
+`capture_source_state()` invokes `git status`; its inherited environment did not
+suppress optional index refresh. Cached diff against HEAD remained empty. A
+future private runtime must set `GIT_OPTIONAL_LOCKS=0`, retaining the same exact
+index-byte guard. Six recorded process identities were absent; both lanes were
+independently free and closure reported no owned socket/display remnants.
+Separate15-minute read-only diagnosis selects one supported initial-coordinate/
+floor hypothesis or names the missing fact; no route rescue or unchanged retry.
