@@ -151,7 +151,7 @@ link to [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys). Only 
 arrival candidate has failed qualification; later cards must freeze their exact invocation
 after their dependency exists. These are scenario capabilities, not phase completion.
 
-### HULK-ARRIVAL-INPUT — FAILED qualification; candidate retained
+### HULK-ARRIVAL-INPUT — source arrival DONE; checkpoint in progress
 
 - **One result:** the existing native-input release runner can fly Torrent from
   its actual yard berth to the streamed HULK dock and exit onto the shelf.
@@ -178,20 +178,26 @@ after their dependency exists. These are scenario capabilities, not phase comple
   one arrival run using the runner's existing300s cap. Stop at first unsupported
   control/actual failure or estimate boundary; record exact blocker before repair.
   Keep existing Guided/Sandbox behavior and caps unchanged.
-- **Actual outcome:** candidate150dbb1a7 is on branch `hulk-arrival-20261017`,
-  withheld from main. Python22/privacy174/observer parse/export/strict startup
-  pass within their scopes. Actual arrival run fails87.314s during Guided
-  interceptor prelude: craft destroyed, opponent still full health; no HULK transit.
-  Earlier harness-name and lazy-observer typing failures/fixes are retained.
-  [Exact result and limits](docs/history/ROADMAP_DELIVERIES.md#hulk-arrival-input--first-flight-qualification-failed-before-transit).
-- **Closed:** no automatic flight retry. Source/index/engine/cache guards and
-  owned cleanup pass; candidate branch/raw/exact archives preserved, both clean
-  worktrees and duplicate ELF files removed. Raw root:
-  `/srv/mudds-work/hulk-arrival-results-20261017/`. No new working checkpoint.
-- **Next action:** separate HULK-PRELUDE-INPUT card below; breaker/return stay gated.
-  All automated runtime remains isolated X11/Dummy with owned abort/cleanup.
-- **Close:** exact source/build/raw outcome, commit/push, remove owned disposable
-  worktrees. No full salvage journey claim from arrival alone.
+- **Actual outcome:** corrected driver60c86ce8a passes full arrival in61.306s on
+  exact retained150dbb1 ELF, original300s cap; NATIVE_HULK_ARRIVAL_OK, zero
+  diagnostics. Normal Guided objectives, physical HULK transit/strict dock,
+  neutral shutdown and grounded shelf exit all observed. Actor/berth identities,
+  source/index/cache/engine guards pass; all9 recorded identities absent and lanes
+  free. Earlier failed candidates remain history, not erased by this pass.
+- **Integrated:** main2f687110e contains the reviewed five-file capability/fixes;
+  existing Guided/Sandbox classes and OS/process helpers AST-identical. Actual
+  successful run is recorded for driver60c86ce8a/game150dbb1; it is not a run of
+  the forthcoming checkpoint bytes.
+- **Next action:** observe existing clean-source checkpoint workflow on
+  `2f687110e200820e69b659aa4d26210e7a6f211d`, outer driver PID386958/start
+  ticks107905778. Raw/stage owners/status/independent abort:
+  `/srv/mudds-work/hulk-arrival-checkpoint-results-20261017/`.
+  Clean checkout `/srv/mudds-work/hulk-prelude-preserve-check-20261017`.
+  Import600s, Windows/Linux export930s each, strict Windows-payload/Linux direct/
+  archive startup330s each, packaged privacy300s. Do not relaunch on polling
+  timeout; first actual failure stops. Finish inventory/template/archive checks,
+  EXE/ZIP/notes and matching Linux artifacts in repository builds before close.
+  Native Windows/GPU/input/audio/human gates remain unperformed.
 
 ### HULK-PRELUDE-INPUT — DONE diagnosis
 
@@ -217,7 +223,7 @@ after their dependency exists. These are scenario capabilities, not phase comple
   or why opponent damage stayed0. Stop diagnosis here; no second probe.
 - **Close/next:** separate bounded correction below; no engine run in diagnosis.
 
-### HULK-PRELUDE-PRESERVE — IN PROGRESS qualification
+### HULK-PRELUDE-PRESERVE — source qualification DONE
 
 - **Parent/result:** HULK arrival. Keep the ordinary Guided prelude's inherited
   input commands unchanged; apply HULK-specific mouse acknowledgement only after
@@ -239,11 +245,11 @@ after their dependency exists. These are scenario capabilities, not phase comple
   Retained150dbb1 ELF SHA256
   `a582a6557fe507a3d107f0dfbc029fc4a0a1975550aae385b6b8c837f30803b4`;
   archive member independently matches original tested bytes/mode.
-- **Next action:** observe the ONE existing original300s arrival run (345s outer
-  cleanup), outer driver PID386198/start ticks107891605. Raw/stage owner/status/
-  independent abort: `/srv/mudds-work/hulk-prelude-preserve-results-20261017/`.
-  Exact clean driver checkout `/srv/mudds-work/hulk-prelude-preserve-check-20261017`.
-  Do not relaunch on observation timeout; first actual failure ends this card.
+- **Result:** actual route PASS61.306s; accepted full HULK arrival criteria,
+  zero diagnostics/owned cleanup. Raw:
+  `/srv/mudds-work/hulk-prelude-preserve-results-20261017/`.
+  No extra probe or flight retry. Capability integrated on2f687110e; checkpoint
+  workflow above is the only remaining action for this bounded delivery.
 - **Close:** record actual result, integrate/push only working capability; retain
   failed raw/candidate on failure, clean owned worktrees. A working arrival still
   requires the planned fresh Windows checkpoint before closing this delivery.
