@@ -251,3 +251,33 @@ Cleanup removed the ancestor-integrated, clean and inactive retired checkout
 (244,210,371 logical bytes). Verified no process cwd/path arguments referenced it
 and no ignored files outside generated `.godot` existed. Other retired worktrees
 with unique changes or captures are preserved. No test/qualification claim follows.
+
+## HULK · Continuous interior traversal (acceptance FAILED)
+
+Implementation `a97723864b4fe555ddf2c1d4e0fa0f8a1fbcb30d` replaces interior
+waypoint teleports with ordinary held-input movement on the same Player capsule.
+The existing six-point 73.713m route, normal gravity/speed/collision and 300s suite
+cap remain. Begin Shift uses the existing production seam; a single initial
+shelf placement remains staging, as do flight/dock and later fringe/rebase cases.
+
+One full headless/Dummy run exits1: 52 checks pass, waypoint1 fails. Player
+settles on verified hulk collision and reaches waypoint0, but remains exactly
+(-96,21.80265,-450) when aiming at waypoint1 (-96,23,-466) until the unchanged
+leg budget expires. The original static doorway ray passes. No continuous-walk
+acceptance, geometry defect or full expedition acceptance is claimed. Earlier
+real-file rejected-save/recovery/once-only reward checks pass in this run.
+
+Source review finds no camera/menu suppression seam in the enabled on-foot
+Player input path. Contact/penetration is a hypothesis only. Next bounded task:
+HULK-DIAG[shelf stall contact], one first-stall trace of raw/sampled movement,
+physics/embodiment state, velocity and slide collider/normal/depth/travel, then
+one same-cap run. Do not change placement/geometry or retry unchanged based on
+suspicion. Stop after identifying the actual rejecting owner or one missing fact.
+
+Root independently verifies 11,873 source files/index/cache645/engine and both
+stage guards; actual isolated engine environment, all four owned process
+identities absent and sockets/display/ordered lanes closed. Clean integrated
+checkout removed; donor cache retained. Raw failure:
+`/srv/mudds-work/hulk-continuous-walk-results-20261017/`.
+Log SHA256 `d45d22811f783986ba1ffe5b3b06668d4ececb78ebb59006c7667ddc1b9b41ee`.
+No runtime change or checkpoint follows this failed acceptance.

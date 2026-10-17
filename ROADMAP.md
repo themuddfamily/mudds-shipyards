@@ -34,51 +34,42 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 - Schedule only the next 3–5 concrete deliveries when their contracts are known.
   Uninstantiated backlog templates are not scheduled work or measurable progress.
 
-## Last delivery: ACT-HUD[hulk restoration instruction] — DONE
+## Current task: HULK[continuous interior traversal] — acceptance FAILED
 
-After throwing the breaker, the objective describes the bus powering up and
-securing the salvaged cell. The old instruction to “Hold the gallery” incorrectly
-implied a proximity requirement. Root changed the objective and corrected the
-adjacent comment; timer, reward and persistence logic are unchanged.
+**Result:** implementation `a97723864` replaces waypoint teleports with ordinary
+held movement on the existing 73.713m six-point interior route. The first full
+300s-cap check stops at waypoint1: the Player stays at (-96,21.80265,-450).
+Shelf support, waypoint0 and the static doorway ray pass. **52 checks pass,
+one fails**; continuous walking remains unaccepted. No runtime fix is claimed.
 
 | Step | Result |
 | --- | --- |
-| Correct instruction | DONE; one objective literal changed in `game_flow.gd`. |
-| Verify | DONE; exact diff confirms no executable logic changes; whitespace check passes. No engine test needed for this wording edit. |
-| Close | DONE; removed a verified inactive/integrated clean retired checkout (244MB logical); unique work/captures retained. |
+| Implement | DONE; existing test uses Begin Shift, one shelf placement, normal input and live capsule/hulk support checks. |
+| Verify | FAILED; first attempted movement leg stalls. Original caps, route and collision retained. |
+| Close this attempt | DONE; raw failure retained, guards/owned teardown verified, clean checkout removed. |
 
-**Remaining in this delivery: zero.** [Recorded result](docs/history/ROADMAP_DELIVERIES.md#act-hud--hulk-restoration-instruction-done).
-Latest playable stays b6af782; this minor wording correction needs no new gameplay
-checkpoint. Prior E2 benchmark delivery is complete in the same history document.
+[Actual result and scope](docs/history/ROADMAP_DELIVERIES.md#hulk--continuous-interior-traversal-acceptance-failed).
+Original flight/dock setup is staged; this check cannot qualify the full packaged
+expedition. Latest playable remains b6af782.
 
-## Active delivery: HULK[continuous interior traversal]
+## Next bounded task: HULK-DIAG[shelf stall contact]
 
-**Outcome:** a runnable production integration route walks the actual Player
-capsule from dock shelf through vestibule/corridor/gallery to the breaker with
-ordinary held movement, replacing waypoint teleports. Parent: hulk salvage/
-power/revisit. This closes the interior-walk check only; staged docking,
-fringe/rebase checks and in-process persistence are not canonical flight or
-packaged expedition acceptance.
+**Hypothesis:** physical capsule contact blocks movement; source review found
+no camera/menu gating in enabled on-foot Player input. Contact is not proven.
+**Owner/files:** root, same existing `tests/abandoned_hulk_loop_test.gd`.
+**Deliverable:** identify the actual rejecting owner from one stalled leg.
+**Estimate:** 10–20 min instrumentation; one original-cap run plus review 10 min.
 
-**Owner/component:** `hulk_continuous_walk`, existing
-`tests/abandoned_hulk_loop_test.gd` only; root reviews and runs acceptance.
-**Scope:** existing authored route/geometry, normal speed/gravity/collision;
-initial shelf staging allowed, no pose/velocity writes during traversal. Floor
-support, enabled unseated control, all waypoints, actual path and input release
-must hold. Existing reward/persistence checks remain. No jump/rescue shortcuts.
+1. Add a first-stall log: raw/sampled input, active physics/embodiment, velocity,
+   slide collider path/normal/depth/travel. No new framework or changed gameplay.
+2. Run the same full suite once at its original 300s cap, headless/Dummy, guarded
+   clean source/private profiles and existing process supervisor.
+3. Stop after the trace identifies collision, suppression or one missing fact;
+   record a concrete repair before any changed route, geometry or further run.
 
-| Step | State / finish line | Estimate |
-| --- | --- | --- |
-| Implement | IN PROGRESS; replace interior teleports with finite held-input legs, correct staged-flight scope comments, commit. | 30–60 min |
-| Verify | GATED; same full `abandoned_hulk_loop_test.gd`, original 300s cap, headless/Dummy. Exit0 plus `ABANDONED_HULK_LOOP_TEST_OK`, no diagnostics, guarded inputs and clean teardown. Stop at first concrete failure. | 10–15 min including setup |
-| Close | GATED; record actual scope/result, remove clean checkout, commit/push. Production fix or meaningful gameplay checkpoint requires its own bounded repair/build. | 10 min |
-
-**Next action:** review the implementation commit, freeze its clean source, then
-run `/tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy --path
-<clean-checkout> --script res://tests/abandoned_hulk_loop_test.gd` through existing
-`tools/release/suite_process.py --timeout 300`. No engine launched yet.
-Temporary checkout: `/srv/mudds-work/hulk-continuous-walk-20261017`.
-No unchanged retry or additional hulk cases follow automatically.
+**Next single action:** instrument the existing failure branch. No unchanged
+retry, teleport rescue, wider doorway, altered gravity or longer deadline.
+The broader hulk salvage/revisit requirement remains open.
 
 ## Working constraints
 
