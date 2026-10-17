@@ -85,6 +85,7 @@ or the named raw report. None closes a parent or phase gate.
 | Q4 · BASE-DIAG[Patrol restore] | One `e8f24ff00` original-cap probe still times out. Historical retirement boundary passes; repeated world/fleet startup dominates. Full Patrol acceptance remains FAIL; follow-up below. |
 | Q5 · BASE-DIAG[Resume offer] | `df66dcded` original300s probe passes Main16 real-file recovery; stops in Main17 next passenger interaction after151 passes. Main18/19 unentered; no runtime fix. Raw: `/srv/mudds-work/resume-offer-boundary-results-20261017/report.txt`; full suite remains FAIL. |
 | Q6 · WORLD-SHARED[Aurora arrival contract] | Bounded lookup recovered historical source `47ffce740562dd3ac3d52f66736796f5639068fd`; original invocation/setup/raw peer receipts missing. Definition ends with missing-input handoff; physical landing requirement remains open. |
+| D1 · GUIDED[f676c50 Linux package] | Exact current ELF passes original Guided3/3 in49.503/51.084/49.409s, zero diagnostics, original91 neutral shutdown frames and0.17m physical exit error. Inputs/actors/profiles/displays close; source/package guards match, independently verified. Raw: `/srv/mudds-work/f676-guided-acceptance-20261017/`. |
 
 **Latest attempt: Q4-FIX candidate withheld; startup requirement remains open.**
 One fresh Main locates station dressing consolidation as the largest of47 world
@@ -106,18 +107,20 @@ Q4's original300s full Patrol FAIL remains unchanged.
 
 This batch replaces the completed Q1–Q6 diagnostic batch. These are **five
 scheduled assignments, not five tasks left in the project**. Root owns integration
-and each card until an implementer is assigned. No task is active yet. Run D1
-next; D2 and D3/D4 are independent of it, but engine network/display lanes remain
+and each card until an implementer is assigned. D1 is complete on the exact
+current package; its clean temporary source checkout is removed. D5 implementation
+is assigned to `cabin_benchmark_impl`; its focused engine check now has both lanes.
+D2 and D3/D4 are independent of D1, but engine network/display lanes remain
 serialized. D4 depends on D3. D5 can be implemented independently. Do not expand
 this batch automatically or count its checks as complete parent outcomes.
 
 | Order / existing family instance | Kind / status | Observable result | Working estimate |
 | --- | --- | --- | --- |
-| D1 · GUIDED[f676c50 Linux package] | Qualification · READY | Current exact package completes the original ordinary-input Guided route 3/3. | 30–60 min preparation/review; three runs each capped300 s |
+| D1 · GUIDED[f676c50 Linux package] | Qualification · DONE | Current exact package completes original Guided 3/3; Sandbox and Settings remain open. | Runs49.503/51.084/49.409s; total effort not timed |
 | D2 · NET-CREW[Halyard moving shared-cruise source route] | Qualification · READY | Two independent remote passengers walk and use the chair while the actual craft moves/rebases. | 30–60 min preparation/review; one run capped300 s |
 | D3 · NET-BROWSER[live menu host and first guest] | Executable release check · READY for implementation | Existing browser check gains real independent Main/menu admission instead of injected directory/HUD fixtures. | 1–2 h implementation; 15–30 min focused checks |
 | D4 · NET-BROWSER[second independent menu guest] | Executable release check · GATED on D3 | Same host accepts two distinct real guests and releases both cleanly. | 1–2 h implementation; 15–30 min focused checks |
-| D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · READY for implementation | Select one physical cabin-walking benchmark without changing the original default two-route protocol. | 1–2 h implementation; 15–30 min focused checks |
+| D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · IN PROGRESS; focused engine check running | Select one physical cabin-walking benchmark without changing the original default two-route protocol. | 1–2 h implementation; 15–30 min focused checks |
 
 **D1 — Current-package Guided playthrough.** Parent: normal-controls core
 playthrough, Guided subcriterion only. Input: exact

@@ -4,6 +4,19 @@ This is the working roster for [roadmap task 0](../ROADMAP.md#0-fix-the-release-
 
 Latest paired checkpoints: clean `f676c5016fb810a58ee1a1b0bf7e316bbddbc716` ([Windows notes](../builds/windows/MuddsShipyards-f676c50-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-f676c50-linux-notes.txt)). Settings/browser labels now correctly call the remote-only counts guests and explain that the host is excluded. Existing numeric/settings/protocol behavior is retained. Fresh source and actual Windows-payload checks each pass 254 assertions; three strict startups and all 1,515 matching payload entries verify, with only compiled HUD/presenter changed from d0e129f. Final release capacity is still an owner decision; no crowd, endurance, full-matrix or phase gate closes.
 
+Subsequent exact-package Guided qualification (D1): the current f676c50 Linux ELF
+completes the unchanged original ordinary-input route **3/3**, in
+49.503 / 51.084 / 49.409s, each exit0 and zero diagnostics under the original300s
+cap. All walk/board/launch/practice/interceptor/return/land/shutdown/physical-exit
+phases complete; each retains91 neutral shutdown frames and0.17m exit error.
+Source/driver/package guards match, inputs release, and all22 captured process
+identities, private profiles and owned displays close; root independently checked
+the receipts and runtime lanes. Authenticated isolated X11/XTest, Dummy audio and
+disabled rendering establish this Linux OS-input route only. The stock root notice
+is silenced by the existing disclosed driver flag. Sandbox and Settings/re-entry
+remain open; native GPU/device/audio/human qualification remains NOT_RUN.
+Raw results: `/srv/mudds-work/f676-guided-acceptance-20261017/`.
+
 Earlier paired checkpoints: clean `d0e129f8d95a7d2a0843e0867fe865bd042c607b` ([Windows notes](../builds/windows/MuddsShipyards-d0e129f-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-d0e129f-linux-notes.txt)). Dormant chase cameras stop recurring self-hull correction; synchronous activation and active obstruction/near-plane clearance remain. Independent review and existing camera tests pass; isolated 18-craft/240-tick correction calls fall 4,320→0, without a whole-frame claim. Fresh source and actual Windows-payload checks each pass 358 assertions; three strict startups and all 1,515 matching payload entries verify, with only compiled HeroShip changed from df86280. Full current-source matrix, Rime300s and wider hardware/release acceptance remain open; no phase closes.
 
 The earlier paired Windows and Linux gameplay checkpoints use clean `df86280b5b3985770be527af71c6c247f311aae7` ([Windows notes](../builds/windows/MuddsShipyards-df86280-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-df86280-linux-notes.txt)). Restored active shared Rime surveys expose the next reading and paused heater to fresh crew while preserving existing participant and host authority. Source regression passes 78 assertions after three new failures on old code; fresh clean focused checks pass 200. Actual Windows-payload checks through the Linux engine pass 278, including the full existing restored-Rime route (78 in 147.288s), and three strict silent startups pass. All 1,515 Windows/Linux entries match; only compiled Rime code and order-only generated class/UID caches differ against418. All 481 class records/660 UID mappings retain their meaning; PE code, archives, ZIP and source/cache guards verify. This staged-arrival/in-process ENet fixture includes genuine fresh-Main recovery, authenticated crew walking, reward retry and reboarding. Independent canonical multiplayer journeys, rendered client HUD, full current-source matrix and applicable hardware/final-release acceptance remain open. No phase gate closes. Raw package checks: `artifacts/checkpoint-df86280/`.
