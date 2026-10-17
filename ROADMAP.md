@@ -81,6 +81,44 @@ Estimates below are working ranges, not promises or permission to lengthen test 
 
 ## Current task and next queue
 
+### Next small batch: combat and surface benchmark capabilities
+
+Two executable capabilities are selected below, plus one completed diagnostic.
+No capability in this batch is accepted yet. Root owns integration; benchmark
+changes share one component and stay sequential. This does not close native
+performance, canonical journeys or any parent requirement.
+
+| Assignment | State / owner | One finish line and stop boundary | Estimate |
+| --- | --- | --- | --- |
+| E1 · PERF-ROUTE[Torrent range combat/reuse] | IN PROGRESS; combat_benchmark_route | Select-only real Torrent fire damages/destroys the live range target, reuses it through the existing production owner, and sustains actual combat through sampling. Existing recorder/default protocol retained. Stop at focused route result or first concrete blocker. | 1–2h implementation; 15–30min focused checks |
+| E2 · PERF-ROUTE[Ember surface walking] | DEFINE, sequential after E1 | Define one finite path on the actual streamed Ember surface, production player/gravity/support and normal movement; one staging placement outside timing. Acceptance must reject idle/unsupported/out-of-surface samples. Stop definition at exact loaded-world/waypoint/input owners and an executable command, or one named missing input; do not start implementation with an unnamed route. | 20–30min definition; implementation estimate follows concrete contract |
+| E3 · BASE-DIAG[Bulwark default registration] | DONE; root-reviewed on2983a2be7 | Unchanged default test passes20 assertions headlessly at original300s cap; source/index/cache645/engine and actual process/environment/socket/lane closure verify. Historical graphics cause unknown, original matrix FAIL/capture remain open. No further probe or classification change implied. | Engine observed ~30.60s; total effort not timed |
+
+**Active E1 contract.** Parent: original performance §5 / required combat route.
+Owner/files: one agent owns `tools/performance/benchmark_runner.gd`, its existing
+test, native wrapper and usage doc. Add only selected
+`torrent_range_combat_reuse_route`. Stage the piloted production Torrent once
+against live DRONE-01 outside timing; normal fire Input drives the actual weapon,
+projectiles, Main combat authority and damage adapter. Retain target motion and
+identities. Reuse only after genuine authoritative destruction through
+`ShipyardWorld.reset_range_target_for_reuse`; never write health/pose during
+measurement or substitute direct damage. Sampling must show matching accepted
+shots, damage, destruction/reuse and combat activity through its end; warm-up-only
+or early-combat-then-idle reports fail. A stationary firing route needs combat
+progress, not invented movement. Keep schema1, default two routes, selected
+false/null admission and full3,600/60s plus18,000/600s floors. Route-specific8s
+smoke is explicitly diagnostic; existing smoke and full windows are unchanged.
+Use a separate focused mode in the existing test to keep its original300s cap;
+prove real smoke, rejected invalid results and active-fire abort/input release.
+Commit before execution; root reviews and runs focused checks with Dummy audio
+and isolated/headless display. No native Windows run, export or hardware claim.
+Next action: review the bounded implementation commit before any engine run.
+
+E3 raw: `/srv/mudds-work/bulwark-default-boundary-results-20261017/`.
+Its clean temporary worktree is removed. This diagnostic is separate from E1/E2
+delivery counts; it neither changes the game nor proves the historical timeout's
+cause. The catalog still requires graphics for the optional capture-bearing suite.
+
 Completed bounded tasks below retain their detailed results in Git, build notes
 or the named raw report. None closes a parent or phase gate.
 
@@ -125,10 +163,8 @@ Q4's original300s full Patrol FAIL remains unchanged.
 
 All **five scheduled outcomes** are accepted only on their recorded source/build
 and scenario. This is a completed batch, not project completion. Disposable
-worktrees are removed. No assignment is currently active; the next planning step
-is to select3–5 concrete production deliveries from the remaining parent scope,
-with one outcome, acceptance check and stopping point each. Do not automatically
-expand the completed network-menu checks into capacity, flight or endurance work.
+worktrees are removed. The next small batch is specified above. Do not expand
+these completed network-menu checks into capacity, flight or endurance work.
 
 | Order / existing family instance | Kind / status | Observable result | Working estimate |
 | --- | --- | --- | --- |
@@ -308,7 +344,7 @@ The last full matrix's eleven failed suites are below. `BASE-DIAG` selects **one
 
 | Suite / exact existing filename under `tests/` | Last known boundary / next justified action |
 | --- | --- |
-| `bulwark_game_flow_registration_test.gd` | Original 300s timeout; isolate first incomplete registration boundary. |
+| `bulwark_game_flow_registration_test.gd` | Historical Forward+/llvmpipe300s timeout remains. E3 unchanged current default passes20 headlessly on2983a2be7; no default registration defect reproduced. Capture and graphics cause remain open; retain catalog graphics classification and cover original suite in a future combined matrix. No unchanged isolated retry. |
 | `cargo_delivery_production_integration_test.gd` | Full matrix timed out; later 418 source/package completes 124 assertions. Include in next combined matrix; do not rerun unchanged isolated merely because the older matrix failed. |
 | `cinder_convoy_session_save_restore_test.gd` | Legacy Reset repaired; full suite still exceeds original 300s. Diagnose the next incomplete boundary. |
 | `cinder_patrol_session_save_restore_test.gd` | Q4 original300s probe on `e8f24ff00` completes18/30 Main lifetimes, stops after19th synchronous startup before fresh-IDLE assertion69. Historical17th retirement/save passes; repeated station/fleet readiness dominates. Q4-FIX targets runtime startup; full suite remains FAIL. |
