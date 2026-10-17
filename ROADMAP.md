@@ -115,6 +115,27 @@ and never restart solely because an observation expires. Independent abort:
 `python3 /srv/mudds-work/ember-completed-journey-results-20261017/original-contract/readonly-index/abort.py`.
 Do not run default/outbound-only, ABANDON or staged-loop mode as a substitute.
 
+## Next delivery: INSTALL-LINUX[interrupted update publication]
+
+**Player result:** an update killed after publishing its desktop entry can be
+retried normally, without leaving the installer stuck or damaging saves.
+Parent: [installation/update recovery](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
+Boundary: `tools/release/install_linux_desktop.py`, its existing consolidated
+test and Linux build documentation. Initial-install/uninstall interruption,
+power loss and graphical launch remain separate. No new game behavior or
+Windows gameplay checkpoint is implied by this Linux manager repair.
+Owner: `linux_update_kill_recovery` in its own worktree; root reviews/integrates.
+Filesystem-only work can proceed while Ember owns the runtime lanes.
+
+| Task | Proof / stopping condition | State / budget |
+| --- | --- | --- |
+| LINUX-UPDATE-REPRO | Child uses actual manager and miniature standard archives; pause immediately before manifest publication after desktop publication, SIGKILL/reap it, retry ordinary install CLI in a distinct process. Preserve exact refusal/mismatch. Stop if predicted defect is absent. | IN PROGRESS; 15 min maximum |
+| LINUX-UPDATE-FIX | Correct only reproduced update-recovery boundary. Fresh CLI retry exits0 with consistent desktop/manifest/owned hashes and exact archive ELF/mode; saves/unrelated files unchanged. Existing ownership/symlink/modified-file refusals and normal OSError rollback stay intact. Extend existing `test_install_linux_desktop.py`, run it once after relevant changes. | GATED on reproduction; implementation60–90 min, filesystem checks under5 min |
+| LINUX-UPDATE-SHIP | Root reviews/integrates clean commit; existing Linux export/bundle checks pass, updated manager is shipped byte-for-byte in fresh clean Linux archive, actual shipped-script update/kill/retry/uninstall preserves protected files; strict startup exit0/`STARTUP_MENU_READY_OK`. Record hashes/limits, commit/push, remove disposable checkout. | GATED on accepted fix and available runtime lanes; allow30 min for package/checks, reassess at boundary |
+
+Any failure ends that task with its actual result and a named follow-up. The
+Aurora benchmark candidate stays unscheduled while this production gap is open.
+
 All ten phase gates remain open. Q4 startup stays parked after the bounded
 five-file source review found no justified construction candidate. Latest
 playable remains b6af782; definition/qualification alone needs no new build.

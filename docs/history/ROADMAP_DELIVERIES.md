@@ -4,6 +4,16 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+**Owned scratch cleanup — 2026-10-17.** Removed five inactive clean checkouts:
+camera-boundary cost, fleet startup, station eligibility, station operations
+capture and station render stall. Each HEAD is already an ancestor of main;
+no live process references its checkout. Only generated Godot/Python caches
+were ignored there; raw logs, patches, private profiles and images remain in
+their sibling result directories. Removed1,210,933,466 logical bytes. Dirty
+shared-flow/station-batch worktrees, retired unique work and the donor cache
+remain preserved. Inventory: `/srv/mudds-work/cleanup-20261017/integrated-checkouts.json`.
+This is cleanup, not roadmap feature progress.
+
 **EMBER-IMPORT — first original-contract attempt rejected on guard failure.**
 Source `bf452ed8689e51379e0621299378ea29a7b111e7`, Godot4.7.1, genuinely
 cold headless/Dummy import under original600s cap: engine exit0, no emitted
