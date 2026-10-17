@@ -230,6 +230,20 @@ are staged; no actual-package, canonical planetary landing, full original
 server/two-client baseline, endurance or final-capacity acceptance is claimed.
 Raw: `/srv/mudds-work/moving-halyard-source-results-20261017/result.json`.
 
+D3's new opt-in real-menu check is committed on `55975dd6d`; it is **not qualified**.
+Default fixture passes7 unchanged. Actual independent Main host creation, real LAN
+refresh/row selection and authenticated guest admission pass, but both peers fail
+at the visible Disconnect control after Begin Shift. Their OS exits are1. Guest
+count returning to0 is failure cleanup, not successful menu disconnect. The exact
+foreground card was not captured; the network action is available only on the
+foreground runtime card and the browser has no stable Disconnect control.
+Next bounded production repair is a stable browser Disconnect action, existing
+intent/focus integration, unchanged full one-guest check and a fresh UI checkpoint.
+Source/index/cache/engine remain stable; recorded live process/display/socket/lane
+closure independently checked. Default actual `/proc` environment capture was
+missed and is not reconstructed. No retry or runtime change occurred in this run.
+Raw: `/srv/mudds-work/live-menu-admission-results-20261017/result.json`.
+
 Patrol Q4 diagnosis on `e8f24ff00` still fails the original300s full scenario:
 18 of30 Main lifetimes complete; Main19 completes synchronous initialization but
 not its post-add frame waits, leaving fresh-IDLE assertion69 unexecuted. The older

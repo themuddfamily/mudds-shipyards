@@ -112,8 +112,10 @@ scheduled assignments, not five tasks left in the project**. Root owns integrati
 and each card until an implementer is assigned. D1 and D5 are complete in their
 recorded scope; their clean temporary worktrees are removed. D2 is now complete
 on its named source and its clean worktree is removed. D3 implementation is
-assigned to `live_menu_admission`; review/commit precedes its first engine run.
-D4 remains gated on D3; runtime lanes are free after D2 cleanup.
+delivered the opt-in mode in `55975dd6d`, but its first live check failed at
+visible Disconnect on both peers. No assignment is active; the clean D3 checkout
+is removed. Next: the bounded production repair D3-REPAIR below, before D4.
+The original five-task batch has three accepted tasks (D1/D2/D5); D3 and D4 remain open.
 D2 and D3/D4 are independent of D1, but engine network/display lanes remain
 serialized. D4 depends on D3. D5 can be implemented independently. Do not expand
 this batch automatically or count its checks as complete parent outcomes.
@@ -122,7 +124,7 @@ this batch automatically or count its checks as complete parent outcomes.
 | --- | --- | --- | --- |
 | D1 · GUIDED[f676c50 Linux package] | Qualification · DONE | Current exact package completes original Guided 3/3; Sandbox and Settings remain open. | Runs49.503/51.084/49.409s; total effort not timed |
 | D2 · NET-CREW[Halyard moving shared-cruise source route] | Qualification · DONE on `7412a6e50` | Original moving/rebase/two-passenger/chair/late-observer route passes132 checks, zero diagnostics. Source only; canonical landing/package qualification remain open. | Suite213.078s; total effort not timed |
-| D3 · NET-BROWSER[live menu host and first guest] | Executable release check · IN PROGRESS; reviewed mode awaits commit/first run | Existing browser check gains real independent Main/menu admission instead of injected directory/HUD fixtures. | 1–2 h implementation; 15–30 min focused checks |
+| D3 · NET-BROWSER[live menu host and first guest] | Mode implemented on `55975dd6d`; live validation FAIL | Host/discovery/advertised join/authentication pass; visible Disconnect unavailable. Cleanup shutdown cannot qualify menu leave. Repair below takes priority. | Default7 passes; one live run ends at first UI gap; total effort not timed |
 | D4 · NET-BROWSER[second independent menu guest] | Executable release check · GATED on D3 | Same host accepts two distinct real guests and releases both cleanly. | 1–2 h implementation; 15–30 min focused checks |
 | D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · DONE on `53e63831a` | Selectable physical aisle shuttle works; partial reports cannot qualify full performance protocol. | Final suite ~206s; total effort not timed |
 
@@ -186,6 +188,48 @@ Stop when this executable slice passes or its first concrete blocker is recorded
 A demonstrated runtime defect gets one separately bounded repair; production
 owners are `scripts/game/game_flow.gd`, ENet adapter and LAN discovery, selected
 by the failure. Do not add flight/combat/endurance or another harness family.
+
+**D3-REPAIR — Stable Disconnect in the server browser (next action).**
+Parent: D3 production browser/connection flow. One player-visible outcome: a
+connected host or guest can always leave from the server-browser page, regardless
+of which gameplay runtime card is in front. The retained first run on `55975dd6d`
+passes default7, real menu host creation, LAN discovery/advertised join and
+matching authenticated peer generations, then both peers fail visible/enabled
+`RuntimeStatusDisconnectButton`. Both exit1. Subsequent guest count0 is failure
+cleanup, **not UI disconnect acceptance**. Exact foreground card was not recorded;
+source confirms the runtime card is the only existing Disconnect surface, newest
+card wins, and the browser has no Disconnect control or runtime-card selector.
+Raw: `/srv/mudds-work/live-menu-admission-results-20261017/result.json`.
+Root verified source11,871/index/cache645/engine stability and closure of the ten
+recorded live processes/three engines/displays/sockets/lanes. Actual default-stage
+`/proc` environment capture was missed; intended launch environment is retained.
+Do not repeat this unchanged run or claim the initial transport success closes D3.
+
+Owner: root assigns one implementation agent `scripts/ui/hud.gd`, existing
+`tests/server_browser_hud_integration_test.gd`,
+`tests/server_browser_focus_navigation_test.gd` and the D3 mode in
+`tests/network/game_flow_server_browser_integration_test.gd`; existing manual-
+controls HUD check is relevant regression coverage. Add one stable
+`ServerBrowserDisconnectButton`, enabled from current connected network
+presentation, emitting the existing `network`/`disconnect` intent. Integrate its
+keyboard/controller focus order, disable it after shutdown, and preserve retained
+runtime cards. No transport protocol, timeout, host capacity or shutdown semantics
+change. Update D3 to use ordinary pause → browser → Disconnect (and verify the
+browser still works after leaving), without forcing card visibility or calling
+shutdown directly as the user action.
+
+Acceptance: existing HUD/focus/manual-control checks, unchanged default browser
+regression and one corrected full live one-guest route with authenticated
+identities, UI-driven guest counts0→1→0, actual exits0 and owned closure; retain
+original300s/stage caps. Then a fresh clean-source Windows EXE/ZIP/notes, relevant
+actual-payload HUD checks and strict silent startup (`exit0` plus
+`STARTUP_MENU_READY_OK`), using the safe existing paired export workflow in
+repository builds/. This is a meaningful UI checkpoint; native Windows/GPU/device
+and full-release gates remain factual NOT_RUN. Estimate30–90min implementation,
+15–30min focused checks, 30–60min packaging/review. Stop after this concrete repair
+and checkpoint, or a first different reproducible blocker; do not bundle D4,
+redesign runtime-card arbitration or add a networking audit. D3 completes only
+when its full menu-admission/disconnect acceptance passes.
 
 **D4 — Two guests on the same menu-hosted session.** Parent: same original
 server/two-client baseline; depends on D3's working independent-Main mode.
