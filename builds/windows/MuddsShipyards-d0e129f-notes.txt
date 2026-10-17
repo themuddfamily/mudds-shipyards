@@ -1,0 +1,48 @@
+Mudd's Shipyards — dormant chase camera checkpoint d0e129f — 2026-10-17
+Clean exported source: d0e129f8d95a7d2a0843e0867fe865bd042c607b
+Engine: pinned official Godot4.7.1 a13da4feb, stock release templates.
+
+Delivered change:
+Unused chase cameras no longer repeat self-hull boundary work every physics tick.
+Chase activation enforces the full boundary immediately; active camera updates
+retain SpringArm obstruction and camera/near-plane clearance behavior.
+The Linux archive also retains the bundled managed installer.
+
+Implementation and independent review:
+Implementation d0e129f8d95a7d2a0843e0867fe865bd042c607b. Existing flight_input GREEN185 assertions and cargo hull GREEN14 under original headless modes, Dummy audio. New lifecycle regression RED on old runtime (7 failures). Same bounded18-craft/240-tick dormant probe:4320 correction calls/605.576ms before,0calls/0ms after. This is isolated routine work, no FPS/nativeGPU or Rime300 claim. Independent high-effort read-only review approves activation/snap ordering, late-priority obstruction/near-plane correction, cockpit/remote/reset transitions, unrestricted explicit methods and preserved fleet assertions. Raw logs/probe inputs: /srv/mudds-work/dormant-camera-validation-20261017.
+
+Actual clean candidate validation:
+- Fresh exact-source privacy, flight_input and cargo-hull camera suites all PASS
+  under existing runner/import-always and original300s caps; source/cache stable.
+- Three strict headless/Dummy startups: Windows payload through Linux engine,
+  direct Linux ELF and archive-extracted ELF. Each exit0 and exactly one
+  STARTUP_MENU_READY_OK, no script/error/resource diagnostics.
+- Actual Windows embedded production payload through Linux engine passes the
+  exact-source external privacy, flight_input and cargo-hull harnesses.
+- windows-payload-startup: PASS, exit0, 25.341552s, one marker, zero diagnostics.
+- linux-direct-startup: PASS, exit0, 21.382712s, one marker, zero diagnostics.
+- linux-archive-startup: PASS, exit0, 21.217966s, one marker, zero diagnostics.
+- startup-cli-privacy: PASS, exit0, 0.951782s, one marker, zero diagnostics.
+- flight-input: PASS, exit0, 19.969605s, one marker, zero diagnostics.
+- cargo-hull-camera: PASS, exit0, 2.795286s, one marker, zero diagnostics.
+- All 1515 Windows/Linux payload entries match by path/size/hash.
+  PCK changes against df86280: scripts/ships/hero_ship.gdc.
+  Generated metadata, when changed, preserves identical record semantics:
+  {}.
+- Windows PE.text matches pinned release template. ZIP CRC and exact EXE/notes
+  members verified; Linux archive ELF bytes/mode and manager bytes/mode verified.
+  Source/index/cache stable throughout package checks.
+- Raw checkpoint records: artifacts/checkpoint-d0e129f/.
+  Private owner/abort/profile records: /srv/mudds-work/dormant-camera-checkpoint-20261017/.
+
+Limits:
+This measured camera-work reduction does not establish whole-frame/native-GPU
+performance or resolve the original full Rime300s timeout. Full current-source
+matrix and complete ordinary solo/shared/recovery acceptance remain NOT_RUN;
+earlier scoped passes remain source-specific. No phase or parent outcome closes.
+Native Windows execution and human review remain owner-excluded mandatory gates;
+the Windows execution hold stays in force. Actual native GPU, physical devices,
+audible mix, trusted signing and final release remain open. No CI dispatch,
+Downloads copy or public publication.
+
+EXE SHA256: d80f599fc6db6a06a7c5721619930f0f5f65d63491aa1d52defa563b7bd7e8e4

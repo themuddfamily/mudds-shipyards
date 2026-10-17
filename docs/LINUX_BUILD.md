@@ -4,7 +4,21 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local Linux package: `653c1459d` — 2026-10-17
+## Latest local checkpoint: `d0e129f8d` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-d0e129f.x86_64),
+[archive](../builds/linux/MuddsShipyards-d0e129f-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-d0e129f-linux-notes.txt) use clean source
+`d0e129f8d95a7d2a0843e0867fe865bd042c607b`. Unused chase cameras skip repeated
+hull-clearance work; active views retain obstruction and immediate activation
+clearance. Independent review, 358 fresh source assertions, 358 actual
+Windows-payload assertions through the Linux engine and three strict silent
+startups pass. All 1,515 Windows/Linux payload entries match; only compiled
+HeroShip changes against df86280. The archive retains the managed installer.
+This is no native frame-rate, full Rime300s, full-matrix or release qualification.
+Actual desktop/device/audio and hardware gates remain open.
+
+## Earlier managed-installer package: `653c1459d` — 2026-10-17
 
 The [archive](../builds/linux/MuddsShipyards-653c145-linux-x86_64.tar.gz)
 now includes the managed Python installer; no repository checkout is needed.
