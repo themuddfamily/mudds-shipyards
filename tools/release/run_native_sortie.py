@@ -560,7 +560,10 @@ class SandboxWalkPilot(Pilot):
             else:
                 direction = unit(horizontal)
                 yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
-                dx = self.walk_mouse_delta(yaw, sandbox['walk_mouse'])
+                # Inside the arrival envelope, let braking settle without
+                # turning back toward a waypoint the player has passed.
+                if not (distance <= .30 and abs(off[1]) <= .65 and sandbox['grounded']):
+                    dx = self.walk_mouse_delta(yaw, sandbox['walk_mouse'])
                 if abs(yaw) < .08 and self.walk_motion_allowed(distance, following is not None):
                     keys.add('w')
                     if distance > 3 or following is not None and norm(sub(following, s['player'])) > 3:
