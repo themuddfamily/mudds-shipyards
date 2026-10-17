@@ -87,12 +87,30 @@ func _run() -> void:
 		"production sort controls preserve pending refresh guidance")
 	var disconnect := hud.get("_server_browser_page").find_child("ServerBrowserDisconnectButton", true, false) as Button
 	_check(disconnect != null and disconnect.disabled and disconnect.focus_mode == Control.FOCUS_NONE, "browser Disconnect starts unavailable offline")
-	for state: StringName in [&"connecting", &"reconnecting", &"failed", &"disconnected"]:
+	for state: StringName in [&"connecting", &"reconnecting", &"migrating", &"failed", &"rejected"]:
 		hud.update_network_session_status({"state": state})
-		_check(disconnect.disabled, "browser Disconnect remains disabled while %s" % state)
+		var snapshot: Dictionary = hud.get("_network_status_presenter").get_snapshot()
+		var action: Dictionary = snapshot.actions.back()
+		_check(not disconnect.disabled and disconnect.focus_mode == Control.FOCUS_ALL
+			and disconnect.text == str(action.label).to_upper(), "browser exposes the presenter's cancel action while %s" % state)
+	var cancel_count := _intents.size()
+	hud.update_network_session_status({"state": &"connecting", "role": &"client"})
+	hud.apply_first_sortie_tutorial_snapshot({"step_id": &"board", "generation": 2, "revision": 1})
+	var cancel_cards := (hud.get("_runtime_status_cards") as Dictionary).duplicate(true)
+	disconnect.pressed.emit()
+	_check(_intents.size() == cancel_count + 1 and _intents.back().payload.action == &"cancel"
+		and _intents.back().payload.snapshot.state == &"connecting"
+		and disconnect.text == "CANCEL CONNECTION" and not disconnect.disabled,
+		"newer tutorial cannot hide browser Cancel Connection or replace its current network intent")
+	_check(hud.get("_runtime_status_cards") == cancel_cards and hud.get("_runtime_status_kind") == &"tutorial",
+		"browser cancel intent preserves retained cards and tutorial foreground")
+	hud.update_network_session_status({"state": &"disconnected"})
+	disconnect.pressed.emit()
+	_check(disconnect.disabled and _intents.size() == cancel_count + 1,
+		"disconnected browser cannot emit a stale cancellation")
 	for role: StringName in [&"server", &"client"]:
 		hud.update_network_session_status({"state": &"connected", "role": role})
-		_check(not disconnect.disabled and disconnect.focus_mode == Control.FOCUS_ALL, "connected %s can leave from browser" % role)
+		_check(not disconnect.disabled and disconnect.focus_mode == Control.FOCUS_ALL and disconnect.text == "DISCONNECT", "connected %s can leave from browser" % role)
 	# A newer gameplay card must retain ownership without hiding browser leave.
 	hud.apply_first_sortie_tutorial_snapshot({"step_id": &"board", "generation": 3, "revision": 1})
 	var foreground := StringName(hud.get("_runtime_status_kind"))

@@ -37,6 +37,26 @@ func _run() -> void:
 		_check(ordered[index].focus_neighbor_bottom == ordered[index].get_path_to(ordered[mini(ordered.size() - 1, index + 1)]), "browser control %d has next focus" % index)
 	var disconnect := hud.get("_server_browser_page").find_child("ServerBrowserDisconnectButton", true, false) as Button
 	_check(disconnect.disabled and disconnect.focus_mode == Control.FOCUS_NONE, "offline Disconnect is excluded from controller navigation")
+	hud.update_network_session_status({"state": &"connecting", "role": &"client"})
+	_check(not disconnect.disabled and disconnect.text == "CANCEL CONNECTION"
+		and disconnect.focus_mode == Control.FOCUS_ALL
+		and manual.focus_neighbor_bottom == manual.get_path_to(disconnect)
+		and back.focus_neighbor_top == back.get_path_to(disconnect)
+		and manual.focus_neighbor_right == manual.get_path_to(disconnect)
+		and disconnect.focus_neighbor_left == disconnect.get_path_to(manual)
+		and disconnect.focus_neighbor_right == disconnect.get_path_to(back),
+		"pending Manual Join inserts Cancel Connection into keyboard and controller navigation")
+	disconnect.grab_focus()
+	await process_frame
+	_check(hud.apply_first_sortie_tutorial_snapshot({"step_id": &"board", "generation": 2, "revision": 1})
+		and root.get_viewport().gui_get_focus_owner() == disconnect and disconnect.is_visible_in_tree(),
+		"newer tutorial preserves focused browser Cancel Connection")
+	hud.update_network_session_status({"state": &"disconnected"})
+	await process_frame
+	_check(disconnect.disabled and root.get_viewport().gui_get_focus_owner() == back
+		and manual.focus_neighbor_bottom == manual.get_path_to(back)
+		and manual.focus_neighbor_right == manual.get_path_to(back),
+		"cancel completion removes unavailable action and restores browser navigation")
 	hud.update_network_session_status({"state": &"connected", "role": &"client"})
 	_check(not disconnect.disabled and disconnect.focus_mode == Control.FOCUS_ALL
 		and manual.focus_neighbor_bottom == manual.get_path_to(disconnect)
