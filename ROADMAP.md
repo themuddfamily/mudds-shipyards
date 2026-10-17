@@ -178,16 +178,20 @@ after their dependency exists. These are scenario capabilities, not phase comple
   one arrival run using the runner's existing300s cap. Stop at first unsupported
   control/actual failure or estimate boundary; record exact blocker before repair.
   Keep existing Guided/Sandbox behavior and caps unchanged.
-- **Candidate:**6426fa7b1490b2fa311a3f088124004cad6a43a8, reviewed;22 focused
-  Python tests pass, actual route unqualified. Author checkout
-  `/srv/mudds-work/hulk-arrival-20261017` retained until integration.
-- **Next action:** observe existing clean-checkout import/privacy/Linux export/
-  direct+archive startup/one arrival workflow. Outer driver PID380709/start
-  ticks107810387; raw and exact stage owners/status/abort:
-  `/srv/mudds-work/hulk-arrival-results-20261017/`. Acceptance checkout
-  `/srv/mudds-work/hulk-arrival-check-20261017`, pinned to candidate. Do not
-  relaunch on observation timeout. First actual failure ends this qualification.
-  After a working route, clean-source Windows EXE/ZIP/notes are still required.
+- **First qualification:**6426fa7b1 cold import passed, then startup/privacy
+  test parse failed on duplicate local `hulk_args`; stopped before export/flight.
+  Guards passed; all6 recorded identities absent and lanes free. Raw:
+  `/srv/mudds-work/hulk-arrival-results-20261017/`.
+- **Separate repair HULK-PRIVACY-NAME — DONE:**ea883b499 changes only the added
+  test variable/references to `hulk_arrival_args`. No driver/runtime/cap change.
+  Root reviewed exact diff;5-minute budget. Earlier failure remains retained.
+- **Next action:** qualify repaired candidateea883b499a7e5e4d106644d6b108055177c57863
+  from the same clean acceptance checkout. Reuse the completed cold-import cache
+  only after exact equality to the prior frozen cache and all runtime source
+  hashes; the test-local rename is the sole declared source difference. Run
+  privacy then unrun Linux export/startups/one arrival. No flight retry has occurred.
+  Raw continuation: `/srv/mudds-work/hulk-arrival-results-20261017/privacy-name-fix/`.
+  After a working route, clean-source Windows EXE/ZIP/notes remain required.
   All automated runtime remains isolated X11/Dummy with owned abort/cleanup.
 - **Close:** exact source/build/raw outcome, commit/push, remove owned disposable
   worktrees. No full salvage journey claim from arrival alone.
