@@ -60,26 +60,27 @@ or the named raw report. None closes a parent or phase gate.
 | NET-BROWSER[guest-capacity wording] | `f676c5016` corrects labels without count/protocol changes; existing UI checks and [matching checkpoint](builds/windows/MuddsShipyards-f676c50-notes.txt) pass. |
 | NET-CREW[Jovian engineer] functional probe | Current `f676c5016` package route passes 72 checks with host/one client; one retained Xvfb VSync warning leaves strict zero-diagnostic qualification open. Raw report in COMPLETION_SCOPE. |
 | NET-CREW[Halyard engineer] functional probe | Current `f676c5016` actual Halyard route passes 76 checks; one retained Xvfb VSync warning leaves strict diagnostic qualification open. Raw report in COMPLETION_SCOPE. |
-| NET-CREW[Bulwark gunner] | Current `f676c5016` route passes: remote and moving-host gunner shots each damage registered targets 100→78; stand/reseat and pilot-disconnect ownership checks pass. Scope below. |
+| NET-CREW[Bulwark gunner] | Current `f676c5016` route passes: remote and moving-host gunner shots each damage registered targets 100→78; stand/reseat and pilot-disconnect ownership checks pass. Scope in COMPLETION_SCOPE. |
+| Q1 · BASE-DIAG[Emberline late peer] | Historical first unmet dependency identified: later dead-peer baseline before reset. One instrumented `e026cf620` isolated original-cap probe passes; no production fix/root cause claimed. |
 
-**Latest completed result: NET-CREW[Bulwark gunner ordinary route].**
-One unchanged route on harness `eea66d74f` and actual `f676c5016` package passes
-120 checks, with all engine exits 0 in 133.997s under original limits. Remote gunner
-and moving host gunner fire actual `picket_siege_lance` shots; each registered target
-loses 22 health. Chair/stand/reseat, stale-request refusal, generation cancellation
-and pilot-disconnect ownership cleanup pass. This is host/one client, with a fresh
-pilot Main later in the same client process; it does not establish two-client support.
-Hatch/target placement and generation/lease changes are scripted. Zero runtime
-diagnostics were emitted; the standard `GODOT_SILENCE_ROOT_WARNING=1` flag suppresses
-the stock superuser notice and remains disclosed. Exact inputs, source/cache hashes,
-receipts and owned teardown verified; clean temporary checkout removed. No new build.
-Raw report: `/srv/mudds-work/bulwark-gunner-candidate-results-20261017/report.txt`.
+**Latest completed result: Q1 diagnosis; historical failure not reproduced.**
+The retained failure reaches live late join and retirement, then host waits for
+`dead.finished` before it can reset. Pending-generation errors are downstream.
+One isolated `e026cf620` headless/Dummy source probe, with 18 temporary fixture-only
+diagnostic lines and original 45s/300s caps, passes all 154 assertions. Dead Main
+is ready at its uptime 34.933s; its first accepted neutralized-actor snapshot
+arrives at 35.262s, and it finishes at 35.483s. Baseline adoption and reset/retry
+work in this run. These per-process timestamps do not prove the historical cause;
+the older three-worker full matrix remains FAIL. No runtime repair, new build or
+unchanged repeat is justified. Exact source/cache/engine hashes, receipts and
+owned teardown verified; fixture restored and clean temporary checkout removed.
+Raw report: `/srv/mudds-work/emberline-boundary-results-20261017/report.txt`.
 
 ### Next execution batch: six named tasks
 
 These are **six scheduled tasks, not six tasks left in the project**. Root owns
-integration and updates each card before assigning it. Start **Q1** next; its proven
-repair takes priority over Q2–Q6. Independent work can proceed only with disjoint
+integration and updates each card before assigning it. **Q1 is complete; Q2 is next.**
+Any later demonstrated repair takes priority over another unrelated diagnosis. Independent work can proceed only with disjoint
 ownership; runtime network/display lanes remain serialized. No task in this batch
 closes a phase or substitutes for final integrated acceptance.
 
@@ -91,14 +92,19 @@ pinned engine, original caps, Dummy audio and owned isolation described below.
 Q3 additionally needs the external-fixture actual-package launch used by the
 preceding crew probes; a source-only matrix pass cannot replace its package check.
 
-| Order / ID | Kind / status | Observable deliverable | Estimated active effort |
+| Order / ID | Kind / status | Observable deliverable | Estimated effort / recorded actual |
 | --- | --- | --- | --- |
-| Q1 · BASE-DIAG[Emberline late peer] | Diagnosis · READY | First failed startup/authentication/publication/presentation boundary and one named repair owner. | 1–2 hours |
+| Q1 · BASE-DIAG[Emberline late peer] | Diagnosis · DONE; failure not reproduced | Historical unmet dead-baseline dependency identified; one original-cap current instrumented probe passes. Root cause/fix unproven; next combined matrix retains coverage. | Probe ~136s; total effort not timed |
 | Q2 · PERF-SELECT[existing benchmark scenarios] | Release capability · READY | Run either existing benchmark scenario by name, retaining the existing default combined run. | 2–4 hours |
 | Q3 · NET-CREW[Halyard passenger] | Qualification · READY | Current-package passenger chair/walk/return and recovery result, with exact participant scope. | 30–60 minutes |
 | Q4 · BASE-DIAG[Patrol restore] | Diagnosis · READY | First incomplete persistence/recovery operation and one named repair owner. | 1–2 hours |
 | Q5 · BASE-DIAG[Resume offer] | Diagnosis · READY | First failing cold-recovery context and responsible production owner. | 1–2 hours |
 | Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · READY for bounded artifact lookup | Exact canonical failing command, initial state and expected landing result, or the specific missing artifact. | 30–60 minutes |
+
+No child is active. Next task: **Q2**, existing benchmark scenario selection.
+Before implementation, fill its current-source owner/check card and inspect the
+two existing full-report consumers. Q1's failure record remains open for the next
+integrated matrix; do not restart its completed diagnosis.
 
 **Q1 — Emberline late peer.** Player outcome sought: a joining peer sees the live
 travelling weapon at the authoritative position. Start from the retained matrix
@@ -222,7 +228,7 @@ The last full matrix's eleven failed suites are below. `BASE-DIAG` selects **one
 | `game_flow_scan_durable_recovery_test.gd` | Half-second retry fixed; later full suite still times out after 96 printed passes. Diagnose remaining boundary. |
 | `session_recovery_resume_offer_test.gd` | Original 300s timeout; one-boundary diagnosis required. |
 | `game_flow_rime_client_pad_controls_test.gd` | On3e39ed8da corrected headless run first scenario completes, return17.099s; second held-edge starts264.733s and still progresses at291.862s before original 300s timeout. Diagnosis above; preserve180 edge waits/1,440-tick exposure and100 jump waits. Next: reduce a measured production hotpath, then affected original checks; no unchanged rerun or timing relaxation. |
-| `network_emberline_bolt_test.gd` | Late-peer startup/retry failure at original 44/45s boundary. Identify startup/protocol boundary before a runtime fix. |
+| `network_emberline_bolt_test.gd` | Retained failure waits on later dead-peer baseline before reset; pending-generation errors follow. Q1 isolated `e026cf620` instrumented probe passes 154 under original limits, so no repair/root cause is proven. Retain old matrix FAIL; cover next combined matrix without another unchanged isolated run. |
 | `station_light_overlap_census_test.gd` | Historical expected rows/environment unresolved; mismatch repeats on its own freeze. Recover measurement basis before changing expectations; never replace hashes just to pass. |
 
 ## Station, craft, combat and presentation

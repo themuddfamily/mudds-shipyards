@@ -175,6 +175,18 @@ No runtime/test edits or new build. Raw report:
 `/srv/mudds-work/bulwark-gunner-candidate-results-20261017/report.txt`;
 log SHA-256 `a1b86c9ce3c5595569e9fffa2fed4db9828a5716d57daaf62000b79fb0974864`.
 
+Emberline retry diagnosis on `e026cf620` identifies the retained failure's first
+unmet dependency as the later dead peer's neutralized-actor baseline, before host
+reset. Existing live late join passed; pending-generation failures are downstream.
+One isolated headless/Dummy source probe, with 18 temporary fixture-only diagnostic
+lines and original 45s/300s limits, passes host40/client54/late55/dead5 assertions.
+Dead Main readiness at its uptime34.933s, accepted snapshot35.262s and completion
+35.483s demonstrate working adoption in this run; they do not prove the earlier
+three-worker failure's cause. Old matrix FAIL remains; no production fix, unchanged
+repeat, package pass or native qualification follows. Fixture restored, exact
+inputs/source/cache and owned teardown verified, temporary checkout removed.
+Raw report: `/srv/mudds-work/emberline-boundary-results-20261017/report.txt`.
+
 ## Session capacity contract and pending release target
 
 **Counting contract:** the capacity setting and browser count **remote guests, excluding the host**. The setting defaults to8 and permits 1–32; GameFlow passes it unchanged as `max_clients`. ENet admission inserts only remote hello senders into `_peer_generations`; the capacity snapshot and LAN/directory publishers use that dictionary directly. Thus 8 configured guests can mean 9 total players when the host also plays, or 8 players with a dedicated server. This is configuration, not accepted support. Handshake/migration and interest ceilings are independent safeguards, not extra guest slots. Settings/protocol keys retain their existing names for compatibility; player-facing wording now says guests in checkpoint `f676c5016`.
