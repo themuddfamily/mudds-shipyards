@@ -1,20 +1,11 @@
 extends SceneTree
 
-## The whole abandoned-station-hulk loop, driven once through production `Main`.
-##
-## Every other nearby-sector suite proves a piece of the sector you fly *past*.
-## This one proves the piece you go *inside*, end to end and in order: fly out
-## of the launch corridor until the sector streams, park against the hulk's
-## docking face through the existing berth lease, leave the seat, walk the three
-## connected interior spaces on real collision, throw the auxiliary breaker,
-## take the reward exactly once, save, re-enter the whole of `Main`, confirm the
-## cell is still claimed and cannot be claimed again, and fly home until the
-## sector unloads and nothing is left behind.
-##
-## It drives the production composition, not a fixture: the same `GameFlow`,
-## the same `ShipBerth`, the same `PlayerController`, the same
-## `GameFlowRewardAuthority` and the same atomic store the game ships with. The
-## only injection is the store's filesystem, so no test writes a real save.
+## Production Main hulk regression with staged outbound/dock/return poses.
+## After one dock-shelf Player placement, ordinary held forward input walks
+## every authored interior waypoint on real collision to the breaker. Flight
+## and disembarkation are staging, not continuous-flight coverage. Separate
+## fringe/rebase and reward/persistence checks follow the continuous walk.
+## The persistence store uses an isolated filesystem, never a user save.
 
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const CLUSTER_SCENE := preload("res://scenes/world/components/nearby_sector_cluster.tscn")
@@ -50,6 +41,11 @@ const CONTENT_ENVELOPE := 940.0
 const STREAM_LOAD_SAMPLE := 480.0
 const STREAM_UNLOAD_SAMPLE := 700.0
 
+const WALK_TARGET_TOLERANCE := 0.6
+const WALK_STOP_DISTANCE := 0.22
+const SUITE_WALL_BUDGET_MSEC := 300000
+
+var _suite_started_msec := Time.get_ticks_msec()
 var _assertions := 0
 var _failures: Array[String] = []
 
@@ -291,8 +287,8 @@ func _test_component_shape_and_budget() -> void:
 	await process_frame
 
 
-## Fly out, dock, disembark, walk, restore power, take the reward once, save,
-## re-enter, confirm, fly home.
+## Stage the outbound/dock poses, walk continuously, then check the separate
+## activity, persistence and staged return/unload scenarios.
 func _test_production_loop() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_check(game != null, "production Main instantiates for the hulk loop")
@@ -341,7 +337,17 @@ func _test_production_loop() -> void:
 		and int(_reward_counts(game).get(String(EXPECTED_REWARD_ID), 0)) == 0,
 		"the Activity Board discovers unloaded salvage without a reward action")
 
-	# --- Fly out -------------------------------------------------------------
+	# Use the same public INTRO exit as BEGIN SHIFT; startup deliberately
+	# disables Player control. A manual control toggle would leave menu state.
+	game.start_shift()
+	await process_frame
+	if not _check(not paused and player.can_process()
+			and player.is_control_enabled() and not player.is_seated(),
+			"BEGIN SHIFT enables ordinary unpaused on-foot Player control"):
+		await _cleanup(game)
+		return
+
+	# --- Stage outbound streaming position -----------------------------------
 	var anchor := NearbySectorCluster.PLATFORM_ANCHOR
 	var toward_station := (Vector3.ZERO - anchor).normalized()
 	game.active_ship = ship
@@ -351,7 +357,7 @@ func _test_production_loop() -> void:
 	var cluster := bootstrap.get_loaded_instance() as NearbySectorCluster
 	_check(
 		cluster != null and world.get_nearby_sector_cluster() == cluster,
-		"flying out streams exactly one live Cinder generation"
+		"the staged outbound pose streams exactly one live Cinder generation"
 	)
 	if cluster == null:
 		await _cleanup(game)
@@ -503,15 +509,20 @@ func _test_production_loop() -> void:
 	var route := hulk.get_interior_route_points()
 	ship.set_piloted(false)
 	player.teleport_to(Transform3D(Basis.IDENTITY, route[0] + Vector3(0.0, 1.0, 0.0)))
-	player.set_camera_active(true)
-	player.set_control_enabled(true)
-	await physics_frame
-	await physics_frame
-	_check(
-		not player.is_seated()
+	# Settle only by the production controller's gravity after the one staging
+	# placement. No body pose/velocity writes occur until the later fringe test.
+	for _settle in 60:
+		await physics_frame
+		if player.is_on_floor():
+			break
+	if not _check(
+		not paused and player.can_process() and player.is_control_enabled()
+		and not player.is_seated() and _has_hulk_support(player, hulk)
 		and player.global_position.distance_to(route[0]) < 6.0,
-		"the pilot leaves the seat and stands on the hulk's dock shelf"
-	)
+		"the staged unseated pilot settles on actual hulk dock-shelf collision"
+	):
+		await _cleanup(game)
+		return
 	game.set("_piloting", false)
 	_check(
 		_marker_positions(game).is_empty(),
@@ -519,43 +530,24 @@ func _test_production_loop() -> void:
 	)
 
 	# --- Walk the interior ---------------------------------------------------
-	# Real collision, walked rather than asserted: at every waypoint the deck
-	# has to hold the capsule up, and between waypoints the doorways have to be
-	# genuinely open in the physics world.
 	var space_state := player.get_world_3d().direct_space_state
-	var supported := 0
 	var blocked_legs := 0
-	for index in route.size():
-		player.teleport_to(
-			Transform3D(Basis.IDENTITY, route[index] + Vector3(0.0, 0.6, 0.0))
+	for index in range(1, route.size()):
+		var query := PhysicsRayQueryParameters3D.create(
+			route[index - 1], route[index], PhysicsLayers.WORLD
 		)
-		player.velocity = Vector3.ZERO
-		for _settle in 12:
-			await physics_frame
-		if absf(player.global_position.y - route[index].y) < 2.0:
-			supported += 1
-		if index > 0:
-			var query := PhysicsRayQueryParameters3D.create(
-				route[index - 1], route[index], PhysicsLayers.WORLD
-			)
-			if not space_state.intersect_ray(query).is_empty():
-				blocked_legs += 1
-	_check(
-		supported == route.size(),
-		"the deck holds the capsule up at every point on the interior route"
-	)
-	_check(
-		blocked_legs == 0,
-		"every doorway on the route is a real opening in the physics world"
-	)
+		if not space_state.intersect_ray(query).is_empty():
+			blocked_legs += 1
+	if not _check(blocked_legs == 0,
+			"every doorway on the authored route is a real opening"):
+		await _cleanup(game)
+		return
+	if not await _walk_hulk_route(player, hulk, route):
+		await _cleanup(game)
+		return
 
-	# --- Complete the activity ----------------------------------------------
+	# --- Complete the activity at the walked-to breaker ----------------------
 	var breaker := hulk.get_breaker()
-	player.teleport_to(
-		Transform3D(Basis.IDENTITY, hulk.get_breaker_world_position())
-	)
-	await physics_frame
-	await physics_frame
 	# The breaker has to be a control the walking pilot actually finds, not a
 	# node a test can reach: it must turn up in the production interaction
 	# query with a prompt, on the interactable layer, exactly as the station's
@@ -872,6 +864,119 @@ func _recovery_hulk(game: GameFlow) -> AbandonedStationHulk:
 # --- Helpers -----------------------------------------------------------------
 
 
+## Require both the capsule floor flag and a World collider belonging to this
+## streamed hulk, rather than accepting the parked ship or a nearby platform.
+func _has_hulk_support(player: PlayerController, hulk: AbandonedStationHulk) -> bool:
+	if not player.is_on_floor():
+		return false
+	var query := PhysicsRayQueryParameters3D.create(
+		player.global_position + Vector3.UP * 0.2,
+		player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD
+	)
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+	var collider := hit.get("collider") as Node
+	return collider != null and hulk.is_ancestor_of(collider)
+
+
+func _walk_hulk_route(
+		player: PlayerController, hulk: AbandonedStationHulk, route: Array[Vector3]
+	) -> bool:
+	var camera_yaw := player.get_node(^"CameraRig/CameraYaw") as Node3D
+	var capsule := player.get_node(^"PlayerCollision") as CollisionShape3D
+	var capsule_shape := capsule.shape
+	var player_id := player.get_instance_id()
+	var authored_length := 0.0
+	for index in range(1, route.size()):
+		authored_length += Vector2(route[index].x - route[index - 1].x,
+			route[index].z - route[index - 1].z).length()
+	# Headroom covers acceleration, turning and ordinary stopping. The wall
+	# deadline also bounds a paused/stalled scene within the existing suite cap.
+	var walk_seconds := authored_length / player.walk_speed * 2.0 + route.size() * 2.0
+	var deadline := mini(Time.get_ticks_msec() + int(ceil(walk_seconds * 1000.0)),
+		_suite_started_msec + SUITE_WALL_BUDGET_MSEC - 10000)
+	var path_length := 0.0
+	var max_step := 0.0
+	var max_step_per_tick := 0.0
+	var observed_physics_ticks := 0
+	var samples := 0
+	var previous := player.global_position
+	var step_limit := player.walk_speed / float(Engine.physics_ticks_per_second) * 1.25 + 0.02
+	var reached := 0
+	var support_colliders: Dictionary = {}
+	for index in route.size():
+		var leg_distance := 0.0
+		if index > 0:
+			leg_distance = Vector2(route[index].x - route[index - 1].x,
+				route[index].z - route[index - 1].z).length()
+		var frame_budget := int(ceil((leg_distance / player.walk_speed * 2.0 + 1.0)
+			* float(Engine.physics_ticks_per_second)))
+		var leg_reached := false
+		var reason := "leg frame budget exhausted"
+		for _frame in frame_budget:
+			if Time.get_ticks_msec() >= deadline:
+				reason = "walk wall deadline exceeded"
+				break
+			if paused or not player.can_process() or not player.is_control_enabled() \
+					or player.is_seated() or player.get_instance_id() != player_id \
+					or capsule.shape != capsule_shape or capsule.disabled \
+					or not _has_hulk_support(player, hulk):
+				reason = "capsule, control or actual hulk support lost"
+				break
+			var query := PhysicsRayQueryParameters3D.create(
+				player.global_position + Vector3.UP * 0.2,
+				player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD)
+			var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+			support_colliders[str(hulk.get_path_to(hit.collider))] = true
+			var delta := Vector2(route[index].x - player.global_position.x,
+				route[index].z - player.global_position.z)
+			# Stop through normal deceleration; retain every settled waypoint as
+			# the start of the next leg, never repositioning the capsule.
+			if delta.length() <= WALK_STOP_DISTANCE:
+				Input.action_release(&"move_forward")
+			else:
+				camera_yaw.rotation.y = atan2(-delta.x, -delta.y)
+				Input.action_press(&"move_forward")
+			var before_physics_tick := Engine.get_physics_frames()
+			await physics_frame
+			# Sample after production physics has consumed the action.
+			await process_frame
+			var elapsed_physics_ticks := maxi(1,
+				Engine.get_physics_frames() - before_physics_tick)
+			observed_physics_ticks += elapsed_physics_ticks
+			var current := player.global_position
+			var step := Vector2(current.x - previous.x, current.z - previous.z).length()
+			path_length += step
+			max_step = maxf(max_step, step)
+			max_step_per_tick = maxf(max_step_per_tick, step / float(elapsed_physics_ticks))
+			samples += 1
+			previous = current
+			if step > step_limit * elapsed_physics_ticks or not _has_hulk_support(player, hulk) \
+					or paused or not player.can_process() or not player.is_control_enabled() \
+					or player.is_seated() or capsule.shape != capsule_shape or capsule.disabled:
+				reason = "control/support lost or discontinuous capsule movement sample"
+				break
+			if delta.length() <= WALK_STOP_DISTANCE \
+					and Vector2(player.velocity.x, player.velocity.z).length() < 0.05:
+				leg_reached = Vector2(current.x - route[index].x,
+					current.z - route[index].z).length() <= WALK_TARGET_TOLERANCE
+				break
+		Input.action_release(&"move_forward")
+		if not _check(leg_reached,
+				"ordinary supported walk reaches authored hulk waypoint %d (%s; position %s, target %s)"
+				% [index, "reached" if leg_reached else reason, player.global_position, route[index]]):
+			return false
+		reached += 1
+	var minimum_path := authored_length - 2.0 * WALK_TARGET_TOLERANCE * (route.size() - 1)
+	var minimum_physics_ticks := int(floor(minimum_path / step_limit))
+	print("HULK_CONTINUOUS_INTERIOR_WALK: route=", route, " reached=", reached,
+		" authored_m=", authored_length, " sampled_m=", path_length,
+		" samples=", samples, " physics_ticks=", observed_physics_ticks,
+		" max_sample_m=", max_step, " max_step_per_tick_estimate_m=", max_step_per_tick,
+		" support_colliders=", support_colliders.keys(), " player_id=", player_id)
+	return _check(path_length >= minimum_path and observed_physics_ticks >= minimum_physics_ticks,
+		"sampled continuous movement covers the authored route within waypoint tolerance")
+
+
 func _get_reloaded_hulk(bootstrap: CinderStreamingBootstrap) -> AbandonedStationHulk:
 	var cluster := bootstrap.get_loaded_instance() as NearbySectorCluster
 	return cluster.get_station_hulk() if cluster != null else null
@@ -962,6 +1067,8 @@ func _wait_for_cluster(
 
 
 func _cleanup(game: GameFlow) -> void:
+	Input.action_release(&"move_forward")
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if is_instance_valid(game):
 		game.queue_free()
 	await process_frame
@@ -979,6 +1086,8 @@ func _check(condition: bool, description: String) -> bool:
 
 
 func _finish() -> void:
+	Input.action_release(&"move_forward")
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	print("ABANDONED_HULK_LOOP_TEST_ASSERTIONS: ", _assertions)
 	if _failures.is_empty():
 		print("ABANDONED_HULK_LOOP_TEST_OK")
