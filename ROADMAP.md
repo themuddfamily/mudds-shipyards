@@ -110,17 +110,17 @@ work remain intact, with source refs and unique raw results preserved.
 
 | Order / task | Status | Observable finish | Work estimate; separate check allowance |
 | --- | --- | --- | --- |
-| 1. [RIME-BENCH-ROUTE](#rime-bench-route--in-progress) | IN PROGRESS | Select `rime_surface_walk_route` in the existing runner and physically walk the authored icefall survey/return trail, recording a valid diagnostic report. | Implementation 60–90 min; cold import up to 600 s and four focused modes up to 300 s each. |
-| 2. [RIME-BENCH-CHECKPOINT](#rime-bench-checkpoint--gated-on-route-acceptance) | GATED on task 1 | Accepted source integrated, matching development packages/startup results and accurate source-benchmark instructions published. | Integration/package/closure 30–45 min; exports up to 930 s each, three strict startups up to 330 s each and privacy up to 300 s. |
+| 1. [RIME-BENCH-ROUTE](#rime-bench-route--done-on-a8f563e39) | DONE | Select `rime_surface_walk_route` in the existing runner and physically walk the authored icefall survey/return trail, recording a valid diagnostic report. | Implementation 60–90 min; cold import up to 600 s and four focused modes up to 300 s each. |
+| 2. [RIME-BENCH-CHECKPOINT](#rime-bench-checkpoint--in-progress) | IN PROGRESS | Accepted source integrated, matching development packages/startup results and accurate source-benchmark instructions published. | Integration/package/closure 30–45 min; exports up to 930 s each, three strict startups up to 330 s each and privacy up to 300 s. |
 
 The actual gap is one missing selectable benchmark route, not missing Rime
 terrain, survey gameplay or native performance evidence. Existing surface walks
 cover Ember and Aurora. Two cards separate executable route acceptance from
 artifact publication; they are not two new gameplay features. Unknown work is
-not added to this batch merely to fill a task count. Task 1 implementation is saved; its one focused qualification attempt is
-starting. The checkpoint has not started.
+not added to this batch merely to fill a task count. Task 1 is accepted and integrated. Task 2 exports/startups are starting from
+its exact accepted clean source; latest public checkpoint remains ef67f3e.
 
-### RIME-BENCH-ROUTE — IN PROGRESS
+### RIME-BENCH-ROUTE — DONE on a8f563e39
 
 - **Parent/result:** [PERF-ROUTE](docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
   Add the missing Rime icefall survey/return walk to the existing benchmark runner,
@@ -159,26 +159,23 @@ starting. The checkpoint has not started.
   Full benchmark still requires at least 3,600 frames/60 s warmup and
   18,000 frames/600 s measurement. Focused diagnostics do not qualify those floors,
   native GPU timing, hardware, real audio, canonical travel or survey rewards.
-- **State/source:** clean candidate `a8f563e39ae062613f16225be462d80e44515cbd`,
-  only the three assigned files changed. Static review/diff check pass; no runtime
-  pass yet. Mode counts frozen before launch: Rime 33, default 152, Ember 24,
-  Aurora 27. Rime's full-path primitive samples 90 s to cover a complete sampled
-  circuit after partial warmup; old mode durations and public floors are unchanged.
-- **Next action:** execute the preflight-reviewed reused runner
-  `/srv/mudds-work/rime-benchmark-results-20261018/run.py` against that exact
-  source in `/srv/mudds-work/rime-benchmark-route-20261018`. Ordered stages are
-  import 600 s, Rime/default/Ember/Aurora 300 s each, stopping on first failure.
-  Adjacent `abort.py` verifies the owned supervisor identity. Main excludes the
-  candidate until accepted; preserve exact source/raw if withheld.
-- **Close:** record actual source/result, commit/push candidate. PASS unlocks the
-  checkpoint; failure ends this card and does not silently extend implementation.
+- **Actual result/close:** DONE on `a8f563e39ae062613f16225be462d80e44515cbd`,
+  integrated with source identity retained. Fresh import and one run each of
+  Rime 33/default 152/Ember 24/Aurora 27 pass exit 0/exact catalog counts, no
+  diagnostics. Rime sampled 521.227 m, completed ordered waypoints 0–12 and one
+  sampled loop, closed within 0.421308 m, observed 2,945 terrain-support samples,
+  support throughout, maximum physics-frame gap 1 and step 0.096812 m.
+  Source/index/engine/cache guards pass. Independent audit confirms exact current
+  accepted source/cache/index and all 14 owned process/socket/display identities
+  closed. No native performance qualification. [Source instructions](docs/PERFORMANCE_BENCHMARK_RUNNER.md#rime-icefall-survey-and-return-walk).
+  Raw `/srv/mudds-work/rime-benchmark-results-20261018/` retained. No unchanged rerun.
 
-### RIME-BENCH-CHECKPOINT — GATED on route acceptance
+### RIME-BENCH-CHECKPOINT — IN PROGRESS
 
 - **Parent/result:** [PACKAGE-WIN / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
   Publish a paired development checkpoint from the accepted source, with exact
   package/startup results and usable instructions for selecting its source benchmark.
-- **Owner/dependency:** root; task 1 must PASS, including affected existing modes.
+- **Owner/dependency:** root; task 1 and affected existing modes PASS on a8f563e39.
   Preserve the exact accepted commit through integration and export from its
   clean checkout using existing release scripts. No new packaging framework.
 - **Proof:** fresh Windows EXE/ZIP/notes in `builds/windows/` and matching Linux
@@ -196,8 +193,12 @@ starting. The checkpoint has not started.
   exports 930 s each, three startup stages 330 s each, privacy 300 s. Stop at first
   required-gate failure; preserve the accepted route and latest public `ef67f3e`
   checkpoint. No parity investigation or unchanged qualification retry follows.
-- **Next action after task 1 PASS:** review exact source and existing safe export
-  commands, run the conditional package checks once, publish and update references.
+- **Next action:** execute the independently preflight-reviewed conditional
+  `/srv/mudds-work/rime-benchmark-results-20261018/checkpoint/run.py` on exact
+  a8f563e39. It requires all five source stages and exact accepted source/index/
+  cache/engine, then runs Linux/Windows export, three strict startups and privacy
+  once. Windows readiness counts its own stage log; combined logs are used only
+  for diagnostics. Adjacent abort.py targets the verified owned supervisor.
 - **Close:** commit/push integration and concise honest notes/references; verify
   published bytes and remove owned clean disposable checkout/duplicate packages.
   Preserve exact source refs, unique raw results and published artifacts.

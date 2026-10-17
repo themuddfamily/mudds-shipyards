@@ -1534,3 +1534,37 @@ feature. No further runtime investigation or engine runs occurred in planning.
 Accepted Ember original31 source run stays DONE; HULK revisit stays parked at
 its failed original300s attempt, candidate withheld/checkpoint gated. Original
 36 parent outcomes and ten phase gates remain open.
+
+
+## Rime icefall walking benchmark — done on a8f563e39
+
+Clean candidatea8f563e39ae062613f16225be462d80e44515cbd adds the missing selectable
+rime_surface_walk_route to the existing runner and native launcher allowlist.
+Only runner, existing focused test and PowerShell allowlist changed; no gameplay/
+geometry/Player/world owner change. Root source review corrected typing/staging
+issues before any engine run. New Rime primitive samples90s so a partial warmup
+circuit cannot substitute for a fully sampled ordered loop; original300s mode
+cap, old mode durations/default selection and full60s/3600-frame warmup plus
+600s/18000-frame sampling floors remain unchanged.
+
+Fresh import and one focused run each Rime33/default152/Ember24/Aurora27 PASS,
+exact exit0/sentinel/catalog counts, no diagnostics. Real streamed Rime scene,
+Main-owned binding/origin and production held walking complete all13 ordered
+survey/return points, one sampled loop, closure0.42130771279335m. Sampled path
+521.227127857506m,2945generated-terrain-support observations, support throughout,
+maximum physics-frame gap1, maximum physical step0.0968120023608208m, observed
+gravity9.799996376…9.800000191m/s². Wrong-world/gravity/shortcut/reordered/open/
+warmup-only/missed-physics mutations are refused; active abort releases movement/
+cursor, restores gravity and frees Main. This is an executable source benchmark
+capability; headless focused results are not full native performance evidence.
+
+All five stage source/index/engine/cache guards PASS. Independent audit confirms
+exact current clean accepted source/cache/index/pinned engine, private0700 mode-
+only environments, all14owned PID/start identities absent and no owned sockets/
+displays/authorities. Raw `/srv/mudds-work/rime-benchmark-results-20261018/`
+retained. Source integrated with exact candidate retained. Conditional paired
+development-checkpoint exports/startups are next, not yet accepted or published.
+A preflight-only Windows marker aggregation bug in the reused helper was fixed
+and independently rechecked before export; it is not a failed runtime attempt.
+Source benchmark remains outside exported games because tools are excluded;
+no new Rime gameplay/native/hardware/release gate is claimed.

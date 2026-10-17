@@ -252,6 +252,43 @@ The schema therefore records `gpu_frame_time_ms` and `vram_bytes` with
 `available: false`, `value: null`, and a reason. Zero is never substituted for
 an unavailable measurement.
 
+## Rime icefall survey and return walk
+
+The select-only `rime_surface_walk_route` adds the missing Rime surface scenario
+on source `a8f563e39ae062613f16225be462d80e44515cbd`. It uses Main's real Rime
+streaming binding and committed origin frame, with one initial Player placement
+at (-12, 0.2, -12) in the landing-region frame before timing. The benchmark
+supplies the same disclosed actor-observation cadence/gravity adapter as Aurora;
+it does not admit an expedition or qualify canonical travel or rewards.
+
+Held production movement follows every `SURVEY_TRAIL` and `RETURN_TRAIL` point
+from `RimeGlacialAuthoredScene`, then closes at the start: 13 ordered points,
+approximately 216.306 m per authored circuit. Targets resolve through the current
+region transform each physics tick. The report requires a complete ordered loop
+entirely during sampling, closure within 0.5 horizontal metres, generated ice
+terrain support, enabled control, continuous physics observations and valid
+world/gravity/actor identity. Walking continues after each completed loop.
+Escape releases movement/cursor, restores gravity and frees Main.
+
+Focused acceptance passes Rime33, default152, Ember24 and Aurora27, each within
+its original 300-second mode cap after a separate clean import. Rime's focused
+90-second sample records 521.227 m, one complete sampled loop, closure0.421308m,
+2,945 terrain-support observations, support throughout and maximum physics-frame
+gap1/step0.096812m. The full public benchmark still requires at least3,600frames/
+60seconds warmup and18,000frames/600seconds sampling. These focused/headless
+results qualify the route capability, not native performance or real hardware.
+
+```sh
+KETH_BENCHMARK_TEST_RIME_SURFACE=1 timeout 300s godot --headless --audio-driver Dummy \
+  --path . --script res://tests/performance_benchmark_runner_test.gd
+```
+
+The Windows launcher's `-Scenario` allowlist accepts the new selection; native
+Windows execution remains NOT_RUN. The benchmark runs from a source checkout.
+Exported game packages exclude `tools/` and do not expose this runner. Raw and
+cleanup records: `/srv/mudds-work/rime-benchmark-results-20261018/`.
+
+
 ## Target profile and representative-pass gate
 
 The target is a separate JSON file supplied with
