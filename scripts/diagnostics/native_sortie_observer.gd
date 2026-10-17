@@ -208,14 +208,14 @@ func _hulk_arrival_observation() -> Dictionary:
 	# flight. Once resident, the live berth supplies its exact capture centre.
 	var dock_local := Transform3D(Basis(Vector3.UP, PI),
 		AbandonedStationHulk.BERTH_LOCAL_POSITION + Vector3.UP * AbandonedStationHulk.BERTH_DOCK_HEIGHT)
-	var approach := _game.world.to_global(AbandonedStationHulk.HULK_ANCHOR
+	var approach: Vector3 = _game.world.to_global(AbandonedStationHulk.HULK_ANCHOR
 		+ dock_local * AbandonedStationHulk.BERTH_ASSIST_CAPTURE_CENTER)
 	var result := {"available": false, "approach": _v(approach)}
-	var cluster := _game.world.get_nearby_sector_cluster()
+	var cluster: NearbySectorCluster = _game.world.call("get_nearby_sector_cluster") as NearbySectorCluster
 	if not is_instance_valid(cluster):
 		return result
-	var hulk := cluster.get_station_hulk()
-	var berth := _game.get_station_hulk_berth()
+	var hulk: AbandonedStationHulk = cluster.get_station_hulk()
+	var berth: ShipBerth = _game.get_station_hulk_berth()
 	if not is_instance_valid(hulk) or not is_instance_valid(berth) or not berth.is_inside_tree():
 		return result
 	var capture := _game.call("_get_active_landing_assist_report") as Dictionary
