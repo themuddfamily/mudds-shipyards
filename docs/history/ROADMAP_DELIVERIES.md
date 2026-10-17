@@ -1707,3 +1707,35 @@ repository builds; no engine checks remain running.
   published packages are preserved.
   Next action is a bounded planning pass for the next known roadmap outcomes;
   no unchanged benchmark or old journey rerun is selected.
+
+
+## Roadmap decomposition — Rime independent crew baseline
+
+ROADMAP-SLICE completes as planning only. Four sequential child cards now name
+arrival/exit/reboard, remote survey with real-file once-only reward, continuous
+physical home return, and exact-package qualification. One driver integration
+card is READY; three are GATED. Host is Halyard pilot with two independent
+authenticated clients; one client participates in the survey and the other
+retains independent movement/control. No new gameplay or runtime pass is claimed.
+
+Read-only source inspection found existing Rime surface/survey/return production
+owners and staged in-process coverage. The canonical shared fixture still
+asserts obsolete surface/return refusals, starts only one surface client, and
+stages the departed craft into a 9,995 m admission envelope. The first card
+explicitly replaces that Rime staging with ordinary flight, without modifying
+the existing Aurora/default contracts. No failed production behavior is invented.
+
+The specific shared fixture's inherited 2,400 s total and 120 s physical landing
+limits remain binding. The separate rime_visit_loop fixture's 900 s catalog
+limit does not replace them. The extension may not increase the inherited
+2,400 s cap. Full source/package journeys retain continuous ordinary travel
+and genuine fresh-process disk reward checks; isolated stages cannot close
+the full parent. Late join/reconnect/interruption/endurance/hardware remain
+separate. Bounded independent read-only review found no contract contradiction;
+root additionally identified and recorded the admission-envelope staging.
+
+No engine, test, export or hosted CI ran. No scratch checkout was created.
+Next action is RIME-CREW-ARRIVAL driver implementation, with the first actual
+failure retained and a separate bounded repair if justified. All 36 parents
+and ten phase gates remain open; these four children are not the full project
+remaining-task count.

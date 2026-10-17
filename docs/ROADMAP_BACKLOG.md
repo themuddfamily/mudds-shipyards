@@ -36,9 +36,11 @@ its full gameplay/flight/endurance requirements. Remaining family tables preserv
 unscheduled scope. The previous batch closed with Ember ABANDON source DONE,
 HULK revisit FAILED and its checkpoint GATED. RIME-BENCH-ROUTE and its development checkpoint are DONE on a8f563e39: one
 new executable source benchmark capability and paired builds, no native
-performance or new gameplay claim. ROADMAP-SLICE is the next planning task:
-decompose the Rime remote-crew baseline into 3–5 concrete children before
-scheduling implementation; see the working roadmap.
+performance or new gameplay claim. ROADMAP-SLICE is DONE as planning: the working roadmap contains four sequential
+Rime independent-two-client baseline children (arrival, survey, home, package).
+Arrival driver integration is READY; the other three are GATED. Existing Rime
+gameplay is integrated; the canonical driver still asserts obsolete refusals
+and surface mode starts one client. No runtime failure or new feature is invented.
 One failed task plus its attempted repair requires a recorded priority review
 before further repair; a new task name does not reset that boundary.
 
