@@ -1,0 +1,20 @@
+Mudd's Shipyards — rounded stock construction checkpoint f85957f — 2026-10-17
+Clean exported source: f85957f862c0e4841fc549cb3f65a59db747457b
+Engine: pinned official Godot 4.7.1 a13da4feb, stock release templates.
+
+Delivered change:
+Rounded station and craft stock resolves each shared grid point and normal once per face, instead of repeating the same math for every emitted triangle vertex. Triangle order, UVs, tangent generation and SurfaceTool mesh creation retain their existing behavior. All storage remains local to each face/mesh; mesh lifetimes and caller-owned sharing remain unchanged.
+
+Actual validation:
+- Independent static review approves grid indexing, winding, UVs, arithmetic, helper references and stateless resource ownership. The remaining precision/tangent check compares all surface-array bytes, formats, primitive types and AABBs against the exact original 135b4fa6a factory: 70 dimension/bevel/UV cases match with zero failures.
+- Sixteen alternating same-process batches of 120 newly created meshes reduce median construction CPU 69.232 -> 56.6475ms (18.18% lower), with all 16 pairs faster. These are headless factory measurements; no overall startup, frame-rate or native GPU improvement is established.
+- Fresh clean-source six-suite matrix passes winding for station/fleet, structural bevel and edge contracts, dressing consolidation and station surface playability under original deadlines. Zero diagnostics; unchanged source/cache; 267 matrix-recorded assertions plus 52 from the dressing fixture's existing assertions=N sentinel, which the matrix counter does not parse. Source suites: ship_surface_winding_test 141, station_dressing_batch_test 52, station_structural_bevel_contract_test 0, station_structural_edge_treatment_test 20, station_surface_playability_test 93, station_surface_winding_test 13.
+- Actual Windows embedded payload through the Linux editor passes station/fleet winding, structural bevel, dressing and CLI privacy checks: 365 recorded assertions, each suite exit 0 / one completion marker / zero diagnostics. The bevel contract has no numeric assertion sentinel. Both exports share all 1,515 entries by path, size and SHA-256; Windows PE code matches the pinned stock template.
+- Three strict startup probes each exit 0 with one STARTUP_MENU_READY_OK and zero diagnostics: windows-payload-startup 25.364925s, linux-direct-startup 21.208708s, linux-archive-startup 21.173590s. Archive-extracted Linux executable bytes/mode match. Windows verification is read-only PE inspection plus payload execution through Linux; no native Windows execution occurred.
+- Source logs: artifacts/test-matrix/20261017T064050Z-f85957f-focused/. Package checks: artifacts/checkpoint-f85957f/. Original factory, comparison script and raw results: /srv/mudds-rounded-box-*-20261017*. No geometry simplification, visible change, collision change, global cache or relaxed test limit.
+
+Open acceptance:
+The complete matrix on this source is NOT_RUN. Exact earlier 7f9627e remains FAIL, 1,032 PASS / 13 FAIL across 1,045 suites. One original cargo run with read-only timers passes 120 assertions under its unchanged cap on earlier production 135b4fa6a; it does not qualify this source or establish why the full matrix timed out. Full Sandbox, Settings/re-entry, canonical shared journeys, installed recovery and all ten phase exit gates remain open. Native Windows stays NOT_RUN under antivirus hold; native Windows and human review are excluded from mandatory gates at the owner's request. Applicable native GPU/hardware, controller and audible acceptance remains NOT_RUN. Hosted CI stays disabled. Unsigned local checkpoint in repository builds/; no Downloads publication.
+
+ELF SHA-256: 479fc6c2a8c66fe06184964bd1cf0147190b86c31ee0f8a9ff531b8ff9896546
+Archive SHA-256: 84bf3c5be69ebe55bff4f586435fc1e5fc4fc766db20a71dc9fc73b839b13a4a
