@@ -144,12 +144,13 @@ source identities, earlier failures, supported correction, cleanup and limitatio
 are in [completed deliveries](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinary-arrival--done-checkpoint2f687110e).
 Clean author/acceptance worktrees and duplicate scratch builds removed; raw kept.
 
-### HULK-BREAKER-INPUT — READY implementation
+### HULK-BREAKER-INPUT — IN PROGRESS implementation
 
 - **One result:** extend the same run from actual disembarkation through all
   authored interior spaces; ordinary Interact engages the breaker and earns one
   cell. Repeated Interact must not earn another.
-- **Owner/boundary:** root, integrated runtime2f687110e; existing native runner,
+- **Owner/boundary:** root integration, `hulk_breaker_implement` implementation;
+  base72e3f07e8 (runtime2f687110e). Existing native runner,
   read-only observer and startup allowlist, plus focused existing tests. Reuse authored route
   and production interaction/reward owners. No additional Player placement, direct
   breaker call, timer acceleration or replacement reward ledger.
@@ -162,7 +163,10 @@ Clean author/acceptance worktrees and duplicate scratch builds removed; raw kept
   for this cumulative route. Freeze exact mode/command before execution. If that
   contract cannot fit or an interaction fails, record it; do not silently extend.
 - **Next action:** append held-input interior walking and an
-  actual released-then-pressed Interact at the live panel. Commit/build/cleanup
+  actual released-then-pressed Interact at the live panel. Exterior route start
+  is the actual supported ship exit, matching the existing hulk regression; all
+  authored aperture/interior/breaker points1–5 remain unchanged. No walking back
+  into the parked hull at the exterior shelf-centre sample. Commit/build/cleanup
   with observed result; full home/revisit remains gated.
 
 ### HULK-RETURN-REVISIT — GATED on breaker
