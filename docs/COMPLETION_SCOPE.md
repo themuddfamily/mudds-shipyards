@@ -158,6 +158,23 @@ Current-candidate ordinary engineer probes use the actual `f676c5016` embedded W
 
 Both preserve original 300s/internal deadlines and exact source/cache/package/engine/fixture/receipt/process/socket/lane closure. Hatch placement, component damage, clock stress, explicit negative RPCs, sibling destruction where applicable and migration rotation are scripted fixture portions. Transformed input names are invoked, without settings-remapping UI or physical-device testing. These are not the server/two-client baseline, endurance, capacity, actual host OS termination/election, canonical travel or full-craft/final-release acceptance. Native hardware/device/audio remain separately unqualified; native Windows and human review retain their owner exclusions. No runtime/test changes or new build were needed for these probes.
 
+Current-package Bulwark gunner route also passes on `f676c5016`, using unchanged
+`eea66d74f` external fixture: 120 checks, host 64/client 43, all engine exits 0 in
+133.997s under original limits. Ordinary remote gunner and moving-host gunner fire
+actual `picket_siege_lance` shots against registered targets, each reducing health
+100→78; physical stand/reseat, stale RPC refusal, generation cancellation and
+pilot-disconnect ownership cleanup pass. There are two gameplay OS peers: one host
+and one client, whose later fresh Main becomes pilot. This is not two-client support.
+Hatch/target staging and explicit generation/lease changes remain fixture portions;
+actual host termination, hull destruction, canonical journeys, endurance and final
+capacity are unqualified. Zero runtime diagnostics emitted; the standard
+`GODOT_SILENCE_ROOT_WARNING=1` flag suppresses only the stock superuser notice and
+is disclosed. Exact source/cache/input hashes, receipts and owned process/display/
+socket/lane teardown independently verified; clean temporary checkout removed.
+No runtime/test edits or new build. Raw report:
+`/srv/mudds-work/bulwark-gunner-candidate-results-20261017/report.txt`;
+log SHA-256 `a1b86c9ce3c5595569e9fffa2fed4db9828a5716d57daaf62000b79fb0974864`.
+
 ## Session capacity contract and pending release target
 
 **Counting contract:** the capacity setting and browser count **remote guests, excluding the host**. The setting defaults to8 and permits 1–32; GameFlow passes it unchanged as `max_clients`. ENet admission inserts only remote hello senders into `_peer_generations`; the capacity snapshot and LAN/directory publishers use that dictionary directly. Thus 8 configured guests can mean 9 total players when the host also plays, or 8 players with a dedicated server. This is configuration, not accepted support. Handshake/migration and interest ceilings are independent safeguards, not extra guest slots. Settings/protocol keys retain their existing names for compatibility; player-facing wording now says guests in checkpoint `f676c5016`.

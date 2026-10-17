@@ -10,7 +10,7 @@ Native Windows execution/validation and human playtesting/review are owner-exclu
 
 ## How to finish one task
 
-Every row below describes a task or a repeatable **single-instance task template**. A template is not an executable assignment until its craft, route, case, world or artifact is named. `WORLD-SOLO[Ember]` and `WORLD-SOLO[Rime]` are separate tasks. Never assign a whole cross-product as one job. The tables are a work breakdown, not a count of finished work or a release estimate.
+Every row below describes a task or a repeatable **single-instance task template**. A template is not an executable assignment until its craft, route, case, world or artifact is named. Only the numbered execution batch below is scheduled work; the family tables retain scope and do not authorize an unlimited sequence of checks. `WORLD-SOLO[Ember]` and `WORLD-SOLO[Rime]` are separate tasks. Never assign a whole cross-product as one job. The tables are a work breakdown, not a count of finished work or a release estimate.
 
 Statuses:
 
@@ -41,6 +41,10 @@ Finish implementation with the affected existing focused check and integration c
 
 Keep completed entries short: instance, outcome, source/build and check reference. Put detailed logs in existing artifacts/build notes and historical detail in Git; do not grow another checkpoint narrative inside this file. No new validator family, numbered evidence version, test-count target or evidence-only progress claim. No automatic scope deferrals.
 
+At each task boundary, record **done / failed / waiting**, the actual player-facing or release result, elapsed effort and the next named task. A failed check finishes a diagnostic assignment, not the underlying product requirement. If it identifies a repair, name that defect and schedule its repair before starting another unrelated diagnosis. Do not silently turn verification into implementation or add more cases to a completed assignment.
+
+Estimates below are working ranges, not promises or permission to lengthen test deadlines. If a task exceeds its estimate, update this file with the remaining concrete action and a revised estimate before continuing. At context handoff, retain the task ID, last completed step and next command. Do not restart discovery. Report completed scheduled tasks separately from unsplit parent outcomes; there is no defensible total remaining-job count yet.
+
 ## Current task and next queue
 
 Completed bounded tasks below retain their detailed results in Git, build notes
@@ -55,43 +59,135 @@ or the named raw report. None closes a parent or phase gate.
 | SCOPE-LIMIT definition | `43111884d` records guest counting, nine-craft seat/role facts and a finite [release-target proposal](docs/COMPLETION_SCOPE.md#session-capacity-contract-and-pending-release-target). Final target remains WAITING on owner choice. |
 | NET-BROWSER[guest-capacity wording] | `f676c5016` corrects labels without count/protocol changes; existing UI checks and [matching checkpoint](builds/windows/MuddsShipyards-f676c50-notes.txt) pass. |
 | NET-CREW[Jovian engineer] functional probe | Current `f676c5016` package route passes 72 checks with host/one client; one retained Xvfb VSync warning leaves strict zero-diagnostic qualification open. Raw report in COMPLETION_SCOPE. |
-| NET-CREW[Halyard engineer] functional probe | Current `f676c5016` actual Halyard route passes 76 checks; one retained Xvfb VSync warning leaves strict diagnostic qualification open. Details below. |
+| NET-CREW[Halyard engineer] functional probe | Current `f676c5016` actual Halyard route passes 76 checks; one retained Xvfb VSync warning leaves strict diagnostic qualification open. Raw report in COMPLETION_SCOPE. |
+| NET-CREW[Bulwark gunner] | Current `f676c5016` route passes: remote and moving-host gunner shots each damage registered targets 100→78; stand/reseat and pilot-disconnect ownership checks pass. Scope below. |
 
-**Latest result: NET-CREW[Halyard engineer ordinary route] functional PASS.**
-The unchanged `6ef223b4a` wrapper/base fixtures ran actual `f676c5016` production
-payload in an orchestrator and independent host/one-client Main peers. All three
-explicitly load the package, both child commands select Halyard, and actual
-receipts identify `halyard_new_design`, engineer chair `crew_port_01` and repair
-tool `halyard_repair_tool`. All 76 checks pass (host 31/client 33), all OS exits 0,
-in 78.954s under original 300s/internal limits. Ordinary input/repair (kits 6→5),
-stand/reseat, sibling-Jovian destruction fencing, generation-rotation cancellation
-and disconnect/request-cursor cleanup pass.
+**Latest completed result: NET-CREW[Bulwark gunner ordinary route].**
+One unchanged route on harness `eea66d74f` and actual `f676c5016` package passes
+120 checks, with all engine exits 0 in 133.997s under original limits. Remote gunner
+and moving host gunner fire actual `picket_siege_lance` shots; each registered target
+loses 22 health. Chair/stand/reseat, stale-request refusal, generation cancellation
+and pilot-disconnect ownership cleanup pass. This is host/one client, with a fresh
+pilot Main later in the same client process; it does not establish two-client support.
+Hatch/target placement and generation/lease changes are scripted. Zero runtime
+diagnostics were emitted; the standard `GODOT_SILENCE_ROOT_WARNING=1` flag suppresses
+the stock superuser notice and remains disclosed. Exact inputs, source/cache hashes,
+receipts and owned teardown verified; clean temporary checkout removed. No new build.
+Raw report: `/srv/mudds-work/bulwark-gunner-candidate-results-20261017/report.txt`.
 
-Scripted hatch placement, damage, clock stress, sibling destruction and migration
-rotation remain disclosed. One retained llvmpipe/Xvfb VSync warning leaves strict
-zero-diagnostic qualification open; no script/resource/error diagnostics occurred.
-No two-client, endurance, capacity, actual host-termination, native device/GPU/audio,
-canonical journey or final-candidate claim follows. All 11,871 source/645 cache files,
-input/package hashes, receipts, all owned actors, socket/authority and ordered lane
-closure verify. No runtime/test change or new build. Raw report:
-`/srv/mudds-work/halyard-engineer-candidate-results-20261017/report.txt`.
-Log SHA-256: `f66906621863b5b3cfc3a11c94ae1c8b01dc7b0346c3538459ea556f0c82499f`.
+### Next execution batch: six named tasks
 
-No child is currently active. Next ready instance: NET-CREW[Bulwark gunner]
-using the existing owned-peer physical chair/FIRE route; fill its task card with
-source/package, original mode/limits and expected receipts before execution.
-Do not repeat engineer probes unchanged to conceal the software-driver warning.
+These are **six scheduled tasks, not six tasks left in the project**. Root owns
+integration and updates each card before assigning it. Start **Q1** next; its proven
+repair takes priority over Q2–Q6. Independent work can proceed only with disjoint
+ownership; runtime network/display lanes remain serialized. No task in this batch
+closes a phase or substitutes for final integrated acceptance.
 
-Select only one child at a time. The required two-client baseline is already
-authorized regardless of the pending final release-capacity choice. A configured
-or physical seat count is never accepted session capacity.
+Q1/Q4/Q5 start with the existing `logs/<suite>.log` and `results.tsv` under
+`artifacts/test-matrix/20261017T064722Z-f85957f-full/`; do not rerun simply to
+rediscover their last marker. Focused source checks use the existing
+`tools/release/run_test_matrix.sh --mode all --scope <exact test path>` with the
+pinned engine, original caps, Dummy audio and owned isolation described below.
+Q3 additionally needs the external-fixture actual-package launch used by the
+preceding crew probes; a source-only matrix pass cannot replace its package check.
 
-| Next instance | Status / dependency | Stopping check |
+| Order / ID | Kind / status | Observable deliverable | Estimated active effort |
+| --- | --- | --- | --- |
+| Q1 · BASE-DIAG[Emberline late peer] | Diagnosis · READY | First failed startup/authentication/publication/presentation boundary and one named repair owner. | 1–2 hours |
+| Q2 · PERF-SELECT[existing benchmark scenarios] | Release capability · READY | Run either existing benchmark scenario by name, retaining the existing default combined run. | 2–4 hours |
+| Q3 · NET-CREW[Halyard passenger] | Qualification · READY | Current-package passenger chair/walk/return and recovery result, with exact participant scope. | 30–60 minutes |
+| Q4 · BASE-DIAG[Patrol restore] | Diagnosis · READY | First incomplete persistence/recovery operation and one named repair owner. | 1–2 hours |
+| Q5 · BASE-DIAG[Resume offer] | Diagnosis · READY | First failing cold-recovery context and responsible production owner. | 1–2 hours |
+| Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · READY for bounded artifact lookup | Exact canonical failing command, initial state and expected landing result, or the specific missing artifact. | 30–60 minutes |
+
+**Q1 — Emberline late peer.** Player outcome sought: a joining peer sees the live
+travelling weapon at the authoritative position. Start from the retained matrix
+failure of `tests/network_emberline_bolt_test.gd`; map its last marker to the next
+await before running anything. One stated hypothesis and one original-cap probe
+must distinguish process startup/authentication from snapshot receipt/presentation.
+Owners: `scripts/network/network_emberline_actor_presenter.gd`,
+`network_remote_projectile_replicator.gd` and GameFlow publication, selected by the
+result. Proof: raw peer milestones/receipts at the original 45s peer boundary and
+300s outer limit. **Stop** with the first failed boundary, exact owner and a separate
+repair card; do not change clocks, retry policy or unrelated projectile behavior.
+The repair's acceptance remains the full existing scenario, including late pose,
+retirement, replacement generation and snapshot budgets, followed by a checkpoint
+if production changes. No repair is claimed by completing this diagnosis.
+
+**Q2 — Select an existing benchmark scenario.** Release outcome: request
+`station_embodied_route` or `nearby_sector_ship_flight_route` without running the
+other; an unspecified selection still runs both. Owners:
+`tools/performance/benchmark_runner.gd`, its existing PowerShell launcher and
+`tests/performance_benchmark_runner_test.gd`; inspect existing report consumers
+before changing selection, especially `tools/performance/benchmark_record_validator.py`,
+which requires both scenarios, and the runner's own `validate_report`. Keep full-protocol
+acceptance intact; extend `tools/performance/test_benchmark_record_validator.py`
+to prove selected-only reports cannot qualify the full protocol.
+Prerequisite: none beyond existing runner inputs.
+Proof: extend the existing check to execute each selection and default behavior,
+reject unknown names before scene launch, and retain abort/input release. A partial
+run must not claim the full performance protocol passed. **Stop** after focused
+validation of selection and existing duration/report contracts; no new benchmark
+route, report version or hardware qualification. Full warmup/sample floors stay
+3,600 frames/60s and 18,000 frames/600s. Native Windows launcher execution remains
+NOT_RUN under the hold; review its argument forwarding without launching it.
+
+**Q3 — Halyard passenger.** Player outcome checked: an authenticated remote
+passenger can sit, stand, walk the moving deck, return and recover ownership through
+the fixture's applicable lifecycle cases. Owner: existing
+`tests/network/halyard_network_passenger_route_test.gd`; production is unchanged.
+Prerequisite: exact package `f676c5016`, unchanged external fixture, private profiles,
+owned displays and network/display lanes. Proof: one existing default full route, input-only, with the original 300s outer
+cap and 60s startup/120s client.done/60s host.done/10s exit waits; actual
+craft/chair/participant receipts, exits,
+diagnostics and cleanup. **Stop** at pass or first failed boundary. No automatic
+retry, extra role, capacity or canonical-travel claim; a demonstrated defect gets a
+separate repair card. Retain raw output and remove the clean checkout afterward.
+
+**Q4 — Patrol save/restore.** Player outcome sought: Patrol resumes or recovers
+with durable, once-only rewards. Start from the retained 300s failure of
+`tests/cinder_patrol_session_save_restore_test.gd`; identify the next operation
+after its last completed assertion. Owner: `scripts/persistence/cinder_patrol_session_persistence.gd`
+and GameFlow's existing Patrol save/restore integration. Proof: one hypothesis/probe
+at the original cap identifies active restore, refused reward write or terminal
+publication as applicable. **Stop** at the first incomplete operation and separate
+repair card. That repair must pass the existing full scenario with terminal debt,
+reward and Reset semantics preserved; do not infer a fix from the timeout alone.
+
+**Q5 — Resume offer.** Player outcome sought: cold startup offers a usable Resume
+or Start Fresh path in the failing context. Start from retained output for
+`tests/session_recovery_resume_offer_test.gd`; map the last completed marker to
+its ordered startup/solo/cabin/rest/real-file/crew contexts. Owners:
+`scripts/diagnostics/crash_recovery_coordinator.gd`, GameFlow and applicable HUD
+handler, narrowed by evidence. Proof: one stated hypothesis/probe identifies the
+first incomplete context under the original 300s cap. **Stop** with that context,
+owner and separate repair card. Do not assume the final crew case failed or replace
+real-file/fresh-process behavior with in-memory checks. Repair acceptance is the
+affected context and full original suite, with checkpoint for production changes.
+
+**Q6 — Aurora canonical arrival contract.** Player outcome to preserve: physical
+landing with independent ordinary remote crew, supported terrain and valid role
+ownership. Owner: existing
+`tests/network/halyard_network_shared_planetary_cruise_test.gd`, retained `47ff`
+failure and `docs/COMPLETION_SCOPE.md`. Read the original failure's invocation and
+receipts; name participants, initial state, next failed landing boundary and exact
+command. **Stop** at one executable diagnosis card or the exact missing artifact;
+no engine run, staged-arrival substitute or bridge rewrite in this definition task.
+The resulting diagnosis retains original focused/canonical caps and 120s physical
+landing limit. Do not reopen completed shader research while locating this route.
+
+### External dependencies outside the ready queue
+
+| Task | Waiting for | Completion of this dependency |
 | --- | --- | --- |
-| NET-CREW[Bulwark gunner] | READY; existing independent actual-Main fixture | One current-package physical chair/FIRE/stand/reseat/peer-pilot route with exact craft/weapon identity, original limits and owned cleanup; retain diagnostics. |
-| NET-CREW[Halyard passenger] | READY; existing separate ordinary-input fixture | One current-package passenger sit/stand/deck walk/return and applicable recovery route, without inheriting engineer results. |
-| SCOPE-LIMIT[final release target] | WAITING on owner choice; question already asked | Record selected remote-guest count and playing-host participation, preserving all other promises; do not change default or claim support by inference. |
-| SETTINGS-INPUT[original artifacts] | WAITING on exact original runner/profile/logs | Recover identified originals or leave precise missing-artifact handoff; a substitute cannot inherit Gate C. |
+| SCOPE-LIMIT[final release target] | Owner choice; question already asked | Explicit remote-guest count and playing-host participation recorded. Default settings/physical seats do not establish accepted support. |
+| SETTINGS-INPUT[original artifacts] | Exact original runner/profile/logs | Originals identified and recovered, or precise missing-artifact handoff. A substitute cannot inherit Gate C. |
+
+The original server/two-client baseline remains authorized independently of the
+final capacity choice. It still needs an exact task card and is not qualified by
+any host/one-client role result. Remaining family tables below preserve unscheduled
+scope; select and instantiate another batch only after reviewing this batch's
+results and intervening repairs.
 
 ## Baseline and ordinary controls
 
