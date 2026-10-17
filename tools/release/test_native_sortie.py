@@ -50,7 +50,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 'default_sampler': True, 'tuning_unchanged': True, 'destroyed': False,
                 'lease_free': True, 'landed': False, 'landing_active': False,
                 'destroyed_targets': 4, 'opponent_active': False, 'guided_complete': False,
-                'transition_busy': False, 'telemetry': {'engine': 'ONLINE', 'hull': 100},
+                'transition_busy': False, 'native_interact': False, 'telemetry': {'engine': 'ONLINE', 'hull': 100},
                 'tuning': {'mouse': .002, 'brake': 20},
                 'hulk': {'available': True, 'hulk_id': 3, 'berth_instance_id': 4,
                          'berth_id': 'cinder_hulk_dock', 'selected_berth_id': 'cinder_hulk_dock',
@@ -60,8 +60,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
                          'landing_abort_reason': '', 'grounded': False,
                          'shelf_supported': False, 'support_collider': ''}}
 
-    def hulk_pilot(self):
-        pilot = native.HulkArrivalPilot()
+    def hulk_pilot(self, pilot_type=native.HulkArrivalPilot):
+        pilot = pilot_type()
         pilot.stage = 'return_align'
         pilot.identities = (1, 2)
         pilot.departed = pilot.shot = pilot.fired = True
@@ -85,14 +85,15 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(native.CAP, 300)
 
     def test_hulk_preserves_guided_prelude_commands_with_unchanged_facing(self):
-        for stage in ('launch', 'interceptor'):
-            with self.subTest(stage=stage):
-                guided, hulk = native.Pilot(), self.hulk_pilot()
+        for pilot_type, stage in ((kind, stage) for kind in (native.HulkArrivalPilot, native.HulkBreakerPilot)
+                                  for stage in ('launch', 'interceptor')):
+            with self.subTest(pilot=pilot_type.__name__, stage=stage):
+                guided, hulk = native.Pilot(), self.hulk_pilot(pilot_type)
                 for pilot in (guided, hulk):
                     pilot.stage = stage
                     pilot.identities = (1, 2)
                     pilot.departed = pilot.shot = pilot.fired = True
-                s = self.hulk_observation()
+                s = self.breaker_observation() if pilot_type is native.HulkBreakerPilot else self.hulk_observation()
                 s.update(position=[-5, 14, -50], back=[0, 0, 1],
                          shot_accepted=True, command_fire=True, opponent=[10, 20, -100],
                          phase='LAUNCH' if stage == 'launch' else 'RETURN_TO_YARD')
@@ -201,6 +202,205 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s['hulk']['landing_abort_reason'] = 'collision_blocked'
         with self.assertRaisesRegex(AssertionError, 'collision_blocked'):
             pilot.update(s, 1.2)
+
+    def breaker_observation(self):
+        s = self.hulk_observation()
+        s['hulk']['interior'] = {
+            'route': [[-96, 23, -450], [-96, 23, -466], [-93.5, 23, -470],
+                      [-118, 23, -470], [-144.5, 23, -468], [-146, 23, -469.2]],
+            'space_ids': list(native.HulkBreakerPilot.SPACES), 'support_owned': True,
+            'capsule_id': 5, 'shape_id': 6, 'capsule_enabled': True,
+            'player_velocity': [0, 0, 0],
+            'walk_tuning': {'walk': 5.8, 'sprint': 9.2, 'deceleration': 42, 'mouse': .0025},
+            'physics_ticks': 60, 'time_scale': 1, 'breaker_id': 7,
+            'breaker_position': [-146, 23.8, -467], 'breaker_candidate': False,
+            'breaker_engaged': False, 'last_breaker_result': {},
+            'activity': {'state_id': 'idle', 'generation': 0, 'elapsed_seconds': 0,
+                         'restore_seconds': 3, 'reward_claimed': False, 'claimed_receipts': 0},
+            'reward_count': 0, 'reward_receipt': {}, 'power_restored': False,
+            'lights': [{'name': 'fixture light'}]*8,
+            'bus_lights_restored': False, 'emergency_lights': True}
+        return s
+
+    def breaker_at_exit(self, supported=True):
+        pilot, s = self.hulk_pilot(native.HulkBreakerPilot), self.breaker_observation()
+        pilot.update(s, 1)
+        pilot.stage, pilot.request_frame = 'hulk_exit', s['frame']
+        s = json.loads(json.dumps(s))
+        s.update(frame=110, phase='COMPLETE', piloted=False, seated=False,
+                 control_enabled=True, landed=True, position=s['hulk']['dock'])
+        s['telemetry']['engine'] = 'OFFLINE'
+        s['hulk'].update(contract=True, lease=True, parked_exact=True, occupant_id=2,
+                         grounded=True, shelf_supported=supported,
+                         support_collider='Exterior/DockShelf' if supported else 'Exterior/Hull')
+        pilot.update(s, s['frame']/60)
+        return pilot, s
+
+    def walk_breaker_interior(self):
+        pilot, s = self.breaker_at_exit()
+        # Sample an uninterrupted physical path at normal walking speed. The
+        # driver still decides its own waypoint acceptance and key commands.
+        while pilot.stage == 'hulk_walk':
+            target = pilot.route[len(pilot.visited)]
+            direction = native.sub([target[0], s['player'][1], target[2]], s['player'])
+            distance = native.norm(direction)
+            amount = min(.09, distance)
+            direction = native.unit(direction)
+            s = json.loads(json.dumps(s))
+            s['frame'] += 1
+            s['player'] = [p + d*amount for p, d in zip(s['player'], direction)]
+            if distance > 0:
+                s['walk_forward'] = direction
+                s['walk_right'] = [-direction[2], 0, direction[0]]
+            s['hulk']['support_collider'] = 'Hull/Deck'
+            pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'hulk_breaker_aim')
+        return pilot, s
+
+    def press_breaker_and_restore(self, claimed_elapsed=3):
+        pilot, s = self.walk_breaker_interior()
+        s = json.loads(json.dumps(s))
+        s['frame'] += 30
+        s['hulk']['interior']['breaker_candidate'] = True
+        direction = native.unit(native.sub(s['hulk']['interior']['breaker_position'], s['player']))
+        direction[1] = 0
+        s['walk_forward'] = native.unit(direction)
+        s['walk_right'] = [-s['walk_forward'][2], 0, s['walk_forward'][0]]
+        self.assertIn('e', pilot.update(s, s['frame']/60)[0])
+        self.assertEqual(pilot.stage, 'hulk_breaker_press')
+        for ticks in range(1, 182):
+            s = json.loads(json.dumps(s))
+            s['frame'] += 1
+            s['native_interact'] = ticks < 12
+            interior = s['hulk']['interior']
+            interior['activity'].update(state_id='active', generation=1,
+                                        elapsed_seconds=min(ticks/60, 3))
+            interior['breaker_engaged'] = True
+            if ticks == 181:
+                interior['activity'].update(state_id='claimed', reward_claimed=True, claimed_receipts=1,
+                                            elapsed_seconds=claimed_elapsed)
+                interior.update(reward_count=1, power_restored=True, emergency_lights=False,
+                                bus_lights_restored=True,
+                                reward_receipt={'activity_id': 'cinder_hulk_power_restoration',
+                                                'reward_id': 'hulk_auxiliary_power_cell',
+                                                'activity_generation': 1, 'granted': True,
+                                                'receipt_id': 1})
+            pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'hulk_repeat_release')
+        return pilot, s
+
+    def test_breaker_starts_only_from_actual_supported_exit_then_keeps_all_authored_interior_points(self):
+        pilot, s = self.breaker_at_exit(supported=False)
+        self.assertEqual(pilot.stage, 'hulk_exit')
+        self.assertIsNone(pilot.result)
+        self.assertIsNone(pilot.route)
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        s['hulk'].update(shelf_supported=True, support_collider='Exterior/DockShelf')
+        self.assertEqual(pilot.update(s, 2), (set(), 0, 0, False))
+        self.assertEqual(pilot.stage, 'hulk_walk')
+        self.assertEqual(pilot.route[0], [-88, 23, -450])
+        self.assertEqual(pilot.route[1:], s['hulk']['interior']['route'][1:])
+        self.assertEqual(pilot.arrival_result['completion_marker'], 'NATIVE_HULK_ARRIVAL_OK')
+        self.assertEqual(pilot.arrival_result['stages'][-1]['stage'], 'complete')
+        self.assertIsNone(pilot.result)
+
+    def test_breaker_walk_rejects_wrong_support_identity_capsule_and_teleport(self):
+        for mutation, error in [
+            (lambda s: s['hulk']['interior'].update(support_owned=False), 'actual HULK support'),
+            (lambda s: s['hulk'].update(hulk_id=99), 'same Player Torrent'),
+            (lambda s: s['hulk']['interior'].update(shape_id=99), 'same enabled Player collision'),
+            (lambda s: s.update(player=[100, 22, 0]), 'without placement'),
+            (lambda s: s.update(transition_busy=True), 'without recovery'),
+        ]:
+            with self.subTest(error=error):
+                pilot, s = self.breaker_at_exit()
+                s = json.loads(json.dumps(s))
+                s['frame'] += 1
+                mutation(s)
+                with self.assertRaisesRegex(AssertionError, error):
+                    pilot.update(s, 2)
+
+    def test_breaker_refuses_premature_reward_or_engagement_during_walk(self):
+        for mutation in [lambda i: i.update(reward_count=1),
+                         lambda i: i['activity'].update(state_id='active', generation=1),
+                         lambda i: i.update(power_restored=True)]:
+            pilot, s = self.breaker_at_exit()
+            s = json.loads(json.dumps(s))
+            s['frame'] += 1
+            mutation(s['hulk']['interior'])
+            with self.assertRaisesRegex(AssertionError, 'untouched before the complete ordinary interior walk'):
+                pilot.update(s, 2)
+
+    def test_breaker_visits_every_interior_point_and_requires_live_candidate_before_E(self):
+        pilot, s = self.walk_breaker_interior()
+        self.assertEqual([v['index'] for v in pilot.visited], list(range(6)))
+        self.assertGreater(pilot.walked_interior, 70)
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        self.assertNotIn('e', pilot.update(s, s['frame']/60)[0])
+        self.assertEqual(pilot.stage, 'hulk_breaker_aim')
+        self.assertEqual(len(pilot.arrival_result['stages']), 3)
+
+    def test_breaker_completes_only_after_normal_restoration_and_separate_repeat_E_dispatch(self):
+        pilot, s = self.press_breaker_and_restore()
+        self.assertIsNone(pilot.result)
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        self.assertIn('e', pilot.update(s, s['frame']/60)[0])
+        self.assertEqual(pilot.stage, 'hulk_repeat_press')
+        for ticks in range(1, 15):
+            s = json.loads(json.dumps(s))
+            s['frame'] += 1
+            s['native_interact'] = ticks < 12
+            # The live activity refusal proves dispatch, unlike a count that
+            # merely stays one while the OS key was never handled.
+            s['hulk']['interior']['last_breaker_result'] = {
+                'accepted': False, 'reason': 'power_already_restored'}
+            pilot.update(s, s['frame']/60)
+            if pilot.result: break
+        result = pilot.result
+        self.assertEqual(result['completion_marker'], 'NATIVE_HULK_BREAKER_OK')
+        self.assertEqual((result['initial_reward_count'], result['final_reward_count']), (0, 1))
+        self.assertEqual(result['final_generation'], 1)
+        self.assertEqual([e['pressed'] for e in result['native_interact_edges']], [True, False, True, False])
+        self.assertEqual(result['arrival']['completion_marker'], 'NATIVE_HULK_ARRIVAL_OK')
+        self.assertEqual(native.CAP, 300)
+
+    def test_breaker_restoration_accepts_observed_float_but_refuses_early_time_or_frames(self):
+        # The exported route emitted this normal accumulated physics duration.
+        pilot, s = self.press_breaker_and_restore(claimed_elapsed=2.99999999999999)
+        self.assertEqual(pilot.stage, 'hulk_repeat_release')
+        self.assertEqual(s['hulk']['interior']['activity']['elapsed_seconds'], 2.99999999999999)
+        with self.assertRaisesRegex(AssertionError, 'normal three-second production restoration'):
+            self.press_breaker_and_restore(claimed_elapsed=2.999)
+        # The near-three float must not bypass the independent 180-frame floor.
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        pilot.stage = 'hulk_restoring'
+        pilot.first_press = s['frame'] - 179
+        with self.assertRaisesRegex(AssertionError, 'normal three-second production restoration'):
+            pilot.update(s, s['frame']/60)
+
+    def test_breaker_rejects_accelerated_timer_and_duplicate_reward(self):
+        pilot, s = self.breaker_at_exit()
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        s['hulk']['interior']['activity']['elapsed_seconds'] = 3
+        with self.assertRaisesRegex(AssertionError, 'without accelerated activity timer'):
+            pilot.update(s, 2)
+        for mutation, error in [
+            (lambda i: i.update(reward_count=2), 'exactly one committed'),
+            (lambda i: i['reward_receipt'].update(receipt_id=2), 'same committed cell receipt'),
+            (lambda i: i.update(bus_lights_restored=False), 'restored bus lighting'),
+        ]:
+            with self.subTest(error=error):
+                pilot, s = self.press_breaker_and_restore()
+                s = json.loads(json.dumps(s))
+                s['frame'] += 1
+                mutation(s['hulk']['interior'])
+                with self.assertRaisesRegex(AssertionError, error):
+                    pilot.update(s, s['frame']/60)
 
     def test_full_route_acknowledges_mouse_before_repeating_sweep(self):
         pilot = native.SandboxPilot()
