@@ -535,3 +535,19 @@ Next scheduled task is one full original600+3600s local qualification with cold
 import and fresh route profile. Scope includes initial yard staging, shortened
 fixture animations and production API calls; menu navigation/hardware, fresh
 process interruption, packages, repeats and shared journeys remain separate.
+
+## Aurora coastal benchmark — first qualification FAILED on44c92bc65
+
+Cold import passed exit0 without diagnostics. The first selected Aurora test
+failed compilation at `tools/performance/benchmark_runner.gd:403`: inferred
+`on_terrain` includes Variant metadata and needs explicit bool typing. No walking
+or acceptance assertions ran. Supervisor stopped/reaped143 at the first actual
+diagnostic; default/combat/Ember were not launched. Source/index/engine and the
+post-import cache were unchanged. Seven recorded process identities were absent;
+network/display lanes were independently free and closure reported no owned
+socket/display remnants. Raw failure and guards:
+`/srv/mudds-work/aurora-coastal-acceptance-results-20261017/`.
+
+Separate bounded repair: explicit bool at the metadata seam,15 minutes maximum,
+then a newly frozen clean-source attempt with unchanged route, timings and
+criteria. This failed qualification does not establish an executable route.

@@ -96,24 +96,26 @@ flight/reward/save qualification, new schemas or validator families.
 **Owner:** `aurora_coastal_benchmark` implements in its own worktree; root
 reviews/integrates. Base d09dfabf68575583469373fa3a1d4e027b2825d6;
 Implementation integrated as `44c92bc65e22b91c39d10b4ff3acd792c08ec9e4`;
-engine checks use its separate frozen clean acceptance checkout.
+first focused engine attempt is recorded below. No engine is active now.
 
 | Task | Exact finish line / stopping condition | State / estimate |
 | --- | --- | --- |
-| AURORA-WALK-IMPLEMENT | Add select-only `aurora_surface_walk_route` through existing runner, reset fresh local route targets across origin changes, preserve original two-route default. Own only the named runner/allowlist/test/docs seams. | DONE on44c92bc65; focused runtime acceptance pending |
-| AURORA-WALK-VERIFY | Existing `tests/performance_benchmark_runner_test.gd`, headless/Dummy, original300s cap: original default, combat and Ember selections retain acceptance; new selected smoke proves positive sampled physical path, real terrain support, endpoint completion, JSON round-trip and abort/input cleanup. Existing Python record checks pass; no timing/quality/schema relaxation. | IN PROGRESS; checks5–10 min separately |
+| AURORA-WALK-IMPLEMENT | Add select-only `aurora_surface_walk_route` through existing runner, reset fresh local route targets across origin changes, preserve original two-route default. Own only the named runner/allowlist/test/docs seams. | REPAIR IN PROGRESS; explicit bool type at terrain metadata seam,15 min maximum |
+| AURORA-WALK-VERIFY | Existing `tests/performance_benchmark_runner_test.gd`, headless/Dummy, original300s cap: original default, combat and Ember selections retain acceptance; new selected smoke proves positive sampled physical path, real terrain support, endpoint completion, JSON round-trip and abort/input cleanup. Existing Python record checks pass; no timing/quality/schema relaxation. | FAILED on44c92bc65 before route startup; rerun only after repair |
 | AURORA-WALK-CLOSE | Record actual source/result/limits, commit/push and remove clean disposable checkout. Keep full3600-frame/60s warmup and18000-frame/600s sample floors, selected smoke performance acceptance false/null; native hardware remains NOT_RUN. | GATED; 10 min |
 
-**Next single action:** observe the existing acceptance driver, then inspect its
-actual result; never relaunch because a poll times out. Driver PID359565,
-start ticks107408374; launch identity verified in `/proc`. Frozen source44c92bc65;
-expected selected Aurora27 assertions, default152, combat19, Ember24. Cold import
-has its original600s cap; each focused mode retains300s, Aurora first.
-Raw/status/independent abort:
-`/srv/mudds-work/aurora-coastal-acceptance-results-20261017/`
-(`driver.launch.json`, `active-owner.json`, `result.json`, `abort.py`).
-Stop at the first failure and record one bounded follow-up; no unchanged retry
-or open-ended planetary investigation.
+**First qualification FAILED:** cold import exit0, no diagnostics. Selected
+Aurora failed compilation at `benchmark_runner.gd:403`: `on_terrain` inferred
+from Variant metadata has no set type. Supervisor stopped/reaped the check143;
+default/combat/Ember were not launched. Source/index/engine and post-import cache
+unchanged; seven recorded process identities absent, lanes free, closure reports
+no owned socket/display remnants. Raw failure retained:
+`/srv/mudds-work/aurora-coastal-acceptance-results-20261017/`.
+
+**Next single action:** review the implementer's15-minute explicit-bool repair,
+freeze a new clean commit and run the unchanged acceptance. Expected Aurora27,
+default152, combat19, Ember24 assertions. Original import600s/mode300s caps remain;
+no unchanged retry and no scope expansion into planetary behavior.
 
 All ten phase gates remain open. Q4 startup stays parked after the bounded
 five-file source review found no justified construction candidate. Latest
