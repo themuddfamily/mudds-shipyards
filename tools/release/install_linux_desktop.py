@@ -16,6 +16,7 @@ import tempfile
 import uuid
 
 MANIFEST = ".mudds-shipyards-install.json"
+UPDATE = ".mudds-shipyards-update.json"
 DESKTOP = "mudds-shipyards.desktop"
 ICON = "mudds-shipyards.png"
 BUNDLED_INSTALLER = "install_linux_desktop.py"
@@ -93,8 +94,15 @@ def read_install(install_dir: Path, applications_dir: Path) -> dict | None:
         return None
     if not manifest_path.is_file():
         raise InstallError("installation manifest is not a regular file")
+    state = read_state(manifest_path, install_dir, applications_dir)
+    runtime = install_dir / state["generation"]
+    if not desktop.is_file() or desktop.read_bytes() != desktop_bytes(runtime, state["executable"]):
+        raise InstallError(f"owned desktop entry changed or missing: {desktop}")
+    return state
+
+
+def validate_state(state: dict, install_dir: Path, applications_dir: Path) -> None:
     try:
-        state = json.loads(manifest_path.read_text(encoding="utf-8"))
         if (set(state) != {"owner", "generation", "executable", "applications_dir", "files"}
                 or state["owner"] != OWNER
                 or not GENERATION.fullmatch(state["generation"])
@@ -111,9 +119,65 @@ def read_install(install_dir: Path, applications_dir: Path) -> dict | None:
         path = safe_path(runtime / name)
         if not path.is_file() or digest(path) != expected:
             raise InstallError(f"owned file changed or missing; refusing mutation: {path}")
-    if not desktop.is_file() or desktop.read_bytes() != desktop_bytes(runtime, state["executable"]):
-        raise InstallError(f"owned desktop entry changed or missing: {desktop}")
+
+
+def read_state(path: Path, install_dir: Path, applications_dir: Path) -> dict:
+    if not path.is_file():
+        raise InstallError("installation manifest is not a regular file")
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as error:
+        raise InstallError(f"invalid installation manifest: {error}") from error
+    validate_state(state, install_dir, applications_dir)
     return state
+
+
+def read_update(install_dir: Path, applications_dir: Path) -> tuple[dict, dict, dict] | None:
+    """Validate an interrupted update completely before allowing any recovery write."""
+    path = safe_path(install_dir / UPDATE)
+    if not path.exists():
+        return None
+    if not path.is_file():
+        raise InstallError("update recovery record is not a regular file")
+    try:
+        update = json.loads(path.read_text(encoding="utf-8"))
+        if set(update) != {"owner", "previous", "pending"} or update["owner"] != OWNER:
+            raise ValueError("invalid update ownership fields")
+        previous, pending = update["previous"], update["pending"]
+        validate_state(previous, install_dir, applications_dir)
+        validate_state(pending, install_dir, applications_dir)
+        if previous["generation"] == pending["generation"]:
+            raise ValueError("update generations must differ")
+    except (ValueError, TypeError, KeyError, AttributeError) as error:
+        raise InstallError(f"invalid update recovery record: {error}") from error
+    current = read_state(safe_path(install_dir / MANIFEST), install_dir, applications_dir)
+    if current not in (previous, pending):
+        raise InstallError("installation manifest differs from update recovery record")
+    desktop = safe_path(applications_dir / DESKTOP)
+    # A committed new manifest must have its new launcher. Before that commit,
+    # either exact launcher is ours; arbitrary edits are still refused.
+    allowed = (previous, pending) if current == previous else (pending,)
+    if not desktop.is_file() or desktop.read_bytes() not in tuple(
+            desktop_bytes(install_dir / state["generation"], state["executable"])
+            for state in allowed):
+        raise InstallError(f"owned desktop entry changed or missing: {desktop}")
+    return previous, pending, current
+
+
+def recover_update(install_dir: Path, applications_dir: Path) -> None:
+    # Called only under installation_lock. This journal covers process death
+    # during updates; initial install/uninstall and power-loss durability differ.
+    update = read_update(install_dir, applications_dir)
+    if update is None:
+        return
+    previous, pending, current = update
+    if current == previous:
+        atomic_write(applications_dir / DESKTOP,
+                     desktop_bytes(install_dir / previous["generation"], previous["executable"]))
+    # Retire the journal before cleanup so interrupted cleanup cannot leave a
+    # journal referring to partly removed payloads. Untracked files survive.
+    (install_dir / UPDATE).unlink()
+    remove_payload(install_dir, pending if current == previous else previous)
 
 
 @contextlib.contextmanager
@@ -185,10 +249,12 @@ def install(archive_path: Path, install_dir: Path, applications_dir: Path) -> No
     install_dir, applications_dir = safe_path(install_dir), safe_path(applications_dir)
     # Archive and destination refusal happen before any directory is created.
     with checked_archive(archive_path) as (archive, root, executable):
-        read_install(install_dir, applications_dir)
+        if read_update(install_dir, applications_dir) is None:
+            read_install(install_dir, applications_dir)
         install_dir.mkdir(parents=True, exist_ok=True)
         applications_dir.mkdir(parents=True, exist_ok=True)
         with installation_lock(install_dir):
+            recover_update(install_dir, applications_dir)
             previous = read_install(install_dir, applications_dir)
             generation = ".mudds-shipyards-runtime-" + uuid.uuid4().hex
             runtime = install_dir / generation
@@ -196,6 +262,7 @@ def install(archive_path: Path, install_dir: Path, applications_dir: Path) -> No
             desktop = applications_dir / DESKTOP
             old_desktop = desktop.read_bytes() if previous else None
             published = False
+            journaled = False
             try:
                 for name in (executable, ICON):
                     with archive.extractfile(f"{root}/{name}") as source, (runtime / name).open("xb") as target:
@@ -208,6 +275,11 @@ def install(archive_path: Path, install_dir: Path, applications_dir: Path) -> No
                     "applications_dir": str(applications_dir),
                     "files": {name: digest(runtime / name) for name in (executable, ICON)},
                 }
+                if previous:
+                    update = {"owner": OWNER, "previous": previous, "pending": state}
+                    atomic_write(install_dir / UPDATE,
+                                 (json.dumps(update, indent=2) + "\n").encode(), exclusive=True)
+                    journaled = True
                 atomic_write(desktop, desktop_bytes(runtime, executable), exclusive=previous is None)
                 published = True
                 atomic_write(install_dir / MANIFEST, (json.dumps(state, indent=2) + "\n").encode())
@@ -217,11 +289,14 @@ def install(archive_path: Path, install_dir: Path, applications_dir: Path) -> No
                         desktop.unlink()
                     else:
                         atomic_write(desktop, old_desktop)
+                if journaled:
+                    (install_dir / UPDATE).unlink()
                 for name in (executable, ICON):
                     (runtime / name).unlink(missing_ok=True)
                 runtime.rmdir()
                 raise
             if previous:
+                (install_dir / UPDATE).unlink()
                 remove_payload(install_dir, previous)
 
 

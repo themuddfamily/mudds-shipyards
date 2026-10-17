@@ -3,8 +3,13 @@
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import select
 import shlex
+import signal
+import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -155,6 +160,115 @@ class DesktopInstallTest(unittest.TestCase):
             with self.assertRaisesRegex(OSError, "simulated"):
                 self.run_install(self.bundle("456def0"))
         self.assertEqual(before, self.snapshot())
+
+    def cli_install(self, archive):
+        return subprocess.run(
+            [sys.executable, installer.__file__, "install", "--archive", str(archive),
+             "--install-dir", str(self.install), "--applications-dir", str(self.applications)],
+            capture_output=True, text=True, timeout=10)
+
+    def kill_update_before_manifest(self, archive):
+        # Only the child imports/runs the production manager. The wrapper blocks
+        # at the exact cut after desktop replacement, before manifest publication.
+        code = """import importlib.util, signal, sys
+spec = importlib.util.spec_from_file_location("manager", sys.argv[1])
+manager = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(manager)
+original = manager.atomic_write
+def cut(path, content, *args, **kwargs):
+    if path.name == manager.MANIFEST:
+        print("DESKTOP_PUBLISHED_MANIFEST_PENDING", flush=True)
+        signal.pause()
+    return original(path, content, *args, **kwargs)
+manager.atomic_write = cut
+raise SystemExit(manager.main(sys.argv[2:]))
+"""
+        child = subprocess.Popen(
+            [sys.executable, "-c", code, installer.__file__, "install", "--archive", str(archive),
+             "--install-dir", str(self.install), "--applications-dir", str(self.applications)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            self.assertTrue(select.select([child.stdout], [], [], 10)[0], "update cut timed out")
+            self.assertEqual(child.stdout.readline().strip(), "DESKTOP_PUBLISHED_MANIFEST_PENDING")
+            os.kill(child.pid, signal.SIGKILL)
+            stdout, stderr = child.communicate(timeout=10)
+            self.assertEqual(child.returncode, -signal.SIGKILL, (stdout, stderr))
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.communicate(timeout=10)
+            child.stdout.close()
+            child.stderr.close()
+
+    def test_sigkill_update_fresh_cli_retry_preserves_saves_and_untracked_files(self):
+        self.run_install()
+        previous = self.state()
+        previous_runtime = self.install / previous["generation"]
+        save = self.install / "profiles" / "save.cfg"
+        save.parent.mkdir()
+        save.write_text("precious save")
+        previous_notes = previous_runtime / "personal-notes.txt"
+        previous_notes.write_text("old notes")
+        unrelated = self.applications / "other-game.desktop"
+        unrelated.write_text("other game")
+        self.kill_update_before_manifest(self.bundle("456def0"))
+        self.assertEqual(self.state(), previous)
+        update = json.loads((self.install / installer.UPDATE).read_text())
+        pending = update["pending"]
+        pending_runtime = self.install / pending["generation"]
+        self.assertEqual((self.applications / installer.DESKTOP).read_bytes(),
+                         installer.desktop_bytes(pending_runtime, pending["executable"]))
+        pending_notes = pending_runtime / "user-notes.txt"
+        pending_notes.write_text("interrupted update notes")
+        # Retry with an even newer checkpoint: recovery must not pin the killed version.
+        result = self.cli_install(self.bundle("a7b8c9d"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        current = installer.read_install(self.install, self.applications)
+        self.assertEqual(current["executable"], "MuddsShipyards-a7b8c9d.x86_64")
+        self.assertEqual((self.install / current["generation"] / current["executable"]).read_bytes(),
+                         b"\x7fELFa7b8c9d")
+        self.assertFalse((self.install / installer.UPDATE).exists())
+        for state in (previous, pending):
+            for name in state["files"]:
+                self.assertFalse((self.install / state["generation"] / name).exists())
+        for path, content in ((save, "precious save"), (previous_notes, "old notes"),
+                              (pending_notes, "interrupted update notes"), (unrelated, "other game")):
+            self.assertEqual(path.read_text(), content)
+
+    def test_interrupted_update_refuses_tampered_recovery_inputs_without_mutation(self):
+        self.run_install()
+        self.kill_update_before_manifest(self.bundle("456def0"))
+        record = self.install / installer.UPDATE
+        update = json.loads(record.read_text())
+        invalid = dict(update, pending=dict(update["pending"], generation="../unrelated"))
+        pending_icon = self.install / update["pending"]["generation"] / installer.ICON
+        previous_icon = self.install / update["previous"]["generation"] / installer.ICON
+        for path, changed, error in (
+                (record, json.dumps(invalid).encode(), "invalid installation manifest"),
+                (pending_icon, b"changed pending icon", "owned file changed"),
+                (previous_icon, b"changed old icon", "owned file changed"),
+                (self.applications / installer.DESKTOP, b"user edited launcher", "owned desktop entry changed")):
+            with self.subTest(path=path):
+                original = path.read_bytes()
+                try:
+                    path.write_bytes(changed)
+                    before = self.snapshot()
+                    result = self.cli_install(self.bundle("a7b8c9d"))
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(error, result.stderr)
+                    self.assertEqual(self.snapshot(), before)
+                finally:
+                    path.write_bytes(original)
+        # A recovery record symlink is refused even when it contains valid data.
+        saved_record = self.root / "saved-update.json"
+        record.rename(saved_record)
+        record.symlink_to(saved_record)
+        before = self.snapshot()
+        result = self.cli_install(self.bundle("a7b8c9d"))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("refusing symlink path", result.stderr)
+        self.assertTrue(record.is_symlink())
+        self.assertEqual(self.snapshot(), before)
 
     def test_refuses_unrelated_launcher_and_modified_owned_files(self):
         self.applications.mkdir()
