@@ -14,7 +14,8 @@ const MINIMUM_WARMUP_SECONDS := 60.0
 const MINIMUM_SAMPLE_SECONDS := 600.0
 const SMOKE_WARMUP_FRAMES := 2
 const SMOKE_SAMPLE_FRAMES := 4
-const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_route"]
+const DEFAULT_SCENARIO_ORDER := [&"station_embodied_route", &"nearby_sector_ship_flight_route"]
+const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_route", &"halyard_cabin_walk_route"]
 const MINIMUM_SMOKE_MOVEMENT_METERS := 0.001
 const MINIMUM_FULL_STATION_PATH_METERS := 1.0
 const FLIGHT_ENDPOINT_RADIUS_METERS := 20.0
@@ -113,6 +114,37 @@ class BenchmarkFlightPilot extends Node:
 			Input.action_press(&"sprint_boost")
 
 
+## Uses the same live seat-derived aisle and camera-yaw steering as the
+## continuous Halyard role route. No body transform writes after staging.
+class BenchmarkCabinWalker extends Node:
+	var player: PlayerController
+	var craft: HalyardCrewTransport
+	var guard: BenchmarkInputGuard
+	var endpoints: Array[Vector3] = []
+	var destination := 1
+
+	func _physics_process(_delta: float) -> void:
+		apply_input()
+
+	func apply_input() -> void:
+		BenchmarkInputGuard.release_inputs()
+		if guard.aborted or not is_instance_valid(player) or not is_instance_valid(craft):
+			return
+		var local := craft.to_local(player.global_position)
+		var target := endpoints[destination]
+		var delta := Vector2(target.x - local.x, target.z - local.z)
+		if delta.length() < 0.22:
+			destination = 1 - destination
+			target = endpoints[destination]
+			delta = Vector2(target.x - local.x, target.z - local.z)
+		var camera_yaw := player.get_node(^"CameraRig/CameraYaw") as Node3D
+		var world_direction := craft.global_basis * Vector3(delta.x, 0.0, delta.y)
+		var camera_parent := camera_yaw.get_parent() as Node3D
+		var parent_direction := camera_parent.global_basis.inverse() * world_direction
+		camera_yaw.rotation.y = atan2(-parent_direction.x, -parent_direction.z)
+		Input.action_press(&"move_forward")
+
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -185,7 +217,7 @@ static func run_benchmark(
 	# Validate before installing guards, changing the window or instantiating Main.
 	if not scenario_selection.is_empty() and not SCENARIO_NAMES.has(StringName(scenario_selection)):
 		return {"selection_error": "unknown benchmark scenario: %s" % scenario_selection}
-	var selected_names := PackedStringArray(SCENARIO_NAMES) if scenario_selection.is_empty() else PackedStringArray([scenario_selection])
+	var selected_names := PackedStringArray(DEFAULT_SCENARIO_ORDER) if scenario_selection.is_empty() else PackedStringArray([scenario_selection])
 	var frame_counts := required_phase_frames(warmup_frames, sample_frames, smoke_run)
 	warmup_frames = frame_counts.warmup
 	sample_frames = frame_counts.sample
@@ -322,7 +354,7 @@ static func _run_scenario(
 	var ready_ms := float(Time.get_ticks_usec() - ready_started) / 1000.0
 	var world := game.get_node_or_null("ShipyardWorld") as ShipyardWorld
 	var player := game.get_node_or_null("Player") as PlayerController
-	var ship := game.get_node_or_null("TorrentInterceptor") as HeroShip
+	var ship := game.get_node_or_null("HalyardCrewTransport" if scenario_name == &"halyard_cabin_walk_route" else "TorrentInterceptor") as HeroShip
 	if world == null or player == null or ship == null:
 		game.queue_free()
 		await tree.process_frame
@@ -363,6 +395,15 @@ static func _run_scenario(
 		}
 	var resolution_before := await capture_resolution(tree, requested_resolution, input_guard)
 	var progress_tracker := _begin_scenario_progress(player, ship, scenario_name, inputs, smoke_run)
+	var cabin_walker: BenchmarkCabinWalker
+	if scenario_name == &"halyard_cabin_walk_route":
+		cabin_walker = BenchmarkCabinWalker.new()
+		cabin_walker.player = player
+		cabin_walker.craft = ship as HalyardCrewTransport
+		cabin_walker.guard = input_guard
+		cabin_walker.endpoints = _cabin_endpoints(ship as HalyardCrewTransport)
+		cabin_walker.process_physics_priority = player.process_physics_priority - 1
+		game.add_child(cabin_walker)
 	var flight_pilot: BenchmarkFlightPilot
 	if scenario_name == &"nearby_sector_ship_flight_route":
 		flight_pilot = BenchmarkFlightPilot.new()
@@ -377,7 +418,7 @@ static func _run_scenario(
 	# One declared activation tick guarantees that a short smoke actually offers
 	# its input to the production physics authority before timing continues.
 	if not input_guard.aborted:
-		_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames, flight_pilot)
+		_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames, flight_pilot, cabin_walker)
 	await tree.physics_frame
 	await tree.process_frame
 	_update_scenario_progress(progress_tracker, player, ship, scenario_name)
@@ -390,7 +431,9 @@ static func _run_scenario(
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup):
 		var route_frame := int(warmup_frames * phase_progress(actual_warmup_frames, warmup_frames,
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup))
-		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot)
+		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker)
+		if smoke_run and cabin_walker != null:
+			await tree.physics_frame
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
 		previous_tick = Time.get_ticks_usec()
@@ -402,13 +445,16 @@ static func _run_scenario(
 	for monitor_name in MONITORS:
 		monitor_samples[monitor_name] = [] as Array[float]
 	var sample_path_start := float(progress_tracker.path_distance_m)
+	var sample_local_path_start := float(progress_tracker.get("local_path_distance_m", 0.0))
 	var sample_started := Time.get_ticks_usec()
 	previous_tick = sample_started
 	while not input_guard.aborted and phase_incomplete(frame_deltas.size(), sample_frames,
 			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample):
 		var route_frame := warmup_frames + int(sample_frames * phase_progress(frame_deltas.size(), sample_frames,
 			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample))
-		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot)
+		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker)
+		if smoke_run and cabin_walker != null:
+			await tree.physics_frame
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
 		var now := Time.get_ticks_usec()
@@ -417,6 +463,9 @@ static func _run_scenario(
 		_capture_monitor_sample(monitor_samples)
 
 	var sample_elapsed := float(Time.get_ticks_usec() - sample_started) / 1_000_000.0
+	if cabin_walker != null:
+		cabin_walker.set_physics_process(false)
+		_release_inputs()
 	if flight_pilot != null:
 		flight_pilot.set_physics_process(false)
 		_release_inputs()
@@ -429,6 +478,8 @@ static func _run_scenario(
 		return {"completed": false}
 	var resolution_after := await capture_resolution(tree, requested_resolution, input_guard)
 	var progress := _finish_scenario_progress(progress_tracker, player, ship, scenario_name)
+	if cabin_walker != null:
+		progress["sample_local_path_distance_m"] = float(progress_tracker.local_path_distance_m) - sample_local_path_start
 	if flight_pilot != null:
 		progress["sample_path_distance_m"] = float(progress_tracker.path_distance_m) - sample_path_start
 	var progress_errors := validate_scenario_progress(scenario_name, progress)
@@ -473,14 +524,14 @@ static func _begin_scenario_progress(
 		inputs: Dictionary,
 		smoke_run: bool
 	) -> Dictionary:
-	var actor := player as Node3D if scenario_name == &"station_embodied_route" else ship as Node3D
+	var actor := player as Node3D if scenario_name != &"nearby_sector_ship_flight_route" else ship as Node3D
 	var start_position := actor.global_position
 	var target_array := inputs.get("route_target", []) as Array
 	var target := Vector3.ZERO
 	if target_array.size() == 3:
 		target = Vector3(float(target_array[0]), float(target_array[1]), float(target_array[2]))
 	var start_hull := float(ship.get_telemetry().get("hull", -1.0))
-	return {
+	var tracker := {
 		"smoke_run": smoke_run,
 		"start_transform_value": actor.global_transform,
 		"previous_position": start_position,
@@ -498,6 +549,19 @@ static func _begin_scenario_progress(
 		"healthy_throughout": start_hull > 0.0 and not ship.is_destroyed(),
 	}
 
+	if scenario_name == &"halyard_cabin_walk_route":
+		tracker.merge({
+			"previous_local": ship.to_local(player.global_position),
+			"start_local": ship.to_local(player.global_position),
+			"local_path_distance_m": 0.0, "maximum_local_displacement_m": 0.0,
+			"support_throughout": true, "occupancy_throughout": true,
+			"control_throughout": true, "inside_throughout": true,
+			"stationary_throughout": true, "craft_start": ship.global_transform,
+			"outbound_reached": false, "return_reached": false,
+			"endpoints": _cabin_endpoints(ship as HalyardCrewTransport),
+		})
+	return tracker
+
 
 static func _update_scenario_progress(
 		tracker: Dictionary,
@@ -505,7 +569,7 @@ static func _update_scenario_progress(
 		ship: HeroShip,
 		scenario_name: StringName
 	) -> void:
-	var actor := player as Node3D if scenario_name == &"station_embodied_route" else ship as Node3D
+	var actor := player as Node3D if scenario_name != &"nearby_sector_ship_flight_route" else ship as Node3D
 	var position := actor.global_position
 	var previous := tracker.previous_position as Vector3
 	var start := (tracker.start_transform_value as Transform3D).origin
@@ -521,6 +585,24 @@ static func _update_scenario_progress(
 		Vector2(position.x - start.x, position.z - start.z).length()
 	)
 	tracker.previous_position = position
+	if scenario_name == &"halyard_cabin_walk_route":
+		var craft := ship as HalyardCrewTransport
+		var local := craft.to_local(player.global_position)
+		tracker.local_path_distance_m = float(tracker.local_path_distance_m) + Vector2(local.x - tracker.previous_local.x, local.z - tracker.previous_local.z).length()
+		tracker.maximum_local_displacement_m = maxf(float(tracker.maximum_local_displacement_m), Vector2(local.x - tracker.start_local.x, local.z - tracker.start_local.z).length())
+		tracker.previous_local = local
+		tracker.support_throughout = bool(tracker.support_throughout) and player.is_on_floor()
+		tracker.occupancy_throughout = bool(tracker.occupancy_throughout) and craft.get_moving_interior_component().is_occupant_registered(player)
+		tracker.control_throughout = bool(tracker.control_throughout) and player.is_control_enabled() and not player.is_seated()
+		tracker.inside_throughout = bool(tracker.inside_throughout) and craft.get_interior_bounds().has_point(local)
+		tracker.stationary_throughout = bool(tracker.stationary_throughout) and craft.global_transform.is_equal_approx(tracker.craft_start) and craft.velocity.length() < 0.01 and not craft.is_piloted()
+		tracker.healthy_throughout = bool(tracker.healthy_throughout) and not craft.is_destroyed() and float(craft.get_telemetry().get("hull", 0.0)) > 0.0
+		var endpoints := tracker.endpoints as Array[Vector3]
+		if Vector2(local.x - endpoints[1].x, local.z - endpoints[1].z).length() < 0.3:
+			tracker.outbound_reached = true
+		if bool(tracker.outbound_reached) and Vector2(local.x - endpoints[0].x, local.z - endpoints[0].z).length() < 0.3:
+			tracker.return_reached = true
+		return
 	if scenario_name != &"nearby_sector_ship_flight_route":
 		return
 	var telemetry := ship.get_telemetry()
@@ -550,7 +632,7 @@ static func _finish_scenario_progress(
 		ship: HeroShip,
 		scenario_name: StringName
 	) -> Dictionary:
-	var actor := player as Node3D if scenario_name == &"station_embodied_route" else ship as Node3D
+	var actor := player as Node3D if scenario_name != &"nearby_sector_ship_flight_route" else ship as Node3D
 	var start_transform := tracker.start_transform_value as Transform3D
 	var end_transform := actor.global_transform
 	var result := {
@@ -568,6 +650,12 @@ static func _finish_scenario_progress(
 		"maximum_displacement_m": float(tracker.maximum_displacement_m),
 		"maximum_horizontal_displacement_m": float(tracker.maximum_horizontal_displacement_m),
 	}
+	if scenario_name == &"halyard_cabin_walk_route":
+		result["actor_type"] = "PlayerController"
+		result["aisle_length_m"] = (tracker.endpoints[0] as Vector3).distance_to(tracker.endpoints[1] as Vector3)
+		for field in ["local_path_distance_m", "maximum_local_displacement_m", "support_throughout", "occupancy_throughout", "control_throughout", "inside_throughout", "stationary_throughout", "healthy_throughout", "outbound_reached", "return_reached"]:
+			result[field] = tracker[field]
+		return result
 	if scenario_name == &"station_embodied_route":
 		result["actor_type"] = "PlayerController"
 		result["control_enabled_end"] = player.is_control_enabled()
@@ -612,6 +700,21 @@ static func validate_scenario_progress(
 	if not _finite_number(progress.get("maximum_displacement_m")) \
 		or float(progress.get("maximum_displacement_m", 0.0)) <= MINIMUM_SMOKE_MOVEMENT_METERS:
 		errors.append("actor transform did not move")
+	if scenario_name == &"halyard_cabin_walk_route":
+		if str(progress.get("actor_type", "")) != "PlayerController":
+			errors.append("cabin actor is not PlayerController")
+		for field in ["support_throughout", "occupancy_throughout", "control_throughout", "inside_throughout", "stationary_throughout", "healthy_throughout"]:
+			if not bool(progress.get(field, false)):
+				errors.append("cabin requires " + field)
+		for field in ["local_path_distance_m", "maximum_local_displacement_m", "sample_local_path_distance_m"]:
+			if not _finite_number(progress.get(field)) or float(progress.get(field, 0.0)) <= MINIMUM_SMOKE_MOVEMENT_METERS:
+				errors.append("cabin did not move: " + field)
+		if str(progress.get("policy", "")) == "full_route":
+			if not bool(progress.get("outbound_reached", false)) or not bool(progress.get("return_reached", false)):
+				errors.append("cabin did not complete an out-and-back")
+			if not _finite_number(progress.get("aisle_length_m")) or float(progress.get("aisle_length_m", 0.0)) < 1.0 or float(progress.get("sample_local_path_distance_m", 0.0)) < float(progress.get("aisle_length_m", INF)):
+				errors.append("cabin sampling did not cover one aisle length")
+		return errors
 	if scenario_name == &"station_embodied_route":
 		if str(progress.get("actor_type", "")) != "PlayerController":
 			errors.append("station actor is not PlayerController")
@@ -687,6 +790,26 @@ static func _stage_scenario(
 			"global_rng_seed": _scenario_seed(scenario_name),
 			"start_transform": _transform_record(world.get_player_spawn()),
 			"sequence": "forward, forward+right, forward, forward+left in four equal frame segments",
+		}
+	if scenario_name == &"halyard_cabin_walk_route":
+		var craft := ship as HalyardCrewTransport
+		var berth := world.get_berth_node(craft.get_home_berth_id())
+		if berth == null or berth.get_occupant() != craft or not craft.global_transform.is_equal_approx(world.get_berth_transform(craft.get_home_berth_id())) or craft.is_piloted() or craft.is_destroyed() or craft.get_crew_seat_anchors().size() != 6:
+			return {"staging_valid": false, "staging_error": "healthy stationary home Halyard unavailable"}
+		var endpoints := _cabin_endpoints(craft)
+		player.teleport_to(Transform3D(craft.global_basis.orthonormalized(), craft.to_global(endpoints[0])))
+		player.set_control_enabled(true)
+		for _index in 12:
+			await tree.physics_frame
+			if input_guard.aborted:
+				return {"staging_valid": false, "staging_error": "benchmark aborted"}
+		var supported := player.is_on_floor() and not player.is_seated() and craft.get_moving_interior_component().is_occupant_registered(player)
+		return {
+			"staging_valid": supported, "staging_error": "cabin support/occupancy unavailable" if not supported else "",
+			"actor": "production PlayerController", "route_source": "live_halyard_crew_seat_aisle",
+			"global_rng_seed": _scenario_seed(scenario_name), "start_transform": _transform_record(player.global_transform),
+			"aisle_endpoints_local": [[endpoints[0].x, endpoints[0].y, endpoints[0].z], [endpoints[1].x, endpoints[1].y, endpoints[1].z]],
+			"sequence": "normal forward input with camera-yaw steering, repeated craft-local aisle out-and-back",
 		}
 	var binding := game.get_node_or_null(
 		^"CinderStreamingProductionBinding"
@@ -825,8 +948,11 @@ static func phase_progress(frames: int, minimum_frames: int, elapsed: float, min
 
 static func _apply_scenario_input(
 		scenario_name: StringName, frame: int, total_frames: int,
-		flight_pilot: BenchmarkFlightPilot = null
+		flight_pilot: BenchmarkFlightPilot = null, cabin_walker: BenchmarkCabinWalker = null
 	) -> void:
+	if cabin_walker != null:
+		cabin_walker.apply_input()
+		return
 	if flight_pilot != null:
 		flight_pilot.route_frame = frame
 		flight_pilot.apply_input()
@@ -841,6 +967,17 @@ static func _apply_scenario_input(
 			Input.action_press(&"move_left")
 	elif frame >= total_frames / 4 and frame < total_frames * 3 / 4:
 		Input.action_press(&"sprint_boost")
+
+
+static func _cabin_endpoints(craft: HalyardCrewTransport) -> Array[Vector3]:
+	var min_z := INF
+	var max_z := -INF
+	for anchor in craft.get_crew_seat_anchors():
+		var local := craft.to_local(anchor.global_position)
+		min_z = minf(min_z, local.z)
+		max_z = maxf(max_z, local.z)
+	var deck_y := craft.to_local(craft.get_interior_deck_marker().global_position).y
+	return [Vector3(0.0, deck_y, min_z), Vector3(0.0, deck_y, max_z)]
 
 
 static func _release_inputs() -> void:
@@ -1036,7 +1173,7 @@ static func build_report(
 
 
 static func validate_report(report: Dictionary) -> PackedStringArray:
-	return _validate_report(report, PackedStringArray(SCENARIO_NAMES), false)
+	return _validate_report(report, PackedStringArray(DEFAULT_SCENARIO_ORDER), false)
 
 
 ## Structural validation for one diagnostic route; never full-protocol acceptance.

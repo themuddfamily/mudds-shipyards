@@ -25,9 +25,24 @@ window. Scenario order and inputs are frozen in the JSON:
    invalid route markers fail staging; there is no unrelated coordinate
    fallback.
 
+The additional **select-only** `halyard_cabin_walk_route` starts a fresh Main
+and Begin Shift with the healthy, unpiloted Halyard at its occupied home berth.
+It stages the enabled, unseated production player once on the cabin aisle,
+waits for floor support and registered moving-interior occupancy, then shuttles
+between endpoints derived from the live crew-seat anchors. Camera-yaw steering
+and normal forward Input drive every subsequent step; actor transforms are
+never written after staging. It records craft-local path and displacement,
+movement during sampling, out-and-back visits, and continued floor support,
+occupancy, cabin bounds, enabled unseated control, stationary hull and health.
+Smoke waits for a physics tick per recorded cabin frame and requires positive
+local movement during sampling; full routes retain the normal frame timer and
+require both endpoint visits plus at least one aisle length of sampled movement. Idle, blocked, warm-up-only, unsupported or
+out-of-cabin runs fail completion.
+
 Omit selection to run both scenarios in the order above. Set
 `KETH_BENCHMARK_SCENARIO=station_embodied_route` or
-`KETH_BENCHMARK_SCENARIO=nearby_sector_ship_flight_route` to run only that route.
+`KETH_BENCHMARK_SCENARIO=nearby_sector_ship_flight_route` or
+`KETH_BENCHMARK_SCENARIO=halyard_cabin_walk_route` to run only that route.
 Unknown names fail before Main instantiation. A selected run keeps the same
 per-route timing and progress requirements but is diagnostic-only: its
 `configuration.scenario_order` contains only the selected name,
@@ -156,7 +171,7 @@ godot --audio-driver Dummy --path /absolute/path/to/repository \
 
 Optional configuration variables are:
 
-- `KETH_BENCHMARK_SCENARIO=station_embodied_route` (or `nearby_sector_ship_flight_route`; omit for both)
+- `KETH_BENCHMARK_SCENARIO=station_embodied_route` (or `nearby_sector_ship_flight_route` / `halyard_cabin_walk_route`; omit for the original two)
 - `KETH_BENCHMARK_RESOLUTION=1920x1080`
 - `KETH_BENCHMARK_QUALITY_LEVEL=2` (`0` Low, `1` Medium, `2` High)
 - `KETH_BENCHMARK_WARMUP_FRAMES=3600`
@@ -180,7 +195,9 @@ godot --headless --audio-driver Dummy --path /absolute/path/to/repository \
 The focused regression uses an even shorter in-process smoke alongside
 mutation-sensitive percentile, metadata, representativeness, and schema
 fixtures, each selected route, the default combined run, invalid selection, and
-abort/input cleanup:
+abort/input cleanup, and a focused cabin aisle out-and-back with motion
+during sampling. The cabin check uses shortened internal windows for functional
+validation; full selected runs still enforce 3,600/18,000 frames and 60/600 seconds:
 
 ```bash
 godot --headless --audio-driver Dummy --path /absolute/path/to/repository \
@@ -281,7 +298,8 @@ $launcher = 'C:\Temp\keth-benchmark\source\tools\performance\run_native_windows_
 ```
 
 Pass `-Scenario station_embodied_route` or
-`-Scenario nearby_sector_ship_flight_route` to the launcher for one diagnostic
+`-Scenario nearby_sector_ship_flight_route` or
+`-Scenario halyard_cabin_walk_route` to the launcher for one diagnostic
 route; omitting it runs both. The launcher validates the name, records it in
 `invocation.json`, forwards it through `KETH_BENCHMARK_SCENARIO`, and clears any
 inherited selection before setting its own. It restores the caller's selection

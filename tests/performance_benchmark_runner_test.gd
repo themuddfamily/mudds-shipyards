@@ -21,7 +21,9 @@ func _run() -> void:
 	await _test_live_smoke()
 	for selection: StringName in RUNNER.SCENARIO_NAMES:
 		await _test_live_abort(String(selection))
-		await _test_live_smoke(String(selection))
+		if selection != &"halyard_cabin_walk_route":
+			await _test_live_smoke(String(selection))
+	await _test_live_cabin_shuttle()
 	await _test_live_flight_shuttle()
 	_finish()
 
@@ -111,7 +113,7 @@ func _test_schema_mutations() -> void:
 		{
 			"warmup_frames_per_scenario": 3600,
 			"sample_frames_per_scenario": 18000,
-			"scenario_order": PackedStringArray(RUNNER.SCENARIO_NAMES),
+			"scenario_order": PackedStringArray(RUNNER.DEFAULT_SCENARIO_ORDER),
 			"resolution": [1920, 1080],
 			"quality_level": 2,
 			"smoke_run": false,
@@ -119,7 +121,7 @@ func _test_schema_mutations() -> void:
 	)
 	_check(RUNNER.validate_report(report).is_empty(), "complete schema fixture validates")
 
-	for scenario_name: StringName in RUNNER.SCENARIO_NAMES:
+	for scenario_name: StringName in RUNNER.DEFAULT_SCENARIO_ORDER:
 		var selected := report.duplicate(true)
 		selected.scenarios = [(report.scenarios[0] if scenario_name == RUNNER.SCENARIO_NAMES[0] else report.scenarios[1]).duplicate(true)]
 		selected.configuration.scenario_order = PackedStringArray([scenario_name])
@@ -132,6 +134,21 @@ func _test_schema_mutations() -> void:
 		selected.scenarios[0].sample_elapsed_seconds = 300.0
 		_check(_contains_fragment(RUNNER.validate_selected_diagnostic_report(selected, String(scenario_name)), "sample elapsed duration"),
 			"selected diagnostic validation preserves per-route duration checks")
+	var cabin := report.duplicate(true)
+	cabin.scenarios = [_scenario_fixture("halyard_cabin_walk_route")]
+	cabin.configuration.scenario_order = PackedStringArray(["halyard_cabin_walk_route"])
+	cabin.representativeness.representative_pass = false
+	_check(RUNNER.validate_selected_diagnostic_report(cabin, "halyard_cabin_walk_route").is_empty(), "full-duration cabin diagnostic fixture validates")
+	_check(not RUNNER.validate_report(cabin).is_empty(), "cabin diagnostic cannot replace original full protocol")
+	for field in ["local_path_distance_m", "maximum_local_displacement_m", "sample_local_path_distance_m", "support_throughout", "occupancy_throughout", "control_throughout", "inside_throughout", "stationary_throughout", "healthy_throughout", "outbound_reached", "return_reached"]:
+		var broken := cabin.duplicate(true)
+		broken.scenarios[0].scenario_progress[field] = 0
+		_check(not RUNNER.validate_selected_diagnostic_report(broken, "halyard_cabin_walk_route").is_empty(), "cabin rejects missing actual route condition: " + field)
+	var jitter_only := cabin.duplicate(true)
+	jitter_only.scenarios[0].scenario_progress.sample_local_path_distance_m = 0.01
+	_check(_contains_fragment(RUNNER.validate_selected_diagnostic_report(jitter_only, "halyard_cabin_walk_route"), "one aisle length"), "full cabin rejects jitter-only sampling after warm-up traversal")
+	cabin.scenarios[0].sample_elapsed_seconds = 300.0
+	_check(_contains_fragment(RUNNER.validate_selected_diagnostic_report(cabin, "halyard_cabin_walk_route"), "sample elapsed duration"), "full selected cabin retains ten-minute sample floor")
 	var duplicate_scenario := report.duplicate(true)
 	duplicate_scenario.scenarios[1] = duplicate_scenario.scenarios[0].duplicate(true)
 	_check(_contains_fragment(RUNNER.validate_report(duplicate_scenario), "required protocol"),
@@ -293,7 +310,7 @@ func _test_invalid_selection() -> void:
 func _test_live_abort(selection: String = "") -> void:
 	var children_before := root.get_child_count()
 	var original_auto_quit := auto_accept_quit
-	call_deferred("_abort_next_benchmark")
+	call_deferred("_abort_next_benchmark", selection == "halyard_cabin_walk_route")
 	var result := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true, selection)
 	_check(bool(result.get("aborted", false)) and not result.has("scenarios") \
 		and not result.has("representativeness"), "aborted production startup produces no completed or qualifying report")
@@ -304,8 +321,36 @@ func _test_live_abort(selection: String = "") -> void:
 		and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "aborted selection releases movement and cursor")
 
 
-func _abort_next_benchmark() -> void:
+func _abort_next_benchmark(wait_for_cabin_walk: bool = false) -> void:
 	await process_frame
+	if wait_for_cabin_walk:
+		var originating_guard: RUNNER.BenchmarkInputGuard
+		for child in root.get_children():
+			if child is RUNNER.BenchmarkInputGuard:
+				originating_guard = child
+		_check(originating_guard != null, "cabin abort observer binds the originating input guard")
+		if originating_guard == null:
+			return
+		var walking := false
+		var deadline := Time.get_ticks_msec() + RUNNER.BEGIN_SHIFT_READY_TIMEOUT_MS + 30_000
+		while not walking and Time.get_ticks_msec() < deadline:
+			# A failed staging run must never leave an observer that can Escape
+			# a subsequent Main instance after its own benchmark has ended.
+			if not is_instance_valid(originating_guard):
+				_check(false, "cabin abort reaches its walker before the originating benchmark ends")
+				return
+			var game := root.get_node_or_null("Main")
+			if game != null:
+				for child in game.get_children():
+					if child is RUNNER.BenchmarkCabinWalker and child.guard == originating_guard and Input.is_action_pressed(&"move_forward"):
+						walking = true
+			if not walking:
+				await process_frame
+		_check(walking, "cabin abort reaches an active walker before its startup deadline")
+		if not walking:
+			if is_instance_valid(originating_guard):
+				originating_guard.request_abort("cabin abort observer startup deadline")
+			return
 	paused = true
 	var escape := InputEventKey.new()
 	escape.physical_keycode = KEY_ESCAPE
@@ -346,7 +391,7 @@ func _test_live_smoke(selection: String = "") -> void:
 		"flight stages piloting flow, ship camera and component HUD with on-foot controls disabled")
 	var errors := RUNNER.validate_report(report) if selection.is_empty() else RUNNER.validate_selected_diagnostic_report(report, selection)
 	_check(errors.is_empty(), "short production-Main smoke emits a valid report: %s" % "; ".join(errors))
-	var expected_names := PackedStringArray(RUNNER.SCENARIO_NAMES) if selection.is_empty() else PackedStringArray([selection])
+	var expected_names := PackedStringArray(RUNNER.DEFAULT_SCENARIO_ORDER) if selection.is_empty() else PackedStringArray([selection])
 	_check(report.scenarios.size() == expected_names.size() and report.configuration.scenario_order == expected_names,
 		"live smoke executes the requested scenario order")
 	if not selection.is_empty():
@@ -444,6 +489,26 @@ func _test_live_flight_shuttle() -> void:
 	guard.free()
 
 
+func _test_live_cabin_shuttle() -> void:
+	# Short selected smoke checks the public selection and report path.
+	var smoke := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true, "halyard_cabin_walk_route")
+	var errors := RUNNER.validate_selected_diagnostic_report(smoke, "halyard_cabin_walk_route")
+	_check(errors.is_empty(), "selected cabin smoke validates: " + "; ".join(errors))
+	_check(not RUNNER.validate_report(smoke).is_empty() and not smoke.representativeness.representative_pass and smoke.representativeness.performance_budget_pass == null, "cabin remains partial and cannot grant performance acceptance")
+	var guard := RUNNER.BenchmarkInputGuard.new()
+	root.add_child(guard)
+	# Exercise physical out-and-back and measured motion inside the existing
+	# suite cap, without claiming full hardware benchmark durations.
+	var report := await RUNNER._run_scenario(self, &"halyard_cabin_walk_route", 15, 180, 0, false,
+		{"warmup": 0.5, "sample": 8.0}, Vector2i(640, 360), guard)
+	var progress := report.get("scenario_progress", {}) as Dictionary
+	_check(bool(report.get("completed", false)), "cabin completes physical aisle out-and-back: " + str(report.get("error", "")))
+	_check(bool(progress.get("outbound_reached", false)) and bool(progress.get("return_reached", false)) and float(progress.get("sample_local_path_distance_m", 0.0)) > 5.0, "cabin walks both endpoints and moves during sampling")
+	_check(root.get_node_or_null("Main") == null and not Input.is_action_pressed(&"move_forward") and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "cabin success frees walker and releases movement/cursor")
+	print("PERFORMANCE_BENCHMARK_CABIN_SHUTTLE_PROGRESS: ", JSON.stringify(progress))
+	guard.free()
+
+
 func _environment_fixture(adapter: String, os_name: String, display: String, resolution: Array) -> Dictionary:
 	return {
 		"godot_version": "4.7.1.stable.official",
@@ -500,6 +565,11 @@ func _progress_fixture(name: String) -> Dictionary:
 		"maximum_displacement_m": 2.0,
 		"maximum_horizontal_displacement_m": 2.0,
 	}
+	if name == "halyard_cabin_walk_route":
+		common.merge({"actor_type": "PlayerController", "local_path_distance_m": 10.0, "maximum_local_displacement_m": 5.0, "sample_local_path_distance_m": 5.0, "aisle_length_m": 5.0,
+			"support_throughout": true, "occupancy_throughout": true, "control_throughout": true, "inside_throughout": true, "stationary_throughout": true, "healthy_throughout": true,
+			"outbound_reached": true, "return_reached": true})
+		return common
 	if name == "station_embodied_route":
 		common.merge({"actor_type": "PlayerController", "control_enabled_end": true})
 		return common
