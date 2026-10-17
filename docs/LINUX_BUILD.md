@@ -4,7 +4,20 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local checkpoint: `df86280b5` — 2026-10-17
+## Latest local Linux package: `653c1459d` — 2026-10-17
+
+The [archive](../builds/linux/MuddsShipyards-653c145-linux-x86_64.tar.gz)
+now includes the managed Python installer; no repository checkout is needed.
+The [ELF](../builds/linux/MuddsShipyards-653c145.x86_64) is byte-identical to
+the df86280 gameplay checkpoint. All 31 focused tests, six actual shipped-script
+install/upgrade/uninstall transactions and both strict silent startups pass.
+Seeded settings and unrelated files survive. [Package notes](../builds/linux/MuddsShipyards-653c145-linux-notes.txt)
+record exact hashes, validation and the retained initial cache-guard stop.
+Graphical desktop launch, native GPU/device/audio, power-loss recovery and final
+release remain unqualified. This Linux packaging delivery has no matching new
+Windows build; the paired gameplay checkpoints below remain source-specific.
+
+## Earlier gameplay checkpoint: `df86280b5` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-df86280.x86_64),
 [archive](../builds/linux/MuddsShipyards-df86280-linux-x86_64.tar.gz) and
@@ -317,7 +330,7 @@ the newer station-defence recovery delivery `189124deb`.
 | File | Contents |
 | --- | --- |
 | `MuddsShipyards-<short>.x86_64` | Self-contained ELF binary. The PCK is embedded (`binary_format/embed_pck=true`), so this one file is the game. |
-| `MuddsShipyards-<short>-linux-x86_64.tar.gz` | Top-level folder `MuddsShipyards-<short>/` holding the binary, `mudds-shipyards.desktop`, `mudds-shipyards.png` (the Keth icon) and `install-desktop-entry.sh`. The archive is built reproducibly: sorted names, owner and group 0, mtime set to the commit time, gzip `-n`. |
+| `MuddsShipyards-<short>-linux-x86_64.tar.gz` | Top-level folder `MuddsShipyards-<short>/` holding the binary, `mudds-shipyards.desktop`, `mudds-shipyards.png` (the Keth icon), `install-desktop-entry.sh` and the managed `install_linux_desktop.py`. Older archives omit the Python manager. The archive is built reproducibly: sorted names, owner and group 0, mtime set to the commit time, gzip `-n`. |
 | `MuddsShipyards-<short>.x86_64.export-result.json` | `schema_version` 1: source commit, Godot version, and path, size and SHA-256 for the binary and the tarball. Also `signing: "unsigned"` and `startup_check: "NOT_RUN"`. |
 
 `<short>` is the first seven characters of the exact clean `HEAD` commit. Keep
@@ -335,7 +348,7 @@ cd MuddsShipyards-<short>
 ./install-desktop-entry.sh --uninstall   # remove the menu entry again
 ```
 
-The installer only writes
+The menu-entry helper only writes
 `${XDG_DATA_HOME:-~/.local/share}/applications/mudds-shipyards.desktop`. It
 points `Exec`, `Path` and `Icon` at absolute paths inside the unpacked folder,
 so if you move the folder, run it again. It refuses folder paths that contain
@@ -352,20 +365,25 @@ exports) and screenshots. It is the Linux counterpart of
 
 ### Managed per-user desktop installation and updates
 
-The repository's `tools/release/install_linux_desktop.py` adds a managed install
-from the existing checkpoint archive, using Python 3.11 or newer and `/usr/bin/env` on Linux. Run
-it from the repository, or copy this standalone script elsewhere. Existing
-checkpoint archives, including `418f3fe`, contain the older menu-entry helper
-above; they do **not** contain this new manager.
+New Linux exports include `install_linux_desktop.py` beside the game. It provides
+a managed installation, update and uninstall using Python 3.11 or newer and
+`/usr/bin/env` on Linux. Extract the download and run the included script against
+the archive you downloaded; no repository checkout is needed. Keep the script
+for later updates and uninstall. The older `install-desktop-entry.sh` remains
+available for adding a menu entry that points into the unpacked folder.
+
+Older checkpoints, including `df86280`, omit the Python manager. They can still
+be installed or upgraded using the script from a newer download, or the
+repository's `tools/release/install_linux_desktop.py`.
 
 ```sh
-python3 tools/release/install_linux_desktop.py install \
-  --archive builds/linux/MuddsShipyards-418f3fe-linux-x86_64.tar.gz
+python3 ./MuddsShipyards-<short>/install_linux_desktop.py install \
+  --archive ./MuddsShipyards-<short>-linux-x86_64.tar.gz
 
 # Update: use the same command and directories with the next checkpoint archive.
-python3 tools/release/install_linux_desktop.py install --archive /path/to/next-checkpoint.tar.gz
+python3 ./MuddsShipyards-<short>/install_linux_desktop.py install --archive /path/to/next-checkpoint.tar.gz
 
-python3 tools/release/install_linux_desktop.py uninstall
+python3 ./MuddsShipyards-<short>/install_linux_desktop.py uninstall
 ```
 
 Defaults are `${XDG_DATA_HOME:-~/.local/share}/mudds-shipyards` for the payload
@@ -376,8 +394,9 @@ uninstallation. Paths with spaces and Desktop Entry reserved characters are
 escaped without a shell (`/usr/bin/env --` starts the exact ELF path); control characters and symlink directory paths are
 refused. The manager never runs the ELF or a desktop handler.
 
-The manager validates the complete gzip stream and the exact five-member export
-bundle before installation writes, refusing traversal, links, unexpected files,
+The manager validates the complete gzip stream and the exact legacy five-member
+bundle or six-member bundle with the explicitly named Python manager before
+installation writes, refusing traversal, links, unexpected files,
 duplicate entries, unsafe modes and invalid ELF/icon magic. It copies only the
 ELF and packaged Keth icon into a new runtime generation, preserving the
 revision-bearing executable name. The desktop entry switches atomically after

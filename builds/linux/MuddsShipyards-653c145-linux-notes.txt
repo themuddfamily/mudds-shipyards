@@ -1,0 +1,45 @@
+Mudd's Shipyards — Linux managed-installer package — 2026-10-17
+Source: 653c1459dba356b45026f3a816e5fec84b50b5bd (clean export)
+
+Player-visible change:
+The download now includes install_linux_desktop.py. Extract it and use Python
+3.11+ to install, update or uninstall without a repository checkout. The existing
+menu-entry helper remains available. The manager supports older five-member
+archives and the new explicit six-member bundle; unexpected/duplicate members
+remain refused. Installation never launches the game or removes user saves.
+See docs/LINUX_BUILD.md for commands and custom directory options.
+
+Validation:
+- Existing exporter and manager suites: 31 tests pass.
+- Actual clean Godot 4.7.1 Linux export with Dummy audio; six exact archive members,
+  packaged manager byte-identical to source, executable mode 0755.
+- Shipped script CLI: old df86280 archive install, upgrade to new archive,
+  uninstall, fresh new archive install, uninstall and repeated uninstall all exit 0.
+  Installed ELF bytes/mode match; seeded settings and unrelated files survive.
+- Direct and archive-extracted headless/Dummy startup each exit 0 with exactly
+  one STARTUP_MENU_READY_OK and no script/error/resource-leak diagnostics:
+  21.426s direct, 21.285s archive. No desktop handler or audible output used.
+- ELF is byte-identical to df86280; this is a packaging change, no gameplay change.
+- Initial validation wrapper stopped after successful export on two changed
+  editor/export bookkeeping caches. Original exit 1 retained. All other 643 copied
+  cache files matched, and the runtime ELF matches exactly. No repeated export:
+  resumed package checks pass; all 645 cache files stay stable during them.
+- Artifact hashes independently rechecked; owned supervisors absent and ordered
+  runtime lanes released. Raw records: /srv/mudds-work/linux-bundle-validation-20261017/
+
+Limits:
+Full current-source matrix, actual graphical desktop launch, native GPU,
+physical devices, audible mix, power-loss recovery and final release are NOT_RUN.
+Native Windows execution and human review remain owner-excluded requirements;
+no Windows package or hosted CI run was created for this Linux packaging change.
+
+Artifacts:
+MuddsShipyards-653c145.x86_64
+  bytes=148801264
+  sha256=3dc4f660d49ec923480a42c58a4d8a742780ceb38256c4b9447a02c9f54614d7
+MuddsShipyards-653c145-linux-x86_64.tar.gz
+  bytes=95216196
+  sha256=df019365e22fba4ed0d204a831bfbfa314928e07ac1058f8f9b4174b70be7947
+MuddsShipyards-653c145.x86_64.export-result.json
+  bytes=1099
+  sha256=0f71cc9537c40669e768e4bc554cdf9f236f7ff8d66052233a68bd5d40625a22
