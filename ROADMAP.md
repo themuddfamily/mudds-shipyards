@@ -133,13 +133,19 @@ streamed generation0, no policy/floor gate reached. No movement acceptance.
 Source/index/engine/cache guards passed; all12 recorded identities absent, lanes
 free, closure reports no owned socket/display remnants. Raw diagnostic retained.
 
-**Next single action / AURORA-STREAM-STAGING:** implement the smallest supported
-runner-only correction to existing Main Aurora observer/binding use,30 minutes
-maximum. Owner `aurora_coastal_benchmark`; inspect authored setup and actual
-stream owner, then correct that seam. No wait extension, fabricated scene,
-production physics changes or sampled actor placements. Freeze/review before
-one unchanged acceptance run. If the seam cannot be established within budget,
-record the missing fact and stop; no speculative investigation.
+**AURORA-STREAM-STAGING implementation DONE on c47b5cd55:** ordinary solo
+Main samples Ember; Aurora binding normally receives samples only during an
+admitted expedition. The benchmark now supplies actual Main actor observations
+to its existing Aurora binding during staging and walking. The observation
+adapter is disclosed beside gravity staging; Main retains origin/teardown
+ownership. No expedition admission/state, scene fabrication, extra placements,
+wait extension or criteria change.
+
+**Next single action:** observe existing frozen acceptance on
+`c47b5cd550ba7843fac136d7de33e7c088d0e7fc`, driverPID363118/start ticks107457944,
+verified live at launch. Raw/status/abort: retained `streaming-adapter/`.
+Fresh import600s, then selected Aurora27/default152/combat19/Ember24 at original
+300s each; stop first failure. Checkpoint closure remains gated on actual passes.
 
 All ten phase gates remain open. Q4 startup stays parked after the bounded
 five-file source review found no justified construction candidate. Latest
