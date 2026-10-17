@@ -968,3 +968,71 @@ Separate HULK-TIMER-COMPARISON card allows only a tools-only numeric guard fix
 with1e-12s absolute tolerance (well below one tick), unchanged >=180-frame and
 per-frame progression guards, plus one full trial on the same exact retained
 game. No runtime timer/physics/cap change and no partial success promotion.
+
+## HULK ordinary breaker — DONE; checkpoint7dd70a9a4
+
+Corrected external drivera531ac6b8d599713955d604358b36ca0d25f2017, SHA256
+`f89751dbe9c5ffbd4b948a637033302ca78e9044940da97d07a2be70a99df6f9`,
+passes the original300s cumulative HULK breaker route in81.864s on clean exported
+game7dd70a9a467621f4590f97ac8c1a725cd20b1e5e, ELF SHA256
+`ae7ad5b98c2b624cef5caf43a1465b513966c9d527aae681f4963265b7d319e2`.
+NATIVE_HULK_BREAKER_OK, zero diagnostics: normal Guided prelude, physical HULK
+flight/strict docking/shutdown/exit, then76.789675m supported continuous walking
+through every authored aperture/interior/breaker point1–5. Point0 is the actual
+supported exit, matching existing regression; no return into parked hull at the
+exterior shelf-centre sample. Same Player/capsule/shape/ship/HULK/berth/breaker,
+settled waypoint speeds<=0.35m/s, maximum sampled step per physics tick0.153339m.
+Actual E down/up/down/up f3313/3321/3497/3505, live candidate true at every edge.
+Normal production restoration commits receipt1/cell0→1, generation1; seven bus
+light properties restore and dock cyan practical remains. Second ordinary E
+returns power_already_restored, count1 and identical receipt. No actor writes,
+direct gameplay calls, accelerated timer, physics/cap change or rescue.
+
+First exact-float failure remains above. Separate5–10m tools-only correction
+uses absolute1e-12s comparison for2.99999999999999, retaining>=180 observed physics
+frames and progression bounds. Python31 tests pass, including early2.999s and
+179-frame refusal. One corrected full trial, not an unlimited pacing loop.
+Existing Guided/Sandbox/HULK arrival and OS/process helpers AST-identical.
+Source/index/engine/exact-cache/retained-ELF guards pass; all8 corrected-run
+identities independently absent, owned display/authority/socket closure and
+lanes free. Raw `/srv/mudds-work/hulk-breaker-results-20261017/timer-comparison/`.
+
+Capability and correction merged as81536a7b376c864e696cc6c74366fd0d9c9a85cd,
+preserving exact game/driver commits. Matching checkpoint source7dd70a9a4 is a
+clean ancestor; its tools/tests are excluded from distributed PCK, corrected
+external driver comes froma531ac6b8. Reused already-passing original cold import,
+lazy-observer parse, privacy190, Linux export and direct/archive strict startup
+without repetition; reused exact frozen cache with external Python differences
+explicit. Remaining safe clean Windows export, Linux-engine Windows-payload
+strict startup and packaged privacy190 all pass. Each strict startup exit0 and
+exactly one STARTUP_MENU_READY_OK; zero diagnostics. Windows/Linux1515 PCK entries
+match by path/size/SHA256, PE .text matches pinned stock release template, Linux
+archive exact six-member contract with tested ELF/manager bytes/modes; ZIP CRC
+and EXE/notes members match. Published Linux ELF is the actual successful route
+binary, not a rebuilt substitute. Source/index/engine/cache/native-ELF guards
+pass; all14 checkpoint identities independently absent, lanes free and recorded
+owned socket set without remnants. Raw checkpoint:
+`/srv/mudds-work/hulk-breaker-checkpoint-results-20261017/`.
+
+Published stemMuddsShipyards-7dd70a9 in repository builds/windows and builds/linux:
+Windows EXE SHA256
+`138120d62be1898d47c65f9dc0bab51253ee0e379c31cbabf474dd2e48ee8224`, ZIP
+`f62615794fb3d7ce52a38e1ffe1f07c1c141ef8d884b2655fb830d963f09926d`; ELF above;
+Linux archive`6213a536a176f7075b2ac280e868d4d7c4c8d310d2a1f8413b9d43c6a8f43d56`.
+Notes record actual scope/checks. Published identities rechecked; clean author/
+acceptance worktrees and duplicate scratch ZIP/builds removed, exact source/raw
+failures protected. No hosted CI, Downloads or public release publication.
+
+This is outbound+interior interaction qualification only. Physical home return/
+revisit, fresh disk reload/OS interruption, multiplayer, rendered appearance,
+native Windows/GPU/devices/audible/signing/final release remain unqualified.
+Native Windows execution/human review stay owner-excluded mandatory gates and
+factual NOT_RUN. All ten phase gates/current full matrix remain open.
+
+Bounded read-only next-child contract confirms completed Guided flag causes later
+boarding to START_ENGINES then FREE_FLIGHT, without repeated tutorial. Home
+approach is outside Cinder's650m unload radius; require actual fade retirement/
+unload and later newer load generation, not assumed elapsed time. Immediate
+home reboarding is blocked until walking>7m away. The remaining parent is split
+into HULK-HOME-INPUT then HULK-REVISIT-INPUT, each retaining cumulative300s cap.
+Source inspection is not a return/revisit runtime pass.

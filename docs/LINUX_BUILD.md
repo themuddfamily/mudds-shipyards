@@ -4,7 +4,21 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest paired checkpoint: `2f687110e` — 2026-10-17
+## Latest paired checkpoint: `7dd70a9a4` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-7dd70a9.x86_64),
+[archive](../builds/linux/MuddsShipyards-7dd70a9-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-7dd70a9-linux-notes.txt) match the new
+Windows checkpoint and carry the actual native Linux binary qualified for
+ordinary HULK arrival/interior breaker interaction. Corrected external driver
+a531ac6b8 passes81.864s:76.79m supported interior walk, normal E/restoration,
+one cell and separate E refusing another. Clean Linux/Windows exports, strict
+Windows-payload/Linux direct/archive startup, privacy190 and1515-entry payload
+parity pass; owned resources closed and scratch worktrees removed. Home return/
+revisit, fresh reload/interruption, full matrix and platform/hardware gates remain
+open. [Exact scope](history/ROADMAP_DELIVERIES.md#hulk-ordinary-breaker--done-checkpoint7dd70a9a4).
+
+## Earlier paired checkpoint: `2f687110e` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-2f68711.x86_64),
 [archive](../builds/linux/MuddsShipyards-2f68711-linux-x86_64.tar.gz) and
