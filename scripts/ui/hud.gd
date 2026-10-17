@@ -7213,7 +7213,7 @@ func _configure_server_browser_focus_order(
 func _update_server_browser_disconnect() -> void:
 	if not is_instance_valid(_server_browser_disconnect):
 		return
-	var connected := _network_status_presenter.get_snapshot().get("state", &"") == &"connected"
+	var connected: bool = _network_status_presenter.get_snapshot().get("state", &"") == &"connected"
 	var had_focus := _server_browser_disconnect.has_focus()
 	_server_browser_disconnect.disabled = not connected
 	_server_browser_disconnect.focus_mode = Control.FOCUS_ALL if connected else Control.FOCUS_NONE
