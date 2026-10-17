@@ -173,9 +173,14 @@ removed; exact published artifacts and raw failures are retained.
   boarding interaction origin, reboard block active. Walk/settle at
   (-11,-.02,-9.25), on HeroBerthNode (x±12.75,z−25…7.75), require actual >7m
   separation, then reapproach live unconflicted candidate and one E. Ordinary
-  START_ENGINES→FREE_FLIGHT through (0,2.7,-64), (0,2.7,-150), then live HULK
-  approach. Brake/aim readiness before each thrust leg: speed≤.01, alignment
-  ≥.9999, pitch error≤.5°. Outward header crossing keeps y1.4–3.8/no hull loss.
+  START_ENGINES→ordinary W through actual authored departure-lift completion,
+  observed `departure_lift_active=false`, !landed/FREE_FLIGHT and released home
+  lease. Then brake/aim before each translational leg through (0,2.7,-64),
+  (0,2.7,-150), then live HULK approach: speed≤.01, alignment≥.9999, pitch
+  error≤.5°. Outward header crossing keeps y1.4–3.8/no hull loss.
+  Root source review corrected the initial contract before any engine run:
+  neutral parked/mid-lift input clears mouse and cannot satisfy readiness.
+  A revisit-only read-only lift-active observation prevents inferred completion.
 - **Lifecycle:** preserve full accepted home receipt and identities; actual
   prior unload precedes reload. Require newer streaming generation, loaded
   generation equality, one additional load/no failure/unload unchanged, distinct
@@ -191,8 +196,9 @@ removed; exact published artifacts and raw failures are retained.
 - **Budget/stop:**45–90 minutes implementation; checks/export/one300s route
   separately. Stop first concrete failure or estimate boundary. No rescue,
   automatic second attempt, cap relaxation, new validator or framework.
-- **Next action:** implement subclass/observer freshness/selector and focused
-  regressions; root freezes exact candidate/acceptance before one guarded route.
+- **Next action:** resume bounded implementation with the corrected ordinary
+  departure/lift-completion stage, observer freshness/selector and focused tests;
+  root freezes exact candidate/acceptance before one guarded route.
   Runtime source contract is DONE; actual revisit/package checks are NOT_RUN.
 - **Close:** exact result/source/build, commit/push, checkpoint if qualified and
   cleanup. Disk reload/OS interruption, shared/endurance/hardware remain open.

@@ -1215,3 +1215,18 @@ its marker; independent revisit dispatch avoids parent old-HULK/unclaimed/reload
 predicates. Relative newer stream generation/one additional load/distinct nodes,
 normal strict dock/exit/interior/E/once-only receipt remain original300s criteria.
 No finite source blocker; source support is not an actual runtime pass.
+
+
+Root early review found a source control blocker in the first REVISIT contract,
+before any engine invocation. HeroShip._physics_process672 only rotates when
+ONLINE/unlatched; _update_flight4680–4689 clears look while landed/neutral. A
+pre-thrust parked attitude fence cannot complete. Additionally _update_departure_lift
+4849–4880 clears mouse until actual lift completion; !landed/FREE_FLIGHT is set on
+first motion and is insufficient. Neutral throttle mid-lift would stall it.
+Implementation stopped at this source blocker with only owned draft files; root
+corrected the finite contract explicitly: ordinary W through observed authored
+lift completion, then brake/aim readiness before translational waypoint legs.
+Add only a revisit-selected read-only departure_lift_active boolean from the
+existing ship owner. No phase/timer inference, direct lift call, pose write or
+threshold/cap relaxation. Resume same bounded assignment after correction; no
+runtime retry or qualification failure is hidden by this source-only review.
