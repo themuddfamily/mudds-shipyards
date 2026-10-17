@@ -176,7 +176,7 @@ Clean author/acceptance worktrees and duplicate scratch builds removed; raw kept
   free. Raw `/srv/mudds-work/hulk-breaker-results-20261017/`; exact candidate
   checkout/build retained for the separately scoped tools-only correction.
 
-### HULK-TIMER-COMPARISON — READY implementation/qualification
+### HULK-TIMER-COMPARISON — IN PROGRESS qualification
 
 - **One result/parent:** HULK breaker driver accepts the production three-second
   floating representation while still refusing an early reward.
@@ -192,9 +192,15 @@ Clean author/acceptance worktrees and duplicate scratch builds removed; raw kept
   startup needed for a Python-only change.
 - **Budget/stop:**5–10m correction/review; separately one300s route/345s cleanup.
   Stop first actual failure. No automatic additional pacing/timer changes.
-- **Next action:** make/review the single numeric guard correction, freeze
-  driver/ELF, run once. Only a full NATIVE_HULK_BREAKER_OK closes the parent;
-  cell1/partial walk does not. Working result still needs paired checkpoint.
+- **Correction DONE:**a531ac6b8d599713955d604358b36ca0d25f2017, root reviewed
+  the one guard change. Python31 tests pass, including retained float acceptance
+  and early2.999s/179-frame refusal. Game/observer/criteria otherwise unchanged.
+- **Next action:** observe ONE existing corrected-driver route, outer driver
+  PID393316/start ticks108013865; raw/stage owner/status/independent abort:
+  `/srv/mudds-work/hulk-breaker-results-20261017/timer-comparison/`.
+  Same exact7dd70a9a4 ELF and frozen cache, source differs only Python driver/test.
+  Original300s/345s caps; first actual failure stops. No re-export/startup repeat
+  and no relaunch on polling timeout.
 - **Close:** preserve failed raw and exact unique source, integrate/push working
   capability, clean owned scratch after artifact identity checks.
 
