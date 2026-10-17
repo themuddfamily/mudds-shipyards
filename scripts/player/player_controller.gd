@@ -482,11 +482,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		_decelerate_horizontal_velocity(delta)
 
-	_hulk_landing_onset_begin_tick(delta)
 	_apply_gravity(delta)
 	_move_in_interior_collision_frame(delta)
 	_resolve_cabin_containment()
-	_hulk_landing_onset_finish_tick()
 	_update_facing(desired_direction, delta)
 	_update_authored_locomotion(is_sprinting, delta, true)
 	_update_grounded_foot_placement()
@@ -652,39 +650,10 @@ func _move_in_interior_collision_frame(delta: float) -> void:
 	var pre_move_transform := global_transform
 	var pre_move_velocity := velocity
 	var was_on_floor := is_on_floor()
-	var onset: Dictionary = get_meta(&"_hulk_landing_onset_trace", {})
-	var onset_tick: Dictionary = onset.get("record", {})
-	if not onset_tick.is_empty():
-		onset_tick["collision_transform"] = _hulk_landing_onset_transform(collision_transform)
-		onset_tick["pre_slide"] = _hulk_landing_onset_pose()
 	move_and_slide()
-	if not onset_tick.is_empty():
-		onset_tick["post_slide"] = _hulk_landing_onset_pose()
-		var contacts: Array = []
-		for slide_index in get_slide_collision_count():
-			var collision := get_slide_collision(slide_index)
-			for contact_index in collision.get_collision_count():
-				var collider := collision.get_collider(contact_index) as Node
-				contacts.append({
-					"slide_index": slide_index, "contact_index": contact_index,
-					"collider": str(collider.get_path()) if is_instance_valid(collider) else "",
-					"collider_shape": collision.get_collider_shape(contact_index),
-					"normal": _hulk_landing_onset_vector(collision.get_normal(contact_index)),
-					"position": _hulk_landing_onset_vector(collision.get_position(contact_index)),
-					"depth": collision.get_depth(),
-					"travel": _hulk_landing_onset_vector(collision.get_travel()),
-					"remainder": _hulk_landing_onset_vector(collision.get_remainder()),
-				})
-				# Ignore only the authored contact margin when identifying penetration.
-				if collision.get_depth() > safe_margin:
-					onset_tick["penetration"] = true
-		onset_tick["contacts"] = contacts
-		onset_tick["actual_floor_contact"] = is_on_floor() and not contacts.is_empty()
 	_remote_floor_support_rejected = false
 	_recover_floor_snap_penetration(pre_move_transform, pre_move_velocity, was_on_floor)
 	_resolve_step_up(pre_move_transform, pre_move_velocity, delta)
-	if not onset_tick.is_empty():
-		onset_tick["after_recovery_step_up"] = _hulk_landing_onset_pose()
 	if shifted:
 		var carried_transform := collision_transform.affine_inverse()
 		global_transform = carried_transform * global_transform
@@ -692,121 +661,6 @@ func _move_in_interior_collision_frame(delta: float) -> void:
 		up_direction = carried_transform.basis * up_direction
 
 	_constrain_rime_pad_step(previous_world_position, pad_token)
-	if not onset_tick.is_empty():
-		onset_tick["after_frame_inverse_pad_guard"] = _hulk_landing_onset_pose()
-
-
-## Temporary full-scene landing diagnostic. Only the hulk regression arms this
-## metadata; these readers never change the motor, collision queries or pose.
-func _hulk_landing_onset_vector(value: Vector3) -> Array:
-	return [value.x, value.y, value.z]
-
-
-func _hulk_landing_onset_transform(value: Transform3D) -> Array:
-	return [
-		_hulk_landing_onset_vector(value.basis.x),
-		_hulk_landing_onset_vector(value.basis.y),
-		_hulk_landing_onset_vector(value.basis.z),
-		_hulk_landing_onset_vector(value.origin),
-	]
-
-
-func _hulk_landing_onset_pose() -> Dictionary:
-	return {
-		"global_transform": _hulk_landing_onset_transform(global_transform),
-		"local_transform": _hulk_landing_onset_transform(transform),
-		"velocity": _hulk_landing_onset_vector(velocity),
-		"up": _hulk_landing_onset_vector(up_direction),
-		"floor": is_on_floor(), "wall": is_on_wall(), "ceiling": is_on_ceiling(),
-	}
-
-
-func _hulk_landing_onset_capture_initial() -> void:
-	if not has_meta(&"_hulk_landing_onset_trace"):
-		return
-	var onset: Dictionary = get_meta(&"_hulk_landing_onset_trace")
-	var shelf := (onset["shelf"] as WeakRef).get_ref() as StaticBody3D
-	var shelf_collision := shelf.get_node("Collision") as CollisionShape3D
-	var capsule := _player_collision.shape as CapsuleShape3D
-	print("HULK_LANDING_ONSET ", JSON.stringify({
-		"phase": "before_teleport", "physics_frame": Engine.get_physics_frames(),
-		"player_path": str(get_path()), "pose": _hulk_landing_onset_pose(),
-		"player_layer": collision_layer, "player_mask": collision_mask,
-		"floor_snap_length": floor_snap_length, "safe_margin": safe_margin,
-		"floor_max_angle": floor_max_angle,
-		"capsule_radius": capsule.radius, "capsule_height": capsule.height,
-		"capsule_disabled": _player_collision.disabled,
-		"capsule_transform": _hulk_landing_onset_transform(_player_collision.transform),
-		"capsule_global_transform": _hulk_landing_onset_transform(_player_collision.global_transform),
-		"shelf_path": str(shelf.get_path()),
-		"shelf_transform": _hulk_landing_onset_transform(shelf.transform),
-		"shelf_global_transform": _hulk_landing_onset_transform(shelf.global_transform),
-		"shelf_layer": shelf.collision_layer, "shelf_mask": shelf.collision_mask,
-		"shelf_size": _hulk_landing_onset_vector((shelf_collision.shape as BoxShape3D).size),
-		"shelf_collision_disabled": shelf_collision.disabled,
-		"shelf_collision_transform": _hulk_landing_onset_transform(shelf_collision.transform),
-		"shelf_collision_global_transform": _hulk_landing_onset_transform(shelf_collision.global_transform),
-	}))
-
-
-func _hulk_landing_onset_begin_tick(delta: float) -> void:
-	if not has_meta(&"_hulk_landing_onset_trace"):
-		return
-	var onset: Dictionary = get_meta(&"_hulk_landing_onset_trace")
-	if onset.get("done", false):
-		return
-	var frame_owner: Node
-	var owner_ref: Variant = get_meta(&"_moving_interior_frame_owner", null)
-	if owner_ref is WeakRef:
-		frame_owner = (owner_ref as WeakRef).get_ref() as Node
-	onset["ticks"] = int(onset.get("ticks", 0)) + 1
-	onset["record"] = {
-		"phase": "motor_tick", "tick": onset["ticks"],
-		"delta": delta, "physics_frame": Engine.get_physics_frames(),
-		"before_gravity": _hulk_landing_onset_pose(),
-		"gravity": _hulk_landing_onset_vector(_get_effective_gravity()),
-		"gravity_multiplier": gravity_multiplier,
-		"frame_owner": str(frame_owner.get_path()) if is_instance_valid(frame_owner) else "",
-		"control_enabled": _control_enabled, "can_process": can_process(),
-		"embodiment_state": _embodiment_state,
-	}
-
-
-func _hulk_landing_onset_finish_tick() -> void:
-	if not has_meta(&"_hulk_landing_onset_trace"):
-		return
-	var onset: Dictionary = get_meta(&"_hulk_landing_onset_trace")
-	var record: Dictionary = onset.get("record", {})
-	if record.is_empty():
-		return
-	record["after_cabin_containment"] = _hulk_landing_onset_pose()
-	record["containment"] = {
-		"active": _can_mutate_live_cabin_containment() and is_instance_valid(_cabin_frame),
-		"frame": str(_cabin_frame.get_path()) if is_instance_valid(_cabin_frame) else "",
-		"frame_transform": _hulk_landing_onset_transform(_cabin_frame.global_transform)
-			if is_instance_valid(_cabin_frame) else [],
-		"bounds_position": _hulk_landing_onset_vector(_cabin_bounds.position),
-		"bounds_size": _hulk_landing_onset_vector(_cabin_bounds.size),
-		"recall_local": _hulk_landing_onset_transform(_cabin_recall_local),
-		"clamp_count": _cabin_clamp_count, "recall_count": _cabin_recall_count,
-	}
-	if record.get("actual_floor_contact", false) and not onset.has("first_floor_tick"):
-		onset["first_floor_tick"] = onset["ticks"]
-	if record.get("penetration", false) and not onset.has("first_penetration_tick"):
-		onset["first_penetration_tick"] = onset["ticks"]
-	var reason := ""
-	if onset.has("first_penetration_tick") and int(onset["ticks"]) >= int(onset["first_penetration_tick"]) + 3:
-		reason = "penetration_plus_three_ticks"
-	elif not onset.has("first_penetration_tick") and onset.has("first_floor_tick") \
-			and int(onset["ticks"]) >= int(onset["first_floor_tick"]) + 3:
-		reason = "floor_contact_plus_three_ticks"
-	elif int(onset["ticks"]) >= 60:
-		reason = "sixty_motor_tick_cap"
-	record["stop_reason"] = reason
-	print("HULK_LANDING_ONSET ", JSON.stringify(record))
-	onset.erase("record")
-	if not reason.is_empty():
-		onset["done"] = true
 
 
 ## GodotPhysics can overestimate a capsule's downward snap sweep against a

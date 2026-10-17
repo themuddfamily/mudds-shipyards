@@ -508,12 +508,6 @@ func _test_production_loop() -> void:
 	# --- Disembark -----------------------------------------------------------
 	var route := hulk.get_interior_route_points()
 	ship.set_piloted(false)
-	# Temporary read-only onset trace: arm before the unchanged staging placement
-	# so the cached pre-teleport floor state is captured separately from motor ticks.
-	player.set_meta(&"_hulk_landing_onset_trace", {
-		"shelf": weakref(hulk.find_child("DockShelf", true, false)),
-	})
-	player.call(&"_hulk_landing_onset_capture_initial")
 	player.teleport_to(Transform3D(Basis.IDENTITY, route[0] + Vector3(0.0, 1.0, 0.0)))
 	# Settle only by the production controller's gravity after the one staging
 	# placement. No body pose/velocity writes occur until the later fringe test.
@@ -1111,8 +1105,6 @@ func _cleanup(game: GameFlow) -> void:
 	Input.action_release(&"move_forward")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if is_instance_valid(game):
-		if is_instance_valid(game.player) and game.player.has_meta(&"_hulk_landing_onset_trace"):
-			game.player.remove_meta(&"_hulk_landing_onset_trace")
 		game.queue_free()
 	await process_frame
 	await process_frame
