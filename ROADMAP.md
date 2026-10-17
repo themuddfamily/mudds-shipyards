@@ -80,76 +80,48 @@ SIGKILL/fresh retry and protected-file checks pass20; direct/archive strict
 startup both pass. [Result and limits](docs/history/ROADMAP_DELIVERIES.md#linux-interrupted-update-recovery--shipped-on-4141d94dd).
 Clean export checkout and duplicate extracted ELF removed. No new Windows build.
 
-## Current delivery: PERF-ROUTE[Aurora coastal walking]
+## Latest bounded delivery: Aurora coastal walking — DONE
 
-**One result:** the existing production benchmark runner can select a physical
-Aurora coastal walk. Parent: original performance surface-route coverage in the
-[backlog](docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
-This is an executable benchmark capability, not native performance acceptance.
-**Boundary:** existing `tools/performance/benchmark_runner.gd`,
-`run_native_windows_benchmark.ps1` selection allowlist, consolidated runner/record
-checks and `docs/PERFORMANCE_BENCHMARK_RUNNER.md`. Reuse the authored coastal
-points/frame handling in `tests/aurora_visit_loop_test.gd`; use actual Main-owned
-Aurora terrain and held movement. Disclose initial benchmark staging; no actor
-placement during sampled walking. No production gameplay/gravity/physics changes, canonical
-flight/reward/save qualification, new schemas or validator families.
-**Owner:** `aurora_coastal_benchmark` implements in its own worktree; root
-reviews/integrates. Base d09dfabf68575583469373fa3a1d4e027b2825d6;
-Implementation integrated as `44c92bc65e22b91c39d10b4ff3acd792c08ec9e4`;
-first focused engine attempt is recorded below. The repaired-source staging check failed; no engine remains active.
+The runner now selects `aurora_surface_walk_route` using the actual Main Player,
+streamed terrain and authored lookout. Frozen source c47b5cd55 passes Aurora27,
+default152, combat19 and Ember24 focused assertions with no diagnostics. Aurora
+sampled258.008m through held-input walking, both endpoints, real terrain/lookout
+support and paused Escape cleanup. Source/index/engine/cache guards passed;
+38 recorded identities absent, lanes free. Author and acceptance checkouts
+removed; raw failures/results retained. [Result and limitations](docs/history/ROADMAP_DELIVERIES.md#aurora-coastal-walking-benchmark--done-on-c47b5cd55).
+Initial placement, streaming observation and gravity adapters are disclosed;
+full timed/native performance and canonical planetary journeys remain NOT_RUN.
 
-| Task | Exact finish line / stopping condition | State / estimate |
+## Next delivery: Linux first-install interruption recovery
+
+**One result:** after an OS kill between desktop publication and ownership
+manifest publication during first install, an ordinary fresh CLI retry safely
+installs the chosen package while preserving user/unrelated files. Parent:
+[INSTALL-LINUX / RECOVERY-FIX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
+Existing update recovery covers `previous` installations only; source currently
+creates its recovery journal only when `previous` is present. A first install
+can publish its desktop entry without a manifest. Reproduce before fixing.
+
+**Boundary:** `tools/release/install_linux_desktop.py` and its consolidated test.
+Reuse the real SIGKILL helper and existing journal/ownership checks; no new
+validator/schema family or unconditional adoption of unowned desktop entries.
+Existing update journal compatibility and refusal behavior must remain. No
+production gameplay changes, uninstall-kill or power-loss qualification.
+
+| Task | Exact finish line / stop | State / budget |
 | --- | --- | --- |
-| AURORA-WALK-IMPLEMENT | Add select-only `aurora_surface_walk_route` through existing runner, reset fresh local route targets across origin changes, preserve original two-route default. Own only the named runner/allowlist/test/docs seams. | DONE on61d702642; single explicit-bool repair integrated |
-| AURORA-WALK-VERIFY | Existing `tests/performance_benchmark_runner_test.gd`, headless/Dummy, original300s cap: original default, combat and Ember selections retain acceptance; new selected smoke proves positive sampled physical path, real terrain support, endpoint completion, JSON round-trip and abort/input cleanup. Existing Python record checks pass; no timing/quality/schema relaxation. | FAILED on61d702642 at initial supported staging; later modes NOT_RUN |
-| AURORA-WALK-CLOSE | Record actual source/result/limits, commit/push and remove clean disposable checkout. Keep full3600-frame/60s warmup and18000-frame/600s sample floors, selected smoke performance acceptance false/null; native hardware remains NOT_RUN. | GATED; 10 min |
+| LINUX-FIRST-INSTALL-REPRO | Existing real child-process cut, first install only; kill after desktop publication/before manifest, reap, then fresh ordinary CLI retry. Record actual failure or supported success; no assumed bug. | READY;15 min |
+| LINUX-FIRST-INSTALL-FIX | If reproduced, repair the existing ownership transaction, pass focused tests including prior update recovery, tampered inputs and protected saves/untracked files. No permissive ownership fallback. | GATED on reproduction;45–60 min implementation, focused checks separately |
+| LINUX-FIRST-INSTALL-SHIP | Clean-source Linux archive includes exact repaired manager; actual shipped-manager first-install kill/fresh retry and update checks, exact artifact/member bytes, direct/extracted strict startup exit0 + STARTUP_MENU_READY_OK; notes and cleanup. | GATED on fix; export/smoke5–15 min plus original caps |
 
-**First qualification FAILED:** cold import exit0, no diagnostics. Selected
-Aurora failed compilation at `benchmark_runner.gd:403`: `on_terrain` inferred
-from Variant metadata has no set type. Supervisor stopped/reaped the check143;
-default/combat/Ember were not launched. Source/index/engine and post-import cache
-unchanged; seven recorded process identities absent, lanes free, closure reports
-no owned socket/display remnants. Raw failure retained:
-`/srv/mudds-work/aurora-coastal-acceptance-results-20261017/`.
+**Next single action:** assign one implementer to reproduce the first-install
+boundary using the existing real-kill helper, then fix only that transaction if
+confirmed. Root owns integration and actual package checks. Stop at first
+unexpected boundary; record it before any separately bounded follow-up.
 
-**Second qualification FAILED on61d702642:** compile issue resolved; cold
-import exit0. Aurora failed initial streamed/rebased/gravity/floor readiness
-before walking. No rescue placement or criteria change. Supervisor stopped143;
-later modes NOT_RUN. Tracked source/HEAD/status/engine/cache unchanged, but index
-bytes changed. Existing `capture_source_state()` executes `git status` without
-optional-lock suppression; next private runtime env must include
-`GIT_OPTIONAL_LOCKS=0` while retaining the exact index guard. Cached diff against
-HEAD is empty. Six recorded process identities absent, lanes free, closure
-reports no owned socket/display remnants. Raw: retained `typed-terrain/` bundle.
-
-**Read-only diagnosis DONE:** authored patch spans X/Z±48m, topY0; the
-initial(-7,.2,-17) is within it. No coordinate/support relaxation is justified.
-The missing fact is which existing readiness predicate fails; aggregate error
-cannot distinguish scene/frame/policy/floor.
-
-**AURORA-STAGING-DIAGNOSTIC DONE on a262744ba:** the single guarded probe
-identified `loaded_scene_unavailable` for all240 ticks: frame1→2 committed,
-streamed generation0, no policy/floor gate reached. No movement acceptance.
-Source/index/engine/cache guards passed; all12 recorded identities absent, lanes
-free, closure reports no owned socket/display remnants. Raw diagnostic retained.
-
-**AURORA-STREAM-STAGING implementation DONE on c47b5cd55:** ordinary solo
-Main samples Ember; Aurora binding normally receives samples only during an
-admitted expedition. The benchmark now supplies actual Main actor observations
-to its existing Aurora binding during staging and walking. The observation
-adapter is disclosed beside gravity staging; Main retains origin/teardown
-ownership. No expedition admission/state, scene fabrication, extra placements,
-wait extension or criteria change.
-
-**Next single action:** observe existing frozen acceptance on
-`c47b5cd550ba7843fac136d7de33e7c088d0e7fc`, driverPID363118/start ticks107457944,
-verified live at launch. Raw/status/abort: retained `streaming-adapter/`.
-Fresh import600s, then selected Aurora27/default152/combat19/Ember24 at original
-300s each; stop first failure. Checkpoint closure remains gated on actual passes.
-
-All ten phase gates remain open. Q4 startup stays parked after the bounded
-five-file source review found no justified construction candidate. Latest
-paired gameplay checkpoint remains b6af782; Linux manager package is4141d94.
+All ten phase gates remain open. Q4 startup stays parked without a justified
+construction candidate. Latest paired gameplay checkpoint remains b6af782;
+Linux package is4141d94. No Windows build is needed for benchmark/Linux-only work.
 
 ## Working constraints
 

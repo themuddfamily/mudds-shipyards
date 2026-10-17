@@ -165,6 +165,12 @@ floor support, both sampled endpoint visits, and at least
 A short selected smoke requires positive sampled movement and retains
 `representative_pass=false` and `performance_budget_pass=null`.
 
+Focused functional acceptance passed on `c47b5cd55`: Aurora27, original
+default152, combat19 and Ember24 assertions, each within its original300s cap.
+The Aurora45s sample physically walked258.008m, visited both endpoints and
+observed actual generated terrain/lookout support; paused Escape cleanup passed.
+[Recorded result and limits](history/ROADMAP_DELIVERIES.md#aurora-coastal-walking-benchmark--done-on-c47b5cd55).
+
 The independent consolidated fixture mode is
 `KETH_BENCHMARK_TEST_AURORA_SURFACE=1`. After importing the clean checkout,
 run it headlessly with Dummy audio under an external 300-second supervisor:

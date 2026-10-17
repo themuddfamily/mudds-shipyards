@@ -582,3 +582,53 @@ socket/display remnants. Raw:
 `/srv/mudds-work/aurora-coastal-acceptance-results-20261017/staging-diagnostic/`.
 Next separate repair is existing Main Aurora observer/binding use in runner
 staging,30 minutes maximum; no waits/physics/acceptance relaxation or fabrication.
+
+## Aurora coastal walking benchmark — DONE on c47b5cd55
+
+The production runner now selects `aurora_surface_walk_route`. Its actual Main
+Player walks the existing authored coast/lookout points with held input. Main's
+real Aurora streaming binding receives actual actor samples through a disclosed
+benchmark observation adapter; normal solo cadence otherwise samples Ember.
+Main retains origin and teardown ownership. One initial placement and the
+production-policy gravity adapter are disclosed; no sampled actor placement,
+expedition admission or manufactured surface fixture.
+
+Frozen source `c47b5cd550ba7843fac136d7de33e7c088d0e7fc`, pinned Godot4.7.1,
+fresh cold import exit0. Existing consolidated fixture selections all exit0
+without diagnostics at unchanged300s caps: Aurora27, default152, combat19,
+Ember24 assertions; exact catalog markers agree. Aurora sampled258.008029656252m
+in the focused45s path, visited both endpoints once, and recorded325 sampled
+generated-terrain and230 authored-lookout floor observations with continuous
+support, controls, world identity and9.8m/s² gravity. JSON round trips and
+rejection mutations passed. Paused Escape restored original gravity before
+Player exit and released inputs/cursor. Ember retained135.647768914234m sampled
+walking and both endpoints. Earlier compile/staging failures remain above.
+
+The implementer additionally ran unchanged Python record/collector files:
+`python -m pytest -q tools/performance/test_benchmark_record_validator.py tools/performance/test_native_benchmark_record_collector.py`,
+15 passed,6 subtests passed in0.10s; output retained in agent tool transcript,
+not a separate raw log. No unchanged rerun was needed.
+
+All11,873 tracked files, exact index, engine and320 post-import cache files
+remained unchanged through focused acceptance and independent final review.
+All38 recorded process identities were independently absent; network then
+display lanes free. Closure reports no owned socket/display remnants; observed
+engine environments use headless/Dummy, private profiles and optional Git writes
+disabled. All48 injected XDG/TMP directories remain0700. Initial review wrongly
+applied0700 to Godot-created descendants; corrected to private ancestors/injected
+directories, without runtime rerun or mode changes, in retained review-note.
+
+Raw successful run and review:
+`/srv/mudds-work/aurora-coastal-acceptance-results-20261017/streaming-adapter/`.
+Aurora log SHA256:
+`702cda8c2ebb811409c0d52cdc94a210183ca0929342c76f50b672bddfe8b75a`.
+Both final clean author/acceptance worktrees removed (434,453,684 logical bytes);
+all earlier clean acceptance checkouts also removed. Raw failures/profiles remain.
+
+This is a functional staged benchmark capability. Schema1, original two-route
+default, full3,600-frame/60s warmup and18,000-frame/600s sample floors remain.
+Selected smoke remains representative=false/performance-budget=null. Full timed
+Aurora benchmark, native hardware, canonical travel/rewards/save, expedition
+cadence, shared visits, package execution and full matrix remain NOT_RUN for this
+delivery. Benchmark-only changes require no new gameplay checkpoint. All phase
+gates remain open.
