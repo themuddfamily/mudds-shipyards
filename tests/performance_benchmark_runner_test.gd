@@ -526,6 +526,10 @@ func _test_live_range_combat() -> void:
 	var round_trip_errors := RUNNER.validate_selected_diagnostic_report(round_trip, selection)
 	_check(round_trip_errors.is_empty(), "saved combat JSON round trip validates: " + "; ".join(round_trip_errors))
 	var progress := (report.scenarios[0] as Dictionary).get("scenario_progress", {}) as Dictionary
+	var staged := (report.scenarios[0] as Dictionary).get("deterministic_inputs", {}) as Dictionary
+	print("PERFORMANCE_BENCHMARK_RANGE_COMBAT_STAGING: ", JSON.stringify(staged))
+	_check(bool((staged.get("staging_reticle", {}) as Dictionary).get("target_intersection", false)),
+		"combat stages an unobstructed production reticle ray onto the real target")
 	print("PERFORMANCE_BENCHMARK_RANGE_COMBAT_PROGRESS: ", JSON.stringify(progress))
 	_check(not RUNNER.validate_report(report).is_empty() and not report.representativeness.representative_pass and report.representativeness.performance_budget_pass == null,
 		"combat selection cannot grant full-protocol or performance acceptance")

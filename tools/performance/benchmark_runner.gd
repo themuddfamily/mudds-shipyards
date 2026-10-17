@@ -168,6 +168,7 @@ class BenchmarkRangeCombat extends Node:
 	var maximum_shot_gap := 0.0
 	var maximum_hit_gap := 0.0
 	var valid := true
+	var first_shot := {}
 	var totals := {"projectiles": 0, "shots": 0, "hits": 0, "damage_events": 0, "destructions": 0, "reuses": 0}
 	var sample := {"projectiles": 0, "shots": 0, "hits": 0, "damage_events": 0, "destructions": 0, "reuses": 0}
 
@@ -199,6 +200,16 @@ class BenchmarkRangeCombat extends Node:
 	func _on_shot(request: ShotRequest, result: Dictionary) -> void:
 		if request.source_entity != ship:
 			return
+		if first_shot.is_empty():
+			var collider: Variant = result.get("collider")
+			var hit_target: Variant = result.get("target_entity")
+			first_shot = {
+				"origin": [request.origin.x, request.origin.y, request.origin.z],
+				"direction": [request.direction.x, request.direction.y, request.direction.z],
+				"status": String(result.get("status", &"")),
+				"collider_path": String(collider.get_path()) if collider is Node else "",
+				"target_id": String(hit_target.get_meta("target_id", &"")) if hit_target is Node else "",
+			}
 		var command := ship.get_last_ship_command()
 		valid = valid and request.source_id == source_id and source_id > 0 \
 			and request.sequence > last_sequence and request.weapon_id == GameFlow.TORRENT_COMBAT_WEAPON_ID \
@@ -264,7 +275,7 @@ class BenchmarkRangeCombat extends Node:
 			"source_id": source_id, "source_instance_id": ship.get_instance_id(),
 			"target_instance_id": target.get_instance_id(), "adapter_instance_id": adapter.get_instance_id(),
 			"authority_instance_id": authority.get_instance_id(),
-			"identity_and_control_throughout": valid,
+			"identity_and_control_throughout": valid, "first_authoritative_shot": first_shot.duplicate(),
 			"totals": totals.duplicate(), "sampling": sample.duplicate(),
 			"maximum_sample_shot_gap_seconds": maxf(maximum_shot_gap, float(now - last_shot_at) / 1_000_000.0),
 			"maximum_sample_hit_gap_seconds": maxf(maximum_hit_gap, float(now - last_hit_at) / 1_000_000.0),
@@ -999,7 +1010,10 @@ static func _stage_scenario(
 			return {"staging_valid": false, "staging_error": "registered production Torrent/range target unavailable"}
 		var marker := (target.get_parent() as Node3D).to_global(target.get_meta("base_position") as Vector3)
 		game.active_ship = ship
-		ship.global_transform = Transform3D(Basis.IDENTITY, marker + Vector3(0.0, 0.0, 35.0))
+		# DRONE-01 shares x=-13 with the station launch gantry's SignalMast
+		# at z=-66. Approach from the exterior side so neither the camera's
+		# reticle ray nor the converging muzzle rays encounter that mast first.
+		ship.global_transform = Transform3D(Basis.looking_at(Vector3.BACK, Vector3.UP), marker - Vector3(0.0, 0.0, 35.0))
 		ship.velocity = Vector3.ZERO
 		player.set_control_enabled(false)
 		player.set_camera_active(false)
@@ -1012,11 +1026,17 @@ static func _stage_scenario(
 		game.audio.set_on_foot(false)
 		# Settle the production chase arm, then align its real centre ray using
 		# ship translation only. Target, adapter, health and camera stay authored.
-		for _index in 12:
+		var camera_settled := false
+		for index in 120:
 			await tree.physics_frame
 			await tree.process_frame
 			if input_guard.aborted:
 				return {"staging_valid": false, "staging_error": "benchmark aborted"}
+			if index >= 11 and ship.get_current_chase_camera_rotation_lag_degrees() <= 0.01:
+				camera_settled = true
+				break
+		if not camera_settled:
+			return {"staging_valid": false, "staging_error": "production chase camera did not settle"}
 		var camera := ship.get_camera()
 		var direction := camera.project_ray_normal(camera.get_viewport().get_visible_rect().size * 0.5).normalized()
 		var ray_point := camera.global_position + direction * (marker - camera.global_position).dot(direction)
@@ -1024,8 +1044,29 @@ static func _stage_scenario(
 		ship.velocity = Vector3.ZERO
 		await tree.physics_frame
 		await tree.process_frame
+		# Verify the same read-only reticle query used by HeroShip before any
+		# weapon input or measurement. Obstruction is a staging failure, never
+		# permission to move a target or bypass the production combat path.
+		direction = camera.project_ray_normal(camera.get_viewport().get_visible_rect().size * 0.5).normalized()
+		var query := PhysicsRayQueryParameters3D.create(camera.global_position,
+			camera.global_position + direction * ship._get_weapon_targeting_distance(),
+			HeroShip.WEAPON_AIM_MASK, [ship.get_rid()])
+		query.collide_with_areas = true
+		query.collide_with_bodies = true
+		var reticle_hit := ship.get_world_3d().direct_space_state.intersect_ray(query)
+		var collider: Variant = reticle_hit.get("collider")
+		var target_visible: bool = collider == target
 		return {
-			"staging_valid": not input_guard.aborted, "actor": "production TorrentInterceptor and LocalShipInputSource",
+			"staging_valid": not input_guard.aborted and target_visible,
+			"staging_error": "production reticle ray does not intersect DRONE-01" if not target_visible else "",
+			"staging_reticle": {
+				"origin": [camera.global_position.x, camera.global_position.y, camera.global_position.z],
+				"direction": [direction.x, direction.y, direction.z],
+				"target_base": [marker.x, marker.y, marker.z],
+				"target_intersection": target_visible,
+				"collider_path": String(collider.get_path()) if collider is Node else "",
+			},
+			"actor": "production TorrentInterceptor and LocalShipInputSource",
 			"route_source": "live_exterior_range_destroyed_target_reuse", "target_id": "DRONE-01",
 			"global_rng_seed": _scenario_seed(scenario_name), "start_transform": _transform_record(ship.global_transform),
 			"sequence": "held local fire; one-second destruction presentation; production reset after authoritative destruction",

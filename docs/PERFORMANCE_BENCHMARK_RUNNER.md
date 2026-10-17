@@ -41,9 +41,14 @@ out-of-cabin runs fail completion.
 
 
 The select-only `torrent_range_combat_reuse_route` stages the registered
-production Torrent at the exterior range facing existing `DRONE-01`. Staging
+production Torrent 35 metres beyond existing `DRONE-01`, facing back toward
+the target from the exterior side. This keeps the station launch SignalMast
+behind the target rather than between the camera and target. Staging
 settles the production chase arm and translates the ship to align its actual
-camera centre ray with the live target's base marker. It retains authored target
+camera centre ray with the live target's base marker, then requires the same
+read-only production reticle collision query to hit that target before timing.
+The staging ray/collider and first actual authority-shot status/target remain in
+the existing report for diagnosing blocked aim. It retains authored target
 motion, health, collision, adapter and Main's `LiveCombatAuthority`. During
 recording it offers normal local `fire` Input through the piloted ship, with no
 ship, camera or target transform writes. After an authoritative hit actually
