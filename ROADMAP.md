@@ -159,14 +159,14 @@ failures and the bounded inconclusive comparison probe remain recorded in
 Both owned implementation/acceptance checkouts and large scratch duplicates are
 removed; exact published artifacts and raw failures are retained.
 
-### HULK-REVISIT-INPUT — IN PROGRESS implementation
+### HULK-REVISIT-INPUT — IN PROGRESS qualification
 
 - **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Extend the accepted home route through ordinary reboarding, a genuinely new
   streamed HULK and interior traversal, then refuse a second cell at its breaker.
   This adds executable release qualification of existing gameplay.
 - **Owner/boundary:** one implementation agent in clean base452d5c202 checkout;
-  root review/runtime/integration. Existing native driver/read-only observer/
+  root review/runtime/integration; candidate5010ef932. Existing native driver/read-only observer/
   startup allowlist and their two focused tests only. No gameplay/geometry/
   control/timer changes without a separately reproduced defect.
 - **Frozen contract:** accepted final home frame5960 is only3.375m from live
@@ -196,10 +196,13 @@ removed; exact published artifacts and raw failures are retained.
 - **Budget/stop:**45–90 minutes implementation; checks/export/one300s route
   separately. Stop first concrete failure or estimate boundary. No rescue,
   automatic second attempt, cap relaxation, new validator or framework.
-- **Next action:** resume bounded implementation with the corrected ordinary
-  departure/lift-completion stage, observer freshness/selector and focused tests;
-  root freezes exact candidate/acceptance before one guarded route.
-  Runtime source contract is DONE; actual revisit/package checks are NOT_RUN.
+- **Next action:** root runs clean candidate import/observer parse/privacy, safe
+  Linux export/direct and archive startup, then one cumulative300s revisit route.
+  Candidate50 focused Python checks pass; all six original route classes remain
+  unchanged. Actual revisit is NOT_RUN; frozen acceptance includes full home
+  prefix, actual lift completion, newer stream/IDs and fresh breaker dispatch.
+  Live diagnostics scan newly appended complete lines; final whole-log scan
+  remains, avoiding repeated full scans of the prior35MB trace during flight.
 - **Close:** exact result/source/build, commit/push, checkpoint if qualified and
   cleanup. Disk reload/OS interruption, shared/endurance/hardware remain open.
 
