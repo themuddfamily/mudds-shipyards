@@ -4,7 +4,21 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest Linux package: `4141d94dd` — 2026-10-17
+## Latest paired checkpoint: `2f687110e` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-2f68711.x86_64),
+[archive](../builds/linux/MuddsShipyards-2f68711-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-2f68711-linux-notes.txt) match the new
+Windows EXE/ZIP checkpoint. Clean exports, direct/archive strict startup,
+Windows-payload strict startup under Linux and packaged privacy174 pass with
+zero diagnostics; all1515 Windows/Linux PCK entries match. Source/cache guards
+and owned cleanup pass. Normal HULK arrival qualified61.306s on retained game150/
+corrected driver60; these new checkpoint bytes have startup/privacy/artifact
+acceptance, not another full HULK route pass. Breaker/reward/home/revisit,
+current full matrix and platform/device/performance/audio/signing gates stay open.
+[Exact scope and proof](history/ROADMAP_DELIVERIES.md#hulk-ordinary-arrival--done-checkpoint2f687110e).
+
+## Earlier Linux recovery package: `4141d94dd` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-4141d94.x86_64),
 [archive](../builds/linux/MuddsShipyards-4141d94-linux-x86_64.tar.gz) and

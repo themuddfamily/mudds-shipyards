@@ -8,10 +8,11 @@ open.** This file contains the active delivery only. The
 [Completed deliveries](docs/history/ROADMAP_DELIVERIES.md) retain their recorded
 source, checks, failures and limitations. Moving them does not close requirements.
 
-Latest Windows checkpoint: **b6af782**, with [notes](builds/windows/MuddsShipyards-b6af782-notes.txt).
-Latest Linux package: **b41c3cc**, with [notes](builds/linux/MuddsShipyards-b41c3cc-linux-notes.txt),
-including first-install and update interruption recovery. The last paired gameplay checkpoint is
-b6af782, including the browser Disconnect improvement. Current full matrix: NOT_RUN;
+Latest Windows checkpoint: **2f68711**, with [notes](builds/windows/MuddsShipyards-2f68711-notes.txt).
+Latest matching Linux package: **2f68711**, with [notes](builds/linux/MuddsShipyards-2f68711-linux-notes.txt).
+Includes HULK objective correction and optional ordinary-input arrival automation.
+Earlier installed Guided/recovery results keep their exact source-specific scopes.
+Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
 replace it. Native Windows execution and human review remain owner-excluded
 mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
@@ -77,14 +78,11 @@ b41c3cc, and managed installed Guided3/3. See
 [completed deliveries](docs/history/ROADMAP_DELIVERIES.md) for exact proof/limits.
 These do not close their broad parents or the ten phase gates.
 
-**Latest closed task: SANDBOX-SETTLE-FACING — FAILED qualification.** The one
-original300s trial reached recovery_walk after all54 waypoints/eight initial
-sorties/crash/recall/regeneration, but did not finish recovery/reuse. Local mouse
-correction worked without early waypoint admission; full acceptance failed.
-Candidate7cb633d52 withheld, raw retained, owned processes/display closed and
-clean disposable worktrees removed.
-[Result](docs/history/ROADMAP_DELIVERIES.md#sandbox-settle-facing--qualification-failed-candidate-withheld).
-No automatic retry or further pacing investigation. Convoy/Q4 also remain parked.
+**Latest closed task: HULK-ARRIVAL-INPUT — DONE arrival only.** Corrected driver
+passes61.306s on retained150dbb1 game; fresh paired checkpoint2f68711 passes
+startup/privacy/artifact checks. Breaker/reward/home/revisit remain separate.
+[Result and exact limits](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinary-arrival--done-checkpoint2f687110e).
+Sandbox, Convoy and Q4 remain parked at their recorded failures; no automatic retries.
 
 ## ROADMAP-SPLIT — ongoing planning rule
 
@@ -131,145 +129,39 @@ when their dependencies are known; it must not become another giant planning loo
 - **Close:** retain actual result/source/raw; remove owned disposable checkout.
   Failure ends this card; any repair needs a separate named defect card.
 
-## HULK-ORDINARY-CONTRACT — DONE definition
+## HULK arrival — DONE; next child is breaker interaction
 
-Read-only inspection on88fc84a34 found the exact gap: there is no ordinary-input
-HULK journey driver. Existing regression stages flight, berth reservation/occupancy,
-craft pose and Player exit; later fringe/rebase checks also reposition the Player
-and invoke the breaker directly. Preserve the completed continuous interior walk.
+The broad ordinary HULK journey was split into arrival, interior breaker, and
+return/revisit. Arrival now works through the existing OS-input runner's
+`--route hulk-arrival`: normal Guided prelude, physical streamed-dock flight,
+strict landing, neutral shutdown and actual supported shelf exit. No staging.
 
-Ordinary breaker dispatch already exists: Player's `interact` edge → GameFlow
-`_on_interact_requested` → current facing/proximity candidate →
-`HulkPowerBreaker.interact` → activity's actual4m reach check/3s restoration.
-No missing runtime dispatch or gameplay defect is established by this inspection.
-The native runner currently accepts only Guided/Sandbox-walk/Sandbox; its startup
-allowlist and read-only observer also have no HULK mode. No existing full ordinary
-HULK command can honestly be claimed. Definition stops here; no engine run.
+Actual qualification: driver60c86ce8a/game150dbb1,61.306s, original300s cap,
+NATIVE_HULK_ARRIVAL_OK, zero diagnostics. Integrated main2f687110e and fresh
+Windows/Linux checkpoint2f68711 have strict startup/privacy/artifact acceptance.
+The new checkpoint bytes were not separately flown to HULK. Exact checks,
+source identities, earlier failures, supported correction, cleanup and limitations
+are in [completed deliveries](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinary-arrival--done-checkpoint2f687110e).
+Clean author/acceptance worktrees and duplicate scratch builds removed; raw kept.
 
-Three dependent children replace the broad “finish HULK” assignment below. All
-link to [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys). Only the
-arrival candidate has failed qualification; later cards must freeze their exact invocation
-after their dependency exists. These are scenario capabilities, not phase completion.
-
-### HULK-ARRIVAL-INPUT — source arrival DONE; checkpoint in progress
-
-- **One result:** the existing native-input release runner can fly Torrent from
-  its actual yard berth to the streamed HULK dock and exit onto the shelf.
-- **Source/owner:** root integration, `hulk_arrival_implement` implementation,
-  base785442ee3 (runtime unchanged from88fc84a34). Ownership: existing
-  `tools/release/run_native_sortie.py`, `scripts/diagnostics/native_sortie_observer.gd`
-  and explicit mode allowlist in `scripts/game/startup_loader.gd`; focused existing
-  runner tests only as needed. Gameplay changes require a reproduced defect first.
-- **Boundary:** add select-only HULK arrival using ordinary menu/keyboard/mouse
-  inputs and default sampler. Observer remains read-only. No pose/velocity writes,
-  direct reserve/occupy/landing calls, timing overrides, new validator or framework.
-  Breaker, reward, return/revisit remain the next children. Fresh title startup
-  requires the normal Guided range/interceptor prelude before RETURN_TO_YARD
-  permits landing. This mode must complete that prelude before diverting to HULK;
-  no saved-ready fixture or bypass is implied.
-- **Proof:** intended new command is `python3 tools/release/run_native_sortie.py
-  builds/linux/<exact-clean-build>.x86_64 --route hulk-arrival --output <new-run-dir>`.
-  This command exists on the retained candidate branch only. Require actual physical departure, streamed
-  destination, production landing contract accepted for `cinder_hulk_dock`, berth
-  occupant equal to the flown craft, normal shutdown/Interact exit, unseated
-  controllable Player on actual HULK collision. Exact mode/marker must be added
-  explicitly; generic Guided success cannot stand in for these observations.
-- **Budget/stop:**60–90m implementation; separately cold import/export/startup and
-  one arrival run using the runner's existing300s cap. Stop at first unsupported
-  control/actual failure or estimate boundary; record exact blocker before repair.
-  Keep existing Guided/Sandbox behavior and caps unchanged.
-- **Actual outcome:** corrected driver60c86ce8a passes full arrival in61.306s on
-  exact retained150dbb1 ELF, original300s cap; NATIVE_HULK_ARRIVAL_OK, zero
-  diagnostics. Normal Guided objectives, physical HULK transit/strict dock,
-  neutral shutdown and grounded shelf exit all observed. Actor/berth identities,
-  source/index/cache/engine guards pass; all9 recorded identities absent and lanes
-  free. Earlier failed candidates remain history, not erased by this pass.
-- **Integrated:** main2f687110e contains the reviewed five-file capability/fixes;
-  existing Guided/Sandbox classes and OS/process helpers AST-identical. Actual
-  successful run is recorded for driver60c86ce8a/game150dbb1; it is not a run of
-  the forthcoming checkpoint bytes.
-- **Next action:** observe existing clean-source checkpoint workflow on
-  `2f687110e200820e69b659aa4d26210e7a6f211d`, outer driver PID386958/start
-  ticks107905778. Raw/stage owners/status/independent abort:
-  `/srv/mudds-work/hulk-arrival-checkpoint-results-20261017/`.
-  Clean checkout `/srv/mudds-work/hulk-prelude-preserve-check-20261017`.
-  Import600s, Windows/Linux export930s each, strict Windows-payload/Linux direct/
-  archive startup330s each, packaged privacy300s. Do not relaunch on polling
-  timeout; first actual failure stops. Finish inventory/template/archive checks,
-  EXE/ZIP/notes and matching Linux artifacts in repository builds before close.
-  Native Windows/GPU/input/audio/human gates remain unperformed.
-
-### HULK-PRELUDE-INPUT — DONE diagnosis
-
-- **Parent/result:** HULK arrival. Identify one concrete input-handling defect
-  behind the observed interceptor failure, or record the precise missing fact.
-  Diagnosis alone does not deliver gameplay or qualify HULK.
-- **Owner/source:** root, retained candidate150dbb1a7 and actual
-  `observer-type-fix/arrival/game.log`. Existing Guided3/3 remains accepted on its
-  recorded original driver; do not rerun it unchanged.
-- **One hypothesis:** the new HULK subclass mouse acknowledgement wrapper changes
-  the inherited prelude's steering behavior. Compare actual frame/attitude/shot
-  observations and exact subclass/base output handling. No new engine run, wider
-  combat redesign, statistics framework or constructor profiling.
-- **Proof/budget/stop:**15 minutes read-only. End with a demonstrated input
-  difference tied to actual observations and its file owner, or an explicit
-  inconclusive result/park. A counterfactual input replay cannot establish that
-  the coupled real flight would pass. No automatic second probe.
-- **Result:** on actual frozen observations1726→1727, base Pilot requests mouse
-  `(7,-9)` twice; HULK wrapper requests `(7,-9)` then suppresses to`(0,0)` while
-  back vector is unchanged. Source confirms wrapper postprocesses inherited
-  Guided output, contrary to the preserved-prelude boundary. This two-snapshot
-  counterfactual proves output difference, not actual dispatched event history
-  or why opponent damage stayed0. Stop diagnosis here; no second probe.
-- **Close/next:** separate bounded correction below; no engine run in diagnosis.
-
-### HULK-PRELUDE-PRESERVE — source qualification DONE
-
-- **Parent/result:** HULK arrival. Keep the ordinary Guided prelude's inherited
-  input commands unchanged; apply HULK-specific mouse acknowledgement only after
-  the explicit RETURN_TO_YARD diversion to HULK transit.
-- **Owner/source:** root integration; candidate150dbb1a7; only existing
-  `tools/release/run_native_sortie.py` and its focused Python tests. Do not edit
-  gameplay, observer, authored tuning, targets, waits or300s cap.
-- **Proof:** compare base/subclass command output before diversion, including
-  the retained unchanged-facing pair. Existing focused driver tests pass; then
-  one actual full arrival qualification using exact retained150dbb1 native ELF
-  with the corrected separately hashed Python driver. Require original full
-  HULK arrival criteria; prelude alone cannot close arrival.
-- **Budget/stop:**15m implementation/review; separate one300s actual route plus
-  cleanup. Stop first actual failure; no automatic further pacing correction.
-  This is one supported correction, not an unlimited tuning investigation.
-- **Implementation DONE:**60c86ce8a28d7704230a7246a133abae09566d9c, root-reviewed
-  exact two-file diff;24 focused Python tests pass. Corrected driver SHA256
-  `1778949eeb0d6b3fd263eab9760877fcbc20800986e21744437bb345d3e8d028`.
-  Retained150dbb1 ELF SHA256
-  `a582a6557fe507a3d107f0dfbc029fc4a0a1975550aae385b6b8c837f30803b4`;
-  archive member independently matches original tested bytes/mode.
-- **Result:** actual route PASS61.306s; accepted full HULK arrival criteria,
-  zero diagnostics/owned cleanup. Raw:
-  `/srv/mudds-work/hulk-prelude-preserve-results-20261017/`.
-  No extra probe or flight retry. Capability integrated on2f687110e; checkpoint
-  workflow above is the only remaining action for this bounded delivery.
-- **Close:** record actual result, integrate/push only working capability; retain
-  failed raw/candidate on failure, clean owned worktrees. A working arrival still
-  requires the planned fresh Windows checkpoint before closing this delivery.
-
-### HULK-BREAKER-INPUT — GATED on arrival
+### HULK-BREAKER-INPUT — READY implementation
 
 - **One result:** extend the same run from actual disembarkation through all
   authored interior spaces; ordinary Interact engages the breaker and earns one
   cell. Repeated Interact must not earn another.
-- **Owner/boundary:** root; same runner/read-only observer. Reuse authored route
+- **Owner/boundary:** root, integrated runtime2f687110e; existing native runner,
+  read-only observer and startup allowlist, plus focused existing tests. Reuse authored route
   and production interaction/reward owners. No additional Player placement, direct
   breaker call, timer acceleration or replacement reward ledger.
-- **Proof:** extend the successful arrival mode on its frozen successor, retain
+- **Proof:** intended select-only `--route hulk-breaker` (not implemented yet),
+  distinct `NATIVE_HULK_BREAKER_OK`, on its frozen successor. Retain
   identity/support/continuous movement checks and actual Interact dispatch; observe
   committed `hulk_auxiliary_power_cell` count exactly1 and restored bus lighting.
   A memory-only check does not establish disk persistence or OS interruption.
 - **Budget/stop:**45–90m implementation; original existing runner cap remains300s
   for this cumulative route. Freeze exact mode/command before execution. If that
   contract cannot fit or an interaction fails, record it; do not silently extend.
-- **Next action after dependency:** append held-input interior walking and an
+- **Next action:** append held-input interior walking and an
   actual released-then-pressed Interact at the live panel. Commit/build/cleanup
   with observed result; full home/revisit remains gated.
 

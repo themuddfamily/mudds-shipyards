@@ -884,3 +884,60 @@ repeated default Guided route or second diagnostic probe. Stop diagnosis.
 Next separately budgeted HULK-PRELUDE-PRESERVE corrects only wrapper scope, proves
 base-output preservation, and permits one full actual arrival trial with unchanged
 150dbb1 ELF/300s cap. No gameplay/observer/physics/criteria changes justified.
+
+## HULK ordinary arrival — DONE; checkpoint2f687110e
+
+Corrected external driver60c86ce8a28d7704230a7246a133abae09566d9c, SHA256
+`1778949eeb0d6b3fd263eab9760877fcbc20800986e21744437bb345d3e8d028`,
+passes the full scoped HULK arrival in61.306s using original300s cap/345s outer
+cleanup and exact retained150dbb1 native ELF, SHA256
+`a582a6557fe507a3d107f0dfbc029fc4a0a1975550aae385b6b8c837f30803b4`.
+Normal title/yard walk/boarding/Guided range/interceptor prelude, physical flight
+to streamed HULK, production strict cinder_hulk_dock landing, neutral shutdown
+and ordinary Interact exit all observed. NATIVE_HULK_ARRIVAL_OK; same Player/
+Torrent/HULK/berth, valid occupied lease/token and exact parked pose, actual
+Exterior/DockShelf support, grounded controllable/unseated/unpiloted exit.
+No actor writes, direct reserve/occupy/landing calls, rescue, timing override or
+shortened criteria. Native private X11/Dummy/default sampler; zero diagnostics.
+Source/index/engine/absent-cache guards pass; all9 recorded identities independently
+absent, owned display/authority/socket closure and lanes free.24 focused Python
+tests on corrected candidate pass. Existing Guided/Sandbox/OS-input/process helper
+classes/functions AST-identical; only route admission/dispatch changes existing
+run/main functions. One two-snapshot diagnosis and one supported correction,
+then one real flight trial; earlier failed attempts remain retained above.
+
+Integrated capability/fixes on main2f687110e200820e69b659aa4d26210e7a6f211d.
+Fresh clean-source Windows EXE/ZIP/notes and matching Linux ELF/archive/metadata/
+notes now in repository builds/windows and builds/linux, stem
+`MuddsShipyards-2f68711`. Both exports and cold import exit0. Windows embedded
+payload under Linux engine strict startup, native Linux direct and archive-
+extracted strict startup each exit0 with exactly one STARTUP_MENU_READY_OK and
+zero diagnostics. Packaged startup/privacy passes174. All1515 embedded PCK entries
+match across Windows/Linux; Windows PE .text matches pinned stock template. Linux
+archive is exact six-member contract (one directory/five files), including exact
+ELF/manager bytes/modes. ZIP CRC and exact EXE/notes members pass. Initial manual
+archive check confused regular-file/member counts; corrected to existing contract
+without rebuild/contract change, limit retained in raw.
+
+Published EXE SHA256
+`a1aa06a73dbaf165b50b2f6656451e71f4ad7bc13ca6d9070ab70d543d3d46f8`; ZIP
+`2cb247f769e4ed6bb10f798babd16625915dab667fbcfc9e16a9224c6433e9a3`; ELF
+`f08087bb2bf6fbc45fca83bda2d3dee25b8a41bc2447eea25147102a69bb075b`; Linux archive
+`0ced925003b3f15f10192da9376af04a5134dcef3a1e645e11d2eb5e49c49f84`.
+Published byte identities independently rechecked. Source/index/engine/cache guards
+pass within declared import/export scopes; all45 checkpoint process identities
+independently absent, lanes free and recorded owned socket set without remnants.
+Raw route `/srv/mudds-work/hulk-prelude-preserve-results-20261017/`; raw checkpoint
+`/srv/mudds-work/hulk-arrival-checkpoint-results-20261017/`. Clean author/acceptance
+worktrees and duplicate scratch ZIP/ELF removed after identity review; exact old
+ELF remains reconstructible from retained matching archive. Git branches/raw
+failures/protected published artifacts preserved. No hosted CI or Downloads copy.
+
+Player-visible checkpoint includes earlier auxiliary-bus objective correction;
+new arrival automation is select-only. The actual HULK route pass is for driver60/
+game150, not a new journey run on2f checkpoint bytes. Fresh checkpoint startup/
+privacy/artifact acceptance does not qualify new packaged HULK flight, breaker/
+reward/home/revisit, disk interruption, multiplayer, hardware or whole phase.
+Native Windows execution/human review remain owner-excluded mandatory gates and
+factual NOT_RUN; native GPU/device/audible/signing/final release gates stay open.
+Next bounded child is HULK-BREAKER-INPUT; all ten phase gates remain open.
