@@ -34,43 +34,37 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 - Schedule only the next 3–5 concrete deliveries when their contracts are known.
   Uninstantiated backlog templates are not scheduled work or measurable progress.
 
-## Current task: HULK[continuous interior traversal] — acceptance FAILED
+## Active repair: HULK-FIX[first-landing shelf penetration]
 
-**Result:** implementation `a97723864` replaces waypoint teleports with ordinary
-held movement on the existing 73.713m six-point interior route. The first full
-300s-cap check stops at waypoint1: the Player stays at (-96,21.80265,-450).
-Shelf support, waypoint0 and the static doorway ray pass. **52 checks pass,
-one fails**; continuous walking remains unaccepted. No runtime fix is claimed.
+**Observed defect:** on `7f2056d22`, held raw/sampled forward input is nonzero,
+Player is unpaused ON_FOOT and processing normally, but actual hulk DockShelf
+slide contacts report upward normals, 0.199348m penetration and zero travel.
+The first movement leg fails after52 passing checks. The contact diagnostic is
+complete; no input/menu fix or geometry change is justified.
 
-| Step | Result |
-| --- | --- |
-| Implement | DONE; existing test uses Begin Shift, one shelf placement, normal input and live capsule/hulk support checks. |
-| Verify | FAILED; first attempted movement leg stalls. Original caps, route and collision retained. |
-| Close this attempt | DONE; raw failure retained, guards/owned teardown verified, clean checkout removed. |
+**Owner/files:** `hulk_shelf_floor_repair`, Player controller and existing
+`player_step_up_assist_test.gd`; root independent review/integration/checks.
+**Hypothesis/candidate:** prevent descending first-landing penetration through
+the existing bounded vertical overlap recovery. Its current admission excludes
+first landings and all slide contacts. Preserve pre-descent lift cap, tangent
+position, headroom/wall/slope rejection and authored snap; no generic rescue.
+A focused actual-shelf regression must demonstrate the causal path before
+acceptance. Do not treat this candidate as a proven fix.
 
-[Actual result and scope](docs/history/ROADMAP_DELIVERIES.md#hulk--continuous-interior-traversal-acceptance-failed).
-Original flight/dock setup is staged; this check cannot qualify the full packaged
-expedition. Latest playable remains b6af782.
+| Step | State / finish line | Estimate |
+| --- | --- | --- |
+| Implement/review | IN PROGRESS; smallest safe recovery extension plus actual first-landing/normal-walk regression in existing test. | 30–60 min |
+| Verify | GATED; focused Player regression then unchanged full hulk route, each original300s, headless/Dummy. Exit0, original success markers, zero diagnostics, stable guards/teardown. Stop at first failure. | 10–20 min |
+| Package/close | GATED on actual runtime fix; fresh clean Windows checkpoint EXE/ZIP/notes, focused and strict silent startup checks, remove clean checkout, commit/push. | 20–40 min |
 
-## Next bounded task: HULK-DIAG[shelf stall contact]
-
-**Hypothesis:** physical capsule contact blocks movement; source review found
-no camera/menu gating in enabled on-foot Player input. Contact is not proven.
-**Owner/files:** root, same existing `tests/abandoned_hulk_loop_test.gd`.
-**Deliverable:** identify the actual rejecting owner from one stalled leg.
-**Estimate:** 10–20 min instrumentation; one original-cap run plus review 10 min.
-
-1. Add a first-stall log: raw/sampled input, active physics/embodiment, velocity,
-   slide collider path/normal/depth/travel. No new framework or changed gameplay.
-2. Run the same full suite once at its original 300s cap, headless/Dummy, guarded
-   clean source/private profiles and existing process supervisor.
-3. Stop after the trace identifies collision, suppression or one missing fact;
-   record a concrete repair before any changed route, geometry or further run.
-
-**Next single action:** review and run the instrumented failure branch once.
-Read-only contact capture is implemented; acceptance has not been rerun. No unchanged
-retry, teleport rescue, wider doorway, altered gravity or longer deadline.
-The broader hulk salvage/revisit requirement remains open.
+**Next single action:** review candidate commit. No engine is running.
+Checkout `/srv/mudds-work/hulk-continuous-walk-20261017` is retained for this
+active repair; remove it on closure. Original and traced failures remain at
+`/srv/mudds-work/hulk-continuous-walk-results-20261017/` and `contact-trace/`.
+Root independently verified traced source/index/cache645/engine, actual isolated
+engine environment and all4 owned process/socket/lane closure. Full hulk
+ordinary walking and canonical packaged expedition remain unaccepted.
+Latest playable remains b6af782 until a new checkpoint is actually validated.
 
 ## Working constraints
 

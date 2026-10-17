@@ -281,3 +281,23 @@ checkout removed; donor cache retained. Raw failure:
 `/srv/mudds-work/hulk-continuous-walk-results-20261017/`.
 Log SHA256 `d45d22811f783986ba1ffe5b3b06668d4ececb78ebb59006c7667ddc1b9b41ee`.
 No runtime change or checkpoint follows this failed acceptance.
+
+## HULK-DIAG · Shelf stall contact (DONE; route still FAIL)
+
+On `7f2056d227d8b5ad4a53c4ccfe78f30ce3c0a91c`, one instrumented unchanged-cap
+run again passes52/fails1. Terminal held sample proves raw and sampled forward
+(0,-1), control/physics/can_process true, unpaused, ON_FOOT0, remote drive false.
+All three slide contacts identify actual hulk Exterior/DockShelf, upward normals,
+depth0.1993484497m, travel0, forward remainder -0.009444m. This identifies physical
+shelf penetration, not menu/input suppression; onset is not captured.
+
+No geometry, route, placement, deadline or physics behavior was changed by this
+trace. Existing bounded descending-floor recovery is the next production seam
+to inspect; its admission currently excludes first landing and all slide contacts.
+A candidate must reproduce onset safely rather than rescue arbitrary overlaps.
+Root verifies11873 source/index/cache645/engine before/after, actual isolated
+headless/Dummy environment, all4 owned identities absent and socket/lane closure.
+Raw `.../hulk-continuous-walk-results-20261017/contact-trace/`; log SHA256
+`6be10102c9220d20a34ef4bf38b80e0ac3aacf22045b5b5354479c59e58786e9`.
+Clean checkout is retained only for the named next runtime repair; no checkpoint
+or continuous-walk acceptance is claimed.
