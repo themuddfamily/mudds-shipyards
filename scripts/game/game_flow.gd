@@ -20119,9 +20119,10 @@ func _advance_cinder_structure_scan(
 	if bool(advanced.get("accepted", false)) and _game_flow_reward_authority != null:
 		_cinder_scan_checkpoint_elapsed += maxf(delta, 0.0)
 		if completed or _cinder_scan_checkpoint_elapsed >= 0.5:
+			# Failed writes use the same periodic cadence as successful saves;
+			# completion still forces its durable checkpoint before payment.
+			_cinder_scan_checkpoint_elapsed = 0.0
 			advanced["persistence_result"] = _save_cinder_scan_session(binding)
-			if bool((advanced.persistence_result as Dictionary).get("accepted", false)):
-				_cinder_scan_checkpoint_elapsed = 0.0
 	if completed:
 		var reward := (
 			_request_cinder_structure_scan_reward(binding)

@@ -15,9 +15,11 @@ class FaultFilesystem extends UserDataFilesystem:
 	var refused_reward := false
 	var fail_published_reward_sync := false
 	var _reward_just_published := false
+	var refused_write_attempts := 0
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
 		if reject_all:
+			refused_write_attempts += 1
 			return ERR_UNAVAILABLE
 		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 		if reject_discovery and document is Dictionary and str(document.get("commit", {}).get("id", "")).begins_with("cinder-scan-discovery-"):
@@ -521,12 +523,27 @@ func _press_start_fresh(game: GameFlow) -> Dictionary:
 
 func _progress_recovery() -> void:
 	var path := "user://scan_progress_%d.json" % Time.get_ticks_usec()
-	var first := await _game(path, UserDataFilesystem.new())
+	var filesystem := FaultFilesystem.new()
+	filesystem.reject_rewards = false
+	var first := await _game(path, filesystem)
 	await _board(first)
 	var binding := await _binding(first)
 	first.active_ship.global_position = first.call("_cinder_authored_frame_to_world", Scan.APPROACH_ANCHOR)
 	_button(first, 2).emit_signal("pressed")
-	first.call("_advance_cinder_structure_scan", 1.5, first.call("_capture_cinder_actor_sample"))
+	first.call("_advance_cinder_structure_scan", 0.5, first.call("_capture_cinder_actor_sample"))
+	var saved_before_refusal := _scan_recovery_artifacts(path)
+	filesystem.reject_all = true
+	for _sample in 6:
+		first.call("_advance_cinder_structure_scan", 0.125, first.call("_capture_cinder_actor_sample"))
+	_check(filesystem.refused_write_attempts == 1 and _scan_recovery_artifacts(path) == saved_before_refusal
+		and is_equal_approx(binding.get_activity_snapshot(&"structure_scan").elapsed_seconds, 1.25)
+		and _receipts(first) == 0,
+		"failed periodic scan checkpoints keep the half-second retry cadence, live progress and unchanged disk without payment")
+	filesystem.reject_all = false
+	first.call("_advance_cinder_structure_scan", 0.125, first.call("_capture_cinder_actor_sample"))
+	_check(_scan_recovery_artifacts(path) == saved_before_refusal,
+		"recovered storage waits for the next ordinary checkpoint interval without a per-tick retry")
+	first.call("_advance_cinder_structure_scan", 0.125, first.call("_capture_cinder_actor_sample"))
 	var progress := binding.get_activity_snapshot(&"structure_scan")
 	_check(progress.state_id == &"active" and is_equal_approx(progress.elapsed_seconds, 1.5), "ordinary HUD Start and actual production sample accrue genuine scan progress")
 	await _dispose(first)
