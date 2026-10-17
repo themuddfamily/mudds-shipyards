@@ -117,8 +117,8 @@ The actual gap is one missing selectable benchmark route, not missing Rime
 terrain, survey gameplay or native performance evidence. Existing surface walks
 cover Ember and Aurora. Two cards separate executable route acceptance from
 artifact publication; they are not two new gameplay features. Unknown work is
-not added to this batch merely to fill a task count. Task 1 implementation is
-in progress; no engine checks or checkpoint have started.
+not added to this batch merely to fill a task count. Task 1 implementation is saved; its one focused qualification attempt is
+starting. The checkpoint has not started.
 
 ### RIME-BENCH-ROUTE — IN PROGRESS
 
@@ -159,11 +159,17 @@ in progress; no engine checks or checkpoint have started.
   Full benchmark still requires at least 3,600 frames/60 s warmup and
   18,000 frames/600 s measurement. Focused diagnostics do not qualify those floors,
   native GPU timing, hardware, real audio, canonical travel or survey rewards.
-- **Next action:** implementation agent works from clean base `6c7f279c0` in
-  `/srv/mudds-work/rime-benchmark-route-20261018`, branch
-  `work/rime-benchmark-route-20261018`, on only the three assigned files. It
-  commits a clean candidate without engine runs; root then reviews source and
-  freezes the four commands before running them.
+- **State/source:** clean candidate `a8f563e39ae062613f16225be462d80e44515cbd`,
+  only the three assigned files changed. Static review/diff check pass; no runtime
+  pass yet. Mode counts frozen before launch: Rime 33, default 152, Ember 24,
+  Aurora 27. Rime's full-path primitive samples 90 s to cover a complete sampled
+  circuit after partial warmup; old mode durations and public floors are unchanged.
+- **Next action:** execute the preflight-reviewed reused runner
+  `/srv/mudds-work/rime-benchmark-results-20261018/run.py` against that exact
+  source in `/srv/mudds-work/rime-benchmark-route-20261018`. Ordered stages are
+  import 600 s, Rime/default/Ember/Aurora 300 s each, stopping on first failure.
+  Adjacent `abort.py` verifies the owned supervisor identity. Main excludes the
+  candidate until accepted; preserve exact source/raw if withheld.
 - **Close:** record actual source/result, commit/push candidate. PASS unlocks the
   checkpoint; failure ends this card and does not silently extend implementation.
 
