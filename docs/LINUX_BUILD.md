@@ -4,42 +4,44 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local checkpoint: `e87c326a4` — 2026-10-17
+## Latest local checkpoint: `7f9627e5c` — 2026-10-17
 
-The [executable](../builds/linux/MuddsShipyards-e87c326.x86_64),
-[archive](../builds/linux/MuddsShipyards-e87c326-linux-x86_64.tar.gz) and
-[notes](../builds/linux/MuddsShipyards-e87c326-linux-notes.txt) use clean source
-`e87c326a4b975fc6069887a29904bc219cc14e69`. The unchanged ELF and frozen
-external caller pass three consecutive fresh-profile Guided sorties in
-51.406/50.927/51.932s, each within 300s, with 91 neutral 60Hz shutdown frames,
-zero diagnostics and independently checked input/process cleanup.
+The [executable](../builds/linux/MuddsShipyards-7f9627e.x86_64),
+[archive](../builds/linux/MuddsShipyards-7f9627e-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-7f9627e-linux-notes.txt) use clean source
+`7f9627e5ce4a551e20a9528415521bfb9eb3ab28`. Ship construction reuses script
+declaration names within each live-reference scan while retaining every
+instance's current values/getters and dynamic property hooks. Six matched
+actual-tree scans preserve identical referenced identities and reduce median
+scan CPU 266.566→229.747ms (13.8%). No overall startup or native-hardware speed
+improvement is claimed.
 
-The opt-in read-only fleet observer and ordinary OS-input Sandbox route reach
-all 54 station waypoints and complete Arrow, Jovian, Zenith, Halyard, Bulwark
-and Cinder Cargo launch/strict-home-land/shutdown/exit cycles. Full Sandbox is
-**FAILED / NOT_COMPLETED**: the Bomber approach hits the authored Aft crew
-ToolWall. The failed run records 302.806s including cleanup; Bomber, Light,
-crash, on-foot recovery and regenerate/reuse remain unqualified. Local fixtures
-and source geometry do not replace a complete actual route. Player-facing
-content and authored gameplay physics/tuning are unchanged.
+Source batch/winding/privacy checks pass. All 1,515 Windows/Linux payload
+entries match by path, size and SHA-256. Windows payload through Linux, direct
+Linux and archive-extracted strict startup each exit 0, exactly one
+`STARTUP_MENU_READY_OK`, zero diagnostics. Actual Windows payload also passes
+batch 35, winding 141 and privacy 159 assertions without diagnostics. Archive ELF
+bytes/mode and Windows ZIP CRC/member bytes pass. Details and logs remain in
+`artifacts/checkpoint-7f9627e/`.
 
-Tested caller source is `482f981ef`, SHA-256
-`e6a10f98519a25fa6aad11ea2faf6eb8525176f1e5347498539928a7c15d5a62`.
-Caller-only fixes after clean export leave exported resources unchanged.
-All 1,515 Windows/Linux payload entries match by path, size and SHA-256.
-Windows payload through Linux, direct Linux and archive-extracted startup each
-exit 0 with exactly one `STARTUP_MENU_READY_OK` and zero diagnostics. Actual
-Windows payload passes 159 privacy checks; 17 focused Python tests pass.
-Archive bytes/mode pass. Raw evidence remains in `artifacts/checkpoint-e87c326/`.
+The unfiltered 1,045-suite matrix is **RUNNING** on frozen `7f9627e5c`, run
+`20261017T031340Z-7f9627e`, three workers, original deadlines and strict
+source/cache guards. Import and initial suites pass; no full result exists yet.
+Tests use Dummy audio and headless or private Xvfb x11/software Vulkan.
+Full current-source normal-controls scenarios remain NOT_RUN. Settings/re-entry,
+full Gate C, current-source full qualification and all ten phase gates remain
+open. Native Windows/GPU/controller/audible/human acceptance remains NOT_RUN;
+hosted CI stays disabled. Fresh Windows EXE/ZIP and Linux ELF/archive remain in
+this repository's builds.
 
-Tests use Dummy audio, headless or private Xvfb with explicit x11 and dummy
-rendering. Native Windows/GPU/controller/audible/human acceptance remains
-NOT_RUN; Settings/re-entry, full Gate C, current-source full regression and
-all ten phase gates remain open. Hosted CI stays disabled. The fresh Windows
-EXE/ZIP and Linux ELF/archive remain local to this repository's builds.
-
-Earlier `c26e2c13c` retains its own five-branch walk (125.421s) and one Guided
-compatibility pass (49.150s), as recorded in its source-specific notes.
+Earlier `e87c326a4` with caller `79eb3c6ea` demonstrates all 54 original station
+waypoints, all eight craft cycles, a real Light terminal crash, production recall
+and exact occupied-berth regeneration. Full Sandbox still FAILS its unchanged
+300s cap during the return walk before physical reuse (306.175s including
+cleanup); raw zero-diagnostic/fully-cleaned runs remain in
+`artifacts/checkpoint-e87c326/`. The same ELF's prior Guided 3/3 passes remain
+scoped to their frozen earlier caller. These results do not qualify this new
+source. Earlier `c26e2c13c` retains its own five-branch walk and one Guided pass.
 
 ## Earlier published checkpoint: `fbfcf6c6a` — 2026-10-11
 

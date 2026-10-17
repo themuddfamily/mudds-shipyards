@@ -1,0 +1,24 @@
+Mudd's Shipyards — Ship construction CPU checkpoint 7f9627e — 2026-10-17
+Clean exported source: 7f9627e5ce4a551e20a9528415521bfb9eb3ab28
+Engine: pinned official Godot 4.7.1 a13da4feb; stock release templates.
+
+Delivered change:
+Ship construction reuses script declaration names within each live-reference scan. Every instance still reads its own getters/current values, and instance property hooks still resolve separately. The cache ends with that scan. The scene traversal, protected node/mesh identities, authored geometry, collision and gameplay remain intact.
+
+Actual validation:
+- Six alternated old/new scans of the actual fully built game tree in one process have identical referenced identity sets in every pair. Median scan CPU: 266.566ms -> 229.747ms (13.8% lower). This is a modest construction-substep saving, not an overall startup or native-hardware benchmark. Cold source parsing and warm source loading were kept separate; no cold/warm overall comparison is promoted.
+- Existing source batch regression passes 35 assertions, fleet surface-winding 141, early CLI privacy 159. The batch fixture now protects different Mesh values held by two instances of the same Script and a changed Mesh on the next scan; live scalar getters still run per instance. Source batch log retains its root-user harness warning; source pass does not mean every source log was diagnostic-free.
+- Actual Windows embedded PCK through Linux passes the same batch 35, winding 141 and privacy 159 assertions, each exit 0 / one OK marker / zero diagnostics. Independent production review approves the scan-local metadata cache; no object values or cross-scan state are cached.
+- All 1,515 Windows/Linux embedded entries match by path, size, SHA-256. Read-only PE .text matches trusted stock template 989b3abeb77ca4499b24b262aabde23ef114fad69eac682037838ac73cba4128.
+- Three strict --startup-check probes each exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics: Windows PCK through Linux 25.494868s, direct Linux 21.474435s, archive-extracted Linux 21.523569s. Archive-extracted ELF bytes/executable mode pass. These times do not demonstrate an overall startup-speed improvement.
+- Fresh unfiltered --mode all matrix is RUNNING on the exact frozen source, three workers, private Xvfb x11/software Vulkan/Dummy audio, original suite deadlines and strict source/cache guards. Run 20261017T031340Z-7f9627e, artifacts/test-matrix/20261017T031340Z-7f9627e/; console artifacts/full-matrix-7f9627e-console.log. No terminal/full-pass claim. The last complete matrix remains the earlier 636814418 result (1,027 PASS / 18 FAIL across 1,045 suites), not qualification for this source.
+- Source/profile/package logs and inventories: artifacts/checkpoint-7f9627e/. All automated Godot uses Dummy audio, headless or private Xvfb with explicit x11. No owner-desktop interaction, audible test or native Windows execution. Hosted CI stays disabled.
+
+Earlier source-scoped core playthrough progress:
+The e87c326a4 package and external caller79eb3c6ea (SHA-256 a63a3dd9c35d91f9985e5cf4d3b731c081a1a2ecd13e9178fc66e2532f61c991) now demonstrate all 54 original station waypoints in order, all eight required craft cycles before the crash, a real Light terminal impact at 119.899m/s normal closing speed, same-player production recall and exact leased regeneration. All 5,537 observations retain the same player/all nine craft identities/default samplers/authored tuning. The run FAILS the unchanged 300s deadline during the on-foot return (306.175s including cleanup); physical reuse is incomplete. Earlier caller-only fixes clear the freight bollards, narrow corners, Cargo hull and Aft tool wall, acknowledge native turns and avoid redundant straight stops/backtracking. All original waypoint radii, gameplay timings, physics and required outcomes remain. Raw runs/caller snapshots: artifacts/checkpoint-e87c326/. Eighteen focused caller tests and independent reviews pass. No unchanged failed long retry or easier substitute scenario is accepted. Earlier e87 Guided 3/3 (51.406/50.927/51.932s) retains its own exact ELF and frozen external caller e6a10f98519a25fa6aad11ea2faf6eb8525176f1e5347498539928a7c15d5a62; neither that result nor the scoped Sandbox progress qualifies this new source.
+
+Open acceptance:
+Full Sandbox, Settings/re-entry, full Gate C, current-source complete regression and all ten phase exit gates remain open. Full normal-controls scenarios on this new package are NOT_RUN. Native Windows remains NOT_RUN under antivirus hold; graphical/native GPU performance, controller, audible and human acceptance remain NOT_RUN, including owner-excluded gates. Unsigned local development checkpoint. EXE/ZIP/notes stay in this repository's builds/windows/; no Downloads publication.
+
+ELF SHA-256: fb11d4aaa6fffe9dce10375779ba706e910ad7ad43d6c00d6efbecb163d84e36
+Archive SHA-256: 28db2788e20389ac7c29b9eaf915ea5d5bdc6e781f25419a09f27c8b107f93ea
