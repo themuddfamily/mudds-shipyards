@@ -10,6 +10,8 @@ var _spawn := Vector3.ZERO
 var _parked := Transform3D.IDENTITY
 var _tuning := {}
 var _elapsed := 0.0
+var _sandbox := false
+var _fleet_initial := {}
 
 
 func on_startup_completed(main: Node) -> void:
@@ -22,6 +24,11 @@ func on_startup_completed(main: Node) -> void:
 	_spawn = _player.global_position
 	_parked = _ship.global_transform
 	_tuning = _sortie_tuning()
+	_sandbox = "--native-sortie-observer=sandbox-walk" in OS.get_cmdline_args()
+	if _sandbox:
+		for craft: HeroShip in _game.get_flyable_ships():
+			_fleet_initial[str(craft.get_ship_id())] = {
+				"pose": craft.global_transform, "tuning": _craft_tuning(craft)}
 
 
 func _v(value: Vector3) -> Array:
@@ -29,12 +36,16 @@ func _v(value: Vector3) -> Array:
 
 
 func _sortie_tuning() -> Dictionary:
+	return _craft_tuning(_ship)
+
+
+func _craft_tuning(craft: HeroShip) -> Dictionary:
 	return {"canopy": _game.canopy_motion_time, "boarding": _game.boarding_motion_time,
-		"exit": _game.disembarking_motion_time, "cooldown": _ship.weapon_cooldown,
-		"maximum_speed": _ship.maximum_speed, "thrust": _ship.thrust_acceleration,
-		"brake": _ship.brake_acceleration, "drag": _ship.passive_drag,
-		"response": _ship.throttle_response, "yaw": _ship.yaw_speed_degrees,
-		"assist": _ship.flight_assist_strength, "mouse": _ship.mouse_sensitivity}
+		"exit": _game.disembarking_motion_time, "cooldown": craft.weapon_cooldown,
+		"maximum_speed": craft.maximum_speed, "thrust": craft.thrust_acceleration,
+		"brake": craft.brake_acceleration, "drag": craft.passive_drag,
+		"response": craft.throttle_response, "yaw": craft.yaw_speed_degrees,
+		"assist": craft.flight_assist_strength, "mouse": craft.mouse_sensitivity}
 
 
 func _physics_process(delta: float) -> void:
@@ -55,7 +66,7 @@ func _physics_process(delta: float) -> void:
 	var shot := _game.get_last_player_shot_result()
 	var capture: Dictionary = _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
 	var contract := _ship.get_landing_contract_report()
-	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify({
+	var observation := {
 		"frame": Engine.get_physics_frames(), "phase": GameFlow.Phase.keys()[_game.phase],
 		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
 		"player_id": _player.get_instance_id(), "ship_id": _ship.get_instance_id(),
@@ -89,4 +100,30 @@ func _physics_process(delta: float) -> void:
 		"source_enabled": source.is_enabled_owner() if source != null else false,
 		"application_focused": source.get("_application_focused") if source != null else false,
 		"transition_busy": _game.get("_transition_busy"),
-	}))
+	}
+	if _sandbox:
+		observation["sandbox"] = _sandbox_observation()
+	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
+
+
+func _sandbox_observation() -> Dictionary:
+	var fleet: Dictionary = {}
+	for craft: HeroShip in _game.get_flyable_ships():
+		var key := str(craft.get_ship_id())
+		if not _fleet_initial.has(key):
+			continue
+		var initial: Dictionary = _fleet_initial[key]
+		var source := craft.get_local_input_source()
+		fleet[key] = {
+			"ship_id": craft.get_instance_id(), "piloted": craft.is_piloted(),
+			"destroyed": craft.is_destroyed(),
+			"parked_exact": craft.global_transform.is_equal_approx(initial.pose),
+			"default_sampler": source != null and craft.get("_command_source") == source and source.get_input_provider() == null,
+			"tuning_unchanged": _craft_tuning(craft) == initial.tuning,
+		}
+	var doors: Array = []
+	var door := _game.world.get_node(^"HabitatSpine/MainAccess") as StationDoor
+	doors.append({"position": _v(door.global_position), "open": door.is_open(),
+		"candidate": _game.station_interaction_candidate == door})
+	return {"fleet": fleet, "doors": doors, "grounded": _player.is_on_floor(),
+		"walk_mouse": _player.mouse_sensitivity}

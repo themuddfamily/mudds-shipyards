@@ -2,6 +2,8 @@
 """Fly the embedded Linux game with OS XTest keys/mouse on an owned Xvfb.
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
+Use --route sandbox-walk for the five-branch on-foot prerequisite only; it does
+not qualify the full Sandbox fleet/crash/reuse scenario. The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
 """
@@ -399,6 +401,140 @@ class Pilot:
         return keys, dx, dy, fire
 
 
+class SandboxWalkPilot(Pilot):
+    """Five station branches through ordinary controls; fleet/crash gate stays open.
+
+    These centre lines follow the authored decks and existing freight handoff
+    samples. They are goals for OS walking, never poses written into the game.
+    """
+    WAYPOINTS = (
+        ('Central', [0, 0, 15.5]),
+        ('starboard_arm', [43, 0, 15.5]),
+        ('habitat_approach', [46, 0, 15.5]),
+        ('habitat_threshold', [50, 0, 15.5]),
+        ('habitat_corridor', [59.15, 0, 15.5]),
+        ('Habitat', [67.65, 0, 15.5]),
+        ('habitat_return_corridor', [59.15, 0, 15.5]),
+        ('habitat_return_threshold', [50, 0, 15.5]),
+        ('habitat_return_approach', [46, 0, 15.5]),
+        ('starboard_return', [43, 0, 15.5]),
+        ('central_return', [0, 0, 15.5]),
+        ('port_arm', [-33, 0, 15.5]),
+        ('arrow_aft_clearance', [-33, 0, 22]),
+        ('registry_gallery', [-48, 0, 22]),
+        ('registry_handoff', [-48, .38, 24]),
+        ('freight_bypass_east', [-49, .38, 26]),
+        ('freight_bypass_west', [-51.5, .38, 26]),
+        ('freight_approach', [-53, .38, 27.5]),
+        ('freight_connector', [-53, .38, 33.5]),
+        ('Freight', [-53, .38, 40]),
+        ('freight_return_connector', [-53, .38, 33.5]),
+        ('freight_return_approach', [-53, .38, 27.5]),
+        ('freight_return_west', [-51.5, .38, 26]),
+        ('freight_return_east', [-49, .38, 26]),
+        ('registry_return_handoff', [-48, .38, 24]),
+        ('registry_return_gallery', [-48, 0, 22]),
+        ('arrow_return_clearance', [-33, 0, 22]),
+        ('port_return', [-33, 0, 15.5]),
+        ('central_aft_turn', [0, 0, 15.5]),
+        ('aft_spine', [0, 0, 39]),
+        ('aft_approach', [0, 0, 46.3]),
+        ('Aft', [0, 0, 51]),
+        ('aft_stair_base', [-5.7, 0, 51]),
+        ('aft_stair_top', [-5.7, 4.2, 60.8]),
+        ('aft_upper_floor', [-5.2, 4.2, 64.2]),
+        ('aft_upper_turn', [-5.15, 4.2, 68.3]),
+        ('fleet_bridge', [6, 4.2, 68.3]),
+        ('fleet_approach', [13, 4.2, 68.3]),
+        ('fleet_trunk_forward', [22, 4.2, 68.3]),
+        ('fleet_trunk_mid', [37, 4.2, 68.3]),
+        ('Fleet Dock', [52, 4.2, 68.3]),
+    )
+    FLEET = frozenset(('torrent_provisional', 'arrow_provisional', 'jovian_provisional',
+                      'zenith_b7_observed', 'halyard_new_design', 'bulwark_heavy_gunship',
+                      'cinder_cargo_hauler', 'cinder_long_range_bomber', 'cinder_light_interceptor'))
+
+    def __init__(self):
+        super().__init__()
+        self.index = 0
+        self.fleet_ids = None
+        self.player_id = None
+        self.previous = None
+        self.visited = []
+        self.door_opened = False
+
+    def update(self, s, now):
+        self.frame = s['frame']
+        sandbox = s.get('sandbox')
+        require(sandbox is not None, 'sandbox-walk observer available in this package')
+        fleet = sandbox['fleet']
+        require(set(fleet) == self.FLEET, 'complete nine-craft fleet observed')
+        ids = {key: craft['ship_id'] for key, craft in fleet.items()}
+        if self.fleet_ids is None:
+            self.fleet_ids, self.player_id = ids, s['player_id']
+        require(self.fleet_ids == ids and self.player_id == s['player_id'], 'same world fleet and player')
+        require(not s['seated'] and all(not c['piloted'] and not c['destroyed'] and c['parked_exact']
+                and c['default_sampler'] and c['tuning_unchanged'] for c in fleet.values()),
+                'walk preserves parked fleet and authored controls')
+        if not self.phases or self.phases[-1] != s['phase']:
+            self.phases.append(s['phase'])
+        if self.previous is not None:
+            frames = s['frame'] - self.previous['frame']
+            require(frames > 0, 'fresh physics observation')
+            require(norm(sub(s['player'], self.previous['player'])) <= 9.2 * frames / 60 + 1.5,
+                    'continuous ordinary walking without recovery teleport')
+        self.previous = s
+        keys = set()
+        dx = 0
+        if self.stage == 'boot' and s['menu_ready']:
+            self.enter('begin_shift', s)
+            self.tap('e', now)
+        elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP':
+            self.enter('walk_station', s)
+        elif self.stage == 'walk_station':
+            require(s['control_enabled'] and s['phase'] == 'APPROACH_SHIP', 'ordinary on-foot free access')
+            name, target = self.WAYPOINTS[self.index]
+            off = sub(target, s['player'])
+            horizontal = [off[0], 0, off[2]]
+            distance = norm(horizontal)
+            if distance <= .30 and abs(off[1]) <= .65 and sandbox['grounded']:
+                self.visited.append({'waypoint': name, 'frame': self.frame, 'player': s['player']})
+                self.index += 1
+                print(json.dumps(self.visited[-1]), flush=True)
+                if self.index == len(self.WAYPOINTS):
+                    require(self.door_opened, 'ordinary Habitat door interaction observed open')
+                    self.enter('complete', s)
+                    self.result = {'scope': 'five-branch ordinary station walk only',
+                                   'completion_marker': 'NATIVE_SANDBOX_WALK_OK',
+                                   'gate_c_sandbox': 'NOT_COMPLETED',
+                                   'remaining': ['eight craft launch/land/exit', 'deliberate crash',
+                                                 'on-foot recovery', 'regenerate and reuse'],
+                                   'visited': self.visited, 'same_player_id': self.player_id,
+                                   'same_fleet_ids': self.fleet_ids, 'phases': self.phases}
+            else:
+                direction = unit(horizontal)
+                yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+                dx = round(max(-60, min(60, yaw * .5 / sandbox['walk_mouse'])))
+                if abs(yaw) < .08:
+                    keys.add('w')
+                    if distance > 3: keys.add('Shift_L')
+                for door in sandbox['doors']:
+                    # Never send blind E while a ship or workstation is offered.
+                    # The readonly candidate proves production selected this door.
+                    if door['open']:
+                        self.door_opened = True
+                    elif door['candidate'] and norm(sub(door['position'], s['player'])) < 3:
+                        self.tap('e', now)
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+        return keys, dx, 0, False
+
+
 def stop(process):
     if process and process.poll() is None:
         process.terminate()
@@ -410,12 +546,13 @@ def stop(process):
         process.wait()
 
 
-def run(binary, output):
+def run(binary, output, route="guided"):
+    require(route in ("guided", "sandbox-walk"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
     result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
-              'human_review': 'NOT_RUN', 'input_route': 'OS XTest → X11 → Godot Input → default sampler'}
+              'human_review': 'NOT_RUN', 'route': route, 'input_route': 'OS XTest → X11 → Godot Input → default sampler'}
     start = time.monotonic()
     def abort(_signal, _frame): raise TimeoutError('independent abort/deadline')
     old_signals = {sig: signal.signal(sig, abort) for sig in (signal.SIGALRM, signal.SIGTERM, signal.SIGINT)}
@@ -462,7 +599,8 @@ def run(binary, output):
                 desktop = Desktop(env['DISPLAY'], str(auth))
                 result['input_helper_pid'] = desktop.process.pid
                 args = [str(binary),'--audio-driver','Dummy','--display-driver','x11',
-                        '--rendering-driver','dummy','--disable-render-loop','--native-sortie-observer']
+                        '--rendering-driver','dummy','--disable-render-loop',
+                        '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer=sandbox-walk']
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
                 game = subprocess.Popen(args,cwd=binary.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
@@ -484,7 +622,7 @@ def run(binary, output):
                 if not window: raise RuntimeError('no X11 window owned by exact game PID')
                 result['window'] = hex(window)
                 desktop.focus(window)
-                pilot = Pilot()
+                pilot = Pilot() if route == "guided" else SandboxWalkPilot()
                 selector = selectors.DefaultSelector()
                 selector.register(game.stdout,selectors.EVENT_READ)
                 pending = b''
@@ -556,10 +694,12 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk'), default='guided',
+                        help='sandbox-walk covers station traversal only; full Sandbox gate remains open')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))
-    result=run(binary,args.output.absolute())
+    result=run(binary,args.output.absolute(),args.route)
     print(json.dumps(result,indent=2))
     return 0 if result['success'] and result.get('inputs_released') and result['game_reaped'] and result['xvfb_reaped'] and result['input_helper_reaped'] else 1
 
