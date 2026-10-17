@@ -941,7 +941,9 @@ func _walk_hulk_route(
 			if delta.length() <= WALK_STOP_DISTANCE:
 				Input.action_release(&"move_forward")
 			else:
-				camera_yaw.rotation.y = atan2(-delta.x, -delta.y)
+				# Authored disembarkation can rotate the Player root. Aim in the
+				# world frame used by these targets, without rotating the body.
+				camera_yaw.global_rotation.y = atan2(-delta.x, -delta.y)
 				Input.action_press(&"move_forward")
 			var before_physics_tick := Engine.get_physics_frames()
 			await physics_frame

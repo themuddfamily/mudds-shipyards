@@ -55,8 +55,10 @@ reverted and its exact patch/log preserved. Player runtime bytes are unchanged.
 | Verify | READY; full existing hulk suite original300s, headless/Dummy, exit0 plus `ABANDONED_HULK_LOOP_TEST_OK`, no diagnostics and guarded inputs/teardown. Stop at first failure. | 5–10 min |
 | Close | GATED; record real path/outcome, remove clean checkout, commit/push. Test-only change needs no new gameplay checkpoint. | 10 min |
 
-**Next single action:** commit/review exact staging diff, sync owned checkout and
-run one guarded full hulk check. All five remaining authored targets, capsule
+**Next single action:** run the committed authored-exit/world-yaw correction.
+The first authored-exit run was deliberately aborted (exit143) after review
+found local-camera aiming assumed an unrotated Player; its clean closure and
+frozen inputs verify. World-yaw aiming fixes that test error without body writes. All five remaining authored targets, capsule
 support/control and post-walk reward/persistence cases stay required. Initial
 flight/docking are staged, so full packaged expedition remains open regardless.
 No engine running. Latest playable remains b6af782.
