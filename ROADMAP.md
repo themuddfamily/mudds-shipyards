@@ -106,25 +106,33 @@ absent, lanes free. Clean worktrees and duplicate ELF removed; raw evidence kept
 Old unjournaled orphan entries remain refused; other kill cuts/power loss,
 desktop gameplay, hardware and full matrix stay unqualified. No Windows build.
 
-## Next bounded task: Cinder Convoy restore failure boundary
+## Cinder Convoy restore — static diagnosis stopped on missing position
 
-This is **diagnosis**, not a completed gameplay delivery. Parent:
-[BASE-DIAG](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls), exact existing
-`tests/cinder_convoy_session_save_restore_test.gd`. Original full-matrix result
-still exceeds300s after the legacy Reset fix; no unchanged retry is authorized
-merely to reproduce the timeout.
+**Original qualification remains FAIL at300s.** f85957f full matrix and the
+retained after-Reset run each contain only the engine banner/timeout; no passed
+assertion position was printed. Existing `_check` reports failures only and
+`_finish` prints the total. Recorded pass=0 does not prove zero checks ran.
+No raw receipt selects a restore/runtime culprit; do not infer one from retained
+save contents. Read-only review complete; no gameplay repair claimed.
+
+## Next bounded task: CONVOY-POSITION-PROBE
+
+This is one **diagnostic measurement**, not gameplay qualification. Parent:
+[BASE-DIAG](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls).
 
 | Field | Contract |
 | --- | --- |
-| Result | Identify the first unfinished restore boundary from retained actual logs and its production owner; name one actionable runtime hypothesis or the precise missing fact. |
-| Boundary | Read-only original suite, Cinder Convoy save/restore runtime seams and retained original result. No edits, engines, new test/validator families, timing/route reductions or broad activity audit. |
-| Proof | Exact source/log location and last completed/first incomplete original assertions; supported owner/cause distinction. Known generic Main construction cost alone is not a new repair candidate. |
-| Budget |15–20 min static evidence review, then stop; no engine probe in this task. |
-| Execution | IN PROGRESS; `convoy_restore_boundary` performs the bounded read-only review; root owns the next decision. |
-| Close | If evidence supports a concrete repair, schedule it separately with unchanged original300s acceptance and checkpoint. Otherwise record missing fact and stop; no repeated profiling without a new hypothesis. |
+| Result | Recover last completed check and first unfinished Main creation/retirement/restore boundary using actual elapsed/physics-frame traces. |
+| Boundary | Temporary print-only patch to existing `tests/cinder_convoy_session_save_restore_test.gd`, preserved raw; no changed route, assertions, conditions, waits, runtime, scene setup or extra awaits. No permanent validator/suite. |
+| Proof | One original300s headless/Dummy run on pinned c2ad94184 + exact declared trace patch; separate cold import600s. Capture original command/env, source/index/cache/engine/process/socket guards, exact timeout/failure/completion and trace. No fixed FPS. |
+| Budget |10–15 min trace preparation;600s import/300s probe caps separately; one probe only. |
+| Execution | IN PROGRESS; `convoy_restore_boundary` prepares trace-only checkout, root freezes/runs/interprets. |
+| Close | Stop first actual failure or original deadline; preserve actual result/trace then remove disposable checkout. A supported runtime repair is a separate card; generic known Main cost does not justify another profile. |
 
-**Next single action:** inspect the original retained Convoy restore failure and
-exact test seam under that bound. Do not rerun accepted package/benchmark checks.
+**Next single action:** inspect the temporary trace-only patch, freeze its exact
+hash and launch the single guarded probe. Raw:
+`/srv/mudds-work/convoy-position-probe-results-20261017/`.
+No engine launched yet. Do not rerun accepted package/benchmark checks.
 All ten phase gates remain open. Q4 startup remains parked without a justified
 construction candidate. Latest paired gameplay checkpoint remains b6af782;
 Linux package isb41c3cc.
