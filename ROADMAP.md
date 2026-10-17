@@ -95,19 +95,19 @@ disk/interruption and broader parent gates stay open.
 [Actual result, earlier failures and limits](docs/history/ROADMAP_DELIVERIES.md#hulk-home-return--done-checkpoint-ef67f3e).
 Sandbox, Convoy and Q4 remain parked at their recorded failures; no automatic retries.
 
-## Current batch — 0 accepted, 1 failed, 1 gated, 1 ready
+## Current batch — 0 accepted, 1 failed, 1 gated, 1 in progress
 
 This is a count of **two qualifications and one conditional package delivery**,
 not three new gameplay features or a project completion estimate. The departure
 repair is saved, but its one full-route attempt FAILED at the original deadline.
-No task is running. Task 3 is selected next; task 2 remains gated.
+Task 3 is IN PROGRESS on its selected clean source; task 2 remains gated.
 The 36 parent outcomes and all ten phase gates remain open.
 
 | Order / task | Kind / status | Observable finish | Work estimate; separate check allowance |
 | --- | --- | --- | --- |
 | 1. [HULK-REVISIT-DEPARTURE](#1-hulk-revisit-departure--failed-at-original-deadline) | Qualification; FAILED, candidate withheld | Return to a newly streamed HULK and prove its breaker refuses a second cell after the full home journey. | Preparation/review/closure 30–45 min; setup/export/startups up to 47 min, then one 300 s route plus 45 s supervisor cleanup allowance. |
 | 2. [HULK-REVISIT-CHECKPOINT](#2-hulk-revisit-checkpoint--gated-on-task-1) | Build delivery; GATED on task 1 PASS | Accepted source integrated and matching playable Windows/Linux packages, with accurate notes, published in repository builds. | Packaging/integration/closure 30–45 min; export/payload checks up to 26 min. |
-| 3. [EMBER-ABANDON-SOURCE](#3-ember-abandon-source--ready-independent-of-hulk) | Qualification; READY, independent of HULK | Physically abandon an Ember visit, reboard, fly home, dock and walk out. | Preparation/closure 30–45 min; cold import up to 600 s, route up to 7,200 s. |
+| 3. [EMBER-ABANDON-SOURCE](#3-ember-abandon-source--in-progress-one-attempt) | Qualification; IN PROGRESS, independent of HULK | Physically abandon an Ember visit, reboard, fly home, dock and walk out. | Preparation/closure 30–45 min; cold import up to 600 s, route up to 7,200 s. |
 
 **Priority review after task 1:** the original revisit attempt failed, its bounded
 repair was implemented, and the one changed-candidate qualification also failed.
@@ -204,13 +204,13 @@ If task 3 fails, close it FAILED and explicitly select the next bounded task.
   artifacts, remove the owned disposable clean checkout and duplicate scratch
   packages. Preserve exact published bytes, source refs and raw failures.
 
-### 3. EMBER-ABANDON-SOURCE — READY, independent of HULK
+### 3. EMBER-ABANDON-SOURCE — IN PROGRESS, one attempt
 
 - **Parent/result:** [WORLD-ABANDON](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Qualify one physical Ember ABANDON round trip: outbound flight, surface exit/
   abandon/reboard/ascent, physical home return/dock/walking exit.
-- **Owner/boundary:** root; freeze current clean integrated source in an owned
-  checkout before launch. No HULK prerequisite. Existing
+- **Owner/boundary:** root; clean integrated source `e85157b4d072a9f07a9764c429be20d2766faf81`
+  frozen in `/srv/mudds-work/ember-abandon-source-20261017`. No HULK prerequisite. Existing
   `tests/ember_transit_movement_soak.gd` ABANDON branch, Torrent and
   MemoryFilesystem only. Initial guided state/on-foot placement and short
   canopy/boarding timings are fixtures. Accepted completed-survey journey stays
@@ -226,10 +226,11 @@ If task 3 fails, close it FAILED and explicitly select the next bounded task.
   and route cap 7,200 s. This long existing journey is explicitly a qualification,
   not a two-hour implementation task. Do not split away required travel or shorten
   it to make the estimate look smaller. Stop at first failure or unchanged cap.
-- **Next action (selected by the priority review above):** freeze full
-  source/engine/runner identity and the existing
-  guarded invocation, use fresh private profiles and record an independent abort
-  path before launch. Reuse existing process supervisor; no new validator family.
+- **Next action:** launch and monitor the reviewed two-stage reused runner
+  `/srv/mudds-work/ember-abandon-source-results-20261017/run.py` with the exact
+  source above. Adjacent `abort.py` targets the verified owned supervisor. Fresh
+  private profiles, ordered lanes, exact31 completion and source/index/cache/engine
+  guards are retained. No other mode or retry is scheduled.
 - **Close:** record actual result/source/raw, commit/push and remove the owned
   disposable checkout. Failure ends this card. Packaged ABANDON acceptance and
   other WORLD-ABANDON requirements remain open even if this source run passes.
