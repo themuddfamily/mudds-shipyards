@@ -837,6 +837,7 @@ class HulkHomePilot(HulkBreakerPilot):
         self.reverse_walked = 0
         self.home_clearance_target = None
         self.home_clearance_staging = None
+        self.home_clearance_ready = None
         self.home_header_samples = []
         self.home_header_crossing = None
 
@@ -1081,10 +1082,29 @@ class HulkHomePilot(HulkBreakerPilot):
             off = sub(target, s['position'])
             distance = norm(off)
             dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            clearance_ready = True
+            if self.stage == 'home_approach' and self.home_clearance_ready is None:
+                # Staging settles position, but its inbound attitude can still
+                # point down. Thrust acts along that observed nose before the
+                # next mouse correction, so brake while aiming at home first.
+                direction = unit(off)
+                nose_pitch = math.degrees(math.asin(max(-1, min(1, -s['back'][1]))))
+                target_pitch = math.degrees(math.asin(max(-1, min(1, direction[1]))))
+                pitch_error = abs(nose_pitch - target_pitch)
+                # Half a degree permits the existing rounded mouse controller's
+                # ~.42 degree deadband without admitting the failed descent.
+                clearance_ready = align >= .9999 and pitch_error <= .5 and speed <= .01
+                if clearance_ready:
+                    self.home_clearance_ready = {
+                        'frame': self.frame, 'position': s['position'][:],
+                        'velocity': s['velocity'][:], 'speed_m_s': speed,
+                        'direction_alignment': align, 'nose_pitch_deg': nose_pitch,
+                        'target_pitch_deg': target_pitch, 'pitch_error_deg': pitch_error,
+                    }
             stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
             if distance < stopping+1.75: self.return_braking = True
             if speed <= .45 and distance > 1: self.return_braking = False
-            if distance <= 1 or self.return_braking: keys.add('Prior')
+            if not clearance_ready or distance <= 1 or self.return_braking: keys.add('Prior')
             elif align > .72: keys.add('w')
             if self.stage == 'home_flight' and distance <= 1 and speed <= .35:
                 require(self.hulk_departure is not None, 'released HULK departure precedes physical clearance staging')
@@ -1167,6 +1187,7 @@ class HulkHomePilot(HulkBreakerPilot):
                                'boarded': self.home_boarded, 'hulk_departure': self.hulk_departure,
                                'fade_retirement': self.fade_retirement, 'cinder_unload': self.cinder_unload,
                                'home_clearance_staging': self.home_clearance_staging,
+                               'home_clearance_ready': self.home_clearance_ready,
                                'home_header_crossing': self.home_header_crossing,
                                'home_arrival': self.home_arrival, 'home_exit': self.home_exit,
                                'home_walk_ticks': self.frame - self.home_exit['frame'],

@@ -2,6 +2,7 @@
 """Focused native-driver safety regressions; no Godot or display is launched."""
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -448,7 +449,23 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s.update(frame=s['frame']+600, position=[0, 2.7, -150], velocity=[0, 0, 0])
         pilot.update(s, s['frame']/60)
         self.assertEqual(pilot.stage, 'home_approach')
+        self.assertIsNone(pilot.home_clearance_ready)
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        self.face_home(s)
+        self.assertIn('w', pilot.update(s, s['frame']/60)[0])
+        self.assertIsNotNone(pilot.home_clearance_ready)
         return pilot, s
+
+    def face_home(self, s, pitch_error=0, yaw_error=0):
+        direction = native.unit(native.sub(s['hulk_home']['home']['approach'], s['position']))
+        pitch = math.asin(direction[1]) + math.radians(pitch_error)
+        yaw = math.atan2(direction[0], direction[2]) + math.radians(yaw_error)
+        s['back'] = [-math.sin(yaw)*math.cos(pitch), -math.sin(pitch),
+                     -math.cos(yaw)*math.cos(pitch)]
+        s['right'] = [-math.cos(yaw), 0, math.sin(yaw)]
+        s['up'] = [-math.sin(yaw)*math.sin(pitch), math.cos(pitch),
+                   -math.cos(yaw)*math.sin(pitch)]
 
     def home_across_header(self):
         pilot, s = self.home_at_staging()
@@ -588,6 +605,68 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(pilot.home_clearance_staging['speed_m_s'], 0)
         self.assertIsNone(pilot.home_header_crossing)
 
+    def test_home_clearance_waits_for_observed_attitude_and_settled_velocity(self):
+        pilot, s = self.home_in_flight()
+        # Retained failed route frames 5005/5006: arrival and then zero
+        # velocity, but the same nose remains 9.286 degrees down.
+        s = json.loads(json.dumps(s))
+        s.update(frame=5005,
+                 position=[-.355457872152328, 2.85557842254639, -150.746719360352],
+                 velocity=[.0643201246857643, -.0256182551383972, .144237756729126],
+                 back=[-.403144985437393, .161362916231155, -.900797545909882],
+                 up=[.044654157012701, .986627817153931, .156753361225128],
+                 right=[-.914046049118042, -.0229699686169624, .40495952963829],
+                 camera=[-6.84788227081299, 12.66379737854, -164.971878051758])
+        keys, _, _, _ = pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_approach')
+        self.assertIn('Prior', keys)
+        self.assertNotIn('w', keys)
+        self.assertIsNone(pilot.home_clearance_ready)
+        s = json.loads(json.dumps(s))
+        s.update(frame=5006, velocity=[0, 0, 0],
+                 camera=[-6.85218906402588, 12.6680374145508, -164.967407226562])
+        keys, _, _, _ = pilot.update(s, s['frame']/60)
+        self.assertIn('Prior', keys)
+        self.assertNotIn('w', keys)
+        self.assertIsNone(pilot.home_clearance_ready)
+        self.assertAlmostEqual(math.degrees(math.asin(-s['back'][1])), -9.285997, places=4)
+
+        for velocity, pitch_error, yaw_error in [
+            ([0, 0, .02], 0, 0),  # aligned but still moving
+            ([0, -.02, 0], 0, 0),  # aligned but descending
+            ([0, 0, 0], .6, 0),  # dot exceeds .9999; pitch is still unsafe
+            ([0, 0, 0], 0, 1),  # pitch is ready; direction is not
+        ]:
+            with self.subTest(velocity=velocity, pitch_error=pitch_error, yaw_error=yaw_error):
+                s = json.loads(json.dumps(s))
+                s.update(frame=s['frame']+1, velocity=velocity)
+                self.face_home(s, pitch_error=pitch_error, yaw_error=yaw_error)
+                keys, _, _, _ = pilot.update(s, s['frame']/60)
+                self.assertIn('Prior', keys)
+                self.assertNotIn('w', keys)
+                self.assertIsNone(pilot.home_clearance_ready)
+
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+1, velocity=[0, 0, 0])
+        self.face_home(s, pitch_error=.4)
+        keys, _, _, _ = pilot.update(s, s['frame']/60)
+        self.assertIn('w', keys)
+        self.assertNotIn('Prior', keys)
+        ready = pilot.home_clearance_ready
+        self.assertEqual(ready['frame'], s['frame'])
+        self.assertEqual(ready['position'], s['position'])
+        self.assertEqual(ready['velocity'], [0, 0, 0])
+        self.assertEqual(ready['speed_m_s'], 0)
+        self.assertGreaterEqual(ready['direction_alignment'], .9999)
+        self.assertAlmostEqual(ready['pitch_error_deg'], .4)
+        self.assertGreater(ready['frame'], pilot.home_clearance_staging['frame'])
+        # Once departure was observed ready, ordinary speed and brake logic
+        # continues without imposing the initial settled-speed gate again.
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+1, velocity=[0, 0, 10])
+        self.assertIn('w', pilot.update(s, s['frame']/60)[0])
+        self.assertEqual(pilot.home_clearance_ready, ready)
+
     def test_home_header_crossing_refuses_missing_staging_unsafe_altitude_or_extra_damage(self):
         pilot, s = self.home_in_flight()
         s = json.loads(json.dumps(s))
@@ -635,6 +714,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(result['completion_marker'], 'NATIVE_HULK_HOME_OK')
         self.assertEqual(result['home_walk_ticks'], 20)
         self.assertEqual(result['home_clearance_staging']['waypoint'], [0, 2.7, -150])
+        self.assertIsNotNone(result['home_clearance_ready'])
         self.assertEqual(result['home_header_crossing']['hull_before'],
                          result['home_header_crossing']['hull_after'])
         self.assertGreater(result['home_walk_displacement_m'], .25)
