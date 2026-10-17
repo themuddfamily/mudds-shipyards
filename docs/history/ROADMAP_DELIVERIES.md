@@ -2000,3 +2000,24 @@ branches. The implementation/qualification contracts below are historical.
   journey with the same 2400 s route contract. Windows-payload startup through
   Linux Godot does not qualify native Windows gameplay. Hardware, rendered HUD,
   real audio, full matrix, interruption/endurance and final release remain open.
+
+## Linux uninstall interruption — reproduced on shipped a8f563e manager
+
+Exact published archive SHA
+`964784cf05a1b38c96c5a358cf402592623fd952af37fa4387a9386894653eb9`
+contains manager SHA `ebd03b09e7f901bd469c2bb7d175404e8263e51e1b0e6345f2c096a6876c1057`,
+matching repository source. In private spaced paths, install PID575162 exits0.
+Real uninstall PID575200/start109255654 pauses after actual desktop unlink,
+before payload unlink; identity verified before owned SIGKILL, actual exit -9.
+Fresh ordinary CLI uninstall PID575203 exits1 with
+`owned desktop entry changed or missing`. Only the desktop file disappeared;
+payload, manifest, unrelated root/runtime/menu files and private Godot save/
+settings bytes remain unchanged. Retry makes no further mutation. All child
+processes are reaped; no game/desktop/audio invocation or repository edit.
+
+Raw command/source hashes, snapshots, stdout/stderr and cut-child closure are
+retained under `/srv/mudds-work/linux-uninstall-recovery-20261018/results/reproduction/`.
+This is the expected defect reproduction, not accepted uninstall recovery.
+The manager deletes the launcher before payload/manifest cleanup, while retry
+requires it. The gated production repair can now proceed with unchanged data
+protection and explicit verified removal intent; shipping stays GATED.

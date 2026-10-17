@@ -108,7 +108,7 @@ work remain intact, with source refs and unique raw results preserved.
 
 ## Next batch — retry an interrupted Linux uninstall
 
-**Three bounded tasks: one READY, two GATED.** This delivers one installation
+**Three bounded tasks: reproduction DONE, repair IN PROGRESS, shipping GATED.** This delivers one installation
 recovery behavior. The failed Rime driver and its type repair are closed and
 withheld; survey/home/package children are parked with their parent, not silently
 dropped. [Failure, original contracts and priority review](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-closed--landing-gate-failure-and-priority-review).
@@ -116,11 +116,19 @@ No further Rime probe, repair or unchanged run is selected.
 
 | Task | Status | Observable finish | Work estimate; separate checks |
 | --- | --- | --- | --- |
-| LINUX-UNINSTALL-CUT | READY | Actual SIGKILL after menu-entry removal produces a distinct-process retry result on the published manager, with protected data intact. | 20–30 min setup/closure; bounded child waits up to 10 s each, overall 120 s. |
-| LINUX-UNINSTALL-RETRY | GATED on reproduced cut | Rerunning uninstall completes that interrupted removal safely, once and without deleting saves/unrelated files. | 60–90 min implementation; existing 12 installer tests plus focused cut/refusal checks, overall 120 s. |
+| LINUX-UNINSTALL-CUT | DONE on published a8f563e | Actual SIGKILL after menu-entry removal produces a distinct-process retry result on the published manager, with protected data intact. | 20–30 min setup/closure; bounded child waits up to 10 s each, overall 120 s. |
+| LINUX-UNINSTALL-RETRY | IN PROGRESS | Rerunning uninstall completes that interrupted removal safely, once and without deleting saves/unrelated files. | 60–90 min implementation; existing 12 installer tests plus focused cut/refusal checks, overall 120 s. |
 | LINUX-UNINSTALL-SHIP | GATED on accepted repair | A fresh downloadable Linux archive contains the fixed manager and passes the same real cut/retry; paired checkpoint has actual startup/artifact results. | 30–45 min setup/closure; export/startup/privacy allowances separately below. |
 
-### LINUX-UNINSTALL-CUT — READY, bounded reproduction
+### LINUX-UNINSTALL-CUT — DONE, bounded reproduction
+
+Actual shipped manager SHA `ebd03b09e7f901bd469c2bb7d175404e8263e51e1b0e6345f2c096a6876c1057`
+matches source. Install exits 0; exact paused uninstall PID/start is verified,
+SIGKILL exits -9, and distinct CLI retry exits 1 with the predicted missing
+desktop refusal. Only the menu entry disappeared; payload/manifest/protected
+bytes remain exact, and retry makes no additional mutation. Children are reaped.
+Raw `/srv/mudds-work/linux-uninstall-recovery-20261018/results/reproduction/`
+is retained. This closes reproduction, not recovery acceptance.
 
 - **Parent/owner:** [INSTALL-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release);
   root assigns one implementation agent, root owns integration and checks.
@@ -150,7 +158,12 @@ No further Rime probe, repair or unchanged run is selected.
   than implementing a speculative fix. Commit/push actual result; leave task 2
   gated until its defect and unchanged acceptance are explicit.
 
-### LINUX-UNINSTALL-RETRY — GATED on task 1
+### LINUX-UNINSTALL-RETRY — IN PROGRESS, reproduced cut confirmed
+
+Dependency is now met by the actual shipped-script SIGKILL reproduction above.
+Next action: one agent implements the existing manager/test repair in the
+owned checkout; root reviews it independently before the single focused run.
+Conflicting install/update must not overwrite a pending removal operation.
 
 - **Result/boundary:** repair the existing manager so an ordinary uninstall
   retry safely finishes the named interrupted operation. Own only
