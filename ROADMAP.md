@@ -84,7 +84,7 @@ Estimates below are working ranges, not promises or permission to lengthen test 
 ### Next small batch: combat and surface benchmark capabilities
 
 Two executable capabilities are selected below, plus one completed diagnostic.
-E1 is accepted; E2 remains at definition. The completed diagnostic is counted
+E1 is accepted; E2 is implementing the contract below. The diagnostic is counted
 separately. Root owns integration; benchmark changes share one component and
 stay sequential. This does not close native performance, canonical journeys or
 any parent requirement.
@@ -92,7 +92,7 @@ any parent requirement.
 | Assignment | State / owner | One finish line and stop boundary | Estimate |
 | --- | --- | --- | --- |
 | E1 · PERF-ROUTE[Torrent range combat/reuse] | DONE on7c5e85787 | Select-only normal Torrent fire produces sampled damage/destruction/reuse; saved reports and active-fire abort pass. Default protocol retained. | Focused19 PASS; preceding default152/record15 pass; total effort not timed |
-| E2 · PERF-ROUTE[Ember surface walking] | DEFINE / NEXT; root | Define one finite path on the actual streamed Ember surface, production player/gravity/support and normal movement; one staging placement outside timing. Acceptance must reject idle/unsupported/out-of-surface samples. Stop definition at exact loaded-world/waypoint/input owners and an executable command, or one named missing input; do not start implementation with an unnamed route. | 20–30min definition; implementation estimate follows concrete contract |
+| E2 · PERF-ROUTE[Ember surface walking] | IN PROGRESS; ember_surface_benchmark | Select-only normal walk on Main's streamed Ember pad-egress/staging path and return; sampled motion, full-path endpoint visits, terrain support, world/frame identity and actual gravity hold. Stop at focused route result or first concrete blocker. | Definition complete; 1–2h implementation, 15–30min focused checks |
 | E3 · BASE-DIAG[Bulwark default registration] | DONE; root-reviewed on2983a2be7 | Unchanged default test passes20 assertions headlessly at original300s cap; source/index/cache645/engine and actual process/environment/socket/lane closure verify. Historical graphics cause unknown, original matrix FAIL/capture remain open. No further probe or classification change implied. | Engine observed ~30.60s; total effort not timed |
 
 **E1 — Torrent combat/reuse capability (DONE).** Parent: original performance
@@ -111,10 +111,32 @@ Selected false/null admission, default two-route protocol and original full timi
 floors remain. Full combat-duration/rendered/native checks are NOT_RUN. Gameplay
 is unchanged; latest playable stays b6af782. Stop reached.
 
-**Next: define E2** from
-`tests/ember_loop_soak_evidence.gd::_walk_surface_route`, its authored waypoints,
-loaded Ember bootstrap and player/gravity owners. Stop with one finite executable
-surface-walk contract or a precise blocker before implementation.
+**Active E2 contract.** Parent: original performance §5 / planetary surface
+route. One implementer owns the same existing runner/wrapper/test/usage doc.
+Reuse the five outbound and four return leg boundaries from
+`tests/ember_loop_soak_evidence.gd::_walk_surface_route` on the real loaded
+Ember LandingRegion/WalkablePatch. Stage the enabled unseated player once at
+local(-5,~0.1,0.5), outside timing; the real coordinator/bootstrap/common-origin
+owner must load Ember and commit its rebase. Normal held movement follows and
+repeats the finite pad-egress/staging path (~135m first loop). No further actor
+placement, health writes, fake Host/session flags or claimed landing completion.
+
+The solo Host applies gravity only during a genuine journey. This surface-only
+benchmark explicitly composes the existing pure PlanetarySurfaceGravityPolicy
+and its existing tangent projection through a benchmark adapter/public player
+multiplier; it does not qualify the solo Host binding. Record that gravity
+source, actual multiplier and world/frame identity; restore the original
+multiplier on every completion/abort/error path. Sampled movement, live terrain
+support, enabled unseated control and gravity must hold throughout. Smoke proves
+positive sampled walking; a separate bounded45s focused path proves outbound and
+return visits. Reject idle, warm-up-only, unsupported, wrong-world/gravity and
+forged progress; verify saved JSON plus abort/input/cursor release. Keep schema1,
+default two routes, selected false/null and full3,600/60s plus18,000/600s floors.
+Use a separate mode in the existing test so its original300s cap stays intact.
+Commit the exact invocation before execution. Root reviews and runs silent
+headless/isolated checks. No canonical journey, native/rendered performance,
+native wrapper or final-release claim. Next action: review implementation commit;
+stop at its first concrete failure or accepted route, then remove its checkout.
 
 E3 raw: `/srv/mudds-work/bulwark-default-boundary-results-20261017/`.
 Its clean temporary worktree is removed. This diagnostic is separate from E1/E2
