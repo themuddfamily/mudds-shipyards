@@ -223,24 +223,34 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
   Raw: `/srv/mudds-work/hulk-home-results-20261017/clearance/`; relocation map:
   `/srv/mudds-work/hulk-home-results-20261017/retained-artifacts.json`.
 
-### HULK-HOME-ATTITUDE — IN PROGRESS bounded diagnosis
+### HULK-HOME-ALIGN — IN PROGRESS bounded repair
 
-- **Parent/result:** HULK-HOME-INPUT. Identify why the first ordinary departure
-  from a settled clearance waypoint loses altitude below the existing safe band.
-  Diagnosis is separate from a delivered gameplay or release capability.
-- **Owner/boundary:** `home_attitude_diagnosis` read-only source/log reviewer; inspect
-  held driver52e3e7f69 and retained ef67f3e95 trace, especially frames5005–5081.
-  One hypothesis: thrust resumes while craft attitude/vertical velocity still
-  drives descent after the staging target changes. No engine, edits or retry.
-- **Proof:** identify the exact controller/input boundary and smallest repair
-  with file/line plus retained observations, or report the single missing fact
-  for one later probe. Settled position alone is not proof of flight readiness.
-- **Budget/stop:**15m, stop at causal seam or missing fact. Keep original300s
-  cumulative route, clearance band1.4–3.8 and all home physical criteria.
-- **Next action:** inspect first staging→home approach transition against the
-  existing mouse/thrust response and retained attitude/velocity observations.
-  Schedule any implementation or engine probe as a separate bounded task.
-- **Close:** record result/source and next action, commit/push; retain failures.
+- **Parent/result:** HULK-HOME-INPUT. Correct external driver departure readiness
+  after clearance staging, so thrust waits for actual attitude alignment and
+  settled velocity. Existing gameplay, geometry and controls stay unchanged.
+- **Finding:** HOME-ATTITUDE read-only diagnosis DONE. At frame5006 velocity is
+  zero but nose remains9.286° down; home direction is.369° down. The driver
+  admits thrust at align>.72 (actual.902895). Production thrust uses current
+  nose before mouse rotation, creating new descent (vy−1.699 by frame5048).
+  Position/speed staging is insufficient; even failed frame5081 align.996096
+  is not a suitable readiness threshold. No engine probe was needed.
+- **Owner/boundary:** one implementation agent owns existing native Python
+  driver/tests in a clean held52e3e7f69 checkout; root reviews/runs/integrates.
+  Add one clearance-specific readiness latch: brake/aim, withhold thrust until
+  observed tight direction/pitch and settled velocity. Preserve original route
+  classes/prefix, normal subsequent braking, same actors/controls, and all gates.
+- **Proof:** focused tests use retained5005/5006 attitude/velocity to reject
+  premature thrust, reject moving/descent samples and allow ready departure.
+  Then one full packaged route against retained exact ef67f3e95 Linux binary:
+  original300s cumulative cap, safe1.4–3.8m crossing/no extra hull loss, actual
+  fade/unload and strict home dock/shutdown/exit/20-tick walk, same cell/receipt.
+- **Budget/stop:**30–45m implementation, one300s route separately. Stop first
+  concrete failure or estimate boundary; no automatic second attempt, new
+  framework, runtime tuning, geometry change or criterion relaxation.
+- **Next action:** implement/test the readiness latch. Root freezes candidate
+  source/criteria before one route; no unchanged export/startup repetition.
+- **Close:** exact result/source/build, commit/push, checkpoint if qualified and
+  owned cleanup. Revisit remains separate and gated.
 
 ### HULK-REVISIT-INPUT — GATED on home route
 

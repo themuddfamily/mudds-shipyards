@@ -1113,3 +1113,17 @@ binary/archive/metadata relocated with verified hashes under raw `retained-linux
 checkpoint remains7dd70a9. Unlaunched conditional Windows helper is not evidence
 of a Windows build/check. HOME-ATTITUDE is next: one15m source/log diagnosis of
 the staging→approach attitude/thrust transition, not started and no retry implied.
+
+
+HOME-ATTITUDE diagnosis DONE from retained source/logs, with no engine or edits.
+Driver52e3e7f69 advances staging on distance/speed alone (1089–1096), immediately
+admitting thrust at align>.72 (1088). Runtimeef67f3e95 accelerates along current
+nose before mouse correction (hero_ship.gd4706–4739), then flight assistance
+tracks that nose (4753–4759). Frame5006 velocity is exactly zero but nose pitch
+remains−9.286° against home direction−.369°; initial alignment.902895 admits
+thrust. New descent follows (vy−1.699 at5048); even failed5081 alignment.996096
+accompanies vy−1.402. Inherited momentum is not necessary to explain failure.
+Smallest separate repair HOME-ALIGN: brake/aim after staging, latch departure
+only on observed tight direction/pitch and settled velocity, then keep all
+original route/clearance/home gates. Diagnosis stops at this demonstrated seam;
+no additional probe or runtime pass is claimed.
