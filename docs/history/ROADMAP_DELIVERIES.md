@@ -1766,3 +1766,237 @@ declaration, followed by parse60 and one changed-candidate arrival2400. The
 original failure is not erased. Any failure of this attempted repair requires
 priority review before further repair/probing/rerun. Later survey/home/package
 cards stay gated; no unchanged rerun or export is selected.
+
+
+## Rime arrival closed — landing gate failure and priority review
+
+Changed candidate `68cc7d989910dc6b0f023f156dee1a1258012886` fixes exactly the
+boolean declaration from failed `6f29e4f15`. Parse60 passes exit 0. One arrival
+run reaches Rime approach with 970 committed outbound rebases and zero staging,
+then fails the unchanged 120 s physical landing gate after about 27 minutes
+overall. The visit remains `corridor`, final approach reports
+`final_approach_converging`, completion count 0, roughly 2,089 m from its
+observed destination and speed 734 m/s. Hull remains healthy (190/190) and
+command source unchanged. These observations do not identify the root cause.
+
+The first diagnostic is the host's physical landing assertion; a peer's
+`host.landed` wait also fails. External first-failure abort exits 143. All
+subsequent engine shutdown diagnostics remain in raw logs (69 diagnostic lines
+total); they are not filtered out or promoted into separate cause claims.
+There is no `host.landed`, terrain/reboard barrier, peer completion/exit-zero
+receipt or Rime success marker. No landing/egress/reboard/full-route acceptance,
+integration or checkpoint follows. Raw is retained under
+`/srv/mudds-work/rime-crew-arrival-results-20261018/typing-repair/`.
+
+Independent closure audit verifies source, index, pinned engine and all 320
+cache files against the postrun snapshots, also matching the original imported
+cache. Original five and repaired eighteen observed PID/start identities are
+absent; observed sockets and displays :99/:100/:101 are absent. Root removed
+only three verified private Xauthority directories, recording file hashes in
+cleanup.json without altering original closure.json. The clean owned checkout
+is removed. Remote hold branches preserve exact original `6f29e4f15` and
+changed `68cc7d989` candidates; main contains neither.
+
+**Priority review:** one initial compile failure plus its one attempted repair
+is complete. Spent about 38 minutes from owned-checkout creation to the first landing
+failure: about six minutes to the first driver commit, then review/import/
+compile failure, one-line repair/parse and approximately 27 minutes in the
+changed physical run. Closure and documentation are additional. The player outcome still missing is a physically landed
+Rime visit with independent crew; the later three child cards remain unqualified.
+Do not rename a new Rime diagnosis to reset the repair boundary. Competing READY
+work is LINUX-UNINSTALL-CUT: the documented uncovered uninstall-interruption
+boundary has exact production owner and an existing real-SIGKILL test pattern.
+Select that independent installer slice. No further Rime probe/repair/rerun is
+selected. All original shared-world requirements remain in the backlog.
+
+The next three cards cover one release behavior, not three gameplay features:
+reproduce the uninstall cut, repair retry, then ship/test the actual manager.
+No native Windows, GPU, rendered HUD, audio, human or final-release gate closes.
+
+### Closed Rime batch — original task contracts
+
+**ROADMAP-SLICE planning DONE. First arrival attempt FAILED before gameplay;
+the bounded type repair also FAILED at physical landing, and three later tasks remain GATED.** These children implement
+and qualify an executable integration route through existing gameplay; they
+are not four new gameplay features. All four belong to
+[WORLD-SHARED: Rime baseline](../../docs/ROADMAP_BACKLOG.md#multiplayer).
+
+| Order / task | Status | Observable finish | Work estimate; separate checks |
+| --- | --- | --- | --- |
+| 1. RIME-CREW-ARRIVAL | FAILED on 6f29e4f15 | Host lands Halyard after canonical outbound travel; both independent crew clients walk onto Rime and physically reboard. | 60–90 min driver integration; existing arrival allowance below. |
+| Repair. RIME-CREW-ARRIVAL-TYPE | FAILED on 68cc7d989 | Driver parses after explicit boolean declaration, then the unchanged two-client arrival meets task 1 acceptance. | 15 min correction/review; parse up to 60 s and one arrival up to 2400 s. |
+| 2. RIME-CREW-SURVEY | GATED on 1 | One actual remote participant walks both readings, manages warmth and earns exactly one disk-backed survey record; second crew retains usable controls. | 60–90 min driver integration; one extended arrival/survey run. |
+| 3. RIME-CREW-HOME | GATED on 2 | The same crew/craft continues from Mudds through survey, ascent and physical home dock, then exits to usable play. | 60–90 min driver integration; one continuous source journey. |
+| 4. RIME-CREW-PACKAGE | GATED on 3 | Matching published development packages, with the complete journey demonstrated on the exact Linux package. | 30–45 min packaging setup/closure; exports, startup/privacy and one package journey separately. |
+
+### Shared contract — fixed before implementation
+
+- **Profile:** one independent host process, local host as Halyard pilot, and
+  two independent authenticated client processes (`client`, `client_b`). Client
+  is the survey participant; client_b is a companion who must also walk, exit
+  and reboard. No late observer, reconnect, pilot loss or interruption in this
+  baseline. The already authorized server/two-client baseline does not settle
+  the separate final-release capacity decision.
+- **Initial state:** same clean frozen source in all processes, fresh private
+  user-data profiles, real Mudds Halyard berth and ordinary hatch/helm departure.
+  Disclose existing pre-route hatch approach staging; no placement, clock skip,
+  synthetic completion or cruise-distance shortcut after departure. Preserve
+  exact crew-body/source identities, real origin rebases, collision and leases.
+- **Existing implementation:** authenticated Rime surface exit, authored-trail
+  support, heat/survey/reward and all-crew return admission already exist.
+  Owners are `scripts/game/game_flow.gd`,
+  `scripts/activities/rime_ice_core_survey.gd` and
+  `scripts/network/network_planetary_journey_bridge.gd`. No speculative runtime
+  rewrite is assigned. An actual failing production boundary becomes a separate
+  bounded repair; the failed qualification stays recorded.
+- **Known driver gap:** `tests/network/halyard_network_shared_planetary_cruise_test.gd`
+  still expects the removed `shared_rime_surface_unavailable` refusal and
+  unsupported return. Its surface orchestration currently starts only one client.
+  It also places the departed craft into a 9,995 m admission envelope; that
+  staging cannot qualify the promised continuous ordinary-input route.
+  Existing `--rime-pad-only` / `--rime-shared-survey` modes of
+  `tests/network/game_flow_landing_network_integration_test.gd` provide staged,
+  in-process coverage. They cannot prove this independent continuous journey.
+- **Limits:** preserve this specific shared fixture's inherited
+  `EMBER_SURFACE_TOTAL_SECONDS = 2400` and its 120 s physical landing limit,
+  plus all existing startup/admission/walk/cleanup limits. The 900 s catalog
+  annotation in the separate `rime_visit_loop_test.gd` does not replace this
+  fixture's explicit 2400 s contract. Do not increase 2400 s for the added
+  crew/survey/home work; failure at that limit is retained. Where existing
+  physical leg samplers are reused, retain their 48,000 outbound / 72,000
+  return tick limits. Setup/check/cleanup time is separate from implementation.
+- **Safety/ownership:** root integrates and runs checks; one implementation agent
+  owns the existing shared fixture. Change the passenger base only if its
+  orchestration seam requires it, preserving all other modes. These tasks are
+  sequential because they share files and route state. Every process uses Dummy
+  audio; each input peer has a private Xvfb with explicit x11. Retain an external
+  abort path, input release and owned PID/start/socket/display cleanup.
+- **Commands:** use pinned Godot with `--headless --audio-driver Dummy --path`
+  on the clean source and `--script
+  res://tests/network/halyard_network_shared_planetary_cruise_test.gd --` followed
+  by the selected flag below. The orchestrator creates private input displays.
+  `--rime-shared-arrival` exists but is stale; the survey/home flags below are
+  proposed driver additions, not currently runnable commands. Freeze the exact
+  source, command, stage assertions and outer abort deadline before each launch.
+
+### 1. RIME-CREW-ARRIVAL — FAILED before gameplay on 6f29e4f15
+
+Owner: implementation agent in `/srv/mudds-work/rime-crew-arrival-20261018`;
+root coordinates one independent review and guarded qualification. Raw/abort
+runner is under `/srv/mudds-work/rime-crew-arrival-results-20261018/`.
+Candidate `6f29e4f154598f95f4ec896fa3803a5104cc5c6e` is preserved on remote
+`hold/rime-crew-arrival-20261018`, withheld from main. Cold import passes exit 0;
+arrival script fails to parse at line 438 (`refused` has no inferable type).
+The external guard stops the first diagnostic, exit 143; no crew process or
+gameplay starts. Source/index/engine/cache guards pass; all five observed owned
+identities and sockets are closed, with no test displays. Raw first failure is
+retained in the directory above. No unchanged rerun is selected.
+
+- **Original assignment:** extend the existing shared fixture's Rime arrival path to
+  start and coordinate client/client_b; replace obsolete refusal assertions
+  with current ordinary hatch exit and physical reboard behavior. Replace the
+  Rime branch's post-departure 9,995 m placement/attitude assignment with ordinary
+  controlled flight into the same admission envelope; no direct phase/velocity
+  rewrite. Stop on a demonstrated obstruction rather than introducing rescue.
+  Reuse existing
+  Aurora input-driven walking helpers with Rime world assertions. Keep the
+  default Ember and Aurora route contracts unchanged.
+- **Proof:** run `--rime-shared-arrival` once after source review. Host physically
+  crosses more than 9,800,000 m and 900 rebases with zero travel staging events,
+  full hull and an occupied Rime berth. Each client independently acknowledges
+  the correct world, retains its original authoritative body/intent source,
+  walks supported outside the cabin and reboards through the hatch. Host helm
+  stays authoritative. Return is refused while either crew member is outside;
+  both confirmed reboards clear that gate without starting a home journey.
+  Require orchestrator and all three peer exits 0, zero route failures and the existing
+  `HALYARD_NETWORK_SHARED_RIME_ARRIVAL_OK` marker, plus owned-resource cleanup.
+- **Budget/close:** stop after 90 min implementation or first failed check;
+  record source, actual boundary and retained raw. Commit/push accepted driver
+  capability. On failure, the next task is one bounded repair specification,
+  not task 2 or an unchanged rerun. No new gameplay claim follows.
+
+### RIME-CREW-ARRIVAL-TYPE — FAILED at physical landing on 68cc7d989
+
+Changed source `68cc7d989910dc6b0f023f156dee1a1258012886` passes parsing, then
+fails the original 120 s physical landing gate after reaching Rime approach.
+The single run is terminal (exit 143 after first failure); no restart is selected.
+Raw `/srv/mudds-work/rime-crew-arrival-results-20261018/typing-repair/` retains
+the exact command, stage results and diagnostics. The owned checkout is removed;
+both original and changed source commits remain on their verified remote hold
+branches. The implementation/qualification contracts below are historical.
+
+- **Owner/next action:** root; change only the new `refused` declaration in
+  `tests/network/halyard_network_shared_planetary_cruise_test.gd` to an explicit
+  boolean. Commit the changed candidate, retain the failed original/source refs
+  and reuse its already imported cache after verifying exact cache identity.
+- **Proof:** first a headless/Dummy `--check-only --script` parse check (60 s),
+  then one `--rime-shared-arrival` run meeting every original task 1 criterion,
+  original stage caps and outer 2400 s. Fresh private profiles, frozen source/
+  index/cache/engine and owned-resource closure remain required. No cold import
+  retry, runtime repair, geometry change, new driver behavior or deadline change.
+- **Budget/stop:** 15 min correction/review, separate checks above. Stop first
+  failure. This is the one attempted repair after task 1's failure: any failure
+  now requires a recorded priority review before another probe, repair or rerun,
+  even if the next defect has a different name. Later cards remain GATED until
+  changed-candidate arrival acceptance. A compile fix is not gameplay progress.
+
+### 2. RIME-CREW-SURVEY — GATED on task 1
+
+- **Next action once ungated:** add select-only `--rime-shared-survey-route`
+  to the same fixture, continuing its real arrival through the existing authored
+  beacon, survey/return trails, hut warmth and ridge gauge. The host keeps the
+  helm; only client is the survey participant. client_b demonstrates its own
+  supported movement and may not steal the participant or award.
+- **Proof:** one continuous arrival/survey run under the shared limits. Real
+  elapsed cold drains the participant, ordinary hut warmth restores heat, both
+  readings advance only at their actual interactions, and the existing host
+  reward authority saves exactly one `rime_ice_core_record` to the host's real
+  private file. Repeated interaction leaves the count at one. After route
+  shutdown, a distinct fresh process reloads that same host file and observes
+  the same once-only record through the existing store/authority. Preserve both
+  clients' identities and supported physical reboard. Require all process exits
+  0, zero failures and an unambiguous survey completion marker fixed before run.
+  MemoryFilesystem, direct reward insertion and same-process reload do not pass.
+- **Boundary/budget/close:** 60–90 min; no forced write failure, survey abandonment,
+  cold-exhaustion recovery or restored-session cases in this baseline. Existing
+  staged coverage remains separately scoped. Stop first failure, retain raw and
+  name the one failed production/driver boundary; commit/push on acceptance.
+
+### 3. RIME-CREW-HOME — GATED on task 2
+
+- **Next action once ungated:** add `--rime-shared-home-return` to the same
+  fixture, retaining task 2's full departure/arrival/survey and continuing through
+  both physical reboards, host return action, actual ascent, cruise and home dock.
+  Reuse Rime's existing return owner and the Aurora driver's home-route seam.
+- **Proof:** run this complete source route once, without restarting or staging
+  between stages. Both crew bodies stay confirmed and supported through return;
+  surface lease/streaming retire correctly, the same craft occupies the real
+  home berth, host shuts down and exits, and both clients regain usable supported
+  walking. The survey record remains exactly one after the separate fresh-file
+  reload. Require every process exit 0, zero failures, a distinct full-Rime-home
+  success marker and owned-resource closure. Partial-stage passes cannot close
+  this card. This is the source baseline, not late-join/endurance acceptance.
+- **Budget/close:** 60–90 min integration, one unchanged-limit full route. Stop
+  first concrete failure; no extra probe or rerun is bundled. Commit/push the
+  exact accepted source; freeze it for task 4.
+
+### 4. RIME-CREW-PACKAGE — GATED on task 3
+
+- **Next action once ungated:** use the existing clean-commit export workflow
+  to make matching Windows EXE/ZIP/notes and Linux ELF/archive/notes. Run direct/
+  archive Linux and silent Windows-payload strict startup, existing privacy and
+  exact archive/payload checks. Require startup exit 0 plus
+  `STARTUP_MENU_READY_OK`. Then run task 3's unchanged full journey against the
+  exact Linux package via the existing external test-wrapper/package-loading
+  seam (`--package-under-test`); prove every peer uses package production resources.
+- **Proof/close:** package journey meets every task 3 criterion on those exact
+  published Linux bytes; artifact identity, notes and owned cleanup pass. Publish
+  only to repository `builds/windows/` and `builds/linux/`, commit/push source/docs
+  and remove the clean owned disposable checkout. Do not force-add binaries.
+  If a required check fails, retain the last accepted checkpoint and failed raw;
+  no automatic package rerun or source repair.
+- **Budget/limits:** 30–45 min setup/closure; existing export caps up to 930 s
+  each, three startups up to 330 s each, privacy up to 300 s, and one package
+  journey with the same 2400 s route contract. Windows-payload startup through
+  Linux Godot does not qualify native Windows gameplay. Hardware, rendered HUD,
+  real audio, full matrix, interruption/endurance and final release remain open.
