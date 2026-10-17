@@ -400,7 +400,7 @@ class BenchmarkAuroraWalker extends BenchmarkEmberWalker:
 		var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
 		var collider := hit.get("collider") as Node
 		var terrain := scene.get_node_or_null(^"TerrainClipmap")
-		var on_terrain := is_instance_valid(collider) and is_instance_valid(terrain) \
+		var on_terrain: bool = is_instance_valid(collider) and is_instance_valid(terrain) \
 			and terrain.is_ancestor_of(collider) and collider.get_meta(&"generated_planetary_terrain", false) == true
 		if on_terrain:
 			terrain_observations += 1
