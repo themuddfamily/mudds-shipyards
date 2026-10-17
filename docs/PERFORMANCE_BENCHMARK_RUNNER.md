@@ -126,10 +126,22 @@ unchanged; this focused mode has its own 300-second supervisor cap.
 The select-only `aurora_surface_walk_route` uses that same surface observation,
 input guard and gravity restoration machinery. It places the production Player
 **once, before timing**, at (-7, 0.2, -17) in Aurora's landing-region frame.
-Main's normal streaming binding must load its real `AuroraTemperateAuthoredScene`
-and commit an origin rebase; staging fails if that scene's own
+Main's existing streaming binding must load its real `AuroraTemperateAuthoredScene`
+and Main must commit an origin rebase; staging fails if that scene's own
 `LandingRegion/WalkablePatch` does not support the player. The benchmark does
 not construct an expedition, complete a landing, or manufacture journey state.
+
+Main's ordinary solo world cadence observes Ember; Aurora's binding ordinarily
+receives actor observations only during an admitted expedition. For this staged
+surface selection, the runner explicitly feeds Main's real
+`_capture_cinder_actor_sample()` into its existing `aurora_streaming_binding`
+once per staging iteration and once per walker physics tick. That production
+binding loads and observes the actual scene; the runner never constructs a
+surface fixture or calls a scene loader directly. Reports disclose this as
+`streaming_cadence=benchmark_adapter_main_owned_binding_real_actor_sample`,
+alongside the existing gravity adapter. Main retains common-origin ownership;
+normal Main teardown frees the binding and loaded surface. This observation
+adapter does not qualify the expedition's admission or travel cadence.
 
 Held forward input follows the existing coastal trail/sign/lookout points from
 `tests/aurora_visit_loop_test.gd`: (-7,-17), (8,-17), (20,-7), (25,2), (29,1),

@@ -367,6 +367,17 @@ class BenchmarkAuroraWalker extends BenchmarkEmberWalker:
 	var lookout_floor_observations := 0
 	var sampled_lookout_floor_observations := 0
 
+	func _physics_process(delta: float) -> void:
+		if stopped or guard.aborted:
+			return
+		# Main's ordinary solo lane observes Ember. Aurora normally receives
+		# this exact binding/sample call only during an admitted expedition.
+		# The staged benchmark supplies its cadence without inventing a visit.
+		var observation := game.aurora_streaming_binding.physics_tick_from_caller_sample(
+			delta, game._capture_cinder_actor_sample())
+		world_valid = world_valid and bool(observation.get("accepted", false))
+		super._physics_process(delta)
+
 	func _bootstrap() -> PlanetaryStreamingBootstrap:
 		return game.aurora_streaming_bootstrap
 
@@ -1524,6 +1535,8 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 	var initial_local := Vector3(-7.0, 0.2, -17.0) if aurora else Vector3(-5.0, 0.2, 0.5)
 	if not is_instance_valid(bootstrap) or not is_instance_valid(game.common_world_origin_rebase_owner):
 		return {"staging_valid": false, "staging_error": "Main " + label + " streaming/origin owners unavailable"}
+	if aurora and not is_instance_valid(game.aurora_streaming_binding):
+		return {"staging_valid": false, "staging_error": "Main Aurora streaming binding unavailable"}
 	var frame := bootstrap.get_coordinate_frame_for_session()
 	var initial_generation := frame.get_generation()
 	var body_local: Vector3 = definition.body_local_center_m \
@@ -1535,7 +1548,8 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 	if not bool(decoded.get("accepted", false)):
 		return {"staging_valid": false, "staging_error": label + " initial world coordinate unavailable"}
 	# The only actor placement. Main observes this real Player on the next tick,
-	# loads the selected surface through its binding and commits the origin rebase.
+	# commits the common origin rebase. Aurora's benchmark adapter below feeds
+	# its actual binding, which Main ordinarily advances only during a visit.
 	player.teleport_to(Transform3D(Basis.IDENTITY, decoded.position as Vector3))
 	player.set_control_enabled(true)
 	var scene: Node3D
@@ -1548,6 +1562,7 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 	var policy_accepted: Variant = null
 	var last_multiplier: Variant = null
 	var observed_ticks := 0
+	var last_streaming_observation: Dictionary = {}
 	var started := Time.get_ticks_msec()
 	for _index in 240:
 		await tree.physics_frame
@@ -1556,6 +1571,11 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 		if guard.aborted or Time.get_ticks_msec() - started > 15_000:
 			stop_reason = "abort" if guard.aborted else "wall_time_budget"
 			break
+		if aurora:
+			# Use the real Main actor read and existing production binding.
+			# Main remains the only owner of the common-world origin cadence.
+			last_streaming_observation = game.aurora_streaming_binding.physics_tick_from_caller_sample(
+				game.get_physics_process_delta_time(), game._capture_cinder_actor_sample())
 		scene = bootstrap.get_loaded_instance() as Node3D
 		if not is_instance_valid(scene):
 			last_gate = "loaded_scene_unavailable"
@@ -1625,6 +1645,7 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 				"streamed_generation": bootstrap.get_location_generation(),
 				"streamed_location_id": String(bootstrap.get_location_id()),
 				"policy_accepted": policy_accepted, "gravity_multiplier": last_multiplier,
+				"last_streaming_observation": last_streaming_observation,
 				"player_region_local_m": local_position, "player_on_floor": player.is_on_floor(),
 				"floor_ray_checked": ray_checked, "floor_ray_collider_path": collider_path,
 				"floor_ray_matches_patch": ray_matches_patch,
@@ -1637,7 +1658,7 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 	else:
 		for leg: Array in EMBER_ROUTE_LEGS:
 			legs.append([str(leg[0]), float(leg[1]), bool(leg[2]), String(leg[3])])
-	return {
+	var staged := {
 		"staging_valid": true, "actor": "production PlayerController",
 		"route_source": "authored_aurora_coastal_trail_lookout_loop" if aurora else "authored_ember_pad_egress_staging_loop",
 		("route_points_region_local" if aurora else "route_legs_region_local"): legs,
@@ -1654,6 +1675,9 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 		"sequence": "held authored movement actions in landing tangent frame; " + ("repeat coastal trail to lookout and back" if aurora else "repeat five outbound and four return legs"),
 		"scope": "staged surface only; outbound/landing/return travel, Host journey gravity binding, rewards, endurance and native hardware NOT_RUN",
 	}
+	if aurora:
+		staged["streaming_cadence"] = "benchmark_adapter_main_owned_binding_real_actor_sample"
+	return staged
 
 
 static func _aurora_gravity_policy(game: GameFlow) -> PlanetarySurfaceGravityPolicy:
