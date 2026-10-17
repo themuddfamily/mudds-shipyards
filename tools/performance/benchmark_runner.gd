@@ -1543,33 +1543,93 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 	var patch: StaticBody3D
 	var ready := false
 	var policy: PlanetarySurfaceGravityPolicy
+	var last_gate := "awaiting_observation"
+	var stop_reason := "frame_budget"
+	var policy_accepted: Variant = null
+	var last_multiplier: Variant = null
+	var observed_ticks := 0
 	var started := Time.get_ticks_msec()
 	for _index in 240:
 		await tree.physics_frame
 		await tree.process_frame
+		observed_ticks += 1
 		if guard.aborted or Time.get_ticks_msec() - started > 15_000:
+			stop_reason = "abort" if guard.aborted else "wall_time_budget"
 			break
 		scene = bootstrap.get_loaded_instance() as Node3D
-		if not is_instance_valid(scene) or frame.get_generation() <= initial_generation:
+		if not is_instance_valid(scene):
+			last_gate = "loaded_scene_unavailable"
+			continue
+		if frame.get_generation() <= initial_generation:
+			last_gate = "origin_rebase_not_committed"
 			continue
 		if not (scene is AuroraTemperateAuthoredScene if aurora else scene is EmberMoonAuthoredScene):
+			last_gate = "loaded_scene_type_mismatch"
 			continue
 		region = scene.get_node_or_null(^"LandingRegion") as Node3D
 		patch = scene.get_node_or_null(^"LandingRegion/WalkablePatch") as StaticBody3D
 		if not is_instance_valid(region) or not is_instance_valid(patch) or not game.is_ancestor_of(scene):
+			last_gate = "landing_region_patch_or_main_ownership_unavailable"
 			continue
 		policy = _aurora_gravity_policy(game) if aurora else _ember_gravity_policy(game)
+		policy_accepted = policy != null
 		if policy == null:
+			last_gate = "gravity_policy_configuration_rejected"
+			stop_reason = "rejected"
 			break
 		var multiplier := game._network_ember_passenger_gravity(player.global_position, policy)
+		last_multiplier = multiplier if is_finite(multiplier) else str(multiplier)
 		if not is_finite(multiplier) or multiplier <= 0.0:
+			last_gate = "gravity_projection_invalid"
+			stop_reason = "rejected"
 			break
 		player.gravity_multiplier = multiplier
+		last_gate = "patch_floor_support_unavailable"
 		if BenchmarkEmberWalker.has_support(player, region, patch):
 			ready = true
 			break
 	if not ready:
-		return {"staging_valid": false, "staging_error": "real " + label + " generation, committed origin rebase, gravity or floor support unavailable"}
+		# Failure-only observation: identify the failed existing gate without
+		# changing its budget, support criterion, coordinates or actor placement.
+		var local_position: Variant = null
+		var collider_path := ""
+		var ray_checked := false
+		var ray_matches_patch := false
+		if is_instance_valid(scene):
+			region = scene.get_node_or_null(^"LandingRegion") as Node3D
+			patch = scene.get_node_or_null(^"LandingRegion/WalkablePatch") as StaticBody3D
+		if is_instance_valid(region):
+			var local := region.to_local(player.global_position)
+			local_position = [local.x, local.y, local.z]
+			var up := region.global_basis.y.normalized()
+			var query := PhysicsRayQueryParameters3D.create(player.global_position + up * 0.5,
+				player.global_position - up * 2.5, PhysicsLayers.WORLD_BODY_LAYER, [player.get_rid()])
+			query.collide_with_areas = false
+			var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+			var collider := hit.get("collider") as Node
+			ray_checked = true
+			ray_matches_patch = is_instance_valid(patch) and collider == patch
+			if is_instance_valid(collider):
+				collider_path = String(collider.get_path())
+		var scene_script: Script = scene.get_script() as Script if is_instance_valid(scene) else null
+		return {
+			"staging_valid": false,
+			"staging_error": "real " + label + " generation, committed origin rebase, gravity or floor support unavailable; last_gate=" + last_gate,
+			"staging_diagnostics": {
+				"last_gate": last_gate, "stop_reason": stop_reason, "observed_ticks": observed_ticks,
+				"scene_type": scene.get_class() if is_instance_valid(scene) else "",
+				"scene_script": scene_script.resource_path if scene_script != null else "",
+				"scene_path": String(scene.get_path()) if is_instance_valid(scene) and scene.is_inside_tree() else "",
+				"initial_coordinate_frame_generation": initial_generation,
+				"coordinate_frame_generation": frame.get_generation(),
+				"streamed_generation": bootstrap.get_location_generation(),
+				"streamed_location_id": String(bootstrap.get_location_id()),
+				"policy_accepted": policy_accepted, "gravity_multiplier": last_multiplier,
+				"player_region_local_m": local_position, "player_on_floor": player.is_on_floor(),
+				"floor_ray_checked": ray_checked, "floor_ray_collider_path": collider_path,
+				"floor_ray_matches_patch": ray_matches_patch,
+			},
+		}
 	var legs: Array = []
 	if aurora:
 		for point: Vector3 in AURORA_COASTAL_POINTS:
