@@ -159,7 +159,7 @@ failures and the bounded inconclusive comparison probe remain recorded in
 Both owned implementation/acceptance checkouts and large scratch duplicates are
 removed; exact published artifacts and raw failures are retained.
 
-### HULK-REVISIT-INPUT — IN PROGRESS qualification
+### HULK-REVISIT-INPUT — FAILED qualification; candidate withheld
 
 - **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Extend the accepted home route through ordinary reboarding, a genuinely new
@@ -196,15 +196,51 @@ removed; exact published artifacts and raw failures are retained.
 - **Budget/stop:**45–90 minutes implementation; checks/export/one300s route
   separately. Stop first concrete failure or estimate boundary. No rescue,
   automatic second attempt, cap relaxation, new validator or framework.
-- **Next action:** root runs clean candidate import/observer parse/privacy, safe
-  Linux export/direct and archive startup, then one cumulative300s revisit route.
-  Candidate50 focused Python checks pass; all six original route classes remain
-  unchanged. Actual revisit is NOT_RUN; frozen acceptance includes full home
-  prefix, actual lift completion, newer stream/IDs and fresh breaker dispatch.
-  Live diagnostics scan newly appended complete lines; final whole-log scan
-  remains, avoiding repeated full scans of the prior35MB trace during flight.
-- **Close:** exact result/source/build, commit/push, checkpoint if qualified and
-  cleanup. Disk reload/OS interruption, shared/endurance/hardware remain open.
+- **Actual result:**50 focused Python tests and six setup stages pass: clean
+  import/observer parse/privacy226, Linux export and direct/archive strict startup.
+  The one full route fails278.285s on an unexpected second Cinder unload while
+  still in `revisit_departure`. Full home prefix and supported walk-away/reboard
+  completed; required outbound legs/new-HULK dock/interior/refusal did not.
+- **Cause:** root's departure contract incorrectly made lift mandatory. Actual
+  CentralBerth inherits `departure_lift_height=0`, meaning plain departure;
+  `get_departure_lift_for` returns empty. W enters FREE_FLIGHT/releases home with
+  lift-active always false, so the driver waits forever for a nonexistent true
+  observation and continues thrust. It passes HULK then unloads again at691.075m,
+  generation4/unloads2, triggering the unchanged guard. This is a driver defect,
+  not a gameplay takeoff failure; root completed one small getter/scene check.
+- **Close:** no second run or acceptance relaxation; candidate5010ef932 remains
+  on remote `hold/hulk-revisit-20261017`, excluded from main/public packages.
+  Zero diagnostics, source/index/engine/cache guards pass; all44 observed owned
+  identities independently absent, inputs released and private display277/
+  authority/sockets closed, lanes available. Clean checkout removed; exact Linux
+  binary/archive/metadata moved to retained raw with verified hashes. Windows
+  checkpoint was not launched. Latest accepted checkpoint stays ef67f3e.
+  Raw: `/srv/mudds-work/hulk-revisit-results-20261017/`.
+
+### HULK-REVISIT-DEPARTURE — READY bounded repair; not started
+
+- **Parent/result:** HULK-REVISIT-INPUT. Make external driver departure follow
+  the actual home berth's optional lift configuration, then resume the frozen
+  waypoint/revisit route. Existing gameplay/geometry/controls remain unchanged.
+- **Owner/boundary:** one implementation agent, base5010ef932; root integration.
+  Existing observer/driver/Python tests only. Read public home berth
+  `get_departure_lift_height()` into telemetry and freeze it before departure.
+  Zero height: actual !landed/FREE_FLIGHT/released lease/lift-inactive completes
+  departure without invented active phase. Positive height: retain actual
+  active→inactive completion. Record which real path occurred; never use a timer
+  or phase alone for a configured lift.
+- **Proof:** focused tests reject advancing while landed, accept actual zero-
+  height departure, and preserve positive-height/mid-lift refusal. Then clean
+  changed observer export/startups and one full `hulk-revisit` attempt, original
+  cumulative300s, full home receipt/safe header/new stream/new breaker E/once-only
+  cell/receipt/light criteria unchanged. Fresh game payload required for telemetry.
+- **Budget/stop:**20–30 minutes implementation; checks/export/one300s route
+  separately. Stop first failure or estimate boundary; no automated extra probe,
+  broader controller rewrite, pose/clock/tuning change or cap relaxation.
+- **Next action:** add the one read-only berth setting, correct only departure
+  completion branch/receipt and focused tests; freeze candidate before one run.
+- **Close:** record actual result/source/build, commit/push, checkpoint if
+  qualified and cleanup. All broader recovery/hardware gates remain open.
 
 ## Working constraints
 

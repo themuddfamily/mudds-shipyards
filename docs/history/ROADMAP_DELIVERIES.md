@@ -1230,3 +1230,45 @@ Add only a revisit-selected read-only departure_lift_active boolean from the
 existing ship owner. No phase/timer inference, direct lift call, pose write or
 threshold/cap relaxation. Resume same bounded assignment after correction; no
 runtime retry or qualification failure is hidden by this source-only review.
+
+
+## HULK revisit input — failed qualification on 5010ef932
+
+Candidate5010ef9324da96a713472f8b2be6056268c23c52 adds select-only revisit release
+qualification, signal freshness telemetry/private selector, no gameplay/geometry/
+timing changes.50 Python checks pass; all six original route class definitions
+are unchanged. Clean Godot import/observer parse/privacy226, Linux export and
+strict direct/archive startup pass. Exactly one cumulative300s full attempt stops
+at first guard failure278.285s: `one new Cinder request without another unload or
+load failure`, still `revisit_departure`. No retry or Windows checkpoint launch.
+
+Full ordinary home prefix completes through frame5959; supported west clearance
+6097, candidate boarding6152 and START_ENGINES6299 pass. Trace6299–6320 proves
+normal W takeoff→FREE_FLIGHT with released home lease while lift-active remains
+false. The driver requires lift_seen=true and never advances its first waypoint;
+held W flies straight along−Z. Actual new Cinder generation3 loads en route, but
+no planned revisit dock/interior interaction occurs. At final7394, ship
+(0,1.149999976,-1384.778809), velocity(0,0,-82), hull89, actual Cinder distance
+691.074768m/generation4/unloads2/requests2/failures0, triggering the unchanged guard.
+This does not qualify a revisit or new duplicate-refusal result.
+
+One bounded direct getter/scene diagnosis establishes root's overstrict contract:
+ShipBerth.departure_lift_height defaults0 (ship_berth.gd41), documented plain
+departure; get_departure_lift_for73 returns{} for0. CentralBerth scene39–47 has no
+height override. Halyard alone specifies4m. The earlier parked/mid-lift readiness
+blocker remains real for configured lifts, but requiring an active lift on every
+home departure was wrong. Next separate20–30m REVISIT-DEPARTURE repair reads actual
+public berth setting, accepts ordinary released zero-height departure and retains
+active→inactive evidence for positive-height lifts. No geometry/config change,
+timer inference, criterion/cap relaxation or second engine probe was performed.
+
+Raw `/srv/mudds-work/hulk-revisit-results-20261017/` retains exact commands/logs/
+source results and first failure. Source/index/engine/cache guards pass; zero
+diagnostics; inputs released, helper/game/Xvfb reaped. All44 observed owned
+identities independently absent, private display277/authority/profile/sockets
+closed and runtime lanes free. Candidate pushed to hold/hulk-revisit-20261017,
+withheld from main/public builds. Clean checkout removed. Exact failed-source
+Linux binary/archive/metadata moved to retained-linux with hashes checked;
+retained-artifacts.json maps former paths. Conditional Windows helper was not
+launched and is not a checkpoint claim. Accepted ef67f3e checkpoint remains
+latest; revisit/disk/interruption/shared/full matrix/native/human gates stay open.
