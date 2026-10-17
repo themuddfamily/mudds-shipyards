@@ -98,9 +98,10 @@ full timed/native performance and canonical planetary journeys remain NOT_RUN.
 manifest publication during first install, an ordinary fresh CLI retry safely
 installs the chosen package while preserving user/unrelated files. Parent:
 [INSTALL-LINUX / RECOVERY-FIX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
-Existing update recovery covers `previous` installations only; source currently
-creates its recovery journal only when `previous` is present. A first install
-can publish its desktop entry without a manifest. Reproduce before fixing.
+The original first-install failure was reproduced and fixed on53663cc12.
+First installs now write the existing recovery journal with `previous:null`
+before desktop publication. Fresh retries validate exact payload/launcher
+ownership; old unjournaled orphan entries remain refused.
 
 **Boundary:** `tools/release/install_linux_desktop.py` and its consolidated test.
 Reuse the real SIGKILL helper and existing journal/ownership checks; no new
@@ -111,21 +112,25 @@ production gameplay changes, uninstall-kill or power-loss qualification.
 | Task | Exact finish line / stop | State / budget |
 | --- | --- | --- |
 | LINUX-FIRST-INSTALL-REPRO | Existing real child-process cut, first install only; kill after desktop publication/before manifest, reap, then fresh ordinary CLI retry. Record actual failure or supported success; no assumed bug. | DONE; actual SIGKILL/fresh retry exits1, refusal of desktop without manifest |
-| LINUX-FIRST-INSTALL-FIX | If reproduced, repair the existing ownership transaction, pass focused tests including prior update recovery, tampered inputs and protected saves/untracked files. No permissive ownership fallback. | IN PROGRESS;45–60 min implementation, focused checks separately |
-| LINUX-FIRST-INSTALL-SHIP | Clean-source Linux archive includes exact repaired manager; actual shipped-manager first-install kill/fresh retry and update checks, exact artifact/member bytes, direct/extracted strict startup exit0 + STARTUP_MENU_READY_OK; notes and cleanup. | GATED on fix; export/smoke5–15 min plus original caps |
+| LINUX-FIRST-INSTALL-FIX | If reproduced, repair the existing ownership transaction, pass focused tests including prior update recovery, tampered inputs and protected saves/untracked files. No permissive ownership fallback. | DONE on53663cc12; installer12/12, export pipeline23/23 pass |
+| LINUX-FIRST-INSTALL-SHIP | Clean-source Linux archive includes exact repaired manager; actual shipped-manager first-install kill/fresh retry and update checks, exact artifact/member bytes, direct/extracted strict startup exit0 + STARTUP_MENU_READY_OK; notes and cleanup. | IN PROGRESS; clean export/smoke5–15 min plus original caps |
 
-**Owner:** `linux_first_install_recovery`, isolated worktree
-`/srv/mudds-work/linux-first-install-recovery-20261017`, base09bf654c3;
-root owns integration, roadmap and actual package checks.
-**Reproduction:** existing helper killed/reaped the real production child at
-publication; no previous install, manifest or journal. Fresh ordinary retry
-exits1 refusing the desktop entry. Raw `before-fix.json` and cut filesystem retained.
-**Next single action:** review the implementer's transaction repair and focused
-checks, then freeze clean integrated source for the existing Linux export flow.
-`linux_first_install_package_check` prepares the actual shipped-manager check
-independently; no engines launched. Raw before/after: `/srv/mudds-work/linux-first-install-recovery-results-20261017/`.
-No engines or package export is assigned. Stop at first unexpected boundary and
-record it before any separately bounded follow-up.
+**Owner:** root reviews/integrates/packages; implementer delivered clean4a3a427ec,
+integrated53663cc12, two owned files only. Actual before-fix kill/fresh retry
+exits1; after-fix same cut + newer ordinary CLI retry exits0 and preserves
+saves/pending notes/other desktop. Focused installer12/12 pass with no skips;
+root export pipeline23/23 pass. Raw before/after:
+`/srv/mudds-work/linux-first-install-recovery-results-20261017/`.
+
+**Next single action:** freeze this integrated clean source, launch the existing
+guarded Linux export/check workflow in
+`/srv/mudds-work/linux-first-install-package-20261017`. Prepared raw supervisor,
+abort and actual archive-manager check:
+`/srv/mudds-work/linux-first-install-package-results-20261017/`.
+Expected shipped check36 assertions/9 commands, including two realSIGKILL cuts;
+direct and extracted startup each exit0 + exactly one STARTUP_MENU_READY_OK.
+Import600s/export930s/shipped180s/startups330s caps; headless/Dummy/private
+profiles. No engine launched yet. Stop first actual failure; no unchanged retry.
 
 All ten phase gates remain open. Q4 startup stays parked without a justified
 construction candidate. Latest paired gameplay checkpoint remains b6af782;

@@ -632,3 +632,24 @@ Aurora benchmark, native hardware, canonical travel/rewards/save, expedition
 cadence, shared visits, package execution and full matrix remain NOT_RUN for this
 delivery. Benchmark-only changes require no new gameplay checkpoint. All phase
 gates remain open.
+
+## Linux first-install interrupted publication — source fix on53663cc12
+
+Actual first install killed after desktop publication/before manifest left no
+journal, and a fresh ordinary CLI retry exited1 refusing the unowned launcher.
+Same real-kill helper after the fix leaves `previous:null` in the existing
+recovery journal; a newer ordinary CLI retry exits0 with exact payload/launcher,
+retired journal/obsolete owned payload and preserved save/pending-runtime notes/
+unrelated desktop. Existing dictionary-previous update journals stay supported;
+pending payload digests and exact desktop bytes are validated before mutation.
+Unjournaled orphan entries left by the old manager remain safely refused.
+
+Only installer and consolidated test changed; integrated53663cc12 from
+4a3a427ecebe37407959f5bc81b067e364ec0f69. Focused installer12/12 pass, including
+initial/update OSError rollback and tampered initial journal/owner/generation/
+payload/desktop/symlink refusal; no skips. Root export pipeline23/23 pass in
+2.892s. Raw before/after cut filesystems and logs:
+`/srv/mudds-work/linux-first-install-recovery-results-20261017/`.
+Actual shipped-manager archive checks and strict direct/extracted startup are
+pending. This source result does not qualify uninstall-kill, power loss, old
+unjournaled orphan adoption, game recovery or native desktop/GPU/audio behavior.
