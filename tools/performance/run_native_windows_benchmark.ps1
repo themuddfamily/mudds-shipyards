@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Project,
     [Parameter(Mandatory=$true)][string]$OutputDirectory,
     [string]$TargetProfile,
+    [ValidateSet('station_embodied_route','nearby_sector_ship_flight_route')][string]$Scenario,
     [switch]$Smoke,
     [switch]$Headless,
     [switch]$PreflightOnly,
@@ -54,7 +55,7 @@ if ($nvidia) {
 }
 if ($TargetProfile) { Copy-Item $TargetProfile "$OutputDirectory\target-profile.json" }
 if ($PreflightOnly) { Write-Output "Native preflight recorded: $OutputDirectory"; return }
-$variables = @('KETH_BENCHMARK_JSON','KETH_BENCHMARK_TARGET_PROFILE','KETH_BENCHMARK_SMOKE',
+$variables = @('KETH_BENCHMARK_SCENARIO','KETH_BENCHMARK_JSON','KETH_BENCHMARK_TARGET_PROFILE','KETH_BENCHMARK_SMOKE',
     'KETH_BENCHMARK_RESOLUTION','KETH_BENCHMARK_QUALITY_LEVEL','KETH_BENCHMARK_WARMUP_FRAMES','KETH_BENCHMARK_SAMPLE_FRAMES','APPDATA')
 $saved = @{}
 foreach ($name in $variables) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
@@ -67,9 +68,10 @@ try {
     $env:KETH_BENCHMARK_JSON = "$OutputDirectory\benchmark.json"
     if ($TargetProfile) { $env:KETH_BENCHMARK_TARGET_PROFILE = "$OutputDirectory\target-profile.json" }
     if ($Smoke) { $env:KETH_BENCHMARK_SMOKE = '1' }
+    if ($Scenario) { $env:KETH_BENCHMARK_SCENARIO = $Scenario }
     $arguments = @('--audio-driver', 'Dummy', '--path', ('"' + $Project + '"'), '--script', 'res://tools/performance/benchmark_runner.gd')
     if ($Headless) { $arguments += '--headless' }
-    @{executable=$Godot;arguments=$arguments;working_directory=$Project;source_git_sha=$sha;smoke=[bool]$Smoke;headless=[bool]$Headless} |
+    @{executable=$Godot;arguments=$arguments;working_directory=$Project;source_git_sha=$sha;smoke=[bool]$Smoke;headless=[bool]$Headless;scenario=$Scenario} |
         ConvertTo-Json -Depth 4 | Set-Content "$OutputDirectory\invocation.json" -Encoding UTF8
     $process = Start-Process -FilePath $Godot -ArgumentList $arguments -WorkingDirectory $Project -PassThru `
         -RedirectStandardOutput "$OutputDirectory\stdout.log" -RedirectStandardError "$OutputDirectory\stderr.log"

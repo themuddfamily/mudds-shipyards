@@ -51,6 +51,17 @@ def record():
 
 
 class BenchmarkRecordValidatorTests(unittest.TestCase):
+    def test_selected_only_report_cannot_qualify_full_protocol(self):
+        for name in sorted(validator.SCENARIOS):
+            for representative_pass in (False, True):
+                with self.subTest(name=name, representative_pass=representative_pass):
+                    value = record()
+                    value["scenarios"] = [item for item in value["scenarios"] if item["name"] == name]
+                    value["configuration"]["scenario_order"] = [name]
+                    value["representativeness"]["representative_pass"] = representative_pass
+                    self.assertIn("exactly the two production benchmark scenarios are required",
+                                  validator.validate_record(value))
+
     def test_valid_record(self):
         self.assertEqual(validator.validate_record(record()), [])
 

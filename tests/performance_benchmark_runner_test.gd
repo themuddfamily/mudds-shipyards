@@ -16,8 +16,12 @@ func _run() -> void:
 	_test_metadata_and_representativeness_contract()
 	_test_schema_mutations()
 	await _test_emergency_input_guard()
+	await _test_invalid_selection()
 	await _test_live_abort()
 	await _test_live_smoke()
+	for selection: StringName in RUNNER.SCENARIO_NAMES:
+		await _test_live_abort(String(selection))
+		await _test_live_smoke(String(selection))
 	await _test_live_flight_shuttle()
 	_finish()
 
@@ -44,6 +48,12 @@ func _test_percentile_contract() -> void:
 
 
 func _test_duration_contract() -> void:
+	_check(RUNNER.required_phase_frames(1, 3, false) == {"warmup": 3600, "sample": 18000},
+		"full runs enforce both original frame floors even with shorter caller overrides")
+	_check(RUNNER.required_phase_frames(4000, 20000, false) == {"warmup": 4000, "sample": 20000},
+		"longer requested frame quotas are retained")
+	_check(RUNNER.required_phase_frames(1, 3, true) == {"warmup": 1, "sample": 3},
+		"diagnostic smoke preserves its short frame quotas")
 	_check(RUNNER.phase_incomplete(18000, 18000, 300.0, 600.0), "fast frame quota cannot end a short sample")
 	_check(RUNNER.phase_incomplete(9000, 18000, 600.0, 600.0), "duration quota cannot bypass minimum sample frames")
 	_check(not RUNNER.phase_incomplete(18000, 18000, 600.0, 600.0), "both duration and frame minima complete the phase")
@@ -99,8 +109,8 @@ func _test_schema_mutations() -> void:
 		classification,
 		scenarios,
 		{
-			"warmup_frames_per_scenario": 2,
-			"sample_frames_per_scenario": 4,
+			"warmup_frames_per_scenario": 3600,
+			"sample_frames_per_scenario": 18000,
 			"scenario_order": PackedStringArray(RUNNER.SCENARIO_NAMES),
 			"resolution": [1920, 1080],
 			"quality_level": 2,
@@ -109,6 +119,28 @@ func _test_schema_mutations() -> void:
 	)
 	_check(RUNNER.validate_report(report).is_empty(), "complete schema fixture validates")
 
+	for scenario_name: StringName in RUNNER.SCENARIO_NAMES:
+		var selected := report.duplicate(true)
+		selected.scenarios = [(report.scenarios[0] if scenario_name == RUNNER.SCENARIO_NAMES[0] else report.scenarios[1]).duplicate(true)]
+		selected.configuration.scenario_order = PackedStringArray([scenario_name])
+		_check(not RUNNER.validate_report(selected).is_empty(), "strict full validation rejects a selected-only report")
+		_check(_contains_fragment(RUNNER.validate_selected_diagnostic_report(selected, String(scenario_name)), "representative_pass is forbidden"),
+			"selected report cannot claim representative pass even on matching clean hardware")
+		selected.representativeness.representative_pass = false
+		_check(RUNNER.validate_selected_diagnostic_report(selected, String(scenario_name)).is_empty(),
+			"selected diagnostic validation retains a valid full-duration route")
+		selected.scenarios[0].sample_elapsed_seconds = 300.0
+		_check(_contains_fragment(RUNNER.validate_selected_diagnostic_report(selected, String(scenario_name)), "sample elapsed duration"),
+			"selected diagnostic validation preserves per-route duration checks")
+	var duplicate_scenario := report.duplicate(true)
+	duplicate_scenario.scenarios[1] = duplicate_scenario.scenarios[0].duplicate(true)
+	_check(_contains_fragment(RUNNER.validate_report(duplicate_scenario), "required protocol"),
+		"two copies of one scenario cannot qualify the full protocol")
+	for phase in ["warmup_frames", "sample_count"]:
+		var short_frames := report.duplicate(true)
+		short_frames.scenarios[0][phase] = 2
+		_check(_contains_fragment(RUNNER.validate_report(short_frames), "warm-up/sample counts"),
+			"full report cannot lower the original frame floor")
 	var missing_driver := report.duplicate(true)
 	missing_driver.environment.gpu.erase("driver")
 	_check(
@@ -243,15 +275,33 @@ func _test_emergency_input_guard() -> void:
 		RenderingServer.render_loop_enabled = rendering_was_enabled
 
 
-func _test_live_abort() -> void:
+func _test_invalid_selection() -> void:
+	var main_launches := [0]
+	var observe_launch := func(node: Node) -> void:
+		if node is GameFlow:
+			main_launches[0] += 1
+	node_added.connect(observe_launch)
+	var children_before := root.get_child_count()
+	var size_before := root.size
+	var result := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true, "unknown_route")
+	node_added.disconnect(observe_launch)
+	_check(result.has("selection_error") and not result.has("scenarios"), "unknown scenario is rejected without a report")
+	_check(main_launches[0] == 0 and root.get_child_count() == children_before and root.size == size_before,
+		"unknown selection rejects before Main instantiation or window mutation")
+
+
+func _test_live_abort(selection: String = "") -> void:
 	var children_before := root.get_child_count()
 	var original_auto_quit := auto_accept_quit
 	call_deferred("_abort_next_benchmark")
-	var result := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true)
+	var result := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true, selection)
 	_check(bool(result.get("aborted", false)) and not result.has("scenarios") \
 		and not result.has("representativeness"), "aborted production startup produces no completed or qualifying report")
 	_check(root.get_child_count() == children_before and auto_accept_quit == original_auto_quit,
 		"abort frees Main and its input guard and restores window-close policy")
+	_check(not Input.is_action_pressed(&"move_forward") and not Input.is_action_pressed(&"move_back")
+		and not Input.is_action_pressed(&"brake") and not Input.is_action_pressed(&"sprint_boost")
+		and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "aborted selection releases movement and cursor")
 
 
 func _abort_next_benchmark() -> void:
@@ -263,7 +313,7 @@ func _abort_next_benchmark() -> void:
 	root.window_input.emit(escape)
 
 
-func _test_live_smoke() -> void:
+func _test_live_smoke(selection: String = "") -> void:
 	var visibility := {"station": 0, "flight": 0, "valid": true, "flight_ownership": true}
 	var observe_gameplay := func() -> void:
 		if not Input.is_action_pressed(&"move_forward"):
@@ -286,15 +336,27 @@ func _test_live_smoke() -> void:
 				)
 		visibility[scenario] = int(visibility[scenario]) + 1
 	process_frame.connect(observe_gameplay)
-	var report := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true)
+	var report := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true, selection)
 	process_frame.disconnect(observe_gameplay)
-	_check(bool(visibility.valid) and int(visibility.station) > 0 and int(visibility.flight) > 0,
-		"both active scenarios hide the intro and display the gameplay HUD")
-	_check(bool(visibility.flight_ownership) and int(visibility.flight) > 0,
+	_check(bool(visibility.valid)
+		and (int(visibility.station) > 0) == (selection != "nearby_sector_ship_flight_route")
+		and (int(visibility.flight) > 0) == (selection != "station_embodied_route"),
+		"only requested scenarios run with the intro hidden and gameplay HUD displayed")
+	_check(bool(visibility.flight_ownership) and (selection == "station_embodied_route" or int(visibility.flight) > 0),
 		"flight stages piloting flow, ship camera and component HUD with on-foot controls disabled")
-	var errors := RUNNER.validate_report(report)
+	var errors := RUNNER.validate_report(report) if selection.is_empty() else RUNNER.validate_selected_diagnostic_report(report, selection)
 	_check(errors.is_empty(), "short production-Main smoke emits a valid report: %s" % "; ".join(errors))
-	_check(report.scenarios.size() == 2, "live smoke executes both named scenarios")
+	var expected_names := PackedStringArray(RUNNER.SCENARIO_NAMES) if selection.is_empty() else PackedStringArray([selection])
+	_check(report.scenarios.size() == expected_names.size() and report.configuration.scenario_order == expected_names,
+		"live smoke executes the requested scenario order")
+	if not selection.is_empty():
+		_check(not RUNNER.validate_report(report).is_empty()
+			and _contains_fragment(report.representativeness.reasons, "diagnostic-only"),
+			"selected live report is explicitly partial and fails full-protocol validation")
+	_check(root.get_node_or_null("Main") == null and not Input.is_action_pressed(&"move_forward")
+		and not Input.is_action_pressed(&"move_back") and not Input.is_action_pressed(&"brake")
+		and not Input.is_action_pressed(&"sprint_boost") and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE,
+		"completed selection frees Main and releases synthetic inputs and cursor")
 	for scenario_variant in report.scenarios:
 		var scenario := scenario_variant as Dictionary
 		_check(bool(scenario.completed), "%s live smoke completes" % scenario.name)
@@ -354,10 +416,8 @@ func _test_live_smoke() -> void:
 		and report.unavailable_metrics.vram_bytes.value == null,
 		"live smoke labels GPU time and VRAM unavailable"
 	)
-	print("PERFORMANCE_BENCHMARK_SMOKE_PROGRESS: ", JSON.stringify([
-		(report.scenarios[0] as Dictionary).scenario_progress,
-		(report.scenarios[1] as Dictionary).scenario_progress,
-	]))
+	for scenario: Dictionary in report.scenarios:
+		print("PERFORMANCE_BENCHMARK_SMOKE_PROGRESS: ", scenario.name, " ", JSON.stringify(scenario.scenario_progress))
 
 
 func _test_live_flight_shuttle() -> void:
@@ -416,10 +476,10 @@ func _scenario_fixture(name: String) -> Dictionary:
 		"resolution_after": {"requested": [1920, 1080], "viewport": [1920, 1080], "window": [1920, 1080], "framebuffer_available": true, "framebuffer": [1920, 1080]},
 		"warmup_elapsed_seconds": 60.0,
 		"sample_elapsed_seconds": 600.0,
-		"warmup_frames": 2,
-		"sample_count": 4,
-		"frame_delta_ms": {"count": 4, "p50": 8.0, "p95": 12.0, "p99": 12.0, "max": 12.0},
-		"monitors": {"cpu_process_ms": {"available": true, "summary": {"count": 4, "p50": 1.0, "p95": 2.0, "p99": 2.0, "max": 2.0}}},
+		"warmup_frames": 3600,
+		"sample_count": 18000,
+		"frame_delta_ms": {"count": 18000, "p50": 8.0, "p95": 12.0, "p99": 12.0, "max": 12.0},
+		"monitors": {"cpu_process_ms": {"available": true, "summary": {"count": 18000, "p50": 1.0, "p95": 2.0, "p99": 2.0, "max": 2.0}}},
 		"ram": {"static_bytes_after_sample": 100, "static_peak_bytes": 120},
 		"scene_counts": {"nodes": 10},
 		"startup": {"main_instantiate_ms": 1.0, "main_first_ready_frames_ms": 2.0},

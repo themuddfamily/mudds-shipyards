@@ -118,6 +118,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	var selection := OS.get_environment("KETH_BENCHMARK_SCENARIO")
 	var smoke := _environment_bool("KETH_BENCHMARK_SMOKE", false)
 	var warmup_frames := _environment_int(
 		"KETH_BENCHMARK_WARMUP_FRAMES",
@@ -137,13 +138,17 @@ func _run() -> void:
 	)
 	var target := load_target_profile(OS.get_environment("KETH_BENCHMARK_TARGET_PROFILE"))
 	var report := await run_benchmark(
-		self, warmup_frames, sample_frames, resolution, quality_level, target, smoke
+		self, warmup_frames, sample_frames, resolution, quality_level, target, smoke, selection
 	)
+	if report.has("selection_error"):
+		printerr("PERFORMANCE_BENCHMARK_SELECTION_FAILED: ", report.selection_error)
+		quit(1)
+		return
 	if bool(report.get("aborted", false)):
 		printerr("PERFORMANCE_BENCHMARK_ABORTED: ", report.get("reason", "operator abort"))
 		quit(130)
 		return
-	var errors := validate_report(report)
+	var errors := validate_report(report) if selection.is_empty() else validate_selected_diagnostic_report(report, selection)
 	if not errors.is_empty():
 		printerr("PERFORMANCE_BENCHMARK_SCHEMA_FAILED: ", "; ".join(errors))
 		quit(1)
@@ -174,8 +179,16 @@ static func run_benchmark(
 		resolution: Vector2i,
 		quality_level: int,
 		target_profile: Dictionary = {},
-		smoke_run: bool = false
+		smoke_run: bool = false,
+		scenario_selection: String = ""
 	) -> Dictionary:
+	# Validate before installing guards, changing the window or instantiating Main.
+	if not scenario_selection.is_empty() and not SCENARIO_NAMES.has(StringName(scenario_selection)):
+		return {"selection_error": "unknown benchmark scenario: %s" % scenario_selection}
+	var selected_names := PackedStringArray(SCENARIO_NAMES) if scenario_selection.is_empty() else PackedStringArray([scenario_selection])
+	var frame_counts := required_phase_frames(warmup_frames, sample_frames, smoke_run)
+	warmup_frames = frame_counts.warmup
+	sample_frames = frame_counts.sample
 	# Keep physical Escape available through startup and deterministic staging,
 	# independently of gameplay pause/input.
 	var input_guard := BenchmarkInputGuard.new()
@@ -198,7 +211,7 @@ static func run_benchmark(
 		DisplayServer.window_set_size(requested_resolution)
 	var durations := required_phase_seconds(target_profile, smoke_run)
 	var scenarios: Array[Dictionary] = []
-	for scenario_name: StringName in SCENARIO_NAMES:
+	for scenario_name: StringName in selected_names:
 		scenarios.append(await _run_scenario(
 			tree,
 			scenario_name,
@@ -238,6 +251,8 @@ static func run_benchmark(
 		completed = completed and bool(scenario.get("completed", false))
 	if bool(source.get("git_dirty", true)):
 		representativeness_reasons.append("source tree is dirty")
+	if not scenario_selection.is_empty():
+		representativeness_reasons.append("selected scenario is diagnostic-only; full protocol requires both scenarios")
 	if smoke_run:
 		representativeness_reasons.append("smoke protocol is bounded-progress-only")
 	representativeness["reasons"] = representativeness_reasons
@@ -246,6 +261,7 @@ static func run_benchmark(
 		and not bool(source.get("git_dirty", true))
 		and completed
 		and not smoke_run
+		and scenario_selection.is_empty()
 	)
 	representativeness["performance_budget_pass"] = null
 	return build_report(
@@ -257,7 +273,7 @@ static func run_benchmark(
 		{
 			"warmup_frames_per_scenario": maxi(warmup_frames, 1),
 			"sample_frames_per_scenario": maxi(sample_frames, 2),
-			"scenario_order": PackedStringArray(SCENARIO_NAMES),
+			"scenario_order": selected_names,
 			"frame_delta_clock": "Time.get_ticks_usec wall interval between consecutive process_frame signals",
 			"quality_level": quality_level,
 			"resolution": [requested_resolution.x, requested_resolution.y],
@@ -268,6 +284,13 @@ static func run_benchmark(
 			"minimum_sample_seconds": durations.sample,
 		}
 	)
+
+
+static func required_phase_frames(warmup_frames: int, sample_frames: int, smoke_run: bool) -> Dictionary:
+	return {
+		"warmup": maxi(warmup_frames, 1 if smoke_run else DEFAULT_WARMUP_FRAMES),
+		"sample": maxi(sample_frames, 2 if smoke_run else DEFAULT_SAMPLE_FRAMES),
+	}
 
 
 static func _run_scenario(
@@ -1013,6 +1036,17 @@ static func build_report(
 
 
 static func validate_report(report: Dictionary) -> PackedStringArray:
+	return _validate_report(report, PackedStringArray(SCENARIO_NAMES), false)
+
+
+## Structural validation for one diagnostic route; never full-protocol acceptance.
+static func validate_selected_diagnostic_report(report: Dictionary, scenario_selection: String) -> PackedStringArray:
+	if not SCENARIO_NAMES.has(StringName(scenario_selection)):
+		return PackedStringArray(["a known single diagnostic scenario is required"])
+	return _validate_report(report, PackedStringArray([scenario_selection]), true)
+
+
+static func _validate_report(report: Dictionary, expected_names: PackedStringArray, diagnostic_only: bool) -> PackedStringArray:
 	var errors := PackedStringArray()
 	if int(report.get("schema_version", -1)) != SCHEMA_VERSION:
 		errors.append("schema_version must be %d" % SCHEMA_VERSION)
@@ -1040,8 +1074,13 @@ static func validate_report(report: Dictionary) -> PackedStringArray:
 		errors.append("configuration.smoke_run boolean is required")
 	var smoke_run := bool(configuration.get("smoke_run", false))
 	var scenarios := report.get("scenarios", []) as Array
-	if scenarios.size() != SCENARIO_NAMES.size():
-		errors.append("exactly two named scenarios are required")
+	if scenarios.size() != expected_names.size():
+		errors.append("exactly one selected diagnostic scenario is required" if diagnostic_only else "exactly two named scenarios are required")
+	var actual_names := PackedStringArray()
+	for scenario_variant in scenarios:
+		actual_names.append(str((scenario_variant as Dictionary).get("name", "")))
+	if actual_names != expected_names or PackedStringArray(configuration.get("scenario_order", [])) != expected_names:
+		errors.append("scenario names and configuration.scenario_order must match the required protocol")
 	for scenario_variant in scenarios:
 		var scenario := scenario_variant as Dictionary
 		var scenario_name := StringName(scenario.get("name", ""))
@@ -1078,9 +1117,12 @@ static func validate_report(report: Dictionary) -> PackedStringArray:
 		var frame_delta := scenario.get("frame_delta_ms", {}) as Dictionary
 		if not _valid_summary(frame_delta):
 			errors.append("scenario frame_delta_ms summary is invalid")
-		if int(scenario.get("warmup_frames", 0)) < 1 or int(scenario.get("sample_count", 0)) < 2:
+		if int(scenario.get("warmup_frames", 0)) < (1 if smoke_run else DEFAULT_WARMUP_FRAMES) \
+				or int(scenario.get("sample_count", 0)) < (2 if smoke_run else DEFAULT_SAMPLE_FRAMES):
 			errors.append("scenario warm-up/sample counts are invalid")
 	var representative := report.get("representativeness", {}) as Dictionary
+	if diagnostic_only and bool(representative.get("representative_pass", false)):
+		errors.append("representative_pass is forbidden for selected diagnostic protocol")
 	if bool(representative.get("representative_pass", false)) and not bool(representative.get("hardware_match", false)):
 		errors.append("representative_pass requires an exact target hardware match")
 	if bool(representative.get("representative_pass", false)) and bool(source.get("git_dirty", true)):

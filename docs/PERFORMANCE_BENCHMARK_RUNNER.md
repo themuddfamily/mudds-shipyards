@@ -25,6 +25,18 @@ window. Scenario order and inputs are frozen in the JSON:
    invalid route markers fail staging; there is no unrelated coordinate
    fallback.
 
+Omit selection to run both scenarios in the order above. Set
+`KETH_BENCHMARK_SCENARIO=station_embodied_route` or
+`KETH_BENCHMARK_SCENARIO=nearby_sector_ship_flight_route` to run only that route.
+Unknown names fail before Main instantiation. A selected run keeps the same
+per-route timing and progress requirements but is diagnostic-only: its
+`configuration.scenario_order` contains only the selected name,
+`representative_pass` is always false, and `performance_budget_pass` stays null.
+The runner's default `validate_report` and the native benchmark-record gate
+still require both routes. Only `validate_selected_diagnostic_report(report,
+scenario_name)` accepts the single-route structure, preserving every per-route
+check; it cannot grant full-protocol acceptance.
+
 Neither scenario can pass by sampling an idle scene. Each records the actor's
 start and end transforms, accumulated path, and maximum displacement. The
 station route must show horizontal movement by the real, enabled
@@ -38,7 +50,8 @@ Full runs require both 3,600 warm-up frames **and at least 60 elapsed seconds**,
 then 18,000 measured frames **and at least 600 elapsed seconds**, per scenario,
 at 1920×1080 High. Larger `budgets.warmup_seconds` / `budgets.sample_seconds`
 values in the reviewed target extend these windows; smaller values cannot lower
-the production floors. Both phases use `Time.get_ticks_usec()` and record their
+the production floors. Frame overrides below 3,600/18,000 are also clamped
+to those floors for full runs, including selected runs. Both phases use `Time.get_ticks_usec()` and record their
 actual frame counts and `warmup_elapsed_seconds` / `sample_elapsed_seconds`.
 A full run therefore takes at least 22 minutes for two scenarios, plus startup;
 low frame rates or larger reviewed budgets can extend it further.
@@ -143,6 +156,7 @@ godot --audio-driver Dummy --path /absolute/path/to/repository \
 
 Optional configuration variables are:
 
+- `KETH_BENCHMARK_SCENARIO=station_embodied_route` (or `nearby_sector_ship_flight_route`; omit for both)
 - `KETH_BENCHMARK_RESOLUTION=1920x1080`
 - `KETH_BENCHMARK_QUALITY_LEVEL=2` (`0` Low, `1` Medium, `2` High)
 - `KETH_BENCHMARK_WARMUP_FRAMES=3600`
@@ -165,7 +179,8 @@ godot --headless --audio-driver Dummy --path /absolute/path/to/repository \
 
 The focused regression uses an even shorter in-process smoke alongside
 mutation-sensitive percentile, metadata, representativeness, and schema
-fixtures:
+fixtures, each selected route, the default combined run, invalid selection, and
+abort/input cleanup:
 
 ```bash
 godot --headless --audio-driver Dummy --path /absolute/path/to/repository \
@@ -264,6 +279,13 @@ $launcher = 'C:\Temp\keth-benchmark\source\tools\performance\run_native_windows_
   -OutputDirectory C:\Temp\keth-benchmark\full `
   -TargetProfile C:\Temp\keth-benchmark\target.json
 ```
+
+Pass `-Scenario station_embodied_route` or
+`-Scenario nearby_sector_ship_flight_route` to the launcher for one diagnostic
+route; omitting it runs both. The launcher validates the name, records it in
+`invocation.json`, forwards it through `KETH_BENCHMARK_SCENARIO`, and clears any
+inherited selection before setting its own. It restores the caller's selection
+alongside the other benchmark environment variables after execution.
 
 `-Smoke -Headless` is a readiness check that needs no rendered window. Headless
 full runs are rejected. `-PreflightOnly` records hardware and checks the clean
