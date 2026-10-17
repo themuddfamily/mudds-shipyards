@@ -43,7 +43,7 @@ satisfies the human-review stage. The report never upgrades a state, inspects
 pixels, or infers human approval from `review_status`.
 
 At this revision two source/image declarations are verified: freighter at exact
-`0cb430c0c` and freight berth at exact `689e2ed0e`. Both human-review readiness
+`e159ac3c5` and freight berth at exact `689e2ed0e`. Both human-review readiness
 values are `ready`, not `reviewed`; the other eleven rows remain pending.
 The human-inclusive report has `ready=0`, `required=13`, and 35 blockers:
 22 machine stages and 13 human stages. Human stages are excluded from the
@@ -54,23 +54,30 @@ These source-specific captures do not qualify all thirteen harnesses on one
 final frozen candidate.
 
 The unchanged original freighter harness completed all four 1280×720 views
-within its original 300-second cap, on a clean frozen imported checkout under
-private Xvfb x11 / Dummy / Forward+ Vulkan llvmpipe. Source, registry and complete
-import cache stayed unchanged. Original-resolution agent inspection confirms
-the cabin readout is visible and cargo grille moire is reduced by native mesh LOD;
-thin distant gasket/edge outlines and bonnet grille noise remain open in
-`bugs.md` (`JOVIAN-ROOF-001`). Earlier `5c76d023c` passed the capture contract but
-failed that visual inspection because a separate housing still covered the
-text; its raw images and unaccepted exports are preserved. The final source
-corrects the housing clearance and passes actual merged-triangle visibility
-checks. The current roof also corrects per-triangle normals and a local aft
-gasket/strap crossing; native LOD preserves all near-detail triangles and fitout
-batching retains LOD/color data. No human or native GPU qualification is implied.
+within its original 300-second cap on clean frozen source and import cache,
+under private Xvfb x11 / Dummy / Forward+ Vulkan llvmpipe with fresh private XDG
+locations. Source, registry and complete import cache stayed unchanged.
+Original-resolution agent inspection confirms the visible cabin readout,
+coherent distant cargo lids and bonnet cooling fields. Native LOD preserves all
+5,410 near triangles; a controlled close roof image remains byte-identical.
+Distant-only top surfaces remove the demonstrated broken vertical-return
+outlines; sparse authored attachments and pressure joints remain. The scoped
+software-rendered `JOVIAN-ROOF-001` finding is resolved. Target-GPU, temporal,
+whole-fleet and broader art-direction acceptance remain open.
+
+Earlier `5c76d023c` passed the capture contract but failed visual inspection
+because a separate housing covered its text. Its unaccepted raw images and
+exports remain preserved. The intermediate distant-lid candidate passed its
+focused suite but retained broken field outlines, which were corrected before
+this final canonical capture. Current source retains housing clearance,
+merged-triangle engineer visibility, corrected normals and gasket support;
+fitout batching preserves native LOD and colour data. No human or native GPU
+qualification is implied.
 
 Actual manifests, PNGs and logs are retained locally under
-`artifacts/jovian-freighter-0cb430c0c/`; source CSV SHA-256 is
-`0595da27aedde8a69285060cc3d109228a2981d3d29004ebf397ea6a3bd74cbf`, and image-inventory CSV SHA-256 is `7cba7583c6f994148bcb48b8866a040d8ccb2014a8350bf7128619086b0109c2`.
-[Checkpoint notes](../builds/windows/MuddsShipyards-0cb430c-notes.txt) identify
+`artifacts/jovian-freighter-e159ac3c5/`; source CSV SHA-256 is
+`c23fd45dee6a2981745a0323004d47c535b10a3f1f4fc2c5722e8240838bd5c4`, and image-inventory CSV SHA-256 is `475f0ef490e8511f53078831d35b4c8b6af8132e708f2d75e3b655799e87f94f`.
+[Checkpoint notes](../builds/windows/MuddsShipyards-e159ac3-notes.txt) identify
 exact packaged source and validation. Later test, registry and documentation
 changes are not part of the captured or exported source.
 

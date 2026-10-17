@@ -140,8 +140,8 @@
       "output": {"root": "res://artifacts", "contract": "png_set"},
       "render": {"required": true, "profile": "project_forward_plus"},
       "review_status": "pending",
-      "source_freeze": {"status": "verified", "manifest_sha256": "0595da27aedde8a69285060cc3d109228a2981d3d29004ebf397ea6a3bd74cbf"},
-      "image_inventory": {"status": "verified", "expected_png_count": 4, "inventory_sha256": "7cba7583c6f994148bcb48b8866a040d8ccb2014a8350bf7128619086b0109c2"},
+      "source_freeze": {"status": "verified", "manifest_sha256": "c23fd45dee6a2981745a0323004d47c535b10a3f1f4fc2c5722e8240838bd5c4"},
+      "image_inventory": {"status": "verified", "expected_png_count": 4, "inventory_sha256": "475f0ef490e8511f53078831d35b4c8b6af8132e708f2d75e3b655799e87f94f"},
       "human_review": {"readiness": "ready", "original_resolution_required": true, "evidence_reference": null}
     },
     {
