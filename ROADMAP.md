@@ -1,20 +1,20 @@
 # Development roadmap
 
 The game is a playable development alpha. **All ten phase exit gates remain
-open.** This file contains the next three concrete installer tasks. The
+open.** This file contains bounded tasks and the next roadmap planning pass. The
 [backlog and 36-parent crosswalk](docs/ROADMAP_BACKLOG.md),
 [original specifications](docs/history/ROADMAP_SCOPE_20261017.md) and
 [production roster](docs/COMPLETION_SCOPE.md) retain the full project scope.
 [Completed deliveries](docs/history/ROADMAP_DELIVERIES.md) retain their recorded
 source, checks, failures and limitations. Moving them does not close requirements.
 
-Latest Windows checkpoint: **a8f563e**, with [notes](builds/windows/MuddsShipyards-a8f563e-notes.txt).
-Latest Linux package: **a8f563e**, with [notes](builds/linux/MuddsShipyards-a8f563e-linux-notes.txt).
-Paired development checkpoint for the new source Rime benchmark selection.
-Clean exports, three strict startups and privacy207 pass; all1,515 payload entries
-match byte-for-byte. The benchmark requires a source checkout; exported games
-exclude tools. Earlier HULK/home, Ember journey and installed recovery proofs
-retain their exact source/binary scopes; no full-route proof transfers to these bytes.
+Latest Windows checkpoint: **505d419**, with [notes](builds/windows/MuddsShipyards-505d419-notes.txt).
+Latest Linux package: **505d419**, with [notes](builds/linux/MuddsShipyards-505d419-linux-notes.txt).
+The bundled Linux manager now safely retries the named interrupted uninstall.
+Actual shipped-manager SIGKILL/retry/repeat preserves protected bytes and modes.
+Clean exports, three strict startups, privacy207 and all1,515 payload-entry bytes
+pass. This is one installer recovery delivery; earlier gameplay proofs retain
+their original source/binary scopes.
 Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
 replace it. Native Windows execution and human review remain owner-excluded
@@ -86,7 +86,7 @@ b41c3cc, and managed installed Guided3/3. See
 [completed deliveries](docs/history/ROADMAP_DELIVERIES.md) for exact proof/limits.
 These do not close their broad parents or the ten phase gates.
 
-**Latest accepted task: RIME-BENCH-ROUTE and checkpoint — DONE.**
+**Earlier accepted task: RIME-BENCH-ROUTE and checkpoint — DONE.**
 Source `a8f563e39` adds select-only walking through every authored Rime survey/
 return waypoint, supported by Main's real streaming/gravity owners. Focused
 Rime33/default152/Ember24/Aurora27 pass. This delivers benchmark coverage,
@@ -108,8 +108,7 @@ work remain intact, with source refs and unique raw results preserved.
 
 ## Next batch — retry an interrupted Linux uninstall
 
-**Three bounded tasks: reproduction and source repair DONE, shipping IN PROGRESS.** This delivers one installation
-recovery behavior. The failed Rime driver and its type repair are closed and
+**Three bounded tasks DONE, delivering one installation recovery behavior.** The failed Rime driver and its type repair are closed and
 withheld; survey/home/package children are parked with their parent, not silently
 dropped. [Failure, original contracts and priority review](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-closed--landing-gate-failure-and-priority-review).
 No further Rime probe, repair or unchanged run is selected.
@@ -118,7 +117,7 @@ No further Rime probe, repair or unchanged run is selected.
 | --- | --- | --- | --- |
 | LINUX-UNINSTALL-CUT | DONE on published a8f563e | Actual SIGKILL after menu-entry removal produces a distinct-process retry result on the published manager, with protected data intact. | 20–30 min setup/closure; bounded child waits up to 10 s each, overall 120 s. |
 | LINUX-UNINSTALL-RETRY | DONE on 505d41968 | Rerunning uninstall completes that interrupted removal safely, once and without deleting saves/unrelated files. | 60–90 min implementation; existing 12 installer tests plus focused cut/refusal checks, overall 120 s. |
-| LINUX-UNINSTALL-SHIP | IN PROGRESS | A fresh downloadable Linux archive contains the fixed manager and passes the same real cut/retry; paired checkpoint has actual startup/artifact results. | 30–45 min setup/closure; export/startup/privacy allowances separately below. |
+| LINUX-UNINSTALL-SHIP | DONE on checkpoint 505d419 | A fresh downloadable Linux archive contains the fixed manager and passes the same real cut/retry; paired checkpoint has actual startup/artifact results. | 30–45 min setup/closure; export/startup/privacy allowances separately below. |
 
 ### LINUX-UNINSTALL-CUT — DONE, bounded reproduction
 
@@ -166,7 +165,7 @@ passes 14 tests (all 12 originals plus two new), no skips, exit 0 in 2.833 s,
 with actual SIGKILL/fresh CLI recovery, refusal/idempotence and protected bytes.
 Source/index/cache/Python guards pass; supervisor is reaped. Independent
 prelaunch review found no blocker. Raw is retained under the batch's
-`results/focused/`. Shipped-new-manager acceptance remains task 3.
+`results/focused/`. The shipped-new-manager acceptance below also passes.
 
 - **Result/boundary:** repair the existing manager so an ordinary uninstall
   retry safely finishes the named interrupted operation. Own only
@@ -189,7 +188,16 @@ prelaunch review found no blocker. Raw is retained under the batch's
   retain its exact source; schedule any repair separately. Do not bundle another
   cut, a crash matrix or a new installer architecture. Commit/push accepted code.
 
-### LINUX-UNINSTALL-SHIP — IN PROGRESS, accepted source 505d41968
+### LINUX-UNINSTALL-SHIP — DONE, checkpoint 505d419
+
+Published seven artifacts from clean source505d41968. All eight checkpoint
+stages exit0; all three startups reach STARTUP_MENU_READY_OK. Actual shipped
+manager cut exits-9, distinct retry/repeat exit0, exact owned removal and
+protected bytes/modes pass. Privacy207, strict1515-entry byte parity, stock PE,
+Linux archive and exact EXE/notes ZIP checks pass. All46 owned process identities
+are closed. Raw and public artifact hashes remain in
+`/srv/mudds-work/linux-uninstall-recovery-20261018/results/`.
+
 
 - **Result/next action:** export from the clean accepted commit using existing
   safe scripts; publish EXE/ZIP/notes in `builds/windows/` and matching Linux
@@ -207,6 +215,27 @@ prelaunch review found no blocker. Raw is retained under the batch's
   no automatic rerun. On acceptance commit/push notes/source, remove owned clean
   checkout and preserve exact published artifacts. Broader install cuts, power
   loss, native platform/device/audio/performance and full-release gates stay open.
+
+## Next task — ROADMAP-NEXT-CARDS (planning, READY)
+
+- **Result/parent:** turn the next priorities from the 36-parent backlog into
+  3–5 achievable cards using the required fields above. This is planning, with
+  zero gameplay outcomes claimed.
+- **Boundary:** ROADMAP.md and its existing backlog/history only. Prefer
+  independent player-visible deliveries; do not start implementation, engine
+  runs, new validators or another investigation during this pass.
+- **Proof:** each card links one original parent, states one observable result,
+  exact acceptance and existing verification seam, dependencies, owner, status,
+  work/check budgets and the first action. An unresolved acceptance gets a
+  bounded definition task rather than an implementation estimate. Preserve every
+  original requirement and factual external gate.
+- **Budget/stop:** 30–45 minutes, then publish the concrete cards and any missing
+  facts. Do not expand all 36 parents speculatively. A task exceeding90 minutes
+  of implementation must split before execution.
+- **Owner/next action:** root; read the existing crosswalk, compare available
+  player-visible outcomes, select3–5 and write their finish conditions. Commit/
+  push the reviewed queue; begin implementation only after this planning task
+  closes. A failure plus one repair triggers priority review, not another loop.
 
 ## Decomposing later work
 
@@ -227,3 +256,7 @@ EXE/ZIP/notes and strict startup exit 0 plus `STARTUP_MENU_READY_OK`; artifacts
 belong in repository `builds/`. Scratch belongs under `/srv/mudds-work/`.
 Project completion still requires every original promise and final-candidate gate,
 or an explicit owner deferral beside that promise. No percentage from tests or commits.
+
+Checkpoint505d419 final independent review: GO. Owned clean source checkout
+removed (266 MB); unique raw results retained. Published artifact identities and
+all46 owned process closures independently verified without rerunning checks.

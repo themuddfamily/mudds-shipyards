@@ -4,7 +4,27 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `a8f563e` — 2026-10-18
+## Latest development checkpoint: `505d419` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-505d419.x86_64),
+[archive](../builds/linux/MuddsShipyards-505d419-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-505d419-linux-notes.txt) come from clean
+source `505d41968158750aab256a7af8b95b311508f648`. The bundled manager records
+verified removal intent before unlinking the menu entry, so ordinary uninstall
+retry safely completes the named interrupted operation. All14 focused tests pass
+without skips. The actual shipped manager is killed after desktop unlink (-9);
+fresh retry and repeat exit0, preserving protected bytes and modes.
+
+Fresh paired exports, direct/archive Linux and Windows-payload strict startup,
+privacy207, all1515 exact PCK entry bytes, stock PE, six-member Linux archive and
+exact EXE/notes ZIP checks pass. Windows payload runs under Linux Godot with
+headless/Dummy; native Windows remains NOT_RUN. Other cuts/power loss, native
+hardware/device/audio, human review, full matrix and release gates remain open.
+Raw and published hashes are retained under
+`/srv/mudds-work/linux-uninstall-recovery-20261018/results/`.
+Earlier gameplay proofs do not transfer automatically to these binary bytes.
+
+## Earlier development checkpoint: `a8f563e` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-a8f563e.x86_64),
 [archive](../builds/linux/MuddsShipyards-a8f563e-linux-x86_64.tar.gz) and

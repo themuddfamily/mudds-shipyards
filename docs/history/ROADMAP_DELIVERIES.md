@@ -2044,3 +2044,37 @@ No game/desktop/audio/CI invocation. Source integrated retaining the exact
 accepted commit; fresh packages and actual bundled-manager consumer are next,
 not yet accepted. Other cuts, power loss, platform/hardware and full release
 remain unqualified.
+
+## Linux interrupted uninstall — DONE, checkpoint505d419
+
+One production recovery outcome closes across CUT/RETRY/SHIP: the actual old
+published a8 manager refuses after a real SIGKILL following desktop unlink;
+accepted source `505d41968158750aab256a7af8b95b311508f648` records strict verified
+removal intent and safely completes the same ordinary retry. Integrated through
+main83a3e92ca. All14 installer tests pass without skips in2.833s, preserving the
+12 originals. Actual new archive manager bytes equal source; cut exit-9, fresh
+retry0, repeat0, exact owned removal, and protected bytes/modes pass.
+
+Fresh clean Linux/Windows exports, strict direct/archive Linux and Windows
+payload startup (each0 plus STARTUP_MENU_READY_OK), privacy207, all1515 exact
+PCK paths/entry bytes, stock PE text, six-member Linux archive and exact EXE/notes
+ZIP checks pass. Seven artifacts published under repository builds/linux/ and
+builds/windows/ with stem MuddsShipyards-505d419. No Downloads or hosted CI.
+All46 observed owned checkpoint process identities close with no owned socket,
+display or authority remnants. Raw focused/reproduction/checkpoint results,
+including public paths/SHA256/sizes/modes, remain under
+`/srv/mudds-work/linux-uninstall-recovery-20261018/results/`.
+
+This closes only the named uninstall cut. Other interruption boundaries/power
+loss remain open. No new gameplay or transfer of previous route proof to these
+binary bytes. Native Windows, hardware/device/audio, human review, signing,
+endurance, full current matrix and release gates remain NOT_RUN/open. Rime
+withheld candidates stay withheld; no new Rime probe or rerun is selected.
+
+Next task is bounded roadmap planning:3–5 explicit cards,30–45 minutes, no engine
+runs or new implementation during that pass. The36 broad parents and all ten
+phase gates remain open; three workflow cards are one recovery delivery.
+
+Checkpoint505d419 final independent review: GO. Owned clean source checkout
+removed (266 MB); unique raw results retained. Published artifact identities and
+all46 owned process closures independently verified without rerunning checks.
