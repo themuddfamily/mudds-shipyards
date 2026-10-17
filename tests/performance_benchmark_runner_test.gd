@@ -522,12 +522,15 @@ func _test_live_range_combat() -> void:
 	_check(errors.is_empty(), "real range combat smoke validates: " + "; ".join(errors))
 	if not report.has("scenarios"):
 		return
+	var round_trip := JSON.parse_string(JSON.stringify(report)) as Dictionary
+	var round_trip_errors := RUNNER.validate_selected_diagnostic_report(round_trip, selection)
+	_check(round_trip_errors.is_empty(), "saved combat JSON round trip validates: " + "; ".join(round_trip_errors))
 	var progress := (report.scenarios[0] as Dictionary).get("scenario_progress", {}) as Dictionary
 	print("PERFORMANCE_BENCHMARK_RANGE_COMBAT_PROGRESS: ", JSON.stringify(progress))
 	_check(not RUNNER.validate_report(report).is_empty() and not report.representativeness.representative_pass and report.representativeness.performance_budget_pass == null,
 		"combat selection cannot grant full-protocol or performance acceptance")
 	_check(float(report.scenarios[0].sample_elapsed_seconds) >= 8.0, "combat smoke offers eight seconds of real sampled fire/reuse")
-	for mutation in ["idle", "warmup_only", "unregistered", "direct_damage", "stalled_tail", "wrong_target"]:
+	for mutation in ["idle", "warmup_only", "unregistered", "direct_damage", "stalled_tail", "wrong_target", "fractional_counter", "string_counter", "boolean_counter", "unsafe_identity"]:
 		var changed := progress.duplicate(true)
 		match mutation:
 			"idle":
@@ -540,6 +543,10 @@ func _test_live_range_combat() -> void:
 			"direct_damage": changed.totals.damage_events = int(changed.totals.damage_events) + 1
 			"stalled_tail": changed.maximum_sample_hit_gap_seconds = 11.0
 			"wrong_target": changed.target_id = "DRONE-02"
+			"fractional_counter": changed.sampling.shots = float(changed.sampling.shots) + 0.5
+			"string_counter": changed.sampling.shots = str(changed.sampling.shots)
+			"boolean_counter": changed.sampling.shots = true
+			"unsafe_identity": changed.target_instance_id = 9007199254740992.0
 		_check(not RUNNER.validate_scenario_progress(StringName(selection), changed).is_empty(), "combat rejects " + mutation)
 	_check(root.get_node_or_null("Main") == null and not Input.is_action_pressed(&"fire") and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE,
 		"combat completion frees Main and releases fire/cursor")

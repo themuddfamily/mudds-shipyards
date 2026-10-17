@@ -905,6 +905,13 @@ static func validate_scenario_progress(
 	return errors
 
 
+## JSON readers produce floats. Restrict identities/counts to positive exact
+## integers in JSON's safe range rather than truncating fractions or strings.
+static func _positive_json_integer(value: Variant) -> bool:
+	return _finite_number(value) and float(value) >= 1.0 \
+		and float(value) <= 9007199254740991.0 and floorf(float(value)) == float(value)
+
+
 static func _validate_combat_progress(progress: Dictionary) -> PackedStringArray:
 	var errors := PackedStringArray()
 	if str(progress.get("actor_type", "")) != "HeroShip" or str(progress.get("combat_source", "")) != "production_local_fire_live_authority" or str(progress.get("target_id", "")) != "DRONE-01":
@@ -912,13 +919,13 @@ static func _validate_combat_progress(progress: Dictionary) -> PackedStringArray
 	if not bool(progress.get("identity_and_control_throughout", false)):
 		errors.append("combat identity or piloting control changed")
 	for field in ["source_id", "source_instance_id", "target_instance_id", "adapter_instance_id", "authority_instance_id"]:
-		if not progress.get(field) is int or int(progress.get(field, 0)) <= 0:
+		if not _positive_json_integer(progress.get(field)):
 			errors.append("combat requires positive " + field)
 	var required_cycles := 2 if str(progress.get("policy", "")) == "full_route" else 1
 	for phase in ["totals", "sampling"]:
 		var counts := progress.get(phase, {}) as Dictionary
 		for field in ["projectiles", "shots", "hits", "damage_events", "destructions", "reuses"]:
-			if not counts.get(field) is int or int(counts.get(field, 0)) < 1:
+			if not _positive_json_integer(counts.get(field)):
 				errors.append("combat %s requires actual %s" % [phase, field])
 		if int(counts.get("projectiles", 0)) < int(counts.get("shots", 0)) or int(counts.get("shots", 0)) < int(counts.get("hits", 0)) or counts.get("hits") != counts.get("damage_events"):
 			errors.append("combat damage must correlate with production shots")
