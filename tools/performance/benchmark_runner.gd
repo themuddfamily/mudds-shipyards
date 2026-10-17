@@ -159,6 +159,7 @@ class BenchmarkRangeCombat extends Node:
 	var generation := 0
 	var last_sequence := -1
 	var pending_destruction := false
+	var pending_destruction_sampled := false
 	var destroyed_at := 0
 	var sampling := false
 	var sample_started := 0
@@ -183,9 +184,9 @@ class BenchmarkRangeCombat extends Node:
 		last_shot_at = sample_started
 		last_hit_at = sample_started
 
-	func _count(field: String) -> void:
+	func _count(field: String, sample_event: bool = true) -> void:
 		totals[field] = int(totals[field]) + 1
-		if sampling:
+		if sampling and sample_event:
 			sample[field] = int(sample[field]) + 1
 
 	func _on_projectile(_origin: Vector3, _direction: Vector3) -> void:
@@ -221,6 +222,7 @@ class BenchmarkRangeCombat extends Node:
 			valid = valid and not pending_destruction and adapter.is_destroyed() and adapter.get_health() <= 0.0 \
 				and bool(target.get_meta("destruction_authority_committed", false))
 			pending_destruction = true
+			pending_destruction_sampled = sampling
 			destroyed_at = now
 			_count("destructions")
 
@@ -243,14 +245,14 @@ class BenchmarkRangeCombat extends Node:
 			valid = valid and bool(target.get_meta("destruction_authority_committed", false))
 		if adapter.is_destroyed():
 			valid = valid and pending_destruction
-			if pending_destruction and Time.get_ticks_usec() - destroyed_at >= 1_000_000:
+			if valid and pending_destruction and Time.get_ticks_usec() - destroyed_at >= 1_000_000:
 				var reset := world.reset_range_target_for_reuse(target)
 				valid = valid and bool(reset.get("accepted", false)) and int(reset.get("generation", -1)) == generation + 1 and not adapter.is_destroyed() \
 					and bool(target.get_meta("destruction_authority_committed", false))
 				if valid:
 					generation += 1
 					pending_destruction = false
-					_count("reuses")
+					_count("reuses", pending_destruction_sampled)
 			return
 		Input.action_press(&"fire")
 
