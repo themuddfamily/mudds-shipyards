@@ -15,6 +15,7 @@ Every row below describes a task or a repeatable **single-instance task template
 Statuses:
 
 - **READY:** a bounded implementation or check can begin using existing owners and tools.
+- **IN PROGRESS:** one named card is assigned; record its last completed step and next action here.
 - **DEFINE:** one missing scenario, numeric criterion or reproduction must be specified first. Stop with one concrete contract and next action, or one named blocker.
 - **GATED:** a named preceding task must finish before this instance can pass.
 - **WAITING:** a specific external artifact, machine, device, credential or owner decision is missing. State exactly what is needed; do independent ready work meanwhile.
@@ -24,7 +25,9 @@ Use this durable task card at the top of each implementation session and update 
 
 ```text
 Task ID and one named instance:
+Original parent requirement:
 One player-visible result (or executable release capability):
+Included work; explicitly excluded work:
 Accountable owner; production files/component:
 Dependencies and available inputs:
 Acceptance: existing command/scenario, unchanged limits, expected result/artifact:
@@ -36,6 +39,21 @@ Next single action:
 ```
 
 The selected task must fit one focused delivery: normally one defect, one route, one craft component or one packaging capability. Split it again if it requires unrelated fixes or an open-ended audit. A diagnostic task gets **one stated hypothesis and one probe**; after the result, choose a concrete fix, a different justified hypothesis or a named blocker. Do not repeat an unchanged failed run. Preserve its raw failure, deadline and physical criteria.
+
+Size ordinary implementation cards for roughly 30–120 minutes of active work.
+If the next action cannot be described that precisely, keep the card DEFINE and
+split it before implementation. Required long-running checks retain their full
+durations and get separate estimates; this sizing rule never shortens acceptance.
+Each card must name the expected observable result and a pass/fail check before
+work starts. “Improve multiplayer”, “finish recovery” and “investigate performance”
+are parent headings, not executable tasks.
+
+Plan only the next 3–5 concrete deliveries at a time, preserving the unscheduled
+parent scope below. At a task boundary, update the existing card instead of
+creating an expanding chain of research tasks. A diagnostic result can identify
+one repair or a missing input; it cannot silently authorize another investigation.
+If a proposed repair remains undefined, park it explicitly and select a named
+ready delivery. Do not report a diagnosis as a delivered gameplay improvement.
 
 Finish implementation with the affected existing focused check and integration check where needed. A meaningful gameplay/graphics checkpoint also needs a fresh clean-source Windows EXE, ZIP and notes under `builds/windows/`, following the safe export and silent isolated package workflow. Checkpoints do not require the entire final release matrix after every small fix. Aggregate qualification is explicitly scheduled below. Keep source/build identity in the result; do not inherit old passes.
 
@@ -85,7 +103,7 @@ Q4's original300s full Patrol FAIL remains unchanged.
 ### Next execution batch: six named tasks
 
 These are **six scheduled tasks, not six tasks left in the project**. Root owns
-integration and updates each card before assigning it. **Q1–Q4 are complete in their recorded scope; Q5 is next.**
+integration and updates each card before assigning it. **Q1–Q4 are complete in their recorded scope; Q5 is in progress.**
 Q4-FIX remains open: its measured candidate did not meet the startup improvement criterion.
 Any later demonstrated repair takes priority over another unrelated diagnosis. Independent work can proceed only with disjoint
 ownership; runtime network/display lanes remain serialized. No task in this batch
@@ -105,13 +123,38 @@ preceding crew probes; a source-only matrix pass cannot replace its package chec
 | Q2 · PERF-SELECT[existing benchmark scenarios] | Release capability · DONE on `47adf7c6e` | Either existing route runs by name; default both and full-protocol rejection of partial reports verified. | Checks ~174s; total effort not timed |
 | Q3 · NET-CREW[Halyard passenger default route] | Qualification · DONE on `f676c5016` | Stationary physical passenger route passes; no moving-craft acceptance inferred. | Route ~80s; total effort not timed |
 | Q4 · BASE-DIAG[Patrol restore] | Diagnosis · DONE; full suite still FAIL | Cold scene startup consumes the cap; prior teardown boundary passes. Inner builder remains to be isolated within the production follow-up below. | Probe300s; total effort not timed |
-| Q5 · BASE-DIAG[Resume offer] | Diagnosis · READY | First failing cold-recovery context and responsible production owner. | 1–2 hours |
-| Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · READY for bounded artifact lookup | Exact canonical failing command, initial state and expected landing result, or the specific missing artifact. | 30–60 minutes |
+| Q5 · BASE-DIAG[Resume offer] | Diagnosis · IN PROGRESS | One already-running original-cap probe distinguishes cold Main startup from Resume handling; record the first incomplete operation and stop. | Probe capped at 300s; verification/restoration follows |
+| Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · DONE with missing-input handoff; gameplay WAITING | Historical source recovered; original invocation, participant/setup manifest and raw peer/stage receipts remain missing. No executable reproduction or landing pass claimed. | Bounded lookup complete; total effort not timed |
 
-No child is active. Two original batch tasks remain (Q5/Q6); the startup follow-up
-is still open. Next task: **Q5**, one Resume-offer cold-recovery boundary, beginning
-with its retained log. Do not repeat the unchanged full Patrol suite, remeasure
-the rejected candidate unchanged, or rewrite its codec based on timeout.
+**Active card — Q5, Resume-offer cold startup.** Parent: usable durable recovery
+and the failed original Resume-offer suite. Owner: `resume_offer_boundary`, with
+root integration. Source: `df66dcded7d25498dbf150614fe5f8e54ba996f5`.
+The retained failure stops during Main16, the real-file Halyard bunk cold reload,
+before Resume handling. Hypothesis: synchronous scene construction or the first
+three frame waits consume the remaining cap. One fixture-only instrumented full
+default probe is running with all19 Main lifetimes and the unchanged300s cap;
+no runtime edits, retries or replacement scenarios are authorized by this card.
+Next action: collect its terminal result, verify frozen inputs, restore the
+fixture and record the first incomplete operation. Stop there; a timeout alone
+does not justify changing recovery behavior. Raw results:
+`/srv/mudds-work/resume-offer-boundary-results-20261017/`.
+
+**Q6 handoff — WAITING for the original Aurora run bundle.** Historical receipt
+`71ef2ee4929822e8182cbf66bdbeeb14d9238d2b` identifies failure source
+`47ffce740562dd3ac3d52f66736796f5639068fd`: 45 checks, five failures before egress
+under the original120s landing limit. Bounded local/Git lookup did not recover
+the exact runner/arguments, source/build/profile and participant initial-state
+manifest, or raw orchestrator/per-peer logs and stage receipts. Recover those
+inputs before defining a faithful reproduction. The current shared-cruise test
+is an implementation anchor, not proof of the historical command. No engine was
+run and no staged route substituted. The definition assignment is finished;
+the underlying physical landing requirement remains open.
+
+One original batch assignment remains active (Q5). Q4-FIX remains undefined and
+Q6's gameplay dependency is waiting. Do not repeat the unchanged full Patrol
+suite, remeasure the rejected candidate unchanged, or rewrite its codec based on
+timeout. After Q5, select the next small delivery explicitly; do not extend this
+diagnostic batch automatically.
 
 **Q4-FIX · PERF-FIX[station startup construction] — DEFINE, not complete.**
 The measured guard-order candidate preserves the compared station snapshot and
