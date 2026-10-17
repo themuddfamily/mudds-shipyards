@@ -78,7 +78,7 @@ b41c3cc, and managed installed Guided3/3. See
 [completed deliveries](docs/history/ROADMAP_DELIVERIES.md) for exact proof/limits.
 These do not close their broad parents or the ten phase gates.
 
-**Latest closed task: HULK-BREAKER-INPUT — DONE outbound/interior only.**
+**Latest accepted task: HULK-BREAKER-INPUT — DONE outbound/interior only.**
 Full ordinary route passes81.864s,76.79m interior walk, one committed cell and
 separate repeated E refusing another credit. Paired checkpoint7dd70a9 is ready;
 Linux is the exact tested binary. Home return/revisit are the next two children.
@@ -182,22 +182,33 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
   Windows checkpoint was not launched; latest accepted package remains7dd70a9.
   Full route repair is a separate card; revisit remains gated.
 
-### HULK-HOME-STALL — IN PROGRESS diagnosis only
+### HULK-HOME-CLEARANCE — IN PROGRESS bounded repair
 
-- **Parent/result:** HULK-HOME-INPUT. Identify the first causal boundary behind
-  the retained forward-progress stall; diagnosis is not a gameplay delivery.
-- **Owner/boundary:** `hulk_home_stall` read-only source/log review, root records
-  decision. One hypothesis: direct return encounters production collision or a
-  deterministic driver brake/input condition. No engine, route retry or edits.
-- **Proof:** candidateef67f3e95 and retained failed native log/result. Name the
-  concrete owner and smallest repair, or the single missing fact requiring one
-  future probe. Do not infer collision from stationary position alone.
-- **Budget/stop:**15m; stop at causal seam or exact missing fact, with no second
-  investigation. Original300s cap and all physical criteria remain unchanged.
-- **Next action:** inspect retained return observations against the existing
-  driver and runtime owners. Any repair needs its own bounded card before work.
-- **Close:** record finding/source and next task; retain raw failure and commit/
-  push. Remove owned disposable checkout after its active reader finishes.
+- **Parent/result:** HULK-HOME-INPUT. Correct the release driver's inbound line
+  so Torrent flies under the existing range header before approaching home.
+  This repairs automation; production geometry and gameplay remain unchanged.
+- **Finding:** completed15m-bounded HOME-STALL source/log diagnosis identifies
+  `RangeHeader` at(0,9,-120), size(63,1,1). Frame4819 forward speed79.81→0 and
+  hull89→36.61 show impact at ship y8.68. Direct return interpolation crossed
+  that valid collider; the documented shared clearance band is y1.4–3.8,
+  aim2.7. The approach was111m away, outside86.55m braking threshold.
+- **Owner/boundary:** one implementation agent owns existing native Python
+  driver/tests in the retained candidate checkout; root reviews/runs/closes.
+  Add one inbound staging point near(0,2.7,-150), physically settle before
+  continuing home. Preserve all original route classes, accepted prefix, actors,
+  controls, geometry, timing, cumulative300s cap and home physical criteria.
+- **Proof:** focused driver regressions, then one full packaged `hulk-home`
+  attempt with the same ef67f3e95 game binary. Record safe header crossing in
+  documented clearance band without further hull loss, actual fade/unload and
+  strict home docking/shutdown/exit/20-tick walk, same cell/receipt/generation1.
+  Only external Python driver/tests may differ from the accepted package source.
+- **Budget/stop:**30–45m implementation; one300s route separately. Stop at
+  first concrete failure or estimate boundary. No extra probe, new framework,
+  checkpoint export or unchanged startup checks before the route result.
+- **Next action:** implement staging/crossing guard in the existing driver;
+  extend focused tests for refusing premature departure from that waypoint.
+- **Close:** record exact result/source/build; commit/push, working checkpoint
+  if qualified, and remove disposable checkout. Revisit remains separate/gated.
 
 ### HULK-REVISIT-INPUT — GATED on home route
 

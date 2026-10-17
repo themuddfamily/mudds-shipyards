@@ -1066,3 +1066,17 @@ display257/authority/profile remnants. Implementation checkout removed; candidat
 preserved on `hold/hulk-home-input-20261017`, withheld from main/public packages.
 Latest accepted checkpoint remains7dd70a9. HOME-STALL is a separate15m read-only
 source/log diagnosis, not an automatic qualification retry or delivered gameplay.
+
+
+HOME-STALL diagnosis completed without engines or edits: direct inbound driver
+line intersects production RangeHeader, world owner `shipyard_world.gd:9670`,
+center(0,9,-120)/size(63,1,1). At frame4819 forward speed79.8103 drops to.000786
+and hull89 to36.6092 at ship y8.6833, matching production contact velocity shed/
+impact damage. Home distance111.235m exceeds86.552m braking threshold, excluding
+normal braking as the cause. Authored shared clearance band is y1.4–3.8, aim2.7.
+One separate HOME-CLEARANCE driver repair will stage outside the header near
+(0,2.7,-150), settle, then resume the unchanged home approach. It must demonstrate
+clearance without hull loss and all original physical gates under the same300s;
+no production collider/tuning change or automatic retry is authorized by this
+finding. The retained checkout is reused for this bounded consumer to avoid
+another scratch checkout/export; raw failed source/cache hashes remain intact.
