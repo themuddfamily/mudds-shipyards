@@ -202,6 +202,21 @@ clean temporary checkout removed, no runtime/test changes or new build.
 Raw report: `/srv/mudds-work/halyard-passenger-candidate-results-20261017/report.txt`;
 log SHA-256 `eff417eb95e9e8f401bbeb8eacefce63593bb62e082297aa7fdac795e3c97090`.
 
+Patrol Q4 diagnosis on `e8f24ff00` still fails the original300s full scenario:
+18 of30 Main lifetimes complete; Main19 completes synchronous initialization but
+not its post-add frame waits, leaving fresh-IDLE assertion69 unexecuted. The older
+Main17 retirement boundary completes in908ms, including exit3ms and Patrol teardown
+save below1ms resolution. No semantic assertion failure precedes timeout. All19
+synchronous add-child spans total210.574s; first-two world readiness costs5.005/
+4.617s and six authored flyables4.925/4.747s, compared with Main's own528/606ms.
+This identifies repeated descendant construction as the dominant measured phase,
+not a codec defect or an exact inner-builder fix. Temporary timing markers are
+restored; source/cache/engine and owned cleanup verified, clean checkout removed.
+Full Patrol acceptance stays FAIL; no package/native qualification or new build.
+Next production follow-up is bounded station-startup optimization in ROADMAP.
+Raw report: `/srv/mudds-work/patrol-restore-boundary-results-20261017/report.txt`;
+log SHA-256 `bf0240aa10d1d534a14552ae5116534f93eaea026519dabbc9b527a41693f4e7`.
+
 ## Session capacity contract and pending release target
 
 **Counting contract:** the capacity setting and browser count **remote guests, excluding the host**. The setting defaults to8 and permits 1–32; GameFlow passes it unchanged as `max_clients`. ENet admission inserts only remote hello senders into `_peer_generations`; the capacity snapshot and LAN/directory publishers use that dictionary directly. Thus 8 configured guests can mean 9 total players when the host also plays, or 8 players with a dedicated server. This is configuration, not accepted support. Handshake/migration and interest ceilings are independent safeguards, not extra guest slots. Settings/protocol keys retain their existing names for compatibility; player-facing wording now says guests in checkpoint `f676c5016`.

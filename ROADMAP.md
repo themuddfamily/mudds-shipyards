@@ -64,26 +64,27 @@ or the named raw report. None closes a parent or phase gate.
 | Q1 · BASE-DIAG[Emberline late peer] | Historical first unmet dependency identified: later dead-peer baseline before reset. One instrumented `e026cf620` isolated original-cap probe passes; no production fix/root cause claimed. |
 | Q2 · PERF-SELECT[existing benchmark scenarios] | `47adf7c6e` adds one-route selection while preserving default two-route/full-protocol acceptance; 127 focused assertions and 11 Python checks pass. [Usage](docs/PERFORMANCE_BENCHMARK_RUNNER.md). |
 | Q3 · NET-CREW[Halyard passenger default route] | Actual `f676c5016` stationary-cabin chair/walk/reseat and migration-generation rebind/disconnect route passes 73 checks, no emitted runtime diagnostics; moving-craft acceptance remains open. |
+| Q4 · BASE-DIAG[Patrol restore] | One `e8f24ff00` original-cap probe still times out. Historical retirement boundary passes; repeated world/fleet startup dominates. Full Patrol acceptance remains FAIL; follow-up below. |
 
-**Latest completed result: Q3 default Halyard passenger route.**
-The unchanged `d336c07be` external fixture loads actual `f676c5016` production
-payload in an orchestrator and host/one-client peers. All three package markers
-match; all OS exits are 0. The route passes 73 checks (host33/client25) in ~80.10s
-under original 300s/internal limits. Physical `crew_port_00` passenger sit/stand,
-supported stationary cabin aisle walk/return, reseat, migration-generation
-rotation/authenticated rebind and seated-disconnect ownership cleanup pass.
-Exterior hatch approaches are staged by teleport; no craft-translation phase,
-actual host termination, two-client, capacity or canonical journey is qualified.
-Zero runtime diagnostics emitted; the standard root-context notice suppression
-flag remains disclosed. Exact source/cache/input hashes, raw receipts and owned
-process/display/socket/lane closure independently verified. Clean temporary
-checkout removed; no runtime/test change or new build. Raw report:
-`/srv/mudds-work/halyard-passenger-candidate-results-20261017/report.txt`.
+**Latest completed result: Q4 diagnosis; full Patrol route still FAIL.**
+One `e8f24ff00` instrumented headless/Dummy run reaches the unchanged 300s cap
+(exit124). All 18 completed Main instances retire; Main19 finishes synchronous
+startup but not its existing process/physics/process waits. Its next fresh-IDLE
+assertion69 is unexecuted. The retained Main17 boundary passes: retirement908ms,
+exit handler3ms, Patrol teardown save below1ms resolution. No semantic assertion
+fails before timeout; this is not a full persistence pass or a proven save defect.
+All19 synchronous `root.add_child` spans total210.574s; completed18 post-add waits
+42.348s and retirements13.489s. First-two-Main world subtrees cost5.005/4.617s,
+six authored flyables4.925/4.747s, Main's own ready528/606ms. These are inclusive
+instrumented timings, not native performance or identified inner-builder costs.
+All original30 lifetimes/assertions/waits retained. Inputs/cache/engine unchanged;
+temporary markers restored, clean checkout removed, owned processes/lanes clear.
+Raw report: `/srv/mudds-work/patrol-restore-boundary-results-20261017/report.txt`.
 
 ### Next execution batch: six named tasks
 
 These are **six scheduled tasks, not six tasks left in the project**. Root owns
-integration and updates each card before assigning it. **Q1–Q3 are complete in their recorded scope; Q4 is next.**
+integration and updates each card before assigning it. **Q1–Q4 are complete in their recorded scope; Q4-FIX below is next.**
 Any later demonstrated repair takes priority over another unrelated diagnosis. Independent work can proceed only with disjoint
 ownership; runtime network/display lanes remain serialized. No task in this batch
 closes a phase or substitutes for final integrated acceptance.
@@ -101,14 +102,35 @@ preceding crew probes; a source-only matrix pass cannot replace its package chec
 | Q1 · BASE-DIAG[Emberline late peer] | Diagnosis · DONE; failure not reproduced | Historical unmet dead-baseline dependency identified; one original-cap current instrumented probe passes. Root cause/fix unproven; next combined matrix retains coverage. | Probe ~136s; total effort not timed |
 | Q2 · PERF-SELECT[existing benchmark scenarios] | Release capability · DONE on `47adf7c6e` | Either existing route runs by name; default both and full-protocol rejection of partial reports verified. | Checks ~174s; total effort not timed |
 | Q3 · NET-CREW[Halyard passenger default route] | Qualification · DONE on `f676c5016` | Stationary physical passenger route passes; no moving-craft acceptance inferred. | Route ~80s; total effort not timed |
-| Q4 · BASE-DIAG[Patrol restore] | Diagnosis · READY | First incomplete persistence/recovery operation and one named repair owner. | 1–2 hours |
+| Q4 · BASE-DIAG[Patrol restore] | Diagnosis · DONE; full suite still FAIL | Cold scene startup consumes the cap; prior teardown boundary passes. Inner builder remains to be isolated within the production follow-up below. | Probe300s; total effort not timed |
 | Q5 · BASE-DIAG[Resume offer] | Diagnosis · READY | First failing cold-recovery context and responsible production owner. | 1–2 hours |
 | Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · READY for bounded artifact lookup | Exact canonical failing command, initial state and expected landing result, or the specific missing artifact. | 30–60 minutes |
 
-No child is active. Next task: **Q4**, first incomplete Patrol save/restore
-operation. Start from retained output, name one hypothesis and fill its task card
-before probing. Q1's old full-matrix failure remains open for integrated coverage;
-Q2's native hardware/extra-route requirements remain separate.
+No child is active. Two original batch tasks remain (Q5/Q6), plus the Q4 follow-up
+below. Address the measured startup cost before another unrelated recovery
+investigation. Do not repeat the unchanged full Patrol suite or rewrite its codec
+based on a timeout. Q1's historical failure still awaits integrated coverage.
+
+**Next: Q4-FIX · PERF-FIX[station startup construction].** One runtime outcome:
+reduce measured station initialization work while preserving authored content,
+geometry/collision, routes, moving machinery and ownership. Accountable owner:
+root assigns one implementer at task start. Production seam:
+`scripts/world/shipyard_world.gd::_ready` → `_run_build_stages` and its authored
+station descendants. The current probe measures the whole subtree, so no exact
+inner-function fix is claimed yet. First action: time the existing build-stage
+calls in one fresh Main to select the costly constructor; do not profile unrelated
+systems. Then implement one demonstrated avoidable-cost reduction at that owner,
+with a named child if ownership extends beyond it. This is a production task;
+measurement alone does not complete it. Estimate2–4h after owner selection.
+Proof: comparable before/after startup spans plus affected existing geometry,
+collision/interaction and startup checks; preserve scene content, full test
+lifetimes, physics, routes and deadlines. Run the original full Patrol suite once
+after the change to record whether the 300s requirement is met; a local speedup
+does not imply that full pass. A meaningful runtime checkpoint requires fresh
+clean Windows EXE/ZIP/notes and silent package startup. Stop after one measured
+runtime reduction, focused validation/checkpoint and the actual Patrol result,
+or a specific reason no safe optimization is supported. Do not add validators,
+weaken scene coverage, bypass construction only in tests, or extend the cap.
 
 **Q3 scope correction:** the default fixture exercises a stationary cabin; the
 initial batch wording incorrectly called it moving. Q3 closes that default route
@@ -232,7 +254,7 @@ The last full matrix's eleven failed suites are below. `BASE-DIAG` selects **one
 | `bulwark_game_flow_registration_test.gd` | Original 300s timeout; isolate first incomplete registration boundary. |
 | `cargo_delivery_production_integration_test.gd` | Full matrix timed out; later 418 source/package completes 124 assertions. Include in next combined matrix; do not rerun unchanged isolated merely because the older matrix failed. |
 | `cinder_convoy_session_save_restore_test.gd` | Legacy Reset repaired; full suite still exceeds original 300s. Diagnose the next incomplete boundary. |
-| `cinder_patrol_session_save_restore_test.gd` | Original 300s timeout; one-boundary diagnosis required. |
+| `cinder_patrol_session_save_restore_test.gd` | Q4 original300s probe on `e8f24ff00` completes18/30 Main lifetimes, stops after19th synchronous startup before fresh-IDLE assertion69. Historical17th retirement/save passes; repeated station/fleet readiness dominates. Q4-FIX targets runtime startup; full suite remains FAIL. |
 | `cinder_race_session_save_restore_test.gd` | Original 300s timeout; one-boundary diagnosis required. |
 | `game_flow_ember_surface_presentation_integration_test.gd` | Original 300s timeout; separate setup from first incomplete integration boundary. |
 | `game_flow_scan_durable_recovery_test.gd` | Half-second retry fixed; later full suite still times out after 96 printed passes. Diagnose remaining boundary. |
