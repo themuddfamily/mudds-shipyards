@@ -3,7 +3,7 @@ extends SceneTree
 const RIG_SCENE := preload(
 	"res://scenes/world/components/planetary_atmosphere_world_rig.tscn"
 )
-const EXPECTED_ASSERTIONS := 42
+const EXPECTED_ASSERTIONS := 43
 const COMMON_AUTHORITY_KEYS := [
 	"renderer", "gameplay", "streaming", "save", "network", "physics",
 	"world_generation", "terrain_generation", "collision_generation",
@@ -580,6 +580,20 @@ func _test_structured_scene_mutations(
 		root_rotation_red and ancestor_rotation_red and ancestor_scale_red
 		and translation_green and first.global_transform.basis == Basis.IDENTITY,
 		"identity global basis and every ancestor rotation/scale are required; translation-only rebase stays green"
+	)
+	var extra_branch := Node.new()
+	var descendant := Node.new()
+	var leaf := Node.new()
+	descendant.add_child(leaf)
+	extra_branch.add_child(descendant)
+	shell.add_child(extra_branch)
+	var nested_audit := first.audit()
+	extra_branch.free()
+	_check(
+		int(nested_audit.topology.total_node_count) == 10
+		and (nested_audit.errors as PackedStringArray).has("seven_node_topology_drift")
+		and bool(first.audit().valid),
+		"nested descendants remain in the exact topology census and removal restores the scene contract"
 	)
 	var original_environment := first.scene_environment
 	first.scene_environment = original_environment.duplicate(true) as Environment

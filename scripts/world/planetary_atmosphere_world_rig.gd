@@ -1007,7 +1007,9 @@ static func _resource_is_live(resource_ref: WeakRef) -> bool:
 static func _count_nodes(node: Node) -> int:
 	var count := 1
 	for child: Node in node.get_children():
-		count += _count_nodes(child)
+		# Leaves need no child-array allocation, including the six authored
+		# targets visited by every preflight and postflight scene guard.
+		count += 1 if child.get_child_count() == 0 else _count_nodes(child)
 	return count
 
 
