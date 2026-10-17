@@ -17,6 +17,7 @@ import uuid
 
 MANIFEST = ".mudds-shipyards-install.json"
 UPDATE = ".mudds-shipyards-update.json"
+UNINSTALL = ".mudds-shipyards-uninstall.json"
 DESKTOP = "mudds-shipyards.desktop"
 ICON = "mudds-shipyards.png"
 BUNDLED_INSTALLER = "install_linux_desktop.py"
@@ -101,7 +102,8 @@ def read_install(install_dir: Path, applications_dir: Path) -> dict | None:
     return state
 
 
-def validate_state(state: dict, install_dir: Path, applications_dir: Path) -> None:
+def validate_state(state: dict, install_dir: Path, applications_dir: Path,
+                   *, allow_missing: bool = False) -> None:
     try:
         if (set(state) != {"owner", "generation", "executable", "applications_dir", "files"}
                 or state["owner"] != OWNER
@@ -115,20 +117,61 @@ def validate_state(state: dict, install_dir: Path, applications_dir: Path) -> No
     except (ValueError, TypeError, KeyError, AttributeError) as error:
         raise InstallError(f"invalid installation manifest: {error}") from error
     runtime = safe_path(install_dir / state["generation"])
+    if runtime.exists() and not runtime.is_dir():
+        raise InstallError(f"owned runtime is not a directory: {runtime}")
     for name, expected in state["files"].items():
         path = safe_path(runtime / name)
+        if allow_missing and not path.exists():
+            continue
         if not path.is_file() or digest(path) != expected:
             raise InstallError(f"owned file changed or missing; refusing mutation: {path}")
 
 
-def read_state(path: Path, install_dir: Path, applications_dir: Path) -> dict:
+def read_state(path: Path, install_dir: Path, applications_dir: Path,
+               *, allow_missing: bool = False) -> dict:
     if not path.is_file():
         raise InstallError("installation manifest is not a regular file")
     try:
         state = json.loads(path.read_text(encoding="utf-8"))
     except ValueError as error:
         raise InstallError(f"invalid installation manifest: {error}") from error
-    validate_state(state, install_dir, applications_dir)
+    validate_state(state, install_dir, applications_dir, allow_missing=allow_missing)
+    return state
+
+
+def refuse_pending_uninstall(install_dir: Path) -> None:
+    if safe_path(install_dir / UNINSTALL).exists():
+        raise InstallError("pending uninstall recovery record; retry uninstall first")
+
+
+def read_uninstall(install_dir: Path, applications_dir: Path) -> dict | None:
+    """Validate the complete removal intent before deleting any surviving file."""
+    path = safe_path(install_dir / UNINSTALL)
+    if not path.exists():
+        return None
+    if not path.is_file():
+        raise InstallError("uninstall recovery record is not a regular file")
+    try:
+        removal = json.loads(path.read_text(encoding="utf-8"))
+        if set(removal) != {"owner", "state"} or removal["owner"] != OWNER:
+            raise ValueError("invalid uninstall ownership fields")
+        state = removal["state"]
+        validate_state(state, install_dir, applications_dir, allow_missing=True)
+    except (ValueError, TypeError, KeyError, AttributeError) as error:
+        raise InstallError(f"invalid uninstall recovery record: {error}") from error
+    manifest = safe_path(install_dir / MANIFEST)
+    desktop = safe_path(applications_dir / DESKTOP)
+    if manifest.exists():
+        current = read_state(manifest, install_dir, applications_dir, allow_missing=True)
+        if current != state:
+            raise InstallError("installation manifest differs from uninstall recovery record")
+    elif desktop.exists() or any((install_dir / state["generation"] / name).exists()
+                                 for name in state["files"]):
+        # The manifest is retired only after the launcher and all owned payloads.
+        raise InstallError("installation manifest missing before uninstall completed")
+    if desktop.exists() and (not desktop.is_file() or desktop.read_bytes() != desktop_bytes(
+            install_dir / state["generation"], state["executable"])):
+        raise InstallError(f"owned desktop entry changed: {desktop}")
     return state
 
 
@@ -173,7 +216,7 @@ def read_update(install_dir: Path, applications_dir: Path) -> tuple[dict | None,
 
 def recover_update(install_dir: Path, applications_dir: Path) -> None:
     # Called only under installation_lock. This journal covers process death
-    # during installs and updates; uninstall and power-loss durability differ.
+    # during installs and updates. Power-loss durability is not established.
     update = read_update(install_dir, applications_dir)
     if update is None:
         return
@@ -235,10 +278,10 @@ def checked_archive(path: Path):
         yield archive, root, executable
 
 
-def remove_payload(install_dir: Path, state: dict) -> None:
+def remove_payload(install_dir: Path, state: dict, *, allow_missing: bool = False) -> None:
     runtime = install_dir / state["generation"]
     for name in state["files"]:
-        (runtime / name).unlink()
+        (runtime / name).unlink(missing_ok=allow_missing)
     # Untracked files (including a user-created profile) are never removed.
     try:
         runtime.rmdir()
@@ -260,12 +303,14 @@ def installation_lock(install_dir: Path):
 def install(archive_path: Path, install_dir: Path, applications_dir: Path) -> None:
     install_dir, applications_dir = safe_path(install_dir), safe_path(applications_dir)
     # Archive and destination refusal happen before any directory is created.
+    refuse_pending_uninstall(install_dir)
     with checked_archive(archive_path) as (archive, root, executable):
         if read_update(install_dir, applications_dir) is None:
             read_install(install_dir, applications_dir)
         install_dir.mkdir(parents=True, exist_ok=True)
         applications_dir.mkdir(parents=True, exist_ok=True)
         with installation_lock(install_dir):
+            refuse_pending_uninstall(install_dir)
             recover_update(install_dir, applications_dir)
             previous = read_install(install_dir, applications_dir)
             generation = ".mudds-shipyards-runtime-" + uuid.uuid4().hex
@@ -319,12 +364,22 @@ def uninstall(install_dir: Path, applications_dir: Path) -> None:
             raise InstallError("desktop entry has no installation ownership manifest")
         return
     with installation_lock(install_dir):
-        state = read_install(install_dir, applications_dir)
+        if safe_path(install_dir / UPDATE).exists():
+            raise InstallError("pending install/update recovery record; retry install first")
+        state = read_uninstall(install_dir, applications_dir)
         if state is None:
-            return
-        (applications_dir / DESKTOP).unlink()
-        remove_payload(install_dir, state)
-        (install_dir / MANIFEST).unlink()
+            state = read_install(install_dir, applications_dir)
+            if state is None:
+                return
+            removal = {"owner": OWNER, "state": state}
+            # Commit intent before removing the launcher, so a new process can
+            # distinguish our interrupted removal from a missing/foreign entry.
+            atomic_write(install_dir / UNINSTALL,
+                         (json.dumps(removal, indent=2) + "\n").encode(), exclusive=True)
+        (applications_dir / DESKTOP).unlink(missing_ok=True)
+        remove_payload(install_dir, state, allow_missing=True)
+        (install_dir / MANIFEST).unlink(missing_ok=True)
+        (install_dir / UNINSTALL).unlink()
     try:
         install_dir.rmdir()
     except OSError:

@@ -108,7 +108,7 @@ work remain intact, with source refs and unique raw results preserved.
 
 ## Next batch — retry an interrupted Linux uninstall
 
-**Three bounded tasks: reproduction DONE, repair IN PROGRESS, shipping GATED.** This delivers one installation
+**Three bounded tasks: reproduction and source repair DONE, shipping IN PROGRESS.** This delivers one installation
 recovery behavior. The failed Rime driver and its type repair are closed and
 withheld; survey/home/package children are parked with their parent, not silently
 dropped. [Failure, original contracts and priority review](docs/history/ROADMAP_DELIVERIES.md#rime-arrival-closed--landing-gate-failure-and-priority-review).
@@ -117,8 +117,8 @@ No further Rime probe, repair or unchanged run is selected.
 | Task | Status | Observable finish | Work estimate; separate checks |
 | --- | --- | --- | --- |
 | LINUX-UNINSTALL-CUT | DONE on published a8f563e | Actual SIGKILL after menu-entry removal produces a distinct-process retry result on the published manager, with protected data intact. | 20–30 min setup/closure; bounded child waits up to 10 s each, overall 120 s. |
-| LINUX-UNINSTALL-RETRY | IN PROGRESS | Rerunning uninstall completes that interrupted removal safely, once and without deleting saves/unrelated files. | 60–90 min implementation; existing 12 installer tests plus focused cut/refusal checks, overall 120 s. |
-| LINUX-UNINSTALL-SHIP | GATED on accepted repair | A fresh downloadable Linux archive contains the fixed manager and passes the same real cut/retry; paired checkpoint has actual startup/artifact results. | 30–45 min setup/closure; export/startup/privacy allowances separately below. |
+| LINUX-UNINSTALL-RETRY | DONE on 505d41968 | Rerunning uninstall completes that interrupted removal safely, once and without deleting saves/unrelated files. | 60–90 min implementation; existing 12 installer tests plus focused cut/refusal checks, overall 120 s. |
+| LINUX-UNINSTALL-SHIP | IN PROGRESS | A fresh downloadable Linux archive contains the fixed manager and passes the same real cut/retry; paired checkpoint has actual startup/artifact results. | 30–45 min setup/closure; export/startup/privacy allowances separately below. |
 
 ### LINUX-UNINSTALL-CUT — DONE, bounded reproduction
 
@@ -158,12 +158,15 @@ is retained. This closes reproduction, not recovery acceptance.
   than implementing a speculative fix. Commit/push actual result; leave task 2
   gated until its defect and unchanged acceptance are explicit.
 
-### LINUX-UNINSTALL-RETRY — IN PROGRESS, reproduced cut confirmed
+### LINUX-UNINSTALL-RETRY — DONE on 505d41968
 
-Dependency is now met by the actual shipped-script SIGKILL reproduction above.
-Next action: one agent implements the existing manager/test repair in the
-owned checkout; root reviews it independently before the single focused run.
-Conflicting install/update must not overwrite a pending removal operation.
+Accepted source `505d41968158750aab256a7af8b95b311508f648` adds verified removal
+intent before desktop deletion and strict safe retry. One full focused run
+passes 14 tests (all 12 originals plus two new), no skips, exit 0 in 2.833 s,
+with actual SIGKILL/fresh CLI recovery, refusal/idempotence and protected bytes.
+Source/index/cache/Python guards pass; supervisor is reaped. Independent
+prelaunch review found no blocker. Raw is retained under the batch's
+`results/focused/`. Shipped-new-manager acceptance remains task 3.
 
 - **Result/boundary:** repair the existing manager so an ordinary uninstall
   retry safely finishes the named interrupted operation. Own only
@@ -186,7 +189,7 @@ Conflicting install/update must not overwrite a pending removal operation.
   retain its exact source; schedule any repair separately. Do not bundle another
   cut, a crash matrix or a new installer architecture. Commit/push accepted code.
 
-### LINUX-UNINSTALL-SHIP — GATED on task 2
+### LINUX-UNINSTALL-SHIP — IN PROGRESS, accepted source 505d41968
 
 - **Result/next action:** export from the clean accepted commit using existing
   safe scripts; publish EXE/ZIP/notes in `builds/windows/` and matching Linux

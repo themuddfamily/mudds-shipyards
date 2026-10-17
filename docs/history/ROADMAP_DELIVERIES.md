@@ -2021,3 +2021,26 @@ This is the expected defect reproduction, not accepted uninstall recovery.
 The manager deletes the launcher before payload/manifest cleanup, while retry
 requires it. The gated production repair can now proceed with unchanged data
 protection and explicit verified removal intent; shipping stays GATED.
+
+## Linux uninstall retry — source accepted on 505d41968
+
+Source `505d41968158750aab256a7af8b95b311508f648` changes only the existing
+manager and focused test file. It writes exclusive verified removal intent
+before deleting the desktop entry, validates every surviving owned file and
+present manifest/launcher before resuming, and permits absent owned files only
+inside that valid operation. Pending removal blocks install/update; conflicting
+update/removal records refuse. Foreign/edited launchers, altered payloads, invalid
+intent, unsafe paths and mismatched manifests refuse before further mutation.
+The ordinary retry finishes removal and repeated uninstall succeeds while
+retaining unrelated runtime/root/menu files and user data.
+
+Independent prelaunch review passes. One existing-supervisor120 run of all14
+installer tests passes exit0 in2.833s, no skips (12 unchanged originals plus2
+focused uninstall tests). Tests exercise actual owned SIGKILL and distinct CLI
+retry, idempotence, retained files and tamper refusal. Frozen tracked source,
+index, empty Godot cache and Python executable remain exact; supervisor absent.
+Raw `/srv/mudds-work/linux-uninstall-recovery-20261018/results/focused/` retained.
+No game/desktop/audio/CI invocation. Source integrated retaining the exact
+accepted commit; fresh packages and actual bundled-manager consumer are next,
+not yet accepted. Other cuts, power loss, platform/hardware and full release
+remain unqualified.

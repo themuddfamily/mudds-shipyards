@@ -203,6 +203,151 @@ raise SystemExit(manager.main(sys.argv[2:]))
             child.stdout.close()
             child.stderr.close()
 
+    def cli_uninstall(self):
+        return subprocess.run(
+            [sys.executable, installer.__file__, "uninstall",
+             "--install-dir", str(self.install), "--applications-dir", str(self.applications)],
+            capture_output=True, text=True, timeout=10,
+            env=dict(os.environ, XDG_DATA_HOME=str(self.root / "xdg-data")))
+
+    def kill_uninstall_after_desktop(self):
+        # The child performs a real unlink, then waits before any payload removal.
+        code = """import importlib.util, signal, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("manager", sys.argv[1])
+manager = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(manager)
+original = Path.unlink
+def cut(path, *args, **kwargs):
+    result = original(path, *args, **kwargs)
+    if path == Path(sys.argv[-1]) / manager.DESKTOP:
+        print("DESKTOP_REMOVED_PAYLOAD_PENDING", flush=True)
+        signal.pause()
+    return result
+Path.unlink = cut
+raise SystemExit(manager.main(sys.argv[2:]))
+"""
+        child = subprocess.Popen(
+            [sys.executable, "-c", code, installer.__file__, "uninstall",
+             "--install-dir", str(self.install), "--applications-dir", str(self.applications)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env=dict(os.environ, XDG_DATA_HOME=str(self.root / "xdg-data")))
+        try:
+            self.assertTrue(select.select([child.stdout], [], [], 10)[0], "uninstall cut timed out")
+            self.assertEqual(child.stdout.readline().strip(), "DESKTOP_REMOVED_PAYLOAD_PENDING")
+            os.kill(child.pid, signal.SIGKILL)
+            stdout, stderr = child.communicate(timeout=10)
+            self.assertEqual(child.returncode, -signal.SIGKILL, (stdout, stderr))
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.communicate(timeout=10)
+            child.stdout.close()
+            child.stderr.close()
+
+    def test_sigkill_uninstall_fresh_cli_retry_preserves_unrelated_files(self):
+        self.run_install()
+        state = self.state()
+        runtime = self.install / state["generation"]
+        root_notes = self.install / "personal-notes.txt"
+        runtime_notes = runtime / "personal-notes.txt"
+        other_entry = self.applications / "other-game.desktop"
+        save = self.root / "xdg-data/godot/app_userdata/Mudds Shipyards/save.cfg"
+        save.parent.mkdir(parents=True)
+        retained = ((root_notes, "root notes"), (runtime_notes, "runtime notes"),
+                    (other_entry, "other game"), (save, "precious save"))
+        for path, content in retained:
+            path.write_text(content)
+        payload = {name: (runtime / name).read_bytes() for name in state["files"]}
+        self.kill_uninstall_after_desktop()
+        self.assertFalse((self.applications / installer.DESKTOP).exists())
+        self.assertEqual(self.state(), state)
+        self.assertEqual(json.loads((self.install / installer.UNINSTALL).read_text()),
+                         {"owner": installer.OWNER, "state": state})
+        for name, content in payload.items():
+            self.assertEqual((runtime / name).read_bytes(), content)
+        for _ in range(2):
+            result = self.cli_uninstall()
+            self.assertEqual(result.returncode, 0, result.stderr)
+        for name in state["files"]:
+            self.assertFalse((runtime / name).exists())
+        for name in (installer.MANIFEST, installer.UNINSTALL, installer.UPDATE):
+            self.assertFalse((self.install / name).exists())
+        for path, content in retained:
+            self.assertEqual(path.read_text(), content)
+
+    def test_interrupted_uninstall_refuses_tampering_before_further_mutation(self):
+        self.run_install()
+        state = self.state()
+        runtime = self.install / state["generation"]
+        self.kill_uninstall_after_desktop()
+        record = self.install / installer.UNINSTALL
+        removal = json.loads(record.read_text())
+        manifest = self.install / installer.MANIFEST
+        desktop = self.applications / installer.DESKTOP
+        invalid = dict(removal, state=dict(state, generation="../unrelated"))
+        for path, changed, error in (
+                (record, json.dumps(dict(removal, owner="someone else")).encode(),
+                 "invalid uninstall ownership"),
+                (record, json.dumps(invalid).encode(), "invalid installation manifest"),
+                (manifest, b'{"owner": "someone else"}', "invalid installation manifest"),
+                (manifest, None, "installation manifest missing"),
+                (self.install / installer.UPDATE, b"{}", "pending install/update recovery"),
+                (runtime / installer.ICON, b"changed surviving icon", "owned file changed"),
+                (desktop, b"foreign launcher", "owned desktop entry changed")):
+            with self.subTest(path=path, error=error):
+                original = path.read_bytes() if path.exists() else None
+                try:
+                    if changed is None:
+                        path.unlink()
+                    else:
+                        path.write_bytes(changed)
+                    before = self.snapshot()
+                    result = self.cli_uninstall()
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertIn(error, result.stderr)
+                    self.assertEqual(self.snapshot(), before)
+                finally:
+                    if original is None:
+                        path.unlink(missing_ok=True)
+                    else:
+                        path.write_bytes(original)
+        before = self.snapshot()
+        result = self.cli_install(self.bundle("456def0"))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("pending uninstall recovery", result.stderr)
+        self.assertEqual(self.snapshot(), before)
+        # Without the verified intent, a missing launcher remains an error.
+        saved = self.root / "saved-uninstall.json"
+        record.rename(saved)
+        before = self.snapshot()
+        result = self.cli_uninstall()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("owned desktop entry changed or missing", result.stderr)
+        self.assertEqual(self.snapshot(), before)
+        record.symlink_to(saved)
+        before = self.snapshot()
+        result = self.cli_uninstall()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("refusing symlink path", result.stderr)
+        self.assertEqual(self.snapshot(), before)
+        record.unlink()
+        saved.rename(record)
+        # A valid intent also covers payload files removed before a second death.
+        (runtime / state["executable"]).unlink()
+        icon = runtime / installer.ICON
+        original_icon = icon.read_bytes()
+        icon.write_bytes(b"changed last surviving icon")
+        before = self.snapshot()
+        result = self.cli_uninstall()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("owned file changed", result.stderr)
+        self.assertEqual(self.snapshot(), before)
+        icon.write_bytes(original_icon)
+        result = self.cli_uninstall()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.install.exists())
+
     def test_sigkill_first_install_fresh_cli_retry_preserves_saves_and_untracked_files(self):
         self.install.mkdir()
         save = self.install / "profiles" / "save.cfg"
