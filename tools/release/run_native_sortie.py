@@ -646,9 +646,11 @@ class SandboxPilot(SandboxWalkPilot):
         elif key == 'bulwark_heavy_gunship':
             self.pending_walk = [[52, 4.2, 68.3], [50.2, 6.6, 59.2], [49, 6.6, 59.2]]
         elif key == 'cinder_cargo_hauler':
+            # Cross north of the hull from its clear eastern apron lane.
             self.pending_walk = [[46.5, 6.6, 58.75], [49.2, 6.6, 59.2], [50.2, 6.6, 59.2],
                                  [50.2, 4.2343, 66.2], [35.2, 4.2, 69.4], [25.4, 4.2, 70.6],
-                                 [23, 4.18, 72.8], [22.2, 4.18, 75.2], [11.8, 4.18, 85.6]]
+                                 [23, 4.18, 72.8], [22.2, 4.18, 75.2],
+                                 [22.2, 4.18, 90], [8.8, 4.18, 90]]
         elif key == 'cinder_long_range_bomber':
             # Leave the cargo ramp to the north before crossing its outboard
             # deck. The existing west Aft aisle clears muster furniture/ribs;
