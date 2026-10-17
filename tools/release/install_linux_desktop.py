@@ -132,8 +132,8 @@ def read_state(path: Path, install_dir: Path, applications_dir: Path) -> dict:
     return state
 
 
-def read_update(install_dir: Path, applications_dir: Path) -> tuple[dict, dict, dict] | None:
-    """Validate an interrupted update completely before allowing any recovery write."""
+def read_update(install_dir: Path, applications_dir: Path) -> tuple[dict | None, dict, dict | None] | None:
+    """Validate an interrupted install/update before allowing any recovery write."""
     path = safe_path(install_dir / UPDATE)
     if not path.exists():
         return None
@@ -144,19 +144,26 @@ def read_update(install_dir: Path, applications_dir: Path) -> tuple[dict, dict, 
         if set(update) != {"owner", "previous", "pending"} or update["owner"] != OWNER:
             raise ValueError("invalid update ownership fields")
         previous, pending = update["previous"], update["pending"]
-        validate_state(previous, install_dir, applications_dir)
+        if previous is not None:
+            validate_state(previous, install_dir, applications_dir)
         validate_state(pending, install_dir, applications_dir)
-        if previous["generation"] == pending["generation"]:
+        if previous is not None and previous["generation"] == pending["generation"]:
             raise ValueError("update generations must differ")
     except (ValueError, TypeError, KeyError, AttributeError) as error:
         raise InstallError(f"invalid update recovery record: {error}") from error
-    current = read_state(safe_path(install_dir / MANIFEST), install_dir, applications_dir)
+    manifest = safe_path(install_dir / MANIFEST)
+    current = (None if previous is None and not manifest.exists()
+               else read_state(manifest, install_dir, applications_dir))
     if current not in (previous, pending):
         raise InstallError("installation manifest differs from update recovery record")
     desktop = safe_path(applications_dir / DESKTOP)
+    # An initial transaction may die before publishing any launcher. Once one
+    # exists, only exact journal-owned bytes qualify; arbitrary entries are refused.
+    if previous is None and current is None and not desktop.exists():
+        return previous, pending, current
     # A committed new manifest must have its new launcher. Before that commit,
     # either exact launcher is ours; arbitrary edits are still refused.
-    allowed = (previous, pending) if current == previous else (pending,)
+    allowed = (previous, pending) if previous is not None and current == previous else (pending,)
     if not desktop.is_file() or desktop.read_bytes() not in tuple(
             desktop_bytes(install_dir / state["generation"], state["executable"])
             for state in allowed):
@@ -166,18 +173,23 @@ def read_update(install_dir: Path, applications_dir: Path) -> tuple[dict, dict, 
 
 def recover_update(install_dir: Path, applications_dir: Path) -> None:
     # Called only under installation_lock. This journal covers process death
-    # during updates; initial install/uninstall and power-loss durability differ.
+    # during installs and updates; uninstall and power-loss durability differ.
     update = read_update(install_dir, applications_dir)
     if update is None:
         return
     previous, pending, current = update
     if current == previous:
-        atomic_write(applications_dir / DESKTOP,
-                     desktop_bytes(install_dir / previous["generation"], previous["executable"]))
+        if previous is None:
+            (applications_dir / DESKTOP).unlink(missing_ok=True)
+        else:
+            atomic_write(applications_dir / DESKTOP,
+                         desktop_bytes(install_dir / previous["generation"], previous["executable"]))
     # Retire the journal before cleanup so interrupted cleanup cannot leave a
     # journal referring to partly removed payloads. Untracked files survive.
     (install_dir / UPDATE).unlink()
-    remove_payload(install_dir, pending if current == previous else previous)
+    obsolete = pending if current == previous else previous
+    if obsolete is not None:
+        remove_payload(install_dir, obsolete)
 
 
 @contextlib.contextmanager
@@ -275,11 +287,10 @@ def install(archive_path: Path, install_dir: Path, applications_dir: Path) -> No
                     "applications_dir": str(applications_dir),
                     "files": {name: digest(runtime / name) for name in (executable, ICON)},
                 }
-                if previous:
-                    update = {"owner": OWNER, "previous": previous, "pending": state}
-                    atomic_write(install_dir / UPDATE,
-                                 (json.dumps(update, indent=2) + "\n").encode(), exclusive=True)
-                    journaled = True
+                update = {"owner": OWNER, "previous": previous, "pending": state}
+                atomic_write(install_dir / UPDATE,
+                             (json.dumps(update, indent=2) + "\n").encode(), exclusive=True)
+                journaled = True
                 atomic_write(desktop, desktop_bytes(runtime, executable), exclusive=previous is None)
                 published = True
                 atomic_write(install_dir / MANIFEST, (json.dumps(state, indent=2) + "\n").encode())
@@ -295,8 +306,8 @@ def install(archive_path: Path, install_dir: Path, applications_dir: Path) -> No
                     (runtime / name).unlink(missing_ok=True)
                 runtime.rmdir()
                 raise
+            (install_dir / UPDATE).unlink()
             if previous:
-                (install_dir / UPDATE).unlink()
                 remove_payload(install_dir, previous)
 
 
