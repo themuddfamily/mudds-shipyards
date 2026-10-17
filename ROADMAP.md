@@ -145,8 +145,10 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
 ### HULK-HOME-INPUT — IN PROGRESS implementation
 
 - **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
-  Continue the accepted breaker run back through the interior, reboard, fly home,
-  dock/shut down/exit and walk on supported yard collision with cell count1 retained.
+  Add an opt-in release qualification route continuing the accepted breaker run
+  back through the interior, reboard, fly home, dock/shut down/exit and walk on
+  supported yard collision with cell count1 retained. This checks existing
+  gameplay; it does not claim new gameplay until a demonstrated defect is fixed.
 - **Owner/boundary:** root integration, `hulk_home_implement` implementation;
   base9c2653f02 (runtime81536a7b3). Existing native Python
   runner, read-only observer, startup mode allowlist and focused existing tests.
