@@ -14,18 +14,28 @@ entries agree, and direct/archive strict menu startup passes. Full regression
 on this source is NOT_RUN; the subsequent original-cap Rime source suite still
 times out and the earlier f85957f full FAIL remains retained.
 
-One archive-extracted native ELF pilot/convoy interruption case now passes in
-57.291s. The exact owned process exits -9 after its real durable running marker;
-a fresh process exits 0 with the identical activity boundary, receipts 1→2 once,
-one crash event and clean crash/safe-start shutdown markers. Source/cache,
-package/metadata, unrelated settings/tutorial/safe-home data and the private
-save sentinel remain unchanged; profiles and owned processes are cleaned up.
-Both invocations use headless/Dummy and original 300s stage limits. Setup is
-scripted; continuation uses real safe-home berth boarding and an escort-motion
-fixture. Ordinary controls, airborne seat/world-pose restoration, other contexts,
-actual graphical desktop-entry launch and native GPU/device/audio acceptance
-remain open. Raw result:
-`/srv/mudds-work/linux-native-recovery-ca0afc4-20261017/results/pilot/`.
+The archive-extracted native ELF passes all four convoy interruption contexts:
+
+| Context | Elapsed | Interrupted state |
+|---|---:|---|
+| Pilot | 57.291s | Piloting Bulwark |
+| Cabin | 64.794s | Awake, supported Halyard cabin |
+| Rest | 65.343s | Sleeping in the real Halyard bunk |
+| Crew | 64.872s | Seated nonpilot Halyard passenger |
+
+Each owned arm process exits -9 after its real durable running marker; a fresh
+process exits 0 with the identical activity boundary, receipts 1→2 once, one
+crash event and clean crash/safe-start shutdown markers. Cabin/rest/crew recover
+awake, unseated, supported and with controls enabled in Halyard's home cabin.
+Source/cache, package/metadata, unrelated settings/tutorial/safe-home data and
+private save sentinels remain unchanged. All eight headless/Dummy game logs have
+zero warnings/errors, with original 300s stage limits; profiles and owned
+processes are cleaned up. Setup is scripted; continuation uses real safe-home
+boarding or cabin walking/pilot retake followed by an escort-motion fixture.
+Ordinary controls, airborne pose restoration, other activities/docking/planetary
+recovery, graphical desktop-entry launch and native GPU/device/audio acceptance
+remain open. Raw results:
+`/srv/mudds-work/linux-native-recovery-ca0afc4-20261017/results/{pilot,cabin,rest,crew}/`.
 
 ## Earlier local checkpoint: `7f9627e5c` — 2026-10-17
 
