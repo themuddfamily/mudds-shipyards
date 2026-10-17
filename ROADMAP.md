@@ -99,12 +99,13 @@ Sandbox, Convoy and Q4 remain parked at their recorded failures; no automatic re
 
 This is a count of **two qualifications and one conditional package delivery**,
 not three new gameplay features or a project completion estimate. The departure
-repair is saved but has not passed its full route. No task below is running.
+repair is saved but has not passed its full route. Task 1 is IN PROGRESS;
+tasks 2 and 3 have not started.
 The 36 parent outcomes and all ten phase gates remain open.
 
 | Order / task | Kind / status | Observable finish | Work estimate; separate check allowance |
 | --- | --- | --- | --- |
-| 1. [HULK-REVISIT-DEPARTURE](#1-hulk-revisit-departure--ready-for-qualification) | Qualification; READY, implementation saved | Return to a newly streamed HULK and prove its breaker refuses a second cell after the full home journey. | Preparation/review/closure 30–45 min; setup/export/startups up to 47 min, then one 300 s route plus 45 s supervisor cleanup allowance. |
+| 1. [HULK-REVISIT-DEPARTURE](#1-hulk-revisit-departure--ready-for-qualification) | Qualification; IN PROGRESS, implementation saved | Return to a newly streamed HULK and prove its breaker refuses a second cell after the full home journey. | Preparation/review/closure 30–45 min; setup/export/startups up to 47 min, then one 300 s route plus 45 s supervisor cleanup allowance. |
 | 2. [HULK-REVISIT-CHECKPOINT](#2-hulk-revisit-checkpoint--gated-on-task-1) | Build delivery; GATED on task 1 PASS | Accepted source integrated and matching playable Windows/Linux packages, with accurate notes, published in repository builds. | Packaging/integration/closure 30–45 min; export/payload checks up to 26 min. |
 | 3. [EMBER-ABANDON-SOURCE](#3-ember-abandon-source--ready-independent-of-hulk) | Qualification; READY, independent of HULK | Physically abandon an Ember visit, reboard, fly home, dock and walk out. | Preparation/closure 30–45 min; cold import up to 600 s, route up to 7,200 s. |
 
@@ -116,7 +117,7 @@ If task 2 fails, preserve the accepted route and previous public checkpoint, clo
 the failed package attempt and review priorities before repair. If task 3 fails,
 close it FAILED and select the next bounded task explicitly. No automatic retries.
 
-### 1. HULK-REVISIT-DEPARTURE — READY for qualification
+### 1. HULK-REVISIT-DEPARTURE — IN PROGRESS, one attempt
 
 - **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Qualify the existing full home-and-revisit journey with the external driver
@@ -124,7 +125,7 @@ close it FAILED and select the next bounded task explicitly. No automatic retrie
 - **State/source:** implementation saved at `2298e48893163dfc8d6d174fcd3957a20fc4739b`,
   based on withheld `5010ef932`. Agent reports 53 focused Python tests, compilation
   and whitespace checks passing; root reviewed the production diff. Fresh game
-  export, startup and full route are NOT_RUN. Main and public checkpoint remain
+  export, startup and full route are starting as one guarded attempt. Main and public checkpoint remain
   unchanged by this candidate. [Original failure and saved repair](docs/history/ROADMAP_DELIVERIES.md#hulk-revisit-input--failed-qualification-on-5010ef932).
 - **Owner/boundary:** root qualifies the saved agent work in
   `/srv/mudds-work/hulk-revisit-departure-20261017`. Repair touches only
@@ -153,9 +154,11 @@ close it FAILED and select the next bounded task explicitly. No automatic retrie
   export 930 s, two startups 330 s each, route supervisor 345 s enclosing the
   unchanged 300 s route. Stop at first failure or budget boundary; close this
   attempt and apply the priority review above.
-- **Next action:** check clean candidate/source and existing prepared runner
-  `/srv/mudds-work/hulk-revisit-results-20261017/departure/run.py`; freeze identities
-  before launch. Preserve exact candidate and raw failure if withheld.
+- **Next action:** execute the reviewed prepared runner
+  `/srv/mudds-work/hulk-revisit-results-20261017/departure/run.py` with full
+  candidate `2298e48893163dfc8d6d174fcd3957a20fc4739b`. It freezes identities
+  and advances only after each required stage passes. Independent abort is
+  adjacent `abort.py`; preserve exact candidate and raw failure if withheld.
 - **Close:** record actual acceptance or first failure, commit/push result. PASS
   unlocks task 2; it does not close HULK disk/interruption or other parent gates.
 
