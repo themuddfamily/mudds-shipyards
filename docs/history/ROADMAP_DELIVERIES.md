@@ -814,3 +814,55 @@ native executable environment captured via /proc/PID/exe. Raw retained at
 Candidate preserved at branch `hold/sandbox-settle-facing-20261017`; clean
 author and acceptance worktrees removed. No new game build. Investigation
 stopped: no automatic rerun, extra pacing change or profiling loop.
+
+## HULK arrival input — first flight qualification FAILED before transit
+
+Candidate branch `hulk-arrival-20261017`, tip
+`150dbb1a7d97408f9eef4bdeb46888ec4ff19cbc`, is retained and withheld from main.
+Select-only ordinary OS-input arrival driver/read-only observer/startup allowlist
+implemented; original Guided/Sandbox classes and caps unchanged.22 focused
+Python tests pass. These do not establish actual route acceptance.
+
+Three bounded attempts, each stopped on its first actual failure:
+
+- 6426fa7b1 cold import passed; startup/privacy harness failed to parse duplicate
+  local `hulk_args`. No export or flight. Separate test-only renameea883b499.
+  Source/index/engine/cache guards pass; all6 recorded identities absent.
+- ea883b499 privacy174, Linux export, direct and archive strict startup pass;
+  arrival boot failed lazy-observer cluster/HULK type inference, before any
+  observation or flight. Separate observer-only type repair150dbb1a7. All38
+  recorded identities absent; guards and owned display/socket cleanup pass.
+- 150dbb1a7 focused observer parse, Linux export and both strict startup checks
+  pass, zero diagnostics. One actual arrival run fails at87.314s during the
+  normal Guided interceptor prelude, before RETURN_TO_YARD/HULK transit. Last
+  accepted observation f4041: Torrent destroyed, hull0, opponent health85.
+  Interceptor samples f1722–4040 total2319, opponent health always85 despite124
+  command_fire samples. Driver stops on `AssertionError: live sortie`; no
+  NATIVE_HULK_ARRIVAL_OK. This does not establish why shots missed or a gameplay
+  defect. No automatic flight retry or changed physics/criteria/cap.
+
+Original300s route/345s outer cleanup, actual clean Linux native payload, private
+X11/Dummy/default sampler. Source/index/engine and exact cache guards pass; all38
+recorded identities independently absent, lanes free, owned socket set without
+remnants and display/authority/native profiles removed. Inputs released, helper/
+game/Xvfb reaped. Earlier completed import cache reused only with exact frozen
+cache equality and explicit single-file repairs; cold import was not repeated or
+misrepresented as having run on each successor. Existing privacy174 was not
+repeated after the observer-only typing correction.
+
+Raw root: `/srv/mudds-work/hulk-arrival-results-20261017/`; revised attempts in
+`privacy-name-fix/` and `observer-type-fix/`. Exact two candidate archives and
+immutable export metadata retained in `retained-candidate-archives/`; each
+archive's ELF member independently matches its actual tested ELF hash/mode.
+Duplicate ELF files and clean author/acceptance worktrees removed; Git branch
+preserves all unique implementation/fixes. These failed candidates are not
+published checkpoints. No new Windows build: no working arrival checkpoint was
+reached. Latest paired gameplay checkpoint remainsb6af782, Linux packageb41c3cc.
+
+Next separate task HULK-PRELUDE-INPUT:15-minute read-only comparison of the new
+subclass input wrapper against inherited Guided handling using retained actual
+observations. One hypothesis/probe only; identify a concrete input defect/owner
+or park with the missing fact. Counterfactual replay cannot prove coupled flight
+success. Existing installed Guided3/3 remains accepted on its recorded driver;
+no unchanged default rerun. Full HULK arrival/interior interaction/home/revisit
+and original phase gates stay open.

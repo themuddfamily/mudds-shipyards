@@ -151,7 +151,7 @@ link to [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys). Only 
 first is ready for implementation; later cards must freeze their exact invocation
 after their dependency exists. These are scenario capabilities, not phase completion.
 
-### HULK-ARRIVAL-INPUT — IN PROGRESS implementation
+### HULK-ARRIVAL-INPUT — FAILED qualification; candidate retained
 
 - **One result:** the existing native-input release runner can fly Torrent from
   its actual yard berth to the streamed HULK dock and exit onto the shelf.
@@ -178,30 +178,40 @@ after their dependency exists. These are scenario capabilities, not phase comple
   one arrival run using the runner's existing300s cap. Stop at first unsupported
   control/actual failure or estimate boundary; record exact blocker before repair.
   Keep existing Guided/Sandbox behavior and caps unchanged.
-- **First qualification:**6426fa7b1 cold import passed, then startup/privacy
-  test parse failed on duplicate local `hulk_args`; stopped before export/flight.
-  Guards passed; all6 recorded identities absent and lanes free. Raw:
-  `/srv/mudds-work/hulk-arrival-results-20261017/`.
-- **Separate repair HULK-PRIVACY-NAME — DONE:**ea883b499 changes only the added
-  test variable/references to `hulk_arrival_args`. No driver/runtime/cap change.
-  Root reviewed exact diff;5-minute budget. Earlier failure remains retained.
-- **Second qualification:**ea883b499 privacy/export/direct+archive startup pass;
-  arrival failed during boot before any observation/flight: lazy observer could
-  not infer cluster/HULK types. Guards pass, all38 recorded identities absent,
-  display/authority/sockets closed, lanes free. Retain prior continuation raw.
-- **Separate repair HULK-OBSERVER-TYPE — DONE:**150dbb1a7 changes only added
-  observer local types/read-only typed lookup; no driver/cap/gameplay change.
-- **Next action:** one revised-source qualification on
-  `150dbb1a7d97408f9eef4bdeb46888ec4ff19cbc`. Start with explicit lazy-observer
-  parse check, then unrun new Linux export/startups/arrival. Completed privacy
-  test is unchanged and is not repeated. Reuse prior exact frozen cache with
-  the sole observer typing source change declared. Raw/stage owners/abort:
-  `/srv/mudds-work/hulk-arrival-results-20261017/observer-type-fix/`.
-  Existing acceptance checkout remains pinned, no flight outcome claimed.
-  After a working route, clean-source Windows EXE/ZIP/notes remain required.
+- **Actual outcome:** candidate150dbb1a7 is on branch `hulk-arrival-20261017`,
+  withheld from main. Python22/privacy174/observer parse/export/strict startup
+  pass within their scopes. Actual arrival run fails87.314s during Guided
+  interceptor prelude: craft destroyed, opponent still full health; no HULK transit.
+  Earlier harness-name and lazy-observer typing failures/fixes are retained.
+  [Exact result and limits](docs/history/ROADMAP_DELIVERIES.md#hulk-arrival-input--first-flight-qualification-failed-before-transit).
+- **Closed:** no automatic flight retry. Source/index/engine/cache guards and
+  owned cleanup pass; candidate branch/raw/exact archives preserved, both clean
+  worktrees and duplicate ELF files removed. Raw root:
+  `/srv/mudds-work/hulk-arrival-results-20261017/`. No new working checkpoint.
+- **Next action:** separate HULK-PRELUDE-INPUT card below; breaker/return stay gated.
   All automated runtime remains isolated X11/Dummy with owned abort/cleanup.
 - **Close:** exact source/build/raw outcome, commit/push, remove owned disposable
   worktrees. No full salvage journey claim from arrival alone.
+
+### HULK-PRELUDE-INPUT — READY diagnosis
+
+- **Parent/result:** HULK arrival. Identify one concrete input-handling defect
+  behind the observed interceptor failure, or record the precise missing fact.
+  Diagnosis alone does not deliver gameplay or qualify HULK.
+- **Owner/source:** root, retained candidate150dbb1a7 and actual
+  `observer-type-fix/arrival/game.log`. Existing Guided3/3 remains accepted on its
+  recorded original driver; do not rerun it unchanged.
+- **One hypothesis:** the new HULK subclass mouse acknowledgement wrapper changes
+  the inherited prelude's steering behavior. Compare actual frame/attitude/shot
+  observations and exact subclass/base output handling. No new engine run, wider
+  combat redesign, statistics framework or constructor profiling.
+- **Proof/budget/stop:**15 minutes read-only. End with a demonstrated input
+  difference tied to actual observations and its file owner, or an explicit
+  inconclusive result/park. A counterfactual input replay cannot establish that
+  the coupled real flight would pass. No automatic second probe.
+- **Next action:** inspect the retained interceptor segment and wrapper; any
+  supported correction gets a separate bounded implementation/qualification card.
+  Record result and commit/push before choosing further work.
 
 ### HULK-BREAKER-INPUT — GATED on arrival
 
