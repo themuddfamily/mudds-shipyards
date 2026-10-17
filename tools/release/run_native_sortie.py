@@ -623,7 +623,10 @@ class SandboxPilot(SandboxWalkPilot):
         if key == 'arrow_provisional':
             self.pending_walk = [[boarding[0], 0, 22], boarding]
         elif key == 'jovian_provisional':
-            self.pending_walk = [[-41, .38, 40], [-41, .38, boarding[2]], boarding]
+            # The x=-40.6 bollard line and kiosk's x=-40.85 west face
+            # must clear the capsule even after a .30m waypoint arrival and
+            # ordinary braking drift. The old x=-41 lane grazed the bollards.
+            self.pending_walk = [[-42, .38, 40], [-42, .38, boarding[2]], boarding]
         elif key == 'zenith_b7_observed':
             self.pending_walk = [[22, 4.2, 68.3], [20.2, 4.2, 59.2], [18.6, 4.2, 58.6], [18.2, 4.2, 58.2]]
         elif key == 'halyard_new_design':
