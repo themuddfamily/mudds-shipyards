@@ -74,6 +74,19 @@ unchanged. Raw failed artifacts: `artifacts/caption-production-06d22013a/`.
 There is no unchanged retry, no promoted production-HUD inventory and no claim
 that the smaller presenter frame establishes production layout acceptance.
 
+A separate stage-timing diagnostic based on `bdc6a9272` reaches Main readiness
+at 39.20s and the first production `frame_pre_draw` at 42.62s, then observes no
+`frame_post_draw`. Sampled busy Godot worker instruction pointers are inside
+`libvulkan_lvp.so`, while the main thread waits and llvmpipe draw workers are
+idle; this is consistent with cold software-driver pipeline compilation.
+The diagnostic is deliberately aborted once the boundary is established
+(exit 143, owned descendants reaped). It changes logging in a temporary copy,
+not canonical waits, camera, quality or production behavior, and is not capture
+acceptance. No justified production fix or unchanged full retry follows from
+this evidence. Raw stage log, native samples and logging patch remain in
+`artifacts/caption-production-driver-diagnostic/`; the original timeout and
+pending production-HUD source/image declarations remain unchanged.
+
 The unchanged original freighter harness completed all four 1280×720 views
 within its original 300-second cap on clean frozen source and import cache,
 under private Xvfb x11 / Dummy / Forward+ Vulkan llvmpipe with fresh private XDG

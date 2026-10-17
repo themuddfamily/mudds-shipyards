@@ -4,6 +4,17 @@ This is the working roster for [roadmap task 0](../ROADMAP.md#0-fix-the-release-
 
 The latest published Windows and Linux checkpoints share source `e159ac3c5` ([Windows notes](../builds/windows/MuddsShipyards-e159ac3-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-e159ac3-linux-notes.txt)). Their 1,515 embedded payload entries match by path, size and SHA-256. Strict Windows-payload-through-Linux, native Linux and archive-extracted startup checks pass, as do 1,054 focused Windows-payload checks. The scoped distant Jovian roof defect is closed after the unchanged original four-view capture and close-detail comparison. These results do not qualify the complete current game.
 
+The repaired native Linux ordinary-input sortie driver separately completes the
+same `e159ac3c5` ELF in 49.322s, including four practice targets, interceptor
+combat, strict home-berth landing and same-player physical exit, with zero
+diagnostics through shutdown and complete input/process cleanup. It fixes an
+observed driver braking deadlock and rejects previously ignored engine
+diagnostics; game physics, default sampling, authored tuning, route and 300s
+cap remain. This is one isolated-Xvfb/dummy-renderer OS-input run, not complete
+Guided 3/3, all-nine-craft, Sandbox or Settings acceptance. The existing playable
+checkpoint is unchanged; actual raw runs and tested driver are retained in
+`artifacts/native-sortie-diagnostics/`.
+
 Complete Settings acceptance remains open. The original writer passes. The latest source restart completes keyboard-and-mouse flight and gamepad outbound/control probes before the unchanged 300-second cap during gamepad return; the earlier d750 Windows payload also times out. Both failures remain retained. The original runner, saved profile and raw logs referenced in the bug ledger are absent from this workspace and its available cache/storage locations as of 2026-10-17; their described results cannot be replayed here until recovered. The pending correction to mouse-input observation remains unverified. A substitute scenario must not inherit the original Gate C acceptance.
 
 The latest complete unfiltered regression remains the frozen `636814418` result: 1,027 PASS / 18 FAIL across 1,045 suites, with 41,381 recorded passing assertions. Later focused fixes and checks retain their named sources in [ROADMAP](../ROADMAP.md); no green full combined-source matrix is claimed. The latest original full Rime controls run, `083b0ebae`, passes the first scenario and its formerly failing return leg, then times out at the unchanged 300-second cap during the second scenario. The small subsequent motion-authority saving does not establish complete Rime acceptance. Earlier `70a3c1bdc` (1,038/1,045) and interrupted `064f573b2` matrices remain historical. Complete ordinary-controls, graphical and applicable hardware qualification remain open; earlier source/package checks cannot qualify newer source.

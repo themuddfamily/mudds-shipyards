@@ -25,6 +25,12 @@ import time
 
 PREFIX = b"NATIVE_SORTIE_OBSERVATION: "
 CAP = 300
+ANSI_ESCAPE = re.compile(rb'\x1b\[[0-?]*[ -/]*[@-~]')
+DIAGNOSTIC = re.compile(
+    rb'^\s*(?:SCRIPT\s+ERROR|ERROR:|WARNING:|FAIL:|NATIVE_SORTIE_REJECTED:)'
+    rb'|\bFATAL ERROR\b|\bObjectDB\b|Resource.*still in use|\bOrphaned\b|\bLeaked\b',
+    re.IGNORECASE,
+)
 
 
 def require(condition, description):
@@ -35,6 +41,32 @@ def sub(a, b): return [x-y for x, y in zip(a, b)]
 def dot(a, b): return sum(x*y for x, y in zip(a, b))
 def norm(a): return math.sqrt(dot(a, a))
 def unit(a): return [x/max(norm(a), 1e-9) for x in a]
+
+
+def diagnostic_lines(lines):
+    normalized = [ANSI_ESCAPE.sub(b'', line).strip() for line in lines]
+    return [line for line in normalized if not line.startswith(b'PASS:') and DIAGNOSTIC.search(line)]
+
+
+def observations_from_lines(lines):
+    diagnostics = diagnostic_lines(lines)
+    if diagnostics:
+        raise RuntimeError('native game diagnostic: ' + diagnostics[0].decode('utf-8', errors='replace'))
+    return [json.loads(line[len(PREFIX):]) for line in lines if line.startswith(PREFIX)]
+
+
+def drain_game_output(process, log_path):
+    # The direct child has been waited for. Read its remaining pipe bytes without
+    # blocking cleanup on an unexpected descendant holding the write end open.
+    os.set_blocking(process.stdout.fileno(), False)
+    deadline = time.monotonic() + 2
+    with log_path.open('ab') as log:
+        while time.monotonic() < deadline:
+            try: chunk = os.read(process.stdout.fileno(), 262144)
+            except BlockingIOError: return
+            if not chunk: return
+            log.write(chunk)
+    raise RuntimeError('game output did not drain within cleanup deadline')
 
 
 def validate_binary(path):
@@ -193,6 +225,7 @@ class Pilot:
         self.tap_key = None
         self.tap_cooldown = 0
         self.tap_release_frame = -100
+        self.launch_braking = False
         self.return_braking = False
         self.max_walk = 0
         self.max_excursion = 0
@@ -275,7 +308,9 @@ class Pilot:
             dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
             dist = norm(off)
             stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
-            if dist < stopping+5.75: keys.add('Prior')
+            if dist < stopping+5.75: self.launch_braking = True
+            if speed <= .45 and dist > 5: self.launch_braking = False
+            if dist <= 5 or self.launch_braking: keys.add('Prior')
             elif align > .72: keys.add('w')
             if dist <= 5 and phase == 'TARGET_PRACTICE':
                 require(self.departed and s['position'][2] < -66, "self.departed and s['position'][2] < -66")
@@ -392,7 +427,7 @@ def run(binary, output):
             for name in ('data','config','cache','state','runtime','data-dirs','config-dirs','tmp'):
                 (profile/name).mkdir(mode=0o700)
             env = {'PATH':'/usr/local/bin:/usr/bin:/bin', 'HOME':os.environ.get('HOME','/tmp'),
-                   'MUDDS_PRIVATE_PROBE_INPUT':'native-sortie-x11'}
+                   'MUDDS_PRIVATE_PROBE_INPUT':'native-sortie-x11', 'GODOT_SILENCE_ROOT_WARNING':'1'}
             for key, name in [('XDG_DATA_HOME','data'),('XDG_CONFIG_HOME','config'),('XDG_CACHE_HOME','cache'),
                               ('XDG_STATE_HOME','state'),('XDG_RUNTIME_DIR','runtime'),('XDG_DATA_DIRS','data-dirs'),
                               ('XDG_CONFIG_DIRS','config-dirs'),('TMPDIR','tmp')]: env[key] = str(profile/name)
@@ -464,9 +499,7 @@ def run(binary, output):
                             log.write(chunk); log.flush()
                             pending += chunk
                             lines = pending.split(b'\n'); pending=lines.pop()
-                            if any(b'SCRIPT ERROR:' in line or line.startswith(b'NATIVE_SORTIE_REJECTED:') for line in lines):
-                                raise RuntimeError('native game diagnostic failed; see game.log')
-                            observations = [json.loads(line[len(PREFIX):]) for line in lines if line.startswith(PREFIX)]
+                            observations = observations_from_lines(lines)
                             if observations:
                                 keys,dx,dy,fire=pilot.update(observations[-1],time.monotonic())
                                 desktop.keys(keys); desktop.mouse(dx,dy,fire)
@@ -491,8 +524,15 @@ def run(binary, output):
         if not result['input_helper_reaped']:
             cleanup_errors.append('private input helper remains alive after bounded cleanup')
         for name, process in [('game',game),('xvfb',xvfb)]:
-            try: stop(process)
+            try:
+                stop(process)
+                if name == 'game' and process is not None and process.stdout is not None:
+                    drain_game_output(process, output/'game.log')
             except Exception as error: cleanup_errors.append(name+': '+str(error))
+            finally:
+                if name == 'game' and process is not None and process.stdout is not None:
+                    try: process.stdout.close()
+                    except Exception as error: cleanup_errors.append('game output close: '+str(error))
             result[name+'_reaped'] = process is None or process.poll() is not None
         if temporary_profile:
             try: temporary_profile.cleanup()
@@ -500,6 +540,12 @@ def run(binary, output):
         if cleanup_errors:
             result['cleanup_errors'] = cleanup_errors
             result['success'] = False
+        log_path = output/'game.log'
+        diagnostics = diagnostic_lines(log_path.read_bytes().splitlines()) if log_path.exists() else []
+        result['diagnostic_count'] = len(diagnostics)
+        if diagnostics:
+            result['success'] = False
+            result.setdefault('error', 'native game diagnostic: ' + diagnostics[0].decode('utf-8', errors='replace'))
         result['elapsed_seconds'] = round(time.monotonic()-start,3)
         for sig,handler in old_signals.items(): signal.signal(sig,handler)
         (output/'result.json').write_text(json.dumps(result,indent=2)+'\n')
