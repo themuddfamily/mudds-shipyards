@@ -409,6 +409,11 @@ class SandboxWalkPilot(Pilot):
     """
     WAYPOINTS = (
         ('Central', [0, 0, 15.5]),
+        # The production tow tractor occupies x=.6..4.4 at z=15.6.
+        # Walk its forward side on the existing central deck in both directions.
+        ('tractor_west_clearance', [0, 0, 12.5]),
+        ('tractor_forward_clearance', [6, 0, 12.5]),
+        ('tractor_east_clearance', [6, 0, 15.5]),
         ('starboard_arm', [43, 0, 15.5]),
         ('habitat_approach', [46, 0, 15.5]),
         ('habitat_threshold', [50, 0, 15.5]),
@@ -418,6 +423,9 @@ class SandboxWalkPilot(Pilot):
         ('habitat_return_threshold', [50, 0, 15.5]),
         ('habitat_return_approach', [46, 0, 15.5]),
         ('starboard_return', [43, 0, 15.5]),
+        ('tractor_return_east', [6, 0, 15.5]),
+        ('tractor_return_forward', [6, 0, 12.5]),
+        ('tractor_return_west', [0, 0, 12.5]),
         ('central_return', [0, 0, 15.5]),
         ('port_arm', [-33, 0, 15.5]),
         ('arrow_aft_clearance', [-33, 0, 22]),
