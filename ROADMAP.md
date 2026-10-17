@@ -120,7 +120,7 @@ merely to reproduce the timeout.
 | Boundary | Read-only original suite, Cinder Convoy save/restore runtime seams and retained original result. No edits, engines, new test/validator families, timing/route reductions or broad activity audit. |
 | Proof | Exact source/log location and last completed/first incomplete original assertions; supported owner/cause distinction. Known generic Main construction cost alone is not a new repair candidate. |
 | Budget |15–20 min static evidence review, then stop; no engine probe in this task. |
-| Execution | READY; root assigns one bounded reviewer, then reviews the resulting seam. |
+| Execution | IN PROGRESS; `convoy_restore_boundary` performs the bounded read-only review; root owns the next decision. |
 | Close | If evidence supports a concrete repair, schedule it separately with unchanged original300s acceptance and checkpoint. Otherwise record missing fact and stop; no repeated profiling without a new hypothesis. |
 
 **Next single action:** inspect the original retained Convoy restore failure and
