@@ -122,11 +122,18 @@ optional-lock suppression; next private runtime env must include
 HEAD is empty. Six recorded process identities absent, lanes free, closure
 reports no owned socket/display remnants. Raw: retained `typed-terrain/` bundle.
 
-**Next single action:** finish a15-minute read-only diagnosis of the initial
-coordinate against real floor geometry. One supported staging hypothesis or one
-named missing fact; no engine probe or broad planetary investigation. Root then
-schedules the smallest justified repair separately. The original route,
-import600s/mode300s caps and Aurora27/default152/combat19/Ember24 acceptance stay.
+**Read-only diagnosis DONE:** authored patch spans X/Z±48m, topY0; the
+initial(-7,.2,-17) is within it. No coordinate/support relaxation is justified.
+The missing fact is which existing readiness predicate fails; aggregate error
+cannot distinguish scene/frame/policy/floor.
+
+**Next single action / AURORA-STAGING-DIAGNOSTIC:** implement actionable last-gate
+values in the existing runner staging failure output,20-minute maximum. Owner
+`aurora_coastal_benchmark`, runner only, no physics/coordinates/waits/criteria
+changes. Freeze that commit and run one guarded selected attempt with original
+300s cap (fresh import600s separately), optional Git writes disabled. Stop on
+first failure; a specific observed cause becomes a separate bounded repair.
+Prepared raw supervisor: retained raw directory's `staging-diagnostic/`.
 
 All ten phase gates remain open. Q4 startup stays parked after the bounded
 five-file source review found no justified construction candidate. Latest
