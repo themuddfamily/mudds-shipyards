@@ -148,6 +148,18 @@ Use `--scope` on the matrix runner for focused suites, or `--list --mode all` to
 
 The Linux matrix runner supervises each suite's process family, including detached multiplayer peers and private X servers. It terminates and reaps owned processes on failure, timeout or cancellation before releasing the suite's lane. A suite that exits successfully while leaving child processes running fails the check. Unrelated processes are left alone; existing suite time limits and completion requirements still apply.
 
+For a long matrix that must survive the launching terminal or tool session, use the supervisor's explicit detached mode from the clean candidate checkout. Choose fresh log and status paths:
+
+```bash
+python3 tools/release/suite_process.py --timeout 21600 --detach \
+  --log /absolute/path/to/fresh-matrix.log \
+  --status /absolute/path/to/fresh-matrix-status.json -- \
+  env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET xvfb-run -a \
+  tools/release/run_test_matrix.sh --audio-driver Dummy --display-driver x11 --mode all
+```
+
+Launch success means the supervisor is ready, not that the matrix passed. The status records the owner PID and Linux process start ticks. For scripted cancellation, open a Linux pidfd for that PID, verify the recorded start ticks against `/proc`, then send `SIGTERM` through the pidfd to avoid a recycled-PID race. The owner retains its timeout and inherited lane locks, and records `FINISHED` with the terminal exit code after reaping its children. `ERROR` reports a supervision failure and does not establish completed cleanup. The outer timeout does not change individual suite deadlines. Matrix results and source/cache guards still determine qualification.
+
 The export wrapper runs on Linux/WSL using Linux `/proc` and GNU tools; its output is a Windows executable under ignored `builds/windows/`. Export, pack inventory and Linux startup checks do not establish native-Windows gameplay. The [release evidence tool](docs/RELEASE_EVIDENCE_TOOL.md) binds a clean source revision, matrix, package probes, inventory, PE/signing metadata and executable checksum; signing and publishing remain separate gates.
 
 ## Project status
