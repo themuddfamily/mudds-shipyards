@@ -43,8 +43,9 @@ original120s physical landing gate. Both remain withheld, owned checkout removed
 raw/remote source refs retained. Survey/home/package children remain unqualified
 and parked with that parent. Recorded priority review selected the independent
 Linux uninstall-interruption/retry/ship batch, now DONE on505d419. The next
-working queue is BROWSER-CANCEL, FIRE-RESTART, RACE-PAGE-RESET and a gated paired
-checkpoint; see ROADMAP.md for exact contracts. No further Rime
+working queue delivered BROWSER-CANCEL and paired checkpointa39e93a, closed
+RACE-PAGE-RESET static diagnosis without a repair, and has FIRE-RESTART
+qualification in progress; see ROADMAP.md for exact contracts. No further Rime
 probe, repair or unchanged run is selected.
 One failed task plus its attempted repair requires a recorded priority review
 before further repair; a new task name does not reset that boundary.

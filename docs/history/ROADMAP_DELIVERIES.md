@@ -2258,3 +2258,24 @@ focus, audible output, native Windows or hosted CI. Independent prelaunch review
 GO. Exact commands/environment snapshots, results and receipts retained under
 `/srv/mudds-work/browser-cancel-20261018/results/focused/`.
 Paired checkpoint is next; no new package acceptance claimed yet.
+
+## Browser cancellation checkpoint — DONE, a39e93a
+
+Seven artifacts from exact clean a39e93af4 source are published in repository
+builds/windows/ and builds/linux/ with stem MuddsShipyards-a39e93a. Fresh Linux
+and Windows exports, strict direct/archive Linux and Windows-payload startup
+(each0 plus one STARTUP_MENU_READY_OK), privacy207, all1515 exact payload entry
+bytes, stock PE text, six-member Linux archive member bytes/modes/CRC and exact
+EXE/notes ZIP CRC pass. All39 checkpoint observed process identities close;
+all15 focused source-test identities closed separately. No native Windows,
+exported live browser route, device/audio/human/full-matrix/release claim.
+
+Independent final read-only review GO recomputed all public artifact hashes,
+sizes/modes, tar/ZIP contents and identical platform notes; bound inventories
+to actual public binaries, verified scope and actual PID/start disappearance.
+Clean accepted source is integrated in main89bae7879. Owned browser source
+checkout removed; only disposable ignored .godot cache was present. Public
+artifacts and unique focused/checkpoint raw retained under
+`/srv/mudds-work/browser-cancel-20261018/results/`, with published-results.json
+and cleanup.json mapping former/public paths and source removal. Fire fixture
+worktree is separate and remains active. NEXT-CHECKPOINT closes for this change.

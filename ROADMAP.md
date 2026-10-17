@@ -8,13 +8,13 @@ open.** This file contains the next four bounded tasks. The
 [Completed deliveries](docs/history/ROADMAP_DELIVERIES.md) retain their recorded
 source, checks, failures and limitations. Moving them does not close requirements.
 
-Latest Windows checkpoint: **505d419**, with [notes](builds/windows/MuddsShipyards-505d419-notes.txt).
-Latest Linux package: **505d419**, with [notes](builds/linux/MuddsShipyards-505d419-linux-notes.txt).
-The bundled Linux manager now safely retries the named interrupted uninstall.
-Actual shipped-manager SIGKILL/retry/repeat preserves protected bytes and modes.
-Clean exports, three strict startups, privacy207 and all1,515 payload-entry bytes
-pass. This is one installer recovery delivery; earlier gameplay proofs retain
-their original source/binary scopes.
+Latest Windows checkpoint: **a39e93a**, with [notes](builds/windows/MuddsShipyards-a39e93a-notes.txt).
+Latest Linux package: **a39e93a**, with [notes](builds/linux/MuddsShipyards-a39e93a-linux-notes.txt).
+Server Browser now offers Cancel Connection during pending Manual Join. Actual
+source UI cancellation/reuse passes twice; clean paired exports, three strict
+startups, privacy207 and all1,515 payload-entry bytes pass. Exported packages
+have startup/artifact acceptance, not a repeated live cancellation route.
+Earlier gameplay/installed transaction proofs retain their exact scopes.
 Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
 replace it. Native Windows execution and human review remain owner-excluded
@@ -120,9 +120,9 @@ assigned alongside it without authorizing runtime edits to shared HUD/GameFlow.
 | Priority / task | Status / type | Observable finish | Work budget; checks separately |
 | --- | --- | --- | --- |
 | 1 BROWSER-CANCEL | DONE on a39e93af4 / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
-| 2 FIRE-RESTART | READY / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
+| 2 FIRE-RESTART | IN PROGRESS / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
 | 3 RACE-PAGE-RESET | DONE / bounded diagnosis; contract question retained | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
-| 4 NEXT-CHECKPOINT | IN PROGRESS / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
+| 4 NEXT-CHECKPOINT | DONE on a39e93a / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
 
 ### BROWSER-CANCEL — pending Manual Join
 
@@ -180,6 +180,11 @@ qualification remains open. NEXT-CHECKPOINT now exports this exact clean source.
   checkout after publication; preserve unique work/failure logs.
 
 ### FIRE-RESTART — one keyboard binding
+
+Execution: `fire_restart_fixture` extends only the existing production-settings
+test in `/srv/mudds-work/fire-restart-20261018/worktree`, based on89bae7879.
+Static fixture preparation proceeds alongside browser packaging; its engine
+runs remain sequential behind the current checkpoint and independent review.
 
 - **Parent/result:** [INPUT-REMAP](docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
   Qualify changing Fire to F13 from the visible Settings row, saving to the real
@@ -255,6 +260,15 @@ fresh-process runtime qualification. Exact trace is in delivery history.
   during diagnosis. Record actual result, commit/push and clean owned scratch.
 
 ### NEXT-CHECKPOINT — accepted runtime changes only
+
+Result: paired checkpoint a39e93a published from exact clean sourcea39e93af4.
+Both exports, strict direct/archive Linux and Windows-payload startups,
+privacy207, strict1515-entry byte parity, stock PE, six-member Linux archive and
+exact EXE/notes ZIP CRC pass. All39 observed owned checkpoint process identities
+close. Raw results and public paths/SHA256/modes remain in the browser batch's
+`results/checkpoint/`. Windows payload ran under Linux Godot; native Windows,
+hardware/audio/human/full-matrix/release gates stay open. Final independent
+artifact review is GO; owned clean source checkout removed, unique raw retained.
 
 - **Parents/result:** [PACKAGE-WIN / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
   Publish paired playable packages exposing BROWSER-CANCEL and any separately

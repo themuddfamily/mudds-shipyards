@@ -4,7 +4,29 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `505d419` — 2026-10-18
+## Latest development checkpoint: `a39e93a` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-a39e93a.x86_64),
+[archive](../builds/linux/MuddsShipyards-a39e93a-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-a39e93a-linux-notes.txt) come from clean
+source `a39e93af4e3083d002ad15b8610fe70620f5e983`. Server Browser now offers
+Cancel Connection during pending Manual Join. Source HUD/focus checks and a
+real Main actor's two ordinary UI cancellation/reuse cycles pass under private
+Xvfb/x11/Dummy. An owned loopback endpoint observes real handshake traffic.
+
+Fresh paired exports, strict direct/archive Linux and Windows-payload startup,
+privacy207, all1515 exact PCK entry bytes, stock PE, Linux archive and exact
+EXE/notes ZIP checks pass. All15 focused and39 checkpoint observed process
+identities close. Raw/source guards and artifact identities are retained under
+`/srv/mudds-work/browser-cancel-20261018/results/`.
+
+Package acceptance covers startup/artifacts; the live cancellation route was
+not repeated on exported bytes. Native Windows, physical devices/focus, hardware,
+audio, human review, full matrix and release gates remain NOT_RUN/open. No
+reconnect/migration/capacity/endurance claim or automatic transfer of earlier
+route/installed transaction proofs to these binary bytes.
+
+## Earlier development checkpoint: `505d419` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-505d419.x86_64),
 [archive](../builds/linux/MuddsShipyards-505d419-linux-x86_64.tar.gz) and
