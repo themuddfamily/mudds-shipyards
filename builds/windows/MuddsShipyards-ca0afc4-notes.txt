@@ -1,0 +1,18 @@
+Mudd's Shipyards — snapshot getter checkpoint ca0afc4 — 2026-10-17
+Clean exported source: ca0afc449efc547de0d6049ac94ea2c876d14e2d
+Engine: pinned official Godot 4.7.1 a13da4feb, stock release templates.
+
+Delivered change:
+Authoritative network snapshots avoid one redundant whole-snapshot deep copy after each section has already detached its records and arrays. Retained snapshots, nested ownership isolation and fresh scalar metadata remain covered. This reduces snapshot getter CPU work; gameplay rules and snapshot values are preserved.
+
+Actual validation:
+- Configured getter benchmark: 16 alternating paired batches of 120 calls reduce median getter CPU 40.445 -> 22.572ms (44.190876% lower), all 16 pairs faster. All 61 complete value/byte comparisons plus retention/freshness checks pass. This fixture is not actual Main; it establishes no whole-publication, overall startup, frame-rate, GPU or full-flow performance claim. Raw results: /srv/mudds-work/snapshot-validation-20261017/owner.log.
+- Fresh exact-source five-suite headless matrix passes 119 assertions with original 300s caps, import-always and jobs=1. Zero diagnostics, one completion marker per suite, unchanged source/cache. Suites: game_flow_ship_authority_composition_test 12, network_authoritative_snapshot_test 56, network_enet_snapshot_streams_test 27, network_ship_telemetry_snapshot_bridge_test 7, network_snapshot_lifecycle_adapter_test 17.
+- Actual Windows embedded payload executed through the Linux editor passes the same five network suites plus startup CLI privacy: 278 assertions, each exit 0 / one completion marker / zero diagnostics. All 1,515 Windows/Linux payload entries match by path, size and SHA-256; Windows PE .text matches the pinned trusted release template.
+- Three strict silent --startup-check probes each exit 0 with exactly one STARTUP_MENU_READY_OK and zero diagnostics: windows-payload-startup 25.829104s, linux-direct-startup 21.261086s, linux-archive-startup 21.411641s. Linux archive executable bytes and modes match the direct ELF. Windows verification uses read-only PE inspection and payload execution through Linux; no Windows executable was launched.
+- Source logs: artifacts/test-matrix/20261017T091348Z-ca0afc4-focused/. Export/package checks and inventory: artifacts/checkpoint-ca0afc4/. Owner log and private profiles: /srv/mudds-work/snapshot-checkpoint-ca0afc4/.
+
+Open acceptance:
+Full matrix on this source is NOT_RUN. The exact earlier f85957f862c0e4841fc549cb3f65a59db747457b full matrix remains terminal FAIL: 1,034 PASS / 11 FAIL across 1,045 suites, 41,861 passing assertions. Focused results do not close core/shared/recovery acceptance or any phase exit gate. Native Windows remains NOT_RUN under antivirus hold; native Windows and human review are excluded from mandatory gates at the owner's request and remain NOT_RUN. Applicable native GPU/hardware, controller and audible acceptance remains NOT_RUN. Hosted CI stays disabled. Unsigned local checkpoint under repository builds/; no Downloads publication.
+
+EXE SHA-256: 52e2aaf215b98b3523f1a91646ecc13fa8580517c86a46504912a0c47f0e01b6
