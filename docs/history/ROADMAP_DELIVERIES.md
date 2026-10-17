@@ -402,3 +402,24 @@ A preceding bounded five-file startup source review found no justified avoidable
 construction candidate. Existing per-scan property and mesh/basis caches are
 already present; prior guard reorder did not improve whole startup. Q4 remains
 parked; no repeated startup profile or withheld candidate was integrated.
+
+## WORLD-CONTRACT · Completed Ember long soak (DONE)
+
+Recovered pre-existing completed-mode contract from ancestor `dee132c65776396f0b360f16ec8b21c8e42765b8`,
+`.github/workflows/regression.yml` “Cold import and canonical Ember completed
+return”: cold import600s, physical route3600s, Godot4.7.1, fresh private profile,
+no fixed-FPS override. Route requires exit0, no diagnostic matches, exact
+`EMBER_TRANSIT_MOVEMENT_TEST_OK: 52 assertions` and existing catalog assessment52.
+Root verifies current harness bytes equal the historical contract's script.
+Production source must still be qualified; no historical pass is inherited.
+
+Existing EMBER_LOOP_SOAK usage now contains the exact local supervised commands,
+source/cache/profile/teardown gates and scope distinctions. The1800s outbound,
+7200s ABANDON and3600s completed modes are separate. Source900s/fixed60 attempt
+remains incomplete and is not the completed contract. No original script/tick,
+route, geometry, motion or reward condition was changed. No engine/import/test
+or CI action in this definition task; GitHub Actions remains disabled.
+Next scheduled task is one full original600+3600s local qualification with cold
+import and fresh route profile. Scope includes initial yard staging, shortened
+fixture animations and production API calls; menu navigation/hardware, fresh
+process interruption, packages, repeats and shared journeys remain separate.

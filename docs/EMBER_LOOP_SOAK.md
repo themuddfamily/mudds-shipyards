@@ -69,6 +69,97 @@ probe (`KETH_RETURN_ARRIVAL_DIAGNOSTIC=1`) is only a diagnostic and does not
 qualify the round trip. The full round-trip result remains pending until an
 unchanged-source run exits zero with all enabled assertions passing.
 
+### Completed survey and physical return
+
+The completed-return mode has its own historical **3,600-second route cap**.
+It is distinct from the outbound and ABANDON modes:
+
+| Mode in `ember_transit_movement_soak.gd` | Existing wall cap | Scope |
+| --- | --- | --- |
+| No mode argument or return environment variable | 1,800 s | Outbound physical travel and landing; no completed survey/return claim. |
+| `KETH_EMBER_PHYSICAL_RETURN=1` | 7,200 s | Physical ABANDON round trip; does not complete the survey. |
+| `-- --ember-completed-return` | 3,600 s | Arrow outbound, actual survey and one saved reward, reboarding, ascent, physical return, home berth and usable exit. |
+
+The completed contract comes from ancestor commit
+`dee132c65776396f0b360f16ec8b21c8e42765b8`,
+`.github/workflows/regression.yml`, the “Cold import and canonical Ember completed
+return” step. That historical job pinned Godot 4.7.1, allowed **600 seconds for a
+separate cold import**, and ran the physical route **without `--fixed-fps`**.
+Its 72-minute step / 80-minute job limits included orchestration; the route cap
+was 3,600 seconds. The current harness is byte-identical to the source at that
+contract, so retain its exact **52-assertion** completion requirement. Current
+production source still needs its own qualification. This reference does not
+authorize enabling or dispatching GitHub Actions; the owner's CI hold remains.
+
+Run locally from a clean frozen checkout with no `.godot` directory. Use the
+pinned `/tmp/mudds-tools/godot-4.7.1/godot`; record its bytes and the full source
+commit. `soak_checkout` names that owned checkout and `soak_run` a new owned run
+root under `/srv/mudds-work/`. Each stage gets a separate clean environment and
+fresh private directories, mode0700, for `XDG_DATA_HOME`, `XDG_CONFIG_HOME`,
+`XDG_CACHE_HOME`, `XDG_STATE_HOME`, `XDG_RUNTIME_DIR`, `XDG_DATA_DIRS`,
+`XDG_CONFIG_DIRS` and `TMPDIR`; preserve HOME and CODEX_HOME presence/value.
+`GODOT_SILENCE_ROOT_WARNING=1` is the disclosed stock root-notice setting on this
+host. In particular, unset both
+`KETH_EMBER_PHYSICAL_RETURN` and `KETH_RETURN_ARRIVAL_DIAGNOSTIC` for completed
+mode. Never reuse or erase a prior completed journey profile.
+
+First, run the historical cold-import stage through the existing owned-process
+supervisor under its import profile:
+
+```sh
+python3 "$soak_checkout/tools/release/suite_process.py" \
+  --timeout 600 --log "$soak_run/import.log" \
+  --status "$soak_run/import.status.json" -- \
+  /tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy \
+  --editor --path "$soak_checkout" --quit
+```
+
+Wait for the actual import owner to finish and require exit0, no diagnostics and
+unchanged tracked source/index. Freeze the resulting generated cache as input to
+the route. Under the separate empty route profile, run:
+
+```sh
+python3 "$soak_checkout/tools/release/suite_process.py" \
+  --timeout 3600 --log "$soak_run/route.log" \
+  --status "$soak_run/route.status.json" -- \
+  /tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy \
+  --path "$soak_checkout" --script res://tests/ember_transit_movement_soak.gd \
+  -- --ember-completed-return
+```
+
+Require route exit0, no script/engine errors, warnings, fatal/leak/Orphan/ObjectDB
+or FAIL diagnostics, and this exact final line:
+
+```text
+EMBER_TRANSIT_MOVEMENT_TEST_OK: 52 assertions
+```
+
+The existing `tools/release/test_suite_catalog.py --assess` must also return
+`EMBER_TRANSIT_MOVEMENT_TEST_OK`, success1, the same token and count52 as four
+tab-separated fields. Use actual output, not a synthetic marker. Stop at the
+first gameplay assertion/diagnostic, cap expiry or source/cache drift. Maintain
+an independent PID/start-tick-verified abort path and ordered network/display
+lanes through owned teardown. Retain raw failures, exact command/profile and
+source/cache/engine guards; require all owned processes/sockets/lanes closed
+before removing the disposable clean checkout. The 900-second fixed-FPS attempt
+on `fe7575fef` was incomplete and does not replace this contract.
+
+Completed mode uses a real fresh
+`user://ember-canonical-completed-journey.json` store. It checks genuinely walked
+survey progress, serializer reloads, one paid terminal and reward, repeated-save
+and reward-retry stability, physical reboarding/return, and the same earned
+receipt on disk after usable home exit. Inspect the actual final store alongside
+the runtime result. Its one initial on-foot yard placement and fixture canopy /
+boarding / disembarking timings **0.04 / 0.08 / 0.06 s** remain disclosed. It calls
+production activity/journey/save APIs alongside held movement and Interact; this
+is not full menu navigation or physical keyboard hardware qualification.
+
+This mode skips default-mode manual override/cancellation, forged/replayed rebase
+refusals and whole-Main transit re-entry. Its serializer reloads are not a fresh
+game process, OS interruption or installed-package recovery. Repeats, ABANDON,
+shared crew, package/native rendering/performance and human review remain
+separate gates. The six-cycle staged loop below retains its own scope/results.
+
 Real, per cycle: walking to the craft and boarding it with one `interact` press;
 launching with held flight input; opening the expedition through
 `GameFlow.begin_ember_surface_journey()`; `EmberMoonStreamingProductionBinding`
@@ -372,9 +463,10 @@ opaquely (`last_external_rebase_rejection`).
 
 ## Remaining gaps (not fixed here)
 
-- **No owner flies the craft to Ember, into the corridor, or the 8,000 km home.**
-  The staged placements above and the staged return in `_reset_for_next_cycle()`
-  stand in for it.
+- **The six-cycle staged harness does not qualify continuous travel.** Its
+  placements and `_reset_for_next_cycle()` stand in for those legs. The separate
+  physical transit/return modes above exercise production movement owners;
+  current full completed-return acceptance remains pending.
 - **`ember_surface_loop_production_binding_test`'s recorded failure** ("real
   survey completion persists one GameFlow reward before the coordinator admits
   the authenticated route home"), reproduced on a clean tree at `e57a97e61`, no
