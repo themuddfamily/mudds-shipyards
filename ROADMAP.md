@@ -83,6 +83,8 @@ or the named raw report. None closes a parent or phase gate.
 | Q2 · PERF-SELECT[existing benchmark scenarios] | `47adf7c6e` adds one-route selection while preserving default two-route/full-protocol acceptance; 127 focused assertions and 11 Python checks pass. [Usage](docs/PERFORMANCE_BENCHMARK_RUNNER.md). |
 | Q3 · NET-CREW[Halyard passenger default route] | Actual `f676c5016` stationary-cabin chair/walk/reseat and migration-generation rebind/disconnect route passes 73 checks, no emitted runtime diagnostics; moving-craft acceptance remains open. |
 | Q4 · BASE-DIAG[Patrol restore] | One `e8f24ff00` original-cap probe still times out. Historical retirement boundary passes; repeated world/fleet startup dominates. Full Patrol acceptance remains FAIL; follow-up below. |
+| Q5 · BASE-DIAG[Resume offer] | `df66dcded` original300s probe passes Main16 real-file recovery; stops in Main17 next passenger interaction after151 passes. Main18/19 unentered; no runtime fix. Raw: `/srv/mudds-work/resume-offer-boundary-results-20261017/report.txt`; full suite remains FAIL. |
+| Q6 · WORLD-SHARED[Aurora arrival contract] | Bounded lookup recovered historical source `47ffce740562dd3ac3d52f66736796f5639068fd`; original invocation/setup/raw peer receipts missing. Definition ends with missing-input handoff; physical landing requirement remains open. |
 
 **Latest attempt: Q4-FIX candidate withheld; startup requirement remains open.**
 One fresh Main locates station dressing consolidation as the largest of47 world
@@ -100,158 +102,130 @@ preparation removed. Raw patch/results/report:
 `/srv/mudds-work/station-startup-fix-results-20261017/`.
 Q4's original300s full Patrol FAIL remains unchanged.
 
-### Next execution batch: six named tasks
+### Next delivery batch: five concrete tasks
 
-These are **six scheduled tasks, not six tasks left in the project**. Root owns
-integration and updates each card before assigning it. **Q1–Q6 have ended in their recorded bounded scope; underlying failures and missing inputs remain open.**
-Q4-FIX remains open: its measured candidate did not meet the startup improvement criterion.
-Any later demonstrated repair takes priority over another unrelated diagnosis. Independent work can proceed only with disjoint
-ownership; runtime network/display lanes remain serialized. No task in this batch
-closes a phase or substitutes for final integrated acceptance.
+This batch replaces the completed Q1–Q6 diagnostic batch. These are **five
+scheduled assignments, not five tasks left in the project**. Root owns integration
+and each card until an implementer is assigned. No task is active yet. Run D1
+next; D2 and D3/D4 are independent of it, but engine network/display lanes remain
+serialized. D4 depends on D3. D5 can be implemented independently. Do not expand
+this batch automatically or count its checks as complete parent outcomes.
 
-Q1/Q4/Q5 start with the existing `logs/<suite>.log` and `results.tsv` under
-`artifacts/test-matrix/20261017T064722Z-f85957f-full/`; do not rerun simply to
-rediscover their last marker. Focused source checks use the existing
-`tools/release/run_test_matrix.sh --mode all --scope <exact test path>` with the
-pinned engine, original caps, Dummy audio and owned isolation described below.
-Q3 additionally needs the external-fixture actual-package launch used by the
-preceding crew probes; a source-only matrix pass cannot replace its package check.
-
-| Order / ID | Kind / status | Observable deliverable | Estimated effort / recorded actual |
+| Order / existing family instance | Kind / status | Observable result | Working estimate |
 | --- | --- | --- | --- |
-| Q1 · BASE-DIAG[Emberline late peer] | Diagnosis · DONE; failure not reproduced | Historical unmet dead-baseline dependency identified; one original-cap current instrumented probe passes. Root cause/fix unproven; next combined matrix retains coverage. | Probe ~136s; total effort not timed |
-| Q2 · PERF-SELECT[existing benchmark scenarios] | Release capability · DONE on `47adf7c6e` | Either existing route runs by name; default both and full-protocol rejection of partial reports verified. | Checks ~174s; total effort not timed |
-| Q3 · NET-CREW[Halyard passenger default route] | Qualification · DONE on `f676c5016` | Stationary physical passenger route passes; no moving-craft acceptance inferred. | Route ~80s; total effort not timed |
-| Q4 · BASE-DIAG[Patrol restore] | Diagnosis · DONE; full suite still FAIL | Cold scene startup consumes the cap; prior teardown boundary passes. Inner builder remains to be isolated within the production follow-up below. | Probe300s; total effort not timed |
-| Q5 · BASE-DIAG[Resume offer] | Diagnosis · DONE; full suite still FAIL | Main16 real-file recovery passes; original300s probe expires in Main17's next passenger interaction after stand cleanup. No recovery defect/fix demonstrated. | Probe300s; total effort not timed |
-| Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · DONE with missing-input handoff; gameplay WAITING | Historical source recovered; original invocation, participant/setup manifest and raw peer/stage receipts remain missing. No executable reproduction or landing pass claimed. | Bounded lookup complete; total effort not timed |
+| D1 · GUIDED[f676c50 Linux package] | Qualification · READY | Current exact package completes the original ordinary-input Guided route 3/3. | 30–60 min preparation/review; three runs each capped300 s |
+| D2 · NET-CREW[Halyard moving shared-cruise source route] | Qualification · READY | Two independent remote passengers walk and use the chair while the actual craft moves/rebases. | 30–60 min preparation/review; one run capped300 s |
+| D3 · NET-BROWSER[live menu host and first guest] | Executable release check · READY for implementation | Existing browser check gains real independent Main/menu admission instead of injected directory/HUD fixtures. | 1–2 h implementation; 15–30 min focused checks |
+| D4 · NET-BROWSER[second independent menu guest] | Executable release check · GATED on D3 | Same host accepts two distinct real guests and releases both cleanly. | 1–2 h implementation; 15–30 min focused checks |
+| D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · READY for implementation | Select one physical cabin-walking benchmark without changing the original default two-route protocol. | 1–2 h implementation; 15–30 min focused checks |
 
-**Q5 result — diagnosis stopped; recovery requirement remains open.** On
-`df66dcded7d25498dbf150614fe5f8e54ba996f5`, one fixture-instrumented original300s
-probe times out with151 passing assertions and no semantic/script failures.
-Main16's real-file Halyard bunk recovery and retirement finish at283.547s;
-Main17 initializes at296.877s and passes passenger stand cleanup. The next
-`await _press_crew_interaction()` at original fixture line631 is incomplete;
-its inner boundary is unresolved. Main18/19 never start. No recovery defect or
-production fix is demonstrated. Source11,871/cache645/engine hashes match;
-fixture restored, actors closed and lanes free, independently checked by root.
-Raw report: `/srv/mudds-work/resume-offer-boundary-results-20261017/report.txt`.
-No retry, runtime edit, new build or additional diagnosis follows this card.
+**D1 — Current-package Guided playthrough.** Parent: normal-controls core
+playthrough, Guided subcriterion only. Input: exact
+`builds/linux/MuddsShipyards-f676c50.x86_64`, SHA256
+`05042e1a8158d41c805f0cced7521452b0bea969b205f87e66429642b2916f21`.
+Owner/files: root; unchanged `tools/release/run_native_sortie.py`, whose current
+SHA256 is `a63a3dd9c35d91f9985e5cf4d3b731c081a1a2ecd13e9178fc66e2532f61c991`.
+Command, repeated with three distinct output directories under the owned run root:
+`python3 tools/release/run_native_sortie.py builds/linux/MuddsShipyards-f676c50.x86_64 --route guided --output <owned-run-root>/run-1`.
+The driver owns Xvfb/XTest and explicitly uses x11/Dummy audio. Hold ordered lanes
+and freeze package/driver inputs before starting. Acceptance: three fresh-process/
+profile walk, board, launch, target-practice, interceptor, return, land, shutdown
+and physical-exit completions, each at original 300 s cap, zero diagnostics, released
+inputs and reaped game/helper/display. Preserve shutdown waits and exit criteria.
+Stop at 3/3 or the first failure; no repair or retry inside qualification. Record
+current-package result, not inheritance from e085. Sandbox, Settings, physical
+devices and native GPU remain separate requirements. No new build for this check.
 
-**Q6 handoff — WAITING for the original Aurora run bundle.** Historical receipt
-`71ef2ee4929822e8182cbf66bdbeeb14d9238d2b` identifies failure source
-`47ffce740562dd3ac3d52f66736796f5639068fd`: 45 checks, five failures before egress
-under the original120s landing limit. Bounded local/Git lookup did not recover
-the exact runner/arguments, source/build/profile and participant initial-state
-manifest, or raw orchestrator/per-peer logs and stage receipts. Recover those
-inputs before defining a faithful reproduction. The current shared-cruise test
-is an implementation anchor, not proof of the historical command. No engine was
-run and no staged route substituted. The definition assignment is finished;
-the underlying physical landing requirement remains open.
+**D2 — Moving Halyard passenger route.** Parent: travelling-weapon/moving-crew
+integration, moving passenger slice. Owner/files: root;
+`tests/network/halyard_network_shared_planetary_cruise_test.gd` and its existing
+base `tests/network/halyard_network_passenger_route_test.gd`.
+Freeze clean source `7412a6e50` (resolve full commit before checkout) and pinned
+`/tmp/mudds-tools/godot-4.7.1/godot`; use copied cache/private profiles, independent
+owned X displays and ordered runtime lanes. Exact source-check command inside
+that isolation:
+`xvfb-run -a bash tools/release/run_test_matrix.sh --godot /tmp/mudds-tools/godot-4.7.1/godot --mode graphical --display-driver x11 --audio-driver Dummy --jobs 1 --timeout 300 --scope tests/network/halyard_network_shared_planetary_cruise_test.gd`.
+The derived suite enables shared cruise and existing serialized chair barriers;
+do not replace it with the stationary base default or host-gunner variant.
+Participants: orchestrator, playing host, two independent cabin clients, late
+observer. Exterior approaches and initial flight envelope are staged. Acceptance:
+actual craft travels >8,000m at >50m/s and commits origin shift; both remote bodies
+retain supported walking >0.6m, chair/stand/reseat and ownership; late observer
+sees current state; disconnect cleans bodies/journey. Preserve readiness/refusal/
+cancellation cases already in this scenario. Original caps: outer300 s, Main 60 s,
+client completion 120 s, host/observer 60 s, exit 10 s; chair 8 s, readiness 12 s and crossing 35 s
+barriers unchanged. Require suite success, zero diagnostics, actual child exits 0
+and complete teardown. Stop at pass or first failed boundary. This source result
+is not actual-package, canonical planetary landing, 30-minute endurance or final
+capacity qualification; those parent requirements remain open. No automatic
+package variant or unchanged retry follows.
 
-No batch assignment remains active. Q4-FIX remains undefined and Q6's gameplay
-dependency is waiting. Do not repeat the unchanged full Patrol
-suite, remeasure the rejected candidate unchanged, or rewrite its codec based on
-timeout. Select the next small delivery explicitly; do not extend this
-diagnostic batch automatically.
+**D3 — Real menu host and first guest.** Parent: production server-browser flow
+and the original server/two-client baseline; this is its first implementation
+step, not baseline acceptance. Owner/files: root assigns one implementation agent
+`tests/network/game_flow_server_browser_integration_test.gd`; reuse the existing
+passenger harness's owned-process/receipt pattern. Existing browser coverage uses
+a bare GameFlow, HudProbe and injected directory, so no current invocation proves
+this slice. Deliver an explicit independent-Main mode, documented in that file,
+with real HUD controls: host creates a session; guest refreshes, selects and joins
+the actual advertised server, then disconnects. Acceptance: two actual Main
+processes, distinct authenticated host/guest identities, guest count0→1→0, usable
+menus and cleared guest admission/ownership. No injected directory, fake HUD,
+manual occupancy or direct adapter join may stand in for the menu action.
+Keep current test default intact. Commit the mode's exact invocation and stage
+limits with implementation before running it; use original 300 s matrix ceiling,
+private profiles, owned x11/Dummy displays and actual child exit/abort cleanup.
+Stop when this executable slice passes or its first concrete blocker is recorded.
+A demonstrated runtime defect gets one separately bounded repair; production
+owners are `scripts/game/game_flow.gd`, ENet adapter and LAN discovery, selected
+by the failure. Do not add flight/combat/endurance or another harness family.
 
-**Q4-FIX · PERF-FIX[station startup construction] — DEFINE, not complete.**
-The measured guard-order candidate preserves the compared station snapshot and
-reduces one query count, but does not demonstrate the required whole-construction
-speedup. It is withheld, with exact patch/raw results retained above. Before
-resuming, identify a different supported avoidable-construction change within
-`scripts/world/shipyard_world.gd::_run_build_stages` or its measured constructor;
-do not call the rejected local timing a player-visible startup gain. No active
-implementation or completion estimate exists for an undefined replacement.
-The original acceptance remains: one demonstrated runtime startup reduction with
-a comparable before/after measurement, affected existing geometry/material/
-collision/interaction/startup checks, then a fresh clean Windows checkpoint and
-one unchanged original300s full Patrol result. Preserve content, all30 Main
-lifetimes, physics, routes and deadlines. Measurement or passing equivalence
-alone does not complete it. A safe supported change takes priority over unrelated
-diagnosis when one is actually identified; none is established by this candidate.
+**D4 — Two guests on the same menu-hosted session.** Parent: same original
+server/two-client baseline; depends on D3's working independent-Main mode.
+Owner/files: same agent/component, sequential with D3. Extend that mode to a
+second independent client using the same live refresh/select/join path.
+Acceptance: host plus two live Main clients, distinct authenticated peer/player
+identities, host excluded from guest count, guests0→1→2→1→0, remaining guest stays
+connected when the first leaves, final admissions/ownership clear, actual exits 0
+and clean teardown. Keep D3's one-guest mode and bounds. Exact two-client invocation
+and receipt assertions ship in the same existing test before execution. Stop at
+this slice's result; no seat race, flight, damage, canonical journey or 30-minute
+claim. The low-level three-process authority test's 24 s cap stays unchanged; its
+protocol fixtures cannot substitute for these real menus. No owner capacity
+answer is needed for the already authorized two-guest profile.
 
-**Q3 scope correction:** the default fixture exercises a stationary cabin; the
-initial batch wording incorrectly called it moving. Q3 closes that default route
-only. Actual moving-craft passenger use remains open under CRAFT-ROLE /
-WORLD-SHARED. No alternate shared-cruise or host-flight variant was silently added.
+**D5 — Executable Halyard cabin benchmark.** Parent: required fleet/cabin
+performance scenarios; native-machine measurement is a separate dependent task.
+Owner/files: root assigns one agent `tools/performance/benchmark_runner.gd`,
+`run_native_windows_benchmark.ps1`, the existing runner/record-validator tests and
+`docs/PERFORMANCE_BENCHMARK_RUNNER.md`. Implement selectable
+`halyard_cabin_walk_route`. Separate selectable names from the unchanged original
+default two-route order; keep existing full-report admission strict. Initial state:
+fresh production Main/Begin Shift, healthy stationary unpiloted Halyard at home;
+stage enabled unseated player once on its live cabin deck and establish support/
+registered occupancy. Use live seat-derived waypoints and steering from
+`tests/halyard_continuous_role_route_test.gd`. Shuttle with normal movement input;
+no actor transform writes after staging. Acceptance: selected smoke proves actual
+craft-local movement; focused route proves an out-and-back and movement during
+sampling, retaining floor support/occupancy and stationary hull. Reject idle,
+blocked, warm-up-only or out-of-cabin reports. Extend existing tests for default
+both, original selections, cabin selection, abort/input release and partial-report
+rejection; original 300 s test caps remain. Full selected timing retains both
+3,600 frames/60 s warm-up and 18,000 frames/600 s sampling. Cabin-only reports always
+remain diagnostic (`representative_pass=false`, budget result null); no native
+PowerShell execution under the Windows hold. Stop after executable selection,
+focused checks and usage docs. No new report version, hardware claim, moving-cabin
+claim or replacement of existing full performance acceptance.
 
-**Q1 — Emberline late peer.** Player outcome sought: a joining peer sees the live
-travelling weapon at the authoritative position. Start from the retained matrix
-failure of `tests/network_emberline_bolt_test.gd`; map its last marker to the next
-await before running anything. One stated hypothesis and one original-cap probe
-must distinguish process startup/authentication from snapshot receipt/presentation.
-Owners: `scripts/network/network_emberline_actor_presenter.gd`,
-`network_remote_projectile_replicator.gd` and GameFlow publication, selected by the
-result. Proof: raw peer milestones/receipts at the original 45s peer boundary and
-300s outer limit. **Stop** with the first failed boundary, exact owner and a separate
-repair card; do not change clocks, retry policy or unrelated projectile behavior.
-The repair's acceptance remains the full existing scenario, including late pose,
-retirement, replacement generation and snapshot budgets, followed by a checkpoint
-if production changes. No repair is claimed by completing this diagnosis.
-
-**Q2 — Select an existing benchmark scenario.** Release outcome: request
-`station_embodied_route` or `nearby_sector_ship_flight_route` without running the
-other; an unspecified selection still runs both. Owners:
-`tools/performance/benchmark_runner.gd`, its existing PowerShell launcher and
-`tests/performance_benchmark_runner_test.gd`; inspect existing report consumers
-before changing selection, especially `tools/performance/benchmark_record_validator.py`,
-which requires both scenarios, and the runner's own `validate_report`. Keep full-protocol
-acceptance intact; extend `tools/performance/test_benchmark_record_validator.py`
-to prove selected-only reports cannot qualify the full protocol.
-Prerequisite: none beyond existing runner inputs.
-Proof: extend the existing check to execute each selection and default behavior,
-reject unknown names before scene launch, and retain abort/input release. A partial
-run must not claim the full performance protocol passed. **Stop** after focused
-validation of selection and existing duration/report contracts; no new benchmark
-route, report version or hardware qualification. Full warmup/sample floors stay
-3,600 frames/60s and 18,000 frames/600s. Native Windows launcher execution remains
-NOT_RUN under the hold; review its argument forwarding without launching it.
-
-**Q3 — Halyard passenger default route.** Player outcome checked: an authenticated
-remote passenger can sit, stand, walk the stationary cabin aisle, return to the
-chair and recover ownership through the fixture's applicable lifecycle cases.
-Moving-craft acceptance remains a separate unqualified requirement, as noted above. Owner: existing
-`tests/network/halyard_network_passenger_route_test.gd`; production is unchanged.
-Prerequisite: exact package `f676c5016`, unchanged external fixture, private profiles,
-owned displays and network/display lanes. Proof: one existing default full route, input-only, with the original 300s outer
-cap and 60s startup/120s client.done/60s host.done/10s exit waits; actual
-craft/chair/participant receipts, exits,
-diagnostics and cleanup. **Stop** at pass or first failed boundary. No automatic
-retry, extra role, capacity or canonical-travel claim; a demonstrated defect gets a
-separate repair card. Retain raw output and remove the clean checkout afterward.
-
-**Q4 — Patrol save/restore.** Player outcome sought: Patrol resumes or recovers
-with durable, once-only rewards. Start from the retained 300s failure of
-`tests/cinder_patrol_session_save_restore_test.gd`; identify the next operation
-after its last completed assertion. Owner: `scripts/persistence/cinder_patrol_session_persistence.gd`
-and GameFlow's existing Patrol save/restore integration. Proof: one hypothesis/probe
-at the original cap identifies active restore, refused reward write or terminal
-publication as applicable. **Stop** at the first incomplete operation and separate
-repair card. That repair must pass the existing full scenario with terminal debt,
-reward and Reset semantics preserved; do not infer a fix from the timeout alone.
-
-**Q5 — Resume offer.** Player outcome sought: cold startup offers a usable Resume
-or Start Fresh path in the failing context. Start from retained output for
-`tests/session_recovery_resume_offer_test.gd`; map the last completed marker to
-its ordered startup/solo/cabin/rest/real-file/crew contexts. Owners:
-`scripts/diagnostics/crash_recovery_coordinator.gd`, GameFlow and applicable HUD
-handler, narrowed by evidence. Proof: one stated hypothesis/probe identifies the
-first incomplete context under the original 300s cap. **Stop** with that context,
-owner and separate repair card. Do not assume the final crew case failed or replace
-real-file/fresh-process behavior with in-memory checks. Repair acceptance is the
-affected context and full original suite, with checkpoint for production changes.
-
-**Q6 — Aurora canonical arrival contract.** Player outcome to preserve: physical
-landing with independent ordinary remote crew, supported terrain and valid role
-ownership. Owner: existing
-`tests/network/halyard_network_shared_planetary_cruise_test.gd`, retained `47ff`
-failure and `docs/COMPLETION_SCOPE.md`. Read the original failure's invocation and
-receipts; name participants, initial state, next failed landing boundary and exact
-command. **Stop** at one executable diagnosis card or the exact missing artifact;
-no engine run, staged-arrival substitute or bridge rewrite in this definition task.
-The resulting diagnosis retains original focused/canonical caps and 120s physical
-landing limit. Do not reopen completed shader research while locating this route.
+**Parked repair — Q4-FIX / PERF-FIX[station startup construction].** The measured
+guard-order candidate was withheld because whole startup did not improve. No
+supported replacement is identified; do not spend this batch repeating its
+profile. Reopen only with a concrete different avoidable-construction change in
+`shipyard_world.gd::_run_build_stages` or its measured constructor. Acceptance
+remains comparable whole-startup improvement, preserved geometry/material/
+collision/interaction/startup behavior, fresh clean Windows checkpoint and one
+unchanged original 300 s full Patrol result, retaining all 30 Main lifetimes. Local
+query-count reduction or equivalent snapshots alone are insufficient.
 
 ### External dependencies outside the ready queue
 
@@ -259,12 +233,13 @@ landing limit. Do not reopen completed shader research while locating this route
 | --- | --- | --- |
 | SCOPE-LIMIT[final release target] | Owner choice; question already asked | Explicit remote-guest count and playing-host participation recorded. Default settings/physical seats do not establish accepted support. |
 | SETTINGS-INPUT[original artifacts] | Exact original runner/profile/logs | Originals identified and recovered, or precise missing-artifact handoff. A substitute cannot inherit Gate C. |
+| WORLD-SHARED[Aurora original arrival reproduction] | Original `47ffce740` run bundle | Exact runner/arguments, source/build/profile/participant initial state and raw orchestrator/peer stage receipts. Historical receipt `71ef2ee4929822e8182cbf66bdbeeb14d9238d2b` records45 checks/five failures under120s landing; narrative alone cannot reconstruct invocation. |
 
 The original server/two-client baseline remains authorized independently of the
-final capacity choice. It still needs an exact task card and is not qualified by
-any host/one-client role result. Remaining family tables below preserve unscheduled
-scope; select and instantiate another batch only after reviewing this batch's
-results and intervening repairs.
+final capacity choice. D3/D4 deliver its menu-admission slice; they do not qualify
+its full gameplay/flight/endurance requirements. Remaining family tables preserve
+unscheduled scope. Review this batch's results and intervening repairs before
+selecting another batch.
 
 ## Baseline and ordinary controls
 
@@ -297,7 +272,7 @@ The last full matrix's eleven failed suites are below. `BASE-DIAG` selects **one
 | `cinder_race_session_save_restore_test.gd` | Original 300s timeout; one-boundary diagnosis required. |
 | `game_flow_ember_surface_presentation_integration_test.gd` | Original 300s timeout; separate setup from first incomplete integration boundary. |
 | `game_flow_scan_durable_recovery_test.gd` | Half-second retry fixed; later full suite still times out after 96 printed passes. Diagnose remaining boundary. |
-| `session_recovery_resume_offer_test.gd` | Original 300s timeout; one-boundary diagnosis required. |
+| `session_recovery_resume_offer_test.gd` | Q5 original300s probe on `df66dcded` completes Main16 real-file recovery, then expires at Main17 next passenger interaction (fixture line631) after151 passes. Main18/19 unentered; inner await unresolved. No recovery defect/fix proven; do not repeat unchanged. |
 | `game_flow_rime_client_pad_controls_test.gd` | On3e39ed8da corrected headless run first scenario completes, return17.099s; second held-edge starts264.733s and still progresses at291.862s before original 300s timeout. Diagnosis above; preserve180 edge waits/1,440-tick exposure and100 jump waits. Next: reduce a measured production hotpath, then affected original checks; no unchanged rerun or timing relaxation. |
 | `network_emberline_bolt_test.gd` | Retained failure waits on later dead-peer baseline before reset; pending-generation errors follow. Q1 isolated `e026cf620` instrumented probe passes 154 under original limits, so no repair/root cause is proven. Retain old matrix FAIL; cover next combined matrix without another unchanged isolated run. |
 | `station_light_overlap_census_test.gd` | Historical expected rows/environment unresolved; mismatch repeats on its own freeze. Recover measurement basis before changing expectations; never replace hashes just to pass. |
