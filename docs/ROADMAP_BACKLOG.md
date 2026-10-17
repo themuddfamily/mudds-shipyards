@@ -38,7 +38,9 @@ HULK revisit FAILED and its checkpoint GATED. RIME-BENCH-ROUTE and its developme
 new executable source benchmark capability and paired builds, no native
 performance or new gameplay claim. ROADMAP-SLICE is DONE as planning: the working roadmap contains four sequential
 Rime independent-two-client baseline children (arrival, survey, home, package).
-Arrival driver integration is READY; the other three are GATED. Existing Rime
+The first arrival candidate FAILED to parse; its separately scheduled explicit-type
+repair passes parsing and has one changed-candidate arrival running. The other
+three children remain GATED. Observe the current roadmap status path, not a new run. Existing Rime
 gameplay is integrated; the canonical driver still asserts obsolete refusals
 and surface mode starts one client. No runtime failure or new feature is invented.
 One failed task plus its attempted repair requires a recorded priority review

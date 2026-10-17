@@ -210,6 +210,16 @@ retained in the directory above. No unchanged rerun is selected.
 
 ### RIME-CREW-ARRIVAL-TYPE — IN PROGRESS, one bounded repair
 
+Changed source `68cc7d989910dc6b0f023f156dee1a1258012886` is preserved on remote
+`hold/rime-crew-arrival-typing-20261018`. Parse check passes exit 0 with unchanged
+source/index/engine/cache. The single changed-candidate arrival is running;
+next action is to observe its existing
+`/srv/mudds-work/rime-crew-arrival-results-20261018/typing-repair/arrival.status.json`
+and log. Its supervisor identity is PID 569213/start ticks 109048845; revalidate
+that identity before treating it as live. Do not restart the job because an
+observation times out. External abort is the sibling `abort.py` (exact-owner
+SIGTERM/subreaper cleanup). No arrival acceptance is claimed.
+
 - **Owner/next action:** root; change only the new `refused` declaration in
   `tests/network/halyard_network_shared_planetary_cruise_test.gd` to an explicit
   boolean. Commit the changed candidate, retain the failed original/source refs
