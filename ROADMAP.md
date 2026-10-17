@@ -162,12 +162,20 @@ Clean author/acceptance worktrees and duplicate scratch builds removed; raw kept
 - **Budget/stop:**45–90m implementation; original existing runner cap remains300s
   for this cumulative route. Freeze exact mode/command before execution. If that
   contract cannot fit or an interaction fails, record it; do not silently extend.
-- **Next action:** append held-input interior walking and an
-  actual released-then-pressed Interact at the live panel. Exterior route start
-  is the actual supported ship exit, matching the existing hulk regression; all
-  authored aperture/interior/breaker points1–5 remain unchanged. No walking back
-  into the parked hull at the exterior shelf-centre sample. Commit/build/cleanup
-  with observed result; full home/revisit remains gated.
+- **Candidate:**7dd70a9a467621f4590f97ac8c1a725cd20b1e5e, root reviewed;
+  Python30 tests pass. Existing Guided/Sandbox/HULK arrival/OS helpers AST-identical.
+  Actual supported exit replaces exterior route start0; authored1–5 unchanged.
+- **Next action:** observe ONE existing guarded cold-import/observer-parse/privacy/
+  Linux export/direct+archive startup/breaker qualification. Outer driver PID391026/
+  start ticks107975389; raw/stage owners/status/abort:
+  `/srv/mudds-work/hulk-breaker-results-20261017/`. Exact clean candidate checkout
+  `/srv/mudds-work/hulk-breaker-check-20261017`.
+  Original300s route/345s outer cleanup; first actual failure stops, no relaunch
+  on polling timeout. A reused-supervisor read-path alias was aligned before
+  any route launch; raw note records it. No candidate/criteria changes.
+- **Close:** record actual outcome, integrate/push and build working checkpoint;
+  preserve failures/unique work, remove owned disposable scratch. Home/revisit
+  remains separate and gated.
 
 ### HULK-RETURN-REVISIT — GATED on breaker
 
