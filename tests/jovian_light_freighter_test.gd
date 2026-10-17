@@ -231,8 +231,9 @@ func _test_service_fitting_lods(jovian: JovianLightFreighter) -> void:
 			for index in count:
 				var vertex := bytes.decode_u16(index * 2)
 				valid = valid and vertex >= indices.size() and vertex < vertices.size()
+				valid = valid and arrays[Mesh.ARRAY_NORMAL][vertex].y > 0.5
 			valid = valid and absf(float(lods[0]) - (0.103 - lerpf(0.057, 0.103, 28.0 * 0.14 / 9.995))) < 0.00001
-		_check(valid, "%s keeps original near triangles and bounded, smaller native far fitting meshes at the unchanged error threshold" % node_name)
+		_check(valid, "%s keeps original near triangles and bounded top-face-only native far fitting meshes at the unchanged error threshold" % node_name)
 		if node_name == "FlightDeckAvionicsBonnet":
 			var materials := jovian.get_variant_materials()
 			var paint: Color = materials.thermal_cover.albedo_color.srgb_to_linear()

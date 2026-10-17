@@ -6447,7 +6447,7 @@ func _roof_service_height(x: float, z: float, cabin: bool) -> float:
 ## cuts follow the formed pressure shell so long frames cannot bridge in air.
 func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: float,
 		outer: float, front: float, rear: float, lift: float, cabin := false,
-		support_lift := 0.0, distant := false) -> void:
+		support_lift := 0.0, distant := false, top_faces_only := false) -> void:
 	if not batch.has(finish):
 		var tool := SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -6500,28 +6500,31 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 		for step in across:
 			_roof_service_quad(tool, rings[station][step], rings[station + 1][step],
 				rings[station + 1][step + 1], rings[station][step + 1], side < 0)
-		for edge in [0, across]:
-			var a := rings[station][edge]
-			var b := rings[station + 1][edge]
-			var c := Vector3(b.x, _roof_service_height(b.x, b.z, cabin), b.z)
-			var d := Vector3(a.x, _roof_service_height(a.x, a.z, cabin), a.z)
-			_roof_service_quad(tool, a, d, c, b, (edge == across) != (side < 0))
-	for end in [0, rings.size() - 1]:
-		for step in across:
-			var a := rings[end][step]
-			var b := rings[end][step + 1]
-			var c := Vector3(b.x, _roof_service_height(b.x, b.z, cabin), b.z)
-			var d := Vector3(a.x, _roof_service_height(a.x, a.z, cabin), a.z)
-			_roof_service_quad(tool, a, b, c, d, (end != 0) != (side < 0))
+		if not top_faces_only:
+			for edge in [0, across]:
+				var a := rings[station][edge]
+				var b := rings[station + 1][edge]
+				var c := Vector3(b.x, _roof_service_height(b.x, b.z, cabin), b.z)
+				var d := Vector3(a.x, _roof_service_height(a.x, a.z, cabin), a.z)
+				_roof_service_quad(tool, a, d, c, b, (edge == across) != (side < 0))
+	if not top_faces_only:
+		for end in [0, rings.size() - 1]:
+			for step in across:
+				var a := rings[end][step]
+				var b := rings[end][step + 1]
+				var c := Vector3(b.x, _roof_service_height(b.x, b.z, cabin), b.z)
+				var d := Vector3(a.x, _roof_service_height(a.x, a.z, cabin), a.z)
+				_roof_service_quad(tool, a, b, c, d, (end != 0) != (side < 0))
 
 
 ## Far panels retain the pressure crown and its longitudinal station cuts,
-## while losing tiny rolled corners and redundant transverse subdivisions.
+## while losing tiny rolled corners, redundant transverse subdivisions and
+## subpixel vertical returns. Their top faces still carry the raised fitting.
 func _distant_roof_service_patch(batch: Dictionary, finish: String, side: float,
 		inner: float, outer: float, front: float, rear: float, lift: float,
 		cabin := false, support_lift := 0.0) -> void:
 	_roof_service_patch(batch, finish, side, inner, outer, front, rear, lift,
-		cabin, support_lift, true)
+		cabin, support_lift, true, true)
 
 
 ## Worst departure of the crown from the straight chord across one patch, in
@@ -6589,9 +6592,11 @@ func _finish_roof_service_mesh(batch: Dictionary, node_name: String, distant_bat
 			var bar_lift := 0.103
 			var mean_lift := lerpf(backing_lift, bar_lift, coverage)
 			var proxy_batch := {}
+			# Preserve this field's existing crown lattice, but omit the same
+			# subpixel vertical returns as the other distant fitting faces.
 			for side in [-1.0, 1.0]:
 				_roof_service_patch(proxy_batch, finish, side, 2.075, 3.245,
-					front, rear, mean_lift, false, backing_lift)
+					front, rear, mean_lift, false, backing_lift, false, true)
 			var proxy_tool: SurfaceTool = proxy_batch[finish]
 			proxy_tool.generate_tangents()
 			var proxy_arrays := proxy_tool.commit_to_arrays()
