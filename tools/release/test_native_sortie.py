@@ -39,6 +39,21 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertIn('deliberate crash', pilot.result['remaining'])
         self.assertEqual(native.CAP, 300)
 
+    def test_walk_uses_clear_deck_around_parked_tow_tractor(self):
+        points = dict(native.SandboxWalkPilot.WAYPOINTS)
+        self.assertEqual(points['tractor_forward_clearance'], [6, 0, 12.5])
+        self.assertEqual(points['tractor_return_forward'], [6, 0, 12.5])
+        # The actual package stopped against the tractor at this position.
+        observation = self.walk_observation()
+        observation['player'] = [.217133, -.019863, 15.594910]
+        observation['walk_forward'] = [0, 0, -1]
+        pilot = native.SandboxWalkPilot()
+        pilot.stage = 'walk_station'
+        pilot.index = 1
+        keys, *_ = pilot.update(observation, 1)
+        self.assertIn('w', keys)
+        self.assertIsNone(pilot.result)
+
     def test_walk_rejects_unobserved_or_mutated_fleet_and_recovery_teleport(self):
         pilot = native.SandboxWalkPilot()
         observation = self.walk_observation()
@@ -68,7 +83,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
         for candidate, expected in [(False, False), (True, True)]:
             pilot = native.SandboxWalkPilot()
             pilot.stage = 'walk_station'
-            pilot.index = 3
+            pilot.index = next(i for i, point in enumerate(pilot.WAYPOINTS) if point[0] == 'habitat_threshold')
             observation['sandbox']['doors'][0]['candidate'] = candidate
             observation['sandbox']['doors'][0]['position'] = [48.9, 0, 15.5]
             keys, *_ = pilot.update(observation, 1)
