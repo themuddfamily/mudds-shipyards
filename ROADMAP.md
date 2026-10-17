@@ -223,12 +223,12 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
   Raw: `/srv/mudds-work/hulk-home-results-20261017/clearance/`; relocation map:
   `/srv/mudds-work/hulk-home-results-20261017/retained-artifacts.json`.
 
-### HULK-HOME-ATTITUDE — READY bounded diagnosis; not started
+### HULK-HOME-ATTITUDE — IN PROGRESS bounded diagnosis
 
 - **Parent/result:** HULK-HOME-INPUT. Identify why the first ordinary departure
   from a settled clearance waypoint loses altitude below the existing safe band.
   Diagnosis is separate from a delivered gameplay or release capability.
-- **Owner/boundary:** root assigns one read-only source/log reviewer; inspect
+- **Owner/boundary:** `home_attitude_diagnosis` read-only source/log reviewer; inspect
   held driver52e3e7f69 and retained ef67f3e95 trace, especially frames5005–5081.
   One hypothesis: thrust resumes while craft attitude/vertical velocity still
   drives descent after the staging target changes. No engine, edits or retry.
