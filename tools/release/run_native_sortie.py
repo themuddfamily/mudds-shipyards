@@ -491,6 +491,9 @@ class SandboxWalkPilot(Pilot):
     def walk_motion_allowed(self, distance):
         return True
 
+    def walk_mouse_delta(self, yaw, sensitivity):
+        return round(max(-60, min(60, yaw * .5 / sensitivity)))
+
     def waypoint_reached(self, name, target, s):
         return False
 
@@ -546,7 +549,7 @@ class SandboxWalkPilot(Pilot):
             else:
                 direction = unit(horizontal)
                 yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
-                dx = round(max(-60, min(60, yaw * .5 / sandbox['walk_mouse'])))
+                dx = self.walk_mouse_delta(yaw, sandbox['walk_mouse'])
                 if abs(yaw) < .08 and self.walk_motion_allowed(distance):
                     keys.add('w')
                     if distance > 3: keys.add('Shift_L')
@@ -681,6 +684,12 @@ class SandboxPilot(SandboxWalkPilot):
     def walk_arrival_ready(self):
         return norm(self.foot_velocity) <= self.SETTLED_WALK_SPEED
 
+    def walk_mouse_delta(self, yaw, sensitivity):
+        # PlayerController applies relative pixels directly to yaw. Keep each
+        # sweep inside the isolated display's half-width; update() waits for
+        # the observed attitude change before sending another sweep.
+        return round(max(-360, min(360, yaw / sensitivity)))
+
     def walk_motion_allowed(self, distance):
         if distance <= .30:
             return False
@@ -703,7 +712,7 @@ class SandboxPilot(SandboxWalkPilot):
             return 0, self.walk_arrival_ready()
         direction = unit(horizontal)
         yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
-        dx = round(max(-60, min(60, yaw * .5 / s['sandbox']['walk_mouse'])))
+        dx = self.walk_mouse_delta(yaw, s['sandbox']['walk_mouse'])
         if abs(yaw) < .08 and self.walk_motion_allowed(distance):
             keys.add('w')
             if distance > 3: keys.add('Shift_L')
@@ -716,7 +725,7 @@ class SandboxPilot(SandboxWalkPilot):
         off[1] = 0
         direction = unit(off)
         yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
-        return round(max(-60, min(60, yaw * .5 / s['sandbox']['walk_mouse'])))
+        return self.walk_mouse_delta(yaw, s['sandbox']['walk_mouse'])
 
     def pulse(self, keys, now):
         if self.tap_key is not None:
