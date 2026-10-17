@@ -178,9 +178,16 @@ after their dependency exists. These are scenario capabilities, not phase comple
   one arrival run using the runner's existing300s cap. Stop at first unsupported
   control/actual failure or estimate boundary; record exact blocker before repair.
   Keep existing Guided/Sandbox behavior and caps unchanged.
-- **Next action:** await/review the bounded candidate in
-  `/srv/mudds-work/hulk-arrival-20261017`, then focused checks and clean-source Windows EXE/ZIP/notes plus matching
-  Linux package using the existing safe workflow and strict startup checks.
+- **Candidate:**6426fa7b1490b2fa311a3f088124004cad6a43a8, reviewed;22 focused
+  Python tests pass, actual route unqualified. Author checkout
+  `/srv/mudds-work/hulk-arrival-20261017` retained until integration.
+- **Next action:** observe existing clean-checkout import/privacy/Linux export/
+  direct+archive startup/one arrival workflow. Outer driver PID380709/start
+  ticks107810387; raw and exact stage owners/status/abort:
+  `/srv/mudds-work/hulk-arrival-results-20261017/`. Acceptance checkout
+  `/srv/mudds-work/hulk-arrival-check-20261017`, pinned to candidate. Do not
+  relaunch on observation timeout. First actual failure ends this qualification.
+  After a working route, clean-source Windows EXE/ZIP/notes are still required.
   All automated runtime remains isolated X11/Dummy with owned abort/cleanup.
 - **Close:** exact source/build/raw outcome, commit/push, remove owned disposable
   worktrees. No full salvage journey claim from arrival alone.
