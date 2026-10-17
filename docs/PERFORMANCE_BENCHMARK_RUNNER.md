@@ -123,12 +123,60 @@ physical out-and-back primitive, and Escape during sampled walking with gravity
 restoration. The original default fixture workload and 300-second cap are
 unchanged; this focused mode has its own 300-second supervisor cap.
 
+The select-only `aurora_surface_walk_route` uses that same surface observation,
+input guard and gravity restoration machinery. It places the production Player
+**once, before timing**, at (-7, 0.2, -17) in Aurora's landing-region frame.
+Main's normal streaming binding must load its real `AuroraTemperateAuthoredScene`
+and commit an origin rebase; staging fails if that scene's own
+`LandingRegion/WalkablePatch` does not support the player. The benchmark does
+not construct an expedition, complete a landing, or manufacture journey state.
+
+Held forward input follows the existing coastal trail/sign/lookout points from
+`tests/aurora_visit_loop_test.gd`: (-7,-17), (8,-17), (20,-7), (25,2), (29,1),
+(33,2), (43,-8), (55,-20), (60,-20), (66,-17), then the same points in reverse
+(X/Z metres, Y=0). Each leg resolves its world target from the current region
+transform on every input tick. Observations use region-local deltas and accept
+monotonically committed frame generations, so a common origin translation does
+not leave a cached waypoint behind. There are no actor placements during the
+warm-up or sample. The adapter configures the existing production gravity
+policy with Aurora's world/terrain/frame and 9.8 m/s² reference, using the same
+world-aware read-only projection helper as Ember.
+
+Support must be the actual landing patch, a generated terrain collider owned
+by that loaded scene's `TerrainClipmap`, or the exact authored
+`CoastalExploration/LookoutStep` and `CoastalLookoutDeck` floor colliders. Other
+props and floor bodies do not qualify. Full-path validation additionally
+requires sampled generated terrain support beyond the patch, sampled lookout
+floor support, both sampled endpoint visits, and at least
+100 metres of sampled physical walking. The full public selection retains
+3,600 frames/60 seconds of warm-up and 18,000 frames/600 seconds of sampling.
+A short selected smoke requires positive sampled movement and retains
+`representative_pass=false` and `performance_budget_pass=null`.
+
+The independent consolidated fixture mode is
+`KETH_BENCHMARK_TEST_AURORA_SURFACE=1`. After importing the clean checkout,
+run it headlessly with Dummy audio under an external 300-second supervisor:
+
+```sh
+KETH_BENCHMARK_TEST_AURORA_SURFACE=1 timeout 300s godot --headless --audio-driver Dummy --path /path/to/clean/checkout --script res://tests/performance_benchmark_runner_test.gd
+```
+
+Use a private test user profile, as with the other benchmark fixtures. This
+mode checks selected smoke and JSON round trip, rejection mutations, a focused
+45-second sampled physical out-and-back (not full-protocol timing), generated
+terrain support, and Escape during sampled walking with original gravity,
+inputs and cursor restored. Existing default, combat and Ember fixture modes
+remain separate and retain their original 300-second caps. Native performance,
+canonical flight/landing/return, rewards, save qualification, the Host journey
+gravity binding and human review remain `NOT_RUN` for this staged benchmark.
+
 Omit selection to run both scenarios in the order above. Set
 `KETH_BENCHMARK_SCENARIO=station_embodied_route` or
 `KETH_BENCHMARK_SCENARIO=nearby_sector_ship_flight_route` or
 `KETH_BENCHMARK_SCENARIO=halyard_cabin_walk_route` or
 `KETH_BENCHMARK_SCENARIO=torrent_range_combat_reuse_route` or
-`KETH_BENCHMARK_SCENARIO=ember_surface_walk_route` to run only that route.
+`KETH_BENCHMARK_SCENARIO=ember_surface_walk_route` or
+`KETH_BENCHMARK_SCENARIO=aurora_surface_walk_route` to run only that route.
 Unknown names fail before Main instantiation. A selected run keeps the same
 per-route timing and progress requirements but is diagnostic-only: its
 `configuration.scenario_order` contains only the selected name,
