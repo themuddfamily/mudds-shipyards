@@ -138,6 +138,8 @@ threshold, and manifest contract is documented in
 `docs/CINDER_STREAMING_TRANSITION_EVIDENCE.md`; all three registry evidence
 stages remain pending and no human pixel review is claimed.
 
+On 2026-10-17, `6cf94bd39` updates the station-operations runner to the exact nine-craft/nine-berth production roster. Its one original-cap Forward+ llvmpipe attempt times out at 300 seconds before initial render settling, with no PNGs; source/index/status/import-cache guards remain unchanged. The roster assertions are not reached. The registry stays pending for this harness. Raw run: `/srv/mudds-work/station-operations-capture-20261017/`.
+
 ## Current required capture commands
 
 The current source inventory contains **13 required harnesses and 143 PNGs**.
