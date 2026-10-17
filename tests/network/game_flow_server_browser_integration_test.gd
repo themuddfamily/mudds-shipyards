@@ -18,7 +18,20 @@ extends SceneTree
 ## completion 100s, host completion 30s; normal exit 10s, forced reap 10s and
 ## wrapper/display exit 10s per peer. Coordinator stages share a 230s deadline
 ## reserving 60s for two-peer cleanup within the unchanged outer 300s cap.
-## First failed boundary ends the route; no automatic retry or D4 second guest.
+## First failed boundary ends the route; no automatic retry.
+## D4 exact invocation (same environment isolation and external ordered network/display locks):
+## install -d -m 700 /srv/mudds-work/two-guest-menu-coordinator-profile-20261017/{data,config,cache,state,runtime,tmp,data-dirs,config-dirs}
+## live_menu_context=(); for live_menu_key in HOME CODEX_HOME GODOT_SILENCE_ROOT_WARNING; do if [[ -v "$live_menu_key" ]]; then live_menu_context+=("$live_menu_key=${!live_menu_key}"); fi; done
+## env -i "${live_menu_context[@]}" PATH=/usr/local/bin:/usr/bin:/bin XDG_DATA_HOME=/srv/mudds-work/two-guest-menu-coordinator-profile-20261017/data XDG_CONFIG_HOME=/srv/mudds-work/two-guest-menu-coordinator-profile-20261017/config XDG_CACHE_HOME=/srv/mudds-work/two-guest-menu-coordinator-profile-20261017/cache XDG_STATE_HOME=/srv/mudds-work/two-guest-menu-coordinator-profile-20261017/state XDG_RUNTIME_DIR=/srv/mudds-work/two-guest-menu-coordinator-profile-20261017/runtime XDG_DATA_DIRS=/srv/mudds-work/two-guest-menu-coordinator-profile-20261017/data-dirs XDG_CONFIG_DIRS=/srv/mudds-work/two-guest-menu-coordinator-profile-20261017/config-dirs TMPDIR=/srv/mudds-work/two-guest-menu-coordinator-profile-20261017/tmp timeout --signal=TERM --kill-after=10s 300s /tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy --path /srv/mudds-work/two-guest-menu-20261017 --script res://tests/network/game_flow_server_browser_integration_test.gd -- --live-menu-two-guests --live-results /srv/mudds-work/two-guest-menu-results-20261017/two-guest-peers
+## D4 preserves the outer300s and all D3 boundaries above. Its coordinator uses
+## a 200s shared work deadline, reserving90s for three peers' exit/reap/display closure.
+## Stage: host.ready → guest.main_ready → host.admitted + guest.admitted →
+## guest2.main_ready (separate60s cold-Main boundary for host and waiting guest) →
+## host.guest2_admitted + guest2.admitted → host.allow_leave → host.first_cleared →
+## guest2.remaining → host.allow_second_leave → host.cleared. Each receipt20s;
+## host admission50s (also coordinator first-admission observation) and departure20s,
+## unchanged. Guest2 completion100s;
+## after it finishes, guest completion20s then host completion30s. No wider D3 timeout.
 
 
 const GameFlowType := preload("res://scripts/game/game_flow.gd")
@@ -44,7 +57,7 @@ func _init() -> void:
 
 
 func _run() -> void:
-	if "--live-menu-one-guest" in OS.get_cmdline_user_args():
+	if "--live-menu-one-guest" in OS.get_cmdline_user_args() or "--live-menu-two-guests" in OS.get_cmdline_user_args():
 		await _live_run()
 		return
 	var flow := GameFlowType.new()
@@ -120,10 +133,12 @@ var _live_port := 0
 var _live_game: GameFlow
 var _live_peers: Dictionary = {}
 var _live_deadline := 0
+var _live_two_guests := false
 
 
 func _live_run() -> void:
 	var args := OS.get_cmdline_user_args()
+	_live_two_guests = "--live-menu-two-guests" in args
 	var peer_index := args.find("--live-peer")
 	if peer_index >= 0 and peer_index + 3 < args.size():
 		_live_role = args[peer_index + 1]
@@ -131,7 +146,7 @@ func _live_run() -> void:
 		_live_port = int(args[peer_index + 3])
 		await _live_actor()
 		return
-	_live_deadline = Time.get_ticks_msec() + 230_000 # Reserve two-peer exit/reap/display cleanup margin.
+	_live_deadline = Time.get_ticks_msec() + (200_000 if _live_two_guests else 230_000) # Reserve per-peer cleanup margin.
 	var result_index := args.find("--live-results")
 	_live_directory = args[result_index + 1] if result_index >= 0 and result_index + 1 < args.size() else "/tmp/mudds-live-menu-%d" % OS.get_process_id()
 	# Refuse stale receipts rather than accepting another run's host identity.
@@ -150,8 +165,16 @@ func _live_run() -> void:
 		_live_peers.guest = _live_spawn("guest")
 		_check(int(_live_peers.guest) > 0, "independent Main guest wrapper starts")
 		reached = int(_live_peers.guest) > 0 and await _live_wait_file("guest.main_ready", 60.0)
+	if reached and _live_two_guests:
+		reached = await _live_boundary(func(): return FileAccess.file_exists(_live_directory.path_join("host.admitted")) and FileAccess.file_exists(_live_directory.path_join("guest.admitted")), 50.0, "first guest admission is acknowledged by both independent peers before guest2 starts")
+		if reached:
+			_live_peers.guest2 = _live_spawn("guest2")
+			_check(int(_live_peers.guest2) > 0, "second independent Main guest wrapper starts after first admission")
+			reached = int(_live_peers.guest2) > 0 and await _live_wait_file("guest2.main_ready", 60.0)
+		if reached:
+			reached = await _live_wait_file("guest2.done", 100.0)
 	if reached:
-		reached = await _live_wait_file("guest.done", 100.0)
+		reached = await _live_wait_file("guest.done", 20.0 if _live_two_guests else 100.0)
 	if reached:
 		reached = await _live_wait_file("host.done", 30.0)
 	if not reached:
@@ -179,9 +202,24 @@ func _live_run() -> void:
 		_check(int(host.get("guest_peer_id", 0)) == int(guest.get("peer_id", -1)) and int(host.get("guest_generation", 0)) == int(guest.get("peer_generation", -1)), "host and guest agree on authenticated peer identity and generation")
 		_check(host.get("player", {}) != guest.get("player", {}) and int(host.get("host_peer_id", 0)) == 1 and int(guest.get("peer_id", 0)) > 1, "independent actual Main players accompany distinct authenticated network peer identities")
 		var counts := _live_read("host.done").get("guest_counts", []) as Array
-		_check(counts.size() == 3 and counts[0] == 0 and counts[1] == 1 and counts[2] == 0,
-			"real host guest counts reconcile 0 → 1 → 0")
+		if _live_two_guests:
+			_live_check_two_guest_receipts(host, guest, counts)
+		else:
+			_check(counts.size() == 3 and counts[0] == 0 and counts[1] == 1 and counts[2] == 0,
+				"real host guest counts reconcile 0 → 1 → 0")
 	_live_finish()
+
+
+func _live_check_two_guest_receipts(host: Dictionary, guest: Dictionary, counts: Array) -> void:
+	var second_host := _live_read("host.guest2_admitted")
+	var second := _live_read("guest2.admitted")
+	var remaining := _live_read("guest2.remaining")
+	_check(int(second.get("pid", 0)) > 0 and int(second.get("pid", 0)) != int(host.get("pid", 0)) and int(second.get("pid", 0)) != int(guest.get("pid", 0)), "three independent actual Main processes have distinct PIDs")
+	_check(int(second_host.get("guest_peer_id", 0)) == int(second.get("peer_id", -1)) and int(second_host.get("guest_generation", 0)) == int(second.get("peer_generation", -1)), "host and second guest agree on authenticated peer identity and generation")
+	_check(int(second.get("peer_id", 0)) > 1 and int(second.get("peer_id", 0)) != int(guest.get("peer_id", 0)) and int(second.get("peer_generation", 0)) > 0 and second.get("player", {}) != guest.get("player", {}) and second.get("player", {}) != host.get("player", {}), "two authenticated peer/generation identities and three Main players are distinct")
+	_check(int(second_host.get("pid", 0)) == int(host.get("pid", -1)) and second_host.get("player", {}) == host.get("player", {}) and int(second_host.get("host_peer_id", 0)) == 1, "same menu host admits both guests")
+	_check(bool(remaining.get("authenticated", false)) and int(remaining.get("pid", 0)) == int(second.get("pid", -1)) and int(remaining.get("peer_id", 0)) == int(second.get("peer_id", -1)) and int(remaining.get("peer_generation", 0)) == int(second.get("peer_generation", -1)), "remaining guest receipt preserves original authenticated identity after first guest clears")
+	_check(counts.size() == 5 and counts[0] == 0 and counts[1] == 1 and counts[2] == 2 and counts[3] == 1 and counts[4] == 0, "real host guest counts reconcile 0 → 1 → 2 → 1 → 0")
 
 
 func _live_spawn(role: String) -> int:
@@ -190,7 +228,7 @@ func _live_spawn(role: String) -> int:
 		DirAccess.make_dir_recursive_absolute(profile.path_join(folder))
 		_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile.path_join(folder)])) == 0, "private profile directory permissions: " + folder)
 	_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile])) == 0, "private peer profile root permissions")
-	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-one-guest", "--live-peer", role, _live_directory, str(_live_port)])
+	var args := PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/network/game_flow_server_browser_integration_test.gd", "--", "--live-menu-two-guests" if _live_two_guests else "--live-menu-one-guest", "--live-peer", role, _live_directory, str(_live_port)])
 	# Positional argv protects path text from shell evaluation. The shell waits
 	# for the actual Godot child; a .done receipt is never treated as OS exit.
 	var command := 'trap \'kill "$child" 2>/dev/null; wait "$child"; exit 143\' TERM INT HUP; /usr/bin/env -i DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "$@" > "$0.log" 2>&1 & child=$!; printf "%s" "$child" > "$0.pid"; wait "$child"; status=$?; printf "%s" "$status" > "$0.exit"; exit "$status"'
@@ -219,6 +257,8 @@ func _live_actor() -> void:
 			await _live_host()
 		else:
 			await _live_guest()
+	if _live_two_guests and not _failures.is_empty():
+		_live_write("abort", {"reason": "first_failed_boundary", "role": _live_role})
 	# Cleanup is independent of menu success, focus, pause state or input capture.
 	var release := InputEventAction.new()
 	release.action = &"ui_accept"
@@ -266,13 +306,19 @@ func _live_host() -> void:
 	_live_write("host.admitted", {"pid": OS.get_process_id(), "host_peer_id": session.multiplayer.get_unique_id(), "player": _live_player_identity(), "guest_peer_id": guest_id, "guest_generation": int(peers[0].peer_generation) if peers.size() == 1 else 0})
 	if not await _live_wait_file("guest.admitted", 20.0):
 		return
-	if not await _live_begin_shift():
-		return
-	_live_write("host.allow_leave", {})
+	if _live_two_guests:
+		if not await _live_host_second_guest(session, guest_id):
+			return
+	else:
+		if not await _live_begin_shift():
+			return
+		_live_write("host.allow_leave", {})
 	if not await _live_boundary(func(): return session.get_admitted_peer_ids().is_empty() and int(session.get_session_capacity_snapshot().occupancy) == 0, 20.0, "guest UI disconnect returns real host guest count to zero"):
 		return
 	_live_counts.append(int(session.get_session_capacity_snapshot().occupancy))
 	_check(_live_guest_ownership_clear(session, guest_id), "host releases guest admissions, seat/ship/crew ownership and remote body")
+	if _live_two_guests:
+		_check(_live_guest_ownership_clear(session, int(_live_read("guest2.admitted").get("peer_id", 0))), "host releases second guest admissions and all ownership")
 	if not await _live_open_pause_browser():
 		return
 	_live_write("host.cleared", {})
@@ -280,6 +326,54 @@ func _live_host() -> void:
 		return
 	_check(not session.is_session_active() and not discovery.is_responding(), "host UI disconnect closes session and LAN responder")
 	await _live_browser_after_leave()
+
+
+func _live_host_second_guest(session: NetworkEnetSessionAdapter, first_id: int) -> bool:
+	if not await _live_wait_file("guest2.main_ready", 60.0):
+		return false
+	if not await _live_boundary(func(): return session.get_admitted_peer_ids().size() == 2, 50.0, "same host observes two authenticated menu guests"):
+		return false
+	_live_counts.append(int(session.get_session_capacity_snapshot().occupancy))
+	if not await _live_wait_file("guest2.admitted", 20.0):
+		return false
+	var second := _live_read("guest2.admitted")
+	var second_id := int(second.get("peer_id", 0))
+	var generation := _live_host_peer_generation(session, second_id)
+	var first := _live_read("guest.admitted")
+	var both_authenticated := second_id > 1 and second_id != first_id and generation > 0 and generation == int(second.get("peer_generation", 0)) and _live_host_peer_generation(session, first_id) == int(first.get("peer_generation", -1)) and int(session.get_session_capacity_snapshot().occupancy) == 2
+	_check(both_authenticated, "host matches both distinct authenticated guest identities and excludes itself from count two")
+	if not both_authenticated:
+		return false
+	_live_write("host.guest2_admitted", {"pid": OS.get_process_id(), "host_peer_id": session.multiplayer.get_unique_id(), "player": _live_player_identity(), "guest_peer_id": second_id, "guest_generation": generation})
+	if not await _live_begin_shift():
+		return false
+	_live_write("host.allow_leave", {})
+	if not await _live_boundary(func(): return first_id not in session.get_admitted_peer_ids() and session.get_admitted_peer_ids().size() == 1 and int(session.get_session_capacity_snapshot().occupancy) == 1 and _live_departed_identity_clear(session, first_id), 20.0, "first guest UI disconnect clears only its admission and ownership; count becomes one"):
+		return false
+	_live_counts.append(int(session.get_session_capacity_snapshot().occupancy))
+	var remains := session.is_session_active() and session.is_server() and _live_game.get_lan_discovery().is_responding() and _live_host_peer_generation(session, second_id) == generation and int(session.get_crew_role_snapshot().get("admitted_peer_count", -1)) == 1
+	_check(remains, "host remains active with second guest's original authenticated admission")
+	if not remains:
+		return false
+	_live_write("host.first_cleared", {"departed_peer_id": first_id, "remaining_peer_id": second_id, "remaining_generation": generation})
+	if not await _live_wait_file("guest2.remaining", 20.0):
+		return false
+	var receipt := _live_read("guest2.remaining")
+	var agreed := bool(receipt.get("authenticated", false)) and int(receipt.get("peer_id", 0)) == second_id and int(receipt.get("peer_generation", 0)) == generation and _live_host_peer_generation(session, second_id) == generation
+	_check(agreed, "host verifies remaining guest active-authentication receipt before allowing second departure")
+	if not agreed:
+		return false
+	_live_write("host.allow_second_leave", {})
+	return true
+
+
+func _live_host_peer_generation(session: NetworkEnetSessionAdapter, peer_id: int) -> int:
+	if peer_id not in session.get_admitted_peer_ids():
+		return 0
+	for peer: Dictionary in (session.get_snapshot().get("lifecycle", {}) as Dictionary).get("peers", []):
+		if int(peer.get("peer_id", 0)) == peer_id:
+			return int(peer.get("peer_generation", 0))
+	return 0
 
 
 func _live_guest() -> void:
@@ -292,7 +386,7 @@ func _live_guest() -> void:
 	var discovery := _live_game.get_lan_discovery()
 	var endpoint := discovery.get_endpoint(session_id)
 	_check(not session_id.is_empty() and int(endpoint.get("port", 0)) == int(hosted.get("port", -1)) and not str(endpoint.get("address", "")).is_empty(), "selected LAN row resolves the owned live host endpoint")
-	_live_write("guest.discovered", {"session_id": str(session_id), "endpoint": endpoint})
+	_live_write(_live_role + ".discovered", {"session_id": str(session_id), "endpoint": endpoint})
 	if not _failures.is_empty() or not await _live_activate(_live_row(session_id)):
 		return
 	if not await _live_boundary(_live_authenticated, 20.0, "selected real HUD row joins and authenticates guest"):
@@ -300,8 +394,21 @@ func _live_guest() -> void:
 	var session := _live_game.network_session
 	var peer := (session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary
 	var guest_id := session.multiplayer.get_unique_id()
-	_live_write("guest.admitted", {"pid": OS.get_process_id(), "peer_id": guest_id, "peer_generation": int(peer.get("peer_generation", 0)), "player": _live_player_identity()})
-	if not await _live_wait_file("host.allow_leave", 20.0):
+	_live_write(_live_role + ".admitted", {"pid": OS.get_process_id(), "peer_id": guest_id, "peer_generation": int(peer.get("peer_generation", 0)), "player": _live_player_identity()})
+	if _live_two_guests:
+		if _live_role == "guest":
+			# A second cold Main startup has its own boundary, never a wider handoff.
+			if not await _live_wait_file("guest2.main_ready", 60.0):
+				return
+		else:
+			if not await _live_wait_file("host.allow_leave", 20.0) or not await _live_wait_file("host.first_cleared", 20.0):
+				return
+			var still_admitted := _live_authenticated() and session.multiplayer.get_unique_id() == guest_id and int(((session.get_server_offer().get("admission", {}) as Dictionary).get("peer", {}) as Dictionary).get("peer_generation", 0)) == int(peer.get("peer_generation", -1))
+			_check(still_admitted, "remaining guest retains active transport and original authenticated identity after first departure")
+			if not still_admitted:
+				return
+			_live_write("guest2.remaining", {"pid": OS.get_process_id(), "peer_id": guest_id, "peer_generation": int(peer.get("peer_generation", 0)), "authenticated": true})
+	if not await _live_wait_file("host.allow_second_leave" if _live_role == "guest2" else "host.allow_leave", 20.0):
 		return
 	if not await _live_begin_shift() or not await _live_open_pause_browser() or not await _live_button("ServerBrowserDisconnectButton"):
 		return
@@ -309,7 +416,7 @@ func _live_guest() -> void:
 	_check(_live_game.get_network_remote_body_intent_source() == null and not (_live_game.get_node("Player") as PlayerController).is_seated(), "menu guest has no retained body or chair ownership")
 	if not await _live_browser_after_leave():
 		return
-	await _live_wait_file("host.cleared", 20.0)
+	await _live_wait_file("host.first_cleared" if _live_two_guests and _live_role == "guest" else "host.cleared", 20.0)
 
 
 func _live_begin_shift() -> bool:
@@ -369,6 +476,12 @@ func _live_authenticated() -> bool:
 
 
 func _live_guest_ownership_clear(session: NetworkEnetSessionAdapter, guest_id: int) -> bool:
+	return _live_departed_identity_clear(session, guest_id) and int(session.get_crew_role_snapshot().get("admitted_peer_count", -1)) == 0 and _live_game._network_remote_body_simulation.get_body_count() == 0
+
+
+func _live_departed_identity_clear(session: NetworkEnetSessionAdapter, guest_id: int) -> bool:
+	if guest_id in session.get_admitted_peer_ids():
+		return false
 	var lifecycle := session.get_snapshot().get("lifecycle", {}) as Dictionary
 	for peer: Dictionary in lifecycle.get("peers", []):
 		if int(peer.get("peer_id", 0)) == guest_id:
@@ -385,7 +498,10 @@ func _live_guest_ownership_clear(session: NetworkEnetSessionAdapter, guest_id: i
 	for occupancy: Dictionary in session.get_boarding_snapshot().get("occupancies", []):
 		if int(occupancy.get("peer_id", 0)) == guest_id:
 			return false
-	return int(session.get_crew_role_snapshot().get("admitted_peer_count", -1)) == 0 and _live_game._network_remote_body_simulation.get_body_count() == 0
+	for entity_id in _live_game._network_remote_body_simulation.get_body_entity_ids():
+		if int(_live_game._network_remote_body_simulation.get_body_record(entity_id).get("owner_peer_id", 0)) == guest_id:
+			return false
+	return true
 
 
 func _live_row(session_id: StringName) -> Button:
@@ -456,7 +572,7 @@ func _live_wait_file(name: String, seconds: float) -> bool:
 		if FileAccess.file_exists(_live_directory.path_join(name)):
 			return true
 		# A finished peer cannot reach a later gameplay boundary.
-		for role in ["host", "guest"]:
+		for role in (["host", "guest", "guest2"] if _live_two_guests else ["host", "guest"]):
 			if name.begins_with(role + ".") and name != role + ".done" and FileAccess.file_exists(_live_directory.path_join(role + ".done")):
 				return true
 		return false, seconds)
@@ -502,7 +618,8 @@ func _live_finish() -> void:
 	for failure in _failures:
 		push_error(failure)
 	print("LIVE_MENU_ARTIFACTS: ", _live_directory)
-	print("GAME_FLOW_LIVE_MENU_ONE_GUEST: %d assertions, %d failures" % [_assertions, _failures.size()])
+	var label := "GAME_FLOW_LIVE_MENU_TWO_GUESTS" if _live_two_guests else "GAME_FLOW_LIVE_MENU_ONE_GUEST"
+	print(label + ": %d assertions, %d failures" % [_assertions, _failures.size()])
 	if _failures.is_empty() and _live_role == "coordinator":
-		print("GAME_FLOW_LIVE_MENU_ONE_GUEST_TEST_OK")
+		print(label + "_TEST_OK")
 	quit(0 if _failures.is_empty() else 1)
