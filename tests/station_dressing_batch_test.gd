@@ -26,6 +26,42 @@ class ReferenceHolder:
 	var kept: MeshInstance3D
 
 
+class ReferenceBase:
+	extends RefCounted
+	var inherited: WeakRef
+	var held_node: Node
+
+
+class ReferenceChild:
+	extends ReferenceBase
+	var nested: Dictionary
+	var scalar_reads := 0
+	var scalar: int:
+		get:
+			scalar_reads += 1
+			return 7
+
+
+class DynamicReferenceHolder:
+	extends Node3D
+	var helper: ReferenceChild
+	var target: Node
+	var exposes_dynamic := true
+
+	func _get_property_list() -> Array[Dictionary]:
+		if not exposes_dynamic:
+			return []
+		return [{"name": "dynamic_reference", "type": TYPE_OBJECT,
+			"usage": PROPERTY_USAGE_SCRIPT_VARIABLE}]
+
+	func _get(property: StringName) -> Variant:
+		return target if property == &"dynamic_reference" else null
+
+	func _validate_property(property: Dictionary) -> void:
+		if property.name == "target":
+			property.usage = PROPERTY_USAGE_NONE
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -371,6 +407,7 @@ func _run() -> void:
 	holder.queue_free()
 	await process_frame
 	await _test_authored_piece_index()
+	_test_current_script_references()
 	_finish()
 
 
@@ -501,6 +538,57 @@ func _test_authored_piece_index() -> void:
 	)
 	module.queue_free()
 	await process_frame
+
+
+func _test_current_script_references() -> void:
+	var holder := DynamicReferenceHolder.new()
+	var inherited := Node3D.new()
+	var nested := Node3D.new()
+	var dynamic := Node3D.new()
+	var later := Node3D.new()
+	var peer_old := Node3D.new()
+	var peer_new := Node3D.new()
+	var peer_dynamic := Node3D.new()
+	holder.helper = ReferenceChild.new()
+	holder.helper.inherited = weakref(inherited)
+	holder.helper.nested = {nested: [null, true, 7, 1.5, "leaf",
+		Vector3.ONE, PackedInt32Array([1, 2]), {"mixed": [weakref(dynamic)]}]}
+	holder.helper.held_node = dynamic
+	holder.target = later
+	var peer := DynamicReferenceHolder.new()
+	peer.helper = ReferenceChild.new()
+	peer.helper.held_node = peer_old
+	peer.target = peer_dynamic
+	peer.exposes_dynamic = false
+	holder.add_child(peer)
+	var first: Dictionary = BATCH._collect_script_referenced_objects(holder)
+	_check(first.has(inherited.get_instance_id()) and first.has(nested.get_instance_id())
+		and first.has(dynamic.get_instance_id()) and first.has(later.get_instance_id()),
+		"station reference scan retains inherited weak references, dictionary keys and dynamic fields")
+	_check(holder.helper.scalar_reads == 1 and peer.helper.scalar_reads == 1,
+		"station scan reads each instance's scalar getters once")
+	_check(not first.has(peer_dynamic.get_instance_id()),
+		"dynamic property rosters remain specific to each instance")
+	_check(first.has(peer_old.get_instance_id()),
+		"shared script declarations still read each helper instance's own node")
+	holder.helper.inherited = weakref(later)
+	holder.helper.nested = {}
+	holder.target = dynamic
+	peer.helper.held_node = peer_new
+	peer.exposes_dynamic = true
+	var second: Dictionary = BATCH._collect_script_referenced_objects(holder)
+	_check(not second.has(inherited.get_instance_id()) and not second.has(nested.get_instance_id())
+		and second.has(later.get_instance_id()) and second.has(dynamic.get_instance_id()),
+		"a fresh station scan observes changed helper and dynamic values")
+	_check(holder.helper.scalar_reads == 2 and peer.helper.scalar_reads == 2,
+		"later station scans execute every instance's scalar getters again")
+	_check(second.has(peer_dynamic.get_instance_id()),
+		"a fresh scan observes an instance exposing a new dynamic property")
+	_check(not second.has(peer_old.get_instance_id()) and second.has(peer_new.get_instance_id()),
+		"changed node references replace earlier instance values on the next station scan")
+	holder.free()
+	for node in [inherited, nested, dynamic, later, peer_old, peer_new, peer_dynamic]:
+		node.free()
 
 
 func _finish() -> void:
