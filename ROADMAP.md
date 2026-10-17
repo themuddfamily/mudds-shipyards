@@ -54,13 +54,39 @@ interior traversal only: flight/docking and later fringe/rebase interactions
 are still staged. Physical Interact input, full canonical packaged expedition,
 real-file cross-process interruption and final-candidate gates remain separate.
 
-## Next selection
+## Active task: WORLD-SOLO[Ember completed physical source journey]
 
-Choose one named production gap from the backlog; record outcome, component,
-exact acceptance, estimate and stopping point before starting. Do not reopen
-completed shelf diagnostics, integrate the disproven generic recovery proposal,
-or rerun this unchanged suite merely for more evidence. Full-project scope and
-all ten phase gates remain open; unsplit parents are not a remaining-job count.
+**Outcome:** qualify one source Arrow yard→Ember→completed survey/reward→yard
+route, or identify its first concrete failure. Existing
+`tests/ember_transit_movement_soak.gd -- --ember-completed-return` is the exact
+mode. No surface/flight placement; initial on-foot yard placement remains. The
+fixture's existing shortened canopy/boarding animation durations remain disclosed.
+Native/rendered performance, full package, repeat visits and shared crew are not
+qualified by this source check.
+
+**Owner:** root, sequential guarded execution; no implementation assignment yet.
+The bounded five-file startup review found no justified optimization candidate;
+Q4 startup remains parked, with no repeated profile or withheld patch integrated.
+
+| Step | Finish line / state | Estimate |
+| --- | --- | --- |
+| Freeze | READY; clean selected commit, pinned engine/copied cache, empty private disk-backed profile and exact invocation. | 5 min |
+| Run | GATED; one canonical900s cap, strict exit0 + `EMBER_TRANSIT_MOVEMENT_TEST_OK`, zero diagnostics. Outbound/landing/survey/paid terminal/return/usable home exit and physics continuity all required. Stop at first diagnostic/assertion. | Up to15 min + setup/closure |
+| Close | GATED; inspect raw counters/actual durable store and owned teardown, remove clean checkout, record done/failed, commit/push. No new build for qualification alone. | 10 min |
+
+**Exact command:** `/tmp/mudds-tools/godot-4.7.1/godot --headless
+--audio-driver Dummy --fixed-fps 60 --path <clean-checkout> --script
+res://tests/ember_transit_movement_soak.gd -- --ember-completed-return` through
+existing `tools/release/suite_process.py --timeout 900`. The fixed60 step preserves
+normal per-physics-tick movement; it is not native real-time performance proof.
+No `KETH_EMBER_PHYSICAL_RETURN`/local-arrival diagnostic variable. Completed mode
+uses its real fresh `user://ember-canonical-completed-journey.json` store.
+No speed, physics, radii, waits, route, rewards or tick budgets change.
+
+**Next single action:** freeze and launch once. Raw output will be
+`/srv/mudds-work/ember-completed-journey-results-20261017/`.
+Do not retry unchanged, add cases or convert this qualification into an open-ended
+investigation. All broader world/phase gates stay open until their own acceptance.
 
 ## Working constraints
 
