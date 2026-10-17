@@ -1739,3 +1739,30 @@ Next action is RIME-CREW-ARRIVAL driver implementation, with the first actual
 failure retained and a separate bounded repair if justified. All 36 parents
 and ten phase gates remain open; these four children are not the full project
 remaining-task count.
+
+
+## Rime two-client arrival — first candidate failed before gameplay
+
+Candidate `6f29e4f154598f95f4ec896fa3803a5104cc5c6e` changes only the existing
+shared/passenger fixtures. It adds tracked two-client surface orchestration,
+ordinary flight to the old staged admission envelope, retained-body surface
+walking/reboard and all-crew return refusal/admission checks. Default Ember and
+Aurora behavior were reviewed as preserved. Rime omits the separate staged
+solo-admission preprobe and keeps ancillary malformed-request/chair regressions
+Aurora-only; Rime gravity assertion follows project gravity, currently 18.0.
+The Rime flight-start marker denotes ordinary departure, not cruise admission.
+
+Independent prelaunch source review found no blocker. Fresh import passes,
+then the first actual arrival run fails to parse the new inferred `refused`
+variable at fixture line 438. External guard stops at that first diagnostic
+(exit 143), before any crew process/gameplay. No physical arrival, driver
+capability, gameplay or package acceptance follows. Source/index/engine/cache
+guards pass; five observed owned identities and sockets close, no displays.
+Candidate remains withheld on remote `hold/rime-crew-arrival-20261018`.
+Raw `/srv/mudds-work/rime-crew-arrival-results-20261018/` is retained unchanged.
+
+The separately scheduled RIME-CREW-ARRIVAL-TYPE repair changes only that type
+declaration, followed by parse60 and one changed-candidate arrival2400. The
+original failure is not erased. Any failure of this attempted repair requires
+priority review before further repair/probing/rerun. Later survey/home/package
+cards stay gated; no unchanged rerun or export is selected.

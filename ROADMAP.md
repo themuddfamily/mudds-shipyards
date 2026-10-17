@@ -108,15 +108,16 @@ work remain intact, with source refs and unique raw results preserved.
 
 ## Next batch — Rime journey with two independent crew clients
 
-**ROADMAP-SLICE planning DONE. Four child tasks remain in this batch: one IN PROGRESS,
-three GATED. No runtime check ran during planning.** These children implement
+**ROADMAP-SLICE planning DONE. First arrival attempt FAILED before gameplay;
+one bounded type repair is IN PROGRESS, and three later tasks remain GATED.** These children implement
 and qualify an executable integration route through existing gameplay; they
 are not four new gameplay features. All four belong to
 [WORLD-SHARED: Rime baseline](docs/ROADMAP_BACKLOG.md#multiplayer).
 
 | Order / task | Status | Observable finish | Work estimate; separate checks |
 | --- | --- | --- | --- |
-| 1. RIME-CREW-ARRIVAL | IN PROGRESS | Host lands Halyard after canonical outbound travel; both independent crew clients walk onto Rime and physically reboard. | 60–90 min driver integration; existing arrival allowance below. |
+| 1. RIME-CREW-ARRIVAL | FAILED on 6f29e4f15 | Host lands Halyard after canonical outbound travel; both independent crew clients walk onto Rime and physically reboard. | 60–90 min driver integration; existing arrival allowance below. |
+| Repair. RIME-CREW-ARRIVAL-TYPE | IN PROGRESS | Driver parses after explicit boolean declaration, then the unchanged two-client arrival meets task 1 acceptance. | 15 min correction/review; parse up to 60 s and one arrival up to 2400 s. |
 | 2. RIME-CREW-SURVEY | GATED on 1 | One actual remote participant walks both readings, manages warmth and earns exactly one disk-backed survey record; second crew retains usable controls. | 60–90 min driver integration; one extended arrival/survey run. |
 | 3. RIME-CREW-HOME | GATED on 2 | The same crew/craft continues from Mudds through survey, ascent and physical home dock, then exits to usable play. | 60–90 min driver integration; one continuous source journey. |
 | 4. RIME-CREW-PACKAGE | GATED on 3 | Matching published development packages, with the complete journey demonstrated on the exact Linux package. | 30–45 min packaging setup/closure; exports, startup/privacy and one package journey separately. |
@@ -171,14 +172,20 @@ are not four new gameplay features. All four belong to
   proposed driver additions, not currently runnable commands. Freeze the exact
   source, command, stage assertions and outer abort deadline before each launch.
 
-### 1. RIME-CREW-ARRIVAL — IN PROGRESS, implementation and qualification
+### 1. RIME-CREW-ARRIVAL — FAILED before gameplay on 6f29e4f15
 
 Owner: implementation agent in `/srv/mudds-work/rime-crew-arrival-20261018`;
 root coordinates one independent review and guarded qualification. Raw/abort
 runner is under `/srv/mudds-work/rime-crew-arrival-results-20261018/`.
-Implementation started from `192008620`; no runtime result is claimed yet.
+Candidate `6f29e4f154598f95f4ec896fa3803a5104cc5c6e` is preserved on remote
+`hold/rime-crew-arrival-20261018`, withheld from main. Cold import passes exit 0;
+arrival script fails to parse at line 438 (`refused` has no inferable type).
+The external guard stops the first diagnostic, exit 143; no crew process or
+gameplay starts. Source/index/engine/cache guards pass; all five observed owned
+identities and sockets are closed, with no test displays. Raw first failure is
+retained in the directory above. No unchanged rerun is selected.
 
-- **Next action:** extend the existing shared fixture's Rime arrival path to
+- **Original assignment:** extend the existing shared fixture's Rime arrival path to
   start and coordinate client/client_b; replace obsolete refusal assertions
   with current ordinary hatch exit and physical reboard behavior. Replace the
   Rime branch's post-departure 9,995 m placement/attitude assignment with ordinary
@@ -200,6 +207,23 @@ Implementation started from `192008620`; no runtime result is claimed yet.
   record source, actual boundary and retained raw. Commit/push accepted driver
   capability. On failure, the next task is one bounded repair specification,
   not task 2 or an unchanged rerun. No new gameplay claim follows.
+
+### RIME-CREW-ARRIVAL-TYPE — IN PROGRESS, one bounded repair
+
+- **Owner/next action:** root; change only the new `refused` declaration in
+  `tests/network/halyard_network_shared_planetary_cruise_test.gd` to an explicit
+  boolean. Commit the changed candidate, retain the failed original/source refs
+  and reuse its already imported cache after verifying exact cache identity.
+- **Proof:** first a headless/Dummy `--check-only --script` parse check (60 s),
+  then one `--rime-shared-arrival` run meeting every original task 1 criterion,
+  original stage caps and outer 2400 s. Fresh private profiles, frozen source/
+  index/cache/engine and owned-resource closure remain required. No cold import
+  retry, runtime repair, geometry change, new driver behavior or deadline change.
+- **Budget/stop:** 15 min correction/review, separate checks above. Stop first
+  failure. This is the one attempted repair after task 1's failure: any failure
+  now requires a recorded priority review before another probe, repair or rerun,
+  even if the next defect has a different name. Later cards remain GATED until
+  changed-candidate arrival acceptance. A compile fix is not gameplay progress.
 
 ### 2. RIME-CREW-SURVEY — GATED on task 1
 
