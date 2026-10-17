@@ -475,6 +475,7 @@ var _server_browser_player_name: LineEdit
 var _server_browser_results_scroll: ScrollContainer
 var _server_browser_rows: VBoxContainer
 var _server_browser_actions: HBoxContainer
+var _server_browser_disconnect: Button
 var _server_browser_filter_controls: Dictionary = {}
 var _server_browser_filter_summary: Label
 var _server_browser_sort_controls: Dictionary = {}
@@ -5077,7 +5078,9 @@ func _build_bomber_status_panel() -> void:
 
 
 func update_network_session_status(snapshot: Dictionary) -> void:
-	_render_runtime_status(_network_status_presenter.present_snapshot(snapshot), &"network")
+	var presentation := _network_status_presenter.present_snapshot(snapshot)
+	_render_runtime_status(presentation, &"network")
+	_update_server_browser_disconnect()
 
 
 func update_crew_role_status(snapshot: Dictionary) -> void:
@@ -7100,11 +7103,16 @@ func _build_server_browser_page() -> void:
 	manual_join.name = "ServerBrowserManualJoinButton"
 	manual_join.pressed.connect(request_server_browser_manual_join)
 	_server_browser_actions.add_child(manual_join)
+	_server_browser_disconnect = _menu_button("DISCONNECT", NOMINAL_SOFT)
+	_server_browser_disconnect.name = "ServerBrowserDisconnectButton"
+	_server_browser_disconnect.pressed.connect(_request_server_browser_disconnect)
+	_server_browser_actions.add_child(_server_browser_disconnect)
 	var back := _menu_button("BACK", MUTED)
 	back.name = "ServerBrowserBackButton"
 	back.pressed.connect(_on_server_browser_back_pressed)
 	_server_browser_actions.add_child(back)
 	_configure_server_browser_focus_order(refresh, host, manual_join, back)
+	_update_server_browser_disconnect()
 	_server_browser_page.visible = false
 
 
@@ -7200,6 +7208,45 @@ func _configure_server_browser_focus_order(
 		control.focus_mode = Control.FOCUS_ALL
 		control.focus_neighbor_top = control.get_path_to(ordered[maxi(0, index - 1)])
 		control.focus_neighbor_bottom = control.get_path_to(ordered[mini(ordered.size() - 1, index + 1)])
+
+
+func _update_server_browser_disconnect() -> void:
+	if not is_instance_valid(_server_browser_disconnect):
+		return
+	var connected := _network_status_presenter.get_snapshot().get("state", &"") == &"connected"
+	var had_focus := _server_browser_disconnect.has_focus()
+	_server_browser_disconnect.disabled = not connected
+	_server_browser_disconnect.focus_mode = Control.FOCUS_ALL if connected else Control.FOCUS_NONE
+	var manual := _server_browser_actions.get_node("ServerBrowserManualJoinButton") as Button
+	var back := _server_browser_actions.get_node("ServerBrowserBackButton") as Button
+	var next := _server_browser_disconnect if connected else back
+	manual.focus_neighbor_bottom = manual.get_path_to(next)
+	back.focus_neighbor_top = back.get_path_to(_server_browser_disconnect if connected else manual)
+	_server_browser_disconnect.focus_neighbor_top = _server_browser_disconnect.get_path_to(manual)
+	_server_browser_disconnect.focus_neighbor_bottom = _server_browser_disconnect.get_path_to(back)
+	var action_order: Array[Control] = [
+		_server_browser_actions.get_node("ServerBrowserRefreshButton") as Control,
+		_server_browser_actions.get_node("ServerBrowserHostButton") as Control,
+		manual,
+	]
+	if connected:
+		action_order.append(_server_browser_disconnect)
+	action_order.append(back)
+	for index in action_order.size():
+		var action := action_order[index]
+		action.focus_neighbor_left = action.get_path_to(action_order[maxi(0, index - 1)])
+		action.focus_neighbor_right = action.get_path_to(action_order[mini(action_order.size() - 1, index + 1)])
+	if not connected:
+		if _server_browser_focus_target == _server_browser_disconnect:
+			_server_browser_focus_target = back
+		if had_focus and back.is_visible_in_tree():
+			back.grab_focus()
+
+
+func _request_server_browser_disconnect() -> void:
+	var presentation := _network_status_presenter.get_snapshot()
+	if presentation.get("state", &"") == &"connected":
+		presentation_intent_requested.emit(&"network", {"action": &"disconnect", "snapshot": presentation})
 
 
 func _show_server_browser_page() -> void:

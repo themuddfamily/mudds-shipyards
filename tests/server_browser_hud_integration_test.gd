@@ -85,6 +85,30 @@ func _run() -> void:
 	_check((hud.get("_server_browser_title") as Label).text == "REFRESHING SERVER LIST"
 		and "WAIT FOR RESULTS OR RETURN" in (hud.get("_server_browser_detail") as Label).text,
 		"production sort controls preserve pending refresh guidance")
+	var disconnect := hud.get("_server_browser_page").find_child("ServerBrowserDisconnectButton", true, false) as Button
+	_check(disconnect != null and disconnect.disabled and disconnect.focus_mode == Control.FOCUS_NONE, "browser Disconnect starts unavailable offline")
+	for state: StringName in [&"connecting", &"reconnecting", &"failed", &"disconnected"]:
+		hud.update_network_session_status({"state": state})
+		_check(disconnect.disabled, "browser Disconnect remains disabled while %s" % state)
+	for role: StringName in [&"server", &"client"]:
+		hud.update_network_session_status({"state": &"connected", "role": role})
+		_check(not disconnect.disabled and disconnect.focus_mode == Control.FOCUS_ALL, "connected %s can leave from browser" % role)
+	# A newer gameplay card must retain ownership without hiding browser leave.
+	hud.apply_first_sortie_tutorial_snapshot({"step_id": &"board", "generation": 3, "revision": 1})
+	var foreground := StringName(hud.get("_runtime_status_kind"))
+	var cards := (hud.get("_runtime_status_cards") as Dictionary).duplicate(true)
+	_check(foreground == &"tutorial" and not disconnect.disabled, "browser Disconnect survives a newer foreground tutorial")
+	var intent_count := _intents.size()
+	disconnect.pressed.emit()
+	_check(_intents.size() == intent_count + 1 and _intents.back().kind == &"network"
+		and _intents.back().payload.action == &"disconnect"
+		and _intents.back().payload.snapshot.state == &"connected", "browser leave emits the existing network disconnect intent with current presentation")
+	_check(hud.get("_runtime_status_cards") == cards and hud.get("_runtime_status_kind") == foreground, "browser leave intent preserves all retained runtime cards")
+	hud.update_network_session_status({"state": &"disconnected", "end_reason": &"manual_leave"})
+	_check(disconnect.disabled and disconnect.focus_mode == Control.FOCUS_NONE, "shutdown presentation disables browser Disconnect")
+	disconnect.pressed.emit()
+	_check(_intents.size() == intent_count + 1, "offline browser leave cannot emit a stale connected intent")
+
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():

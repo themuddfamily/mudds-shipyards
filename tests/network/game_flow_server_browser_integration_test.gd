@@ -2,16 +2,16 @@ extends SceneTree
 
 ## D3 independent Main/menu admission release check (default fixture unchanged).
 ## Exact invocation, after committing this mode and copying the prepared private donor cache:
-## install -d -m 700 /srv/mudds-work/live-menu-coordinator-profile-20261017/{data,config,cache,state,runtime,tmp,data-dirs,config-dirs}
+## install -d -m 700 /srv/mudds-work/browser-disconnect-coordinator-profile-20261017/{data,config,cache,state,runtime,tmp,data-dirs,config-dirs}
 ## live_menu_context=(); for live_menu_key in HOME CODEX_HOME GODOT_SILENCE_ROOT_WARNING; do if [[ -v "$live_menu_key" ]]; then live_menu_context+=("$live_menu_key=${!live_menu_key}"); fi; done
-## env -i "${live_menu_context[@]}" PATH=/usr/local/bin:/usr/bin:/bin XDG_DATA_HOME=/srv/mudds-work/live-menu-coordinator-profile-20261017/data XDG_CONFIG_HOME=/srv/mudds-work/live-menu-coordinator-profile-20261017/config XDG_CACHE_HOME=/srv/mudds-work/live-menu-coordinator-profile-20261017/cache XDG_STATE_HOME=/srv/mudds-work/live-menu-coordinator-profile-20261017/state XDG_RUNTIME_DIR=/srv/mudds-work/live-menu-coordinator-profile-20261017/runtime XDG_DATA_DIRS=/srv/mudds-work/live-menu-coordinator-profile-20261017/data-dirs XDG_CONFIG_DIRS=/srv/mudds-work/live-menu-coordinator-profile-20261017/config-dirs TMPDIR=/srv/mudds-work/live-menu-coordinator-profile-20261017/tmp timeout --signal=TERM --kill-after=10s 300s /tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy --path /srv/mudds-work/live-menu-admission-20261017 --script res://tests/network/game_flow_server_browser_integration_test.gd -- --live-menu-one-guest --live-results /srv/mudds-work/live-menu-admission-results-20261017/peers
+## env -i "${live_menu_context[@]}" PATH=/usr/local/bin:/usr/bin:/bin XDG_DATA_HOME=/srv/mudds-work/browser-disconnect-coordinator-profile-20261017/data XDG_CONFIG_HOME=/srv/mudds-work/browser-disconnect-coordinator-profile-20261017/config XDG_CACHE_HOME=/srv/mudds-work/browser-disconnect-coordinator-profile-20261017/cache XDG_STATE_HOME=/srv/mudds-work/browser-disconnect-coordinator-profile-20261017/state XDG_RUNTIME_DIR=/srv/mudds-work/browser-disconnect-coordinator-profile-20261017/runtime XDG_DATA_DIRS=/srv/mudds-work/browser-disconnect-coordinator-profile-20261017/data-dirs XDG_CONFIG_DIRS=/srv/mudds-work/browser-disconnect-coordinator-profile-20261017/config-dirs TMPDIR=/srv/mudds-work/browser-disconnect-coordinator-profile-20261017/tmp timeout --signal=TERM --kill-after=10s 300s /tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy --path /srv/mudds-work/browser-disconnect-fix-20261017 --script res://tests/network/game_flow_server_browser_integration_test.gd -- --live-menu-one-guest --live-results /srv/mudds-work/browser-disconnect-fix-results-20261017/peers
 ## The headless coordinator owns two xvfb-run x11/dummy-renderer Main peers.
 ## Each peer has private 0700 XDG homes, search directories and TMPDIR. No rendered pixels
 ## are read. Staging sets actual LineEdit text and focuses actual visible Buttons;
 ## ui_accept input activates their production handlers, including the LAN row.
 ## After admission each player uses Back → Begin Shift, dismisses any visible
-## tutorial card, then uses the visible runtime Disconnect action. Menu usability
-## after shift uses pause input → Server Browser → Back → Resume.
+## tutorial card, then uses pause → Server Browser → Disconnect. After leaving,
+## the still-open browser supports Refresh → Back → Resume.
 ## Limits: outer 300s; each cold Main 60s; UI availability 5s and activation 5s; host UI/responder
 ## 10s; discovery 10s; authenticated admission 20s; after guest cold startup host
 ## observes join within 50s, leave within 20s; each receipt handoff 20s; guest
@@ -271,12 +271,13 @@ func _live_host() -> void:
 		return
 	_live_counts.append(int(session.get_session_capacity_snapshot().occupancy))
 	_check(_live_guest_ownership_clear(session, guest_id), "host releases guest admissions, seat/ship/crew ownership and remote body")
-	if not await _live_pause_browser():
+	if not await _live_open_pause_browser():
 		return
 	_live_write("host.cleared", {})
-	if not await _live_button("RuntimeStatusDisconnectButton"):
+	if not await _live_button("ServerBrowserDisconnectButton"):
 		return
 	_check(not session.is_session_active() and not discovery.is_responding(), "host UI disconnect closes session and LAN responder")
+	await _live_browser_after_leave()
 
 
 func _live_guest() -> void:
@@ -300,11 +301,11 @@ func _live_guest() -> void:
 	_live_write("guest.admitted", {"pid": OS.get_process_id(), "peer_id": guest_id, "peer_generation": int(peer.get("peer_generation", 0)), "player": _live_player_identity()})
 	if not await _live_wait_file("host.allow_leave", 20.0):
 		return
-	if not await _live_begin_shift() or not await _live_button("RuntimeStatusDisconnectButton"):
+	if not await _live_begin_shift() or not await _live_open_pause_browser() or not await _live_button("ServerBrowserDisconnectButton"):
 		return
 	_check(not session.is_session_active() and session.get_server_offer().is_empty() and session.get_admitted_peer_ids().is_empty(), "guest UI disconnect clears transport and admission")
 	_check(_live_game.get_network_remote_body_intent_source() == null and not (_live_game.get_node("Player") as PlayerController).is_seated(), "menu guest has no retained body or chair ownership")
-	if not await _live_pause_browser():
+	if not await _live_browser_after_leave():
 		return
 	await _live_wait_file("host.cleared", 20.0)
 
@@ -321,7 +322,7 @@ func _live_begin_shift() -> bool:
 	return true
 
 
-func _live_pause_browser() -> bool:
+func _live_open_pause_browser() -> bool:
 	var pressed := InputEventAction.new()
 	pressed.action = &"pause"
 	pressed.pressed = true
@@ -332,7 +333,13 @@ func _live_pause_browser() -> bool:
 	released.pressed = false
 	Input.parse_input_event(released)
 	await process_frame
-	return await _live_button("ServerBrowserButton") and await _live_button("ServerBrowserBackButton") and await _live_button("ResumeButton")
+	return await _live_button("ServerBrowserButton")
+
+
+func _live_browser_after_leave() -> bool:
+	var disconnect := _live_game.hud.find_child("ServerBrowserDisconnectButton", true, false) as Button
+	_check(disconnect != null and disconnect.is_visible_in_tree() and disconnect.disabled and disconnect.focus_mode == Control.FOCUS_NONE, "browser Disconnect is disabled after UI leave")
+	return await _live_button("ServerBrowserRefreshButton") and await _live_button("ServerBrowserBackButton") and await _live_button("ResumeButton")
 
 
 func _live_player_identity() -> Dictionary:

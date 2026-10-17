@@ -35,6 +35,29 @@ func _run() -> void:
 	for index in ordered.size():
 		_check(ordered[index].focus_mode == Control.FOCUS_ALL, "browser control %d is focusable" % index)
 		_check(ordered[index].focus_neighbor_bottom == ordered[index].get_path_to(ordered[mini(ordered.size() - 1, index + 1)]), "browser control %d has next focus" % index)
+	var disconnect := hud.get("_server_browser_page").find_child("ServerBrowserDisconnectButton", true, false) as Button
+	_check(disconnect.disabled and disconnect.focus_mode == Control.FOCUS_NONE, "offline Disconnect is excluded from controller navigation")
+	hud.update_network_session_status({"state": &"connected", "role": &"client"})
+	_check(not disconnect.disabled and disconnect.focus_mode == Control.FOCUS_ALL
+		and manual.focus_neighbor_bottom == manual.get_path_to(disconnect)
+		and disconnect.focus_neighbor_top == disconnect.get_path_to(manual)
+		and disconnect.focus_neighbor_bottom == disconnect.get_path_to(back)
+		and back.focus_neighbor_top == back.get_path_to(disconnect)
+		and manual.focus_neighbor_right == manual.get_path_to(disconnect)
+		and disconnect.focus_neighbor_left == disconnect.get_path_to(manual)
+		and disconnect.focus_neighbor_right == disconnect.get_path_to(back)
+		and back.focus_neighbor_left == back.get_path_to(disconnect), "connected browser inserts Disconnect between Manual Join and Back")
+	disconnect.grab_focus()
+	await process_frame
+	hud.update_network_session_status({"state": &"disconnected", "end_reason": &"manual_leave"})
+	await process_frame
+	_check(disconnect.disabled and disconnect.focus_mode == Control.FOCUS_NONE
+		and manual.focus_neighbor_bottom == manual.get_path_to(back)
+		and back.focus_neighbor_top == back.get_path_to(manual)
+		and manual.focus_neighbor_right == manual.get_path_to(back)
+		and back.focus_neighbor_left == back.get_path_to(manual)
+		and root.get_viewport().gui_get_focus_owner() == back
+		and hud.get("_server_browser_focus_target") == back, "shutdown removes Disconnect from navigation and moves its focus to Back")
 	address.grab_focus()
 	await process_frame
 	_check(
