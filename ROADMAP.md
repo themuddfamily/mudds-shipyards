@@ -217,7 +217,7 @@ after their dependency exists. These are scenario capabilities, not phase comple
   or why opponent damage stayed0. Stop diagnosis here; no second probe.
 - **Close/next:** separate bounded correction below; no engine run in diagnosis.
 
-### HULK-PRELUDE-PRESERVE — READY implementation
+### HULK-PRELUDE-PRESERVE — IN PROGRESS qualification
 
 - **Parent/result:** HULK arrival. Keep the ordinary Guided prelude's inherited
   input commands unchanged; apply HULK-specific mouse acknowledgement only after
@@ -233,9 +233,17 @@ after their dependency exists. These are scenario capabilities, not phase comple
 - **Budget/stop:**15m implementation/review; separate one300s actual route plus
   cleanup. Stop first actual failure; no automatic further pacing correction.
   This is one supported correction, not an unlimited tuning investigation.
-- **Next action:** gate the HULK-only wrapper behind its own stages, commit the
-  candidate, then freeze driver/ELF and run once. No re-export/repeat startup is
-  needed for this tools-only change: actual tested game payload remains150dbb1.
+- **Implementation DONE:**60c86ce8a28d7704230a7246a133abae09566d9c, root-reviewed
+  exact two-file diff;24 focused Python tests pass. Corrected driver SHA256
+  `1778949eeb0d6b3fd263eab9760877fcbc20800986e21744437bb345d3e8d028`.
+  Retained150dbb1 ELF SHA256
+  `a582a6557fe507a3d107f0dfbc029fc4a0a1975550aae385b6b8c837f30803b4`;
+  archive member independently matches original tested bytes/mode.
+- **Next action:** observe the ONE existing original300s arrival run (345s outer
+  cleanup), outer driver PID386198/start ticks107891605. Raw/stage owner/status/
+  independent abort: `/srv/mudds-work/hulk-prelude-preserve-results-20261017/`.
+  Exact clean driver checkout `/srv/mudds-work/hulk-prelude-preserve-check-20261017`.
+  Do not relaunch on observation timeout; first actual failure ends this card.
 - **Close:** record actual result, integrate/push only working capability; retain
   failed raw/candidate on failure, clean owned worktrees. A working arrival still
   requires the planned fresh Windows checkpoint before closing this delivery.
