@@ -8,9 +8,11 @@ open.** This file contains the active delivery only. The
 [Completed deliveries](docs/history/ROADMAP_DELIVERIES.md) retain their recorded
 source, checks, failures and limitations. Moving them does not close requirements.
 
-Latest Windows checkpoint: **7dd70a9**, with [notes](builds/windows/MuddsShipyards-7dd70a9-notes.txt).
-Latest matching Linux package: **7dd70a9**, with [notes](builds/linux/MuddsShipyards-7dd70a9-linux-notes.txt).
-Includes optional ordinary-input HULK arrival, interior walking and breaker automation.
+Latest Windows checkpoint: **ef67f3e**, with [notes](builds/windows/MuddsShipyards-ef67f3e-notes.txt).
+Latest Linux package: **ef67f3e**, with [notes](builds/linux/MuddsShipyards-ef67f3e-linux-notes.txt).
+Includes optional ordinary-input HULK home-return release qualification. The exact
+Linux binary passes; Windows payload startup/privacy passes separately. Strict
+cross-platform payload-byte parity fails for 65 generated scenes; notes disclose it.
 Earlier installed Guided/recovery results keep their exact source-specific scopes.
 Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
@@ -78,13 +80,14 @@ b41c3cc, and managed installed Guided3/3. See
 [completed deliveries](docs/history/ROADMAP_DELIVERIES.md) for exact proof/limits.
 These do not close their broad parents or the ten phase gates.
 
-**Latest accepted task: HULK-BREAKER-INPUT — DONE outbound/interior only.**
-Full ordinary route passes81.864s,76.79m interior walk, one committed cell and
-separate repeated E refusing another credit. Paired checkpoint7dd70a9 is ready;
-Linux is the exact tested binary. Home return/revisit are the next two children.
-[Result and exact limits](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinary-breaker--done-checkpoint7dd70a9a4).
-Latest home attempt52e3e7f69 stops at the unchanged clearance guard; see the
-failed repair and next15m diagnosis below. No home/revisit pass is claimed.
+**Latest accepted task: HULK-HOME-INPUT / HULK-HOME-ALIGN — DONE.**
+Complete ordinary route passes in 191.886 s under original 300 s: Guided, HULK arrival,
+breaker/reward/duplicate refusal, reverse walk, reboard, safe header clearance,
+actual Cinder fade/unload and home dock/shutdown/exit/20-tick supported walk.
+Cell count 1 and exact receipt retained. Checkpoint `ef67f3e` is ready; Linux is the
+exact successful route binary. Revisit is the remaining ordinary-journey child;
+disk/interruption and broader parent gates stay open.
+[Actual result, earlier failures and limits](docs/history/ROADMAP_DELIVERIES.md#hulk-home-return--done-checkpoint-ef67f3e).
 Sandbox, Convoy and Q4 remain parked at their recorded failures; no automatic retries.
 
 ## ROADMAP-SPLIT — ongoing planning rule
@@ -132,131 +135,51 @@ when their dependencies are known; it must not become another giant planning loo
 - **Close:** retain actual result/source/raw; remove owned disposable checkout.
   Failure ends this card; any repair needs a separate named defect card.
 
-## HULK — arrival and breaker DONE; two journey children remain
+## HULK — arrival, breaker and home DONE; revisit remains
 
-The ordinary outbound/interior route now works through `--route hulk-breaker`:
-normal Guided prelude, physical streamed docking/exit,76.79m continuous interior
-walk, actual breaker Interact, normal restoration and exactly one cell. Separate
-second E refuses another reward. Exact drivera531ac6b8/game7dd70a9 passes81.864s
-at original300s cap, zero diagnostics. Paired checkpoint7dd70a9 and owned cleanup
-are complete. Earlier failures, tiny numeric comparison correction and limits
-remain in [completed deliveries](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinary-breaker--done-checkpoint7dd70a9a4).
-This does not close the full HULK parent. Split its remaining physical journey
-at the observable home-exit boundary, rather than one expanding return/revisit job.
+`--route hulk-home` / `NATIVE_HULK_HOME_OK` now qualifies the complete ordinary
+outbound/breaker/home journey through existing production gameplay. Driver `7e251f8af`
+against game `ef67f3e95` passes in 191.886 s at original 300 s cap, zero diagnostics. The
+release driver stages outside the range header and waits for observed attitude
+alignment; there are no gameplay, geometry, tuning or timer changes.
 
-### HULK-HOME-INPUT — FAILED qualification; candidate withheld
+Proof includes 76.790 m outbound / 79.947 m reverse supported walking, real E/normal
+restoration/separate duplicate refusal, ordinary reboarding, actual HULK lease
+release, 30 safe header samples (y2.370–2.594m, hull89 retained), zero-opacity
+retirement/actual Cinder unload at 673.080 m, strict occupied home dock, OFFLINE/
+ordinary exit and a 20-tick, 0.713 m supported walk. Same actors/capsule, cell count 1/receipt/
+activity generation 1 retained. Full parent, revisit and disk recovery remain open.
 
-- **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
-  Add an opt-in release qualification route continuing the accepted breaker run
-  back through the interior, reboard, fly home, dock/shut down/exit and walk on
-  supported yard collision with cell count1 retained. This checks existing
-  gameplay; it does not claim new gameplay until a demonstrated defect is fixed.
-- **Owner/boundary:** root integration, `hulk_home_implement` implementation;
-  candidateef67f3e95 from base9c2653f02 (prior runtime81536a7b3). Existing native Python
-  runner, read-only observer, startup mode allowlist and focused existing tests.
-  No gameplay/pose/timing/ledger changes without a reproduced defect.
-- **Normal sequence:** reverse recorded walk through unchanged interior/aperture
-  points to actual exit, approach live ship boarding position, no conflicting
-  station candidate, ordinary E. Completed Guided flag makes later thrust go
-  START_ENGINES→FREE_FLIGHT. Fly existing home approach, capture/one L, strict
-  occupied home dock, neutral OFFLINE/one E, actual supported walking exit.
-- **Proof:** proposed select-only `--route hulk-home`, distinct
-  `NATIVE_HULK_HOME_OK` (implemented; full route FAILED), original cumulative300s cap.
-  Preserve complete breaker receipt; same Player/ship/capsule and authored
-  controls; occupied HULK lease actually released before actual Cinder unload;
-  strict home token/occupant/exact parking, controllable unseated supported exit.
-  Use existing20-tick ordinary walk criterion (>0.25m/<5m, on floor) for usable
-  home exit. Cell count1/receipt/generation1 unchanged throughout.
-- **Budget/stop:**45–90m implementation, checks/export/one300s route separately.
-  Stop first unsupported control/actual failure or estimate boundary; no retries,
-  rescue, direct boarding/docking calls or clock changes.
-- **Actual result:** candidate37 Python checks, clean Godot import/observer parse/
-  privacy, Linux export and direct/archive strict startup pass. One cumulative
-  route failed its unchanged300s deadline in `home_flight`;303.781s includes
-  cleanup. Guided/HULK/breaker/duplicate refusal/reverse walk/reboarding completed.
-  Last position(-4.636,8.549,-125.468), FREE_FLIGHT/ONLINE, cell1/generation1;
-  Cinder still loaded at583.468m, no home docking/unload/exit proof. No diagnostics.
-- **Close:** six setup/package stages pass, route FAIL. Source/index/engine/cache
-  stable; all61 observed owned identities absent, inputs released and private
-  display257/authority/sockets closed. Candidateef67f3e95 retained on
-  `hold/hulk-home-input-20261017`, excluded from main and published checkpoints.
-  Implementation worktree removed. Raw: `/srv/mudds-work/hulk-home-results-20261017/`.
-  Windows checkpoint was not launched; latest accepted package remains7dd70a9.
-  Full route repair is a separate card; revisit remains gated.
+Checkpoint `ef67f3e` EXE/ZIP/notes and exact tested Linux ELF/archive/notes are in
+repository builds. Strict Windows-payload startup/privacy (207 assertions) pass under Linux
+Godot; native Windows/human review are NOT_RUN. All 1,515 entry paths match but strict
+payload-byte parity fails for 65 generated scenes; no full parity claim. Earlier
+failures and the bounded inconclusive comparison probe remain recorded in
+[completed deliveries](docs/history/ROADMAP_DELIVERIES.md#hulk-home-return--done-checkpoint-ef67f3e).
+Both owned implementation/acceptance checkouts and large scratch duplicates are
+removed; exact published artifacts and raw failures are retained.
 
-### HULK-HOME-CLEARANCE — FAILED qualification; candidate withheld
+### HULK-REVISIT-CONTRACT — READY definition task; not started
 
-- **Parent/result:** HULK-HOME-INPUT. Correct the release driver's inbound line
-  so Torrent flies under the existing range header before approaching home.
-  This repairs automation; production geometry and gameplay remain unchanged.
-- **Finding:** completed15m-bounded HOME-STALL source/log diagnosis identifies
-  `RangeHeader` at(0,9,-120), size(63,1,1). Frame4819 forward speed79.81→0 and
-  hull89→36.61 show impact at ship y8.68. Direct return interpolation crossed
-  that valid collider; the documented shared clearance band is y1.4–3.8,
-  aim2.7. The approach was111m away, outside86.55m braking threshold.
-- **Owner/boundary:** one implementation agent owns existing native Python
-  driver/tests in the retained candidate checkout; root reviews/runs/closes.
-  Add one inbound staging point near(0,2.7,-150), physically settle before
-  continuing home. Preserve all original route classes, accepted prefix, actors,
-  controls, geometry, timing, cumulative300s cap and home physical criteria.
-- **Proof:** focused driver regressions, then one full packaged `hulk-home`
-  attempt with the same ef67f3e95 game binary. Record safe header crossing in
-  documented clearance band without further hull loss, actual fade/unload and
-  strict home docking/shutdown/exit/20-tick walk, same cell/receipt/generation1.
-  Only external Python driver/tests may differ from the accepted package source.
-- **Budget/stop:**30–45m implementation; one300s route separately. Stop at
-  first concrete failure or estimate boundary. No extra probe, new framework,
-  checkpoint export or unchanged startup checks before the route result.
-- **Actual result:** driver52e3e7f69,39 focused Python checks pass; same exact
-  ef67f3e95 Linux binary/cache. The single full route stops154.594s at its first
-  clearance guard failure. Actual staging reached frame5005 at
-  (-.355,2.856,-150.747); next flight enters the guarded interval at frame5081,
-  (3.302,1.266,-129.544), below the unchanged1.4m lower bound. Hull stays89.
-  Header crossing, Cinder unload, home docking/exit/walk remain unqualified.
-- **Close:** no third attempt or criterion relaxation. Source/index/engine/cache
-  guards pass, zero diagnostics, all8 observed owned identities independently
-  absent, inputs released and private display264/authority/sockets closed; both
-  runtime lanes available. Candidate52e3e7f69 held on
-  `hold/hulk-home-clearance-20261017`, excluded from main/published checkpoints.
-  Both owned worktrees removed. Exact failed Linux binary/archive/metadata moved
-  into retained raw (hashes verified), rather than exported again.
-  Raw: `/srv/mudds-work/hulk-home-results-20261017/clearance/`; relocation map:
-  `/srv/mudds-work/hulk-home-results-20261017/retained-artifacts.json`.
+- **Parent/result:** HULK-REVISIT-INPUT. Freeze one ordinary home walk-away/
+  reapproach route and the accepted unload→new-generation observations before
+  assigning revisit implementation. Definition is not a gameplay delivery.
+- **Owner/boundary:** root assigns one bounded read-only reviewer. Existing
+  driver `7e251f8af`, production boarding/support owners and final accepted home
+  observations. No engine, gameplay edits, reset or new evidence framework.
+- **Proof:** name supported waypoint(s) for the source-required >7m clearance,
+  live boarding candidate/no conflicting station action, and driver extension
+  seam preserving the full accepted prefix. Require actual prior unload, newer
+  streaming generation/distinct HULK, retained receipt/activity generation 1.
+- **Budget/stop:**15–20 minutes, stop when ownership, route and acceptance are known or
+  report one missing fact. Keep original cumulative300s cap and physical criteria.
+- **Next action:** inspect final home exit/support/boarding observations against
+  the existing reboard-block owner; freeze the next implementation card.
+- **Close:** record finite contract/blocker, commit/push; no speculative queue.
 
-### HULK-HOME-ALIGN — IN PROGRESS bounded repair
+### HULK-REVISIT-INPUT — GATED on bounded departure contract
 
-- **Parent/result:** HULK-HOME-INPUT. Correct external driver departure readiness
-  after clearance staging, so thrust waits for actual attitude alignment and
-  settled velocity. Existing gameplay, geometry and controls stay unchanged.
-- **Finding:** HOME-ATTITUDE read-only diagnosis DONE. At frame5006 velocity is
-  zero but nose remains9.286° down; home direction is.369° down. The driver
-  admits thrust at align>.72 (actual.902895). Production thrust uses current
-  nose before mouse rotation, creating new descent (vy−1.699 by frame5048).
-  Position/speed staging is insufficient; even failed frame5081 align.996096
-  is not a suitable readiness threshold. No engine probe was needed.
-- **Owner/boundary:** one implementation agent owns existing native Python
-  driver/tests in a clean held52e3e7f69 checkout; root reviews/runs/integrates.
-  Add one clearance-specific readiness latch: brake/aim, withhold thrust until
-  observed tight direction/pitch and settled velocity. Preserve original route
-  classes/prefix, normal subsequent braking, same actors/controls, and all gates.
-- **Proof:** focused tests use retained5005/5006 attitude/velocity to reject
-  premature thrust, reject moving/descent samples and allow ready departure.
-  Then one full packaged route against retained exact ef67f3e95 Linux binary:
-  original300s cumulative cap, safe1.4–3.8m crossing/no extra hull loss, actual
-  fade/unload and strict home dock/shutdown/exit/20-tick walk, same cell/receipt.
-- **Budget/stop:**30–45m implementation, one300s route separately. Stop first
-  concrete failure or estimate boundary; no automatic second attempt, new
-  framework, runtime tuning, geometry change or criterion relaxation.
-- **Next action:** one guarded full route is running with driver7e251f8af
-  and the exact retained ef67f3e95 game binary. Candidate40 focused checks pass;
-  readiness is alignment≥.9999, pitch error≤.5°, speed≤.01m/s. Acceptance frozen
-  before launch; no unchanged export/startup repetition.
-- **Close:** exact result/source/build, commit/push, checkpoint if qualified and
-  owned cleanup. Revisit remains separate and gated.
-
-### HULK-REVISIT-INPUT — GATED on home route
-
-- **One result:** after that actual home exit, reboard, revisit a genuinely new
+- **One result:** after the now-qualified home exit, reboard, revisit a genuinely new
   streamed HULK, walk to its breaker and refuse a second cell.
 - **Owner/boundary:** root; same native runner/read-only observer/allowlist and
   focused tests. Preserve all accepted outbound/breaker/home criteria.
@@ -264,13 +187,13 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
   to clear the production reboard block, then approach/candidate/E. Immediate
   exit→E is unsupported. Later sortie is FREE_FLIGHT; no tutorial/menu/reset.
 - **Proof:** proposed `--route hulk-revisit`/`NATIVE_HULK_REVISIT_OK`, cumulative
-  original300s cap, exact successor command/source frozen before READY. Observe
+  original 300 s cap, exact successor command/source frozen before READY. Observe
   actual prior unload and newer Cinder load generation/counters, distinct
   HULK/berth/breaker identities, same Player/ship. Normal dock/shutdown/exit and
   authored interior walk; new live breaker E refuses duplicate, restored light
-  properties and cell count1/receipt/activity-generation1 retained. Streaming
+  properties and cell count 1/receipt/activity-generation 1 retained. Streaming
   generation is separate; do not hardcode normal1→3 or treat replacement as resume.
-- **Budget/stop:**45–90m implementation after home, check runtime separately.
+- **Budget/stop:**45–90 minutes implementation after home, check runtime separately.
   Stop first failure/estimate boundary; no automatic extra probe or route retry.
 - **Next action after dependency:** freeze home-clearance waypoint/support and
   explicit unload/reload observations, then extend the driver. The old prefix's

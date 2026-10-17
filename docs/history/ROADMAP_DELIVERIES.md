@@ -1127,3 +1127,74 @@ Smallest separate repair HOME-ALIGN: brake/aim after staging, latch departure
 only on observed tight direction/pitch and settled velocity, then keep all
 original route/clearance/home gates. Diagnosis stops at this demonstrated seam;
 no additional probe or runtime pass is claimed.
+
+
+## HULK home return — DONE checkpoint ef67f3e
+
+Readiness repair7e251f8affe148f5caa1b038878dcb946b7346cc passes40 focused Python
+checks; original Pilot/arrival/breaker/Sandbox classes unchanged. Full game source
+ef67f3e95d150dc7d273333df1fb53ef8451a872/retained Linux binary is unchanged from
+first two failures. Only external Python driver/tests differ. Main merge363a22965
+preserves all exact commits; no criterion/geometry/tuning/timer/cap relaxation.
+
+One frozen full `--route hulk-home` attempt passes191.886s under original300s,
+`NATIVE_HULK_HOME_OK`, zero diagnostics. Full accepted Guided/HULK/breaker prefix
+retained:76.789675m continuous outbound walk, normal E/three-second restoration,
+separate released/pressed E refusing duplicate, same committed receipt/cell1.
+Reverse walk79.947380m visits all original spaces/actual shelf exit; ordinary
+boarding at live unconflicted Torrent candidate and START_ENGINES→FREE_FLIGHT.
+Actual HULK lease release observed frame4540. Staging frame4993 at
+(-.355458,2.855578,-150.746719), distance.841513m/speed.159993m/s/hull89. Thrust
+waits until frame5133, zero velocity, actual alignment.999903986/pitch error.400030°.
+Header crossing frames5211–5240 records30 samples y2.369995–2.593985, hull89→89.
+Cinder zero-opacity retire_ready/unload observed5322 at673.080m, generation1→2,
+load_count1/unload_count1, no reload/failure; old HULK absent, reward retained.
+Home strict token-bound/occupied/exact central berth dock5715; ordinary neutral
+OFFLINE shutdown/E exit5940 supported by ExposedDockLattice/HeroBerthNode.20-tick
+ordinary walking.712778m remains supported. Same Player/ship/capsule/tuning and
+activity generation1/receipt/cell1 throughout. Revisit/disk recovery not exercised.
+
+Raw `/srv/mudds-work/hulk-home-results-20261017/align/`: exact source/index/engine/
+native-ELF and empty source-cache guards pass. Embedded native PCK needs no source
+import/cache; no unchanged export/startup repetition. All7 observed owned identities
+independently absent, private display173/authority/socket/profile closed, inputs
+released and helper/game/Xvfb reaped. Source6 setup checks and previous failures
+remain retained under parent raw. Readiness driver SHA256
+58bf2b433f7862ac24cba3976a2099bd3a08f62e711bd99d48daa32b2dc09653.
+
+Fresh clean gameef67 source checkout cold-imports and exports Windows through
+existing safe workflow. Strict embedded payload startup uses pinned Linux Godot,
+headless/Dummy `--main-pack EXE --startup-check`, exit0/oneSTARTUP_MENU_READY_OK;
+packaged privacy207 passes. No native Windows execution. Four checkpoint stages
+pass source/index/engine/cache/qualified Linux ELF guards;17 observed identities
+independently absent and both runtime lanes available. Raw checkpoint in
+`/srv/mudds-work/hulk-home-results-20261017/checkpoint/`.
+
+Additional strict package-byte parity check FAILS: all1515 paths match,1450 whole
+entries match including all scripts/assets,65 generated.scn entries differ after
+separate cold imports. One ship_boarding_area.scn sample has exactly8 changed bytes
+inside serialized node_ids. One bounded generalization probe fails its field
+assumption; it does not establish all causes/equivalence. No further investigation,
+rebuild or route retry. `payload-parity-failure.json` retains exact differing paths;
+`package-artifact-checks.json` records FALSE parity and the unresolved scope. This
+extra comparison does not substitute for or erase actual source-specific Linux
+route and separate Windows startup/privacy results. Full behavior parity remains
+unproven and is explicitly disclosed in published notes.
+
+Windows PE.text hash matches pinned stock release code. Linux tar has6members
+(directory +5regular files), exact successful ELF and manager bytes/modes. ZIP
+CRC and exact EXE/notes members verified. Published seven artifacts rehashed:
+Windows EXE9866548da8f6f200564a3e3893e9255103f9b10e18bc1a04db9ac8a15db2eb2f,
+ZIP02c39d39783838d7c77416cfee8503b408cc9220e1b799e51cadd0c08d49770d;
+Linux ELF3a827f19cc407fca8c785c9c6e69131c7cdf776ff593730cb8abab437dd20164,
+archivee49c16487c76802dae907802bcca76a92e5d3daafb3a5e649a5266259f40a5fb.
+Notes/metadata hashes and relocations are in published-results.json. Artifacts
+moved into repository builds/windows and builds/linux without large scratch
+copies; owned checkout removed, exact sources remain main ancestors/remote refs,
+raw failures retained. No Downloads, hosted CI or public release publication.
+
+Revisit/new streamed HULK generation/duplicate refusal, fresh disk reload/OS
+interruption, multiplayer, current full matrix, native hardware/Windows/GPU/
+devices/audio/signing and human review remain open/NOT_RUN. Native Windows/human
+review stay owner-excluded mandatory gates. All ten phase gates remain open.
+Next is bounded15–20m REVISIT-CONTRACT definition before implementation.

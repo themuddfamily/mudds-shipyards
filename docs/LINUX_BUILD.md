@@ -4,7 +4,27 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest paired checkpoint: `7dd70a9a4` — 2026-10-17
+## Latest home-return checkpoint: `ef67f3e` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-ef67f3e.x86_64),
+[archive](../builds/linux/MuddsShipyards-ef67f3e-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-ef67f3e-linux-notes.txt) retain the exact
+Linux binary that passes the full ordinary HULK breaker/home route191.886s
+under the original300s cap. Driver7e251f8af adds safe-header staging and observed
+attitude readiness; game sourceef67f3e95 is unchanged. Actual Cinder retirement/
+unload, strict home dock/shutdown/exit,20-tick.713m supported walk and one retained
+cell/receipt pass. No revisit, fresh disk reload or interruption claim follows.
+
+Clean Linux export/direct/archive strict startup and privacy207 pass. Fresh
+same-source Windows checkpoint export/payload strict startup/privacy207 pass
+separately under Linux Godot, not native Windows. Strict1515-entry payload-byte
+parity **fails for65 generated scenes** after separate cold imports; all other
+entries/scripts/assets match. A sampled node-ID difference does not establish
+all causes or full behavior parity. This limitation is retained in the notes;
+no export/flight rerun hides it. Owned checks close, scratch checkout removed.
+[Actual scope and failures](history/ROADMAP_DELIVERIES.md#hulk-home-return--done-checkpoint-ef67f3e).
+
+## Earlier paired checkpoint: `7dd70a9a4` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-7dd70a9.x86_64),
 [archive](../builds/linux/MuddsShipyards-7dd70a9-linux-x86_64.tar.gz) and
