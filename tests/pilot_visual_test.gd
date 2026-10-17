@@ -78,6 +78,14 @@ var _mesh_resource_id := 0
 var _skin_resource_id := 0
 
 
+class MotionAuthorityProbe extends PlayerController:
+	var mount_checks := 0
+
+	func _imported_mount_contract_is_live() -> bool:
+		mount_checks += 1
+		return super._imported_mount_contract_is_live()
+
+
 func _init() -> void:
 	call_deferred("_run")
 
@@ -114,6 +122,7 @@ func _run() -> void:
 		_test_skeleton_pose_witnesses(player, presentation)
 		await _test_motion_authority_intrusion_recovery(player, presentation)
 		_test_combined_motion_authority_fences(player, presentation)
+	_test_single_motion_authority_snapshot(fixture)
 	await _test_authored_locomotion_state_machine(player, fixture)
 	await _test_standing_and_seated_lifecycle(player, fixture)
 	await _test_periodic_integrity_fallback(fixture)
@@ -523,6 +532,35 @@ func _test_skeleton_pose_witnesses(
 			and skeleton.get_bone_pose_rotation(right_forearm).angle_to(idle_right_forearm) <= 0.0001,
 		"idle frame zero restores sampled skinned limbs to the exact authored idle pose"
 	)
+
+
+func _test_single_motion_authority_snapshot(fixture: Node3D) -> void:
+	var probe := PLAYER_SCENE.instantiate() as PlayerController
+	probe.set_script(MotionAuthorityProbe)
+	fixture.add_child(probe)
+	probe.set_physics_process(false)
+	probe.set_process(false)
+	probe.set("mount_checks", 0)
+	var started := Time.get_ticks_usec()
+	var healthy := true
+	for _sample in 250:
+		healthy = bool(probe.call("_imported_motion_authority_needs_no_repair")) and healthy
+	var elapsed := Time.get_ticks_usec() - started
+	_check(
+		healthy and int(probe.get("mount_checks")) == 250,
+		"each synchronous healthy authority fence checks its live mount exactly once"
+	)
+	print("PILOT_AUTHORITY_SNAPSHOT samples=250 mount_checks=", probe.get("mount_checks"),
+		" elapsed_us=", elapsed)
+	var mount := probe.get_node("VisualRoot") as Node3D
+	mount.position.x = 0.0000001
+	_check(
+		not bool(probe.call("_imported_motion_authority_needs_no_repair"))
+		and bool(probe.call("_ensure_motion_authority"))
+		and mount.transform == Transform3D.IDENTITY,
+		"a subsequent same-frame authority call rejects and exactly repairs new mount drift"
+	)
+	probe.free()
 
 
 func _test_combined_motion_authority_fences(

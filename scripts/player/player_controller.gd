@@ -2613,16 +2613,18 @@ func _select_fallback_motion_authority() -> bool:
 
 
 func _imported_motion_authority_needs_no_repair() -> bool:
+	# The complete read-only health check already checks the live mount. Keep
+	# exact setter comparisons in the same synchronous fence without traversing
+	# that mount twice; no repair, sample or callback can intervene here.
 	return (
 		_using_imported_pilot_presentation
-		and _imported_mount_contract_is_live()
+		and _imported_motion_authority_is_healthy()
 		and is_finite(_target_body_yaw)
 		and _visual_root.transform == Transform3D.IDENTITY
 		and _body_pivot.position == Vector3.ZERO
 		and _body_pivot.scale == Vector3.ONE
 		and _body_pivot.rotation == Vector3(0.0, _get_body_pivot_target_yaw(), 0.0)
 		and _pilot_presentation.transform == Transform3D.IDENTITY
-		and _imported_motion_authority_is_healthy()
 	)
 
 
