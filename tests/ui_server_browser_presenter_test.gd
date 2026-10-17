@@ -20,7 +20,7 @@ func _run() -> void:
 	var snapshot := presenter.present(browser)
 	_check(snapshot.row_count == 2, "fresh directory records become visible rows")
 	_check(snapshot.rows[0].region_label == "EU-WEST" and snapshot.rows[0].latency_band == "Latency Excellent", "region and latency bands are textual")
-	_check(snapshot.rows[1].full and snapshot.rows[1].occupancy_label == "4/4 players", "occupancy label exposes full state")
+	_check(snapshot.rows[1].full and snapshot.rows[1].occupancy_label == "4/4 guests", "occupancy label exposes full state")
 	_check(snapshot.rows[0].capacity_label == "AVAILABLE" and snapshot.rows[1].capacity_label == "FULL", "capacity state is textual and color-independent")
 	_check(str(snapshot.rows[0].focus_label).begins_with("[ ]") and str(snapshot.accessibility_prompts.focus_marker) == "[FOCUS]", "server rows expose high-contrast textual focus labels")
 	_check(str(snapshot.rows[1].focus_label).ends_with("SESSION FULL // REFRESH SERVER LIST") and not "SELECT TO REQUEST JOINING" in snapshot.rows[1].focus_label, "disabled full rows explain capacity and refresh recovery without offering selection")

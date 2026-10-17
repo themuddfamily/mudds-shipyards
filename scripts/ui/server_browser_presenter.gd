@@ -494,7 +494,7 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"compatibility_label": compatibility_label,
 		"player_count": players,
 		"max_players": maximum,
-		"occupancy_label": "%d/%d players" % [players, maximum],
+		"occupancy_label": "%d/%d guests" % [players, maximum],
 		"capacity_label": "FULL" if is_full else "AVAILABLE",
 		"capacity_generation": capacity_generation,
 		"full": is_full,
@@ -502,7 +502,7 @@ func _present_row(source: Dictionary) -> Dictionary:
 		"focus_label": "[ ] %s  //  %s  //  %s  //  %s  //  %s  //  %s" % [
 			str(source.get("title", "Server")),
 			ping_label,
-			"%d/%d players" % [players, maximum],
+			"%d/%d guests" % [players, maximum],
 			password_label,
 			compatibility_label,
 			"SESSION FULL // REFRESH SERVER LIST" if is_full else "SELECT TO REQUEST JOINING",
