@@ -15,7 +15,7 @@ const MINIMUM_SAMPLE_SECONDS := 600.0
 const SMOKE_WARMUP_FRAMES := 2
 const SMOKE_SAMPLE_FRAMES := 4
 const DEFAULT_SCENARIO_ORDER := [&"station_embodied_route", &"nearby_sector_ship_flight_route"]
-const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_route", &"halyard_cabin_walk_route"]
+const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_route", &"halyard_cabin_walk_route", &"torrent_range_combat_reuse_route"]
 const MINIMUM_SMOKE_MOVEMENT_METERS := 0.001
 const MINIMUM_FULL_STATION_PATH_METERS := 1.0
 const FLIGHT_ENDPOINT_RADIUS_METERS := 20.0
@@ -143,6 +143,130 @@ class BenchmarkCabinWalker extends Node:
 		var parent_direction := camera_parent.global_basis.inverse() * world_direction
 		camera_yaw.rotation.y = atan2(-parent_direction.x, -parent_direction.z)
 		Input.action_press(&"move_forward")
+
+
+## Drives the production local weapon and observes its existing authority. The
+## only lifecycle mutation is the world's reuse operation after real destruction.
+class BenchmarkRangeCombat extends Node:
+	var ship: HeroShip
+	var game: GameFlow
+	var world: ShipyardWorld
+	var target: StaticBody3D
+	var adapter: RangeTargetDamageableAdapter
+	var authority: LiveCombatAuthority
+	var guard: BenchmarkInputGuard
+	var source_id := 0
+	var generation := 0
+	var last_sequence := -1
+	var pending_destruction := false
+	var destroyed_at := 0
+	var sampling := false
+	var sample_started := 0
+	var last_shot_at := 0
+	var last_hit_at := 0
+	var maximum_shot_gap := 0.0
+	var maximum_hit_gap := 0.0
+	var valid := true
+	var totals := {"projectiles": 0, "shots": 0, "hits": 0, "damage_events": 0, "destructions": 0, "reuses": 0}
+	var sample := {"projectiles": 0, "shots": 0, "hits": 0, "damage_events": 0, "destructions": 0, "reuses": 0}
+
+	func _ready() -> void:
+		source_id = authority.get_source_id(ship)
+		generation = int(adapter.get_component_snapshot().get("generation", -1))
+		ship.projectile_fired.connect(_on_projectile)
+		authority.authoritative_shot_submitted.connect(_on_shot)
+		adapter.damage_applied.connect(_on_damage)
+
+	func start_sampling() -> void:
+		sampling = true
+		sample_started = Time.get_ticks_usec()
+		last_shot_at = sample_started
+		last_hit_at = sample_started
+
+	func _count(field: String) -> void:
+		totals[field] = int(totals[field]) + 1
+		if sampling:
+			sample[field] = int(sample[field]) + 1
+
+	func _on_projectile(_origin: Vector3, _direction: Vector3) -> void:
+		_count("projectiles")
+		valid = valid and Input.is_action_pressed(&"fire") and ship.is_piloted()
+
+	func _on_damage(_amount: float, _health: float, _maximum: float, _position: Vector3, _normal: Vector3, _context: Dictionary) -> void:
+		_count("damage_events")
+
+	func _on_shot(request: ShotRequest, result: Dictionary) -> void:
+		if request.source_entity != ship:
+			return
+		var command := ship.get_last_ship_command()
+		valid = valid and request.source_id == source_id and source_id > 0 \
+			and request.sequence > last_sequence and request.weapon_id == GameFlow.TORRENT_COMBAT_WEAPON_ID \
+			and Input.is_action_pressed(&"fire") and command != null and command.fire
+		last_sequence = request.sequence
+		if not bool(result.get("accepted", false)):
+			return
+		_count("shots")
+		var now := Time.get_ticks_usec()
+		if sampling:
+			maximum_shot_gap = maxf(maximum_shot_gap, float(now - last_shot_at) / 1_000_000.0)
+			last_shot_at = now
+		if result.get("target_entity") != target or not bool(result.get("damaged", false)):
+			return
+		valid = valid and result.get("damageable") == adapter and float(result.get("applied_damage", 0.0)) > 0.0
+		_count("hits")
+		if sampling:
+			maximum_hit_gap = maxf(maximum_hit_gap, float(now - last_hit_at) / 1_000_000.0)
+			last_hit_at = now
+		if bool(result.get("destroyed", false)):
+			valid = valid and not pending_destruction and adapter.is_destroyed() and adapter.get_health() <= 0.0 \
+				and bool(target.get_meta("destruction_authority_committed", false))
+			pending_destruction = true
+			destroyed_at = now
+			_count("destructions")
+
+	func _physics_process(_delta: float) -> void:
+		apply_input()
+
+	func apply_input() -> void:
+		BenchmarkInputGuard.release_inputs()
+		if guard.aborted:
+			return
+		valid = valid and is_instance_valid(target) and is_instance_valid(adapter) \
+			and game.combat_authority == authority and authority.get_source_id(ship) == source_id \
+			and target.get_node_or_null("AuthoritativeDamageable") == adapter \
+			and adapter.get_target_entity() == target and game.active_ship == ship \
+			and game._piloting and ship.is_piloted() and not ship.is_destroyed() \
+			and float(ship.get_telemetry().get("hull", 0.0)) > 0.0
+		if not valid:
+			return
+		if int(totals.destructions) > 0:
+			valid = valid and bool(target.get_meta("destruction_authority_committed", false))
+		if adapter.is_destroyed():
+			valid = valid and pending_destruction
+			if pending_destruction and Time.get_ticks_usec() - destroyed_at >= 1_000_000:
+				var reset := world.reset_range_target_for_reuse(target)
+				valid = valid and bool(reset.get("accepted", false)) and int(reset.get("generation", -1)) == generation + 1 and not adapter.is_destroyed() \
+					and bool(target.get_meta("destruction_authority_committed", false))
+				if valid:
+					generation += 1
+					pending_destruction = false
+					_count("reuses")
+			return
+		Input.action_press(&"fire")
+
+	func finish() -> Dictionary:
+		var now := Time.get_ticks_usec()
+		return {
+			"actor_type": "HeroShip", "combat_source": "production_local_fire_live_authority",
+			"target_id": String(target.get_meta("target_id", &"")),
+			"source_id": source_id, "source_instance_id": ship.get_instance_id(),
+			"target_instance_id": target.get_instance_id(), "adapter_instance_id": adapter.get_instance_id(),
+			"authority_instance_id": authority.get_instance_id(),
+			"identity_and_control_throughout": valid,
+			"totals": totals.duplicate(), "sampling": sample.duplicate(),
+			"maximum_sample_shot_gap_seconds": maxf(maximum_shot_gap, float(now - last_shot_at) / 1_000_000.0),
+			"maximum_sample_hit_gap_seconds": maxf(maximum_hit_gap, float(now - last_hit_at) / 1_000_000.0),
+		}
 
 
 func _initialize() -> void:
@@ -395,6 +519,18 @@ static func _run_scenario(
 		}
 	var resolution_before := await capture_resolution(tree, requested_resolution, input_guard)
 	var progress_tracker := _begin_scenario_progress(player, ship, scenario_name, inputs, smoke_run)
+	var combat: BenchmarkRangeCombat
+	if scenario_name == &"torrent_range_combat_reuse_route":
+		combat = BenchmarkRangeCombat.new()
+		combat.ship = ship
+		combat.game = game
+		combat.world = world
+		combat.target = world.get_node(^"ExteriorTargetRange/TargetDrone01") as StaticBody3D
+		combat.adapter = combat.target.get_node(^"AuthoritativeDamageable") as RangeTargetDamageableAdapter
+		combat.authority = game.combat_authority
+		combat.guard = input_guard
+		combat.process_physics_priority = ship.process_physics_priority - 1
+		game.add_child(combat)
 	var cabin_walker: BenchmarkCabinWalker
 	if scenario_name == &"halyard_cabin_walk_route":
 		cabin_walker = BenchmarkCabinWalker.new()
@@ -418,7 +554,7 @@ static func _run_scenario(
 	# One declared activation tick guarantees that a short smoke actually offers
 	# its input to the production physics authority before timing continues.
 	if not input_guard.aborted:
-		_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames, flight_pilot, cabin_walker)
+		_apply_scenario_input(scenario_name, 0, warmup_frames + sample_frames, flight_pilot, cabin_walker, combat)
 	await tree.physics_frame
 	await tree.process_frame
 	_update_scenario_progress(progress_tracker, player, ship, scenario_name)
@@ -431,8 +567,8 @@ static func _run_scenario(
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup):
 		var route_frame := int(warmup_frames * phase_progress(actual_warmup_frames, warmup_frames,
 			float(Time.get_ticks_usec() - warmup_started) / 1_000_000.0, durations.warmup))
-		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker)
-		if smoke_run and cabin_walker != null:
+		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker, combat)
+		if smoke_run and (cabin_walker != null or combat != null):
 			await tree.physics_frame
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
@@ -446,14 +582,16 @@ static func _run_scenario(
 		monitor_samples[monitor_name] = [] as Array[float]
 	var sample_path_start := float(progress_tracker.path_distance_m)
 	var sample_local_path_start := float(progress_tracker.get("local_path_distance_m", 0.0))
+	if combat != null:
+		combat.start_sampling()
 	var sample_started := Time.get_ticks_usec()
 	previous_tick = sample_started
 	while not input_guard.aborted and phase_incomplete(frame_deltas.size(), sample_frames,
-			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample):
+			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, maxf(float(durations.sample), 8.0 if combat != null and smoke_run else 0.0)):
 		var route_frame := warmup_frames + int(sample_frames * phase_progress(frame_deltas.size(), sample_frames,
 			float(Time.get_ticks_usec() - sample_started) / 1_000_000.0, durations.sample))
-		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker)
-		if smoke_run and cabin_walker != null:
+		_apply_scenario_input(scenario_name, route_frame, total_frames, flight_pilot, cabin_walker, combat)
+		if smoke_run and (cabin_walker != null or combat != null):
 			await tree.physics_frame
 		await tree.process_frame
 		_update_scenario_progress(progress_tracker, player, ship, scenario_name)
@@ -463,6 +601,11 @@ static func _run_scenario(
 		_capture_monitor_sample(monitor_samples)
 
 	var sample_elapsed := float(Time.get_ticks_usec() - sample_started) / 1_000_000.0
+	var combat_progress := {}
+	if combat != null:
+		combat.set_physics_process(false)
+		combat_progress = combat.finish()
+		_release_inputs()
 	if cabin_walker != null:
 		cabin_walker.set_physics_process(false)
 		_release_inputs()
@@ -482,6 +625,8 @@ static func _run_scenario(
 		progress["sample_local_path_distance_m"] = float(progress_tracker.local_path_distance_m) - sample_local_path_start
 	if flight_pilot != null:
 		progress["sample_path_distance_m"] = float(progress_tracker.path_distance_m) - sample_path_start
+	if combat != null:
+		progress.merge(combat_progress)
 	var progress_errors := validate_scenario_progress(scenario_name, progress)
 	_release_inputs()
 	var result := {
@@ -524,7 +669,7 @@ static func _begin_scenario_progress(
 		inputs: Dictionary,
 		smoke_run: bool
 	) -> Dictionary:
-	var actor := player as Node3D if scenario_name != &"nearby_sector_ship_flight_route" else ship as Node3D
+	var actor := player as Node3D if scenario_name not in [&"nearby_sector_ship_flight_route", &"torrent_range_combat_reuse_route"] else ship as Node3D
 	var start_position := actor.global_position
 	var target_array := inputs.get("route_target", []) as Array
 	var target := Vector3.ZERO
@@ -569,7 +714,7 @@ static func _update_scenario_progress(
 		ship: HeroShip,
 		scenario_name: StringName
 	) -> void:
-	var actor := player as Node3D if scenario_name != &"nearby_sector_ship_flight_route" else ship as Node3D
+	var actor := player as Node3D if scenario_name not in [&"nearby_sector_ship_flight_route", &"torrent_range_combat_reuse_route"] else ship as Node3D
 	var position := actor.global_position
 	var previous := tracker.previous_position as Vector3
 	var start := (tracker.start_transform_value as Transform3D).origin
@@ -632,7 +777,7 @@ static func _finish_scenario_progress(
 		ship: HeroShip,
 		scenario_name: StringName
 	) -> Dictionary:
-	var actor := player as Node3D if scenario_name != &"nearby_sector_ship_flight_route" else ship as Node3D
+	var actor := player as Node3D if scenario_name not in [&"nearby_sector_ship_flight_route", &"torrent_range_combat_reuse_route"] else ship as Node3D
 	var start_transform := tracker.start_transform_value as Transform3D
 	var end_transform := actor.global_transform
 	var result := {
@@ -694,6 +839,8 @@ static func validate_scenario_progress(
 			errors.append("scenario_progress.%s is required" % field)
 	if not errors.is_empty():
 		return errors
+	if scenario_name == &"torrent_range_combat_reuse_route":
+		return _validate_combat_progress(progress)
 	if not _finite_number(progress.get("path_distance_m")) \
 		or float(progress.get("path_distance_m", 0.0)) <= MINIMUM_SMOKE_MOVEMENT_METERS:
 		errors.append("actor path did not advance")
@@ -756,6 +903,31 @@ static func validate_scenario_progress(
 	return errors
 
 
+static func _validate_combat_progress(progress: Dictionary) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if str(progress.get("actor_type", "")) != "HeroShip" or str(progress.get("combat_source", "")) != "production_local_fire_live_authority" or str(progress.get("target_id", "")) != "DRONE-01":
+		errors.append("combat requires production Torrent local fire at DRONE-01")
+	if not bool(progress.get("identity_and_control_throughout", false)):
+		errors.append("combat identity or piloting control changed")
+	for field in ["source_id", "source_instance_id", "target_instance_id", "adapter_instance_id", "authority_instance_id"]:
+		if not progress.get(field) is int or int(progress.get(field, 0)) <= 0:
+			errors.append("combat requires positive " + field)
+	var required_cycles := 2 if str(progress.get("policy", "")) == "full_route" else 1
+	for phase in ["totals", "sampling"]:
+		var counts := progress.get(phase, {}) as Dictionary
+		for field in ["projectiles", "shots", "hits", "damage_events", "destructions", "reuses"]:
+			if not counts.get(field) is int or int(counts.get(field, 0)) < 1:
+				errors.append("combat %s requires actual %s" % [phase, field])
+		if int(counts.get("projectiles", 0)) < int(counts.get("shots", 0)) or int(counts.get("shots", 0)) < int(counts.get("hits", 0)) or counts.get("hits") != counts.get("damage_events"):
+			errors.append("combat damage must correlate with production shots")
+		if int(counts.get("destructions", 0)) < required_cycles or int(counts.get("reuses", 0)) < required_cycles or int(counts.get("reuses", 0)) > int(counts.get("destructions", 0)) or int(counts.get("destructions", 0)) > int(counts.get("hits", 0)):
+			errors.append("combat requires destroyed-target reuse cycles during " + phase)
+	for field in ["maximum_sample_shot_gap_seconds", "maximum_sample_hit_gap_seconds"]:
+		if not _finite_number(progress.get(field)) or float(progress.get(field, -1.0)) < 0.0 or float(progress.get(field, INF)) > 10.0:
+			errors.append("combat sampling activity stalled: " + field)
+	return errors
+
+
 static func _stage_scenario(
 		tree: SceneTree,
 		game: GameFlow,
@@ -810,6 +982,44 @@ static func _stage_scenario(
 			"global_rng_seed": _scenario_seed(scenario_name), "start_transform": _transform_record(player.global_transform),
 			"aisle_endpoints_local": [[endpoints[0].x, endpoints[0].y, endpoints[0].z], [endpoints[1].x, endpoints[1].y, endpoints[1].z]],
 			"sequence": "normal forward input with camera-yaw steering, repeated craft-local aisle out-and-back",
+		}
+	if scenario_name == &"torrent_range_combat_reuse_route":
+		var target := world.get_node_or_null(^"ExteriorTargetRange/TargetDrone01") as StaticBody3D
+		var adapter := target.get_node_or_null(^"AuthoritativeDamageable") as RangeTargetDamageableAdapter if target != null else null
+		if adapter == null or adapter.is_destroyed() or game.combat_authority == null or game.combat_authority.get_source_id(ship) <= 0:
+			return {"staging_valid": false, "staging_error": "registered production Torrent/range target unavailable"}
+		var marker := (target.get_parent() as Node3D).to_global(target.get_meta("base_position") as Vector3)
+		game.active_ship = ship
+		ship.global_transform = Transform3D(Basis.IDENTITY, marker + Vector3(0.0, 0.0, 35.0))
+		ship.velocity = Vector3.ZERO
+		player.set_control_enabled(false)
+		player.set_camera_active(false)
+		game._piloting = true
+		game.phase = GameFlow.Phase.FREE_FLIGHT
+		ship.set_piloted(true)
+		ship.get_camera().current = true
+		hud.set_mode("piloting")
+		hud.bind_hero_component_ship(ship)
+		game.audio.set_on_foot(false)
+		# Settle the production chase arm, then align its real centre ray using
+		# ship translation only. Target, adapter, health and camera stay authored.
+		for _index in 12:
+			await tree.physics_frame
+			await tree.process_frame
+			if input_guard.aborted:
+				return {"staging_valid": false, "staging_error": "benchmark aborted"}
+		var camera := ship.get_camera()
+		var direction := camera.project_ray_normal(camera.get_viewport().get_visible_rect().size * 0.5).normalized()
+		var ray_point := camera.global_position + direction * (marker - camera.global_position).dot(direction)
+		ship.global_position += marker - ray_point
+		ship.velocity = Vector3.ZERO
+		await tree.physics_frame
+		await tree.process_frame
+		return {
+			"staging_valid": not input_guard.aborted, "actor": "production TorrentInterceptor and LocalShipInputSource",
+			"route_source": "live_exterior_range_destroyed_target_reuse", "target_id": "DRONE-01",
+			"global_rng_seed": _scenario_seed(scenario_name), "start_transform": _transform_record(ship.global_transform),
+			"sequence": "held local fire; one-second destruction presentation; production reset after authoritative destruction",
 		}
 	var binding := game.get_node_or_null(
 		^"CinderStreamingProductionBinding"
@@ -948,8 +1158,12 @@ static func phase_progress(frames: int, minimum_frames: int, elapsed: float, min
 
 static func _apply_scenario_input(
 		scenario_name: StringName, frame: int, total_frames: int,
-		flight_pilot: BenchmarkFlightPilot = null, cabin_walker: BenchmarkCabinWalker = null
+		flight_pilot: BenchmarkFlightPilot = null, cabin_walker: BenchmarkCabinWalker = null,
+		combat: BenchmarkRangeCombat = null
 	) -> void:
+	if combat != null:
+		combat.apply_input()
+		return
 	if cabin_walker != null:
 		cabin_walker.apply_input()
 		return
@@ -984,7 +1198,7 @@ static func _release_inputs() -> void:
 	BenchmarkInputGuard.release_inputs()
 
 static func _scenario_seed(scenario_name: StringName) -> int:
-	return 9001 if scenario_name == &"station_embodied_route" else 9002
+	return 9003 if scenario_name == &"torrent_range_combat_reuse_route" else (9001 if scenario_name == &"station_embodied_route" else 9002)
 
 
 static func percentile(samples: Array[float], fraction: float) -> float:

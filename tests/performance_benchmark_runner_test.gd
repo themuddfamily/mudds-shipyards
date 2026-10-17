@@ -11,6 +11,12 @@ func _init() -> void:
 
 
 func _run() -> void:
+	# Keep the original multi-Main fixture inside its existing 300-second cap.
+	# Run this independent route with KETH_BENCHMARK_TEST_COMBAT=1.
+	if OS.get_environment("KETH_BENCHMARK_TEST_COMBAT") == "1":
+		await _test_live_range_combat()
+		_finish()
+		return
 	_test_percentile_contract()
 	_test_duration_contract()
 	_test_metadata_and_representativeness_contract()
@@ -19,7 +25,7 @@ func _run() -> void:
 	await _test_invalid_selection()
 	await _test_live_abort()
 	await _test_live_smoke()
-	for selection: StringName in RUNNER.SCENARIO_NAMES:
+	for selection: StringName in [&"station_embodied_route", &"nearby_sector_ship_flight_route", &"halyard_cabin_walk_route"]:
 		await _test_live_abort(String(selection))
 		if selection != &"halyard_cabin_walk_route":
 			await _test_live_smoke(String(selection))
@@ -507,6 +513,70 @@ func _test_live_cabin_shuttle() -> void:
 	_check(root.get_node_or_null("Main") == null and not Input.is_action_pressed(&"move_forward") and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "cabin success frees walker and releases movement/cursor")
 	print("PERFORMANCE_BENCHMARK_CABIN_SHUTTLE_PROGRESS: ", JSON.stringify(progress))
 	guard.free()
+
+
+func _test_live_range_combat() -> void:
+	var selection := "torrent_range_combat_reuse_route"
+	var report := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true, selection)
+	var errors := RUNNER.validate_selected_diagnostic_report(report, selection)
+	_check(errors.is_empty(), "real range combat smoke validates: " + "; ".join(errors))
+	if not report.has("scenarios"):
+		return
+	var progress := (report.scenarios[0] as Dictionary).get("scenario_progress", {}) as Dictionary
+	print("PERFORMANCE_BENCHMARK_RANGE_COMBAT_PROGRESS: ", JSON.stringify(progress))
+	_check(not RUNNER.validate_report(report).is_empty() and not report.representativeness.representative_pass and report.representativeness.performance_budget_pass == null,
+		"combat selection cannot grant full-protocol or performance acceptance")
+	_check(float(report.scenarios[0].sample_elapsed_seconds) >= 8.0, "combat smoke offers eight seconds of real sampled fire/reuse")
+	for mutation in ["idle", "warmup_only", "unregistered", "direct_damage", "stalled_tail", "wrong_target"]:
+		var changed := progress.duplicate(true)
+		match mutation:
+			"idle":
+				for field in changed.get("totals", {}):
+					changed.totals[field] = 0
+			"warmup_only":
+				for field in changed.get("sampling", {}):
+					changed.sampling[field] = 0
+			"unregistered": changed.source_id = 0
+			"direct_damage": changed.totals.damage_events = int(changed.totals.damage_events) + 1
+			"stalled_tail": changed.maximum_sample_hit_gap_seconds = 11.0
+			"wrong_target": changed.target_id = "DRONE-02"
+		_check(not RUNNER.validate_scenario_progress(StringName(selection), changed).is_empty(), "combat rejects " + mutation)
+	_check(root.get_node_or_null("Main") == null and not Input.is_action_pressed(&"fire") and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE,
+		"combat completion frees Main and releases fire/cursor")
+	call_deferred("_abort_live_range_fire")
+	var aborted := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true, selection)
+	_check(bool(aborted.get("aborted", false)) and not aborted.has("scenarios") and not aborted.has("representativeness"),
+		"active combat Escape produces no successful report")
+	_check(root.get_node_or_null("Main") == null and not Input.is_action_pressed(&"fire") and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE,
+		"active combat abort frees Main and releases fire/cursor")
+
+
+func _abort_live_range_fire() -> void:
+	await process_frame
+	var originating_guard: RUNNER.BenchmarkInputGuard
+	for child in root.get_children():
+		if child is RUNNER.BenchmarkInputGuard:
+			originating_guard = child
+	if originating_guard == null:
+		_check(false, "combat abort binds its own guard")
+		return
+	var deadline := Time.get_ticks_msec() + RUNNER.BEGIN_SHIFT_READY_TIMEOUT_MS + 30_000
+	while is_instance_valid(originating_guard) and Time.get_ticks_msec() < deadline:
+		var game := root.get_node_or_null("Main")
+		if game != null:
+			for child in game.get_children():
+				if child is RUNNER.BenchmarkRangeCombat and child.guard == originating_guard and int(child.totals.shots) > 0 and Input.is_action_pressed(&"fire"):
+					paused = true
+					var escape := InputEventKey.new()
+					escape.physical_keycode = KEY_ESCAPE
+					escape.pressed = true
+					root.window_input.emit(escape)
+					_check(true, "combat Escape reaches active production fire")
+					return
+		await process_frame
+	_check(false, "combat abort reaches live fire before its startup deadline")
+	if is_instance_valid(originating_guard):
+		originating_guard.request_abort("combat abort observer deadline")
 
 
 func _environment_fixture(adapter: String, os_name: String, display: String, resolution: Array) -> Dictionary:

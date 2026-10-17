@@ -39,10 +39,42 @@ local movement during sampling; full routes retain the normal frame timer and
 require both endpoint visits plus at least one aisle length of sampled movement. Idle, blocked, warm-up-only, unsupported or
 out-of-cabin runs fail completion.
 
+
+The select-only `torrent_range_combat_reuse_route` stages the registered
+production Torrent at the exterior range facing existing `DRONE-01`. Staging
+settles the production chase arm and translates the ship to align its actual
+camera centre ray with the live target's base marker. It retains authored target
+motion, health, collision, adapter and Main's `LiveCombatAuthority`. During
+recording it offers normal local `fire` Input through the piloted ship, with no
+ship, camera or target transform writes. After an authoritative hit actually
+destroys the target, it waits one second for presentation, then calls the
+existing `ShipyardWorld.reset_range_target_for_reuse`. This deliberately measures
+repeated range destruction/reuse load; it does not repeat mission rewards.
+
+Combat progress records production projectile events, accepted authority shots,
+matched damage hits, adapter damage events, destructions and successful reuse
+counts, separately for the whole route and sampling. Reuse requires the same
+target, adapter, authority and registered source identity, and the next adapter
+generation. Completion requires actual sampling shots/hits/destruction/reuse
+(at least two cycles for a full route, one for smoke), correlated damage events,
+continued healthy piloting, and no shot or target-hit gap above ten seconds
+including the start and end of sampling. Idle, warm-up-only, unregistered,
+unmatched/direct-damage or stalled fire cannot complete. Stationary shooting
+uses this combat contract rather than a movement threshold.
+
+Combat smoke alone extends sampling to at least eight elapsed seconds plus its
+requested frame quota so unmodified targets can be destroyed and reused through
+production combat. Other smoke routes retain their short frame windows. Full
+combat selection retains the original 3,600/60-second warm-up and
+18,000/600-second sampling floors and remains diagnostic-only. This route covers
+one staged range target, not surface combat, an entire journey, native hardware
+performance or release qualification.
+
 Omit selection to run both scenarios in the order above. Set
 `KETH_BENCHMARK_SCENARIO=station_embodied_route` or
 `KETH_BENCHMARK_SCENARIO=nearby_sector_ship_flight_route` or
-`KETH_BENCHMARK_SCENARIO=halyard_cabin_walk_route` to run only that route.
+`KETH_BENCHMARK_SCENARIO=halyard_cabin_walk_route` or
+`KETH_BENCHMARK_SCENARIO=torrent_range_combat_reuse_route` to run only that route.
 Unknown names fail before Main instantiation. A selected run keeps the same
 per-route timing and progress requirements but is diagnostic-only: its
 `configuration.scenario_order` contains only the selected name,
@@ -323,3 +355,16 @@ A Windows 11 / i9-14900 / RTX 5070 Ti host is useful for an explicitly declared
 observational profile. Results on that host do **not** validate the published
 minimum specification or RTX 3060 target. Native normal-control playthroughs and
 audible review are separate human gates and remain `NOT_RUN` until performed.
+
+
+The existing test file has a separate combat fixture to preserve the original
+suite's 300-second cap. In a clean imported checkout run silently/headlessly:
+
+```sh
+KETH_BENCHMARK_TEST_COMBAT=1 timeout 300 godot --headless --audio-driver Dummy --path . --script res://tests/performance_benchmark_runner_test.gd
+```
+
+This runs an actual selected combat smoke, focused invalid-progress mutations,
+and Escape during active production fire. Omit that environment variable to run
+the original default/flight/cabin fixture. Rendered checks require an isolated
+display and explicit `--display-driver x11` under Xvfb.
