@@ -34,44 +34,33 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 - Schedule only the next 3–5 concrete deliveries when their contracts are known.
   Uninstantiated backlog templates are not scheduled work or measurable progress.
 
-## Current result: HULK[shelf stall] — unresolved
+## Active repair: HULK[authored disembark staging]
 
-Contact diagnostic `7f2056d22` proves held input is reaching a processing ON_FOOT
-Player; actual DockShelf floor contacts report 0.199348m penetration and zero
-travel. Full hulk route still passes52/fails1 at its first movement leg.
+**Proven cause:** full-scene onset `555bf1256` shows the existing centre-shelf
+placement overlaps Torrent LowerGearCollision. First `move_and_slide()` pushes
+feet24→21.933 while contacting both overhead gear and shelf; later ticks trap
+feet21.803. Moving-frame, recovery and containment do not cause the displacement.
+Do not widen floor recovery: it correctly refuses this floor/ceiling pinch.
 
-**Repair candidate withheld:** admitting first-landing/floor-only contacts into
-the existing bounded recovery is not causally proven. The standalone actual-size
-shelf regression on unchanged controller `395a392ca` passes first landing and
-ordinary walking, plus the complete Player suite. It does not reproduce the
-full-scene failure. The extra fixture was reverted; both patches/raw runs are
-preserved. No runtime fix, changed geometry or new checkpoint is claimed.
-Clean temporary checkout removed. Latest playable remains b6af782.
+**Fix/component:** root, existing hulk integration test only. Use production
+`settle_exit_onto_support(ship.get_exit_transform())` for the single initial
+placement. Replace only the invalid centre-under-hull start point with the actual
+exit; retain all five aperture/interior targets and normal capsule/input checks.
+No ship/geometry/physics/speed/gravity/timeout changes. Temporary motor trace is
+reverted and its exact patch/log preserved. Player runtime bytes are unchanged.
 
-## Next bounded task: HULK-DIAG[full-scene landing onset]
+| Step | State / finish line | Estimate |
+| --- | --- | --- |
+| Fix staging | DONE; actual ship exit replaces unsafe berth-centre placement. | ~5 min |
+| Verify | READY; full existing hulk suite original300s, headless/Dummy, exit0 plus `ABANDONED_HULK_LOOP_TEST_OK`, no diagnostics and guarded inputs/teardown. Stop at first failure. | 5–10 min |
+| Close | GATED; record real path/outcome, remove clean checkout, commit/push. Test-only change needs no new gameplay checkpoint. | 10 min |
 
-**Missing fact:** which motor stage first penetrates the shelf. Full Main reuses
-an already-running Player; the standalone starts fresh. Existing teleport does
-not clear native floor flags, moving-frame ownership or cabin containment.
-Determine whether staging context or normal collision movement causes this stall.
-**Owner/components:** root; existing Player motor and hulk regression only.
-**Estimate:** 15–30 min trace instrumentation; one existing-cap run/review 10 min.
-
-1. Arm a read-only trace immediately before the existing shelf placement. Record
-   live capsule/shelf shapes/transforms once; each motor tick records delta,
-   prior floor state, gravity/up, frame owner/transform, pre-slide pose/velocity,
-   post-slide contacts/pose, post-recovery pose and final pose after containment.
-2. Run the full hulk test once, original300s/headless/Dummy. Trace ends at first
-   penetration plus3 ticks, bounded by the existing60 settling ticks. No extra
-   standalone fixture, longer deadline, changed placement or generic rescue.
-3. Stop with the first responsible stage/context and one bounded repair or exact
-   missing fact. Do not integrate the withheld recovery candidate on suspicion.
-
-**Next single action:** add this opt-in, bounded onset trace to the existing
-failure reproduction. No processes are running; raw original, contact and
-standalone-baseline runs are under
-`/srv/mudds-work/hulk-continuous-walk-results-20261017/`.
-Hulk continuous ordinary walking and full packaged expedition remain open.
+**Next single action:** commit/review exact staging diff, sync owned checkout and
+run one guarded full hulk check. All five remaining authored targets, capsule
+support/control and post-walk reward/persistence cases stay required. Initial
+flight/docking are staged, so full packaged expedition remains open regardless.
+No engine running. Latest playable remains b6af782.
+Raw onset: `/srv/mudds-work/hulk-continuous-walk-results-20261017/landing-onset/`.
 
 ## Working constraints
 

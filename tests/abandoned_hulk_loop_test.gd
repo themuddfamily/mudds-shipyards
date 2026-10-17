@@ -508,7 +508,13 @@ func _test_production_loop() -> void:
 	# --- Disembark -----------------------------------------------------------
 	var route := hulk.get_interior_route_points()
 	ship.set_piloted(false)
-	player.teleport_to(Transform3D(Basis.IDENTITY, route[0] + Vector3(0.0, 1.0, 0.0)))
+	# The berth centre lies underneath the parked hull's landing gear. Stage
+	# disembarkation at the same authored, support-settled exit as production,
+	# then walk to every unchanged aperture/interior waypoint. The route's
+	# first point is a chest-height ray sample above those actual starting feet.
+	var exit_pose := player.settle_exit_onto_support(ship.get_exit_transform())
+	route[0] = exit_pose.origin + Vector3.UP
+	player.teleport_to(exit_pose)
 	# Settle only by the production controller's gravity after the one staging
 	# placement. No body pose/velocity writes occur until the later fringe test.
 	for _settle in 60:
@@ -518,8 +524,8 @@ func _test_production_loop() -> void:
 	if not _check(
 		not paused and player.can_process() and player.is_control_enabled()
 		and not player.is_seated() and _has_hulk_support(player, hulk)
-		and player.global_position.distance_to(route[0]) < 6.0,
-		"the staged unseated pilot settles on actual hulk dock-shelf collision"
+		and player.global_position.distance_to(exit_pose.origin) < 0.6,
+		"the authored Torrent exit stages an unseated pilot on actual hulk shelf collision"
 	):
 		await _cleanup(game)
 		return
