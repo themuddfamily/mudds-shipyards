@@ -1545,22 +1545,26 @@ static func _merge_surface(
 static func _collect_script_referenced_objects(root: Node) -> Dictionary:
 	var referenced := {}
 	var visited := {}
-	_visit_node_tree(root, referenced, visited)
+	var property_names := {}
+	_visit_node_tree(root, referenced, visited, property_names)
 	return referenced
 
 
-static func _visit_node_tree(node: Node, referenced: Dictionary, visited: Dictionary) -> void:
+static func _visit_node_tree(
+		node: Node, referenced: Dictionary, visited: Dictionary, property_names: Dictionary
+	) -> void:
 	if node == null or not is_instance_valid(node):
 		return
-	_visit_script_variables(node, referenced, visited)
+	_visit_script_variables(node, referenced, visited, property_names)
 	for child in node.get_children():
-		_visit_node_tree(child, referenced, visited)
+		_visit_node_tree(child, referenced, visited, property_names)
 
 
 static func _visit_script_variables(
 		value: Object,
 		referenced: Dictionary,
-		visited: Dictionary
+		visited: Dictionary,
+		property_names: Dictionary
 	) -> void:
 	if value == null or not is_instance_valid(value) or value.get_script() == null:
 		return
@@ -1571,30 +1575,42 @@ static func _visit_script_variables(
 	# Script properties include inherited variables without materializing every
 	# native Node/Resource property. Instance hooks can add or reclassify fields,
 	# so retain the full instance list whenever either hook participates.
-	var properties: Array[Dictionary]
+	var names: Array[StringName] = []
 	if value.has_method("_get_property_list") or value.has_method("_validate_property"):
-		properties = value.get_property_list()
+		for property in value.get_property_list():
+			if int(property.get("usage", 0)) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+				names.append(property["name"])
 	else:
-		properties = (value.get_script() as Script).get_script_property_list()
-	for property in properties:
-		if int(property.get("usage", 0)) & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
-			continue
+		var script := value.get_script() as Script
+		# The declaration roster is shared by instances of this script. Keep it
+		# only for this scan: later scans, including after reloads, read fresh declarations,
+		# while instance hooks above always resolve their own property list.
+		if not property_names.has(script):
+			var declared: Array[StringName] = []
+			for property in script.get_script_property_list():
+				if int(property.get("usage", 0)) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+					declared.append(property["name"])
+			property_names[script] = declared
+		names = property_names[script]
+	for property_name in names:
 		# Read even scalar getters: they may update later references. Only object
 		# and container values can lead to held identities; skip leaf recursion.
-		var field: Variant = value.get(property["name"])
+		var field: Variant = value.get(property_name)
 		match typeof(field):
 			TYPE_OBJECT, TYPE_ARRAY, TYPE_DICTIONARY:
-				_visit_variant(field, referenced, visited)
+				_visit_variant(field, referenced, visited, property_names)
 
 
-static func _visit_variant(value: Variant, referenced: Dictionary, visited: Dictionary) -> void:
+static func _visit_variant(
+		value: Variant, referenced: Dictionary, visited: Dictionary, property_names: Dictionary
+	) -> void:
 	match typeof(value):
 		TYPE_OBJECT:
 			if not is_instance_valid(value):
 				return
 			var object := value as Object
 			if object is WeakRef:
-				_visit_variant((object as WeakRef).get_ref(), referenced, visited)
+				_visit_variant((object as WeakRef).get_ref(), referenced, visited, property_names)
 				return
 			if object is Node:
 				referenced[object.get_instance_id()] = true
@@ -1603,18 +1619,18 @@ static func _visit_variant(value: Variant, referenced: Dictionary, visited: Dict
 				referenced[object.get_instance_id()] = true
 				return
 			# A ship's helper object can hold the node references instead.
-			_visit_script_variables(object, referenced, visited)
+			_visit_script_variables(object, referenced, visited, property_names)
 		TYPE_ARRAY:
 			for entry in value as Array:
 				match typeof(entry):
 					TYPE_OBJECT, TYPE_ARRAY, TYPE_DICTIONARY:
-						_visit_variant(entry, referenced, visited)
+						_visit_variant(entry, referenced, visited, property_names)
 		TYPE_DICTIONARY:
 			for key in value as Dictionary:
 				match typeof(key):
 					TYPE_OBJECT, TYPE_ARRAY, TYPE_DICTIONARY:
-						_visit_variant(key, referenced, visited)
+						_visit_variant(key, referenced, visited, property_names)
 				var entry: Variant = (value as Dictionary)[key]
 				match typeof(entry):
 					TYPE_OBJECT, TYPE_ARRAY, TYPE_DICTIONARY:
-						_visit_variant(entry, referenced, visited)
+						_visit_variant(entry, referenced, visited, property_names)

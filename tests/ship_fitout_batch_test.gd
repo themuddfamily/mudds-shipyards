@@ -483,23 +483,36 @@ func _test_inherited_dynamic_and_mutated_references() -> void:
 		Vector3.ONE, PackedInt32Array([1, 2]), {"mixed": [weakref(dynamic)]}]}
 	holder.helper.held_mesh = ArrayMesh.new()
 	holder.target = later
+	# Equal declarations must still read each instance's own live references.
+	var peer := DynamicReferenceHolder.new()
+	peer.helper = ReferenceChild.new()
+	peer.helper.held_mesh = ArrayMesh.new()
+	var previous_peer_mesh := peer.helper.held_mesh
+	holder.add_child(peer)
 	var first: Dictionary = BATCH._collect_script_referenced_objects(holder)
 	_check(first.has(inherited.get_instance_id()) and first.has(nested.get_instance_id())
 		and first.has(dynamic.get_instance_id()) and first.has(later.get_instance_id())
 		and first.has(holder.helper.held_mesh.get_instance_id()),
 		"reference scan preserves inherited helper variables, weak refs, dictionary keys, meshes and dynamic fields")
-	_check(holder.helper.scalar_reads == 1,
-		"scalar property getters still execute exactly once during reference scanning")
+	_check(holder.helper.scalar_reads == 1 and peer.helper.scalar_reads == 1,
+		"scalar property getters still execute exactly once for each script instance")
+	_check(first.has(previous_peer_mesh.get_instance_id()),
+		"different instances of one helper script retain their distinct mesh references")
 	# A second scan must observe live variable values, not reuse earlier results.
 	holder.helper.inherited = weakref(later)
 	holder.helper.nested = {}
 	holder.target = dynamic
+	peer.helper.held_mesh = ArrayMesh.new()
 	var second: Dictionary = BATCH._collect_script_referenced_objects(holder)
 	_check(not second.has(inherited.get_instance_id()) and not second.has(nested.get_instance_id())
 		and second.has(later.get_instance_id()) and second.has(dynamic.get_instance_id()),
 		"each reference scan observes current helper and dynamic values")
-	_check(holder.helper.scalar_reads == 2,
-		"a fresh scan reads scalar getters again without caching values")
+	_check(holder.helper.scalar_reads == 2 and peer.helper.scalar_reads == 2,
+		"a fresh scan reads every instance's scalar getters again without caching values")
+	_check(not second.has(previous_peer_mesh.get_instance_id())
+		and second.has(peer.helper.held_mesh.get_instance_id())
+		and second.has(holder.helper.held_mesh.get_instance_id()),
+		"later scans observe a changed mesh on one instance and preserve the other instance's mesh")
 	holder.free()
 	inherited.free()
 	nested.free()
