@@ -137,15 +137,19 @@ rendered/native GPU, physical devices, Sandbox/Settings are separate.
 
 | Task | Exact finish line / stop | State / estimate |
 | --- | --- | --- |
-| INSTALL-GUIDED-PREPARE | Actual shipped manager CLI installs the actual archive in private managed prefix; exact installed ELF/manifest/digests/modes/desktop and protected sentinels recorded. | READY;1–2 min actual check, helpers prepared syntax-only |
+| INSTALL-GUIDED-PREPARE | Actual shipped manager CLI installs the actual archive in private managed prefix; exact installed ELF/manifest/digests/modes/desktop and protected sentinels recorded. | IN PROGRESS;1–2 min actual check, helpers reviewed |
 | INSTALL-GUIDED-RUN | Existing original Guided3/3, fresh profiles/processes, each original300s cap with345s outer cleanup cap. Preserve all phases,91 neutral shutdown frames and physical exit criteria; zero diagnostics; release/reap input/game/display. Stop first failure. | GATED on install; normally3–5 min, original caps unchanged |
 | INSTALL-GUIDED-CLOSE | Exact installed payload/manager/archive and protected files unchanged through runs; actual manager uninstall/repeated uninstall succeed; guards/lane/owned-process closure, record scope, commit/push and cleanup. | GATED on passes;5–10 min |
 
 **Owner:** root freezes/runs/interprets; `installed_guided_preparation` prepared
 only raw helpers (no execution/engines). Raw existing guarded-driver adaptation:
 `/srv/mudds-work/linux-installed-guided-results-20261017/`.
-**Next single action:** freeze a clean source checkout and launch the guarded
-install/Guided3/3/uninstall workflow after helper review. No engine active now.
+**Next single action:** observe the existing guarded driverPID372885/start
+ticks107657846, verified live at launch, using clean source
+`b71229a13b000fb5f2e34f8f533296b7ce62bef8`. Checkout:
+`/srv/mudds-work/linux-installed-guided-20261017`. Existing raw stage status/logs
+and `abort.py` identify the actual active owner; never relaunch on a poll timeout.
+Stop first failure. Actual install and original Guided3/3/uninstall are underway.
 No new build is needed; use exact published ELF/archive hashes.
 All ten phase gates remain open. Q4/Convoy remain parked without a justified
 construction candidate. Latest paired gameplay checkpoint remains b6af782;
