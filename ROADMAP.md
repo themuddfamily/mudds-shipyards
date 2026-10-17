@@ -110,16 +110,17 @@ work remain intact, with source refs and unique raw results preserved.
 
 | Order / task | Status | Observable finish | Work estimate; separate check allowance |
 | --- | --- | --- | --- |
-| 1. [RIME-BENCH-ROUTE](#rime-bench-route--ready) | READY | Select `rime_surface_walk_route` in the existing runner and physically walk the authored icefall survey/return trail, recording a valid diagnostic report. | Implementation 60–90 min; cold import up to 600 s and four focused modes up to 300 s each. |
+| 1. [RIME-BENCH-ROUTE](#rime-bench-route--in-progress) | IN PROGRESS | Select `rime_surface_walk_route` in the existing runner and physically walk the authored icefall survey/return trail, recording a valid diagnostic report. | Implementation 60–90 min; cold import up to 600 s and four focused modes up to 300 s each. |
 | 2. [RIME-BENCH-CHECKPOINT](#rime-bench-checkpoint--gated-on-route-acceptance) | GATED on task 1 | Accepted source integrated, matching development packages/startup results and accurate source-benchmark instructions published. | Integration/package/closure 30–45 min; exports up to 930 s each, three strict startups up to 330 s each and privacy up to 300 s. |
 
 The actual gap is one missing selectable benchmark route, not missing Rime
 terrain, survey gameplay or native performance evidence. Existing surface walks
 cover Ember and Aurora. Two cards separate executable route acceptance from
 artifact publication; they are not two new gameplay features. Unknown work is
-not added to this batch merely to fill a task count. No task is running yet.
+not added to this batch merely to fill a task count. Task 1 implementation is
+in progress; no engine checks or checkpoint have started.
 
-### RIME-BENCH-ROUTE — READY
+### RIME-BENCH-ROUTE — IN PROGRESS
 
 - **Parent/result:** [PERF-ROUTE](docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
   Add the missing Rime icefall survey/return walk to the existing benchmark runner,
@@ -158,9 +159,11 @@ not added to this batch merely to fill a task count. No task is running yet.
   Full benchmark still requires at least 3,600 frames/60 s warmup and
   18,000 frames/600 s measurement. Focused diagnostics do not qualify those floors,
   native GPU timing, hardware, real audio, canonical travel or survey rewards.
-- **Next action:** freeze a clean implementation source, implement only this
-  selection through the existing surface staging/walker/report/abort owners,
-  then root reviews source and freezes the four commands before running them.
+- **Next action:** implementation agent works from clean base `6c7f279c0` in
+  `/srv/mudds-work/rime-benchmark-route-20261018`, branch
+  `work/rime-benchmark-route-20261018`, on only the three assigned files. It
+  commits a clean candidate without engine runs; root then reviews source and
+  freezes the four commands before running them.
 - **Close:** record actual source/result, commit/push candidate. PASS unlocks the
   checkpoint; failure ends this card and does not silently extend implementation.
 
