@@ -1,0 +1,19 @@
+Mudd's Shipyards — Rime movement guard checkpoint 083b0eb — 2026-10-17
+Source: 083b0ebae0ad7c23ef6f25f68c3c0909f21a7988
+Engine: pinned official Godot 4.7.1 a13da4feb; stock release templates.
+
+Runtime change:
+Ordinary admitted Rime walking steps avoid a redundant current-owner query. Every step retains initial ownership validation; blocked corrections retain a fresh token and owner check immediately before position, velocity and blocked-count writes. Walking physics, speeds, pad geometry, routes and deadline budgets remain unchanged. This reduces repeated guard work; no whole-game frame-rate or native GPU improvement is claimed.
+
+Actual validation:
+- Independent static review approves this narrow two-file change. Current owner predicates are read-only; callback owner retirement and guard replacement cannot apply an old blocked correction.
+- Existing movement suite extended with four focused cases: owner retirement during callback, admitted step with one owner check/no body writes, valid blocked correction retaining two owner checks and tangential velocity, and token replacement rejecting old correction. Baseline red: exactly the new owner-count assertion fails (63 PASS lines); patched green: 64 PASS lines, exit0, zero diagnostics. Both runs retain existing movement cases and reaped their private processes/displays.
+- A bounded baseline diagnostic measured exactly 120 return ticks, then stopped deliberately: 4,716.946ms total and 270.761ms inclusive guard work over 240 calls. It is a diagnostic, not a full route pass or before/after throughput comparison.
+- Original unchanged full Rime client pad controls: FAIL, exit 124 in 300.234s under the original 300s suite cap; diagnostic lines: ERROR: suite exceeded timeout; terminated and reaped owned processes. The formerly failing first-scenario return leg reaches all eight settle frames in 17.544s/472 physics ticks, and the complete rime_session scenario, remapped hatch reboard, fresh exterior admission and exact retirement cleanup pass at 200.735s. The second scenario passes its three outbound walks before the global cap expires during held-edge input; its later scene-loss checks are NOT_COMPLETED. Production and fixture bytes match this checkpoint. This single observation is not a general throughput claim. Original physical route, 18s walking deadlines, eight settle frames and 300s suite budget remain. This run alone determines current full-route acceptance; focused passes do not replace it. Raw logs/results and the bounded diagnostic are in artifacts/rime-pad-guard-083b0ebae/.
+- Clean isolated Windows/Linux exports have matching 1,515-entry inventories. Read-only Windows x86_64 code section matches trusted stock template. Windows embedded payload through Linux editor, native Linux executable and archive-extracted executable pass --startup-check: exit0, exactly one STARTUP_MENU_READY_OK, zero diagnostics.
+- Actual Windows-payload focused movement/local-presentation checks: 105 assertions/checks, {'windows-payload-startup': 0, 'linux-direct-startup': 0, 'linux-archive-startup': 0, 'player-step-up-assist': 64, 'local-surface-presentations': 41}. Archive bytes/executable mode and Windows ZIP member bytes/CRC verified. All automated Godot invocations use Dummy audio and headless/private displays. Hosted CI remains disabled.
+
+Open acceptance:
+All ten roadmap phase exit gates remain open. The frozen 18-failure matrix remains historical; full combined-source matrix and final-candidate gameplay/capture acceptance remain open. Unsigned. Native Windows execution remains NOT_RUN under antivirus hold. Native GPU, controller, audible and human review remain NOT_RUN; owner-excluded gates are not represented as performed.
+
+EXE SHA-256: 179391fd95b1a940b62900d17027a6c0e7ad6ec0035f7e1e6fb14b92a3074da7
