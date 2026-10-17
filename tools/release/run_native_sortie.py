@@ -3,7 +3,9 @@
 
 Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
 Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
-Use --route sandbox-walk for the on-foot prerequisite only. The default is Guided.
+Use --route sandbox-walk for the on-foot prerequisite only.
+Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
+The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
 """
@@ -399,6 +401,162 @@ class Pilot:
                 self.tap_cooldown = now + .3
                 self.tap_release_frame = self.frame
         return keys, dx, dy, fire
+
+
+class HulkArrivalPilot(Pilot):
+    """Normal Torrent Guided prelude, then physical travel to the HULK shelf.
+
+    A fresh Torrent's ordinary landing control unlocks at RETURN_TO_YARD.
+    Preserve that full prelude and diverge before its home-return approach.
+    There is one landing press and one exit press, with no automatic retries.
+    """
+    MARKER = 'NATIVE_HULK_ARRIVAL_OK'
+    BERTH = 'cinder_hulk_dock'
+
+    def __init__(self):
+        super().__init__()
+        self.hulk_ids = None
+        self.hulk_braking = False
+        self.hulk_landing_seen = False
+        self.request_frame = None
+        self.shutdown_frame = None
+        self.mouse_pending = None
+        self.last_state = None
+        self.departure_receipt = None
+        self.arrival_receipt = None
+
+    def update(self, s, now):
+        self.last_state = s
+        hulk = s.get('hulk')
+        require(hulk is not None, 'explicit hulk-arrival observer available in this package')
+        if self.stage == 'return_align':
+            require(s['phase'] == 'RETURN_TO_YARD' and self.departed,
+                    'normal Guided prelude unlocks landing after physical departure')
+            require(self.shot and self.fired and s['destroyed_targets'] == 4 and not s['opponent_active'],
+                    'normal Guided range and interceptor prelude completed')
+            self.departure_receipt = {'frame': s['frame'], 'position': s['position'],
+                                      'home_lease_free': s['lease_free'],
+                                      'destroyed_targets': s['destroyed_targets'],
+                                      'shot_accepted': self.shot, 'opponent_active': s['opponent_active']}
+            self.enter('hulk_transit', s)
+        if not self.stage.startswith('hulk_'):
+            result = super().update(s, now)
+        else:
+            result = self.update_arrival(s, now)
+        # A busy engine may produce several observations before one OS mouse
+        # event is consumed. Acknowledge attitude before another relative sweep.
+        keys, dx, dy, fire = result
+        facing = s['walk_forward'] if not s['seated'] else s['back']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001:
+                dx = dy = 0
+            else:
+                self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        return keys, dx, dy, fire
+
+    def update_arrival(self, s, now):
+        self.frame = s['frame']
+        phase, hulk = s['phase'], s['hulk']
+        if not self.phases or self.phases[-1] != phase: self.phases.append(phase)
+        require(self.identities == (s['player_id'], s['ship_id']), 'same Torrent and Player throughout arrival')
+        require(s['default_sampler'] and s['tuning_unchanged'], 'authored Torrent controls and tuning')
+        require(phase not in ('FAILED', 'RECOVERING') and not s['destroyed'], 'live arrival without recovery')
+        require(s['active_ship'] and s['lease_free'], 'same active Torrent and released home berth')
+        if self.stage != 'hulk_exit':
+            require(s['piloted'] and s['seated'], 'same seated Torrent pilot until normal exit')
+        self.max_excursion = max(self.max_excursion, norm(sub(s['position'], s['parked'])))
+        if hulk['available']:
+            ids = (hulk['hulk_id'], hulk['berth_instance_id'])
+            if self.hulk_ids is None: self.hulk_ids = ids
+            require(ids == self.hulk_ids and hulk['berth_id'] == self.BERTH,
+                    'same live streamed HULK and exact destination berth')
+        elif self.hulk_ids is not None:
+            require(False, 'streamed HULK lost during arrival')
+        keys = set()
+        dx = dy = 0
+        speed = norm(s['velocity'])
+        if self.stage == 'hulk_transit':
+            require(phase == 'RETURN_TO_YARD' and not s['landed'], 'ordinary outbound flight before HULK landing')
+            target = hulk['approach']
+            off = sub(target, s['position'])
+            distance = norm(off)
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+            if distance < stopping+2: self.hulk_braking = True
+            if speed <= .45 and distance > 1: self.hulk_braking = False
+            if distance <= 1 or self.hulk_braking: keys.add('Prior')
+            elif align > .72: keys.add('w')
+            if hulk['available'] and distance <= 1 and speed <= .45:
+                self.enter('hulk_align', s)
+        elif self.stage == 'hulk_align':
+            keys.update(('Prior', 'h'))
+            target = [s['camera'][i]+hulk['dock_forward'][i]*100 for i in range(3)]
+            dx, dy, align = self.aim(s, target)
+            if align > .995 and s['upright'] > .94 and speed <= .35:
+                require(hulk['capture'] and hulk['selected_berth_id'] == self.BERTH,
+                        'production landing preview selects streamed cinder_hulk_dock')
+                self.landing_distance = norm(sub(s['position'], hulk['dock']))
+                self.enter('hulk_land', s)
+                self.request_frame = self.frame
+                self.tap('l', now)
+        elif self.stage == 'hulk_land':
+            keys.add('Prior')
+            self.hulk_landing_seen |= s['landing_active']
+            require(not hulk['landing_abort_reason'], 'production HULK landing aborted: '+hulk['landing_abort_reason'])
+            if self.hulk_landing_seen and not s['landing_active'] and not s['landed']:
+                require(False, 'production HULK landing ended without docking')
+            if s['landed'] and phase == 'SHUT_DOWN':
+                require(self.hulk_landing_seen and hulk['contract'] and hulk['lease'] and hulk['parked_exact'],
+                        'production strict HULK landing contract and exact occupied dock')
+                self.arrival_receipt = {'frame': self.frame, 'position': s['position'],
+                                        'berth_id': hulk['berth_id'], 'contract': hulk['contract'],
+                                        'lease': hulk['lease'], 'occupant_id': hulk['occupant_id'],
+                                        'parked_exact': hulk['parked_exact']}
+                self.shutdown_frame = self.frame
+                self.enter('hulk_shutdown', s)
+                keys.clear()
+            elif not self.hulk_landing_seen and self.frame > self.request_frame + 120:
+                require(False, 'ordinary L input did not start HULK landing; no retry')
+        elif self.stage == 'hulk_shutdown':
+            require(phase == 'SHUT_DOWN' and hulk['contract'] and hulk['lease'] and hulk['parked_exact'],
+                    'secured HULK berth during normal neutral shutdown')
+            if self.frame - self.shutdown_frame >= 90 and s['telemetry']['engine'] == 'OFFLINE':
+                self.enter('hulk_exit', s)
+                self.request_frame = self.frame
+                self.tap('e', now)
+        elif self.stage == 'hulk_exit':
+            require(hulk['contract'] and hulk['lease'] and hulk['parked_exact']
+                    and s['telemetry']['engine'] == 'OFFLINE', 'secured powered-down HULK dock retained during exit')
+            if not s['piloted'] and not s['seated'] and s['control_enabled'] and not s['transition_busy'] and hulk['grounded'] and hulk['shelf_supported']:
+                require(phase in ('APPROACH_SHIP', 'COMPLETE'), 'normal production disembarkation completed')
+                require(hulk['occupant_id'] == s['ship_id'] and self.max_excursion > 350,
+                        'flown Torrent occupies HULK after real outbound travel')
+                self.enter('complete', s)
+                self.result = {'scope': 'Torrent Guided prelude and HULK arrival only',
+                               'completion_marker': self.MARKER, 'berth_id': self.BERTH,
+                               'guided_prelude': self.departure_receipt, 'arrival': self.arrival_receipt,
+                               'same_player_id': s['player_id'], 'same_ship_id': s['ship_id'],
+                               'same_hulk_id': self.hulk_ids[0], 'same_berth_instance_id': self.hulk_ids[1],
+                               'shelf_support_collider': hulk['support_collider'],
+                               'exit_frame': self.frame, 'player_exit_position': s['player'],
+                               'player_grounded': hulk['grounded'], 'player_control_enabled': s['control_enabled'],
+                               'player_seated': s['seated'], 'ship_piloted': s['piloted'],
+                               'engine': s['telemetry']['engine'], 'walked_m': self.max_walk,
+                               'excursion_m': self.max_excursion, 'landing_approach_m': self.landing_distance,
+                               'authored_tuning': s['tuning'], 'default_sampler': True,
+                               'phases': self.phases, 'stages': self.stages,
+                               'remaining': ['breaker and reward', 'return and revisit']}
+            elif self.frame > self.request_frame + 600:
+                require(False, 'ordinary Interact did not finish supported HULK exit; no retry')
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+        return keys, dx, dy, False
 
 
 class SandboxWalkPilot(Pilot):
@@ -1048,7 +1206,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -1123,7 +1281,7 @@ def run(binary, output, route="guided"):
                 if not window: raise RuntimeError('no X11 window owned by exact game PID')
                 result['window'] = hex(window)
                 desktop.focus(window)
-                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot}[route]()
+                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot}[route]()
                 selector = selectors.DefaultSelector()
                 selector.register(game.stdout,selectors.EVENT_READ)
                 pending = b''
@@ -1146,6 +1304,8 @@ def run(binary, output, route="guided"):
     except Exception as error:
         if pilot is not None:
             result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
+            if isinstance(pilot, HulkArrivalPilot):
+                result['partial_sortie']['last_state'] = pilot.last_state
             if isinstance(pilot, SandboxPilot):
                 result['partial_sortie'].update(visited=pilot.visited, craft_sorties=pilot.completed,
                                                last_state=pilot.last_state, deliberate_crash=pilot.crash_receipt)
@@ -1198,8 +1358,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox'), default='guided',
-                        help='sandbox runs the full fleet/crash/reuse route; sandbox-walk covers station traversal only')
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival'), default='guided',
+                        help='hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))

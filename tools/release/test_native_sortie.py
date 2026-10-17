@@ -39,6 +39,133 @@ class NativeSortieSafetyTests(unittest.TestCase):
                          active_ship=False, candidate=False, regeneration_pending=False)
         return s
 
+    def hulk_observation(self):
+        return {'frame': 100, 'phase': 'RETURN_TO_YARD', 'player_id': 1, 'ship_id': 2,
+                'position': [-96, 32.4, -432], 'player': [-88, 22, -450],
+                'parked': [0, 1.15, -10], 'velocity': [0, 0, 0],
+                'camera': [-96, 33, -432], 'right': [-1, 0, 0], 'up': [0, 1, 0],
+                'back': [0, 0, -1], 'upright': 1,
+                'walk_forward': [0, 0, -1], 'walk_right': [1, 0, 0],
+                'seated': True, 'control_enabled': False, 'piloted': True, 'active_ship': True,
+                'default_sampler': True, 'tuning_unchanged': True, 'destroyed': False,
+                'lease_free': True, 'landed': False, 'landing_active': False,
+                'destroyed_targets': 4, 'opponent_active': False, 'guided_complete': False,
+                'transition_busy': False, 'telemetry': {'engine': 'ONLINE', 'hull': 100},
+                'tuning': {'mouse': .002, 'brake': 20},
+                'hulk': {'available': True, 'hulk_id': 3, 'berth_instance_id': 4,
+                         'berth_id': 'cinder_hulk_dock', 'selected_berth_id': 'cinder_hulk_dock',
+                         'approach': [-96, 32.4, -432], 'dock': [-96, 24.4, -450],
+                         'dock_forward': [0, 0, 1], 'capture': True, 'contract': False,
+                         'lease': False, 'parked_exact': False, 'occupant_id': 0,
+                         'landing_abort_reason': '', 'grounded': False,
+                         'shelf_supported': False, 'support_collider': ''}}
+
+    def hulk_pilot(self):
+        pilot = native.HulkArrivalPilot()
+        pilot.stage = 'return_align'
+        pilot.identities = (1, 2)
+        pilot.departed = pilot.shot = pilot.fired = True
+        pilot.max_walk = 11
+        pilot.phases = ['APPROACH_SHIP', 'START_ENGINES', 'LAUNCH', 'TARGET_PRACTICE',
+                        'INTERCEPTOR_ENGAGEMENT', 'RETURN_TO_YARD']
+        return pilot
+
+    def test_hulk_route_requires_normal_guided_prelude_before_diverging(self):
+        pilot = self.hulk_pilot()
+        s = self.hulk_observation()
+        pilot.shot = False
+        with self.assertRaisesRegex(AssertionError, 'Guided range and interceptor'):
+            pilot.update(s, 1)
+        pilot.shot = True
+        pilot.update(s, 1)
+        self.assertEqual(pilot.stage, 'hulk_align')
+        self.assertEqual(pilot.departure_receipt['destroyed_targets'], 4)
+        self.assertTrue(pilot.departure_receipt['home_lease_free'])
+        self.assertIsNone(pilot.result)
+        self.assertEqual(native.CAP, 300)
+
+    def test_hulk_arrival_requires_live_exact_contract_and_supported_normal_exit(self):
+        pilot, s = self.hulk_pilot(), self.hulk_observation()
+        pilot.update(s, 1)
+        s['frame'] += 6
+        keys, *_ = pilot.update(s, 1.1)
+        self.assertIn('l', keys)
+        self.assertEqual(pilot.stage, 'hulk_land')
+        s.update(frame=120, landing_active=True)
+        pilot.update(s, 1.3)
+        s.update(frame=200, landed=True, landing_active=False, phase='SHUT_DOWN',
+                 position=s['hulk']['dock'])
+        s['hulk'].update(contract=True, lease=True, parked_exact=True, occupant_id=2)
+        keys, *_ = pilot.update(s, 2)
+        self.assertEqual(keys, set())
+        self.assertEqual(pilot.stage, 'hulk_shutdown')
+        s.update(frame=289)
+        s['telemetry']['engine'] = 'OFFLINE'
+        self.assertNotIn('e', pilot.update(s, 3)[0])
+        s.update(frame=290)
+        self.assertIn('e', pilot.update(s, 3.1)[0])
+        self.assertEqual(pilot.stage, 'hulk_exit')
+        # Generic Guided completion is insufficient, even with a normal actor.
+        s.update(frame=310, phase='COMPLETE', guided_complete=True, piloted=False,
+                 seated=False, control_enabled=True)
+        pilot.update(s, 3.5)
+        self.assertIsNone(pilot.result)
+        s['hulk'].update(grounded=True, shelf_supported=True,
+                         support_collider='Exterior/DockShelf')
+        s['frame'] += 1
+        keys, *_ = pilot.update(s, 3.6)
+        self.assertFalse(keys)
+        self.assertEqual(pilot.result['completion_marker'], 'NATIVE_HULK_ARRIVAL_OK')
+        self.assertEqual(pilot.result['arrival']['occupant_id'], pilot.result['same_ship_id'])
+        self.assertEqual(pilot.result['shelf_support_collider'], 'Exterior/DockShelf')
+        self.assertIn('breaker and reward', pilot.result['remaining'])
+        self.assertEqual(pilot.result['guided_prelude']['destroyed_targets'], 4)
+
+    def test_hulk_rejects_wrong_berth_replaced_world_and_non_shelf_ground(self):
+        for change, message in [({'berth_id': 'central_berth'}, 'exact destination berth'),
+                                ({'berth_instance_id': 99}, 'same live streamed HULK')]:
+            pilot, s = self.hulk_pilot(), self.hulk_observation()
+            pilot.update(s, 1)
+            s['hulk'].update(change)
+            s['frame'] += 6
+            with self.subTest(change=change), self.assertRaisesRegex(AssertionError, message):
+                pilot.update(s, 1.1)
+        pilot, s = self.hulk_pilot(), self.hulk_observation()
+        pilot.update(s, 1)
+        pilot.stage = 'hulk_exit'
+        pilot.request_frame = s['frame']
+        s.update(frame=110, phase='COMPLETE', piloted=False, seated=False, control_enabled=True)
+        s['telemetry']['engine'] = 'OFFLINE'
+        s['hulk'].update(contract=True, lease=True, parked_exact=True, occupant_id=2,
+                         grounded=True, shelf_supported=False, support_collider='Exterior/Hull')
+        pilot.update(s, 1.2)
+        self.assertIsNone(pilot.result)
+        s['frame'] = pilot.request_frame + 601
+        with self.assertRaisesRegex(AssertionError, 'supported HULK exit; no retry'):
+            pilot.update(s, 12)
+
+    def test_hulk_landing_failure_stops_without_an_automatic_second_press(self):
+        pilot, s = self.hulk_pilot(), self.hulk_observation()
+        pilot.update(s, 1)
+        s['frame'] += 6
+        pilot.update(s, 1.1)
+        s['frame'] += 12
+        self.assertNotIn('l', pilot.update(s, 1.4)[0])
+        s['frame'] += 121
+        with self.assertRaisesRegex(AssertionError, 'no retry'):
+            pilot.update(s, 4)
+        self.assertIsNone(pilot.result)
+        pilot, s = self.hulk_pilot(), self.hulk_observation()
+        pilot.update(s, 1)
+        pilot.stage = 'hulk_land'
+        pilot.request_frame = s['frame']
+        s['landing_active'] = True
+        pilot.update(s, 1.1)
+        s.update(frame=101, landing_active=False)
+        s['hulk']['landing_abort_reason'] = 'collision_blocked'
+        with self.assertRaisesRegex(AssertionError, 'collision_blocked'):
+            pilot.update(s, 1.2)
+
     def test_full_route_acknowledges_mouse_before_repeating_sweep(self):
         pilot = native.SandboxPilot()
         pilot.stage = 'walk_station'
