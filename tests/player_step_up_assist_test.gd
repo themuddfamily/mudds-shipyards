@@ -41,7 +41,63 @@ func _run() -> void:
 	await _test_floor_snap_recovery_requires_headroom()
 	await _test_remote_cabin_interaction_support()
 	await _test_rejected_remote_snap_stays_rejected()
+	_test_rime_pad_guard_correction_fence()
 	_finish()
+
+
+## The pad callback can synchronously retire its owner. An unsupported result
+## must still pass a fresh owner fence before it changes position or velocity.
+func _test_rime_pad_guard_correction_fence() -> void:
+	var player := PLAYER_SCENE.instantiate() as PlayerController
+	root.add_child(player)
+	player.set_physics_process(false)
+	player.set_process(false)
+	var current := [true]
+	var owner_checks := [0]
+	var owner := func() -> bool:
+		owner_checks[0] += 1
+		return current[0]
+	var target := Vector3(-2.0, 0.0, 0.0)
+	var blocked_step := func(_previous: Vector3, _proposed: Vector3) -> Dictionary:
+		current[0] = false
+		return {"blocked": true, "position": target, "outward_normals": [Vector3.RIGHT]}
+	player.set_rime_pad_step_guard(&"retiring", owner, blocked_step)
+	player.velocity = Vector3.RIGHT
+	player._constrain_rime_pad_step(Vector3.ZERO, &"retiring")
+	_check(player.position == Vector3.ZERO and player.velocity == Vector3.RIGHT
+		and int(player.get("_rime_pad_blocked_steps")) == 0 and owner_checks[0] == 2,
+		"a Rime correction cannot move the body after its callback retires the owner")
+	current[0] = true
+	owner_checks[0] = 0
+	var admitted_step := func(_previous: Vector3, _proposed: Vector3) -> Dictionary:
+		return {}
+	player.set_rime_pad_step_guard(&"admitted", owner, admitted_step)
+	player._constrain_rime_pad_step(Vector3.ZERO, &"admitted")
+	_check(player.position == Vector3.ZERO and player.velocity == Vector3.RIGHT
+		and int(player.get("_rime_pad_blocked_steps")) == 0 and owner_checks[0] == 1,
+		"an admitted Rime step validates its owner once and applies no correction")
+	owner_checks[0] = 0
+	var supported_correction := func(_previous: Vector3, _proposed: Vector3) -> Dictionary:
+		return {"blocked": true, "position": target, "outward_normals": [Vector3.RIGHT]}
+	player.set_rime_pad_step_guard(&"blocked", owner, supported_correction)
+	player.velocity = Vector3(1.0, 0.0, -2.0)
+	player._constrain_rime_pad_step(Vector3.ZERO, &"blocked")
+	_check(player.position == target and player.velocity == Vector3(0.0, 0.0, -2.0)
+		and int(player.get("_rime_pad_blocked_steps")) == 1 and owner_checks[0] == 2,
+		"a current Rime correction retains both owner fences and removes only outward motion")
+	player.position = Vector3.ZERO
+	player.velocity = Vector3.RIGHT
+	owner_checks[0] = 0
+	var replacing_step := func(_previous: Vector3, _proposed: Vector3) -> Dictionary:
+		player.set_rime_pad_step_guard(&"replacement", owner, admitted_step)
+		return {"blocked": true, "position": target, "outward_normals": [Vector3.RIGHT]}
+	player.set_rime_pad_step_guard(&"superseded", owner, replacing_step)
+	player._constrain_rime_pad_step(Vector3.ZERO, &"superseded")
+	_check(player.position == Vector3.ZERO and player.velocity == Vector3.RIGHT
+		and StringName(player.get("_rime_pad_guard_token")) == &"replacement"
+		and int(player.get("_rime_pad_blocked_steps")) == 0 and owner_checks[0] == 1,
+		"a Rime callback replacing its guard cannot apply the superseded correction")
+	player.free()
 
 
 ## Both prediction and the authoritative remote body share PlayerController.

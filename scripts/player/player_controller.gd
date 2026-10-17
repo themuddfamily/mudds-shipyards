@@ -382,8 +382,11 @@ func _constrain_rime_pad_step(previous_position: Vector3, token: StringName) -> 
 		clear_rime_pad_step_guard(token)
 		return
 	var result: Dictionary = _rime_pad_guard_step.call(previous_position, global_position)
-	if token != _rime_pad_guard_token or _rime_pad_guard_owner.call() != true \
-			or not result.get("blocked", false):
+	# An admitted step needs no correction. Only a blocked step can write the
+	# body, so resolve the expensive current-owner fence again at that boundary.
+	if not result.get("blocked", false):
+		return
+	if token != _rime_pad_guard_token or _rime_pad_guard_owner.call() != true:
 		return
 	global_position = result.position
 	for normal: Vector3 in result.outward_normals:
