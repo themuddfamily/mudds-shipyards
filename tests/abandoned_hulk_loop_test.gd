@@ -537,10 +537,14 @@ func _test_production_loop() -> void:
 
 	# --- Walk the interior ---------------------------------------------------
 	var space_state := player.get_world_3d().direct_space_state
+	# Keep the original authored doorway probes. The port-side ship exit is a
+	# navigation start, not a replacement straight-line doorway probe; actual
+	# capsule movement below must negotiate its approach with normal collision.
+	var doorway_route := hulk.get_interior_route_points()
 	var blocked_legs := 0
-	for index in range(1, route.size()):
+	for index in range(1, doorway_route.size()):
 		var query := PhysicsRayQueryParameters3D.create(
-			route[index - 1], route[index], PhysicsLayers.WORLD
+			doorway_route[index - 1], doorway_route[index], PhysicsLayers.WORLD
 		)
 		if not space_state.intersect_ray(query).is_empty():
 			blocked_legs += 1

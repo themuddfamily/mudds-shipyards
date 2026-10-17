@@ -55,7 +55,10 @@ reverted and its exact patch/log preserved. Player runtime bytes are unchanged.
 | Verify | READY; full existing hulk suite original300s, headless/Dummy, exit0 plus `ABANDONED_HULK_LOOP_TEST_OK`, no diagnostics and guarded inputs/teardown. Stop at first failure. | 5–10 min |
 | Close | GATED; record real path/outcome, remove clean checkout, commit/push. Test-only change needs no new gameplay checkpoint. | 10 min |
 
-**Next single action:** run the committed authored-exit/world-yaw correction.
+**Next single action:** run authored-exit/world-yaw with the original authored
+doorway ray probes restored. The corrected exit passes live hulk support; its
+port-side approach clipped the static ray when wrongly used as that probe.
+Capsule traversal remains required from the actual exit with normal collision.
 The first authored-exit run was deliberately aborted (exit143) after review
 found local-camera aiming assumed an unrotated Player; its clean closure and
 frozen inputs verify. World-yaw aiming fixes that test error without body writes. All five remaining authored targets, capsule
