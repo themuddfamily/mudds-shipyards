@@ -4,6 +4,43 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+## Ember — canonical completed source journey DONE on bf452ed868
+
+Pinned source `bf452ed8689e51379e0621299378ea29a7b111e7`, Godot4.7.1:
+genuinely cold import exits0 under600s; original completed journey exits0 in
+approximately2,991.4s under3600s, without fixed-FPS override. Exact52-assertion
+success line and catalog assessment both pass; no emitted diagnostics. This is
+the recovered original contract, not a shortened/substitute route.
+
+Arrow physically flies8,010,646.7m outbound through776 rebases, lands at Ember,
+walks the relay survey, saves an incomplete unpaid checkpoint then one genuine
+paid reward, reverses the walk, reboards and ascends. Return sampling records
+8,249,980.92m/798 rebases/74,110 samples, reaches the real home corridor, docks
+through held ordinary inputs and leaves a supported, controllable walking exit.
+Outbound/return max ship/pilot steps333.327/333.331329m stay within the original
+limit; both max frame gaps are1. Surface landing max step1.566685m. Final real
+disk store generation22 retains the completed paid terminal, exactly one
+beacon-data receipt and total receipt count1; serializer/retry checks pass.
+
+Independent guard review verifies all11,873 tracked hashes/index/engine/HEAD,
+320 generated import-cache files unchanged throughout the route, actual clean
+headless/Dummy environments and all11 recorded process identities absent.
+Ordered runtime lane locks are free. Closure reports no socket remnants;
+socket inode identities were not persisted for independent reconstruction.
+Captured engine FDs show no socket/input devices and no display was recorded.
+The clean disposable checkout is removed; raw logs and final private save remain:
+`/srv/mudds-work/ember-completed-journey-results-20261017/original-contract/readonly-index/`.
+Route log SHA256:
+`a5e5b8f4605fc5413bc4d3cf54d24972cbaadfe5ef0b30dd77debbd7750e2195`.
+Final store SHA256:
+`16a039e338ad4f8e85b9bdb49a301c54f8cf75a187e7321e551f00b687154829`.
+
+Scope stays source-only: initial on-foot yard placement, fixture animations
+0.04/0.08/0.06s and production API calls remain disclosed. No full menu/hardware,
+package/installed, OS-kill recovery, repeated visit, ABANDON, shared crew,
+native/rendered/device/audio or full phase qualification is claimed. All ten
+phase gates remain open; latest paired gameplay build stays b6af782.
+
 **LINUX-UPDATE-FIX — source repair accepted on `d3259aa21`.** Actual process
 SIGKILL after desktop publication/before manifest publication reproduced a
 stuck update: killed child exit-9, distinct ordinary CLI retry exit1 with exact

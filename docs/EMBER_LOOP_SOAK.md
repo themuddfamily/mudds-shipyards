@@ -66,10 +66,18 @@ these legs. The final ordinary-flight leg can take several minutes at the
 craft's authored speed, in addition to both interplanetary legs; the long wall
 budget also accommodates slower headless hosts. A local launch/landing
 probe (`KETH_RETURN_ARRIVAL_DIAGNOSTIC=1`) is only a diagnostic and does not
-qualify the round trip. The full round-trip result remains pending until an
+qualify the round trip. That ABANDON-mode full round-trip result remains pending until an
 unchanged-source run exits zero with all enabled assertions passing.
 
 ### Completed survey and physical return
+
+**Accepted source run:** `bf452ed8689e51379e0621299378ea29a7b111e7` passes the
+original completed mode: exit0, exact52 assertions/catalog result, no emitted
+diagnostics, approximately2,991.4s under3600s. Real outbound/return, walked survey,
+one durable reward, home docking and supported walking exit pass. Independent
+source/cache/process/lane review passes within its recorded scope; disposable
+checkout removed. [Detailed result and retained limits](history/ROADMAP_DELIVERIES.md#ember--canonical-completed-source-journey-done-on-bf452ed868).
+This does not qualify ABANDON, repeated/shared journeys, packages or hardware.
 
 The completed-return mode has its own historical **3,600-second route cap**.
 It is distinct from the outbound and ABANDON modes:
@@ -87,8 +95,8 @@ return” step. That historical job pinned Godot 4.7.1, allowed **600 seconds fo
 separate cold import**, and ran the physical route **without `--fixed-fps`**.
 Its 72-minute step / 80-minute job limits included orchestration; the route cap
 was 3,600 seconds. The current harness is byte-identical to the source at that
-contract, so retain its exact **52-assertion** completion requirement. Current
-production source still needs its own qualification. This reference does not
+contract, so retain its exact **52-assertion** completion requirement. The accepted
+run above qualifies only its pinned source/scenario. This reference does not
 authorize enabling or dispatching GitHub Actions; the owner's CI hold remains.
 
 Run locally from a clean frozen checkout with no `.godot` directory. Use the
@@ -466,7 +474,8 @@ opaquely (`last_external_rebase_rejection`).
 - **The six-cycle staged harness does not qualify continuous travel.** Its
   placements and `_reset_for_next_cycle()` stand in for those legs. The separate
   physical transit/return modes above exercise production movement owners;
-  current full completed-return acceptance remains pending.
+  completed-return mode now passes on bf452ed868 as recorded above. The staged
+  harness still does not establish repeated continuous round trips.
 - **`ember_surface_loop_production_binding_test`'s recorded failure** ("real
   survey completion persists one GameFlow reward before the coordinator admits
   the authenticated route home"), reproduced on a clean tree at `e57a97e61`, no
