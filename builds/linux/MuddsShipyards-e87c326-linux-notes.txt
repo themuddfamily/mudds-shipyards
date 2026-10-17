@@ -1,0 +1,25 @@
+Mudd's Shipyards — Ordinary-input fleet checkpoint e87c326 — 2026-10-17
+Clean exported source: e87c326a4b975fc6069887a29904bc219cc14e69
+Engine: pinned official Godot 4.7.1 a13da4feb; stock release templates.
+Tested external caller source: 482f981efc9c75718153b860b8bb205b3a621bc1
+External caller SHA-256: e6a10f98519a25fa6aad11ea2faf6eb8525176f1e5347498539928a7c15d5a62
+
+Delivered capability:
+An explicitly opted-in read-only fleet observer and ordinary OS-input Sandbox route exercise station traversal and production boarding/flight/landing/exit. The observer samples the full route at 20Hz with actual physics-frame timing, caches only inactive exactly parked craft details and requires fresh active-craft details. External caller fixes acknowledge native mouse turns, clear genuine station prompts, settle walking before narrow corners and use clear freight/Cargo approaches. Player-facing content and authored gameplay physics/tuning are unchanged. Subsequent caller-only commits do not modify exported resources; runtime/resource diff from clean export source to the tested caller commit is empty.
+
+Actual validation:
+- Guided: THREE consecutive fresh-process/profile passes on this exact ELF and unchanged caller: 51.406/50.927/51.932s, each below its unchanged 300s cap. Each performs physical walk/board, launch, four targets, defender defeat, strict leased/exact home landing, automatic neutral shutdown (91 authored 60Hz physics frames, 1.516667s), same-player exit and COMPLETE. Each has zero diagnostics, input release and helper/game/Xvfb reaping; root independently confirms PID absence. This closes only the Guided 3/3 subcriterion on this named candidate.
+- Full Sandbox: FAILED / NOT_COMPLETED. Final actual package attempt completes all 54 station waypoints (Central/Habitat/Freight/Aft/Fleet Dock, physical Habitat door and Aft stairs) and six craft cycles: Arrow, Jovian, Zenith, Halyard, Bulwark and Cinder Cargo. Each physically departs, lands at its strict leased exact home berth, spends 93–96 neutral physics frames and exits as the same player. Across 5,472 raw observations all nine craft identities/default samplers/authored tuning remain. Cargo's normal exit settles onto its ramp without injection.
+- The final run then blocks at(-9.1238794,4.2016592,66.4207153) on the Bomber approach against the authored Aft crew ToolWall. Its source north face plus the 0.38m player capsule predicts the actual z66.42 contact. Root confirms stationary 500 frames, independently signals only the driver and verifies cleanup; recorded failed elapsed 302.806s includes startup/cleanup and is not accepted against the 300s cap. Bomber, Light, deliberate crash, on-foot recovery and regenerate/reuse remain unqualified. A source-supported detour still needs actual full-route proof. No unchanged failed retry or cap/radius/timing relaxation.
+- Retained actual earlier failed callers: Jovian bollard 152.544s, Zenith corner 217.394s, Cargo hull 283.844s. All have zero diagnostics and complete independently checked input/process cleanup; subsequent caller fixes pass those contacts in the final run. Development-only fixtures and failed source runs remain separately retained and confer no full-route acceptance.
+- Seventeen focused Python tests pass, including a red/green regression for premature moving corner arrival. Source startup privacy passes 159 checks; explicit observer parse passes without diagnostics. Actual Windows embedded PCK privacy: 159 checks, exit 0, 0.951443s, zero diagnostics.
+- Clean Windows/Linux exports: all 1,515 embedded entries match by path,size,SHA-256. Read-only PE .text matches trusted stock template 989b3abeb77ca4499b24b262aabde23ef114fad69eac682037838ac73cba4128.
+- Three strict --startup-check probes each exit 0, exactly one STARTUP_MENU_READY_OK and zero diagnostics: Windows PCK through Linux 25.543702s, direct Linux 21.461851s, archive-extracted Linux 21.558518s. Extracted ELF bytes and executable mode verified.
+- All automated Godot uses Dummy audio, headless or private Xvfb with explicit x11. Native OS-input checks use dummy rendering, private profiles, ordered locks and independent abort/reaping. No user desktop interaction or native Windows execution; hosted CI remains disabled.
+- Raw package/source checks, exact frozen callers and successful/failed runs: artifacts/checkpoint-e87c326/.
+
+Open acceptance:
+Full Sandbox, Settings/re-entry, full Gate C and current-source full regression remain open. All ten roadmap phase exit gates remain open. No graphical/native GPU performance, controller, audible or human acceptance is established. Native Windows remains NOT_RUN under antivirus hold; applicable hardware/human gates remain NOT_RUN, including owner-excluded gates. Unsigned local development checkpoint; no Downloads publication.
+
+ELF SHA-256: 1d8dd0dacf60f6ad6d6fe8186ddbb3a03527139499c4361d59cd14e6ddef7439
+Archive SHA-256: d4b4953d18c08529dbe5d0039b6bd5e5c12cc88fb192a5b0900207e83e675b11

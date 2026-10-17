@@ -4,32 +4,42 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local checkpoint: `c26e2c13c` — 2026-10-17
+## Latest local checkpoint: `e87c326a4` — 2026-10-17
 
-The [executable](../builds/linux/MuddsShipyards-c26e2c1.x86_64),
-[archive](../builds/linux/MuddsShipyards-c26e2c1-linux-x86_64.tar.gz) and
-[notes](../builds/linux/MuddsShipyards-c26e2c1-linux-notes.txt) use clean source
-`c26e2c13c2e1358322bda08725b87e7462fd5da9`. The opt-in read-only observer and
-external OS-input route exercise a five-branch station walk through Central,
-Habitat, Freight, Aft and Fleet Dock. Actual packaged execution passes 54
-waypoints in 125.421s, including the physical door and stair climb. A separate
-full default Guided compatibility sortie passes in 49.150s with zero diagnostics
-and independent input/process cleanup. Later
-external-caller-only aisle/door fixes leave all exported runtime bytes unchanged;
-the notes identify the exact tested caller separately from the export source.
+The [executable](../builds/linux/MuddsShipyards-e87c326.x86_64),
+[archive](../builds/linux/MuddsShipyards-e87c326-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-e87c326-linux-notes.txt) use clean source
+`e87c326a4b975fc6069887a29904bc219cc14e69`. The unchanged ELF and frozen
+external caller pass three consecutive fresh-profile Guided sorties in
+51.406/50.927/51.932s, each within 300s, with 91 neutral 60Hz shutdown frames,
+zero diagnostics and independently checked input/process cleanup.
 
-All 1,515 Windows/Linux payload entries match by path, size and SHA-256. Windows
-payload through Linux, direct Linux and archive-extracted startup each exit 0
-with exactly one `STARTUP_MENU_READY_OK` and zero diagnostics. Actual Windows
-payload passes 155 startup privacy checks. Archive member bytes and executable
-mode pass. Tests use private Xvfb x11 or headless execution and Dummy audio;
-the OS-input walk uses dummy rendering and proves no native GPU performance.
+The opt-in read-only fleet observer and ordinary OS-input Sandbox route reach
+all 54 station waypoints and complete Arrow, Jovian, Zenith, Halyard, Bulwark
+and Cinder Cargo launch/strict-home-land/shutdown/exit cycles. Full Sandbox is
+**FAILED / NOT_COMPLETED**: the Bomber approach hits the authored Aft crew
+ToolWall. The failed run records 302.806s including cleanup; Bomber, Light,
+crash, on-foot recovery and regenerate/reuse remain unqualified. Local fixtures
+and source geometry do not replace a complete actual route. Player-facing
+content and authored gameplay physics/tuning are unchanged.
 
-Full Sandbox eight-craft/crash/recovery/regenerate/reuse remains NOT_COMPLETED.
-Full current-source regression, Settings/re-entry, graphical, applicable device
-and native GPU acceptance remain open. Native Windows, audible output and human
-review remain NOT_RUN. All ten phase exit gates remain open; hosted CI stays
-disabled. Binaries and checkpoint ZIP remain local to this repository's builds.
+Tested caller source is `482f981ef`, SHA-256
+`e6a10f98519a25fa6aad11ea2faf6eb8525176f1e5347498539928a7c15d5a62`.
+Caller-only fixes after clean export leave exported resources unchanged.
+All 1,515 Windows/Linux payload entries match by path, size and SHA-256.
+Windows payload through Linux, direct Linux and archive-extracted startup each
+exit 0 with exactly one `STARTUP_MENU_READY_OK` and zero diagnostics. Actual
+Windows payload passes 159 privacy checks; 17 focused Python tests pass.
+Archive bytes/mode pass. Raw evidence remains in `artifacts/checkpoint-e87c326/`.
+
+Tests use Dummy audio, headless or private Xvfb with explicit x11 and dummy
+rendering. Native Windows/GPU/controller/audible/human acceptance remains
+NOT_RUN; Settings/re-entry, full Gate C, current-source full regression and
+all ten phase gates remain open. Hosted CI stays disabled. The fresh Windows
+EXE/ZIP and Linux ELF/archive remain local to this repository's builds.
+
+Earlier `c26e2c13c` retains its own five-branch walk (125.421s) and one Guided
+compatibility pass (49.150s), as recorded in its source-specific notes.
 
 ## Earlier published checkpoint: `fbfcf6c6a` — 2026-10-11
 
