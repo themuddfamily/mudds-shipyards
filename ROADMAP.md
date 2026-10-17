@@ -86,11 +86,11 @@ clean disposable worktrees removed.
 [Result](docs/history/ROADMAP_DELIVERIES.md#sandbox-settle-facing--qualification-failed-candidate-withheld).
 No automatic retry or further pacing investigation. Convoy/Q4 also remain parked.
 
-## Next task: ROADMAP-SPLIT — planning
+## ROADMAP-SPLIT — ongoing planning rule
 
 **Outcome:** turn the next selected parent into a small executable task before
 resuming implementation. This initial rewrite distinguishes eligible templates
-from scheduled jobs, closes the stale live-run entry, and prepares two concrete
+from scheduled jobs, closes the stale live-run entry, and prepares bounded
 children below. It does not claim that all36 parents have been decomposed.
 
 For each subsequent batch, select at most3–5 children; do not pad the queue with
@@ -131,23 +131,92 @@ when their dependencies are known; it must not become another giant planning loo
 - **Close:** retain actual result/source/raw; remove owned disposable checkout.
   Failure ends this card; any repair needs a separate named defect card.
 
-## Prepared child: HULK-ORDINARY-CONTRACT — definition, not started
+## HULK-ORDINARY-CONTRACT — DONE definition
 
-- **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
-  Define one ordinary-input salvage round trip with actual flight/docking,
-  interior access, breaker Interact, reward and usable return/revisit.
-- **Boundary:** inspect existing `tests/abandoned_hulk_loop_test.gd` and its direct
-  production interaction owners. Preserve accepted source interior traversal;
-  its staged flight/docking and direct breaker call do not close this task.
-- **Proof/done:** one concrete existing command and complete observable acceptance,
-  or one exact missing driver/runtime interaction with file owner and a bounded
-  implementation card. No new generic test framework or speculative fleet work.
-- **Budget:**30m read-only definition; no engine/check runtime. Stop when the
-  command/acceptance or precise missing interaction is identified.
-- **Execution:** root; PLANNED. Independent of Ember; next action read the existing
-  runner and identify the staged steps needing ordinary controls.
-- **Close:** record the contract/blocker in this file, commit/push; planning is not
-  a new gameplay delivery and does not reopen the completed interior test.
+Read-only inspection on88fc84a34 found the exact gap: there is no ordinary-input
+HULK journey driver. Existing regression stages flight, berth reservation/occupancy,
+craft pose and Player exit; later fringe/rebase checks also reposition the Player
+and invoke the breaker directly. Preserve the completed continuous interior walk.
+
+Ordinary breaker dispatch already exists: Player's `interact` edge → GameFlow
+`_on_interact_requested` → current facing/proximity candidate →
+`HulkPowerBreaker.interact` → activity's actual4m reach check/3s restoration.
+No missing runtime dispatch or gameplay defect is established by this inspection.
+The native runner currently accepts only Guided/Sandbox-walk/Sandbox; its startup
+allowlist and read-only observer also have no HULK mode. No existing full ordinary
+HULK command can honestly be claimed. Definition stops here; no engine run.
+
+Three dependent children replace the broad “finish HULK” assignment below. All
+link to [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys). Only the
+first is ready for implementation; later cards must freeze their exact invocation
+after their dependency exists. These are scenario capabilities, not phase completion.
+
+### HULK-ARRIVAL-INPUT — READY implementation
+
+- **One result:** the existing native-input release runner can fly Torrent from
+  its actual yard berth to the streamed HULK dock and exit onto the shelf.
+- **Source/owner:** root, base88fc84a34. Ownership: existing
+  `tools/release/run_native_sortie.py`, `scripts/diagnostics/native_sortie_observer.gd`
+  and explicit mode allowlist in `scripts/game/startup_loader.gd`; focused existing
+  runner tests only as needed. Gameplay changes require a reproduced defect first.
+- **Boundary:** add select-only HULK arrival using ordinary menu/keyboard/mouse
+  inputs and default sampler. Observer remains read-only. No pose/velocity writes,
+  direct reserve/occupy/landing calls, timing overrides, new validator or framework.
+  Breaker, reward, return/revisit remain the next children.
+- **Proof:** intended new command is `python3 tools/release/run_native_sortie.py
+  builds/linux/<exact-clean-build>.x86_64 --route hulk-arrival --output <new-run-dir>`.
+  This command is not implemented yet. Require actual physical departure, streamed
+  destination, production landing contract accepted for `cinder_hulk_dock`, berth
+  occupant equal to the flown craft, normal shutdown/Interact exit, unseated
+  controllable Player on actual HULK collision. Exact mode/marker must be added
+  explicitly; generic Guided success cannot stand in for these observations.
+- **Budget/stop:**60–90m implementation; separately cold import/export/startup and
+  one arrival run using the runner's existing300s cap. Stop at first unsupported
+  control/actual failure or estimate boundary; record exact blocker before repair.
+  Keep existing Guided/Sandbox behavior and caps unchanged.
+- **Next action:** implement the select-only arrival mode through those three
+  owners, then focused checks and clean-source Windows EXE/ZIP/notes plus matching
+  Linux package using the existing safe workflow and strict startup checks.
+  All automated runtime remains isolated X11/Dummy with owned abort/cleanup.
+- **Close:** exact source/build/raw outcome, commit/push, remove owned disposable
+  worktrees. No full salvage journey claim from arrival alone.
+
+### HULK-BREAKER-INPUT — GATED on arrival
+
+- **One result:** extend the same run from actual disembarkation through all
+  authored interior spaces; ordinary Interact engages the breaker and earns one
+  cell. Repeated Interact must not earn another.
+- **Owner/boundary:** root; same runner/read-only observer. Reuse authored route
+  and production interaction/reward owners. No additional Player placement, direct
+  breaker call, timer acceleration or replacement reward ledger.
+- **Proof:** extend the successful arrival mode on its frozen successor, retain
+  identity/support/continuous movement checks and actual Interact dispatch; observe
+  committed `hulk_auxiliary_power_cell` count exactly1 and restored bus lighting.
+  A memory-only check does not establish disk persistence or OS interruption.
+- **Budget/stop:**45–90m implementation; original existing runner cap remains300s
+  for this cumulative route. Freeze exact mode/command before execution. If that
+  contract cannot fit or an interaction fails, record it; do not silently extend.
+- **Next action after dependency:** append held-input interior walking and an
+  actual released-then-pressed Interact at the live panel. Commit/build/cleanup
+  with observed result; full home/revisit remains gated.
+
+### HULK-RETURN-REVISIT — GATED on breaker
+
+- **One result:** from that same run, walk back, reboard, fly home, dock/exit,
+  then revisit the streamed HULK without receiving a second power cell.
+- **Owner/boundary:** root; same runner/observer and existing flight/berth/streaming
+  owners. Preserve physical travel, normal lease release and supported exits.
+  Disk reload, installed interruption, repeated-use endurance and hardware stay
+  separate requirements; do not infer them from one live session.
+- **Proof:** exact cumulative command/source and runtime budget must be defined
+  from the accepted preceding route before marking READY. Require ordinary home
+  dock/exit, actual unload/reload/new HULK generation, restored lighting, cell
+  count still1 after another breaker press, and usable craft/Player state.
+- **Budget/stop:**45–90m implementation after dependency, check duration separately.
+  Stop at first failure or estimate boundary; no automatic second journey attempt.
+- **Next action after dependency:** freeze the physical return/revisit route and
+  its explicit cap, then implement it in the existing driver. Close with exact
+  result/source/build, commit/push and owned scratch cleanup.
 
 ## Working constraints
 
