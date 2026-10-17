@@ -1,0 +1,63 @@
+Mudd's Shipyards — unsigned Windows installer ca0afc4 — 2026-10-17
+
+Setup: MuddsShipyards-ca0afc4-setup.exe
+Source/payload/builder/verifier/NSI: ca0afc449efc547de0d6049ac94ea2c876d14e2d
+Build label: 0.12.0+ca0afc4; PE file version: 0.12.0.0.
+
+This per-user installer packages the existing snapshot getter checkpoint.
+Authoritative snapshots avoid one redundant whole-snapshot deep copy while
+preserving detached records, arrays and fresh scalar metadata. It adds no new
+gameplay change beyond that checkpoint. See MuddsShipyards-ca0afc4-notes.txt for
+actual gameplay, payload startup and focused network validation, including the
+retained Rime suite timeout and open full-regression gates.
+
+Actual local packaging validation:
+- Existing NSIS contract/build tests: 10 PASS in 1.317s, including real NSIS
+  compilation with a stub payload. No Windows executable or PowerShell verifier was executed.
+- Exact clean source builder exits 0 in 82.432617s under an original enforced
+  600s suite_process limit. NSIS v3.11-1 uses -V2 -WX; compiler log is empty
+  (zero warnings/errors). Detached build/extraction owners finish exit 0 and
+  are absent after completion; owned children are reaped.
+- Linux 7-Zip 25.01 extraction exits 0. Embedded MuddsShipyards.exe.pending is
+  184,559,328 bytes and SHA256-identical to the checkpoint EXE below.
+  7-Zip reports NSIS-3 Unicode BadCmd=13 and does not expose the standalone
+  uninstaller. This limits archive inspection; native uninstall is NOT_RUN.
+- Read-only PE inspection confirms the NSIS PE32 stub, product/build and file
+  versions, and absent Authenticode certificate table. Decoding the compiled
+  NSIS header confirms full source commit, build label, signing=unsigned,
+  source-commit.txt, uninstall.exe and staged payload metadata. The pinned NSI
+  source retains per-user installation and user-save-preserving uninstall.
+- Source/index remain clean and unchanged; all 320 source-cache files are
+  byte-identical before/after. Checkpoint EXE and ZIP are unchanged. Absent
+  stable EXE alias and source hash/signing sidecars remain absent.
+
+Toolchain: signed Debian repository packages downloaded with apt-get and
+extracted only under the private task directory; no system install or signing.
+nsis 3.11-1 SHA256:
+e6eb6ffb70f0df09e95dedb2d2cf55ad3c2679f7c2ae357d0c00cc4c83178690
+nsis-common 3.11-1 SHA256:
+103a3284c1a5356efa0aba90fdfc391c3cde8e7df8726377cef0f98471584047
+
+Source builder SHA256:
+59dd93e22597d5b7be487632e23a06174e393e3304ba1b96629a35fe4fde50da
+Source verifier SHA256:
+e292abae208d7bfc0bbfe5459ae6519d818a20ad43873b68448a564be1540641
+Source NSI SHA256:
+6f4563f2bc864963b7f21c50953be59726d51796968b695dc144ca59742e0fc7
+
+Setup: 87,917,709 bytes; SHA256:
+4a2b35ef502d04cc077bfb8250c3efae541d022a0cb3d974a80ee98b1ed59bb8
+Payload: 184,559,328 bytes; SHA256:
+52e2aaf215b98b3523f1a91646ecc13fa8580517c86a46504912a0c47f0e01b6
+Unchanged checkpoint ZIP SHA256:
+6b2fb0a7d513af3c492f4be8a9430477420ea0a565b265dd47d06368b3641b44
+
+Raw execution, guards, tool packages and Linux inspection:
+/srv/mudds-work/windows-installer-ca0afc4-20261017/
+Compiler log and immutable installer-result metadata are beside the setup.
+
+Open gates: native Windows install/startup/upgrade/rollback/uninstall, installed
+recovery and trusted signing remain NOT_RUN. Antivirus hold is preserved.
+Native GPU/hardware, audible/device acceptance, human review, licensing and
+full-release qualification remain open. Hosted CI remains disabled. This is an
+unsigned local repository checkpoint; no Downloads or public release upload.

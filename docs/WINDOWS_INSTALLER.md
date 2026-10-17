@@ -8,6 +8,28 @@ by default; optional signing is described in
 [Windows code signing](WINDOWS_CODE_SIGNING.md). A green verification does not
 grant distribution rights or replace the human gates that remain open.
 
+## Latest local installer `ca0afc4` — 2026-10-17
+
+The unsigned [setup](../builds/windows/MuddsShipyards-ca0afc4-setup.exe) and
+[notes](../builds/windows/MuddsShipyards-ca0afc4-installer-notes.txt) package exact
+checkpoint source `ca0afc449efc547de0d6049ac94ea2c876d14e2d`. Game, builder,
+verifier and NSI source agree. This is a local repository artifact.
+
+Compilation passes ten existing NSIS/build checks and finishes in 82.433s under
+the enforced 600s limit, with zero compiler warnings. Setup is 87,917,709 bytes,
+SHA256 `4a2b35ef502d04cc077bfb8250c3efae541d022a0cb3d974a80ee98b1ed59bb8`.
+Linux extraction verifies the exact 184,559,328-byte checkpoint payload,
+SHA256 `52e2aaf215b98b3523f1a91646ecc13fa8580517c86a46504912a0c47f0e01b6`.
+Compiled source/build identity and unsigned PE metadata verify; source/cache
+and the existing EXE/ZIP remain unchanged. 7-Zip reports `BadCmd=13` and does not
+expose the standalone uninstaller, so native uninstall remains unqualified.
+
+Native Windows install/startup/update/rollback/uninstall and installed recovery
+remain NOT_RUN under the antivirus hold. Trusted signing and final-source
+qualification remain open; earlier native installer results do not transfer.
+Raw compiler, extraction and guard records are under
+`/srv/mudds-work/windows-installer-ca0afc4-20261017/`.
+
 ## Latest native checkpoint `edbeef74a` — 2026-10-11
 
 The unsigned [setup](../builds/windows/MuddsShipyards-edbeef7-setup.exe) and

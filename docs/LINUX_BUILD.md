@@ -4,7 +4,30 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local checkpoint: `7f9627e5c` — 2026-10-17
+## Latest local checkpoint: `ca0afc449` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-ca0afc4.x86_64),
+[archive](../builds/linux/MuddsShipyards-ca0afc4-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-ca0afc4-linux-notes.txt) use clean source
+`ca0afc449efc547de0d6049ac94ea2c876d14e2d`. All 1,515 Windows/Linux payload
+entries agree, and direct/archive strict menu startup passes. Full regression
+on this source is NOT_RUN; the subsequent original-cap Rime source suite still
+times out and the earlier f85957f full FAIL remains retained.
+
+One archive-extracted native ELF pilot/convoy interruption case now passes in
+57.291s. The exact owned process exits -9 after its real durable running marker;
+a fresh process exits 0 with the identical activity boundary, receipts 1→2 once,
+one crash event and clean crash/safe-start shutdown markers. Source/cache,
+package/metadata, unrelated settings/tutorial/safe-home data and the private
+save sentinel remain unchanged; profiles and owned processes are cleaned up.
+Both invocations use headless/Dummy and original 300s stage limits. Setup is
+scripted; continuation uses real safe-home berth boarding and an escort-motion
+fixture. Ordinary controls, airborne seat/world-pose restoration, other contexts,
+actual graphical desktop-entry launch and native GPU/device/audio acceptance
+remain open. Raw result:
+`/srv/mudds-work/linux-native-recovery-ca0afc4-20261017/results/pilot/`.
+
+## Earlier local checkpoint: `7f9627e5c` — 2026-10-17
 
 The [executable](../builds/linux/MuddsShipyards-7f9627e.x86_64),
 [archive](../builds/linux/MuddsShipyards-7f9627e-linux-x86_64.tar.gz) and
