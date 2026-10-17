@@ -1434,3 +1434,31 @@ Thirteen clean retired checkouts removed in total; unique raw results and the
 two known dirty checkout exceptions remain preserved. Parked runtime/performance
 claims are unchanged. This housekeeping does not count as roadmap gameplay
 delivery; the same Ember ABANDON route is still running under its original cap.
+
+
+Final retired-directory cleanup removed three more clean idle checkouts after
+preserving their unique artifacts/source: cabin-shutdown, full-f85957f and
+native-sortie. Detached cabin source9c213d2fd75e8046520cb85b963c81f9908c5357
+had no containing ref, so created `archive/cabin-shutdown-9c213d2fd` before
+removal. Full-matrix sourcef85957f862c0e4841fc549cb3f65a59db747457b remains
+in main; native sourcef69eff5d394d3731edfe4bf221d4a0c724979e37 remains on
+`native-sortie`. No source branch was deleted.
+
+Retained all3 ignored full-matrix PNGs (735275 bytes) and all74 native-sortie
+raw/build files (1017575633 bytes, including four historical Linux artifact
+trios) under `/srv/mudds-work/retained-worktree-artifacts/`, each within its
+former checkout-name directory. Every file hash was checked unchanged after
+moving; relocation.json maps former/current roots and relative names/hashes.
+No duplicated binary copy was made, no failed result was discarded or promoted.
+Clean status, generated-only remaining ignores, exact source refs and idle
+process working directories were rechecked before removing each checkout.
+
+This finishes the inventory of `/srv/mudds-work/retired-worktrees/`:16 clean
+checkouts removed in total. Exactly three dirty checkouts remain intact: annex-
+contact, cargo-transition-cpu and disembark-floor. Cargo additionally preserves
+its modified `tests/cargo_delivery_production_integration_test.gd`; the prior
+entry records the other modified files. These are known unique-work exceptions,
+not permission to erase changes or repeat their inventory every goal turn.
+Other active/pinned worktrees and all unique raw results are outside this cleanup.
+The same original Ember return run remains live; no new game qualification
+result or performance improvement is claimed by this housekeeping.
