@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Project,
     [Parameter(Mandatory=$true)][string]$OutputDirectory,
     [string]$TargetProfile,
-    [ValidateSet('station_embodied_route','nearby_sector_ship_flight_route','halyard_cabin_walk_route','torrent_range_combat_reuse_route','ember_surface_walk_route','aurora_surface_walk_route')][string]$Scenario,
+    [ValidateSet('station_embodied_route','nearby_sector_ship_flight_route','halyard_cabin_walk_route','torrent_range_combat_reuse_route','ember_surface_walk_route','aurora_surface_walk_route','rime_surface_walk_route')][string]$Scenario,
     [switch]$Smoke,
     [switch]$Headless,
     [switch]$PreflightOnly,

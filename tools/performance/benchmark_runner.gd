@@ -15,7 +15,7 @@ const MINIMUM_SAMPLE_SECONDS := 600.0
 const SMOKE_WARMUP_FRAMES := 2
 const SMOKE_SAMPLE_FRAMES := 4
 const DEFAULT_SCENARIO_ORDER := [&"station_embodied_route", &"nearby_sector_ship_flight_route"]
-const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_route", &"halyard_cabin_walk_route", &"torrent_range_combat_reuse_route", &"ember_surface_walk_route", &"aurora_surface_walk_route"]
+const SCENARIO_NAMES := [&"station_embodied_route", &"nearby_sector_ship_flight_route", &"halyard_cabin_walk_route", &"torrent_range_combat_reuse_route", &"ember_surface_walk_route", &"aurora_surface_walk_route", &"rime_surface_walk_route"]
 const MINIMUM_SMOKE_MOVEMENT_METERS := 0.001
 const MINIMUM_FULL_STATION_PATH_METERS := 1.0
 const FLIGHT_ENDPOINT_RADIUS_METERS := 20.0
@@ -26,6 +26,9 @@ const EMBER_TERRAIN := preload("res://assets/world/planets/ember_basalt_terrain.
 const AURORA_REGION := preload("res://assets/world/planets/aurora_foundation_landing.tres")
 const AURORA_WORLD := preload("res://assets/world/planets/aurora_temperate_world.tres")
 const AURORA_TERRAIN := preload("res://assets/world/planets/aurora_temperate_terrain.tres")
+const RIME_REGION := preload("res://assets/world/planets/rime_icefall_landing.tres")
+const RIME_WORLD := preload("res://assets/world/planets/rime_glacial_world.tres")
+const RIME_TERRAIN := preload("res://assets/world/planets/rime_glacial_terrain.tres")
 # Existing coastal trail/sign/lookout route from aurora_visit_loop_test.gd.
 # The reverse visits the same authored points, keeping clear of landmark props.
 const AURORA_COASTAL_POINTS: Array[Vector3] = [
@@ -471,6 +474,100 @@ class BenchmarkAuroraWalker extends BenchmarkEmberWalker:
 		return result
 
 
+## Rime follows the authored orange survey trail and cyan return trail, then
+## closes at the first point. Only actual sampled, ordered loops qualify.
+class BenchmarkRimeWalker extends BenchmarkAuroraWalker:
+	# Reuse patch/generated-terrain support. Rime has no CoastalExploration
+	# lookout nodes, so the inherited optional lookout-floor branch stays false.
+	var points: Array = route_points()
+	var ordered_sample_waypoints: Array[int] = []
+	var completed_sample_waypoints: Array[int] = []
+	var sampled_completed_loops := 0
+	var loop_closure_distance := -1.0
+	var maximum_frame_gap := 0
+	var previous_physics_frame := -1
+
+	static func route_points() -> Array:
+		var route: Array = RimeGlacialAuthoredScene.SURVEY_TRAIL.duplicate()
+		route.append_array(RimeGlacialAuthoredScene.RETURN_TRAIL)
+		route.append(route[0])
+		return route
+
+	func _physics_process(delta: float) -> void:
+		if stopped or guard.aborted:
+			return
+		var observation := game.rime_streaming_binding.physics_tick_from_caller_sample(
+			delta, game._capture_cinder_actor_sample())
+		world_valid = world_valid and bool(observation.get("accepted", false))
+		var physics_frame := Engine.get_physics_frames()
+		if previous_physics_frame >= 0:
+			maximum_frame_gap = maxi(maximum_frame_gap, physics_frame - previous_physics_frame)
+		previous_physics_frame = physics_frame
+		observe()
+		apply_input()
+
+	func _bootstrap() -> PlanetaryStreamingBootstrap:
+		return game.rime_streaming_bootstrap
+
+	func _world_id() -> StringName:
+		return &"rime_glacial_world"
+
+	func _route_source() -> String:
+		return "authored_rime_icefall_survey_return_loop"
+
+	func _in_bounds(local: Vector3) -> bool:
+		return local.is_finite() and local.x > -55.0 and local.x < 33.0 \
+			and local.z > -73.0 and local.z < -9.0 and absf(local.y) < 0.5
+
+	func apply_input() -> void:
+		BenchmarkInputGuard.release_inputs()
+		if stopped or guard.aborted or not world_valid or not is_instance_valid(player):
+			return
+		var multiplier := game._network_ember_passenger_gravity(player.global_position, policy)
+		if not is_finite(multiplier) or multiplier <= 0.0:
+			gravity_valid = false
+			return
+		player.gravity_multiplier = multiplier
+		var local := region.to_local(player.global_position)
+		var point: Vector3 = points[destination]
+		var distance := Vector2(local.x - point.x, local.z - point.z).length()
+		if distance <= 0.5:
+			if sampling:
+				if destination == 0:
+					ordered_sample_waypoints.clear()
+				if destination == ordered_sample_waypoints.size():
+					ordered_sample_waypoints.append(destination)
+			if destination == RimeGlacialAuthoredScene.SURVEY_TRAIL.size() - 1:
+				outbound_visits += 1
+				if sampling:
+					sampled_outbound_visits += 1
+			if destination == points.size() - 1:
+				return_visits += 1
+				if sampling:
+					sampled_return_visits += 1
+					if ordered_sample_waypoints.size() == points.size():
+						sampled_completed_loops += 1
+						completed_sample_waypoints = ordered_sample_waypoints.duplicate()
+						# Capture at closure; measurement continues walking more loops.
+						loop_closure_distance = distance
+			destination = (destination + 1) % points.size()
+			point = points[destination]
+		var target := region.to_global(point)
+		var camera_yaw := player.get_node(^"CameraRig/CameraYaw") as Node3D
+		var camera_parent := camera_yaw.get_parent() as Node3D
+		var direction := camera_parent.global_basis.inverse() * (target - player.global_position)
+		camera_yaw.rotation.y = atan2(-direction.x, -direction.z)
+		Input.action_press(&"move_forward")
+
+	func finish() -> Dictionary:
+		var result := super.finish()
+		result["sample_completed_loops"] = sampled_completed_loops
+		result["sample_completed_loop_waypoints"] = completed_sample_waypoints.duplicate()
+		result["sample_loop_closure_horizontal_distance_m"] = loop_closure_distance
+		result["maximum_physics_frame_gap"] = maximum_frame_gap
+		return result
+
+
 ## Drives the production local weapon and observes its existing authority. The
 ## only lifecycle mutation is the world's reuse operation after real destruction.
 class BenchmarkRangeCombat extends Node:
@@ -873,9 +970,10 @@ static func _run_scenario(
 		combat.process_physics_priority = ship.process_physics_priority - 1
 		game.add_child(combat)
 	var surface_walker: BenchmarkEmberWalker
-	if scenario_name in [&"ember_surface_walk_route", &"aurora_surface_walk_route"]:
+	if scenario_name in [&"ember_surface_walk_route", &"aurora_surface_walk_route", &"rime_surface_walk_route"]:
 		var aurora := scenario_name == &"aurora_surface_walk_route"
-		surface_walker = BenchmarkAuroraWalker.new() if aurora else BenchmarkEmberWalker.new()
+		var rime := scenario_name == &"rime_surface_walk_route"
+		surface_walker = BenchmarkRimeWalker.new() if rime else (BenchmarkAuroraWalker.new() if aurora else BenchmarkEmberWalker.new())
 		surface_walker.player = player
 		surface_walker.game = game
 		surface_walker.guard = input_guard
@@ -883,7 +981,7 @@ static func _run_scenario(
 		surface_walker.scene = surface_walker._bootstrap().get_loaded_instance() as Node3D
 		surface_walker.region = surface_walker.scene.get_node(^"LandingRegion") as Node3D
 		surface_walker.patch = surface_walker.region.get_node(^"WalkablePatch") as StaticBody3D
-		surface_walker.policy = _aurora_gravity_policy(game) if aurora else _ember_gravity_policy(game)
+		surface_walker.policy = _rime_gravity_policy(game) if rime else (_aurora_gravity_policy(game) if aurora else _ember_gravity_policy(game))
 		surface_walker.frame_generation = int(inputs.coordinate_frame_generation)
 		surface_walker.location_generation = int(inputs.streamed_generation)
 		surface_walker.process_physics_priority = player.process_physics_priority - 1
@@ -1167,7 +1265,7 @@ static func _finish_scenario_progress(
 		for field in ["local_path_distance_m", "maximum_local_displacement_m", "support_throughout", "occupancy_throughout", "control_throughout", "inside_throughout", "stationary_throughout", "healthy_throughout", "outbound_reached", "return_reached"]:
 			result[field] = tracker[field]
 		return result
-	if scenario_name in [&"station_embodied_route", &"ember_surface_walk_route", &"aurora_surface_walk_route"]:
+	if scenario_name in [&"station_embodied_route", &"ember_surface_walk_route", &"aurora_surface_walk_route", &"rime_surface_walk_route"]:
 		result["actor_type"] = "PlayerController"
 		result["control_enabled_end"] = player.is_control_enabled()
 		return result
@@ -1207,8 +1305,8 @@ static func validate_scenario_progress(
 		return errors
 	if scenario_name == &"torrent_range_combat_reuse_route":
 		return _validate_combat_progress(progress)
-	if scenario_name in [&"ember_surface_walk_route", &"aurora_surface_walk_route"]:
-		return _validate_surface_progress(progress, scenario_name == &"aurora_surface_walk_route")
+	if scenario_name in [&"ember_surface_walk_route", &"aurora_surface_walk_route", &"rime_surface_walk_route"]:
+		return _validate_surface_progress(progress, scenario_name == &"aurora_surface_walk_route", scenario_name == &"rime_surface_walk_route")
 	if not _finite_number(progress.get("path_distance_m")) \
 		or float(progress.get("path_distance_m", 0.0)) <= MINIMUM_SMOKE_MOVEMENT_METERS:
 		errors.append("actor path did not advance")
@@ -1328,6 +1426,8 @@ static func _stage_scenario(
 		hud.start_requested.disconnect(on_begin)
 	if input_guard.aborted or not began[0]:
 		return {"staging_valid": false, "staging_error": "benchmark aborted" if input_guard.aborted else "Begin Shift transition did not complete"}
+	if scenario_name == &"rime_surface_walk_route":
+		return await _stage_surface(tree, game, player, input_guard, false, true)
 	if scenario_name == &"aurora_surface_walk_route":
 		return await _stage_aurora_surface(tree, game, player, input_guard)
 	if scenario_name == &"ember_surface_walk_route":
@@ -1528,15 +1628,16 @@ static func _stage_aurora_surface(tree: SceneTree, game: GameFlow,
 
 
 static func _stage_surface(tree: SceneTree, game: GameFlow,
-		player: PlayerController, guard: BenchmarkInputGuard, aurora: bool) -> Dictionary:
-	var label := "Aurora" if aurora else "Ember"
-	var bootstrap: PlanetaryStreamingBootstrap = game.aurora_streaming_bootstrap if aurora else game.ember_streaming_bootstrap
-	var definition := AURORA_REGION if aurora else EMBER_REGION
-	var initial_local := Vector3(-7.0, 0.2, -17.0) if aurora else Vector3(-5.0, 0.2, 0.5)
+		player: PlayerController, guard: BenchmarkInputGuard, aurora: bool, rime: bool = false) -> Dictionary:
+	var label := "Rime" if rime else ("Aurora" if aurora else "Ember")
+	var bootstrap: PlanetaryStreamingBootstrap = game.rime_streaming_bootstrap if rime else (game.aurora_streaming_bootstrap if aurora else game.ember_streaming_bootstrap)
+	var definition := RIME_REGION if rime else (AURORA_REGION if aurora else EMBER_REGION)
+	var initial_local: Vector3 = RimeGlacialAuthoredScene.SURVEY_TRAIL[0] + Vector3.UP * 0.2 if rime else (Vector3(-7.0, 0.2, -17.0) if aurora else Vector3(-5.0, 0.2, 0.5))
+	var binding: PlanetaryStreamingProductionBinding = game.rime_streaming_binding if rime else game.aurora_streaming_binding
 	if not is_instance_valid(bootstrap) or not is_instance_valid(game.common_world_origin_rebase_owner):
 		return {"staging_valid": false, "staging_error": "Main " + label + " streaming/origin owners unavailable"}
-	if aurora and not is_instance_valid(game.aurora_streaming_binding):
-		return {"staging_valid": false, "staging_error": "Main Aurora streaming binding unavailable"}
+	if (aurora or rime) and not is_instance_valid(binding):
+		return {"staging_valid": false, "staging_error": "Main " + label + " streaming binding unavailable"}
 	var frame := bootstrap.get_coordinate_frame_for_session()
 	var initial_generation := frame.get_generation()
 	var body_local: Vector3 = definition.body_local_center_m \
@@ -1548,7 +1649,7 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 	if not bool(decoded.get("accepted", false)):
 		return {"staging_valid": false, "staging_error": label + " initial world coordinate unavailable"}
 	# The only actor placement. Main observes this real Player on the next tick,
-	# commits the common origin rebase. Aurora's benchmark adapter below feeds
+	# commits the common origin rebase. The atmospheric benchmark adapter feeds
 	# its actual binding, which Main ordinarily advances only during a visit.
 	player.teleport_to(Transform3D(Basis.IDENTITY, decoded.position as Vector3))
 	player.set_control_enabled(true)
@@ -1571,10 +1672,10 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 		if guard.aborted or Time.get_ticks_msec() - started > 15_000:
 			stop_reason = "abort" if guard.aborted else "wall_time_budget"
 			break
-		if aurora:
+		if aurora or rime:
 			# Use the real Main actor read and existing production binding.
 			# Main remains the only owner of the common-world origin cadence.
-			last_streaming_observation = game.aurora_streaming_binding.physics_tick_from_caller_sample(
+			last_streaming_observation = binding.physics_tick_from_caller_sample(
 				game.get_physics_process_delta_time(), game._capture_cinder_actor_sample())
 		scene = bootstrap.get_loaded_instance() as Node3D
 		if not is_instance_valid(scene):
@@ -1583,7 +1684,7 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 		if frame.get_generation() <= initial_generation:
 			last_gate = "origin_rebase_not_committed"
 			continue
-		if not (scene is AuroraTemperateAuthoredScene if aurora else scene is EmberMoonAuthoredScene):
+		if not (scene is RimeGlacialAuthoredScene if rime else (scene is AuroraTemperateAuthoredScene if aurora else scene is EmberMoonAuthoredScene)):
 			last_gate = "loaded_scene_type_mismatch"
 			continue
 		region = scene.get_node_or_null(^"LandingRegion") as Node3D
@@ -1591,7 +1692,7 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 		if not is_instance_valid(region) or not is_instance_valid(patch) or not game.is_ancestor_of(scene):
 			last_gate = "landing_region_patch_or_main_ownership_unavailable"
 			continue
-		policy = _aurora_gravity_policy(game) if aurora else _ember_gravity_policy(game)
+		policy = _rime_gravity_policy(game) if rime else (_aurora_gravity_policy(game) if aurora else _ember_gravity_policy(game))
 		policy_accepted = policy != null
 		if policy == null:
 			last_gate = "gravity_policy_configuration_rejected"
@@ -1652,7 +1753,10 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 			},
 		}
 	var legs: Array = []
-	if aurora:
+	if rime:
+		for point: Vector3 in BenchmarkRimeWalker.route_points():
+			legs.append([point.x, point.y, point.z])
+	elif aurora:
 		for point: Vector3 in AURORA_COASTAL_POINTS:
 			legs.append([point.x, point.y, point.z])
 	else:
@@ -1660,22 +1764,22 @@ static func _stage_surface(tree: SceneTree, game: GameFlow,
 			legs.append([str(leg[0]), float(leg[1]), bool(leg[2]), String(leg[3])])
 	var staged := {
 		"staging_valid": true, "actor": "production PlayerController",
-		"route_source": "authored_aurora_coastal_trail_lookout_loop" if aurora else "authored_ember_pad_egress_staging_loop",
-		("route_points_region_local" if aurora else "route_legs_region_local"): legs,
+		"route_source": "authored_rime_icefall_survey_return_loop" if rime else ("authored_aurora_coastal_trail_lookout_loop" if aurora else "authored_ember_pad_egress_staging_loop"),
+		("route_points_region_local" if aurora or rime else "route_legs_region_local"): legs,
 		"initial_region_local_m": [initial_local.x, initial_local.y, initial_local.z],
 		"streamed_location_id": String(bootstrap.get_location_id()),
 		"streamed_generation": bootstrap.get_location_generation(),
 		"coordinate_frame_generation": frame.get_generation(),
 		"initial_coordinate_frame_generation": initial_generation,
-		"streaming_owner": "Main/PlanetaryJourneyCoordinator/" + ("AuroraTemperateStreamingBootstrap" if aurora else "EmberMoonStreamingBootstrap"),
+		"streaming_owner": "Main/PlanetaryJourneyCoordinator/" + ("RimeGlacialStreamingBootstrap" if rime else ("AuroraTemperateStreamingBootstrap" if aurora else "EmberMoonStreamingBootstrap")),
 		"origin_owner": "Main/CommonWorldOriginRebaseOwner", "initial_player_placements": 1,
 		"gravity_source": "production_policy_benchmark_adapter",
-		"global_rng_seed": _scenario_seed(&"aurora_surface_walk_route" if aurora else &"ember_surface_walk_route"),
+		"global_rng_seed": _scenario_seed(&"rime_surface_walk_route" if rime else (&"aurora_surface_walk_route" if aurora else &"ember_surface_walk_route")),
 		"start_transform": _transform_record(player.global_transform),
-		"sequence": "held authored movement actions in landing tangent frame; " + ("repeat coastal trail to lookout and back" if aurora else "repeat five outbound and four return legs"),
+		"sequence": "held authored movement actions in landing tangent frame; " + ("repeat every ordered icefall survey/return waypoint and close at the start" if rime else ("repeat coastal trail to lookout and back" if aurora else "repeat five outbound and four return legs")),
 		"scope": "staged surface only; outbound/landing/return travel, Host journey gravity binding, rewards, endurance and native hardware NOT_RUN",
 	}
-	if aurora:
+	if aurora or rime:
 		staged["streaming_cadence"] = "benchmark_adapter_main_owned_binding_real_actor_sample"
 	return staged
 
@@ -1687,13 +1791,22 @@ static func _aurora_gravity_policy(game: GameFlow) -> PlanetarySurfaceGravityPol
 	return policy if bool(configured.get("accepted", false)) else null
 
 
-static func _validate_surface_progress(progress: Dictionary, aurora: bool = false) -> PackedStringArray:
+static func _rime_gravity_policy(game: GameFlow) -> PlanetarySurfaceGravityPolicy:
+	# Use the atmospheric surface reference, projected by the production policy.
+	# Like Aurora, this staged benchmark does not instantiate a Host journey.
+	var policy := PlanetarySurfaceGravityPolicy.new()
+	var configured := policy.configure(RIME_WORLD, RIME_TERRAIN,
+		game.rime_streaming_bootstrap.get_coordinate_frame_for_session(), 9.8)
+	return policy if bool(configured.get("accepted", false)) else null
+
+
+static func _validate_surface_progress(progress: Dictionary, aurora: bool = false, rime: bool = false) -> PackedStringArray:
 	var errors := PackedStringArray()
-	var label := "Aurora" if aurora else "Ember"
-	var minimum_gravity := 9.78 if aurora else 1.60
-	var maximum_gravity := 9.82 if aurora else 1.64
-	if progress.get("actor_type") != "PlayerController" or progress.get("world_id") != ("aurora_temperate_world" if aurora else "ember_moon") \
-		or progress.get("route_source") != ("authored_aurora_coastal_trail_lookout_loop" if aurora else "authored_ember_pad_egress_staging_loop") \
+	var label := "Rime" if rime else ("Aurora" if aurora else "Ember")
+	var minimum_gravity := 9.78 if aurora or rime else 1.60
+	var maximum_gravity := 9.82 if aurora or rime else 1.64
+	if progress.get("actor_type") != "PlayerController" or progress.get("world_id") != ("rime_glacial_world" if rime else ("aurora_temperate_world" if aurora else "ember_moon")) \
+		or progress.get("route_source") != ("authored_rime_icefall_survey_return_loop" if rime else ("authored_aurora_coastal_trail_lookout_loop" if aurora else "authored_ember_pad_egress_staging_loop")) \
 		or progress.get("gravity_source") != "production_policy_benchmark_adapter":
 		errors.append(label + " requires its production actor, world, route and gravity source")
 	for field in ["scene_instance_id", "region_instance_id", "patch_instance_id", "player_instance_id",
@@ -1732,6 +1845,23 @@ static func _validate_surface_progress(progress: Dictionary, aurora: bool = fals
 				"lookout_floor_support_observations", "sample_lookout_floor_support_observations"]:
 			if not _positive_json_integer(progress.get(field)):
 				errors.append("Aurora requires authored terrain/lookout floor support: " + field)
+	if rime:
+		if not _positive_json_integer(progress.get("maximum_physics_frame_gap")) \
+				or float(progress.get("maximum_physics_frame_gap", INF)) > 1.0:
+			errors.append("Rime requires continuous physics frame observations")
+		if progress.get("policy") == "full_route":
+			var waypoints: Variant = progress.get("sample_completed_loop_waypoints")
+			var ordered: bool = waypoints is Array and waypoints.size() == BenchmarkRimeWalker.route_points().size()
+			if ordered:
+				for index in waypoints.size():
+					ordered = ordered and _finite_number(waypoints[index]) and float(waypoints[index]) == float(index)
+			if not ordered or not _positive_json_integer(progress.get("sample_completed_loops")):
+				errors.append("Rime requires every ordered survey/return waypoint in one sampled loop")
+			var closure: Variant = progress.get("sample_loop_closure_horizontal_distance_m")
+			if not _finite_number(closure) or float(closure) < 0.0 or float(closure) > 0.5:
+				errors.append("Rime requires sampled loop closure within 0.5 m of its start")
+			if not _positive_json_integer(progress.get("sample_terrain_support_observations")):
+				errors.append("Rime requires sampled generated ice terrain support")
 	return errors
 
 
@@ -1835,7 +1965,7 @@ static func _release_inputs() -> void:
 	BenchmarkInputGuard.release_inputs()
 
 static func _scenario_seed(scenario_name: StringName) -> int:
-	return 9005 if scenario_name == &"aurora_surface_walk_route" else (9004 if scenario_name == &"ember_surface_walk_route" else (9003 if scenario_name == &"torrent_range_combat_reuse_route" else (9001 if scenario_name == &"station_embodied_route" else 9002)))
+	return 9006 if scenario_name == &"rime_surface_walk_route" else (9005 if scenario_name == &"aurora_surface_walk_route" else (9004 if scenario_name == &"ember_surface_walk_route" else (9003 if scenario_name == &"torrent_range_combat_reuse_route" else (9001 if scenario_name == &"station_embodied_route" else 9002))))
 
 
 static func percentile(samples: Array[float], fraction: float) -> float:

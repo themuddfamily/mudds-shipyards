@@ -11,6 +11,10 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if OS.get_environment("KETH_BENCHMARK_TEST_RIME_SURFACE") == "1":
+		await _test_live_surface(false, true)
+		_finish()
+		return
 	if OS.get_environment("KETH_BENCHMARK_TEST_AURORA_SURFACE") == "1":
 		await _test_live_surface(true)
 		_finish()
@@ -523,9 +527,9 @@ func _test_live_cabin_shuttle() -> void:
 	guard.free()
 
 
-func _test_live_surface(aurora: bool = false) -> void:
-	var label := "Aurora" if aurora else "Ember"
-	var selection := "aurora_surface_walk_route" if aurora else "ember_surface_walk_route"
+func _test_live_surface(aurora: bool = false, rime: bool = false) -> void:
+	var label := "Rime" if rime else ("Aurora" if aurora else "Ember")
+	var selection := "rime_surface_walk_route" if rime else ("aurora_surface_walk_route" if aurora else "ember_surface_walk_route")
 	var smoke := await RUNNER.run_benchmark(self, 1, 3, Vector2i(640, 360), 0, {}, true, selection)
 	var errors := RUNNER.validate_selected_diagnostic_report(smoke, selection)
 	_check(errors.is_empty(), "selected " + label + " surface smoke validates: " + "; ".join(errors))
@@ -544,7 +548,7 @@ func _test_live_surface(aurora: bool = false) -> void:
 		and smoke.representativeness.performance_budget_pass == null,
 		label + " selection cannot qualify the default protocol or performance")
 	var staged := scenario.deterministic_inputs as Dictionary
-	_check(staged.get("streamed_location_id") == ("aurora_temperate_world" if aurora else "ember_moon") \
+	_check(staged.get("streamed_location_id") == ("rime_glacial_world" if rime else ("aurora_temperate_world" if aurora else "ember_moon")) \
 		and int(staged.get("streamed_generation", 0)) > 0 \
 		and int(staged.get("coordinate_frame_generation", 0)) > int(staged.get("initial_coordinate_frame_generation", 0)) \
 		and int(staged.get("initial_player_placements", 0)) == 1,
@@ -560,7 +564,7 @@ func _test_live_surface(aurora: bool = false) -> void:
 			"disabled": changed.control_throughout = false
 			"wrong_world": changed.world_id = "station"
 			"wrong_scene": changed.world_identity_throughout = false
-			"wrong_gravity": changed.minimum_gravity_mps2 = 1.62 if aurora else 9.8
+			"wrong_gravity": changed.minimum_gravity_mps2 = 1.62 if aurora or rime else 9.8
 			"no_input": changed.held_input_throughout = false
 			"teleport": changed.maximum_physics_step_m = 5.0
 			"fake_progress":
@@ -581,8 +585,10 @@ func _test_live_surface(aurora: bool = false) -> void:
 	root.add_child(guard)
 	# Focused full-path primitive; never bypasses the public full benchmark's
 	# 3,600/60-second and 18,000/600-second timing floors.
+	# Rime allows two circuits so a partial warm-up circuit cannot qualify its
+	# required complete sampled loop; the enclosing mode retains its 300 s cap.
 	var route := await RUNNER._run_scenario(self, StringName(selection), 15, 180, 0, false,
-		{"warmup": 0.5, "sample": 45.0}, Vector2i(640, 360), guard)
+		{"warmup": 0.5, "sample": 90.0 if rime else 45.0}, Vector2i(640, 360), guard)
 	var route_progress := route.get("scenario_progress", {}) as Dictionary
 	_check(bool(route.get("completed", false)), label + " completes the physical authored out-and-back: " + str(route.get("error", "")))
 	_check(int(route_progress.get("sample_outbound_visits", 0)) > 0 \
@@ -601,11 +607,37 @@ func _test_live_surface(aurora: bool = false) -> void:
 		var route_round_trip := JSON.parse_string(JSON.stringify(route_progress)) as Dictionary
 		_check(RUNNER.validate_scenario_progress(StringName(selection), route_round_trip).is_empty(),
 			"Aurora physical endpoint/terrain record survives JSON round trip")
+	if rime:
+		var visited := route_progress.get("sample_completed_loop_waypoints", []) as Array
+		var ordered := visited.size() == RUNNER.BenchmarkRimeWalker.route_points().size()
+		for index in visited.size():
+			ordered = ordered and float(visited[index]) == float(index)
+		_check(ordered and int(route_progress.get("sample_completed_loops", 0)) > 0,
+			"Rime physically visits every survey/return waypoint in order during one sampled loop")
+		var closure := float(route_progress.get("sample_loop_closure_horizontal_distance_m", -1.0))
+		_check(closure >= 0.0 and closure <= 0.5,
+			"Rime records loop closure within 0.5 horizontal metres of its start")
+		_check(int(route_progress.get("sample_terrain_support_observations", 0)) > 0 \
+			and int(route_progress.get("maximum_physics_frame_gap", 0)) == 1,
+			"Rime walks generated ice terrain with continuous physics observations")
+		var route_round_trip := JSON.parse_string(JSON.stringify(route_progress)) as Dictionary
+		_check(RUNNER.validate_scenario_progress(StringName(selection), route_round_trip).is_empty(),
+			"Rime ordered loop/closure record survives JSON round trip")
+		for mutation in ["shortcut", "reordered", "open_loop", "warmup_loop_only", "missed_physics"]:
+			var changed := route_progress.duplicate(true)
+			match mutation:
+				"shortcut": changed.sample_completed_loop_waypoints = [0, 8, 12]
+				"reordered": changed.sample_completed_loop_waypoints = [0, 2, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+				"open_loop": changed.sample_loop_closure_horizontal_distance_m = 0.51
+				"warmup_loop_only": changed.sample_completed_loops = 0
+				"missed_physics": changed.maximum_physics_frame_gap = 2
+			_check(not RUNNER.validate_scenario_progress(StringName(selection), changed).is_empty(),
+				"Rime rejects " + mutation)
 	_check(root.get_node_or_null("Main") == null and not _surface_movement_pressed(),
 		label + " full-path success frees Main and releases movement")
 	print("PERFORMANCE_BENCHMARK_%s_SURFACE_ROUTE_PROGRESS: " % label.to_upper(), JSON.stringify(route_progress))
 	guard.free()
-	call_deferred("_abort_live_surface_walk", aurora)
+	call_deferred("_abort_live_surface_walk", aurora, rime)
 	var aborted := await RUNNER.run_benchmark(self, 1, 300, Vector2i(640, 360), 0, {}, true, selection)
 	_check(bool(aborted.get("aborted", false)) and not aborted.has("scenarios") \
 		and not aborted.has("representativeness"), "active " + label + " Escape emits no qualifying report")
@@ -620,8 +652,8 @@ func _surface_movement_pressed() -> bool:
 	return false
 
 
-func _abort_live_surface_walk(aurora: bool = false) -> void:
-	var label := "Aurora" if aurora else "Ember"
+func _abort_live_surface_walk(aurora: bool = false, rime: bool = false) -> void:
+	var label := "Rime" if rime else ("Aurora" if aurora else "Ember")
 	await process_frame
 	var originating_guard: RUNNER.BenchmarkInputGuard
 	for child in root.get_children():
@@ -637,6 +669,7 @@ func _abort_live_surface_walk(aurora: bool = false) -> void:
 			for child in game.get_children():
 				if child is RUNNER.BenchmarkEmberWalker and child.guard == originating_guard \
 						and (not aurora or child is RUNNER.BenchmarkAuroraWalker) \
+						and (not rime or child is RUNNER.BenchmarkRimeWalker) \
 						and float(child.sampled_path) > 0.02 and _surface_movement_pressed():
 					var body := child.player as PlayerController
 					var original_multiplier := float(child.original_gravity)
