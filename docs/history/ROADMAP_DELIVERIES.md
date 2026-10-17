@@ -1370,3 +1370,21 @@ Their former directories were under `/srv/mudds-work/retired-worktrees/`; raw
 results and parked roadmap outcomes are unchanged. This is cleanup, not delivered
 gameplay progress. Existing Ember ABANDON run remains in progress on its original
 owner and unchanged7200s route cap; no duplicate run was launched.
+
+
+Further bounded cleanup removed three more independently inspected clean, idle
+retired checkouts (approximately708MB before retaining6MB raw results):
+`mudds-matrix-lanes`, `mudds-shipyards-durable-launch` and
+`mudds-station-surface-mode`. Preserved branches `fix/matrix-dispatch-lanes`
+(f0515fd178b53433f24f7d64969cfa37a60bcdf0) and `fix/durable-suite-launch`
+(d83f5c38530364971de45219a1d3e3f9176c6f1e); station source
+69fbb3810adfb655c3afcb93dd00ba6705e893a8 remains reachable from main.
+
+Station's31 unique raw test/helper/log/acceptance/matrix files were moved from
+its ignored `artifacts/station-input-mode/` to
+`/srv/mudds-work/station-input-mode-results-69fbb3810/` and every file hash
+verified unchanged before checkout removal. Adjacent relocation.json records
+former/current paths. No raw failure was discarded or historical result
+promoted; remaining ignored files were disposable Python/Godot caches and
+generated import sidecars. Exact branch/clean/process-cwd checks were repeated
+by root before removal. Ember retains its original live supervisor and cap.
