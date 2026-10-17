@@ -159,6 +159,13 @@ func _run_fire_restart(args: PackedStringArray) -> void:
 
 
 func _fire_restart_stage(writer: bool) -> void:
+	# Match the existing Settings UI fixture's declared headless layout before
+	# Main constructs its HUD; visibility still requires the original row check.
+	root.content_scale_size = Vector2i(1280, 720)
+	_check(root.content_scale_size == Vector2i(1280, 720),
+		"restart fixture declares the existing 1280 by 720 Settings UI viewport precondition")
+	if not _failures.is_empty():
+		return
 	var disk := Store.new(Adapter.DEFAULT_STORE_PATH)
 	var opened := disk.load()
 	_check(bool(opened.accepted), "private production disk store opens")
@@ -213,6 +220,12 @@ func _fire_restart_stage(writer: bool) -> void:
 	await process_frame
 	await process_frame
 	var scroll := (hud.get("_settings_page") as Control).find_child("SettingsScroll", true, false) as ScrollContainer
+	var focus_owner := root.gui_get_focus_owner()
+	print("FIRE_RESTART_LAYOUT viewport=%s window_size=%s content_scale_size=%s focus_owner=%s fire_rect=%s scroll_rect=%s" % [
+		str(root.get_visible_rect()), str(root.size), str(root.content_scale_size),
+		str(focus_owner.get_path()) if focus_owner != null else "NONE",
+		str(fire_button.get_global_rect()), str(scroll.get_global_rect()) if scroll != null else "MISSING",
+	])
 	_check(scroll != null and scroll.get_global_rect().intersects(fire_button.get_global_rect()),
 		"focused Fire row is scrolled into the visible Settings viewport")
 	var expected_pads := _fire_restart_gamepads(game.get_runtime_settings().get_project_input_binding_defaults())
