@@ -116,9 +116,11 @@ failure through this boundary. The real disk store was then observed at
 generation17 with mandatory survey complete and exactly one beacon-data receipt.
 The harness subsequently reaches actual return cruise after reverse walking,
 ordinary reboarding and Host ascent: first return sample8,008,466.5m from home,
-one sampled rebase, no emitted failure. Full round-trip acceptance is pending.
-**Next single action:** follow this same route owner through physical return,
-home landing/usable exit and final saved reward, accepting only the original terminal gates or first
+one sampled rebase, no emitted failure. Return cruise subsequently reaches the
+actual home berth approach; ordinary flight closes45,000m→31,619.34m by
+`BERTH_RETURN tick=1200`, speed84.27m/s, phase7. Full round-trip acceptance is pending.
+**Next single action:** follow this same route owner through home berth docking,
+usable exit and final saved reward, accepting only the original terminal gates or first
 failure. Retain actual PID/start ticks at handoff
 and never restart solely because an observation expires. Independent abort:
 `python3 /srv/mudds-work/ember-completed-journey-results-20261017/original-contract/readonly-index/abort.py`.
