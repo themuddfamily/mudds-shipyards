@@ -321,3 +321,48 @@ No runtime change/checkpoint follows. Next single missing fact is full-scene
 landing onset: actual motor stage, native prior floor flags, moving-frame and
 containment context on the reused Player versus the standalone's fresh Player.
 Trace the existing placement, not another isolated fixture or generic rescue.
+
+## HULK · Continuous interior traversal (DONE on9cffc99a2)
+
+Full scene onset `555bf1256` identifies invalid test staging: the capsule starts
+inside the parked Torrent LowerGearCollision. First motor slide moves feet24
+→21.933 against downward gear and upward shelf normals; later ticks reach21.803.
+The moving frame is identity and cabin containment inactive; recovery/step-up
+leave the slide pose untouched. The withheld generic floor-recovery candidate
+would be inappropriate for this real floor/ceiling pinch. Temporary onset code
+was reverted in36cc99f3a; Player runtime remains byte-identical to ee0950ed1.
+
+`9cffc99a2f466249d5b8bf369671b23a10a965d8` stages the Player once at the existing
+production `settle_exit_onto_support(ship.get_exit_transform())` and aims the
+camera in world yaw. It replaces the invalid centre-under-hull starting waypoint
+only; all five aperture/interior targets and original authored doorway ray probes
+remain. Same capsule, enabled unseated control, normal speed/gravity/collision,
+actual hulk support and unchanged300s suite cap hold. No pose/velocity writes
+during the walk. One full suite passes83 checks, exit0, no diagnostics. Observed
+guarded batch107.0s; earlier implementation/manual review effort was not timed.
+
+Actual path75.9262m over844 samples/860 physics ticks, all6 targets reached.
+Authored path from actual exit74.7522m; maximum sample0.19834m over multiple ticks,
+maximum per-tick estimate0.096681m. Support colliders are Exterior/DockShelf and
+Exterior/HullDeck. Walking arrives within the real breaker's interaction query.
+Separate fringe/rebase activation, once-only payment, refused writes/fresh-Main
+recovery, lighting, stream unload/revisit and reward persistence all pass in the
+same suite. Their original staging/memory-store limits remain: this is not full
+ordinary flight/docking, physical E input, cross-process package or expedition
+acceptance. Full packaged hulk loop remains open.
+
+Retained intermediate runs: authored-exit9a028499f deliberately aborted exit143
+when review caught local camera yaw's rotated-parent assumption; world-yaw
+db1d297c6 exits1 at static ray preflight because the actual exit incorrectly
+replaced a chest-height authored probe. Final code preserves those exact original
+ray probes independently of the real capsule approach. No acceptance weakening,
+new geometry, expanded physics or deadline change. All raw failures remain.
+
+Root independently reviews source-specific guards11873/index/cache645/engine,
+actual private headless/Dummy environments and all16 owned process identities
+across onset, abort, failed preflight and final run. All are absent; sockets,
+displays and ordered lanes close. Clean checkout removed; donor cache retained.
+Raw `/srv/mudds-work/hulk-continuous-walk-results-20261017/`; accepted run
+`authored-exit/original-doorway-probes/`. Accepted log SHA256:
+`0628b604aa1a39424e27914bfdaa482eb49f794e8146f4f29c4479954ad57aa9`.
+These changes affect tests only; latest playable remains b6af782. Stop reached.

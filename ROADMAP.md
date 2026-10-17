@@ -34,38 +34,33 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 - Schedule only the next 3–5 concrete deliveries when their contracts are known.
   Uninstantiated backlog templates are not scheduled work or measurable progress.
 
-## Active repair: HULK[authored disembark staging]
+## Last delivery: HULK[continuous interior traversal] — DONE
 
-**Proven cause:** full-scene onset `555bf1256` shows the existing centre-shelf
-placement overlaps Torrent LowerGearCollision. First `move_and_slide()` pushes
-feet24→21.933 while contacting both overhead gear and shelf; later ticks trap
-feet21.803. Moving-frame, recovery and containment do not cause the displacement.
-Do not widen floor recovery: it correctly refuses this floor/ceiling pinch.
+Accepted source `9cffc99a2` walks the actual Player capsule from Torrent's
+production exit through the hulk aperture, vestibule, corridor and gallery to
+within the breaker's real interaction query. One initial placement; ordinary
+held movement thereafter. All five original interior targets and authored
+static doorway probes remain; no geometry/physics/deadline changes.
 
-**Fix/component:** root, existing hulk integration test only. Use production
-`settle_exit_onto_support(ship.get_exit_transform())` for the single initial
-placement. Replace only the invalid centre-under-hull start point with the actual
-exit; retain all five aperture/interior targets and normal capsule/input checks.
-No ship/geometry/physics/speed/gravity/timeout changes. Temporary motor trace is
-reverted and its exact patch/log preserved. Player runtime bytes are unchanged.
+| Step | Result |
+| --- | --- |
+| Implement | DONE; continuous movement plus production exit staging/world-yaw aiming. Onset trace proved old staging was inside parked landing gear; temporary trace reverted. |
+| Verify | DONE; full original300s-cap suite passes83 checks, exit0, zero diagnostics in observed107.0s. All6 waypoints,75.93m actual supported walk and existing reward/recovery/revisit cases pass. |
+| Close | DONE; source/index/cache/engine guards and owned cleanup independently verified. Temporary checkout removed; failures/raw runs retained. |
 
-| Step | State / finish line | Estimate |
-| --- | --- | --- |
-| Fix staging | DONE; actual ship exit replaces unsafe berth-centre placement. | ~5 min |
-| Verify | READY; full existing hulk suite original300s, headless/Dummy, exit0 plus `ABANDONED_HULK_LOOP_TEST_OK`, no diagnostics and guarded inputs/teardown. Stop at first failure. | 5–10 min |
-| Close | GATED; record real path/outcome, remove clean checkout, commit/push. Test-only change needs no new gameplay checkpoint. | 10 min |
+**Remaining in this delivery: zero.** [Recorded result](docs/history/ROADMAP_DELIVERIES.md#hulk--continuous-interior-traversal-done-on9cffc99a2).
+Player runtime is unchanged, so latest playable remains b6af782. This accepts
+interior traversal only: flight/docking and later fringe/rebase interactions
+are still staged. Physical Interact input, full canonical packaged expedition,
+real-file cross-process interruption and final-candidate gates remain separate.
 
-**Next single action:** run authored-exit/world-yaw with the original authored
-doorway ray probes restored. The corrected exit passes live hulk support; its
-port-side approach clipped the static ray when wrongly used as that probe.
-Capsule traversal remains required from the actual exit with normal collision.
-The first authored-exit run was deliberately aborted (exit143) after review
-found local-camera aiming assumed an unrotated Player; its clean closure and
-frozen inputs verify. World-yaw aiming fixes that test error without body writes. All five remaining authored targets, capsule
-support/control and post-walk reward/persistence cases stay required. Initial
-flight/docking are staged, so full packaged expedition remains open regardless.
-No engine running. Latest playable remains b6af782.
-Raw onset: `/srv/mudds-work/hulk-continuous-walk-results-20261017/landing-onset/`.
+## Next selection
+
+Choose one named production gap from the backlog; record outcome, component,
+exact acceptance, estimate and stopping point before starting. Do not reopen
+completed shelf diagnostics, integrate the disproven generic recovery proposal,
+or rerun this unchanged suite merely for more evidence. Full-project scope and
+all ten phase gates remain open; unsplit parents are not a remaining-job count.
 
 ## Working constraints
 
