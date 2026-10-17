@@ -39,6 +39,17 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertIn('deliberate crash', pilot.result['remaining'])
         self.assertEqual(native.CAP, 300)
 
+    def test_cargo_clearance_keeps_the_port_approach_on_authored_deck(self):
+        points = dict(native.SandboxWalkPilot.WAYPOINTS)
+        # The old port x=-33 dogleg had no supporting deck past z=19;
+        # x=-36 hit the Arrow tail. The actual east apron admits x=-35.
+        self.assertEqual(points['arrow_aft_clearance'], [-35, 0, 22])
+        self.assertEqual(points['arrow_return_clearance'], [-35, 0, 22])
+        self.assertEqual(points['starboard_cargo_exit'], [34.8, 0, 13.5])
+        self.assertEqual(points['starboard_return_cargo'], [34.8, 0, 13.5])
+        self.assertGreater(points['aft_upper_floor'][0] - .38, -4.35)
+        self.assertLess(points['aft_upper_gate'][0] + .38, -2.75 - .12)
+
     def test_walk_uses_clear_deck_around_parked_tow_tractor(self):
         points = dict(native.SandboxWalkPilot.WAYPOINTS)
         self.assertEqual(points['tractor_forward_clearance'], [6, 0, 12.5])
