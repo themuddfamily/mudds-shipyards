@@ -866,3 +866,21 @@ or park with the missing fact. Counterfactual replay cannot prove coupled flight
 success. Existing installed Guided3/3 remains accepted on its recorded driver;
 no unchanged default rerun. Full HULK arrival/interior interaction/home/revisit
 and original phase gates stay open.
+
+## HULK prelude input — bounded diagnosis DONE
+
+Read-only comparison on retained150dbb1a7 observations identifies a concrete
+preserved-prelude contract violation in HulkArrivalPilot.update: its HULK-only
+mouse acknowledgement also postprocesses inherited Guided output. With initial
+interceptor-stage controllers and the actual unchanged-facing frames1726/1727,
+base outputs(7,-9)/(7,-9); subclass outputs(7,-9)/(0,0). Normal braking/fire output
+agrees. Source condition confirms that suppression applies before HULK transit.
+This controlled two-snapshot comparison proves the command difference only;
+actual driver-consumed observation batches/dispatched events were not separately
+recorded, so it does not establish missed-shot/destruction causality or successful
+coupled-flight behavior after a correction. No engine run, new script/validator,
+repeated default Guided route or second diagnostic probe. Stop diagnosis.
+
+Next separately budgeted HULK-PRELUDE-PRESERVE corrects only wrapper scope, proves
+base-output preservation, and permits one full actual arrival trial with unchanged
+150dbb1 ELF/300s cap. No gameplay/observer/physics/criteria changes justified.

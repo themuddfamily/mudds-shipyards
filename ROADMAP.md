@@ -193,7 +193,7 @@ after their dependency exists. These are scenario capabilities, not phase comple
 - **Close:** exact source/build/raw outcome, commit/push, remove owned disposable
   worktrees. No full salvage journey claim from arrival alone.
 
-### HULK-PRELUDE-INPUT — READY diagnosis
+### HULK-PRELUDE-INPUT — DONE diagnosis
 
 - **Parent/result:** HULK arrival. Identify one concrete input-handling defect
   behind the observed interceptor failure, or record the precise missing fact.
@@ -209,9 +209,36 @@ after their dependency exists. These are scenario capabilities, not phase comple
   difference tied to actual observations and its file owner, or an explicit
   inconclusive result/park. A counterfactual input replay cannot establish that
   the coupled real flight would pass. No automatic second probe.
-- **Next action:** inspect the retained interceptor segment and wrapper; any
-  supported correction gets a separate bounded implementation/qualification card.
-  Record result and commit/push before choosing further work.
+- **Result:** on actual frozen observations1726→1727, base Pilot requests mouse
+  `(7,-9)` twice; HULK wrapper requests `(7,-9)` then suppresses to`(0,0)` while
+  back vector is unchanged. Source confirms wrapper postprocesses inherited
+  Guided output, contrary to the preserved-prelude boundary. This two-snapshot
+  counterfactual proves output difference, not actual dispatched event history
+  or why opponent damage stayed0. Stop diagnosis here; no second probe.
+- **Close/next:** separate bounded correction below; no engine run in diagnosis.
+
+### HULK-PRELUDE-PRESERVE — READY implementation
+
+- **Parent/result:** HULK arrival. Keep the ordinary Guided prelude's inherited
+  input commands unchanged; apply HULK-specific mouse acknowledgement only after
+  the explicit RETURN_TO_YARD diversion to HULK transit.
+- **Owner/source:** root integration; candidate150dbb1a7; only existing
+  `tools/release/run_native_sortie.py` and its focused Python tests. Do not edit
+  gameplay, observer, authored tuning, targets, waits or300s cap.
+- **Proof:** compare base/subclass command output before diversion, including
+  the retained unchanged-facing pair. Existing focused driver tests pass; then
+  one actual full arrival qualification using exact retained150dbb1 native ELF
+  with the corrected separately hashed Python driver. Require original full
+  HULK arrival criteria; prelude alone cannot close arrival.
+- **Budget/stop:**15m implementation/review; separate one300s actual route plus
+  cleanup. Stop first actual failure; no automatic further pacing correction.
+  This is one supported correction, not an unlimited tuning investigation.
+- **Next action:** gate the HULK-only wrapper behind its own stages, commit the
+  candidate, then freeze driver/ELF and run once. No re-export/repeat startup is
+  needed for this tools-only change: actual tested game payload remains150dbb1.
+- **Close:** record actual result, integrate/push only working capability; retain
+  failed raw/candidate on failure, clean owned worktrees. A working arrival still
+  requires the planned fresh Windows checkpoint before closing this delivery.
 
 ### HULK-BREAKER-INPUT — GATED on arrival
 
