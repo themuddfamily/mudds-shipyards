@@ -1036,3 +1036,33 @@ unload and later newer load generation, not assumed elapsed time. Immediate
 home reboarding is blocked until walking>7m away. The remaining parent is split
 into HULK-HOME-INPUT then HULK-REVISIT-INPUT, each retaining cumulative300s cap.
 Source inspection is not a return/revisit runtime pass.
+
+
+## HULK home input — failed qualification on ef67f3e95
+
+Candidate `ef67f3e95d150dc7d273333df1fb53ef8451a872` adds opt-in ordinary-input
+home-return release qualification, with no gameplay/control/timing changes.
+37 focused Python checks pass. Clean pinned Godot import, observer check-only,
+startup privacy, Linux export and strict direct/archive startup pass. Six setup
+stages pass; the one full `--route hulk-home` attempt fails the original cumulative
+300s independent deadline in `home_flight` (303.781s including owned cleanup).
+No retry or longer cap, gameplay placement, timer override or Windows checkpoint.
+
+The retained run completes Guided combat, physical HULK arrival/interior breaker,
+normal three-second restoration, exactly one cell, separate duplicate refusal,
+reverse interior walk and ordinary reboarding into START_ENGINES/FREE_FLIGHT.
+It then ceases forward progress before home. Final frame6749 ship position
+(-4.636297,8.548676,-125.467682), velocity(.158910,-.001061,-.000058), engineONLINE,
+hull36.609222. Cell count1, exact receipt and activity generation1 remain; source
+focus/owner remain enabled. Cinder remains loaded, generation1/unload_count0,
+distance583.468m below650m. Fade/unload, home docking/shutdown/exit/walk are NOT
+qualified. A stationary position alone does not establish a collision cause.
+
+Raw `/srv/mudds-work/hulk-home-results-20261017/` retains commands, original logs,
+result and terminal owner identities. Source/index/engine/cache guards pass;
+zero game diagnostics, inputs released, helper/game/Xvfb reaped. Independent
+closure finds all61 observed owned identities absent, no owned sockets or private
+display257/authority/profile remnants. Implementation checkout removed; candidate
+preserved on `hold/hulk-home-input-20261017`, withheld from main/public packages.
+Latest accepted checkpoint remains7dd70a9. HOME-STALL is a separate15m read-only
+source/log diagnosis, not an automatic qualification retry or delivered gameplay.

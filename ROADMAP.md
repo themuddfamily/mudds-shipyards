@@ -142,7 +142,7 @@ remain in [completed deliveries](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinar
 This does not close the full HULK parent. Split its remaining physical journey
 at the observable home-exit boundary, rather than one expanding return/revisit job.
 
-### HULK-HOME-INPUT — IN PROGRESS qualification
+### HULK-HOME-INPUT — FAILED qualification; candidate withheld
 
 - **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Add an opt-in release qualification route continuing the accepted breaker run
@@ -159,7 +159,7 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
   START_ENGINES→FREE_FLIGHT. Fly existing home approach, capture/one L, strict
   occupied home dock, neutral OFFLINE/one E, actual supported walking exit.
 - **Proof:** proposed select-only `--route hulk-home`, distinct
-  `NATIVE_HULK_HOME_OK` (implemented; runtime NOT_RUN), original cumulative300s cap.
+  `NATIVE_HULK_HOME_OK` (implemented; full route FAILED), original cumulative300s cap.
   Preserve complete breaker receipt; same Player/ship/capsule and authored
   controls; occupied HULK lease actually released before actual Cinder unload;
   strict home token/occupant/exact parking, controllable unseated supported exit.
@@ -168,13 +168,36 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
 - **Budget/stop:**45–90m implementation, checks/export/one300s route separately.
   Stop first unsupported control/actual failure or estimate boundary; no retries,
   rescue, direct boarding/docking calls or clock changes.
-- **Next action:** root runs clean candidate import/observer parse/privacy, Linux
-  export/direct and archive startup, then one cumulative300s home route.
-  Candidate37 focused Python checks pass; prior route classes are unchanged.
-  Read-only observations and return states are committed; no gameplay pass is
-  claimed yet. Actual outside650m Cinder retirement/unload remains required.
-- **Close:** exact result/source/build, commit/push, working checkpoint and owned
-  cleanup. Revisit/new generation and disk interruption remain separate.
+- **Actual result:** candidate37 Python checks, clean Godot import/observer parse/
+  privacy, Linux export and direct/archive strict startup pass. One cumulative
+  route failed its unchanged300s deadline in `home_flight`;303.781s includes
+  cleanup. Guided/HULK/breaker/duplicate refusal/reverse walk/reboarding completed.
+  Last position(-4.636,8.549,-125.468), FREE_FLIGHT/ONLINE, cell1/generation1;
+  Cinder still loaded at583.468m, no home docking/unload/exit proof. No diagnostics.
+- **Close:** six setup/package stages pass, route FAIL. Source/index/engine/cache
+  stable; all61 observed owned identities absent, inputs released and private
+  display257/authority/sockets closed. Candidateef67f3e95 retained on
+  `hold/hulk-home-input-20261017`, excluded from main and published checkpoints.
+  Implementation worktree removed. Raw: `/srv/mudds-work/hulk-home-results-20261017/`.
+  Windows checkpoint was not launched; latest accepted package remains7dd70a9.
+  Full route repair is a separate card; revisit remains gated.
+
+### HULK-HOME-STALL — IN PROGRESS diagnosis only
+
+- **Parent/result:** HULK-HOME-INPUT. Identify the first causal boundary behind
+  the retained forward-progress stall; diagnosis is not a gameplay delivery.
+- **Owner/boundary:** `hulk_home_stall` read-only source/log review, root records
+  decision. One hypothesis: direct return encounters production collision or a
+  deterministic driver brake/input condition. No engine, route retry or edits.
+- **Proof:** candidateef67f3e95 and retained failed native log/result. Name the
+  concrete owner and smallest repair, or the single missing fact requiring one
+  future probe. Do not infer collision from stationary position alone.
+- **Budget/stop:**15m; stop at causal seam or exact missing fact, with no second
+  investigation. Original300s cap and all physical criteria remain unchanged.
+- **Next action:** inspect retained return observations against the existing
+  driver and runtime owners. Any repair needs its own bounded card before work.
+- **Close:** record finding/source and next task; retain raw failure and commit/
+  push. Remove owned disposable checkout after its active reader finishes.
 
 ### HULK-REVISIT-INPUT — GATED on home route
 
