@@ -366,3 +366,39 @@ Raw `/srv/mudds-work/hulk-continuous-walk-results-20261017/`; accepted run
 `authored-exit/original-doorway-probes/`. Accepted log SHA256:
 `0628b604aa1a39424e27914bfdaa482eb49f794e8146f4f29c4479954ad57aa9`.
 These changes affect tests only; latest playable remains b6af782. Stop reached.
+
+## WORLD-SOLO · Completed Ember source journey (INCOMPLETE at attempt cap)
+
+One frozen source attempt on `fe7575fef3dfd2992530dbc7f1a0e16f80ea8482` runs
+existing `ember_transit_movement_soak.gd -- --ember-completed-return` with
+headless/Dummy/fixed60 and fresh real private user-data store. The chosen900s
+outer wall cap expires, exit124, before a complete journey. This chosen bound
+was not the documented explicit transit/ABANDON soak budget (1800/7200s); do not
+report its expiry as proof those longer contracts fail, nor silently increase
+its cap or retry unchanged to obtain a pass. Completed-mode long-run invocation
+and budget need a precise documented contract before another full run.
+
+Last report: outbound tick25361, target distance214,983.2m, speed15,012.2m/s,
+754 committed origin shifts; actual Ember loaded, Host attached, final approach
+activated, locationgeneration1 / coordinateframe755. Source has no flight/surface
+placement in this mode; one initial on-foot yard placement and shortened fixture
+canopy/boarding animation durations remain. Landing, completed survey, payment,
+reboarding, ascent, return and usable home exit are NOT_REACHED/unqualified.
+The actual private store is generation14, beacon receipt0, no completed survey
+slot. No gameplay assertion, script error or warning precedes the supervisor
+error announcing timeout. The watchdog also observed that outer timeout line
+during teardown and signalled the same closing supervisor; no different gameplay
+failure is implied by its first-diagnostic receipt. Success marker absent.
+
+Root independently verifies11873 source/index/cache645/pinnedengine before/after,
+actual single headless/Dummy/fixed60 completed-mode engine profile, all3 recorded
+owned identities absent and socket/display/ordered lane closure. Clean temporary
+checkout removed; donor cache/raw/private save retained. Raw:
+`/srv/mudds-work/ember-completed-journey-results-20261017/`.
+Log SHA256 `948d7a62bd690401e61f1e57118a8e42c68443f4b5230fb6888a5de65e02ec83`.
+No runtime fix or checkpoint. No native performance or full journey acceptance.
+
+A preceding bounded five-file startup source review found no justified avoidable
+construction candidate. Existing per-scan property and mesh/basis caches are
+already present; prior guard reorder did not improve whole startup. Q4 remains
+parked; no repeated startup profile or withheld candidate was integrated.

@@ -54,39 +54,46 @@ interior traversal only: flight/docking and later fringe/rebase interactions
 are still staged. Physical Interact input, full canonical packaged expedition,
 real-file cross-process interruption and final-candidate gates remain separate.
 
-## Active task: WORLD-SOLO[Ember completed physical source journey]
+## Last attempt: WORLD-SOLO[Ember completed source journey] — INCOMPLETE
 
-**Outcome:** qualify one source Arrow yard→Ember→completed survey/reward→yard
-route, or identify its first concrete failure. Existing
-`tests/ember_transit_movement_soak.gd -- --ember-completed-return` is the exact
-mode. No surface/flight placement; initial on-foot yard placement remains. The
-fixture's existing shortened canopy/boarding animation durations remain disclosed.
-Native/rendered performance, full package, repeat visits and shared crew are not
-qualified by this source check.
+On `fe7575fef`, the existing completed-return mode reaches real Ember streaming
+and final-approach activation, then the chosen900s wall cap expires (exit124).
+Last report:214,983m remaining,754 origin shifts, live locationgeneration1/frame755.
+No gameplay assertion failed before timeout; the success marker is absent.
+Landing/survey/reward/return remain unqualified. Private save generation14 has
+no beacon reward or completed survey. [Recorded result](docs/history/ROADMAP_DELIVERIES.md#world-solo--completed-ember-source-journey-incomplete-at-attempt-cap).
 
-**Owner:** root, sequential guarded execution; no implementation assignment yet.
-The bounded five-file startup review found no justified optimization candidate;
-Q4 startup remains parked, with no repeated profile or withheld patch integrated.
-
-| Step | Finish line / state | Estimate |
-| --- | --- | --- |
-| Freeze | READY; clean selected commit, pinned engine/copied cache, empty private disk-backed profile and exact invocation. | 5 min |
-| Run | GATED; one canonical900s cap, strict exit0 + `EMBER_TRANSIT_MOVEMENT_TEST_OK`, zero diagnostics. Outbound/landing/survey/paid terminal/return/usable home exit and physics continuity all required. Stop at first diagnostic/assertion. | Up to15 min + setup/closure |
-| Close | GATED; inspect raw counters/actual durable store and owned teardown, remove clean checkout, record done/failed, commit/push. No new build for qualification alone. | 10 min |
-
-**Exact command:** `/tmp/mudds-tools/godot-4.7.1/godot --headless
---audio-driver Dummy --fixed-fps 60 --path <clean-checkout> --script
-res://tests/ember_transit_movement_soak.gd -- --ember-completed-return` through
-existing `tools/release/suite_process.py --timeout 900`. The fixed60 step preserves
-normal per-physics-tick movement; it is not native real-time performance proof.
-No `KETH_EMBER_PHYSICAL_RETURN`/local-arrival diagnostic variable. Completed mode
-uses its real fresh `user://ember-canonical-completed-journey.json` store.
-No speed, physics, radii, waits, route, rewards or tick budgets change.
-
-**Next single action:** freeze and launch once. Raw output will be
+Guards and all3 recorded owned process/socket/lane closure verify. Temporary
+checkout removed; raw/private save retained under
 `/srv/mudds-work/ember-completed-journey-results-20261017/`.
-Do not retry unchanged, add cases or convert this qualification into an open-ended
-investigation. All broader world/phase gates stay open until their own acceptance.
+No runtime change/checkpoint; latest playable remains b6af782. Startup remains
+parked after a bounded five-file review found no justified construction candidate.
+
+## Next bounded task: WORLD-CONTRACT[Ember completed-return long soak]
+
+**Problem:** the selected900s attempt cap was a working bound, not the explicit
+transit/ABANDON budgets documented as1800/7200s. Completed-return mode must have
+an exact long-run contract before full qualification; this timeout alone neither
+proves a game defect nor fails those longer contracts. Do not raise a required
+acceptance deadline to obtain a pass or repeat the same900s attempt.
+
+**Owner/files:** root; existing `docs/EMBER_LOOP_SOAK.md`, test invocation and
+original scope references. Existing runtime script/tick limits stay unchanged.
+**Deliverable:** one exact completed-return command with justified wall budget,
+physics/input/profile requirements, actual source/build, success/failure/cleanup
+conditions, and a clear distinction from outbound-only and ABANDON modes.
+**Estimate:** 10–20 min definition; full required execution time separately.
+
+1. Resolve the applicable original long-soak contract and completed mode's
+   coverage, including fixture animation timings and initial placement limits.
+2. Update existing usage documentation and this task card with that one concrete
+   invocation/estimate. Record a named missing criterion if unresolved.
+3. Stop at an executable contract; schedule the full original-duration run or a
+   demonstrated production repair separately. No new validator or parallel harness.
+
+**Next single action:** reconcile completed mode with the existing long-soak
+usage/specification. No engine or other run is active. Full world/phase gates
+stay open; this attempt does not count as a delivered gameplay improvement.
 
 ## Working constraints
 
