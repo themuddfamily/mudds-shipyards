@@ -117,43 +117,46 @@ is stopped/parked. [Raw result and limits](docs/history/ROADMAP_DELIVERIES.md#co
 Declared-source/index/engine/cache guards pass, all6 recorded identities absent,
 lanes free, trace patch retained and clean temporary checkout removed.
 
-## Next delivery: managed installed Linux ELF Guided route
+## Managed installed Linux Guided route — DONE3/3
 
-**One result / qualification:** a real managed installation of b41c3cc can run
-the unchanged Guided walk/board/fly/combat/return/land/shutdown/exit route3/3,
-then uninstall without touching protected files. Parent:
-[INSTALL-LINUX / direct ELF ordinary route](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
-Existing b41 startup/update checks and earlier archive/direct Guided results do
-not qualify this managed installed-path context.
+The actual shipped b41c3cc manager installed its archive in a private managed
+prefix with spaces. Unchanged original Guided driver passes3/3 in50.839s,
+50.035s,50.518s; all phases,91 neutral shutdown frames,0.17m exit error, zero
+diagnostics. Actual uninstall/repeated uninstall preserve protected files.
+Source/index/public artifacts stable, all39 recorded identities absent, three
+private displays/authority paths closed, lanes free; clean checkout removed.
+[Result and capture limit](docs/history/ROADMAP_DELIVERIES.md#managed-installed-linux-b41c3cc--guided33-done).
+The extra observer missed native environment snapshots because of spaces in its
+command parser; actual process/argument/display/route/closure records remain.
+No rerun merely for paperwork. Direct installed ELF only: desktop-entry launch,
+rendered/native GPU, devices, Sandbox/Settings and full phase gates stay open.
 
-**Boundary:** published b41c3cc archive, its exact shipped manager, new private
-prefix/applications directories with spaces, and unchanged
-`tools/release/run_native_sortie.py` SHA256
-`a63a3dd9c35d91f9985e5cf4d3b731c081a1a2ecd13e9178fc66e2532f61c991`.
-No runtime/driver/route/waits/tuning changes. Original OS XTest → private X11 →
-Godot Input/default sampler, x11/Dummy/rendering-driver dummy/disabled render
-loop, independent abort and owned input/process cleanup. Desktop-entry launch,
-rendered/native GPU, physical devices, Sandbox/Settings are separate.
+## Sandbox recovery boundary — DONE diagnosis, original route still FAIL
 
-| Task | Exact finish line / stop | State / estimate |
-| --- | --- | --- |
-| INSTALL-GUIDED-PREPARE | Actual shipped manager CLI installs the actual archive in private managed prefix; exact installed ELF/manifest/digests/modes/desktop and protected sentinels recorded. | IN PROGRESS;1–2 min actual check, helpers reviewed |
-| INSTALL-GUIDED-RUN | Existing original Guided3/3, fresh profiles/processes, each original300s cap with345s outer cleanup cap. Preserve all phases,91 neutral shutdown frames and physical exit criteria; zero diagnostics; release/reap input/game/display. Stop first failure. | GATED on install; normally3–5 min, original caps unchanged |
-| INSTALL-GUIDED-CLOSE | Exact installed payload/manager/archive and protected files unchanged through runs; actual manager uninstall/repeated uninstall succeed; guards/lane/owned-process closure, record scope, commit/push and cleanup. | GATED on passes;5–10 min |
+Retained ca0afc4 original observations show only12 frames/0.20 physics seconds
+between completed regeneration/recovery_walk entry and deadline. The first
+recovery waypoint40 is9.65m away; responsive turning reaches forward-input
+threshold only at the final observation. No blocking geometry/control failure
+is evidenced. [Recorded boundary](docs/history/ROADMAP_DELIVERIES.md#sandbox-recovery-walking--retained-observation-boundary).
+No new engine run or gameplay repair claimed.
 
-**Owner:** root freezes/runs/interprets; `installed_guided_preparation` prepared
-only raw helpers (no execution/engines). Raw existing guarded-driver adaptation:
-`/srv/mudds-work/linux-installed-guided-results-20261017/`.
-**Next single action:** observe the existing guarded driverPID372885/start
-ticks107657846, verified live at launch, using clean source
-`b71229a13b000fb5f2e34f8f533296b7ce62bef8`. Checkout:
-`/srv/mudds-work/linux-installed-guided-20261017`. Existing raw stage status/logs
-and `abort.py` identify the actual active owner; never relaunch on a poll timeout.
-Stop first failure. Actual install and original Guided3/3/uninstall are underway.
-No new build is needed; use exact published ELF/archive hashes.
-All ten phase gates remain open. Q4/Convoy remain parked without a justified
-construction candidate. Latest paired gameplay checkpoint remains b6af782;
-Linux package isb41c3cc.
+## Next bounded task: SANDBOX-PACING-CANDIDATE
+
+**Diagnosis/planning only.** Parent: original full Sandbox normal-input/crash/
+recall/reuse acceptance. Owner `sandbox_recovery_boundary`, IN PROGRESS.
+
+| Field | Contract |
+| --- | --- |
+| Result | Identify one demonstrably avoidable earlier controller/input delay from original stage frames and actual observations, or report NONE. |
+| Boundary | Same exact original driver and `/srv/mudds-work/ca0-sandbox-acceptance-20261017/` receipts. Read-only; inspect only longest plausible avoidable branch, no engines/edits/new profiles/validators or broad startup audit. |
+| Proof | Actual frame/state/position interval plus exact driver branch supporting unnecessary waiting; total duration alone is insufficient. Preserve all54 ordered waypoints, eight sorties, real crash/recall/regeneration/recovery/reuse, default physical sampler, original waits/criteria and300s cap. |
+| Budget |15 min artifact review, stop at candidate or NONE. |
+| Close | Root schedules one supported correction separately, with full original acceptance; do not relabel a modified driver as unchanged. If NONE, park with no repeated run/profile. |
+
+**Next single action:** review the assigned bounded pacing finding. No engines
+active. Do not rerun accepted Guided/package/benchmark checks. All ten phase
+gates remain open. Q4/Convoy remain parked without a justified construction
+candidate. Latest paired gameplay checkpoint remains b6af782; Linux isb41c3cc.
 
 ## Working constraints
 

@@ -727,3 +727,66 @@ rechecked. Raw patch, logs, timing analysis and guards:
 `324a2e6dae0a85f740243929b66eeb101480be2d682850d50a220190e1e55c7d`.
 Exact owned trace restored after preservation; clean temporary checkout removed.
 This is diagnosis, not completed gameplay or a passing full suite.
+
+## Managed installed Linux b41c3cc — Guided3/3 DONE
+
+Actual published b41c3cc archive/shipped manager installed the exact ELF in a
+new private managed prefix with spaces. Installed ELF/manifest/digests/modes/
+desktop match; protected settings/saves/unrelated desktop remain unchanged.
+Unchanged original `tools/release/run_native_sortie.py`, SHA256
+`a63a3dd9c35d91f9985e5cf4d3b731c081a1a2ecd13e9178fc66e2532f61c991`,
+then passed Guided3/3 from that installed ELF:50.839s,50.035s,50.518s, each within
+original300s cap. All genuine phases, physical walk/board/launch/combat/return/
+landing/shutdown/exit, default sampler and accepted shot observed. Each retained
+91 neutral shutdown frames and physical exit error0.169999957m. Fresh profiles/
+processes, private Xvfb, explicit x11/Dummy/rendering-driver dummy/disabled render
+loop; zero diagnostics, inputs released and game/helper/display reaped.
+
+Installed owned files stayed exact through all runs, then ordinary actual
+shipped-manager uninstall and repeated uninstall both exit0; owned payload/
+manifest/desktop removed and protected sentinels retained. No gameplay/driver
+change or new build. Package sourceb41c3cc, frozen source/driver checkout
+b71229a13b000fb5f2e34f8f533296b7ce62bef8. All11,873 tracked hashes/index, absent
+source cache and public artifact identities stayed stable. All39 recorded
+process identities independently absent; network/display lanes free; owned
+socket inode set persisted and closure reports no remnants. Actual three
+displays, Xvfb identities and authority/profile paths recovered from original
+result/process rows; display locks/sockets and authority/profile paths absent.
+All48 injected outer-stage XDG/TMP directories directly checked0700.
+
+**Capture limitation:** the extra observer selected native executables by
+splitting a flattened command at spaces. It therefore missed native environment/
+FD snapshots for this installed path. No directly inspected native-environment
+or native-profile-mode claim is made. Exact original driver source enforces its
+private environment, while actual PID/start ticks, x11/Dummy args, private display
+identity, route results and closure are retained. Completed raw run is unchanged;
+no repeat merely to replace missing snapshots. Future observers should select
+actual `/proc/PID/exe` or NUL-delimited argv rather than split flattened text.
+
+Raw helpers/installation identity/commands/results/independent review/limit:
+`/srv/mudds-work/linux-installed-guided-results-20261017/`. Clean source checkout
+removed after review; normal uninstall reclaimed installed binary. Protected
+files and raw evidence retained. This qualifies managed installed **direct ELF**
+behavior only; actual desktop-entry launch, rendered/native GPU, physical-device/
+audio/human acceptance, Sandbox/Settings/full matrix and full release remain
+unperformed. All phase gates stay open.
+
+## Sandbox recovery walking — retained observation boundary
+
+Read-only original ca0afc4 result review confirms the same original driver SHA
+`a63a3dd9c35d91f9985e5cf4d3b731c081a1a2ecd13e9178fc66e2532f61c991` from exact
+ca0afc449efc547de0d6049ac94ea2c876d14e2d source/receipt. Full route remains FAIL
+at300s. Actual destruction f16788, grounded recall f16797, exact-berth regeneration
+and recovery_walk f16911, last observation f16923: only12 frames/0.20 physics
+seconds left for recovery. First unfinished target is original waypoint40,
+`central_aft_turn [0,0,15.5]`,9.6502m horizontally from the player. Ground/control/
+focus valid; seated/transition false. Player remains[-8.468079,-0.018333,10.871974]
+while facing converges1.82975→0.70475→−0.17650→0.04537 radians. Forward input only
+becomes permitted at the final observation (threshold0.08); dispatched keys
+were not separately logged. No evidence of blocking geometry or failed controls.
+
+Raw: `/srv/mudds-work/ca0-sandbox-acceptance-20261017/`, exact result and native
+observation log. No new engine run. Next separate15-minute artifact analysis may
+select one demonstrably avoidable earlier input/controller delay, preserving
+all54 waypoints/eight initial sorties/crash/recall/regeneration/recovery/reuse and
+all original waits/criteria/cap. If none supported, park rather than rerun/profile.
