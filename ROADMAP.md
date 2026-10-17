@@ -109,8 +109,13 @@ and is absent. Route is headless/Dummy, no fixed-FPS override, original3600s cap
 No donor cache was copied. First attempt was rejected on raw index drift and
 closed; its [recorded diagnosis](docs/history/ROADMAP_DELIVERIES.md) led to
 read-only `GIT_OPTIONAL_LOCKS=0` guard reads, preserving exact byte checks.
-**Next single action:** follow this same route owner, inspect physical milestones
-and final acceptance or first failure. Retain actual PID/start ticks at handoff
+**Last completed boundary:** real outbound8,010,646.7m,776 rebases;
+actual physics sampling max frame gap1. Arrow physically lands at the Ember
+berth, healthy82/82, Host phase5/docked; landing max step1.566685m. No emitted
+failure through this boundary. Full survey/reward/return acceptance is pending.
+**Next single action:** follow this same route owner through walked survey,
+reward/save and return, accepting only the original terminal gates or first
+failure. Retain actual PID/start ticks at handoff
 and never restart solely because an observation expires. Independent abort:
 `python3 /srv/mudds-work/ember-completed-journey-results-20261017/original-contract/readonly-index/abort.py`.
 Do not run default/outbound-only, ABANDON or staged-loop mode as a substitute.
@@ -140,7 +145,11 @@ at `/srv/mudds-work/linux-update-package-20261017`; clean export dry run passes.
 Pinned engine/template and private profile are prepared under
 `/srv/mudds-work/linux-update-package-results-20261017/`. No export/import or
 startup engine has run there. Next: after Ember closes and releases lanes, run
-the existing safe Linux export and actual archive checks on that same checkout.
+the prepared `run.py` with the full pinned commit and its prepared private
+environment. The reviewed sequence uses existing cold import/export/startup
+commands and `check_shipped_manager.py`, which reuses the consolidated SIGKILL
+helper against the actual shipped script/archives. All prepared scripts pass
+static syntax review; actual export/archive checks remain NOT_RUN.
 Any failure ends that task with its actual result and a named follow-up. The
 Aurora benchmark candidate stays unscheduled while this production gap is open.
 
