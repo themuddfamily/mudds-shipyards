@@ -205,8 +205,9 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
 - **Budget/stop:**30–45m implementation; one300s route separately. Stop at
   first concrete failure or estimate boundary. No extra probe, new framework,
   checkpoint export or unchanged startup checks before the route result.
-- **Next action:** implement staging/crossing guard in the existing driver;
-  extend focused tests for refusing premature departure from that waypoint.
+- **Next action:** root runs one guarded full route: corrected driver52e3e7f69,
+  same exact ef67f3e95 Linux binary/cache. Candidate39 focused checks pass; only
+  existing Python driver/tests differ. No unchanged export/startup repetition.
 - **Close:** record exact result/source/build; commit/push, working checkpoint
   if qualified, and remove disposable checkout. Revisit remains separate/gated.
 
