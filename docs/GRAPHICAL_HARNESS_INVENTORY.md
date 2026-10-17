@@ -42,16 +42,37 @@ bounded evidence reference after verified source and image declarations,
 satisfies the human-review stage. The report never upgrades a state, inspects
 pixels, or infers human approval from `review_status`.
 
-At this revision two source/image declarations are verified: freighter at exact
-`e159ac3c5` and freight berth at exact `689e2ed0e`. Both human-review readiness
-values are `ready`, not `reviewed`; the other eleven rows remain pending.
-The human-inclusive report has `ready=0`, `required=13`, and 35 blockers:
-22 machine stages and 13 human stages. Human stages are excluded from the
-owner's completion requirement without representing them as performed.
-Both text and JSON reports still state `render_execution=false` and
-`human_review_performed=false` because the report itself only reads metadata.
-These source-specific captures do not qualify all thirteen harnesses on one
-final frozen candidate.
+At this revision three source/image declarations are verified: caption presenter
+at exact `06d22013a`, freighter at exact `e159ac3c5`, and freight berth at exact
+`689e2ed0e`. Their human-review readiness values are `ready`, not `reviewed`;
+the other ten rows remain pending. The human-inclusive report has `ready=0`,
+`required=13`, and 33 blockers: 20 machine stages and 13 human stages. Human
+stages are excluded from the owner's completion requirement without representing
+them as performed. Both text and JSON reports still state
+`render_execution=false` and `human_review_performed=false` because the report
+itself only reads metadata. These source-specific captures do not qualify all
+thirteen harnesses on one final frozen candidate.
+
+The unchanged caption-presenter harness passes on clean `06d22013a`, producing
+exactly one 1600×900 PNG, exit 0, one success marker and zero diagnostics. The
+complete source, import cache and registry match before/after; all owned actors
+are reaped. Cold private XDG locations, private Xvfb x11, Dummy audio and
+Forward+ Vulkan llvmpipe retain the original camera, layout, six-frame wait and
+300-second cap. The 12-second wall span includes manifests. Original-resolution
+agent inspection finds the complete two-line caption readable, with unclipped
+speaker/category text and positive panel margins. No human or native GPU review
+is implied. Raw artifacts: `artifacts/caption-presenter-06d22013a/`. Source CSV
+SHA-256: `f7d80540649732b6c8f0b11ced4ab5fc4106a3b176c54ff22bf167ae1b91ecb7`; image inventory CSV SHA-256:
+`007b57314cebdeeacee964e5ecd9e9389980ba15a973e1acf914506a0c786c45`.
+
+The separately run unchanged full production-caption harness on the same source
+remains **FAIL**: exit 124 at its original 300-second engine cap, no success
+marker and no image. Its 307-second wall span includes manifests. The supervisor
+terminates and reaps the owned processes; no Godot warning/error precedes the
+supervisor's timeout error. Source, complete import cache and registry remain
+unchanged. Raw failed artifacts: `artifacts/caption-production-06d22013a/`.
+There is no unchanged retry, no promoted production-HUD inventory and no claim
+that the smaller presenter frame establishes production layout acceptance.
 
 The unchanged original freighter harness completed all four 1280×720 views
 within its original 300-second cap on clean frozen source and import cache,
@@ -110,7 +131,7 @@ The current source inventory contains **13 required harnesses and 143 PNGs**.
 Berth feedback now includes the Bulwark's three states, for **18**, and varied
 encounters includes `plate_04b_scatter_fan.png`, for **18**. The registry and
 validator require these complete source inventories, replacing their stale
-15/17 declarations (139 total). Only the freighter and freight-berth source/image stages are
+15/17 declarations (139 total). Only the caption-presenter, freighter and freight-berth source/image stages are
 verified as described above; matching a declared count alone does not qualify
 any captured image.
 
