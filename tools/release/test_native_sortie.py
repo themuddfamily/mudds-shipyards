@@ -2,6 +2,7 @@
 """Focused native-driver safety regressions; no Godot or display is launched."""
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -222,8 +223,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
             'bus_lights_restored': False, 'emergency_lights': True}
         return s
 
-    def breaker_at_exit(self, supported=True):
-        pilot, s = self.hulk_pilot(native.HulkBreakerPilot), self.breaker_observation()
+    def breaker_at_exit(self, supported=True, pilot_type=native.HulkBreakerPilot):
+        pilot, s = self.hulk_pilot(pilot_type), self.breaker_observation()
         pilot.update(s, 1)
         pilot.stage, pilot.request_frame = 'hulk_exit', s['frame']
         s = json.loads(json.dumps(s))
@@ -236,8 +237,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         pilot.update(s, s['frame']/60)
         return pilot, s
 
-    def walk_breaker_interior(self):
-        pilot, s = self.breaker_at_exit()
+    def walk_breaker_interior(self, pilot_type=native.HulkBreakerPilot):
+        pilot, s = self.breaker_at_exit(pilot_type=pilot_type)
         # Sample an uninterrupted physical path at normal walking speed. The
         # driver still decides its own waypoint acceptance and key commands.
         while pilot.stage == 'hulk_walk':
@@ -257,8 +258,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(pilot.stage, 'hulk_breaker_aim')
         return pilot, s
 
-    def press_breaker_and_restore(self, claimed_elapsed=3):
-        pilot, s = self.walk_breaker_interior()
+    def press_breaker_and_restore(self, claimed_elapsed=3, pilot_type=native.HulkBreakerPilot):
+        pilot, s = self.walk_breaker_interior(pilot_type=pilot_type)
         s = json.loads(json.dumps(s))
         s['frame'] += 30
         s['hulk']['interior']['breaker_candidate'] = True
@@ -366,6 +367,383 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual([e['pressed'] for e in result['native_interact_edges']], [True, False, True, False])
         self.assertEqual(result['arrival']['completion_marker'], 'NATIVE_HULK_ARRIVAL_OK')
         self.assertEqual(native.CAP, 300)
+
+    def home_at_breaker(self):
+        pilot, s = self.press_breaker_and_restore(pilot_type=native.HulkHomePilot)
+        interior = s['hulk']['interior']
+        s = json.loads(json.dumps(s))
+        s['guided_complete'] = True
+        s['walk_offset'] = [0, 0, 0]
+        s['candidate'] = False
+        s['hulk']['lease_free'] = False
+        s['hulk_home'] = {
+            'activity': interior['activity'], 'reward_count': 1,
+            'reward_receipt': interior['reward_receipt'],
+            'capsule_id': 5, 'shape_id': 6, 'capsule_enabled': True,
+            'player_velocity': [0, 0, 0], 'walk_tuning': interior['walk_tuning'],
+            'physics_ticks': 60, 'time_scale': 1,
+            'boarding': [-88, 22, -450], 'station_candidate': '',
+            'streaming': {'loaded': True, 'loading': False, 'loaded_instance_id': 8,
+                          'loaded_generation': 1, 'generation': 1, 'load_request_count': 1,
+                          'load_failure_count': 0, 'unload_count': 0, 'presentation': {},
+                          'distance_m': 300, 'unload_radius_m': 650},
+            'home': {'berth_id': 'central', 'berth_instance_id': 9,
+                     'approach': [0, 2, -18], 'dock': [0, 1.15, -10],
+                     'dock_forward': [0, 0, -1], 'selected_berth_id': 'central',
+                     'capture': False, 'contract': False, 'landing_abort_reason': '',
+                     'lease': False, 'occupant_id': 0, 'parked_exact': False,
+                     'grounded': False, 'supported': False, 'support_collider': ''}}
+        for ticks in range(15):
+            s = json.loads(json.dumps(s))
+            s['frame'] += 1
+            s['native_interact'] = 0 < ticks < 12
+            s['hulk']['interior']['last_breaker_result'] = {
+                'accepted': False, 'reason': 'power_already_restored'}
+            pilot.update(s, s['frame']/60)
+            if pilot.stage == 'home_reverse_walk': break
+        self.assertEqual(pilot.stage, 'home_reverse_walk')
+        return pilot, s
+
+    def home_at_boarding(self):
+        pilot, s = self.home_at_breaker()
+        while pilot.stage == 'home_reverse_walk':
+            target = pilot.reverse_route[len(pilot.reverse_visited)]
+            direction = native.sub([target[0], s['player'][1], target[2]], s['player'])
+            distance = native.norm(direction)
+            direction = native.unit(direction)
+            s = json.loads(json.dumps(s))
+            s['frame'] += 1
+            s['player'] = [p + d*min(.09, distance) for p, d in zip(s['player'], direction)]
+            if distance > 0:
+                s['walk_forward'] = direction
+                s['walk_right'] = [-direction[2], 0, direction[0]]
+            s['hulk']['shelf_supported'] = len(pilot.reverse_visited) == 5
+            pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_board_approach')
+        self.assertIsNone(pilot.result)
+        return pilot, s
+
+    def home_in_flight(self):
+        pilot, s = self.home_at_boarding()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+30, candidate=True)
+        self.assertIn('e', pilot.update(s, s['frame']/60)[0])
+        self.assertEqual(pilot.stage, 'home_board')
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+90, phase='START_ENGINES', piloted=True, seated=True,
+                 control_enabled=False)
+        s['hulk_home']['capsule_enabled'] = False
+        pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_flight')
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+60, phase='FREE_FLIGHT', landed=False,
+                 position=[-96, 33, -450])
+        s['hulk'].update(lease=False, lease_free=True, occupant_id=0, parked_exact=False)
+        pilot.update(s, s['frame']/60)
+        self.assertIsNotNone(pilot.hulk_departure)
+        return pilot, s
+
+    def home_at_staging(self):
+        pilot, s = self.home_in_flight()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+600, position=[0, 2.7, -150], velocity=[0, 0, 0])
+        pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_approach')
+        self.assertIsNone(pilot.home_clearance_ready)
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        self.face_home(s)
+        self.assertIn('w', pilot.update(s, s['frame']/60)[0])
+        self.assertIsNotNone(pilot.home_clearance_ready)
+        return pilot, s
+
+    def face_home(self, s, pitch_error=0, yaw_error=0):
+        direction = native.unit(native.sub(s['hulk_home']['home']['approach'], s['position']))
+        pitch = math.asin(direction[1]) + math.radians(pitch_error)
+        yaw = math.atan2(direction[0], direction[2]) + math.radians(yaw_error)
+        s['back'] = [-math.sin(yaw)*math.cos(pitch), -math.sin(pitch),
+                     -math.cos(yaw)*math.cos(pitch)]
+        s['right'] = [-math.cos(yaw), 0, math.sin(yaw)]
+        s['up'] = [-math.sin(yaw)*math.sin(pitch), math.cos(pitch),
+                   -math.cos(yaw)*math.sin(pitch)]
+
+    def home_across_header(self):
+        pilot, s = self.home_at_staging()
+        for position in ([0, 2.6, -125], [0, 2.5, -109]):
+            s = json.loads(json.dumps(s))
+            s.update(frame=s['frame']+30, position=position)
+            pilot.update(s, s['frame']/60)
+        self.assertIsNotNone(pilot.home_header_crossing)
+        return pilot, s
+
+    def home_after_unload(self):
+        pilot, s = self.home_across_header()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+1200, position=[0, 2, -18])
+        s['hulk'] = {'available': False}
+        s['hulk_home']['streaming'].update(loaded=False, loaded_instance_id=0,
+            loaded_generation=-1, generation=2, unload_count=1, distance_m=688,
+            presentation={'accepted': True, 'generation': 1, 'phase': 'fade_out_complete',
+                          'opacity': 0, 'retire_ready': True})
+        pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_align')
+        return pilot, s
+
+    def home_at_exit(self):
+        pilot, s = self.home_after_unload()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+30, camera=[0, 2, -18], back=[0, 0, -1],
+                 right=[-1, 0, 0])
+        s['hulk_home']['home'].update(capture=True, dock=[0, 2, -10])
+        self.assertIn('l', pilot.update(s, s['frame']/60)[0])
+        self.assertEqual(pilot.stage, 'home_land')
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+1, landing_active=True)
+        pilot.update(s, s['frame']/60)
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+90, landing_active=False, landed=True, phase='SHUT_DOWN',
+                 position=s['parked'], lease_free=False)
+        s['hulk_home']['home'].update(contract=True, lease=True, parked_exact=True, occupant_id=2)
+        pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_shutdown')
+        s = json.loads(json.dumps(s))
+        s['frame'] += 89
+        s['telemetry']['engine'] = 'OFFLINE'
+        self.assertNotIn('e', pilot.update(s, s['frame']/60)[0])
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        self.assertIn('e', pilot.update(s, s['frame']/60)[0])
+        self.assertEqual(pilot.stage, 'home_exit')
+        return pilot, s
+
+    def test_home_retains_full_breaker_prefix_and_reverses_actual_exit_route(self):
+        pilot, s = self.home_at_boarding()
+        self.assertEqual(pilot.reverse_route, list(reversed(pilot.route)))
+        self.assertEqual([v['index'] for v in pilot.reverse_visited], [5, 4, 3, 2, 1, 0])
+        self.assertEqual(pilot.reverse_route[-1], pilot.breaker_result['walk_route'][0])
+        self.assertNotEqual(pilot.reverse_route[-1], pilot.breaker_result['authored_route'][0])
+        self.assertEqual(pilot.breaker_result['completion_marker'], 'NATIVE_HULK_BREAKER_OK')
+        self.assertEqual(pilot.breaker_result['arrival']['completion_marker'], 'NATIVE_HULK_ARRIVAL_OK')
+        self.assertEqual(pilot.breaker_result['final_reward_count'], 1)
+        self.assertGreater(pilot.reverse_walked, 70)
+        # Parent require_unclaimed cannot run after the accepted breaker.
+        with patch.object(native.HulkBreakerPilot, 'update', side_effect=AssertionError('parent called')):
+            s = json.loads(json.dumps(s))
+            s['candidate'] = True
+            s['frame'] += 1
+            pilot.update(s, s['frame']/60)
+
+    def test_home_requires_live_unconflicted_boarding_and_never_retries_E(self):
+        pilot, s = self.home_at_boarding()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+30, candidate=True)
+        s['hulk_home']['station_candidate'] = 'HULK/Breaker'
+        with self.assertRaisesRegex(AssertionError, 'conflicting station candidate'):
+            pilot.update(s, s['frame']/60)
+        s['hulk_home']['station_candidate'] = ''
+        self.assertIn('e', pilot.update(s, s['frame']/60)[0])
+        s = json.loads(json.dumps(s))
+        s['frame'] += 121
+        with self.assertRaisesRegex(AssertionError, 'no retry'):
+            pilot.update(s, s['frame']/60)
+
+    def test_home_rejects_cell_identity_changes_capsule_replacement_and_unreleased_departure(self):
+        for mutate, error in [
+            (lambda s: s['hulk_home'].update(reward_count=2), 'earned cell count one'),
+            (lambda s: s['hulk_home']['reward_receipt'].update(receipt_id=99), 'exact receipt'),
+            (lambda s: s['hulk_home']['activity'].update(generation=2), 'generation one'),
+            (lambda s: s['hulk_home'].update(shape_id=99), 'same home berth and Player collision'),
+            (lambda s: s['hulk'].update(lease_free=False), 'old HULK lease stays free'),
+        ]:
+            with self.subTest(error=error):
+                pilot, s = self.home_in_flight()
+                s = json.loads(json.dumps(s))
+                s['frame'] += 1
+                mutate(s)
+                with self.assertRaisesRegex(AssertionError, error):
+                    pilot.update(s, s['frame']/60)
+
+    def test_home_requires_actual_fade_retirement_unload_and_rejects_reload(self):
+        for mutate, error in [
+            (lambda s: s['hulk_home']['streaming']['presentation'].update(retire_ready=False), 'outside tick'),
+            (lambda s: s['hulk_home']['streaming']['presentation'].update(opacity=.1), 'zero-opacity'),
+            (lambda s: s['hulk_home']['streaming'].update(distance_m=650), 'outside tick'),
+            (lambda s: s['hulk_home']['streaming'].update(load_request_count=2), 'no reload'),
+            (lambda s: s['hulk_home']['streaming'].update(generation=3), 'actual Cinder unload'),
+        ]:
+            with self.subTest(error=error):
+                pilot, s = self.home_after_unload()
+                s = json.loads(json.dumps(s))
+                s['frame'] += 1
+                mutate(s)
+                with self.assertRaisesRegex(AssertionError, error):
+                    pilot.update(s, s['frame']/60)
+        pilot, s = self.home_across_header()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+1200, position=[0, 2, -18])
+        # A long wait at home cannot substitute for the actual streamed unload.
+        pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_approach')
+        self.assertIsNone(pilot.result)
+
+    def test_home_clearance_staging_requires_arrival_and_full_settle_before_approach(self):
+        pilot, s = self.home_in_flight()
+        self.assertEqual(pilot.home_clearance_target, [0, 2.7, -150])
+        for position, velocity in [([0, 2.7, -152], [0, 0, 0]),
+                                   ([0, 2.7, -150], [0, 0, .36])]:
+            s = json.loads(json.dumps(s))
+            s.update(frame=s['frame']+60, position=position, velocity=velocity)
+            pilot.update(s, s['frame']/60)
+            self.assertEqual(pilot.stage, 'home_flight')
+            self.assertIsNone(pilot.home_clearance_staging)
+            self.assertIsNone(pilot.home_header_crossing)
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+60, velocity=[0, 0, 0])
+        pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_approach')
+        self.assertEqual(pilot.home_clearance_staging['waypoint'], [0, 2.7, -150])
+        self.assertEqual(pilot.home_clearance_staging['speed_m_s'], 0)
+        self.assertIsNone(pilot.home_header_crossing)
+
+    def test_home_clearance_waits_for_observed_attitude_and_settled_velocity(self):
+        pilot, s = self.home_in_flight()
+        # Retained failed route frames 5005/5006: arrival and then zero
+        # velocity, but the same nose remains 9.286 degrees down.
+        s = json.loads(json.dumps(s))
+        s.update(frame=5005,
+                 position=[-.355457872152328, 2.85557842254639, -150.746719360352],
+                 velocity=[.0643201246857643, -.0256182551383972, .144237756729126],
+                 back=[-.403144985437393, .161362916231155, -.900797545909882],
+                 up=[.044654157012701, .986627817153931, .156753361225128],
+                 right=[-.914046049118042, -.0229699686169624, .40495952963829],
+                 camera=[-6.84788227081299, 12.66379737854, -164.971878051758])
+        keys, _, _, _ = pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_approach')
+        self.assertIn('Prior', keys)
+        self.assertNotIn('w', keys)
+        self.assertIsNone(pilot.home_clearance_ready)
+        s = json.loads(json.dumps(s))
+        s.update(frame=5006, velocity=[0, 0, 0],
+                 camera=[-6.85218906402588, 12.6680374145508, -164.967407226562])
+        keys, _, _, _ = pilot.update(s, s['frame']/60)
+        self.assertIn('Prior', keys)
+        self.assertNotIn('w', keys)
+        self.assertIsNone(pilot.home_clearance_ready)
+        self.assertAlmostEqual(math.degrees(math.asin(-s['back'][1])), -9.285997, places=4)
+
+        for velocity, pitch_error, yaw_error in [
+            ([0, 0, .02], 0, 0),  # aligned but still moving
+            ([0, -.02, 0], 0, 0),  # aligned but descending
+            ([0, 0, 0], .6, 0),  # dot exceeds .9999; pitch is still unsafe
+            ([0, 0, 0], 0, 1),  # pitch is ready; direction is not
+        ]:
+            with self.subTest(velocity=velocity, pitch_error=pitch_error, yaw_error=yaw_error):
+                s = json.loads(json.dumps(s))
+                s.update(frame=s['frame']+1, velocity=velocity)
+                self.face_home(s, pitch_error=pitch_error, yaw_error=yaw_error)
+                keys, _, _, _ = pilot.update(s, s['frame']/60)
+                self.assertIn('Prior', keys)
+                self.assertNotIn('w', keys)
+                self.assertIsNone(pilot.home_clearance_ready)
+
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+1, velocity=[0, 0, 0])
+        self.face_home(s, pitch_error=.4)
+        keys, _, _, _ = pilot.update(s, s['frame']/60)
+        self.assertIn('w', keys)
+        self.assertNotIn('Prior', keys)
+        ready = pilot.home_clearance_ready
+        self.assertEqual(ready['frame'], s['frame'])
+        self.assertEqual(ready['position'], s['position'])
+        self.assertEqual(ready['velocity'], [0, 0, 0])
+        self.assertEqual(ready['speed_m_s'], 0)
+        self.assertGreaterEqual(ready['direction_alignment'], .9999)
+        self.assertAlmostEqual(ready['pitch_error_deg'], .4)
+        self.assertGreater(ready['frame'], pilot.home_clearance_staging['frame'])
+        # Once departure was observed ready, ordinary speed and brake logic
+        # continues without imposing the initial settled-speed gate again.
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+1, velocity=[0, 0, 10])
+        self.assertIn('w', pilot.update(s, s['frame']/60)[0])
+        self.assertEqual(pilot.home_clearance_ready, ready)
+
+    def test_home_header_crossing_refuses_missing_staging_unsafe_altitude_or_extra_damage(self):
+        pilot, s = self.home_in_flight()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+600, position=[0, 2.7, -125])
+        with self.assertRaisesRegex(AssertionError, 'staging must be reached and fully settled'):
+            pilot.update(s, s['frame']/60)
+        for position, hull, error in [
+            ([0, 8.6833, -120], 100, 'documented ship-origin clearance band'),
+            ([0, 1.39, -120], 100, 'documented ship-origin clearance band'),
+            ([0, 2.6, -120], 99, 'no extra hull loss'),
+        ]:
+            with self.subTest(position=position, hull=hull):
+                pilot, s = self.home_at_staging()
+                s = json.loads(json.dumps(s))
+                s.update(frame=s['frame']+30, position=position)
+                s['telemetry']['hull'] = hull
+                with self.assertRaisesRegex(AssertionError, error):
+                    pilot.update(s, s['frame']/60)
+                self.assertIsNone(pilot.home_header_crossing)
+        pilot, s = self.home_across_header()
+        receipt = pilot.home_header_crossing
+        self.assertEqual(receipt['origin_z_interval'], [-130, -110])
+        self.assertGreaterEqual(receipt['min_y'], 1.4)
+        self.assertLessEqual(receipt['max_y'], 3.8)
+        self.assertEqual(receipt['hull_before'], receipt['hull_after'])
+        self.assertGreater(receipt['exit_frame'], pilot.home_clearance_staging['frame'])
+        self.assertEqual(receipt['samples'][-1]['position'], [0, 2.5, -109])
+
+    def test_home_completes_only_after_strict_dock_neutral_shutdown_and_supported_twenty_tick_walk(self):
+        pilot, s = self.home_at_exit()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+120, phase='COMPLETE', piloted=False, seated=False,
+                 control_enabled=True, player=[8, .1, -10])
+        s['hulk_home']['capsule_enabled'] = True
+        s['hulk_home']['home'].update(grounded=True, supported=True, support_collider='LandingPad/Deck')
+        pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_walk')
+        self.assertIsNone(pilot.result)
+        for tick in range(20):
+            s = json.loads(json.dumps(s))
+            s['frame'] += 1
+            s['player'][2] -= .09
+            pilot.update(s, s['frame']/60)
+        result = pilot.result
+        self.assertEqual(result['completion_marker'], 'NATIVE_HULK_HOME_OK')
+        self.assertEqual(result['home_walk_ticks'], 20)
+        self.assertEqual(result['home_clearance_staging']['waypoint'], [0, 2.7, -150])
+        self.assertIsNotNone(result['home_clearance_ready'])
+        self.assertEqual(result['home_header_crossing']['hull_before'],
+                         result['home_header_crossing']['hull_after'])
+        self.assertGreater(result['home_walk_displacement_m'], .25)
+        self.assertLess(result['home_walk_displacement_m'], 5)
+        self.assertEqual(result['hulk_departure']['phase'], 'FREE_FLIGHT')
+        self.assertTrue(result['hulk_departure']['lease_free'])
+        self.assertTrue(result['cinder_unload']['old_hulk_absent'])
+        self.assertEqual((result['final_reward_count'], result['final_generation']), (1, 1))
+        self.assertEqual(result['reward_receipt'], result['breaker']['claimed']['receipt'])
+        self.assertEqual(native.CAP, 300)
+
+    def test_home_rejects_unsupported_or_unusable_yard_exit(self):
+        for supported in (False, True):
+            with self.subTest(supported=supported):
+                pilot, s = self.home_at_exit()
+                s = json.loads(json.dumps(s))
+                s.update(frame=s['frame']+120, phase='COMPLETE', piloted=False, seated=False,
+                         control_enabled=True, player=[8, .1, -10])
+                s['hulk_home']['capsule_enabled'] = True
+                s['hulk_home']['home'].update(grounded=True, supported=supported, support_collider='LandingPad/Deck')
+                if not supported:
+                    with self.assertRaisesRegex(AssertionError, 'supported yard exit'):
+                        pilot.update(s, s['frame']/60)
+                else:
+                    pilot.update(s, s['frame']/60)
+                    s = json.loads(json.dumps(s))
+                    s['frame'] += 20
+                    with self.assertRaisesRegex(AssertionError, 'more than a quarter metre'):
+                        pilot.update(s, s['frame']/60)
 
     def test_breaker_restoration_accepts_observed_float_but_refuses_early_time_or_frames(self):
         # The exported route emitted this normal accumulated physics duration.
