@@ -1462,3 +1462,55 @@ not permission to erase changes or repeat their inventory every goal turn.
 Other active/pinned worktrees and all unique raw results are outside this cleanup.
 The same original Ember return run remains live; no new game qualification
 result or performance improvement is claimed by this housekeeping.
+
+
+## Ember abandonment — integrated-source journey done on e85157b4d
+
+One original-contract ABANDON run on clean integrated source
+e85157b4d072a9f07a9764c429be20d2766faf81, finished2026-10-18. Pinned Godot
+4.7.1 engine SHA25632f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde;
+unchanged harness SHA2564728e8875706b1dac77b70e0a4212007a08fda11bb114e83a4299efb80ab9f2d.
+Existing script with KETH_EMBER_PHYSICAL_RETURN=1, headless/Dummy/fixed-fps60,
+original7200s route cap; no arrival diagnostic or completed-return argument.
+Separate600s cold import PASS. Route PASS exit0, exact31 sentinel once and catalog
+exit0/exact31, diagnostics0; approximately2474.7s (41m15s) measured from recorded
+OS supervisor start ticks to terminal status publication. No retry or cap change.
+
+Actual outbound30008ticks/800origin shifts/8009427.7m, peak20000m/s, max craft/
+pilot steps333.334m. Physical landing accepted, hull100, zero velocity. Real
+abandon request, walking/live boarding, host surface-clear commit and ordinary
+thrust beyond1200m precede return cruise. Return sampler69877ticks,796origin
+shifts,8222916.23094668m, max craft/pilot steps333.326263427734m. Existing checks
+prove actual Ember unload, typed home corridor handoff, ordinary physical final
+berth flight, matching nonempty occupied lease token, continuity/seat ownership,
+disembarkation and20tick supported home walk of>.25m/<5m. No pose/velocity/lease
+rescue was introduced. The31 assertions include both home continuity/walk checks.
+
+Scope: Torrent/MemoryFilesystem, initial guided on-foot placement and fixture
+canopy/boarding/disembark timings0.04/0.08/0.06s. This qualifies integrated-source
+ABANDON behavior; it does not qualify completed survey, durable disk rewards,
+packaged journey, interruption, reuse/shared/native GPU/Windows/human gates or
+close WORLD-ABANDON's full original parent. Earlier52-assertion completed survey
+journey onbf452ed868 stays separately DONE. Latest public checkpoint staysef67f3e;
+no new runtime or graphics change occurred and no checkpoint was fabricated.
+
+Raw `/srv/mudds-work/ember-abandon-source-results-20261017/` retains exact command,
+profiles, logs, assessment, tracked/cache/engine guards and owned-process closure.
+Independent reviewer confirms current11873tracked hashes/320cachefiles/engine
+match the frozen source, private ABANDON-only environment, all7recorded PID/start
+identities absent and no owned socket/display remnants. Both stage guards PASS;
+pre/post-route snapshots match fully.
+
+Post-run inspection limitation: root subsequently ran ordinary git status in the
+checkout before independent review. The index byte hash then differed from the
+recorded run hash, while read-only staged/worktree diff checks still equal HEAD,
+all source/cache bytes remain exact and the original pre/post-route index hashes
+match. No post-inspection index byte identity is claimed; cleanup.json records
+the actual hashes/order/clean-content checks. No engine rerun or source repair.
+Owned disposable clean checkout removed after acknowledgment; exact source stays
+reachable from main and raw results remain outside it.
+
+Current three-card batch:1accepted (Ember source),1failed (HULK revisit deadline),
+1gated (revisit checkpoint). No broad parent or phase gate closes. Next action is
+the existing bounded next-batch planning pass, with no automatic HULK repair or
+unchanged Ember rerun.

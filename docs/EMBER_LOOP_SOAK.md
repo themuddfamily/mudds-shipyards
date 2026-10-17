@@ -66,8 +66,20 @@ these legs. The final ordinary-flight leg can take several minutes at the
 craft's authored speed, in addition to both interplanetary legs; the long wall
 budget also accommodates slower headless hosts. A local launch/landing
 probe (`KETH_RETURN_ARRIVAL_DIAGNOSTIC=1`) is only a diagnostic and does not
-qualify the round trip. That ABANDON-mode full round-trip result remains pending until an
-unchanged-source run exits zero with all enabled assertions passing.
+qualify the round trip.
+
+**Accepted integrated-source ABANDON run:**
+`e85157b4d072a9f07a9764c429be20d2766faf81` passes the unchanged mode with exit 0,
+exact `EMBER_TRANSIT_MOVEMENT_TEST_OK: 31 assertions` and matching catalog result,
+no diagnostics, approximately 2,474.7 s under the original 7,200 s cap. Physical
+outbound/landing, abandonment/reboarding/ascent, actual return/unload, occupied
+matching home berth, disembarkation and supported walking pass. Source/index/
+engine/cache guards pass during the run; independent cleanup review passes and
+the disposable checkout is removed. [Result and retained limits](history/ROADMAP_DELIVERIES.md#ember-abandonment--integrated-source-journey-done-on-e85157b4d).
+This mode uses Torrent and MemoryFilesystem with the documented initial placement
+and shortened interaction fixtures. It does not qualify completed survey rewards,
+durable disk persistence, a packaged journey, shared play or native hardware.
+Do not rerun this accepted unchanged source mode as substitute work.
 
 ### Completed survey and physical return
 

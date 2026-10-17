@@ -85,39 +85,41 @@ b41c3cc, and managed installed Guided3/3. See
 [completed deliveries](docs/history/ROADMAP_DELIVERIES.md) for exact proof/limits.
 These do not close their broad parents or the ten phase gates.
 
-**Latest accepted task: HULK-HOME-INPUT / HULK-HOME-ALIGN — DONE.**
-Complete ordinary route passes in 191.886 s under original 300 s: Guided, HULK arrival,
-breaker/reward/duplicate refusal, reverse walk, reboard, safe header clearance,
-actual Cinder fade/unload and home dock/shutdown/exit/20-tick supported walk.
-Cell count 1 and exact receipt retained. Checkpoint `ef67f3e` is ready; Linux is the
-exact successful route binary. Revisit is the remaining ordinary-journey child;
-disk/interruption and broader parent gates stay open.
-[Actual result, earlier failures and limits](docs/history/ROADMAP_DELIVERIES.md#hulk-home-return--done-checkpoint-ef67f3e).
+**Latest accepted task: EMBER-ABANDON-SOURCE — DONE.**
+Clean integrated source `e85157b4d` passes the original physical ABANDON round
+trip: actual outbound/landing, abandonment/reboard/ascent, return cruise, occupied
+home dock, disembarkation and supported walking. Exit 0, exact 31 assertions,
+approximately 2,474.7 s under the original 7,200 s cap, no diagnostics. This uses
+Torrent/MemoryFilesystem and documented fixtures; packaged/durable-reward/shared/
+hardware gates remain open. [Actual result and limits](docs/history/ROADMAP_DELIVERIES.md#ember-abandonment--integrated-source-journey-done-on-e85157b4d).
+Latest public checkpoint remains `ef67f3e`; accepted HULK home and failed revisit
+results retain their exact scopes. No unchanged Ember rerun is selected.
 Sandbox, Convoy and Q4 remain parked at their recorded failures; no automatic retries.
 
-## Current batch — 0 accepted, 1 failed, 1 gated, 1 in progress
+## Current batch — 1 accepted, 1 failed, 1 gated
 
 This is a count of **two qualifications and one conditional package delivery**,
 not three new gameplay features or a project completion estimate. The departure
 repair is saved, but its one full-route attempt FAILED at the original deadline.
-Task 3 is IN PROGRESS on its selected clean source; task 2 remains gated.
+Task 3 is DONE on its exact clean source; task 2 remains gated. No task is running.
 The 36 parent outcomes and all ten phase gates remain open.
 
 | Order / task | Kind / status | Observable finish | Work estimate; separate check allowance |
 | --- | --- | --- | --- |
 | 1. [HULK-REVISIT-DEPARTURE](#1-hulk-revisit-departure--failed-at-original-deadline) | Qualification; FAILED, candidate withheld | Return to a newly streamed HULK and prove its breaker refuses a second cell after the full home journey. | Preparation/review/closure 30–45 min; setup/export/startups up to 47 min, then one 300 s route plus 45 s supervisor cleanup allowance. |
 | 2. [HULK-REVISIT-CHECKPOINT](#2-hulk-revisit-checkpoint--gated-on-task-1) | Build delivery; GATED on task 1 PASS | Accepted source integrated and matching playable Windows/Linux packages, with accurate notes, published in repository builds. | Packaging/integration/closure 30–45 min; export/payload checks up to 26 min. |
-| 3. [EMBER-ABANDON-SOURCE](#3-ember-abandon-source--in-progress-one-attempt) | Qualification; IN PROGRESS, independent of HULK | Physically abandon an Ember visit, reboard, fly home, dock and walk out. | Preparation/closure 30–45 min; cold import up to 600 s, route up to 7,200 s. |
+| 3. [EMBER-ABANDON-SOURCE](#3-ember-abandon-source--done-on-e85157b4d) | Qualification; DONE on e85157b4d | Physically abandon an Ember visit, reboard, fly home, dock and walk out. | Preparation/closure 30–45 min; cold import up to 600 s, route up to 7,200 s. |
 
 **Priority review after task 1:** the original revisit attempt failed, its bounded
 repair was implemented, and the one changed-candidate qualification also failed.
 Six setup stages passed; the route consumed its original 300 s allowance
 (304.438 s including cleanup). The unreached result is the new HULK's full
-interior walk and fresh duplicate-reward refusal. Independent Ember ABANDON is
-READY and tests a different required journey. **Select task 3 next**, leaving
+interior walk and fresh duplicate-reward refusal. Independent Ember ABANDON
+was READY and tested a different required journey. **Task 3 is now DONE**, leaving
 HULK parked and task 2 GATED. No further HULK diagnosis, repair or rerun is selected.
 This decision does not change the route limit or claim a gameplay cause.
-If task 3 fails, close it FAILED and explicitly select the next bounded task.
+Next action is the bounded next-batch planning pass below; no automatic repair
+or unchanged qualification rerun follows this result.
 
 ### 1. HULK-REVISIT-DEPARTURE — FAILED at original deadline
 
@@ -204,13 +206,13 @@ If task 3 fails, close it FAILED and explicitly select the next bounded task.
   artifacts, remove the owned disposable clean checkout and duplicate scratch
   packages. Preserve exact published bytes, source refs and raw failures.
 
-### 3. EMBER-ABANDON-SOURCE — IN PROGRESS, one attempt
+### 3. EMBER-ABANDON-SOURCE — DONE on e85157b4d
 
 - **Parent/result:** [WORLD-ABANDON](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Qualify one physical Ember ABANDON round trip: outbound flight, surface exit/
   abandon/reboard/ascent, physical home return/dock/walking exit.
 - **Owner/boundary:** root; clean integrated source `e85157b4d072a9f07a9764c429be20d2766faf81`
-  frozen in `/srv/mudds-work/ember-abandon-source-20261017`. No HULK prerequisite. Existing
+  tested in an owned checkout, now removed after closure. No HULK prerequisite. Existing
   `tests/ember_transit_movement_soak.gd` ABANDON branch, Torrent and
   MemoryFilesystem only. Initial guided state/on-foot placement and short
   canopy/boarding timings are fixtures. Accepted completed-survey journey stays
@@ -226,20 +228,29 @@ If task 3 fails, close it FAILED and explicitly select the next bounded task.
   and route cap 7,200 s. This long existing journey is explicitly a qualification,
   not a two-hour implementation task. Do not split away required travel or shorten
   it to make the estimate look smaller. Stop at first failure or unchanged cap.
-- **Next action:** launch and monitor the reviewed two-stage reused runner
-  `/srv/mudds-work/ember-abandon-source-results-20261017/run.py` with the exact
-  source above. Adjacent `abort.py` targets the verified owned supervisor. Fresh
-  private profiles, ordered lanes, exact31 completion and source/index/cache/engine
-  guards are retained. No other mode or retry is scheduled.
-- **Close:** record actual result/source/raw, commit/push and remove the owned
-  disposable checkout. Failure ends this card. Packaged ABANDON acceptance and
-  other WORLD-ABANDON requirements remain open even if this source run passes.
+- **Actual result:** one full route PASS, exit 0 and exact 31-assertion/catalog
+  result, approximately 2,474.7 s under the original 7,200 s cap. Outbound
+  8,009,427.7 m/800 origin shifts, accepted surface dock/hull 100. Abandonment,
+  live reboarding and surface-clear departure pass. Physical return/unload/
+  corridor handoff, matching occupied home lease, disembarkation and 20-tick
+  supported walking all pass. Return sampler records 8,222,916.231 m/796 shifts,
+  zero continuity/occupancy failures. Cold import passes separately.
+- **Close/next action:** DONE; independent audit confirms exact source, all tracked
+  bytes/cache/engine, both stage guards, correct private ABANDON-only environment,
+  no diagnostics and all 7 owned identities/sockets/displays absent. Raw retained
+  at `/srv/mudds-work/ember-abandon-source-results-20261017/`; owned clean checkout
+  removed. The guarded pre/post-route index hashes match; index bytes differed
+  after a later root status inspection, with staged/worktree content verified
+  equal to HEAD and disclosed in cleanup.json. No rerun or source change.
+  Packaged ABANDON, durable disk rewards and wider WORLD-ABANDON requirements
+  remain open. Select the next bounded batch; do not repeat this accepted source run.
 
 ## Decomposing later work
 
 This batch replaces the stale active cards; it does not claim all 36 parents
-have been decomposed. At the end of these tasks, select only the next 3–5 known
-instances from the backlog. Each needs the required card above. Unknown acceptance
+have been decomposed. **Next selected action: a 30–45 min planning pass**,
+no engine runs. Select only the next 3–5 known instances from the backlog. Each
+needs the required card above. Unknown acceptance
 gets one bounded definition task before implementation. Keep original parent
 requirements and dependencies linked; archive closed cards and failures in the
 existing delivery history, rather than growing this file into a run log.
