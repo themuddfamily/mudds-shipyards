@@ -4,6 +4,22 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+**EMBER-IMPORT — first original-contract attempt rejected on guard failure.**
+Source `bf452ed8689e51379e0621299378ea29a7b111e7`, Godot4.7.1, genuinely
+cold headless/Dummy import under original600s cap: engine exit0, no emitted
+diagnostics, generated cache320 files. Tracked file hashes, HEAD, status and
+engine match before/after; raw Git index hash changes. The guard rejects the
+attempt, so no route runs and no completed journey is claimed. Index contents
+subsequently match HEAD's tree. A bounded disposable-repository reproduction
+shows ordinary `git status` refreshes index metadata after stat-only changes;
+`GIT_OPTIONAL_LOCKS=0` preserves its bytes. The next attempt corrects only the
+raw driver's Git reads with that setting; original gameplay/limits stay intact.
+All recorded actors, sockets and lanes close; the temporary checkout is removed.
+Raw logs, snapshots and reproduction:
+`/srv/mudds-work/ember-completed-journey-results-20261017/original-contract/`.
+Import log SHA256:
+`6e72091fec6241aeac4d6593c51f011e51331a5e30b446c81905e08007f188cd`.
+
 **E1 — Torrent combat/reuse capability (DONE).** Parent: original performance
 §5/combat. [Runner usage](../../docs/PERFORMANCE_BENCHMARK_RUNNER.md) documents selected
 `torrent_range_combat_reuse_route`. On7c5e85787, its eight-second smoke records17

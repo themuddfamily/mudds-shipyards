@@ -95,21 +95,24 @@ three new gameplay features. A failure ends the affected task and gates the rest
 
 | Task | State / exact finish line | Estimate |
 | --- | --- | --- |
-| EMBER-IMPORT: qualify cold startup | IN PROGRESS on bf452ed868; clean pinned source/engine, no `.godot` at launch, fresh private import profile; import exit0/no diagnostics within600s, tracked source/index unchanged. Freeze generated cache. | Up to10 min plus5 min setup |
-| EMBER-ROUNDTRIP: qualify completed journey | GATED on EMBER-IMPORT; fresh separate route profile, original3600s command, exit0, zero diagnostics, exact52 marker and catalog result; inspect actual paid store and physical continuity/home result. Stop at first failure. | Up to60 min; no deadline extension |
+| EMBER-IMPORT: qualify cold startup | DONE on bf452ed868 after read-only Git guard correction; genuinely cold import exit0/no diagnostics under600s; all tracked source/index/engine hashes unchanged. Generated320-file cache frozen and identical to route baseline. | Engine stage under1 min; setup/guard repair additional |
+| EMBER-ROUNDTRIP: qualify completed journey | IN PROGRESS; fresh separate route profile, original3600s command, exit0, zero diagnostics, exact52 marker and catalog result; inspect actual paid store and physical continuity/home result. Stop at first failure. | Up to60 min; no deadline extension |
 | EMBER-CLOSE: record result and clean up | GATED on terminal run result, including failure; verify inputs/actual process/socket/lane closure, remove disposable clean checkout, record accepted or precise failure, commit/push. | 10 min |
 
 **Live run:** clean owned checkout
-`/srv/mudds-work/ember-completed-journey-20261017`, source
+`/srv/mudds-work/ember-completed-readonly-20261017`, source
 `bf452ed8689e51379e0621299378ea29a7b111e7`.
-Raw results: `/srv/mudds-work/ember-completed-journey-results-20261017/original-contract/`.
-Driver PID342330/start106984739; import owner PID342389/start106985204,
-both verified live through `/proc`. Import is running headlessly with Dummy
-audio and its original600s cap. No donor cache was copied.
-**Next single action:** inspect this same owner's result and import guards.
-The prepared driver starts the original3600s route only if all import gates
-pass. Retain actual owner PID/start ticks at handoff and never restart solely
-because an observation expires.
+Raw results: `/srv/mudds-work/ember-completed-journey-results-20261017/original-contract/readonly-index/`.
+Driver PID342965/start106997035; route owner PID343175/start107000294,
+verified live through `/proc`. Import owner343027/start106997553 finished exit0
+and is absent. Route is headless/Dummy, no fixed-FPS override, original3600s cap.
+No donor cache was copied. First attempt was rejected on raw index drift and
+closed; its [recorded diagnosis](docs/history/ROADMAP_DELIVERIES.md) led to
+read-only `GIT_OPTIONAL_LOCKS=0` guard reads, preserving exact byte checks.
+**Next single action:** follow this same route owner, inspect physical milestones
+and final acceptance or first failure. Retain actual PID/start ticks at handoff
+and never restart solely because an observation expires. Independent abort:
+`python3 /srv/mudds-work/ember-completed-journey-results-20261017/original-contract/readonly-index/abort.py`.
 Do not run default/outbound-only, ABANDON or staged-loop mode as a substitute.
 
 All ten phase gates remain open. Q4 startup stays parked after the bounded
