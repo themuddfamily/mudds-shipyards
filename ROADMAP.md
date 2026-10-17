@@ -54,30 +54,33 @@ or the named raw report. None closes a parent or phase gate.
 | PERF-FIX[dormant chase cameras] | `d0e129f8d` removes dormant correction work and preserves active/activation clearance; reviewed, measured and [packaged](builds/windows/MuddsShipyards-d0e129f-notes.txt). No FPS/Rime300s claim. |
 | SCOPE-LIMIT definition | `43111884d` records guest counting, nine-craft seat/role facts and a finite [release-target proposal](docs/COMPLETION_SCOPE.md#session-capacity-contract-and-pending-release-target). Final target remains WAITING on owner choice. |
 | NET-BROWSER[guest-capacity wording] | `f676c5016` corrects labels without count/protocol changes; existing UI checks and [matching checkpoint](builds/windows/MuddsShipyards-f676c50-notes.txt) pass. |
-| NET-CREW[Jovian engineer] functional probe | Current `f676c5016` package route passes 72 checks with host/one client; one retained Xvfb VSync warning leaves strict zero-diagnostic qualification open. Details below. |
+| NET-CREW[Jovian engineer] functional probe | Current `f676c5016` package route passes 72 checks with host/one client; one retained Xvfb VSync warning leaves strict zero-diagnostic qualification open. Raw report in COMPLETION_SCOPE. |
+| NET-CREW[Halyard engineer] functional probe | Current `f676c5016` actual Halyard route passes 76 checks; one retained Xvfb VSync warning leaves strict diagnostic qualification open. Details below. |
 
-**Latest result: NET-CREW[Jovian engineer ordinary route] functional PASS.**
-The unchanged fixture from `43111884d` exercised actual `f676c5016` production
-payload in an orchestrator and two independent Main peers (host + one client).
-All three explicitly loaded the requested package. It passes 72 checks, with
-host 28/client 32 and all OS exits 0 in 77.118s under original 300s/internal limits.
-Ordinary cabin input, physical engineer chair, component selection/repair
-(kits 6→5), stand/reseat, generation-rotation cancellation and disconnect recovery
-pass. Hatch placement, component damage, clock stress and migration rotation are
-scripted fixtures; transformed input names are exercised, not a settings-remap UI.
+**Latest result: NET-CREW[Halyard engineer ordinary route] functional PASS.**
+The unchanged `6ef223b4a` wrapper/base fixtures ran actual `f676c5016` production
+payload in an orchestrator and independent host/one-client Main peers. All three
+explicitly load the package, both child commands select Halyard, and actual
+receipts identify `halyard_new_design`, engineer chair `crew_port_01` and repair
+tool `halyard_repair_tool`. All 76 checks pass (host 31/client 33), all OS exits 0,
+in 78.954s under original 300s/internal limits. Ordinary input/repair (kits 6→5),
+stand/reseat, sibling-Jovian destruction fencing, generation-rotation cancellation
+and disconnect/request-cursor cleanup pass.
 
-One retained llvmpipe/Xvfb VSync warning means **strict zero-diagnostic qualification
-remains open**; no script/resource/error diagnostics occurred. No third gameplay
-participant, two-client baseline, endurance, capacity, native GPU/device/audio,
-canonical journey or final-candidate claim follows. No runtime or test changes
-were made, so no new build was manufactured for this check. Source, 645 cached
-files, engine/package/fixture hashes, child receipts, owned cleanup and ordered
-lane release verify. Raw report: `/srv/mudds-work/jovian-engineer-candidate-results-20261017/report.txt`.
-Raw log SHA-256: `dd663123ae3476c5f0e8adc1df7d5cc149f82953d4a7732dc3ca0552580d20c9`.
+Scripted hatch placement, damage, clock stress, sibling destruction and migration
+rotation remain disclosed. One retained llvmpipe/Xvfb VSync warning leaves strict
+zero-diagnostic qualification open; no script/resource/error diagnostics occurred.
+No two-client, endurance, capacity, actual host-termination, native device/GPU/audio,
+canonical journey or final-candidate claim follows. All 11,871 source/645 cache files,
+input/package hashes, receipts, all owned actors, socket/authority and ordered lane
+closure verify. No runtime/test change or new build. Raw report:
+`/srv/mudds-work/halyard-engineer-candidate-results-20261017/report.txt`.
+Log SHA-256: `f66906621863b5b3cfc3a11c94ae1c8b01dc7b0346c3538459ea556f0c82499f`.
 
-No child is currently active. Next ready instance: NET-CREW[Halyard engineer]
-using its existing alias of the same owned-peer fixture; name its source/package,
-original mode/limits and expected receipts in a new task card before running.
+No child is currently active. Next ready instance: NET-CREW[Bulwark gunner]
+using the existing owned-peer physical chair/FIRE route; fill its task card with
+source/package, original mode/limits and expected receipts before execution.
+Do not repeat engineer probes unchanged to conceal the software-driver warning.
 
 Select only one child at a time. The required two-client baseline is already
 authorized regardless of the pending final release-capacity choice. A configured
@@ -85,8 +88,8 @@ or physical seat count is never accepted session capacity.
 
 | Next instance | Status / dependency | Stopping check |
 | --- | --- | --- |
-| NET-CREW[Jovian engineer] | Functional probe complete; strict diagnostic gate remains open | Do not repeat unchanged to hide the software-driver warning; any final qualification needs an actually suitable environment. |
-| NET-CREW[Halyard engineer] | READY after any shared-owner blocker found above is handled | One separate existing Halyard ordinary engineer route on a named package; no whole-fleet assignment. |
+| NET-CREW[Bulwark gunner] | READY; existing independent actual-Main fixture | One current-package physical chair/FIRE/stand/reseat/peer-pilot route with exact craft/weapon identity, original limits and owned cleanup; retain diagnostics. |
+| NET-CREW[Halyard passenger] | READY; existing separate ordinary-input fixture | One current-package passenger sit/stand/deck walk/return and applicable recovery route, without inheriting engineer results. |
 | SCOPE-LIMIT[final release target] | WAITING on owner choice; question already asked | Record selected remote-guest count and playing-host participation, preserving all other promises; do not change default or claim support by inference. |
 | SETTINGS-INPUT[original artifacts] | WAITING on exact original runner/profile/logs | Recover identified originals or leave precise missing-artifact handoff; a substitute cannot inherit Gate C. |
 
