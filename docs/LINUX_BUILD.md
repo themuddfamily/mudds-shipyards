@@ -325,6 +325,55 @@ folder holds `settings.cfg`, saves, `diagnostics/` (session log and support
 exports) and screenshots. It is the Linux counterpart of
 `%APPDATA%\Godot\app_userdata\Mudds Shipyards\` on Windows.
 
+### Managed per-user desktop installation and updates
+
+The repository's `tools/release/install_linux_desktop.py` adds a managed install
+from the existing checkpoint archive, using Python 3.11 or newer and `/usr/bin/env` on Linux. Run
+it from the repository, or copy this standalone script elsewhere. Existing
+checkpoint archives, including `418f3fe`, contain the older menu-entry helper
+above; they do **not** contain this new manager.
+
+```sh
+python3 tools/release/install_linux_desktop.py install \
+  --archive builds/linux/MuddsShipyards-418f3fe-linux-x86_64.tar.gz
+
+# Update: use the same command and directories with the next checkpoint archive.
+python3 tools/release/install_linux_desktop.py install --archive /path/to/next-checkpoint.tar.gz
+
+python3 tools/release/install_linux_desktop.py uninstall
+```
+
+Defaults are `${XDG_DATA_HOME:-~/.local/share}/mudds-shipyards` for the payload
+and `${XDG_DATA_HOME:-~/.local/share}/applications` for the stable
+`mudds-shipyards.desktop` menu entry. Both commands accept `--install-dir PATH`
+and `--applications-dir PATH`; use the same pair for installation, updates and
+uninstallation. Paths with spaces and Desktop Entry reserved characters are
+escaped without a shell (`/usr/bin/env --` starts the exact ELF path); control characters and symlink directory paths are
+refused. The manager never runs the ELF or a desktop handler.
+
+The manager validates the complete gzip stream and the exact five-member export
+bundle before installation writes, refusing traversal, links, unexpected files,
+duplicate entries, unsafe modes and invalid ELF/icon magic. It copies only the
+ELF and packaged Keth icon into a new runtime generation, preserving the
+revision-bearing executable name. The desktop entry switches atomically after
+both files are complete; a small ownership manifest records their paths and
+hashes. A normal publication error restores the previous launcher and removes
+the failed generation. This is rollback for process errors, not a guarantee of
+transactional recovery after power loss or forced termination.
+
+Updates and uninstall refuse modified/missing owned files, altered menu entries,
+or an existing menu entry without the matching ownership manifest. They never
+silently replace an unrelated launcher. Uninstall removes only the recorded
+payload files, manifest and generated menu entry; unrelated files anywhere in
+the install directory are retained. Godot saves, settings, diagnostics and
+screenshots in the user-data folder described above are never read or removed.
+Repeated uninstall succeeds once the owned installation is absent.
+
+Filesystem installation/update/rollback/uninstall checks establish desktop
+integration only. Launching the menu entry on a real desktop, native GPU/device
+and audible tests, human review and final-release acceptance remain separate
+`NOT_RUN` gates. This manager does not qualify them.
+
 ## Exporting a candidate (main thread / release engineer)
 
 Prerequisites: Godot 4.7.1 on `PATH` (or `GODOT_BIN`), and the Linux templates
@@ -479,6 +528,11 @@ Keep that gate open until someone runs it on real hardware.
 
 ## Tests
 
+- `python3 tools/release/test_install_linux_desktop.py`: managed archive install,
+  reserved-character launcher paths, update rollback/refusal, competing entry
+  protection, owned uninstall and corrupt/unsafe archive refusal in private
+  temporary directories. An optional PyGObject/GIO consumer check parses the
+  generated launcher when available. It never launches the game or a desktop handler.
 - `python3 tools/release/test_export_linux_candidate.py`: argument handling,
   dry-run planning, the preset contract, and the startup-check pass/fail rules
   against stub binaries. It never runs Godot.
