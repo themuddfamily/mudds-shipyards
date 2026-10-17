@@ -4,6 +4,21 @@ Moved from ROADMAP.md on 2026-10-17. These are source-specific historical
 results, not the active queue or proof of current full-project acceptance.
 Return to the [working roadmap](../../ROADMAP.md).
 
+**LINUX-UPDATE-FIX — source repair accepted on `d3259aa21`.** Actual process
+SIGKILL after desktop publication/before manifest publication reproduced a
+stuck update: killed child exit-9, distinct ordinary CLI retry exit1 with exact
+launcher mismatch. The production manager now records/validates previous and
+pending owned states and recovers under its install lock before retrying.
+Ten existing/extended installer tests pass (0.820s, no skips), including fresh
+CLI retry to an even newer archive, protected saves/untracked files and tampered
+recovery refusal. Existing checkout-free bundle integration passes; root's
+full existing Linux export unit suite passes23 tests in2.836s. Independent
+source review passes. No Godot, desktop handler, game or CI runs for this repair.
+Source/miniature bundles only: new archive shipment is NEXT. Kill during later
+cleanup may leave an unused generation; initial-install/uninstall interruption
+and power-loss durability stay unqualified. Original raw failure/script/fixtures:
+`/srv/mudds-work/linux-update-recovery-evidence-20261017/`.
+
 **Owned scratch cleanup — 2026-10-17.** Removed five inactive clean checkouts:
 camera-boundary cost, fleet startup, station eligibility, station operations
 capture and station render stall. Each HEAD is already an ancestor of main;

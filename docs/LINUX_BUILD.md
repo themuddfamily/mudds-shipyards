@@ -4,7 +4,16 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local checkpoint: `f676c5016` — 2026-10-17
+## Latest paired gameplay checkpoint: `b6af78202` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-b6af782.x86_64),
+[archive](../builds/linux/MuddsShipyards-b6af782-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-b6af782-linux-notes.txt) include the stable
+server-browser Disconnect button. Source and actual Windows-payload focused
+checks each pass262 assertions; three strict startups pass. The Linux manager
+repair below is newer source work and is **not included in this archive**.
+
+## Earlier guest-count checkpoint: `f676c5016` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-f676c50.x86_64),
 [archive](../builds/linux/MuddsShipyards-f676c50-linux-x86_64.tar.gz) and
@@ -429,8 +438,20 @@ ELF and packaged Keth icon into a new runtime generation, preserving the
 revision-bearing executable name. The desktop entry switches atomically after
 both files are complete; a small ownership manifest records their paths and
 hashes. A normal publication error restores the previous launcher and removes
-the failed generation. This is rollback for process errors, not a guarantee of
-transactional recovery after power loss or forced termination.
+the failed generation.
+
+The newer repository manager also records a pending update before switching
+the launcher. If that update is forcibly terminated after the launcher switches
+but before its manifest is published, rerun the ordinary `install` command
+using the newer manager. It verifies both owned payloads, the manifest and exact
+launcher before restoring the previous consistent installation and installing
+the requested archive. Modified payloads, an edited launcher or invalid recovery
+data cause refusal without mutation. Saves and unrelated files are preserved.
+This boundary passes an actual SIGKILL and distinct-process CLI retry in the
+filesystem suite; delivery in a new archive is still pending. Older shipped
+scripts do not acquire this repair automatically. A kill during subsequent
+cleanup can leave an unused generation. Initial-install/uninstall interruption
+and power-loss durability remain unqualified.
 
 Updates and uninstall refuse modified/missing owned files, altered menu entries,
 or an existing menu entry without the matching ownership manifest. They never

@@ -124,15 +124,17 @@ Boundary: `tools/release/install_linux_desktop.py`, its existing consolidated
 test and Linux build documentation. Initial-install/uninstall interruption,
 power loss and graphical launch remain separate. No new game behavior or
 Windows gameplay checkpoint is implied by this Linux manager repair.
-Owner: `linux_update_kill_recovery` in its own worktree; root reviews/integrates.
-Filesystem-only work can proceed while Ember owns the runtime lanes.
+Source repair integrated on `d3259aa21`, independently reviewed by root.
+Filesystem-only checks completed while Ember owns the runtime lanes.
 
 | Task | Proof / stopping condition | State / budget |
 | --- | --- | --- |
-| LINUX-UPDATE-REPRO | Child uses actual manager and miniature standard archives; pause immediately before manifest publication after desktop publication, SIGKILL/reap it, retry ordinary install CLI in a distinct process. Preserve exact refusal/mismatch. Stop if predicted defect is absent. | IN PROGRESS; 15 min maximum |
-| LINUX-UPDATE-FIX | Correct only reproduced update-recovery boundary. Fresh CLI retry exits0 with consistent desktop/manifest/owned hashes and exact archive ELF/mode; saves/unrelated files unchanged. Existing ownership/symlink/modified-file refusals and normal OSError rollback stay intact. Extend existing `test_install_linux_desktop.py`, run it once after relevant changes. | GATED on reproduction; implementation60–90 min, filesystem checks under5 min |
-| LINUX-UPDATE-SHIP | Root reviews/integrates clean commit; existing Linux export/bundle checks pass, updated manager is shipped byte-for-byte in fresh clean Linux archive, actual shipped-script update/kill/retry/uninstall preserves protected files; strict startup exit0/`STARTUP_MENU_READY_OK`. Record hashes/limits, commit/push, remove disposable checkout. | GATED on accepted fix and available runtime lanes; allow30 min for package/checks, reassess at boundary |
+| LINUX-UPDATE-REPRO | Actual child killed/reaped -9 at desktop-published/manifest-pending cut; distinct CLI retry exits1 with exact launcher mismatch. Raw original failure retained. | DONE; no widened diagnosis |
+| LINUX-UPDATE-FIX | Production recovery record allows fresh CLI retry, including a newer third archive, with consistent desktop/manifest/hashes and protected files retained. Ten installer tests pass, no skips; existing bundle integration passes; root runs all23 existing Linux export unit tests successfully. Refusal/normal rollback behavior retained. | DONE on d3259aa21; filesystem checks under5s each |
+| LINUX-UPDATE-SHIP | Existing updated manager must ship byte-for-byte in fresh clean Linux archive; actual shipped-script update/kill/retry/uninstall preserves protected files; strict startup exit0/`STARTUP_MENU_READY_OK`. Record hashes/limits, commit/push, remove disposable checkout. | NEXT; root; GATED on available runtime lanes; allow30 min for package/checks, reassess at boundary |
 
+Source/miniature-bundle acceptance does not qualify the shipped archive.
+Journal retirement precedes cleanup: a later kill can leave an unused generation.
 Any failure ends that task with its actual result and a named follow-up. The
 Aurora benchmark candidate stays unscheduled while this production gap is open.
 
