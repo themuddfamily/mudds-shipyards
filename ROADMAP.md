@@ -151,18 +151,22 @@ link to [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys). Only 
 first is ready for implementation; later cards must freeze their exact invocation
 after their dependency exists. These are scenario capabilities, not phase completion.
 
-### HULK-ARRIVAL-INPUT — READY implementation
+### HULK-ARRIVAL-INPUT — IN PROGRESS implementation
 
 - **One result:** the existing native-input release runner can fly Torrent from
   its actual yard berth to the streamed HULK dock and exit onto the shelf.
-- **Source/owner:** root, base88fc84a34. Ownership: existing
+- **Source/owner:** root integration, `hulk_arrival_implement` implementation,
+  base785442ee3 (runtime unchanged from88fc84a34). Ownership: existing
   `tools/release/run_native_sortie.py`, `scripts/diagnostics/native_sortie_observer.gd`
   and explicit mode allowlist in `scripts/game/startup_loader.gd`; focused existing
   runner tests only as needed. Gameplay changes require a reproduced defect first.
 - **Boundary:** add select-only HULK arrival using ordinary menu/keyboard/mouse
   inputs and default sampler. Observer remains read-only. No pose/velocity writes,
   direct reserve/occupy/landing calls, timing overrides, new validator or framework.
-  Breaker, reward, return/revisit remain the next children.
+  Breaker, reward, return/revisit remain the next children. Fresh title startup
+  requires the normal Guided range/interceptor prelude before RETURN_TO_YARD
+  permits landing. This mode must complete that prelude before diverting to HULK;
+  no saved-ready fixture or bypass is implied.
 - **Proof:** intended new command is `python3 tools/release/run_native_sortie.py
   builds/linux/<exact-clean-build>.x86_64 --route hulk-arrival --output <new-run-dir>`.
   This command is not implemented yet. Require actual physical departure, streamed
@@ -174,8 +178,8 @@ after their dependency exists. These are scenario capabilities, not phase comple
   one arrival run using the runner's existing300s cap. Stop at first unsupported
   control/actual failure or estimate boundary; record exact blocker before repair.
   Keep existing Guided/Sandbox behavior and caps unchanged.
-- **Next action:** implement the select-only arrival mode through those three
-  owners, then focused checks and clean-source Windows EXE/ZIP/notes plus matching
+- **Next action:** await/review the bounded candidate in
+  `/srv/mudds-work/hulk-arrival-20261017`, then focused checks and clean-source Windows EXE/ZIP/notes plus matching
   Linux package using the existing safe workflow and strict startup checks.
   All automated runtime remains isolated X11/Dummy with owned abort/cleanup.
 - **Close:** exact source/build/raw outcome, commit/push, remove owned disposable
