@@ -1401,3 +1401,20 @@ remains reachable from main; named branches `fix/runtime-display-fit`
 directory used the checkouts. Total nine retired checkouts removed across these
 three bounded batches; this remains housekeeping rather than gameplay delivery.
 Ember continues on the same original run; no route restart or extra test.
+
+
+Fourth cleanup inventory inspected exactly annex-contact, disembark-floor and
+Halyard-passenger retired checkouts. Preserved the first two intact because they
+contain uncommitted work: annex `scripts/player/player_controller.gd` and
+`tests/ship_service_console_production_test.gd`; disembark
+`tests/disembark_exit_support_test.gd`. No deletion/revert or new implementation
+was attempted in those checkouts. Do not repeatedly audit these known exceptions
+unless their owner resolves the changes.
+
+Removed only clean idle `mudds-halyard-passenger-896732380`, approximately265MB,
+after independent inventory and root clean/ignored/process/source-ref checks.
+Branch `fix/ordinary-controls-observation-20261017` retains exact source
+b6d5d4a7c933bb0100b1daab685d7ab057a91954. Ignored files were Godot cache only;
+no unique raw/build artifacts. Ten clean retired checkouts removed in total.
+Existing Ember run has physically landed and begun its ABANDON return; full
+home acceptance remains pending, unchanged original run/cap.
