@@ -86,6 +86,7 @@ or the named raw report. None closes a parent or phase gate.
 | Q5 · BASE-DIAG[Resume offer] | `df66dcded` original300s probe passes Main16 real-file recovery; stops in Main17 next passenger interaction after151 passes. Main18/19 unentered; no runtime fix. Raw: `/srv/mudds-work/resume-offer-boundary-results-20261017/report.txt`; full suite remains FAIL. |
 | Q6 · WORLD-SHARED[Aurora arrival contract] | Bounded lookup recovered historical source `47ffce740562dd3ac3d52f66736796f5639068fd`; original invocation/setup/raw peer receipts missing. Definition ends with missing-input handoff; physical landing requirement remains open. |
 | D1 · GUIDED[f676c50 Linux package] | Exact current ELF passes original Guided3/3 in49.503/51.084/49.409s, zero diagnostics, original91 neutral shutdown frames and0.17m physical exit error. Inputs/actors/profiles/displays close; source/package guards match, independently verified. Raw: `/srv/mudds-work/f676-guided-acceptance-20261017/`. |
+| D5 · PERF-ROUTE[Halyard stationary cabin walk] | `53e63831a` adds physical cabin route selection; 152 focused Godot assertions and11 Python checks pass. Final sample walks39.575m on5.2m aisle with support/occupancy/stationary hull retained. Default two-route admission unchanged; no hardware qualification. Raw: `/srv/mudds-work/cabin-benchmark-results-20261017/final/report.txt`. |
 
 **Latest attempt: Q4-FIX candidate withheld; startup requirement remains open.**
 One fresh Main locates station dressing consolidation as the largest of47 world
@@ -107,9 +108,9 @@ Q4's original300s full Patrol FAIL remains unchanged.
 
 This batch replaces the completed Q1–Q6 diagnostic batch. These are **five
 scheduled assignments, not five tasks left in the project**. Root owns integration
-and each card until an implementer is assigned. D1 is complete on the exact
-current package; its clean temporary source checkout is removed. D5 implementation
-is assigned to `cabin_benchmark_impl`; its focused engine check now has both lanes.
+and each card until an implementer is assigned. D1 and D5 are complete in their
+recorded scope; both clean temporary worktrees are removed. No task is active.
+Next: D2, one existing moving-passenger route; D3/D4 remain implementation work.
 D2 and D3/D4 are independent of D1, but engine network/display lanes remain
 serialized. D4 depends on D3. D5 can be implemented independently. Do not expand
 this batch automatically or count its checks as complete parent outcomes.
@@ -120,7 +121,7 @@ this batch automatically or count its checks as complete parent outcomes.
 | D2 · NET-CREW[Halyard moving shared-cruise source route] | Qualification · READY | Two independent remote passengers walk and use the chair while the actual craft moves/rebases. | 30–60 min preparation/review; one run capped300 s |
 | D3 · NET-BROWSER[live menu host and first guest] | Executable release check · READY for implementation | Existing browser check gains real independent Main/menu admission instead of injected directory/HUD fixtures. | 1–2 h implementation; 15–30 min focused checks |
 | D4 · NET-BROWSER[second independent menu guest] | Executable release check · GATED on D3 | Same host accepts two distinct real guests and releases both cleanly. | 1–2 h implementation; 15–30 min focused checks |
-| D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · IN PROGRESS; focused engine check running | Select one physical cabin-walking benchmark without changing the original default two-route protocol. | 1–2 h implementation; 15–30 min focused checks |
+| D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · DONE on `53e63831a` | Selectable physical aisle shuttle works; partial reports cannot qualify full performance protocol. | Final suite ~206s; total effort not timed |
 
 **D1 — Current-package Guided playthrough.** Parent: normal-controls core
 playthrough, Guided subcriterion only. Input: exact
@@ -355,7 +356,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ID / one instance | Status / prerequisite | Result and acceptance; stop boundary |
 | --- | --- | --- |
 | PERF-MACHINE[one minimum/target profile] | WAITING on representative hardware if unavailable | Bind declared CPU/GPU/RAM/display/driver profile to an actual isolated test machine. Stop at available machine identity or exact missing resource; never infer native performance from llvmpipe. |
-| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It currently supports only `station_embodied_route` and `nearby_sector_ship_flight_route`; Q2 adds selection of either one, with default combined execution retained. Stop at executable route/selection and focused check, not a new benchmark system. |
+| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It supports default `station_embodied_route` plus `nearby_sector_ship_flight_route`, and select-only `halyard_cabin_walk_route` from D5. Remaining required combat/surface/repeat routes stay open; default combined acceptance retains its original narrow scope. Stop at executable route/selection and focused check, not a new benchmark system. |
 | PERF-RUN[one machine/scenario] | GATED on machine and executable route | Original warmup at least 3,600 frames/60s; measurement at least 18,000 frames/600s. At 1080p High, p95 ≤16.7ms, p99 ≤33.3ms, no post-warm frame >100ms, peak working set ≤4GiB, plus required actual GPU/VRAM and streaming/transient budgets. Stop at that measured scenario; retain failure. |
 | PERF-FIX[one measured hotspot] | GATED on demonstrated production cost | Fix the identified runtime/rendering owner; repeat the affected measurement and behavior check. Stop at measured effect and checkpoint; no census-only progress. |
 | INPUT-DEVICE[one device/route] | WAITING on physical device if absent | Ordinary full selected route with actual keyboard/mouse or controller, including lifecycle/planetary control as applicable. Existing physical-sortie, lifecycle and controller-only expedition tests guide scenario. Stop at selected route; synthetic events cannot qualify physical hardware. |
