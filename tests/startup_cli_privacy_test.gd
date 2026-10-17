@@ -40,6 +40,17 @@ func _run() -> void:
 		breaker_conflicting.append(conflict)
 		_check(not StartupLoaderType.native_sortie_request(breaker_conflicting, "X11", "Dummy", true).accepted,
 			"HULK breaker rejects duplicate or competing mode: %s" % conflict)
+	var hulk_home_args := PackedStringArray(["--native-sortie-observer=hulk-home"])
+	_check(StartupLoaderType.native_sortie_request(hulk_home_args, "X11", "Dummy", true).accepted,
+		"HULK home explicitly admits the same silent private OS-input route")
+	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(hulk_home_args, row[0], row[1], row[2]).accepted,
+			"HULK home preserves private X11 and Dummy admission")
+	for conflict in ["--native-sortie-observer", "--native-sortie-observer=hulk-arrival", "--native-sortie-observer=hulk-breaker", "--native-sortie-observer=hulk-home", "--native-sortie-observer=sandbox", "--startup-check", "--frame-capture", "--version", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+		var home_conflicting: PackedStringArray = hulk_home_args.duplicate()
+		home_conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(home_conflicting, "X11", "Dummy", true).accepted,
+			"HULK home rejects duplicate or competing mode: %s" % conflict)
 	var fleet_args := PackedStringArray(["--native-sortie-observer=sandbox"])
 	_check(StartupLoaderType.native_sortie_request(fleet_args, "X11", "Dummy", true).accepted,
 		"full Sandbox observation admits only the same silent private input route")

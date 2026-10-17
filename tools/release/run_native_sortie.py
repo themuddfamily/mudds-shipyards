@@ -6,6 +6,7 @@ Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
 Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
 Use --route hulk-breaker to continue that arrival through the interior breaker.
+Use --route hulk-home to carry that earned cell back to a supported yard exit.
 The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -812,6 +813,335 @@ class HulkBreakerPilot(HulkArrivalPilot):
             require(receipt == self.claimed['receipt'], 'repeated E retains the same committed cell receipt')
 
 
+class HulkHomePilot(HulkBreakerPilot):
+    """Accepted breaker prefix, ordinary reverse walk and physical home return."""
+    MARKER = 'NATIVE_HULK_HOME_OK'
+
+    def __init__(self):
+        super().__init__()
+        self.breaker_result = None
+        self.reverse_route = None
+        self.reverse_visited = []
+        self.home_previous = None
+        self.streaming_initial = None
+        self.home_berth_identity = None
+        self.home_board_press = None
+        self.home_boarded = None
+        self.hulk_departure = None
+        self.fade_retirement = None
+        self.cinder_unload = None
+        self.home_arrival = None
+        self.home_exit = None
+        self.home_landing_seen = False
+        self.home_walked = 0
+        self.reverse_walked = 0
+
+    def update(self, s, now):
+        self.last_state = s
+        if self.breaker_result is None:
+            commands = super().update(s, now)
+            if self.result is None:
+                return commands
+            # Capture the complete accepted prefix before dispatching any home
+            # stages. Parent updates would require an unclaimed resident HULK.
+            self.breaker_result = json.loads(json.dumps(self.result))
+            self.breaker_result['completion_marker'] = HulkBreakerPilot.MARKER
+            self.result = None
+            home = s['hulk_home']
+            require(s['guided_complete'], 'accepted HULK exit completed Guided before the later free sortie')
+            self.streaming_initial = json.loads(json.dumps(home['streaming']))
+            require(self.streaming_initial['loaded'] and not self.streaming_initial['loading']
+                    and self.streaming_initial['loaded_generation'] == self.streaming_initial['generation']
+                    and self.streaming_initial['generation'] > 0
+                    and self.streaming_initial['load_request_count'] == 1
+                    and self.streaming_initial['load_failure_count'] == 0
+                    and self.streaming_initial['unload_count'] == 0,
+                    'one live original Cinder generation before ordinary home return')
+            self.home_berth_identity = (home['home']['berth_id'], home['home']['berth_instance_id'])
+            self.reverse_route = [point[:] for point in reversed(self.route)]
+            self.home_previous = s
+            self.mouse_pending = None
+            self.enter('home_reverse_walk', s)
+            return set(), 0, 0, False
+        commands = self.update_home(s, now)
+        facing = s['walk_forward'] if not s['seated'] else s['back']
+        keys, dx, dy, fire = commands
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001:
+                dx = dy = 0
+            else:
+                self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        return keys, dx, dy, fire
+
+    def require_retained_cell(self, home):
+        activity, receipt = home['activity'], home['reward_receipt']
+        require(home['reward_count'] == 1 and receipt == self.claimed['receipt']
+                and activity['state_id'] == 'claimed' and activity['generation'] == 1
+                and activity['reward_claimed'] and activity['claimed_receipts'] == 1
+                and activity['restore_seconds'] == 3
+                and math.isclose(activity['elapsed_seconds'], 3, rel_tol=0, abs_tol=1e-12),
+                'earned cell count one, exact receipt and claimed generation one retained throughout home return')
+
+    def observe_home_streaming(self, s):
+        streaming, initial = s['hulk_home']['streaming'], self.streaming_initial
+        require(streaming['unload_radius_m'] == initial['unload_radius_m'] == 650
+                and streaming['load_request_count'] == initial['load_request_count']
+                and streaming['load_failure_count'] == 0 and not streaming['loading'],
+                'unchanged Cinder policy with no reload, failure or extra generation')
+        if streaming['loaded']:
+            require(self.cinder_unload is None and s['hulk']['available']
+                    and self.hulk_ids == (s['hulk']['hulk_id'], s['hulk']['berth_instance_id'])
+                    and streaming['loaded_instance_id'] == initial['loaded_instance_id']
+                    and streaming['generation'] == initial['generation']
+                    and streaming['loaded_generation'] == initial['loaded_generation']
+                    and streaming['unload_count'] == initial['unload_count'],
+                    'same original streamed HULK until actual Cinder retirement')
+        else:
+            require(self.hulk_departure is not None and not s['hulk']['available']
+                    and streaming['loaded_instance_id'] == 0 and streaming['loaded_generation'] == -1
+                    and streaming['generation'] == initial['generation'] + 1
+                    and streaming['unload_count'] == initial['unload_count'] + 1,
+                    'actual Cinder unload follows observed release of the old HULK lease')
+            presentation = streaming['presentation']
+            require(presentation.get('accepted') and presentation.get('generation') == initial['generation']
+                    and presentation.get('phase') == 'fade_out_complete'
+                    and presentation.get('opacity') == 0 and presentation.get('retire_ready')
+                    and streaming['distance_m'] > streaming['unload_radius_m'],
+                    'actual zero-opacity fade retirement and subsequent outside tick before Cinder unload')
+            if self.cinder_unload is None:
+                self.fade_retirement = {'frame': s['frame'], 'presentation': presentation,
+                                        'distance_m': streaming['distance_m']}
+                self.cinder_unload = {'frame': s['frame'], 'streaming': json.loads(json.dumps(streaming)),
+                                      'old_hulk_absent': True}
+
+    def home_walk_to(self, s, target, keys, frames):
+        home = s['hulk_home']
+        tuning = home['walk_tuning']
+        off = sub(target, s['player'])
+        off[1] = 0
+        distance = norm(off)
+        speed = norm([home['player_velocity'][0], 0, home['player_velocity'][2]])
+        if distance <= .30 and speed <= .35:
+            return 0, True
+        direction = unit(off)
+        yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+        dx = round(max(-360, min(360, yaw/tuning['mouse'])))
+        commanded_speed = tuning['sprint'] if distance > 3 else tuning['walk']
+        stopping = speed*speed/(2*tuning['deceleration']) + max(speed, commanded_speed)*frames/60 + .10
+        if abs(yaw) < .08 and distance > .30 and (speed <= .35 or distance > stopping):
+            keys.add('w')
+            if distance > 3: keys.add('Shift_L')
+        return dx, False
+
+    def require_home_dock(self, s):
+        home = s['hulk_home']['home']
+        require(self.cinder_unload is not None and s['landed'] and home['contract'] and home['lease']
+                and home['parked_exact'] and home['occupant_id'] == s['ship_id'],
+                'strict token-bound exact occupied home berth after actual Cinder unload')
+
+    def update_home(self, s, now):
+        self.frame = s['frame']
+        previous = self.home_previous
+        frames = self.frame - previous['frame']
+        home, hulk = s['hulk_home'], s['hulk']
+        berth, initial = home['home'], self.interior_initial
+        require(frames > 0, 'fresh home-return physics observation')
+        require(self.identities == (s['player_id'], s['ship_id']) and s['active_ship']
+                and not s['destroyed'] and s['phase'] not in ('FAILED', 'RECOVERING'),
+                'same live Player and Torrent throughout home return without recovery')
+        require(s['default_sampler'] and s['tuning_unchanged']
+                and home['walk_tuning'] == initial['walk_tuning']
+                and home['physics_ticks'] == 60 and home['time_scale'] == 1,
+                'authored default controls, walk tuning and normal physics throughout home return')
+        require((berth['berth_id'], berth['berth_instance_id']) == self.home_berth_identity
+                and home['capsule_id'] == initial['capsule_id'] and home['shape_id'] == initial['shape_id'],
+                'same home berth and Player collision capsule throughout home return')
+        require(s['guided_complete'], 'Guided completion retained during the later free sortie')
+        self.require_retained_cell(home)
+        self.observe_home_streaming(s)
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        keys = set()
+        dx = dy = 0
+        speed = norm(s['velocity'])
+        if self.stage in ('home_reverse_walk', 'home_board_approach', 'home_walk'):
+            require(not s['piloted'] and not s['seated'] and s['control_enabled']
+                    and not s['transition_busy'] and home['capsule_enabled']
+                    and s['phase'] == 'COMPLETE', 'ordinary controllable on-foot home-return walk')
+            step = norm(sub(s['player'], previous['player']))
+            require(step <= (initial['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                    'continuous ordinary home-return walk without placement or recovery teleport')
+            if self.stage != 'home_walk':
+                self.reverse_walked += step
+                require(hulk['grounded'] and hulk['interior']['support_owned'] and hulk['support_collider']
+                        and s['landed'] and hulk['contract'] and hulk['lease'] and hulk['parked_exact']
+                        and hulk['occupant_id'] == s['ship_id'] and s['telemetry']['engine'] == 'OFFLINE',
+                        'actual supported reverse interior walk retains the powered-down HULK dock')
+                self.require_claimed(hulk['interior'])
+            else:
+                self.home_walked += step
+                require(berth['grounded'] and berth['supported'] and berth['support_collider'],
+                        'continuous actual home-yard support during the usable exit walk')
+        if self.stage == 'home_reverse_walk':
+            index = len(self.reverse_visited)
+            dx, reached = self.home_walk_to(s, self.reverse_route[index], keys, frames)
+            if reached:
+                self.reverse_visited.append({'index': 5-index, 'frame': self.frame, 'player': s['player'],
+                                             'support_collider': hulk['support_collider']})
+                if len(self.reverse_visited) == len(self.reverse_route):
+                    require(hulk['shelf_supported'], 'reverse route reaches the original actual supported shelf exit')
+                    self.enter('home_board_approach', s)
+        elif self.stage == 'home_board_approach':
+            offset = s['walk_offset'][:]
+            offset[1] = 0
+            walking_speed = norm(home['player_velocity'])
+            if norm(offset) <= 3.1 and s['candidate']:
+                require(not home['station_candidate'], 'live Torrent boarding candidate without a conflicting station candidate')
+                if walking_speed <= .35:
+                    self.tap('e', now)
+                    if self.tap_key == 'e':
+                        self.home_board_press = {'frame': self.frame, 'player': s['player'],
+                                                 'boarding': home['boarding'], 'candidate': True,
+                                                 'station_candidate': home['station_candidate']}
+                        self.enter('home_board', s)
+            else:
+                dx, reached = self.home_walk_to(s, home['boarding'], keys, frames)
+                require(not reached, 'ordinary walk reached the live Torrent boarding point without a boarding candidate')
+        elif self.stage == 'home_board':
+            if s['phase'] == 'START_ENGINES':
+                require(s['piloted'] and s['seated'] and not s['transition_busy'] and s['landed']
+                        and hulk['lease'] and hulk['parked_exact'],
+                        'ordinary E boards the same docked Torrent into START_ENGINES')
+                self.home_boarded = {'frame': self.frame, 'phase': s['phase']}
+                self.enter('home_flight', s)
+            else:
+                require(s['phase'] in ('COMPLETE', 'BOARDING'), 'ordinary reboarding without a second Guided tutorial')
+                if s['phase'] == 'COMPLETE' and not s['transition_busy']:
+                    require(self.frame <= self.home_board_press['frame'] + 120,
+                            'ordinary E did not start Torrent reboarding; no retry')
+                require(self.frame <= self.home_board_press['frame'] + 600,
+                        'ordinary E did not finish Torrent reboarding; no retry')
+        elif self.stage == 'home_flight':
+            require(s['piloted'] and s['seated'] and not s['transition_busy']
+                    and s['phase'] in ('START_ENGINES', 'FREE_FLIGHT'),
+                    'later ordinary thrust follows START_ENGINES to FREE_FLIGHT without another tutorial')
+            if self.hulk_departure is None and not s['landed'] and s['phase'] == 'FREE_FLIGHT':
+                require(hulk['available'] and hulk['lease_free'] and hulk['occupant_id'] == 0
+                        and norm(sub(s['position'], hulk['dock'])) > .01,
+                        'physical departure releases the actual old HULK occupant and reservation')
+                self.hulk_departure = {'frame': self.frame, 'position': s['position'], 'phase': s['phase'],
+                                       'hulk_id': hulk['hulk_id'], 'berth_instance_id': hulk['berth_instance_id'],
+                                       'lease_free': hulk['lease_free'], 'occupant_id': hulk['occupant_id']}
+            if self.hulk_departure is not None:
+                require(s['phase'] == 'FREE_FLIGHT' and not s['landed'] and s['lease_free'],
+                        'physical free flight retains released home berth until the home landing')
+                if hulk['available']:
+                    require(hulk['lease_free'], 'old HULK lease stays free until its streamed berth retires')
+            off = sub(berth['approach'], s['position'])
+            distance = norm(off)
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+            if distance < stopping+1.75: self.return_braking = True
+            if speed <= .45 and distance > 1: self.return_braking = False
+            if distance <= 1 or self.return_braking: keys.add('Prior')
+            elif align > .72: keys.add('w')
+            if distance <= 1 and speed <= .45 and self.cinder_unload is not None:
+                require(self.hulk_departure is not None, 'released HULK departure precedes physical home approach')
+                self.enter('home_align', s)
+        elif self.stage == 'home_align':
+            require(s['phase'] == 'FREE_FLIGHT' and s['piloted'] and s['seated'] and not s['landed'],
+                    'physical free-flight home approach before ordinary landing')
+            keys.update(('Prior', 'h'))
+            off = sub(berth['dock'], s['position'])
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            if align > .995 and s['upright'] > .94 and speed <= .35:
+                require(berth['capture'] and berth['selected_berth_id'] == berth['berth_id'],
+                        'production preview selects the actual home berth')
+                require(dot([-v for v in s['back']], berth['dock_forward']) < -.95,
+                        'ordinary nose-first home approach opposite the parked heading')
+                self.tap('l', now)
+                if self.tap_key == 'l':
+                    self.request_frame = self.frame
+                    self.enter('home_land', s)
+        elif self.stage == 'home_land':
+            keys.add('Prior')
+            self.home_landing_seen |= s['landing_active']
+            require(not berth['landing_abort_reason'], 'production home landing aborted: '+berth['landing_abort_reason'])
+            if self.home_landing_seen and not s['landing_active'] and not s['landed']:
+                require(False, 'production home landing ended without docking')
+            if s['landed'] and s['phase'] == 'SHUT_DOWN':
+                require(self.home_landing_seen, 'ordinary one-L home landing was observed active')
+                self.require_home_dock(s)
+                self.home_arrival = {'frame': self.frame, 'position': s['position'],
+                                     'berth_id': berth['berth_id'], 'berth_instance_id': berth['berth_instance_id'],
+                                     'contract': berth['contract'], 'lease': berth['lease'],
+                                     'occupant_id': berth['occupant_id'], 'parked_exact': berth['parked_exact']}
+                self.shutdown_frame = self.frame
+                self.enter('home_shutdown', s)
+                keys.clear()
+            elif not self.home_landing_seen:
+                require(self.frame <= self.request_frame + 120, 'ordinary L did not start home landing; no retry')
+        elif self.stage == 'home_shutdown':
+            self.require_home_dock(s)
+            require(s['phase'] == 'SHUT_DOWN' and s['piloted'] and s['seated'],
+                    'secured home berth during ordinary neutral shutdown')
+            if self.frame - self.shutdown_frame >= 90 and s['telemetry']['engine'] == 'OFFLINE':
+                self.tap('e', now)
+                if self.tap_key == 'e':
+                    self.request_frame = self.frame
+                    self.enter('home_exit', s)
+        elif self.stage == 'home_exit':
+            self.require_home_dock(s)
+            require(s['telemetry']['engine'] == 'OFFLINE', 'powered-down home dock throughout normal exit')
+            if not s['piloted'] and not s['seated'] and s['control_enabled'] and not s['transition_busy']:
+                require(s['phase'] == 'COMPLETE' and home['capsule_enabled']
+                        and berth['grounded'] and berth['supported'] and berth['support_collider'],
+                        'ordinary home E finishes at a controllable unseated supported yard exit')
+                self.home_exit = {'frame': self.frame, 'player': s['player'],
+                                  'support_collider': berth['support_collider'], 'engine': s['telemetry']['engine']}
+                self.enter('home_walk', s)
+            else:
+                require(self.frame <= self.request_frame + 600, 'ordinary E did not finish supported home exit; no retry')
+        elif self.stage == 'home_walk':
+            self.require_home_dock(s)
+            require(s['telemetry']['engine'] == 'OFFLINE', 'powered-down home dock retained during exit walk')
+            displacement = norm(sub(s['player'], self.home_exit['player']))
+            require(displacement < 5, 'bounded supported home exit walk below five metres')
+            if self.frame - self.home_exit['frame'] >= 20:
+                require(displacement > .25, 'twenty-tick ordinary home exit walk moves more than a quarter metre')
+                self.enter('complete', s)
+                self.result = {'scope': 'Torrent Guided prelude, HULK breaker and physical home return',
+                               'completion_marker': self.MARKER, 'breaker': self.breaker_result,
+                               'reverse_route': self.reverse_route, 'reverse_visited': self.reverse_visited,
+                               'reverse_walked_m': self.reverse_walked, 'boarding_press': self.home_board_press,
+                               'boarded': self.home_boarded, 'hulk_departure': self.hulk_departure,
+                               'fade_retirement': self.fade_retirement, 'cinder_unload': self.cinder_unload,
+                               'home_arrival': self.home_arrival, 'home_exit': self.home_exit,
+                               'home_walk_ticks': self.frame - self.home_exit['frame'],
+                               'home_walk_displacement_m': displacement, 'home_walked_m': self.home_walked,
+                               'home_support_collider': berth['support_collider'],
+                               'same_player_id': s['player_id'], 'same_ship_id': s['ship_id'],
+                               'same_capsule_id': initial['capsule_id'], 'same_shape_id': initial['shape_id'],
+                               'final_reward_count': home['reward_count'], 'final_generation': home['activity']['generation'],
+                               'reward_receipt': home['reward_receipt'], 'authored_tuning': s['tuning'],
+                               'walk_tuning': home['walk_tuning'], 'default_sampler': True,
+                               'phases': self.phases, 'stages': self.stages,
+                               'remaining': ['HULK revisit', 'disk reload and OS interruption']}
+            else:
+                keys.add('w')
+        else:
+            require(False, 'known home-return stage')
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+        self.home_previous = s
+        return keys, dx, dy, False
+
+
 class SandboxWalkPilot(Pilot):
     """Five station branches through ordinary controls; fleet/crash gate stays open.
 
@@ -1459,7 +1789,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -1534,7 +1864,7 @@ def run(binary, output, route="guided"):
                 if not window: raise RuntimeError('no X11 window owned by exact game PID')
                 result['window'] = hex(window)
                 desktop.focus(window)
-                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot}[route]()
+                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot, "hulk-home": HulkHomePilot}[route]()
                 selector = selectors.DefaultSelector()
                 selector.register(game.stdout,selectors.EVENT_READ)
                 pending = b''
@@ -1611,8 +1941,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker'), default='guided',
-                        help='hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home'), default='guided',
+                        help='hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))

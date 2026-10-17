@@ -14,6 +14,7 @@ var _sandbox := false
 var _full_sandbox := false
 var _hulk_arrival := false
 var _hulk_breaker := false
+var _hulk_home := false
 var _fleet_initial := {}
 var _crash_surface := {}
 var _fleet_details := {}
@@ -29,7 +30,8 @@ func on_startup_completed(main: Node) -> void:
 	_spawn = _player.global_position
 	_parked = _ship.global_transform
 	_tuning = _sortie_tuning()
-	_hulk_breaker = "--native-sortie-observer=hulk-breaker" in OS.get_cmdline_args()
+	_hulk_home = "--native-sortie-observer=hulk-home" in OS.get_cmdline_args()
+	_hulk_breaker = "--native-sortie-observer=hulk-breaker" in OS.get_cmdline_args() or _hulk_home
 	_hulk_arrival = "--native-sortie-observer=hulk-arrival" in OS.get_cmdline_args() or _hulk_breaker
 	_full_sandbox = "--native-sortie-observer=sandbox" in OS.get_cmdline_args()
 	_sandbox = "--native-sortie-observer=sandbox-walk" in OS.get_cmdline_args() or "--native-sortie-observer=sandbox" in OS.get_cmdline_args()
@@ -114,6 +116,8 @@ func _physics_process(delta: float) -> void:
 	}
 	if _hulk_arrival:
 		observation["hulk"] = _hulk_arrival_observation()
+	if _hulk_home:
+		observation["hulk_home"] = _hulk_home_observation(berth)
 	if _sandbox:
 		observation["sandbox"] = _sandbox_observation()
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
@@ -241,6 +245,8 @@ func _hulk_arrival_observation() -> Dictionary:
 			and int(contract.get("berth_instance_id", 0)) == berth.get_instance_id(),
 		"lease": occupant == _ship and berth.get_reservation_owner() == _ship
 			and berth.get_reserved_ship_id() == _ship.get_ship_definition().ship_id,
+		"lease_free": occupant == null and berth.get_reservation_owner() == null
+			and berth.get_reserved_ship_id() == &"",
 		"occupant_id": occupant.get_instance_id() if is_instance_valid(occupant) else 0,
 		"parked_exact": _ship.global_transform.is_equal_approx(berth.get_dock_transform()),
 		"landing_abort_reason": str(contract.get("last_abort_reason", &"")),
@@ -300,3 +306,78 @@ func _hulk_breaker_observation(hulk: AbandonedStationHulk, support_collider: Nod
 		"power_restored": hulk.is_auxiliary_power_restored(), "lights": lights,
 		"bus_lights_restored": restored_interiors == 7 and dock_lights == 1 and lights.size() == 8,
 		"emergency_lights": emergency_interiors == 7 and dock_lights == 1 and lights.size() == 8}
+
+
+## Select-only return observations survive retirement of the streamed HULK.
+## Read existing owners directly: no scene loads, policy ticks, reconciliation,
+## activity mutations, actor placement, or synthetic gameplay input.
+func _hulk_home_observation(home_berth: ShipBerth) -> Dictionary:
+	var capsule: CollisionShape3D = _player.get_node(^"PlayerCollision") as CollisionShape3D
+	var activity: Dictionary = _game.get_hulk_power_restoration_snapshot()
+	var reward_report: Dictionary = _game.get_activity_reward_report()
+	var authority: Dictionary = reward_report.get("authority", {}) as Dictionary
+	var record: Dictionary = authority.get("record", {}) as Dictionary
+	var counts: Dictionary = record.get("reward_counts", {}) as Dictionary
+	var bootstrap: CinderStreamingBootstrap = _game.get_node(^"CinderStreamingBootstrap") as CinderStreamingBootstrap
+	var binding: CinderStreamingProductionBinding = _game.get_node(^"CinderStreamingProductionBinding") as CinderStreamingProductionBinding
+	var coordinator: WorldStreamingCoordinator = bootstrap.get_node(^"WorldStreamingCoordinator") as WorldStreamingCoordinator
+	var generations: Dictionary = coordinator.get("_generation_by_id") as Dictionary
+	var loaded: Dictionary = coordinator.get("_loaded") as Dictionary
+	var loading: Dictionary = coordinator.get("_loading") as Dictionary
+	var loaded_record: Dictionary = loaded.get(CinderStreamingBootstrap.LOCATION_ID, {}) as Dictionary
+	var cluster: Node3D = loaded_record.get("instance") as Node3D
+	var presentation: Dictionary = binding.get("_last_presentation_result") as Dictionary
+	var capture: Dictionary = _game.call("_get_active_landing_assist_report") as Dictionary
+	var contract: Dictionary = _ship.get_landing_contract_report()
+	var support: Dictionary = {}
+	if not _player.is_seated():
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD)
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider: Node = support.get("collider") as Node
+	var station_candidate: Node3D = _game.station_interaction_candidate
+	var home_occupant: Node = home_berth.get_occupant()
+	var anchor: Vector3 = bootstrap.to_global(CinderStreamingBootstrap.EXPECTED_NAVIGATION_ANCHOR)
+	return {
+		"activity": activity, "reward_count": int(counts.get("hulk_auxiliary_power_cell", 0)),
+		"reward_receipt": record.get("last_receipt", {}),
+		"capsule_id": capsule.get_instance_id(), "shape_id": capsule.shape.get_instance_id(),
+		"capsule_enabled": not capsule.disabled, "player_velocity": _v(_player.velocity),
+		"walk_tuning": {"walk": _player.walk_speed, "sprint": _player.sprint_speed,
+			"deceleration": _player.ground_deceleration, "mouse": _player.mouse_sensitivity},
+		"physics_ticks": Engine.physics_ticks_per_second, "time_scale": Engine.time_scale,
+		"boarding": _v(_ship.get_boarding_position()),
+		"station_candidate": str(station_candidate.get_path()) if is_instance_valid(station_candidate) else "",
+		"streaming": {
+			"loaded": is_instance_valid(cluster) and cluster.is_inside_tree() and not cluster.is_queued_for_deletion(),
+			"loaded_instance_id": cluster.get_instance_id() if is_instance_valid(cluster) else 0,
+			"loaded_generation": int(loaded_record.get("generation", -1)),
+			"generation": int(generations.get(CinderStreamingBootstrap.LOCATION_ID, -1)),
+			"loading": loading.has(CinderStreamingBootstrap.LOCATION_ID),
+			"load_request_count": int(coordinator.get("_load_request_count")),
+			"load_failure_count": int(coordinator.get("_load_failure_count")),
+			"unload_count": int(coordinator.get("_unload_count")),
+			"presentation": presentation.duplicate(true),
+			"distance_m": _ship.global_position.distance_to(anchor),
+			"unload_radius_m": CinderStreamingBootstrap.UNLOAD_RADIUS_METERS,
+		},
+		"home": {
+			"berth_id": str(home_berth.get_berth_id()), "berth_instance_id": home_berth.get_instance_id(),
+			"approach": _v(_game.world.to_global(Vector3(0, 2, -18))),
+			"dock": _v(home_berth.get_dock_transform().origin),
+			"dock_forward": _v(-home_berth.get_dock_transform().basis.z),
+			"selected_berth_id": str(capture.get("selected_berth_id", &"")),
+			"capture": bool(capture.get("assist_capture_accepted", false)),
+			"contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false))
+				and bool(contract.get("reservation_token_bound", false)) and contract.get("berth_id", &"") == home_berth.get_berth_id()
+				and int(contract.get("berth_instance_id", 0)) == home_berth.get_instance_id(),
+			"landing_abort_reason": str(contract.get("last_abort_reason", &"")),
+			"lease": home_occupant == _ship and home_berth.get_reservation_owner() == _ship
+				and home_berth.get_reserved_ship_id() == _ship.get_ship_definition().ship_id,
+			"occupant_id": home_occupant.get_instance_id() if is_instance_valid(home_occupant) else 0,
+			"parked_exact": _ship.global_transform.is_equal_approx(home_berth.get_dock_transform()),
+			"grounded": _player.is_on_floor(),
+			"supported": is_instance_valid(collider) and _game.world.is_ancestor_of(collider),
+			"support_collider": str(_game.world.get_path_to(collider)) if is_instance_valid(collider) and _game.world.is_ancestor_of(collider) else "",
+		},
+	}
