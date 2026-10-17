@@ -835,6 +835,10 @@ class HulkHomePilot(HulkBreakerPilot):
         self.home_landing_seen = False
         self.home_walked = 0
         self.reverse_walked = 0
+        self.home_clearance_target = None
+        self.home_clearance_staging = None
+        self.home_header_samples = []
+        self.home_header_crossing = None
 
     def update(self, s, now):
         self.last_state = s
@@ -858,6 +862,11 @@ class HulkHomePilot(HulkBreakerPilot):
                     and self.streaming_initial['unload_count'] == 0,
                     'one live original Cinder generation before ordinary home return')
             self.home_berth_identity = (home['home']['berth_id'], home['home']['berth_instance_id'])
+            # Settle outside RangeHeader before crossing under it. The existing
+            # home approach is y2/z-18 in the yard frame; the documented shared
+            # ship-origin clearance band is y1.4..3.8, with an authored aim2.7.
+            approach = home['home']['approach']
+            self.home_clearance_target = [approach[0], approach[1]+.7, approach[2]-132]
             self.reverse_route = [point[:] for point in reversed(self.route)]
             self.home_previous = s
             self.mouse_pending = None
@@ -915,6 +924,36 @@ class HulkHomePilot(HulkBreakerPilot):
                 self.cinder_unload = {'frame': s['frame'], 'streaming': json.loads(json.dumps(streaming)),
                                       'old_hulk_absent': True}
 
+    def observe_home_header(self, s):
+        previous = self.home_previous
+        # RangeHeader is z-120, 1m deep. This 20m ship-origin interval also
+        # clears Torrent's 9m hull on both sides of the beam, with margin.
+        near_z, far_z = self.home_clearance_target[2]+20, self.home_clearance_target[2]+40
+        if max(previous['position'][2], s['position'][2]) < near_z \
+                or min(previous['position'][2], s['position'][2]) > far_z:
+            return
+        require(self.home_clearance_staging is not None,
+                'physical clearance staging must be reached and fully settled before header crossing')
+        floor_y = round(self.home_clearance_target[1]-1.3, 10)
+        ceiling_y = round(self.home_clearance_target[1]+1.1, 10)
+        for sample in (previous, s):
+            require(floor_y <= sample['position'][1] <= ceiling_y,
+                    'sampled RangeHeader crossing stays in the documented ship-origin clearance band')
+            require(sample['telemetry']['hull'] >= self.home_clearance_staging['hull'],
+                    'sampled RangeHeader crossing has no extra hull loss after clearance staging')
+            if not self.home_header_samples or self.home_header_samples[-1]['frame'] != sample['frame']:
+                self.home_header_samples.append({'frame': sample['frame'], 'position': sample['position'][:],
+                                                 'hull': sample['telemetry']['hull']})
+        if previous['position'][2] <= far_z <= s['position'][2] and self.home_header_crossing is None:
+            self.home_header_crossing = {
+                'entry_frame': self.home_header_samples[0]['frame'], 'exit_frame': s['frame'],
+                'origin_z_interval': [near_z, far_z], 'origin_y_band': [floor_y, ceiling_y],
+                'min_y': min(sample['position'][1] for sample in self.home_header_samples),
+                'max_y': max(sample['position'][1] for sample in self.home_header_samples),
+                'hull_before': self.home_clearance_staging['hull'], 'hull_after': s['telemetry']['hull'],
+                'samples': self.home_header_samples,
+            }
+
     def home_walk_to(self, s, target, keys, frames):
         home = s['hulk_home']
         tuning = home['walk_tuning']
@@ -960,6 +999,7 @@ class HulkHomePilot(HulkBreakerPilot):
         require(s['guided_complete'], 'Guided completion retained during the later free sortie')
         self.require_retained_cell(home)
         self.observe_home_streaming(s)
+        self.observe_home_header(s)
         if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
         keys = set()
         dx = dy = 0
@@ -1021,7 +1061,7 @@ class HulkHomePilot(HulkBreakerPilot):
                             'ordinary E did not start Torrent reboarding; no retry')
                 require(self.frame <= self.home_board_press['frame'] + 600,
                         'ordinary E did not finish Torrent reboarding; no retry')
-        elif self.stage == 'home_flight':
+        elif self.stage in ('home_flight', 'home_approach'):
             require(s['piloted'] and s['seated'] and not s['transition_busy']
                     and s['phase'] in ('START_ENGINES', 'FREE_FLIGHT'),
                     'later ordinary thrust follows START_ENGINES to FREE_FLIGHT without another tutorial')
@@ -1037,7 +1077,8 @@ class HulkHomePilot(HulkBreakerPilot):
                         'physical free flight retains released home berth until the home landing')
                 if hulk['available']:
                     require(hulk['lease_free'], 'old HULK lease stays free until its streamed berth retires')
-            off = sub(berth['approach'], s['position'])
+            target = self.home_clearance_target if self.stage == 'home_flight' else berth['approach']
+            off = sub(target, s['position'])
             distance = norm(off)
             dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
             stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
@@ -1045,8 +1086,17 @@ class HulkHomePilot(HulkBreakerPilot):
             if speed <= .45 and distance > 1: self.return_braking = False
             if distance <= 1 or self.return_braking: keys.add('Prior')
             elif align > .72: keys.add('w')
-            if distance <= 1 and speed <= .45 and self.cinder_unload is not None:
+            if self.stage == 'home_flight' and distance <= 1 and speed <= .35:
+                require(self.hulk_departure is not None, 'released HULK departure precedes physical clearance staging')
+                self.home_clearance_staging = {'frame': self.frame, 'waypoint': target[:],
+                                               'position': s['position'][:], 'velocity': s['velocity'][:],
+                                               'distance_m': distance, 'speed_m_s': speed,
+                                               'hull': s['telemetry']['hull']}
+                self.return_braking = False
+                self.enter('home_approach', s)
+            elif self.stage == 'home_approach' and distance <= 1 and speed <= .45 and self.cinder_unload is not None:
                 require(self.hulk_departure is not None, 'released HULK departure precedes physical home approach')
+                require(self.home_header_crossing is not None, 'sampled safe RangeHeader crossing precedes home alignment')
                 self.enter('home_align', s)
         elif self.stage == 'home_align':
             require(s['phase'] == 'FREE_FLIGHT' and s['piloted'] and s['seated'] and not s['landed'],
@@ -1116,6 +1166,8 @@ class HulkHomePilot(HulkBreakerPilot):
                                'reverse_walked_m': self.reverse_walked, 'boarding_press': self.home_board_press,
                                'boarded': self.home_boarded, 'hulk_departure': self.hulk_departure,
                                'fade_retirement': self.fade_retirement, 'cinder_unload': self.cinder_unload,
+                               'home_clearance_staging': self.home_clearance_staging,
+                               'home_header_crossing': self.home_header_crossing,
                                'home_arrival': self.home_arrival, 'home_exit': self.home_exit,
                                'home_walk_ticks': self.frame - self.home_exit['frame'],
                                'home_walk_displacement_m': displacement, 'home_walked_m': self.home_walked,

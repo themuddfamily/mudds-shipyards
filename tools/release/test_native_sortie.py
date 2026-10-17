@@ -442,8 +442,25 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertIsNotNone(pilot.hulk_departure)
         return pilot, s
 
-    def home_after_unload(self):
+    def home_at_staging(self):
         pilot, s = self.home_in_flight()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+600, position=[0, 2.7, -150], velocity=[0, 0, 0])
+        pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_approach')
+        return pilot, s
+
+    def home_across_header(self):
+        pilot, s = self.home_at_staging()
+        for position in ([0, 2.6, -125], [0, 2.5, -109]):
+            s = json.loads(json.dumps(s))
+            s.update(frame=s['frame']+30, position=position)
+            pilot.update(s, s['frame']/60)
+        self.assertIsNotNone(pilot.home_header_crossing)
+        return pilot, s
+
+    def home_after_unload(self):
+        pilot, s = self.home_across_header()
         s = json.loads(json.dumps(s))
         s.update(frame=s['frame']+1200, position=[0, 2, -18])
         s['hulk'] = {'available': False}
@@ -544,13 +561,60 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 mutate(s)
                 with self.assertRaisesRegex(AssertionError, error):
                     pilot.update(s, s['frame']/60)
-        pilot, s = self.home_in_flight()
+        pilot, s = self.home_across_header()
         s = json.loads(json.dumps(s))
         s.update(frame=s['frame']+1200, position=[0, 2, -18])
         # A long wait at home cannot substitute for the actual streamed unload.
         pilot.update(s, s['frame']/60)
-        self.assertEqual(pilot.stage, 'home_flight')
+        self.assertEqual(pilot.stage, 'home_approach')
         self.assertIsNone(pilot.result)
+
+    def test_home_clearance_staging_requires_arrival_and_full_settle_before_approach(self):
+        pilot, s = self.home_in_flight()
+        self.assertEqual(pilot.home_clearance_target, [0, 2.7, -150])
+        for position, velocity in [([0, 2.7, -152], [0, 0, 0]),
+                                   ([0, 2.7, -150], [0, 0, .36])]:
+            s = json.loads(json.dumps(s))
+            s.update(frame=s['frame']+60, position=position, velocity=velocity)
+            pilot.update(s, s['frame']/60)
+            self.assertEqual(pilot.stage, 'home_flight')
+            self.assertIsNone(pilot.home_clearance_staging)
+            self.assertIsNone(pilot.home_header_crossing)
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+60, velocity=[0, 0, 0])
+        pilot.update(s, s['frame']/60)
+        self.assertEqual(pilot.stage, 'home_approach')
+        self.assertEqual(pilot.home_clearance_staging['waypoint'], [0, 2.7, -150])
+        self.assertEqual(pilot.home_clearance_staging['speed_m_s'], 0)
+        self.assertIsNone(pilot.home_header_crossing)
+
+    def test_home_header_crossing_refuses_missing_staging_unsafe_altitude_or_extra_damage(self):
+        pilot, s = self.home_in_flight()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+600, position=[0, 2.7, -125])
+        with self.assertRaisesRegex(AssertionError, 'staging must be reached and fully settled'):
+            pilot.update(s, s['frame']/60)
+        for position, hull, error in [
+            ([0, 8.6833, -120], 100, 'documented ship-origin clearance band'),
+            ([0, 1.39, -120], 100, 'documented ship-origin clearance band'),
+            ([0, 2.6, -120], 99, 'no extra hull loss'),
+        ]:
+            with self.subTest(position=position, hull=hull):
+                pilot, s = self.home_at_staging()
+                s = json.loads(json.dumps(s))
+                s.update(frame=s['frame']+30, position=position)
+                s['telemetry']['hull'] = hull
+                with self.assertRaisesRegex(AssertionError, error):
+                    pilot.update(s, s['frame']/60)
+                self.assertIsNone(pilot.home_header_crossing)
+        pilot, s = self.home_across_header()
+        receipt = pilot.home_header_crossing
+        self.assertEqual(receipt['origin_z_interval'], [-130, -110])
+        self.assertGreaterEqual(receipt['min_y'], 1.4)
+        self.assertLessEqual(receipt['max_y'], 3.8)
+        self.assertEqual(receipt['hull_before'], receipt['hull_after'])
+        self.assertGreater(receipt['exit_frame'], pilot.home_clearance_staging['frame'])
+        self.assertEqual(receipt['samples'][-1]['position'], [0, 2.5, -109])
 
     def test_home_completes_only_after_strict_dock_neutral_shutdown_and_supported_twenty_tick_walk(self):
         pilot, s = self.home_at_exit()
@@ -570,6 +634,9 @@ class NativeSortieSafetyTests(unittest.TestCase):
         result = pilot.result
         self.assertEqual(result['completion_marker'], 'NATIVE_HULK_HOME_OK')
         self.assertEqual(result['home_walk_ticks'], 20)
+        self.assertEqual(result['home_clearance_staging']['waypoint'], [0, 2.7, -150])
+        self.assertEqual(result['home_header_crossing']['hull_before'],
+                         result['home_header_crossing']['hull_after'])
         self.assertGreater(result['home_walk_displacement_m'], .25)
         self.assertLess(result['home_walk_displacement_m'], 5)
         self.assertEqual(result['hulk_departure']['phase'], 'FREE_FLIGHT')
