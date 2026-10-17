@@ -57,10 +57,16 @@ class NativeSortieSafetyTests(unittest.TestCase):
             with self.subTest(stage=stage):
                 pilot = native.SandboxPilot()
                 s = self.full_observation()
-                target = pilot.WAYPOINTS[0][1] if stage == 'walk_station' else [0, 0, 0]
+                target = [0, 0, 0]
+                # An actual right-angle corner: the old station fixture used
+                # Central followed by tractor_west_clearance, both straight
+                # ahead from its approach and therefore eligible to continue.
+                pilot.WAYPOINTS = (('before', [0, 0, 10]), ('corner', target),
+                                   ('after', [1, 0, 0]))
                 s['player'] = [target[0], target[1], target[2]+1]
                 pilot.update(s, 1)
                 pilot.stage = stage
+                pilot.index = 1
                 pilot.craft_key = 'arrow_provisional'
                 pilot.pending_walk = [target, [target[0]+1, target[1], target[2]]]
                 # Observed 5.8m/s approach: releasing only inside .30m let the
@@ -70,13 +76,72 @@ class NativeSortieSafetyTests(unittest.TestCase):
                                        player=[target[0], target[1], target[2]+offset])
                     keys, *_ = pilot.update(observation, 1+(frame-100)/60)
                     self.assertNotIn('w', keys)
-                    self.assertEqual(pilot.index, 0)
+                    self.assertEqual(pilot.index, 1)
                     self.assertEqual(len(pilot.pending_walk), 2)
                 # Same radius, grounded floor and now genuinely settled speed.
                 observation = dict(s, frame=115,
                                    player=[target[0], target[1], target[2]+.25])
                 pilot.update(observation, 1.25)
-                self.assertEqual(pilot.index if stage == 'walk_station' else 2-len(pilot.pending_walk), 1)
+                self.assertEqual(pilot.index-1 if stage == 'walk_station' else 2-len(pilot.pending_walk), 1)
+
+        for stage in ('craft_approach', 'return_walk', 'recovery_walk', 'walk_station'):
+            with self.subTest(straight_stage=stage):
+                pilot = native.SandboxPilot()
+                pilot.WAYPOINTS = (('before', [0, 0, 10]), ('middle', [0, 0, 0]),
+                                   ('after', [0, 0, -10]))
+                s = self.full_observation()
+                s['player'] = [0, 0, 1]
+                s['spawn'] = [0, 0, 10]
+                pilot.update(s, 1)
+                pilot.stage, pilot.index = stage, 1
+                pilot.craft_key = 'arrow_provisional'
+                s['sandbox']['fleet'][pilot.craft_key].update(active_ship=True, details_current=True)
+                pilot.pending_walk = [[0, 0, 0], [0, 0, -10]]
+                pilot.walk_origin = [0, 0, 10]
+                for frame, offset in [(103, .71), (106, .49), (109, .34), (112, .26)]:
+                    keys, *_ = pilot.update(dict(s, frame=frame, player=[0, 0, offset]),
+                                            1+(frame-100)/60)
+                    self.assertIn('w', keys)
+                    self.assertIn('Shift_L', keys)
+                self.assertGreater(native.norm(pilot.foot_velocity), pilot.SETTLED_WALK_SPEED)
+                self.assertEqual(pilot.index if stage == 'walk_station' else len(pilot.pending_walk),
+                                 2 if stage == 'walk_station' else 1)
+
+    def test_early_bomber_returns_to_station_and_cargo_skips_it_before_guarded_crash(self):
+        pilot = native.SandboxPilot()
+        s = self.full_observation()
+        pilot.stage = 'walk_station'
+        pilot.index = next(i for i, (name, _) in enumerate(pilot.WAYPOINTS) if name == 'aft_stair_top')
+        s['player'] = pilot.WAYPOINTS[pilot.index][1][:]
+        pilot.update(s, 1)
+        self.assertEqual(pilot.craft_key, 'cinder_long_range_bomber')
+        resume, station_index = pilot.resume_target, pilot.index
+
+        pilot.stage = 'craft_exit'
+        craft = s['sandbox']['fleet'][pilot.craft_key]
+        craft.update(active_ship=True, details_current=True, exit=s['player'])
+        pilot.update(dict(s, frame=101), 1.02)
+        self.assertEqual(pilot.stage, 'return_walk')
+        self.assertEqual(pilot.pending_walk[-1], resume)
+        self.assertEqual(pilot.completed[-1]['craft'], 'cinder_long_range_bomber')
+        pilot.pending_walk = [resume]
+        pilot.update(dict(s, frame=102), 1.04)
+        pilot.update(dict(s, frame=103), 1.06)
+        self.assertEqual((pilot.stage, pilot.index), ('walk_station', station_index))
+        self.assertIsNone(pilot.resume_target)
+
+        pilot.stage, pilot.craft_key = 'craft_exit', 'cinder_cargo_hauler'
+        craft.update(active_ship=False)
+        cargo = s['sandbox']['fleet'][pilot.craft_key]
+        cargo.update(active_ship=True, details_current=True, exit=s['player'])
+        pilot.update(dict(s, frame=104), 1.08)
+        self.assertEqual((pilot.stage, pilot.craft_key), ('craft_approach', 'cinder_light_interceptor'))
+        pilot.stage = 'craft_exit'
+        cargo.update(active_ship=False)
+        s['sandbox']['fleet'][pilot.craft_key].update(active_ship=True, details_current=True, exit=s['player'])
+        with self.assertRaisesRegex(AssertionError, 'all eight required craft secured before deliberate crash'):
+            pilot.update(dict(s, frame=105), 1.10)
+        self.assertFalse(pilot.crashed)
 
     def test_full_route_boarding_press_does_not_activate_a_station_prompt(self):
         pilot = native.SandboxPilot()

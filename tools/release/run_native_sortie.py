@@ -485,11 +485,14 @@ class SandboxWalkPilot(Pilot):
         self.door_opened = False
         self.door_requested = False
 
-    def walk_arrival_ready(self):
+    def walk_arrival_ready(self, through=False):
         return True
 
-    def walk_motion_allowed(self, distance):
+    def walk_motion_allowed(self, distance, through=False):
         return True
+
+    def station_following_target(self, s):
+        return None
 
     def walk_mouse_delta(self, yaw, sensitivity):
         return round(max(-60, min(60, yaw * .5 / sensitivity)))
@@ -528,14 +531,22 @@ class SandboxWalkPilot(Pilot):
         elif self.stage == 'walk_station':
             require(s['control_enabled'] and s['phase'] == 'APPROACH_SHIP', 'ordinary on-foot free access')
             name, target = self.WAYPOINTS[self.index]
+            following = self.station_following_target(s)
             off = sub(target, s['player'])
             horizontal = [off[0], 0, off[2]]
             distance = norm(horizontal)
-            if distance <= .30 and abs(off[1]) <= .65 and sandbox['grounded'] and self.walk_arrival_ready():
+            if distance <= .30 and abs(off[1]) <= .65 and sandbox['grounded'] and self.walk_arrival_ready(following is not None):
                 self.visited.append({'waypoint': name, 'frame': self.frame, 'player': s['player']})
                 self.index += 1
                 print(json.dumps(self.visited[-1]), flush=True)
                 interrupted = self.waypoint_reached(name, target, s)
+                if following is not None:
+                    direction = unit(sub(following, s['player']))
+                    yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+                    dx = self.walk_mouse_delta(yaw, sandbox['walk_mouse'])
+                    if abs(yaw) < .08:
+                        keys.add('w')
+                        if norm(sub(following, s['player'])) > 3: keys.add('Shift_L')
                 if self.index == len(self.WAYPOINTS) and not interrupted:
                     require(self.door_opened, 'ordinary Habitat door interaction observed open')
                     self.enter('complete', s)
@@ -550,9 +561,10 @@ class SandboxWalkPilot(Pilot):
                 direction = unit(horizontal)
                 yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
                 dx = self.walk_mouse_delta(yaw, sandbox['walk_mouse'])
-                if abs(yaw) < .08 and self.walk_motion_allowed(distance):
+                if abs(yaw) < .08 and self.walk_motion_allowed(distance, following is not None):
                     keys.add('w')
-                    if distance > 3: keys.add('Shift_L')
+                    if distance > 3 or following is not None and norm(sub(following, s['player'])) > 3:
+                        keys.add('Shift_L')
                 for door in sandbox['doors']:
                     # Never send blind E while a ship or workstation is offered.
                     # The readonly candidate proves production selected this door.
@@ -578,6 +590,7 @@ class SandboxPilot(SandboxWalkPilot):
     TRIGGERS = {
         'arrow_aft_clearance': 'arrow_provisional',
         'Freight': 'jovian_provisional',
+        'aft_stair_top': 'cinder_long_range_bomber',
         'fleet_trunk_forward': 'zenith_b7_observed',
         'fleet_trunk_mid': 'halyard_new_design',
         'Fleet Dock': 'bulwark_heavy_gunship',
@@ -609,6 +622,7 @@ class SandboxPilot(SandboxWalkPilot):
         self.last_state = None
         self.foot_velocity = [0, 0, 0]
         self.foot_sample_seconds = 1/20
+        self.walk_origin = None
 
     def enter(self, stage, s):
         self.stage = stage
@@ -655,34 +669,56 @@ class SandboxPilot(SandboxWalkPilot):
                                  [23, 4.18, 72.8], [22.2, 4.18, 75.2],
                                  [22.2, 4.18, 90], [8.8, 4.18, 90]]
         elif key == 'cinder_long_range_bomber':
-            # Leave the cargo ramp to the north before crossing its outboard
-            # deck. Follow the east Aft lane, then pass south of the workpost
-            # before crossing to the west aisle. The diagonal clears the
-            # muster locker; the 20mm bridge lip uses normal step-up.
-            self.pending_walk = [[7, 4.18, 90], [22.2, 4.18, 90], [22.2, 4.18, 75.2],
-                                 [23, 4.18, 72.8], [25.4, 4.2, 70.6], [25.4, 4.2, 68.3],
-                                 [-3.5, 4.2, 68.3], [-3.5, 4.2, 64.2], [-4.1, 4.2, 62.8],
-                                 [-5.7, 4.2, 61.2], [-9.2, 4.2, 61.2], [-9.2, 4.2, 61.4],
+            # Visit while the station route already passes this stair top.
+            # The 20mm bridge lip still uses the ordinary physical step-up.
+            self.pending_walk = [[-5.7, 4.2, 61.2], [-9.2, 4.2, 61.2], [-9.2, 4.2, 61.4],
                                  [-10.8, 4.22, 61.4],
                                  [-10.8, 4.2, boarding[2]], boarding]
         elif key == 'cinder_light_interceptor':
             self.pending_walk = [[56, 4.2, 68.3], [56, 4.2, boarding[2]], boarding]
             if not self.reusing:
-                self.pending_walk = [[-10.8, 4.2, s['player'][2]], [-10.8, 4.22, 61.4],
-                                     [-9.2, 4.2, 61.4], [-9.2, 4.2, 61.2], [-5.7, 4.2, 61.2],
-                                     [-4.1, 4.2, 62.8], [-3.5, 4.2, 64.2], [-3.5, 4.2, 68.3]] + self.pending_walk
+                # Bomber is already secured. Leave Cargo north of its hull
+                # and use the proven eastern apron to the Light's clear lane.
+                self.pending_walk = [[7, 4.18, 90], [22.2, 4.18, 90], [22.2, 4.18, 75.2],
+                                     [23, 4.18, 72.8], [25.4, 4.2, 70.6], [25.4, 4.2, 68.3]] + self.pending_walk
         else:
             self.pending_walk = [boarding]
         self.approach_path = self.pending_walk[:]
         self.return_path = list(reversed(self.approach_path[:-1]))
+        self.walk_origin = s['player'][:]
         if key == 'zenith_b7_observed':
             # The disembarking pilot starts on the port side of the wing;
             # reversing the distant approach goal would cut through that wing.
             self.return_path = [[14.8, 4.2, 57.2], [20.4, 4.2, 59.2], [22, 4.2, 68.3]]
         self.enter('craft_approach', s)
 
-    def walk_arrival_ready(self):
-        return norm(self.foot_velocity) <= self.SETTLED_WALK_SPEED
+    def walk_arrival_ready(self, through=False):
+        return through or norm(self.foot_velocity) <= self.SETTLED_WALK_SPEED
+
+    def straight_following_target(self, s, previous, target, following):
+        if previous is None or following is None:
+            return None
+        if max(previous[1], target[1], following[1]) - min(previous[1], target[1], following[1]) > .000001:
+            return None
+        incoming, outgoing = sub(target, previous), sub(following, target)
+        if norm(incoming) <= .000001 or norm(outgoing) <= .000001 or dot(unit(incoming), unit(outgoing)) <= .999:
+            return None
+        # Continue only on the observed floor and close to the straight lane;
+        # a displaced approach defaults to the established stop-and-settle path.
+        off = sub(s['player'], target)
+        lateral = sub(off, [v * dot(off, unit(outgoing)) for v in unit(outgoing)])
+        if not s['sandbox']['grounded'] or abs(off[1]) > .65 or norm(lateral) > .10:
+            return None
+        return following
+
+    def station_following_target(self, s):
+        if self.index == 0 or self.index + 1 == len(self.WAYPOINTS):
+            return None
+        name, target = self.WAYPOINTS[self.index]
+        if name in self.TRIGGERS:
+            return None
+        return self.straight_following_target(s, self.WAYPOINTS[self.index-1][1], target,
+                                              self.WAYPOINTS[self.index+1][1])
 
     def walk_mouse_delta(self, yaw, sensitivity):
         # PlayerController applies relative pixels directly to yaw. Keep each
@@ -690,7 +726,9 @@ class SandboxPilot(SandboxWalkPilot):
         # the observed attitude change before sending another sweep.
         return round(max(-360, min(360, yaw / sensitivity)))
 
-    def walk_motion_allowed(self, distance):
+    def walk_motion_allowed(self, distance, through=False):
+        if through:
+            return True
         if distance <= .30:
             return False
         speed = norm(self.foot_velocity)
@@ -704,19 +742,36 @@ class SandboxPilot(SandboxWalkPilot):
         reaction = max(speed, commanded_speed) * self.foot_sample_seconds
         return distance > stopping + reaction + .10
 
-    def walk(self, s, target, keys):
+    def walk(self, s, target, keys, following=None):
+        following = self.straight_following_target(s, self.walk_origin, target, following)
         off = sub(target, s['player'])
         horizontal = [off[0], 0, off[2]]
         distance = norm(horizontal)
         if distance <= .30 and abs(off[1]) <= .65 and s['sandbox']['grounded']:
-            return 0, self.walk_arrival_ready()
+            if following is None:
+                return 0, self.walk_arrival_ready()
+            horizontal = sub(following, s['player'])
+            horizontal[1] = 0
+            distance = norm(horizontal)
+            reached = True
+        else:
+            reached = False
         direction = unit(horizontal)
         yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
         dx = self.walk_mouse_delta(yaw, s['sandbox']['walk_mouse'])
-        if abs(yaw) < .08 and self.walk_motion_allowed(distance):
+        if abs(yaw) < .08 and self.walk_motion_allowed(distance, following is not None):
             keys.add('w')
-            if distance > 3: keys.add('Shift_L')
-        return dx, False
+            if distance > 3 or following is not None and norm(sub(following, s['player'])) > 3:
+                keys.add('Shift_L')
+        return dx, reached
+
+    def walk_pending(self, s, keys):
+        target = self.pending_walk[0]
+        following = self.pending_walk[1] if len(self.pending_walk) > 1 else None
+        dx, reached = self.walk(s, target, keys, following)
+        if reached:
+            self.walk_origin = target
+        return dx, reached
 
     def clear_station_prompt(self, s):
         # Station interactions take priority over boarding in GameFlow. Look
@@ -801,10 +856,11 @@ class SandboxPilot(SandboxWalkPilot):
             if craft['candidate'] and s['sandbox']['station_candidate']:
                 dx = self.clear_station_prompt(s)
             elif craft['candidate'] and s['control_enabled']:
-                self.tap('e', now)
-                self.enter('craft_board', s)
+                if self.walk_arrival_ready():
+                    self.tap('e', now)
+                    self.enter('craft_board', s)
             else:
-                dx, reached = self.walk(s, self.pending_walk[0], keys)
+                dx, reached = self.walk_pending(s, keys)
                 if reached and len(self.pending_walk) > 1: self.pending_walk.pop(0)
         elif self.stage == 'craft_board':
             if craft['piloted'] and s['seated'] and craft['active_ship'] and s['phase'] == 'START_ENGINES':
@@ -863,21 +919,32 @@ class SandboxPilot(SandboxWalkPilot):
                                    'on_foot_recovery_m': self.recovery_walk, 'regenerated_and_reused': self.craft_key,
                                    'phases': self.phases, 'stages': self.stages}
                 elif self.craft_key == self.CINDER[-1]:
+                    require(set(c['craft'] for c in self.completed) == self.FLEET - {'torrent_provisional'},
+                            'all eight required craft secured before deliberate crash')
+                    require(len(self.visited) == len(self.WAYPOINTS) and self.door_opened,
+                            'complete station walk before deliberate crash')
                     self.enter('crash_reboard_clear', s)
-                elif self.craft_key == 'bulwark_heavy_gunship' or self.craft_key in self.CINDER:
+                elif self.craft_key in ('bulwark_heavy_gunship', 'cinder_cargo_hauler'):
                     # All station waypoints are already visited. Continue from
                     # this actual exit to the next craft's clear walking route.
                     self.resume_target = None
-                    next_key = self.CINDER[0] if self.craft_key == 'bulwark_heavy_gunship' else self.CINDER[self.CINDER.index(self.craft_key)+1]
+                    next_key = self.CINDER[0] if self.craft_key == 'bulwark_heavy_gunship' else self.CINDER[-1]
+                    if next_key == self.CINDER[-1]:
+                        require(any(c['craft'] == 'cinder_long_range_bomber' for c in self.completed),
+                                'early Bomber sortie completed before Cargo-to-Light handoff')
                     self.begin_craft(next_key, s)
                 else:
                     self.pending_walk = self.return_path[:]
+                    if self.craft_key == 'cinder_long_range_bomber':
+                        self.pending_walk = [[-10.8, 4.2, s['player'][2]], [-10.8, 4.22, 61.4],
+                                             [-9.2, 4.2, 61.4], [-9.2, 4.2, 61.2], [-5.7, 4.2, 61.2]]
                     if self.resume_target is not None: self.pending_walk.append(self.resume_target)
+                    self.walk_origin = s['player'][:]
                     self.enter('return_walk', s)
             elif s['phase'] == 'SHUT_DOWN' and craft['telemetry']['engine'] == 'OFFLINE': self.tap('e', now)
         elif self.stage == 'return_walk':
             if self.pending_walk:
-                dx, reached = self.walk(s, self.pending_walk[0], keys)
+                dx, reached = self.walk_pending(s, keys)
                 if reached: self.pending_walk.pop(0)
             elif self.resume_target is not None:
                 self.resume_target = None
@@ -957,10 +1024,11 @@ class SandboxPilot(SandboxWalkPilot):
                 # Reuse the already walked central→Aft→Fleet Dock route after
                 # production recall; no observer or driver writes the avatar.
                 self.pending_walk = [p for name,p in self.WAYPOINTS[40:]]
+                self.walk_origin = s['player'][:]
                 self.enter('recovery_walk', s)
         elif self.stage == 'recovery_walk':
             self.recovery_walk = max(self.recovery_walk, norm(sub(s['player'], s['spawn'])))
-            dx, reached = self.walk(s, self.pending_walk[0], keys)
+            dx, reached = self.walk_pending(s, keys)
             if reached:
                 self.pending_walk.pop(0)
                 if not self.pending_walk: self.begin_craft(self.craft_key, s)
