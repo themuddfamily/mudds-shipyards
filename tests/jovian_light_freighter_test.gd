@@ -34,6 +34,8 @@ func _run() -> void:
 	_test_formed_roof(jovian)
 	_test_roof_service_layer_clearances(jovian)
 	_test_roof_service_lod(jovian)
+	_test_service_fitting_lods(jovian)
+	_test_service_fitting_lod_clearances(jovian)
 	_test_formed_forward_shell(jovian)
 	await _test_freighter_windscreen(jovian)
 	await _test_pilot_doorway(jovian)
@@ -193,6 +195,113 @@ func _test_roof_service_lod(jovian: JovianLightFreighter) -> void:
 			var lower := _roof_finish_height(roof, materials.dark, point)
 			_check(is_finite(upper) and upper - lower > 0.001,
 				"far cooling field stays above its actual curved backing at %s" % point)
+
+
+func _test_service_fitting_lods(jovian: JovianLightFreighter) -> void:
+	var total_near := 0
+	var total_far := 0
+	for node_name in ["RoofServiceAssembly", "FlightDeckAvionicsBonnet"]:
+		var instance := jovian.get_jovian_visual_root().get_node(node_name) as MeshInstance3D
+		var valid := true
+		var near_count := 0
+		var far_count := 0
+		for surface in instance.mesh.get_surface_count():
+			var arrays := instance.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var indices := PackedInt32Array()
+			if arrays[Mesh.ARRAY_INDEX] != null:
+				indices = arrays[Mesh.ARRAY_INDEX]
+			var lods: Array = instance.mesh.get("_surfaces")[surface].get("lods", [])
+			if node_name == "RoofServiceAssembly" and surface == 0:
+				# The continuous backing already has no fine fittings to merge.
+				near_count += vertices.size() / 3
+				far_count += vertices.size() / 3
+				valid = valid and lods.is_empty()
+				continue
+			near_count += indices.size() / 3
+			for index in indices.size():
+				valid = valid and indices[index] == index
+			valid = valid and lods.size() == 2
+			if lods.size() != 2:
+				continue
+			var bytes: PackedByteArray = lods[1]
+			var count := bytes.size() / 2
+			far_count += count / 3
+			valid = valid and count > 0 and count < indices.size() and count % 3 == 0
+			for index in count:
+				var vertex := bytes.decode_u16(index * 2)
+				valid = valid and vertex >= indices.size() and vertex < vertices.size()
+			valid = valid and absf(float(lods[0]) - (0.103 - lerpf(0.057, 0.103, 28.0 * 0.14 / 9.995))) < 0.00001
+		_check(valid, "%s keeps original near triangles and bounded, smaller native far fitting meshes at the unchanged error threshold" % node_name)
+		if node_name == "FlightDeckAvionicsBonnet":
+			var materials := jovian.get_variant_materials()
+			var paint: Color = materials.thermal_cover.albedo_color.srgb_to_linear()
+			var mean_paint: Color = materials.dark.albedo_color.srgb_to_linear().lerp(materials.structure.albedo_color.srgb_to_linear(), 5.0 * 0.075 / 0.715)
+			var averaged := true
+			var samples := 0
+			for surface in instance.mesh.get_surface_count():
+				if instance.mesh.surface_get_material(surface) != materials.thermal_cover:
+					continue
+				var arrays := instance.mesh.surface_get_arrays(surface)
+				var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+				var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+				var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+				for index in range(indices.size(), vertices.size()):
+					if vertices[index].z >= -7.6:
+						continue
+					samples += 1
+					var mixed := colors[index] * paint
+					averaged = averaged and absf(mixed.r - mean_paint.r) < 0.001 and absf(mixed.g - mean_paint.g) < 0.001 and absf(mixed.b - mean_paint.b) < 0.001
+			_check(averaged and samples > 0, "bonnet far vents average the five authored bars in linear colour")
+		total_near += near_count
+		total_far += far_count
+		print("SERVICE_FITTING_TRIANGLES %s near=%d far=%d" % [node_name, near_count, far_count])
+	_check(total_near == 5410 and total_far < total_near, "service fitting LOD retains all 5410 authored near triangles")
+
+
+## Sample the emitted far faces, including edge midpoints: changing the crown
+## subdivision can cross a supporting lid despite positive analytic lift.
+func _test_service_fitting_lod_clearances(jovian: JovianLightFreighter) -> void:
+	var materials := jovian.get_variant_materials()
+	for node_name in ["RoofServiceAssembly", "FlightDeckAvionicsBonnet"]:
+		var instance := jovian.get_jovian_visual_root().get_node(node_name) as MeshInstance3D
+		var cabin: bool = node_name == "FlightDeckAvionicsBonnet"
+		var far_by_material := {}
+		for surface in instance.mesh.get_surface_count():
+			var lods: Array = instance.mesh.get("_surfaces")[surface].get("lods", [])
+			var indices := PackedInt32Array()
+			if lods.size() == 2:
+				var bytes: PackedByteArray = lods[1]
+				for index in bytes.size() / 2:
+					indices.append(bytes.decode_u16(index * 2))
+			far_by_material[instance.mesh.surface_get_material(surface)] = indices
+		var layers := {materials.dark: [materials.hull_cool], materials.thermal_cover: [materials.dark, materials.hull_cool]} if cabin else {materials.hull_warm: [materials.hull_cool], materials.hull_cool: [materials.structure], materials.thermal_cover: [materials.dark]}
+		var clear := true
+		var samples := 0
+		var worst_gap := INF
+		for surface in instance.mesh.get_surface_count():
+			var material := instance.mesh.surface_get_material(surface)
+			if not layers.has(material):
+				continue
+			var arrays := instance.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			var indices: PackedInt32Array = far_by_material[material]
+			for triangle in range(0, indices.size(), 3):
+				if normals[indices[triangle]].y < 0.5:
+					continue
+				var a := vertices[indices[triangle]]
+				var b := vertices[indices[triangle + 1]]
+				var c := vertices[indices[triangle + 2]]
+				for point: Vector3 in [(a + b + c) / 3.0, (a + b) / 2.0, (b + c) / 2.0, (c + a) / 2.0]:
+					clear = clear and point.y >= jovian._roof_service_height(point.x, point.z, cabin) - 0.0001
+					for lower: Material in layers[material]:
+						var height := _roof_finish_height(instance, lower, Vector2(point.x, point.z), far_by_material[lower])
+						if is_finite(height):
+							samples += 1
+							worst_gap = minf(worst_gap, point.y - height)
+							clear = clear and point.y - height > 0.0001
+		_check(clear and samples > 0, "%s emitted far face centres and edges clear their actual supporting far lids and roof (minimum gap %.6fm)" % [node_name, worst_gap])
 
 
 

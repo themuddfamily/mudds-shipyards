@@ -6380,7 +6380,17 @@ func _build_pressure_shell_panels() -> void:
 			_roof_service_patch(roof, "hull_cool", side, 3.43, outer - 0.025,
 				strap_z, strap_z + 0.20, 0.12, false, 0.10)
 
-	_finish_roof_service_mesh(roof, "RoofServiceAssembly")
+	# Distant fittings keep the service layout and raised covers, but merge
+	# reveals narrower than their native mesh error into the lid they frame.
+	var distant_roof := {}
+	for side in [-1.0, 1.0]:
+		_distant_roof_service_patch(distant_roof, "dark", side, 2.00, 3.32, -2.08, 8.10, 0.057, false, 0.048)
+		_distant_roof_service_patch(distant_roof, "hull_cool", side, 3.43, 5.12, -2.08, 8.10, 0.10)
+		for span: Vector2 in [Vector2(-1.97, 0.08), Vector2(5.68, 7.99)]:
+			_distant_roof_service_patch(distant_roof, "hull_warm", side, 3.51, 5.03, span.x, span.y, 0.137, false, 0.10)
+		for strap_z in strap_stations:
+			_distant_roof_service_patch(distant_roof, "hull_cool", side, 3.43, 5.285, strap_z, strap_z + 0.20, 0.12, false, 0.10)
+	_finish_roof_service_mesh(roof, "RoofServiceAssembly", distant_roof)
 
 	# The avionics fairing now follows the passenger crown exactly, with a
 	# narrow service lid and a paired recessed cooling field behind the glass.
@@ -6398,7 +6408,23 @@ func _build_pressure_shell_panels() -> void:
 			_roof_service_patch(avionics, "structure", side, 1.06, 1.31, z, z + 0.22, 0.18, true, 0.151)
 	_roof_service_patch(avionics, "dark", 1.0, -0.25, 0.25, -4.70, -4.43, 0.16, true, 0.151)
 	_roof_service_patch(avionics, "hull_cool", 1.0, -0.17, 0.17, -4.64, -4.49, 0.18, true, 0.16)
-	_finish_roof_service_mesh(avionics, "FlightDeckAvionicsBonnet")
+	var distant_avionics := {}
+	_distant_roof_service_patch(distant_avionics, "structure", 1.0, -1.46, 1.46, -8.90, -3.43, 0.055, true)
+	_distant_roof_service_patch(distant_avionics, "hull_cool", 1.0, -1.40, 1.40, -8.82, -3.49, 0.135, true)
+	_distant_roof_service_patch(distant_avionics, "thermal_cover", 1.0, -1.18, 1.18, -7.36, -4.13, 0.151, true, 0.135)
+	for side in [-1.0, 1.0]:
+		_distant_roof_service_patch(distant_avionics, "dark", side, 0.26, 1.07, -8.53, -7.63, 0.14, true, 0.135)
+	# The five narrow bars retain their footprint and average linear albedo.
+	var coverage := 5.0 * 0.075 / 0.715
+	var mean_lift := lerpf(0.14, 0.172, coverage)
+	var paint: Color = _jovian_materials.thermal_cover.albedo_color.srgb_to_linear()
+	var mean_paint: Color = _jovian_materials.dark.albedo_color.srgb_to_linear().lerp(
+		_jovian_materials.structure.albedo_color.srgb_to_linear(), coverage)
+	var distant_tool: SurfaceTool = distant_avionics.thermal_cover
+	distant_tool.set_color(Color(mean_paint.r / paint.r, mean_paint.g / paint.g, mean_paint.b / paint.b))
+	for side in [-1.0, 1.0]:
+		_distant_roof_service_patch(distant_avionics, "thermal_cover", side, 0.28, 1.05, -8.47, -7.755, mean_lift, true, 0.14)
+	_finish_roof_service_mesh(avionics, "FlightDeckAvionicsBonnet", distant_avionics)
 
 
 ## Evaluate the same transverse crown and longitudinal stations as the actual
@@ -6421,7 +6447,7 @@ func _roof_service_height(x: float, z: float, cabin: bool) -> float:
 ## cuts follow the formed pressure shell so long frames cannot bridge in air.
 func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: float,
 		outer: float, front: float, rear: float, lift: float, cabin := false,
-		support_lift := 0.0) -> void:
+		support_lift := 0.0, distant := false) -> void:
 	if not batch.has(finish):
 		var tool := SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -6439,8 +6465,12 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 		_roof_service_transverse_sagitta(inner, outer, (front + rear) * 0.5, cabin),
 		ROOF_SERVICE_ACROSS_STEPS
 	)
+	if distant:
+		across = maxi(1, across / 2)
 	var bevel := minf(0.10, minf((outer - inner) * 0.22, (rear - front) * 0.22))
 	var stations: Array[float] = [front, front + bevel, rear - bevel, rear]
+	if distant:
+		stations.assign([front, rear])
 	for split in [-7.65, -4.05, -1.8, 8.25]:
 		if split > front + bevel and split < rear - bevel:
 			stations.append(split)
@@ -6457,7 +6487,7 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 	var edge_drop := minf((lift - support_lift) * 0.3, 0.035)
 	var rings: Array[PackedVector3Array] = []
 	for z in fitted_stations:
-		var end := is_equal_approx(z, front) or is_equal_approx(z, rear)
+		var end := not distant and (is_equal_approx(z, front) or is_equal_approx(z, rear))
 		var xmin := inner + (bevel if end else 0.0)
 		var xmax := outer - (bevel if end else 0.0)
 		var ring := PackedVector3Array()
@@ -6483,6 +6513,15 @@ func _roof_service_patch(batch: Dictionary, finish: String, side: float, inner: 
 			var c := Vector3(b.x, _roof_service_height(b.x, b.z, cabin), b.z)
 			var d := Vector3(a.x, _roof_service_height(a.x, a.z, cabin), a.z)
 			_roof_service_quad(tool, a, b, c, d, (end != 0) != (side < 0))
+
+
+## Far panels retain the pressure crown and its longitudinal station cuts,
+## while losing tiny rolled corners and redundant transverse subdivisions.
+func _distant_roof_service_patch(batch: Dictionary, finish: String, side: float,
+		inner: float, outer: float, front: float, rear: float, lift: float,
+		cabin := false, support_lift := 0.0) -> void:
+	_roof_service_patch(batch, finish, side, inner, outer, front, rear, lift,
+		cabin, support_lift, true)
 
 
 ## Worst departure of the crown from the straight chord across one patch, in
@@ -6524,7 +6563,7 @@ func _roof_service_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3,
 			tool.add_vertex(point)
 
 
-func _finish_roof_service_mesh(batch: Dictionary, node_name: String) -> void:
+func _finish_roof_service_mesh(batch: Dictionary, node_name: String, distant_batch: Dictionary) -> void:
 	var mesh := ArrayMesh.new()
 	for finish: String in batch:
 		var tool: SurfaceTool = batch[finish]
@@ -6563,17 +6602,16 @@ func _finish_roof_service_mesh(batch: Dictionary, node_name: String) -> void:
 			var colors: PackedColorArray = proxy_arrays[Mesh.ARRAY_COLOR]
 			colors.fill(proxy_color)
 			proxy_arrays[Mesh.ARRAY_COLOR] = colors
-			var proxy_count: int = proxy_arrays[Mesh.ARRAY_VERTEX].size()
-			for channel in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT,
-					Mesh.ARRAY_TEX_UV, Mesh.ARRAY_COLOR]:
-				var combined: Variant = arrays[channel]
-				combined.append_array(proxy_arrays[channel])
-				arrays[channel] = combined
-			var far_indices := PackedInt32Array()
-			far_indices.resize(proxy_count)
-			for index in proxy_count:
-				far_indices[index] = near_count + index
-			lods[maxf(bar_lift - mean_lift, mean_lift - backing_lift)] = far_indices
+			_append_roof_service_lod(arrays, proxy_arrays, lods,
+				maxf(bar_lift - mean_lift, mean_lift - backing_lift))
+		elif distant_batch.has(finish):
+			var proxy_tool: SurfaceTool = distant_batch[finish]
+			proxy_tool.generate_tangents()
+			# Same screen-space error as the cargo field: fine seams disappear
+			# together, without changing viewport or instance LOD thresholds.
+			var coverage := 28.0 * 0.14 / (8.055 + 1.94)
+			_append_roof_service_lod(arrays, proxy_tool.commit_to_arrays(), lods,
+				0.103 - lerpf(0.057, 0.103, coverage))
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, _jovian_materials[finish])
 	var instance := MeshInstance3D.new()
@@ -6581,6 +6619,32 @@ func _finish_roof_service_mesh(batch: Dictionary, node_name: String) -> void:
 	instance.mesh = mesh
 	instance.set_meta("visual_only", true)
 	_jovian_visual.add_child(instance)
+
+
+## One surface shares its original near attributes and appended far attributes.
+## Native LOD selects indices only; batching must retain this mesh intact.
+func _append_roof_service_lod(arrays: Array, proxy_arrays: Array, lods: Dictionary,
+		error: float) -> void:
+	var near_count: int = arrays[Mesh.ARRAY_VERTEX].size()
+	if arrays[Mesh.ARRAY_INDEX] == null:
+		var indices := PackedInt32Array()
+		indices.resize(near_count)
+		for index in near_count:
+			indices[index] = index
+		arrays[Mesh.ARRAY_INDEX] = indices
+	var proxy_count: int = proxy_arrays[Mesh.ARRAY_VERTEX].size()
+	for channel in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT,
+			Mesh.ARRAY_TEX_UV, Mesh.ARRAY_COLOR]:
+		if arrays[channel] == null:
+			continue
+		var combined: Variant = arrays[channel]
+		combined.append_array(proxy_arrays[channel])
+		arrays[channel] = combined
+	var far_indices := PackedInt32Array()
+	far_indices.resize(proxy_count)
+	for index in proxy_count:
+		far_indices[index] = near_count + index
+	lods[error] = far_indices
 
 
 func _build_fitted_freighter_details() -> void:
