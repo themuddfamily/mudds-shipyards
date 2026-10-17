@@ -70,7 +70,7 @@ HULK interior walk is DONE on9cffc99a2:75.93m supported ordinary movement,
 all6 waypoints and full83-check regression pass. [Scope/result](docs/history/ROADMAP_DELIVERIES.md#hulk--continuous-interior-traversal-done-on9cffc99a2).
 Flight/docking/fringe-rebase setup remains staged; full hulk package loop is open.
 
-## Current task: WORLD-SOLO[Ember completed source journey] — READY
+## Current task: WORLD-SOLO[Ember completed source journey] — IN PROGRESS
 
 **Contract definition DONE:** recovered the original completed-mode job at
 `dee132c65776396f0b360f16ec8b21c8e42765b8`: separate cold import600s, route3600s,
@@ -95,16 +95,21 @@ three new gameplay features. A failure ends the affected task and gates the rest
 
 | Task | State / exact finish line | Estimate |
 | --- | --- | --- |
-| EMBER-IMPORT: qualify cold startup | READY; clean pinned source/engine, no `.godot`, fresh private import profile; import exit0/no diagnostics within600s, tracked source/index unchanged. Freeze generated cache. | Up to10 min plus5 min setup |
+| EMBER-IMPORT: qualify cold startup | IN PROGRESS on bf452ed868; clean pinned source/engine, no `.godot` at launch, fresh private import profile; import exit0/no diagnostics within600s, tracked source/index unchanged. Freeze generated cache. | Up to10 min plus5 min setup |
 | EMBER-ROUNDTRIP: qualify completed journey | GATED on EMBER-IMPORT; fresh separate route profile, original3600s command, exit0, zero diagnostics, exact52 marker and catalog result; inspect actual paid store and physical continuity/home result. Stop at first failure. | Up to60 min; no deadline extension |
 | EMBER-CLOSE: record result and clean up | GATED on terminal run result, including failure; verify inputs/actual process/socket/lane closure, remove disposable clean checkout, record accepted or precise failure, commit/push. | 10 min |
 
-**Next single action:** verify the prepared clean owned checkout at
-`/srv/mudds-work/ember-completed-journey-20261017` is still pinned to
-`bf452ed8689e51379e0621299378ea29a7b111e7` with no `.godot`, then launch the
-cold-import stage using the prepared supervisor. Record
-actual owner PID/start ticks before waiting; retain them at handoff and never
-restart solely because an observation expires. No engine is active now.
+**Live run:** clean owned checkout
+`/srv/mudds-work/ember-completed-journey-20261017`, source
+`bf452ed8689e51379e0621299378ea29a7b111e7`.
+Raw results: `/srv/mudds-work/ember-completed-journey-results-20261017/original-contract/`.
+Driver PID342330/start106984739; import owner PID342389/start106985204,
+both verified live through `/proc`. Import is running headlessly with Dummy
+audio and its original600s cap. No donor cache was copied.
+**Next single action:** inspect this same owner's result and import guards.
+The prepared driver starts the original3600s route only if all import gates
+pass. Retain actual owner PID/start ticks at handoff and never restart solely
+because an observation expires.
 Do not run default/outbound-only, ABANDON or staged-loop mode as a substitute.
 
 All ten phase gates remain open. Q4 startup stays parked after the bounded
