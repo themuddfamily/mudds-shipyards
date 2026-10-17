@@ -158,7 +158,7 @@ driver. Parent: [SANDBOX](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls
 | Task | Exact finish / stop | State / budget |
 | --- | --- | --- |
 | SANDBOX-SETTLE-IMPLEMENT | Only suppress old-target mouse correction inside unchanged grounded distance/height envelope while waiting for unchanged settled speed. Preserve braking, door/through-point handling, all54 ordered waypoints/eight initial sorties/crash/recall/regeneration/recovery/reuse, tuning, waits/thresholds/cap and Guided logic. | DONE candidate7cb633d52, root reviewed; not integrated |
-| SANDBOX-SETTLE-VERIFY | One complete actual b41c3cc ELF route under privateX11/Dummy/default physical sampler, original300s plus345s outer cleanup. Confirm backward sweep removed without early waypoint admission AND NATIVE_SANDBOX_OK/full criteria, zero diagnostics/owned cleanup/source guards. No shortened route/rescue/retry. | READY; normally5 min, original cap retained |
+| SANDBOX-SETTLE-VERIFY | One complete actual b41c3cc ELF route under privateX11/Dummy/default physical sampler, original300s plus345s outer cleanup. Confirm backward sweep removed without early waypoint admission AND NATIVE_SANDBOX_OK/full criteria, zero diagnostics/owned cleanup/source guards. No shortened route/rescue/retry. | IN PROGRESS; original300s route/345s cleanup caps |
 | SANDBOX-SETTLE-CLOSE | Integrate/push only after actual full pass and review. If failure, record it and withhold candidate; no automatic extra profile/pacing cycle. Preserve raw/candidate, remove disposable checkout. | GATED on actual result |
 
 **Owner:** `sandbox_recovery_boundary` delivered clean candidate
@@ -166,9 +166,13 @@ driver. Parent: [SANDBOX](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls
 `c713234df624e5f0191d9622aa85cdc5a8617f19f6cfaa2452083ecff431e1af`.
 AST normalization proves only the new mouse guard differs; original arrival
 predicate and every other class/function unchanged. Game ELF remains b41c3cc.
-**Next single action:** freeze candidate acceptance checkout and launch ONE
-full Sandbox run. Raw:
-`/srv/mudds-work/sandbox-settle-facing-results-20261017/`. No engine active now.
+**Next single action:** observe the existing ONE full Sandbox run, driver
+PID375661/start ticks107721709, verified live at launch, candidate source
+7cb633d5202386afb40b2d77bb1bed4cacf2f674. Acceptance checkout
+`/srv/mudds-work/sandbox-settle-facing-check-20261017`; raw:
+`/srv/mudds-work/sandbox-settle-facing-results-20261017/`.
+Existing `active-owner.json`, stage status/logs and `abort.py` identify the live
+handle. Do not relaunch on a polling timeout; stop first actual failure.
 Future observer selects actual `/proc/PID/exe`, correcting the prior space-parser
 capture gap; completed older raw results are untouched. No new game build.
 All ten phase gates remain open. Q4/Convoy remain parked without a justified
