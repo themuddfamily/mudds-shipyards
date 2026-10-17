@@ -485,6 +485,12 @@ class SandboxWalkPilot(Pilot):
         self.door_opened = False
         self.door_requested = False
 
+    def walk_arrival_ready(self):
+        return True
+
+    def walk_motion_allowed(self, distance):
+        return True
+
     def waypoint_reached(self, name, target, s):
         return False
 
@@ -522,7 +528,7 @@ class SandboxWalkPilot(Pilot):
             off = sub(target, s['player'])
             horizontal = [off[0], 0, off[2]]
             distance = norm(horizontal)
-            if distance <= .30 and abs(off[1]) <= .65 and sandbox['grounded']:
+            if distance <= .30 and abs(off[1]) <= .65 and sandbox['grounded'] and self.walk_arrival_ready():
                 self.visited.append({'waypoint': name, 'frame': self.frame, 'player': s['player']})
                 self.index += 1
                 print(json.dumps(self.visited[-1]), flush=True)
@@ -541,7 +547,7 @@ class SandboxWalkPilot(Pilot):
                 direction = unit(horizontal)
                 yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
                 dx = round(max(-60, min(60, yaw * .5 / sandbox['walk_mouse'])))
-                if abs(yaw) < .08:
+                if abs(yaw) < .08 and self.walk_motion_allowed(distance):
                     keys.add('w')
                     if distance > 3: keys.add('Shift_L')
                 for door in sandbox['doors']:
@@ -574,6 +580,10 @@ class SandboxPilot(SandboxWalkPilot):
         'Fleet Dock': 'bulwark_heavy_gunship',
     }
     CINDER = ('cinder_cargo_hauler', 'cinder_long_range_bomber', 'cinder_light_interceptor')
+    GROUND_DECELERATION = 42.0
+    WALK_SPEED = 5.8
+    SPRINT_SPEED = 9.2
+    SETTLED_WALK_SPEED = .35
 
     def __init__(self):
         super().__init__()
@@ -594,6 +604,8 @@ class SandboxPilot(SandboxWalkPilot):
         self.foot_previous = None
         self.mouse_pending = None
         self.last_state = None
+        self.foot_velocity = [0, 0, 0]
+        self.foot_sample_seconds = 1/20
 
     def enter(self, stage, s):
         self.stage = stage
@@ -660,16 +672,33 @@ class SandboxPilot(SandboxWalkPilot):
             self.return_path = [[14.8, 4.2, 57.2], [20.4, 4.2, 59.2], [22, 4.2, 68.3]]
         self.enter('craft_approach', s)
 
+    def walk_arrival_ready(self):
+        return norm(self.foot_velocity) <= self.SETTLED_WALK_SPEED
+
+    def walk_motion_allowed(self, distance):
+        if distance <= .30:
+            return False
+        speed = norm(self.foot_velocity)
+        if speed <= self.SETTLED_WALK_SPEED:
+            return True
+        # These are the unchanged production keyboard speeds/deceleration.
+        # Account for travel until the next observed physics sample as well as
+        # the body's natural braking after releasing the physical movement key.
+        commanded_speed = self.SPRINT_SPEED if distance > 3 else self.WALK_SPEED
+        stopping = speed*speed/(2*self.GROUND_DECELERATION)
+        reaction = max(speed, commanded_speed) * self.foot_sample_seconds
+        return distance > stopping + reaction + .10
+
     def walk(self, s, target, keys):
         off = sub(target, s['player'])
         horizontal = [off[0], 0, off[2]]
         distance = norm(horizontal)
         if distance <= .30 and abs(off[1]) <= .65 and s['sandbox']['grounded']:
-            return 0, True
+            return 0, self.walk_arrival_ready()
         direction = unit(horizontal)
         yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
         dx = round(max(-60, min(60, yaw * .5 / s['sandbox']['walk_mouse'])))
-        if abs(yaw) < .08:
+        if abs(yaw) < .08 and self.walk_motion_allowed(distance):
             keys.add('w')
             if distance > 3: keys.add('Shift_L')
         return dx, False
@@ -700,11 +729,15 @@ class SandboxPilot(SandboxWalkPilot):
         if self.stage in ('walk_station', 'craft_approach', 'return_walk', 'crash_reboard_clear', 'crash_approach', 'recovery_walk'):
             require(normal_foot and s['phase'] in ('APPROACH_SHIP', 'COMPLETE'),
                     'ordinary foot legs cannot hide an unplanned control or recovery transition')
+        self.foot_velocity = [0, 0, 0]
         if previous is not None and normal_foot and previous['normal']:
             frames = s['frame'] - previous['frame']
             require(frames > 0, 'fresh physics observation')
             require(norm(sub(s['player'], previous['player'])) <= 9.2 * frames / 60 + 1.5,
                     'continuous ordinary walking without recovery teleport')
+            self.foot_sample_seconds = frames / 60
+            self.foot_velocity = [v/self.foot_sample_seconds for v in sub(s['player'], previous['player'])]
+            self.foot_velocity[1] = 0
         self.foot_previous = dict(frame=s['frame'], player=s['player'], normal=normal_foot)
         result = self._update_route(s, now)
         keys, dx, dy, fire = result

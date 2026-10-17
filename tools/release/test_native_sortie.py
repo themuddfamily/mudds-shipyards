@@ -52,6 +52,32 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s['walk_forward'] = [.3, 0, -.95]
         self.assertNotEqual(pilot.update(s, 1.04)[1], 0)
 
+    def test_full_walk_releases_early_and_settles_before_advancing_a_corner(self):
+        for stage in ('craft_approach', 'walk_station'):
+            with self.subTest(stage=stage):
+                pilot = native.SandboxPilot()
+                s = self.full_observation()
+                target = pilot.WAYPOINTS[0][1] if stage == 'walk_station' else [0, 0, 0]
+                s['player'] = [target[0], target[1], target[2]+1]
+                pilot.update(s, 1)
+                pilot.stage = stage
+                pilot.craft_key = 'arrow_provisional'
+                pilot.pending_walk = [target, [target[0]+1, target[1], target[2]]]
+                # Observed 5.8m/s approach: releasing only inside .30m let the
+                # body drift past an aft-wing corner while the next goal began.
+                for frame, offset in [(103, .71), (106, .49), (109, .34), (112, .26)]:
+                    observation = dict(s, frame=frame,
+                                       player=[target[0], target[1], target[2]+offset])
+                    keys, *_ = pilot.update(observation, 1+(frame-100)/60)
+                    self.assertNotIn('w', keys)
+                    self.assertEqual(pilot.index, 0)
+                    self.assertEqual(len(pilot.pending_walk), 2)
+                # Same radius, grounded floor and now genuinely settled speed.
+                observation = dict(s, frame=115,
+                                   player=[target[0], target[1], target[2]+.25])
+                pilot.update(observation, 1.25)
+                self.assertEqual(pilot.index if stage == 'walk_station' else 2-len(pilot.pending_walk), 1)
+
     def test_full_route_boarding_press_does_not_activate_a_station_prompt(self):
         pilot = native.SandboxPilot()
         s = self.full_observation()
