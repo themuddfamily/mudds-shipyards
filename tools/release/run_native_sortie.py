@@ -5,6 +5,7 @@ Usage: run_native_sortie.py GAME.x86_64 --output NEW_RESULT_DIRECTORY
 Use --route sandbox for the full five-branch/eight-craft/crash/reuse scenario.
 Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
+Use --route hulk-breaker to continue that arrival through the interior breaker.
 The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -557,6 +558,257 @@ class HulkArrivalPilot(Pilot):
                 self.tap_cooldown = now + .3
                 self.tap_release_frame = self.frame
         return keys, dx, dy, False
+
+
+class HulkBreakerPilot(HulkArrivalPilot):
+    """Extend the accepted arrival through the live interior with OS input only."""
+    MARKER = 'NATIVE_HULK_BREAKER_OK'
+    SPACES = ('dock_vestibule', 'spine_corridor', 'reactor_gallery')
+    REWARD = 'hulk_auxiliary_power_cell'
+    INTERIOR_STAGES = frozenset(('hulk_walk', 'hulk_breaker_aim', 'hulk_breaker_press',
+                                'hulk_restoring', 'hulk_repeat_release', 'hulk_repeat_press'))
+
+    def __init__(self):
+        super().__init__()
+        self.arrival_result = None
+        self.interior_initial = None
+        self.interior_previous = None
+        self.route = None
+        self.visited = []
+        self.walked_interior = 0
+        self.max_step_per_tick = 0
+        self.support_colliders = set()
+        self.first_press = None
+        self.first_active = None
+        self.claimed = None
+        self.repeat_release = None
+        self.repeat_press = None
+        self.native_edges = []
+        self.native_previous = None
+
+    @staticmethod
+    def require_unclaimed(interior):
+        activity = interior['activity']
+        require(activity['state_id'] == 'idle' and activity['generation'] == 0
+                and activity['elapsed_seconds'] == 0 and not activity['reward_claimed']
+                and activity['claimed_receipts'] == 0 and interior['reward_count'] == 0
+                and not interior['power_restored'] and interior['emergency_lights'],
+                'breaker and reward untouched before the complete ordinary interior walk')
+
+    def update(self, s, now):
+        self.last_state = s
+        if self.stage not in self.INTERIOR_STAGES:
+            if s.get('hulk', {}).get('available'):
+                interior = s['hulk'].get('interior')
+                require(interior is not None, 'explicit hulk-breaker observer available in this package')
+                self.require_unclaimed(interior)
+            commands = super().update(s, now)
+            if self.result is None:
+                return commands
+            # Actual supported disembarkation is the first navigation point.
+            # The authored shelf centre is under the parked hull's gear; match
+            # the production hulk-loop route convention without moving anyone.
+            self.arrival_result = json.loads(json.dumps(self.result))
+            self.arrival_result['completion_marker'] = HulkArrivalPilot.MARKER
+            self.result = None
+            interior = s['hulk']['interior']
+            require(len(interior['route']) == 6 and tuple(interior['space_ids']) == self.SPACES,
+                    'all six authored route points and three interior spaces available')
+            require(norm(interior['player_velocity']) <= .35, 'actual supported shelf exit settled before interior walking')
+            self.interior_initial = json.loads(json.dumps(interior))
+            self.route = [[s['player'][0], s['player'][1]+1, s['player'][2]]] + interior['route'][1:]
+            self.interior_previous = s
+            self.visited.append({'index': 0, 'frame': s['frame'], 'player': s['player'],
+                                 'support_collider': s['hulk']['support_collider'],
+                                 'speed': norm(interior['player_velocity']),
+                                 'meaning': 'actual supported shelf exit'})
+            self.tap_key = None
+            self.tap_release_frame = s['frame']
+            self.tap_cooldown = now + .3
+            self.native_previous = bool(s['native_interact'])
+            self.enter('hulk_walk', s)
+            return set(), 0, 0, False
+        keys, dx, dy, fire = self.update_interior(s, now)
+        # Preserve the accepted arrival's OS-mouse acknowledgement fence.
+        facing = s['walk_forward']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001:
+                dx = dy = 0
+            else:
+                self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        return keys, dx, dy, fire
+
+    def update_interior(self, s, now):
+        self.frame = s['frame']
+        hulk = s['hulk']
+        interior = hulk['interior']
+        activity = interior['activity']
+        initial = self.interior_initial
+        previous = self.interior_previous
+        frames = self.frame - previous['frame']
+        require(frames > 0, 'fresh interior physics observation')
+        require(self.identities == (s['player_id'], s['ship_id'])
+                and self.hulk_ids == (hulk['hulk_id'], hulk['berth_instance_id'])
+                and hulk['available'] and hulk['berth_id'] == self.BERTH,
+                'same Player Torrent streamed HULK and berth throughout interior')
+        require(s['default_sampler'] and s['tuning_unchanged']
+                and interior['walk_tuning'] == initial['walk_tuning']
+                and interior['physics_ticks'] == 60 and interior['time_scale'] == 1,
+                'authored controls and normal physics throughout interior')
+        require(s['phase'] in ('COMPLETE', 'APPROACH_SHIP') and not s['destroyed']
+                and not s['piloted'] and not s['seated'] and s['control_enabled']
+                and not s['transition_busy'], 'ordinary on-foot interior without recovery or seating')
+        require(s['active_ship'] and s['lease_free'] and s['landed']
+                and hulk['contract'] and hulk['lease'] and hulk['parked_exact']
+                and hulk['occupant_id'] == s['ship_id'] and s['telemetry']['engine'] == 'OFFLINE',
+                'same powered-down Torrent retains exact occupied HULK berth')
+        require(hulk['grounded'] and interior['support_owned'] and hulk['support_collider'],
+                'continuous actual HULK support throughout interior')
+        require(interior['capsule_enabled'] and interior['capsule_id'] == initial['capsule_id']
+                and interior['shape_id'] == initial['shape_id'], 'same enabled Player collision capsule')
+        require(interior['breaker_id'] == initial['breaker_id']
+                and interior['route'] == initial['route'] and tuple(interior['space_ids']) == self.SPACES,
+                'same live breaker and unchanged authored interior route')
+        step = norm(sub(s['player'], previous['player']))
+        require(step <= (initial['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                'continuous ordinary interior movement without placement or recovery teleport')
+        self.walked_interior += step
+        self.max_step_per_tick = max(self.max_step_per_tick, step/frames)
+        self.support_colliders.add(hulk['support_collider'])
+        native_pressed = bool(s['native_interact'])
+        if native_pressed != self.native_previous:
+            self.native_edges.append({'pressed': native_pressed, 'frame': self.frame,
+                                      'breaker_candidate': interior['breaker_candidate']})
+        self.native_previous = native_pressed
+        previous_elapsed = previous['hulk']['interior']['activity']['elapsed_seconds']
+        require(activity['restore_seconds'] == 3
+                and activity['elapsed_seconds'] <= previous_elapsed + frames/60 + .0001,
+                'normal three-second restoration without accelerated activity timer')
+        self.interior_previous = s
+        keys = set()
+        dx = 0
+        speed = norm([interior['player_velocity'][0], 0, interior['player_velocity'][2]])
+        if self.stage in ('hulk_walk', 'hulk_breaker_aim'):
+            self.require_unclaimed(interior)
+        if self.stage == 'hulk_walk':
+            target = self.route[len(self.visited)]
+            off = sub(target, s['player'])
+            off[1] = 0
+            distance = norm(off)
+            if distance <= .30 and speed <= .35:
+                self.visited.append({'index': len(self.visited), 'frame': self.frame,
+                                     'player': s['player'], 'speed': speed,
+                                     'support_collider': hulk['support_collider']})
+                print(json.dumps(self.visited[-1]), flush=True)
+                if len(self.visited) == len(self.route):
+                    minimum = sum(norm(sub(a, b)) for a, b in zip(self.route, self.route[1:])) - .6*(len(self.route)-1)
+                    require(self.walked_interior >= minimum, 'sampled movement covers every authored interior space')
+                    self.enter('hulk_breaker_aim', s)
+            else:
+                direction = unit(off)
+                yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+                dx = round(max(-360, min(360, yaw/interior['walk_tuning']['mouse'])))
+                tuning = interior['walk_tuning']
+                commanded_speed = tuning['sprint'] if distance > 3 else tuning['walk']
+                stopping = speed*speed/(2*tuning['deceleration']) + max(speed, commanded_speed)*frames/60 + .10
+                if abs(yaw) < .08 and distance > .30 and (speed <= .35 or distance > stopping):
+                    keys.add('w')
+                    if distance > 3: keys.add('Shift_L')
+        elif self.stage == 'hulk_breaker_aim':
+            off = sub(interior['breaker_position'], s['player'])
+            off[1] = 0
+            yaw = math.atan2(dot(unit(off), s['walk_right']), dot(unit(off), s['walk_forward']))
+            dx = round(max(-360, min(360, yaw/interior['walk_tuning']['mouse'])))
+            if abs(yaw) < .08 and speed <= .35 and interior['breaker_candidate'] and not native_pressed:
+                self.tap('e', now)
+                if self.tap_key == 'e':
+                    self.first_press = self.frame
+                    self.enter('hulk_breaker_press', s)
+        elif self.stage == 'hulk_breaker_press':
+            if activity['state_id'] == 'idle':
+                self.require_unclaimed(interior)
+                require(self.frame <= self.first_press + 120, 'ordinary E did not engage live breaker; no retry')
+            else:
+                require(activity['state_id'] == 'active' and activity['generation'] == 1
+                        and interior['breaker_engaged'] and interior['reward_count'] == 0
+                        and any(e['pressed'] and e['frame'] > self.first_press for e in self.native_edges),
+                        'observed ordinary E press engages live breaker after complete interior walk')
+                self.first_active = {'frame': self.frame, 'elapsed_seconds': activity['elapsed_seconds'],
+                                     'generation': activity['generation']}
+                self.enter('hulk_restoring', s)
+        elif self.stage == 'hulk_restoring':
+            require(activity['generation'] == 1 and activity['state_id'] in ('active', 'complete', 'claimed'),
+                    'same one-shot restoration generation')
+            if activity['state_id'] != 'claimed':
+                require(interior['reward_count'] == 0 and not interior['power_restored']
+                        and interior['emergency_lights'], 'no premature cell or restored bus lighting')
+            else:
+                self.require_claimed(interior)
+                require(self.frame - self.first_press >= 180 and activity['elapsed_seconds'] == 3,
+                        'normal three-second production restoration completed before reward')
+                self.claimed = {'frame': self.frame, 'reward_count': interior['reward_count'],
+                                'generation': activity['generation'], 'receipt': interior['reward_receipt']}
+                self.enter('hulk_repeat_release', s)
+        elif self.stage == 'hulk_repeat_release':
+            self.require_claimed(interior)
+            if not native_pressed and self.tap_key is None and self.frame >= self.tap_release_frame + 6:
+                self.repeat_release = self.frame
+                self.tap('e', now)
+                if self.tap_key == 'e':
+                    require(interior['breaker_candidate'], 'same live breaker selected for separate repeated E')
+                    self.repeat_press = self.frame
+                    self.enter('hulk_repeat_press', s)
+        elif self.stage == 'hulk_repeat_press':
+            self.require_claimed(interior)
+            repeated = interior['last_breaker_result']
+            if any(e['pressed'] and e['frame'] > self.repeat_press for e in self.native_edges):
+                if repeated.get('reason') == 'power_already_restored' and not native_pressed and self.tap_key is None:
+                    require(not repeated.get('accepted') and self.repeat_release > self.first_press,
+                            'separate released-then-pressed E refuses duplicate breaker reward')
+                    self.enter('complete', s)
+                    self.result = {'scope': 'Torrent Guided prelude, HULK arrival and interior breaker only',
+                                   'completion_marker': self.MARKER, 'arrival': self.arrival_result,
+                                   'authored_route': initial['route'], 'walk_route': self.route,
+                                   'route_start': 'actual supported shelf exit replaces occupied authored shelf centre',
+                                   'visited': self.visited, 'space_ids': list(self.SPACES),
+                                   'walked_interior_m': self.walked_interior,
+                                   'max_step_per_physics_tick_m': self.max_step_per_tick,
+                                   'support_colliders': sorted(self.support_colliders),
+                                   'same_capsule_id': initial['capsule_id'], 'same_shape_id': initial['shape_id'],
+                                   'same_breaker_id': initial['breaker_id'], 'walk_tuning': initial['walk_tuning'],
+                                   'initial_reward_count': initial['reward_count'],
+                                   'initial_generation': initial['activity']['generation'],
+                                   'first_press_frame': self.first_press,
+                                   'first_active': self.first_active, 'claimed': self.claimed,
+                                   'repeat_release_frame': self.repeat_release, 'repeat_press_frame': self.repeat_press,
+                                   'native_interact_edges': self.native_edges,
+                                   'repeated_result': repeated, 'final_reward_count': interior['reward_count'],
+                                   'final_generation': activity['generation'], 'lights': interior['lights'],
+                                   'restored_bus_lighting': True, 'phases': self.phases, 'stages': self.stages,
+                                   'remaining': ['return and revisit', 'disk reload and OS interruption']}
+            require(self.result is not None or self.frame <= self.repeat_press + 120,
+                    'ordinary repeated E did not dispatch duplicate refusal; no retry')
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+        return keys, dx, 0, False
+
+    def require_claimed(self, interior):
+        activity, receipt = interior['activity'], interior['reward_receipt']
+        require(activity['state_id'] == 'claimed' and activity['generation'] == 1
+                and activity['reward_claimed'] and activity['claimed_receipts'] == 1
+                and interior['reward_count'] == 1 and receipt.get('granted')
+                and receipt.get('activity_id') == 'cinder_hulk_power_restoration'
+                and receipt.get('reward_id') == self.REWARD and receipt.get('activity_generation') == 1
+                and interior['power_restored'] and interior['bus_lights_restored'],
+                'exactly one committed hulk_auxiliary_power_cell and restored bus lighting')
+        if self.claimed is not None:
+            require(receipt == self.claimed['receipt'], 'repeated E retains the same committed cell receipt')
 
 
 class SandboxWalkPilot(Pilot):
@@ -1206,7 +1458,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -1281,7 +1533,7 @@ def run(binary, output, route="guided"):
                 if not window: raise RuntimeError('no X11 window owned by exact game PID')
                 result['window'] = hex(window)
                 desktop.focus(window)
-                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot}[route]()
+                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot}[route]()
                 selector = selectors.DefaultSelector()
                 selector.register(game.stdout,selectors.EVENT_READ)
                 pending = b''
@@ -1358,8 +1610,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival'), default='guided',
-                        help='hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker'), default='guided',
+                        help='hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))

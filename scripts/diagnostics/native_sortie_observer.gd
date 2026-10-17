@@ -13,6 +13,7 @@ var _elapsed := 0.0
 var _sandbox := false
 var _full_sandbox := false
 var _hulk_arrival := false
+var _hulk_breaker := false
 var _fleet_initial := {}
 var _crash_surface := {}
 var _fleet_details := {}
@@ -28,7 +29,8 @@ func on_startup_completed(main: Node) -> void:
 	_spawn = _player.global_position
 	_parked = _ship.global_transform
 	_tuning = _sortie_tuning()
-	_hulk_arrival = "--native-sortie-observer=hulk-arrival" in OS.get_cmdline_args()
+	_hulk_breaker = "--native-sortie-observer=hulk-breaker" in OS.get_cmdline_args()
+	_hulk_arrival = "--native-sortie-observer=hulk-arrival" in OS.get_cmdline_args() or _hulk_breaker
 	_full_sandbox = "--native-sortie-observer=sandbox" in OS.get_cmdline_args()
 	_sandbox = "--native-sortie-observer=sandbox-walk" in OS.get_cmdline_args() or "--native-sortie-observer=sandbox" in OS.get_cmdline_args()
 	if _sandbox:
@@ -246,4 +248,55 @@ func _hulk_arrival_observation() -> Dictionary:
 		"shelf_supported": is_instance_valid(collider) and collider == hulk.get_node_or_null(^"Exterior/DockShelf"),
 		"support_collider": str(hulk.get_path_to(collider)) if is_instance_valid(collider) and hulk.is_ancestor_of(collider) else "",
 	}, true)
+	if _hulk_breaker:
+		result["interior"] = _hulk_breaker_observation(hulk, collider)
 	return result
+
+
+func _hulk_breaker_observation(hulk: AbandonedStationHulk, support_collider: Node) -> Dictionary:
+	var route: Array = []
+	for point: Vector3 in hulk.get_interior_route_points():
+		route.append(_v(point))
+	var breaker: Area3D = hulk.get_breaker()
+	var capsule: CollisionShape3D = _player.get_node(^"PlayerCollision") as CollisionShape3D
+	var activity: Dictionary = _game.get_hulk_power_restoration_snapshot()
+	var reward_report: Dictionary = _game.get_activity_reward_report()
+	var authority: Dictionary = reward_report.get("authority", {}) as Dictionary
+	var record: Dictionary = authority.get("record", {}) as Dictionary
+	var counts: Dictionary = record.get("reward_counts", {}) as Dictionary
+	var last_breaker_result: Dictionary = _game.get("_last_hulk_power_result") as Dictionary
+	var lights: Array = []
+	var restored_interiors: int = 0
+	var emergency_interiors: int = 0
+	var dock_lights: int = 0
+	for light: OmniLight3D in hulk.get_light_nodes():
+		lights.append({"name": str(light.name), "color": light.light_color.to_html(false),
+			"energy": light.light_energy, "range": light.omni_range, "attenuation": light.omni_attenuation})
+		if light.name == &"DockShelfPractical":
+			if light.light_color.is_equal_approx(AbandonedStationHulk.DOCK_CYAN) and light.light_energy < 1.0:
+				dock_lights += 1
+		elif light.light_color.is_equal_approx(AbandonedStationHulk.RESTORED_BUS_COLOR) \
+				and is_equal_approx(light.light_energy, AbandonedStationHulk.RESTORED_PRACTICAL_ENERGY) \
+				and is_equal_approx(light.omni_range, AbandonedStationHulk.RESTORED_PRACTICAL_RANGE) \
+				and is_equal_approx(light.omni_attenuation, AbandonedStationHulk.RESTORED_PRACTICAL_ATTENUATION):
+			restored_interiors += 1
+		elif not light.light_color.is_equal_approx(AbandonedStationHulk.RESTORED_BUS_COLOR) \
+				and light.light_energy <= 1.0 and is_equal_approx(light.omni_range, AbandonedStationHulk.PRACTICAL_RANGE) \
+				and is_equal_approx(light.omni_attenuation, AbandonedStationHulk.EMERGENCY_PRACTICAL_ATTENUATION):
+			emergency_interiors += 1
+	return {"route": route, "space_ids": AbandonedStationHulk.SPACE_IDS,
+		"support_owned": is_instance_valid(support_collider) and hulk.is_ancestor_of(support_collider),
+		"capsule_id": capsule.get_instance_id(), "shape_id": capsule.shape.get_instance_id(),
+		"capsule_enabled": not capsule.disabled, "player_velocity": _v(_player.velocity),
+		"walk_tuning": {"walk": _player.walk_speed, "sprint": _player.sprint_speed,
+			"deceleration": _player.ground_deceleration, "mouse": _player.mouse_sensitivity},
+		"physics_ticks": Engine.physics_ticks_per_second, "time_scale": Engine.time_scale,
+		"breaker_id": breaker.get_instance_id(), "breaker_position": _v(breaker.global_position),
+		"breaker_candidate": _game.station_interaction_candidate == breaker,
+		"breaker_engaged": bool(breaker.call("is_engaged")),
+		"last_breaker_result": last_breaker_result,
+		"activity": activity, "reward_count": int(counts.get("hulk_auxiliary_power_cell", 0)),
+		"reward_receipt": record.get("last_receipt", {}),
+		"power_restored": hulk.is_auxiliary_power_restored(), "lights": lights,
+		"bus_lights_restored": restored_interiors == 7 and dock_lights == 1 and lights.size() == 8,
+		"emergency_lights": emergency_interiors == 7 and dock_lights == 1 and lights.size() == 8}
