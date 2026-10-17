@@ -37,6 +37,15 @@ recovery, graphical desktop-entry launch and native GPU/device/audio acceptance
 remain open. Raw results:
 `/srv/mudds-work/linux-native-recovery-ca0afc4-20261017/results/{pilot,cabin,rest,crew}/`.
 
+The original full Sandbox ordinary-input route remains FAIL on this ELF: all
+54 waypoints and eight initial craft excursions complete, with deliberate
+interceptor destruction, recall and home-berth regeneration, but the original
+300s cap expires during recovery walking before craft reuse. Driver cleanup
+finishes at 306.231s with zero diagnostics, released inputs, reaped actors and
+unchanged source/cache/artifacts. The unchanged caller uses isolated X11/XTest,
+Dummy audio and disabled rendering. Raw run:
+`/srv/mudds-work/ca0-sandbox-acceptance-20261017/`.
+
 ## Earlier local checkpoint: `7f9627e5c` — 2026-10-17
 
 The [executable](../builds/linux/MuddsShipyards-7f9627e.x86_64),

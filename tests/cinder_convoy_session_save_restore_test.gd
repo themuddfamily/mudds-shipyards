@@ -71,6 +71,7 @@ class MemoryFilesystem extends Filesystem:
 ## Real disk refusal at the production reward write, with teardown frozen.
 class InterruptedConvoyRewardFilesystem extends UserDataFilesystem:
 	var stopped := false
+	var stopped_write_attempts := 0
 	var reward_rejected := false
 	var interrupt_rewards := true
 	var stage_reward_before_refusal := false
@@ -79,6 +80,7 @@ class InterruptedConvoyRewardFilesystem extends UserDataFilesystem:
 
 	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
 		if stopped:
+			stopped_write_attempts += 1
 			return ERR_UNAVAILABLE
 		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 		if interrupt_rewards and document is Dictionary and str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with("game-flow-reward-"):
@@ -461,6 +463,15 @@ func _test_terminal_convoy_reward_restart() -> String:
 	_check(not second.reset_active_activity() and not bool(blocked_start.accepted)
 		and blocked_start.reason == &"convoy_reward_pending",
 		"failed reward retry keeps the arrived owner and blocks reset or start")
+	var owed_disk := _convoy_disk_bytes(path)
+	var owed_host := second.cinder_convoy_host
+	var owed_state := owed_host.capture_persistence_state()
+	var direct_owed_reset := owed_host.reset_with_persistence(owed_host.get_generation(),
+		Callable(second, "_save_cinder_convoy_reset_candidate"))
+	_check(not bool(direct_owed_reset.accepted)
+		and direct_owed_reset.get("store_result", {}).get("reason") == &"unproven_convoy_generation"
+		and owed_host.capture_persistence_state() == owed_state and _convoy_disk_bytes(path) == owed_disk,
+		"persistence itself refuses requested-but-unpaid reset without discarding the genuine debt")
 	second.active_ship = second.get_flyable_ships()[0] as HeroShip
 	retry_filesystem.interrupt_rewards = false
 	retry_filesystem.stopped = false
@@ -619,13 +630,66 @@ func _test_terminal_convoy_reward_restart() -> String:
 	legacy_record.activities[0].reward_granted = false
 	legacy_payload[String(SLOT)] = legacy_record
 	var legacy_saved := legacy_store.commit(legacy_payload, legacy_store.get_generation(), "legacy-convoy-wire-fixture")
-	var legacy := await _make_game(Store.new(legacy_path))
+	var legacy_filesystem := InterruptedConvoyRewardFilesystem.new()
+	legacy_filesystem.interrupt_rewards = false
+	var legacy_runtime_store := Store.new(legacy_path, legacy_filesystem) as UserDataStore
+	var legacy := await _make_game(legacy_runtime_store)
 	legacy.call("_on_cinder_convoy_safely_arrived", legacy.cinder_convoy_host.get_snapshot())
 	_check(bool(legacy_saved.accepted) and legacy.get_active_activity_snapshot().get("state_id") == &"completed"
 		and _convoy_receipts(legacy) == 3 and not bool(legacy.call("_has_pending_cinder_convoy_reward"))
 		and not bool((legacy_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary).reward_requested),
 		"legacy false/false terminal remains explicitly ambiguous and receives no inferred credit")
+	var legacy_save := legacy.save_cinder_convoy_session()
+	var legacy_flags := legacy_runtime_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary
+	_check(bool(legacy_save.accepted) and not bool(legacy_flags.reward_requested)
+		and not bool(legacy_flags.reward_granted),
+		"same-generation legacy save preserves both ambiguous flags without promoting entitlement")
+	var invalid_flags := legacy_record.duplicate(true)
+	invalid_flags.activities[0].reward_granted = true
+	var legacy_adapter := SessionPersistence.new()
+	_check(not bool(legacy_adapter.validate_record(invalid_flags, legacy.cinder_convoy_host).accepted),
+		"a granted-without-requested legacy convoy remains corrupt rather than resettable")
+	var legacy_host := legacy.cinder_convoy_host
+	var legacy_state := legacy_host.capture_persistence_state()
+	var legacy_threat := legacy.cinder_convoy_threat.get_snapshot()
+	var legacy_disk := _convoy_disk_bytes(legacy_path)
+	var legacy_signals := _new_signal_counts()
+	_connect_host_signal_counts(legacy_host, legacy_signals)
+	legacy_filesystem.stopped = true
+	var legacy_refused_writes := legacy_filesystem.stopped_write_attempts
+	_check(not legacy.reset_active_activity() and legacy.cinder_convoy_host == legacy_host
+		and legacy_host.capture_persistence_state() == legacy_state
+		and legacy.cinder_convoy_threat.get_snapshot() == legacy_threat
+		and _convoy_disk_bytes(legacy_path) == legacy_disk and _signal_total(legacy_signals) == 0
+		and legacy_filesystem.stopped_write_attempts > legacy_refused_writes,
+		"rejected ambiguous legacy reset preserves owner, threat, events and every store file")
+	legacy_filesystem.stopped = false
+	var legacy_reset := legacy.reset_active_activity()
+	var legacy_idle_generation := legacy_host.get_generation()
+	_check(legacy_reset and legacy.get_active_activity_snapshot().get("state_id") == &"idle"
+		and legacy_idle_generation == int(legacy_state.activity_state.generation) + 1
+		and _convoy_receipts(legacy) == 3 and _total_receipts(legacy) == 4,
+		"ambiguous legacy completion resets durably without inventing a reward")
 	await _retire_game(legacy)
+	var legacy_fresh_store := Store.new(legacy_path) as UserDataStore
+	var legacy_fresh := await _make_game(legacy_fresh_store)
+	var legacy_idle := legacy_fresh_store.get_snapshot()[String(SLOT)].activities[0] as Dictionary
+	_check(legacy_fresh.get_active_activity_snapshot().get("state_id") == &"idle"
+		and legacy_fresh.cinder_convoy_host.get_generation() == legacy_idle_generation
+		and int(legacy_idle.state) == ConvoyEscortActivity.State.IDLE
+		and not bool(legacy_idle.reward_requested) and not bool(legacy_idle.reward_granted)
+		and not bool(legacy_fresh.get("_activity_selection_locked"))
+		and _convoy_receipts(legacy_fresh) == 3,
+		"fresh Main restores the legacy reset as selectable IDLE with no inherited debt")
+	var legacy_craft := await _prepare_interrupted_convoy(legacy_fresh, 0)
+	var legacy_start := legacy_fresh.request_activity_start(GameFlow.CINDER_CONVOY_ACTIVITY_ID)
+	var legacy_arrived := await _finish_interrupted_convoy(legacy_fresh, legacy_craft)
+	legacy_fresh.call("_on_cinder_convoy_safely_arrived", legacy_fresh.cinder_convoy_host.get_snapshot())
+	_check(bool(legacy_start.accepted) and legacy_arrived
+		and legacy_fresh.cinder_convoy_host.get_generation() == legacy_idle_generation + 1
+		and _convoy_receipts(legacy_fresh) == 4 and _total_receipts(legacy_fresh) == 5,
+		"the genuine convoy after ambiguous reset and fresh Main earns exactly one new receipt")
+	await _retire_game(legacy_fresh)
 	return path
 
 

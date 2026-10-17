@@ -345,8 +345,10 @@ func _validate_transition(existing: Dictionary, candidate: Dictionary, existing_
 				return _result(true, &"convoy_unsaved_run_reset")
 		if new_generation != old_generation + 1:
 			return _result(false, &"unproven_convoy_generation")
+		# Paid and ambiguous legacy completions may be retired without payment.
+		# Requested but unpaid completion must retain its genuine debt.
 		if int(previous_activity.state) == ConvoyEscortActivity.State.COMPLETED \
-				and existing_activity.reward_requested and existing_activity.reward_granted \
+				and existing_activity.reward_requested == existing_activity.reward_granted \
 				and int(next_activity.state) == ConvoyEscortActivity.State.IDLE \
 				and int(candidate_host.entity_generation) == int(previous_host.entity_generation) \
 				and str(existing.escort_ship_id) == str(candidate.escort_ship_id):

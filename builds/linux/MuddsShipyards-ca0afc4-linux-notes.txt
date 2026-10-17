@@ -33,3 +33,8 @@ Results beside pilot, under results/{cabin,rest,crew}/in-world-interruption.json
 cabin SHA256 fa8d160ed495357088cf7c14c6fcb4160240acc0f02a7ab9792b19039c35ebd1
 rest SHA256 5f430be25ad85eead6219c4e9ae9a04aeb6f23d95feaa462dd8f1ffbdb7ca28c
 crew SHA256 ba2a6a91894214c3e4059befc79019a46c7436641b708067b6768e2d9a8c61db
+
+Original native Linux full Sandbox (2026-10-17):
+FAIL at unchanged original 300s whole-route cap, 306.231s including driver cleanup. Exact original caller/packaged observer and ordinary OS XTest->X11->Godot Input->default sampler complete 54 waypoints, all eight initial craft excursions and deliberate ~120m/s interceptor impact with same-player recall and exact occupied home-berth regeneration. Timeout occurs during recovery_walk before craft reuse. Zero diagnostics; inputs/helper/game/Xvfb reaped, private profile removed, source/cache/artifact guards unchanged, ordered lanes released. Rendering disabled with Dummy audio; this proves neither rendered/native-GPU performance nor physical-device/human acceptance. No route/tuning/radius/cap changed, no retry. Earlier full failures remain retained.
+Raw result: /srv/mudds-work/ca0-sandbox-acceptance-20261017/result/result.json
+SHA256 bae2f45b08a1a44f593a0c76f3cb1c73870bdd3a1685858afde4c154790c73c8
