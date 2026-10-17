@@ -1272,3 +1272,32 @@ Linux binary/archive/metadata moved to retained-linux with hashes checked;
 retained-artifacts.json maps former paths. Conditional Windows helper was not
 launched and is not a checkpoint claim. Accepted ef67f3e checkpoint remains
 latest; revisit/disk/interruption/shared/full matrix/native/human gates stay open.
+
+
+## Roadmap next-task decomposition and saved departure repair — 2026-10-17
+
+Planning only: the working roadmap now schedules exactly three cards, with
+0 accepted: HULK-REVISIT-DEPARTURE qualification, conditional matching checkpoint,
+and independent EMBER-ABANDON-SOURCE qualification. Two are qualification tasks,
+one is a conditional package delivery; none is claimed as a new gameplay feature.
+Original 36 parent outcomes and all ten phase gates remain open. Existing full
+physical route limits and mandatory release gates are preserved. A failed task
+and one attempted repair now require a recorded priority review before further
+diagnosis/repair/rerun, even if the next defect or task name changes. Another HULK
+failure selects independent Ember work after that review, rather than silently
+extending the repair chain. Work estimates and check allowances are separate.
+
+Saved repair commit2298e48893163dfc8d6d174fcd3957a20fc4739b is clean in the owned
+`/srv/mudds-work/hulk-revisit-departure-20261017` checkout, based on5010ef932.
+Only existing observer/driver/Python test files changed. Public berth lift height
+is frozen at occupied home dock and validated thereafter. Zero height accepts
+actual released, inactive FREE_FLIGHT departure; positive height retains observed
+active→inactive completion. Receipt records configuration and observed path.
+Agent reports all53 focused Python tests, compilation and diff checks PASS; root
+reviewed the production diff and verified the six original route classes are
+unchanged. The repair is pushed to `hold/hulk-revisit-departure-20261017`. An
+independent planning review checked task boundaries, dependencies and budgets;
+local link checks and `git diff --check` pass. No further engines, exports or
+route were launched in this planning pass. Full candidate qualification and checkpoint remain NOT_RUN;
+main does not contain this candidate and public checkpoint remains ef67f3e.
+The first5010 route failure, source refs and raw artifacts above remain retained.
