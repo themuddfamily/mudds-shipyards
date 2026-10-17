@@ -1418,3 +1418,19 @@ b6d5d4a7c933bb0100b1daab685d7ab057a91954. Ignored files were Godot cache only;
 no unique raw/build artifacts. Ten clean retired checkouts removed in total.
 Existing Ember run has physically landed and begun its ABANDON return; full
 home acceptance remains pending, unchanged original run/cap.
+
+
+Fifth bounded cleanup removed three clean idle cache-only retired worktrees,
+approximately840MB: `mudds-planetary-hotpath`, `mudds-rime-authority-hotpath`,
+`mudds-shared-visit-cpu`. Independent inventory and root checks found empty
+tracked/untracked status, no ignored files outside `.godot`, no unique artifacts
+and no process cwd users. Preserved source branches:
+
+- `perf/planetary-hotpath`: 7e4bb8529ad2c080af224bc94fe381c8d36666b9
+- `agent/rime-authority-hotpath`: 5161a3184f7900e2de8ba753847900ec1fe56398
+- `optimize/shared-visit-cpu`: 21d6c064c66ed32ae29334505f5a4fe0beb43617
+
+Thirteen clean retired checkouts removed in total; unique raw results and the
+two known dirty checkout exceptions remain preserved. Parked runtime/performance
+claims are unchanged. This housekeeping does not count as roadmap gameplay
+delivery; the same Ember ABANDON route is still running under its original cap.
