@@ -429,6 +429,7 @@ func shared_state() -> Dictionary:
 	return {"progress": capture(), "reward_recorded": reward_recorded(),
 		"survey_available": _flow._shared_aurora_survey_store_is_current(),
 		"participant_entity_id": String(_participant_context.get("entity_id", &"")),
+		"awaiting_participant": _pending_shared_restoration,
 		"heat": get_heat_snapshot()}
 
 
@@ -459,8 +460,12 @@ func shared_presentation(surface: Node3D, body: PlayerController, shared: Dictio
 	if not paid:
 		if state == CheckpointRouteActivity.State.ACTIVE:
 			var heat := shared.get("heat", {}) as Dictionary
+			var participant := StringName(shared.get("participant_entity_id", &""))
+			var awaiting_participant := bool(shared.get("awaiting_participant", false)) and participant.is_empty()
 			objective_text += " | SUIT HEATER %d%%" % roundi(clampf(float(heat.get("fraction", 0.0)), 0.0, 1.0) * 100.0)
-			if StringName(shared.get("participant_entity_id", &"")) != entity_id:
+			if awaiting_participant:
+				objective_text += " (PAUSED)"
+			if participant != entity_id and not awaiting_participant:
 				return {"objective": objective_text, "prompt": "SURVEY IN PROGRESS — FOLLOW YOUR CREW OR REBOARD"}
 		if body.global_position.distance_to(beacon.global_position) <= RADIUS and state != CheckpointRouteActivity.State.COMPLETED:
 			interaction = "[ E ] ABANDON ICE-CORE SURVEY" if state == CheckpointRouteActivity.State.ACTIVE else "[ E ] START ICE-CORE SURVEY"

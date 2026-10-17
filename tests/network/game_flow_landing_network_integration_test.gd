@@ -1510,15 +1510,30 @@ func _restore_shared_visit_with_fresh_crew(game: GameFlow, old_client: Adapter,
 							and is_equal_approx(float(owner.survey.get_heat_snapshot().heat_s), frozen_heat)
 							and int(owner.survey.snapshot().next_checkpoint_index) == int(saved_progress.next_checkpoint_index),
 							"restored Rime progress and heater wait for a new authenticated observation instead of reviving the old participant")
+						var awaiting_picture := await _wait_until(func(): return bool((_coastal_replica.get("rime_survey", {}) as Dictionary).get("awaiting_participant", false)), 3.0)
+						var waiting_view: Dictionary = owner.survey.shared_presentation(owner.get("_surface"), body, _coastal_replica.get("rime_survey", {}), avatar)
+						_check(awaiting_picture and waiting_view.get("objective", "").contains("(PAUSED)"),
+							"the actual restored publication tells fresh crew that its unowned heater waits for the next reading")
 						for point: Vector3 in [Vector3(-24, 0.5, -16), Vector3(-40, 0.5, -28), Vector3(-52, 0.5, -42),
 								Vector3(-50, 0.5, -54), Vector3(-30, 0.5, -66), Vector3(-8, 0.5, -68),
 								Vector3(14, 0.5, -70), Vector3(28, 0.5, -63), Vector3(30, 0.5, -62)]:
 							walked = walked and await _checked_coastal_walk(fresh, fresh.network_session, client, body,
 								region.to_global(point), "fresh Rime participant follows the actual trail to the remaining saved observation")
 						if walked:
+							var pending_picture: Dictionary = (_coastal_replica.get("rime_survey", {}) as Dictionary).duplicate(true)
+							var resumed_view: Dictionary = owner.survey.shared_presentation(owner.get("_surface"), body, pending_picture, avatar)
+							_check(resumed_view.get("prompt", "").contains("LOG RIDGE STRAIN"),
+								"fresh authenticated crew discovers the remaining restored reading at the actual gauge before claiming its heater")
+							pending_picture["participant_entity_id"] = "other_crew"
+							for pending: bool in [false, true]:
+								pending_picture["awaiting_participant"] = pending
+								var owned_view: Dictionary = owner.survey.shared_presentation(owner.get("_surface"), body, pending_picture, avatar)
+								_check(owned_view.get("prompt", "").contains("SURVEY IN PROGRESS"),
+									"another participant's active survey stays unavailable even with a contradictory pending picture (%s)" % pending)
 							filesystem.reject_rewards = true
 							await _coastal_press(fresh, fresh.network_session, client, body)
-							_check(not owner.survey.get("_pending_shared_restoration") and int(owner.survey.snapshot().state) == CheckpointRouteActivity.State.COMPLETED
+							_check(not owner.survey.get("_pending_shared_restoration") and not bool(owner.survey.shared_state().get("awaiting_participant", true))
+								and int(owner.survey.snapshot().state) == CheckpointRouteActivity.State.COMPLETED
 								and not owner.survey.reward_recorded() and filesystem.rejected_rewards > 0,
 								"a real current observation binds the fresh participant and rejected saving leaves completion unpaid")
 							filesystem.reject_rewards = false
