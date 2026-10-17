@@ -110,14 +110,18 @@ production gameplay changes, uninstall-kill or power-loss qualification.
 
 | Task | Exact finish line / stop | State / budget |
 | --- | --- | --- |
-| LINUX-FIRST-INSTALL-REPRO | Existing real child-process cut, first install only; kill after desktop publication/before manifest, reap, then fresh ordinary CLI retry. Record actual failure or supported success; no assumed bug. | READY;15 min |
+| LINUX-FIRST-INSTALL-REPRO | Existing real child-process cut, first install only; kill after desktop publication/before manifest, reap, then fresh ordinary CLI retry. Record actual failure or supported success; no assumed bug. | IN PROGRESS;15 min |
 | LINUX-FIRST-INSTALL-FIX | If reproduced, repair the existing ownership transaction, pass focused tests including prior update recovery, tampered inputs and protected saves/untracked files. No permissive ownership fallback. | GATED on reproduction;45–60 min implementation, focused checks separately |
 | LINUX-FIRST-INSTALL-SHIP | Clean-source Linux archive includes exact repaired manager; actual shipped-manager first-install kill/fresh retry and update checks, exact artifact/member bytes, direct/extracted strict startup exit0 + STARTUP_MENU_READY_OK; notes and cleanup. | GATED on fix; export/smoke5–15 min plus original caps |
 
-**Next single action:** assign one implementer to reproduce the first-install
-boundary using the existing real-kill helper, then fix only that transaction if
-confirmed. Root owns integration and actual package checks. Stop at first
-unexpected boundary; record it before any separately bounded follow-up.
+**Owner:** `linux_first_install_recovery`, isolated worktree
+`/srv/mudds-work/linux-first-install-recovery-20261017`, base09bf654c3;
+root owns integration, roadmap and actual package checks.
+**Next single action:** finish the assigned first-install reproduction using the
+existing real-kill helper, then fix only that transaction if confirmed. Raw
+before/after: `/srv/mudds-work/linux-first-install-recovery-results-20261017/`.
+No engines or package export is assigned. Stop at first unexpected boundary and
+record it before any separately bounded follow-up.
 
 All ten phase gates remain open. Q4 startup stays parked without a justified
 construction candidate. Latest paired gameplay checkpoint remains b6af782;
