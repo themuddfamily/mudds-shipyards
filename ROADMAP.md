@@ -144,7 +144,7 @@ source identities, earlier failures, supported correction, cleanup and limitatio
 are in [completed deliveries](docs/history/ROADMAP_DELIVERIES.md#hulk-ordinary-arrival--done-checkpoint2f687110e).
 Clean author/acceptance worktrees and duplicate scratch builds removed; raw kept.
 
-### HULK-BREAKER-INPUT — IN PROGRESS implementation
+### HULK-BREAKER-INPUT — first qualification FAILED; correction below
 
 - **One result:** extend the same run from actual disembarkation through all
   authored interior spaces; ordinary Interact engages the breaker and earns one
@@ -165,17 +165,38 @@ Clean author/acceptance worktrees and duplicate scratch builds removed; raw kept
 - **Candidate:**7dd70a9a467621f4590f97ac8c1a725cd20b1e5e, root reviewed;
   Python30 tests pass. Existing Guided/Sandbox/HULK arrival/OS helpers AST-identical.
   Actual supported exit replaces exterior route start0; authored1–5 unchanged.
-- **Next action:** observe ONE existing guarded cold-import/observer-parse/privacy/
-  Linux export/direct+archive startup/breaker qualification. Outer driver PID391026/
-  start ticks107975389; raw/stage owners/status/abort:
-  `/srv/mudds-work/hulk-breaker-results-20261017/`. Exact clean candidate checkout
-  `/srv/mudds-work/hulk-breaker-check-20261017`.
-  Original300s route/345s outer cleanup; first actual failure stops, no relaunch
-  on polling timeout. A reused-supervisor read-path alias was aligned before
-  any route launch; raw note records it. No candidate/criteria changes.
-- **Close:** record actual outcome, integrate/push and build working checkpoint;
-  preserve failures/unique work, remove owned disposable scratch. Home/revisit
-  remains separate and gated.
+- **First qualification FAILED:**7dd70a9a4 passed cold import, explicit observer
+  parse, privacy190, Linux export and both strict startups. Actual route stopped
+  at83.482s/f3505, after complete arrival/interior walk and earned one cell with
+  restored lights, before repeat E. Driver demanded `elapsed_seconds == 3` but
+  actual production float is2.99999999999999. First press f3317;188 physics frames
+  had elapsed. This is not a completed full breaker qualification.
+- **Closed:** zero game diagnostics, source/index/engine/cache guards pass; all65
+  recorded process identities absent, display/authority/sockets closed and lanes
+  free. Raw `/srv/mudds-work/hulk-breaker-results-20261017/`; exact candidate
+  checkout/build retained for the separately scoped tools-only correction.
+
+### HULK-TIMER-COMPARISON — READY implementation/qualification
+
+- **One result/parent:** HULK breaker driver accepts the production three-second
+  floating representation while still refusing an early reward.
+- **Owner/boundary:** root integration and bounded implementer; candidate7dd70a9a4,
+  only existing native Python driver/test. Change exact float equality to an
+  absolute1e-12s comparison, several orders below one physics tick. Preserve
+  at least180 observed physics frames, elapsed progression bounds, actual normal
+  three-second timer, all movement/reward/repeat/lighting criteria and300s cap.
+- **Proof:** focused regression accepts the retained2.99999999999999 value and
+  rejects materially early elapsed or fewer than180 frames. Existing Python
+  tests pass. Then one complete actual breaker route on exact retained7dd70a9a4
+  ELF with distinct corrected driver hash. No re-export or repeated passed
+  startup needed for a Python-only change.
+- **Budget/stop:**5–10m correction/review; separately one300s route/345s cleanup.
+  Stop first actual failure. No automatic additional pacing/timer changes.
+- **Next action:** make/review the single numeric guard correction, freeze
+  driver/ELF, run once. Only a full NATIVE_HULK_BREAKER_OK closes the parent;
+  cell1/partial walk does not. Working result still needs paired checkpoint.
+- **Close:** preserve failed raw and exact unique source, integrate/push working
+  capability, clean owned scratch after artifact identity checks.
 
 ### HULK-RETURN-REVISIT — GATED on breaker
 

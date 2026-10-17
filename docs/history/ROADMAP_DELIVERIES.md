@@ -941,3 +941,30 @@ reward/home/revisit, disk interruption, multiplayer, hardware or whole phase.
 Native Windows execution/human review remain owner-excluded mandatory gates and
 factual NOT_RUN; native GPU/device/audible/signing/final release gates stay open.
 Next bounded child is HULK-BREAKER-INPUT; all ten phase gates remain open.
+
+## HULK breaker input — first qualification FAILED on exact-float guard
+
+Candidate7dd70a9a467621f4590f97ac8c1a725cd20b1e5e, Python30 tests pass; original
+Guided/Sandbox/HULK arrival/OS-process classes/helpers AST-identical. Fresh cold
+import, explicit lazy-observer parse, privacy190, Linux export/direct/archive
+strict startup all pass with zero diagnostics. One original300s cumulative
+native route stops83.482s at f3505 in hulk_restoring, before repeated E/full marker.
+Actual Guided/flight/arrival succeeded; all authored interior points1–5 reached
+from actual supported exit (point0 convention matches existing regression).
+Ordinary E f3317 engages; observed production one-shot generation1 commits cell
+receipt1/count1 and restores all seven bus lights, dock light retained. Timer
+reports2.99999999999999 after188 physics frames. Driver's exact `== 3` assertion
+rejects it. No premature timer, missing reward or runtime defect established;
+qualification still FAIL because repeat interaction/full scenario did not run.
+
+No game diagnostics; inputs/helper/game/Xvfb closed. Source/index/engine/cache
+guards pass, all65 recorded process identities independently absent, owned
+display/authority/native profiles/socket set closed and lanes free. Raw:
+`/srv/mudds-work/hulk-breaker-results-20261017/`. Reused supervisor's reader path
+was aligned via owned relative `arrival -> breaker` alias before route launch;
+producer/reader see identical raw records, no control/criteria/source changes.
+
+Separate HULK-TIMER-COMPARISON card allows only a tools-only numeric guard fix
+with1e-12s absolute tolerance (well below one tick), unchanged >=180-frame and
+per-frame progression guards, plus one full trial on the same exact retained
+game. No runtime timer/physics/cap change and no partial success promotion.
