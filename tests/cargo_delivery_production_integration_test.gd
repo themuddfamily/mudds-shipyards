@@ -769,6 +769,44 @@ func _test_interrupted_cargo_recovery() -> void:
 		"retry atomically acknowledges the exact completed delivery with one saved reward receipt")
 	var paid_primary := FileAccess.get_file_as_bytes(path)
 	var unpaid_backup := FileAccess.get_file_as_bytes(path + ".bak")
+	# Historical false/false flags carry no entitlement. Keep the genuine
+	# completion and conserved transfer, changing only its legacy reward markers.
+	var legacy_payload := fresh_store.get_snapshot()
+	legacy_payload.jovian_cargo_session.activities[0].reward_requested = false
+	legacy_payload.jovian_cargo_session.activities[0].reward_granted = false
+	var corrupt_legacy := legacy_payload.jovian_cargo_session.duplicate(true) as Dictionary
+	corrupt_legacy.activities[0].reward_granted = true
+	var corrupt_validation := (fresh.get("_jovian_cargo_session_persistence") as JovianCargoSessionPersistence).validate_record(
+		corrupt_legacy, fresh.cargo_delivery_activity, fresh.cargo_transfer_authority)
+	_check(not bool(corrupt_validation.accepted), "a granted-without-request cargo marker remains invalid")
+	var legacy_saved := fresh_store.commit(legacy_payload, fresh_store.get_generation(), "jovian-legacy-reward-markers")
+	await _clean_up(fresh)
+	retry_filesystem = InterruptedRewardFilesystem.new()
+	retry_filesystem.interrupt_rewards = false
+	fresh = await _make_disk_game(path, retry_filesystem)
+	fresh_store = fresh.get("_runtime_settings_user_data_store") as UserDataStore
+	pending_hud = fresh.get_node("HUD") as GameHUD
+	var restored_legacy := fresh.get_activity_integration_report()
+	_check(bool(legacy_saved.accepted)
+		and fresh.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.COMPLETED
+		and fresh.cargo_delivery_activity.get_generation() == generation
+		and _manifest_quantity(restored_legacy.cargo_source_manifest) == 4
+		and _manifest_quantity(restored_legacy.cargo_destination_manifest) == 2
+		and _cargo_receipts(fresh) == 1 and not fresh.call("_has_pending_jovian_cargo_reward"),
+		"fresh Main restores legacy completed cargo and conserved kits without inferring reward entitlement")
+	# Inert cargo carries no restore priority over the earlier saved IDLE race.
+	# Adopt its retained owner through the same HUD choice before testing Reset.
+	(pending_hud.get("_activity_selection_buttons").get(GameFlow.ACTIVITY_KIND_CARGO_DELIVERY) as Button).pressed.emit()
+	_check(fresh.get_activity_integration_report().selected_activity_kind == GameFlow.ACTIVITY_KIND_CARGO_DELIVERY,
+		"ordinary Cargo HUD selection adopts the cold legacy completed owner before reset")
+	_prepare_cargo_sortie(fresh)
+	var legacy_resaved := fresh.save_jovian_cargo_session()
+	fresh.call("_retry_owed_game_flow_activity_rewards")
+	var legacy_row := fresh_store.get_snapshot().jovian_cargo_session.activities[0] as Dictionary
+	_check(bool(legacy_saved.accepted) and bool(legacy_resaved.accepted)
+		and not legacy_row.reward_requested and not legacy_row.reward_granted
+		and not fresh.call("_has_pending_jovian_cargo_reward") and _cargo_receipts(fresh) == 1,
+		"legacy false/false cargo remains ambiguous without inferred debt or additional credit")
 	var owner := fresh.cargo_delivery_activity
 	var before := owner.capture_persistence_state()
 	var before_inventory := fresh.cargo_transfer_authority.to_dictionary()
@@ -779,10 +817,11 @@ func _test_interrupted_cargo_recovery() -> void:
 	_check(not fresh.reset_active_activity() and fresh.cargo_delivery_activity == owner
 		and owner.capture_persistence_state() == before and fresh.cargo_transfer_authority.to_dictionary() == before_inventory
 		and FileAccess.get_file_as_bytes(path) == before_bytes and int(reset_events.count) == 0,
-		"rejected cargo reset commit retains exact owner, quantities, ledger, disk bytes and unpublished lifecycle")
+		"rejected legacy cargo reset retains exact owner, quantities, ledger, disk bytes and unpublished lifecycle")
 	retry_filesystem.reject_writes = false
-	_check(fresh.reset_active_activity() and int(reset_events.count) == 1 and owner.get_generation() == generation + 1,
-		"accepted cargo reset durably publishes one typed IDLE generation")
+	_check(fresh.reset_active_activity() and int(reset_events.count) == 1
+		and owner.get_state() == CargoDeliveryActivity.State.IDLE and owner.get_generation() == generation + 1,
+		"accepted legacy cargo reset durably publishes one typed IDLE generation")
 	var idle_bytes := FileAccess.get_file_as_bytes(path)
 	retry_filesystem.reject_writes = true
 	_prepare_cargo_sortie(fresh)

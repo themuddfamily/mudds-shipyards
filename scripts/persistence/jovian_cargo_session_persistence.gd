@@ -97,8 +97,9 @@ func save(activity: CargoDeliveryActivity, authority: CargoTransferAuthority, co
 					or (int(before.state) == CargoDeliveryActivity.State.ACTIVE and int(after.state) == CargoDeliveryActivity.State.IDLE):
 				return _result(false, &"stale_jovian_session")
 		elif int(after.generation) == int(before.generation) + 1:
+			# Only explicit unpaid debt blocks reset; legacy false/false owes no reward.
 			var reset: bool = int(after.state) == CargoDeliveryActivity.State.IDLE and int(before.state) != CargoDeliveryActivity.State.IDLE \
-				and (int(before.state) != CargoDeliveryActivity.State.COMPLETED or (old.reward_requested and old.reward_granted))
+				and (int(before.state) != CargoDeliveryActivity.State.COMPLETED or not (old.reward_requested and not old.reward_granted))
 			var start := _next_run_is_proven(before, after, previous.authority_state, state.authority_state)
 			if not reset and not start:
 				return _result(false, &"unproven_jovian_generation")
