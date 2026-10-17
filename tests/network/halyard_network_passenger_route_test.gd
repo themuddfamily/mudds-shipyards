@@ -130,6 +130,10 @@ func _run() -> void:
 	print("HALYARD_NETWORK_PASSENGER_%s: %d checks, %d failures" % [_role.to_upper(), _checks, _failures.size()])
 	quit(0 if _failures.is_empty() else 1)
 
+## Subclasses can add tracked initial crew without changing observer policy.
+func _initial_crew_roles() -> Array[String]:
+	return ["client", "client_b"] if _shared_cruise else ["client"]
+
 func _orchestrate() -> void:
 	var ember_deadline := Time.get_ticks_msec() + int(EMBER_SURFACE_TOTAL_SECONDS * 1000.0)
 	# Peers have separate tick clocks. Share this actual wall deadline for their
@@ -151,16 +155,16 @@ func _orchestrate() -> void:
 	if host_ready:
 		host_ready = await _wait_file("host.ready", 60.0)
 	if host_ready:
-		for role in (["client", "client_b"] if _shared_cruise else ["client"]):
+		for role in _initial_crew_roles():
 			var client_args := _peer_arguments(role, PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]))
 			var client := _spawn_peer(role, client_args)
 			peers[role] = client
 			_check(client > 0, "owned independent peer starts: " + role)
 		var shared_clients_ready := true
-		if _shared_cruise:
+		if _initial_crew_roles().size() > 1:
 			# Cold Main startup has its own existing budget. The travel wait
 			# begins only after both independent clients can participate.
-			for role in ["client", "client_b"]:
+			for role in _initial_crew_roles():
 				shared_clients_ready = await _wait_file(role + ".main_ready", 60.0) and shared_clients_ready
 		if _shared_cruise and shared_clients_ready and await _wait_file("host.rebased", 60.0):
 			var observer := _spawn_peer("observer", _peer_arguments("observer", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"])))
@@ -179,10 +183,11 @@ func _orchestrate() -> void:
 			if peers.has("observer"):
 				finished = await _wait_file("observer.done", 60.0) and finished
 		elif _ember_surface:
-			var remaining := maxf(0.0, float(ember_deadline - Time.get_ticks_msec()) / 1000.0)
-			finished = int(peers.client) > 0 and await _wait_file("client.done", remaining)
+			for role in _initial_crew_roles():
+				var remaining := maxf(0.0, float(ember_deadline - Time.get_ticks_msec()) / 1000.0)
+				finished = int(peers[role]) > 0 and await _wait_file(role + ".done", remaining) and finished
 			if finished:
-				remaining = maxf(0.0, float(ember_deadline - Time.get_ticks_msec()) / 1000.0)
+				var remaining := maxf(0.0, float(ember_deadline - Time.get_ticks_msec()) / 1000.0)
 				finished = await _wait_file("host.done", minf(60.0, remaining))
 		else:
 			finished = int(peers.client) > 0 and await _wait_file("client.done", 120.0)
