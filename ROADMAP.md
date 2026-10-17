@@ -9,8 +9,8 @@ open.** This file contains the active delivery only. The
 source, checks, failures and limitations. Moving them does not close requirements.
 
 Latest Windows checkpoint: **b6af782**, with [notes](builds/windows/MuddsShipyards-b6af782-notes.txt).
-Latest Linux package: **4141d94**, with [notes](builds/linux/MuddsShipyards-4141d94-linux-notes.txt),
-including interrupted-update recovery. The last paired gameplay checkpoint is
+Latest Linux package: **b41c3cc**, with [notes](builds/linux/MuddsShipyards-b41c3cc-linux-notes.txt),
+including first-install and update interruption recovery. The last paired gameplay checkpoint is
 b6af782, including the browser Disconnect improvement. Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
 replace it. Native Windows execution and human review remain owner-excluded
@@ -92,51 +92,42 @@ removed; raw failures/results retained. [Result and limitations](docs/history/RO
 Initial placement, streaming observation and gravity adapters are disclosed;
 full timed/native performance and canonical planetary journeys remain NOT_RUN.
 
-## Next delivery: Linux first-install interruption recovery
+## Linux first-install interruption recovery — DONE
 
-**One result:** after an OS kill between desktop publication and ownership
-manifest publication during first install, an ordinary fresh CLI retry safely
-installs the chosen package while preserving user/unrelated files. Parent:
-[INSTALL-LINUX / RECOVERY-FIX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
-The original first-install failure was reproduced and fixed on53663cc12.
-First installs now write the existing recovery journal with `previous:null`
-before desktop publication. Fresh retries validate exact payload/launcher
-ownership; old unjournaled orphan entries remain refused.
+Fresh ordinary CLI retries now recover the named first-install publication cut
+using the existing validated ownership journal. Actual before-fix retry refused;
+after-fix source and actual shipped-manager retries succeed while preserving
+settings/saves/notes/unrelated files. Source53663cc12; packageb41c3cc. Installer12,
+export pipeline23, actual shipped manager36 checks/9 commands pass. Direct and
+archive-extracted native startup each exit0 + exactly one STARTUP_MENU_READY_OK,
+no diagnostics. Source/index/engine/cache guards pass; all57 recorded identities
+absent, lanes free. Clean worktrees and duplicate ELF removed; raw evidence kept.
+[Artifacts, proof and limits](docs/history/ROADMAP_DELIVERIES.md#linux-first-install-recovery--shipped-on-b41c3cc7a).
+Old unjournaled orphan entries remain refused; other kill cuts/power loss,
+desktop gameplay, hardware and full matrix stay unqualified. No Windows build.
 
-**Boundary:** `tools/release/install_linux_desktop.py` and its consolidated test.
-Reuse the real SIGKILL helper and existing journal/ownership checks; no new
-validator/schema family or unconditional adoption of unowned desktop entries.
-Existing update journal compatibility and refusal behavior must remain. No
-production gameplay changes, uninstall-kill or power-loss qualification.
+## Next bounded task: Cinder Convoy restore failure boundary
 
-| Task | Exact finish line / stop | State / budget |
-| --- | --- | --- |
-| LINUX-FIRST-INSTALL-REPRO | Existing real child-process cut, first install only; kill after desktop publication/before manifest, reap, then fresh ordinary CLI retry. Record actual failure or supported success; no assumed bug. | DONE; actual SIGKILL/fresh retry exits1, refusal of desktop without manifest |
-| LINUX-FIRST-INSTALL-FIX | If reproduced, repair the existing ownership transaction, pass focused tests including prior update recovery, tampered inputs and protected saves/untracked files. No permissive ownership fallback. | DONE on53663cc12; installer12/12, export pipeline23/23 pass |
-| LINUX-FIRST-INSTALL-SHIP | Clean-source Linux archive includes exact repaired manager; actual shipped-manager first-install kill/fresh retry and update checks, exact artifact/member bytes, direct/extracted strict startup exit0 + STARTUP_MENU_READY_OK; notes and cleanup. | IN PROGRESS; clean export/smoke5–15 min plus original caps |
+This is **diagnosis**, not a completed gameplay delivery. Parent:
+[BASE-DIAG](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls), exact existing
+`tests/cinder_convoy_session_save_restore_test.gd`. Original full-matrix result
+still exceeds300s after the legacy Reset fix; no unchanged retry is authorized
+merely to reproduce the timeout.
 
-**Owner:** root reviews/integrates/packages; implementer delivered clean4a3a427ec,
-integrated53663cc12, two owned files only. Actual before-fix kill/fresh retry
-exits1; after-fix same cut + newer ordinary CLI retry exits0 and preserves
-saves/pending notes/other desktop. Focused installer12/12 pass with no skips;
-root export pipeline23/23 pass. Raw before/after:
-`/srv/mudds-work/linux-first-install-recovery-results-20261017/`.
+| Field | Contract |
+| --- | --- |
+| Result | Identify the first unfinished restore boundary from retained actual logs and its production owner; name one actionable runtime hypothesis or the precise missing fact. |
+| Boundary | Read-only original suite, Cinder Convoy save/restore runtime seams and retained original result. No edits, engines, new test/validator families, timing/route reductions or broad activity audit. |
+| Proof | Exact source/log location and last completed/first incomplete original assertions; supported owner/cause distinction. Known generic Main construction cost alone is not a new repair candidate. |
+| Budget |15–20 min static evidence review, then stop; no engine probe in this task. |
+| Execution | READY; root assigns one bounded reviewer, then reviews the resulting seam. |
+| Close | If evidence supports a concrete repair, schedule it separately with unchanged original300s acceptance and checkpoint. Otherwise record missing fact and stop; no repeated profiling without a new hypothesis. |
 
-**Next single action:** observe the existing live guarded export/check driver,
-PID367912/start ticks107543544, verified in `/proc`; frozen package source
-`b41c3cc7a2988fd416d0a175a9ff203d0289a058` in
-`/srv/mudds-work/linux-first-install-package-20261017`. Prepared raw supervisor,
-abort and actual archive-manager check:
-`/srv/mudds-work/linux-first-install-package-results-20261017/`.
-Expected shipped check36 assertions/9 commands, including two realSIGKILL cuts;
-direct and extracted startup each exit0 + exactly one STARTUP_MENU_READY_OK.
-Import600s/export930s/shipped180s/startups330s caps; headless/Dummy/private
-profiles. Use existing `active-owner.json`/stage status/logs and `abort.py`; do not
-relaunch on an observation timeout. Stop first actual failure; no unchanged retry.
-
-All ten phase gates remain open. Q4 startup stays parked without a justified
+**Next single action:** inspect the original retained Convoy restore failure and
+exact test seam under that bound. Do not rerun accepted package/benchmark checks.
+All ten phase gates remain open. Q4 startup remains parked without a justified
 construction candidate. Latest paired gameplay checkpoint remains b6af782;
-Linux package is4141d94. No Windows build is needed for benchmark/Linux-only work.
+Linux package isb41c3cc.
 
 ## Working constraints
 

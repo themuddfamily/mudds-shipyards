@@ -653,3 +653,51 @@ payload/desktop/symlink refusal; no skips. Root export pipeline23/23 pass in
 Actual shipped-manager archive checks and strict direct/extracted startup are
 pending. This source result does not qualify uninstall-kill, power loss, old
 unjournaled orphan adoption, game recovery or native desktop/GPU/audio behavior.
+
+## Linux first-install recovery — shipped on b41c3cc7a
+
+Fresh clean-source package `b41c3cc7a2988fd416d0a175a9ff203d0289a058` includes
+the53663cc12 installer fix. Actual shipped manager passes36 checks/9 command
+records, including first-install and4141d94→b41c3cc update children killed with
+SIGKILL(-9)/reaped after desktop publication/before manifest, then fresh ordinary
+CLI retries exit0. Exact archived/exported ELF, source-manager bytes, six-member
+archive/modes, manifest/payload digests, protected settings/saves/runtime notes/
+unrelated desktop, ordinary/repeated uninstall all pass. Source installer12/12
+and export pipeline23/23 passed. Before-fix refusal is retained above.
+
+Fresh import/export exit0 without diagnostics. Direct native ELF and archive-
+extracted native ELF each pass `--startup-check`: exit0, exactly one
+STARTUP_MENU_READY_OK, no diagnostics. Existing immutable schema1 export metadata
+keeps build-time startup_check=NOT_RUN; actual checks are separate raw results.
+All11,873 tracked hashes/index/engine stay unchanged. Import320 cache files;
+export editor/exported changes only, final527 stable through remaining stages
+and independent review. All57 recorded process identities independently absent;
+network then display lanes free. Closure reports no owned socket/display
+remnants; socket inode set persisted. Four long engine environments observed,
+headless/Dummy with no desktop/audio/SSH endpoints; short version process may
+not be captured. Editor/import/export root-notice suppression1 is disclosed;
+existing native startup env-i omits it and actual logs have no diagnostics.
+All48 injected XDG/TMP directories are0700.
+
+Published in `builds/linux/`:
+
+- `MuddsShipyards-b41c3cc.x86_64`,148,802,416 bytes,0755; SHA256
+  `a9637819cc15036326fb00a22a1b8d3dc416209987ee4c483ae658f5c8caf161`.
+- `MuddsShipyards-b41c3cc-linux-x86_64.tar.gz`,95,218,087 bytes,0644; SHA256
+  `009dffff9f70fbcbf9a940848aea723f034842f94bbb3a2be4fc854e2751398b`.
+- Original export metadata and [build notes](../../builds/linux/MuddsShipyards-b41c3cc-linux-notes.txt).
+- Bundled manager SHA256
+  `ebd03b09e7f901bd469c2bb7d175404e8263e51e1b0e6345f2c096a6876c1057`.
+
+Raw: `/srv/mudds-work/linux-first-install-package-results-20261017/`, including
+published identity, shipped-manager commands, startup logs, guards, independent
+review and cleanup. Before/after source reproduction:
+`/srv/mudds-work/linux-first-install-recovery-results-20261017/`.
+Clean author/export worktrees removed; duplicate extracted ELF removed after
+matching published hash. Raw failures/protected files and published artifacts
+retained. Gameplay runtime/content paths are unchanged from4141d94; no new
+Windows build. Last paired gameplay checkpoint remains b6af782.
+
+Only the named publication cuts are qualified. Old unjournaled orphan adoption,
+uninstall/other cuts, power loss, actual desktop/input/GPU/audio, full packaged
+journeys, full matrix and final release stay unperformed. All phase gates open.
