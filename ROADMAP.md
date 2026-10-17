@@ -247,8 +247,10 @@ at the observable home-exit boundary, rather than one expanding return/revisit j
 - **Budget/stop:**30–45m implementation, one300s route separately. Stop first
   concrete failure or estimate boundary; no automatic second attempt, new
   framework, runtime tuning, geometry change or criterion relaxation.
-- **Next action:** implement/test the readiness latch. Root freezes candidate
-  source/criteria before one route; no unchanged export/startup repetition.
+- **Next action:** one guarded full route is running with driver7e251f8af
+  and the exact retained ef67f3e95 game binary. Candidate40 focused checks pass;
+  readiness is alignment≥.9999, pitch error≤.5°, speed≤.01m/s. Acceptance frozen
+  before launch; no unchanged export/startup repetition.
 - **Close:** exact result/source/build, commit/push, checkpoint if qualified and
   owned cleanup. Revisit remains separate and gated.
 
