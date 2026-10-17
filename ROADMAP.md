@@ -121,6 +121,7 @@ assigned alongside it without authorizing runtime edits to shared HUD/GameFlow.
 | --- | --- | --- | --- |
 | 1 BROWSER-CANCEL | DONE on a39e93af4 / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
 | 2 FIRE-RESTART | FAILED before capture / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
+| 2a FIRE-VIEWPORT | IN PROGRESS / one fixture repair | Establish the declared Settings viewport and retain the exact visible-row requirement. | 15–20 min; writer/reader300s each, unchanged imported cache. |
 | 3 RACE-PAGE-RESET | DONE / bounded diagnosis; contract question retained | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
 | 4 NEXT-CHECKPOINT | DONE on a39e93a / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
 
@@ -224,6 +225,31 @@ persistence defect. Published browser checkpointa39e93a remains accepted.
 - **Close:** record exact commit/process/file/result scope, commit/push useful
   qualification fixture and remove owned disposable checkout. No new build is
   required for a test-only pass; a runtime repair requires NEXT-CHECKPOINT.
+
+### FIRE-VIEWPORT — one repair of the failed qualification fixture
+
+- **Parent/result:** FIRE-RESTART / INPUT-REMAP. Establish the same declared
+  1280×720 content viewport used by `tests/settings_ui_test.gd` before Main
+  creation. Keep the original Fire/scroll intersection requirement unchanged;
+  record actual viewport, focus and rectangles to resolve the missing fact if
+  this attempt fails. This is a fixture repair, not a production scrolling fix.
+- **Owner/boundary:** `fire_restart_fixture`, only
+  `tests/runtime_settings_production_persistence_test.gd`. Candidate
+  `38e47596093d6b0380c56236f6d674c74991d334`, parent failedb5b3c5a76;
+  static diff checks pass. No production edits or weakened assertions.
+- **Dependency/proof:** root independent review before run; retain first failure
+  untouched. Reuse the exact cache from the passed import (unchanged engine and
+  production/global-class sources); assert only the reviewed fixture differs.
+  Fresh private store, writer then distinct reader, exit0 plus original mode
+  markers and every original capture/save/row/sampler/preservation requirement.
+- **Budget/stop:**15–20min fixture correction, two processes≤300s each. No second
+  hypothesis or automatic run. Any remaining failure triggers priority review
+  before more diagnosis/repair/probes, even if its apparent defect changes.
+- **Next/close:** run separately recorded `results/viewport-repair/run.py` once
+  on frozen38e475960 after review. Preserve both attempts, commit/push actual
+  result and either integrate accepted fixture or retain withheld source refs;
+  remove owned clean checkout after the decision. No new playable build for a
+  fixture-only result; browser checkpointa39e93a remains current.
 
 ### RACE-PAGE-RESET — reconcile one ordinary route
 
