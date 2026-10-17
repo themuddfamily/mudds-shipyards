@@ -66,25 +66,27 @@ or the named raw report. None closes a parent or phase gate.
 | Q3 · NET-CREW[Halyard passenger default route] | Actual `f676c5016` stationary-cabin chair/walk/reseat and migration-generation rebind/disconnect route passes 73 checks, no emitted runtime diagnostics; moving-craft acceptance remains open. |
 | Q4 · BASE-DIAG[Patrol restore] | One `e8f24ff00` original-cap probe still times out. Historical retirement boundary passes; repeated world/fleet startup dominates. Full Patrol acceptance remains FAIL; follow-up below. |
 
-**Latest completed result: Q4 diagnosis; full Patrol route still FAIL.**
-One `e8f24ff00` instrumented headless/Dummy run reaches the unchanged 300s cap
-(exit124). All 18 completed Main instances retire; Main19 finishes synchronous
-startup but not its existing process/physics/process waits. Its next fresh-IDLE
-assertion69 is unexecuted. The retained Main17 boundary passes: retirement908ms,
-exit handler3ms, Patrol teardown save below1ms resolution. No semantic assertion
-fails before timeout; this is not a full persistence pass or a proven save defect.
-All19 synchronous `root.add_child` spans total210.574s; completed18 post-add waits
-42.348s and retirements13.489s. First-two-Main world subtrees cost5.005/4.617s,
-six authored flyables4.925/4.747s, Main's own ready528/606ms. These are inclusive
-instrumented timings, not native performance or identified inner-builder costs.
-All original30 lifetimes/assertions/waits retained. Inputs/cache/engine unchanged;
-temporary markers restored, clean checkout removed, owned processes/lanes clear.
-Raw report: `/srv/mudds-work/patrol-restore-boundary-results-20261017/report.txt`.
+**Latest attempt: Q4-FIX candidate withheld; startup requirement remains open.**
+One fresh Main locates station dressing consolidation as the largest of47 world
+build stages (~856ms). A guard-order/duplicate-check candidate avoids483 signal
+checks (2,875→2,392); that measured portion falls239.779→208.585ms. The normalized
+station snapshots are byte-identical across5,886 nodes and the focused existing
+batch test passes59 assertions. But consolidation wall time is856.972→871.612ms,
+world subtree5.021→5.191s and Main attach11.559→11.822s in the single pair.
+No overall startup improvement is demonstrated; this does not prove a causal
+regression either. The patch is retained externally and **not integrated**. No
+full Patrol rerun, checkpoint/export or native qualification follows. Per-run
+complete source/cache guard hashes were not captured, so no such stability claim
+is made. Original runtime remains unchanged; temporary checkout and unused build
+preparation removed. Raw patch/results/report:
+`/srv/mudds-work/station-startup-fix-results-20261017/`.
+Q4's original300s full Patrol FAIL remains unchanged.
 
 ### Next execution batch: six named tasks
 
 These are **six scheduled tasks, not six tasks left in the project**. Root owns
-integration and updates each card before assigning it. **Q1–Q4 are complete in their recorded scope; Q4-FIX below is next.**
+integration and updates each card before assigning it. **Q1–Q4 are complete in their recorded scope; Q5 is next.**
+Q4-FIX remains open: its measured candidate did not meet the startup improvement criterion.
 Any later demonstrated repair takes priority over another unrelated diagnosis. Independent work can proceed only with disjoint
 ownership; runtime network/display lanes remain serialized. No task in this batch
 closes a phase or substitutes for final integrated acceptance.
@@ -106,31 +108,26 @@ preceding crew probes; a source-only matrix pass cannot replace its package chec
 | Q5 · BASE-DIAG[Resume offer] | Diagnosis · READY | First failing cold-recovery context and responsible production owner. | 1–2 hours |
 | Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · READY for bounded artifact lookup | Exact canonical failing command, initial state and expected landing result, or the specific missing artifact. | 30–60 minutes |
 
-No child is active. Two original batch tasks remain (Q5/Q6), plus the Q4 follow-up
-below. Address the measured startup cost before another unrelated recovery
-investigation. Do not repeat the unchanged full Patrol suite or rewrite its codec
-based on a timeout. Q1's historical failure still awaits integrated coverage.
+No child is active. Two original batch tasks remain (Q5/Q6); the startup follow-up
+is still open. Next task: **Q5**, one Resume-offer cold-recovery boundary, beginning
+with its retained log. Do not repeat the unchanged full Patrol suite, remeasure
+the rejected candidate unchanged, or rewrite its codec based on timeout.
 
-**Next: Q4-FIX · PERF-FIX[station startup construction].** One runtime outcome:
-reduce measured station initialization work while preserving authored content,
-geometry/collision, routes, moving machinery and ownership. Accountable owner:
-root assigns one implementer at task start. Production seam:
-`scripts/world/shipyard_world.gd::_ready` → `_run_build_stages` and its authored
-station descendants. The current probe measures the whole subtree, so no exact
-inner-function fix is claimed yet. First action: time the existing build-stage
-calls in one fresh Main to select the costly constructor; do not profile unrelated
-systems. Then implement one demonstrated avoidable-cost reduction at that owner,
-with a named child if ownership extends beyond it. This is a production task;
-measurement alone does not complete it. Estimate2–4h after owner selection.
-Proof: comparable before/after startup spans plus affected existing geometry,
-collision/interaction and startup checks; preserve scene content, full test
-lifetimes, physics, routes and deadlines. Run the original full Patrol suite once
-after the change to record whether the 300s requirement is met; a local speedup
-does not imply that full pass. A meaningful runtime checkpoint requires fresh
-clean Windows EXE/ZIP/notes and silent package startup. Stop after one measured
-runtime reduction, focused validation/checkpoint and the actual Patrol result,
-or a specific reason no safe optimization is supported. Do not add validators,
-weaken scene coverage, bypass construction only in tests, or extend the cap.
+**Q4-FIX · PERF-FIX[station startup construction] — DEFINE, not complete.**
+The measured guard-order candidate preserves the compared station snapshot and
+reduces one query count, but does not demonstrate the required whole-construction
+speedup. It is withheld, with exact patch/raw results retained above. Before
+resuming, identify a different supported avoidable-construction change within
+`scripts/world/shipyard_world.gd::_run_build_stages` or its measured constructor;
+do not call the rejected local timing a player-visible startup gain. No active
+implementation or completion estimate exists for an undefined replacement.
+The original acceptance remains: one demonstrated runtime startup reduction with
+a comparable before/after measurement, affected existing geometry/material/
+collision/interaction/startup checks, then a fresh clean Windows checkpoint and
+one unchanged original300s full Patrol result. Preserve content, all30 Main
+lifetimes, physics, routes and deadlines. Measurement or passing equivalence
+alone does not complete it. A safe supported change takes priority over unrelated
+diagnosis when one is actually identified; none is established by this candidate.
 
 **Q3 scope correction:** the default fixture exercises a stationary cabin; the
 initial batch wording incorrectly called it moving. Q3 closes that default route
