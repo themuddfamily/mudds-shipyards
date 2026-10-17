@@ -745,7 +745,8 @@ class HulkBreakerPilot(HulkArrivalPilot):
                         and interior['emergency_lights'], 'no premature cell or restored bus lighting')
             else:
                 self.require_claimed(interior)
-                require(self.frame - self.first_press >= 180 and activity['elapsed_seconds'] == 3,
+                require(self.frame - self.first_press >= 180
+                        and math.isclose(activity['elapsed_seconds'], 3, rel_tol=0, abs_tol=1e-12),
                         'normal three-second production restoration completed before reward')
                 self.claimed = {'frame': self.frame, 'reward_count': interior['reward_count'],
                                 'generation': activity['generation'], 'receipt': interior['reward_receipt']}

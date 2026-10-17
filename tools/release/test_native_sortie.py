@@ -257,7 +257,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(pilot.stage, 'hulk_breaker_aim')
         return pilot, s
 
-    def press_breaker_and_restore(self):
+    def press_breaker_and_restore(self, claimed_elapsed=3):
         pilot, s = self.walk_breaker_interior()
         s = json.loads(json.dumps(s))
         s['frame'] += 30
@@ -277,7 +277,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
                                         elapsed_seconds=min(ticks/60, 3))
             interior['breaker_engaged'] = True
             if ticks == 181:
-                interior['activity'].update(state_id='claimed', reward_claimed=True, claimed_receipts=1)
+                interior['activity'].update(state_id='claimed', reward_claimed=True, claimed_receipts=1,
+                                            elapsed_seconds=claimed_elapsed)
                 interior.update(reward_count=1, power_restored=True, emergency_lights=False,
                                 bus_lights_restored=True,
                                 reward_receipt={'activity_id': 'cinder_hulk_power_restoration',
@@ -365,6 +366,21 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual([e['pressed'] for e in result['native_interact_edges']], [True, False, True, False])
         self.assertEqual(result['arrival']['completion_marker'], 'NATIVE_HULK_ARRIVAL_OK')
         self.assertEqual(native.CAP, 300)
+
+    def test_breaker_restoration_accepts_observed_float_but_refuses_early_time_or_frames(self):
+        # The exported route emitted this normal accumulated physics duration.
+        pilot, s = self.press_breaker_and_restore(claimed_elapsed=2.99999999999999)
+        self.assertEqual(pilot.stage, 'hulk_repeat_release')
+        self.assertEqual(s['hulk']['interior']['activity']['elapsed_seconds'], 2.99999999999999)
+        with self.assertRaisesRegex(AssertionError, 'normal three-second production restoration'):
+            self.press_breaker_and_restore(claimed_elapsed=2.999)
+        # The near-three float must not bypass the independent 180-frame floor.
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        pilot.stage = 'hulk_restoring'
+        pilot.first_press = s['frame'] - 179
+        with self.assertRaisesRegex(AssertionError, 'normal three-second production restoration'):
+            pilot.update(s, s['frame']/60)
 
     def test_breaker_rejects_accelerated_timer_and_duplicate_reward(self):
         pilot, s = self.breaker_at_exit()
