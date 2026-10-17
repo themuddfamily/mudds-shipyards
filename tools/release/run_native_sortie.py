@@ -440,11 +440,11 @@ class HulkArrivalPilot(Pilot):
                                       'shot_accepted': self.shot, 'opponent_active': s['opponent_active']}
             self.enter('hulk_transit', s)
         if not self.stage.startswith('hulk_'):
-            result = super().update(s, now)
-        else:
-            result = self.update_arrival(s, now)
-        # A busy engine may produce several observations before one OS mouse
-        # event is consumed. Acknowledge attitude before another relative sweep.
+            # Preserve Guided commands through the tick that unlocks return_align.
+            return super().update(s, now)
+        result = self.update_arrival(s, now)
+        # During HULK stages a busy engine may produce several observations before
+        # one OS mouse event is consumed. Acknowledge attitude before another sweep.
         keys, dx, dy, fire = result
         facing = s['walk_forward'] if not s['seated'] else s['back']
         if self.mouse_pending is not None:
