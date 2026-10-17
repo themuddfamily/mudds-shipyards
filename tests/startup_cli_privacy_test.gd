@@ -18,14 +18,14 @@ func _run() -> void:
 	var sandbox_args := PackedStringArray(["--native-sortie-observer=sandbox-walk"])
 	_check(StartupLoaderType.native_sortie_request(sandbox_args, "X11", "Dummy", true).accepted,
 		"scoped station walking uses the same explicit private observer admission")
-	var hulk_args := PackedStringArray(["--native-sortie-observer=hulk-arrival"])
-	_check(StartupLoaderType.native_sortie_request(hulk_args, "X11", "Dummy", true).accepted,
+	var hulk_arrival_args := PackedStringArray(["--native-sortie-observer=hulk-arrival"])
+	_check(StartupLoaderType.native_sortie_request(hulk_arrival_args, "X11", "Dummy", true).accepted,
 		"HULK arrival explicitly admits the same silent private OS-input route")
 	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
-		_check(not StartupLoaderType.native_sortie_request(hulk_args, row[0], row[1], row[2]).accepted,
+		_check(not StartupLoaderType.native_sortie_request(hulk_arrival_args, row[0], row[1], row[2]).accepted,
 			"HULK arrival preserves private X11 and Dummy admission")
 	for conflict in ["--native-sortie-observer", "--native-sortie-observer=hulk-arrival", "--native-sortie-observer=sandbox", "--startup-check", "--frame-capture", "--version", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
-		var conflicting := hulk_args.duplicate()
+		var conflicting := hulk_arrival_args.duplicate()
 		conflicting.append(conflict)
 		_check(not StartupLoaderType.native_sortie_request(conflicting, "X11", "Dummy", true).accepted,
 			"HULK arrival rejects duplicate or competing mode: %s" % conflict)
