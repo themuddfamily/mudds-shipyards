@@ -1,19 +1,20 @@
 # Development roadmap
 
 The game is a playable development alpha. **All ten phase exit gates remain
-open.** This file contains the next two executable tasks. The
+open.** This file contains the next bounded planning task. The
 [backlog and 36-parent crosswalk](docs/ROADMAP_BACKLOG.md),
 [original specifications](docs/history/ROADMAP_SCOPE_20261017.md) and
 [production roster](docs/COMPLETION_SCOPE.md) retain the full project scope.
 [Completed deliveries](docs/history/ROADMAP_DELIVERIES.md) retain their recorded
 source, checks, failures and limitations. Moving them does not close requirements.
 
-Latest Windows checkpoint: **ef67f3e**, with [notes](builds/windows/MuddsShipyards-ef67f3e-notes.txt).
-Latest Linux package: **ef67f3e**, with [notes](builds/linux/MuddsShipyards-ef67f3e-linux-notes.txt).
-Includes optional ordinary-input HULK home-return release qualification. The exact
-Linux binary passes; Windows payload startup/privacy passes separately. Strict
-cross-platform payload-byte parity fails for 65 generated scenes; notes disclose it.
-Earlier installed Guided/recovery results keep their exact source-specific scopes.
+Latest Windows checkpoint: **a8f563e**, with [notes](builds/windows/MuddsShipyards-a8f563e-notes.txt).
+Latest Linux package: **a8f563e**, with [notes](builds/linux/MuddsShipyards-a8f563e-linux-notes.txt).
+Paired development checkpoint for the new source Rime benchmark selection.
+Clean exports, three strict startups and privacy207 pass; all1,515 payload entries
+match byte-for-byte. The benchmark requires a source checkout; exported games
+exclude tools. Earlier HULK/home, Ember journey and installed recovery proofs
+retain their exact source/binary scopes; no full-route proof transfers to these bytes.
 Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
 replace it. Native Windows execution and human review remain owner-excluded
@@ -85,15 +86,14 @@ b41c3cc, and managed installed Guided3/3. See
 [completed deliveries](docs/history/ROADMAP_DELIVERIES.md) for exact proof/limits.
 These do not close their broad parents or the ten phase gates.
 
-**Latest accepted task: EMBER-ABANDON-SOURCE — DONE.**
-Clean integrated source `e85157b4d` passes the original physical ABANDON round
-trip: actual outbound/landing, abandonment/reboard/ascent, return cruise, occupied
-home dock, disembarkation and supported walking. Exit 0, exact 31 assertions,
-approximately 2,474.7 s under the original 7,200 s cap, no diagnostics. This uses
-Torrent/MemoryFilesystem and documented fixtures; packaged/durable-reward/shared/
-hardware gates remain open. [Actual result and limits](docs/history/ROADMAP_DELIVERIES.md#ember-abandonment--integrated-source-journey-done-on-e85157b4d).
-Latest public checkpoint remains `ef67f3e`; accepted HULK home and failed revisit
-results retain their exact scopes. No unchanged Ember rerun is selected.
+**Latest accepted task: RIME-BENCH-ROUTE and checkpoint — DONE.**
+Source `a8f563e39` adds select-only walking through every authored Rime survey/
+return waypoint, supported by Main's real streaming/gravity owners. Focused
+Rime33/default152/Ember24/Aurora27 pass. This delivers benchmark coverage,
+not new planetary gameplay or native performance qualification. Paired
+checkpoint `a8f563e` is published; details and limits are below.
+Ember ABANDON source `e85157b4d` remains DONE (physical home dock/walk, exact31),
+with packaged/durable-save/shared/hardware gates open. HULK revisit stays parked.
 Sandbox, Convoy and Q4 remain parked at their recorded failures; no automatic retries.
 
 ## Previous batch closed — 1 accepted, 1 failed, 1 gated
@@ -106,106 +106,46 @@ No unchanged Ember rerun or further HULK diagnosis/repair is selected.
 Retired-directory cleanup removed 16 clean checkouts; three containing uncommitted
 work remain intact, with source refs and unique raw results preserved.
 
-## Next batch — two tasks, one new benchmark capability
+## Next task — ROADMAP-SLICE (planning only)
 
-| Order / task | Status | Observable finish | Work estimate; separate check allowance |
-| --- | --- | --- | --- |
-| 1. [RIME-BENCH-ROUTE](#rime-bench-route--done-on-a8f563e39) | DONE | Select `rime_surface_walk_route` in the existing runner and physically walk the authored icefall survey/return trail, recording a valid diagnostic report. | Implementation 60–90 min; cold import up to 600 s and four focused modes up to 300 s each. |
-| 2. [RIME-BENCH-CHECKPOINT](#rime-bench-checkpoint--in-progress) | IN PROGRESS | Accepted source integrated, matching development packages/startup results and accurate source-benchmark instructions published. | Integration/package/closure 30–45 min; exports up to 930 s each, three strict startups up to 330 s each and privacy up to 300 s. |
+**READY; root owns this task. Estimated 30–45 minutes; no engine runs.**
+The completed Rime task contracts are in
+[delivery history](docs/history/ROADMAP_DELIVERIES.md#accepted-rime-batch--original-task-contracts).
+No implementation or qualification batch starts as part of this planning task.
 
-The actual gap is one missing selectable benchmark route, not missing Rime
-terrain, survey gameplay or native performance evidence. Existing surface walks
-cover Ember and Aurora. Two cards separate executable route acceptance from
-artifact publication; they are not two new gameplay features. Unknown work is
-not added to this batch merely to fill a task count. Task 1 is accepted and integrated. Task 2 exports/startups are starting from
-its exact accepted clean source; latest public checkpoint remains ef67f3e.
-
-### RIME-BENCH-ROUTE — DONE on a8f563e39
-
-- **Parent/result:** [PERF-ROUTE](docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
-  Add the missing Rime icefall survey/return walk to the existing benchmark runner,
-  alongside the delivered Ember/Aurora surface selections.
-- **Owner/boundary:** one implementation agent; root review and guarded runtime
-  checks. Own `tools/performance/benchmark_runner.gd`, its existing focused test
-  `tests/performance_benchmark_runner_test.gd`, and the scenario allowlist in
-  `tools/performance/run_native_windows_benchmark.ps1`. Root owns documentation,
-  source freeze, integration and packaging. No nested agents or new benchmark/
-  validator system. Read existing `rime_glacial_authored_scene.gd` trail constants
-  and region/world/terrain definitions; production world/Player/gravity/streaming
-  owners remain unchanged.
-- **Behavior:** select-only `rime_surface_walk_route`; original two default
-  scenarios remain unchanged. Stream the real Rime scene through Main's existing
-  binding and commit its origin frame. Disclose any benchmark observation/gravity
-  adapter, as for Aurora. One initial placement before timing; held production
-  movement then visits every ordered SURVEY_TRAIL and RETURN_TRAIL point and
-  returns to the start without further placement. Resolve waypoints in the live
-  region frame after origin changes. Record real support, control, path and
-  gravity continuity; active abort releases held input/cursor, restores gravity
-  and frees Main.
-- **Proof:** extend the existing benchmark test with select-only
-  `KETH_BENCHMARK_TEST_RIME_SURFACE=1`, headless/Dummy, original 300 s focused cap.
-  Require exit 0, the existing success marker/catalog and explicit new route
-  assertions: real streamed identity, one placement, full supported walk,
-  every ordered survey/return waypoint and a completed loop back within 0.5 m
-  horizontally of its start (recorded at loop closure), valid JSON round trip,
-  wrong-world/gravity/refused progress rejection and actual mid-walk abort cleanup. Freeze the mode's exact
-  assertion count before launching. Run existing default/Ember/Aurora focused
-  modes once because their shared helper is affected; preserve their original
-  limits. Review PowerShell's selection contract without executing native Windows.
-- **Budget/stop:** 60–90 min implementation; separate cold import 600 s, focused
-  Rime/default/Ember/Aurora caps 300 s each. Stop first concrete failure or work
-  budget boundary, retain raw and record a separate bounded repair if justified.
-  No automatic extra probe, route rescue, geometry change or timing relaxation.
-  Full benchmark still requires at least 3,600 frames/60 s warmup and
-  18,000 frames/600 s measurement. Focused diagnostics do not qualify those floors,
-  native GPU timing, hardware, real audio, canonical travel or survey rewards.
-- **Actual result/close:** DONE on `a8f563e39ae062613f16225be462d80e44515cbd`,
-  integrated with source identity retained. Fresh import and one run each of
-  Rime 33/default 152/Ember 24/Aurora 27 pass exit 0/exact catalog counts, no
-  diagnostics. Rime sampled 521.227 m, completed ordered waypoints 0–12 and one
-  sampled loop, closed within 0.421308 m, observed 2,945 terrain-support samples,
-  support throughout, maximum physics-frame gap 1 and step 0.096812 m.
-  Source/index/engine/cache guards pass. Independent audit confirms exact current
-  accepted source/cache/index and all 14 owned process/socket/display identities
-  closed. No native performance qualification. [Source instructions](docs/PERFORMANCE_BENCHMARK_RUNNER.md#rime-icefall-survey-and-return-walk).
-  Raw `/srv/mudds-work/rime-benchmark-results-20261018/` retained. No unchanged rerun.
-
-### RIME-BENCH-CHECKPOINT — IN PROGRESS
-
-- **Parent/result:** [PACKAGE-WIN / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
-  Publish a paired development checkpoint from the accepted source, with exact
-  package/startup results and usable instructions for selecting its source benchmark.
-- **Owner/dependency:** root; task 1 and affected existing modes PASS on a8f563e39.
-  Preserve the exact accepted commit through integration and export from its
-  clean checkout using existing release scripts. No new packaging framework.
-- **Proof:** fresh Windows EXE/ZIP/notes in `builds/windows/` and matching Linux
-  ELF/archive/notes in `builds/linux/`; exact artifact bytes/modes, inventory and
-  ZIP/archive checks. Direct/archive Linux startup and silent Windows-payload
-  startup require exit 0 plus `STARTUP_MENU_READY_OK`; existing privacy test must
-  pass. Reuse the accepted source/import cache; record actual cross-platform
-  payload differences without inferring equivalence. Do not run native Windows,
-  hosted CI, active-desktop or audible tests.
-- **Scope:** the source checkout runs the benchmark tool. Exported game packages
-  exclude `tools/`; notes must state this and must not claim the EXE exposes the
-  benchmark, new Rime gameplay, native performance or full-release acceptance.
-  This is a development checkpoint, with native/human/hardware gates NOT_RUN.
-- **Budget/stop:** integration/package/closure 30–45 min; separate Linux/Windows
-  exports 930 s each, three startup stages 330 s each, privacy 300 s. Stop at first
-  required-gate failure; preserve the accepted route and latest public `ef67f3e`
-  checkpoint. No parity investigation or unchanged qualification retry follows.
-- **Next action:** execute the independently preflight-reviewed conditional
-  `/srv/mudds-work/rime-benchmark-results-20261018/checkpoint/run.py` on exact
-  a8f563e39. It requires all five source stages and exact accepted source/index/
-  cache/engine, then runs Linux/Windows export, three strict startups and privacy
-  once. Windows readiness counts its own stage log; combined logs are used only
-  for diagnostics. Adjacent abort.py targets the verified owned supervisor.
-- **Close:** commit/push integration and concise honest notes/references; verify
-  published bytes and remove owned clean disposable checkout/duplicate packages.
-  Preserve exact source refs, unique raw results and published artifacts.
+- **Result:** replace the next priority's placeholder with 3–5 named, achievable
+  child tasks. Start with `WORLD-SHARED[Rime baseline full outbound/return]`,
+  the integrated remote-crew journey identified in the production roster.
+  Preserve all other original promises in the backlog.
+- **Boundary:** inspect existing journey owners/tests and recorded results only
+  far enough to distinguish delivered behavior from missing behavior. No new
+  runtime investigation, validators, test runs, fixes or package exports.
+  Aurora's missing original bundle and parked repairs remain separate.
+- **Required output:** each child names the exact player/crew action and finish,
+  runtime owner, existing check or missing check, dependencies, estimate, failure
+  stop and next action. Label implementation, qualification and external gates
+  explicitly. An already delivered behavior is not a new implementation task.
+  Each implementation child should take 30–90 minutes; checks have separate
+  unchanged allowances. Unknown commands/contracts are marked DEFINE, not READY.
+- **Journey boundaries to resolve:** ordinary departure/transit; physical landing
+  and crew exit; survey with durable once-only reward; reboard/ascent/home dock.
+  These are candidate boundaries, not accepted or scheduled child tasks. The
+  final continuous journey must still pass; isolated stages cannot close it.
+  Late join, reconnect, pilot loss and interruption remain later separate cases.
+- **Proof of planning completion:** 3–5 concrete child cards in this file; each
+  links its original requirement and can be executed without choosing a world,
+  participant profile, success criterion or investigation scope mid-task.
+  Explicitly name any missing fact that prevents a card becoming READY. Give
+  the scheduled-task count separately from the 36 open parent outcomes.
+- **Stop:** commit/push the cards and stop this planning task. If a contract is
+  still unknown at 45 minutes, record the missing fact and a bounded definition
+  task; do not turn planning into a runtime repair. Do not claim gameplay
+  progress for this task. Retain the first failed result of any later execution;
+  repairs are separately scheduled under the rules above.
 
 ## Decomposing later work
 
-This batch does not claim all 36 parents have been decomposed. At its boundary,
+The backlog is not yet fully decomposed. After ROADMAP-SLICE,
 select at most the next 3–5 known instances. Each needs the required card above;
 unknown acceptance gets one bounded definition task. Archive closed cards and
 failures in existing delivery history. A planning pass has a 30–45 min budget,

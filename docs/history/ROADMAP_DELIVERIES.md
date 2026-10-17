@@ -1568,3 +1568,142 @@ A preflight-only Windows marker aggregation bug in the reused helper was fixed
 and independently rechecked before export; it is not a failed runtime attempt.
 Source benchmark remains outside exported games because tools are excluded;
 no new Rime gameplay/native/hardware/release gate is claimed.
+
+
+## Rime development checkpoint — done a8f563e
+
+Paired development packages are published from clean accepted source
+`a8f563e39ae062613f16225be462d80e44515cbd`. Linux and Windows exports,
+direct Linux startup, archive-extracted Linux startup, Windows-payload startup
+and packaged privacy (207 assertions) all pass. Every startup requires exit 0
+and `STARTUP_MENU_READY_OK`. Windows payload checks use pinned Linux Godot,
+headless with Dummy audio; native Windows execution remains NOT_RUN.
+
+All 1,515 embedded package paths and entry bytes match. Stock Windows PE text,
+ZIP CRC and exact EXE/notes bytes, and Linux archive contents/modes pass.
+The Linux archive contains one directory and five regular files. Published
+artifacts are in `builds/windows/` and `builds/linux/`, with source-benchmark
+instructions and accurate notes. Exported games exclude tools: this checkpoint
+does not expose the benchmark in the EXE or add Rime gameplay.
+
+Source/index/engine/cache guards pass. Independent final audit passes all six
+stages and published artifact identities. All 43 owned PID/start identities
+are absent, with owned sockets, display and authority files closed. The clean
+owned source checkout is removed; accepted source remains reachable from main
+and preserved branches. Raw results and the seven published artifact hashes,
+sizes, modes and former-to-public path mapping are retained in
+`/srv/mudds-work/rime-benchmark-results-20261018/checkpoint/published-results.json`.
+
+Both Rime batch tasks are DONE. Earlier full HULK/home, Ember and installed
+recovery proofs retain their exact source/binary scopes; these new package bytes
+have startup/privacy/artifact acceptance. Native performance, full current
+matrix, device/audio/human/signing/endurance and release gates remain open.
+No hosted CI, active-desktop or audible checks ran. All 36 broad parents and
+ten phase gates remain open. The next task is bounded roadmap decomposition,
+not another unchanged benchmark or parked journey rerun.
+
+
+## Accepted Rime batch — original task contracts
+
+### Closed batch — 2 of 2 DONE, one new benchmark capability
+
+| Order / task | Status | Observable finish | Work estimate; separate check allowance |
+| --- | --- | --- | --- |
+| 1. [RIME-BENCH-ROUTE](#rime-bench-route--done-on-a8f563e39) | DONE | Select `rime_surface_walk_route` in the existing runner and physically walk the authored icefall survey/return trail, recording a valid diagnostic report. | Implementation 60–90 min; cold import up to 600 s and four focused modes up to 300 s each. |
+| 2. [RIME-BENCH-CHECKPOINT](#rime-bench-checkpoint--done-a8f563e) | DONE | Accepted source integrated, matching development packages/startup results and accurate source-benchmark instructions published. | Integration/package/closure 30–45 min; exports up to 930 s each, three strict startups up to 330 s each and privacy up to 300 s. |
+
+The actual gap is one missing selectable benchmark route, not missing Rime
+terrain, survey gameplay or native performance evidence. Existing surface walks
+cover Ember and Aurora. Two cards separate executable route acceptance from
+artifact publication; they are not two new gameplay features. Unknown work is
+not added to this batch merely to fill a task count. Both tasks are accepted and integrated. Checkpoint a8f563e is published in
+repository builds; no engine checks remain running.
+
+#### RIME-BENCH-ROUTE — DONE on a8f563e39
+
+- **Parent/result:** [PERF-ROUTE](../../docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
+  Add the missing Rime icefall survey/return walk to the existing benchmark runner,
+  alongside the delivered Ember/Aurora surface selections.
+- **Owner/boundary:** one implementation agent; root review and guarded runtime
+  checks. Own `tools/performance/benchmark_runner.gd`, its existing focused test
+  `tests/performance_benchmark_runner_test.gd`, and the scenario allowlist in
+  `tools/performance/run_native_windows_benchmark.ps1`. Root owns documentation,
+  source freeze, integration and packaging. No nested agents or new benchmark/
+  validator system. Read existing `rime_glacial_authored_scene.gd` trail constants
+  and region/world/terrain definitions; production world/Player/gravity/streaming
+  owners remain unchanged.
+- **Behavior:** select-only `rime_surface_walk_route`; original two default
+  scenarios remain unchanged. Stream the real Rime scene through Main's existing
+  binding and commit its origin frame. Disclose any benchmark observation/gravity
+  adapter, as for Aurora. One initial placement before timing; held production
+  movement then visits every ordered SURVEY_TRAIL and RETURN_TRAIL point and
+  returns to the start without further placement. Resolve waypoints in the live
+  region frame after origin changes. Record real support, control, path and
+  gravity continuity; active abort releases held input/cursor, restores gravity
+  and frees Main.
+- **Proof:** extend the existing benchmark test with select-only
+  `KETH_BENCHMARK_TEST_RIME_SURFACE=1`, headless/Dummy, original 300 s focused cap.
+  Require exit 0, the existing success marker/catalog and explicit new route
+  assertions: real streamed identity, one placement, full supported walk,
+  every ordered survey/return waypoint and a completed loop back within 0.5 m
+  horizontally of its start (recorded at loop closure), valid JSON round trip,
+  wrong-world/gravity/refused progress rejection and actual mid-walk abort cleanup. Freeze the mode's exact
+  assertion count before launching. Run existing default/Ember/Aurora focused
+  modes once because their shared helper is affected; preserve their original
+  limits. Review PowerShell's selection contract without executing native Windows.
+- **Budget/stop:** 60–90 min implementation; separate cold import 600 s, focused
+  Rime/default/Ember/Aurora caps 300 s each. Stop first concrete failure or work
+  budget boundary, retain raw and record a separate bounded repair if justified.
+  No automatic extra probe, route rescue, geometry change or timing relaxation.
+  Full benchmark still requires at least 3,600 frames/60 s warmup and
+  18,000 frames/600 s measurement. Focused diagnostics do not qualify those floors,
+  native GPU timing, hardware, real audio, canonical travel or survey rewards.
+- **Actual result/close:** DONE on `a8f563e39ae062613f16225be462d80e44515cbd`,
+  integrated with source identity retained. Fresh import and one run each of
+  Rime 33/default 152/Ember 24/Aurora 27 pass exit 0/exact catalog counts, no
+  diagnostics. Rime sampled 521.227 m, completed ordered waypoints 0–12 and one
+  sampled loop, closed within 0.421308 m, observed 2,945 terrain-support samples,
+  support throughout, maximum physics-frame gap 1 and step 0.096812 m.
+  Source/index/engine/cache guards pass. Independent audit confirms exact current
+  accepted source/cache/index and all 14 owned process/socket/display identities
+  closed. No native performance qualification. [Source instructions](../../docs/PERFORMANCE_BENCHMARK_RUNNER.md#rime-icefall-survey-and-return-walk).
+  Raw `/srv/mudds-work/rime-benchmark-results-20261018/` retained. No unchanged rerun.
+
+#### RIME-BENCH-CHECKPOINT — DONE a8f563e
+
+- **Parent/result:** [PACKAGE-WIN / PACKAGE-LINUX](../../docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
+  Publish a paired development checkpoint from the accepted source, with exact
+  package/startup results and usable instructions for selecting its source benchmark.
+- **Owner/dependency:** root; task 1 and affected existing modes PASS on a8f563e39.
+  Preserve the exact accepted commit through integration and export from its
+  clean checkout using existing release scripts. No new packaging framework.
+- **Proof:** fresh Windows EXE/ZIP/notes in `builds/windows/` and matching Linux
+  ELF/archive/notes in `builds/linux/`; exact artifact bytes/modes, inventory and
+  ZIP/archive checks. Direct/archive Linux startup and silent Windows-payload
+  startup require exit 0 plus `STARTUP_MENU_READY_OK`; existing privacy test must
+  pass. Reuse the accepted source/import cache; record actual cross-platform
+  payload differences without inferring equivalence. Do not run native Windows,
+  hosted CI, active-desktop or audible tests.
+- **Scope:** the source checkout runs the benchmark tool. Exported game packages
+  exclude `tools/`; notes must state this and must not claim the EXE exposes the
+  benchmark, new Rime gameplay, native performance or full-release acceptance.
+  This is a development checkpoint, with native/human/hardware gates NOT_RUN.
+- **Budget/stop:** integration/package/closure 30–45 min; separate Linux/Windows
+  exports 930 s each, three startup stages 330 s each, privacy 300 s. Stop at first
+  required-gate failure; preserve the accepted route and latest public `ef67f3e`
+  checkpoint. No parity investigation or unchanged qualification retry follows.
+- **Actual result/close:** DONE on clean source a8f563e39. Linux/Windows exports,
+  direct/archive/Windows-payload strict startup (exit0 plus readiness sentinel)
+  and packaged privacy207 pass, no diagnostics. All1,515 PCK entries are byte-
+  identical; stock Windows PE text and exact archive/ZIP contents pass. Native
+  Windows execution remains NOT_RUN. Source/index/engine/cache guards and owned
+  process/socket/profile cleanup pass. Public [Windows ZIP](../../builds/windows/MuddsShipyards-a8f563e.zip)
+  and [Linux archive](../../builds/linux/MuddsShipyards-a8f563e-linux-x86_64.tar.gz)
+  carry accurate notes; the source benchmark is not inside the exported game.
+  Raw checkpoint records and published hash/path manifest are retained under
+  `/srv/mudds-work/rime-benchmark-results-20261018/checkpoint/`.
+  Independent final audit PASS; all 43 owned process identities are absent.
+  The clean owned source checkout is removed; source refs, raw results and
+  published packages are preserved.
+  Next action is a bounded planning pass for the next known roadmap outcomes;
+  no unchanged benchmark or old journey rerun is selected.

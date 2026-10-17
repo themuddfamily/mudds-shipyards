@@ -4,7 +4,35 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest home-return checkpoint: `ef67f3e` — 2026-10-17
+## Latest development checkpoint: `a8f563e` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-a8f563e.x86_64),
+[archive](../builds/linux/MuddsShipyards-a8f563e-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-a8f563e-linux-notes.txt) are built from clean
+accepted source `a8f563e39ae062613f16225be462d80e44515cbd`.
+This source adds the selectable Rime icefall benchmark route; it does not add new
+Rime gameplay. The benchmark requires the source checkout because exported games
+exclude `tools/`. Rime33/default152/Ember24/Aurora27 focused checks pass; Rime's
+90s sample physically walks521.227m and closes a complete ordered13-point loop.
+These focused checks do not qualify native performance.
+
+Linux/Windows safe exports, direct/archive Linux and Windows-payload strict
+startup, and payload privacy207 pass. Windows checks use pinned Linux Godot with
+the EXE as `--main-pack`, headless/Dummy, not native Windows. All1,515 embedded
+PCK paths and entry bytes match across the two packages. Stock PE text, exact
+EXE/notes ZIP and Linux six-member archive (one directory/five regular files),
+member modes and manager/icon bytes pass inspection. Source/cache/process cleanup
+passes; raw and published-path/hash records remain under
+`/srv/mudds-work/rime-benchmark-results-20261018/checkpoint/`.
+
+These exact new package bytes have startup/privacy/artifact acceptance. Earlier
+HULK home and installed/planetary route results retain their own exact source/
+binary scopes; no automatic route, installed transaction, native hardware,
+Windows, audio, human or release qualification follows. Full current matrix
+remains NOT_RUN. The earlier ef67f3e 65-scene parity failure is retained below;
+new-source exact parity does not retrospectively explain or replace it.
+
+## Earlier home-return checkpoint: `ef67f3e` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-ef67f3e.x86_64),
 [archive](../builds/linux/MuddsShipyards-ef67f3e-linux-x86_64.tar.gz) and

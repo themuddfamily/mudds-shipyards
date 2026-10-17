@@ -34,9 +34,11 @@ The original server/two-client baseline remains authorized independently of the
 final capacity choice. D3/D4 deliver its menu-admission slice; they do not qualify
 its full gameplay/flight/endurance requirements. Remaining family tables preserve
 unscheduled scope. The previous batch closed with Ember ABANDON source DONE,
-HULK revisit FAILED and its checkpoint GATED. The working roadmap now selects
-RIME-BENCH-ROUTE and its conditional development checkpoint: one missing
-executable benchmark capability, no native performance or new gameplay claim.
+HULK revisit FAILED and its checkpoint GATED. RIME-BENCH-ROUTE and its development checkpoint are DONE on a8f563e39: one
+new executable source benchmark capability and paired builds, no native
+performance or new gameplay claim. ROADMAP-SLICE is the next planning task:
+decompose the Rime remote-crew baseline into 3–5 concrete children before
+scheduling implementation; see the working roadmap.
 One failed task plus its attempted repair requires a recorded priority review
 before further repair; a new task name does not reset that boundary.
 
@@ -151,7 +153,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ID / one instance | Status / prerequisite | Result and acceptance; stop boundary |
 | --- | --- | --- |
 | PERF-MACHINE[one minimum/target profile] | WAITING on representative hardware if unavailable | Bind declared CPU/GPU/RAM/display/driver profile to an actual isolated test machine. Stop at available machine identity or exact missing resource; never infer native performance from llvmpipe. |
-| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It supports default `station_embodied_route` plus `nearby_sector_ship_flight_route`, and select-only `halyard_cabin_walk_route` from D5 plus `torrent_range_combat_reuse_route` from E1 and `ember_surface_walk_route` from E2, plus delivered select-only `aurora_surface_walk_route` on c47b5cd55. Rime icefall survey/return route DONE on a8f563e39 (521.227m sampled,13ordered points/one sampled loop,source33/default152/Ember24/Aurora27); conditional checkpoint IN PROGRESS in ROADMAP.md, using the existing authored trails; other repeat instances stay open. Default combined acceptance retains its original narrow scope. Stop at executable route/selection and focused check, not a new benchmark system. |
+| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It supports default `station_embodied_route` plus `nearby_sector_ship_flight_route`, and select-only `halyard_cabin_walk_route` from D5 plus `torrent_range_combat_reuse_route` from E1 and `ember_surface_walk_route` from E2, plus delivered select-only `aurora_surface_walk_route` on c47b5cd55. Rime icefall survey/return route DONE on a8f563e39 (521.227m sampled,13ordered points/one sampled loop,source33/default152/Ember24/Aurora27); paired development checkpoint a8f563e DONE in ROADMAP.md, using the existing authored trails; other repeat instances stay open. Default combined acceptance retains its original narrow scope. Stop at executable route/selection and focused check, not a new benchmark system. |
 | PERF-RUN[one machine/scenario] | GATED on machine and executable route | Original warmup at least 3,600 frames/60s; measurement at least 18,000 frames/600s. At 1080p High, p95 ≤16.7ms, p99 ≤33.3ms, no post-warm frame >100ms, peak working set ≤4GiB, plus required actual GPU/VRAM and streaming/transient budgets. Stop at that measured scenario; retain failure. |
 | PERF-FIX[one measured hotspot] | GATED on demonstrated production cost | Fix the identified runtime/rendering owner; repeat the affected measurement and behavior check. Stop at measured effect and checkpoint; no census-only progress. |
 | INPUT-DEVICE[one device/route] | WAITING on physical device if absent | Ordinary full selected route with actual keyboard/mouse or controller, including lifecycle/planetary control as applicable. Existing physical-sortie, lifecycle and controller-only expedition tests guide scenario. Stop at selected route; synthetic events cannot qualify physical hardware. |
