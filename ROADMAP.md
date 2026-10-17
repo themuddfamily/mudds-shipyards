@@ -129,10 +129,15 @@ This is one **diagnostic measurement**, not gameplay qualification. Parent:
 | Execution | IN PROGRESS; `convoy_restore_boundary` prepares trace-only checkout, root freezes/runs/interprets. |
 | Close | Stop first actual failure or original deadline; preserve actual result/trace then remove disposable checkout. A supported runtime repair is a separate card; generic known Main cost does not justify another profile. |
 
-**Next single action:** inspect the temporary trace-only patch, freeze its exact
-hash and launch the single guarded probe. Raw:
+**Next single action:** observe the existing guarded probe driverPID370856,
+start ticks107600376, verified live at launch. Frozen basec2ad94184; only the
+trace test differs, SHA256
+`b279c5c95fab12f16984027e26bc1779628b0565fb17dfd407aa4490097b2f5d`.
+Removing the eight added prints reproduces base source byte-for-byte. All other
+tracked hashes/index/engine/cache remain guarded. Raw:
 `/srv/mudds-work/convoy-position-probe-results-20261017/`.
-No engine launched yet. Do not rerun accepted package/benchmark checks.
+Use existing stage status/log and `abort.py`; never relaunch on a polling
+timeout. Do not rerun accepted package/benchmark checks.
 All ten phase gates remain open. Q4 startup remains parked without a justified
 construction candidate. Latest paired gameplay checkpoint remains b6af782;
 Linux package isb41c3cc.
