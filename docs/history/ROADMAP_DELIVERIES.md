@@ -1301,3 +1301,53 @@ local link checks and `git diff --check` pass. No further engines, exports or
 route were launched in this planning pass. Full candidate qualification and checkpoint remain NOT_RUN;
 main does not contain this candidate and public checkpoint remains ef67f3e.
 The first5010 route failure, source refs and raw artifacts above remain retained.
+
+
+## HULK revisit departure — deadline failure on 2298e4889
+
+Exactly one changed-candidate run on
+2298e48893163dfc8d6d174fcd3957a20fc4739b, driver SHA256
+dfc8bb858712ce043564428314ff1f5ea1271e5dbdac674118724d7dd21e209a.
+Six setup stages PASS: fresh import, observer parse, privacy226, Linux export,
+direct strict startup and archive strict startup (exit0 and readiness sentinel).
+Single full hulk-revisit FAILS original300s deadline, reporting304.438s including
+cleanup: `TimeoutError: independent abort/deadline`. No retry, investigation
+probe, cap/input/controller change or conditional Windows checkpoint launch.
+
+Home prefix completes5883; supported clearance/reboard pass. Zero-height ordinary
+released FREE_FLIGHT departure advances6239 instead of waiting for a nonexistent
+lift. All three outward stages advance; genuinely new Cinder generation3/request2
+loads after the original unload, no load failure or extra unload. New HULK
+4958975976655, berth4979544842711 and breaker4979561619928 replace the original
+instances. Strict dock, shutdown and supported exit advance to revisit_walk8343.
+Last processed8798 remains in that walk, so full new interior/fresh E/refusal
+acceptance is incomplete. New breaker signal event count0/actor0/frame0; its old
+last_breaker_result already says power_already_restored but does not prove a fresh
+interaction. No NATIVE_HULK_REVISIT_OK or final sortie receipt exists. Observed
+restored lights/cell state do not promote this failed route. Cause of timeout
+beyond the observed unfinished walk is uninvestigated; no gameplay defect claim.
+
+All seven stage source/index/engine/cache guards PASS, diagnostics0. Independent
+review confirms all44 owned PID/start-tick identities absent, input/helper/game/
+Xvfb closure, private display189/authority/profile cleanup, no owned sockets or
+remaining display paths. Native GPU/human gates stay NOT_RUN.
+
+Raw `/srv/mudds-work/hulk-revisit-results-20261017/departure/` retains exact
+commands/results/logs/guards. Three failed-source Linux artifacts were moved to
+its retained-linux directory and hashes verified before removing the clean owned
+checkout. `retained-artifacts.json` maps former paths; no large duplicate copy.
+ELF148811040 bytes SHA256
+5a3694f229b4dedf69c05ada7485f30e8a0ac3b6008ba4bfb37e63b0d65ec3d1;
+archive95225479 bytes SHA256
+7b8aa04b919f13720b5e95c77f68b90405a0edc501c2a4c22ea26c3b68c94ca0.
+Candidate stays on remote hold/hulk-revisit-departure-20261017, excluded from main
+and public builds; ef67f3e remains latest accepted checkpoint.
+
+Priority review: original failed revisit consumed one bounded optional-lift
+repair, and the repaired qualification now consumed one original300s attempt
+plus six setup stages. Remaining player outcome is the full new-HULK walk and
+fresh duplicate refusal. Stop this chain and select independent READY
+EMBER-ABANDON-SOURCE next; it qualifies a different required physical journey.
+REVISIT-CHECKPOINT remains gated, with no further HULK diagnosis/repair/rerun
+selected. This is0 accepted,1 failed,1 gated,1 ready in the three-card batch,
+not a new delivered gameplay feature or closure of any broad parent.

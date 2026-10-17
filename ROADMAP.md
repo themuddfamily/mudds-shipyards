@@ -1,7 +1,7 @@
 # Development roadmap
 
 The game is a playable development alpha. **All ten phase exit gates remain
-open.** This file contains the next three executable tasks. The
+open.** This file contains the current three-task batch. The
 [backlog and 36-parent crosswalk](docs/ROADMAP_BACKLOG.md),
 [original specifications](docs/history/ROADMAP_SCOPE_20261017.md) and
 [production roster](docs/COMPLETION_SCOPE.md) retain the full project scope.
@@ -95,40 +95,44 @@ disk/interruption and broader parent gates stay open.
 [Actual result, earlier failures and limits](docs/history/ROADMAP_DELIVERIES.md#hulk-home-return--done-checkpoint-ef67f3e).
 Sandbox, Convoy and Q4 remain parked at their recorded failures; no automatic retries.
 
-## Next three tasks — 0 of 3 accepted
+## Current batch — 0 accepted, 1 failed, 1 gated, 1 ready
 
 This is a count of **two qualifications and one conditional package delivery**,
 not three new gameplay features or a project completion estimate. The departure
-repair is saved but has not passed its full route. Task 1 is IN PROGRESS;
-tasks 2 and 3 have not started.
+repair is saved, but its one full-route attempt FAILED at the original deadline.
+No task is running. Task 3 is selected next; task 2 remains gated.
 The 36 parent outcomes and all ten phase gates remain open.
 
 | Order / task | Kind / status | Observable finish | Work estimate; separate check allowance |
 | --- | --- | --- | --- |
-| 1. [HULK-REVISIT-DEPARTURE](#1-hulk-revisit-departure--ready-for-qualification) | Qualification; IN PROGRESS, implementation saved | Return to a newly streamed HULK and prove its breaker refuses a second cell after the full home journey. | Preparation/review/closure 30–45 min; setup/export/startups up to 47 min, then one 300 s route plus 45 s supervisor cleanup allowance. |
+| 1. [HULK-REVISIT-DEPARTURE](#1-hulk-revisit-departure--failed-at-original-deadline) | Qualification; FAILED, candidate withheld | Return to a newly streamed HULK and prove its breaker refuses a second cell after the full home journey. | Preparation/review/closure 30–45 min; setup/export/startups up to 47 min, then one 300 s route plus 45 s supervisor cleanup allowance. |
 | 2. [HULK-REVISIT-CHECKPOINT](#2-hulk-revisit-checkpoint--gated-on-task-1) | Build delivery; GATED on task 1 PASS | Accepted source integrated and matching playable Windows/Linux packages, with accurate notes, published in repository builds. | Packaging/integration/closure 30–45 min; export/payload checks up to 26 min. |
 | 3. [EMBER-ABANDON-SOURCE](#3-ember-abandon-source--ready-independent-of-hulk) | Qualification; READY, independent of HULK | Physically abandon an Ember visit, reboard, fly home, dock and walk out. | Preparation/closure 30–45 min; cold import up to 600 s, route up to 7,200 s. |
 
-**Schedule:** run task 1 once; if it passes, finish task 2 before task 3. If task 1
-fails, close it FAILED, keep task 2 GATED and record the priority review selecting
-independent task 3. The original revisit attempt already failed and consumed one
-bounded repair. Another failure must not automatically spawn another HULK repair.
-If task 2 fails, preserve the accepted route and previous public checkpoint, close
-the failed package attempt and review priorities before repair. If task 3 fails,
-close it FAILED and select the next bounded task explicitly. No automatic retries.
+**Priority review after task 1:** the original revisit attempt failed, its bounded
+repair was implemented, and the one changed-candidate qualification also failed.
+Six setup stages passed; the route consumed its original 300 s allowance
+(304.438 s including cleanup). The unreached result is the new HULK's full
+interior walk and fresh duplicate-reward refusal. Independent Ember ABANDON is
+READY and tests a different required journey. **Select task 3 next**, leaving
+HULK parked and task 2 GATED. No further HULK diagnosis, repair or rerun is selected.
+This decision does not change the route limit or claim a gameplay cause.
+If task 3 fails, close it FAILED and explicitly select the next bounded task.
 
-### 1. HULK-REVISIT-DEPARTURE — IN PROGRESS, one attempt
+### 1. HULK-REVISIT-DEPARTURE — FAILED at original deadline
 
 - **Parent/result:** [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Qualify the existing full home-and-revisit journey with the external driver
   corrected to follow the home berth's actual optional lift configuration.
-- **State/source:** implementation saved at `2298e48893163dfc8d6d174fcd3957a20fc4739b`,
-  based on withheld `5010ef932`. Agent reports 53 focused Python tests, compilation
-  and whitespace checks passing; root reviewed the production diff. Fresh game
-  export, startup and full route are starting as one guarded attempt. Main and public checkpoint remain
-  unchanged by this candidate. [Original failure and saved repair](docs/history/ROADMAP_DELIVERIES.md#hulk-revisit-input--failed-qualification-on-5010ef932).
-- **Owner/boundary:** root qualifies the saved agent work in
-  `/srv/mudds-work/hulk-revisit-departure-20261017`. Repair touches only
+- **State/source:** candidate `2298e48893163dfc8d6d174fcd3957a20fc4739b`,
+  saved on `hold/hulk-revisit-departure-20261017`, excluded from main/public builds.
+  Agent's 53 focused Python checks pass; all six setup stages pass, including
+  privacy 226, fresh Linux export and strict direct/archive startup. The single
+  full attempt FAILS at the original 300 s deadline, 304.438 s including cleanup,
+  with no diagnostics. Latest public checkpoint remains `ef67f3e`.
+  [Failure, achieved route and retained artifacts](docs/history/ROADMAP_DELIVERIES.md#hulk-revisit-departure--deadline-failure-on-2298e4889).
+- **Owner/boundary:** root qualified the saved agent work; the owned temporary
+  checkout has been removed after retaining exact artifacts. Repair touched only
   `scripts/diagnostics/native_sortie_observer.gd`,
   `tools/release/run_native_sortie.py`, and its existing Python tests.
   Zero configured lift requires actual released, inactive FREE_FLIGHT departure;
@@ -154,20 +158,27 @@ close it FAILED and select the next bounded task explicitly. No automatic retrie
   export 930 s, two startups 330 s each, route supervisor 345 s enclosing the
   unchanged 300 s route. Stop at first failure or budget boundary; close this
   attempt and apply the priority review above.
-- **Next action:** execute the reviewed prepared runner
-  `/srv/mudds-work/hulk-revisit-results-20261017/departure/run.py` with full
-  candidate `2298e48893163dfc8d6d174fcd3957a20fc4739b`. It freezes identities
-  and advances only after each required stage passes. Independent abort is
-  adjacent `abort.py`; preserve exact candidate and raw failure if withheld.
-- **Close:** record actual acceptance or first failure, commit/push result. PASS
-  unlocks task 2; it does not close HULK disk/interruption or other parent gates.
+- **Actual result:** home prefix completes at frame 5883; ordinary zero-height
+  departure advances at 6239. New HULK generation 3/request 2 loads after the
+  original unload; strict docking, shutdown and supported exit pass. Deadline
+  stops `revisit_walk` at last processed frame 8798. Fresh new-breaker event count
+  is 0; its stale refusal dictionary is not accepted as a new interaction.
+- **Close/next action:** FAILED and parked; no remaining action in this card.
+  Independent reviewer confirmed all 44 owned process identities absent, inputs
+  released, helper/game/Xvfb reaped and display 189/socket/authority/profile cleanup.
+  All source/index/engine/cache guards passed. Exact ELF/archive/export metadata
+  and raw results are retained under
+  `/srv/mudds-work/hulk-revisit-results-20261017/departure/`; the relocation manifest
+  records hashes/former paths. Conditional Windows helper was not launched.
+  Task 2 stays gated; task 3 is the selected next action.
 
 ### 2. HULK-REVISIT-CHECKPOINT — GATED on task 1
 
 - **Parent/result:** [PACKAGE-WIN / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
   Deliver the accepted revisit release capability and matching checkpoint packages.
   Player notes must distinguish qualified existing gameplay from a new feature.
-- **Owner/dependency:** root; task 1 must PASS on its exact candidate. Integrate
+- **Owner/dependency:** root; task 1 failed. A future explicitly selected and
+  successful revisit qualification is required before this card can run. Integrate
   the candidate with its source identity retained after exporting from its clean
   qualified checkout using existing release scripts. No new packaging framework
   or gameplay work.
@@ -183,9 +194,11 @@ close it FAILED and select the next bounded task explicitly. No automatic retrie
   startup 330 s, privacy 300 s caps. Stop at first required-gate failure, retain
   raw results and latest accepted `ef67f3e` packages. A parity mismatch must be
   disclosed with its actual scope; it is not permission for an investigation loop.
-- **Next action after task 1 PASS:** verify the prepared conditional runner
+- **Next action:** none while gated. After an explicitly selected successful
+  revisit qualification, rebind the prepared conditional runner
   `/srv/mudds-work/hulk-revisit-results-20261017/departure/checkpoint/run.py`
-  still requires all seven task-1 stages and exact source/cache/ELF. Run it once,
+  to that accepted source/checkout and require all seven stages and exact
+  source/cache/ELF. Do not launch its now-retired checkout path. Run it once,
   integrate accepted source, package and update the latest checkpoint references.
 - **Close:** commit/push integration and accurate notes/references, verify published
   artifacts, remove the owned disposable clean checkout and duplicate scratch
@@ -213,7 +226,8 @@ close it FAILED and select the next bounded task explicitly. No automatic retrie
   and route cap 7,200 s. This long existing journey is explicitly a qualification,
   not a two-hour implementation task. Do not split away required travel or shorten
   it to make the estimate look smaller. Stop at first failure or unchanged cap.
-- **Next action:** freeze full source/engine/runner identity and the existing
+- **Next action (selected by the priority review above):** freeze full
+  source/engine/runner identity and the existing
   guarded invocation, use fresh private profiles and record an independent abort
   path before launch. Reuse existing process supervisor; no new validator family.
 - **Close:** record actual result/source/raw, commit/push and remove the owned
