@@ -120,7 +120,7 @@ assigned alongside it without authorizing runtime edits to shared HUD/GameFlow.
 | Priority / task | Status / type | Observable finish | Work budget; checks separately |
 | --- | --- | --- | --- |
 | 1 BROWSER-CANCEL | DONE on a39e93af4 / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
-| 2 FIRE-RESTART | IN PROGRESS / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
+| 2 FIRE-RESTART | FAILED before capture / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
 | 3 RACE-PAGE-RESET | DONE / bounded diagnosis; contract question retained | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
 | 4 NEXT-CHECKPOINT | DONE on a39e93a / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
 
@@ -181,10 +181,16 @@ qualification remains open. NEXT-CHECKPOINT now exports this exact clean source.
 
 ### FIRE-RESTART — one keyboard binding
 
-Execution: `fire_restart_fixture` extends only the existing production-settings
-test in `/srv/mudds-work/fire-restart-20261018/worktree`, based on89bae7879.
-Static fixture preparation proceeds alongside browser packaging; its engine
-runs remain sequential behind the current checkpoint and independent review.
+First run FAILED on fixture source `b5b3c5a769ae24c69afe6720261bef52d2e08054`.
+Import exits0. Writer opens the private production store and normal Main,
+shows Settings/Fire row, then fails the unchanged requirement that focused Fire
+intersect the visible Settings scroll viewport. Root stops on that diagnostic
+(supervisor143); no capture/save acceptance or reader run follows. Frozen
+source/index/cache/engine guards and owned closure pass. Raw remains under
+`/srv/mudds-work/fire-restart-20261018/results/focused/`.
+Candidate is not integrated. One static diagnosis now checks the viewport/layout
+precondition before selecting a separate repair; no automatic rerun or inferred
+persistence defect. Published browser checkpointa39e93a remains accepted.
 
 - **Parent/result:** [INPUT-REMAP](docs/ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
   Qualify changing Fire to F13 from the visible Settings row, saving to the real

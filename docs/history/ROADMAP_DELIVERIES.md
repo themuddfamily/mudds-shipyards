@@ -2279,3 +2279,25 @@ artifacts and unique focused/checkpoint raw retained under
 `/srv/mudds-work/browser-cancel-20261018/results/`, with published-results.json
 and cleanup.json mapping former/public paths and source removal. Fire fixture
 worktree is separate and remains active. NEXT-CHECKPOINT closes for this change.
+
+## FIRE-RESTART — first qualification FAILED before capture
+
+Fixture-only candidate `b5b3c5a769ae24c69afe6720261bef52d2e08054` extends one
+existing production-settings test with separate writer/reader modes; original
+default bodies retained. Independent prelaunch review GO. Cold import exits0.
+Writer uses a fresh private real production store, seeds unrelated data only,
+normal Main loads accepted production authority, and Fire row is visible in
+Settings. First failure is the focused row/scroll-viewport intersection check;
+raw log: FAIL: focused Fire row is scrolled into the visible Settings viewport.
+No binding capture/save acceptance, real sampler check or reader execution.
+No persistence/runtime bug is inferred from that fixture failure.
+
+Root immediately signals the exact owned supervisor; exit143. Source/index/
+cache/engine guards remain exact and owned process/socket/display closure passes.
+Raw plan, exact command/environment, logs/status/snapshots and private failed
+store retained under `/srv/mudds-work/fire-restart-20261018/results/focused/`.
+Candidate remains unintegrated. One static diagnosis compares declared headless
+viewport/layout preconditions with the established settings UI fixture before a
+separate bounded repair is selected. No unchanged rerun or acceptance relaxation.
+Accepted browser checkpointa39e93a is unaffected. The original Fire restart
+requirement and broad parent remain open.
