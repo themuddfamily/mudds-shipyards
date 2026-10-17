@@ -51,16 +51,34 @@ adjacent comment; timer, reward and persistence logic are unchanged.
 Latest playable stays b6af782; this minor wording correction needs no new gameplay
 checkpoint. Prior E2 benchmark delivery is complete in the same history document.
 
-## Next selection
+## Active delivery: HULK[continuous interior traversal]
 
-Select one named production gap from the backlog and record its outcome,
-component, exact acceptance, estimate and stopping point before execution.
-Hulk continuous ordinary traversal is still unqualified; its staged integration
-suite cannot substitute for that acceptance. Do not rerun it unchanged merely
-to increase check counts. Do not add a proximity rule absent a design requirement.
-Capacity choice and missing original Settings/Aurora inputs remain waiting;
-do not repeat settled questions. Full-project task count remains undefined
-until unscheduled parent templates have named instances.
+**Outcome:** a runnable production integration route walks the actual Player
+capsule from dock shelf through vestibule/corridor/gallery to the breaker with
+ordinary held movement, replacing waypoint teleports. Parent: hulk salvage/
+power/revisit. This closes the interior-walk check only; staged docking,
+fringe/rebase checks and in-process persistence are not canonical flight or
+packaged expedition acceptance.
+
+**Owner/component:** `hulk_continuous_walk`, existing
+`tests/abandoned_hulk_loop_test.gd` only; root reviews and runs acceptance.
+**Scope:** existing authored route/geometry, normal speed/gravity/collision;
+initial shelf staging allowed, no pose/velocity writes during traversal. Floor
+support, enabled unseated control, all waypoints, actual path and input release
+must hold. Existing reward/persistence checks remain. No jump/rescue shortcuts.
+
+| Step | State / finish line | Estimate |
+| --- | --- | --- |
+| Implement | IN PROGRESS; replace interior teleports with finite held-input legs, correct staged-flight scope comments, commit. | 30–60 min |
+| Verify | GATED; same full `abandoned_hulk_loop_test.gd`, original 300s cap, headless/Dummy. Exit0 plus `ABANDONED_HULK_LOOP_TEST_OK`, no diagnostics, guarded inputs and clean teardown. Stop at first concrete failure. | 10–15 min including setup |
+| Close | GATED; record actual scope/result, remove clean checkout, commit/push. Production fix or meaningful gameplay checkpoint requires its own bounded repair/build. | 10 min |
+
+**Next action:** review the implementation commit, freeze its clean source, then
+run `/tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy --path
+<clean-checkout> --script res://tests/abandoned_hulk_loop_test.gd` through existing
+`tools/release/suite_process.py --timeout 300`. No engine launched yet.
+Temporary checkout: `/srv/mudds-work/hulk-continuous-walk-20261017`.
+No unchanged retry or additional hulk cases follow automatically.
 
 ## Working constraints
 
