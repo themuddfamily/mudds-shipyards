@@ -103,7 +103,7 @@ Q4's original300s full Patrol FAIL remains unchanged.
 ### Next execution batch: six named tasks
 
 These are **six scheduled tasks, not six tasks left in the project**. Root owns
-integration and updates each card before assigning it. **Q1–Q4 are complete in their recorded scope; Q5 is in progress.**
+integration and updates each card before assigning it. **Q1–Q6 have ended in their recorded bounded scope; underlying failures and missing inputs remain open.**
 Q4-FIX remains open: its measured candidate did not meet the startup improvement criterion.
 Any later demonstrated repair takes priority over another unrelated diagnosis. Independent work can proceed only with disjoint
 ownership; runtime network/display lanes remain serialized. No task in this batch
@@ -123,21 +123,20 @@ preceding crew probes; a source-only matrix pass cannot replace its package chec
 | Q2 · PERF-SELECT[existing benchmark scenarios] | Release capability · DONE on `47adf7c6e` | Either existing route runs by name; default both and full-protocol rejection of partial reports verified. | Checks ~174s; total effort not timed |
 | Q3 · NET-CREW[Halyard passenger default route] | Qualification · DONE on `f676c5016` | Stationary physical passenger route passes; no moving-craft acceptance inferred. | Route ~80s; total effort not timed |
 | Q4 · BASE-DIAG[Patrol restore] | Diagnosis · DONE; full suite still FAIL | Cold scene startup consumes the cap; prior teardown boundary passes. Inner builder remains to be isolated within the production follow-up below. | Probe300s; total effort not timed |
-| Q5 · BASE-DIAG[Resume offer] | Diagnosis · IN PROGRESS | One already-running original-cap probe distinguishes cold Main startup from Resume handling; record the first incomplete operation and stop. | Probe capped at 300s; verification/restoration follows |
+| Q5 · BASE-DIAG[Resume offer] | Diagnosis · DONE; full suite still FAIL | Main16 real-file recovery passes; original300s probe expires in Main17's next passenger interaction after stand cleanup. No recovery defect/fix demonstrated. | Probe300s; total effort not timed |
 | Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · DONE with missing-input handoff; gameplay WAITING | Historical source recovered; original invocation, participant/setup manifest and raw peer/stage receipts remain missing. No executable reproduction or landing pass claimed. | Bounded lookup complete; total effort not timed |
 
-**Active card — Q5, Resume-offer cold startup.** Parent: usable durable recovery
-and the failed original Resume-offer suite. Owner: `resume_offer_boundary`, with
-root integration. Source: `df66dcded7d25498dbf150614fe5f8e54ba996f5`.
-The retained failure stops during Main16, the real-file Halyard bunk cold reload,
-before Resume handling. Hypothesis: synchronous scene construction or the first
-three frame waits consume the remaining cap. One fixture-only instrumented full
-default probe is running with all19 Main lifetimes and the unchanged300s cap;
-no runtime edits, retries or replacement scenarios are authorized by this card.
-Next action: collect its terminal result, verify frozen inputs, restore the
-fixture and record the first incomplete operation. Stop there; a timeout alone
-does not justify changing recovery behavior. Raw results:
-`/srv/mudds-work/resume-offer-boundary-results-20261017/`.
+**Q5 result — diagnosis stopped; recovery requirement remains open.** On
+`df66dcded7d25498dbf150614fe5f8e54ba996f5`, one fixture-instrumented original300s
+probe times out with151 passing assertions and no semantic/script failures.
+Main16's real-file Halyard bunk recovery and retirement finish at283.547s;
+Main17 initializes at296.877s and passes passenger stand cleanup. The next
+`await _press_crew_interaction()` at original fixture line631 is incomplete;
+its inner boundary is unresolved. Main18/19 never start. No recovery defect or
+production fix is demonstrated. Source11,871/cache645/engine hashes match;
+fixture restored, actors closed and lanes free, independently checked by root.
+Raw report: `/srv/mudds-work/resume-offer-boundary-results-20261017/report.txt`.
+No retry, runtime edit, new build or additional diagnosis follows this card.
 
 **Q6 handoff — WAITING for the original Aurora run bundle.** Historical receipt
 `71ef2ee4929822e8182cbf66bdbeeb14d9238d2b` identifies failure source
@@ -150,10 +149,10 @@ is an implementation anchor, not proof of the historical command. No engine was
 run and no staged route substituted. The definition assignment is finished;
 the underlying physical landing requirement remains open.
 
-One original batch assignment remains active (Q5). Q4-FIX remains undefined and
-Q6's gameplay dependency is waiting. Do not repeat the unchanged full Patrol
+No batch assignment remains active. Q4-FIX remains undefined and Q6's gameplay
+dependency is waiting. Do not repeat the unchanged full Patrol
 suite, remeasure the rejected candidate unchanged, or rewrite its codec based on
-timeout. After Q5, select the next small delivery explicitly; do not extend this
+timeout. Select the next small delivery explicitly; do not extend this
 diagnostic batch automatically.
 
 **Q4-FIX · PERF-FIX[station startup construction] — DEFINE, not complete.**
