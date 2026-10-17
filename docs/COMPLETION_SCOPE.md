@@ -215,6 +215,21 @@ clean temporary checkout removed, no runtime/test changes or new build.
 Raw report: `/srv/mudds-work/halyard-passenger-candidate-results-20261017/report.txt`;
 log SHA-256 `eff417eb95e9e8f401bbeb8eacefce63593bb62e082297aa7fdac795e3c97090`.
 
+D2 separately qualifies the unchanged **moving shared-cruise source route** on
+`7412a6e509b2807fcf80a7a0dd93593c9664d941`: 132 checks, zero diagnostics,
+213.078s under the original300s cap. Playing host, two independent authenticated
+passengers and a late observer run actual Main. Existing passing assertions cover
+>8,000m travel, >50m/s speed and origin shift; both supported walks (1.278/1.175m),
+physical chair/stand/reseat, readiness/refusal/cancellation and disconnect pass.
+All four peer OS exits are0. Root independently verified source11,871/cache645/
+engine hashes, actual derived-script process commands, private environments and
+closure of32 owned processes, five displays, sockets/port and ordered lanes.
+Standard stock-root notice flag is disclosed. Temporary clean checkout removed;
+no runtime/test changes or new build. Exterior approaches/initial flight envelope
+are staged; no actual-package, canonical planetary landing, full original
+server/two-client baseline, endurance or final-capacity acceptance is claimed.
+Raw: `/srv/mudds-work/moving-halyard-source-results-20261017/result.json`.
+
 Patrol Q4 diagnosis on `e8f24ff00` still fails the original300s full scenario:
 18 of30 Main lifetimes complete; Main19 completes synchronous initialization but
 not its post-add frame waits, leaving fresh-IDLE assertion69 unexecuted. The older

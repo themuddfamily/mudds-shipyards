@@ -86,6 +86,7 @@ or the named raw report. None closes a parent or phase gate.
 | Q5 · BASE-DIAG[Resume offer] | `df66dcded` original300s probe passes Main16 real-file recovery; stops in Main17 next passenger interaction after151 passes. Main18/19 unentered; no runtime fix. Raw: `/srv/mudds-work/resume-offer-boundary-results-20261017/report.txt`; full suite remains FAIL. |
 | Q6 · WORLD-SHARED[Aurora arrival contract] | Bounded lookup recovered historical source `47ffce740562dd3ac3d52f66736796f5639068fd`; original invocation/setup/raw peer receipts missing. Definition ends with missing-input handoff; physical landing requirement remains open. |
 | D1 · GUIDED[f676c50 Linux package] | Exact current ELF passes original Guided3/3 in49.503/51.084/49.409s, zero diagnostics, original91 neutral shutdown frames and0.17m physical exit error. Inputs/actors/profiles/displays close; source/package guards match, independently verified. Raw: `/srv/mudds-work/f676-guided-acceptance-20261017/`. |
+| D2 · NET-CREW[Halyard moving source route] | Exact `7412a6e509b2807fcf80a7a0dd93593c9664d941` passes132 checks/zero diagnostics in213.078s. Host/two independent passengers/late observer, supported walks1.278/1.175m and both chair routes pass; actual cruise/rebase assertions hold. Inputs/32 actors/five displays/socket/lane cleanup independently verified. Raw: `/srv/mudds-work/moving-halyard-source-results-20261017/result.json`. |
 | D5 · PERF-ROUTE[Halyard stationary cabin walk] | `53e63831a` adds physical cabin route selection; 152 focused Godot assertions and11 Python checks pass. Final sample walks39.575m on5.2m aisle with support/occupancy/stationary hull retained. Default two-route admission unchanged; no hardware qualification. Raw: `/srv/mudds-work/cabin-benchmark-results-20261017/final/report.txt`. |
 
 **Latest attempt: Q4-FIX candidate withheld; startup requirement remains open.**
@@ -109,8 +110,10 @@ Q4's original300s full Patrol FAIL remains unchanged.
 This batch replaces the completed Q1–Q6 diagnostic batch. These are **five
 scheduled assignments, not five tasks left in the project**. Root owns integration
 and each card until an implementer is assigned. D1 and D5 are complete in their
-recorded scope; both clean temporary worktrees are removed. No task is active.
-Next: D2, one existing moving-passenger route; D3/D4 remain implementation work.
+recorded scope; their clean temporary worktrees are removed. D2 is now complete
+on its named source and its clean worktree is removed. D3 implementation is
+assigned to `live_menu_admission`; review/commit precedes its first engine run.
+D4 remains gated on D3; runtime lanes are free after D2 cleanup.
 D2 and D3/D4 are independent of D1, but engine network/display lanes remain
 serialized. D4 depends on D3. D5 can be implemented independently. Do not expand
 this batch automatically or count its checks as complete parent outcomes.
@@ -118,8 +121,8 @@ this batch automatically or count its checks as complete parent outcomes.
 | Order / existing family instance | Kind / status | Observable result | Working estimate |
 | --- | --- | --- | --- |
 | D1 · GUIDED[f676c50 Linux package] | Qualification · DONE | Current exact package completes original Guided 3/3; Sandbox and Settings remain open. | Runs49.503/51.084/49.409s; total effort not timed |
-| D2 · NET-CREW[Halyard moving shared-cruise source route] | Qualification · READY | Two independent remote passengers walk and use the chair while the actual craft moves/rebases. | 30–60 min preparation/review; one run capped300 s |
-| D3 · NET-BROWSER[live menu host and first guest] | Executable release check · READY for implementation | Existing browser check gains real independent Main/menu admission instead of injected directory/HUD fixtures. | 1–2 h implementation; 15–30 min focused checks |
+| D2 · NET-CREW[Halyard moving shared-cruise source route] | Qualification · DONE on `7412a6e50` | Original moving/rebase/two-passenger/chair/late-observer route passes132 checks, zero diagnostics. Source only; canonical landing/package qualification remain open. | Suite213.078s; total effort not timed |
+| D3 · NET-BROWSER[live menu host and first guest] | Executable release check · IN PROGRESS; reviewed mode awaits commit/first run | Existing browser check gains real independent Main/menu admission instead of injected directory/HUD fixtures. | 1–2 h implementation; 15–30 min focused checks |
 | D4 · NET-BROWSER[second independent menu guest] | Executable release check · GATED on D3 | Same host accepts two distinct real guests and releases both cleanly. | 1–2 h implementation; 15–30 min focused checks |
 | D5 · PERF-ROUTE[Halyard stationary cabin walk] | Executable benchmark capability · DONE on `53e63831a` | Selectable physical aisle shuttle works; partial reports cannot qualify full performance protocol. | Final suite ~206s; total effort not timed |
 
