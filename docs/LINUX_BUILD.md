@@ -4,7 +4,20 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local checkpoint: `d0e129f8d` — 2026-10-17
+## Latest local checkpoint: `f676c5016` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-f676c50.x86_64),
+[archive](../builds/linux/MuddsShipyards-f676c50-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-f676c50-linux-notes.txt) use clean source
+`f676c5016fb810a58ee1a1b0bf7e316bbddbc716`. Settings and browser counts now say
+guests and explain that the host is excluded; capacity/network semantics stay
+unchanged. All 254 fresh source assertions, 254 actual Windows-payload assertions
+through the Linux engine and three strict silent startups pass. All 1,515
+Windows/Linux payload entries match, with only compiled HUD/presenter changed
+against d0e129f. The managed installer remains included. No multiplayer player
+count, endurance, graphical desktop or native hardware qualification is implied.
+
+## Earlier dormant-camera checkpoint: `d0e129f8d` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-d0e129f.x86_64),
 [archive](../builds/linux/MuddsShipyards-d0e129f-linux-x86_64.tar.gz) and
