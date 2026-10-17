@@ -62,24 +62,26 @@ or the named raw report. None closes a parent or phase gate.
 | NET-CREW[Halyard engineer] functional probe | Current `f676c5016` actual Halyard route passes 76 checks; one retained Xvfb VSync warning leaves strict diagnostic qualification open. Raw report in COMPLETION_SCOPE. |
 | NET-CREW[Bulwark gunner] | Current `f676c5016` route passes: remote and moving-host gunner shots each damage registered targets 100→78; stand/reseat and pilot-disconnect ownership checks pass. Scope in COMPLETION_SCOPE. |
 | Q1 · BASE-DIAG[Emberline late peer] | Historical first unmet dependency identified: later dead-peer baseline before reset. One instrumented `e026cf620` isolated original-cap probe passes; no production fix/root cause claimed. |
+| Q2 · PERF-SELECT[existing benchmark scenarios] | `47adf7c6e` adds one-route selection while preserving default two-route/full-protocol acceptance; 127 focused assertions and 11 Python checks pass. [Usage](docs/PERFORMANCE_BENCHMARK_RUNNER.md). |
 
-**Latest completed result: Q1 diagnosis; historical failure not reproduced.**
-The retained failure reaches live late join and retirement, then host waits for
-`dead.finished` before it can reset. Pending-generation errors are downstream.
-One isolated `e026cf620` headless/Dummy source probe, with 18 temporary fixture-only
-diagnostic lines and original 45s/300s caps, passes all 154 assertions. Dead Main
-is ready at its uptime 34.933s; its first accepted neutralized-actor snapshot
-arrives at 35.262s, and it finishes at 35.483s. Baseline adoption and reset/retry
-work in this run. These per-process timestamps do not prove the historical cause;
-the older three-worker full matrix remains FAIL. No runtime repair, new build or
-unchanged repeat is justified. Exact source/cache/engine hashes, receipts and
-owned teardown verified; fixture restored and clean temporary checkout removed.
-Raw report: `/srv/mudds-work/emberline-boundary-results-20261017/report.txt`.
+**Latest completed result: Q2 benchmark scenario selection.**
+`47adf7c6e` accepts `KETH_BENCHMARK_SCENARIO` or launcher `-Scenario` for either
+existing route; unset still runs both. Unknown names reject before Main/window
+mutation. Selected reports stay diagnostic-only; strict full-protocol gates still
+require both routes. Full frame/time floors and input/abort cleanup are enforced.
+The existing focused headless/Dummy suite passes 127 assertions in ~157s under
+its original 300s cap; 11 Python gate tests pass. A separate unknown-name runner
+invocation exits 1 as expected and creates no report. Source/cache/input hashes
+and owned teardown verify; independent review finds no blocker. Native Windows
+launcher execution and native performance remain NOT_RUN. Tools/tests are excluded
+from game export, so current playable checkpoint remains `f676c5016`. Clean
+temporary checkout removed; raw report:
+`/srv/mudds-work/benchmark-selection-results-20261017/report.txt`.
 
 ### Next execution batch: six named tasks
 
 These are **six scheduled tasks, not six tasks left in the project**. Root owns
-integration and updates each card before assigning it. **Q1 is complete; Q2 is next.**
+integration and updates each card before assigning it. **Q1 and Q2 are complete; Q3 is next.**
 Any later demonstrated repair takes priority over another unrelated diagnosis. Independent work can proceed only with disjoint
 ownership; runtime network/display lanes remain serialized. No task in this batch
 closes a phase or substitutes for final integrated acceptance.
@@ -95,16 +97,17 @@ preceding crew probes; a source-only matrix pass cannot replace its package chec
 | Order / ID | Kind / status | Observable deliverable | Estimated effort / recorded actual |
 | --- | --- | --- | --- |
 | Q1 · BASE-DIAG[Emberline late peer] | Diagnosis · DONE; failure not reproduced | Historical unmet dead-baseline dependency identified; one original-cap current instrumented probe passes. Root cause/fix unproven; next combined matrix retains coverage. | Probe ~136s; total effort not timed |
-| Q2 · PERF-SELECT[existing benchmark scenarios] | Release capability · READY | Run either existing benchmark scenario by name, retaining the existing default combined run. | 2–4 hours |
+| Q2 · PERF-SELECT[existing benchmark scenarios] | Release capability · DONE on `47adf7c6e` | Either existing route runs by name; default both and full-protocol rejection of partial reports verified. | Checks ~174s; total effort not timed |
 | Q3 · NET-CREW[Halyard passenger] | Qualification · READY | Current-package passenger chair/walk/return and recovery result, with exact participant scope. | 30–60 minutes |
 | Q4 · BASE-DIAG[Patrol restore] | Diagnosis · READY | First incomplete persistence/recovery operation and one named repair owner. | 1–2 hours |
 | Q5 · BASE-DIAG[Resume offer] | Diagnosis · READY | First failing cold-recovery context and responsible production owner. | 1–2 hours |
 | Q6 · WORLD-SHARED[Aurora arrival contract] | Definition · READY for bounded artifact lookup | Exact canonical failing command, initial state and expected landing result, or the specific missing artifact. | 30–60 minutes |
 
-No child is active. Next task: **Q2**, existing benchmark scenario selection.
-Before implementation, fill its current-source owner/check card and inspect the
-two existing full-report consumers. Q1's failure record remains open for the next
-integrated matrix; do not restart its completed diagnosis.
+No child is active. Next task: **Q3**, one current-package Halyard passenger
+route. Fill its source/build/owner/check card before starting. Q1's historical
+full-matrix failure remains open for the next integrated run; do not restart its
+completed isolated diagnosis. Q2's selection work is complete; missing benchmark
+routes and native hardware measurements remain separate tasks below.
 
 **Q1 — Emberline late peer.** Player outcome sought: a joining peer sees the live
 travelling weapon at the authoritative position. Start from the retained matrix
@@ -306,7 +309,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ID / one instance | Status / prerequisite | Result and acceptance; stop boundary |
 | --- | --- | --- |
 | PERF-MACHINE[one minimum/target profile] | WAITING on representative hardware if unavailable | Bind declared CPU/GPU/RAM/display/driver profile to an actual isolated test machine. Stop at available machine identity or exact missing resource; never infer native performance from llvmpipe. |
-| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It currently supports only `station_embodied_route` and `nearby_sector_ship_flight_route`, with launcher running both. Stop at executable route/selection and focused check, not a new benchmark system. |
+| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It currently supports only `station_embodied_route` and `nearby_sector_ship_flight_route`; Q2 adds selection of either one, with default combined execution retained. Stop at executable route/selection and focused check, not a new benchmark system. |
 | PERF-RUN[one machine/scenario] | GATED on machine and executable route | Original warmup at least 3,600 frames/60s; measurement at least 18,000 frames/600s. At 1080p High, p95 ≤16.7ms, p99 ≤33.3ms, no post-warm frame >100ms, peak working set ≤4GiB, plus required actual GPU/VRAM and streaming/transient budgets. Stop at that measured scenario; retain failure. |
 | PERF-FIX[one measured hotspot] | GATED on demonstrated production cost | Fix the identified runtime/rendering owner; repeat the affected measurement and behavior check. Stop at measured effect and checkpoint; no census-only progress. |
 | INPUT-DEVICE[one device/route] | WAITING on physical device if absent | Ordinary full selected route with actual keyboard/mouse or controller, including lifecycle/planetary control as applicable. Existing physical-sortie, lifecycle and controller-only expedition tests guide scenario. Stop at selected route; synthetic events cannot qualify physical hardware. |
