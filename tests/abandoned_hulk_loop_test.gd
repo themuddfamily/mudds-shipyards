@@ -912,6 +912,7 @@ func _walk_hulk_route(
 			* float(Engine.physics_ticks_per_second)))
 		var leg_reached := false
 		var reason := "leg frame budget exhausted"
+		var last_movement_trace: Dictionary = {}
 		for _frame in frame_budget:
 			if Time.get_ticks_msec() >= deadline:
 				reason = "walk wall deadline exceeded"
@@ -950,6 +951,7 @@ func _walk_hulk_route(
 			max_step_per_tick = maxf(max_step_per_tick, step / float(elapsed_physics_ticks))
 			samples += 1
 			previous = current
+			last_movement_trace = _hulk_movement_trace(player)
 			if step > step_limit * elapsed_physics_ticks or not _has_hulk_support(player, hulk) \
 					or paused or not player.can_process() or not player.is_control_enabled() \
 					or player.is_seated() or capsule.shape != capsule_shape or capsule.disabled:
@@ -960,6 +962,12 @@ func _walk_hulk_route(
 				leg_reached = Vector2(current.x - route[index].x,
 					current.z - route[index].z).length() <= WALK_TARGET_TOLERANCE
 				break
+		if not leg_reached:
+			print("HULK_WALK_STALL_CONTACT: ", JSON.stringify({
+				"waypoint": index, "reason": reason,
+				"position": player.global_position, "target": route[index],
+				"last_held_sample": last_movement_trace,
+			}))
 		Input.action_release(&"move_forward")
 		if not _check(leg_reached,
 				"ordinary supported walk reaches authored hulk waypoint %d (%s; position %s, target %s)"
@@ -975,6 +983,33 @@ func _walk_hulk_route(
 		" support_colliders=", support_colliders.keys(), " player_id=", player_id)
 	return _check(path_length >= minimum_path and observed_physics_ticks >= minimum_physics_ticks,
 		"sampled continuous movement covers the authored route within waypoint tolerance")
+
+
+## Read-only context captured before the leg releases its held input. Keep
+## collider identities and contact details so a stalled capsule is not guessed
+## to be an input, scene, or geometry failure from its position alone.
+func _hulk_movement_trace(player: PlayerController) -> Dictionary:
+	var contacts: Array[Dictionary] = []
+	for index in player.get_slide_collision_count():
+		var contact := player.get_slide_collision(index)
+		var collider := contact.get_collider() as Node
+		contacts.append({
+			"collider": str(collider.get_path()) if collider != null else "",
+			"normal": contact.get_normal(), "depth": contact.get_depth(),
+			"travel": contact.get_travel(), "remainder": contact.get_remainder(),
+		})
+	var raw := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	return {
+		"raw_move": raw, "sampled_move": player.call(&"_sample_move_vector"),
+		"forward_held": Input.is_action_pressed(&"move_forward"),
+		"physics_processing": player.is_physics_processing(),
+		"can_process": player.can_process(), "paused": paused,
+		"embodiment_state": player.get("_embodiment_state"),
+		"control_enabled": player.is_control_enabled(),
+		"remote_drive": player.get_remote_drive_audit(),
+		"velocity": player.velocity, "on_floor": player.is_on_floor(),
+		"on_wall": player.is_on_wall(), "slide_contacts": contacts,
+	}
 
 
 func _get_reloaded_hulk(bootstrap: CinderStreamingBootstrap) -> AbandonedStationHulk:

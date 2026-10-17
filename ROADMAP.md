@@ -67,7 +67,8 @@ no camera/menu gating in enabled on-foot Player input. Contact is not proven.
 3. Stop after the trace identifies collision, suppression or one missing fact;
    record a concrete repair before any changed route, geometry or further run.
 
-**Next single action:** instrument the existing failure branch. No unchanged
+**Next single action:** review and run the instrumented failure branch once.
+Read-only contact capture is implemented; acceptance has not been rerun. No unchanged
 retry, teleport rescue, wider doorway, altered gravity or longer deadline.
 The broader hulk salvage/revisit requirement remains open.
 
