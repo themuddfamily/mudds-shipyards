@@ -1,0 +1,64 @@
+Mudd's Shipyards — Rime shared survey checkpoint df86280 — 2026-10-17
+Clean exported source: df86280b5b3985770be527af71c6c247f311aae7
+Engine: pinned official Godot 4.7.1 a13da4feb; stock release templates.
+
+Delivered change:
+After restoring an active shared Rime ice-core survey, fresh crew see the
+remaining reading prompt and a paused heater until a current authenticated
+observation resumes it. An active survey owned by another crew member still
+shows the existing crew-only guidance. Host position, heat, progress and reward
+authority are unchanged.
+
+Actual package validation (all Godot invocations headless and Dummy audio):
+- Fresh clean candidate-source matrix passes privacy and planetary survey
+  lifecycle (Rime heat/progress/prompt coverage; direct shared UI is exercised
+  by the packaged restoration route below),
+  200 actual assertions, before export. Existing runner uses
+  original 300s caps, jobs=1, import-always; source/cache guards match. Results:
+  artifacts/checkpoint-df86280/focused-source/combined-source/.
+- windows-payload-startup: PASS, exit 0, 25.739400s, 1 completion marker(s), 0 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- linux-direct-startup: PASS, exit 0, 21.544536s, 1 completion marker(s), 0 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- linux-archive-startup: PASS, exit 0, 21.343196s, 1 completion marker(s), 0 diagnostic(s); 0 printed PASS lines; no suite assertion total reported.
+- startup-cli-privacy: PASS, exit 0, 0.882520s, 1 completion marker(s), 0 diagnostic(s); 159 printed PASS lines; no suite assertion total reported.
+- planetary-survey-lifecycle: PASS, exit 0, 26.853495s, 1 completion marker(s), 0 diagnostic(s); 41 reported assertions.
+- rime-shared-restoration: PASS, exit 0, 147.288090s, 1 completion marker(s), 0 diagnostic(s); 78 reported assertions.
+- Three startup probes require exit 0 and exactly one STARTUP_MENU_READY_OK.
+- All 1515 Windows/Linux PCK entries match by path,
+  size and SHA256. Windows PE .text matches the pinned trusted release template.
+- Against 418f3fe, the only production-code change is
+  scripts/activities/rime_ice_core_survey.gdc. Two generated cache files also
+  reorder identical metadata: all 481 class records retain identical fields and
+  all 660 UID-to-path mappings match (525 UID positions reorder). Their actual
+  hashes and the semantic comparison are retained; no other entries change.
+  This comparison is not full qualification.
+- Exact-source external test harnesses exercise the actual Windows embedded
+  production payload through the Linux engine; no Windows executable is
+  launched. Harness SHA256 values are retained. Linux archive bytes and modes match
+  the direct exported ELF. Source/index/cache remain unchanged after export.
+- Logs and exact package outcomes: artifacts/checkpoint-df86280/.
+  Private profiles, execution owner and abort helper: /srv/mudds-work/rime-survey-checkpoint-20261017/.
+
+Focused source validation before integration:
+Exact Rime recovery prompt source validation before integration
+Author worktree base92b7b6ef6 plus the exact two committed files; root independently compared bytes to clean df86280b5b3985770be527af71c6c247f311aae7. This is the existing --restore-shared-rime mode of tests/network/game_flow_landing_network_integration_test.gd, original300s, headless/Dummy. It uses staged arrival, genuine ENet peers and retained-body intents in one process, physical authored walks, whole-Main restoration and a fresh authenticated crew body. It is not independent OS-client canonical flight or graphical client HUD acceptance.
+RED: old production with extended existing test completes expectedFAIL exit1,75 printedPASS and3 new publication/guidance failures. Existing interaction, exactly-once reward retry and same-body reboard pass. One superuser warning is retained. Original RED test-source.gd preserved. Final test wording compacts WAITING FOR NEXT READING to PAUSED, with the same missing pending flag predicate; the gauge/ownership checks and all route/timing behavior remain unchanged.
+Fixed: complete existing route PASS78 assertions, exit0, one OK: Shared visit restoration integration marker, zero diagnostics, under original300s. Pending shared heater text and next-reading prompt pass; contradictory pending/other-owner denial, actual next observation clearing the flag, refused reward retry/reload and physical same-body reboard all pass. All source/index/status/import cache bytes remain unchanged during both tests; donor unchanged, all owned processes absent, ordered lanes independently reacquired by root. Independent semantic review finds no blocker within the two-file scope.
+Raw: /srv/mudds-work/rime-shared-survey-validation-20261017/{red,green}/ .
+Full current-source unfiltered matrix remains NOT_RUN; earlier failures remain retained. Native Windows/GPU/device/audio/human, canonical multiplayer round trips, independently rendered client surface/HUD and final release acceptance remain NOT_RUN/open. Hosted CI remains disabled.
+Exact committed file SHA256:
+scripts/activities/rime_ice_core_survey.gd: bac99aac2a48ab4f619d4182f3b41569bbc33b39b678ef36e6c967b1f69f7d41
+tests/network/game_flow_landing_network_integration_test.gd: f004f662733262e3c5af0edf028d494057fb84311644aa1dd8e2559b05c4f673
+
+Open gates:
+The packaged restoration route above retains its original 300s cap;
+focused package checks do not close complete core/shared/recovery regression or
+any phase exit gate. Full current-source matrix is NOT_RUN. Earlier retained
+full-regression failures remain open. Earlier Guided 3, Cargo, Scan and recovery results qualify
+only their own sources and are not rerun or inherited as this candidate's full
+qualification. Native Windows installation/startup,
+native GPU/hardware, physical controller/audio and human review are NOT_RUN;
+antivirus hold is preserved. Trusted signing and final-release qualification
+remain open. Hosted CI stays disabled. Local repository builds only; no
+Downloads or public release publication.
+
+EXE SHA256: 46b2017c4ecb696afee8295145318fc2705fb4d46a024f9489c19c914ff8477e

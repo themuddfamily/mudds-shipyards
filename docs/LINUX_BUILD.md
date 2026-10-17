@@ -4,7 +4,32 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest local checkpoint: `418f3fe16` — 2026-10-17
+## Latest local checkpoint: `df86280b5` — 2026-10-17
+
+The [ELF](../builds/linux/MuddsShipyards-df86280.x86_64),
+[archive](../builds/linux/MuddsShipyards-df86280-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-df86280-linux-notes.txt) use clean source
+`df86280b5b3985770be527af71c6c247f311aae7`. Fresh crew can discover the remaining
+reading in a restored active shared Rime survey; its heater shows paused until
+a current authenticated observation resumes it. Existing participant, position,
+heat, progress and reward authority stay unchanged.
+
+Fresh clean focused source checks pass 200 assertions. Three strict silent
+startups pass; actual Windows-payload checks through the Linux engine pass 278,
+including the existing full restored-Rime route (78 assertions,147.288s).
+All 1,515 Windows/Linux entries match. The Rime compiled script changes and two
+generated caches reorder identical 481 class records/660 UID mappings; no
+other payload entries change. PE code, ZIP integrity, archived ELF bytes/modes
+and source/cache guards verify. Raw checks: `artifacts/checkpoint-df86280/`.
+
+The restoration fixture uses staged arrival and in-process real ENet peers,
+with actual authored walking, fresh-Main recovery, durable reward retry and
+same-body reboarding. Independent canonical shared journeys, rendered client
+HUD, graphical desktop/native GPU/device/audio and full current-source matrix
+acceptance remain open. Earlier Guided and other recovery results retain their
+own source scopes; no phase gate closes.
+
+## Earlier local checkpoint: `418f3fe16` — 2026-10-17
 
 The [ELF](../builds/linux/MuddsShipyards-418f3fe.x86_64),
 [archive](../builds/linux/MuddsShipyards-418f3fe-linux-x86_64.tar.gz) and
