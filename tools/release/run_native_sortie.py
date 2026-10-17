@@ -1229,6 +1229,7 @@ class HulkRevisitPilot(HulkHomePilot):
         self.revisit_board_press = None
         self.revisit_boarded = None
         self.revisit_departure = None
+        self.revisit_lift_height = None
         self.revisit_lift_seen = False
         self.revisit_departure_complete = None
         self.revisit_reload = None
@@ -1263,6 +1264,8 @@ class HulkRevisitPilot(HulkHomePilot):
             require(self.cinder_unload is not None and not s['hulk']['available']
                     and not s['hulk_home']['streaming']['loaded'],
                     'actual original Cinder unload precedes the new sortie')
+            self.require_home_dock(s)
+            self.revisit_lift_height = self.home_departure_lift_height(s)
             self.revisit_previous = s
             self.tap_key = None
             self.tap_release_frame = s['frame']
@@ -1281,6 +1284,12 @@ class HulkRevisitPilot(HulkHomePilot):
                 self.mouse_pending = None
         if dx or dy: self.mouse_pending = facing[:]
         return keys, dx, dy, fire
+
+    def home_departure_lift_height(self, s):
+        height = s.get('home_departure_lift_height')
+        require(type(height) in (int, float) and math.isfinite(height) and height >= 0,
+                'finite nonnegative public home departure lift height')
+        return height
 
     def observe_revisit_streaming(self, s):
         streaming = s['hulk_home']['streaming']
@@ -1370,6 +1379,8 @@ class HulkRevisitPilot(HulkHomePilot):
         require((home['home']['berth_id'], home['home']['berth_instance_id']) == self.home_berth_identity
                 and home['capsule_id'] == initial['capsule_id'] and home['shape_id'] == initial['shape_id'],
                 'same home berth and Player collision capsule throughout revisit')
+        require(self.home_departure_lift_height(s) == self.revisit_lift_height,
+                'public home departure lift height unchanged since occupied home dock')
         self.require_retained_cell(home)
         self.observe_revisit_streaming(s)
         if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
@@ -1468,12 +1479,18 @@ class HulkRevisitPilot(HulkHomePilot):
                         'physical outward departure releases home occupant and reservation')
                 self.revisit_departure = {'frame': self.frame, 'position': s['position'][:],
                     'phase': s['phase'], 'home_lease_free': s['lease_free'], 'occupant_id': 0}
-            if self.revisit_lift_seen and not s['departure_lift_active'] and self.revisit_departure is not None:
+            lift_expected = self.revisit_lift_height > 0
+            require(lift_expected or not self.revisit_lift_seen,
+                    'zero-height home departure has no active lift')
+            if (not lift_expected or self.revisit_lift_seen) and not s['departure_lift_active'] \
+                    and self.revisit_departure is not None:
                 require(not s['landed'] and s['phase'] == 'FREE_FLIGHT' and s['lease_free'],
-                        'observed authored lift completion follows actual home lease release')
+                        'observed configured departure completion follows actual home lease release')
                 self.revisit_departure_complete = {'frame': self.frame, 'position': s['position'][:],
                     'phase': s['phase'], 'landed': s['landed'], 'departure_lift_active': False,
-                    'lift_active_observed': True, 'home_lease_free': s['lease_free']}
+                    'configured_lift_height': self.revisit_lift_height, 'lift_expected': lift_expected,
+                    'observed_path': 'active_then_inactive' if lift_expected else 'plain_departure',
+                    'lift_active_observed': self.revisit_lift_seen, 'home_lease_free': s['lease_free']}
                 self.enter('revisit_flight_0', s)
                 keys.add('Prior')
             else:

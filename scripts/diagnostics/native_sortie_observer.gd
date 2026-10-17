@@ -119,6 +119,7 @@ func _physics_process(delta: float) -> void:
 	}
 	if _hulk_revisit:
 		observation["departure_lift_active"] = bool(_ship.get("_departure_lift_active"))
+		observation["home_departure_lift_height"] = berth.get_departure_lift_height()
 	if _hulk_arrival:
 		observation["hulk"] = _hulk_arrival_observation()
 	if _hulk_home:

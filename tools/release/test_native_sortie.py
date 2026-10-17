@@ -745,11 +745,12 @@ class NativeSortieSafetyTests(unittest.TestCase):
                     with self.assertRaisesRegex(AssertionError, 'more than a quarter metre'):
                         pilot.update(s, s['frame']/60)
 
-    def revisit_after_home(self):
+    def revisit_after_home(self, lift_height=2.7):
         pilot, s = self.home_at_exit(pilot_type=native.HulkRevisitPilot)
         s = json.loads(json.dumps(s))
         s.update(frame=s['frame']+120, phase='COMPLETE', piloted=False, seated=False,
-                 control_enabled=True, player=[-8.6, -.02, -9.25], departure_lift_active=False, candidate=False)
+                 control_enabled=True, player=[-8.6, -.02, -9.25], departure_lift_active=False,
+                 home_departure_lift_height=lift_height, candidate=False)
         home = s['hulk_home']
         home['capsule_enabled'] = True
         home['boarding'] = [-3.2, 1.2, -9.35]
@@ -779,8 +780,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         pilot.update(s, s['frame']/60)
         return s
 
-    def revisit_at_boarding(self):
-        pilot, s = self.revisit_after_home()
+    def revisit_at_boarding(self, lift_height=2.7):
+        pilot, s = self.revisit_after_home(lift_height)
         while pilot.stage == 'revisit_clearance':
             s = self.revisit_walk_step(pilot, s, pilot.CLEARANCE)
         self.assertGreater(pilot.revisit_clearance['distance_m'], 7)
@@ -945,9 +946,56 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s.update(frame=s['frame']+60, position=[0, 2.7, -10], departure_lift_active=False)
         self.assertEqual(pilot.update(s, s['frame']/60)[0], {'Prior'})
         self.assertTrue(pilot.revisit_departure_complete['lift_active_observed'])
+        self.assertEqual(pilot.revisit_departure_complete['configured_lift_height'], 2.7)
+        self.assertTrue(pilot.revisit_departure_complete['lift_expected'])
+        self.assertEqual(pilot.revisit_departure_complete['observed_path'], 'active_then_inactive')
         self.assertFalse(pilot.revisit_departure_complete['departure_lift_active'])
         self.assertEqual(pilot.stage, 'revisit_flight_0')
         self.assertIsNone(pilot.revisit_leg_ready)
+
+    def test_revisit_zero_height_requires_actual_released_departure_then_brakes(self):
+        pilot, s = self.revisit_at_boarding(lift_height=0)
+        s = json.loads(json.dumps(s))
+        s['frame'] += 1
+        self.assertEqual(pilot.update(s, s['frame']/60)[0], {'w'})
+        self.assertEqual(pilot.stage, 'revisit_departure')
+        self.assertIsNone(pilot.revisit_departure_complete)
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+1, phase='FREE_FLIGHT', landed=False,
+                 lease_free=True, position=[0, 1.3, -10])
+        s['hulk_home']['home'].update(lease=False, occupant_id=0, parked_exact=False)
+        self.assertEqual(pilot.update(s, s['frame']/60)[0], {'Prior'})
+        self.assertEqual(pilot.stage, 'revisit_flight_0')
+        receipt = pilot.revisit_departure_complete
+        self.assertEqual(receipt['configured_lift_height'], 0)
+        self.assertFalse(receipt['lift_expected'])
+        self.assertFalse(receipt['lift_active_observed'])
+        self.assertFalse(receipt['departure_lift_active'])
+        self.assertEqual(receipt['observed_path'], 'plain_departure')
+        self.assertIsNone(pilot.revisit_leg_ready)
+
+    def test_revisit_positive_height_without_observed_active_lift_keeps_thrust(self):
+        pilot, s = self.revisit_at_boarding()
+        s = json.loads(json.dumps(s))
+        s.update(frame=s['frame']+120, phase='FREE_FLIGHT', landed=False,
+                 lease_free=True, position=[0, 2.7, -10])
+        s['hulk_home']['home'].update(lease=False, occupant_id=0, parked_exact=False)
+        self.assertEqual(pilot.update(s, s['frame']/60)[0], {'w'})
+        self.assertEqual(pilot.stage, 'revisit_departure')
+        self.assertIsNone(pilot.revisit_departure_complete)
+
+    def test_revisit_requires_sane_frozen_public_home_lift_height(self):
+        for height in (None, True, -1, float('nan'), float('inf'), '0'):
+            with self.subTest(height=height):
+                with self.assertRaisesRegex(AssertionError, 'finite nonnegative public home'):
+                    self.revisit_after_home(lift_height=height)
+        for height in (0, 2.7):
+            with self.subTest(frozen=height):
+                pilot, s = self.revisit_at_boarding(lift_height=height)
+                s = json.loads(json.dumps(s))
+                s.update(frame=s['frame']+1, home_departure_lift_height=height+1)
+                with self.assertRaisesRegex(AssertionError, 'unchanged since occupied home dock'):
+                    pilot.update(s, s['frame']/60)
 
     def test_revisit_every_leg_requires_settled_speed_and_observed_tight_attitude(self):
         for index, target in enumerate(([0, 2.7, -64], [0, 2.7, -150], [-96, 32.4, -432])):
