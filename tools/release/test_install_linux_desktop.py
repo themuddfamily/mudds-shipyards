@@ -30,7 +30,7 @@ class DesktopInstallTest(unittest.TestCase):
         self.applications = self.root / "applications folder"
         self.archive = self.bundle("123abcd")
 
-    def bundle(self, revision, extra=None):
+    def bundle(self, revision, extra=None, *, managed=False):
         path = self.root / (revision + ".tar.gz")
         root = "MuddsShipyards-" + revision
         with tarfile.open(path, "w:gz") as archive:
@@ -46,6 +46,11 @@ class DesktopInstallTest(unittest.TestCase):
             ):
                 member = tarfile.TarInfo(root + "/" + name)
                 member.size, member.mode = len(content), mode
+                archive.addfile(member, io.BytesIO(content))
+            if managed:
+                content = Path(installer.__file__).read_bytes()
+                member = tarfile.TarInfo(root + "/" + installer.BUNDLED_INSTALLER)
+                member.size, member.mode = len(content), 0o755
                 archive.addfile(member, io.BytesIO(content))
             if extra is not None:
                 archive.addfile(extra, io.BytesIO(b"x") if extra.isfile() else None)
@@ -63,7 +68,13 @@ class DesktopInstallTest(unittest.TestCase):
                 for path in parent.rglob("*") if path.is_file()}
 
     def test_install_quoted_launcher_update_and_owned_uninstall(self):
-        self.run_install()
+        self.check_lifecycle(managed=False)
+
+    def test_managed_bundle_quoted_launcher_update_and_owned_uninstall(self):
+        self.check_lifecycle(managed=True)
+
+    def check_lifecycle(self, *, managed):
+        self.run_install(self.bundle("123abcd", managed=managed))
         state = self.state()
         runtime = self.install / state["generation"]
         executable = runtime / state["executable"]
@@ -87,7 +98,7 @@ class DesktopInstallTest(unittest.TestCase):
         extra_runtime.write_text("retain")
         unrelated_entry = self.applications / "other-game.desktop"
         unrelated_entry.write_text("other game")
-        updated = self.bundle("456def0")
+        updated = self.bundle("456def0", managed=managed)
         self.run_install(updated)
         self.assertEqual(unrelated.read_text(), "precious save")
         self.assertEqual(extra_runtime.read_text(), "retain")
@@ -169,17 +180,25 @@ class DesktopInstallTest(unittest.TestCase):
         extras = []
         for name, kind in (("../escape", tarfile.REGTYPE),
                            ("MuddsShipyards-123abcd/other.x86_64", tarfile.REGTYPE),
+                           ("MuddsShipyards-123abcd/install_linux_desktop.py.bak", tarfile.REGTYPE),
+                           ("MuddsShipyards-123abcd/install-desktop-entry.sh", tarfile.REGTYPE),
                            ("MuddsShipyards-123abcd/link", tarfile.SYMTYPE),
                            ("MuddsShipyards-123abcd/hardlink", tarfile.LNKTYPE)):
             member = tarfile.TarInfo(name)
             member.type, member.size, member.linkname = kind, (1 if kind == tarfile.REGTYPE else 0), "/tmp"
             extras.append(member)
-        for extra in extras:
-            with self.subTest(extra=extra.name):
-                archive = self.bundle("123abcd", extra)
-                with self.assertRaises(installer.InstallError):
-                    self.run_install(archive)
-                self.assertEqual(before, self.snapshot())
+        for managed in (False, True):
+            for extra in extras:
+                with self.subTest(extra=extra.name, managed=managed):
+                    archive = self.bundle("123abcd", extra, managed=managed)
+                    with self.assertRaises(installer.InstallError):
+                        self.run_install(archive)
+                    self.assertEqual(before, self.snapshot())
+        duplicate = tarfile.TarInfo("MuddsShipyards-123abcd/" + installer.BUNDLED_INSTALLER)
+        duplicate.size = 1
+        with self.assertRaisesRegex(installer.InstallError, "five or six|duplicate"):
+            self.run_install(self.bundle("123abcd", duplicate, managed=True))
+        self.assertEqual(before, self.snapshot())
         corrupt = self.root / "corrupt.tar.gz"
         self.bundle("123abcd")
         data = self.archive.read_bytes()

@@ -18,6 +18,7 @@ import uuid
 MANIFEST = ".mudds-shipyards-install.json"
 DESKTOP = "mudds-shipyards.desktop"
 ICON = "mudds-shipyards.png"
+BUNDLED_INSTALLER = "install_linux_desktop.py"
 OWNER = "mudds-shipyards-linux-desktop"
 GENERATION = re.compile(r"\.mudds-shipyards-runtime-[0-9a-f]{32}")
 BINARY = re.compile(r"MuddsShipyards-[0-9a-f]{7}\.x86_64")
@@ -120,10 +121,14 @@ def checked_archive(path: Path):
     """Validate every member and gzip checksum before creating installation files."""
     with tarfile.open(path, "r:gz") as archive:
         members = []
+        seen = set()
         for member in archive:
             members.append(member)
-            if len(members) > 5:
-                raise InstallError("archive must contain the five standard checkpoint members")
+            if len(members) > 6:
+                raise InstallError("archive must contain five or six standard checkpoint members")
+            if member.name in seen:
+                raise InstallError(f"duplicate archive member: {member.name}")
+            seen.add(member.name)
             parts = PurePosixPath(member.name).parts
             if (member.name.startswith("/") or ".." in parts
                     or not (member.isdir() or member.isfile())
@@ -136,7 +141,8 @@ def checked_archive(path: Path):
         executable = root + ".x86_64"
         names = {f"{root}/{name}" for name in (executable, ICON, DESKTOP, "install-desktop-entry.sh")}
         files = [member for member in members if member.isfile()]
-        if len(files) != 4 or {member.name for member in files} != names:
+        file_names = {member.name for member in files}
+        if file_names not in (names, names | {f"{root}/{BUNDLED_INSTALLER}"}):
             raise InstallError("archive contents differ from the standard checkpoint bundle")
         for member in files:
             limit = 2 * 1024**3 if member.name.endswith(".x86_64") else 16 * 1024**2

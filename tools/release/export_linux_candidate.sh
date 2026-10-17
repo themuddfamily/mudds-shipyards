@@ -5,7 +5,7 @@
 #
 # Produces, directly inside builds/linux/:
 #   MuddsShipyards-<short>.x86_64                    self-contained binary (embedded PCK)
-#   MuddsShipyards-<short>-linux-x86_64.tar.gz       binary + .desktop launcher + icon
+#   MuddsShipyards-<short>-linux-x86_64.tar.gz       binary + launchers + icon + managed installer
 #   MuddsShipyards-<short>.x86_64.export-result.json schema_version 1 provenance
 #
 # Discipline mirrors export_windows_candidate.sh: the worktree must be clean and
@@ -87,6 +87,7 @@ result_basename="${output_basename}.export-result.json"
 desktop_basename="mudds-shipyards.desktop"
 icon_basename="mudds-shipyards.png"
 installer_basename="install-desktop-entry.sh"
+managed_installer_basename="install_linux_desktop.py"
 build_root="$REPO_ROOT/builds/linux"
 
 templates_dir="${GODOT_EXPORT_TEMPLATES_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates}"
@@ -169,6 +170,9 @@ PY
 verify_release_template
 icon_source="$REPO_ROOT/assets/keth-icon.png"
 [[ -f "$icon_source" ]] || die "missing application icon: $icon_source"
+managed_installer_source="$SCRIPT_DIR/$managed_installer_basename"
+[[ -f "$managed_installer_source" && ! -L "$managed_installer_source" ]] \
+	|| die "missing managed Linux installer: $managed_installer_source"
 
 require_stable_source_tree() {
 	local current_commit current_dirty
@@ -313,6 +317,9 @@ chmod 644 -- "\$entry"
 echo "Installed \$entry"
 INSTALLER
 chmod 755 -- "$package_root/$installer_basename"
+# Ship the standalone manager unchanged so installation never needs a checkout.
+cp -- "$managed_installer_source" "$package_root/$managed_installer_basename"
+chmod 755 -- "$package_root/$managed_installer_basename"
 
 commit_epoch="$(git -C "$REPO_ROOT" show -s --format=%ct "$commit")"
 staged_tarball="$work_dir/$tarball_basename"

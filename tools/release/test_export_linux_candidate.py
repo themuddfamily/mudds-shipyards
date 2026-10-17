@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -145,9 +146,10 @@ class ReleaseTemplatePin(unittest.TestCase):
         release.mkdir(parents=True)
         self.script = release / EXPORT_SCRIPT.name
         shutil.copy2(EXPORT_SCRIPT, self.script)
+        shutil.copy2(TOOLS_DIR / "install_linux_desktop.py", release)
         (release / "check_zenith_export_inputs.py").write_text("raise SystemExit(0)\n")
         (self.repo / "assets").mkdir()
-        (self.repo / "assets/keth-icon.png").write_bytes(b"fixture-icon")
+        (self.repo / "assets/keth-icon.png").write_bytes(b"\x89PNG\r\n\x1a\nfixture-icon")
         self.preset = self.repo / "export_presets.cfg"
         self._preset('""')
         self.templates = self.dir / "templates/4.7.1.stable"
@@ -199,6 +201,51 @@ class ReleaseTemplatePin(unittest.TestCase):
         self.assertEqual(record["release_template"]["path"], str(self.template))
         self.assertEqual(record["release_template"]["sha256"], self.digest)
         self.assertEqual(record["release_template"]["expected_sha256"], self.digest)
+
+    def test_bundle_ships_exact_manager_and_supports_checkout_free_lifecycle(self):
+        result = self._export()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        archive_path = self.repo / "builds/linux/MuddsShipyards-0123456-linux-x86_64.tar.gz"
+        root = "MuddsShipyards-0123456"
+        manager_name = "install_linux_desktop.py"
+        with tarfile.open(archive_path, "r:gz") as archive:
+            members = archive.getmembers()
+            self.assertEqual(len(members), 6)
+            self.assertEqual({m.name for m in members}, {root} | {
+                f"{root}/{name}" for name in (
+                    root + ".x86_64", "mudds-shipyards.png", "mudds-shipyards.desktop",
+                    "install-desktop-entry.sh", manager_name,
+                )
+            })
+            for name, mode in ((root + ".x86_64", 0o755), (manager_name, 0o755),
+                               ("install-desktop-entry.sh", 0o755),
+                               ("mudds-shipyards.desktop", 0o755), ("mudds-shipyards.png", 0o644)):
+                self.assertEqual(archive.getmember(f"{root}/{name}").mode, mode)
+            manager_bytes = archive.extractfile(f"{root}/{manager_name}").read()
+            self.assertEqual(manager_bytes, (TOOLS_DIR / manager_name).read_bytes())
+            # Only materialize the manager: invoking it needs no repository or helper.
+            standalone = self.dir / manager_name
+            standalone.write_bytes(manager_bytes)
+            helper = archive.extractfile(f"{root}/install-desktop-entry.sh").read()
+            self.assertIn(b'if [ "${1:-}" = "--uninstall" ]; then', helper)
+        install_dir = self.dir / "managed install"
+        applications_dir = self.dir / "applications"
+        arguments = ["--install-dir", str(install_dir), "--applications-dir", str(applications_dir)]
+        sentinel = self.dir / "protected-save.cfg"
+        sentinel.write_bytes(b"player save")
+        for command in ("install", "install", "uninstall"):
+            cli = [sys.executable, str(standalone), command, *arguments]
+            if command == "install":
+                cli += ["--archive", str(archive_path)]
+            result = _run(cli, cwd=self.dir)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(sentinel.read_bytes(), b"player save")
+            if command == "install":
+                state = json.loads((install_dir / ".mudds-shipyards-install.json").read_text())
+                executable = install_dir / state["generation"] / state["executable"]
+                self.assertEqual(executable.read_bytes(), self.template.read_bytes())
+        self.assertFalse(install_dir.exists())
+        self.assertFalse((applications_dir / "mudds-shipyards.desktop").exists())
 
     def test_wrong_hash_rejected_before_editor_is_called(self):
         self.env["GODOT_EXPECTED_LINUX_TEMPLATE_SHA256"] = "0" * 64
