@@ -84,35 +84,37 @@ Estimates below are working ranges, not promises or permission to lengthen test 
 ### Next small batch: combat and surface benchmark capabilities
 
 Two executable capabilities are selected below, plus one completed diagnostic.
-No capability in this batch is accepted yet. Root owns integration; benchmark
-changes share one component and stay sequential. This does not close native
-performance, canonical journeys or any parent requirement.
+E1 is accepted; E2 remains at definition. The completed diagnostic is counted
+separately. Root owns integration; benchmark changes share one component and
+stay sequential. This does not close native performance, canonical journeys or
+any parent requirement.
 
 | Assignment | State / owner | One finish line and stop boundary | Estimate |
 | --- | --- | --- | --- |
-| E1 · PERF-ROUTE[Torrent range combat/reuse] | IN PROGRESS; combat_benchmark_route | Select-only real Torrent fire damages/destroys the live range target, reuses it through the existing production owner, and sustains actual combat through sampling. Existing recorder/default protocol retained. Stop at focused route result or first concrete blocker. | 1–2h implementation; 15–30min focused checks |
-| E2 · PERF-ROUTE[Ember surface walking] | DEFINE, sequential after E1 | Define one finite path on the actual streamed Ember surface, production player/gravity/support and normal movement; one staging placement outside timing. Acceptance must reject idle/unsupported/out-of-surface samples. Stop definition at exact loaded-world/waypoint/input owners and an executable command, or one named missing input; do not start implementation with an unnamed route. | 20–30min definition; implementation estimate follows concrete contract |
+| E1 · PERF-ROUTE[Torrent range combat/reuse] | DONE on7c5e85787 | Select-only normal Torrent fire produces sampled damage/destruction/reuse; saved reports and active-fire abort pass. Default protocol retained. | Focused19 PASS; preceding default152/record15 pass; total effort not timed |
+| E2 · PERF-ROUTE[Ember surface walking] | DEFINE / NEXT; root | Define one finite path on the actual streamed Ember surface, production player/gravity/support and normal movement; one staging placement outside timing. Acceptance must reject idle/unsupported/out-of-surface samples. Stop definition at exact loaded-world/waypoint/input owners and an executable command, or one named missing input; do not start implementation with an unnamed route. | 20–30min definition; implementation estimate follows concrete contract |
 | E3 · BASE-DIAG[Bulwark default registration] | DONE; root-reviewed on2983a2be7 | Unchanged default test passes20 assertions headlessly at original300s cap; source/index/cache645/engine and actual process/environment/socket/lane closure verify. Historical graphics cause unknown, original matrix FAIL/capture remain open. No further probe or classification change implied. | Engine observed ~30.60s; total effort not timed |
 
-**Active E1 contract.** Parent: original performance §5 / required combat route.
-Owner/files: one agent owns `tools/performance/benchmark_runner.gd`, its existing
-test, native wrapper and usage doc. Add only selected
-`torrent_range_combat_reuse_route`. Stage the piloted production Torrent once
-against live DRONE-01 outside timing; normal fire Input drives the actual weapon,
-projectiles, Main combat authority and damage adapter. Retain target motion and
-identities. Reuse only after genuine authoritative destruction through
-`ShipyardWorld.reset_range_target_for_reuse`; never write health/pose during
-measurement or substitute direct damage. Sampling must show matching accepted
-shots, damage, destruction/reuse and combat activity through its end; warm-up-only
-or early-combat-then-idle reports fail. A stationary firing route needs combat
-progress, not invented movement. Keep schema1, default two routes, selected
-false/null admission and full3,600/60s plus18,000/600s floors. Route-specific8s
-smoke is explicitly diagnostic; existing smoke and full windows are unchanged.
-Use a separate focused mode in the existing test to keep its original300s cap;
-prove real smoke, rejected invalid results and active-fire abort/input release.
-Commit before execution; root reviews and runs focused checks with Dummy audio
-and isolated/headless display. No native Windows run, export or hardware claim.
-Next action: review the bounded implementation commit before any engine run.
+**E1 — Torrent combat/reuse capability (DONE).** Parent: original performance
+§5/combat. [Runner usage](docs/PERFORMANCE_BENCHMARK_RUNNER.md) documents selected
+`torrent_range_combat_reuse_route`. On7c5e85787, its eight-second smoke records17
+sampled shots/hits, six destructions and five production reuses, stable identity/
+healthy hull, plus saved JSON and active-fire abort:19 focused checks PASS.
+Original default152 and Python record15 pass on20e7519ff, before the combat-only
+staging/diagnostic repair; those results remain source-specific. Initial blocked
+staging failure is retained; exterior-side staging now verifies the actual
+reticle and first authority shot hit DRONE-01. No target/acceptance relaxation.
+Complete guards and owned cleanup independently verify; temporary checkout is
+removed (~259MB logical). Raw initial/default and corrected `repaired/` records:
+`/srv/mudds-work/range-combat-benchmark-results-20261017/`.
+Selected false/null admission, default two-route protocol and original full timing
+floors remain. Full combat-duration/rendered/native checks are NOT_RUN. Gameplay
+is unchanged; latest playable stays b6af782. Stop reached.
+
+**Next: define E2** from
+`tests/ember_loop_soak_evidence.gd::_walk_surface_route`, its authored waypoints,
+loaded Ember bootstrap and player/gravity owners. Stop with one finite executable
+surface-walk contract or a precise blocker before implementation.
 
 E3 raw: `/srv/mudds-work/bulwark-default-boundary-results-20261017/`.
 Its clean temporary worktree is removed. This diagnostic is separate from E1/E2
@@ -431,7 +433,7 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | ID / one instance | Status / prerequisite | Result and acceptance; stop boundary |
 | --- | --- | --- |
 | PERF-MACHINE[one minimum/target profile] | WAITING on representative hardware if unavailable | Bind declared CPU/GPU/RAM/display/driver profile to an actual isolated test machine. Stop at available machine identity or exact missing resource; never infer native performance from llvmpipe. |
-| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It supports default `station_embodied_route` plus `nearby_sector_ship_flight_route`, and select-only `halyard_cabin_walk_route` from D5. Remaining required combat/surface/repeat routes stay open; default combined acceptance retains its original narrow scope. Stop at executable route/selection and focused check, not a new benchmark system. |
+| PERF-ROUTE[one missing benchmark route] | DEFINE; named required scenario | Specify and implement one missing fleet/cabin/combat/surface/repeat route through existing benchmark runner. It supports default `station_embodied_route` plus `nearby_sector_ship_flight_route`, and select-only `halyard_cabin_walk_route` from D5 plus `torrent_range_combat_reuse_route` from E1. Remaining required surface/repeat routes stay open; default combined acceptance retains its original narrow scope. Stop at executable route/selection and focused check, not a new benchmark system. |
 | PERF-RUN[one machine/scenario] | GATED on machine and executable route | Original warmup at least 3,600 frames/60s; measurement at least 18,000 frames/600s. At 1080p High, p95 ≤16.7ms, p99 ≤33.3ms, no post-warm frame >100ms, peak working set ≤4GiB, plus required actual GPU/VRAM and streaming/transient budgets. Stop at that measured scenario; retain failure. |
 | PERF-FIX[one measured hotspot] | GATED on demonstrated production cost | Fix the identified runtime/rendering owner; repeat the affected measurement and behavior check. Stop at measured effect and checkpoint; no census-only progress. |
 | INPUT-DEVICE[one device/route] | WAITING on physical device if absent | Ordinary full selected route with actual keyboard/mouse or controller, including lifecycle/planetary control as applicable. Existing physical-sortie, lifecycle and controller-only expedition tests guide scenario. Stop at selected route; synthetic events cannot qualify physical hardware. |

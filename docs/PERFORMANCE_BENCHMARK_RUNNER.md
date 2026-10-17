@@ -208,7 +208,7 @@ godot --audio-driver Dummy --path /absolute/path/to/repository \
 
 Optional configuration variables are:
 
-- `KETH_BENCHMARK_SCENARIO=station_embodied_route` (or `nearby_sector_ship_flight_route` / `halyard_cabin_walk_route`; omit for the original two)
+- `KETH_BENCHMARK_SCENARIO=station_embodied_route` (or another route listed above; omit for the original two)
 - `KETH_BENCHMARK_RESOLUTION=1920x1080`
 - `KETH_BENCHMARK_QUALITY_LEVEL=2` (`0` Low, `1` Medium, `2` High)
 - `KETH_BENCHMARK_WARMUP_FRAMES=3600`
