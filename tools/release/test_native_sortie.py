@@ -16,6 +16,64 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def walk_observation(self):
+        return {'frame': 100, 'phase': 'APPROACH_SHIP', 'player_id': 1,
+                'position': [0, 1.15, -10], 'player': [0, 0, 15.5],
+                'seated': False, 'control_enabled': True,
+                'walk_right': [1, 0, 0], 'walk_forward': [0, 0, -1],
+                'sandbox': {'fleet': {key: {'ship_id': index + 2, 'piloted': False,
+                    'destroyed': False, 'parked_exact': True, 'default_sampler': True,
+                    'tuning_unchanged': True} for index, key in enumerate(sorted(native.SandboxWalkPilot.FLEET))},
+                    'doors': [], 'grounded': True, 'walk_mouse': .0025}}
+
+    def test_scoped_walk_cannot_claim_full_sandbox_gate(self):
+        pilot = native.SandboxWalkPilot()
+        pilot.stage = 'walk_station'
+        pilot.index = len(pilot.WAYPOINTS) - 1
+        pilot.door_opened = True
+        observation = self.walk_observation()
+        observation['player'] = pilot.WAYPOINTS[-1][1]
+        keys, dx, dy, fire = pilot.update(observation, 1)
+        self.assertEqual((keys, dx, dy, fire), (set(), 0, 0, False))
+        self.assertEqual(pilot.result['gate_c_sandbox'], 'NOT_COMPLETED')
+        self.assertIn('deliberate crash', pilot.result['remaining'])
+        self.assertEqual(native.CAP, 300)
+
+    def test_walk_rejects_unobserved_or_mutated_fleet_and_recovery_teleport(self):
+        pilot = native.SandboxWalkPilot()
+        observation = self.walk_observation()
+        del observation['sandbox']
+        with self.assertRaisesRegex(AssertionError, 'observer available'):
+            pilot.update(observation, 1)
+        observation = self.walk_observation()
+        observation['sandbox']['fleet']['arrow_provisional']['default_sampler'] = False
+        with self.assertRaisesRegex(AssertionError, 'authored controls'):
+            pilot.update(observation, 1)
+        pilot = native.SandboxWalkPilot()
+        pilot.stage = 'walk_station'
+        observation = self.walk_observation()
+        pilot.update(observation, 1)
+        observation = self.walk_observation()
+        observation.update(frame=101, player=[100, 0, 15.5])
+        with self.assertRaisesRegex(AssertionError, 'recovery teleport'):
+            pilot.update(observation, 2)
+
+    def test_walk_opens_only_the_actual_closed_door_candidate(self):
+        observation = self.walk_observation()
+        observation['player'] = [46, 0, 15.5]
+        observation['walk_forward'] = [1, 0, 0]
+        observation['walk_right'] = [0, 0, 1]
+        observation['sandbox']['doors'] = [{'position': [49, 0, 15.5],
+                                          'open': False, 'candidate': False}]
+        for candidate, expected in [(False, False), (True, True)]:
+            pilot = native.SandboxWalkPilot()
+            pilot.stage = 'walk_station'
+            pilot.index = 3
+            observation['sandbox']['doors'][0]['candidate'] = candidate
+            observation['sandbox']['doors'][0]['position'] = [48.9, 0, 15.5]
+            keys, *_ = pilot.update(observation, 1)
+            self.assertEqual('e' in keys, expected)
+
     def test_launch_resumes_thrust_when_braking_stops_outside_waypoint(self):
         # Actual e159ac3 route stopped here for 240+ observations: the brake
         # margin is 5.75m but the unchanged waypoint acceptance radius is 5m.

@@ -15,6 +15,14 @@ func _run() -> void:
 		"ordinary Boot leaves the native sortie observer unloaded")
 	_check(StartupLoaderType.native_sortie_request(native_args, "X11", "Dummy", true).accepted,
 		"native sortie observation admits the explicit silent private X11 route")
+	var sandbox_args := PackedStringArray(["--native-sortie-observer=sandbox-walk"])
+	_check(StartupLoaderType.native_sortie_request(sandbox_args, "X11", "Dummy", true).accepted,
+		"scoped station walking uses the same explicit private observer admission")
+	_check(not StartupLoaderType.native_sortie_request(sandbox_args, "X11", "Dummy", false).accepted,
+		"station walking cannot enable telemetry on an unowned display")
+	_check(not StartupLoaderType.native_sortie_request(PackedStringArray([
+		"--native-sortie-observer", "--native-sortie-observer=sandbox-walk"]), "X11", "Dummy", true).accepted,
+		"two observer routes cannot compete")
 	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
 		_check(not StartupLoaderType.native_sortie_request(native_args, row[0], row[1], row[2]).accepted,
 			"native observer rejects unsupported display/audio/ownership")
