@@ -17,3 +17,6 @@ Full matrix on this source is NOT_RUN. The exact earlier f85957f862c0e4841fc549c
 
 ELF SHA-256: 6681a20a0e8a821772bb47b5cdfe80f76b8878d86971b21f76c8009ddece0928
 Archive SHA-256: 583b81fa2e7e9db8b1f3fc8d3563d59a32c97007d42d64a56e66f53c7b3bd5eb
+
+Subsequent actual gameplay check (2026-10-17):
+The existing exact-source Rime pad-controls suite remains FAIL: exit 124 at the unchanged 300s cap (300213ms). The first rime_session scenario completes, including ordinary walking, the original eight-sample settlement, pad boundary guards and retirement. Its return walk to (-8, -29.5, -38) passes in 17283ms / 472 physics ticks under the original 18s limit. The second rime_scene scenario reaches outbound walking before the suite cap. Source/cache guards remain stable; the only diagnostic is the supervisor timeout. The suite does not print its accumulated assertion count before timeout, so no assertion total is claimed. This serialized focused run does not establish a causal speedup against the earlier three-worker full run and closes no full-flow or phase gate. Raw result/log: /srv/mudds-work/snapshot-rime-flow-20261017/results/ca0-rime-pad-flow-20261017/.
