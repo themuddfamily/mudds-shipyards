@@ -127,13 +127,19 @@ initial(-7,.2,-17) is within it. No coordinate/support relaxation is justified.
 The missing fact is which existing readiness predicate fails; aggregate error
 cannot distinguish scene/frame/policy/floor.
 
-**Next single action / AURORA-STAGING-DIAGNOSTIC:** implement actionable last-gate
-values in the existing runner staging failure output,20-minute maximum. Owner
-`aurora_coastal_benchmark`, runner only, no physics/coordinates/waits/criteria
-changes. Freeze that commit and run one guarded selected attempt with original
-300s cap (fresh import600s separately), optional Git writes disabled. Stop on
-first failure; a specific observed cause becomes a separate bounded repair.
-Prepared raw supervisor: retained raw directory's `staging-diagnostic/`.
+**AURORA-STAGING-DIAGNOSTIC DONE on a262744ba:** the single guarded probe
+identified `loaded_scene_unavailable` for all240 ticks: frame1→2 committed,
+streamed generation0, no policy/floor gate reached. No movement acceptance.
+Source/index/engine/cache guards passed; all12 recorded identities absent, lanes
+free, closure reports no owned socket/display remnants. Raw diagnostic retained.
+
+**Next single action / AURORA-STREAM-STAGING:** implement the smallest supported
+runner-only correction to existing Main Aurora observer/binding use,30 minutes
+maximum. Owner `aurora_coastal_benchmark`; inspect authored setup and actual
+stream owner, then correct that seam. No wait extension, fabricated scene,
+production physics changes or sampled actor placements. Freeze/review before
+one unchanged acceptance run. If the seam cannot be established within budget,
+record the missing fact and stop; no speculative investigation.
 
 All ten phase gates remain open. Q4 startup stays parked after the bounded
 five-file source review found no justified construction candidate. Latest

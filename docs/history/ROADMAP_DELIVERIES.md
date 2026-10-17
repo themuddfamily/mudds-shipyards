@@ -569,3 +569,16 @@ index-byte guard. Six recorded process identities were absent; both lanes were
 independently free and closure reported no owned socket/display remnants.
 Separate15-minute read-only diagnosis selects one supported initial-coordinate/
 floor hypothesis or names the missing fact; no route rescue or unchanged retry.
+
+## Aurora coastal benchmark — one staging diagnostic on a262744ba
+
+The bounded diagnostic identified `loaded_scene_unavailable`: all240 allowed
+ticks elapsed with streamed generation0. Origin frame1→2 committed, but no
+scene, gravity-policy or floor check was reached. Qualification remains FAILED;
+there was no movement. Cold import passed; strict source/index/engine/cache
+guards passed with `GIT_OPTIONAL_LOCKS=0` in the private runtime. All12 recorded
+identities were independently absent, both lanes free; closure reports no owned
+socket/display remnants. Raw:
+`/srv/mudds-work/aurora-coastal-acceptance-results-20261017/staging-diagnostic/`.
+Next separate repair is existing Main Aurora observer/binding use in runner
+staging,30 minutes maximum; no waits/physics/acceptance relaxation or fabrication.
