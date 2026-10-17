@@ -938,7 +938,10 @@ func _walk(target_local: Vector3) -> void:
 	var start := _player.global_position
 	var furthest := 0.0
 	var source := _game.get_network_remote_body_intent_source()
-	var settle_authoritative := (_ember_surface or _shared_cruise) and _role in ["client", "client_b"] \
+	# Ordinary Halyard prediction can arrive before reconciliation moves it
+	# away again before the blind final sample. Reuse the same bounded settlement.
+	var settle_authoritative := (_ember_surface or _shared_cruise \
+		or _craft.get_ship_id() == GameFlow.HALYARD_SHIP_ID) and _role in ["client", "client_b"] \
 		and source != null and source.is_bound()
 	var source_entity := source.get_entity_id() if settle_authoritative else &""
 	var source_generation := source.get_entity_generation() if settle_authoritative else 0

@@ -70,13 +70,20 @@ func _run() -> void:
 	game._try_exit_ship()
 	var motion_states := {}
 	var settled := false
+	var exit_phase_seen := false
 	for _frame in 600:
 		await physics_frame
 		if not player.is_seated():
 			motion_states[player.get_authored_motion_state()] = true
 		if game.phase == GameFlow.Phase.APPROACH_SHIP and not game._transition_busy:
-			settled = true
-			break
+			# physics_frame resumes before the player's callback. Observe the ready
+			# phase twice so one ordinary on-foot solver runs before the floor check.
+			if exit_phase_seen:
+				settled = true
+				break
+			exit_phase_seen = true
+		else:
+			exit_phase_seen = false
 	_check(settled, "the berth exit returns the pilot to the deck")
 	_check(
 		not motion_states.has(&"airborne") and not motion_states.has(&"landing_recovery"),
