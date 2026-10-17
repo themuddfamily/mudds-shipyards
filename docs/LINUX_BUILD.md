@@ -4,7 +4,34 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest published checkpoint: `fbfcf6c6a` — 2026-10-11
+## Latest local checkpoint: `c26e2c13c` — 2026-10-17
+
+The [executable](../builds/linux/MuddsShipyards-c26e2c1.x86_64),
+[archive](../builds/linux/MuddsShipyards-c26e2c1-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-c26e2c1-linux-notes.txt) use clean source
+`c26e2c13c2e1358322bda08725b87e7462fd5da9`. The opt-in read-only observer and
+external OS-input route exercise a five-branch station walk through Central,
+Habitat, Freight, Aft and Fleet Dock. Actual packaged execution passes 54
+waypoints in 125.421s, including the physical door and stair climb. A separate
+full default Guided compatibility sortie passes in 49.150s with zero diagnostics
+and independent input/process cleanup. Later
+external-caller-only aisle/door fixes leave all exported runtime bytes unchanged;
+the notes identify the exact tested caller separately from the export source.
+
+All 1,515 Windows/Linux payload entries match by path, size and SHA-256. Windows
+payload through Linux, direct Linux and archive-extracted startup each exit 0
+with exactly one `STARTUP_MENU_READY_OK` and zero diagnostics. Actual Windows
+payload passes 155 startup privacy checks. Archive member bytes and executable
+mode pass. Tests use private Xvfb x11 or headless execution and Dummy audio;
+the OS-input walk uses dummy rendering and proves no native GPU performance.
+
+Full Sandbox eight-craft/crash/recovery/regenerate/reuse remains NOT_COMPLETED.
+Full current-source regression, Settings/re-entry, graphical, applicable device
+and native GPU acceptance remain open. Native Windows, audible output and human
+review remain NOT_RUN. All ten phase exit gates remain open; hosted CI stays
+disabled. Binaries and checkpoint ZIP remain local to this repository's builds.
+
+## Earlier published checkpoint: `fbfcf6c6a` — 2026-10-11
 
 The [executable](../builds/linux/MuddsShipyards-fbfcf6c.x86_64),
 [archive](../builds/linux/MuddsShipyards-fbfcf6c-linux-x86_64.tar.gz) and

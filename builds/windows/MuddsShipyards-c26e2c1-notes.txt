@@ -1,0 +1,22 @@
+Mudd's Shipyards — Five-branch ordinary-input checkpoint c26e2c1 — 2026-10-17
+Clean exported source: c26e2c13c2e1358322bda08725b87e7462fd5da9
+Engine: pinned official Godot 4.7.1 a13da4feb; stock release templates.
+Tested external caller source: c617e7d13 (tools/release/run_native_sortie.py)
+External caller SHA-256: a1ba621b0bac55d5f161b96489de440bcd38d847aae9ef0192e7577063cb2413
+
+Delivered capability:
+An explicitly opted-in read-only station observer and native OS-input route now exercise Central, Habitat, Freight, Aft and Fleet Dock. The route uses physical walking, a real Habitat door interaction and the Aft stairs. Player-facing content is unchanged. Subsequent external Python caller fixes select supported pedestrian aisles around the parked tow tractor, cargo, Arrow and crew post, and send one accepted door press so the authored opening finishes. These caller fixes do not modify exported game resources; tools/tests are excluded from the PCK. Runtime/resource diff from clean export source to tested caller commit is empty.
+
+Actual validation:
+- Actual Linux ELF five-branch walk: PASS, 54 waypoints, 125.421s, unchanged 300s cap. All 6,129 raw observations retain the same player and all nine parked craft/default samplers/authored tuning. Native door interaction frame1487 precedes first open1521 and physical threshold crossing1536. No teleport, game actor writes, physics/timing changes or waypoint-radius relaxation. Inputs released and helper/game/Xvfb reaped, independently checked absent in /proc; zero diagnostics through shutdown.
+- Same ELF default Guided compatibility sortie: PASS 49.150s under unchanged 300s cap. Physical walk/board, launch, four targets, defender defeat, strict home-berth landing, automatic neutral shutdown (91 authored 60Hz physics frames), same-player physical exit and COMPLETE. Default sampler/authored tuning retained, zero diagnostics and independent input/process cleanup. This is one compatibility pass on this source; earlier e159ac3 Guided3/3 acceptance does not transfer here.
+- Ten focused Python tests PASS. Source startup privacy passes155 checks; explicit lazy observer parse and fresh editor import exit0 without diagnostics. Actual Windows embedded PCK startup privacy test:155 checks, exit0, 0.918s, zero diagnostics.
+- Clean isolated Windows/Linux exports: all1,515 embedded entries match by path, size and SHA-256. Read-only PE code section matches trusted stock template (989b3abeb77ca4499b24b262aabde23ef114fad69eac682037838ac73cba4128).
+- Three strict --startup-check probes each exit0, exactly one STARTUP_MENU_READY_OK and zero diagnostics: Windows PCK through Linux editor26.155s, direct Linux21.538s, archive-extracted Linux21.514s. Archive member bytes and executable mode verified.
+- All automated Godot invocations use Dummy audio, headless or isolated Xvfb with explicit x11. OS-input routes use dummy rendering, fresh private profiles, ordered runtime locks and independent abort/reaping. No user's desktop input or native Windows execution. Hosted CI stays disabled.
+- Retained causal failures: tow obstruction71.253s; cargo obstruction93.916s; repeated door press reversing opening. Each was independently aborted after diagnosis, with input/process cleanup; none is promoted to a pass. Raw successful/failed runs, source checks, package inventories and exact caller: artifacts/checkpoint-c26e2c1/.
+
+Open acceptance:
+Full Sandbox remains explicitly NOT_COMPLETED: eight craft launch/land/exit, deliberate crash, on-foot recovery and regenerate/reuse. Complete Settings/re-entry, current-source full regression, full Gate C, graphical and applicable hardware acceptance remain open. All ten roadmap phase exit gates remain open. This dummy-renderer OS-input result establishes no native GPU performance. Native Windows remains NOT_RUN under antivirus hold; native GPU/controller/audible/human checks remain NOT_RUN, including owner-excluded gates. Unsigned development checkpoint.
+
+EXE SHA-256: 982c469b3fa95fa9ce2111ce68d53d4abee50284d6a70630abb78b0f62d38b57
