@@ -12,6 +12,7 @@ var _tuning := {}
 var _elapsed := 0.0
 var _sandbox := false
 var _full_sandbox := false
+var _hulk_arrival := false
 var _fleet_initial := {}
 var _crash_surface := {}
 var _fleet_details := {}
@@ -27,6 +28,7 @@ func on_startup_completed(main: Node) -> void:
 	_spawn = _player.global_position
 	_parked = _ship.global_transform
 	_tuning = _sortie_tuning()
+	_hulk_arrival = "--native-sortie-observer=hulk-arrival" in OS.get_cmdline_args()
 	_full_sandbox = "--native-sortie-observer=sandbox" in OS.get_cmdline_args()
 	_sandbox = "--native-sortie-observer=sandbox-walk" in OS.get_cmdline_args() or "--native-sortie-observer=sandbox" in OS.get_cmdline_args()
 	if _sandbox:
@@ -108,6 +110,8 @@ func _physics_process(delta: float) -> void:
 		"application_focused": source.get("_application_focused") if source != null else false,
 		"transition_busy": _game.get("_transition_busy"),
 	}
+	if _hulk_arrival:
+		observation["hulk"] = _hulk_arrival_observation()
 	if _sandbox:
 		observation["sandbox"] = _sandbox_observation()
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
@@ -197,3 +201,49 @@ func _sandbox_observation() -> Dictionary:
 	return {"fleet": fleet, "doors": doors, "station_candidate": station_candidate,
 		"crash_surface": _crash_surface, "grounded": _player.is_on_floor(),
 		"walk_mouse": _player.mouse_sensitivity}
+
+
+func _hulk_arrival_observation() -> Dictionary:
+	# Before streaming, this authored station-relative goal only guides OS
+	# flight. Once resident, the live berth supplies its exact capture centre.
+	var dock_local := Transform3D(Basis(Vector3.UP, PI),
+		AbandonedStationHulk.BERTH_LOCAL_POSITION + Vector3.UP * AbandonedStationHulk.BERTH_DOCK_HEIGHT)
+	var approach := _game.world.to_global(AbandonedStationHulk.HULK_ANCHOR
+		+ dock_local * AbandonedStationHulk.BERTH_ASSIST_CAPTURE_CENTER)
+	var result := {"available": false, "approach": _v(approach)}
+	var cluster := _game.world.get_nearby_sector_cluster()
+	if not is_instance_valid(cluster):
+		return result
+	var hulk := cluster.get_station_hulk()
+	var berth := _game.get_station_hulk_berth()
+	if not is_instance_valid(hulk) or not is_instance_valid(berth) or not berth.is_inside_tree():
+		return result
+	var capture := _game.call("_get_active_landing_assist_report") as Dictionary
+	var contract := _ship.get_landing_contract_report()
+	var support := {}
+	if not _player.is_seated():
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD)
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var occupant := berth.get_occupant()
+	result.merge({"available": true, "hulk_id": hulk.get_instance_id(),
+		"berth_id": str(berth.get_berth_id()), "berth_instance_id": berth.get_instance_id(),
+		"approach": _v(berth.get_assist_capture_transform().origin),
+		"dock": _v(berth.get_dock_transform().origin),
+		"dock_forward": _v(-berth.get_dock_transform().basis.z),
+		"selected_berth_id": str(capture.get("selected_berth_id", &"")),
+		"capture": bool(capture.get("assist_capture_accepted", false)) and bool(capture.get("streamed_destination", false)),
+		"contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false))
+			and bool(contract.get("reservation_token_bound", false)) and contract.get("berth_id", &"") == berth.get_berth_id()
+			and int(contract.get("berth_instance_id", 0)) == berth.get_instance_id(),
+		"lease": occupant == _ship and berth.get_reservation_owner() == _ship
+			and berth.get_reserved_ship_id() == _ship.get_ship_definition().ship_id,
+		"occupant_id": occupant.get_instance_id() if is_instance_valid(occupant) else 0,
+		"parked_exact": _ship.global_transform.is_equal_approx(berth.get_dock_transform()),
+		"landing_abort_reason": str(contract.get("last_abort_reason", &"")),
+		"grounded": _player.is_on_floor(),
+		"shelf_supported": is_instance_valid(collider) and collider == hulk.get_node_or_null(^"Exterior/DockShelf"),
+		"support_collider": str(hulk.get_path_to(collider)) if is_instance_valid(collider) and hulk.is_ancestor_of(collider) else "",
+	}, true)
+	return result
