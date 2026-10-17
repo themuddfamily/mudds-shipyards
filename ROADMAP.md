@@ -148,7 +148,7 @@ HULK command can honestly be claimed. Definition stops here; no engine run.
 
 Three dependent children replace the broad “finish HULK” assignment below. All
 link to [HULK](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys). Only the
-first is ready for implementation; later cards must freeze their exact invocation
+arrival candidate has failed qualification; later cards must freeze their exact invocation
 after their dependency exists. These are scenario capabilities, not phase completion.
 
 ### HULK-ARRIVAL-INPUT — FAILED qualification; candidate retained
@@ -169,7 +169,7 @@ after their dependency exists. These are scenario capabilities, not phase comple
   no saved-ready fixture or bypass is implied.
 - **Proof:** intended new command is `python3 tools/release/run_native_sortie.py
   builds/linux/<exact-clean-build>.x86_64 --route hulk-arrival --output <new-run-dir>`.
-  This command is not implemented yet. Require actual physical departure, streamed
+  This command exists on the retained candidate branch only. Require actual physical departure, streamed
   destination, production landing contract accepted for `cinder_hulk_dock`, berth
   occupant equal to the flown craft, normal shutdown/Interact exit, unseated
   controllable Player on actual HULK collision. Exact mode/marker must be added
