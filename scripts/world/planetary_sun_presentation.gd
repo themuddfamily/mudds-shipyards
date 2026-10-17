@@ -245,8 +245,8 @@ func present_observation(
 		and renderer_values == _current_renderer_values
 	if identical and _target_matches_expected():
 		return _result(true, &"unchanged", {
-			"evaluation": _last_evaluation.duplicate(true),
-			"renderer_values": _current_renderer_values.duplicate(true),
+			"evaluation": _last_evaluation,
+			"renderer_values": _current_renderer_values,
 		})
 
 	_mutation_active = true
@@ -267,8 +267,8 @@ func present_observation(
 	)
 	_commit(reason)
 	return _result(true, reason, {
-		"evaluation": _last_evaluation.duplicate(true),
-		"renderer_values": _current_renderer_values.duplicate(true),
+		"evaluation": _last_evaluation,
+		"renderer_values": _current_renderer_values,
 	})
 
 

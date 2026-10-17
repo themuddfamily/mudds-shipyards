@@ -46,7 +46,7 @@ const CAPABILITY_KEYS := [
 	"calibrated_colorimetry_implemented", "shadow_or_occlusion_implemented",
 	"clock_or_ephemeris_implemented", "environment_or_sky_implemented",
 ]
-const EXPECTED_ASSERTIONS := 53
+const EXPECTED_ASSERTIONS := 55
 
 class SnapshotCountingPresentation:
 	extends PresentationScript
@@ -415,6 +415,30 @@ func _test_signal_reentry_and_detached_payload() -> void:
 		_adapter.get_state_snapshot() == state
 		and _adapter.get_state_snapshot().evidence == EXPECTED_EVIDENCE,
 		"nested presentation payload mutation cannot alter retained state"
+	)
+	var expected_evaluation := (result.evaluation as Dictionary).duplicate(true)
+	var expected_renderer := (result.renderer_values as Dictionary).duplicate(true)
+	result.evaluation.classification.state = &"caller_mutated"
+	result.renderer_values.light_energy = 999.0
+	var unchanged := _adapter.present_observation(_observation(Vector3.DOWN), 1)
+	_check(
+		unchanged.accepted and unchanged.reason == &"unchanged"
+		and unchanged.evaluation == expected_evaluation
+		and unchanged.renderer_values == expected_renderer
+		and _adapter.get_state_snapshot() == state
+		and _renderer_values(_light) == expected_renderer,
+		"changed-observation receipt mutation cannot alter retained evaluation or renderer state"
+	)
+	unchanged.evaluation.classification.state = &"caller_mutated_again"
+	unchanged.renderer_values.light_energy = 999.0
+	var repeated := _adapter.present_observation(_observation(Vector3.DOWN), 1)
+	_check(
+		repeated.accepted and repeated.reason == &"unchanged"
+		and repeated.evaluation == expected_evaluation
+		and repeated.renderer_values == expected_renderer
+		and _adapter.get_state_snapshot() == state
+		and _renderer_values(_light) == expected_renderer,
+		"unchanged-observation receipts remain detached from retained evaluation and renderer state"
 	)
 
 

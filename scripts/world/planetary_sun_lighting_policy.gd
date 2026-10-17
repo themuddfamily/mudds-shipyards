@@ -223,7 +223,7 @@ func evaluate(observation: Variant) -> Dictionary:
 	if not _evaluation_is_valid(evaluation):
 		return _result(false, &"evaluation_contract_mismatch")
 	return _result(true, &"evaluated", {
-		"evaluation": evaluation.duplicate(true),
+		"evaluation": evaluation,
 	})
 
 
