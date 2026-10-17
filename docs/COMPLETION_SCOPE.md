@@ -4,16 +4,20 @@ This is the working roster for [roadmap task 0](../ROADMAP.md#0-fix-the-release-
 
 The latest published Windows and Linux checkpoints share source `e159ac3c5` ([Windows notes](../builds/windows/MuddsShipyards-e159ac3-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-e159ac3-linux-notes.txt)). Their 1,515 embedded payload entries match by path, size and SHA-256. Strict Windows-payload-through-Linux, native Linux and archive-extracted startup checks pass, as do 1,054 focused Windows-payload checks. The scoped distant Jovian roof defect is closed after the unchanged original four-view capture and close-detail comparison. These results do not qualify the complete current game.
 
-The repaired native Linux ordinary-input sortie driver separately completes the
-same `e159ac3c5` ELF in 49.322s, including four practice targets, interceptor
-combat, strict home-berth landing and same-player physical exit, with zero
-diagnostics through shutdown and complete input/process cleanup. It fixes an
-observed driver braking deadlock and rejects previously ignored engine
-diagnostics; game physics, default sampling, authored tuning, route and 300s
-cap remain. This is one isolated-Xvfb/dummy-renderer OS-input run, not complete
-Guided 3/3, all-nine-craft, Sandbox or Settings acceptance. The existing playable
-checkpoint is unchanged; actual raw runs and tested driver are retained in
-`artifacts/native-sortie-diagnostics/`.
+The repaired native Linux ordinary-input sortie driver completes three
+consecutive fresh-process/profile sorties on the same exact `e159ac3c5` ELF in
+49.322/50.975/49.311s. Every run includes four practice targets, interceptor
+combat, strict home-berth landing, 91 neutral authored-60Hz shutdown frames
+(1.516667 physics seconds) and same-player physical exit, with zero diagnostics
+through shutdown and complete input/process cleanup. The driver fixes an
+observed braking deadlock and rejects previously ignored engine diagnostics;
+game physics, default sampling, authored tuning, route and 300s cap remain.
+This meets the Guided 3/3 subcriterion on that named package. Full Gate C remains
+open for Sandbox and Settings/re-entry; all-nine-craft and final combined-source
+acceptance remain required. These isolated-Xvfb/dummy-renderer OS-input runs do
+not establish native GPU/device or graphical acceptance. The existing playable
+checkpoint is unchanged. Raw runs are `artifacts/native-sortie-diagnostics/`
+and `artifacts/guided-e159ac3/`.
 
 Complete Settings acceptance remains open. The original writer passes. The latest source restart completes keyboard-and-mouse flight and gamepad outbound/control probes before the unchanged 300-second cap during gamepad return; the earlier d750 Windows payload also times out. Both failures remain retained. The original runner, saved profile and raw logs referenced in the bug ledger are absent from this workspace and its available cache/storage locations as of 2026-10-17; their described results cannot be replayed here until recovered. The pending correction to mouse-input observation remains unverified. A substitute scenario must not inherit the original Gate C acceptance.
 
