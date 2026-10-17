@@ -1351,3 +1351,22 @@ EMBER-ABANDON-SOURCE next; it qualifies a different required physical journey.
 REVISIT-CHECKPOINT remains gated, with no further HULK diagnosis/repair/rerun
 selected. This is0 accepted,1 failed,1 gated,1 ready in the three-card batch,
 not a new delivered gameplay feature or closure of any broad parent.
+
+
+## Retired worktree cleanup during Ember qualification — 2026-10-17
+
+At the user's request to tidy agent-created parent-directory scratch, removed
+three independently inventoried retired worktrees (approximately840MB including
+207MB generated Godot cache). Each had empty tracked/untracked status, no ignored
+files outside `.godot`, no unique build/raw artifacts and no live process using
+its checkout. Root rechecked clean state, exact HEAD/branch and process working
+directories before removal; no branch was deleted. Preserved source refs:
+
+- `perf/active-scene-cost`: dffb183ee5eab94a2fe15460173034bfd6a87568
+- `agent/boot-runtime-cost`: 1668f4bc336b46a98ae401d70e907efa3c1a0c34
+- `perf/cold-startup`: 1cd84cac2234dbf7f73aa3edff95927952d15423
+
+Their former directories were under `/srv/mudds-work/retired-worktrees/`; raw
+results and parked roadmap outcomes are unchanged. This is cleanup, not delivered
+gameplay progress. Existing Ember ABANDON run remains in progress on its original
+owner and unchanged7200s route cap; no duplicate run was launched.
