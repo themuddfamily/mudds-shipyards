@@ -185,12 +185,19 @@ after their dependency exists. These are scenario capabilities, not phase comple
 - **Separate repair HULK-PRIVACY-NAME — DONE:**ea883b499 changes only the added
   test variable/references to `hulk_arrival_args`. No driver/runtime/cap change.
   Root reviewed exact diff;5-minute budget. Earlier failure remains retained.
-- **Next action:** qualify repaired candidateea883b499a7e5e4d106644d6b108055177c57863
-  from the same clean acceptance checkout. Reuse the completed cold-import cache
-  only after exact equality to the prior frozen cache and all runtime source
-  hashes; the test-local rename is the sole declared source difference. Run
-  privacy then unrun Linux export/startups/one arrival. No flight retry has occurred.
-  Raw continuation: `/srv/mudds-work/hulk-arrival-results-20261017/privacy-name-fix/`.
+- **Second qualification:**ea883b499 privacy/export/direct+archive startup pass;
+  arrival failed during boot before any observation/flight: lazy observer could
+  not infer cluster/HULK types. Guards pass, all38 recorded identities absent,
+  display/authority/sockets closed, lanes free. Retain prior continuation raw.
+- **Separate repair HULK-OBSERVER-TYPE — DONE:**150dbb1a7 changes only added
+  observer local types/read-only typed lookup; no driver/cap/gameplay change.
+- **Next action:** one revised-source qualification on
+  `150dbb1a7d97408f9eef4bdeb46888ec4ff19cbc`. Start with explicit lazy-observer
+  parse check, then unrun new Linux export/startups/arrival. Completed privacy
+  test is unchanged and is not repeated. Reuse prior exact frozen cache with
+  the sole observer typing source change declared. Raw/stage owners/abort:
+  `/srv/mudds-work/hulk-arrival-results-20261017/observer-type-fix/`.
+  Existing acceptance checkout remains pinned, no flight outcome claimed.
   After a working route, clean-source Windows EXE/ZIP/notes remain required.
   All automated runtime remains isolated X11/Dummy with owned abort/cleanup.
 - **Close:** exact source/build/raw outcome, commit/push, remove owned disposable
