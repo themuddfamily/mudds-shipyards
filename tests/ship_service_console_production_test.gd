@@ -325,7 +325,9 @@ func _test_walk_annex_round_trip(game: GameFlow) -> void:
 		Vector3(68.5, 0.0, 28.0), Vector3(68.5, 0.0, 38.0),
 		Vector3(72.0, 0.0, 38.0),
 		annex.to_global(Vector3(0.0, 0.15, 4.8)),
-		annex.to_global(Vector3(4.5, 0.15, 4.8)),
+		# Cross between bench rows, clear of the entry roof column's capsule footprint.
+		annex.to_global(Vector3(0.0, 0.15, 9.5)),
+		annex.to_global(Vector3(4.5, 0.15, 9.5)),
 		annex.to_global(Vector3(4.5, 0.15, 7.55)),
 	]
 	for index in goals.size():
