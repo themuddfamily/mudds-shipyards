@@ -1,6 +1,20 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **3707bc9**, clean source `3707bc9d47c7ecd3eb9d0feb1ee7628eaa44b464`
+Latest accepted paired checkpoint: **29abe94**, clean source
+`29abe94c4152535ef41bb0220ee1505b265b2e08`
+([Windows notes](../builds/windows/MuddsShipyards-29abe94-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-29abe94-linux-notes.txt)). Actual archive
+ELF passes ordinary Habitat sleep→normal UI exit→distinct process/same saved
+profile→fresh supported look/walk/tractor interaction→normal UI exit,68.756s under
+singleCAP300. Both exit0/clean session and safe-start markers; unrelated data
+preserved in six independently read actual-file copies. Python54, unchanged
+GDScript import/compile/privacy327, paired exports/three strict startups and
+1521-entry audit pass. Original36.419s driver signed-ID failure and one exact
+reviewed repair retained. Normal Habitat aggregate closes on this source plus
+3707bc9 LOOP; final dressing/Sandbox/installed/full regression/native/device/audio/
+rendered/human gates remain open. All36 parents/ten phase gates OPEN.
+
+Earlier accepted paired checkpoint: **3707bc9**, clean source `3707bc9d47c7ecd3eb9d0feb1ee7628eaa44b464`
 ([Windows notes](../builds/windows/MuddsShipyards-3707bc9-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-3707bc9-linux-notes.txt)). Actual archive
 ELF passes full ordinary fresh hub/door/bunk sleep-wake/common-room/hub loop:
@@ -10,7 +24,8 @@ Xvfb/x11/Dummy with rendering disabled; input/physics acceptance, not native
 GPU/device/rendered/human review. Initial unit fixture/compile failures8.427s
 retained, explicit reviewed corrections, unchanged Python48 scope, final privacy304,
 paired exports/three strict silent startups/1521-entry audit pass. Normal Habitat
-restart and Sandbox/full final regression stay open. All36 parents/ten gates OPEN.
+restart was still open on that source; it is accepted separately on29abe94.
+Sandbox/full final regression stay open. All36 parents/ten gates OPEN.
 
 Earlier accepted paired checkpoint: **311df73**, clean source `311df7388fb4fa725b70bc65b194644f6ca134f0`
 ([Windows notes](../builds/windows/MuddsShipyards-311df73-notes.txt),
@@ -294,7 +309,7 @@ The [production scene](../scenes/world/shipyard_world.tscn), [world owner](../sc
 | --- | --- | --- | --- | --- |
 | Central berth, Arrow berth, launch gate and return apron | 2, 3, 10.3 | `shipyard_world.tscn`, `shipyard_world.gd` | I | On the final package walk from spawn, board, launch under the marked gate, return by ordinary assist, dock and exit; review collision, camera and readable minimum graphics. |
 | Aft junction, two elevations and operations room | 3, 10.3 | `aft_junction_stack.tscn` | I | Walk the stairs, operate the door and board console, then return without jumping or rescue; verify signage and no fleet landing-envelope overlap. |
-| Habitat connector, bunks and common room | 3, 10.3 | `habitat_spine.tscn` | I | Rest/wake at all six bunks delivered in221f523; ordinary hub/rest/common-room/reverse loop qualified on actual archive 3707bc9. Distinct-process restart controls and final packaged dressing review remain open. |
+| Habitat connector, bunks and common room | 3, 10.3 | `habitat_spine.tscn` | I | Rest/wake at all six bunks delivered in221f523; ordinary hub/rest/common-room/reverse loop qualified on actual archive 3707bc9. Normal same-profile distinct-process restart/awake controls/tractor interaction and both UI quits accepted on29abe94; final packaged dressing/native review remains open. |
 | Freight berth and source/destination terminals | 3, 8 | `jovian_freight_berth.tscn`, `cargo_source_terminal.tscn`, `cargo_destination_terminal.tscn` | I | Walk to each terminal, transfer real conserved cargo, reload the committed receipt and return to the same ship; rejected writes must not duplicate inventory. |
 | Fleet comb and all shipped craft berths | 3–5, 10.3 | `fleet_dock_comb.tscn`, world-owned berth instances | I | Physically reach and reuse every shipped craft, retain separated voids and neighbour clearance, then review fleet overview and player-height routes. Dock 03's deferred marker is not a delivered berth. |
 | Fabrication Annex repair-kit service | 3, 8 | `fabrication_annex.tscn` | I | Walk up and Interact to restock within the cap; repeat with unavailable/departed ownership and review normal/minimum readability. |

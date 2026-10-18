@@ -1,11 +1,13 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**3707bc9**, with the complete ordinary hub/Habitat sleep-wake/common-room/hub
-loop qualified through OS input. It includes six Habitat bunks, Settings focus,
-Hauler access, controller look, startup, music, sprint and HUD improvements.
-[Windows notes](builds/windows/MuddsShipyards-3707bc9-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-3707bc9-linux-notes.txt) state actual validation.
+**29abe94**, qualifying normal quit while resting in Habitat, a distinct process
+on the same saved profile, fresh supported look/walk/tractor interaction, and a
+second normal UI quit. The full ordinary Habitat loop remains accepted on3707bc9.
+Six bunks, Settings focus, Hauler access, controller look, startup, music, sprint
+and HUD improvements are included.
+[Windows notes](builds/windows/MuddsShipyards-29abe94-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-29abe94-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -54,9 +56,10 @@ unapproved; parked failures remain outside the queue.
 | GAMEPAD-LOOK /8,29 | DONE; packaged99e79c3 | Held right stick rotates actual local Player/tractor camera with safe handoffs | Full focused camera/tow/glyph checks, independent review and paired checkpoint pass; real-device/full controller route remains open. |
 | HAULER-SUPPLY-ACCESS /10,13 | DONE; packageda43ae4b | Actual Hauler lands at Cinder supply platform; current pilot walks to authorized terminal | Full focused access/berth/switching checks, independent review and paired checkpoint pass; cargo stock/manifest/delivery remain separate. |
 | SETTINGS-SCALED-FOCUS-SCROLL /12,29 | DONE; packaged4d7ac43 | Large-scale Settings focus fully reveals its current row; pending requests respect focus/page ownership | Focus59 and full16:9/21:9/32:9 source checks, independent review and paired checkpoint pass; rendered/device/transaction gates remain open. |
-| HABITAT-BUNK-REST /7,9 | DONE; packaged221f523 | All six Habitat bunks offer actual Interact sleep/wake, supported walking/reuse and owner-loss cleanup | Full focused rest, spine, Habitat and ship sleep checks; independent review and paired checkpoint pass. Ordinary hub/common-room/restart journey remains open. |
+| HABITAT-BUNK-REST /7,9 | DONE; packaged221f523 | All six Habitat bunks offer actual Interact sleep/wake, supported walking/reuse and owner-loss cleanup | Full focused rest, spine, Habitat and ship sleep checks; independent review and paired checkpoint pass. Ordinary loop/restart accepted separately on3707bc9/29abe94. |
 | DOCK-RECOVERY-PROBE /2,31,32 | DONE; packaged311df73 | Existing release driver interrupts one real Bulwark assist and proves distinct-process usable home recovery with conserved failed Convoy/reward boundary | Full privacy/landing suites, source and archive-extracted ELF cuts, paired checkpoint pass. Installed/final/ordinary/busy-exit gates remain open. |
-| WALK-HABITAT-LOOP /7,9 | DONE; packaged3707bc9 | Fresh normal hub→door→actual bunk sleep/wake→common room→same hub, no placement/rescue | Actual archive ELF OS-input loop54.259s/163.231m passes; independent review and paired checkpoint. Normal process restart remains separate/open. |
+| WALK-HABITAT-LOOP /7,9 | DONE; packaged3707bc9 | Fresh normal hub→door→actual bunk sleep/wake→common room→same hub, no placement/rescue | Actual archive ELF OS-input loop54.259s/163.231m passes; independent review and paired checkpoint. Normal restart is separately accepted on29abe94. |
+| WALK-HABITAT-RESTART /7,9 | DONE; packaged29abe94 | Real sleep→normal UI quit→distinct process/same data→fresh supported look/walk/tractor interaction→normal UI quit | Actual archive ELF68.756s under oneCAP300; both exit0/clean markers, independent review and paired checkpoint. Normal Habitat aggregate closes on recorded sources; dressing/native/final gates remain separate. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
 are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
@@ -257,12 +260,10 @@ supported home cabin with fresh hatch ownership. Prior package passes remain
 accepted; no new feature/test/probe is claimed. [Exact contract and two installed
 cases](docs/ROADMAP_BACKLOG.md#settled-cabin-and-ship-bunk-recovery-contract).
 
-The independent WALK-HABITAT map found a concrete production gap: six visual
-Habitat bunks install no rest interaction, and existing sleep/wake requires a
-live ship-backed ShipBunk. A chair or Halyard sleep cannot accept station rest.
-Full hub/rest/common-room/home/restart qualification remains unaccepted; do not
-rerun parked Sandbox or replace ordinary walking with staged placement. Station
-bunk support was selected separately and is now delivered below.
+The independent WALK-HABITAT map found six visual bunks without rest interaction;
+station bunk support was selected separately and delivered below. Full ordinary
+loop/restart qualification followed on3707bc9/29abe94. Parked Sandbox retains its
+original failure; staged placement does not replace the accepted ordinary routes.
 
 ### Habitat bunk rest — delivered
 
@@ -279,9 +280,9 @@ fixture correction and explicit exact266+6 collision-cost integration resolved
 the frozen checks. [Actual results and retained cards](docs/history/ROADMAP_DELIVERIES.md#habitat-bunk-rest--accepted221f523).
 Owned temporary checkout/profiles/helpers removed; raw results retained.
 
-This delivery starts with one staged placement at a real wake point. Full
-WALK-HABITAT ordinary hub/rest/common-room/home/restart remains UNSCHEDULED;
-it needs its own frozen complete journey, not another staged rest check.
+This delivery starts with one staged placement at a real wake point. Separate
+full ordinary WALK-HABITAT loop/restart results on3707bc9/29abe94 follow below;
+the staged rest check alone does not establish them.
 
 ### Crew recovery — definition complete
 
@@ -342,10 +343,10 @@ The route uses actual authored circulation and obstacle-aware waypoints;
 restart preserves the current safe-start contract without inventing a saved
 station sleeping pose. Each outcome has one300s whole-operation cap, actual
 input/state observations and explicit abort/cleanup. No engines or new build
-were needed for the definition; LOOP is now accepted below and RESTART stays open.
+were needed for the definition; LOOP and RESTART are now accepted below on their recorded sources.
 
-The full LOOP result follows. Normal restart remains a separate dependent
-outcome, and neither the staged fixture nor LOOP can close it.
+The full LOOP and separate RESTART results follow. Neither staged fixtures nor
+LOOP alone establish the restart result.
 All36 broad parents and ten phase gates remain open.
 
 ### Ordinary Habitat loop — delivered
@@ -366,79 +367,30 @@ cumulative review and owned process/source/profile/helper cleanup pass.
 This qualifies input/physics in the isolated environment, not GPU/device/human
 or final-source release acceptance. Original Sandbox failure is untouched.
 
-Next single action: freeze WALK-HABITAT-RESTART's normal UI quit/same-data distinct-
-process continuation and driver ownership. Do not turn this into another walk
-rerun or restore a station sleeping pose. WALK-HABITAT aggregate stays open until
-its restart requirement passes; all36 broad parents/ten phase gates remain open.
+### Ordinary Habitat restart — delivered
 
-### Selected ordinary continuation — WALK-HABITAT-RESTART
+WALK-HABITAT-RESTART is DONE in paired checkpoint29abe94. Actual archive-extracted
+ELF completes in68.756s under the original singleCAP300: ordinary hub/door/Bunk01
+sleep, real menu EXIT TO DESKTOP and clean exit0; distinct process on the same
+profile, normal Begin Shift with no old claims, actual look and10.749m supported
+walk, current tractor driver admission/released-repressed E exit, then a second
+normal menu quit/exit0. Six actual-file copies preserve unrelated payload and
+prove unavailable sleeping context, session1→2 and both clean shutdown markers.
+Independent review of1388 raw observations GO; diagnostics0/all owned cleanup.
 
-- **Outcome/parents:**7/9. One real normal UI quit while occupying Habitat Bunk01,
-  distinct OS process with the same private real-file profile, normal Begin Shift,
-  fresh awake supported look/walk/interaction. This closes the remaining normal
-  restart child, not crash/OS-kill recovery or saved station sleeping pose.
-- **Ownership:** one high-effort implementer owns existing native-sortie driver,
-  observer, startup loader, test_native_sortie.py and startup_cli_privacy_test.gd.
-  Root owns execution/packages/docs/integration; one high-effort reviewer checks
-  two-process lifecycle, saved context, actual UI input and accepted-route isolation.
-  No gameplay/save-schema changes, new validator or parallel probe family.
-- **Frozen operation:** add habitat-restart route to the same driver. Reuse fresh
-  hub/door/bunk ordinary admission from accepted LOOP; no actor writes, scenario
-  positioning, direct coordinator/quit calls or forced flags. Actual sleep exact
-  reservation + accepted unavailable home-context record independently read from
-  real file, then OS pause/menu navigation and EXIT TO DESKTOP activation. While
-  paused the observer may process/read its own compact pause/UI state; do not
-  change any gameplay node's timing or processing. Require normal exit0/reap and
-  actual orderly session/safe-start markers before launching distinct game PID.
-  Keep the same authenticated Xvfb/input helper/profile and original single CAP300
-  deadline across both legs; never reset the timer on restart. Record both PIDs,
-  independent actual-file before/after data, preserve unrelated payload and verify
-  no substituted save/profile. Object IDs may repeat across OS processes; prove
-  fresh process and current ownership, stable actors within each leg.
-- **Cold continuation:** ordinary Begin Shift without old seat/sleep/cabin/crew/
-  ship claims, current capsule/support/camera/controls and clear bunk reservation.
-  Observe actual look change and supported walking >0.6m, then normal Interact
-  with the existing TowTractorDriverStation at safe station start: actual current
-  candidate, ordinary E admits a new live driver, observed release/repress E exits
-  onto supported floor with ordinary controls and claim cleared. This is a new
-  interaction after fresh no-old-claims proof, not replay of a saved vehicle claim.
-  Final cold leg also uses actual pause-menu EXIT and normal exit0/clean markers;
-  forced termination is only an abort cleanup path. No station pose entitlement. Preserve accepted LOOP/Sandbox/
-  Guided/HULK routes and deadlines. Retain normal shutdown/cleanup for both games.
-- **Proof/delivery:** smallest meaningful existing Python regression checks with
-  exact logs; clean import600/observer compile300/full privacy300. Independent GO
-  before engines. Clean paired exports/three strict silent startup checks/artifact
-  audit; one actual archive ELF --route habitat-restart, whole CAP300 including
-  startup/quit/restart/continuation. Driver-owned Xvfb/x11/Dummy, rendering disabled,
-  independent abort/input/cursor/process cleanup. First unexpected failure STOP;
-  freeze a concrete reviewed repair before any next attempt, no automatic fixes,
-  timeout extension, shortcut or acceptance narrowing.45–60min implementation,
-  split before90 total; keep cumulative attempts. If pass, notes/push/owned cleanup.
-  Independent alternative remains activity recovery definition, not a new adjacent
-  recovery/evidence chain. Original native/device/human/full-project gates stay open.
+Initial route36.419s stopped before UI quit because a new driver predicate rejected
+a stable negative Godot shape Resource ID. One explicitly frozen nonzero-ID repair
+retains exact identity matching; Python54/7.399s and unchanged GDScript privacy327
+scope pass. New paired exports, three strict startups and1521-entry package audit
+pass. [Actual result and retained cards](docs/history/ROADMAP_DELIVERIES.md#ordinary-habitat-restart--accepted29abe94).
+WALK-HABITAT's normal loop/restart aggregate closes on3707bc9/29abe94; final dressing,
+Sandbox, installed/final regression and native/device/audio/rendered/human gates
+remain separate/open. All36 broad parents/ten phase gates remain OPEN.
 
-### Habitat restart — first packaged stop and bounded identity repair
-
-Candidateecb40cf1 passes Python54/7.415s, clean import/observer compile/privacy327,
-paired exports/three strict startups/1521-entry audit. The first actual archive
-restart route stops36.419s (outer39.309s) after real Bunk01 sleep, before UI quit:
-new `all(s[k] > 0 for k in fields)` rejects the valid negative shape Resource ID.
-All864 raw observations retain identical Main/world/Player/capsule/shape IDs;
-shape−9223371935302285411 is unchanged from initial through last, as are door/bunk.
-No actor replacement or gameplay defect established. Actual context is unavailable;
-normal shutdown/restart/cold interaction NOT_RUN. Inputs/helper/game/Xvfb cleaned.
-
-Independent causal review GO; root freezes ONE repair before editing: change
-that existence predicate to `!= 0`, retain exact tuple equality and every other
-current-owner/door/bunk/physics/claim guard. Extend the existing regression with
-stable negative shape accepted, zero and changed negative shape rejected. Only
-driver and existing Python test change; no observer/gameplay/schema/input/route/
-deadline change. One full focused Python run, clean pin/review, new paired exports/
-strict startups/audit and one full unchanged archive restart follow if each passes.
-Identical GDScript import/compile/privacy inputs retain original successful checks.
-Any further failure STOPs for cumulative priority review; no automatic second
-repair. Original45–60min/split-before90 cumulative budget remains (selection17:06UTC,
-first stop17:20UTC). Raw results retained in the task results directory.
+Next planning action is RECOVERY-ACTIVITY-DEFINE: resolve only ambiguous activity
+recovery promises against existing durable owners and accepted source cases, then
+name actual missing runtime capabilities or exact external gates. No new probe,
+adjacent restart chain or parked replay is selected by this closure.
 
 ## Parked failures and dependent work
 

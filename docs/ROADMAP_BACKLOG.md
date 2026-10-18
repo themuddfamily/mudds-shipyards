@@ -134,9 +134,9 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | --- | --- | --- | --- |
 | WALK-CENTRAL | Central launch/return | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-AFT | Aft stairs/door/board | 7,9 | UNSCHEDULED; exact production-roster route |
-| WALK-HABITAT | Ordinary hub→Habitat rest/wake/common room→hub plus usable restart controls | 7,9 | OPEN; LOOP accepted on actual archive 3707bc9; normal distinct-process RESTART remains unfinished. Existing rest capability retained; staged proof and parked Sandbox cannot substitute restart |
+| WALK-HABITAT | Ordinary hub→Habitat rest/wake/common room→hub plus usable restart controls | 7,9 | DONE in recorded ordinary scope; LOOP archive3707bc9 and RESTART archive29abe94. Final dressing/native/final-source gates remain separate; parked Sandbox unchanged |
 | WALK-HABITAT-LOOP | Fresh normal Start Shift, hub→door→bunk sleep/wake→common room→same hub | 7,9 | DONE packaged3707bc9: actual archive ELF OS-XTest full route54.259s/163.231m, exact reservation/wake/commons/support/hub return, same Player. No scenario placement; hardware/final-source scope stays separate |
-| WALK-HABITAT-RESTART | Normal quit while resting, distinct process with same data, fresh awake supported controls | 7,9 | UNSCHEDULED; loop dependency accepted3707bc9, freeze one normal-quit cut/driver. No station-bunk pose/claim entitlement or OS-kill coverage inferred; exact continuation below |
+| WALK-HABITAT-RESTART | Normal quit while resting, distinct process with same data, fresh awake supported controls | 7,9 | DONE packaged29abe94: two normal UI exits/exit0, same actual data/distinct PID, fresh supported look/walk/tractor interaction68.756s under singleCAP300. No station pose or OS-kill claim; exact continuation below |
 | HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | DONE; packaged221f523. Six StationSeat-based bunks, focused134/full spine/Habitat/ship sleep checks and paired startup pass; no saved station pose or ship/recovery/network authority expansion |
 | WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
@@ -214,8 +214,9 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 
 Definition on32d773487 after packaged221f523 station-bunk delivery. LOOP is now
 accepted on archive 3707bc9:54.259s/163.231m through ordinary OS input, no
-scenario placement. RESTART stays unfinished; WALK-HABITAT retains both outcomes
-below. Final packaged dressing/native/device requirements keep their own gates.
+scenario placement. RESTART is accepted on archive29abe94:68.756s, same profile,
+distinct processes, real UI quits and fresh supported tractor interaction.
+WALK-HABITAT closes these two normal outcomes on their recorded sources. Final packaged dressing/native/device requirements keep their own gates.
 No additional runtime gap was established by this source map.
 
 **WALK-HABITAT-LOOP** starts in fresh production Main and uses normal Start Shift,
@@ -274,7 +275,9 @@ wake point. Its accepted134/203 rest/full results retain that exact scope.
 [Native sortie driver](../tools/release/run_native_sortie.py) and
 [read-only observer](../scripts/diagnostics/native_sortie_observer.gd) supply the
 existing obstacle-aware circulation/door input seams; the guarded habitat-loop
-selector is delivered in3707bc9. Normal-restart remains unimplemented there.
+selector is delivered in3707bc9; habitat-restart is delivered in29abe94.
+The latter requires both normal UI exits, actual clean markers, independent
+actual-file preservation and cold supported look/walk/tractor admission/exit.
 Preserve all54-waypoint Sandbox requirements and its original failed300s record.
 [GameFlow](../scripts/game/game_flow.gd) `start_shift`,
 `_refresh_interaction_targets`, `_on_interact_requested`,

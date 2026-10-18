@@ -9500,3 +9500,127 @@ reuse the accepted unchanged Python checks, no gratuitous test replay. At review
 16:53UTC, total elapsed from16:41:58 selection is≈12min; original45–60min/split-
 before90 budget remains cumulative. Any new failure STOP; no automatic further
 annotation/driver repair or timeout/route relaxation.
+
+### Ordinary Habitat restart — accepted29abe94
+
+WALK-HABITAT-RESTART accepted on clean source
+`29abe94c4152535ef41bb0220ee1505b265b2e08`. Actual archive-extracted Linux ELF
+completes68.756s<CAP300 (outer71.584s), one shared authenticated Xvfb/input helper/
+real-file profile across PID936702→936823. First ordinary hub/door/Bunk01
+admission67.7677m ends in actual sleep/exact reservation; compact read-only paused
+observations retain rest while actual OS Tab/Return reaches enabled EXIT TO DESKTOP.
+Normal exit0/reap and actual clean session/safe-start markers precede cold launch.
+Cold title and normal Begin Shift prove no old claims, current support/capsule/
+camera/controls, observed lookdelta0.249349 and10.74942m supported walking. Current
+TowTractorDriverStation candidate→actual driver anchor; E634/release641 then
+repress703/release712 yields supported awake exit758. Second actual pause-menu
+quit exits0/reaps and commits clean markers.1388 raw observations independently
+reviewed GO (975 first/413 cold), stable actor IDs within each process.
+
+Six independently read actual-file copies hash-match their recorded documents,
+same save path/profile inode[2306,8284310], unrelated payload equal throughout:
+generation7onfoot→8unavailable→11clean/session1→15unavailable/running session2→
+16onfoot→22clean/session2; both safe-start clean and matching session_ended events.
+No actor placement, direct interaction/quit/coordinator calls, saved station pose,
+profile substitution, gameplay timing change or CAP reset. Zero diagnostics;
+inputs/helper/Xvfb/both games reaped and no outer survivors.
+
+Original clean candidateecb40cf1: Python54/7.415s, import20.655s, compile15.617s,
+privacy327/1.030s, paired exports/three strict startups/1521-entry audit pass.
+First actual route stops36.419s (outer39.309s) before UI quit because a new `>0`
+existence predicate rejects the unchanged valid negative shape Resource ID.
+All864 original observations retain exact identities. Rootec6a0ef5b freezes one
+reviewed `!=0` correction; tuple equality/every other guard unchanged. Existing
+regression accepts stable signed IDs and rejects zero/changed IDs; final54PASS
+7.399s with exact two source hashes. Three GDScript hashes unchanged; their accepted
+import/compile/privacy checks retained. New exports10.773/25.946s, direct/archive/
+Windows payload startups22.251/23.640/26.006s and actual1521-entry audit pass.
+No unchanged third attempt or acceptance narrowing. Original failed route retained.
+
+[Windows notes](../../builds/windows/MuddsShipyards-29abe94-notes.txt) and
+[Linux notes](../../builds/linux/MuddsShipyards-29abe94-linux-notes.txt).
+Eleven published file hashes, EXE+notes ZIP integrity/member bytes, matching actual
+PCK, stock PE text and archive bytes/modes/epoch/source metadata verify.
+15 terminal owners/91 observed process identities absent;
+archived profile counts {'profile-logs': 4, 'app_userdata': 14}. Source/index/cache/engine guards
+pass. Owned source/profile/helpers removed at2026-10-18T17:28:57.139055+00:00; raw results, six
+actual save copies, original failure and remote branch retained in
+`/srv/mudds-work/habitat-restart-20261018/results/`.
+
+WALK-HABITAT normal loop/restart aggregate is DONE on recorded3707bc9/29abe94.
+Final packaged dressing, Sandbox, installed/current full regression and native
+Windows/GPU/device/audio/rendered/human gates remain OPEN/NOT_RUN as applicable.
+All36 parents/ten phase gates OPEN; CI disabled, owner choices unchanged.
+Next independent planning action: RECOVERY-ACTIVITY-DEFINE, no automatic adjacent
+probe/restart chain. Selection17:06UTC to cleanup remains within original budget.
+
+### Retained Habitat restart scope and exact correction
+
+### Selected ordinary continuation — WALK-HABITAT-RESTART
+
+- **Outcome/parents:**7/9. One real normal UI quit while occupying Habitat Bunk01,
+  distinct OS process with the same private real-file profile, normal Begin Shift,
+  fresh awake supported look/walk/interaction. This closes the remaining normal
+  restart child, not crash/OS-kill recovery or saved station sleeping pose.
+- **Ownership:** one high-effort implementer owns existing native-sortie driver,
+  observer, startup loader, test_native_sortie.py and startup_cli_privacy_test.gd.
+  Root owns execution/packages/docs/integration; one high-effort reviewer checks
+  two-process lifecycle, saved context, actual UI input and accepted-route isolation.
+  No gameplay/save-schema changes, new validator or parallel probe family.
+- **Frozen operation:** add habitat-restart route to the same driver. Reuse fresh
+  hub/door/bunk ordinary admission from accepted LOOP; no actor writes, scenario
+  positioning, direct coordinator/quit calls or forced flags. Actual sleep exact
+  reservation + accepted unavailable home-context record independently read from
+  real file, then OS pause/menu navigation and EXIT TO DESKTOP activation. While
+  paused the observer may process/read its own compact pause/UI state; do not
+  change any gameplay node's timing or processing. Require normal exit0/reap and
+  actual orderly session/safe-start markers before launching distinct game PID.
+  Keep the same authenticated Xvfb/input helper/profile and original single CAP300
+  deadline across both legs; never reset the timer on restart. Record both PIDs,
+  independent actual-file before/after data, preserve unrelated payload and verify
+  no substituted save/profile. Object IDs may repeat across OS processes; prove
+  fresh process and current ownership, stable actors within each leg.
+- **Cold continuation:** ordinary Begin Shift without old seat/sleep/cabin/crew/
+  ship claims, current capsule/support/camera/controls and clear bunk reservation.
+  Observe actual look change and supported walking >0.6m, then normal Interact
+  with the existing TowTractorDriverStation at safe station start: actual current
+  candidate, ordinary E admits a new live driver, observed release/repress E exits
+  onto supported floor with ordinary controls and claim cleared. This is a new
+  interaction after fresh no-old-claims proof, not replay of a saved vehicle claim.
+  Final cold leg also uses actual pause-menu EXIT and normal exit0/clean markers;
+  forced termination is only an abort cleanup path. No station pose entitlement. Preserve accepted LOOP/Sandbox/
+  Guided/HULK routes and deadlines. Retain normal shutdown/cleanup for both games.
+- **Proof/delivery:** smallest meaningful existing Python regression checks with
+  exact logs; clean import600/observer compile300/full privacy300. Independent GO
+  before engines. Clean paired exports/three strict silent startup checks/artifact
+  audit; one actual archive ELF --route habitat-restart, whole CAP300 including
+  startup/quit/restart/continuation. Driver-owned Xvfb/x11/Dummy, rendering disabled,
+  independent abort/input/cursor/process cleanup. First unexpected failure STOP;
+  freeze a concrete reviewed repair before any next attempt, no automatic fixes,
+  timeout extension, shortcut or acceptance narrowing.45–60min implementation,
+  split before90 total; keep cumulative attempts. If pass, notes/push/owned cleanup.
+  Independent alternative remains activity recovery definition, not a new adjacent
+  recovery/evidence chain. Original native/device/human/full-project gates stay open.
+
+### Habitat restart — first packaged stop and bounded identity repair
+
+Candidateecb40cf1 passes Python54/7.415s, clean import/observer compile/privacy327,
+paired exports/three strict startups/1521-entry audit. The first actual archive
+restart route stops36.419s (outer39.309s) after real Bunk01 sleep, before UI quit:
+new `all(s[k] > 0 for k in fields)` rejects the valid negative shape Resource ID.
+All864 raw observations retain identical Main/world/Player/capsule/shape IDs;
+shape−9223371935302285411 is unchanged from initial through last, as are door/bunk.
+No actor replacement or gameplay defect established. Actual context is unavailable;
+normal shutdown/restart/cold interaction NOT_RUN. Inputs/helper/game/Xvfb cleaned.
+
+Independent causal review GO; root freezes ONE repair before editing: change
+that existence predicate to `!= 0`, retain exact tuple equality and every other
+current-owner/door/bunk/physics/claim guard. Extend the existing regression with
+stable negative shape accepted, zero and changed negative shape rejected. Only
+driver and existing Python test change; no observer/gameplay/schema/input/route/
+deadline change. One full focused Python run, clean pin/review, new paired exports/
+strict startups/audit and one full unchanged archive restart follow if each passes.
+Identical GDScript import/compile/privacy inputs retain original successful checks.
+Any further failure STOPs for cumulative priority review; no automatic second
+repair. Original45–60min/split-before90 cumulative budget remains (selection17:06UTC,
+first stop17:20UTC). Raw results retained in the task results directory.
