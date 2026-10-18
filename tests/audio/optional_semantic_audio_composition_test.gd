@@ -252,10 +252,12 @@ func _test_client_applied_commands(director: Node) -> void:
 	root.add_child(flow)
 	optional.attach(director)
 	director.semantic_cue_emitted.connect(flow._on_semantic_audio_cue_emitted)
-	flow._sync_client_navigator_audio_lifetime()
+	# Use the same production advancement that precedes role FIRE, rather
+	# than manually priming the optional receipt source before the first ping.
+	flow._advance_network_engineer(1.0 / 60.0)
 	var callback: Callable = flow._client_navigator_audio_callback
 	var before := _events.size()
-	_check(adapter.cached_reads == 0 and not bool(optional.get_snapshot().client_navigator.attached), "fresh client listener neither reads cached crew state nor invents a source")
+	_check(adapter.cached_reads == 0 and not bool(optional.get_snapshot().client_navigator.attached), "production client advancement establishes listener without reading cached crew state or inventing a source")
 	var first := _navigator_receipt(8, 2, 12)
 	var first_result := _applied(first)
 	var first_before := first_result.duplicate(true)

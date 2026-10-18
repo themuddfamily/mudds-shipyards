@@ -14492,6 +14492,7 @@ func _present_network_client_cabin_boarding(craft: HeroShip, area: ShipBoardingA
 		player.set_cabin_containment(craft, cabin.get("local_bounds", AABB()) as AABB, player.global_transform)
 		hud.set_mode("cabin", craft.get_display_name())
 		hud.set_objective("Cabin berth confirmed — the host retains flight authority")
+		_sync_client_navigator_audio_lifetime()
 		return
 	var stand := _network_cabin_berth_transform(
 		craft, StringName(_network_client_boarding_claim.get("seat_id", &"")), player
@@ -14519,6 +14520,8 @@ func _present_network_client_cabin_boarding(craft: HeroShip, area: ShipBoardingA
 	)
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
+	# A crew command can arrive in the same transport poll as this grant.
+	_sync_client_navigator_audio_lifetime()
 
 
 ## Gives a confirmed berth back to the ledger without ever having presented
@@ -26049,6 +26052,9 @@ func _request_network_engineer_stand() -> void:
 
 
 func _advance_network_engineer(delta: float) -> void:
+	# Establish/retire the exact client recipient before seated input can
+	# publish its once-only navigator command in this physics step.
+	_sync_client_navigator_audio_lifetime()
 	if _network_engineer_binding != null:
 		_network_engineer_binding.advance(delta)
 	if _network_session_mode != &"client" or not is_instance_valid(network_session):

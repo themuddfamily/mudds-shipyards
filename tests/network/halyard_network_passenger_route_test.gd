@@ -129,6 +129,8 @@ func _run() -> void:
 	if _navigator or _gunner:
 		await _remap_navigator_fire()
 	if _navigator:
+		_game._on_setting_change_requested(&"captions_enabled", true)
+		_check(_game.runtime_settings.captions_enabled and _game.hud.are_captions_enabled(), "navigator route enables captions through actual production settings before capture")
 		_game.audio.semantic_cue_emitted.connect(_capture_navigator_cue)
 	if _gunner:
 		_craft.projectile_fired.connect(func(_origin: Vector3, _direction: Vector3): _gunner_shots += 1)
@@ -799,7 +801,7 @@ func _check_navigator_feedback(accepted: int, cleared: int, stage: String) -> vo
 		var request: Dictionary = requests[index]
 		var is_accept: bool = request.cue_id == &"cinder_navigator_ping_accepted"
 		_check(request.stream_id == (Director.STREAM_UI_CONFIRM if is_accept else Director.STREAM_CANOPY_CLOSE) and request.bus == &"UI", stage + " selects existing navigator confirmation/clear UI resident stream")
-		_check(_navigator_captions[index].caption == ("Navigator ping accepted" if is_accept else "Navigator ping cleared"), stage + " preserves real accepted/clear caption text")
+		_check(_navigator_captions[index].get("caption", "") == ("Navigator ping accepted" if is_accept else "Navigator ping cleared"), stage + " preserves real accepted/clear caption text")
 
 
 func _station_anchor() -> Marker3D:
