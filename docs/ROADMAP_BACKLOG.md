@@ -527,7 +527,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-HABITAT | Habitat rest/wake | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
-| WALK-ANNEX | Annex repair-kit service | 7,9 | UNSCHEDULED qualification; WALK-ANNEX-ROUTE planning READY in ROADMAP.md |
+| WALK-ANNEX | Annex repair-kit service | 7,9 | UNSCHEDULED qualification; WALK-ANNEX-ROUTE definition DONE; caller/qualification READY in ROADMAP.md |
 | WALK-OBSERVATION | Observation supported return | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-SALVAGE | Salvage three-component manifest | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-VIP | VIP reception | 7,9 | PARKED; failed route plus repair, see working-roadmap failure summary |
@@ -664,7 +664,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-STALL | Original 600-step host simulation stall and honest command recovery | 19 | UNSCHEDULED; independent peers, original 2s action limits |
 | NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | GATED; establish distinctness from current return failure before any probe |
 | NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; next five Jovian instances below, all other craft/roles remain unscheduled |
-| NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | READY for review in ROADMAP.md; unverified candidate8054a2cc4, engines NOT_RUN |
+| NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | FAILED compile8054a2cc4; bounded caller syntax correction READY in ROADMAP.md, gameplay NOT_RUN |
 | NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | GATED on passenger exit; exact bounded card in ROADMAP.md |
 | NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | GATED on passenger reboard; passenger stays seated |
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | GATED on pilot exit; old command generations stay retired |
@@ -799,9 +799,8 @@ assignments. Completing a definition does not deliver the gameplay it describes.
 
 The [working queue](../ROADMAP.md#working-queue-eight-bounded-cards) now has eight
 specific cards: four READY for their stated action and four dependent GATED cards.
-Five separate Jovian outcomes replace the single exit/reuse assignment; three
-finite independent definitions prepare Annex access, kit delivery and residual
-server gameplay. This is a local scheduling count, not a whole-project estimate.
+Five separate Jovian outcomes replace the single exit/reuse assignment; the Annex route definition now prepares a READY caller/qualification, while
+kit delivery and residual server gameplay retain finite READY definitions. This is a local scheduling count, not a whole-project estimate.
 All 36 original parents and ten phase gates remain open.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with

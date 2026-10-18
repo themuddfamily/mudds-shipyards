@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: review the preserved Jovian passenger-exit candidate, then run its single selected check.**
+**Next: correct three caller syntax continuations, compile once, then use the still-unrun Jovian exit check.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -35,18 +35,19 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 **4 READY, 4 GATED, 0 accepted in this queue.** Root owns integration and closure.
 READY means its stated next action can start; it does not mean gameplay passed.
-Three READY cards are finite route/coverage definitions, explicitly labelled below.
+Two READY cards are finite route/coverage definitions, explicitly labelled below.
+The Annex definition is complete; its caller/qualification successor is now READY.
 Choose one independent READY card if the active chain blocks. Do not run every
 card merely because it appears here. Review priorities before replenishment.
 
 | Order / task | Type / state | One finish line | Work budget; checks separate |
 | --- | --- | --- | --- |
-| 1. NET-JOVIAN-PASSENGER-EXIT | Caller + qualification / READY review | Passenger walks from chair through real hatch to supported berth ground; pilot retains helm. |20–30 min remaining review; compile 300s + one route 300s/outer 360s |
+| 1. NET-JOVIAN-PASSENGER-EXIT | Caller + qualification / READY bounded syntax repair after FAILED compile | Passenger walks from chair through real hatch to supported berth ground; pilot retains helm. |5–10 min syntax correction; one compile 300s + still-unrun route 300s/outer 360s |
 | 2. NET-JOVIAN-PASSENGER-REBOARD | Caller + qualification / GATED on 1 | Same passenger walks back aboard and reclaims the original co-pilot chair. |30–60 min; one selected route at original limits |
 | 3. NET-JOVIAN-PILOT-EXIT | Caller + qualification / GATED on 2 | Original pilot releases helm and walks onto berth ground; passenger remains seated. |30–60 min; one selected route at original limits |
 | 4. NET-JOVIAN-PILOT-RECLAIM | Caller + qualification / GATED on 3 | Original pilot boards the same hull and reacquires helm with current authority. |30–60 min; one selected route at original limits |
 | 5. NET-JOVIAN-REDEPART | Caller + qualification / GATED on 4 | Reused hull departs at least 5m and brakes; both original clients stay valid. |30–60 min; one selected route at original limits |
-| 6. WALK-ANNEX-ROUTE | Planning / READY | Freeze fresh hub→Annex console→hub actions, caller and limits. |30 min; static source comparison, no engine |
+| 6. WALK-ANNEX | Caller + qualification / READY | Fresh player walks hub→Annex console, restocks once and returns to hub. |30–60 min; one original 300s selected route after review |
 | 7. PLAY-JOVIAN-KIT-ROUTE | Planning / READY | Freeze one ordinary two-kit delivery sortie and durable completion criterion. |30 min; static source comparison, no engine |
 | 8. SERVER-BASELINE-DEFINE | Planning / READY | Name the residual Halyard two-client baseline and one uncovered recovery case. |30–45 min; static source comparison, no engine |
 
@@ -79,27 +80,29 @@ passes; reassess before starting, with 90 minutes as the split boundary.
   with legitimate retirement rather than resurrected bindings. Pilot source/
   stream/delivery epoch, helm/ownership and occupied landed home lease remain.
   No teleport, direct seat/phase/body mutation or fabricated completion.
-- **Execution:** READY/root for candidate review. Candidate `8054a2cc4` is
-  preserved on `work/jovian-passenger-exit-20261018`, not merged or accepted.
-  It changes only the return caller (+376/-1); engines NOT_RUN. Review its
-  select-only `--postdock-passenger-exit` mode and final retention predicate; do not apply the
-  seated predicate to a legitimately exited actor. Freeze exact clean source,
-  command/selection and old limits before engines. Compile 300s; one original 300s
-  route/peer bound (outer 360s),15s/waypoint, existing 8s transitions,120s physical
-  return and 5s arrival convergence. Headless coordinator/private Xvfb peers,
-  explicit x11 and Dummy audio; actual three peer exits0 and one success marker.
-- **Budget/stop/close:** about 30 min implementation already spent; 20–30 min
-  remaining review/integration, cumulative split boundary 90 min; checks separate.
-  First next action is read-only lifecycle/default-route review of 8054a2cc4.
-  If accepted, freeze a clean source pin, compile once and run the selected route
-  once; expected marker `JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_EXIT_OK` exactly once.
-  A review failure ends review with a concrete correction; an engine failure ends
-  qualification. Neither silently authorizes a runtime repair. Preserve the exact
-  actor/boundary/owner and raw failure.
-  One hypothesis permits one probe; no automatic correction or deadline growth.
-  Actual result/source/limits, commit/push and owned cleanup. Caller-only work
-  does not need an identical rebuild; an accepted runtime repair requires a fresh
-  paired checkpoint. Native/device/canonical-world/endurance gates stay open.
+- **Execution/result:** independent review of8054a2cc4 found no lifecycle/default
+  blocker; clean import PASS. Compile FAILED at line321: single-line lambda
+  predicates continued across physical lines without explicit continuation.
+  No selected gameplay route started. Source/cache guards held, supervisors ended,
+  raw is retained in `/srv/mudds-work/jovian-passenger-exit-20261018/results/`.
+- **Next bounded task — NET-JOVIAN-EXIT-CALLER-PARSE:** READY/root,5–10 min.
+  Add only explicit continuation to the three affected lambda predicate lines
+  (321/337/344 in8054a2cc4). This is a caller syntax correction, not runtime work.
+  Preserve failed source/raw; commit a clean corrected pin and allow one compile
+  retry300s. Only if it passes, use the still-unrun original selected route300s,
+  outer360s,15s waypoint/8s transition/120s landing/5s convergence. All three peer
+  exits0, exactlyone `JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_EXIT_OK`, diagnostics0.
+  No outcome or criterion changes, no engine rerun after another failure.
+- **Cumulative budget/stop/close:** about30 min implementation plus bounded
+  review/check setup already spent; correction adds at most10 min,90 min remains
+  the cumulative split boundary. The first attempt remains FAILED. If correction
+  or selected route fails, record the exact boundary, review priorities against
+  READY Annex work and select the next task before more investigation. One
+  hypothesis permits one probe; no automatic runtime repair or deadline growth.
+  Commit/push actual result and remove owned disposable scratch when closed.
+  Caller-only work needs no identical rebuild; accepted runtime repair requires
+  a separate card and fresh paired checkpoint. Native/device/world/endurance
+  gates stay open.
 
 ### NET-JOVIAN-PASSENGER-REBOARD — reclaim one passenger chair
 
@@ -176,24 +179,47 @@ passes; reassess before starting, with 90 minutes as the split boundary.
 - **Close:** actual result/pin/limits, commit/push and cleanup. Runtime repairs
   need their separate focused proof/checkpoint. Parent20/endurance stay open.
 
-### WALK-ANNEX-ROUTE — specify one complete supported walk
+### WALK-ANNEX — fresh hub access, console action and supported return
 
-- **Parents/result/type:**7/9; planning only. Freeze one fresh normal hub spawn
-  →Fabrication Annex service console→same hub return, with actual prompt/Interact.
-- **Boundary/owner:** root; inspect only the relevant route in
-  `tests/ship_service_console_production_test.gd`,
-  `scripts/world/fabrication_annex.gd`, `shipyard_world.gd`'s console/spawn owners
-  and `game_flow.gd::_on_ship_service_console_requested`.
-- **Known proof gap:** existing test teleports to connector mouth(50,.38,28),
-  then ordinarily walks to the console and restocks. Preserve that accepted
-  segment; missing qualification is fresh hub access and supported reverse walk,
-  not a new console implementation. Sandbox/VIP parked failures stay parked.
-- **Next/proof/budget:** READY; 30 min static comparison, no engine. Write exact
-  normal start/end, authored waypoint route, existing caller/selection, unchanged
-  applicable caps, same-Player/floor/input criteria and one executable successor
-  here. No guessed cap or READY qualification before those facts are frozen.
-- **Stop/close:** exact successor or named missing fact at budget; record result
-  in this card/backlog, commit/push. No new route framework or unbounded station audit.
+- **Parents/result/type:**7/9; caller capability and qualification. Root owns
+  integration. WALK-ANNEX-ROUTE definition is DONE, no engine or gameplay proof.
+  Fresh normal player walks from hub to actual Annex service console, uses it
+  once and walks back to the retained spawn; same Player throughout.
+- **Boundary:** extend `tests/ship_service_console_production_test.gd` with
+  proposed `--walk-annex-round-trip` selected before Aft teleport/destructive
+  lifecycle fixtures. Retain default suite. Production owners are
+  `fabrication_annex.gd`, `shipyard_world.gd` spawn/console and
+  `game_flow.gd::_on_ship_service_console_requested`; no runtime fix presumed.
+- **Route frozen from source:** normal spawn(-8.5,.18,11), ordinary Intro
+  Interact/Begin Shift; horizontal goals(0,15.5),(0,12.5),(6,12.5),(6,13.5),
+  (20,13.5),(34.8,13.5),(34.8,15.5),(43,15.5),(43,21), then Dock Ops
+  (43,24.8),(48.1,24.8),(48.1,29.1),(48.1,28),(50,28). Keep existing service
+  segment(68.5,28),(68.5,38),(72,38), then Annex-local(0,4.8),(4.5,4.8),
+  (4.5,7.55). Coordinates are horizontal x/z; floor determines height, not pose
+  writes. Return the full goal list in reverse, then retained normal spawn.
+  The midpoint(20,13.5) is a proposed caller goal on authored StarboardBranchArm
+  floor, splitting a28.8m leg without changing walking speed or limits. Static
+  composition proposes a route; collision qualification is still unperformed.
+- **Proof/fixtures:** ordinary held walking/look and actual accessor-owned
+  `RESTOCK ACTIVE SHIP` prompt/Interact; floor, controls and same Player at each
+  arrival, no route-time teleport/velocity/phase/claim/candidate assignments.
+  Disclose existing pre-walk active-Jovian/spent-kit fixtures separately: actual
+  console must change spent kits5→6, increment Annex origin presentation once
+  and leave Aft presentation unchanged. Fixtures do not prove ordinary craft
+  selection or kit consumption by this walking player.
+- **Next/budget/check:** READY/root;30–60 min caller implementation/review,
+  splitbefore90. Freeze clean source and unique selected marker, then ONE
+  existing300s suite-process run of this script with the selector; use private
+  Xvfb, explicit x11/Dummy and independent abort/input/cursor cleanup. Retain
+  existing service-helper240 physics frames/waypoint,.20m horizontal arrival,
+  four settling frames and floor support. Do not substitute network15s limits.
+  Actual exit0/marker1/diagnostics0 required. The selector is proposed, not yet
+  implemented; no qualification command is runnable until that implementation.
+- **Stop/close:** first blocked waypoint or actual console discrepancy ends
+  qualification and identifies its exact owner; no Sandbox/VIP reopening or
+  automatic repair. Record source/result/limits, commit/push and owned cleanup.
+  Caller-only changes need no identical checkpoint; a separate accepted runtime
+  fix requires fresh paired builds. Native/GPU/devices/human gates remain open.
 
 ### PLAY-JOVIAN-KIT-ROUTE — specify one ordinary delivery
 

@@ -5634,3 +5634,30 @@ Verification for this planning change is diff/links, task/dependency consistency
 original36-parent coverage and bounded independent source mapping. No Godot,
 full matrix, exports, hosted CI, native/hardware/device/audio/human or endurance
 check is implied or scheduled by this planning pass.
+
+
+### 2026-10-18 — passenger-exit compile stop; Annex route definition
+
+Independent lifecycle review of8054a2cc4 found no blocking default-route, actor,
+release or false-ground-success issue. Clean isolated import PASSES. Explicit
+compile FAILS at return caller321, expected closing parenthesis: three single-line
+lambda predicates lack explicit continuations before their next physical line.
+No gameplay route ran. Original failure/STOP/raw are retained under
+`/srv/mudds-work/jovian-passenger-exit-20261018/results/selected_exit_compile/`.
+Tracked source and compile cache stay unchanged; supervisors terminal, no survivor.
+
+Explicit next task NET-JOVIAN-EXIT-CALLER-PARSE is caller-only,5–10min: add the
+three continuation characters, freeze clean commit, one300s compile retry, then
+only on PASS use the original still-unrun300s selected route/outer360s. Original
+criteria/timeouts and cumulative budget remain; any further failure requires
+priority review against now-READY Annex caller work. No runtime repair is selected.
+
+WALK-ANNEX-ROUTE definition DONE from static source mapping: actual spawn,
+Central/starboard/Dock Ops dogleg, existing Annex service segment, reverse return,
+240physics-frame legs/.20m/four settled frames/floor and original300s suite bound.
+A proposed midpoint on existing branch floor splits the native28.8m leg without
+new speed/deadline allowance. Existing service test supplies the selected caller
+seam; pre-walk active-craft/spent-kit fixtures are disclosed separately from
+ordinary movement. Successor WALK-ANNEX is READY for implementation/qualification;
+full roundtrip collision/input/console behavior remains unproven. No engines ran
+for the definition, and no Sandbox/VIP failure or parent gate is reopened.
