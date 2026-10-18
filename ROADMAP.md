@@ -62,7 +62,7 @@ separate definitions/gates.
 ### AUDIO-SURFACE-MUSIC — existing surface bed follows actual visit state
 
 - **Kind/result:** production music phase repair, parent30. Aurora/Rime use the
-  existing surface bed during landed/disembarking/surface/opening_boarding/
+  existing surface bed during landed/opening_exit/disembarking/surface/opening_boarding/
   boarding states. Their landing state selects the existing landing profile;
   outbound/corridor/return_cruise retain flight context. Idle/restoring/retiring
   do not imply a surface. Combat retains highest priority.
@@ -71,6 +71,8 @@ separate definitions/gates.
   projection in planetary_surface_visit_expedition.gd; existing
   tests/audio/music_phase_integration_test.gd. Root owns integration/checkpoint.
   No world travel/physics/content/save authority or asset/voice change.
+  Before runtime implementation, root confirmed request_exit sets opening_exit
+  while still landed; include that canopy wait in the same finite surface map.
 - **Acceptance:** preserve original phase assertions/waits. Test-only old proof
   stages actual retained Aurora/Rime visit state in the existing focused test,
   asserting real StationMusicBed surface state/family. Final finite visit-state
