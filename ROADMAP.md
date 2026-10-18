@@ -164,6 +164,21 @@ replay. Relevant existing Central unit coverage protects shared mechanics; no
 unchanged Central full journey is scheduled. Checkpoint only after acceptance;
 CI disabled, hardware/rendered/full-station/final gates stay open.
 
+Execution freeze: cleancb12f5b46c39a1941b58a9771c80f654fbfdd77d, pinned
+Godot4.7.1 SHA32f8d759…a97bcde. Task root
+`/srv/mudds-work/life-gantry-20261018/`; helpers/JSON commands and helper hashes
+fixed in results/source.json before execution. One sequence import/observer_compile/
+privacy/python uses headless Dummy import600, observer check-only300, existing
+privacy300 and complete native-driver Python suite300. Separately run existing
+safe paired export commands900 each, direct/archive Linux startup330 each,
+Windows-payload Linux-Godot startup300 (all require exit0/one menu-ready marker),
+actual artifact audit120 and ONE archived native route wrapper360/driverCAP300.
+Private owned Xvfb/x11/Dummy/dummy-renderer/disabled-render-loop only; actual
+archive/ELF identity checked against audit before OS input. Exact source/index/
+cache/process guards and strict unfiltered diagnostic scan remain. Independent
+exact-pin review required before execution; first failure STOP, no silent repair
+or automatic route retry. No engines have run on this candidate at selection.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
