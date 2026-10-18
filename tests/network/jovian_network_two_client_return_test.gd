@@ -193,10 +193,21 @@ func _client_landing_record() -> Dictionary:
 	return {}
 
 
+func _client_ownership_record() -> Dictionary:
+	# Clients consume authority publication; their local authority registry is
+	# intentionally empty and must not be used as a presentation snapshot.
+	var sections := _game.network_session.get_authoritative_snapshot().get("sections", {}) as Dictionary
+	for ownership: Dictionary in sections.get("ownership", []):
+		if StringName(ownership.get("ship_id", &"")) == _craft.ship_id:
+			return ownership
+	return {}
+
+
 func _client_return_consumed(docked: Dictionary) -> bool:
 	var sample := _flight_pose_sample()
 	var operation := sample.get("operation_presentation", {}) as Dictionary
 	var landing := _client_landing_record()
+	var ownership := _client_ownership_record()
 	# Client prediction intentionally stays physically unlanded; consumed host
 	# presentation plus the authoritative landing section prove its arrival.
 	return _local_flight_current() and _body_follows_anchor(_player, _flight_anchor, true) \
@@ -207,7 +218,9 @@ func _client_return_consumed(docked: Dictionary) -> bool:
 		and not bool(operation.get("landing", true)) \
 		and _return_generation > 0 and int(landing.get("entity_generation", 0)) == _return_generation \
 		and StringName(landing.get("state", &"")) == &"landed" \
-		and int(_game.network_session.get_owned_ship(_craft.ship_id).get("owner_peer_id", 0)) == int(_flight_start.pilot_peer)
+		and int(ownership.get("owner_peer_id", 0)) == int(_flight_start.pilot_peer) \
+		and int(ownership.get("ship_generation", 0)) == int(_flight_start.identities.ownership.ship_generation) \
+		and int(ownership.get("ownership_generation", 0)) == int(_flight_start.identities.ownership.ownership_generation)
 
 
 func _host_return_receipt() -> Dictionary:
@@ -235,7 +248,9 @@ func _client_return_receipt() -> Dictionary:
 		"seat_anchor_error_m": _player.global_position.distance_to(_flight_anchor.global_position),
 		"consumed_pose": _primitive_fields(sample, ["ship_id", "pose_tick", "pilot_peer_id"]),
 		"operation": _primitive_fields(sample.get("operation_presentation", {}) as Dictionary, ["landed", "docked", "landing"]),
-		"landing_record": _primitive_fields(_client_landing_record(), ["entity_id", "entity_generation", "state"])}
+		"landing_record": _primitive_fields(_client_landing_record(), ["entity_id", "entity_generation", "state"]),
+		"ownership_record": _primitive_fields(_client_ownership_record(),
+			["ship_id", "ship_generation", "owner_peer_id", "ownership_generation", "state"])}
 
 
 func _failure_snapshot(description: String) -> Dictionary:
