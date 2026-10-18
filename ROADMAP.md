@@ -28,7 +28,7 @@ explicit owner decision.
 
 ## Execution now
 
-NET-POSE-DEFINE is selected for one bounded Jovian presentation comparison.
+NET-THROTTLE-INSTRUMENTS is selected for a production presentation repair.
 SPEC-TITAN proposal awaits the owner interpretation choice; implementation remains gated.
 WALK-SALVAGE-ACCESS is parked after its original attempt and one caller repair. Reverse qualification and the bounded Torrent
 definition are closed below. Completed and parked work does not occupy the
@@ -36,13 +36,47 @@ executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
-| NET-POSE-DEFINE / 17 | IN PROGRESS source definition | Identify one concrete remote engine/landing presentation gap or finite uncovered operations. | Compare actual Jovian state publication and consumer, existing pose tests;10min, no engine. |
+| NET-THROTTLE-INSTRUMENTS / 17 | IN PROGRESS implementation | Remote Jovian cockpit throttle gauge matches signed host thrust and returns to neutral after shutdown. | Extend existing presentation transport/consumer; old-runtime reproduction, focused and real-peer checks before paired checkpoint. |
 | SPEC-TITAN / 10,36 | Proposal DONE; WAITING interpretation decision | Concrete one-pilot/two-passenger/four-unit modern candidate and bounded build tasks. | Owner decision on linked proposal before runtime implementation; historical model gate stays open. |
 | WALK-SALVAGE-ACCESS / 7,9 | FAILED/PARKED | Same supported Player must walk hub→inspection row→hub without staging. | Both attempts fail at outbound20; no further diagnosis/fix/run selected. |
 | CRAFT-GAPS-TORRENT / 10,11 | Definition DONE; craft acceptance OPEN | No specifically required missing implementation found within inspected owners. | Do not invent a feature; any successor needs a concrete requirement/finding. |
 | HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
 
-### NET-POSE-DEFINE — Jovian remote engine and landing presentation
+### NET-THROTTLE-INSTRUMENTS — physical remote cockpit gauge
+
+- **Definition DONE:** Jovian keeps the common physical instrument cluster.
+  HeroShip5597 reads local `_throttle`, while host operation snapshot2847 and
+  compact operation fields omit it. Remote engine/exhaust/readout projection
+  therefore leaves cockpit THR at local retained zero. No runtime proof yet.
+- **Player result/owner:** one high-effort implementation agent; root and one
+  independent high-risk reviewer. Signed host throttle reaches current/late
+  clients' actual physical ThrottleReadout. Local flight/input authority remains
+  separate; shutdown and session retirement restore the correct neutral/solo view.
+- **Boundary:** existing HeroShip operation snapshot/instrument presentation,
+  existing remote pose stream pack/unpack/validation, existing remote-pose and
+  station-frame tests only. No physics/command ownership, geometry, new framework,
+  validator/schema family or sibling-feature change. Legacy packed10 operation
+  rows remain readable; validate finite[-1,1] display input, retain original wire
+  envelope and all-nine forced-full snapshot budget checks.
+- **Proof/next:** test-only old-runtime regression must fail only the new actual
+  instrument assertions; then freeze corrected source, compile once and run full
+  existing focused pose test plus independent Main station-frame ENet test. Check
+  actual current/late cockpit instruments after local presentation, signed thrust,
+  shutdown neutral and session-clear solo restore without modifying local throttle.
+  Root reviews before execution. Headless/Dummy; original tests300s and existing
+  per-wait60s retained. Success exact existing markers/exit0/fullraw diagnostics0.
+- **Budget/stop:**30–60min implementation/review, split before90; checks separate.
+  First unexpected failure stops at exact actor/boundary/owner before a separately
+  selected bounded repair. Failed task plus one repair requires cumulative priority
+  review. No automatic extra probe or budget relaxation.
+- **Package/close:** accepted runtime requires clean paired Windows/Linux exports,
+  direct Linux/archive Linux/actual Windows-payload strict startup checks,
+  actual existing package/archive audit and concise player-visible notes. Require
+  exit0/exactlyone STARTUP_MENU_READY_OK/fullraw diagnostics0; no native GPU/device
+  claim. Commit/push results, retain unique raw/source refs and clean owned scratch.
+  Latest playable624d2a6 stays current until accepted replacement.
+
+### NET-POSE-DEFINE — completed bounded source comparison
 
 - **Owner/boundary:** one medium-effort read-only agent; root selects successor.
   Existing remote pose stream, HeroShip client presentation, GameFlow composition,
