@@ -7,6 +7,7 @@ Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
 Use --route hulk-breaker to continue that arrival through the interior breaker.
 Use --route hulk-home to carry that earned cell back to a supported yard exit.
+Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -1215,6 +1216,228 @@ class HulkHomePilot(HulkBreakerPilot):
         return keys, dx, dy, False
 
 
+class HabitatLoopPilot(Pilot):
+    """Fresh Start Shift and the full physical Habitat loop, using OS input only."""
+    MARKER = 'NATIVE_HABITAT_LOOP_OK'
+    OUTBOUND = (
+        ('central_forward', [0, 0, 12.5]),
+        ('tractor_forward_clearance', [6, 0, 12.5]),
+        ('tractor_east_clearance', [6, 0, 13.5]),
+        ('starboard_cargo_exit', [34.8, 0, 13.5]),
+        ('starboard_cabinet_clearance', [34.8, 0, 15.5]),
+        ('starboard_arm', [43, 0, 15.5]),
+        ('habitat_approach', [46, 0, 15.5]),
+        ('door_near', [48, 0, 15.5]),
+    )
+
+    def __init__(self):
+        super().__init__()
+        self.initial = self.previous = self.last_state = None
+        self.mouse_pending = None
+        self.native_previous = False
+        self.native_edges = []
+        self.visited = []
+        self.receipts = {}
+        self.route = []
+        self.index = 0
+        self.walked = 0
+        self.support_colliders = set()
+        self.sleep_release_frame = None
+
+    def receipt(self, s):
+        return {'frame': self.frame, 'player': s['player'], 'grounded': s['grounded'],
+                'supported': s['supported'], 'support_collider': s['support_collider'],
+                'door': s['door'].copy(), 'bunk': s['bunk'].copy(),
+                'sleeping': s['sleeping'], 'control_enabled': s['control_enabled'],
+                'native_interact': s['native_interact'], 'common_occupied': s['common_occupied']}
+
+    def begin_walk(self, stage, route, s):
+        self.route, self.index = list(route), 0
+        self.enter(stage, s)
+
+    def floor_ready(self, s):
+        # Start Shift and animated wake can expose ON_FOOT before its first
+        # move_and_slide has acquired floor contact. Let normal physics settle.
+        return (s['grounded'] and s['supported'] and s['control_enabled']
+                and s['capsule_enabled'] and s['mouse_captured'])
+
+    def require_awake(self, s):
+        b = s['bunk']
+        require(not s['sleeping'] and not s['seated'] and not s['station_seated']
+                and not s['game_station_seated'] and not s['transition_busy']
+                and s['control_enabled'] and s['mouse_captured'] and s['capsule_enabled'],
+                'ordinary awake supported walking controls')
+        require(not b['reserved'] and b['occupant_id'] == 0 and b['active_seat_id'] == 0
+                and b['available'] and not b['transitioning'], 'no borrowed or retained station reservation')
+        require(s['grounded'] and s['supported'] and s['support_collider'],
+                'actual physical station floor support throughout walking')
+
+    def yaw_to(self, s, target):
+        off = sub(target, s['player'])
+        off[1] = 0
+        direction = unit(off)
+        yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+        return round(max(-360, min(360, yaw/s['walk_tuning']['mouse']))), yaw, norm(off)
+
+    def walk_to(self, s, target, keys, frames):
+        speed = norm([s['velocity'][0], 0, s['velocity'][2]])
+        dx, yaw, distance = self.yaw_to(s, target)
+        if distance <= .30 and abs(target[1]-s['player'][1]) <= .65 and speed <= .35:
+            return 0, True
+        tuning = s['walk_tuning']
+        commanded = tuning['sprint'] if distance > 3 else tuning['walk']
+        stopping = speed*speed/(2*tuning['deceleration']) + max(speed, commanded)*frames/60 + .10
+        if abs(yaw) < .08 and distance > .30 and (speed <= .35 or distance > stopping):
+            keys.add('w')
+            if distance > 3: keys.add('Shift_L')
+        return dx, False
+
+    def update(self, s, now):
+        self.last_state = s
+        require(s.get('mode') == 'habitat-loop' and s.get('actors_current'),
+                'Habitat loop observer available with current production actors')
+        self.frame = s['frame']
+        if self.initial is None:
+            require(s['phase'] == 'INTRO' and not s['door']['open'] and s['door']['state'] == 0,
+                    'fresh production title with initially closed Habitat door')
+            require(math.hypot(s['spawn'][0]+8.5, s['spawn'][2]-11) < .1
+                    and abs(s['spawn'][1]-.18) <= .65
+                    and norm(sub(s['player'], s['spawn'])) < .75,
+                    'actual authored fresh hub spawn without scenario placement')
+            self.initial = s
+        initial = self.initial
+        require(tuple(s[k] for k in ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id'))
+                == tuple(initial[k] for k in ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id'))
+                and s['door']['id'] == initial['door']['id'] and s['bunk']['id'] == initial['bunk']['id'],
+                'same current Main, world, Player capsule, Habitat door and exact bunk')
+        require(s['walk_tuning'] == initial['walk_tuning'] and s['physics_ticks'] == 60 and s['time_scale'] == 1,
+                'authored walking controls and normal physics pacing')
+        require(s['phase'] in ('INTRO', 'APPROACH_SHIP'), 'ordinary fresh shift without recovery or boarding')
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        frames = self.frame - self.previous['frame'] if self.previous else 1
+        require(frames > 0, 'fresh Habitat physics observation')
+        if bool(s['native_interact']) != self.native_previous:
+            self.native_edges.append({'frame': self.frame, 'pressed': bool(s['native_interact']),
+                                      'stage': self.stage, 'door_candidate': s['door']['candidate'],
+                                      'bunk_candidate': s['bunk']['candidate']})
+        self.native_previous = bool(s['native_interact'])
+        walking = self.stage in ('walk_outbound', 'door_aim', 'door_wait', 'walk_bunk', 'bunk_aim',
+                                 'walk_common', 'walk_return')
+        if walking:
+            self.require_awake(s)
+            if self.previous and not self.previous['seated'] and not self.previous['transition_busy']:
+                step = norm(sub(s['player'], self.previous['player']))
+                require(step <= (initial['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                        'continuous actual walking without placement or recovery teleport')
+                self.walked += step
+            self.support_colliders.add(s['support_collider'])
+        keys, dx = set(), 0
+        if self.stage == 'boot' and s['menu_ready']:
+            self.enter('begin_shift', s)
+            self.tap('e', now)
+        elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP' and self.floor_ready(s):
+            self.require_awake(s)
+            self.receipts['hub_start'] = self.receipt(s)
+            self.begin_walk('walk_outbound', self.OUTBOUND, s)
+        elif self.stage.startswith('walk_'):
+            name, target = self.route[self.index]
+            dx, reached = self.walk_to(s, target, keys, frames)
+            if reached:
+                visit = {'waypoint': name, **self.receipt(s)}
+                self.visited.append(visit)
+                print(json.dumps(visit), flush=True)
+                self.index += 1
+                if self.index == len(self.route):
+                    if self.stage == 'walk_outbound':
+                        require(not s['door']['open'], 'closed door physically approached before interaction')
+                        self.enter('door_aim', s)
+                    elif self.stage == 'walk_bunk':
+                        self.enter('bunk_aim', s)
+                    elif self.stage == 'walk_common':
+                        require(s['common_occupied'], 'actual observation-common volume occupied on physical floor')
+                        self.receipts['common'] = self.receipt(s)
+                        reverse = [('common_return_corridor', [59.15, 0, 15.5]),
+                                   ('return_bunk_centre', [54.1, 0, 15.5]),
+                                   ('return_inner_threshold', [50.5, 0, 15.5])]
+                        reverse += [('return_'+name, target) for name, target in reversed(self.OUTBOUND)]
+                        reverse += [('original_hub_spawn', initial['spawn'])]
+                        self.begin_walk('walk_return', reverse, s)
+                    else:
+                        require(s['door']['open'] and not s['common_occupied'], 'ordinary reverse doorway and hub return')
+                        require(self.walked > 145, 'full out-and-back sampled physical journey')
+                        self.receipts['hub_return'] = self.receipt(s)
+                        self.enter('complete', s)
+                        self.result = {'completion_marker': self.MARKER, 'same_player_id': s['player_id'],
+                                       'same_main_id': s['main_id'], 'same_world_id': s['world_id'],
+                                       'walked_m': self.walked, 'visited': self.visited,
+                                       'receipts': self.receipts, 'native_interact_edges': self.native_edges,
+                                       'support_colliders': sorted(self.support_colliders),
+                                       'authored_walk_tuning': initial['walk_tuning'], 'phases': self.phases}
+        elif self.stage in ('door_aim', 'bunk_aim'):
+            target = s['door'] if self.stage == 'door_aim' else s['bunk']
+            dx, yaw, _distance = self.yaw_to(s, target['position'])
+            if abs(yaw) < .08 and target['candidate'] and not s['native_interact']:
+                self.tap('e', now)
+                if self.tap_key == 'e':
+                    self.receipts['door_press' if self.stage == 'door_aim' else 'sleep_press'] = self.receipt(s)
+                    self.enter('door_wait' if self.stage == 'door_aim' else 'sleep_wait', s)
+        elif self.stage == 'door_wait' and s['door']['open']:
+            require(any(edge['pressed'] and edge['stage'] == 'door_wait' for edge in self.native_edges),
+                    'actual OS Interact press opens the selected door')
+            self.receipts['door_open'] = self.receipt(s)
+            self.begin_walk('walk_bunk', [('inner_threshold', [50.5, 0, 15.5]),
+                                        ('bunk_corridor', [s['bunk']['wake'][0], 0, 15.5]),
+                                        ('bunk_wake', s['bunk']['wake'])], s)
+        elif self.stage == 'sleep_wait' and s['sleeping'] and not s['transition_busy']:
+            b = s['bunk']
+            require(s['seated'] and s['game_station_seated'] and s['station_seated']
+                    and b['reserved'] and b['occupant_id'] == s['player_id'] and b['active']
+                    and b['seated_at_bunk'] and not b['transitioning'] and s['control_enabled'],
+                    'actual sleep on exact reserved StationBunk anchor')
+            require(any(edge['pressed'] and edge['stage'] == 'sleep_wait' for edge in self.native_edges),
+                    'actual OS Interact press admitted sleep')
+            self.receipts['sleep'] = self.receipt(s)
+            self.enter('sleep_release', s)
+        elif self.stage == 'sleep_release':
+            require(s['sleeping'] and s['bunk']['reserved'] and s['bunk']['active']
+                    and s['bunk']['seated_at_bunk'] and not s['transition_busy'],
+                    'sleep claim retained until a distinct wake press')
+            if self.tap_key is None and not s['native_interact']:
+                if self.sleep_release_frame is None: self.sleep_release_frame = self.frame
+                if self.frame >= self.sleep_release_frame + 6:
+                    self.tap('e', now)
+                    if self.tap_key == 'e':
+                        self.receipts['wake_press'] = self.receipt(s)
+                        self.enter('wake_wait', s)
+        elif self.stage == 'wake_wait' and not s['seated'] and not s['transition_busy'] and self.floor_ready(s):
+            self.require_awake(s)
+            require(any(edge['pressed'] and edge['stage'] == 'wake_wait' for edge in self.native_edges)
+                    and self.sleep_release_frame is not None,
+                    'released and repressed actual OS Interact wakes')
+            require(norm(sub(s['player'], s['bunk']['wake'])) <= .25,
+                    'normal bunk wake restores supported authored standing point')
+            self.receipts['wake'] = self.receipt(s)
+            self.begin_walk('walk_common', [('wake_to_corridor', [s['bunk']['wake'][0], 0, 15.5]),
+                                          ('common_corridor', [59.15, 0, 15.5]),
+                                          ('common_occupied', [67.8, 0, 15.5])], s)
+        if self.stage in ('walk_bunk', 'bunk_aim', 'sleep_wait', 'sleep_release', 'wake_wait', 'walk_common', 'walk_return'):
+            require(s['door']['open'], 'opened Habitat access stays physically clear for the full journey')
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+        # Wait for actual camera motion before sending another mouse sweep.
+        if self.mouse_pending is not None:
+            if norm(sub(s['walk_forward'], self.mouse_pending)) < .00001: dx = 0
+            else: self.mouse_pending = None
+        if dx: self.mouse_pending = s['walk_forward'][:]
+        self.previous = s
+        return keys, dx, 0, False
+
+
 class SandboxWalkPilot(Pilot):
     """Five station branches through ordinary controls; fleet/crash gate stays open.
 
@@ -1862,7 +2085,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -1937,7 +2160,7 @@ def run(binary, output, route="guided"):
                 if not window: raise RuntimeError('no X11 window owned by exact game PID')
                 result['window'] = hex(window)
                 desktop.focus(window)
-                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot, "hulk-home": HulkHomePilot}[route]()
+                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot, "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot}[route]()
                 selector = selectors.DefaultSelector()
                 selector.register(game.stdout,selectors.EVENT_READ)
                 pending = b''
@@ -1960,6 +2183,10 @@ def run(binary, output, route="guided"):
     except Exception as error:
         if pilot is not None:
             result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
+            if isinstance(pilot, HabitatLoopPilot):
+                result['partial_sortie'].update(last_state=pilot.last_state, visited=pilot.visited,
+                                               receipts=pilot.receipts, native_interact_edges=pilot.native_edges,
+                                               walked_m=pilot.walked)
             if isinstance(pilot, HulkArrivalPilot):
                 result['partial_sortie']['last_state'] = pilot.last_state
             if isinstance(pilot, SandboxPilot):
@@ -2014,7 +2241,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home'), default='guided',
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop'), default='guided',
                         help='hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)

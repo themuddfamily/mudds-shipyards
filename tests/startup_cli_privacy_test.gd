@@ -65,6 +65,20 @@ func _run() -> void:
 	for malformed in ["--native-sortie-observer=Ember", "--native-sortie-observer=ember-extra", "--native-sortie-observer=ember=", "--native-sortie-observer ember"]:
 		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
 			"Ember rejects malformed selector: %s" % malformed)
+	var habitat_args := PackedStringArray(["--native-sortie-observer=habitat-loop"])
+	_check(StartupLoaderType.native_sortie_request(habitat_args, "X11", "Dummy", true).accepted,
+		"Habitat loop admits explicit silent private OS input")
+	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(habitat_args, row[0], row[1], row[2]).accepted,
+			"Habitat loop preserves private X11 and Dummy admission")
+	for conflict in ["--native-sortie-observer", "--native-sortie-observer=habitat-loop", "--native-sortie-observer=sandbox", "--native-sortie-observer=ember", "--native-sortie-observer=hulk-home", "--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+		var habitat_conflicting := habitat_args.duplicate()
+		habitat_conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(habitat_conflicting, "X11", "Dummy", true).accepted,
+			"Habitat loop rejects duplicate or competing mode: %s" % conflict)
+	for malformed in ["--native-sortie-observer=Habitat-loop", "--native-sortie-observer=habitat-loop-extra", "--native-sortie-observer=habitat-loop=", "--native-sortie-observer habitat-loop"]:
+		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
+			"Habitat loop rejects malformed selector: %s" % malformed)
 	var fleet_args := PackedStringArray(["--native-sortie-observer=sandbox"])
 	_check(StartupLoaderType.native_sortie_request(fleet_args, "X11", "Dummy", true).accepted,
 		"full Sandbox observation admits only the same silent private input route")

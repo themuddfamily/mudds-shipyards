@@ -3,6 +3,7 @@ extends Node
 ## Read-only exported-game telemetry. No input, actor writes, gameplay actions,
 ## timing overrides, or process shutdown: the external OS-input driver owns those.
 var _game: GameFlow
+var _habitat_loop := false
 var _ember := false
 var _ember_started := false
 var _player: PlayerController
@@ -32,6 +33,10 @@ func on_startup_completed(main: Node) -> void:
 		return
 	_game = main as GameFlow
 	_player = _game.get_node("Player") as PlayerController
+	_spawn = _player.global_position
+	_habitat_loop = "--native-sortie-observer=habitat-loop" in OS.get_cmdline_args()
+	if _habitat_loop:
+		return
 	_ship = _game.get_node("TorrentInterceptor") as HeroShip
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
 	_spawn = _player.global_position
@@ -221,6 +226,9 @@ func _physics_process(delta: float) -> void:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_ember_observation()))
 		return
 	if _game == null:
+		return
+	if _habitat_loop:
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_habitat_loop_observation()))
 		return
 	_elapsed += delta
 	if _elapsed < 1.0 / (20.0 if _full_sandbox else 60.0):
@@ -539,3 +547,68 @@ func _hulk_home_observation(home_berth: ShipBerth) -> Dictionary:
 			"support_collider": str(_game.world.get_path_to(collider)) if is_instance_valid(collider) and _game.world.is_ancestor_of(collider) else "",
 		},
 	}
+
+
+## This route reads only the live walking/door/bunk owners. In particular it
+## never requests fleet telemetry, landing contracts or Habitat dressing audits.
+func _habitat_loop_observation() -> Dictionary:
+	var owner := get_parent()
+	var current := is_instance_valid(_game) and _game.is_inside_tree() and not _game.is_queued_for_deletion() \
+		and owner.call("get_main") == _game \
+		and _ember_node_current(_player) and _game.player == _player \
+		and _ember_node_current(_game.world)
+	var result := {"mode": "habitat-loop", "frame": Engine.get_physics_frames(), "actors_current": current}
+	if not current:
+		return result
+	var habitat := _game.world.get_node(^"HabitatSpine") as HabitatSpine
+	var door := habitat.get_node(^"MainAccess") as StationDoor
+	var bunk := habitat.get_node(^"Structure/PressurizedHabitatCorridor/BunkAlcove01/StationBunkInteraction") as StationBunk
+	result.actors_current = _ember_node_current(habitat) and _ember_node_current(door) and _ember_node_current(bunk)
+	if not bool(result.actors_current):
+		return result
+	var yaw := _player.get_node(^"%CameraYaw") as Node3D
+	var capsule := _player.get_node(^"PlayerCollision") as CollisionShape3D
+	var support: Dictionary = {}
+	if not _player.is_seated() and not bool(_game.get("_transition_busy")):
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD, [_player.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var supported := _ember_node_current(collider) and _game.world.is_ancestor_of(collider)
+	var occupant := bunk.get("_occupant") as Node
+	var active_seat := _game.get("_active_station_seat") as StationSeat
+	result.merge({
+		"phase": GameFlow.Phase.keys()[_game.phase],
+		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(owner.call("get_loading_screen")),
+		"main_id": _game.get_instance_id(), "world_id": _game.world.get_instance_id(),
+		"player_id": _player.get_instance_id(), "player": _v(_player.global_position),
+		"position": _v(_player.global_position), "spawn": _v(_spawn),
+		"walk_forward": _v(-yaw.global_basis.z), "walk_right": _v(yaw.global_basis.x),
+		"velocity": _v(_player.velocity), "interaction_origin": _v(_player.get_interaction_origin()),
+		"control_enabled": _player.is_control_enabled(), "seated": _player.is_seated(),
+		"sleeping": _player.is_sleeping(), "station_seated": _player.is_station_seated(),
+		"game_station_seated": bool(_game.get("_station_seated")),
+		"transition_busy": bool(_game.get("_transition_busy")),
+		"native_interact": Input.is_action_pressed("interact"),
+		"mouse_captured": Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"grounded": _player.is_on_floor(), "supported": supported,
+		"support_collider": str(collider.get_path()) if supported else "",
+		"capsule_id": capsule.get_instance_id(), "shape_id": capsule.shape.get_instance_id(),
+		"capsule_enabled": not capsule.disabled,
+		"walk_tuning": {"walk": _player.walk_speed, "sprint": _player.sprint_speed,
+			"deceleration": _player.ground_deceleration, "mouse": _player.mouse_sensitivity},
+		"physics_ticks": Engine.physics_ticks_per_second, "time_scale": Engine.time_scale,
+		"door": {"id": door.get_instance_id(), "position": _v(door.global_position),
+			"state": door.get("_state"), "open": door.is_open(),
+			"candidate": _game.station_interaction_candidate == door},
+		"bunk": {"id": bunk.get_instance_id(), "position": _v(bunk.global_position),
+			"wake": _v(bunk.get_exit_transform().origin),
+			"candidate": _game.station_interaction_candidate == bunk,
+			"occupant_id": occupant.get_instance_id() if is_instance_valid(occupant) else 0,
+			"reserved": bunk.is_reserved_for(_player), "available": bunk.is_available(),
+			"transitioning": bool(bunk.get("_transitioning")),
+			"active": active_seat == bunk, "active_seat_id": active_seat.get_instance_id() if is_instance_valid(active_seat) else 0,
+			"seated_at_bunk": _player.is_seated_at(bunk.get_seat_anchor())},
+		"common_occupied": habitat.contains_room(&"observation-common", _player.global_position),
+	}, true)
+	return result
