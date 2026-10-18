@@ -4,7 +4,28 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `f90547c` — 2026-10-18
+## Latest development checkpoint: `1cf1022` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-1cf1022.x86_64),
+[archive](../builds/linux/MuddsShipyards-1cf1022-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-1cf1022-linux-notes.txt) use accepted clean
+source `1cf1022989a3cc2d48d3b813d2ecc9acbcc04c27`, integrated on main. Binding
+conflict choices reveal after layout; retiring a focused repair confirmation
+hands focus to live Save without stealing another control's focus.
+
+Explicit compile, focused repair HUD26 and existing Main16:10 layout948 assertions
+pass:96 finite observations/all32 states at requested.75/1/1.6, unchanged300s caps
+and criteria. Both exports, direct/archive Linux and Windows actual payload
+through Linux Godot strict startups pass0/exactlyone marker/diagnostics0. All1515
+actual packaged entry bytes match; stock PE .text, exact Linux archive bytes/
+modes/timestamps/generated launchers/metadata and exact Windows ZIP/notes verify.
+Seven public artifact/note files remain; disposable checkout/profiles/helpers and
+duplicate builds are removed. Raw ui-conflict-reveal-20261018/results retained.
+Device/rendered readability/persistence transactions/other aspects and native
+Windows/GPU/audio/human/full matrix/endurance/release gates remain open. Earlier
+on-foot cuts retain their exact f90547c scope; no current-package rerun is claimed.
+
+## Earlier development checkpoint: `f90547c` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-f90547c.x86_64),
 [archive](../builds/linux/MuddsShipyards-f90547c-linux-x86_64.tar.gz) and

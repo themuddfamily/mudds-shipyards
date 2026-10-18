@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: package the accepted conflict visibility and repair-focus fixes.**
+**Next: let the Jovian passenger stand and exit after shared home arrival.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -13,126 +13,67 @@ phase gates remain open.** This file holds the executable queue; the
 | Outcome | Actual proof / limit |
 | --- | --- |
 | Immediate client landing edge retained exactly once | Runtime `2c73494a4`; old-runtime failure reproduced, consumer40/ship_command79 pass. Source/ownership/session boundaries revoke pending input. |
-| Fresh playable checkpoint **f90547c** | [Windows notes](builds/windows/MuddsShipyards-f90547c-notes.txt), [Linux notes](builds/linux/MuddsShipyards-f90547c-linux-notes.txt). Adds on-foot release-driver support; both exports, three strict startups,1515 matching payload entries and exact archives pass. |
+| Fresh playable checkpoint **1cf1022** | [Windows notes](builds/windows/MuddsShipyards-1cf1022-notes.txt), [Linux notes](builds/linux/MuddsShipyards-1cf1022-linux-notes.txt). Conflict choices reveal after layout; disappearing repair action hands focus to live Save. Both exports, three strict startups and exact package audits pass. |
 | Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
 | Actual on-foot recovery in exported/archive Linux checkpoint | f90547c real-file SIGKILL/distinct restart; supported awake unseated player, ordinary walk0.525555m+Interact boarding, conserved convoy and receipts1→2 once. Private headless/Dummy and disclosed craft-placement fixtures; no fullflight/native-device claim. |
+| Pause/options16:10 selected source qualification | 1cf102298 PASS:26 focused repair assertions;948 layout assertions/96 observations,32 states at requested.75/1/1.6. Original criteria/caps retained; device/render/persistence transactions and other aspects remain open. |
 | Earlier passenger chair/HUD, lifecycle, browser/briefing deliveries | Retain their recorded scopes; no whole craft, parent or phase closes. |
 
-The latest four-card batch ends with **3 DONE, 1 FAILED**: on-foot driver,
-paired checkpoint and actual exported/archive recovery pass; the 16:10 UI check
-stops at offscreen binding-conflict choices. Original same-frame fixture and
-compile failures, their single corrections and all raw remain in
-[delivery history](docs/history/ROADMAP_DELIVERIES.md). Qualification is not a new
-gameplay feature or a whole-project percentage. Earlier two-client return remains
-its accepted source-specific scope.
+The on-foot batch's failed UI qualification is now resolved by two bounded
+production fixes at `1cf102298`. Its original failures, fixture correction,
+first conflict correction's repair-focus failure and final unchanged acceptance
+remain in [delivery history](docs/history/ROADMAP_DELIVERIES.md). The paired
+checkpoint and postdock source definition are complete. Definitions and test
+counts are not gameplay features or a whole-project percentage.
 
 **Still unqualified:** dedicated server, postdock exit/reuse, canonical shared
 world journeys,30-minute endurance, devices/native GPU/audio and final release.
 Current full matrix NOT_RUN; last unfiltered f85957f failed 11 of 1,045 suites.
 Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
-## Current bounded cards
+## Next card
 
-**3 DONE, 1 IN PROGRESS.** These are executable task instances, not the remaining
-whole-project job count. Root owns integration. Do not reopen parked failures.
+**1 READY.** This is the next task instance, not the remaining project job count.
+Root owns integration. Reboard, pilot exit/reclaim and repeat departure remain
+separate successors in the [finite contract](docs/ROADMAP_BACKLOG.md#supported-post-dock-exit-and-reuse-cases).
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
-| UI-CONFLICT-REVEAL | Production UI / DONE | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
-| UI-REPAIR-FAILURE-FOCUS | Production UI / DONE | Hiding a focused unavailable repair confirmation returns focus to a live Options control. |20–30 min implementation/review; compile300s, focused check300s and existing selected check300s. |
-| CHECKPOINT-PAUSE-CONFLICT | Build / IN PROGRESS | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
-| NET-DOCK-DEFINE | Planning / DONE | Finite supported-craft exit/reboard/redeparture cases and one exact next Jovian case. |10–15 min source comparison; no engines. |
+| NET-JOVIAN-PASSENGER-EXIT | Driver capability / qualification / READY | Original passenger stands after shared home arrival, walks through the hatch onto supported berth ground, and keeps walking while the original pilot retains helm. |45–60 min implementation/review; compile300s and one original300s selected route (outer360s). |
 
-### UI-CONFLICT-REVEAL — make the focused conflict choice visible
+### NET-JOVIAN-PASSENGER-EXIT — one actual postdock passenger exit
 
-- **Parents/result:**12/29. A player rebinding a conflicting key can see and
-  reach Replace/Cancel in the live Options scroller at the authored UI scales.
-- **Reproduction:** existing `tests/ultrawide_layout_test.gd` at `4128526c9`,
-  `-- --pause-16x10-only`, actual Main1920x1200/headless/Dummy, original300s.
-  At requested0.75, binding_conflict focuses InputBindingConflictReplaceButton
-  at(681.75,1815.75,252.75,24), outside safe bounds and clip; scroll450.
-  The run stops after18 observations; later states/scales are NOT_RUN.
-  Ordinary options re-entry passes after the recorded fixture timing correction.
-- **Ownership/boundary:** existing conflict presentation/focus/scroll owners in
-  `scripts/ui/hud.gd`; existing fixture only for a demonstrated fixture defect.
-  Preserve capture/conflict decisions, persistence, focus identity and scroller
-  liveness checks. No broad Options redesign or new harness/validator.
-- **Proof:** explicit compile and one existing full selected fixture under its
-  original300s cap at0.75/1.0/1.6 and finite pause/options roster. The focused
-  choice must fit both safe bounds and its scroll clip, with live focus. Preserve
-  every existing criterion and requested/effective scale reporting. Native
-  devices, rendered readability and actual persistence transactions stay separate.
-- **Execution:** DONE/root at `1cf102298`, including the separate repair-focus
-  handoff below. Full selected check passes948 assertions/96 observations,
-  all32 states at requested0.75/1/1.6, actual0/diagnostics0/source+cache stable.
-  Original attempt FAILED after one selected300s run of af660151c.
-  Import/compile pass; conflict choices and cancellation now pass at0.75 with
-  scroll1884/499. The run stops after30 observations at repair_failure: hiding
-  SettingsRepairConfirmButton leaves no valid live focus. Later states and
-  scales1/1.6 are NOT_RUN. Full qualification is not passed; source/cache stable,
-  all owned processes closed. Original failure/repair counts remain cumulative.
-- **Priority review:** stop conflict work; do not re-edit this proven0.75 boundary.
-  The remaining demonstrated failure is a different existing repair presentation
-  owner. Select one20–30min production focus-handoff task below; keep the full
-  original selected criteria unchanged. Combined source acceptance now passes.
-- **Close:** actual result/source/limits, commit/push, fresh checkpoint if accepted,
-  and cleanup of owned disposable work. This does not close every UI aspect group.
-
-### UI-REPAIR-FAILURE-FOCUS — preserve focus when repair action disappears
-
-- **Parents/result:**12/29. A player remains able to navigate Options when a
-  repair failure, malformed status or detach removes the focused confirmation.
-- **Boundary/ownership:** existing repair report/clear/focus owners in
-  `scripts/ui/hud.gd`; smallest relevant extension to the existing
-  `tests/runtime_settings_repair_hud_test.gd`. Build on clean af660151c; preserve
-  conflict fix and acceptance. Do not change repair authority/tokens/persistence,
-  fabricate focus in the layout fixture, or steal focus from another live control.
-- **Proof:** existing focused repair HUD check plus the unchanged selected Main
-  fixture at1920x1200/requested0.75/1/1.6, original300s each. Removing the actually
-  focused action must hand focus to a visible enabled existing Options control;
-  clearing status while another control is focused must retain that focus.
-  Explicit compile300s. Physical devices/transactions/rendering remain separate.
-- **Execution:** DONE/root after recorded priority review. Accepted source
-  `1cf102298` hands actual disappearing repair focus to Save; other focus stays.
-  Review-required queued-page guard is included before engines. Freeze explicit
-  focused compile300s, existing repair HUD300s and one full selected300s, without
-  repeated import; no global-class/resource changes require it.20–30min implementation/
-  review, splitbefore90. Compile0, focused repair HUD26 PASS and full selected948
-  PASS, all3 authored scales. First failure STOP; no automatic second repair or rerun.
-  Prior failure/fixture correction/conflict repair budgets are retained together.
-- **Close:** actual source/result/limits, commit/push and the gated fresh checkpoint
-  if accepted; cleanup owned scratch. No whole settings/aspect/device gate closes.
-
-### CHECKPOINT-PAUSE-CONFLICT — ship the accepted UI correction
-
-- **Parents/result:**6/32; gate on accepted clean UI repair source. Use the same
-  existing safe sequential Windows/Linux export and publication workflow as
-  checkpointf90547c, pinned engine/templates/private XDG; preserve HOME/CODEX_HOME.
-- **Proof:** relevant focused checks, actual PCK byte parity, exact archives and
-  metadata/stock PE checks, direct/archive Linux and actual Windows payload each
-  strict startup exit0+exactlyone STARTUP_MENU_READY_OK/no original diagnostics.
-  EXE/ZIP/notes and matching Linux artifacts belong in repository builds/.
-- **Execution/budget:** IN PROGRESS/root on exact accepted clean `1cf102298`;
-  15–25 min artifact work, original900s/platform
-  exports and300s/startup separately. One export/platform; first failure stops.
-  Record actual scope/limits, commit/push notes/index and remove owned duplicates.
-  Native Windows/GPU/device/human/full-release gates remain open.
-
-### NET-DOCK-DEFINE — replace broad postdock/reuse scope with finite cases
-
-- **Parents/result:**20; definition only. Existing current-source ordinary Jovian
-  return closes physical docking/retained arrival, not standing/exiting/reusing.
-  Use the supported craft/role roster already retained in the backlog.
-- **Boundary:** existing `docs/ROADMAP_BACKLOG.md` contract/row only. Compare
-  existing production exit/boarding/seat/berth/network owners and ordinary route
-  callers; retain exact prior source/failures. Do not create a new test harness,
-  implement networking, rerun accepted docking or reopen historical second landing.
-- **Proof/close:** a finite list of supported craft/roles and concrete exit,
-  reboard and repeat-departure acceptance instances; specify authority/claim/
-  physical support and retained identities. Name the smallest next Jovian case,
-  files/inputs/bounds/dependencies and first-failure stop. Record unknowns rather
-  than invent support.10–15min source comparison; stop when ownership/seam/
-  acceptance are known. No engines or gameplay-delivery claim; commit/push.
+- **Parents/result:**16/20/26. Extend the accepted ordinary Jovian return with
+  one selected client_b co-pilot passenger stand/walk/hatch/ground exit. The
+  original first client stays pilot. Reboard and another departure are later
+  outcomes; original return/default behavior stays its accepted scope.
+- **Ownership/boundary:** existing
+  `tests/network/jovian_network_two_client_return_test.gd`, plus only the smallest
+  existing coordinator selector propagation if necessary. Reuse ordinary
+  look/walk/Interact and process/first-failure/input cleanup helpers. No new
+  harness or speculative networking/physics fix. Freeze any actual failing
+  production owner before scheduling its separate repair.
+- **Proof:** original Main host/two clients and all existing ordinary approach,
+  seats, departure, landing, strict home lease and consumed arrival. Then actual
+  chair release, supported cabin movement, hatch exit, released cabin/hatch/body
+  claims and measurable supported ground locomotion. Retain original peer/avatar/
+  Player identity; consume current body/ship/frame/seat/ownership generations,
+  with legitimate retirement rather than resurrected bindings. Pilot source/
+  stream/delivery epoch, helm/ownership and occupied landed home lease remain.
+  No teleport, direct seat/phase/body mutation or fabricated completion.
+- **Execution:** READY/root. Add proposed select-only `--postdock-passenger-exit`
+  mode and its truthful final passenger-retention predicate; do not apply the
+  seated predicate to a legitimately exited actor. Freeze exact clean source,
+  command/selection and old limits before engines. Compile300s; one original300s
+  route/peer bound (outer360s),15s/waypoint, existing8s transitions,120s physical
+  return and5s arrival convergence. Headless coordinator/private Xvfb peers,
+  explicit x11 and Dummy audio; actual three peer exits0 and one success marker.
+- **Budget/stop/close:**45–60 min implementation/review, splitbefore90; checks
+  separate. First failure stops with exact actor/boundary/owner and raw retained.
+  One hypothesis permits one probe; no automatic correction or deadline growth.
+  Actual result/source/limits, commit/push and owned cleanup. Caller-only work
+  does not need an identical rebuild; an accepted runtime repair requires a fresh
+  paired checkpoint. Native/device/canonical-world/endurance gates stay open.
 
 ## Parked work and external waits
 

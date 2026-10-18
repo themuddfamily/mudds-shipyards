@@ -5580,3 +5580,25 @@ reclaim and repeat departure are separate successors. Caller/production owners,
 actual input/body/claim/generation/ground evidence and original300s/stage limits
 are explicit; no new harness/validator or second-landing reopen. Source definition
 does not establish any postdock gameplay result or close parent20.
+
+CHECKPOINT-PAUSE-CONFLICT DONE on clean1cf102298. Both safe exports and three
+strict startups pass actual0/exactlyone menu marker/original diagnostics0. All1515
+actual PCK entry bytes match across Windows/Linux; stock PE .text/architecture,
+exact Linux tar root+five files/bytes/modes/commit timestamps/generated launchers/
+metadata and exact EXE+notes ZIP verify. Seven artifact/note files are copied
+byte-identically into repository builds/windows and builds/linux. EXE184584416
+SHA571e9d7d24fda19765044dd3e5fd5bda2227d7f8837aa5706b61d57b48fa6289;
+ELF148826128 SHA02df492ffa50af6c2482016b1f476ab34695ebcad70d2e9c548e5074dbb536b2.
+Full hashes/actual logs are in checkpoint-publication.json under task results.
+Windows execution is actual embedded payload through Linux Godot, not native.
+
+All11 observed supervisors are terminal/absent, descendants reaped. Source stays
+exact through checks/exports; Windows export's208 cache changes are explicitly
+recorded, Linux exportcache0 and all startupcache0. Owned checkout, profiles/
+helpers/duplicate builds are removed, public hashes reverified; unique source
+refs/raw retained, unrelated/dirty worktrees untouched. Original failure attempts
+remain in the same raw root. No new native/device/render/transaction/full-matrix/
+endurance gate closes. Next is one source-defined Jovian passenger postdock
+stand/hatch/ground exit; reuse successors remain separate, original return and
+historical second-landing failure are not reopened. Inventory21 DONE includes
+planning/source/build/qualification scopes, not project percentage.

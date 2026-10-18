@@ -2,20 +2,19 @@
 
 This is the working roster for [roadmap task 0](ROADMAP_BACKLOG.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
-Current paired development checkpoint: **f90547c**, accepted clean source
-`f90547c37998a588e5f16baad462be17ebeb5986` ([Windows notes](../builds/windows/MuddsShipyards-f90547c-notes.txt),
-[Linux notes](../builds/linux/MuddsShipyards-f90547c-linux-notes.txt)). Adds the
-existing release driver's on-foot context. Source real-file kill/restart passes
-supported walking/ordinary boarding and conserved convoy receipts1→2 once;
-source craft-motion/home approach fixtures are disclosed. Both safe exports,
-three strict startups and exact package/archive audits pass. Actual direct and archive-extracted Linux ELF on-foot interruption now pass
-the same real-file kill/restart, supported walking/boarding and once-only reward
-boundary. Desktop-menu installation, other recovery contexts and arbitrary
-power loss remain separate. Prior
-source4c9c764e9 ordinary two-client short-sortie/home-return scope remains retained;
-no canonical/shared-world/endurance/full-craft closure. Native Windows/GPU/device/
-audio/human/current full matrix and final release gates remain open.
-[Current bounded work](../ROADMAP.md) retains the separate pause/options16:10 case.
+Current paired development checkpoint: **1cf1022**, accepted clean source
+`1cf1022989a3cc2d48d3b813d2ecc9acbcc04c27` ([Windows notes](../builds/windows/MuddsShipyards-1cf1022-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-1cf1022-linux-notes.txt)). Binding
+conflict choices reveal after layout and a disappearing repair confirmation
+hands focus to live Save. Focused repair HUD26 and Main16:10 layout948 assertions/
+96 observations pass at all3 requested authored scales, with unchanged criteria.
+Both safe exports, three strict startups and exact package/archive audits pass.
+Earlier direct/archive on-foot cuts retain their f90547c exact-package scope.
+Earlier source4c9c764e9 ordinary two-client return remains accepted; postdock
+stand/exit/reuse remains open, now with finite source-defined cases and one exact
+passenger exit next. Native Windows/GPU/device/audio/human, other UI aspects,
+current full matrix/endurance/final release gates remain open. All36 broad parents
+and ten phase gates remain open. [Current bounded work](../ROADMAP.md).
 
 Earlier paired checkpoints: clean `b6af782021ef89c2ef200033c6c72573f4cf238b` ([Windows notes](../builds/windows/MuddsShipyards-b6af782-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-b6af782-linux-notes.txt)). A stable server-browser Disconnect button lets connected hosts/guests leave and reuse the browser; existing shutdown/capacity rules remain. Fresh source and actual Windows-payload checks each pass262 assertions; three strict startups and all1,515 matching payload entries verify. Against f676c50, HUD code changes and65 generated scenes differ only within their equally sized node-ID arrays; every other decoded scene byte matches. The initial comparison failure is preserved; unrun package checks resumed on those exact exports without rebuilding. Native Windows/GPU/device/audio, full matrix and final release gates remain unqualified. Earlier f676c50 guest-count wording remains included; its historical gameplay results below qualify that earlier package only.
 

@@ -790,7 +790,7 @@ Count the named rows as inventory outcomes, **not remaining executable jobs**.
 DONE rows retain their exact-source scope; definition, qualification, build and
 implementation are different types of work. This inventory has **246 named outcomes**, including **21 DONE** in their recorded
 planning/source/build/qualification scopes. The other225 rows include definitions, dependencies and
-qualifications; they are not225 implementation jobs. The completed eight-card batch is archived; the working queue has two bounded follow-ups;
+qualifications; they are not225 implementation jobs. The completed eight-card batch is archived; the working queue has one bounded Jovian postdock passenger-exit task;
 its current completion and READY/GATED counts are shown in ROADMAP.md.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with
