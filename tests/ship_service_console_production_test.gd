@@ -22,6 +22,9 @@ func _init() -> void:
 
 
 func _run() -> void:
+	if "--walk-annex-round-trip" in OS.get_cmdline_user_args():
+		await _run_walk_annex_round_trip()
+		return
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	root.add_child(game)
 	await process_frame
@@ -216,6 +219,161 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_finish()
+
+
+func _run_walk_annex_round_trip() -> void:
+	var game := MAIN_SCENE.instantiate() as GameFlow
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await _test_walk_annex_round_trip(game)
+	game.queue_free()
+	await process_frame
+	await process_frame
+	_finish("WALK_ANNEX_ROUND_TRIP_TEST_OK")
+
+
+func _test_walk_annex_round_trip(game: GameFlow) -> void:
+	var player := game.player as PlayerController
+	var jovian := game.get_node_or_null(^"JovianLightFreighter") as HeroShip
+	var aft := game.world.call(&"get_ship_service_console") as Area3D
+	var console := game.world.call(&"get_fabrication_ship_service_console") as Area3D
+	var annex := game.world.get_node_or_null(^"FabricationAnnex") as Node3D
+	if not _walk_annex_check(player != null and jovian != null and aft != null
+			and console != null and annex != null,
+			"fresh Main owns the normal Player, Jovian, Aft and Annex consoles"):
+		return
+	var retained_spawn := player.global_position
+	if not _walk_annex_check(Vector2(retained_spawn.x, retained_spawn.z).distance_to(
+			Vector2(-8.5, 11.0)) <= 0.20,
+			"selected route retains the normal hub spawn before any movement"):
+		return
+	# Use the production intro menu; do not call start_shift or replace Player.
+	root.grab_focus()
+	var begin := InputEventAction.new()
+	begin.action = &"interact"
+	begin.pressed = true
+	Input.parse_input_event(begin)
+	await physics_frame
+	var begin_release := InputEventAction.new()
+	begin_release.action = &"interact"
+	Input.parse_input_event(begin_release)
+	for _frame in 60:
+		if game.phase == GameFlow.Phase.APPROACH_SHIP \
+				and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			break
+		await physics_frame
+		await process_frame
+	if not _walk_annex_check(game.phase == GameFlow.Phase.APPROACH_SHIP
+			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+			and game.player == player and player.is_control_enabled()
+			and not player.is_seated(),
+			"ordinary intro Interact starts the shift with the retained normal Player"):
+		return
+
+	# PRE-WALK FIXTURES ONLY: select the existing Jovian and spend one real kit
+	# through its existing damage owner and public engineer-repair authority.
+	# These fixtures do not prove this walking player's craft selection or repair.
+	print("WALK_ANNEX_PREWALK_FIXTURES: active Jovian; real damage and engineer repair spend kits 6->5")
+	if not _walk_annex_check(_kit_units(jovian) == 6,
+			"the fresh existing Jovian begins with six repair kits"):
+		return
+	var authority = _build_jovian_authority()
+	if not _walk_annex_check(bool(jovian.call(&"attach_crew_role_authority", authority).get("accepted", false)),
+			"pre-walk fixture attaches the existing engineer-role authority"):
+		return
+	var model := jovian.get_component_damage()
+	for _hit in 4:
+		if not _walk_annex_check(bool(model.record_damage(70.0, Vector3.INF).get("accepted", false)),
+				"pre-walk fixture applies real component damage"):
+			return
+	jovian.set("_landed", true)
+	var started := jovian.call(&"submit_crew_intent", 1, 77, &"service_test_engineer",
+		CrewAuthorityType.ACTION_ENGINEER_REPAIR,
+		{"system_id": _most_damaged_component(model), "repair": 0.2, "system_generation": 1},
+		2) as Dictionary
+	if not _walk_annex_check(bool(started.get("accepted", false)) and bool(started.get("consumed", false)),
+			"pre-walk public engineer intent starts one real kit-consuming repair"):
+		return
+	for _frame in 60:
+		if StringName((jovian.call(&"get_engineer_repair_state") as Dictionary).get("status", &"")) == &"completed":
+			break
+		await physics_frame
+	if not _walk_annex_check(_kit_units(jovian) == 5
+			and StringName((jovian.call(&"get_engineer_repair_state") as Dictionary).get("status", &"")) == &"completed",
+			"pre-walk real repair completes and spends exactly one kit, six to five"):
+		return
+	var released := jovian.call(&"release_crew_role", 1, 77, &"service_test_engineer",
+		&"passenger_port_01", 3) as Dictionary
+	if not _walk_annex_check(bool(released.get("accepted", false)),
+			"pre-walk fixture releases the engineer before ordinary walking"):
+		return
+	game.active_ship = jovian
+	await physics_frame
+	var aft_before := _presentation_state(aft)
+	var annex_before := _presentation_state(console)
+	# Coordinates specify horizontal goals only. _walk_to uses mouse look and
+	# held movement; collision and floor support determine the actual height.
+	var goals: Array[Vector3] = [
+		Vector3(0.0, 0.0, 15.5), Vector3(0.0, 0.0, 12.5),
+		Vector3(6.0, 0.0, 12.5), Vector3(6.0, 0.0, 13.5),
+		Vector3(20.0, 0.0, 13.5), Vector3(34.8, 0.0, 13.5),
+		Vector3(34.8, 0.0, 15.5), Vector3(43.0, 0.0, 15.5),
+		Vector3(43.0, 0.0, 21.0), Vector3(43.0, 0.0, 24.8),
+		Vector3(48.1, 0.0, 24.8), Vector3(48.1, 0.0, 29.1),
+		Vector3(48.1, 0.0, 28.0), Vector3(50.0, 0.0, 28.0),
+		Vector3(68.5, 0.0, 28.0), Vector3(68.5, 0.0, 38.0),
+		Vector3(72.0, 0.0, 38.0),
+		annex.to_global(Vector3(0.0, 0.15, 4.8)),
+		# Cross between bench rows, clear of the entry roof column's capsule footprint.
+		annex.to_global(Vector3(0.0, 0.15, 9.5)),
+		annex.to_global(Vector3(4.5, 0.15, 9.5)),
+		annex.to_global(Vector3(4.5, 0.15, 7.55)),
+	]
+	for index in goals.size():
+		if not await _walk_annex_arrival(game, player, goals[index], "outbound", index):
+			return
+	_look_towards(player, annex.to_global(Vector3(5.24, 1.25, 7.55)))
+	await physics_frame
+	await process_frame
+	if not _walk_annex_check(game.world.call(&"get_fabrication_ship_service_console") == console
+			and game.station_interaction_candidate == console
+			and str(console.call(&"get_interaction_prompt")).contains("RESTOCK ACTIVE SHIP")
+			and _kit_units(jovian) == 5,
+			"ordinary look discovers the actual accessor-owned Annex RESTOCK prompt with five kits"):
+		return
+	await _press_interact()
+	var presented := _presentation_state(console)
+	if not _walk_annex_check(_kit_units(jovian) == 6
+			and str(presented.status_text).contains("RESTOCKED")
+			and str(presented.status_text).contains("KITS 6/6")
+			and int(presented.presentation_sequence) == int(annex_before.presentation_sequence) + 1
+			and _presentation_state(aft) == aft_before,
+			"one actual Annex Interact restocks five to six, paints its origin once and leaves Aft unchanged"):
+		return
+	for index in range(goals.size() - 1, -1, -1):
+		if not await _walk_annex_arrival(game, player, goals[index], "return", index):
+			return
+	if not await _walk_annex_arrival(game, player, retained_spawn, "retained hub spawn", 0):
+		return
+	_walk_annex_check(_kit_units(jovian) == 6 and _presentation_state(console) == presented
+			and _presentation_state(aft) == aft_before,
+			"supported return retains six kits, one Annex presentation increment and unchanged Aft")
+
+
+func _walk_annex_arrival(game: GameFlow, player: PlayerController,
+		destination: Vector3, leg: String, index: int) -> bool:
+	var walked := await _walk_to(player, destination)
+	return _walk_annex_check(walked and game.player == player
+			and player.is_on_floor() and player.is_control_enabled() and not player.is_seated()
+			and game.phase == GameFlow.Phase.APPROACH_SHIP,
+			"%s waypoint %d target=%s actual=%s retains the same supported on-foot Player"
+			% [leg, index, destination, player.global_position])
+
+
+func _walk_annex_check(condition: bool, message: String) -> bool:
+	_check(condition, message)
+	return condition
 
 
 func _test_fabrication_service(game: GameFlow, aft: Area3D, jovian: HeroShip,
@@ -559,12 +717,12 @@ func _check(condition: bool, message: String) -> void:
 		_failures.append("FAIL: " + message)
 
 
-func _finish() -> void:
+func _finish(success_marker: String = "SHIP_SERVICE_CONSOLE_PRODUCTION_TEST_OK") -> void:
 	Input.action_release(&"move_forward")
 	Input.action_release(&"interact")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if _failures.is_empty():
-		print("SHIP_SERVICE_CONSOLE_PRODUCTION_TEST_OK: %d assertions" % _assertions)
+		print("%s: %d assertions" % [success_marker, _assertions])
 		quit(0)
 		return
 	for failure in _failures:
