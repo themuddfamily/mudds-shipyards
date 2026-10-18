@@ -121,7 +121,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   no pending request, disconnected capture and restored source authority.
 - **First boundary/diagnosis:** caller client comparison wrongly reads host-only
   claim_sequence/seat_generation from intentionally three-key local claim. Host
-  already separately proves advanced authoritative claim sequence/generation.
+  already separately proves the advanced claim sequence and current seat generation.
   Captured actual HUD independently remains OBSERVER for the confirmed passenger;
   GameFlow role presentation ignores cabin boarding claim and falls back to
   observer/admission role. Walking is NOT_RUN; no full handback acceptance.
@@ -143,8 +143,8 @@ accepted runtime repairs require separate cards and fresh paired builds.
   reader only. Use current confirmed same-craft cabin claim and live context;
   preserve pilot/engineer/gunner/seated-role precedence and disconnected/stale
   behavior. Presentation must not grant authority or alter requests/ownership.
-  Correct three-key client claim checks while retaining host's actual sequence/
-  generation advancement and clients' consumed canonical ownership proofs.
+  Correct three-key client claim checks while retaining host's actual sequence advancement/
+  current-generation checks and clients' consumed canonical ownership proofs.
 - **Proof:** smallest focused existing HUD regression reproduces OBSERVER/old
   admission-role fallback on old runtime, then passes with fix and preserved
   role priorities. ONE corrected unchanged full ordinary handback route must pass

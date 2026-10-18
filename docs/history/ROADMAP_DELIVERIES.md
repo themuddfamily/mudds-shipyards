@@ -6253,7 +6253,7 @@ co-pilot remains seated. New walk stage is NOT_RUN.
 
 Client comparator incorrectly requires host claim sequence/generation in local
 claim which intentionally holds only ship/seat/role; authoritative host already
-checks those transitions. Separately, actual client HUD says OBSERVER despite
+checks sequence advancement and the current seat generation. Separately, actual client HUD says OBSERVER despite
 confirmed supported passenger claim. Static owner: GameFlow local role presenter
 ignores current cabin claim and falls back to observer/admitted role. One bounded
 CABIN-PASSENGER-ROLE repair selected: correct consumer plus runtime presentation,
