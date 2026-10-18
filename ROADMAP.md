@@ -223,6 +223,31 @@ ran for this definition. Existing Jovian route stays binding.
   player-visible notes, commit/push and owned scratch cleanup. Stock decision and
   conserved manifest/delivery remain separate; no automatic successor chain.
 
+### Hauler access — one selected repair after first failure
+
+Candidate217005ad import/compile pass; full access51.179s fails its new Hauler
+normal-landing assertion after original Jovian route and Hauler fixture/compatibility/
+strict fit/opaque reservation pass. Landing cause is UNPROVEN: grouped assertion
+captured no telemetry. Contact/walk/terminal new proof NOT_RUN; no package/merge.
+Independent source GO is withdrawn as completion: actual GameFlow disembark calls
+NearbySectorActivityBinding.authorize_cargo_terminal_actor, which rejects Hauler
+before CinderAccess because only Jovian is a cargo source. Direct access test
+bypassed this required physical production forwarder.
+
+ONE repair is selected,30min implementation cap: add only actual leased Hauler
+physical forwarding in that binding function, leaving cargo-source/transfer/reward/
+stock/persistence rules unchanged; update existing new test to use actual binding,
+assert no source/activity/stock grant, retain wrong actor/ship/lease/attachment and
+original Jovian checks. Add narrow requested/frames/phase/abort/pose/contract/lease
+failure telemetry before existing grouped landing assertion. No speculative
+geometry/contact/capture change, route/deadline/tolerance relaxation or standalone
+probe. Additional owned runtime file is scripts/world/nearby_sector_activity_binding.gd
+only at physical forwarder. Root runs import/compile and full unchanged access
+criteria at original1200s once on clean repaired pin; subsequent required berth/
+switching/package checks only if it passes. Required independent review and
+cumulative priority review follow; no automatic third or renamed retry. Failed
+candidate/raw results retained; stock choice remains pending and independent.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
