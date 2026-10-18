@@ -162,19 +162,20 @@ gameplay or full craft acceptance is claimed. Original art/combat/ordinary crew/
 recovery, historical and external gates remain OPEN; parked routes were not
 reopened. No repair or qualification successor is selected by this definition.
 
-### Selected craft definitions — three Cinder variants
+### Completed craft definitions — three Cinder variants
 
-CRAFT-GAPS-CINDER-LIGHT/HAULER/BOMBER (parents10/11) are selected as independent
-source-only definitions,30min total. Two medium-effort read-only agents map Light
-Interceptor and Cargo Hauler; root maps Bomber and integrates existing docs.
-Finish finite authored feature/component/physical-role maps with actual owners,
-coverage boundaries and concrete required missing behavior or exact missing
-interpretation. Preserve Bomber's already-recorded additional crew/navigation
-WAITING decision; do not ask again or infer approval/reduction. No engine/test/
-capture/export/CI, runtime edit, tracker/validator, parked route retry or automatic
-qualification chain. Stop once owner/seam/acceptance distinctions are known;
-real repairs need separate frozen cards. Commit/push source definitions without
-claiming current gameplay passes or whole fleet completion.
+CRAFT-GAPS-CINDER-LIGHT/HAULER/BOMBER (parents10/11) are DONE as bounded source
+maps in the existing [fleet roster](docs/COMPLETION_SCOPE.md#cinder-light-interceptor-capability-map--craft-gaps-cinder-light).
+Light has no concrete new required runtime/physical-role gap identified. Hauler's
+actual supply consumer is Jovian-only, so its anchors/forwarding bridge cannot
+accept promised Hauler cargo play; HAULER-CARGO-DEFINE names the missing contract.
+Bomber's additional crew/navigation decision remains WAITING, and its known
+source re-entry/refill path leaves BOMBER-REARM-POLICY unresolved. No new mission,
+stock entitlement, role or rearm mechanic is invented. All nine current CRAFT-GAPS
+rows now have bounded definitions (including exact remaining interpretation gaps);
+this does not close any full craft/art/combat/crew/world/recovery requirement.
+No engine/test/capture/export ran; playable checkpoint99e79c3 remains unchanged.
+No runtime repair or qualification successor is automatically selected.
 
 ## Parked failures and dependent work
 

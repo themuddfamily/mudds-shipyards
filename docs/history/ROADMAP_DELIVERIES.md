@@ -8663,3 +8663,54 @@ boarding/handback retry or automatic qualification chain. Stop once owners,
 seams and acceptance distinctions are known; any real product repair needs a
 separate frozen card. Root integrates into the existing completion roster/backlog,
 commits/pushes and reports definition progress without claiming gameplay passes.
+
+
+## Three Cinder craft definitions — 2026-10-18
+
+Selected sourcec7d86a0d9; independent medium-effort Light/Hauler readers and root
+Bomber mapping, approximately4.3min elapsed against30min total selection
+before closure review. All three CRAFT-GAPS definitions DONE in existing
+[capability maps](../COMPLETION_SCOPE.md#cinder-light-interceptor-capability-map--craft-gaps-cinder-light).
+No engine/test/capture/export/CI ran; existing tests/results are source-specific
+coverage anchors, not new passes. No worktree/profile/duplicate build or new
+tracker/validator created. Latest accepted playable99e79c3 remains unchanged.
+
+Light's authored single pilot/repeater/geometry/component/recovery map found no
+concrete new required missing runtime feature. Hauler already has physical cabin,
+Loadmaster/Navigator chairs, actual travelling mass driver and shared damage;
+its eight cargo anchors/bridge forward to a consumer whose conserved ordinary
+manifest is Jovian-only. HAULER-CARGO-DEFINE names exact missing source/item/stock/
+destination/terminal interpretation; Hauler cargo play remains required, not
+accepted from its bridge or borrowed Jovian stock. No mission/entitlement invented.
+
+Bomber's finite four-hardpoint/four-round travelling payload and pilot systems
+remain separate from unresolved promised additional crew/navigation. Current
+source disembark clears/detaches; re-entry starts a newer generation and restores
+four rounds. This is a source path, not executed ordinary reboard proof or a
+settled rearm-policy defect. BOMBER-REARM-POLICY must distinguish permitted
+same-hull replenishment/recovery before repair or qualification. Existing fresh-
+generation API behavior stays accepted; no pilot-only scope reduction or repeated
+owner question. Both missing contracts are recorded as definitions, not new
+production assignments or approval claims.
+
+All nine implemented CRAFT-GAPS rows now have bounded definitions; exact unresolved
+interpretations remain named. Eight missing original craft, full craft/art/combat/
+crew/cargo/recovery/ordinary packaged/hardware gates and parked failures retain
+scope. All36 original parents/ten gates OPEN; Titan unapproved. No automatic
+repair or qualification successor.
+
+### Retained Cinder definition contract
+
+### Selected craft definitions — three Cinder variants
+
+CRAFT-GAPS-CINDER-LIGHT/HAULER/BOMBER (parents10/11) are selected as independent
+source-only definitions,30min total. Two medium-effort read-only agents map Light
+Interceptor and Cargo Hauler; root maps Bomber and integrates existing docs.
+Finish finite authored feature/component/physical-role maps with actual owners,
+coverage boundaries and concrete required missing behavior or exact missing
+interpretation. Preserve Bomber's already-recorded additional crew/navigation
+WAITING decision; do not ask again or infer approval/reduction. No engine/test/
+capture/export/CI, runtime edit, tracker/validator, parked route retry or automatic
+qualification chain. Stop once owner/seam/acceptance distinctions are known;
+real repairs need separate frozen cards. Commit/push source definitions without
+claiming current gameplay passes or whole fleet completion.

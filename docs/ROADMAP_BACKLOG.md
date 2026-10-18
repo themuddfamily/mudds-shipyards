@@ -159,9 +159,11 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-GAPS-ZENITH | Zenith remaining authored components/roles | 10,11 | Definition DONE: finite capability/physical-role map in COMPLETION_SCOPE.md; no concrete new required missing runtime component/role established. Full craft/art/combat/crew qualification and recorded parked gates remain OPEN. |
 | CRAFT-GAPS-HALYARD | Halyard remaining authored components/roles | 10,11 | Definition DONE: finite capability/physical-role map in COMPLETION_SCOPE.md; no concrete new required missing runtime component/role established. Full craft/art/combat/crew qualification and recorded parked gates remain OPEN. |
 | CRAFT-GAPS-BULWARK | Bulwark remaining authored components/roles | 10,11 | Definition DONE: finite capability/physical-role map in COMPLETION_SCOPE.md; no concrete new required missing runtime component/role established. Full craft/art/combat/crew qualification and recorded parked gates remain OPEN. |
-| CRAFT-GAPS-CINDER-LIGHT | Cinder Light Interceptor remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
-| CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
-| CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
+| CRAFT-GAPS-CINDER-LIGHT | Cinder Light Interceptor remaining authored components/roles | 10,11 | Definition DONE: finite authored pilot/weapon/component map in COMPLETION_SCOPE.md; no concrete new required runtime/physical-role gap found. Full craft/art/combat/ordinary package acceptance OPEN. |
+| CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | Definition DONE: finite hull/cabin/roles/travelling-weapon map plus explicit Hauler cargo-contract gap; forwarding bridge does not accept Hauler delivery. Full craft/art/combat/crew/cargo play OPEN. |
+| CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | Definition DONE: pilot/payload/component map; additional crew/navigation decision and exact spent-payload rearm policy remain unresolved. Full craft/art/combat/crew/recovery OPEN. |
+| HAULER-CARGO-DEFINE | Name Hauler-specific conserved cargo play | 10,13 | DEFINE; eight anchors/bridge exist, actual ordinary supply manifest is Jovian-only. Name Hauler item/source/stock/destination/terminal route before implementation; preserve existing Jovian contract and original Hauler cargo-play promise. |
+| BOMBER-REARM-POLICY | Define permitted spent-payload replenishment boundary | 10,11,31 | DEFINE; source disembark detaches and next session restores4. Specify seat re-entry versus actual rearm/recovery entitlement before repair/qualification; fresh-generation API tests do not settle that choice. |
 | WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | Definition DONE on a0d446645; current binding map in WEAPON_DEFINITION_CONTRACT.md, finite distinctions below. No missing runtime weapon type inferred; eight originals UNKNOWN/Bomber role decision retained |
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | Definition DONE on82a7564cb; COMPONENT_DAMAGE_MODEL_CONTRACT.md maps five IDs/all nine craft, real role exceptions, repair/reset owners and concrete remote row gap; no gameplay pass |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | DEFINE; named before/after view and affected route |
@@ -1271,8 +1273,15 @@ or physical access layout. BOMBER-ROLE-DECISION therefore needs those exact choi
 before a production station is assigned; no pilot-only scope reduction or invented
 role is approved. Once defined, one station's physical enter/action/stand/reseat
 and authority integration is a bounded production child with a fresh checkpoint.
-Spent-payload recovery remains separate: explicit fresh-generation reset exists,
-but ordinary disembark/reboard replenishment is not settled by those unit tests.
+Spent-payload recovery remains separate. CRAFT-GAPS-CINDER-BOMBER now maps the
+actual source path: GameFlow `_disembark_ship_to_exterior` clears/detaches the
+session, and next `_ensure_bomber_payload_session` starts a newer generation;
+BomberPayloadAuthority `_start_generation` restores four rounds. This source
+inference is not an executed ordinary reboard result or a defect finding.
+BOMBER-REARM-POLICY must define which same-hull events may replenish spent
+payload (seat re-entry, dock service or actual destruction/reuse) before assigning
+a correction or proof. Existing explicit fresh-generation unit behavior remains
+accepted; it does not settle ordinary player entitlement.
 
 CAPTURE instances (13 required sets, **143 PNGs** total):
 

@@ -388,6 +388,69 @@ termination, capacity or endurance. HALYARD-BOARD, dependent MOVING-CABIN/
 AUTHORITY-STOP, GUNNER-DAMAGE and HELM-YAW-HANDBACK remain parked/gated exactly
 as recorded. No diagnosis, retry, runtime repair or successor is selected here.
 
+### Cinder Light Interceptor capability map — CRAFT-GAPS-CINDER-LIGHT
+
+Source-only definition onc7d86a0d9 (2026-10-18), parents10/11. Independent bounded
+reader; no engine/test/capture ran. This is NEW project-original additional content.
+
+| Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
+| --- | --- | --- |
+| Single-pilot light interceptor handling and fitout | `cinder_light_interceptor_new_design.tres`; CinderLightInterceptor installs per-craft definition before Hero initialization | Authored102m/s cruise/120 boost/32 acceleration/110 hull/1.8s startup. Main craft, fleet differentiation and production combat tests cover definition consumption. Native handling/full sortie and final art/material/LOD remain open. |
+| Pressure hull, swept wing, twin engine/cannon furniture, aft fin/speed rails and fitted cockpit/canopy | Light variant/root collision builders | Main craft, speed-silhouette/aft-fin/resource-sharing tests cover authored geometry. Visible cannons/recognition parts add no independent weapon/component authority. Camera/muzzle/landing clearance retains original acceptance. |
+| One physical pilot, port canopy access/exit, Dock06 | `scripts/world/fleet_expansion_production_binding.gd` composes the script and attaches boarding/audio/pedestrian support; HeroShip seat and closed cabin contract | No separate craft scene is missing; no walkable cabin or extra crew station is authored. `game_flow_fleet_expansion_physical_switching_test.gd` stages a start5m from boarding and shortens motions; ordinary full route and occupancy/network qualification remain separate. |
+| Pilot rapid repeater, inherited heat/cooldown/readout | Light runtime WeaponDefinition; GameFlow profile, source1108 and shared combat authority/resolver | Hitscan320m/18/.28s. `cinder_light_interceptor_combat_production_test.gd` stages pilot/engine and checks accepted/resolved fire plus heat/cooldown/readout; it does not establish an actual damaging hit or ordinary combat journey. Two visible mounts are not two weapon systems. |
+| Shared five-component damage/passive repair/destruction/reuse and engine warning cue | HeroShip/ShipComponentDamage; Light shared damage rig and beacon/vane observer | Main craft/shared component and `cinder_light_interceptor_damage_feedback_test.gd` cover controlled damage/presentation/re-entry/reset. Beacon observes impairment/failure without health authority. Full craft damage/repair/return remains open. |
+| Production switching/recovery and audio perspective | FleetExpansionProductionBinding/FleetExpansionBerths, shared GameFlow lifecycle and Light perspective binding | `game_flow_fleet_expansion_switching_test.gd` manually advances regeneration readiness and stages landing capture. `audio/cinder_light_interceptor_perspective_audio_test.gd` injects a rig/view signals. Preserve focused coverage without claiming ordinary packaged reuse/listening/device acceptance. |
+
+Definition DONE: no concrete new required missing runtime component or physical
+role established within inspected owners. Full CRAFT-ACCEPT-CINDER-LIGHT and
+original art/combat/ordinary package/device/audio gates remain OPEN; no successor
+or rerun is selected by this definition.
+
+### Cinder Cargo Hauler capability map — CRAFT-GAPS-CINDER-HAULER
+
+Source-only definition onc7d86a0d9 (2026-10-18), parents10/11. Independent bounded
+reader; no engine/test/capture ran. NEW modern craft; cargo-play interpretation
+below remains unresolved rather than being accepted from its bridge.
+
+| Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
+| --- | --- | --- |
+| Cargo hull/fitout and handling, Dock04 | `cinder_cargo_hauler_new_design.tres`, CinderCargoHauler, FleetExpansionProductionBinding script composition | Authored64m/s cruise/88 boost/220 hull/3.8s startup. Main craft, hull/silhouette/freight-frame/resource-sharing tests cover construction/definition. Final art/material/camera/LOD/native views and full ordinary craft route remain open. |
+| Port aperture, split collision shell, deck/pressure collar, retracting ramp and cabin frame | Hauler entry/ramp/cabin/frame builders; inherited canopy operation | Actual ramp retracts for piloting/flight/destruction. The open pressure collar is not a separately operated cargo hatch. Cabin gameplay test ray-checks support and registers a CharacterBody3D; this does not establish a full ordinary Player moving-cabin sortie. |
+| Pilot plus physical Loadmaster/Navigator passenger assignments | Hauler passenger contracts/station anchors/intent consumers; `register_cinder_roster` and shared GameFlow/network bridges | Two real additional chairs publish readiness and bounded route/sensor hints. Their snapshots deny cargo/reward/movement authority. Existing interaction/cabin/bridge/HUD/audio and recorded source/package scopes remain distinct from full ordinary crew/capacity/endurance acceptance. Unanchored gunner/engineer policy slots and four walking registrations are not additional chairs; no physical engineer repair role is authored. |
+| Travelling defensive mass driver | Hauler runtime WeaponDefinition; GameFlow mass-driver profile, MassDriverBoltPool/TravellingBoltProjectile/shared combat authority | Actual projectile180m/26 damage/150m/s/1.2s/.45m radius, source1109; fail-closed resolver conversion. `cinder_cargo_mass_driver_bolt_test.gd` checks delayed single damage/cleanup/reduced flash at a staged60m target. It does not accept whole ordinary combat/miss/origin-shift/network routes. Missing idle cannon lens is intentional presentation, not absent weapon runtime. |
+| Five shared components, passive landed repair, reuse and shoulder/engine cues | HeroShip/ShipComponentDamage; Hauler shared damage rig/reset/observers | Existing focused feedback/silhouette/resource lifecycle and shared parity cover their scopes. Static cues add no component ledger or physical engineer entitlement. Full contact/crew/remote damage-recovery acceptance stays open. |
+| Eight cargo anchors/declared capacity and forwarding bridge | Hauler cargo hold/anchors; CinderCargoActivityBridge; FleetExpansionProductionBinding `bind_cargo_activity` | Bridge validates craft/anchors/item and forwards start/phase/reset; it owns no manifest, transfer or reward. Anchor count/bridge tests are not playable Hauler delivery acceptance. |
+| Actual existing platform-supply transfer consumer | NearbySectorActivityBinding `_on_cargo_berth_occupancy_changed`; CargoTransferAuthority/CargoDeliveryActivity | Consumer accepts only `jovian_provisional`, registers capacity8/two cinder_supply_crates and transfers one through load_crate/clear_gate/dock_platform. Existing ordinary supply scope explicitly requires that Jovian/manifest. It cannot establish Hauler cargo play. HAULER-CARGO-DEFINE must name the Hauler source/manifest/item/quantity, destination and ordinary terminal route before a production delivery assignment. Existing Jovian activity must retain its identity/conservation/reward contracts. |
+
+Definition DONE as a finite owner map plus exact missing cargo contract. Original
+Hauler cargo-and-weapon play remains required; cargo anchors/readiness/forwarding
+cannot close it. Full CRAFT-ACCEPT-CINDER-HAULER/art/combat/crew acceptance remains
+OPEN. No extra historical role, mission/stock entitlement, repair, or unchanged
+qualification run is inferred; no implementation successor selected here.
+
+### Cinder Bomber capability map — CRAFT-GAPS-CINDER-BOMBER
+
+Source-only definition onc7d86a0d9 (2026-10-18), parents10/11. Root mapping; no
+engine/test/capture ran. NEW modern craft; pilot/payload implementation does not
+waive the recorded additional crew/navigation requirement or settle rearm policy.
+
+| Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
+| --- | --- | --- |
+| Bomber hull/cockpit/strike wings/ordnance spine/twin-fin aft form, handling and Dock05 | `cinder_long_range_bomber_new_design.tres`, CinderLongRangeBomber `_build_bomber_variant`; FleetExpansionProductionBinding composes script/boarding/audio | Authored72m/s cruise/95 boost/18 acceleration/240 hull/3.6s startup. Main Bomber/fitout/silhouette and expansion switching/lifecycle tests cover authored construction and controlled setup. No standalone ship scene is missing; full native art/material/handling/clearance and ordinary craft loop remain open. |
+| Physical pilot, boarding/cameras/exit and common landing | Bomber accessors/shared HeroShip/Player/GameFlow; Dock05 pedestrian handoff support | One pilot only in current runtime; no MovingInteriorFrame/walkable cabin/extra crew station is registered. Existing expansion tests retain staging/motion-shortening scopes. BOMBER-ROLE-DECISION remains WAITING for exact additional role/count/action/access; injected bomber_gunner/new_gunner API actor names are not physical chairs. |
+| Four rotating payload hardpoints, finite ammunition/admission/cadence | Bomber request_payload_release, BomberPayloadAuthority; GameFlow `_consume_bomber_payload_release` | Production actor player_pilot; four rounds/1s cooldown, generation/sequence/authority guards. Inherited primary cannon is explicitly disabled. `cinder_bomber_payload_integration_test.gd` covers API hardpoint/delegation/exhaustion/detach/fresh-generation setup, not ordinary crew roles or full sortie. |
+| Actual travelling ballistic payload and impact authority | GameFlow payload profile/source1106, BomberPayloadProjectile, BomberPayloadCombatAdapter/shared CombatResolver | Profile900m/80 damage; release uses ship velocity plus forward220m/s, gravity and30s projectile lifetime. Detached projectile test owns motion but no raycast/damage; combat adapter tests and existing network integration cover controlled authority/replica/terminal seams. These do not establish ordinary packaged hit/miss/friendly/occluded combat and recovery. |
+| Hull/five common components, failed-fire release gate and cues | Shared HeroShip/ShipComponentDamage, Bomber `_get_payload_component_hold_reason`, shared damage presentation and starboard-wing observer | `cinder_bomber_failed_wing_payload_gate_test.gd`, damage/cue/silhouette tests cover focused state and no-ammo debit on refusal. Failed fire prevents release; this does not define impaired payload cadence. Full craft damage/destruction/recovery remains original acceptance. |
+| Cockpit/HUD payload feedback, release/terminal presentation and perspective audio | Bomber payload presentation/audio, GameFlow HUD/settings/terminal consumers | Existing cockpit readout, HUD/overlay/settings, presentation and audio tests cover their own consumers. Dummy state tests do not establish output quality, physical controller use or whole ordinary Settings/flight. |
+| Disembark/detach/reboard versus actual rearm boundary | GameFlow `_disembark_ship_to_exterior` → `_clear_bomber_payload_loop` detaches; subsequent `_ensure_bomber_payload_session` starts a newer generation; BomberPayloadAuthority `_start_generation` restores initial ammo | Source path restores four rounds on a new post-disembark session; explicit ship reuse also detaches. This is source inference, not an executed ordinary reboard observation. Unit fresh-generation reset is intentional but does not decide whether seat-only re-entry, dock service, destruction/recovery or another event is allowed to replenish the same hull. BOMBER-REARM-POLICY must settle that exact rule before a correction/qualification is assigned. |
+
+Definition DONE as finite authored map plus the preserved crew/navigation and
+rearm-policy gaps. Original spent-payload recovery and additional crew/navigation
+acceptance remain OPEN; pilot-only scope reduction is not approved. No runtime
+defect, new rearm mechanic or qualification pass is claimed from this source
+comparison. No repair, repeated question or successor automatically selected.
+
 ## Combat opponents, weapons and damage
 
 DAMAGE-DEFINE source inventory on82a7564cb is complete in
