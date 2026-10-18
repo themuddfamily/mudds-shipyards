@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: add the missing on-foot context to the existing packaged recovery driver.**
+**Next: package the accepted on-foot release driver, then qualify the exported recovery.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -32,13 +32,13 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Next four cards
 
-**2 IN PROGRESS after recorded failures, 2 GATED.** These are the current bounded deliveries, not the remaining
+**1 DONE, 2 IN PROGRESS, 1 GATED.** These are the current bounded deliveries, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
-| RECOVERY-ONFOOT-PROBE | Release capability / IN PROGRESS, type repair checks | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
-| CHECKPOINT-ONFOOT-PROBE | Build / GATED on probe | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
+| RECOVERY-ONFOOT-PROBE | Release capability / DONE (source scope) | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
+| CHECKPOINT-ONFOOT-PROBE | Build / IN PROGRESS | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
 | RECOVERY-ONFOOT-CUT | Recovery qualification / GATED on probe+package | Real-file on-foot commit survives owned SIGKILL/distinct restart into supported walking and real boarding beside the saved craft. |10–20 min freeze/driver preparation; existing package-probe limits separate and unchanged. |
 | ACCESS-PAUSE-16X10 | UI qualification / IN PROGRESS, fixture timing corrected | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
 
@@ -71,7 +71,11 @@ concrete boundary; one attempted repair requires priority review before more wor
   player state and explicit arm/resume observation. Compile and relevant existing
   checks on a clean pinned source. Do not rerun parked whole session recovery/Q5.
   Source-driver proof does not close real OS interruption or packaged acceptance.
-- **Execution:** FAILED/root; candidate `b5e2b00a5` passed static review and
+- **Execution:** DONE/root at `f90547c37`, after recorded failure/one type repair.
+  Source driver PASS: actual arm SIGKILL/reap, distinct resume0, supported walk
+  0.525555m, ordinary Interact boarding, receipts1→2 exactly once; source/cache
+  stable and processes closed. This does not close exported-game acceptance.
+  Original candidate `b5e2b00a5` passed static review and
   import but explicit compile exits1: forward/right types cannot be inferred
   at probe lines1232/1233. CLI not run. One bounded repair adds only explicit
   Vector3 annotations at `f90547c37`: compile PASS and CLI249 PASS, source/cache
@@ -79,7 +83,7 @@ concrete boundary; one attempted repair requires priority review before more wor
   arm/resume check next, before paying for packages; competing full UI sweep
   stays queued. Exact `--source --in-world-interruption --activity=convoy`,
   context on_foot, Dummy/headless,300s per stage/660s outer, first failure STOP.
-  No automatic repair after that result; original failure/repair counts remain. Inspect existing arm/resume branches and freeze the
+  Source invocation passed; original failure/repair counts remain. Inspect existing arm/resume branches and freeze the
   on-foot case contract from the [completed definition](docs/ROADMAP_BACKLOG.md#settled-exterior-on-foot-recovery-contract).
   Budget45–60 min; split before 90 min. First unexpected result stops for review.
   Commit/push accepted production capability; immediately build the next card.
@@ -93,6 +97,8 @@ concrete boundary; one attempted repair requires priority review before more wor
   stock PE .text. Direct/archive Linux and actual Windows payload each strict
   headless/Dummy startup actualexit0+exactlyone STARTUP_MENU_READY_OK/no original
   error/leak diagnostics. Native Windows execution is not implied.
+- **Execution:** IN PROGRESS/root on accepted clean source `f90547c37`; paired
+  safe exports and three strict startups next.
 - **Budget/stop/close:**15–25 min preparation/checks, original900s exports/300s
   startups separately. One export/platform, first failure stops with raw retained.
   Publish only repository builds; commit/push notes/index, then qualify the cut.

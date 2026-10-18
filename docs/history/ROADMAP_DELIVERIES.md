@@ -5418,3 +5418,23 @@ headless/Dummy,300s arm and300s resume/660s outer. This is one source-driver
 acceptance invocation, not packaged/native acceptance or ordinary fullflight.
 The competing corrected full UI sweep stays queued. First failure stops with
 no automatic correction; retain cumulative failure/repair budget and raw.
+
+RECOVERY-ONFOOT-PROBE source capability DONE at f90547c37, integrated by
+merge on main. The one frozen source-driver invocation exits0/statusPASS. Actual
+armed process688083 exits-9 after readiness and is reaped; distinct resume688310
+exits0. Supported claim-free Bulwark/home preference survives the real-file cut,
+active craft remains default Torrent; ordinary input walks0.525554656982422m
+on supported ground, ordinary Interact acquires Bulwark pilot/hatch, and flight
+input is accepted. Failed second convoy/first earned receipt are conserved before
+boarding; distinct continuation pays once to2 despite repeated retry. Both crash
+markers close. No player pose/authority injection; disclosed craft scenario
+placements remain a limit, not an ordinary fullflight qualification.
+
+Full tracked/commit/status/cache guard is unchanged, existing source/cache
+manifests match, driver owned_children_reaped=true. Root independently sees
+arm/resume PIDs absent; detached owner688071/start111248866 terminal0/absent.
+Raw source-driver/onfoot-convoy and onfoot-source-driver* remain in task results.
+Packaged/native execution remains NOT_RUN. CHECKPOINT-ONFOOT-PROBE now starts
+from exact accepted clean f90547c37 with original exports900/platform and strict
+startups300 each; public checkpoint2c73494 remains current until all new audits
+and publication pass. Hosted CI/native Windows/GPU/human gates remain open.
