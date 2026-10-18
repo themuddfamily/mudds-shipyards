@@ -48,6 +48,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	if "--ordinary-jovian-kit-reload" in OS.get_cmdline_user_args():
+		await _run_ordinary_jovian_kit_reload()
+		return
 	if "--ordinary-jovian-kit-deliver" in OS.get_cmdline_user_args():
 		await _run_ordinary_jovian_kit_board(true, true)
 		return
@@ -108,6 +111,166 @@ func _run() -> void:
 	await _test_interrupted_cargo_recovery()
 	await _test_unsaved_cargo_reset_recovery()
 	_finish()
+
+
+# Restore only: the coordinator starts this selector in a distinct OS process,
+# with the accepted delivery's original XDG_DATA_HOME and absolute store path.
+const RELOAD_STORE_ARGUMENT := "--ordinary-jovian-kit-reload-store="
+const RELOAD_SHA256_ARGUMENT := "--ordinary-jovian-kit-reload-sha256="
+var _reload_baseline: Dictionary = {}
+var _reload_store: UserDataStore
+var _reload_completed := false
+
+
+func _run_ordinary_jovian_kit_reload() -> void:
+	_ordinary_deadline = Time.get_ticks_msec() + 30000
+	await _ordinary_reload_scenario()
+	_reload_require(_reload_completed, "restore scenario reached terminal acceptance")
+	# Do not remove or rewrite the accepted store during harness cleanup.
+	for action in InputMap.get_actions():
+		Input.action_release(action)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	Input.parse_input_event(release)
+	paused = false
+	if is_instance_valid(_ordinary_game):
+		_ordinary_game.release_mouse_capture()
+		if _ordinary_game.is_inside_tree():
+			_ordinary_game.queue_free()
+		else:
+			_ordinary_game.free()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	await process_frame
+	await process_frame
+	_reload_require(not is_instance_valid(_ordinary_game), "restored Main freed before success")
+	if _reload_store != null and not _reload_baseline.is_empty():
+		_reload_require(_ordinary_reload_store_unchanged(), "cleanup preserves substantive saved cargo and paid reward")
+	print("JOVIAN_KIT_ORDINARY_RELOAD_ASSERTIONS: ", _assertions)
+	if _reload_completed and _failures.is_empty():
+		print("JOVIAN_KIT_ORDINARY_RELOAD_OK")
+	quit(0 if _reload_completed and _failures.is_empty() else 1)
+
+
+func _ordinary_reload_scenario() -> void:
+	var path := ""
+	var path_arguments := 0
+	var expected_sha256 := ""
+	var sha256_arguments := 0
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with(RELOAD_STORE_ARGUMENT):
+			path = argument.trim_prefix(RELOAD_STORE_ARGUMENT)
+			path_arguments += 1
+		elif argument.begins_with(RELOAD_SHA256_ARGUMENT):
+			expected_sha256 = argument.trim_prefix(RELOAD_SHA256_ARGUMENT)
+			sha256_arguments += 1
+	if not _reload_require(path_arguments == 1 and path.is_absolute_path()
+		and FileAccess.file_exists(path), "one explicit absolute accepted store path exists"):
+		return
+	if not _reload_require(sha256_arguments == 1 and expected_sha256.length() == 64
+		and FileAccess.get_sha256(path) == expected_sha256,
+		"actual primary matches the accepted KIT-DELIVER artifact before Main"):
+		return
+	_reload_store = Store.new(path, UserDataFilesystem.new()) as UserDataStore
+	var loaded := _reload_store.load_read_only()
+	if not _reload_require(bool(loaded.get("accepted", false)) and _reload_store.get_loaded_source() == &"primary",
+		"production store accepts actual primary without backup recovery"):
+		return
+	_reload_baseline = _reload_store.get_snapshot()
+	var session := _reload_baseline.get("jovian_cargo_session", {}) as Dictionary
+	var rows := session.get("activities", []) as Array
+	if not _reload_require(rows.size() == 1, "accepted baseline has one saved Jovian activity"):
+		return
+	var row := rows[0] as Dictionary
+	var saved := (row.get("progress", {}) as Dictionary).get("cargo_session_state", {}) as Dictionary
+	var activity := saved.get("activity_state", {}) as Dictionary
+	var receipt := activity.get("accepted_receipt", {}) as Dictionary
+	var reward := _reload_baseline.get("game_flow_reward_store", {}) as Dictionary
+	var paid := reward.get("last_receipt", {}) as Dictionary
+	if not _reload_require(int(activity.get("generation", 0)) == 1
+		and int(activity.get("state", -1)) == CargoDeliveryActivity.State.COMPLETED
+		and bool(row.get("reward_requested", false)) and bool(row.get("reward_granted", false))
+		and str(receipt.get("transfer_id", "")) == "jovian_fabrication_kit_delivery_g1"
+		and bool(receipt.get("accepted", false)) and int(receipt.get("quantity", 0)) == 2
+		and int(receipt.get("source_quantity_after", -1)) == 4
+		and int(receipt.get("destination_quantity_after", -1)) == 2
+		and int(reward.get("total_receipts", 0)) == 1
+		and str(paid.get("activity_id", "")) == "jovian_fabrication_kit_delivery"
+		and int(paid.get("activity_generation", 0)) == 1
+		and str(paid.get("reward_id", "")) == "return_fabrication_kits_to_shipyard"
+		and bool(paid.get("granted", false)) and not bool(paid.get("replay_allowed", true)),
+		"saved baseline is completed generation one with its exact paid delivery"):
+		return
+	# Both the actual store and its substantive baseline exist before Main.
+	_ordinary_game = MAIN_SCENE.instantiate() as GameFlow
+	if not _reload_require(_ordinary_game.configure_runtime_settings_persistence(
+		_reload_store, path.get_base_dir().path_join("legacy.cfg")),
+		"real production filesystem configured before Main enters tree"):
+		return
+	root.add_child(_ordinary_game)
+	await _ordinary_ticks(4)
+	if not _reload_require(_ordinary_game.hud is GameHUD and _ordinary_game.world is ShipyardWorld
+		and _ordinary_game.world.get_jovian_freight_berth() != null
+		and _find_ship(_ordinary_game, &"jovian_provisional") != null
+		and bool((_ordinary_game.get("_jovian_cargo_session_restore_status") as Dictionary).get("accepted", false)),
+		"normal production startup accepts Jovian restore with real craft and freight service"):
+		return
+	if not _reload_require(_ordinary_reload_matches_baseline(),
+		"startup restores same lifecycle clock, generations, kits, transfer receipt and single paid reward"):
+		return
+	var physics_start := Engine.get_physics_frames()
+	var process_start := Engine.get_process_frames()
+	for _index in 60:
+		await _ordinary_ticks(1)
+		if not _reload_require(Time.get_ticks_msec() < _ordinary_deadline and not paused
+			and _ordinary_game.is_physics_processing() and _ordinary_game.is_processing()
+			and _ordinary_reload_matches_baseline(),
+			"ordinary startup/retry ticks preserve completed cargo and reward without replay"):
+			return
+	_reload_completed = _reload_require(Engine.get_physics_frames() - physics_start >= 60
+		and Engine.get_process_frames() - process_start >= 60 and _ordinary_reload_store_unchanged(),
+		"at least sixty normal physics/process ticks retain saved completion and no duplicate reward")
+
+
+func _ordinary_reload_matches_baseline() -> bool:
+	var owner := _ordinary_game.cargo_delivery_activity
+	var authority := _ordinary_game.cargo_transfer_authority
+	if owner == null or authority == null:
+		return false
+	var row := (_reload_baseline.jovian_cargo_session.activities as Array)[0] as Dictionary
+	var saved := row.progress.cargo_session_state as Dictionary
+	var report := _ordinary_game.get_activity_integration_report()
+	var reward := (_ordinary_game.get_activity_reward_report().get("authority", {}) as Dictionary).get("record", {}) as Dictionary
+	return owner.get_state() == CargoDeliveryActivity.State.COMPLETED and owner.get_generation() == 1 \
+		and _manifest_quantity(report.get("cargo_source_manifest", {}) as Dictionary) == 4 \
+		and _manifest_quantity(report.get("cargo_destination_manifest", {}) as Dictionary) == 2 \
+		and JSON.parse_string(JSON.stringify(owner.capture_persistence_state())) == saved.activity_state \
+		and JSON.parse_string(JSON.stringify(authority.to_dictionary())) == saved.authority_state \
+		and JSON.parse_string(JSON.stringify(reward)) == _reload_baseline.game_flow_reward_store \
+		and int(authority.audit().get("committed_transfer_count", -1)) == 1 \
+		and _cargo_receipts(_ordinary_game) == 1 \
+		and (_ordinary_game.get("_owed_game_flow_activity_rewards") as Array).is_empty() \
+		and not bool(_ordinary_game.call(&"_has_pending_jovian_cargo_reward"))
+
+
+func _ordinary_reload_store_unchanged() -> bool:
+	var loaded := _reload_store.load_read_only()
+	var current := _reload_store.get_snapshot()
+	return bool(loaded.get("accepted", false)) and _reload_store.get_loaded_source() == &"primary" \
+		and current.get("jovian_cargo_session") == _reload_baseline.get("jovian_cargo_session") \
+		and current.get("game_flow_reward_store") == _reload_baseline.get("game_flow_reward_store")
+
+
+func _reload_require(condition: bool, description: String) -> bool:
+	if not condition and _failures.is_empty():
+		var diagnostic := {"description": description, "pid": OS.get_process_id(),
+			"remaining_msec": _ordinary_deadline - Time.get_ticks_msec()}
+		if is_instance_valid(_ordinary_game) and _ordinary_game.is_inside_tree():
+			diagnostic["restore"] = _ordinary_game.get("_jovian_cargo_session_restore_status")
+			diagnostic["cargo"] = _ordinary_game.cargo_delivery_activity.get_snapshot() if _ordinary_game.cargo_delivery_activity != null else {}
+			diagnostic["rewards"] = (_ordinary_game.get_activity_reward_report().get("authority", {}) as Dictionary).get("record", {})
+		print("JOVIAN_KIT_ORDINARY_RELOAD_FIRST_FAILURE: ", JSON.stringify(diagnostic))
+	return _check(condition, description)
 
 
 # Selected ordinary routes share the accepted KIT-BOARD approach. The default
