@@ -1,9 +1,9 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **330a39c**, with actual host craft power percentages in the
-observer HUD and bounded live network updates. [Windows build notes](builds/windows/MuddsShipyards-330a39c-notes.txt)
-and [Linux build notes](builds/linux/MuddsShipyards-330a39c-linux-notes.txt) state
+accepted checkpoint: **9b7b46a**, with actual Halyard repair-edge sound requests
+and captions through the production state/lifecycle path. [Windows build notes](builds/windows/MuddsShipyards-9b7b46a-notes.txt)
+and [Linux build notes](builds/linux/MuddsShipyards-9b7b46a-linux-notes.txt) state
 actual checks and limits. All 36 original parents and ten phase gates remain open.
 
 ## What separates this alpha from completion
@@ -32,88 +32,26 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-NET-COMPONENT-POWERS is accepted on `330a39c`, merged and packaged. The original
-pose fixture failure, one sequence repair, integration budget failure and selected
-codec repair remain in the [complete result](docs/history/ROADMAP_DELIVERIES.md#net-component-powers--host-output-and-bounded-live-updates-accepted).
-Owned scratch is cleaned; unique results remain. No further power/network task
-is selected. All four station service runtime passes retain their recorded scope.
+AUDIO-CREW-REPAIR-PLAYBACK is accepted on `9b7b46a`, merged and packaged. Actual
+repair observations now reach the existing captions and distinct bounded resident
+sound requests; progress is silent, independent elapsed completion is observed,
+and old terminals cannot replay on source replacement/re-entry. [Full result](docs/history/ROADMAP_DELIVERIES.md#audio-crew-repair-playback--actual-accepted-repair-edges-delivered)
+retains the original compile stop and exact annotation repair. Owned scratch is
+cleaned; unique results remain. No further crew repair changes are selected.
+Earlier host-power and four service runtime passes retain their recorded scopes.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-CREW-REPAIR-PLAYBACK | IN PROGRESS; concrete running-game gap | Actual repair start/interruption/completion must cross correct source fields and independent repair ordering to distinct resident sounds. Complete card below; 45–75 min implementation/review, 10–20 min focused checks and 10–15 min checkpoint work, estimated rather than guaranteed. |
+| AUDIO-NAVIGATOR-PLAYBACK | DEFINE; existing MIX-NAVIGATOR semantic-only boundary | Trace actual accepted/rejected navigator ping results and recipient/source lifetimes to the current playback owner. End with one concrete missing cue path and bounded implementation card, or exact missing fact. Verify alternate generic playback before declaring absence; source-only, 15–20 min, no engine/audible run or automatic reuse of crew logic. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
-AUDIO-MIX-DEFINE is complete as a source definition. The [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
-names current craft/activity/shared episodes and actual source-check limits.
-Every listening case remains NOT_RUN, gated on a selected package/ordinary route,
-actual output device/backend/configuration and explicit audible authorization.
-No mandatory headphone/speaker matrix is invented. Ember’s airless boundary and
-unspecified dormant-feed intent remain recorded. Hauler’s pending stock/custody
-choice remains unchanged; do not repeat that question or invent stock.
-
-## Next executable card: AUDIO-CREW-REPAIR-PLAYBACK
-
-**IN PROGRESS on e383975f6.** Pre-execution source review additionally found the
-router omits the four already-defined engineer repair IDs, so it drops those
-captions/events before the Director. Narrow router ownership/check is included
-below before edits. Existing bounded cue retirement may be used to prevent old
-terminal slots suppressing the next genuine repair; no new voice/timer/authority
-is introduced. The same complete player result and original stop/budget apply.
-
-**Player result, parent30:** actual accepted Halyard engineer repair start,
-interruption and completion generate distinct short sound requests and the
-existing correct captions. Progress does not beep each frame. Repair truth,
-resource debit and role authority remain with the existing owners.
-
-- **Prerequisite/cause:** source definition on9ef81a348 identifies raw repair
-  `status/token/progress` versus binding `sequence/repair_state`, the role-event
-  gate that misses elapsed completion, and the Director’s semantic-only relay.
-  Fix all three together; fabricated correctly shaped inputs cannot prove this.
-- **Owner/files:** one implementation agent owns `scripts/game/game_flow.gd`,
-  `scripts/audio/audio_director.gd`, `scripts/audio/semantic_audio_cue_router.gd`
-  (only missing engineer repair labels), and, where required at its input boundary,
-  `scripts/audio/halyard_crew_semantic_audio_binding.gd`. Extend existing
-  `tests/audio/game_flow_halyard_crew_audio_integration_test.gd` and
-  `tests/audio_director_test.gd`; existing engineer/role tests may provide the real
-  source fixture. Independent lifecycle review; root owns actual runs/integration/
-  checkpoint. No repair/role/network/save authority or protocol change.
-- **Implementation contract:** observe real repair status/token/progress under
-  the existing source/binding lifetime; normalize to its presentation vocabulary
-  with separate monotonic repair ordering. Role-authority sequence must retain
-  its meaning. Elapsed completion/interruption still forwards when it is unchanged.
-  Retire ordering/dedup state on source replacement, detach/re-entry and session
-  cleanup. Preserve direct normalized-input compatibility in the binding.
-- **Playback:** reuse three distinct existing resident templates:
-  `STREAM_UI_CONFIRM` for start, `STREAM_TARGET_DESTROYED_PRIMARY` for completion,
-  `STREAM_COMBAT_ALERT_PRIMARY` for interruption, on the UI bus at existing
-  authored cue levels. Dispatch
-  directly through the bounded resident effect pool, with current reduced-range
-  attenuation. Add no stream, voice, timer or generic caption echo; do not invoke
-  public generic cue methods that would emit a second event. Match only accepted
-  crew repair IDs/source; progress/unknown/invalid/stale/unbound input is silent.
-- **Focused proof:** real Halyard + actual role authority + production GameFlow
-  bridge + real Director dispatch. Verify real repair start, progress and elapsed
-  completion, plus departure interruption, while role sequence stays unchanged;
-  distinct resident request/stream/bus, once-only terminal cues, unchanged caption
-  identity, progress silence, duplicate/stale rejection, ship/source switch and
-  detach/re-entry. Preserve kit debit/repair results. A request spy can expose
-  actual dispatch under Dummy; it is not audibility or physical-seat proof.
-- **Commands/checks:** pin the clean source and use pinned Godot headless/Dummy.
-  Run the changed existing Director and GameFlow crew suites plus existing
-  `audio/halyard_engineer_audio_integration_test.gd`,
-  `halyard_crew_role_gameplay_test.gd`,
-  `audio/reduced_dynamic_range_audio_integration_test.gd` and
-  `audio/semantic_audio_source_unbind_test.gd`, plus the existing
-  `audio/halyard_crew_semantic_audio_router_test.gd` for repaired routing labels,
-  requiring exit0 and their existing
-  success markers. Freeze exact commands/budgets before execution. No real output,
-  desktop run, parked physical crew route or full matrix is selected.
-- **Delivery/stop:** fresh clean paired checkpoint, three strict silent package
-  startups (exit0 + STARTUP_MENU_READY_OK), existing package audit and repository
-  EXE/ZIP/actual notes. First unexpected failure stops for a separately selected
-  causal repair; failure plus one repair requires cumulative priority review.
-  Split remaining capability before90min implementation. Do not broaden into all
-  semantic cue playback, new audio architecture or listening qualification.
+AUDIO-MIX-DEFINE’s [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
+remains complete as a definition; all 28 listening cases remain NOT_RUN. Exact
+package/ordinary route, actual output device/backend/configuration and explicit
+audible authorization are still required. Repair dispatch under Dummy does not
+close that gate. The next single action is the finite navigator source definition
+above. Hauler’s pending stock/custody choice remains unchanged; do not repeat the
+question or invent stock. This queue is not a project estimate.
 
 ## Turning the remaining scope into executable work
 
@@ -139,28 +77,30 @@ a total job count or release date.
 
 ## Latest delivered result
 
-**Host craft powers and bounded live updates accepted on `330a39c`.** An eligible
-observer’s retained ENGINE OUTPUT / WEAPONS / TARGETING percentages match the
-actual observed craft’s host telemetry, including critical-hull stutter and
-admitted Halyard routing. Missing legacy fields clear old host powers; local
-pilot/simulation/repair/motion authority stays unchanged. When a live delta is too
-large, the existing full-snapshot form carries the complete update under the
-unchanged 12000-byte ceiling, then normal deltas resume from that baseline.
+**Actual Halyard repair audio/captions accepted on `9b7b46a`.** Real accepted
+repair start/interruption/completion now cross raw-state normalization, independent
+repair ordering, existing router labels and the Director’s bounded resident pool.
+The three existing templates use UI/current reduced-range settings. Progress
+creates no beep; duplicate/stale/invalid/unbound input and historical terminals
+cannot replay. Actual repair/kit/role authority remains unchanged. No new sound
+asset, voice or timer is added.
 
-Codec, full pose 302, independent Main/ENet 382, Halyard 70 and local HUD 104 checks
-PASS. The previously failing nine-craft full/live envelopes both measure 4,656 bytes.
-Fresh paired exports, all three strict menu-ready checks and 1,521-entry package
-audit PASS. [Windows checkpoint ZIP](builds/windows/MuddsShipyards-330a39c-checkpoint.zip)
-and [notes](builds/windows/MuddsShipyards-330a39c-notes.txt) are available.
+Seven focused suites PASS: Director 60, real GameFlow repair path 49, engineer 14,
+role 70, reduced-range 10, exact-source unbind 18 and router 19 assertions. The real
+fixture proves elapsed completion/interruption with unchanged role sequence,
+next repair after completion, kit debit, caption identity and source re-entry.
+Fresh paired exports, three strict menu-ready startups and 1,521-entry package audit
+PASS. [Windows checkpoint ZIP](builds/windows/MuddsShipyards-9b7b46a-checkpoint.zip)
+and [notes](builds/windows/MuddsShipyards-9b7b46a-notes.txt) are available.
 
-[Full result and retained original contract](docs/history/ROADMAP_DELIVERIES.md#net-component-powers--host-output-and-bounded-live-updates-accepted)
-include both failures, repairs, actual source/artifact hashes and cumulative 753.824 s
-of guarded execution. All 22 terminal owners/121 observed process identities are
-absent; original 96/current 102 profile files and helpers are retained, owned
-worktree/profile/helpers removed. Eleven published files and exact ZIP bytes
-reverified. These source/headless/fixture/package checks do not qualify ordinary
-physical crew admission, full multiplayer endurance, native Windows/GPU/device/
-audio, human or final-release gates. All 36 parents/ten phase gates remain OPEN.
+[Full result and original frozen contract](docs/history/ROADMAP_DELIVERIES.md#audio-crew-repair-playback--actual-accepted-repair-edges-delivered)
+retain the first compile failure, one explicit bool annotation and all 227.075 s
+of guarded execution. All 19 owners/102 observed process identities are absent;
+22 profile files/helpers and raw results retained, owned worktree/profile/helpers
+removed. Eleven public files and exact ZIP contents reverified. Dummy/request-spy
+checks establish actual sound dispatch, not audible mix/latency/clipping, physical
+crew admission or native Windows/GPU/device/human/final qualification. All 28 real
+listening cases, all 36 parents and ten phase gates remain OPEN/NOT_RUN as applicable.
 
 ## Parked failures and dependent work
 

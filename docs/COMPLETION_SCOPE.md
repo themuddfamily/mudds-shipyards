@@ -1011,7 +1011,7 @@ Do not replay every activity/craft for an unrelated shared music change.
 | MIX-EMBER | Shipborne descent/landing, on-foot, reboard/takeoff and exit; hull/thruster/regolith layers follow real source, no atmospheric wind/heat | EmberSurfaceLoopAudioProductionBinding; `audio/ember_surface_loop_audio_production_test.gd`; original parked journey limits retained |
 | MIX-AURORA | Surface arrival, cockpit→outside→shore→cabin/return; wind/cabin/coastal output changes coherently and retires on unload | AuroraSurfaceAudioBinding/AuroraExteriorAmbienceMixer; `audio/aurora_surface_audio_binding_test.gd`; original arrival artifacts remain gated |
 | MIX-RIME | Arrival→surface/on-foot→reboard/return; existing travel/surface music and craft cues follow current visit; no unapproved new glacial ambience inferred | GameFlow/retained Rime visit/planetary travel bindings; `audio/music_phase_integration_test.gd`, `audio/planetary_travel_audio_production_integration_test.gd`; parked arrival unchanged |
-| MIX-CREW | Halyard admitted role join/leave, engineer repair start/interruption/completion, readiness and handoff; critical repair/crew cues must have actual playback, not captions alone | HalyardCrewSemanticAudioBinding→SemanticAudioCueRouter→AudioDirector; `audio/game_flow_halyard_crew_audio_integration_test.gd`, `audio/halyard_engineer_audio_integration_test.gd`; semantic-only playback gap below, physical route gates retained |
+| MIX-CREW | Halyard admitted role join/leave, engineer repair start/interruption/completion, readiness and handoff; critical repair/crew cues must have actual playback, not captions alone | HalyardCrewSemanticAudioBinding→SemanticAudioCueRouter→AudioDirector; `audio/game_flow_halyard_crew_audio_integration_test.gd`, `audio/halyard_engineer_audio_integration_test.gd`; repair dispatch repaired9b7b46a below, physical route gates retained |
 | MIX-NAVIGATOR | Cargo navigator accepted/rejected ping and stale replay during supported crew use; distinct relevant cue once, no replay spam; source currently proves semantic/caption forwarding only | CinderNavigatorPingAudioComposition; `audio/cinder_navigator_ping_audio_test.gd`; determine actual playback before claiming audible pass |
 | MIX-SETTINGS | At fixed scene/output setting vary Master and each of Ambience/Engines/Weapons/UI/Music, then reduced range and restart/reset; category controls and saved values respected, critical cues/captions retained at agreed non-muted levels | RuntimeSettings/AudioDirector/DynamicAudioMix; `audio/reduced_dynamic_range_production_persistence_test.gd`, `audio/reduced_dynamic_range_audio_integration_test.gd` |
 | MIX-CONTENTION | One real combat interval combines music, sustained fire, alarm and UI/crew alert at recorded default and low mix; no clipping, lost critical cue, excessive repetition or unexplained delay | Existing music/ship/combat/AudioDirector playback owners; `audio/ship_audio_priority_preemption_test.gd`, `audio/dynamic_audio_mix_test.gd`; silent plans do not prove native headroom/latency |
@@ -1078,25 +1078,26 @@ explicit authorization for an audible test are missing. Choose and authorize one
 concrete case/device before playback; AGENTS Dummy/isolation rules remain in force.
 Owner-excluded human review is not silently reinstated as a mandatory gate.
 
-**Concrete production gap found while defining MIX-CREW:** three boundaries
-prevent actual repair-edge audio. Halyard’s `get_crew_role_gameplay_snapshot()`
-embeds raw repair `status/token/progress`, but CrewEngineerAudioBinding expects
-`sequence/repair_state`; the existing audio test fabricates the latter structure.
-GameFlow `_sync_halyard_crew_semantic_audio()` forwards only when role-authority
-`authority_event_sequence` changes. `_advance_engineer_repair()` and
-`_set_engineer_repair_state()` emit repair-state signals without advancing that
-role sequence; GameFlow’s repair-state handler publishes network state only.
-Finally `AudioDirector._on_semantic_cue()` only re-emits semantic events and never
-selects a resident sound. No alternate repair-edge sound was found; restored
-engine output/alarm clearing is a different effect.
+**Repair delivery following MIX-CREW definition — DONE9b7b46a:** on9ef81a348,
+the source review found the raw Halyard status/token/progress did not match the
+presentation binding’s sequence/repair_state input. GameFlow forwarded only when
+role-authority event sequence changed, omitting elapsed completion/interruption.
+Pre-execution review also found the router omitted the four existing repair IDs.
+Finally the Director only re-emitted semantic events without selecting a sound.
+No alternate repair-edge playback was found; restored engine mix/alarm clearing
+is a different effect.
 
-The original requirement names repair/remote-crew critical cues, so the next
-bounded delivery must connect actual accepted repair states through normalized,
-lifecycle-fenced presentation into resident playback. A Director-only mapping or
-another fabricated normalized snapshot would leave the production gap. Start/
-completion/interruption need distinct short cues; progress stays audibly silent,
-duplicate/stale/unbound sources cannot replay, and existing caption identity and
-repair authority stay intact. Other crew/navigator/payload playback remains open.
+The accepted checkpoint now connects actual authority-admitted Halyard repair
+states through lifecycle-fenced normalization and independent repair ordering,
+four existing router labels and distinct resident UI sound requests. It preserves
+kit/repair/role authority and correct caption identities; progress, replay and
+historical terminal states remain silent. Raw source shape/role-event gate/router/
+Director were repaired together rather than adding a synthetic input-only pass.
+Seven full focused suites and paired checkpoint/startup/audit gates PASS; see the
+[actual source fixture, initial compile failure and full result](history/ROADMAP_DELIVERIES.md#audio-crew-repair-playback--actual-accepted-repair-edges-delivered).
+These are Dummy sound-request/resource/bus/lifecycle checks, not listening or
+ordinary physical-seat qualification. All28 real-output selectors remain NOT_RUN.
+Other crew/navigator/payload playback and original native/mix scope remain open.
 
 ## Phase-wide acceptance still required
 

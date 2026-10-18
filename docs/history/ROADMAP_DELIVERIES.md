@@ -11704,3 +11704,139 @@ Initial cumulative guarded time36.700940522s stays retained. Any next unexpected
 failure stops for priority review, with no second automatic repair or weakened
 assertion. Raw source/configs/logs/results remain in
 `/srv/mudds-work/crew-repair-audio-20261019/results/`.
+
+## AUDIO-CREW-REPAIR-PLAYBACK — actual accepted repair edges delivered
+
+Accepted clean source9b7b46aece76b409dd973407eba9ff48f1b10dcf, pushed on
+fix/crew-repair-audio-20261019 and merged. Four runtime files and four existing
+suites deliver actual Halyard repair state→normalized/lifecycle-fenced presentation
+→existing semantic router→resident playback request. Independent source, exact
+annotation/cumulative priority and actual runtime result reviews GO.
+
+Raw Halyard status/token/progress is normalized separately from role authority’s
+sequence. Elapsed completion and departure interruption now forward even when
+that role sequence is unchanged. Four already-defined repair IDs cross the crew
+router; only start/interruption/completion select sound. The three existing resident
+templates use the existing UI effect pool/current reduced-range trim, with no new
+asset/voice/timer/generic caption echo. Progress is silent. Matching token/component/
+generation and monotonic progress reject stale observations. Exact source retirement
+clears only its router dedup state; retained terminal states seed silently after
+Halyard replacement/detach/re-entry. Old high-priority cue slots cannot starve the
+next genuine repair. Direct normalized-input compatibility remains supported.
+
+First source68244f990 import/Director compile passed; GF compile failed15.169s at
+inferred `same_operation` type. Root froze one explicit bool annotation before
+edit. New source9b7b46aec changes only that line; expression/branches/assertions
+unchanged. Original failure36.700940522s cumulative and all source/config/result
+snapshots retained. No automatic second repair or weakened gate.
+
+| Actual check | Guarded seconds / result |
+| --- | --- |
+| Original import / Director compile |20.758 /0.774 PASS |
+| Original GF compile |15.169 FAIL; diagnostic caught despite exit0 |
+| Repaired GF / unbind / router compile |15.819 /0.765 /0.771 PASS |
+| Full Director |1.706 PASS60 |
+| Full GameFlow actual repair path |17.538 PASS49 |
+| Existing engineer integration / role gameplay |0.771 /4.831 PASS14/70 |
+| Reduced-range integration / exact-source unbind / router |16.001 /0.900 /0.906 PASS10/18/19 |
+| Windows / Linux exports |26.655 /25.993 PASS |
+| Direct Linux / extracted archive startup |22.433 /23.712 PASS; exit0/sentinel1 |
+| Windows-payload startup |26.027 PASS; exit0/sentinel1, Linux Godot |
+| Package audit |5.546 PASS1521 matching entries; stockPE text and exact archive bytes/modes/epoch/metadata |
+
+All seven runtime suites pass on the repaired source. The GameFlow fixture uses
+actual Halyard/role authority/production elapsed-work routine and real Director
+request spy, including real kit debit/component repair. It is a deterministic
+source fixture with ship physics disabled, not ordinary physical-seat admission
+or native listening. Correct captions and distinct UI stream/bus/levels, unchanged
+role sequence during elapsed work, next repair, source replacement/history and
+unbound/stale/invalid silence are exercised. Original parked crew routes remain.
+
+All19 guarded stages total **227.075476380s**, including the initial parser failure.
+Selection→publication approximately16min versus45–75min implementation/review plus
+10–20min checks and10–15min checkpoint estimate. These times/assertions are not a
+project completion percentage. All28 real-output cases remain NOT_RUN; audible
+output still requires selected actual hardware/configuration and authorization.
+
+Eleven repository-only public files verified; Windows ZIP has exact EXE+notes,
+byte-compared. No Downloads/hosted-CI action. Actual artifacts:
+
+- `MuddsShipyards-9b7b46a.exe`: 184639680 bytes; SHA-256 `bab457d37896916614a823e2f36f688c03664490bc5baebcd946f93702634a47`.
+- `MuddsShipyards-9b7b46a.x86_64`: 148881392 bytes; SHA-256 `d9e3c30e13761afe9291933529ed9b3ac0f894b6aa2135108870f23459da4e8f`.
+- `MuddsShipyards-9b7b46a-linux-x86_64.tar.gz`: 95296843 bytes; SHA-256 `c19c6b200c771466c819f80bf04384c56bb8261d002ecb7d28c5bd2bdbe910ab`.
+
+All19 terminal owners/102 observed PID+start identities absent. All22 private-profile
+files, original/repaired helpers/configs and results retained. Owned worktree/
+profile/helpers removed; only
+`/srv/mudds-work/crew-repair-audio-20261019/results/` remains. Eleven public files/
+ZIP contents reverified before removal. Native Windows/GPU/audio/device/human,
+full multiplayer/ordinary crew and final candidate gates remain open. All36
+original parents/ten phase gates OPEN. Next single action: finite existing
+MIX-NAVIGATOR playback boundary definition before any implementation selection.
+
+### Retained AUDIO-CREW-REPAIR-PLAYBACK selection and acceptance
+
+Historical frozen card; current status is the accepted result above.
+
+
+**IN PROGRESS on e383975f6.** Pre-execution source review additionally found the
+router omits the four already-defined engineer repair IDs, so it drops those
+captions/events before the Director. Narrow router ownership/check is included
+below before edits. Existing bounded cue retirement may be used to prevent old
+terminal slots suppressing the next genuine repair; no new voice/timer/authority
+is introduced. The same complete player result and original stop/budget apply.
+
+**Player result, parent30:** actual accepted Halyard engineer repair start,
+interruption and completion generate distinct short sound requests and the
+existing correct captions. Progress does not beep each frame. Repair truth,
+resource debit and role authority remain with the existing owners.
+
+- **Prerequisite/cause:** source definition on9ef81a348 identifies raw repair
+  `status/token/progress` versus binding `sequence/repair_state`, the role-event
+  gate that misses elapsed completion, and the Director’s semantic-only relay.
+  Fix all three together; fabricated correctly shaped inputs cannot prove this.
+- **Owner/files:** one implementation agent owns `scripts/game/game_flow.gd`,
+  `scripts/audio/audio_director.gd`, `scripts/audio/semantic_audio_cue_router.gd`
+  (only missing engineer repair labels), and, where required at its input boundary,
+  `scripts/audio/halyard_crew_semantic_audio_binding.gd`. Extend existing
+  `tests/audio/game_flow_halyard_crew_audio_integration_test.gd` and
+  `tests/audio_director_test.gd`; existing engineer/role tests may provide the real
+  source fixture. Independent lifecycle review; root owns actual runs/integration/
+  checkpoint. No repair/role/network/save authority or protocol change.
+- **Implementation contract:** observe real repair status/token/progress under
+  the existing source/binding lifetime; normalize to its presentation vocabulary
+  with separate monotonic repair ordering. Role-authority sequence must retain
+  its meaning. Elapsed completion/interruption still forwards when it is unchanged.
+  Retire ordering/dedup state on source replacement, detach/re-entry and session
+  cleanup. Preserve direct normalized-input compatibility in the binding.
+- **Playback:** reuse three distinct existing resident templates:
+  `STREAM_UI_CONFIRM` for start, `STREAM_TARGET_DESTROYED_PRIMARY` for completion,
+  `STREAM_COMBAT_ALERT_PRIMARY` for interruption, on the UI bus at existing
+  authored cue levels. Dispatch
+  directly through the bounded resident effect pool, with current reduced-range
+  attenuation. Add no stream, voice, timer or generic caption echo; do not invoke
+  public generic cue methods that would emit a second event. Match only accepted
+  crew repair IDs/source; progress/unknown/invalid/stale/unbound input is silent.
+- **Focused proof:** real Halyard + actual role authority + production GameFlow
+  bridge + real Director dispatch. Verify real repair start, progress and elapsed
+  completion, plus departure interruption, while role sequence stays unchanged;
+  distinct resident request/stream/bus, once-only terminal cues, unchanged caption
+  identity, progress silence, duplicate/stale rejection, ship/source switch and
+  detach/re-entry. Preserve kit debit/repair results. A request spy can expose
+  actual dispatch under Dummy; it is not audibility or physical-seat proof.
+- **Commands/checks:** pin the clean source and use pinned Godot headless/Dummy.
+  Run the changed existing Director and GameFlow crew suites plus existing
+  `audio/halyard_engineer_audio_integration_test.gd`,
+  `halyard_crew_role_gameplay_test.gd`,
+  `audio/reduced_dynamic_range_audio_integration_test.gd` and
+  `audio/semantic_audio_source_unbind_test.gd`, plus the existing
+  `audio/halyard_crew_semantic_audio_router_test.gd` for repaired routing labels,
+  requiring exit0 and their existing
+  success markers. Freeze exact commands/budgets before execution. No real output,
+  desktop run, parked physical crew route or full matrix is selected.
+- **Delivery/stop:** fresh clean paired checkpoint, three strict silent package
+  startups (exit0 + STARTUP_MENU_READY_OK), existing package audit and repository
+  EXE/ZIP/actual notes. First unexpected failure stops for a separately selected
+  causal repair; failure plus one repair requires cumulative priority review.
+  Split remaining capability before90min implementation. Do not broaden into all
+  semantic cue playback, new audio architecture or listening qualification.
