@@ -3500,3 +3500,81 @@ check ran. Mapping and limitations are recorded in
   If a separate runtime repair is required, its meaningful gameplay checkpoint
   must include a fresh safe Windows build and strict package startup checks.
   This caller-only batch does not justify re-exporting unchanged gameplay.
+
+## Server/two-client definition — existing Halyard route and missing Jovian caller
+
+2026-10-18, source `b96580bde`, read-only NET-BASELINE-DEFINE. No engines,
+worktrees, scratch or gameplay changes. Original specification is preserved at
+`docs/history/ROADMAP_SCOPE_20261017.md:593–611`, current roster at
+`docs/COMPLETION_SCOPE.md:304`: authoritative server plus two independent
+remote clients; ordinary Jovian pilot/passenger and Halyard moving cabin, with
+playing-host avatar where applicable. Original1800s endurance and its numerical
+network/resource contract remain separate and currently lack an executable
+full acceptance command. This definition does not close any gameplay gate.
+
+Existing reusable caller is
+`tests/network/halyard_network_shared_planetary_cruise_test.gd`, default derived
+profile. It preserves serial chair barriers and ensures every source child uses
+the derived script. The base passenger harness starts host, client, client_b
+and late observer in independent Main processes with private Xvfb/X11/Dummy
+audio, real child PID/exit records and owned teardown. Host input flies; two
+host-owned remote bodies walk supported cabin lanes and use a physical chair.
+Existing D2 source7412a6e509 qualifies132 checks/213.078s under300s; no unchanged
+rerun is scheduled. It stages exterior approaches and the initial flight
+envelope, manipulates stream preparation and invokes cruise HUD signals. Both
+clients use the same chair serially. This is useful narrower behavior evidence,
+not ordinary Jovian pilot/passenger or full departure/landing/recovery.
+
+Existing command shape, for reference only (NOT_RUN this definition):
+
+```sh
+python3 tools/release/suite_process.py --timeout 300 -- \
+  /tmp/mudds-tools/godot-4.7.1/godot --headless --audio-driver Dummy \
+  --path "$PWD" --script res://tests/network/halyard_network_shared_planetary_cruise_test.gd
+```
+
+Use an isolated private XDG/TMP profile and the standard root notice flag;
+peers own private X11 displays. Require actual exit0, authoritative base
+`HALYARD_NETWORK_PASSENGER_ROUTE_TEST_OK`, zero diagnostics/failures, every
+peer's actual OS exit0 and cleanup. Preserve60s startup/barriers,120s client
+completion,8s seat boundaries and300s total. Derived wrapper prints its own
+marker; do not treat that alone as route acceptance.
+
+The existing `network_authority_three_process_test.gd` does launch server and
+two clients under24s, but `network_authority_peer.gd` directly writes pilot,
+velocity and positions and begins boarding without ordinary controls. The
+Jovian engineer profile has one host/one client and a staged hatch approach.
+Neither is the missing ordinary-controls first slice. Bounded source search
+found no two-client ordinary Jovian caller or complete network1800s runner.
+
+Next selected milestone is the first original Jovian phase only: both clients
+walk and claim distinct pilot/passenger seats through production input. Extend
+the existing peer harness rather than rerunning accepted Halyard or creating
+another proof system. Keep flight and physical recovery as later dependent
+children; preserve every original requirement and duration. Exact active card
+is in ROADMAP.md.
+
+### Closed definition card
+
+### Original definition scope
+
+| Task | Status / owner | Observable finish | Budget |
+| --- | --- | --- | --- |
+| NET-BASELINE-DEFINE | READY / root | One executable original server/two-client gameplay contract, or one precise missing prerequisite. | One20–30min static pass; no engines. |
+
+- **Parent/result:** original independent server/two-client baseline, backlog
+  parents16/24/26. Establish how the three processes exercise ordinary crew,
+  flight and recovery. This is planning, not multiplayer acceptance.
+- **Boundary/ownership:** root owns this roadmap card; read the original scope,
+  COMPLETION_SCOPE.md, existing network integration suites and their existing
+  launch commands. No networking rewrite, new orchestrator, broader capacity
+  selection or speculative adverse-profile matrix.
+- **Proof/finish:** record exact original scenario/actions, process roles, source,
+  existing runner/command, success criteria, established duration and private
+  input/display/audio cleanup. Identify what an existing runner actually covers.
+  A three-process menu admission test alone does not qualify crew/flight/recovery.
+- **Stop/next action:** after30min, produce that executable card or one precise
+  missing fact and its owner. Do not build a replacement route or silently
+  schedule a long test. Preserve existing600-step/2s, endurance and capacity
+  requirements where applicable; the baseline does not depend on the already-
+  asked larger-capacity choice. Commit/push the definition before execution.

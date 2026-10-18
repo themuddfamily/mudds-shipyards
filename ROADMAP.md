@@ -24,7 +24,8 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 **36 broad parents and all ten phase gates remain open.** The
 [concrete child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
 separates named outcomes from missing definitions; it is not a remaining-job
-count. **One baseline-definition card is READY below.** VIP round-trip
+count. **One Jovian boarding milestone is READY below.** The original
+server/two-client definition is complete with a precise missing caller. VIP
 qualification is FAILED/parked after its first attempt and one syntax repair.
 The caller is test capability; no new gameplay feature or parent closure is claimed.
 
@@ -32,10 +33,10 @@ The caller is test capability; no new gameplay feature or parent closure is clai
   actual active-craft/lifecycle observations and read-only source checks232/20 pass.
   Paired development checkpoint4270d71 is published. Native window-close smoke
   FAILED and stays open; no physical journey is qualified.
-- **Next:** define the original server/two-client gameplay baseline in one
-  source-only pass. VIP source64c74dd46 reached the Aft stair approach but failed
-  its movement guard; full walking is unqualified. Do not rerun VIP or Ember
-  diagnostics in this batch.
+- **Next:** extend the existing independent-peer harness for two ordinary
+  Jovian boarding clients: remote pilot and passenger, with no staged approaches.
+  Existing Halyard two-crew evidence is narrower than the original baseline;
+  do not rerun it unchanged or restart VIP/Ember diagnostics.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -50,28 +51,66 @@ The caller is test capability; no new gameplay feature or parent closure is clai
 Report the named result, actual proof, next action and estimate. Source checks,
 planning or test totals do not establish whole-parent or hardware completion.
 
-## Next task — original server/two-client baseline definition
+## Next milestone — two remote clients board Jovian
+
+NET-BASELINE-DEFINE is complete as a source-only definition on `b96580bde`.
+The exact gap is an ordinary-controls Jovian pilot/passenger caller with one
+server and two independent clients. Existing three-process authority checks
+write craft/player state directly; existing Jovian engineer checks have only
+one client. The Halyard shared-cruise caller already has two real remote crew,
+but stages its approach/departure and tests serial use of the same chair.
+[Definition and existing commands](docs/history/ROADMAP_DELIVERIES.md#servertwo-client-definition--existing-halyard-route-and-missing-jovian-caller)
+retain those limits. No engine ran for this definition.
 
 | Task | Status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| NET-BASELINE-DEFINE | READY / root | One executable original server/two-client gameplay contract, or one precise missing prerequisite. | One20–30min static pass; no engines. |
+| NET-JOVIAN-BOARD | READY / root | Two independent remote clients walk to the same Jovian and obtain distinct pilot/passenger occupancy through ordinary controls. | 60–90min implementation; one existing300s-cap focused run separately, plus up to15min import/preflight. Stop at90min or first concrete failure. |
 
-- **Parent/result:** original independent server/two-client baseline, backlog
-  parents16/24/26. Establish how the three processes exercise ordinary crew,
-  flight and recovery. This is planning, not multiplayer acceptance.
-- **Boundary/ownership:** root owns this roadmap card; read the original scope,
-  COMPLETION_SCOPE.md, existing network integration suites and their existing
-  launch commands. No networking rewrite, new orchestrator, broader capacity
-  selection or speculative adverse-profile matrix.
-- **Proof/finish:** record exact original scenario/actions, process roles, source,
-  existing runner/command, success criteria, established duration and private
-  input/display/audio cleanup. Identify what an existing runner actually covers.
-  A three-process menu admission test alone does not qualify crew/flight/recovery.
-- **Stop/next action:** after30min, produce that executable card or one precise
-  missing fact and its owner. Do not build a replacement route or silently
-  schedule a long test. Preserve existing600-step/2s, endurance and capacity
-  requirements where applicable; the baseline does not depend on the already-
-  asked larger-capacity choice. Commit/push the definition before execution.
+- **Parent/result:** original Phase7 server/two-client first slice, parents16/24/26.
+  This first milestone ends at supported distinct seats. Flight, landing and both
+  physical exits remain required later children; it does not close the baseline.
+- **Ownership/seam:** extend the existing independent-Main peer/exit/cleanup
+  harness in `tests/network/halyard_network_passenger_route_test.gd` with the
+  smallest craft/profile hook and a Jovian boarding profile in
+  `tests/network/jovian_network_two_client_boarding_test.gd` plus UID. Reuse
+  existing peer spawning and menu-input helpers; preserve every existing profile.
+  No new orchestrator, validator, networking rewrite or speculative runtime fix.
+- **Ordinary route:** authoritative non-playing server and two private-profile
+  clients; both real clients join the same session, start at their normal authored
+  station spawn and walk to the existing Jovian approach. Client A uses normal
+  pilot boarding; B uses normal passenger/cabin Interact. Let the existing
+  authority decide claims; observe peer/entity generations and distinct physical
+  seat identities. Server setup may use the existing host API, but client actors,
+  candidates, claims and controls must remain production-owned.
+- **Acceptance:** the same two authenticated remote identities have real supported
+  bodies and distinct confirmed seats on that same craft; both retain honest
+  ownership UI and normal controls. No actor/camera pose writes, forced piloted/
+  flight state, staged approach, direct boarding calls or invented geometry.
+  A playing-host third-avatar lifecycle remains a separate applicable Halyard
+  requirement, not evidence supplied by the non-playing server.
+- **Proof command after implementation:** from its committed clean checkout,
+  private Xvfb, use the existing runner with pinned Godot4.7.1,
+  `--mode graphical --display-driver x11 --audio-driver Dummy --jobs 1
+  --scope jovian_network_two_client_boarding_test --timeout 300`.
+  The new caller must declare input-only, fail fast, print exactly one terminal
+  `JOVIAN_NETWORK_TWO_CLIENT_BOARDING_OK` only after all criteria, and require
+  actual zero OS exits plus cleanup for every peer. Record exact source/engine;
+  import separately within600s. Preserve raw and independent abort/process/input
+  cleanup. This is source qualification, not Windows/GPU/device acceptance.
+- **Failure/close:** first missing seam or runtime obstruction ends this card;
+  record one exact fact and a separately scoped repair before more work. One
+  failure plus one attempted repair invokes priority review. Do not add flight,
+  negative-RPC, impairment or endurance cases to rescue this assignment. Commit/
+  push the caller before its run, record actual result, remove owned disposable
+  checkout/profile and retain raw failures. A demonstrated meaningful runtime
+  repair requires the normal fresh Windows checkpoint; test capability alone
+  is not delivered gameplay.
+
+The original baseline still requires client A's validated flight, B's stable
+passenger ride, landing and coherent physical exits, plus the separately defined
+Halyard route and original1800s endurance. Existing24s authority,300s shared cruise
+and600-step/2s stall checks keep their own contracts. Do not combine these into
+one large assignment or use a short run to replace endurance.
 
 ## Parked VIP round trip — first runtime guard failure
 
@@ -85,7 +124,8 @@ assistance from a defect. No VIP door/seat/return acceptance is established.
 
 **Priority review:** the failed attempt plus one repair has reached its limit.
 Park further VIP diagnosis, threshold changes and reruns this batch; select the
-independent NET-BASELINE-DEFINE card above. Do not relabel a monitor change as a
+independent baseline definition, now complete above, and its Jovian boarding
+child. Do not relabel a monitor change as a
 new task to reset the limit. A future reopening requires one source-supported
 movement contract and explicit scheduling before another probe, with unchanged
 full route and900s cap. The exact route/caller/check contract and both failures
