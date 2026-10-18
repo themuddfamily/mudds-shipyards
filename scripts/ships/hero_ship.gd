@@ -2709,7 +2709,9 @@ func apply_network_damage_presentation(sample: Dictionary) -> Dictionary:
 	_damage_presentation.visible = false
 	_network_damage_presentation.visible = true
 	_network_damage_state = {"generation": generation, "tick": tick, "destroyed": destroyed,
-		"health": state.health, "components": (state.components as Array).duplicate(true)}
+		"health": state.health, "maximum_health": state.maximum_health,
+		"components": (state.components as Array).duplicate(true)}
+	_update_cockpit_flight_instruments()
 	return {"applied": true, "destruction_started": destruction_started}
 
 
@@ -2723,6 +2725,7 @@ func clear_network_damage_presentation() -> void:
 		collision_mask = int(_network_damage_source_visibility.mask)
 	_network_damage_source_visibility.clear()
 	_network_damage_state.clear()
+	_update_cockpit_flight_instruments()
 	_network_damage_cues = 0
 	if is_instance_valid(_network_damage_presentation):
 		_network_damage_presentation.reset_for_reuse()
@@ -2964,8 +2967,9 @@ func _reassert_network_operation_presentation() -> void:
 	_update_cockpit_flight_instruments()
 
 
-## Host throttle is a display fact for observers. A pilot on this machine keeps
-## the existing predicted instrument reading; no projected value enters flight.
+## Observers display host throttle; this machine's pilot keeps its prediction.
+## An eligible host hull projection also owns the pilot's physical hull gauge;
+## GameFlow clears that projection when this machine has local hull authority.
 func _update_cockpit_flight_instruments() -> void:
 	if not is_instance_valid(_cockpit_readout):
 		return
@@ -2973,11 +2977,15 @@ func _update_cockpit_flight_instruments() -> void:
 	if instruments == null:
 		return
 	var display_throttle := _throttle
+	var display_hull := _hull / maxf(maximum_hull, 0.001)
+	if _network_damage_presentation_enabled and not _network_damage_state.is_empty():
+		display_hull = 0.0 if bool(_network_damage_state.destroyed) else \
+			float(_network_damage_state.health) / float(_network_damage_state.maximum_health)
 	if _network_damage_presentation_enabled and not _network_operation_state.is_empty() \
 			and not _is_piloted_from_this_machine():
 		display_throttle = float(_network_operation_state.get("throttle", 0.0)) \
 			if _network_operation_state.engine == ENGINE_ONLINE and not bool(_network_operation_state.get("destroyed", false)) else 0.0
-	instruments.update_readings(velocity.length(), display_throttle, _hull / maxf(maximum_hull, 0.001))
+	instruments.update_readings(velocity.length(), display_throttle, display_hull)
 
 
 func _network_operation_solo_policy() -> Array:
