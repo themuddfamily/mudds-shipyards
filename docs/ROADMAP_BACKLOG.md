@@ -125,7 +125,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | LIFE-PACKAGE-DEFINE | Name uncovered packaged ordinary-play lifecycle cases | 7 | DEFINE; preserve both source passes, no automatic rerun |
 | CONTROL-FINDINGS | List observed unresolved control/help defects | 8 | DONE as bounded source review: advertised Right Stick LOOK has no Player/Tow consumer; GAMEPAD-LOOK packaged99e79c3 separately. Existing mixed prompts/distance help/sprint fixes retained; physical-device acceptance remains open. |
 | GAMEPAD-LOOK | Continuous right-stick local camera look | 8,29 | DONE in99e79c3: Player/tractor real camera, authored delta rate/deadzone/clamps/inversion and handoff clearing; full focused checks/paired checkpoint pass. Physical controller/full ordinary route remains open. |
-| UI-BOARD-FOCUS | Keyboard Activity Board transition retains valid visible focus without engine signal-disconnection errors | 8,13,29 | Concrete ordinary seam reached in PLAY-MINING; exact engine/HUD cause unresolved. Next bounded causal reproduction/production repair card in ROADMAP; no suppression/bypass/unchanged full-flight retry |
+| UI-BOARD-FOCUS | Keyboard Activity Board transition retains valid visible focus without engine signal-disconnection errors | 8,13,29 | Unresolved: first key-only HUD component completes without target errors4.673s/69samples but never creates hover/visible popup/root popup-parent connections. Need original Main popup identity or source-backed omitted mouse/capture condition before a changed repro/fix. No suppression/bypass/unchanged flight retry |
 
 ### Station, fleet and combat children
 

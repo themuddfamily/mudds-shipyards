@@ -10452,3 +10452,101 @@ package/startup/audit/oneCAP300 route only. Retain both failures (total8.481s).
 Original task elapsed~17min at review;45–60min/split-before90 remains cumulative.
 Any next unexpected failure STOPs for cumulative priority review before more
 work; no automatic patch or renamed/reset budget.
+
+## Activity Board popup lifecycle — component did not reproduce Main failure
+
+Unmerged fixture sourceeff88ff1e27b20d5fcaede3d11e2ee560a48ce4b on
+fix/ui-board-focus-20261018 adds one optional mode to the existing controller
+HUD test. Production HUD is unchanged. Import20.801s and fixture compile2.012s
+pass. One real OS-input component run completes begin/Escape/Tab/Tab/Enter in
+4.673s guarded /4.236s input driver, under focusedCAP60/outer90. It emits one
+completion marker, exit0 and69 popup/focus/hover/recipient samples; input/helper/
+game cleanup flags are true. No original mining flight replay or game fix.
+
+**Target NOT_REPRODUCED.** All samples have empty hover, hidden PopupMenus and
+no root tree_exited recipients; root focus_entered only has SceneTree's normal
+handler. The new page gains valid visible TimedRace focus. The helper's raw
+REPRODUCED_DIAGNOSTICS label is a false positive from the benign root/superuser
+warning; strict stage diagnostics are empty and the actual target error pair is
+absent. Keep original raw report/log unchanged; target-outcome.json explicitly
+records this assessment. No UI acceptance or proof the original error is fixed.
+
+Engine source narrows the observed pair to embedded Popup parent-window cleanup
+([Popup](https://raw.githubusercontent.com/godotengine/godot/a13da4feb/scene/gui/popup.cpp));
+ordinary focus transfer itself does not own those connections. Tooltip cancellation
+is a possible lifecycle ([Viewport](https://raw.githubusercontent.com/godotengine/godot/a13da4feb/scene/main/viewport.cpp)),
+but no tooltip existed in this component run. Parent cleanup clears its cached
+list, so sequential repeated cleanup is not by itself the cause. Native blank
+callable formatting is expected in release templates, not proof of a dead script.
+
+Independent outcome review NO-GOes a speculative repair or automatic second
+probe. Exact missing fact: original Main popup/tooltip identity and prior
+creation/removal/connection event, or source-backed normal mouse/capture event
+omitted by this key-only component. The original flight sent relative OS mouse
+input; cursor coordinates alone do not establish equivalent GUI hover. Editor
+versus release is another unproven difference, not automatic rerun authorization.
+UI-BOARD-FOCUS remains unresolved; PLAY-MINING stays parked at cumulative61.925s.
+The one UI component attempt remains4.673s; no budget reset. Raw/source/command/
+review records: /srv/mudds-work/ui-board-focus-20261018/results/.
+Closure verifies3 terminal owners and11 process identities absent;2 private
+profile logs archived. Owned checkout/profiles/helpers removed normally, with
+raw data and exact OS-input driver preserved. No package or gameplay changes;
+latest accepted checkpoint remainsf8b5f86. Original selected card follows unchanged:
+
+### Next — UI-BOARD-FOCUS
+
+PLAY-MINING is **FAILED/PARKED** after its first actual archive route reaches the
+Activity Board transition and emits engine focus-disconnection errors. Candidate
+20bd1ab remains unmerged; no checkpoint published. Full63 driver tests, privacy,
+paired exports/three startups and artifact audit passed; mining extraction/home
+remain unqualified. [Full result and frozen card](ROADMAP_DELIVERIES.md#ordinary-mining-first-play--stopped-at-activity-board-focus-transition).
+
+Next bounded production outcome / parents8,13,29: ordinary keyboard activation
+of Activity Board changes page with visible valid focus and zero engine errors.
+One high-effort agent investigates the precise lifecycle cause; root
+integrates and runs checks; one independent reviewer if a runtime change is made.
+Initial owners: scripts/ui/hud.gd page/focus lifecycle and existing
+controller_pause_navigation_prompt_test.gd / nearby_activity_persistence_hud_integration_test.gd;
+reuse the candidate's existing driver/observer only when needed for actual input.
+No engine patch, platform change, diagnostic filter or input bypass is assumed.
+
+First20–30min: inspect actual error/source and establish one focused ordinary
+public pause→Activity Board reproduction on a private Xvfb/x11/Dummy display,
+without the full flight. Freeze its exact command/deadline and file ownership
+before executing. Stop after concrete cause+repair/check seam, or first failed
+reproduction; record the exact missing fact if unresolved. Estimate a runtime
+repair only after that cause is bounded; split implementation before90min.
+No unchanged mining route replay. Reopen original PLAY-MINING only after a
+concrete production cause/change and separately frozen full original acceptance.
+Keep its61.925s failed-stage total and originalCAP300; do not reset budgets.
+The separate cargo stock-policy waits remain untouched. CI stays disabled.
+
+### UI-BOARD-FOCUS — focused reproduction selection
+
+Exact engine a13da4feb Popup parent-window cleanup disconnects the two observed
+signals; native blank callable text is normal release formatting, not proof of a
+dead script Callable. Sequential teardown clears the parent cache, so repeating
+cleanup alone is not an established cause. Tooltip PopupPanel lifetime is a
+hypothesis; actual popup/connection identity remains the missing fact.
+
+Freeze first component reproduction before execution: root owns only existing
+controller_pause_navigation_prompt_test.gd optional --ui-board-focus-probe;
+production HUD stays unchanged. Fixture instantiates the real retained HUD and
+accepts actual OS keyboard begin/Escape/Tab/Tab/Enter under private Xvfb/x11/Dummy,
+matching the observed~0.8s paused interval. Pure observations capture focus, hover,
+internal Popup identities and root focus_entered/tree_exited recipients before/
+after Enter. No pressed-signal emission, direct page method, input bypass,
+mining-flight replay or diagnostic filtering. Marker requires Activity Selection
+visible/TimedRace focused; diagnostics independently determine reproduction.
+
+One source import600 and fixture compile300 before ONE component reproduction:
+whole focused input-driver CAP60, outer90. Reuse existing owned Desktop helper;
+exact command is python3 helpers/repro.py under task-owned xvfb-run, launching
+pinned Godot --audio-driver Dummy --display-driver x11 --rendering-driver dummy
+--disable-render-loop --path <clean source> --script
+res://tests/controller_pause_navigation_prompt_test.gd -- --ui-board-focus-probe.
+Source/engine pins and file hashes fixed before execution. Stop after the first
+reproduction outcome; no speculative production edit or automatic second attempt.
+A component reproduction is causal evidence only, not ordinary Main/mining
+acceptance. Budget20–30min remains cumulative from19:07UTC; exact runtime repair
+scope/estimate requires an established cause first. No new validator/tracker.
