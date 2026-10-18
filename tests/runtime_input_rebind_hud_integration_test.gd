@@ -109,9 +109,9 @@ func _test_camera_distance_help(hud: Node) -> void:
 	# Start with a non-stick button and then a stick click: neither direction
 	# may disappear through the shared-stick abbreviation used by movement rows.
 	_check(hud.begin_input_binding_capture(&"camera_distance_in"), "controller distance in starts HUD capture")
-	hud._unhandled_input(_joy(JOY_BUTTON_MISC1, true))
+	hud._input(_joy(JOY_BUTTON_MISC1, true))
 	_check(hud.begin_input_binding_capture(&"camera_distance_out"), "controller distance out starts HUD capture")
-	hud._unhandled_input(_joy(JOY_BUTTON_RIGHT_STICK, true))
+	hud._input(_joy(JOY_BUTTON_RIGHT_STICK, true))
 	help = _camera_distance_help_text(hud)
 	_check(
 		help.contains("Misc Button") and help.contains("Right Stick") and not help.contains("Mouse Wheel"),
