@@ -6265,3 +6265,28 @@ All3 owners terminal/all23 PID identities absent; source/required cache unchange
 85 peer files copied byte-identically. Raw and source refs retained:
 /srv/mudds-work/jovian-helm-handback-20261018/results/. Owned disposable checkout,
 profiles/helpers removed at closure. Latest playable checkpoint remains624d2a6.
+
+
+## Cabin passenger-role candidate — withheld after corrected route fails walking
+
+Candidate38c079086 fixes the three-key client claim consumer and derives HUD
+passenger from confirmed live cabin context before older admission fallback.
+Pilot and seated crew priorities remain. Exactly two new assertions reproduce
+old OBSERVER/PILOT fallback; corrected full existing role HUD suite36 passes
+16.679s, compile passes. ONE corrected ordinary original-cap handback route
+FAILS156.016s at >=0.6m ordinary cabin walk inside15s. It passes original failure
+boundary: real normal Interact, same supported Player, actual PASSENGER HUD,
+released ownership0/generation2, capture retirement/source restoration, and
+original co-pilot intact. Full required route remains unqualified; no merge,
+exports or new checkpoint. Latest playable remains624d2a6.
+
+Original146.578s plus one repair156.016s total302.594s of route execution,
+excluding setup/focused tests/implementation. Required cumulative priority review
+selects independent HELM-REVERSE-DEFINE over further handback diagnosis/repair/
+rerun. No movement cause is asserted, no cap/criterion relaxed and no second fix
+selected. Handback parked, reverse parent handback promise remains required.
+All6 owners terminal/all32 PID identities absent; source/required cache unchanged,
+87 peer files byte-identical. Raw/source refs retained:
+/srv/mudds-work/cabin-passenger-role-20261018/results/. Owned disposable checkout,
+profiles/helpers removed at closure. This failed candidate is not a delivered
+runtime outcome or project-percentage progress.

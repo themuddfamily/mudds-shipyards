@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS repair, 3 FAILED (two parked), 2 GATED, 2 DONE.** Root owns integration and closure.
+**1 READY definition, 4 FAILED (three parked, one withheld), 2 GATED, 1 DONE.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -51,9 +51,9 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| HELM-YAW-HANDBACK | FAILED; repair selected | Original pilot ordinarily leaves helm for usable cabin walking; ownership/source retire while the original co-pilot remains seated. |535c4b01d; route FAIL146.578s after physical release at client comparison, walk NOT_RUN |
-| CABIN-PASSENGER-ROLE | IN PROGRESS | Confirmed standing cabin passenger is labelled PASSENGER after ordinary helm handback. |30–45min implementation/review; focused HUD regression and one corrected original handback route; paired checkpoint if accepted |
-| KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
+| HELM-YAW-HANDBACK | FAILED/PARKED | Original pilot ordinarily leaves helm for usable cabin walking; ownership/source retire while the original co-pilot remains seated. |Original146.578s; repaired38c079086 reaches walking then FAIL156.016s, original15s gate |
+| CABIN-PASSENGER-ROLE | FAILED/WITHHELD | Confirmed standing cabin passenger is labelled PASSENGER after ordinary helm handback. |HUD36 and actual handback role PASSENGER pass; full required route fails walking, candidate unmerged |
+| HELM-REVERSE-DEFINE | READY definition | Freeze one ordinary remote reverse-thrust flight/release child using existing owners and limits. |10min source-only; no engine/profiling or new gameplay claim |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
 | HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
@@ -152,12 +152,47 @@ accepted runtime repairs require separate cards and fresh paired builds.
   marker/three actual exits0/fullraw diagnostics0. No acceptance/cap relaxation.
   Accepted runtime change requires fresh clean paired exports, strict three
   startup checks and actual package audit; latest624d2a6 stays playable meanwhile.
-- **Budget/next:** IN PROGRESS;30–45min implementation/review, split before90min.
+- **Budget/next:** FAILED/WITHHELD; planned30–45min implementation/review, split before90min.
   Compile/focused HUD up to300s; handback original300s/outer360s, transition8s and
   walk15s. Packaging time separate. Implement named correction from retained
   source535c4b01d, no extra diagnostic probe. First unexpected failure stops;
   failed original plus this ONE attempted repair require priority review before
   further work. No second automatic fix, no postdock/reboard expansion.
+- **Actual close:** candidate38c079086 is unmerged. Old runtime reproduces
+  exactly two new role assertions; fixed full HUD36 PASS16.679s and compile PASS.
+  ONE corrected original route FAIL156.016s at cabin walk>=0.6m/15s. It passes
+  the prior comparison and actual ordinary handback shows PASSENGER, same craft,
+  released owner0/generation2, retired capture/source, original co-pilot intact.
+  This does not satisfy the full required route. No exports/checkpoint attempted;
+  latest playable624d2a6 remains unchanged. All6 owners terminal/all32 PID
+  identities absent; source/required cache unchanged,87 peer files byte-identical.
+  Raw: `/srv/mudds-work/cabin-passenger-role-20261018/results/`.
+  Unique raw/source refs retained; owned checkout/profiles/helpers removed.
+- **Cumulative priority review:** original146.578s plus repair156.016s =302.594s
+  of route execution, excluding import/compile/focused checks and implementation.
+  Prior HUD/claim boundary is resolved in the withheld candidate; first new
+  boundary is ordinary cabin walking. No concrete movement defect is yet claimed.
+  There is no competing READY implementation in this queue. Select the independent
+  named remote-reverse definition over a second handback diagnosis/repair/rerun:
+  it exercises another explicitly required held action without depending on the
+  failed walking gate. Park handback; this review does not erase either failure,
+  waive the walk, reset its budget, merge the candidate or substitute another
+  outcome for the original requirement. No further handback probe/fix selected.
+
+### HELM-REVERSE-DEFINE — freeze the next independent held-action child
+
+- **Parent/result/type:**18 / HELM-THROTTLE-REVERSE; finite source definition,
+  not gameplay acceptance. Identify the ordinary reverse-thrust flight/release
+  continuation of the accepted Jovian departure, actual negative-throttle host
+  consumer, neutral/brake behavior and exact source/ownership/replica checks.
+- **Boundary/owner:** one read-only agent10min; existing local input/provider,
+  helm mapper/consumer, HeroShip/Jovian reverse handling and current flight caller
+  only. No engine, broad input audit, benchmark, new feature or new framework.
+- **Finish/next:** one implementation seam and exact existing limits/acceptance,
+  or named concrete blocker. Root selects implementation separately; no automatic
+  probe. Original reverse parent handback remains required and open alongside
+  parked shared handback; this child cannot replace that requirement.
+
 
 
 ### HELM-YAW-TURN — remote pilot turns the actual host-owned Jovian
