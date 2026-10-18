@@ -28,17 +28,36 @@ explicit owner decision.
 
 ## Execution now
 
-SPEC-TITAN interpretation proposal is selected; implementation remains gated.
+NET-POSE-DEFINE is selected for one bounded Jovian presentation comparison.
+SPEC-TITAN proposal awaits the owner interpretation choice; implementation remains gated.
 WALK-SALVAGE-ACCESS is parked after its original attempt and one caller repair. Reverse qualification and the bounded Torrent
 definition are closed below. Completed and parked work does not occupy the
 executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
+| NET-POSE-DEFINE / 17 | IN PROGRESS source definition | Identify one concrete remote engine/landing presentation gap or finite uncovered operations. | Compare actual Jovian state publication and consumer, existing pose tests;10min, no engine. |
 | SPEC-TITAN / 10,36 | Proposal DONE; WAITING interpretation decision | Concrete one-pilot/two-passenger/four-unit modern candidate and bounded build tasks. | Owner decision on linked proposal before runtime implementation; historical model gate stays open. |
 | WALK-SALVAGE-ACCESS / 7,9 | FAILED/PARKED | Same supported Player must walk hub→inspection row→hub without staging. | Both attempts fail at outbound20; no further diagnosis/fix/run selected. |
 | CRAFT-GAPS-TORRENT / 10,11 | Definition DONE; craft acceptance OPEN | No specifically required missing implementation found within inspected owners. | Do not invent a feature; any successor needs a concrete requirement/finding. |
 | HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
+
+### NET-POSE-DEFINE — Jovian remote engine and landing presentation
+
+- **Owner/boundary:** one medium-effort read-only agent; root selects successor.
+  Existing remote pose stream, HeroShip client presentation, GameFlow composition,
+  `network_remote_craft_pose_test.gd` and station-frame test. Only Jovian engine
+  start/stop/throttle and landing/dock state publication and consumption.
+- **Finish/proof:** one actual missing/incorrect visible behavior with producer,
+  consumer and smallest existing regression seam; otherwise finite unqualified
+  operation cases. Static inspection is not a runtime pass. No invented defect.
+- **Budget/next:**10min source-only, no engine/probe/framework or broad network
+  audit. Stop at first implementable gap or finite no-gap result. Root freezes a
+  separate implementation/check card; no automatic test or further definition.
+  Preserve parked failures and their budgets, including shared handback.
+- **Close:** record source anchors and actual limits in existing backlog,
+  commit/push. Definition has no gameplay/build/percentage claim. Titan decision
+  remains pending and is not inferred from goal continuation or elapsed time.
 
 ### SPEC-TITAN — concrete interpretation proposal before building
 
