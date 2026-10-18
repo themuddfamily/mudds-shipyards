@@ -8892,3 +8892,60 @@ No stock/cargo/reward/source grant, other source edit or test expansion. Root ru
 mandatory import/compile/full access once on clean pin; subsequent already-required
 checks/package only if pass. Independent review/cumulative decision still required;
 any new failure STOPs, no automatic next repair. Earlier failures/pins remain.
+
+## Minimum-size pause/options — qualifiedece9a0253
+
+Clean source `ece9a0253e23ea1a2c3e488232d26b6eb3833f19`, selected card50eb59863.
+ACCESS-PAUSE-4X3/parents12,29 is DONE as headless Main geometry qualification.
+Only tests/ultrawide_layout_test.gd changes: --pause-4x3-only selects1024x768
+through the existing finite pause fixture. Old16:10/default/reentry paths remain;
+static full state-function comparison differs only neutral diagnostic labels.
+Production runtime is unchanged from accepteda43ae4b plus planning docs.
+
+Pinned Godot4.7.1, silent headless/Dummy/private profile: cold import20.807s
+under600s, explicit compile16.457s under300s, full selected check33.402s under
+original300s, all exit0/no diagnostics. Exactly one ULTRAWIDE_LAYOUT_TEST_OK,
+948 assertions and96 JSON observations: identical32-state order per requested
+scale against earlier accepted16:10 raw record, including scroll/footer, ordinary
+Back/reentry, binding conflict/cancel/reset, reset confirmations, display result
+and repair failure focus. No bounds/overlap/centering violations; original6.75px
+font floor and edge tolerances retained. Requested / effective gameplay / pause
+scales:0.75/.75/.75,1/.8678/1,1.6/.8678/1.0105. Authored pause fit ceiling is valid;
+requested value remains stored for presentation. Minimum glyphs6.75/8.68/8.68px.
+No runtime repair, test deadline/criteria change, new validator or whole-HUD rerun.
+
+Exact source/index/cache/engine guards pass. All9 observed process identities
+absent;2 profile logs/7 app_userdata files archived and byte-verified. Owned source
+worktree/cache, private profile and helpers removed; unique raw results and remote
+source branch retained in `/srv/mudds-work/pause-4x3-20261018/results/`.
+Selection15:03:40UTC through cleanup15:07:23UTC:3.7min, within15–30min fixture /
+20min execution estimate. Latest playable paired checkpoint staysa43ae4b because
+runtime is unchanged. Geometry/focus proof does not qualify rendered or human
+readability, physical devices, actual display/persistence transactions, full UI,
+other aspect groups or final source regression. Existing16:10 failure/repair
+history remains accepted on its original source; no parked capture was reopened.
+All36 parents/ten gates remain OPEN, CI disabled; no automatic next task.
+
+### Retained minimum-size pause card
+
+### Selected — ACCESS-PAUSE-4X3
+
+- **Outcome/parents:** qualify actual Main pause/options at1024x768 and requested
+  scales0.75/1/1.6, parents12/29. Existing32 visible states per scale, reachable
+  focus/scroll, safe bounds/font floor and requested/effective scale reporting.
+- **Ownership:** one medium-effort agent extends only tests/ultrawide_layout_test.gd
+  to select this resolution through the existing finite pause fixture; root owns
+  execution/integration. Existing16:10 option, state sequence and all criteria stay
+  unchanged. No new validator/harness, rendered capture, persistence/device claim,
+  production UI change or parked retry is authorized by this qualification.
+- **Proof:** on clean task source, one cold import600s, explicit script compile300s,
+  then full --pause-4x3-only at original300s, headless/--audio-driver Dummy in private
+  profile. Require exit0, exactly one ULTRAWIDE_LAYOUT_TEST_OK, zero diagnostics,
+  all96 observations/32 states per scale and unchanged source/cache/process closure.
+- **Budget/stop:**15–30min fixture work; import/check execution budget20min at
+  original caps. First actual defect stops qualification; separately name/review a
+  bounded production fix before further edits/runs. No automatic repair/retry,
+  tolerance/deadline relaxation or inferred pass from source geometry.
+- **Delivery:** preserve actual results and owned scratch cleanup; commit/push
+  fixture/roadmap. If no runtime change is needed, existing playable checkpoint
+  a43ae4b stays latest; no duplicate build for qualification-only test changes.

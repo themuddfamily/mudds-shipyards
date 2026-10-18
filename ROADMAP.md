@@ -206,27 +206,16 @@ This is a definition slice, not a gameplay delivery or newly executable queue;
 Scan's parked failure remains parked. Other repeatability classifications remain
 open. No new runtime/test/build was needed for this breakdown.
 
-### Selected — ACCESS-PAUSE-4X3
+### Minimum-size pause/options — qualified
 
-- **Outcome/parents:** qualify actual Main pause/options at1024x768 and requested
-  scales0.75/1/1.6, parents12/29. Existing32 visible states per scale, reachable
-  focus/scroll, safe bounds/font floor and requested/effective scale reporting.
-- **Ownership:** one medium-effort agent extends only tests/ultrawide_layout_test.gd
-  to select this resolution through the existing finite pause fixture; root owns
-  execution/integration. Existing16:10 option, state sequence and all criteria stay
-  unchanged. No new validator/harness, rendered capture, persistence/device claim,
-  production UI change or parked retry is authorized by this qualification.
-- **Proof:** on clean task source, one cold import600s, explicit script compile300s,
-  then full --pause-4x3-only at original300s, headless/--audio-driver Dummy in private
-  profile. Require exit0, exactly one ULTRAWIDE_LAYOUT_TEST_OK, zero diagnostics,
-  all96 observations/32 states per scale and unchanged source/cache/process closure.
-- **Budget/stop:**15–30min fixture work; import/check execution budget20min at
-  original caps. First actual defect stops qualification; separately name/review a
-  bounded production fix before further edits/runs. No automatic repair/retry,
-  tolerance/deadline relaxation or inferred pass from source geometry.
-- **Delivery:** preserve actual results and owned scratch cleanup; commit/push
-  fixture/roadmap. If no runtime change is needed, existing playable checkpoint
-  a43ae4b stays latest; no duplicate build for qualification-only test changes.
+ACCESS-PAUSE-4X3 is DONE on source **ece9a0253**: actual Main at1024x768 passes
+all96 observations/32 states per requested scale0.75/1/1.6, with safe bounds,
+font floor, complete scroll reachability and correct live focus. The existing
+fixture gained only a resolution selector; no production change was needed.
+Cold import20.807s, compile16.457s and full selected33.402s pass at original caps.
+[Result and retained card](docs/history/ROADMAP_DELIVERIES.md#minimum-size-pauseoptions--qualifiedece9a0253).
+Rendered/human/device and other aspect groups remain separate; latest playable
+checkpoint staysa43ae4b. No successor is selected by this closure.
 
 ## Parked failures and dependent work
 
