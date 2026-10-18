@@ -527,7 +527,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-HABITAT | Habitat rest/wake | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
-| WALK-ANNEX | Annex repair-kit service | 7,9 | UNSCHEDULED qualification; WALK-ANNEX-ROUTE definition DONE; caller/qualification IN PROGRESS in ROADMAP.md |
+| WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure |
 | WALK-OBSERVATION | Observation supported return | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-SALVAGE | Salvage three-component manifest | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-VIP | VIP reception | 7,9 | PARKED; failed route plus repair, see working-roadmap failure summary |
@@ -798,9 +798,9 @@ qualifications. **It is not a remaining-job count.** In particular, “one craft
 assignments. Completing a definition does not deliver the gameplay it describes.
 
 The [working queue](../ROADMAP.md#working-queue-eight-bounded-cards) now has eight
-specific cards: two READY definitions, one active Annex caller, four dependent
-GATED cards and one FAILED Jovian exit after its attempted caller repair.
-Five separate Jovian outcomes replace the single exit/reuse assignment; the Annex route definition now prepares an active caller/qualification, while
+specific cards: two READY definitions, four dependent GATED cards, one FAILED
+Jovian exit after its attempted caller repair and one accepted Annex round trip.
+Five separate Jovian outcomes replace the single exit/reuse assignment; the Annex route definition and its caller qualification are now accepted, while
 kit delivery and residual server gameplay retain finite READY definitions. This is a local scheduling count, not a whole-project estimate.
 All 36 original parents and ten phase gates remain open.
 
@@ -829,7 +829,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | Checkpoint2c73494 and HELM-EDGE-REPRO/REPAIR accepted; MATRIX-FINAL still gated. |
 | 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT | LIFE-VISIBLE/REUSE source DONE; Guided earlier-package pass retained. Nine WALK-* and17 eventual CRAFT-ACCEPT-* outcomes named; Sandbox PARKED and Settings WAITING. |
 | 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | CONTROL-FINDINGS and REMAP-DEFINE resolve actual gaps; INPUT-KBM/CONTROLLER require real devices. |
-| 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE | Nine WALK-* and four station LIFE-* rows; VIP PARKED. STATION-RELATIONS/FINDINGS require bounded source-tied definitions. |
+| 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE | WALK-ANNEX source9af57671d DONE in its disclosed-fixture scope; other WALK-* and four station LIFE-* rows remain, VIP PARKED. STATION-RELATIONS/FINDINGS require bounded source-tied definitions. |
 | 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT | Nine current craft plus eight missing originals explicitly named. Each SPEC/BUILD-SPLIT/CRAFT-ACCEPT outcome remains distinct; component gaps DEFINE. |
 | 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | Six COMBAT-* encounters named. WEAPONS-DEFINE/DAMAGE-DEFINE resolve actual supported cells; no duplicated network-damage assignment. |
 | 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE | ART-FINDINGS, ACCESS-* and13 named capture sets; each actual repair needs its own view/behavior proof. |

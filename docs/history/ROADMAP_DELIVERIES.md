@@ -5701,3 +5701,28 @@ bench end8.5 and next row10.3; reverse same route. Only waypoints change,
 no physics/geometry/arrival/240frame/300s acceptance relaxation.5–10min correction,
 one compile then one selected route; further failure requires priority review.
 Original raw remains in `/srv/mudds-work/annex-round-trip-20261018/results/annex_route/`.
+
+
+WALK-ANNEX-CALLER-AISLE DONE on9af57671d8aefd6510ba948571999b51a0d1110b.
+Only selected approach waypoints change (+3/-1), default route and existing
+walk/look/Interact helpers independently compared identical to prior source.
+Corrected compile PASSES; ONE original selected roundtrip PASSES81.387s at
+unchanged300s cap/outer360s,58 assertions, actual0/exactlyone selected marker/
+original diagnostics0. Full normal-spawn outbound, actual accessor/prompt/Interact
+restock5→6/one Annex origin increment/Aft unchanged and supported reverse walk
+back to the retained spawn all pass with same control-enabled unseated Player.
+Pre-walk active-Jovian/damage/public-engineer repair fixtures remain disclosed;
+this does not qualify craft selection/kit consumption by the walking player.
+
+All five observed stage owners are terminal; all19 PID/start identities absent;
+tracked source remains exact, all non-import cache unchanged. Original61.023s
+failure and static column diagnosis retained, not replaced by passing raw. Caller
+integrated on main; no runtime code changes, so checkpoint1cf1022 remains latest
+and an identical export is unnecessary. No rendered/device/native-GPU/human,
+whole-station/parent/endurance/full-matrix gate closes. Owned completed checkout,
+profiles/helpers are removed after source-ref/raw retention. Unique results:
+`/srv/mudds-work/annex-round-trip-20261018/results/`.
+
+Next queue is2 READY definitions/4 GATED/1 FAILED/1 DONE. Next selected work is
+PLAY-JOVIAN-KIT-ROUTE: freeze one normal delivery sortie, ordinary caller and
+original180s activity deadline/once-only durable receipt; no full-activities audit.

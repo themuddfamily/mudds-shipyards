@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: implement and qualify the fresh hub→Annex console→hub round trip.**
+**Next: define one ordinary Jovian two-kit delivery sortie, then schedule its bounded caller.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -17,6 +17,7 @@ phase gates remain open.** This file holds the executable queue; the
 | Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
 | Actual on-foot recovery in exported/archive Linux checkpoint | f90547c real-file SIGKILL/distinct restart; supported awake unseated player, ordinary walk0.525555m+Interact boarding, conserved convoy and receipts1→2 once. Private headless/Dummy and disclosed craft-placement fixtures; no fullflight/native-device claim. |
 | Pause/options16:10 selected source qualification | 1cf102298 PASS:26 focused repair assertions;948 layout assertions/96 observations,32 states at requested.75/1/1.6. Original criteria/caps retained; device/render/persistence transactions and other aspects remain open. |
+| Fresh hub→Annex service→hub |9af57671d selected route PASS81.387s: same supported Player, actual kits5→6 and one Annex update/Aft unchanged. Active-craft/kit-spend fixtures disclosed; default caller unchanged. |
 | Earlier passenger chair/HUD, lifecycle, browser/briefing deliveries | Retain their recorded scopes; no whole craft, parent or phase closes. |
 
 The on-foot batch's failed UI qualification is now resolved by two bounded
@@ -33,11 +34,11 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**2 READY, 1 IN PROGRESS, 4 GATED, 1 FAILED; 0 accepted in this queue.**
+**2 READY, 4 GATED, 1 FAILED, 1 DONE.**
 Root owns integration and closure.
 READY means its stated next action can start; it does not mean gameplay passed.
 Two READY cards are finite route/coverage definitions, explicitly labelled below.
-The Annex definition is complete; its caller/qualification successor is active.
+The Annex round trip is accepted on9af57671d; its definition and correction are closed.
 The Jovian chain is stopped after its failed compile and one failed caller repair.
 Priority review selected independent Annex work. Do not run every
 card merely because it appears here. Review priorities before replenishment.
@@ -49,12 +50,12 @@ card merely because it appears here. Review priorities before replenishment.
 | 3. NET-JOVIAN-PILOT-EXIT | Caller + qualification / GATED on 2 | Original pilot releases helm and walks onto berth ground; passenger remains seated. |30–60 min; one selected route at original limits |
 | 4. NET-JOVIAN-PILOT-RECLAIM | Caller + qualification / GATED on 3 | Original pilot boards the same hull and reacquires helm with current authority. |30–60 min; one selected route at original limits |
 | 5. NET-JOVIAN-REDEPART | Caller + qualification / GATED on 4 | Reused hull departs at least 5m and brakes; both original clients stay valid. |30–60 min; one selected route at original limits |
-| 6. WALK-ANNEX | Caller + qualification / IN PROGRESS | Fresh player walks hub→Annex console, restocks once and returns to hub. |30–60 min; one original 300s selected route after review |
+| 6. WALK-ANNEX | Caller + qualification / DONE | Fresh player walks hub→Annex console, restocks once and returns to hub. |Accepted9af57671d;81.387s at original300s cap |
 | 7. PLAY-JOVIAN-KIT-ROUTE | Planning / READY | Freeze one ordinary two-kit delivery sortie and durable completion criterion. |30 min; static source comparison, no engine |
 | 8. SERVER-BASELINE-DEFINE | Planning / READY | Name the residual Halyard two-client baseline and one uncovered recovery case. |30–45 min; static source comparison, no engine |
 
 **Count meanings:** 36 is the number of broad open requirements, eight is this
-working queue, and two is the number ready alongside one active task. None is a count of
+working queue, and two is the number ready. One queued result is accepted. None is a count of
 all remaining implementation jobs. The [36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
 retains the whole project; the backlog's generic families are not executable tasks.
 A definition ends with one executable successor or an exact missing fact, not
@@ -195,12 +196,13 @@ passes; reassess before starting, with 90 minutes as the split boundary.
   Interact/Begin Shift; horizontal goals(0,15.5),(0,12.5),(6,12.5),(6,13.5),
   (20,13.5),(34.8,13.5),(34.8,15.5),(43,15.5),(43,21), then Dock Ops
   (43,24.8),(48.1,24.8),(48.1,29.1),(48.1,28),(50,28). Keep existing service
-  segment(68.5,28),(68.5,38),(72,38), then Annex-local(0,4.8),(4.5,4.8),
-  (4.5,7.55). Coordinates are horizontal x/z; floor determines height, not pose
+  segment(68.5,28),(68.5,38),(72,38), then accepted Annex-local(0,4.8),
+  (0,9.5),(4.5,9.5),(4.5,7.55). Coordinates are horizontal x/z; floor determines height, not pose
   writes. Return the full goal list in reverse, then retained normal spawn.
   The midpoint(20,13.5) is a proposed caller goal on authored StarboardBranchArm
   floor, splitting a28.8m leg without changing walking speed or limits. Static
-  composition proposes a route; collision qualification is still unperformed.
+  composition alone did not qualify collision; the corrected route is now
+  accepted by the actual input/physics run recorded below.
 - **Proof/fixtures:** ordinary held walking/look and actual accessor-owned
   `RESTOCK ACTIVE SHIP` prompt/Interact; floor, controls and same Player at each
   arrival, no route-time teleport/velocity/phase/claim/candidate assignments.
@@ -216,7 +218,7 @@ passes; reassess before starting, with 90 minutes as the split boundary.
   x2.775–3.225/z4.275–4.725; nominal crossing z4.8 leaves only.075m clearance
   against actual Player radius.38. This is an unsafe caller segment, not evidence
   of a production collision defect.
-- **Bounded repair — WALK-ANNEX-CALLER-AISLE:** IN PROGRESS/root,5–10 min.
+- **Bounded repair — WALK-ANNEX-CALLER-AISLE:** DONE/root at9af57671d.
   Preserve original failed route/raw. Change only the last approach to
   local(0,4.8)→(0,9.5)→(4.5,9.5)→(4.5,7.55), using the authored gap between
   first bench end8.5 and next row10.3. Return the same corrected route in reverse.
@@ -225,17 +227,24 @@ passes; reassess before starting, with 90 minutes as the split boundary.
   `WALK_ANNEX_ROUND_TRIP_TEST_OK:` exactly once, actual exit0, diagnostics0.
   Failure after this one attempted repair requires priority review before
   further Annex work; independent kit/server definitions remain READY.
-- **Budget/check:**30–60 min caller implementation/review,
+- **Accepted proof:** corrected compile PASS and one unchanged full selected
+  run PASS81.387s,58 assertions, exit0/marker1/diagnostics0. Actual ordinary
+  outbound,5→6 restock/one origin update/Aft unchanged and full supported reverse
+  return to retained hub spawn all pass. All five stage owners are terminal;
+  all19 PID/start identities absent, source and non-import cache unchanged.
+  Only caller code changes; shipped runtime remains checkpoint1cf1022.
+- **Budget/check retained:**30–60 min caller implementation/review,
   splitbefore90. Freeze clean source and unique selected marker, then ONE
   existing300s suite-process run of this script with the selector; use private
   Xvfb, explicit x11/Dummy and independent abort/input/cursor cleanup. Retain
   existing service-helper240 physics frames/waypoint,.20m horizontal arrival,
   four settling frames and floor support. Do not substitute network15s limits.
-  Actual exit0/marker1/diagnostics0 required. The selector is proposed, not yet
-  implemented; no qualification command is runnable until that implementation.
+  Actual exit0/marker1/diagnostics0 required. Selector is implemented and accepted
+  as `--walk-annex-round-trip`; this is input/physics proof, not rendered review.
 - **Stop/close:** first blocked waypoint or actual console discrepancy ends
   qualification and identifies its exact owner; no Sandbox/VIP reopening or
-  automatic repair. Record source/result/limits, commit/push and owned cleanup.
+  automatic repair. Result/source/limits recorded; caller integrated, owned
+  clean checkout/profiles/helpers removed after preserving source refs/raw.
   Caller-only changes need no identical checkpoint; a separate accepted runtime
   fix requires fresh paired builds. Native/GPU/devices/human gates remain open.
 
@@ -293,8 +302,8 @@ is not an approved pilot-only deferral; no invented crew feature is scheduled.
 Owned completed helm/return/on-foot/UI checkouts, profiles/helpers and duplicate builds are removed;
 unique raw/source refs and public builds remain. Three older dirty retired
 checkouts remain protected. Scratch belongs under `/srv/mudds-work/`. The failed passenger-exit candidate is retained by source refs/raw;
-its disposable checkout/profile/helper files are removed after closure. Active
-Annex work is isolated under `/srv/mudds-work/annex-round-trip-20261018/`.
+its disposable checkout/profile/helper files are removed after closure. Annex raw results remain under `/srv/mudds-work/annex-round-trip-20261018/results/`;
+its completed disposable checkout/profiles/helpers are removed.
 
 ## Rules that prevent loops
 
