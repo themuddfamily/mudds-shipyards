@@ -2301,3 +2301,260 @@ viewport/layout preconditions with the established settings UI fixture before a
 separate bounded repair is selected. No unchanged rerun or acceptance relaxation.
 Accepted browser checkpointa39e93a is unaffected. The original Fire restart
 requirement and broad parent remain open.
+
+## Fire viewport repair — FAILED; required priority review complete
+
+Single repair38e47596093d6b0380c56236f6d674c74991d334 adds the established
+1280×720 content-size precondition and geometry logging; original row intersection
+and all restart acceptance remain unchanged. Independent review GO; only the
+fixture source differs and exact previous passed-import cache/engine are reused.
+One fresh private writer run still fails that same row intersection. Logged
+viewport1280×720, window64×64, focused Fire rectangle position(403.1579,-1425.79)
+size(195.1579,30.31579), scroll position(262,133.5789) size(756,458.5263).
+These are recorded observations, not a proven scrolling root cause.
+Root first-diagnostic stop yields supervisor143; no capture/save/reader acceptance.
+Unchanged source/index/cache/engine guards pass; all3 observed repair process
+identities close, plus all6 from the first attempt. No third probe/run/repair.
+
+Required priority review: unresolved player outcome is a visible Fire remap
+surviving production-disk restart and reaching the production sampler. Wall time
+from owned Fire checkout creation23:52:46.016UTC to repair stop23:59:58.543UTC
+is432.527s (7min12.5s); includes fixture preparation/coordination/checks, not a
+native performance measurement. Initial failure plus one repair are exhausted.
+Competing READY task PLAN-VISIBLE-DELIVERIES is a30–45min no-engine selection of
+three independent player-visible implementation cards from the retained backlog.
+Select that planning task next; Fire remains parked, not renamed into more
+investigation. Do not widen the test or relax the visible-row criterion.
+
+Both fixture candidates stay unintegrated. Exact remote hold
+hold/fire-restart-viewport-20261018 points to38e475960 (parentb5b3c5a76 included).
+Root verified the remote SHA, tracked cleanliness and only disposable ignored
+.godot before removing the owned Fire checkout. Unique raw/private failed stores,
+logs/source/cache snapshots and cleanup map remain under
+`/srv/mudds-work/fire-restart-20261018/results/`, first attempt in focused/ and
+one repair in viewport-repair/. Accepted browser checkpointa39e93a remains current.
+This closes the failed tasks and scheduling review, not the Fire requirement.
+
+## Archived browser / Fire batch task contracts
+
+## Next queue — four bounded tasks
+
+ROADMAP-NEXT-CARDS is **DONE**: read-only source mapping produced these four
+cards and archived the completed installer contracts. No engine checks ran in
+this planning pass. No gameplay or parent completion is claimed for planning.
+Baseline for selection: main `8e254a7d0`; each execution records its exact clean
+candidate before running. Root owns integration, verification, commit/push and
+cleanup. Implementers use separate owned worktrees; do not edit shared files
+concurrently. Priority1 runs first. The two independent investigations can be
+assigned alongside it without authorizing runtime edits to shared HUD/GameFlow.
+
+| Priority / task | Status / type | Observable finish | Work budget; checks separately |
+| --- | --- | --- | --- |
+| 1 BROWSER-CANCEL | DONE on a39e93af4 / production UI change | Cancel a pending Manual Join from the browser and start another attempt. | 60–90 min; focused/live checks ≤15 min, original300s suite limits. |
+| 2 FIRE-RESTART | FAILED before capture / qualification | A Fire binding selected in Settings survives real process restart and reaches the production input sampler. | 45–60 min fixture/setup; two processes ≤300s each. |
+| 2a FIRE-VIEWPORT | FAILED at unchanged row check / one fixture repair | Establish the declared Settings viewport and retain the exact visible-row requirement. | 15–20 min; writer/reader300s each, unchanged imported cache. |
+| 3 RACE-PAGE-RESET | DONE / bounded diagnosis; contract question retained | Identify whether the ordinary Cinder race Reset/Start path agrees with durable state, or report the specific missing fact. | 30 min mapping; at most one ≤300s probe if needed. |
+| 4 NEXT-CHECKPOINT | DONE on a39e93a / release delivery | Playable paired packages contain accepted runtime changes with actual startup results. | 30–45 min setup/closure; established export/startup caps below. |
+
+### BROWSER-CANCEL — pending Manual Join
+
+Result: accepted clean source `a39e93af4e3083d002ad15b8610fe70620f5e983`.
+Cold import, HUD integration33, focus navigation57 and live cancellation59 all
+pass with exit0 and no diagnostics. Actual Xvfb/x11/Dummy actor performs two
+visible Manual Join/ui_accept Cancel cycles, observes inactive/disconnected
+transport and reusable browser, and exits0. Owned loopback endpoint receives
+real handshake traffic. Source/index/cache/engine guards pass; all15 observed
+owned process identities and display:99 close. Raw commands/receipts/results:
+`/srv/mudds-work/browser-cancel-20261018/results/focused/`.
+This delivers pending-connection cancellation; reconnect/migration/native-device
+qualification remains open. NEXT-CHECKPOINT now exports this exact clean source.
+
+- **Parent/result:** [NET-BROWSER](../ROADMAP_BACKLOG.md#multiplayer).
+  While Manual Join is connecting, the browser presents a focusable
+  **Cancel Connection** action. Activating it closes the attempt, keeps the
+  browser usable and permits a new attempt. Connected sessions retain Disconnect.
+- **Known gap:** `scripts/ui/hud.gd::_update_server_browser_disconnect` and
+  `_request_server_browser_disconnect` only permit connected state. Existing
+  `tests/server_browser_hud_integration_test.gd` explicitly expects the button
+  disabled while connecting. The session status presenter already advertises
+  cancel; GameFlow already routes that intent to shutdown. This is an absent
+  browser affordance, not a diagnosed transport defect.
+- **Owner/boundary:** root assigns one medium-effort implementer who owns `scripts/ui/hud.gd`,
+  `tests/server_browser_hud_integration_test.gd`,
+  `tests/server_browser_focus_navigation_test.gd` and a bounded cancellation mode
+  in `tests/network/game_flow_server_browser_integration_test.gd`. Reuse
+  `scripts/ui/network_session_status_presenter.gd` and GameFlow's existing cancel
+  route. Dependency: none beyond a clean baseline checkout.
+  No transport rewrite, planetary routes, capacity or hardware work.
+  Reconnect/migration qualification remains separate; derive labels/actions from
+  the existing presenter rather than inventing a second session state machine.
+- **Proof:** actual visible Manual Join → pending session → focus/activate Cancel
+  Connection → inactive transport/disconnected presentation → browser navigation
+  still works → new Manual Join starts. Use ordinary UI accept activation. Also
+  require offline button disabled, connected Disconnect preserved and a newer
+  tutorial card unable to hide the browser action. Extend the two existing HUD
+  tests and add only the missing live cancellation scenario to the existing
+  coordinator. Give the fixture an owned non-admitting endpoint/controlled
+  handshake so pending state lasts until Cancel is activated; an arbitrary
+  unreachable address is not a deterministic precondition. The current live
+  modes prove admission/disconnect; they do not
+  already prove cancellation. Write its exact command before the first run.
+- **Budget/stop:** implementation60–90min; checks separately≤15min; cold import≤600s counts as setup, outside
+  the three300s checks. Use existing
+  `tools/release/suite_process.py` with300s per focused/live suite, not a reduced
+  deadline. Live coordinator retains original internal limits and owned private
+  Xvfb peers with x11/Dummy; headless HUD checks use Dummy. Stop first failure;
+  record source/defect and schedule a separate repair. After one repair, priority
+  review is mandatory before another probe/run.
+- **Next/close:** inspect the two named HUD methods and reuse presenter action
+  state; commit the candidate before checks. Integrate accepted behavior, record
+  exact focused/live results and gate NEXT-CHECKPOINT on it. Remove owned clean
+  checkout after publication; preserve unique work/failure logs.
+
+### FIRE-RESTART — one keyboard binding
+
+First run FAILED on fixture source `b5b3c5a769ae24c69afe6720261bef52d2e08054`.
+Import exits0. Writer opens the private production store and normal Main,
+shows Settings/Fire row, then fails the unchanged requirement that focused Fire
+intersect the visible Settings scroll viewport. Root stops on that diagnostic
+(supervisor143); no capture/save acceptance or reader run follows. Frozen
+source/index/cache/engine guards and owned closure pass. Raw remains under
+`/srv/mudds-work/fire-restart-20261018/results/focused/`.
+Candidate is not integrated. One static diagnosis now checks the viewport/layout
+precondition before selecting a separate repair; no automatic rerun or inferred
+persistence defect. Published browser checkpointa39e93a remains accepted.
+
+- **Parent/result:** [INPUT-REMAP](../ROADMAP_BACKLOG.md#performance-controls-accessibility-and-audio).
+  Qualify changing Fire to F13 from the visible Settings row, saving to the real
+  private production store, exiting and reloading in a distinct process. The
+  reloaded row, InputMap and production local input sampler must agree.
+- **Known evidence boundary:** `tests/settings_ui_test.gd` covers row capture
+  and live map; `tests/runtime_settings_production_persistence_test.gd` injects
+  a fake filesystem and recreates Main in-process. Neither inspected fixture
+  proves this exact real-file/distinct-process composition. No remapping bug is
+  claimed. This does not replace the externally blocked original Settings route.
+- **Owner/boundary:** root (may delegate to one medium-effort qualification agent);
+  fixture ownership stays under `tests/` beside the existing settings tests.
+  Reuse HUD `begin_input_binding_capture`, GameFlow's production settings store
+  and `scripts/control/local_ship_input_source.gd` sampling. No production edits
+  until a specific defect is reproduced; any repair becomes a separate card.
+  Dependency: none beyond a clean baseline checkout and private writable store.
+  No physical-device, controller or full Settings acceptance claim.
+- **Proof:** writer uses the visible row and raw F13 key event, production save,
+  and exits0. A different PID loads the same private disk store through normal
+  Main startup, shows F13 for Fire and samples Fire on F13 press/release through
+  the production input source; former desktop binding must not fire. Preserve
+  existing gamepad bindings and unrelated seeded store data. Do not substitute
+  `Input.action_press`, direct profile seeding or MemoryFilesystem for this path.
+  Both processes must exit0 with explicit stage completion, then be reaped.
+- **Budget/stop:**45–60min fixture/setup; one writer and one reader≤300s each,
+  headless/Dummy/private XDG. First action: extend the smallest existing fixture
+  with writer/reader modes and record exact invocation/isolation before execution.
+  If no clean way to observe the sampler is found within the budget, stop with
+  that missing seam; do not build a generic framework. Stop first failure; retain
+  source and exact bytes. A pass closes this case without a gratuitous rerun.
+- **Close:** record exact commit/process/file/result scope, commit/push useful
+  qualification fixture and remove owned disposable checkout. No new build is
+  required for a test-only pass; a runtime repair requires NEXT-CHECKPOINT.
+
+### FIRE-VIEWPORT — one repair of the failed qualification fixture
+
+- **Parent/result:** FIRE-RESTART / INPUT-REMAP. Establish the same declared
+  1280×720 content viewport used by `tests/settings_ui_test.gd` before Main
+  creation. Keep the original Fire/scroll intersection requirement unchanged;
+  record actual viewport, focus and rectangles to resolve the missing fact if
+  this attempt fails. This is a fixture repair, not a production scrolling fix.
+- **Owner/boundary:** `fire_restart_fixture`, only
+  `tests/runtime_settings_production_persistence_test.gd`. Candidate
+  `38e47596093d6b0380c56236f6d674c74991d334`, parent failedb5b3c5a76;
+  static diff checks pass. One run fails the same unchanged visible-row
+  requirement; writer143, readerNOT_RUN. No production edits or weakened assertions.
+- **Dependency/proof:** root independent review before run; retain first failure
+  untouched. Reuse the exact cache from the passed import (unchanged engine and
+  production/global-class sources); assert only the reviewed fixture differs.
+  Fresh private store, writer then distinct reader, exit0 plus original mode
+  markers and every original capture/save/row/sampler/preservation requirement.
+- **Budget/stop:**15–20min fixture correction, two processes≤300s each. No second
+  hypothesis or automatic run. Any remaining failure triggers priority review
+  before more diagnosis/repair/probes, even if its apparent defect changes.
+- **Next/close:** run separately recorded `results/viewport-repair/run.py` once
+  on frozen38e475960 after review. Preserve both attempts, commit/push actual
+  result and either integrate accepted fixture or retain withheld source refs;
+  remove owned clean checkout after the decision. No new playable build for a
+  fixture-only result; browser checkpointa39e93a remains current.
+
+### RACE-PAGE-RESET — reconcile one ordinary route
+
+Result: static trace complete on `29a8d9d75` source (unchanged production
+files on current main). Cinder page owns a separate best-result/receipt-only
+session; Activity Board owns the durable GameFlow race session. Existing comments
+and `cinder_race_best_persistence_roundtrip_test.gd` explicitly require fresh
+binding idle with retained best, consumed receipt and no replayable completion.
+Page Select chooses a presenter card, not GameFlow's selected activity. No defect
+is established and no engine/probe ran. Do not silently unify these owners. A
+future unification needs an explicit product requirement; this diagnosis is not
+fresh-process runtime qualification. Exact trace is in delivery history.
+
+- **Parent/result:** [ACT-HUD](../ROADMAP_BACKLOG.md#activities-and-planetary-journeys),
+  Race only. This is diagnosis: establish whether completed/paid race → Cinder
+  page Reset → select Race → Start → fresh Main agrees with persisted state.
+  No discrepancy or repair is assumed.
+- **Known seam:** GameFlow `_reset_nearby_activity` dispatches the Cinder race
+  to `nearby_sector_activity_binding.gd::reset_race`; production lifecycle tests
+  instead exercise `reset_active_activity`. Detached retained-feedback tests
+  supply snapshots. Trace whether both paths actually share durable ownership.
+- **Owner/boundary:** root (may delegate to one medium-effort reader), read-only
+  production ownership. Dependency: none beyond a clean baseline checkout.
+  Inspect `scripts/game/game_flow.gd`,
+  `scripts/world/nearby_sector_activity_binding.gd` and
+  `scripts/ui/nearby_sector_activity_presenter.gd`; anchors are existing
+  `tests/cinder_race_retained_feedback_test.gd` and
+  `tests/cinder_race_session_save_restore_test.gd`. Do not rerun the known-timeout
+  full lifecycle suite or touch other activity families.
+- **Proof/budget:**30min static trace, at most one concrete hypothesis and one
+  ≤300s headless/Dummy/private-store probe if necessary. Record authority state,
+  durable race record, rendered row and enabled actions across reset/start and
+  fresh Main; check pending reward, retained best and generation/once-only state.
+  Seed only declared fixture preconditions; do not claim canonical flight or a
+  real completed journey. Write exact probe command before running it.
+- **Next/stop/close:** trace the two reset paths first. End with either an exact
+  reproduced mismatch and responsible runtime owner plus a30–90min repair card,
+  a demonstrated consistent route (no repair), or the precise unresolved fact.
+  No second hypothesis/probe, production edits, new validators or checkpoint
+  during diagnosis. Record actual result, commit/push and clean owned scratch.
+
+### NEXT-CHECKPOINT — accepted runtime changes only
+
+Result: paired checkpoint a39e93a published from exact clean sourcea39e93af4.
+Both exports, strict direct/archive Linux and Windows-payload startups,
+privacy207, strict1515-entry byte parity, stock PE, six-member Linux archive and
+exact EXE/notes ZIP CRC pass. All39 observed owned checkpoint process identities
+close. Raw results and public paths/SHA256/modes remain in the browser batch's
+`results/checkpoint/`. Windows payload ran under Linux Godot; native Windows,
+hardware/audio/human/full-matrix/release gates stay open. Final independent
+artifact review is GO; owned clean source checkout removed, unique raw retained.
+
+- **Parents/result:** [PACKAGE-WIN / PACKAGE-LINUX](../ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
+  Publish paired playable packages exposing BROWSER-CANCEL and any separately
+  accepted runtime fix. This is release work, not a second gameplay outcome.
+- **Dependency/owner:** root; now ungated by accepted a39e93af4, exporting that clean commit.
+  Requires a clean integrated runtime commit and
+  its focused checks pass. FIRE-RESTART/RACE-PAGE-RESET do not block a passing UI
+  change merely because their independent qualification/diagnosis is unfinished.
+- **Boundary/proof:** existing safe export scripts; Windows EXE/ZIP/notes in
+  `builds/windows/`, matching Linux ELF/archive/notes/export result in
+  `builds/linux/`. Require direct/archive Linux and Windows-payload startup exit0
+  plus STARTUP_MENU_READY_OK, existing privacy check, exact package membership,
+  manager/binary bytes and modes, ZIP CRC, stock PE and strict PCK entry-byte
+  comparison. Record actual mismatches; do not silently accept them. Native
+  Windows remains NOT_RUN under the execution hold.
+- **Budget/stop:**30–45min setup/closure; import≤600s, each export≤930s, each
+  startup≤330s, privacy≤300s. Existing focused checks retain their limits; no
+  automatic whole-matrix or unrelated installed-transaction rerun. Headless/Dummy,
+  independent abort and owned child cleanup. Stop at first required failure,
+  retain previous accepted505d419 and schedule any repair separately.
+- **Next/close:** once ungated export from the exact clean accepted commit;
+  publish verified artifacts with concise player-visible notes and actual limits.
+  Independently review package scope, remove the owned clean source checkout,
+  retain unique raw results, update latest checkpoint and commit/push. No hosted
+  CI, Downloads, native hardware/audio/human/full-release claim.

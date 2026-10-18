@@ -44,8 +44,11 @@ raw/remote source refs retained. Survey/home/package children remain unqualified
 and parked with that parent. Recorded priority review selected the independent
 Linux uninstall-interruption/retry/ship batch, now DONE on505d419. The next
 working queue delivered BROWSER-CANCEL and paired checkpointa39e93a, closed
-RACE-PAGE-RESET static diagnosis without a repair, and has FIRE-RESTART
-qualification in progress; see ROADMAP.md for exact contracts. No further Rime
+RACE-PAGE-RESET static diagnosis without a repair. FIRE-RESTART and its one
+viewport fixture repair both fail before capture; candidates withheld, raw and
+remote hold retained, clean checkout removed. Required priority review selects
+PLAN-VISIBLE-DELIVERIES next; no further Fire probe/repair is selected. See
+ROADMAP.md for exact contracts. No further Rime
 probe, repair or unchanged run is selected.
 One failed task plus its attempted repair requires a recorded priority review
 before further repair; a new task name does not reset that boundary.
