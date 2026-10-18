@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next cargo: strict home return, two-kit transfer and usable exit; Halyard boarding is being checked independently.**
+**Next: strict cargo home return, two-kit transfer and usable exit. Halyard boarding is parked after its bounded retry failed.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -36,7 +36,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 READY, 1 IN PROGRESS, 3 GATED, 3 DONE (two qualifications, one definition).** Root owns integration and closure.
+**1 READY, 1 FAILED/PARKED, 3 GATED, 3 DONE (two qualifications, one definition).** Root owns integration and closure.
 Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
@@ -51,7 +51,7 @@ and delivery history; they do not consume active queue slots.
 | KIT-DELIVER | READY | Physical home return transfers two kits, pays once and leaves player walking outside. |45–60 min; one extended route at unchanged caps |
 | KIT-RELOAD | GATED on KIT-DELIVER | Distinct process reloads accepted delivery without duplicate kits or reward. |20–40 min; compile300s + one restore30s |
 | HALYARD-APPROACH | DONE definition | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
-| HALYARD-BOARD | IN PROGRESS | Two independent clients ordinarily board distinct pilot/passenger seats. |45–60 min; compile300s + one route300s/outer360s |
+| HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
 | HALYARD-AUTHORITY-STOP | GATED on HALYARD-MOVING-CABIN | Real server shutdown restores both occupants to usable solo operation. |30–60 min; one selected route at unchanged caps |
 
@@ -221,7 +221,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   generations agree on host and consumed clients; distinct exclusive claims,
   correct supported controls and real seats. Existing remote-pilot actions are
   supported by `_client_loadmaster_pilot`; no new authority implementation presumed.
-- **Next/check:** IN PROGRESS/root; HALYARD-APPROACH definition complete.45–60 min.
+- **Next/check:** FAILED/PARKED/root; no further boarding attempt selected.
   Proposed selector `--ordinary-two-client-board`, unique
   `HALYARD_ORDINARY_TWO_CLIENT_BOARD_OK`, isolated branch
   `work/halyard-ordinary-board-20261018`. Freeze exact clean
@@ -237,9 +237,15 @@ accepted runtime repairs require separate cards and fresh paired builds.
   seats, exclusive authority, ownership/body/frame generations and honest roles.
   Guard detached diagnostic nodes before get_path. Freeze corrected source;
   one compile and one unchanged selected route, no added cap or runtime change.
-- **Stop/close:** another failure requires cumulative priority review against
-  READY KIT-DELIVER before more Halyard work. Record proof/limits, commit/push
-  and owned cleanup; retain failed raw and source branch.
+- **Stop/close:** corrected source f3d53bda6 compiles; ONE unchanged retry FAILS
+  135.833s at consumed-state comparison after both actual seats. Boarding remains
+  unqualified; failed caller stays unmerged. Priority review selects READY
+  KIT-DELIVER, a distinct physical delivery outcome, over further Halyard diagnosis.
+  The two route attempts total271.737s, excluding import/compile and implementation/
+  review; the15min correction is cumulative, not a new budget reset. No further
+  diagnosis/repair/run selected. All5 owners terminal/all34 observed PID identities
+  absent, source/cache intact;96 copied peer raw files byte-identical. Source refs
+  and raw retained; owned disposable checkout/profiles/helpers removed at closure.
 
 ### HALYARD-MOVING-CABIN — use the cabin during actual departure
 

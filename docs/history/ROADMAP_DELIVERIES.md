@@ -5876,3 +5876,23 @@ before more Halyard work. Original failed source/raw and STOP remain retained.
 All3 original owners terminal/all21 observed PID/start identities absent, source
 and non-import cache unchanged,48 copied peer raw files byte-identical. Raw:
 `/srv/mudds-work/halyard-ordinary-board-20261018/results/route/`.
+
+
+HALYARD-CALLER-CONSUMER f3d53bda602d488485e226ae56ca62f32aa8e39d compile PASS;
+ONE unchanged selected retry FAIL135.833s at client consumed-state comparison
+again after both actual physical seats. No boarding qualification; caller remains
+unmerged on retained remote work branch. No further diagnosis, repair or run.
+
+Cumulative priority review: failed initial task plus its one15min caller correction
+has reached the stop rule. Two actual routes consumed271.737s combined, excluding
+import/compile/implementation/review. Original broader work time is not inferred
+from route time. Unresolved outcome is qualified ordinary two-client boarding;
+READY competitor KIT-DELIVER provides actual home return/two-kit transfer/single
+reward/usable exit. Select KIT-DELIVER next and park Halyard; do not rename the
+same failure to reset its budget. Moving-cabin and authority-stop remain gated.
+
+All5 owners FINISHED/all34 observed PID/start identities independently absent;
+source/index and non-import cache unchanged. Both48-file peer bundles independently
+byte-identical to private originals (96 files total). Retain both failures, STOPs,
+raw and pushed source branch; remove owned clean checkout/profiles/helpers and
+now-unused shared supervisor. No runtime change/new checkpoint or native claim.
