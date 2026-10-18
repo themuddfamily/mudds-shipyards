@@ -42,6 +42,9 @@ func _run() -> void:
 	var hud := HudType.new()
 	root.add_child(hud)
 	await process_frame
+	if "--ui-board-focus-probe" in OS.get_cmdline_user_args():
+		await _run_ui_board_focus_probe(hud)
+		return
 	await _test_intro_server_browser_controller_back(hud)
 	hud.set("_started", true)
 	await _test_destination_board_controller_path(hud)
@@ -676,3 +679,81 @@ func _finish() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+## Optional component-only OS-input reproduction. Production page methods and
+## button signals are never invoked here; the external owned driver sends keys.
+func _probe_popup_windows(node: Node, output: Array) -> void:
+	if node is Window:
+		var window := node as Window
+		output.append({"id": window.get_instance_id(), "class": window.get_class(),
+			"path": str(window.get_path()), "visible": window.visible,
+			"embedded": window.is_embedded(), "queued": window.is_queued_for_deletion()})
+	for child: Node in node.get_children(true):
+		_probe_popup_windows(child, output)
+
+
+func _probe_root_recipients(signal_name: StringName) -> Array:
+	var recipients: Array = []
+	for connection: Dictionary in root.get_signal_connection_list(signal_name):
+		var callback: Callable = connection.get("callable", Callable())
+		var recipient: Object = callback.get_object()
+		recipients.append({"id": callback.get_object_id(), "valid": callback.is_valid(),
+			"method": str(callback.get_method()), "flags": int(connection.get("flags", 0)),
+			"class": recipient.get_class() if is_instance_valid(recipient) else "",
+			"path": str((recipient as Node).get_path()) if recipient is Node and (recipient as Node).is_inside_tree() else ""})
+	return recipients
+
+
+func _run_ui_board_focus_probe(hud: GameHUD) -> void:
+	var began: int = Time.get_ticks_msec()
+	var sequence: int = 0
+	var previous_sample_msec: int = -100
+	var completion_seen: bool = false
+	var completion_frames: int = 0
+	while Time.get_ticks_msec() - began < 55_000:
+		await process_frame
+		if Time.get_ticks_msec() - previous_sample_msec < 20:
+			continue
+		previous_sample_msec = Time.get_ticks_msec()
+		sequence += 1
+		var focused: Control = root.gui_get_focus_owner()
+		var hovered: Control = root.gui_get_hovered_control()
+		var main_page: Control = hud.get("_pause_main_page") as Control
+		var selection: Control = hud.get("_activity_selection_page") as Control
+		var intro: Control = hud.get("_intro") as Control
+		var board: Button = hud.find_child("ActivityBoardButton", true, false) as Button
+		var timed: Button = hud.find_child("TimedRaceActivityButton", true, false) as Button
+		var windows: Array = []
+		_probe_popup_windows(root, windows)
+		var observation: Dictionary = {"pid": OS.get_process_id(), "sequence": sequence,
+			"msec": Time.get_ticks_msec() - began, "paused": paused,
+			"started": bool(hud.get("_started")), "intro_visible": intro.visible,
+			"main_visible": main_page.visible, "activity_visible": selection.visible,
+			"focus": str(focused.name) if is_instance_valid(focused) else "",
+			"focus_path": str(focused.get_path()) if is_instance_valid(focused) else "",
+			"hover": str(hovered.get_path()) if is_instance_valid(hovered) else "",
+			"hover_tooltip": hovered.tooltip_text if is_instance_valid(hovered) else "",
+			"mouse": [root.get_mouse_position().x, root.get_mouse_position().y],
+			"board_focused": focused == board, "timed_focused": focused == timed,
+			"keys": {"e": Input.is_physical_key_pressed(KEY_E),
+				"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
+				"tab": Input.is_physical_key_pressed(KEY_TAB),
+				"enter": Input.is_physical_key_pressed(KEY_ENTER)},
+			"windows": windows, "root_focus_recipients": _probe_root_recipients(&"focus_entered"),
+			"root_exit_recipients": _probe_root_recipients(&"tree_exited")}
+		print("UI_BOARD_FOCUS_OBSERVATION: " + JSON.stringify(observation))
+		if selection.visible and focused == timed and not Input.is_physical_key_pressed(KEY_ENTER):
+			completion_seen = true
+			completion_frames += 1
+			if completion_frames >= 5:
+				break
+	if completion_seen:
+		print("UI_BOARD_FOCUS_PROBE_COMPLETED")
+	else:
+		push_error("UI_BOARD_FOCUS_PROBE_TIMEOUT")
+	hud.set_paused(false)
+	hud.queue_free()
+	await process_frame
+	await process_frame
+	quit(0 if completion_seen else 1)
