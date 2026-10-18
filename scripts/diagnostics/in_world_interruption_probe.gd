@@ -912,6 +912,16 @@ func _breach_board_fixture(game: GameFlow, board: HeavyBreachActivityBoard) -> b
 	return await _breach_wait(func() -> bool: return game.station_interaction_candidate == board)
 
 
+## Match the passing Heavy Breach production route's one-physics-tick pulse.
+## This caller normalization does not establish the original failure's cause.
+func _breach_press_interaction() -> void:
+	Input.action_press(&"interact")
+	await get_tree().physics_frame
+	Input.action_release(&"interact")
+	await get_tree().physics_frame
+	await get_tree().process_frame
+
+
 func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 	if recovery_context != "pilot":
 		_fail("Heavy Breach terminal interruption requires the supported pilot context")
@@ -928,20 +938,27 @@ func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 	game.disembarking_motion_time = 0.04
 	if stage == "arm":
 		game.call("_on_settings_save_requested")
-		# Keep the unrelated owner idle: its own live elapsed clock must not be
-		# confused with a mutation by the terminal reward transaction on Resume.
-		_check(game.save_jovian_cargo_session().accepted,
-			"the genuine idle cargo/transfer owner saves unrelated activity payload beside Heavy Breach")
+		# Generation zero has no durable cargo record. The genuine synchronous
+		# start/reset signals save a supported document and leave its clock idle
+		# before any await or Heavy Breach admission; no transfer is manufactured.
+		var cargo_started := game.cargo_delivery_activity.start(game.cargo_delivery_activity.get_generation())
+		var cargo_reset := game.cargo_delivery_activity.reset(game.cargo_delivery_activity.get_generation())
+		var cargo_saved := game.save_jovian_cargo_session()
+		_check(cargo_started.accepted and cargo_reset.accepted and cargo_saved.accepted
+			and game.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.IDLE
+			and store.get_snapshot().has("jovian_cargo_session"),
+			"the genuine start/reset cargo owner saves actual unrelated idle activity payload beside Heavy Breach")
 		game.start_shift()
+		await get_tree().process_frame
 		_check(await _breach_board_fixture(game, board), "the staged on-foot Player discovers the real Heavy Breach board")
-		await _press_real_interaction()
+		await _breach_press_interaction()
 		_check(board.is_sortie_armed() and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH
 			and director.get_state() == EncounterScenarioDirector.STATE_IDLE,
-			"the production board arms Heavy Breach without starting combat against the avatar")
+			"the production board arms Heavy Breach without starting combat against the avatar: %s" % JSON.stringify(board.get_snapshot()))
 		game.player.teleport_to(Transform3D(Basis.IDENTITY, craft.get_boarding_position() + Vector3(0.0, 0.05, 0.0)))
 		_check(await _breach_wait(func() -> bool: return game.boarding_candidate == craft),
 			"the staged Arrow entry resolves through the production boarding sensor")
-		await _press_real_interaction()
+		await _breach_press_interaction()
 		_check(await _wait_for_real_pilot(game, craft, 240), "the real Arrow seat settles before the Heavy Breach departure")
 		Input.action_press(&"move_forward")
 		var launched := await _breach_wait(func() -> bool:
@@ -1024,6 +1041,7 @@ func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 		if _failures.is_empty():
 			var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
 			game.start_shift()
+			await get_tree().process_frame
 			var settled := await _wait_for_real_pilot(game, craft, 240)
 			var area := craft.get_node(^"ShipBoardingArea") as ShipBoardingArea
 			var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
@@ -1043,7 +1061,7 @@ func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 				"production pilot exit releases real ownership before the staged on-foot board retry")
 			_check(await _breach_board_fixture(game, board), "the recovered on-foot Player discovers the physical unpaid board")
 			if _failures.is_empty():
-				await _press_real_interaction()
+				await _breach_press_interaction()
 				payment_commit = store.get_commit_metadata()
 	var paid: Dictionary = store.get_snapshot().heavy_breach_session
 	var reward_after: Dictionary = game.get_activity_reward_report().authority.record
@@ -1065,7 +1083,7 @@ func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
 			"payment and terminal acknowledgement use the one existing atomic reward transaction")
 		if _failures.is_empty():
 			var bytes := FileAccess.get_file_as_bytes(str(store.get("_path")))
-			await _press_real_interaction()
+			await _breach_press_interaction()
 			_check(_breach_receipts(game) == 1 and store.get_snapshot().heavy_breach_session == paid
 				and FileAccess.get_file_as_bytes(str(store.get("_path"))) == bytes,
 				"a second real board interaction cannot repay or mutate the acknowledged Heavy Breach terminal")
