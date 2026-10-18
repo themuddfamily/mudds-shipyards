@@ -25104,7 +25104,8 @@ func _apply_reduced_dynamic_range_setting() -> Dictionary:
 
 
 ## Applies one validated RuntimeSettings profile to InputMap and every retained
-## ship-local transform bank as a single synchronous composition step. All banks
+## ship-local transform bank and the local Player sprint consumer as a single
+## synchronous composition step. All banks
 ## preflight the exact candidate/generation before InputMap or any bank mutates;
 ## replacement then has no signal or await boundary at which the plan can stale.
 ## Exact matches are retained so whole-Main re-entry reclaims process-global
@@ -25178,6 +25179,16 @@ func _apply_runtime_input_bindings_and_options() -> Dictionary:
 			"generation": generation,
 		})
 
+	if is_instance_valid(player) and not player.can_apply_sprint_input_profile(profile):
+		push_error("Runtime input profile rejected by Player sprint consumer")
+		return {
+			"accepted": false,
+			"reason": &"invalid_player_sprint_profile",
+			"source_count": source_ids.size(),
+			"replaced_count": 0,
+			"unchanged_count": unchanged_count,
+		}
+
 	var input_map_result := runtime_settings.apply_input_bindings()
 	if not bool(input_map_result.applied):
 		push_error("Runtime input profile rejected by InputMap")
@@ -25211,6 +25222,10 @@ func _apply_runtime_input_bindings_and_options() -> Dictionary:
 				"unchanged_count": unchanged_count,
 			}
 		replaced_count += 1
+	if is_instance_valid(player):
+		# Preflight and commits above have no signal/await boundary. Detached
+		# settings-only GameFlows intentionally have no Player consumer.
+		player.apply_sprint_input_profile(profile)
 	return {
 		"accepted": true,
 		"reason": &"profile_applied" if replaced_count > 0 else &"profile_reclaimed",
