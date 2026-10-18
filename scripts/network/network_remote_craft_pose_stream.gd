@@ -47,6 +47,7 @@ const COAST_TICKS := 600
 const TICK_SECONDS := 1.0 / 60.0
 const MAX_DISPLAY_BYTES := 8192
 const MAX_DISPLAY_INFLATED_BYTES := 65536
+const COMPONENT_POWER_FIELDS := ["engine_power", "weapon_power", "targeting_power"]
 
 const SAMPLE_HISTORY := 8
 const STALE_SAMPLE_TICKS := 120
@@ -107,7 +108,7 @@ static func build_pose_entry(
 	if not transform.origin.is_finite() or not velocity.is_finite():
 		return {}
 	var hull: Dictionary = (craft as HeroShip).get_network_damage_presentation_snapshot() if craft is HeroShip else {}
-	return {
+	var entry := {
 		"entity_id": pose_entity_id(ship_id),
 		"entity_generation": maxi(1, int(hull.get("component_generation", 1))),
 		"hull_presentation": hull,
@@ -122,6 +123,13 @@ static func build_pose_entry(
 		"velocity_world": velocity,
 		"destroyed": destroyed,
 	}
+	if craft is HeroShip:
+		# One live sample preserves subclass routing and the current hull stutter;
+		# component integrity alone cannot reproduce these operational outputs.
+		var telemetry: Dictionary = (craft as HeroShip).get_telemetry()
+		for field: String in COMPONENT_POWER_FIELDS:
+			entry[field] = telemetry[field]
+	return entry
 
 
 # --- host half ---------------------------------------------------------------
@@ -690,7 +698,16 @@ func _sample_from_entry(entry: Dictionary, display_batch: Dictionary = {}, stati
 			or not operation_tick is int or int(operation_tick) < int(pose_tick) \
 			or not entry.get("pose_active", true) is bool:
 		return {}
+	var powers: Dictionary = {}
+	for field: String in COMPONENT_POWER_FIELDS:
+		if entry.has(field):
+			if not _bounded_number(entry[field], 0.0, 1.0):
+				return {}
+			powers[field] = float(entry[field])
+	if not powers.is_empty() and powers.size() != COMPONENT_POWER_FIELDS.size():
+		return {}
 	return {
+		"component_powers": powers,
 		"operation_presentation": (operation as Dictionary).duplicate(true),
 		"operation_tick": int(operation_tick), "pose_active": bool(entry.get("pose_active", true)),
 		"entity_generation": int(generation), "craft_epoch": int(epoch), "hull_presentation": (hull as Dictionary).duplicate(true),
@@ -798,6 +815,10 @@ static func pack_display_facts(entries: Array) -> Array:
 		var wire: Dictionary = {}
 		for field: String in ["entity_id", "entity_generation", "owner_peer_id", "mode"]:
 			wire[field] = entry[field]
+		# Optional primitive headers leave the compressed display rows unchanged.
+		for field: String in COMPONENT_POWER_FIELDS:
+			if entry.has(field):
+				wire[field] = entry[field]
 		var hull: Dictionary = entry.hull_presentation
 		var components: Array = []
 		var placements: Array = []

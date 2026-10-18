@@ -452,6 +452,7 @@ var _network_engine_visual_root: Node3D
 var _network_engine_definition: ShipDefinition
 var _network_operation_source: Dictionary = {}
 var _network_operation_state: Dictionary = {}
+var _network_component_powers: Dictionary = {}
 var _network_operation_overlays: Dictionary = {}
 var _network_operation_batches: Dictionary = {}
 var _network_operation_core_materials: Dictionary = {}
@@ -2672,6 +2673,16 @@ func get_network_operation_telemetry_presentation() -> Dictionary:
 	}
 
 
+## The observer HUD consumes accepted host output, independently of the local
+## component ledger. A legacy row has no override. Terminal rows retain the
+## host's actual component outputs independently of weapon readiness.
+func get_network_component_power_telemetry_presentation() -> Dictionary:
+	if not _network_damage_presentation_enabled \
+			or _is_piloted_from_this_machine():
+		return {}
+	return _network_component_powers.duplicate()
+
+
 ## Detached component display facts. Host display ordering is deliberately
 ## separate from the retained local ledger and its repair/recovery receipts.
 func get_component_damage_display_report() -> Dictionary:
@@ -2917,10 +2928,13 @@ func get_network_engine_renderer_kinds() -> Array:
 func apply_network_operation_presentation(sample: Dictionary) -> void:
 	if not _network_damage_presentation_enabled or not is_inside_tree():
 		return
+	_ensure_network_engine_renderers()
+	# Replace even when a legacy row omits operation facts altogether. Accepted
+	# optional powers must not depend on a previous engine/renderer sample.
+	_network_component_powers = (sample.get("component_powers", {}) as Dictionary).duplicate()
 	var operation := sample.get("operation_presentation", {}) as Dictionary
 	if operation.is_empty():
 		return
-	_ensure_network_engine_renderers()
 	if _network_operation_source.is_empty():
 		_network_operation_source = {"canopy": clampf(_canopy_pivot.rotation.x / CANOPY_OPEN_ANGLE, 0.0, 1.0) if is_instance_valid(_canopy_pivot) else 0.0,
 			"canopy_open": _canopy_open, "renderers": {}, "policy": _network_operation_solo_policy(),
@@ -2938,7 +2952,7 @@ func apply_network_operation_presentation(sample: Dictionary) -> void:
 	var grade := [int(sample.get("entity_generation", 0)), (sample.get("hull_presentation", {}) as Dictionary).get("components", [])]
 	if operation.engine != _network_operation_state.get("engine", &"") or grade != _network_operation_state.get("grade", []):
 		_network_operation_starting.clear()
-	_network_operation_state = operation
+	_network_operation_state = operation.duplicate(true)
 	_network_operation_state["destroyed"] = bool(sample.get("destroyed", false))
 	_network_operation_state["grade"] = grade
 	if operation.engine == ENGINE_STARTING and _network_operation_starting.is_empty():
@@ -3048,6 +3062,7 @@ func clear_network_operation_presentation() -> void:
 	if _network_canopy_motion_owner > 0:
 		release_network_canopy_motion(_network_canopy_motion_owner)
 	_network_operation_state.clear()
+	_network_component_powers.clear()
 	_network_operation_starting.clear()
 	# Recompute from current solo state, including changes made while projected.
 	_update_cockpit_flight_instruments()
