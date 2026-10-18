@@ -128,6 +128,13 @@ no replay is needed without a relevant change. Estimate30–45min implementation
 review plus10–15min checks/package; split before90min. No broad station tour or
 automatic successor, native hardware/rendered/full-parent closure or CI dispatch.
 
+Execution pin: `ea8fe43e7d9b3045866052574283c3170f2490a7`, clean five-file source.
+Independent source review GO; static Python compile/diff checks pass. Root uses
+reused guarded helpers under `/srv/mudds-work/life-patrol-20261018/`: import→
+observer compile→privacy→full Python, then only on PASS paired exports→three
+strict startups→artifact audit→ONE archive-extracted native route. First failure
+STOP, no retry or deadline reset. Final raw-result review precedes publication.
+
 ## Latest delivered result
 
 **Aft service-arm runtime coexistence accepted on `f2bf35a`.** The same supported
