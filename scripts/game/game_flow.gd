@@ -24341,7 +24341,11 @@ func _update_music_bed_state() -> void:
 		presentation_state = &"surface"
 	elif _piloting:
 		presentation_state = &"orbit"
-	music_bed.notify_music_phase(presentation_state)
+	if is_instance_valid(nearby_activity_music_adapter) \
+			and nearby_activity_music_adapter.is_attached():
+		nearby_activity_music_adapter.present_base_phase(presentation_state)
+	else:
+		music_bed.notify_music_phase(presentation_state)
 
 
 # ---------------------------------------------------- combat music layer ----
