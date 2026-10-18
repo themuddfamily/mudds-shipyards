@@ -179,7 +179,7 @@ func _client() -> void:
 	if dismiss != null and dismiss.is_visible_in_tree() and not dismiss.disabled:
 		if not await _activate(dismiss):
 			return
-	var spawn := _game.world.get_player_spawn()
+	var spawn: Transform3D = _game.world.get_player_spawn()
 	if not _require(_player.global_position.distance_to(spawn.origin) < 0.8
 		and _player.get_instance_id() == _initial_player_id, "same real Player begins at normal authored spawn"):
 		return
@@ -289,10 +289,10 @@ func _passenger_is_current(peer: int) -> bool:
 	var avatar := GameFlow.network_client_boarding_avatar_id(peer)
 	var simulation := _game.get_network_remote_body_simulation()
 	var body := simulation.get_body(avatar) as PlayerController
-	var owner := _craft.get_crew_role_authority()
+	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
 	if body == null or owner == null:
 		return false
-	var assignment := owner.get_assignment(peer, avatar)
+	var assignment: Dictionary = owner.get_assignment(peer, avatar)
 	var seat := simulation.get_body_crew_seat(avatar)
 	var identity := _read("client_b.cabin")
 	var publication := _publication(avatar)
