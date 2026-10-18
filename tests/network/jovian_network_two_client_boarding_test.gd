@@ -66,7 +66,7 @@ func _run() -> void:
 			await _client()
 	await _retain_failure_before_teardown()
 	# This cleanup always runs, including the first failed gameplay boundary.
-	for action in WALK_ACTIONS + [&"interact", &"sprint_boost", &"ui_accept", &"fire"]:
+	for action in WALK_ACTIONS + [&"interact", &"sprint_boost", &"brake", &"ui_accept", &"fire"]:
 		_action(action, false)
 		Input.action_release(action)
 	var release := InputEventMouseButton.new()
@@ -145,6 +145,8 @@ func _host() -> void:
 	_write("host.seats_confirmed", {"pilot_peer": first_peer, "passenger_peer": second_peer,
 		"pilot_entity_generation": int(pilot_wire.entity_generation),
 		"passenger_entity_generation": int(passenger_wire.entity_generation), "ship_id": str(_craft.get_ship_id())})
+	if not await _host_scenario():
+		return
 	for role in ["client", "client_b"]:
 		if not await _wait_file(role + ".retained", 12.0):
 			return
@@ -243,11 +245,23 @@ func _client() -> void:
 		and int(both.get("pilot_peer", 0)) != int(both.get("passenger_peer", 0)),
 		"same authenticated Player retains confirmed seat, honest ownership UI and normal controls beside other client"):
 		return
+	if not await _client_scenario():
+		return
 	_write(_role + ".retained", {})
 	if not await _wait_file("host.release", 12.0):
 		return
 	_write(_role + ".leaving", {})
 	await _wait_file("host.leaving", 12.0)
+
+
+## Optional scenarios finish before the original retained-seat handshake.
+## Defaults preserve the boarding route, predicates, waits and exit owner.
+func _host_scenario() -> bool:
+	return true
+
+
+func _client_scenario() -> bool:
+	return true
 
 
 func _observe_supported_cabin(role: String, peer: int) -> bool:
