@@ -6237,3 +6237,31 @@ parked. All11 owners terminal/all76 PID identities absent, source/required cache
 unchanged,81 peer files byte-identical. Raw and original profile logs:
 /srv/mudds-work/remote-pilot-neutral-20261018/results/. Owned disposable source,
 profiles/helpers and duplicate builds removed at closure; source refs preserved.
+
+
+## Ordinary Jovian pilot handback — first route failed
+
+Candidate535c4b01d is unmerged. Source definition confirms normal in-flight
+Interact release with original co-pilot occupied. New caller extends the complete
+ordinary boarding/departure/yaw route; defaults remain unchanged. Import and
+compile pass; ONE private Xvfb/x11/input-only renderer/Dummy route FAIL146.578s.
+Host completes physical handback: supported actual standing body, old remote
+source retired, ship-owned source restored, canonical owner0/generation2 consumed
+by both clients. Original pilot Player retained, actual passenger/cabin_02 claim,
+one release request/one confirmation, pendingfalse/capturedisconnected. Original
+co-pilot remains seated. New walk stage is NOT_RUN.
+
+Client comparator incorrectly requires host claim sequence/generation in local
+claim which intentionally holds only ship/seat/role; authoritative host already
+checks those transitions. Separately, actual client HUD says OBSERVER despite
+confirmed supported passenger claim. Static owner: GameFlow local role presenter
+ignores current cabin claim and falls back to observer/admitted role. One bounded
+CABIN-PASSENGER-ROLE repair selected: correct consumer plus runtime presentation,
+existing focused HUD regression and one original-cap route, paired builds if
+accepted. Failed task plus this repair remain cumulative; no further automatic
+probe, repair or relaxed criteria. HELM-YAW handback remains open.
+
+All3 owners terminal/all23 PID identities absent; source/required cache unchanged,
+85 peer files copied byte-identically. Raw and source refs retained:
+/srv/mudds-work/jovian-helm-handback-20261018/results/. Owned disposable checkout,
+profiles/helpers removed at closure. Latest playable checkpoint remains624d2a6.

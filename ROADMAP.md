@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS qualification, 2 FAILED/PARKED, 2 GATED, 3 DONE.** Root owns integration and closure.
+**1 READY repair, 3 FAILED (two parked), 2 GATED, 2 DONE.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -51,8 +51,8 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| HELM-YAW-HANDBACK | IN PROGRESS qualification | Original pilot ordinarily leaves helm for usable cabin walking; ownership/source retire while the original co-pilot remains seated. |30–45min implementation/review; one unchanged300s/outer360s route, import/compile separate |
-| HELM-NEUTRAL-REPAIR | DONE | After yaw release the pilot view converges to host attitude, preserving active steering behavior. |624d2a6; old-runtime failure reproduced, pose62/yaw/paired checkpoint pass |
+| HELM-YAW-HANDBACK | FAILED; repair selected | Original pilot ordinarily leaves helm for usable cabin walking; ownership/source retire while the original co-pilot remains seated. |535c4b01d; route FAIL146.578s after physical release at client comparison, walk NOT_RUN |
+| CABIN-PASSENGER-ROLE | READY | Confirmed standing cabin passenger is labelled PASSENGER after ordinary helm handback. |30–45min implementation/review; focused HUD regression and one corrected original handback route; paired checkpoint if accepted |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
@@ -104,7 +104,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   walk>=0.6m within15s must leave host ship neutral/unowned and supported cabin
   body intact. HUD must report honest passenger role; a source-identified possible
   observer/admission-role fallback is not waived or treated as a proven failure.
-- **Budget/next:** IN PROGRESS qualification;30–45min implementation/review,
+- **Budget/next:** FAILED qualification; planned30–45min implementation/review,
   split before90min. Original300s route/outer360s and all inherited walking/
   boarding caps retained; import/compile separate. Freeze clean source, one
   compile then ONE isolated Xvfb/x11/Dummy route. First unexpected failure stops;
@@ -113,6 +113,52 @@ accepted runtime repairs require separate cards and fresh paired builds.
   clean owned scratch. Caller-only proof needs no identical runtime rebuild;
   meaningful accepted runtime fix needs fresh paired checkpoints. This closes
   the chosen handback case only; postdock reuse/devices/full multiplayer stay open.
+- **Actual result:**535c4b01d unmerged. Import/compile pass; ONE route
+  FAIL146.578s after normal Interact. Host admits actual supported walking body,
+  retires remote source and restores ship-owned source; owner0/generation2 reaches
+  both clients. Original passenger consumes release. Former pilot is the same
+  supported controlled Player, claim passenger/cabin_02, one request/one release,
+  no pending request, disconnected capture and restored source authority.
+- **First boundary/diagnosis:** caller client comparison wrongly reads host-only
+  claim_sequence/seat_generation from intentionally three-key local claim. Host
+  already separately proves advanced authoritative claim sequence/generation.
+  Captured actual HUD independently remains OBSERVER for the confirmed passenger;
+  GameFlow role presentation ignores cabin boarding claim and falls back to
+  observer/admission role. Walking is NOT_RUN; no full handback acceptance.
+- **Closure/next:** all3 owners terminal/all23 PID identities absent; source/
+  required cache unchanged,85 peer files byte-identical. Unique raw/source refs
+  retained; owned checkout/profiles/helpers removed. Raw:
+  `/srv/mudds-work/jovian-helm-handback-20261018/results/`.
+  Select ONE combined bounded caller-consumer/role-presentation repair below;
+  original failure plus that repair remain cumulative. Another failure requires
+  priority review before any further diagnosis/repair/rerun.
+
+### CABIN-PASSENGER-ROLE — show the confirmed standing role after handback
+
+- **Parents/result:**18/20; after ordinary pilot handback the confirmed cabin
+  passenger sees PASSENGER for the same craft. Actual supported role and HUD agree.
+- **Boundary/owner:** one implementation agent; root review/integration. Existing
+  GameFlow `_network_local_role_presentation`, existing
+  `tests/network_session_role_hud_test.gd`, and handback caller's client claim
+  reader only. Use current confirmed same-craft cabin claim and live context;
+  preserve pilot/engineer/gunner/seated-role precedence and disconnected/stale
+  behavior. Presentation must not grant authority or alter requests/ownership.
+  Correct three-key client claim checks while retaining host's actual sequence/
+  generation advancement and clients' consumed canonical ownership proofs.
+- **Proof:** smallest focused existing HUD regression reproduces OBSERVER/old
+  admission-role fallback on old runtime, then passes with fix and preserved
+  role priorities. ONE corrected unchanged full ordinary handback route must pass
+  all original Interact/body/ownership/source/HUD/walk/co-pilot criteria, exact
+  marker/three actual exits0/fullraw diagnostics0. No acceptance/cap relaxation.
+  Accepted runtime change requires fresh clean paired exports, strict three
+  startup checks and actual package audit; latest624d2a6 stays playable meanwhile.
+- **Budget/next:** READY;30–45min implementation/review, split before90min.
+  Compile/focused HUD up to300s; handback original300s/outer360s, transition8s and
+  walk15s. Packaging time separate. Implement named correction from retained
+  source535c4b01d, no extra diagnostic probe. First unexpected failure stops;
+  failed original plus this ONE attempted repair require priority review before
+  further work. No second automatic fix, no postdock/reboard expansion.
+
 
 ### HELM-YAW-TURN — remote pilot turns the actual host-owned Jovian
 
