@@ -79,6 +79,20 @@ func _run() -> void:
 	for malformed in ["--native-sortie-observer=Habitat-loop", "--native-sortie-observer=habitat-loop-extra", "--native-sortie-observer=habitat-loop=", "--native-sortie-observer habitat-loop"]:
 		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
 			"Habitat loop rejects malformed selector: %s" % malformed)
+	var restart_args := PackedStringArray(["--native-sortie-observer=habitat-restart"])
+	_check(StartupLoaderType.native_sortie_request(restart_args, "X11", "Dummy", true).accepted,
+		"Habitat restart admits explicit silent private OS input")
+	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(restart_args, row[0], row[1], row[2]).accepted,
+			"Habitat restart preserves private X11 and Dummy admission")
+	for conflict: String in ["--native-sortie-observer", "--native-sortie-observer=habitat-restart", "--native-sortie-observer=habitat-loop", "--native-sortie-observer=sandbox", "--native-sortie-observer=ember", "--native-sortie-observer=hulk-home", "--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+		var restart_conflicting: PackedStringArray = restart_args.duplicate()
+		restart_conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(restart_conflicting, "X11", "Dummy", true).accepted,
+			"Habitat restart rejects duplicate or competing mode: %s" % conflict)
+	for malformed: String in ["--native-sortie-observer=Habitat-restart", "--native-sortie-observer=habitat-restart-extra", "--native-sortie-observer=habitat-restart=", "--native-sortie-observer habitat-restart"]:
+		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
+			"Habitat restart rejects malformed selector: %s" % malformed)
 	var fleet_args := PackedStringArray(["--native-sortie-observer=sandbox"])
 	_check(StartupLoaderType.native_sortie_request(fleet_args, "X11", "Dummy", true).accepted,
 		"full Sandbox observation admits only the same silent private input route")

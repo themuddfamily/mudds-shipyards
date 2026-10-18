@@ -4,6 +4,8 @@ extends Node
 ## timing overrides, or process shutdown: the external OS-input driver owns those.
 var _game: GameFlow
 var _habitat_loop := false
+var _habitat_restart := false
+var _restart_sequence: int = 0
 var _ember := false
 var _ember_started := false
 var _player: PlayerController
@@ -34,8 +36,12 @@ func on_startup_completed(main: Node) -> void:
 	_game = main as GameFlow
 	_player = _game.get_node("Player") as PlayerController
 	_spawn = _player.global_position
+	_habitat_restart = "--native-sortie-observer=habitat-restart" in OS.get_cmdline_args()
 	_habitat_loop = "--native-sortie-observer=habitat-loop" in OS.get_cmdline_args()
-	if _habitat_loop:
+	if _habitat_restart:
+		# Only this diagnostic node remains readable while the production tree pauses.
+		process_mode = Node.PROCESS_MODE_ALWAYS
+	if _habitat_loop or _habitat_restart:
 		return
 	_ship = _game.get_node("TorrentInterceptor") as HeroShip
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
@@ -226,6 +232,13 @@ func _physics_process(delta: float) -> void:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_ember_observation()))
 		return
 	if _game == null:
+		return
+	if _habitat_restart:
+		_restart_sequence += 1
+		var sample: Dictionary = _habitat_restart_pause_observation() if get_tree().paused else _habitat_restart_observation()
+		sample["sequence"] = _restart_sequence
+		sample["pid"] = OS.get_process_id()
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(sample))
 		return
 	if _habitat_loop:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_habitat_loop_observation()))
@@ -610,5 +623,72 @@ func _habitat_loop_observation() -> Dictionary:
 			"active": active_seat == bunk, "active_seat_id": active_seat.get_instance_id() if is_instance_valid(active_seat) else 0,
 			"seated_at_bunk": _player.is_seated_at(bunk.get_seat_anchor())},
 		"common_occupied": habitat.contains_room(&"observation-common", _player.global_position),
+	}, true)
+	return result
+
+
+## The paused branch deliberately avoids physics/support/fleet queries. UI focus
+## and held native keys remain observable without advancing any gameplay owner.
+func _habitat_restart_pause_observation() -> Dictionary:
+	var focus: Control = get_viewport().gui_get_focus_owner()
+	var hud: GameHUD = _game.hud if is_instance_valid(_game) else null
+	var page: Control = hud.get("_pause_main_page") as Control if is_instance_valid(hud) else null
+	var exit_button: Button = page.find_child("ExitButton", true, false) as Button if is_instance_valid(page) else null
+	var bunk: StationBunk = _game.get("_active_station_seat") as StationBunk if is_instance_valid(_game) else null
+	return {"mode": "habitat-restart", "paused": true,
+		"frame": Engine.get_physics_frames(),
+		"main_id": _game.get_instance_id() if is_instance_valid(_game) else 0,
+		"rest_retained": _ember_node_current(_player) and _player.is_sleeping()
+			and _player.is_station_seated() and _ember_node_current(bunk)
+			and bunk == _game.world.get_node_or_null(^"HabitatSpine/Structure/PressurizedHabitatCorridor/BunkAlcove01/StationBunkInteraction")
+			and bunk.is_reserved_for(_player) and bunk.get("_occupant") == _player
+			and _player.is_seated_at(bunk.get_seat_anchor()),
+		"native_keys": {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
+			"tab": Input.is_physical_key_pressed(KEY_TAB), "return": Input.is_physical_key_pressed(KEY_ENTER)},
+		"ui": {"main_visible": is_instance_valid(page) and page.is_visible_in_tree(),
+			"focus_path": str(focus.get_path()) if is_instance_valid(focus) else "",
+			"focus_name": str(focus.name) if is_instance_valid(focus) else "",
+			"focus_is_exit": is_instance_valid(exit_button) and focus == exit_button,
+			"exit_path": str(exit_button.get_path()) if is_instance_valid(exit_button) else "",
+			"exit_visible": is_instance_valid(exit_button) and exit_button.is_visible_in_tree(),
+			"exit_enabled": is_instance_valid(exit_button) and not exit_button.disabled,
+			"exit_text": exit_button.text if is_instance_valid(exit_button) else ""}}
+
+
+func _habitat_restart_observation() -> Dictionary:
+	var result: Dictionary = _habitat_loop_observation()
+	result["mode"] = "habitat-restart"
+	result["paused"] = false
+	if not bool(result.get("actors_current", false)):
+		return result
+	var store: UserDataStore = _game.get("_runtime_settings_user_data_store") as UserDataStore
+	var camera: Camera3D = _player.get_camera()
+	var tractor: TowTractor = _game.get_tow_tractor()
+	var station: TowTractorDriverStation = tractor.get_driver_station() if _ember_node_current(tractor) else null
+	var crew: Node = _game.get("_solo_crew_seat") as Node
+	var cabin: Node = _game.get("_cabin_ship") as Node
+	result.merge({
+		"camera_current": _ember_node_current(camera) and camera.current and _player.get_viewport().get_camera_3d() == camera,
+		"piloting": bool(_game.get("_piloting")) or (is_instance_valid(_game.active_ship) and _game.active_ship.is_piloted()), "driving": _game.is_driving_tow_tractor(),
+		"crew_claim": is_instance_valid(crew) or is_instance_valid(_game.get("_solo_crew_ship")),
+		"cabin_claim": is_instance_valid(cabin) or is_instance_valid(_player.get("_cabin_frame")),
+		"recovery_pending": bool(_game.get("_solo_safe_recovery_pending")),
+		"save": {"path": ProjectSettings.globalize_path(str(store.get("_path"))) if store != null else "",
+			"generation": store.get_generation() if store != null else -1,
+			"source": str(store.get_loaded_source()) if store != null else "",
+			"context": (_game.get("_solo_safe_recovery_context") as Dictionary).duplicate(true),
+			"context_generation": int(_game.get("_solo_safe_recovery_observed_store_generation")),
+			"retry_seconds": float(_game.get("_solo_safe_recovery_retry_remaining_seconds"))},
+		"tractor": {"current": _ember_node_current(tractor) and _game.is_ancestor_of(tractor)
+			and _ember_node_current(station) and station.get_vehicle() == tractor,
+			"id": tractor.get_instance_id() if _ember_node_current(tractor) else 0,
+			"station_id": station.get_instance_id() if _ember_node_current(station) else 0,
+			"station_path": str(station.get_path()) if _ember_node_current(station) else "",
+			"position": _v(station.global_position) if _ember_node_current(station) else [],
+			"approach": _v(tractor.get_boarding_position()) if _ember_node_current(tractor) else [],
+			"candidate": _ember_node_current(station) and _game.station_interaction_candidate == station,
+			"available": _ember_node_current(station) and station.is_available(),
+			"driven": bool(tractor.get("_driven")) if _ember_node_current(tractor) else false,
+			"seated_at_driver": _ember_node_current(tractor) and _player.is_seated_at(tractor.get_driver_seat_anchor())},
 	}, true)
 	return result
