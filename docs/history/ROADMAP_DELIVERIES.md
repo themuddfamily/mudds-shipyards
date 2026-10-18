@@ -11923,3 +11923,36 @@ remain open. No full-matrix or audible mix result. Next single action is the
 15–20min source-only AUDIO-NAVIGATOR-SOLO definition: actual solo authority
 outcome and seat/ship lifecycle to presentation, without fabricated network
 receipts. Stop at an implementable card or exact missing fact, no engines.
+
+## AUDIO-NAVIGATOR-SOLO — optional fixture stop and selected repair
+
+Initial source **805f9f692844df5e5acc87410bbd708109b5a14b**, clean branch
+`fix/navigator-solo-audio-20261019`. Import, three changed-test compilations,
+actual ordinary solo fixture, navigator audio and Cinder interaction PASS.
+Existing optional-composition suite FAIL exit1 in4.131s at two rejection-forwarding
+assertions; remaining suites/exports NOT_RUN. Cumulative initial eight guarded
+stages **72.297s**, including the failure. Engines stopped; owner terminal,
+original logs/STOP/source/helper commands retained under
+`/srv/mudds-work/navigator-solo-audio-20261019/results/`.
+
+**Causal fact and one selected repair, frozen before edit/rerun:** existing
+`tests/audio/optional_semantic_audio_composition_test.gd` constructs its rejected
+navigator bridge envelope with only `accepted:false` and
+`status:navigator_identity_mismatch`. The already-accepted81f885b binding requires
+the real bridge's existing `policy_version` as well; this guard is unchanged by
+the solo implementation. Add exactly
+`"policy_version": &"network_cinder_navigator_ping_bridge_v1"` to that fixture
+envelope. Keep the two forwarding/immutability assertions and all other code
+unchanged. No runtime change or weakened malformed-input validation is selected;
+no unchanged baseline replay is needed to establish this missing-field cause.
+
+Root owns the one added test-file edit after independent causal review GO.
+Budget5min edit/review, existing300s stage caps. Preserve all original records.
+Changed optional test gets distinct `optional_repair_compile` and
+`optional_repair` stages. Retain seven unchanged initial passes (runtime and
+those tests byte-identical); then run remaining optional GameFlow/host/Director/
+unbind/reduced-range suites. Paired package gates only after complete focused
+acceptance. Another unexpected failure stops; failed task plus this one repair
+requires cumulative priority review before any more work. No automatic second
+repair, broadened fixture route, timeout increase, renamed budget or acceptance
+narrowing. Candidate is unmerged/withheld until actual acceptance.

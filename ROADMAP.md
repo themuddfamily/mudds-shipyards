@@ -43,7 +43,7 @@ and service runtime passes retain their recorded scopes.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-SOLO | READY; source definition complete on `4578bd1b8` | Bind actual standalone solo claim/results and ship-owned active clear to existing navigator sounds/captions. Prove real chair→FIRE→stand→reseat plus forced lifetime retirement; preserve host lane. [Exact ownership/proof/stop](docs/COMPLETION_SCOPE.md#solo-navigator--source-definition-and-implementation-contract). 60–75 min implementation/review, 10–20 min focused checks, 10–15 min checkpoint. |
+| AUDIO-NAVIGATOR-SOLO | STOP at optional fixture; one exact repair selected before rerun | Bind actual standalone solo claim/results and ship-owned active clear to existing navigator sounds/captions. Prove real chair→FIRE→stand→reseat plus forced lifetime retirement; preserve host lane. [Exact ownership/proof/stop](docs/COMPLETION_SCOPE.md#solo-navigator--source-definition-and-implementation-contract). 60–75 min implementation/review, 10–20 min focused checks, 10–15 min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 AUDIO-MIX-DEFINE’s [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
@@ -53,7 +53,12 @@ audible authorization are still required. Repair dispatch under Dummy does not
 close that gate. Solo source definition found the discarded result, network-only
 binding and unsignalled ship-owned clear. Ordinary stand bypasses Cinder’s direct
 release method; the contract covers that actual owner path. No solo runtime change
-or engine attempt has been made. The next single action is its implementation above.
+was made during definition. Implementation805f9f69 now passes actual solo input/
+stand/reseat and navigator/interaction checks; optional composition stops on its
+preexisting rejection fixture missing the required bridge policy field.
+[One frozen fixture repair](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-solo--optional-fixture-stop-and-selected-repair)
+preserves all assertions and runtime code. Next action is that repair and the
+remaining focused checks; candidate remains unmerged and unpackaged.
 Host-local direct-submit and remote-client feedback still need their separate
 recipient/transport definition;
 [all three boundaries](docs/COMPLETION_SCOPE.md#navigator-playback--bounded-delivery-contracts)
