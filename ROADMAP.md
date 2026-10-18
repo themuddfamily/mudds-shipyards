@@ -1,9 +1,9 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**8f17b02**, with correct signed remote cockpit throttle gauges and the earlier
-steering/cargo/control-help/layout fixes. [Windows notes](builds/windows/MuddsShipyards-8f17b02-notes.txt)
-and [Linux notes](builds/linux/MuddsShipyards-8f17b02-linux-notes.txt) state actual validation.
+**24430b7**, with authoritative physical remote hull/throttle gauges and the earlier
+steering/cargo/control-help/layout fixes. [Windows notes](builds/windows/MuddsShipyards-24430b7-notes.txt)
+and [Linux notes](builds/linux/MuddsShipyards-24430b7-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -28,7 +28,7 @@ explicit owner decision.
 
 ## Execution now
 
-NET-HULL-INSTRUMENTS is selected. The throttle repair remains accepted in8f17b02.
+NET-HULL-INSTRUMENTS is accepted and packaged in24430b7; no task currently running.
 SPEC-TITAN proposal awaits the owner interpretation choice; implementation remains gated.
 WALK-SALVAGE-ACCESS is parked after its original attempt and one caller repair. Reverse qualification and the bounded Torrent
 definition are closed below. Completed and parked work does not occupy the
@@ -36,7 +36,7 @@ executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
-| NET-HULL-INSTRUMENTS / 21 | IN PROGRESS implementation | Remote physical hull gauge matches authoritative health through damage/destruction/revival and restores current solo health on clear. | Test-only reproduction first, bounded display repair, real-peer checks and paired checkpoint. |
+| NET-HULL-INSTRUMENTS / 21 | DONE; checkpoint24430b7 | Physical remote hull text/arc/color follows host damage, destruction and revival; clear restores current solo health. | Old2 failures reproduced; pose121/real-peer250, paired exports/three strict startups/actual1515-entry audit pass. Parent21 OPEN. |
 | NET-THROTTLE-INSTRUMENTS / 17 | DONE; checkpoint8f17b02 | Remote physical Jovian gauge shows signed host throttle, shutdown neutral and current solo restore. | Pose91, real-peer fixture203, paired exports/three strict startups/actual1515-entry audit pass; broader parent17 OPEN. |
 | SPEC-TITAN / 10,36 | Proposal DONE; WAITING interpretation decision | Concrete one-pilot/two-passenger/four-unit modern candidate and bounded build tasks. | Owner decision on linked proposal before runtime implementation; historical model gate stays open. |
 | WALK-SALVAGE-ACCESS / 7,9 | FAILED/PARKED | Same supported Player must walk hub→inspection row→hub without staging. | Both attempts fail at outbound20; no further diagnosis/fix/run selected. |
@@ -45,43 +45,9 @@ executable queue. Root owns review, integration, checks and closure.
 
 Completed reverse/Torrent definitions and the full failed Salvage contracts now
 live in [retained task closures](docs/history/ROADMAP_DELIVERIES.md#task-closures-after-remote-throttle-checkpoint--2026-10-18).
-Repair8f17b02 is a named player-visible delivery, not whole-project completion.
+Hull repair24430b7 and throttle8f17b02 are named player-visible deliveries,
+not whole-project completion. [Hull closure](docs/history/ROADMAP_DELIVERIES.md#remote-physical-hull-instruments--accepted24430b7c1) retains proof and limits.
 Titan decision remains pending; no further parked-route work is selected.
-
-### NET-HULL-INSTRUMENTS — physical remote hull gauge
-
-- **Player result/parents:**21; remote physical cockpit HullReadout reflects
-  current authoritative hull health, not the replica's retained solo value.
-  Existing damage rig/transport already receives health and maximum health;
-  common instrument consumer still uses local `_hull / maximum_hull`.
-- **Owner/boundary:** one high-effort implementation agent owns HeroShip and
-  existing remote-pose/station-frame tests; root plus independent high-risk review.
-  Display-only normalized authoritative health, immediate clear/retirement restore
-  from current local health, destruction0/new-life revival. Preserve local health,
-  component/physics/command authority and throttle prediction. No wire/schema,
-  unrelated speed/HUD/engine/other gauge or parked-route changes.
-- **Proof/next:** old-runtime test-only physical Jovian regression with exact new
-  expected failures first; then reviewed clean runtime candidate, compile once
-  and full existing remote-pose and independent Main station-frame tests. Actual
-  current/late HullReadout after local presentation, damage/destruction/new-life
-  and clear restoration; local authority and original snapshot budgets retained.
-  Headless/Dummy; original300s tests/per-wait60s. Exit0/one exact existing marker/
-  fullraw diagnostics0; no native/ordinary full-voyage claim from these fixtures.
-- **Budget/stop:**30–60min implementation/review, split before90; checks separate.
-  First unexpected failure stops for exact owner and at most one bounded static
-  diagnosis before separate repair. Original plus one repair requires cumulative
-  priority review; no automatic retry or acceptance relaxation.
-- **Package/close:** fresh clean paired Windows/Linux exports, direct/archive/
-  actual Windows-payload strict startup exit0/one STARTUP_MENU_READY_OK/diagnostics0,
-  existing actual package/archive audit. Publish in repository builds/ with honest
-  notes; commit/push, retain unique raw/source refs and clean owned scratch. Current
-  playable8f17b02 remains until acceptance. Titan decision is still pending.
-
-**Old-runtime result:** test-only0efb0e18f compiles. Selected physical Jovian
-hull regression reproduces exactly two unpacked/compact25% gauge failures in
-30.910s, actual exit1 and no unrelated diagnostic. The host50/200 pair differs
-from retained local maximum, so normalizing against local health is insufficient.
-Runtime repair is now selected; no fixed-runtime or replacement build claim yet.
 
 ### SPEC-TITAN — concrete interpretation proposal before building
 

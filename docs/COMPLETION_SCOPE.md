@@ -2,7 +2,19 @@
 
 This is the working roster for [roadmap task 0](ROADMAP_BACKLOG.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
-Current paired development checkpoint: **8f17b02**, accepted clean source
+Current paired development checkpoint: **24430b7**, accepted clean source
+`24430b7c13ddbec81715caf23c04520b7630ec9b`
+([Windows notes](../builds/windows/MuddsShipyards-24430b7-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-24430b7-linux-notes.txt)). Physical
+remote hull gauges now show authoritative health/arc/color through damage,
+destruction and revival, with immediate current-solo restoration and preserved
+local damage/flight authority. Prior signed throttle/pilot prediction fix included.
+Old-runtime two-failure reproduction, full pose121, independent Main station-frame250,
+paired exports/three strict startups/actual1515-entry audit pass. Controlled
+fixtures do not establish full ordinary voyages/native hardware. All36 broad
+requirements and ten phase gates remain open; Titan decision still pending.
+
+Earlier paired development checkpoint: **8f17b02**, accepted clean source
 `8f17b024148a4c3f249b2021d3831a1a3c3df36c`
 ([Windows notes](../builds/windows/MuddsShipyards-8f17b02-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-8f17b02-linux-notes.txt)). Remote physical

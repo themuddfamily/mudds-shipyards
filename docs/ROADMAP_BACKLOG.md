@@ -788,7 +788,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | GATED; selected candidate, no rebuild of delivered authority |
 | NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | Bounded Jovian source comparison DONE: concrete physical throttle instrument consumer gap; broader cells remain unqualified |
-| NET-HULL-INSTRUMENTS | Physical remote hull gauge reflects existing authoritative health; damage/destruction/new-life/solo-clear | 21 | IN PROGRESS bounded HeroShip display repair; existing pose/real-peer regressions and fresh paired checkpoint, no wire change |
+| NET-HULL-INSTRUMENTS | Physical remote hull gauge reflects existing authoritative health; damage/destruction/new-life/solo-clear | 21 | DONE24430b7c1; old2 failures reproduced, pose121/real-peer250 and fresh paired24430b7 with3strict startups/actual1515-entry audit. Parent21 OPEN, no wire change |
 | NET-THROTTLE-INSTRUMENTS | Current/late physical cockpit gauge reflects signed authoritative throttle, neutral shutdown and solo restore | 17 | DONE8f17b0241; old4 failures reproduced, pose91/real-peer203 pass; fresh paired8f17b02 with3strict startups/actual1515-entry audit. Broader parent17 remains OPEN |
 | HELM-ACTIONS-DEFINE | Finite sampled-local-input to remote-helm action roster | 18 | DONE; seven held fields/two ordered edges, source definition only |
 | HELM-THROTTLE-REVERSE | Sampled reverse thrust and neutral release | 18 | OPEN; reverse flight/release child DONE52b228c86, unchanged ordinary route138.086s, host1.448m/888ms and both actual replicas pass; same source/lease/host effect required. Original handback requirement remains open; shared handback parked |
@@ -940,7 +940,9 @@ qualifications. **It is not a remaining-job count.** In particular, “one craft
 assignments. Completing a definition does not deliver the gameplay it describes.
 
 The [working roadmap](../ROADMAP.md#execution-now) selects the next exact
-outcome and keeps failed/gated work separate. HELM-REVERSE-FLIGHT is source-qualified on52b228c86;
+outcome and keeps failed/gated work separate. Physical remote hull/throttle
+instrument repairs ship in paired24430b7; their broader parents remain open.
+HELM-REVERSE-FLIGHT is source-qualified on52b228c86;
 its source-only definition is DONE. CRAFT-GAPS-TORRENT definition found no concrete
 required missing implementation in the inspected owners; full craft acceptance
 remains open. No automatic successor or qualification chain is scheduled. Cargo

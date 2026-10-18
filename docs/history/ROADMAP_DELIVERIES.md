@@ -7191,3 +7191,73 @@ handback, native devices, endurance and parent18 remain open.
 input reaches signed host thrust through current authority owners. Neutral means
 release, not instantaneous stop; ordinary brake supplies the stop. The definition
 selected the subclass seam above. No engine run or gameplay acceptance is claimed.
+
+
+## Remote physical hull instruments — accepted24430b7c1
+
+Clean source24430b7c13ddbec81715caf23c04520b7630ec9b fixes the physical hull
+gauge's retained local-health reading. It stores already-published maximum health
+with presentation state and derives the host percentage/arc/color without changing
+local hull/components/physics/commands or the wire. Destruction reads0; new-life
+revival updates; clearing immediately restores current local health. The prior
+throttle/pilot prediction repair remains included. Root and independent high-risk
+review pass on matching final source hashes.
+
+Old test-only0efb0e18f reproduces exactly two unpacked/compact physical Jovian25%
+failures in30.910s, no unrelated diagnostic. Fixed full pose121 PASS40.423s.
+Independent Main station-frame ENet fixture250 assertions (71 host/179 peers)
+PASS173.135s, including current/late destruction/revival/coast/session restoration
+and all-nine physical gauge ratios under original snapshot limits. Controlled
+ship-state/physics/private-save fixtures do not qualify a full ordinary voyage.
+
+Fresh paired Windows/Linux exports PASS26.673/25.849s. Direct Linux22.295s,
+extracted archive23.732s and actual Windows payload through Linux Godot26.032s
+all strict exit0/one STARTUP_MENU_READY_OK/fullraw diagnostics0. Actual1515-entry
+payloads match; stock PE code, source metadata and exact archive bytes/modes
+audited. Published MuddsShipyards-24430b7 Windows EXE/ZIP/notes and Linux
+binary/archive/notes live in repository builds/. Native Windows/GPU/devices/audio/
+human/current full matrix/endurance/full fleet/final release remain unqualified;
+no broad parent or phase closes.
+
+All12 owners terminal/all65 PID identities absent. Source/required cache stay
+unchanged within each run;87 peer files copied byte-identically. Owned checkout,
+profiles/helpers and duplicate exports removed; raw/source refs/public builds
+retained. Raw: `/srv/mudds-work/remote-hull-instruments-20261018/results/`.
+
+The frozen task contract and baseline record follow; actual closure above
+supersedes their planned execution state.
+
+### NET-HULL-INSTRUMENTS — physical remote hull gauge
+
+- **Player result/parents:**21; remote physical cockpit HullReadout reflects
+  current authoritative hull health, not the replica's retained solo value.
+  Existing damage rig/transport already receives health and maximum health;
+  common instrument consumer still uses local `_hull / maximum_hull`.
+- **Owner/boundary:** one high-effort implementation agent owns HeroShip and
+  existing remote-pose/station-frame tests; root plus independent high-risk review.
+  Display-only normalized authoritative health, immediate clear/retirement restore
+  from current local health, destruction0/new-life revival. Preserve local health,
+  component/physics/command authority and throttle prediction. No wire/schema,
+  unrelated speed/HUD/engine/other gauge or parked-route changes.
+- **Proof/next:** old-runtime test-only physical Jovian regression with exact new
+  expected failures first; then reviewed clean runtime candidate, compile once
+  and full existing remote-pose and independent Main station-frame tests. Actual
+  current/late HullReadout after local presentation, damage/destruction/new-life
+  and clear restoration; local authority and original snapshot budgets retained.
+  Headless/Dummy; original300s tests/per-wait60s. Exit0/one exact existing marker/
+  fullraw diagnostics0; no native/ordinary full-voyage claim from these fixtures.
+- **Budget/stop:**30–60min implementation/review, split before90; checks separate.
+  First unexpected failure stops for exact owner and at most one bounded static
+  diagnosis before separate repair. Original plus one repair requires cumulative
+  priority review; no automatic retry or acceptance relaxation.
+- **Package/close:** fresh clean paired Windows/Linux exports, direct/archive/
+  actual Windows-payload strict startup exit0/one STARTUP_MENU_READY_OK/diagnostics0,
+  existing actual package/archive audit. Publish in repository builds/ with honest
+  notes; commit/push, retain unique raw/source refs and clean owned scratch. Current
+  playable8f17b02 remains until acceptance. Titan decision is still pending.
+
+**Old-runtime result:** test-only0efb0e18f compiles. Selected physical Jovian
+hull regression reproduces exactly two unpacked/compact25% gauge failures in
+30.910s, actual exit1 and no unrelated diagnostic. The host50/200 pair differs
+from retained local maximum, so normalizing against local health is insufficient.
+Runtime repair is now selected; no fixed-runtime or replacement build claim yet.
