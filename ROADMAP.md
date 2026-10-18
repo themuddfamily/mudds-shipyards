@@ -460,6 +460,19 @@ callback assertions. The original direct Reset callback-owner-change case remain
 Same-generation tombstone, retained-writer resurrection fence, terminal-save-pending
 refusal and asteroid-only publication callback guard are part of the selected fix.
 
+### Asteroid Start Fresh — compile stop and exact annotation repair
+
+Cleand15cc40f0: importPASS19.601s; GameFlow compileFAIL2.989s at4024 because
+`asteroid_declined :=` infers through Variant dictionary lookups. No gameplay/
+asteroid suite or packages ran. Independent causal review GO; root freezes ONE
+line only: `var asteroid_declined: bool =`, entire expression and all behavior/
+acceptance unchanged. Root applies this trivial annotation in the existing owned
+checkout; no additional implementation delegation needed. New clean pin/review,
+explicit repair compile300 then original binding compile/fullasteroid300 and
+required package sequence only if each passes. Preserve initial raw failure;
+no automatic further repair, timeout increase or narrowed acceptance. Original
+45–60min/split-before90 budget stays cumulative (selection≈17:34UTC, stop17:43UTC).
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
