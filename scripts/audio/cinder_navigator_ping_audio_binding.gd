@@ -5,6 +5,7 @@ extends Node
 ## The network bridge remains the sole owner of validation and publication.
 signal semantic_navigator_ping_cue_emitted(cue_id: StringName, intensity: float)
 
+const BRIDGE_POLICY_VERSION: StringName = &"network_cinder_navigator_ping_bridge_v1"
 const PING_ACTION: StringName = &"passenger_ping"
 const CLEAR_ACTION: StringName = &"passenger_ping_clear"
 const NAVIGATOR_SEAT_ID: StringName = &"cinder_navigator_station"
@@ -70,6 +71,16 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 func present_rejected(result: Dictionary) -> Dictionary:
 	if not _attached:
 		return _result(false, &"detached")
+	# Rejections have no receipt identity. Accept only the bridge's existing
+	# result envelope; missing fields and truthy substitutes must stay silent.
+	var status: Variant = result.get("status")
+	var policy: Variant = result.get("policy_version")
+	if not result.get("accepted") is bool or result.get("accepted") != false \
+			or not (status is String or status is StringName) \
+			or str(status).is_empty() \
+			or not (policy is String or policy is StringName) \
+			or StringName(policy) != BRIDGE_POLICY_VERSION:
+		return _result(false, &"invalid_bridge_result")
 	for previous in _seen_rejections:
 		if previous == result:
 			return _result(false, &"duplicate")

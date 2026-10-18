@@ -162,7 +162,9 @@ func _emit_normalized(
 	var event_key := "%s|%s|%s|%s|%s" % [
 		source_instance_id, source_id, cue_id, world_position, intensity
 	]
-	if event_key == _last_event_key:
+	# Navigator bindings already deduplicate and order exact receipt identities.
+	# Distinct receipts can carry identical cue tuples and must each dispatch.
+	if source_id != &"navigator" and event_key == _last_event_key:
 		return
 	_last_event_key = event_key
 	_last_event_source_instance_id = source_instance_id
