@@ -205,6 +205,13 @@ func _host_flight_manifest() -> Dictionary:
 
 
 func _host_flight_current() -> bool:
+	return _host_flight_identity_current() \
+		and (not _flight_departed or _host_departure_is_physical())
+
+
+## Identity survives a later ordinary landing; departure still separately
+## requires the actual unlanded craft and freed berth in its default caller.
+func _host_flight_identity_current() -> bool:
 	var seats := _read("host.seats_confirmed")
 	var pilot := int(seats.get("pilot_peer", 0))
 	var passenger := int(seats.get("passenger_peer", 0))
@@ -217,7 +224,6 @@ func _host_flight_current() -> bool:
 		and int(_game.network_session.get_owned_ship(_craft.ship_id).get("owner_peer_id", 0)) == pilot \
 		and _host_passenger_follows_anchor() \
 		and _host_flight_manifest() == _flight_manifest \
-		and (not _flight_departed or _host_departure_is_physical()) \
 		and _game.phase == GameFlow.Phase.INTRO and not _player.is_seated() and not _player.is_control_enabled()
 
 
