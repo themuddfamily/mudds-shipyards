@@ -3824,3 +3824,39 @@ passenger ride, landing and coherent physical exits, plus the separately defined
 Halyard route and original1800s endurance. Existing24s authority,300s shared cruise
 and600-step/2s stall checks keep their own contracts. Do not combine these into
 one large assignment or use a short run to replace endurance.
+
+
+## Roadmap next slice — three bounded cards
+
+ROADMAP-NEXT-SLICE is DONE on2026-10-18. Root and one bounded read-only source
+reviewer checked the existing backlog, production roster, runner and lifecycle
+suite seams. No two supported missing runtime features were established;
+implemented roles, station service rails and installer behavior were not
+reassigned as speculative repairs.
+
+The working roadmap now has exactly three finite cards:
+
+1. LIFE-VISIBLE: unchanged four-cycle phantom geometry/effect cleanup on frozen
+   d7be014872bdddeb0e3bb762b467a77b396b126a, original900s cap.
+2. LIFE-REUSE: unchanged twelve-cycle nine-craft resource/reuse qualification on
+   the same source, original900s cap; distinct from visible cleanup.
+3. NET-JOVIAN-PILOT-STATE: one original300s normal-spawn failure-state probe on the
+   held boarding candidate, after bounded fixture capture/cleanup changes.
+
+Each card names its parent/result, owner/component, source/dependencies, exact
+proof, separate preparation/check budgets, failure boundary and cleanup. Root
+verified both suite declarations, default cycle counts, existing success and
+structured-summary fields, actual staging/in-memory limitations and the local
+pinned engine hash. Runner list-only discovery verifies exact headless selection;
+no engine, gameplay check or export runs as part of this planning task.
+
+Priority choice: obtain the two finite existing lifecycle results before returning
+to the failed boarding path. The pilot diagnostic stays diagnostic, has one probe,
+and cannot roll into an unbounded repair sequence. Its earlier failures/repair
+limits remain counted. New findings require an explicit separate bounded card;
+no promise to repair an unknown defect in this slice is made. Parked failures,
+external dependencies, all36 broad parents and all ten phase gates stay open.
+Planning and qualification are not reported as new gameplay features. Latest
+playable checkpoint6262749 remains unchanged; this doc-only change needs no
+unchanged game export. Root retains unique failure raw and protects older dirty
+worktrees; this pass creates no new source checkout or profile.
