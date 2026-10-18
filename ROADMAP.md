@@ -260,6 +260,39 @@ Full hub/rest/common-room/home/restart qualification remains unaccepted; do not
 rerun parked Sandbox or replace ordinary walking with staged placement. Station
 bunk support requires its own explicit production card before engines/edits.
 
+### Selected production — HABITAT-BUNK-REST
+
+- **Outcome/parents:**7/9, give the six existing Habitat sleeping berths actual
+  local SLEEP/WAKE interactions. After ordinary Interact, the same Player rests,
+  wakes onto supported authored floor and can walk again. No inventory/healing/
+  time-skip or saved station-sleep pose is invented. Full WALK-HABITAT stays open.
+- **Ownership:** one high-effort implementer owns new scripts/interaction/station_bunk.gd
+  plus unique UID, scripts/world/habitat_spine.gd, narrow GameFlow rest-presentation
+  admission in scripts/game/game_flow.gd, and existing tests/habitat_integration_test.gd.
+  Root executes/integrates/packages; one high-effort reviewer checks reservation,
+  lifecycle and physical anchors. No ShipBunk refactor, new generic interaction
+  framework, save/network authority/crew changes, furniture/collider overhaul or
+  parked-route changes. Retain every ship-specific guard/recovery contract.
+- **Contract:** StationBunk extends existing StationSeat, owns fixed authored rest/
+  wake/discovery anchors and inherited exact reservation. GameFlow's existing
+  animated seat flow/Player sleeping/overlay/wake/cancel handle it without requiring
+  HeroShip. All six bunk roots install actual components; verify real aisle-floor
+  wake support, not metadata height. Existing ship bunks still require live ships.
+- **Proof:** test-only commit first adds --bunk-rest-only in existing Habitat fixture,
+  with only frozen intended missing-station-bunks failure on old code. Final clean
+  pin import600s/compile300s, same focused route300s, full unchanged Habitat suite300s,
+  existing ship_sleep_gameplay_test and ship_sleep_lifecycle_test at original300s.
+  Headless/Dummy/private profiles, exit0/one suite marker/no diagnostics/clean guards.
+  New fixture may stage once at actual production wake handoff, then actual E input,
+  no direct coordinator sleep/forced flags. Show sleep/wake/reuse, pause/owner-loss/
+  Main detach safe awake controls, supported normal walking and no ship/seat claim
+  borrowed. This is focused rest proof, not ordinary hub/full-route acceptance.
+- **Budget/delivery:**45–60min implementation, split before90. First unexpected
+  failure STOP; freeze one reviewed repair before more work, no automatic retry or
+  deadline/route relaxation. Independent final/cumulative GO, paired playable
+  checkpoint/three strict silent startups/actual package audit, notes, push and
+  owned cleanup. Freeze full ordinary Habitat walk only after this capability.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact

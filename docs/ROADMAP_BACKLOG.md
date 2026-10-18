@@ -134,7 +134,8 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | --- | --- | --- | --- |
 | WALK-CENTRAL | Central launch/return | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-AFT | Aft stairs/door/board | 7,9 | UNSCHEDULED; exact production-roster route |
-| WALK-HABITAT | Habitat rest/wake | 7,9 | UNSCHEDULED; exact production-roster route |
+| WALK-HABITAT | Ordinary hub→Habitat rest/wake/common room→hub plus usable restart controls | 7,9 | GATED on missing station-bunk rest capability; existing Habitat fixture stages approach/no sleep and parked Sandbox cannot substitute full route |
+| HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | SELECTED in ROADMAP.md; fixed StationSeat-based sleeping component plus narrow GameFlow rest presentation, no ship/recovery/network authority expansion |
 | WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure |
