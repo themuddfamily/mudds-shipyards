@@ -46,7 +46,7 @@ unapproved; parked failures remain outside the queue.
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
 | NET-COMPONENT-ROW /11,21 | DONE; packaged39a2ad7 | Retained row follows accepted host components and restores current local data on clear/pilot change | Closed after focused local/pose/Main ENet checks and paired checkpoint; no automatic adjacent successor. |
-| ONFOOT-SPRINT-TOGGLE /8,29 | Production repair; SELECTED | Saved/shared Sprint/boost HOLD/TOGGLE works for local walking sprint | Reproduce actual Player consumer gap, implement lifecycle-safe option application, focused checks and paired checkpoint. |
+| ONFOOT-SPRINT-TOGGLE /8,29 | Production repair; REVIEW STOP, one guard repair selected | Saved/shared Sprint/boost HOLD/TOGGLE works for local walking sprint | Reproduce actual Player consumer gap, implement lifecycle-safe option application, focused checks and paired checkpoint. |
 
 The component-row repair and REMAP-DEFINE are closed. ONFOOT-SPRINT-TOGGLE is selected independently;
 no adjacent HUD power/gauge successor is selected. Titan approval remains pending.
@@ -75,6 +75,22 @@ no adjacent HUD power/gauge successor is selected. Titan approval remains pendin
 - **Close:** fresh clean paired checkpoint with focused checks/three strict silent
   startups/package audit. Commit/push, clean owned scratch. Original Settings
   artifacts/device/full-route gates remain open; no automatic follow-on chain.
+
+### ONFOOT-SPRINT-TOGGLE — source-review stop and one selected repair
+
+Candidate12df5e6de compiles16.189s, but independent review withholds GO:
+_prime_local_sprint_input reads host Input on remote-driven lifecycle/settings
+paths. Remote physics still returns _remote_run; no gameplay authority defect
+was observed. Full fixed gameplay checks and export NOT_RUN.
+
+Root selects ONE bounded repair: guard that prime helper against remote-drive
+mode, preserving existing local-enable priming and all assertions/routes/waits.
+No extra settings/transform changes. Five minutes edit/review; recompile, exact
+review delta, then original full sprint and existing rebind/production settings
+checks. This stop plus one repair is cumulative: any further unexpected failure
+requires priority review before more diagnosis/edit/rerun. Original test-only
+d720efe25 reproduces exactly the local release failure32.610s; import20.722 and
+compile16.079 pass. No parked Settings route is reopened.
 
 ## Parked failures and dependent work
 
