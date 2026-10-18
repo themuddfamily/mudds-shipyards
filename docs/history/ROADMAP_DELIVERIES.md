@@ -11686,3 +11686,21 @@ were created by this definition. Latest playable checkpoint remains330a39c.
 All36 original parents/ten phase gates remain OPEN; this roster is preparation,
 not delivered sound or project percentage. Next single action: implement the
 frozen production repair card in ROADMAP.md.
+
+## AUDIO-CREW-REPAIR-PLAYBACK — first compile stop and selected annotation repair
+
+Clean reviewed candidate68244f990b5afc673d3f4678ebc90f20823be572 passed import
+20.758s and Director test check-only0.774s. GameFlow test check-only FAIL15.169s:
+Godot reports it cannot infer `same_operation` in
+halyard_crew_semantic_audio_binding.gd:144 because the comparison includes a
+Variant. Process exit0 did not waive the parser diagnostics. All seven runtime
+suites, remaining compiles, exports and package checks are NOT_RUN.
+
+Root selects ONE exact source annotation: `var same_operation :=` →
+`var same_operation: bool =`, preserving the expression/branches and original
+acceptance. Freeze before edit; independent review of exact diff and cumulative
+priority required before rerunning that compile and continuing original gates.
+Initial cumulative guarded time36.700940522s stays retained. Any next unexpected
+failure stops for priority review, with no second automatic repair or weakened
+assertion. Raw source/configs/logs/results remain in
+`/srv/mudds-work/crew-repair-audio-20261019/results/`.
