@@ -344,6 +344,8 @@ func _ordinary_depart_scenario() -> void:
 
 
 func _ordinary_deliver_scenario() -> void:
+	# Departure queued its brake release; let normal input sampling consume it.
+	await _ordinary_ticks(2)
 	var capture: Dictionary = _ordinary_game.call(&"_get_landing_assist_report_for_ship", _ordinary_ship)
 	if not _ordinary_require(_ordinary_deliver_integrity() and _cargo_receipts(_ordinary_game) == 0
 		and int(_ordinary_game.cargo_transfer_authority.audit().get("committed_transfer_count", -1)) == 0
