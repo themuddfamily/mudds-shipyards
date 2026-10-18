@@ -300,6 +300,14 @@ func _yaw_client_receipt() -> Dictionary:
 	return result
 
 
+func _node_identity(node: Node) -> Dictionary:
+	if not is_instance_valid(node):
+		return {"valid": false}
+	# Remote command sources can be valid while intentionally outside the tree.
+	return {"valid": true, "instance_id": str(node.get_instance_id()),
+		"path": str(node.get_path()) if node.is_inside_tree() else ""}
+
+
 func _failure_snapshot(description: String) -> Dictionary:
 	var snapshot := super._failure_snapshot(description)
 	var yaw := {"stage": _yaw_stage, "direction": _yaw_direction, "start": _yaw_start,

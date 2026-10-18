@@ -45,9 +45,21 @@ const TICK := 1.0 / 60.0
 ## `CharacterBody3D` that answers `get_ship_id()`.
 class CraftProxy extends CharacterBody3D:
 	var proxy_ship_id: StringName = &""
+	var last_ship_command: ShipCommand = null
+	var command_source: ShipCommandSource = null
+	var barrel_roll_active := false
 
 	func get_ship_id() -> StringName:
 		return proxy_ship_id
+
+	func get_last_ship_command() -> ShipCommand:
+		return last_ship_command
+
+	func get_command_source() -> ShipCommandSource:
+		return command_source
+
+	func is_barrel_roll_active() -> bool:
+		return barrel_roll_active
 
 
 var _host: GameFlow = null
@@ -70,6 +82,7 @@ func _run() -> void:
 		await _assert_a_grant_claims_ownership()
 		await _assert_b_host_publishes_the_pose()
 		await _assert_c_the_pilot_copy_is_reconciled()
+		_assert_c_neutral_pilot_rotation_settles()
 		await _assert_d_the_crewmate_copy_interpolates()
 		await _assert_e_the_remote_pilot_is_seated()
 		await _assert_f_ownership_is_released()
@@ -301,6 +314,86 @@ func _assert_c_the_pilot_copy_is_reconciled() -> void:
 	_check(snap.get("status") == &"snapped"
 		and proxy.global_position.distance_to(_craft.global_position) < 3.0 + _craft.velocity.length() * 0.5,
 		"a copy 40 m off is snapped onto the host's pose in one tick (%s)" % String(snap.get("status", &"")))
+	proxy.queue_free()
+
+
+func _assert_c_neutral_pilot_rotation_settles() -> void:
+	var proxy := _spawn_proxy("NeutralPilotCopy")
+	var stream := PoseStream.new()
+	var pose := PoseStream.build_pose_entry(proxy, SHIP_ID, _pilot_id(), 0)
+	_check(stream.consume_movement_section([pose]) == 1, "neutral rotation fixture accepts the authoritative pose")
+	var target: Quaternion = pose.rotation
+	var residual := Basis(Quaternion(Vector3.UP, deg_to_rad(2.7722)))
+	proxy.global_basis = residual
+	var verdict := stream.reconcile_pilot(proxy, SHIP_ID, 0.0, TICK)
+	_check(verdict.status == &"within_deadband" and proxy.global_basis.is_equal_approx(residual),
+		"a proxy without a current command retains the rotation deadband")
+	var source := ShipCommandSource.new()
+	proxy.add_child(source)
+	proxy.command_source = source
+	for axis: String in ["yaw", "pitch", "roll", "look_yaw_delta", "look_pitch_delta", "barrel_roll", "hover"]:
+		var values := source.next_command().to_dictionary()
+		values[axis] = true if axis in ["barrel_roll", "hover"] else 0.5
+		proxy.last_ship_command = ShipCommand.from_dictionary(values)
+		proxy.global_basis = residual
+		verdict = stream.reconcile_pilot(proxy, SHIP_ID, 0.0, TICK)
+		_check(verdict.status == &"within_deadband" and proxy.global_basis.is_equal_approx(residual),
+			"active %s retains the existing below-deadband prediction policy" % axis)
+	# Above the deadband, steering still uses the existing exponential blend.
+	var active_rotation := Quaternion(Vector3.UP, 0.1)
+	proxy.global_basis = Basis(active_rotation)
+	verdict = stream.reconcile_pilot(proxy, SHIP_ID, 0.0, TICK)
+	var expected := active_rotation.slerp(target, 1.0 - exp(-PoseStream.ROTATION_CORRECTION_RATE * TICK))
+	_check(verdict.status == &"corrected" and proxy.global_basis.is_equal_approx(Basis(expected)),
+		"active steering above the rotation deadband keeps the same correction rate")
+	proxy.last_ship_command = source.next_command()
+	proxy.barrel_roll_active = true
+	proxy.global_basis = residual
+	verdict = stream.reconcile_pilot(proxy, SHIP_ID, 0.0, TICK)
+	_check(verdict.status == &"within_deadband" and proxy.global_basis.is_equal_approx(residual),
+		"an ongoing barrel roll retains the rotation deadband after its command edge is released")
+	proxy.barrel_roll_active = false
+	# A neutral snapshot must still belong to the current enabled owner source.
+	for boundary: String in ["invalid_command", "disabled_source", "non_owner", "revoked_stream"]:
+		proxy.last_ship_command = source.next_command()
+		match boundary:
+			"invalid_command": proxy.last_ship_command = ShipCommand.from_dictionary({})
+			"disabled_source": source.enabled = false
+			"non_owner": source.set_local_peer_id_override(2)
+			"revoked_stream": source.invalidate_pending_commands()
+		proxy.global_basis = residual
+		verdict = stream.reconcile_pilot(proxy, SHIP_ID, 0.0, TICK)
+		_check(verdict.status == &"within_deadband" and proxy.global_basis.is_equal_approx(residual),
+			"%s cannot enable neutral rotation correction" % boundary)
+		source.enabled = true
+		source.set_local_peer_id_override(0)
+	# Both a released helm and straight-ahead powered flight must converge.
+	for throttle: float in [0.0, 1.0]:
+		proxy.global_basis = residual
+		var previous_angle := proxy.global_basis.get_rotation_quaternion().angle_to(target)
+		var initial_angle := previous_angle
+		var worst_step := 0.0
+		var monotonic := true
+		var first_step_corrected := false
+		for frame in 120:
+			if frame % PoseStream.PUBLISH_INTERVAL_TICKS == 0:
+				pose["pose_tick"] = frame + 3 + int(throttle) * 120
+				stream.consume_movement_section([pose])
+			var values := source.next_command().to_dictionary()
+			values["throttle"] = throttle
+			proxy.last_ship_command = ShipCommand.from_dictionary(values)
+			var report := stream.advance_replica([proxy], proxy, null, 0.0, TICK)
+			var angle := proxy.global_basis.orthonormalized().get_rotation_quaternion().angle_to(target)
+			if frame == 0:
+				first_step_corrected = int(report.corrected) == 1 and angle < previous_angle
+			monotonic = monotonic and angle <= previous_angle + 0.00001
+			worst_step = maxf(worst_step, absf(previous_angle - angle))
+			previous_angle = angle
+		_check(first_step_corrected and worst_step < deg_to_rad(0.25) and monotonic,
+			"neutral rotation at throttle %.0f blends smoothly from its first tick" % throttle)
+		_check(previous_angle < deg_to_rad(2.0) and previous_angle < initial_angle,
+			"neutral rotation at throttle %.0f settles below two degrees within two seconds (%.4f degrees)"
+			% [throttle, rad_to_deg(previous_angle)])
 	proxy.queue_free()
 
 
