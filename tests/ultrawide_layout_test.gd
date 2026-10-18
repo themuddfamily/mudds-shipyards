@@ -240,6 +240,13 @@ func _run() -> void:
 	_hud.bind_caption_event_submitter(Callable(self, &"_accept_caption_request"))
 
 	_report_production_stretch_policy()
+	# Selected roadmap qualification reuses Main and the existing measurements,
+	# without multiplying the historical whole-HUD sweep by another aspect/scale.
+	if OS.get_cmdline_user_args().has("--pause-16x10-only") or OS.get_cmdline_user_args().has("--pause-16x10-reentry-only"):
+		await _qualify_pause_16x10()
+		await _teardown()
+		_finish()
+		return
 	await _check_camera_field_of_view_policy()
 
 	for resolution in RESOLUTIONS:
@@ -305,6 +312,13 @@ func _exercise_state(resolution: Vector2i, preset_id: StringName, state: StringN
 			_check(is_equal_approx(shade.color.a, 0.985) and not _rest_overlay.is_processing(),
 				"%dx%d %s shows the rest shade immediately" % [
 					resolution.x, resolution.y, preset_id])
+	_check_layout_report(report, resolution, preset_id, state)
+	await _leave_state(state)
+
+
+func _check_layout_report(
+	report: Dictionary, resolution: Vector2i, preset_id: StringName, state: StringName
+) -> void:
 	print("ULTRAWIDE_LAYOUT ", JSON.stringify(report))
 	var label := "%dx%d %s/%s" % [resolution.x, resolution.y, preset_id, state]
 	_check(
@@ -332,7 +346,218 @@ func _exercise_state(resolution: Vector2i, preset_id: StringName, state: StringN
 		"%s keeps authored centred cards symmetric and aspect invariant%s"
 		% [label, _detail(report["asymmetric_centres"] as Array)]
 	)
-	await _leave_state(state)
+
+
+## ACCESS-PAUSE-16X10: run this existing fixture with -- --pause-16x10-only.
+## Three authored scales, one actual Main Window, finite pause/options roster.
+## Caller persistence and display transactions are deliberately not exercised:
+## the test supplies the same presentation reports used by the existing owners.
+func _qualify_pause_16x10() -> void:
+	var resolution := Vector2i(1920, 1200)
+	await _apply_resolution(resolution)
+	# Confirm/reset layout must not write a profile or reset the requested scale.
+	# Retain production Controls/presenters, detach only these persistence intents.
+	for intent: Signal in [_hud.settings_reset_requested, _hud.settings_repair_confirmation_requested]:
+		for connection: Dictionary in intent.get_connections():
+			intent.disconnect(connection["callable"] as Callable)
+	var confirmations: Array[String] = []
+	_hud.settings_reset_requested.connect(func() -> void: confirmations.append("reset"))
+	_hud.settings_repair_confirmation_requested.connect(
+		func(token: String) -> void: confirmations.append(token)
+	)
+	for requested: float in [RuntimeSettingsType.MIN_UI_SCALE, 1.0, RuntimeSettingsType.MAX_UI_SCALE]:
+		_hud.set_accessibility({"ui_scale": requested, "reduced_motion": false,
+			"reduced_flash": false, "captions_enabled": false,
+			"high_contrast_hud": false, "reticle_style": &"standard"})
+		await _qualify_pause_scale(resolution, requested, confirmations)
+		if not _failures.is_empty() or OS.get_cmdline_user_args().has("--pause-16x10-reentry-only"):
+			return # One diagnostic observation, or first demonstrated defect.
+		_hud.set_paused(false)
+		await process_frame
+
+
+func _qualify_pause_scale(
+	resolution: Vector2i, requested: float, confirmations: Array[String]
+) -> void:
+	_hud.set_paused(true)
+	var main := _hud.get("_pause_main_page") as Control
+	for name: String in ["ResumeButton", "SettingsOpenButton"]:
+		if not await _pause_observe(resolution, requested, StringName("pause_" + name),
+				main.find_child(name, true, false) as Control):
+			return
+	(main.find_child("SettingsOpenButton", true, false) as Button).pressed.emit()
+	var settings := _hud.get("_settings_page") as Control
+	var controls := _hud.get("_settings_controls") as Dictionary
+	var scroll := _hud.get("_settings_scroll") as ScrollContainer
+	# Both columns: top flight/audio, middle binding/accessibility, lower
+	# display/network and the last accessibility row. Focus must reveal each row.
+	for key: StringName in [&"ship_mouse_sensitivity", &"master_volume",
+			&"ui_scale", &"graphics_profile", &"multiplayer_display_name",
+			&"controller_glyph_family"]:
+		if not await _pause_observe(resolution, requested, StringName("options_" + str(key)),
+				controls.get(key) as Control, scroll):
+			return
+	# Explicit top/middle/bottom observations complement focus-revealed groups.
+	# Footer focus stays outside the scroller while its whole contents move.
+	var footer_focus := settings.find_child("SettingsSaveButton", true, false) as Control
+	footer_focus.grab_focus()
+	for fraction: float in [0.0, 0.5, 1.0]:
+		var bar := scroll.get_v_scroll_bar()
+		var position := roundi(maxf(0.0, bar.max_value - bar.page) * fraction)
+		scroll.scroll_vertical = position
+		if not await _pause_observe(resolution, requested,
+				StringName("options_scroll_%d_percent" % roundi(fraction * 100.0)),
+				footer_focus, null, false):
+			return
+		_check(absi(scroll.scroll_vertical - position) <= 1,
+			"16:10 requested options scroll position remains reachable")
+		if not _failures.is_empty():
+			return
+	for name: String in ["SettingsSaveButton", "SettingsResetButton", "SettingsBackButton"]:
+		if not await _pause_observe(resolution, requested, StringName("options_" + name),
+				settings.find_child(name, true, false) as Control):
+			return
+	var retained := controls[&"controller_glyph_family"] as Control
+	if not await _pause_observe(resolution, requested, &"options_before_reentry", retained, scroll):
+		return
+	# Separate ordinary page actions by frames, as player button presses are.
+	(settings.find_child("SettingsBackButton", true, false) as Button).pressed.emit()
+	await process_frame
+	await process_frame
+	await process_frame
+	_check(main.is_visible_in_tree() and not settings.is_visible_in_tree(),
+		"16:10 ordinary Back returns to pause main before reopening Options")
+	(main.find_child("SettingsOpenButton", true, false) as Button).pressed.emit()
+	if not await _pause_observe(resolution, requested, &"options_reentry", retained, scroll, false):
+		return
+	if OS.get_cmdline_user_args().has("--pause-16x10-reentry-only"):
+		return
+
+	var binding := (_hud.get("_binding_buttons") as Dictionary)[&"barrel_roll"] as Button
+	binding.grab_focus()
+	_check(_hud.begin_input_binding_capture(&"barrel_roll"), "16:10 starts actual binding capture")
+	if not await _pause_observe(resolution, requested, &"binding_capture", binding, scroll, false):
+		return
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_H # Existing default conflict used by the rebind integration check.
+	key.pressed = true
+	_hud._unhandled_input(key)
+	var conflict := _hud.get("_binding_conflict_panel") as Control
+	_check(conflict.visible, "16:10 actual capture exposes conflict choices")
+	if not await _pause_observe(resolution, requested, &"binding_conflict",
+			_hud.get("_binding_conflict_replace_button") as Control, scroll, false):
+		return
+	(_hud.get("_binding_conflict_cancel_button") as Button).pressed.emit()
+	if not await _pause_observe(resolution, requested, &"binding_conflict_cancel", binding, scroll, false):
+		return
+	var row_reset := (_hud.get("_binding_reset_buttons") as Dictionary)[&"barrel_roll"] as Button
+	# Row reset is inspected, without emitting a caller-owned persistence request.
+	if not await _pause_observe(resolution, requested, &"binding_reset_row", row_reset, scroll):
+		return
+
+	var reset := settings.find_child("SettingsResetButton", true, false) as Button
+	var reset_panel := _hud.get("_settings_reset_confirmation") as Control
+	for confirm: bool in [false, true]:
+		_hud.set("_settings_dirty", true)
+		reset.pressed.emit()
+		_check(reset_panel.visible, "16:10 unsaved reset confirmation is visible")
+		if not await _pause_observe(resolution, requested,
+				&"reset_confirm" if confirm else &"reset_cancel",
+				reset_panel.find_child("ConfirmSettingsResetButton", true, false) as Control,
+				null, false):
+			return
+		var action := "ConfirmSettingsResetButton" if confirm else "CancelSettingsResetButton"
+		var before := confirmations.size()
+		(reset_panel.find_child(action, true, false) as Button).pressed.emit()
+		_check(not reset_panel.visible and confirmations.size() == before + (1 if confirm else 0),
+			"16:10 reset choice retires confirmation and emits only on confirm")
+		if not await _pause_observe(resolution, requested, &"reset_return", reset, null, false):
+			return
+	_hud.set("_settings_dirty", false)
+
+	_hud.show_display_settings_confirmation(7, 15.0)
+	var keep := _hud.get("_display_confirmation_keep_button") as Control
+	if not await _pause_observe(resolution, requested, &"display_pending_keep", keep, null, false):
+		return
+	if not await _pause_observe(resolution, requested, &"display_pending_revert",
+			_hud.get("_display_confirmation_revert_button") as Control):
+		return
+	_hud.show_display_settings_confirmation(7, 14.0)
+	_check((_hud.get("_display_confirmation_label") as Label).text.contains("14 SECONDS"),
+		"16:10 countdown refresh remains text-readable")
+	_hud.clear_display_settings_confirmation()
+	var save := settings.find_child("SettingsSaveButton", true, false) as Control
+	if not await _pause_observe(resolution, requested, &"display_return", save, null, false):
+		return
+	_hud.show_display_settings_confirmation(8, 0.0)
+	# Exercise retirement with a result as well as complete removal.
+	_hud.clear_display_settings_confirmation("DISPLAY CHANGE REVERTED // TIMEOUT")
+	if not await _pause_observe(resolution, requested, &"display_timeout_result", save, null, false):
+		return
+	_hud.clear_display_settings_confirmation()
+
+	_check(_hud.present_runtime_settings_repair_report({"schema_version": 1, "attached": true,
+		"last_status": {"accepted": true, "reason": &"repair_available",
+			"kind": &"promote_verified_backup", "generation": 7,
+			"confirmation": "layout-only-token", "preserves_unrelated_payload": true,
+			"newer_schema": false}}), "16:10 presents existing repair-available surface")
+	var repair := _hud.get("_settings_repair_confirm_button") as Button
+	if not await _pause_observe(resolution, requested, &"repair_available", repair):
+		return
+	var before := confirmations.size()
+	repair.pressed.emit()
+	_check(confirmations.size() == before + 1 and confirmations.back() == "layout-only-token",
+		"16:10 repair confirm forwards detached token without fabricating persistence")
+	if not await _pause_observe(resolution, requested, &"repair_confirm", repair, null, false):
+		return
+	_check(_hud.present_runtime_settings_repair_report({"schema_version": 1, "attached": true,
+		"last_status": {"accepted": false, "reason": &"load_not_repairable"}}),
+		"16:10 presents existing repair failure surface")
+	_check(not repair.visible, "16:10 repair failure removes unavailable confirmation")
+	await process_frame
+	if not await _pause_observe(resolution, requested, &"repair_failure",
+			root.gui_get_focus_owner(), null, false):
+		return
+	_hud.clear_runtime_settings_repair_report()
+	(settings.find_child("SettingsBackButton", true, false) as Button).pressed.emit()
+	if not await _pause_observe(resolution, requested, &"options_back_return",
+			main.find_child("SettingsOpenButton", true, false) as Control, null, false):
+		return
+
+
+## The existing whole-tree measurement exempts scroll descendants from bounds.
+## Selected focused rows additionally have to fit their actual clipped viewport,
+## so an offscreen options row cannot count as reachable merely by existing.
+func _pause_observe(
+	resolution: Vector2i, requested: float, state: StringName,
+	target: Control, scroll: ScrollContainer = null, claim_focus: bool = true
+) -> bool:
+	_check(is_instance_valid(target), "16:10 %s exposes its production focus target" % state)
+	if not is_instance_valid(target):
+		return false
+	if claim_focus:
+		target.grab_focus()
+	await process_frame
+	await process_frame
+	await process_frame
+	_check(target.is_visible_in_tree() and root.gui_get_focus_owner() == target,
+		"16:10 scale %.2f %s retains the expected live focus" % [requested, state])
+	var effective := float(_hud.get("_pause_effective_ui_scale"))
+	var safe := Contract.safe_rect(root.get_visible_rect().size, effective)
+	_check(safe.grow(EDGE_TOLERANCE).encloses(target.get_global_rect()),
+		"16:10 scale %.2f %s focus target fits safe bounds: %s" % [requested, state, target.get_global_rect()])
+	if scroll != null:
+		_check(scroll.get_global_rect().grow(EDGE_TOLERANCE).encloses(target.get_global_rect()),
+			"16:10 scale %.2f %s focus-follow reveals the complete row (scroll=%d)" % [requested, state, scroll.scroll_vertical])
+	_check(is_equal_approx(_hud.get_ui_scale(), requested),
+		"16:10 %s retains requested scale %.2f" % [state, requested])
+	var preset := StringName("pause_scale_%.2f" % requested)
+	var report := _measure(resolution, preset, state)
+	report["requested_ui_scale"] = requested
+	report["focus_control"] = _path(target)
+	report["settings_scroll_vertical"] = (_hud.get("_settings_scroll") as ScrollContainer).scroll_vertical
+	_check_layout_report(report, resolution, preset, state)
+	return _failures.is_empty()
 
 
 func _measure(resolution: Vector2i, preset_id: StringName, state: StringName) -> Dictionary:
