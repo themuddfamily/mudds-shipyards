@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 READY repair, 3 FAILED (two parked), 2 GATED, 2 DONE.** Root owns integration and closure.
+**1 IN PROGRESS repair, 3 FAILED (two parked), 2 GATED, 2 DONE.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -52,7 +52,7 @@ and delivery history; they do not consume active queue slots.
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
 | HELM-YAW-HANDBACK | FAILED; repair selected | Original pilot ordinarily leaves helm for usable cabin walking; ownership/source retire while the original co-pilot remains seated. |535c4b01d; route FAIL146.578s after physical release at client comparison, walk NOT_RUN |
-| CABIN-PASSENGER-ROLE | READY | Confirmed standing cabin passenger is labelled PASSENGER after ordinary helm handback. |30–45min implementation/review; focused HUD regression and one corrected original handback route; paired checkpoint if accepted |
+| CABIN-PASSENGER-ROLE | IN PROGRESS | Confirmed standing cabin passenger is labelled PASSENGER after ordinary helm handback. |30–45min implementation/review; focused HUD regression and one corrected original handback route; paired checkpoint if accepted |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
@@ -152,7 +152,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   marker/three actual exits0/fullraw diagnostics0. No acceptance/cap relaxation.
   Accepted runtime change requires fresh clean paired exports, strict three
   startup checks and actual package audit; latest624d2a6 stays playable meanwhile.
-- **Budget/next:** READY;30–45min implementation/review, split before90min.
+- **Budget/next:** IN PROGRESS;30–45min implementation/review, split before90min.
   Compile/focused HUD up to300s; handback original300s/outer360s, transition8s and
   walk15s. Packaging time separate. Implement named correction from retained
   source535c4b01d, no extra diagnostic probe. First unexpected failure stops;
