@@ -242,8 +242,11 @@ this map does not generate a craft×encounter matrix or qualify full fleet comba
 No new runtime weapon was shown absent by the inspected roster. Resource-only
 beam support is not a delivered beam, nor proof that one was promised. Generic
 converter ammunition refusal does not erase existing Bomber/Bulwark ammunition.
-The next selected child tests one actual Halyard gunner hit in the retained
-ordinary test; parked network boarding/moving-cabin/handback contracts stay open.
+The selected HALYARD-GUNNER-DAMAGE child failed its original co-pilot admission
+before new proof:0b157138b,51.847s, supported Player/candidate null. Damage
+NOT_RUN; candidate withheld. One static boundary comparison is selected in
+ROADMAP.md, no repair/rerun. Parked network boarding/moving-cabin/handback stays
+open; no failure budget is reset.
 
 ### Activities and solo-world children
 

@@ -43,7 +43,7 @@ unapproved; parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| HALYARD-GUNNER-DAMAGE /11,16 | Source qualification; SELECTED, not started | Actual existing ordinary gunner FIRE produces one authority damage result | Extend the existing firing step only; full original test/caps retained. |
+| HALYARD-GUNNER-DAMAGE /11,16 | FAILED original seat step; damage NOT_RUN | Actual existing ordinary gunner FIRE produces one authority damage result | One static admission-boundary comparison capped at10 minutes; no engine/repair/rerun selected. |
 
 ### HALYARD-GUNNER-DAMAGE — one real hit through the existing ordinary role
 
@@ -59,7 +59,7 @@ unapproved; parked failures remain outside the queue.
   positioned as a fixture in the existing gunner aim direction. Do not move the
   player/ship to satisfy a route or call the fire handler directly as proof.
 - **Acceptance:** actual admitted gunner and remapped FIRE emit the request,
-  existing production handler accepts the Halyard weapon/source, terminal receipt
+  existing production handler accepts the Halyard weapon/source, resolved authority receipt
   and target health show the authored damage once. Existing raw pilot/role/HUD/
   cooldown/lifecycle assertions all remain. Do not replace signal-only assertions
   or weaken the original route; append the actual consumer proof at that step.
@@ -73,6 +73,25 @@ unapproved; parked failures remain outside the queue.
   separately, preserving this full check; accepted runtime changes need a fresh
   paired checkpoint. Retain actual result/source, commit/push and clean scratch.
   Parked Halyard server boarding/moving-cabin/handback is not reopened or reset.
+
+**First unexpected failure, retained:** candidate0b157138b imports20.671s and
+compiles15.867s; full original test FAIL51.847s, exit1, one diagnostic:
+`ordinary Interact seats at existing co-pilot gunner anchor`. Raw supported
+Player is local(0,.500176,-10.62889), approach candidate null. No target fixture
+or new FIRE/damage assertions were reached. Source/cache guards and terminal
+owner hold; no runtime weapon defect established. Raw/source remain at
+`/srv/mudds-work/halyard-gunner-damage-20261018/results/` and branch
+`test/halyard-gunner-damage-20261018`; no integration/build/acceptance.
+
+**Separate root selection after stop:** one read-only comparison of the existing
+approach/interaction seam against that captured boundary, capped at10 minutes.
+Owner: one high-effort lifecycle reviewer; root coordinates. Inspect existing test
+look/walk target, Halyard physical gunner anchor/interaction candidate consumer
+and GameFlow/Player eligibility only. No engine/probe, code edit or unchanged
+retry. End with one exact caller/runtime seam and supported repair candidate, or
+no cause established. Any repair needs a separate frozen selection preserving
+this full original test and new damage proof. The first failure stays cumulative;
+original plus one attempted repair requires priority review before more work.
 
 ## Parked failures and dependent work
 
