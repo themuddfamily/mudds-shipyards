@@ -7,7 +7,7 @@ const Director := preload("res://scripts/audio/audio_director.gd")
 const Presenter := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
 const EngineerBinding := preload("res://scripts/network/network_jovian_engineer_binding.gd")
 const PassengerBinding := preload("res://scripts/network/network_halyard_passenger_binding.gd")
-const Jovian := preload("res://scripts/ships/jovian_light_freighter.gd")
+const Jovian := preload("res://scenes/ships/jovian_light_freighter.tscn")
 const BodySimulation := preload("res://scripts/network/network_remote_body_simulation.gd")
 const Session := preload("res://scripts/network/network_enet_session_adapter.gd")
 
@@ -206,7 +206,7 @@ func _run() -> void:
 
 
 func _exercise_host_local() -> bool:
-	_host_jovian = Jovian.new()
+	_host_jovian = Jovian.instantiate() as JovianLightFreighter
 	_host_jovian.position.x = 1000.0
 	_host_simulation = BodySimulation.new()
 	_flow.add_child(_host_jovian)
