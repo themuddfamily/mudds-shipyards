@@ -5777,3 +5777,32 @@ admit supported IN_FLIGHT_CABIN within existing12s; real role seating is separat
 Exact route and15s/.30/15settled/.8vertical/12boarding/8role/300total limits are
 frozen beside HALYARD-BOARD, now READY. No new server executable, D2 rerun,
 capacity decision, baseline closure or native gate is implied.
+
+
+KIT-BOARD-CALLER-LIFETIME and KIT-BOARD DONE at62bc7c823a30678e8d950610a4f70a83c2ee8074.
+Caller-only repair captures transient button name before activation and requires
+explicit terminal boarding acceptance; original default integration/recovery path
+remains unchanged. Corrected compile PASSES; ONE unchanged selected input-only
+x11/Dummy route PASSES66.158s at original300s cap/outer360s,49 assertions,
+actualexit0/exactlyone marker/fullraw diagnostics0. Real Begin Shift/status notice/
+Pause/Activity Board/cargo/back/resume, full accepted station approach and ordinary
+hatch Interact lead same original Player to actual local Jovian pilot seat, enabled
+current default source and physically occupied valid home freight berth. Cargo
+staysIDLE generation0/manifest generations1/source6/destination0, engineOFFLINE;
+no thrust, departure, activity start, transfer/reward or reload acceptance.
+
+Main integrated the caller. All5 stage supervisors terminal, all19 observed
+PID/start identities absent; source and non-import cache unchanged. Original
+8630531ac diagnostic failure/exit0/marker1 stays retained beside corrected raw;
+no failure filtering or acceptance change. Selected private store artifacts were
+removed by the caller after actual Main freeing; root removes owned clean
+checkout/profiles/helpers, preserving both source refs and unique results under
+`/srv/mudds-work/jovian-kit-board-20261018/results/`. Caller-only work needs no
+identical new package; latest playable runtime remains1cf1022. No fullmatrix,
+rendered/device/native/human/audio/endurance/parent gate closes.
+
+Next KIT-DEPART is READY: ordinary thrust/physical5m departure/automatic ACTIVE
+cargo generation1 and neutral brake only. KIT-DELIVER and distinct-process
+KIT-RELOAD remain separate gated tasks. Halyard boarding is an independent READY
+alternative after source-only approach definition. Queue2 READY/4 GATED/2 DONE,
+with qualification and planning completions distinguished; all36 parents stayopen.

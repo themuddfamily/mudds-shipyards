@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: ordinary cargo selection and offline Jovian boarding only; thrust and delivery are separate cards.**
+**Next: ordinary Jovian departure and automatic cargo start; home delivery remains separate.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -18,6 +18,7 @@ phase gates remain open.** This file holds the executable queue; the
 | Actual on-foot recovery in exported/archive Linux checkpoint | f90547c real-file SIGKILL/distinct restart; supported awake unseated player, ordinary walk0.525555m+Interact boarding, conserved convoy and receipts1→2 once. Private headless/Dummy and disclosed craft-placement fixtures; no fullflight/native-device claim. |
 | Pause/options16:10 selected source qualification | 1cf102298 PASS:26 focused repair assertions;948 layout assertions/96 observations,32 states at requested.75/1/1.6. Original criteria/caps retained; device/render/persistence transactions and other aspects remain open. |
 | Fresh hub→Annex service→hub |9af57671d selected route PASS81.387s: same supported Player, actual kits5→6 and one Annex update/Aft unchanged. Active-craft/kit-spend fixtures disclosed; default caller unchanged. |
+| Ordinary offline Jovian cargo selection and boarding |62bc7c823 PASS66.158s: normal UI/spawn walk/hatch boarding to real local pilot seat, occupied home lease, cargo remainsIDLE0/source6/destination0. No departure/delivery acceptance. |
 | Earlier passenger chair/HUD, lifecycle, browser/briefing deliveries | Retain their recorded scopes; no whole craft, parent or phase closes. |
 
 The on-foot batch's failed UI qualification is now resolved by two bounded
@@ -34,7 +35,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS, 1 READY, 5 GATED, 1 DONE definition.** Root owns integration and closure.
+**2 READY, 4 GATED, 2 DONE (one caller qualification, one definition).** Root owns integration and closure.
 Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
@@ -44,8 +45,8 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| KIT-BOARD | IN PROGRESS | Fresh player selects cargo, walks to Jovian and takes the real solo pilot seat. |30–45 min; compile300s + one route300s/outer360s |
-| KIT-DEPART | GATED on KIT-BOARD | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |30–60 min; one extended route at unchanged caps |
+| KIT-BOARD | DONE | Fresh player selects cargo, walks to Jovian and takes the real solo pilot seat. |Accepted62bc7c823;66.158s at original300s cap |
+| KIT-DEPART | READY | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |30–60 min; one extended route at unchanged caps |
 | KIT-DELIVER | GATED on KIT-DEPART | Physical home return transfers two kits, pays once and leaves player walking outside. |45–60 min; one extended route at unchanged caps |
 | KIT-RELOAD | GATED on KIT-DELIVER | Distinct process reloads accepted delivery without duplicate kits or reward. |20–40 min; compile300s + one restore30s |
 | HALYARD-APPROACH | DONE definition | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
@@ -73,7 +74,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   cargo, walks from actual hub spawn and uses ordinary hatch Interact to take
   the existing solo pilot seat. Stop before thrust or activity start.
 - **Boundary:** root; only `tests/cargo_delivery_production_integration_test.gd`,
-  proposed `--ordinary-jovian-kit-board`, default staged/recovery branch preserved.
+  implemented `--ordinary-jovian-kit-board`, default staged/recovery branch preserved.
   Plain UserDataStore with a distinct private real-file path, configured before
   Main enters the tree; no activity/save-state fixtures or injected failures.
 - **Proof:** real IntroBeginShiftButton; Pause→ActivityBoardButton→
@@ -84,24 +85,27 @@ accepted runtime repairs require separate cards and fresh paired builds.
   Same Player/real seat, active Jovian, enabled original Input-backed source,
   START_ENGINES, physically occupied valid home freight-berth lease; selected
   cargo IDLE generation0, manifest generations1/source6/destination0.
-- **Next/check:** IN PROGRESS/root. Isolated branch
-  `work/jovian-kit-board-20261018`; implement/review early selector and existing
-  look/walk/Interact helpers, no pose/phase/claim/candidate/start_shift/HUD-state
-  writes. Compile300s, ONE selected300s/outer360s route. Preserve15s/waypoint,
+- **Accepted/check:** DONE/root at62bc7c823, integrated on main. Selected route
+  PASS66.158s,49 assertions, actualexit0/marker1/original diagnostics0. Preserved
+  initial failure and accepted caller-only lifetime/completion correction.
+  Early selector and existing
+  look/walk/Interact helpers use no pose/phase/claim/candidate/start_shift/HUD-state
+  writes. Corrected compile PASS; ONE selected300s/outer360s route accepted. Preserve15s/waypoint,
   .30m horizontal/15 supported settled ticks/<.8m vertical and12s boarding.
   Selected marker `JOVIAN_KIT_ORDINARY_BOARD_OK`; no departure/landing/reload work.
 - **First attempt/next repair:**8630531ac import/compile PASS; selected run
   FAILED before walking at RuntimeStatusDismissButton: activation retires the
   button and caller reads its name after await. Engine exit0/marker1 is rejected
   by original full-log SCRIPT ERROR diagnostic. No boarding acceptance.
-  KIT-BOARD-CALLER-LIFETIME is selected caller-only repair,5–10 min: retain name
+  KIT-BOARD-CALLER-LIFETIME is the accepted caller-only repair: retain name
   before activation and require explicit end-of-scenario completion before success.
   Preserve failed source/raw, freeze corrected pin, one compile and ONE unchanged
-  selected route. No gameplay/criteria/cap change. Any further failure requires
-  priority review against READY HALYARD-BOARD before more work.
+  selected route PASS. No gameplay/criteria/cap change; no further retry selected.
 - **Stop/close:** first failure ends boarding qualification; record concrete
-  snapshot and next owner. Accepted seat access does not qualify delivery.
-  Commit/push and owned cleanup under common rules.
+  snapshot and next owner. Accepted seat access does not qualify departure or
+  delivery. All5 supervisors terminal/all19 PID identities absent, source and
+  non-import cache unchanged. Commit/push, remove owned checkout/profiles/helpers;
+  unique raw retained under `/srv/mudds-work/jovian-kit-board-20261018/results/`.
 
 ### KIT-DEPART — start cargo through real departure
 
@@ -114,7 +118,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   ACTIVE generation1/return objective/departure checkpoint, source6/destination0,
   current same pilot/source and actual released berth. Keep180s physics deadline
   from automatic start; no clock reset, tuning change or forced landed flag.
-- **Next/check:** GATED on KIT-BOARD. Freeze a new selected continuation/marker
+- **Next/check:** READY; KIT-BOARD accepted. Freeze a new selected continuation/marker
   before implementation.30–60 min; compile300s and one full extended300s route,
   outer360s; preserve prior approach/boarding and10s departure/10s brake bounds.
 - **Stop/close:** first failure records actual input/engine/berth/activity owner;
@@ -258,7 +262,9 @@ Owned completed helm/return/on-foot/UI checkouts, profiles/helpers and duplicate
 unique raw/source refs and public builds remain. Three older dirty retired
 checkouts remain protected. Scratch belongs under `/srv/mudds-work/`. The failed passenger-exit candidate is retained by source refs/raw;
 its disposable checkout/profile/helper files are removed after closure. Annex raw results remain under `/srv/mudds-work/annex-round-trip-20261018/results/`;
-its completed disposable checkout/profiles/helpers are removed.
+its completed disposable checkout/profiles/helpers are removed. KIT-BOARD raw is retained
+at `/srv/mudds-work/jovian-kit-board-20261018/results/`; its completed checkout,
+profiles and helpers are removed after closure.
 
 ## Rules that prevent loops
 

@@ -728,9 +728,9 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | PLAY-RACE | Checkpoint Race first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-PATROL | Platform Patrol first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Route definition DONE; KIT-BOARD active, KIT-DEPART/DELIVER/RELOAD GATED in ROADMAP.md; ordinary full delivery unqualified |
-| KIT-BOARD | Ordinary offline cargo selection and Jovian pilot boarding | 7,13 | IN PROGRESS; exact selected caller/criteria in ROADMAP.md |
-| KIT-DEPART | Real departure automatically starts cargo, then ordinary brake | 13 | GATED on KIT-BOARD;180s activity deadline retained |
+| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Route definition and KIT-BOARD source62bc7c823 DONE; KIT-DEPART READY, DELIVER/RELOAD GATED; ordinary full delivery unqualified |
+| KIT-BOARD | Ordinary offline cargo selection and Jovian pilot boarding | 7,13 | DONE source62bc7c823;66.158s, real menus/walk/local pilot/occupied berth, cargoIDLE0/source6/destination0 manifests; no departure |
+| KIT-DEPART | Real departure automatically starts cargo, then ordinary brake | 13 | READY; KIT-BOARD accepted,180s activity deadline retained |
 | KIT-DELIVER | Strict home landing transfers2 kits/pays once; usable exterior exit | 13 | GATED on KIT-DEPART; exact physical/receipt criteria in ROADMAP.md |
 | KIT-RELOAD | Distinct process reloads actual completed store without duplication | 13,31 | GATED on KIT-DELIVER's retained real store and unchanged runtime |
 | PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
@@ -935,8 +935,9 @@ assignments. Completing a definition does not deliver the gameplay it describes.
 The [working queue](../ROADMAP.md#working-queue-eight-bounded-cards) now has eight
 specific successor cards: four offline cargo stages (board, depart, deliver,
 distinct-process reload), and four Halyard stages (approach definition, board,
-moving cabin, real authority stop). One cargo caller repair is active, Halyard boarding is READY, five dependent
-cards are GATED and its approach definition is DONE. Original Jovian
+moving cabin, real authority stop). Cargo departure and Halyard boarding are READY; four dependent cards are GATED.
+Cargo boarding is source-qualified and Halyard approach definition is DONE; these
+are distinct completion types, neither closes a whole parent. Original Jovian
 exit/reuse remains parked; Annex source qualification remains DONE.
 All36 original parents and ten phase gates remain open. This is local scheduling,
 not a whole-project estimate or a claim that the eight cards finish these parents.
