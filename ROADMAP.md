@@ -149,6 +149,20 @@ are not inferred from presentation/policy records. Original full-craft/art/comba
 ordinary packaged routes and historical source dependencies remain OPEN. No
 runtime repair or qualification successor is automatically selected.
 
+### Selected craft definitions — Zenith, Bulwark and Halyard
+
+CRAFT-GAPS-ZENITH/BULWARK/HALYARD (parents10/11) are selected as three independent
+source-only definitions,30min total. Root maps Zenith; two medium-effort read-only
+agents map Bulwark and Halyard separately. Finish each finite authored component/
+role map with actual production owners, existing coverage, concrete missing
+runtime behavior or exact missing definition. Preserve source-specific passes,
+original craft/art/combat/crew acceptance and historical boundaries. No engine,
+test/capture/export/CI run, runtime edit, new tracker/validator, parked gunner/
+boarding/handback retry or automatic qualification chain. Stop once owners,
+seams and acceptance distinctions are known; any real product repair needs a
+separate frozen card. Root integrates into the existing completion roster/backlog,
+commits/pushes and reports definition progress without claiming gameplay passes.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
