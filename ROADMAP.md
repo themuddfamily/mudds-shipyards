@@ -28,15 +28,46 @@ explicit owner decision.
 
 ## Execution now
 
+SPEC-TITAN interpretation proposal is selected; implementation remains gated.
 WALK-SALVAGE-ACCESS is parked after its original attempt and one caller repair. Reverse qualification and the bounded Torrent
 definition are closed below. Completed and parked work does not occupy the
 executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
+| SPEC-TITAN / 10,36 | Proposal DONE; WAITING interpretation decision | Concrete one-pilot/two-passenger/four-unit modern candidate and bounded build tasks. | Owner decision on linked proposal before runtime implementation; historical model gate stays open. |
 | WALK-SALVAGE-ACCESS / 7,9 | FAILED/PARKED | Same supported Player must walk hub→inspection row→hub without staging. | Both attempts fail at outbound20; no further diagnosis/fix/run selected. |
 | CRAFT-GAPS-TORRENT / 10,11 | Definition DONE; craft acceptance OPEN | No specifically required missing implementation found within inspected owners. | Do not invent a feature; any successor needs a concrete requirement/finding. |
 | HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
+
+### SPEC-TITAN — concrete interpretation proposal before building
+
+- **Owner/boundary:** one medium-effort documentation agent owns only
+  `docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md`; root reviews scope and runtime
+  seams. Existing Titan evidence row, original fleet promise and production
+  craft/definition/access/berth/recovery pipeline only. No runtime changes,
+  engine runs, new research framework, invented historical silhouette or media.
+- **Finish:** historical name/medium-transport role separated from unknown model,
+  scale, interior, access, systems and handling; one concrete modern proposal,
+  ordered30–60min capability cards with exact source owners/player checks and
+  preserved full fleet acceptance. No automatic feature/capacity expansion.
+- **Budget/next:**15min draft/review, then one explicit interpretation decision
+  on the completed proposal before implementation. Original SPEC-TITAN evidence
+  gate remains WAITING; proposal is not approved scope or a delivered craft.
+- **Source:** existing ledger/matrix support only identity/role. Reopening A3
+  through the web tool was inaccessible this turn; no new historical evidence
+  or name-to-model claim is asserted. Owner-approved modern interpretation may
+  unblock production but never authenticate its appearance.
+- **Close:** commit/push the reviewable proposal, source links and actual limits;
+  no checkpoint for documentation. Keep all other original craft promises open.
+- **Actual result:** [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md)
+  written and root-reviewed against existing source/seams. Proposed one pilot,
+  two passengers, four conserved repair-kit cargo units, connected cabin/hatch,
+  existing pilot pulse profile and explicit trial handling. All are modern choices;
+  only name/medium-transport role is historically supported. Ordered build tasks
+  retain full-craft acceptance and immediate meaningful paired checkpoint policy.
+  No runtime edits, engines, new evidence status, approved deferral or craft
+  completion. Interpretation decision remains pending; no elapsed time implies it.
 
 ### WALK-SALVAGE-ACCESS — normal hub to inspection row and back
 

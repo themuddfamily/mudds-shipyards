@@ -2,7 +2,20 @@
 
 This is the working roster for [roadmap task 0](ROADMAP_BACKLOG.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
-Current paired development checkpoint: **1cf1022**, accepted clean source
+Current paired development checkpoint: **624d2a6**, accepted clean source
+`624d2a6977e2b591d29575332b7f77c92e63caa5`
+([Windows notes](../builds/windows/MuddsShipyards-624d2a6-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-624d2a6-linux-notes.txt)). Neutral
+remote-pilot steering release now converges, retaining active steering policy;
+paired exports, three strict startups and actual package audits pass. Cargo
+supply-state, mixed-control and camera-distance help fixes are included. Ordinary
+reverse flight/release is separately source-qualified52b228c86; no runtime change
+or replacement package for that caller. Handback, cargo reload, Halyard and Salvage
+access retain recorded failures; native/hardware/devices/audio/human/full matrix,
+endurance and final-candidate gates remain open. See the working roadmap for the
+current selection; no broad parent or phase closes.
+
+Earlier paired development checkpoint: **1cf1022**, accepted clean source
 `1cf1022989a3cc2d48d3b813d2ecc9acbcc04c27` ([Windows notes](../builds/windows/MuddsShipyards-1cf1022-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-1cf1022-linux-notes.txt)). Binding
 conflict choices reveal after layout and a disappearing repair confirmation

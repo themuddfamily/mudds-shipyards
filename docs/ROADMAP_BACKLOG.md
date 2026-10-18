@@ -691,7 +691,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-ACCEPT-CINDER-LIGHT | Cinder Light Interceptor full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
 | CRAFT-ACCEPT-CINDER-HAULER | Cinder Cargo Hauler full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
 | CRAFT-ACCEPT-CINDER-BOMBER | Cinder Long-Range Bomber full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
-| SPEC-TITAN | Titan evidence-bounded identity/capability specification | 10,36 | WAITING; evidence or explicit interpretation decision |
+| SPEC-TITAN | Titan evidence-bounded identity/capability specification | 10,36 | Modern proposal DONE in [Titan design](design/TITAN_IMPLEMENTATION_PROPOSAL.md); WAITING owner interpretation decision or tied model evidence. No implementation authorized or historical gate closed |
 | BUILD-SPLIT-TITAN | Titan named hull/handling/access/role/recovery build cards | 10,36 | GATED; SPEC-TITAN, split before any implementation |
 | CRAFT-ACCEPT-TITAN | Titan full craft loop | 7,10,11,36 | GATED; its specified production capabilities delivered |
 | SPEC-VORTEX | Vortex evidence-bounded identity/capability specification | 10,36 | WAITING; evidence or explicit interpretation decision |
