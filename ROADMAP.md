@@ -43,7 +43,7 @@ unapproved; parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| HALYARD-GUNNER-DAMAGE /11,16 | FAILED original seat step; damage NOT_RUN | Actual existing ordinary gunner FIRE produces one authority damage result | One static admission-boundary comparison capped at10 minutes; no engine/repair/rerun selected. |
+| HALYARD-GUNNER-DAMAGE /11,16 | FAILED original seat step; damage NOT_RUN | Actual existing ordinary gunner FIRE produces one authority damage result | One caller repair selected after static comparison; unchanged full qualification once, cumulative failure retained. |
 
 ### HALYARD-GUNNER-DAMAGE — one real hit through the existing ordinary role
 
@@ -165,3 +165,20 @@ software-renderer or source checks cannot replace them. Project completion requi
 every original promise accepted or explicitly owner-deferred beside that promise,
 all applicable final-candidate gates passed, and distributed bytes matching the
 qualified candidate. No broad parent or phase closes in this reorganization.
+
+### Selected one caller repair — same failed gunner task
+
+The read-only comparison found a coordinate-lifetime mismatch: `_look()` retains
+one world point over four physics waits on the deliberately drifting Halyard,
+while the interaction consumer reads the live seat center/facing. Nominal target
+matches the seat's local UP*1.2 interaction center. Actual failure cause is still
+unestablished: raw log lacks facing/overlap/arbitration values. No runtime fix.
+
+Root selects ONE test-only attempt: capture aim target in craft-local coordinates
+on `_look` entry and recompute its world position before each existing iteration.
+All five existing calls target craft-relative anchors/views. Preserve the four
+waits, Input route, all assertions, target fixture, full300s and actual damage
+proof. Five minutes edit/review; compile once then full original test once.
+This is the original failed task plus its one repair, not a new budget. Any
+unexpected failure now requires cumulative priority review before more diagnosis,
+fix or run. No timeout increase, geometry/state staging or automatic third attempt.
