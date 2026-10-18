@@ -49,7 +49,7 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
   `-- --pause-16x10-only`, actual Main1920x1200/headless/Dummy, original300s.
   At requested0.75, binding_conflict focuses InputBindingConflictReplaceButton
   at(681.75,1815.75,252.75,24), outside safe bounds and clip; scroll450.
-  Eighteen observations precede the failure; later states/scales are NOT_RUN.
+  The run stops after18 observations; later states/scales are NOT_RUN.
   Ordinary options re-entry passes after the recorded fixture timing correction.
 - **Ownership/boundary:** existing conflict presentation/focus/scroll owners in
   `scripts/ui/hud.gd`; existing fixture only for a demonstrated fixture defect.

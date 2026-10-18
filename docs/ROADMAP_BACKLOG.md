@@ -701,7 +701,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 Count the named rows as inventory outcomes, **not remaining executable jobs**.
 DONE rows retain their exact-source scope; definition, qualification, build and
 implementation are different types of work. This inventory has **246 named outcomes**, including **19 DONE** in their recorded
-planning/source scopes. The other227 rows include definitions, dependencies and
+planning/source/build/qualification scopes. The other227 rows include definitions, dependencies and
 qualifications; they are not227 implementation jobs. The completed eight-card batch is archived; the working queue has two bounded follow-ups;
 its current completion and READY/GATED counts are shown in ROADMAP.md.
 
@@ -723,7 +723,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | Parent | Original parent outcome | Active task families | Reconciliation / next named outcome |
 | --- | --- | --- | --- |
 | 1 | Finish final integrated-source and packaged physical abandonment acceptance | WORLD-ABANDON, WORLD-SOLO, PACKAGE-WIN, PACKAGE-LINUX | Source Ember abandonment DONE on e85157b4d; EMBER-PACKAGE-ABANDON and real-file/reuse cases remain gated. |
-| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE DONE; actual on-foot package-driver/CUT next. Six other context contracts and installed cuts remain. |
+| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Six other context contracts and installed cuts remain. |
 | 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
 | 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER/SCOPE-DESKTOP DEFINE; SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
 | 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | Next eight cards assigned in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
