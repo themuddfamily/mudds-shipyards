@@ -242,9 +242,20 @@ func _run() -> void:
 	_report_production_stretch_policy()
 	# Selected roadmap qualification reuses Main and the existing measurements,
 	# without multiplying the historical whole-HUD sweep by another aspect/scale.
-	if OS.get_cmdline_user_args().has("--pause-4x3-only") or OS.get_cmdline_user_args().has("--pause-16x10-only") or OS.get_cmdline_user_args().has("--pause-16x10-reentry-only"):
-		var resolution := Vector2i(1024, 768) if OS.get_cmdline_user_args().has("--pause-4x3-only") else Vector2i(1920, 1200)
-		await _qualify_pause_resolution(resolution)
+	var arguments := OS.get_cmdline_user_args()
+	var pause_resolution := Vector2i.ZERO
+	if arguments.has("--pause-4x3-only"):
+		pause_resolution = Vector2i(1024, 768)
+	elif arguments.has("--pause-16x9-only"):
+		pause_resolution = Vector2i(1920, 1080)
+	elif arguments.has("--pause-21x9-only"):
+		pause_resolution = Vector2i(3440, 1440)
+	elif arguments.has("--pause-32x9-only"):
+		pause_resolution = Vector2i(5120, 1440)
+	elif arguments.has("--pause-16x10-only") or arguments.has("--pause-16x10-reentry-only"):
+		pause_resolution = Vector2i(1920, 1200)
+	if pause_resolution != Vector2i.ZERO:
+		await _qualify_pause_resolution(pause_resolution)
 		await _teardown()
 		_finish()
 		return
@@ -349,8 +360,8 @@ func _check_layout_report(
 	)
 
 
-## ACCESS-PAUSE-4X3 / ACCESS-PAUSE-16X10: select --pause-4x3-only or
-## --pause-16x10-only after -- to reuse this fixture at the named resolution.
+## ACCESS-PAUSE: select --pause-{4x3,16x9,16x10,21x9,32x9}-only after --
+## to reuse this fixture at one named resolution.
 ## Three authored scales, one actual Main Window, finite pause/options roster.
 ## Caller persistence and display transactions are deliberately not exercised:
 ## the test supplies the same presentation reports used by the existing owners.
