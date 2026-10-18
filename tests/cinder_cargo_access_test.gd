@@ -212,6 +212,8 @@ func _test_hauler_physical_access() -> void:
 		and absf(access.to_local(ship.global_transform * Vector3(0.0, bounds.position.y, 0.0)).y - CinderCargoAccess.LANDING_DECK_TOP) <= 0.01
 		and deck != null
 		and ship.get_node(^"ExitPoint").get_instance_id() == exit_node_id
+		and (access.get_node(^"VisualRouteCues/CargoAccessLabel") as Label3D).text.begins_with("< CINDER CARGO TERMINAL | HAULER BERTH >\n")
+		and access.get_route_identity_visual_audit().valid
 		and exit_node.basis.is_equal_approx(authored_exit.basis)
 		and is_equal_approx(exit_node.position.x, authored_exit.origin.x)
 		and is_equal_approx(exit_node.position.z, authored_exit.origin.z)
@@ -273,8 +275,10 @@ func _test_hauler_physical_access() -> void:
 	_check(
 		berth.release(ship, lease)
 		and access.validate_terminal_actor(player, ship, generation).reason == &"wrong_terminal_craft"
-		and berth.get_dock_transform().is_equal_approx(access.global_transform * CinderCargoAccess.BERTH_DOCK_LOCAL),
-		"Hauler release revokes physical terminal authorization and restores the original Jovian dock"
+		and berth.get_dock_transform().is_equal_approx(access.global_transform * CinderCargoAccess.BERTH_DOCK_LOCAL)
+		and exit_node.transform.is_equal_approx(authored_exit)
+		and (access.get_node(^"VisualRouteCues/CargoAccessLabel") as Label3D).text.begins_with(CinderCargoAccess.ROUTE_IDENTITY_HEADER + "\n"),
+		"Hauler release revokes physical terminal authorization and restores its original physical exit, Jovian dock and route header"
 	)
 	_release_actions()
 	stage.queue_free()
@@ -773,7 +777,7 @@ func _test_jovian_fit_capture_and_sweep(
 	_check(
 		berth != null
 		and berth.get_berth_id() == CinderCargoAccess.BERTH_ID
-		and berth.get_compatibility_tags() == PackedStringArray(["light_freighter"])
+		and berth.get_compatibility_tags() == PackedStringArray(["light_freighter", "cargo_hauler"])
 		and berth.is_compatible_with(JOVIAN_DEFINITION),
 		"one real ShipBerth accepts the live Jovian light-freighter definition"
 	)
