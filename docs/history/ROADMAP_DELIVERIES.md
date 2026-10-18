@@ -8506,3 +8506,85 @@ the full startup suite. This is not an unchanged third probe or a reset budget.
   CI. Fixtures and acceptance limits remain disclosed. Commit/push regularly;
   clean owned scratch after terminal closure. Independent Cinder supply terminal
   qualification remains an unselected alternative; no adjacent recovery chain.
+
+## Gamepad camera look — accepted99e79c3
+
+Clean source `99e79c372058ef3218084e4584da055f872e0c94`; task branch
+`fix/gamepad-look-20261018`. Actual right-stick camera look is now implemented
+for local Player (on foot/aboard/awake station seating) and TowTractor owners.
+One preload-only input-state helper supplies per-device held axes, radial0.2
+rescaled deadzone, normalized diagonal and2.5rad/s delta step. Existing pitch
+direction/inversion, clamps, yaw wrap and mouse code remain. Only active local
+current camera/control consumes. Explicit handoffs/rest/remote/tree changes and
+pause/app focus/modal/disconnect retire held state. While driving, accepted
+nonzero stick look suspends only camera recenter so it retains its authored rate;
+idle recenter/movement/steering remain. No settings/binding/HUD promise reduction.
+
+Test-only `5348dc9a8b0c1afe252a80e08cc3be67040bae08` imports20.709s,
+compiles2.402/3.396s; full original suites reproduce exactly11 intended player
+failures15.311s and8 tractor failures31.889s, actual exit1 retained, no extras.
+Final import6.702s/compiles2.274/3.400s pass. Full player106 checks15.319s,
+tractor148 checks31.890s (including additive moving-camera rate), existing
+production tow integration92 checks42.557s and glyph HUD40 checks2.410s pass.
+Original assertions/waits remain. Independent exact-pin static review GO;
+unique authored helper UID commits before import. No repair retry was needed.
+
+Safe Windows/Linux exports26.679/25.861s pass. Direct Linux22.512s, extracted
+archive23.940s and Windows payload through Linux Godot25.506s each exit0 with
+exactly one STARTUP_MENU_READY_OK. Actual1517-entry PCK payloads match; stock
+x64 PE text, Linux metadata and exact archive bytes/modes/epoch verify. Published
+11 files and two-member checkpoint ZIP bytes/integrity verify. All17 supervised
+owners terminal0 (two deliberate old tests actually exit1); all76 captured process
+identities absent,11 logs/21 app-data files archived byte-identically. Source/index/
+cache/engine guards hold. Owned worktree/duplicate exports/profiles/helpers removed;
+unique results, remote branch and public builds retained.
+
+Raw: `/srv/mudds-work/gamepad-look-20261018/results/`.
+[Windows notes](../../builds/windows/MuddsShipyards-99e79c3-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-99e79c3-linux-notes.txt).
+All automated engine runs headless/Dummy. Synthetic events and real camera nodes
+with manual deltas are focused proof, not physical controller feel, ordinary
+controller-only journeys, full Settings persistence or native Windows/GPU/audio
+qualification. Current full matrix and original fleet/world/recovery acceptance
+remain open; all36 parents/ten gates OPEN; Titan unapproved; CI disabled.
+
+CONTROL-FINDINGS and ACCESS-VIEWS-DEFINE also close as bounded source definitions.
+The actual remaining production view roster names state owners, existing coverage
+and one-cell checks in the existing backlog. No new layout/capture/device run or
+whole-UI acceptance is claimed. No successor is automatically selected.
+
+### Retained GAMEPAD-LOOK contract
+
+### GAMEPAD-LOOK — make the advertised camera control work
+
+- **Kind/parents:** production input repair,8/29; SELECTED from CONTROL-FINDINGS.
+  HUD advertises Right Stick LOOK on foot/aboard/driving, but PlayerController
+  and TowTractor consume mouse motion only. Deliver actual stick camera look;
+  removing the hint would leave the required controller route unavailable.
+- **Owner/files:** one high-effort implementer owns
+  scripts/player/player_controller.gd, scripts/vehicles/tow_tractor.gd, optional
+  shared scripts/player/gamepad_look_input.gd plus its unique UID, and existing
+  tests/first_person_view_test.gd / tests/tow_tractor_test.gd. One independent
+  high-effort reviewer checks lifecycle/authority. Root runs/integrates/packages.
+  No ship steering, movement/tow handling, InputMap/binding/settings schema, HUD
+  promise reduction, network authority or parked-route changes.
+- **Finish:** standard right-stick axes continuously rotate the actual local
+  camera at a fixed authored2.5rad/s with radial0.2 deadzone/normalized diagonal,
+  using delta, existing yaw wrap and pitch clamps. Player uses existing on-foot
+  inversion; tractor retains its existing pitch direction. Existing mouse look
+  remains. Only the active local camera/control owner consumes look; clear held
+  input on control/camera/driver loss, rest/remote handoff, tree exit, pause,
+  application focus loss and active-device disconnect. Modal focused UI must not
+  keep rotating a camera from retained stick input. No physical-feel claim.
+- **Checks/budget:**60–90min, split before90. Test-only commits first: existing
+  two suites must reproduce only intended actual camera-look failures on old
+  code at original300s caps; preserve original assertions/waits. Final import/
+  compile/full same suites, existing tow integration and glyph HUD tests once,
+  private/headless/Dummy. Synthetic events/actual camera nodes are focused proof;
+  real-device/full Settings/ordinary controller routes stay open. First unexpected
+  failure stops for separate selection; original+one repair requires cumulative
+  review, no automatic third or changed deadline.
+- **Delivery/alternative:** clean paired checkpoint/three strict startups/actual
+  payload audit, notes/commit/push/owned cleanup. UI-view definition is independent
+  useful work; root completes it while implementation proceeds. No new option,
+  validator, generic input framework or adjacent control chain is selected.

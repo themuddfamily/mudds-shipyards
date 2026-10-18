@@ -1,11 +1,10 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**e3d1ada**, with the Heavy Breach board bound before play, Aurora/Rime and
-activity music,
-saved walking sprint toggle, authoritative remote HUD and earlier gameplay fixes.
-[Windows notes](builds/windows/MuddsShipyards-e3d1ada-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-e3d1ada-linux-notes.txt) state actual validation.
+**99e79c3**, with continuous right-stick camera look on foot, aboard and in the
+tow tractor, plus earlier startup, music, saved sprint and remote HUD fixes.
+[Windows notes](builds/windows/MuddsShipyards-99e79c3-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-99e79c3-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -51,6 +50,7 @@ unapproved; parked failures remain outside the queue.
 | AUDIO-ACTIVITY-LIFECYCLE /30 | DONE; packagedf1f35d1 | Current activity mix survives normal base updates and same-run completion | Closed after five focused suites and paired checkpoint; audible mix review stays open. |
 | AUDIO-SURFACE-MUSIC /30 | DONE; packaged4ff7a08 | Aurora/Rime music follows transit/landing/surface visit state | Closed after full phase/activity/bed checks, independent review and paired checkpoint; ordinary journey/listening gates remain open. |
 | BOOT-BREACH-OWNERS /9,11,13 | DONE; packagede3d1ada | Physical Heavy Breach board has its actual director/combat/objective owners before play | Full startup and production route pass; paired checkpoint. Crash-recovery transaction stays parked. |
+| GAMEPAD-LOOK /8,29 | DONE; packaged99e79c3 | Held right stick rotates actual local Player/tractor camera with safe handoffs | Full focused camera/tow/glyph checks, independent review and paired checkpoint pass; real-device/full controller route remains open. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
 are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
@@ -110,10 +110,10 @@ commit assertion in69.957s. No terminal recovery OK or third paid cold replay;
 no export/merge/checkpoint. Prior71.004s is retained: cumulative140.961s. No
 further repair/run is selected. [Reopening result and retained scope](docs/history/ROADMAP_DELIVERIES.md#breach-interruption-after-fixed-startup--failed-and-parked).
 
-### Selected definitions — controls/help and remaining UI views
+### Completed definitions — controls/help and remaining UI views
 
 CONTROL-FINDINGS (parent8) is DONE as source review: the concrete missing
-right-stick camera input is selected below. ACCESS-VIEWS-DEFINE (parents12/29)
+right-stick camera input is repaired below. ACCESS-VIEWS-DEFINE (parents12/29)
 is DONE as a source definition in the [finite production view roster](docs/ROADMAP_BACKLOG.md#remaining-ui-view-roster--access-views-define).
 It identifies actual owners, visible states and existing coverage for gameplay,
 help, activity/nearby/destination pages, browser, credits, captions, role status,
@@ -122,39 +122,19 @@ No new UI qualification ran. Existing mixed prompts, camera-distance help,
 sprint toggle and16:10 pause acceptance retain their recorded scope. No full
 UI/device acceptance or unchanged parked rerun is implied.
 
-### GAMEPAD-LOOK — make the advertised camera control work
+### Latest controller delivery
 
-- **Kind/parents:** production input repair,8/29; SELECTED from CONTROL-FINDINGS.
-  HUD advertises Right Stick LOOK on foot/aboard/driving, but PlayerController
-  and TowTractor consume mouse motion only. Deliver actual stick camera look;
-  removing the hint would leave the required controller route unavailable.
-- **Owner/files:** one high-effort implementer owns
-  scripts/player/player_controller.gd, scripts/vehicles/tow_tractor.gd, optional
-  shared scripts/player/gamepad_look_input.gd plus its unique UID, and existing
-  tests/first_person_view_test.gd / tests/tow_tractor_test.gd. One independent
-  high-effort reviewer checks lifecycle/authority. Root runs/integrates/packages.
-  No ship steering, movement/tow handling, InputMap/binding/settings schema, HUD
-  promise reduction, network authority or parked-route changes.
-- **Finish:** standard right-stick axes continuously rotate the actual local
-  camera at a fixed authored2.5rad/s with radial0.2 deadzone/normalized diagonal,
-  using delta, existing yaw wrap and pitch clamps. Player uses existing on-foot
-  inversion; tractor retains its existing pitch direction. Existing mouse look
-  remains. Only the active local camera/control owner consumes look; clear held
-  input on control/camera/driver loss, rest/remote handoff, tree exit, pause,
-  application focus loss and active-device disconnect. Modal focused UI must not
-  keep rotating a camera from retained stick input. No physical-feel claim.
-- **Checks/budget:**60–90min, split before90. Test-only commits first: existing
-  two suites must reproduce only intended actual camera-look failures on old
-  code at original300s caps; preserve original assertions/waits. Final import/
-  compile/full same suites, existing tow integration and glyph HUD tests once,
-  private/headless/Dummy. Synthetic events/actual camera nodes are focused proof;
-  real-device/full Settings/ordinary controller routes stay open. First unexpected
-  failure stops for separate selection; original+one repair requires cumulative
-  review, no automatic third or changed deadline.
-- **Delivery/alternative:** clean paired checkpoint/three strict startups/actual
-  payload audit, notes/commit/push/owned cleanup. UI-view definition is independent
-  useful work; root completes it while implementation proceeds. No new option,
-  validator, generic input framework or adjacent control chain is selected.
+GAMEPAD-LOOK is DONE in checkpoint **99e79c3**. The advertised right-stick LOOK
+now continuously rotates actual Player/tractor cameras at the authored delta-based
+rate, with existing inversion/clamps and local owner/lifecycle clearing. Active
+stick look suspends only the tractor's camera recenter; idle recenter remains.
+Old exact11/8 failures, final complete player106/tractor148/tow integration92/
+glyph HUD40 checks, independent review, paired exports/three strict silent
+startups and actual1517-entry payload audit pass. Physical controller feel,
+ordinary controller-only journeys and full Settings/hardware acceptance remain
+open. [Result and retained card](docs/history/ROADMAP_DELIVERIES.md#gamepad-camera-look--accepted99e79c3).
+No successor is selected by this closure; remaining definitions and original
+qualification routes retain their named boundaries.
 
 ## Parked failures and dependent work
 

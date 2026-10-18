@@ -1,6 +1,21 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **e3d1ada**, clean source
+Latest accepted paired checkpoint: **99e79c3**, clean source
+`99e79c372058ef3218084e4584da055f872e0c94`
+([Windows notes](../builds/windows/MuddsShipyards-99e79c3-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-99e79c3-linux-notes.txt)). Standard
+right-stick input now rotates actual local Player and tractor cameras continuously,
+with authored delta rate/deadzone, existing inversion/clamps and lifecycle clearing.
+Tractor camera recenter yields while stick look is active. Old exact11/8 regression
+failures, full focused player106/tractor148/tow integration92/glyph HUD40 checks,
+independent review, paired exports/three strict silent startups and actual1517-entry
+payload audit pass. Synthetic input/live cameras/manual deltas do not establish
+physical feel or ordinary full controller/Settings routes. Native hardware/full
+regression/original acceptance remain open. All36 parents/ten gates OPEN; Titan
+interpretation unapproved. The finite remaining UI view roster is a source-only
+definition, not new whole-UI acceptance.
+
+Earlier accepted paired checkpoint: **e3d1ada**, clean source
 `e3d1ada37c46d34e2528f8ab86ce4516da7ac4e1`
 ([Windows notes](../builds/windows/MuddsShipyards-e3d1ada-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-e3d1ada-linux-notes.txt)). The physical
