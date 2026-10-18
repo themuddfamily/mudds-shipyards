@@ -336,12 +336,12 @@ uses a fake filesystem/fresh Main and does not walk. Its real-file case covers
 cabin/rest. safe_start_production_recovery_test and CrashRecoveryCoordinator
 cover boot-marker/settings ordering, not on-foot pose/usable walking. Existing
 startup_loader.in_world_probe_request, in_world_interruption_probe and
-run_package_probes.sh admit pilot/cabin/rest/crew/engineer; on_foot is unsupported.
+run_package_probes.sh originally admitted pilot/cabin/rest/crew/engineer; on_foot was unsupported at definition.
 
-Next production capability is RECOVERY-ONFOOT-PROBE: extend this existing exported
+Delivered production capability is RECOVERY-ONFOOT-PROBE at f90547c37: extends the existing exported
 release-driver path to a genuine settled on-foot commit/resume case, preserving
-private headless/Dummy admission and existing contexts. Then ship the exact new
-package. Separate RECOVERY-ONFOOT-CUT owns actual real-file commit for a named
+private headless/Dummy admission and existing contexts. The paired checkpoint and actual direct/archive-extracted ELF cut now pass.
+RECOVERY-ONFOOT-CUT proves actual real-file commit for a named
 nondefault craft, owned SIGKILL/reap and distinct same-profile Resume/Begin Shift,
 supported outside-home recovery with no seat/hatch claim, ordinary walking then
 real Interact boarding, and conserved existing activity/debt/reward boundary.
@@ -648,10 +648,10 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 
 | ID | Named outcome | Parents | State / dependency |
 | --- | --- | --- | --- |
-| RECOVERY-ONFOOT-DEFINE | On-foot durable-boundary/resume-or-safe-home contract | 2,31 | DONE; four-field home preference, real-file OS interruption still uncovered |
-| RECOVERY-ONFOOT-PROBE | Exported release driver admits and observes genuine on-foot save/resume context | 2,31,32 | DONE source scope f90547c37: real-file source kill/restart, supported walk+Interact, receipts1→2; package pending |
+| RECOVERY-ONFOOT-DEFINE | On-foot durable-boundary/resume-or-safe-home contract | 2,31 | DONE; four-field home preference; selected f90547c archive cut now accepted |
+| RECOVERY-ONFOOT-PROBE | Exported release driver admits and observes genuine on-foot save/resume context | 2,31,32 | DONE source scope f90547c37: real-file source kill/restart, supported walk+Interact, receipts1→2; package child accepted |
 | CHECKPOINT-ONFOOT-PROBE | Paired checkpoint ships accepted on-foot release-driver support | 6,32 | DONE f90547c: paired exports, strict startups and exact package audits |
-| RECOVERY-ONFOOT-CUT | Real-file on-foot commit, owned SIGKILL and distinct-process usable home recovery | 2,31 | IN PROGRESS; exact f90547c Linux native-export cut,300s/stage |
+| RECOVERY-ONFOOT-CUT | Real-file on-foot commit, owned SIGKILL and distinct-process usable home recovery | 2,31 | DONE f90547c direct and actual archive-extracted ELF cuts; supported walk/Interact, receipts1→2 once |
 | RECOVERY-PILOT-DEFINE | Pilot durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-CABIN-DEFINE | Cabin/rest durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
@@ -700,9 +700,9 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 
 Count the named rows as inventory outcomes, **not remaining executable jobs**.
 DONE rows retain their exact-source scope; definition, qualification, build and
-implementation are different types of work. This inventory has **246 named outcomes**, including **16 DONE** in their recorded
-planning/source scopes. The other230 rows include definitions, dependencies and
-qualifications; they are not230 implementation jobs. The completed eight-card batch is archived; the working queue has four cards;
+implementation are different types of work. This inventory has **246 named outcomes**, including **19 DONE** in their recorded
+planning/source scopes. The other227 rows include definitions, dependencies and
+qualifications; they are not227 implementation jobs. The completed eight-card batch is archived; the working queue has two bounded follow-ups;
 its current completion and READY/GATED counts are shown in ROADMAP.md.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with

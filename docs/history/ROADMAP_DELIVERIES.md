@@ -5488,3 +5488,28 @@ placement first. Next production card is the exact offscreen conflict/focus repa
 in existing HUD owners, with one unchanged full selected300s proof after repair
 and a fresh paired checkpoint if accepted. No overlapping UI audit or repeated
 unchanged run is scheduled.
+
+RECOVERY-ONFOOT-CUT DONE at the original archive-placement boundary. The
+actual audited tar is extracted into an owned install directory, ELF755 bytes
+match the accepted public SHA and the original immutable metadata is copied
+for existing native-export admission. The executable at that extracted path
+passes actualarm691569/-9, distinctresume691843/0, exact four-field Bulwark
+preference, awake supported unseated/claim-free player, ordinary walk0.525555m
+and Interact boarding, accepted flight input, conserved failed convoy/receipt
+and distinct payment1→2 once. Both source/cache manifests match, outerexit0,
+owned_children_reaped=true, raw archive-cut/onfoot-convoy retained. This closes
+the specified exported/archive instance; desktop-menu install, other contexts,
+arbitrary power loss, fullflight and native/device gates remain open.
+
+All18 observed supervisors are terminal/absent; source/driver children are
+reaped/absent. Seven public artifact hashes remain exact. Both task checkouts,
+private profiles/helpers, temporary archive install and duplicate builds are
+removed; source refs/commits, public builds and unique raw remain. Other dirty
+retired worktrees are untouched. Cleanup receipt is in the same raw results.
+
+Four-card batch ends3 DONE/1 FAILED. The next queue contains exactly two bounded
+follow-ups: UI-CONFLICT-REVEAL production repair (one live conflict/focus/scroll
+outcome,30–45min; existing selected300s acceptance), then its gated paired
+checkpoint. No new UI probe/repair ran after the failed corrected qualification.
+All36 broad parents and ten phase gates remain open; inventory count19 DONE
+includes scoped planning/source/build/qualification outcomes, not project%.

@@ -8,8 +8,10 @@ Current paired development checkpoint: **f90547c**, accepted clean source
 existing release driver's on-foot context. Source real-file kill/restart passes
 supported walking/ordinary boarding and conserved convoy receipts1→2 once;
 source craft-motion/home approach fixtures are disclosed. Both safe exports,
-three strict startups and exact package/archive audits pass. Exported-game
-on-foot interruption is IN PROGRESS, not established by source proof. Prior
+three strict startups and exact package/archive audits pass. Actual direct and archive-extracted Linux ELF on-foot interruption now pass
+the same real-file kill/restart, supported walking/boarding and once-only reward
+boundary. Desktop-menu installation, other recovery contexts and arbitrary
+power loss remain separate. Prior
 source4c9c764e9 ordinary two-client short-sortie/home-return scope remains retained;
 no canonical/shared-world/endurance/full-craft closure. Native Windows/GPU/device/
 audio/human/current full matrix and final release gates remain open.

@@ -18,8 +18,9 @@ Craft-motion/home-approach fixtures are disclosed; no fullflight/pose claim.
 Both safe exports, direct/archive Linux strict startups and actual Windows
 payload startup through Linux Godot pass. All1515 actual PCK entries match;
 stock PE .text, exact archive/generated launchers/modes/metadata and Windows ZIP
-verify. Seven artifact/note files are available in repository builds/. Exact
-exported-game on-foot interruption is IN PROGRESS; source proof does not close it.
+verify. Seven artifact/note files are available in repository builds/. Exact direct and actual archive-extracted Linux ELF on-foot interruption pass:
+owned SIGKILL/distinct restart, supported walk0.525555m/ordinary Interact and
+conserved convoy receipts1→2 once. This does not qualify desktop-menu installation.
 Native Windows/GPU/device/audio/human/full matrix/endurance/release remain open.
 
 ## Earlier development checkpoint: `2c73494` — 2026-10-18

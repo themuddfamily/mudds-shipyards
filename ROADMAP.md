@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: finish 16:10 qualification and the archive-placed on-foot recovery cut.**
+**Next: keep input-binding conflict choices visible and reachable in Options.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -15,146 +15,72 @@ phase gates remain open.** This file holds the executable queue; the
 | Immediate client landing edge retained exactly once | Runtime `2c73494a4`; old-runtime failure reproduced, consumer40/ship_command79 pass. Source/ownership/session boundaries revoke pending input. |
 | Fresh playable checkpoint **f90547c** | [Windows notes](builds/windows/MuddsShipyards-f90547c-notes.txt), [Linux notes](builds/linux/MuddsShipyards-f90547c-linux-notes.txt). Adds on-foot release-driver support; both exports, three strict startups,1515 matching payload entries and exact archives pass. |
 | Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
+| Actual on-foot recovery in exported/archive Linux checkpoint | f90547c real-file SIGKILL/distinct restart; supported awake unseated player, ordinary walk0.525555m+Interact boarding, conserved convoy and receipts1→2 once. Private headless/Dummy and disclosed craft-placement fixtures; no fullflight/native-device claim. |
 | Earlier passenger chair/HUD, lifecycle, browser/briefing deliveries | Retain their recorded scopes; no whole craft, parent or phase closes. |
 
-The eight-card batch is closed: reproduction, runtime repair, checkpoint, shared
-return and four bounded definitions. Definitions are planning, not extra game
-features. The return's first`331a9628b` attempt FAILED at a client ownership predicate;
-one reviewed caller-only correction reads the received authoritative snapshot.
-Failed raw, original criteria and cumulative repair counts remain retained.
-The accepted caller changes no game runtime; checkpoint `f90547c` now adds the accepted on-foot release-driver capability.
-No identical rebuild or unchanged route rerun is scheduled.
+The latest four-card batch ends with **3 DONE, 1 FAILED**: on-foot driver,
+paired checkpoint and actual exported/archive recovery pass; the 16:10 UI check
+stops at offscreen binding-conflict choices. Original same-frame fixture and
+compile failures, their single corrections and all raw remain in
+[delivery history](docs/history/ROADMAP_DELIVERIES.md). Qualification is not a new
+gameplay feature or a whole-project percentage. Earlier two-client return remains
+its accepted source-specific scope.
 
 **Still unqualified:** dedicated server, postdock exit/reuse, canonical shared
 world journeys,30-minute endurance, devices/native GPU/audio and final release.
 Current full matrix NOT_RUN; last unfiltered f85957f failed 11 of 1,045 suites.
 Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
-## Next four cards
+## Next two cards
 
-**2 DONE, 2 IN PROGRESS.** These are the current bounded deliveries, not the remaining
+**1 READY, 1 GATED.** These are executable task instances, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
-| RECOVERY-ONFOOT-PROBE | Release capability / DONE (source scope) | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
-| CHECKPOINT-ONFOOT-PROBE | Build / DONE | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
-| RECOVERY-ONFOOT-CUT | Recovery qualification / IN PROGRESS | Real-file on-foot commit survives owned SIGKILL/distinct restart into supported walking and real boarding beside the saved craft. |10–20 min freeze/driver preparation; existing package-probe limits separate and unchanged. |
-| ACCESS-PAUSE-16X10 | UI qualification / FAILED at binding-conflict visibility | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
+| UI-CONFLICT-REVEAL | Production UI / READY | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
+| CHECKPOINT-PAUSE-CONFLICT | Build / GATED on accepted repair | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
 
-The three recovery cards are sequential. UI work can proceed independently in
-an isolated checkout with disjoint ownership. A failed card ends at its first
-concrete boundary; one attempted repair requires priority review before more work.
+### UI-CONFLICT-REVEAL — make the focused conflict choice visible
 
-### RECOVERY-ONFOOT-PROBE — support the missing release-driver context
+- **Parents/result:**12/29. A player rebinding a conflicting key can see and
+  reach Replace/Cancel in the live Options scroller at the authored UI scales.
+- **Reproduction:** existing `tests/ultrawide_layout_test.gd` at `4128526c9`,
+  `-- --pause-16x10-only`, actual Main1920x1200/headless/Dummy, original300s.
+  At requested0.75, binding_conflict focuses InputBindingConflictReplaceButton
+  at(681.75,1815.75,252.75,24), outside safe bounds and clip; scroll450.
+  Eighteen observations precede the failure; later states/scales are NOT_RUN.
+  Ordinary options re-entry passes after the recorded fixture timing correction.
+- **Ownership/boundary:** existing conflict presentation/focus/scroll owners in
+  `scripts/ui/hud.gd`; existing fixture only for a demonstrated fixture defect.
+  Preserve capture/conflict decisions, persistence, focus identity and scroller
+  liveness checks. No broad Options redesign or new harness/validator.
+- **Proof:** explicit compile and one existing full selected fixture under its
+  original300s cap at0.75/1.0/1.6 and finite pause/options roster. The focused
+  choice must fit both safe bounds and its scroll clip, with live focus. Preserve
+  every existing criterion and requested/effective scale reporting. Native
+  devices, rendered readability and actual persistence transactions stay separate.
+- **Execution:** READY/root; inspect the demonstrated conflict reveal/scroll
+  ordering and make one bounded production correction. One diagnostic hypothesis
+  permits one probe if needed. Budget30–45 min; split before90. First new failure
+  stops with source/view/control/scale recorded; no automatic second repair.
+  Initial qualification and fixture-correction failures remain cumulative.
+- **Close:** actual result/source/limits, commit/push, fresh checkpoint if accepted,
+  and cleanup of owned disposable work. This does not close every UI aspect group.
 
-- **Parents/result:**2/31/32. The existing runtime already saves a four-field
-  home-berth preference for settled on-foot play; it stores no player pose. The
-  release driver's allowed contexts currently reject on_foot. Deliver this
-  executable package/release capability, not another evidence format.
-- **Ownership:** `scripts/game/startup_loader.gd`,
-  `scripts/diagnostics/in_world_interruption_probe.gd`,
-  `tools/release/run_package_probes.sh` and the smallest relevant existing checks
-  such as `tests/startup_cli_privacy_test.gd`. Use existing GameFlow capture/apply
-  and UserDataStore owners; change runtime recovery only for a reproduced defect.
-- **Boundary:** add on_foot to the existing isolated silent driver path. Preserve
-  pilot/cabin/rest/crew/engineer behavior, unsafe CLI rejection, private profile/
-  Dummy requirements and normal startup isolation. Arm a named nondefault craft's
-  genuine settled exterior preference through the production capture/commit seam;
-  do not fabricate saved payload, player position, berth/seat authority or rewards.
-  The selected convoy case discloses its existing craft-motion fixture and a
-  craft-only home-approach placement; production landing/lease, pilot exit and
-  supported exterior capture must establish the saved context. This does not
-  qualify an ordinary full flight home.
-- **Proof:** the old boot contract rejects this context; new focused admission/
-  source-probe checks require the supported four fields, correct actual supported
-  player state and explicit arm/resume observation. Compile and relevant existing
-  checks on a clean pinned source. Do not rerun parked whole session recovery/Q5.
-  Source-driver proof does not close real OS interruption or packaged acceptance.
-- **Execution:** DONE/root at `f90547c37`, after recorded failure/one type repair.
-  Source driver PASS: actual arm SIGKILL/reap, distinct resume0, supported walk
-  0.525555m, ordinary Interact boarding, receipts1→2 exactly once; source/cache
-  stable and processes closed. This does not close exported-game acceptance.
-  Original candidate `b5e2b00a5` passed static review and
-  import but explicit compile exits1: forward/right types cannot be inferred
-  at probe lines1232/1233. CLI not run. One bounded repair adds only explicit
-  Vector3 annotations at `f90547c37`: compile PASS and CLI249 PASS, source/cache
-  stable. Priority review selects one existing source-driver on_foot+convoy
-  arm/resume check next, before paying for packages; competing full UI sweep
-  stays queued. Exact `--source --in-world-interruption --activity=convoy`,
-  context on_foot, Dummy/headless,300s per stage/660s outer, first failure STOP.
-  Source invocation passed; original failure/repair counts remain. Inspect existing arm/resume branches and freeze the
-  on-foot case contract from the [completed definition](docs/ROADMAP_BACKLOG.md#settled-exterior-on-foot-recovery-contract).
-  Budget45–60 min; split before 90 min. First unexpected result stops for review.
-  Commit/push accepted production capability; immediately build the next card.
+### CHECKPOINT-PAUSE-CONFLICT — ship the accepted UI correction
 
-### CHECKPOINT-ONFOOT-PROBE — ship the accepted release capability
-
-- **Parents/result:**6/32; gate on clean accepted probe source. Pin Godot/templates,
-  correct private versioned XDG template mapping, preserve HOME/CODEX_HOME.
-- **Proof:** existing safe sequential Windows/Linux exports; EXE/ZIP/notes and
-  matching ELF/archive/notes; actual PCK byte parity, exact members/modes/metadata,
-  stock PE .text. Direct/archive Linux and actual Windows payload each strict
-  headless/Dummy startup actualexit0+exactlyone STARTUP_MENU_READY_OK/no original
-  error/leak diagnostics. Native Windows execution is not implied.
-- **Execution:** DONE/root on accepted clean source `f90547c37`; both safe exports,
-  three strict startups, actual payload parity/archive/stock PE checks pass.
-  EXE/ZIP/notes and matching Linux artifacts are in repository builds/.
-- **Budget/stop/close:**15–25 min preparation/checks, original900s exports/300s
-  startups separately. One export/platform, first failure stops with raw retained.
-  Publish only repository builds; commit/push notes/index, then qualify the cut.
-
-### RECOVERY-ONFOOT-CUT — actual installed/archive interruption and usable return
-
-- **Parents/result:**2/31; gate on exact package supporting on_foot and existing
-  release-driver contract. Choose one existing supported activity/debt boundary
-  and named nondefault craft/home berth; retain its existing limits and criteria.
-- **Proof:** actual real-file settled exterior preference committed before the
-  armed signal; own/reap real SIGKILL, then a distinct same-profile process accepts
-  ordinary Resume/Begin Shift. Fresh craft/home-berth support is valid, player is
-  awake/unseated/controls enabled with no stale seat/hatch claim. Walk through
-  normal input and Interact to board that craft; activity/debt/earned-reward state
-  remains conserved/once-only. No airborne position or arbitrary power-loss claim.
-- **Execution:** IN PROGRESS/root. Freeze accepted `f90547c` Linux ELF, SHA256
-  `5c0cfb46f1aa0a42bb9bdc087dfe9aec6fba6a5038425f197e282c0bb5dc17d9`,
-  existing runner `--native-export --in-world-interruption --activity=convoy`,
-  on_foot/private headless/Dummy, original300s/stage and660s outer. One run;
-  no automatic repair. The direct repository ELF invocation PASSES, including
-  real SIGKILL/distinct restart, supported walk/Interact and receipts1→2.
-  The card title also requires installed/archive placement: keep that part OPEN.
-  After the independent UI run closes, extract the audited exact archive to an
-  owned install directory, verify ELF bytes and copy its immutable export metadata,
-  then run the existing native-export driver once at that actual extracted path.
-  This retains300s/stage/660s outer; desktop-menu installation stays separate.
-  Preparation10–20 min; stage checks retain
-  existing release-driver bounds. First failure closes FAILED; no extra probe or
-  automatic correction. Preserve raw/process/input closure; commit/push actual
-  scope and clean owned scratch. Native hardware/device/audio remain separate.
-
-### ACCESS-PAUSE-16X10 — one missing production-window layout case
-
-- **Parents/result:**12/29. Existing Main ultrawide layout coverage omits16:10;
-  a gameplay-only SubViewport check does not cover pause/options Controls.
-- **Ownership/boundary:** extend existing `tests/ultrawide_layout_test.gd` for the
-  selected1920x1200 case and required authored scales0.75/1.0/1.6 and pause/options
-  states from the [finite view roster](docs/ROADMAP_BACKLOG.md#pauseoptions-view-and-cell-roster).
-  Reuse existing HUD layout/focus/rebind/display/repair owners and checks. No new
-  harness/validator, speculative UI redesign or full settings/device matrix.
-- **Proof:** actual Main Window/viewport, visible Control safe bounds/font floor,
-  options scrolling and focus/confirmation return remain usable. Record requested
-  and effective pause scale; its authored fit ceiling is valid behavior. This
-  source-layout result does not qualify physical controllers or all rendered views.
-- **Execution:** FAILED/root. Original `dd4ff0353` same-frame options re-entry
-  failed; one fixture correction `4128526c9` uses separated ordinary buttons,
-  whose diagnostic passes159 assertions. One corrected full300s invocation
-  then fails at requested0.75/binding_conflict: focused Replace button rectangle
-  (681.75,1815.75,252.75,24) is outside visible bounds; scroll450. Eighteen
-  observations run; later states/scales NOT_RUN. Actualexit1, source/cache stable,
-  owner closed. Coverage is integrated; no production HUD fix is bundled.
-- **Priority review:** after the initial failure and one fixture correction,
-  stop UI diagnosis/repair here. Finish the archive recovery placement first.
-  The next production task must fix this exact visible conflict/focus outcome,
-  with original full selected300s acceptance; no repeated general UI audit.
+- **Parents/result:**6/32; gate on accepted clean UI repair source. Use the same
+  existing safe sequential Windows/Linux export and publication workflow as
+  checkpointf90547c, pinned engine/templates/private XDG; preserve HOME/CODEX_HOME.
+- **Proof:** relevant focused checks, actual PCK byte parity, exact archives and
+  metadata/stock PE checks, direct/archive Linux and actual Windows payload each
+  strict startup exit0+exactlyone STARTUP_MENU_READY_OK/no original diagnostics.
+  EXE/ZIP/notes and matching Linux artifacts belong in repository builds/.
+- **Execution/budget:** GATED/root;15–25 min artifact work, original900s/platform
+  exports and300s/startup separately. One export/platform; first failure stops.
+  Record actual scope/limits, commit/push notes/index and remove owned duplicates.
+  Native Windows/GPU/device/human/full-release gates remain open.
 
 ## Parked work and external waits
 
@@ -168,7 +94,7 @@ Bomber comparison now identifies one further precise interpretation: additional
 role/count, concrete navigation action and physical access are unspecified. It
 is not an approved pilot-only deferral; no invented crew feature is scheduled.
 
-Owned helm/return checkouts, profiles/helpers and duplicate builds are removed;
+Owned helm/return/on-foot/UI checkouts, profiles/helpers and duplicate builds are removed;
 unique raw/source refs and public builds remain. Three older dirty retired
 checkouts remain protected. Scratch belongs under `/srv/mudds-work/`.
 
