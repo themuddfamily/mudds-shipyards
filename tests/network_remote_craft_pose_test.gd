@@ -79,10 +79,15 @@ var _full_throttle: ShipCommand = null
 
 func _run() -> void:
 	if await _build():
+		if OS.get_cmdline_user_args().has("--hull-instruments-only"):
+			_assert_remote_hull_instruments()
+			await _finish_pose_suite()
+			return
 		_assert_remote_throttle_instruments()
 		if OS.get_cmdline_user_args().has("--throttle-instruments-only"):
 			await _finish_pose_suite()
 			return
+		_assert_remote_hull_instruments()
 		await _assert_a_grant_claims_ownership()
 		await _assert_b_host_publishes_the_pose()
 		await _assert_c_the_pilot_copy_is_reconciled()
@@ -233,6 +238,42 @@ func _assert_remote_throttle_instruments() -> void:
 			ship.clear_network_operation_presentation()
 	ship.set_network_damage_presentation_enabled(false)
 	ship.set("_piloted", piloted)
+	ship._update_presentation(TICK, ShipCommand.new())
+	ship.set_physics_process(was_processing)
+
+
+## The physical hull readout must present the published health/maximum pair,
+## even while the retained client simulation keeps its own healthy hull.
+func _assert_remote_hull_instruments() -> void:
+	var ship := _host.get_node("JovianLightFreighter") as HeroShip
+	var was_processing := ship.is_physics_processing()
+	ship.set_physics_process(false)
+	var solo := ship.get_network_damage_presentation_snapshot()
+	var velocity := ship.velocity
+	var source := ship.get_command_source()
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var physical := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/HullReadout") as Label3D
+	var entry := PoseStream.build_pose_entry(ship, ship.get_ship_id(), 1, 70)
+	entry["craft_epoch"] = 1
+	entry.hull_presentation["health"] = 50.0
+	entry.hull_presentation["maximum_health"] = 200.0
+	ship.set_network_damage_presentation_enabled(true)
+	for compact: bool in [false, true]:
+		var stream := PoseStream.new()
+		stream.bind_replica_craft_presentations([ship])
+		var wire := PoseStream.pack_display_facts([entry]) if compact else [entry]
+		_check(stream.consume_movement_section(wire) == 1,
+			"the existing %s pose admits an authoritative hull source sample" % ("compact" if compact else "unpacked"))
+		_check(bool(ship.apply_network_damage_presentation(stream.latest_sample(ship.get_ship_id())).get("applied", false)),
+			"the existing hull presentation accepts the %s host sample" % ("compact" if compact else "unpacked"))
+		ship._update_presentation(TICK, ShipCommand.new())
+		_check(physical.text == "025\nHULL %",
+			"%s host hull 025 reaches the physical Jovian HULL readout after local presentation" % ("compact" if compact else "unpacked"))
+		_check(ship.get_network_damage_presentation_snapshot() == solo
+			and ship.velocity == velocity and ship.get_command_source() == source,
+			"remote hull instrument retains local hull, components, velocity and command authority")
+		ship.clear_network_damage_presentation()
+	ship.set_network_damage_presentation_enabled(false)
 	ship._update_presentation(TICK, ShipCommand.new())
 	ship.set_physics_process(was_processing)
 
