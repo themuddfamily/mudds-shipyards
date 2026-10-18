@@ -99,6 +99,24 @@ on an actual source/destination policy; no policy inferred. Native/device/audio/
 human/installed/final-source acceptance remains factually unperformed where
 recorded; existing owner exclusions unchanged. CI remains disabled.
 
+### Mining first-play — privacy parse stop and bounded repair
+
+Initial clean sourced3ccec5e6 passes import20.710s, observer compile15.733s and
+startup compile1.174s. Full privacy check stops0.641s: new native-observer test
+local mining_args collides with the existing in-world-mining local in the same
+function. No Python/export/startup/ordinary-route stages ran. Retain failed raw
+stage/STOP/source and every original assertion/deadline.
+
+Root freezes one exact repair, independently causally reviewed: rename only the
+new native-observer block's declaration and three references to
+mining_first_play_args. No production behavior/test assertion change. Clean pin
+and independent delta review precede repair_privacy300 then the original unrun
+checks/packages/one archive route. Accepted unchanged import/production compiles
+are retained. Another unexpected failure requires cumulative priority review;
+no automatic second patch, timeout extension, route narrowing or renamed retry.
+Original45–60min/split-before90 budget remains cumulative (selected18:39UTC;
+privacy stop18:54UTC).
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
