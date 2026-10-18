@@ -441,6 +441,61 @@ Next bounded production capability is CINDER-SUPPLY-DEBT: freeze genuine transfe
 identity/quantity proof, existing handoff/persistence/authority ownership and its
 one-payment cold-load acceptance before implementing; no adjacent probe selected.
 
+### Selected production task — CINDER-SUPPLY-DEBT
+
+- **Outcome/parents:**13/31. Genuine completed Cinder platform supply transfer
+  survives refused reward payment and a distinct-process actual-file reload;
+  its fresh current owner pays once, paid cold reload cannot pay again, and the
+  next legitimate delivery uses a greater actual activity generation. Reward retry
+  performs no inventory transfer; accepted quantities/unrelated payload persist.
+- **Ownership:** one high-effort implementer owns existing CinderCargoDeliveryPersistence,
+  CinderCargoRewardHandoff, NearbySectorActivityBinding (cargo paths),
+  GameFlowRewardAuthority (Cinder paths), GameFlow (cargo wiring only), and
+  CargoDeliveryActivity (startup-only terminal generation floor). Existing tests:
+  cinder_cargo_delivery_persistence_roundtrip_test.gd,
+  cinder_cargo_reward_handoff_test.gd, game_flow_reward_authority_test.gd;
+  floor assertions may use existing cargo_delivery_contract_test.gd. Root owns
+  execution/packages/docs/integration; high-effort reviewer checks genuine earning,
+  atomic payment, legacy trust, reentrancy and lifecycle. No nested delegation.
+- **Frozen contract:** checkpoint BEFORE reward callback from actual completed
+  activity plus current CargoTransferAuthority readbacks, exact fixed production
+  contract/item/quantity/phases/deadline, matching real transfer receipt/ledger and
+  generation/transfer ID. Persist bounded immutable terminal proof, no manifests,
+  inventory handles or active progress. Extend the SAME production persistence
+  owner to strict v2 terminal debt/paid record; support old v1 paid summary for
+  presentation only, never entitlement. No parallel schema/validator/probe layer.
+  Authority independently validates current primary proof and generation, then
+  acknowledges paid in the SAME payload commit as its reward ledger. Refused debt
+  save invokes no reward callback; refused payment retains debt and blocks reset/
+  start. Reject malformed/untrusted/stale/paid-downgrade/owed-replacement cases and
+  fence callbacks/retained owners. Reconcile only exact authoritative published
+  outcomes. Retry cold debt through existing adapter/current owner without active
+  activity/old handle reconstruction. Public startup-only idle generation floor
+  adopts validated terminal/legacy latest-paid epoch, never entitlement or fake
+  repeated start/reset. Other reward families and Jovian behavior stay unchanged.
+- **Proof:** extend existing roundtrip with real UserDataFilesystem and owned
+  child-process modes: actual earned transfer/refused payment→cold payment→paid
+  cold reload, next actual delivery generation and no reward-retry inventory edits.
+  Whole roundtrip300s includes all children; headless/Dummy everywhere, bounded
+  child cleanup. Retain legacy v1 generation0 presentation. New genuine v2 paid
+  path has exact store generation3 (seed+debt+atomic payment), replacing old2;
+  original callback/reward counts and quantity/protection assertions remain.
+  Authority's existing eight-receipt case stages genuine Cinder debt instead of
+  accepting an unearned compact request; total8 remains. No assertions skipped.
+  Root-only clean import600, relevant GameFlow/authority compile300 and full
+  existing handoff/roundtrip/authority/cargo-contract suites at original300 each;
+  independent clean-pin GO before engines. No unchanged Jovian integration/parked
+  recovery suite, OS-kill probe or ordinary whole-flight claim.
+- **Budget/delivery:**45–60min implementation, split before90 cumulative. First
+  unexpected failure STOP; concrete reviewed repair frozen before retry, no
+  automatic patches/reruns, timeout extension or narrowed acceptance. Clean paired
+  exports, three strict startup checks (exit0 + one STARTUP_MENU_READY_OK), artifact
+  audit, player-visible notes/EXE/ZIP in builds/windows; commit/push and owned
+  checkout/profile/helper cleanup. CI disabled; native/device/audio/human/final
+  gates stay open. Hauler stock/active manifest policy unresolved and untouched.
+  Independent alternative: next original craft needs its existing spec/owner gates;
+  no adjacent recovery evidence chain is selected.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
