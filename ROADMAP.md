@@ -51,7 +51,7 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| HELM-YAW | IN PROGRESS qualification | Original remote pilot turns host-owned Jovian both ways with normal sampled input; release stops yaw and both clients consume the attitude. |30–45min implementation/review; one unchanged300s route, compile/import separate |
+| HELM-YAW-TURN | IN PROGRESS qualification | Original remote pilot turns host-owned Jovian both ways with normal sampled input; release stops yaw and both clients consume the attitude. |30–45min implementation/review; one unchanged300s route, compile/import separate |
 | HUD-CARGO-SUPPLY | DONE | After the six-kit supply is exhausted and the run reset, the Activity Board reports insufficient kits; other activities remain selectable. |0c2dc2e; cargo127/nearby HUD13, paired checkpoint/startups/audit pass |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
@@ -74,9 +74,9 @@ any more. Close with actual result/pin/limits, commit/push and owned cleanup,
 retaining unique raw/work. Caller-only work needs no identical checkpoint;
 accepted runtime repairs require separate cards and fresh paired builds.
 
-### HELM-YAW — remote pilot turns the actual host-owned Jovian
+### HELM-YAW-TURN — remote pilot turns the actual host-owned Jovian
 
-- **Parent/result/type:**18; qualify existing gameplay, not a new feature. After
+- **Parent/result/type:**18 / HELM-YAW; qualify existing gameplay, not a new feature. After
   the full accepted ordinary two-client boarding/departure/brake route, the
   original pilot turns left and right through normal sampled actions. The host
   craft turns correctly, release stops yaw and both original clients consume
@@ -102,6 +102,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   owned scratch. Caller-only qualification needs no identical runtime rebuild;
   latest0c2dc2e remains playable. This proves one held helm action, not devices,
   other axes, handback/reboarding, endurance or dedicated-server baseline.
+  HELM-YAW stays open until its original handback requirement is also proved.
 - **Priority:** this already-named uncovered action has no parked failed attempt.
   Select it over reopening failed cargo restart/Halyard or repeating unchanged
   passing HUD checks. Parked failure budgets and reopen conditions stay intact.
