@@ -217,6 +217,17 @@ Cold import20.807s, compile16.457s and full selected33.402s pass at original cap
 Rendered/human/device and other aspect groups remain separate; latest playable
 checkpoint staysa43ae4b. No successor is selected by this closure.
 
+### Torpedo authority definition — finite cases
+
+TORPEDO-AUTH-DEFINE is DONE as a source definition: the existing authority and
+retained solo-restoration consumers are implemented. No new runtime defect was
+found. The [finite remaining cases](docs/ROADMAP_BACKLOG.md#torpedo-authority-and-restoration--finite-remaining-cases)
+separate one peer-flight lifecycle, five session-restoration actions, pilot loss,
+target destruction/removal and phase withdrawal. Each needs its own bounded card
+and genuine baseline; none is selected automatically. Prior API/in-process/source
+passes retain their scope; independent packaged/ordinary Torpedo play stays open.
+No engine/test/export ran for this definition.
+
 ### Selected — remaining pause/options aspect groups
 
 - **Outcomes/parents:** ACCESS-PAUSE-16X9 at1920x1080, ACCESS-PAUSE-21X9 at3440x1440

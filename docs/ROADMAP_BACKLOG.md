@@ -459,7 +459,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | GATED on pilot exit; old command generations stay retired |
 | NET-JOVIAN-REDEPART | Same crew/hull departs at least5m and brakes after physical reuse | 16,20,26 | GATED on pilot reclaim; no second landing/endurance expansion |
 | CONVOY-ACTOR-DEFINE | Uncovered Convoy tender live/dead/reset/late/disconnect cases | 22 | DEFINE; actual native-gameplay coverage versus authority tests |
-| TORPEDO-AUTH-DEFINE | Uncovered torpedo projectile authority/pilot-loss/solo-restoration cases | 23 | DEFINE; distinct from ordinary combat route |
+| TORPEDO-AUTH-DEFINE | Actual projectile authority, retained solo restoration and pilot/target loss | 23 | DONE definition only; ten finite qualification cases below, no new missing production consumer or runtime defect established. Ordinary/independent packaged routes remain OPEN |
 | PICKET-ACTOR-DEFINE | Uncovered Picket travelling actor/late/dead/reset/disconnect cases | 24 | DEFINE; actual moving-crew integration |
 | EMBERLINE-ACTOR-DEFINE | Uncovered Emberline flight/hit/miss/expiry/late/dead/reset/disconnect cases | 24 | DEFINE; retained failed baseline not erased by isolated pass |
 | BROWSER-JOIN | Discover/refresh/select/join ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
@@ -500,6 +500,55 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | SHARED-RIME-CANCEL | Rime shared cancellation | 3,27 | GATED; RIME genuine baseline and exact original case command |
 | SHARED-RIME-INTERRUPT | Rime shared actual OS interruption | 3,27 | GATED; RIME genuine baseline and exact original case command |
 | SHARED-RIME-REVISIT | Rime shared repeat visit | 3,27 | GATED; RIME genuine baseline and exact original case command |
+
+### Torpedo authority and restoration — finite remaining cases
+
+TORPEDO-AUTH-DEFINE is a source definition onaa1a88bef, one bounded high-effort
+reader plus root verification; no engine, gameplay implementation or fresh pass.
+Existing ownership is delivered: LiveCombatAuthority and SeekerTorpedoProjectile
+own resolver flights/terminal damage; TorpedoBoatOpponent.set_network_presentation_only
+suspends AI/collision/registration/launch and permanently retires old solo seekers.
+GameFlow's join/session owners and EncounterScenarioDirector suspend/resume the
+retained boat/target/hull/charge/generation/timer. GameFlow publishes actual seeker
+pools to NetworkRemoteProjectileReplicator's current/late/terminal presentation.
+Generic GameFlow remote-helm cleanup retires old ownership; director termination
+observes target craft lifetime/destruction and authorized phase. Pilot-seat loss
+alone is not defined as craft destruction or a new abort policy.
+
+Existing game_flow_torpedo_boat_authority_test uses real Main/boat/pool but API
+calls and synthetic current/late consumers. It covers join suspension, denied
+launch, frozen timer/distance, retained restoration/fresh solo fire, live-host
+adoption, refused/manual/directory join and Main reentry. network_remote_projectile_test
+uses same-process loopback ENet/fake pools; seeker and boat tests cover their actual
+owners. [Recorded earlier lifecycle scope](MOVING_INTERIOR_LATENCY.md) remains
+accepted. These anchors do not establish independent ordinary Torpedo gameplay.
+
+Each row below is one **unselected qualification**, not a missing implementation.
+All are GATED on an actual Torpedo baseline/appropriate named participant route,
+matching package and a frozen original command/deadline. COMBAT-TORPEDO remains
+the ordinary combat/reward/home-return owner; do not duplicate it here.
+
+| Child / parent23 | One observable finish | Additional prerequisite / stopping boundary |
+| --- | --- | --- |
+| TORPEDO-PEER-FLIGHT | Independent packaged host/current/late processes observe one actual host seeker, current-pose adoption of an already-airborne flight without launch replay, and actual terminal retirement without duplicate damage/resurrection | Freeze one launch-to-terminal scenario and actual participating craft; synthetic packets alone do not close it. Stop after that flight/terminal lifecycle. |
+| TORPEDO-JOIN-FAIL | An actually pending transport join fails; retained solo boat state resumes, old seekers remain retired, fresh solo flight works | Pending join must be observed; immediate invalid-port/API refusal is insufficient. Stop after one failed join/recovery. |
+| TORPEDO-JOIN-CANCEL | Ordinary browser cancel during pending join restores the same retained solo encounter and usable fresh fire | Actual browser route; no admitted session/disconnect substitution. Stop after one cancel/recovery. |
+| TORPEDO-DISCONNECT | Ordinary Disconnect from admitted client state restores retained solo state and fresh launch authority, without resurrecting old flights | Actual admitted peer/session; no direct shutdown-only claim. Stop after one disconnect/recovery. |
+| TORPEDO-SERVER-LOSS | Real authority process loss restores usable retained solo encounter and retires old network/solo-flight effects | Actual independent authority termination with owned abort/reap path. Stop after one loss/recovery; no migration/endurance claim. |
+| TORPEDO-MAIN-REENTRY | Actual whole-Main exit/reentry preserves supported retained encounter restoration and fresh-flight authority, with old flights retired | Freeze exact lifecycle action/expected owners; existing API reentry proof retained. Stop after one reentry/recovery. |
+| TORPEDO-PILOT-LOSS | Actual remote helm retirement during live Torpedo play preserves correct surviving-craft/target ownership and usable supported recovery | Name physical pilot/craft/seat route; no invented pilot-loss-always-aborts rule. Stop after one pilot-loss recovery. |
+| TORPEDO-TARGET-DESTROY | Actual target-craft destruction aborts/withdraws the Torpedo composition and stands down boat/seekers once, without reward | Actual target identity/destruction, no generic unrelated director substitute. Stop after one terminal cleanup. |
+| TORPEDO-TARGET-REMOVE | Actual target lifetime removal retires the encounter/boat/seekers once, with no stale-target or duplicate terminal effects | Separate from hull destruction; exact production lifetime owner. Stop after one removal cleanup. |
+| TORPEDO-PHASE-EXIT | Leaving the authorized flight phase withdraws the Torpedo composition and its flights without reward/duplicate terminal effects | Name actual production phase transition; no direct arbitrary state assignment as ordinary-route proof. Stop after one withdrawal. |
+
+A selected card must freeze exact files, ordinary/setup disclosures, participants,
+retained-state/receipt criteria and measured route budget before engines. Source
+review found no required runtime change to estimate; estimate each selected
+qualification/any demonstrated repair from its actual route. Do not chain all ten
+cases into one assignment. Any failure stops its selected case before separately
+reviewing repair/priority. No dependency on parked Heavy Breach debt interruption,
+no unchanged parked retry, and no new validator/schema/persistence entitlement.
+Parent23 and full independent/native combat/recovery acceptance remain OPEN.
 
 ### Hardware, accessibility and audio children
 
