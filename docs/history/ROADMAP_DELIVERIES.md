@@ -3323,3 +3323,21 @@ The source-derived final chair approach is proposed geometry, not a walking pass
 
 Definition produced no disposable files/worktree. All original parked failures,
 source-specific prior deliveries and external/hardware gates remain unchanged.
+
+## VIP first qualification — caller parse failure
+
+2026-10-18, source `57fc1122a2d360a7764d8d1bac131e9339983b8a`. New caller
+and generated UID were committed/pushed after static review and isolated cold
+import exit0 with no diagnostics. Import did not establish test compilation.
+The single original900s-cap input-only qualification failed in835ms, exit1,
+no success marker, two diagnostics: expected closing parenthesis at caller
+line198 and failed script load. Boot and walking never ran; this is a caller
+syntax failure, not an established runtime obstruction. Source manifest and
+Godot cache stayed unchanged; the outer supervisor finished exit1 and reaped
+its owned children. Raw: `/srv/mudds-work/vip-round-trip-20261018/results/`,
+matrix run `20261018T010823Z`.
+
+The next bounded repair corrects multiline inline-lambda return syntax only,
+then reruns the unchanged full acceptance once. A further failure requires a
+priority review before additional work. All36 parents/ten phase gates remain
+open. No package build is implied by this test-only implementation.

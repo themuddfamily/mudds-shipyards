@@ -31,9 +31,9 @@ Do not report those steps as two gameplay features or a project percentage.
   actual active-craft/lifecycle observations and read-only source checks232/20 pass.
   Paired development checkpoint4270d71 is published. Native window-close smoke
   FAILED and stays open; no physical journey is qualified.
-- **Next:** run the committed ordinary-input VIP caller once through the full
-  outward/interaction/return route. Caller implementation and cold import are
-  complete; walking is NOT_RUN. Do not restart Ember window diagnostics.
+- **Next:** repair the caller's concrete multiline-lambda syntax error, then
+  run the unchanged full route once. First qualification failed before gameplay
+  on57fc1122a; continuous walking remains NOT_RUN. Do not restart Ember window diagnostics.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -59,7 +59,7 @@ branches and all 36 parents retain their original scope in the backlog.
 | Step | Status / owner | Exact finish | Estimate and stop |
 | --- | --- | --- | --- |
 | STATION-VIP-CALLER | DONE (implementation only) / root | One source test drives the real menu and player input through the route below, with no actor/camera pose writes or direct interaction calls. | 45–75min implementation; stop at75min if unfinished and record the precise remaining work. |
-| STATION-VIP-WALK | READY / root | One uninterrupted run passes the complete route, seat interaction and supported return with the same player. | Up to900s route check; cold import/preflight estimated separately at10–15min. First failure ends this qualification attempt. |
+| STATION-VIP-WALK | FAILED on57fc1122a / root | One uninterrupted run passes the complete route, seat interaction and supported return with the same player. | Up to900s route check; cold import/preflight estimated separately at10–15min. First failure ends this qualification attempt. |
 
 Two steps are sufficient for this batch; do not invent extra tasks to fill a
 quota. A demonstrated runtime defect gets its own bounded repair card before
@@ -120,6 +120,21 @@ check ran. Mapping and limitations are recorded in
   interactions. Caller completion is test capability, not a walking pass.
 - **Failure/close:** at the implementation estimate boundary, record the missing
   seam or unfinished code. Do not turn fixture work into a renderer investigation.
+
+### STATION-VIP-SYNTAX — one bounded caller repair
+
+- **Priority decision:** the first route attempt failed before Boot at caller
+  line198, `Expected closing ")" after call arguments`. Cold import exit0 did
+  not compile this non-class test. No gameplay failure is established.
+- **Result/ownership:** root, this test only; make its inline lambda returns
+  syntactically complete, including the same continuation pattern in seat/stand
+  waits. Estimate10–20min including review; the unchanged route check is separate.
+- **Proof/stop:** commit clean source, run the same isolated900s qualification
+  once. Preserve57fc1122a raw logs. Any further failure triggers priority review
+  before more diagnosis/repair/rerun; do not silently extend this repair.
+- **Selection:** this bounded syntax correction enables the already-defined VIP
+  player outcome. Prefer it now over starting the independent, unscheduled
+  server/two-client baseline definition. No renderer investigation is involved.
 
 ### STATION-VIP-WALK — qualify the complete player outcome once
 

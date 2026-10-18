@@ -195,14 +195,12 @@ func _sit_and_stand() -> bool:
 	_leg = "armchair03-sit"
 	if not await _face(_seat.get_seat_anchor().global_position):
 		return false
-	if not await _wait(func(): return _game.station_interaction_candidate == _seat
-		and _prompt_contains("SIT") and _prompt_contains("RECEPTION ARMCHAIR 03"), 5.0, "normal SIT prompt for RECEPTION ARMCHAIR 03"):
+	if not await _wait(func(): return _game.station_interaction_candidate == _seat and _prompt_contains("SIT") and _prompt_contains("RECEPTION ARMCHAIR 03"), 5.0, "normal SIT prompt for RECEPTION ARMCHAIR 03"):
 		return false
 	_seat_transition = "sit"
 	_seat_transition_deadline = Time.get_ticks_msec() + 5_000
 	await _tap(&"interact")
-	if not await _wait(func(): return _player.is_seated_at(_seat.get_seat_anchor()) and _player.is_station_seated()
-		and _seat.is_reserved_for(_player) and _boarding_completions == 1 and _prompt_contains("STAND"), 5.0,
+	if not await _wait(func(): return _player.is_seated_at(_seat.get_seat_anchor()) and _player.is_station_seated() and _seat.is_reserved_for(_player) and _boarding_completions == 1 and _prompt_contains("STAND"), 5.0,
 		"normal SIT completes in Armchair03 with STAND prompt"):
 		return false
 	_seat_transition = "seated"
@@ -211,8 +209,7 @@ func _sit_and_stand() -> bool:
 	_seat_transition = "stand"
 	_seat_transition_deadline = Time.get_ticks_msec() + 5_000
 	await _tap(&"interact")
-	if not await _wait(func(): return not _player.is_seated() and not _seat.is_reserved_for(_player)
-		and _standing_completions == 1 and _player.is_on_floor(), 5.0, "normal STAND completes with real floor support"):
+	if not await _wait(func(): return not _player.is_seated() and not _seat.is_reserved_for(_player) and _standing_completions == 1 and _player.is_on_floor(), 5.0, "normal STAND completes with real floor support"):
 		return false
 	if not _require(_horizontal(_player.global_position - _seat.get_exit_transform().origin) <= 0.2
 		and absf(_player.global_position.y - _seat.get_exit_transform().origin.y) <= 0.15,
