@@ -68,8 +68,9 @@ parent or phase gate closes.
   0.489777m/0m against the stopped host; both seat-anchor errors0m. Exact
   identities/authority/HUD remain current; all peers actualexit0, marker1, diag0.
   Capability integrated; no game runtime change or unchanged checkpoint rebuild.
-- **Next:** define one ordinary shared return-to-berth segment from this accepted
-  departure endpoint. Stop at one executable card; no speculative runtime repair.
+- **Next:** implement/qualify NET-JOVIAN-RETURN: one ordinary landing input
+  docks the departed craft while retaining both seated clients. Static definition
+  is complete; physical landing/return is NOT_RUN, with no runtime defect assumed.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -89,39 +90,81 @@ parent or phase gate closes.
 Report the named result, actual proof, next action and estimate. Source checks,
 planning or test totals do not establish whole-parent or hardware completion.
 
-## Next slice — define the ordinary shared return to berth
+## Next slice — ordinary shared return to the Jovian berth
 
-NET-JOVIAN-DEPART-CALLER and the underlying departure/brake outcome are DONE on
-96c96312f in their named source scopes. [Actual result and executed repair card](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-departure--accepted-after-consumed-pose-caller-repair).
-The first cad7f3aac attempt stays FAILED; its one caller repair passes without
-changing the original scenario or game runtime. Checkpointb6196a1 still contains
-identical game code; this is source qualification, not packaged route acceptance.
+NET-JOVIAN-RETURN-DEFINE is DONE as static planning. The accepted stopped pose
+lies inside the authored home berth's capture volume; landing_assist already
+reaches the authoritative remote landing path. Availability and actual docking
+remain unproven until the route. [Source seams and definition](docs/history/ROADMAP_DELIVERIES.md#ordinary-shared-return--landing-card-defined).
+Stand, exterior exit, reuse and30-minute endurance remain separate and open.
 
 | Task | Type / status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| NET-JOVIAN-RETURN-DEFINE | Definition / READY / root | One executable card for ordinary shared return/landing from the accepted departure endpoint. | Static definition20–30min; no engine probe. |
+| NET-JOVIAN-RETURN | Qualification capability / READY / root | Ordinary pilot landing input returns the departed Jovian to its home berth, with the host physically docked and both original seated clients consuming the committed arrival. | Implementation/review60–90min; import600s/compile300s/one original300s route separately. |
 
-### NET-JOVIAN-RETURN-DEFINE — bound the next physical return outcome
+### NET-JOVIAN-RETURN — physical docking and consumed arrival with both crew
 
-- **Parent/result:** parents16/26; use the existing two independent seated actors
-  and accepted departure/stop as prerequisites. Define the next ordinary pilot
-  action that returns this craft to a usable berth while the passenger remains
-  aboard. Do not assume landing, stand, exterior exit or reuse already pass.
-- **Boundary:** inspect the existing production landing input, remote landing/
-  berth handoff and existing relevant qualification checks only. Establish whether
-  this endpoint supports ordinary landing input, which berth may be selected and
-  which host/client consumers prove physical arrival and retained crew identity.
-  No pose writes, private landing request, direct ownership change or rescue.
-- **Proof/deliverable:** one executable implementation/qualification card with
-  exact ordinary actions, visible endpoint, actual host berth/landing and client
-  body/pose/HUD criteria, source seam/files and existing command/limits. Preserve
-  the original300s source-route cap and any longer established required landing
-  checks in their own scope. Name any missing runtime capability separately.
-- **Budget/stop:**20–30min static definition, no engine probe. Stop at known owner,
-  seam/acceptance or one exact missing fact. Split implementation over90min;
-  do not turn return into a full planetary/activity/endurance investigation.
-- **Close:** commit/push the next actionable card; planning does not qualify a
-  landing or count as a gameplay delivery. Implementation/qualification is next.
+- **Parent/result:** parents16/26; retain the full accepted96c96312f normal menus,
+  all13 approach plus cabin goals, chairs, identities,5m departure/brake and pose
+  convergence. From the actual stopped endpoint, pilot taps landing_assist once
+  (default L), releases it and keeps flight controls neutral. Both crew remain
+  seated through physical return to jovian_freight_berth. No engine-off, stand,
+  disembark or second sortie in this card.
+- **Boundary/ownership:** root owns one select-only
+  `tests/network/jovian_network_two_client_return_test.gd` and UID, plus minimal
+  identity-helper extraction in the existing flight caller. Return extends the
+  flight scenario through super host/client hooks before the inherited retained
+  handshake. Preserve all default flight behavior, checks and timeouts. Separate
+  reusable identity checks from departure's unlanded/freed-berth invariant:
+  return must keep identity while deliberately changing the physical lifecycle.
+  Do not disable original departure proof or copy the complete base route.
+- **Initial gate/action:** host observes the existing non-mutating capture report
+  and records selected home berth, valid capture/fit and actual free availability.
+  Plain geometry does not establish a free lease; home selection does not promise
+  occupied-home fallback. After both clients are ready, pilot sends one ordinary
+  Input.parse_input_event landing_assist press/release. Host must observe that
+  current authenticated helm's landing request/accepted landing_pending handoff
+  within8s. No direct request_berth_landing/private client request, pose/velocity/
+  command injection, lease/authority writes or manual berth selection.
+- **Host physical finish:** within120s after accepted request, require same craft,
+  original remote pilot source/ownership, exact seat/entity generations and actual
+  passenger body alignment throughout. Require landed=true, landing inactive,
+  speed<=0.05m/s, origin within0.05m and orientation within0.5deg of the actual
+  home berth dock transform. Landing contract must be accepted/strict with correct
+  berth ID and docked phase; strict capture alone cannot prove completion.
+  Actual occupant and reservation owner must be this craft, exact physical lease
+  valid for its token/ship ID, GameFlow bookkeeping bound to that berth. Observe
+  committed per-craft handoff/entity state landed, exact target and positive
+  matching generation, completion publication retry=false. Never manufacture
+  that state or expose raw tokens in receipts.
+- **Client consumed finish:** each real Player stays at its original chair with
+  original claims/generations/role/HUD; physical following uses the accepted moving
+  tolerance, stopped anchor error<=0.05m. Within5s of host completion, actual client
+  hull is within0.5m of host docked position in matching station frames, and fresh
+  consumed pose has original pilot_peer_id plus operation_presentation landed=true,
+  docked=true, landing=false. The authoritative snapshot's landing section must
+  show this craft, matching positive entity generation and state landed. Ship
+  ownership stays the remote pilot; landing authority remains peer1. Do not assert
+  client predicted telemetry landed, grant clients berth authority or require the
+  non-playing host to enter a solo SHUT_DOWN phase.
+- **Command/acceptance:** clean pinned source, explicit compile, then exactly one
+  existing input-only matrix selection jovian_network_two_client_return_test,
+  private Xvfb/x11/Dummy/jobs1/import-gate never, original300s route/360s outer.
+  Preserve original flight10/10/5s and boarding12/8s gates; add request8s,
+  physical docking120s, client convergence5s inside that same total cap. Inherited
+  actor profile must run the return script and emit JOVIAN_NETWORK_TWO_CLIENT_RETURN_OK
+  only after all actual OS exits0. Require one marker/zero diagnostics/source and
+  cache guards, normal input/cursor release, complete immutable failure/exit raw.
+  Existing staged remote-landing6s/publication2s checks retain their own scope;
+  this ordinary scenario cannot substitute for broader established checks.
+- **Budget/stop:**60–90min implementation/review, engine costs separately. One
+  original route only; first failure closes FAILED with action/owner/snapshot.
+  Priority review before any diagnostic, repair or rerun; no geometry/landing/
+  deadline relaxation. Split before execution if implementation exceeds90min.
+- **Close:** integrate only accepted capability, commit/push actual result and
+  clean owned checkout/profiles/helpers. Retain raw failures and exact source.
+  No unchanged game rebuild: checkpointb6196a1 remains identical runtime. Any
+  demonstrated runtime repair is a separate production card and fresh checkpoint.
 
 ## Earlier ordinary Jovian boarding attempt — FAILED (retained history)
 

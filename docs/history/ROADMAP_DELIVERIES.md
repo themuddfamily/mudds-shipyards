@@ -4768,3 +4768,81 @@ or exact missing fact, with no new engine probe or speculative runtime repair.
 - **Close:** integrate only after full acceptance; otherwise keep candidate held.
   Commit/push exact outcome, clean owned checkout/profile/helpers, preserve raw.
   No unchanged runtime export; latest playable checkpoint remains b6196a1.
+
+
+## Ordinary shared return — landing card defined
+
+NET-JOVIAN-RETURN-DEFINE is DONE as static planning on25497c44f. Root inspected
+flight-hook reuse, remote landing and physical-completion consumers; one bounded
+medium-effort agent identified ordinary input/capture/arrival contracts. No engine
+probe, runtime change, departure rerun or new disposable checkout/profile. No
+landing/return or project-percentage advancement is claimed.
+
+Ordinary landing_assist (L / D-pad left, project.godot102) is sampled by the
+confirmed local helm, converted to a monotonic landing_request_id and consumed
+by the authenticated remote pilot owner (GameFlow12197–12229/12061–12075).
+_try_request_network_remote_landing18208 validates the exact remote pilot seat,
+observes capture, reserves the berth, starts physical landing and begins the
+per-craft network handoff. No missing ordinary runtime action is proven.
+
+Authored JovianFreightShipBerth is the physical owner, distinct from decorative
+JovianFreightBerth (shipyard_world.tscn151–163). Dock station pose is
+(-53,1.63,57.3), yaw180deg; capture center(-53,13.63,83.3), extents(36,20,52),
+max speed24m/s/tilt75deg. Accepted stop(-53,1.6309404,68.568970) is inside that
+volume. Home berth preference wins before alternatives, but does not filter
+reservation availability; runtime must still establish free lease and valid
+actual hull bounds/fit. No automatic occupied-home fallback claim.
+
+Selected NET-JOVIAN-RETURN retains the complete ordinary departure route, then
+one landing_assist press/release with neutral controls. Host completion requires
+physical dock transform/zero-speed landed state, accepted strict dock contract,
+actual occupied/reserved berth and exact valid physical lease, plus committed
+network handoff/publication. HeroShip5065–5107 occupies before snapping to the
+actual dock and emitting completion; GameFlow18256–18273/15339–15382 separately
+checks physical identity before committing/publishing landed.
+
+Clients must consume fresh host operation landed/docked and authoritative landing
+section with matching craft/generation/state; actual hulls converge in station
+coordinates and Players follow original chairs. Prediction deliberately remains
+physically unlanded and gains no berth authority (GameFlow10935–10959), so client
+telemetry is not the landing proof. Pose samples use normalized pilot_peer_id;
+ship ownership stays the remote pilot while the landing entity belongs to
+authority peer1. Do not conflate these owners or wire/consumed keys.
+
+Existing flight current predicate additionally requires a freed berth/unlanded
+state after departure. Extract its unchanged identity part for return; preserve
+all departure checks instead of blindly requiring the ship stay airborne during
+landing. A select-only return subclass can await super host/client hooks before
+inherited retained-seat/actual-exit cleanup, without duplicating the normal route.
+
+Next implementation/review60–90min; checks separately. One original300s route/
+360s outer, unchanged flight10/10/5 and boarding12/8, request8s/physical landing120s/
+client convergence5s inside total. First failure stops for priority review.
+Existing staged remote-landing6s/publication2s checks and longer original scopes
+remain independent; staged pose setup is not ordinary return acceptance. Stand/
+exit/reuse/broader flight/30-minute endurance and all36 parents/ten phase/hardware/
+human/release gates stay open. No new validator, hosted CI or speculative repair.
+
+### Executed shared-return definition card — frozen contract
+
+### NET-JOVIAN-RETURN-DEFINE — bound the next physical return outcome
+
+- **Parent/result:** parents16/26; use the existing two independent seated actors
+  and accepted departure/stop as prerequisites. Define the next ordinary pilot
+  action that returns this craft to a usable berth while the passenger remains
+  aboard. Do not assume landing, stand, exterior exit or reuse already pass.
+- **Boundary:** inspect the existing production landing input, remote landing/
+  berth handoff and existing relevant qualification checks only. Establish whether
+  this endpoint supports ordinary landing input, which berth may be selected and
+  which host/client consumers prove physical arrival and retained crew identity.
+  No pose writes, private landing request, direct ownership change or rescue.
+- **Proof/deliverable:** one executable implementation/qualification card with
+  exact ordinary actions, visible endpoint, actual host berth/landing and client
+  body/pose/HUD criteria, source seam/files and existing command/limits. Preserve
+  the original300s source-route cap and any longer established required landing
+  checks in their own scope. Name any missing runtime capability separately.
+- **Budget/stop:**20–30min static definition, no engine probe. Stop at known owner,
+  seam/acceptance or one exact missing fact. Split implementation over90min;
+  do not turn return into a full planetary/activity/endurance investigation.
+- **Close:** commit/push the next actionable card; planning does not qualify a
+  landing or count as a gameplay delivery. Implementation/qualification is next.
