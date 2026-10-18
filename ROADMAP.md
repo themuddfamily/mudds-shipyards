@@ -97,8 +97,22 @@ removed or mismatched those connections before teardown. No runtime repair is
 justified yet. No unchanged key-only component or mining replay is selected.
 The original UI investigation budget20–30min from19:07UTC remains cumulative;
 first component4.673s. Source review ended19:25UTC, without another engine run.
-Next runtime selection requires a clean pin, exact driver and cumulative priority
-review; the table is not authorization for automatic adjacent attempts.
+Cumulative priority review selects ONE changed tooltip attempt within this same
+budget: fixturee646fc792 (only three observational geometry lines added to the
+previous unmerged fixture). Root owns the external `results/tooltip-driver.py`
+and runs it through `helpers/tooltip-runner.py` at the existing task root.
+Driver SHA256 is recorded before launch in the task results. Exact commands are
+frozen in `helpers/tooltip_{import,compile,repro}.json`: one headless Dummy import
+CAP600 and fixture check-only CAP300, then `xvfb-run -a -s '-screen 0 1600x900x24
+-nolisten tcp' python3 results/tooltip-driver.py`, whole driver CAP60/outer90.
+The driver launches pinned Godot with Dummy/x11/dummy-renderer/disable-render-loop
+and the existing optional probe script. Before keys it requires the hovered
+Destination Board plus one visible embedded PopupPanel whose identical ID owns
+both root signal connections. Target errors and all diagnostics are retained
+separately; the strict outer diagnostic check remains unchanged. Stop after the
+first outcome or unexpected failure. No production edit or mining run follows
+without a separate selection; no budget reset. Independent probe review required
+before launch. No additional source research is selected.
 
 PLAY-MINING candidate20bd1ab remains unmerged/checkpoint withheld. Latest accepted
 playable remainsf8b5f86. All original broad parents/phase gates remain OPEN;
