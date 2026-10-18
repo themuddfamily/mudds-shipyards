@@ -8,6 +8,7 @@ Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit
 Use --route hulk-breaker to continue that arrival through the interior breaker.
 Use --route hulk-home to carry that earned cell back to a supported yard exit.
 Use --route life-gantry for Freight gantry coexistence and original Jovian boarding.
+Use --route life-patrol for Habitat door walking beside live patrol and original Torrent boarding.
 Use --route life-arm for Aft service-arm coexistence and original Zenith boarding.
 Use --route life-tow for Central service coexistence during real walking/boarding.
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
@@ -1475,6 +1476,28 @@ class LifeTowPilot(Pilot):
                  ('zenith_approach', [20.2, 4.2, 59.2]),
                  ('zenith_clearance', [18.6, 4.2, 58.6]),
                  ('zenith_candidate', [18.2, 4.2, 58.2]))
+    PATROL_GOALS = (('central_forward', [0, 0, 12.5]),
+                    ('tractor_forward_clearance', [6, 0, 12.5]),
+                    ('tractor_east_clearance', [6, 0, 13.5]),
+                    ('habitat_branch', [34.8, 0, 13.5]),
+                    ('habitat_turn', [34.8, 0, 15.5]),
+                    ('habitat_approach', [43, 0, 15.5]),
+                    ('habitat_outer', [46, 0, 15.5]),
+                    ('patrol_door_near', [48, 0, 15.5]),
+                    ('patrol_inner_threshold', [50.5, 0, 15.5]),
+                    ('patrol_center', [59.15, 0, 15.5]),
+                    ('patrol_common', [67.8, 0, 15.5]),
+                    ('patrol_center_return', [59.15, 0, 15.5]),
+                    ('patrol_corridor_return', [54.1, 0, 15.5]),
+                    ('patrol_inner_return', [50.5, 0, 15.5]),
+                    ('patrol_door_return', [48, 0, 15.5]),
+                    ('habitat_outer_return', [46, 0, 15.5]),
+                    ('habitat_approach_return', [43, 0, 15.5]),
+                    ('habitat_turn_return', [34.8, 0, 15.5]),
+                    ('habitat_branch_return', [34.8, 0, 13.5]),
+                    ('tractor_east_return', [6, 0, 13.5]),
+                    ('tractor_forward_return', [6, 0, 12.5]),
+                    ('central_forward_return', [0, 0, 12.5]))
     ROUTES = {
         'life-tow': {'craft': 'Torrent', 'service': 'Central tow', 'movers': 7,
                      'marker': 'NATIVE_LIFE_TOW_OK', 'goals': (), 'near': ()},
@@ -1489,7 +1512,17 @@ class LifeTowPilot(Pilot):
                      'profile': 'service_arm', 'path': 'OperationalLattice/Activities/AftOperationsActivity',
                      'origin': [5.8, 4.99, 61.2], 'ship_name': 'ZenithInterceptor',
                      'ship_definition_id': 'zenith_b7_observed', 'home_berth_id': 'zenith_fleet_dock_berth',
-                     'candidate_only': True},
+                     'candidate_only': True, 'motion_proof': True},
+        'life-patrol': {'craft': 'Torrent', 'service': 'Habitat patrol', 'movers': 2,
+                        'marker': 'NATIVE_LIFE_PATROL_OK', 'goals': PATROL_GOALS,
+                        'near': ('patrol_inner_threshold', 'patrol_common'),
+                        'profile': 'drone_patrol', 'path': 'OperationalLattice/Activities/HabitatServicePatrol',
+                        'origin': [59.15, 4.88, 15.5], 'ship_name': 'TorrentInterceptor',
+                        'ship_definition_id': 'torrent_provisional', 'home_berth_id': 'central_berth',
+                        'seed': 3301, 'motion_proof': True, 'door_goal': 'patrol_door_near',
+                        'door_path': 'HabitatSpine/MainAccess',
+                        'mover_paths': ('PresentationRoot/AnimatedServiceDrone01',
+                                        'PresentationRoot/AnimatedServiceDrone02')},
     }
     DEFAULT_WALK = {'walk': 5.8, 'sprint': 9.2, 'acceleration': 34.0,
                     'deceleration': 42.0, 'air_acceleration': 9.0, 'jump': 7.4,
@@ -1533,6 +1566,8 @@ class LifeTowPilot(Pilot):
                        'home_berth_id', 'home_berth_instance_id', 'boarding')
         if 'ship_definition_id' in self.config:
             fields += ('ship_definition_id', 'station_candidate')
+        if 'door_goal' in self.config:
+            fields += ('door',)
         return {k: s[k] for k in fields}
 
     def begin_walk(self, stage, route, s):
@@ -1605,7 +1640,12 @@ class LifeTowPilot(Pilot):
                     'finite actual service origin')
             require(service['origin'] == self.initial['service']['origin'], 'unchanged actual service origin')
             if 'origin' in self.config:
-                require(norm(sub(service['origin'], self.config['origin'])) < .001, 'authored actual arm origin')
+                require(norm(sub(service['origin'], self.config['origin'])) < .001, 'authored actual service origin')
+        if 'seed' in self.config:
+            require(service['seed'] == self.config['seed'], 'authored actual patrol seed')
+        if 'mover_paths' in self.config:
+            require(tuple(m['path'] for m in movers) == self.config['mover_paths'],
+                    'actual authored patrol drone roots')
         initial = self.initial['service'] if self.initial else service
         signature = lambda a: [(m['id'], m['path'], m['drawn_mesh_ids']) for m in a['movers']]
         require(service['id'] == initial['id'] and signature(service) == signature(initial),
@@ -1631,14 +1671,14 @@ class LifeTowPilot(Pilot):
                 and motion['frame'] >= 0 and isinstance(motion.get('step_up'), dict)
                 and self.finite_vector(motion.get('start')) and self.finite_vector(motion.get('end'))
                 and self.finite_vector(s['player']) and motion['end'] == s['player'],
-                'LIFE-ARM finite completed actor motion epoch matches observed position')
+                'LIFE completed-motion finite completed actor motion epoch matches observed position')
         lag = s['frame'] - motion['frame']
         require(lag in (0, 1) and (self.motion_lag is None or lag == self.motion_lag),
-                'LIFE-ARM consistent completed actor epoch lag zero or one')
+                'LIFE completed-motion consistent completed actor epoch lag zero or one')
         if self.observed_previous:
             previous_motion = self.observed_previous['completed_motion']
             require(motion['frame'] == previous_motion['frame'] + 1,
-                    'LIFE-ARM consecutive completed actor motion epochs')
+                    'LIFE completed-motion consecutive completed actor motion epochs')
         self.motion_lag = lag
         return motion
 
@@ -1646,13 +1686,13 @@ class LifeTowPilot(Pilot):
         """Admit only a retained successful solver return for this exact tick."""
         previous = self.observed_previous
         event = motion['step_up']
-        require(previous is not None and event, 'LIFE-ARM actual successful step-up event required')
+        require(previous is not None and event, 'LIFE completed-motion actual successful step-up event required')
         self.require_walking(previous)
         self.require_walking(s)
         require(previous['default_controls'] and s['default_controls'], 'ordinary step-up endpoint controls')
         require(type(event.get('frame')) is int and event['frame'] == motion['frame']
                 and event['frame'] not in self.consumed_step_frames,
-                'fresh once-consumed LIFE-ARM actual step-up frame')
+                'fresh once-consumed LIFE completed-motion actual step-up frame')
         require(all(type(event.get(k)) is int and event[k] != 0 and event[k] == s[k] == previous[k]
                     for k in ('player_id', 'capsule_id', 'shape_id')),
                 'actual step-up current Player capsule and shape identities')
@@ -1666,8 +1706,8 @@ class LifeTowPilot(Pilot):
         require(isinstance(collision_frame, list) and len(collision_frame) == 4
                 and all(self.finite_vector(v) for v in collision_frame)
                 and collision_frame == [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]],
-                'LIFE-ARM step-up uses identity collision frame')
-        require(event['up'] == [0, 1, 0], 'LIFE-ARM unit world-up actual step-up')
+                'LIFE completed-motion step-up uses identity collision frame')
+        require(event['up'] == [0, 1, 0], 'LIFE completed-motion unit world-up actual step-up')
         bounds = event.get('bounds')
         expected = {'max_step_height': .30, 'min_clearance': .02, 'min_advance': .01,
                     'probe_reach': .40, 'capsule_radius': .38, 'capsule_height': 1.94,
@@ -1725,7 +1765,7 @@ class LifeTowPilot(Pilot):
         require(frames > 0, 'fresh '+self.mode.upper()+' physics observation')
         if self.bounded:
             require(frames == 1, 'every consecutive '+self.mode.upper()+' physics sample retained')
-        motion = self.require_motion_epoch(s) if self.mode == 'life-arm' else None
+        motion = self.require_motion_epoch(s) if self.config.get('motion_proof', False) else None
         self.observe_service(s)
         if self.bounded:
             require(s['ship_name'] == self.config['ship_name'] and s['engine'] == 'OFFLINE'
@@ -1737,7 +1777,34 @@ class LifeTowPilot(Pilot):
         if 'ship_definition_id' in self.config:
             require(s['ship_definition_id'] == self.config['ship_definition_id']
                     and s['home_berth_id'] == self.config['home_berth_id'],
-                    'original Zenith definition and authored fleet home berth')
+                    'original craft definition and authored home berth')
+        if 'door_goal' in self.config:
+            door, original = s['door'], initial['door']
+            require(door['id'] and door['id'] == original['id']
+                    and door['path'] == original['path'] == self.config['door_path']
+                    and door['position'] == original['position'] and not door['locked'],
+                    'same current unlocked Habitat MainAccess door')
+            require(door['state'] in (0, 1, 2), 'Habitat door never closes or retries')
+            if self.observed_previous:
+                require(door['state'] >= self.observed_previous['door']['state'],
+                        'Habitat door never closes or retries')
+            if self.observed_previous is None:
+                require(door['state'] == 0 and not door['open'] and door['blocked'],
+                        'fresh Habitat door initially CLOSED and blocked')
+            if 'door_open' in self.receipts:
+                require(door['state'] == 2 and door['open'] and not door['blocked'],
+                        'same Habitat door stays OPEN and portal clear through return and boarding')
+            elif door['state'] != 0 or door['open'] or not door['blocked']:
+                press = self.receipts.get('door_press', {})
+                # Current native edge is appended just below. The opening may
+                # begin on that same physics sample.
+                edge = bool(s['native_interact']) and not self.native_previous
+                require(self.stage == 'door_wait' and press.get('door', {}).get('candidate')
+                        and press['door']['id'] == door['id'] and press['frame'] < self.frame
+                        and (edge or any(e['pressed'] and e['stage'] == 'door_wait'
+                                         and press['frame'] < e['frame'] <= self.frame
+                                         for e in self.native_edges)),
+                        'Habitat door motion only follows actual candidate receipt and door-stage OS press')
         if bool(s['native_interact']) != self.native_previous:
             self.native_edges.append({'frame': self.frame, 'pressed': bool(s['native_interact']),
                                       'stage': self.stage, 'candidate': s['candidate']})
@@ -1757,7 +1824,8 @@ class LifeTowPilot(Pilot):
         else:
             require(s['phase'] in ('INTRO', 'APPROACH_SHIP', 'START_ENGINES'), 'no Guided flight or recovery')
         if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
-        walking = self.stage in ('walk_outbound', 'walk_return', 'walk_service', 'approach_ship')
+        walking = self.stage in ('walk_outbound', 'walk_return', 'walk_service', 'approach_ship',
+                                 'door_aim', 'door_wait')
         if walking or (self.stage == 'board' and not s['transition_busy'] and not s['seated']):
             self.require_walking(s)
             if self.observed_previous:
@@ -1769,7 +1837,7 @@ class LifeTowPilot(Pilot):
                     require(step <= ordinary_limit, 'continuous real walking without teleport or placement')
                 if motion is not None:
                     require(motion['start'] == self.observed_previous['player'],
-                            'continuous LIFE-ARM actual tick starts at previous observed position')
+                            'continuous LIFE completed-motion actual tick starts at previous observed position')
                 self.walked += step
                 if (self.near_active if self.bounded else
                         self.walk_service is not None and walking and self.stage != 'approach_ship'):
@@ -1788,8 +1856,19 @@ class LifeTowPilot(Pilot):
             self.require_pilot(s)
         if motion is not None and motion['step_up']:
             require(motion['frame'] in self.consumed_step_frames,
-                    'LIFE-ARM actual step-up event admitted only during supported ordinary walking')
+                    'LIFE completed-motion actual step-up event admitted only during supported ordinary walking')
         self.observed_previous = s
+
+    def next_service_goal(self, s, now):
+        goal = len(self.visited)
+        if goal == len(self.config['goals']):
+            self.enter('approach_ship', s)
+            self.board_started = now
+        else:
+            self.route, self.index = [self.service_goal(goal, s)], 0
+            self.goal_started, self.settled_frames = now, 0
+            if self.stage != 'walk_service':
+                self.enter('walk_service', s)
 
     def update(self, s, now):
         # run() validates the complete batch first. Only its final sample can
@@ -1829,13 +1908,30 @@ class LifeTowPilot(Pilot):
                     self.require_service_interval(self.walk_service, s['service'], 'nearby walking', all_movers=True)
                     self.receipts['nearby_walk_end'] = self.receipt(s)
                     self.near_active = False
-                goal = len(self.visited)
-                if goal == len(self.config["goals"]):
-                    self.enter('approach_ship', s)
-                    self.board_started = now
+                if name == self.config.get('door_goal'):
+                    require(not s['door']['open'] and s['door']['blocked'],
+                            'closed blocked Habitat door physically approached')
+                    self.enter('door_aim', s)
                 else:
-                    self.route, self.index = [self.service_goal(goal, s)], 0
-                    self.goal_started, self.settled_frames = now, 0
+                    self.next_service_goal(s, now)
+        elif self.stage in ('door_aim', 'door_wait') and 'door_goal' in self.config:
+            require(now-self.goal_started <= 15, '15-second authored Habitat door goal deadline')
+            door = s['door']
+            if self.stage == 'door_aim':
+                dx, yaw, _distance = self.yaw_to(s, door['position'])
+                if abs(yaw) < .08 and door['candidate'] and not s['native_interact']:
+                    self.tap('e', now)
+                    if self.tap_key == 'e':
+                        self.receipts['door_press'] = self.receipt(s)
+                        self.enter('door_wait', s)
+            elif door['state'] == 2 and door['open'] and not door['blocked']:
+                press = self.receipts.get('door_press', {})
+                require(press.get('door', {}).get('candidate')
+                        and any(e['pressed'] and e['stage'] == 'door_wait'
+                                and press['frame'] < e['frame'] <= self.frame for e in self.native_edges),
+                        'actual door-stage OS Interact opens and clears Habitat portal')
+                self.receipts['door_open'] = self.receipt(s)
+                self.next_service_goal(s, now)
         elif self.stage in ('walk_outbound', 'walk_return'):
             name, target = self.route[self.index]
             dx, reached = self.walk_to(s, target, keys, frames)
@@ -2878,7 +2974,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow", "life-gantry", "life-arm", "life-patrol"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -2969,7 +3065,7 @@ def run(binary, output, route="guided"):
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
                         "guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
-                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm")}[route]()
+                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot, "life-gantry": lambda: LifeTowPilot("life-gantry"), "life-arm": lambda: LifeTowPilot("life-arm"), "life-patrol": lambda: LifeTowPilot("life-patrol")}[route]()
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
                         pending = b''
@@ -3120,8 +3216,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm'), default='guided',
-                        help='life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow', 'life-gantry', 'life-arm', 'life-patrol'), default='guided',
+                        help='life-patrol walks Habitat through the real door beside patrol drones and boards Torrent; life-arm walks Aft stairs past the live service arm and boards Zenith; life-gantry walks Freight past the live gantry and boards Jovian; life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))

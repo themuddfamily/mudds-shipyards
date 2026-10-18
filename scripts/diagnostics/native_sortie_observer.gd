@@ -15,6 +15,10 @@ const LIFE_ROUTES := {
 		"activity": ^"OperationalLattice/Activities/AftOperationsActivity",
 		"movers": ["_service_arm_shoulder", "_service_arm_elbow", "_service_arm_tool"],
 		"drones": false, "bounded": true},
+	"life-patrol": {"ship": ^"TorrentInterceptor",
+		"activity": ^"OperationalLattice/Activities/HabitatServicePatrol",
+		"movers": [], "drones": true, "bounded": true,
+		"door": ^"HabitatSpine/MainAccess"},
 }
 var _life_mode := ""
 var _life_config: Dictionary = {}
@@ -848,4 +852,15 @@ func _life_observation() -> Dictionary:
 				and StringName(berth.get("_reserved_ship_id")) == _ship.get_ship_definition().ship_id})
 		result.service.merge({"profile": str(activity.get_activity_profile_id()),
 			"path": str(activity_path), "origin": _v(activity.global_position)})
+	if _life_config.has("door"):
+		var door_path: NodePath = _life_config.door
+		var door := _game.world.get_node_or_null(door_path) as StationDoor
+		if not _ember_node_current(door):
+			result.actors_current = false
+			return result
+		result["door"] = {"id": door.get_instance_id(), "path": str(door_path),
+			"position": _v(door.global_position), "state": door.get_state(),
+			"open": door.is_open(), "blocked": door.is_portal_blocked(),
+			"locked": door.locked, "candidate": _game.station_interaction_candidate == door}
+		result.service["seed"] = activity.variation_seed
 	return result
