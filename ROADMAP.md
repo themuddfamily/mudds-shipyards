@@ -42,16 +42,21 @@ bridge, repair, host-power and service deliveries retain their recorded scopes.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-RECIPIENT | DEFINE; host-local direct-submit and client feedback remain open | Trace actual local-host outcome and client receipt/rejection/clear transport to presentation owners. End with bounded runtime cards, recipient identity/lifetime checks and exact proof, or a precise missing policy fact. Source-only, 15–20 min; no engine/audible run, fabricated wire receipt or automatic broadcast. |
+| AUDIO-NAVIGATOR-HOST-LOCAL | READY; source definition complete on `4f481068c` | Connect actual authoritative host chair outcomes to the accepted local binding alongside the independent bridge source; shared-authority stand must wait for the real ship clear. [Exact files, proof and stop](docs/COMPLETION_SCOPE.md#network-navigator-recipients--source-definition-on4f481068c). 45–60 min implementation/review, 10–20 min checks, 10–15 min checkpoint. |
+| AUDIO-NAVIGATOR-CLIENT-RECEIPTS | Defined consumer gap; freeze implementation card before starting | Applied, already-filtered crew snapshot commands have no client presentation consumer. Preserve actual receipt/session/migration ownership and recipient filter; prove accepted/clear on the client, not host cue counters. Exact runtime seam and existing two-peer proof are linked above; client rejection remains a separate response-path gap. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 AUDIO-MIX-DEFINE’s [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
 remains complete as a definition; all 28 listening cases remain NOT_RUN. Exact
 package/ordinary route, actual output device/backend/configuration and explicit
 audible authorization are still required. Repair dispatch under Dummy does not
-close that gate. The next single action is the recipient source definition above;
+close that gate. Recipient source definition found direct host outcomes missing
+from presentation, unconsumed client crew snapshots, and no client rejection
+response. The next single action is HOST-LOCAL implementation above;
 [host bridge, standalone solo and remaining recipient boundaries](docs/COMPLETION_SCOPE.md#navigator-playback--bounded-delivery-contracts)
-remain distinct. Hauler’s already-asked stock/custody choice remains unchanged;
+remain distinct. Client rejection coverage still needs its precise behavior
+definition before a requester-only response card. No runtime/engine change was
+made by this source definition. Hauler’s already-asked stock/custody choice remains unchanged;
 do not repeat the question or invent stock. This queue is not a project estimate.
 
 ## Turning the remaining scope into executable work

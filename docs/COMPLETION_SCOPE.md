@@ -1127,7 +1127,7 @@ Do not change the network authority or invent another schema/version.
 | --- | --- | --- |
 | AUDIO-NAVIGATOR-HOST — DONE81f885b | On the existing host presentation path, each fresh accepted ping, genuine rejected result and matching active clear selects its distinct existing resident one-shot and keeps the navigator caption. | Actual bridge/GameFlow fixture plus Director request spy under Dummy; consecutive distinct accepted receipts both dispatch; exact replay/stale/malformed/unbound results do not; generation replacement and exact detach preserve existing fences. Stop after focused suites and fresh paired checkpoint; no listening claim. |
 | AUDIO-NAVIGATOR-SOLO — DONEc4de728 | Actual standalone solo outcomes and ship-owned active clear now reach the local presentation source with exact craft/authority/claim identity; no network receipt is fabricated. | Real Player/Cinder/GameFlow chair/FIRE/stand/reseat, forced ledger release/removal, replay/history/host-exclusion checks and paired checkpoint PASS after one preserved fixture-field repair. Listening and complete ordinary travel remain open. |
-| AUDIO-NAVIGATOR-RECIPIENT — definition still required | Client navigator input sends `navigator_ping` through the loadmaster intent route and reads navigator state from its seat view; host-local chair input directly submits to the ship. Host bridge result forwarding alone does not establish feedback for either ordinary input path or other supported recipients. | Trace actual receipt/rejection/tombstone transport and recipient ownership before selecting a change. Preserve authority and original supported crew scope; do not broadcast rejected feedback or invent recipient policy. End with a concrete runtime integration card or exact missing policy fact. No host-only pass closes this child. |
+| AUDIO-NAVIGATOR-RECIPIENT — source-defined on4f481068c; runtime incomplete | Client navigator input sends `navigator_ping` through the loadmaster intent route and reads navigator state from its seat view; host-local chair input directly submits to the ship. Host bridge result forwarding alone does not establish feedback for either ordinary input path or other supported recipients. | Trace actual receipt/rejection/tombstone transport and recipient ownership before selecting a change. Preserve authority and original supported crew scope; do not broadcast rejected feedback or invent recipient policy. End with a concrete runtime integration card or exact missing policy fact. No host-only pass closes this child. |
 
 **Delivered host implementation, frozen contract retained below.**
 [Actual result](history/ROADMAP_DELIVERIES.md#audio-navigator-host--host-sound-requests-and-captions-delivered): all six focused suites and paired package gates PASS first attempt on81f885b.
@@ -1181,6 +1181,129 @@ remote-client feedback remain unfinished under AUDIO-NAVIGATOR-RECIPIENT;
 accepted host bridge presentation alone proves neither ordinary input path.
 Listening/device/native/full ordinary travel/endurance/final gates remain open.
 
+
+
+### Network navigator recipients — source definition on4f481068c
+
+**Definition complete; no runtime changes, engines, tests or scratch.** Root
+traced host-local input/lifetime; one medium read-only agent traced authenticated
+client intent, server publication/filtering and client consumption. Stop at these
+identified owners and acceptance seams; do not broaden into another audit.
+
+**Host-local gap:** `_update_solo_gunner_input` runs for the supported physical
+host chair, including retained local input while a remote pilot owns the helm.
+It calls actual `CinderCargoHauler.submit_navigator_ping`, but the standalone
+presentation claim and forwarding deliberately reject every live session.
+Optional composition also clears the local source for any positive network
+navigator generation. Existing bridge result signals cannot observe that direct
+submission. Do not submit the same command a second time through a bridge or
+invent a host peer generation to reuse a client wire contract.
+
+The accepted local binding already consumes real local results and exact ship
+clear under craft/authority/avatar/seat/claim identity. Reuse it for an
+**authoritative host-owned physical local claim**, alongside the independent
+bridge source. Each direct input has one consumer and one presentation path;
+remote wire receipts keep their existing source. No extra local source for a
+client, foreign/session-stale authority or merely surviving pre-host solo claim.
+The actual live session must be a server, with the existing network binding owning
+this exact role authority and the ordinary physical claim still current.
+
+Host stand differs from standalone stand: `_release_solo_crew_authority` retains
+the authority owned by the network binding, so Cinder authority detach does not
+clear. Generic HeroShip occupant release drops the ledger directly; existing
+Cinder `_cleanup_detached_navigator` commits the clear on its physics update.
+Keep the captured local source connected through that genuine clear even after
+GameFlow seat fields retire, then unbind. Replacement, repeated cleanup, session
+retirement and whole-composition teardown must preserve exact ownership and
+silence stale callbacks. Do not turn an arbitrary source detach into a fake clear.
+
+**AUDIO-NAVIGATOR-HOST-LOCAL — next READY runtime card.** A real live host can
+sit at the navigator chair, FIRE twice with release between, hear/request the
+existing accepted cue/caption once per actual outcome, stand for one real clear,
+and reseat fresh without disturbing remote helm/bridge publication. Genuine local
+refusal uses the existing rejected feedback. Held/replayed/stale input stays
+silent. Preserve standalone acceptance and host bridge request counts.
+
+One implementer owns `scripts/game/game_flow.gd` and
+`scripts/audio/optional_semantic_audio_composition.gd`, plus existing
+`tests/audio/game_flow_cinder_solo_navigator_audio_integration_test.gd` and
+`tests/audio/optional_semantic_audio_composition_test.gd`. Reuse the accepted local
+composition/binding/ship clear APIs; if a required change falls outside this seam,
+stop and freeze the concrete reason before expanding ownership. One independent
+high lifecycle reviewer checks local/bridge coexistence and shared-authority
+stand ordering. No new asset/voice/timer, validator/schema, transport, synthetic
+wire receipt or client integration.
+
+Extend the real Player/Cinder/chair/local-input fixture with an actual live
+NetworkEnetSessionAdapter and real NetworkJovianEngineerBinding ownership of the
+Cinder roster. Keep the original foreign/pre-host authority exclusion as a
+negative case; merely starting a session around a solo claim is not positive
+proof. Use real sit/FIRE/stand/reseat, both actual source registrations, genuine
+shared-ledger release and ship-owned clear, then old callback/replay silence.
+Include session stop/re-entry and exact source retirement; keep existing bridge
+and standalone fixtures as regressions. Ordinary remote helm movement remains its
+larger route gate; if claiming that particular behavior in the focused fixture,
+use the real admitted remote producer and verify its cursor unchanged.
+
+Freeze clean source/commands before engines. Focused suites: extended real local
+fixture, optional composition, navigator audio, actual host bridge flow, GameFlow
+optional composition, exact unbind and reduced-range. Budget45–60min
+implementation/review +10–20min focused checks +10–15min paired checkpoint;
+split before90min implementation. Headless/Dummy,300s per focused stage, same
+first-failure stop/one causal repair/cumulative review rule. No automatic second
+repair or unchanged parked/full-Main route rerun. Fresh paired checkpoint and
+strict startup/audit required before acceptance, then commit/push/clean scratch.
+
+**Client accepted/clear gap, defined independent runtime seam:** actual
+navigator FIRE uses `_send_network_loadmaster_intent` → authenticated
+`send_engineer_intent` / `_receive_engineer_intent` →
+NetworkJovianEngineerBinding dispatch → passenger `submit_readiness` → navigator
+bridge. Bridge accepted receipts and matching clear tombstones already publish
+through crew snapshots. `_crew_snapshot_for_peer` authorizes the originating peer
+and peers whose **network role ledger** associates them with the ship. Physical
+passenger and network-role ledgers are distinct; do not broaden that filter to
+all boarded bodies or broadcast to arbitrary peers.
+
+`_broadcast_crew_snapshot_fragment` validates/decodes `snapshot.commands`, stores
+the crew replica and emits `crew_snapshot_applied`. No game/audio/UI script
+consumes that signal or `get_crew_replica_snapshot`. Client objective text reads
+the simpler passenger replica instead. Host-only presentation generation getters
+cannot bind a valid client owner. Therefore connect successfully applied existing
+wire commands to client presentation tied to actual session/migration and
+transported ship generation, preserving the server recipient filter, receipt
+fields and active-clear ownership after passenger assignment empties. Never
+manufacture a wire receipt from the simpler passenger view. Session retirement,
+migration, ship/owner replacement and unrelated/stale/malformed/replayed input
+must retire/fence the correct source.
+
+AUDIO-NAVIGATOR-CLIENT-RECEIPTS has an implementation seam, but its exact
+file ownership/recipient-lifetime acceptance card must be frozen before starting.
+Likely GameFlow plus existing navigator composition APIs; keep transport/filter
+unchanged. Existing `tests/network/halyard_network_passenger_route_test.gd`
+`--cinder-navigator` has the real two-peer chair/FIRE/stand/reseat/migration route;
+extend **client** Director request/caption assertions for two distinct accepted
+receipts, matching clear once, replay silence and post-migration freshness.
+Existing host cue assertions do not prove the client. Protect recipient filtering
+with `network_enet_crew_snapshot_integration_test.gd` and actual clear identity
+with `network_cinder_navigator_ping_bridge_test.gd`. Preserve original route/failure
+budgets; no unchanged attempt without the selected consumer change.
+
+**Client rejection is a separate unfinished outcome:** actual navigator input
+does not emit `crew_command_result`. Pre-consumer rejection returns are stored
+in the engineer binding's private errors; passenger snapshots carry no result.
+Bridge rejection is forwarded only on the host; crew snapshots publish no rejected
+navigator result. A response must go only to the authenticated requester, with
+actual request/claim/session correlation; stale replay must not sound again.
+Attaching bridge policy to a pre-bridge validation failure would fabricate
+provenance. Exact missing behavior definition: whether client feedback covers
+only actual navigator consumer/bridge refusals, or also current authenticated
+pre-consumer availability/admission failures. Malformed/stale/foreign data is
+never evidence of a fresh current user request. Resolve that boundary before
+freezing the rejection-response card; do not silently omit rejection from final
+MIX-NAVIGATOR acceptance. No user decision or authorization is inferred here.
+
+Host-local, client accepted/clear and client rejection stay separate unfinished
+requirements. All listening/device/native/endurance/final gates remain open.
 
 ## Phase-wide acceptance still required
 
