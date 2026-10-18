@@ -260,6 +260,31 @@ independent read-only review is selected to identify the actual settings focus/
 scroll production cause and propose ONE repair. No edit or new engine invocation
 is authorized until root freezes the reviewed repair and acceptance obligations.
 
+### Selected repair — SETTINGS-SCALED-FOCUS-SCROLL
+
+Independent cumulative review permits ONE production repair after the original
+21:9 failure33.080s (16:9 pass33.599s retained;32:9 NOT_RUN). Ordinary Settings
+focus bypasses HUD's deferred scroll helper; native visibility math truncates a
+float scroll delta to integer. Exact clipped edge/residual is inferred, not logged.
+
+- **Outcome/files:** currently focused Settings row is fully revealed at scaled
+  pause layouts. One medium-effort implementer owns scripts/ui/hud.gd and smallest
+  extension of existing tests/settings_focus_navigation_test.gd; root integrates,
+  original high-effort reader reviews final diff independently.20–30min cap.
+- **Change:** route SettingsScroll descendant focus through existing deferred helper;
+  retain all liveness/visibility guards and require current focus/current scroll
+  descendant. Compute target rect in scroll-local units via inverse global transform;
+  correct upper overflow with floori, lower with ceili, normal scrollbar clamping.
+  No horizontal scroll, new layout framework, focus stealing or duplicate correction
+  against stale geometry. Preserve state sequence/fixture/tolerances/caps.
+- **Proof:** clean import600s/compile300s, existing focused Settings navigation300s
+  including obsolete queued focus/page guards; full21:9 once at300s requires all96
+  original observations/former graphics row. Then required full16:9 and32:9 at300s
+  each on same clean pin. First new failure STOPs; no automatic second repair.
+- **Delivery:** independent final/cumulative GO, fresh paired checkpoint/three strict
+  silent startups/actual package audit, visible notes, commit/push and owned cleanup.
+  Prior failure retained; no rendered/device/persistence/full UI claim.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
