@@ -5593,13 +5593,15 @@ func _physics_process(delta: float) -> void:
 	# smoothed throttle. The coordinator performs no raw Input read or global hum.
 
 
-## Present accepted host hull facts only at the HUD boundary. The existing
+## Present accepted host hull/operation facts only at the HUD boundary. The existing
 ## replica owner clears this projection when local authority or lifetime wins.
 func _publish_active_ship_telemetry_to_hud() -> Dictionary:
 	var telemetry: Dictionary = active_ship.get_telemetry()
-	telemetry.merge(active_ship.get_network_hull_telemetry_presentation(), true)
-	_decorate_flight_path_telemetry(telemetry)
-	hud.update_ship_telemetry(telemetry)
+	var display: Dictionary = telemetry.duplicate()
+	display.merge(active_ship.get_network_hull_telemetry_presentation(), true)
+	display.merge(active_ship.get_network_operation_telemetry_presentation(), true)
+	_decorate_flight_path_telemetry(display)
+	hud.update_ship_telemetry(display)
 	return telemetry
 
 
