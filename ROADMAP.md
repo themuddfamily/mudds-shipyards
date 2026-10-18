@@ -47,31 +47,39 @@ unapproved; parked failures remain outside the queue.
 | --- | --- | --- | --- |
 | NET-COMPONENT-ROW /11,21 | DONE; packaged39a2ad7 | Retained row follows accepted host components and restores current local data on clear/pilot change | Closed after focused local/pose/Main ENet checks and paired checkpoint; no automatic adjacent successor. |
 | ONFOOT-SPRINT-TOGGLE /8,29 | DONE; packagedbd4e15d | Shared Sprint/boost HOLD/TOGGLE works in local walking sprint with safe handoffs | Closed after focused source checks and paired checkpoint; no automatic adjacent successor. |
-| AUDIO-CONTENT-DEFINE /30 | Definition; SELECTED | Finite missing authored cue or production transition findings | Source-only mapping capped20min; no audible output or renewed checks. |
+| AUDIO-ACTIVITY-LIFECYCLE /30 | Production integration; SELECTED | Current activity mix survives normal base updates and same-run completion | Reproduce actual bed/adapter gap; focused lifecycle fix/checks and paired checkpoint. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
-are closed. AUDIO-CONTENT-DEFINE is selected independently below; no adjacent
+are closed. AUDIO-CONTENT-DEFINE is complete; AUDIO-ACTIVITY-LIFECYCLE is selected below. No adjacent
 HUD power or movement/tow chain is selected. Original Settings/hardware gates
 remain open, and Titan approval remains pending.
 
-### AUDIO-CONTENT-DEFINE — actual missing cues or broken transitions
+### AUDIO-ACTIVITY-LIFECYCLE — current activity owns its music presentation
 
-- **Kind/result:** source definition, parent30. Resolve finite actual missing
-  authored audio or broken production transitions in station/activity/orbit/
-  surface scope; distinguish absent runtime/content from unqualified mix quality.
-- **Owner/files:** one medium-effort source mapper; root owns original promise
-  and integration. ASSETS.md audio provenance, actual AudioDirector/MusicDirector,
-  station/flight/surface beds and production semantic bindings/composition callers
-  in GameFlow. Inspect relevant existing tests only for scope; no tools/audio
-  validator/evidence-family audit or version/catalog census.
-- **Acceptance:** finite promised cue/transition families, current authored
-  assets→playback owner→real production caller, exact uncovered behavior or
-  missing definition. Consolidate in existing COMPLETION_SCOPE.md/backlog.
-  No speculative extra music/cues, no duplicate tracker or new schema/validator.
-- **Budget/stop:**20min source-only, no engine, playback, rendered capture,
-  profiling or parked native smoke. Stop once finite rows/precise missing facts
-  are known. Audible/device mix remains NOT_RUN and requires its existing explicit
-  authorization; this definition does not substitute for it. No automatic successor.
+- **Kind/result:** production audio integration, parent30. Real same-generation
+  active→complete reaches the existing activity profile, and ordinary base-phase
+  updates preserve current activity mix. Reset/idle restores actual base context.
+- **Owner/files:** one high-effort implementer; GameFlow music/activity sync and
+  NearbySectorActivityMusicAdapter; existing activity adapter and GameFlow nearby
+  music integration tests, relevant existing bed/phase tests. Independent high-
+  effort lifecycle review; root owns integration/checkpoint. No Aurora/Rime phase
+  repair or Ember environment work in this card.
+- **Acceptance:** test-only old reproduction of same-run completion and normal
+  update-order overwrite in real StationMusicBed. Preserve existing assertions/
+  original limits. Final active/complete/reset and duplicate/stale/terminal replay
+  fences, combat/landing precedence, current activity resumption/base-context
+  return and detach/reentry. Observe existing player targets/playback state under
+  Dummy audio; no listening/ordinary activity journey claim. Gameplay/activity/
+  reward/generation authority, asset roster and voice ceiling remain unchanged.
+- **Budget/stop:**30–60min implement/review, split before90. Import/compile and
+  focused existing suites once per frozen stage; no audio output, headless/Dummy
+  and private profiles. First unexpected failure stops for separate repair
+  selection; original plus one repair requires cumulative priority review.
+- **Alternative/close:** AUDIO-SURFACE-MUSIC is a separately identified runtime
+  alternative, sequential because it shares GameFlow. No automatic successor.
+  Accepted runtime needs fresh clean paired exports/three strict silent startups/
+  existing package audit, commit/push and owned scratch cleanup. Mix/hardware
+  gates stay open.
 
 ## Parked failures and dependent work
 

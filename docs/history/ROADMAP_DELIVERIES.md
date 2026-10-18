@@ -7946,3 +7946,35 @@ checks. This stop plus one repair is cumulative: any further unexpected failure
 requires priority review before more diagnosis/edit/rerun. Original test-only
 d720efe25 reproduces exactly the local release failure32.610s; import20.722 and
 compile16.079 pass. No parked Settings route is reopened.
+
+## AUDIO-CONTENT-DEFINE — finite source inventory on8a6e7dfe6
+
+Completed within20min source cap with one medium-effort read-only mapper and
+root production-caller review. Existing COMPLETION_SCOPE audio map consolidates
+actual authored families/playback and finite uncovered transitions. Activity
+same-generation completion/per-frame overwriting and Aurora/Rime surface phase
+are concrete running-game seams. Initial Ember zero-delta finding is narrowed:
+ordinary weather/solar feed is dormant, so a delta-only patch would not deliver
+working audio. World-specific intended feed/acoustics remains a definition.
+No new music/cues inferred, no engine or audible output, no renewed pass. Root
+separately selects activity lifecycle; surface phase remains separate due shared
+GameFlow ownership. Audible/device mix and original broad acceptance remain open.
+
+### AUDIO-CONTENT-DEFINE — actual missing cues or broken transitions
+
+- **Kind/result:** source definition, parent30. Resolve finite actual missing
+  authored audio or broken production transitions in station/activity/orbit/
+  surface scope; distinguish absent runtime/content from unqualified mix quality.
+- **Owner/files:** one medium-effort source mapper; root owns original promise
+  and integration. ASSETS.md audio provenance, actual AudioDirector/MusicDirector,
+  station/flight/surface beds and production semantic bindings/composition callers
+  in GameFlow. Inspect relevant existing tests only for scope; no tools/audio
+  validator/evidence-family audit or version/catalog census.
+- **Acceptance:** finite promised cue/transition families, current authored
+  assets→playback owner→real production caller, exact uncovered behavior or
+  missing definition. Consolidate in existing COMPLETION_SCOPE.md/backlog.
+  No speculative extra music/cues, no duplicate tracker or new schema/validator.
+- **Budget/stop:**20min source-only, no engine, playback, rendered capture,
+  profiling or parked native smoke. Stop once finite rows/precise missing facts
+  are known. Audible/device mix remains NOT_RUN and requires its existing explicit
+  authorization; this definition does not substitute for it. No automatic successor.

@@ -454,6 +454,46 @@ Current evidence boundaries: `network_enet_session_capacity_test.gd` uses cap 1 
 
 **Pending owner decision:** choose the final release qualification target in remote guests and whether the host also plays. Recommendation: retain the current 8-guest default as the target (9 total with a playing host), while qualifying the original two-guest profile first. Choosing a smaller supported release count must be recorded explicitly; it does not erase original craft/role/world commitments. No setting or runtime cap is changed by this proposal. Native Windows execution and human review remain owner-excluded mandatory gates; native hardware/device/audio and other applicable release checks retain factual NOT_RUN where unperformed.
 
+## Authored audio content and production transition boundary
+
+AUDIO-CONTENT-DEFINE source inventory on `8a6e7dfe6` (2026-10-18), parent30.
+No engine, playback, new asset, renewed check or audible quality acceptance.
+
+| Family | Current authored content and actual production path |
+| --- | --- |
+| Station/landing, flight/orbit, surface music | Nine checked-in music WAV loops documented in ASSETS.md → StationMusicBed's three Music voices → GameFlow._update_music_bed_state. Three bounded families exist; no per-activity themes are inferred missing. |
+| Combat music/endings | Combat stems and victory/failure stingers → CombatMusicLayer → GameFlow._sync_combat_music_layer/collected encounter/defense/convoy sources and ending hold. |
+| Activity music | Existing calm family with authored activity layer gains → StationMusicBed.notify_activity_state → NearbySectorActivityMusicAdapter → GameFlow nearby activity synchronization. Two lifecycle defects below; semantic activity captions alone are not playback. |
+| Station machinery/doors | Code-authored hum/servo/latch → StationMachineryAmbience positional voices → ShipyardWorld operational lattice/door state and completion callbacks. |
+| Player/UI | AudioDirector resident procedural confirmation/canopy/footstep/impact/alert bank → actual GameFlow action/presentation calls. |
+| Aurora environment | Authored temperate wind/cabin/coastal assets → AuroraExteriorAmbienceMixer/scene voices → surface visit streaming bootstrap and authored scene snapshots. Coast playback already implemented. |
+| Ember generic environmental foundation | Owned playback binding/catalog exists, but weather/solar wrapper methods have no ordinary-game callers. Empty observations prevent playback presentation; injected observations also pass zero elapsed fade time. This is dormant integration, not a delta-only running-game repair. |
+
+Finite remaining source findings:
+
+- **AUDIO-ACTIVITY-LIFECYCLE:** adapter rejects same-generation active→complete
+  because it requires strictly newer generation, although real convoy generation
+  changes at start/reset. Per-frame base-phase update also erases activity mix.
+  Repair one coherent activity-state presentation outcome; preserve duplicate/
+  stale fences, combat/landing priority and gameplay ownership.
+- **AUDIO-SURFACE-MUSIC:** base-phase selection checks only the Ember latch.
+  Aurora/Rime expedition disembark clears piloting and uses APPROACH_SHIP without
+  that latch, selecting station music. Bind their actual visit state in a separate
+  bounded repair, preserving combat/landing precedence.
+- **AUDIO-EMBER-FEED-DEFINE:** identify the intended world-specific audible
+  environment and real observation owner before selecting integration. No new
+  temperate wind requirement is inferred for Ember. A zero-delta helper patch
+  alone would leave ordinary gameplay unchanged.
+
+Existing phase/activity tests cover direct state selection, forwarding and combat
+precedence, not the combined per-frame/same-generation lifecycle or Aurora/Rime
+expedition path. Ember tests manually inject observations and check acceptance/
+voices, not ordinary-game positive gain. SemanticAudioCueRouter/AudioDirector
+semantic forwarding never proves a sound was played; optional semantic bindings
+are not absent sound banks without a specific audible contract. Real-device mix,
+transition quality, voice budgets and human listening remain separately open;
+no audible output is authorized by this source definition.
+
 ## Phase-wide acceptance still required
 
 The roster tables name content; the following shared commitments still apply to every required item. Detailed remaining tasks and historical results stay in [ROADMAP](ROADMAP_BACKLOG.md#remaining-tasks-to-complete-the-project).

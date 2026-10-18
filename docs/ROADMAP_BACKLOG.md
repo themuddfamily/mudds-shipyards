@@ -520,7 +520,10 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | COMFORT-FLASH | Reduced flash route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
 | COMFORT-COLOUR | Colour-safe cues route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
 | COMFORT-CAPTIONS | Captions route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
-| AUDIO-CONTENT-DEFINE | Finite actually missing cues and broken transitions | 30 | DEFINE; station/activity/orbit/surface, Aurora coast already delivered |
+| AUDIO-CONTENT-DEFINE | Finite actually missing cues and broken transitions | 30 | Definition DONE on8a6e7dfe6; existing COMPLETION_SCOPE audio map separates real playback, two transition outcomes and dormant Ember feed definition; no missing new theme inferred |
+| AUDIO-ACTIVITY-LIFECYCLE | Current activity music survives normal updates and same-run completion | 30 | Concrete adapter/GameFlow repair SELECTED in ROADMAP.md; preserve phase/authority ordering |
+| AUDIO-SURFACE-MUSIC | Aurora/Rime surface visit selects existing surface bed | 30 | Concrete phase-owner gap; separate selection after activity integration to avoid shared GameFlow edits |
+| AUDIO-EMBER-FEED-DEFINE | Actual intended Ember environment and observation owner | 30 | DEFINE; wrappers dormant, zero-delta helper alone is not a running-game delivery |
 | AUDIO-MIX-DEFINE | Finite real-output scenario/device mix list | 30 | DEFINE; distinct from silent state/integration checks |
 | AUDIO-MIX | Actual output levels/cues/transitions in named scenario | 30 | WAITING; finite scenarios, explicit audible authorization and device |
 
