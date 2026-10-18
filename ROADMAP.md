@@ -40,7 +40,7 @@ is selected. All four station service runtime passes retain their recorded scope
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-CREW-REPAIR-PLAYBACK | READY; concrete running-game gap | Actual repair start/interruption/completion must cross correct source fields and independent repair ordering to distinct resident sounds. Complete card below; 45–75 min implementation/review, 10–20 min focused checks and 10–15 min checkpoint work, estimated rather than guaranteed. |
+| AUDIO-CREW-REPAIR-PLAYBACK | IN PROGRESS; concrete running-game gap | Actual repair start/interruption/completion must cross correct source fields and independent repair ordering to distinct resident sounds. Complete card below; 45–75 min implementation/review, 10–20 min focused checks and 10–15 min checkpoint work, estimated rather than guaranteed. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 AUDIO-MIX-DEFINE is complete as a source definition. The [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
@@ -53,6 +53,13 @@ choice remains unchanged; do not repeat that question or invent stock.
 
 ## Next executable card: AUDIO-CREW-REPAIR-PLAYBACK
 
+**IN PROGRESS on e383975f6.** Pre-execution source review additionally found the
+router omits the four already-defined engineer repair IDs, so it drops those
+captions/events before the Director. Narrow router ownership/check is included
+below before edits. Existing bounded cue retirement may be used to prevent old
+terminal slots suppressing the next genuine repair; no new voice/timer/authority
+is introduced. The same complete player result and original stop/budget apply.
+
 **Player result, parent30:** actual accepted Halyard engineer repair start,
 interruption and completion generate distinct short sound requests and the
 existing correct captions. Progress does not beep each frame. Repair truth,
@@ -63,7 +70,8 @@ resource debit and role authority remain with the existing owners.
   gate that misses elapsed completion, and the Director’s semantic-only relay.
   Fix all three together; fabricated correctly shaped inputs cannot prove this.
 - **Owner/files:** one implementation agent owns `scripts/game/game_flow.gd`,
-  `scripts/audio/audio_director.gd`, and, only if required at its input boundary,
+  `scripts/audio/audio_director.gd`, `scripts/audio/semantic_audio_cue_router.gd`
+  (only missing engineer repair labels), and, where required at its input boundary,
   `scripts/audio/halyard_crew_semantic_audio_binding.gd`. Extend existing
   `tests/audio/game_flow_halyard_crew_audio_integration_test.gd` and
   `tests/audio_director_test.gd`; existing engineer/role tests may provide the real
@@ -95,7 +103,9 @@ resource debit and role authority remain with the existing owners.
   `audio/halyard_engineer_audio_integration_test.gd`,
   `halyard_crew_role_gameplay_test.gd`,
   `audio/reduced_dynamic_range_audio_integration_test.gd` and
-  `audio/semantic_audio_source_unbind_test.gd`, requiring exit0 and their existing
+  `audio/semantic_audio_source_unbind_test.gd`, plus the existing
+  `audio/halyard_crew_semantic_audio_router_test.gd` for repaired routing labels,
+  requiring exit0 and their existing
   success markers. Freeze exact commands/budgets before execution. No real output,
   desktop run, parked physical crew route or full matrix is selected.
 - **Delivery/stop:** fresh clean paired checkpoint, three strict silent package
