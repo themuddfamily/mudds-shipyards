@@ -468,7 +468,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HALYARD-AUTHORITY-STOP | Real server stop restores both remaining occupants to solo play | 16,26 | GATED on HALYARD-MOVING-CABIN; no SIGKILL/migration/reconnect claim |
 | SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | GATED; exact baseline contract, boarding/departure passes do not close it |
 | NET-FULL-SNAPSHOT | All-nine forced-full publication and byte budget | 17,26 | UNSCHEDULED; original aggregate budgets, movement-only bytes insufficient |
-| NET-PROFILES-DEFINE | Original latency/loss/jitter/reorder/stall profile roster | 26 | DEFINE; exact existing commands and ownership/lifecycle limits |
+| NET-PROFILES-DEFINE | Original latency/loss/jitter/reorder/stall profile roster | 26 | DONE definition only; MOVING_INTERIOR_LATENCY finite contract names five stream profiles, narrow three-process command injection and two physical host-stall actions; impaired independent session/endurance remain open |
 | NET-ENDURANCE-DEFINE | Executable original 30-minute independent two-client moving-interior route | 26 | DEFINE; original duration/latency, no short substitute |
 | NET-ENDURANCE | Original 30-minute moving-interior session | 26 | GATED; stable baseline and exact original command |
 | SHARED-EMBER-BASELINE | Ember shared canonical outbound/physical survey/reward/save/home return | 3,27 | GATED; ordinary crew/profile and exact canonical command |
@@ -537,7 +537,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | RECOVERY-ONFOOT-PROBE | Exported release driver admits and observes genuine on-foot save/resume context | 2,31,32 | DONE source scope f90547c37: real-file source kill/restart, supported walk+Interact, receipts1→2; package child accepted |
 | CHECKPOINT-ONFOOT-PROBE | Paired checkpoint ships accepted on-foot release-driver support | 6,32 | DONE f90547c: paired exports, strict startups and exact package audits |
 | RECOVERY-ONFOOT-CUT | Real-file on-foot commit, owned SIGKILL and distinct-process usable home recovery | 2,31 | DONE f90547c direct and actual archive-extracted ELF cuts; supported walk/Interact, receipts1→2 once |
-| RECOVERY-PILOT-DEFINE | Pilot durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
+| RECOVERY-PILOT-DEFINE | Pilot durable-boundary/resume-or-safe-home contract | 2,31 | DONE definition only; four-field safe-home pilot preference, fresh claims, preserved activity/debt; ca0 archive pilot/Convoy pass retained; final candidate and ordinary-controls qualification remain |
 | RECOVERY-CABIN-DEFINE | Cabin/rest durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
@@ -1086,6 +1086,66 @@ nondefault craft, owned SIGKILL/reap and distinct same-profile Resume/Begin Shif
 supported outside-home recovery with no seat/hatch claim, ordinary walking then
 real Interact boarding, and conserved existing activity/debt/reward boundary.
 No arbitrary power-loss, other context, airborne-pose or native-device claim.
+
+### Settled pilot recovery contract
+
+RECOVERY-PILOT-DEFINE is DONE as a source definition on51cc486e6. It adds no
+runtime feature or new qualification. GameFlow owns capture, disclosure, Resume/
+Begin Shift and fresh boarding; UserDataStore owns atomic generation-checked
+publication; activity owners retain progress/debt/payment authority.
+
+- `_capture_solo_safe_recovery_context` requires settled actual pilot ownership
+  on a registered, boardable, nondestroyed craft and actual Player pilot anchor,
+  outside transition/network/planetary ownership. The durable preference has
+  exactly `{location:mudds_home_berth, mode:pilot, craft_id, berth_id}`; it contains
+  no transform, velocity, object identity or old seat/reservation token.
+- `_persist_solo_safe_recovery_context` publishes only after accepted store
+  commit; refused writes retain previous authority and bounded retry. Backup
+  documents are not silently overwritten. Cold startup validates the four-field
+  contract against fresh registered craft and its exact occupied/reserved home
+  berth and available boarding area (`_solo_safe_recovery_craft`).
+- The existing recovery notice explicitly says home-berth boarding, previous
+  flight position not restored and saved activity progress kept. Stale Resume
+  fences cannot board. Accepted Resume defers until Begin Shift; the normal
+  Begin Shift choice can acknowledge the same notice. `_apply_solo_safe_recovery`
+  settles at the authored supported exit then calls `_board_ship`, acquiring
+  fresh real seat/hatch owners while preserving recovered activity.
+- Unsupported/unknown/unavailable craft or conflicting network/planetary state
+  cannot consume this pilot preference into a seat claim. Normal station start
+  and independent activity/debt remain. Planetary restoration has its own owner.
+  Retained Main reentry preserves live identities and is a different case from
+  cold-process recovery. Airborne pose restoration is outside this contract.
+
+Authoritative code: `scripts/game/game_flow.gd` functions above plus
+`start_shift`, and `scripts/persistence/user_data_store.gd` commit.
+Existing `tests/session_recovery_resume_offer_test.gd` pilot cases cover active
+Convoy cold recovery, refused-write retry, stale/accepted Resume, deferred Begin
+Shift, retained Main identity, terminal unpaid debt and unavailable-context
+fallback. These are anchors, not a new suite PASS: its retained original300s
+failure at Main17 after151 passes remains parked; Main18/19 were not entered.
+
+The [ca0 archive check](LINUX_BUILD.md#earlier-local-checkpoint-ca0afc449--2026-10-17)
+records an owned Bulwark pilot/active Convoy SIGKILL and distinct restart in57.291s:
+exact durable boundary, receipts1→2 once and one crash event. Preserve this
+accepted source/package case. Setup/boarding is scripted and completion uses
+an escort-motion fixture, so it does not establish an ordinary-input journey.
+The existing `scripts/diagnostics/in_world_interruption_probe.gd` and
+`tools/release/run_package_probes.sh` already implement kill/reap, unchanged
+killed document, distinct restart and terminal `IN_WORLD_RECOVERY_OK` checks.
+For a separately selected Linux ELF qualification, existing selectors are
+`PACKAGE_PATH=<absolute-qualified-ELF> PACKAGE_PROBE_RECOVERY_CONTEXT=pilot
+PACKAGE_PROBE_AUDIO_DRIVER=Dummy tools/release/run_package_probes.sh
+--in-world-interruption --native-export --activity=convoy`, with a private profile
+and original stage caps. This definition runs no probe. The driver also has
+beacon/mining/scan/hulk/stationdefense/ember pilot selectors; their mere presence
+is not acceptance, and no new all-activity recovery implementation is inferred.
+
+Finite remaining work: qualify this contract on the eventual exact installed/
+archive Linux candidate; separately select a concrete full normal-controls
+recovery route if required; resolve docking/planetary and other activity cases
+under their existing definitions. Native execution/device/audio and owner-excluded
+human gates retain factual status. No30–60min missing production capability was
+established here; do not create one just to obtain another task.
 
 ### Bomber crew/navigation interpretation
 

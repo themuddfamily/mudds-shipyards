@@ -61,6 +61,19 @@ step is to resolve remaining DEFINE/BUILD-SPLIT rows into finite player/build
 capabilities with unchanged parent acceptance, rather than infer another audio
 repair. [Surface-music result and retained card](docs/history/ROADMAP_DELIVERIES.md#surface-visit-music--accepted4ff7a08).
 
+### Latest planning result
+
+NET-PROFILES-DEFINE and RECOVERY-PILOT-DEFINE are DONE as definitions only.
+[Network profile contract](docs/MOVING_INTERIOR_LATENCY.md#finite-profile-contract--net-profiles-define-2026-10-18)
+separates the five existing stream profiles, three-process consumer injection,
+actual host stalls and still-missing impaired independent/endurance journeys.
+[Pilot recovery contract](docs/ROADMAP_BACKLOG.md#settled-pilot-recovery-contract)
+names the existing home-berth preference, fresh claims and preserved activity/debt;
+its prior packaged pass remains accepted, final-candidate/ordinary-controls gates
+stay open. No runtime gap was established by either definition; no tests or new
+build were needed. No qualification successor is selected. Remaining definitions
+must identify an actual finite contract or production gap before implementation.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact

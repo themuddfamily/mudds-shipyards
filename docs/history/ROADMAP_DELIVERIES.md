@@ -8132,3 +8132,47 @@ Retained selected contract follows:
   No automatic adjacent audio chain. Accepted runtime requires fresh clean paired
   exports/three strict silent startups/existing package audit, commit/push and
   owned scratch cleanup. Mix/device/full-world gates remain open.
+
+
+## Network profiles and pilot recovery — bounded definitions, 2026-10-18
+
+Inspected source51cc486e6; root owns network profile contract, one medium-effort
+read-only agent owns pilot recovery trace; root verified the write/read seams,
+existing CLI selectors and prior ca0 package result. Both DEFINE outcomes close
+as source definitions only. Existing MOVING_INTERIOR_LATENCY and ROADMAP_BACKLOG
+contain the finite result; no new tracker, validator, runtime or test was added.
+
+Network scope: five existing same-process stream-only profiles, data-only trace
+validator, narrow direct command injection in the three-process harness and two
+actual independent helm host-stall actions are distinct checks. The100ms RTT
+impairment log cannot establish whole-session network shaping. Independent
+impaired session and original30min moving-interior journey remain unqualified;
+Halyard boarding and dependent baseline work remain parked/gated.
+
+Pilot scope: the four-field durable home-berth pilot preference deliberately
+omits airborne pose, acquires fresh claims after fenced Resume/Begin Shift and
+preserves independent activity/debt. Existing ca0 archive Bulwark pilot/Convoy
+kill/restart57.291s remains accepted; scripted setup/continuation is disclosed.
+Final-candidate, installed and normal-controls requirements retain exact scope.
+The original session_recovery_resume_offer timeout at Main17 after151 passes
+remains unchanged; no rerun or feature expansion is justified by this definition.
+
+Static validation checks referenced files, current code owners/profile values,
+existing selectors and document links; git diff --check passes. No engines,
+CI, native Windows or audible tests ran. No checkpoint required for planning.
+Finished within the30min planning allowance; all36 parents/ten gates stay open.
+No successor qualification chain selected. Retained selected scope follows.
+
+### Selected planning work — network profiles and pilot recovery
+
+Two independent definitions are selected, with no runtime execution: root owns
+NET-PROFILES-DEFINE (parent26), one medium-effort read-only agent owns
+RECOVERY-PILOT-DEFINE (parents2,31), and root integrates the existing documents.
+Finish within30min with finite actual profile/recovery cases, source owners,
+existing commands and explicit uncovered acceptance. Preserve accepted runs and
+parked routes; do not create validators, new trackers, new recovery features or
+infer full-session impairment from a stream-only shim. No engine runs, native
+Windows execution, audible output or CI dispatch. Stop when each write/read or
+send/receive seam and remaining case is known. This is planning progress only;
+no new build is required. These definitions are independent alternatives to an
+adjacent audio repair and do not schedule a qualification chain.
