@@ -129,10 +129,12 @@ func _host() -> void:
 	instrument_ship.request_engine_start()
 	instrument_ship._update_engine(instrument_ship.engine_start_time + 0.01)
 	instrument_ship.set("_throttle", 0.65)
+	instrument_ship._update_presentation(1.0 / 60.0, ShipCommand.new())
 	_write("engine-witness", true)
 	if not await _wait_marker("client", "engine-witness"):
 		return
 	instrument_ship.set("_throttle", -0.45)
+	instrument_ship._update_presentation(1.0 / 60.0, ShipCommand.new())
 	_write("reverse-throttle", true)
 	if not await _wait_marker("client", "reverse-throttle"):
 		return
@@ -153,6 +155,7 @@ func _host() -> void:
 		_craft._update_landing(0.1)
 	_craft.request_engine_stop(false)
 	instrument_ship.request_engine_stop(false)
+	instrument_ship._update_presentation(1.0 / 60.0, ShipCommand.new())
 	_craft.set_canopy_open(true, 0.0)
 	_write("dock-witness", true)
 	if not await _wait_marker("client", "dock-witness") or not await _wait_marker("operation-late", "dock-witness"):
@@ -311,6 +314,8 @@ func _client() -> void:
 		_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/engine-witness")), "host engine transition is committed")
 		_check(await _wait(func() -> bool: return bool((_craft.get("_engine_glows") as Array)[0].visible)),
 			"online host exhaust is visible on the independent observer")
+		_check(await _wait(func() -> bool: return (instrument_ship.get_network_operation_presentation_audit().state as Dictionary).get("engine") == HeroShip.ENGINE_ONLINE),
+			"current observer adopts the Jovian ONLINE operation row")
 		_assert_throttle_instrument(0.65, "current peer displays positive running host throttle")
 		_mark("engine-witness")
 		_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/reverse-throttle")), "host reverse throttle is committed")
@@ -442,7 +447,9 @@ func _assert_throttle_instrument(expected: float, description: String, update: b
 		ship._reassert_network_operation_presentation()
 	var readout := ship.get("_cockpit_readout") as Label3D
 	var physical := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/ThrottleReadout") as Label3D
-	_check(physical.text == "%+03d\nTHR %%" % roundi(expected * 100.0), description)
+	var operation := ship.get_network_operation_presentation_audit().state as Dictionary
+	_check(physical.text == "%+03d\nTHR %%" % roundi(expected * 100.0)
+		and (is_zero_approx(expected) or (operation.get("engine") == HeroShip.ENGINE_ONLINE and readout.text.begins_with("ONLINE"))), description)
 
 
 func _assert_fleet_presentation() -> void:
@@ -458,7 +465,7 @@ func _assert_fleet_presentation() -> void:
 			var hull := ship.get_network_damage_presentation_audit().state as Dictionary
 			var operation := ship.get_network_operation_presentation_audit().state as Dictionary
 			if hull.get("health", -1.0) != expected.hull.health or hull.get("components", []) != expected.hull.components \
-					or operation.get("engine") != expected.operation.engine:
+					or operation.get("engine") != expected.operation.engine or operation.get("throttle") != expected.operation.throttle:
 				return false
 		return true), "current/late full peers present exact all-nine operated hull/component/engine facts")
 

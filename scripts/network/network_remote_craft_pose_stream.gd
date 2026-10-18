@@ -618,6 +618,9 @@ func _sample_from_entry(entry: Dictionary, display_batch: Dictionary = {}, stati
 		var operation_fields := ["engine", "landed", "docked", "landing", "canopy", "canopy_open", "readout", "readout_color", "renderers"]
 		for index in operation_fields.size():
 			operation[operation_fields[index]] = decoded[9][index]
+		# Preserve the original packed row so older admitted peers still decode
+		# poses. Missing optional header data means neutral, never a stale helm.
+		operation["throttle"] = entry.get("operation_throttle", 0.0)
 		if not operation.renderers is Array or operation.renderers.size() != shape.paths.size():
 			return {}
 		var renderers: Array = []
@@ -747,7 +750,8 @@ func _valid_operation_presentation(operation: Dictionary) -> bool:
 	for field: String in ["landed", "docked", "landing", "canopy_open"]:
 		if not operation.get(field) is bool:
 			return false
-	if not _bounded_number(operation.get("canopy"), 0.0, 1.0) or not operation.get("readout") is String \
+	if not _bounded_number(operation.get("throttle", 0.0), -1.0, 1.0) \
+			or not _bounded_number(operation.get("canopy"), 0.0, 1.0) or not operation.get("readout") is String \
 			or operation.readout.length() > 256 or not _finite_color(operation.get("readout_color")) \
 			or not operation.get("renderers") is Array or operation.renderers.size() > 64:
 		return false
@@ -801,6 +805,10 @@ static func pack_display_facts(entries: Array) -> Array:
 			components.append(component.integrity)
 			placements.append([component.local_position, component.local_radius])
 		var operation: Dictionary = entry.operation_presentation
+		# Older receivers ignore this optional primitive header. Keep neutral
+		# rows byte-compatible and leave the ten-field display layout untouched.
+		if operation.get("throttle", 0.0) != 0.0:
+			wire["operation_throttle"] = operation.throttle
 		var paths: Array = []
 		var renderers: Array = []
 		for row: Array in operation.renderers:
