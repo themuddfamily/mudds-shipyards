@@ -166,6 +166,14 @@ accepted runtime repairs require separate cards and fresh paired builds.
   returns. Root owns this trivial correction; no further delegation needed.
   One corrected compile, then one unchanged route only if it passes. Any further
   failure requires cumulative priority review before more repair or rerun.
+- **Priority review:**cfe10a461 corrected compile PASS; first route FAIL70.453s
+  before landing input: brake release is queued and its old sampled brake remains
+  visible to immediate neutral check. No delivery acceptance. There are no other
+  READY cards: reload/moving/authority depend on unaccepted work and Halyard is
+  parked. Select ONE additional5min root correction to let two normal ticks consume
+  the existing release before delivery checks. Keep neutral acceptance, original
+  clock/deadlines and accepted departure unchanged. This remains the same
+  cumulative card, not a budget reset; another failure parks delivery for review.
 - **Stop/close:** record first failing owner. Preserve this run's private real
   store for KIT-RELOAD rather than fabricate/recreate completion. Keep exact
   runtime/source reference and raw; commit/push, remove disposable helpers and

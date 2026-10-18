@@ -5915,3 +5915,21 @@ No gameplay route ran. Select ONE5min root-owned syntax correction grouping
 both new multiline lambda returns, unchanged acceptance/deadlines. One corrected
 compile then one route if it passes; any subsequent failure requires cumulative
 priority review before further work. Original failed compile/STOP/source retained.
+
+
+KIT-DELIVER cumulative priority review after syntax repair cfe10a461:
+corrected compile PASS16.682s; first actual route FAIL70.453s before landing.
+Exact first boundary `return controls remain neutral: brake`; raw Input brake=true,
+sampled command brake=true/neutral throttle/no landing. Accepted departure queues
+brake release immediately before returning; the new continuation checks neutral
+before ordinary input consumption. No runtime landing defect demonstrated.
+
+No competing READY card exists: KIT-RELOAD is gated; Halyard failed/parked and
+moving/authority depend on it. Select ONE further5min root-owned caller handoff
+correction, two ordinary ticks before checking delivery neutrality. No forced
+Input state, acceptance relaxation, deadline growth or accepted departure change.
+Original implementation/diagnosis/corrections remain cumulative; one compile and
+one unchanged route only. Any further failure parks delivery before new work.
+Original source/compile/route/STOP remain retained; failed store is not KIT-RELOAD
+acceptance. Halyard remains parked. This selection explicitly follows priority
+review rather than treating a renamed repair as a new failure budget.
