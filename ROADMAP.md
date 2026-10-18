@@ -416,6 +416,42 @@ implement ASTEROID-START-FRESH through the existing GameFlow decline/reset owner
 then address Cinder debt as a separate capability. No additional interruption
 probe or broad recovery rerun is selected by this planning closure.
 
+### Selected production task — ASTEROID-START-FRESH
+
+- **Outcome/parents:**13/31. Ordinary Start Fresh durably retires an interrupted
+  active Asteroid Threading run before the world streams; later stream/cold load
+  cannot revive it. A present live owner synchronizes only after accepted reset.
+  Preserve completed unpaid/paid history, unrelated data and refused-write choice.
+- **Ownership:** one high-effort implementation agent owns GameFlow's existing
+  decline/fresh/reset paths, asteroid-only binding lifecycle if needed, strict
+  existing asteroid codec if required (no schema change), and existing
+  tests/cinder_asteroid_field_test.gd. Root owns execution/packages/docs/integration;
+  one high-effort independent reviewer checks transactional publication, retained
+  owners, completed debt and once-only rewards. No recursive delegation.
+- **Frozen behavior:** use the existing same-generation IDLE/reset contract and
+  existing UserDataStore transaction/owner fences. Handle title with no binding,
+  live binding and later fresh Main/streamed owner; reject invalid/unsupported or
+  untrusted data without overwriting it. Refused publication must not advance
+  live state or dismiss the recovery choice; published-but-refused outcomes must
+  reconcile only the actual authoritative record. Prevent callbacks/retained
+  writers from restoring abandoned progress. Do not change other activity/planet
+  contracts, startup semantics, reward entitlement, active pose or save schema.
+- **Proof:** extend the existing production asteroid test with real-file active
+  progress→public recovery Start Fresh→cold reload/later stream, present live
+  owner, refused save/retry and genuine unpaid/paid completion preservation.
+  Preserve existing assertions. Root-only clean import600, GameFlow/binding
+  compile300 and complete cinder_asteroid_field_test.gd at original300s cap;
+  independent clean-pin GO before engines. No unchanged parked recovery suite.
+  First unexpected failure STOP, exact reviewed repair selection before retry;
+  no automatic patch/rerun, timeout increase or narrower substitute.
+- **Delivery/budget:**45–60min implementation, split before90 cumulative. Clean
+  paired Windows/Linux exports, three strict silent --startup-check checks
+  (exit0 + exactly one STARTUP_MENU_READY_OK), artifact audit and concise notes;
+  commit/push and remove owned checkout/profiles/helpers after closure. Godot
+  headless/Dummy, no user desktop/audio; no hosted CI. Native/device/human/final
+  gates stay open. Independent production alternative: CINDER-SUPPLY-DEBT remains
+  a separate bounded capability, not another interruption/evidence chain.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
