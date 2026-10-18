@@ -348,6 +348,42 @@ implement any missing full-loop driver support and complete that same route.
 Stop at its result; normal restart remains a separate dependent outcome.
 All36 broad parents and ten phase gates remain open.
 
+### Selected ordinary journey — WALK-HABITAT-LOOP
+
+- **Outcome/parents:**7/9. Fresh production Main, normal Start Shift, same Player
+  walks hub→closed access door→actual bunk sleep/wake→common room→same hub.
+  Full acceptance is the finite backlog route, not the previously staged checks.
+  WALK-HABITAT-RESTART and whole Sandbox remain separate/open.
+- **Ownership:** one high-effort implementer owns tools/release/run_native_sortie.py,
+  scripts/diagnostics/native_sortie_observer.gd, scripts/game/startup_loader.gd,
+  existing tools/release/test_native_sortie.py and tests/startup_cli_privacy_test.gd.
+  Root owns execution/packaging/docs/integration; one high-effort reviewer checks
+  actual input, read-only observation, physical route and existing-route isolation.
+  No gameplay owner, save schema, validator or new probe family changes.
+- **Contract:** add one habitat-loop route to existing native OS-XTest driver and
+  guarded observer. Existing source-authored obstacle-aware points guide inputs;
+  no direct pose/velocity writes, staged spawn, forced interaction/flags or
+  rescue. Observe current live Player, actual grounded movement/door target,
+  exact bunk reservation/sleep and supported wake, common-room occupancy and
+  supported hub return. Separate press/release/repress E; no pose-only success.
+  Observer only reads compact current state; do not sample full world audits.
+  Preserve existing Guided/Sandbox/HULK routes and original pacing/deadlines.
+- **Proof:** static Python/shell/diff checks and relevant existing native-driver
+  unit tests, clean import600s/observer compile300s/full startup privacy300s.
+  Independent source GO before engine sequence. Required clean paired Windows/
+  Linux exports, three strict silent --startup-check checks and artifact audit;
+  run the actual archive-extracted ELF with --route habitat-loop once at existing
+  fixed300s whole-process cap, original driver diagnostics and abort/cleanup.
+  Xvfb owned/authenticated, explicit x11, Dummy, no rendering loop/user desktop.
+  First unexpected failure STOPs; no automatic retry, inherited Sandbox rerun,
+  deadline extension or shorter substitute acceptance. No device/GPU claim.
+- **Budget/delivery:**45–60min implementation, split before90min. This one full
+  journey is the result; writing driver support is not a separate gameplay win.
+  If pass: exact source/package notes, owned cleanup, commit/push. If fail: retain
+  whole route/cumulative attempt and independent priority review before any fix.
+  Independent production alternative: unresolved activity recovery definition;
+  do not infer Hauler stock/Titan owner decisions or start another recovery chain.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
