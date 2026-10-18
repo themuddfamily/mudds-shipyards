@@ -103,6 +103,8 @@ func _run() -> void:
 
 	var source := game.get_flyable_ships()[0].get_local_input_source()
 	var source_id := source.get_instance_id()
+	var player := game.get_node(^"Player") as PlayerController
+	var player_id := player.get_instance_id()
 	var provider := MutableInputProvider.new()
 	source.set_input_provider(provider)
 	source.next_command(1000)
@@ -133,6 +135,25 @@ func _run() -> void:
 		toggled_on.boost and released.boost and not toggled_off.boost,
 		"after re-entry sprint boost latches across release and unlatches on the second press",
 	)
+
+	_check(
+		game.get_node(^"Player").get_instance_id() == player_id,
+		"retained GameFlow re-entry keeps the actual on-foot Player consumer",
+	)
+	# This is a synthetic Input-action consumer probe, not a physical-device
+	# or ordinary station traversal claim. The saved profile above is applied
+	# only through production GameFlow startup/re-entry composition.
+	Input.action_release(&"sprint_boost")
+	player.set_control_enabled(true)
+	player._sample_sprint_held()
+	Input.action_press(&"sprint_boost")
+	_check(player._sample_sprint_held(), "actual on-foot Player accepts the sprint press")
+	Input.action_release(&"sprint_boost")
+	_check(
+		player._sample_sprint_held(),
+		"actual retained on-foot Player keeps persisted TOGGLE sprint active after release",
+	)
+	player.set_control_enabled(false)
 
 	game.queue_free()
 	await process_frame
