@@ -119,6 +119,8 @@ var _last_beacon_distance := -1.0
 var _last_beacon_distance_generation := -1
 var _beacon_traversal_reward_sink := Callable()
 var _last_beacon_reward_result: Dictionary = {}
+var _asteroid_reset_publication_active := false
+var _asteroid_session_retired := false
 var _asteroid_run_director: ActivityDirector
 var _asteroid_field: Node3D
 var _asteroid_run_presentation_consumers: Array[Callable] = []
@@ -2355,7 +2357,63 @@ func capture_asteroid_field_session() -> Dictionary:
 	return NearbySectorActivitySessionAdapter.capture_asteroid_session(state, _asteroid_run_reward_requested) if not state.is_empty() else {}
 
 
+## Freeze this exact owner across UserDataStore callbacks. A fresh, not-yet-
+## hydrated binding may also adopt the committed title-time tombstone.
+func begin_asteroid_reset_publication(expected: Dictionary, intended: Dictionary) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired \
+			or not is_inside_tree() or is_queued_for_deletion() \
+			or capture_asteroid_field_session() != expected:
+		return _result(false, &"asteroid_reset_owner_changed")
+	var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(intended)
+	if not bool(checked.get("accepted", false)) \
+			or int(intended.activities[0].state) != CheckpointRouteActivity.State.IDLE:
+		return _result(false, &"asteroid_reset_owner_changed")
+	if not expected.is_empty():
+		var planned := NearbySectorActivitySessionAdapter.plan_asteroid_decline(expected)
+		var entry: Dictionary = expected.activities[0]
+		if not bool(planned.get("accepted", false)) \
+				or (planned.session_record != intended \
+					and not (int(entry.state) == CheckpointRouteActivity.State.IDLE and int(entry.generation) == 0)):
+			return _result(false, &"asteroid_reset_owner_changed")
+	_asteroid_reset_publication_active = true
+	return {"accepted": true, "reason": &"asteroid_reset_publication_started"}
+
+
+func finish_asteroid_reset_publication(expected: Dictionary, intended: Dictionary, published: bool) -> Dictionary:
+	var result := {"accepted": false, "reason": &"asteroid_reset_owner_changed"}
+	if _asteroid_reset_publication_active:
+		if not published:
+			result = {"accepted": true, "reason": &"asteroid_reset_publication_released"}
+		elif is_inside_tree() and not is_queued_for_deletion() and capture_asteroid_field_session() == expected:
+			# The ordinary route restore is startup-only. Stage its replacement
+			# authority before retiring the old director, without replaying events.
+			var candidate := ActivityDirector.new()
+			candidate.name = "CinderAsteroidFieldRunDirector"
+			add_child(candidate)
+			candidate.register_definition(ASTEROID_RUN_ROUTE)
+			result = candidate.restore_activity_persistence_state(ASTEROID_RUN_ACTIVITY_ID, intended.activities[0].progress)
+			if bool(result.get("accepted", false)):
+				var previous := _asteroid_run_director
+				_asteroid_run_director = candidate
+				remove_child(previous)
+				previous.queue_free()
+				_asteroid_run_reward_requested = false
+				_asteroid_run_rewarded_generation = -1
+				_last_asteroid_run_feedback_reason = &""
+				_last_asteroid_run_reward_result.clear()
+				_publish_asteroid_run_presentation()
+			else:
+				candidate.queue_free()
+		# An owner removed during publication must never return as a writer.
+		if published and not bool(result.get("accepted", false)):
+			_asteroid_session_retired = true
+	_asteroid_reset_publication_active = false
+	return result
+
+
 func restore_asteroid_field_session(record: Dictionary) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(record)
 	if not checked.accepted or _asteroid_run_director == null:
 		return checked if not checked.accepted else _result(false, &"not_ready")
@@ -2371,6 +2429,8 @@ func restore_asteroid_field_session(record: Dictionary) -> Dictionary:
 
 
 func restore_asteroid_generation_floor(generation: int) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null or generation < 1 or generation > CheckpointRouteActivity.MAX_PERSISTED_GENERATION:
 		return _result(false, &"asteroid_generation_floor_invalid")
 	var state := CheckpointRouteActivity.new(ASTEROID_RUN_ROUTE).capture_persistence_state()
@@ -2379,6 +2439,8 @@ func restore_asteroid_generation_floor(generation: int) -> Dictionary:
 
 
 func acknowledge_asteroid_field_reward(record: Dictionary) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	var checked := NearbySectorActivitySessionAdapter.validate_asteroid_session(record)
 	if not checked.accepted:
 		return checked
@@ -2393,6 +2455,8 @@ func acknowledge_asteroid_field_reward(record: Dictionary) -> Dictionary:
 
 
 func prepare_asteroid_field_reset() -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	if _has_pending_asteroid_field_reward():
@@ -2415,6 +2479,8 @@ func _has_pending_asteroid_field_reward() -> bool:
 ## safe lane, so a pilot who has not actually flown into the rock cannot open a
 ## run from the comfort of the beacon chain.
 func start_asteroid_field_run(caller_position: Vector3) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	if _has_pending_asteroid_field_reward():
@@ -2443,6 +2509,8 @@ func start_asteroid_field_run(caller_position: Vector3) -> Dictionary:
 
 
 func submit_asteroid_field_run_position(caller_position: Vector3) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	var route := _asteroid_run_director.get_activity_snapshot(ASTEROID_RUN_ACTIVITY_ID)
@@ -2467,6 +2535,8 @@ func submit_asteroid_field_run_position(caller_position: Vector3) -> Dictionary:
 ## decides three things in order: did the hull reach the rock, did it reach the
 ## next gate, or neither.
 func advance_asteroid_field_run_from_caller_sample(caller_position: Vector3) -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	var before := _asteroid_run_presentation_snapshot()
@@ -2516,6 +2586,8 @@ func advance_asteroid_field_run_from_caller_sample(caller_position: Vector3) -> 
 ## local one-shot flag stops a second request inside this generation; the sink's
 ## own ledger stops a second grant across a save and a whole-Main re-entry.
 func request_asteroid_field_run_reward() -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	var before := _asteroid_run_presentation_snapshot()
@@ -2578,6 +2650,8 @@ func get_last_asteroid_field_run_reward_result() -> Dictionary:
 ## Abandon. The route's own generation advances, so a sample still in flight
 ## from the abandoned run cannot complete or fail the next one.
 func reset_asteroid_field_run() -> Dictionary:
+	if _asteroid_reset_publication_active or _asteroid_session_retired:
+		return _result(false, &"asteroid_reset_publication_in_progress")
 	if _asteroid_run_director == null:
 		return _result(false, &"not_ready")
 	if _has_pending_asteroid_field_reward():

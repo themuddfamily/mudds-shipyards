@@ -3950,7 +3950,7 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 	var payload := store.get_snapshot()
 	var has_visits := _aurora_shared_survey_checkpoint_pending
 	for slot in [String(AURORA_EXPEDITION_PERSISTENCE_SLOT), String(RIME_EXPEDITION_PERSISTENCE_SLOT),
-			"cinder_structure_scan_session", "cinder_beacon_session", String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT),
+			"cinder_structure_scan_session", "cinder_beacon_session", NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT, String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT),
 			String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT), String(EMBER_RELAY_SURVEY_PERSISTENCE_SLOT) + "_declined",
 			AURORA_SHARED_SURVEY_SLOT, AURORA_DECLINED_SHARED_SURVEY_SLOT,
 			String(AURORA_EXPEDITION_PERSISTENCE_SLOT) + "_declined", String(RIME_EXPEDITION_PERSISTENCE_SLOT) + "_declined"]:
@@ -4009,6 +4009,19 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 			checked = CinderBeaconTraversalActivity.validate_persistence_record(next.cinder_beacon_session)
 			if not bool(checked.get("accepted", false)):
 				return checked
+	var asteroid_slot := NearbySectorActivitySessionAdapter.ASTEROID_SESSION_SLOT
+	if next.has(asteroid_slot):
+		var planned := NearbySectorActivitySessionAdapter.plan_asteroid_decline(next[asteroid_slot])
+		if not bool(planned.get("accepted", false)):
+			return planned
+		var entry: Dictionary = next[asteroid_slot].activities[0]
+		if int(entry.state) == CheckpointRouteActivity.State.ACTIVE and is_instance_valid(nearby):
+			var live := nearby.call("get_activity_snapshot", &"asteroid_field_run") as Dictionary
+			if int(live.get("state", -1)) == CheckpointRouteActivity.State.COMPLETED \
+					and int(live.get("generation", -1)) >= int(entry.generation):
+				return {"accepted": false, "reason": &"asteroid_terminal_save_pending"}
+		next[asteroid_slot] = planned.session_record
+	var asteroid_declined : bool = payload.has(asteroid_slot) and next[asteroid_slot] != payload[asteroid_slot]
 	if next.has(String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)):
 		var mining := CinderMiningCapacityPersistence.new()
 		mining.configure(store, CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)
@@ -4103,11 +4116,27 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 			var guarded := beacon_guard.begin_beacon_reset_publication(beacon_before, beacon_reset)
 			if not bool(guarded.get("accepted", false)):
 				return guarded
+		var asteroid_guard: NearbySectorActivityBinding
+		var asteroid_before: Dictionary = {}
+		var asteroid_reset: Dictionary = {}
+		if is_instance_valid(nearby) and asteroid_declined:
+			asteroid_guard = nearby as NearbySectorActivityBinding
+			if not is_instance_valid(asteroid_guard):
+				if is_instance_valid(beacon_guard):
+					beacon_guard.finish_beacon_reset_publication(beacon_before, beacon_reset, false)
+				return {"accepted": false, "reason": &"asteroid_reset_owner_changed"}
+			asteroid_before = asteroid_guard.capture_asteroid_field_session()
+			asteroid_reset = next[asteroid_slot]
+			var guarded := asteroid_guard.begin_asteroid_reset_publication(asteroid_before, asteroid_reset)
+			if not bool(guarded.get("accepted", false)):
+				if is_instance_valid(beacon_guard):
+					beacon_guard.finish_beacon_reset_publication(beacon_before, beacon_reset, false)
+				return guarded
 		var committed := store.commit(next, generation, "decline-planetary-visits-%010d" % (generation + 1))
 		var beacon_published := bool(committed.get("accepted", false))
-		if is_instance_valid(beacon_guard) and not beacon_published and bool(committed.get("published", false)):
+		if (is_instance_valid(beacon_guard) or asteroid_declined) and not beacon_published and bool(committed.get("published", false)):
 			# Directory sync may refuse after publication. Reconcile only the exact
-			# primary outcome, while its live beacon owner is still protected.
+			# primary outcome, while any present reset owners remain protected.
 			var loaded := store.load()
 			var planned: Dictionary = JSON.parse_string(JSON.stringify(next, "", true, true))
 			beacon_published = bool(loaded.get("accepted", false)) \
@@ -4123,8 +4152,20 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 					beacon_finished = {"accepted": false, "reason": &"beacon_reset_owner_changed"}
 			else:
 				beacon_finished = {"accepted": false, "reason": &"beacon_reset_owner_changed"}
+		var asteroid_finished := {"accepted": true}
+		if is_instance_valid(asteroid_guard):
+			var current := asteroid_guard == _get_nearby_activity_binding() \
+				and asteroid_guard.is_inside_tree() and not asteroid_guard.is_queued_for_deletion()
+			# Even a retained, replaced owner must retire after actual publication.
+			asteroid_finished = asteroid_guard.finish_asteroid_reset_publication(asteroid_before, asteroid_reset, beacon_published)
+			if not current:
+				asteroid_finished = {"accepted": false, "reason": &"asteroid_reset_owner_changed"}
+		elif not asteroid_reset.is_empty():
+			asteroid_finished = {"accepted": false, "reason": &"asteroid_reset_owner_changed"}
 		if not bool(committed.get("accepted", false)):
 			return committed
+		if not bool(asteroid_finished.get("accepted", false)):
+			return asteroid_finished
 		if not bool(beacon_finished.get("accepted", false)):
 			return beacon_finished
 		_runtime_settings_commit_serial = maxi(_runtime_settings_commit_serial, store.get_generation())
@@ -4211,7 +4252,9 @@ func _start_fresh_after_interrupted_session() -> Dictionary:
 				{"key": &"beacon_traversal", "id": CinderBeaconTraversalActivity.ACTIVITY_ID,
 					"active": CinderBeaconTraversalActivity.State.ACTIVE},
 				{"key": &"mining", "id": CinderMiningPlatformActivity.ACTIVITY_ID,
-					"active": CinderMiningPlatformActivity.State.ACTIVE}]:
+					"active": CinderMiningPlatformActivity.State.ACTIVE},
+				{"key": &"asteroid_field_run", "id": NearbySectorActivitySessionAdapter.ASTEROID_ACTIVITY_ID,
+					"active": CheckpointRouteActivity.State.ACTIVE}]:
 			var snapshot := binding.call("get_activity_snapshot", activity.key) as Dictionary
 			if int(snapshot.get("state", -1)) == int(activity.active):
 				var reset := _reset_nearby_activity(binding, activity.id)
@@ -20406,6 +20449,8 @@ func _save_cinder_asteroid_session(binding: Object, prospective_record: Dictiona
 				"reward_authority": false, "granted": false})
 			return binding.call("acknowledge_asteroid_field_reward", payload[slot]) as Dictionary
 		if int(next.generation) < int(old.generation) or int(next.generation) > int(old.generation) + 1 \
+				or (int(next.generation) == int(old.generation) and int(old.state) == CheckpointRouteActivity.State.IDLE \
+					and int(next.state) != CheckpointRouteActivity.State.IDLE) \
 				or (old.reward_requested and not old.reward_granted and record != payload[slot]) \
 				or (int(next.generation) == int(old.generation) \
 					and int(next.progress.next_checkpoint_index) < int(old.progress.next_checkpoint_index)):
