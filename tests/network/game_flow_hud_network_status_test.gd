@@ -4,6 +4,7 @@ const GameFlowType := preload("res://scripts/game/game_flow.gd")
 const StatusPresenter := preload("res://scripts/ui/network_session_status_presenter.gd")
 const AdapterType := preload("res://scripts/network/network_enet_session_adapter.gd")
 const BodySourceType := preload("res://scripts/network/network_remote_body_intent_source.gd")
+const MainScene := preload("res://scenes/main.tscn")
 
 class HudProbe extends CanvasLayer:
 	var snapshots: Array[Dictionary] = []
@@ -31,6 +32,7 @@ class CrewFlowProbe extends GameFlowType:
 
 class CrewSessionProbe extends AdapterType:
 	var active := true
+	var roles: Dictionary = {}
 
 	func _ready() -> void:
 		pass
@@ -45,7 +47,7 @@ class CrewSessionProbe extends AdapterType:
 		return {}
 
 	func get_crew_role_snapshot() -> Dictionary:
-		return {"roles": {}}
+		return {"roles": roles.duplicate(true)}
 
 
 class CrewCraftProbe extends HeroShip:
@@ -133,6 +135,7 @@ func _run() -> void:
 		and after_protocol_retry.actions[0].id == &"cancel",
 		"a fresh production attempt replaces protocol-mismatch guidance with current connecting status")
 	await _check_confirmed_crew_publication()
+	await _check_confirmed_pilot_publication()
 	flow.free()
 	probe.free()
 	if _failures.is_empty():
@@ -236,3 +239,117 @@ func _check_confirmed_crew_publication() -> void:
 	actor.free()
 	craft.free()
 	session.free()
+
+
+## Stage only the admitted session and selected physical craft. Main, Player,
+## boarding reservation/generation guards, chair motion and the HUD's own
+## consumed NetworkSessionStatusPresenter all remain the production owners.
+func _check_confirmed_pilot_publication() -> void:
+	var game: GameFlow = MainScene.instantiate() as GameFlow
+	var save_path: String = "user://pilot-hud-%d.json" % OS.get_process_id()
+	game.configure_runtime_settings_persistence(
+		UserDataStore.new(save_path), "memory://pilot-hud-legacy.cfg"
+	)
+	root.add_child(game)
+	await process_frame
+	await physics_frame
+	await process_frame
+	game.start_shift()
+	game.set_process(false)
+	game.set_physics_process(false)
+	game.canopy_motion_time = 0.01
+	game.boarding_motion_time = 0.02
+	game.disembarking_motion_time = 0.02
+	var craft: HeroShip = game.get_node(^"JovianLightFreighter") as HeroShip
+	var area: ShipBoardingArea = craft.get_node(^"ShipBoardingArea") as ShipBoardingArea
+	var presenter: NetworkSessionStatusPresenter = game.hud.get("_network_status_presenter") as NetworkSessionStatusPresenter
+	var session: CrewSessionProbe = CrewSessionProbe.new()
+	game.add_child(session)
+	game.network_session = session
+	game._network_session_mode = &"client"
+	game._publish_network_session_snapshot(&"connected", &"client", "Host admitted this client.")
+	var initial: Dictionary = presenter.get_snapshot()
+	_check(initial.ownership_text == "OBSERVER"
+		and initial.controlled_craft == game.ship.get_display_name().left(48),
+		"production HUD starts with the admitted observer and initial Torrent craft")
+	var epoch: int = int(initial.source_generation)
+	var sequence: int = int(initial.source_sequence)
+	_check(area.try_reserve(game.player), "production Jovian boarding reservation is held")
+	game._board_ship_locally(craft, area)
+	_check(presenter.get_snapshot() == initial and not game._piloting,
+		"pending pilot motion retains the consumed observer HUD")
+	_check(await _wait_for_pilot_transition(game), "production Player completes the guarded Jovian pilot boarding")
+	var seated: Dictionary = presenter.get_snapshot()
+	_check(game._piloting and game.player.is_seated_at(craft.get_pilot_seat_anchor())
+		and seated.ownership_text == "PILOT" and seated.controlled_craft == craft.get_display_name()
+		and seated.next_action == "CONTINUE AS PILOT OR DISCONNECT",
+		"completed pilot boarding immediately replaces the consumed OBSERVER/Torrent HUD with PILOT/Jovian")
+	_check(int(seated.source_generation) == epoch and int(seated.source_sequence) > sequence,
+		"pilot completion advances the HUD sequence within the admitted session")
+	sequence = int(seated.source_sequence)
+	session.roles = {"local": {"peer_id": 1, "role": &"pilot"}}
+	game._leave_seat_into_cabin()
+	_check(presenter.get_snapshot() == seated and game._piloting,
+		"pending helm exit retains the confirmed consumed pilot HUD")
+	_check(await _wait_for_pilot_transition(game), "production Player completes the guarded cabin stand")
+	_check(not game._piloting and not craft.is_piloted()
+		and presenter.get_snapshot().ownership_text == "PILOT",
+		"physical stand preserves the retained host pilot role until the helm handoff is acknowledged")
+	game._network_client_boarding_claim = {
+		"ship_id": craft.get_ship_id(),
+		"seat_id": GameFlowType.network_cabin_berth_seat_id(craft.get_ship_id(), 1), "role": &"passenger",
+	}
+	session.roles = {"local": {"peer_id": 1, "role": &"passenger"}}
+	game._present_network_client_seat_swap(craft, area, {})
+	var standing: Dictionary = presenter.get_snapshot()
+	_check(standing.ownership_text == "PASSENGER" and standing.controlled_craft == craft.get_display_name()
+		and standing.state == &"connected" and int(standing.source_generation) == epoch
+		and int(standing.source_sequence) > sequence,
+		"confirmed helm handoff clears the retained PILOT label in the same consumed connected HUD")
+	# The accepted promotion uses the same production callback as a ledger
+	# seat swap. No role publisher is called by the fixture after admission.
+	game._network_client_boarding_claim = {
+		"ship_id": craft.get_ship_id(), "seat_id": StringName("%s_pilot" % craft.get_ship_id()),
+		"role": &"pilot",
+	}
+	game._present_network_client_seat_swap(craft, area, {})
+	_check(presenter.get_snapshot() == standing, "pending seat swap does not pre-publish a pilot")
+	_check(await _wait_for_pilot_transition(game), "production cabin-to-helm swap completes physically")
+	var swapped: Dictionary = presenter.get_snapshot()
+	_check(game._piloting and game.player.is_seated_at(craft.get_pilot_seat_anchor())
+		and swapped.ownership_text == "PILOT" and swapped.controlled_craft == craft.get_display_name()
+		and int(swapped.source_generation) == epoch
+		and int(swapped.source_sequence) > int(standing.source_sequence),
+		"confirmed cabin-to-helm swap reaches the same consumed PILOT/Jovian HUD")
+	game._leave_seat_into_cabin()
+	_check(await _wait_for_pilot_transition(game), "production pilot returns to the cabin before retirement")
+	game._present_network_client_seat_swap(craft, area, {})
+	game._publish_network_session_snapshot(&"disconnected", &"client", "Session closed: server_disconnected", true)
+	var retired: Dictionary = presenter.get_snapshot()
+	_check(await _wait_for_pilot_transition(game), "in-flight physical completion reaches its existing transition boundary")
+	_check(game._piloting and session.active and game._network_hud_session_retired
+		and presenter.get_snapshot() == retired and game._network_hud_session_state == &"disconnected"
+		and retired.state == &"disconnected" and retired.ownership_text == "PASSENGER",
+		"late pilot completion cannot promote or reopen a retired HUD while the transport still appears active")
+	game._leave_seat_into_cabin()
+	_check(await _wait_for_pilot_transition(game), "retired-session physical helm exit completes")
+	_check(presenter.get_snapshot() == retired,
+		"late helm release cannot repaint a retired consumed session")
+	# Clear the staged handle before normal Main subtree retirement.
+	game.network_session = null
+	game._network_session_mode = &""
+	game.release_mouse_capture()
+	game.queue_free()
+	for _frame in 3:
+		await process_frame
+	for suffix: String in ["", ".tmp", ".bak", ".recovery", ".bak.1", ".bak.2", ".bak.3"]:
+		DirAccess.remove_absolute(save_path + suffix)
+
+
+func _wait_for_pilot_transition(game: GameFlow) -> bool:
+	for _frame in 120:
+		if not game._transition_busy:
+			return true
+		await physics_frame
+		await process_frame
+	return false
