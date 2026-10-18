@@ -8290,6 +8290,11 @@ func _attempt_input_rebind(action: StringName, candidate: Dictionary) -> void:
 	set_settings_status("CONFLICT  //  CHOOSE REPLACE OR CANCEL", false)
 	_binding_conflict_replace_button.grab_focus()
 	_refresh_all_binding_rows()
+	# Focus-follow runs before the newly visible panel's containers finish
+	# sorting. Reveal the focused choice again after that layout has settled.
+	get_tree().process_frame.connect(
+		_request_settings_scroll.bind(_binding_conflict_replace_button), CONNECT_ONE_SHOT
+	)
 
 
 func _replace_pending_input_conflict() -> void:
