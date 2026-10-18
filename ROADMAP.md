@@ -115,6 +115,12 @@ remain. Review focused results and cumulative priority before separately selecti
 exports or ONE changed native attempt. First new failure stops this selection.
 No automatic station/activity successor. Estimate35–55min implementation/checks.
 
+Focused-check pin: `69850930c2bd51e8b734bac8a4e6176bf84d3415` (five scoped
+files versus950574e3f). Independent source/test review GO, static Python compile
+and whitespace checks pass. Root authorizes import→existing player-step suite→
+observer compile→privacy→full Python only. Results/guards live under
+`/srv/mudds-work/life-arm-step-20261018/`; exports/native remain unselected.
+
 ## Latest delivered result
 
 Freight LIFE-GANTRY is accepted on packaged2df8c31: ordinary approach, nearby
