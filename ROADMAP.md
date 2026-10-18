@@ -245,6 +245,20 @@ results retain their recorded scope. This is actual Main geometry/focus proof,
 not physical-device, rendered/human or real Settings transaction qualification.
 No successor is selected by this closure; original UI/device/release gates remain.
 
+### Selected planning — cabin/rest recovery and Habitat route
+
+- **RECOVERY-CABIN-DEFINE /2,31:** root maps actual cabin/rest capture, durable
+  fields, safe-home restoration, stale/unavailable owner handling and existing
+  evidence limits. Source-only15min cap; finish is a finite contract/remaining
+  named cases in the existing backlog, no new runtime/schema/probe or engine run.
+- **WALK-HABITAT /7,9:** one medium-effort read-only mapper identifies existing
+  ordinary hub→Habitat rest/wake→hub input/interaction route and original caps,
+  or the smallest existing-fixture extension required. No engine/implementation
+  until exact route, owner, proof and parked-overlap checks are known/frozen.
+- These independent mappings do not reopen Sandbox, full session-recovery or
+  rendered capture failures, infer a missing runtime consumer or select an
+  automatic qualification chain. Latest playable checkpoint remains4d7ac43.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
