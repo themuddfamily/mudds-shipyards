@@ -398,8 +398,12 @@ its restart requirement passes; all36 broad parents/ten phase gates remain open.
 - **Cold continuation:** ordinary Begin Shift without old seat/sleep/cabin/crew/
   ship claims, current capsule/support/camera/controls and clear bunk reservation.
   Observe actual look change and supported walking >0.6m, then normal Interact
-  with one reachable current production interaction at safe station start. No
-  physical station pose restoration entitlement. Preserve accepted LOOP/Sandbox/
+  with the existing TowTractorDriverStation at safe station start: actual current
+  candidate, ordinary E admits a new live driver, observed release/repress E exits
+  onto supported floor with ordinary controls and claim cleared. This is a new
+  interaction after fresh no-old-claims proof, not replay of a saved vehicle claim.
+  Final cold leg also uses actual pause-menu EXIT and normal exit0/clean markers;
+  forced termination is only an abort cleanup path. No station pose entitlement. Preserve accepted LOOP/Sandbox/
   Guided/HULK routes and deadlines. Retain normal shutdown/cleanup for both games.
 - **Proof/delivery:** smallest meaningful existing Python regression checks with
   exact logs; clean import600/observer compile300/full privacy300. Independent GO
