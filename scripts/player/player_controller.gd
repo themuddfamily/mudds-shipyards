@@ -557,7 +557,7 @@ func _sample_local_sprint_input(delta: float, prime: bool = false) -> Dictionary
 
 
 func _prime_local_sprint_input() -> void:
-	if _sprint_input_transform.is_attached():
+	if not _remote_drive_enabled and _sprint_input_transform.is_attached():
 		_sample_local_sprint_input(0.0, true)
 
 
