@@ -3942,3 +3942,111 @@ acceptance. No runtime/build artifact changes; checkpoint6262749 remains latest.
 Only these two lifecycle cards close; all36 broad parents and ten phase gates
 remain open. One slice card remains: the original single Jovian pilot-state
 probe. No unknown runtime correction or extra diagnostic run is scheduled.
+
+
+## Jovian pilot state — diagnostic complete, boarding still failed
+
+NET-JOVIAN-PILOT-STATE is DONE: the one original-cap probe on pushed
+`25fe2080d` identifies the exact failed local pilot conditions and their owners.
+The ordinary two-client boarding qualification remains FAILED. Candidate branch
+`work/jovian-pilot-state-20261018` is retained remotely and unmerged; main's
+accepted runtime/playable checkpoint6262749 is unchanged.
+
+Only two fixtures changed from held27879aa62: immutable per-role first-failure
+snapshots/atomic first-writer abort, primitive read-only state capture, a bounded
+failure-only2s host capture barrier and opt-in10s actual-exit grace. Independent
+high review GO; original route/actions/predicates,12s pilot wait and300s total
+remain unchanged. Import600s and explicit compile300s each FINISHED/exit0,
+without correction or diagnostics. One private-Xvfb/x11/dummy-renderer/Dummy-audio
+route then fails exit1/no success marker in135.043s, original coordinator
+9diagnostics/cascades. No second probe, runtime patch or qualification rerun.
+
+Both normal-spawn clients complete the original13-goal station approach; A
+enters the supported cabin and normal cockpit Interact physically seats the same
+Player at the real pilot anchor. Preserved A state proves transition idle,
+piloting, current authenticated identity, enabled owned local/active input
+producer and matching authority. Host capture proves all11 exact pilot
+occupancy/remote binding/secured publication conditions true, including same
+avatar/entity generation, matching peer and actual pilot-anchor publication.
+B is still outside waiting for `host.pilot_seated`; dual-seat acceptance does
+not occur.
+
+Four local conjunctions fail:
+
+- `claim_avatar_matches`: the local claim contains only ship/seat/role; production
+  GameFlow14192 intentionally writes that contract. This is a caller expectation
+  error, not evidence of lost authoritative avatar identity.
+- `hud_role_pilot`, `hud_ownership_pilot`, `hud_controlled_craft_matches`: actual
+  consumed presenter remains observer/OBSERVER/Torrent, despite completed Jovian
+  seating/control12s earlier. GameFlow `_board_ship_locally` commits pilot mode
+  without publishing network role status. Existing guarded publication owner
+  `_publish_network_crew_role_status` is available; present calls cover crew seats.
+
+A's original failure is retained at1792289544.36876; B's cascading wait snapshot
+at1792289544.37439 and host's at1792289544.38639 cannot overwrite the shared
+abort, which still names A and its snapshot. All three .done receipts and actual
+OS exits1 are retained; no137 forced exits. The failure barrier preserves host
+lease/publication before A disconnects. This is diagnostic retention/cleanup
+success, not gameplay qualification.
+
+Source/cache runner guards pass; independent entire-cache hashes match, tracked
+source is clean, all three supervisors terminal (import0/compile0/route1), and
+all24 observed process identities absent. Every actual engine argv was isolated
+and Dummy; the server also used private X11, so no headless-server claim.
+Snapshot allowlists contain no auth-token values. HOME/CODEX_HOME remain intact;
+no active-desktop, native Windows, hardware, endurance or full-release claim.
+
+Raw: `/srv/mudds-work/jovian-pilot-state-20261018/results/`, especially
+`matrix/20261018T021007Z/`, `failed-peer-bundle/{client,host,client_b}.first_failure`,
+original peer logs/.done/.exit/shared abort, three supervisor status/log pairs,
+cache hashes, observed identities and `cleanup.json`. The clean task worktree,
+private profile and temporary observation helper are removed; unique raw remains.
+
+Required priority review chooses a separate30–45min NET-PILOT-HUD production
+repair over more diagnosis or parked failures. Follow with a clean accepted
+playable checkpoint, then one original boarding qualification after correcting
+the held caller's unsupported field demand at the proper identity owners.
+No claim-format, seat authority or movement change is justified. Earlier
+failures/repair limits remain cumulative. Both lifecycle cards remain accepted;
+all36 broad parents and ten phase gates stay open.
+
+### Executed pilot-state card — frozen contract
+
+### NET-JOVIAN-PILOT-STATE — identify the failed pilot confirmation
+
+| Task | Status / owner | Observable finish | Budget |
+| --- | --- | --- | --- |
+| NET-JOVIAN-PILOT-STATE | IN PROGRESS / root | One preserved first-failure snapshot identifies the unsatisfied pilot confirmation condition, or names the exact still-missing fact. | 20–30min fixture edits/review, one original300s route probe separately; stop after that probe. |
+
+- **Parent/result:** the same NET-JOVIAN-BOARD/Phase7 first slice. This is one
+  diagnostic, not gameplay delivery. Candidate27879aa62 remains on
+  `work/jovian-ordinary-boarding-20261018`, unmerged; main still has the accepted
+  passenger-seat checkpoint6262749. Do not rebuild unchanged game payloads.
+- **Observed failure:** both independent clients joined through real menus,
+  started at authored spawn and completed all13 station approach goals. A
+  entered a supported host-simulated cabin and reached the cockpit stand point.
+  Its12s local pilot-confirmation predicate then failed; B was waiting outside.
+  The coordinator killed all three peers (actual137 exits) before .done receipts
+  were retained. B overwrote the shared abort with its cascading wait failure.
+  Exit1/no success marker after134.890s; no dual-seat acceptance is established.
+- **One hypothesis:** a pilot transition or its UI/producer confirmation differs
+  from the caller's compound predicate. Current logs cannot distinguish them;
+  do not change seat/authority behavior based on that uncertainty.
+- **Ownership/boundary:** extend only the existing held caller's failure capture
+  and profile-specific abort cleanup. Retain first per-role failure records,
+  primitive local seating/claim/phase/control state, actual consumed HUD role,
+  local input producer type/enabled/authority and host lease/secured publication.
+  Capture before teardown; do not dump auth tokens or invoke mutating helpers.
+  Give failed peers the existing bounded exit grace before forced termination,
+  independently of gameplay abort/deadline. Preserve default Halyard/Cinder paths.
+- **Probe/proof:** commit clean held source, explicitly compile, then the same
+  `jovian_network_two_client_boarding_test` via existing private-Xvfb/x11/Dummy
+  input-only runner, original300s cap and all original normal-spawn/control/seat
+  criteria. No staged approach, shortened route, direct claim or weakened HUD/
+  identity predicate. One probe must preserve A's original failure even if other
+  peers abort afterward. Actual peer exits and supervisor cleanup remain required.
+- **Stop/next:** after one probe, record the exact failing condition and owner,
+  then scope a separate runtime or caller correction from that evidence. If
+  inconclusive, state the missing fact and select priorities before more work.
+  Prior missing seam, passenger repair and type correction remain counted; a
+  new task name does not reset them. No further probe is scheduled by this card.

@@ -4,11 +4,11 @@ These are unscheduled parent requirements, named child outcomes and task-family 
 The [concrete breakdown](#concrete-child-outcomes) names selectable outcomes and explicit unknowns.
 They preserve scope; they are not an executable queue or a remaining-job count.
 Select a named instance in the [working roadmap](../ROADMAP.md) before starting.
-The current slice separates LIFE-VISIBLE (four-cycle visible-effect cleanup),
-LIFE-REUSE (twelve-cycle resource/reuse qualification) and one bounded Jovian
-pilot-state diagnostic. Both lifecycle cards now pass on frozen d7be01487; the Jovian diagnostic is
-the one remaining slice card. These are not project-wide remaining counts;
-no new runtime feature or phase completion is implied.
+The previous bounded slice closed both source lifecycle qualifications and the
+one pilot-state diagnostic; ordinary boarding remains FAILED. The working queue
+now schedules a demonstrated pilot HUD publication fix, its playable checkpoint,
+and one original boarding qualification with the caller contract corrected.
+These are not project-wide remaining counts; no phase completion is implied.
 The original specifications remain binding in
 [the preserved scope](history/ROADMAP_SCOPE_20261017.md).
 
