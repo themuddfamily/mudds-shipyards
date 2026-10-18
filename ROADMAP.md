@@ -33,7 +33,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Current bounded cards
 
-**2 DONE, 1 IN PROGRESS, 1 READY (definition).** These are executable task instances, not the remaining
+**3 DONE, 1 IN PROGRESS.** These are executable task instances, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
@@ -41,7 +41,7 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
 | UI-CONFLICT-REVEAL | Production UI / DONE | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
 | UI-REPAIR-FAILURE-FOCUS | Production UI / DONE | Hiding a focused unavailable repair confirmation returns focus to a live Options control. |20–30 min implementation/review; compile300s, focused check300s and existing selected check300s. |
 | CHECKPOINT-PAUSE-CONFLICT | Build / IN PROGRESS | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
-| NET-DOCK-DEFINE | Planning / READY, independent | Finite supported-craft exit/reboard/redeparture cases and one exact next Jovian case. |10–15 min source comparison; no engines. |
+| NET-DOCK-DEFINE | Planning / DONE | Finite supported-craft exit/reboard/redeparture cases and one exact next Jovian case. |10–15 min source comparison; no engines. |
 
 ### UI-CONFLICT-REVEAL — make the focused conflict choice visible
 

@@ -5569,3 +5569,14 @@ production outcomes and selected16:10 source qualification close; prior failed
 raw/budgets remain retained, no original criteria were weakened. Main integrates
 the two fixes; exact clean1cf102298 now gates the fresh paired checkpoint.
 No persistence transaction/device/render/native or other aspect-group claim.
+
+NET-DOCK-DEFINE DONE as source definition, without engines or gameplay closure.
+The existing backlog now retains finite pilot candidates/physical-role exit,
+reboard and repeat-departure instances, their route prerequisites and unknown
+support. Next concrete case is original Jovian client_b co-pilot passenger stand
+and authored hatch/ground exit after existing accepted arrival, while original
+pilot retains exact helm/source/ownership and home lease. Reboard, pilot exit/
+reclaim and repeat departure are separate successors. Caller/production owners,
+actual input/body/claim/generation/ground evidence and original300s/stage limits
+are explicit; no new harness/validator or second-landing reopen. Source definition
+does not establish any postdock gameplay result or close parent20.

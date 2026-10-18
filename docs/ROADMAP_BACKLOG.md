@@ -232,6 +232,94 @@ InputEventAction/FIFO cases are distinct proof scopes. None establishes actual
 keyboard/controller hardware acceptance. Existing dock/reuse and INPUT-DEVICE
 rows retain those requirements; no native/human gate is closed here.
 
+### Supported post-dock exit and reuse cases
+
+NET-DOCK-DEFINE is DONE as a source definition only; parent20 and full multiplayer
+qualification remain open. Accepted4c9c764e9 ordinary Jovian return took138.915s
+and proves strict physical home docking plus both clients consuming retained
+arrival, with original pilot/source/ownership and seated generations. It proves
+no post-dock stand, exterior exit or reuse. Keep failed331a9628b client-arrival
+history and NET-SECOND-LAND's distinctness gate; neither is a new docking task.
+
+The finite pilot candidates are Torrent, Arrow, Jovian, Zenith, Halyard, Bulwark,
+Cinder Light Interceptor, Cinder Cargo Hauler and Cinder Long-Range Bomber. For
+each, the acceptance instance is one ordinary occupied-home-dock → pilot exit to
+supported station ground → walk clear → reboard the same hull/helm → one physical
+repeat departure and neutral stop. Only Jovian has the accepted two-client
+ordinary return prerequisite above. Other candidates need their exact supported
+ordinary remote route/candidate frozen before execution; the nine-craft snapshot
+roster alone does not establish that support. No Cartesian craft/role matrix is
+created, and no new physical role is inferred for the small craft or bomber.
+
+The retained physical crew cases below each mean: after that craft's supported
+home docking, stand/release the named chair, walk through its actual hatch to
+supported station ground, reboard and reclaim that same chair, then remain
+supported/secured through the existing pilot's one repeat departure. Each is a
+separate instance, gated on its own ordinary docking/role prerequisites; existing
+staged exterior approaches and API actors are coverage anchors, not full-route
+acceptance. Pilot release/reclaim is its separate instance above.
+
+| Craft / physical role instance | Existing source seam / support boundary |
+| --- | --- |
+| Jovian passenger at `co_pilot_station` | `jovian_network_two_client_return_test.gd` → flight → boarding → `halyard_network_passenger_route_test.gd`; accepted original two-client arrival is the immediate prerequisite. |
+| Jovian engineer at `passenger_port_01` | `jovian_network_engineer_route_test.gd`; role-specific standing/reseat is an anchor, ordinary home docking/exit/reuse remains unqualified. |
+| Halyard passenger; engineer; gunner; loadmaster (four instances) | `halyard_network_passenger_route_test.gd`, `halyard_network_engineer_route_test.gd`; authored passenger/loadmaster station, `crew_port_01` engineer and `co_pilot_station` gunner contracts. Loadmaster is a physical passenger assignment with its own action; layout-only navigator/sensor/co-pilot labels add no supported role. |
+| Bulwark gunner at `gunner_station` | `bulwark_network_gunner_route_test.gd`; physical gunner route, not an assumed walkable full cabin or additional accepted engineer instance. |
+| Cinder Cargo Hauler loadmaster; navigator (two instances) | `halyard_network_passenger_route_test.gd --cinder-loadmaster` / `--cinder-navigator`; `cinder_loadmaster_station` / `cinder_navigator_station` are physical passenger assignments. Navigation ping API actors do not establish physical navigator route acceptance. No extension to other Cinder hulls is implied. |
+
+**NEXT: Jovian passenger post-dock stand and exterior exit only.** The visible
+result is that the original second client can leave the co-pilot chair after
+home arrival, walk out onto the freight-berth deck and continue walking, while
+the original first client retains the helm. Reboarding that passenger, pilot
+exit/reclaim, and repeat departure are ordered successors, not extra next-task
+requirements. The engineer and other craft instances remain unscheduled.
+
+- **Caller/ownership:** extend existing
+  `tests/network/jovian_network_two_client_return_test.gd` with a select-only
+  `--postdock-passenger-exit` continuation after `_client_return` / host arrival confirmation and before the
+  inherited retained-seat handshake. Update only the selected case's final
+  retention expectation; `_local_flight_current` / `_host_flight_identity_current`
+  require seating and cannot remain the guard for a legitimately standing/exited
+  passenger. Reuse boarding `_press`, `_look`, `_walk_to` and inherited process
+  coordination; retain default accepted return behavior. No new harness/validator.
+- **Production repair owners, only if first failure identifies one:**
+  `scripts/game/game_flow.gd` physical-crew stand/boarding presentation,
+  `_request_network_client_boarding`, `_network_boarding_departure_status` and
+  `_release_network_client_boarding_presentation`;
+  `scripts/network/network_boarding_authority.gd`,
+  `network_ship_ownership_authority.gd`, `network_remote_body_simulation.gd`;
+  `scripts/ships/crew_seat_role_authority.gd`, `jovian_light_freighter.gd` authored
+  stand/hatch/exit route; `scripts/interaction/ship_boarding_area.gd` reservations
+  and `scripts/world/ship_berth.gd` physical lease. Freeze the actual failing
+  owner before editing; do not rewrite all owners or networking speculatively.
+- **Actions/evidence:** original non-playing Main host plus original two Main
+  clients; client_b uses sampled Interact, ordinary look/walk and hatch Interact
+  through authored exit to ground, then walks clear. No teleport, direct claim,
+  body registration, forced landing flag or private transition call is an action.
+  Read both client presentation and host body/ledgers: exact passenger chair
+  released before exterior boarding occupancy/reservation release; actual
+  supported/control-enabled unseated Player and measurable ground locomotion;
+  no stale chair/berth claim or cabin containment after exit. Retain original
+  authenticated peer/avatar and local Player identity; record body entity and
+  ship/frame/seat/ownership generations and claim sequences at each boundary.
+  Lifecycle retirement/rebinding must follow the production owner, with no old
+  generation resurrected; do not require a departed body's cabin binding to stay
+  current. The uninvolved pilot keeps exact source/stream/delivery epoch,
+  ownership and pilot seat claim. Home berth remains physically occupied by the
+  same hull with valid token/lease and committed landed entity generation.
+- **Bounds/stop:** preserve existing300s total,300s peer deadline,15s/walk
+  waypoint, existing8s role/boarding transitions,120s physical return and5s
+  arrival convergence; no deadline increase to fit the continuation. Retain
+  independent abort, first-failure snapshot, input/cursor cleanup and actual
+  host/client/client_b OS exit0 receipts before success. Run only the selected
+  continuation after implementation using `godot --headless --audio-driver Dummy
+  --path . --script res://tests/network/jovian_network_two_client_return_test.gd
+  -- --postdock-passenger-exit` (proposed select-only mode, not implemented here), headless
+  coordinator/private Xvfb peers and explicit `--display-driver x11`. First
+  failure stops with exact boundary/owner; source comparison ran no engine.
+  Native Windows/GPU/device/human gates remain NOT_RUN. Definition adds no
+  gameplay feature, checkpoint requirement or project percentage progress.
+
 ## Performance, controls, accessibility and audio
 
 Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote-display behavior do not qualify native target GPU performance.
@@ -574,7 +662,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HELM-HOVER | Sampled hover correction on authoritative craft and release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | NET-STALL | Original 600-step host simulation stall and honest command recovery | 19 | UNSCHEDULED; independent peers, original 2s action limits |
 | NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | GATED; establish distinctness from current return failure before any probe |
-| NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DEFINE; original craft cases, no duplication of current return |
+| NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; finite pilot/physical-role cases above; NEXT Jovian passenger ordinary post-dock stand/exterior exit, reuse successors open |
 | CONVOY-ACTOR-DEFINE | Uncovered Convoy tender live/dead/reset/late/disconnect cases | 22 | DEFINE; actual native-gameplay coverage versus authority tests |
 | TORPEDO-AUTH-DEFINE | Uncovered torpedo projectile authority/pilot-loss/solo-restoration cases | 23 | DEFINE; distinct from ordinary combat route |
 | PICKET-ACTOR-DEFINE | Uncovered Picket travelling actor/late/dead/reset/disconnect cases | 24 | DEFINE; actual moving-crew integration |
@@ -700,9 +788,9 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 
 Count the named rows as inventory outcomes, **not remaining executable jobs**.
 DONE rows retain their exact-source scope; definition, qualification, build and
-implementation are different types of work. This inventory has **246 named outcomes**, including **20 DONE** in their recorded
-planning/source/build/qualification scopes. The other226 rows include definitions, dependencies and
-qualifications; they are not226 implementation jobs. The completed eight-card batch is archived; the working queue has two bounded follow-ups;
+implementation are different types of work. This inventory has **246 named outcomes**, including **21 DONE** in their recorded
+planning/source/build/qualification scopes. The other225 rows include definitions, dependencies and
+qualifications; they are not225 implementation jobs. The completed eight-card batch is archived; the working queue has two bounded follow-ups;
 its current completion and READY/GATED counts are shown in ROADMAP.md.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with
