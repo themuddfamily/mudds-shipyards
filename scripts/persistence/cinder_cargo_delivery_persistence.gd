@@ -125,6 +125,9 @@ func capture(activity: CargoDeliveryActivity, authority: CargoTransferAuthority)
 	}
 	var record: Dictionary = {"schema_version": SCHEMA_VERSION, "payload_kind": PAYLOAD_KIND, "slot_id": String(_slot_id), "delivery": delivery}
 	var validation: Dictionary = validate_record(record)
+	if validation.accepted:
+		# Compare durable records in the same numeric representation as JSON readback.
+		record = JSON.parse_string(JSON.stringify(record, "", true, true)) as Dictionary
 	return {"accepted": bool(validation.accepted), "reason": validation.reason, "record": record if validation.accepted else {}}
 
 

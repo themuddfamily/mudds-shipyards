@@ -315,6 +315,10 @@ func _run_disk_child(mode: String, path: String) -> void:
 		binding.configure_cargo_reward_handoff(Callable(self, "_accept_reward"))
 		_check(not filesystem.refuse_sync, "real published reward sync refusal was exercised")
 		_check(_reward_calls == 1 and store.get_generation() == 3 and store.get_snapshot().cinder_cargo_delivery.delivery.reward_receipt.granted and int(store.get_snapshot().game_flow_reward_store.total_receipts) == 1, "fresh current binding reconciles exact published payment once atomically")
+		var recovered_authority: GameFlowRewardAuthority = _current_flow.get("_game_flow_reward_authority") as GameFlowRewardAuthority
+		var recovered_result: Dictionary = recovered_authority.get_snapshot().get("last_result", {})
+		var consumed_request: Dictionary = binding.get_station_defense_reward_snapshot().get("last_request", {})
+		_check(recovered_result.get("accepted", false) and recovered_result.get("granted", false) and str(consumed_request.get("activity_id", "")) == str(CinderCargoDeliveryPersistence.REWARD_ACTIVITY_ID) and int(consumed_request.get("activity_generation", 0)) == 1, "published payment recovery returns acceptance and consumes the matching adapter request")
 		_check(store.get_snapshot().cinder_cargo_delivery.delivery.transfer_proof == before and binding.get_cargo_transfer_authority().to_dictionary().committed_transfers.is_empty(), "cold reward retry changes no inventory or transfer proof")
 		var before_replay: Dictionary = store.get_snapshot()
 		_check(not binding.request_cargo_reward(1).accepted and store.get_snapshot() == before_replay, "paid cold owner cannot replay")
@@ -328,7 +332,8 @@ func _run_disk_child(mode: String, path: String) -> void:
 		var started: Dictionary = binding.start_cargo_run()
 		_check(started.accepted and int(started.generation) > 1 and int(started.generation) == 2 and not (fixture.activity as CargoDeliveryActivity).adopt_terminal_generation_floor(9).accepted, "next legitimate delivery advances actual generation and rejects late floor adoption")
 		_check(store.get_generation() == 3 and _reward_calls == 0, "new incomplete run creates no entitlement")
-	_check(store.get_snapshot().foreign == {"pilot": "retained", "inventory": [7, 11]}, "unrelated actual-file inventory survives")
+	var expected_foreign: Dictionary = JSON.parse_string(JSON.stringify({"pilot": "retained", "inventory": [7, 11]}, "", true, true)) as Dictionary
+	_check(store.get_snapshot().foreign == expected_foreign, "unrelated actual-file inventory survives")
 	for suffix: String in ["", ".bak"]:
 		if FileAccess.file_exists(path + suffix):
 			var retained_path: String = path + "." + mode + suffix

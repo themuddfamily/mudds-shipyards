@@ -609,7 +609,8 @@ func commit(request: Variant) -> Dictionary:
 	) as Dictionary
 	if activity_id == CINDER_CARGO_ACTIVITY_ID and not bool(committed.get("accepted", false)) and _store.has_method(&"load"):
 		var published: Dictionary = _store.call(&"load")
-		if bool(published.get("accepted", false)) and _store.call(&"get_loaded_source") == &"primary" and (_store.call(&"get_snapshot") as Dictionary) == next_payload:
+		var expected_published: Dictionary = JSON.parse_string(JSON.stringify(next_payload, "", true, true)) as Dictionary
+		if bool(published.get("accepted", false)) and _store.call(&"get_loaded_source") == &"primary" and (_store.call(&"get_snapshot") as Dictionary) == expected_published:
 			committed = {"accepted": true, "reason": &"reward_publication_recovered"}
 	_commit_active = false
 	if not bool(committed.get("accepted", false)):
