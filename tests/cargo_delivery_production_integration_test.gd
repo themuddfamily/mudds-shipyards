@@ -357,10 +357,10 @@ func _ordinary_deliver_scenario() -> void:
 	await _ordinary_press(&"landing_assist")
 	if not await _ordinary_deliver_wait(func():
 		var contract := _ordinary_ship.get_landing_contract_report()
-		return _ordinary_ship.is_landing_active() and bool(_ordinary_game.get("_landing_request_active"))
+		return (_ordinary_ship.is_landing_active() and bool(_ordinary_game.get("_landing_request_active"))
 			and _ordinary_game.get("_active_landing_berth_id") == _ordinary_home_id
 			and bool(contract.get("contract_accepted", false)) and contract.get("berth_id") == _ordinary_home_id
-			and bool(contract.get("reservation_token_bound", false)),
+			and bool(contract.get("reservation_token_bound", false))),
 		acceptance_deadline, "one ordinary landing_assist input accepts the physical home contract within eight seconds"):
 		return
 	if not await _ordinary_deliver_wait(_ordinary_deliver_docked,
@@ -371,8 +371,8 @@ func _ordinary_deliver_scenario() -> void:
 		"offline physical landing completes generation one: source six to four, destination zero to two, one exact transfer and one paid reward with none owed"):
 		return
 	# This is the production automatic idle timer, not an engine-stop request.
-	if not await _ordinary_deliver_wait(func(): return _ordinary_deliver_docked()
-		and _ordinary_ship.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE,
+	if not await _ordinary_deliver_wait(func(): return (_ordinary_deliver_docked()
+		and _ordinary_ship.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE),
 		mini(Time.get_ticks_msec() + int((HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS + 1.0) * 1000.0), _ordinary_deadline),
 		"neutral sampled controls retain physical home docking until actual automatic ENGINE_OFFLINE"):
 		return
