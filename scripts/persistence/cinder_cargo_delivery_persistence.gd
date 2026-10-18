@@ -112,7 +112,7 @@ func capture(activity: CargoDeliveryActivity, authority: CargoTransferAuthority)
 	var ledger: Dictionary = {}
 	for entry: Dictionary in inventory.get("committed_transfers", []):
 		if str(entry.get("transfer_id", "")) == str(transfer.get("transfer_id", "")) and int(entry.get("receipt_id", 0)) == int(transfer.get("receipt_id", -1)):
-			ledger = entry.duplicate(true)
+			ledger = {"transfer_id": String(entry.get("transfer_id", "")), "receipt_id": int(entry.get("receipt_id", 0))}
 	var proof: Dictionary = {"ledger": ledger}
 	for key: String in ["source_quantity_after", "destination_quantity_after", "source_used_capacity_after", "destination_used_capacity_after"]:
 		proof[key] = transfer.get(key)
