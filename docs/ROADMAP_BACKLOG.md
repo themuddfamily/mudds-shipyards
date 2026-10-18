@@ -162,7 +162,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-GAPS-CINDER-LIGHT | Cinder Light Interceptor remaining authored components/roles | 10,11 | Definition DONE: finite authored pilot/weapon/component map in COMPLETION_SCOPE.md; no concrete new required runtime/physical-role gap found. Full craft/art/combat/ordinary package acceptance OPEN. |
 | CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | Definition DONE: finite hull/cabin/roles/travelling-weapon map plus explicit Hauler cargo-contract gap; forwarding bridge does not accept Hauler delivery. Full craft/art/combat/crew/cargo play OPEN. |
 | CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | Definition DONE: pilot/payload/component map; additional crew/navigation decision and exact spent-payload rearm policy remain unresolved. Full craft/art/combat/crew/recovery OPEN. |
-| HAULER-CARGO-DEFINE | Name Hauler-specific conserved cargo play | 10,13 | DEFINE; eight anchors/bridge exist, actual ordinary supply manifest is Jovian-only. Name Hauler item/source/stock/destination/terminal route before implementation; preserve existing Jovian contract and original Hauler cargo-play promise. |
+| HAULER-CARGO-DEFINE | Name Hauler-specific conserved cargo play | 10,13 | Bounded contract/ordered production boundaries below; existing item/destination/phases retained. One stock-policy question pending; physical access is independent and selected, cargo delivery remains unaccepted. |
 | BOMBER-REARM-POLICY | Define permitted spent-payload replenishment boundary | 10,11,31 | DEFINE; source disembark detaches and next session restores4. Specify seat re-entry versus actual rearm/recovery entitlement before repair/qualification; fresh-generation API tests do not settle that choice. |
 | WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | Definition DONE on a0d446645; current binding map in WEAPON_DEFINITION_CONTRACT.md, finite distinctions below. No missing runtime weapon type inferred; eight originals UNKNOWN/Bomber role decision retained |
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | Definition DONE on82a7564cb; COMPONENT_DAMAGE_MODEL_CONTRACT.md maps five IDs/all nine craft, real role exceptions, repair/reset owners and concrete remote row gap; no gameplay pass |
@@ -1254,6 +1254,32 @@ recovery route if required; resolve docking/planetary and other activity cases
 under their existing definitions. Native execution/device/audio and owner-excluded
 human gates retain factual status. No30–60min missing production capability was
 established here; do not create one just to obtain another task.
+
+### Hauler supply integration boundaries
+
+Source530ccda6b: one high-effort manifest/persistence reader plus root physical
+mapping. No engine/test ran. Preserve existing `cinder_platform_supply_run`,
+`cinder_supply_crates`, one-crate transfer, load_crate/clear_gate/dock_platform,
+120s caller time and destination station_cargo_destination_terminal/manifest
+(capacity8). Jovian entity/manifest IDs and existing two-crate/capacity8 contract
+stay unchanged. CargoTransferAuthority alone owns quantities/atomic receipts.
+
+| Ordered child | Production boundary and proof | State / stopping condition |
+| --- | --- | --- |
+| HAULER-SUPPLY-ACCESS | Actual Hauler reservation/contact/landing/disembarked current pilot walks supported to existing terminal; preserve exact lease/actor/attachment and old Jovian route | SELECTED in ROADMAP.md. Current light_freighter-only berth/root4.15/frozen Jovian exit cannot simply whitelist Hauler. Hauler home composition uses1.61m contact offset and its own exit; honor these without widened tolerances. No inventory/reward grant. |
+| HAULER-CARGO-STOCK | Decide shared existing two-crate mission stock, separate two-crate Hauler stock, or loading-terminal custody | WAITING on the one already-asked question; no elapsed-time answer/default authorization. This selects custody/initial entitlement, not a new approval requirement for independent access work. |
+| HAULER-CARGO-MANIFEST | Admit actual Hauler with distinct exact source handle/manifest and conserved chosen stock; source replacement keeps a monotonic activity generation and existing reward/transfer replay fences | GATED on stock policy/access. Existing CargoDeliveryActivity starts generation0, producing contract_g1; simply recreating it after completion collides with the ledger. Nonactive source retirement/re-registration also reseeds stock. Prove Jovian→Hauler→Jovian ownership, stale-handle refusal, no stock recreation, exact destination conservation/one receipt per completion. Do not clear ledgers/fences. Freeze files and proof before implementation. |
+| HAULER-CARGO-DELIVERY | Current pilot loads through real terminal, physically departs/clears gate, lands/exits/walks back and commits exactly one source→destination transfer/reward; repeat preserves quantities/receipts | GATED on access/manifest. Use actual ship/actor/lease/terminal generations and chosen custody; preserve old Jovian route. Define exact unchanged route/caps before running. Bridge/role proposals are not delivery proof. |
+
+The smallest manifest seam is NearbySectorActivityBinding source admission and,
+if required, a supported CargoDeliveryActivity generation continuation. Keep
+CargoManifest/transfer authority/reward handoff/persistence formats unchanged
+unless a concrete consumer requires a change. Terminal-summary-only Cinder cargo
+persistence remains: cold restore exposes completion at generation0 without live
+inventory/progress or replayable reward. Existing tests are anchors, not new passes:
+access suite declares1200s; authority/contract/handoff/summary/bridge suites retain
+their original default300s. No schema/validator growth or unchanged parked retry.
+Full ordinary packaged outbound/home, craft/art/crew/recovery gates remain open.
 
 ### Bomber crew/navigation interpretation
 

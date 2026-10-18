@@ -177,20 +177,49 @@ this does not close any full craft/art/combat/crew/world/recovery requirement.
 No engine/test/capture/export ran; playable checkpoint99e79c3 remains unchanged.
 No runtime repair or qualification successor is automatically selected.
 
-### Selected Hauler cargo contract
+### Hauler cargo contract result and next production boundary
 
-HAULER-CARGO-DEFINE (parents10/13) is selected,20min source-only cap. Root owns
-physical access/berth and existing contract integration; one high-effort read-only
-agent maps manifest/activity/transfer/persistence/test seams. Target the existing
-Cinder supply item/destination/phases rather than invent another mission: determine
-whether the Hauler can have its own conserved source beside the retained Jovian
-route, with actual fit/terminal access and unchanged reward ownership. Name exact
-files, missing choices and focused proof before a production card. Preserve the
-Jovian route/manifest identity, one-item transfer and original cargo quantities,
-physical actor/lease/generation checks and parked failures. No engine/test/export,
-runtime edits or new evidence/tracker. Stop when a concrete integration contract
-and bounded first production outcome are known; do not silently approve geometry,
-new cargo entitlement or entire route from a bridge fixture.
+HAULER-CARGO-DEFINE has a finite contract: retain existing supply item/destination,
+one-crate load/clear-gate/dock phases and120s timer, exact actor/lease/attachment
+and reward ownership. Hauler stock choice is pending the one already-asked
+question; no answer is inferred. Source replacement also needs monotonic activity
+generations and no stock recreation, so a whitelist/manifest rename is insufficient.
+The [ordered production cards](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries)
+separate physical access from stock, manifests and completed delivery. No engine
+ran for this definition. Existing Jovian route stays binding.
+
+### HAULER-SUPPLY-ACCESS — dock and reach the existing terminal
+
+- **Kind/parents:** production physical access,10/13; SELECTED, independent of
+  pending stock. Actual Hauler can reserve/land at Cinder's existing supply berth,
+  safely disembark and walk to the existing terminal as its authorized pilot.
+  This does not grant cargo, readiness, reward or a completed supply run.
+- **Owner/files:** one high-effort implementer owns scripts/world/cinder_cargo_access.gd,
+  optional berth-local subclass script+unique UID, tests/cinder_cargo_access_test.gd;
+  root integrates/checks/packages, one high-effort reviewer checks lease/physical
+  handoffs. Preserve shared HeroShip/ShipBerth contracts; no generic berth framework,
+  cargo ledger/reward/persistence, stock/mission/crew or parked-route changes.
+- **Finish:** actual production-composed Hauler definition/shape/markers, supported
+  landing contact, stable opaque lease through normal Hero landing, exact disembarked
+  actor/current craft/attachment authorization and ordinary supported Player walking
+  to terminal; wrong actor/ship/stale lease still refused. Preserve original Jovian
+  geometry/dock/marker/route and all its acceptance checks. Compatibility tags may
+  gain cargo_hauler; migrate only the exact expected tag-list assertion while
+  retaining the existing Jovian member/compatibility assertion. Do not widen the
+ 2.5m handoff gate or landing tolerances to absorb the different hull/exit.
+- **Checks/budget:**60–90min, split before90. Test-only commit first, compile300s
+  and full existing access suite at original1200s cap: only frozen intended new
+  Hauler compatibility/access failure(s), original Jovian route retained. On final
+  clean pin import/compile/full same suite plus existing ShipBerth/expansion physical
+  switching suites at their original declared/default caps, headless/Dummy. New
+  case may stage the actual craft at broad capture and Player at real disembark
+  handoff; subsequent terminal walk must use supported normal locomotion/Interact,
+  no per-waypoint teleport. Staged cluster proof is not canonical Main flight/return.
+  First unexpected failure STOP; separately freeze one repair, then cumulative
+  priority review before any further attempt; no deadline or route relaxation.
+- **Delivery:** clean paired checkpoint/three strict startups/actual payload audit,
+  player-visible notes, commit/push and owned scratch cleanup. Stock decision and
+  conserved manifest/delivery remain separate; no automatic successor chain.
 
 ## Parked failures and dependent work
 
