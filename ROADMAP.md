@@ -47,12 +47,31 @@ unapproved; parked failures remain outside the queue.
 | --- | --- | --- | --- |
 | NET-COMPONENT-ROW /11,21 | DONE; packaged39a2ad7 | Retained row follows accepted host components and restores current local data on clear/pilot change | Closed after focused local/pose/Main ENet checks and paired checkpoint; no automatic adjacent successor. |
 | ONFOOT-SPRINT-TOGGLE /8,29 | DONE; packagedbd4e15d | Shared Sprint/boost HOLD/TOGGLE works in local walking sprint with safe handoffs | Closed after focused source checks and paired checkpoint; no automatic adjacent successor. |
+| AUDIO-CONTENT-DEFINE /30 | Definition; SELECTED | Finite missing authored cue or production transition findings | Source-only mapping capped20min; no audible output or renewed checks. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
-are closed. No successor is selected. Next root selection must name an independent
-production gap or concrete remaining capability definition; no automatic adjacent
-HUD power or movement/tow chain. Original Settings/hardware gates remain open,
-and Titan approval remains pending.
+are closed. AUDIO-CONTENT-DEFINE is selected independently below; no adjacent
+HUD power or movement/tow chain is selected. Original Settings/hardware gates
+remain open, and Titan approval remains pending.
+
+### AUDIO-CONTENT-DEFINE — actual missing cues or broken transitions
+
+- **Kind/result:** source definition, parent30. Resolve finite actual missing
+  authored audio or broken production transitions in station/activity/orbit/
+  surface scope; distinguish absent runtime/content from unqualified mix quality.
+- **Owner/files:** one medium-effort source mapper; root owns original promise
+  and integration. ASSETS.md audio provenance, actual AudioDirector/MusicDirector,
+  station/flight/surface beds and production semantic bindings/composition callers
+  in GameFlow. Inspect relevant existing tests only for scope; no tools/audio
+  validator/evidence-family audit or version/catalog census.
+- **Acceptance:** finite promised cue/transition families, current authored
+  assets→playback owner→real production caller, exact uncovered behavior or
+  missing definition. Consolidate in existing COMPLETION_SCOPE.md/backlog.
+  No speculative extra music/cues, no duplicate tracker or new schema/validator.
+- **Budget/stop:**20min source-only, no engine, playback, rendered capture,
+  profiling or parked native smoke. Stop once finite rows/precise missing facts
+  are known. Audible/device mix remains NOT_RUN and requires its existing explicit
+  authorization; this definition does not substitute for it. No automatic successor.
 
 ## Parked failures and dependent work
 
