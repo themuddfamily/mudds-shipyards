@@ -110,6 +110,15 @@ implemented yet. Root owns silent/headless or isolated x11 checks and independen
 abort/input/process cleanup. Review before launch; record source, actual duration
 and failures. Native GPU/rendered readability/final integration remain separate.
 
+Execution pin: `cbda67e41b1f14b7f5408976be8ac933926907eb`, five scoped files.
+Independent source review GO includes actual station-prompt priority handling
+before the first boarding press; no runtime pass claimed. Root reuses the prior
+guarded task helpers under `/srv/mudds-work/life-arm-20261018/helpers/`, with
+clean-source/engine/process/diagnostic checks and first-failure STOP. Authorized
+order: import→observer compile→privacy→full Python→paired exports→three strict
+startups→artifact audit→ONE archived native route. Actual results remain in
+`/srv/mudds-work/life-arm-20261018/results/`; no deadline/route changes selected.
+
 ## Latest delivered result
 
 Freight LIFE-GANTRY is accepted on packaged2df8c31: ordinary approach, nearby
