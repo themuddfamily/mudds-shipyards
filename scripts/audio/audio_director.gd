@@ -491,6 +491,18 @@ func _on_semantic_cue(
 	intensity: float,
 	world_position: Vector3
 ) -> void:
+	if not _can_mutate_runtime_state():
+		return
+	# These accepted crew events reuse resident one-shots without invoking the
+	# generic cue APIs (which would publish a second caption and schedule tails).
+	if source_id == &"crew" and is_finite(intensity) and intensity > 0.0:
+		match cue_id:
+			&"crew_engineer_repair_started":
+				_play_resident(STREAM_UI_CONFIRM, &"UI", -7.0)
+			&"crew_engineer_repair_completed":
+				_play_resident(STREAM_TARGET_DESTROYED_PRIMARY, &"UI", -1.0)
+			&"crew_engineer_repair_interrupted":
+				_play_resident(STREAM_COMBAT_ALERT_PRIMARY, &"UI", -4.0)
 	semantic_cue_emitted.emit(source_id, cue_id, intensity, world_position)
 
 

@@ -35,6 +35,14 @@ var _emitted_cue_count := 0
 var _preempted_cue_count := 0
 var _last_preempted_cue: StringName = &""
 var _engineer_binding: Node
+# Raw Halyard observations have their own ordering; role authority's sequence
+# does not advance when elapsed work completes or departure interrupts it.
+var _raw_repair_sequence := 0
+var _raw_repair_token := -1
+var _raw_repair_component: StringName = &""
+var _raw_repair_component_generation := -1
+var _raw_repair_progress := 0.0
+var _raw_repair_active := false
 
 
 func attach(expected_generation: int = 0) -> Dictionary:
@@ -65,7 +73,12 @@ func present_crew_snapshot(snapshot: Dictionary) -> Dictionary:
 		var repair := (engineer_snapshot as Dictionary).duplicate(true)
 		if not repair.has("generation"):
 			repair["generation"] = _generation
-		var engineer_result: Dictionary = _engineer_binding.present_repair_snapshot(repair)
+		var engineer_result: Dictionary
+		if repair.has("status"):
+			engineer_result = _present_raw_repair_snapshot(repair)
+		else:
+			# Keep the existing explicitly sequenced presentation input contract.
+			engineer_result = _engineer_binding.present_repair_snapshot(repair)
 		var engineer_reason: StringName = engineer_result.get("reason", &"")
 		if not bool(engineer_result.get("accepted", false)) \
 				and engineer_reason not in [&"duplicate_sequence", &"stale_sequence"]:
@@ -93,6 +106,85 @@ func present_crew_snapshot(snapshot: Dictionary) -> Dictionary:
 	_last_departure_ready = departure_ready
 	_last_snapshot = snapshot.duplicate(true)
 	return _result(true, &"snapshot_presented")
+
+
+## Normalize only observations from the current caller-owned source lifetime.
+## Idle/history and progress are silent. A terminal belongs to an operation
+## observed active here; attaching to an old completed repair cannot replay it.
+func _present_raw_repair_snapshot(repair: Dictionary) -> Dictionary:
+	var generation: Variant = repair.get("generation", -1)
+	if not generation is int or int(generation) != _generation:
+		return _result(false, &"stale_generation")
+	var status: Variant = repair.get("status", &"")
+	var progress: Variant = repair.get("progress", -1.0)
+	if not status is StringName or status not in [&"idle", &"repairing", &"completed", &"interrupted"] \
+			or not (progress is float or progress is int) or not is_finite(float(progress)) \
+			or float(progress) < 0.0 or float(progress) > 1.0:
+		return _result(false, &"invalid_repair_state")
+	if status == &"idle":
+		_raw_repair_active = false
+		return _result(true, &"repair_idle")
+	var component: Variant = repair.get("component_id", &"")
+	var component_generation: Variant = repair.get("component_generation", -1)
+	var receipt: Variant = repair.get("receipt", {})
+	if not component is StringName or (component as StringName).is_empty() \
+			or not component_generation is int or int(component_generation) < 0 \
+			or not receipt is Dictionary:
+		return _result(false, &"invalid_repair_identity")
+	# Completed work keeps its token in the authority receipt; berth completion
+	# can omit it entirely, in which case the observed active operation owns it.
+	var token: Variant = repair.get("token", (receipt as Dictionary).get("token", _raw_repair_token))
+	if not token is int or (status == &"repairing" and int(token) < 1):
+		return _result(false, &"invalid_repair_token")
+	if int(component_generation) < _raw_repair_component_generation:
+		return _result(false, &"stale_sequence")
+	var same_generation := int(component_generation) == _raw_repair_component_generation
+	if same_generation and int(token) < _raw_repair_token:
+		return _result(false, &"stale_sequence")
+	var same_operation := same_generation and int(token) == _raw_repair_token \
+		and component == _raw_repair_component
+	if status == &"repairing":
+		if same_operation:
+			if not _raw_repair_active or float(progress) < _raw_repair_progress:
+				return _result(false, &"stale_sequence")
+			_raw_repair_progress = float(progress)
+			return _result(true, &"repair_progress_observed")
+		# Tokens cannot be reused for another component in one authority lifetime.
+		if same_generation and int(token) == _raw_repair_token:
+			return _result(false, &"stale_sequence")
+		_raw_repair_token = int(token)
+		_raw_repair_component = component
+		_raw_repair_component_generation = int(component_generation)
+		_raw_repair_progress = float(progress)
+		_raw_repair_active = true
+		return _emit_raw_repair_edge(&"started", float(progress))
+	if not _raw_repair_active:
+		# Seed retained terminal identity silently, including on detach/re-entry.
+		if not same_generation or int(token) > _raw_repair_token:
+			_raw_repair_token = int(token)
+			_raw_repair_component = component
+			_raw_repair_component_generation = int(component_generation)
+		return _result(true, &"repair_history_observed")
+	if not same_operation or float(progress) < _raw_repair_progress:
+		return _result(false, &"stale_sequence")
+	_raw_repair_active = false
+	_raw_repair_progress = float(progress)
+	return _emit_raw_repair_edge(status, float(progress))
+
+
+func _emit_raw_repair_edge(state: StringName, progress: float) -> Dictionary:
+	# The admission lists describe this presentation edge, not timed playback.
+	# Retire the preceding edge so an old high-priority completion cannot starve
+	# a later start. Actual playback stays in AudioDirector's fixed effect pool.
+	_active_cue_slots.clear()
+	_engineer_binding.retire_active_cues(_generation, &"raw_repair_edge")
+	_raw_repair_sequence += 1
+	return _engineer_binding.present_repair_snapshot({
+		"generation": _generation,
+		"sequence": _raw_repair_sequence,
+		"repair_state": state,
+		"progress": progress,
+	})
 
 
 func detach() -> Dictionary:
@@ -199,6 +291,12 @@ func _admit_cue(cue_id: StringName, role: StringName) -> bool:
 
 
 func _clear_state() -> void:
+	_raw_repair_sequence = 0
+	_raw_repair_token = -1
+	_raw_repair_component = &""
+	_raw_repair_component_generation = -1
+	_raw_repair_progress = 0.0
+	_raw_repair_active = false
 	_last_snapshot.clear()
 	_last_occupants.clear()
 	_last_route_fingerprint = ""

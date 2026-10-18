@@ -25,6 +25,10 @@ const SOURCE_SIGNALS := {
 	&"navigator": &"semantic_navigator_ping_cue_emitted",
 }
 const CREW_CUE_LABELS := {
+	&"crew_engineer_repair_started": {&"engineer": &"crew_engineer_repair_started"},
+	&"crew_engineer_repair_progress": {&"engineer": &"crew_engineer_repair_progress"},
+	&"crew_engineer_repair_interrupted": {&"engineer": &"crew_engineer_repair_interrupted"},
+	&"crew_engineer_repair_completed": {&"engineer": &"crew_engineer_repair_completed"},
 	&"cinder_loadmaster_seat_occupied": {&"passenger": &"cinder_loadmaster_seat_occupied"},
 	&"cinder_loadmaster_manifest_ready": {&"passenger": &"cinder_loadmaster_manifest_ready"},
 	&"cinder_loadmaster_route_ready": {&"passenger": &"cinder_loadmaster_route_ready"},
@@ -39,6 +43,7 @@ const CREW_CUE_LABELS := {
 
 var _bindings: Array[Dictionary] = []
 var _last_event_key := ""
+var _last_event_source_instance_id := 0
 
 
 ## Binds one caller-owned audio source using its known semantic signal.
@@ -81,6 +86,9 @@ func unbind_source(source: Node, source_id: StringName) -> Dictionary:
 		var callback: Callable = binding.callback
 		if source.is_connected(signal_name, callback):
 			source.disconnect(signal_name, callback)
+		if _last_event_source_instance_id == source.get_instance_id():
+			_last_event_key = ""
+			_last_event_source_instance_id = 0
 		_bindings.remove_at(index)
 		return _result(true, &"unbound")
 	return _result(false, &"source_not_bound")
@@ -96,6 +104,7 @@ func detach() -> Dictionary:
 			source.disconnect(binding.signal, binding.callback)
 	_bindings.clear()
 	_last_event_key = ""
+	_last_event_source_instance_id = 0
 	return _result(true, &"detached")
 
 
@@ -156,6 +165,7 @@ func _emit_normalized(
 	if event_key == _last_event_key:
 		return
 	_last_event_key = event_key
+	_last_event_source_instance_id = source_instance_id
 	semantic_cue_emitted.emit(source_id, cue_id, intensity, world_position)
 
 

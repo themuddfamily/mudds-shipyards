@@ -626,6 +626,8 @@ var nearby_activity_music_adapter: Node
 var halyard_crew_semantic_audio_binding: Node
 var _halyard_crew_semantic_bound := false
 var _last_halyard_crew_event_sequence := -2
+var _halyard_crew_audio_source_instance_id := 0
+var _last_halyard_crew_repair_observation: Dictionary = {}
 var optional_semantic_audio_composition: Node
 var _bomber_payload_ship: CinderLongRangeBomber
 var _bomber_payload_generation := 0
@@ -21617,32 +21619,54 @@ func _get_cinder_navigator_crew_snapshot(
 func _sync_halyard_crew_semantic_audio() -> void:
 	if not is_instance_valid(halyard_crew_semantic_audio_binding):
 		return
-	if not is_instance_valid(active_ship) or active_ship.get_ship_id() != HALYARD_SHIP_ID \
+	if not is_instance_valid(active_ship) or not active_ship.is_inside_tree() \
+			or active_ship.get_ship_id() != HALYARD_SHIP_ID \
 			or not active_ship.has_method(&"get_crew_role_gameplay_snapshot"):
-		if bool(halyard_crew_semantic_audio_binding.get_snapshot().get("attached", false)):
-			halyard_crew_semantic_audio_binding.detach()
-		_last_halyard_crew_event_sequence = -2
+		_retire_halyard_crew_semantic_audio_source()
 		return
-	if not bool(halyard_crew_semantic_audio_binding.get_snapshot().get("attached", false)):
-		halyard_crew_semantic_audio_binding.attach(
-			int(halyard_crew_semantic_audio_binding.get_snapshot().get("generation", 0))
-		)
+	var source_instance_id := active_ship.get_instance_id()
+	if source_instance_id != _halyard_crew_audio_source_instance_id:
+		_retire_halyard_crew_semantic_audio_source()
+		_halyard_crew_audio_source_instance_id = source_instance_id
+	_initialize_halyard_crew_semantic_audio()
 	var snapshot := active_ship.call(&"get_crew_role_gameplay_snapshot") as Dictionary
 	var event_sequence := int(snapshot.get("authority_event_sequence", -1))
-	if event_sequence == _last_halyard_crew_event_sequence:
+	var repair := snapshot.get("engineer_repair", {}) as Dictionary
+	# Only repair observations participate in this second fence. Cooldown and
+	# stock readouts do not create sound events; role ordering keeps its meaning.
+	var repair_observation := {
+		"status": repair.get("status", &""),
+		"token": repair.get("token", (repair.get("receipt", {}) as Dictionary).get("token", -1)),
+		"component_id": repair.get("component_id", &""),
+		"component_generation": repair.get("component_generation", -1),
+		"progress": repair.get("progress", -1.0),
+	}
+	if event_sequence == _last_halyard_crew_event_sequence \
+			and repair_observation == _last_halyard_crew_repair_observation:
 		return
-	_last_halyard_crew_event_sequence = event_sequence
-	halyard_crew_semantic_audio_binding.present_crew_snapshot(snapshot)
+	var result := halyard_crew_semantic_audio_binding.present_crew_snapshot(snapshot) as Dictionary
+	if bool(result.get("accepted", false)):
+		_last_halyard_crew_event_sequence = event_sequence
+		_last_halyard_crew_repair_observation = repair_observation
+
+
+func _retire_halyard_crew_semantic_audio_source() -> void:
+	if is_instance_valid(halyard_crew_semantic_audio_binding):
+		if _halyard_crew_semantic_bound and is_instance_valid(audio) \
+				and audio.has_method(&"unbind_semantic_audio_source"):
+			audio.call(&"unbind_semantic_audio_source", halyard_crew_semantic_audio_binding, &"crew")
+		if bool(halyard_crew_semantic_audio_binding.get_snapshot().get("attached", false)):
+			halyard_crew_semantic_audio_binding.detach()
+	_halyard_crew_semantic_bound = false
+	_halyard_crew_audio_source_instance_id = 0
+	_last_halyard_crew_event_sequence = -2
+	_last_halyard_crew_repair_observation.clear()
 
 
 func _detach_halyard_crew_semantic_audio() -> void:
-	if is_instance_valid(halyard_crew_semantic_audio_binding):
-		halyard_crew_semantic_audio_binding.detach()
-	if _halyard_crew_semantic_bound and is_instance_valid(audio) \
-			and audio.has_method(&"detach_semantic_audio_sources"):
+	_retire_halyard_crew_semantic_audio_source()
+	if is_instance_valid(audio) and audio.has_method(&"detach_semantic_audio_sources"):
 		audio.call(&"detach_semantic_audio_sources")
-	_halyard_crew_semantic_bound = false
-	_last_halyard_crew_event_sequence = -2
 
 
 func _initialize_nearby_activity_audio() -> void:
