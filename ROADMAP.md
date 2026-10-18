@@ -452,6 +452,14 @@ probe or broad recovery rerun is selected by this planning closure.
   gates stay open. Independent production alternative: CINDER-SUPPLY-DEBT remains
   a separate bounded capability, not another interruption/evidence chain.
 
+Pre-engine fixture clarification: the existing asteroid `_main_board` helper
+chooses Start Fresh while asserting continuation of saved active progress.
+Use normal_start/Resume for those unchanged continuation assertions; add explicit
+public Start Fresh cases for abandonment. Do not weaken existing progress/reward/
+callback assertions. The original direct Reset callback-owner-change case remains.
+Same-generation tombstone, retained-writer resurrection fence, terminal-save-pending
+refusal and asteroid-only publication callback guard are part of the selected fix.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
