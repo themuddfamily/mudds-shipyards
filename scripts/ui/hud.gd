@@ -1350,7 +1350,11 @@ func _action_prompts(actions: Array[StringName]) -> String:
 				stick = "Left Stick"
 			elif token.contains(".right_stick."):
 				stick = "Right Stick"
-			if shared_stick.is_empty():
+			# Every resolved prompt must name a direction on the same stick.
+			# A leading button/key must prevent later axes from hiding it.
+			if stick.is_empty():
+				shared_stick = "mixed"
+			elif shared_stick.is_empty():
 				shared_stick = stick
 			elif shared_stick != stick:
 				shared_stick = "mixed"
