@@ -384,6 +384,27 @@ All36 broad parents and ten phase gates remain open.
   Independent production alternative: unresolved activity recovery definition;
   do not infer Hauler stock/Titan owner decisions or start another recovery chain.
 
+### Habitat loop — pre-engine unit result and frozen correction
+
+Initial native-driver unit run:48 tests/7.123s, exit1/five new fixture failures.
+Exact attempted five files/hash-verified snapshot and raw log are retained.
+Four failures see a rewritten previous frame; one sees rewritten initial actor
+identity because new test fixtures mutate the dict retained by the driver.
+Production json.loads observations are distinct objects. Independent review GO
+for ONE fixture-only deepcopy correction; preserve every assertion.
+
+Before the next unit run, explicitly retain one source-supported implementation
+clarification: Boot captures live Player spawn after disabled-control gravity,
+so validate authored hub XZ<0.1 and Y within0.65 while player↔capturedspawn<0.75;
+initial grounded/floor-ray/capsule/camera handshake and all continuous walking,
+identity/phase/input/reservation/route/CAP300 criteria stay unchanged. This is
+natural physical settling, no pose placement or floor-check exemption.
+
+Root authorizes that exact two-file correction and ONE final full focused unit
+run. No engines/exports/native route have run. Independent clean-pin GO remains
+required before the original engine sequence; any new failure STOPs for cumulative
+review, no automatic second correction or renamed runtime acceptance.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
