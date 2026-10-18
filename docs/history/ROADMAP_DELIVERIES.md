@@ -5855,3 +5855,24 @@ clean checkout/profile/helpers removed after source-ref/raw retention. Shared
 private supervisor stays only until independent Halyard task closes. No runtime
 change/new identical checkpoint; latest playable1cf1022 and external gates remain.
 KIT-DELIVER becomes READY; Halyard boarding compile is independent/in progress.
+
+
+HALYARD-BOARD6b17c130ff46a48c22b4245652eec66768611054 import/compile PASS;
+ONE ordinary route FAIL135.904s. Both original clients walked the frozen approach
+and took actual distinct pilot/passenger seats; host confirmed both. Qualification
+stops at client consumed-state comparison. Legacy canonical sections.boarding is
+empty, whereas actual Main claims use the separate boarding ledger; current
+ownership and physical seats are present. One bounded raw/source diagnostic
+identifies caller expectation, not a demonstrated production seating failure.
+Secondary host abort diagnostic calls get_path on a detached valid source.
+
+Select ONE15min HALYARD-CALLER-CONSUMER correction in existing caller only:
+compare each actual received claim with its host seat identity/generations,
+preserving exclusive host claims, actual local seats, consumed ownership and
+appropriate body relationships; guard detached get_path. No runtime publication
+change or fabricated roster. One compile and one unchanged selected route after
+clean pin; another failure requires priority review against READY KIT-DELIVER
+before more Halyard work. Original failed source/raw and STOP remain retained.
+All3 original owners terminal/all21 observed PID/start identities absent, source
+and non-import cache unchanged,48 copied peer raw files byte-identical. Raw:
+`/srv/mudds-work/halyard-ordinary-board-20261018/results/route/`.

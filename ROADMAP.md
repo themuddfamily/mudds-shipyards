@@ -228,8 +228,18 @@ accepted runtime repairs require separate cards and fresh paired builds.
   source/marker; compile300s, ONE selected300s/outer360s route,15s walking,
   8s role transitions/10s owned exit grace. Require all three actual OS exits0
   before coordinator success. No flight, moving walk or recovery in this card.
-- **Stop/close:** first actual failure identifies production/caller owner,
-  separate bounded next task; record proof/limits, commit/push and owned cleanup.
+- **First attempt/selected repair:**6b17c130f import/compile PASS; ordinary route
+  FAIL135.904s after both actual seats. Both clients consumed current ship
+  ownership, but caller demanded a pilot row from empty legacy `sections.boarding`.
+  Main uses a separate boarding ledger; no runtime seating defect is established.
+  HALYARD-CALLER-CONSUMER is the ONE selected15min caller-only correction: match
+  each actual received boarding claim to its host seat record, preserving actual
+  seats, exclusive authority, ownership/body/frame generations and honest roles.
+  Guard detached diagnostic nodes before get_path. Freeze corrected source;
+  one compile and one unchanged selected route, no added cap or runtime change.
+- **Stop/close:** another failure requires cumulative priority review against
+  READY KIT-DELIVER before more Halyard work. Record proof/limits, commit/push
+  and owned cleanup; retain failed raw and source branch.
 
 ### HALYARD-MOVING-CABIN — use the cabin during actual departure
 
