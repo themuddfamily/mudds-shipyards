@@ -728,11 +728,11 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | PLAY-RACE | Checkpoint Race first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-PATROL | Platform Patrol first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Route definition and KIT-BOARD source62bc7c823 DONE; KIT-DEPART sourceb91019562 DONE, DELIVER READY/RELOAD GATED; ordinary full delivery unqualified |
+| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Ordinary board/depart/deliver DONE through28a5e354e;79.213s strict home return, two kits/single reward/usable exit. Distinct-process reload remains unqualified after strict30s timeout; no whole-parent closure |
 | KIT-BOARD | Ordinary offline cargo selection and Jovian pilot boarding | 7,13 | DONE source62bc7c823;66.158s, real menus/walk/local pilot/occupied berth, cargoIDLE0/source6/destination0 manifests; no departure |
 | KIT-DEPART | Real departure automatically starts cargo, then ordinary brake | 13 | DONE sourceb91019562;70.350s, real5m/lease release/ACTIVEg1/brake≤.5m/s1s/original180s |
-| KIT-DELIVER | Strict home landing transfers2 kits/pays once; usable exterior exit | 13 | READY; KIT-DEPART accepted, exact physical/receipt criteria in ROADMAP.md |
-| KIT-RELOAD | Distinct process reloads actual completed store without duplication | 13,31 | GATED on KIT-DELIVER's retained real store and unchanged runtime |
+| KIT-DELIVER | Strict home landing transfers2 kits/pays once; usable exterior exit | 13 | DONE28a5e354e;79.213s actual dock/lease, COMPLETEDg1 kits4/2, one transfer/reward, automatic OFFLINE/authored exit/supported walk≥.5m |
+| KIT-RELOAD | Distinct process reloads actual completed store without duplication | 13,31 | FAILED/PARKED;972efd906 strict30s timeout, f432bd630 diagnostic Main ready/restore accepted27.762s then first normal frame pair incomplete before30s. Full60-tick restart unqualified; raw/input retained, no further probe selected |
 | PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-MINING | Mining/extraction first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |

@@ -37,9 +37,9 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**2 FAILED/PARKED, 2 GATED, 4 DONE (three qualifications, one diagnostic); no READY card.** Root owns integration and closure.
-Completed HALYARD-APPROACH definition is retained below; its queue slot now holds
-the finite reload diagnostic. Two definitions are complete: offline Jovian delivery and residual Halyard
+**1 IN PROGRESS definition, 2 FAILED/PARKED, 2 GATED, 3 DONE qualifications.** Root owns integration and closure.
+Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
+their reused queue slot now holds the finite controls finding. Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
 ten phase gates remain open. The accepted Annex route and parked Jovian exit/
@@ -52,7 +52,7 @@ and delivery history; they do not consume active queue slots.
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
-| RELOAD-BOUNDARY | DONE diagnostic | Main ready/restore accepted27.762s; next ordinary frame pair unreached at30s. |f432bd630; ONE strict30s probe timed out, no restart qualification |
+| CONTROL-FINDINGS | IN PROGRESS definition | One source-demonstrated controls/help/remap defect with exact trigger and production seam, or no finding. |10 min static; no engines or speculative implementation |
 | HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
 | HALYARD-AUTHORITY-STOP | GATED on HALYARD-MOVING-CABIN | Real server shutdown restores both occupants to usable solo operation. |30–60 min; one selected route at unchanged caps |
@@ -205,6 +205,20 @@ accepted runtime repairs require separate cards and fresh paired builds.
   accepted input plus modified real store and raw under
   `/srv/mudds-work/jovian-kit-reload-20261018/results/reload/`. Source branch pushed;
   owned checkout/helpers/profiles removed. No new build or restart qualification.
+
+### CONTROL-FINDINGS — select one actual binding/help defect
+
+- **Parents/result/type:**8/29; bounded source definition before product work.
+  One exact ordinary trigger where shipping help/prompts or apply/remap behavior
+  disagrees with actual supported input; finite no-finding is valid.
+- **Selection/boundary:** priority review parks cargo startup and Halyard; no
+  further probes. One read-only agent compares existing HUD prompts/settings
+  remapping owners with InputMap/local input source.10min, no engines or edits.
+  Root reconciles stale backlog cargo statuses and owns any later implementation.
+- **Close/next:** name one demonstrated defect, production file and existing
+  focused acceptance, then select bounded fix; otherwise stop at no finding.
+  No speculative feature or new audit/test framework. Runtime delivery requires
+  actual correction, focused before/after proof and clean paired checkpoint.
 
 ### RELOAD-BOUNDARY — locate the missing startup boundary
 

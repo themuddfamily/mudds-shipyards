@@ -6040,3 +6040,13 @@ branch; unique raw/accepted input/post-probe data retained under
 `/srv/mudds-work/jovian-reload-boundary-20261018/results/`. Owned checkout/helpers/
 profiles removed; no runtime change/checkpoint or restart qualification. All36
 parents/ten gates remain open; Halyard and reload stay parked.
+
+
+Priority review selects independent CONTROL-FINDINGS over more cargo/Halyard
+probes. One10min read-only mapping agent compares shipping HUD/help/remapping
+with actual InputMap/local source; at most one concrete defect/trigger/production
+owner/existing acceptance, or no finding. Root retains integration. No engine or
+runtime fix selected before defect established. Retire completed RELOAD-BOUNDARY
+from active slots, retain full diagnostic below. Reconcile stale backlog cargo
+DELIVER READY/RELOAD GATED with accepted28a5e354e delivery and actual parked
+strict30s restart; no whole-parent closure inferred.
