@@ -76,6 +76,12 @@ executable queue. Root owns review, integration, checks and closure.
   claim. Commit/push results, retain unique raw/source refs and clean owned scratch.
   Latest playable624d2a6 stays current until accepted replacement.
 
+**Old-runtime reproduction:** test-onlyc74058eef compiles. Selected physical
+instrument regression FAIL as expected in30.790s: exactly four new unpacked/
+compact +65/-45 gauge assertions; no unrelated diagnostic. Import19.685s and
+compile16.213s pass; source/cache guards and owned cleanup pass. Runtime repair
+may proceed; no fixed-runtime or package acceptance yet.
+
 ### NET-POSE-DEFINE — completed bounded source comparison
 
 - **Owner/boundary:** one medium-effort read-only agent; root selects successor.
