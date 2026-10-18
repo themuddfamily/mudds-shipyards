@@ -37,9 +37,10 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**2 FAILED/PARKED, 2 GATED, 4 DONE (three qualifications, one production fix); no READY card.** Root owns integration and closure.
+**1 IN PROGRESS production fix, 2 FAILED/PARKED, 2 GATED, 3 DONE (two qualifications, one production fix).** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
-their reused queue slot now holds the camera-distance prompt correction. Two definitions are complete: offline Jovian delivery and residual Halyard
+their reused queue slot now holds the camera-distance prompt correction. The
+completed KIT-BOARD card remains below; its slot now holds mixed control prompts. Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
 ten phase gates remain open. The accepted Annex route and parked Jovian exit/
@@ -48,7 +49,7 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| KIT-BOARD | DONE | Fresh player selects cargo, walks to Jovian and takes the real solo pilot seat. |Accepted62bc7c823;66.158s at original300s cap |
+| MIXED-CONTROL-PROMPTS | IN PROGRESS | Grouped movement help retains a remapped button alongside stick directions in either order. |30 min implementation; old/new focused check + paired checkpoint |
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
@@ -70,6 +71,25 @@ one probe. Failed task plus one attempted repair requires priority review before
 any more. Close with actual result/pin/limits, commit/push and owned cleanup,
 retaining unique raw/work. Caller-only work needs no identical checkpoint;
 accepted runtime repairs require separate cards and fresh paired builds.
+
+### MIXED-CONTROL-PROMPTS — retain buttons beside stick directions
+
+- **Parents/result:**8/29. A generic-pad move_forward remapped to Misc Button
+  remains visible beside other Left Stick movement controls in the actual MOVE
+  help row. Action order must not hide a distinct binding; normal all-stick
+  directions still abbreviate to Left Stick.
+- **Boundary/owner:** root integrates one implementation agent; only HUD
+  `_action_prompts` and existing runtime_input_glyph_hud_integration_test.
+  Current source sentinel is order-dependent: leading non-stick leaves empty
+  shared_stick, allowing a later direction to replace the entire row.
+- **Proof/budget:**30min implementation/review in isolated
+  `fix/mixed-control-prompts-20261018`. One test-only old HUD reproduction,
+  corrected compile/focused run and existing help/camera regression checks,
+  original300s caps/private x11/Dummy. No actual input/persistence authority change.
+- **Stop/close:** first unexpected failure stops at exact owner; no broad prompt
+  audit. Accepted runtime requires fresh clean safe paired checkpoint, three
+  strict isolated startup checks and actual package audits; EXE/ZIP/notes in
+  builds/windows. Commit/push, retain raw/ref and remove disposable task files.
 
 ### KIT-BOARD — select cargo and board one offline Jovian
 

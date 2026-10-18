@@ -6105,3 +6105,16 @@ source/index/non-export cache unchanged. Raw/source refs retained under
 profiles/helpers and duplicate private builds removed after publication.
 No GitHub Actions or native/device/audio/human/full-matrix gates performed;
 all36 parents/ten phase gates remain open. Cargo/Halyard stay parked.
+
+
+Priority review selects MIXED-CONTROL-PROMPTS production fix from actual remaining
+shared HUD helper defect, not more parked cargo/Halyard probes. Previous turn
+is progress: camera-distance runtime correction and fresh validated7718a5a build
+integrated/pushed/cleaned. Current _action_prompts empty sentinel loses a leading
+non-stick binding when later direction supplies shared_stick; exact supported
+move_forward Misc Button + remaining Left Stick MOVE row hides real button.
+One medium implementation agent owns HUD/helper and existing glyphHUD test;
+30min, both orders/real MOVE/default all-stick acceptance. One old reproduction,
+corrected focused/help/camera checks then clean paired exports/strict startups/
+audits. First unexpected failure stops. Retire completed KIT-BOARD queue row,
+retain full card/history. No broad input-authority or persistence change.
