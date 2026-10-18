@@ -251,6 +251,9 @@ func _assert_remote_hull_instruments() -> void:
 	var solo := ship.get_network_damage_presentation_snapshot()
 	var velocity := ship.velocity
 	var source := ship.get_command_source()
+	var engine: Variant = ship.get("_engine_state")
+	var throttle := float(ship.get("_throttle"))
+	var piloted := bool(ship.get("_piloted"))
 	var readout := ship.get("_cockpit_readout") as Label3D
 	var physical := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/HullReadout") as Label3D
 	var entry := PoseStream.build_pose_entry(ship, ship.get_ship_id(), 1, 70)
@@ -266,16 +269,60 @@ func _assert_remote_hull_instruments() -> void:
 			"the existing %s pose admits an authoritative hull source sample" % ("compact" if compact else "unpacked"))
 		_check(bool(ship.apply_network_damage_presentation(stream.latest_sample(ship.get_ship_id())).get("applied", false)),
 			"the existing hull presentation accepts the %s host sample" % ("compact" if compact else "unpacked"))
+		_assert_hull_instrument(ship, 0.25, "host hull reaches physical text, arc and critical color immediately")
 		ship._update_presentation(TICK, ShipCommand.new())
 		_check(physical.text == "025\nHULL %",
 			"%s host hull 025 reaches the physical Jovian HULL readout after local presentation" % ("compact" if compact else "unpacked"))
+		ship.set("_piloted", true)
+		ship._update_presentation(TICK, ShipCommand.new())
+		_assert_hull_instrument(ship, 0.25, "eligible remote-owned pilot reads host hull while keeping predicted throttle")
+		var dead := entry.duplicate(true)
+		dead.pose_tick = 71
+		dead.operation_tick = 71
+		dead.destroyed = true
+		dead.hull_presentation.health = 0.0
+		var revived := entry.duplicate(true)
+		revived.pose_tick = 72
+		revived.operation_tick = 72
+		revived.entity_generation = int(entry.entity_generation) + 1
+		revived.hull_presentation.component_generation = revived.entity_generation
+		revived.hull_presentation.health = 180.0
+		revived.hull_presentation.maximum_health = 240.0
+		for transition: Dictionary in [dead, revived]:
+			var transition_wire := PoseStream.pack_display_facts([transition]) if compact else [transition]
+			_check(stream.consume_movement_section(transition_wire) == 1,
+				"existing pose admits hull destruction or next-generation revival")
+			_check(bool(ship.apply_network_damage_presentation(stream.latest_sample(ship.get_ship_id())).get("applied", false)),
+				"validated hull lifecycle transition reaches the physical instrument owner")
+			ship._update_presentation(TICK, ShipCommand.new())
+			_assert_hull_instrument(ship, 0.0 if bool(transition.destroyed) else 0.75,
+				"physical hull text, arc and color follow destruction and new-generation revival")
+		_check(not bool(ship.apply_network_damage_presentation(dead).get("applied", false)),
+			"old terminal life cannot overwrite the revived instrument")
+		_assert_hull_instrument(ship, 0.75, "rejected old terminal life retains the revived physical hull gauge")
 		_check(ship.get_network_damage_presentation_snapshot() == solo
-			and ship.velocity == velocity and ship.get_command_source() == source,
-			"remote hull instrument retains local hull, components, velocity and command authority")
+			and ship.velocity == velocity and ship.get_command_source() == source
+			and ship.get("_engine_state") == engine and float(ship.get("_throttle")) == throttle,
+			"remote hull lifecycle retains local hull, components, engine, throttle, velocity and command authority")
+		# A local change during projection must be read when the display clears.
+		ship.set("_hull", ship.maximum_hull * 0.8)
 		ship.clear_network_damage_presentation()
+		_assert_hull_instrument(ship, 0.8, "hull clear immediately restores current local text, arc and healthy color")
+		ship.set("_hull", solo.health)
+		ship.set("_piloted", piloted)
 	ship.set_network_damage_presentation_enabled(false)
 	ship._update_presentation(TICK, ShipCommand.new())
 	ship.set_physics_process(was_processing)
+
+
+func _assert_hull_instrument(ship: HeroShip, expected: float, description: String) -> void:
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var physical := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/HullReadout") as Label3D
+	var dial := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/HullGauge") as MeshInstance3D
+	var color := Color("ff6b5f") if expected <= 0.3 else Color("8de8e4")
+	_check(physical.text == "%03d\nHULL %%" % roundi(expected * 100.0)
+		and is_equal_approx(float(dial.get_instance_shader_parameter(&"fill")), expected)
+		and physical.modulate == color and dial.get_instance_shader_parameter(&"ink") == color, description)
 
 
 func _assert_throttle_wire_compatibility(ship: HeroShip, entry: Dictionary, physical: Label3D) -> void:
