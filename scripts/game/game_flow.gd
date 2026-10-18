@@ -10426,6 +10426,15 @@ func _update_station_seat_flow() -> void:
 	if not is_instance_valid(_active_station_seat):
 		_recover_from_station_seat()
 		return
+	# A retained station berth can leave the live world without being freed.
+	# Recover from the last supported wake pose before reading detached anchors.
+	if _active_station_seat is StationBunk and (
+		not _active_station_seat.is_inside_tree()
+		or _active_station_seat.is_queued_for_deletion()
+		or _active_station_seat.get_parent().is_queued_for_deletion()
+	):
+		_recover_from_station_seat()
+		return
 	# A sleeping passenger follows the same live hull as the bunk. Keep recovery
 	# in that frame too, so deleting a berth never recalls them to stale space.
 	_station_seat_recovery_transform = _active_station_seat.get_exit_transform()
@@ -10464,6 +10473,12 @@ func _sit_in_station_seat(seat: StationSeat) -> void:
 	_transition_busy = true
 	_active_station_seat = seat
 	_station_seat_recovery_transform = seat.get_exit_transform()
+	if seat is StationBunk:
+		# A retained owner removal must clear the Player's live anchor before
+		# its next physics step, rather than waiting for the idle seat sweep.
+		var on_bunk_exit: Callable = _on_station_bunk_tree_exiting.bind(seat)
+		if not seat.tree_exiting.is_connected(on_bunk_exit):
+			seat.tree_exiting.connect(on_bunk_exit, CONNECT_ONE_SHOT)
 	var generation := _begin_transition_generation()
 	player.set_control_enabled(false)
 	hud.set_interaction("", false)
@@ -10538,8 +10553,15 @@ func _stand_from_station_seat() -> void:
 	audio.play_ui_confirm()
 
 
+func _on_station_bunk_tree_exiting(bunk: StationSeat) -> void:
+	# Main teardown has its own existing cancellation path. If the Player has
+	# already left the tree, leave that path in charge of its detached body.
+	if _active_station_seat == bunk and is_instance_valid(player) and player.is_inside_tree():
+		_recover_from_station_seat()
+
+
 func _set_seat_rest_context(seat: StationSeat, enabled: bool) -> void:
-	if seat is ShipBunk:
+	if seat is ShipBunk or seat is StationBunk:
 		player.set_sleeping_context(enabled)
 		if enabled:
 			if not is_instance_valid(_ship_rest_overlay):
@@ -10550,9 +10572,9 @@ func _set_seat_rest_context(seat: StationSeat, enabled: bool) -> void:
 				runtime_settings.ui_scale if runtime_settings != null else 1.0,
 				runtime_settings.reduced_motion if runtime_settings != null else false
 			)
-			_ship_rest_overlay.begin_rest(
-				(seat as ShipBunk).get_ship().get_display_name(), hud.get_action_prompt(&"interact")
-			)
+			var rest_label: String = (seat as ShipBunk).get_ship().get_display_name() \
+				if seat is ShipBunk else str(seat.get_meta("seat_label", "HABITAT"))
+			_ship_rest_overlay.begin_rest(rest_label, hud.get_action_prompt(&"interact"))
 		else:
 			_end_ship_rest_presentation()
 	else:
