@@ -44,6 +44,7 @@ func _run() -> void:
 	var reset_button := (hud.get("_binding_reset_buttons") as Dictionary).get(&"fire") as Button
 	reset_button.pressed.emit()
 	_check(fire_button.text != "F13", "reset refreshes the row through the presenter profile intent")
+	_test_camera_distance_help(hud)
 	_check(
 		_has_binding(
 			(hud.get("_input_binding_profile") as InputBindingProfile).get_bindings(&"barrel_roll"),
@@ -85,6 +86,48 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _test_camera_distance_help(hud: Node) -> void:
+	_check(hud.begin_input_binding_capture(&"camera_distance_in"), "camera distance in starts HUD capture")
+	hud._unhandled_input(_key(KEY_F13, true))
+	_check(hud.begin_input_binding_capture(&"camera_distance_out"), "camera distance out starts HUD capture")
+	hud._unhandled_input(_key(KEY_F14, true))
+	var help := _camera_distance_help_text(hud)
+	_check(
+		help.contains("F13") and help.contains("F14"),
+		"piloting help presents both captured keyboard camera-distance directions"
+	)
+	var resets := hud.get("_binding_reset_buttons") as Dictionary
+	(resets[&"camera_distance_in"] as Button).pressed.emit()
+	(resets[&"camera_distance_out"] as Button).pressed.emit()
+	help = _camera_distance_help_text(hud)
+	_check(
+		help.contains("Mouse Wheel") and not help.contains("F13") and not help.contains("F14"),
+		"reset restores the authored desktop wheel hint without stale remap labels"
+	)
+	# Start with a non-stick button and then a stick click: neither direction
+	# may disappear through the shared-stick abbreviation used by movement rows.
+	_check(hud.begin_input_binding_capture(&"camera_distance_in"), "controller distance in starts HUD capture")
+	hud._unhandled_input(_joy(JOY_BUTTON_MISC1, true))
+	_check(hud.begin_input_binding_capture(&"camera_distance_out"), "controller distance out starts HUD capture")
+	hud._unhandled_input(_joy(JOY_BUTTON_RIGHT_STICK, true))
+	help = _camera_distance_help_text(hud)
+	_check(
+		help.contains("Misc Button") and help.contains("Right Stick") and not help.contains("Mouse Wheel"),
+		"piloting help keeps asymmetric controller camera-distance buttons visible"
+	)
+	(resets[&"camera_distance_in"] as Button).pressed.emit()
+	(resets[&"camera_distance_out"] as Button).pressed.emit()
+	hud.call("_observe_prompt_device", _key(KEY_F14, true))
+
+
+func _camera_distance_help_text(hud: Node) -> String:
+	var rows: Array = hud.call("_help_rows_for_mode", &"piloting")
+	for row: Array in rows:
+		if str(row[1]) == "VIEW / DISTANCE":
+			return str(row[0])
+	return ""
 
 
 ## Real players reach capture through the focused row, so these events travel
