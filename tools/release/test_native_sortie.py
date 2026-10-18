@@ -157,6 +157,255 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 with self.assertRaises(AssertionError): pilot.update(copy.deepcopy(s), 1)
                 self.assertIsNone(pilot.result)
 
+    def restart_observation(self):
+        s = self.habitat_observation()
+        s.update(mode='habitat-restart', sequence=s['frame'], pid=101, paused=False,
+                 camera_current=True, piloting=False, driving=False, crew_claim=False,
+                 cabin_claim=False, recovery_pending=False,
+                 save={'path': '/private/data/mudds_user_data.json', 'generation': 3,
+                       'source': 'primary', 'context': {'mode': 'unavailable'},
+                       'context_generation': 3, 'retry_seconds': 0},
+                 tractor={'current': True, 'id': 8, 'station_id': 9,
+                          'station_path': '/Main/World/Tractor/DriverStation',
+                          'position': [2.1, 1.25, 17.35], 'approach': [2.1, 0, 18.6],
+                          'candidate': False, 'available': True,
+                          'driven': False, 'seated_at_driver': False})
+        return s
+
+    def restart_pilot(self, stage, cold=False):
+        pilot = native.HabitatRestartPilot(cold=cold)
+        s = self.restart_observation()
+        pilot.update(copy.deepcopy(s), 0)
+        s.update(frame=110, sequence=110, phase='APPROACH_SHIP')
+        pilot.stage = stage
+        pilot.previous = copy.deepcopy(dict(s, frame=109))
+        return pilot, s
+
+    def test_restart_reuses_exact_sleep_admission_and_waits_for_independent_file_read(self):
+        pilot, s = self.restart_pilot('sleep_wait')
+        self.habitat_sleep_state(s)
+        pilot.native_edges = [{'pressed': True, 'stage': 'sleep_wait'}]
+        keys, *_ = pilot.update(copy.deepcopy(s), 1)
+        self.assertEqual(pilot.stage, 'restart_context')
+        self.assertNotIn('e', keys)
+        self.assertIn('sleep', pilot.receipts)
+        s.update(frame=111, sequence=111)
+        self.assertFalse(pilot.file_context_accepted)
+        self.assertNotIn('Escape', pilot.update(copy.deepcopy(s), 1.1)[0])
+        self.assertEqual(pilot.stage, 'restart_context')
+        pilot.file_context_accepted = True
+        s.update(frame=112, sequence=112)
+        pilot.update(copy.deepcopy(s), 1.2)
+        self.assertEqual(pilot.stage, 'restart_pause')
+        self.assertNotIn('wake_press', pilot.receipts)
+        s.update(frame=113, sequence=113)
+        self.assertIn('Escape', pilot.update(copy.deepcopy(s), 1.3)[0])
+        for mutation in ({'sleeping': False}, {'pid': 102}, {'player_id': 50}):
+            other, sample = self.restart_pilot('restart_context')
+            self.habitat_sleep_state(sample)
+            sample.update(mutation)
+            with self.assertRaises(AssertionError): other.update(copy.deepcopy(sample), 2)
+
+    def paused_restart_observation(self, sequence=111, exit_focus=False):
+        return {'mode': 'habitat-restart', 'sequence': sequence, 'pid': 101,
+                'frame': 110, 'main_id': 1, 'paused': True, 'rest_retained': True,
+                'native_keys': {'escape': False, 'tab': False, 'return': False},
+                'ui': {'main_visible': True, 'focus_is_exit': exit_focus,
+                       'focus_path': '/Main/HUD/Pause/ExitButton' if exit_focus else '/Main/HUD/Pause/ResumeButton',
+                       'focus_name': 'ExitButton' if exit_focus else 'ResumeButton',
+                       'exit_path': '/Main/HUD/Pause/ExitButton', 'exit_visible': True,
+                       'exit_enabled': True, 'exit_text': 'EXIT TO DESKTOP'}}
+
+    def test_restart_ui_keys_release_with_frozen_physics_and_require_actual_exit_focus(self):
+        pilot, _ = self.restart_pilot('restart_pause')
+        s = self.paused_restart_observation()
+        self.assertEqual(pilot.update(copy.deepcopy(s), 1)[0], {'Tab'})
+        s.update(sequence=112)
+        s['native_keys']['tab'] = True
+        self.assertEqual(pilot.update(copy.deepcopy(s), 1.1)[0], set())
+        # Even an exit focus cannot bypass the actual release observation.
+        s = self.paused_restart_observation(113, exit_focus=True)
+        s['native_keys']['tab'] = True
+        self.assertEqual(pilot.update(copy.deepcopy(s), 1.25)[0], set())
+        self.assertFalse(pilot.quit_requested)
+        s['sequence'] = 114
+        s['native_keys']['tab'] = False
+        self.assertEqual(pilot.update(copy.deepcopy(s), 1.3)[0], {'Return'})
+        self.assertTrue(pilot.quit_requested)
+        self.assertEqual(pilot.receipts['exit_ui']['frame'], 110)
+        s['sequence'] = 115
+        self.assertEqual(pilot.update(copy.deepcopy(s), 1.4)[0], set())
+        s['sequence'] = 116
+        self.assertEqual(pilot.update(copy.deepcopy(s), 2)[0], set())
+        for key, value in [('exit_enabled', False), ('exit_text', 'RESTART SHIFT'), ('main_visible', False)]:
+            other, _ = self.restart_pilot('restart_pause')
+            sample = self.paused_restart_observation(exit_focus=True)
+            sample['ui'][key] = value
+            with self.assertRaisesRegex(AssertionError, 'actual enabled EXIT'):
+                other.update(copy.deepcopy(sample), 1)
+
+    def test_restart_cold_begin_shift_allows_repeated_object_ids_but_rejects_old_claims(self):
+        # IDs are process-local. A separate pilot starts its own stable roster;
+        # the driver proves the distinct OS PID, never inequality of ObjectIDs.
+        first = native.HabitatRestartPilot()
+        cold = native.HabitatRestartPilot(cold=True)
+        s = self.restart_observation()
+        first.update(copy.deepcopy(s), 0)
+        s['pid'] = 202
+        cold.update(copy.deepcopy(s), 0)
+        s.update(frame=101, sequence=101, menu_ready=True)
+        self.assertIn('e', cold.update(copy.deepcopy(s), .1)[0])
+        s.update(frame=110, sequence=110, phase='APPROACH_SHIP')
+        keys, dx, *_ = cold.update(copy.deepcopy(s), .3)
+        self.assertEqual(cold.stage, 'restart_look')
+        self.assertEqual(keys, set())
+        self.assertNotEqual(dx, 0)
+        self.assertEqual(first.initial['player_id'], cold.initial['player_id'])
+        # Godot resource ObjectIDs can use the signed high bit. Nonzero IDs
+        # must remain exact within the leg, regardless of their sign.
+        negative_id = -9223371935302285411
+        for field in ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id'):
+            for replacement in (0, negative_id - 1):
+                with self.subTest(field=field, replacement=replacement):
+                    actor = native.HabitatRestartPilot(cold=True)
+                    sample = self.restart_observation()
+                    sample[field] = negative_id
+                    actor.update(copy.deepcopy(sample), 0)
+                    actor.stage = 'begin_shift'
+                    sample.update(frame=110, sequence=110, phase='APPROACH_SHIP')
+                    actor.update(copy.deepcopy(sample), 1)
+                    self.assertEqual(actor.stage, 'restart_look')
+                    sample.update(frame=111, sequence=111)
+                    sample[field] = replacement
+                    with self.assertRaisesRegex(AssertionError, 'stable current actors'):
+                        actor.update(copy.deepcopy(sample), 1.1)
+        for key in ('crew_claim', 'cabin_claim', 'recovery_pending', 'piloting', 'sleeping'):
+            other, sample = self.restart_pilot('begin_shift', cold=True)
+            sample[key] = True
+            with self.assertRaises(AssertionError): other.update(copy.deepcopy(sample), 1)
+
+    def test_restart_requires_observed_look_supported_displacement_and_current_interaction(self):
+        pilot, s = self.restart_pilot('begin_shift', cold=True)
+        pilot.update(copy.deepcopy(s), 1)
+        s.update(frame=111, sequence=111)
+        self.assertEqual(pilot.update(copy.deepcopy(s), 1.1)[0], set())
+        self.assertEqual(pilot.stage, 'restart_look')
+        s.update(frame=112, sequence=112, walk_forward=[.98, 0, .2], walk_right=[-.2, 0, .98])
+        pilot.update(copy.deepcopy(s), 1.2)
+        self.assertEqual(pilot.stage, 'restart_walk')
+        # Settled actual walking reaches the live approach, with >.6m motion.
+        s.update(frame=232, sequence=232, player=[2.1, .02, 18.6], position=[2.1, .02, 18.6],
+                 walk_forward=[0, 0, -1], walk_right=[1, 0, 0])
+        pilot.update(copy.deepcopy(s), 3.2)
+        self.assertEqual(pilot.stage, 'restart_aim')
+        self.assertGreater(pilot.walk_displacement, .6)
+        s.update(frame=233, sequence=233)
+        self.assertNotIn('e', pilot.update(copy.deepcopy(s), 3.3)[0])
+        s.update(frame=234, sequence=234)
+        s['tractor']['candidate'] = True
+        self.assertIn('e', pilot.update(copy.deepcopy(s), 3.4)[0])
+        self.assertEqual(pilot.stage, 'restart_board')
+        self.assertFalse(pilot.interaction_complete)
+        s.update(frame=235, sequence=235, native_interact=True, transition_busy=True)
+        pilot.update(copy.deepcopy(s), 3.42)
+        s.update(frame=270, sequence=270, seated=True, driving=True, transition_busy=False,
+                 native_interact=False, capsule_enabled=False, camera_current=False)
+        s['tractor'].update(driven=True, seated_at_driver=True)
+        pilot.update(copy.deepcopy(s), 4)
+        self.assertEqual(pilot.stage, 'restart_driver_release')
+        s.update(frame=271, sequence=271)
+        pilot.update(copy.deepcopy(s), 4.1)
+        s.update(frame=290, sequence=290)
+        self.assertIn('e', pilot.update(copy.deepcopy(s), 4.5)[0])
+        self.assertEqual(pilot.stage, 'restart_dismount')
+        s.update(frame=291, sequence=291, native_interact=True, transition_busy=True)
+        pilot.update(copy.deepcopy(s), 4.52)
+        s.update(frame=330, sequence=330, native_interact=False, transition_busy=False,
+                 seated=False, driving=False, capsule_enabled=True, camera_current=True)
+        s['tractor'].update(driven=False, seated_at_driver=False)
+        pilot.update(copy.deepcopy(s), 5.2)
+        self.assertTrue(pilot.interaction_complete)
+        self.assertEqual(pilot.stage, 'restart_pause')
+        self.assertIn('cold_exit', pilot.receipts)
+        self.assertFalse(pilot.quit_requested)
+        for key in ('supported', 'camera_current', 'actors_current'):
+            other, sample = self.restart_pilot('begin_shift', cold=True)
+            other.update(copy.deepcopy(sample), 1)
+            sample.update(frame=111, sequence=111)
+            sample[key] = False
+            with self.assertRaises(AssertionError): other.update(copy.deepcopy(sample), 1.1)
+
+    def restart_document(self, generation=3):
+        return {'schema_version': 1, 'generation': generation,
+                'commit': {'id': 'test-commit', 'parent_generation': generation-1,
+                           'parent_id': 'test-parent', 'payload_sha256': '0'*64},
+                'payload': {'solo_safe_recovery': {'mode': 'unavailable'},
+                            'runtime_settings': {'values': {'master_volume': .5}},
+                            'unrelated': {'progress': [1, 2]},
+                            'crash_recovery': {'state': 'running', 'unclean_start_count': 0,
+                                               'session_id': 1, 'startup_generation': 1},
+                            'safe_start_recovery': {'state': 'stable', 'startup_generation': 1,
+                                                    'consecutive_failure_count': 0,
+                                                    'safe_settings_recommended': False},
+                            'session_diagnostics': {'events': []}}}
+
+    def test_restart_real_file_capture_refuses_changed_profile_and_preserves_unrelated_payload(self):
+        with tempfile.TemporaryDirectory() as root:
+            profile, output = Path(root)/'profile', Path(root)/'result'
+            (profile/'data').mkdir(parents=True)
+            output.mkdir()
+            path = profile/'data'/'mudds_user_data.json'
+            document = self.restart_document()
+            raw = (json.dumps(document)+'\n').encode()
+            path.write_bytes(raw)
+            files = native.HabitatRestartFiles(profile, output)
+            sample = {'path': str(path), 'generation': 3, 'source': 'primary'}
+            first = files.capture('resting', sample)
+            self.assertEqual(path.read_bytes(), raw)
+            self.assertEqual((output/'resting.json').read_bytes(), raw)
+            self.assertEqual(first, document)
+            changed = copy.deepcopy(first)
+            changed['payload']['unrelated']['progress'].append(3)
+            with self.assertRaisesRegex(AssertionError, 'unrelated actual-file'):
+                files.require_preserved(first, changed)
+            other = profile/'data'/'replacement'/'mudds_user_data.json'
+            other.parent.mkdir()
+            other.write_bytes(raw)
+            with self.assertRaisesRegex(AssertionError, 'same actual save path'):
+                files.capture('wrong-path', dict(sample, path=str(other)))
+            other.unlink()
+            files.profile_identity = [-1, -1]
+            with self.assertRaisesRegex(AssertionError, 'same original private profile'):
+                files.capture('wrong-profile', sample)
+
+    def test_restart_requires_actual_clean_markers_and_new_session_generations(self):
+        running = self.restart_document()
+        closed = copy.deepcopy(running)
+        closed['generation'] += 3
+        closed['payload']['crash_recovery']['state'] = 'clean'
+        closed['payload']['safe_start_recovery']['state'] = 'clean_shutdown'
+        closed['payload']['session_diagnostics']['events'].append({'event_code': 'session_ended', 'session_id': 1})
+        native.HabitatRestartFiles.require_orderly(closed, running)
+        for section, field, value in [('crash_recovery', 'state', 'running'),
+                                      ('safe_start_recovery', 'state', 'stable'),
+                                      ('crash_recovery', 'session_id', 2),
+                                      ('session_diagnostics', 'events', [])]:
+            changed = copy.deepcopy(closed)
+            changed['payload'][section][field] = value
+            with self.assertRaises(AssertionError): native.HabitatRestartFiles.require_orderly(changed, running)
+        cold = copy.deepcopy(running)
+        cold['generation'] = 9
+        cold['payload']['crash_recovery'].update(session_id=2, startup_generation=2)
+        cold['payload']['safe_start_recovery'].update(state='starting', startup_generation=2)
+        native.HabitatRestartFiles.require_cold(cold, closed)
+        for section, field, value in [('crash_recovery', 'unclean_start_count', 1),
+                                      ('safe_start_recovery', 'startup_generation', 1),
+                                      ('solo_safe_recovery', 'mode', 'rest')]:
+            changed = copy.deepcopy(cold)
+            changed['payload'][section][field] = value
+            with self.assertRaises(AssertionError): native.HabitatRestartFiles.require_cold(changed, closed)
+        self.assertEqual(native.CAP, 300)
+
     def walk_observation(self):
         return {'frame': 100, 'phase': 'APPROACH_SHIP', 'player_id': 1,
                 'position': [0, 1.15, -10], 'player': [0, 0, 15.5],

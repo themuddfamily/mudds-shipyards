@@ -8,6 +8,7 @@ Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit
 Use --route hulk-breaker to continue that arrival through the interior breaker.
 Use --route hulk-home to carry that earned cell back to a supported yard exit.
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
+Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
 The default is Guided.
 No source/pack overrides. 300 seconds is the fixed whole-process sortie cap.
 This establishes Linux/Xvfb OS-input behavior, not native GPU or human acceptance.
@@ -1438,6 +1439,313 @@ class HabitatLoopPilot(Pilot):
         return keys, dx, 0, False
 
 
+class HabitatRestartFiles:
+    """Read the actual game-owned document; copies go only to result storage."""
+    MUTABLE = {'solo_safe_recovery', 'crash_recovery', 'session_diagnostics', 'safe_start_recovery'}
+
+    def __init__(self, profile, output):
+        self.profile, self.output = profile.resolve(), output
+        self.profile_identity = self.identity(self.profile)
+        self.path = None
+        self.snapshots = {}
+
+    @staticmethod
+    def identity(path):
+        info = path.stat()
+        return [info.st_dev, info.st_ino]
+
+    @classmethod
+    def protected(cls, document):
+        return {k: v for k, v in document['payload'].items() if k not in cls.MUTABLE}
+
+    def capture(self, label, sample=None):
+        require(self.identity(self.profile) == self.profile_identity, 'same original private profile directory')
+        if sample is not None:
+            candidate = Path(sample['path'])
+            require(candidate.is_absolute() and candidate.name == 'mudds_user_data.json'
+                    and candidate.is_relative_to(self.profile/'data'), 'real save belongs to the original XDG profile')
+            require(all(not parent.is_symlink() for parent in (candidate, *candidate.parents)),
+                    'no symlink or substituted save namespace')
+            if self.path is None: self.path = candidate
+            require(candidate == self.path, 'same actual save path across both processes')
+        require(self.path is not None and self.path.is_file(), 'actual game-owned primary save exists')
+        require(list((self.profile/'data').rglob('mudds_user_data.json')) == [self.path],
+                'one original profile document without replacement namespace')
+        raw = self.path.read_bytes()
+        document = json.loads(raw)
+        require(set(document) == {'schema_version', 'generation', 'commit', 'payload'}
+                and document['schema_version'] == 1 and isinstance(document['payload'], dict),
+                'actual production document envelope')
+        require(document['generation'] > 0 and document['commit']['id'], 'committed actual document')
+        if sample is not None:
+            require(sample['source'] == 'primary' and document['generation'] >= sample['generation'],
+                    'live production store uses the actual primary generation')
+        self.output.joinpath(label+'.json').write_bytes(raw)
+        snapshot = {'path': str(self.path), 'profile_identity': self.profile_identity,
+                    'sha256': hashlib.sha256(raw).hexdigest(), 'document': document}
+        self.snapshots[label] = snapshot
+        return document
+
+    def require_preserved(self, before, after):
+        require(self.protected(before) == self.protected(after),
+                'unrelated actual-file payload retained without fabrication')
+        require(after['generation'] >= before['generation'], 'actual-file generations never regress')
+
+    @staticmethod
+    def require_orderly(document, running):
+        payload, previous = document['payload'], running['payload']
+        crash, safe = payload['crash_recovery'], payload['safe_start_recovery']
+        require(crash['state'] == 'clean' and crash['unclean_start_count'] == 0
+                and crash['session_id'] == previous['crash_recovery']['session_id']
+                and crash['startup_generation'] == previous['crash_recovery']['startup_generation'],
+                'actual current session clean shutdown marker')
+        require(safe['state'] == 'clean_shutdown' and safe['consecutive_failure_count'] == 0
+                and not safe['safe_settings_recommended']
+                and safe['startup_generation'] == previous['safe_start_recovery']['startup_generation'],
+                'actual current safe-start orderly shutdown marker')
+        require(any(e['event_code'] == 'session_ended' and e['session_id'] == crash['session_id']
+                    for e in payload['session_diagnostics']['events']),
+                'actual current-session orderly diagnostic event')
+        require(document['generation'] > running['generation'], 'orderly close committed a later real-file generation')
+
+    @staticmethod
+    def require_cold(document, closed):
+        payload, previous = document['payload'], closed['payload']
+        crash, safe = payload['crash_recovery'], payload['safe_start_recovery']
+        require(crash['state'] == 'running' and crash['unclean_start_count'] == 0
+                and crash['session_id'] == previous['crash_recovery']['session_id'] + 1
+                and crash['startup_generation'] == previous['crash_recovery']['startup_generation'] + 1,
+                'distinct cold session consumes actual clean shutdown without recovery')
+        require(safe['startup_generation'] == previous['safe_start_recovery']['startup_generation'] + 1
+                and safe['state'] in ('starting', 'stable') and safe['consecutive_failure_count'] == 0
+                and not safe['safe_settings_recommended'], 'cold safe-start has no unclean-start recommendation')
+        require(payload['solo_safe_recovery'] == {'mode': 'unavailable'},
+                'cold title retains accepted unavailable station rest context')
+
+
+class HabitatRestartPilot(HabitatLoopPilot):
+    """Accepted ordinary admission, UI shutdown, and a fresh process continuation."""
+    MARKER = 'NATIVE_HABITAT_RESTART_OK'
+
+    def __init__(self, cold=False):
+        super().__init__()
+        self.cold = cold
+        self.sequence = 0
+        self.pid = None
+        self.file_context_accepted = False
+        self.quit_requested = False
+        self.ui_key = None
+        self.ui_until = 0
+        self.ui_release_until = 0
+        self.ui_last_focus = None
+        self.ui_edges = []
+        self.look_origin = self.walk_origin = None
+        self.look_changed = False
+        self.walk_displacement = 0
+        self.cold_identity = None
+        self.cold_ready = False
+        self.interaction_complete = False
+
+    def require_current(self, s):
+        require(s.get('actors_current'), 'restart current production actors')
+        fields = ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id')
+        require(all(s[k] != 0 for k in fields)
+                and tuple(s[k] for k in fields) == tuple(self.initial[k] for k in fields)
+                and s['door']['id'] == self.initial['door']['id']
+                and s['bunk']['id'] == self.initial['bunk']['id'],
+                'stable current actors within this process leg')
+        require(s['walk_tuning'] == self.initial['walk_tuning'] and s['physics_ticks'] == 60
+                and s['time_scale'] == 1, 'restart authored walking and physics pacing')
+        require(s['phase'] == 'APPROACH_SHIP' and not s['piloting']
+                and not s['crew_claim'] and not s['cabin_claim'] and not s['recovery_pending'],
+                'cold continuation without old crew ship cabin or recovery claim')
+        tractor = s['tractor']
+        identity = (tractor['id'], tractor['station_id'], tractor['station_path'])
+        require(tractor['current'] and all(identity), 'exact current production tractor interaction owner')
+        if self.cold_identity is None: self.cold_identity = identity
+        require(identity == self.cold_identity, 'same current tractor and interaction within cold leg')
+
+    def require_resting(self, s):
+        b = s['bunk']
+        require(s['sleeping'] and s['seated'] and s['station_seated'] and s['game_station_seated']
+                and not s['transition_busy'] and b['reserved'] and b['active']
+                and b['active_seat_id'] == b['id'] and b['occupant_id'] == s['player_id']
+                and b['seated_at_bunk'] and not b['transitioning'],
+                'exact accepted station bunk sleep retained until UI quit')
+
+    def begin_quit(self, s):
+        self.tap_key = None
+        self.stage = 'restart_pause'
+        self.receipts['before_quit'] = self.receipt(s)
+        self.ui_key = None
+        self.ui_release_until = 0
+
+    def ui_update(self, s, now):
+        # UI keys use observed releases and wall time. Physics frame numbers
+        # are deliberately irrelevant while the production tree is paused.
+        keys = set()
+        paused = s['paused']
+        if paused:
+            require(s['main_id'] == self.initial['main_id'], 'paused UI belongs to this process Main')
+            if not self.cold: require(s['rest_retained'], 'normal UI quit while still resting')
+            ui = s['ui']
+            require(ui['main_visible'] and ui['exit_visible'] and ui['exit_enabled']
+                    and ui['exit_text'] == 'EXIT TO DESKTOP' and ui['exit_path'],
+                    'actual enabled EXIT TO DESKTOP pause button')
+        if self.ui_key is not None:
+            if now < self.ui_until:
+                keys.add(self.ui_key)
+                return keys, 0, 0, False
+            self.ui_edges.append({'sequence': s['sequence'], 'key': self.ui_key, 'pressed': False})
+            self.ui_key = None
+            self.ui_release_until = now + .10
+            return keys, 0, 0, False
+        if now < self.ui_release_until or self.quit_requested: return keys, 0, 0, False
+        if paused and any(s['native_keys'].values()): return keys, 0, 0, False
+        key = None
+        if not paused:
+            require(self.stage == 'restart_pause', 'pause remains active until actual EXIT TO DESKTOP')
+            key = 'Escape'
+        elif s['ui']['focus_is_exit']:
+            # The held Tab is released and observed before the ordinary accept.
+            self.receipts['exit_ui'] = s
+            self.quit_requested = True
+            self.stage = 'restart_exit_wait'
+            key = 'Return'
+        else:
+            focus = s['ui']['focus_path']
+            require(focus, 'current pause UI has keyboard focus')
+            if focus != self.ui_last_focus:
+                self.ui_last_focus = focus
+                self.receipts.setdefault('pause_focus', []).append(s['ui'].copy())
+                key = 'Tab'
+        if key:
+            self.ui_key, self.ui_until = key, now + .08
+            self.ui_edges.append({'sequence': s['sequence'], 'key': key, 'pressed': True,
+                                  'focus': s.get('ui', {}).get('focus_path', '')})
+            keys.add(key)
+        return keys, 0, 0, False
+
+    def update(self, s, now):
+        self.last_state = s
+        require(s.get('mode') == 'habitat-restart', 'restart-only observation selector')
+        require(s['sequence'] > self.sequence, 'fresh restart observer sequence including paused UI')
+        self.sequence = s['sequence']
+        if self.pid is None: self.pid = s['pid']
+        require(s['pid'] == self.pid, 'same observed OS process within each leg')
+        if self.stage.startswith('restart_pause') or self.stage == 'restart_exit_wait':
+            if not s['paused']:
+                self.require_current(s)
+                if not self.cold: self.require_resting(s)
+            return self.ui_update(s, now)
+        require(not s['paused'], 'ordinary gameplay is unpaused before UI shutdown')
+        if self.stage == 'restart_context':
+            self.require_current(s)
+            self.require_resting(s)
+            if self.file_context_accepted:
+                self.begin_quit(s)
+            return set(), 0, 0, False
+        if self.stage in ('boot', 'begin_shift') or not self.cold:
+            command = super().update(dict(s, mode='habitat-loop'), now)
+            if not self.cold and self.stage == 'sleep_release':
+                self.stage = 'restart_context'
+                self.tap_key = None
+                return set(), 0, 0, False
+            if self.cold and self.stage == 'walk_outbound':
+                self.require_current(s)
+                require(s['camera_current'] and not s['driving'], 'fresh awake camera and controls without driver claim')
+                self.cold_ready = True
+                self.look_origin = s['walk_forward'][:]
+                self.walk_origin = s['player'][:]
+                self.stage = 'restart_look'
+                self.tap_key = None
+                self.previous = s
+                return set(), 80, 0, False
+            return command
+        self.require_current(s)
+        self.frame = s['frame']
+        frames = self.frame - self.previous['frame']
+        require(frames > 0, 'fresh cold gameplay physics sample')
+        keys, dx = set(), 0
+        if self.stage in ('restart_look', 'restart_walk', 'restart_aim'):
+            self.require_awake(s)
+            require(s['camera_current'] and not s['driving'], 'current awake walking camera')
+            step = norm(sub(s['player'], self.previous['player']))
+            require(step <= (s['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                    'continuous supported cold walk without placement')
+            self.walked += step
+            self.walk_displacement = max(self.walk_displacement, norm(sub(s['player'], self.walk_origin)))
+            self.support_colliders.add(s['support_collider'])
+        if self.stage == 'restart_look':
+            if norm(sub(s['walk_forward'], self.look_origin)) > .05:
+                self.look_changed = True
+                self.receipts['cold_look'] = self.receipt(s)
+                self.stage = 'restart_walk'
+        elif self.stage == 'restart_walk':
+            # Same accepted central-floor approach, then the live driver's step
+            # on the tractor's south side; no traversal through its chassis.
+            target = [s['tractor']['approach'][0], 0, s['tractor']['approach'][2]]
+            dx, reached = self.walk_to(s, target, keys, frames)
+            if reached:
+                require(self.look_changed and self.walk_displacement > .6,
+                        'actual cold look and supported walk greater than 0.6 metres before Interact')
+                self.receipts['cold_walk'] = self.receipt(s)
+                self.stage = 'restart_aim'
+        elif self.stage == 'restart_aim':
+            tractor = s['tractor']
+            dx, yaw, _distance = self.yaw_to(s, tractor['position'])
+            if abs(yaw) < .08 and tractor['candidate'] and tractor['available'] and not s['native_interact']:
+                self.tap('e', now)
+                if self.tap_key == 'e':
+                    self.receipts['cold_interact_press'] = {**self.receipt(s), 'tractor': tractor.copy()}
+                    self.stage = 'restart_board'
+        elif self.stage == 'restart_board':
+            if s['driving'] and not s['transition_busy']:
+                require(s['seated'] and s['tractor']['driven'] and s['tractor']['seated_at_driver'],
+                        'actual ordinary Interact acquired the current tractor driver anchor')
+                require(s['native_interact'] or any(e['stage'] == 'restart_board' and e['pressed'] for e in self.native_edges),
+                        'actual OS Interact observed for current tractor admission')
+                self.receipts['cold_interaction'] = {**self.receipt(s), 'tractor': s['tractor'].copy()}
+                self.stage = 'restart_driver_release'
+        elif self.stage == 'restart_driver_release':
+            require(s['driving'] and s['tractor']['seated_at_driver'], 'current new driver retained until separate exit press')
+            if self.tap_key is None and not s['native_interact']:
+                self.tap('e', now)
+                if self.tap_key == 'e': self.stage = 'restart_dismount'
+        elif self.stage == 'restart_dismount':
+            if not s['driving'] and not s['seated'] and not s['transition_busy'] and self.floor_ready(s):
+                self.require_awake(s)
+                require(s['camera_current'] and not s['tractor']['driven'], 'ordinary supported tractor exit restores current player controls')
+                require(any(e['stage'] == 'restart_dismount' and e['pressed'] for e in self.native_edges),
+                        'released and repressed actual OS Interact exits current tractor')
+                self.receipts['cold_exit'] = self.receipt(s)
+                self.interaction_complete = True
+                self.begin_quit(s)
+        if bool(s['native_interact']) != self.native_previous:
+            self.native_edges.append({'frame': self.frame, 'pressed': bool(s['native_interact']), 'stage': self.stage})
+        self.native_previous = bool(s['native_interact'])
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6: keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+        if self.mouse_pending is not None:
+            if norm(sub(s['walk_forward'], self.mouse_pending)) < .00001: dx = 0
+            else: self.mouse_pending = None
+        if dx: self.mouse_pending = s['walk_forward'][:]
+        self.previous = s
+        return keys, dx, 0, False
+
+    def report(self):
+        return {'pid': self.pid, 'stage': self.stage, 'initial': self.initial,
+                'receipts': self.receipts, 'visited': self.visited, 'walked_m': self.walked,
+                'native_interact_edges': self.native_edges, 'ui_key_edges': self.ui_edges,
+                'support_colliders': sorted(self.support_colliders),
+                'look_changed': self.look_changed, 'walk_displacement_m': self.walk_displacement,
+                'interaction_complete': self.interaction_complete}
+
+
 class SandboxWalkPilot(Pilot):
     """Five station branches through ordinary controls; fleet/crash gate stays open.
 
@@ -2085,10 +2393,11 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
+    restart_files = None
     result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
               'human_review': 'NOT_RUN', 'route': route, 'input_route': 'OS XTest → X11 → Godot Input → default sampler'}
     start = time.monotonic()
@@ -2141,48 +2450,130 @@ def run(binary, output, route="guided"):
                         '--native-sortie-observer' if route == 'guided' else '--native-sortie-observer='+route]
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
-                game = subprocess.Popen(args,cwd=binary.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
-                result['game_pid'] = game.pid
-                deadline = time.monotonic()+15
-                window = None
-                while time.monotonic()<deadline:
-                    if game.poll() is not None: raise RuntimeError('exported game exited before X window')
-                    tree = subprocess.run(['xwininfo','-root','-tree'],env=env,capture_output=True,text=True,timeout=2).stdout
-                    for candidate in re.findall(r'^\s*(0x[0-9a-f]+)',tree,re.M):
-                        prop = subprocess.run(['xprop','-id',candidate,'_NET_WM_PID'],env=env,capture_output=True,text=True,timeout=2).stdout
-                        if re.search(r'=\s*'+str(game.pid)+r'\s*$',prop):
-                            stats = subprocess.run(['xwininfo','-id',candidate,'-stats'],env=env,capture_output=True,text=True,timeout=2).stdout
-                            if 'Map State: IsViewable' in stats:
-                                window=int(candidate,16)
-                                break
-                    if window: break
-                    time.sleep(.05)
-                if not window: raise RuntimeError('no X11 window owned by exact game PID')
-                result['window'] = hex(window)
-                desktop.focus(window)
-                pilot = {"guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot, "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot, "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot}[route]()
-                selector = selectors.DefaultSelector()
-                selector.register(game.stdout,selectors.EVENT_READ)
-                pending = b''
-                with (output/'game.log').open('wb') as log:
-                    while pilot.result is None:
-                        if game.poll() is not None: raise RuntimeError(f'game exited during {pilot.stage}: {game.returncode}')
-                        if xvfb.poll() is not None: raise RuntimeError('owned Xvfb exited during sortie')
-                        if time.monotonic()-start >= CAP: raise TimeoutError('300-second sortie cap')
-                        for key,_ in selector.select(.1):
-                            chunk = os.read(key.fd,262144)
-                            if not chunk: continue
-                            log.write(chunk); log.flush()
-                            pending += chunk
-                            lines = pending.split(b'\n'); pending=lines.pop()
-                            observations = observations_from_lines(lines)
-                            if observations:
-                                keys,dx,dy,fire=pilot.update(observations[-1],time.monotonic())
-                                desktop.keys(keys); desktop.mouse(dx,dy,fire)
-                    result.update(success=True,sortie=pilot.result)
+                restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
+                result['game_legs'] = []
+                for leg in range(2 if restart_files else 1):
+                    # These are the exact same args/env/profile/display/helper.
+                    # The single timer above remains armed across both games.
+                    desktop.keys([]); desktop.mouse(0, 0, False)
+                    game = subprocess.Popen(args,cwd=binary.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,bufsize=0)
+                    leg_result = {'pid': game.pid, 'leg': leg + 1, 'exit_code': None, 'reaped': False}
+                    result['game_legs'].append(leg_result)
+                    if leg == 0: result['game_pid'] = game.pid
+                    else:
+                        result['restart_game_pid'] = game.pid
+                        require(game.pid != result['game_pid'], 'restart launches a distinct OS game process')
+                    deadline = time.monotonic()+15
+                    window = None
+                    while time.monotonic()<deadline:
+                        if game.poll() is not None: raise RuntimeError('exported game exited before X window')
+                        tree = subprocess.run(['xwininfo','-root','-tree'],env=env,capture_output=True,text=True,timeout=2).stdout
+                        for candidate in re.findall(r'^\s*(0x[0-9a-f]+)',tree,re.M):
+                            prop = subprocess.run(['xprop','-id',candidate,'_NET_WM_PID'],env=env,capture_output=True,text=True,timeout=2).stdout
+                            if re.search(r'=\s*'+str(game.pid)+r'\s*$',prop):
+                                stats = subprocess.run(['xwininfo','-id',candidate,'-stats'],env=env,capture_output=True,text=True,timeout=2).stdout
+                                if 'Map State: IsViewable' in stats:
+                                    window=int(candidate,16)
+                                    break
+                        if window: break
+                        time.sleep(.05)
+                    if not window: raise RuntimeError('no X11 window owned by exact game PID')
+                    result['window'] = hex(window)
+                    leg_result['window'] = hex(window)
+                    desktop.focus(window)
+                    pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
+                        "guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
+                        "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
+                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot}[route]()
+                    with selectors.DefaultSelector() as selector:
+                        selector.register(game.stdout,selectors.EVENT_READ)
+                        pending = b''
+                        with (output/'game.log').open('ab') as log:
+                            while pilot.result is None:
+                                if game.poll() is not None:
+                                    if not restart_files: raise RuntimeError(f'game exited during {pilot.stage}: {game.returncode}')
+                                    require(pilot.quit_requested and pilot.stage == 'restart_exit_wait',
+                                            'game exits only after actual EXIT TO DESKTOP activation')
+                                    require(game.wait() == 0, 'normal UI shutdown exits zero and reaps game')
+                                    leg_result.update(exit_code=0, reaped=True, normal_ui_exit=True)
+                                    break
+                                if xvfb.poll() is not None: raise RuntimeError('owned Xvfb exited during sortie')
+                                if time.monotonic()-start >= CAP: raise TimeoutError('300-second sortie cap')
+                                for key,_ in selector.select(.1):
+                                    chunk = os.read(key.fd,262144)
+                                    if not chunk: continue
+                                    log.write(chunk); log.flush()
+                                    pending += chunk
+                                    lines = pending.split(b'\n'); pending=lines.pop()
+                                    observations = observations_from_lines(lines)
+                                    if observations:
+                                        state = observations[-1]
+                                        if restart_files:
+                                            require(state['pid'] == game.pid, 'observer belongs to exact running game PID')
+                                            if leg and 'cold-title' not in restart_files.snapshots and state.get('menu_ready'):
+                                                cold_title = restart_files.capture('cold-title', state['save'])
+                                                closed = restart_files.snapshots['first-orderly-close']['document']
+                                                restart_files.require_cold(cold_title, closed)
+                                                restart_files.require_preserved(closed, cold_title)
+                                        keys,dx,dy,fire=pilot.update(state,time.monotonic())
+                                        if restart_files:
+                                            if not leg and 'sleep_press' in pilot.receipts and 'before-sleep' not in restart_files.snapshots:
+                                                before = restart_files.capture('before-sleep', state['save'])
+                                                require(before['payload']['solo_safe_recovery']['mode'] == 'on_foot',
+                                                        'independent real-file awake context before ordinary bunk admission')
+                                            if pilot.stage == 'restart_context' and not pilot.file_context_accepted:
+                                                saved = state['save']
+                                                before = restart_files.snapshots['before-sleep']['document']
+                                                if saved['context'] == {'mode': 'unavailable'}:
+                                                    resting = restart_files.capture('resting', saved)
+                                                    require(saved['retry_seconds'] == 0 and saved['source'] == 'primary'
+                                                            and saved['context_generation'] > before['generation']
+                                                            and resting['payload']['solo_safe_recovery'] == {'mode': 'unavailable'}
+                                                            and resting['generation'] >= saved['context_generation'],
+                                                            'accepted unavailable rest context independently read from actual file')
+                                                    restart_files.require_preserved(before, resting)
+                                                    pilot.file_context_accepted = True
+                                            if leg and pilot.cold_ready and 'cold-awake' not in restart_files.snapshots:
+                                                require('cold-title' in restart_files.snapshots, 'normal cold title observed before Begin Shift')
+                                                awake = restart_files.capture('cold-awake', state['save'])
+                                                restart_files.require_preserved(restart_files.snapshots['resting']['document'], awake)
+                                            if pilot.quit_requested: leg_result['exit_ui'] = pilot.receipts['exit_ui']
+                                        desktop.keys(keys); desktop.mouse(dx,dy,fire)
+                    if restart_files:
+                        desktop.keys([]); desktop.mouse(0, 0, False)
+                        drain_game_output(game, output/'game.log')
+                        game.stdout.close()
+                        require(not diagnostic_lines((output/'game.log').read_bytes().splitlines()),
+                                'no game diagnostics across orderly process boundary')
+                        label = 'first-orderly-close' if not leg else 'second-orderly-close'
+                        closed = restart_files.capture(label)
+                        running = restart_files.snapshots['resting' if not leg else 'cold-title']['document']
+                        restart_files.require_orderly(closed, running)
+                        restart_files.require_preserved(restart_files.snapshots['resting']['document'], closed)
+                        if not leg:
+                            require(closed['payload']['solo_safe_recovery'] == {'mode': 'unavailable'},
+                                    'orderly UI quit retains unavailable real station sleep context')
+                        else:
+                            require(pilot.interaction_complete, 'cold continuation complete before final normal shutdown')
+                        leg_result['sortie'] = pilot.report()
+                        game = None
+                    else:
+                        result.update(success=True,sortie=pilot.result)
+                if restart_files:
+                    result['actual_file_snapshots'] = restart_files.snapshots
+                    result['sortie'] = {'completion_marker': HabitatRestartPilot.MARKER,
+                                        'legs': [item['sortie'] for item in result['game_legs']],
+                                        'distinct_processes': True, 'same_profile': str(profile),
+                                        'same_input_helper_pid': desktop.process.pid,
+                                        'same_xvfb_pid': xvfb.pid}
+                    result['success'] = True
     except Exception as error:
+        if restart_files is not None:
+            result['actual_file_snapshots'] = restart_files.snapshots
         if pilot is not None:
             result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
+            if isinstance(pilot, HabitatRestartPilot):
+                result['partial_restart'] = pilot.report()
             if isinstance(pilot, HabitatLoopPilot):
                 result['partial_sortie'].update(last_state=pilot.last_state, visited=pilot.visited,
                                                receipts=pilot.receipts, native_interact_edges=pilot.native_edges,
@@ -2241,7 +2632,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop'), default='guided',
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart'), default='guided',
                         help='hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
