@@ -596,7 +596,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | CHECKPOINT-ONFOOT-PROBE | Paired checkpoint ships accepted on-foot release-driver support | 6,32 | DONE f90547c: paired exports, strict startups and exact package audits |
 | RECOVERY-ONFOOT-CUT | Real-file on-foot commit, owned SIGKILL and distinct-process usable home recovery | 2,31 | DONE f90547c direct and actual archive-extracted ELF cuts; supported walk/Interact, receipts1→2 once |
 | RECOVERY-PILOT-DEFINE | Pilot durable-boundary/resume-or-safe-home contract | 2,31 | DONE definition only; four-field safe-home pilot preference, fresh claims, preserved activity/debt; ca0 archive pilot/Convoy pass retained; final candidate and ordinary-controls qualification remain |
-| RECOVERY-CABIN-DEFINE | Cabin/rest durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
+| RECOVERY-CABIN-DEFINE | Cabin/rest durable-boundary/resume-or-safe-home contract | 2,31 | DONE definition only; four-field craft/home preference, fresh supported awake cabin/hatch, no saved flight/sleep pose. Earlier package passes retained; finite remaining cases below |
 | RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-ACTIVITY-DEFINE | Active activity durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
@@ -1339,6 +1339,61 @@ recovery route if required; resolve docking/planetary and other activity cases
 under their existing definitions. Native execution/device/audio and owner-excluded
 human gates retain factual status. No30–60min missing production capability was
 established here; do not create one just to obtain another task.
+
+### Settled cabin and ship-bunk recovery contract
+
+RECOVERY-CABIN-DEFINE is DONE as a source definition on3598e1788; no engine,
+new runtime feature, save format or fresh qualification. This covers **ship**
+cabin/rest. Station Habitat rest is a separate production gap below; a ShipBunk
+fixture cannot accept that station interaction.
+
+- GameFlow._capture_solo_safe_recovery_context accepts grounded, awake, unseated
+  cabin walking only with actual registered frame occupancy, local bounds,
+  boardable live craft and matching in-flight containment/owner when applicable.
+  Sleeping capture requires the exact reserved ShipBunk/seat anchor and live
+  craft from that bunk, rather than Main's possibly different active_ship.
+  No transition/network/planetary owner may conflict. Jumps retain the prior
+  settled preference; unsupported handoffs persist unavailable rather than a
+  stale seat claim. Crew mode remains RECOVERY-CREW-DEFINE's separate contract.
+- UserDataStore atomically commits exactly `{location:mudds_home_berth,
+  mode:cabin|rest, craft_id, berth_id}` with expected generation. Refused writes
+  retain last committed preference/retry; backup authority is not overwritten.
+  This record contains no coordinates/velocity, moving frame identity, berth or
+  bunk lease, sleep state or seat claim. Activity/reward/debt owners stay separate.
+- Resume/Begin Shift uses fresh registered craft/home berth with actual occupant
+  and reservation owner, available hatch, supported authored frame/stand bounds
+  and real hull-floor ray. _apply_solo_safe_recovery reserves a fresh hatch,
+  places the fresh awake/unseated Player at safe_stand_transform and binds actual
+  containment. Failed registration rolls back pose/claim. Success sets cabin mode,
+  controls enabled and the preferred active craft; it does not restore sleep,
+  old pilot/crew seats or airborne pose. Unsupported context falls back to ordinary
+  safe start; planetary restoration retains its independent owner.
+
+Owners: scripts/game/game_flow.gd `_solo_safe_recovery_craft`,
+`_solo_safe_recovery_cabin`, `_capture_solo_safe_recovery_context`,
+`_persist_solo_safe_recovery_context`, `_apply_solo_safe_recovery` and Resume/
+start_shift; scripts/persistence/user_data_store.gd generation-checked publication.
+The existing UI explicitly discloses awake on-foot home-cabin return.
+
+Existing tests/session_recovery_resume_offer_test.gd covers staged cold cabin/
+rest, owner refusals and actual-file landed Halyard bunk identity/fresh-Main
+restoration. Full original suite's retained Main17/300s failure stays PARKED;
+source anchors do not become new passes here. Earlier ca0 archive owned
+SIGKILL/restart cases pass cabin64.794s/rest65.343s with awake supported Halyard
+recovery, receipts1→2 and one crash event, on their recorded package only.
+See [Linux recovery scope/selectors](LINUX_BUILD.md#exported-game-interruption-check).
+
+| Remaining named case /parents2,31 | Finite finish | Prerequisite / stopping point |
+| --- | --- | --- |
+| CABIN-RECOVERY-INSTALLED | Exact installed candidate, real frame-owned cabin commit, owned kill/reap, distinct Resume/Begin Shift yields awake supported cabin and usable ordinary walking/helm or exit without duplicated activity/reward | GATED final installed candidate and one frozen craft/route/cut at original caps. Earlier ca0 remains accepted; stop after this one context. |
+| REST-RECOVERY-INSTALLED | Exact reserved ship bunk commits its own craft, owned kill/reap, distinct restart wakes onto fresh supported home cabin with no old bunk/seat claim and usable controls | GATED exact installed candidate/one frozen actual bunk and existing rest selector; stop after one context. No physical rest-pose resume entitlement inferred. |
+
+The existing exported interruption driver already supports cabin/rest; no new
+probe family is required. Separately freeze ordinary setup/continuation to close
+any broader journey promise. Unavailable-frame/refused-write source coverage is
+retained; only a concrete uncovered boundary justifies a new repair or case.
+Native/device/full release gates stay open; this definition runs no probe and
+selects no automatic successor.
 
 ### Hauler supply integration boundaries
 
