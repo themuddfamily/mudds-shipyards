@@ -320,6 +320,32 @@ already-required suites/packages only if pass. Any new failure STOPs for cumulat
 priority review; no automatic second correction/renamed budget. Original failure
 33.678s and intended old missing-six red30.802s remain separately recorded.
 
+### Habitat rest — cumulative review and exact navigation integration repair
+
+Corrected8fb2a73 import/compile pass; focused rest134 checks passes40.710s,
+including full lifecycle. Next full Habitat fails41.239s at unchanged component
+audit. Ship/package checks NOT_RUN. Original reuse failure33.678s retained:
+cumulative unexpected failed stages74.918s, intended old red30.802s separate.
+
+New source fact: Habitat's actual baseline266 collision shapes plus six required
+StationBunk discovery shapes equals272, over its270 policy ceiling. The runtime
+registry calls this audit; navigation refuses an invalid registry. This is a
+production integration gap, not an artifact-only failing report. Independent
+cumulative priority review supports ONE exact cost-contract migration; no unused
+furniture removal or excluding interaction shapes to hide the new capability.
+
+Root selects: scripts/world/habitat_spine.gd declares exact collision ceiling272,
+with concise baseline266+six authored shapes explanation; preserve all other
+ceilings/counting/collision and validation semantics. Existing
+ tests/habitat_spine_test.gd migrates only exact266→272 census/message (245 solid
+bodies unchanged). No schema/version/new validator, broad budget relaxation,
+GameFlow/component/pose/fixture/deadline changes.15min implementation cap.
+Root runs clean import/compile, full focused rest, existing complete spine suite
+at original300s, full Habitat300s, existing ship gameplay/lifecycle300s, then
+required paired checkpoint only if all pass. Independent final/cumulative review
+required; first new failure STOPs, no automatic further repair or renamed budget.
+Native performance is not qualified by this exact module-cost policy migration.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
