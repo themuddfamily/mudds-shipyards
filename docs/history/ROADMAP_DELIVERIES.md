@@ -5350,3 +5350,30 @@ All three definitions are static source comparisons without new engine execution
 Their named production/qualification/decision children replace the ambiguity in
 the same backlog. The next four-card queue has2 READY (on-foot release capability,
 16:10 pause/options coverage) and2 GATED (package, real OS-interruption cut).
+
+## Bounded on-foot / 16:10 batch — first UI boundary
+
+The on-foot release-driver candidate is `b5e2b00a5` (four existing files), with
+independent static review GO. It selects Bulwark and its registered home berth,
+discloses existing convoy craft-motion and final craft-only approach placement,
+then requires production landing/lease, pilot exit and actual supported exterior
+capture. No player pose, saved preference, seat authority or reward is injected.
+Source engine checks are in progress; no package or OS-cut acceptance yet.
+
+The existing Main layout fixture gains a selected `--pause-16x10-only` path at
+`dd4ff0353`, preserving its default sweep. One clean headless/Dummy import and
+explicit compile exit0/diagnostics0. The original300s selected check exits1 at
+the first concrete boundary: requested0.75, options_reentry, retained focus on
+ControllerGlyphFamilyControl but scroll0 and global rectangle
+(1011,1245,229.5,28.5), outside the1920x1200 viewport/scroll clip. Earlier top/
+column/footer/scroll observations passed their existing criteria; later binding/
+modal states and scales1/1.6 are NOT_RUN. This is not a passing qualification.
+Production-versus-fixture transition attribution remains under bounded static
+review; no UI repair or rerun has occurred. Persistence handlers are detached
+only for presentation intent observation; no transaction/device/render claim.
+
+Raw results and exact launch/status/guard records remain under
+`/srv/mudds-work/onfoot-recovery-20261018/results/ui-*`. Import preserves tracked
+source and creates expected private cache; compile and selected check preserve
+full tracked source/cache. All three UI process owners are terminal and absent.
+Both source candidates are committed on isolated branches, awaiting acceptance.

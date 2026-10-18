@@ -32,15 +32,15 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Next four cards
 
-**2 READY, 2 GATED.** These are the next executable deliveries, not the remaining
+**1 IN PROGRESS, 1 FAILED, 2 GATED.** These are the current bounded deliveries, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
-| RECOVERY-ONFOOT-PROBE | Release capability / READY | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
+| RECOVERY-ONFOOT-PROBE | Release capability / IN PROGRESS | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
 | CHECKPOINT-ONFOOT-PROBE | Build / GATED on probe | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
 | RECOVERY-ONFOOT-CUT | Recovery qualification / GATED on probe+package | Real-file on-foot commit survives owned SIGKILL/distinct restart into supported walking and real boarding beside the saved craft. |10–20 min freeze/driver preparation; existing package-probe limits separate and unchanged. |
-| ACCESS-PAUSE-16X10 | UI qualification / READY, independent | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
+| ACCESS-PAUSE-16X10 | UI qualification / FAILED, attribution pending | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
 
 The three recovery cards are sequential. UI work can proceed independently in
 an isolated checkout with disjoint ownership. A failed card ends at its first
@@ -61,13 +61,18 @@ concrete boundary; one attempted repair requires priority review before more wor
   pilot/cabin/rest/crew/engineer behavior, unsafe CLI rejection, private profile/
   Dummy requirements and normal startup isolation. Arm a named nondefault craft's
   genuine settled exterior preference through the production capture/commit seam;
-  do not fabricate saved payload, position, berth/seat authority or rewards.
+  do not fabricate saved payload, player position, berth/seat authority or rewards.
+  The selected convoy case discloses its existing craft-motion fixture and a
+  craft-only home-approach placement; production landing/lease, pilot exit and
+  supported exterior capture must establish the saved context. This does not
+  qualify an ordinary full flight home.
 - **Proof:** the old boot contract rejects this context; new focused admission/
   source-probe checks require the supported four fields, correct actual supported
   player state and explicit arm/resume observation. Compile and relevant existing
   checks on a clean pinned source. Do not rerun parked whole session recovery/Q5.
   Source-driver proof does not close real OS interruption or packaged acceptance.
-- **Execution:** READY/root; inspect existing arm/resume branches and freeze the
+- **Execution:** IN PROGRESS/root; candidate `b5e2b00a5` has independent static
+  review GO; compile/CLI checks are next. Inspect existing arm/resume branches and freeze the
   on-foot case contract from the [completed definition](docs/ROADMAP_BACKLOG.md#settled-exterior-on-foot-recovery-contract).
   Budget45–60 min; split before 90 min. First unexpected result stops for review.
   Commit/push accepted production capability; immediately build the next card.
@@ -115,7 +120,13 @@ concrete boundary; one attempted repair requires priority review before more wor
   options scrolling and focus/confirmation return remain usable. Record requested
   and effective pause scale; its authored fit ceiling is valid behavior. This
   source-layout result does not qualify physical controllers or all rendered views.
-- **Execution:** READY/root, independent;30–45 min coverage/review, original300s
+- **Execution:** FAILED/root at the first selected run of `dd4ff0353`. At
+  1920x1200/requested0.75, options re-entry retains ControllerGlyphFamilyControl
+  focus while scroll=0 leaves its rectangle (1011,1245,229.5,28.5) below the
+  viewport. Import/compile passed; actual selected exit1, source/cache stable.
+  Later states/scales NOT_RUN. Review production-versus-fixture attribution
+  before scheduling one bounded correction; no unchanged rerun. Original budget:
+  30–45 min coverage/review, original300s
   check cap. First actual defect stops with the view/control/scale identified and
   a separate bounded UI repair. Integrate accepted coverage; a demonstrated UI
   runtime change requires its own focused acceptance and fresh checkpoint.
