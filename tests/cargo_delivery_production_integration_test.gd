@@ -48,6 +48,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	if "--ordinary-jovian-kit-deliver" in OS.get_cmdline_user_args():
+		await _run_ordinary_jovian_kit_board(true, true)
+		return
 	if "--ordinary-jovian-kit-depart" in OS.get_cmdline_user_args():
 		await _run_ordinary_jovian_kit_board(true)
 		return
@@ -128,6 +131,9 @@ var _ordinary_directory := ""
 var _ordinary_board_completed := false
 var _ordinary_depart_selected := false
 var _ordinary_depart_completed := false
+var _ordinary_deliver_selected := false
+var _ordinary_deliver_completed := false
+var _ordinary_transfer_receipts: Array[Dictionary] = []
 var _ordinary_source: LocalShipInputSource
 var _ordinary_home_berth: ShipBerth
 var _ordinary_home_lease: StringName
@@ -140,10 +146,11 @@ var _ordinary_start_step := -1
 var _ordinary_previous_elapsed := 0.0
 
 
-func _run_ordinary_jovian_kit_board(depart: bool = false) -> void:
+func _run_ordinary_jovian_kit_board(depart: bool = false, deliver: bool = false) -> void:
 	_ordinary_depart_selected = depart
+	_ordinary_deliver_selected = deliver
 	_ordinary_deadline = Time.get_ticks_msec() + 300000
-	_ordinary_directory = "user://jovian-kit-ordinary-%s-%d-%d" % ["depart" if depart else "board", OS.get_process_id(), Time.get_ticks_usec()]
+	_ordinary_directory = "user://jovian-kit-ordinary-%s-%d-%d" % ["deliver" if deliver else ("depart" if depart else "board"), OS.get_process_id(), Time.get_ticks_usec()]
 	_ordinary_game = MAIN_SCENE.instantiate() as GameFlow
 	await _ordinary_board_scenario()
 	_ordinary_require(_ordinary_board_completed, "ordinary boarding scenario reached its terminal acceptance")
@@ -151,9 +158,13 @@ func _run_ordinary_jovian_kit_board(depart: bool = false) -> void:
 		await _ordinary_depart_scenario()
 	if depart:
 		_ordinary_require(_ordinary_depart_completed, "ordinary departure scenario reached its terminal acceptance")
+	if deliver and _ordinary_depart_completed and _failures.is_empty():
+		await _ordinary_deliver_scenario()
+	if deliver:
+		_ordinary_require(_ordinary_deliver_completed, "ordinary delivery scenario reached its terminal acceptance")
 	# Always release input/capture and destroy Main, including the first failed
 	# boundary. Do not use the staged fixture's piloting-state mutation cleanup.
-	for action in ORDINARY_WALK_ACTIONS + [&"interact", &"sprint_boost", &"brake", &"ui_accept", &"fire", &"pause"]:
+	for action in ORDINARY_WALK_ACTIONS + [&"interact", &"sprint_boost", &"brake", &"ui_accept", &"fire", &"pause", &"landing_assist"]:
 		_ordinary_action(action, false)
 		Input.action_release(action)
 	var release := InputEventMouseButton.new()
@@ -170,14 +181,18 @@ func _run_ordinary_jovian_kit_board(depart: bool = false) -> void:
 	await process_frame
 	await process_frame
 	_ordinary_require(not is_instance_valid(_ordinary_game), "ordinary Main has actually been freed before success")
-	var directory := DirAccess.open(_ordinary_directory)
-	if directory != null:
-		for filename in directory.get_files():
-			var removal := DirAccess.remove_absolute(_ordinary_directory.path_join(filename))
-			if not _ordinary_require(removal == OK, "private ordinary store artifact removed: " + filename):
-				break
-		var directory_removal := DirAccess.remove_absolute(_ordinary_directory)
-		_ordinary_require(directory_removal == OK, "private ordinary store directory removed")
+	if deliver:
+		# KIT-RELOAD must consume this actual production save in a new process.
+		print("JOVIAN_KIT_ORDINARY_DELIVER_STORE: ", ProjectSettings.globalize_path(_ordinary_directory.path_join("settings.json")))
+	else:
+		var directory := DirAccess.open(_ordinary_directory)
+		if directory != null:
+			for filename in directory.get_files():
+				var removal := DirAccess.remove_absolute(_ordinary_directory.path_join(filename))
+				if not _ordinary_require(removal == OK, "private ordinary store artifact removed: " + filename):
+					break
+			var directory_removal := DirAccess.remove_absolute(_ordinary_directory)
+			_ordinary_require(directory_removal == OK, "private ordinary store directory removed")
 	print(_ordinary_marker_prefix() + "_ASSERTIONS: ", _assertions)
 	if _failures.is_empty():
 		# The external isolated coordinator additionally requires actual exit 0.
@@ -257,6 +272,8 @@ func _ordinary_board_scenario() -> void:
 
 
 func _ordinary_marker_prefix() -> String:
+	if _ordinary_deliver_selected:
+		return "JOVIAN_KIT_ORDINARY_DELIVER"
 	return "JOVIAN_KIT_ORDINARY_DEPART" if _ordinary_depart_selected else "JOVIAN_KIT_ORDINARY_BOARD"
 
 
@@ -268,6 +285,9 @@ func _ordinary_depart_scenario() -> void:
 	_ordinary_hull = float(_ordinary_ship.get_telemetry().get("hull", 0.0))
 	_ordinary_initial_position = _ordinary_ship.global_position
 	_ordinary_initial_nose = -_ordinary_ship.global_basis.z.normalized()
+	if _ordinary_deliver_selected:
+		_ordinary_game.cargo_transfer_authority.transfer_committed.connect(func(receipt: Dictionary):
+			_ordinary_transfer_receipts.append(receipt.duplicate(true)))
 	# Observe the production owner; never invoke start or submit a phase here.
 	_ordinary_game.cargo_delivery_activity.started.connect(func(snapshot: Dictionary):
 		_ordinary_start_snapshots.append(snapshot.duplicate(true))
@@ -321,6 +341,173 @@ func _ordinary_depart_scenario() -> void:
 	_ordinary_depart_completed = _ordinary_require(braked and _ordinary_departure_distance() >= 5.0
 		and _ordinary_previous_elapsed > 0.0 and _ordinary_berth_released() and _ordinary_cargo_is_departed(),
 		"neutral thrust with ordinary sampled brake holds at most 0.5 m/s for one physics second within ten seconds, without resetting the original 180-second cargo deadline")
+
+
+func _ordinary_deliver_scenario() -> void:
+	var capture: Dictionary = _ordinary_game.call(&"_get_landing_assist_report_for_ship", _ordinary_ship)
+	if not _ordinary_require(_ordinary_deliver_integrity() and _cargo_receipts(_ordinary_game) == 0
+		and int(_ordinary_game.cargo_transfer_authority.audit().get("committed_transfer_count", -1)) == 0
+		and bool(capture.get("valid", false)) and capture.get("selected_berth_id") == _ordinary_home_id
+		and bool(capture.get("assist_capture_accepted", false)) and bool(capture.get("docked_hull_fits", false))
+		and bool(capture.get("berth_available", false)) and bool(capture.get("compatibility_accepted", false))
+		and bool(capture.get("preview_non_mutating", false)) and _ordinary_berth_released(),
+		"unchanged stopped departure has accepted home capture/fit, free berth, zero transfers and zero reward receipts"):
+		return
+	var acceptance_deadline := mini(Time.get_ticks_msec() + 8000, _ordinary_deadline)
+	await _ordinary_press(&"landing_assist")
+	if not await _ordinary_deliver_wait(func():
+		var contract := _ordinary_ship.get_landing_contract_report()
+		return _ordinary_ship.is_landing_active() and bool(_ordinary_game.get("_landing_request_active"))
+			and _ordinary_game.get("_active_landing_berth_id") == _ordinary_home_id
+			and bool(contract.get("contract_accepted", false)) and contract.get("berth_id") == _ordinary_home_id
+			and bool(contract.get("reservation_token_bound", false)),
+		acceptance_deadline, "one ordinary landing_assist input accepts the physical home contract within eight seconds"):
+		return
+	if not await _ordinary_deliver_wait(_ordinary_deliver_docked,
+		mini(Time.get_ticks_msec() + 120000, _ordinary_deadline),
+		"physical return reaches strict same-hull occupied home dock and SHUT_DOWN within 120 seconds"):
+		return
+	if not _ordinary_require(_ordinary_delivery_is_complete(),
+		"offline physical landing completes generation one: source six to four, destination zero to two, one exact transfer and one paid reward with none owed"):
+		return
+	# This is the production automatic idle timer, not an engine-stop request.
+	if not await _ordinary_deliver_wait(func(): return _ordinary_deliver_docked()
+		and _ordinary_ship.get_telemetry().get("engine_state") == HeroShip.ENGINE_OFFLINE,
+		mini(Time.get_ticks_msec() + int((HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS + 1.0) * 1000.0), _ordinary_deadline),
+		"neutral sampled controls retain physical home docking until actual automatic ENGINE_OFFLINE"):
+		return
+	var exit_seconds := 2.0 * _ordinary_game.canopy_motion_time + _ordinary_game.disembarking_motion_time + 1.0
+	var exit_deadline := mini(Time.get_ticks_msec() + int(exit_seconds * 1000.0), _ordinary_deadline)
+	await _ordinary_press(&"interact")
+	if not await _ordinary_deliver_wait(_ordinary_exterior_is_usable, exit_deadline,
+		"ordinary Interact completes authored exterior disembark within two canopy motions plus disembark motion plus one second", false):
+		return
+	var walk_origin := _ordinary_player.global_position
+	var walk_deadline := mini(Time.get_ticks_msec() + 15000, _ordinary_deadline)
+	_ordinary_action(&"move_forward", true)
+	var walked := false
+	while Time.get_ticks_msec() < walk_deadline:
+		await _ordinary_ticks(1)
+		if not _ordinary_deliver_integrity(false, false) or not _ordinary_depart_check(
+			_ordinary_exterior_is_usable() and _ordinary_delivery_is_complete(),
+			"same unseated controllable Player remains supported outside while walking; completed transfer/reward cannot duplicate"):
+			break
+		if (_ordinary_player.global_position - walk_origin).slide(Vector3.UP).length() >= 0.5:
+			walked = true
+			break
+	_ordinary_action(&"move_forward", false)
+	if not _failures.is_empty() or not _ordinary_require(walked,
+		"ordinary ground movement carries the supported original controllable unseated Player at least half a metre within fifteen seconds"):
+		return
+	# Normal production ticks exercise retry/persistence owners without calling
+	# completion, transfer, reward, or retry APIs from this route.
+	for _index in 60:
+		await _ordinary_ticks(1)
+		if not _ordinary_deliver_integrity(false) or not _ordinary_depart_check(
+			_ordinary_exterior_is_usable() and _ordinary_delivery_is_complete(),
+			"normal post-delivery ticks preserve exterior control and exactly one transfer/reward"):
+			return
+	_ordinary_deliver_completed = _ordinary_require(Time.get_ticks_msec() < _ordinary_deadline
+		and _ordinary_delivery_is_complete(), "delivery retains original 300-second route cap and unreset 180-second activity clock with no duplicate cargo or reward")
+
+
+func _ordinary_deliver_wait(predicate: Callable, deadline: int, description: String, seated: bool = true) -> bool:
+	while Time.get_ticks_msec() < deadline:
+		if not _ordinary_deliver_integrity(seated):
+			return false
+		if seated and not _ordinary_depart_check(not _ordinary_ship.has_manual_flight_intent(),
+			"sampled flight command remains neutral through physical landing and automatic shutdown"):
+			return false
+		if bool(predicate.call()):
+			return _ordinary_require(true, description)
+		await _ordinary_ticks(1)
+	return _ordinary_require(false, description)
+
+
+func _ordinary_deliver_integrity(seated: bool = true, neutral: bool = true) -> bool:
+	var snapshot := _ordinary_game.cargo_delivery_activity.get_snapshot()
+	var report := _ordinary_game.get_activity_integration_report()
+	var elapsed := float(snapshot.get("elapsed_seconds", -1.0))
+	var expected := float(int(report.get("cargo_physics_step_count", -1)) - _ordinary_start_step) * _ordinary_game.get_physics_process_delta_time()
+	var complete := _ordinary_game.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.COMPLETED
+	if not _ordinary_depart_check(_ordinary_same_player() and _ordinary_game.active_ship == _ordinary_ship
+		and _ordinary_ship.get_home_berth_id() == _ordinary_home_id
+		and is_equal_approx(float(_ordinary_ship.get_telemetry().get("hull", -1.0)), _ordinary_hull)
+		and _ordinary_start_snapshots.size() == 1 and _ordinary_game.cargo_delivery_activity.get_generation() == 1
+		and (complete or _ordinary_game.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.ACTIVE)
+		and float(snapshot.get("deadline_seconds", 0.0)) == 180.0 and elapsed >= _ordinary_previous_elapsed
+		and elapsed < 180.0 and absf(elapsed - expected) < 0.00001
+		and absf(float(snapshot.get("deadline_remaining_seconds", -1.0)) - (180.0 - expected)) < 0.00001
+		and report.get("cargo_source_entity") == _ordinary_ship
+		and report.get("cargo_destination_entity") == _ordinary_game.world.get_jovian_freight_berth()
+		and _manifest_quantity(report.get("cargo_source_manifest", {}) as Dictionary) == (4 if complete else 6)
+		and _manifest_quantity(report.get("cargo_destination_manifest", {}) as Dictionary) == (2 if complete else 0),
+		"return retains same Player, hull, home, original single generation and exact unreset physics clock with conserved kits"):
+		return false
+	_ordinary_previous_elapsed = elapsed
+	if seated:
+		var area := _ordinary_game.get("_boarding_area") as ShipBoardingArea
+		if not _ordinary_depart_check(_ordinary_player.is_seated_at(_ordinary_ship.get_pilot_seat_anchor())
+			and _ordinary_ship.is_piloted() and not _ordinary_ship.is_remote_piloted()
+			and _ordinary_ship.get_command_source() == _ordinary_source and _ordinary_source.enabled
+			and _ordinary_source == _ordinary_ship.get_local_input_source() and _ordinary_source.is_enabled_owner()
+			and _ordinary_source.get_input_provider() == null and _ordinary_ship.get_camera().current
+			and _ordinary_source.get_authority_peer_id() == 1 and _ordinary_source.get_local_peer_id() == 1
+			and area != null and area.get_ship() == _ordinary_ship and area.is_reserved() and area.get_reservation_token() == _ordinary_player,
+			"return retains original seated pilot, default local Input source, camera and hatch claim"):
+			return false
+	if neutral:
+		for action: StringName in ORDINARY_WALK_ACTIONS + [&"pitch_up", &"pitch_down", &"roll_left", &"roll_right",
+			&"sprint_boost", &"brake", &"hover", &"fire", &"barrel_roll", &"landing_assist", &"interact"]:
+			if not _ordinary_depart_check(not Input.is_action_pressed(action), "return controls remain neutral: " + str(action)):
+				return false
+	return true
+
+
+func _ordinary_deliver_docked(require_shutdown: bool = true) -> bool:
+	var contract := _ordinary_ship.get_landing_contract_report()
+	var dock := _ordinary_home_berth.get_dock_transform()
+	var token := StringName((_ordinary_game.get("_berth_tokens") as Dictionary).get(_ordinary_ship.get_instance_id(), &""))
+	return (not require_shutdown or _ordinary_game.phase == GameFlow.Phase.SHUT_DOWN) and _ordinary_home_berth_is_current() \
+		and not _ordinary_ship.is_landing_active() and _ordinary_ship.velocity.length() <= 0.05 \
+		and _ordinary_ship.global_position.distance_to(dock.origin) <= 0.05 \
+		and rad_to_deg(_ordinary_ship.global_basis.orthonormalized().get_rotation_quaternion().angle_to(
+			dock.basis.orthonormalized().get_rotation_quaternion())) <= 0.5 \
+		and bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false)) \
+		and contract.get("phase") == HeroShip.LANDING_PHASE_DOCKED and contract.get("berth_id") == _ordinary_home_id \
+		and bool(contract.get("reservation_token_bound", false)) and not token.is_empty() \
+		and _ordinary_home_berth.has_valid_lease(_ordinary_ship, token, _ordinary_ship.get_ship_id()) \
+		and (_ordinary_game.get("_reserved_berth_ids") as Dictionary).get(_ordinary_ship.get_instance_id()) == _ordinary_home_id
+
+
+func _ordinary_delivery_is_complete() -> bool:
+	var snapshot := _ordinary_game.cargo_delivery_activity.get_snapshot()
+	var report := _ordinary_game.get_activity_integration_report()
+	var receipt := snapshot.get("accepted_receipt", {}) as Dictionary
+	var reward_record := (_ordinary_game.get_activity_reward_report().get("authority", {}) as Dictionary).get("record", {}) as Dictionary
+	var reward := reward_record.get("last_receipt", {}) as Dictionary
+	return _ordinary_game.cargo_delivery_activity.get_state() == CargoDeliveryActivity.State.COMPLETED \
+		and int(snapshot.get("generation", 0)) == 1 and bool(snapshot.get("phases_complete", false)) \
+		and _manifest_quantity(report.get("cargo_source_manifest", {}) as Dictionary) == 4 \
+		and _manifest_quantity(report.get("cargo_destination_manifest", {}) as Dictionary) == 2 \
+		and _ordinary_transfer_receipts.size() == 1 and _ordinary_transfer_receipts[0] == receipt \
+		and bool(receipt.get("accepted", false)) and receipt.get("transfer_id") == &"jovian_fabrication_kit_delivery_g1" \
+		and int(receipt.get("quantity", 0)) == 2 and receipt.get("item_id") == GameFlow.CARGO_DELIVERY_ITEM_ID \
+		and int(_ordinary_game.cargo_transfer_authority.audit().get("committed_transfer_count", -1)) == 1 \
+		and _cargo_receipts(_ordinary_game) == 1 and int(reward_record.get("total_receipts", 0)) == 1 \
+		and reward.get("activity_id") == "jovian_fabrication_kit_delivery" and int(reward.get("activity_generation", 0)) == 1 \
+		and reward.get("reward_id") == "return_fabrication_kits_to_shipyard" and bool(reward.get("granted", false)) \
+		and not bool(reward.get("replay_allowed", true)) \
+		and (_ordinary_game.get("_owed_game_flow_activity_rewards") as Array).is_empty() \
+		and not bool(_ordinary_game.call(&"_has_pending_jovian_cargo_reward"))
+
+
+func _ordinary_exterior_is_usable() -> bool:
+	return _ordinary_same_player() and not _ordinary_player.is_seated() and _ordinary_player.is_control_enabled() \
+		and _ordinary_player.is_on_floor() and _ordinary_player.get_camera().current \
+		and not _ordinary_ship.is_piloted() and not bool(_ordinary_game.get("_transition_busy")) \
+		and _ordinary_game.get("_boarding_area") == null and _ordinary_deliver_docked(false) \
+		and _ordinary_game.phase == GameFlow.Phase.APPROACH_SHIP
 
 
 func _ordinary_departure_distance() -> float:
@@ -567,6 +754,13 @@ func _ordinary_require(condition: bool, description: String) -> bool:
 			snapshot["source"] = {"node": str(source), "default_local": source == _ordinary_ship.get_local_input_source(),
 				"enabled": source.enabled if source != null else false, "owner": source.is_enabled_owner() if source != null else false}
 			snapshot["ship"] = _ordinary_ship.get_telemetry()
+			if _ordinary_deliver_selected:
+				snapshot["delivery"] = {"contract": _ordinary_ship.get_landing_contract_report(),
+					"capture": _ordinary_game.call(&"_get_landing_assist_report_for_ship", _ordinary_ship),
+					"transition_busy": _ordinary_game.get("_transition_busy"),
+					"transfers": _ordinary_transfer_receipts, "rewards": _ordinary_game.get_activity_reward_report(),
+					"landing_request": _ordinary_game.get("_landing_request_active"),
+					"landing_berth": _ordinary_game.get("_active_landing_berth_id")}
 			var berth := _ordinary_game.world.get_berth_node(_ordinary_ship.get_home_berth_id()) as ShipBerth
 			snapshot["berth"] = berth.audit() if berth != null else {}
 		snapshot["inputs"] = {"forward": Input.get_action_strength(&"move_forward"), "brake": Input.is_action_pressed(&"brake")}
