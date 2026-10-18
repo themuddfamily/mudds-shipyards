@@ -244,9 +244,9 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open |
 | SOLO-AURORA | Aurora canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
-| CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | SELECTED definition in ROADMAP.md; source comparison capped at 15 minutes, not started; no engine/probe |
+| CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | Definition DONE on 9d2d467e0: no missing implementation identified within inspected authored-content scope; see boundary below. Qualitative adequacy and existing journey/visual/hardware acceptance unproven |
 | SOLO-RIME | Rime canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
-| CONTENT-RIME | Rime finite remaining authored content/presentation findings | 15 | DEFINE; original promises versus implemented world, none found is valid |
+| CONTENT-RIME | Rime finite remaining authored content/presentation findings | 15 | SELECTED definition in ROADMAP.md; source comparison capped at 15 minutes, not started; no engine/probe |
 
 ### Ember authored-content boundary
 
@@ -280,6 +280,39 @@ remote-crew journey, native performance and silhouette/landmark readability
 remain unqualified in their existing SOLO/WORLD/SHARED/PERF/ART outcomes.
 The parked Ember native-close smoke is untouched. No new content task or
 qualification chain follows automatically from this definition.
+
+### Aurora authored-content boundary
+
+CONTENT-AURORA source comparison, 2026-10-18, on `9d2d467e0`: **no missing
+implementation identified within the inspected Phase 10.4 authored-content
+promise**. This closes the finite definition only. No engine, capture, arrival
+probe or journey test ran; no previous test result is renewed.
+
+| Original criterion | Production owner inspected |
+| --- | --- |
+| Recognisable orbital silhouette | `shipyard_world.gd` assigns Aurora's material/shader to destination-tagged `CelestialGreenBody`; `aurora_orbital_silhouette.gdshader` supplies ocean/land/cloud/atmosphere presentation. Streamed scene has its own `BodyVisual`. Visual adequacy through approach remains unproven. |
+| Substantial landing region | `aurora_temperate_world.tscn` supplies the landing floor/pad and 96×96 m collision patch. `aurora_temperate_authored_scene.gd` configures five terrain rings with flat authored surroundings and 1.5 km collision coverage. The original promise supplies no numerical adequacy threshold; source presence is not approval of scale. |
+| Multiple navigable landmarks | Scene `_build_exploration_landmarks()` composes signed lookout, entrance/steps, instruments, standing stones, groves and shore rocks. Actual lookout/stones anchors feed survey gameplay. |
+| Surface routes | Same builder supplies marked amber gravel segments from pad/staging to lookout and a standing-stone branch, with posts/sign and appropriate deck/step/rail/stone collision. |
+| Activities/rewards via existing authorities | `aurora_coastal_survey.gd` binds scene anchors and two ActivityDirector checkpoints, consumes real actor positions and commits through NearbyActivityRewardAdapter and existing GameFlow reward authority/store. Receipt is once-only. |
+| Recoverable failures | Survey abandonment/restart, interrupted progress and refused-reward retry are implemented. Shared `planetary_surface_visit_expedition.gd` owns restoration/cancellation/rescue, with reboarding independent of survey completion. |
+| Reason to return | Unfinished/interrupted survey and unpaid completion support continuation; destination readmission/free coast exploration remain. Paid completion deliberately disables further reward interactions. No renewable payment loop was explicitly promised; none is added or silently assumed. Qualitative sufficiency is not proved by this source comparison. |
+| Bounded authored content | Fixed coast landmarks/routes, two observations and one data receipt preserve existing reward/station authority. Wider terrain/water do not imply extra authored gameplay regions. |
+
+Names above resolve under `scripts/world/`, `scripts/rendering/`,
+`scripts/activities/`, `scripts/game/` and `scenes/world/planets/`. Main composes
+Aurora's streaming pair; `aurora_expedition.gd` supplies its profile to the shared
+visit owner, whose streamed-surface composition attaches the survey and berth.
+The detached pad→egress→staging metadata snapshot is not a complete inventory of
+the runtime coastal walk. Its omission of lookout/stones is not absent gameplay.
+
+Existing authored-scene, visit-loop and space-backdrop tests were inspected only.
+Ordinary/shared full journeys, package failed-save recovery, repeated/interrupted
+visits, visual recognisability/adequacy and applicable native hardware acceptance
+remain in their existing outcomes. No new mandatory human gate or owner approval
+is introduced. The original Aurora arrival bundle remains WAITING; its parked
+failure and limits are unchanged. The authored-scene document now explicitly marks
+its early jump-only account as superseded by physical travel.
 
 ### Multiplayer children
 

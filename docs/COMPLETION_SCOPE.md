@@ -227,6 +227,14 @@ survey. The older content manifest is not the full runtime inventory. See the
 This is a definition result, with no engine run or renewed whole-journey,
 repeat/interruption, shared-crew, visual or hardware acceptance.
 
+Aurora authored-content comparison on `9d2d467e0` likewise identified no missing
+implementation in the inspected Phase 10.4 promise: lookout/stones, marked coast
+paths, optional survey, existing reward authority and interrupted/retry recovery
+are composed in production. Paid survey rewards are once-only; no renewable paid
+loop is inferred. See the [source boundary](ROADMAP_BACKLOG.md#aurora-authored-content-boundary).
+The old jump-only narrative is now explicitly superseded. Existing ordinary/shared,
+package, presentation and hardware acceptance remains unchanged; no tests rerun.
+
 For repeatable activities, accept ten same-world runs without resource growth or stranded objectives; for the one-shot hulk, accept repeated visits without a second reward. Test accepted starts followed by rejected writes, fresh process load and OS interruption. None of this permits persistence to recreate combat actors or infer legacy reward entitlement.
 
 ## Roles, supported session limits and desktop targets

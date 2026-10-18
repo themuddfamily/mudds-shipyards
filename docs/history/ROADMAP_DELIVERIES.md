@@ -7486,3 +7486,35 @@ verification; unique results, source refs and public builds remain.
   three strict silent startups and actual payload/archive audit; publish under
   repository builds/. Commit/push, preserve unique results and clean owned
   checkout/profiles/helpers/duplicate exports. All broad parents/phase gates open.
+
+## Aurora authored-content definition — no missing implementation identified
+
+Bounded source comparison on 9d2d467e0 (2026-10-18) closes CONTENT-AURORA's
+finite definition. Production composes destination silhouette, supported landing
+area, lookout/stones/coastal paths, optional two-observation survey, existing
+once-only reward authority and interrupted/abandon/retry recovery. The detached
+route metadata is not the full runtime inventory. Paid survey has no renewing
+reward; the original content promise does not explicitly require one, and no
+feature or approval gate is invented. Qualitative adequacy remains unproven.
+The existing backlog records exact criterion/owner mapping and remaining scope.
+Old jump-only documentation is explicitly marked superseded by physical travel.
+No engine, capture, new evidence system, arrival-bundle probe or runtime edit.
+All prior failures, limits and whole-journey/package/hardware statuses retained;
+parent 15/all phase gates stay open. Frozen contract follows.
+
+### CONTENT-AURORA — resolve one world's remaining authored content
+
+- **Result:** compare the original Phase 10.4 authored-content promise against
+  Aurora's actual composition. End with finite missing capabilities and exact
+  production owners/checks, or none identified within the inspected scope.
+- **Owner/files:** root; COMPLETION_SCOPE.md and retained Phase 10.4 versus
+  assets/world/planets/aurora_temperate_world.tres,
+  scenes/world/planets/aurora_temperate_world.tscn, their referenced authored
+  runtime and tests/aurora_temperate_authored_scene_test.gd. Follow only an owner
+  needed to resolve a named criterion; no broad atmosphere/performance audit.
+- **Proof/stop:** 15 minutes source comparison; map silhouette, landing region,
+  landmarks/routes, activities/rewards, recovery and reason to return. Separate
+  missing implementation from ordinary/shared/repeat/visual/hardware acceptance.
+  Write findings into existing CONTENT-AURORA row/backlog, no new tracker.
+  No engines, captures, parked original-arrival bundle reconstruction or automatic
+  implementation/qualification successor. Source comparison cannot accept a world.

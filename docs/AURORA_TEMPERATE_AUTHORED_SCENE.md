@@ -1,5 +1,14 @@
 # Aurora temperate authored scene
 
+Current-path note, 2026-10-18: the standalone foundation and early jump-route
+sections below are retained development history. The current production path is
+streamed physical travel through the shared planetary coordinator; start with
+[How Aurora is reached](#how-aurora-is-reached) and
+[Physical travel and remaining recovery placements](#physical-travel-and-remaining-recovery-placements).
+The earlier jump-only limitations are superseded, not a current implementation
+backlog. Those source descriptions do not renew ordinary/shared journey,
+visual, hardware or final-candidate acceptance.
+
 This NEW standalone witness gives Aurora one body-centred ocean sphere, one
 bounded +Y landing patch, and one caller-driven spherical terrain clipmap. The
 clipmap consumes Aurora's real terrain profile and commits five 65 × 65 radial
@@ -68,6 +77,10 @@ rather than losing it. A pilot who had already asked to go home is deliberately
 not brought back.
 
 ### What is still Ember's and not yet Aurora's
+
+**Historical limitation, superseded by the physical-travel implementation below.**
+This section records the earlier jump-only state; it does not describe today's
+production route or authorize rebuilding the shared owners.
 
 Ember reaches its moon through `PlanetaryJourneyCoordinator`,
 `PlanetaryCruiseProductionBinding`, `EmberMoonStreamingProductionBinding` and

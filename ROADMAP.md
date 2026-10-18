@@ -33,33 +33,33 @@ Only the selected card below is executable. A missing definition, failed route
 or full-craft qualification is not an implementation assignment. Do not create
 a successor chain just because a nearby check can be added.
 
-CONTENT-AURORA is selected as an independent bounded definition under parent 15.
+CONTENT-RIME is selected as an independent bounded definition under parent 15.
 NET-OPERATION-HUD is accepted in the current checkpoint; its full contract and
 actual checks are in [delivery history](docs/history/ROADMAP_DELIVERIES.md#remote-operation-hud--acceptedda1ae60).
-Ember's content definition found no missing implementation within its inspected
-scope. The [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) remains
+Ember and Aurora definitions found no missing implementation within their
+inspected authored-content scopes. The [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) remains
 unapproved; parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| CONTENT-AURORA /15 | Definition; SELECTED, not started | Finite actual content gaps or exact missing fact | One source comparison capped at 15 minutes; no engine/probe or automatic successor. |
+| CONTENT-RIME /15 | Definition; SELECTED, not started | Finite actual content gaps or exact missing fact | One source comparison capped at 15 minutes; no engine/probe or automatic successor. |
 
-### CONTENT-AURORA — resolve one world's remaining authored content
+### CONTENT-RIME — resolve one world's remaining authored content
 
-- **Result:** compare the original Phase 10.4 authored-content promise against
-  Aurora's actual composition. End with finite missing capabilities and exact
-  production owners/checks, or none identified within the inspected scope.
+- **Result:** compare original Phase 10.4 authored-content promises against Rime's
+  actual production composition. End with finite missing capabilities and exact
+  owners/checks, or none identified within the inspected scope.
 - **Owner/files:** root; COMPLETION_SCOPE.md and retained Phase 10.4 versus
-  assets/world/planets/aurora_temperate_world.tres,
-  scenes/world/planets/aurora_temperate_world.tscn, their referenced authored
-  runtime and tests/aurora_temperate_authored_scene_test.gd. Follow only an owner
-  needed to resolve a named criterion; no broad atmosphere/performance audit.
-- **Proof/stop:** 15 minutes source comparison; map silhouette, landing region,
-  landmarks/routes, activities/rewards, recovery and reason to return. Separate
-  missing implementation from ordinary/shared/repeat/visual/hardware acceptance.
-  Write findings into existing CONTENT-AURORA row/backlog, no new tracker.
-  No engines, captures, parked original-arrival bundle reconstruction or automatic
-  implementation/qualification successor. Source comparison cannot accept a world.
+  assets/world/planets/rime_glacial_world.tres,
+  scenes/world/planets/rime_glacial_world.tscn, referenced authored runtime and
+  tests/rime_glacial_authored_scene_test.gd. Follow only owners needed for a named
+  criterion; no broad weather/terrain/performance audit.
+- **Proof/stop:** source comparison capped at 15 minutes; map silhouette, landing
+  area, landmarks/routes, survey/reward, recovery and reason to return. Separate
+  absent implementation from ordinary/shared/repeat/visual/hardware acceptance.
+  Write findings into existing CONTENT-RIME/backlog; no new tracker or validator.
+  No engines, captures, parked arrival/landing/pad-controls probe or automatic
+  implementation/qualification successor. Definition does not accept a world.
 
 ## Parked failures and dependent work
 
