@@ -48,6 +48,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	if "--ordinary-jovian-kit-board" in OS.get_cmdline_user_args():
+		await _run_ordinary_jovian_kit_board()
+		return
 	var game := MAIN_SCENE.instantiate() as GameFlow
 	_filesystem = MemoryFilesystem.new()
 	var store := Store.new(STORE_PATH, _filesystem) as UserDataStore
@@ -99,6 +102,307 @@ func _run() -> void:
 	await _test_interrupted_cargo_recovery()
 	await _test_unsaved_cargo_reset_recovery()
 	_finish()
+
+
+# Select-only PLAY-JOVIAN-KIT-BOARD. The default staged integration/recovery
+# fixture below retains its original contract. This route stops at the pilot
+# seat before any thrust, departure, or activity start.
+const ORDINARY_WALK_ACTIONS := [&"move_forward", &"move_back", &"move_left", &"move_right"]
+const ORDINARY_STATION_APPROACH := [
+	Vector3(0.0, 0.0, 13.5), Vector3(-35.0, 0.0, 13.5),
+	Vector3(-35.0, 0.0, 22.0), Vector3(-48.0, 0.0, 22.0),
+	Vector3(-48.0, 0.38, 24.0), Vector3(-49.0, 0.38, 26.0),
+	Vector3(-51.5, 0.38, 26.0), Vector3(-53.0, 0.38, 27.5),
+	Vector3(-53.0, 0.38, 33.5), Vector3(-53.0, 0.38, 40.0),
+	Vector3(-42.0, 0.38, 40.0),
+]
+var _ordinary_game: GameFlow
+var _ordinary_player: PlayerController
+var _ordinary_ship: HeroShip
+var _ordinary_player_id := 0
+var _ordinary_deadline := 0
+var _ordinary_directory := ""
+
+
+func _run_ordinary_jovian_kit_board() -> void:
+	_ordinary_deadline = Time.get_ticks_msec() + 300000
+	_ordinary_directory = "user://jovian-kit-ordinary-board-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()]
+	_ordinary_game = MAIN_SCENE.instantiate() as GameFlow
+	await _ordinary_board_scenario()
+	# Always release input/capture and destroy Main, including the first failed
+	# boundary. Do not use the staged fixture's piloting-state mutation cleanup.
+	for action in ORDINARY_WALK_ACTIONS + [&"interact", &"sprint_boost", &"brake", &"ui_accept", &"fire", &"pause"]:
+		_ordinary_action(action, false)
+		Input.action_release(action)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	Input.parse_input_event(release)
+	paused = false
+	if is_instance_valid(_ordinary_game):
+		_ordinary_game.release_mouse_capture()
+		if _ordinary_game.is_inside_tree():
+			_ordinary_game.queue_free()
+		else:
+			_ordinary_game.free()
+	await process_frame
+	await process_frame
+	_ordinary_require(not is_instance_valid(_ordinary_game), "ordinary Main has actually been freed before success")
+	var directory := DirAccess.open(_ordinary_directory)
+	if directory != null:
+		for filename in directory.get_files():
+			var removal := DirAccess.remove_absolute(_ordinary_directory.path_join(filename))
+			if not _ordinary_require(removal == OK, "private ordinary store artifact removed: " + filename):
+				break
+		var directory_removal := DirAccess.remove_absolute(_ordinary_directory)
+		_ordinary_require(directory_removal == OK, "private ordinary store directory removed")
+	print("JOVIAN_KIT_ORDINARY_BOARD_ASSERTIONS: ", _assertions)
+	if _failures.is_empty():
+		# The external isolated coordinator additionally requires actual exit 0.
+		print("JOVIAN_KIT_ORDINARY_BOARD_OK")
+	quit(0 if _failures.is_empty() else 1)
+
+
+func _ordinary_board_scenario() -> void:
+	# MemoryFilesystem above is a failure-injection wrapper over real FileAccess.
+	# This selected route instead uses the unmodified production filesystem.
+	var store := Store.new(_ordinary_directory.path_join("settings.json"), UserDataFilesystem.new()) as UserDataStore
+	if not _ordinary_require(bool(store.load().get("accepted", false)), "fresh private real-file store loads"):
+		return
+	if not _ordinary_require(_ordinary_game.configure_runtime_settings_persistence(
+		store, _ordinary_directory.path_join("legacy.cfg")), "private settings configured before Main enters tree"):
+		return
+	root.add_child(_ordinary_game)
+	await _ordinary_ticks(4)
+	_ordinary_player = _ordinary_game.get_node_or_null(^"Player") as PlayerController
+	_ordinary_ship = _find_ship(_ordinary_game, &"jovian_provisional")
+	if not _ordinary_require(_ordinary_game.hud is GameHUD and _ordinary_game.world is ShipyardWorld
+		and _ordinary_player != null and _ordinary_ship != null and _ordinary_game.phase == GameFlow.Phase.INTRO,
+		"fresh production Main exposes original Player, Jovian and ordinary intro"):
+		return
+	_ordinary_player_id = _ordinary_player.get_instance_id()
+	if not await _ordinary_button("IntroBeginShiftButton"):
+		return
+	if not await _ordinary_boundary(func(): return (_ordinary_game.phase == GameFlow.Phase.APPROACH_SHIP
+		and _ordinary_player.is_control_enabled() and _ordinary_player.is_on_floor()), 5.0,
+		"ordinary Begin Shift starts supported authored station spawn"):
+		return
+	var dismiss := _ordinary_game.hud.find_child("RuntimeStatusDismissButton", true, false) as Button
+	if dismiss != null and dismiss.is_visible_in_tree() and not dismiss.disabled:
+		if not await _ordinary_activate(dismiss):
+			return
+	var spawn: Transform3D = _ordinary_game.world.get_player_spawn()
+	if not _ordinary_require(_ordinary_same_player() and _ordinary_player.global_position.distance_to(spawn.origin) < 0.8,
+		"same original Player begins at normal authored spawn"):
+		return
+	await _ordinary_press(&"pause")
+	if not _ordinary_require(paused, "ordinary pause input opens the menu"):
+		return
+	for node_name: String in ["ActivityBoardButton", "CargoDeliveryActivityButton", "ActivitySelectionBackButton", "ResumeButton"]:
+		if not await _ordinary_button(node_name):
+			return
+	if not _ordinary_require(not paused and _ordinary_cargo_is_initial(), "focused Activity Board selects initial idle fabrication-kit delivery and resumes"):
+		return
+	for target: Vector3 in ORDINARY_STATION_APPROACH:
+		if not await _ordinary_walk_to(target):
+			return
+	var boarding := _ordinary_ship.get_boarding_position()
+	for target: Vector3 in [Vector3(-42.0, 0.38, boarding.z), boarding]:
+		if not await _ordinary_walk_to(target):
+			return
+	await _ordinary_look(_ordinary_ship.get_boarding_position() + Vector3.UP * 1.2)
+	await _ordinary_press(&"interact")
+	if not await _ordinary_boundary(func(): return (_ordinary_game.phase == GameFlow.Phase.START_ENGINES
+		and _ordinary_player.is_seated_at(_ordinary_ship.get_pilot_seat_anchor())), 12.0,
+		"ordinary hatch Interact completes production animated boarding directly into pilot seat"):
+		return
+	var source := _ordinary_ship.get_command_source()
+	var area := _ordinary_game.get("_boarding_area") as ShipBoardingArea
+	if not _ordinary_require(_ordinary_same_player() and _ordinary_game.active_ship == _ordinary_ship
+		and _ordinary_ship.is_piloted() and not _ordinary_ship.is_remote_piloted()
+		and area != null and area.get_ship() == _ordinary_ship and area.is_reserved()
+		and area.get_reservation_token() == _ordinary_player
+		and source is LocalShipInputSource and source == _ordinary_ship.get_local_input_source()
+		and source.enabled and source.is_enabled_owner() and _ordinary_ship.get_camera().current,
+		"original Player owns actual Jovian pilot seat, hatch claim and enabled current default local InputMap source"):
+		return
+	if not _ordinary_require(_ordinary_home_berth_is_current(), "Jovian remains physically parked in its valid occupied home freight berth"):
+		return
+	_ordinary_require(_ordinary_game.phase == GameFlow.Phase.START_ENGINES and _ordinary_cargo_is_initial()
+		and not bool(_ordinary_game.get("_sortie_departed_berth"))
+		and str(_ordinary_ship.get_telemetry().get("engine_state", "")).to_upper() == "OFFLINE",
+		"stop before thrust/departure/start: cargo IDLE generation zero, initial manifest generations one, six source kits and zero destination kits")
+
+
+func _ordinary_same_player() -> bool:
+	return is_instance_valid(_ordinary_player) and _ordinary_player.is_inside_tree() \
+		and _ordinary_player.get_instance_id() == _ordinary_player_id and _ordinary_game.player == _ordinary_player
+
+
+func _ordinary_cargo_is_initial() -> bool:
+	var report := _ordinary_game.get_activity_integration_report()
+	var activity := _ordinary_game.cargo_delivery_activity
+	var source := report.get("cargo_source_handle", {}) as Dictionary
+	var destination := report.get("cargo_destination_handle", {}) as Dictionary
+	return report.get("selected_activity_kind") == GameFlow.ACTIVITY_KIND_CARGO_DELIVERY \
+		and activity != null and activity.get_state() == CargoDeliveryActivity.State.IDLE and activity.get_generation() == 0 \
+		and not bool(report.get("selection_locked", true)) \
+		and report.get("active_activity_id") == GameFlow.CARGO_DELIVERY_ACTIVITY_ID and int(report.get("active_generation", -1)) == 0 \
+		and int(source.get("entity_generation", 0)) == 1 and int(source.get("manifest_generation", 0)) == 1 \
+		and int(destination.get("entity_generation", 0)) == 1 and int(destination.get("manifest_generation", 0)) == 1 \
+		and report.get("cargo_source_entity") == _ordinary_ship \
+		and report.get("cargo_destination_entity") == _ordinary_game.world.get_jovian_freight_berth() \
+		and _manifest_quantity(report.get("cargo_source_manifest", {}) as Dictionary) == 6 \
+		and _manifest_quantity(report.get("cargo_destination_manifest", {}) as Dictionary) == 0
+
+
+func _ordinary_home_berth_is_current() -> bool:
+	var berth := _ordinary_game.world.get_berth_node(_ordinary_ship.get_home_berth_id()) as ShipBerth
+	var collision := _ordinary_ship.get_landing_collision_report()
+	return berth != null and berth.get_berth_id() == &"jovian_freight_berth" \
+		and bool(berth.audit().get("valid", false)) and berth.get_occupant() == _ordinary_ship \
+		and berth.get_reservation_owner() == _ordinary_ship \
+		and berth.has_valid_lease(_ordinary_ship, berth.get_reservation_token(_ordinary_ship), _ordinary_ship.get_ship_id()) \
+		and bool(collision.get("valid", false)) \
+		and berth.contains_oriented_bounds(_ordinary_ship.global_transform, collision.get("local_bounds", AABB()) as AABB) \
+		and bool(_ordinary_ship.get_telemetry().get("landed", false))
+
+
+func _ordinary_walk_to(target: Vector3) -> bool:
+	await _ordinary_look(target + Vector3.UP * 1.4)
+	var deadline := Time.get_ticks_msec() + 15000
+	var settled := 0
+	while Time.get_ticks_msec() < deadline and Time.get_ticks_msec() < _ordinary_deadline:
+		var delta := (target - _ordinary_player.global_position).slide(Vector3.UP)
+		if delta.length() <= 0.30:
+			_ordinary_release_walk()
+			await _ordinary_ticks(1)
+			settled = settled + 1 if _ordinary_player.is_on_floor() and _ordinary_player.velocity.slide(Vector3.UP).length() < 0.1 else 0
+			if settled >= 15:
+				return _ordinary_require(absf(target.y - _ordinary_player.global_position.y) < 0.8 and _ordinary_same_player(),
+					"ordinary supported continuous walk reaches goal: " + str(target))
+			continue
+		settled = 0
+		var forward := (-_ordinary_player.get_camera().global_basis.z).slide(Vector3.UP).normalized()
+		var right := forward.cross(Vector3.UP).normalized()
+		var axis := Vector2(delta.normalized().dot(right), -delta.normalized().dot(forward))
+		axis *= clampf(delta.length() / 1.5, 0.35, 1.0)
+		_ordinary_release_walk()
+		_ordinary_action(&"move_left" if axis.x < 0.0 else &"move_right", true, absf(axis.x))
+		_ordinary_action(&"move_forward" if axis.y < 0.0 else &"move_back", true, absf(axis.y))
+		await _ordinary_ticks(1)
+	_ordinary_release_walk()
+	return _ordinary_require(false, "ordinary walk reaches supported goal within 15 seconds: " + str(target))
+
+
+func _ordinary_release_walk() -> void:
+	for action in ORDINARY_WALK_ACTIONS:
+		_ordinary_action(action, false)
+
+
+func _ordinary_look(target: Vector3) -> void:
+	for _index in 4:
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			var click := InputEventMouseButton.new()
+			click.button_index = MOUSE_BUTTON_LEFT
+			click.pressed = true
+			Input.parse_input_event(click)
+			await _ordinary_ticks(1)
+			click = InputEventMouseButton.new()
+			click.button_index = MOUSE_BUTTON_LEFT
+			click.pressed = false
+			Input.parse_input_event(click)
+		var desired := _ordinary_player.global_basis.inverse() * (target - _ordinary_player.get_interaction_origin()).normalized()
+		var current := _ordinary_player.global_basis.inverse() * _ordinary_player.get_interaction_direction().normalized()
+		var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
+		var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
+		var event := InputEventMouseMotion.new()
+		event.relative = Vector2(-yaw, pitch * (1.0 if _ordinary_player.invert_mouse_y else -1.0)) / _ordinary_player.mouse_sensitivity
+		Input.parse_input_event(event)
+		await _ordinary_ticks(1)
+
+
+func _ordinary_action(action: StringName, pressed: bool, strength: float = 1.0) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = pressed
+	event.strength = strength if pressed else 0.0
+	Input.parse_input_event(event)
+
+
+func _ordinary_press(action: StringName) -> void:
+	_ordinary_action(action, true)
+	await _ordinary_ticks(2)
+	_ordinary_action(action, false)
+	await _ordinary_ticks(3)
+
+
+func _ordinary_button(node_name: String) -> bool:
+	if not await _ordinary_boundary(func():
+		var button := _ordinary_game.hud.find_child(node_name, true, false) as Button
+		return button != null and button.is_visible_in_tree() and not button.disabled,
+		5.0, "visible enabled HUD action: " + node_name):
+		return false
+	return await _ordinary_activate(_ordinary_game.hud.find_child(node_name, true, false) as Button)
+
+
+func _ordinary_activate(button: Button) -> bool:
+	root.grab_focus()
+	button.grab_focus()
+	await process_frame
+	if not _ordinary_require(root.gui_get_focus_owner() == button, "actual HUD button receives keyboard/controller focus: " + button.name):
+		return false
+	var activated := [false]
+	button.pressed.connect(func(): activated[0] = true, CONNECT_ONE_SHOT)
+	_ordinary_action(&"ui_accept", true)
+	await process_frame
+	_ordinary_action(&"ui_accept", false)
+	await process_frame
+	return await _ordinary_boundary(func(): return activated[0], 5.0, "focused ui_accept activates real HUD button: " + button.name)
+
+
+func _ordinary_ticks(count: int) -> void:
+	for _index in count:
+		await physics_frame
+		await process_frame
+
+
+func _ordinary_boundary(predicate: Callable, seconds: float, description: String) -> bool:
+	var deadline := mini(Time.get_ticks_msec() + int(seconds * 1000.0), _ordinary_deadline)
+	while Time.get_ticks_msec() < deadline:
+		if bool(predicate.call()):
+			return _ordinary_require(true, description)
+		await _ordinary_ticks(1)
+	return _ordinary_require(false, description)
+
+
+func _ordinary_require(condition: bool, description: String) -> bool:
+	if not condition and _failures.is_empty():
+		var snapshot := {"description": description, "paused": paused, "elapsed_deadline_msec": _ordinary_deadline - Time.get_ticks_msec()}
+		if is_instance_valid(_ordinary_game) and _ordinary_game.is_inside_tree():
+			snapshot["phase"] = _ordinary_game.phase
+			snapshot["boarding_confirmation"] = _ordinary_game.get_boarding_confirmation_presentation_report()
+			snapshot["cargo"] = _ordinary_game.get_activity_integration_report()
+			if _ordinary_game.cargo_delivery_activity != null:
+				snapshot["cargo_activity"] = _ordinary_game.cargo_delivery_activity.get_snapshot()
+			var area := _ordinary_game.get("_boarding_area") as ShipBoardingArea
+			snapshot["claim"] = {"area": str(area), "reserved": area.is_reserved() if area != null else false,
+				"token": str(area.get_reservation_token()) if area != null else "none"}
+		if is_instance_valid(_ordinary_player):
+			snapshot["player"] = {"id": _ordinary_player.get_instance_id(), "original_id": _ordinary_player_id,
+				"position": _ordinary_player.global_position, "velocity": _ordinary_player.velocity,
+				"floor": _ordinary_player.is_on_floor(), "seated": _ordinary_player.is_seated()}
+		if is_instance_valid(_ordinary_ship) and _ordinary_ship.is_inside_tree():
+			var source := _ordinary_ship.get_command_source()
+			snapshot["seat"] = {"anchor": str(_ordinary_ship.get_pilot_seat_anchor()),
+				"player_at_anchor": _ordinary_player.is_seated_at(_ordinary_ship.get_pilot_seat_anchor()) if is_instance_valid(_ordinary_player) else false}
+			snapshot["source"] = {"node": str(source), "default_local": source == _ordinary_ship.get_local_input_source(),
+				"enabled": source.enabled if source != null else false, "owner": source.is_enabled_owner() if source != null else false}
+			snapshot["ship"] = _ordinary_ship.get_telemetry()
+			var berth := _ordinary_game.world.get_berth_node(_ordinary_ship.get_home_berth_id()) as ShipBerth
+			snapshot["berth"] = berth.audit() if berth != null else {}
+		print("JOVIAN_KIT_ORDINARY_BOARD_FIRST_FAILURE: ", JSON.stringify(snapshot))
+	return _check(condition, description)
 
 
 func _test_player_selection_and_atomic_failure(
