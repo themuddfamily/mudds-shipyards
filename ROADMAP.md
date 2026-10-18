@@ -28,15 +28,16 @@ explicit owner decision.
 
 ## Execution now
 
-One selected next definition; the completed reverse qualification is retained below. Completed and parked work does not
+No task currently running. Reverse qualification and the bounded Torrent definition
+are closed below; select an independent named production gap before the next implementation. Completed and parked work does not
 occupy the executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
-| CRAFT-GAPS-TORRENT / 10,11 | READY definition | A finite list of actual remaining Torrent capabilities or a concrete missing specification; no assumed defects. | Compare existing craft specification with runtime owners, source-only10min. |
+| CRAFT-GAPS-TORRENT / 10,11 | Definition DONE; craft acceptance OPEN | No specifically required missing implementation found within inspected owners. | Do not invent a feature; any successor needs a concrete requirement/finding. |
 | HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
 
-### CRAFT-GAPS-TORRENT — choose a production capability, not another helm test
+### CRAFT-GAPS-TORRENT — bounded definition complete
 
 - **Owner/boundary:** one read-only agent; root selects any successor. Existing
   Torrent specification, definition and runtime component/role owners only.
@@ -48,6 +49,16 @@ occupy the executable queue. Root owns review, integration, checks and closure.
   is recorded. Root reviews before a separate implementation card; no automatic
   diagnosis/probe chain. Record result in the existing inventory, commit/push;
   no gameplay claim or new checkpoint for the definition.
+- **Actual result:** existing [Torrent specification](docs/TORRENT_2011_RECONSTRUCTION_SPEC.md)
+  defines source-recognition geometry and physical single-pilot access; its modern
+  detail zones do not mandate another weapon or cabin capability. HeroShip owns
+  flight, fire, component damage, boarding, landing and reuse. FleetRoleRegistry
+  explicitly expects no walkable Torrent cabin. No concrete missing implementation
+  was identified in the bounded review; this is not full craft acceptance. Visual
+  review and ordinary gameplay-continuity qualifications remain open. Reopen this
+  implementation definition only with a specific absent required behavior or a
+  supported reference/finding, not another unchanged source inventory. No engines,
+  runtime changes, temporary checkout or checkpoint were created.
 
 ### HELM-REVERSE-FLIGHT
 

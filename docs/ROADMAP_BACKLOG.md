@@ -207,7 +207,7 @@ accepted source/result is explicitly stated. No tests ran for this definition.
 
 | Action / default binding | Command field | Wire / actual host consumer | Proof and remaining boundary |
 | --- | --- | --- | --- |
-| Forward W / reverse S; controller axis1 | throttle | move_axis[1] → decoded throttle → HeroShip flight thrust | Sampled forward and neutral stop accepted on96c96312f. Reverse effect/release remains HELM-THROTTLE-REVERSE. |
+| Forward W / reverse S; controller axis1 | throttle | move_axis[1] → decoded throttle → HeroShip flight thrust | Forward accepted96c96312f; reverse flight/release accepted52b228c86, actual host motion and both replicas. Original handback remains open. |
 | Left A / right D; controller axis0 | yaw | move_axis[0] → yaw → host attitude | Provider mapping/solo action anchors in ship_command_test and flight_input_test; both sampled remote directions/effect/release remain HELM-YAW. |
 | Up/Down arrows; controller axis3 | pitch | look_pitch → pitch → host attitude | Provider mapping anchor in ship_command_test; both sampled remote directions/effect/release remain HELM-PITCH. |
 | Roll left Q / right R; controller axis2 | roll | look_yaw → roll rate → host attitude | Provider mapping anchor; both sampled remote directions/effect/release remain HELM-ROLL-RATE, separate from barrel roll. |
@@ -667,7 +667,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | DEFINE; nine named branches, no speculative art pass |
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | DONE; pilot/payload implemented, additional crew/Nav semantics missing |
 | BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | WAITING; precise interpretation needed, no approved scope reduction |
-| CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | Selected source-only10min definition; finite actual gaps only, preserve existing content |
+| CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | Definition DONE: no concrete required missing implementation found in bounded owners; craft acceptance OPEN, supported finding needed for implementation |
 | CRAFT-GAPS-ARROW | Arrow remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-JOVIAN | Jovian remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-ZENITH | Zenith remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
@@ -936,8 +936,9 @@ assignments. Completing a definition does not deliver the gameplay it describes.
 
 The [working roadmap](../ROADMAP.md#execution-now) selects the next exact
 outcome and keeps failed/gated work separate. HELM-REVERSE-FLIGHT is source-qualified on52b228c86;
-its source-only definition is DONE. CRAFT-GAPS-TORRENT is selected for a finite
-production-gap definition, not an automatic qualification chain. Cargo
+its source-only definition is DONE. CRAFT-GAPS-TORRENT definition found no concrete
+required missing implementation in the inspected owners; full craft acceptance
+remains open. No automatic successor or qualification chain is scheduled. Cargo
 boarding/departure/delivery and yaw turns retain their accepted source scopes.
 Cargo reload, Halyard boarding and handback retain their recorded failures and
 reopen conditions; they are not READY work. All36 original parents and ten phase
