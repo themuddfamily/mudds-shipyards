@@ -125,7 +125,11 @@ concrete boundary; one attempted repair requires priority review before more wor
   focus while scroll=0 leaves its rectangle (1011,1245,229.5,28.5) below the
   viewport. Import/compile passed; actual selected exit1, source/cache stable.
   Later states/scales NOT_RUN. Review production-versus-fixture attribution
-  before scheduling one bounded correction; no unchanged rerun. Original budget:
+  before scheduling one bounded correction; no unchanged rerun. One discriminator
+  is now frozen at `4128526c9`: ordinary Back/Open button actions separated
+  by frames, unchanged retained-focus/full-row criteria, requested0.75 only.
+  Budget10 min preparation; compile300s and one selected probe300s. Stop after
+  that re-entry result; no HUD change or later modal qualification. Original budget:
   30–45 min coverage/review, original300s
   check cap. First actual defect stops with the view/control/scale identified and
   a separate bounded UI repair. Integrate accepted coverage; a demonstrated UI

@@ -5377,3 +5377,12 @@ Raw results and exact launch/status/guard records remain under
 source and creates expected private cache; compile and selected check preserve
 full tracked source/cache. All three UI process owners are terminal and absent.
 Both source candidates are committed on isolated branches, awaiting acceptance.
+
+Bounded static attribution review finds the original case focuses/hides/reopens
+within one frame; normal player-flow failure remains unestablished. One diagnostic
+is frozen at `4128526c9`: use actual Back/Open button signals with frames between
+actions, first establish glyph row visible, then require retained focus and whole
+row visibility after re-entry. Existing fixture selector
+`--pause-16x10-reentry-only` stops after this observation at0.75. Preparation10min,
+compile300s and one unchanged300s diagnostic cap; no production HUD fix, later
+modal sweep, additional rerun or relaxed criteria authorized by this card.
