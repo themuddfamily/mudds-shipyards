@@ -34,17 +34,98 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 LIFE-ARM is accepted on packaged `f2bf35a`; its ordinary route and actual controller
 step proof passed. Source merged, checkpoint published, owned scratch cleaned.
-No next implementation or route is selected. Review the result before scheduling.
+LIFE-PATROL source definition is complete; its bounded card below is prepared,
+not yet selected for implementation or engine execution.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| LIFE-PATROL | UNSCHEDULED; last of four service runtime cards | Define only Habitat patrol's existing ordinary approach, actual movers/local interval and supported boarding target. Source-only, 15–20 min; end with exact card or missing fact, no automatic engine run. |
+| LIFE-PATROL | PREPARED; source definition DONE, runtime NOT_RUN | Shared LIFE configuration plus actual Habitat door input,22 walking goals and original Torrent boarding. Five files, exact card below. Estimate30–45min implementation/review plus10–15min checks/package; original route CAP300/outer360. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Current binding rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 The Hauler stock/custody decision remains the concrete missing prerequisite for
 the reviewed independent production alternative. Do not invent stock, a duplicate
 generation API or a whole-game absence-of-defects claim. This queue is local,
 not a project estimate. No full station/Sandbox/activity/capture chain follows.
+
+### LIFE-PATROL — prepared Habitat runtime card
+
+Parent9. Definition source `a9c9c4244`; one bounded read-only mapper and root
+confirmed the existing route/door/shared-driver seam, without engines or edits to
+runtime. This is definition only. Executable outcome: ordinary fresh hub→Habitat
+local walking→return→original Torrent boarding while actual patrol drones continue.
+No new animation, room, locomotion, cargo or bunk/restart capability is needed.
+
+One implementer owns only `tools/release/run_native_sortie.py`,
+`tools/release/test_native_sortie.py`,
+`scripts/diagnostics/native_sortie_observer.gd`,
+`scripts/game/startup_loader.gd`, `tests/startup_cli_privacy_test.gd`.
+Root owns integration/checks/packages; one independent reviewer checks actual
+input/door/boarding lifecycle. Reuse `LifeTowPilot` configuration and narrow
+observer, not another copied pilot/observer or a replay of Habitat sleep/restart.
+
+Exact ordered22 walking goals (world X,Y,Z):
+
+```text
+(0,0,12.5) → (6,0,12.5) → (6,0,13.5) → (34.8,0,13.5)
+→ (34.8,0,15.5) → (43,0,15.5) → (46,0,15.5) → (48,0,15.5)
+  [normal Habitat door aim / Interact / OPEN and portal-clear wait]
+→ (50.5,0,15.5) → (59.15,0,15.5) → (67.8,0,15.5)
+→ (59.15,0,15.5) → (54.1,0,15.5) → (50.5,0,15.5)
+→ (48,0,15.5) → (46,0,15.5) → (43,0,15.5)
+→ (34.8,0,15.5) → (34.8,0,13.5) → (6,0,13.5)
+→ (6,0,12.5) → (0,0,12.5)
+  [existing LIFE-TOW actual Torrent walk_offset approach and ordinary boarding]
+```
+
+Use actual `ShipyardWorld/HabitatSpine/MainAccess`, initially CLOSED/blocked,
+unlocked; authored motion.55s. Read only current door ID/path/position/state,
+`is_open()` and pure `is_portal_blocked()`, plus actual station candidate.
+Reuse HabitatLoop's candidate/aim/OS-E/wait mechanics. Keep supported ordinary
+walking/continuity checks active during door aim/wait; a door-stage E cannot count
+as the later board-stage press. Authenticate the actual
+candidate receipt and native press before OPEN/unblocked; no door setter or forced
+candidate. Door aim/wait shares the existing door-near goal's15s clock, without
+resetting it; next goal starts its normal15s clock after clear. Keep the same door
+open/unblocked on return. No automatic close/reopen retry or Garden Bay branch.
+
+Observe `OperationalLattice/Activities/HabitatServicePatrol`, DRONE_PATROL,
+seed3301, actual origin(59.15,4.88,15.5). The two actual `_drone_roots` are
+`PresentationRoot/AnimatedServiceDrone01` and02, with retained visible drawn
+meshes/global poses. Observer config uses no gantry/arm movers and appends these
+two roots. Require same current activity/movers, enabled/visible/processing,
+finite nondecreasing clock and both poses changing in local and seated intervals.
+
+Local interval is only goal9(50.5,0,15.5)→goal11(67.8,0,15.5), named
+`patrol_inner_threshold`→`patrol_common`. Source polyline17.3m/max goal distance
+≈9.932m is definition, not runtime proof. Require actual supported local walk>11m
+and every local sample within12m of the live origin. Seat is distant: prove
+continued patrol coexistence, not nearby seated placement/readability.
+
+Board original `Main/TorrentInterceptor`, definition `torrent_provisional`,
+occupied/reserved `central_berth`. Reuse actual LIFE-TOW `walk_offset` approach
+and actual ship candidate within3.1m planar before ordinary Interact; do not append
+the raised BoardingPoint as a ground walking goal. Authenticate actual OS press→
+BOARDING→START_ENGINES/local pilot at retained real pilot anchor, then90 seated
+physics frames. Same ship/Player/capsule/shape/default tuning/physical support,
+OFFLINE engine and unchanged parked pose/home ownership persist. No seat/lease
+creation, actor placement, animation seeking or authority mutation by observer.
+
+Keep full-stream consecutive validation and retained completed-motion/actual
+step proof through shared route configuration, as accepted for Aft; no blanket
+movement-limit increase or PlayerController change. Keep15s per goal, .30m planar,
+vertical error<.8m, speed<.1m/s and15 consecutive settled samples; boarding12s from
+final hub goal, route CAP300/outer360. Existing Habitat/Tow passes retain their
+scopes and deadlines; these per-goal limits are shared LIFE limits, not a newly
+claimed historical Habitat deadline. First unexpected failure STOP.
+
+Before execution: freeze clean source and independent source review; root runs
+observer compile, CLI privacy and full existing Python driver suite, then fresh
+paired exports/three strict menu-ready startups/actual payload/archive audit and
+ONE archived `--route life-patrol` attempt (`NATIVE_LIFE_PATROL_OK`). These selectors
+are not implemented yet. Unchanged Player step-up suite remains accepted onf2bf35a;
+no replay is needed without a relevant change. Estimate30–45min implementation/
+review plus10–15min checks/package; split before90min. No broad station tour or
+automatic successor, native hardware/rendered/full-parent closure or CI dispatch.
 
 ## Latest delivered result
 
