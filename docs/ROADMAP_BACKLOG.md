@@ -10,8 +10,9 @@ The original ordinary two-client boarding qualification is DONE on fff5f7221:
 consumed HUD, final host confirmation and all three actual peer exits0. It adds
 only the accepted caller/harness; playable checkpoint b6196a1 contains its exact
 game runtime. Earlier boarding and initial export failures remain retained in
-history. Next: one bounded definition of the first ordinary shared flight segment;
-flight/return/endurance remain unqualified. Both lifecycle qualifications retain
+history. First shared-flight static definition is DONE; next is the bounded
+ordinary Jovian5m departure/brake capability and one route. Departure is NOT_RUN;
+broader flight/return/endurance remain unqualified. Both lifecycle qualifications retain
 their accepted source scopes.
 These are not project-wide remaining counts; no phase completion is implied.
 The original specifications remain binding in

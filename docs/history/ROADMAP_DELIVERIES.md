@@ -4528,3 +4528,58 @@ will not count as delivered flight.
 - **Close:** integrate caller only after full acceptance, commit/push result,
   clean owned checkout/profiles and preserve unique raw. No flight, endurance,
   headless-server, native-hardware or whole-phase completion is implied.
+
+
+## First shared Jovian flight segment — bounded departure card defined
+
+NET-JOVIAN-FLIGHT-DEFINE is DONE as static planning on a8776047b. No engine run,
+new runtime behavior, departure qualification or project-percentage advancement.
+Root inspected the accepted boarding caller and existing station-frame pose
+checks; one bounded medium-effort agent identified production control seams.
+No unsupported production action is established statically.
+
+LocalShipInputSource130 maps move_forward/brake to throttle/braking.
+HeroShip3929 automatic propulsion demand reaches4638 dock-latch release; flight
+integration4673 consumes ordinary commands. At4814 landed=false requires actual
+post-collision motion, not a throttle tap. GameFlow12078 releases this craft's berth
+when physical departure is observed. Jovian uses a plain berth with no departure
+lift override (shipyard_world.tscn154; ShipBerth default41), so no vertical launch
+sequence is invented. Existing Halyard remote-helm/pose tests demonstrate generic
+owners, not this ordinary two-client Jovian scenario.
+
+The selected next card is NET-JOVIAN-DEPART: preserve the entire accepted join/
+walk/seat route, drive ordinary forward input until host measures>=5m along the
+initial nose in station coordinates, then brake to<=0.5m/s for1s. Host must observe
+real throttle/brake consumption, physical departure/berth release and retained
+authority; both actual clients must consume advancing authoritative pose, settle
+within existing0.5m pose tolerance and retain their Players/chairs/roles/HUD.
+No direct command/pose/claim writes. Use default-noop scenario hooks before the
+original retained waits, plus one select-only subclass with its own peer script/
+marker, preserving original boarding defaults, route and total300s cap.
+
+Implementation/review45–75min; import/compile and one original route are separate
+costs. First failure stops for priority review, without automatic probe/repair/
+rerun. Broader flight/landing/return and30-minute endurance remain open, as do all
+36 parents/ten phase gates and hardware/human/release gates. Only ROADMAP.md and
+backlog/history are changed; no disposable checkout or engine profile created.
+
+### Executed flight definition card — frozen contract
+
+### NET-JOVIAN-FLIGHT-DEFINE — bound the first shared flight outcome
+
+- **Parent/result:** parents16/26; turn the next part of the existing server/two-
+  client baseline into one concrete player action and acceptance contract.
+- **Boundary:** inspect the accepted boarding caller, production Jovian helm/
+  departure controls and existing remote-pilot/craft-pose checks only. Reuse the
+  same normal join/walk/seat prerequisites and current identities. Name the exact
+  ordinary input sequence, flight endpoint and pilot/passenger/host consumers.
+  Do not assume undocking, flight, landing or return already pass.
+- **Proof/deliverable:** one ready implementation/qualification card with file
+  ownership, visible endpoint, authority/identity/HUD criteria, existing commands
+  and original limits. Separate any unsupported runtime action as a named
+  production gap. No new validators, speculative feature matrix or engine probe.
+- **Budget/stop:**20–30min static definition, stop when owner/seam/acceptance are
+  known or state one exact missing fact. Split implementation over90min; retain
+  established300s source and30-minute endurance requirements in their own scopes.
+- **Close:** commit/push the actionable roadmap card; definition is planning,
+  not delivered flight. Next action is its bounded implementation/qualification.
