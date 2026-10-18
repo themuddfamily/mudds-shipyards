@@ -15757,7 +15757,8 @@ func bind_cinder_cargo_delivery_persistence(binding: Object) -> Dictionary:
 	return binding.call(
 		&"configure_cinder_cargo_delivery_persistence",
 		_runtime_settings_user_data_store,
-		CINDER_CARGO_DELIVERY_PERSISTENCE_SLOT
+		CINDER_CARGO_DELIVERY_PERSISTENCE_SLOT,
+		int(_game_flow_reward_authority.call(&"get_cinder_cargo_paid_generation_floor")) if _game_flow_reward_authority != null else 0
 	) as Dictionary
 
 
@@ -21281,6 +21282,7 @@ func _sync_nearby_activity_hud() -> void:
 			_detach_nearby_activity_audio()
 			_set_unloaded_nearby_activity_hud()
 			return
+	bind_cinder_cargo_delivery_persistence(binding)
 	if _game_flow_reward_authority != null:
 		_configure_cinder_cargo_reward_handoff(binding)
 		_configure_cinder_structure_scan_reward_handoff(binding)
@@ -21288,7 +21290,6 @@ func _sync_nearby_activity_hud() -> void:
 		_configure_cinder_asteroid_field_reward_handoff(binding)
 	bind_cinder_race_best_persistence(binding)
 	bind_cinder_scan_discovery_persistence(binding)
-	bind_cinder_cargo_delivery_persistence(binding)
 	bind_cinder_mining_capacity_persistence(binding)
 	bind_cinder_convoy_arrival_persistence(binding)
 	_sync_hulk_power_restoration_binding()

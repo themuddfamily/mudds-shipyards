@@ -27,21 +27,45 @@ class MemoryFilesystem extends FilesystemScript:
 		files[to_path] = (files[from_path] as PackedByteArray).duplicate()
 		files.erase(from_path); return OK
 
+class RefusingDiskFilesystem extends FilesystemScript:
+	var refuse_payment := false
+	var refuse_debt := false
+	var refuse_sync := false
+	func write_bytes_and_flush(path: String, bytes: PackedByteArray) -> Error:
+		var document: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		if document is Dictionary:
+			var commit_id: String = str((document.get("commit", {}) as Dictionary).get("id", ""))
+			if (refuse_payment and commit_id.begins_with("game-flow-reward-")) or (refuse_debt and commit_id.begins_with("cinder-cargo-delivery-")):
+				return ERR_CANT_CREATE
+		return super.write_bytes_and_flush(path, bytes)
+	func sync_directory(path: String) -> Error:
+		if refuse_sync and FileAccess.file_exists(path):
+			var document: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+			if document is Dictionary and str((document.get("commit", {}) as Dictionary).get("id", "")).begins_with("game-flow-reward-"):
+				refuse_sync = false
+				return ERR_UNAVAILABLE
+		return OK
+
 var _assertions := 0
 var _failures := PackedStringArray()
 var _reward_calls := 0
+var _current_flow: GameFlow
 
 
 func _init() -> void:
 	call_deferred(&"_run")
 
 
-func _accept_reward(_request: Dictionary) -> Dictionary:
+func _accept_reward(request: Dictionary) -> Dictionary:
 	_reward_calls += 1
-	return {"accepted": true, "reason": &"caller_reward_receipt_accepted"}
+	return _current_flow.call("_commit_game_flow_activity_reward", request)
 
 
 func _run() -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if args.size() == 3 and args[0] == "--cinder-debt-child":
+		await _run_disk_child(args[1], args[2])
+		return
 	var filesystem := MemoryFilesystem.new()
 	var store := StoreScript.new("memory://cinder-cargo-delivery.json", filesystem)
 	_check(bool(store.load().accepted), "the existing atomic store loads")
@@ -52,6 +76,7 @@ func _run() -> void:
 	var first_binding := first.binding as NearbySectorActivityBinding
 	var fixture := _build_fixture()
 	first_binding.set("_cargo_activity", fixture.activity)
+	first_binding.set("_cargo_authority", fixture.authority)
 	first_binding.set("_cargo_source_entity", fixture.source)
 	var bound := (first.flow as GameFlow).bind_cinder_cargo_delivery_persistence(first_binding)
 	var reward_bound := first_binding.configure_cargo_reward_handoff(
@@ -64,12 +89,16 @@ func _run() -> void:
 	var persisted := first_binding.get_cinder_cargo_delivery_persistence_snapshot()
 	_check(bool(bound.accepted) and bool(reward_bound.accepted) and bool(delivered.accepted)
 		and bool(read_through.accepted) and not bool(duplicate.accepted)
-		and _reward_calls == 1 and int(store.get_generation()) == 2,
+		and _reward_calls == 1 and int(store.get_generation()) == 3,
 		"ledger completion and generation-matched reward handoff commit one durable receipt")
 	_check((store.get_snapshot().foreign as Dictionary).accessibility == "retained"
 		and not bool(((persisted.delivery as Dictionary).reward_receipt as Dictionary).replay_allowed)
 		and not bool(((persisted.delivery as Dictionary).transfer_receipt as Dictionary).replay_allowed),
 		"both replay fences merge without replacing foreign store data")
+	var paid_before: Dictionary = store.get_snapshot()
+	var persistence: CinderCargoDeliveryPersistence = CinderCargoDeliveryPersistence.new()
+	persistence.configure(store, CinderCargoDeliveryPersistence.SLOT_ID)
+	_check(persistence.save(fixture.activity, fixture.authority, "paid-downgrade-attempt").accepted and store.get_snapshot() == paid_before and store.get_generation() == 3, "same terminal readback cannot downgrade its authoritative paid acknowledgement")
 	await _retire(first, fixture)
 
 	var reloaded_store := StoreScript.new("memory://cinder-cargo-delivery.json", filesystem)
@@ -82,7 +111,7 @@ func _run() -> void:
 	var world := (second.cluster as NearbySectorCluster).get_cinder_cargo_access().get_cargo_presentation_state()
 	var replay := second_binding.request_cargo_reward(int(restored.get("generation", 0)))
 	_check(bool(rebound.accepted) and int(restored.state) == CargoDeliveryActivity.State.COMPLETED
-		and int(restored.generation) == 0 and bool(restored.delivery_persisted)
+		and int(restored.generation) == 1 and bool(restored.delivery_persisted)
 		and (restored.accepted_receipt as Dictionary).is_empty(),
 		"reload restores delivered presentation without transfer receipt inventory authority")
 	_check((card.cargo_progress as Dictionary).stage_id == &"delivery_recorded"
@@ -90,11 +119,12 @@ func _run() -> void:
 		and world.state_id == &"committed" and world.geometry_state == &"delivered",
 		"retained HUD and route-cue geometry show the saved delivery")
 	_check(not bool(replay.accepted) and replay.reason == &"cargo_reward_unavailable"
-		and _reward_calls == 1 and int(reloaded_store.get_generation()) == 2,
+		and _reward_calls == 1 and int(reloaded_store.get_generation()) == 3,
 		"restored presentation cannot replay cargo reward or mutate the store")
 
 	var fresh_fixture := _build_fixture()
 	second_binding.set("_cargo_activity", fresh_fixture.activity)
+	second_binding.set("_cargo_authority", fresh_fixture.authority)
 	second_binding.set("_cargo_source_entity", fresh_fixture.source)
 	second_binding.call("_bind_cargo_reward_handoff")
 	var fresh := second_binding.start_cargo_run()
@@ -102,7 +132,7 @@ func _run() -> void:
 	var active := second_binding.get_snapshot().cargo as Dictionary
 	_check(bool(fresh.accepted) and int(active.state) == CargoDeliveryActivity.State.ACTIVE
 		and not bool(active.get("delivery_persisted", false))
-		and int(active.next_phase_index) == 1 and int(reloaded_store.get_generation()) == 2,
+		and int(active.next_phase_index) == 1 and int(reloaded_store.get_generation()) == 3,
 		"a fresh incomplete manifest run stays session-scoped and overrides summary presentation")
 	await _retire(second, fresh_fixture)
 
@@ -113,9 +143,12 @@ func _run() -> void:
 	var stable := third_binding.get_snapshot().cargo as Dictionary
 	_check(int(stable.state) == CargoDeliveryActivity.State.COMPLETED
 		and bool(stable.delivery_persisted) and int(stable.next_phase_index) == int(stable.phase_count)
-		and int(third_store.get_generation()) == 2,
+		and int(third_store.get_generation()) == 3,
 		"later reload discards incomplete cargo and retains terminal delivery receipt")
 	await _retire(third, {})
+
+	await _test_legacy_summary(filesystem, store.get_snapshot().cinder_cargo_delivery)
+	await _run_disk_processes()
 
 	for failure in _failures: push_error(failure)
 	print("CINDER_CARGO_DELIVERY_PERSISTENCE_ROUNDTRIP_TEST_OK: %d assertions" % _assertions)
@@ -123,6 +156,7 @@ func _run() -> void:
 
 
 func _make_runtime(store: UserDataStore) -> Dictionary:
+	store.load()
 	var cluster := CLUSTER_SCENE.instantiate() as NearbySectorCluster
 	root.add_child(cluster)
 	var hud := HUD_SCENE.instantiate() as GameHUD
@@ -130,6 +164,11 @@ func _make_runtime(store: UserDataStore) -> Dictionary:
 	await process_frame
 	var flow := GameFlowScript.new() as GameFlow
 	flow.set("_runtime_settings_user_data_store", store)
+	flow.set("_runtime_settings_persistence_injected", true)
+	var reward_authority: GameFlowRewardAuthority = GameFlowRewardAuthority.new()
+	reward_authority.configure(store)
+	flow.set("_game_flow_reward_authority", reward_authority)
+	_current_flow = flow
 	return {"cluster": cluster, "binding": cluster.get_node(^"ActivityBinding"),
 		"hud": hud, "flow": flow}
 
@@ -148,7 +187,7 @@ func _build_fixture() -> Dictionary:
 	var contract := CargoDeliveryContract.new(&"cinder_platform_supply_run", source_handle,
 		destination_handle, &"cinder_supply_crates", 1,
 		[&"load_crate", &"clear_gate", &"dock_platform"], 120.0)
-	return {"authority": authority, "source": source,
+	return {"authority": authority, "source": source, "source_handle": source_handle, "destination_handle": destination_handle,
 		"activity": CargoDeliveryActivity.new(authority, contract)}
 
 
@@ -158,6 +197,150 @@ func _complete(binding: NearbySectorActivityBinding) -> Dictionary:
 		binding.submit_cargo_phase(phase)
 	var activity := binding.get("_cargo_activity") as CargoDeliveryActivity
 	return activity.submit_transfer(activity.get_generation())
+
+
+func _test_legacy_summary(filesystem: MemoryFilesystem, terminal: Dictionary) -> void:
+	var legacy: Dictionary = terminal.duplicate(true)
+	legacy.schema_version = 1
+	legacy.delivery.erase("generation")
+	legacy.delivery.erase("ordered_phases")
+	legacy.delivery.erase("deadline_seconds")
+	legacy.delivery.erase("transfer_proof")
+	legacy.delivery.reward_receipt.granted = false
+	var store: UserDataStore = StoreScript.new("memory://cinder-legacy-summary.json", filesystem)
+	store.load()
+	store.commit({"cinder_cargo_delivery": legacy}, 0, "legacy-paid-summary")
+	var runtime: Dictionary = await _make_runtime(store)
+	var binding: NearbySectorActivityBinding = runtime.binding
+	(runtime.flow as GameFlow).bind_cinder_cargo_delivery_persistence(binding)
+	var presentation: Dictionary = binding.get_snapshot().cargo
+	_check(int(presentation.generation) == 0 and bool(presentation.delivery_persisted) and not binding.request_cargo_reward(1).accepted, "legacy v1 remains generation0 presentation without reward entitlement")
+	await _retire(runtime, {})
+
+
+func _run_disk_processes() -> void:
+	var folder: String = OS.get_user_data_dir().path_join("cinder-debt-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()])
+	DirAccess.make_dir_recursive_absolute(folder)
+	var path: String = folder.path_join("delivery.json")
+	for mode: String in ["earn", "pay", "paid"]:
+		var args: PackedStringArray = PackedStringArray(["--headless", "--audio-driver", "Dummy", "--path", ProjectSettings.globalize_path("res://"), "--script", "res://tests/cinder_cargo_delivery_persistence_roundtrip_test.gd", "--", "--cinder-debt-child", mode, path])
+		print("CINDER_DEBT_CHILD_COMMAND ", OS.get_executable_path(), " ", JSON.stringify(args))
+		var child: Dictionary = OS.execute_with_pipe(OS.get_executable_path(), args, false)
+		var pid: int = int(child.get("pid", -1))
+		_check(pid > 0, "disk child launches: " + mode)
+		if pid <= 0:
+			break
+		print("CINDER_DEBT_CHILD_PID ", pid)
+		var deadline: int = Time.get_ticks_msec() + 70000
+		var transcript: String = ""
+		while OS.is_process_running(pid) and Time.get_ticks_msec() < deadline:
+			transcript += (child.stdio as FileAccess).get_buffer(65536).get_string_from_utf8()
+			transcript += (child.stderr as FileAccess).get_buffer(65536).get_string_from_utf8()
+			await process_frame
+		var timed_out: bool = OS.is_process_running(pid)
+		if timed_out:
+			OS.kill(pid)
+			var reap_deadline: int = Time.get_ticks_msec() + 2000
+			while OS.is_process_running(pid) and Time.get_ticks_msec() < reap_deadline:
+				await process_frame
+		transcript += (child.stdio as FileAccess).get_buffer(65536).get_string_from_utf8()
+		transcript += (child.stderr as FileAccess).get_buffer(65536).get_string_from_utf8()
+		(child.stdio as FileAccess).close()
+		(child.stderr as FileAccess).close()
+		var code: int = OS.get_process_exit_code(pid)
+		print(transcript)
+		print("CINDER_DEBT_CHILD_EXIT ", pid, " ", code, " reaped=", not OS.is_process_running(pid))
+		_check(not timed_out and code == 0 and transcript.count("CINDER_DEBT_CHILD_OK " + mode) == 1, "actual-file cold process completes: " + mode)
+		if timed_out or code != 0 or transcript.count("CINDER_DEBT_CHILD_OK " + mode) != 1:
+			break
+	print("CINDER_DEBT_ACTUAL_STORE_RETAINED ", path)
+
+
+func _run_disk_child(mode: String, path: String) -> void:
+	print("CINDER_DEBT_CHILD_RUNNING ", mode, " pid=", OS.get_process_id())
+	var filesystem: RefusingDiskFilesystem = RefusingDiskFilesystem.new()
+	var store: UserDataStore = StoreScript.new(path, filesystem)
+	store.load()
+	if mode == "earn":
+		_check(store.commit({"foreign": {"pilot": "retained", "inventory": [7, 11]}}, 0, "seed-disk").accepted, "actual file seed publishes")
+	var runtime: Dictionary = await _make_runtime(store)
+	var binding: NearbySectorActivityBinding = runtime.binding
+	(runtime.flow as GameFlow).bind_cinder_cargo_delivery_persistence(binding)
+	var fixture: Dictionary = {}
+	if mode == "earn":
+		fixture = _build_fixture()
+		binding.set("_cargo_activity", fixture.activity)
+		binding.set("_cargo_authority", fixture.authority)
+		binding.set("_cargo_source_entity", fixture.source)
+		filesystem.refuse_debt = true
+		binding.configure_cargo_reward_handoff(Callable(self, "_accept_reward"))
+		var delivered: Dictionary = _complete(binding)
+		_check(delivered.accepted and _reward_calls == 0 and store.get_generation() == 1, "refused debt save invokes no payment")
+		_check(not binding.reset_cargo_run().accepted and not binding.start_cargo_run().accepted, "live unsaved earned debt blocks reset and start")
+		var earned_owner: CargoDeliveryActivity = fixture.activity
+		binding.call("_on_cargo_berth_occupancy_changed", null)
+		binding.call("_on_cargo_berth_occupancy_changed", fixture.source)
+		_check(binding.get("_cargo_activity") == earned_owner and not binding.start_cargo_run().accepted and store.get_generation() == 1, "departure after refused debt publication retains the exact earned retry owner")
+
+		filesystem.refuse_debt = false
+		filesystem.refuse_payment = true
+		var generation: int = (fixture.activity as CargoDeliveryActivity).get_generation()
+		_check(not binding.request_cargo_reward(generation).accepted and _reward_calls == 1 and store.get_generation() == 2, "genuine debt precedes refused real reward publication")
+		var debt: Dictionary = store.get_snapshot().cinder_cargo_delivery.delivery
+		_check(int(debt.generation) == generation and not debt.reward_receipt.granted and debt.transfer_receipt.transfer_id == "cinder_platform_supply_run_g1" and int(debt.transfer_proof.source_quantity_after) == 3 and int(debt.transfer_proof.destination_quantity_after) == 1, "real file retains exact earned identity and quantities")
+		_check(not binding.reset_cargo_run().accepted and not binding.start_cargo_run().accepted, "durable unpaid debt blocks reset and start")
+		var before_stale: Dictionary = store.get_snapshot()
+		_check(not binding.request_cargo_reward(generation + 1).accepted and store.get_snapshot() == before_stale and _reward_calls == 1, "stale debt generation cannot enter payment callback")
+		var replacement: Dictionary = _build_fixture()
+		var replacement_activity: CargoDeliveryActivity = replacement.activity
+		replacement_activity.adopt_terminal_generation_floor(generation)
+		replacement_activity.start(generation)
+		for phase: StringName in [&"load_crate", &"clear_gate", &"dock_platform"]:
+			replacement_activity.submit_phase(phase, replacement_activity.get_generation())
+		replacement_activity.submit_transfer(replacement_activity.get_generation())
+		var persistence: CinderCargoDeliveryPersistence = CinderCargoDeliveryPersistence.new()
+		persistence.configure(store, CinderCargoDeliveryPersistence.SLOT_ID)
+		_check(not persistence.save(replacement_activity, replacement.authority, "replace-unpaid").accepted and store.get_snapshot() == before_stale, "another genuine completion cannot replace existing unpaid debt")
+		(replacement.authority as Node).queue_free()
+		var parent: Node = binding.get_parent()
+		parent.remove_child(binding)
+		_check(not binding.request_cargo_reward(generation).accepted and not binding.call("_checkpoint_cargo_completion", (fixture.activity as CargoDeliveryActivity).get_snapshot()).accepted and store.get_snapshot() == before_stale and _reward_calls == 1, "retained removed owner cannot publish or pay debt")
+		parent.add_child(binding)
+
+		_check((fixture.authority as CargoTransferAuthority).get_quantity(fixture.source_handle, &"cinder_supply_crates") == 3 and (fixture.authority as CargoTransferAuthority).get_quantity(fixture.destination_handle, &"cinder_supply_crates") == 1, "reward retry leaves actual manifests conserved")
+	elif mode == "pay":
+		_check(not binding.start_cargo_run().accepted and not binding.reset_cargo_run().accepted, "cold unpaid debt blocks replacement")
+		var before: Dictionary = store.get_snapshot().cinder_cargo_delivery.delivery.transfer_proof.duplicate(true)
+		filesystem.refuse_sync = true
+		binding.configure_cargo_reward_handoff(Callable(self, "_accept_reward"))
+		_check(not filesystem.refuse_sync, "real published reward sync refusal was exercised")
+		_check(_reward_calls == 1 and store.get_generation() == 3 and store.get_snapshot().cinder_cargo_delivery.delivery.reward_receipt.granted and int(store.get_snapshot().game_flow_reward_store.total_receipts) == 1, "fresh current binding reconciles exact published payment once atomically")
+		_check(store.get_snapshot().cinder_cargo_delivery.delivery.transfer_proof == before and binding.get_cargo_transfer_authority().to_dictionary().committed_transfers.is_empty(), "cold reward retry changes no inventory or transfer proof")
+		var before_replay: Dictionary = store.get_snapshot()
+		_check(not binding.request_cargo_reward(1).accepted and store.get_snapshot() == before_replay, "paid cold owner cannot replay")
+	else:
+		binding.configure_cargo_reward_handoff(Callable(self, "_accept_reward"))
+		_check(_reward_calls == 0 and store.get_generation() == 3 and not binding.request_cargo_reward(1).accepted, "second cold load keeps one payment")
+		fixture = _build_fixture()
+		binding.set("_cargo_activity", fixture.activity)
+		binding.set("_cargo_authority", fixture.authority)
+		binding.set("_cargo_source_entity", fixture.source)
+		var started: Dictionary = binding.start_cargo_run()
+		_check(started.accepted and int(started.generation) > 1 and int(started.generation) == 2 and not (fixture.activity as CargoDeliveryActivity).adopt_terminal_generation_floor(9).accepted, "next legitimate delivery advances actual generation and rejects late floor adoption")
+		_check(store.get_generation() == 3 and _reward_calls == 0, "new incomplete run creates no entitlement")
+	_check(store.get_snapshot().foreign == {"pilot": "retained", "inventory": [7, 11]}, "unrelated actual-file inventory survives")
+	for suffix: String in ["", ".bak"]:
+		if FileAccess.file_exists(path + suffix):
+			var retained_path: String = path + "." + mode + suffix
+			DirAccess.copy_absolute(path + suffix, retained_path)
+			print("CINDER_DEBT_PHASE_STORE_RETAINED ", retained_path)
+
+	await _retire(runtime, fixture)
+	for failure: String in _failures:
+		push_error(failure)
+	if _failures.is_empty():
+		print("CINDER_DEBT_CHILD_OK ", mode)
+	quit(0 if _failures.is_empty() else 1)
 
 
 func _cargo_card(view: Dictionary) -> Dictionary:
