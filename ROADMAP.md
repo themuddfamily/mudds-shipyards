@@ -32,15 +32,15 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Next four cards
 
-**2 FAILED with bounded follow-ups, 2 GATED.** These are the current bounded deliveries, not the remaining
+**2 IN PROGRESS after recorded failures, 2 GATED.** These are the current bounded deliveries, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
-| RECOVERY-ONFOOT-PROBE | Release capability / FAILED compile; type repair pending check | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
+| RECOVERY-ONFOOT-PROBE | Release capability / IN PROGRESS, type repair checks | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
 | CHECKPOINT-ONFOOT-PROBE | Build / GATED on probe | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
 | RECOVERY-ONFOOT-CUT | Recovery qualification / GATED on probe+package | Real-file on-foot commit survives owned SIGKILL/distinct restart into supported walking and real boarding beside the saved craft. |10–20 min freeze/driver preparation; existing package-probe limits separate and unchanged. |
-| ACCESS-PAUSE-16X10 | UI qualification / FAILED, attribution pending | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
+| ACCESS-PAUSE-16X10 | UI qualification / IN PROGRESS, fixture timing corrected | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
 
 The three recovery cards are sequential. UI work can proceed independently in
 an isolated checkout with disjoint ownership. A failed card ends at its first
@@ -131,8 +131,11 @@ concrete boundary; one attempted repair requires priority review before more wor
   before scheduling one bounded correction; no unchanged rerun. One discriminator
   is now frozen at `4128526c9`: ordinary Back/Open button actions separated
   by frames, unchanged retained-focus/full-row criteria, requested0.75 only.
-  Budget10 min preparation; compile300s and one selected probe300s. Stop after
-  that re-entry result; no HUD change or later modal qualification. Original budget:
+  Diagnostic PASS: exit0/159 assertions/diagnostics0; scroll1099 and retained
+  row visible. The original failure was fixture transition timing; no HUD fix.
+  Full corrected state/scale qualification remains NOT_RUN. Priority review
+  selects recovery type checks next; return to this full selected fixture after
+  that boundary, with original300s cap and first-failure stop. Original budget:
   30–45 min coverage/review, original300s
   check cap. First actual defect stops with the view/control/scale identified and
   a separate bounded UI repair. Integrate accepted coverage; a demonstrated UI

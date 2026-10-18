@@ -5395,3 +5395,15 @@ remain frozen; owner closed. One separately bounded repair annotates just those
 two values as Vector3 (preparation5min, compile300s and CLI300s if green). No
 gameplay/recovery authority or check limits change. Review priorities after the
 one repair before more implementation/qualification; no automatic error loop.
+
+The single UI discriminator at4128526c9 PASSES: actualexit0,
+ULTRAWIDE_LAYOUT_TEST_OK159 assertions, original diagnostics0. Ordinary Back/Open
+button actions separated by frames retain glyph focus and scroll1099; before/
+after row is visible at requested0.75. This establishes the initial same-frame
+fixture sequence as the failing condition; no production HUD defect/fix is claimed.
+Later modal states/scales remain NOT_RUN; full selected card remains incomplete.
+Raw ui-reentry* retained. After the failed qualification and one fixture correction,
+priority review keeps recovery type checks as the next action: its one two-line
+repair is f90547c37. The competing corrected full UI sweep is deferred to that
+boundary. No further UI probe/repair is scheduled in this step; failure budget
+and original raw remain retained rather than reset by a new task name.
