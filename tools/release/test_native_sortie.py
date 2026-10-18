@@ -261,6 +261,24 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(keys, set())
         self.assertNotEqual(dx, 0)
         self.assertEqual(first.initial['player_id'], cold.initial['player_id'])
+        # Godot resource ObjectIDs can use the signed high bit. Nonzero IDs
+        # must remain exact within the leg, regardless of their sign.
+        negative_id = -9223371935302285411
+        for field in ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id'):
+            for replacement in (0, negative_id - 1):
+                with self.subTest(field=field, replacement=replacement):
+                    actor = native.HabitatRestartPilot(cold=True)
+                    sample = self.restart_observation()
+                    sample[field] = negative_id
+                    actor.update(copy.deepcopy(sample), 0)
+                    actor.stage = 'begin_shift'
+                    sample.update(frame=110, sequence=110, phase='APPROACH_SHIP')
+                    actor.update(copy.deepcopy(sample), 1)
+                    self.assertEqual(actor.stage, 'restart_look')
+                    sample.update(frame=111, sequence=111)
+                    sample[field] = replacement
+                    with self.assertRaisesRegex(AssertionError, 'stable current actors'):
+                        actor.update(copy.deepcopy(sample), 1.1)
         for key in ('crew_claim', 'cabin_claim', 'recovery_pending', 'piloting', 'sleeping'):
             other, sample = self.restart_pilot('begin_shift', cold=True)
             sample[key] = True

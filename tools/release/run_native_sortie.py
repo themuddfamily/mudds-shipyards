@@ -1549,7 +1549,7 @@ class HabitatRestartPilot(HabitatLoopPilot):
     def require_current(self, s):
         require(s.get('actors_current'), 'restart current production actors')
         fields = ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id')
-        require(all(s[k] > 0 for k in fields)
+        require(all(s[k] != 0 for k in fields)
                 and tuple(s[k] for k in fields) == tuple(self.initial[k] for k in fields)
                 and s['door']['id'] == self.initial['door']['id']
                 and s['bunk']['id'] == self.initial['bunk']['id'],
