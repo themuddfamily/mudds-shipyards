@@ -402,7 +402,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         s = self.gantry_observation()
         s.update(mode='life-arm', ship_name='ZenithInterceptor',
                  ship_definition_id='zenith_b7_observed',
-                 home_berth_id='zenith_fleet_dock_berth', boarding=[14, 4.2, 58.2])
+                 home_berth_id='zenith_fleet_dock_berth', boarding=[14, 4.2, 58.2],
+                 station_candidate={})
         s['service'].update(profile='service_arm',
                             path='OperationalLattice/Activities/AftOperationsActivity',
                             origin=[5.8, 4.99, 61.2])
@@ -434,6 +435,17 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(keys, set())
         self.assertEqual(dx, 0)
         self.assertEqual(pilot.stage, 'approach_ship')
+        # A real competing station prompt wins GameFlow's ordinary E. Rotate
+        # away from that actual object while staying at the final authored goal.
+        s.update(candidate=True, station_candidate={'path': '/Main/ActualPrompt',
+                 'position': [s['player'][0]+1, s['player'][1], s['player'][2]]})
+        keys, dx, _, _ = self.gantry_tick(pilot, s)
+        self.assertEqual(keys, set())
+        self.assertNotEqual(dx, 0)
+        self.assertEqual(pilot.stage, 'approach_ship')
+        self.assertNotIn('board_press', pilot.receipts)
+        self.assertEqual(len(pilot.visited), 15)
+        s['station_candidate'] = {}
         s.update(candidate=True, velocity=[.1, 0, 0])
         self.gantry_tick(pilot, s)
         self.assertEqual(pilot.stage, 'approach_ship')

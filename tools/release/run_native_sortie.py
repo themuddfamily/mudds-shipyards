@@ -1530,7 +1530,7 @@ class LifeTowPilot(Pilot):
             fields += ('ship_name', 'engine', 'parked_exact', 'home_lease',
                        'home_berth_id', 'home_berth_instance_id', 'boarding')
         if 'ship_definition_id' in self.config:
-            fields += ('ship_definition_id',)
+            fields += ('ship_definition_id', 'station_candidate')
         return {k: s[k] for k in fields}
 
     def begin_walk(self, stage, route, s):
@@ -1770,7 +1770,13 @@ class LifeTowPilot(Pilot):
             off[1] = 0
             candidate_only = self.config.get('candidate_only', False)
             settled = math.hypot(s['velocity'][0], s['velocity'][2]) < .1
-            if s['candidate'] and not s['native_interact'] and ((candidate_only and settled) or
+            if candidate_only and s['station_candidate']:
+                # GameFlow gives the actual station prompt priority over ship
+                # boarding. Use the established Sandbox look-away maneuver
+                # before the one ordinary E; retain this goal and deadline.
+                away = [2*a-b for a, b in zip(s['player'], s['station_candidate']['position'])]
+                dx, _yaw, _distance = self.yaw_to(s, away)
+            elif s['candidate'] and not s['native_interact'] and ((candidate_only and settled) or
                                                                (not candidate_only and norm(off) <= 3.1)):
                 self.receipts['board_press'] = self.receipt(s)
                 self.enter('board', s)

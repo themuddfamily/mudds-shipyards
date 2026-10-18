@@ -773,6 +773,10 @@ func _life_observation() -> Dictionary:
 		movers.append({"id": mover.get_instance_id(), "path": str(activity.get_path_to(mover)),
 			"visible": mover.is_visible_in_tree(), "drawn_mesh_ids": drawn,
 			"pose": [_v(pose.origin), _v(pose.basis.x), _v(pose.basis.y), _v(pose.basis.z)]})
+	var station_candidate: Dictionary = {}
+	if is_instance_valid(_game.station_interaction_candidate):
+		station_candidate = {"position": _v(_game.station_interaction_candidate.global_position),
+			"path": str(_game.station_interaction_candidate.get_path())}
 	var default_controls := not _player.is_remote_driven()
 	for action: StringName in [&"move_left", &"move_right", &"move_forward", &"move_back", &"sprint_boost", &"interact"]:
 		var authored: Dictionary = ProjectSettings.get_setting("input/" + str(action), {})
@@ -791,7 +795,7 @@ func _life_observation() -> Dictionary:
 		"player": _v(_player.global_position), "position": _v(_player.global_position), "spawn": _v(_spawn),
 		"walk_forward": _v(-yaw.global_basis.z), "walk_right": _v(yaw.global_basis.x),
 		"velocity": _v(_player.velocity), "walk_offset": _v(_ship.get_boarding_position() - _player.get_interaction_origin()),
-		"candidate": _game.boarding_candidate == _ship,
+		"candidate": _game.boarding_candidate == _ship, "station_candidate": station_candidate,
 		"control_enabled": _player.is_control_enabled(), "seated": _player.is_seated(),
 		"sleeping": _player.is_sleeping(), "station_seated": _player.is_station_seated(),
 		"game_station_seated": bool(_game.get("_station_seated")), "transition_busy": bool(_game.get("_transition_busy")),
