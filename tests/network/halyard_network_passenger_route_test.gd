@@ -243,7 +243,13 @@ func _print_peer_success() -> void:
 		print("HALYARD_NETWORK_PASSENGER_ROUTE_TEST_OK checks=%d" % _checks)
 
 func _abort_peer(role: String) -> void:
-	if FileAccess.file_exists(_directory.path_join(role + ".done")):
+	var profile_exit_grace: float = float(_peer_profile().get("abort_exit_grace_seconds", 0.0))
+	if profile_exit_grace > 0.0:
+		# Opt-in callers retain failure capture and teardown before force-kill.
+		# Their .exit waiter must ignore gameplay abort and profile deadlines.
+		if await _wait_file(role + ".exit", profile_exit_grace):
+			return
+	elif FileAccess.file_exists(_directory.path_join(role + ".done")):
 		if await _until(func(): return FileAccess.file_exists(_directory.path_join(role + ".exit")), 10.0):
 			return
 	var pid_path := _directory.path_join(role + ".pid")
