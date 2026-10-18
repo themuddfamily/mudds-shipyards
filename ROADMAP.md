@@ -43,15 +43,19 @@ and service runtime passes retain their recorded scopes.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-SOLO | DEFINE; ordinary solo input drops its actual result | Trace actual Cinder solo authority outcomes and seat/ship retirement into presentation without fabricating network receipts. End with exact files, visible result, proof, budget and stop for one runtime card, or exact missing fact. Source-only, 15–20 min, no engine/audible run; do not reuse the host wire-receipt contract automatically. |
+| AUDIO-NAVIGATOR-SOLO | READY; source definition complete on `4578bd1b8` | Bind actual standalone solo claim/results and ship-owned active clear to existing navigator sounds/captions. Prove real chair→FIRE→stand→reseat plus forced lifetime retirement; preserve host lane. [Exact ownership/proof/stop](docs/COMPLETION_SCOPE.md#solo-navigator--source-definition-and-implementation-contract). 60–75 min implementation/review, 10–20 min focused checks, 10–15 min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 AUDIO-MIX-DEFINE’s [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
 remains complete as a definition; all 28 listening cases remain NOT_RUN. Exact
 package/ordinary route, actual output device/backend/configuration and explicit
 audible authorization are still required. Repair dispatch under Dummy does not
-close that gate. The next single action is the bounded solo definition above.
-Remote-client feedback still needs its separate recipient/transport definition;
+close that gate. Solo source definition found the discarded result, network-only
+binding and unsignalled ship-owned clear. Ordinary stand bypasses Cinder’s direct
+release method; the contract covers that actual owner path. No solo runtime change
+or engine attempt has been made. The next single action is its implementation above.
+Host-local direct-submit and remote-client feedback still need their separate
+recipient/transport definition;
 [all three boundaries](docs/COMPLETION_SCOPE.md#navigator-playback--bounded-delivery-contracts)
 remain explicit. Hauler’s pending stock/custody choice remains unchanged; do not
 repeat the question or invent stock. This queue is not a project estimate.

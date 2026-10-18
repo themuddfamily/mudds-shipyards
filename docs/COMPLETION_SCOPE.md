@@ -1126,8 +1126,8 @@ Do not change the network authority or invent another schema/version.
 | Child outcome | Observable result / remaining boundary | Acceptance and stopping point |
 | --- | --- | --- |
 | AUDIO-NAVIGATOR-HOST — DONE81f885b | On the existing host presentation path, each fresh accepted ping, genuine rejected result and matching active clear selects its distinct existing resident one-shot and keeps the navigator caption. | Actual bridge/GameFlow fixture plus Director request spy under Dummy; consecutive distinct accepted receipts both dispatch; exact replay/stale/malformed/unbound results do not; generation replacement and exact detach preserve existing fences. Stop after focused suites and fresh paired checkpoint; no listening claim. |
-| AUDIO-NAVIGATOR-SOLO — unfinished | Ordinary solo navigator FIRE currently calls `CinderCargoHauler.submit_navigator_ping` and drops its result; it does not traverse the bridge presentation path. | Separate integration card must consume actual solo authority outcomes and clear on ordinary seat/ship lifetime changes without fabricating network receipts. Prove ordinary input-to-request/caption and replay/stand/re-entry behavior with the real ship. Freeze exact files/budget before implementation. Host completion does not close this child. |
-| AUDIO-NAVIGATOR-RECIPIENT — definition still required | Client navigator input sends `navigator_ping` through the loadmaster intent route and reads navigator state from its seat view. Host result forwarding alone does not establish feedback on the initiating client or other supported recipients. | Trace actual receipt/rejection/tombstone transport and recipient ownership before selecting a change. Preserve authority and original supported crew scope; do not broadcast rejected feedback or invent recipient policy. End with a concrete runtime integration card or exact missing policy fact. No host-only pass closes this child. |
+| AUDIO-NAVIGATOR-SOLO — READY after source definition4578bd1b8 | Ordinary solo navigator FIRE currently calls `CinderCargoHauler.submit_navigator_ping` and drops its result; it does not traverse the bridge presentation path. | Separate integration card must consume actual solo authority outcomes and clear on ordinary seat/ship lifetime changes without fabricating network receipts. Prove ordinary input-to-request/caption and replay/stand/re-entry behavior with the real ship. Freeze exact files/budget before implementation. Host completion does not close this child. |
+| AUDIO-NAVIGATOR-RECIPIENT — definition still required | Client navigator input sends `navigator_ping` through the loadmaster intent route and reads navigator state from its seat view; host-local chair input directly submits to the ship. Host bridge result forwarding alone does not establish feedback for either ordinary input path or other supported recipients. | Trace actual receipt/rejection/tombstone transport and recipient ownership before selecting a change. Preserve authority and original supported crew scope; do not broadcast rejected feedback or invent recipient policy. End with a concrete runtime integration card or exact missing policy fact. No host-only pass closes this child. |
 
 **Delivered host implementation, frozen contract retained below.**
 [Actual result](history/ROADMAP_DELIVERIES.md#audio-navigator-host--host-sound-requests-and-captions-delivered): all six focused suites and paired package gates PASS first attempt on81f885b.
@@ -1157,6 +1157,111 @@ Failed task plus one repair requires cumulative priority review, with no automat
 second repair or expansion into solo/recipient changes. This source definition
 itself consumed no engine attempt; the later host implementation and its actual
 execution results are recorded in the linked delivery. Solo/recipient remain open.
+
+
+### Solo navigator — source definition and implementation contract
+
+**Source definition complete on `4578bd1b8`; no engine execution or runtime
+change.** Root traced ordinary input/results; one medium read-only agent traced
+claim/stand/cancel/ship clear ownership. No scratch created. The source review
+ended once the production seam, files and acceptance route were established.
+This defines the next task; it does not complete MIX-NAVIGATOR.
+
+Actual `_sit_in_solo_crew_seat` claims directly through CrewSeatRoleAuthority,
+retains the exact authority/seat generation, attaches the physical occupant and
+installs a craft lifetime hook. It bypasses the specialized navigator interaction
+claim. `_update_solo_gunner_input` samples the retained LocalShipInputSource,
+checks its current owner/stream/profile and consumes the FIRE rising edge. It
+calls actual `CinderCargoHauler.submit_navigator_ping`, then drops the result.
+That result contains actual authority admission plus `consumed` and
+`effect.receipt`; the ship retains the same receipt in its navigator snapshot.
+The local receipt names occupant/avatar, seat generation, request sequence,
+ping generation, channel and marker. It has no network tick, migration, peer or
+ship-generation envelope. Fabricating those fields is not an integration fix.
+
+Optional composition currently binds navigator by the network-only generation
+lookup; ordinary solo returns zero and unbinds it. Adding solo to that lookup
+alone would still feed the wrong input contract and conflate lifetimes. Bind an
+explicit local lane to craft instance, authority instance, avatar and exact seat
+claim; a new authority on reseat can reuse numeric sequences/generations.
+This card applies to standalone solo with no live network session. Host-backed
+local crew must not acquire this second lane alongside the network source. Its
+local FIRE branch also directly submits to the ship, so host bridge acceptance
+alone does not establish host-local input feedback; retain that separate missing
+connection in AUDIO-NAVIGATOR-RECIPIENT with client delivery. Do not infer it
+complete from the accepted host bridge fixture.
+
+Standing awaits actual disembark, then releases the claim through
+`HeroShip.release_solo_crew_role_occupant`, which releases the ledger directly.
+It bypasses Cinder's `release_crew_role`; final authority detach clears the ping.
+Cancellation, exact craft lifetime exit and existing recovery/session handback
+share the release machinery. Cinder's `_clear_navigator_ping` already owns clear
+on role release, authority detach, destruction, tree exit, reuse and physics
+cleanup of a detached role. It currently discards the old receipt without a
+notification. A clear signal from that owner, carrying the previous nonempty
+local receipt, covers these causes without polling presentation or inventing
+network tombstones. Repeated cleanup of an empty receipt must remain silent.
+
+**AUDIO-NAVIGATOR-SOLO visible result:** with `_network_session_is_live() == false`,
+after an ordinary solo navigator claim,
+each actual fresh FIRE ping gives one existing accepted sound/caption; a genuine
+submission refusal gives rejected feedback. Standing or losing the exact claim
+clears its active ping once and retires the source; reseating gives fresh feedback.
+No historic receipt is replayed on attach, no held-FIRE beep loop, and no stale
+old-authority callback can affect the replacement claim. Preserve admission,
+route hints, seat/ship cleanup and existing host behavior.
+
+One implementer owns exactly these runtime files:
+
+- `scripts/game/game_flow.gd`: gate this lane on `_network_session_is_live() == false`,
+  bind only the actual ordinary solo claim, forward
+  its unchanged submit outcome with captured request identity, retire the local
+  source through stand/cancel/authority/whole-composition lifetime paths.
+- `scripts/ships/cinder_cargo_hauler.gd`: emit an active-clear notification with
+  the previous receipt from its existing clear owner; do not move clear authority
+  into audio or change release/repair/manifest behavior.
+- `scripts/audio/optional_semantic_audio_composition.gd`: own the distinct local
+  source and exact replacement/detach; preserve the existing network lane.
+- `scripts/audio/cinder_navigator_ping_audio_composition.gd` and
+  `scripts/audio/cinder_navigator_ping_audio_binding.gd`: explicitly consume local
+  outcomes and ship clear notifications under captured local ownership. Keep
+  bridge APIs/shape checks/receipt fences unchanged. Reuse existing semantic IDs,
+  router registration, resident playback and captions.
+
+Extend existing `tests/cinder_navigator_interaction_test.gd` for actual clear
+identity/idempotence and `tests/audio/cinder_navigator_ping_audio_test.gd` for
+local result/lifetime fences and all three sound requests. Add one focused
+`tests/audio/game_flow_cinder_solo_navigator_audio_integration_test.gd` plus its
+normal Godot UID: a real GameFlow/Cinder/Player/seat/authority/local-input rig
+proving the missing ordinary input connection. It must use actual
+`_sit_in_solo_crew_seat`, FIRE sampling, `_stand_from_solo_crew_seat`, and reseat,
+not fabricated receipt dictionaries or prefilled claim fields as proof of that
+route. A bounded staged approach may position the real Player at the chair; it
+must retain real floor/range/frame/boarding/admission guards. Release synthetic
+inputs on exit. The fixture also observes exact forced ledger release and ship
+removal and old callbacks. Assert no local lane for host-backed use as a preserved
+boundary, not proof of host-local feedback. A failed
+admission ends the attempt; do not weaken the route to make audio assertions pass.
+
+Root owns integration, commands and export; one independent high lifecycle
+reviewer checks exact ownership, clear ordering, same-numbered reseat and host
+regression. No nested agents, new asset/voice/timer, transport/schema, validator,
+recipient broadcast or remote-client implementation. Budget: 60–75 min
+implementation/review, 10–20 min focused checks, 10–15 min paired checkpoint;
+split before 90 min implementation. Before engines freeze a clean source pin and
+exact guarded commands. Focused suites: new ordinary solo fixture, existing
+navigator audio, Cinder interaction, optional composition, GameFlow optional
+composition, existing real host navigator flow, Director, exact unbind and
+reduced-range. Every invocation uses `--headless --audio-driver Dummy`; fixture
+cap300s, no timeout escalation or unchanged full-Main route retry. First unexpected
+failure stops; causal repair must be frozen before editing/rerunning. Failed task
+plus one repair requires cumulative priority review, no automatic second repair.
+After a pass, create the normal clean paired checkpoint and strict menu-ready
+package checks/audit, publish in repository builds, commit/push and clean owned
+scratch. Listening/native/physical full-route/endurance/final gates remain open.
+Host-local direct-submit and remote-recipient definitions remain separate
+integration boundaries;
+Hauler cargo stays dependent on its already-asked stock decision.
 
 ## Phase-wide acceptance still required
 
