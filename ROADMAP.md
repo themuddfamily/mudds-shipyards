@@ -200,6 +200,20 @@ helper hashes/results/repair-source.json fixed before one
 before clearing launch latch after exact-pin independent GO. No other execution
 is selected by this fixture repair freeze.
 
+Cumulative priority review after the one fixture repair: GO to finish the
+original remaining sequence at clean2df8c31a5357075f0f6cadc96429213ae6b99893.
+Full68 tests PASS8.189s, source/index/cache unchanged and no process survivors.
+Original failed Python8.376s retained; total16.565s, no budget reset. Production
+files are byte-identical to cb12's accepted import/observer/privacy source; no
+new engine replay is needed. Exact repaired pin becomes the fresh export source;
+initial source/command records are retained separately before refreshing unrun
+artifact authorizations. Select only paired exports/three strict startups/actual
+audit/ONE archived native route under the original commands/caps. Stop on any
+unexpected failure; no second repair is selected. Named remaining LIFE-ARM still
+needs its own exact supported Aft approach/boarding route before later selection;
+it is not automatically added to this task. No new production defect was found
+by the negative-fixture failure.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
