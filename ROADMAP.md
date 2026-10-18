@@ -77,6 +77,12 @@ Titan decision remains pending; no further parked-route work is selected.
   notes; commit/push, retain unique raw/source refs and clean owned scratch. Current
   playable8f17b02 remains until acceptance. Titan decision is still pending.
 
+**Old-runtime result:** test-only0efb0e18f compiles. Selected physical Jovian
+hull regression reproduces exactly two unpacked/compact25% gauge failures in
+30.910s, actual exit1 and no unrelated diagnostic. The host50/200 pair differs
+from retained local maximum, so normalizing against local health is insufficient.
+Runtime repair is now selected; no fixed-runtime or replacement build claim yet.
+
 ### SPEC-TITAN — concrete interpretation proposal before building
 
 - **Owner/boundary:** one medium-effort documentation agent owns only
