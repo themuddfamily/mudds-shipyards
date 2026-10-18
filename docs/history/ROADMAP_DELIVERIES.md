@@ -2558,3 +2558,62 @@ artifact review is GO; owned clean source checkout removed, unique raw retained.
   Independently review package scope, remove the owned clean source checkout,
   retain unique raw results, update latest checkpoint and commit/push. No hosted
   CI, Downloads, native hardware/audio/human/full-release claim.
+
+## Visible-delivery planning contract — closed
+
+## Next task — PLAN-VISIBLE-DELIVERIES (planning, READY)
+
+- **Parent/result:** [PLAN-ASSIGN](../ROADMAP_BACKLOG.md#baseline-and-ordinary-controls).
+  Publish three independent, concrete player-visible implementation cards from
+  the retained36-parent backlog. Planning is not a new gameplay delivery.
+- **Owner/dependency:** root; clean current main after this batch. Use one
+  bounded reader for an independent component if it shortens mapping. No shared
+  production edits or new worktrees during this planning pass.
+- **Boundary:** existing roadmap/backlog/history and read-only runtime seams.
+  Prefer an actual missing control, station, activity, content or network
+  behavior. Avoid a queue dominated by requalification of previously passing
+  tests, new validators or a renamed parked investigation. A genuinely missing
+  acceptance contract gets one bounded definition card, not an invented fix.
+- **Proof:** each selected card links its original parent, identifies one exact
+  player result and evidenced gap, files/owner, dependency/status, unchanged
+  observable acceptance, existing verification seam, work/check budgets,
+  first action, stop/repair rule and checkpoint/cleanup close. Preserve every
+  original requirement and factual external gate. No speculative whole-project
+  job count or release date.
+- **Budget/stop:**30–45min, no engine/test/capture runs. Finish with the three
+  reviewed cards or explicitly named missing facts; do not expand into research
+  or implementation. Split implementation exceeding90min before execution.
+- **Next/close:** compare concrete candidates in independent runtime owners,
+  select three, record exact next action and commit/push. Start implementation
+  after planning closes. Leave parked Fire/Rime/HULK/startup paths untouched.
+
+## Visible-delivery planning — DONE, two fixes and one missing finding
+
+Read-only planning on main1d1795625 selected BROWSER-SESSION-GENERATIONS and
+DEFENSE-BRIEFING as independent production changes, plus VISIBLE-CHECKPOINT gated
+on accepted runtime work. The requested third station implementation could not
+be grounded: no source-tied current Central view or ordinary-action defect was
+identified. STATION-FINDING remains DEFINE/GATED with its precise missing fact;
+no speculative topology/art/help repair or unchanged parked render run selected.
+
+Browser source currently computes a global capacity-generation maximum and hides
+different-session rows below it. Directory entries retain per-row generation;
+hosted entries derive it from that session's migration counter, not a clock
+shared across unrelated hosts. The new card requires independent-host visibility,
+same-session stale protection, existing directory/request fences and bounded
+lifecycle state, scoped to the presenter and existing tests.
+
+Defense tutorial copy currently gives ring-based instructions, while production
+start/reset use the physical on-foot board and actual combat protects station
+assets. The authored-copy card owns only tutorial presenter plus existing test;
+real HUD/device copy and board presentation are its automated proof. Existing
+accepted-start loop excludes defense, so physical start-to-briefing qualification
+is explicitly separate. Review corrected reset guidance to preserve resumable
+failures/lulls and avoid claiming Reset is always mandatory; final review GO.
+
+All cards state owner/dependency, result, boundary, acceptance, budgets, next
+step, first-failure/one-repair priority review and checkpoint/cleanup close.
+No engines/tests/captures, runtime edits or scratch/worktrees during planning.
+No gameplay/parent/phase completion claimed; original36-parent scope retained.
+Next implementation: independent browser presenter and defense briefing tasks,
+then package accepted source; parked Fire/Rime/HULK/startup paths stay parked.

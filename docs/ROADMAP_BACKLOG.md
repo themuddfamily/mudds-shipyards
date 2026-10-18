@@ -46,8 +46,11 @@ Linux uninstall-interruption/retry/ship batch, now DONE on505d419. The next
 working queue delivered BROWSER-CANCEL and paired checkpointa39e93a, closed
 RACE-PAGE-RESET static diagnosis without a repair. FIRE-RESTART and its one
 viewport fixture repair both fail before capture; candidates withheld, raw and
-remote hold retained, clean checkout removed. Required priority review selects
-PLAN-VISIBLE-DELIVERIES next; no further Fire probe/repair is selected. See
+remote hold retained, clean checkout removed. Required priority review selected
+PLAN-VISIBLE-DELIVERIES, now DONE: source-grounded browser per-session generation
+handling and defense briefing corrections are READY, with a gated checkpoint.
+A third station implementation has no evidenced finding and remains DEFINE/
+GATED; no speculative fix is scheduled. No further Fire probe/repair is selected. See
 ROADMAP.md for exact contracts. No further Rime
 probe, repair or unchanged run is selected.
 One failed task plus its attempted repair requires a recorded priority review
