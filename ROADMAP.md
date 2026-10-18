@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS definition, 2 FAILED/PARKED, 2 GATED, 3 DONE.** Root owns integration and closure.
+**1 IN PROGRESS qualification, 2 FAILED/PARKED, 2 GATED, 3 DONE.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -51,7 +51,7 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| HELM-YAW-HANDBACK | IN PROGRESS definition | Freeze the supported ordinary pilot-release route with the original passenger still aboard, or name its concrete blocking owner. |10min source-only definition; no engine probe |
+| HELM-YAW-HANDBACK | IN PROGRESS qualification | Original pilot ordinarily leaves helm for usable cabin walking; ownership/source retire while the original co-pilot remains seated. |30–45min implementation/review; one unchanged300s/outer360s route, import/compile separate |
 | HELM-NEUTRAL-REPAIR | DONE | After yaw release the pilot view converges to host attitude, preserving active steering behavior. |624d2a6; old-runtime failure reproduced, pose62/yaw/paired checkpoint pass |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
@@ -74,19 +74,45 @@ any more. Close with actual result/pin/limits, commit/push and owned cleanup,
 retaining unique raw/work. Caller-only work needs no identical checkpoint;
 accepted runtime repairs require separate cards and fresh paired builds.
 
-### HELM-YAW-HANDBACK — define the ordinary control-release continuation
+### HELM-YAW-HANDBACK — release the original pilot into the live cabin
 
-- **Parents/result/type:**18/20; finite source definition before implementation.
-  Original remote pilot releases helm through normal Interact after accepted
-  yaw turn/release while the original passenger retains the co-pilot station.
-- **Boundary/owner:** one medium-effort read-only agent,10min. Existing GameFlow
-  Interact/helm-release path, Jovian cabin capability and the accepted caller
-  seam only. No engine, handler injection, staged roles, new disembark contract
-  or replay of parked postdock-exit work.
-- **Finish/next:** identify exact action, required engine state, legitimate role/
-  generation transitions and existing runtime reports for source retirement and
-  ownership handback; root separately selects implementation. If unsupported,
-  name the blocking production condition and stop. No speculative lifecycle audit.
+- **Parents/result/type:**18/20; qualify existing gameplay. After the complete
+  accepted ordinary boarding/departure/yaw route, original pilot uses Interact
+  to stand in Jovian's cabin and walks at least0.6m while original co-pilot stays
+  seated. The old helm retires and ship ownership is released without stale input.
+- **Definition DONE:** one source-only comparison confirms supported unberthed
+  Jovian cabin access. Host neutral auto-idle1.5s; normal Interact dispatches
+  seat exit and confirmed pilot-to-cabin ACTION_SWAP. Co-pilot occupancy is not
+  a blocker. New claim is a free cabin passenger berth; ownership becomes0,
+  generation+1. Actual server walking body replaces pilot-anchor representation.
+- **Boundary/owner:** one high-effort implementation agent owns a select-only
+  subclass `tests/network/jovian_network_pilot_handback_test.gd` and UID; root
+  reviews/runs it. All inherited route/physics/owners remain unchanged. Dedicated
+  waits span legitimate role/claim transitions; inherited final pilot check may
+  switch to full standing-body/current-claim/retired-source criteria ONLY after
+  accepted handback. Passenger checks stay unchanged. No direct handler/seat
+  request, pose/role injection, session-stop substitute, reboard or landing.
+- **Proof:** coordinator-only `JOVIAN_NETWORK_PILOT_HANDBACK_OK`, all three actual
+  OS exits0 and original fullraw diagnostics0. Await actual host and both consumed
+  client OFFLINE before one ordinary pilot Interact. Within8s require same client
+  session/Player/craft, controlled unseated IN_FLIGHT_CABIN containment, actual
+  admitted supported host body/current frame publication and cabin claim with
+  advanced sequence. Host remote source retires, ship-owned source returns,
+  owner0/generation+1 reaches both clients' received authoritative records, client
+  helm capture clears/restored local input stream retires. Existing co-pilot
+  Player/seat/assignment/role/generations remain current. Ordinary former-pilot
+  walk>=0.6m within15s must leave host ship neutral/unowned and supported cabin
+  body intact. HUD must report honest passenger role; a source-identified possible
+  observer/admission-role fallback is not waived or treated as a proven failure.
+- **Budget/next:** IN PROGRESS qualification;30–45min implementation/review,
+  split before90min. Original300s route/outer360s and all inherited walking/
+  boarding caps retained; import/compile separate. Freeze clean source, one
+  compile then ONE isolated Xvfb/x11/Dummy route. First unexpected failure stops;
+  record actual owner before selecting one separate repair, no unchanged probe.
+- **Close:** commit/push actual result/limits, retain unique raw/source refs and
+  clean owned scratch. Caller-only proof needs no identical runtime rebuild;
+  meaningful accepted runtime fix needs fresh paired checkpoints. This closes
+  the chosen handback case only; postdock reuse/devices/full multiplayer stay open.
 
 ### HELM-YAW-TURN — remote pilot turns the actual host-owned Jovian
 
