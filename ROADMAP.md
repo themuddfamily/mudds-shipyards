@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: qualify on-foot recovery in the exact new Linux checkpoint.**
+**Next: finish 16:10 qualification and the archive-placed on-foot recovery cut.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -119,7 +119,14 @@ concrete boundary; one attempted repair requires priority review before more wor
   `5c0cfb46f1aa0a42bb9bdc087dfe9aec6fba6a5038425f197e282c0bb5dc17d9`,
   existing runner `--native-export --in-world-interruption --activity=convoy`,
   on_foot/private headless/Dummy, original300s/stage and660s outer. One run;
-  no automatic repair. Preparation10–20 min; stage checks retain
+  no automatic repair. The direct repository ELF invocation PASSES, including
+  real SIGKILL/distinct restart, supported walk/Interact and receipts1→2.
+  The card title also requires installed/archive placement: keep that part OPEN.
+  After the independent UI run closes, extract the audited exact archive to an
+  owned install directory, verify ELF bytes and copy its immutable export metadata,
+  then run the existing native-export driver once at that actual extracted path.
+  This retains300s/stage/660s outer; desktop-menu installation stays separate.
+  Preparation10–20 min; stage checks retain
   existing release-driver bounds. First failure closes FAILED; no extra probe or
   automatic correction. Preserve raw/process/input closure; commit/push actual
   scope and clean owned scratch. Native hardware/device/audio remain separate.

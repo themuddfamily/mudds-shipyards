@@ -5455,3 +5455,19 @@ f905 driver, --native-export --in-world-interruption --activity=convoy, on_foot,
 headless/Dummy/private profile, original300s per stage/660s outer. One actual
 package invocation; first failure STOP without automatic repair. Source proof
 does not substitute for this packaged acceptance. Raw stays in the same taskroot.
+
+The direct public Linux ELF invocation PASSES: actualarm690699/-9 and distinct
+resume690873/0, supported walk0.525555m, ordinary Interact, exact preference/
+convoy boundary and receipts1→2 once. Source/cache/artifacts remain unchanged;
+all owned processes reaped and absent. This is exported-game recovery proof.
+
+Completion audit catches a scope detail: RECOVERY-ONFOOT-CUT's title specifies
+installed/archive placement, while the frozen successful invocation used the
+repository ELF directly. Do not claim that placement complete. Preserve the
+successful direct result and leave that part open. After the independent full
+UI check terminates, extract the already audited exact archive into an owned
+install directory, verify its actual ELF hash/mode and retain the existing
+immutable matching export metadata, then run the existing native driver once
+from that extracted executable path, unchanged300s/stage/660s outer. No install
+menu/device/fullflight claim; first failure stops, no correction/retry. This is
+the missing original placement, not a repeated direct-export qualification.
