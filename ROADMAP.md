@@ -1,751 +1,147 @@
 # Development roadmap
 
-**Fresh playable checkpoint624d2a6 settles the remote pilot's heading after steering release. Both ordinary yaw directions now qualify; handback stays open. Cargo restart and Halyard remain parked.**
-The game is a playable development alpha. **All 36 broad requirements and all ten
-phase gates remain open.** This file holds the executable queue; the
-[named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
-[36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes),
-[original specification](docs/history/ROADMAP_SCOPE_20261017.md) and
-[delivery history](docs/history/ROADMAP_DELIVERIES.md) retain full scope/results.
+The game is a playable development alpha. Latest accepted playable checkpoint:
+**624d2a6**, with remote steering-release convergence and the earlier cargo,
+control-help and layout fixes. [Windows notes](builds/windows/MuddsShipyards-624d2a6-notes.txt)
+and [Linux notes](builds/linux/MuddsShipyards-624d2a6-linux-notes.txt) state actual validation.
 
-## Current delivered position
+**Project finish: unproven. All 36 broad requirements and all ten phase gates
+remain open.** This is not zero progress: accepted child outcomes remain accepted
+on their recorded sources. A reliable remaining-job count or finish date is not
+available while capability definitions and external dependencies are unresolved.
 
-| Outcome | Actual proof / limit |
+## Where the remaining work lives
+
+| Question | Authoritative location |
 | --- | --- |
-| Immediate client landing edge retained exactly once | Runtime `2c73494a4`; old-runtime failure reproduced, consumer40/ship_command79 pass. Source/ownership/session boundaries revoke pending input. |
-| Fresh playable checkpoint **624d2a6** | [Windows notes](builds/windows/MuddsShipyards-624d2a6-notes.txt), [Linux notes](builds/linux/MuddsShipyards-624d2a6-linux-notes.txt). Neutral pilot attitude smoothly converges while active steering/hover/ongoing roll retain policy. Pose62, ordinary two-client yaw139.519s, paired exports/three strict startups/actual1515-entry audit pass. Earlier supply-status/control-help/layout fixes retained. |
-| Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
-| Actual on-foot recovery in exported/archive Linux checkpoint | f90547c real-file SIGKILL/distinct restart; supported awake unseated player, ordinary walk0.525555m+Interact boarding, conserved convoy and receipts1→2 once. Private headless/Dummy and disclosed craft-placement fixtures; no fullflight/native-device claim. |
-| Pause/options16:10 selected source qualification | 1cf102298 PASS:26 focused repair assertions;948 layout assertions/96 observations,32 states at requested.75/1/1.6. Original criteria/caps retained; device/render/persistence transactions and other aspects remain open. |
-| Fresh hub→Annex service→hub |9af57671d selected route PASS81.387s: same supported Player, actual kits5→6 and one Annex update/Aft unchanged. Active-craft/kit-spend fixtures disclosed; default caller unchanged. |
-| Ordinary offline Jovian cargo selection and boarding |62bc7c823 PASS66.158s: normal UI/spawn walk/hatch boarding to real local pilot seat, occupied home lease, cargo remainsIDLE0/source6/destination0. No departure/delivery acceptance. |
-| Ordinary offline Jovian cargo departure |b91019562 PASS70.350s: real≥5m departure/berth release, automatic ACTIVEg1/return objective and≤.5m/s brake for1s, original180s clock. No home delivery/transfer/reload proof. |
-| Ordinary offline cargo home delivery and usable exterior exit |28a5e354e PASS79.213s: strict occupied home dock, kits6→4/0→2, one transfer/reward, automatic OFFLINE and ordinary authored exit plus supported walk≥.5m. Actual save retained; distinct-process restore remains open. |
-| Earlier passenger chair/HUD, lifecycle, browser/briefing deliveries | Retain their recorded scopes; no whole craft, parent or phase closes. |
+| What was promised? | [Original scope and ten phase gates](docs/history/ROADMAP_SCOPE_20261017.md) |
+| Is every promise still covered? | [36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes) |
+| What are the smaller named outcomes? | [Concrete child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) |
+| Which work has actually passed or failed? | [Delivery history](docs/history/ROADMAP_DELIVERIES.md), including [retained task contracts](docs/history/ROADMAP_DELIVERIES.md#working-card-records-retained-on-2026-10-18) |
+| What happens next? | The execution table and selected card below. |
 
-The on-foot batch's failed UI qualification is now resolved by two bounded
-production fixes at `1cf102298`. Its original failures, fixture correction,
-first conflict correction's repair-focus failure and final unchanged acceptance
-remain in [delivery history](docs/history/ROADMAP_DELIVERIES.md). The paired
-checkpoint and postdock source definition are complete. Definitions and test
-counts are not gameplay features or a whole-project percentage.
+The inventory includes finite scenarios, unresolved definitions and external
+waits. A DEFINE or BUILD-SPLIT row is not an implemented capability or a countable
+remaining implementation job. Resolve those rows into finite capabilities before
+estimating them. Do not change the shipped roster or defer promises without an
+explicit owner decision.
 
-**Still unqualified:** dedicated server, postdock exit/reuse, canonical shared
-world journeys,30-minute endurance, devices/native GPU/audio and final release.
-Current full matrix NOT_RUN; last unfiltered f85957f failed 11 of 1,045 suites.
-Native Windows/human-review owner exclusions remain factual NOT_RUN.
+## Execution now
 
-## Working queue: eight bounded cards
+One selected task; no automatic successor. Completed and parked work does not
+occupy the executable queue. Root owns review, integration, checks and closure.
 
-**1 READY definition, 4 FAILED (three parked, one withheld), 2 GATED, 1 DONE.** Root owns integration and closure.
-Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
-their reused queue slot now holds the camera-distance prompt correction. The
-completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
-control prompts and the cargo supply-status correction. Completed mixed-control
-work remains below; its slot now holds the named remote-yaw qualification. The
-queue draws from offline delivery, remote helm and residual Halyard outcomes. This is a
-local work queue, not a remaining-project job count. Original36 parents and all
-ten phase gates remain open. The accepted Annex route and parked Jovian exit/
-reuse cards remain in the [backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
-and delivery history; they do not consume active queue slots.
-
-| Task | State | Observable finish | Implementation estimate; checks separate |
+| Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
-| HELM-YAW-HANDBACK | FAILED/PARKED | Original pilot ordinarily leaves helm for usable cabin walking; ownership/source retire while the original co-pilot remains seated. |Original146.578s; repaired38c079086 reaches walking then FAIL156.016s, original15s gate |
-| CABIN-PASSENGER-ROLE | FAILED/WITHHELD | Confirmed standing cabin passenger is labelled PASSENGER after ordinary helm handback. |HUD36 and actual handback role PASSENGER pass; full required route fails walking, candidate unmerged |
-| HELM-REVERSE-DEFINE | READY definition | Freeze one ordinary remote reverse-thrust flight/release child using existing owners and limits. |10min source-only; no engine/profiling or new gameplay claim |
-| KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
-| CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
-| HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
-| HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
-| HALYARD-AUTHORITY-STOP | GATED on HALYARD-MOVING-CABIN | Real server shutdown restores both occupants to usable solo operation. |30–60 min; one selected route at unchanged caps |
+| HELM-REVERSE-FLIGHT / 18 | PREPARED; qualification pending | Original remote pilot moves host Jovian backwards through normal input, releases thrust, brakes, and both retained clients agree with the stopped hull. | Review prepared caller, freeze source, one compile and one isolated route. |
 
-**Common execution/closure:** use the named existing caller, one clean source
-pin, explicit selected mode/marker and first-failure stop. Root reviews a candidate,
-then runs one compile and one selected check; actual exit0, exactlyone marker and
-original full-raw diagnostics0 are required. Every Godot invocation uses Dummy
-audio; input runs use private Xvfb/explicit x11 and the existing input-only dummy
-renderer, with independent abort and input/cursor/process cleanup. No active
-user desktop. Work/check estimates are separate; split implementation before90
-minutes, and keep time cumulative across diagnosis/repair. First failure records
-actor/boundary/owner before a separate bounded next task; one hypothesis permits
-one probe. Failed task plus one attempted repair requires priority review before
-any more. Close with actual result/pin/limits, commit/push and owned cleanup,
-retaining unique raw/work. Caller-only work needs no identical checkpoint;
-accepted runtime repairs require separate cards and fresh paired builds.
+### HELM-REVERSE-FLIGHT
 
-### HELM-YAW-HANDBACK — release the original pilot into the live cabin
+- **Type/result:** qualify existing gameplay. This is reverse flight and release,
+  not a new feature or completion of the reverse parent's required handback.
+- **Prerequisite:** retain the existing ordinary three-process Jovian flight
+  route: real menu/spawn walk/hatch/chairs, original pilot and co-pilot, forward
+  departure >=5m, physical berth release and initial brake. No yaw or handback
+  replay is added to this independent continuation.
+- **Owner/boundary:** one implementation agent prepared only
+  `tests/network/jovian_network_two_client_reverse_test.gd` and its UID in
+  `/srv/mudds-work/jovian-remote-reverse-20261018/source`. Root reviews/runs it.
+  Existing input, network, physics and base caller remain unchanged. No forced
+  position/command/seat/ownership, fabricated replica, or new validator/framework.
+- **Proof:** normal original-pilot move_back must produce same-source negative
+  throttle, advancing local capture/wire and host delivered-command receipts,
+  actual negative velocity and >=1m displacement opposite the recorded nose
+  within the host-owned 2s clock, including authorization delivery. Release must
+  deliver a fresh fully neutral command within1s; silence-timeout neutral is
+  insufficient. Ordinary brake must hold speed <=0.5m/s for1s within10s, then
+  brake release must deliver fresh neutral within1s. Both actual client hulls
+  must consume newer current-owner poses within0.5m of the stopped host within5s.
+  Preserve original actors, seats, ownership generations, source/stream identities
+  and released berth throughout all waits. Coasting after thrust release is valid.
+- **Command/acceptance:** selected script above; coordinator-only
+  `JOVIAN_NETWORK_TWO_CLIENT_REVERSE_OK` after all three actual OS exits0,
+  exactly one marker and original full-raw diagnostics0. Import600s,
+  compile300s, one private Xvfb/x11/Dummy route with unchanged inherited300s
+  clock and outer360s supervisor. Independent abort; release inputs on every exit.
+- **Budget/stop:** implementation/review30–45min, split before90; checks separate.
+  Prepared source has not run. First unexpected failure ends qualification:
+  retain raw, record actor/boundary/owner, at most one bounded static diagnosis,
+  then select a separate repair. No automatic retry or criterion relaxation.
+- **Close:** record actual source/result/limits, commit/push, remove only owned
+  disposable checkout/profiles/helpers after retaining unique work/raw. Caller-only
+  qualification needs no identical-runtime checkpoint. Any accepted runtime repair
+  requires its own card, focused regression and fresh paired playable packages.
 
-- **Parents/result/type:**18/20; qualify existing gameplay. After the complete
-  accepted ordinary boarding/departure/yaw route, original pilot uses Interact
-  to stand in Jovian's cabin and walks at least0.6m while original co-pilot stays
-  seated. The old helm retires and ship ownership is released without stale input.
-- **Definition DONE:** one source-only comparison confirms supported unberthed
-  Jovian cabin access. Host neutral auto-idle1.5s; normal Interact dispatches
-  seat exit and confirmed pilot-to-cabin ACTION_SWAP. Co-pilot occupancy is not
-  a blocker. New claim is a free cabin passenger berth; ownership becomes0,
-  generation+1. Actual server walking body replaces pilot-anchor representation.
-- **Boundary/owner:** one high-effort implementation agent owns a select-only
-  subclass `tests/network/jovian_network_pilot_handback_test.gd` and UID; root
-  reviews/runs it. All inherited route/physics/owners remain unchanged. Dedicated
-  waits span legitimate role/claim transitions; inherited final pilot check may
-  switch to full standing-body/current-claim/retired-source criteria ONLY after
-  accepted handback. Passenger checks stay unchanged. No direct handler/seat
-  request, pose/role injection, session-stop substitute, reboard or landing.
-- **Proof:** coordinator-only `JOVIAN_NETWORK_PILOT_HANDBACK_OK`, all three actual
-  OS exits0 and original fullraw diagnostics0. Await actual host and both consumed
-  client OFFLINE before one ordinary pilot Interact. Within8s require same client
-  session/Player/craft, controlled unseated IN_FLIGHT_CABIN containment, actual
-  admitted supported host body/current frame publication and cabin claim with
-  advanced sequence. Host remote source retires, ship-owned source returns,
-  owner0/generation+1 reaches both clients' received authoritative records, client
-  helm capture clears/restored local input stream retires. Existing co-pilot
-  Player/seat/assignment/role/generations remain current. Ordinary former-pilot
-  walk>=0.6m within15s must leave host ship neutral/unowned and supported cabin
-  body intact. HUD must report honest passenger role; a source-identified possible
-  observer/admission-role fallback is not waived or treated as a proven failure.
-- **Budget/next:** FAILED qualification; planned30–45min implementation/review,
-  split before90min. Original300s route/outer360s and all inherited walking/
-  boarding caps retained; import/compile separate. Freeze clean source, one
-  compile then ONE isolated Xvfb/x11/Dummy route. First unexpected failure stops;
-  record actual owner before selecting one separate repair, no unchanged probe.
-- **Close:** commit/push actual result/limits, retain unique raw/source refs and
-  clean owned scratch. Caller-only proof needs no identical runtime rebuild;
-  meaningful accepted runtime fix needs fresh paired checkpoints. This closes
-  the chosen handback case only; postdock reuse/devices/full multiplayer stay open.
-- **Actual result:**535c4b01d unmerged. Import/compile pass; ONE route
-  FAIL146.578s after normal Interact. Host admits actual supported walking body,
-  retires remote source and restores ship-owned source; owner0/generation2 reaches
-  both clients. Original passenger consumes release. Former pilot is the same
-  supported controlled Player, claim passenger/cabin_02, one request/one release,
-  no pending request, disconnected capture and restored source authority.
-- **First boundary/diagnosis:** caller client comparison wrongly reads host-only
-  claim_sequence/seat_generation from intentionally three-key local claim. Host
-  already separately proves the advanced claim sequence and current seat generation.
-  Captured actual HUD independently remains OBSERVER for the confirmed passenger;
-  GameFlow role presentation ignores cabin boarding claim and falls back to
-  observer/admission role. Walking is NOT_RUN; no full handback acceptance.
-- **Closure/next:** all3 owners terminal/all23 PID identities absent; source/
-  required cache unchanged,85 peer files byte-identical. Unique raw/source refs
-  retained; owned checkout/profiles/helpers removed. Raw:
-  `/srv/mudds-work/jovian-helm-handback-20261018/results/`.
-  Select ONE combined bounded caller-consumer/role-presentation repair below;
-  original failure plus that repair remain cumulative. Another failure requires
-  priority review before any further diagnosis/repair/rerun.
+**HELM-REVERSE-DEFINE: DONE, source definition only.** Existing sampled reverse
+input reaches signed host thrust through current authority owners. Neutral means
+release, not instantaneous stop; ordinary brake supplies the stop. The definition
+selected the subclass seam above. No engine run or gameplay acceptance is claimed.
 
-### CABIN-PASSENGER-ROLE — show the confirmed standing role after handback
+## Parked failures and dependent work
 
-- **Parents/result:**18/20; after ordinary pilot handback the confirmed cabin
-  passenger sees PASSENGER for the same craft. Actual supported role and HUD agree.
-- **Boundary/owner:** one implementation agent; root review/integration. Existing
-  GameFlow `_network_local_role_presentation`, existing
-  `tests/network_session_role_hud_test.gd`, and handback caller's client claim
-  reader only. Use current confirmed same-craft cabin claim and live context;
-  preserve pilot/engineer/gunner/seated-role precedence and disconnected/stale
-  behavior. Presentation must not grant authority or alter requests/ownership.
-  Correct three-key client claim checks while retaining host's actual sequence advancement/
-  current-generation checks and clients' consumed canonical ownership proofs.
-- **Proof:** smallest focused existing HUD regression reproduces OBSERVER/old
-  admission-role fallback on old runtime, then passes with fix and preserved
-  role priorities. ONE corrected unchanged full ordinary handback route must pass
-  all original Interact/body/ownership/source/HUD/walk/co-pilot criteria, exact
-  marker/three actual exits0/fullraw diagnostics0. No acceptance/cap relaxation.
-  Accepted runtime change requires fresh clean paired exports, strict three
-  startup checks and actual package audit; latest624d2a6 stays playable meanwhile.
-- **Budget/next:** FAILED/WITHHELD; planned30–45min implementation/review, split before90min.
-  Compile/focused HUD up to300s; handback original300s/outer360s, transition8s and
-  walk15s. Packaging time separate. Implement named correction from retained
-  source535c4b01d, no extra diagnostic probe. First unexpected failure stops;
-  failed original plus this ONE attempted repair require priority review before
-  further work. No second automatic fix, no postdock/reboard expansion.
-- **Actual close:** candidate38c079086 is unmerged. Old runtime reproduces
-  exactly two new role assertions; fixed full HUD36 PASS16.679s and compile PASS.
-  ONE corrected original route FAIL156.016s at cabin walk>=0.6m/15s. It passes
-  the prior comparison and actual ordinary handback shows PASSENGER, same craft,
-  released owner0/generation2, retired capture/source, original co-pilot intact.
-  This does not satisfy the full required route. No exports/checkpoint attempted;
-  latest playable624d2a6 remains unchanged. All6 owners terminal/all32 PID
-  identities absent; source/required cache unchanged,87 peer files byte-identical.
-  Raw: `/srv/mudds-work/cabin-passenger-role-20261018/results/`.
-  Unique raw/source refs retained; owned checkout/profiles/helpers removed.
-- **Cumulative priority review:** original146.578s plus repair156.016s =302.594s
-  of route execution, excluding import/compile/focused checks and implementation.
-  Prior HUD/claim boundary is resolved in the withheld candidate; first new
-  boundary is ordinary cabin walking. No concrete movement defect is yet claimed.
-  There is no competing READY implementation in this queue. Select the independent
-  named remote-reverse definition over a second handback diagnosis/repair/rerun:
-  it exercises another explicitly required held action without depending on the
-  failed walking gate. Park handback; this review does not erase either failure,
-  waive the walk, reset its budget, merge the candidate or substitute another
-  outcome for the original requirement. No further handback probe/fix selected.
+These are unfinished outcomes, not candidates for an unchanged retry. Exact
+contracts and cumulative attempt records remain in the retained history.
 
-### HELM-REVERSE-DEFINE — freeze the next independent held-action child
+| Outcome | Last actual result | Condition before more work |
+| --- | --- | --- |
+| HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |
+| CABIN-PASSENGER-ROLE / 18,20 | Candidate38c079086 HUD36 and actual handback PASSENGER pass, full required route fails walking. Unmerged/withheld; no package. | Preserve full route; no acceptance narrowing or automatic second repair. |
+| KIT-RELOAD / 13,31 | Distinct-process restore30s timeout; one boundary probe records Main ready but no returned first normal frame before deadline. | Different supported production repair must be selected; no unchanged probe, timeout increase or repeated startup profile. |
+| HALYARD-BOARD / 16,26 | Two attempts fail the same seat comparison after both real seats. No runtime defect established. | Priority review parked it; no third automatic diagnosis/repair/run. |
+| HALYARD-MOVING-CABIN / 16,26 | NOT_RUN; exact retained card requires supported walk/sit/stand/reseat during departure. | GATED on accepted HALYARD-BOARD. |
+| HALYARD-AUTHORITY-STOP / 16,26 | NOT_RUN; exact retained card requires usable solo controls after actual server stop. | GATED on accepted moving-cabin route. |
 
-- **Parent/result/type:**18 / HELM-THROTTLE-REVERSE; finite source definition,
-  not gameplay acceptance. Identify the ordinary reverse-thrust flight/release
-  continuation of the accepted Jovian departure, actual negative-throttle host
-  consumer, neutral/brake behavior and exact source/ownership/replica checks.
-- **Boundary/owner:** one read-only agent10min; existing local input/provider,
-  helm mapper/consumer, HeroShip/Jovian reverse handling and current flight caller
-  only. No engine, broad input audit, benchmark, new feature or new framework.
-- **Finish/next:** one implementation seam and exact existing limits/acceptance,
-  or named concrete blocker. Root selects implementation separately; no automatic
-  probe. Original reverse parent handback remains required and open alongside
-  parked shared handback; this child cannot replace that requirement.
+VIP, Ember native close smoke, Rime arrival, HULK revisit, Fire restart, Sandbox,
+Convoy/Patrol/Q4/Q5 and software-renderer capture stalls retain their existing
+failure budgets and reopen conditions in the backlog/history. Settings originals,
+Aurora original arrival bundle, final capacity, hardware/devices and signing retain
+specific external waits. Do not repeat already-asked questions or infer approval.
+Dedicated server/two-client baseline remains authorized independently of capacity.
 
+## Finish rules for every next task
 
+1. Select one named player/build outcome from the inventory. State parent, exact
+   files/owner, prerequisites, proof command/action, unchanged criteria, implementation
+   estimate and check duration before starting. Prefer30–60min implementation;
+   split before90min into capabilities, not arbitrary test/evidence stages.
+   Before starting a further qualification chain, identify one independently
+   executable production alternative or record the concrete missing definition.
+   For future cards, distinguish checks protecting the changed behavior from
+   larger parent journey gates before implementation; do not retroactively narrow
+   a failed card's frozen acceptance.
+2. Keep the selected result fixed. A new defect ends that attempt; it does not
+   silently enlarge it. Record the failed outcome and remaining work. Failed task
+   plus one attempted repair requires cumulative priority review before more work;
+   renaming a card does not reset the budget. Reopening parked work also needs
+   a named production change, changed environment, resolved dependency or new fact
+   addressing its retained failure. Priority review alone is not a reason to rerun.
+3. A pass ends verification. Do not repeat accepted checks without a relevant
+   change or concrete unresolved concern. Qualification and planning remain labelled
+   as such; prefer an identified production gap for the next implementation task.
+4. At closure report: what the player can now do, whether it is source-qualified
+   or packaged, what failed/remains, and the next single action. Commit/push and
+   clean owned scratch. No progress percentage from tests, commits or task rows.
+5. Replenish only after reviewing the result and available independent product
+   work. Do not append every newly discovered edge case to the current chain.
+   Keep at most three executable cards; dependent and parked scope stays above or
+   in the backlog. Preserve the original parent acceptance until fully proven.
 
-### HELM-YAW-TURN — remote pilot turns the actual host-owned Jovian
+## Validation and final release
 
-- **Parent/result/type:**18 / HELM-YAW; qualify existing gameplay, not a new feature. After
-  the full accepted ordinary two-client boarding/departure/brake route, the
-  original pilot turns left and right through normal sampled actions. The host
-  craft turns correctly, release stops yaw and both original clients consume
-  its attitude while retaining their original seats and authority generations.
-- **Boundary/owner:** root integrates one high-effort implementation agent;
-  one select-only subclass of the existing Jovian flight caller. Defaults,
-  GameFlow/input/wire/physics owners stay unchanged. No staged flight pose,
-  direct helm packets, fake consumed poses, new validators or other helm axes.
-- **Proof:** exact script
-  `tests/network/jovian_network_two_client_yaw_test.gd`, coordinator-only
-  `JOVIAN_NETWORK_TWO_CLIENT_YAW_OK` after all three real OS exits0. Both
-  directions must show current-source signed yaw and at least3degrees of actual
-  signed host heading change within2s. Release reaches neutral within1s and
-  heading drifts at most0.5degree over the following1s. Both clients consume
-  advanced current-owner attitudes within2degrees of the host within2s. Preserve
-  source/ship/seat/ownership generations and actual supported occupants.
-- **Budget/next:** DONE after the one selected repair; initial qualification
-  failed. Planned30–45min implementation/review,
-  split before90min. One compile300s, one private Xvfb/x11/Dummy route300s with
-  inherited outer360s and unchanged boarding/walking stage caps. Root reviews
-  before executing. First unexpected failure stops; record its actual owner
-  before selecting one separate bounded repair. No automatic extra probe.
-- **Close/limit:** commit/push actual source/result, retain unique raw and remove
-  owned scratch. Caller-only qualification needs no identical runtime rebuild;
-  latest0c2dc2e remains playable. This proves one held helm action, not devices,
-  other axes, handback/reboarding, endurance or dedicated-server baseline.
-  HELM-YAW stays open until its original handback requirement is also proved.
-- **Priority:** this already-named uncovered action has no parked failed attempt.
-  Select it over reopening failed cargo restart/Halyard or repeating unchanged
-  passing HUD checks. Parked failure budgets and reopen conditions stay intact.
-- **Initial result:** candidate c2e3df979 is unmerged. Import/compile pass;
-  single route FAIL138.085s. First diagnostic is caller receipt get_path on a
-  valid detached command source. Left turn is actual3.6deg/334ms, fresh neutral
-  delivered and host drift0; passenger attitude error0deg. Original pilot still
-  differs2.7722deg at the unchanged2deg/2s convergence boundary. Right turn is
-  NOT_RUN. Static owner is pose reconciliation's0.05rad (~2.86deg) rotation
-  deadband, below which it never corrects. The observed mismatch is retained;
-  do not loosen the comparison to turn the run green.
-- **Closure:** all3 owners terminal/all23 PID identities absent; source/required
-  cache unchanged,67 peer files copied byte-identically. Raw and source refs
-  retained; owned checkout/profiles/helpers removed. The ONE selected
-  repair below is now accepted. This failure and its repair share the cumulative work budget;
-  another failure requires priority review before more diagnosis or reruns.
-- **Accepted result:**624d2a697; ONE unchanged route PASS139.519s with normal
-  original boarding/departure/brake. Left/right signed turns4.8deg in296/372ms,
-  fresh neutral within1s, host drift0deg/1s and both actual clients within2deg/2s
-  (pilot0.206/0.202deg, passenger0deg). All three actual OS exits0, marker1 and
-  fullraw diagnostics0. Same original source/seat/ownership generations retained.
-  Parent handback remains required and unqualified.
+Follow [AGENTS.md](AGENTS.md): every automated Godot invocation uses Dummy audio;
+headless/private display and explicit x11 under Xvfb; independent abort and owned
+input/process cleanup. Never enable or dispatch GitHub Actions. Respect the
+existing native Windows execution hold. Scratch belongs in `/srv/mudds-work/`;
+protect unrelated and unique work when cleaning.
 
-### HELM-NEUTRAL-REPAIR — converge the released pilot's attitude
+Meaningful accepted runtime/graphics changes require clean paired Windows/Linux
+checkpoints in repository `builds/`, focused checks and strict silent startup
+exit0 plus `STARTUP_MENU_READY_OK`. Caller-only qualification does not require
+an identical rebuild. Package notes state actual validation and limits.
 
-- **Parent/result:**18 / HELM-YAW. When the remote pilot releases steering,
-  prediction smoothly closes the residual host attitude error rather than
-  retaining a different heading indefinitely inside the active deadband.
-- **Boundary/owner:** root integrates one bounded implementation and one
-  independent high-risk reviewer. Existing
-  `scripts/network/network_remote_craft_pose_stream.gd::reconcile_pilot`, its
-  existing pose integration test, the minimal read-only HeroShip active-roll
-  getter needed to preserve multi-tick steering, and the new yaw caller's
-  detached-node receipt only. Preserve active-input smoothing/deadband, interpolation/extrapolation,
-  positional correction, large-error snaps, stale/destroyed/landing behavior,
-  packet formats and source/ownership generations. No blanket threshold reduction.
-  Independent review requires active hover and ongoing barrel-roll guards;
-  corrected candidate is GO before engines. Throttle alone stays eligible.
-- **Proof:** add the smallest existing-suite regression for neutral residual
-  attitude convergence and retained active-steering policy; reproduce it on old
-  runtime. Fixed focused suite plus ONE unchanged full yaw route must pass
-  both directions, original timing/angle/support/identity criteria, exact marker,
-  all three OS exits0 and fullraw diagnostics0. Guard detached receipt paths;
-  do not suppress diagnostics. Any new runtime change requires fresh paired
-  clean exports and three strict startup/package checks before closure.
-- **Budget/next:** DONE; planned45–60min implementation/review; split before90min.
-  Compile/focused checks up to300s each, yaw route original300s/outer360s;
-  exports/startups separate. Next action: implement/review this named correction
-  in an isolated checkout from the retained candidate. No new profiling probe.
-- **Stop:** first unexpected failure; no second automatic repair. Review
-  cumulative original failure plus this attempted repair before any next action.
-  Parent handback, devices, other axes and full multiplayer baseline remain open.
-- **Actual close:** independent review GO; old runtime fails only four new
-  neutral regression assertions (full62/41.152s). Fixed full pose62/41.487s and
-  the single unchanged yaw route pass. Runtime624d2a697 has fresh paired exports,
-  three strict silent startups and actual1515-entry package audit PASS. Windows
-  payload checked through Linux Godot; native Windows/GPU/devices/audio/human,
-  full matrix/endurance/release remain open. All11 owners terminal/all76 observed
-  PID identities absent, source/required cache unchanged,81 peer files copied
-  byte-identically. Public paired checkpoint/notes and unique raw/source refs
-  retained; owned checkout/profiles/helpers removed after archival.
-  Raw: `/srv/mudds-work/remote-pilot-neutral-20261018/results/`.
-- **Next:** replenish the queue from named player/build outcomes. No further yaw
-  probe or unchanged rerun is selected; original handback needs its own bounded
-  ordinary-crew acceptance before HELM-YAW can close.
-
-### HUD-CARGO-SUPPLY — show when delivery kits have run out
-
-- **Parent/result:**13. After three two-kit deliveries exhaust the Jovian's
-  six-kit supply, resetting or reselecting cargo shows insufficient kits rather
-  than READY. Race and other activity choices remain available.
-- **Boundary/owner:** root integrates one implementation agent. Only the existing
-  GameFlow activity-selection presentation, HUD status copy and existing
-  `tests/cargo_delivery_production_integration_test.gd` depletion scenario.
-  Read the existing cargo authority; preserve its start refusal, inventories,
-  rewards, generations and selection locks. No refill, persistence or restart work.
-- **Proof:** extend the existing scenario that performs three real transfers,
-  checks source0/destination6, resets and verifies `insufficient_source_quantity`.
-  Assert truthful board status after reset and reselection, unchanged start
-  refusal, and ordinary Race selection. Reproduce the new assertion against the
-  old runtime, then pass it with the fix. Keep the existing300s check cap;
-  a timeout is a failure, not permission to weaken or replace the acceptance.
-- **Budget/next:** DONE; planned30–60min implementation/review, split before90min.
-  Check runtime is separate: focused check up to300s per selected run, plus
-  import/compile and paired checkpoint exports/startups. Implementation and
-  closure are complete; no repeat check is selected.
-- **Close:** accepted runtime change, focused proof and fresh paired playable
-  checkpoint with actual validation/limits; commit/push and owned scratch cleanup.
-  This closes only the supply-status defect, not cargo persistence or parent13.
-- **Actual result:**0c2dc2ef5; old runtime fails only the three new status
-  assertions,127 total/268.573s. Corrected full unchanged default cargo test
-  passes127/268.267s; nearby HUD13/2.401s and both compile checks pass. Both safe
-  exports, direct/archive/Windows-payload startups and actual1515-entry package
-  audit pass; original limits/fullraw diagnostics retained. Windows payload is
-  checked through Linux Godot, not native Windows. All11 owners terminal/all58
-  observed PID identities absent; source/required cache unchanged. Public paired
-  checkpoint/notes retained; owned checkout/profile/helpers removed after archival.
-  Raw: `/srv/mudds-work/cargo-supply-status-20261018/results/`.
-- **Next:** replenish the queue with one concrete player/build outcome from the
-  named backlog. This closure does not reopen parked cargo restart or Halyard.
-
-### HUD-CARGO-FINDING — DONE, source definition only
-
-The bounded read-only comparison found the supply-status discrepancy above.
-`request_activity_start` already refuses insufficient kits, but activity-selection
-presentation receives no supply status and falls back to READY after reset.
-The existing depletion scenario supplies the implementation seam and acceptance.
-No engine run or gameplay completion is claimed by this definition. Its queue
-slot now holds HUD-CARGO-SUPPLY; no further broad cargo audit is selected.
-
-### MIXED-CONTROL-PROMPTS — retain buttons beside stick directions
-
-- **Parents/result:**8/29. A generic-pad move_forward remapped to Misc Button
-  remains visible beside other Left Stick movement controls in the actual MOVE
-  help row. Action order must not hide a distinct binding; normal all-stick
-  directions still abbreviate to Left Stick.
-- **Boundary/owner:** root integrates one implementation agent; only HUD
-  `_action_prompts` and existing runtime_input_glyph_hud_integration_test.
-  Current source sentinel is order-dependent: leading non-stick leaves empty
-  shared_stick, allowing a later direction to replace the entire row.
-- **Proof/budget:**30min implementation/review in isolated
-  `fix/mixed-control-prompts-20261018`. One test-only old HUD reproduction,
-  corrected compile/focused run and existing help/camera regression checks,
-  original300s caps/private x11/Dummy. No actual input/persistence authority change.
-- **Accepted/close:** DONE atb86264f3d092f6c7e7f1fd5dff0718841b946847,
-  integrated on main. Old17a74d915 fails exactly leading-button/helper and MOVE
-  row assertions; corrected glyph40/camera27/help20 pass, no unexpected failure.
-  Both safe clean exports/three strict silent startups/fullraw diagnostics and
-  actual1515-entry payload/stock PE/archive audit pass. EXE/checkpoint ZIP/notes
-  in builds/windows and matching Linux checkpoint in builds/linux.
-  All12 owners terminal/all57 observed PID identities absent; source/index and
-  non-export cache unchanged. Raw/source refs/public builds retained; disposable
-  checkout/profiles/helpers removed. No physical device/rendered/native Windows/
-  GPU/audio/whole remap-flight qualification; original parents/gates stay open.
-
-### KIT-BOARD — select cargo and board one offline Jovian
-
-- **Parents/result:**7/13. Same fresh Player uses normal Intro/menu, selects
-  cargo, walks from actual hub spawn and uses ordinary hatch Interact to take
-  the existing solo pilot seat. Stop before thrust or activity start.
-- **Boundary:** root; only `tests/cargo_delivery_production_integration_test.gd`,
-  implemented `--ordinary-jovian-kit-board`, default staged/recovery branch preserved.
-  Plain UserDataStore with a distinct private real-file path, configured before
-  Main enters the tree; no activity/save-state fixtures or injected failures.
-- **Proof:** real IntroBeginShiftButton; Pause→ActivityBoardButton→
-  CargoDeliveryActivityButton→ActivitySelectionBackButton→ResumeButton via
-  focused ordinary activation. Use accepted network boarding STATION_APPROACH
-  and its final two goals as input geometry only. Offline production boarding
-  goes directly through authored waypoints to pilot; no network-cabin claims.
-  Same Player/real seat, active Jovian, enabled original Input-backed source,
-  START_ENGINES, physically occupied valid home freight-berth lease; selected
-  cargo IDLE generation0, manifest generations1/source6/destination0.
-- **Accepted/check:** DONE/root at62bc7c823, integrated on main. Selected route
-  PASS66.158s,49 assertions, actualexit0/marker1/original diagnostics0. Preserved
-  initial failure and accepted caller-only lifetime/completion correction.
-  Early selector and existing
-  look/walk/Interact helpers use no pose/phase/claim/candidate/start_shift/HUD-state
-  writes. Corrected compile PASS; ONE selected300s/outer360s route accepted. Preserve15s/waypoint,
-  .30m horizontal/15 supported settled ticks/<.8m vertical and12s boarding.
-  Selected marker `JOVIAN_KIT_ORDINARY_BOARD_OK`; no departure/landing/reload work.
-- **First attempt/next repair:**8630531ac import/compile PASS; selected run
-  FAILED before walking at RuntimeStatusDismissButton: activation retires the
-  button and caller reads its name after await. Engine exit0/marker1 is rejected
-  by original full-log SCRIPT ERROR diagnostic. No boarding acceptance.
-  KIT-BOARD-CALLER-LIFETIME is the accepted caller-only repair: retain name
-  before activation and require explicit end-of-scenario completion before success.
-  Preserve failed source/raw, freeze corrected pin, one compile and ONE unchanged
-  selected route PASS. No gameplay/criteria/cap change; no further retry selected.
-- **Stop/close:** first failure ends boarding qualification; record concrete
-  snapshot and next owner. Accepted seat access does not qualify departure or
-  delivery. All5 supervisors terminal/all19 PID identities absent, source and
-  non-import cache unchanged. Commit/push, remove owned checkout/profiles/helpers;
-  unique raw retained under `/srv/mudds-work/jovian-kit-board-20261018/results/`.
-
-### KIT-DEPART — start cargo through real departure
-
-- **Parents/result:**13. Extend accepted KIT-BOARD with ordinary forward demand,
-  actual berth release and at least5m departure along initial nose, then brake
-  to≤.5m/s for one second. Never directly start or advance the activity.
-- **Boundary/proof:** same existing cargo caller, accepted predecessor source.
-  `_update_pilot_flow` naturally enters FREE_FLIGHT and calls existing
-  `_start_default_free_flight_activity`/`request_activity_start`. Require first
-  ACTIVE generation1/return objective/departure checkpoint, source6/destination0,
-  current same pilot/source and actual released berth. Keep180s physics deadline
-  from automatic start; no clock reset, tuning change or forced landed flag.
-- **Accepted/check:** DONE/root onb91019562, integrated on main. Corrected
-  compile and ONE unchanged selected route PASS70.350s,52 assertions, actual0/
-  marker1/original fullraw diagnostics0. Original normal boarding plus sampled
-  thrust/actual≥5m berth release, automatic ACTIVEg1/return objective/minimap and
-  ordinary sampled brake≤.5m/s for1s pass; cargo stays source6/destination0 and
-  original180s physics clock remains. Same Player/source/hatch/home/hull retained.
-  Selector `--ordinary-jovian-kit-depart`, marker `JOVIAN_KIT_ORDINARY_DEPART_OK`;
-  default/staged and accepted board paths preserved. No landing/delivery proof.
-  Existing300s route/outer360s,15s waypoints/12s boarding/10s departure/10s brake
-  remain; input-only private x11/Dummy, no rendered/device qualification.
-- **First attempt/repair:** e2cf6ce64 import/compile PASS; route FAILED before
-  thrust at cargo destination identity. Snapshot source6/destination0 is correct,
-  but caller compared JovianFreightBerth service node to the distinct ShipBerth
-  physical lease owner. One static raw/source comparison identifies this caller
-  error. Accepted KIT-DEPART-CALLER-OWNER uses the actual service accessor
-  for cargo identity and retains physical ShipBerth lease checks. Failed source/
-  raw remain beside accepted proof; no runtime/criterion/timeout changes.
-- **Stop/close:** first failure records actual input/engine/berth/activity owner;
-  no automatic runtime fix. Landing/transfer/reward remain KIT-DELIVER.
-  All5 owners terminal/all19 PID identities absent; source/non-import cache
-  intact. Result/pin/limits recorded, commit/push and owned checkout/profile/helper
-  cleanup; unique raw `/srv/mudds-work/jovian-kit-depart-20261018/results/`.
-
-### KIT-DELIVER — return two kits and walk clear
-
-- **Parents/result:**13. Extend accepted departure with ordinary landing_assist,
-  strict physical home return, exactlyone transfer/reward and usable exterior exit.
-- **Boundary/proof:** same existing cargo caller and offline runtime flow;
-  physical landing invokes `_on_landing_completed`/`_complete_cargo_delivery_on_return`.
-  Require accepted capture/fit, strict docking, occupied valid same-hull home
-  lease and SHUT_DOWN. Neutral controls until actual automatic OFFLINE; ordinary
-  Interact invokes authored production disembark, then≥.5m supported controllable
-  unseated ground movement by same Player. This is not manual cabin walking.
-  COMPLETED generation1, source6→4/destination0→2, exactlyone accepted transfer
-  `jovian_fabrication_kit_delivery_g1`, reward0→1 and none owed; normal ticks cannot
-  duplicate it. No remote landing path: it deliberately skips cargo completion.
-- **Accepted/check:** DONE/root at28a5e354e, integrated on main. PASS79.213s,
-  actualexit0/marker1/fullraw diagnostics0. Original selected limits retained.
-  Selector `--ordinary-jovian-kit-deliver`; marker
-  `JOVIAN_KIT_ORDINARY_DELIVER_OK`. Compile300s/full300s/outer360s route,
-  preserving180s activity deadline,8s acceptance/120s physical dock and all prior
-  bounds. Exit cap is authored2×canopy_motion_time+disembarking_motion_time+1s,
-  then15s ground walk. No rescue, geometry/phase mutation or deadline growth.
-- **History:** original syntax failure, queued-brake handoff failure and explicit
-  cumulative priority review remain in [delivery history](docs/history/ROADMAP_DELIVERIES.md).
-- **Close:** corrected compile PASS16.489s; ONE corrected route PASS79.213s,
-  55 assertions. Actual home dock/lease, COMPLETEDg1 source4/destination2, one
-  transfer/reward with none owed, automatic OFFLINE, authored exit and supported
-  same-Player≥.5m walk;60 normal ticks preserve completion. No reload acceptance.
-  All6 owners terminal/all16 observed PID identities absent; source/cache intact.
-  Retain failures/raw under `/srv/mudds-work/jovian-kit-deliver-20261018/results/`
-  and accepted store's original private XDG data directory named by
-  `results/accepted-store-location.txt`. Owned checkout/helpers/other profiles
-  removed after closure; caller-only change needs no identical checkpoint.
-
-### KIT-RELOAD — consume the delivered save in a distinct process
-
-- **Parents/result:**13/31. Load KIT-DELIVER's actual private store in a new OS
-  process; completed delivery survives without extra cargo or reward.
-- **Boundary/proof:** same cargo caller, proposed restore-only selector and
-  same production persistence format/runtime. Existing MemoryFilesystem class
-  delegates to real FileAccess/flush; older fresh-Main checks are disk integration
-  in one OS process and remain credited. Modern Jovian save owner is
-  `scripts/persistence/jovian_cargo_session_persistence.gd`, not Cinder's owner.
-  Require generation1 COMPLETED/source4/destination2, same transfer receipt and
-  one reward receipt after normal startup/retry ticks. No reset/start/state fixture.
-- **Actual/check:** source972efd906 import/compile PASS; ONE strict30s restore
-  exits124 after30.225s, no marker. Exact primary/hash and saved completed/paid
-  baseline accepted before Main tree entry; runtime startup/tick acceptance was
-  not reached. No persistence rejection is demonstrated. Candidate stays unmerged.
-- **Bounded diagnosis/next:** source/log comparison complete, no further engines.
-  Last observed boundary spans synchronous Main child readiness/_start_up and
-  four awaited physics/process pairs. Startup bookkeeping reached session2,
-  physics tick0; logs cannot isolate the stall. No narrower runtime fix supported.
-  Before any retry, select a separate finite startup-boundary diagnostic with
-  elapsed tree-entry/ready/frame receipts and original30s OS clock. Do not extend
-  the timeout, move preload outside timing or revive parked Q4 startup profiling.
-  No repair or rerun is selected at this closure; replenish queue by priority review.
-- **Close:** all3 owners terminal/all6 observed PID identities absent, source/
-  index/non-import cache unchanged. Saved cargo/reward slots exactly preserved;
-  startup changed unrelated store bookkeeping/hash. Retain original byte-exact
-  accepted input plus modified real store and raw under
-  `/srv/mudds-work/jovian-kit-reload-20261018/results/reload/`. Source branch pushed;
-  owned checkout/helpers/profiles removed. No new build or restart qualification.
-
-### CAMERA-DISTANCE-PROMPTS — show live distance bindings
-
-- **Parents/result:**8/29. After remapping camera distance in/out to F13/F14,
-  piloting Controls shows both keys instead of the hardcoded Mouse Wheel hint.
-  Distinct controller remaps likewise show both; authored wheel/stick hints remain accurate.
-- **Boundary/owner:** root integrates one implementation agent in isolated
-  `fix/camera-distance-prompts-20261018`. Only HUD `_view_distance_prompts` and
-  existing `runtime_input_rebind_hud_integration_test.gd`; no input authority changes.
-- **Proof/budget:**30min implementation/review; compile300s, one focused test
-  against old HUD to demonstrate regression and one against corrected HUD.
-  Capture both keys through existing HUD flow, inspect actual piloting help row,
-  reset and verify authored hint. No broad remap matrix or physical device claim.
-- **Accepted/close:** DONE at7718a5a7afe590c2106f5b10da71235096bb4fda,
-  integrated on main. Old HUD demonstrates missing keyboard labels; final focused
-  rebind HUD27 and existing help-overlay20 pass after one test event-route repair.
-  Both clean safe exports/three strict startups/fullraw diagnostics and actual
- 1515-entry cross-platform payload/stock PE/archive metadata audit pass. Fresh
-  EXE/checkpoint ZIP/notes in builds/windows; matching Linux in builds/linux.
-- **History/limits:** initial pad test bypassed device observation; caller-only
-  correction is recorded in delivery history. Windows startup's private review
-  parser excluded colon; unchanged raw proves actualexit0/exactone marker, no
-  rerun or criteria change. No physical device/rendered/native Windows/GPU/audio
-  or whole remap/persistence/flight qualification. All13 owners terminal/all59
-  observed PID identities absent; source/index/non-export cache unchanged.
-  Owned checkout/profiles/helpers removed, raw/source refs/public builds retained.
-
-### CONTROL-FINDINGS — select one actual binding/help defect
-
-- **Parents/result/type:**8/29; bounded source definition before product work.
-  One exact ordinary trigger where shipping help/prompts or apply/remap behavior
-  disagrees with actual supported input; finite no-finding is valid.
-- **Selection/boundary:** priority review parks cargo startup and Halyard; no
-  further probes. One read-only agent compares existing HUD prompts/settings
-  remapping owners with InputMap/local input source.10min, no engines or edits.
-  Root reconciles stale backlog cargo statuses and owns any later implementation.
-- **Close/next:** DONE definition: HUD1372 hardcodes desktop distance and only
-  resolves controller distance out despite both actions being remappable/live.
-  Select CAMERA-DISTANCE-PROMPTS with existing focused HUD test.
-  No speculative feature or new audit/test framework. Runtime delivery requires
-  actual correction, focused before/after proof and clean paired checkpoint.
-
-### RELOAD-BOUNDARY — locate the missing startup boundary
-
-- **Parent/result/type:**13/31; one diagnostic, not a restart qualification.
-  Distinguish synchronous Main tree-entry/readiness from the following four
-  ordinary physics/process pairs; stop with observed boundary/owner or missing fact.
-- **Selection/boundary:** priority review finds no READY competitor in this queue.
-  Existing failed cargo caller only, one implementation agent/root review;
-  `--ordinary-jovian-kit-reload-trace` alongside unchanged reload/path/hash flags.
-  Read-only elapsed receipts at entry/instantiate/tree entry, child/Main ready,
-  after tree entry, each existing tick pair and cleanup. No runtime/staging changes.
-- **Check/budget:**15min instrumentation; clean compile300s then ONE30s OS probe.
-  Recreate original private XDG path with byte-identical archived accepted input
-  SHAe5000c06734eff363c70cab9e394bb378b1de59b79254ec07a3b6a78a870ee0c;
-  preserve archive and post-timeout store. Do not fabricate/reset completion,
-  move preload outside clock, extend timeout or repeat parked Q4 profiling.
-- **Actual/close:**f432bd630 import PASS20.618s/compile PASS16.272s;
-  ONE30s probe exits124 after30.240s. Scenario starts at engine15.929s,
-  tree entry15.953s, ShipyardWorld ready21.037s, final child27.047s,
-  Main ready27.762s with initialized=true/paused=false/cargo COMPLETEDg1/
-  restore accepted. First frame-pair wait begins27.762s; no return before timeout.
-  Thus synchronous startup completes; remaining gap is ordinary frame progress
-  plus remaining acceptance within the same total budget. Not a persistence rejection.
-- **Next/stop:** diagnostic DONE; KIT-RELOAD remains FAILED/PARKED, caller unmerged.
-  No narrower runtime fix or further probe selected. Replenish queue by priority
-  review; do not spend successive cards profiling each startup subsection.
-  A future repair must improve actual startup/frame behavior and retain original
-  process clock, full runtime/geometry and60-tick acceptance. No parked Q4 rerun.
-  All3 owners terminal/all6 PID identities absent, source/cache intact; saved
-  cargo/reward slots unchanged. Source/raw/accepted input and post-probe data
-  retained in task results; owned checkout/helpers/profiles removed.
-
-### HALYARD-APPROACH — define one actual airstair approach
-
-- **Parents/result/type:**16/26; planning only. Resolve the missing ordinary
-  spawn-to-Halyard input waypoint chain, ending at real boarding candidate.
-- **Boundary/proof:** root; static comparison of
-  `tests/network/halyard_network_passenger_route_test.gd`, accepted Jovian input
-  helpers and authored Halyard airstair/station access. Existing D2 moving-cabin
-  source7412a6e50 stages approach/flight and is retained in that scope. Do not
-  call an unchanged D2 run ordinary boarding or invent a standalone server binary.
-- **Resolved route:** DONE definition, no engine. Fresh spawn(-8.5,.18,11),
-  then world goals(0,0,15.5),(0,0,39),(0,0,46.3),(0,0,51),(-5.7,0,51),
-  (-5.7,4.2,61.2),(-3.5,4.2,61.5),(-3.5,4.2,64.2),(-3.5,4.2,68.3),
-  (6,4.2,68.3),(13,4.2,68.3),(22,4.2,68.3),(37,4.2,68.3),
-  (32.4,4.2,68.2),(32,4.2,62.2),(32,4.2,54.2), then actual boarding point,
-  initially(32.1,4.2,48.5). Native route1269–1285/1475–1476 supplies chain;
-  final extension follows authored berth/BoardingPoint, not collision proof.
-- **Handoff:** same supported Player must see actual Halyard boarding_candidate,
-  _near_ship and its ShipBoardingArea among nearby interactables. Aim marker+UP1.2,
-  ordinary Interact→supported IN_FLIGHT_CABIN/bound authenticated intent within12s.
-  Existing passenger `_client` owns that admission. Physical ShipCabinHatch is
-  farther inboard; requiring its station candidate at the exterior marker is wrong.
-  Keep15s/.30m/15 settled ticks/.8m vertical,12s boarding/8s roles/300s total.
-- **Close:** finite source-backed route handed to READY HALYARD-BOARD; no
-  gameplay/server/phase acceptance from this definition. Commit/push, no scratch.
-
-### HALYARD-BOARD — two original occupants board normally
-
-- **Parents/result:**16/26. Non-playing Main authority plus two independent
-  original clients use normal menus/spawn/approach/boarding; one physical pilot
-  and one passenger at crew_port_00. Neither craft nor actors are staged.
-- **Boundary/proof:** existing Halyard passenger caller; proposed select-only
-  ordinary profile, inherited private process orchestration and accepted input
-  helpers. Actual authenticated peer/avatar/Player, body/frame/seat/ownership
-  generations agree on host and consumed clients; distinct exclusive claims,
-  correct supported controls and real seats. Existing remote-pilot actions are
-  supported by `_client_loadmaster_pilot`; no new authority implementation presumed.
-- **Next/check:** FAILED/PARKED/root; no further boarding attempt selected.
-  Proposed selector `--ordinary-two-client-board`, unique
-  `HALYARD_ORDINARY_TWO_CLIENT_BOARD_OK`, isolated branch
-  `work/halyard-ordinary-board-20261018`. Freeze exact clean
-  source/marker; compile300s, ONE selected300s/outer360s route,15s walking,
-  8s role transitions/10s owned exit grace. Require all three actual OS exits0
-  before coordinator success. No flight, moving walk or recovery in this card.
-- **First attempt/selected repair:**6b17c130f import/compile PASS; ordinary route
-  FAIL135.904s after both actual seats. Both clients consumed current ship
-  ownership, but caller demanded a pilot row from empty legacy `sections.boarding`.
-  Main uses a separate boarding ledger; no runtime seating defect is established.
-  HALYARD-CALLER-CONSUMER is the ONE selected15min caller-only correction: match
-  each actual received boarding claim to its host seat record, preserving actual
-  seats, exclusive authority, ownership/body/frame generations and honest roles.
-  Guard detached diagnostic nodes before get_path. Freeze corrected source;
-  one compile and one unchanged selected route, no added cap or runtime change.
-- **Stop/close:** corrected source f3d53bda6 compiles; ONE unchanged retry FAILS
-  135.833s at consumed-state comparison after both actual seats. Boarding remains
-  unqualified; failed caller stays unmerged. Priority review selects READY
-  KIT-DELIVER, a distinct physical delivery outcome, over further Halyard diagnosis.
-  The two route attempts total271.737s, excluding import/compile and implementation/
-  review; the15min correction is cumulative, not a new budget reset. No further
-  diagnosis/repair/run selected. All5 owners terminal/all34 observed PID identities
-  absent, source/cache intact;96 copied peer raw files byte-identical. Source refs
-  and raw retained; owned disposable checkout/profiles/helpers removed at closure.
-
-### HALYARD-MOVING-CABIN — use the cabin during actual departure
-
-- **Parents/result:**16/24/26. After ordinary boarding, original pilot physically
-  departs>5m; original passenger walks>.6m, sits, stands and reseats while hull
-  genuinely moves, with supported current body/frame/role ownership.
-- **Boundary/proof:** extend accepted HALYARD-BOARD in existing passenger caller,
-  actual sampled helm and body intents. No initial flight envelope, transform,
-  authority or cabin-body injection. Preserve same original actors/generations
-  with legitimate ownership transitions and consumed peer presentation.
-- **Next/check:** GATED on HALYARD-BOARD;45–60 min. Freeze selected continuation/
-  marker/pin; compile300s and one full300s/outer360s route at inherited stage
-  bounds. Actual three zero exits and cleanup required. No endurance/late join/
-  world journey or postdock reuse scope; those remain separate backlog outcomes.
-- **Stop/close:** record first actual boundary before repair; commit/push result,
-  raw and owned cleanup. Accepted short movement does not close full baseline.
-
-### HALYARD-AUTHORITY-STOP — restore solo controls after real server stop
-
-- **Parents/result:**16/26. While both original remote occupants remain aboard,
-  authoritative Main calls existing shutdown_network_session once. Both clients
-  receive production server_disconnected and recover usable ordinary solo controls.
-- **Boundary/proof:** extend accepted moving profile in existing passenger caller.
-  Adapter `_on_server_disconnected`→GameFlow `_on_network_session_stopped` owns
-  grant/prediction/body/seat/helm retirement and solo restoration. Require actual
-  original client events, no live retired grants, supported former passenger
-  ordinary walk>.6m and real UI response. Do not invoke client handler directly.
-  Existing surviving-host generation rotation/client-initiated leave/shared
-  server stop after clients depart do not cover this case.
-- **Next/check:** GATED on HALYARD-MOVING-CABIN;30–60 min. Freeze distinct
-  authority-stop selector/marker/source; compile300s and one300s/outer360s route,
-  original15s walking/8s transitions/10s exit grace. All three actual zero exits.
-- **Stop/close:** first failure names actual cleanup/recovery owner; no automatic
-  migration rewrite. Graceful server-stop proof is not SIGKILL, reconnect,
-  migration or endurance qualification. Record proof, commit/push, owned cleanup.
-
-## Parked work and external waits
-
-VIP, Ember native close smoke, Rime arrival, HULK revisit, Fire restart, Sandbox
-recovery, Convoy/Patrol/Q4/Q5 and the two software-renderer capture stalls retain
-their original failures/reopen conditions. No unchanged retry is selected.
-Settings originals, Aurora original arrival bundle and release capacity choice
-remain existing external waits; do not ask settled questions again. The dedicated
-server/two-client baseline remains authorized independently of larger capacity.
-Bomber comparison now identifies one further precise interpretation: additional
-role/count, concrete navigation action and physical access are unspecified. It
-is not an approved pilot-only deferral; no invented crew feature is scheduled.
-
-Owned completed helm/return/on-foot/UI checkouts, profiles/helpers and duplicate builds are removed;
-unique raw/source refs and public builds remain. Three older dirty retired
-checkouts remain protected. Scratch belongs under `/srv/mudds-work/`. The failed passenger-exit candidate is retained by source refs/raw;
-its disposable checkout/profile/helper files are removed after closure. Annex raw results remain under `/srv/mudds-work/annex-round-trip-20261018/results/`;
-its completed disposable checkout/profiles/helpers are removed. KIT-BOARD raw is retained
-at `/srv/mudds-work/jovian-kit-board-20261018/results/`; its completed checkout,
-profiles and helpers are removed after closure.
-
-## Rules that prevent loops
-
-- Select one named delivery with one observable outcome. Split implementation
-  expected to exceed 90 minutes before starting; estimate check time separately.
-- Write the affected component, exact acceptance, source/build, owner and next
-  action before execution. At handoff, resume that action instead of rediscovering it.
-- Use at most three steps: implement, verify, package/close. A passing check ends
-  its step. Repeat only after a relevant change or a specific unresolved concern.
-- Stop at the first concrete failure. Record the defect, unchanged acceptance,
-  remaining action and revised estimate before scheduling its bounded repair.
-  One diagnostic hypothesis permits one probe, not an unlimited investigation.
-- At the estimate boundary, record done/failed/waiting and remaining work. Do not
-  silently extend scope, lower physical criteria or shorten required test durations.
-- Close by recording the actual result, committing/pushing, and removing owned
-  disposable clean worktrees/scratch. Preserve unique work and raw failures.
-- Keep at most eight bounded cards visible; run only READY cards and at most one dependent
-  chain at a time. Review priorities before replenishing the queue.
-  Uninstantiated backlog templates are not scheduled work or measurable progress.
-- Every scheduled task must fit the task card below. A broad parent such as
-  “finish planetary travel” stays in the backlog until specific children exist.
-- A failed check ends the qualification task with a recorded failure. Diagnosis
-  and repair are separate bounded tasks; neither silently extends the original.
-  After one inconclusive diagnostic probe, report the missing fact and choose
-  the next task explicitly before doing more investigation.
-- After a failed task and one attempted repair, review priorities before any
-  further diagnosis, repair or rerun. Record the unresolved player/build outcome,
-  time spent, competing READY task and selected next action. Renaming a card or
-  finding a different defect does not reset this limit. This is a scheduling
-  decision, not a new permission request.
-- Report progress as the named result, proof obtained, remaining action and
-  revised time estimate. Planning, diagnostics and test infrastructure do not
-  count as a delivered gameplay outcome.
-
-## Required card for the next scheduled tasks
-
-Keep cards here, beside the work, rather than creating another tracking system.
-Keep at most eight cards in this queue; refine later backlog items when their
-dependencies are known. Do not turn every possible test combination into a speculative queue.
-
-| Field | Required content |
-| --- | --- |
-| Task / parent | Stable short name, linked parent requirement and one concrete instance. |
-| Result | One sentence describing what the player can do, what the build delivers, or which existing behavior is being qualified. Label qualification and planning explicitly. |
-| Boundary | Affected component/files and explicit exclusions; new findings become separate tasks. |
-| Proof | Existing command or ordinary player action, exact expected result, source/build and unchanged limits. A test count alone is insufficient. |
-| Budget | Implementation/diagnosis estimate, check runtime separately, and the point at which work stops for reassessment. |
-| Execution | Owner, dependency, READY/GATED/IN PROGRESS/DONE/FAILED/WAITING, one exact next action, and the action after failure. |
-| Close | Actual result and limitation, commit/build reference, cleanup of owned disposable files. |
-
-Prefer tasks expected to take 30–60 minutes of implementation; 90 minutes is
-the split boundary, not a target. Split larger
-work before execution. Long established checks retain their required duration
-and are estimated separately. A parent closes only when its original acceptance
-holds; completing a small child does not close the parent.
-
-## Working constraints
-
-Follow [AGENTS.md](AGENTS.md): Dummy audio for every automated Godot invocation;
-headless/private display, explicit x11 under Xvfb, independent abort and owned
-input/process cleanup. Keep GitHub Actions disabled and respect the Windows
-execution hold. Meaningful runtime/graphics checkpoints require clean Windows
-EXE/ZIP/notes and strict startup exit 0 plus `STARTUP_MENU_READY_OK`; artifacts
-belong in repository `builds/`. Scratch belongs under `/srv/mudds-work/`.
-Project completion still requires every original promise and final-candidate gate,
-or an explicit owner deferral beside that promise. No percentage from tests or commits.
+Current full matrix NOT_RUN; last unfiltered f85957f failed11/1,045 suites.
+Native GPU/device/audio/human gates remain unperformed where recorded; VM,
+software-renderer or source checks cannot replace them. Project completion requires
+every original promise accepted or explicitly owner-deferred beside that promise,
+all applicable final-candidate gates passed, and distributed bytes matching the
+qualified candidate. No broad parent or phase closes in this reorganization.

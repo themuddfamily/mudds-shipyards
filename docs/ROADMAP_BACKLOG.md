@@ -326,7 +326,7 @@ The original exit caller and its one repair failed parsing; no gameplay route
 ran. Candidates8054a2cc4/e147b6d49 and raw failures remain retained. These five
 ordered cards preserve their acceptance/dependencies; none is currently selected.
 Numeric predecessor references here mean this parked five-card Jovian sequence,
-not the current eight-card queue.
+not the executable queue.
 A new explicitly bounded syntax correction/review must precede any retry.
 
 ### NET-JOVIAN-PASSENGER-EXIT — one actual postdock passenger exit
@@ -607,8 +607,8 @@ Registry/commands: [graphical harness inventory](../docs/GRAPHICAL_HARNESS_INVEN
 
 Reconciled on 2026-10-18 after the owner requested smaller, provable goals.
 **One row is one named outcome.** Family contracts above define the proof;
-ROADMAP.md schedules eight specific cards with owners, actions and budgets;
-its current postdock cards split the exit/reuse family into five ordered outcomes.
+ROADMAP.md schedules a small executable queue with owners, actions and budgets;
+the retained postdock cards split the exit/reuse family into five ordered outcomes.
 These rows replace the earlier grouped “per craft/role/world” inventory.
 They are a scope inventory, not an implementation estimate or a project percentage.
 
@@ -786,7 +786,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | GATED; selected candidate, no rebuild of delivered authority |
 | NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | DEFINE; existing remote-pose/station-frame coverage first |
 | HELM-ACTIONS-DEFINE | Finite sampled-local-input to remote-helm action roster | 18 | DONE; seven held fields/two ordered edges, source definition only |
-| HELM-THROTTLE-REVERSE | Sampled reverse thrust and neutral release | 18 | HELM-REVERSE-DEFINE selected for finite independent flight/release child; same source/lease/host effect required. Original handback requirement remains open; shared handback parked |
+| HELM-THROTTLE-REVERSE | Sampled reverse thrust and neutral release | 18 | HELM-REVERSE-DEFINE DONE source-only; HELM-REVERSE-FLIGHT prepared for qualification; same source/lease/host effect required. Original handback requirement remains open; shared handback parked |
 | HELM-YAW | Both sampled yaw directions, neutral release and handback without stale ownership | 18 | OPEN; turn/release child DONE624d2a6 after neutral-attitude fix, unchanged ordinary route139.519s and both client attitudes pass. Original failures retained; corrected38c079086 shows PASSENGER after real handback but fails156.016s at cabin walk15s. Handback parked after original plus one repair; candidate unmerged, full walk/handback remains required |
 | HELM-PITCH | Both sampled pitch directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | HELM-ROLL-RATE | Both sampled roll-rate directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
@@ -934,16 +934,13 @@ qualifications. **It is not a remaining-job count.** In particular, “one craft
 “one role” and “one recovery context” are selectors to resolve, not executable
 assignments. Completing a definition does not deliver the gameplay it describes.
 
-The [working queue](../ROADMAP.md#working-queue-eight-bounded-cards) now has eight
-specific successor cards: four offline cargo stages (board, depart, deliver,
-distinct-process reload), and four Halyard stages (approach definition, board,
-moving cabin, real authority stop). Cargo delivery is READY, Halyard boarding remains active; three dependent cards
-are GATED. Cargo boarding/departure and Halyard approach definition are DONE.
-Cargo boarding is source-qualified and Halyard approach definition is DONE; these
-are distinct completion types, neither closes a whole parent. Original Jovian
-exit/reuse remains parked; Annex source qualification remains DONE.
-All36 original parents and ten phase gates remain open. This is local scheduling,
-not a whole-project estimate or a claim that the eight cards finish these parents.
+The [working roadmap](../ROADMAP.md#execution-now) selects the next exact
+outcome and keeps failed/gated work separate. HELM-REVERSE-FLIGHT is prepared for
+review and one qualification route; its source-only definition is DONE. Cargo
+boarding/departure/delivery and yaw turns retain their accepted source scopes.
+Cargo reload, Halyard boarding and handback retain their recorded failures and
+reopen conditions; they are not READY work. All36 original parents and ten phase
+gates remain open. Local scheduling is not a whole-project estimate.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with
 no engine run unless separately scheduled. Expand its existing parent here only
@@ -966,7 +963,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Six other context contracts and installed cuts remain. |
 | 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
 | 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER/SCOPE-DESKTOP DEFINE; SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
-| 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | Next eight cards assigned in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
+| 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | One prepared card selected in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
 | 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | Checkpoint2c73494 and HELM-EDGE-REPRO/REPAIR accepted; MATRIX-FINAL still gated. |
 | 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT | LIFE-VISIBLE/REUSE source DONE; Guided earlier-package pass retained. Nine WALK-* and17 eventual CRAFT-ACCEPT-* outcomes named; Sandbox PARKED and Settings WAITING. |
 | 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | CONTROL-FINDINGS and REMAP-DEFINE resolve actual gaps; INPUT-KBM/CONTROLLER require real devices. |
