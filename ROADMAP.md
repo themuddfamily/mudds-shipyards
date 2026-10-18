@@ -32,13 +32,13 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-LIFE-ARM is now PARKED after its first archived route failure; its fixed
-contract and both failed stages remain in delivery history. No further route,
-repair or adjacent station task is selected. Owned scratch cleanup is complete;
-only unique raw results/withheld artifacts remain.
+LIFE-ARM remains PARKED after its first archived route failure. A bounded actor
+step-up continuity correction is now selected below; no native retry is yet
+authorized. Original owned scratch is cleaned; unique raw results remain.
 
 | Work | Kind / readiness | Owner and bounded next result | Estimate |
 | --- | --- | --- | --- |
+| LIFE-ARM continuity correction | Executable release capability; SELECTED | Actual successful Player step-up proof before admitting motion beyond the unchanged ordinary limit; five additional files below, seven total with the prior Aft capability. No physics change. | 35–55min implementation/focused checks; packaging/changed route needs cumulative review |
 | LIFE-ARM | Acceptance/release capability; PARKED | Four goals passed; first native route failed continuity near Aft stair base. Exact caller/source950574e3f retained unmerged. Reopening condition below; no automatic retry. | Selected implementation/review30–45min plus10–15min checks; attempt reached terminal review in≈13min, original limits retained |
 | HAULER-CARGO-MANIFEST | Production behavior; GATED on HAULER-CARGO-STOCK | Binding admission/conserved source custody. Current source rejects Hauler; generation-floor API already exists. [Exact stock prerequisite and proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). No duplicate generation API or implicit stock grant. | 60–90min implementation/focused checks after decision, checkpoint additional; split before90min |
 
@@ -70,6 +70,50 @@ exports,three strict startups and1521-entry audit pass. Those do not accept the
 failed route. [Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#aft-service-arm--stopped-at-continuity-boundary)
 retain source, budgets, exact failed sample and reopening boundary. Latest
 accepted playable remains2df8c31. No next station-service chain is selected.
+
+### Selected continuity correction — actual controller step-up only
+
+Concrete gap: existing controller step-up can advance the capsule about.40m;
+the driver rejects all displacement beyond.211667m. Failed995→996 fits that
+assist but lacks direct call proof. Supply actor-owned proof; old route staysFAIL.
+
+One implementer owns `scripts/player/player_controller.gd`,
+`tests/player_step_up_assist_test.gd`,
+`scripts/diagnostics/native_sortie_observer.gd`,
+`tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py` in
+`/srv/mudds-work/life-arm-step-20261018/source`, based on950574e3f. Existing
+startup/privacy edits from the unmerged Aft capability remain unchanged. Root
+owns checks/integration; one independent high-effort reviewer protects this seam.
+
+Keep physics, collision, controls,15goals and caps unchanged. Record only an
+actual true `_resolve_step_up` return: actor/frame/capsule/shape, pre-move start,
+committed landing, intended tangent/up and live bounds; finalize actual actor tick
+start/end after containment. Clear before early returns; getter returns detached
+data. Observer only serializes snapshot/completed motion epoch, without scheduling
+changes. Link consecutive observed positions to consecutive completed actor ticks
+with consistent observed lag0or1; observer currently precedes Player.
+
+The ordinary.211667m limit stays. Only an exact once-consumed LIFE-ARM actor event
+may account for a larger step: same current identities, supported ordinary controls
+at both ends, identity collision frame, exact observed tick start/end/landing match.
+Validate finite vectors, unit world-up, default capsule-derived bounds and intended
+positive tangent motion. Preserve actual probe tolerances: rise>.001/<=.301m,
+advance>=.01/<=.41m. Geometry alone is not proof; missing/stale/replayed/malformed/
+wrong-identity or mismatched-endpoint events and additional displacement must fail.
+
+Focused proof extends existing real-input `player_step_up_assist_test.gd`:
+genuine successful lip events, existing height/headroom/void/nonwalkable refusals,
+detached getter and next-no-step/seated expiry. Extend existing driver tests for
+exact event acceptance plus the refusal cases above. Root runs full player-step
+suite300s, full Python300s, observer compile300s and privacy300s after source review,
+all under guarded first-failure STOP. No new validator/schema/version/test family.
+
+Original native33.850s and Python8.176s failures plus fixture repairPASS8.229s
+remain recorded. This is changed-cause work, not a renamed route or budget reset.
+All15goals/15settled/15s-goal/12s-boarding/CAP300/outer360 and local/seat criteria
+remain. Review focused results and cumulative priority before separately selecting
+exports or ONE changed native attempt. First new failure stops this selection.
+No automatic station/activity successor. Estimate35–55min implementation/checks.
 
 ## Latest delivered result
 
