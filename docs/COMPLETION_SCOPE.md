@@ -1403,6 +1403,41 @@ paired exports, strict startup sentinel checks and package audit; publish in
 repository builds, commit/push and clean owned scratch. Listening/native/GPU/
 complete physical travel/endurance/human/final gates remain open.
 
+### Client navigator first-route failure — one causal repair frozen
+
+Candidate `d1e3e0a6a` passed import, three changed-test compilations and all eight
+focused suites. The mandatory explicit navigator route failed: first acceptance
+and clear were absent, later counts offset, and caption snapshots empty. Root
+aborted exact supervisor1199638 on observed script diagnostics; all sampled
+PID/start identities are absent. The preserved observation interval is133.464s
+(not an exact engine elapsed measure); raw logs/client.done and initial helpers
+remain in `/srv/mudds-work/navigator-client-audio-20261019/results/` and owned
+private profile pending final preservation.
+
+**Concrete causes:** the first applied command discovers a new supported cabin
+context, syncs/rebinds, then returns. Optional sync was sparse, not a HUD cadence;
+the bridge publishes each accepted/clear command once. Thus first ping is lost,
+clear is unknown, and migration repeats the loss. Separately, RuntimeSettings
+captions default false; the fixture never enabled captions, so the actual HUD
+presenter stayed empty. This is not a successful client route.
+
+**One selected repair, before edits/rerun:** within existing owned GameFlow, sync
+client lifetime at the beginning of production `_advance_network_engineer`,
+before role input, and after successful client cabin boarding (normal and retained
+surface branches). Preserve applied callback mismatch-return/epoch fences and
+all recipient/raw-command rules. Extend the existing optional fixture to exercise
+the actual production advancement seam rather than manually priming the source.
+Within the existing route, enable captions using the actual production settings
+setter and assert runtime/HUD enabled before capture; missing caption keys report
+failed assertions safely while retaining exact text checks. No ownership change,
+new transport, route shortening, wait/cap growth or acceptance reduction.
+
+Root compiles the two changed tests, reruns the eight focused suites and original
+mandatory explicit300s route from the clean repair pin. Initial results/failure
+remain retained; one repair does not reset cumulative cost. First further failure
+stops for cumulative priority review; no automatic second repair or packaging.
+Only complete focused/route acceptance permits the paired checkpoint workflow.
+
 ## Phase-wide acceptance still required
 
 The roster tables name content; the following shared commitments still apply to every required item. Detailed remaining tasks and historical results stay in [ROADMAP](ROADMAP_BACKLOG.md#remaining-tasks-to-complete-the-project).
