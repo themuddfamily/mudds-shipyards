@@ -8,6 +8,8 @@ extends SceneTree
 const MAIN_SCENE := preload("res://scenes/main.tscn")
 const HERO_SCENE := preload("res://scenes/ships/torrent_interceptor.tscn")
 const ShipCommandType := preload("res://scripts/control/ship_command.gd")
+const SessionAdapterType := preload("res://scripts/network/network_enet_session_adapter.gd")
+const RemotePilotSourceType := preload("res://scripts/network/network_remote_pilot_command_source.gd")
 
 ## Extra simulated physics frames granted on top of the frames a wait's nominal
 ## duration implies. This is a frame count, never a wall-clock grace. See
@@ -39,6 +41,34 @@ class MutableCommandSource:
 
 	func _sample_controls() -> Dictionary:
 		return values.duplicate(true)
+
+
+## Only client admission and outbound transport are staged. The existing Main,
+## real local producer, InputEventAction handler, FIFO consumer and helm encoder
+## remain production code. This is component proof, not a joined route test.
+class StagedClientGameFlow:
+	extends GameFlow
+
+	var staged_peer_id := 0
+
+	func _network_client_peer_id() -> int:
+		return staged_peer_id if staged_peer_id > 1 else super._network_client_peer_id()
+
+
+class CapturingClientAdapter:
+	extends SessionAdapterType
+
+	var wires: Array[Dictionary] = []
+
+	func get_boarding_result_server_tick() -> int:
+		return 100
+
+	func get_boarding_server_tick_estimate() -> int:
+		return 100
+
+	func send_movement_intent(wire: Dictionary) -> Dictionary:
+		wires.append(wire.duplicate(true))
+		return {"accepted": true}
 
 
 func _init() -> void:
@@ -287,6 +317,8 @@ func _test_hero_camera_edges_are_ordered_exactly_once() -> void:
 
 func _test_game_flow_lossless_lifecycle_delivery() -> void:
 	var game := MAIN_SCENE.instantiate() as GameFlow
+	if game != null:
+		game.set_script(StagedClientGameFlow)
 	_check(game != null, "production Main instantiates for lifecycle delivery probes")
 	if game == null:
 		return
@@ -576,7 +608,133 @@ func _test_game_flow_lossless_lifecycle_delivery() -> void:
 		"an older lifecycle epoch cannot reacquire authority after a newer epoch, even across source replacement"
 	)
 
+	_test_confirmed_client_immediate_helm_edge(game as StagedClientGameFlow, ship, source)
 	await _clean_up(game)
+
+
+func _test_confirmed_client_immediate_helm_edge(
+	game: StagedClientGameFlow, ship: HeroShip, source: LocalShipInputSource
+) -> void:
+	game.set_physics_process(false)
+	ship.set_command_source(source)
+	game.call("_reset_lifecycle_command_cursor")
+	game.phase = GameFlow.Phase.START_ENGINES
+	source.notification(NOTIFICATION_APPLICATION_FOCUS_IN)
+	var previous_session := game.network_session
+	var session := CapturingClientAdapter.new()
+	game.add_child(session)
+	game.network_session = session
+	game.staged_peer_id = 2
+	game.set("_network_session_mode", &"client")
+	game.set("_network_client_boarding_claim", {
+		"ship_id": ship.get_ship_id(), "role": &"pilot", "seat_id": &"pilot_seat",
+	})
+	source.set_local_peer_id_override(2)
+	game.call("_bind_network_client_helm_input_source", ship)
+	source.next_command() # Prime the real source after its authority boundary.
+	var produced: Array[ShipCommand] = []
+	var authorities: Array[int] = []
+	var observe := func(command: ShipCommand, authority_peer_id: int) -> void:
+		produced.append(command)
+		authorities.append(authority_peer_id)
+	source.command_produced.connect(observe)
+	var landing := InputEventAction.new()
+	landing.action = &"landing_assist"
+	landing.pressed = true
+	game.call("_unhandled_input", landing)
+	var immediate: ShipCommand = produced.back() if not produced.is_empty() else null
+	_check(
+		immediate != null and immediate.landing and authorities.back() == 2
+		and int(game.get("_last_lifecycle_command_stream_id")) == immediate.stream_id
+		and int(game.get("_last_lifecycle_command_sequence")) == immediate.sequence,
+		"staged confirmed client observes an owned landing command produced and consumed by the actual immediate event/FIFO path"
+	)
+	ship.call("_physics_process", 1.0 / 60.0)
+	var later_neutral := ship.get_last_ship_command()
+	_check(
+		immediate != null and later_neutral.stream_id == immediate.stream_id
+		and later_neutral.sequence > immediate.sequence and not later_neutral.landing,
+		"the real later physics snapshot is a distinct neutral command after the immediate landing sample"
+	)
+	game.call("_advance_network_remote_helm_stream")
+	var initial_helm := (game.get_network_remote_pilot_audit().helm_stream as Dictionary).duplicate(true)
+	game.call("_consume_active_ship_command_edges")
+	if immediate != null:
+		game.call("_consume_active_ship_command", immediate)
+	for _tick in RemotePilotSourceType.SEND_INTERVAL_TICKS * 2:
+		game.call("_advance_network_remote_helm_stream")
+	var host_source := RemotePilotSourceType.new()
+	host_source.bind_pilot(2, ship.get_ship_id())
+	var landing_deliveries := 0
+	var matching_wire := false
+	for wire: Dictionary in session.wires:
+		host_source.apply_intent(wire)
+		if host_source.take_landing_request():
+			landing_deliveries += 1
+		matching_wire = matching_wire or (
+			wire.get("boarding_target_id") == &"pilot_landing_1"
+			and int(wire.get("peer_id", 0)) == 2 and wire.get("entity_id") == ship.get_ship_id()
+			and int(wire.get("stream_id", -1)) == int(initial_helm.get("stream_id", -2))
+			and int(wire.get("sequence", -1)) == 0
+		)
+	_check(
+		int(initial_helm.get("landing_request_id", 0)) == 1
+		and int((game.get_network_remote_pilot_audit().helm_stream as Dictionary).get("landing_request_id", 0)) == 1
+		and matching_wire and landing_deliveries == 1,
+		"immediate landing survives later neutral physics as one helm serial and pilot_landing_1 wire identity, delivered exactly once across repeated polls"
+	)
+	host_source.free()
+
+	# Every revoked pending edge must disappear before the next send, even when
+	# the caller replays the captured command before another physics sample.
+	for boundary in [&"focus", &"pause", &"source", &"non_owner"]:
+		source.next_command()
+		game.call("_unhandled_input", landing)
+		var revoked: ShipCommand = produced.back()
+		var wire_count := session.wires.size()
+		match boundary:
+			&"focus":
+				source.notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
+				source.notification(NOTIFICATION_APPLICATION_FOCUS_IN)
+			&"pause":
+				source.notification(Node.NOTIFICATION_PAUSED)
+				source.notification(Node.NOTIFICATION_UNPAUSED)
+			&"source":
+				source.invalidate_pending_commands()
+			&"non_owner":
+				source.enabled = false
+		game.call("_consume_active_ship_command", revoked)
+		for _tick in RemotePilotSourceType.SEND_INTERVAL_TICKS:
+			game.call("_advance_network_remote_helm_stream")
+		var replayed := false
+		for wire: Dictionary in session.wires.slice(wire_count):
+			replayed = replayed or bool(wire.get("board_request", false))
+		_check(revoked.landing and not replayed,
+			"%s boundary revokes a captured unsent helm landing without replay" % boundary)
+		source.enabled = true
+
+	# The actual session-stop handler releases the source binding and the helm;
+	# a former producer cannot recreate it by emitting after teardown.
+	source.next_command()
+	game.call("_unhandled_input", landing)
+	var pre_stop: ShipCommand = produced.back()
+	var wires_before_stop := session.wires.size()
+	game.call("_on_network_session_stopped", &"component_probe_stop")
+	game.staged_peer_id = 0
+	game.call("_consume_active_ship_command", pre_stop)
+	source.next_command()
+	game.call("_advance_network_remote_helm_stream")
+	_check(
+		pre_stop.landing and (game.get_network_remote_pilot_audit().helm_stream as Dictionary).is_empty()
+		and session.wires.size() == wires_before_stop
+		and (game.get("_network_client_helm_input_sources") as Dictionary).is_empty()
+		and source.command_produced.get_connections().size() == 1,
+		"session teardown disconnects helm capture and cannot revive its unsent landing"
+	)
+	source.command_produced.disconnect(observe)
+	source.set_local_peer_id_override(0)
+	game.network_session = previous_session
+	session.free()
 
 
 func _command(stream_id: int, sequence: int, values: Dictionary = {}) -> ShipCommand:
