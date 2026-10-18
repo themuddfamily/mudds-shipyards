@@ -51,7 +51,7 @@ func _run() -> void:
 	var accepted_before := accepted.duplicate(true)
 	_check(bool(composition.present_cinder_navigator_bridge_result(accepted).accepted), "accepted navigator bridge envelope forwards")
 	_check(accepted == accepted_before and _has(&"cinder_navigator_ping_accepted"), "navigator forwarding preserves the caller envelope and routes its receipt")
-	var rejected := {"accepted": false, "status": &"navigator_identity_mismatch"}
+	var rejected := {"accepted": false, "status": &"navigator_identity_mismatch", "policy_version": &"network_cinder_navigator_ping_bridge_v1"}
 	var rejected_before := rejected.duplicate(true)
 	_check(bool(composition.present_cinder_navigator_bridge_result(rejected).accepted), "rejected navigator bridge envelope forwards")
 	_check(rejected == rejected_before and _has(&"cinder_navigator_ping_rejected"), "navigator rejection routes without mutating its envelope")
