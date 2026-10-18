@@ -318,8 +318,12 @@ landing. Engineer/terminal authority commits use the distinct path above.
 status and observer engine/throttle. `HeroComponentHudBinding.refresh()` still
 reads the local `get_component_damage_report()`, while accepted host component
 facts are retained in Hero's `_network_damage_state.components`. The component
-row can therefore disagree with the accepted host silhouette. This source seam
-is identified; runtime reproduction and repair are NOT_RUN.
+row could therefore disagree with the accepted host silhouette at inventory.
+That seam is repaired in checkpoint `39a2ad7`: a detached display report and
+presentation-only change signal feed a source-aware binding. Host generation/
+tick and local ledger ordering remain independent; host reports cannot invent
+local repair/recovery facts. Old actual row/label regression, existing local
+HUD checks, full pose and independent Main/ENet checks pass; see delivery history.
 
 The HUD's engine/weapon/targeting power scalars also remain local. Host integrity
 alone cannot define their replacement: critical-hull stutter and Halyard routing

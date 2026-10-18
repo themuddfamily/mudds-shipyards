@@ -1,8 +1,22 @@
 # Completion scope and production roster
 
+Latest accepted paired checkpoint: **39a2ad7**, clean source
+`39a2ad70942364b3d190903b56bcdd3097284b88`
+([Windows notes](../builds/windows/MuddsShipyards-39a2ad7-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-39a2ad7-linux-notes.txt)). Actual
+retained component HUD row now follows eligible accepted host damage/repair/
+destruction/new life and restores current local components on clear/pilot change.
+Independent display-source ordering preserves local repair/recovery authority.
+Existing local HUD29/30, full pose216 and independent Main/ENet382 pass; initial
+station compile failure plus one annotation repair retained. Fresh paired exports,
+three strict silent startups and actual1515-entry package audit pass. Controlled
+observer/repair fixtures do not establish physical crew/travel or native/human
+qualification. Dynamic HUD powers remain separate/unresolved. All36 parents and
+ten phase gates remain open; Titan pending. Prior checkpoints below are included.
+
 This is the working roster for [roadmap task 0](ROADMAP_BACKLOG.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
-Current paired development checkpoint: **da1ae60**, clean source
+Earlier paired development checkpoint: **da1ae60**, clean source
 `da1ae6017bb7c35a53b6ef380e623b0570e316d8`
 ([Windows notes](../builds/windows/MuddsShipyards-da1ae60-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-da1ae60-linux-notes.txt)). Observer
@@ -191,9 +205,9 @@ Every craft acceptance includes ordinary walk-up → board → launch → role/w
 DAMAGE-DEFINE source inventory on82a7564cb is complete in
 [the existing damage contract](COMPONENT_DAMAGE_MODEL_CONTRACT.md#actual-consequences-and-remaining-qualification).
 It corrects repair entry-point ownership and bounds existing parity coverage.
-A concrete remote component-row/local-ledger mismatch is selected for repair;
-dynamic HUD power projection remains undefined. No new runtime validation or
-build resulted, and no craft/parent/phase gate closes.
+The concrete remote component-row/local-ledger mismatch is repaired in39a2ad7;
+dynamic HUD power projection remains undefined. The inventory itself added no runtime validation or
+build; no craft/parent/phase gate closes.
 
 
 Opponent paths are under `scripts/ships/` with matching `scenes/ships/` scenes. The [scenario catalog](../scripts/combat/combat_scenario_catalog.gd) is detached; [encounter director](../scripts/combat/encounter_scenario_director.gd), [station defence host](../scripts/activities/station_defense_encounter_host.gd) and live actors own production effects.

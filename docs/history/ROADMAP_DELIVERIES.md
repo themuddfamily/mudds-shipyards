@@ -7719,3 +7719,99 @@ Concrete unresolved remote component-row projection and separate dynamic power
 semantics are retained in the backlog. No engine/test/build, runtime change,
 parked route reopening or broad completion claim. Source-only card closed;
 next root selection below is a distinct production repair, not another validator.
+
+## Remote component HUD row — accepted39a2ad7
+
+Elapsed roughly20 minutes including implementation, review, checks and packaging;
+within the selected30–60min implementation/review allowance. No successor selected.
+
+Clean playable source `39a2ad70942364b3d190903b56bcdd3097284b88`, branch
+fix/remote-component-row-20261018. Existing retained HUD row now follows eligible
+accepted host component integrity/stages through damage/repair/destruction/new
+life. Dedicated presentation signal refreshes the same binding on updates,
+clear and pilot changes. Source-aware ordering fences independent host/local
+revisions, including hidden clear/readoption and tree reentry. Host projection
+cannot borrow local repair/respawn-ready receipts. Shared sensor/weapon/engine
+stage cues use this report; dynamic powers remain separate existing telemetry.
+No local ledger, wire, flight, command, save or repair authority change.
+
+Test-only78b8bfcc4: import19.650/compile16.368 pass; actual retained row/label
+reproduce exactly two expected old errors31.031s, actual exit1. Candidatea9cded3f6
+has independent source GO and pose compile16.436 PASS, but station compile15.954
+FAIL type inference on new matches variable. Root STOP/main3539eed6e selects
+ONE explicit bool annotation, no altered expression/route/wait/deadline. Final39a2ad709
+has independent exact-delta GO and station compile16.261 PASS. Original failure
+is retained, not reset or hidden. Fixed local degradation29 assertions32.677s,
+repair HUD30 assertions42.807s, full pose216 assertions41.007s, independent Main/
+ENet72 host+310 peer assertions171.973s all PASS under original budgets.
+
+Fresh safe paired exports26.659/25.688s. Direct Linux22.318/archive23.576/Windows
+payload through Linux engine25.745 each exit0/exactly one STARTUP_MENU_READY_OK,
+no unexpected diagnostics. Actual1515-entry payloads match, stock PE/source
+metadata/exact Linux tar bytes/modes verify. Public Windows EXE/checkpoint ZIP/
+notes and Linux ELF/tar/notes plus export/startup records are in builds/.
+EXE184589168 SHA0de7e0dffcc1050f0afc418064bc9ecdebd7b9048f24fb836e4dfefec26f9b60;
+ELF148830880 SHA8c22bc33d34f6af40a06ea48cb4240dffa306b86d40a68c2c99c9bfb94436c59;
+tar95246818 SHA3157a787dc0b21db67e0e638deb9a04c59cafc3770a48401c133c4a5a4da14fa.
+
+All15 owners terminal (original compile1 retained; expected old test1 recorded
+inside its successful regression supervisor). All74 captured process identities
+absent;14 logs/111 app-data files archived byte-identically. Root rechecks full
+source/index/cache/engine identity against final guarded snapshot. All public
+export copies match; integrated game/test/build source equals qualified39.
+Owned worktree, profiles, helpers and duplicate exports removed. Unique raw:
+`/srv/mudds-work/remote-component-row-20261018/results/`.
+
+Observers are staged in the actual HUD mode with held physics; Main ENet facts
+cross real independent processes. Host repair uses the production ledger as a
+fixture. These do not qualify physical engineer admission, ordinary remote
+travel, native Windows/GPU/device/audio or human review. Dynamic HUD power
+semantics remain unresolved. Parked crew failures unchanged; all36 parent and
+ten phase gates remain open. This bounded repair closes; no adjacent gauge/
+power successor is automatically selected. Next root selection must choose an
+independent concrete production gap or resolve a named missing capability
+definition; Titan remains unapproved.
+
+### Retained NET-COMPONENT-ROW contract and first-stop selection
+
+### NET-COMPONENT-ROW — accepted host components in the existing HUD row
+
+- **Kind/result:** production UI repair, parents11/21. The retained component row
+  must show accepted host component integrity/stages for an eligible observer,
+  agree with the existing host silhouette, and restore current local data on clear.
+- **Owner/files:** one implementation agent; root integration plus independent
+  high-effort lifecycle review. HeroShip display getter, HeroComponentHudBinding
+  and existing network_remote_craft_pose_test.gd / network_craft_pose_station_frame_test.gd;
+  existing component HUD checks only where changed binding behavior requires them.
+- **Prerequisites:** DAMAGE-DEFINE complete. No dependency on parked physical
+  crew routes. Host components already exist; preserve wire, authority and local
+  report contract. Do not infer dynamic engine/weapon/targeting power scalars.
+- **Acceptance:** reproduce the actual row mismatch on old runtime, then show
+  real HUD host stages/integrity for damage and repair; same-life stale rejection,
+  destruction/new life, clear/re-entry and locally flown/local raw ledger invariants.
+  Extend existing pose and Main/ENet scenarios, including actual HUD binding refresh;
+  disclose staged role selection. This focused display proof does not qualify
+  ordinary remote boarding/travel or the full parent recovery journey.
+- **Budget/stop:** 30–60min implementation/review, split before90; compile once,
+  existing focused pose (~45s) and Main ENet (~180s) once, original deadlines.
+  First unexpected failure stops for separate selection; original plus one repair
+  requires cumulative review. No automatic nearby gauge/power successor.
+- **Close:** meaningful accepted runtime change requires clean paired checkpoint,
+  three strict silent startup checks and existing package audit. Commit/push and
+  clean owned scratch. Gates/native hardware/human review remain open.
+
+### NET-COMPONENT-ROW — first stop and one selected caller repair
+
+Candidate `a9cded3f6` has independent source-review GO and fixed pose compile
+PASS16.436s. Station compile FAIL15.954s: new assertion variable `matches` at
+line525 cannot infer a static type from Dictionary.get(). No fixed gameplay
+suite or export has run. Original test-only78b8bfcc4 reproduces exactly the two
+expected row/label failures31.031s; import19.650/compile16.368 pass.
+
+Root separately selects ONE caller repair: explicitly type that existing
+boolean as `bool`, preserving the entire assertion, route, waits and deadlines.
+No runtime edit. Five minutes edit/review; recompile the changed station test,
+then run the original full fixed pose, Main/ENet and two existing local HUD
+checks. Original failure plus this one repair is cumulative: any further
+unexpected failure requires priority review before diagnosis/edit/rerun.
+Raw stop remains retained under remote-component-row-20261018/results.

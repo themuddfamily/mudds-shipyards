@@ -212,7 +212,7 @@ Finite uncovered work is shared by parents11/21:
 
 | Outcome | Exact scope / status |
 | --- | --- |
-| NET-COMPONENT-ROW | Identified runtime seam: actual retained HUD row uses local ledger despite accepted host components. Implementation selected separately in ROADMAP.md; not yet reproduced or fixed. |
+| NET-COMPONENT-ROW | DONE39a2ad709, packaged. Actual retained row now uses accepted host facts with source/role/lifecycle fences; local HUD29/30, pose216 and Main ENet382 pass. Original compile failure and one annotation repair retained; full parent OPEN. |
 | NET-COMPONENT-POWERS | Definition unresolved: local engine/weapon/targeting HUD values include critical-hull stutter and Halyard routing. Integrity alone is insufficient; no wire/format change selected. |
 | Existing full-craft/role recovery acceptance | Preserve existing CRAFT-ACCEPT and NET-DAMAGE scenarios; nine-craft parity is not every role/contact route. No new Cartesian matrix. |
 | Missing-original components/roles | UNKNOWN for the eight missing originals; original specification prerequisites remain. |
