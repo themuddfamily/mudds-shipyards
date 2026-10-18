@@ -80,11 +80,17 @@ no production repair is justified yet.
 | Production Activity Board repair | GATED | Concrete original cause/owner/event, exact runtime files and bounded estimate; then focused regression, lifecycle review and checkpoint |
 | Full ordinary mining sortie | PARKED | Concrete production repair addressing the observed failure; separately reselect the entire original route, once-only receipt and strict home return, failed-stage61.925s/CAP300 retained |
 
-Next scheduling action: select independent production work from the backlog.
-For station presentation, STATION-FINDINGS still lacks a named observed runtime
-finding with an exact before/after view; establish that finite gap before any
-implementation or qualification chain. This is a missing definition, not a new
-station-art pass or a reason to repeat accepted walking checks.
+STATION-FINDINGS now has a [finite branch/view review roster](docs/ROADMAP_BACKLOG.md#station-presentation--finite-review-boundaries).
+The bounded service/wayfinding source review found no supported new runtime gap;
+actual visual findings remain OPEN. Existing motion, lifecycle and real-console/
+berth sign bindings are implemented. No engine/capture pass or art repair is
+claimed. Do not invent missing logistics, rooms or signs from an open parent.
+
+Next scheduling action: choose one independent existing station LIFE or WALK
+acceptance card, freeze its ordinary route and original limits, and implement
+only an observed blocker. Presentation repairs need one actual view/defect from
+the finite roster. Central capture, VIP and Salvage failures retain their parked
+conditions; no accepted Habitat journey is repeated by this selection.
 
 Fixturee646fc792 remains unmerged and its branch pushed; owned source/profile/
 helpers are cleaned after archiving unique results. No new playable build;

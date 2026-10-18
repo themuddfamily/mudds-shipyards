@@ -154,7 +154,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
 | STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | DEFINE; tied source anchors or precise missing evidence |
 | STATION-CENTRAL-VIEW | One current source-tied Central operational-view defect | 9,12 | GATED; usable existing view/reproduction, capture stall parked |
-| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | DEFINE; nine named branches, no speculative art pass |
+| STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | Review roster defined below for nine existing branches and four LIFE owners. Bounded service/wayfinding source review found no supported new implementation gap; actual current-view findings remain OPEN. No visual acceptance or automatic capture retry |
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | DONE; pilot/payload implemented, additional crew/Nav semantics missing |
 | BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | WAITING; precise interpretation needed, no approved scope reduction |
 | CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | Definition DONE: no concrete required missing implementation found in bounded owners; craft acceptance OPEN, supported finding needed for implementation |
@@ -828,6 +828,60 @@ Scope: original §2 and §7; Phases 1, 3–6 and 10.3. A component pass does not
 | CRAFT-ACCEPT[one completed craft] | GATED on all promised capabilities | Run that craft's full fleet scenario: access/roles/flight/combat/damage/recovery/reuse and art/limits. Stop at named craft result, not the entire fleet. |
 
 Original fleet remains Torrent, Arrow, Jovian, Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut and Zenith. Missing definitions: **Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia and Salyut**. Instantiate ORIGINAL-SPEC/BUILD/ACCEPT per craft. Four original-inspired candidates plus five modern designs do not finish the twelve-original commitment. Modern interpretations require explicit scope decisions and honest labels.
+
+### Station presentation — finite review boundaries
+
+STATION-FINDINGS source slice2026-10-18 on df3e71d4e: root inspected the living
+service owners; one medium read-only mapper inspected wayfinding and branch
+interaction bindings. **No supported new implementation gap was established in
+those seams.** This defines where to inspect next; it does not accept the visual
+quality of any branch or complete parent9/12. No engine, capture or walking route
+was run. Existing passes and parked failures retain their original sources.
+
+Select **one existing branch and one view/state** below per review. A review
+ends with either a reproducible named defect or an explicit no-finding result
+limited to that view. A defect card must state before→after, exact runtime owner,
+protected route, focused check and fixed comparison view. Do not assign “finish
+station art”, generate arbitrary new dressing, or treat source counts as visual
+acceptance. Minimum graphics, ultrawide and reduced-motion/flash views remain
+part of original parent acceptance; schedule each actual uncovered cell explicitly.
+
+| Existing branch | Bounded player-facing view / state to inspect | Runtime owner / protected outcome |
+| --- | --- | --- |
+| Central | Standing spawn directory and adjacent tow/cargo presentation while approaching the berth | `shipyard_world.gd`, `station_wayfinding_signage.gd`; readable destination and berth access; existing CENTRAL-VIEW capture stall stays parked |
+| Aft | Upper operations room consoles/workpost from the stair arrival | `aft_junction_stack.gd`, world Aft activities; distinguish Activity/Destination controls and preserve stair/door clearance |
+| Habitat | Bunk/common-room arrival and garden/observation doorway | `habitat_spine.gd`, world patrol/skywatch; preserve accepted ordinary loop, usable bunks and wake controls |
+| Freight | Service-room entrance and gantry beside the actual boarding approach | `jovian_freight_berth.gd`, world Freight activities; readable service/boarding destinations and operable unlocked door |
+| Fleet Dock | One named berth threshold from its actual approach | `fleet_dock_comb.gd`, `fleet_expansion_berths.gd`; correct craft destination and boarding/landing clearance; choose berth before reviewing |
+| Annex | Restock console from the supported central aisle | `fabrication_annex.gd` geometry and `shipyard_world.gd` console owner; existing service text/control and clear aisle; unfinished south gate is not a promised destination |
+| Observation | Cross-landing view toward one named Observation/Logistics pad | `observation_logistics_spur.gd`; correct pad destination and supported return |
+| Salvage | One inspection-pad view after supported arrival | `salvage_terrace.gd`, `salvage_inspection_station.gd`; three-component contract retained; physical access/revisit remains parked/gated |
+| VIP | Reception arrival view after supported access | `vip_reception_suite.gd`; existing route/evidence boundary retained; parked VIP walk is not reopened by this list |
+
+All file basenames above resolve under `scripts/world/`. This roster reuses the
+nine existing WALK branches; it adds no station rooms, historical claims or
+unbounded art multiplicities. The full remaining-job count is still unknown
+until actual findings and original scope dependencies are resolved.
+
+The four existing LIFE cards have concrete owners in
+`ShipyardWorld.STATION_ACTIVITY_SPECS`: LIFE-TOW→CentralTowServiceActivity,
+LIFE-GANTRY→FreightApproachGantry, LIFE-ARM→AftOperationsActivity and
+LIFE-PATROL→HabitatServicePatrol. Their `StationOperationsActivity` owner already
+advances deterministic presentation clocks, supports enable/pause and publishes
+world-owned solid lifecycle changes. `StationServiceAgent` already resolves
+courier routes from the station graph; no general autonomous logistics promise
+is inferred. Existing component/navigation checks protect these contracts;
+they do not replace the ordinary nearby walking/boarding acceptance of each LIFE
+card. No new animation or authority layer is justified by this source slice.
+
+Wayfinding already substitutes the actual Aft Activity/Destination console
+positions, attaches real expansion berths and refreshes deferred placement.
+`tests/station_wayfinding_test.gd` already covers facing, collision/door clearance,
+marker/berth changes and rebases. Fabrication's empty landmark list deliberately
+excludes an unfinished endpoint. A repair now requires an observed wrong/missing
+sign, inaccessible signed destination, failed interaction or other concrete
+view defect with exact location/state. Do not add a parallel signage validator
+or rerun blocked rendered captures without their concrete reopening condition.
 
 ## Activities and planetary journeys
 
