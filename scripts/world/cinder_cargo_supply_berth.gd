@@ -12,3 +12,13 @@ func get_dock_transform() -> Transform3D:
 	if owner != null and owner.get_ship_id() == HAULER_ID:
 		return global_transform * hauler_dock_transform
 	return super.get_dock_transform()
+
+
+func get_assist_staging_transform() -> Transform3D:
+	var owner := get_reservation_owner() as CinderCargoHauler
+	if owner != null and owner.get_ship_id() == HAULER_ID:
+		# Cross the deck lip at capture height, then let normal Hero landing
+		# descend vertically onto the Hauler's exact physical contact pose.
+		var dock := get_dock_transform()
+		return Transform3D(dock.basis, dock * Vector3(0.0, assist_capture_center.y, 0.0))
+	return super.get_assist_staging_transform()
