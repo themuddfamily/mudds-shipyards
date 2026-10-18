@@ -553,7 +553,7 @@ func _hulk_home_observation(home_berth: ShipBerth) -> Dictionary:
 ## never requests fleet telemetry, landing contracts or Habitat dressing audits.
 func _habitat_loop_observation() -> Dictionary:
 	var owner := get_parent()
-	var current := is_instance_valid(_game) and _game.is_inside_tree() and not _game.is_queued_for_deletion() \
+	var current: bool = is_instance_valid(_game) and _game.is_inside_tree() and not _game.is_queued_for_deletion() \
 		and owner.call("get_main") == _game \
 		and _ember_node_current(_player) and _game.player == _player \
 		and _ember_node_current(_game.world)
