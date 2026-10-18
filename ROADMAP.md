@@ -195,6 +195,17 @@ then actual delivery. Stock is WAITING; manifest/delivery are GATED. Neither a
 whitelist edit nor bridge readiness completes cargo gameplay. No successor is
 selected by this closure; all original parent/phase requirements remain open.
 
+### Smaller remaining activity tasks
+
+ACT-REPEAT-DEFINE now has three finite children:
+[REPEAT-RACE, REPEAT-BEACON and REPEAT-SCAN](docs/ROADMAP_BACKLOG.md#activity-repetition--first-bounded-definition-slice).
+Each covers one activity's ten same-world runs with actual route, existing
+reward/reset rules, resource stability and usable next start. Each is GATED on
+its named first canonical PLAY-* journey and a frozen measurement/deadline card.
+This is a definition slice, not a gameplay delivery or newly executable queue;
+Scan's parked failure remains parked. Other repeatability classifications remain
+open. No new runtime/test/build was needed for this breakdown.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact

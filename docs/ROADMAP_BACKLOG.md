@@ -296,7 +296,10 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
 | BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; original interruption transaction remains parked |
 | BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: after originale9/repair3c board failures and accepted startupfixe3, unchanged-probe reopeningc159 fails69.957s at atomic-payment commit assertion; third cold replay NOT_RUN. Cumulative140.961s; unmerged/withheld, no further run/repair selected |
-| ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DEFINE; bind existing repeatable activities, do not invent repetitions |
+| ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | PARTIAL definition: Race/Beacon/Scan children below; remaining activity applicability still DEFINE. No new execution selected |
+| REPEAT-RACE | Ten same-world Checkpoint Race completions through actual ordered checkpoints, payment and accepted reset; next run starts usable | 13 | GATED on PLAY-RACE and a frozen resource-baseline/deadline contract; existing source passes retained |
+| REPEAT-BEACON | Ten same-world traversals of all four authored beacons in order, accepted payment/reset and usable next run | 13 | GATED on PLAY-BEACON and frozen resource-baseline/deadline contract; no synthetic beacon submission as ordinary-route proof |
+| REPEAT-SCAN | Ten same-world scans from actual approach, full four-second physics scan, existing payment/discovery/reset and usable next run | 13 | GATED on PLAY-SCAN and frozen resource-baseline/deadline contract; existing full Scan failure remains PARKED, no retry selected |
 | TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DEFINE; design/runtime basis and scope decision |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED; failed route plus repair, original 300s |
 | EMBER-SOURCE-ABANDON | Integrated physical Ember abandonment/home return | 1,14 | DONE; e85157b4d, MemoryFilesystem, original exact31 |
@@ -702,6 +705,38 @@ Scope: original §3, retained abandonment milestone and Phase 8/10.4 specificati
 | WORLD-EDGE[one world/case] | GATED on baseline route and scenario definition | One solo cancellation, refusal, failure, repeat visit or interruption case preserves physics, rewards and return to use. Stop at one case; shared late join/disconnect belongs to WORLD-SHARED. |
 
 Route anchors include `tests/ember_transit_movement_soak.gd`, `tests/aurora_physical_return_soak.gd --aurora-full-roundtrip`, `tests/ember_abandon_return_manual_override_test.gd` and the existing Rime landing/survey routes. Resolve the exact existing command in the task card before running; never substitute a staged route for a canonical one.
+
+### Activity repetition — first bounded definition slice
+
+Source431f24b59, definition only; no gameplay defect or implementation assignment.
+The existing ten-same-world-run requirement is retained in
+[completion scope](COMPLETION_SCOPE.md).
+REPEAT-RACE, REPEAT-BEACON and REPEAT-SCAN each require its named canonical
+PLAY-* journey first. Qualify one activity at a time; ten runs do not waive
+ordinary outbound/home acceptance or become ten unrelated test/evidence commits.
+
+| Child | Production owner / finite route | Acceptance to freeze before selection |
+| --- | --- | --- |
+| REPEAT-RACE | NearbySectorActivityBinding.start_race/reset_race and CinderTimedRaceSession; actual ActivityDirector checkpoints, TimedCheckpointRace timing | Same live world across ten legitimate start/checkpoints/finish/payment/reset cycles; exact generation/receipt identity, no duplicate reward, no stranded objective; ordinary inputs and actual route. Existing3s countdown/120s race timeout remain unchanged. |
+| REPEAT-BEACON | NearbySectorActivityBinding.start_beacon_traversal/submit_beacon_traversal/reset_beacon_traversal and CinderBeaconTraversalActivity | Each run starts within authored32m first-beacon radius and reaches all four beacons in order through locomotion; existing payment/reset/generation rules hold for ten runs. |
+| REPEAT-SCAN | NearbySectorActivityBinding scan start/reward/reset and CinderAbandonedStructureScanActivity | Each run starts within authored24m approach radius, completes4s actual physics scan, and retains existing discovery/payment/reset rules for ten runs. Repeated discovery is not a new entitlement. |
+
+All three retain original no-resource-growth/no-stranded-objective acceptance.
+The selected card must name the concrete runtime resource measurement/baseline,
+route command, unchanged existing deadlines and exact candidate before running;
+these definitions do not invent tolerances or infer a passing resource metric.
+Reward authority remains GameFlowRewardAuthority; restarting/replaying completion
+must not duplicate its activity/generation receipt. Real-file refused-write,
+fresh-process and OS-interruption promises remain ACT-WRITE/recovery work.
+
+Estimate:20–30min to freeze one card after its PLAY-* prerequisite has passed;
+no production implementation is currently justified by this source review.
+Execution estimate remains unresolved until the accepted first-play route gives
+measured activity/reset durations; budget ten such cycles plus travel/closure,
+without extending original deadlines. Stop on ten accepted runs or the first
+defect; retain any failure before separately selecting a repair. Scan's previous
+full-suite failure stays parked with its existing budget/reopen condition.
+Remaining repeatability classifications under ACT-REPEAT-DEFINE remain open.
 
 ### Activity write-boundary roster — ACT-WRITES-DEFINE
 
