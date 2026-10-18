@@ -35,11 +35,12 @@ feature. Do not invent a project percentage from rows, tests or commits.
 LIFE-PATROL is accepted on `ea8fe43`. All four station service runtime cards
 have passed on their recorded sources. The source is merged, a fresh checkpoint
 is published and owned scratch is cleaned. The remote-power source definition is
-complete; its bounded implementation card below is READY, not yet executed.
+complete; its bounded implementation card below is IN PROGRESS. Source work
+started from `d08d4f355` in an isolated owned worktree; no checks have run yet.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| NET-COMPONENT-POWERS | READY; source definition complete | Show the observed craft’s actual host engine/weapon/targeting percentages. Exact implementation and acceptance below; 45–75 min implementation, 10–20 min focused checks, 15–25 min checkpoint work, estimated rather than guaranteed. |
+| NET-COMPONENT-POWERS | IN PROGRESS; source definition complete | Show the observed craft’s actual host engine/weapon/targeting percentages. Exact implementation and acceptance below; 45–75 min implementation, 10–20 min focused checks, 15–25 min checkpoint work, estimated rather than guaranteed. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 The Hauler stock/custody decision remains the concrete missing prerequisite for
@@ -82,8 +83,12 @@ not three extra features.
 - **Commands:** pinned Godot, `--headless --audio-driver Dummy --path <clean-source>
   --script res://tests/network_remote_craft_pose_test.gd`; run the existing
   station-frame pose and Halyard role tests for the affected seams, plus existing
-  Main/ENet integration selected by the reviewer. Each requires exit 0 and its
-  existing success marker. Freeze exact commands/source before execution.
+  local `hero_engine_throttle_component_hud_test.gd`. The station-frame test is
+  already the independent production Main/ENet integration; no duplicate Main
+  suite is added. All four use the same command prefix and existing success
+  markers. Each requires exit 0 and its existing success marker. Freeze exact
+  commands/source before execution. Terminal samples preserve the actual host
+  trio; destruction does not invent different weapon/targeting multiplier semantics.
 - **Delivery:** clean-commit checkpoint export, focused checks and silent isolated
   package `--startup-check` with exit 0 and `STARTUP_MENU_READY_OK`; EXE, ZIP and
   actual build notes in `builds/windows/`, using the existing paired workflow.
