@@ -242,11 +242,44 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | DEFINE; contract per world, staged/MemoryFilesystem proof retained only as scoped |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | DEFINE; exact original cases and route limits |
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
-| CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | SELECTED definition in ROADMAP.md;15-minute source comparison, not started; finite actual gaps or exact missing fact, no engine/probe |
+| CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open |
 | SOLO-AURORA | Aurora canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | DEFINE; original promises versus implemented world, none found is valid |
 | SOLO-RIME | Rime canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-RIME | Rime finite remaining authored content/presentation findings | 15 | DEFINE; original promises versus implemented world, none found is valid |
+
+### Ember authored-content boundary
+
+CONTENT-EMBER source comparison, 2026-10-18, on `7c0bc2967`: **no missing
+implementation identified within the inspected Phase 10.4 authored-content
+promise**. This closes the definition only, not parent 15 or the whole-world loop.
+No engine, capture, native smoke or journey test was run.
+
+| Original criterion | Production owner inspected |
+| --- | --- |
+| Recognisable orbital silhouette | `ember_moon.tscn` body and `ember_moon_authored_scene.gd::_configure_orbital_landing_datum_cue`; streaming bootstrap loads the actual authored scene. Visual judgement remains unqualified. |
+| Substantial landing region | `ember_caldera_landing_region.tres`; authored scene supplies the 96×96 m supported landing area and surrounding terrain/collision. |
+| Multiple navigable landmarks | Authored scene contains rack/relay/gantry/bunker and dynamically composes lava tube, survey mast and wrecked lander. |
+| Surface routes | Authored scene supplies pad-to-staging and chevron routes to the three additional landmarks. |
+| Activities/rewards via existing authorities | Relay survey plus `ember_caldera_expedition_activity.gd` errands; `ember_planetary_surface_production_binding.gd` binds ActivityDirector, planetary reward adapters and ordinary trailhead interaction. GameFlow installs the intent sink; surface-loop binding forwards real position/reward progress. |
+| Recoverable failures | Errand abandonment leaves visit/craft/return intact; `planetary_journey_coordinator.gd` owns whole-journey abandonment/home return. |
+| Reason to return | Distinct relay, lava-tube and wreck objectives/rewards offer different or unfinished work. No requirement for endlessly renewing payment was found. |
+| Bounded authored content | Actual caldera, routes and local surveys are bounded authored content; returning to Mudds remains separate. No procedural expansion or station replacement is required. |
+
+Paths above resolve under `scenes/world/planets/`, `assets/world/planets/`,
+`scripts/world/`, `scripts/activities/` and `scripts/game/`. The older
+`ember_moon_content.tres` is a bounded data-only manifest; its omissions do not
+prove that the runtime-composed landmarks or errands are absent.
+`tests/ember_moon_authored_scene_test.gd` and
+`tests/ember_landing_region_test.gd` contain focused coverage for geometry,
+continuously supported routes, actual trailhead interaction, both errand rewards,
+paid re-entry and abandonment. Their source was inspected; no result is renewed.
+
+Current-source ordinary full journey, repeated/interrupted visits, complete
+remote-crew journey, native performance and silhouette/landmark readability
+remain unqualified in their existing SOLO/WORLD/SHARED/PERF/ART outcomes.
+The parked Ember native-close smoke is untouched. No new content task or
+qualification chain follows automatically from this definition.
 
 ### Multiplayer children
 

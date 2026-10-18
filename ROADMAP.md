@@ -33,7 +33,7 @@ Only the selected card below is executable. A missing definition, failed route
 or full-craft qualification is not an implementation assignment. Do not create
 a successor chain just because a nearby check can be added.
 
-CONTENT-EMBER is the next bounded definition; it is not a gameplay delivery.
+CONTENT-EMBER definition is complete; it delivered no runtime change.
 NET-HULL-HUD is accepted in checkpoint 7be348d. Completed contracts and actual
 checks live in [delivery history](docs/history/ROADMAP_DELIVERIES.md#remote-gameplay-hud-hull--accepted7be348d).
 The [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) still awaits
@@ -41,25 +41,13 @@ its owner interpretation decision. Parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| CONTENT-EMBER /15 | Definition; SELECTED, not started | Finite actual content gaps or exact missing input | One source comparison capped at 15 minutes below; no engine run or automatic successor. |
+| CONTENT-EMBER /15 | Definition DONE | No missing authored-content implementation identified within the inspected scope | [Criterion/owner map](docs/ROADMAP_BACKLOG.md#ember-authored-content-boundary); full-world qualification remains open. |
 
-### CONTENT-EMBER — resolve one world's remaining content scope
+### Next selection
 
-- **Kind/result:** definition, parent15. A finite list of actual missing Ember
-  content/presentation promises, or “none identified” with the inspected scope.
-  This delivers no gameplay and does not accept the full world journey.
-- **Owner/files:** root; original Phase 10.4 scope and COMPLETION_SCOPE.md versus
-  assets/world/planets/ember_moon_content.tres, its referenced world/landing
-  resources, scenes/world/planets/ember_moon.tscn and existing authored-content
-  runtime/tests. Follow only a referenced owner needed to resolve a named promise.
-- **Acceptance:** each finding names the original promise, actual missing behavior,
-  exact production owner and smallest observable fix/check. Separate ordinary
-  journey qualification from missing implementation. Add findings to the existing
-  CONTENT-EMBER row; do not create a tracking file or validator.
-- **Budget/stop:** 15 minutes read-only source comparison, no engine/capture/probe.
-  Stop at the finite findings or exact missing fact. No invented features, whole
-  world rebuild, parked native Ember work or automatic implementation successor.
-  Root reviews any proposed production card separately before selection.
+CONTENT-EMBER's bounded comparison is complete. Root will select a separate
+production card from a concrete observed gap; this definition schedules no
+implementation or qualification successor.
 
 ## Parked failures and dependent work
 

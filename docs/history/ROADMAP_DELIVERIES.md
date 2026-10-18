@@ -7381,3 +7381,34 @@ physics→HUD regression then reproduces exactly two expected host25% bar/frame
 failures in31.230s, exit1/no unrelated diagnostics. Runtime HUD-only repair may
 proceed. Initial compile failure remains retained and cumulative; another
 unexpected failure requires priority review, not an automatic second caller fix.
+
+## Ember authored-content definition — no missing implementation identified
+
+Bounded source comparison on 7c0bc2967 (2026-10-18) completes CONTENT-EMBER's
+finite definition. The original Phase 10.4 criterion maps to actual scene/runtime
+silhouette, supported landing area, dynamic landmarks/routes, relay plus optional
+lava-tube/wreck errands, existing interaction/reward authority and recovery.
+The older data-only manifest is not the whole runtime inventory. The exact
+criterion/owner map remains in the existing backlog's Ember authored-content
+boundary. Existing focused tests were read, not run; no runtime edit, build,
+new validator or parked-native-smoke probe. Ordinary/repeat/interruption/shared/
+visual/hardware qualification and parent 15 remain open. No content invented.
+The selected contract is retained below.
+
+### CONTENT-EMBER — resolve one world's remaining content scope
+
+- **Kind/result:** definition, parent15. A finite list of actual missing Ember
+  content/presentation promises, or “none identified” with the inspected scope.
+  This delivers no gameplay and does not accept the full world journey.
+- **Owner/files:** root; original Phase 10.4 scope and COMPLETION_SCOPE.md versus
+  assets/world/planets/ember_moon_content.tres, its referenced world/landing
+  resources, scenes/world/planets/ember_moon.tscn and existing authored-content
+  runtime/tests. Follow only a referenced owner needed to resolve a named promise.
+- **Acceptance:** each finding names the original promise, actual missing behavior,
+  exact production owner and smallest observable fix/check. Separate ordinary
+  journey qualification from missing implementation. Add findings to the existing
+  CONTENT-EMBER row; do not create a tracking file or validator.
+- **Budget/stop:** 15 minutes read-only source comparison, no engine/capture/probe.
+  Stop at the finite findings or exact missing fact. No invented features, whole
+  world rebuild, parked native Ember work or automatic implementation successor.
+  Root reviews any proposed production card separately before selection.

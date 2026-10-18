@@ -208,6 +208,14 @@ These are Phase 8's concentrated authored cluster plus Phase 10.4's three atmosp
 | Aurora coastal survey | 10.4 | `scenes/world/planets/aurora_temperate_world.tscn`, `scripts/activities/aurora_coastal_survey.gd` | I | Fly, land, walk actual shore landmarks, retry final-landmark reward save, reboard and physically return; accept repeated/interrupted visits, water/atmosphere and minimum hardware. |
 | Rime ice-core survey | 10.4 | `scenes/world/planets/rime_glacial_world.tscn`, `scripts/activities/rime_ice_core_survey.gd` | I | Fly/land/walk, manage heat, distinguish warming from exhausted-survey restart, save/retry earned reward and return; accept repetition and weather/terrain presentation. |
 
+Ember authored-content comparison on `7c0bc2967` found no missing implementation
+within the Phase 10.4 content promise: the runtime also composes lava-tube, mast
+and wreck landmarks, marked routes and two optional errands beside the relay
+survey. The older content manifest is not the full runtime inventory. See the
+[bounded source comparison](ROADMAP_BACKLOG.md#ember-authored-content-boundary).
+This is a definition result, with no engine run or renewed whole-journey,
+repeat/interruption, shared-crew, visual or hardware acceptance.
+
 For repeatable activities, accept ten same-world runs without resource growth or stranded objectives; for the one-shot hulk, accept repeated visits without a second reward. Test accepted starts followed by rejected writes, fresh process load and OS interruption. None of this permits persistence to recreate combat actors or infer legacy reward entitlement.
 
 ## Roles, supported session limits and desktop targets
