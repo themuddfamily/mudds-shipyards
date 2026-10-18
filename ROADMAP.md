@@ -417,6 +417,29 @@ its restart requirement passes; all36 broad parents/ten phase gates remain open.
   Independent alternative remains activity recovery definition, not a new adjacent
   recovery/evidence chain. Original native/device/human/full-project gates stay open.
 
+### Habitat restart — first packaged stop and bounded identity repair
+
+Candidateecb40cf1 passes Python54/7.415s, clean import/observer compile/privacy327,
+paired exports/three strict startups/1521-entry audit. The first actual archive
+restart route stops36.419s (outer39.309s) after real Bunk01 sleep, before UI quit:
+new `all(s[k] > 0 for k in fields)` rejects the valid negative shape Resource ID.
+All864 raw observations retain identical Main/world/Player/capsule/shape IDs;
+shape−9223371935302285411 is unchanged from initial through last, as are door/bunk.
+No actor replacement or gameplay defect established. Actual context is unavailable;
+normal shutdown/restart/cold interaction NOT_RUN. Inputs/helper/game/Xvfb cleaned.
+
+Independent causal review GO; root freezes ONE repair before editing: change
+that existence predicate to `!= 0`, retain exact tuple equality and every other
+current-owner/door/bunk/physics/claim guard. Extend the existing regression with
+stable negative shape accepted, zero and changed negative shape rejected. Only
+driver and existing Python test change; no observer/gameplay/schema/input/route/
+deadline change. One full focused Python run, clean pin/review, new paired exports/
+strict startups/audit and one full unchanged archive restart follow if each passes.
+Identical GDScript import/compile/privacy inputs retain original successful checks.
+Any further failure STOPs for cumulative priority review; no automatic second
+repair. Original45–60min/split-before90 cumulative budget remains (selection17:06UTC,
+first stop17:20UTC). Raw results retained in the task results directory.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
