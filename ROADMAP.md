@@ -579,6 +579,10 @@ stock PE and exact archive audit pass. Checkpoint EXE/ZIP/notes are in repositor
 builds/windows, paired Linux files in builds/linux. Raw failed/passing stages,
 actual profiles and closure records remain in
 `/srv/mudds-work/cinder-supply-debt-20261018/results/`.
+Closure verified18 terminal owners and65 observed process identities absent;
+17 profile logs and35 app-data files archived. Owned checkout/profile/helpers
+removed normally; eleven public file hashes reverified. Task selection17:57UTC
+to closure18:30UTC stayed below the original90min split boundary.
 Native Windows/GPU/device/audio/human, ordinary whole-delivery, OS-kill,
 installed/final candidate and full regression gates remain open/NOT_RUN.
 All36 broad requirements and ten phase gates remain OPEN; CI remains disabled.
