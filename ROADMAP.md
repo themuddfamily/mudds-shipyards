@@ -121,6 +121,18 @@ and whitespace checks pass. Root authorizes import→existing player-step suite�
 observer compile→privacy→full Python only. Results/guards live under
 `/srv/mudds-work/life-arm-step-20261018/`; exports/native remain unselected.
 
+Focused STOP on69850930c: importPASS20.608s, full player-step suiteFAIL46.850s
+at one new generic `_walk` zero-event assertion. All original collision outcomes
+and new genuine-event/identity/endpoints/detach/expiry checks pass. The headroom
+case remains below its original y<.20/z>−4.2 limits at y.160015/z−3.753062;
+not mounting the whole.25m lip does not forbid a bounded successful partial step.
+Independent causal/priority review selects ONE test-only correction: restore the
+generic `_walk` helper's baseline by removing only its new event counter/read/
+increment and whole-walk zero-event assertion. Keep all original geometry checks,
+tall-lip no-event checks and new successful-event/expiry assertions unchanged.
+No production change. Review the clean repaired pin before one full suite rerun;
+retain46.850s failure and original task/failure budgets. Later stages remain stopped.
+
 ## Latest delivered result
 
 Freight LIFE-GANTRY is accepted on packaged2df8c31: ordinary approach, nearby
