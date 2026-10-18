@@ -291,7 +291,8 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked |
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
-| BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: originale9c6111b4 and one caller repair3c10a071b fail first board-arm step35.365/35.638s; missing configured external owners observed, cause unknown. Unmerged/withheld; no third attempt/exports selected |
+| BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; original interruption transaction remains parked |
+| BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: originale9c6111b4 and one caller repair3c10a071b fail first board-arm step35.365/35.638s; missing configured external owners observed. Separate production binding repair e3d1ada accepted; this unmerged release-probe candidate remains withheld, no recovery result/third attempt selected |
 | ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DEFINE; bind existing repeatable activities, do not invent repetitions |
 | TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DEFINE; design/runtime basis and scope decision |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED; failed route plus repair, original 300s |
@@ -757,6 +758,16 @@ boundary, not why it occurred or a gameplay fix. Cumulative71.004s priority revi
 parks the task; branch/result retained, candidate unmerged, no exports or third
 attempt. Preserve required real-file/pilot/board/payment/cold replay acceptance;
 no Start Fresh substitute, clock relaxation or renamed retry is selected.
+
+Separate production repair BOOT-BREACH-OWNERS is now accepted on e3d1ada. Source
+tracing proves the world deferred binder ran before Boot reattached later combat/
+director siblings, while the gameplay tail retried defense only. The existing
+Heavy Breach binder now retries beside defense after normal combat initialization.
+Actual board/director/combat/objective identity checks fail twice on old code and
+pass in full startup on the fixed source; the existing48-check production route
+and strict paired checkpoint pass. This closes the named startup integration gap,
+not full ordinary combat or the parked real-file interruption transaction.
+
 
 ## Multiplayer
 

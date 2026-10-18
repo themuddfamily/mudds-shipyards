@@ -1,10 +1,11 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**4ff7a08**, with Aurora/Rime visit-state music, stable activity music,
+**e3d1ada**, with the Heavy Breach board bound before play, Aurora/Rime and
+activity music,
 saved walking sprint toggle, authoritative remote HUD and earlier gameplay fixes.
-[Windows notes](builds/windows/MuddsShipyards-4ff7a08-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-4ff7a08-linux-notes.txt) state actual validation.
+[Windows notes](builds/windows/MuddsShipyards-e3d1ada-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-e3d1ada-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -49,6 +50,7 @@ unapproved; parked failures remain outside the queue.
 | ONFOOT-SPRINT-TOGGLE /8,29 | DONE; packagedbd4e15d | Shared Sprint/boost HOLD/TOGGLE works in local walking sprint with safe handoffs | Closed after focused source checks and paired checkpoint; no automatic adjacent successor. |
 | AUDIO-ACTIVITY-LIFECYCLE /30 | DONE; packagedf1f35d1 | Current activity mix survives normal base updates and same-run completion | Closed after five focused suites and paired checkpoint; audible mix review stays open. |
 | AUDIO-SURFACE-MUSIC /30 | DONE; packaged4ff7a08 | Aurora/Rime music follows transit/landing/surface visit state | Closed after full phase/activity/bed checks, independent review and paired checkpoint; ordinary journey/listening gates remain open. |
+| BOOT-BREACH-OWNERS /9,11,13 | DONE; packagede3d1ada | Physical Heavy Breach board has its actual director/combat/objective owners before play | Full startup and production route pass; paired checkpoint. Crash-recovery transaction stays parked. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
 are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
@@ -89,42 +91,17 @@ checked, then withheld after its original and one repaired transaction failed.
 BREACH-INTERRUPTION is now FAILED/PARKED after its original source attempt and
 one caller repair. Both stop at physical board arming; no earned terminal,
 recovery/payment/replay or checkpoint is accepted. The retained snapshot shows
-missing configured board owners, but its cause remains unproven. No successor
+missing configured board owners. The separate startup repair below addresses
+that binding seam without accepting this transaction. No successor
 or third attempt is selected. [Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#breach-interruption--failed-and-parked).
 
-### BOOT-BREACH-OWNERS — bind the physical contract before gameplay
-
-- **Kind/parent:** production startup repair,9/11/13. SELECTED from the concrete
-  missing-owner observation retained by BREACH-INTERRUPTION. Source confirms the
-  cause: staged world construction drains its deferred board bind before later
-  Main combat/director siblings exist; the activity tail retries defense only.
-  This changes the game startup handoff. The parked interruption transaction is
-  not rerun, narrowed, renamed or accepted by this task.
-- **Owner/files:** one high-effort implementer owns only
-  scripts/game/game_flow.gd::_start_up_activities and existing
-  tests/startup_loading_screen_test.gd. Root owns checks/integration/builds; one
-  independent high-effort reviewer checks exact ownership/lifecycle delta.
-  Reuse world's existing idempotent heavy-board binder beside the defense retry
-  after normal combat initialization. No probe, stager, world-builder, board,
-  persistence, gameplay timing, actor or authority contract edits.
-- **Finish:** before staged Boot admits gameplay/menu, the actual physical
-  Heavy Breach board is attached/configured with the exact retained director,
-  shared combat authority and world-owned protected objective. Synchronous Main
-  startup has the same owner identities. Extend existing staged-phase watcher
-  and direct-Main checks without constructing extra Main lifetimes or changing
-  original assertions/waits. No invented combat or crash-recovery acceptance.
-- **Checks/budget:**30–60min; split before90. Commit test-only old reproduction;
-  import/compile and full existing startup suite under original300s cap must
-  complete with only intended owner-binding assertion failures. Final compile,
-  same full startup suite and existing Heavy Breach production route run once
-  under original300s caps, private/headless/Dummy and source/cache/process guards.
-  First unexpected failure stops for separate bounded selection; original plus
-  one repair requires cumulative priority review, no automatic third attempt.
-- **Delivery/alternative:** clean paired checkpoints, three strict silent menu
-  startups and existing actual-payload/archive audit, notes/commit/push/owned
-  cleanup. Full ordinary combat, parked debt transaction/Torpedo and native
-  hardware gates stay open. Independent alternative is terminal Cinder supply
-  real-file qualification; it remains unselected. No automatic adjacent chain.
+BOOT-BREACH-OWNERS is DONE in checkpoint **e3d1ada**. Startup now retries the
+existing Heavy Breach owner binding after the actual shared combat/director
+siblings exist, on both staged Boot and synchronous Main paths. Exact-owner
+regression and existing full startup/production route pass; fresh paired builds
+and strict package checks pass. [Result and retained card](docs/history/ROADMAP_DELIVERIES.md#boot-heavy-breach-owners--acceptede3d1ada).
+No successor is selected; full combat and parked interruption acceptance remain
+open. This repair does not accept or rerun the failed release probe.
 
 ## Parked failures and dependent work
 
@@ -133,7 +110,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| BREACH-INTERRUPTION /13,31,32 | Originale9c6111b4 fails35.365s; one caller repair3c10a071b fails35.638s at same board-arm step. Board snapshot: attached, configured=false, director/combat IDs0, external_owners_unavailable. No saved terminal or recovery proof. | Cumulative71.004s review PARKED; candidate unmerged/withheld, no exports. No third probe/repair/renaming or further diagnosis selected; a concrete separately selected production configuration change or causal fact is required. |
+| BREACH-INTERRUPTION /13,31,32 | Originale9c6111b4 fails35.365s; one caller repair3c10a071b fails35.638s at same board-arm step. Board snapshot: attached, configured=false, director/combat IDs0, external_owners_unavailable. No saved terminal or recovery proof. | Cumulative71.004s review PARKED; candidate unmerged/withheld, no exports. Separate production binding repair e3d1ada addresses the observed owner seam; recovery transaction remains unqualified and no further probe/repair is selected. No automatic third attempt or renamed retry. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |
 | CABIN-PASSENGER-ROLE / 18,20 | Candidate38c079086 HUD36 and actual handback PASSENGER pass, full required route fails walking. Unmerged/withheld; no package. | Preserve full route; no acceptance narrowing or automatic second repair. |

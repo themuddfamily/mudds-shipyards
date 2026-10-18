@@ -1,6 +1,21 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **4ff7a08**, clean source
+Latest accepted paired checkpoint: **e3d1ada**, clean source
+`e3d1ada37c46d34e2528f8ab86ce4516da7ac4e1`
+([Windows notes](../builds/windows/MuddsShipyards-e3d1ada-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-e3d1ada-linux-notes.txt)). The physical
+Heavy Breach board now receives its existing director/shared combat/protected
+objective owners before play. Staged world construction previously attempted
+binding before the later siblings existed; startup now retries the existing
+idempotent binder alongside defense. Old exact two-target startup regression,
+final full startup and existing48-check production route, independent review,
+paired exports/three strict silent startups/actual1515-entry audit pass. Existing
+route uses staged placement, synthetic input/direct target damage and memory
+storage. Ordinary packaged combat, the separately failed/parked real-file
+interruption transaction, native hardware and full final regression remain open.
+All36 parents/ten gates OPEN; Titan interpretation unapproved.
+
+Earlier accepted paired checkpoint: **4ff7a08**, clean source
 `4ff7a08547f683e8eaec2e541be95adba5e12ecb`
 ([Windows notes](../builds/windows/MuddsShipyards-4ff7a08-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-4ff7a08-linux-notes.txt)). Aurora/Rime

@@ -8322,3 +8322,97 @@ passes, continue exact-source paired packaging and archive transaction. If it
 fails, cumulative original+repair priority review is mandatory; no automatic
 third attempt, timeout change or renamed successor. Raw original failure stays
 under `/srv/mudds-work/breach-interruption-20261018/results/`.
+
+
+## Boot Heavy Breach owners — acceptede3d1ada
+
+Source `e3d1ada37c46d34e2528f8ab86ce4516da7ac4e1`; parents9/11/13 remain open.
+Named production startup outcome is accepted and shipped, separate from the
+failed release-probe contract. The physical contract board now binds its actual
+retained director, shared combat authority and world objective before gameplay.
+The repair adds one existing idempotent world binder call in GameFlow's activity
+startup tail beside defense after normal combat initialization; no actor,
+authority, phase ordering, gameplay timing, save or probe changes.
+
+Concrete source cause: Boot's stager detaches all Main children and awaits world
+construction before reattaching later EncounterScenarios/CombatAuthority nodes.
+The world's deferred heavy-board binder drains before those siblings exist and
+returns; the tail previously retried defense only. The existing source retry
+now establishes the same exact ownership on staged and synchronous paths.
+This selected production change is not a third run/rename of BREACH-INTERRUPTION;
+that original+repair result and branch remain retained/parked, with earned debt,
+actual interruption, payment and paid cold-replay criteria unchanged/unqualified.
+
+Test-only `a58748e8e9f3c41c6a7a4f982b1c30b28796afcb` changes only the existing
+startup suite, adding one aggregate actual-owner helper at its existing staged
+phase watcher before initialization and immediately after synchronous Main.
+Original assertions/waits/lifetimes remain unchanged; no extra Main is created.
+Old import20.699s/compile16.483s pass. Full old startup completes97.384359908s with
+actual exit1 and exactly the two intended owner-binding errors, no other failure.
+Fixed compile16.366s, full existing startup96.328029789s and existing Heavy Breach
+production route48 assertions74.845384623s pass. Independent exact-source GO.
+No unexpected failure or repair attempt in this task; no unchanged extra suite.
+
+Windows/Linux exports26.705/25.745s. Direct Linux22.126s, extracted archive23.837s,
+Windows payload through Linux Godot25.641s each exit0/exactly one
+STARTUP_MENU_READY_OK with no unexpected diagnostics. Actual1515 PCK entries match;
+stock PE text/x64, source metadata, exact archive binary/icon/installer bytes,
+modes/epoch and ZIP integrity/member bytes verify. Published11 files locally in
+builds/windows and builds/linux: Windows EXE/checkpoint ZIP/notes, Linux ELF/
+archive/notes/export metadata/strict startup records and logs.
+
+- `MuddsShipyards-e3d1ada.exe`: 184592512 bytes, SHA-256 `a7340f60871e571defdfdd3794fae9c7780f00060cf9a14d0ec2ce303feae1fb`.
+
+- `MuddsShipyards-e3d1ada.x86_64`: 148834224 bytes, SHA-256 `0e062b65780910bf382c385b379b0ee353b5381530584ff5e0d9e8966ddfbbf0`.
+
+- `MuddsShipyards-e3d1ada-linux-x86_64.tar.gz`: 95251031 bytes, SHA-256 `b6dc8a984898f04cade35913302e002ffbfabdb69a936a956eab7ad8d4805e6b`.
+
+All11 supervisor owners terminal0; old red actual test1 retained. All58 captured
+PID/start identities absent,6 logs and27 app-data files archived byte-identically;
+source/index/cache/engine unchanged. Main runtime/tests equal qualified source.
+Removed owned source worktree/import cache/duplicate exports, profiles/helpers;
+retained unique `/srv/mudds-work/boot-breach-owners-20261018/results/`, remote
+`fix/boot-breach-owners-20261018` and public checkpoint artifacts. No unrelated
+worktree/public checkpoint removed. Selection-to-closure about14min against
+30–60min allowance. No successor selected.
+
+All engine checks headless/Dummy. Actual source owners are qualified; source
+combat route still uses staged placement/synthetic input/direct damage and
+MemoryFilesystem. Full ordinary packaged combat, parked recovery transaction,
+Torpedo, native Windows/GPU/device/audio/human and final current-source matrix
+remain unqualified. All36 original parent outcomes/ten phase gates remain open;
+Titan unapproved; CI stays disabled. Frozen selected contract follows.
+
+### BOOT-BREACH-OWNERS — bind the physical contract before gameplay
+
+- **Kind/parent:** production startup repair,9/11/13. SELECTED from the concrete
+  missing-owner observation retained by BREACH-INTERRUPTION. Source confirms the
+  cause: staged world construction drains its deferred board bind before later
+  Main combat/director siblings exist; the activity tail retries defense only.
+  This changes the game startup handoff. The parked interruption transaction is
+  not rerun, narrowed, renamed or accepted by this task.
+- **Owner/files:** one high-effort implementer owns only
+  scripts/game/game_flow.gd::_start_up_activities and existing
+  tests/startup_loading_screen_test.gd. Root owns checks/integration/builds; one
+  independent high-effort reviewer checks exact ownership/lifecycle delta.
+  Reuse world's existing idempotent heavy-board binder beside the defense retry
+  after normal combat initialization. No probe, stager, world-builder, board,
+  persistence, gameplay timing, actor or authority contract edits.
+- **Finish:** before staged Boot admits gameplay/menu, the actual physical
+  Heavy Breach board is attached/configured with the exact retained director,
+  shared combat authority and world-owned protected objective. Synchronous Main
+  startup has the same owner identities. Extend existing staged-phase watcher
+  and direct-Main checks without constructing extra Main lifetimes or changing
+  original assertions/waits. No invented combat or crash-recovery acceptance.
+- **Checks/budget:**30–60min; split before90. Commit test-only old reproduction;
+  import/compile and full existing startup suite under original300s cap must
+  complete with only intended owner-binding assertion failures. Final compile,
+  same full startup suite and existing Heavy Breach production route run once
+  under original300s caps, private/headless/Dummy and source/cache/process guards.
+  First unexpected failure stops for separate bounded selection; original plus
+  one repair requires cumulative priority review, no automatic third attempt.
+- **Delivery/alternative:** clean paired checkpoints, three strict silent menu
+  startups and existing actual-payload/archive audit, notes/commit/push/owned
+  cleanup. Full ordinary combat, parked debt transaction/Torpedo and native
+  hardware gates stay open. Independent alternative is terminal Cinder supply
+  real-file qualification; it remains unselected. No automatic adjacent chain.
