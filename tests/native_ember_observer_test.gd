@@ -112,7 +112,7 @@ func _run() -> void:
 	# Deliberately stale fixture claims expose getters that silently reconcile
 	# authority. Only this fixture writes them; observer samples must preserve all.
 	var stale_owner := Node.new()
-	var stale_reference := weakref(stale_owner)
+	var stale_reference: WeakRef = weakref(stale_owner)
 	var stale_berth := game.world.call("get_berth_node", game.active_ship.get_home_berth_id()) as ShipBerth
 	stale_berth.set("_reservation_owner", stale_reference)
 	stale_berth.set("_occupant", stale_reference)
