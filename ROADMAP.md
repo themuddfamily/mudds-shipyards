@@ -1,9 +1,9 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **ea8fe43**, with ordinary Habitat door walking/Torrent
-boarding and actual patrol-drone coexistence. [Windows build notes](builds/windows/MuddsShipyards-ea8fe43-notes.txt)
-and [Linux build notes](builds/linux/MuddsShipyards-ea8fe43-linux-notes.txt) state
+accepted checkpoint: **330a39c**, with actual host craft power percentages in the
+observer HUD and bounded live network updates. [Windows build notes](builds/windows/MuddsShipyards-330a39c-notes.txt)
+and [Linux build notes](builds/linux/MuddsShipyards-330a39c-linux-notes.txt) state
 actual checks and limits. All 36 original parents and ten phase gates remain open.
 
 ## What separates this alpha from completion
@@ -32,111 +32,22 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-LIFE-PATROL is accepted on `ea8fe43`. All four station service runtime cards
-have passed on their recorded sources. The source is merged, a fresh checkpoint
-is published and owned scratch is cleaned. The remote-power source definition is
-complete. Its candidate `9a3e16604` passes the full pose regression but fails
-Main/ENet’s existing nine-craft live-delta ceiling. The attempt is STOPPED after
-one fixture repair; source is pushed, unmerged and no checkpoint is published.
+NET-COMPONENT-POWERS is accepted on `330a39c`, merged and packaged. The original
+pose fixture failure, one sequence repair, integration budget failure and selected
+codec repair remain in the [complete result](docs/history/ROADMAP_DELIVERIES.md#net-component-powers--host-output-and-bounded-live-updates-accepted).
+Owned scratch is cleaned; unique results remain. No further power/network task
+is selected. All four station service runtime passes retain their recorded scope.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| NET-COMPONENT-POWERS | REOPENED for selected encoding repair | Existing codec compresses full snapshots but returns oversized live deltas. Select existing full-envelope fallback above12000 bytes; preserve actual values/decoder/limits. Two-file scope and unchanged complete acceptance below; prior346.467s remains cumulative. |
+| AUDIO-EMBER-FEED-DEFINE | DEFINE; existing dormant-feed boundary | Trace the intended Ember environment/observation owner to actual production callers. End with one concrete playback/integration gap and owner, or the exact missing intended-use fact. Source-only, 15–20 min, no engine/audio/device run or automatic activation of dormant content. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 The Hauler stock/custody decision remains the concrete missing prerequisite for
-the reviewed independent production alternative. Do not invent stock, a duplicate
-generation API or a whole-game absence-of-defects claim. The observed remote-power
-network-size failure is the next concrete production boundary to resolve before
-implementation; do not extend a service qualification chain. This is a local queue,
+the independent cargo alternative. Do not invent stock, a duplicate generation
+API or repeat the pending question. The next single action is the finite Ember
+feed definition above, before selecting an implementation. This is a local queue,
 not a project estimate.
-
-## Next executable card: NET-COMPONENT-POWERS
-
-**Selected reopening: existing full-envelope fallback for oversized live deltas.**
-Root source review confirmed the measured12408-byte delta exceeds the unchanged
-12000-byte limit, while its complete full snapshot fits4648. The codec already
-compresses oversized full snapshots, and the adapter accepts either existing
-kind through the same fragment/jitter/lifecycle path. A live delta has no such
-fallback. This concrete cause/proposal satisfies the retained reopening condition.
-
-One implementation agent owns only `scripts/network/network_snapshot_delta_codec.gd`
-and `tests/network/network_snapshot_delta_codec_test.gd` atop candidate9a3e16604.
-After assembling a delta, if it exceeds the existing ceiling, use the existing
-bounded `_full_envelope(packet, revision)` when that full envelope fits. Reset the
-full cadence to1 on successful fallback; baseline/revision already represent that
-same packet. Preserve ordinary small deltas and existing refusal when no encoded
-form fits. No decoder, pose-row, schema, limit or power-precision change.
-
-Extend the one existing codec suite to prove oversized-delta→bounded full exact
-fragment/reassembly/decode, following small delta with correct base revision,
-stale/missing baseline handling and unchanged periodic full cadence. Root runs
-import, changed codec check-only/full codec, original full pose and Main/ENet
-station-frame suites, then the unrun Halyard/local HUD suites, and the original
-paired checkpoint/startup/audit gates. Every Godot command is pinned/headless/Dummy.
-Freeze clean source/exact commands before execution. Independent review checks
-baseline/cadence and original scope. Estimate20–35min implementation/review,
-10–15min focused checks and10–15min checkpoint; split before90min. First unexpected
-failure STOP; no automatic repair is selected. Retain all original346.467s,
-failed sources and original complete acceptance below. This is the same card,
-not a new budget or a smaller HUD-only outcome.
-
-**Prior stop and retained original contract.** Do not execute the old candidate unchanged. Initial
-42.010s pose failure had one exact fixture sequence repair; repaired pose passed
-302 assertions in42.149s, then Main/ENet failed173.347s at live-delta size12408.
-Cumulative guarded execution346.467s includes every import/compile/failed run.
-Remaining Halyard/local HUD runtime suites and all exports/startups are NOT_RUN.
-The estimates below were the original selection, not a renewed budget. Root
-priority review stopped that attempt. The separately frozen production encoding
-proposal above now addresses that observed budget failure; do not remove power channels, raise the ceiling or rename
-this card to reset its acceptance/time. No accepted runtime delivery is claimed.
-
-**Player result:** when observing another craft, HUD ENGINE OUTPUT, WEAPONS and
-TARGETING percentages agree with that craft’s accepted host telemetry, including
-critical-hull stutter and Halyard engineer routing. Parents 11/21 remain open.
-This is one production fix; its checks and checkpoint are part of delivery,
-not three extra features.
-
-- **Owner/files:** one implementation agent owns
-  `scripts/network/network_remote_craft_pose_stream.gd`,
-  `scripts/ships/hero_ship.gd`, `scripts/game/game_flow.gd` and the existing
-  `tests/network_remote_craft_pose_test.gd`. Extend the existing Halyard role test
-  only if needed to prove the routed-value transport. Root integrates, runs checks
-  and packages; an independent reviewer checks ordering/authority boundaries.
-- **Known cause:** host-active canonical telemetry already carries the three
-  powers. Per-craft pose entries omit them, packing drops them, and the HUD only
-  overlays host hull/engine/throttle. Use the existing optional primitive power
-  fields in that craft’s pose payload; preserve the compressed row layout.
-  Settled craft already publish fresh `operation_tick` with their retained pose;
-  power updates must use that ordering without manufacturing movement.
-- **Implementation:** sample the craft’s actual live powers together; retain a
-  finite, bounded complete trio through packing/decoding and accepted ordering;
-  expose a detached eligible HUD projection through the existing publisher.
-  A newer legacy row without powers clears any older power projection.
-- **Completion proof:** extend the existing pose test to deliver packed host
-  powers into the actual retained HUD label, including impaired/zero powers,
-  critical-hull output and an admitted Halyard route. Check settled updates,
-  stale/generation/epoch rejection, destruction, missing-field fallback,
-  local-pilot exclusion and clear/re-entry. Raw local telemetry, component report,
-  repair ledger and motion stay unchanged. Invalid/partial triples cannot become
-  an accepted power projection. Do not claim physical crew admission from a fixture.
-- **Commands:** pinned Godot, `--headless --audio-driver Dummy --path <clean-source>
-  --script res://tests/network_remote_craft_pose_test.gd`; run the existing
-  station-frame pose and Halyard role tests for the affected seams, plus existing
-  local `hero_engine_throttle_component_hud_test.gd`. The station-frame test is
-  already the independent production Main/ENet integration; no duplicate Main
-  suite is added. All four use the same command prefix and existing success
-  markers. Each requires exit 0 and its existing success marker. Freeze exact
-  commands/source before execution. Terminal samples preserve the actual host
-  trio; destruction does not invent different weapon/targeting multiplier semantics.
-- **Delivery:** clean-commit checkpoint export, focused checks and silent isolated
-  package `--startup-check` with exit 0 and `STARTUP_MENU_READY_OK`; EXE, ZIP and
-  actual build notes in `builds/windows/`, using the existing paired workflow.
-- **Stop:** first unexpected failure ends the attempt. Record its cause before
-  one bounded repair; preserve cumulative time and original acceptance. If the
-  implementation will exceed 90 minutes, split the remaining production capability
-  before continuing. No new protocol/version/validator family, weapon behavior,
-  role authority, full multiplayer endurance or parked-route retry belongs here.
 
 ## Turning the remaining scope into executable work
 
@@ -162,27 +73,28 @@ a total job count or release date.
 
 ## Latest delivered result
 
-**Habitat patrol runtime coexistence accepted on `ea8fe43`.** The same supported
-Player completes all 22 walking goals, opens actual MainAccess through normal
-Interact, walks 17.302 m locally within 12 m of the two patrol drones' activity,
-returns, boards the original Torrent and remains pilot for 90 seated frames.
-Both actual drone poses/clock advance during local and seated intervals; the
-same door/home berth/OFFLINE/parked state and default controls persist.
+**Host craft powers and bounded live updates accepted on `330a39c`.** An eligible
+observer’s retained ENGINE OUTPUT / WEAPONS / TARGETING percentages match the
+actual observed craft’s host telemetry, including critical-hull stutter and
+admitted Halyard routing. Missing legacy fields clear old host powers; local
+pilot/simulation/repair/motion authority stays unchanged. When a live delta is too
+large, the existing full-snapshot form carries the complete update under the
+unchanged 12000-byte ceiling, then normal deltas resume from that baseline.
 
-All 77 Python checks, observer/privacy, fresh paired exports, three strict menu-ready
-startups and 1,521-entry audit pass. ONE archived route passes in 65.899 s guarded,
-zero diagnostics and full input/process cleanup, on the first attempt.
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-ea8fe43-checkpoint.zip)
-and [notes](builds/windows/MuddsShipyards-ea8fe43-notes.txt) are published.
+Codec, full pose 302, independent Main/ENet 382, Halyard 70 and local HUD 104 checks
+PASS. The previously failing nine-craft full/live envelopes both measure 4,656 bytes.
+Fresh paired exports, all three strict menu-ready checks and 1,521-entry package
+audit PASS. [Windows checkpoint ZIP](builds/windows/MuddsShipyards-330a39c-checkpoint.zip)
+and [notes](builds/windows/MuddsShipyards-330a39c-notes.txt) are available.
 
-[Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#habitat-patrol--ordinary-door-walking-and-torrent-boarding-accepted)
-retain exact route/door/boarding proof, original caps and actual artifact hashes.
-Eleven terminal owners/67 process identities absent; 12 private-profile files/
-helpers archived, owned source/profile/extraction removed. Only unique results
-remain. No new animation, locomotion, cargo or bunk behavior is claimed. All four
-LIFE runtime cards are accepted source-specifically; station art/readability,
-other routes, hardware/full-station/final and all 36 parents/ten phase gates stay
-OPEN. Unrelated parked failures retain their exact conditions and budgets.
+[Full result and retained original contract](docs/history/ROADMAP_DELIVERIES.md#net-component-powers--host-output-and-bounded-live-updates-accepted)
+include both failures, repairs, actual source/artifact hashes and cumulative 753.824 s
+of guarded execution. All 22 terminal owners/121 observed process identities are
+absent; original 96/current 102 profile files and helpers are retained, owned
+worktree/profile/helpers removed. Eleven published files and exact ZIP bytes
+reverified. These source/headless/fixture/package checks do not qualify ordinary
+physical crew admission, full multiplayer endurance, native Windows/GPU/device/
+audio, human or final-release gates. All 36 parents/ten phase gates remain OPEN.
 
 ## Parked failures and dependent work
 

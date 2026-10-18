@@ -11475,3 +11475,154 @@ retained beside raw results. Normal owned worktree removal completed; temporary
 profile/helpers removed. Only `/srv/mudds-work/net-component-powers-20261018/results/`
 remains. No playable artifact was created or overwritten. Unrelated worktrees and
 latest accepted ea8fe43 checkpoint remain untouched.
+
+## NET-COMPONENT-POWERS — host output and bounded live updates accepted
+
+Accepted clean source `330a39ce3d2776a880eae5fdf6a0bc09e3773077`, pushed on
+`fix/net-component-powers-envelope-20261018` and merged into main. Three runtime
+owners plus the existing pose test carry actual per-craft engine/weapon/targeting
+powers through optional existing primitive headers to a detached observer HUD
+projection. A separate two-file codec/test repair replaces an oversized live
+delta with the existing complete bounded full envelope, resetting full cadence
+only when it fits. Baseline/revision, exact values, row/decoder/schema, original
+size limits and local simulation/ledger/motion authority are preserved. Legacy
+missing fields clear prior powers; invalid/partial triples cannot be accepted.
+Critical stutter and authority-admitted Halyard routing reach the actual retained
+HUD label. Role fixtures do not prove ordinary physical crew admission.
+
+The original29389ff93 pose failure42.010s, one fixture sequence repair9a3e16604,
+repaired302-pass42.149s and Main/ENet budget failure173.347s remain above/raw.
+Root selected the concrete codec repair only after the recorded cumulative
+priority stop and source-only production proposal. No unchanged retry or hidden
+second fixture repair occurred. New source was independently reviewed before
+root execution; the original station assertion is unchanged.
+
+| Actual reopened stage | Guarded seconds / result |
+| --- | --- |
+| Import / codec check-only | 20.615 /0.774 PASS |
+| Full existing codec suite | 0.766 PASS; oversized fixture delta18096→full1648, exact fragments/decode, next-delta baseline, cadence and impossible-packet refusal |
+| Original full pose | 42.126 PASS302 |
+| Original Main/ENet station-frame | 172.837 PASS382 (72host/310peer); nine-craft full/live4656/4656 below unchanged12000 |
+| Halyard role gameplay | 4.819 PASS70 |
+| Local engine/throttle/component HUD | 34.201 PASS104 |
+| Windows / Linux clean exports | 26.747 /26.802 PASS |
+| Direct Linux / extracted archive startup | 22.446 /23.688 PASS; exit0/sentinel1 |
+| Windows-payload startup | 25.858 PASS; exit0/sentinel1, Linux Godot |
+| Paired package audit | 5.678 PASS;1521 actual matching entries, stockPE text, exact archive bytes/modes/epoch/metadata |
+
+All13 reopened stages pass first attempt on330a39ce3. Cumulative all22 stages
+across the complete card: **753.824498469s**, including both earlier failures and
+all import/compile stages. Reopening selection→publication approximately11min;
+original selected card→publication approximately27min versus70–120min estimated.
+Neither a timing result nor assertion counts measure project percentage.
+
+Publication verified eleven repository-only files; Windows ZIP contains exact
+EXE+notes, both byte-compared. No Downloads or hosted-CI action. Artifacts:
+
+- `MuddsShipyards-330a39c.exe`: 184635936 bytes; SHA-256 `a49167ec8b365bbb40851449dd17b1c1a856fa0ed36da691e4c90f5f1c9d411e`.
+- `MuddsShipyards-330a39c.x86_64`: 148877648 bytes; SHA-256 `f983dc6658f0b61dac2969ed49a013b123a13d462f42e6be3b0221d2afd0979b`.
+- `MuddsShipyards-330a39c-linux-x86_64.tar.gz`: 95293223 bytes; SHA-256 `56ecb92b417f01bf224dc63afcc14bd759a68fb37d73003ad99f1482fddb037e`.
+
+Build notes record actual validation and scope limits. Native Windows/GPU,
+rendered readability, full multiplayer endurance, ordinary remote full-craft
+journeys, installed interruption/hardware/device/audio/human/final gates remain
+open. Earlier four service checks retain their recorded sources and were not
+rerun. All36 original parents/ten phase gates remain OPEN.
+
+Cleanup verified22 terminal owners/121 observed PID+start identities absent.
+Current102 profile files plus original96 and all helper/config/result snapshots
+are retained. Owned source/profile/helpers removed; only
+`/srv/mudds-work/net-component-powers-20261018/results/` remains. All11 public
+files and exact ZIP bytes reverified before removal. Next action: finite existing
+AUDIO-EMBER-FEED-DEFINE source definition; no adjacent power qualification chain.
+
+### Retained NET-COMPONENT-POWERS selection and acceptance
+
+The following is the historical frozen selection, superseded by the accepted
+result above. Its stop records and original full acceptance remain preserved.
+
+
+**Selected reopening: existing full-envelope fallback for oversized live deltas.**
+Root source review confirmed the measured12408-byte delta exceeds the unchanged
+12000-byte limit, while its complete full snapshot fits4648. The codec already
+compresses oversized full snapshots, and the adapter accepts either existing
+kind through the same fragment/jitter/lifecycle path. A live delta has no such
+fallback. This concrete cause/proposal satisfies the retained reopening condition.
+
+One implementation agent owns only `scripts/network/network_snapshot_delta_codec.gd`
+and `tests/network/network_snapshot_delta_codec_test.gd` atop candidate9a3e16604.
+After assembling a delta, if it exceeds the existing ceiling, use the existing
+bounded `_full_envelope(packet, revision)` when that full envelope fits. Reset the
+full cadence to1 on successful fallback; baseline/revision already represent that
+same packet. Preserve ordinary small deltas and existing refusal when no encoded
+form fits. No decoder, pose-row, schema, limit or power-precision change.
+
+Extend the one existing codec suite to prove oversized-delta→bounded full exact
+fragment/reassembly/decode, following small delta with correct base revision,
+stale/missing baseline handling and unchanged periodic full cadence. Root runs
+import, changed codec check-only/full codec, original full pose and Main/ENet
+station-frame suites, then the unrun Halyard/local HUD suites, and the original
+paired checkpoint/startup/audit gates. Every Godot command is pinned/headless/Dummy.
+Freeze clean source/exact commands before execution. Independent review checks
+baseline/cadence and original scope. Estimate20–35min implementation/review,
+10–15min focused checks and10–15min checkpoint; split before90min. First unexpected
+failure STOP; no automatic repair is selected. Retain all original346.467s,
+failed sources and original complete acceptance below. This is the same card,
+not a new budget or a smaller HUD-only outcome.
+
+**Prior stop and retained original contract.** Do not execute the old candidate unchanged. Initial
+42.010s pose failure had one exact fixture sequence repair; repaired pose passed
+302 assertions in42.149s, then Main/ENet failed173.347s at live-delta size12408.
+Cumulative guarded execution346.467s includes every import/compile/failed run.
+Remaining Halyard/local HUD runtime suites and all exports/startups are NOT_RUN.
+The estimates below were the original selection, not a renewed budget. Root
+priority review stopped that attempt. The separately frozen production encoding
+proposal above now addresses that observed budget failure; do not remove power channels, raise the ceiling or rename
+this card to reset its acceptance/time. No accepted runtime delivery is claimed.
+
+**Player result:** when observing another craft, HUD ENGINE OUTPUT, WEAPONS and
+TARGETING percentages agree with that craft’s accepted host telemetry, including
+critical-hull stutter and Halyard engineer routing. Parents 11/21 remain open.
+This is one production fix; its checks and checkpoint are part of delivery,
+not three extra features.
+
+- **Owner/files:** one implementation agent owns
+  `scripts/network/network_remote_craft_pose_stream.gd`,
+  `scripts/ships/hero_ship.gd`, `scripts/game/game_flow.gd` and the existing
+  `tests/network_remote_craft_pose_test.gd`. Extend the existing Halyard role test
+  only if needed to prove the routed-value transport. Root integrates, runs checks
+  and packages; an independent reviewer checks ordering/authority boundaries.
+- **Known cause:** host-active canonical telemetry already carries the three
+  powers. Per-craft pose entries omit them, packing drops them, and the HUD only
+  overlays host hull/engine/throttle. Use the existing optional primitive power
+  fields in that craft’s pose payload; preserve the compressed row layout.
+  Settled craft already publish fresh `operation_tick` with their retained pose;
+  power updates must use that ordering without manufacturing movement.
+- **Implementation:** sample the craft’s actual live powers together; retain a
+  finite, bounded complete trio through packing/decoding and accepted ordering;
+  expose a detached eligible HUD projection through the existing publisher.
+  A newer legacy row without powers clears any older power projection.
+- **Completion proof:** extend the existing pose test to deliver packed host
+  powers into the actual retained HUD label, including impaired/zero powers,
+  critical-hull output and an admitted Halyard route. Check settled updates,
+  stale/generation/epoch rejection, destruction, missing-field fallback,
+  local-pilot exclusion and clear/re-entry. Raw local telemetry, component report,
+  repair ledger and motion stay unchanged. Invalid/partial triples cannot become
+  an accepted power projection. Do not claim physical crew admission from a fixture.
+- **Commands:** pinned Godot, `--headless --audio-driver Dummy --path <clean-source>
+  --script res://tests/network_remote_craft_pose_test.gd`; run the existing
+  station-frame pose and Halyard role tests for the affected seams, plus existing
+  local `hero_engine_throttle_component_hud_test.gd`. The station-frame test is
+  already the independent production Main/ENet integration; no duplicate Main
+  suite is added. All four use the same command prefix and existing success
+  markers. Each requires exit 0 and its existing success marker. Freeze exact
+  commands/source before execution. Terminal samples preserve the actual host
+  trio; destruction does not invent different weapon/targeting multiplier semantics.
+- **Delivery:** clean-commit checkpoint export, focused checks and silent isolated
+  package `--startup-check` with exit 0 and `STARTUP_MENU_READY_OK`; EXE, ZIP and
+  actual build notes in `builds/windows/`, using the existing paired workflow.
+- **Stop:** first unexpected failure ends the attempt. Record its cause before
+  one bounded repair; preserve cumulative time and original acceptance. If the
+  implementation will exceed 90 minutes, split the remaining production capability
+  before continuing. No new protocol/version/validator family, weapon behavior,
+  role authority, full multiplayer endurance or parked-route retry belongs here.
