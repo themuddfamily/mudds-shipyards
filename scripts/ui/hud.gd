@@ -891,6 +891,8 @@ func _on_viewport_gui_focus_changed(control: Control) -> void:
 		_pause_reentry_focus_target = control
 		if _settings_page != null and _settings_page.visible and _settings_page.is_ancestor_of(control):
 			_settings_focus_target = control
+			if is_instance_valid(_settings_scroll) and _settings_scroll.is_ancestor_of(control):
+				_request_settings_scroll(control)
 		if _server_browser_page != null and _server_browser_page.visible and _server_browser_page.is_ancestor_of(control):
 			_server_browser_focus_target = control
 
@@ -8160,9 +8162,20 @@ func _ensure_settings_control_visible(control: Control) -> void:
 		or not control.is_inside_tree()
 		or not control.is_visible_in_tree()
 		or not _settings_page.is_ancestor_of(control)
+		or not _settings_scroll.is_ancestor_of(control)
+		or get_viewport().gui_get_focus_owner() != control
 	):
 		return
-	_settings_scroll.ensure_control_visible(control)
+	# Round overflow outwards in scroll-local units: native focus following can
+	# truncate a fractional delta and leave a scaled row partially clipped.
+	var relative := _settings_scroll.get_global_transform().affine_inverse() * control.get_global_transform()
+	var rect := relative * Rect2(Vector2.ZERO, control.size)
+	var correction: int = 0
+	if rect.position.y < 0.0:
+		correction = floori(rect.position.y)
+	elif rect.end.y > _settings_scroll.size.y:
+		correction = ceili(rect.end.y - _settings_scroll.size.y)
+	_settings_scroll.scroll_vertical += correction
 
 
 func _binding_button(text: String) -> Button:
