@@ -268,7 +268,7 @@ bunk support requires its own explicit production card before engines/edits.
   time-skip or saved station-sleep pose is invented. Full WALK-HABITAT stays open.
 - **Ownership:** one high-effort implementer owns new scripts/interaction/station_bunk.gd
   plus unique UID, scripts/world/habitat_spine.gd, narrow GameFlow rest-presentation
-  admission in scripts/game/game_flow.gd, and existing tests/habitat_integration_test.gd.
+  admission/StationBunk-only owner-liveness guard in scripts/game/game_flow.gd, and existing tests/habitat_integration_test.gd.
   Root executes/integrates/packages; one high-effort reviewer checks reservation,
   lifecycle and physical anchors. No ShipBunk refactor, new generic interaction
   framework, save/network authority/crew changes, furniture/collider overhaul or
@@ -284,9 +284,13 @@ bunk support requires its own explicit production card before engines/edits.
   existing ship_sleep_gameplay_test and ship_sleep_lifecycle_test at original300s.
   Headless/Dummy/private profiles, exit0/one suite marker/no diagnostics/clean guards.
   New fixture may stage once at actual production wake handoff, then actual E input,
-  no direct coordinator sleep/forced flags. Show sleep/wake/reuse, pause/owner-loss/
+  no direct coordinator sleep/forced flags. Show sleep/wake/reuse, pause/owner-free/retained-component-removal/
   Main detach safe awake controls, supported normal walking and no ship/seat claim
   borrowed. This is focused rest proof, not ordinary hub/full-route acceptance.
+  Retained StationBunk removal must recover from the last supported wake pose
+  before reading detached anchors; preserve all existing ship/shared-seat behavior.
+  Idle Habitat disable/re-enable must disable/restore discovery. Occupied whole-
+  module disable recovery is not claimed by this focused delivery.
 - **Budget/delivery:**45–60min implementation, split before90. First unexpected
   failure STOP; freeze one reviewed repair before more work, no automatic retry or
   deadline/route relaxation. Independent final/cumulative GO, paired playable
