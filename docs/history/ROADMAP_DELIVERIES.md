@@ -5998,3 +5998,18 @@ next scheduling requires priority review and a finite startup-boundary diagnosti
 or independent production deliverable, preserving original30s OS budget. Do not
 resume Q4's parked construction profile without its concrete reopen condition.
 All36 parents/ten phase gates remain open; Halyard stays parked.
+
+
+Priority review selects RELOAD-BOUNDARY: no READY competitor after reload timeout;
+Halyard remains parked and dependent cards gated. Previous turn is progress:
+strict failed restart changes next action, source/raw/save versions retained and
+owned cleanup complete. Retire completed Halyard approach definition from eight
+queue slots; retain its full definition below. ONE caller-only trace candidate in
+work/jovian-reload-boundary-20261018 based972efd906, exact accepted runtime.
+Hypothesis: missing boundary lies within synchronous Main readiness rather than
+four awaited frame pairs. Add elapsed ready/frame receipts without changing
+runtime/startup route/acceptance.15min implementation, compile300s then ONE30s
+silent headless/Dummy probe. Recreate original private XDG path from byte-exact
+archived accepted input, preserve original archive and post-timeout copy. No
+fabricated state, preload clock shift, timeout growth or Q4 profile rerun. Probe
+ends diagnostic task; next owner/action must follow actual receipts.

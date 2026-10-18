@@ -37,8 +37,9 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**2 FAILED/PARKED, 2 GATED, 4 DONE (three qualifications, one definition); no READY card.** Root owns integration and closure.
-Two definitions are complete: offline Jovian delivery and residual Halyard
+**1 IN PROGRESS diagnostic, 2 FAILED/PARKED, 2 GATED, 3 DONE qualifications.** Root owns integration and closure.
+Completed HALYARD-APPROACH definition is retained below; its queue slot now holds
+the finite reload diagnostic. Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
 ten phase gates remain open. The accepted Annex route and parked Jovian exit/
@@ -51,7 +52,7 @@ and delivery history; they do not consume active queue slots.
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
-| HALYARD-APPROACH | DONE definition | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
+| RELOAD-BOUNDARY | IN PROGRESS diagnostic | Identify synchronous Main readiness versus frame-wait boundary within unchanged restore30s. |15 min caller instrumentation; compile300s + ONE probe30s |
 | HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
 | HALYARD-AUTHORITY-STOP | GATED on HALYARD-MOVING-CABIN | Real server shutdown restores both occupants to usable solo operation. |30–60 min; one selected route at unchanged caps |
@@ -204,6 +205,25 @@ accepted runtime repairs require separate cards and fresh paired builds.
   accepted input plus modified real store and raw under
   `/srv/mudds-work/jovian-kit-reload-20261018/results/reload/`. Source branch pushed;
   owned checkout/helpers/profiles removed. No new build or restart qualification.
+
+### RELOAD-BOUNDARY — locate the missing startup boundary
+
+- **Parent/result/type:**13/31; one diagnostic, not a restart qualification.
+  Distinguish synchronous Main tree-entry/readiness from the following four
+  ordinary physics/process pairs; stop with observed boundary/owner or missing fact.
+- **Selection/boundary:** priority review finds no READY competitor in this queue.
+  Existing failed cargo caller only, one implementation agent/root review;
+  `--ordinary-jovian-kit-reload-trace` alongside unchanged reload/path/hash flags.
+  Read-only elapsed receipts at entry/instantiate/tree entry, child/Main ready,
+  after tree entry, each existing tick pair and cleanup. No runtime/staging changes.
+- **Check/budget:**15min instrumentation; clean compile300s then ONE30s OS probe.
+  Recreate original private XDG path with byte-identical archived accepted input
+  SHAe5000c06734eff363c70cab9e394bb378b1de59b79254ec07a3b6a78a870ee0c;
+  preserve archive and post-timeout store. Do not fabricate/reset completion,
+  move preload outside clock, extend timeout or repeat parked Q4 profiling.
+- **Stop/close:** first run ends diagnosis; no automatic repair/retry. Name next
+  owner from actual boundary; lack of a narrower fact is not permission to profile
+  everything. Preserve source/raw, commit/push, remove owned disposable files.
 
 ### HALYARD-APPROACH — define one actual airstair approach
 
