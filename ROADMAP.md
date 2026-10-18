@@ -40,16 +40,70 @@ is selected. All four station service runtime passes retain their recorded scope
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-MIX-DEFINE | DEFINE; source-only preparation for actual audio acceptance | Name a finite scenario/device mix roster from existing production audio families, with expected audible result and the source’s actual silent checks. Separate explicit audible/device prerequisites from preparation. End with executable listening cases or exact missing device facts; 15–20 min, no playback/device run by definition. |
+| AUDIO-CREW-REPAIR-PLAYBACK | READY; concrete running-game gap | Actual repair start/interruption/completion must cross correct source fields and independent repair ordering to distinct resident sounds. Complete card below; 45–75 min implementation/review, 10–20 min focused checks and 10–15 min checkpoint work, estimated rather than guaranteed. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
-AUDIO-EMBER-FEED-DEFINE is complete as a source definition: Ember is explicitly
-airless, active production audio forbids atmospheric wind, and the dormant Aurora
-feed has no specified positive Ember use. [Exact owners and missing intended-use fact](docs/COMPLETION_SCOPE.md#ember-environment-feed--source-definition)
-are recorded; no runtime change or new playback qualification is claimed. The
-next single action is the finite AUDIO-MIX-DEFINE roster above. Hauler’s pending
-stock/custody choice remains unchanged; do not repeat the question or invent stock.
-This is a local queue, not a project estimate.
+AUDIO-MIX-DEFINE is complete as a source definition. The [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
+names current craft/activity/shared episodes and actual source-check limits.
+Every listening case remains NOT_RUN, gated on a selected package/ordinary route,
+actual output device/backend/configuration and explicit audible authorization.
+No mandatory headphone/speaker matrix is invented. Ember’s airless boundary and
+unspecified dormant-feed intent remain recorded. Hauler’s pending stock/custody
+choice remains unchanged; do not repeat that question or invent stock.
+
+## Next executable card: AUDIO-CREW-REPAIR-PLAYBACK
+
+**Player result, parent30:** actual accepted Halyard engineer repair start,
+interruption and completion generate distinct short sound requests and the
+existing correct captions. Progress does not beep each frame. Repair truth,
+resource debit and role authority remain with the existing owners.
+
+- **Prerequisite/cause:** source definition on9ef81a348 identifies raw repair
+  `status/token/progress` versus binding `sequence/repair_state`, the role-event
+  gate that misses elapsed completion, and the Director’s semantic-only relay.
+  Fix all three together; fabricated correctly shaped inputs cannot prove this.
+- **Owner/files:** one implementation agent owns `scripts/game/game_flow.gd`,
+  `scripts/audio/audio_director.gd`, and, only if required at its input boundary,
+  `scripts/audio/halyard_crew_semantic_audio_binding.gd`. Extend existing
+  `tests/audio/game_flow_halyard_crew_audio_integration_test.gd` and
+  `tests/audio_director_test.gd`; existing engineer/role tests may provide the real
+  source fixture. Independent lifecycle review; root owns actual runs/integration/
+  checkpoint. No repair/role/network/save authority or protocol change.
+- **Implementation contract:** observe real repair status/token/progress under
+  the existing source/binding lifetime; normalize to its presentation vocabulary
+  with separate monotonic repair ordering. Role-authority sequence must retain
+  its meaning. Elapsed completion/interruption still forwards when it is unchanged.
+  Retire ordering/dedup state on source replacement, detach/re-entry and session
+  cleanup. Preserve direct normalized-input compatibility in the binding.
+- **Playback:** reuse three distinct existing resident templates:
+  `STREAM_UI_CONFIRM` for start, `STREAM_TARGET_DESTROYED_PRIMARY` for completion,
+  `STREAM_COMBAT_ALERT_PRIMARY` for interruption, on the UI bus at existing
+  authored cue levels. Dispatch
+  directly through the bounded resident effect pool, with current reduced-range
+  attenuation. Add no stream, voice, timer or generic caption echo; do not invoke
+  public generic cue methods that would emit a second event. Match only accepted
+  crew repair IDs/source; progress/unknown/invalid/stale/unbound input is silent.
+- **Focused proof:** real Halyard + actual role authority + production GameFlow
+  bridge + real Director dispatch. Verify real repair start, progress and elapsed
+  completion, plus departure interruption, while role sequence stays unchanged;
+  distinct resident request/stream/bus, once-only terminal cues, unchanged caption
+  identity, progress silence, duplicate/stale rejection, ship/source switch and
+  detach/re-entry. Preserve kit debit/repair results. A request spy can expose
+  actual dispatch under Dummy; it is not audibility or physical-seat proof.
+- **Commands/checks:** pin the clean source and use pinned Godot headless/Dummy.
+  Run the changed existing Director and GameFlow crew suites plus existing
+  `audio/halyard_engineer_audio_integration_test.gd`,
+  `halyard_crew_role_gameplay_test.gd`,
+  `audio/reduced_dynamic_range_audio_integration_test.gd` and
+  `audio/semantic_audio_source_unbind_test.gd`, requiring exit0 and their existing
+  success markers. Freeze exact commands/budgets before execution. No real output,
+  desktop run, parked physical crew route or full matrix is selected.
+- **Delivery/stop:** fresh clean paired checkpoint, three strict silent package
+  startups (exit0 + STARTUP_MENU_READY_OK), existing package audit and repository
+  EXE/ZIP/actual notes. First unexpected failure stops for a separately selected
+  causal repair; failure plus one repair requires cumulative priority review.
+  Split remaining capability before90min implementation. Do not broaden into all
+  semantic cue playback, new audio architecture or listening qualification.
 
 ## Turning the remaining scope into executable work
 

@@ -11647,3 +11647,42 @@ created. Source review corrected “optional intent” to “positive-use intent
 owner decision is inferred. All36 parents/ten phase gates stay OPEN. Next single
 action is existing AUDIO-MIX-DEFINE: finite scenario/device/expected-output roster;
 actual audible/device qualification remains separately gated.
+
+## AUDIO-MIX-DEFINE — finite real-output roster and repair integration gap
+
+Source definition complete on9ef81a348, parent30, within the selected15–20min
+source-only budget. The existing COMPLETION_SCOPE now names28 current listening
+selectors:11 shared episodes,8 actual normalized activity-music kinds and9 current
+craft. Each has an actual production owner, expected episode/output, silent check
+anchor and retained gameplay dependency. Missing-original audio scope remains
+UNKNOWN until craft specification. No extra theme or craft×role×device matrix is
+invented. All actual listening remains NOT_RUN.
+
+Original scope names real output devices but no mandatory headphone/speaker
+categories. Exact package/ordinary route, actual device/backend/channel/mix
+configuration and explicit audible authorization are required before selecting a
+real-output case. Native peak/latency/voice claims cannot come from Dummy state,
+configured gains or semantic event counts. Human-review owner exclusions remain.
+
+Source review found a concrete production gap in actual Halyard repair audio:
+raw status/token/progress does not match the presentation sequence/repair_state
+contract; GameFlow’s role-authority sequence gate skips independent elapsed repair
+completion/interruption; Director semantic relay selects no sound. Existing tests
+fabricate normalized inputs and assert events. Independent review found no alternate
+repair-edge playback. Restored engine mix/alarm clearing does not supply that cue.
+
+Next card AUDIO-CREW-REPAIR-PLAYBACK freezes the whole actual accepted source→
+normalized/lifecycle-fenced presentation→bounded resident dispatch path, not only
+a sound mapping. Real Halyard/role authority/Director-path checks must cover
+unchanged role sequence, start/progress/elapsed completion/departure interruption,
+duplicates/stale/unbound/re-entry, existing caption identity and unchanged repair
+resources/authority. Three existing resident templates and current effect pool/
+reduced-range behavior suffice; no new sound asset/voice/timer/protocol required.
+Independent source review GO; direct private resident dispatch avoids generic
+caption echoes. Physical crew admission and audible/native mix remain separate.
+
+No engine, audio, device, tests, runtime edits, fresh checkpoint or scratch files
+were created by this definition. Latest playable checkpoint remains330a39c.
+All36 original parents/ten phase gates remain OPEN; this roster is preparation,
+not delivered sound or project percentage. Next single action: implement the
+frozen production repair card in ROADMAP.md.

@@ -984,6 +984,120 @@ parent audio/mix or planetary journey acceptance. Existing shipborne audio and
 exact-zero atmospheric wind remain the contract. Native listening, transition
 quality and final audio qualification stay open; no audible output is authorized.
 
+### Real-output mix roster — AUDIO-MIX-DEFINE
+
+Source-only definition on `9ef81a348`, parent30. The original requirement remains
+[real output devices, actual-play critical cues, balance/clipping/latency/repetition,
+reduced range, captions and unload cleanup](history/ROADMAP_SCOPE_20261017.md).
+All listening cases below are **NOT_RUN**. No source check, semantic event, Dummy
+player flag or resident PCM inspection establishes audibility or mix quality.
+No new theme, device category, numeric loudness target or approved deferral is
+invented here. These are finite audio selectors, not whole-project job counts.
+
+**One case per selection.** Before execution pin the package, normal gameplay
+entry/exit, output device/backend/channel configuration, mix/settings, expected
+cue/transition and stop point. Use the existing route when already qualified;
+where normal access is PARKED/GATED, keep that dependency rather than staging an
+ordinary-play pass. Separate any controlled audition result from actual-play
+acceptance. Estimate preparation/listening for that one case before starting;
+split before90min. First defect ends the case for a bounded production repair.
+Do not replay every activity/craft for an unrelated shared music change.
+
+| Case | Concrete episode and expected output | Production owner / existing silent check anchor |
+| --- | --- | --- |
+| MIX-STATION | Walk from hub past one actual service and through a door; servo/latch edges once, hum attenuates with position/room, footsteps/UI remain legible | StationMachineryAmbience, AudioDirector; `station_machinery_ambience_test.gd`, `audio/station_machinery_room_mix_test.gd`, `audio_director_test.gd` |
+| MIX-MUSIC-PHASE | Station→pilot/free flight→landing→station; coherent existing bed fades, no repeated per-frame restarts or doubled loops | StationMusicBed/GameFlow; `audio/music_state_transition_test.gd`, `audio/music_phase_integration_test.gd` |
+| MIX-COMBAT | Enter one actual encounter, fire/hit/miss, damage warning, win then separate failure ending; combat priority and endings audible without masking critical cues | CombatMusicLayer/CombatAudioPresentation; `combat_audio_integration_test.gd`, `audio/music_combat_mix_test.gd` |
+| MIX-EMBER | Shipborne descent/landing, on-foot, reboard/takeoff and exit; hull/thruster/regolith layers follow real source, no atmospheric wind/heat | EmberSurfaceLoopAudioProductionBinding; `audio/ember_surface_loop_audio_production_test.gd`; original parked journey limits retained |
+| MIX-AURORA | Surface arrival, cockpit→outside→shore→cabin/return; wind/cabin/coastal output changes coherently and retires on unload | AuroraSurfaceAudioBinding/AuroraExteriorAmbienceMixer; `audio/aurora_surface_audio_binding_test.gd`; original arrival artifacts remain gated |
+| MIX-RIME | Arrival→surface/on-foot→reboard/return; existing travel/surface music and craft cues follow current visit; no unapproved new glacial ambience inferred | GameFlow/retained Rime visit/planetary travel bindings; `audio/music_phase_integration_test.gd`, `audio/planetary_travel_audio_production_integration_test.gd`; parked arrival unchanged |
+| MIX-CREW | Halyard admitted role join/leave, engineer repair start/interruption/completion, readiness and handoff; critical repair/crew cues must have actual playback, not captions alone | HalyardCrewSemanticAudioBinding→SemanticAudioCueRouter→AudioDirector; `audio/game_flow_halyard_crew_audio_integration_test.gd`, `audio/halyard_engineer_audio_integration_test.gd`; semantic-only playback gap below, physical route gates retained |
+| MIX-NAVIGATOR | Cargo navigator accepted/rejected ping and stale replay during supported crew use; distinct relevant cue once, no replay spam; source currently proves semantic/caption forwarding only | CinderNavigatorPingAudioComposition; `audio/cinder_navigator_ping_audio_test.gd`; determine actual playback before claiming audible pass |
+| MIX-SETTINGS | At fixed scene/output setting vary Master and each of Ambience/Engines/Weapons/UI/Music, then reduced range and restart/reset; category controls and saved values respected, critical cues/captions retained at agreed non-muted levels | RuntimeSettings/AudioDirector/DynamicAudioMix; `audio/reduced_dynamic_range_production_persistence_test.gd`, `audio/reduced_dynamic_range_audio_integration_test.gd` |
+| MIX-CONTENTION | One real combat interval combines music, sustained fire, alarm and UI/crew alert at recorded default and low mix; no clipping, lost critical cue, excessive repetition or unexplained delay | Existing music/ship/combat/AudioDirector playback owners; `audio/ship_audio_priority_preemption_test.gd`, `audio/dynamic_audio_mix_test.gd`; silent plans do not prove native headroom/latency |
+| MIX-CLEANUP | Finish one selected craft/world episode, unload→Main re-entry→same source; no stuck tail, duplicate loop, retained old-source alert or voice/resource growth beyond existing budgets | Existing owner detach/re-entry and [audio budget boundaries](PERFORMANCE_BUDGET_AUDIO_VOICES.md); `audio/semantic_audio_source_unbind_test.gd` plus that case’s actual playback lifecycle checks |
+
+**Activity music:** eight existing normalized kinds, not twelve invented themes.
+Each case observes that actual activity’s active→complete/failure/abort→reset,
+current bed survival during normal updates, combat/landing suppression and
+resumption, and usable next run. `NearbySectorActivityMusicAdapter` and GameFlow
+own the shared path; existing silent anchors are
+`audio/nearby_sector_activity_music_adapter_test.gd` and
+`audio/game_flow_nearby_activity_music_integration_test.gd`.
+
+| Case | Exact GameFlow source → music kind | Existing gameplay prerequisite |
+| --- | --- | --- |
+| MIX-ACT-RACE | `race` → race | PLAY-RACE; any separate Threading use retains its actual route/contract |
+| MIX-ACT-PATROL | `patrol` → patrol | PLAY-PATROL; parked branch/reopen conditions unchanged |
+| MIX-ACT-CONVOY | `host.activity` → convoy | PLAY-CONVOY |
+| MIX-ACT-CARGO | `cargo` → cargo | Named Jovian/Cinder supply route; stock/custody gates unchanged |
+| MIX-ACT-DEFENSE | `station_defense_state` → defense | PLAY-DEFENSE |
+| MIX-ACT-MINING | `mining` → mining | PLAY-MINING remains parked |
+| MIX-ACT-SCAN | `structure_scan` → salvage | PLAY-SCAN; this music kind is not proof of Hulk integration |
+| MIX-ACT-BEACON | `beacon_traversal` → beacon | PLAY-BEACON |
+
+Heavy Breach/Torpedo and other activity-specific cues retain their existing combat/
+route playback owners and original PLAY-* acceptance. No extra activity music
+mapping or sound bank is inferred where the eight-kind normalizer has none.
+
+**Fleet:** one case for each current craft. Each checks start→idle/load/boost→
+cockpit/chase→stop, applicable firing and damage/alarm→repair clear, then detach/
+re-entry without stale sound. Near/far position and recorded mix levels are
+observations within that case, not a craft×role×device Cartesian matrix. The
+current profile/weapon map selects actual runtime content; full craft journeys
+and physical-role gates remain separate. Eight missing originals remain UNKNOWN
+until their specifications; these nine cases do not close their audio scope.
+
+| Case | Current craft/profile and exception | Existing silent anchor under `tests/audio/` |
+| --- | --- | --- |
+| MIX-TORRENT | Standard fighter; compact pulse and Guided legacy range-pulse selection | `torrent_perspective_audio_scene_adapter_test.gd` |
+| MIX-ARROW | Efficient twin recon; precision emitter | `arrow_perspective_audio_scene_adapter_test.gd` |
+| MIX-JOVIAN | Heavy quad freighter; heavy defensive cannon | `jovian_perspective_audio_binding_test.gd` |
+| MIX-ZENITH | Standard fighter; interceptor repeater | `zenith_perspective_audio_scene_adapter_test.gd` |
+| MIX-HALYARD | Heavy quad freighter; pilot/gunner share lance/heat, cabin/loadmaster perspective; repair/crew episode also uses MIX-CREW | `ship_perspective_audio_binding_test.gd`, `halyard_loadmaster_audio_integration_test.gd` |
+| MIX-BULWARK | Heavy gunship; pilot pulse plus distinct charged limited-ammo gunner siege lance | `bulwark_cinder_perspective_audio_test.gd`, `siege_lance_audio_binding_test.gd` |
+| MIX-CINDER-LIGHT | Efficient twin recon; repeater | `cinder_light_interceptor_perspective_audio_test.gd` |
+| MIX-CINDER-CARGO | Heavy quad freighter; travelling mass driver, inherited heat | `bulwark_cinder_perspective_audio_test.gd` |
+| MIX-CINDER-BOMBER | Standard fighter; inherited cannon disabled, finite payload release/launch/impact/expiry/abort with generation cleanup | `cinder_bomber_perspective_audio_binding_test.gd`, `cinder_bomber_payload_audio_integration_test.gd` |
+
+ShipAudioRig supplies the six-voice ship playback path. Scene adapters forward
+perspective for Torrent/Arrow/Zenith/Bulwark; Jovian/Halyard/Cinder retain internal
+bindings. Other weapon/payload/crew bindings can be semantic-only: their names or
+pseudo voice-slot counts do not prove a physical voice. Inspect the selected
+case’s actual playback owner, retaining captions and accepted source identities.
+
+**Result and device boundary:** record source/package, device/backend/channels,
+actual mix levels/distance, expected versus observed critical cue/transition,
+clipping/repetition/latency findings and unload result. Use native output/capture
+measurements for numerical claims; source gains, WAV samples, configured polyphony
+or Dummy flags cannot establish native peaks, latency or active voices. The fixed
+bus layout is Master/Ambience/Engines/Weapons/UI/Music. Original scope does not
+name mandatory headphones, speakers or other device categories; do not invent a
+new required matrix. Actual output-device identity, output configuration and
+explicit authorization for an audible test are missing. Choose and authorize one
+concrete case/device before playback; AGENTS Dummy/isolation rules remain in force.
+Owner-excluded human review is not silently reinstated as a mandatory gate.
+
+**Concrete production gap found while defining MIX-CREW:** three boundaries
+prevent actual repair-edge audio. Halyard’s `get_crew_role_gameplay_snapshot()`
+embeds raw repair `status/token/progress`, but CrewEngineerAudioBinding expects
+`sequence/repair_state`; the existing audio test fabricates the latter structure.
+GameFlow `_sync_halyard_crew_semantic_audio()` forwards only when role-authority
+`authority_event_sequence` changes. `_advance_engineer_repair()` and
+`_set_engineer_repair_state()` emit repair-state signals without advancing that
+role sequence; GameFlow’s repair-state handler publishes network state only.
+Finally `AudioDirector._on_semantic_cue()` only re-emits semantic events and never
+selects a resident sound. No alternate repair-edge sound was found; restored
+engine output/alarm clearing is a different effect.
+
+The original requirement names repair/remote-crew critical cues, so the next
+bounded delivery must connect actual accepted repair states through normalized,
+lifecycle-fenced presentation into resident playback. A Director-only mapping or
+another fabricated normalized snapshot would leave the production gap. Start/
+completion/interruption need distinct short cues; progress stays audibly silent,
+duplicate/stale/unbound sources cannot replay, and existing caption identity and
+repair authority stay intact. Other crew/navigator/payload playback remains open.
+
 ## Phase-wide acceptance still required
 
 The roster tables name content; the following shared commitments still apply to every required item. Detailed remaining tasks and historical results stay in [ROADMAP](ROADMAP_BACKLOG.md#remaining-tasks-to-complete-the-project).
