@@ -194,13 +194,27 @@ func _test_hauler_physical_access() -> void:
 	var frames := await _await_public_landing(ship, 1200)
 	var telemetry := ship.get_telemetry()
 	var contract := ship.get_landing_contract_report()
+	var completed := requested and frames > 0 and frames < 1200 and telemetry.landed \
+		and StringName(telemetry.landing_abort_reason).is_empty() \
+		and contract.contract_accepted and contract.strict_dock_acceptance \
+		and berth.get_occupant() == ship and berth.get_reservation_token(ship) == lease \
+		and (contract.dock_transform_snapshot as Transform3D).is_equal_approx(dock) \
+		and ship.global_transform.is_equal_approx(dock)
+	if not completed:
+		var owner := berth.get_reservation_owner()
+		var occupant := berth.get_occupant()
+		print("CINDER_HAULER_LANDING_FAILURE: ", {
+			"requested": requested, "frames": frames,
+			"phase": telemetry.landing_phase, "abort": telemetry.landing_abort_reason,
+			"pose": ship.global_transform, "dock": dock,
+			"contract": contract,
+			"owner_instance_id": owner.get_instance_id() if is_instance_valid(owner) else 0,
+			"occupant_instance_id": occupant.get_instance_id() if is_instance_valid(occupant) else 0,
+			"ship_instance_id": ship.get_instance_id(),
+			"same_reservation_token": berth.get_reservation_token(ship) == lease,
+		})
 	if not _check(
-		requested and frames > 0 and frames < 1200 and telemetry.landed
-		and StringName(telemetry.landing_abort_reason).is_empty()
-		and contract.contract_accepted and contract.strict_dock_acceptance
-		and berth.get_occupant() == ship and berth.get_reservation_token(ship) == lease
-		and (contract.dock_transform_snapshot as Transform3D).is_equal_approx(dock)
-		and ship.global_transform.is_equal_approx(dock),
+		completed,
 		"actual Hauler normal Hero landing completes with exact stable dock snapshot and occupied lease"
 	):
 		stage.queue_free()
@@ -234,6 +248,7 @@ func _test_hauler_physical_access() -> void:
 	for _settle in 10:
 		await physics_frame
 	var generation := access.get_attachment_generation()
+	var binding := cluster.get_node(^"ActivityBinding") as NearbySectorActivityBinding
 	var wrong_ship := Node3D.new()
 	var wrong_actor := Node3D.new()
 	stage.add_child(wrong_ship)
@@ -243,7 +258,8 @@ func _test_hauler_physical_access() -> void:
 		and access.authorize_disembarked_terminal_actor(player, ship, &"stale-hauler-lease", generation).reason == &"stale_berth_lease"
 		and access.authorize_disembarked_terminal_actor(player, wrong_ship, lease, generation).reason == &"stale_berth_lease"
 		and access.authorize_disembarked_terminal_actor(player, ship, lease, generation - 1).reason == &"stale_attachment_generation"
-		and access.authorize_disembarked_terminal_actor(player, ship, lease, generation).accepted
+		and not binding.authorize_cargo_terminal_actor(player, wrong_ship).accepted
+		and binding.authorize_cargo_terminal_actor(player, ship).accepted
 		and access.validate_terminal_actor(wrong_actor, ship, generation).reason == &"wrong_terminal_actor"
 		and access.validate_terminal_actor(player, wrong_ship, generation).reason == &"wrong_terminal_craft",
 		"supported Hauler disembark authorizes only the exact actor, occupied craft, current lease and attachment"
@@ -272,8 +288,23 @@ func _test_hauler_physical_access() -> void:
 		and terminal.can_interact(player) and terminal.interact(player),
 		"authorized production Hauler Player walks continuously to the existing terminal and uses its public Interact boundary without jumping"
 	)
+	var physical_snapshot := binding.get_snapshot()
+	var request := binding.get_last_cargo_terminal_request()
+	var authority := binding.get_cargo_transfer_authority()
+	var destination := authority.get_manifest_snapshot(binding.get_cargo_destination_handle())
+	_check(
+		binding.get_cargo_source_handle().is_empty()
+		and int(physical_snapshot.cargo_binding.source_entity_instance_id) == 0
+		and (physical_snapshot.cargo as Dictionary).is_empty()
+		and not bool(request.get("accepted", true))
+		and request.get("reason", &"") == &"cargo_source_unavailable"
+		and int(destination.used_capacity) == 0
+		and (authority.to_dictionary().committed_transfers as Array).is_empty(),
+		"actual binding forwards only Hauler physical access; terminal still refuses cargo with no source, activity, stock or transfer grant"
+	)
 	_check(
 		berth.release(ship, lease)
+		and not binding.authorize_cargo_terminal_actor(player, ship).accepted
 		and access.validate_terminal_actor(player, ship, generation).reason == &"wrong_terminal_craft"
 		and berth.get_dock_transform().is_equal_approx(access.global_transform * CinderCargoAccess.BERTH_DOCK_LOCAL)
 		and exit_node.transform.is_equal_approx(authored_exit)
