@@ -242,8 +242,9 @@ func _run() -> void:
 	_report_production_stretch_policy()
 	# Selected roadmap qualification reuses Main and the existing measurements,
 	# without multiplying the historical whole-HUD sweep by another aspect/scale.
-	if OS.get_cmdline_user_args().has("--pause-16x10-only") or OS.get_cmdline_user_args().has("--pause-16x10-reentry-only"):
-		await _qualify_pause_16x10()
+	if OS.get_cmdline_user_args().has("--pause-4x3-only") or OS.get_cmdline_user_args().has("--pause-16x10-only") or OS.get_cmdline_user_args().has("--pause-16x10-reentry-only"):
+		var resolution := Vector2i(1024, 768) if OS.get_cmdline_user_args().has("--pause-4x3-only") else Vector2i(1920, 1200)
+		await _qualify_pause_resolution(resolution)
 		await _teardown()
 		_finish()
 		return
@@ -348,12 +349,12 @@ func _check_layout_report(
 	)
 
 
-## ACCESS-PAUSE-16X10: run this existing fixture with -- --pause-16x10-only.
+## ACCESS-PAUSE-4X3 / ACCESS-PAUSE-16X10: select --pause-4x3-only or
+## --pause-16x10-only after -- to reuse this fixture at the named resolution.
 ## Three authored scales, one actual Main Window, finite pause/options roster.
 ## Caller persistence and display transactions are deliberately not exercised:
 ## the test supplies the same presentation reports used by the existing owners.
-func _qualify_pause_16x10() -> void:
-	var resolution := Vector2i(1920, 1200)
+func _qualify_pause_resolution(resolution: Vector2i) -> void:
 	await _apply_resolution(resolution)
 	# Confirm/reset layout must not write a profile or reset the requested scale.
 	# Retain production Controls/presenters, detach only these persistence intents.
@@ -410,7 +411,7 @@ func _qualify_pause_scale(
 				footer_focus, null, false):
 			return
 		_check(absi(scroll.scroll_vertical - position) <= 1,
-			"16:10 requested options scroll position remains reachable")
+			"Pause/options requested options scroll position remains reachable")
 		if not _failures.is_empty():
 			return
 	for name: String in ["SettingsSaveButton", "SettingsResetButton", "SettingsBackButton"]:
@@ -426,7 +427,7 @@ func _qualify_pause_scale(
 	await process_frame
 	await process_frame
 	_check(main.is_visible_in_tree() and not settings.is_visible_in_tree(),
-		"16:10 ordinary Back returns to pause main before reopening Options")
+		"Pause/options ordinary Back returns to pause main before reopening Options")
 	(main.find_child("SettingsOpenButton", true, false) as Button).pressed.emit()
 	if not await _pause_observe(resolution, requested, &"options_reentry", retained, scroll, false):
 		return
@@ -435,7 +436,7 @@ func _qualify_pause_scale(
 
 	var binding := (_hud.get("_binding_buttons") as Dictionary)[&"barrel_roll"] as Button
 	binding.grab_focus()
-	_check(_hud.begin_input_binding_capture(&"barrel_roll"), "16:10 starts actual binding capture")
+	_check(_hud.begin_input_binding_capture(&"barrel_roll"), "Pause/options starts actual binding capture")
 	if not await _pause_observe(resolution, requested, &"binding_capture", binding, scroll, false):
 		return
 	var key := InputEventKey.new()
@@ -443,7 +444,7 @@ func _qualify_pause_scale(
 	key.pressed = true
 	_hud._unhandled_input(key)
 	var conflict := _hud.get("_binding_conflict_panel") as Control
-	_check(conflict.visible, "16:10 actual capture exposes conflict choices")
+	_check(conflict.visible, "Pause/options actual capture exposes conflict choices")
 	if not await _pause_observe(resolution, requested, &"binding_conflict",
 			_hud.get("_binding_conflict_replace_button") as Control, scroll, false):
 		return
@@ -460,7 +461,7 @@ func _qualify_pause_scale(
 	for confirm: bool in [false, true]:
 		_hud.set("_settings_dirty", true)
 		reset.pressed.emit()
-		_check(reset_panel.visible, "16:10 unsaved reset confirmation is visible")
+		_check(reset_panel.visible, "Pause/options unsaved reset confirmation is visible")
 		if not await _pause_observe(resolution, requested,
 				&"reset_confirm" if confirm else &"reset_cancel",
 				reset_panel.find_child("ConfirmSettingsResetButton", true, false) as Control,
@@ -470,7 +471,7 @@ func _qualify_pause_scale(
 		var before := confirmations.size()
 		(reset_panel.find_child(action, true, false) as Button).pressed.emit()
 		_check(not reset_panel.visible and confirmations.size() == before + (1 if confirm else 0),
-			"16:10 reset choice retires confirmation and emits only on confirm")
+			"Pause/options reset choice retires confirmation and emits only on confirm")
 		if not await _pause_observe(resolution, requested, &"reset_return", reset, null, false):
 			return
 	_hud.set("_settings_dirty", false)
@@ -484,7 +485,7 @@ func _qualify_pause_scale(
 		return
 	_hud.show_display_settings_confirmation(7, 14.0)
 	_check((_hud.get("_display_confirmation_label") as Label).text.contains("14 SECONDS"),
-		"16:10 countdown refresh remains text-readable")
+		"Pause/options countdown refresh remains text-readable")
 	_hud.clear_display_settings_confirmation()
 	var save := settings.find_child("SettingsSaveButton", true, false) as Control
 	if not await _pause_observe(resolution, requested, &"display_return", save, null, false):
@@ -500,20 +501,20 @@ func _qualify_pause_scale(
 		"last_status": {"accepted": true, "reason": &"repair_available",
 			"kind": &"promote_verified_backup", "generation": 7,
 			"confirmation": "layout-only-token", "preserves_unrelated_payload": true,
-			"newer_schema": false}}), "16:10 presents existing repair-available surface")
+			"newer_schema": false}}), "Pause/options presents existing repair-available surface")
 	var repair := _hud.get("_settings_repair_confirm_button") as Button
 	if not await _pause_observe(resolution, requested, &"repair_available", repair):
 		return
 	var before := confirmations.size()
 	repair.pressed.emit()
 	_check(confirmations.size() == before + 1 and confirmations.back() == "layout-only-token",
-		"16:10 repair confirm forwards detached token without fabricating persistence")
+		"Pause/options repair confirm forwards detached token without fabricating persistence")
 	if not await _pause_observe(resolution, requested, &"repair_confirm", repair, null, false):
 		return
 	_check(_hud.present_runtime_settings_repair_report({"schema_version": 1, "attached": true,
 		"last_status": {"accepted": false, "reason": &"load_not_repairable"}}),
-		"16:10 presents existing repair failure surface")
-	_check(not repair.visible, "16:10 repair failure removes unavailable confirmation")
+		"Pause/options presents existing repair failure surface")
+	_check(not repair.visible, "Pause/options repair failure removes unavailable confirmation")
 	await process_frame
 	if not await _pause_observe(resolution, requested, &"repair_failure",
 			root.gui_get_focus_owner(), null, false):
@@ -532,7 +533,7 @@ func _pause_observe(
 	resolution: Vector2i, requested: float, state: StringName,
 	target: Control, scroll: ScrollContainer = null, claim_focus: bool = true
 ) -> bool:
-	_check(is_instance_valid(target), "16:10 %s exposes its production focus target" % state)
+	_check(is_instance_valid(target), "Pause/options %s exposes its production focus target" % state)
 	if not is_instance_valid(target):
 		return false
 	if claim_focus:
@@ -541,16 +542,16 @@ func _pause_observe(
 	await process_frame
 	await process_frame
 	_check(target.is_visible_in_tree() and root.gui_get_focus_owner() == target,
-		"16:10 scale %.2f %s retains the expected live focus" % [requested, state])
+		"Pause/options scale %.2f %s retains the expected live focus" % [requested, state])
 	var effective := float(_hud.get("_pause_effective_ui_scale"))
 	var safe := Contract.safe_rect(root.get_visible_rect().size, effective)
 	_check(safe.grow(EDGE_TOLERANCE).encloses(target.get_global_rect()),
-		"16:10 scale %.2f %s focus target fits safe bounds: %s" % [requested, state, target.get_global_rect()])
+		"Pause/options scale %.2f %s focus target fits safe bounds: %s" % [requested, state, target.get_global_rect()])
 	if scroll != null:
 		_check(scroll.get_global_rect().grow(EDGE_TOLERANCE).encloses(target.get_global_rect()),
-			"16:10 scale %.2f %s focus-follow reveals the complete row (scroll=%d)" % [requested, state, scroll.scroll_vertical])
+			"Pause/options scale %.2f %s focus-follow reveals the complete row (scroll=%d)" % [requested, state, scroll.scroll_vertical])
 	_check(is_equal_approx(_hud.get_ui_scale(), requested),
-		"16:10 %s retains requested scale %.2f" % [state, requested])
+		"Pause/options %s retains requested scale %.2f" % [state, requested])
 	var preset := StringName("pause_scale_%.2f" % requested)
 	var report := _measure(resolution, preset, state)
 	report["requested_ui_scale"] = requested
