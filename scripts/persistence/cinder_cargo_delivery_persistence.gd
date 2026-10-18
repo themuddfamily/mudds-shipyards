@@ -64,7 +64,7 @@ func save(activity: CargoDeliveryActivity, authority: CargoTransferAuthority, co
 	# A refused return may still have published this exact primary record. Do not
 	# infer success from a backup or a different/currently paid completion.
 	if not bool(committed.get("accepted", false)):
-		var reconciled: Dictionary = load()
+		var reconciled: Dictionary = self.load()
 		if bool(reconciled.get("accepted", false)) and reconciled.get("record", {}) == record:
 			return _result(true, &"cargo_delivery_publication_recovered")
 	return committed
