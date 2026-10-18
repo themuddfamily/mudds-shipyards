@@ -279,6 +279,7 @@ Owned temporary checkout/profiles/helpers removed; raw results retained.
 This delivery starts with one staged placement at a real wake point. Full
 WALK-HABITAT ordinary hub/rest/common-room/home/restart remains UNSCHEDULED;
 it needs its own frozen complete journey, not another staged rest check.
+
 ### Crew recovery — definition complete
 
 RECOVERY-CREW-DEFINE is DONE as a source definition. A settled solo crew seat
@@ -290,9 +291,26 @@ CREW-RECOVERY-INSTALLED and CREW-RECOVERY-ORDINARY. Their candidate/route gates
 remain; the parked full resume-suite failure is unchanged. No new runtime gap,
 engine qualification or playable build is claimed by this definition.
 
-Next single planning action: resolve RECOVERY-DOCK-DEFINE's durable docking
-boundary into a finite existing contract or exact production gap. No docking
-probe/repair or unchanged parked-route retry is selected.
+### Docking and planetary recovery — definitions complete
+
+RECOVERY-DOCK-DEFINE and RECOVERY-PLANET-DEFINE are DONE as source definitions.
+The [docking contract](docs/ROADMAP_BACKLOG.md#settled-docking-recovery-contract)
+distinguishes active-assist pilot preference from attempted unavailable publication
+during busy exit. The existing release driver lacks an actual docking cut:
+DOCK-RECOVERY-PROBE is the concrete build/release gap; installed assist and exit
+cuts remain separate finite outcomes.
+
+The [per-world recovery boundaries](docs/ROADMAP_BACKLOG.md#planetary-recovery-boundaries)
+distinguish Aurora/Rime visit restoration from Ember safe-home/later-survey
+continuity. Existing WORLD-SAVE, RECOVERY-KILL and shared interruption rows retain
+remaining work. Ember surface-location restoration is not proven or waived;
+Aurora original-artifact waits/Rime parked arrival are unchanged. No engines,
+new runtime acceptance or checkpoint were needed for these definitions.
+
+Next single action: freeze DOCK-RECOVERY-PROBE's one actual assist cut, files,
+proof and implementation budget before changing the existing release driver.
+No busy-exit/ordinary-route chain, installed qualification or parked retry is
+implicitly selected. All36 parents and ten phase gates remain open.
 
 ## Parked failures and dependent work
 

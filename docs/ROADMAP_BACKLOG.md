@@ -40,7 +40,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | Parent | Original parent outcome | Active task families | Reconciliation / next named outcome |
 | --- | --- | --- | --- |
 | 1 | Finish final integrated-source and packaged physical abandonment acceptance | WORLD-ABANDON, WORLD-SOLO, PACKAGE-WIN, PACKAGE-LINUX | Source Ember abandonment DONE on e85157b4d; EMBER-PACKAGE-ABANDON and real-file/reuse cases remain gated. |
-| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Six other context contracts and installed cuts remain. |
+| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Pilot/cabin/crew/docking/planetary source contracts are defined below; activity definition and remaining installed cuts stay open. |
 | 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
 | 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER/SCOPE-DESKTOP DEFINE; SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
 | 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | One prepared card selected in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
@@ -601,9 +601,12 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | DONE definition only; settled solo crew saves four-field home-cabin preference; Resume wakes unseated with fresh cabin/hatch, no prior role or seat claim. Earlier ca0 crew pass retained; finite cases below |
 | CREW-RECOVERY-INSTALLED | One installed crew interruption returns awake to the supported home cabin with activity/reward integrity | 2,31 | GATED final installed candidate plus one frozen supported craft/seat/cut; use existing crew selector, original caps and owned kill/reap/distinct restart |
 | CREW-RECOVERY-ORDINARY | One ordinary crew admission→recovery→walk/helm-or-exit journey | 2,31 | UNSCHEDULED; freeze one supported craft/physical role and complete ordinary setup/continuation. Scripted ca0 package setup/escort is not this acceptance |
-| RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
+| RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | DONE definition only; active solo assist retains home pilot preference; busy boarding/exit attempts unavailable. Fresh ownership replaces leases/pose; finite cases below |
+| DOCK-RECOVERY-PROBE | Existing release driver can interrupt one actual accepted landing assist and check fresh safe-home recovery | 2,31,32 | UNSCHEDULED build/release capability; startup loader, existing interruption probe and package runner lack a docking cut. Preserve admission/privacy/original caps/owned kill/reap |
+| DOCK-RECOVERY-CUT | One exact installed candidate survives interruption during actual assist with conserved activity/reward and usable safe-home recovery | 2,31 | GATED executable docking cut, frozen craft/berth/activity boundary and exact package; no old lease/assist/seat identity restored |
+| DOCK-EXIT-RECOVERY-CUT | One interrupted exterior handoff recovers safely after accepted unavailable publication | 2,31 | GATED frozen actual busy-exit cut and executable driver; rejected publication retains prior durable preference. Completed grounded exit follows existing on-foot contract |
 | RECOVERY-ACTIVITY-DEFINE | Active activity durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
-| RECOVERY-PLANET-DEFINE | Planetary durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
+| RECOVERY-PLANET-DEFINE | Planetary durable-boundary/resume-or-safe-home contract | 2,31 | DONE source map; Aurora/Rime visit restoration differs from Ember passive survey continuity. WORLD-SAVE per-world boundary and installed RECOVERY-KILL remain open; no broader location promise waived |
 | RECOVERY-CUTS-DEFINE | Uncovered installed context/activity/OS-interruption cases | 2,31 | GATED; explicit state contracts and exact installed Linux package |
 | SAVE-MIGRATION | Real-file valid migration with distinct-process reload | 31,32 | GATED; exact current format/fixture and uncovered case |
 | SAVE-CORRUPT | Corrupt-data fallback and usable recovery | 31,32 | GATED; specified fallback, protected data retained |
@@ -1449,6 +1452,107 @@ installed cut: no new probe family or validator is required. No runtime defect
 or missing owner decision was established. All original recovery promises,
 parked failures and native/device/human/final-release gates remain open.
 No automatic qualification or repair successor is selected.
+
+### Settled docking recovery contract
+
+RECOVERY-DOCK-DEFINE is DONE as a source definition on86d0e4593. No engine
+execution, new gameplay defect or new docking acceptance is claimed.
+
+| Actual boundary | Existing durable behavior |
+| --- | --- |
+| Accepted request/active landing assist, solo seated pilot | Landing sets `_landing_request_active`, not `_transition_busy`; actual pilot ownership remains eligible for the four-field home preference. |
+| Physical landing completed, pilot still seated | Exact live lease becomes occupancy before completion; GameFlow accepts matching completion, secures occupancy/network handoff and enters SHUT_DOWN. Recovery preference remains pilot. |
+| Unfinished boarding/exterior exit | `_transition_busy` triggers attempted `{mode:unavailable}` publication. Only an accepted store commit makes this durable; refused writes retain the prior preference/retry. |
+| Completed supported exterior exit | Transition clears, controls return and capture follows actual grounded on-foot or registered cabin ownership. A jump retains the last settled preference. |
+
+The settled record remains exactly `{location:mudds_home_berth, mode, craft_id,
+berth_id}`; berth_id is the craft's **home**, not its selected landing target.
+There is no serialized docking pose, approach phase or physical berth lease.
+Network/planetary conflicts and unsupported ownership also attempt unavailable.
+Expected-generation publication protects existing backup authority.
+
+Explicit Resume stages recovery; Begin Shift resolves fresh registered boardable
+craft, matching occupied/reserved home berth and available hatch. Pilot recovery
+uses the authored supported exit and ordinary boarding for new seat/hatch owners;
+invalid context falls back to ordinary safe station start. Activity/debt/reward
+owners remain independent. Cabin support/rollback retains its existing contract.
+
+Owners: [GameFlow](../scripts/game/game_flow.gd) `_try_request_landing`,
+`_on_landing_completed`, `_disembark_ship_to_exterior`,
+`_capture_solo_safe_recovery_context`, `_persist_solo_safe_recovery_context`,
+`_solo_safe_recovery_craft`, `_apply_solo_safe_recovery`;
+[HeroShip](../scripts/ships/hero_ship.gd) landing completion;
+[UserDataStore](../scripts/persistence/user_data_store.gd) `commit`.
+Existing [landing clearance](../tests/landing_clearance_test.gd) covers live
+lease/occupancy ordering and invalidation; it is not cross-process recovery.
+The [resume fixture](../tests/session_recovery_resume_offer_test.gd) contains
+refused publication, fresh home ownership and fallback checks; its full
+Main17/300s/151-pass failure remains PARKED. ca0 pilot/cabin/rest/crew archive
+passes retain their exact sources and do not become docking acceptance.
+
+The three named docking rows separate missing executable driver support from
+installed active-assist and busy-exit cuts. Existing startup loader,
+[interruption probe](../scripts/diagnostics/in_world_interruption_probe.gd) and
+[package runner](../tools/release/run_package_probes.sh) admit pilot/cabin/rest/
+crew/engineer/on_foot, with no actual docking cut. Extend that existing path only
+after freezing one cut; no new validator family. Ordinary-input setup/continuation
+needs its own frozen complete journey and is not established by scripted setup.
+Original docking/recovery promises and native/device/human gates remain open.
+
+### Planetary recovery boundaries
+
+RECOVERY-PLANET-DEFINE is DONE as a source map on86d0e4593. No engine run or
+new world acceptance. The worlds do not share one recovery behavior.
+
+**Aurora/Rime:** [PlanetarySurfaceVisitExpedition](../scripts/game/planetary_surface_visit_expedition.gd)
+captures eligible active visits, excluding outbound/corridor/retiring/return;
+restoring has its own re-exit preservation. Existing
+[visit persistence](../scripts/persistence/planetary_surface_visit_persistence_binding.gd)
+commits `{schema_version,payload_kind,slot_id,visit,receipt_sha256}` with expected
+store generation. Visit fields are `visit_state,craft_home_berth_id,on_foot,survey`;
+survey holds its schema/activity/state/generation/checkpoint/failure fields,
+with Rime heat additionally retained. Rewards have their separate authority.
+Shared capture additionally requires current server/journey/world/lease ownership.
+
+Begin Shift/Resume reacquires the registered same craft by home berth, streaming
+and a fresh landing/surface lease, then places the player awake/on foot beside
+the ramp with controls. Saved pose, velocity, seats, lease and actor/network
+grants are not reinstated. The exact receipt retires after admission, before
+streaming completion; graceful quit during restoring recaptures it. Start Fresh
+moves a valid receipt to the passive declined slot transactionally, without
+location admission; earned debt survives later genuine arrival. Refused writes
+retain the prior decision/data.
+
+**Ember:** [survey persistence](../scripts/persistence/ember_relay_survey_persistence_binding.gd)
+and [return adapter](../scripts/world/planetary_return_persistence_adapter.gd)
+preserve detached coordinate-frame/route identity and optional original survey
+progress. GameFlow passively adopts/reexpresses this during a fresh physical
+surface admission. It does **not** implement cold planetary-location restoration.
+The existing Ember package selector explicitly uses cold yard recovery, new real
+boarding and disclosed orbital/corridor placements before original survey resume:
+`canonical_outbound=NOT_RUN`, `standing_pose_restore=NOT_SUPPORTED`.
+Historical acceptance retains that scope; it is not an owner-approved waiver of
+broader original world-save/location requirements.
+
+Existing Aurora/Rime visit-loop and quit-during-resume fixtures cover source
+restoration and transaction boundaries; Ember active-journey fixtures cover its
+passive application/retirement fences. These are coverage anchors, not new passes.
+The [df86280 Rime checkpoint](LINUX_BUILD.md#earlier-gameplay-checkpoint-df86280b5--2026-10-17)
+records78 staged/in-process real-ENet assertions/147.288s on exact source
+`df86280b5b3985770be527af71c6c247f311aae7`, not canonical travel or OS interruption.
+
+Reuse existing finite families rather than add a duplicate planetary queue:
+
+| Existing family instance | Remaining bounded finish |
+| --- | --- |
+| WORLD-SAVE[Ember/location boundary] | Set the expected original resume/safe-recovery boundary explicitly; current later-survey continuity does not close surface-location restoration if required. Preserve that uncovered scope. |
+| WORLD-SAVE[Aurora or Rime/one disk boundary] | Freeze one eligible phase/craft/progress/payment boundary; real-file fresh-process recovery/reboard and once-only reward. |
+| RECOVERY-KILL[planet/one installed package] | Own actual kill/reap and distinct restart for the frozen contract; use existing driver where supported or select one concrete missing executable capability. |
+
+Quit/return/repeat remain WORLD-EDGE, canonical journeys WORLD-SOLO and shared
+interruptions the existing SHARED-* rows. Aurora missing-original waits and Rime
+parked arrival remain unchanged. All original promises/phase gates stay open;
+no surface-location waiver, automatic probe or parked-route retry is selected.
 
 ### Hauler supply integration boundaries
 

@@ -9216,3 +9216,35 @@ at original300s, full Habitat300s, existing ship gameplay/lifecycle300s, then
 required paired checkpoint only if all pass. Independent final/cumulative review
 required; first new failure STOPs, no automatic further repair or renamed budget.
 Native performance is not qualified by this exact module-cost policy migration.
+
+## Docking and planetary recovery — source definitions20261018
+
+Source86d0e4593; two independent bounded read-only maps, root integration into
+existing ROADMAP/backlog. No engines, probes, runtime change or checkpoint.
+Docking assist preserves home-pilot preference; boarding/exit busy capture attempts
+unavailable, subject to accepted store publication. No old landing lease/pose is
+saved. The existing driver lacks an actual docking cut; DOCK-RECOVERY-PROBE names
+that build/release capability, with separate installed-assist and busy-exit cuts.
+
+Aurora/Rime own atomic visit restoration with fresh craft/world/lease and awake
+on-foot recovery; Ember passively carries original survey continuity through
+fresh admission. The existing Ember selector's staged flight placements and
+NOT_SUPPORTED standing-pose restore do not waive broader world-save promises.
+Existing WORLD-SAVE/RECOVERY-KILL/WORLD-EDGE/shared rows retain remaining scope;
+no duplicate planetary queue or new validator. ca0 and df862 historical results
+retain exact sources/scope; Main17/300s remains parked, Aurora originals wait,
+Rime arrival stays parked. All36 parents/ten gates OPEN. Next action is a frozen
+one-cut docking driver card, not an automatic recovery qualification chain.
+
+### Retained docking/planet definition scope
+
+### Selected planning — docking and planetary recovery boundaries
+
+Parents2/31; root owns ROADMAP.md and the existing recovery sections in
+ docs/ROADMAP_BACKLOG.md. Two independent read-only source maps cover docking
+and planetary recovery; root integrates. Finish within30min with actual durable
+fields/owners, existing source-specific coverage and finite remaining cases.
+No engine run, new validator/probe family, runtime repair or checkpoint is implied.
+Preserve original recovery promises, all36 parents/ten gates, parked failures,
+Aurora artifact waits/Rime arrival and native/human exclusions. Stop at the
+contract or an exact missing fact; no automatic qualification successor.
