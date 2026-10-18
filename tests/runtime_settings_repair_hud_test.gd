@@ -87,6 +87,10 @@ func _run() -> void:
 		"HUD retains a deep copy and exposes no settings repair authority"
 	)
 
+	hud.set_paused(true)
+	var pause_main := hud.get("_pause_main_page") as Control
+	(pause_main.find_child("SettingsOpenButton", true, false) as Button).pressed.emit()
+	back.grab_focus()
 	_check(hud.present_runtime_settings_repair_report({
 		"schema_version": 1,
 		"attached": true,
@@ -98,6 +102,12 @@ func _run() -> void:
 		and not button.visible,
 		"newer authority cannot expose the repair action"
 	)
+	_check(root.gui_get_focus_owner() == back,
+		"repair report preserves another Options control's focus")
+	hud.present_runtime_settings_repair_report(available)
+	button.grab_focus()
+	_check(root.gui_get_focus_owner() == button,
+		"live repair action owns focus before its failure report")
 	_check(hud.present_runtime_settings_repair_report({
 		"schema_version": 1,
 		"attached": true,
@@ -109,6 +119,9 @@ func _run() -> void:
 		and not button.visible,
 		"corrupt authority cannot be presented as repaired"
 	)
+	_check(root.gui_get_focus_owner() == save and save.is_visible_in_tree()
+		and not save.disabled and save.focus_mode != Control.FOCUS_NONE,
+		"repair failure hands disappearing confirmation focus to the live Save action")
 	_check(hud.present_runtime_settings_repair_report({
 		"schema_version": 1,
 		"attached": true,
@@ -177,7 +190,12 @@ func _run() -> void:
 			"newer_schema": false,
 		},
 	})
+	button.grab_focus()
+	_check(root.gui_get_focus_owner() == button,
+		"live repair action owns focus before explicit clear")
 	hud.clear_runtime_settings_repair_report()
+	_check(root.gui_get_focus_owner() == save,
+		"explicit repair clear hands disappearing confirmation focus to Save")
 	_check(
 		not panel.visible
 		and not hud.get_runtime_settings_repair_presentation().confirmation_available,

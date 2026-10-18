@@ -3160,6 +3160,15 @@ func _request_settings_repair_confirmation() -> void:
 ## Caller detach and state reset share this clearing seam. The retained report
 ## and token are deep-detached presentation state and carry no authority.
 func clear_runtime_settings_repair_report() -> void:
+	var restore_settings_focus := (
+		is_inside_tree()
+		and not is_queued_for_deletion()
+		and is_instance_valid(_settings_page)
+		and not _settings_page.is_queued_for_deletion()
+		and _settings_page.is_visible_in_tree()
+		and is_instance_valid(_settings_repair_confirm_button)
+		and _settings_repair_confirm_button.has_focus()
+	)
 	_settings_repair_report.clear()
 	_settings_repair_confirmation = ""
 	if is_instance_valid(_settings_repair_panel):
@@ -3168,6 +3177,14 @@ func clear_runtime_settings_repair_report() -> void:
 		_settings_repair_confirm_button.visible = false
 		_settings_repair_confirm_button.disabled = true
 	_configure_settings_repair_focus(false)
+	# Retiring the focused repair action must leave controller navigation on
+	# a usable Options action. Another control's focus belongs to that control.
+	if restore_settings_focus:
+		var save := _settings_page.find_child("SettingsSaveButton", true, false) as Button
+		if is_instance_valid(save) and not save.is_queued_for_deletion() \
+				and save.is_visible_in_tree() and not save.disabled \
+				and save.focus_mode != Control.FOCUS_NONE:
+			save.grab_focus()
 
 
 func _configure_settings_repair_focus(active: bool) -> void:
