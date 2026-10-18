@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: retain Options focus when a repair confirmation becomes unavailable.**
+**Next: package the accepted conflict visibility and repair-focus fixes.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -33,14 +33,14 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Current bounded cards
 
-**1 FAILED, 1 IN PROGRESS, 1 GATED.** These are executable task instances, not the remaining
+**2 DONE, 1 IN PROGRESS.** These are executable task instances, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
-| UI-CONFLICT-REVEAL | Production UI / FAILED at next qualification boundary | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
-| UI-REPAIR-FAILURE-FOCUS | Production UI / IN PROGRESS | Hiding a focused unavailable repair confirmation returns focus to a live Options control. |20–30 min implementation/review; compile300s, focused check300s and existing selected check300s. |
-| CHECKPOINT-PAUSE-CONFLICT | Build / GATED on accepted repairs | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
+| UI-CONFLICT-REVEAL | Production UI / DONE | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
+| UI-REPAIR-FAILURE-FOCUS | Production UI / DONE | Hiding a focused unavailable repair confirmation returns focus to a live Options control. |20–30 min implementation/review; compile300s, focused check300s and existing selected check300s. |
+| CHECKPOINT-PAUSE-CONFLICT | Build / IN PROGRESS | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
 
 ### UI-CONFLICT-REVEAL — make the focused conflict choice visible
 
@@ -61,7 +61,10 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
   choice must fit both safe bounds and its scroll clip, with live focus. Preserve
   every existing criterion and requested/effective scale reporting. Native
   devices, rendered readability and actual persistence transactions stay separate.
-- **Execution:** FAILED/root after one original selected300s run of af660151c.
+- **Execution:** DONE/root at `1cf102298`, including the separate repair-focus
+  handoff below. Full selected check passes948 assertions/96 observations,
+  all32 states at requested0.75/1/1.6, actual0/diagnostics0/source+cache stable.
+  Original attempt FAILED after one selected300s run of af660151c.
   Import/compile pass; conflict choices and cancellation now pass at0.75 with
   scroll1884/499. The run stops after30 observations at repair_failure: hiding
   SettingsRepairConfirmButton leaves no valid live focus. Later states and
@@ -70,7 +73,7 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
 - **Priority review:** stop conflict work; do not re-edit this proven0.75 boundary.
   The remaining demonstrated failure is a different existing repair presentation
   owner. Select one20–30min production focus-handoff task below; keep the full
-  original selected criteria unchanged. Checkpoint stays gated on acceptance.
+  original selected criteria unchanged. Combined source acceptance now passes.
 - **Close:** actual result/source/limits, commit/push, fresh checkpoint if accepted,
   and cleanup of owned disposable work. This does not close every UI aspect group.
 
@@ -88,12 +91,13 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
   focused action must hand focus to a visible enabled existing Options control;
   clearing status while another control is focused must retain that focus.
   Explicit compile300s. Physical devices/transactions/rendering remain separate.
-- **Execution:** IN PROGRESS/root after recorded priority review. Candidate
+- **Execution:** DONE/root after recorded priority review. Accepted source
   `1cf102298` hands actual disappearing repair focus to Save; other focus stays.
   Review-required queued-page guard is included before engines. Freeze explicit
   focused compile300s, existing repair HUD300s and one full selected300s, without
   repeated import; no global-class/resource changes require it.20–30min implementation/
-  review, splitbefore90. First failure STOP; no automatic second repair or rerun.
+  review, splitbefore90. Compile0, focused repair HUD26 PASS and full selected948
+  PASS, all3 authored scales. First failure STOP; no automatic second repair or rerun.
   Prior failure/fixture correction/conflict repair budgets are retained together.
 - **Close:** actual source/result/limits, commit/push and the gated fresh checkpoint
   if accepted; cleanup owned scratch. No whole settings/aspect/device gate closes.
@@ -107,7 +111,8 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
   metadata/stock PE checks, direct/archive Linux and actual Windows payload each
   strict startup exit0+exactlyone STARTUP_MENU_READY_OK/no original diagnostics.
   EXE/ZIP/notes and matching Linux artifacts belong in repository builds/.
-- **Execution/budget:** GATED/root;15–25 min artifact work, original900s/platform
+- **Execution/budget:** IN PROGRESS/root on exact accepted clean `1cf102298`;
+  15–25 min artifact work, original900s/platform
   exports and300s/startup separately. One export/platform; first failure stops.
   Record actual scope/limits, commit/push notes/index and remove owned duplicates.
   Native Windows/GPU/device/human/full-release gates remain open.

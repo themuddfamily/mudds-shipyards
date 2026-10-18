@@ -5556,3 +5556,16 @@ without changing token/authority/report checks. Conflict fix and selected fixtur
 are unchanged. Freeze compile300, focused repair HUD300, one full selected300
 on exact clean source; no repeated import/global-class changes. First failure
 stops again with cumulative history retained; no automatic additional correction.
+
+Combined source1cf102298 PASSES the unchanged acceptance: explicit compile0,
+focused repair HUD26 assertions and original full selected0/948 assertions,
+exactlyone success marker,96 finite observations (identical32-state sequence
+at requested0.75/1/1.6). Conflict/cancel, repair failure and final Options return
+pass at every scale. Requested/effective/pause scales are.75/.75/.75,1/1/1,
+1.6/1.6/1.5789 (authored pause fit ceiling valid). Repair failure focuses live
+Save, final Back focuses SettingsOpenButton. Original diagnostics0, all tracked/
+commit/status/cache guards hold and all owned processes reap/close. Both UI
+production outcomes and selected16:10 source qualification close; prior failed
+raw/budgets remain retained, no original criteria were weakened. Main integrates
+the two fixes; exact clean1cf102298 now gates the fresh paired checkpoint.
+No persistence transaction/device/render/native or other aspect-group claim.

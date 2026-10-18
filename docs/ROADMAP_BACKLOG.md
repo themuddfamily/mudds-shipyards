@@ -630,7 +630,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | ACCESS-PAUSE-DEFINE | Pause/options readability views and required scale/aspect cells | 12,29 | DONE; five named aspect groups/three authored scales, actual view states below |
 | ACCESS-PAUSE-4X3 | Pause/options at 1024x768, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
 | ACCESS-PAUSE-16X9 | Pause/options at 1920x1080, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
-| ACCESS-PAUSE-16X10 | Pause/options at 1920x1200, requested scales0.75/1.0/1.6 | 12,29 | FAILED latest af660151c: .75 conflict fixed, repair_failure loses live focus; bounded repair-handoff next |
+| ACCESS-PAUSE-16X10 | Pause/options at 1920x1200, requested scales0.75/1.0/1.6 | 12,29 | DONE source1cf102298:96 Main observations/all32 states at requested.75/1/1.6; conflict and repair-focus corrections accepted |
 | ACCESS-PAUSE-21X9 | Pause/options at 3440x1440, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
 | ACCESS-PAUSE-32X9 | Pause/options at 5120x1440, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
 | ACCESS-VIEWS-DEFINE | Remaining required HUD/menu/help/role readability views/cells | 12,29 | DEFINE; original promises, reuse pause/options decisions |
@@ -700,9 +700,9 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 
 Count the named rows as inventory outcomes, **not remaining executable jobs**.
 DONE rows retain their exact-source scope; definition, qualification, build and
-implementation are different types of work. This inventory has **246 named outcomes**, including **19 DONE** in their recorded
-planning/source/build/qualification scopes. The other227 rows include definitions, dependencies and
-qualifications; they are not227 implementation jobs. The completed eight-card batch is archived; the working queue has two bounded follow-ups;
+implementation are different types of work. This inventory has **246 named outcomes**, including **20 DONE** in their recorded
+planning/source/build/qualification scopes. The other226 rows include definitions, dependencies and
+qualifications; they are not226 implementation jobs. The completed eight-card batch is archived; the working queue has two bounded follow-ups;
 its current completion and READY/GATED counts are shown in ROADMAP.md.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with
