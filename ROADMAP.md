@@ -260,6 +260,23 @@ under unchanged caps/route/predicate. Root selects that one-line correction;
 no deadline, tolerance, geometry, source grant or test expansion. Any new failure
 STOPs for cumulative review; no automatic next repair or renamed task budget.
 
+### Hauler access — explicit deck-lip staging repair after cumulative review
+
+Correcteded4fd98 import/compile pass; full access51.081s still fails normal landing.
+New telemetry proves approach_obstructed at pose(31,-65.7554,-718.5501): Hauler's
+front reaches deck lipz=-712.55 while its floor is5.4mm below deck topy=-67.1.
+Both runtime failures102.259s plus compile5.337s remain: cumulative107.597s.
+Independent high-effort cumulative review supports this concrete new production
+seam, not a repeated unchanged probe. Root explicitly selects ONE Hauler-only
+berth-local get_assist_staging_transform override: stage directly above its exact
+dock before normal vertical final descent, conditional on current actual Hauler
+lease owner. Preserve original Jovian super result, broad capture, contact root,
+collision, final tolerances, Hero snapshots, existing test route and deadlines.
+No stock/cargo/reward/source grant, other source edit or test expansion. Root runs
+mandatory import/compile/full access once on clean pin; subsequent already-required
+checks/package only if pass. Independent review/cumulative decision still required;
+any new failure STOPs, no automatic next repair. Earlier failures/pins remain.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
