@@ -97,9 +97,7 @@ func _client_return() -> bool:
 	_return_stage = "client.accepted_request"
 	if _role == "client":
 		_return_landing_held = true
-		_action(&"landing_assist", true)
-		await _ticks(2)
-		_action(&"landing_assist", false)
+		await _press(&"landing_assist")
 		_return_landing_held = false
 	if not await _return_wait(func(): return _flight_file_exists("host.return_accepted"), 8.0,
 		"host accepts the original pilot's single ordinary landing input within8s"):
@@ -251,8 +249,12 @@ func _failure_snapshot(description: String) -> Dictionary:
 			arrival["reservation_owner_is_craft"] = _flight_berth.get_reservation_owner() == _craft
 			var binding := (_game.get("_network_remote_pilots") as Dictionary).get(_craft.ship_id, {}) as Dictionary
 			arrival["request_result"] = _primitive_fields(binding.get("landing_result", {}) as Dictionary, ["accepted", "status"])
+			var source := binding.get("source") as NetworkRemotePilotCommandSource
+			if is_instance_valid(source):
+				arrival["landing_request_serial"] = int(source.get_roll_receipt().get("landing_request", 0))
 		elif is_instance_valid(_flight_anchor):
 			arrival["local"] = _client_return_receipt()
 			arrival["controls_neutral"] = _return_controls_neutral()
+			arrival["local_identity_current"] = _local_flight_current()
 	snapshot["return"] = arrival
 	return snapshot
