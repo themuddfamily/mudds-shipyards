@@ -186,6 +186,7 @@ func _run() -> void:
 	_check(director.get_semantic_audio_binding_count() == 0, "exit-tree cleanup unbinds the exact navigator source")
 
 	bridge.detach()
+	_test_local(director, cinder)
 	cinder.queue_free()
 	director.queue_free()
 	await process_frame
@@ -196,6 +197,54 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _test_local(director: RequestSpy, craft: CinderCargoHauler) -> void:
+	var authority := CrewSeatRoleAuthority.new(1)
+	_check(bool(authority.register_cinder_roster().accepted), "local roster registers")
+	_check(bool(craft.attach_crew_role_authority(authority).accepted), "local craft owns real authority")
+	_check(bool(authority.claim(1, 1, &"solo_navigator", Cinder.NAVIGATOR_STATION_SEAT_ID, &"passenger", 1).accepted), "local navigator uses actual ledger claim")
+	var claim := {"craft": craft, "authority": authority, "avatar_id": &"solo_navigator", "seat_generation": 1, "claim_sequence": 1}
+	var local := Composition.new()
+	root.add_child(local)
+	var before := director.requests.size()
+	_check(bool(local.attach_local(director, claim).accepted), "explicit local composition attaches without wire identity")
+	_check(director.requests.size() == before, "local attachment never replays history")
+	var refused := craft.submit_navigator_ping(1, &"solo_navigator", 1)
+	_check(refused.get("accepted") == false and bool(local.present_local_result(refused, claim, 1).accepted), "real authority refusal requests local rejection feedback")
+	_check(director.requests.size() == before + 1 and director.requests.back().stream_id == Director.STREAM_COMBAT_ALERT_PRIMARY, "local refusal uses existing alert request")
+	_check(not local.present_local_result(refused, claim, 1).accepted, "same refused request is silent on replay")
+	var accepted := craft.submit_navigator_ping(1, &"solo_navigator", 2)
+	_check(bool(accepted.get("consumed", false)) and bool(local.present_local_result(accepted, claim, 2).accepted), "actual consumed solo receipt requests accepted feedback")
+	_check(director.requests.size() == before + 2 and director.requests.back().stream_id == Director.STREAM_UI_CONFIRM, "local acceptance uses existing confirmation request")
+	_check(not local.present_local_result(accepted, claim, 2).accepted and not local.present_bridge_result(_accepted_result(_wire_receipt())).accepted, "local lane refuses result replay and wire entry")
+	var old_callback: Callable = local._local_clear_callback
+	var old_receipt: Dictionary = accepted.effect.receipt.duplicate(true)
+	_check(bool(authority.release(1, 1, &"solo_navigator", Cinder.NAVIGATOR_STATION_SEAT_ID, 3, 1).accepted), "forced ledger release retires exact local claim")
+	craft._cleanup_detached_navigator()
+	_check(director.requests.size() == before + 3 and director.requests.back().stream_id == Director.STREAM_CANOPY_CLOSE and not local.local_is_attached(), "ship-owned forced clear requests one clear and retires source")
+	craft._cleanup_detached_navigator()
+	old_callback.call(old_receipt, &"late")
+	_check(director.requests.size() == before + 3, "duplicate clear and retired callback remain silent")
+	_check(bool(craft.detach_crew_role_authority(authority).accepted), "old local authority detaches")
+	var replacement := CrewSeatRoleAuthority.new(1)
+	replacement.register_cinder_roster()
+	craft.attach_crew_role_authority(replacement)
+	replacement.claim(1, 1, &"solo_navigator", Cinder.NAVIGATOR_STATION_SEAT_ID, &"passenger", 1)
+	var fresh_claim := claim.duplicate()
+	fresh_claim.authority = replacement
+	_check(bool(local.attach_local(director, fresh_claim).accepted), "new authority may reuse the same numeric seat claim")
+	var fresh := craft.submit_navigator_ping(1, &"solo_navigator", 2)
+	_check(not local.present_local_result(accepted, claim, 2).accepted, "old authority result cannot enter numerically equal replacement")
+	_check(bool(local.present_local_result(fresh, fresh_claim, 2).accepted), "replacement actual first ping remains fresh")
+	old_callback.call(old_receipt, &"late")
+	_check(local.local_is_attached() and director.requests.size() == before + 4, "old authority callback cannot clear replacement")
+	local.detach()
+	_check(bool(local.attach_local(director, fresh_claim).accepted), "local lane can reattach to retained exact claim")
+	_check(not local.present_local_result(fresh, fresh_claim, 2).accepted and director.requests.size() == before + 4, "historical actual receipt seeds silence on attach")
+	local.detach()
+	craft.detach_crew_role_authority(replacement)
+	local.queue_free()
 
 
 func _wire_receipt() -> Dictionary:

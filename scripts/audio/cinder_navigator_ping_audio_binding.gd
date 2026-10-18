@@ -22,6 +22,9 @@ var _seen_receipts: Dictionary = {}
 var _seen_rejections: Array[Dictionary] = []
 var _active: Dictionary = {}
 var _actor_fences: Dictionary = {}
+var _local_claim: Dictionary = {}
+var _local_sequence := 0
+var _local_active: Dictionary = {}
 
 
 func attach(lifecycle_generation: int = 0) -> Dictionary:
@@ -35,8 +38,91 @@ func attach(lifecycle_generation: int = 0) -> Dictionary:
 	return _result(true, &"attached")
 
 
+## Standalone receipts keep their real local identity; no wire envelope is invented.
+func attach_local(claim: Dictionary) -> Dictionary:
+	if _attached:
+		return _result(false, &"already_attached")
+	_local_claim = claim.duplicate()
+	if not local_claim_is_current():
+		_local_claim.clear()
+		return _result(false, &"invalid_local_claim")
+	_attached = true
+	var craft: CinderCargoHauler = _local_claim.craft
+	var historical: Dictionary = craft.get_navigator_ping_snapshot().get("receipt", {})
+	_local_sequence = int(historical.get("request_sequence", 0)) if _local_receipt_matches(historical) else 0
+	return _result(true, &"local_attached")
+
+
+func local_claim_is_current() -> bool:
+	var craft: Variant = _local_claim.get("craft")
+	var authority: Variant = _local_claim.get("authority")
+	if not is_instance_valid(craft) or not craft is CinderCargoHauler \
+			or not is_instance_valid(authority) or not authority is CrewSeatRoleAuthority \
+			or not craft.is_inside_tree() or craft.is_queued_for_deletion() or craft.is_destroyed() \
+			or craft.get_crew_role_authority() != authority:
+		return false
+	var assignment: Dictionary = authority.get_assignment(1, StringName(_local_claim.get("avatar_id", &"")))
+	return assignment.get("seat_id") == NAVIGATOR_SEAT_ID \
+		and assignment.get("role") == PASSENGER_ROLE \
+		and assignment.get("vessel_id") == CINDER_SHIP_ID \
+		and int(_local_claim.get("seat_generation", 0)) > 0 \
+		and int(assignment.get("seat_generation", 0)) == int(_local_claim.get("seat_generation", 0)) \
+		and int(_local_claim.get("claim_sequence", 0)) > 0 \
+		and int(assignment.get("claim_sequence", 0)) == int(_local_claim.get("claim_sequence", 0))
+
+
+func present_local_result(result: Dictionary, claim: Dictionary, request_sequence: int) -> Dictionary:
+	if not _attached or _local_claim.is_empty() or claim != _local_claim or not local_claim_is_current():
+		return _result(false, &"stale_local_claim")
+	if request_sequence <= _local_sequence:
+		return _result(false, &"stale_local_request")
+	var status: Variant = result.get("status")
+	if not result.get("accepted") is bool or not (status is String or status is StringName) or str(status).is_empty():
+		return _result(false, &"invalid_local_result")
+	if result.accepted == false:
+		_local_sequence = request_sequence
+		_emit(REJECTED, 0.8)
+		return _result(true, &"rejected")
+	if result.get("consumed") != true or not result.get("effect") is Dictionary:
+		return _result(false, &"unconsumed_local_result")
+	var effect: Dictionary = result.effect
+	if effect.get("accepted") != true or not effect.get("receipt") is Dictionary:
+		return _result(false, &"invalid_local_effect")
+	var receipt: Dictionary = effect.receipt
+	var craft: CinderCargoHauler = _local_claim.craft
+	if not _local_receipt_matches(receipt) or int(receipt.get("request_sequence", 0)) != request_sequence \
+			or receipt != craft.get_navigator_ping_snapshot().get("receipt", {}):
+		return _result(false, &"invalid_local_receipt")
+	_local_sequence = request_sequence
+	_local_active = receipt.duplicate(true)
+	_emit(ACCEPTED, 0.7)
+	return _result(true, &"accepted")
+
+
+func present_local_clear(previous_receipt: Dictionary, claim: Dictionary) -> Dictionary:
+	# The role ledger and GameFlow seat fields may already be empty on stand.
+	# Ownership is the captured authority object and exact active receipt instead.
+	if not _attached or _local_claim.is_empty() or claim != _local_claim \
+			or _local_active.is_empty() or previous_receipt != _local_active:
+		return _result(false, &"stale_local_clear")
+	_local_active.clear()
+	_emit(CLEARED, 0.6)
+	return _result(true, &"cleared")
+
+
+func _local_receipt_matches(receipt: Dictionary) -> bool:
+	return int(receipt.get("occupant_peer_id", 0)) == 1 \
+		and not StringName(_local_claim.get("avatar_id", &"")).is_empty() \
+		and receipt.get("avatar_id") == _local_claim.get("avatar_id") \
+		and int(receipt.get("seat_generation", 0)) == int(_local_claim.get("seat_generation", 0)) \
+		and int(receipt.get("request_sequence", 0)) > 0 \
+		and int(receipt.get("ping_generation", 0)) > 0 \
+		and receipt.get("channel") == &"sensor" \
+		and receipt.get("marker_id") == CinderCargoHauler.NAVIGATOR_ROUTE_ID
+
+
 func present_bridge_result(result: Dictionary) -> Dictionary:
-	if not _attached:
+	if not _attached or not _local_claim.is_empty():
 		return _result(false, &"detached")
 	if result.has("wire_receipt"):
 		if not bool(result.get("accepted", false)):
@@ -50,7 +136,7 @@ func present_bridge_result(result: Dictionary) -> Dictionary:
 
 
 func present_receipt(receipt: Dictionary) -> Dictionary:
-	if not _attached:
+	if not _attached or not _local_claim.is_empty():
 		return _result(false, &"detached")
 	if not _valid_receipt(receipt, PING_ACTION):
 		return _result(false, &"invalid_receipt")
@@ -69,7 +155,7 @@ func present_receipt(receipt: Dictionary) -> Dictionary:
 
 
 func present_rejected(result: Dictionary) -> Dictionary:
-	if not _attached:
+	if not _attached or not _local_claim.is_empty():
 		return _result(false, &"detached")
 	# Rejections have no receipt identity. Accept only the bridge's existing
 	# result envelope; missing fields and truthy substitutes must stay silent.
@@ -91,7 +177,7 @@ func present_rejected(result: Dictionary) -> Dictionary:
 
 ## Accepts either the bridge's complete release/detach result or its tombstone array.
 func present_tombstones(value: Variant) -> Dictionary:
-	if not _attached:
+	if not _attached or not _local_claim.is_empty():
 		return _result(false, &"detached")
 	var tombstones: Array = []
 	if value is Dictionary:
@@ -112,7 +198,7 @@ func present_tombstones(value: Variant) -> Dictionary:
 
 
 func present_receipt_clear(receipt: Dictionary) -> Dictionary:
-	if not _attached:
+	if not _attached or not _local_claim.is_empty():
 		return _result(false, &"detached")
 	if not _valid_receipt(receipt, CLEAR_ACTION):
 		return _result(false, &"invalid_tombstone")
@@ -136,6 +222,9 @@ func present_receipt_clear(receipt: Dictionary) -> Dictionary:
 
 
 func detach() -> Dictionary:
+	_local_claim.clear()
+	_local_sequence = 0
+	_local_active.clear()
 	_attached = false
 	_lifecycle_generation = 0
 	_reset_presentation_state()
@@ -147,7 +236,8 @@ func get_snapshot() -> Dictionary:
 		"attached": _attached,
 		"lifecycle_generation": _lifecycle_generation,
 		"migration_generation": _migration_generation,
-		"active": _active.size(),
+		"active": _active.size() + (0 if _local_active.is_empty() else 1),
+		"local": not _local_claim.is_empty(),
 		"presentation_only": true,
 		"authority": {"network": false, "sensor": false, "playback": false},
 	}

@@ -9814,6 +9814,9 @@ func _release_solo_crew_authority() -> bool:
 			return false
 	if _network_engineer_binding != null and _network_engineer_binding.owns_role_authority(_solo_crew_authority):
 		_network_engineer_binding.next_role_sequence(_solo_crew_authority, _solo_crew_sequence)
+	# Cinder detach above owns the clear notification; unbind only afterwards.
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.clear_local_navigator()
 	_solo_crew_authority = null
 	_solo_crew_ship = null
 	_solo_crew_sequence = 0
@@ -10036,6 +10039,7 @@ func _sit_in_solo_crew_seat(seat: ShipCrewSeat) -> void:
 	player.set_station_seated_context(true)
 	player.set_control_enabled(true)
 	_transition_busy = false
+	_bind_solo_navigator_audio_claim()
 	hud.set_mode("cabin", craft.get_display_name())
 	hud.set_objective("%s aboard %s — %s" % [String(_solo_crew_role).capitalize(), craft.get_display_name(), "hold FIRE for siege lance; stand to walk the cabin or take the pilot seat" if _solo_crew_role == &"gunner" else "stand to walk the cabin or take the pilot seat"])
 	audio.play_ui_confirm()
@@ -10176,6 +10180,11 @@ func _cancel_solo_crew_seat() -> void:
 ## FIRE and engineer component-selection steps are consumed here; flight and
 ## GameFlow edges never leave this crew lane.
 func _update_solo_gunner_input(delta: float) -> void:
+	if is_instance_valid(optional_semantic_audio_composition):
+		if _network_session_is_live():
+			optional_semantic_audio_composition.clear_local_navigator()
+		else:
+			optional_semantic_audio_composition.retire_local_navigator_if_lost()
 	if not _solo_gunner_input_is_available():
 		_reset_solo_gunner_input()
 		return
@@ -10203,7 +10212,16 @@ func _update_solo_gunner_input(delta: float) -> void:
 		if _solo_crew_seat_id == CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID:
 			if command.fire and not previous_fire and _solo_gunner_source_is_current():
 				_solo_crew_sequence = maxi(_solo_crew_sequence, int(_solo_crew_authority.get_last_intent(1, SOLO_CREW_AVATAR_ID).get("request_sequence", 0))) + 1
-				_solo_crew_ship.submit_navigator_ping(1, SOLO_CREW_AVATAR_ID, _solo_crew_sequence)
+				var claim := _solo_navigator_audio_claim()
+				var sequence := _solo_crew_sequence
+				var craft := _solo_crew_ship as CinderCargoHauler
+				var outcome: Dictionary = craft.submit_navigator_ping(1, SOLO_CREW_AVATAR_ID, sequence)
+				if not _network_session_is_live() and not claim.is_empty() and is_instance_valid(optional_semantic_audio_composition):
+					optional_semantic_audio_composition.present_cinder_local_navigator_result(outcome, claim, sequence)
+				# Presentation observers may synchronously retire this exact claim.
+				if not _solo_gunner_source_is_current() or _solo_crew_ship != craft \
+						or (not claim.is_empty() and claim != _solo_navigator_audio_claim()):
+					return
 			hud.set_objective("Navigator // %s // FIRE [%s] sends route hint // stand [%s] to walk the cabin or take the helm" % ["ROUTE HINT SENT" if not (_solo_crew_ship.get_navigator_ping_snapshot().get("receipt", {}) as Dictionary).is_empty() else "AWAITING ROUTE HINT", hud.call(&"_action_bindings_text", source.fire_action), hud.get_action_prompt(&"interact")])
 			return
 		if command.fire and not bool((_solo_crew_ship.get_loadmaster_manifest_snapshot().get("receipt", {}) as Dictionary).get("ready", false)):
@@ -21375,6 +21393,12 @@ func _initialize_optional_semantic_audio() -> void:
 	else:
 		optional_semantic_audio_composition.set_sources(cinder, planetary_cruise_binding)
 		optional_semantic_audio_composition.set_navigator_generation(navigator_generation)
+	if not _network_session_is_live():
+		var local_claim := _solo_navigator_audio_claim()
+		if not local_claim.is_empty():
+			optional_semantic_audio_composition.set_local_navigator_claim(local_claim)
+	else:
+		optional_semantic_audio_composition.clear_local_navigator()
 	_sync_cinder_navigator_hud_composition(navigator_generation)
 
 
@@ -21388,9 +21412,30 @@ func _sync_optional_semantic_audio() -> void:
 		optional_semantic_audio_composition.set_navigator_generation(
 			_get_cinder_navigator_presentation_generation()
 		)
+	if _network_session_is_live():
+		optional_semantic_audio_composition.clear_local_navigator()
 	_sync_cinder_navigator_hud_composition(
 		_get_cinder_navigator_presentation_generation()
 	)
+
+
+func _solo_navigator_audio_claim() -> Dictionary:
+	if _network_session_is_live() or not _solo_crew_ship is CinderCargoHauler \
+			or _solo_crew_seat_id != CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID \
+			or not _solo_crew_claim_is_current():
+		return {}
+	return {"craft": _solo_crew_ship, "authority": _solo_crew_authority,
+		"avatar_id": SOLO_CREW_AVATAR_ID, "seat_generation": _solo_crew_seat_generation,
+		"claim_sequence": int(_solo_crew_authority.get_assignment(1, SOLO_CREW_AVATAR_ID).get("claim_sequence", 0))}
+
+
+func _bind_solo_navigator_audio_claim() -> void:
+	var claim := _solo_navigator_audio_claim()
+	if claim.is_empty():
+		return
+	_initialize_optional_semantic_audio()
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.set_local_navigator_claim(claim)
 
 
 func _detach_optional_semantic_audio() -> void:
