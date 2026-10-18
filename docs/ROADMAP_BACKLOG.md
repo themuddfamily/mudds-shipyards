@@ -14,10 +14,11 @@ history. Ordinary shared departure/braking is now DONE on96c96312f after its one
 caller-field correction:132.562s, host5.004m departure/berth release/zero-speed
 stop, both clients retained and converged, all actual exits0. Game runtime is
 unchanged from checkpointb6196a1; this is source-route qualification. Next is one
-one caller-only release-settling repair after the first ordinary shared return
-attempt b7114a4e1 fails its immediate neutral-input guard. Capture/free home berth
-pass; no accepted host request or physical landing is established. Reuse the
-existing complete press/release helper and keep all original criteria/limits.
+a bounded static producer/forwarding diagnosis after return and its one repair
+fail. The repair37cbc7a4e fixes input settling; both client identities/neutrality
+pass, but host request serial remains0 at the8s acceptance boundary. No accepted
+landing or physical docking is established. No third route or speculative patch
+is selected. Original failed task/repair limits remain cumulative.
 Landing/return remains NOT_RUN; broader
 flight/endurance remain unqualified. Both lifecycle qualifications retain
 their accepted source scopes.

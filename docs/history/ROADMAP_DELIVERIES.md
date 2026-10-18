@@ -4973,3 +4973,95 @@ counted. All36 parents/ten phase and hardware/human/full-release gates stay open
   clean owned checkout/profiles/helpers. Retain raw failures and exact source.
   No unchanged game rebuild: checkpointb6196a1 remains identical runtime. Any
   demonstrated runtime repair is a separate production card and fresh checkpoint.
+
+
+## Ordinary shared return — release repaired; request acceptance still failed
+
+NET-JOVIAN-RETURN-CALLER is FAILED on clean pushed
+`37cbc7a4e7deeab28abf0f1d153b5042517acd72`, held/unmerged on
+`work/jovian-return-caller-20261018`. Parentc6e0196f4 is the exact held return
+capability cherry-picked on current main. The only repair awaits inherited
+_press(landing_assist) while the pulse flag remains true, plus minimal existing
+failure fields for local identity-current and host request serial. Independent
+bounded medium review GO before the one attempt. No runtime/build change.
+
+Cold import600/explicit compile300 both actual0, no original-matrix diagnostics.
+Root-user notices stay in raw; no all-WARNING gate or tracked filter change. One
+original input-only Xvfb/x11/Dummy route300/outer360 exits1 in142.090s (whole
+matrix142.203s), marker0/nine coordinator diagnostics. Normal joins, full13+
+interior approaches, chairs, departure/brake and capture/free-home checks pass.
+Both clients reach return readiness and host.return_go is emitted.
+
+The prior immediate release/neutrality failure does not recur. Both client first
+snapshots report controls_neutral=true, local_identity_current=true, actual
+landing_assist held=false, physical seat error0 and consumed original-pilot pose.
+The original pulse still has one press/release and all original time limits.
+
+First immutable abort is client_b at1792295493.84058 waiting for host acceptance.
+Host.return_go at1792295485.8075 precedes it by8.033s: this is the8s request gate,
+not the total route deadline. Pilot and host snapshots follow at1792295493.92018/
+1792295493.92862. Host landing_request_serial remains0, result/handoff empty,
+physical landing inactive/unlanded and berth still free. No return_accepted or
+docked receipt. This does not prove whether the pilot producer sampled the edge,
+client forwarding queued it, or later transport/consumption failed. Accepted
+request and physical docking/arrival assertions are not established.
+
+All three actual OS exits1/.done receipts retained; no forced137 or success
+marker. Full source/main-source/main-cache/private-route-cache guards unchanged.
+Live PID/start observations were appended throughout execution rather than
+replaced by post-run review processes;141 samples/27 owned identities retained
+by executor and no owned processes remain. Raw
+`/srv/mudds-work/jovian-return-caller-20261018/results/` retains pinned preparation,
+exact commands/statuses, matrix/peer logs, flat immutable first failures/shared
+abort/done/actual exits and manifest, source/cache guards, terminal review and
+cleanup. Owned clean checkout/profile/helpers removed after bounded independent
+result review and terminal inspection; unique raw/pushed source remain.
+
+Required priority review after the original failed task plus this one repair
+selects NET-JOVIAN-LANDING-INPUT-DIAG: one20–30min static read of local input edge
+sampling, confirmed-client helm forwarding and host request consumption. There is
+no other instantiated READY delivery in the working queue; parked VIP/Ember stay
+parked. This finite owner read is selected over speculative docking/authority
+changes or another unchanged route. It ends at one supported owner/fix card or
+one exact missing fact and a separately scoped single hypothesis/probe. No engine
+probe, third route or runtime patch is authorized by the static diagnosis card.
+Failure/repair counts remain cumulative; the new name resets no limit.
+
+Main retains accepted boarding/departure and checkpointb6196a1 with identical
+game runtime. No audible/desktop/Downloads/hosted CI or unchanged export. Landing/
+return/endurance, all36 broad parents/ten phase and native-hardware/human/release
+gates retain their actual open/unqualified scope.
+
+### Executed return caller repair card — frozen contract
+
+### NET-JOVIAN-RETURN-CALLER — use the existing complete input pulse
+
+- **Parent/result:** parents16/26; compose held pushed
+  b7114a4e142b9cd939a0473b1a1cb58c121ac865 on current main. Root owns only
+  `tests/network/jovian_network_two_client_return_test.gd` for this repair.
+  No game runtime, base route, identity helper or acceptance changes.
+- **Known seam:** inherited `_press()` supplies one press, waits2ticks, releases
+  and waits3ticks. The new caller used only the first2ticks and tested neutral
+  immediately after queuing release. Keep _return_landing_held=true while awaiting
+  `_press(&"landing_assist")`, then clear it. Do not directly force-release input
+  to satisfy the predicate, disable neutrality or enlarge any wait.
+- **Proof:** static review of the existing pulse contract and one unchanged
+  NET-JOVIAN-RETURN route. Host's8s request timer already runs during the helper;
+  post-release processing must fit inside that same limit/total300s. All original
+  joins/all13+interior goals, flight10/10/5, physical host docking120s, client5s
+  consumed arrival/physical alignment/lease/authority criteria remain binding in
+  the frozen card linked above. Explicit compile and existing private-Xvfb/x11/
+  Dummy/jobs1/input-only300s matrix/360s outer, one original marker/allactualexits0.
+- **Minimal failure capture:** in the existing allowlisted snapshot, separate
+  local identity-current and neutral-input booleans and retain the current host
+  landing-request serial. Do not add a validator/framework or separate probe.
+  Prior compound snapshot does not prove every other local clause passed; empty
+  host handoff/result does not distinguish unsent from pending/unconsumed input.
+- **Budget/stop:**10–20min correction/review; original engine costs separate.
+  Exactly one repair attempt; any failure closes FAILED and requires priority
+  review before further diagnosis/repair/rerun. Prior failed attempt and private
+  import-review classification correction remain recorded; names reset no limits.
+- **Close:** integrate only on full acceptance; otherwise hold source, preserve
+  actual failure/receipts, commit/push and remove owned disposable checkout/profiles.
+  No unchanged game export; native/packaged/landing/return claims stay unperformed
+  until their actual scope passes.

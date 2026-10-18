@@ -68,11 +68,11 @@ parent or phase gate closes.
   0.489777m/0m against the stopped host; both seat-anchor errors0m. Exact
   identities/authority/HUD remain current; all peers actualexit0, marker1, diag0.
   Capability integrated; no game runtime change or unchanged checkpoint rebuild.
-- **Latest return attempt:** b7114a4e1 FAIL before host request acceptance at
-  the caller input-release/neutrality boundary. Capture/free berth pass; physical
-  landing and consumed arrival remain NOT_RUN. Held source stays unmerged.
-- **Next:** one caller-only pulse-helper repair and unchanged original route.
-  No speculative runtime landing/authority repair or extra diagnostic.
+- **Latest return repair:**37cbc7a4e FAIL in142.090s at the8s request-acceptance
+  boundary. Release/neutrality and client identities pass; host request serial0,
+  result/handoff absent. Physical landing/arrival stay unqualified; source held.
+- **Next:** required priority review selects one20–30min static input-producer/
+  client-forwarding read. No third route or speculative runtime repair.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -81,60 +81,54 @@ parent or phase gate closes.
   and final capacity choice. The original server/two-client baseline remains
   authorized independently; do not ask settled questions again.
 - **Cleanup:** owned clean checkouts/profiles/helpers for the recorded slices,
-  including this failed return attempt, are removed. Unique raw/source refs and
+  including both failed return attempts, are removed. Unique raw/source refs and
   public builds remain. Three older checkouts with unique uncommitted work stay
   protected. Scratch belongs under `/srv/mudds-work/`.
 
 Report the named result, actual proof, next action and estimate. Source checks,
 planning or test totals do not establish whole-parent or hardware completion.
 
-## Next slice — settle the ordinary landing-input release
+## Next slice — locate the missing ordinary landing request
 
-NET-JOVIAN-RETURN is FAILED on held b7114a4e1 after one131.701s route.
-Boarding, departure/brake, capture and free home-berth checks pass; the new
-return hook stops at the pilot's immediate neutral-input guard. Actual input
-still reports landing_assist pressed after release was queued, while the caller
-already cleared its pulse flag. No accepted host request or physical docking is
-established. [First failure and frozen contract](docs/history/ROADMAP_DELIVERIES.md#ordinary-shared-return--input-release-boundary-failed).
-This supports a caller release-settling repair, not a proven runtime landing bug.
-Main does not contain the held return capability; accepted boarding/departure and
-checkpointb6196a1 remain unchanged.
+NET-JOVIAN-RETURN-CALLER is FAILED on held37cbc7a4e after one142.090s repair route.
+The release repair works: both clients report neutral input/current identities
+and zero seat error. After8.033s from host.return_go, B first aborts waiting for
+request acceptance. Host's current landing-request serial is0 with no result or
+handoff. No accepted request or physical docking is established.
+[Exact result and executed repair card](docs/history/ROADMAP_DELIVERIES.md#ordinary-shared-return--release-repaired-request-acceptance-still-failed).
+The original failed task plus its one repair have reached the priority-review
+boundary; no third route, input substitution or runtime patch is scheduled.
 
 | Task | Type / status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| NET-JOVIAN-RETURN-CALLER | Caller repair / READY / root | One ordinary landing pulse settles through the existing input helper, then the unchanged physical docking/consumed-arrival route passes once or stops at its first failure. | Correction/review10–20min; original import/compile/route caps separate. |
+| NET-JOVIAN-LANDING-INPUT-DIAG | Static diagnosis / READY / root | Identify the first producer/forwarding boundary for the ordinary landing input, or name exactly one missing fact and a separately scoped probe. |20–30min static read; no engine probe in this card. |
 
-### NET-JOVIAN-RETURN-CALLER — use the existing complete input pulse
+### NET-JOVIAN-LANDING-INPUT-DIAG — locate the request producer before changing it
 
-- **Parent/result:** parents16/26; compose held pushed
-  b7114a4e142b9cd939a0473b1a1cb58c121ac865 on current main. Root owns only
-  `tests/network/jovian_network_two_client_return_test.gd` for this repair.
-  No game runtime, base route, identity helper or acceptance changes.
-- **Known seam:** inherited `_press()` supplies one press, waits2ticks, releases
-  and waits3ticks. The new caller used only the first2ticks and tested neutral
-  immediately after queuing release. Keep _return_landing_held=true while awaiting
-  `_press(&"landing_assist")`, then clear it. Do not directly force-release input
-  to satisfy the predicate, disable neutrality or enlarge any wait.
-- **Proof:** static review of the existing pulse contract and one unchanged
-  NET-JOVIAN-RETURN route. Host's8s request timer already runs during the helper;
-  post-release processing must fit inside that same limit/total300s. All original
-  joins/all13+interior goals, flight10/10/5, physical host docking120s, client5s
-  consumed arrival/physical alignment/lease/authority criteria remain binding in
-  the frozen card linked above. Explicit compile and existing private-Xvfb/x11/
-  Dummy/jobs1/input-only300s matrix/360s outer, one original marker/allactualexits0.
-- **Minimal failure capture:** in the existing allowlisted snapshot, separate
-  local identity-current and neutral-input booleans and retain the current host
-  landing-request serial. Do not add a validator/framework or separate probe.
-  Prior compound snapshot does not prove every other local clause passed; empty
-  host handoff/result does not distinguish unsent from pending/unconsumed input.
-- **Budget/stop:**10–20min correction/review; original engine costs separate.
-  Exactly one repair attempt; any failure closes FAILED and requires priority
-  review before further diagnosis/repair/rerun. Prior failed attempt and private
-  import-review classification correction remain recorded; names reset no limits.
-- **Close:** integrate only on full acceptance; otherwise hold source, preserve
-  actual failure/receipts, commit/push and remove owned disposable checkout/profiles.
-  No unchanged game export; native/packaged/landing/return claims stay unperformed
-  until their actual scope passes.
+- **Parent/result:** parents16/26; diagnose only why the original pilot landing
+  pulse does not produce an observed host request. Use held pushed37cbc7a4e and
+  retained raw; accepted boarding/departure/checkpoint remain unchanged.
+- **Boundary:** inspect the existing LocalShipInputSource edge sampling, GameFlow
+  confirmed-client helm forwarding and NetworkRemotePilotCommandSource request
+  consumption. Map exact ordinary input event, sampled landing edge, client
+  monotonic request serial and host serial. No geometry, berth, docking movement,
+  protocol rewrite or general networking audit while the request is absent.
+- **Proof/deliverable:** identify a supported first code owner and one bounded
+  production/caller fix card, or state the single unobserved producer/forwarding
+  fact and define one separate hypothesis/probe with original route limits. Do
+  not infer a missing client edge solely from host serial0. Current snapshots
+  cannot distinguish unsampled input, unforwarded request or later transport/
+  consumption failure. No aliases, broad logging framework or duplicate validator.
+- **Priority/budget/stop:**20–30min static diagnosis only, no engine run, patch or
+  unchanged third route. This follows the required priority review after failed
+  return plus one repair: no other instantiated READY delivery exists in this
+  working queue; parked VIP/Ember stay parked. Select the finite input-owner read
+  over speculative docking/authority repair. Stop once owner/seam/acceptance are
+  known, or at one exact missing fact; do not extend this into repeated probes.
+- **Close:** commit/push the actual finding and separately executable next card.
+  Diagnosis is not gameplay delivery. Preserve original300s route,8s request,
+  physical120s/client5s and all original identity/input/seat/authority criteria.
+  Original failed task and repair remain cumulative; this name resets no limit.
 
 ## Earlier ordinary Jovian boarding attempt — FAILED (retained history)
 
