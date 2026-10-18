@@ -724,6 +724,8 @@ func _run_ui_board_focus_probe(hud: GameHUD) -> void:
 		var intro: Control = hud.get("_intro") as Control
 		var board: Button = hud.find_child("ActivityBoardButton", true, false) as Button
 		var timed: Button = hud.find_child("TimedRaceActivityButton", true, false) as Button
+		var destination: Button = hud.find_child("PlanetaryDestinationOpenButton", true, false) as Button
+		var destination_rect: Rect2 = destination.get_global_rect()
 		var windows: Array = []
 		_probe_popup_windows(root, windows)
 		var observation: Dictionary = {"pid": OS.get_process_id(), "sequence": sequence,
@@ -735,6 +737,7 @@ func _run_ui_board_focus_probe(hud: GameHUD) -> void:
 			"hover": str(hovered.get_path()) if is_instance_valid(hovered) else "",
 			"hover_tooltip": hovered.tooltip_text if is_instance_valid(hovered) else "",
 			"mouse": [root.get_mouse_position().x, root.get_mouse_position().y],
+			"destination_rect": [destination_rect.position.x, destination_rect.position.y, destination_rect.size.x, destination_rect.size.y],
 			"board_focused": focused == board, "timed_focused": focused == timed,
 			"keys": {"e": Input.is_physical_key_pressed(KEY_E),
 				"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
