@@ -79,6 +79,10 @@ var _full_throttle: ShipCommand = null
 
 func _run() -> void:
 	if await _build():
+		_assert_remote_throttle_instruments()
+		if OS.get_cmdline_user_args().has("--throttle-instruments-only"):
+			await _finish_pose_suite()
+			return
 		await _assert_a_grant_claims_ownership()
 		await _assert_b_host_publishes_the_pose()
 		await _assert_c_the_pilot_copy_is_reconciled()
@@ -160,6 +164,49 @@ func _build() -> bool:
 	)
 	_check(offered, "both peers are admitted and hold the host's offer")
 	return offered
+
+
+## Exercise the physical Jovian repeater after the same local presentation pass
+## that used to overwrite a remote host's throttle with the observer's zero.
+func _assert_remote_throttle_instruments() -> void:
+	var ship := _host.get_node("JovianLightFreighter") as HeroShip
+	var was_processing := ship.is_physics_processing()
+	ship.set_physics_process(false)
+	var engine: Variant = ship.get("_engine_state")
+	var throttle := float(ship.get("_throttle"))
+	var piloted := bool(ship.get("_piloted"))
+	var velocity := ship.velocity
+	var source := ship.get_command_source()
+	ship.set("_piloted", false)
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var physical := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/ThrottleReadout") as Label3D
+	for host_throttle: float in [0.65, -0.45]:
+		ship.set("_engine_state", HeroShip.ENGINE_ONLINE)
+		ship.set("_throttle", host_throttle)
+		ship._update_presentation(TICK, ShipCommand.new())
+		var entry := PoseStream.build_pose_entry(ship, ship.get_ship_id(), 1, 60)
+		entry["craft_epoch"] = 1
+		ship.set("_engine_state", engine)
+		ship.set("_throttle", throttle)
+		ship.set_network_damage_presentation_enabled(true)
+		for compact: bool in [false, true]:
+			var stream := PoseStream.new()
+			stream.bind_replica_craft_presentations([ship])
+			var wire := PoseStream.pack_display_facts([entry]) if compact else [entry]
+			_check(stream.consume_movement_section(wire) == 1,
+				"the existing %s pose admits a signed-throttle source sample" % ("compact" if compact else "unpacked"))
+			ship.apply_network_operation_presentation(stream.latest_sample(ship.get_ship_id()))
+			ship._update_presentation(TICK, ShipCommand.new())
+			_check(physical.text == "%+03d\nTHR %%" % roundi(host_throttle * 100.0),
+				"%s host throttle %+03d reaches the physical Jovian THR readout after local presentation" % ["compact" if compact else "unpacked", roundi(host_throttle * 100.0)])
+			_check(ship.get("_engine_state") == engine and float(ship.get("_throttle")) == throttle
+				and ship.velocity == velocity and ship.get_command_source() == source,
+				"remote instrument readings retain local engine, throttle, velocity and command authority")
+			ship.clear_network_operation_presentation()
+	ship.set_network_damage_presentation_enabled(false)
+	ship.set("_piloted", piloted)
+	ship._update_presentation(TICK, ShipCommand.new())
+	ship.set_physics_process(was_processing)
 
 
 ## No await or network advance may occur between hosting, launch and these

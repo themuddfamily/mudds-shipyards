@@ -125,8 +125,16 @@ func _host() -> void:
 	if not await _wait_marker("client", "starting-grade"):
 		return
 	_craft._update_engine(_craft.engine_start_time + 0.01)
+	var instrument_ship := _game.get_node("JovianLightFreighter") as HeroShip
+	instrument_ship.request_engine_start()
+	instrument_ship._update_engine(instrument_ship.engine_start_time + 0.01)
+	instrument_ship.set("_throttle", 0.65)
 	_write("engine-witness", true)
 	if not await _wait_marker("client", "engine-witness"):
+		return
+	instrument_ship.set("_throttle", -0.45)
+	_write("reverse-throttle", true)
+	if not await _wait_marker("client", "reverse-throttle"):
 		return
 	_assert_snapshot_envelope("running engine")
 	var second := _game.get_node("HalyardCrewTransport") as HeroShip
@@ -144,6 +152,7 @@ func _host() -> void:
 			break
 		_craft._update_landing(0.1)
 	_craft.request_engine_stop(false)
+	instrument_ship.request_engine_stop(false)
 	_craft.set_canopy_open(true, 0.0)
 	_write("dock-witness", true)
 	if not await _wait_marker("client", "dock-witness") or not await _wait_marker("operation-late", "dock-witness"):
@@ -219,6 +228,7 @@ func _host() -> void:
 		var ship := _game.ships[index] as HeroShip
 		ship.request_engine_start()
 		ship._update_engine(ship.engine_start_time + 0.01)
+		ship.set("_throttle", (0.15 + float(index) * 0.07) * (1.0 if index % 2 == 0 else -1.0))
 		ship.apply_damage(ship.maximum_hull * (0.12 + float(index) * 0.025))
 		ship._sync_engine_visuals_immediately()
 		fleet[ship.get_ship_id()] = {"hull": ship.get_network_damage_presentation_snapshot(),
@@ -241,6 +251,10 @@ func _client() -> void:
 	var source_visibility := _craft.get_variant_visual_root().visible
 	var source_layer := _craft.collision_layer
 	var source_mask := _craft.collision_mask
+	var instrument_ship := _game.get_node("JovianLightFreighter") as HeroShip
+	var solo_instrument_engine: Variant = instrument_ship.get("_engine_state")
+	var solo_throttle := float(instrument_ship.get("_throttle"))
+	instrument_ship._update_presentation(1.0 / 60.0, ShipCommand.new())
 	var solo_engine: Variant = _craft.get("_engine_state")
 	var solo_landed := bool(_craft.get("_landed"))
 	var solo_docked := bool(_craft.get("_docked_latch"))
@@ -262,12 +276,16 @@ func _client() -> void:
 			"late live peer quietly adopts the running host engine")
 		_check(_craft.get("_engine_state") == solo_engine and _craft.get("_docked_latch") == solo_docked,
 			"late engine adoption keeps source operation authority")
+		_assert_throttle_instrument(-0.45, "late full peer adopts signed running host throttle")
+		_check(instrument_ship.get("_engine_state") == solo_instrument_engine and float(instrument_ship.get("_throttle")) == solo_throttle,
+			"late throttle adoption retains source engine and input authority")
 		_mark("engine-witness")
 		_check(await _wait(func() -> bool: return (_craft.get("_canopy_pivot") as Node3D).rotation.x > 0.1),
 			"late peer follows host touchdown canopy and engine stop")
 		_mark("dock-witness")
 		await _assert_parked_operation(solo_engine, solo_landed, solo_docked, solo_canopy)
 		_game.shutdown_network_session(&"operation_peer_complete")
+		_assert_throttle_instrument(solo_throttle, "late peer clear immediately restores source instrument", false)
 		_check((_craft.get_network_operation_presentation_audit().state as Dictionary).is_empty()
 			and _craft.get_network_operation_presentation_snapshot().renderers == source_renderers.renderers,
 			"live late disconnect restores source renderer transforms/material grades/lights")
@@ -293,7 +311,15 @@ func _client() -> void:
 		_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/engine-witness")), "host engine transition is committed")
 		_check(await _wait(func() -> bool: return bool((_craft.get("_engine_glows") as Array)[0].visible)),
 			"online host exhaust is visible on the independent observer")
+		_assert_throttle_instrument(0.65, "current peer displays positive running host throttle")
 		_mark("engine-witness")
+		_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/reverse-throttle")), "host reverse throttle is committed")
+		_check(await _wait(func() -> bool: return float((instrument_ship.get_network_operation_presentation_audit().state as Dictionary).get("throttle", -0.45)) == -0.45),
+			"current observer receives the reverse throttle operation update")
+		_assert_throttle_instrument(-0.45, "current peer displays negative running host throttle")
+		_check(instrument_ship.get("_engine_state") == solo_instrument_engine and float(instrument_ship.get("_throttle")) == solo_throttle,
+			"signed throttle display retains source engine and input authority")
+		_mark("reverse-throttle")
 		_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/dock-witness")), "host touchdown and stop are committed")
 		_check(await _wait(func() -> bool: return (_craft.get("_canopy_pivot") as Node3D).rotation.x > 0.1),
 			"docked host canopy pose reaches the independent observer")
@@ -310,6 +336,12 @@ func _client() -> void:
 			"remote display leaves local hull, components and flight multiplier untouched")
 		_game._piloting = true
 		_game._advance_network_craft_pose_replica(1.0 / 60.0)
+		# The active craft retains its predicted local instrument policy as its
+		# operation projection is cleared on local-authority eligibility.
+		var active_readout := _craft.get("_cockpit_readout") as Label3D
+		var active_throttle := active_readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/ThrottleReadout") as Label3D
+		_check(active_throttle.text == "%+03d\nTHR %%" % roundi(float(_craft.get("_throttle")) * 100.0),
+			"local-authority flight immediately restores its predicted throttle instrument")
 		_check((_craft.get_network_damage_presentation_audit().state as Dictionary).is_empty()
 			and source.visible and _craft.get_network_damage_presentation_snapshot() == solo
 			and (_craft.get_network_operation_presentation_audit().state as Dictionary).is_empty(),
@@ -393,12 +425,24 @@ func _client() -> void:
 		and _craft.get_variant_visual_root().visible == source_visibility and _craft.collision_layer == source_layer
 		and _craft.collision_mask == source_mask and _craft.get_network_damage_presentation_snapshot() == solo,
 		"disconnect and whole-Main reentry restore exact solo hull/components/collision/visibility")
+	_assert_throttle_instrument(solo_throttle, "session/reentry clear immediately restores source instrument", false)
 	await process_frame
+	_assert_throttle_instrument(solo_throttle, "source instrument remains local after deferred callbacks")
 	_check((_craft.get_network_operation_presentation_audit().state as Dictionary).is_empty()
 		and _craft.get("_engine_state") == solo_engine and bool(_craft.get("_landed")) == solo_landed
 		and bool(_craft.get("_docked_latch")) == solo_docked and bool(_craft.get("_canopy_open")) == solo_canopy
 		and _craft.get_network_operation_presentation_snapshot().renderers == source_renderers.renderers,
 		"session/reentry fences deferred operation callbacks and restores exact retained source renderers/owners")
+
+
+func _assert_throttle_instrument(expected: float, description: String, update: bool = true) -> void:
+	var ship := _game.get_node("JovianLightFreighter") as HeroShip
+	if update:
+		ship._update_presentation(1.0 / 60.0, ShipCommand.new())
+		ship._reassert_network_operation_presentation()
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var physical := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/ThrottleReadout") as Label3D
+	_check(physical.text == "%+03d\nTHR %%" % roundi(expected * 100.0), description)
 
 
 func _assert_fleet_presentation() -> void:
@@ -423,6 +467,7 @@ func _assert_parked_operation(engine: Variant, landed: bool, docked: bool, canop
 	_check(await _wait(func() -> bool: return FileAccess.file_exists(_directory + "/operation-coast") \
 		and not bool(_game._network_craft_pose_stream.latest_sample(_craft.get_ship_id()).get("pose_active", true))),
 		"settled operation row survives host-on-foot motion coast")
+	_assert_throttle_instrument(0.0, "host shutdown changes physical throttle from signed ONLINE to neutral OFFLINE")
 	var operation := _craft.get_network_operation_presentation_audit().state as Dictionary
 	_check(operation.get("engine") == HeroShip.ENGINE_OFFLINE and bool(operation.get("docked", false))
 		and bool(operation.get("landed", false)) and not bool((_craft.get("_engine_glows") as Array)[0].visible)
