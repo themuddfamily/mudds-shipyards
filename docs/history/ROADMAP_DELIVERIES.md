@@ -3860,3 +3860,40 @@ Planning and qualification are not reported as new gameplay features. Latest
 playable checkpoint6262749 remains unchanged; this doc-only change needs no
 unchanged game export. Root retains unique failure raw and protects older dirty
 worktrees; this pass creates no new source checkout or profile.
+
+
+## LIFE-VISIBLE — four-cycle source qualification passed
+
+LIFE-VISIBLE is DONE on clean frozen
+`d7be014872bdddeb0e3bb762b467a77b396b126a` (accepted runtime6262749aa).
+The unchanged `tests/lifecycle_phantom_geometry_test.gd` passes once through the
+existing headless matrix runner: actual exit0, exactly one
+`LIFECYCLE_PHANTOM_GEOMETRY_TEST_OK`,204 assertions, original diagnostic count0,
+211.028s under the original900s suite cap. Cold import also FINISHED/exit0 under
+its600s cap. No source change, filter, accepted warning exception or rerun.
+
+`PHANTOM_SUMMARY` proves cycles4/warmup2, six rest states and24 snapshots,
+four physical cabin/bunk round trips, four destroyed/regenerated craft, four
+whole-Main re-entries, two in-flight losses,16 leak watches and
+failures0/phantom_failures0. Source-manifest and cache guards pass; independent
+full tracked/cache hashes also match. Both supervisors are terminal/exit0;
+all seven observed PID/start identities are absent, independently checked by
+root. Pinned Godot4.7.1 SHA256 remains
+`32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde`.
+Every engine invocation is headless with Dummy audio, isolated XDG/TMP and
+unchanged HOME/CODEX_HOME. Stock root startup notice is retained raw, with no
+suppression; the existing runner reports no game/compile/leak diagnostics.
+
+Raw: `/srv/mudds-work/lifecycle-visible-20261018/`, notably
+`results/20261018T015529Z/results.tsv`, `run-manifest.txt`, suite log,
+`import.status.json`, `matrix.status.json`, source/cache before/after manifests
+and `terminal-observation.json`. The clean checkout and profile stay temporarily
+for the separately authorized LIFE-REUSE check, whose result is not inherited
+from this pass; remove them after its terminal artifact review.
+
+Limits: unchanged staged fixture, in-memory save store, shortened presentation
+motions and completed-guide setup. Headless scene-state/physics acceptance does
+not prove rendered screenshots, an unstaged ordinary full route, packaged
+play, real disk interruption or native GPU/audio/device behavior. This closes
+only LIFE-VISIBLE, not its broad parent, full matrix or any phase gate. Latest
+playable checkpoint6262749 is unchanged; no unchanged export is warranted.

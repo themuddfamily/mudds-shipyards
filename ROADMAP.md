@@ -26,9 +26,8 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 [concrete child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
 separates named outcomes from missing definitions; it is not a remaining-job
 count. **The physical Jovian passenger-seat repair is delivered. The ordinary
-two-client boarding attempt FAILED. The next slice has three bounded cards:**
-**two lifecycle qualifications and one diagnostic; no new gameplay feature is
-claimed by completing them.**
+two-client boarding attempt FAILED. LIFE-VISIBLE now PASSES on frozen d7be01487.**
+**Two cards remain in this slice: LIFE-REUSE and the Jovian diagnostic.**
 Its full route is still unqualified.
 VIP remains FAILED/parked after its first attempt and one syntax repair.
 Only the named passenger-seat outcome closes; no parent or phase gate closes.
@@ -37,11 +36,13 @@ Only the named passenger-seat outcome closes; no parent or phase gate closes.
   with one retained roster, confirmed passenger UI and normal supported stand.
   Independent host/client component65 and engineer67 pass; paired development
   checkpoint6262749 has strict startup/artifact acceptance.
-- **Next:** run LIFE-VISIBLE once on clean frozen main: four lifecycle cycles
-  must leave no phantom geometry or inappropriate flashing effects. Then run
-  LIFE-REUSE once: twelve sortie cycles must retain usable craft and stable
-  resources. The Jovian diagnostic follows these finite qualification results;
-  a failure ends its card and does not authorize an automatic repair chain.
+- **Latest qualification:** LIFE-VISIBLE completes four cycles/24 rest-state
+  snapshots, four cabin/bunk returns, four destruction/regenerations and four
+  Main re-entries; zero phantom failures, actual exit0, original diagnostics0
+  in211.028s. This is staged headless source behavior, not packaged ordinary play.
+- **Next:** LIFE-REUSE runs once: twelve sortie cycles must retain usable craft
+  and stable resources. The Jovian diagnostic follows its finite result; a
+  failure ends the card and does not authorize an automatic repair chain.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -59,13 +60,13 @@ planning or test totals do not establish whole-parent or hardware completion.
 ## Current slice — three bounded tasks
 
 The breakdown pass is DONE; [its result and limits](docs/history/ROADMAP_DELIVERIES.md#roadmap-next-slice--three-bounded-cards)
-are recorded. **Three cards remain in this slice.** This is not the project-wide
+are recorded. **Two cards remain in this slice; LIFE-VISIBLE is DONE.** This is not the project-wide
 remaining count. The36 parents and all ten phase gates remain open.
 
 | Order / task | Type / status / owner | Observable finish | Preparation / check budget |
 | --- | --- | --- | --- |
-| 1. LIFE-VISIBLE | Qualification / READY / root | Four lifecycle cycles leave no stranded geometry, damage effects or inappropriate flashing at rest. | 10–15min preparation/results; historical check about3min, original900s cap. |
-| 2. LIFE-REUSE | Qualification / READY / root | Twelve sortie cycles cover all nine craft with stable resources, supported returns and clean Main teardown. | 5–10min preparation/results after shared setup; historical check2–3min, original900s cap. |
+| 1. LIFE-VISIBLE | Qualification / DONE / root | Four cycles/24 snapshots, no phantom failures; actual exit0/diagnostics0 on d7be01487. | Actual211.028s; original900s cap retained. |
+| 2. LIFE-REUSE | Qualification / IN PROGRESS / root | Twelve sortie cycles cover all nine craft with stable resources, supported returns and clean Main teardown. | 5–10min preparation/results after shared setup; historical check2–3min, original900s cap. |
 | 3. NET-JOVIAN-PILOT-STATE | Diagnostic / READY after lifecycle cards close / root | One preserved failure snapshot identifies the failed pilot condition or the exact missing fact. | 20–30min fixture edits/review; one unchanged route probe, original300s cap. |
 
 The first two cards split the existing LIFECYCLE parent into **visible cleanup**
@@ -73,29 +74,10 @@ and **resource/reuse** acceptance. They exercise existing suites, not new test
 infrastructure. A pass closes that card on its exact source only. It does not
 close the whole normal-controls, multiplayer or release requirement.
 
-### LIFE-VISIBLE — no stranded visible effects after lifecycle transitions
-
-- **Parent/result:** parents6/7, original Phase10§1; qualify existing production
-  cleanup after activity abandonment, cabin/bunk return, landing, in-flight loss,
-  destruction/regeneration and Main re-entry. No implementation change is assumed.
-- **Boundary/owner:** root runs the unchanged
-  `tests/lifecycle_phantom_geometry_test.gd`; its existing base is
-  `tests/long_session_soak_test.gd`. Runtime defects, if demonstrated, get a
-  separately scoped repair. Do not add validators, alternate suites or new modes.
-- **Dependency/source:** clean main frozen at d7be014872bdddeb0e3bb762b467a77b396b126a
-  (accepted runtime6262749aa); completed import and isolated disposable XDG/TMP
-  profile. Preserve HOME/CODEX_HOME, record engine identity, own all process cleanup.
-  Use the existing matrix command below with the exact single-suite scope.
-- **Proof:** actual exit0, exactly one `LIFECYCLE_PHANTOM_GEOMETRY_TEST_OK`, zero
-  diagnostics, `PHANTOM_SUMMARY` cycles4/failures0/phantom_failures0; all six rest
-  states and existing leak/flash/AABB checks retained, unchanged source/cache.
-  Unset `KETH_PHANTOM_CYCLES`; no reduced cycles, extra timeout or warning filters.
-- **Budget/next:** 10–15min setup/results, roughly3min historical execution,
-  hard900s suite cap. Freeze source and import, then run once. First failed run
-  closes FAILED with its original boundary/log; no repair or rerun in this card.
-- **Close/limits:** record exact source and result, commit/push docs and remove
-  owned disposable checkout/profile after preserving raw. This is headless source
-  behavior, not rendered screenshots, packaged play or native GPU/audio review.
+LIFE-VISIBLE is closed with its exact source, proof and limits in
+[delivery history](docs/history/ROADMAP_DELIVERIES.md#life-visible--four-cycle-source-qualification-passed).
+The clean imported source/profile are retained only for the in-progress
+LIFE-REUSE card; unique raw results remain after disposable cleanup.
 
 ### LIFE-REUSE — twelve usable sorties without resource growth
 
@@ -103,8 +85,10 @@ close the whole normal-controls, multiplayer or release requirement.
   rotation, actual boarding/launch/weapon/landing/disembark, activity abandon,
   damage/regeneration and Main re-entry with bounded retained resources.
 - **Boundary/owner:** root runs unchanged `tests/long_session_soak_test.gd`;
-  no runtime change, new soak or extra evidence format. Same frozen source,
-  imported cache, engine identity and environment rules as LIFE-VISIBLE.
+  no runtime change, new soak or extra evidence format. Source is clean frozen
+  d7be014872bdddeb0e3bb762b467a77b396b126a (accepted runtime6262749aa), with its
+  unchanged imported cache and pinned engine. Preserve HOME/CODEX_HOME, isolate
+  XDG/TMP and own process/input cleanup; do not reuse the player profile.
 - **Proof:** actual exit0, exactly one `LONG_SESSION_SOAK_TEST_OK`, zero diagnostics;
   `SOAK_SUMMARY` cycles12/failures0/craft_rotation9, original warmup4 and existing
   counter tolerances, no obstructed-return exemption, original teardown checks,
@@ -120,10 +104,9 @@ close the whole normal-controls, multiplayer or release requirement.
   does not qualify an unstaged ordinary route, real-disk interruption, packaged
   acceptance, multiplayer endurance or the unfiltered full matrix.
 
-### Existing commands for the two lifecycle cards
+### Existing command for LIFE-REUSE
 
-Run from the frozen disposable checkout, **one command per card**, after its
-isolated cold import. The existing runner supplies suite process supervision
+Run once from the already imported frozen disposable checkout. The existing runner supplies suite process supervision
 and per-suite user data; keep the outer task supervisor and abort path. The
 suite headers retain900s even though the runner default is300s. Use the pinned
 `/tmp/mudds-tools/godot-4.7.1/godot` (SHA256
@@ -133,11 +116,6 @@ Set `TEST_MATRIX_RESULTS_ROOT` to the task-owned directory under
 and cycle overrides. Do not run against the user's active desktop.
 
 ```bash
-bash tools/release/run_test_matrix.sh \
-  --godot /tmp/mudds-tools/godot-4.7.1/godot \
-  --mode headless --audio-driver Dummy --jobs 1 --timeout 300 \
-  --scope tests/lifecycle_phantom_geometry_test.gd
-
 bash tools/release/run_test_matrix.sh \
   --godot /tmp/mudds-tools/godot-4.7.1/godot \
   --mode headless --audio-driver Dummy --jobs 1 --timeout 300 \
