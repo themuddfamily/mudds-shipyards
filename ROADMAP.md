@@ -177,6 +177,21 @@ this does not close any full craft/art/combat/crew/world/recovery requirement.
 No engine/test/capture/export ran; playable checkpoint99e79c3 remains unchanged.
 No runtime repair or qualification successor is automatically selected.
 
+### Selected Hauler cargo contract
+
+HAULER-CARGO-DEFINE (parents10/13) is selected,20min source-only cap. Root owns
+physical access/berth and existing contract integration; one high-effort read-only
+agent maps manifest/activity/transfer/persistence/test seams. Target the existing
+Cinder supply item/destination/phases rather than invent another mission: determine
+whether the Hauler can have its own conserved source beside the retained Jovian
+route, with actual fit/terminal access and unchanged reward ownership. Name exact
+files, missing choices and focused proof before a production card. Preserve the
+Jovian route/manifest identity, one-item transfer and original cargo quantities,
+physical actor/lease/generation checks and parked failures. No engine/test/export,
+runtime edits or new evidence/tracker. Stop when a concrete integration contract
+and bounded first production outcome are known; do not silently approve geometry,
+new cargo entitlement or entire route from a bridge fixture.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
