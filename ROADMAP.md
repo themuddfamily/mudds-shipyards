@@ -167,6 +167,13 @@ native route. Keep original raw/STOP records, distinct repair results and the
 35.578s failed-stage total. No identical export/startup replay; caller repair is
 not another gameplay build. A further failure ends this repair and triggers
 cumulative priority review/parking; no automatic second repair or cap reset.
+Repair execution freeze: clean caller11c233239af6e6de3010181ec4c48052fc2e09f8;
+`results/repair-source.json` fixes the unchanged9162fac archive/ELF and helper
+hashes. One `helpers/sequence.py repair_python repair_native` uses full Python
+CAP300 then native wrapper360/driverCAP300, new repair-native-route output.
+Only two excluded Python callers differ; all embedded/runtime files unchanged.
+Initial STOP is archived as native-stop.json before clearing the launch latch.
+Independent exact-pin review is required before this sole repair execution.
 
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
