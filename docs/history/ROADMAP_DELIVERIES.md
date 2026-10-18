@@ -9248,3 +9248,101 @@ No engine run, new validator/probe family, runtime repair or checkpoint is impli
 Preserve original recovery promises, all36 parents/ten gates, parked failures,
 Aurora artifact waits/Rime arrival and native/human exclusions. Stop at the
 contract or an exact missing fact; no automatic qualification successor.
+
+## Docking interruption driver — accepted311df73
+
+Clean source `311df7388fb4fa725b70bc65b194644f6ca134f0`; only startup loader, existing interruption probe/runner and
+existing CLI privacy fixture change. Existing non-docking probe branches remain
+unchanged except dispatch/admission. Old selector rejects exit2 before any
+engine; no unexpected failed attempt. Root clarified actual landing_requested
+terminal semantics before engines; independent final source and post-source GO.
+
+Actual source assist advances0.500087m over
+0.266667s after two awaited physics-frame handoffs;
+current unoccupied berth lease stays bound, zero completion/abort signals.
+Normal request fails the second Convoy; four-field pilot/home preference and
+full terminal/threat/debt/reward document remain exact through real OS-kill,
+fresh Resume/seat/hatch/home owners and ordinary throttle. Explicit public
+reset/start creates a distinct generation with receipts1→2 and one crash event.
+No direct landing/lease/seat flag or fabricated saved recovery record.
+
+| Stage | Seconds | Printed stage checks |
+| --- | --- | --- |
+| archive_docking | 60.162 | 0 |
+| archive_startup | 23.809 | 0 |
+| final_compile | 15.520 | 0 |
+| final_import | 19.608 | 0 |
+| final_landing | 43.026 | 96 |
+| final_privacy | 1.165 | 282 |
+| linux_export | 25.778 | 0 |
+| linux_startup | 22.097 | 0 |
+| source_docking | 77.284 | 0 |
+| windows_export | 26.624 | 0 |
+| windows_payload_startup | 25.867 | 0 |
+
+Source/archive actual probe child exits -9/0, all children reaped; each cold leg
+has7/7 assertions respectively. Same original300s per-leg caps;
+no source/cache mutation or diagnostic matches. Source-mode and actual
+archive-extracted native ELF pass, with disclosed escort/home+3m approach
+fixtures; neither establishes ordinary full approach/dock/exit or installed
+final-candidate recovery. Windows payload startup uses Linux Godot.
+
+Paired clean exports and three strict --startup-check menu gates pass exit0/
+one STARTUP_MENU_READY_OK each. Actual1521 matching payload entries, stock PE code,
+archive byte/mode/epoch and source metadata checks pass. Eleven public artifact/
+notes/ZIP hashes reverified; ZIP contains exact EXE+notes.
+[Windows notes](../../builds/windows/MuddsShipyards-311df73-notes.txt) and
+[Linux notes](../../builds/linux/MuddsShipyards-311df73-linux-notes.txt).
+11 terminal owners/73 observed process identities absent;
+archive counts {'profile-logs': 4, 'app_userdata': 9}. Owned source/profile/helpers removed;
+raw results, actual documents/manifests/process logs and remote source branch
+retained at `/srv/mudds-work/dock-recovery-probe-20261018/results/`.
+
+All36 parents/ten gates OPEN. Native Windows/GPU/device/audio/rendered/human,
+ordinary route/busy-exit/final installed and full final regression stay open.
+CI disabled; owner choices unchanged. Next independent task is the finite
+ordinary Habitat route definition, not another recovery evidence chain.
+
+### Retained one-cut docking driver card
+
+### Selected build/release capability — DOCK-RECOVERY-PROBE
+
+- **Outcome/parents:**2/31/32. Existing release driver can select one actual
+  accepted solo Bulwark landing-assist interruption, owned SIGKILL/reap and
+  distinct Resume/Begin Shift with fresh usable home-pilot recovery. Preserve
+  exact durable Convoy/activity/debt/reward boundary and once-only continuation.
+  This is executable release capability, not installed/final docking acceptance.
+- **Ownership:** one high-effort implementer owns scripts/game/startup_loader.gd,
+  scripts/diagnostics/in_world_interruption_probe.gd,
+  tools/release/run_package_probes.sh and existing tests/startup_cli_privacy_test.gd.
+  Root owns execution/integration/docs/packages; one high-effort independent
+  reviewer checks actual cut, ownership, privacy and shared-path regressions.
+  No GameFlow/HeroShip gameplay, save format, validators or new probe family.
+- **Frozen cut:** convoy + docking selector only. Reuse real pilot/Convoy owners;
+  disclose initial escort/approach fixture placements. Acquire an actual target
+  berth lease via normal landing request, advance real assist physics, require
+  landing still active/uncompleted with exact live berth/claim and saved four-
+  field **pilot/home** preference before READY; then pause without more mutation.
+  No direct landing/lease/seat flags or fabricated context. Keep normal driver
+  OS-kill, journal, private profiles, cleanup and unchanged300s stage caps.
+  Fresh process must preserve exact pre-kill boundary, acquire current supported
+  home craft/berth/hatch/seat, have no active old assist, accept ordinary throttle,
+  then use the public reset/start and existing escort fixture once (receipt1→2,
+  crash1). Source clarification BEFORE any engine run: normal landing request
+  terminalizes the second Convoy with landing_requested. Persist/load that exact
+  failed boundary and retained threat record; safe-home pilot boarding explicitly
+  preserves it. Prove unchanged boundary/receipt through Resume and throttle,
+  then public reset_active_activity (no credit) and a distinct new convoy once.
+  No active-Convoy-at-assist promise or automatic boarding reset is inferred.
+  No ordinary full approach/dock/exit journey, busy-exit or saved pose claimed.
+- **Proof/delivery:** compile/import600s, existing startup privacy300s and complete
+  landing_clearance_test300s; existing driver --source with docking/convoy (each
+  leg300s). Independent GO before one source sequence; first failure STOP, no
+  automatic retry/timeout relaxation or acceptance narrowing. If all pass,
+  paired clean exports/three strict silent --startup-check menu checks and actual
+  archive-extracted native ELF docking interruption at same original leg caps,
+  artifact audit/notes, owned cleanup, commit/push. Engines headless/Dummy.
+- **Budget:**45–60min implementation, split before90min. Stop once this one cut
+  is delivered or fails; no successor recovery/evidence chain. Independent
+  production alternative is the identified Habitat ordinary journey definition;
+  Hauler stock/Titan choices remain unresolved and are not inferred here.

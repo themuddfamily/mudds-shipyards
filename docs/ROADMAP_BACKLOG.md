@@ -602,8 +602,8 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | CREW-RECOVERY-INSTALLED | One installed crew interruption returns awake to the supported home cabin with activity/reward integrity | 2,31 | GATED final installed candidate plus one frozen supported craft/seat/cut; use existing crew selector, original caps and owned kill/reap/distinct restart |
 | CREW-RECOVERY-ORDINARY | One ordinary crew admission→recovery→walk/helm-or-exit journey | 2,31 | UNSCHEDULED; freeze one supported craft/physical role and complete ordinary setup/continuation. Scripted ca0 package setup/escort is not this acceptance |
 | RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | DONE definition only; active solo assist retains home pilot preference; busy boarding/exit attempts unavailable. Fresh ownership replaces leases/pose; finite cases below |
-| DOCK-RECOVERY-PROBE | Existing release driver can interrupt one actual accepted landing assist and check fresh safe-home recovery | 2,31,32 | UNSCHEDULED build/release capability; startup loader, existing interruption probe and package runner lack a docking cut. Preserve admission/privacy/original caps/owned kill/reap |
-| DOCK-RECOVERY-CUT | One exact installed candidate survives interruption during actual assist with conserved activity/reward and usable safe-home recovery | 2,31 | GATED executable docking cut, frozen craft/berth/activity boundary and exact package; no old lease/assist/seat identity restored |
+| DOCK-RECOVERY-PROBE | Existing release driver can interrupt one actual accepted landing assist and check fresh safe-home recovery | 2,31,32 | DONE packaged311df73; existing loader/probe/runner docking+Convoy selector, full source and archive ELF kill/restart pass at original caps with fresh home-pilot control and exact terminal/reward boundary |
+| DOCK-RECOVERY-CUT | One exact installed candidate survives interruption during actual assist with conserved activity/reward and usable safe-home recovery | 2,31 | GATED exact installed/final candidate. Source and archive-extracted 311df73 Bulwark/home/Convoy cut pass; no old lease/assist/seat identity restored. Ordinary/full installed acceptance remains distinct |
 | DOCK-EXIT-RECOVERY-CUT | One interrupted exterior handoff recovers safely after accepted unavailable publication | 2,31 | GATED frozen actual busy-exit cut and executable driver; rejected publication retains prior durable preference. Completed grounded exit follows existing on-foot contract |
 | RECOVERY-ACTIVITY-DEFINE | Active activity durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-PLANET-DEFINE | Planetary durable-boundary/resume-or-safe-home contract | 2,31 | DONE source map; Aurora/Rime visit restoration differs from Ember passive survey continuity. WORLD-SAVE per-world boundary and installed RECOVERY-KILL remain open; no broader location promise waived |
@@ -1490,12 +1490,13 @@ refused publication, fresh home ownership and fallback checks; its full
 Main17/300s/151-pass failure remains PARKED. ca0 pilot/cabin/rest/crew archive
 passes retain their exact sources and do not become docking acceptance.
 
-The three named docking rows separate missing executable driver support from
+The three named docking rows separate delivered executable driver support from
 installed active-assist and busy-exit cuts. Existing startup loader,
 [interruption probe](../scripts/diagnostics/in_world_interruption_probe.gd) and
 [package runner](../tools/release/run_package_probes.sh) admit pilot/cabin/rest/
-crew/engineer/on_foot, with no actual docking cut. Extend that existing path only
-after freezing one cut; no new validator family. Ordinary-input setup/continuation
+crew/engineer/on_foot, plus docking+Convoy in packaged311df73. The one actual assist cut is delivered;
+busy-exit remains unsupported. Extend the existing path only for a separately
+frozen cut; no new validator family. Ordinary-input setup/continuation
 needs its own frozen complete journey and is not established by scripted setup.
 Original docking/recovery promises and native/device/human gates remain open.
 

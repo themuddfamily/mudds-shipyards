@@ -1,10 +1,11 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**221f523**, with actual sleep/wake interactions at all six Habitat bunks, plus
-prior Settings focus, Hauler access, controller look, startup, music, sprint and HUD fixes.
-[Windows notes](builds/windows/MuddsShipyards-221f523-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-221f523-linux-notes.txt) state actual validation.
+**311df73**, adding the executable interrupted-landing recovery check to the
+release pipeline. It includes six Habitat bunks, Settings focus, Hauler access,
+controller look, startup, music, sprint and HUD improvements.
+[Windows notes](builds/windows/MuddsShipyards-311df73-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-311df73-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -54,6 +55,7 @@ unapproved; parked failures remain outside the queue.
 | HAULER-SUPPLY-ACCESS /10,13 | DONE; packageda43ae4b | Actual Hauler lands at Cinder supply platform; current pilot walks to authorized terminal | Full focused access/berth/switching checks, independent review and paired checkpoint pass; cargo stock/manifest/delivery remain separate. |
 | SETTINGS-SCALED-FOCUS-SCROLL /12,29 | DONE; packaged4d7ac43 | Large-scale Settings focus fully reveals its current row; pending requests respect focus/page ownership | Focus59 and full16:9/21:9/32:9 source checks, independent review and paired checkpoint pass; rendered/device/transaction gates remain open. |
 | HABITAT-BUNK-REST /7,9 | DONE; packaged221f523 | All six Habitat bunks offer actual Interact sleep/wake, supported walking/reuse and owner-loss cleanup | Full focused rest, spine, Habitat and ship sleep checks; independent review and paired checkpoint pass. Ordinary hub/common-room/restart journey remains open. |
+| DOCK-RECOVERY-PROBE /2,31,32 | DONE; packaged311df73 | Existing release driver interrupts one real Bulwark assist and proves distinct-process usable home recovery with conserved failed Convoy/reward boundary | Full privacy/landing suites, source and archive-extracted ELF cuts, paired checkpoint pass. Installed/final/ordinary/busy-exit gates remain open. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
 are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
@@ -296,9 +298,8 @@ engine qualification or playable build is claimed by this definition.
 RECOVERY-DOCK-DEFINE and RECOVERY-PLANET-DEFINE are DONE as source definitions.
 The [docking contract](docs/ROADMAP_BACKLOG.md#settled-docking-recovery-contract)
 distinguishes active-assist pilot preference from attempted unavailable publication
-during busy exit. The existing release driver lacks an actual docking cut:
-DOCK-RECOVERY-PROBE is the concrete build/release gap; installed assist and exit
-cuts remain separate finite outcomes.
+during busy exit. The source map identified the missing executable docking cut; its driver is
+delivered below. Installed assist and exit cuts remain separate finite outcomes.
 
 The [per-world recovery boundaries](docs/ROADMAP_BACKLOG.md#planetary-recovery-boundaries)
 distinguish Aurora/Rime visit restoration from Ember safe-home/later-survey
@@ -307,52 +308,29 @@ remaining work. Ember surface-location restoration is not proven or waived;
 Aurora original-artifact waits/Rime parked arrival are unchanged. No engines,
 new runtime acceptance or checkpoint were needed for these definitions.
 
-Next single action: freeze DOCK-RECOVERY-PROBE's one actual assist cut, files,
-proof and implementation budget before changing the existing release driver.
-No busy-exit/ordinary-route chain, installed qualification or parked retry is
-implicitly selected. All36 parents and ten phase gates remain open.
+The selected one-cut driver capability is delivered below. Its separate installed,
+busy-exit and ordinary-route requirements remain open; no automatic successor
+chain is implied. All36 parents and ten phase gates remain open.
 
-### Selected build/release capability — DOCK-RECOVERY-PROBE
+### Docking interruption driver — delivered
 
-- **Outcome/parents:**2/31/32. Existing release driver can select one actual
-  accepted solo Bulwark landing-assist interruption, owned SIGKILL/reap and
-  distinct Resume/Begin Shift with fresh usable home-pilot recovery. Preserve
-  exact durable Convoy/activity/debt/reward boundary and once-only continuation.
-  This is executable release capability, not installed/final docking acceptance.
-- **Ownership:** one high-effort implementer owns scripts/game/startup_loader.gd,
-  scripts/diagnostics/in_world_interruption_probe.gd,
-  tools/release/run_package_probes.sh and existing tests/startup_cli_privacy_test.gd.
-  Root owns execution/integration/docs/packages; one high-effort independent
-  reviewer checks actual cut, ownership, privacy and shared-path regressions.
-  No GameFlow/HeroShip gameplay, save format, validators or new probe family.
-- **Frozen cut:** convoy + docking selector only. Reuse real pilot/Convoy owners;
-  disclose initial escort/approach fixture placements. Acquire an actual target
-  berth lease via normal landing request, advance real assist physics, require
-  landing still active/uncompleted with exact live berth/claim and saved four-
-  field **pilot/home** preference before READY; then pause without more mutation.
-  No direct landing/lease/seat flags or fabricated context. Keep normal driver
-  OS-kill, journal, private profiles, cleanup and unchanged300s stage caps.
-  Fresh process must preserve exact pre-kill boundary, acquire current supported
-  home craft/berth/hatch/seat, have no active old assist, accept ordinary throttle,
-  then use the public reset/start and existing escort fixture once (receipt1→2,
-  crash1). Source clarification BEFORE any engine run: normal landing request
-  terminalizes the second Convoy with landing_requested. Persist/load that exact
-  failed boundary and retained threat record; safe-home pilot boarding explicitly
-  preserves it. Prove unchanged boundary/receipt through Resume and throttle,
-  then public reset_active_activity (no credit) and a distinct new convoy once.
-  No active-Convoy-at-assist promise or automatic boarding reset is inferred.
-  No ordinary full approach/dock/exit journey, busy-exit or saved pose claimed.
-- **Proof/delivery:** compile/import600s, existing startup privacy300s and complete
-  landing_clearance_test300s; existing driver --source with docking/convoy (each
-  leg300s). Independent GO before one source sequence; first failure STOP, no
-  automatic retry/timeout relaxation or acceptance narrowing. If all pass,
-  paired clean exports/three strict silent --startup-check menu checks and actual
-  archive-extracted native ELF docking interruption at same original leg caps,
-  artifact audit/notes, owned cleanup, commit/push. Engines headless/Dummy.
-- **Budget:**45–60min implementation, split before90min. Stop once this one cut
-  is delivered or fails; no successor recovery/evidence chain. Independent
-  production alternative is the identified Habitat ordinary journey definition;
-  Hauler stock/Titan choices remain unresolved and are not inferred here.
+DOCK-RECOVERY-PROBE is DONE in paired checkpoint311df73. Normal landing acquires
+an actual lease; observed assist progress precedes owned SIGKILL and a distinct
+cold Resume with fresh home pilot/seat/hatch, no old assist and working throttle.
+The actual failed landing_requested Convoy and first receipt stay exact through
+recovery; public reset/start then completes a distinct generation once.
+
+Source and actual archive-extracted native ELF cuts pass at original300s leg
+caps, plus complete startup privacy/landing suites, independent review, paired
+exports/three strict silent startups and actual1521-entry package audit.
+[Actual result and frozen card](docs/history/ROADMAP_DELIVERIES.md#docking-interruption-driver--accepted311df73).
+No unexpected failed attempt. Escort/approach placement remains disclosed;
+ordinary docking, busy exit and installed/final-candidate qualification stay open.
+Owned source checkout/profiles/helpers removed; raw results retained.
+
+Next single action: define WALK-HABITAT's complete ordinary hub/rest/common-room/
+home/restart route and acceptance using the now-delivered bunks. No staged rest
+rerun, unchanged parked Sandbox retry or successor recovery chain is selected.
 
 ## Parked failures and dependent work
 

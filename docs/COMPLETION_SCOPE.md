@@ -1,6 +1,19 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **221f523**, clean source
+Latest accepted paired checkpoint: **311df73**, clean source `311df7388fb4fa725b70bc65b194644f6ca134f0`
+([Windows notes](../builds/windows/MuddsShipyards-311df73-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-311df73-linux-notes.txt)). Existing
+release driver now owns one real Bulwark landing-assist interruption and fresh
+safe-home pilot recovery. Source and actual archive-extracted ELF kill/restart
+checks preserve the failed Convoy/reward boundary through Resume/throttle, then
+explicit reset/start pays one distinct next generation. Full privacy/landing
+suites, independent review, paired exports/three strict silent startups and
+actual1521-entry payload audit pass. Escort/home-approach placement is disclosed;
+ordinary docking, busy exit, installed/final candidate and native/human/device
+qualification remain open. Included Habitat and earlier runtime features retain
+their original acceptance scope. All36 parents/ten phase gates OPEN.
+
+Earlier accepted paired checkpoint: **221f523**, clean source
 `221f523e48c20bc72f719dd2c93f4713c9e62d27`
 ([Windows notes](../builds/windows/MuddsShipyards-221f523-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-221f523-linux-notes.txt)). All six Habitat
