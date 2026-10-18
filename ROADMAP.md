@@ -28,7 +28,7 @@ explicit owner decision.
 
 ## Execution now
 
-NET-HULL-INSTRUMENTS is accepted and packaged in24430b7; no task currently running.
+NET-HULL-HUD is selected. Physical hull/throttle gauges remain accepted in24430b7.
 SPEC-TITAN proposal awaits the owner interpretation choice; implementation remains gated.
 WALK-SALVAGE-ACCESS is parked after its original attempt and one caller repair. Reverse qualification and the bounded Torrent
 definition are closed below. Completed and parked work does not occupy the
@@ -36,6 +36,7 @@ executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
+| NET-HULL-HUD / 21 | IN PROGRESS implementation | Gameplay HUD hull bar/frame uses eligible host health/status, with current solo restoration and no simulation telemetry mutation. | Old-runtime actual publisher regression, bounded HUD-only decoration, full pose/real-peer checks and paired checkpoint. |
 | NET-HULL-INSTRUMENTS / 21 | DONE; checkpoint24430b7 | Physical remote hull text/arc/color follows host damage, destruction and revival; clear restores current solo health. | Old2 failures reproduced; pose121/real-peer250, paired exports/three strict startups/actual1515-entry audit pass. Parent21 OPEN. |
 | NET-THROTTLE-INSTRUMENTS / 17 | DONE; checkpoint8f17b02 | Remote physical Jovian gauge shows signed host throttle, shutdown neutral and current solo restore. | Pose91, real-peer fixture203, paired exports/three strict startups/actual1515-entry audit pass; broader parent17 OPEN. |
 | SPEC-TITAN / 10,36 | Proposal DONE; WAITING interpretation decision | Concrete one-pilot/two-passenger/four-unit modern candidate and bounded build tasks. | Owner decision on linked proposal before runtime implementation; historical model gate stays open. |
@@ -48,6 +49,38 @@ live in [retained task closures](docs/history/ROADMAP_DELIVERIES.md#task-closure
 Hull repair24430b7 and throttle8f17b02 are named player-visible deliveries,
 not whole-project completion. [Hull closure](docs/history/ROADMAP_DELIVERIES.md#remote-physical-hull-instruments--accepted24430b7c1) retains proof and limits.
 Titan decision remains pending; no further parked-route work is selected.
+
+### NET-HULL-HUD — remote health in the gameplay HUD
+
+- **Player result/parent:**21; gameplay HUD hull bar/frame must reflect accepted
+  host health/maximum/status for the eligible active craft. GameFlow's normal
+  physics publisher currently passes local `get_telemetry()` directly to HUD.
+  Physical cockpit gauges are already fixed; separate simulation telemetry must
+  remain local for flight, repairs, saves and ownership decisions.
+- **Owner/boundary:** one high-effort implementation agent; root plus independent
+  high-risk review. GameFlow HUD publication, minimal HeroShip read-only display
+  getter if needed, existing remote-pose/station-frame tests only. Already-validated
+  damage projection owns the display fields; local-authority/clear/retirement must
+  restore current source HUD. No wire, physics/damage/command, other HUD telemetry,
+  component/power, parked-route, or new-framework changes.
+- **Proof/next:** test-only existing normal physics→HUD publisher regression first,
+  actual GameHUD hull bar/frame for host50/200 versus local full health. Exact new
+  failures on old runtime, no new helper dependency. After root-reviewed clean fix,
+  compile and full existing pose/independent Main station-frame tests (original300s,
+  per-wait60s) with current/late projected damage/destruction/revival/clear HUD,
+  local raw telemetry and throttle/pilot behavior preserved. Exit0/exact existing
+  marker/fullraw diagnostics0. Controlled fixtures are not a full ordinary voyage.
+- **Budget/stop:**30–60min implementation/review, split before90; checks separate.
+  First unexpected failure stops at owner/boundary before separate bounded repair;
+  original plus one repair needs cumulative priority review. No automatic retry.
+- **Package/close:** fresh clean paired exports, three strict silent startup checks
+  and actual package/archive audit; repository builds/ with actual notes. Commit/
+  push, retain unique raw/source refs, clean owned scratch. Latest24430b7 remains
+  until accepted replacement. No broad parent closes.
+- **Completed speed comparison:** observer interpolation/settled pose and pilot
+  reconciliation already assign replicated/corrected velocity; physical speed
+  consumes that velocity. No missing speed transport or new fix was identified;
+  no engine run for this bounded comparison. Do not invent another gauge task.
 
 ### SPEC-TITAN — concrete interpretation proposal before building
 
