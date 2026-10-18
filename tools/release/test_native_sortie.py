@@ -42,7 +42,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
 
     def life_tick(self, pilot, s, frames=1, clock=True, movers=True):
         s['frame'] += frames
-        if s['mode'] == 'life-arm':
+        if pilot.config.get('motion_proof', False):
             self.arm_motion(s, pilot.observed_previous)
         if clock: s['service']['clock'] += frames/60
         if movers: s['service']['movers'][0]['pose'][0][0] += frames*.001
@@ -51,7 +51,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
     def life_walking_pilot(self, route="life-tow"):
         pilot = native.LifeTowPilot(route)
         s = {'life-tow': self.life_observation, 'life-gantry': self.gantry_observation,
-             'life-arm': self.arm_observation}[route]()
+             'life-arm': self.arm_observation, 'life-patrol': self.patrol_observation}[route]()
         s['menu_ready'] = True
         pilot.update(copy.deepcopy(s), 0)
         s.update(phase='APPROACH_SHIP', native_interact=True)
@@ -302,7 +302,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(len(pilot.result['visited']), 13)
 
     def test_life_bounded_goals_require_fifteen_consecutive_settled_samples(self):
-        for route in ('life-gantry', 'life-arm'):
+        for route in ('life-gantry', 'life-arm', 'life-patrol'):
             with self.subTest(route=route):
                 pilot, s = self.life_walking_pilot(route)
                 # Move by legal supported increments to the first goal.
@@ -325,7 +325,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 for _ in range(15):
                     s['frame'] += 1
                     s['service']['clock'] += 1/60
-                    if route == 'life-arm': self.arm_motion(s, pilot.observed_previous)
+                    if pilot.config.get('motion_proof', False): self.arm_motion(s, pilot.observed_previous)
                     pilot.validate_observation(copy.deepcopy(s))
                 self.assertEqual(pilot.visited, [])
                 pilot.update(pilot.observed_previous, s['frame']/60)
@@ -351,7 +351,7 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 with self.assertRaises(AssertionError): self.gantry_tick(pilot, s)
 
     def test_life_bounded_retains_all_samples_and_bounds_only_local_walk(self):
-        for route in ('life-gantry', 'life-arm'):
+        for route in ('life-gantry', 'life-arm', 'life-patrol'):
             with self.subTest(route=route):
                 pilot, s = self.life_walking_pilot(route)
                 # The hub is deliberately farther than 12m; it is not the near interval.
@@ -369,22 +369,22 @@ class NativeSortieSafetyTests(unittest.TestCase):
                 with self.assertRaises(AssertionError): pilot.validate_observation(intermediate)
 
     def test_life_bounded_goal_and_board_deadlines_do_not_retry(self):
-        for route in ('life-gantry', 'life-arm'):
+        for route in ('life-gantry', 'life-arm', 'life-patrol'):
             with self.subTest(route=route):
                 pilot, s = self.life_walking_pilot(route)
                 s['frame'] += 1
-                if route == 'life-arm': self.arm_motion(s, pilot.observed_previous)
+                if pilot.config.get('motion_proof', False): self.arm_motion(s, pilot.observed_previous)
                 with self.assertRaisesRegex(AssertionError, '15-second'):
                     pilot.update(copy.deepcopy(s), pilot.goal_started + 15.001)
                 pilot, s = self.life_walking_pilot(route)
                 pilot.stage, pilot.board_started = 'board', 0
                 s['frame'] += 1
-                if route == 'life-arm': self.arm_motion(s, pilot.observed_previous)
+                if pilot.config.get('motion_proof', False): self.arm_motion(s, pilot.observed_previous)
                 with self.assertRaisesRegex(AssertionError, '12-second'):
                     pilot.update(copy.deepcopy(s), 12.001)
 
     def test_life_bounded_pilot_requires_actual_authenticated_boarding(self):
-        for route in ('life-gantry', 'life-arm'):
+        for route in ('life-gantry', 'life-arm', 'life-patrol'):
             with self.subTest(route=route):
                 pilot, s = self.life_walking_pilot(route)
                 pilot.stage, pilot.board_started = 'board', s['frame']/60
@@ -402,6 +402,145 @@ class NativeSortieSafetyTests(unittest.TestCase):
             for index in changed: b['movers'][index]['pose'][0][0] += .1
             with self.subTest(clock=clock, changed=changed), self.assertRaises(AssertionError):
                 native.LifeTowPilot.require_service_interval(a, b, 'gantry', all_movers=True)
+
+    def patrol_observation(self):
+        s = self.gantry_observation()
+        s.update(mode='life-patrol', ship_name='TorrentInterceptor',
+                 ship_definition_id='torrent_provisional', home_berth_id='central_berth',
+                 boarding=[0, 1.8, 0], station_candidate={}, capsule_geometry=[.38, 1.94],
+                 door={'id': 90, 'path': 'HabitatSpine/MainAccess',
+                       'position': [49, 0, 15.5], 'state': 0, 'open': False,
+                       'blocked': True, 'locked': False, 'candidate': False})
+        config = native.LifeTowPilot.ROUTES['life-patrol']
+        s['service'].update(profile='drone_patrol', path=config['path'],
+                            origin=[59.15, 4.88, 15.5], seed=3301)
+        for mover, path in zip(s['service']['movers'], config['mover_paths']):
+            mover['path'] = path
+        self.arm_motion(s)
+        return s
+
+    def patrol_at_door(self):
+        pilot, s = self.life_walking_pilot('life-patrol')
+        for _ in range(8):
+            self.gantry_finish_goal(pilot, s)
+        self.assertEqual(pilot.stage, 'door_aim')
+        return pilot, s
+
+    def patrol_press_door(self, pilot, s):
+        s['door']['candidate'] = True
+        started = pilot.goal_started
+        keys, *_ = self.gantry_tick(pilot, s)
+        self.assertIn('e', keys)
+        self.assertEqual(pilot.stage, 'door_wait')
+        self.assertEqual(pilot.goal_started, started)
+        s['native_interact'] = True
+        s['door']['state'] = 1
+        self.gantry_tick(pilot, s)
+        self.assertEqual(pilot.goal_started, started)
+        return started
+
+    def test_life_patrol_exact_route_drone_roots_local_interval_and_original_torrent(self):
+        config = native.LifeTowPilot.ROUTES['life-patrol']
+        expected = [[0, 0, 12.5], [6, 0, 12.5], [6, 0, 13.5], [34.8, 0, 13.5],
+                    [34.8, 0, 15.5], [43, 0, 15.5], [46, 0, 15.5], [48, 0, 15.5],
+                    [50.5, 0, 15.5], [59.15, 0, 15.5], [67.8, 0, 15.5],
+                    [59.15, 0, 15.5], [54.1, 0, 15.5], [50.5, 0, 15.5],
+                    [48, 0, 15.5], [46, 0, 15.5], [43, 0, 15.5], [34.8, 0, 15.5],
+                    [34.8, 0, 13.5], [6, 0, 13.5], [6, 0, 12.5], [0, 0, 12.5]]
+        self.assertEqual([target for _, target in config['goals']], expected)
+        self.assertEqual(config['near'], ('patrol_inner_threshold', 'patrol_common'))
+        self.assertEqual(config['origin'], [59.15, 4.88, 15.5])
+        self.assertEqual(config['ship_definition_id'], 'torrent_provisional')
+        self.assertEqual(config['home_berth_id'], 'central_berth')
+        self.assertFalse(config.get('candidate_only', False))
+        pilot, s = self.patrol_at_door()
+        self.patrol_press_door(pilot, s)
+        # OPEN alone is insufficient until the real collision portal clears.
+        s['door'].update(state=2, open=True)
+        self.gantry_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'door_wait')
+        s['door']['blocked'] = False
+        self.gantry_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'walk_service')
+        self.assertEqual(pilot.route[0][0], 'patrol_inner_threshold')
+        self.assertEqual(pilot.goal_started, s['frame']/60)
+        for _ in range(3): self.gantry_finish_goal(pilot, s)
+        self.assertGreater(pilot.near_walked, 11)
+        self.assertFalse(pilot.near_active)
+        self.assertIn('nearby_walk_end', pilot.receipts)
+        self.assertNotIn('board_press', pilot.receipts)
+        s['door']['blocked'] = True
+        with self.assertRaisesRegex(AssertionError, 'stays OPEN'):
+            self.gantry_tick(pilot, s)
+
+    def test_life_patrol_door_candidate_press_identity_and_shared_clock_are_required(self):
+        pilot, s = self.patrol_at_door()
+        # No production candidate: aiming sends no Interact and stays on this goal.
+        keys, *_ = self.gantry_tick(pilot, s)
+        self.assertNotIn('e', keys)
+        self.assertEqual(pilot.stage, 'door_aim')
+        for stage in ('door_aim', 'door_wait'):
+            timed = copy.deepcopy(pilot)
+            timed.stage = stage
+            sample = copy.deepcopy(s)
+            sample['frame'] += 1
+            self.arm_motion(sample, timed.observed_previous)
+            with self.subTest(stage=stage), self.assertRaisesRegex(AssertionError, '15-second'):
+                timed.update(sample, timed.goal_started+15.001)
+        mutations = [lambda x: x['door'].update(id=999),
+                     lambda x: x['door'].update(path='HabitatSpine/Other'),
+                     lambda x: x['door'].update(locked=True),
+                     lambda x: x['door'].update(state=1),
+                     lambda x: x.update(supported=False),
+                     lambda x: x['player'].__setitem__(0, x['player'][0]+1)]
+        for mutate in mutations:
+            other, sample = copy.deepcopy(pilot), copy.deepcopy(s)
+            mutate(sample)
+            with self.subTest(mutate=mutate), self.assertRaises(AssertionError):
+                self.gantry_tick(other, sample)
+        self.patrol_press_door(pilot, s)
+        without_edge = copy.deepcopy(pilot)
+        without_edge.native_edges = []
+        sample = copy.deepcopy(s)
+        sample['door'].update(state=2, open=True, blocked=False)
+        with self.assertRaisesRegex(AssertionError, 'door-stage OS press'):
+            self.gantry_tick(without_edge, sample)
+        closing = copy.deepcopy(s)
+        closing['door']['state'] = 0
+        with self.assertRaisesRegex(AssertionError, 'never closes or retries'):
+            self.gantry_tick(copy.deepcopy(pilot), closing)
+        s['door'].update(state=2, open=True, blocked=False)
+        self.gantry_tick(pilot, s)
+        # A prior door press must never authenticate subsequent ship ownership.
+        pilot.stage, pilot.board_started = 'board', s['frame']/60
+        pilot.receipts['board_press'] = pilot.receipt(s)
+        pilot.receipts['board_press']['candidate'] = True
+        s['native_interact'] = False
+        s.update(phase='BOARDING', transition_busy=True, control_enabled=False)
+        with self.assertRaisesRegex(AssertionError, 'board-stage OS press'):
+            self.gantry_tick(pilot, s)
+
+    def test_life_patrol_actual_drone_configuration_and_motion_epoch_cannot_change(self):
+        mutations = [lambda x: x['service'].update(seed=3302),
+                     lambda x: x['service'].update(origin=[59.15, 0, 15.5]),
+                     lambda x: x['service']['movers'][0].update(path='SummaryDrone'),
+                     lambda x: x['service']['movers'][1].update(id=999),
+                     lambda x: x['service']['movers'].pop(),
+                     lambda x: x['completed_motion'].update(frame=0)]
+        for mutate in mutations:
+            pilot, s = self.life_walking_pilot('life-patrol')
+            s['frame'] += 1
+            self.arm_motion(s, pilot.observed_previous)
+            mutate(s)
+            with self.subTest(mutate=mutate), self.assertRaises(AssertionError):
+                pilot.validate_observation(copy.deepcopy(s))
+        for changed in ((0,), (1,), ()):
+            before = self.patrol_observation()['service']
+            after = copy.deepcopy(before)
+            after['clock'] += 1
+            for index in changed: after['movers'][index]['pose'][0][0] += .1
+            with self.subTest(changed=changed), self.assertRaises(AssertionError):
+                native.LifeTowPilot.require_service_interval(before, after, 'patrol', all_movers=True)
 
     def arm_observation(self):
         s = self.gantry_observation()
