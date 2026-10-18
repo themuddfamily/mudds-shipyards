@@ -12157,3 +12157,33 @@ scratch. Listening/native/physical full-route/endurance/final gates remain open.
 Host-local direct-submit and remote-recipient definitions remain separate
 integration boundaries;
 Hauler cargo stays dependent on its already-asked stock decision.
+
+## AUDIO-NAVIGATOR-HOST-LOCAL — first admission stop and exact scene repair
+
+Initial source `08461d4c2800da0d5828c337881336f3d3e4f378`, branch
+`fix/navigator-host-local-audio-20261019`. Import and both changed-test
+compilations PASS. Actual integration fixture FAIL exit1 after17.712s at
+“real engineer binding acquires its production Jovian authority”, before the new
+host-local chair path. Remaining suites/exports NOT_RUN. All engines stopped;
+failed owner terminal. Cumulative initial four stages **56.643s**, failure
+included. Source/STOP/logs/helper commands preserved under
+`/srv/mudds-work/navigator-host-local-audio-20261019/results/`.
+
+**One causal repair frozen before edit/rerun:** fixture constructs `Jovian.new()`
+from its script. HeroShip's default ID is `torrent_test_article_01`; Jovian has no
+constructor override. The real engineer binding registers the sealed Jovian roster
+for `jovian_provisional`, and ship attachment rejects the vessel mismatch.
+The existing authored `scenes/ships/jovian_light_freighter.tscn` supplies the correct
+identity, definition and physical frame/boarding/audio nodes. Independently
+source-verified by lifecycle reviewer. Change exactly two fixture lines: preload
+that existing scene instead of the script, and instantiate it as
+JovianLightFreighter instead of `.new()`. No runtime, assertion, roster or admission
+guard change. Do not override the ship ID or bypass the real binding.
+
+Root owns this bounded repair. Budget5min edit/review; same300s focused caps.
+Retain byte-identical import and optional compilation. Use distinct
+`host_local_repair_compile` and `host_local_repair`, then the remaining six frozen
+suites. Preserve original failed stage and commands. Packages only after focused
+acceptance. Any further failure requires cumulative priority review of original
+plus this one repair; no automatic second repair, renamed retry, weakened fixture
+route or timeout increase. Candidate remains unmerged/withheld until acceptance.
