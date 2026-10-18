@@ -109,11 +109,33 @@ func _test_production_bunk_rest(
 		wake_positions.append(wake.origin)
 		_check(bunk.get_entry_transform().is_equal_approx(wake), "bunk %d uses its authored wake handoff for entry" % (index + 1))
 		_check(absf(anchor.global_basis.y.dot(Vector3.UP)) < 0.01, "bunk %d rests the body horizontally" % (index + 1))
+		var mattress := bunk.get_parent().get_node_or_null("Mattress") as StaticBody3D
+		var mattress_collision := bunk.get_parent().get_node_or_null("Mattress/Collision") as CollisionShape3D
+		_check(mattress != null and mattress_collision != null and mattress_collision.shape is BoxShape3D,
+			"bunk %d retains its actual collision-backed mattress" % (index + 1))
+		if mattress == null or mattress_collision == null or not mattress_collision.shape is BoxShape3D:
+			actor.queue_free()
+			other_actor.queue_free()
+			return
+		var mattress_half: Vector3 = (mattress_collision.shape as BoxShape3D).size * 0.5
+		var rest_foot: Vector3 = mattress_collision.to_local(anchor.global_position)
+		var rest_head: Vector3 = mattress_collision.to_local(anchor.global_position + anchor.global_basis.y * PLAYER_HEIGHT)
+		_check(absf(rest_foot.x) <= mattress_half.x - PLAYER_RADIUS
+			and absf(rest_head.x) <= mattress_half.x - PLAYER_RADIUS
+			and absf(rest_foot.z) < mattress_half.z and absf(rest_head.z) < mattress_half.z
+			and rest_foot.y - mattress_half.y >= -0.005 and rest_foot.y - mattress_half.y <= 0.06,
+			"bunk %d places its horizontal body over the real mattress bounds and top" % (index + 1))
+		var mattress_hit := await _ray(world, anchor.global_position + Vector3.UP * 0.1,
+			anchor.global_position - Vector3.UP * 0.3)
+		_check(mattress_hit.get("collider") == mattress,
+			"bunk %d rest anchor has actual mattress support" % (index + 1))
 		var floor_hit := await _ray(world, wake.origin + Vector3.UP * 0.6, wake.origin - Vector3.UP * 1.0)
-		_check(not floor_hit.is_empty() and absf(float(floor_hit.get("position", Vector3.UP).y)) <= 0.035,
-			"bunk %d wakes over actual aisle floor" % (index + 1))
+		var floor_position: Vector3 = floor_hit.get("position", Vector3.UP)
+		_check(not floor_hit.is_empty() and absf(floor_position.y) <= 0.035
+			and wake.origin.y - floor_position.y >= -0.005 and wake.origin.y - floor_position.y <= 0.18,
+			"bunk %d wakes just above actual aisle floor" % (index + 1))
 		var obstacles := await _intersect_shape(world, capsule,
-			Transform3D(Basis.IDENTITY, Vector3(wake.origin.x, 1.08, wake.origin.z)), 24)
+			Transform3D(wake.basis, wake.origin + wake.basis.y * (PLAYER_HEIGHT * 0.5)), 24)
 		_check(obstacles.is_empty(), "bunk %d wake handoff clears the production capsule" % (index + 1))
 		_check("SLEEP" in bunk.get_interaction_prompt() and "WAKE" in bunk.get_seated_prompt(),
 			"bunk %d exposes sleep and wake interactions" % (index + 1))
@@ -128,6 +150,28 @@ func _test_production_bunk_rest(
 			"bunk %d releases only its exact occupant and becomes reusable" % (index + 1))
 	actor.queue_free()
 	other_actor.queue_free()
+	if not _failures.is_empty():
+		return
+
+	# Idle module lifecycle must suppress and restore the real discovery areas.
+	# This happens before placing the Player, so disabling its floor never
+	# substitutes an unsupported fall for the focused rest interaction.
+	habitat.set_module_enabled(false)
+	await physics_frame
+	await process_frame
+	for station_bunk in bunks:
+		_check(not station_bunk.is_enabled() and station_bunk.collision_layer == 0
+			and not station_bunk.monitorable and station_bunk.get_interaction_prompt().is_empty(),
+			"disabled Habitat suppresses discovery for %s" % station_bunk.get_parent().name)
+	habitat.set_module_enabled(true)
+	await physics_frame
+	await process_frame
+	for station_bunk in bunks:
+		var discovery_shape := station_bunk.get_node("InteractionShape") as CollisionShape3D
+		_check(station_bunk.is_available() and station_bunk.collision_layer == StationSeat.INTERACTABLE_LAYER
+			and station_bunk.monitorable and not discovery_shape.disabled
+			and "SLEEP" in station_bunk.get_interaction_prompt(),
+			"reenabled Habitat restores discovery for %s" % station_bunk.get_parent().name)
 	if not _failures.is_empty():
 		return
 
@@ -233,8 +277,10 @@ func _sleep_with_live_bunk_input(game: GameFlow, player: PlayerController, bunk:
 	for _tick in 4:
 		await physics_frame
 		await process_frame
-	_check(game.station_interaction_candidate == bunk and "SLEEP" in bunk.get_interaction_prompt(),
-		"%s discovers the actual station bunk through normal facing and proximity" % description)
+	var discovered: bool = game.station_interaction_candidate == bunk and "SLEEP" in bunk.get_interaction_prompt()
+	_check(discovered, "%s discovers the actual station bunk through normal facing and proximity" % description)
+	if not discovered:
+		return false
 	Input.action_press("interact")
 	await physics_frame
 	await process_frame

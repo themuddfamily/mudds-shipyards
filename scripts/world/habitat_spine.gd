@@ -16,6 +16,7 @@ const EVIDENCE_STATUS: StringName = &"fixed_era_inspired_modern_interpretation"
 ## endpoint; the pair is what `StationRouteRegistry` records as one graph edge.
 const HUB_CONNECTION_SLOT: StringName = &"hub-starboard-habitat"
 const WORLD_LAYER := PhysicsLayers.WORLD
+const STATION_BUNK = preload("res://scripts/interaction/station_bunk.gd")
 const STATIC_SHADOW_BATCH = preload("res://scripts/world/static_shadow_batch.gd")
 const COMMON_ROOM_DISPLAY_ATLAS := preload("res://assets/signage/habitat_common_room_display.svg")
 const COMMON_ROOM_DISPLAY_LABELS := ["COMMON ROOM", "REST", "REFRESHMENTS"]
@@ -2713,6 +2714,16 @@ func _build_bunk_alcove(parent: Node3D, index: int, center: Vector3) -> void:
 	# a 1.72 x 0.48 m panel of #172226 at arm's length inside a bunk reads as a
 	# void, not as a recessed door face.
 	_box(bunk, "LockerInset", Vector3(-float(side) * 1.25 + float(side) * 0.38, 1.05, -1.25), Vector3(0.035, 1.72, 0.48), _materials["structural"], false)
+	# Feet rest just above the real mattress top (.81 m), with the horizontal
+	# body extending along +Z toward the pillow. The wake pose sits in the
+	# unobstructed shared aisle at module |X| = 2.0, clear of the mouth jambs.
+	STATION_BUNK.install_bunk(
+		bunk,
+		Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(side * 0.98, 0.84, -0.90)),
+		Transform3D(Basis(Vector3.UP, -side * PI * 0.5), Vector3(-side * 2.25, 0.04, 0.0)),
+		"Habitat berth %02d" % (index + 1)
+	)
+
 
 
 func _build_observation_common(structure: Node3D) -> void:
