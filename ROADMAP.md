@@ -1,9 +1,9 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **2df8c31**, with ordinary Freight walking/Jovian boarding
-and active gantry coexistence. [Windows build notes](builds/windows/MuddsShipyards-2df8c31-notes.txt)
-and [Linux build notes](builds/linux/MuddsShipyards-2df8c31-linux-notes.txt) state
+accepted checkpoint: **f2bf35a**, with ordinary Aft walking/Zenith boarding
+and actual service-arm coexistence. [Windows build notes](builds/windows/MuddsShipyards-f2bf35a-notes.txt)
+and [Linux build notes](builds/linux/MuddsShipyards-f2bf35a-linux-notes.txt) state
 actual checks and limits. All 36 original parents and ten phase gates remain open.
 
 ## What separates this alpha from completion
@@ -17,7 +17,7 @@ promise. Each named child and its dependencies live in the existing
 | Remaining scope | Known boundary | What must be settled or delivered next |
 | --- | --- | --- |
 | Fleet and historical content | 17 eventual craft: 9 implemented, 8 absent | Eight SPEC→BUILD-SPLIT→CRAFT-ACCEPT chains; missing evidence/interpretation decisions precede builds. Existing nine still require their applicable full craft/art/role journeys. |
-| Station | Nine branches; four service-motion outcomes | Habitat ordinary loop/restart and Central/Freight service coexistence accepted on recorded checkpoints. Aft/Habitat service acceptance, other branch routes and actual presentation findings remain; parked routes retain their limits. |
+| Station | Nine branches; four service-motion outcomes | Habitat ordinary loop/restart and Central/Freight/Aft service coexistence accepted on recorded checkpoints. Habitat patrol, other branch routes and actual presentation findings remain; parked routes retain their limits. |
 | Activities and combat | Twelve activities, six named combat encounters | Complete uncovered ordinary outbound/activity/reward/home journeys, then each legitimate ten-run contract. Cargo replenishment/turnover policy is unresolved; Hauler source integration is a known stock-policy-gated production gap. |
 | Worlds | Ember, Aurora, Rime; 21 named shared-world cells | Canonical solo/shared returns, saves, abandonment, crew and repeat visits; source/staged passes cover only their recorded cases. Aurora originals remain waiting and Rime arrival remains parked. |
 | Multiplayer | Named browser, helm, role, damage, actor and postdock cases | Dedicated server/two-client baseline, applicable role/reuse cases, original 30-minute endurance and chosen capacity. Release guest count/playing-host decision remains waiting. |
@@ -32,131 +32,44 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-LIFE-ARM remains PARKED after its first archived route failure. A bounded actor
-step-up continuity correction is now selected below; no native retry is yet
-authorized. Original owned scratch is cleaned; unique raw results remain.
+LIFE-ARM is accepted on packaged `f2bf35a`; its ordinary route and actual controller
+step proof passed. Source merged, checkpoint published, owned scratch cleaned.
+No next implementation or route is selected. Review the result before scheduling.
 
-| Work | Kind / readiness | Owner and bounded next result | Estimate |
-| --- | --- | --- | --- |
-| LIFE-ARM continuity correction | Executable release capability; SELECTED | Actual successful Player step-up proof before admitting motion beyond the unchanged ordinary limit; five additional files below, seven total with the prior Aft capability. No physics change. | 35–55min implementation/focused checks; packaging/changed route needs cumulative review |
-| LIFE-ARM | Acceptance/release capability; PARKED | Four goals passed; first native route failed continuity near Aft stair base. Exact caller/source950574e3f retained unmerged. Reopening condition below; no automatic retry. | Selected implementation/review30–45min plus10–15min checks; attempt reached terminal review in≈13min, original limits retained |
-| HAULER-CARGO-MANIFEST | Production behavior; GATED on HAULER-CARGO-STOCK | Binding admission/conserved source custody. Current source rejects Hauler; generation-floor API already exists. [Exact stock prerequisite and proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). No duplicate generation API or implicit stock grant. | 60–90min implementation/focused checks after decision, checkpoint additional; split before90min |
+| Remaining work | Readiness | Next bounded action / estimate |
+| --- | --- | --- |
+| LIFE-PATROL | UNSCHEDULED; last of four service runtime cards | Define only Habitat patrol's existing ordinary approach, actual movers/local interval and supported boarding target. Source-only, 15–20 min; end with exact card or missing fact, no automatic engine run. |
+| HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Current binding rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
-This is a local queue, not the remaining project. No Habitat-patrol, full Sandbox,
-mining, ten-run activity or capture successor starts automatically after LIFE-ARM.
-Review the result against its original parent and available production work first.
-The bounded production-seam review found the Hauler gap above; other inspected
-Hauler/Bomber/terminal-recovery policies need their recorded decisions. That is
-not a claim that the entire game has no other implementation gaps.
-
-### LIFE-ARM — parked after first native route failure
-
-Source/caller950574e3f remains pushed on its branch, unmerged; no checkpoint
-published. The ONE actual archived route fails33.850s guarded/31.139s driver
-at frame996 while approaching fifth goal aft_stair_base, after four settled
-goals and48.963m walking. Local arm interval, Zenith boarding and90seatedframes
-remain NOT_RUN. Inputs/helper/game/Xvfb cleanup passes, diagnostics0.
-
-The failed step is.425817m against the unchanged.211667m bound. Its.400m planar
-advance/.146m rise matches the controller's authored step-up bounds, but the
-observer does not prove that call executed. This is not proof of injected
-placement. Preserve the route and failing assertion; do not relax the bound or
-repeat the route automatically. Reopening requires separately selected concrete
-causal work or a continuity-contract review with actual actor-owned evidence.
-
-Initial Python71FAIL8.176s and one fixture-only two-line repair71PASS8.229s
-remain recorded. Identical observer/privacy checks were retained; fresh paired
-exports,three strict startups and1521-entry audit pass. Those do not accept the
-failed route. [Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#aft-service-arm--stopped-at-continuity-boundary)
-retain source, budgets, exact failed sample and reopening boundary. Latest
-accepted playable remains2df8c31. No next station-service chain is selected.
-
-### Selected continuity correction — actual controller step-up only
-
-Concrete gap: existing controller step-up can advance the capsule about.40m;
-the driver rejects all displacement beyond.211667m. Failed995→996 fits that
-assist but lacks direct call proof. Supply actor-owned proof; old route staysFAIL.
-
-One implementer owns `scripts/player/player_controller.gd`,
-`tests/player_step_up_assist_test.gd`,
-`scripts/diagnostics/native_sortie_observer.gd`,
-`tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py` in
-`/srv/mudds-work/life-arm-step-20261018/source`, based on950574e3f. Existing
-startup/privacy edits from the unmerged Aft capability remain unchanged. Root
-owns checks/integration; one independent high-effort reviewer protects this seam.
-
-Keep physics, collision, controls,15goals and caps unchanged. Record only an
-actual true `_resolve_step_up` return: actor/frame/capsule/shape, pre-move start,
-committed landing, intended tangent/up and live bounds; finalize actual actor tick
-start/end after containment. Clear before early returns; getter returns detached
-data. Observer only serializes snapshot/completed motion epoch, without scheduling
-changes. Link consecutive observed positions to consecutive completed actor ticks
-with consistent observed lag0or1; observer currently precedes Player.
-
-The ordinary.211667m limit stays. Only an exact once-consumed LIFE-ARM actor event
-may account for a larger step: same current identities, supported ordinary controls
-at both ends, identity collision frame, exact observed tick start/end/landing match.
-Validate finite vectors, unit world-up, default capsule-derived bounds and intended
-positive tangent motion. Preserve actual probe tolerances: rise>.001/<=.301m,
-advance>=.01/<=.41m. Geometry alone is not proof; missing/stale/replayed/malformed/
-wrong-identity or mismatched-endpoint events and additional displacement must fail.
-
-Focused proof extends existing real-input `player_step_up_assist_test.gd`:
-genuine successful lip events, existing height/headroom/void/nonwalkable refusals,
-detached getter and next-no-step/seated expiry. Extend existing driver tests for
-exact event acceptance plus the refusal cases above. Root runs full player-step
-suite300s, full Python300s, observer compile300s and privacy300s after source review,
-all under guarded first-failure STOP. No new validator/schema/version/test family.
-
-Original native33.850s and Python8.176s failures plus fixture repairPASS8.229s
-remain recorded. This is changed-cause work, not a renamed route or budget reset.
-All15goals/15settled/15s-goal/12s-boarding/CAP300/outer360 and local/seat criteria
-remain. Review focused results and cumulative priority before separately selecting
-exports or ONE changed native attempt. First new failure stops this selection.
-No automatic station/activity successor. Estimate35–55min implementation/checks.
-
-Focused-check pin: `69850930c2bd51e8b734bac8a4e6176bf84d3415` (five scoped
-files versus950574e3f). Independent source/test review GO, static Python compile
-and whitespace checks pass. Root authorizes import→existing player-step suite→
-observer compile→privacy→full Python only. Results/guards live under
-`/srv/mudds-work/life-arm-step-20261018/`; exports/native remain unselected.
-
-Focused STOP on69850930c: importPASS20.608s, full player-step suiteFAIL46.850s
-at one new generic `_walk` zero-event assertion. All original collision outcomes
-and new genuine-event/identity/endpoints/detach/expiry checks pass. The headroom
-case remains below its original y<.20/z>−4.2 limits at y.160015/z−3.753062;
-not mounting the whole.25m lip does not forbid a bounded successful partial step.
-Independent causal/priority review selects ONE test-only correction: restore the
-generic `_walk` helper's baseline by removing only its new event counter/read/
-increment and whole-walk zero-event assertion. Keep all original geometry checks,
-tall-lip no-event checks and new successful-event/expiry assertions unchanged.
-No production change. Review the clean repaired pin before one full suite rerun;
-retain46.850s failure and original task/failure budgets. Later stages remain stopped.
-
-Repaired pin `f2bf35a6a6305893413ae6000a4a5c45715c3e1d` passes full player-step
-suite82 checks/46.696s, observer15.590s, privacy1.034s and full74 Python8.361s
-guarded. Only five test-helper lines differ from69850930c; production unchanged.
-Current focused total139.139s includes the first failure; prior selection218.025s
-retained (357.164s recorded guarded stages, not wall time or a reset allowance).
-Independent cumulative review GO now selects fresh paired exports→three strict
-startups→actual artifact audit→ONE changed-source archived LIFE-ARM route. Actual
-actor proof is the reopening change; original ordinary bound,15goals/all deadlines
-and historical FAIL remain. First unexpected failure STOP; final raw review before
-publication. No hardware/rendered/full-parent qualification follows from this GO.
+The Hauler stock/custody decision remains the concrete missing prerequisite for
+the reviewed independent production alternative. Do not invent stock, a duplicate
+generation API or a whole-game absence-of-defects claim. This queue is local,
+not a project estimate. No full station/Sandbox/activity/capture chain follows.
 
 ## Latest delivered result
 
-Freight LIFE-GANTRY is accepted on packaged2df8c31: ordinary approach, nearby
-walking, Jovian boarding and90 seated frames. Central LIFE-TOW remains accepted
-on9162fac with caller11c2332. Both are existing-service runtime coexistence,
-not new service animations. Builds are in repository `builds/`; owned scratch
-was cleaned after preserving unique results.
+**Aft service-arm runtime coexistence accepted on `f2bf35a`.** The same supported
+Player completes 15 authored walking goals, 18.303 m local walking within 12 m of the
+arm, ordinary Zenith boarding and 90 seated physics frames. All three actual
+service movers/clock advance in both intervals; home berth/OFFLINE/parked state
+persists. One genuine controller step event accounts for the stair approach;
+the ordinary displacement limit and actual movement remain unchanged.
 
-Full frozen cards, failures, checks and publication records live in
-[delivery history](docs/history/ROADMAP_DELIVERIES.md). No completed Central or
-Freight selection is reissued here. UI-BOARD-FOCUS and ordinary mining retain
-their parked conditions in the [backlog](docs/ROADMAP_BACKLOG.md#baseline-scope-and-planning-children);
-the successful component reproduction did not establish a production repair.
+Full player-step suite, 74 Python tests, observer/privacy, fresh paired exports,
+three strict menu-ready startups and 1,521-entry audit pass. The changed archived
+route passes in 52.812 s guarded, zero diagnostics, full input/process cleanup.
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-f2bf35a-checkpoint.zip)
+and [notes](builds/windows/MuddsShipyards-f2bf35a-notes.txt) are published.
+
+[Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#aft-service-arm--actor-proven-ordinary-route-accepted)
+retain the original failed route, both test-only corrections, cumulative budgets
+and actual actor proof. Thirteen terminal owners/69 process identities absent;
+14 private-profile files/helpers archived, owned source/profile/extraction removed.
+Only unique results remain. This is executable release capability/acceptance,
+not new service animation or locomotion tuning. Central/Freight retain their
+recorded earlier-source acceptance; Habitat patrol, rendered/hardware/full-station
+and all 36 parents/ten phase gates remain OPEN. UI/mining and unrelated parked
+failures retain their exact reopening conditions in the backlog/history.
 
 ## Parked failures and dependent work
 

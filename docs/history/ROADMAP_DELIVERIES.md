@@ -11119,3 +11119,143 @@ Repair source `950574e3fbaec59ae49d4626a8fd6affd99c5c26` changes only the
 two fixture lines above. Full71 Python PASS8.229s guarded; initial failure8.176s
 retained, combined Python16.405s. GDScript/privacy checks remain byte-identical
 and are retained. Exports/native remain NOT_RUN pending cumulative review.
+
+## Aft service arm — actor-proven ordinary route accepted
+
+2026-10-18. Source **f2bf35a6a6305893413ae6000a4a5c45715c3e1d**, merged main
+98eb0ffe8. This reopens the earlier LIFE-ARM continuity failure with a concrete
+controller-owned successful-step record; it does not widen ordinary displacement
+or change movement/collision/tuning. Original950574e route stays FAIL.
+
+The ONE changed-source archived route passes52.811670265s guarded/49.994s driver:
+108.090668500m walking,15 goals with15 settled samples each,18.303482312m local
+walking/max actual arm distance11.711146904m, then original Zenith local pilot
+and90 seated physics frames. All1,642 emitted frames447–2088 are consecutive,
+completed actor epochs have consistent lag1 and exact endpoints. ONE actual
+successful assist is emitted1001/actor1000: .399999749m tangent/.157968749m rise,
+.430062699m3D, exact current signed IDs/identity collision frame/live authored
+bounds/once-consumption. Other walking increments max.153516039m, under unchanged
+ordinary.211666667m limit. Geometry alone cannot mint a successful actor event.
+
+Ordinary OS E1853 follows candidate receipt1851; BOARDING1854 precedes actual
+same-Zenith pilot1997→2087. Same Player/capsule/shape/service/three actual drawn
+movers, defaults, home berth, OFFLINE engine and parked craft remain current.
+Local frames1156→1471 advance clock17.043915→22.303741333; seated clock
+31.102991333→32.572643333. All three mover transforms change both intervals.
+No engine diagnostics; inputs/helper/game/Xvfb cleanup alltrue.
+
+Focused validation: import20.608195s; first player-step suiteFAIL46.849941s at
+new generic whole-walk zero-event assumption. Original headroom refusal allows
+partial rise and passes at y.160015/z−3.753062. Exact reviewed test-only five-line
+removal restores generic helper to baseline, preserving original geometry,
+tall-lip no-event and genuine-event/ID/endpoint/detach/expiry checks. Full repaired
+suite82PASS46.695904s; observer15.590279s, privacy1.034201s, full74Python8.360966s
+(8.031s unit) PASS. Only test helper differs from initial69850930c, so unchanged
+production import is retained. Independent cumulative GO precedes remaining runs.
+
+Fresh Windows/Linux exports26.676312/25.760190s; direct/archive/Windows-payload
+startup22.268376/23.804009/25.868144s, each exit0/exactly1STARTUP_MENU_READY_OK.
+Audit5.838806s verifies1,521 actual matching entries, stock PE text and exact
+archive binary/icon/installer bytes/modes/source epoch. Final independent source,
+raw-result and publication review GO. Cumulative recorded guarded stages540.192s
+across both selections, including originalPythonFAIL/repair, originalnativeFAIL
+and first new step-suiteFAIL; not wall time or reset allowance. Original native
+33.850073s plus changed native52.811670s =86.661743s guarded. All original15goals,
+15settled/15s-goal/12s-boarding/CAP300/outer360/local/seat requirements retained.
+
+Published eleven repository files; EXE+notes-only checkpoint ZIP membership and
+bytes verified. Windows EXE184633680bytes SHA256
+5898c6447805b1d32359758e81d058ab8ee129b2ad7c3311621daa89bc604e6a;
+Linux ELF148875392bytes SHA256
+6c69343e19986d3b23a925fe775c6affa2a23b629afff2ff62b75e273345ddf9;
+archive95291075bytes SHA256
+7fdba908b2f1b5e097317e7ec498376f86f06e909476d1e75b4cfd20b4b4210e.
+[Windows notes](../../builds/windows/MuddsShipyards-f2bf35a-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-f2bf35a-linux-notes.txt).
+
+Raw results `/srv/mudds-work/life-arm-step-20261018/results/`; original failures
+remain `/srv/mudds-work/life-arm-20261018/results/`. Normal source/profile/helpers/
+extraction cleanup complete:13 terminal owners/69 observed identities absent,
+14 private-profile files/helper snapshots archived, only unique results remain.
+About17min selected implementation→publication, within35–55min estimate; bounded
+source-contract review preceded selection. This closes Aft runtime coexistence,
+not new animation/physics, rendered readability, device/audio/native GPU/full
+station/final acceptance. Native Windows/human owner exclusions retained; factual
+NOT_RUN stays. Habitat patrol remains; all36 parents/ten phase gates OPEN. No
+automatic successor. Next scheduling action: define one finite remaining Habitat
+patrol route/boarding target before implementation; no engine launch by definition.
+
+### Retained selected step-up continuity card
+
+### Selected continuity correction — actual controller step-up only
+
+Concrete gap: existing controller step-up can advance the capsule about.40m;
+the driver rejects all displacement beyond.211667m. Failed995→996 fits that
+assist but lacks direct call proof. Supply actor-owned proof; old route staysFAIL.
+
+One implementer owns `scripts/player/player_controller.gd`,
+`tests/player_step_up_assist_test.gd`,
+`scripts/diagnostics/native_sortie_observer.gd`,
+`tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py` in
+`/srv/mudds-work/life-arm-step-20261018/source`, based on950574e3f. Existing
+startup/privacy edits from the unmerged Aft capability remain unchanged. Root
+owns checks/integration; one independent high-effort reviewer protects this seam.
+
+Keep physics, collision, controls,15goals and caps unchanged. Record only an
+actual true `_resolve_step_up` return: actor/frame/capsule/shape, pre-move start,
+committed landing, intended tangent/up and live bounds; finalize actual actor tick
+start/end after containment. Clear before early returns; getter returns detached
+data. Observer only serializes snapshot/completed motion epoch, without scheduling
+changes. Link consecutive observed positions to consecutive completed actor ticks
+with consistent observed lag0or1; observer currently precedes Player.
+
+The ordinary.211667m limit stays. Only an exact once-consumed LIFE-ARM actor event
+may account for a larger step: same current identities, supported ordinary controls
+at both ends, identity collision frame, exact observed tick start/end/landing match.
+Validate finite vectors, unit world-up, default capsule-derived bounds and intended
+positive tangent motion. Preserve actual probe tolerances: rise>.001/<=.301m,
+advance>=.01/<=.41m. Geometry alone is not proof; missing/stale/replayed/malformed/
+wrong-identity or mismatched-endpoint events and additional displacement must fail.
+
+Focused proof extends existing real-input `player_step_up_assist_test.gd`:
+genuine successful lip events, existing height/headroom/void/nonwalkable refusals,
+detached getter and next-no-step/seated expiry. Extend existing driver tests for
+exact event acceptance plus the refusal cases above. Root runs full player-step
+suite300s, full Python300s, observer compile300s and privacy300s after source review,
+all under guarded first-failure STOP. No new validator/schema/version/test family.
+
+Original native33.850s and Python8.176s failures plus fixture repairPASS8.229s
+remain recorded. This is changed-cause work, not a renamed route or budget reset.
+All15goals/15settled/15s-goal/12s-boarding/CAP300/outer360 and local/seat criteria
+remain. Review focused results and cumulative priority before separately selecting
+exports or ONE changed native attempt. First new failure stops this selection.
+No automatic station/activity successor. Estimate35–55min implementation/checks.
+
+Focused-check pin: `69850930c2bd51e8b734bac8a4e6176bf84d3415` (five scoped
+files versus950574e3f). Independent source/test review GO, static Python compile
+and whitespace checks pass. Root authorizes import→existing player-step suite→
+observer compile→privacy→full Python only. Results/guards live under
+`/srv/mudds-work/life-arm-step-20261018/`; exports/native remain unselected.
+
+Focused STOP on69850930c: importPASS20.608s, full player-step suiteFAIL46.850s
+at one new generic `_walk` zero-event assertion. All original collision outcomes
+and new genuine-event/identity/endpoints/detach/expiry checks pass. The headroom
+case remains below its original y<.20/z>−4.2 limits at y.160015/z−3.753062;
+not mounting the whole.25m lip does not forbid a bounded successful partial step.
+Independent causal/priority review selects ONE test-only correction: restore the
+generic `_walk` helper's baseline by removing only its new event counter/read/
+increment and whole-walk zero-event assertion. Keep all original geometry checks,
+tall-lip no-event checks and new successful-event/expiry assertions unchanged.
+No production change. Review the clean repaired pin before one full suite rerun;
+retain46.850s failure and original task/failure budgets. Later stages remain stopped.
+
+Repaired pin `f2bf35a6a6305893413ae6000a4a5c45715c3e1d` passes full player-step
+suite82 checks/46.696s, observer15.590s, privacy1.034s and full74 Python8.361s
+guarded. Only five test-helper lines differ from69850930c; production unchanged.
+Current focused total139.139s includes the first failure; prior selection218.025s
+retained (357.164s recorded guarded stages, not wall time or a reset allowance).
+Independent cumulative review GO now selects fresh paired exports→three strict
+startups→actual artifact audit→ONE changed-source archived LIFE-ARM route. Actual
+actor proof is the reopening change; original ordinary bound,15goals/all deadlines
+and historical FAIL remain. First unexpected failure STOP; final raw review before
+publication. No hardware/rendered/full-parent qualification follows from this GO.

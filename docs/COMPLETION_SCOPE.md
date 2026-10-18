@@ -1,6 +1,23 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **2df8c31**, clean source
+Latest accepted paired checkpoint: **f2bf35a**, clean source
+`f2bf35a6a6305893413ae6000a4a5c45715c3e1d`
+([Windows notes](../builds/windows/MuddsShipyards-f2bf35a-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-f2bf35a-linux-notes.txt)). Ordinary
+Aft approach15 settled goals/108.091m walking,18.303m local interval/max11.711m
+arm distance, real Zenith boarding and90 seated frames pass. All1,642 samples
+are consecutive; one actual successful actor step at epoch1000 links exact
+endpoints/IDs/live bounds, while ordinary displacement limit and physics stay
+unchanged. Three movers/clock advance both intervals; same actors/defaults/home
+berth/OFFLINE/parked state persist. Full player-step82/74Python/observer/privacy,
+paired exports/three strict startups/1521-entry audit and ONE changed archived
+route52.812s guarded pass. Original route failure33.850s and test-only repairs
+remain in history; no retroactive pass or cap reset. This is release capability/
+runtime acceptance, not new locomotion/animation or rendered/native GPU/final
+qualification. Habitat patrol and all36 parents/ten phase gates OPEN; exclusions
+unchanged. Source merged; fresh checkpoint and normal owned-scratch cleanup done.
+
+Earlier accepted paired checkpoint: **2df8c31**, clean source
 `2df8c31a5357075f0f6cadc96429213ae6b99893`
 ([Windows notes](../builds/windows/MuddsShipyards-2df8c31-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-2df8c31-linux-notes.txt)). Ordinary
