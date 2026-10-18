@@ -318,6 +318,76 @@ source evidence, not additional gameplay validators. No repair or qualification
 successor is selected by this definition; a new product finding needs an exact
 ordinary trigger, affected owner and focused proof before implementation.
 
+### Zenith authored capability map — CRAFT-GAPS-ZENITH
+
+Source-only definition on07697d0be (2026-10-18), shared by parents10/11.
+No engine/test/capture ran. `ZENITH_B7_RECONSTRUCTION_SPEC.md` retains the
+bounded partial B7 observation at frames373–467, unknown recording/build and
+A5 Interceptor/A9 Fighter conflict. Current presentation and gameplay checks
+cannot authenticate continuity with the2009 ship or modern mechanics.
+
+| Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
+| --- | --- | --- |
+| Removable source forms and modern fitout, close/far presentation | Zenith `_build_zenith_variant`; `scenes/ships/presentation/zenith_authored_presentation.tscn`, SourceCore/ModernSystems; authored asset/manifest and runtime preflight | `zenith_authored_asset_test.gd` and `zenith_interceptor_test.gd` cover authored layers/LOD/material/identity contracts. Modern airframe/canopy/instruments do not expand historical evidence. Original final art/material/native recognition gates stay open. |
+| Independent gameplay collision and markers | Zenith `COLLISION_SPECS`, `_make_collision`, `_apply_runtime_marker_contract`;24 pinned mixed shapes, boarding/seat/exit/muzzle/docking/damage anchors | Main ship and `zenith_fleet_dock_integration_test.gd` inspect collision/clearance/berth fit. Imported art and manifest are not runtime collision authority. Native presentation and whole ordinary-route clearance remain separate acceptance. |
+| Single pilot, interceptor handling, cockpit/chase cameras and physical canopy access | `zenith_b7_observed.tres`, Zenith/HeroShip, scene ShipBoardingArea and shared Player/GameFlow; `PILOT_CAPACITY=1` | Authored94m/s cruise/126 boost/42 acceleration/68 hull; `fleet_role_differentiation_test.gd` and main ship test cover trade-offs/seat-eye normalization. No walkable cabin or extra crew role is defined. Existing cockpit-only frame exclusion is a presentation layer choice, not absent cockpit content. |
+| Pilot repeater and common five-component damage/repair/recovery | Source1104 / `zenith_interceptor_repeater` / `zenith_combat_pulse.tres`; HeroShip, ShipComponentDamage, GameFlow berth recovery; Zenith starboard-wing cue | Existing weapon/damage contracts specify hitscan420m/28/.24s and shared component effects. `zenith_interceptor_damage_feedback_test.gd`, `zenith_critical_wing_silhouette_test.gd`, main ship and fleet integration tests cover their controlled setups. A localized starboard visual cue is not a second damage ledger or separate missing role mechanic. |
+| Engine/canopy/navigation-light presentation and perspective audio | Zenith immediate engine/canopy sync, close/far plume batches; scene ShipAudioRig/ShipPerspectiveAudioAdapter | Main ship, plume/navigation-light/distant-orientation tests and `audio/zenith_perspective_audio_scene_adapter_test.gd` cover named presentation/lifecycle behavior. Silent state tests do not qualify listening, physical output or native GPU/LOD readability. |
+| Fleet Dock berth, boarding/departure/combat/landing/exit/reuse | Scene home `zenith_fleet_dock_berth`; GameFlow roster, existing berth/landing/lease owners | `zenith_fleet_dock_integration_test.gd` stages the Player4.2m from the boarding marker, then uses locomotion/Interact; it accelerates boarding timing and stages the return transform/velocity. Preserve that coverage without treating it as normal hub walk-up or an entire ordinary flight/return. Full packaged loop, switch/Main re-entry and physical controls retain original requirements. |
+
+No concrete new required missing runtime component or role was established in
+these bounded authored owners. CRAFT-GAPS-ZENITH definition is DONE; original
+CRAFT-ACCEPT-ZENITH, art/reconstruction, combat/recovery and ordinary final-package
+routes remain OPEN. A further implementation assignment needs a named current
+view/behavior discrepancy, affected owner and fixed proof. No engine rerun or
+qualification successor is selected by this source definition.
+
+### Bulwark authored capability map — CRAFT-GAPS-BULWARK
+
+Source-only definition on07697d0be (2026-10-18), shared by parents10/11.
+Independent bounded reader; no engine/test/capture ran. `bulwark_new_design.tres`
+is NEW project-original additional content, not historical reconstruction.
+
+| Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
+| --- | --- | --- |
+| Heavy gunship handling, armored hull/shoulders, twin gun housings/engines, dorsal bastions and cockpit fitout | Definition/scene BulwarkHeavyGunship; `_build_bulwark_variant`, FleetRoleRegistry | Authored98m/s cruise/120 boost/22 acceleration/300 hull/13m/s landing maximum. `bulwark_heavy_gunship_test.gd`, fleet role/differentiation and silhouette tests cover their authored identities/geometry. Final art/material/LOD/handling and native views remain open. |
+| Physical pilot, canopy access/exit and home berth | Bulwark final collision/marker assembly, shared ShipBoardingArea/HeroShip/Player/GameFlow; `bulwark_fleet_dock_berth` | `bulwark_production_integration_test.gd` covers registration/actual berth/clearance/recovery contracts; main ship test covers reuse. Full ordinary launch/landing/exit/reuse, camera/muzzle/neighbour clearance and Main re-entry retain original acceptance. |
+| Supported sealed cabin and physical gunner | Bulwark `get_in_flight_cabin_report`, live floor/frame/pressure+fixture skins, gunner station contract; MovingInteriorFrame and shared station adapter | Main ship test checks full-size standing capsule and supported connected pilot-to-gunner corridor/portal, including safe support withdrawal. This is existing walkable cabin support; it does not accept ordinary moving-cabin reuse. Exactly two physical anchors are authored: pilot and `gunner_station`. |
+| Pilot pulse and charged finite-ammo gunner lance | Pilot `bulwark_combat_pulse.tres`; Bulwark `_crew_lance_definition`, `_consume_gunner_fire_intent`, charge/revalidation; shared combat source1107 | Pilot hitscan360m/50/.30s. Gunner intentionally copies Picket lance as hitscan560m/22, .45s charge/4.8s base cooldown, initial2/cap8 rounds per actor. Accepted resolver submission debits ammo; a damaging hit is not required. Component state scales charge/cooldown or blocks fire. Existing gunner gameplay/feedback and weapon migration tests cover these seams; no new travelling-bolt/reload mechanic inferred. |
+| Physical gunner network lifecycle and feedback | NetworkBulwarkGunnerBinding, GameFlow production attachment/solo held-fire route, Bulwark feedback/reuse/destruction/detach consumers | Existing f676c5016 package result remains accepted in recorded120-check host+one-client/staged hatch/target/lease scope, including real lance damage and stand/reseat. It does not accept two clients, actual host termination, hull destruction, canonical journeys, endurance, capacity or full release. No rerun occurred here. |
+| Common five-component damage, repair/recovery and silhouette cue | HeroShip/ShipComponentDamage/GameFlow; Bulwark starboard-wing scorch/failed vane observes existing authority | Existing component/emitter/silhouette/main-ship tests cover controlled behavior. Static wing cue is presentation, not a new component or repair ledger. Full destruction/recovery and supported combat cases remain open. |
+| Auxiliary policy identities and engineer consumer | `register_bulwark_roster`: unanchored `passenger_slot`/`engineer_slot`; Bulwark berth-gated repair/authority/restock/readout | Optional engineer consumer has finite six-kit work, generation/cooldown/interruption guards. Gunner gameplay test manually claims the unanchored engineer identity. That fixture and a readout at gunner furniture do not establish a physical engineer/passenger station; four network walking berths are not chairs. No extra role requirement is inferred. |
+
+No concrete new required missing runtime component/role was established in these
+bounded owners. CRAFT-GAPS-BULWARK definition is DONE; full CRAFT-ACCEPT-BULWARK,
+art/combat/crew and original release gates remain OPEN. Existing package gunner
+proof and failed historical graphical checks retain their exact scopes. A product
+repair needs a concrete current discrepancy and fixed proof; no successor selected.
+
+### Halyard authored capability map — CRAFT-GAPS-HALYARD
+
+Source-only definition on07697d0be (2026-10-18), shared by parents10/11.
+Independent bounded reader; no engine/test/capture ran. `halyard_new_design.tres`
+is NEW project-original additional content; it makes no reconstruction claim.
+
+| Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
+| --- | --- | --- |
+| Transport handling, pressure hull/bow arch/windows, four engines/gear, cockpit and berth | Definition/scene HalyardCrewTransport `_build_halyard_variant` and fitout/collision/marker builders; `halyard_fleet_dock_berth` | Authored108m/s cruise/116 boost/11 acceleration/190 hull,4.6s startup/9m/s landing maximum. `halyard_crew_transport_test.gd` covers identity/handling/fitout/cameras/berth. Final native art/material/LOD/camera/muzzle/landing clearance and ordinary packaged craft loop stay open. |
+| Port airstair/hatch → cabin → flight deck → aft systems bay, moving frame and two bunks | Halyard `_build_connected_interior`, `_build_interior_route_and_markers`, `_build_liveaboard_berth`; MovingInteriorFrame, ShipCabinHatch/ShipBunk | `halyard_airstair_cabin_traversal_test.gd`, `halyard_continuous_role_route_test.gd`, `halyard_cabin_hatch_gameplay_test.gd`, `halyard_sleeping_berth_test.gd` cover focused capsule/support/hatch/rest/lifecycle. The continuous role route stages one exterior start before ordinary movement; these are not whole final-package journeys. |
+| Eight exclusive physical seats | `CrewSeatRoleAuthority.get_halyard_roster`, Halyard role contracts/`submit_crew_intent` | Exactly pilot1/gunner1/engineer1/passenger5: gunner `co_pilot_station`, engineer `crew_port_01`, default passenger/Loadmaster `crew_port_00`. Loadmaster shares that passenger assignment; two bunks/four network walking registrations add no seats. Layout-only co-pilot/navigator/sensor/systems-engineer labels are aliases, not extra runtime roles. Existing seat/role/bridge tests retain bounded claim coverage. |
+| Pilot and gunner defensive lance, common damage/recovery | `halyard_combat_pulse.tres`, `_consume_gunner_fire_intent`, inherited Hero fire/heat/cooldown; GameFlow live combat source1105 | Hitscan560m/52/.95s; gunner shares pilot heat/cooldown, no separate ammo. Consumer emits a weapon request; combat authority resolves hits/damage. `halyard_crew_gunner_gameplay_test.gd` proves emission and explicitly excludes damage. Parked HALYARD-GUNNER-DAMAGE failed admission before actual hit proof; no weapon defect or retry follows from this definition. |
+| Engineer timed component repair and bounded channel routing | Halyard `_consume_engineer_repair_intent`, `_prepare_engineer_repair_authority`, `_advance_engineer_repair`, `get_operational_modifiers`; RepairAuthority/shared component ledger | Requires landed/not landing; .4s repair/.75s cooldown/six halyard_repair_tool kits. Selected component adds up to.15 to its already-live mobility/fire/targeting channel, capped1; cannot revive failed channels or confer gunner authority. Existing crew-role/status/network engineer tests and recorded source/package/migration/disconnect proofs retain scope; full native crew lifecycle remains open. |
+| Passenger ping and Loadmaster manifest/readiness proposal | Halyard `_consume_passenger_ping_intent`, `_consume_loadmaster_manifest_intent`, crew/status/audio bindings; GameFlow/NetworkHalyardCrewCommandBridge | Ping is bounded cabin-marker signaling. Loadmaster retains caller manifest/route/readiness proposals with cargo-transfer/inventory/reward/helm authority explicitly false. Existing ping/Loadmaster/command-bridge tests cover consumers. No freight capacity/transfer or navigation authority is implied by the proposal. |
+
+No concrete new required missing runtime component/role was established in these
+bounded owners. CRAFT-GAPS-HALYARD definition is DONE; CRAFT-ACCEPT-HALYARD and
+original Phase5–7 craft/art/combat/crew acceptance remain OPEN. Existing stationary
+package passenger and staged-flight shared-cruise source passes retain their
+recorded scopes; neither accepts ordinary final-package crew reuse, actual host
+termination, capacity or endurance. HALYARD-BOARD, dependent MOVING-CABIN/
+AUTHORITY-STOP, GUNNER-DAMAGE and HELM-YAW-HANDBACK remain parked/gated exactly
+as recorded. No diagnosis, retry, runtime repair or successor is selected here.
+
 ## Combat opponents, weapons and damage
 
 DAMAGE-DEFINE source inventory on82a7564cb is complete in

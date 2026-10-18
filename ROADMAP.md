@@ -149,19 +149,18 @@ are not inferred from presentation/policy records. Original full-craft/art/comba
 ordinary packaged routes and historical source dependencies remain OPEN. No
 runtime repair or qualification successor is automatically selected.
 
-### Selected craft definitions — Zenith, Bulwark and Halyard
+### Completed craft definitions — Zenith, Bulwark and Halyard
 
-CRAFT-GAPS-ZENITH/BULWARK/HALYARD (parents10/11) are selected as three independent
-source-only definitions,30min total. Root maps Zenith; two medium-effort read-only
-agents map Bulwark and Halyard separately. Finish each finite authored component/
-role map with actual production owners, existing coverage, concrete missing
-runtime behavior or exact missing definition. Preserve source-specific passes,
-original craft/art/combat/crew acceptance and historical boundaries. No engine,
-test/capture/export/CI run, runtime edit, new tracker/validator, parked gunner/
-boarding/handback retry or automatic qualification chain. Stop once owners,
-seams and acceptance distinctions are known; any real product repair needs a
-separate frozen card. Root integrates into the existing completion roster/backlog,
-commits/pushes and reports definition progress without claiming gameplay passes.
+CRAFT-GAPS-ZENITH/BULWARK/HALYARD (parents10/11) are DONE as source definitions
+in the existing [fleet capability maps](docs/COMPLETION_SCOPE.md#zenith-authored-capability-map--craft-gaps-zenith).
+Zenith's bounded B7 art and modern single-pilot systems, Bulwark's supported
+pilot-to-gunner cabin/lance and unanchored auxiliary policy, and Halyard's eight
+chairs/shared Loadmaster/repair/gunner consumers now have finite owners and
+coverage distinctions. No concrete new required missing runtime component/role
+was established in inspected owners. No engine/test/capture/export ran; no new
+gameplay or full craft acceptance is claimed. Original art/combat/ordinary crew/
+recovery, historical and external gates remain OPEN; parked routes were not
+reopened. No repair or qualification successor is selected by this definition.
 
 ## Parked failures and dependent work
 

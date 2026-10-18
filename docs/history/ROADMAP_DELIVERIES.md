@@ -8618,3 +8618,48 @@ external tied model evidence. No runtime repair or qualification successor selec
 Existing backlog rows/roster/roadmap updated; no new tracker, validator, worktree,
 profile or duplicate build created. All36 original parents/ten gates remain OPEN;
 latest accepted playable99e79c3 unchanged; Titan approval still pending.
+
+
+## Zenith, Bulwark and Halyard authored definitions — 2026-10-18
+
+Selected source07697d0be; root Zenith plus independent medium-effort Bulwark and
+Halyard readers. Approximately3.6min elapsed against30min total selection
+before closure review. All three CRAFT-GAPS definitions DONE in the existing
+[capability maps](../COMPLETION_SCOPE.md#zenith-authored-capability-map--craft-gaps-zenith).
+No concrete new required missing runtime component/role was established within
+inspected authored owners. Source definition progress does not accept gameplay.
+
+Zenith's bounded partial B7 source forms remain distinct from modern pilot,
+handling, collision, cockpit, weapon and presentation systems. Bulwark already
+has a supported sealed pilot-to-gunner cabin, two physical stations, pilot pulse
+and charged finite-ammo hitscan lance; unanchored engineer/passenger policy and
+a repair consumer do not create physical chairs. The backlog's cabin wording is
+clarified without upgrading ordinary moving-cabin reuse. Halyard's eight chairs
+have exclusive pilot/gunner/engineer/passenger roles; Loadmaster shares a
+passenger chair, repair is landed/finite and channel routing cannot revive
+failure, and gunner requests still require live combat resolution. Layout aliases
+are not additional runtime roles.
+
+Existing tests/source-package results remain coverage anchors at their recorded
+pins, not new passes. Full craft/art/material/collision/combat/ordinary packaged
+crew/recovery acceptance stays OPEN. All Halyard boarding/gunner/handback parked
+and dependent cases retain exact scopes/budgets; no retry/diagnosis selected.
+No engine/test/capture/export/CI, new tracker/validator, worktree/profile or duplicate
+build. Latest accepted checkpoint99e79c3 unchanged. All36 original parents/ten
+gates OPEN; Titan proposal unapproved. No successor automatically selected.
+
+### Retained Zenith/Bulwark/Halyard definition contract
+
+### Selected craft definitions — Zenith, Bulwark and Halyard
+
+CRAFT-GAPS-ZENITH/BULWARK/HALYARD (parents10/11) are selected as three independent
+source-only definitions,30min total. Root maps Zenith; two medium-effort read-only
+agents map Bulwark and Halyard separately. Finish each finite authored component/
+role map with actual production owners, existing coverage, concrete missing
+runtime behavior or exact missing definition. Preserve source-specific passes,
+original craft/art/combat/crew acceptance and historical boundaries. No engine,
+test/capture/export/CI run, runtime edit, new tracker/validator, parked gunner/
+boarding/handback retry or automatic qualification chain. Stop once owners,
+seams and acceptance distinctions are known; any real product repair needs a
+separate frozen card. Root integrates into the existing completion roster/backlog,
+commits/pushes and reports definition progress without claiming gameplay passes.
