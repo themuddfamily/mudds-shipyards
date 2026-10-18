@@ -3681,3 +3681,146 @@ and roster entry are authored. A standing cabin berth does not meet acceptance.
   disclosing actual scope and the unchanged external gates. Commit/push regularly,
   remove owned clean checkout/profile and retain raw failures. Full baseline,
   flight/landing/return and endurance stay open.
+
+## Ordinary Jovian boarding caller — initial compile failure
+
+2026-10-18, candidate `c3fbb625a` on work/jovian-ordinary-boarding-20261018,
+not integrated to main. Source-reviewed new caller and minimal default-preserving
+peer profile hook are committed/pushed with generated UID. Cold import exit0,
+no diagnostics. Explicit check-only compilation exits1: cannot infer local
+`spawn` at182, `owner` at292, `assignment` at295; script load fails. No gameplay
+ran and no ordinary boarding acceptance is established. Raw retained at
+`/srv/mudds-work/jovian-ordinary-boarding-20261018/results/`.
+
+Priority review selects exactly those three local annotations (10–20min) over
+an unscheduled activity definition. Route, input, physical seat/peer criteria
+and original300s case remain unchanged; recompile once and run the original
+case only if compilation passes. Another failure stops for priority review.
+This does not reset the earlier missing passenger prerequisite and repair.
+
+## Ordinary Jovian boarding — runtime failure held on27879aa62
+
+2026-10-18, source `27879aa62c8da40012466f287ffd0987ebd68f6f` on
+`work/jovian-ordinary-boarding-20261018`, not integrated to main. The bounded
+three-local-type repair ofc3fbb625a passes explicit compilation, exit0/no
+diagnostics; unchanged imported cache is reused. Source-reviewed profile keeps
+existing harness defaults and gives each new peer private XDG/TMP and Xvfb
+while preserving HOME. All Godot processes use x11/dummy renderer/Dummy audio;
+this run's non-playing server also uses private X11, not a headless-server proof.
+
+Original300s focused case runs134.890s, exits1 without its completion marker.
+Both independent clients authenticate through real HUD Manual Join/Begin Shift
+and complete all13 ordinary station goals from authored spawn, including port
+arm, Arrow clearance, registry handoff, Freight connector and Jovian approach.
+A enters the actual supported host body and reaches the authored cockpit stand
+point. Its compound local pilot predicate times out after12s; B remains outside
+waiting for host.pilot_seated. No distinct pilot/passenger outcome is established,
+and no inference is made about which pilot/UI/producer condition failed.
+
+A writes shared abort first at1792287981.88809; B writes its cascading abort
+1792287981.89761 and overwrites that shared receipt. Coordinator abort kills
+all three peers before .done records; actual host/client/client_b exits are137.
+The retained last abort says B waited for host.pilot_seated, not A's original
+condition. Nine coordinator diagnostics are failure/exit cascades, not nine
+separate runtime bugs. Matrix `20261018T014404Z`; source manifest and complete
+import cache remain unchanged, outer supervisor terminal/reaped exit1.
+
+Priority review selects exactly one failure-state capture in this existing
+caller plus one original300s probe. Preserve A's per-role first failure before
+teardown, read actual primitive claim/seating/HUD/producer/host seat state and
+allow bounded failed-peer exit grace. Do not weaken acceptance or stage a
+shorter route; do not patch runtime speculatively. One inconclusive probe ends
+with the exact missing fact and another explicit priority selection.
+
+Raw: `/srv/mudds-work/jovian-ordinary-boarding-20261018/results/`. Source work
+branch and unique failed peer logs/receipts are retained; owned clean checkout/
+profiles are removed after closure verification. Main's last delivered runtime
+remains6262749; no new build is required for this held test-only candidate.
+All original parent/phase/hardware/full-matrix/endurance gates remain open.
+
+### Frozen boarding milestone at attempt
+
+The following card is historical; its type-repair/next-action language is not
+active scheduling. The only active next probe is in ROADMAP.md.
+
+### Original boarding contract
+
+NET-BASELINE-DEFINE is complete as a source-only definition on `b96580bde`.
+The exact gap is an ordinary-controls Jovian pilot/passenger caller with one
+server and two independent clients. Existing three-process authority checks
+write craft/player state directly; existing Jovian engineer checks have only
+one client. The missing physical passenger binding found during implementation
+is now delivered on6262749aa; the ordinary two-client caller is still absent.
+The Halyard shared-cruise caller already has two real remote crew,
+but stages its approach/departure and tests serial use of the same chair.
+[Definition and existing commands](docs/history/ROADMAP_DELIVERIES.md#servertwo-client-definition--existing-halyard-route-and-missing-jovian-caller)
+retain those limits. No engine ran for that definition; subsequent component
+qualification and checkpoint results are recorded separately in
+[the passenger delivery](docs/history/ROADMAP_DELIVERIES.md#jovian-physical-passenger-seat--delivered-on6262749aa).
+
+| Task | Status / owner | Observable finish | Budget |
+| --- | --- | --- | --- |
+| NET-JOVIAN-BOARD | GATED on caller types / root | Two independent remote clients walk to the same Jovian and obtain distinct pilot/passenger occupancy through ordinary controls. | 60–90min implementation; one existing300s-cap focused run separately, plus up to15min import/preflight. Stop at90min or first concrete failure. |
+
+Current attempt `c3fbb625a` passed cold import but explicit compilation FAILED:
+local `spawn`, `owner` and `assignment` types cannot be inferred. No gameplay
+ran; the candidate stays on its work branch and is not integrated.
+
+**Recorded priority review:** select one10–20min caller type correction over
+starting an unscheduled activity definition. The compiler identifies exactly
+three local annotations, while the reviewed route/input/seat contract stays
+unchanged. Recompile once, then run the original300s case only if compilation
+passes. A further failure stops for review; no cap, route or authority weakening.
+The prior missing passenger prerequisite/repair remains counted.
+
+Earlier priority review after the missing prerequisite and its one repair selected this
+original boarding milestone: the passenger path now has physical component
+proof and a fresh checkpoint. Keep its original source stop recorded; another
+failure requires priority review before further diagnosis, repair or rerun.
+VIP/Ember diagnostics remain parked.
+
+- **Parent/result:** original Phase7 server/two-client first slice, parents16/24/26.
+  This first milestone ends at supported distinct seats. Flight, landing and both
+  physical exits remain required later children; it does not close the baseline.
+- **Ownership/seam:** extend the existing independent-Main peer/exit/cleanup
+  harness in `tests/network/halyard_network_passenger_route_test.gd` with the
+  smallest craft/profile hook and a Jovian boarding profile in
+  `tests/network/jovian_network_two_client_boarding_test.gd` plus UID. Reuse
+  existing peer spawning and menu-input helpers; preserve every existing profile.
+  No new orchestrator, validator, networking rewrite or speculative runtime fix.
+- **Ordinary route:** authoritative non-playing server and two private-profile
+  clients; both real clients join the same session, start at their normal authored
+  station spawn and walk to the existing Jovian approach. Client A uses normal
+  pilot boarding; B uses normal passenger/cabin Interact. Let the existing
+  authority decide claims; observe peer/entity generations and distinct physical
+  seat identities. Server setup may use the existing host API, but client actors,
+  candidates, claims and controls must remain production-owned.
+- **Acceptance:** the same two authenticated remote identities have real supported
+  bodies and distinct confirmed seats on that same craft; both retain honest
+  ownership UI and normal controls. No actor/camera pose writes, forced piloted/
+  flight state, staged approach, direct boarding calls or invented geometry.
+  A playing-host third-avatar lifecycle remains a separate applicable Halyard
+  requirement, not evidence supplied by the non-playing server.
+- **Proof command after implementation:** from its committed clean checkout,
+  private Xvfb, use the existing runner with pinned Godot4.7.1,
+  `--mode graphical --display-driver x11 --audio-driver Dummy --jobs 1
+  --scope jovian_network_two_client_boarding_test --timeout 300`.
+  The new caller must declare input-only, fail fast, print exactly one terminal
+  `JOVIAN_NETWORK_TWO_CLIENT_BOARDING_OK` only after all criteria, and require
+  actual zero OS exits plus cleanup for every peer. Record exact source/engine;
+  import separately within600s. Preserve raw and independent abort/process/input
+  cleanup. This is source qualification, not Windows/GPU/device acceptance.
+- **Failure/close:** first missing seam or runtime obstruction ends this card;
+  record one exact fact and a separately scoped repair before more work. One
+  failure plus one attempted repair invokes priority review. Do not add flight,
+  negative-RPC, impairment or endurance cases to rescue this assignment. Commit/
+  push the caller before its run, record actual result, remove owned disposable
+  checkout/profile and retain raw failures. A demonstrated meaningful runtime
+  repair requires the normal fresh Windows checkpoint; test capability alone
+  is not delivered gameplay.
+
+The original baseline still requires client A's validated flight, B's stable
+passenger ride, landing and coherent physical exits, plus the separately defined
+Halyard route and original1800s endurance. Existing24s authority,300s shared cruise
+and600-step/2s stall checks keep their own contracts. Do not combine these into
+one large assignment or use a short run to replace endurance.
