@@ -37,11 +37,11 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS definition, 2 FAILED/PARKED, 2 GATED, 3 DONE (one qualification, two production fixes).** Root owns integration and closure.
+**1 READY, 2 FAILED/PARKED, 2 GATED, 3 DONE (one qualification, two production fixes).** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
-control prompts and the finite cargo HUD comparison. Two definitions are complete: offline Jovian delivery and residual Halyard
+control prompts and the cargo supply-status correction. Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
 ten phase gates remain open. The accepted Annex route and parked Jovian exit/
@@ -51,7 +51,7 @@ and delivery history; they do not consume active queue slots.
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
 | MIXED-CONTROL-PROMPTS | DONE | Grouped movement help retains a remapped button alongside stick directions in either order. |b86264f; glyph40/camera27/help20, paired checkpoint/startups/audits pass |
-| HUD-CARGO-FINDING | IN PROGRESS definition | One source-demonstrated cargo owner/HUD discrepancy and bounded fix, or finite no finding. |10 min static; existing acceptance and owner only |
+| HUD-CARGO-SUPPLY | READY | After the six-kit supply is exhausted and the run reset, the Activity Board reports insufficient kits; other activities remain selectable. |30–60 min implementation/review; existing focused check up to300s, packaging/checks separate |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
@@ -73,17 +73,39 @@ any more. Close with actual result/pin/limits, commit/push and owned cleanup,
 retaining unique raw/work. Caller-only work needs no identical checkpoint;
 accepted runtime repairs require separate cards and fresh paired builds.
 
-### HUD-CARGO-FINDING — compare cargo presentation with its owner
+### HUD-CARGO-SUPPLY — show when delivery kits have run out
 
-- **Parent/result/type:**13; one finite source definition before runtime work.
-  Exact ordinary trigger where cargo objective, activity selection or reset
-  readiness contradicts actual completed/paid/owed/current-generation state.
-- **Boundary/owner:** one read-only agent,10min, no engine. Existing GameFlow/
-  cargo owner/nearby presenter/HUD and their focused tests only. Preserve accepted
-  ordinary delivery; parked restart timeout is not a new persistence defect.
-- **Close/next:** at most one concrete discrepancy, production seam and existing
-  focused acceptance; root selects implementation separately. If none found,
-  record no finding and stop. No speculative feature or broad lifecycle audit.
+- **Parent/result:**13. After three two-kit deliveries exhaust the Jovian's
+  six-kit supply, resetting or reselecting cargo shows insufficient kits rather
+  than READY. Race and other activity choices remain available.
+- **Boundary/owner:** root integrates one implementation agent. Only the existing
+  GameFlow activity-selection presentation, HUD status copy and existing
+  `tests/cargo_delivery_production_integration_test.gd` depletion scenario.
+  Read the existing cargo authority; preserve its start refusal, inventories,
+  rewards, generations and selection locks. No refill, persistence or restart work.
+- **Proof:** extend the existing scenario that performs three real transfers,
+  checks source0/destination6, resets and verifies `insufficient_source_quantity`.
+  Assert truthful board status after reset and reselection, unchanged start
+  refusal, and ordinary Race selection. Reproduce the new assertion against the
+  old runtime, then pass it with the fix. Keep the existing300s check cap;
+  a timeout is a failure, not permission to weaken or replace the acceptance.
+- **Budget/next:** READY;30–60min implementation/review, split before90min.
+  Check runtime is separate: focused check up to300s per selected run, plus
+  import/compile and paired checkpoint exports/startups. Next action is the
+  bounded implementation; stop at its first unexpected failure and record the
+  exact boundary before choosing one separate repair.
+- **Close:** accepted runtime change, focused proof and fresh paired playable
+  checkpoint with actual validation/limits; commit/push and owned scratch cleanup.
+  This closes only the supply-status defect, not cargo persistence or parent13.
+
+### HUD-CARGO-FINDING — DONE, source definition only
+
+The bounded read-only comparison found the supply-status discrepancy above.
+`request_activity_start` already refuses insufficient kits, but activity-selection
+presentation receives no supply status and falls back to READY after reset.
+The existing depletion scenario supplies the implementation seam and acceptance.
+No engine run or gameplay completion is claimed by this definition. Its queue
+slot now holds HUD-CARGO-SUPPLY; no further broad cargo audit is selected.
 
 ### MIXED-CONTROL-PROMPTS — retain buttons beside stick directions
 
