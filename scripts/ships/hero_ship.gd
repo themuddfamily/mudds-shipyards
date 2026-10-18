@@ -2844,7 +2844,8 @@ func get_network_operation_presentation_snapshot() -> Dictionary:
 		var node: Node3D = _network_engine_renderers[path]
 		if is_instance_valid(node):
 			rows.append(_pack_network_engine_renderer(_network_engine_renderer_row(path, node)))
-	return {"engine": _engine_state, "landed": _landed, "docked": _docked_latch,
+	return {"engine": _engine_state, "throttle": _throttle if _engine_state == ENGINE_ONLINE and not _destroyed else 0.0,
+		"landed": _landed, "docked": _docked_latch,
 		"landing": _landing_active, "canopy": clampf(_canopy_pivot.rotation.x / CANOPY_OPEN_ANGLE, 0.0, 1.0) if is_instance_valid(_canopy_pivot) else 0.0,
 		"canopy_open": _canopy_open, "renderers": rows, "renderer_kinds": get_network_engine_renderer_kinds(),
 		"readout": _cockpit_readout.text if is_instance_valid(_cockpit_readout) else "",
@@ -2960,6 +2961,23 @@ func _reassert_network_operation_presentation() -> void:
 	if is_instance_valid(_cockpit_readout):
 		_cockpit_readout.text = state.readout
 		_cockpit_readout.modulate = state.readout_color
+	_update_cockpit_flight_instruments()
+
+
+## Host throttle is a display fact for observers. A pilot on this machine keeps
+## the existing predicted instrument reading; no projected value enters flight.
+func _update_cockpit_flight_instruments() -> void:
+	if not is_instance_valid(_cockpit_readout):
+		return
+	var instruments := _cockpit_readout.get_node_or_null("LiveFlightInstruments") as CockpitFlightInstruments
+	if instruments == null:
+		return
+	var display_throttle := _throttle
+	if _network_damage_presentation_enabled and not _network_operation_state.is_empty() \
+			and not _is_piloted_from_this_machine():
+		display_throttle = float(_network_operation_state.get("throttle", 0.0)) \
+			if _network_operation_state.engine == ENGINE_ONLINE and not bool(_network_operation_state.get("destroyed", false)) else 0.0
+	instruments.update_readings(velocity.length(), display_throttle, _hull / maxf(maximum_hull, 0.001))
 
 
 func _network_operation_solo_policy() -> Array:
@@ -2972,6 +2990,8 @@ func clear_network_operation_presentation() -> void:
 		release_network_canopy_motion(_network_canopy_motion_owner)
 	_network_operation_state.clear()
 	_network_operation_starting.clear()
+	# Recompute from current solo state, including changes made while projected.
+	_update_cockpit_flight_instruments()
 	if _network_operation_source.is_empty():
 		return
 	for path: String in _network_operation_source.renderers:
@@ -5592,9 +5612,7 @@ func _update_presentation(delta: float, command: ShipCommand) -> void:
 		# Reserve the upper speed strip even for the longer bomber descriptor.
 		_cockpit_readout.font_size = mini(42, floori(150.0 / _cockpit_readout.text.get_slice_count("\n")))
 		_cockpit_readout.modulate = system_color if system_color is Color else Color("8de8e4")
-		var instruments := _cockpit_readout.get_node_or_null("LiveFlightInstruments") as CockpitFlightInstruments
-		if instruments != null:
-			instruments.update_readings(velocity.length(), _throttle, _hull / maxf(maximum_hull, 0.001))
+		_update_cockpit_flight_instruments()
 	if _cockpit_practical_light != null:
 		var practical_energy := 0.04
 		if _engine_state == ENGINE_STARTING:

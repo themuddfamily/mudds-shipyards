@@ -79,6 +79,10 @@ var _full_throttle: ShipCommand = null
 
 func _run() -> void:
 	if await _build():
+		_assert_remote_throttle_instruments()
+		if OS.get_cmdline_user_args().has("--throttle-instruments-only"):
+			await _finish_pose_suite()
+			return
 		await _assert_a_grant_claims_ownership()
 		await _assert_b_host_publishes_the_pose()
 		await _assert_c_the_pilot_copy_is_reconciled()
@@ -160,6 +164,118 @@ func _build() -> bool:
 	)
 	_check(offered, "both peers are admitted and hold the host's offer")
 	return offered
+
+
+## Exercise the physical Jovian repeater after the same local presentation pass
+## that used to overwrite a remote host's throttle with the observer's zero.
+func _assert_remote_throttle_instruments() -> void:
+	var ship := _host.get_node("JovianLightFreighter") as HeroShip
+	var was_processing := ship.is_physics_processing()
+	ship.set_physics_process(false)
+	var engine: Variant = ship.get("_engine_state")
+	var throttle := float(ship.get("_throttle"))
+	var piloted := bool(ship.get("_piloted"))
+	var velocity := ship.velocity
+	var source := ship.get_command_source()
+	ship.set("_piloted", false)
+	var readout := ship.get("_cockpit_readout") as Label3D
+	var physical := readout.get_node("LiveFlightInstruments/LiveStatusRepeaters/ThrottleReadout") as Label3D
+	for host_throttle: float in [0.65, -0.45]:
+		ship.set("_engine_state", HeroShip.ENGINE_ONLINE)
+		ship.set("_throttle", host_throttle)
+		ship._update_presentation(TICK, ShipCommand.new())
+		var entry := PoseStream.build_pose_entry(ship, ship.get_ship_id(), 1, 60)
+		entry["craft_epoch"] = 1
+		ship.set("_engine_state", engine)
+		ship.set("_throttle", throttle)
+		ship.set_network_damage_presentation_enabled(true)
+		for compact: bool in [false, true]:
+			var stream := PoseStream.new()
+			stream.bind_replica_craft_presentations([ship])
+			var wire := PoseStream.pack_display_facts([entry]) if compact else [entry]
+			_check(stream.consume_movement_section(wire) == 1,
+				"the existing %s pose admits a signed-throttle source sample" % ("compact" if compact else "unpacked"))
+			ship.apply_network_operation_presentation(stream.latest_sample(ship.get_ship_id()))
+			ship._update_presentation(TICK, ShipCommand.new())
+			_check(physical.text == "%+03d\nTHR %%" % roundi(host_throttle * 100.0),
+				"%s host throttle %+03d reaches the physical Jovian THR readout after local presentation" % ["compact" if compact else "unpacked", roundi(host_throttle * 100.0)])
+			_check(ship.get("_engine_state") == engine and float(ship.get("_throttle")) == throttle
+				and ship.velocity == velocity and ship.get_command_source() == source,
+				"remote instrument readings retain local engine, throttle, velocity and command authority")
+			ship.set("_piloted", true)
+			ship._update_presentation(TICK, ShipCommand.new())
+			_check(physical.text == "%+03d\nTHR %%" % roundi(throttle * 100.0),
+				"this-machine pilot retains its predicted throttle instrument during host projection")
+			ship.set("_piloted", false)
+			ship.set("_throttle", 0.23)
+			ship.clear_network_operation_presentation()
+			_check(physical.text == "+23\nTHR %" and float(ship.get("_throttle")) == 0.23,
+				"projection clear immediately restores the current solo throttle instrument")
+			ship.set("_throttle", throttle)
+		if host_throttle < 0.0:
+			_assert_throttle_wire_compatibility(ship, entry, physical)
+			ship.set("_engine_state", HeroShip.ENGINE_OFFLINE)
+			ship.set("_throttle", host_throttle)
+			ship._update_presentation(TICK, ShipCommand.new())
+			var stopped := PoseStream.build_pose_entry(ship, ship.get_ship_id(), 1, 63)
+			stopped["craft_epoch"] = 1
+			_check(float((stopped.operation_presentation as Dictionary).get("throttle", INF)) == 0.0,
+				"stopped host publishes neutral throttle even if a prior signed throttle remains")
+			ship.set("_engine_state", engine)
+			ship.set("_throttle", throttle)
+			var stopped_stream := PoseStream.new()
+			stopped_stream.bind_replica_craft_presentations([ship])
+			_check(stopped_stream.consume_movement_section(PoseStream.pack_display_facts([stopped])) == 1,
+				"compact stopped host operation reaches the physical instrument fixture")
+			ship.apply_network_operation_presentation(stopped_stream.latest_sample(ship.get_ship_id()))
+			ship._update_presentation(TICK, ShipCommand.new())
+			_check(physical.text == "+00\nTHR %", "host ONLINE to OFFLINE transition neutralizes the physical throttle instrument")
+			ship.clear_network_operation_presentation()
+	ship.set_network_damage_presentation_enabled(false)
+	ship.set("_piloted", piloted)
+	ship._update_presentation(TICK, ShipCommand.new())
+	ship.set_physics_process(was_processing)
+
+
+func _assert_throttle_wire_compatibility(ship: HeroShip, entry: Dictionary, physical: Label3D) -> void:
+	var wire := PoseStream.pack_display_facts([entry])
+	var facts: Array = bytes_to_var(wire[0].display_facts.decompress(int(wire[0].display_size), FileAccess.COMPRESSION_ZSTD))
+	ship.apply_network_operation_presentation(entry)
+	ship._update_presentation(TICK, ShipCommand.new())
+	_check(facts[0][9].size() == 10 and wire[0].get("operation_throttle") == entry.operation_presentation.throttle,
+		"signed throttle uses an optional primitive header while preserving the original ten-field packed row")
+	var legacy := wire.duplicate(true)
+	legacy[0].erase("operation_throttle")
+	var receiver := PoseStream.new()
+	receiver.bind_replica_craft_presentations([ship])
+	_check(receiver.consume_movement_section(legacy) == 1,
+		"legacy ten-field compact operation rows remain accepted")
+	ship.apply_network_operation_presentation(receiver.latest_sample(ship.get_ship_id()))
+	ship._update_presentation(TICK, ShipCommand.new())
+	_check(physical.text == "+00\nTHR %", "legacy compact rows use neutral display instead of stale host throttle")
+	ship.clear_network_operation_presentation()
+	var unpacked_legacy := entry.duplicate(true)
+	unpacked_legacy.operation_presentation.erase("throttle")
+	var unpacked_receiver := PoseStream.new()
+	unpacked_receiver.bind_replica_craft_presentations([ship])
+	_check(unpacked_receiver.consume_movement_section([unpacked_legacy]) == 1,
+		"legacy unpacked operation facts remain accepted")
+	ship.apply_network_operation_presentation(entry)
+	ship.apply_network_operation_presentation(unpacked_receiver.latest_sample(ship.get_ship_id()))
+	ship._update_presentation(TICK, ShipCommand.new())
+	_check(physical.text == "+00\nTHR %", "legacy unpacked facts replace stale host throttle with neutral display")
+	ship.clear_network_operation_presentation()
+	var refused := true
+	for invalid: Variant in [NAN, INF, -INF, 1.01, -1.01, "0.5", true]:
+		var unpacked := entry.duplicate(true)
+		unpacked.operation_presentation["throttle"] = invalid
+		var packed := wire.duplicate(true)
+		packed[0]["operation_throttle"] = invalid
+		for rows: Array in [[unpacked], packed]:
+			var probe := PoseStream.new()
+			probe.bind_replica_craft_presentations([ship])
+			refused = probe.consume_movement_section(rows) == 0 and refused
+	_check(refused, "unpacked and compact operation facts reject nonfinite, out-of-range and nonnumeric throttle")
 
 
 ## No await or network advance may occur between hosting, launch and these
