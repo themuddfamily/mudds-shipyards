@@ -270,7 +270,7 @@ func _assert_remote_hull_hud() -> void:
 	_check(bool(ship.apply_network_damage_presentation(stream.latest_sample(ship.get_ship_id())).get("applied", false)),
 		"HUD regression applies host presentation while retaining the local full hull")
 	_host._physics_process(TICK)
-	var frame := _host.hud.get_hull_frame_damage_snapshot()
+	var frame: Dictionary = _host.hud.get_hull_frame_damage_snapshot()
 	_check(is_equal_approx(float(frame.health_ratio), 0.25) and frame.stage == &"critical",
 		"normal GameFlow publication shows host 50/200 hull and critical frame instead of retained solo health")
 	var bar := _host.hud.get("_hull_bar") as ProgressBar
