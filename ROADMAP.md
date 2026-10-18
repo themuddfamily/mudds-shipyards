@@ -40,17 +40,30 @@ SCOPE-DESKTOP source investigation is complete; the final supported target list
 remains WAITING. Windows Desktop/Linux x86_64 exports exist; Phase9 does not name
 a third target. This is scope definition, not new gameplay or full acceptance.
 
-| Next bounded card | Observable finish | Owner / dependency / budget |
-| --- | --- | --- |
-| ACT-REPEAT-DEFINE /13 | Resolve repetition applicability for the nine activities outside the already defined Race/Beacon/Scan trio; each ends with an exact repeat scenario/count/acceptance or a named missing policy | Root integrates one read-only source mapper; existing activity owners/tests and original repeat promise;30–45min definition, no engines |
+**ACT-REPEAT-DEFINE is now DONE as a definition.** The
+[remaining nine activity contracts](docs/ROADMAP_BACKLOG.md#activity-repetition--remaining-nine-definitions)
+complete the twelve-activity classification. Ten same-world runs, no resource
+growth and no stranded objectives remain required; no repeat journey was run.
 
-For that next card, use the existing ACT-WRITES roster and ACT-REPEAT section;
-edit only the existing backlog/working roadmap. Keep all original repeat criteria
-and prior parked failures; no new tracker, test helper, ten-run execution or
-checkpoint build belongs to definition. Stop when the nine answers are explicit;
-a newly identified runtime gap gets its own implementation card and estimate.
-The current source-roster task changed documentation only: no engine or build
-was needed. Its owned mapping agent completed without creating scratch files.
+| Remaining gate | Concrete next action | Acceptance boundary |
+| --- | --- | --- |
+| First ordinary activity play | Select one existing PLAY-* card and freeze actual route, current production owners, original deadlines and once-only reward/home return before any execution | Existing source/staged checks do not qualify ordinary play; no ten-run chain automatically follows |
+| Cargo repetition policy | Specify legitimate same-world replenishment and destination turnover before selecting ten deliveries | Jovian6 kits fund3 deliveries; Cinder2 crates fund2 per retained source and destination capacity8. Preserve unanswered Hauler stock choice; no fixture restock or implicit exemption |
+| Repeat resource/deadline contract | After accepted first play, freeze one activity's actual command/candidate, equivalent-phase resource baseline and ten measured cycle budget | Generation/receipt/inventory changes need exact legitimate accounting; original deadlines, no-growth and failure-stop criteria remain |
+
+Heavy Breach and Torpedo remain separate ten-clear outcomes on the actual
+alternating board: twenty successful alternating sorties yield ten of each.
+Do not skip offers, count ten mixed sorties as ten each or replay the parked
+BREACH-INTERRUPTION probe. The physical-defense contract retains all three waves
+and fresh-reset cycles; failed-wave continuation is not another successful run.
+
+No execution card is selected by this definition. Next scheduling action is to
+freeze **one first-play card**, after identifying its supported ordinary route
+and a bounded command; avoid launching an unbounded repeat/recovery sequence.
+The definition changed only existing backlog/roadmap documentation. One medium
+read-only mapper covered the independent board scenarios; root defined the six
+other activities and integrated review. No engines, tests, builds or scratch
+files were needed. All original broad parents/phase gates remain OPEN.
 
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.

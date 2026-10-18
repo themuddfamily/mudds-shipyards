@@ -375,10 +375,19 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
 | BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; original interruption transaction remains parked |
 | BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: after originale9/repair3c board failures and accepted startupfixe3, unchanged-probe reopeningc159 fails69.957s at atomic-payment commit assertion; third cold replay NOT_RUN. Cumulative140.961s; unmerged/withheld, no further run/repair selected |
-| ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | PARTIAL definition: Race/Beacon/Scan children below; remaining activity applicability still DEFINE. No new execution selected |
+| ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DONE definition: all twelve activities classified below; two cargo routes retain explicit stock-policy gates, Heavy/Torpedo preserve alternating physical board. Measurement/deadline freeze and first-play gates remain; no execution accepted |
 | REPEAT-RACE | Ten same-world Checkpoint Race completions through actual ordered checkpoints, payment and accepted reset; next run starts usable | 13 | GATED on PLAY-RACE and a frozen resource-baseline/deadline contract; existing source passes retained |
 | REPEAT-BEACON | Ten same-world traversals of all four authored beacons in order, accepted payment/reset and usable next run | 13 | GATED on PLAY-BEACON and frozen resource-baseline/deadline contract; no synthetic beacon submission as ordinary-route proof |
 | REPEAT-SCAN | Ten same-world scans from actual approach, full four-second physics scan, existing payment/discovery/reset and usable next run | 13 | GATED on PLAY-SCAN and frozen resource-baseline/deadline contract; existing full Scan failure remains PARKED, no retry selected |
+| REPEAT-THREADING | Ten five-gate Asteroid Threading completions with accepted payment/reset | 13 | GATED on PLAY-THREADING and measurement/deadline freeze; source reset/save coverage retained |
+| REPEAT-PATROL | Ten ordered station-keeping patrol completions on the frozen authored branch, then usable next start | 13 | GATED on PLAY-PATROL and measurement/deadline freeze; record relay/platform branch explicitly; one branch does not qualify the other |
+| REPEAT-JOVIAN-KIT | Ten real two-kit delivery/paid reset cycles without invented stock | 13 | GATED on legitimate stock replenishment/cycling policy and measurement/deadline freeze; initial6 kits only fund3 deliveries, KIT-RELOAD stays PARKED |
+| REPEAT-CINDER-SUPPLY | Ten real one-crate platform delivery/paid reset cycles without invented stock | 13 | GATED on PLAY-CINDER-SUPPLY, stock/capacity policy and measurement/deadline freeze; initial source2/destination capacity8; Hauler stock choice remains unresolved |
+| REPEAT-MINING | Ten real six-second extractions, each acknowledged once and reset durably | 13 | GATED on PLAY-MINING and measurement/deadline freeze; capacity receipt is not ore/currency inventory |
+| REPEAT-CONVOY | Ten real safe-arrival escorts with once-only payment and production reset | 13 | GATED on PLAY-CONVOY and measurement/deadline freeze; retained-host/actor lifecycle and original failures remain |
+| REPEAT-DEFENSE | Ten fresh physical-board deployments, full three-wave clears, payment and reset | 13 | GATED on PLAY-DEFENSE and measurement/deadline freeze; wave recovery is not another fresh completion |
+| REPEAT-BREACH | Ten cleared Heavy Breach postings through ordinary board rotation | 13 | GATED on PLAY-BREACH and measurement/deadline freeze; alternate Torpedo postings cannot be skipped; BREACH-INTERRUPTION remains PARKED |
+| REPEAT-TORPEDO | Ten cleared Torpedo postings through ordinary board rotation | 13 | GATED on PLAY-TORPEDO and measurement/deadline freeze; ten mixed sorties do not satisfy ten of either scenario |
 | TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DEFINE; design/runtime basis and scope decision |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED; failed route plus repair, original 300s |
 | EMBER-SOURCE-ABANDON | Integrated physical Ember abandonment/home return | 1,14 | DONE; e85157b4d, MemoryFilesystem, original exact31 |
@@ -872,7 +881,56 @@ measured activity/reset durations; budget ten such cycles plus travel/closure,
 without extending original deadlines. Stop on ten accepted runs or the first
 defect; retain any failure before separately selecting a repair. Scan's previous
 full-suite failure stays parked with its existing budget/reopen condition.
-Remaining repeatability classifications under ACT-REPEAT-DEFINE remain open.
+The remaining nine source classifications are now defined below; their gameplay
+and resource acceptance remain unperformed.
+
+### Activity repetition — remaining nine definitions
+
+Source4d14158de plus existing source-qualified Cinder debt checkpointf8b5f86;
+read-only source inspection on2026-10-18. This completes ACT-REPEAT-DEFINE as a
+finite definition, not ten-run acceptance or an implementation assignment.
+Every applicable activity retains the original **ten same-world runs, no resource
+growth, no stranded objectives** promise. Keep one retained world and production
+owners; clearing history, rebuilding Main, synthetic checkpoint/kill submission,
+restocking fixtures or direct scenario changes cannot stand in for ordinary play.
+Existing tests named here are coverage anchors only; none ran for this definition.
+
+| Child / source owner | Finite ordinary repeat route | Specific gate / pass condition |
+| --- | --- | --- |
+| REPEAT-THREADING / [binding](../scripts/world/nearby_sector_activity_binding.gd), [five-gate route](../assets/activities/cinder_asteroid_field_threading_run.tres), GameFlow._reset_cinder_asteroid_session | Approach first gate within30m, start, physically cross all five gates in order, settle actual generation reward, accepted persisted reset; repeat ten times and prove next start usable | PLAY-THREADING first; pending reward blocks replacement. cinder_asteroid_field_test.gd source save/reset coverage is not ten ordinary flights |
+| REPEAT-PATROL / [PatrolActivity](../scripts/activities/patrol_activity.gd), GameFlow._new_cinder_patrol_activity/reset_active_activity | Freeze relay_sweep or platform_sweep; traverse that branch's five authored checkpoints in order, hold each for2s through real physics, receive its branch-specific reward, accepted persisted reset; ten completions and usable next start | PLAY-PATROL first. Record branch and route; mixing branches cannot prove ten of the named branch. Other branch coverage remains explicit under PLAY-PATROL; existing Patrol failure/reopen conditions unchanged |
+| REPEAT-JOVIAN-KIT / [GameFlow cargo composition](../scripts/game/game_flow.gd), [CargoDeliveryActivity](../scripts/cargo/cargo_delivery_activity.gd) | Actual Jovian departure→strict home landing/transfer2 fabrication kits→one payment→accepted reset, ten cycles under existing180s per-delivery deadline | KIT board/depart/deliver passes retained, KIT-RELOAD stays parked. Source starts6/capacity6, destination capacity64: only3 funded deliveries without replenishment. Required missing contract is a legitimate same-world refill/cargo-cycle source; reset alone does not replenish. Ten-run acceptance remains GATED, not waived or replaced by three successes/seven refusals |
+| REPEAT-CINDER-SUPPLY / [binding cargo ownership](../scripts/world/nearby_sector_activity_binding.gd), [terminal debt owner](../scripts/persistence/cinder_cargo_delivery_persistence.gd) | Actual load_crate→clear_gate→dock_platform, authorized physical terminal transfer1 crate, durable once-only payment, accepted reset; ten cycles under existing120s deadline | PLAY-CINDER-SUPPLY first. Initial source2/capacity8 and destination capacity8 fund only2 transfers per retained source; rebinding may reseed a source but is not an approved infinite-stock contract and does not empty destination. Name legitimate replenishment plus destination turnover before execution. Preserve unanswered Hauler stock decision; do not infer Hauler delivery from access or Jovian baseline |
+| REPEAT-MINING / [mining activity](../scripts/world/cinder_mining_platform_activity.gd), binding persistence/reset | Approach within30m, hold actual6s extraction at authored anchor, request and persist capacity receipt once, accepted durable reset, then repeat ten times/next start | PLAY-MINING first. Leaving radius interrupts progress; pending capacity save blocks reset/start. No ore/currency grant is invented. cinder_mining_durable_recovery_test.gd protects durable boundaries but does not prove ordinary repetition |
+| REPEAT-CONVOY / [production host](../scripts/activities/cinder_convoy_escort_host.gd), GameFlow._start_cinder_convoy/reset_active_activity | Healthy piloted departed craft enters actual4m rendezvous sphere, escorts real tender through complete authored route/threats to safe arrival, settles debt, accepted production persisted reset; ten successes/next start | PLAY-CONVOY first. Use retained GameFlow host, not streamed binding's standalone fixture. Preserve90s timeout,42m escort proximity/3s separation and authored movement. Tender/threat reuse and terminal cleanup count toward resource acceptance; retained Convoy failures are not authorized retries |
+| REPEAT-DEFENSE / [physical board](../scripts/activities/station_defense_activity_board.gd), [scenario](../assets/activities/shipyard_perimeter_defense.tres) | On-foot board Deploy→ordinary boarding/departure/combat→all three authored waves clear→one payment→home/dock/on-foot board Reset; ten fresh completed deployments and usable next Deploy | PLAY-DEFENSE first. Current fixed hostile counts1/2/1, delays0/2.5/8s, timeout34s; retain original semantics. Failed-wave recovery is continuation, not a counted fresh success. Pending payment must settle; protect/reset the actual objective and reuse bounded host roster |
+| REPEAT-BREACH / [physical alternating board](../scripts/activities/heavy_breach_activity_board.gd), [scenario director](../scripts/combat/encounter_scenario_director.gd) | On-foot arm posted Heavy, board/depart a real combat-capable ship, destroy actual charged picket while protecting objective, clear/pay, ordinary return/dock/on-foot rearm; count ten Heavy clears | PLAY-BREACH first. Conclusion rotates posting to Torpedo; no normal post-clear Reset required. Pending debt blocks arm. Respect normal craft service/ammunition constraints; unresolved Bomber rearm is not bypassed. Existing BREACH-INTERRUPTION stays PARKED |
+| REPEAT-TORPEDO / same physical board/director, [boat](../scripts/ships/torpedo_boat_opponent.gd) | At posted Torpedo arm/board/depart, evade/intercept live seekers, destroy actual boat for clear and distinct Torpedo payment, ordinary home/board rearm; ten Torpedo clears | PLAY-TORPEDO first. Conclusion rotates to Heavy; no direct selection to skip alternating posting. Existing two-seeker pool and abandonment/stand-down remain bounded; heavy_breach_game_flow_production_route_test.gd staged kills are not ordinary combat repetition |
+
+Heavy/Torpedo share travel/board ownership but retain **two separate ten-clear
+counts**. Starting at fresh Heavy, twenty successful alternating sorties yield
+ten Heavy and ten Torpedo; ten mixed sorties yield only five each. Failed or
+withdrawn launched sorties also rotate but do not count as successful runs.
+Cancelling an armed/unlaunched offer does not rotate. An execution card may
+collect both counts on one ordinary alternating route; it cannot count the same
+clear as both rewards or use reset/direct director calls to skip required play.
+
+Before selecting any execution, freeze candidate, actual command, ordinary
+first-play prerequisite, same-phase resource baseline/measurement and unchanged
+existing route deadlines. Measure retained actors/registrations, transient
+projectile/effect pools, observers and objectives after equivalent terminal/reset
+phases; specify legitimate changing generation/receipt/inventory accounting.
+Do not infer a numeric leak tolerance or passing metric from source structure.
+The exact measurement contract remains a pre-execution gate, as for the first
+three definitions. Resource measurements must demonstrate the original promise.
+
+Per activity, budget20–30min to freeze its execution card after first-play/policy
+gates. Execution estimate is ten measured complete cycles plus travel/cleanup;
+Heavy/Torpedo require the actual alternating route above. No invented whole-task
+runtime or raised per-run deadline substitutes for measured first-play duration.
+Stop at the first defect or ten accepted cycles; any implementation exceeding90min
+must split before starting. Refused-write/fresh-process/OS-interruption and final
+candidate requirements remain separate original promises, not waived by repetition.
 
 ### Activity write-boundary roster — ACT-WRITES-DEFINE
 
@@ -889,7 +947,7 @@ activity or replace the actual owners below.
 | Checkpoint Race / GameFlow + CinderRaceSessionPersistence | `cinder_timed_race_session`; `cinder_race_session_save_restore_test.gd` covers active/progress outage, earned payment retry and refused unpaid reset | Final candidate/required distinct-process case; retained full-suite timeout is not permission for an unchanged retry |
 | Platform Patrol / GameFlow + CinderPatrolSessionPersistence | `cinder_patrol_session`; `cinder_patrol_session_save_restore_test.gd` covers unpaid restart, terminal refusal, write recovery/reset retention | Same exact-source distinction; parked Patrol failure remains |
 | Jovian kit delivery / GameFlow + JovianCargoSessionPersistence | `jovian_cargo_session`; `cargo_delivery_production_integration_test.gd` covers inventory/receipt, interrupted payment and missed start/save/reset | Ordinary KIT-RELOAD remains parked at its unchanged30s cap |
-| Cinder platform supply / NearbySectorActivityBinding + CinderCargoDeliveryPersistence | `cinder_cargo_delivery` stores terminal delivery/receipt only. `cinder_cargo_delivery_persistence_roundtrip_test.gd` explicitly reloads the terminal receipt after discarding a later incomplete manifest; reward-handoff test covers refusal/retry in memory | Actual-file distinct-process terminal summary and refused summary write. Active manifest resume is absent from this owner; do not infer Jovian behavior |
+| Cinder platform supply / NearbySectorActivityBinding + CinderCargoDeliveryPersistence | `cinder_cargo_delivery` strict v2 earned terminal proof before payment, atomic paid acknowledgement; legacy v1 presentation-only. Existing roundtrip onf8b5f86 uses three actual-file child processes | CINDER-SUPPLY-DEBT DONE in its selected refusal/cold-payment/no-replay scope. Active manifest resume, ordinary/installed/final/OS-interruption acceptance remain separate; no Jovian behavior inferred |
 | Mining/extraction / GameFlow + CinderMiningCapacityPersistence | `cinder_mining_capacity`; `cinder_mining_durable_recovery_test.gd` covers real-file active/unpaid/paid capacity, reset/write refusal and published-sync case | Required final/installed/ordinary cases; capacity is the durable outcome, not an invented ore or credit grant |
 | Structure Scan / GameFlow + scan activity/discovery persistence | `cinder_structure_scan_session` + `cinder_scan_discovery`; `game_flow_scan_durable_recovery_test.gd` covers real-file debt/payment/discovery retry, paid reset and progress/terminal saving | Retained full Scan failure stays parked; no automatic probe/retry |
 | Beacon Traversal / GameFlow + beacon activity | `cinder_beacon_session`; `game_flow_beacon_durable_recovery_test.gd` covers real-file active/unpaid/paid recovery, refused resets, owner fence, published payment and write outage | Required ordinary/installed/final-candidate interruption remains distinct from covered source cases |
