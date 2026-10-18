@@ -160,6 +160,12 @@ accepted runtime repairs require separate cards and fresh paired builds.
   preserving180s activity deadline,8s acceptance/120s physical dock and all prior
   bounds. Exit cap is authored2×canopy_motion_time+disembarking_motion_time+1s,
   then15s ground walk. No rescue, geometry/phase mutation or deadline growth.
+- **First failure/one repair:**1b2931b38 clean import PASS, compile FAIL at
+  line360: multiline lambda return lacks grouping. No gameplay route ran.
+  Select ONE5min caller syntax correction grouping both new multiline lambda
+  returns. Root owns this trivial correction; no further delegation needed.
+  One corrected compile, then one unchanged route only if it passes. Any further
+  failure requires cumulative priority review before more repair or rerun.
 - **Stop/close:** record first failing owner. Preserve this run's private real
   store for KIT-RELOAD rather than fabricate/recreate completion. Keep exact
   runtime/source reference and raw; commit/push, remove disposable helpers and

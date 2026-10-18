@@ -5907,3 +5907,11 @@ authored Interact exit and supported same-Player ground movement; exact two-kit
 transfer and one reward. Preserve actual private real store for KIT-RELOAD.
 Original300s/outer360,180s activity,8s acceptance/120s dock, authored exit cap and
 15s walk unchanged. First failure stops; no runtime repair or new build selected.
+
+
+KIT-DELIVER1b2931b3808ddd5141de0adc7d0e90381d5640d6 clean import PASS;
+compile FAIL0.636s at caller line360, ungrouped multiline lambda return.
+No gameplay route ran. Select ONE5min root-owned syntax correction grouping
+both new multiline lambda returns, unchanged acceptance/deadlines. One corrected
+compile then one route if it passes; any subsequent failure requires cumulative
+priority review before further work. Original failed compile/STOP/source retained.
