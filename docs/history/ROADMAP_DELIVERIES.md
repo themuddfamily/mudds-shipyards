@@ -5756,3 +5756,24 @@ reuse cards move intact to backlog; accepted Annex stays DONE. Queue1 active/
 1 READY definition/6 GATED; all36 parents/ten phase gates remain open. Root selects
 KIT-BOARD only for implementation now, existing cargo caller in isolated branch
 work/jovian-kit-board-20261018; no thrust/landing/restore expansion in that task.
+
+
+KIT-BOARD candidate8630531ac import/compile PASS. First selected run FAILS before
+walking at RuntimeStatusDismissButton: UI activation frees that button and helper
+reads button.name after awaiting. SCRIPT ERROR is captured by original full-raw
+diagnostics, so actual engine0/marker1 does not establish success. Raw retained
+under `/srv/mudds-work/jovian-kit-board-20261018/results/route/`; no boarding claim.
+One bounded caller-only KIT-BOARD-CALLER-LIFETIME repair selected: capture button
+name before activation, explicit terminal scenario-completed guard before success;
+5–10min, one compile and one unchanged selected route, original limits/criteria.
+Any further failure requires priority review against now-READY HALYARD-BOARD.
+
+HALYARD-APPROACH definition DONE, no engine. Native aft/fleet path plus Halyard
+excursion and authored berth/BoardingPoint supply finite normalspawn chain. Final
+marker extension is proposed, not collision-qualified. Actual exterior target
+is boarding_candidate/ShipBoardingArea; physical ShipCabinHatch control is farther
+inboard and is not the endpoint station candidate. Ordinary Interact should
+admit supported IN_FLIGHT_CABIN within existing12s; real role seating is separate.
+Exact route and15s/.30/15settled/.8vertical/12boarding/8role/300total limits are
+frozen beside HALYARD-BOARD, now READY. No new server executable, D2 rerun,
+capacity decision, baseline closure or native gate is implied.

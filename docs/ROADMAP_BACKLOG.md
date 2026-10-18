@@ -811,9 +811,9 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-DISCONNECT | Disconnect/retry ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-CANCEL | Cancel/reuse ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
-| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | DONE definition only; Halyard approach definition READY, BOARD/MOVING-CABIN/AUTHORITY-STOP GATED; no baseline completion |
-| HALYARD-APPROACH | Freeze ordinary spawn-to-airstair input waypoint route | 16,26 | READY planning;30min static stop at finite contract/missing fact |
-| HALYARD-BOARD | Non-playing Main authority and two original ordinary occupants | 16,26 | GATED on HALYARD-APPROACH; real pilot/crew_port_00 seats |
+| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | DONE definition only; Halyard approach definition DONE, BOARD READY, MOVING-CABIN/AUTHORITY-STOP GATED; no baseline completion |
+| HALYARD-APPROACH | Freeze ordinary spawn-to-airstair input waypoint route | 16,26 | DONE definition; native aft/fleet chain and authored final extension, no collision qualification |
+| HALYARD-BOARD | Non-playing Main authority and two original ordinary occupants | 16,26 | READY; frozen approach definition, real pilot/crew_port_00 seats |
 | HALYARD-MOVING-CABIN | Actual departure with passenger supported walk/chair cycle | 16,24,26 | GATED on HALYARD-BOARD; no staged flight envelope |
 | HALYARD-AUTHORITY-STOP | Real server stop restores both remaining occupants to solo play | 16,26 | GATED on HALYARD-MOVING-CABIN; no SIGKILL/migration/reconnect claim |
 | SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | GATED; exact baseline contract, boarding/departure passes do not close it |
@@ -935,8 +935,8 @@ assignments. Completing a definition does not deliver the gameplay it describes.
 The [working queue](../ROADMAP.md#working-queue-eight-bounded-cards) now has eight
 specific successor cards: four offline cargo stages (board, depart, deliver,
 distinct-process reload), and four Halyard stages (approach definition, board,
-moving cabin, real authority stop). One cargo caller is active, one Halyard
-route definition is READY and six dependent cards are GATED. Original Jovian
+moving cabin, real authority stop). One cargo caller repair is active, Halyard boarding is READY, five dependent
+cards are GATED and its approach definition is DONE. Original Jovian
 exit/reuse remains parked; Annex source qualification remains DONE.
 All36 original parents and ten phase gates remain open. This is local scheduling,
 not a whole-project estimate or a claim that the eight cards finish these parents.

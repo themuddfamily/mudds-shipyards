@@ -34,7 +34,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS, 1 READY, 6 GATED.** Root owns integration and closure.
+**1 IN PROGRESS, 1 READY, 5 GATED, 1 DONE definition.** Root owns integration and closure.
 Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
@@ -48,8 +48,8 @@ and delivery history; they do not consume active queue slots.
 | KIT-DEPART | GATED on KIT-BOARD | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |30–60 min; one extended route at unchanged caps |
 | KIT-DELIVER | GATED on KIT-DEPART | Physical home return transfers two kits, pays once and leaves player walking outside. |45–60 min; one extended route at unchanged caps |
 | KIT-RELOAD | GATED on KIT-DELIVER | Distinct process reloads accepted delivery without duplicate kits or reward. |20–40 min; compile300s + one restore30s |
-| HALYARD-APPROACH | READY planning | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
-| HALYARD-BOARD | GATED on HALYARD-APPROACH | Two independent clients ordinarily board distinct pilot/passenger seats. |45–60 min; compile300s + one route300s/outer360s |
+| HALYARD-APPROACH | DONE definition | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
+| HALYARD-BOARD | READY | Two independent clients ordinarily board distinct pilot/passenger seats. |45–60 min; compile300s + one route300s/outer360s |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
 | HALYARD-AUTHORITY-STOP | GATED on HALYARD-MOVING-CABIN | Real server shutdown restores both occupants to usable solo operation. |30–60 min; one selected route at unchanged caps |
 
@@ -90,6 +90,15 @@ accepted runtime repairs require separate cards and fresh paired builds.
   writes. Compile300s, ONE selected300s/outer360s route. Preserve15s/waypoint,
   .30m horizontal/15 supported settled ticks/<.8m vertical and12s boarding.
   Selected marker `JOVIAN_KIT_ORDINARY_BOARD_OK`; no departure/landing/reload work.
+- **First attempt/next repair:**8630531ac import/compile PASS; selected run
+  FAILED before walking at RuntimeStatusDismissButton: activation retires the
+  button and caller reads its name after await. Engine exit0/marker1 is rejected
+  by original full-log SCRIPT ERROR diagnostic. No boarding acceptance.
+  KIT-BOARD-CALLER-LIFETIME is selected caller-only repair,5–10 min: retain name
+  before activation and require explicit end-of-scenario completion before success.
+  Preserve failed source/raw, freeze corrected pin, one compile and ONE unchanged
+  selected route. No gameplay/criteria/cap change. Any further failure requires
+  priority review against READY HALYARD-BOARD before more work.
 - **Stop/close:** first failure ends boarding qualification; record concrete
   snapshot and next owner. Accepted seat access does not qualify delivery.
   Commit/push and owned cleanup under common rules.
@@ -164,11 +173,21 @@ accepted runtime repairs require separate cards and fresh paired builds.
   helpers and authored Halyard airstair/station access. Existing D2 moving-cabin
   source7412a6e50 stages approach/flight and is retained in that scope. Do not
   call an unchanged D2 run ordinary boarding or invent a standalone server binary.
-- **Next/budget/stop:** READY;30 min, no engine. Write exact start/waypoints/end,
-  supported actions/roles, existing caller seam and caps, or one precise missing
-  fact. End at that finite contract; no station/fleet audit or runtime fix.
-- **Close:** record source refs and executable HALYARD-BOARD handoff/blocker,
-  commit/push. No gameplay/baseline/phase closure from this definition.
+- **Resolved route:** DONE definition, no engine. Fresh spawn(-8.5,.18,11),
+  then world goals(0,0,15.5),(0,0,39),(0,0,46.3),(0,0,51),(-5.7,0,51),
+  (-5.7,4.2,61.2),(-3.5,4.2,61.5),(-3.5,4.2,64.2),(-3.5,4.2,68.3),
+  (6,4.2,68.3),(13,4.2,68.3),(22,4.2,68.3),(37,4.2,68.3),
+  (32.4,4.2,68.2),(32,4.2,62.2),(32,4.2,54.2), then actual boarding point,
+  initially(32.1,4.2,48.5). Native route1269–1285/1475–1476 supplies chain;
+  final extension follows authored berth/BoardingPoint, not collision proof.
+- **Handoff:** same supported Player must see actual Halyard boarding_candidate,
+  _near_ship and its ShipBoardingArea among nearby interactables. Aim marker+UP1.2,
+  ordinary Interact→supported IN_FLIGHT_CABIN/bound authenticated intent within12s.
+  Existing passenger `_client` owns that admission. Physical ShipCabinHatch is
+  farther inboard; requiring its station candidate at the exterior marker is wrong.
+  Keep15s/.30m/15 settled ticks/.8m vertical,12s boarding/8s roles/300s total.
+- **Close:** finite source-backed route handed to READY HALYARD-BOARD; no
+  gameplay/server/phase acceptance from this definition. Commit/push, no scratch.
 
 ### HALYARD-BOARD — two original occupants board normally
 
@@ -181,7 +200,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   generations agree on host and consumed clients; distinct exclusive claims,
   correct supported controls and real seats. Existing remote-pilot actions are
   supported by `_client_loadmaster_pilot`; no new authority implementation presumed.
-- **Next/check:** GATED on HALYARD-APPROACH;45–60 min. Freeze exact selector,
+- **Next/check:** READY; HALYARD-APPROACH definition complete.45–60 min. Freeze exact selector,
   source/marker; compile300s, ONE selected300s/outer360s route,15s walking,
   8s role transitions/10s owned exit grace. Require all three actual OS exits0
   before coordinator success. No flight, moving walk or recovery in this card.
