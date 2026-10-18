@@ -5,6 +5,10 @@ const Cinder := preload("res://scripts/ships/cinder_cargo_hauler.gd")
 const PlayerScene := preload("res://scenes/player/player.tscn")
 const Director := preload("res://scripts/audio/audio_director.gd")
 const Presenter := preload("res://scripts/ui/semantic_audio_cue_presenter.gd")
+const EngineerBinding := preload("res://scripts/network/network_jovian_engineer_binding.gd")
+const PassengerBinding := preload("res://scripts/network/network_halyard_passenger_binding.gd")
+const Jovian := preload("res://scenes/ships/jovian_light_freighter.tscn")
+const BodySimulation := preload("res://scripts/network/network_remote_body_simulation.gd")
 const Session := preload("res://scripts/network/network_enet_session_adapter.gd")
 
 # Omit unrelated Main construction and autonomous processing. All chair, floor,
@@ -29,6 +33,14 @@ class FlowRig extends Flow:
 class FocusedLocalInput extends LocalShipInputSource:
 	func _query_application_focus() -> bool:
 		return true
+
+
+# Count the real direct entry without replacing its consumer or outcome.
+class CinderSubmissionSpy extends Cinder:
+	var direct_submissions := 0
+	func submit_navigator_ping(peer: int, avatar: StringName, sequence: int) -> Dictionary:
+		direct_submissions += 1
+		return super.submit_navigator_ping(peer, avatar, sequence)
 
 
 class HudProbe extends CanvasLayer:
@@ -63,6 +75,10 @@ var _flow: FlowRig
 var _craft: CinderCargoHauler
 var _player: PlayerController
 var _audio: RequestSpy
+var _host_session: NetworkEnetSessionAdapter
+var _host_jovian: JovianLightFreighter
+var _host_simulation: NetworkRemoteBodySimulation
+var _bridge_results: Array[Dictionary] = []
 
 
 func _init() -> void:
@@ -74,7 +90,7 @@ func _run() -> void:
 		_finish()
 		return
 	_flow = FlowRig.new()
-	_craft = Cinder.new()
+	_craft = CinderSubmissionSpy.new()
 	_player = PlayerScene.instantiate() as PlayerController
 	_audio = RequestSpy.new()
 	var source := FocusedLocalInput.new()
@@ -151,8 +167,8 @@ func _run() -> void:
 		return
 	await _sample_fire(true)
 	await _sample_fire(false)
-	# A live host cannot acquire the standalone lane, even if stale local claim
-	# fields survive a session boundary. Host-local feedback remains separate.
+	# A surviving standalone authority is foreign to a newly started host.
+	# The positive host case below must acquire the actual network-owned roster.
 	var session := Session.new()
 	root.add_child(session)
 	_check(bool(session.host(31500 + OS.get_process_id() % 500, 1).accepted), "host boundary uses a real live network adapter")
@@ -161,7 +177,7 @@ func _run() -> void:
 	_check(_flow._solo_crew_claim_is_current(), "host boundary starts with an actual surviving local claim")
 	_flow._sync_optional_semantic_audio()
 	_flow._bind_solo_navigator_audio_claim()
-	_check(_flow._network_session_is_live() and _flow._solo_navigator_audio_claim().is_empty() and not _local_attached(), "live host is excluded from the standalone local lane")
+	_check(_flow._network_session_is_live() and _flow._solo_navigator_audio_claim().is_empty() and not _local_attached(), "pre-host solo authority remains excluded from the host local lane")
 	_flow.network_session = null
 	session.shutdown(&"test_complete")
 	session.queue_free()
@@ -170,19 +186,156 @@ func _run() -> void:
 	if not _check(await _until(func() -> bool: return not _flow._station_seated and not _flow._transition_busy and not _player.is_seated()), "post-session stand completes before a fresh standalone acquisition"):
 		_finish()
 		return
+	if not await _exercise_host_local():
+		_finish()
+		return
 	if not await _sit():
 		_finish()
 		return
 	await _sample_fire(true)
 	await _sample_fire(false)
+	var clears_before_removal := _count(&"cinder_navigator_ping_cleared")
 	before = _cues.size()
 	_craft.queue_free()
 	await process_frame
-	_check(_count(&"cinder_navigator_ping_cleared") == 3 and _cues.size() == before + 1 and not _local_attached(), "exact ship removal delivers one active clear and retires local source")
+	_check(_count(&"cinder_navigator_ping_cleared") == clears_before_removal + 1 and _cues.size() == before + 1 and not _local_attached(), "exact ship removal delivers one active clear and retires local source")
 	_check(_captions.has("Navigator ping accepted") and _captions.has("Navigator ping cleared"), "ordinary solo events use existing navigator caption presenter")
 	_check(bool(_audio.get_audit_report().get("valid", false)), "request spy retains real Director Dummy/resource guards")
 
 	_finish()
+
+
+func _exercise_host_local() -> bool:
+	_host_jovian = Jovian.instantiate() as JovianLightFreighter
+	_host_jovian.position.x = 1000.0
+	_host_simulation = BodySimulation.new()
+	_flow.add_child(_host_jovian)
+	_flow.add_child(_host_simulation)
+	_host_jovian.set_physics_process(false)
+	if not _start_host(11) or not await _sit():
+		return false
+	var owner := _flow._solo_crew_authority
+	var first_claim: Dictionary = _flow._solo_navigator_audio_claim()
+	var first_generation := _flow._solo_crew_seat_generation
+	var local_composition: Node = _flow.optional_semantic_audio_composition._local_navigator_composition
+	var old_callback: Callable = local_composition._local_clear_callback
+	_check(owner == _flow._network_engineer_binding.role_authority_for(_craft) and _flow._network_engineer_binding.owns_role_authority(owner), "physical host chair acquires the actual engineer binding's Cinder roster")
+	_check(_local_attached() and _bridge_attached() and _audio.get_semantic_audio_binding_count() == 3, "host local and independent bridge sources coexist beside the Cinder source")
+	var refusal_sequence := int(first_claim.claim_sequence)
+	var refused: Dictionary = _craft.submit_navigator_ping(1, Flow.SOLO_CREW_AVATAR_ID, refusal_sequence)
+	var before_refusal := _cues.size()
+	var refusal_requests := _audio.requests.size()
+	_check(refused.get("accepted") == false and bool(_flow.optional_semantic_audio_composition.present_cinder_local_navigator_result(refused, first_claim, refusal_sequence).accepted), "actual host authority refusal forwards unchanged through the exact local claim")
+	_check(_cues.size() == before_refusal + 1 and _count(&"cinder_navigator_ping_rejected") == 1 and _audio.requests.size() == refusal_requests + 1 and _audio.requests.back().stream_id == Director.STREAM_COMBAT_ALERT_PRIMARY and _captions.has("Navigator ping rejected"), "genuine local host refusal requests one existing alert and caption")
+	_flow.optional_semantic_audio_composition.present_cinder_local_navigator_result(refused, first_claim, refusal_sequence)
+	_check(_cues.size() == before_refusal + 1 and _audio.requests.size() == refusal_requests + 1, "actual refused host request is silent on replay")
+	var accepted_before := _count(&"cinder_navigator_ping_accepted")
+	var requests_before := _audio.requests.size()
+	var direct_submissions := (_craft as CinderSubmissionSpy).direct_submissions
+	await _sample_fire(true)
+	var first_receipt: Dictionary = _craft.get_navigator_ping_snapshot().receipt
+	_check(not first_receipt.is_empty() and _count(&"cinder_navigator_ping_accepted") == accepted_before + 1 and _audio.requests.size() == requests_before + 1, "host FIRE submits once and requests one accepted resident cue")
+	_check((_craft as CinderSubmissionSpy).direct_submissions == direct_submissions + 1 and _bridge_results.is_empty(), "direct host input enters the actual ship consumer once without bridge resubmission")
+	await _sample_fire(true)
+	await _sample_fire(true)
+	_check(_count(&"cinder_navigator_ping_accepted") == accepted_before + 1, "host held FIRE stays silent")
+	await _sample_fire(false)
+	await _sample_fire(true)
+	await _sample_fire(false)
+	var second_receipt: Dictionary = _craft.get_navigator_ping_snapshot().receipt
+	_check(_count(&"cinder_navigator_ping_accepted") == accepted_before + 2 and second_receipt != first_receipt and (_craft as CinderSubmissionSpy).direct_submissions == direct_submissions + 2, "host release and repress produces one distinct actual result")
+	var before := _cues.size()
+	_flow.optional_semantic_audio_composition.present_cinder_local_navigator_result({"accepted": true, "consumed": true, "status": &"accepted", "effect": {"accepted": true, "receipt": second_receipt}}, first_claim, int(second_receipt.request_sequence))
+	_check(_cues.size() == before, "replayed host result cannot request feedback twice")
+	# No remote navigator can own this same chair concurrently. Exercise the
+	# actual bridge's refusal, preserving its own result identity and replay fence.
+	_flow._network_engineer_binding.loadmaster.publish_navigator_ping(1, &"unclaimed_bridge_navigator", first_generation, int(second_receipt.request_sequence) + 1)
+	_check(_bridge_results.size() == 1 and _bridge_results[0].accepted == false and _count(&"cinder_navigator_ping_rejected") == 2 and _local_attached() and (_craft as CinderSubmissionSpy).direct_submissions == direct_submissions + 2 and _craft.get_navigator_ping_snapshot().receipt == second_receipt, "actual independent bridge refusal routes once while host local source remains attached")
+	before = _cues.size()
+	_flow._on_cinder_navigator_ping_result_forwarded(_bridge_results[0])
+	_check(_cues.size() == before and _bridge_attached(), "bridge replay remains silent with both sources registered")
+	var clears_before := _count(&"cinder_navigator_ping_cleared")
+	_flow._stand_from_solo_crew_seat()
+	if not _check(await _until(func() -> bool: return not _flow._station_seated and not _flow._transition_busy and not _player.is_seated()), "host ordinary stand completes physical occupant and ledger release"):
+		return false
+	_check(owner.get_assignment(1, Flow.SOLO_CREW_AVATAR_ID).is_empty() and _craft.get_crew_role_authority() == owner and _flow._solo_crew_authority == null, "host stand releases generic ledger while retaining network-owned authority")
+	_flow._sync_optional_semantic_audio()
+	_check(_local_attached() and _bridge_attached() and _count(&"cinder_navigator_ping_cleared") == clears_before and _craft.get_navigator_ping_snapshot().receipt == second_receipt, "captured local source survives retired GameFlow fields until genuine ship physics clear")
+	_craft.set_physics_process(true)
+	await physics_frame
+	await process_frame
+	_craft.set_physics_process(false)
+	_check(_count(&"cinder_navigator_ping_cleared") == clears_before + 1 and not _local_attached() and _bridge_attached() and _audio.get_semantic_audio_binding_count() == 2, "actual Cinder physics cleanup clears once then retires only local source")
+	_flow._update_solo_gunner_input(1.0 / 60.0)
+	_craft._cleanup_detached_navigator()
+	_check(_count(&"cinder_navigator_ping_cleared") == clears_before + 1, "repeated host cleanup creates no fabricated clear")
+	if not await _sit():
+		return false
+	var reseated_claim: Dictionary = _flow._solo_navigator_audio_claim()
+	var reseated_assignment: Dictionary = owner.get_assignment(1, Flow.SOLO_CREW_AVATAR_ID)
+	_check(_flow._solo_crew_authority == owner and _flow._solo_crew_seat_generation == int(reseated_assignment.get("seat_generation", 0)) and int(reseated_claim.get("claim_sequence", 0)) > int(first_claim.claim_sequence), "host reseat uses shared authority and actual assignment generation with a fresh claim sequence")
+	before = _cues.size()
+	old_callback.call(second_receipt, &"late_host_stand")
+	_flow.optional_semantic_audio_composition.present_cinder_local_navigator_result({"accepted": false, "status": &"late"}, first_claim, 100)
+	_check(_cues.size() == before and _local_attached(), "old host callback and old claim cannot affect reseat")
+	await _sample_fire(true)
+	await _sample_fire(false)
+	_check(_count(&"cinder_navigator_ping_accepted") == accepted_before + 3, "host reseat first FIRE is fresh")
+	var retiring_claim: Dictionary = _flow._solo_navigator_audio_claim()
+	var retiring_composition: Node = _flow.optional_semantic_audio_composition._local_navigator_composition
+	var retiring_callback: Callable = retiring_composition._local_clear_callback
+	var retiring_receipt: Dictionary = _craft.get_navigator_ping_snapshot().receipt
+	clears_before = _count(&"cinder_navigator_ping_cleared")
+	before = _cues.size()
+	requests_before = _audio.requests.size()
+	_host_session.shutdown(&"host_audio_reentry")
+	_check(not _local_attached() and not _bridge_attached() and _craft.get_crew_role_authority() == null and _count(&"cinder_navigator_ping_cleared") == clears_before and _cues.size() == before and _audio.requests.size() == requests_before and not _player.is_seated() and _flow._solo_navigator_audio_claim().is_empty() and _audio.get_semantic_audio_binding_count() == 0, "actual production session stop cancels physical claim and retires exact sources without stale feedback")
+	_host_session.queue_free()
+	if not _start_host(12) or not await _sit():
+		return false
+	before = _cues.size()
+	retiring_callback.call(retiring_receipt, &"late_stopped_session")
+	_flow.optional_semantic_audio_composition.present_cinder_local_navigator_result({"accepted": false, "status": &"late"}, retiring_claim, 100)
+	_check(_cues.size() == before and _local_attached() and _bridge_attached() and _flow._solo_crew_authority != owner, "session re-entry fences old authority callbacks and restores both sources")
+	await _sample_fire(true)
+	await _sample_fire(false)
+	_check(_count(&"cinder_navigator_ping_accepted") == accepted_before + 4, "new actual host session requests fresh local feedback")
+	_host_session.shutdown(&"host_audio_complete")
+	_host_session.queue_free()
+	_flow.network_session = null
+	_host_simulation.detach()
+	_host_jovian.queue_free()
+	_host_simulation.queue_free()
+	return true
+
+
+func _start_host(generation: int) -> bool:
+	_host_session = Session.new()
+	root.add_child(_host_session)
+	if not _check(bool(_host_session.host(32000 + OS.get_process_id() % 500, 1).accepted), "host-local fixture starts an actual live adapter"):
+		return false
+	_flow.network_session = _host_session
+	_flow._network_session_mode = &"server"
+	_host_simulation.attach(_host_session)
+	var binding := EngineerBinding.new()
+	if not _check(binding.attach(_host_session, _host_jovian, _host_simulation, generation), "real engineer binding acquires its production Jovian authority"):
+		return false
+	var passenger := PassengerBinding.new()
+	if not _check(passenger.attach(_host_session, _craft, _host_simulation, generation), "real passenger binding acquires Cinder roster and bridge"):
+		binding.detach()
+		return false
+	binding.loadmaster = passenger
+	_flow._network_engineer_binding = binding
+	passenger.cinder_navigator_ping_result_forwarded.connect(_flow._on_cinder_navigator_ping_result_forwarded)
+	passenger.cinder_navigator_ping_tombstones_forwarded.connect(_flow._on_cinder_navigator_ping_tombstones_forwarded)
+	passenger.cinder_navigator_ping_result_forwarded.connect(func(result: Dictionary) -> void: _bridge_results.append(result.duplicate(true)))
+	_host_session.session_stopped.connect(_flow._on_network_session_stopped)
+	_flow._sync_optional_semantic_audio()
+	return true
+
+
+func _bridge_attached() -> bool:
+	return bool(_flow.optional_semantic_audio_composition.get_snapshot().get("navigator", {}).get("attached", false))
 
 
 func _sit() -> bool:

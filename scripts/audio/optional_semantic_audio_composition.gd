@@ -72,13 +72,13 @@ func present_cinder_rejected(result: Dictionary) -> Dictionary:
 		return _result(false, &"not_attached")
 	return _cinder_adapter.present_rejected(result)
 
+# Bridge receipts and authorized physical local outcomes have independent
+# owners. Changing the bridge generation must not retire a captured local clear.
 func set_navigator_generation(generation: int) -> Dictionary:
 	if not _attached:
 		return _result(false, &"not_attached")
 	if generation < 0:
 		return _result(false, &"invalid_navigator_generation")
-	if generation > 0:
-		clear_local_navigator()
 	if generation == _navigator_generation:
 		return _result(true, &"navigator_unchanged")
 	if _navigator_composition != null and is_instance_valid(_navigator_composition):
@@ -97,7 +97,7 @@ func set_navigator_generation(generation: int) -> Dictionary:
 	return _result(true, &"navigator_bound")
 
 func set_local_navigator_claim(claim: Dictionary) -> Dictionary:
-	if not _attached or _navigator_generation > 0:
+	if not _attached:
 		return _result(false, &"local_navigator_unavailable")
 	if claim == _local_navigator_claim and _local_navigator_composition != null \
 			and _local_navigator_composition.local_is_attached():

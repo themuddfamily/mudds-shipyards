@@ -115,6 +115,44 @@ func _run() -> void:
 		_check(bool(composition.detach().accepted), "the re-attached composition detaches cleanly")
 	_check(bool(composition.attach(director, null, null, 3).accepted), "final re-attach restores the navigator presentation")
 	_check(director.get_semantic_audio_binding_count() == 2, "the final re-attach owns exactly the navigator source")
+	var authority := CrewSeatRoleAuthority.new(1)
+	_check(bool(authority.register_cinder_roster().accepted) and bool(cinder.attach_crew_role_authority(authority).accepted), "coexisting local source uses an actual Cinder roster")
+	_check(bool(authority.claim(1, 1, &"local_navigator", Cinder.NAVIGATOR_STATION_SEAT_ID, &"passenger", 1).accepted), "coexisting local source owns the real navigator claim")
+	var claim := {"craft": cinder, "authority": authority, "avatar_id": &"local_navigator", "seat_generation": 1, "claim_sequence": 1}
+	_check(bool(composition.set_local_navigator_claim(claim).accepted) and director.get_semantic_audio_binding_count() == 3, "explicit local source registers independently beside bridge and unrelated source")
+	var local_composition: Node = composition._local_navigator_composition
+	var old_callback: Callable = local_composition._local_clear_callback
+	_check(bool(composition.set_navigator_generation(3).accepted) and bool(composition.get_snapshot().local_navigator.attached) and director.get_semantic_audio_binding_count() == 3, "unchanged positive bridge generation preserves local registration")
+	var event_count := _events.size()
+	var local_outcome: Dictionary = cinder.submit_navigator_ping(1, &"local_navigator", 2)
+	_check(bool(composition.present_cinder_local_navigator_result(local_outcome, claim, 2).accepted), "actual local outcome routes while bridge is registered")
+	_check(bool(composition.present_cinder_navigator_bridge_result({"accepted": true, "status": &"navigator_ping_published", "wire_receipt": _navigator_receipt(3, 1, 30)}).accepted) and _events.size() == event_count + 2, "independent explicit presentation inputs each request one cue")
+	_check(bool(composition.set_navigator_generation(4).accepted) and bool(composition.get_snapshot().local_navigator.attached) and director.get_semantic_audio_binding_count() == 3, "bridge replacement preserves exact local owner")
+	_check(not bool(composition.present_cinder_local_navigator_result(local_outcome, claim, 2).accepted), "coexisting local result replay stays silent")
+	var local_receipt: Dictionary = cinder.get_navigator_ping_snapshot().receipt
+	_check(bool(authority.release(1, 1, &"local_navigator", Cinder.NAVIGATOR_STATION_SEAT_ID, 3, 1).accepted), "coexisting source releases exact shared ledger claim")
+	composition.retire_local_navigator_if_lost()
+	_check(bool(composition.get_snapshot().local_navigator.attached) and director.get_semantic_audio_binding_count() == 3, "lost local ledger claim retains source until ship commits real clear")
+	event_count = _events.size()
+	cinder._cleanup_detached_navigator()
+	_check(_events.size() == event_count + 1 and not bool(composition.get_snapshot().local_navigator.attached) and bool(composition.get_snapshot().navigator.attached) and director.get_semantic_audio_binding_count() == 2, "ship-owned clear retires only local source and preserves bridge")
+	old_callback.call(local_receipt, &"late_coexisting_clear")
+	composition.clear_local_navigator()
+	_check(_events.size() == event_count + 1 and director.get_semantic_audio_binding_count() == 2, "late local callback and repeated cleanup preserve independent bridge")
+	_check(bool(authority.claim(1, 1, &"local_navigator", Cinder.NAVIGATOR_STATION_SEAT_ID, &"passenger", 4).accepted), "local source may reseat beside the retained bridge")
+	var fresh_assignment: Dictionary = authority.get_assignment(1, &"local_navigator")
+	var fresh_claim := {"craft": cinder, "authority": authority, "avatar_id": &"local_navigator", "seat_generation": int(fresh_assignment.seat_generation), "claim_sequence": int(fresh_assignment.claim_sequence)}
+	_check(bool(composition.set_local_navigator_claim(fresh_claim).accepted), "fresh exact local claim binds after real clear")
+	var fresh_outcome: Dictionary = cinder.submit_navigator_ping(1, &"local_navigator", 5)
+	_check(bool(composition.present_cinder_local_navigator_result(fresh_outcome, fresh_claim, 5).accepted), "fresh actual result routes before whole composition teardown")
+	var retiring_callback: Callable = composition._local_navigator_composition._local_clear_callback
+	var retiring_receipt: Dictionary = cinder.get_navigator_ping_snapshot().receipt
+	event_count = _events.size()
+	composition.detach()
+	_check(_events.size() == event_count and director.get_semantic_audio_binding_count() == 1, "whole composition detach retires both navigator sources without fabricating a ship clear")
+	cinder.detach_crew_role_authority(authority)
+	retiring_callback.call(retiring_receipt, &"late_whole_composition")
+	_check(_events.size() == event_count and director.get_semantic_audio_binding_count() == 1, "actual ship clear and old callback remain silent after whole teardown")
 	composition.queue_free()
 	await process_frame
 	_check(director.get_semantic_audio_binding_count() == 1, "exit-tree cleanup removes only optional-owned router sources")
