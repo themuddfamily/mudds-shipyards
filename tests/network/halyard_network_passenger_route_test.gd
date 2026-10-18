@@ -33,6 +33,12 @@ var _player: PlayerController
 var _port := 0
 var _store_path := ""
 var _package_under_test := ""
+var _profile_deadline := 0
+
+## Optional ordinary-controls callers share this harness and its owned exits.
+## Empty defaults retain every existing Halyard/Cinder profile and deadline.
+func _peer_profile() -> Dictionary:
+	return {}
 
 func _init() -> void:
 	call_deferred("_run")
@@ -131,6 +137,9 @@ func _run() -> void:
 	quit(0 if _failures.is_empty() else 1)
 
 func _orchestrate() -> void:
+	var profile := _peer_profile()
+	if profile.has("total_seconds"):
+		_profile_deadline = Time.get_ticks_msec() + int(float(profile.total_seconds) * 1000.0)
 	var ember_deadline := Time.get_ticks_msec() + int(EMBER_SURFACE_TOTAL_SECONDS * 1000.0)
 	# Peers have separate tick clocks. Share this actual wall deadline for their
 	# transit waits; the parent's unchanged monotonic cap still owns all setup.
@@ -151,16 +160,17 @@ func _orchestrate() -> void:
 	if host_ready:
 		host_ready = await _wait_file("host.ready", 60.0)
 	if host_ready:
-		for role in (["client", "client_b"] if _shared_cruise else ["client"]):
+		var client_roles: Array = profile.get("client_roles", ["client", "client_b"] if _shared_cruise else ["client"])
+		for role in client_roles:
 			var client_args := _peer_arguments(role, PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]))
 			var client := _spawn_peer(role, client_args)
 			peers[role] = client
 			_check(client > 0, "owned independent peer starts: " + role)
 		var shared_clients_ready := true
-		if _shared_cruise:
+		if _shared_cruise or not profile.is_empty():
 			# Cold Main startup has its own existing budget. The travel wait
 			# begins only after both independent clients can participate.
-			for role in ["client", "client_b"]:
+			for role in client_roles:
 				shared_clients_ready = await _wait_file(role + ".main_ready", 60.0) and shared_clients_ready
 		if _shared_cruise and shared_clients_ready and await _wait_file("host.rebased", 60.0):
 			var observer := _spawn_peer("observer", _peer_arguments("observer", PackedStringArray(["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"])))
@@ -172,8 +182,10 @@ func _orchestrate() -> void:
 			if observer > 0:
 				await _wait_file("observer.main_ready", 60.0)
 		var finished := true
-		if _shared_cruise:
-			for role in ["client", "client_b"]:
+		if _shared_cruise or not profile.is_empty():
+			if not profile.is_empty():
+				finished = shared_clients_ready
+			for role in client_roles:
 				finished = await _wait_file(role + ".done", 120.0) and finished
 			finished = await _wait_file("host.done", 60.0) and finished
 			if peers.has("observer"):
@@ -189,10 +201,13 @@ func _orchestrate() -> void:
 			if finished:
 				finished = await _wait_file("host.done", 60.0)
 		if not finished:
+			_profile_deadline = 0 # Owned process cleanup has its separate exit grace.
 			for role in peers:
 				await _abort_peer(role)
 	else:
+		_profile_deadline = 0
 		await _abort_peer("host")
+	_profile_deadline = 0
 	for role in peers:
 		var result := _read(role + ".done")
 		_check(not result.is_empty() and (result.get("failures", []) as Array).is_empty(), "%s ordinary production route passes" % role)
@@ -218,11 +233,14 @@ func _orchestrate() -> void:
 	print("PASSENGER_PEER_ARTIFACTS: ", _directory)
 	print("HALYARD_NETWORK_PASSENGER_ROUTE: %d checks, %d failures" % [_checks, _failures.size()])
 	if _failures.is_empty():
-		if _ember_surface:
-			print("HALYARD_NETWORK_EMBER_PASSENGER_TERRAIN_OK checks=%d" % _checks)
-		else:
-			print("HALYARD_NETWORK_PASSENGER_ROUTE_TEST_OK checks=%d" % _checks)
+		_print_peer_success()
 	quit(0 if _failures.is_empty() else 1)
+
+func _print_peer_success() -> void:
+	if _ember_surface:
+		print("HALYARD_NETWORK_EMBER_PASSENGER_TERRAIN_OK checks=%d" % _checks)
+	else:
+		print("HALYARD_NETWORK_PASSENGER_ROUTE_TEST_OK checks=%d" % _checks)
 
 func _abort_peer(role: String) -> void:
 	if FileAccess.file_exists(_directory.path_join(role + ".done")):
@@ -244,7 +262,7 @@ func _peer_arguments(role: String, display: PackedStringArray) -> PackedStringAr
 		path = parent[path_index + 1]
 	elif path.is_empty():
 		path = DirAccess.open(".").get_current_dir()
-	var script := "res://tests/network/halyard_network_passenger_route_test.gd"
+	var script: String = _peer_profile().get("script", "res://tests/network/halyard_network_passenger_route_test.gd")
 	if not _package_under_test.is_empty():
 		# Tests are excluded from export. Only this fixture is external;
 		# res:// production Main and dependencies come from the selected pack.
@@ -290,6 +308,20 @@ func _spawn_peer(role: String, args: PackedStringArray) -> int:
 	# contend on one X server. The inner shell records the actual Godot PID
 	# and exit; xvfb-run reaps its private server after that shell exits.
 	var wrapper := PackedStringArray(["-a", "--server-args=-screen 0 1280x720x24 -nolisten unix -nolisten tcp", "/bin/sh", "-c", command, _directory.path_join(role), OS.get_executable_path()])
+	if bool(_peer_profile().get("private_environment", false)):
+		var profile := _directory.path_join(role + "-profile")
+		for folder in ["data", "config", "cache", "state", "runtime", "tmp", "data-dirs", "config-dirs"]:
+			DirAccess.make_dir_recursive_absolute(profile.path_join(folder))
+			_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile.path_join(folder)])) == 0, "private peer directory: " + role + "/" + folder)
+		_check(OS.execute("/bin/chmod", PackedStringArray(["700", profile])) == 0, "private peer profile root: " + role)
+		# Preserve HOME/CODEX_HOME exactly. XDG homes/search paths and TMPDIR
+		# are private; only this Xvfb's display is passed into its Godot actor.
+		command = 'trap \'kill "$child" 2>/dev/null; wait "$child"; exit 143\' TERM INT HUP; /usr/bin/env -i DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "$@" > "$0.log" 2>&1 & child=$!; printf "%s" "$child" > "$0.pid"; wait "$child"; status=$?; printf "%s" "$status" > "$0.exit"; exit "$status"'
+		wrapper = PackedStringArray(["-a", "--server-args=-screen 0 1280x720x24 -nolisten unix -nolisten tcp", "/bin/sh", "-c", command, _directory.path_join(role), "/usr/bin/env", "PATH=/usr/local/bin:/usr/bin:/bin", "XDG_DATA_HOME=" + profile.path_join("data"), "XDG_CONFIG_HOME=" + profile.path_join("config"), "XDG_CACHE_HOME=" + profile.path_join("cache"), "XDG_STATE_HOME=" + profile.path_join("state"), "XDG_RUNTIME_DIR=" + profile.path_join("runtime"), "XDG_DATA_DIRS=" + profile.path_join("data-dirs"), "XDG_CONFIG_DIRS=" + profile.path_join("config-dirs"), "TMPDIR=" + profile.path_join("tmp")])
+		for key in ["HOME", "CODEX_HOME", "GODOT_SILENCE_ROOT_WARNING"]:
+			if OS.has_environment(key):
+				wrapper.append(key + "=" + OS.get_environment(key))
+		wrapper.append(OS.get_executable_path())
 	wrapper.append_array(args)
 	return OS.create_process("xvfb-run", wrapper)
 
@@ -1108,6 +1140,8 @@ func _until(predicate: Callable, seconds: float) -> bool:
 	while Time.get_ticks_msec() < deadline:
 		if bool(predicate.call()):
 			return true
+		if _profile_deadline > 0 and Time.get_ticks_msec() >= _profile_deadline:
+			return false
 		await _ticks(1)
 	return false
 
