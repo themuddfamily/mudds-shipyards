@@ -1,10 +1,10 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**99e79c3**, with continuous right-stick camera look on foot, aboard and in the
-tow tractor, plus earlier startup, music, saved sprint and remote HUD fixes.
-[Windows notes](builds/windows/MuddsShipyards-99e79c3-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-99e79c3-linux-notes.txt) state actual validation.
+**a43ae4b**, with Cargo Hauler landing and pilot access to Cinder's supply terminal,
+plus earlier controller, startup, music, saved sprint and remote HUD fixes.
+[Windows notes](builds/windows/MuddsShipyards-a43ae4b-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-a43ae4b-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -51,6 +51,7 @@ unapproved; parked failures remain outside the queue.
 | AUDIO-SURFACE-MUSIC /30 | DONE; packaged4ff7a08 | Aurora/Rime music follows transit/landing/surface visit state | Closed after full phase/activity/bed checks, independent review and paired checkpoint; ordinary journey/listening gates remain open. |
 | BOOT-BREACH-OWNERS /9,11,13 | DONE; packagede3d1ada | Physical Heavy Breach board has its actual director/combat/objective owners before play | Full startup and production route pass; paired checkpoint. Crash-recovery transaction stays parked. |
 | GAMEPAD-LOOK /8,29 | DONE; packaged99e79c3 | Held right stick rotates actual local Player/tractor camera with safe handoffs | Full focused camera/tow/glyph checks, independent review and paired checkpoint pass; real-device/full controller route remains open. |
+| HAULER-SUPPLY-ACCESS /10,13 | DONE; packageda43ae4b | Actual Hauler lands at Cinder supply platform; current pilot walks to authorized terminal | Full focused access/berth/switching checks, independent review and paired checkpoint pass; cargo stock/manifest/delivery remain separate. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
 are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
@@ -177,105 +178,22 @@ this does not close any full craft/art/combat/crew/world/recovery requirement.
 No engine/test/capture/export ran; playable checkpoint99e79c3 remains unchanged.
 No runtime repair or qualification successor is automatically selected.
 
-### Hauler cargo contract result and next production boundary
+### Hauler supply access — delivered
 
-HAULER-CARGO-DEFINE has a finite contract: retain existing supply item/destination,
-one-crate load/clear-gate/dock phases and120s timer, exact actor/lease/attachment
-and reward ownership. Hauler stock choice is pending the one already-asked
-question; no answer is inferred. Source replacement also needs monotonic activity
-generations and no stock recreation, so a whitelist/manifest rename is insufficient.
-The [ordered production cards](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries)
-separate physical access from stock, manifests and completed delivery. No engine
-ran for this definition. Existing Jovian route stays binding.
+HAULER-SUPPLY-ACCESS is DONE in checkpoint **a43ae4b**: the actual Hauler can
+land at the existing Cinder supply platform and its pilot can walk to the terminal
+with current actor/ship/lease authorization. Original Jovian access is preserved.
+Full access76, existing berth83 and physical-switching35 checks pass, plus paired
+exports, three strict silent startups and actual1519-entry package audit.
+The focused route stages initial craft/exit placement; full Main outbound/home
+and E-key dispatch remain separate. No cargo stock, transfer or reward is granted.
+[Result and retained card](docs/history/ROADMAP_DELIVERIES.md#hauler-supply-access--accepteda43ae4b).
 
-### HAULER-SUPPLY-ACCESS — dock and reach the existing terminal
-
-- **Kind/parents:** production physical access,10/13; SELECTED, independent of
-  pending stock. Actual Hauler can reserve/land at Cinder's existing supply berth,
-  safely disembark and walk to the existing terminal as its authorized pilot.
-  This does not grant cargo, readiness, reward or a completed supply run.
-- **Owner/files:** one high-effort implementer owns scripts/world/cinder_cargo_access.gd,
-  optional berth-local subclass script+unique UID, tests/cinder_cargo_access_test.gd;
-  root integrates/checks/packages, one high-effort reviewer checks lease/physical
-  handoffs. Preserve shared HeroShip/ShipBerth contracts; no generic berth framework,
-  cargo ledger/reward/persistence, stock/mission/crew or parked-route changes.
-- **Finish:** actual production-composed Hauler definition/shape/markers, supported
-  landing contact, stable opaque lease through normal Hero landing, exact disembarked
-  actor/current craft/attachment authorization and ordinary supported Player walking
-  to terminal; wrong actor/ship/stale lease still refused. The existing public
-  terminal.interact boundary after actual walking is focused interaction proof,
-  not full Main E-key dispatch. Preserve original Jovian
-  geometry/dock/marker/route and all its acceptance checks. Compatibility tags may
-  gain cargo_hauler; migrate only the exact expected tag-list assertion while
-  retaining the existing Jovian member/compatibility assertion. Do not widen the
- 2.5m handoff gate or landing tolerances to absorb the different hull/exit.
-- **Checks/budget:**60–90min, split before90. Test-only commit first, compile300s
-  and full existing access suite at original1200s cap: only frozen intended new
-  Hauler compatibility/access failure(s), original Jovian route retained. On final
-  clean pin import/compile/full same suite plus existing ship_definition_berth/expansion physical
-  switching suites at their original declared/default caps, headless/Dummy. New
-  case may stage the actual craft at broad capture and Player at real disembark
-  handoff; subsequent terminal walk must use supported normal locomotion/Interact,
-  no per-waypoint teleport. Staged cluster proof is not canonical Main flight/return.
-  First unexpected failure STOP; separately freeze one repair, then cumulative
-  priority review before any further attempt; no deadline or route relaxation.
-- **Delivery:** clean paired checkpoint/three strict startups/actual payload audit,
-  player-visible notes, commit/push and owned scratch cleanup. Stock decision and
-  conserved manifest/delivery remain separate; no automatic successor chain.
-
-### Hauler access — one selected repair after first failure
-
-Candidate217005ad import/compile pass; full access51.179s fails its new Hauler
-normal-landing assertion after original Jovian route and Hauler fixture/compatibility/
-strict fit/opaque reservation pass. Landing cause is UNPROVEN: grouped assertion
-captured no telemetry. Contact/walk/terminal new proof NOT_RUN; no package/merge.
-Independent source GO is withdrawn as completion: actual GameFlow disembark calls
-NearbySectorActivityBinding.authorize_cargo_terminal_actor, which rejects Hauler
-before CinderAccess because only Jovian is a cargo source. Direct access test
-bypassed this required physical production forwarder.
-
-ONE repair is selected,30min implementation cap: add only actual leased Hauler
-physical forwarding in that binding function, leaving cargo-source/transfer/reward/
-stock/persistence rules unchanged; update existing new test to use actual binding,
-assert no source/activity/stock grant, retain wrong actor/ship/lease/attachment and
-original Jovian checks. Add narrow requested/frames/phase/abort/pose/contract/lease
-failure telemetry before existing grouped landing assertion. No speculative
-geometry/contact/capture change, route/deadline/tolerance relaxation or standalone
-probe. Additional owned runtime file is scripts/world/nearby_sector_activity_binding.gd
-only at physical forwarder. Root runs import/compile and full unchanged access
-criteria at original1200s once on clean repaired pin; subsequent required berth/
-switching/package checks only if it passes. Required independent review and
-cumulative priority review follow; no automatic third or renamed retry. Failed
-candidate/raw results retained; stock choice remains pending and independent.
-
-### Hauler access — cumulative review and exact compile correction
-
-Repaireddf7b026 import passes6.650s; compile fails5.337s because the new diagnostic
-predicate `completed` cannot infer a bool from Dictionary Variants. Its full
-route is NOT_RUN. Original landing failure51.179s and this compile failure are
-retained: cumulative failed-stage56.516s; no geometry cause established.
-Independent high-effort cumulative priority review explicitly permits exactly
-`var completed: bool = ...`, then remaining mandatory import/compile/full access
-under unchanged caps/route/predicate. Root selects that one-line correction;
-no deadline, tolerance, geometry, source grant or test expansion. Any new failure
-STOPs for cumulative review; no automatic next repair or renamed task budget.
-
-### Hauler access — explicit deck-lip staging repair after cumulative review
-
-Correcteded4fd98 import/compile pass; full access51.081s still fails normal landing.
-New telemetry proves approach_obstructed at pose(31,-65.7554,-718.5501): Hauler's
-front reaches deck lipz=-712.55 while its floor is5.4mm below deck topy=-67.1.
-Both runtime failures102.259s plus compile5.337s remain: cumulative107.597s.
-Independent high-effort cumulative review supports this concrete new production
-seam, not a repeated unchanged probe. Root explicitly selects ONE Hauler-only
-berth-local get_assist_staging_transform override: stage directly above its exact
-dock before normal vertical final descent, conditional on current actual Hauler
-lease owner. Preserve original Jovian super result, broad capture, contact root,
-collision, final tolerances, Hero snapshots, existing test route and deadlines.
-No stock/cargo/reward/source grant, other source edit or test expansion. Root runs
-mandatory import/compile/full access once on clean pin; subsequent already-required
-checks/package only if pass. Independent review/cumulative decision still required;
-any new failure STOPs, no automatic next repair. Earlier failures/pins remain.
+The [ordered remaining cargo tasks](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries)
+are stock policy (one already-asked question), conserved manifest integration,
+then actual delivery. Stock is WAITING; manifest/delivery are GATED. Neither a
+whitelist edit nor bridge readiness completes cargo gameplay. No successor is
+selected by this closure; all original parent/phase requirements remain open.
 
 ## Parked failures and dependent work
 

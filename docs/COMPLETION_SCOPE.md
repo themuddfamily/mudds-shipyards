@@ -1,6 +1,19 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **99e79c3**, clean source
+Latest accepted paired checkpoint: **a43ae4b**, clean source
+`a43ae4bc1f718d0f8042046e35b9aa30a653bad4`
+([Windows notes](../builds/windows/MuddsShipyards-a43ae4b-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-a43ae4b-linux-notes.txt)). Cargo Hauler
+normal landing at the existing Cinder supply platform and supported pilot walking
+now reach the authorized terminal. Original Jovian access remains. Full access76,
+berth83/physical-switching35 checks, independent review, paired exports/three strict
+silent startups and actual1519-entry payload audit pass. Initial craft/exit placement
+is staged; public terminal Interact is not full Main E-key/outbound/home proof.
+No Hauler cargo stock/transfer/reward is granted; stock choice is pending and
+conserved manifests/delivery remain gated. Native hardware/current full regression
+and original acceptance remain open. All36 parents/ten gates OPEN; Titan unapproved.
+
+Earlier accepted paired checkpoint: **99e79c3**, clean source
 `99e79c372058ef3218084e4584da055f872e0c94`
 ([Windows notes](../builds/windows/MuddsShipyards-99e79c3-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-99e79c3-linux-notes.txt)). Standard
