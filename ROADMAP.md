@@ -28,13 +28,13 @@ explicit owner decision.
 
 ## Execution now
 
-WALK-SALVAGE-ACCESS implementation is selected. Reverse qualification and the bounded Torrent
+WALK-SALVAGE-ACCESS is parked after its original attempt and one caller repair. Reverse qualification and the bounded Torrent
 definition are closed below. Completed and parked work does not occupy the
 executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
-| WALK-SALVAGE-ACCESS / 7,9 | FAILED; one caller repair selected | Same supported Player walks from hub to all three inspection positions and back without staging. | Review selected existing-caller mode, compile once, one isolated route. |
+| WALK-SALVAGE-ACCESS / 7,9 | FAILED/PARKED | Same supported Player must walk hub→inspection row→hub without staging. | Both attempts fail at outbound20; no further diagnosis/fix/run selected. |
 | CRAFT-GAPS-TORRENT / 10,11 | Definition DONE; craft acceptance OPEN | No specifically required missing implementation found within inspected owners. | Do not invent a feature; any successor needs a concrete requirement/finding. |
 | HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
 
@@ -87,13 +87,30 @@ this caller's corner turn; no runtime access defect is established. All3 owners
 terminal and owned PID identities absent; original profile logs retained unchanged.
 Raw: `/srv/mudds-work/salvage-ordinary-access-20261018/results/route/`.
 
-**Selected ONE caller repair:** inset only the two rear-cross corner goals from
+**ONE attempted caller repair:** inset only the two rear-cross corner goals from
 Annex local z19 to18.5 within its authored z18..20 rear aisle. Preserve original
 hub/inspection-row/service-gate destinations, ordinary movement and all240-frame,
 0.20m/floor/300s criteria. Root owns these two literals; no runtime changes,
 geometry removal or diagnostic engine probe. Compile once and ONE corrected route.
 Original plus this repair are cumulative; another failure requires priority review
 before further diagnosis/fix/run. Estimated5min edit/review, checks separate.
+
+**Repair result/closure:** unmerged641bbdbb0 compiles; ONE corrected route
+FAIL60.822s at outbound20, target(90.5,50.50001), actual(90.79643,40.39536),
+still supported and controlled. It does not prove access to Salvage, inspection
+or return. No runtime change/checkpoint. All5 owners terminal/all19 PID identities
+absent; source/required cache unchanged, both failed profile bundles/logs retained
+byte-identically. Owned checkout/profiles/helpers removed; raw and remote source
+ref retained. Latest playable624d2a6 is unchanged.
+
+**Cumulative priority review:**61.019+60.822=121.842s route execution, excluding
+source work/import/compile. The two-corner inset did not resolve the retained
+route boundary. No competing READY production implementation is established.
+Park this chain; do not schedule another diagnostic, path edit, geometry change
+or unchanged route under a new name. INSPECT and REVISIT stay gated. Next priority
+is a finite evidence-bounded missing-original-craft specification proposal, so
+full fleet scope can become executable; an interpretation proposal is not approval
+or a delivered craft. Existing evidence/owner-decision gates remain intact.
 
 ### CRAFT-GAPS-TORRENT — bounded definition complete
 
