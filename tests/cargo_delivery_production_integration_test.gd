@@ -117,15 +117,21 @@ func _run() -> void:
 # with the accepted delivery's original XDG_DATA_HOME and absolute store path.
 const RELOAD_STORE_ARGUMENT := "--ordinary-jovian-kit-reload-store="
 const RELOAD_SHA256_ARGUMENT := "--ordinary-jovian-kit-reload-sha256="
+const RELOAD_TRACE_ARGUMENT := "--ordinary-jovian-kit-reload-trace"
 var _reload_baseline: Dictionary = {}
 var _reload_store: UserDataStore
 var _reload_completed := false
+var _reload_trace_selected := false
+var _reload_trace_started_msec := 0
 
 
 func _run_ordinary_jovian_kit_reload() -> void:
 	_ordinary_deadline = Time.get_ticks_msec() + 30000
+	_reload_trace_started_msec = _ordinary_deadline - 30000
+	_reload_trace_selected = RELOAD_TRACE_ARGUMENT in OS.get_cmdline_user_args()
 	await _ordinary_reload_scenario()
 	_reload_require(_reload_completed, "restore scenario reached terminal acceptance")
+	_ordinary_reload_trace("cleanup_begin", {"completed": _reload_completed})
 	# Do not remove or rewrite the accepted store during harness cleanup.
 	for action in InputMap.get_actions():
 		Input.action_release(action)
@@ -146,13 +152,16 @@ func _run_ordinary_jovian_kit_reload() -> void:
 	_reload_require(not is_instance_valid(_ordinary_game), "restored Main freed before success")
 	if _reload_store != null and not _reload_baseline.is_empty():
 		_reload_require(_ordinary_reload_store_unchanged(), "cleanup preserves substantive saved cargo and paid reward")
+	_ordinary_reload_trace("cleanup_end", {"main_valid": is_instance_valid(_ordinary_game)})
 	print("JOVIAN_KIT_ORDINARY_RELOAD_ASSERTIONS: ", _assertions)
 	if _reload_completed and _failures.is_empty():
 		print("JOVIAN_KIT_ORDINARY_RELOAD_OK")
+	_ordinary_reload_trace("terminal_exit", {"completed": _reload_completed, "failures": _failures.size()})
 	quit(0 if _reload_completed and _failures.is_empty() else 1)
 
 
 func _ordinary_reload_scenario() -> void:
+	_ordinary_reload_trace("scenario_entry")
 	var path := ""
 	var path_arguments := 0
 	var expected_sha256 := ""
@@ -202,13 +211,27 @@ func _ordinary_reload_scenario() -> void:
 		"saved baseline is completed generation one with its exact paid delivery"):
 		return
 	# Both the actual store and its substantive baseline exist before Main.
+	_ordinary_reload_trace("before_instantiate")
 	_ordinary_game = MAIN_SCENE.instantiate() as GameFlow
+	_ordinary_reload_trace("after_instantiate")
 	if not _reload_require(_ordinary_game.configure_runtime_settings_persistence(
 		_reload_store, path.get_base_dir().path_join("legacy.cfg")),
 		"real production filesystem configured before Main enters tree"):
 		return
+	if _reload_trace_selected:
+		for child in _ordinary_game.get_children():
+			child.ready.connect(_ordinary_reload_child_ready.bind(str(child.name)), CONNECT_ONE_SHOT)
+		_ordinary_game.ready.connect(_ordinary_reload_main_ready, CONNECT_ONE_SHOT)
+	_ordinary_reload_trace("before_tree_entry")
 	root.add_child(_ordinary_game)
-	await _ordinary_ticks(4)
+	_ordinary_reload_trace("after_add_child")
+	if _reload_trace_selected:
+		for index in 4:
+			_ordinary_reload_trace("before_tickwait", {"tick": index + 1})
+			await _ordinary_ticks(1)
+			_ordinary_reload_trace("after_tickwait", {"tick": index + 1})
+	else:
+		await _ordinary_ticks(4)
 	if not _reload_require(_ordinary_game.hud is GameHUD and _ordinary_game.world is ShipyardWorld
 		and _ordinary_game.world.get_jovian_freight_berth() != null
 		and _find_ship(_ordinary_game, &"jovian_provisional") != null
@@ -230,6 +253,31 @@ func _ordinary_reload_scenario() -> void:
 	_reload_completed = _reload_require(Engine.get_physics_frames() - physics_start >= 60
 		and Engine.get_process_frames() - process_start >= 60 and _ordinary_reload_store_unchanged(),
 		"at least sixty normal physics/process ticks retain saved completion and no duplicate reward")
+
+
+func _ordinary_reload_trace(boundary: String, details: Dictionary = {}) -> void:
+	if not _reload_trace_selected:
+		return
+	var receipt := {"boundary": boundary, "elapsed_msec": Time.get_ticks_msec() - _reload_trace_started_msec,
+		"engine_ticks_msec": Time.get_ticks_msec(), "pid": OS.get_process_id(), "process_frames": Engine.get_process_frames(),
+		"physics_frames": Engine.get_physics_frames(), "details": details}
+	# application/run/flush_stdout_on_print is already enabled in project.godot.
+	print("JOVIAN_KIT_ORDINARY_RELOAD_TRACE: ", JSON.stringify(receipt))
+
+
+func _ordinary_reload_child_ready(child_name: String) -> void:
+	_ordinary_reload_trace("child_ready", {"child": child_name})
+
+
+func _ordinary_reload_main_ready() -> void:
+	var diagnostic := {"initialized": _ordinary_game.get("_initialized"),
+		"phase": _ordinary_game.phase, "paused": paused,
+		"restore": _ordinary_game.get("_jovian_cargo_session_restore_status")}
+	var cargo := _ordinary_game.cargo_delivery_activity
+	if is_instance_valid(cargo):
+		diagnostic["cargo_generation"] = cargo.get_generation()
+		diagnostic["cargo_state"] = cargo.get_state()
+	_ordinary_reload_trace("main_ready", diagnostic)
 
 
 func _ordinary_reload_matches_baseline() -> bool:
