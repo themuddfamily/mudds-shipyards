@@ -496,6 +496,20 @@ one-payment cold-load acceptance before implementing; no adjacent probe selected
   Independent alternative: next original craft needs its existing spec/owner gates;
   no adjacent recovery evidence chain is selected.
 
+### Cinder supply debt — compile stop and exact member-call repair
+
+Cleanff2db31ac: importPASS19.665s; GameFlow compile15.245s returns0 but fails strict
+diagnostics because CinderCargoDeliveryPersistence:67 unqualified `load()` resolves
+Godot's built-in Resource loader rather than the zero-argument member below it.
+Dependent scripts fail compilation. Authority compile/focused suites/packages
+NOT_RUN. Independent causal review GO; root freezes ONE line only: `load()` becomes
+`self.load()` in that typed reconciliation assignment. All expressions/guards/
+acceptance unchanged. Root applies this trivial member qualification in existing
+checkout; no further implementer delegation needed. New clean pin/review, repair
+compile300 then original remaining checks/packages if each passes. Preserve raw
+failure; no automatic further repair, timeout change or narrower proof. Original
+45–60min/split-before90 budget remains cumulative (selection≈17:57UTC, stop18:09UTC).
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
