@@ -72,6 +72,13 @@ func encode(packet: Dictionary, force_full: bool = false) -> Dictionary:
 		envelope["section_changes"] = section_changes
 	if not section_removals.is_empty():
 		envelope["section_removals"] = section_removals
+	# A large section change can exceed the transport budget even when the
+	# existing compressed full representation fits. Reuse that recovery path.
+	if Marshalls.variant_to_base64(envelope).length() > Fragmenter.MAX_PACKET_BYTES:
+		var fallback := _full_envelope(packet, revision)
+		if Marshalls.variant_to_base64(fallback).length() <= Fragmenter.MAX_PACKET_BYTES:
+			_packets_since_full = 1
+			return fallback
 	return envelope
 
 
