@@ -103,6 +103,41 @@ and strict package checks pass. [Result and retained card](docs/history/ROADMAP_
 No successor is selected; full combat and parked interruption acceptance remain
 open. This repair does not accept or rerun the failed release probe.
 
+### Selected reopening — BREACH-INTERRUPTION after the production fix
+
+Root explicitly reopens the same13/31/32 outcome on the changed production
+baseline342705a1e, retaining both original failures and cumulative71.004s. The
+qualifying new fact/change is accepted BOOT-BREACH-OWNERS e3d1ada: the missing
+deferred binding and exact production owners are now directly proven/fixed in
+the full startup suite. This is not an unchanged third probe or a reset budget.
+
+- One medium-effort integration agent ports only the retained e9c6111b4 and
+  3c10a071b four-file release capability onto this clean fixed baseline, without
+  further caller/gameplay edits. One high-effort reviewer checks exact source
+  composition, independent processes and preserved finish criteria. Root owns
+  execution, integration, builds and cleanup. No nested agents or new validators.
+- Finish remains the original genuine Heavy Breach earned terminal/unpaid debt,
+  target-only delegated filesystem refusal, owned live readiness kill/reap with
+  byte-identical interrupted document, distinct same-profile normal Resume/real
+  pilot/production exit/physical board retry, exactly one atomic receipt/ack,
+  then a further distinct cold paid replay without a second receipt. Settings,
+  actual unrelated cargo payload and all authority/admission/diagnostic guards
+  remain. Torpedo and active-combat restore are separate/unqualified.
+-30–60min integration/qualification. Import, compile changed probe, existing
+  startup CLI privacy, then exactly one full source transaction at original300s
+  per-process caps. Unchanged startup96.328s/production route48 on e3 and board52
+  on e9 retain their recorded sources; they are not rerun merely for a new pin.
+  If source passes, clean paired exports/three strict silent startups/actual
+  package audit, then one exact archive-extracted ELF transaction, same caps.
+- First unexpected failure ends this reopening, with cumulative priority review
+  including the retained71.004s and this run. No further caller repair, fourth
+  automatic attempt, rename, timeout change or different recovery choice.
+  Preserve raw failure and candidate; no failed candidate publication.
+- All engine runs private/headless/Dummy; no native Windows, audible output or
+  CI. Fixtures and acceptance limits remain disclosed. Commit/push regularly;
+  clean owned scratch after terminal closure. Independent Cinder supply terminal
+  qualification remains an unselected alternative; no adjacent recovery chain.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
