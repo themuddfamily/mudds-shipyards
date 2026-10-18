@@ -5602,3 +5602,35 @@ endurance gate closes. Next is one source-defined Jovian passenger postdock
 stand/hatch/ground exit; reuse successors remain separate, original return and
 historical second-landing failure are not reopened. Inventory21 DONE includes
 planning/source/build/qualification scopes, not project percentage.
+
+
+### 2026-10-18 — bounded roadmap queue and preserved passenger-exit candidate
+
+Owner requested smaller achievable/provable roadmap goals after repeated long
+loops. The prior response proposed this change but did not alter authoritative
+planning state; this pass implements it. Existing36-parent crosswalk, original
+specification, parked failures and external waits are retained.
+
+ROADMAP.md now specifies eight cards with exact result, ownership boundary,
+proof, next action, dependency, work/check budget and failure/closure action.
+Five ordered Jovian results are passenger exit, passenger reboard, pilot exit,
+pilot reclaim and one repeat departure. Four successor cards are GATED; they
+cannot silently become part of the current exit task. Three independent READY
+static definitions identify the specific missing ordinary Annex access/return,
+Jovian kit sortie and residual Halyard server gameplay contracts. Definitions
+end at a finite executable successor or named missing fact; they are not gameplay
+progress. The queue is four READY/four GATED/zero accepted, not a project job count.
+
+Passenger-exit implementation is intentionally on HOLD at clean isolated commit
+8054a2cc4 (base131118eed), branch work/jovian-passenger-exit-20261018. Only the
+existing return caller changes (+376/-1), with proposed selected continuation and
+its distinct success marker. About30 min implementation is spent; review then
+compile/one selected route remain. No engine ran, no postdock behavior is proven,
+and no runtime change or new checkpoint is claimed. Source-level exit-placement
+concern is a hypothesis only. The checkout/private runner are retained to avoid
+restarting the work; old unique raw and unrelated dirty checkouts stay protected.
+
+Verification for this planning change is diff/links, task/dependency consistency,
+original36-parent coverage and bounded independent source mapping. No Godot,
+full matrix, exports, hosted CI, native/hardware/device/audio/human or endurance
+check is implied or scheduled by this planning pass.

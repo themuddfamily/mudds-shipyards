@@ -314,7 +314,7 @@ requirements. The engineer and other craft instances remain unscheduled.
   host/client/client_b OS exit0 receipts before success. Run only the selected
   continuation after implementation using `godot --headless --audio-driver Dummy
   --path . --script res://tests/network/jovian_network_two_client_return_test.gd
-  -- --postdock-passenger-exit` (proposed select-only mode, not implemented here), headless
+  -- --postdock-passenger-exit` (select-only candidate8054a2cc4, unreviewed and engines NOT_RUN), headless
   coordinator/private Xvfb peers and explicit `--display-driver x11`. First
   failure stops with exact boundary/owner; source comparison ran no engine.
   Native Windows/GPU/device/human gates remain NOT_RUN. Definition adds no
@@ -480,7 +480,8 @@ Registry/commands: [graphical harness inventory](../docs/GRAPHICAL_HARNESS_INVEN
 
 Reconciled on 2026-10-18 after the owner requested smaller, provable goals.
 **One row is one named outcome.** Family contracts above define the proof;
-ROADMAP.md schedules the next eight cards with an owner, action and budget.
+ROADMAP.md schedules eight specific cards with owners, actions and budgets;
+its current postdock cards split the exit/reuse family into five ordered outcomes.
 These rows replace the earlier grouped “per craft/role/world” inventory.
 They are a scope inventory, not an implementation estimate or a project percentage.
 
@@ -526,7 +527,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-HABITAT | Habitat rest/wake | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
-| WALK-ANNEX | Annex repair-kit service | 7,9 | UNSCHEDULED; exact production-roster route |
+| WALK-ANNEX | Annex repair-kit service | 7,9 | UNSCHEDULED qualification; WALK-ANNEX-ROUTE planning READY in ROADMAP.md |
 | WALK-OBSERVATION | Observation supported return | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-SALVAGE | Salvage three-component manifest | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-VIP | VIP reception | 7,9 | PARKED; failed route plus repair, see working-roadmap failure summary |
@@ -600,7 +601,7 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | PLAY-RACE | Checkpoint Race first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-PATROL | Platform Patrol first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
+| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | UNSCHEDULED qualification; PLAY-JOVIAN-KIT-ROUTE planning READY in ROADMAP.md |
 | PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-MINING | Mining/extraction first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
@@ -662,7 +663,12 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | HELM-HOVER | Sampled hover correction on authoritative craft and release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | NET-STALL | Original 600-step host simulation stall and honest command recovery | 19 | UNSCHEDULED; independent peers, original 2s action limits |
 | NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | GATED; establish distinctness from current return failure before any probe |
-| NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; finite pilot/physical-role cases above; NEXT Jovian passenger ordinary post-dock stand/exterior exit, reuse successors open |
+| NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; next five Jovian instances below, all other craft/roles remain unscheduled |
+| NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | READY for review in ROADMAP.md; unverified candidate8054a2cc4, engines NOT_RUN |
+| NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | GATED on passenger exit; exact bounded card in ROADMAP.md |
+| NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | GATED on passenger reboard; passenger stays seated |
+| NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | GATED on pilot exit; old command generations stay retired |
+| NET-JOVIAN-REDEPART | Same crew/hull departs at least5m and brakes after physical reuse | 16,20,26 | GATED on pilot reclaim; no second landing/endurance expansion |
 | CONVOY-ACTOR-DEFINE | Uncovered Convoy tender live/dead/reset/late/disconnect cases | 22 | DEFINE; actual native-gameplay coverage versus authority tests |
 | TORPEDO-AUTH-DEFINE | Uncovered torpedo projectile authority/pilot-loss/solo-restoration cases | 23 | DEFINE; distinct from ordinary combat route |
 | PICKET-ACTOR-DEFINE | Uncovered Picket travelling actor/late/dead/reset/disconnect cases | 24 | DEFINE; actual moving-crew integration |
@@ -674,7 +680,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-DISCONNECT | Disconnect/retry ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-CANCEL | Cancel/reuse ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
-| SERVER-BASELINE-DEFINE | Exact dedicated-server/two-client gameplay command and cases | 26 | DEFINE; authorized independently of larger capacity choice |
+| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | READY planning in ROADMAP.md; accepted Jovian subroutes credited, no run or capacity-choice dependency |
 | SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | GATED; exact baseline contract, boarding/departure passes do not close it |
 | NET-FULL-SNAPSHOT | All-nine forced-full publication and byte budget | 17,26 | UNSCHEDULED; original aggregate budgets, movement-only bytes insufficient |
 | NET-PROFILES-DEFINE | Original latency/loss/jitter/reorder/stall profile roster | 26 | DEFINE; exact existing commands and ownership/lifecycle limits |
@@ -786,12 +792,17 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 
 ### Unknown scope and counting
 
-Count the named rows as inventory outcomes, **not remaining executable jobs**.
-DONE rows retain their exact-source scope; definition, qualification, build and
-implementation are different types of work. This inventory has **246 named outcomes**, including **21 DONE** in their recorded
-planning/source/build/qualification scopes. The other225 rows include definitions, dependencies and
-qualifications; they are not225 implementation jobs. The completed eight-card batch is archived; the working queue has one bounded Jovian postdock passenger-exit task;
-its current completion and READY/GATED counts are shown in ROADMAP.md.
+The inventory contains accepted outcomes, broad families, dependencies and
+qualifications. **It is not a remaining-job count.** In particular, “one craft,”
+“one role” and “one recovery context” are selectors to resolve, not executable
+assignments. Completing a definition does not deliver the gameplay it describes.
+
+The [working queue](../ROADMAP.md#working-queue-eight-bounded-cards) now has eight
+specific cards: four READY for their stated action and four dependent GATED cards.
+Five separate Jovian outcomes replace the single exit/reuse assignment; three
+finite independent definitions prepare Annex access, kit delivery and residual
+server gameplay. This is a local scheduling count, not a whole-project estimate.
+All 36 original parents and ten phase gates remain open.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with
 no engine run unless separately scheduled. Expand its existing parent here only
@@ -829,7 +840,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | NET-POSE-DEFINE resolves craft/operation views; NET-FULL-SNAPSHOT is one aggregate original-budget check. |
 | 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | HELM-EDGE-REPRO/REPAIR DONE on recorded source; HELM-ACTIONS-DEFINE now names six uncovered held-action cases; devices remain separate. Physical-device proof stays separate. |
 | 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL | NET-STALL retains original600-step/2s contract; no unchanged parked/stall expansion under current repair. |
-| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | NET-JOVIAN-RETURN DONE; NET-SECOND-LAND must prove distinctness from recorded failures before diagnosis. NET-DOCK-DEFINE names later reuse cases. |
+| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | NET-JOVIAN-RETURN DONE; NET-SECOND-LAND must prove distinctness from recorded failures before diagnosis. Five bounded Jovian exit/reboard/pilot-exit/reclaim/redeparture cards now name reuse; other craft prerequisites remain. |
 | 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE | DAMAGE-DEFINE shares parent11 ownership and names uncovered real craft/role consequences and peer presentation. |
 | 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] | CONVOY-ACTOR-DEFINE ends with actual uncovered native lifecycle cases, not another full Convoy save probe. |
 | 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] | COMBAT-TORPEDO ordinary route and TORPEDO-AUTH-DEFINE authority/recovery cases remain distinct. |
