@@ -743,11 +743,14 @@ func _run_ui_board_focus_probe(hud: GameHUD) -> void:
 			"windows": windows, "root_focus_recipients": _probe_root_recipients(&"focus_entered"),
 			"root_exit_recipients": _probe_root_recipients(&"tree_exited")}
 		print("UI_BOARD_FOCUS_OBSERVATION: " + JSON.stringify(observation))
-		if selection.visible and focused == timed and not Input.is_physical_key_pressed(KEY_ENTER):
-			completion_seen = true
+		if selection.visible and is_instance_valid(timed) and timed.is_visible_in_tree() \
+				and focused == timed and not Input.is_physical_key_pressed(KEY_ENTER):
 			completion_frames += 1
 			if completion_frames >= 5:
+				completion_seen = true
 				break
+		else:
+			completion_frames = 0
 	if completion_seen:
 		print("UI_BOARD_FOCUS_PROBE_COMPLETED")
 	else:
