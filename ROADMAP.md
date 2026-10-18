@@ -133,6 +133,17 @@ tall-lip no-event checks and new successful-event/expiry assertions unchanged.
 No production change. Review the clean repaired pin before one full suite rerun;
 retain46.850s failure and original task/failure budgets. Later stages remain stopped.
 
+Repaired pin `f2bf35a6a6305893413ae6000a4a5c45715c3e1d` passes full player-step
+suite82 checks/46.696s, observer15.590s, privacy1.034s and full74 Python8.361s
+guarded. Only five test-helper lines differ from69850930c; production unchanged.
+Current focused total139.139s includes the first failure; prior selection218.025s
+retained (357.164s recorded guarded stages, not wall time or a reset allowance).
+Independent cumulative review GO now selects fresh paired exports→three strict
+startups→actual artifact audit→ONE changed-source archived LIFE-ARM route. Actual
+actor proof is the reopening change; original ordinary bound,15goals/all deadlines
+and historical FAIL remain. First unexpected failure STOP; final raw review before
+publication. No hardware/rendered/full-parent qualification follows from this GO.
+
 ## Latest delivered result
 
 Freight LIFE-GANTRY is accepted on packaged2df8c31: ordinary approach, nearby
