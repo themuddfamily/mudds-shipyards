@@ -134,6 +134,11 @@ Only `tools/release/test_native_sortie.py` may change. Retain identical GDScript
 privacy passes; authorize one full repaired Python run on its new clean pin,
 then obtain explicit cumulative priority review before any remaining stage.
 
+Repair source `950574e3fbaec59ae49d4626a8fd6affd99c5c26` changes only the
+two fixture lines above. Full71 Python PASS8.229s guarded; initial failure8.176s
+retained, combined Python16.405s. GDScript/privacy checks remain byte-identical
+and are retained. Exports/native remain NOT_RUN pending cumulative review.
+
 ## Latest delivered result
 
 Freight LIFE-GANTRY is accepted on packaged2df8c31: ordinary approach, nearby
