@@ -301,8 +301,14 @@ func _handback_claim_current(claim: Dictionary) -> bool:
 	var valid_berth := false
 	for index in GameFlow.NETWORK_CABIN_BERTH_COUNT:
 		valid_berth = valid_berth or claim.get("seat_id") == GameFlow.network_cabin_berth_seat_id(_craft.ship_id, index + 1)
-	return valid_berth and claim.get("ship_id") == _craft.ship_id and claim.get("role") == &"passenger" \
-		and int(claim.get("seat_generation", 0)) > 0 \
+	if not valid_berth or claim.get("ship_id") != _craft.ship_id or claim.get("role") != &"passenger":
+		return false
+	# The client retains only the confirmed ship/seat/role. Its release audit
+	# below verifies the callback and request completion; authoritative sequence
+	# advancement and seat generation belong to the host's actual occupancy.
+	if _role != "host":
+		return true
+	return int(claim.get("seat_generation", 0)) > 0 \
 		and int(claim.get("claim_sequence", -1)) > int(old.get("claim_sequence", -1))
 
 

@@ -14,6 +14,10 @@ class SessionProbe extends AdapterType:
 	var authoritative_snapshot: Dictionary = {}
 	var migration_generation := 1
 	var landing_entity: Dictionary = {}
+	var crew_roles: Dictionary = {}
+
+	func get_crew_role_snapshot() -> Dictionary:
+		return {"roles": crew_roles.duplicate(true)}
 
 	func get_migration_snapshot() -> Dictionary:
 		return {"migration_generation": migration_generation}
@@ -25,6 +29,15 @@ class SessionProbe extends AdapterType:
 		if StringName(landing_entity.get("entity_id", &"")) != entity_id:
 			return {}
 		return landing_entity.duplicate(true)
+
+
+class FlowProbe extends GameFlowType:
+	# This standalone fixture has no ENet transport. Inject only its boarding
+	# peer identity; role derivation and HUD publication remain production code.
+	var boarding_peer_id := 0
+
+	func _network_client_peer_id() -> int:
+		return boarding_peer_id
 
 
 func _init() -> void:
@@ -60,7 +73,7 @@ func _run() -> void:
 	hud.queue_free()
 	await process_frame
 	var production_hud := HudType.new()
-	var production_flow := GameFlowType.new()
+	var production_flow := FlowProbe.new()
 	var production_session := SessionProbe.new()
 	var production_bomber := BomberType.new()
 	root.add_child(production_hud)
@@ -236,6 +249,7 @@ func _run() -> void:
 	detail = (production_hud.get("_runtime_status_detail") as Label).text
 	_check(detail.contains("REMOTE PEER 7") and not detail.contains("TRANSFER //"),
 		"adapter migration epoch accepts restarted authority without transferring stale ownership")
+	_check_cabin_role_hud(production_flow, production_session, production_bomber, production_hud)
 	production_flow.free()
 	production_bomber.queue_free()
 	production_session.queue_free()
@@ -248,6 +262,78 @@ func _run() -> void:
 	for failure in _failures:
 		push_error(failure)
 	quit(1)
+
+
+func _check_cabin_role_hud(
+	flow: FlowProbe, session: SessionProbe, craft: HeroShip, hud: GameHUD
+) -> void:
+	flow._piloting = false
+	flow._network_session_mode = &"client"
+	session._is_server = false
+	flow.boarding_peer_id = 3
+	flow.phase = GameFlowType.Phase.IN_FLIGHT_CABIN
+	flow._cabin_ship = craft
+	var confirmed_claim := {
+		"ship_id": craft.get_ship_id(), "seat_id": &"cabin_02", "role": &"passenger",
+	}
+	flow._network_client_boarding_claim = confirmed_claim.duplicate(true)
+	session.crew_roles.clear()
+	_check(_published_role_detail(flow, hud).contains("ROLE // PASSENGER"),
+		"confirmed live cabin berth presents PASSENGER through production GameFlow HUD")
+	session.crew_roles[&"admitted_pilot"] = {
+		"peer_id": session.multiplayer.get_unique_id(), "role": &"pilot",
+	}
+	_check(_published_role_detail(flow, hud).contains("ROLE // PASSENGER"),
+		"confirmed cabin passenger takes presentation priority over earlier pilot admission")
+	session.crew_roles.clear()
+	flow._network_client_boarding_claim.clear()
+	_check(_published_role_detail(flow, hud).contains("ROLE // OBSERVER"),
+		"cleared cabin claim cannot retain passenger presentation")
+	flow._network_client_boarding_claim = confirmed_claim.duplicate(true)
+	flow._network_client_boarding_claim["ship_id"] = &"other_craft"
+	_check(_published_role_detail(flow, hud).contains("ROLE // OBSERVER"),
+		"another craft's passenger claim cannot promote the current cabin role")
+	flow._network_client_boarding_claim = confirmed_claim.duplicate(true)
+	flow.boarding_peer_id = 0
+	_check(_published_role_detail(flow, hud).contains("ROLE // OBSERVER"),
+		"disconnected boarding identity cannot promote a retained passenger claim")
+	flow.boarding_peer_id = 3
+	flow._network_session_mode = &"server"
+	_check(_published_role_detail(flow, hud).contains("ROLE // OBSERVER"),
+		"non-client session cannot promote a retained passenger claim")
+	flow._network_session_mode = &"client"
+	flow.phase = GameFlowType.Phase.FREE_FLIGHT
+	_check(_published_role_detail(flow, hud).contains("ROLE // OBSERVER"),
+		"outside cabin phase a retained passenger claim cannot promote the role")
+	flow.phase = GameFlowType.Phase.IN_FLIGHT_CABIN
+	flow._cabin_ship = null
+	_check(_published_role_detail(flow, hud).contains("ROLE // OBSERVER"),
+		"missing cabin craft cannot promote a retained passenger claim")
+	flow._cabin_ship = craft
+	flow._network_client_boarding_claim["seat_id"] = &""
+	_check(_published_role_detail(flow, hud).contains("ROLE // OBSERVER"),
+		"incomplete cabin claim cannot promote passenger presentation")
+	flow._network_client_boarding_claim = confirmed_claim.duplicate(true)
+	flow._piloting = true
+	_check(_published_role_detail(flow, hud).contains("ROLE // PILOT"),
+		"active pilot keeps presentation priority over a retained cabin claim")
+	flow._piloting = false
+	var seat := ShipCrewSeat.new()
+	seat._ship = craft
+	flow._network_engineer_client_seat = seat
+	flow._station_seated = true
+	for role: StringName in [&"engineer", &"gunner", &"passenger"]:
+		seat._role = role
+		_check(_published_role_detail(flow, hud).contains("ROLE // %s" % str(role).to_upper()),
+			"seated %s keeps presentation priority over a cabin claim" % role)
+	flow._network_engineer_client_seat = null
+	flow._station_seated = false
+	seat.free()
+
+
+func _published_role_detail(flow: GameFlowType, hud: GameHUD) -> String:
+	flow._publish_network_session_snapshot(&"connected", &"client", "Cabin role fixture.")
+	return (hud.get("_runtime_status_detail") as Label).text
 
 
 func _check(condition: bool, message: String) -> void:
