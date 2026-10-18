@@ -533,6 +533,25 @@ reruns. Any further unexpected failure STOPs for cumulative priority review; no
 automatic third correction/renamed task. Cumulative budget remains original
 45–60min/split-before90 (selection17:57UTC; review18:14UTC).
 
+### Cinder supply debt — JSON wire comparison repair
+
+The retained roundtrip stopped after37.274s: JSON readback represents nested
+numbers as floats, so strict Dictionary equality rejected an idempotent paid
+record and the unrelated-data fixture. Earned debt/refusal checks passed; pay and
+paid children did not run. Independent actual-file review also identified the
+same mismatch in Cinder publication recovery's expected full payload.
+
+Freeze one coherent correction across existing persistence, reward authority and
+roundtrip test: canonicalize captured valid records and expected Cinder recovery
+payloads through full-precision JSON; compare the entire expected foreign fixture
+in that same representation. Preserve schema, every field, primary provenance,
+all original assertions/caps and failed logs. Add a pay-child assertion proving
+actual authority acceptance and adapter consumption. No tolerance or field omission.
+New clean pin and independent review precede compile300, full reward300 and full
+three-child roundtrip300; only then the original package/startup gates. Cumulative
+failed-stage time68.507s; no reset of original task budget. Any further unexpected
+failure stops for cumulative priority review before additional work.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
