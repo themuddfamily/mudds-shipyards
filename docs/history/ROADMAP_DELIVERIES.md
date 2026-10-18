@@ -5661,3 +5661,22 @@ seam; pre-walk active-craft/spent-kit fixtures are disclosed separately from
 ordinary movement. Successor WALK-ANNEX is READY for implementation/qualification;
 full roundtrip collision/input/console behavior remains unproven. No engines ran
 for the definition, and no Sandbox/VIP failure or parent gate is reopened.
+
+
+NET-JOVIAN-EXIT-CALLER-PARSE attempt e147b6d49 changes exactlythree continuation
+lines, then FAILS its one compile retry at406 (expected closing parenthesis).
+Original321 failure is passed, but caller still cannot load. No gameplay route
+ran; no production exit defect is established. Original8054a2cc4 failure and
+repair failure remain under selected_exit_compile and syntax_repair_compile;
+source/cache unchanged through both, all3 stage owners terminal and all9 observed
+PID/start identities independently confirmed absent. No third compile is selected.
+
+Required cumulative priority review: about45min prior implementation/review/setup
+plus the bounded syntax correction/check; passenger exit remains unqualified,
+with one failed task/one attempted repair used. Root selects independent READY
+WALK-ANNEX caller instead of another Jovian correction. Its frozen route/caps
+and distinct test-file ownership allow useful implementation without re-opening
+that failure. Candidate e147b6d49 is retained on its work branch, unmerged;
+raw stays and owned disposable checkout/profiles/helpers are retired after push.
+No checkpoint is due for this unaccepted caller. All original external gates stay
+open. ROADMAP queue is2 READY/1 IN PROGRESS/4 GATED/1 FAILED.

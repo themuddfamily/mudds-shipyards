@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: correct three caller syntax continuations, compile once, then use the still-unrun Jovian exit check.**
+**Next: implement and qualify the fresh hub→Annex console→hub round trip.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -33,26 +33,28 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**4 READY, 4 GATED, 0 accepted in this queue.** Root owns integration and closure.
+**2 READY, 1 IN PROGRESS, 4 GATED, 1 FAILED; 0 accepted in this queue.**
+Root owns integration and closure.
 READY means its stated next action can start; it does not mean gameplay passed.
 Two READY cards are finite route/coverage definitions, explicitly labelled below.
 The Annex definition is complete; its caller/qualification successor is now READY.
-Choose one independent READY card if the active chain blocks. Do not run every
+The Jovian chain is stopped after its failed compile and one failed caller repair.
+Priority review selected independent Annex work. Do not run every
 card merely because it appears here. Review priorities before replenishment.
 
 | Order / task | Type / state | One finish line | Work budget; checks separate |
 | --- | --- | --- | --- |
-| 1. NET-JOVIAN-PASSENGER-EXIT | Caller + qualification / READY bounded syntax repair after FAILED compile | Passenger walks from chair through real hatch to supported berth ground; pilot retains helm. |5–10 min syntax correction; one compile 300s + still-unrun route 300s/outer 360s |
+| 1. NET-JOVIAN-PASSENGER-EXIT | Caller + qualification / FAILED, parked after priority review | Passenger walks from chair through real hatch to supported berth ground; pilot retains helm. |Original and one repair compile failed; gameplay NOT_RUN |
 | 2. NET-JOVIAN-PASSENGER-REBOARD | Caller + qualification / GATED on 1 | Same passenger walks back aboard and reclaims the original co-pilot chair. |30–60 min; one selected route at original limits |
 | 3. NET-JOVIAN-PILOT-EXIT | Caller + qualification / GATED on 2 | Original pilot releases helm and walks onto berth ground; passenger remains seated. |30–60 min; one selected route at original limits |
 | 4. NET-JOVIAN-PILOT-RECLAIM | Caller + qualification / GATED on 3 | Original pilot boards the same hull and reacquires helm with current authority. |30–60 min; one selected route at original limits |
 | 5. NET-JOVIAN-REDEPART | Caller + qualification / GATED on 4 | Reused hull departs at least 5m and brakes; both original clients stay valid. |30–60 min; one selected route at original limits |
-| 6. WALK-ANNEX | Caller + qualification / READY | Fresh player walks hub→Annex console, restocks once and returns to hub. |30–60 min; one original 300s selected route after review |
+| 6. WALK-ANNEX | Caller + qualification / IN PROGRESS | Fresh player walks hub→Annex console, restocks once and returns to hub. |30–60 min; one original 300s selected route after review |
 | 7. PLAY-JOVIAN-KIT-ROUTE | Planning / READY | Freeze one ordinary two-kit delivery sortie and durable completion criterion. |30 min; static source comparison, no engine |
 | 8. SERVER-BASELINE-DEFINE | Planning / READY | Name the residual Halyard two-client baseline and one uncovered recovery case. |30–45 min; static source comparison, no engine |
 
 **Count meanings:** 36 is the number of broad open requirements, eight is this
-working queue, and four is the number currently actionable. None is a count of
+working queue, and two is the number ready alongside one active task. None is a count of
 all remaining implementation jobs. The [36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
 retains the whole project; the backlog's generic families are not executable tasks.
 A definition ends with one executable successor or an exact missing fact, not
@@ -85,24 +87,23 @@ passes; reassess before starting, with 90 minutes as the split boundary.
   predicates continued across physical lines without explicit continuation.
   No selected gameplay route started. Source/cache guards held, supervisors ended,
   raw is retained in `/srv/mudds-work/jovian-passenger-exit-20261018/results/`.
-- **Next bounded task — NET-JOVIAN-EXIT-CALLER-PARSE:** READY/root,5–10 min.
-  Add only explicit continuation to the three affected lambda predicate lines
-  (321/337/344 in8054a2cc4). This is a caller syntax correction, not runtime work.
-  Preserve failed source/raw; commit a clean corrected pin and allow one compile
-  retry300s. Only if it passes, use the still-unrun original selected route300s,
-  outer360s,15s waypoint/8s transition/120s landing/5s convergence. All three peer
-  exits0, exactlyone `JOVIAN_NETWORK_TWO_CLIENT_PASSENGER_EXIT_OK`, diagnostics0.
-  No outcome or criterion changes, no engine rerun after another failure.
-- **Cumulative budget/stop/close:** about30 min implementation plus bounded
-  review/check setup already spent; correction adds at most10 min,90 min remains
-  the cumulative split boundary. The first attempt remains FAILED. If correction
-  or selected route fails, record the exact boundary, review priorities against
-  READY Annex work and select the next task before more investigation. One
-  hypothesis permits one probe; no automatic runtime repair or deadline growth.
-  Commit/push actual result and remove owned disposable scratch when closed.
-  Caller-only work needs no identical rebuild; accepted runtime repair requires
-  a separate card and fresh paired checkpoint. Native/device/world/endurance
-  gates stay open.
+- **Bounded repair result:** NET-JOVIAN-EXIT-CALLER-PARSE FAILED at clean
+  e147b6d49. Three explicit continuations fixed the original line321 boundary,
+  but the single allowed compile retry finds another parse error at line406.
+  No route, peer, passenger exit or production runtime was exercised. Both
+  failed commits/raw are retained; no test acceptance was relaxed.
+- **Priority review/next:** about45 min implementation/review/setup plus bounded
+  correction/check time; one task failure plus one attempted repair is used.
+  The unresolved outcome is ordinary postdock exit, not an established game
+  defect. Competing READY WALK-ANNEX has a frozen route and separate caller;
+  root selected it. No further Jovian diagnosis/correction/compile/route is
+  selected. A future explicitly bounded caller syntax review/correction must
+  precede any requalification; original300/360/15/8/120/5 limits remain.
+- **Close/retention:** preserve refs8054a2cc4/e147b6d49 and both raw failures,
+  commit/push, remove owned clean checkout/private profiles/helpers after process
+  closure. This failed caller is not merged and needs no checkpoint. Original
+  return remains accepted only at its earlier source scope. Reboard/reclaim/
+  redepart and native/device/world/endurance gates stay open.
 
 ### NET-JOVIAN-PASSENGER-REBOARD — reclaim one passenger chair
 
@@ -207,7 +208,7 @@ passes; reassess before starting, with 90 minutes as the split boundary.
   console must change spent kits5→6, increment Annex origin presentation once
   and leave Aft presentation unchanged. Fixtures do not prove ordinary craft
   selection or kit consumption by this walking player.
-- **Next/budget/check:** READY/root;30–60 min caller implementation/review,
+- **Next/budget/check:** IN PROGRESS/root;30–60 min caller implementation/review,
   splitbefore90. Freeze clean source and unique selected marker, then ONE
   existing300s suite-process run of this script with the selector; use private
   Xvfb, explicit x11/Dummy and independent abort/input/cursor cleanup. Retain
@@ -274,8 +275,9 @@ is not an approved pilot-only deferral; no invented crew feature is scheduled.
 
 Owned completed helm/return/on-foot/UI checkouts, profiles/helpers and duplicate builds are removed;
 unique raw/source refs and public builds remain. Three older dirty retired
-checkouts remain protected. Scratch belongs under `/srv/mudds-work/`. The unverified passenger-exit candidate
-and its prepared private runner remain intentionally retained until review.
+checkouts remain protected. Scratch belongs under `/srv/mudds-work/`. The failed passenger-exit candidate is retained by source refs/raw;
+its disposable checkout/profile/helper files are removed after closure. Active
+Annex work is isolated under `/srv/mudds-work/annex-round-trip-20261018/`.
 
 ## Rules that prevent loops
 
