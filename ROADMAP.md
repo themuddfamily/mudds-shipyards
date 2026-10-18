@@ -162,6 +162,20 @@ gameplay or full craft acceptance is claimed. Original art/combat/ordinary crew/
 recovery, historical and external gates remain OPEN; parked routes were not
 reopened. No repair or qualification successor is selected by this definition.
 
+### Selected craft definitions — three Cinder variants
+
+CRAFT-GAPS-CINDER-LIGHT/HAULER/BOMBER (parents10/11) are selected as independent
+source-only definitions,30min total. Two medium-effort read-only agents map Light
+Interceptor and Cargo Hauler; root maps Bomber and integrates existing docs.
+Finish finite authored feature/component/physical-role maps with actual owners,
+coverage boundaries and concrete required missing behavior or exact missing
+interpretation. Preserve Bomber's already-recorded additional crew/navigation
+WAITING decision; do not ask again or infer approval/reduction. No engine/test/
+capture/export/CI, runtime edit, tracker/validator, parked route retry or automatic
+qualification chain. Stop once owner/seam/acceptance distinctions are known;
+real repairs need separate frozen cards. Commit/push source definitions without
+claiming current gameplay passes or whole fleet completion.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
