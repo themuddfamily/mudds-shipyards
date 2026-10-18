@@ -697,8 +697,8 @@ func _test_confirmed_client_immediate_helm_edge(
 				source.notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
 				source.notification(NOTIFICATION_APPLICATION_FOCUS_IN)
 			&"pause":
-				source.notification(NOTIFICATION_PAUSED)
-				source.notification(NOTIFICATION_UNPAUSED)
+				source.notification(Node.NOTIFICATION_PAUSED)
+				source.notification(Node.NOTIFICATION_UNPAUSED)
 			&"source":
 				source.invalidate_pending_commands()
 			&"non_owner":
