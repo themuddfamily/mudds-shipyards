@@ -630,7 +630,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | ACCESS-PAUSE-DEFINE | Pause/options readability views and required scale/aspect cells | 12,29 | DONE; five named aspect groups/three authored scales, actual view states below |
 | ACCESS-PAUSE-4X3 | Pause/options at 1024x768, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
 | ACCESS-PAUSE-16X9 | Pause/options at 1920x1080, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
-| ACCESS-PAUSE-16X10 | Pause/options at 1920x1200, requested scales0.75/1.0/1.6 | 12,29 | FAILED corrected selected run4128526: .75 binding-conflict Replace is offscreen; bounded HUD repair next |
+| ACCESS-PAUSE-16X10 | Pause/options at 1920x1200, requested scales0.75/1.0/1.6 | 12,29 | FAILED latest af660151c: .75 conflict fixed, repair_failure loses live focus; bounded repair-handoff next |
 | ACCESS-PAUSE-21X9 | Pause/options at 3440x1440, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
 | ACCESS-PAUSE-32X9 | Pause/options at 5120x1440, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
 | ACCESS-VIEWS-DEFINE | Remaining required HUD/menu/help/role readability views/cells | 12,29 | DEFINE; original promises, reuse pause/options decisions |

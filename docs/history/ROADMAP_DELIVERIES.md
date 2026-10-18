@@ -5525,3 +5525,24 @@ engine rerun. Independent static review and explicit import600/compile300/one
 existing selected300s check are frozen before engines. First new failure stops;
 original initial failure/fixture correction/full conflict failure stay cumulative.
 Private scratch stays under ui-conflict-reveal-20261018; no new repository harness.
+
+UI-CONFLICT-REVEAL af660151c passes independent source/lifetime review, silent
+import and explicit compile. One unchanged original selected300s invocation
+exits1 at a new boundary: repair_failure has no valid live focus after hiding
+SettingsRepairConfirmButton. Thirty finite reports at0.75 precede the missing
+focus failure; binding_conflict and cancellation now pass with scroll1884/499,
+and reset/display/repair-confirm states pass. Scales1/1.6 and later observations
+are NOT_RUN; no success marker. All tracked/commit/status/cache guards hold,
+owner694466/start111368718 absent and descendants reaped. Raw selected.* retained
+under /srv/mudds-work/ui-conflict-reveal-20261018/results/. No additional engines
+or correction ran after this first failure. Main still has no accepted HUD change.
+
+Priority review retains original same-frame failure, its fixture correction,
+conflict qualification failure and the single af660151c correction. No conflict
+rework or new evidence layer is selected. The actual remaining production seam
+is clear_runtime_settings_repair_report hiding the focused confirmation before
+rendering blocked status. Choose one UI-REPAIR-FAILURE-FOCUS task,20–30min, same
+HUD owners plus smallest existing focused test; do not steal other control focus.
+Full selected acceptance remains unchanged300s/all3 authored scales. Fresh
+checkpoint stays gated until acceptance; unrelated networking/endurance/hardware
+work does not resolve this demonstrated usable-Options failure.

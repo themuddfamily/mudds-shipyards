@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: keep input-binding conflict choices visible and reachable in Options.**
+**Next: retain Options focus when a repair confirmation becomes unavailable.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -31,15 +31,16 @@ world journeys,30-minute endurance, devices/native GPU/audio and final release.
 Current full matrix NOT_RUN; last unfiltered f85957f failed 11 of 1,045 suites.
 Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
-## Next two cards
+## Current bounded cards
 
-**1 IN PROGRESS, 1 GATED.** These are executable task instances, not the remaining
+**1 FAILED, 1 READY, 1 GATED.** These are executable task instances, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
-| UI-CONFLICT-REVEAL | Production UI / IN PROGRESS | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
-| CHECKPOINT-PAUSE-CONFLICT | Build / GATED on accepted repair | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
+| UI-CONFLICT-REVEAL | Production UI / FAILED at next qualification boundary | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
+| UI-REPAIR-FAILURE-FOCUS | Production UI / READY | Hiding a focused unavailable repair confirmation returns focus to a live Options control. |20–30 min implementation/review; compile300s, focused check300s and existing selected check300s. |
+| CHECKPOINT-PAUSE-CONFLICT | Build / GATED on accepted repairs | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
 
 ### UI-CONFLICT-REVEAL — make the focused conflict choice visible
 
@@ -60,16 +61,39 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
   choice must fit both safe bounds and its scroll clip, with live focus. Preserve
   every existing criterion and requested/effective scale reporting. Native
   devices, rendered readability and actual persistence transactions stay separate.
-- **Execution:** IN PROGRESS/root; clean candidate `af660151c` schedules the
-  existing guarded conflict reveal after layout. Independent static review and
-  exact import600s/compile300s/one selected300s check are next; preserve all
-  original criteria. No unchanged baseline rerun: HUD source matches4128526
-  before the candidate. One bounded production correction only. One diagnostic hypothesis
-  permits one probe if needed. Budget30–45 min; split before90. First new failure
-  stops with source/view/control/scale recorded; no automatic second repair.
-  Initial qualification and fixture-correction failures remain cumulative.
+- **Execution:** FAILED/root after one original selected300s run of af660151c.
+  Import/compile pass; conflict choices and cancellation now pass at0.75 with
+  scroll1884/499. The run stops after30 observations at repair_failure: hiding
+  SettingsRepairConfirmButton leaves no valid live focus. Later states and
+  scales1/1.6 are NOT_RUN. Full qualification is not passed; source/cache stable,
+  all owned processes closed. Original failure/repair counts remain cumulative.
+- **Priority review:** stop conflict work; do not re-edit this proven0.75 boundary.
+  The remaining demonstrated failure is a different existing repair presentation
+  owner. Select one20–30min production focus-handoff task below; keep the full
+  original selected criteria unchanged. Checkpoint stays gated on acceptance.
 - **Close:** actual result/source/limits, commit/push, fresh checkpoint if accepted,
   and cleanup of owned disposable work. This does not close every UI aspect group.
+
+### UI-REPAIR-FAILURE-FOCUS — preserve focus when repair action disappears
+
+- **Parents/result:**12/29. A player remains able to navigate Options when a
+  repair failure, malformed status or detach removes the focused confirmation.
+- **Boundary/ownership:** existing repair report/clear/focus owners in
+  `scripts/ui/hud.gd`; smallest relevant extension to the existing
+  `tests/runtime_settings_repair_hud_test.gd`. Build on clean af660151c; preserve
+  conflict fix and acceptance. Do not change repair authority/tokens/persistence,
+  fabricate focus in the layout fixture, or steal focus from another live control.
+- **Proof:** existing focused repair HUD check plus the unchanged selected Main
+  fixture at1920x1200/requested0.75/1/1.6, original300s each. Removing the actually
+  focused action must hand focus to a visible enabled existing Options control;
+  clearing status while another control is focused must retain that focus.
+  Explicit compile300s. Physical devices/transactions/rendering remain separate.
+- **Execution:** READY/root after recorded priority review. Inspect actual clear
+  before-report ordering, make one bounded correction;20–30min implementation/
+  review, splitbefore90. First failure STOP; no automatic second repair or rerun.
+  Prior failure/fixture correction/conflict repair budgets are retained together.
+- **Close:** actual source/result/limits, commit/push and the gated fresh checkpoint
+  if accepted; cleanup owned scratch. No whole settings/aspect/device gate closes.
 
 ### CHECKPOINT-PAUSE-CONFLICT — ship the accepted UI correction
 
