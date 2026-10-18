@@ -33,7 +33,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Current bounded cards
 
-**2 DONE, 1 IN PROGRESS.** These are executable task instances, not the remaining
+**2 DONE, 1 IN PROGRESS, 1 READY (definition).** These are executable task instances, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
@@ -41,6 +41,7 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
 | UI-CONFLICT-REVEAL | Production UI / DONE | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
 | UI-REPAIR-FAILURE-FOCUS | Production UI / DONE | Hiding a focused unavailable repair confirmation returns focus to a live Options control. |20–30 min implementation/review; compile300s, focused check300s and existing selected check300s. |
 | CHECKPOINT-PAUSE-CONFLICT | Build / IN PROGRESS | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
+| NET-DOCK-DEFINE | Planning / READY, independent | Finite supported-craft exit/reboard/redeparture cases and one exact next Jovian case. |10–15 min source comparison; no engines. |
 
 ### UI-CONFLICT-REVEAL — make the focused conflict choice visible
 
@@ -116,6 +117,22 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
   exports and300s/startup separately. One export/platform; first failure stops.
   Record actual scope/limits, commit/push notes/index and remove owned duplicates.
   Native Windows/GPU/device/human/full-release gates remain open.
+
+### NET-DOCK-DEFINE — replace broad postdock/reuse scope with finite cases
+
+- **Parents/result:**20; definition only. Existing current-source ordinary Jovian
+  return closes physical docking/retained arrival, not standing/exiting/reusing.
+  Use the supported craft/role roster already retained in the backlog.
+- **Boundary:** existing `docs/ROADMAP_BACKLOG.md` contract/row only. Compare
+  existing production exit/boarding/seat/berth/network owners and ordinary route
+  callers; retain exact prior source/failures. Do not create a new test harness,
+  implement networking, rerun accepted docking or reopen historical second landing.
+- **Proof/close:** a finite list of supported craft/roles and concrete exit,
+  reboard and repeat-departure acceptance instances; specify authority/claim/
+  physical support and retained identities. Name the smallest next Jovian case,
+  files/inputs/bounds/dependencies and first-failure stop. Record unknowns rather
+  than invent support.10–15min source comparison; stop when ownership/seam/
+  acceptance are known. No engines or gameplay-delivery claim; commit/push.
 
 ## Parked work and external waits
 
