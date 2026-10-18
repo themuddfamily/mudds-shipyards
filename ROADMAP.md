@@ -277,6 +277,10 @@ float scroll delta to integer. Exact clipped edge/residual is inferred, not logg
   correct upper overflow with floori, lower with ceili, normal scrollbar clamping.
   No horizontal scroll, new layout framework, focus stealing or duplicate correction
   against stale geometry. Preserve state sequence/fixture/tolerances/caps.
+- **Pre-run review:** cf83988e2 has not run. Independent review requires central
+  coalescing of duplicate focus/binding/reentry requests before one deferred
+  visibility correction; keep latest target and all execution-time guards.
+  This completes the existing no-duplicate-correction invariant, with no new scope.
 - **Proof:** clean import600s/compile300s, existing focused Settings navigation300s
   including obsolete queued focus/page guards; full21:9 once at300s requires all96
   original observations/former graphics row. Then required full16:9 and32:9 at300s
