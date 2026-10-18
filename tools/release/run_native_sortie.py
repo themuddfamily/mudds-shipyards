@@ -7,6 +7,7 @@ Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
 Use --route hulk-breaker to continue that arrival through the interior breaker.
 Use --route hulk-home to carry that earned cell back to a supported yard exit.
+Use --route mining-first-play for real mining SELECT/START, six-second hold and strict home return.
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
 The default is Guided.
@@ -1217,6 +1218,443 @@ class HulkHomePilot(HulkBreakerPilot):
         return keys, dx, dy, False
 
 
+class MiningFirstPlayPilot(Pilot):
+    """Fresh Guided prelude, authored mining UI/dwell, then one physical home return."""
+    MARKER = 'NATIVE_MINING_FIRST_PLAY_OK'
+    ACTIVITY = 'cinder_platform_mining_run'
+
+    def __init__(self):
+        super().__init__()
+        self.sequence = 0
+        self.process_identity = None
+        self.mining_identity = None
+        self.home_identity = None
+        self.actor_collision_identity = None
+        self.last_state = None
+        self.previous_physics = None
+        self.mouse_pending = None
+        self.mining_braking = False
+        self.ui_key = None
+        self.ui_until = self.ui_release_until = 0
+        self.ui_focus = None
+        self.ui_edges = []
+        self.receipts = {}
+        self.start_clock = None
+        self.active_previous = None
+        self.paid_record = None
+        self.held_samples = 0
+        self.home_clearance_target = None
+        self.home_clearance_staging = self.home_clearance_ready = None
+        self.home_header_samples = []
+        self.home_header_crossing = None
+        self.home_previous = None
+        self.home_landing_seen = False
+        self.request_frame = self.shutdown_frame = None
+        self.home_exit = None
+        self.stream_initial = None
+        self.stream_unloaded = False
+        self.file_receipt_accepted = False
+
+    def emit_tap(self, keys, now):
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+
+    def require_capacity(self, s):
+        saved = s['mining']['save']
+        record = saved['record']
+        expected_session = {'state': 2, 'generation': 1, 'elapsed_seconds': 6,
+                            'reward_requested': True, 'capacity_paid': True}
+        require(saved['source'] == 'primary' and saved['generation'] > 0 and saved['record_valid']
+                and record.get('schema_version') == 2
+                and record.get('payload_kind') == 'cinder_mining_capacity_receipt'
+                and record.get('slot_id') == 'cinder_mining_capacity'
+                and record.get('session') == expected_session,
+                'validated genuine generation-one paid capacity session in actual primary store')
+        capacity = record['capacity']
+        require(capacity == {'activity_id': self.ACTIVITY, 'content_class': 'NEW',
+                            'evidence_status': 'modern_interpretation', 'extraction_seconds': 6,
+                            'reward_receipt': {'activity_id': self.ACTIVITY,
+                                               'reward_id': 'cinder_raw_ore_sample',
+                                               'granted': False, 'replay_allowed': False}},
+                'exact once-only capacity receipt without invented inventory/currency grant')
+        if self.paid_record is not None:
+            require(record == self.paid_record, 'same paid capacity receipt throughout home return')
+        return record
+
+    def require_stream(self, s):
+        m = s['mining']
+        stream = m['streaming']
+        require(stream['load_failure_count'] == 0, 'no failed Cinder load')
+        if self.stream_initial is None:
+            if not m['available']: return
+            require(stream['loaded'] and stream['generation'] > 0
+                    and stream['loaded_generation'] == stream['generation']
+                    and stream['load_request_count'] == 1 and stream['unload_count'] == 0,
+                    'first live Cinder generation from actual outbound flight')
+            self.stream_initial = json.loads(json.dumps(stream))
+            self.mining_identity = (m['binding_id'], m['marker_id'], stream['loaded_instance_id'])
+            require(all(self.mining_identity), 'live authored mining binding and marker')
+        initial = self.stream_initial
+        require(stream['load_request_count'] == initial['load_request_count']
+                and not stream['loading']
+                and stream['unload_radius_m'] == initial['unload_radius_m'] == 650,
+                'unchanged streaming policy without reload')
+        if stream['loaded']:
+            require(not self.stream_unloaded and m['available']
+                    and (m['binding_id'], m['marker_id'], stream['loaded_instance_id']) == self.mining_identity
+                    and stream['generation'] == initial['generation']
+                    and stream['loaded_generation'] == initial['loaded_generation']
+                    and stream['unload_count'] == initial['unload_count'],
+                    'same streamed cluster, mining authority and physical marker')
+            require(norm(sub(m['target'], m['marker_position'])) < .001,
+                    'common-world flight target equals live authored mining marker')
+        else:
+            require(self.paid_record is not None and self.stage.startswith('mining_home')
+                    and not m['available'] and stream['loaded_instance_id'] == 0
+                    and stream['loaded_generation'] == -1
+                    and stream['generation'] == initial['generation'] + 1
+                    and stream['unload_count'] == initial['unload_count'] + 1,
+                    'only actual post-reward homeward retirement may unload original Cinder')
+            self.stream_unloaded = True
+
+    def update(self, s, now):
+        self.last_state = s
+        require(s.get('mode') == 'mining-first-play' and s['sequence'] > self.sequence,
+                'fresh mining observer sequence, separate from paused physics')
+        self.sequence = s['sequence']
+        identity = (s['pid'], s['main_id'])
+        if self.process_identity is None: self.process_identity = identity
+        require(identity == self.process_identity and all(identity), 'same actual game process and Main')
+        if not s['current']:
+            require(self.stage == 'boot', 'current live mining owners retained after ordinary play starts')
+            return set(), 0, 0, False
+        if self.stage.startswith('mining_ui_'):
+            return self.update_ui(s, now)
+        require(not s['paused'], 'ordinary mining flight is unpaused')
+        if self.stage == 'return_align':
+            require(s['phase'] == 'RETURN_TO_YARD' and self.departed and self.shot and self.fired
+                    and s['destroyed_targets'] == 4 and not s['opponent_active'],
+                    'normal Guided range and interceptor prelude before mining departure')
+            self.receipts['guided_prelude'] = {'frame': s['frame'], 'position': s['position'],
+                'destroyed_targets': 4, 'shot_accepted': self.shot, 'home_lease_free': s['lease_free']}
+            self.enter('mining_transit', s)
+        if not self.stage.startswith('mining_'):
+            return super().update(s, now)
+        m, phase = s['mining'], s['phase']
+        require(self.identities == (s['player_id'], s['ship_id']) and s['active_ship']
+                and not s['destroyed'] and phase not in ('FAILED', 'RECOVERING'),
+                'same live Torrent and Player without reset or recovery')
+        require(s['default_sampler'] and s['tuning_unchanged'] and m['physics_ticks'] == 60
+                and m['time_scale'] == 1, 'authored default sampler and real unaccelerated physics')
+        collision_identity = (m['capsule_id'], m['shape_id'])
+        home_identity = (m['home']['berth_id'], m['home']['berth_instance_id'])
+        if self.home_identity is None:
+            self.home_identity, self.actor_collision_identity = home_identity, collision_identity
+        require(home_identity == self.home_identity and collision_identity == self.actor_collision_identity,
+                'same home berth and Player collision capsule')
+        if self.previous_physics is not None:
+            require(s['frame'] > self.previous_physics['frame']
+                    and s['physics_seconds'] > self.previous_physics['physics_seconds'],
+                    'fresh actual unpaused mining physics sample')
+        self.previous_physics = s
+        self.frame = s['frame']
+        if not self.phases or self.phases[-1] != phase: self.phases.append(phase)
+        self.max_excursion = max(self.max_excursion, norm(sub(s['position'], s['parked'])))
+        self.require_stream(s)
+        if self.paid_record is not None: self.require_capacity(s)
+        if self.stage not in ('mining_home_exit', 'mining_home_walk'):
+            require(s['piloted'] and s['seated'] and not s['transition_busy'],
+                    'same seated pilot throughout mining flight and landing')
+        keys, dx, dy = set(), 0, 0
+        speed = norm(s['velocity'])
+        if self.stage == 'mining_transit':
+            require(phase == 'RETURN_TO_YARD' and not s['landed'] and s['lease_free'],
+                    'physical mining outbound flight with released home berth')
+            if m['available']:
+                a = m['activity']
+                require(a['generation'] == 0 and a['state_id'] == 'idle' and not a['reward_requested']
+                        and not m['save']['record'], 'fresh unused mining authority before its one START')
+            off = sub(m['target'], s['position'])
+            distance = norm(off)
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+            if distance < stopping+2: self.mining_braking = True
+            if speed <= .45 and distance > 1: self.mining_braking = False
+            if distance <= 1 or self.mining_braking: keys.add('Prior')
+            elif align > .72: keys.add('w')
+            if m['available'] and distance <= 1 and speed <= .01:
+                self.receipts['physical_arrival'] = {'frame': self.frame, 'position': s['position'],
+                    'target': m['target'], 'distance_m': distance, 'speed_m_s': speed,
+                    'streaming': m['streaming'], 'binding_id': m['binding_id'], 'marker_id': m['marker_id']}
+                self.enter('mining_ui_pause', s)
+                self.tap_key = None
+        elif self.stage in ('mining_extract', 'mining_capacity_file'):
+            require(m['available'] and norm(sub(s['position'], m['target'])) <= 30
+                    and phase == 'RETURN_TO_YARD' and not s['landed'] and s['lease_free'],
+                    'real physics hold remains inside authored thirty-metre extraction sphere')
+            keys.add('Prior')
+            a = m['activity']
+            require(a['generation'] == 1 and a['state_id'] in ('active', 'complete')
+                    and a['extraction_seconds'] == 6 and not a.get('resume_required', False),
+                    'one ordinary mining generation without reset or restart')
+            elapsed = a['elapsed_seconds']
+            if self.active_previous is not None:
+                previous = self.active_previous
+                physics_delta = s['physics_seconds']-previous['physics_seconds']
+                progress_delta = elapsed-previous['elapsed_seconds']
+                require(progress_delta >= 0 and progress_delta <= physics_delta + 1e-7,
+                        'mining elapsed advances only real unpaused physics time')
+            require(elapsed <= s['physics_seconds']-self.start_clock + 1e-7,
+                    'no paused or synthetic extraction progress')
+            self.active_previous = {'physics_seconds': s['physics_seconds'], 'elapsed_seconds': elapsed}
+            self.held_samples += 1
+            if a['state_id'] == 'complete':
+                require(elapsed == 6 and s['physics_seconds']-self.start_clock >= 6-1e-7,
+                        'complete only after six actual unpaused physics seconds')
+                require(a['reward_requested'] and a.get('capacity_persisted') and m['capacity_paid'],
+                        'production completion genuinely acknowledged and persisted capacity')
+                self.paid_record = json.loads(json.dumps(self.require_capacity(s)))
+                if self.stage != 'mining_capacity_file':
+                    self.receipts['extraction_complete'] = {'frame': self.frame,
+                        'physics_seconds': s['physics_seconds'], 'start_physics_seconds': self.start_clock,
+                        'held_samples': self.held_samples, 'activity': a, 'save': m['save']}
+                    self.enter('mining_capacity_file', s)
+                if self.file_receipt_accepted:
+                    approach = m['home']['approach']
+                    self.home_clearance_target = [approach[0], approach[1]+.7, approach[2]-132]
+                    self.home_previous = s
+                    self.return_braking = False
+                    self.enter('mining_home_flight', s)
+        elif self.stage.startswith('mining_home'):
+            keys, dx, dy, _ = self.update_mining_home(s, now)
+        else:
+            require(False, 'known mining stage')
+        self.emit_tap(keys, now)
+        # Reuse the arrival driver's acknowledgement: do not stack mouse motion
+        # while the engine has yet to consume the preceding OS event.
+        facing = s['walk_forward'] if not s['seated'] else s['back']
+        if self.mouse_pending is not None:
+            if norm(sub(facing, self.mouse_pending)) < .00001: dx = dy = 0
+            else: self.mouse_pending = None
+        if dx or dy: self.mouse_pending = facing[:]
+        return keys, dx, dy, False
+
+    def update_ui(self, s, now):
+        keys = set()
+        if self.ui_key is not None:
+            if now < self.ui_until:
+                return {self.ui_key}, 0, 0, False
+            self.ui_edges.append({'sequence': s['sequence'], 'key': self.ui_key, 'pressed': False})
+            self.ui_key = None
+            self.ui_release_until = now + .10
+            return keys, 0, 0, False
+        if now < self.ui_release_until: return keys, 0, 0, False
+        paused, key = s['paused'], None
+        if not paused:
+            if self.stage == 'mining_ui_unpause_wait':
+                require(self.start_clock is not None, 'ordinary START acknowledged before resume')
+                self.enter('mining_extract', s)
+                self.mouse_pending = None
+                return keys, 0, 0, False
+            require(self.stage == 'mining_ui_pause', 'mining UI stays paused until ordinary resume')
+            key = 'Escape'
+        else:
+            ui = s['ui']
+            require(ui['available'], 'current actual mining menu owner')
+            if any(ui['native_keys'].values()): return keys, 0, 0, False
+            a = ui['activity']
+            if self.stage == 'mining_ui_pause':
+                require(ui['main_visible'], 'Escape opened the actual pause main page')
+                self.stage = 'mining_ui_board'
+            if self.stage == 'mining_ui_board_wait' and ui['activity_visible']:
+                self.stage, self.ui_focus = 'mining_ui_nearby', None
+            if self.stage == 'mining_ui_nearby_wait' and ui['nearby_visible']:
+                self.stage, self.ui_focus = 'mining_ui_select', None
+            if self.stage == 'mining_ui_select_wait' and ui['selected_activity'] == self.ACTIVITY:
+                self.receipts['selected'] = {'sequence': s['sequence'], 'ui': ui}
+                self.stage, self.ui_focus = 'mining_ui_start', None
+            if self.stage == 'mining_ui_start_wait' and a.get('state_id') == 'active':
+                require(a['generation'] == 1 and a['elapsed_seconds'] == 0
+                        and not a['reward_requested'], 'ordinary START creates exactly fresh paused generation one')
+                self.start_clock = s['physics_seconds']
+                self.receipts['started'] = {'sequence': s['sequence'], 'physics_seconds': self.start_clock,
+                                             'activity': a, 'ui': ui}
+                self.stage = 'mining_ui_resume'
+            if self.stage in ('mining_ui_resume', 'mining_ui_back_wait', 'mining_ui_main_wait', 'mining_ui_unpause_wait'):
+                require(a.get('generation') == 1 and a.get('state_id') == 'active'
+                        and a.get('elapsed_seconds') == 0 and s['physics_seconds'] == self.start_clock,
+                        'paused menu never supplies mining physics time')
+                expected_page = {'mining_ui_resume': 'nearby_visible',
+                    'mining_ui_back_wait': 'activity_visible', 'mining_ui_main_wait': 'main_visible'}
+                require(self.stage in expected_page and ui[expected_page[self.stage]],
+                        'ordinary Escape backs one actual mining UI page without retry')
+                key = 'Escape'
+                self.stage = {'mining_ui_resume': 'mining_ui_back_wait',
+                    'mining_ui_back_wait': 'mining_ui_main_wait',
+                    'mining_ui_main_wait': 'mining_ui_unpause_wait'}[self.stage]
+            else:
+                target, text, page = {
+                    'mining_ui_board': ('activity_board', 'ACTIVITY BOARD', 'main_visible'),
+                    'mining_ui_board_wait': ('activity_board', 'ACTIVITY BOARD', 'main_visible'),
+                    'mining_ui_nearby': ('nearby_open', 'CINDER SECTOR ACTIVITIES', 'activity_visible'),
+                    'mining_ui_nearby_wait': ('nearby_open', 'CINDER SECTOR ACTIVITIES', 'activity_visible'),
+                    'mining_ui_select': ('select', 'SELECT', 'nearby_visible'),
+                    'mining_ui_select_wait': ('select', 'SELECT', 'nearby_visible'),
+                    'mining_ui_start': ('start', 'START', 'nearby_visible'),
+                    'mining_ui_start_wait': ('start', 'START', 'nearby_visible'),
+                }[self.stage]
+                require(ui[page], 'actual expected mining UI page visible')
+                button = ui['buttons'][target]
+                require(button['available'] and button['visible'] and button['enabled']
+                        and button['text'] == text and button['focus_mode'] == 2
+                        and button['rect'][2] > 0 and button['rect'][3] > 0,
+                        'exact visible enabled focusable production mining control with real geometry')
+                if target in ('select', 'start'):
+                    require(ui['row_id'] and ui['row_activity_id'] == self.ACTIVITY,
+                            'exact authored mining row owns SELECT/START')
+                if self.stage.endswith('_wait'):
+                    require(False, 'ordinary mining UI activation was not acknowledged; no retry')
+                if button['focused']:
+                    require(ui['focus_path'] == button['path'], 'keyboard focus is exact production control')
+                    self.receipts.setdefault('ui_activation', []).append({'sequence': s['sequence'],
+                        'target': target, 'control': button.copy()})
+                    key = 'Return'
+                    self.stage += '_wait'
+                else:
+                    require(ui['focus_path'], 'actual current mining UI keyboard focus')
+                    if ui['focus_path'] != self.ui_focus:
+                        self.ui_focus = ui['focus_path']
+                        key = 'Tab'
+        if key:
+            self.ui_key, self.ui_until = key, now + .08
+            self.ui_edges.append({'sequence': s['sequence'], 'key': key, 'pressed': True,
+                                  'stage': self.stage})
+            keys.add(key)
+        return keys, 0, 0, False
+
+    def require_mining_home_dock(self, s):
+        berth = s['mining']['home']
+        require(s['landed'] and berth['contract'] and berth['lease'] and berth['parked_exact']
+                and berth['occupant_id'] == s['ship_id'], 'strict token-bound exact occupied home berth')
+
+    def update_mining_home(self, s, now):
+        m, berth = s['mining'], s['mining']['home']
+        speed = norm(s['velocity'])
+        keys, dx, dy = set(), 0, 0
+        HulkHomePilot.observe_home_header(self, s)
+        if self.stage in ('mining_home_flight', 'mining_home_approach'):
+            require(s['phase'] == 'RETURN_TO_YARD' and not s['landed'] and s['lease_free'],
+                    'physical homeward flight before the original Guided landing')
+            target = self.home_clearance_target if self.stage == 'mining_home_flight' else berth['approach']
+            off = sub(target, s['position'])
+            distance = norm(off)
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            clearance_ready = True
+            if self.stage == 'mining_home_approach' and self.home_clearance_ready is None:
+                direction = unit(off)
+                nose_pitch = math.degrees(math.asin(max(-1, min(1, -s['back'][1]))))
+                target_pitch = math.degrees(math.asin(max(-1, min(1, direction[1]))))
+                pitch_error = abs(nose_pitch-target_pitch)
+                clearance_ready = align >= .9999 and pitch_error <= .5 and speed <= .01
+                if clearance_ready:
+                    self.home_clearance_ready = {'frame': self.frame, 'position': s['position'],
+                        'speed_m_s': speed, 'direction_alignment': align, 'pitch_error_deg': pitch_error}
+            stopping = speed*speed/(2*s['tuning']['brake']) + speed*.18
+            if distance < stopping+1.75: self.return_braking = True
+            if speed <= .45 and distance > 1: self.return_braking = False
+            if not clearance_ready or distance <= 1 or self.return_braking: keys.add('Prior')
+            elif align > .72: keys.add('w')
+            if self.stage == 'mining_home_flight' and distance <= 1 and speed <= .35:
+                self.home_clearance_staging = {'frame': self.frame, 'position': s['position'],
+                    'velocity': s['velocity'], 'distance_m': distance, 'hull': s['telemetry']['hull']}
+                self.return_braking = False
+                self.enter('mining_home_approach', s)
+            elif self.stage == 'mining_home_approach' and distance <= 1 and speed <= .45:
+                require(self.home_header_crossing is not None, 'sampled safe RangeHeader crossing before home landing')
+                self.enter('mining_home_align', s)
+        elif self.stage == 'mining_home_align':
+            require(s['phase'] == 'RETURN_TO_YARD' and not s['landed'], 'ordinary original Guided home approach')
+            keys.update(('Prior', 'h'))
+            off = sub(berth['dock'], s['position'])
+            dx, dy, align = self.aim(s, [s['camera'][i]+off[i] for i in range(3)])
+            if align > .995 and s['upright'] > .94 and speed <= .35:
+                require(berth['capture'] and berth['selected_berth_id'] == berth['berth_id']
+                        and dot([-v for v in s['back']], berth['dock_forward']) < -.95,
+                        'actual home berth preview and ordinary nose-first return heading')
+                self.tap('l', now)
+                if self.tap_key == 'l':
+                    self.request_frame = self.frame
+                    self.enter('mining_home_land', s)
+        elif self.stage == 'mining_home_land':
+            keys.add('Prior')
+            self.home_landing_seen |= s['landing_active']
+            require(not berth['landing_abort_reason'], 'production home landing aborted: '+berth['landing_abort_reason'])
+            if self.home_landing_seen and not s['landing_active'] and not s['landed']:
+                require(False, 'ordinary home landing ended without docking; no retry')
+            if s['landed'] and s['phase'] == 'SHUT_DOWN':
+                require(self.home_landing_seen, 'ordinary one-L landing observed active')
+                self.require_mining_home_dock(s)
+                self.receipts['home_arrival'] = {'frame': self.frame, 'position': s['position'], 'berth': berth.copy()}
+                self.shutdown_frame = self.frame
+                self.enter('mining_home_shutdown', s)
+                keys.clear()
+            elif not self.home_landing_seen:
+                require(self.frame <= self.request_frame+120, 'ordinary L did not start landing; no retry')
+        elif self.stage == 'mining_home_shutdown':
+            self.require_mining_home_dock(s)
+            require(s['phase'] == 'SHUT_DOWN', 'neutral shutdown in the strict home berth')
+            if self.frame-self.shutdown_frame >= 90 and s['telemetry']['engine'] == 'OFFLINE':
+                self.tap('e', now)
+                if self.tap_key == 'e':
+                    self.request_frame = self.frame
+                    self.enter('mining_home_exit', s)
+        elif self.stage == 'mining_home_exit':
+            self.require_mining_home_dock(s)
+            require(s['telemetry']['engine'] == 'OFFLINE', 'powered-down home throughout actual exit')
+            if not s['piloted'] and not s['seated'] and s['control_enabled'] and not s['transition_busy']:
+                require(s['phase'] == 'COMPLETE' and s['guided_complete'] and m['capsule_enabled']
+                        and berth['grounded'] and berth['supported'] and berth['support_collider'],
+                        'genuine Guided completion and controllable supported home exit')
+                self.home_exit = {'frame': self.frame, 'player': s['player'], 'support_collider': berth['support_collider']}
+                self.enter('mining_home_walk', s)
+            else:
+                require(self.frame <= self.request_frame+600, 'ordinary E did not finish supported exit; no retry')
+        elif self.stage == 'mining_home_walk':
+            self.require_mining_home_dock(s)
+            require(s['phase'] == 'COMPLETE' and s['guided_complete'] and not s['piloted'] and not s['seated']
+                    and s['control_enabled'] and not s['transition_busy'] and m['capsule_enabled']
+                    and berth['grounded'] and berth['supported'] and berth['support_collider']
+                    and s['telemetry']['engine'] == 'OFFLINE', 'usable supported home walk with retained strict berth')
+            frames = self.frame-self.home_previous['frame']
+            require(norm(sub(s['player'], self.home_previous['player']))
+                    <= (m['walk_tuning']['walk']/60*1.25+.02)*frames,
+                    'continuous ordinary home exit walk without placement')
+            displacement = norm(sub(s['player'], self.home_exit['player']))
+            require(displacement < 5, 'bounded supported home exit walk')
+            if self.frame-self.home_exit['frame'] >= 20:
+                require(displacement > .25, 'ordinary twenty-tick exit walk actually moves the Player')
+                self.enter('complete', s)
+                self.result = {'completion_marker': self.MARKER, 'same_player_id': s['player_id'],
+                    'same_ship_id': s['ship_id'], 'same_mining_identity': self.mining_identity,
+                    'same_home_identity': self.home_identity, 'walked_m': self.max_walk,
+                    'excursion_m': self.max_excursion, 'receipts': self.receipts,
+                    'capacity_record': self.paid_record, 'held_samples': self.held_samples,
+                    'home_clearance_staging': self.home_clearance_staging,
+                    'home_clearance_ready': self.home_clearance_ready, 'home_header_crossing': self.home_header_crossing,
+                    'home_exit': self.home_exit, 'home_walk_displacement_m': displacement,
+                    'home_walk_ticks': self.frame-self.home_exit['frame'], 'ui_key_edges': self.ui_edges,
+                    'authored_tuning': s['tuning'], 'default_sampler': True, 'phases': self.phases, 'stages': self.stages}
+            else: keys.add('w')
+        else: require(False, 'known physical mining home-return stage')
+        self.home_previous = s
+        return keys, dx, dy, False
+
+
 class HabitatLoopPilot(Pilot):
     """Fresh Start Shift and the full physical Habitat loop, using OS input only."""
     MARKER = 'NATIVE_HABITAT_LOOP_OK'
@@ -1521,6 +1959,57 @@ class HabitatRestartFiles:
                 and not safe['safe_settings_recommended'], 'cold safe-start has no unclean-start recommendation')
         require(payload['solo_safe_recovery'] == {'mode': 'unavailable'},
                 'cold title retains accepted unavailable station rest context')
+
+
+class MiningFirstPlayFiles(HabitatRestartFiles):
+    MUTABLE = HabitatRestartFiles.MUTABLE | {'cinder_mining_capacity'}
+
+    def capture(self, label, sample=None):
+        document = super().capture(label, sample)
+        if sample is not None:
+            require(document['payload'].get('cinder_mining_capacity', {}) == sample['record'],
+                    'independent actual-file mining record matches observed production store')
+        # Preserve the actual primary plus its existing atomic backup sidecars.
+        sidecars = []
+        for candidate in sorted(self.path.parent.iterdir()):
+            if candidate == self.path or not candidate.name.startswith(self.path.name+'.'): continue
+            require(candidate.is_file() and not candidate.is_symlink(), 'regular actual save sidecar')
+            raw = candidate.read_bytes()
+            destination = self.output/(label+'-'+candidate.name)
+            destination.write_bytes(raw)
+            sidecars.append({'name': candidate.name, 'sha256': hashlib.sha256(raw).hexdigest()})
+        self.snapshots[label]['sidecars'] = sidecars
+        return document
+
+    def require_preserved(self, before, after):
+        # This exact production briefing may be marked seen by ordinary START.
+        # Validate the one permitted addition, retaining all other tutorial IDs.
+        old, new = self.protected(before), self.protected(after)
+        tutorial_key = 'tutorial_prompts_seen'
+        prior = old.pop(tutorial_key, {'schema_version': 1, 'seen_ids': []})
+        current = new.pop(tutorial_key, {'schema_version': 1, 'seen_ids': []})
+        require(set(prior) == set(current) == {'schema_version', 'seen_ids'}
+                and prior['schema_version'] == current['schema_version'] == 1
+                and len(current['seen_ids']) == len(set(current['seen_ids']))
+                and set(prior['seen_ids']) <= set(current['seen_ids'])
+                and set(current['seen_ids'])-set(prior['seen_ids']) <= {'cinder_platform_mining_run'},
+                'tutorial persistence changes only by the ordinary mining briefing')
+        require(old == new, 'unrelated actual-file payload retained without fabrication')
+        require(after['generation'] >= before['generation'], 'actual-file generations never regress')
+        self.snapshots.setdefault('preservation', []).append({
+            'before_generation': before['generation'], 'after_generation': after['generation'],
+            'exact_preserved_namespaces': sorted(old),
+            'changed_namespaces': sorted(k for k in before['payload'].keys() | after['payload'].keys()
+                                         if before['payload'].get(k) != after['payload'].get(k)),
+            'tutorial_ids_added': sorted(set(current['seen_ids'])-set(prior['seen_ids']))})
+
+    def require_paid(self, pilot, sample):
+        record = pilot.require_capacity(pilot.last_state)
+        document = self.capture('mining-paid', sample)
+        require(document['payload']['cinder_mining_capacity'] == record,
+                'actual independently read primary contains the genuine paid capacity receipt')
+        self.require_preserved(self.snapshots['before-mining']['document'], document)
+        pilot.file_receipt_accepted = True
 
 
 class HabitatRestartPilot(HabitatLoopPilot):
@@ -2393,11 +2882,12 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "mining-first-play"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
     restart_files = None
+    mining_files = None
     result = {'driver_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), 'success': False, 'cap_seconds': CAP, 'binary': str(binary), 'native_gpu': 'NOT_RUN',
               'human_review': 'NOT_RUN', 'route': route, 'input_route': 'OS XTest → X11 → Godot Input → default sampler'}
     start = time.monotonic()
@@ -2451,6 +2941,7 @@ def run(binary, output, route="guided"):
                 result.update(arguments=args, display=env['DISPLAY'], xvfb_pid=xvfb.pid,
                               binary_sha256=hashlib.file_digest(binary.open('rb'),'sha256').hexdigest())
                 restart_files = HabitatRestartFiles(profile, output) if route == 'habitat-restart' else None
+                mining_files = MiningFirstPlayFiles(profile, output) if route == 'mining-first-play' else None
                 result['game_legs'] = []
                 for leg in range(2 if restart_files else 1):
                     # These are the exact same args/env/profile/display/helper.
@@ -2484,7 +2975,8 @@ def run(binary, output, route="guided"):
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
                         "guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
-                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot}[route]()
+                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot,
+                        "mining-first-play": MiningFirstPlayPilot}[route]()
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
                         pending = b''
@@ -2516,6 +3008,20 @@ def run(binary, output, route="guided"):
                                                 restart_files.require_cold(cold_title, closed)
                                                 restart_files.require_preserved(closed, cold_title)
                                         keys,dx,dy,fire=pilot.update(state,time.monotonic())
+                                        if mining_files:
+                                            require(state['pid'] == game.pid, 'mining observer belongs to exact OS game PID')
+                                            if pilot.stage == 'mining_ui_pause' and 'before-mining' not in mining_files.snapshots:
+                                                before = mining_files.capture('before-mining', state['mining']['save'])
+                                                require('cinder_mining_capacity' not in before['payload'],
+                                                        'fresh private profile has no earlier mining receipt/session')
+                                            if pilot.stage == 'mining_capacity_file' and not pilot.file_receipt_accepted:
+                                                mining_files.require_paid(pilot, state['mining']['save'])
+                                            if pilot.result is not None:
+                                                final = mining_files.capture('mining-home', state['mining']['save'])
+                                                mining_files.require_preserved(mining_files.snapshots['before-mining']['document'], final)
+                                                require(final['payload']['cinder_mining_capacity'] == pilot.paid_record,
+                                                        'same generation-one paid capacity record retained at actual home exit')
+                                                result['actual_file_snapshots'] = mining_files.snapshots
                                         if restart_files:
                                             if not leg and 'sleep_press' in pilot.receipts and 'before-sleep' not in restart_files.snapshots:
                                                 before = restart_files.capture('before-sleep', state['save'])
@@ -2570,6 +3076,12 @@ def run(binary, output, route="guided"):
     except Exception as error:
         if restart_files is not None:
             result['actual_file_snapshots'] = restart_files.snapshots
+        if mining_files is not None:
+            if mining_files.path is not None:
+                try: mining_files.capture('mining-failure')
+                except Exception as snapshot_error:
+                    result['failure_snapshot_error'] = str(snapshot_error)
+            result['actual_file_snapshots'] = mining_files.snapshots
         if pilot is not None:
             result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
             if isinstance(pilot, HabitatRestartPilot):
@@ -2578,8 +3090,11 @@ def run(binary, output, route="guided"):
                 result['partial_sortie'].update(last_state=pilot.last_state, visited=pilot.visited,
                                                receipts=pilot.receipts, native_interact_edges=pilot.native_edges,
                                                walked_m=pilot.walked)
-            if isinstance(pilot, HulkArrivalPilot):
+            if isinstance(pilot, (HulkArrivalPilot, MiningFirstPlayPilot)):
                 result['partial_sortie']['last_state'] = pilot.last_state
+            if isinstance(pilot, MiningFirstPlayPilot):
+                result['partial_sortie'].update(receipts=pilot.receipts, ui_key_edges=pilot.ui_edges,
+                    capacity_record=pilot.paid_record, held_samples=pilot.held_samples)
             if isinstance(pilot, SandboxPilot):
                 result['partial_sortie'].update(visited=pilot.visited, craft_sorties=pilot.completed,
                                                last_state=pilot.last_state, deliberate_crash=pilot.crash_receipt)
@@ -2632,8 +3147,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart'), default='guided',
-                        help='hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'mining-first-play'), default='guided',
+                        help='mining-first-play flies the Guided prelude, mines via ordinary UI and physically returns home; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))

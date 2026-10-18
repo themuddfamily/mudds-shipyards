@@ -3,6 +3,10 @@ extends Node
 ## Read-only exported-game telemetry. No input, actor writes, gameplay actions,
 ## timing overrides, or process shutdown: the external OS-input driver owns those.
 var _game: GameFlow
+var _mining_first_play := false
+var _mining_sequence: int = 0
+var _mining_physics_seconds := 0.0
+var _mining_persistence: RefCounted
 var _habitat_loop := false
 var _habitat_restart := false
 var _restart_sequence: int = 0
@@ -38,7 +42,8 @@ func on_startup_completed(main: Node) -> void:
 	_spawn = _player.global_position
 	_habitat_restart = "--native-sortie-observer=habitat-restart" in OS.get_cmdline_args()
 	_habitat_loop = "--native-sortie-observer=habitat-loop" in OS.get_cmdline_args()
-	if _habitat_restart:
+	_mining_first_play = "--native-sortie-observer=mining-first-play" in OS.get_cmdline_args()
+	if _habitat_restart or _mining_first_play:
 		# Only this diagnostic node remains readable while the production tree pauses.
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	if _habitat_loop or _habitat_restart:
@@ -231,8 +236,28 @@ func _physics_process(delta: float) -> void:
 			return
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_ember_observation()))
 		return
-	if _game == null:
+	if not is_instance_valid(_game) or not _game.is_inside_tree() or _game.is_queued_for_deletion():
 		return
+	if _mining_first_play:
+		_mining_sequence += 1
+		if not _ember_node_current(_game.world) or not _ember_node_current(_player) \
+				or not _ember_node_current(_ship) or not _ember_node_current(_opponent) \
+				or not _ember_node_current(_game.cinder_streaming_bootstrap) \
+				or not is_instance_valid(_game.hud) \
+				or not is_instance_valid(_game.cinder_streaming_bootstrap.get("_coordinator")):
+			print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify({"mode": "mining-first-play",
+				"sequence": _mining_sequence, "pid": OS.get_process_id(), "current": false,
+				"main_id": _game.get_instance_id(), "paused": get_tree().paused,
+				"frame": Engine.get_physics_frames(), "physics_seconds": _mining_physics_seconds}))
+			return
+		if get_tree().paused:
+			print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify({"mode": "mining-first-play",
+				"sequence": _mining_sequence, "pid": OS.get_process_id(), "current": true, "paused": true,
+				"frame": Engine.get_physics_frames(), "main_id": _game.get_instance_id(),
+				"physics_seconds": _mining_physics_seconds, "ui": _mining_ui_observation()}))
+			return
+	if _mining_first_play:
+		_mining_physics_seconds += delta
 	if _habitat_restart:
 		_restart_sequence += 1
 		var sample: Dictionary = _habitat_restart_pause_observation() if get_tree().paused else _habitat_restart_observation()
@@ -251,13 +276,13 @@ func _physics_process(delta: float) -> void:
 	for target: Node in get_tree().get_nodes_in_group("shipyard_targets"):
 		if target is Node3D and not bool(target.get_meta("destroyed", false)):
 			targets.append({"name": str(target.name), "position": _v((target as Node3D).global_position)})
-	var source := _ship.get_local_input_source()
+	var source: LocalShipInputSource = _ship.get("_default_local_command_source") as LocalShipInputSource if _mining_first_play else _ship.get_local_input_source()
 	var berth := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
 	var camera_yaw := _player.get_node("%CameraYaw") as Node3D
 	var command := _ship.get_last_ship_command()
 	var shot := _game.get_last_player_shot_result()
 	var capture: Dictionary = _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
-	var contract := _ship.get_landing_contract_report()
+	var contract := _mining_landing_contract(berth) if _mining_first_play else _ship.get_landing_contract_report()
 	var observation := {
 		"frame": Engine.get_physics_frames(), "phase": GameFlow.Phase.keys()[_game.phase],
 		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(get_parent().call("get_loading_screen")),
@@ -280,7 +305,7 @@ func _physics_process(delta: float) -> void:
 		"landed": _ship.get_telemetry().get("landed"), "landing_active": _ship.is_landing_active(),
 		"capture": bool(capture.get("assist_capture_accepted", false)),
 		"contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false)) and contract.get("berth_id", &"") == _ship.get_home_berth_id(),
-		"lease": berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship and berth.get_reserved_ship_id() == _ship.get_ship_definition().ship_id,
+		"lease": berth.get_occupant() == _ship and berth.get_reservation_owner() == _ship and (StringName(berth.get("_reserved_ship_id")) if _mining_first_play else berth.get_reserved_ship_id()) == _ship.get_ship_definition().ship_id,
 		"lease_free": berth.get_occupant() == null and berth.get_reservation_owner() == null,
 		"parked_exact": _ship.global_transform.is_equal_approx(_parked),
 		"exit_error": _player.global_position.distance_to(_ship.get_exit_transform().origin),
@@ -297,6 +322,11 @@ func _physics_process(delta: float) -> void:
 		observation["hulk"] = _hulk_arrival_observation()
 	if _hulk_home:
 		observation["hulk_home"] = _hulk_home_observation(berth)
+	if _mining_first_play:
+		observation.merge({"mode": "mining-first-play", "sequence": _mining_sequence,
+			"pid": OS.get_process_id(), "main_id": _game.get_instance_id(), "current": true, "paused": false,
+			"physics_seconds": _mining_physics_seconds,
+			"mining": _mining_observation(berth)})
 	if _sandbox:
 		observation["sandbox"] = _sandbox_observation()
 	print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(observation))
@@ -490,10 +520,10 @@ func _hulk_breaker_observation(hulk: AbandonedStationHulk, support_collider: Nod
 ## Select-only return observations survive retirement of the streamed HULK.
 ## Read existing owners directly: no scene loads, policy ticks, reconciliation,
 ## activity mutations, actor placement, or synthetic gameplay input.
-func _hulk_home_observation(home_berth: ShipBerth) -> Dictionary:
+func _hulk_home_observation(home_berth: ShipBerth, include_hulk_reward: bool = true) -> Dictionary:
 	var capsule: CollisionShape3D = _player.get_node(^"PlayerCollision") as CollisionShape3D
-	var activity: Dictionary = _game.get_hulk_power_restoration_snapshot()
-	var reward_report: Dictionary = _game.get_activity_reward_report()
+	var activity: Dictionary = _game.get_hulk_power_restoration_snapshot() if include_hulk_reward else {}
+	var reward_report: Dictionary = _game.get_activity_reward_report() if include_hulk_reward else {}
 	var authority: Dictionary = reward_report.get("authority", {}) as Dictionary
 	var record: Dictionary = authority.get("record", {}) as Dictionary
 	var counts: Dictionary = record.get("reward_counts", {}) as Dictionary
@@ -506,8 +536,8 @@ func _hulk_home_observation(home_berth: ShipBerth) -> Dictionary:
 	var loaded_record: Dictionary = loaded.get(CinderStreamingBootstrap.LOCATION_ID, {}) as Dictionary
 	var cluster: Node3D = loaded_record.get("instance") as Node3D
 	var presentation: Dictionary = binding.get("_last_presentation_result") as Dictionary
-	var capture: Dictionary = _game.call("_get_active_landing_assist_report") as Dictionary
-	var contract: Dictionary = _ship.get_landing_contract_report()
+	var capture: Dictionary = _game.call("_get_active_landing_assist_report") as Dictionary if include_hulk_reward else _game.world.get_landing_assist_report(_ship, _ship.get_home_berth_id())
+	var contract: Dictionary = _ship.get_landing_contract_report() if include_hulk_reward else _mining_landing_contract(home_berth)
 	var support: Dictionary = {}
 	if not _player.is_seated():
 		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
@@ -552,7 +582,7 @@ func _hulk_home_observation(home_berth: ShipBerth) -> Dictionary:
 				and int(contract.get("berth_instance_id", 0)) == home_berth.get_instance_id(),
 			"landing_abort_reason": str(contract.get("last_abort_reason", &"")),
 			"lease": home_occupant == _ship and home_berth.get_reservation_owner() == _ship
-				and home_berth.get_reserved_ship_id() == _ship.get_ship_definition().ship_id,
+				and (home_berth.get_reserved_ship_id() if include_hulk_reward else StringName(home_berth.get("_reserved_ship_id"))) == _ship.get_ship_definition().ship_id,
 			"occupant_id": home_occupant.get_instance_id() if is_instance_valid(home_occupant) else 0,
 			"parked_exact": _ship.global_transform.is_equal_approx(home_berth.get_dock_transform()),
 			"grounded": _player.is_on_floor(),
@@ -691,4 +721,110 @@ func _habitat_restart_observation() -> Dictionary:
 			"driven": bool(tractor.get("_driven")) if _ember_node_current(tractor) else false,
 			"seated_at_driver": _ember_node_current(tractor) and _player.is_seated_at(tractor.get_driver_seat_anchor())},
 	}, true)
+	return result
+
+
+## Exact production controls, including identity, focus, availability and screen
+## geometry. No text substring search, focus writes or emitted UI intents.
+func _mining_ui_button(button: Button, focus: Control) -> Dictionary:
+	if not is_instance_valid(button):
+		return {"available": false}
+	var rect := button.get_global_rect()
+	return {"available": true, "id": button.get_instance_id(), "path": str(button.get_path()),
+		"text": button.text, "visible": button.is_visible_in_tree(), "enabled": not button.disabled,
+		"focused": focus == button, "focus_mode": button.focus_mode,
+		"rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y]}
+
+
+func _mining_ui_observation() -> Dictionary:
+	if not _ember_node_current(_game.world) or not is_instance_valid(_game.hud):
+		return {"available": false}
+	var hud: GameHUD = _game.hud
+	var focus: Control = get_viewport().gui_get_focus_owner()
+	var main: Control = hud.get("_pause_main_page") as Control
+	var activity: Control = hud.get("_activity_selection_page") as Control
+	var nearby: Control = hud.get("_nearby_activity_page") as Control
+	var row: Node = nearby.find_child("NearbyActivityRow_cinder_platform_mining_run", true, false) if is_instance_valid(nearby) else null
+	var presenter: RefCounted = hud.get("_nearby_activity_presenter") as RefCounted
+	var cluster: NearbySectorCluster = _mining_cluster()
+	var binding: NearbySectorActivityBinding = cluster.get_node_or_null(^"ActivityBinding") as NearbySectorActivityBinding if is_instance_valid(cluster) else null
+	var buttons := {}
+	buttons["activity_board"] = _mining_ui_button(main.find_child("ActivityBoardButton", true, false) as Button if is_instance_valid(main) else null, focus)
+	buttons["nearby_open"] = _mining_ui_button(activity.find_child("NearbyActivityOpenButton", true, false) as Button if is_instance_valid(activity) else null, focus)
+	for index: int in range(1, 4):
+		var button: Button = row.get_child(index) as Button if is_instance_valid(row) and row.get_child_count() > index else null
+		buttons[["select", "start", "reset"][index - 1]] = _mining_ui_button(button, focus)
+	return {"available": true, "focus_path": str(focus.get_path()) if is_instance_valid(focus) else "",
+		"main_visible": is_instance_valid(main) and main.is_visible_in_tree(),
+		"activity_visible": is_instance_valid(activity) and activity.is_visible_in_tree(),
+		"nearby_visible": is_instance_valid(nearby) and nearby.is_visible_in_tree(),
+		"row_id": row.get_instance_id() if is_instance_valid(row) else 0,
+		"row_activity_id": str(row.get_meta(&"activity_id", &"")) if is_instance_valid(row) else "",
+		"selected_activity": str(presenter.get("_selected_activity")) if presenter != null else "",
+		"activity": binding.get_activity_snapshot(&"mining") if is_instance_valid(binding) else {},
+		"buttons": buttons, "native_keys": {"escape": Input.is_physical_key_pressed(KEY_ESCAPE),
+			"tab": Input.is_physical_key_pressed(KEY_TAB), "return": Input.is_physical_key_pressed(KEY_ENTER)}}
+
+
+func _mining_observation(home_berth: ShipBerth) -> Dictionary:
+	var bootstrap: CinderStreamingBootstrap = _game.cinder_streaming_bootstrap
+	if not _ember_node_current(bootstrap) or not _ember_node_current(home_berth):
+		return {"available": false}
+	var home := _hulk_home_observation(home_berth, false)
+	# This transform is the same live authored frame used by production gates.
+	var target := bootstrap.to_global(CinderMiningPlatformActivity.APPROACH_ANCHOR)
+	var cluster: NearbySectorCluster = _mining_cluster()
+	var binding: NearbySectorActivityBinding = cluster.get_node_or_null(^"ActivityBinding") as NearbySectorActivityBinding if is_instance_valid(cluster) else null
+	var marker: Marker3D = cluster.get_node_or_null(^"ExtractionPlatform/CinderReachPlatform/MiningActivityPresentation/MiningApproachAnchor") as Marker3D if is_instance_valid(cluster) else null
+	var store: UserDataStore = _game.get("_runtime_settings_user_data_store") as UserDataStore
+	var payload: Dictionary = store.get_snapshot() if store != null else {}
+	var record: Dictionary = payload.get("cinder_mining_capacity", {}) as Dictionary
+	# validate_record is a pure format check; never load/reconcile the store here.
+	if is_instance_valid(binding):
+		_mining_persistence = binding.get("_mining_capacity_persistence") as RefCounted
+	var valid := false
+	if _mining_persistence != null and not record.is_empty():
+		valid = bool((_mining_persistence.call(&"validate_record", record) as Dictionary).get("accepted", false))
+	home.merge({"target": _v(target), "coordinate_space": "common_world",
+		"bootstrap_id": bootstrap.get_instance_id(), "bootstrap_transform_origin": _v(bootstrap.global_position),
+		"available": is_instance_valid(binding) and binding.is_inside_tree() and not binding.is_queued_for_deletion(),
+		"binding_id": binding.get_instance_id() if is_instance_valid(binding) else 0,
+		"marker_id": marker.get_instance_id() if is_instance_valid(marker) else 0,
+		"marker_position": _v(marker.global_position) if is_instance_valid(marker) else [],
+		"activity": binding.get_activity_snapshot(&"mining") if is_instance_valid(binding) else {},
+		"capacity_paid": bool(binding.get("_mining_capacity_paid")) if is_instance_valid(binding) else false,
+		"save": {"path": ProjectSettings.globalize_path(str(store.get("_path"))) if store != null else "",
+			"generation": store.get_generation() if store != null else -1,
+			"source": str(store.get_loaded_source()) if store != null else "",
+			"record": record.duplicate(true), "record_valid": valid}} , true)
+	return home
+
+
+func _mining_cluster() -> NearbySectorCluster:
+	var bootstrap: CinderStreamingBootstrap = _game.cinder_streaming_bootstrap
+	if not _ember_node_current(bootstrap):
+		return null
+	var coordinator: WorldStreamingCoordinator = bootstrap.get("_coordinator") as WorldStreamingCoordinator
+	if not is_instance_valid(coordinator):
+		return null
+	var records: Dictionary = coordinator.get("_loaded") as Dictionary
+	var generations: Dictionary = coordinator.get("_generation_by_id") as Dictionary
+	var record: Dictionary = records.get(CinderStreamingBootstrap.LOCATION_ID, {}) as Dictionary
+	var candidate: Node = record.get("instance") as Node
+	if not _ember_node_current(candidate) or candidate.get_parent() != coordinator \
+			or int(record.get("generation", -1)) != int(generations.get(CinderStreamingBootstrap.LOCATION_ID, -2)):
+		return null
+	return candidate as NearbySectorCluster
+
+
+func _mining_landing_contract(berth: ShipBerth) -> Dictionary:
+	var result: Dictionary = (_ship.get("_landing_contract") as Dictionary).duplicate(true)
+	var token := StringName(berth.get("_reservation_token"))
+	result["berth_id"] = _ship.get("_landing_berth_id")
+	result["berth_instance_id"] = _ship.get("_landing_berth_instance_id")
+	result["last_abort_reason"] = _ship.get("_landing_last_abort_reason")
+	result["reservation_token_bound"] = not token.is_empty() and berth.get_reservation_owner() == _ship \
+		and (berth.get_occupant() == null or berth.get_occupant() == _ship) \
+		and token == StringName(_ship.get("_landing_reservation_token")) \
+		and StringName(berth.get("_reserved_ship_id")) == StringName(_ship.get("_landing_reserved_ship_id"))
 	return result

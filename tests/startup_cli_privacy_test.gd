@@ -93,6 +93,20 @@ func _run() -> void:
 	for malformed: String in ["--native-sortie-observer=Habitat-restart", "--native-sortie-observer=habitat-restart-extra", "--native-sortie-observer=habitat-restart=", "--native-sortie-observer habitat-restart"]:
 		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
 			"Habitat restart rejects malformed selector: %s" % malformed)
+	var mining_args := PackedStringArray(["--native-sortie-observer=mining-first-play"])
+	_check(StartupLoaderType.native_sortie_request(mining_args, "X11", "Dummy", true).accepted,
+		"mining first play admits only explicit silent private X11 observation")
+	for row: Array in [["headless", "Dummy", true], ["Wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "dummy", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(mining_args, row[0], row[1], row[2]).accepted,
+			"mining first play rejects non-private, non-X11 or audible execution")
+	for conflict: String in ["--native-sortie-observer", "--native-sortie-observer=mining-first-play", "--native-sortie-observer=habitat-restart", "--native-sortie-observer=habitat-loop", "--native-sortie-observer=sandbox-walk", "--native-sortie-observer=sandbox", "--native-sortie-observer=ember", "--native-sortie-observer=hulk-arrival", "--native-sortie-observer=hulk-breaker", "--native-sortie-observer=hulk-home", "--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+		var mining_conflicting := mining_args.duplicate()
+		mining_conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(mining_conflicting, "X11", "Dummy", true).accepted,
+			"mining first play rejects duplicate/competing CLI mode: %s" % conflict)
+	for malformed: String in ["--native-sortie-observer=Mining-first-play", "--native-sortie-observer=mining-first-play-extra", "--native-sortie-observer=mining-first-play=", "--native-sortie-observer mining-first-play"]:
+		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
+			"mining first play requires its exact selector: %s" % malformed)
 	var fleet_args := PackedStringArray(["--native-sortie-observer=sandbox"])
 	_check(StartupLoaderType.native_sortie_request(fleet_args, "X11", "Dummy", true).accepted,
 		"full Sandbox observation admits only the same silent private input route")

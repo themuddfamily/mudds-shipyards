@@ -429,6 +429,300 @@ class NativeSortieSafetyTests(unittest.TestCase):
                          active_ship=False, candidate=False, regeneration_pending=False)
         return s
 
+    def mining_record(self):
+        return {'schema_version': 2, 'payload_kind': 'cinder_mining_capacity_receipt',
+                'slot_id': 'cinder_mining_capacity',
+                'session': {'state': 2, 'generation': 1, 'elapsed_seconds': 6,
+                            'reward_requested': True, 'capacity_paid': True},
+                'capacity': {'activity_id': 'cinder_platform_mining_run', 'content_class': 'NEW',
+                    'evidence_status': 'modern_interpretation', 'extraction_seconds': 6,
+                    'reward_receipt': {'activity_id': 'cinder_platform_mining_run',
+                        'reward_id': 'cinder_raw_ore_sample', 'granted': False, 'replay_allowed': False}}}
+
+    def mining_observation(self):
+        s = self.hulk_observation()
+        s.pop('hulk')
+        s.update(mode='mining-first-play', sequence=100, pid=101, main_id=102,
+                 current=True, paused=False, physics_seconds=100,
+                 position=[60, -66, -605], camera=[60, -65, -605])
+        s['mining'] = {'available': True, 'coordinate_space': 'common_world',
+            'target': [60, -66, -605], 'marker_position': [60, -66, -605],
+            'binding_id': 103, 'marker_id': 104, 'bootstrap_id': 105,
+            'capsule_id': 106, 'shape_id': 107, 'capsule_enabled': True,
+            'physics_ticks': 60, 'time_scale': 1,
+            'walk_tuning': {'walk': 5.8, 'sprint': 9.2}, 'capacity_paid': False,
+            'activity': {'state_id': 'idle', 'generation': 0, 'elapsed_seconds': 0,
+                         'extraction_seconds': 6, 'reward_requested': False},
+            'save': {'path': '/private/data/mudds_user_data.json', 'generation': 10,
+                     'source': 'primary', 'record': {}, 'record_valid': False},
+            'streaming': {'loaded': True, 'loading': False, 'loaded_instance_id': 108,
+                'generation': 1, 'loaded_generation': 1, 'load_request_count': 1,
+                'load_failure_count': 0, 'unload_count': 0, 'unload_radius_m': 650},
+            'home': {'berth_id': 'central', 'berth_instance_id': 109, 'approach': [0, 2, -18],
+                'dock': [0, 1.15, -10], 'dock_forward': [0, 0, -1],
+                'selected_berth_id': 'central', 'capture': False, 'contract': False,
+                'lease': False, 'parked_exact': False, 'occupant_id': 0,
+                'landing_abort_reason': '', 'grounded': False, 'supported': False, 'support_collider': ''}}
+        return s
+
+    def mining_pilot(self, stage='mining_extract'):
+        pilot = self.hulk_pilot(native.MiningFirstPlayPilot)
+        pilot.stage, pilot.start_clock = stage, 100
+        return pilot
+
+    def mining_paid_state(self, s):
+        s['mining']['activity'].update(state_id='complete', generation=1, elapsed_seconds=6,
+                                      reward_requested=True, capacity_persisted=True)
+        s['mining']['capacity_paid'] = True
+        s['mining']['save'].update(record=self.mining_record(), record_valid=True, generation=25)
+        s['physics_seconds'] = 106
+        s['frame'] = 460
+        s['sequence'] = 460
+
+    def mining_ui(self, target='select'):
+        buttons = {key: {'available': True, 'id': index+200, 'path': '/HUD/'+key,
+                        'text': label, 'visible': True, 'enabled': True, 'focused': key == target,
+                        'focus_mode': 2, 'rect': [10, 20, 100, 32]}
+                   for index, (key, label) in enumerate((('activity_board', 'ACTIVITY BOARD'),
+                       ('nearby_open', 'CINDER SECTOR ACTIVITIES'), ('select', 'SELECT'),
+                       ('start', 'START'), ('reset', 'RESET')))}
+        return {'available': True, 'focus_path': buttons[target]['path'], 'buttons': buttons,
+                'main_visible': target == 'activity_board', 'activity_visible': target == 'nearby_open',
+                'nearby_visible': target in ('select', 'start', 'reset'), 'row_id': 300,
+                'row_activity_id': 'cinder_platform_mining_run', 'selected_activity': '',
+                'native_keys': {'escape': False, 'tab': False, 'return': False},
+                'activity': {'state_id': 'idle', 'generation': 0, 'elapsed_seconds': 0,
+                             'reward_requested': False}}
+
+    def test_mining_requires_normal_prelude_and_physical_live_marker_arrival(self):
+        for field in ('departed', 'shot', 'fired'):
+            pilot, s = self.hulk_pilot(native.MiningFirstPlayPilot), self.mining_observation()
+            setattr(pilot, field, False)
+            with self.assertRaisesRegex(AssertionError, 'normal Guided'):
+                pilot.update(s, 1)
+        pilot, s = self.hulk_pilot(native.MiningFirstPlayPilot), self.mining_observation()
+        pilot.update(s, 1)
+        self.assertEqual(pilot.stage, 'mining_ui_pause')
+        self.assertEqual(pilot.receipts['guided_prelude']['destroyed_targets'], 4)
+        self.assertLessEqual(pilot.receipts['physical_arrival']['distance_m'], 1)
+        self.assertIsNone(pilot.result)
+        for change in ({'marker_position': [60, -66, -606]},
+                       {'activity': {'generation': 1, 'state_id': 'idle', 'reward_requested': False}}):
+            pilot, s = self.hulk_pilot(native.MiningFirstPlayPilot), self.mining_observation()
+            s['mining'].update(change)
+            with self.assertRaises(AssertionError): pilot.update(s, 1)
+        self.assertEqual(native.CAP, 300)
+
+    def test_mining_preserves_original_prelude_commands_before_branch(self):
+        pilot, s = native.MiningFirstPlayPilot(), self.mining_observation()
+        with patch.object(native.Pilot, 'update', return_value=({'Prior'}, 4, -3, True)) as parent:
+            self.assertEqual(pilot.update(s, 1), ({'Prior'}, 4, -3, True))
+            parent.assert_called_once_with(s, 1)
+        s['sequence'] += 1
+        s['current'] = False
+        self.assertEqual(pilot.update(s, 2), (set(), 0, 0, False))
+        pilot.stage = 'walk'
+        s['sequence'] += 1
+        with self.assertRaisesRegex(AssertionError, 'current live mining owners'):
+            pilot.update(s, 3)
+
+    def test_mining_real_keyboard_page_select_start_and_pause_time_are_distinct(self):
+        pilot, s = self.mining_pilot('mining_ui_board'), self.mining_observation()
+        s.update(paused=True, ui=self.mining_ui('activity_board'))
+        now = 1
+        def step():
+            nonlocal now
+            s['sequence'] += 1
+            now += .2
+            return pilot.update(copy.deepcopy(s), now)
+        def release():
+            self.assertEqual(step()[0], set())
+        self.assertEqual(step()[0], {'Return'})
+        self.assertEqual(pilot.stage, 'mining_ui_board_wait')
+        release()
+        s['ui'] = self.mining_ui('nearby_open')
+        self.assertEqual(step()[0], {'Return'})
+        release()
+        s['ui'] = self.mining_ui('select')
+        self.assertEqual(step()[0], {'Return'})
+        self.assertEqual(pilot.stage, 'mining_ui_select_wait')
+        release()
+        s['ui'] = self.mining_ui('start')
+        s['ui']['selected_activity'] = pilot.ACTIVITY
+        self.assertEqual(step()[0], {'Return'})
+        self.assertEqual(pilot.stage, 'mining_ui_start_wait')
+        release()
+        s['ui']['activity'].update(state_id='active', generation=1)
+        self.assertEqual(step()[0], {'Escape'})
+        self.assertEqual(pilot.stage, 'mining_ui_back_wait')
+        self.assertEqual(pilot.start_clock, 100)
+        release()
+        s['ui'].update(nearby_visible=False, activity_visible=True)
+        self.assertEqual(step()[0], {'Escape'})
+        release()
+        s['ui'].update(activity_visible=False, main_visible=True)
+        self.assertEqual(step()[0], {'Escape'})
+        release()
+        s.update(paused=False, frame=101, physics_seconds=100+1/60)
+        self.assertEqual(step()[0], set())
+        self.assertEqual(pilot.stage, 'mining_extract')
+        self.assertEqual(len(pilot.receipts['ui_activation']), 4)
+        self.assertIsNone(pilot.result)
+
+    def test_mining_ui_rejects_wrong_row_geometry_focus_and_unacknowledged_start(self):
+        mutations = [lambda ui: ui.update(row_activity_id='other'),
+                     lambda ui: ui['buttons']['start'].update(enabled=False),
+                     lambda ui: ui['buttons']['start'].update(rect=[0, 0, 0, 0]),
+                     lambda ui: ui['buttons']['start'].update(text='RESTART'),
+                     lambda ui: ui.update(focus_path='/HUD/other')]
+        for mutation in mutations:
+            pilot, s = self.mining_pilot('mining_ui_start'), self.mining_observation()
+            s.update(paused=True, ui=self.mining_ui('start'))
+            mutation(s['ui'])
+            with self.assertRaises(AssertionError): pilot.update(s, 1)
+        pilot, s = self.mining_pilot('mining_ui_start_wait'), self.mining_observation()
+        s.update(paused=True, ui=self.mining_ui('start'))
+        with self.assertRaisesRegex(AssertionError, 'no retry'): pilot.update(s, 1)
+        pilot, s = self.mining_pilot('mining_ui_resume'), self.mining_observation()
+        s.update(paused=True, ui=self.mining_ui('start'))
+        s['ui']['activity'].update(state_id='active', generation=1, elapsed_seconds=.1)
+        with self.assertRaisesRegex(AssertionError, 'paused menu never'): pilot.update(s, 1)
+
+    def test_mining_six_seconds_and_independent_paid_file_precede_home_return(self):
+        pilot, s = self.mining_pilot(), self.mining_observation()
+        s.update(frame=280, sequence=280, physics_seconds=103)
+        s['mining']['activity'].update(state_id='active', generation=1, elapsed_seconds=3)
+        self.assertIn('Prior', pilot.update(copy.deepcopy(s), 1)[0])
+        self.assertIsNone(pilot.result)
+        self.mining_paid_state(s)
+        pilot.update(copy.deepcopy(s), 2)
+        self.assertEqual(pilot.stage, 'mining_capacity_file')
+        self.assertFalse(pilot.file_receipt_accepted)
+        self.assertIsNone(pilot.result)
+        pilot.file_receipt_accepted = True
+        s.update(frame=461, sequence=461, physics_seconds=106+1/60)
+        pilot.update(copy.deepcopy(s), 3)
+        self.assertEqual(pilot.stage, 'mining_home_flight')
+        self.assertEqual(pilot.home_clearance_target, [0, 2.7, -150])
+        self.assertEqual(pilot.paid_record, self.mining_record())
+        self.assertIsNone(pilot.result)
+
+    def test_mining_rejects_synthetic_time_recovery_reset_replacement_and_fake_receipts(self):
+        mutations = [lambda s: s.update(physics_seconds=105), lambda s: s.update(phase='RECOVERING'),
+            lambda s: s.update(player_id=999), lambda s: s.update(position=[60, -66, -574]),
+            lambda s: s['mining'].update(time_scale=2), lambda s: s['mining'].update(capacity_paid=False),
+            lambda s: s['mining'].update(marker_id=0),
+            lambda s: s['mining']['activity'].update(generation=2),
+            lambda s: s['mining']['activity'].update(state_id='reset'),
+            lambda s: s['mining']['save'].update(record_valid=False),
+            lambda s: s['mining']['save'].update(source='backup'),
+            lambda s: s['mining']['save']['record']['capacity']['reward_receipt'].update(granted=True),
+            lambda s: s['mining']['save']['record']['capacity']['reward_receipt'].update(replay_allowed=True)]
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                pilot, s = self.mining_pilot(), self.mining_observation()
+                self.mining_paid_state(s)
+                mutation(s)
+                with self.assertRaises(AssertionError): pilot.update(s, 1)
+                self.assertIsNone(pilot.result)
+        pilot, s = self.mining_pilot(), self.mining_observation()
+        s.update(frame=220, sequence=220, physics_seconds=102)
+        s['mining']['activity'].update(state_id='active', generation=1, elapsed_seconds=2)
+        pilot.update(copy.deepcopy(s), 1)
+        s.update(frame=221, sequence=221, physics_seconds=102+1/60)
+        s['mining']['activity']['elapsed_seconds'] = 4
+        with self.assertRaisesRegex(AssertionError, 'only real unpaused physics'): pilot.update(s, 2)
+
+    def test_mining_strict_home_landing_neutral_shutdown_and_supported_exit_walk(self):
+        pilot, s = self.mining_pilot('mining_home_land'), self.mining_observation()
+        self.mining_paid_state(s)
+        pilot.paid_record = self.mining_record()
+        pilot.home_clearance_target = [0, 2.7, -150]
+        pilot.home_previous = dict(s, position=[0, 2, -18])
+        pilot.request_frame = 450
+        s.update(position=[0, 1.15, -10], landing_active=True)
+        pilot.update(copy.deepcopy(s), 1)
+        self.assertTrue(pilot.home_landing_seen)
+        s.update(frame=470, sequence=470, physics_seconds=107, landing_active=False,
+                 landed=True, lease_free=False, phase='SHUT_DOWN')
+        s['mining']['home'].update(contract=True, lease=True, parked_exact=True, occupant_id=2)
+        pilot.update(copy.deepcopy(s), 2)
+        self.assertEqual(pilot.stage, 'mining_home_shutdown')
+        s.update(frame=560, sequence=560, physics_seconds=108.5)
+        s['telemetry']['engine'] = 'OFFLINE'
+        self.assertIn('e', pilot.update(copy.deepcopy(s), 3)[0])
+        self.assertEqual(pilot.stage, 'mining_home_exit')
+        s.update(frame=580, sequence=580, physics_seconds=109, phase='COMPLETE', guided_complete=True,
+                 piloted=False, seated=False, control_enabled=True, player=[-8, .1, -10])
+        s['mining']['home'].update(grounded=True, supported=True, support_collider='HomeDeck')
+        pilot.update(copy.deepcopy(s), 4)
+        self.assertEqual(pilot.stage, 'mining_home_walk')
+        self.assertIsNone(pilot.result)
+        s.update(frame=600, sequence=600, physics_seconds=109+20/60, player=[-7.5, .1, -10])
+        pilot.update(copy.deepcopy(s), 5)
+        self.assertEqual(pilot.result['completion_marker'], native.MiningFirstPlayPilot.MARKER)
+        self.assertEqual(pilot.result['home_walk_ticks'], 20)
+        self.assertEqual(pilot.result['capacity_record'], self.mining_record())
+
+    def test_mining_never_retries_failed_landing_or_accepts_unsupported_home_exit(self):
+        pilot, s = self.mining_pilot('mining_home_land'), self.mining_observation()
+        self.mining_paid_state(s)
+        pilot.paid_record = self.mining_record()
+        pilot.home_clearance_target = [0, 2.7, -150]
+        pilot.home_previous = dict(s, position=[0, 2, -18])
+        pilot.request_frame = 300
+        s['position'] = [0, 2, -18]
+        with self.assertRaisesRegex(AssertionError, 'no retry'): pilot.update(copy.deepcopy(s), 1)
+        pilot = self.mining_pilot('mining_home_exit')
+        pilot.paid_record = self.mining_record()
+        pilot.home_clearance_target = [0, 2.7, -150]
+        pilot.home_previous = copy.deepcopy(s)
+        pilot.request_frame = 450
+        s.update(landed=True, piloted=False, seated=False, control_enabled=True,
+                 phase='COMPLETE', guided_complete=True)
+        s['telemetry']['engine'] = 'OFFLINE'
+        s['mining']['home'].update(contract=True, lease=True, parked_exact=True, occupant_id=2,
+                                  grounded=True, supported=False)
+        with self.assertRaisesRegex(AssertionError, 'supported home exit'): pilot.update(s, 1)
+
+    def test_mining_archives_actual_capacity_files_and_rejects_unrelated_namespace_changes(self):
+        with tempfile.TemporaryDirectory() as root:
+            profile, output = Path(root)/'profile', Path(root)/'result'
+            (profile/'data').mkdir(parents=True)
+            output.mkdir()
+            path = profile/'data'/'mudds_user_data.json'
+            before = self.restart_document()
+            before['payload']['input_bindings'] = {'interact': 'E'}
+            path.write_text(json.dumps(before))
+            files = native.MiningFirstPlayFiles(profile, output)
+            sample = {'path': str(path), 'source': 'primary', 'generation': before['generation'], 'record': {}}
+            files.capture('before-mining', sample)
+            after = copy.deepcopy(before)
+            after['generation'] += 1
+            after['payload']['cinder_mining_capacity'] = self.mining_record()
+            after['payload']['tutorial_prompts_seen'] = {'schema_version': 1,
+                                                        'seen_ids': ['cinder_platform_mining_run']}
+            path.write_text(json.dumps(after))
+            path.with_name(path.name+'.bak').write_text(json.dumps(before))
+            sample.update(generation=after['generation'], record=self.mining_record())
+            captured = files.capture('mining-paid', sample)
+            files.require_preserved(before, captured)
+            self.assertEqual(json.loads((output/'mining-paid.json').read_text()), after)
+            self.assertEqual(json.loads((output/'mining-paid-mudds_user_data.json.bak').read_text()), before)
+            self.assertIn('input_bindings', files.snapshots['preservation'][0]['exact_preserved_namespaces'])
+            for namespace in ('input_bindings', 'runtime_settings'):
+                corrupted = copy.deepcopy(after)
+                corrupted['payload'][namespace] = {'changed': True}
+                with self.assertRaisesRegex(AssertionError, 'unrelated actual-file'):
+                    files.require_preserved(before, corrupted)
+            corrupted = copy.deepcopy(after)
+            corrupted['payload']['tutorial_prompts_seen']['seen_ids'].append('unrelated_activity')
+            with self.assertRaisesRegex(AssertionError, 'tutorial persistence'):
+                files.require_preserved(before, corrupted)
+            path.write_text(json.dumps(before))
+            with self.assertRaisesRegex(AssertionError, 'record matches observed'):
+                files.capture('fabricated-paid', sample)
+
     def hulk_observation(self):
         return {'frame': 100, 'phase': 'RETURN_TO_YARD', 'player_id': 1, 'ship_id': 2,
                 'position': [-96, 32.4, -432], 'player': [-88, 22, -450],
