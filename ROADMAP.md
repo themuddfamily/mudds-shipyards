@@ -1,10 +1,10 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **81f885b**, with actual host navigator accepted/rejected/
-cleared sound requests and captions. [Windows build notes](builds/windows/MuddsShipyards-81f885b-notes.txt)
-and [Linux build notes](builds/linux/MuddsShipyards-81f885b-linux-notes.txt) state
-actual checks and limits. Solo/remote-client/listening scope remains unfinished.
+accepted checkpoint: **c4de728**, with actual standalone solo navigator
+chair/FIRE/stand/reseat feedback. [Windows notes](builds/windows/MuddsShipyards-c4de728-notes.txt)
+and [Linux notes](builds/linux/MuddsShipyards-c4de728-linux-notes.txt) state actual
+checks and limits. Host-local/remote-client/listening scope remains unfinished.
 All 36 original parents and ten phase gates remain open.
 
 ## What separates this alpha from completion
@@ -33,37 +33,26 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-AUDIO-NAVIGATOR-HOST is accepted on `81f885b`, merged and packaged. Actual host
-bridge outcomes now select distinct resident UI sounds while keeping captions;
-distinct consecutive pings dispatch, malformed/replayed/stale/unbound input stays
-silent. [Full result](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-host--host-sound-requests-and-captions-delivered).
-Owned scratch is cleaned; only unique results remain. This completes host
-presentation, not the broader navigator audio outcome. Earlier repair, host-power
-and service runtime passes retain their recorded scopes.
+AUDIO-NAVIGATOR-SOLO is accepted on `c4de728`, merged and packaged. Actual
+standalone chair FIRE now gives sound/caption feedback, held input stays quiet,
+and stand/claim loss clears once before source retirement. Reseat uses a fresh
+exact owner even when numeric generations repeat. [Full result](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-solo--actual-standalone-chair-feedback-delivered).
+Owned scratch is cleaned; unique original/repaired results remain. Existing host
+bridge, repair, host-power and service deliveries retain their recorded scopes.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-SOLO | STOP at optional fixture; one exact repair selected before rerun | Bind actual standalone solo claim/results and ship-owned active clear to existing navigator sounds/captions. Prove real chair→FIRE→stand→reseat plus forced lifetime retirement; preserve host lane. [Exact ownership/proof/stop](docs/COMPLETION_SCOPE.md#solo-navigator--source-definition-and-implementation-contract). 60–75 min implementation/review, 10–20 min focused checks, 10–15 min checkpoint. |
+| AUDIO-NAVIGATOR-RECIPIENT | DEFINE; host-local direct-submit and client feedback remain open | Trace actual local-host outcome and client receipt/rejection/clear transport to presentation owners. End with bounded runtime cards, recipient identity/lifetime checks and exact proof, or a precise missing policy fact. Source-only, 15–20 min; no engine/audible run, fabricated wire receipt or automatic broadcast. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 AUDIO-MIX-DEFINE’s [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
 remains complete as a definition; all 28 listening cases remain NOT_RUN. Exact
 package/ordinary route, actual output device/backend/configuration and explicit
 audible authorization are still required. Repair dispatch under Dummy does not
-close that gate. Solo source definition found the discarded result, network-only
-binding and unsignalled ship-owned clear. Ordinary stand bypasses Cinder’s direct
-release method; the contract covers that actual owner path. No solo runtime change
-was made during definition. Implementation805f9f69 now passes actual solo input/
-stand/reseat and navigator/interaction checks; optional composition stops on its
-preexisting rejection fixture missing the required bridge policy field.
-[One frozen fixture repair](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-solo--optional-fixture-stop-and-selected-repair)
-preserves all assertions and runtime code. Next action is that repair and the
-remaining focused checks; candidate remains unmerged and unpackaged.
-Host-local direct-submit and remote-client feedback still need their separate
-recipient/transport definition;
-[all three boundaries](docs/COMPLETION_SCOPE.md#navigator-playback--bounded-delivery-contracts)
-remain explicit. Hauler’s pending stock/custody choice remains unchanged; do not
-repeat the question or invent stock. This queue is not a project estimate.
+close that gate. The next single action is the recipient source definition above;
+[host bridge, standalone solo and remaining recipient boundaries](docs/COMPLETION_SCOPE.md#navigator-playback--bounded-delivery-contracts)
+remain distinct. Hauler’s already-asked stock/custody choice remains unchanged;
+do not repeat the question or invent stock. This queue is not a project estimate.
 
 ## Turning the remaining scope into executable work
 
@@ -89,27 +78,27 @@ a total job count or release date.
 
 ## Latest delivered result
 
-**Host navigator audio/captions accepted on `81f885b`.** Actual accepted,
-rejected and matching-clear bridge results request three existing resident UI
-sounds. Binding identity fences protect replay/stale input; the router now lets
-distinct consecutive navigator receipts through. Malformed rejection envelopes
-stay silent. No new asset, voice, timer, schema or gameplay authority.
+**Standalone solo navigator feedback accepted on `c4de728`.** The focused real
+Player/Cinder/GameFlow chair→FIRE→stand→reseat path now reaches existing
+navigator sounds/captions. Ship-owned active clear covers exact stand/ledger
+loss/removal once; old authority callbacks and held input cannot replay.
 
-Six full suites PASS first attempt: navigator 65, actual GameFlow host 38,
-Director 60, router 19, exact-source unbind 18 and reduced-range 10 checks/assertions.
-Import, both changed-test compilations, fresh paired exports, three strict
-menu-ready startups and actual 1,521-entry package audit PASS. [Windows checkpoint
-ZIP](builds/windows/MuddsShipyards-81f885b-checkpoint.zip) and
-[notes](builds/windows/MuddsShipyards-81f885b-notes.txt) are available.
+Nine focused suites PASS. One existing optional test envelope lacked the bridge
+policy field already required by 81f885b; the frozen one-field fixture repair
+preserved runtime code and all assertions. The original failure and seven
+unchanged passes remain cumulative. Fresh paired exports, three strict menu-ready
+startups and 1,521-entry actual package audit PASS. [Windows checkpoint ZIP](builds/windows/MuddsShipyards-c4de728-checkpoint.zip)
+and [notes](builds/windows/MuddsShipyards-c4de728-notes.txt) are available.
 
-[Full contract/result](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-host--host-sound-requests-and-captions-delivered)
-records all 15 stages / 208.899 s, no failure/repair, approximately 9.6 min selection
-to publication/cleanup against the longer stated estimate. All 15 owners / 85
-observed identities absent; 18 profile files/helpers preserved; owned worktree/
-profiles/helpers removed. Eleven public files and exact ZIP reverified. Dummy
-request spies establish host dispatch/captions/lifecycle, not listening, ordinary
-physical crew admission, solo/remote-client or native Windows/GPU/human/final
-qualification. All 28 listening cases and broader roadmap scope remain open.
+[Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-solo--actual-standalone-chair-feedback-delivered)
+record all 21 actual stages / 260.802s and about 17.6 min selection through publication/
+cleanup, below the stated implementation/check/package estimate. All 21 owners /
+109 observed identities absent; 24 profile files and original/final helpers
+preserved; owned worktree/profile/helpers removed. Eleven public files and exact
+ZIP reverified. Dummy checks establish focused source/input/dispatch/captions,
+not listening/native/full ordinary travel/endurance/final acceptance. Live-host
+local and remote-client feedback remain open, as do all 28 listening cases and
+broader roadmap scope.
 
 ## Parked failures and dependent work
 
