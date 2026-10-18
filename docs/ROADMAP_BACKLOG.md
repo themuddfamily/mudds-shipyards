@@ -656,7 +656,10 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure |
 | WALK-OBSERVATION | Observation supported return | 7,9 | UNSCHEDULED; exact production-roster route |
-| WALK-SALVAGE | Salvage three-component manifest | 7,9 | UNSCHEDULED; exact production-roster route |
+| WALK-SALVAGE | Salvage three-component manifest | 7,9 | OPEN; definition DONE, ordered ACCESS/INSPECT/REVISIT children below; existing connector-staged memory-store scope retained |
+| WALK-SALVAGE-ACCESS | Hub→three inspection positions→hub by same supported Player | 7,9 | IN PROGRESS caller; selected existing salvage test mode, no position fixtures |
+| WALK-SALVAGE-INSPECT | Ordinary three components and manifest publication after actual approach | 7,9 | GATED on ACCESS; freeze exact continuation before execution |
+| WALK-SALVAGE-REVISIT | Durable fresh-process physical revisit without duplicate transaction | 7,9 | GATED on INSPECT; freeze store/ordinary route before execution |
 | WALK-VIP | VIP reception | 7,9 | PARKED; failed route plus repair, see working-roadmap failure summary |
 | LIFE-TOW | Central tow during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
 | LIFE-GANTRY | Freight gantry during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |

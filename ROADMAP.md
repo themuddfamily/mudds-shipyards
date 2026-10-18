@@ -28,35 +28,56 @@ explicit owner decision.
 
 ## Execution now
 
-WALK-SALVAGE definition is selected. Reverse qualification and the bounded Torrent
+WALK-SALVAGE-ACCESS implementation is selected. Reverse qualification and the bounded Torrent
 definition are closed below. Completed and parked work does not occupy the
 executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
-| WALK-SALVAGE / 7,9 | IN PROGRESS definition | Freeze ordinary supported access, three inspections, durable manifest/revisit and return using existing owners. | Source-only10min: existing caller or one smallest extension seam, then root selection. |
+| WALK-SALVAGE-ACCESS / 7,9 | IN PROGRESS qualification caller | Same supported Player walks from hub to all three inspection positions and back without staging. | Review selected existing-caller mode, compile once, one isolated route. |
 | CRAFT-GAPS-TORRENT / 10,11 | Definition DONE; craft acceptance OPEN | No specifically required missing implementation found within inspected owners. | Do not invent a feature; any successor needs a concrete requirement/finding. |
 | HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
 
-### WALK-SALVAGE — three inspections and usable return
+### WALK-SALVAGE-ACCESS — normal hub to inspection row and back
 
-- **Owner/type:** one read-only definition agent, root selection; qualification
-  of implemented station gameplay unless a concrete production gap is found.
-- **Boundary:** existing Salvage Terrace, station route/inspection/save owners
-  and relevant callers only. No fleet research, parked VIP/capture reopening,
-  new harness/framework, pose staging or speculative content.
-- **Proof/finish:** identify one existing ordinary-input command or smallest
-  extension seam, physical route, three inspection interactions, durable3/3
-  manifest/revisit and supported return. State actual source/fixtures/limits.
-  Missing runtime behavior and missing route qualification stay distinct.
-- **Budget/stop/next:**10min source-only, no engines. End with a finite executable
-  successor or concrete blocker. Root separately freezes one task before any
-  implementation/run; first failure will stop it. Definition has no gameplay or
-  checkpoint claim. Record result here and in the existing backlog; commit/push.
-- **Priority:** missing eight original craft still require existing evidence or
-  interpretation dependencies. Do not invent a historical hull to fill the queue.
-  This independent named station outcome does not depend on parked handback,
-  Halyard, cargo reload, Rime or graphics-capture failures.
+- **Type/parents:** qualification of existing station gameplay,7/9. First child
+  of WALK-SALVAGE; ordinary inspection/publication and durable physical revisit
+  remain required later. It cannot close the whole station or Salvage parent.
+- **Definition DONE:** inspection/save runtime exists. Current
+  `tests/salvage_terrace_test.gd` stages the connector and uses a memory filesystem
+  for its Main inspection/reload checks; it does not prove ordinary hub access.
+  Extend that caller with selected `--walk-salvage-access`; default/capture unchanged.
+- **Owner/boundary:** one implementation agent owns that existing script only,
+  root review/execution. Prepared worktree
+  `/srv/mudds-work/salvage-ordinary-access-20261018/source`. No runtime/geometry
+  changes, active-craft/position/seat fixtures, direct interaction handlers,
+  inspection/save mutation, new framework or parked-route reopening.
+- **Proof:** fresh Main, retained normal hub spawn(-8.5,11), ordinary intro
+  Interact, same controlled unseated supported Player. Use accepted Annex prefix
+  through local(0,4.8), then proposed unqualified north-service continuation
+  (0,9.5),(0,19),(-12.5,19),(-12.5,12),(-14,12); cross actual connector and Salvage
+  local(0,7),(-8,7),(-16,7). Return by reversed goals to retained spawn. Normal
+  mouse-event look/held movement only; physical floor decides height. Preserve
+  manifest without inspection. Each waypoint retains240 physics frames,0.20m
+  arrival radius/four-frame settle/floor support; same Main/Player and phase/control
+  remain current throughout. First failed waypoint ends the route.
+- **Command/limits:** existing script plus `-- --walk-salvage-access`, one clean
+  source pin, compile300s then ONE private Xvfb/x11/Dummy route300s/outer360s.
+  `WALK_SALVAGE_ACCESS_TEST_OK` exactly once only on actual exit0/cleanup and
+  original fullraw diagnostics0. Release inputs/cursor on every path; independent
+  supervisor abort and owned-process cleanup.
+- **Budget/close:**30–45min implementation/review, split before90; check duration
+  separate. First unexpected failure stops: exact actor/boundary/owner and at most
+  one bounded static diagnosis before a separately selected repair. Failed task
+  plus one repair requires cumulative priority review. Commit/push result/limits,
+  retain unique raw/source refs, clean owned scratch. Caller-only pass needs no
+  identical-runtime checkpoint; any accepted runtime repair has a separate card
+  and fresh paired playable packages.
+- **Remaining ordered children:** WALK-SALVAGE-INSPECT proves ordinary component
+  interactions and manifest publication after actual approach; WALK-SALVAGE-REVISIT
+  proves durable fresh-process physical revisit without a duplicate transaction.
+  Their exact commands/budgets must be frozen when prerequisites pass. Existing
+  connector-staged memory-store proof does not silently satisfy either whole route.
 
 ### CRAFT-GAPS-TORRENT — bounded definition complete
 
