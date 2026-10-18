@@ -5644,6 +5644,7 @@ func _publish_active_ship_telemetry_to_hud() -> Dictionary:
 	var display: Dictionary = telemetry.duplicate()
 	display.merge(active_ship.get_network_hull_telemetry_presentation(), true)
 	display.merge(active_ship.get_network_operation_telemetry_presentation(), true)
+	display.merge(active_ship.get_network_component_power_telemetry_presentation(), true)
 	_decorate_flight_path_telemetry(display)
 	hud.update_ship_telemetry(display)
 	return telemetry

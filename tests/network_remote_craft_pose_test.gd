@@ -79,6 +79,10 @@ var _full_throttle: ShipCommand = null
 
 func _run() -> void:
 	if await _build():
+		if OS.get_cmdline_user_args().has("--component-powers-only"):
+			await _assert_remote_component_power_hud()
+			await _finish_pose_suite()
+			return
 		if OS.get_cmdline_user_args().has("--component-hud-only"):
 			await _assert_remote_component_hud()
 			await _finish_pose_suite()
@@ -102,6 +106,7 @@ func _run() -> void:
 		_assert_remote_hull_instruments()
 		_assert_remote_hull_hud()
 		_assert_remote_operation_hud()
+		await _assert_remote_component_power_hud()
 		await _assert_remote_component_hud()
 		await _assert_a_grant_claims_ownership()
 		await _assert_b_host_publishes_the_pose()
@@ -389,7 +394,224 @@ func _assert_published_operation_hud(engine: StringName, throttle: float, descri
 		"HUD-only operation scalars do not replace the publisher's raw gameplay telemetry result")
 
 
-## Bind the real retained component row to an observer's accepted host facts.
+## Carry actual host outputs into the observer's retained HUD label.
+func _assert_remote_component_power_hud() -> void:
+	# This is an authority-admitted role fixture, not a physical crew-admission
+	# route. Both producer and retained observer are actual production Halyards.
+	var source := preload("res://scenes/ships/halyard_crew_transport.tscn").instantiate() as HalyardCrewTransport
+	root.add_child(source)
+	await process_frame
+	source.set_physics_process(false)
+	var rig := source.get_damage_presentation()
+	rig.set_process(false)
+	source.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	var receiver := _craft
+	var was_processing := receiver.is_physics_processing()
+	receiver.set_physics_process(false)
+	var previous_ship: HeroShip = _host.active_ship
+	_host.active_ship = receiver
+	var raw := receiver.get_telemetry()
+	var ledger := receiver.get_component_damage().get_ledger_snapshot()
+	var report := receiver.get_component_damage_display_report()
+	var transform_before := receiver.global_transform
+	var velocity_before := receiver.velocity
+	var command_source := receiver.get_command_source()
+	var model := source.get_component_damage()
+	for component: Dictionary in source.get_network_damage_presentation_snapshot().components:
+		var id: StringName = component.id
+		if id in [ShipComponentDamage.COMPONENT_ENGINE_BAY, ShipComponentDamage.COMPONENT_CORE_SYSTEMS, ShipComponentDamage.COMPONENT_PORT_WING]:
+			var amount: float = source.maximum_hull * (0.3 if id == ShipComponentDamage.COMPONENT_PORT_WING else 0.15)
+			_check(bool(model.record_projectile_damage(amount, component.local_position).get("accepted", false)),
+				"host component owner supplies real impaired and failed power channels")
+	var before_route := source.get_telemetry()
+	_check(float(before_route.engine_power) > 0.0 and float(before_route.engine_power) < 1.0
+		and float(before_route.weapon_power) == 0.0 and float(before_route.targeting_power) < 1.0,
+		"power producer has real impaired engine/targeting and zero weapon output")
+	var authority := preload("res://scripts/ships/crew_seat_role_authority.gd").new(1)
+	_check(bool(authority.register_halyard_roster().get("accepted", false))
+		and bool(source.attach_crew_role_authority(authority).get("accepted", false))
+		and bool(authority.claim(1, 77, &"power_engineer", &"crew_port_01", authority.ROLE_ENGINEER, 1).get("accepted", false)),
+		"power route fixture admits an engineer through the existing role authority")
+	var routed := source.submit_crew_intent(1, 77, &"power_engineer", authority.ACTION_ENGINEER_REPAIR,
+		{"system_id": ShipComponentDamage.COMPONENT_ENGINE_BAY, "repair": 0.0, "system_generation": model.get_ledger_generation()}, 1)
+	_check(bool(routed.get("consumed", false)) and float(source.get_telemetry().engine_power) > float(before_route.engine_power),
+		"admitted Halyard selection changes actual live engine output")
+	var host_stream := PoseStream.new()
+	var stream := PoseStream.new()
+	stream.bind_replica_craft_presentations([receiver])
+	receiver.set_network_damage_presentation_enabled(true)
+	_check(receiver.get_network_component_power_telemetry_presentation().is_empty(),
+		"power projection starts empty before an accepted host sample")
+	var raw_first := PoseStream.build_pose_entry(source, source.get_ship_id(), 77, 897)
+	raw_first.erase("operation_presentation")
+	_apply_power_hud_sample(receiver, stream, [raw_first], _component_powers(source.get_telemetry()),
+		"first accepted raw row projects complete powers without previous operation facts")
+	var pilots := {source.get_ship_id(): {"craft": source, "peer_id": 77}}
+	var entries := host_stream.build_host_entries(pilots, 900, [source])
+	var entry: Dictionary = entries[0]
+	var expected := _component_powers(source.get_telemetry())
+	var packed := PoseStream.pack_display_facts(entries)
+	var facts: Array = bytes_to_var((packed[0].display_facts as PackedByteArray).decompress(int(packed[0].display_size), FileAccess.COMPRESSION_ZSTD))
+	_check(_component_powers(entry) == expected and _component_powers(packed[0]) == expected
+		and facts[0].size() == 11 and facts[0][9].size() == 10,
+		"per-craft publisher carries the actual complete routed trio in optional headers with unchanged compressed row layout")
+	_apply_power_hud_sample(receiver, stream, packed, expected,
+		"actual retained HUD label shows host routed engine, failed weapons and impaired targeting")
+	var detached := receiver.get_network_component_power_telemetry_presentation()
+	detached.engine_power = 0.99
+	_assert_published_power_hud(expected, "mutating detached power projection cannot change retained host output")
+	# Critical hull output is time-dependent even while component integrity is
+	# unchanged. Exercise the real presentation getter, not an integrity formula.
+	source.set("_hull", source.maximum_hull * 0.2)
+	source._sync_damage_presentation()
+	rig.set("_elapsed", 0.0)
+	rig._process(0.10)
+	entries = host_stream.build_host_entries(pilots, 903, [source])
+	entry = entries[0]
+	expected = _component_powers(source.get_telemetry())
+	_check(float(expected.engine_power) < float(source.get_operational_modifiers().mobility_multiplier),
+		"critical hull stutter constrains actual engine telemetry below routed component performance")
+	_apply_power_hud_sample(receiver, stream, PoseStream.pack_display_facts(entries), expected,
+		"actual HUD engine percentage follows critical hull output")
+	var first_stutter: float = expected.engine_power
+	rig._process(0.07)
+	entries = host_stream.build_host_entries(pilots, 906, [source])
+	entry = entries[0]
+	expected = _component_powers(source.get_telemetry())
+	_check(not is_equal_approx(first_stutter, float(expected.engine_power)),
+		"unchanged components yield a fresh host stutter output on the next sample")
+	_apply_power_hud_sample(receiver, stream, PoseStream.pack_display_facts(entries), expected,
+		"actual HUD follows the next critical hull stutter sample")
+	var heard_tick: int = stream.get_audit().heard_tick
+	rig._process(0.04)
+	entries = host_stream.build_host_entries({}, 1512, [source])
+	entry = entries[0]
+	expected = _component_powers(source.get_telemetry())
+	_check(not bool(entry.pose_active) and int(entry.pose_tick) == 906 and int(entry.operation_tick) == 1512,
+		"settled host updates powers with a fresh operation tick and retained movement tick")
+	_apply_power_hud_sample(receiver, stream, PoseStream.pack_display_facts(entries), expected,
+		"settled craft power update reaches the actual HUD")
+	_check(int(stream.get_audit().heard_tick) == heard_tick,
+		"settled power updates do not advance the heard motion clock")
+	var accepted := stream.latest_sample(receiver.get_ship_id())
+	for invalid: Variant in [NAN, INF, -0.01, 1.01, "0.5", true, null]:
+		for field: String in PoseStream.COMPONENT_POWER_FIELDS:
+			var malformed := entry.duplicate(true)
+			malformed.operation_tick = 1515
+			malformed[field] = invalid
+			_check(stream.consume_movement_section(PoseStream.pack_display_facts([malformed])) == 0
+				and stream.consume_movement_section([malformed]) == 0,
+				"invalid primitive power is rejected in packed and unpacked rows")
+	for field: String in PoseStream.COMPONENT_POWER_FIELDS:
+		var partial := entry.duplicate(true)
+		partial.operation_tick = 1515
+		partial.erase(field)
+		_check(stream.consume_movement_section(PoseStream.pack_display_facts([partial])) == 0,
+			"partial power triple cannot become an accepted projection")
+	_check(stream.latest_sample(receiver.get_ship_id()) == accepted,
+		"rejected malformed rows retain the complete prior accepted powers")
+	var legacy := entry.duplicate(true)
+	legacy.operation_tick = 1515
+	for field: String in PoseStream.COMPONENT_POWER_FIELDS:
+		legacy.erase(field)
+	_apply_power_hud_sample(receiver, stream, PoseStream.pack_display_facts([legacy]), _component_powers(raw),
+		"a newer legacy row clears stale host powers and HUD falls back to current local telemetry")
+	_check(receiver.get_network_component_power_telemetry_presentation().is_empty(),
+		"accepted missing trio leaves no power override")
+	_check(stream.consume_movement_section(PoseStream.pack_display_facts([entry])) == 0,
+		"older settled powers cannot overwrite the newer missing-field fallback")
+	var restored := entry.duplicate(true)
+	restored.operation_tick = 1518
+	_apply_power_hud_sample(receiver, stream, PoseStream.pack_display_facts([restored]), expected,
+		"later complete powers restore the host HUD projection")
+	var legacy_pose := legacy.duplicate(true)
+	legacy_pose.operation_tick = 1521
+	legacy_pose.erase("operation_presentation")
+	_apply_power_hud_sample(receiver, stream, [legacy_pose], _component_powers(raw),
+		"accepted legacy pose without any operation facts also clears stale host powers")
+	# A real terminal source keeps its actual component outputs; power transport
+	# grants no weapon readiness or authority and cannot resurrect an old life.
+	source.set("_destroyed", true)
+	source.set("_hull", 0.0)
+	source._sync_damage_presentation()
+	entries = host_stream.build_host_entries({}, 1524, [source])
+	var terminal: Dictionary = entries[0]
+	var terminal_expected := _component_powers(source.get_telemetry())
+	_apply_power_hud_sample(receiver, stream, PoseStream.pack_display_facts(entries), terminal_expected,
+		"terminal actual HUD powers agree with host telemetry independently of weapon readiness")
+	var replay := entry.duplicate(true)
+	replay.pose_tick = 1527
+	replay.operation_tick = 1527
+	_check(stream.consume_movement_section(PoseStream.pack_display_facts([replay])) == 0,
+		"newer pose cannot resurrect a terminal same-generation power life")
+	var next_life := entry.duplicate(true)
+	next_life.entity_generation = int(entry.entity_generation) + 1
+	next_life.hull_presentation.component_generation = next_life.entity_generation
+	next_life.pose_tick = 1
+	next_life.operation_tick = 1
+	for field: String in PoseStream.COMPONENT_POWER_FIELDS:
+		next_life[field] = 1.0
+	_apply_power_hud_sample(receiver, stream, PoseStream.pack_display_facts([next_life]), _component_powers(next_life),
+		"a new generation replaces terminal powers even with an earlier pose clock")
+	var wrong_epoch := next_life.duplicate(true)
+	wrong_epoch.craft_epoch = 2
+	wrong_epoch.pose_tick = 1600
+	wrong_epoch.operation_tick = 1600
+	_check(stream.consume_movement_section(PoseStream.pack_display_facts([terminal])) == 0
+		and stream.consume_movement_section(PoseStream.pack_display_facts([wrong_epoch])) == 0,
+		"old-generation and wrong-epoch powers cannot replace the new accepted life")
+	_assert_published_power_hud(_component_powers(next_life), "rejected generation/epoch leaves actual HUD on accepted powers")
+	receiver.set("_piloted", true)
+	_check(receiver.get_network_component_power_telemetry_presentation().is_empty(),
+		"local pilot excludes all remote power overrides")
+	_assert_published_power_hud(_component_powers(raw), "local pilot HUD keeps actual local powers")
+	receiver.set("_piloted", false)
+	receiver.clear_network_operation_presentation()
+	_check(receiver.get_network_component_power_telemetry_presentation().is_empty(),
+		"explicit clear removes remote power projection")
+	_assert_published_power_hud(_component_powers(raw), "clear restores local HUD powers")
+	receiver.apply_network_operation_presentation(stream.latest_sample(receiver.get_ship_id()))
+	receiver.set_network_damage_presentation_enabled(false)
+	_check(receiver.get_network_component_power_telemetry_presentation().is_empty(),
+		"disable removes remote power projection")
+	stream.clear_replica()
+	stream.bind_replica_craft_presentations([receiver])
+	receiver.set_network_damage_presentation_enabled(true)
+	_apply_power_hud_sample(receiver, stream, PoseStream.pack_display_facts([wrong_epoch]), _component_powers(wrong_epoch),
+		"clear and re-entry accept the new epoch without stale power state")
+	receiver.set_network_damage_presentation_enabled(false)
+	_check(receiver.get_telemetry() == raw and receiver.get_component_damage().get_ledger_snapshot() == ledger
+		and receiver.get_component_damage_display_report() == report and receiver.global_transform == transform_before
+		and receiver.velocity == velocity_before and receiver.get_command_source() == command_source,
+		"power display lifecycle preserves raw local telemetry, component report, repair ledger, pose, velocity and command authority")
+	_host.active_ship = previous_ship
+	receiver.set_physics_process(was_processing)
+	source.free()
+
+
+func _component_powers(telemetry: Dictionary) -> Dictionary:
+	var powers: Dictionary = {}
+	for field: String in PoseStream.COMPONENT_POWER_FIELDS:
+		powers[field] = telemetry[field]
+	return powers
+
+
+func _apply_power_hud_sample(ship: HeroShip, stream: PoseStream, movement: Array, expected: Dictionary, description: String) -> void:
+	_check(stream.consume_movement_section(movement) == 1, "power HUD accepts the ordered compact host sample")
+	ship.apply_network_operation_presentation(stream.latest_sample(ship.get_ship_id()))
+	_assert_published_power_hud(expected, description)
+
+
+func _assert_published_power_hud(expected: Dictionary, description: String) -> void:
+	var raw := _host.active_ship.get_telemetry()
+	var returned := _host._publish_active_ship_telemetry_to_hud()
+	var label := _host.hud.get("_damage_status_label") as Label
+	_check(label.text.contains("ENGINE OUTPUT  %03d%%    WEAPONS  %03d%%    TARGETING  %03d%%" % [
+		roundi(float(expected.engine_power) * 100.0), roundi(float(expected.weapon_power) * 100.0), roundi(float(expected.targeting_power) * 100.0)]), description)
+	_check(returned == raw and _host.active_ship.get_telemetry() == raw,
+		"power HUD overlay leaves the publisher's raw gameplay telemetry result unchanged")
+
+
 func _assert_remote_component_hud() -> void:
 	var ship := _host.get_node("JovianLightFreighter") as HeroShip
 	var was_processing := ship.is_physics_processing()
