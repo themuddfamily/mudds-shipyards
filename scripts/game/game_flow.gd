@@ -985,6 +985,8 @@ var _solo_crew_lifetime_hook: Node
 var _solo_crew_lifetime_callback: Callable
 var _solo_crew_seat_id: StringName = &""
 var _solo_crew_role: StringName = &""
+# Captured host scope outlives seat fields until Cinder commits its real clear.
+var _solo_navigator_audio_network_context: Dictionary = {}
 var _network_engineer_binding: NetworkJovianEngineerBindingType
 var _network_engineer_generation := 0
 var _network_engineer_pending_seat: ShipCrewSeat
@@ -7404,6 +7406,12 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	# Stopped-session teardown must not announce the old host claim as a fresh
+	# physical stand when binding detach synchronously clears its ship receipt.
+	if not _solo_navigator_audio_network_context.is_empty():
+		if is_instance_valid(optional_semantic_audio_composition):
+			optional_semantic_audio_composition.clear_local_navigator()
+		_solo_navigator_audio_network_context.clear()
 	# Flush only progress accepted while the prior host/lease was live.
 	_flush_shared_aurora_survey_checkpoint()
 	_network_planetary_journey.detach()
@@ -7471,6 +7479,9 @@ func _on_network_session_stopped(reason: StringName) -> void:
 	_detach_network_ship_authority_composition(reason)
 	_detach_network_halyard_command_bridge()
 	_detach_halyard_crew_semantic_audio()
+	# The Director just retired its router sources; retire matching optional
+	# attachment state so re-entry binds actual sources instead of stale flags.
+	_detach_optional_semantic_audio()
 	# The session is gone, and its role with it: a client whose host dropped
 	# lands, fires and travels on its own again rather than waiting on a host
 	# that is no longer there. RETRY still knows which role to reopen.
@@ -9814,9 +9825,14 @@ func _release_solo_crew_authority() -> bool:
 			return false
 	if _network_engineer_binding != null and _network_engineer_binding.owns_role_authority(_solo_crew_authority):
 		_network_engineer_binding.next_role_sequence(_solo_crew_authority, _solo_crew_sequence)
-	# Cinder detach above owns the clear notification; unbind only afterwards.
+	# Shared network authority survives stand. Generic occupant release drops
+	# its ledger first; Cinder clears on physics, after these seat fields retire.
 	if is_instance_valid(optional_semantic_audio_composition):
-		optional_semantic_audio_composition.clear_local_navigator()
+		if _network_engineer_binding != null and _network_engineer_binding.owns_role_authority(_solo_crew_authority):
+			optional_semantic_audio_composition.retire_local_navigator_if_lost()
+		else:
+			optional_semantic_audio_composition.clear_local_navigator()
+			_solo_navigator_audio_network_context.clear()
 	_solo_crew_authority = null
 	_solo_crew_ship = null
 	_solo_crew_sequence = 0
@@ -10180,11 +10196,7 @@ func _cancel_solo_crew_seat() -> void:
 ## FIRE and engineer component-selection steps are consumed here; flight and
 ## GameFlow edges never leave this crew lane.
 func _update_solo_gunner_input(delta: float) -> void:
-	if is_instance_valid(optional_semantic_audio_composition):
-		if _network_session_is_live():
-			optional_semantic_audio_composition.clear_local_navigator()
-		else:
-			optional_semantic_audio_composition.retire_local_navigator_if_lost()
+	_sync_solo_navigator_audio_lifetime()
 	if not _solo_gunner_input_is_available():
 		_reset_solo_gunner_input()
 		return
@@ -10216,7 +10228,7 @@ func _update_solo_gunner_input(delta: float) -> void:
 				var sequence := _solo_crew_sequence
 				var craft := _solo_crew_ship as CinderCargoHauler
 				var outcome: Dictionary = craft.submit_navigator_ping(1, SOLO_CREW_AVATAR_ID, sequence)
-				if not _network_session_is_live() and not claim.is_empty() and is_instance_valid(optional_semantic_audio_composition):
+				if not claim.is_empty() and claim == _solo_navigator_audio_claim() and is_instance_valid(optional_semantic_audio_composition):
 					optional_semantic_audio_composition.present_cinder_local_navigator_result(outcome, claim, sequence)
 				# Presentation observers may synchronously retire this exact claim.
 				if not _solo_gunner_source_is_current() or _solo_crew_ship != craft \
@@ -21393,12 +21405,16 @@ func _initialize_optional_semantic_audio() -> void:
 	else:
 		optional_semantic_audio_composition.set_sources(cinder, planetary_cruise_binding)
 		optional_semantic_audio_composition.set_navigator_generation(navigator_generation)
-	if not _network_session_is_live():
-		var local_claim := _solo_navigator_audio_claim()
-		if not local_claim.is_empty():
-			optional_semantic_audio_composition.set_local_navigator_claim(local_claim)
-	else:
-		optional_semantic_audio_composition.clear_local_navigator()
+	_sync_solo_navigator_audio_lifetime()
+	var local_claim := _solo_navigator_audio_claim()
+	if not local_claim.is_empty():
+		var bound: Dictionary = optional_semantic_audio_composition.set_local_navigator_claim(local_claim)
+		if bool(bound.get("accepted", false)) and _network_session_is_live():
+			_solo_navigator_audio_network_context = {
+				"session": network_session, "binding": _network_engineer_binding,
+				"craft": _solo_crew_ship, "authority": _solo_crew_authority,
+				"migration": int(network_session.get_migration_snapshot().get("migration_generation", 0)),
+			}
 	_sync_cinder_navigator_hud_composition(navigator_generation)
 
 
@@ -21412,33 +21428,64 @@ func _sync_optional_semantic_audio() -> void:
 		optional_semantic_audio_composition.set_navigator_generation(
 			_get_cinder_navigator_presentation_generation()
 		)
-	if _network_session_is_live():
-		optional_semantic_audio_composition.clear_local_navigator()
+	_sync_solo_navigator_audio_lifetime()
 	_sync_cinder_navigator_hud_composition(
 		_get_cinder_navigator_presentation_generation()
 	)
 
 
 func _solo_navigator_audio_claim() -> Dictionary:
-	if _network_session_is_live() or not _solo_crew_ship is CinderCargoHauler \
+	if not _solo_crew_ship is CinderCargoHauler \
 			or _solo_crew_seat_id != CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID \
 			or not _solo_crew_claim_is_current():
+		return {}
+	if (_network_session_is_live() or not _solo_navigator_audio_network_context.is_empty() \
+			or (_network_engineer_binding != null and _network_engineer_binding.owns_role_authority(_solo_crew_authority))) \
+			and not _host_owns_local_navigator_audio(_solo_crew_ship, _solo_crew_authority):
 		return {}
 	return {"craft": _solo_crew_ship, "authority": _solo_crew_authority,
 		"avatar_id": SOLO_CREW_AVATAR_ID, "seat_generation": _solo_crew_seat_generation,
 		"claim_sequence": int(_solo_crew_authority.get_assignment(1, SOLO_CREW_AVATAR_ID).get("claim_sequence", 0))}
 
 
-func _bind_solo_navigator_audio_claim() -> void:
-	var claim := _solo_navigator_audio_claim()
-	if claim.is_empty():
+func _host_owns_local_navigator_audio(craft: HeroShip, owner: CrewSeatRoleAuthority) -> bool:
+	return _network_session_is_live() and _network_session_mode == &"server" \
+		and network_session.is_server() and _network_engineer_binding != null \
+		and _network_engineer_binding._session == network_session \
+		and _network_engineer_binding.loadmaster != null \
+		and _network_engineer_binding.loadmaster._session == network_session \
+		and _network_engineer_binding.loadmaster._migration == int(network_session.get_migration_snapshot().get("migration_generation", 0)) \
+		and _network_engineer_binding.owns_role_authority(owner) \
+		and _network_engineer_binding.role_authority_for(craft) == owner
+
+
+func _sync_solo_navigator_audio_lifetime() -> void:
+	if not is_instance_valid(optional_semantic_audio_composition):
 		return
-	_initialize_optional_semantic_audio()
-	if is_instance_valid(optional_semantic_audio_composition):
-		optional_semantic_audio_composition.set_local_navigator_claim(claim)
+	var scope := _solo_navigator_audio_network_context
+	var lost_scope := _network_session_is_live() if scope.is_empty() else false
+	if not scope.is_empty():
+		lost_scope = not is_instance_valid(scope.get("craft")) \
+			or not is_instance_valid(scope.get("session")) \
+			or scope.get("session") != network_session \
+			or scope.get("binding") != _network_engineer_binding \
+			or not _host_owns_local_navigator_audio(scope.craft, scope.authority)
+		if not lost_scope:
+			lost_scope = int(scope.migration) != int(network_session.get_migration_snapshot().get("migration_generation", 0))
+	if lost_scope:
+		optional_semantic_audio_composition.clear_local_navigator()
+		_solo_navigator_audio_network_context.clear()
+	else:
+		optional_semantic_audio_composition.retire_local_navigator_if_lost()
+
+
+func _bind_solo_navigator_audio_claim() -> void:
+	if not _solo_navigator_audio_claim().is_empty():
+		_initialize_optional_semantic_audio()
 
 
 func _detach_optional_semantic_audio() -> void:
+	_solo_navigator_audio_network_context.clear()
 	if is_instance_valid(optional_semantic_audio_composition):
 		optional_semantic_audio_composition.detach()
 
