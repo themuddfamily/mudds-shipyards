@@ -5546,3 +5546,13 @@ HUD owners plus smallest existing focused test; do not steal other control focus
 Full selected acceptance remains unchanged300s/all3 authored scales. Fresh
 checkpoint stays gated until acceptance; unrelated networking/endurance/hardware
 work does not resolve this demonstrated usable-Options failure.
+
+UI-REPAIR-FAILURE-FOCUS candidate1cf102298 captures real confirmation focus
+before clearing and returns only that disappearing focus to live enabled Save.
+Other focused controls retain ownership. Independent review identifies a missing
+queued-page guard; the one predicate is included before engines. Existing repair
+HUD test adds real failure/explicit-clear handoffs and unrelated-focus retention,
+without changing token/authority/report checks. Conflict fix and selected fixture
+are unchanged. Freeze compile300, focused repair HUD300, one full selected300
+on exact clean source; no repeated import/global-class changes. First failure
+stops again with cumulative history retained; no automatic additional correction.

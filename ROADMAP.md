@@ -33,13 +33,13 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Current bounded cards
 
-**1 FAILED, 1 READY, 1 GATED.** These are executable task instances, not the remaining
+**1 FAILED, 1 IN PROGRESS, 1 GATED.** These are executable task instances, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
 | UI-CONFLICT-REVEAL | Production UI / FAILED at next qualification boundary | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
-| UI-REPAIR-FAILURE-FOCUS | Production UI / READY | Hiding a focused unavailable repair confirmation returns focus to a live Options control. |20–30 min implementation/review; compile300s, focused check300s and existing selected check300s. |
+| UI-REPAIR-FAILURE-FOCUS | Production UI / IN PROGRESS | Hiding a focused unavailable repair confirmation returns focus to a live Options control. |20–30 min implementation/review; compile300s, focused check300s and existing selected check300s. |
 | CHECKPOINT-PAUSE-CONFLICT | Build / GATED on accepted repairs | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
 
 ### UI-CONFLICT-REVEAL — make the focused conflict choice visible
@@ -88,8 +88,11 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
   focused action must hand focus to a visible enabled existing Options control;
   clearing status while another control is focused must retain that focus.
   Explicit compile300s. Physical devices/transactions/rendering remain separate.
-- **Execution:** READY/root after recorded priority review. Inspect actual clear
-  before-report ordering, make one bounded correction;20–30min implementation/
+- **Execution:** IN PROGRESS/root after recorded priority review. Candidate
+  `1cf102298` hands actual disappearing repair focus to Save; other focus stays.
+  Review-required queued-page guard is included before engines. Freeze explicit
+  focused compile300s, existing repair HUD300s and one full selected300s, without
+  repeated import; no global-class/resource changes require it.20–30min implementation/
   review, splitbefore90. First failure STOP; no automatic second repair or rerun.
   Prior failure/fixture correction/conflict repair budgets are retained together.
 - **Close:** actual source/result/limits, commit/push and the gated fresh checkpoint
