@@ -271,7 +271,9 @@ func _exercise_host_local() -> bool:
 	_check(_count(&"cinder_navigator_ping_cleared") == clears_before + 1, "repeated host cleanup creates no fabricated clear")
 	if not await _sit():
 		return false
-	_check(_flow._solo_crew_authority == owner and _flow._solo_crew_seat_generation > first_generation, "host reseat uses shared authority with a fresh physical generation")
+	var reseated_claim: Dictionary = _flow._solo_navigator_audio_claim()
+	var reseated_assignment: Dictionary = owner.get_assignment(1, Flow.SOLO_CREW_AVATAR_ID)
+	_check(_flow._solo_crew_authority == owner and _flow._solo_crew_seat_generation == int(reseated_assignment.get("seat_generation", 0)) and int(reseated_claim.get("claim_sequence", 0)) > int(first_claim.claim_sequence), "host reseat uses shared authority and actual assignment generation with a fresh claim sequence")
 	before = _cues.size()
 	old_callback.call(second_receipt, &"late_host_stand")
 	_flow.optional_semantic_audio_composition.present_cinder_local_navigator_result({"accepted": false, "status": &"late"}, first_claim, 100)
