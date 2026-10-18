@@ -437,6 +437,8 @@ class NativeSortieSafetyTests(unittest.TestCase):
         self.assertEqual(pilot.stage, 'approach_ship')
         # A real competing station prompt wins GameFlow's ordinary E. Rotate
         # away from that actual object while staying at the final authored goal.
+        # Acknowledge the prior OS yaw with a coherent observed camera basis.
+        s.update(walk_forward=[.8, 0, .6], walk_right=[-.6, 0, .8])
         s.update(candidate=True, station_candidate={'path': '/Main/ActualPrompt',
                  'position': [s['player'][0]+1, s['player'][1], s['player'][2]]})
         keys, dx, _, _ = self.gantry_tick(pilot, s)
