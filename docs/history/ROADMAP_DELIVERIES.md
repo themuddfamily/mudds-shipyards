@@ -6147,3 +6147,14 @@ helpers and verified duplicate private builds removed after public publication.
 No GitHub Actions runs. All36 broad parents/ten phase gates stay open; cargo
 restart/Halyard stay parked. Queue now has no READY card; next item needs its
 own bounded production trigger/acceptance rather than repeating parked probes.
+
+
+Priority review selects HUD-CARGO-FINDING after delivered mixed-control checkpoint
+b86264f. Previous turn is concrete progress: runtime grouped prompt correction,
+focused accepted checks, fresh paired package/startups/audit, integration/push and
+owned cleanup. Cargo/Halyard remain parked; no repeated route probe selected.
+One10min static agent compares actual cargo completed/paid/owed/reset/fresh-Main
+state with objective/selection/reset presentation, at most one concrete trigger/
+owner/existing focused acceptance or finite no finding. No runtime change until
+real discrepancy established; no new evidence framework. Retire completed
+KIT-DEPART table slot while preserving its full card/history.

@@ -37,10 +37,11 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**2 FAILED/PARKED, 2 GATED, 4 DONE (two qualifications, two production fixes); no READY card.** Root owns integration and closure.
+**1 IN PROGRESS definition, 2 FAILED/PARKED, 2 GATED, 3 DONE (one qualification, two production fixes).** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
-completed KIT-BOARD card remains below; its slot now holds mixed control prompts. Two definitions are complete: offline Jovian delivery and residual Halyard
+completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
+control prompts and the finite cargo HUD comparison. Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
 ten phase gates remain open. The accepted Annex route and parked Jovian exit/
@@ -50,7 +51,7 @@ and delivery history; they do not consume active queue slots.
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
 | MIXED-CONTROL-PROMPTS | DONE | Grouped movement help retains a remapped button alongside stick directions in either order. |b86264f; glyph40/camera27/help20, paired checkpoint/startups/audits pass |
-| KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
+| HUD-CARGO-FINDING | IN PROGRESS definition | One source-demonstrated cargo owner/HUD discrepancy and bounded fix, or finite no finding. |10 min static; existing acceptance and owner only |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
@@ -71,6 +72,18 @@ one probe. Failed task plus one attempted repair requires priority review before
 any more. Close with actual result/pin/limits, commit/push and owned cleanup,
 retaining unique raw/work. Caller-only work needs no identical checkpoint;
 accepted runtime repairs require separate cards and fresh paired builds.
+
+### HUD-CARGO-FINDING — compare cargo presentation with its owner
+
+- **Parent/result/type:**13; one finite source definition before runtime work.
+  Exact ordinary trigger where cargo objective, activity selection or reset
+  readiness contradicts actual completed/paid/owed/current-generation state.
+- **Boundary/owner:** one read-only agent,10min, no engine. Existing GameFlow/
+  cargo owner/nearby presenter/HUD and their focused tests only. Preserve accepted
+  ordinary delivery; parked restart timeout is not a new persistence defect.
+- **Close/next:** at most one concrete discrepancy, production seam and existing
+  focused acceptance; root selects implementation separately. If none found,
+  record no finding and stop. No speculative feature or broad lifecycle audit.
 
 ### MIXED-CONTROL-PROMPTS — retain buttons beside stick directions
 
