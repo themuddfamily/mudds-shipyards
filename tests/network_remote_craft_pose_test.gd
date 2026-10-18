@@ -80,7 +80,7 @@ var _full_throttle: ShipCommand = null
 func _run() -> void:
 	if await _build():
 		if OS.get_cmdline_user_args().has("--component-hud-only"):
-			_assert_remote_component_hud()
+			await _assert_remote_component_hud()
 			await _finish_pose_suite()
 			return
 		if OS.get_cmdline_user_args().has("--operation-hud-only"):
@@ -102,7 +102,7 @@ func _run() -> void:
 		_assert_remote_hull_instruments()
 		_assert_remote_hull_hud()
 		_assert_remote_operation_hud()
-		_assert_remote_component_hud()
+		await _assert_remote_component_hud()
 		await _assert_a_grant_claims_ownership()
 		await _assert_b_host_publishes_the_pose()
 		await _assert_c_the_pilot_copy_is_reconciled()
@@ -389,8 +389,7 @@ func _assert_published_operation_hud(engine: StringName, throttle: float, descri
 		"HUD-only operation scalars do not replace the publisher's raw gameplay telemetry result")
 
 
-## Drive the existing GameFlow publisher rather than handing crafted telemetry
-## straight to the HUD: its retained solo hull must not replace host display facts.
+## Bind the real retained component row to an observer's accepted host facts.
 func _assert_remote_component_hud() -> void:
 	var ship := _host.get_node("JovianLightFreighter") as HeroShip
 	var was_processing := ship.is_physics_processing()
@@ -424,12 +423,141 @@ func _assert_remote_component_hud() -> void:
 		"actual retained component label paints accepted host PORT WING 035 percent CRITICAL")
 	_check(ship.get_component_damage_report() == raw_report,
 		"host component display leaves the raw retained local ledger report unchanged")
+	var detached := ship.get_component_damage_display_report()
+	(detached.components as Array).clear()
+	_check(ship.get_component_damage_display_report().components.size() == raw_report.components.size()
+		and not detached.has("engine_power") and not detached.has("weapon_power") and not detached.has("targeting_power")
+		and not detached.has("ledger_generation") and not detached.has("repair_rate_per_second"),
+		"detached host component report exposes display stages without local ledger or dynamic power facts")
+	var source := ship.get_command_source()
+	var velocity := ship.velocity
+	var raw_telemetry := ship.get_telemetry()
+	var raw_damage := ship.get_network_damage_presentation_snapshot()
+	var tick := 101
+	for integrity: float in [0.58, 1.0, 0.20]:
+		var next := entry.duplicate(true)
+		next.pose_tick = tick
+		next.operation_tick = tick
+		_set_host_component_integrity(next, &"port_wing", integrity)
+		_apply_component_hud_sample(ship, stream, next)
+		_assert_component_row(&"forward_hull" if integrity == 1.0 else &"port_wing", integrity,
+			&"nominal" if integrity == 1.0 else (&"failed" if integrity == 0.20 else &"impaired"),
+			&"nominal" if integrity == 1.0 else (&"failed" if integrity == 0.20 else &"degraded"),
+			"same retained HUD follows host component repair, nominal recovery and failure without local repair wording")
+		tick += 1
+	_check(not bool(ship.apply_network_damage_presentation(entry).get("applied", false)),
+		"same-life stale host component sample is rejected")
+	_assert_component_row(&"port_wing", 0.20, &"failed", &"failed", "stale host sample leaves the actual failed component row intact")
+	var dead := entry.duplicate(true)
+	dead.pose_tick = 104
+	dead.operation_tick = 104
+	dead.destroyed = true
+	dead.hull_presentation.health = 0.0
+	_apply_component_hud_sample(ship, stream, dead)
+	row = _host.hud.get_hero_component_hud_snapshot()
+	_check(row.get("wording") == &"destroyed" and label.text == "[X] DESTROYED  //  HULL LOST",
+		"host destruction updates the actual component row without local destruction authority")
+	var same_life := entry.duplicate(true)
+	same_life.pose_tick = 105
+	same_life.operation_tick = 105
+	_check(not bool(ship.apply_network_damage_presentation(same_life).get("applied", false))
+		and _host.hud.get_hero_component_hud_snapshot().get("wording") == &"destroyed",
+		"same-life healthy recovery cannot resurrect the destroyed component row")
+	var revived := entry.duplicate(true)
+	revived.pose_tick = 106
+	revived.operation_tick = 106
+	revived.entity_generation = int(entry.entity_generation) + 1
+	revived.hull_presentation.component_generation = revived.entity_generation
+	_set_host_component_integrity(revived, &"port_wing", 1.0)
+	_set_host_component_integrity(revived, &"engine_bay", 0.55)
+	_apply_component_hud_sample(ship, stream, revived)
+	_assert_component_row(&"engine_bay", 0.55, &"impaired", &"degraded",
+		"new host life displays its component damage without borrowing local reuse audit wording")
+	_check(not bool(ship.apply_network_damage_presentation(dead).get("applied", false)),
+		"old terminal life cannot overwrite the revived component row")
+	_host.hud.set_mode("on_foot")
+	_check(not label.visible, "component row hides when observer leaves the retained flight HUD mode")
+	_host.hud.set_mode("piloting")
+	_assert_component_row(&"engine_bay", 0.55, &"impaired", &"degraded",
+		"mode reentry repaints the accepted host component source")
+	_host.hud.set_mode("on_foot")
+	ship.clear_network_damage_presentation()
+	_check(bool(ship.apply_network_damage_presentation(entry).get("applied", false)),
+		"hidden clear allows fresh host display ordering to begin from an earlier life")
+	_host.hud.set_mode("piloting")
+	_assert_component_row(&"port_wing", 0.35, &"impaired", &"critical",
+		"hidden clear and readoption fence the previous host source cache before row reentry")
+	_check(bool(ship.apply_network_damage_presentation(stream.latest_sample(ship.get_ship_id())).get("applied", false)),
+		"the accepted newer host life resumes after hidden source replacement")
+	_check(ship.get_telemetry() == raw_telemetry and ship.get_network_damage_presentation_snapshot() == raw_damage
+		and ship.get_component_damage_report() == raw_report and ship.get_command_source() == source and ship.velocity == velocity,
+		"host component lifecycle leaves raw local ledger, hull, operational scalars, motion and command authority unchanged")
+	# Local mutation is independent of the host display. In particular a real
+	# local repair receipt cannot manufacture a host repair marker or caption.
+	ship.get_component_damage().record_damage(ship.maximum_hull * 0.3)
+	ship.get_component_damage().tick_repair(0.1, true)
+	_assert_component_row(&"engine_bay", 0.55, &"impaired", &"degraded",
+		"local repair receipt cannot repaint host components as repairing")
+	var current_local := ship.get_component_damage_report()
+	ship.set_piloted(true)
+	_assert_local_component_row(current_local, "local pilot eligibility immediately restores the current local component row")
+	ship.set_piloted(false)
+	_assert_component_row(&"engine_bay", 0.55, &"impaired", &"degraded",
+		"observer eligibility immediately restores accepted host components without a new network sample")
+	ship.clear_network_damage_presentation()
+	_assert_local_component_row(current_local,
+		"clear restores today's local report despite its lower generation and revision than the host display")
+	_check(bool(ship.apply_network_damage_presentation(stream.latest_sample(ship.get_ship_id())).get("applied", false)),
+		"observer can readopt accepted host display after explicit clear")
+	_assert_component_row(&"engine_bay", 0.55, &"impaired", &"degraded", "readoption returns the same row to host components")
 	ship.set_network_damage_presentation_enabled(false)
+	_assert_local_component_row(current_local, "disable restores local components without old repair markers")
+	_host.remove_child(ship)
+	_check(not label.visible, "ship tree exit clears the actual bound component row")
+	_host.add_child(ship)
+	await process_frame
+	_assert_local_component_row(current_local, "ship tree reentry refreshes current local components after host clear")
+	ship.get_component_damage().tick_repair(100.0, true)
 	_host.hud.bind_hero_component_ship(_host.active_ship)
 	ship.set("_piloted", original_piloted)
 	ship.set_physics_process(was_processing)
 
 
+func _set_host_component_integrity(entry: Dictionary, id: StringName, integrity: float) -> void:
+	for component: Dictionary in entry.hull_presentation.components:
+		if component.id == id:
+			component.integrity = integrity
+			component.state = ShipComponentDamage.state_for_integrity(integrity)
+
+
+func _apply_component_hud_sample(ship: HeroShip, stream: PoseStream, entry: Dictionary) -> void:
+	_check(stream.consume_movement_section(PoseStream.pack_display_facts([entry])) == 1,
+		"existing compact pose admits the component HUD lifecycle sample")
+	_check(bool(ship.apply_network_damage_presentation(stream.latest_sample(ship.get_ship_id())).get("applied", false)),
+		"accepted host component update refreshes the existing HUD binding")
+
+
+func _assert_component_row(id: StringName, integrity: float, stage: StringName, wording: StringName, description: String) -> void:
+	var row: Dictionary = _host.hud.get_hero_component_hud_snapshot()
+	var label := _host.hud.find_child("ComponentStatus", true, false) as Label
+	_check(row.get("component_id") == id and row.get("component_stage") == stage
+		and is_equal_approx(float(row.get("integrity", -1.0)), integrity) and row.get("wording") == wording
+		and not bool(row.get("repairing", true)) and label != null and label.visible and label.text == row.get("text"), description)
+
+
+func _assert_local_component_row(report: Dictionary, description: String) -> void:
+	var worst: Dictionary = {}
+	for component: Dictionary in report.components:
+		if worst.is_empty() or float(component.integrity) < float(worst.integrity):
+			worst = component
+	var integrity := float(worst.integrity)
+	var wording: StringName = &"failed" if worst.state_id == &"failed" else (&"critical" if integrity <= 0.4 \
+		else (&"degraded" if worst.state_id == &"impaired" else &"nominal"))
+	_assert_component_row(StringName(worst.id), integrity, StringName(worst.state_id), wording, description)
+
+
+## Drive the existing GameFlow publisher rather than handing crafted telemetry
+## straight to the HUD: its retained solo hull must not replace host display facts.
 func _assert_remote_hull_hud() -> void:
 	var ship := _host.get_node("JovianLightFreighter") as HeroShip
 	var previous_ship := _host.active_ship

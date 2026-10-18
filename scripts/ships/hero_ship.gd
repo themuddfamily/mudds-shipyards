@@ -23,6 +23,7 @@ signal canopy_motion_finished(open: bool)
 signal camera_view_changed(view: StringName)
 signal damage_stage_changed(stage: int, status: StringName)
 signal component_damage_changed(component_id: StringName, state: int, integrity: float)
+signal component_damage_display_changed()
 signal component_repair_progressed(progress: Dictionary)
 signal component_repair_interrupted(receipt: Dictionary)
 signal destroyed(world_position: Vector3, inherited_velocity: Vector3)
@@ -756,6 +757,7 @@ func set_piloted(piloted: bool) -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
 		_clear_pending_look_motion()
+	component_damage_display_changed.emit()
 
 
 ## Enables or suspends flight simulation for a craft flown from an injected
@@ -784,6 +786,7 @@ func set_remote_piloted(piloted: bool) -> void:
 		(_command_source as LocalShipInputSource).reset_stream()
 	if not piloted:
 		_clear_pending_look_motion()
+	component_damage_display_changed.emit()
 
 
 ## True while the craft simulates flight from a remote helm (see
@@ -2669,6 +2672,25 @@ func get_network_operation_telemetry_presentation() -> Dictionary:
 	}
 
 
+## Detached component display facts. Host display ordering is deliberately
+## separate from the retained local ledger and its repair/recovery receipts.
+func get_component_damage_display_report() -> Dictionary:
+	if not _network_damage_presentation_enabled or _network_damage_state.is_empty() \
+			or _is_piloted_from_this_machine():
+		return get_component_damage_report()
+	var components: Array = (_network_damage_state.components as Array).duplicate(true)
+	for component: Dictionary in components:
+		component["state_id"] = ShipComponentDamage.state_id_for(int(component.state))
+	return {
+		"configured": true,
+		"components": components,
+		"display_source": &"host",
+		"display_generation": int(_network_damage_state.generation),
+		"display_revision": int(_network_damage_state.tick),
+		"display_destroyed": bool(_network_damage_state.destroyed),
+	}
+
+
 func set_network_damage_presentation_enabled(enabled: bool) -> void:
 	_network_damage_presentation_enabled = enabled
 	if not enabled:
@@ -2739,6 +2761,7 @@ func apply_network_damage_presentation(sample: Dictionary) -> Dictionary:
 		"health": state.health, "maximum_health": state.maximum_health,
 		"components": (state.components as Array).duplicate(true)}
 	_update_cockpit_flight_instruments()
+	component_damage_display_changed.emit()
 	return {"applied": true, "destruction_started": destruction_started}
 
 
@@ -2757,6 +2780,7 @@ func clear_network_damage_presentation() -> void:
 	if is_instance_valid(_network_damage_presentation):
 		_network_damage_presentation.reset_for_reuse()
 		_network_damage_presentation.visible = false
+	component_damage_display_changed.emit()
 
 
 func set_network_damage_reduced_flash(enabled: bool) -> void:
