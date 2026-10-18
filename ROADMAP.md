@@ -34,12 +34,13 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 LIFE-ARM is accepted on packaged `f2bf35a`; its ordinary route and actual controller
 step proof passed. Source merged, checkpoint published, owned scratch cleaned.
-LIFE-PATROL source definition is complete; its bounded card below is prepared,
-not yet selected for implementation or engine execution.
+LIFE-PATROL is selected for implementation and bounded validation under the
+card below. Root owns integration/checks/packages; source work is isolated in
+`/srv/mudds-work/life-patrol-20261018/source`.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| LIFE-PATROL | PREPARED; source definition DONE, runtime NOT_RUN | Shared LIFE configuration plus actual Habitat door input,22 walking goals and original Torrent boarding. Five files, exact card below. Estimate30–45min implementation/review plus10–15min checks/package; original route CAP300/outer360. |
+| LIFE-PATROL | SELECTED; source definition DONE, runtime NOT_RUN | Shared LIFE configuration plus actual Habitat door input,22 walking goals and original Torrent boarding. Five files, exact card below. Estimate30–45min implementation/review plus10–15min checks/package; original route CAP300/outer360. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Current binding rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 The Hauler stock/custody decision remains the concrete missing prerequisite for
