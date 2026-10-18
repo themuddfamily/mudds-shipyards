@@ -79,6 +79,10 @@ var _full_throttle: ShipCommand = null
 
 func _run() -> void:
 	if await _build():
+		if OS.get_cmdline_user_args().has("--component-hud-only"):
+			_assert_remote_component_hud()
+			await _finish_pose_suite()
+			return
 		if OS.get_cmdline_user_args().has("--operation-hud-only"):
 			_assert_remote_operation_hud()
 			await _finish_pose_suite()
@@ -98,6 +102,7 @@ func _run() -> void:
 		_assert_remote_hull_instruments()
 		_assert_remote_hull_hud()
 		_assert_remote_operation_hud()
+		_assert_remote_component_hud()
 		await _assert_a_grant_claims_ownership()
 		await _assert_b_host_publishes_the_pose()
 		await _assert_c_the_pilot_copy_is_reconciled()
@@ -386,6 +391,45 @@ func _assert_published_operation_hud(engine: StringName, throttle: float, descri
 
 ## Drive the existing GameFlow publisher rather than handing crafted telemetry
 ## straight to the HUD: its retained solo hull must not replace host display facts.
+func _assert_remote_component_hud() -> void:
+	var ship := _host.get_node("JovianLightFreighter") as HeroShip
+	var was_processing := ship.is_physics_processing()
+	var original_piloted: bool = bool(ship.get("_piloted"))
+	ship.set_physics_process(false)
+	ship.set("_piloted", false)
+	var raw_report := ship.get_component_damage_report()
+	var entry := PoseStream.build_pose_entry(ship, ship.get_ship_id(), 1, 100)
+	entry["craft_epoch"] = 1
+	for component: Dictionary in entry.hull_presentation.components:
+		if component.id == &"port_wing":
+			component.integrity = 0.35
+			component.state = ShipComponentDamage.state_for_integrity(0.35)
+	var stream := PoseStream.new()
+	stream.bind_replica_craft_presentations([ship])
+	_check(stream.consume_movement_section(PoseStream.pack_display_facts([entry])) == 1,
+		"component row regression admits the existing validated host port-wing damage")
+	ship.set_network_damage_presentation_enabled(true)
+	_check(bool(ship.apply_network_damage_presentation(stream.latest_sample(ship.get_ship_id())).get("applied", false)),
+		"component row regression applies accepted host damage to the retained silhouette")
+	# Staged observer presentation: bind the existing HUD directly, without
+	# claiming this fixture proves physical crew admission or travel.
+	_host.hud.set_mode("piloting")
+	_check(_host.hud.bind_hero_component_ship(ship), "component row regression binds the actual retained HUD")
+	var row: Dictionary = _host.hud.get_hero_component_hud_snapshot()
+	_check(row.get("component_id") == &"port_wing" and row.get("component_stage") == &"impaired"
+		and is_equal_approx(float(row.get("integrity", -1.0)), 0.35) and row.get("wording") == &"critical",
+		"actual retained component HUD row shows accepted host PORT WING 035 percent CRITICAL")
+	var label := _host.hud.find_child("ComponentStatus", true, false) as Label
+	_check(label != null and label.visible and label.text == "[!] DAMAGE  //  PORT WING  035%  //  CRITICAL",
+		"actual retained component label paints accepted host PORT WING 035 percent CRITICAL")
+	_check(ship.get_component_damage_report() == raw_report,
+		"host component display leaves the raw retained local ledger report unchanged")
+	ship.set_network_damage_presentation_enabled(false)
+	_host.hud.bind_hero_component_ship(_host.active_ship)
+	ship.set("_piloted", original_piloted)
+	ship.set_physics_process(was_processing)
+
+
 func _assert_remote_hull_hud() -> void:
 	var ship := _host.get_node("JovianLightFreighter") as HeroShip
 	var previous_ship := _host.active_ship
