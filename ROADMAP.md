@@ -202,7 +202,9 @@ ran for this definition. Existing Jovian route stays binding.
 - **Finish:** actual production-composed Hauler definition/shape/markers, supported
   landing contact, stable opaque lease through normal Hero landing, exact disembarked
   actor/current craft/attachment authorization and ordinary supported Player walking
-  to terminal; wrong actor/ship/stale lease still refused. Preserve original Jovian
+  to terminal; wrong actor/ship/stale lease still refused. The existing public
+  terminal.interact boundary after actual walking is focused interaction proof,
+  not full Main E-key dispatch. Preserve original Jovian
   geometry/dock/marker/route and all its acceptance checks. Compatibility tags may
   gain cargo_hauler; migrate only the exact expected tag-list assertion while
   retaining the existing Jovian member/compatibility assertion. Do not widen the
@@ -210,7 +212,7 @@ ran for this definition. Existing Jovian route stays binding.
 - **Checks/budget:**60–90min, split before90. Test-only commit first, compile300s
   and full existing access suite at original1200s cap: only frozen intended new
   Hauler compatibility/access failure(s), original Jovian route retained. On final
-  clean pin import/compile/full same suite plus existing ShipBerth/expansion physical
+  clean pin import/compile/full same suite plus existing ship_definition_berth/expansion physical
   switching suites at their original declared/default caps, headless/Dummy. New
   case may stage the actual craft at broad capture and Player at real disembark
   handoff; subsequent terminal walk must use supported normal locomotion/Interact,
