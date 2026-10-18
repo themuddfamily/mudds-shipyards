@@ -297,6 +297,29 @@ bunk support requires its own explicit production card before engines/edits.
   checkpoint/three strict silent startups/actual package audit, notes, push and
   owned cleanup. Freeze full ordinary Habitat walk only after this capability.
 
+### Habitat rest — first result and one selected fixture correction
+
+Production18d4388 imports/compiles cleanly; focused rest fails33.678s at reuse
+bunk discovery after119 passes. All six geometry/reservation/idle discovery,
+actual initial E sleep/wake, unborrowed authority and supported walking pass.
+Full Habitat/ship suites/packages NOT_RUN. STOP/raw failure retained.
+
+Independent cumulative review identifies a concrete caller seam: existing shared
+_drive_player_z sprints until target crossing then waits one physics tick, leaving
+momentum before fixed-facing reuse. Actual final pose/velocity were not logged;
+overshoot is a source-supported hypothesis, not a proven production cause.
+Root selects ONE15–20min fixture correction in tests/habitat_integration_test.gd:
+only the new focused return leg uses bounded normal Input braking/settling at its
+authored wake handoff before facing/Interact. Preserve outbound displacement,
+all floor/reuse assertions, original1.0s frame budget/grace and300s suite caps,
+original shared helper/routes, and all production code/reach/facing/volumes.
+No position/velocity assignment or per-waypoint teleport. Add failure-only pose/
+velocity/origin/direction/target/candidate/nearby/availability diagnostics. Root
+runs import/compile/full same focused case once on reviewed clean pin; remaining
+already-required suites/packages only if pass. Any new failure STOPs for cumulative
+priority review; no automatic second correction/renamed budget. Original failure
+33.678s and intended old missing-six red30.802s remain separately recorded.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
