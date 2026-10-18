@@ -7687,3 +7687,35 @@ proof. Five minutes edit/review; compile once then full original test once.
 This is the original failed task plus its one repair, not a new budget. Any
 unexpected failure now requires cumulative priority review before more diagnosis,
 fix or run. No timeout increase, geometry/state staging or automatic third attempt.
+
+## DAMAGE-DEFINE — source inventory complete on82a7564cb
+
+### DAMAGE-DEFINE — finite existing component consequences and recovery cases
+
+- **Kind/result:** definition, parents 11/21. Resolve the actual implemented craft/
+  component/role consequences and finite uncovered recovery/presentation cases.
+  Distinguish missing runtime capability from missing qualification. Preserve
+  nine current plus eight missing-original craft; unknown definitions stay UNKNOWN.
+- **Owner/files:** root; original Phase 6 and COMPLETION_SCOPE.md versus
+  scripts/combat/component_damage_model.gd, ship_component_damage.gd,
+  repair_authority.gd, scripts/ships/hero_ship.gd and actual subclass/crew modifier
+  consumers. Read existing damage/repair and network-presentation checks only
+  to preserve their scopes; no audit of tools/evidence validator families.
+- **Acceptance:** finite actual component IDs, gameplay consequence consumers,
+  damage/repair/destruction/reset owners, eligible local/host presentation fields
+  and uncovered original cases. Share ownership between parents 11/21; do not
+  create a craft×role×fault Cartesian matrix or duplicate existing checks.
+- **Budget/stop:** source inventory capped at 20 minutes; no engine, capture,
+  profile, parked crew/access rerun or automatic implementation successor. Stop
+  when finite rows or exact missing facts are known. Update existing DAMAGE-DEFINE
+  and backlog; no new tracker, validator, format migration or gameplay claim.
+
+**Result:** read-only medium-effort inventory completed; root checked the actual
+HUD getter/binding and repair authority seam. Five shared component IDs, nine
+current craft, role exceptions and distinct passive/authority repair paths are
+consolidated in COMPONENT_DAMAGE_MODEL_CONTRACT.md. Corrected the old claim
+that both repair paths use tick_repair and qualified fleet-wide test coverage.
+Concrete unresolved remote component-row projection and separate dynamic power
+semantics are retained in the backlog. No engine/test/build, runtime change,
+parked route reopening or broad completion claim. Source-only card closed;
+next root selection below is a distinct production repair, not another validator.

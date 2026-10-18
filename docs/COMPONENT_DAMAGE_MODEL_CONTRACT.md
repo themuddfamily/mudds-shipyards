@@ -251,10 +251,11 @@ instanced from a `scenes/ships/*.tscn` or composed from script by
 `install_shared_damage_presentation()` before `super._ready()`; without it the
 model still registers, but nothing presents it.
 
-Damage attribution, the engine/weapon/sensor HUD cues, the failed-section
-silhouette, pilot repair while berthed, destruction, berth regeneration, and
-the post-reuse recovery audit are therefore fleet-wide behaviours rather than
-per-craft ones, and the parity suites enumerate all nine craft.
+Damage attribution, local engine/weapon/sensor cues, failed-section silhouette,
+passive repair, destruction and berth regeneration share these owners across
+the fleet. The parity suites enumerate all nine craft, directly dirtying engine,
+port wing and core and checking repair/reuse. That does not qualify every real
+role, contact route, or remote HUD consumer.
 
 Two things are deliberately **not** uniform, because they are role contracts
 rather than damage-model contracts:
@@ -266,9 +267,10 @@ rather than damage-model contracts:
   authority; only the optional mesh is absent.
 - **Engineer repair.** The crewed craft that carry an engineer seat (Jovian,
   Halyard, Bulwark) admit an authority-gated engineer repair. Craft without
-  that seat are repaired by the pilot once berthed, through the same
-  `tick_repair()` path on the same ledger. Both routes commit through
-  `RepairAuthority`/`ShipComponentDamage`; neither is a second health ledger.
+  that seat retain passive landed repair through HeroShip and `tick_repair()`.
+  Engineer callers commit through `RepairAuthority.commit_component_repair()`
+  to `ShipComponentDamage.tick_component_repair()`. The Ember terminal uses
+  that authority commit too. These are distinct repair entry points on one ledger.
 
 Being damageable and being able to fire are separate registrations.
 `GameFlow._initialize_live_combat()` attaches the lifecycle damageable adapter
@@ -277,6 +279,63 @@ authored weapon profile. A craft with no offensive weapon is still a valid
 target; bundling the two previously left the cargo hauler silently
 invulnerable, with every hitscan against it resolving
 `non_damageable_blocked`.
+
+## Actual consequences and remaining qualification
+
+Source inventory on `82a7564cb` (2026-10-18), shared by roadmap parents 11/21.
+This is source definition, not another gameplay pass or full-craft acceptance.
+
+| Component | Existing runtime consequence |
+| --- | --- |
+| `forward_hull` | Integrity, attribution and localized presentation; no separate operational multiplier |
+| `port_wing`, `starboard_wing` | The weaker wing sets the fire channel |
+| `core_systems` | Targeting distance and convergence availability |
+| `engine_bay` | Thrust, steering, departure/cruise acceleration, speed cap and manual braking |
+
+At integrity <=0.62 the impaired multiplier is 0.62; at <=0.24 the failed
+multiplier is zero. Terminal zero remains failed in the legacy presentation.
+These apply to Torrent, Arrow, Jovian, Zenith, Halyard, Bulwark, Cinder light
+interceptor, cargo hauler and long-range bomber. Eight missing-original craft
+have UNKNOWN component/role definitions; this shared roster does not specify them.
+
+Hero engine output also takes the minimum with critical-hull stutter. Halyard's
+admitted engineer selection adds 0.15 (capped at 1) to one surviving engine,
+fire or targeting channel; it cannot revive zero. Its gunner uses inherited
+Hero fire readiness/cadence. Bulwark gunner charge duration and cooldown divide
+by the live fire multiplier, and failed fire blocks discharge. Bomber payload
+release checks failed fire; this does not establish impaired payload cadence.
+
+`HeroShip.apply_damage()` owns hull loss/destruction; component attribution
+observes already-applied hull loss. `ShipComponentDamage` owns geometry and
+adapter access to the sole `ComponentDamageModel` ledger. GameFlow schedules
+berth recovery and owns its lease; Hero preflights/commits reset and supplies
+the adapter capability fence. Passive repair requires landed, intact and not
+landing. Engineer/terminal authority commits use the distinct path above.
+
+### Concrete remote presentation gap
+
+`GameFlow._publish_active_ship_telemetry_to_hud()` overlays accepted host hull/
+status and observer engine/throttle. `HeroComponentHudBinding.refresh()` still
+reads the local `get_component_damage_report()`, while accepted host component
+facts are retained in Hero's `_network_damage_state.components`. The component
+row can therefore disagree with the accepted host silhouette. This source seam
+is identified; runtime reproduction and repair are NOT_RUN.
+
+The HUD's engine/weapon/targeting power scalars also remain local. Host integrity
+alone cannot define their replacement: critical-hull stutter and Halyard routing
+change live powers. Keep this unresolved projection separate from the finite
+component-row repair; no invented host operational facts or wire change follows
+from this inventory. Host display eligibility must preserve client/session and
+locally-flown exclusions, accepted generation/tick order, destruction fencing,
+and clear/re-entry behavior. Display facts never mutate local simulation.
+
+Existing adapter checks cover attribution/stages/authorization/repair/cleanup;
+Main integration explicitly enumerates five earlier craft; nine-craft recovery
+parities directly dirty engine/port/core. Detached repair-network snapshots do
+not establish physical engineer admission, and the canonical snapshot check
+creates no ENet peer. Preserve ordinary full-craft/role routes, original Phase 6
+combat/recovery requirements, native/human gates and parked admission failures.
+No further missing runtime component feature was established by this inventory.
 
 ## Explicitly outside this foundation
 

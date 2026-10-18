@@ -33,7 +33,8 @@ Only the selected card below is executable. A missing definition, failed route
 or full-craft qualification is not an implementation assignment. Do not create
 a successor chain just because a nearby check can be added.
 
-DAMAGE-DEFINE is selected as an independent bounded source definition.
+DAMAGE-DEFINE is complete as a source inventory. NET-COMPONENT-ROW is selected
+separately to repair its concrete existing HUD consumer gap.
 HALYARD-GUNNER-DAMAGE failed its original seat step twice and is parked below.
 WEAPONS-DEFINE has a finite actual roster; no new weapon is inferred missing.
 NET-OPERATION-HUD is accepted in the current checkpoint; its full contract and
@@ -44,27 +45,33 @@ unapproved; parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| DAMAGE-DEFINE /11,21 | Definition; SELECTED, not started | Finite actual component consequences and uncovered recovery/presentation cases | One source inventory capped at 20 minutes; no engine/probe or automatic successor. |
+| NET-COMPONENT-ROW /11,21 | Production UI repair; SELECTED, not started | Existing component row agrees with eligible accepted host damage and returns to local display on clear | Implement readonly display projection with existing binding/order lifecycle; focused checks and fresh paired checkpoint. |
 
-### DAMAGE-DEFINE — finite existing component consequences and recovery cases
+### NET-COMPONENT-ROW — accepted host components in the existing HUD row
 
-- **Kind/result:** definition, parents 11/21. Resolve the actual implemented craft/
-  component/role consequences and finite uncovered recovery/presentation cases.
-  Distinguish missing runtime capability from missing qualification. Preserve
-  nine current plus eight missing-original craft; unknown definitions stay UNKNOWN.
-- **Owner/files:** root; original Phase 6 and COMPLETION_SCOPE.md versus
-  scripts/combat/component_damage_model.gd, ship_component_damage.gd,
-  repair_authority.gd, scripts/ships/hero_ship.gd and actual subclass/crew modifier
-  consumers. Read existing damage/repair and network-presentation checks only
-  to preserve their scopes; no audit of tools/evidence validator families.
-- **Acceptance:** finite actual component IDs, gameplay consequence consumers,
-  damage/repair/destruction/reset owners, eligible local/host presentation fields
-  and uncovered original cases. Share ownership between parents 11/21; do not
-  create a craft×role×fault Cartesian matrix or duplicate existing checks.
-- **Budget/stop:** source inventory capped at 20 minutes; no engine, capture,
-  profile, parked crew/access rerun or automatic implementation successor. Stop
-  when finite rows or exact missing facts are known. Update existing DAMAGE-DEFINE
-  and backlog; no new tracker, validator, format migration or gameplay claim.
+- **Kind/result:** production UI repair, parents11/21. The retained component row
+  must show accepted host component integrity/stages for an eligible observer,
+  agree with the existing host silhouette, and restore current local data on clear.
+- **Owner/files:** one implementation agent; root integration plus independent
+  high-effort lifecycle review. HeroShip display getter, HeroComponentHudBinding
+  and existing network_remote_craft_pose_test.gd / network_craft_pose_station_frame_test.gd;
+  existing component HUD checks only where changed binding behavior requires them.
+- **Prerequisites:** DAMAGE-DEFINE complete. No dependency on parked physical
+  crew routes. Host components already exist; preserve wire, authority and local
+  report contract. Do not infer dynamic engine/weapon/targeting power scalars.
+- **Acceptance:** reproduce the actual row mismatch on old runtime, then show
+  real HUD host stages/integrity for damage and repair; same-life stale rejection,
+  destruction/new life, clear/re-entry and locally flown/local raw ledger invariants.
+  Extend existing pose and Main/ENet scenarios, including actual HUD binding refresh;
+  disclose staged role selection. This focused display proof does not qualify
+  ordinary remote boarding/travel or the full parent recovery journey.
+- **Budget/stop:** 30–60min implementation/review, split before90; compile once,
+  existing focused pose (~45s) and Main ENet (~180s) once, original deadlines.
+  First unexpected failure stops for separate selection; original plus one repair
+  requires cumulative review. No automatic nearby gauge/power successor.
+- **Close:** meaningful accepted runtime change requires clean paired checkpoint,
+  three strict silent startup checks and existing package audit. Commit/push and
+  clean owned scratch. Gates/native hardware/human review remain open.
 
 ## Parked failures and dependent work
 

@@ -188,6 +188,14 @@ Every craft acceptance includes ordinary walk-up → board → launch → role/w
 
 ## Combat opponents, weapons and damage
 
+DAMAGE-DEFINE source inventory on82a7564cb is complete in
+[the existing damage contract](COMPONENT_DAMAGE_MODEL_CONTRACT.md#actual-consequences-and-remaining-qualification).
+It corrects repair entry-point ownership and bounds existing parity coverage.
+A concrete remote component-row/local-ledger mismatch is selected for repair;
+dynamic HUD power projection remains undefined. No new runtime validation or
+build resulted, and no craft/parent/phase gate closes.
+
+
 Opponent paths are under `scripts/ships/` with matching `scenes/ships/` scenes. The [scenario catalog](../scripts/combat/combat_scenario_catalog.gd) is detached; [encounter director](../scripts/combat/encounter_scenario_director.gd), [station defence host](../scripts/activities/station_defense_encounter_host.gd) and live actors own production effects.
 
 | Requirement | Original phase | Runtime/content seam | Status | Next action and acceptance scenario |

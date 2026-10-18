@@ -162,7 +162,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | Definition DONE on a0d446645; current binding map in WEAPON_DEFINITION_CONTRACT.md, finite distinctions below. No missing runtime weapon type inferred; eight originals UNKNOWN/Bomber role decision retained |
-| DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | SELECTED bounded source definition in ROADMAP.md; actual consequences/owners before finite uncovered cases, no engine or duplicated checks |
+| DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | Definition DONE on82a7564cb; COMPONENT_DAMAGE_MODEL_CONTRACT.md maps five IDs/all nine craft, real role exceptions, repair/reset owners and concrete remote row gap; no gameplay pass |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | DEFINE; named before/after view and affected route |
 | CRAFT-ACCEPT-TORRENT | Torrent full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
 | CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
@@ -203,6 +203,19 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | COMBAT-PERIMETER | Perimeter Hold | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
 | COMBAT-BREACH | Heavy Breach | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | UNSCHEDULED; existing live encounter, actual damage and safe return |
+
+### Component consequences and acceptance boundary
+
+DAMAGE-DEFINE source inventory on `82a7564cb` is consolidated in
+[the existing damage contract](COMPONENT_DAMAGE_MODEL_CONTRACT.md#actual-consequences-and-remaining-qualification).
+Finite uncovered work is shared by parents11/21:
+
+| Outcome | Exact scope / status |
+| --- | --- |
+| NET-COMPONENT-ROW | Identified runtime seam: actual retained HUD row uses local ledger despite accepted host components. Implementation selected separately in ROADMAP.md; not yet reproduced or fixed. |
+| NET-COMPONENT-POWERS | Definition unresolved: local engine/weapon/targeting HUD values include critical-hull stutter and Halyard routing. Integrity alone is insufficient; no wire/format change selected. |
+| Existing full-craft/role recovery acceptance | Preserve existing CRAFT-ACCEPT and NET-DAMAGE scenarios; nine-craft parity is not every role/contact route. No new Cartesian matrix. |
+| Missing-original components/roles | UNKNOWN for the eight missing originals; original specification prerequisites remain. |
 
 ### Weapon binding and acceptance boundary
 
