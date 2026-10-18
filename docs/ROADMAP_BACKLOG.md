@@ -46,7 +46,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | One prepared card selected in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
 | 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | Checkpoint2c73494 and HELM-EDGE-REPRO/REPAIR accepted; MATRIX-FINAL still gated. |
 | 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT | LIFE-VISIBLE/REUSE source DONE; Guided earlier-package pass retained. Nine WALK-* and17 eventual CRAFT-ACCEPT-* outcomes named; Sandbox PARKED and Settings WAITING. |
-| 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | REMAP-DEFINE DONE; ONFOOT-SPRINT-TOGGLE packagedbd4e15d. CONTROL-FINDINGS and remaining context definitions stay open; INPUT-KBM/CONTROLLER require real devices. |
+| 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | REMAP-DEFINE DONE; ONFOOT-SPRINT-TOGGLE packagedbd4e15d. CONTROL-FINDINGS definition DONE; GAMEPAD-LOOK selected from its concrete camera gap. Remaining context definitions and INPUT-KBM/CONTROLLER real-device routes stay open. |
 | 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE | WALK-ANNEX source9af57671d DONE in its disclosed-fixture scope; other WALK-* and four station LIFE-* rows remain, VIP PARKED. STATION-RELATIONS/FINDINGS require bounded source-tied definitions. |
 | 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT | Nine current craft plus eight missing originals explicitly named. Each SPEC/BUILD-SPLIT/CRAFT-ACCEPT outcome remains distinct; component gaps DEFINE. |
 | 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | Six COMBAT-* encounters named. WEAPONS-DEFINE/DAMAGE-DEFINE resolve actual supported cells; no duplicated network-damage assignment. |
@@ -67,7 +67,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 26 | Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET | Boarding/departure subroutes DONE. Return is now DONE in its source scope; dedicated SERVER-BASELINE, profiles,30min endurance/full-snapshot/capacity remain open. |
 | 27 | Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) | Same21 SHARED-* cells as3; no double count or staged-arrival substitute. |
 | 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | PERF-MINIMUM/TARGET WAITING on actual hardware; PERF-ROUTES/CELLS-DEFINE precede original-length measurements. |
-| 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | Two device families/four COMFORT-* outcomes named. ACCESS-PAUSE-DEFINE first; other readability/remap cells unresolved. |
+| 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | Two device families/four COMFORT-* outcomes named. ACCESS-PAUSE-DEFINE and ACCESS-VIEWS-DEFINE DONE as finite rosters; actual remaining readability/remap cells and device qualification stay open. |
 | 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX | AUDIO-CONTENT-DEFINE DONE; activity lifecycle packagedf1f35d1 and surface music packaged4ff7a08; dormant Ember-feed definition remains. MIX-DEFINE/real AUDIO-MIX retain audible authorization/device gates. |
 | 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | Seven recovery context definitions plus ACT-WRITES/WORLD-SAVE lists; SAVE-MIGRATION/CORRUPT/UNSUPPORTED named. Existing accepted cuts retained. |
 | 32 | Qualify installation, updates and supported desktop platforms | PACKAGE-WIN/LINUX, INSTALL-WIN/LINUX, LINUX-BUNDLE/DESKTOP | Checkpoint packages retained; final package/NSIS, six final Linux transactions and two graphical launch paths named. Additional target scope DEFINE. |
@@ -123,7 +123,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | LIFE-VISIBLE | Four-cycle source phantom-geometry qualification | 7 | DONE; d7be01487, staged/headless source scope |
 | LIFE-REUSE | Twelve-cycle source all-nine reuse qualification | 7 | DONE; d7be01487, staged/headless source scope |
 | LIFE-PACKAGE-DEFINE | Name uncovered packaged ordinary-play lifecycle cases | 7 | DEFINE; preserve both source passes, no automatic rerun |
-| CONTROL-FINDINGS | List observed unresolved control/help defects | 8 | DEFINE; ordinary action plus finite defect, defense briefing already delivered |
+| CONTROL-FINDINGS | List observed unresolved control/help defects | 8 | DONE as bounded source review: advertised Right Stick LOOK has no Player/Tow consumer; GAMEPAD-LOOK selected separately. Existing mixed prompts/distance help/sprint fixes retained; physical-device acceptance remains open. |
 
 ### Station, fleet and combat children
 
@@ -517,7 +517,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | ACCESS-PAUSE-16X10 | Pause/options at 1920x1200, requested scales0.75/1.0/1.6 | 12,29 | DONE source1cf102298:96 Main observations/all32 states at requested.75/1/1.6; conflict and repair-focus corrections accepted |
 | ACCESS-PAUSE-21X9 | Pause/options at 3440x1440, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
 | ACCESS-PAUSE-32X9 | Pause/options at 5120x1440, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
-| ACCESS-VIEWS-DEFINE | Remaining required HUD/menu/help/role readability views/cells | 12,29 | DEFINE; original promises, reuse pause/options decisions |
+| ACCESS-VIEWS-DEFINE | Remaining required HUD/menu/help/role readability views/cells | 12,29 | DONE as source definition in the finite view roster below; owners/states/coverage and one-cell selection named. No new layout/device qualification. |
 | COMFORT-MOTION | Reduced motion route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
 | COMFORT-FLASH | Reduced flash route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
 | COMFORT-COLOUR | Colour-safe cues route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
