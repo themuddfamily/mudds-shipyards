@@ -199,6 +199,16 @@ Opponent paths are under `scripts/ships/` with matching `scenes/ships/` scenes. 
 | Cinder repeater, travelling mass-driver and finite bomber payload | 5, 6 | Cinder ship owners; `scripts/combat/mass_driver_bolt_pool.gd`, `bomber_payload_authority.gd`, `bomber_payload_projectile.gd` | I | Accept travel-time hit/miss, origin shifts, depletion and stale-owner cleanup. Do not assign duplicate projectile work merely because the detached resolver refuses ammunition. |
 | Consistent component damage, repair, destruction and respawn | 6, 10.1, 10.3 | `scripts/combat/component_damage_model.gd`, `ship_component_damage.gd`, `repair_authority.gd`, live damage adapters | I | Damage hero/enemy components, observe engine consequences, repair, destroy and regenerate; accept receipt ordering, pooled saturation and re-entry without duplicate score or lingering effects. |
 
+Weapon binding inventory on `a0d446645` resolves the nine implemented craft and
+eleven actual firing-role bindings in the existing
+[weapon contract](WEAPON_DEFINITION_CONTRACT.md#current-registration-map).
+Halyard shares its pilot/gunner weapon; Bulwark's charged gunner copy is hitscan;
+Cargo and Bomber have actual travelling authority. Policy-only role records are
+not delivered weapons. Eight missing originals remain UNKNOWN and the Bomber
+crew-role decision remains pending. The [finite acceptance distinctions](ROADMAP_BACKLOG.md#weapon-binding-and-acceptance-boundary)
+preserve common Phase 6 gates without inventing a craft/encounter matrix.
+Source inventory only: no tests run, whole-fleet combat acceptance remains open.
+
 ## Nearby activities and three visitable worlds
 
 These are Phase 8's concentrated authored cluster plus Phase 10.4's three atmosphere-to-surface worlds. [Destination catalog](../scripts/world/planetary_destination_catalog.gd) sector sites and presentation-only coloured bodies do not count as additional planets. GameFlow and the streaming coordinator own discovery/admission/return; the Activity Board must work with normal controls while unloaded as well as loaded.

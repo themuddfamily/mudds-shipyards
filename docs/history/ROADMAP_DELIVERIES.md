@@ -7550,3 +7550,40 @@ initial coverage inventory from actual results in backlog/history. Frozen card:
   Write findings into existing CONTENT-RIME/backlog; no new tracker or validator.
   No engines, captures, parked arrival/landing/pad-controls probe or automatic
   implementation/qualification successor. Definition does not accept a world.
+
+## Weapon binding definition — finite actual roster
+
+Read-only WEAPONS-DEFINE inventory on `a0d446645` (2026-10-18) completes the
+finite definition: nine source identities, eleven actual firing-role bindings,
+with exact owners in the existing weapon contract and ten binding-specific
+qualification selectors in the backlog. Halyard shares pilot/gunner heat and
+cadence; Bulwark's crew resource copy is explicitly hitscan; Cargo mass-driver
+and Bomber payload use actual travelling authority. Unconsumed role-policy slots
+are not weapons. Eight missing originals and Bomber extra roles remain unknown
+or awaiting their existing decision. No missing promised runtime weapon type
+was established from today's roster; no speculative weapon is scheduled.
+The stale seven-source registration map and blanket ammunition statement are
+corrected in the existing contract. Historical opponent rows retain their scope.
+No engine, test rerun, new validator/schema, source edit or package. Common Phase 6
+and original encounters/fleet acceptance remain open. Frozen definition card:
+
+### WEAPONS-DEFINE — finite actual craft and role weapon bindings
+
+- **Result/parent:** definition, 11. Replace the broad weapon roster unknown with
+  actual implemented craft→role→weapon bindings, relevant production owners and
+  finite uncovered acceptance cases. Retain all 17 eventual craft; eight missing
+  originals stay UNKNOWN, not implicitly unarmed or delivered.
+- **Owner/files:** root; original Phase 2/5/6 combat promises and COMPLETION_SCOPE.md
+  versus nine definitions in assets/ships/, their assets/weapons/ resources,
+  scripts/ships/hero_ship.gd, actual subclass/crew firing owners and
+  scripts/combat/combat_resolver.gd. Read existing focused weapon/payload tests
+  only where needed to distinguish an actual runtime binding from detached data.
+- **Acceptance:** each existing binding names the craft, actual role, weapon,
+  production fire path and supported target/refusal/heat-or-ammunition behavior.
+  Identify uncovered original cases and actual absent capabilities separately.
+  Preserve Bomber crew-role decision and all original encounter acceptance; no
+  invented craft×encounter Cartesian matrix, extra weapon or new role.
+- **Budget/stop:** source inventory capped at 20 minutes; no engine, benchmark,
+  capture, parked Torpedo/Emberline/handback route or automatic successor. End at
+  finite rows or an exact missing definition. Update existing WEAPONS-DEFINE/
+  backlog, no new tracking file or validator; no gameplay or test-pass claim.

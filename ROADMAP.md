@@ -33,7 +33,8 @@ Only the selected card below is executable. A missing definition, failed route
 or full-craft qualification is not an implementation assignment. Do not create
 a successor chain just because a nearby check can be added.
 
-WEAPONS-DEFINE is selected as a bounded definition under parent 11.
+HALYARD-GUNNER-DAMAGE is selected as a bounded source qualification.
+WEAPONS-DEFINE now has a finite actual binding roster and acceptance distinctions.
 NET-OPERATION-HUD is accepted in the current checkpoint; its full contract and
 actual checks are in [delivery history](docs/history/ROADMAP_DELIVERIES.md#remote-operation-hud--acceptedda1ae60).
 Ember, Aurora and Rime definitions found no missing implementation within their
@@ -42,28 +43,36 @@ unapproved; parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| WEAPONS-DEFINE /11 | Definition; SELECTED, not started | Finite actual craft/role weapon roster and uncovered original cases | One source inventory capped at 20 minutes; no engine/probe or automatic successor. |
+| HALYARD-GUNNER-DAMAGE /11,16 | Source qualification; SELECTED, not started | Actual existing ordinary gunner FIRE produces one authority damage result | Extend the existing firing step only; full original test/caps retained. |
 
-### WEAPONS-DEFINE — finite actual craft and role weapon bindings
+### HALYARD-GUNNER-DAMAGE — one real hit through the existing ordinary role
 
-- **Result/parent:** definition, 11. Replace the broad weapon roster unknown with
-  actual implemented craft→role→weapon bindings, relevant production owners and
-  finite uncovered acceptance cases. Retain all 17 eventual craft; eight missing
-  originals stay UNKNOWN, not implicitly unarmed or delivered.
-- **Owner/files:** root; original Phase 2/5/6 combat promises and COMPLETION_SCOPE.md
-  versus nine definitions in assets/ships/, their assets/weapons/ resources,
-  scripts/ships/hero_ship.gd, actual subclass/crew firing owners and
-  scripts/combat/combat_resolver.gd. Read existing focused weapon/payload tests
-  only where needed to distinguish an actual runtime binding from detached data.
-- **Acceptance:** each existing binding names the craft, actual role, weapon,
-  production fire path and supported target/refusal/heat-or-ammunition behavior.
-  Identify uncovered original cases and actual absent capabilities separately.
-  Preserve Bomber crew-role decision and all original encounter acceptance; no
-  invented craft×encounter Cartesian matrix, extra weapon or new role.
-- **Budget/stop:** source inventory capped at 20 minutes; no engine, benchmark,
-  capture, parked Torpedo/Emberline/handback route or automatic successor. End at
-  finite rows or an exact missing definition. Update existing WEAPONS-DEFINE/
-  backlog, no new tracking file or validator; no gameplay or test-pass claim.
+- **Kind/result:** source qualification, parents 11/16. Existing gunner gameplay
+  test proves a request signal and HUD acknowledgement; extend its existing
+  ordinary role firing step to prove the actual GameFlow→LiveCombatAuthority→
+  resolver→registered damageable chain and exactly one real damage commit.
+  This qualifies one focused hit, not full combat or network crew travel.
+- **Owner/files:** one medium-effort test implementer; root reviews/runs.
+  Only tests/halyard_crew_gunner_gameplay_test.gd initially. Reuse its current
+  whole-Main ordinary boarding/cabin/sit/remapped-FIRE/stand/lifecycle route.
+  Preserve disclosed exterior staging; a registered damageable target may be
+  positioned as a fixture in the existing gunner aim direction. Do not move the
+  player/ship to satisfy a route or call the fire handler directly as proof.
+- **Acceptance:** actual admitted gunner and remapped FIRE emit the request,
+  existing production handler accepts the Halyard weapon/source, terminal receipt
+  and target health show the authored damage once. Existing raw pilot/role/HUD/
+  cooldown/lifecycle assertions all remain. Do not replace signal-only assertions
+  or weaken the original route; append the actual consumer proof at that step.
+- **Budget/stop:** 30–60 minutes caller work/review, split before 90; compile once,
+  full existing test once under original 300s (checks separate). Headless/Dummy,
+  private profile and source/cache/process guards. First unexpected failure stops
+  before further diagnosis/fix/run selection; original plus one repair requires
+  cumulative review. No automatic retry or scene/runtime change.
+- **Close:** caller-only acceptance needs no identical rebuild; current checkpoint
+  remains da1ae60. If a runtime defect appears, stop and select its bounded repair
+  separately, preserving this full check; accepted runtime changes need a fresh
+  paired checkpoint. Retain actual result/source, commit/push and clean scratch.
+  Parked Halyard server boarding/moving-cabin/handback is not reopened or reset.
 
 ## Parked failures and dependent work
 
@@ -92,7 +101,7 @@ Dedicated server/two-client baseline remains authorized independently of capacit
 1. Select one named player/build outcome from the inventory. State parent, exact
    files/owner, prerequisites, proof command/action, unchanged criteria, implementation
    estimate and check duration before starting. Prefer30–60min implementation;
-   split before90min into capabilities, not arbitrary test/evidence stages.
+   split before 90min into capabilities, not arbitrary test/evidence stages.
    Before starting a further qualification chain, identify one independently
    executable production alternative or record the concrete missing definition.
    For future cards, distinguish checks protecting the changed behavior from

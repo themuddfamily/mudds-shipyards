@@ -161,7 +161,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-GAPS-CINDER-LIGHT | Cinder Light Interceptor remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
-| WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | SELECTED bounded definition in ROADMAP.md; nine implemented craft/actual roles, eight missing originals retained UNKNOWN; no Cartesian invention or engine run |
+| WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | Definition DONE on a0d446645; current binding map in WEAPON_DEFINITION_CONTRACT.md, finite distinctions below. No missing runtime weapon type inferred; eight originals UNKNOWN/Bomber role decision retained |
 | DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | DEFINE; share solo/network ownership, existing checks first |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | DEFINE; named before/after view and affected route |
 | CRAFT-ACCEPT-TORRENT | Torrent full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
@@ -203,6 +203,47 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | COMBAT-PERIMETER | Perimeter Hold | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
 | COMBAT-BREACH | Heavy Breach | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | UNSCHEDULED; existing live encounter, actual damage and safe return |
+
+### Weapon binding and acceptance boundary
+
+WEAPONS-DEFINE source inventory on `a0d446645` (2026-10-18) resolves the actual
+nine-craft roster. The primary [binding map](WEAPON_DEFINITION_CONTRACT.md#current-registration-map)
+is maintained in the existing weapon contract. Eleven actual craft/role bindings
+include both Halyard roles sharing one weapon and Bulwark's distinct gunner.
+Policy-only crew entries are not weapons; eight missing originals remain UNKNOWN,
+and Bomber's additional crew/navigation interpretation is still WAITING.
+
+The finite distinctions below are qualification selectors, not ten new missing
+implementations or ten copies of every encounter. Existing focused passes retain
+their recorded scopes; none was rerun by this definition.
+
+| Case | Binding-specific finish | Existing owner/check anchor |
+| --- | --- | --- |
+| WEAPON-TORRENT | Guided range profile in the two named phases versus authored combat profile; actual registered damage | GameFlow profile selection; weapon_definition_migration_test.gd |
+| WEAPON-ARROW | Actual pilot precision-emitter selection/damage through the common chain | Arrow resource, HeroShip, GameFlow; migration/common combat checks |
+| WEAPON-JOVIAN | Actual pilot heavy-cannon selection/damage through the common chain | Jovian resource, HeroShip, GameFlow; migration/common combat checks |
+| WEAPON-ZENITH | Actual pilot repeater selection/damage through the common chain | Zenith resource, HeroShip, GameFlow; migration/common combat checks |
+| WEAPON-HALYARD | Both pilot and admitted gunner use the same lance/heat/cooldown; real damage beyond a request receipt | Halyard crew consumer and HeroShip; existing gunner gameplay test currently stops at emitted request |
+| WEAPON-BULWARK-PILOT | Actual pilot sustained-pulse binding through the common chain | Bulwark pulse resource, HeroShip, GameFlow |
+| WEAPON-BULWARK-GUNNER | Charged limited-ammo hitscan, component gates/revalidation and accepted-submission debit | Bulwark crew consumer; bulwark_crew_gunner_gameplay_test.gd; not Picket opponent travel |
+| WEAPON-CINDER-LIGHT | Runtime repeater definition and inherited live heat/cadence | cinder_light_interceptor_combat_production_test.gd |
+| WEAPON-CINDER-CARGO | Inherited heat plus actual moving bolt and terminal damage; no instantaneous replacement | cinder_cargo_mass_driver_bolt_test.gd, MassDriverBoltPool and GameFlow |
+| WEAPON-CINDER-BOMBER | Fire edge/pulse suppression, four-round cooldown/wing refusal, real terminal or harmless expiry and generation cleanup | cinder_bomber_payload_integration_test.gd, payload authority/projectile/adapter |
+
+**Common original Phase 6 acceptance remains shared:** command/source ownership,
+profile/cadence/lifecycle validation, first obstruction and registered endpoint,
+distinct miss/world/non-damageable outcomes, friendly/self refusal, once-only damage/score, reverse
+receipt arrival, saturation/recycle/abort, lethal/nonlethal presentation/audio
+chronology, detach/re-entry/reset/regeneration, applicable native legibility/mix
+and restored packaged loop. Reuse existing resolver/authority/pool checks before
+adding coverage. The six original COMBAT encounters remain separate outcomes;
+this map does not generate a craft×encounter matrix or qualify full fleet combat.
+
+No new runtime weapon was shown absent by the inspected roster. Resource-only
+beam support is not a delivered beam, nor proof that one was promised. Generic
+converter ammunition refusal does not erase existing Bomber/Bulwark ammunition.
+The next selected child tests one actual Halyard gunner hit in the retained
+ordinary test; parked network boarding/moving-cabin/handback contracts stay open.
 
 ### Activities and solo-world children
 
