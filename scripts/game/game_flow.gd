@@ -7193,9 +7193,17 @@ func _network_local_role_presentation() -> Dictionary:
 			local_peer_id = maxi(1, network_session.multiplayer.get_unique_id())
 		if network_session.has_method(&"get_authoritative_snapshot"):
 			authoritative_snapshot = network_session.get_authoritative_snapshot() as Dictionary
+	# A confirmed crew chair can belong to a different craft than the retained
+	# pilot selection. Resolve its presentation without changing that selection.
+	var presentation_craft: HeroShip = active_ship
+	if not _piloting and _station_seated and is_instance_valid(_network_engineer_client_seat):
+		var crew_craft: HeroShip = _network_engineer_client_seat.get_ship()
+		if is_instance_valid(crew_craft):
+			presentation_craft = crew_craft
+	if is_instance_valid(presentation_craft):
+		craft_name = presentation_craft.get_display_name()
+		craft_id = presentation_craft.get_ship_id()
 	if is_instance_valid(active_ship):
-		craft_name = active_ship.get_display_name()
-		craft_id = active_ship.get_ship_id()
 		if not _piloting and local_role not in [&"engineer", &"gunner", &"passenger"] and is_instance_valid(network_session) and network_session.has_method(&"get_crew_role_snapshot"):
 			var role_snapshot := network_session.get_crew_role_snapshot() as Dictionary
 			var roles := role_snapshot.get("roles", {}) as Dictionary
