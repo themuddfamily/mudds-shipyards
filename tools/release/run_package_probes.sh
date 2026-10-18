@@ -5,7 +5,8 @@ set -o pipefail
 # --in-world-interruption runs one actual kill/restart; --activity=beacon or
 # --activity=mining, --activity=scan, --activity=hulk or --activity=stationdefense selects unpaid recovery
 # or --activity=ember selects a genuine interrupted planetary survey
-# (pilot only); default remains convoy. Ember excludes canonical outbound and
+# (pilot only); default remains convoy. PACKAGE_PROBE_RECOVERY_CONTEXT=on_foot
+# selects the supported exterior Bulwark/home-berth convoy case. Ember excludes canonical outbound and
 # standing-pose restore; each necessary visit discloses initial flight placement.
 # --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
@@ -55,7 +56,7 @@ if (( IN_WORLD_INTERRUPTION == 0 )) && { (( ACTIVITY_FLAG_SEEN == 1 )) || [[ "$P
   echo "Activity selection requires --in-world-interruption" >&2
   exit 2
 fi
-if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest && "$RECOVERY_CONTEXT" != crew && "$RECOVERY_CONTEXT" != engineer ]]; then
+if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest && "$RECOVERY_CONTEXT" != crew && "$RECOVERY_CONTEXT" != engineer && "$RECOVERY_CONTEXT" != on_foot ]]; then
   echo "Invalid interruption recovery context" >&2
   exit 2
 fi
@@ -450,6 +451,28 @@ try:
     else:
         row = saved["payload"]["cinder_convoy_session"]["activities"][0]
         require(row["progress"]["convoy_session_state"] == ready["boundary"], "readiness differs from real durable document")
+        if recovery_context == "on_foot":
+            context = saved["payload"]["solo_safe_recovery"]
+            observed = ready["exterior_observation"]
+            require(context == ready["safe_context"] == {
+                        "location": "mudds_home_berth", "mode": "on_foot",
+                        "craft_id": "bulwark_heavy_gunship", "berth_id": "bulwark_fleet_dock_berth"}
+                    and ready["boundary"]["escort_ship_id"] == context["craft_id"]
+                    and row["state"] == 3 and ready["receipts"] == 1,
+                    "on-foot readiness has no genuine four-field Bulwark preference and failed second convoy")
+            require(observed["craft_id"] == context["craft_id"] and observed["piloting"] is False
+                    and observed["player_seated"] is False and observed["player_sleeping"] is False
+                    and observed["player_on_floor"] is True and observed["player_control_enabled"] is True
+                    and observed["preferred_craft_piloted"] is False and observed["cabin_containment"] is False
+                    and observed["hatch_reserved"] is False and observed["moving_interior_occupant"] is False
+                    and observed["solo_crew_seated"] is False and observed["solo_crew_assignment_empty"] is True
+                    and observed["preferred_craft_at_home"] is True and observed["home_berth_occupied_by_craft"] is True
+                    and observed["distance_to_authored_exit_m"] < 1.5,
+                    "on-foot arm has no actual supported awake claim-free player beside its occupied home berth")
+            require(saved["payload"]["game_flow_reward_store"]["reward_counts"]["return_convoy_credit_to_shipyard"] == 1,
+                    "on-foot arm lost or duplicated the actual first convoy payment")
+            require(ready["initialization"] == "existing_convoy_motion_fixture_then_home_approach_3m_above_registered_berth_real_landing_and_exterior_exit",
+                    "on-foot arm omitted its scenario flight and home approach initialization disclosure")
         if recovery_context == "engineer":
             context = saved["payload"]["solo_safe_recovery"]
             observed = ready["runtime_observation"]
@@ -601,6 +624,29 @@ try:
         require(final["payload"]["game_flow_reward_store"]["reward_counts"]["debris_route_navigation_data"] == ready["receipts"] + 1,
                 "beacon retry lost or duplicated the actual saved navigation-data payment")
 
+    if recovery_context == "on_foot":
+        safe = recovered["safe_recovery_observation"]
+        require(recovered["safe_context"] == ready["safe_context"]
+                and safe["preferred_craft_id"] == "bulwark_heavy_gunship"
+                and safe["preferred_berth_id"] == "bulwark_fleet_dock_berth"
+                and safe["craft_id"] == "torrent_provisional" and safe["craft_piloted"] is False
+                and safe["piloting"] is False and safe["player_seated"] is False
+                and safe["player_sleeping"] is False and safe["player_on_floor"] is True
+                and safe["player_control_enabled"] is True and safe["preferred_craft_piloted"] is False
+                and safe["cabin_containment"] is False and safe["hatch_reserved"] is False
+                and safe["moving_interior_occupant"] is False and safe["solo_crew_seated"] is False
+                and safe["solo_crew_assignment_empty"] is True
+                and safe["preferred_craft_at_home"] is True and safe["home_berth_occupied_by_craft"] is True
+                and safe["distance_to_authored_exit_m"] < 1.5,
+                "on-foot cold Resume did not return the claim-free supported player beside saved Bulwark without changing active craft")
+        require(safe["walking"]["supported"] is True and safe["walking"]["distance_m"] > 0.1
+                and safe["walking"]["method"] == "ordinary_camera_relative_inboard_walking_input"
+                and recovered["continuation_method"] == "ordinary_cold_exterior_home_walk_and_interact_boarding_then_distinct_convoy_motion_fixture"
+                and recovered["initialization"] == ready["initialization"],
+                "on-foot recovery omitted usable ordinary walking, real Interact boarding or fixture disclosure")
+        require(final["payload"]["cinder_convoy_session"]["activities"][0]["reward_granted"] is True
+                and final["payload"]["game_flow_reward_store"]["reward_counts"]["return_convoy_credit_to_shipyard"] == 2,
+                "on-foot continuation lost or duplicated the actual distinct convoy payment")
     if recovery_context == "engineer":
         safe = recovered["safe_recovery_observation"]
         repair = recovered["repair_observation"]
