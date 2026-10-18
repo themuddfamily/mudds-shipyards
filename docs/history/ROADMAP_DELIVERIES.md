@@ -5933,3 +5933,27 @@ one unchanged route only. Any further failure parks delivery before new work.
 Original source/compile/route/STOP remain retained; failed store is not KIT-RELOAD
 acceptance. Halyard remains parked. This selection explicitly follows priority
 review rather than treating a renamed repair as a new failure budget.
+
+
+KIT-DELIVER DONE at28a5e354e660d30592a46b942a020879994ea955, integrated on main.
+Corrected compile PASS16.489s; ONE corrected silent private x11/Dummy input route
+PASS79.213s/55 assertions, actualexit0/selectedmarker1/original fullraw diagnostics0.
+Normal menus/spawn/walk/hatch/seat/departure precede ordinary landing_assist;
+accepted capture/fit and strict physical same-hull home transform/occupied lease/
+SHUT_DOWN. Actual automatic OFFLINE precedes ordinary Interact authored exterior
+exit and same supported controllable unseated Player walking≥.5m. Original180s
+activity/300s route and all unchanged caps retained. COMPLETEDg1 kits6→4/0→2,
+exact transfer jovian_fabrication_kit_delivery_g1, one reward/no owed,60 normal
+post-delivery ticks without duplicates. No reload/native-device/full-release claim.
+
+All6 owners terminal/all16 observed PID/start identities independently absent;
+source/index/non-import cache unchanged. Original syntax failure and prelanding
+queued-brake failure/priority review remain retained beside accepted raw under
+`/srv/mudds-work/jovian-kit-deliver-20261018/results/`. Actual accepted settings
+file SHA256 e5000c06734eff363c70cab9e394bb378b1de59b79254ec07a3b6a78a870ee0c
+remains in its original private XDG data directory, location in
+results/accepted-store-location.txt. KIT-RELOAD READY: distinct OS process must
+consume this file, not fabricate completion or replay the route. Remove owned
+clean checkout/helpers/unneeded profiles; preserve accepted data until consumer
+closes. No runtime change/new identical checkpoint; latest playable1cf1022.
+All36 parents/ten phase gates remain open; Halyard stays parked.
