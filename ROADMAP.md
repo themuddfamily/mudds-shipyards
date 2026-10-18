@@ -93,6 +93,36 @@ concrete production cause/change and separately frozen full original acceptance.
 Keep its61.925s failed-stage total and originalCAP300; do not reset budgets.
 The separate cargo stock-policy waits remain untouched. CI stays disabled.
 
+### UI-BOARD-FOCUS — focused reproduction selection
+
+Exact engine a13da4feb Popup parent-window cleanup disconnects the two observed
+signals; native blank callable text is normal release formatting, not proof of a
+dead script Callable. Sequential teardown clears the parent cache, so repeating
+cleanup alone is not an established cause. Tooltip PopupPanel lifetime is a
+hypothesis; actual popup/connection identity remains the missing fact.
+
+Freeze first component reproduction before execution: root owns only existing
+controller_pause_navigation_prompt_test.gd optional --ui-board-focus-probe;
+production HUD stays unchanged. Fixture instantiates the real retained HUD and
+accepts actual OS keyboard begin/Escape/Tab/Tab/Enter under private Xvfb/x11/Dummy,
+matching the observed~0.8s paused interval. Pure observations capture focus, hover,
+internal Popup identities and root focus_entered/tree_exited recipients before/
+after Enter. No pressed-signal emission, direct page method, input bypass,
+mining-flight replay or diagnostic filtering. Marker requires Activity Selection
+visible/TimedRace focused; diagnostics independently determine reproduction.
+
+One source import600 and fixture compile300 before ONE component reproduction:
+whole focused input-driver CAP60, outer90. Reuse existing owned Desktop helper;
+exact command is python3 helpers/repro.py under task-owned xvfb-run, launching
+pinned Godot --audio-driver Dummy --display-driver x11 --rendering-driver dummy
+--disable-render-loop --path <clean source> --script
+res://tests/controller_pause_navigation_prompt_test.gd -- --ui-board-focus-probe.
+Source/engine pins and file hashes fixed before execution. Stop after the first
+reproduction outcome; no speculative production edit or automatic second attempt.
+A component reproduction is causal evidence only, not ordinary Main/mining
+acceptance. Budget20–30min remains cumulative from19:07UTC; exact runtime repair
+scope/estimate requires an established cause first. No new validator/tracker.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
