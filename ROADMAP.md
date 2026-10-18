@@ -117,6 +117,23 @@ no automatic second patch, timeout extension, route narrowing or renamed retry.
 Original45–60min/split-before90 budget remains cumulative (selected18:39UTC;
 privacy stop18:54UTC).
 
+### Mining first-play — cumulative fixture review
+
+Repaired privacy passes1.162s. Full Python suite runs63 tests and stops7.840s
+on one new negative fixture: it rewinds primary generationN while the observed
+sample remainsN+1. The existing generation guard correctly fires before the
+intended missing-receipt assertion. No export/startup/gameplay stage ran.
+
+Independent cumulative review explicitly GOes one unit-fixture-only correction:
+copy the paid after document, remove only payload.cinder_mining_capacity, write
+that same-generation missing-receipt fixture. Preserve the original assertion,
+all63 tests, every production guard and frozen route/cap. Root freezes before
+editing; exact clean-pin review, full repair_python300, then original unrun
+package/startup/audit/oneCAP300 route only. Retain both failures (total8.481s).
+Original task elapsed~17min at review;45–60min/split-before90 remains cumulative.
+Any next unexpected failure STOPs for cumulative priority review before more
+work; no automatic patch or renamed/reset budget.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
