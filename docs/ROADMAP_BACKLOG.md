@@ -125,6 +125,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | LIFE-PACKAGE-DEFINE | Name uncovered packaged ordinary-play lifecycle cases | 7 | DEFINE; preserve both source passes, no automatic rerun |
 | CONTROL-FINDINGS | List observed unresolved control/help defects | 8 | DONE as bounded source review: advertised Right Stick LOOK has no Player/Tow consumer; GAMEPAD-LOOK packaged99e79c3 separately. Existing mixed prompts/distance help/sprint fixes retained; physical-device acceptance remains open. |
 | GAMEPAD-LOOK | Continuous right-stick local camera look | 8,29 | DONE in99e79c3: Player/tractor real camera, authored delta rate/deadzone/clamps/inversion and handoff clearing; full focused checks/paired checkpoint pass. Physical controller/full ordinary route remains open. |
+| UI-BOARD-FOCUS | Keyboard Activity Board transition retains valid visible focus without engine signal-disconnection errors | 8,13,29 | Concrete ordinary seam reached in PLAY-MINING; exact engine/HUD cause unresolved. Next bounded causal reproduction/production repair card in ROADMAP; no suppression/bypass/unchanged full-flight retry |
 
 ### Station, fleet and combat children
 
@@ -361,7 +362,7 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | KIT-DELIVER | Strict home landing transfers2 kits/pays once; usable exterior exit | 13 | DONE28a5e354e;79.213s actual dock/lease, COMPLETEDg1 kits4/2, one transfer/reward, automatic OFFLINE/authored exit/supported walk≥.5m |
 | KIT-RELOAD | Distinct process reloads actual completed store without duplication | 13,31 | FAILED/PARKED;972efd906 strict30s timeout, f432bd630 diagnostic Main ready/restore accepted27.762s then first normal frame pair incomplete before30s. Full60-tick restart unqualified; raw/input retained, no further probe selected |
 | PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-MINING | Mining/extraction first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
+| PLAY-MINING | Mining/extraction first full ordinary play | 13 | FAILED/PARKED candidate20bd1ab: single archive route53.444s reaches real Cinder approach then strict-stops on Activity Board focus-disconnection errors, before mining/return. Source unmerged/checkpoint withheld; UI-BOARD-FOCUS causal repair required before reopening; original CAP300 unchanged |
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-BEACON | Beacon Traversal first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-CONVOY | Convoy Escort first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |

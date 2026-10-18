@@ -10340,3 +10340,115 @@ This closes the selected capability, not its broad parents. No adjacent recovery
 qualification chain is selected. Next planning work should turn unresolved
 DEFINE/BUILD-SPLIT scope into finite deliverables with dependencies, acceptance
 and estimates before claiming a project remaining-job count or date.
+
+## Ordinary mining first-play — stopped at Activity Board focus transition
+
+Candidate `20bd1ab7482a9f612d092c4e93dbbf9f283d6a6d` remains unmerged on
+`feat/mining-first-play-20261018`; no qualified checkpoint was published.
+Implementation adds an ordinary exported-game mining route/read-only observer
+and privacy/regression coverage. Full Python63/7.779s, repaired privacy1.162s,
+import20.710s, observer/startup compiles15.733/1.174s, paired exports26.728/25.666s,
+strict direct/archive/Windows-payload startups22.353/23.774/25.916s and actual
+1521-entry matching payload/stockPE/exact archive audit pass in recorded scope.
+
+The single archive ELF attempt stops53.444s guarded /51.695s native route,
+not at CAP300. Fresh normal walk/board/Guided four drones/interceptor and actual
+Cinder approach succeed: distance0.770m, speed0, same cluster/binding/marker,
+mining generation0 IDLE. Ordinary Escape/Tab/Enter reaches Activity Board.
+Between frames2003/2004 the production synchronous page/focus transition emits
+root Window focus_entered/tree_exited nonexistent-connection errors; the next
+sample proves Activity Selection opened and Timed Race gained focus. Strict
+zero-diagnostic acceptance correctly stops before mining SELECT/START, extraction,
+capacity acknowledgement or home return. Those remain unqualified.
+
+Independent cumulative priority review NO-GOes further work inside the frozen
+five-file card. Exact engine/HUD lifetime cause is unproved; concrete seam is
+HUD ActivityBoardButton.pressed→_show_activity_selection_page, hiding focused
+PauseMainPage then grabbing the next page's focus. UI-BOARD-FOCUS requires a
+separate bounded causal reproduction/production repair before reopening.
+No suppression, input bypass, unchanged route replay, timeout extension or claim
+that partial prelude accepts PLAY-MINING. Preserve original scope and failures:
+privacy parse0.641s, Python fixture7.840s, native53.444s =61.925s cumulative.
+The two prior reviewed repairs change tests only; their original assertions stay.
+
+Inputs released; game/helper/Xvfb reaped. Closure verifies13 terminal owners
+and57 observed process identities absent;5 profile logs/10 app-data files
+archived. Owned source/profile/helpers/duplicate extraction removed normally;
+no public build files created. Selection18:39UTC→cleanup19:06UTC stays inside
+the original cumulative budget. Raw primary/backups before mining and
+at failure, complete observations, PCK inventories, startup records and exact
+withheld Linux archive remain in
+`/srv/mudds-work/mining-first-play-20261018/results/`.
+The latest accepted playable checkpoint remainsf8b5f86. No native Windows/GPU/
+device/audio/human, installed/final-source, full regression or ten-run claim.
+CI disabled; all36 broad parents and ten phase gates OPEN. Original selected
+card, explicit frozen repairs and cumulative budgets follow unchanged:
+
+### Selected — PLAY-MINING ordinary packaged sortie
+
+Parent13; production release capability, not new mining gameplay. The exported
+OS-input driver lacks a mining route/read-only observation. Freeze ownership:
+run_native_sortie.py + test_native_sortie.py, native_sortie_observer.gd,
+startup_loader.gd and existing startup_cli_privacy_test.gd only. One high-effort
+implementer in an isolated worktree; independent high-effort review; root alone
+runs checks, packages, integrates and cleans scratch. No nested delegation.
+
+Finish: fresh archive ELF/default controls→actual Torrent walk/board/Guided
+four-drone+interceptor prelude→physical authored Cinder approach→Escape/Activity
+Board/Nearby activities/mining SELECT/START→resume→6s real physics inside30m→
+generation1 complete with genuine once-only persisted capacity receipt→physical
+home strict landing/offline/supported exit. Preserve actors, authored tuning,
+ordinary input, unrelated data; no placement, synthetic objective submission,
+activity calls, reset/retry or accelerated physics. Observer stays read-only;
+paused UI sequence is separate from physics-time proof. Mining grants capacity,
+not invented ore/currency. Common-world target comes from live authored frame.
+
+Estimate45–60min implementation, split before90 cumulative. Root clean import600,
+observer/startup relevant compile300 and full privacy300; focused Python suite300.
+Independent exact clean-pin GO before engines. Clean paired exports900 each,
+three strict startup checks330/330/300,1521-style actual payload/archive audit,
+then ONE actual archive route at unchanged whole CAP300 (outer360). Stop first
+unexpected failure; preserve logs and source before any explicitly reviewed
+repair. Never raise cap or narrow route. No unchanged parked route/recovery
+replay or ten-run chain. Private Xvfb/x11/Dummy, owned PID/window/input helper,
+independent abort and release/reap required. Publish EXE/ZIP/notes only after all
+required checks pass; update roadmap, commit/push and clean owned scratch.
+Independent alternative is the unresolved cargo replenishment definition, gated
+on an actual source/destination policy; no policy inferred. Native/device/audio/
+human/installed/final-source acceptance remains factually unperformed where
+recorded; existing owner exclusions unchanged. CI remains disabled.
+
+### Mining first-play — privacy parse stop and bounded repair
+
+Initial clean sourced3ccec5e6 passes import20.710s, observer compile15.733s and
+startup compile1.174s. Full privacy check stops0.641s: new native-observer test
+local mining_args collides with the existing in-world-mining local in the same
+function. No Python/export/startup/ordinary-route stages ran. Retain failed raw
+stage/STOP/source and every original assertion/deadline.
+
+Root freezes one exact repair, independently causally reviewed: rename only the
+new native-observer block's declaration and three references to
+mining_first_play_args. No production behavior/test assertion change. Clean pin
+and independent delta review precede repair_privacy300 then the original unrun
+checks/packages/one archive route. Accepted unchanged import/production compiles
+are retained. Another unexpected failure requires cumulative priority review;
+no automatic second patch, timeout extension, route narrowing or renamed retry.
+Original45–60min/split-before90 budget remains cumulative (selected18:39UTC;
+privacy stop18:54UTC).
+
+### Mining first-play — cumulative fixture review
+
+Repaired privacy passes1.162s. Full Python suite runs63 tests and stops7.840s
+on one new negative fixture: it rewinds primary generationN while the observed
+sample remainsN+1. The existing generation guard correctly fires before the
+intended missing-receipt assertion. No export/startup/gameplay stage ran.
+
+Independent cumulative review explicitly GOes one unit-fixture-only correction:
+copy the paid after document, remove only payload.cinder_mining_capacity, write
+that same-generation missing-receipt fixture. Preserve the original assertion,
+all63 tests, every production guard and frozen route/cap. Root freezes before
+editing; exact clean-pin review, full repair_python300, then original unrun
+package/startup/audit/oneCAP300 route only. Retain both failures (total8.481s).
+Original task elapsed~17min at review;45–60min/split-before90 remains cumulative.
+Any next unexpected failure STOPs for cumulative priority review before more
+work; no automatic patch or renamed/reset budget.
