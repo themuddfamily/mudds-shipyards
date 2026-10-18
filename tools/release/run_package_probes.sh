@@ -3,7 +3,9 @@ set -euo pipefail
 set -o pipefail
 
 # --in-world-interruption runs one actual kill/restart; --activity=beacon or
-# --activity=mining, --activity=scan, --activity=hulk or --activity=stationdefense selects unpaid recovery
+# --activity=mining, --activity=scan, --activity=hulk, --activity=stationdefense or
+# --activity=breach selects unpaid recovery. Breach adds a further cold paid replay;
+# its staged setup/direct target damage does not qualify ordinary combat.
 # or --activity=ember selects a genuine interrupted planetary survey
 # (pilot only); default remains convoy. PACKAGE_PROBE_RECOVERY_CONTEXT=on_foot
 # selects the supported exterior Bulwark/home-berth convoy case. Ember excludes canonical outbound and
@@ -48,7 +50,7 @@ RESULTS_ROOT="${PACKAGE_PROBE_RESULTS_ROOT:-$PROJECT_ROOT/artifacts/package-prob
 RUN_ID="${PACKAGE_PROBE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 AUDIO_DRIVER="${PACKAGE_PROBE_AUDIO_DRIVER:-Dummy}"
 RECOVERY_CONTEXT="${PACKAGE_PROBE_RECOVERY_CONTEXT:-pilot}"
-if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense && "$PROBE_ACTIVITY" != scan && "$PROBE_ACTIVITY" != hulk && "$PROBE_ACTIVITY" != ember ]]; then
+if [[ "$PROBE_ACTIVITY" != convoy && "$PROBE_ACTIVITY" != beacon && "$PROBE_ACTIVITY" != mining && "$PROBE_ACTIVITY" != stationdefense && "$PROBE_ACTIVITY" != scan && "$PROBE_ACTIVITY" != hulk && "$PROBE_ACTIVITY" != ember && "$PROBE_ACTIVITY" != breach ]]; then
   echo "Invalid interruption activity" >&2
   exit 2
 fi
@@ -60,7 +62,7 @@ if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY
   echo "Invalid interruption recovery context" >&2
   exit 2
 fi
-if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan || "$PROBE_ACTIVITY" == hulk || "$PROBE_ACTIVITY" == ember ) && "$RECOVERY_CONTEXT" != pilot ]]; then
+if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan || "$PROBE_ACTIVITY" == hulk || "$PROBE_ACTIVITY" == ember || "$PROBE_ACTIVITY" == breach ) && "$RECOVERY_CONTEXT" != pilot ]]; then
   echo "$PROBE_ACTIVITY interruption currently requires pilot context" >&2
   exit 2
 fi
@@ -220,9 +222,9 @@ for key, directory in {"XDG_DATA_HOME": "data", "XDG_CONFIG_HOME": "config",
     path.mkdir(mode=0o700)
     environment[key] = str(path)
 document = profile / "data/godot/app_userdata/Mudds Shipyards/mudds_user_data.json"
-def start(stage):
+def start(stage, leg=None):
     global registering_child
-    log = run_dir / "logs" / (stage + ".log")
+    log = run_dir / "logs" / ((leg or stage) + ".log")
     # Input-only dummy rendering retains the private display, real input and
     # physics. The engineer fixture never inherits the caller's display.
     display_options = (["--display-driver", "x11", "--disable-render-loop", "--rendering-driver", "dummy"]
@@ -241,7 +243,7 @@ def start(stage):
             process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT,
                                        stdin=subprocess.DEVNULL, env=environment, start_new_session=True)
             children.append(process)
-            entry = {"stage": stage, "pid": process.pid, "arguments": command, "log": str(log)}
+            entry = {"stage": leg or stage, "cli_stage": stage, "pid": process.pid, "arguments": command, "log": str(log)}
             result["processes"].append(entry)
         finally:
             registering_child = False
@@ -377,6 +379,35 @@ try:
         require(saved["payload"]["runtime_settings"] == ready["foreign_settings"]
                 and saved["payload"]["jovian_cargo_session"] == ready["foreign_cargo"],
                 "hulk arm lost unrelated production settings/cargo")
+    elif activity == "breach":
+        terminal = saved["payload"]["heavy_breach_session"]
+        session = terminal["session"]
+        completion = session["completion"]
+        require(terminal == ready["boundary"] and terminal["schema_version"] == 1
+                and terminal["payload_kind"] == "nearby_sector_activity_session"
+                and terminal["slot_id"] == "heavy_breach_session"
+                and session["component_id"] == "heavy-breach-activity-board"
+                and session["generation_floor"] == completion["generation"] > 0
+                and session["offered_index"] == 1,
+                "Heavy Breach readiness differs from its actual supported rotated terminal")
+        require(completion["activity_id"] == "shipyard_heavy_breach"
+                and completion["scenario"] == "heavy_breach"
+                and completion["state_id"] == "concluded" and completion["outcome"] == "cleared"
+                and isinstance(completion["protected_objective"], str) and completion["protected_objective"]
+                and completion["reward_granted"] is False and ready["receipts"] == 0,
+                "Heavy Breach readiness has no genuine earned unpaid Heavy Breach debt")
+        ledger = saved["payload"].get("game_flow_reward_store", {})
+        require(ledger.get("total_receipts", 0) == 0
+                and ledger.get("reward_counts", {}).get("return_heavy_breach_credit", 0) == 0
+                and ready["foreign_reward_record"]["total_receipts"] == 0
+                and ready["runtime_observation"]["craft_piloted"] is True
+                and ready["runtime_observation"]["player_seated"] is True,
+                "Heavy Breach arm has no actual unpaid boundary and real pilot ownership")
+        require(saved["payload"]["runtime_settings"] == ready["foreign_settings"]
+                and saved["payload"]["jovian_cargo_session"] == ready["foreign_cargo"],
+                "Heavy Breach arm lost actual unrelated settings/activity payload")
+        require(ready["fixture_method"] == "staged_on_foot_board_and_Arrow_entry_shortened_boarding_real_departure_then_direct_damage_on_real_charged_picket",
+                "Heavy Breach arm concealed its staged setup, shortened boarding or direct target damage")
     elif activity == "stationdefense":
         terminal = saved["payload"]["station_defense_session"]
         session = terminal["session"]
@@ -556,6 +587,36 @@ try:
         require(final["payload"]["runtime_settings"] == ready["foreign_settings"] == recovered["foreign_settings"]
                 and final["payload"]["jovian_cargo_session"] == ready["foreign_cargo"] == recovered["foreign_cargo"],
                 "hulk recovery changed unrelated production settings/cargo")
+    elif activity == "breach":
+        paid = final["payload"]["heavy_breach_session"]
+        safe = recovered["safe_recovery_observation"]
+        require(safe["craft_piloted"] is True and safe["player_seated"] is True
+                and safe["craft_id"] == ready["runtime_observation"]["craft_id"],
+                "Heavy Breach Resume did not acquire the actual saved safe-home Arrow pilot")
+        require(paid == recovered["paid_boundary"]
+                and paid == {**terminal, "session": {**session,
+                    "completion": {**completion, "reward_granted": True}}}
+                and recovered["payment_commit"]["id"].startswith("game-flow-reward-")
+                and recovered["paid_replay"] is False,
+                "Heavy Breach production retry changed earned debt or lost its atomic paid acknowledgement")
+        ledger = final["payload"]["game_flow_reward_store"]
+        receipt = ledger["last_receipt"]
+        require(ledger == recovered["reward_record"] and ledger["total_receipts"] == 1
+                and ledger["receipt_serial"] == 1
+                and ledger["reward_counts"] == {"return_heavy_breach_credit": 1}
+                and receipt["activity_id"] == "shipyard_heavy_breach"
+                and receipt["reward_id"] == "return_heavy_breach_credit"
+                and receipt["activity_generation"] == completion["generation"]
+                and receipt["granted"] is True and receipt["replay_allowed"] is False,
+                "Heavy Breach recovery did not save exactly one actual Heavy Breach receipt")
+        require(final["payload"]["runtime_settings"] == ready["foreign_settings"] == recovered["foreign_settings"]
+                and final["payload"]["jovian_cargo_session"] == ready["foreign_cargo"] == recovered["foreign_cargo"],
+                "Heavy Breach recovery changed actual unrelated settings/activity payload")
+        require(recovered["active_combat_restore"] == "NOT_SUPPORTED"
+                and recovered["ordinary_combat_acceptance"] == "NOT_RUN"
+                and recovered["fixture_method"] == ready["fixture_method"]
+                and recovered["continuation_method"] == "ordinary_cold_Resume_safe_home_Arrow_pilot_production_exit_staged_physical_board_interaction",
+                "Heavy Breach recovery concealed its fixture or terminal-only scope")
     elif activity == "stationdefense":
         paid = final["payload"]["station_defense_session"]
         safe = recovered["safe_recovery_observation"]
@@ -671,6 +732,37 @@ try:
     result["recovered"] = recovered
     require(final["payload"]["crash_recovery"]["state"] == "clean" and final["payload"]["safe_start_recovery"]["state"] == "clean_shutdown",
             "recovered orderly process did not close both marker owners")
+    if activity == "breach":
+        # The existing resume stage recognizes an already paid terminal. Its
+        # further OS process must load the same private profile independently;
+        # only recovery markers may change, never the paid debt or reward ledger.
+        replay, replay_log, replay_entry = start("resume", "paid-replay")
+        require(len({entry["pid"] for entry in result["processes"]}) == 3,
+                "Heavy Breach arm, recovery and paid replay require distinct owned OS processes")
+        replay_entry["exit_code"] = replay.wait(timeout=timeout)
+        replayed = token(replay_log, "IN_WORLD_RECOVERY_OK")
+        require(replay_entry["exit_code"] == 0 and replayed is not None
+                and not diagnostics(replay_log), "further cold paid replay failed or emitted diagnostics")
+        require(replay_log.read_text(errors="replace").strip().splitlines()[-1].startswith("IN_WORLD_RECOVERY_OK: "),
+                "paid replay token is not terminal")
+        require(replayed.get("entry") == "startup_completed" and replayed.get("activity") == "breach"
+                and replayed.get("recovery_context") == recovery_context and replayed.get("paid_replay") is True
+                and replayed["boundary"] == paid == replayed["paid_boundary"]
+                and replayed["receipts_before"] == replayed["receipts_after"] == 1
+                and replayed["crash_events"] == 0 and replayed["reward_record"] == ledger,
+                "further cold process did not retain the exact paid Heavy Breach terminal and single receipt")
+        replay_bytes = document.read_bytes()
+        replay_document = json.loads(replay_bytes)
+        require(replay_document["payload"]["heavy_breach_session"] == paid
+                and replay_document["payload"]["game_flow_reward_store"] == ledger
+                and replay_document["payload"]["runtime_settings"] == ready["foreign_settings"] == replayed["foreign_settings"]
+                and replay_document["payload"]["jovian_cargo_session"] == ready["foreign_cargo"] == replayed["foreign_cargo"],
+                "independently read paid replay document changed the paid debt, ledger or unrelated payload")
+        require(replay_document["payload"]["crash_recovery"]["state"] == "clean"
+                and replay_document["payload"]["safe_start_recovery"]["state"] == "clean_shutdown",
+                "paid replay did not close both actual recovery marker owners")
+        (run_dir / "paid-replay-document.json").write_bytes(replay_bytes)
+        result["paid_replay"] = replayed
     result["status"] = "PASS"
 except Exception as error:
     result["failure"] = str(error)

@@ -73,6 +73,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if recovery_context == "engineer":
 		await _run_engineer(game, store, entry)
 		return
+	if activity == "breach":
+		await _run_breach(game, store, entry)
+		return
 	if activity == "ember":
 		await _run_ember(game, store, entry)
 		return
@@ -876,6 +879,211 @@ func _run_mining(game: GameFlow, store: UserDataStore, entry: String) -> void:
 		"runtime_observation": observations, "safe_recovery_observation": safe_observation,
 		"continuation_method": "real_safe_home_pilot_resume_then_ordinary_mining_start_retry",
 		"assertions": _assertions, "entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+	if _failures.is_empty():
+		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
+		get_tree().quit(0)
+	else:
+		print("IN_WORLD_RECOVERY_FAILED")
+		get_tree().quit(1)
+
+
+## Heavy Breach terminal recovery only. Placement, shortened boarding and direct
+## damage on the real picket are disclosed fixtures, not ordinary combat proof.
+const BREACH_FIXTURE := "staged_on_foot_board_and_Arrow_entry_shortened_boarding_real_departure_then_direct_damage_on_real_charged_picket"
+
+
+func _breach_receipts(game: GameFlow) -> int:
+	var record: Dictionary = game.get_activity_reward_report().authority.record
+	return int(record.reward_counts.get(String(HeavyBreachActivityBoard.REWARD_ID), 0))
+
+
+func _breach_wait(predicate: Callable) -> bool:
+	for _frame in 240:
+		if bool(predicate.call()):
+			return true
+		await get_tree().physics_frame
+		await get_tree().process_frame
+	return bool(predicate.call())
+
+
+func _breach_board_fixture(game: GameFlow, board: HeavyBreachActivityBoard) -> bool:
+	game.player.teleport_to(Transform3D(Basis.looking_at(Vector3.FORWARD, Vector3.UP),
+		board.global_position + Vector3(0.0, 0.0, 2.0)))
+	return await _breach_wait(func() -> bool: return game.station_interaction_candidate == board)
+
+
+func _run_breach(game: GameFlow, store: UserDataStore, entry: String) -> void:
+	if recovery_context != "pilot":
+		_fail("Heavy Breach terminal interruption requires the supported pilot context")
+		return
+	var main_id := game.get_instance_id()
+	var board := game.world.get_heavy_breach_activity_board() as HeavyBreachActivityBoard
+	var director := game.get_node_or_null(^"EncounterScenarios") as EncounterScenarioDirector
+	var craft := game.get_node_or_null(^"ArrowReconShip") as HeroShip
+	if board == null or director == null or craft == null:
+		_fail("Boot Main must own the real Heavy Breach board, director and Arrow")
+		return
+	game.canopy_motion_time = 0.0
+	game.boarding_motion_time = 0.04
+	game.disembarking_motion_time = 0.04
+	if stage == "arm":
+		game.call("_on_settings_save_requested")
+		# Keep the unrelated owner idle: its own live elapsed clock must not be
+		# confused with a mutation by the terminal reward transaction on Resume.
+		_check(game.save_jovian_cargo_session().accepted,
+			"the genuine idle cargo/transfer owner saves unrelated activity payload beside Heavy Breach")
+		game.start_shift()
+		_check(await _breach_board_fixture(game, board), "the staged on-foot Player discovers the real Heavy Breach board")
+		await _press_real_interaction()
+		_check(board.is_sortie_armed() and board.get_offered_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH
+			and director.get_state() == EncounterScenarioDirector.STATE_IDLE,
+			"the production board arms Heavy Breach without starting combat against the avatar")
+		game.player.teleport_to(Transform3D(Basis.IDENTITY, craft.get_boarding_position() + Vector3(0.0, 0.05, 0.0)))
+		_check(await _breach_wait(func() -> bool: return game.boarding_candidate == craft),
+			"the staged Arrow entry resolves through the production boarding sensor")
+		await _press_real_interaction()
+		_check(await _wait_for_real_pilot(game, craft, 240), "the real Arrow seat settles before the Heavy Breach departure")
+		Input.action_press(&"move_forward")
+		var launched := await _breach_wait(func() -> bool:
+			return game.phase == GameFlow.Phase.FREE_FLIGHT and director.is_running())
+		Input.action_release(&"move_forward")
+		_check(launched and director.get_active_scenario() == EncounterScenarioDirector.SCENARIO_HEAVY_BREACH
+			and int(board.get_snapshot().active_director_generation) > 0,
+			"real Arrow departure launches the board-owned Heavy Breach director generation")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var original := store.get("_filesystem") as UserDataFilesystem
+		var fault := ActivityRewardFault.new(original, String(HeavyBreachActivityBoard.ACTIVITY_ID))
+		store.set("_filesystem", fault)
+		var picket := game.get_node_or_null(^"StandoffPicket") as StandoffPicketOpponent
+		_check(picket != null, "the genuine Heavy Breach encounter owns its real charged picket")
+		if picket != null:
+			picket.apply_damage(picket.maximum_health, picket.global_position)
+		_check(await _breach_wait(func() -> bool: return director.is_concluded()),
+			"the disclosed direct target-damage fixture concludes the actual director-owned encounter")
+		var boundary: Dictionary = store.get_snapshot().get(HeavyBreachActivityBoard.SESSION_SLOT, {})
+		_check(HeavyBreachActivityBoard.validate_session_record(boundary), "the real-file store contains the supported Heavy Breach terminal record")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var completion: Dictionary = boundary.session.completion
+		var context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
+		_check(director.get_outcome() == EncounterScenarioDirector.OUTCOME_CLEARED
+			and completion.activity_id == String(HeavyBreachActivityBoard.ACTIVITY_ID)
+			and completion.scenario == String(EncounterScenarioDirector.SCENARIO_HEAVY_BREACH)
+			and completion.outcome == "cleared" and not completion.reward_granted
+			and fault.rejected and _breach_receipts(game) == 0
+			and int(board.get_reward_handoff_snapshot().pending_reward_generation) == int(completion.generation)
+			and context.get("mode") == "pilot" and context.get("craft_id") == String(craft.get_ship_id()),
+			"genuine Heavy Breach completion saves earned debt before only its delegated real-filesystem reward write is refused")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
+		var ready := {"boundary": boundary, "receipts": 0, "activity": activity,
+			"foreign_settings": store.get_snapshot().runtime_settings,
+			"foreign_cargo": store.get_snapshot().jovian_cargo_session,
+			"foreign_reward_record": game.get_activity_reward_report().authority.record,
+			"runtime_observation": _interruption_runtime_observation(game), "fixture_method": BREACH_FIXTURE,
+			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+		get_tree().paused = true
+		# No orderly shutdown or further save before the exact supervisor kill.
+		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify(ready))
+		return
+	var boundary: Dictionary = store.get_snapshot().get(HeavyBreachActivityBoard.SESSION_SLOT, {})
+	if not HeavyBreachActivityBoard.validate_session_record(boundary) or boundary.session.completion.is_empty() \
+			or boundary.session.completion.activity_id != String(HeavyBreachActivityBoard.ACTIVITY_ID) \
+			or boundary.session.completion.scenario != String(EncounterScenarioDirector.SCENARIO_HEAVY_BREACH):
+		_fail("Heavy Breach restart requires the actual supported earned Heavy Breach terminal, never Torpedo")
+		return
+	var paid_replay: bool = boundary.session.completion.reward_granted
+	var baseline := _breach_receipts(game)
+	var foreign_settings: Dictionary = store.get_snapshot().runtime_settings
+	var foreign_cargo: Dictionary = store.get_snapshot().jovian_cargo_session
+	var reward_before: Dictionary = game.get_activity_reward_report().authority.record
+	var observations := _interruption_runtime_observation(game)
+	var recovery := game.get_recovery_available_snapshot()
+	var crash_events := 0
+	for event: Dictionary in game.get_session_recovery_diagnostic_snapshot().get("events", []):
+		if event.get("event_code") == "crash_detected":
+			crash_events += 1
+	_check(director.get_state() == EncounterScenarioDirector.STATE_IDLE
+		and int(board.get_snapshot().active_director_generation) == 0 and not board.is_sortie_armed()
+		and not game.player.is_seated() and not craft.is_piloted()
+		and baseline == (1 if paid_replay else 0)
+		and int(board.get_reward_handoff_snapshot().pending_reward_generation) == (0 if paid_replay else int(boundary.session.completion.generation)),
+		"fresh Boot restores terminal debt or paid acknowledgement without recreating old combat or pilot claims")
+	var safe_observation := {}
+	var payment_commit := {}
+	if paid_replay:
+		_check(recovery.is_empty() and crash_events == 0,
+			"the further cold process observes clean prior shutdown without inventing another crash")
+	else:
+		_check(not recovery.is_empty() and recovery.get("state") == "running" and crash_events == 1,
+			"the distinct cold recovery process observes the genuine killed session once")
+		if _failures.is_empty():
+			var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
+			game.start_shift()
+			var settled := await _wait_for_real_pilot(game, craft, 240)
+			var area := craft.get_node(^"ShipBoardingArea") as ShipBoardingArea
+			var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+			_check(resumed.get("accepted", false) and settled and area.get_reservation_token() == game.player
+				and berth.get_occupant() == craft and berth.get_reservation_owner() == craft
+				and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1
+				and boundary == store.get_snapshot().heavy_breach_session,
+				"ordinary cold Resume acquires the real safe-home Arrow pilot while keeping exact terminal debt")
+			safe_observation = _interruption_runtime_observation(game)
+			# Resume's engines are idle at the safe home berth; use the production
+			# exit owner and wait for all real seat/transition owners to settle.
+			await _settle_frames(int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 3)
+			game.call("_try_exit_ship")
+			_check(await _breach_wait(func() -> bool: return not game.get("_transition_busy") and not game.get("_piloting"))
+				and not game.player.is_seated() and not craft.is_piloted() and game.player.is_control_enabled()
+				and area.get_reservation_token() != game.player,
+				"production pilot exit releases real ownership before the staged on-foot board retry")
+			_check(await _breach_board_fixture(game, board), "the recovered on-foot Player discovers the physical unpaid board")
+			if _failures.is_empty():
+				await _press_real_interaction()
+				payment_commit = store.get_commit_metadata()
+	var paid: Dictionary = store.get_snapshot().heavy_breach_session
+	var reward_after: Dictionary = game.get_activity_reward_report().authority.record
+	var expected := boundary.duplicate(true)
+	expected.session.completion.reward_granted = true
+	_check(paid == expected and _breach_receipts(game) == 1
+		and int(reward_after.total_receipts) == 1 and int(reward_after.receipt_serial) == 1
+		and reward_after.last_receipt.activity_id == String(HeavyBreachActivityBoard.ACTIVITY_ID)
+		and reward_after.last_receipt.reward_id == String(HeavyBreachActivityBoard.REWARD_ID)
+		and reward_after.last_receipt.activity_generation == boundary.session.completion.generation
+		and reward_after.last_receipt.granted and not reward_after.last_receipt.replay_allowed
+		and int(board.get_reward_handoff_snapshot().pending_reward_generation) == 0,
+		"the production board/reward owner saves exactly one Heavy Breach receipt and the exact terminal acknowledgement")
+	if paid_replay:
+		_check(reward_before == reward_after and boundary == paid,
+			"the further distinct cold process retains the complete paid ledger and terminal without a second receipt")
+	else:
+		_check(str(payment_commit.get("id", "")).begins_with("game-flow-reward-"),
+			"payment and terminal acknowledgement use the one existing atomic reward transaction")
+		if _failures.is_empty():
+			var bytes := FileAccess.get_file_as_bytes(str(store.get("_path")))
+			await _press_real_interaction()
+			_check(_breach_receipts(game) == 1 and store.get_snapshot().heavy_breach_session == paid
+				and FileAccess.get_file_as_bytes(str(store.get("_path"))) == bytes,
+				"a second real board interaction cannot repay or mutate the acknowledged Heavy Breach terminal")
+	_check(foreign_settings == store.get_snapshot().runtime_settings and foreign_cargo == store.get_snapshot().jovian_cargo_session,
+		"Heavy Breach payment and cold replay preserve actual unrelated settings and cargo progress")
+	var closed := game.mark_orderly_shutdown()
+	_check(closed.get("accepted", false) and game.get_instance_id() == main_id and game.get_tree() == get_tree(),
+		"the exact Boot Main closes both existing recovery marker owners")
+	var outcome := {"boundary": boundary, "paid_boundary": paid, "receipts_before": baseline,
+		"receipts_after": _breach_receipts(game), "payment_commit": payment_commit, "paid_replay": paid_replay,
+		"reward_record": reward_after, "foreign_reward_record": reward_before,
+		"foreign_settings": foreign_settings, "foreign_cargo": foreign_cargo, "crash_events": crash_events,
+		"runtime_observation": observations, "safe_recovery_observation": safe_observation,
+		"fixture_method": BREACH_FIXTURE,
+		"continuation_method": "ordinary_cold_Resume_safe_home_Arrow_pilot_production_exit_staged_physical_board_interaction",
+		"active_combat_restore": "NOT_SUPPORTED", "ordinary_combat_acceptance": "NOT_RUN",
+		"activity": activity, "assertions": _assertions, "entry": entry,
+		"loaded_main_instance_id": main_id, "recovery_context": recovery_context}
 	if _failures.is_empty():
 		print("IN_WORLD_RECOVERY_OK: " + JSON.stringify(outcome))
 		get_tree().quit(0)

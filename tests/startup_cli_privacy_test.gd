@@ -159,6 +159,19 @@ func _run() -> void:
 	_check(not StartupLoaderType.in_world_probe_request(hulk_args, "x11", "Dummy").accepted
 		and not StartupLoaderType.in_world_probe_request(hulk_args, "headless", "PulseAudio").accepted,
 		"hulk refuses active display and audible driver before Main loading")
+	for breach_stage in ["arm", "resume"]:
+		var breach_args := PackedStringArray(["--in-world-interruption-stage=" + breach_stage, "--in-world-interruption-activity=breach"])
+		_check(StartupLoaderType.in_world_probe_request(breach_args, "headless", "Dummy").accepted,
+			"Heavy Breach admits its explicit silent terminal recovery stage: %s" % breach_stage)
+		for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+			var unsupported := breach_args.duplicate()
+			unsupported.append("--in-world-interruption-context=" + context)
+			_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
+				"Heavy Breach refuses unsupported recovery context: %s" % context)
+		_check(not StartupLoaderType.in_world_probe_request(breach_args, "X11", "Dummy").accepted
+			and not StartupLoaderType.in_world_probe_request(breach_args, "headless", "PulseAudio").accepted
+			and not StartupLoaderType.in_world_probe_request(breach_args, "headless", "Dummy", true).accepted,
+			"Heavy Breach preserves silent headless admission and rejects private engineer widening")
 	var ember_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=ember"])
 	_check(StartupLoaderType.in_world_probe_request(ember_args, "headless", "Dummy").accepted,
 		"ember interruption admits its supported pilot recovery")
@@ -215,7 +228,7 @@ func _run() -> void:
 		"engineer refuses unowned X11 and audible input")
 	_check(not StartupLoaderType.in_world_probe_request(probe_args, "headless", "Dummy", true).accepted,
 		"private engineer input marker cannot broaden other contexts")
-	for other_activity in ["beacon", "mining", "stationdefense", "scan", "hulk", "ember"]:
+	for other_activity in ["beacon", "mining", "stationdefense", "scan", "hulk", "ember", "breach"]:
 		var incompatible := engineer_args.duplicate()
 		incompatible.append("--in-world-interruption-activity=" + other_activity)
 		_check(not StartupLoaderType.in_world_probe_request(incompatible, "X11", "Dummy", true).accepted,
@@ -229,6 +242,9 @@ func _run() -> void:
 		_check(not bool(StartupLoaderType.in_world_probe_request(probe_args, "headless", audio_driver).accepted),
 			"the fixture requires the actual Dummy driver: %s" % audio_driver)
 	for unsafe in [
+		PackedStringArray(["--in-world-interruption-activity=breach"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "breach"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=breach", "--in-world-interruption-activity=breach"]),
 		PackedStringArray(["--in-world-interruption-activity=hulk"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "hulk"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=hulk", "--in-world-interruption-activity=hulk"]),
