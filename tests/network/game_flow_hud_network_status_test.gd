@@ -13,6 +13,12 @@ class HudProbe extends CanvasLayer:
 	func update_network_session_status(snapshot: Dictionary) -> void:
 		snapshots.append(snapshot.duplicate(true))
 
+	func set_objective(_text: String) -> void:
+		pass
+
+	func get_action_prompt(_action: StringName) -> String:
+		return "E"
+
 
 class CrewFlowProbe extends GameFlowType:
 	var crew_view: Dictionary = {}
@@ -161,7 +167,10 @@ func _check_confirmed_crew_publication() -> void:
 	var flow := CrewFlowProbe.new()
 	var probe := HudProbe.new()
 	var session := CrewSessionProbe.new()
+	var prior_craft := CrewCraftProbe.new()
 	var craft := CrewCraftProbe.new()
+	craft.ship_id = &"jovian_provisional"
+	craft.display_name = "Jovian-class Light Freighter candidate"
 	var actor := CrewPlayerProbe.new()
 	var seat := ShipCrewSeat.new()
 	var anchor := Marker3D.new()
@@ -173,24 +182,33 @@ func _check_confirmed_crew_publication() -> void:
 	var source := BodySourceType.new()
 	source.bind(&"crew_avatar", 3)
 	root.add_child(session)
+	root.add_child(prior_craft)
 	root.add_child(craft)
 	root.add_child(actor)
 	flow.hud = probe
 	flow.player = actor
 	flow.network_session = session
-	flow.active_ship = craft
+	flow.active_ship = prior_craft
 	flow._cabin_ship = craft
 	flow._network_session_mode = &"client"
 	flow._network_remote_body_intent_source = source
 	flow.crew_view = {"seated": true, "entity_generation": 3, "assignment": {"claim_sequence": 7}}
 	flow._publish_network_session_snapshot(&"connected", &"client", "Host admitted this client.")
 	var presenter := StatusPresenter.new()
-	presenter.present_snapshot(probe.snapshots.back())
+	var initial: Dictionary = presenter.present_snapshot(probe.snapshots.back())
+	_check(initial.ownership_text == "OBSERVER"
+		and initial.controlled_craft == prior_craft.get_display_name().left(48)
+		and probe.snapshots.back().controlled_craft_id == prior_craft.get_ship_id(),
+		"crew fixture starts with the distinct prior Torrent selection")
 	var count := probe.snapshots.size()
 	var epoch := int(probe.snapshots.back().generation)
 	flow._present_network_engineer_seat(seat)
 	_check(probe.snapshots.size() == count and not flow._station_seated,
 		"pending crew animation does not publish an unconfirmed gunner role")
+	var pending: Dictionary = flow._network_local_role_presentation()
+	_check(pending.controlled_craft == prior_craft.get_display_name()
+		and pending.controlled_craft_id == prior_craft.get_ship_id(),
+		"unconfirmed crew chair retains the selected craft presentation")
 	actor.boarding_completed.emit()
 	await process_frame
 	var seated := presenter.present_snapshot(probe.snapshots.back())
@@ -209,6 +227,41 @@ func _check_confirmed_crew_publication() -> void:
 	_check(probe.snapshots.size() == count + 1 and standing.ownership_text == "OBSERVER"
 		and standing.state == &"connected" and not flow._station_seated,
 		"completed stand immediately clears the gunner label in the same connected session")
+	seat._role = &"passenger"
+	seat._seat_id = &"co_pilot_station"
+	count = probe.snapshots.size()
+	flow._present_network_engineer_seat(seat)
+	_check(probe.snapshots.size() == count and presenter.get_snapshot() == standing,
+		"pending passenger motion retains the last consumed HUD")
+	actor.boarding_completed.emit()
+	await process_frame
+	var passenger: Dictionary = presenter.present_snapshot(probe.snapshots.back())
+	_check(probe.snapshots.size() == count + 1 and flow._station_seated
+		and passenger.ownership_text == "PASSENGER"
+		and passenger.controlled_craft == craft.get_display_name().left(48)
+		and passenger.next_action == "CONTINUE AS PASSENGER OR DISCONNECT"
+		and probe.snapshots.back().controlled_craft_id == craft.get_ship_id()
+		and flow.active_ship == prior_craft,
+		"confirmed Jovian passenger presents PASSENGER/Jovian and its ID while Torrent remains selected")
+	seat._ship = null
+	var invalid_owner: Dictionary = flow._network_local_role_presentation()
+	_check(invalid_owner.controlled_craft == prior_craft.get_display_name()
+		and invalid_owner.controlled_craft_id == prior_craft.get_ship_id()
+		and flow.active_ship == prior_craft,
+		"invalid crew craft falls back to the unchanged prior selection")
+	seat._ship = craft
+	count = probe.snapshots.size()
+	flow._finish_network_engineer_stand()
+	_check(probe.snapshots.size() == count and presenter.get_snapshot() == passenger,
+		"pending passenger stand retains the consumed PASSENGER/Jovian status")
+	actor.disembarking_completed.emit()
+	await process_frame
+	var released: Dictionary = presenter.present_snapshot(probe.snapshots.back())
+	_check(probe.snapshots.size() == count + 1 and released.ownership_text == "OBSERVER"
+		and released.controlled_craft == prior_craft.get_display_name().left(48)
+		and probe.snapshots.back().controlled_craft_id == prior_craft.get_ship_id()
+		and flow.active_ship == prior_craft and not flow._station_seated,
+		"completed passenger release restores OBSERVER/Torrent and its ID without changing selection")
 	flow._network_engineer_client_seat = seat
 	count = probe.snapshots.size()
 	flow._cancel_network_engineer()
@@ -238,6 +291,7 @@ func _check_confirmed_crew_publication() -> void:
 	seat.free()
 	actor.free()
 	craft.free()
+	prior_craft.free()
 	session.free()
 
 
