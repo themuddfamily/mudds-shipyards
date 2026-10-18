@@ -37,9 +37,9 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS definition, 2 FAILED/PARKED, 2 GATED, 3 DONE qualifications.** Root owns integration and closure.
+**1 IN PROGRESS production fix, 2 FAILED/PARKED, 2 GATED, 3 DONE qualifications.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
-their reused queue slot now holds the finite controls finding. Two definitions are complete: offline Jovian delivery and residual Halyard
+their reused queue slot now holds the camera-distance prompt correction. Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
 ten phase gates remain open. The accepted Annex route and parked Jovian exit/
@@ -52,7 +52,7 @@ and delivery history; they do not consume active queue slots.
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
-| CONTROL-FINDINGS | IN PROGRESS definition | One source-demonstrated controls/help/remap defect with exact trigger and production seam, or no finding. |10 min static; no engines or speculative implementation |
+| CAMERA-DISTANCE-PROMPTS | IN PROGRESS | Piloting Controls shows both current camera-distance bindings after remap. |30 min implementation; old/new focused check + paired checkpoint |
 | HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
 | HALYARD-AUTHORITY-STOP | GATED on HALYARD-MOVING-CABIN | Real server shutdown restores both occupants to usable solo operation. |30–60 min; one selected route at unchanged caps |
@@ -206,6 +206,24 @@ accepted runtime repairs require separate cards and fresh paired builds.
   `/srv/mudds-work/jovian-kit-reload-20261018/results/reload/`. Source branch pushed;
   owned checkout/helpers/profiles removed. No new build or restart qualification.
 
+### CAMERA-DISTANCE-PROMPTS — show live distance bindings
+
+- **Parents/result:**8/29. After remapping camera distance in/out to F13/F14,
+  piloting Controls shows both keys instead of the hardcoded Mouse Wheel hint.
+  Distinct controller remaps likewise show both; authored wheel/stick hints remain accurate.
+- **Boundary/owner:** root integrates one implementation agent in isolated
+  `fix/camera-distance-prompts-20261018`. Only HUD `_view_distance_prompts` and
+  existing `runtime_input_rebind_hud_integration_test.gd`; no input authority changes.
+- **Proof/budget:**30min implementation/review; compile300s, one focused test
+  against old HUD to demonstrate regression and one against corrected HUD.
+  Capture both keys through existing HUD flow, inspect actual piloting help row,
+  reset and verify authored hint. No broad remap matrix or physical device claim.
+- **Close/stop:** first unexpected failure stops and names owner; no automatic
+  broader repair. Accepted runtime needs clean safe paired Windows/Linux exports,
+  strict isolated silent startup exit0/exactone STARTUP_MENU_READY_OK and existing
+  exact package audits. EXE/ZIP/notes in builds/windows, Linux in builds/linux.
+  Commit/push and remove owned disposable files; external gates stay open.
+
 ### CONTROL-FINDINGS — select one actual binding/help defect
 
 - **Parents/result/type:**8/29; bounded source definition before product work.
@@ -215,8 +233,9 @@ accepted runtime repairs require separate cards and fresh paired builds.
   further probes. One read-only agent compares existing HUD prompts/settings
   remapping owners with InputMap/local input source.10min, no engines or edits.
   Root reconciles stale backlog cargo statuses and owns any later implementation.
-- **Close/next:** name one demonstrated defect, production file and existing
-  focused acceptance, then select bounded fix; otherwise stop at no finding.
+- **Close/next:** DONE definition: HUD1372 hardcodes desktop distance and only
+  resolves controller distance out despite both actions being remappable/live.
+  Select CAMERA-DISTANCE-PROMPTS with existing focused HUD test.
   No speculative feature or new audit/test framework. Runtime delivery requires
   actual correction, focused before/after proof and clean paired checkpoint.
 

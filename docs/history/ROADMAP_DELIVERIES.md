@@ -6050,3 +6050,15 @@ runtime fix selected before defect established. Retire completed RELOAD-BOUNDARY
 from active slots, retain full diagnostic below. Reconcile stale backlog cargo
 DELIVER READY/RELOAD GATED with accepted28a5e354e delivery and actual parked
 strict30s restart; no whole-parent closure inferred.
+
+
+CONTROL-FINDINGS DONE definition: shipping HUD _view_distance_prompts hardcodes
+desktop Mouse Wheel and only resolves pad distance-out. Settings exposes both
+camera_distance_in/out; actual command mapper consumes both remapped actions.
+Exact trigger: remap in/out to F13/F14, pilot/open Controls, VIEW / DISTANCE hides
+both valid keys. Select CAMERA-DISTANCE-PROMPTS production correction in HUD plus
+existing rebind HUD integration test,30min bounded implementation/root review.
+One old-HUD regression reproduction and one corrected focused run, original300s
+caps/private x11/Dummy; first unexpected failure stops. Accepted runtime requires
+fresh clean paired safe exports/strict silent package startups/actual audits.
+No input authority or persistence format changes; cargo/Halyard remain parked.
