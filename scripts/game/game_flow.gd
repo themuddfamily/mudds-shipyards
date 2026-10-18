@@ -5585,14 +5585,22 @@ func _physics_process(delta: float) -> void:
 		return
 	var sampled_ship_position := actor_sample.get("position", Vector3.INF) as Vector3
 	_advance_selected_activity(delta, sampled_ship_position)
-	var telemetry: Dictionary = active_ship.get_telemetry()
-	_decorate_flight_path_telemetry(telemetry)
-	hud.update_ship_telemetry(telemetry)
+	var telemetry := _publish_active_ship_telemetry_to_hud()
 	var engine_state := str(telemetry.get("engine_state", "OFFLINE")).to_upper()
 	if engine_state == "OFFLINE":
 		return
 	# The ship-local positional rig consumes the already sampled ShipCommand and
 	# smoothed throttle. The coordinator performs no raw Input read or global hum.
+
+
+## Present accepted host hull facts only at the HUD boundary. The existing
+## replica owner clears this projection when local authority or lifetime wins.
+func _publish_active_ship_telemetry_to_hud() -> Dictionary:
+	var telemetry: Dictionary = active_ship.get_telemetry()
+	telemetry.merge(active_ship.get_network_hull_telemetry_presentation(), true)
+	_decorate_flight_path_telemetry(telemetry)
+	hud.update_ship_telemetry(telemetry)
+	return telemetry
 
 
 func _advance_bomber_payload_loop(delta: float) -> void:

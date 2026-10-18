@@ -2642,6 +2642,19 @@ func get_network_damage_presentation_snapshot() -> Dictionary:
 		"components": _component_damage.get_component_states()}
 
 
+## HUD-only scalars from the already accepted host display life. Gameplay
+## telemetry keeps the retained local simulation as its source of authority.
+func get_network_hull_telemetry_presentation() -> Dictionary:
+	if not _network_damage_presentation_enabled or _network_damage_state.is_empty() \
+			or not is_instance_valid(_network_damage_presentation):
+		return {}
+	return {
+		"hull": 0.0 if bool(_network_damage_state.destroyed) else float(_network_damage_state.health),
+		"maximum_hull": float(_network_damage_state.maximum_health),
+		"damage_status": _network_damage_presentation.get_status(),
+	}
+
+
 func set_network_damage_presentation_enabled(enabled: bool) -> void:
 	_network_damage_presentation_enabled = enabled
 	if not enabled:
