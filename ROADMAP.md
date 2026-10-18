@@ -37,12 +37,13 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**2 FAILED/PARKED, 2 GATED, 4 DONE (one qualification, three production fixes).** Root owns integration and closure.
+**1 IN PROGRESS qualification, 2 FAILED/PARKED, 2 GATED, 3 DONE (one qualification, two production fixes).** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
-control prompts and the cargo supply-status correction. Two definitions are complete: offline Jovian delivery and residual Halyard
-server gameplay. They split into the eight concrete outcomes below. This is a
+control prompts and the cargo supply-status correction. Completed mixed-control
+work remains below; its slot now holds the named remote-yaw qualification. The
+queue draws from offline delivery, remote helm and residual Halyard outcomes. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
 ten phase gates remain open. The accepted Annex route and parked Jovian exit/
 reuse cards remain in the [backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
@@ -50,7 +51,7 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| MIXED-CONTROL-PROMPTS | DONE | Grouped movement help retains a remapped button alongside stick directions in either order. |b86264f; glyph40/camera27/help20, paired checkpoint/startups/audits pass |
+| HELM-YAW | IN PROGRESS qualification | Original remote pilot turns host-owned Jovian both ways with normal sampled input; release stops yaw and both clients consume the attitude. |30–45min implementation/review; one unchanged300s route, compile/import separate |
 | HUD-CARGO-SUPPLY | DONE | After the six-kit supply is exhausted and the run reset, the Activity Board reports insufficient kits; other activities remain selectable. |0c2dc2e; cargo127/nearby HUD13, paired checkpoint/startups/audit pass |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
@@ -73,6 +74,38 @@ any more. Close with actual result/pin/limits, commit/push and owned cleanup,
 retaining unique raw/work. Caller-only work needs no identical checkpoint;
 accepted runtime repairs require separate cards and fresh paired builds.
 
+### HELM-YAW — remote pilot turns the actual host-owned Jovian
+
+- **Parent/result/type:**18; qualify existing gameplay, not a new feature. After
+  the full accepted ordinary two-client boarding/departure/brake route, the
+  original pilot turns left and right through normal sampled actions. The host
+  craft turns correctly, release stops yaw and both original clients consume
+  its attitude while retaining their original seats and authority generations.
+- **Boundary/owner:** root integrates one high-effort implementation agent;
+  one select-only subclass of the existing Jovian flight caller. Defaults,
+  GameFlow/input/wire/physics owners stay unchanged. No staged flight pose,
+  direct helm packets, fake consumed poses, new validators or other helm axes.
+- **Proof:** exact script
+  `tests/network/jovian_network_two_client_yaw_test.gd`, coordinator-only
+  `JOVIAN_NETWORK_TWO_CLIENT_YAW_OK` after all three real OS exits0. Both
+  directions must show current-source signed yaw and at least3degrees of actual
+  signed host heading change within2s. Release reaches neutral within1s and
+  heading drifts at most0.5degree over the following1s. Both clients consume
+  advanced current-owner attitudes within2degrees of the host within2s. Preserve
+  source/ship/seat/ownership generations and actual supported occupants.
+- **Budget/next:** IN PROGRESS qualification;30–45min implementation/review,
+  split before90min. One compile300s, one private Xvfb/x11/Dummy route300s with
+  inherited outer360s and unchanged boarding/walking stage caps. Root reviews
+  before executing. First unexpected failure stops; record its actual owner
+  before selecting one separate bounded repair. No automatic extra probe.
+- **Close/limit:** commit/push actual source/result, retain unique raw and remove
+  owned scratch. Caller-only qualification needs no identical runtime rebuild;
+  latest0c2dc2e remains playable. This proves one held helm action, not devices,
+  other axes, handback/reboarding, endurance or dedicated-server baseline.
+- **Priority:** this already-named uncovered action has no parked failed attempt.
+  Select it over reopening failed cargo restart/Halyard or repeating unchanged
+  passing HUD checks. Parked failure budgets and reopen conditions stay intact.
+
 ### HUD-CARGO-SUPPLY — show when delivery kits have run out
 
 - **Parent/result:**13. After three two-kit deliveries exhaust the Jovian's
@@ -91,9 +124,8 @@ accepted runtime repairs require separate cards and fresh paired builds.
   a timeout is a failure, not permission to weaken or replace the acceptance.
 - **Budget/next:** DONE; planned30–60min implementation/review, split before90min.
   Check runtime is separate: focused check up to300s per selected run, plus
-  import/compile and paired checkpoint exports/startups. Next action is the
-  bounded implementation (now complete); first unexpected failure would stop
-  work before choosing one separate repair.
+  import/compile and paired checkpoint exports/startups. Implementation and
+  closure are complete; no repeat check is selected.
 - **Close:** accepted runtime change, focused proof and fresh paired playable
   checkpoint with actual validation/limits; commit/push and owned scratch cleanup.
   This closes only the supply-status defect, not cargo persistence or parent13.

@@ -787,7 +787,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | DEFINE; existing remote-pose/station-frame coverage first |
 | HELM-ACTIONS-DEFINE | Finite sampled-local-input to remote-helm action roster | 18 | DONE; seven held fields/two ordered edges, source definition only |
 | HELM-THROTTLE-REVERSE | Sampled reverse thrust and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
-| HELM-YAW | Both sampled yaw directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
+| HELM-YAW | Both sampled yaw directions and neutral release | 18 | IN PROGRESS qualification in ROADMAP.md; original ordinary Jovian crew/source, actual host turn/release and consumed client attitudes; no new handback/reboard claim |
 | HELM-PITCH | Both sampled pitch directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | HELM-ROLL-RATE | Both sampled roll-rate directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | HELM-BOOST | Sampled boost effect on authoritative flight and release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
@@ -811,9 +811,9 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-DISCONNECT | Disconnect/retry ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-CANCEL | Cancel/reuse ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
-| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | DONE definition only; Halyard approach definition DONE, BOARD active, MOVING-CABIN/AUTHORITY-STOP GATED; no baseline completion |
+| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | DONE definition only; Halyard approach definition DONE, BOARD FAILED/PARKED, MOVING-CABIN/AUTHORITY-STOP GATED; no baseline completion |
 | HALYARD-APPROACH | Freeze ordinary spawn-to-airstair input waypoint route | 16,26 | DONE definition; native aft/fleet chain and authored final extension, no collision qualification |
-| HALYARD-BOARD | Non-playing Main authority and two original ordinary occupants | 16,26 | IN PROGRESS; frozen approach definition, real pilot/crew_port_00 seats |
+| HALYARD-BOARD | Non-playing Main authority and two original ordinary occupants | 16,26 | FAILED/PARKED; original route and one caller repair both fail consumed-state comparison; no further retry selected |
 | HALYARD-MOVING-CABIN | Actual departure with passenger supported walk/chair cycle | 16,24,26 | GATED on HALYARD-BOARD; no staged flight envelope |
 | HALYARD-AUTHORITY-STOP | Real server stop restores both remaining occupants to solo play | 16,26 | GATED on HALYARD-MOVING-CABIN; no SIGKILL/migration/reconnect claim |
 | SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | GATED; exact baseline contract, boarding/departure passes do not close it |
