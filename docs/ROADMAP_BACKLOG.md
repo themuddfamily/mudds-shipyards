@@ -787,7 +787,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | DEFINE; existing remote-pose/station-frame coverage first |
 | HELM-ACTIONS-DEFINE | Finite sampled-local-input to remote-helm action roster | 18 | DONE; seven held fields/two ordered edges, source definition only |
 | HELM-THROTTLE-REVERSE | Sampled reverse thrust and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
-| HELM-YAW | Both sampled yaw directions, neutral release and handback without stale ownership | 18 | OPEN; HELM-YAW-TURN child IN PROGRESS in ROADMAP.md for host effect/release and consumed attitudes. Original handback requirement remains unqualified and required |
+| HELM-YAW | Both sampled yaw directions, neutral release and handback without stale ownership | 18 | OPEN; HELM-YAW-TURN child FAILED138.085s at pilot convergence (2.7722deg vs2deg). HELM-NEUTRAL-REPAIR selected; original handback requirement remains unqualified and required |
 | HELM-PITCH | Both sampled pitch directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | HELM-ROLL-RATE | Both sampled roll-rate directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | HELM-BOOST | Sampled boost effect on authoritative flight and release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |

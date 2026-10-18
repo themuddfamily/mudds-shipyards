@@ -6183,3 +6183,27 @@ identities absent, source and required cache unchanged. Raw and archived engine
 logs: /srv/mudds-work/cargo-supply-status-20261018/results/. Owned disposable
 source/profile/helpers and duplicate builds removed at closure; source refs and
 public artifacts retained.
+
+
+## Ordinary remote Jovian yaw turn — failed first qualification
+
+Candidate c2e3df979 adds a select-only caller inheriting the entire accepted
+ordinary two-client boarding/departure/brake route. Import and compile pass;
+one private Xvfb/x11/input-only-renderer/Dummy route FAILS138.085s. New receipt
+first emits get_path diagnostics for a valid detached command source. Actual
+left host turn3.6deg/334ms, fresh delivered neutral and drift0 are observed;
+passenger client matches exactly, original pilot remains2.7722deg away at the
+unchanged2deg/2s gate. Right direction is NOT_RUN, candidate unmerged, no new
+runtime checkpoint. Source reading identifies the existing0.05rad rotation
+reconciliation deadband; no further probe or unchanged rerun selected.
+
+HELM-NEUTRAL-REPAIR is the one selected separate runtime repair: neutral pilot
+convergence preserving active prediction policy, plus safe caller receipt path.
+It must retain all original acceptance and requires independent review, focused
+old-runtime regression, one corrected full yaw qualification and paired builds.
+A failed repair triggers cumulative priority review before more work. HELM-YAW
+parent handback and full original multiplayer/device requirements remain open.
+All3 owners terminal/all23 observed PID identities absent; source/required cache
+unchanged,67 peer files byte-identical in the retained bundle. Raw:
+/srv/mudds-work/jovian-remote-yaw-20261018/results/. Owned disposable source,
+profiles and helper removed at closure; work branch/source refs retained.

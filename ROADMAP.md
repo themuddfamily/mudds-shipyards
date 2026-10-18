@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS qualification, 2 FAILED/PARKED, 2 GATED, 3 DONE (one qualification, two production fixes).** Root owns integration and closure.
+**1 READY repair, 3 FAILED (two parked), 2 GATED, 2 DONE.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -51,8 +51,8 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| HELM-YAW-TURN | IN PROGRESS qualification | Original remote pilot turns host-owned Jovian both ways with normal sampled input; release stops yaw and both clients consume the attitude. |30–45min implementation/review; one unchanged300s route, compile/import separate |
-| HUD-CARGO-SUPPLY | DONE | After the six-kit supply is exhausted and the run reset, the Activity Board reports insufficient kits; other activities remain selectable. |0c2dc2e; cargo127/nearby HUD13, paired checkpoint/startups/audit pass |
+| HELM-YAW-TURN | FAILED; repair selected | Original remote pilot turns host-owned Jovian both ways with normal sampled input; release stops yaw and both clients consume the attitude. |c2e3df979; route FAIL138.085s at pilot attitude convergence; original limits retained |
+| HELM-NEUTRAL-REPAIR | READY | After yaw release the pilot view converges to host attitude, preserving active steering behavior. |45–60min implementation/review; focused regression plus one unchanged yaw route; fresh checkpoint if accepted |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
@@ -93,7 +93,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   heading drifts at most0.5degree over the following1s. Both clients consume
   advanced current-owner attitudes within2degrees of the host within2s. Preserve
   source/ship/seat/ownership generations and actual supported occupants.
-- **Budget/next:** IN PROGRESS qualification;30–45min implementation/review,
+- **Budget/next:** FAILED qualification; planned30–45min implementation/review,
   split before90min. One compile300s, one private Xvfb/x11/Dummy route300s with
   inherited outer360s and unchanged boarding/walking stage caps. Root reviews
   before executing. First unexpected failure stops; record its actual owner
@@ -106,6 +106,46 @@ accepted runtime repairs require separate cards and fresh paired builds.
 - **Priority:** this already-named uncovered action has no parked failed attempt.
   Select it over reopening failed cargo restart/Halyard or repeating unchanged
   passing HUD checks. Parked failure budgets and reopen conditions stay intact.
+- **Actual result:** candidate c2e3df979 is unmerged. Import/compile pass;
+  single route FAIL138.085s. First diagnostic is caller receipt get_path on a
+  valid detached command source. Left turn is actual3.6deg/334ms, fresh neutral
+  delivered and host drift0; passenger attitude error0deg. Original pilot still
+  differs2.7722deg at the unchanged2deg/2s convergence boundary. Right turn is
+  NOT_RUN. Static owner is pose reconciliation's0.05rad (~2.86deg) rotation
+  deadband, below which it never corrects. The observed mismatch is retained;
+  do not loosen the comparison to turn the run green.
+- **Closure:** all3 owners terminal/all23 PID identities absent; source/required
+  cache unchanged,67 peer files copied byte-identically. Raw and source refs
+  retained; owned checkout/profiles/helpers removed. Next is the ONE selected
+  repair below. This failure and its repair share the cumulative work budget;
+  another failure requires priority review before more diagnosis or reruns.
+
+### HELM-NEUTRAL-REPAIR — converge the released pilot's attitude
+
+- **Parent/result:**18 / HELM-YAW. When the remote pilot releases steering,
+  prediction smoothly closes the residual host attitude error rather than
+  retaining a different heading indefinitely inside the active deadband.
+- **Boundary/owner:** root integrates one bounded implementation and one
+  independent high-risk reviewer. Existing
+  `scripts/network/network_remote_craft_pose_stream.gd::reconcile_pilot`, its
+  existing pose integration test, and the new yaw caller's detached-node receipt
+  only. Preserve active-input smoothing/deadband, interpolation/extrapolation,
+  positional correction, large-error snaps, stale/destroyed/landing behavior,
+  packet formats and source/ownership generations. No blanket threshold reduction.
+- **Proof:** add the smallest existing-suite regression for neutral residual
+  attitude convergence and retained active-steering policy; reproduce it on old
+  runtime. Fixed focused suite plus ONE unchanged full yaw route must pass
+  both directions, original timing/angle/support/identity criteria, exact marker,
+  all three OS exits0 and fullraw diagnostics0. Guard detached receipt paths;
+  do not suppress diagnostics. Any new runtime change requires fresh paired
+  clean exports and three strict startup/package checks before closure.
+- **Budget/next:** READY;45–60min implementation/review; split before90min.
+  Compile/focused checks up to300s each, yaw route original300s/outer360s;
+  exports/startups separate. Next action: implement/review this named correction
+  in an isolated checkout from the retained candidate. No new profiling probe.
+- **Stop:** first unexpected failure; no second automatic repair. Review
+  cumulative original failure plus this attempted repair before any next action.
+  Parent handback, devices, other axes and full multiplayer baseline remain open.
 
 ### HUD-CARGO-SUPPLY — show when delivery kits have run out
 
