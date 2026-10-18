@@ -79,6 +79,10 @@ var _full_throttle: ShipCommand = null
 
 func _run() -> void:
 	if await _build():
+		if OS.get_cmdline_user_args().has("--hull-hud-only"):
+			_assert_remote_hull_hud()
+			await _finish_pose_suite()
+			return
 		if OS.get_cmdline_user_args().has("--hull-instruments-only"):
 			_assert_remote_hull_instruments()
 			await _finish_pose_suite()
@@ -88,6 +92,7 @@ func _run() -> void:
 			await _finish_pose_suite()
 			return
 		_assert_remote_hull_instruments()
+		_assert_remote_hull_hud()
 		await _assert_a_grant_claims_ownership()
 		await _assert_b_host_publishes_the_pose()
 		await _assert_c_the_pilot_copy_is_reconciled()
@@ -239,6 +244,43 @@ func _assert_remote_throttle_instruments() -> void:
 	ship.set_network_damage_presentation_enabled(false)
 	ship.set("_piloted", piloted)
 	ship._update_presentation(TICK, ShipCommand.new())
+	ship.set_physics_process(was_processing)
+
+
+## Drive the existing GameFlow publisher rather than handing crafted telemetry
+## straight to the HUD: its retained solo hull must not replace host display facts.
+func _assert_remote_hull_hud() -> void:
+	var ship := _host.get_node("JovianLightFreighter") as HeroShip
+	var previous_ship := _host.active_ship
+	var previous_piloting := _host._piloting
+	var was_processing := ship.is_physics_processing()
+	ship.set_physics_process(false)
+	_host.active_ship = ship
+	_host._piloting = true
+	var solo := ship.get_telemetry()
+	var entry := PoseStream.build_pose_entry(ship, ship.get_ship_id(), 1, 80)
+	entry["craft_epoch"] = 1
+	entry.hull_presentation["health"] = 50.0
+	entry.hull_presentation["maximum_health"] = 200.0
+	var stream := PoseStream.new()
+	stream.bind_replica_craft_presentations([ship])
+	_check(stream.consume_movement_section(PoseStream.pack_display_facts([entry])) == 1,
+		"HUD regression admits the existing validated 50/200 host hull sample")
+	ship.set_network_damage_presentation_enabled(true)
+	_check(bool(ship.apply_network_damage_presentation(stream.latest_sample(ship.get_ship_id())).get("applied", false)),
+		"HUD regression applies host presentation while retaining the local full hull")
+	_host._physics_process(TICK)
+	var frame := _host.hud.get_hull_frame_damage_snapshot()
+	_check(is_equal_approx(float(frame.health_ratio), 0.25) and frame.stage == &"critical",
+		"normal GameFlow publication shows host 50/200 hull and critical frame instead of retained solo health")
+	var bar := _host.hud.get("_hull_bar") as ProgressBar
+	_check(is_equal_approx(bar.value, 25.0),
+		"normal GameFlow publication sets the actual HUD hull bar to host 25 percent")
+	_check(ship.get_telemetry().hull == solo.hull and ship.get_telemetry().maximum_hull == solo.maximum_hull,
+		"HUD host presentation retains gameplay telemetry's local hull and maximum")
+	ship.set_network_damage_presentation_enabled(false)
+	_host.active_ship = previous_ship
+	_host._piloting = previous_piloting
 	ship.set_physics_process(was_processing)
 
 
