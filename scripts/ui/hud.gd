@@ -1371,14 +1371,21 @@ func _look_prompt() -> String:
 
 func _view_distance_prompts() -> String:
 	var view := _action_prompts([&"toggle_ship_camera_view"])
-	var distance := (
-		_action_prompts([&"camera_distance_out"])
-		if InputGlyphResolverType.GAMEPAD_FAMILIES.has(
-			_input_glyph_resolver.get_preferred_device_family()
-		)
-		else "Mouse Wheel"
-	)
-	return "%s / %s" % [view, distance]
+	var controller_active := _controller_prompt_active()
+	var distance := PackedStringArray()
+	# HeroShip also accepts wheel events directly, independently of the
+	# remappable action bindings. Keep that live desktop alternative visible.
+	if not controller_active:
+		distance.append("Mouse Wheel")
+	for action: StringName in [&"camera_distance_in", &"camera_distance_out"]:
+		var resolved: Dictionary = _runtime_input_glyph_presenter.resolve_action(action)
+		var family: StringName = resolved.get("device_family", &"unknown")
+		var matches_device := InputGlyphResolverType.GAMEPAD_FAMILIES.has(family) if controller_active else family in [&"keyboard", &"mouse"]
+		if bool(resolved.get("valid", false)) and matches_device:
+			var text := str(resolved.get("text", "Unbound Input"))
+			if text not in distance:
+				distance.append(text)
+	return "%s / %s" % [view, " / ".join(distance) if not distance.is_empty() else "Unbound Input"]
 
 
 ## The embodiment the HUD is currently presenting. Exposed so a regression can
