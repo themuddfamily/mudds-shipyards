@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS diagnostic, 2 FAILED/PARKED, 2 GATED, 3 DONE qualifications.** Root owns integration and closure.
+**2 FAILED/PARKED, 2 GATED, 4 DONE (three qualifications, one diagnostic); no READY card.** Root owns integration and closure.
 Completed HALYARD-APPROACH definition is retained below; its queue slot now holds
 the finite reload diagnostic. Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
@@ -52,7 +52,7 @@ and delivery history; they do not consume active queue slots.
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
-| RELOAD-BOUNDARY | IN PROGRESS diagnostic | Identify synchronous Main readiness versus frame-wait boundary within unchanged restore30s. |15 min caller instrumentation; compile300s + ONE probe30s |
+| RELOAD-BOUNDARY | DONE diagnostic | Main ready/restore accepted27.762s; next ordinary frame pair unreached at30s. |f432bd630; ONE strict30s probe timed out, no restart qualification |
 | HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
 | HALYARD-AUTHORITY-STOP | GATED on HALYARD-MOVING-CABIN | Real server shutdown restores both occupants to usable solo operation. |30–60 min; one selected route at unchanged caps |
@@ -221,9 +221,21 @@ accepted runtime repairs require separate cards and fresh paired builds.
   SHAe5000c06734eff363c70cab9e394bb378b1de59b79254ec07a3b6a78a870ee0c;
   preserve archive and post-timeout store. Do not fabricate/reset completion,
   move preload outside clock, extend timeout or repeat parked Q4 profiling.
-- **Stop/close:** first run ends diagnosis; no automatic repair/retry. Name next
-  owner from actual boundary; lack of a narrower fact is not permission to profile
-  everything. Preserve source/raw, commit/push, remove owned disposable files.
+- **Actual/close:**f432bd630 import PASS20.618s/compile PASS16.272s;
+  ONE30s probe exits124 after30.240s. Scenario starts at engine15.929s,
+  tree entry15.953s, ShipyardWorld ready21.037s, final child27.047s,
+  Main ready27.762s with initialized=true/paused=false/cargo COMPLETEDg1/
+  restore accepted. First frame-pair wait begins27.762s; no return before timeout.
+  Thus synchronous startup completes; remaining gap is ordinary frame progress
+  plus remaining acceptance within the same total budget. Not a persistence rejection.
+- **Next/stop:** diagnostic DONE; KIT-RELOAD remains FAILED/PARKED, caller unmerged.
+  No narrower runtime fix or further probe selected. Replenish queue by priority
+  review; do not spend successive cards profiling each startup subsection.
+  A future repair must improve actual startup/frame behavior and retain original
+  process clock, full runtime/geometry and60-tick acceptance. No parked Q4 rerun.
+  All3 owners terminal/all6 PID identities absent, source/cache intact; saved
+  cargo/reward slots unchanged. Source/raw/accepted input and post-probe data
+  retained in task results; owned checkout/helpers/profiles removed.
 
 ### HALYARD-APPROACH — define one actual airstair approach
 

@@ -6013,3 +6013,30 @@ silent headless/Dummy probe. Recreate original private XDG path from byte-exact
 archived accepted input, preserve original archive and post-timeout copy. No
 fabricated state, preload clock shift, timeout growth or Q4 profile rerun. Probe
 ends diagnostic task; next owner/action must follow actual receipts.
+
+
+RELOAD-BOUNDARY DONE diagnostic atf432bd63008c6a142e1616999d63bb688e1fc34e:
+import PASS20.618s/compile PASS16.272s; ONE30s probe FAIL/exit124 after30.240s,
+marker0, timeout only. Scenario begins engine15.929s, instantiate15.943→15.953s,
+Main tree entry15.953s, ShipyardWorld ready21.037s, final child27.047s,
+Main ready27.762s. Main diagnostics initialized=true/paused=false/phaseINTRO,
+cargo COMPLETED generation1, restore accepted/delivery_state_restored. Tree entry
+returns27.762s; caller starts first physics/process pair and no pair completion
+is observed before strict30s kill. No readiness wait after startup is accepted;
+60 normal ticks and duplicate-free full restart remain unqualified.
+
+This resolves the selected hypothesis: synchronous tree-entry/readiness finishes;
+missing boundary is subsequent ordinary frame progress within the remaining
+2.238s process budget. Logs do not distinguish which part of that first pair
+stalls or establish a narrower production fix. No automatic repair, further probe,
+preload clock shift or timeout expansion selected. Do not serially profile every
+subsection or revive parked Q4 without its concrete reopen condition. Next queue
+replenishment requires priority review for actual product work, not more evidence.
+
+All3 owners terminal/all6 observed PID/start identities independently absent;
+source/index/non-import cache unchanged. Cargo and reward saved slots remain
+exactly equal to actual accepted input. Caller stays unmerged on pushed source
+branch; unique raw/accepted input/post-probe data retained under
+`/srv/mudds-work/jovian-reload-boundary-20261018/results/`. Owned checkout/helpers/
+profiles removed; no runtime change/checkpoint or restart qualification. All36
+parents/ten gates remain open; Halyard and reload stay parked.
