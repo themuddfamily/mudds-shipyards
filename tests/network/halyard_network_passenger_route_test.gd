@@ -2448,9 +2448,12 @@ func _ordinary_manifest(pilot_peer: int, passenger_peer: int) -> Dictionary:
 	var pilot_avatar := GameFlow.network_client_boarding_avatar_id(pilot_peer)
 	var passenger_avatar := GameFlow.network_client_boarding_avatar_id(passenger_peer)
 	var pilot_seat: Dictionary = {}
+	var passenger_boarding: Dictionary = {}
 	for held: Dictionary in _game.network_session.get_boarding_snapshot().get("occupancies", []):
 		if int(held.get("peer_id", 0)) == pilot_peer and held.get("avatar_id") == pilot_avatar:
 			pilot_seat = _ordinary_fields(held, ["peer_id", "avatar_id", "ship_id", "ship_generation", "role", "seat_id", "seat_generation", "claim_sequence"])
+		elif int(held.get("peer_id", 0)) == passenger_peer and held.get("avatar_id") == passenger_avatar:
+			passenger_boarding = _ordinary_fields(held, ["peer_id", "avatar_id", "ship_id", "ship_generation", "role", "seat_id", "seat_generation", "claim_sequence"])
 	var owner: CrewSeatRoleAuthority = _craft.get_crew_role_authority()
 	return {"pilot_peer": pilot_peer, "passenger_peer": passenger_peer,
 		"pilot_peer_generation": _ordinary_peer_generation(pilot_peer),
@@ -2458,7 +2461,7 @@ func _ordinary_manifest(pilot_peer: int, passenger_peer: int) -> Dictionary:
 		"ship_id": str(_craft.get_ship_id()),
 		"ownership": _ordinary_fields(_game.network_session.get_owned_ship(_craft.get_ship_id()),
 			["ship_id", "ship_generation", "owner_peer_id", "ownership_generation"]),
-		"pilot_seat": pilot_seat,
+		"pilot_seat": pilot_seat, "passenger_boarding": passenger_boarding,
 		"passenger_seat": _ordinary_fields(owner.get_assignment(passenger_peer, passenger_avatar) if owner != null else {},
 			["occupant_peer_id", "avatar_id", "vessel_id", "role", "seat_id", "seat_generation", "claim_sequence"]),
 		"pilot_body": _ordinary_fields(_ordinary_publication(pilot_avatar).get("wire", {}) as Dictionary,
@@ -2483,6 +2486,15 @@ func _ordinary_manifest_current(manifest: Dictionary) -> bool:
 	for held: Dictionary in _game.network_session.get_boarding_snapshot().get("occupancies", []):
 		if held.get("ship_id") == _craft.get_ship_id():
 			count += 1
+	for kind in ["pilot_seat", "passenger_boarding"]:
+		var expected_peer := pilot if kind == "pilot_seat" else passenger
+		var boarding := manifest.get(kind, {}) as Dictionary
+		if int(boarding.get("peer_id", 0)) != expected_peer \
+			or str(boarding.get("avatar_id", "")) != str(GameFlow.network_client_boarding_avatar_id(expected_peer)) \
+			or str(boarding.get("ship_id", "")) != str(_craft.get_ship_id()) \
+			or int(boarding.get("ship_generation", 0)) != int(ownership.get("ship_generation", -1)) \
+			or int(boarding.get("seat_generation", 0)) <= 0 or int(boarding.get("claim_sequence", 0)) <= 0:
+			return false
 	for kind in ["pilot_body", "passenger_body"]:
 		var expected_peer := pilot if kind == "pilot_body" else passenger
 		var wire := manifest.get(kind, {}) as Dictionary
@@ -2517,14 +2529,18 @@ func _ordinary_consumed_manifest_current(manifest: Dictionary) -> bool:
 	if _ordinary_fields(ownership, ["ship_id", "ship_generation", "owner_peer_id", "ownership_generation"]) != manifest.get("ownership", {}):
 		return false
 	var pilot_seat := manifest.get("pilot_seat", {}) as Dictionary
-	var consumed_pilot := false
-	for record: Dictionary in sections.get("boarding", []):
-		if str(record.get("seat_id", "")) == str(pilot_seat.get("seat_id", "")):
-			consumed_pilot = int(record.get("occupant_peer_id", 0)) == int(manifest.get("pilot_peer", -1)) \
-				and int(record.get("occupant_peer_generation", 0)) == int(manifest.get("pilot_peer_generation", -1)) \
-				and str(record.get("avatar_id", "")) == str(pilot_seat.get("avatar_id", "")) \
-				and int(record.get("seat_generation", 0)) == int(pilot_seat.get("seat_generation", -1))
-	if not consumed_pilot:
+	var own_boarding := manifest.get("pilot_seat" if _role == "client" else "passenger_boarding", {}) as Dictionary
+	var boarding_claim := _game.get("_network_client_boarding_claim") as Dictionary
+	# The received boarding grant stores only these three fields. Passenger
+	# admission retains its cabin berth; the separate consumed chair replica
+	# below proves crew_port_00 and its real seat/claim generations.
+	if _ordinary_fields(boarding_claim, ["ship_id", "seat_id", "role"]) \
+		!= _ordinary_fields(own_boarding, ["ship_id", "seat_id", "role"]) \
+		or int(own_boarding.get("peer_id", 0)) != _ordinary_peer_id \
+		or str(own_boarding.get("avatar_id", "")) != str(_ordinary_walking_identity.get("entity_id", "")) \
+		or int(manifest.get("pilot_peer" if _role == "client" else "passenger_peer", 0)) != _ordinary_peer_id \
+		or int(manifest.get("pilot_peer_generation" if _role == "client" else "passenger_peer_generation", 0)) != _ordinary_initial_peer_generation \
+		or int(own_boarding.get("seat_generation", 0)) <= 0 or int(own_boarding.get("claim_sequence", 0)) <= 0:
 		return false
 	for kind in ["pilot_body", "passenger_body"]:
 		var expected := manifest.get(kind, {}) as Dictionary
@@ -2588,7 +2604,7 @@ func _ordinary_aborted() -> bool:
 func _ordinary_node_identity(node: Node) -> Dictionary:
 	if not is_instance_valid(node):
 		return {"valid": false}
-	return {"valid": true, "id": str(node.get_instance_id()), "path": str(node.get_path())}
+	return {"valid": true, "id": str(node.get_instance_id()), "path": str(node.get_path()) if node.is_inside_tree() else ""}
 
 
 func _ordinary_failure_snapshot(description: String) -> Dictionary:
