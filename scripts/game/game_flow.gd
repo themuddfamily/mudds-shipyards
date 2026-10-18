@@ -9786,7 +9786,7 @@ func _release_solo_crew_claim() -> bool:
 ## A freed craft cannot perform the handback, but its retained exact role owner
 ## can still retire this local claim. Never clear another session's body tag.
 func _release_retired_solo_crew_claim(assignment: Dictionary) -> bool:
-	var tag_key := HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META if _solo_crew_seat_id in [HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID, &"co_pilot_station"] else HeroShip.SOLO_CREW_ROLE_OCCUPANT_META
+	var tag_key := HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META if _solo_crew_seat_id == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID or (_solo_crew_seat_id == &"co_pilot_station" and _solo_crew_role == &"gunner") else HeroShip.SOLO_CREW_ROLE_OCCUPANT_META
 	var metadata := player.get_meta(tag_key, {}) as Dictionary
 	if not metadata.is_empty() and (metadata.get("authority") != _solo_crew_authority \
 			or int(metadata.get("occupant_peer_id", 0)) != 1 or metadata.get("avatar_id") != SOLO_CREW_AVATAR_ID \
@@ -25591,7 +25591,7 @@ func _advance_network_engineer(delta: float) -> void:
 	var belongs: bool = not assignment.is_empty() and is_instance_valid(_cabin_ship) and view.get("ship_id") == _cabin_ship.get_ship_id() \
 		and StringName(assignment.get("avatar_id", &"")) == _network_remote_body_intent_source.get_entity_id() \
 		and int(view.get("entity_generation", 0)) == _network_remote_body_intent_source.get_entity_generation() \
-		and ((assignment.get("role") == &"engineer" and ((assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("seat_id") == HalyardCrewTransport.ENGINEER_SEAT_ID and _cabin_ship is HalyardCrewTransport))) or (assignment.get("role") == &"gunner" and ((assignment.get("seat_id") == BulwarkHeavyGunship.GUNNER_SEAT_ID and _cabin_ship is BulwarkHeavyGunship) or (assignment.get("seat_id") == &"co_pilot_station" and _cabin_ship is HalyardCrewTransport))) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID and _cabin_ship is HalyardCrewTransport) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID] and _cabin_ship is CinderCargoHauler)) \
+		and ((assignment.get("role") == &"engineer" and ((assignment.get("seat_id") == JovianLightFreighter.ENGINEER_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("seat_id") == HalyardCrewTransport.ENGINEER_SEAT_ID and _cabin_ship is HalyardCrewTransport))) or (assignment.get("role") == &"gunner" and ((assignment.get("seat_id") == BulwarkHeavyGunship.GUNNER_SEAT_ID and _cabin_ship is BulwarkHeavyGunship) or (assignment.get("seat_id") == &"co_pilot_station" and _cabin_ship is HalyardCrewTransport))) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID and _cabin_ship is HalyardCrewTransport) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") == JovianLightFreighter.COPILOT_SEAT_ID and _cabin_ship is JovianLightFreighter) or (assignment.get("role") == &"passenger" and assignment.get("seat_id") in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID] and _cabin_ship is CinderCargoHauler)) \
 		if _network_remote_body_intent_source != null and _network_remote_body_intent_source.is_bound() else false
 	if is_instance_valid(_network_engineer_client_seat):
 		if _network_engineer_client_seat.get_role_contract().is_empty() or not _network_client_boarding_holds(_network_engineer_client_seat.get_ship()):
@@ -25841,9 +25841,18 @@ func _send_network_loadmaster_intent(view: Dictionary, action: StringName = &"ca
 
 
 func _network_physical_crew_seat_is_wired(seat: ShipCrewSeat) -> bool:
-	return is_instance_valid(seat) and ((seat.get_ship() is CinderCargoHauler and seat.get_role() == &"passenger" and seat.get_seat_id() in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID]) or (seat.get_ship() is HalyardCrewTransport and ((seat.get_role() == &"passenger" and seat.get_seat_id() == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID) or (seat.get_role() == &"gunner" and seat.get_seat_id() == &"co_pilot_station") or (seat.get_role() == &"engineer" and seat.get_seat_id() == HalyardCrewTransport.ENGINEER_SEAT_ID))) or (seat.get_ship() is JovianLightFreighter and seat.get_role() == &"engineer") or (seat.get_ship() is BulwarkHeavyGunship and seat.get_role() == &"gunner"))
+	return is_instance_valid(seat) and ((seat.get_ship() is CinderCargoHauler and seat.get_role() == &"passenger" and seat.get_seat_id() in [CinderCargoHauler.LOADMASTER_STATION_SEAT_ID, CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID]) or (seat.get_ship() is HalyardCrewTransport and ((seat.get_role() == &"passenger" and seat.get_seat_id() == HalyardCrewTransport.LOADMASTER_STATION_SEAT_ID) or (seat.get_role() == &"gunner" and seat.get_seat_id() == &"co_pilot_station") or (seat.get_role() == &"engineer" and seat.get_seat_id() == HalyardCrewTransport.ENGINEER_SEAT_ID))) or (seat.get_ship() is JovianLightFreighter and ((seat.get_role() == &"engineer" and seat.get_seat_id() == JovianLightFreighter.ENGINEER_SEAT_ID) or (seat.get_role() == &"passenger" and seat.get_seat_id() == JovianLightFreighter.COPILOT_SEAT_ID))) or (seat.get_ship() is BulwarkHeavyGunship and seat.get_role() == &"gunner"))
 
 func _network_physical_crew_view() -> Dictionary:
+	if _cabin_ship is JovianLightFreighter:
+		var passenger := network_session.get_passenger_replica_snapshot()
+		var engineer := network_session.get_engineer_replica_snapshot()
+		var requested := _network_engineer_client_seat if is_instance_valid(_network_engineer_client_seat) else _network_engineer_pending_seat
+		# Empty release views still belong to the chair being left. A delayed
+		# other-role snapshot cannot preempt a new pending chair confirmation.
+		if is_instance_valid(requested) and requested.get_ship() == _cabin_ship:
+			return passenger if requested.get_role() == &"passenger" else engineer
+		return passenger if passenger.get("ship_id") == _cabin_ship.get_ship_id() and not (passenger.get("assignment", {}) as Dictionary).is_empty() else engineer
 	if _cabin_ship is HalyardCrewTransport:
 		var passenger := network_session.get_passenger_replica_snapshot()
 		var gunner := network_session.get_gunner_replica_snapshot()

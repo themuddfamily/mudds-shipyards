@@ -921,6 +921,28 @@ func get_copilot_seat_anchor() -> Marker3D:
 		if cockpit != null else null
 
 
+## The existing cockpit passenger chair is reached from the supported central
+## connector, clear of the pilot chair and the starboard pressure wall.
+func get_passenger_station_role_contract() -> Dictionary:
+	var approach := global_transform * Transform3D(Basis.IDENTITY, Vector3(0.95, 0.52, -7.15))
+	return {
+		"vessel_id": get_ship_id(), "seat_id": COPILOT_SEAT_ID, "role": &"passenger",
+		"seat": get_copilot_seat_anchor(), "frame": get_moving_interior_component(),
+		"entry_transform": approach, "exit_transform": approach,
+	}
+
+
+func _install_solo_crew_seat() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	# Preserve the inherited engineer discovery and add only the other authored
+	# chair. Both physical roles continue to use this craft's one roster.
+	super._install_solo_crew_seat()
+	var anchor := get_copilot_seat_anchor()
+	if is_instance_valid(anchor) and anchor.get_node_or_null("SoloPassengerSeatInteraction") == null:
+		preload("res://scripts/interaction/ship_crew_seat.gd").install(anchor, self)
+
+
 ## Binds the injected role ledger. Jovian consumes only its pilot and engineer
 ## entries; it never creates a second occupancy or repair ledger.
 func attach_crew_role_authority(authority: CrewSeatRoleAuthority) -> Dictionary:

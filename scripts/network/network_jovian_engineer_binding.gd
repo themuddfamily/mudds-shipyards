@@ -1,7 +1,8 @@
 class_name NetworkJovianEngineerBinding
 extends RefCounted
 
-## Composes actual engineer chairs with their existing role and repair owners.
+## Composes actual engineer chairs and Jovian's passenger chair with their
+## existing single role owner. Passenger presentation uses its existing RPC.
 ## The host body's physical overlap admits the role. Client requests never
 ## claim occupancy, change integrity, or spend inventory.
 const CrewAuthority := preload("res://scripts/ships/crew_seat_role_authority.gd")
@@ -121,6 +122,8 @@ func get_request_sequence_cursor() -> int:
 
 
 func claim(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
+	if not is_instance_valid(seat):
+		return _result(false, &"engineer_unavailable")
 	if loadmaster != null and seat.get_ship() is CinderCargoHauler:
 		return loadmaster.claim(record, seat)
 	if passenger != null and seat.get_ship() is HalyardCrewTransport:
@@ -128,20 +131,25 @@ func claim(record: Dictionary, seat: ShipCrewSeat) -> Dictionary:
 	if gunner != null and seat.get_ship() is BulwarkHeavyGunship:
 		return gunner.claim(record, seat)
 	if not _live() or not is_instance_valid(seat) or seat.get_ship() != _ship \
-			or seat.get_seat_id() != _engineer_seat_id() \
+			or not _physical_crew_seat_matches(seat) \
 			or seat.get_role_contract().is_empty():
 		return _result(false, &"engineer_unavailable")
 	var body := record.get("body") as PlayerController
 	var frame: MovingInteriorFrame = _ship.get_moving_interior_component()
 	var peer_id := int(record.get("owner_peer_id", 0))
+	var avatar := StringName(record.get("entity_id", &""))
+	var current := _simulation.get_body_record(avatar)
 	if body == null or peer_id <= 1 or peer_id not in _session.get_admitted_peer_ids() \
+			or _simulation.get_body(avatar) != body \
+			or int(current.get("owner_peer_id", 0)) != peer_id \
+			or int(current.get("entity_generation", 0)) != int(record.get("entity_generation", 0)) \
 			or record.get("craft") != _ship or record.get("frame") != frame \
 			or not frame.is_occupant_registered(body) or not body.is_on_floor() \
 			or body.get_interaction_origin().distance_to(seat.get_entry_transform().origin) > 3.25 \
 			or seat not in body.get_nearby_interactables():
 		return _result(false, &"engineer_body_mismatch")
-	_sequence += 1
-	return authority.claim(1, peer_id, StringName(record.entity_id), seat.get_seat_id(), &"engineer", _sequence)
+	return authority.claim(1, peer_id, avatar, seat.get_seat_id(), seat.get_role(),
+		next_request_sequence(int(authority.get_last_intent(peer_id, avatar).get("request_sequence", 0))))
 
 
 func release(record: Dictionary) -> void:
@@ -158,10 +166,16 @@ func release(record: Dictionary) -> void:
 	_errors.erase(peer_id)
 	_elapsed = 1.0
 	var assignment := authority.get_assignment(peer_id, avatar)
-	if assignment.is_empty() or assignment.get("role") != &"engineer":
+	if assignment.is_empty() or assignment.get("role") not in _owned_physical_roles():
 		return
 	_sequence = maxi(_sequence, maxi(int(assignment.claim_sequence), int(authority.get_last_intent(peer_id, avatar).get("request_sequence", 0)))) + 1
-	_ship.release_crew_role(1, peer_id, avatar, _engineer_seat_id(), _sequence, int(assignment.seat_generation))
+	_ship.release_crew_role(1, peer_id, avatar, StringName(assignment.seat_id), _sequence, int(assignment.seat_generation))
+	# Body retirement removes it from the simulation before invoking this
+	# release callback. Send the empty chair view here as well as periodically,
+	# so destruction cannot strand a client behind its last seated snapshot.
+	if assignment.get("role") == &"passenger" and is_instance_valid(_session) \
+			and _session.is_server() and _session.is_session_active() and peer_id in _session.get_admitted_peer_ids():
+		_publish_passenger(peer_id, {})
 
 
 func submit(peer_id: int, payload: Dictionary) -> void:
@@ -250,14 +264,16 @@ func advance(delta: float) -> void:
 					"assignment": {}, "seated": false, "entity_generation": 0,
 					"gameplay": {}, "components": {}, "error": &"ship_destroyed",
 				})
+				if _ship is JovianLightFreighter:
+					_publish_passenger(int(peer_id), {})
 	if not _live():
 		return
 	for row in authority.get_snapshot().get("assignments", []):
-		if int(row.occupant_peer_id) <= 1 or row.role != &"engineer":
+		if int(row.occupant_peer_id) <= 1 or row.role not in _owned_physical_roles():
 			continue
 		var avatar := StringName(row.avatar_id)
 		var seat := _simulation.get_body_crew_seat(avatar)
-		if seat == null or seat.get_role_contract().is_empty():
+		if seat == null or not _physical_crew_seat_matches(seat) or seat.get_role_contract().is_empty():
 			_simulation.stand_crew_body(avatar)
 			release({"owner_peer_id": int(row.occupant_peer_id), "entity_id": avatar})
 	var migration := int(_session.get_migration_snapshot().migration_generation)
@@ -308,6 +324,41 @@ func advance(delta: float) -> void:
 			"gameplay": _ship.call(&"get_engineer_gameplay_state"), "components": components,
 			"error": _errors.get(peer_id, &""),
 		})
+		if _ship is JovianLightFreighter:
+			var passenger_assignment := {}
+			for row in authority.get_snapshot().get("assignments", []):
+				if int(row.occupant_peer_id) == int(peer_id) and row.role == &"passenger":
+					passenger_assignment = row.duplicate(true)
+			_publish_passenger(int(peer_id), passenger_assignment)
+
+
+func _publish_passenger(peer_id: int, assignment: Dictionary) -> void:
+	var avatar := StringName(assignment.get("avatar_id", &""))
+	var record := _simulation.get_body_record(avatar)
+	var body := _simulation.get_body(avatar)
+	var seat := _simulation.get_body_crew_seat(avatar)
+	_session.publish_passenger_snapshot(peer_id, {
+		"ship_id": _ship.get_ship_id(), "binding_generation": _generation,
+		"assignment": assignment, "entity_generation": int(record.get("entity_generation", 0)),
+		"seated": _live() and body != null and seat != null and not assignment.is_empty()
+			and record.get("seat_state") == &"seated" and _physical_crew_seat_matches(seat)
+			and seat.get_role() == &"passenger" and body.is_seated_at(seat.get_seat_anchor()),
+	})
+
+
+func _owned_physical_roles() -> Array[StringName]:
+	return [&"engineer", &"passenger"] if _ship is JovianLightFreighter else [&"engineer"]
+
+
+func _physical_crew_seat_matches(seat: ShipCrewSeat) -> bool:
+	if not is_instance_valid(seat) or seat.get_ship() != _ship:
+		return false
+	if seat.get_role() == &"engineer":
+		return seat.get_seat_id() == _engineer_seat_id() \
+			and seat.get_seat_anchor() == _ship.call(&"get_engineer_seat_anchor")
+	return _ship is JovianLightFreighter and seat.get_role() == &"passenger" \
+		and seat.get_seat_id() == JovianLightFreighter.COPILOT_SEAT_ID \
+		and seat.get_seat_anchor() == (_ship as JovianLightFreighter).get_copilot_seat_anchor()
 
 
 func _release_all_assignments() -> void:
