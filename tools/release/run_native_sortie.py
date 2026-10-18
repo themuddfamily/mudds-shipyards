@@ -7,6 +7,7 @@ Use --route sandbox-walk for the on-foot prerequisite only.
 Use --route hulk-arrival for the Guided prelude then the streamed HULK dock/exit.
 Use --route hulk-breaker to continue that arrival through the interior breaker.
 Use --route hulk-home to carry that earned cell back to a supported yard exit.
+Use --route life-tow for Central service coexistence during real walking/boarding.
 Use --route habitat-loop for fresh hub/door/bunk sleep-wake/common-room/hub walking.
 Use --route habitat-restart for real bunk sleep, normal UI quit, and cold awake controls.
 The default is Guided.
@@ -1439,6 +1440,234 @@ class HabitatLoopPilot(Pilot):
         return keys, dx, 0, False
 
 
+class LifeTowPilot(Pilot):
+    """Ordinary Central walking and original Torrent boarding beside live service."""
+    MARKER = 'NATIVE_LIFE_TOW_OK'
+    OUTBOUND = (('central_forward', [0, 0, 12.5]),
+                ('tractor_forward_clearance', [6, 0, 12.5]),
+                ('tractor_east_clearance', [6, 0, 13.5]))
+    RETURN = (('return_tractor_clearance', [6, 0, 12.5]),
+              ('return_central_forward', [0, 0, 12.5]))
+    DEFAULT_WALK = {'walk': 5.8, 'sprint': 9.2, 'acceleration': 34.0,
+                    'deceleration': 42.0, 'air_acceleration': 9.0, 'jump': 7.4,
+                    'gravity': 1.0, 'terminal': 42.0, 'facing': 14.0,
+                    'mouse': .0025, 'invert_y': False}
+
+    def __init__(self):
+        super().__init__()
+        self.initial = self.previous = self.last_state = self.observed_previous = None
+        self.mouse_pending = None
+        self.visited = []
+        self.receipts = {}
+        self.native_edges = []
+        self.native_previous = False
+        self.route, self.index = [], 0
+        self.walked = 0
+        self.support_colliders = set()
+        self.walk_service = self.seated_service = None
+        self.seated_frame = None
+        self.near_walked = 0
+
+    def receipt(self, s):
+        return {k: s[k] for k in ('frame', 'player', 'grounded', 'supported',
+                'support_collider', 'seated', 'piloted', 'active_ship', 'seated_at_pilot', 'candidate', 'service')}
+
+    def begin_walk(self, stage, route, s):
+        self.route, self.index = list(route), 0
+        self.enter(stage, s)
+
+    def require_walking(self, s):
+        require(not s['seated'] and not s['station_seated'] and not s['game_station_seated']
+                and not s['sleeping'] and not s['transition_busy'] and s['control_enabled']
+                and s['mouse_captured'] and s['capsule_enabled'] and not s['piloted'],
+                'ordinary awake walking controls without ship ownership')
+        require(s['grounded'] and s['supported'] and s['support_collider'],
+                'actual physical Central floor support throughout walking')
+
+    def yaw_to(self, s, target):
+        off = sub(target, s['player'])
+        off[1] = 0
+        direction = unit(off)
+        yaw = math.atan2(dot(direction, s['walk_right']), dot(direction, s['walk_forward']))
+        return round(max(-360, min(360, yaw/s['walk_tuning']['mouse']))), yaw, norm(off)
+
+    def walk_to(self, s, target, keys, frames):
+        speed = norm([s['velocity'][0], 0, s['velocity'][2]])
+        dx, yaw, distance = self.yaw_to(s, target)
+        if distance <= .30 and abs(target[1]-s['player'][1]) <= .65 and speed <= .35:
+            return 0, True
+        tuning = s['walk_tuning']
+        commanded = tuning['sprint'] if distance > 3 else tuning['walk']
+        stopping = speed*speed/(2*tuning['deceleration']) + max(speed, commanded)*frames/60 + .10
+        if abs(yaw) < .08 and distance > .30 and (speed <= .35 or distance > stopping):
+            keys.add('w')
+            if distance > 3: keys.add('Shift_L')
+        return dx, False
+
+    @staticmethod
+    def require_service_interval(start, end, name):
+        require(end['clock'] > start['clock'], name+' has strictly increasing live service clock')
+        require(any(a['pose'] != b['pose'] for a, b in zip(start['movers'], end['movers'])),
+                name+' has actual changed drawn mover transforms')
+
+    def observe_service(self, s):
+        service = s['service']
+        require(all(service[k] for k in ('enabled', 'advancing', 'processing', 'visible')),
+                'Central tow service remains visible enabled and advancing')
+        require(isinstance(service['clock'], (int, float)) and math.isfinite(service['clock'])
+                and service['clock'] >= 0, 'finite live Central tow clock')
+        movers = service['movers']
+        require(len(movers) == 7 and all(m['id'] and m['visible'] and m['drawn_mesh_ids'] for m in movers),
+                'seven current FULL service movers retain actual drawn geometry')
+        require(all(len(m['pose']) == 4 and all(len(v) == 3 and all(math.isfinite(x) for x in v)
+                    for v in m['pose']) for m in movers), 'finite actual drawn mover transforms')
+        initial = self.initial['service'] if self.initial else service
+        signature = lambda a: [(m['id'], m['path'], m['drawn_mesh_ids']) for m in a['movers']]
+        require(service['id'] == initial['id'] and signature(service) == signature(initial),
+                'same current Central tow activity and actual drawn movers')
+        if self.observed_previous:
+            require(service['clock'] >= self.observed_previous['service']['clock'], 'live service clock never rewinds')
+
+    def require_pilot(self, s):
+        require(s['phase'] == 'START_ENGINES' and s['seated'] and s['seated_at_pilot']
+                and s['piloted'] and not s['remote_piloted'] and s['active_ship']
+                and not s['transition_busy'] and not s['station_seated']
+                and not s['game_station_seated'] and not s['sleeping'],
+                'actual local seated pilot ownership of the original Torrent')
+
+    def validate_observation(self, s):
+        """Check every emitted physics sample without staging unsent OS input."""
+        self.last_state = s
+        require(s.get('mode') == 'life-tow' and s.get('actors_current'),
+                'LIFE-TOW observer has current production actors')
+        self.frame = s['frame']
+        if self.initial is None:
+            require(s['phase'] == 'INTRO' and norm(sub(s['player'], s['spawn'])) < .75
+                    and math.hypot(s['spawn'][0]+8.5, s['spawn'][2]-11) < .1
+                    and abs(s['spawn'][1]-.18) <= .65,
+                    'fresh normal title and authored hub spawn without placement')
+            self.initial = s
+        initial = self.initial
+        require(tuple(s[k] for k in ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id', 'ship_id'))
+                == tuple(initial[k] for k in ('main_id', 'world_id', 'player_id', 'capsule_id', 'shape_id', 'ship_id'))
+                and s['capsule_geometry'] == initial['capsule_geometry'],
+                'same current Main world Player capsule shape and original Torrent')
+        require(s['walk_tuning'] == self.DEFAULT_WALK and s['physics_ticks'] == 60 and s['time_scale'] == 1
+                and s['default_controls'] and s['default_sampler'] and s['tuning_unchanged']
+                and s['ship_tuning'] == initial['ship_tuning'], 'default controls and unchanged authored tuning')
+        require(s['phase'] in ('INTRO', 'APPROACH_SHIP', 'START_ENGINES'), 'no Guided flight or recovery')
+        if not self.phases or self.phases[-1] != s['phase']: self.phases.append(s['phase'])
+        frames = self.frame - self.observed_previous['frame'] if self.observed_previous else 1
+        require(frames > 0, 'fresh LIFE-TOW physics observation')
+        self.observe_service(s)
+        if bool(s['native_interact']) != self.native_previous:
+            self.native_edges.append({'frame': self.frame, 'pressed': bool(s['native_interact']),
+                                      'stage': self.stage, 'candidate': s['candidate']})
+        self.native_previous = bool(s['native_interact'])
+        walking = self.stage in ('walk_outbound', 'walk_return', 'approach_ship')
+        if walking or (self.stage == 'board' and not s['transition_busy'] and not s['seated']):
+            self.require_walking(s)
+            if self.observed_previous:
+                step = norm(sub(s['player'], self.observed_previous['player']))
+                require(step <= (initial['walk_tuning']['sprint']/60*1.25+.02)*frames,
+                        'continuous real walking without teleport or placement')
+                self.walked += step
+                if self.walk_service is not None and walking and self.stage != 'approach_ship':
+                    self.near_walked += step
+            self.support_colliders.add(s['support_collider'])
+        if self.stage == 'seated_observe':
+            self.require_pilot(s)
+        self.observed_previous = s
+
+    def update(self, s, now):
+        # run() validates the complete batch first. Only its final sample can
+        # stage a new command, because that is the command actually sent to X11.
+        if self.observed_previous is not s:
+            self.validate_observation(s)
+        initial = self.initial
+        frames = self.frame - self.previous['frame'] if self.previous else 1
+        keys, dx = set(), 0
+        if self.stage == 'boot' and s['menu_ready']:
+            self.enter('begin_shift', s)
+            self.tap('e', now)
+        elif self.stage == 'begin_shift' and s['phase'] == 'APPROACH_SHIP':
+            # Normal Start Shift exposes ON_FOOT just before its first supported frame.
+            if s['grounded'] and s['supported'] and s['control_enabled'] and s['mouse_captured'] and s['capsule_enabled']:
+                self.require_walking(s)
+                self.receipts['hub_start'] = self.receipt(s)
+                self.begin_walk('walk_outbound', self.OUTBOUND, s)
+        elif self.stage in ('walk_outbound', 'walk_return'):
+            name, target = self.route[self.index]
+            dx, reached = self.walk_to(s, target, keys, frames)
+            if reached:
+                visit = {'waypoint': name, **self.receipt(s)}
+                self.visited.append(visit)
+                print(json.dumps(visit), flush=True)
+                self.index += 1
+                if name == 'central_forward':
+                    self.walk_service = s['service']
+                if self.index == len(self.route):
+                    if self.stage == 'walk_outbound':
+                        self.begin_walk('walk_return', self.RETURN, s)
+                    else:
+                        require(self.walk_service is not None and self.near_walked > 10,
+                                'actual nearby out-and-back Central walking interval')
+                        self.require_service_interval(self.walk_service, s['service'], 'nearby walking')
+                        self.receipts['nearby_walk_start'] = self.walk_service
+                        self.receipts['nearby_walk_end'] = self.receipt(s)
+                        self.enter('approach_ship', s)
+        elif self.stage == 'approach_ship':
+            off = s['walk_offset'][:]
+            off[1] = 0
+            if norm(off) <= 3.1 and s['candidate'] and not s['native_interact']:
+                self.receipts['board_press'] = self.receipt(s)
+                self.enter('board', s)
+                self.tap('e', now)
+            else:
+                direction = unit(off)
+                x, z = dot(direction, s['walk_right']), dot(direction, s['walk_forward'])
+                keys.add('Shift_L')
+                if x > .2: keys.add('d')
+                if x < -.2: keys.add('a')
+                if z > .2: keys.add('w')
+                if z < -.2: keys.add('s')
+        elif self.stage == 'board' and s['phase'] == 'START_ENGINES' and not s['transition_busy']:
+            self.require_pilot(s)
+            require(self.receipts['board_press']['candidate']
+                    and any(e['pressed'] and e['stage'] == 'board' for e in self.native_edges),
+                    'actual OS Interact press boards the original candidate')
+            self.seated_frame, self.seated_service = self.frame, s['service']
+            self.receipts['seated_start'] = self.receipt(s)
+            self.enter('seated_observe', s)
+        elif self.stage == 'seated_observe':
+            self.require_pilot(s)
+            if self.frame >= self.seated_frame + 90:
+                self.require_service_interval(self.seated_service, s['service'], '90 seated physics frames')
+                self.receipts['seated_end'] = self.receipt(s)
+                self.enter('complete', s)
+                self.result = {'completion_marker': self.MARKER, 'phases': self.phases, 'stages': self.stages,
+                               'same_player_id': s['player_id'], 'same_ship_id': s['ship_id'],
+                               'same_service_id': s['service']['id'], 'walked_m': self.walked,
+                               'nearby_walked_m': self.near_walked, 'visited': self.visited,
+                               'receipts': self.receipts, 'native_interact_edges': self.native_edges,
+                               'seated_physics_frames': self.frame-self.seated_frame,
+                               'support_colliders': sorted(self.support_colliders),
+                               'authored_walk_tuning': initial['walk_tuning']}
+        if self.tap_key is not None:
+            if now < self.tap_until or self.frame < self.tap_frame + 6:
+                keys.add(self.tap_key)
+            else:
+                self.tap_key = None
+                self.tap_cooldown = now + .3
+                self.tap_release_frame = self.frame
+        if self.mouse_pending is not None:
+            if norm(sub(s['walk_forward'], self.mouse_pending)) < .00001: dx = 0
+            else: self.mouse_pending = None
+        if dx: self.mouse_pending = s['walk_forward'][:]
+        self.previous = s
+        return keys, dx, 0, False
+
+
 class HabitatRestartFiles:
     """Read the actual game-owned document; copies go only to result storage."""
     MUTABLE = {'solo_safe_recovery', 'crash_recovery', 'session_diagnostics', 'safe_start_recovery'}
@@ -2393,7 +2622,7 @@ def stop(process):
 
 
 def run(binary, output, route="guided"):
-    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart"), "known ordinary-input route")
+    require(route in ("guided", "sandbox-walk", "sandbox", "hulk-arrival", "hulk-breaker", "hulk-home", "habitat-loop", "habitat-restart", "life-tow"), "known ordinary-input route")
     output.mkdir(parents=True, exist_ok=False)
     game = xvfb = desktop = pilot = None
     temporary_profile = None
@@ -2484,7 +2713,7 @@ def run(binary, output, route="guided"):
                     pilot = HabitatRestartPilot(cold=bool(leg)) if restart_files else {
                         "guided": Pilot, "sandbox-walk": SandboxWalkPilot, "sandbox": SandboxPilot,
                         "hulk-arrival": HulkArrivalPilot, "hulk-breaker": HulkBreakerPilot,
-                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot}[route]()
+                        "hulk-home": HulkHomePilot, "habitat-loop": HabitatLoopPilot, "life-tow": LifeTowPilot}[route]()
                     with selectors.DefaultSelector() as selector:
                         selector.register(game.stdout,selectors.EVENT_READ)
                         pending = b''
@@ -2507,6 +2736,9 @@ def run(binary, output, route="guided"):
                                     lines = pending.split(b'\n'); pending=lines.pop()
                                     observations = observations_from_lines(lines)
                                     if observations:
+                                        if isinstance(pilot, LifeTowPilot):
+                                            for observation in observations:
+                                                pilot.validate_observation(observation)
                                         state = observations[-1]
                                         if restart_files:
                                             require(state['pid'] == game.pid, 'observer belongs to exact running game PID')
@@ -2574,7 +2806,7 @@ def run(binary, output, route="guided"):
             result['partial_sortie'] = {'stage': pilot.stage, 'stages': pilot.stages, 'phases': pilot.phases}
             if isinstance(pilot, HabitatRestartPilot):
                 result['partial_restart'] = pilot.report()
-            if isinstance(pilot, HabitatLoopPilot):
+            if isinstance(pilot, (HabitatLoopPilot, LifeTowPilot)):
                 result['partial_sortie'].update(last_state=pilot.last_state, visited=pilot.visited,
                                                receipts=pilot.receipts, native_interact_edges=pilot.native_edges,
                                                walked_m=pilot.walked)
@@ -2632,8 +2864,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary')
     parser.add_argument('--output',required=True,type=Path)
-    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart'), default='guided',
-                        help='hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
+    parser.add_argument('--route', choices=('guided', 'sandbox-walk', 'sandbox', 'hulk-arrival', 'hulk-breaker', 'hulk-home', 'habitat-loop', 'habitat-restart', 'life-tow'), default='guided',
+                        help='life-tow walks Central beside live tow service and boards Torrent; hulk-home carries the earned HULK cell back to a supported home exit; hulk-breaker continues HULK arrival through its breaker; hulk-arrival flies the normal Guided prelude then docks/exits at HULK; sandbox runs fleet/crash/reuse; sandbox-walk covers station traversal')
     args=parser.parse_args()
     try: binary=validate_binary(args.binary)
     except ValueError as error: parser.error(str(error))

@@ -18,6 +18,171 @@ spec.loader.exec_module(native)
 
 
 class NativeSortieSafetyTests(unittest.TestCase):
+    def life_observation(self):
+        return {'mode': 'life-tow', 'actors_current': True, 'frame': 100, 'phase': 'INTRO',
+                'main_id': 1, 'world_id': 2, 'player_id': 3, 'capsule_id': 4, 'shape_id': 5, 'ship_id': 6,
+                'player': [-8.5, .18, 11], 'position': [-8.5, .18, 11], 'spawn': [-8.5, .18, 11],
+                'menu_ready': False, 'walk_forward': [1, 0, 0], 'walk_right': [0, 0, 1],
+                'velocity': [0, 0, 0], 'walk_tuning': native.LifeTowPilot.DEFAULT_WALK.copy(),
+                'capsule_geometry': [.38, 1.8], 'physics_ticks': 60, 'time_scale': 1,
+                'control_enabled': True, 'seated': False, 'station_seated': False,
+                'game_station_seated': False, 'sleeping': False, 'transition_busy': False,
+                'mouse_captured': True, 'capsule_enabled': True, 'native_interact': False,
+                'grounded': True, 'supported': True, 'support_collider': '/Main/World/Deck',
+                'default_controls': True, 'default_sampler': True, 'tuning_unchanged': True,
+                'ship_tuning': {'mouse': .0022, 'boarding': .8}, 'candidate': False,
+                'walk_offset': [10, 0, 0], 'piloted': False, 'remote_piloted': False,
+                'active_ship': True, 'seated_at_pilot': False,
+                'service': {'id': 7, 'clock': 1.0, 'enabled': True, 'advancing': True,
+                            'processing': True, 'visible': True,
+                            'movers': [{'id': 10+i, 'path': 'mover'+str(i), 'visible': True,
+                                        'drawn_mesh_ids': [100+i],
+                                        'pose': [[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]}
+                                       for i in range(7)]}}
+
+    def life_tick(self, pilot, s, frames=1, clock=True, movers=True):
+        s['frame'] += frames
+        if clock: s['service']['clock'] += frames/60
+        if movers: s['service']['movers'][0]['pose'][0][0] += frames*.001
+        return pilot.update(copy.deepcopy(s), s['frame']/60)
+
+    def life_walking_pilot(self):
+        pilot, s = native.LifeTowPilot(), self.life_observation()
+        s['menu_ready'] = True
+        pilot.update(copy.deepcopy(s), 0)
+        s.update(phase='APPROACH_SHIP', native_interact=True)
+        self.life_tick(pilot, s)
+        s['native_interact'] = False
+        return pilot, s
+
+    def life_seated_pilot(self):
+        pilot, s = self.life_walking_pilot()
+        # Unit seam for the post-ownership interval; the positive full journey
+        # below establishes the ordinary press/transition admission separately.
+        pilot.stage = 'seated_observe'
+        pilot.seated_frame = s['frame']
+        pilot.seated_service = copy.deepcopy(s['service'])
+        s.update(phase='START_ENGINES', seated=True, seated_at_pilot=True, piloted=True,
+                 grounded=False, supported=False, capsule_enabled=False)
+        return pilot, s
+
+    def test_life_tow_complete_real_walk_then_original_pilot_interval(self):
+        pilot, s = self.life_walking_pilot()
+        for name, target in native.LifeTowPilot.OUTBOUND + native.LifeTowPilot.RETURN:
+            # Dense supported samples exercise continuity as well as ordered goals.
+            target = [target[0], .18, target[2]]
+            while native.norm(native.sub(target, s['player'])) > .09:
+                delta = native.sub(target, s['player'])
+                step = [v*.09/native.norm(delta) for v in delta]
+                s['player'] = [a+b for a, b in zip(s['player'], step)]
+                s['position'] = s['player'][:]
+                self.life_tick(pilot, s)
+            s['player'] = target
+            s['position'] = target[:]
+            # The driver stops at .30 m, so avoid feeding extra old-goal frames
+            # after it has already advanced to the next waypoint.
+            if not pilot.visited or pilot.visited[-1]['waypoint'] != name:
+                self.life_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'approach_ship')
+        s.update(candidate=True, walk_offset=[0, 0, 0])
+        self.life_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'board')
+        # Candidate can clear on the very frame that accepts Interact.
+        s.update(native_interact=True, candidate=False, transition_busy=True)
+        self.life_tick(pilot, s)
+        s.update(phase='START_ENGINES', seated=True, seated_at_pilot=True, piloted=True,
+                 grounded=False, supported=False, capsule_enabled=False, transition_busy=False)
+        self.life_tick(pilot, s)
+        self.assertEqual(pilot.stage, 'seated_observe')
+        s['native_interact'] = False
+        self.life_tick(pilot, s, 89)
+        self.assertIsNone(pilot.result)
+        self.life_tick(pilot, s)
+        self.assertEqual(pilot.result['completion_marker'], 'NATIVE_LIFE_TOW_OK')
+        self.assertEqual(pilot.result['seated_physics_frames'], 90)
+        self.assertEqual([v['waypoint'] for v in pilot.visited],
+                         [name for name, _point in pilot.OUTBOUND + pilot.RETURN])
+        self.assertGreater(pilot.result['nearby_walked_m'], 10)
+
+    def test_life_tow_rejects_frozen_clock_or_frozen_drawn_movers(self):
+        for clock, movers, message in [(False, True, 'strictly increasing'),
+                                       (True, False, 'changed drawn mover')]:
+            with self.subTest(clock=clock):
+                pilot, s = self.life_seated_pilot()
+                with self.assertRaisesRegex(AssertionError, message):
+                    self.life_tick(pilot, s, 90, clock=clock, movers=movers)
+        # Physics catch-up can observe the same presentation tick; interval
+        # progress remains mandatory, without demanding one render per physics tick.
+        pilot, s = self.life_seated_pilot()
+        self.life_tick(pilot, s, clock=False, movers=False)
+        self.life_tick(pilot, s, 89)
+        self.assertEqual(pilot.result['completion_marker'], native.LifeTowPilot.MARKER)
+
+    def test_life_tow_rejects_wrong_pilot_owner(self):
+        for key, value in [('seated_at_pilot', False), ('piloted', False),
+                           ('active_ship', False), ('remote_piloted', True), ('seated', False)]:
+            with self.subTest(key=key):
+                pilot, s = self.life_seated_pilot()
+                s[key] = value
+                with self.assertRaisesRegex(AssertionError, 'actual local seated pilot'):
+                    self.life_tick(pilot, s)
+
+    def test_life_tow_rejects_unsupported_teleport_identity_and_tuning_changes(self):
+        mutations = [lambda s: s.update(supported=False), lambda s: s.update(grounded=False),
+                     lambda s: s.update(player=[20, .18, 11]), lambda s: s.update(player_id=300),
+                     lambda s: s.update(ship_id=600), lambda s: s.update(shape_id=500),
+                     lambda s: s.update(capsule_geometry=[.4, 1.8]),
+                     lambda s: s['walk_tuning'].update(sprint=40),
+                     lambda s: s.update(default_controls=False), lambda s: s.update(default_sampler=False),
+                     lambda s: s.update(tuning_unchanged=False), lambda s: s.update(time_scale=2),
+                     lambda s: s['service'].update(id=700),
+                     lambda s: s['service']['movers'][0].update(id=1000),
+                     lambda s: s['service']['movers'][0].update(drawn_mesh_ids=[]),
+                     lambda s: s['service'].update(visible=False),
+                     lambda s: s['service'].update(advancing=False),
+                     lambda s: s['service'].update(clock=float('nan')),
+                     lambda s: s['service'].update(clock=-1)]
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                pilot, s = self.life_walking_pilot()
+                mutate(s)
+                with self.assertRaises(AssertionError): self.life_tick(pilot, s)
+
+    def test_life_tow_batch_checks_intermediate_samples_without_staging_input(self):
+        for mutate in [lambda s: s.update(supported=False),
+                       lambda s: s['service'].update(clock=.5),
+                       lambda s: s['service'].update(enabled=False)]:
+            pilot, s = self.life_walking_pilot()
+            intermediate = copy.deepcopy(s)
+            intermediate['frame'] += 1
+            mutate(intermediate)
+            latest = copy.deepcopy(s)
+            latest['frame'] += 2
+            latest['service']['clock'] += .1
+            with self.assertRaises(AssertionError):
+                for sample in [intermediate, latest]: pilot.validate_observation(sample)
+        # Read-only batch validation cannot begin a press that never reached X11.
+        pilot, s = native.LifeTowPilot(), self.life_observation()
+        s['menu_ready'] = True
+        for frame in [101, 102, 103]:
+            sample = copy.deepcopy(s)
+            sample['frame'] = frame
+            pilot.validate_observation(sample)
+        self.assertEqual(pilot.stage, 'boot')
+        self.assertIsNone(pilot.tap_key)
+        keys, _dx, _dy, _fire = pilot.update(sample, 2)
+        self.assertIn('e', keys)
+        self.assertEqual(pilot.stage, 'begin_shift')
+
+    def test_life_tow_intervals_reject_clock_only_and_pose_only(self):
+        a = self.life_observation()['service']
+        for clock, pose in [(1., .1), (2., 0.)]:
+            b = copy.deepcopy(a)
+            b['clock'] = clock
+            b['movers'][0]['pose'][0][0] = pose
+            with self.assertRaises(AssertionError):
+                native.LifeTowPilot.require_service_interval(a, b, 'nearby walking')
+
     def habitat_observation(self):
         return {'mode': 'habitat-loop', 'actors_current': True, 'frame': 100, 'phase': 'INTRO',
                 'main_id': 1, 'world_id': 2, 'player_id': 3, 'capsule_id': 4, 'shape_id': 5,

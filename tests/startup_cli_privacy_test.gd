@@ -10,6 +10,20 @@ func _init() -> void:
 
 
 func _run() -> void:
+	var life_args := PackedStringArray(["--native-sortie-observer=life-tow"])
+	_check(StartupLoaderType.native_sortie_request(life_args, "X11", "Dummy", true).accepted,
+		"LIFE-TOW explicitly admits only the silent private X11 observer")
+	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(life_args, row[0], row[1], row[2]).accepted,
+			"LIFE-TOW requires private X11 and Dummy audio")
+	for conflict: String in ["--native-sortie-observer", "--native-sortie-observer=life-tow", "--native-sortie-observer=habitat-restart", "--native-sortie-observer=habitat-loop", "--native-sortie-observer=sandbox-walk", "--native-sortie-observer=sandbox", "--native-sortie-observer=ember", "--native-sortie-observer=hulk-arrival", "--native-sortie-observer=hulk-breaker", "--native-sortie-observer=hulk-home", "--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+		var conflicting := life_args.duplicate()
+		conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(conflicting, "X11", "Dummy", true).accepted,
+			"LIFE-TOW rejects duplicate or competing mode: %s" % conflict)
+	for malformed: String in ["--native-sortie-observer=Life-tow", "--native-sortie-observer=life-tow-extra", "--native-sortie-observer=life-tow=", "--native-sortie-observer life-tow"]:
+		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
+			"LIFE-TOW rejects malformed observer selector: %s" % malformed)
 	var native_args := PackedStringArray(["--native-sortie-observer"])
 	_check(not StartupLoaderType.native_sortie_request(PackedStringArray(), "X11", "Dummy", true).requested,
 		"ordinary Boot leaves the native sortie observer unloaded")

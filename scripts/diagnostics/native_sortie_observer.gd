@@ -3,6 +3,7 @@ extends Node
 ## Read-only exported-game telemetry. No input, actor writes, gameplay actions,
 ## timing overrides, or process shutdown: the external OS-input driver owns those.
 var _game: GameFlow
+var _life_tow := false
 var _habitat_loop := false
 var _habitat_restart := false
 var _restart_sequence: int = 0
@@ -43,7 +44,11 @@ func on_startup_completed(main: Node) -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	if _habitat_loop or _habitat_restart:
 		return
+	_life_tow = "--native-sortie-observer=life-tow" in OS.get_cmdline_args()
 	_ship = _game.get_node("TorrentInterceptor") as HeroShip
+	if _life_tow:
+		_tuning = _sortie_tuning()
+		return
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
 	_spawn = _player.global_position
 	_parked = _ship.global_transform
@@ -239,6 +244,9 @@ func _physics_process(delta: float) -> void:
 		sample["sequence"] = _restart_sequence
 		sample["pid"] = OS.get_process_id()
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(sample))
+		return
+	if _life_tow:
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_life_tow_observation()))
 		return
 	if _habitat_loop:
 		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_habitat_loop_observation()))
@@ -691,4 +699,95 @@ func _habitat_restart_observation() -> Dictionary:
 			"driven": bool(tractor.get("_driven")) if _ember_node_current(tractor) else false,
 			"seated_at_driver": _ember_node_current(tractor) and _player.is_seated_at(tractor.get_driver_seat_anchor())},
 	}, true)
+	return result
+
+
+## Narrow live Central service/walking/helm reads. No Habitat or fleet audit,
+## service simulation mutator, synthetic input or actor placement is involved.
+func _life_tow_observation() -> Dictionary:
+	var owner := get_parent()
+	var current: bool = is_instance_valid(_game) and _game.is_inside_tree() and not _game.is_queued_for_deletion() \
+		and owner.call("get_main") == _game and _ember_node_current(_player) \
+		and _game.player == _player and _ember_node_current(_game.world) \
+		and _ember_node_current(_ship) and _game.get_node_or_null(^"TorrentInterceptor") == _ship
+	var result := {"mode": "life-tow", "frame": Engine.get_physics_frames(), "actors_current": current}
+	if not current:
+		return result
+	var activity := _game.world.get_node_or_null(^"OperationalLattice/Activities/CentralTowServiceActivity") as StationOperationsActivity
+	result.actors_current = _ember_node_current(activity)
+	if not bool(result.actors_current):
+		return result
+	var yaw := _player.get_node(^"%CameraYaw") as Node3D
+	var capsule := _player.get_node(^"PlayerCollision") as CollisionShape3D
+	var shape := capsule.shape as CapsuleShape3D
+	if shape == null:
+		result.actors_current = false
+		return result
+	var support: Dictionary = {}
+	if not _player.is_seated() and not bool(_game.get("_transition_busy")):
+		var ray := PhysicsRayQueryParameters3D.create(_player.global_position + Vector3.UP * 0.2,
+			_player.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD, [_player.get_rid()])
+		support = _player.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var supported := _ember_node_current(collider) and _game.world.is_ancestor_of(collider)
+	var source := _ship.get("_default_local_command_source") as LocalShipInputSource
+	var pilot_seat := _ship.get("_pilot_seat_anchor") as Node3D
+	var movers: Array = []
+	# These are the FULL profile's actual transform owners, not clock-derived
+	# expected poses or get_activity_state()'s presentation summary.
+	var live_movers: Array = [activity.get("_gantry_carriage"), activity.get("_gantry_tool"),
+		activity.get("_service_arm_shoulder"), activity.get("_service_arm_elbow"), activity.get("_service_arm_tool")]
+	live_movers.append_array(activity.get("_drone_roots") as Array)
+	for candidate: Variant in live_movers:
+		var mover := candidate as Node3D
+		if not _ember_node_current(mover) or not activity.is_ancestor_of(mover):
+			result.actors_current = false
+			return result
+		var drawn: Array = []
+		for mesh: MeshInstance3D in mover.find_children("*", "MeshInstance3D", true, false):
+			if mesh.mesh != null and mesh.is_visible_in_tree():
+				drawn.append(mesh.get_instance_id())
+		var pose := mover.global_transform
+		movers.append({"id": mover.get_instance_id(), "path": str(activity.get_path_to(mover)),
+			"visible": mover.is_visible_in_tree(), "drawn_mesh_ids": drawn,
+			"pose": [_v(pose.origin), _v(pose.basis.x), _v(pose.basis.y), _v(pose.basis.z)]})
+	var default_controls := not _player.is_remote_driven()
+	for action: StringName in [&"move_left", &"move_right", &"move_forward", &"move_back", &"sprint_boost", &"interact"]:
+		var authored: Dictionary = ProjectSettings.get_setting("input/" + str(action), {})
+		var expected: Array = []
+		for event: InputEvent in authored.get("events", []):
+			expected.append(event.as_text())
+		var actual: Array = []
+		for event: InputEvent in InputMap.action_get_events(action):
+			actual.append(event.as_text())
+		default_controls = default_controls and expected == actual \
+			and is_equal_approx(InputMap.action_get_deadzone(action), float(authored.get("deadzone", -1.0)))
+	result.merge({"phase": GameFlow.Phase.keys()[_game.phase],
+		"menu_ready": StartupLoader.is_title_menu_ready(_game) and not is_instance_valid(owner.call("get_loading_screen")),
+		"main_id": _game.get_instance_id(), "world_id": _game.world.get_instance_id(),
+		"player_id": _player.get_instance_id(), "ship_id": _ship.get_instance_id(),
+		"player": _v(_player.global_position), "position": _v(_player.global_position), "spawn": _v(_spawn),
+		"walk_forward": _v(-yaw.global_basis.z), "walk_right": _v(yaw.global_basis.x),
+		"velocity": _v(_player.velocity), "walk_offset": _v(_ship.get_boarding_position() - _player.get_interaction_origin()),
+		"candidate": _game.boarding_candidate == _ship,
+		"control_enabled": _player.is_control_enabled(), "seated": _player.is_seated(),
+		"sleeping": _player.is_sleeping(), "station_seated": _player.is_station_seated(),
+		"game_station_seated": bool(_game.get("_station_seated")), "transition_busy": bool(_game.get("_transition_busy")),
+		"native_interact": Input.is_action_pressed("interact"), "mouse_captured": Input.mouse_mode == Input.MOUSE_MODE_CAPTURED,
+		"grounded": _player.is_on_floor(), "supported": supported, "support_collider": str(collider.get_path()) if supported else "",
+		"capsule_id": capsule.get_instance_id(), "shape_id": capsule.shape.get_instance_id(),
+		"capsule_enabled": not capsule.disabled, "capsule_geometry": [shape.radius, shape.height],
+		"walk_tuning": {"walk": _player.walk_speed, "sprint": _player.sprint_speed,
+			"acceleration": _player.ground_acceleration, "deceleration": _player.ground_deceleration,
+			"air_acceleration": _player.air_acceleration, "jump": _player.jump_velocity,
+			"gravity": _player.gravity_multiplier, "terminal": _player.terminal_velocity,
+			"facing": _player.facing_speed, "mouse": _player.mouse_sensitivity, "invert_y": _player.invert_mouse_y},
+		"default_controls": default_controls, "physics_ticks": Engine.physics_ticks_per_second, "time_scale": Engine.time_scale,
+		"default_sampler": is_instance_valid(source) and _ship.get("_command_source") == source and source.get_input_provider() == null,
+		"tuning_unchanged": _sortie_tuning() == _tuning, "ship_tuning": _tuning,
+		"piloted": _ship.is_piloted(), "remote_piloted": _ship.is_remote_piloted(),
+		"active_ship": _game.get_active_ship() == _ship, "seated_at_pilot": _ember_node_current(pilot_seat) and _player.is_seated_at(pilot_seat),
+		"service": {"id": activity.get_instance_id(), "clock": activity.get_activity_time(),
+			"enabled": activity.is_activity_enabled(), "advancing": activity.is_activity_advancing(),
+			"processing": activity.is_processing(), "visible": activity.is_visible_in_tree(), "movers": movers}}, true)
 	return result
