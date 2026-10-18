@@ -48,16 +48,46 @@ unapproved; parked failures remain outside the queue.
 | NET-COMPONENT-ROW /11,21 | DONE; packaged39a2ad7 | Retained row follows accepted host components and restores current local data on clear/pilot change | Closed after focused local/pose/Main ENet checks and paired checkpoint; no automatic adjacent successor. |
 | ONFOOT-SPRINT-TOGGLE /8,29 | DONE; packagedbd4e15d | Shared Sprint/boost HOLD/TOGGLE works in local walking sprint with safe handoffs | Closed after focused source checks and paired checkpoint; no automatic adjacent successor. |
 | AUDIO-ACTIVITY-LIFECYCLE /30 | DONE; packagedf1f35d1 | Current activity mix survives normal base updates and same-run completion | Closed after five focused suites and paired checkpoint; audible mix review stays open. |
+| AUDIO-SURFACE-MUSIC /30 | Production repair; SELECTED | Aurora/Rime music follows transit/landing/surface visit state | Old focused phase reproduction, readonly projection, focused checks and paired checkpoint. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
 are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
 HUD power or movement/tow chain is selected. Original Settings/hardware gates
 remain open, and Titan approval remains pending.
 
-The activity music capability is closed in a fresh paired checkpoint. No
-successor is selected yet. The known next runtime alternative is
-AUDIO-SURFACE-MUSIC, requiring its own source/acceptance card before work.
-Dormant Ember environment feed and audible mix remain separate definitions/gates.
+The activity music capability is closed. Root selects AUDIO-SURFACE-MUSIC
+separately after its accepted result; dormant Ember feed and audible mix remain
+separate definitions/gates.
+
+### AUDIO-SURFACE-MUSIC — existing surface bed follows actual visit state
+
+- **Kind/result:** production music phase repair, parent30. Aurora/Rime use the
+  existing surface bed during landed/disembarking/surface/opening_boarding/
+  boarding states. Their landing state selects the existing landing profile;
+  outbound/corridor/return_cruise retain flight context. Idle/restoring/retiring
+  do not imply a surface. Combat retains highest priority.
+- **Owner/files:** one high-effort implementer, independent lifecycle reviewer;
+  GameFlow._update_music_bed_state and optional readonly shared visit-state
+  projection in planetary_surface_visit_expedition.gd; existing
+  tests/audio/music_phase_integration_test.gd. Root owns integration/checkpoint.
+  No world travel/physics/content/save authority or asset/voice change.
+- **Acceptance:** preserve original phase assertions/waits. Test-only old proof
+  stages actual retained Aurora/Rime visit state in the existing focused test,
+  asserting real StationMusicBed surface state/family. Final finite visit-state
+  map, combat/landing precedence, return/idle restoration and current activity
+  overlay/base-family composition must pass with unchanged visit/gameplay state.
+  This is controlled source presentation proof, not ordinary surface travel or
+  listening. Parked Rime arrival/Aurora originals remain untouched.
+- **Budget/stop:**30–60min implement/review, split before90. Compile then full
+  existing phase, nearby activity integration and music-bed suites once under
+  original budgets, headless/Dummy/private profiles. First unexpected failure
+  stops before separate repair selection; original plus one repair requires
+  cumulative priority review. No audio output or parked route rerun.
+- **Alternative/close:** no independent production successor is identified by
+  the audio map beyond this repair; Ember feed/acoustics needs its own definition.
+  No automatic adjacent audio chain. Accepted runtime requires fresh clean paired
+  exports/three strict silent startups/existing package audit, commit/push and
+  owned scratch cleanup. Mix/device/full-world gates remain open.
 
 ## Parked failures and dependent work
 
