@@ -4583,3 +4583,112 @@ backlog/history are changed; no disposable checkout or engine profile created.
   established300s source and30-minute endurance requirements in their own scopes.
 - **Close:** commit/push the actionable roadmap card; definition is planning,
   not delivered flight. Next action is its bounded implementation/qualification.
+
+
+## Ordinary Jovian departure — caller field failure before throttle
+
+NET-JOVIAN-DEPART is FAILED after exactly one original route on clean pushed
+`cad7f3aac87d9335b74c2a741f8fec1995e9fee7`. Capability remains held on
+`work/jovian-departure-20261018`, unmerged. Main retains accepted ordinary
+boarding fff5f7221 and playable checkpointb6196a1 with identical game runtime.
+No runtime change or new export follows this caller-only failed attempt.
+
+The candidate adds two default-true boarding hooks, brake cleanup and one flight
+subclass/UID. Independent pre-engine review caught missing physical body alignment
+and initial pose arrival handling; both were corrected before source freeze and
+received GO. The normalized ownership field mismatch escaped implementation and
+review. No engine run preceded the committed candidate.
+
+Cold import600/compile300 pass, actual exits0/zero diagnostics. One original
+private-Xvfb/x11/Dummy flight matrix exits1 in135.794s (whole matrix135.910s), original300s route/360s
+outer. Both independent clients complete normal menu admission, all13 station
+approach goals plus cabin goal, actual pilot/passenger chairs, current HUD and
+host dual-seat confirmation. Host records flight_start but neither flight_ready
+nor flight_go is established; no throttle or brake input is supplied.
+
+First immutable abort owner is client: initial consumed craft pose must advance
+past host start with current pilot owner inside initial8s. Client snapshot shows
+pose_tick5016 > host start4577, honest PILOT/Jovian, current authenticated Player/
+source/seat and physical seat error0; craft stationary/landed and input neutral.
+Passenger snapshot also has a fresh tick5019 and physical seat error0. The
+caller reads owner_peer_id from latest_sample, but normalization at
+network_remote_craft_pose_stream.gd676 maps wire owner_peer_id to consumed
+pilot_peer_id; latest_sample331 returns that normalized dictionary. Its existing
+allowlist also drops pilot_peer_id. This is an agent test-contract error, not a
+proven transport, ownership or flight defect. Other departure predicates are
+unexecuted, not assumed passing. Cascading host/client waits and coordinator
+diagnostics belong to the same first failure.
+
+Raw `/srv/mudds-work/jovian-departure-20261018/results/` retains exact preparation/
+commands/statuses, source/cache guards, original matrix
+`matrix/20261018T032113Z/`, complete flat peer logs/first failures/shared abort/
+.done/actual-exit receipts, terminal review and cleanup. All three actual peers
+exit1; no success marker. Owned clean checkout/private profiles/helpers removed
+after terminal process inspection; raw/source refs retained. No active desktop,
+audible output, Downloads or hosted CI.
+
+Priority review selects one10–20min caller-only correction over speculative
+runtime work or another diagnostic: use normalized pilot_peer_id in the three
+identity predicates and existing receipts, preserving exact host identity and
+all original physical/authority/route/deadline criteria. One repair route is
+allowed after compile; any failure requires priority review before further work.
+The original failed attempt and pre-engine corrections stay counted; no new task
+name resets limits. Source preparation began03:14:35 UTC; run timestamps and
+terminal review retain actual elapsed costs. No flight/brake/return/endurance,
+parent/phase, native-hardware/human/full-matrix/release acceptance is implied.
+
+### Executed departure card — frozen contract
+
+### NET-JOVIAN-DEPART — shared departure and brake through ordinary controls
+
+- **Parent/result:** parents16/26; reuse accepted fff5f7221 ordinary joins, all13
+  station approach goals plus cabin goal, actual pilot/passenger seats and final
+  host confirmation. Then travel at least5m along the initial ship nose in the
+  station frame (initial nose=-global_basis.z.normalized()), leave the occupied
+  berth through actual physics, and stop at
+  authoritative speed<=0.5m/s. Both original Players/roles stay aboard.
+- **Boundary/ownership:** root owns the existing boarding caller plus one
+  select-only `tests/network/jovian_network_two_client_flight_test.gd` and its UID.
+  Add default-noop scenario hooks to reuse boarding, rather than copy its route.
+  Host hook belongs after host.seats_confirmed and before original retained waits;
+  client hook belongs after confirmed identity/seat/HUD checks and before writing
+  .retained. Preserve default boarding behavior and its original waits. New flight
+  actions/receipts finish inside those hooks; cleanup and actual-exit owner stay
+  inherited. No runtime, controls, protocol or existing predicate relaxation.
+- **Ordinary actions:** pilot alone uses existing Input.parse_input_event action
+  events: hold move_forward (default W), no steering/boost, until host confirms
+  >=5m forward displacement within10s. Release forward; hold brake until host
+  speed<=0.5m/s for1s within10s. Release brake. Passenger supplies no flight input.
+  Neutralize all actions on every exit, including brake; retain independent abort.
+  No manual ShipCommand injection, engine-start call, dock release, pose/velocity
+  assignment, direct claim/private client request or shortened station approach.
+- **Host proof:** record station-relative position, initial nose and current pose
+  tick after both chairs are confirmed. Observe consumed positive throttle and
+  brake through get_last_ship_command(), actual forward displacement, landed=false
+  and this ship's berth released by production GameFlow. Require current pilot
+  source/owner and both exact entity/seat generations throughout and after movement.
+  A client prediction or engine animation alone cannot establish departure.
+- **Client proof:** both consumed pose streams advance past the start tick and
+  retain the host's pilot owner. After stopping, compare each actual craft's
+  station-relative position with the host's stopped pose, tolerance<=0.5m within5s
+  (existing station-frame pose tolerance). Confirm real Players remain at their
+  original seat anchors and all existing identity/role/HUD/authority predicates
+  still pass; passenger has no pilot producer/authority. Compare like coordinate
+  frames so an origin rebase cannot count as travel or apparent convergence.
+- **Command/acceptance:** freeze a clean candidate, import/explicit compile, then
+  exactly one existing input-only matrix run selecting
+  jovian_network_two_client_flight_test, graphical/private Xvfb, explicit x11,
+  Dummy, jobs1, original timeout300/import-gate never; outer cleanup360 unchanged.
+  Subclass must override its peer script path and final success marker so the
+  coordinator runs flight actors and prints JOVIAN_NETWORK_TWO_CLIENT_FLIGHT_OK
+  only after all actual OS exits0. Preserve zero diagnostics, source/cache guards,
+  complete peer receipts, retained-seat checks and normal shutdown. Source-only;
+  no packaged route, native hardware or endurance claim.
+- **Budget/stop:**45–75min implementation/review; check costs separately. One
+  original300s flight attempt. First failure closes FAILED with the first concrete
+  action/owner/snapshot; stop for priority review before any probe, repair or rerun.
+  Do not change thresholds, path or total cap to obtain a pass.
+- **Close:** integrate only accepted capability, commit/push exact result, clean
+  owned checkout/profile/helpers and retain unique raw. Existing checkpointb6196a1
+  contains unchanged game runtime; any demonstrated runtime repair is a separate
+  production card and requires its own fresh working checkpoint.
