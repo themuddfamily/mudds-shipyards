@@ -65,6 +65,40 @@ read-only mapper covered the independent board scenarios; root defined the six
 other activities and integrated review. No engines, tests, builds or scratch
 files were needed. All original broad parents/phase gates remain OPEN.
 
+### Selected — PLAY-MINING ordinary packaged sortie
+
+Parent13; production release capability, not new mining gameplay. The exported
+OS-input driver lacks a mining route/read-only observation. Freeze ownership:
+run_native_sortie.py + test_native_sortie.py, native_sortie_observer.gd,
+startup_loader.gd and existing startup_cli_privacy_test.gd only. One high-effort
+implementer in an isolated worktree; independent high-effort review; root alone
+runs checks, packages, integrates and cleans scratch. No nested delegation.
+
+Finish: fresh archive ELF/default controls→actual Torrent walk/board/Guided
+four-drone+interceptor prelude→physical authored Cinder approach→Escape/Activity
+Board/Nearby activities/mining SELECT/START→resume→6s real physics inside30m→
+generation1 complete with genuine once-only persisted capacity receipt→physical
+home strict landing/offline/supported exit. Preserve actors, authored tuning,
+ordinary input, unrelated data; no placement, synthetic objective submission,
+activity calls, reset/retry or accelerated physics. Observer stays read-only;
+paused UI sequence is separate from physics-time proof. Mining grants capacity,
+not invented ore/currency. Common-world target comes from live authored frame.
+
+Estimate45–60min implementation, split before90 cumulative. Root clean import600,
+observer/startup relevant compile300 and full privacy300; focused Python suite300.
+Independent exact clean-pin GO before engines. Clean paired exports900 each,
+three strict startup checks330/330/300,1521-style actual payload/archive audit,
+then ONE actual archive route at unchanged whole CAP300 (outer360). Stop first
+unexpected failure; preserve logs and source before any explicitly reviewed
+repair. Never raise cap or narrow route. No unchanged parked route/recovery
+replay or ten-run chain. Private Xvfb/x11/Dummy, owned PID/window/input helper,
+independent abort and release/reap required. Publish EXE/ZIP/notes only after all
+required checks pass; update roadmap, commit/push and clean owned scratch.
+Independent alternative is the unresolved cargo replenishment definition, gated
+on an actual source/destination policy; no policy inferred. Native/device/audio/
+human/installed/final-source acceptance remains factually unperformed where
+recorded; existing owner exclusions unchanged. CI remains disabled.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
