@@ -74,8 +74,12 @@ concrete boundary; one attempted repair requires priority review before more wor
 - **Execution:** FAILED/root; candidate `b5e2b00a5` passed static review and
   import but explicit compile exits1: forward/right types cannot be inferred
   at probe lines1232/1233. CLI not run. One bounded repair adds only explicit
-  Vector3 annotations; repeat compile300s, then CLI300s if green. No other
-  correction is bundled; review priorities after this repair before further work. Inspect existing arm/resume branches and freeze the
+  Vector3 annotations at `f90547c37`: compile PASS and CLI249 PASS, source/cache
+  stable. Priority review selects one existing source-driver on_foot+convoy
+  arm/resume check next, before paying for packages; competing full UI sweep
+  stays queued. Exact `--source --in-world-interruption --activity=convoy`,
+  context on_foot, Dummy/headless,300s per stage/660s outer, first failure STOP.
+  No automatic repair after that result; original failure/repair counts remain. Inspect existing arm/resume branches and freeze the
   on-foot case contract from the [completed definition](docs/ROADMAP_BACKLOG.md#settled-exterior-on-foot-recovery-contract).
   Budget45–60 min; split before 90 min. First unexpected result stops for review.
   Commit/push accepted production capability; immediately build the next card.

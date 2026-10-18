@@ -5407,3 +5407,14 @@ priority review keeps recovery type checks as the next action: its one two-line
 repair is f90547c37. The competing corrected full UI sweep is deferred to that
 boundary. No further UI probe/repair is scheduled in this step; failure budget
 and original raw remain retained rather than reset by a new task name.
+
+Recovery type repair f90547c37 passes explicit compile actual0/diagnostics0 and
+one original startup_cli_privacy_test matrix: actual0,249 assertions, source
+manifest match/cache stable. No other suites rerun. Priority review after the
+compile failure and one repair selects actual driver source execution before
+exporting: exact same clean f90547c37, existing run_package_probes.sh
+--in-world-interruption --source --activity=convoy, on_foot context, private
+headless/Dummy,300s arm and300s resume/660s outer. This is one source-driver
+acceptance invocation, not packaged/native acceptance or ordinary fullflight.
+The competing corrected full UI sweep stays queued. First failure stops with
+no automatic correction; retain cumulative failure/repair budget and raw.
