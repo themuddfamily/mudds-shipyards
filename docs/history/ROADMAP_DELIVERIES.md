@@ -9363,3 +9363,140 @@ Habitat passes and parked Sandbox/resume failures retain their recorded scopes.
 No additional gameplay defect, engine pass or new checkpoint claimed. Static
 owner/link checks and independent contract review pass. Next action is one frozen
 LOOP driver/qualification card. All36 parents/ten phase gates remain open.
+
+## Ordinary Habitat loop — accepted3707bc9
+
+Clean source `3707bc9d47c7ecd3eb9d0feb1ee7628eaa44b464`; first candidate582d2c73b, exact one-line compile repair3707bc9.
+Existing driver/observer/loader and existing Python/privacy fixtures only. No
+GameFlow/Player/StationBunk gameplay changes or new validator family.
+
+Actual archive-extracted ELF completes54.259s<CAP300,163.231336m through26
+outbound/reverse waypoints and seven real floor colliders. Independent review
+inspects1940 raw observations441–2380: same Main/world/Player/capsule/shape/door/
+bunk identity, actors current,60Hz/time_scale1, INTRO→APPROACH_SHIP. Door actual
+candidate/E1113; bunk candidate/E1276, released1285, exact reserved sleep/anchor,
+distinct wake E1331 and supported awake/cleared claims1374. Common1557 is actual
+contains_room on CommonFloor; hub2379 is≈.124m from original spawn, final2380 has
+normal controls/captured camera/capsule/ground and no seat/sleep/transition.
+No actor writes, staged placement, direct coordinator calls or rescue. All input/
+helper/game/Xvfb cleanup passes; diagnostics0. No runtime journey failure.
+
+Initial Python48 tests fail five new fixtures in7.123s: mutable test dicts rewrite
+retained initial/previous snapshots. Hash-verified attempted files/raw log and
+exact pending correction remain. Independent/root-selected deepcopy correction
+preserves assertions; live spawn XZ/Y clarification permits disabled-control
+natural floor settling without weakening continuous walking. Final48 tests pass
+7.319s/7.534s wrapper; exact Python/test hashes remain unchanged thereafter.
+First observer compile fails1.304s on dynamiccall boolean type inference. Root
+selects exact `var current: bool =` annotation, expression unchanged; original
+import19.560 reused, explicit compile follow-up passes15.615s. Cumulative
+unexpected failed stages8.427s; no deadlines/route relaxation or unit replay.
+
+| Stage | Actual exit | Seconds | Printed stage checks |
+| --- | --- | --- | --- |
+| archive_startup | 0 | 23.622 | 0 |
+| final_compile | 1 | 1.304 | 0 |
+| final_import | 0 | 19.560 | 0 |
+| final_privacy | 0 | 1.163 | 304 |
+| linux_export | 0 | 25.800 | 0 |
+| linux_startup | 0 | 22.301 | 0 |
+| native_habitat | 0 | 57.034 | 0 |
+| repair_compile | 0 | 15.615 | 0 |
+| windows_export | 0 | 26.744 | 0 |
+| windows_payload_startup | 0 | 25.867 | 0 |
+
+Independent final/cumulative GO; all final required gates pass. Paired clean
+exports and three --startup-check gates exit0 with one STARTUP_MENU_READY_OK;
+actual1521 matching payload entries/stock PE code/archive bytes-modes-epoch/
+source metadata pass. Eleven public artifact/notes/ZIP hashes reverified, ZIP
+exact EXE+notes. Windows payload startup is Linux Godot, not native Windows.
+[Windows notes](../../builds/windows/MuddsShipyards-3707bc9-notes.txt) and
+[Linux notes](../../builds/linux/MuddsShipyards-3707bc9-linux-notes.txt).
+10 terminal owners/62 observed process identities absent;
+archived profile counts {'profile-logs': 4, 'app_userdata': 9}. Source/index/cache/engine guards
+pass; owned source checkout/profile/helpers removed. Raw results, initial
+failure snapshots and remote candidate branch retained:
+`/srv/mudds-work/habitat-loop-20261018/results/`.
+
+Only LOOP closes on this source/environment. WALK-HABITAT aggregate/normal
+restart, Sandbox/full final regression, native Windows/GPU/device/audio/rendered/
+human gates stay open. All36 parents/ten phase gates OPEN, CI disabled, owner
+choices unchanged. Completed within original cumulative budget (selection16:41:58
+UTC, owned cleanup17:02:32UTC); next independent outcome is normal restart.
+
+### Retained Habitat loop scope and corrections
+
+### Selected ordinary journey — WALK-HABITAT-LOOP
+
+- **Outcome/parents:**7/9. Fresh production Main, normal Start Shift, same Player
+  walks hub→closed access door→actual bunk sleep/wake→common room→same hub.
+  Full acceptance is the finite backlog route, not the previously staged checks.
+  WALK-HABITAT-RESTART and whole Sandbox remain separate/open.
+- **Ownership:** one high-effort implementer owns tools/release/run_native_sortie.py,
+  scripts/diagnostics/native_sortie_observer.gd, scripts/game/startup_loader.gd,
+  existing tools/release/test_native_sortie.py and tests/startup_cli_privacy_test.gd.
+  Root owns execution/packaging/docs/integration; one high-effort reviewer checks
+  actual input, read-only observation, physical route and existing-route isolation.
+  No gameplay owner, save schema, validator or new probe family changes.
+- **Contract:** add one habitat-loop route to existing native OS-XTest driver and
+  guarded observer. Existing source-authored obstacle-aware points guide inputs;
+  no direct pose/velocity writes, staged spawn, forced interaction/flags or
+  rescue. Observe current live Player, actual grounded movement/door target,
+  exact bunk reservation/sleep and supported wake, common-room occupancy and
+  supported hub return. Separate press/release/repress E; no pose-only success.
+  Observer only reads compact current state; do not sample full world audits.
+  Preserve existing Guided/Sandbox/HULK routes and original pacing/deadlines.
+- **Proof:** static Python/shell/diff checks and relevant existing native-driver
+  unit tests, clean import600s/observer compile300s/full startup privacy300s.
+  Independent source GO before engine sequence. Required clean paired Windows/
+  Linux exports, three strict silent --startup-check checks and artifact audit;
+  run the actual archive-extracted ELF with --route habitat-loop once at existing
+  fixed300s whole-process cap, original driver diagnostics and abort/cleanup.
+  Xvfb owned/authenticated, explicit x11, Dummy, no rendering loop/user desktop.
+  First unexpected failure STOPs; no automatic retry, inherited Sandbox rerun,
+  deadline extension or shorter substitute acceptance. No device/GPU claim.
+- **Budget/delivery:**45–60min implementation, split before90min. This one full
+  journey is the result; writing driver support is not a separate gameplay win.
+  If pass: exact source/package notes, owned cleanup, commit/push. If fail: retain
+  whole route/cumulative attempt and independent priority review before any fix.
+  Independent production alternative: unresolved activity recovery definition;
+  do not infer Hauler stock/Titan owner decisions or start another recovery chain.
+
+### Habitat loop — pre-engine unit result and frozen correction
+
+Initial native-driver unit run:48 tests/7.123s, exit1/five new fixture failures.
+Exact attempted five files/hash-verified snapshot and raw log are retained.
+Four failures see a rewritten previous frame; one sees rewritten initial actor
+identity because new test fixtures mutate the dict retained by the driver.
+Production json.loads observations are distinct objects. Independent review GO
+for ONE fixture-only deepcopy correction; preserve every assertion.
+
+Before the next unit run, explicitly retain one source-supported implementation
+clarification: Boot captures live Player spawn after disabled-control gravity,
+so validate authored hub XZ<0.1 and Y within0.65 while player↔capturedspawn<0.75;
+initial grounded/floor-ray/capsule/camera handshake and all continuous walking,
+identity/phase/input/reservation/route/CAP300 criteria stay unchanged. This is
+natural physical settling, no pose placement or floor-check exemption.
+
+Root authorizes that exact two-file correction and ONE final full focused unit
+run. No engines/exports/native route have run. Independent clean-pin GO remains
+required before the original engine sequence; any new failure STOPs for cumulative
+review, no automatic second correction or renamed runtime acceptance.
+
+### Habitat loop — compile stop and exact type repair
+
+Clean582d2c73b: importPASS19.560s, observer compileFAIL1.304s; Godot cannot infer
+`current` at native_sortie_observer.gd:556 because the boolean chain contains
+Variant-returning owner.call("get_main"). Privacy/export/startup/full route
+NOT_RUN. Initial unit5 fixture failures7.123s and reviewed correction/48PASS7.319s
+remain; cumulative unexpected failed stages8.427s, not a runtime journey failure.
+
+Independent cumulative review GO for ONE line only: `var current :=` becomes
+`var current: bool =`, full expression and all behavior/criteria unchanged.
+Root freezes this before editing; new clean pin, explicit compile300 follow-up,
+then original full privacy/paired exports/strict startups/audit/one full native
+route only if each passes. Source/Python inputs/route assertions do not change;
+reuse the accepted unchanged Python checks, no gratuitous test replay. At review
+16:53UTC, total elapsed from16:41:58 selection is≈12min; original45–60min/split-
+before90 budget remains cumulative. Any new failure STOP; no automatic further
+annotation/driver repair or timeout/route relaxation.

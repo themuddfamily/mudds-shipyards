@@ -1,11 +1,11 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**311df73**, adding the executable interrupted-landing recovery check to the
-release pipeline. It includes six Habitat bunks, Settings focus, Hauler access,
-controller look, startup, music, sprint and HUD improvements.
-[Windows notes](builds/windows/MuddsShipyards-311df73-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-311df73-linux-notes.txt) state actual validation.
+**3707bc9**, with the complete ordinary hub/Habitat sleep-wake/common-room/hub
+loop qualified through OS input. It includes six Habitat bunks, Settings focus,
+Hauler access, controller look, startup, music, sprint and HUD improvements.
+[Windows notes](builds/windows/MuddsShipyards-3707bc9-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-3707bc9-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -56,6 +56,7 @@ unapproved; parked failures remain outside the queue.
 | SETTINGS-SCALED-FOCUS-SCROLL /12,29 | DONE; packaged4d7ac43 | Large-scale Settings focus fully reveals its current row; pending requests respect focus/page ownership | Focus59 and full16:9/21:9/32:9 source checks, independent review and paired checkpoint pass; rendered/device/transaction gates remain open. |
 | HABITAT-BUNK-REST /7,9 | DONE; packaged221f523 | All six Habitat bunks offer actual Interact sleep/wake, supported walking/reuse and owner-loss cleanup | Full focused rest, spine, Habitat and ship sleep checks; independent review and paired checkpoint pass. Ordinary hub/common-room/restart journey remains open. |
 | DOCK-RECOVERY-PROBE /2,31,32 | DONE; packaged311df73 | Existing release driver interrupts one real Bulwark assist and proves distinct-process usable home recovery with conserved failed Convoy/reward boundary | Full privacy/landing suites, source and archive-extracted ELF cuts, paired checkpoint pass. Installed/final/ordinary/busy-exit gates remain open. |
+| WALK-HABITAT-LOOP /7,9 | DONE; packaged3707bc9 | Fresh normal hub→door→actual bunk sleep/wake→common room→same hub, no placement/rescue | Actual archive ELF OS-input loop54.259s/163.231m passes; independent review and paired checkpoint. Normal process restart remains separate/open. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
 are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
@@ -341,87 +342,34 @@ The route uses actual authored circulation and obstacle-aware waypoints;
 restart preserves the current safe-start contract without inventing a saved
 station sleeping pose. Each outcome has one300s whole-operation cap, actual
 input/state observations and explicit abort/cleanup. No engines or new build
-were needed for the definition; neither outcome is accepted yet.
+were needed for the definition; LOOP is now accepted below and RESTART stays open.
 
-Next single action: freeze one WALK-HABITAT-LOOP source/input-driver card, then
-implement any missing full-loop driver support and complete that same route.
-Stop at its result; normal restart remains a separate dependent outcome.
+The full LOOP result follows. Normal restart remains a separate dependent
+outcome, and neither the staged fixture nor LOOP can close it.
 All36 broad parents and ten phase gates remain open.
 
-### Selected ordinary journey — WALK-HABITAT-LOOP
+### Ordinary Habitat loop — delivered
 
-- **Outcome/parents:**7/9. Fresh production Main, normal Start Shift, same Player
-  walks hub→closed access door→actual bunk sleep/wake→common room→same hub.
-  Full acceptance is the finite backlog route, not the previously staged checks.
-  WALK-HABITAT-RESTART and whole Sandbox remain separate/open.
-- **Ownership:** one high-effort implementer owns tools/release/run_native_sortie.py,
-  scripts/diagnostics/native_sortie_observer.gd, scripts/game/startup_loader.gd,
-  existing tools/release/test_native_sortie.py and tests/startup_cli_privacy_test.gd.
-  Root owns execution/packaging/docs/integration; one high-effort reviewer checks
-  actual input, read-only observation, physical route and existing-route isolation.
-  No gameplay owner, save schema, validator or new probe family changes.
-- **Contract:** add one habitat-loop route to existing native OS-XTest driver and
-  guarded observer. Existing source-authored obstacle-aware points guide inputs;
-  no direct pose/velocity writes, staged spawn, forced interaction/flags or
-  rescue. Observe current live Player, actual grounded movement/door target,
-  exact bunk reservation/sleep and supported wake, common-room occupancy and
-  supported hub return. Separate press/release/repress E; no pose-only success.
-  Observer only reads compact current state; do not sample full world audits.
-  Preserve existing Guided/Sandbox/HULK routes and original pacing/deadlines.
-- **Proof:** static Python/shell/diff checks and relevant existing native-driver
-  unit tests, clean import600s/observer compile300s/full startup privacy300s.
-  Independent source GO before engine sequence. Required clean paired Windows/
-  Linux exports, three strict silent --startup-check checks and artifact audit;
-  run the actual archive-extracted ELF with --route habitat-loop once at existing
-  fixed300s whole-process cap, original driver diagnostics and abort/cleanup.
-  Xvfb owned/authenticated, explicit x11, Dummy, no rendering loop/user desktop.
-  First unexpected failure STOPs; no automatic retry, inherited Sandbox rerun,
-  deadline extension or shorter substitute acceptance. No device/GPU claim.
-- **Budget/delivery:**45–60min implementation, split before90min. This one full
-  journey is the result; writing driver support is not a separate gameplay win.
-  If pass: exact source/package notes, owned cleanup, commit/push. If fail: retain
-  whole route/cumulative attempt and independent priority review before any fix.
-  Independent production alternative: unresolved activity recovery definition;
-  do not infer Hauler stock/Titan owner decisions or start another recovery chain.
+WALK-HABITAT-LOOP is DONE in paired checkpoint3707bc9. Actual archive-extracted
+Linux ELF, OS XTest/private Xvfb/x11/Dummy: normal Start Shift, one Player walks
+from fresh hub to the closed door, opens it, sleeps/wakes at actual Bunk01,
+occupies the common room and reverses the full physical route to the same hub.
+54.259s<CAP300,163.231m/26 waypoints/seven floor colliders; exact sleep reservation,
+released/repressed E, supported wake and hub return verify with unchanged actors.
 
-### Habitat loop — pre-engine unit result and frozen correction
+Initial five unit-fixture failures7.123s and compile failure1.304s remain recorded
+(cumulative8.427s). Reviewed copy/spawn clarification passes48 Python tests;
+exact bool annotation repairs compilation. Final privacy304, required clean paired
+exports/three strict startups/1521-entry audit and full loop pass; independent
+cumulative review and owned process/source/profile/helper cleanup pass.
+[Actual results and retained card](docs/history/ROADMAP_DELIVERIES.md#ordinary-habitat-loop--accepted3707bc9).
+This qualifies input/physics in the isolated environment, not GPU/device/human
+or final-source release acceptance. Original Sandbox failure is untouched.
 
-Initial native-driver unit run:48 tests/7.123s, exit1/five new fixture failures.
-Exact attempted five files/hash-verified snapshot and raw log are retained.
-Four failures see a rewritten previous frame; one sees rewritten initial actor
-identity because new test fixtures mutate the dict retained by the driver.
-Production json.loads observations are distinct objects. Independent review GO
-for ONE fixture-only deepcopy correction; preserve every assertion.
-
-Before the next unit run, explicitly retain one source-supported implementation
-clarification: Boot captures live Player spawn after disabled-control gravity,
-so validate authored hub XZ<0.1 and Y within0.65 while player↔capturedspawn<0.75;
-initial grounded/floor-ray/capsule/camera handshake and all continuous walking,
-identity/phase/input/reservation/route/CAP300 criteria stay unchanged. This is
-natural physical settling, no pose placement or floor-check exemption.
-
-Root authorizes that exact two-file correction and ONE final full focused unit
-run. No engines/exports/native route have run. Independent clean-pin GO remains
-required before the original engine sequence; any new failure STOPs for cumulative
-review, no automatic second correction or renamed runtime acceptance.
-
-### Habitat loop — compile stop and exact type repair
-
-Clean582d2c73b: importPASS19.560s, observer compileFAIL1.304s; Godot cannot infer
-`current` at native_sortie_observer.gd:556 because the boolean chain contains
-Variant-returning owner.call("get_main"). Privacy/export/startup/full route
-NOT_RUN. Initial unit5 fixture failures7.123s and reviewed correction/48PASS7.319s
-remain; cumulative unexpected failed stages8.427s, not a runtime journey failure.
-
-Independent cumulative review GO for ONE line only: `var current :=` becomes
-`var current: bool =`, full expression and all behavior/criteria unchanged.
-Root freezes this before editing; new clean pin, explicit compile300 follow-up,
-then original full privacy/paired exports/strict startups/audit/one full native
-route only if each passes. Source/Python inputs/route assertions do not change;
-reuse the accepted unchanged Python checks, no gratuitous test replay. At review
-16:53UTC, total elapsed from16:41:58 selection is≈12min; original45–60min/split-
-before90 budget remains cumulative. Any new failure STOP; no automatic further
-annotation/driver repair or timeout/route relaxation.
+Next single action: freeze WALK-HABITAT-RESTART's normal UI quit/same-data distinct-
+process continuation and driver ownership. Do not turn this into another walk
+rerun or restore a station sleeping pose. WALK-HABITAT aggregate stays open until
+its restart requirement passes; all36 broad parents/ten phase gates remain open.
 
 ## Parked failures and dependent work
 
