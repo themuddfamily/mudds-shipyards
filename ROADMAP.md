@@ -371,6 +371,48 @@ process continuation and driver ownership. Do not turn this into another walk
 rerun or restore a station sleeping pose. WALK-HABITAT aggregate stays open until
 its restart requirement passes; all36 broad parents/ten phase gates remain open.
 
+### Selected ordinary continuation — WALK-HABITAT-RESTART
+
+- **Outcome/parents:**7/9. One real normal UI quit while occupying Habitat Bunk01,
+  distinct OS process with the same private real-file profile, normal Begin Shift,
+  fresh awake supported look/walk/interaction. This closes the remaining normal
+  restart child, not crash/OS-kill recovery or saved station sleeping pose.
+- **Ownership:** one high-effort implementer owns existing native-sortie driver,
+  observer, startup loader, test_native_sortie.py and startup_cli_privacy_test.gd.
+  Root owns execution/packages/docs/integration; one high-effort reviewer checks
+  two-process lifecycle, saved context, actual UI input and accepted-route isolation.
+  No gameplay/save-schema changes, new validator or parallel probe family.
+- **Frozen operation:** add habitat-restart route to the same driver. Reuse fresh
+  hub/door/bunk ordinary admission from accepted LOOP; no actor writes, scenario
+  positioning, direct coordinator/quit calls or forced flags. Actual sleep exact
+  reservation + accepted unavailable home-context record independently read from
+  real file, then OS pause/menu navigation and EXIT TO DESKTOP activation. While
+  paused the observer may process/read its own compact pause/UI state; do not
+  change any gameplay node's timing or processing. Require normal exit0/reap and
+  actual orderly session/safe-start markers before launching distinct game PID.
+  Keep the same authenticated Xvfb/input helper/profile and original single CAP300
+  deadline across both legs; never reset the timer on restart. Record both PIDs,
+  independent actual-file before/after data, preserve unrelated payload and verify
+  no substituted save/profile. Object IDs may repeat across OS processes; prove
+  fresh process and current ownership, stable actors within each leg.
+- **Cold continuation:** ordinary Begin Shift without old seat/sleep/cabin/crew/
+  ship claims, current capsule/support/camera/controls and clear bunk reservation.
+  Observe actual look change and supported walking >0.6m, then normal Interact
+  with one reachable current production interaction at safe station start. No
+  physical station pose restoration entitlement. Preserve accepted LOOP/Sandbox/
+  Guided/HULK routes and deadlines. Retain normal shutdown/cleanup for both games.
+- **Proof/delivery:** smallest meaningful existing Python regression checks with
+  exact logs; clean import600/observer compile300/full privacy300. Independent GO
+  before engines. Clean paired exports/three strict silent startup checks/artifact
+  audit; one actual archive ELF --route habitat-restart, whole CAP300 including
+  startup/quit/restart/continuation. Driver-owned Xvfb/x11/Dummy, rendering disabled,
+  independent abort/input/cursor/process cleanup. First unexpected failure STOP;
+  freeze a concrete reviewed repair before any next attempt, no automatic fixes,
+  timeout extension, shortcut or acceptance narrowing.45–60min implementation,
+  split before90 total; keep cumulative attempts. If pass, notes/push/owned cleanup.
+  Independent alternative remains activity recovery definition, not a new adjacent
+  recovery/evidence chain. Original native/device/human/full-project gates stay open.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
