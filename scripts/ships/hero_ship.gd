@@ -1519,6 +1519,10 @@ func is_landing_active() -> bool:
 	return _landing_active
 
 
+func is_barrel_roll_active() -> bool:
+	return _roll_animation > 0.0
+
+
 ## Derives a ship-local envelope from every enabled root collision shape. This
 ## automatically follows the Torrent, Arrow and Jovian collision variants and
 ## avoids maintaining a second hand-authored hull-size table.

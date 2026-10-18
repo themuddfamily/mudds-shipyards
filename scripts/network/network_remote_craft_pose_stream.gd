@@ -480,7 +480,10 @@ func reconcile_pilot(craft: Node3D, ship_id: StringName, round_trip_ms: float, d
 				host_velocity, 1.0 - exp(-VELOCITY_CORRECTION_RATE * step)
 			)
 		corrected = true
-	if angle_error > ROTATION_DEADBAND_RADIANS:
+	# Keep the prediction deadband while steering, but let a current neutral
+	# helm finish settling. Otherwise a released turn can remain permanently
+	# offset by almost three degrees even as fresh host poses keep arriving.
+	if angle_error > ROTATION_DEADBAND_RADIANS or (angle_error > 0.0 and _pilot_rotation_is_neutral(craft)):
 		var beta := 1.0 - exp(-ROTATION_CORRECTION_RATE * step)
 		var origin := craft.global_position
 		craft.global_transform = Transform3D(Basis(current_rotation.slerp(target_rotation, beta)), origin)
@@ -489,6 +492,23 @@ func reconcile_pilot(craft: Node3D, ship_id: StringName, round_trip_ms: float, d
 		_corrections += 1
 		return {"status": &"corrected", "error": position_error.length(), "angle": angle_error}
 	return {"status": &"within_deadband", "error": position_error.length(), "angle": angle_error}
+
+
+func _pilot_rotation_is_neutral(craft: Node3D) -> bool:
+	if not craft.has_method(&"get_last_ship_command") or not craft.has_method(&"get_command_source"):
+		return false
+	var command := craft.call(&"get_last_ship_command") as ShipCommand
+	var source := craft.call(&"get_command_source") as ShipCommandSource
+	if command == null or not command.is_valid() or not is_instance_valid(source) \
+			or not source.is_enabled_owner() or source.is_stream_exhausted() \
+			or command.stream_id != source.get_stream_id():
+		return false
+	if craft.has_method(&"is_barrel_roll_active") and bool(craft.call(&"is_barrel_roll_active")):
+		return false
+	# Translation, boost, weapons and camera controls do not steer the craft.
+	return is_zero_approx(command.yaw) and is_zero_approx(command.pitch) \
+		and is_zero_approx(command.roll) and is_zero_approx(command.look_yaw_delta) \
+		and is_zero_approx(command.look_pitch_delta) and not command.barrel_roll and not command.hover
 
 
 ## Moves a craft somebody else is flying to where the host had it
