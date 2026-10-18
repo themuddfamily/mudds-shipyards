@@ -5147,3 +5147,90 @@ all36 parents/ten phases and hardware/human/full-release gates stay open.
   Diagnosis is not gameplay delivery. Preserve original300s route,8s request,
   physical120s/client5s and all original identity/input/seat/authority criteria.
   Original failed task and repair remain cumulative; this name resets no limit.
+
+## Immediate client landing edge — reproduced and repaired
+
+HELM-EDGE-REPRO is DONE on test-only a3955ee90695e1cfca213c39c170e2f02ab9a363.
+The actual LocalShipInputSource publishes a landing command through GameFlow's
+supported InputEventAction/FIFO path; a later actual neutral physics snapshot
+causes the old forwarding path to miss its remote serial/wire/host delivery.
+One original-cap consumer run fails only that new assertion, with39 others passing.
+Its staged confirmed client/transport is component evidence, not an ordinary
+joined gameplay route or proof of pulse-time admission in the earlier return run.
+
+Initial source de787d5db failed compile before any negative suite ran: SceneTree
+cannot resolve bare Node pause-notification constants. Import had passed. Recorded
+priority review selected one two-qualifier fixture repair, independently reviewed,
+with no runtime/acceptance change; corrected compile passed. Original failed raw
+and source ref remain retained. This was one fixture correction, not a reset of
+the original return failure/repair budget; no additional diagnostic route ran.
+
+HELM-EDGE-REPAIR is DONE on clean2c73494a41fa86a48f08d608922c2a1b41e5a927,
+integrated on main as eaac8a4320677a65ce0f2ebd3e1ca2114a5e67a6. GameFlow binds
+the existing producer signal before immediate sampling, captures source order
+and shares one sequence cursor with FIFO/direct delivery and physics polling.
+The admitted edge survives later neutral sampling exactly once. Source epochs,
+ownership loss and session teardown revoke pending edges; the retained signal
+binding disconnects during restoration. Wire/schema, send cadence, clock limits,
+physical authority, input timing and source queue ownership remain unchanged.
+
+Warm import and explicit compile exit0; one serial headless/Dummy matrix passes
+command_consumer_delivery40 (35.221s) and ship_command79 (1.050s), each actualexit0,
+one original success marker and original diagnostics0. Raw root notice retained.
+Full tracked-source and suite cache byte guards hold; all owned process identities
+are absent. Independent bounded source review GO. Focused acceptance does not
+qualify the full matrix, physical devices, native Windows/GPU/audio, ordinary
+shared return or endurance. Fresh CHECKPOINT-HELM-EDGE subsequently passed as recorded below.
+
+Raw/source/review/failure records:
+`/srv/mudds-work/helm-edge-20261018/results/`.
+Negative matrix `red-fixture-matrix/20261018T041159Z`; positive matrix
+`green-matrix/20261018T041504Z`. The held37cbc7a4e original return caller remains
+unmerged and gated on the accepted repair's fresh checkpoint. Preserve its
+original8s request/120s physical landing/5s arrival/300s total limits.
+
+## Immediate client landing edge — checkpoint published
+
+CHECKPOINT-HELM-EDGE is DONE on exact clean accepted source
+2c73494a41fa86a48f08d608922c2a1b41e5a927. Existing safe Windows/Linux exports
+run sequentially with correctly mapped private versioned templates, pinned
+Godot4.7.1 and original900s export limits; both actualexit0/diagnostics0.
+Direct Linux, archive-extracted Linux and actual Windows embedded payload through
+pinned Linux Godot each pass original300s strict startup: actualexit0, exactly
+one STARTUP_MENU_READY_OK and no original error/leak diagnostics. Every automated
+engine is headless/Dummy; Windows execution itself remains NOT_RUN.
+
+Independent core artifact audit passes all1515 actual PCK entry byte comparisons,
+PE32+/ELF64 x86_64, stock Windows release .text, inventory integrity/privacy/raw
+source exclusions and exact Linux metadata/pins. Linux tar has exactly one755
+root directory and five files with expected bytes/modes: executable755, installer
+shell755, managed installer755, desktop entry755, icon644. Generated launchers
+match the existing exporter heredocs, archived binary matches actual ELF and
+manager/icon match source. Root then creates the exact EXE+notes Windows ZIP,
+checks all bytes/CRC and copies seven files to repository builds preserving
+bytes/modes, refusing overwrite. No artifact regeneration or diagnostic rerun.
+
+Windows EXE184578368 bytes SHA256
+`009ca70a77975638a9bdf75217cf4b30532ec5d71149ef4ef2eb655508f93015`;
+Linux ELF148820080 bytes SHA256
+`6586f368975288d4476e36e8e7917fa475a82bba694c740dce8d52bc05d61fed`.
+[Windows changes/validation](../../builds/windows/MuddsShipyards-2c73494-notes.txt)
+and [Linux changes/validation](../../builds/linux/MuddsShipyards-2c73494-linux-notes.txt).
+Export metadata remains immutable with its build-time startup_check=NOT_RUN;
+actual startup results are separate notes/raw, not rewritten provenance.
+
+All tracked source and full post-export cache bytes remain unchanged through
+startup/audit. Root rechecks all captured PID/start identities absent and every
+supervisor terminal before removing this task's clean checkout, duplicate build
+copies, private profiles/template aliases and helpers. Unique raw/source patches,
+review/process records and public builds remain. Other worktrees are untouched.
+Exact export/startup/audit/publication/cleanup records remain under the same
+`/srv/mudds-work/helm-edge-20261018/results/` root.
+
+This closes three cards in the eight-task batch: reproduction, runtime repair,
+checkpoint. Five remain READY; next is the unchanged original shared-return
+qualification from held37cbc7a4e composed with the accepted repair. Do not inherit
+ordinary-return, native Windows/GPU/device/audio, human, endurance, full-matrix
+or full-release acceptance from these component/menu/artifact checks. All36
+parents and ten phase gates remain open; earlier failures and repair counts stay
+cumulative. No hosted CI, Downloads copy or public release publication occurred.

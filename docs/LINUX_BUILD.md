@@ -4,7 +4,33 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `b6196a1` — 2026-10-18
+## Latest development checkpoint: `2c73494` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-2c73494.x86_64),
+[archive](../builds/linux/MuddsShipyards-2c73494-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-2c73494-linux-notes.txt) use clean accepted
+source `2c73494a41fa86a48f08d608922c2a1b41e5a927`, integrated on main.
+An immediately sampled client landing action survives later neutral physics
+sampling and is forwarded exactly once; source/ownership/session boundaries
+revoke pending actions. Host authority, landing physics and wire format remain.
+
+The old-runtime consumer regression fails only its new edge-delivery assertion;
+the repaired source passes consumer40 and ship_command79, with independent
+review and source/cache guards. This is staged-client component proof, not the
+complete ordinary shared-return route; that unchanged qualification is next.
+Both safe exports pass. Direct Linux, extracted archive and the actual Windows
+payload through pinned Linux Godot each exit0 with exactly one menu-ready marker
+and no original error/leak diagnostics. All1515 actual PCK entry bytes match;
+stock PE .text, exact Linux archive bytes/modes/generated launchers, metadata and
+Windows ZIP checks pass. Seven artifact/note files are published in repository
+builds; temporary checkout/profiles/helpers are removed, unique raw retained at
+`/srv/mudds-work/helm-edge-20261018/results/`.
+
+The export-result JSON retains its immutable build-time startup_check=NOT_RUN;
+actual later startup results are in notes/raw. Native Windows/GPU/device/audio,
+human, full matrix, endurance and final-release qualification remain NOT_RUN/open.
+
+## Earlier development checkpoint: `b6196a1` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-b6196a1.x86_64),
 [archive](../builds/linux/MuddsShipyards-b6196a1-linux-x86_64.tar.gz) and

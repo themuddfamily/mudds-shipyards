@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next task: reproduce the immediate client landing-edge loss on the old runtime.**
+**Next task: qualify the unchanged ordinary shared Jovian return on the accepted repair.**
 The game is a playable development alpha. **36 broad requirements and all ten
 phase gates remain open.** This file is the execution queue. The
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves remaining
@@ -13,8 +13,9 @@ remains binding. Actual source-specific results belong in the
 
 | Delivered outcome | Accepted scope / remaining limit |
 | --- | --- |
-| Passenger chair and pilot/passenger HUD repairs | Integrated. Latest runtime delivery b6196a19a resolves craft labels through the actual occupied chair. |
-| Playable Windows/Linux checkpoint **b6196a1** | [Windows notes](builds/windows/MuddsShipyards-b6196a1-notes.txt), [Linux notes](builds/linux/MuddsShipyards-b6196a1-linux-notes.txt). Safe exports, three strict menu startups and actual payload/archive checks pass. |
+| Passenger chair and pilot/passenger HUD repairs | Integrated. Crew-label source b6196a19a resolves craft labels through the actual occupied chair. |
+| Immediate client landing-edge repair | 2c73494a4, integrated on eaac8a432: old-runtime regression reproduced, repaired command delivery40 and ship commands79 pass. Ordinary return remains unqualified. |
+| Playable Windows/Linux checkpoint **2c73494** | [Windows notes](builds/windows/MuddsShipyards-2c73494-notes.txt), [Linux notes](builds/linux/MuddsShipyards-2c73494-linux-notes.txt). Safe exports, three strict menu startups and actual payload/archive checks pass. |
 | Ordinary two-client Jovian boarding | fff5f7221: normal approaches, both actual seats, current identities/HUD/authority and host confirmation; all three peers exit 0. |
 | Ordinary shared departure and braking | 96c96312f: host physically moves 5.004m, frees berth and stops; both clients remain seated/current. |
 | Four-cycle phantom cleanup and twelve-cycle all-nine reuse | d7be01487: both source qualifications pass. Staged/headless source scope; packaged ordinary play is separate. |
@@ -24,34 +25,36 @@ remains binding. Actual source-specific results belong in the
 8s request-acceptance gate: host landing serial 0. Input release/neutrality and
 client identities pass; physical docking and arrival are unqualified. Static
 reading identifies a supported immediate-command forwarding gap, but pulse-time
-admission in that failed run was not captured. The focused reproduction below
-must establish the defect; do not assume it already explains every event.
+admission in that failed run was not captured. The focused reproduction below now establishes this supported code gap; it does
+not retroactively establish pulse-time admission in that failed ordinary run.
 
 **Unverified:** current full matrix NOT_RUN (last unfiltered f85957f failed 11 of
 1,045 suites); native hardware/device/audio, endurance and final release gates
 remain open. Native Windows execution and human review retain the owner's
 exclusions and factual NOT_RUN records. Focused passes do not replace these gates.
 
-## Next eight tasks
+## Current eight-task batch
 
-**5 READY, 3 GATED.** These are eight queue cards, not eight tasks left in the
-project. READY definition cards can proceed independently; no parked route is
+**3 DONE, 5 READY.** Five cards remain in this batch.
+These are queue cards, not the remaining whole-project job count. READY definition cards can proceed independently; no parked route is
 reopened by this list. Root owns integration and each card unless assigned below.
 Implementation and check time are separate; caps are safety limits, not estimates.
-The held patch is preserved, not yet accepted or included in a playable build.
+Runtime source2c73494a4 is accepted and integrated. Its fresh Windows/Linux
+checkpoint2c73494 is published locally with all declared package checks passing.
 
 | Order / task | Type | Status / dependency | Finish | Work estimate; checks separate |
 | --- | --- | --- | --- | --- |
-| 1. HELM-EDGE-REPRO | Regression qualification | READY | Real immediate landing then neutral physics demonstrates the missing remote serial on the old runtime. | 15–30min freeze/review; import ≤600s, compile ≤300s, one suite ≤300s. |
-| 2. HELM-EDGE-REPAIR | Runtime repair | GATED on 1 | The same admitted edge reaches the current remote helm exactly once; invalidation revokes it. | 30–60min review/integrate existing patch; focused pair ≤300s each. |
-| 3. CHECKPOINT-HELM-EDGE | Playable build | GATED on 2 | Fresh paired Windows/Linux packages contain the accepted fix. | 15–25min preparation/artifact work; export ≤900s/platform, startup ≤300s each. |
-| 4. NET-JOVIAN-RETURN | Ordinary gameplay qualification | GATED on 2+3 | Physical home dock commits and both retained clients consume arrival. | 5–10min compose/freeze; compile ≤300s, one original route ≤300s. |
+| 1. HELM-EDGE-REPRO | Regression qualification | DONE on a3955ee90 | Real immediate landing then neutral physics demonstrates the missing remote serial on the old runtime. | 15–30min freeze/review; import ≤600s, compile ≤300s, one suite ≤300s. |
+| 2. HELM-EDGE-REPAIR | Runtime repair | DONE on 2c73494a4 | The same admitted edge reaches the current remote helm exactly once; invalidation revokes it. | 30–60min review/integrate existing patch; focused pair ≤300s each. |
+| 3. CHECKPOINT-HELM-EDGE | Playable build | DONE on 2c73494a4 | Fresh paired Windows/Linux packages contain the accepted fix. | 15–25min preparation/artifact work; export ≤900s/platform, startup ≤300s each. |
+| 4. NET-JOVIAN-RETURN | Ordinary gameplay qualification | READY; 2+3 accepted | Physical home dock commits and both retained clients consume arrival. | 5–10min compose/freeze; compile ≤300s, one original route ≤300s. |
 | 5. HELM-ACTIONS-DEFINE | Scope definition | READY | Finite supported action/binding/consumer/coverage list, with uncovered cases named. | 30min; no engines. |
 | 6. RECOVERY-ONFOOT-DEFINE | Scope definition | READY | On-foot durable boundary and usable resume/safe-home outcome are unambiguous. | 30min; no engines. |
 | 7. ACCESS-PAUSE-DEFINE | Scope definition | READY | Pause/options views and required scale/aspect cells are named. | 30min; no captures. |
 | 8. BOMBER-ROLES-DEFINE | Scope definition | READY | Promised bomber crew/navigation capabilities are matched to actual production owners or explicit gaps. | 30min; no engines. |
 
-**Selection rule:** finish this planning pass, then resume card 1. A check failure
+**Selection rule:** run the unchanged return card4 once on the composed clean source.
+Cards1–3 are closed; do not repeat their accepted checks without a relevant change. A check failure
 ends that card; it does not expand the queue. After the existing failed return
 and attempted repair, the recorded priority review selected this input repair.
 Those failures remain counted. If the repaired qualification fails, record the
@@ -74,7 +77,11 @@ turn into diagnostics, implementations or additional checks under the same card.
   distinct neutral physics. The old runtime fails the new exactly-once remote
   serial/`pilot_landing_1` assertion, with no unrelated failures. No manually
   populated physics snapshot, preset counter or injected landing request.
-- **Execution:** READY/root; inspect the held two-file diff, save the runtime
+- **Execution:** DONE/root on a3955ee90: compile0, one suite fails only the
+  new expected assertion (39 others pass). Initial de787d5 compile failed on two
+  bare pause-notification constants; one reviewed Node qualifier repair passed.
+  Both attempts/raw and cumulative repair count remain retained. Frozen recipe:
+  inspect the held two-file diff, save the runtime
   patch under its owned results, and freeze only the regression on old runtime.
   Cold import ≤600s, compile ≤300s, one existing consumer suite ≤300s using the
   pinned engine/headless/Dummy and original diagnostics. Expected red closes
@@ -129,15 +136,21 @@ turn into diagnostics, implementations or additional checks under the same card.
 - **Check command:** same matrix/environment, with scope
   `tests/command_consumer_delivery_test.gd,tests/ship_command_test.gd`,
   jobs1, original300s per-suite and660s outer guard. Import/compile are separate.
-- **Execution:** GATED on HELM-EDGE-REPRO; root. The two-file patch is written
-  in `/srv/mudds-work/helm-edge-20261018/source/`, static diff check passes,
-  engine checks NOT_RUN. Review that patch; do not start another implementation.
+- **Execution:** DONE/root on 2c73494a4, integrated as eaac8a432. Import/compile
+  and both suites exit0, original diagnostics0; consumer40 and ship_command79.
+  Full source/cache guards hold, owned processes exit, independent review GO.
+  [Exact reproduction and repair](docs/history/ROADMAP_DELIVERIES.md#immediate-client-landing-edge--reproduced-and-repaired).
 - **Close:** integrate accepted runtime/tests, commit/push, immediately create
   CHECKPOINT-HELM-EDGE. The earlier return failure/repair remain cumulative and
   return stays unqualified until its separately gated unchanged original route.
 
 ### CHECKPOINT-HELM-EDGE — playable accepted command-delivery repair
 
+- **Execution:** DONE/root on exact clean2c73494a4. Both exports, three strict
+  startups, all1515 actual payload-entry bytes, stock PE .text, exact Linux archive
+  and two-member Windows ZIP checks pass. Seven public artifacts/notes are under
+  repository builds. Owned checkout/profiles/helpers are removed; raw/source refs
+  remain. [Package closure](docs/history/ROADMAP_DELIVERIES.md#immediate-client-landing-edge--checkpoint-published).
 - **Parent/result:** parents6/32; exact clean accepted runtime, pinned Godot/templates.
   Existing safe Windows/Linux exports with correct private versioned XDG template
   mapping; verify actual debug/release paths before engines. Preserve HOME/CODEX_HOME.
@@ -154,6 +167,9 @@ turn into diagnostics, implementations or additional checks under the same card.
 
 ### NET-JOVIAN-RETURN — unchanged qualification after supported input repair
 
+- **Execution:** READY/root; compose held37cbc7a4e with accepted runtime2c73494a4
+  in a new owned clean checkout, freeze the exact source and run the original
+  route once. Prior failed task plus repair remain counted; first failure stops.
 - **Parent/result:** parents16/26; gate on accepted runtime+fresh checkpoint above.
   Compose held37cbc7a4e caller with accepted runtime; retain its complete input
   pulse and original [physical return contract](docs/history/ROADMAP_DELIVERIES.md#ordinary-shared-return--input-release-boundary-failed).
@@ -236,8 +252,8 @@ turn into diagnostics, implementations or additional checks under the same card.
 
 Clean up each card's owned disposable worktree/profile/helpers at closure after
 checking for unique work and live processes; preserve raw failures and source refs.
-Scratch belongs under `/srv/mudds-work/`. The current held helm source/profile
-remains needed for card1; three older dirty retired checkouts remain protected.
+Scratch belongs under `/srv/mudds-work/`. The helm checkout/profiles/helpers
+are removed after checkpoint publication; three older dirty retired checkouts remain protected.
 
 ## Rules that prevent loops
 

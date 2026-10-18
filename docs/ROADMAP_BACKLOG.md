@@ -13,8 +13,10 @@ game runtime. Earlier boarding and initial export failures remain retained in
 history. Ordinary shared departure/braking is now DONE on96c96312f after its one
 caller-field correction:132.562s, host5.004m departure/berth release/zero-speed
 stop, both clients retained and converged, all actual exits0. Game runtime is
-unchanged from checkpointb6196a1; this is source-route qualification. The next queue separates immediate-command reproduction, repair, checkpoint and
-original return qualification after completed static diagnosis.
+unchanged from checkpointb6196a1; this is source-route qualification. Immediate-command reproduction/repair and checkpoint2c73494 are now DONE: the
+old runtime fails only the new edge-delivery assertion; repaired source passes
+consumer40/ship_command79, and both packages pass strict startup/artifact checks.
+Next is the unchanged original return qualification; it remains unqualified.
 GameFlow's synthetic action seam samples/drains landing before physics, while
 remote forwarding only reads the physics snapshot. Source mapping is intact;
 the prior run did not capture pulse-time command publication. Require focused
@@ -261,8 +263,8 @@ They are a scope inventory, not an implementation estimate or a project percenta
 **States:** UNSCHEDULED = named scenario, not yet assigned/frozen; DEFINE =
 finite list or contract still needed; GATED = named prerequisite; WAITING =
 external resource; PARKED = earlier failure/reopen condition still applies;
-DONE = only the cited source/scenario is accepted. READY appears only in the
-working queue. A check already accepted does not become missing implementation
+DONE = only the cited source/scenario is accepted. Readiness is assigned in the
+working queue; inventory references point there. A check already accepted does not become missing implementation
 because the final candidate is not selected. No unchanged rerun is scheduled here.
 
 One named qualification may have a long existing route; keep its original
@@ -412,9 +414,9 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | --- | --- | --- | --- |
 | NET-JOVIAN-BOARD | Ordinary two-client physical boarding and confirmed seats/HUD | 16,26 | DONE; fff5f7221, host plus two clients |
 | NET-JOVIAN-DEPART | Ordinary shared 5m departure and zero-speed braking | 16,26 | DONE; 96c96312f, broader return/endurance not established |
-| HELM-EDGE-REPRO | Actual immediate landing followed by neutral physics reproduces missing remote edge | 18 | Scheduled in working queue; freeze test-only old-runtime source |
-| HELM-EDGE-REPAIR | Preserve admitted immediate command exactly once across consumers | 18 | GATED; expected reproduction, held patch not engine-verified |
-| NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | GATED; accepted edge repair and fresh checkpoint, prior failure plus repair retained |
+| HELM-EDGE-REPRO | Actual immediate landing followed by neutral physics reproduces missing remote edge | 18 | DONE; a3955ee90 expected-only failure, original fixture compile repair retained |
+| HELM-EDGE-REPAIR | Preserve admitted immediate command exactly once across consumers | 18 | DONE; 2c73494a4, consumer40/ship_command79, component-staged scope |
+| NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | READY in working queue; accepted repair/checkpoint, original failure plus repair retained |
 | ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
@@ -508,7 +510,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | SAVE-MIGRATION | Real-file valid migration with distinct-process reload | 31,32 | GATED; exact current format/fixture and uncovered case |
 | SAVE-CORRUPT | Corrupt-data fallback and usable recovery | 31,32 | GATED; specified fallback, protected data retained |
 | SAVE-UNSUPPORTED | Unsupported data refuses destructive overwrite | 31,32 | GATED; exact fixture, secret-free diagnostics |
-| CHECKPOINT-HELM-EDGE | Fresh paired playable command-delivery checkpoint | 6,32 | GATED; accepted runtime repair, strict package checks |
+| CHECKPOINT-HELM-EDGE | Fresh paired playable command-delivery checkpoint | 6,32 | DONE; 2c73494, both exports/three startups/exact payload and archive checks |
 | PACKAGE-FINAL | Exact final Windows/Linux package qualification | 6,32 | GATED; frozen final candidate, existing exports/inventory/startups |
 | INSTALL-WIN-FINAL | Matching NSIS installer artifact/extraction identity | 32 | GATED; final package, native execution remains excluded |
 | INSTALL-LINUX-CLEAN | Clean install on final Linux package | 32 | GATED; final package, accepted named earlier interruption cuts retained |
@@ -546,10 +548,10 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 
 Count the named rows as inventory outcomes, **not remaining executable jobs**.
 DONE rows retain their exact-source scope; definition, qualification, build and
-implementation are different types of work. This inventory has **230 named outcomes**, including **7 DONE** in their recorded
-planning/source scopes. The other223 rows include definitions, dependencies and
-qualifications; they are not223 implementation jobs. The working queue has eight cards;
-its current READY/GATED counts are shown in ROADMAP.md.
+implementation are different types of work. This inventory has **230 named outcomes**, including **10 DONE** in their recorded
+planning/source scopes. The other220 rows include definitions, dependencies and
+qualifications; they are not220 implementation jobs. The working queue has eight cards;
+its current completion and READY/GATED counts are shown in ROADMAP.md.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with
 no engine run unless separately scheduled. Expand its existing parent here only
@@ -573,7 +575,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
 | 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER/SCOPE-DESKTOP DEFINE; SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
 | 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | Next eight cards assigned in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
-| 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | Checkpoint b6196a1 accepted; HELM-EDGE-REPRO/REPAIR then fresh checkpoint. MATRIX-FINAL still gated. |
+| 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | Checkpoint2c73494 and HELM-EDGE-REPRO/REPAIR accepted; MATRIX-FINAL still gated. |
 | 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT | LIFE-VISIBLE/REUSE source DONE; Guided earlier-package pass retained. Nine WALK-* and17 eventual CRAFT-ACCEPT-* outcomes named; Sandbox PARKED and Settings WAITING. |
 | 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | CONTROL-FINDINGS and REMAP-DEFINE resolve actual gaps; INPUT-KBM/CONTROLLER require real devices. |
 | 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE | Nine WALK-* and four station LIFE-* rows; VIP PARKED. STATION-RELATIONS/FINDINGS require bounded source-tied definitions. |
@@ -585,7 +587,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING | CONTENT-EMBER/AURORA/RIME each ends with finite actual content findings or none found; no assumed new planets/features. |
 | 16 | Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY | Jovian boarding/departure DONE in recorded scopes. Eight named role routes, NET-SEATS-FINAL and bomber role contract remain separate. |
 | 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | NET-POSE-DEFINE resolves craft/operation views; NET-FULL-SNAPSHOT is one aggregate original-budget check. |
-| 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | HELM-EDGE-REPRO then REPAIR; HELM-ACTIONS-DEFINE resolves remaining actions. Physical-device proof stays separate. |
+| 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | HELM-EDGE-REPRO/REPAIR DONE on recorded source; HELM-ACTIONS-DEFINE resolves remaining actions. Physical-device proof stays separate. |
 | 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL | NET-STALL retains original600-step/2s contract; no unchanged parked/stall expansion under current repair. |
 | 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | NET-JOVIAN-RETURN first; NET-SECOND-LAND must prove distinctness before diagnosis. NET-DOCK-DEFINE names later reuse cases. |
 | 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE | DAMAGE-DEFINE shares parent11 ownership and names uncovered real craft/role consequences and peer presentation. |
