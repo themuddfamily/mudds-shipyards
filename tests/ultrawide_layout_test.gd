@@ -242,7 +242,7 @@ func _run() -> void:
 	_report_production_stretch_policy()
 	# Selected roadmap qualification reuses Main and the existing measurements,
 	# without multiplying the historical whole-HUD sweep by another aspect/scale.
-	if OS.get_cmdline_user_args().has("--pause-16x10-only"):
+	if OS.get_cmdline_user_args().has("--pause-16x10-only") or OS.get_cmdline_user_args().has("--pause-16x10-reentry-only"):
 		await _qualify_pause_16x10()
 		await _teardown()
 		_finish()
@@ -370,8 +370,8 @@ func _qualify_pause_16x10() -> void:
 			"reduced_flash": false, "captions_enabled": false,
 			"high_contrast_hud": false, "reticle_style": &"standard"})
 		await _qualify_pause_scale(resolution, requested, confirmations)
-		if not _failures.is_empty():
-			return # The selected card stops at its first demonstrated defect.
+		if not _failures.is_empty() or OS.get_cmdline_user_args().has("--pause-16x10-reentry-only"):
+			return # One diagnostic observation, or first demonstrated defect.
 		_hud.set_paused(false)
 		await process_frame
 
@@ -418,10 +418,19 @@ func _qualify_pause_scale(
 				settings.find_child(name, true, false) as Control):
 			return
 	var retained := controls[&"controller_glyph_family"] as Control
-	retained.grab_focus()
-	_hud.call(&"_show_pause_main")
-	_hud.call(&"_show_settings_page")
+	if not await _pause_observe(resolution, requested, &"options_before_reentry", retained, scroll):
+		return
+	# Separate ordinary page actions by frames, as player button presses are.
+	(settings.find_child("SettingsBackButton", true, false) as Button).pressed.emit()
+	await process_frame
+	await process_frame
+	await process_frame
+	_check(main.is_visible_in_tree() and not settings.is_visible_in_tree(),
+		"16:10 ordinary Back returns to pause main before reopening Options")
+	(main.find_child("SettingsOpenButton", true, false) as Button).pressed.emit()
 	if not await _pause_observe(resolution, requested, &"options_reentry", retained, scroll, false):
+		return
+	if OS.get_cmdline_user_args().has("--pause-16x10-reentry-only"):
 		return
 
 	var binding := (_hud.get("_binding_buttons") as Dictionary)[&"barrel_roll"] as Button
