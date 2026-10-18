@@ -455,13 +455,14 @@ func _walk(target_local: Vector3) -> void:
 	_check(await _until(func(): return _player.is_on_floor() and _player.velocity.slide(_craft.global_basis.y.normalized()).length() < 0.1, 3.0), "ordinary gunner walk settles on actual cabin support")
 
 func _look(target: Vector3) -> void:
+	var local_target: Vector3 = _craft.to_local(target)
 	for _index in 4:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			var click := InputEventMouseButton.new()
 			click.button_index = MOUSE_BUTTON_LEFT
 			click.pressed = true
 			_player._unhandled_input(click)
-		var desired := _player.global_basis.inverse() * (target - _player.get_interaction_origin()).normalized()
+		var desired := _player.global_basis.inverse() * (_craft.to_global(local_target) - _player.get_interaction_origin()).normalized()
 		var current := _player.global_basis.inverse() * _player.get_interaction_direction().normalized()
 		var yaw := wrapf(atan2(-desired.x, -desired.z) - atan2(-current.x, -current.z), -PI, PI)
 		var pitch := asin(clampf(desired.y, -1.0, 1.0)) - asin(clampf(current.y, -1.0, 1.0))
