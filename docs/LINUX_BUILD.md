@@ -4,7 +4,26 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `ad596e4` — 2026-10-18
+## Latest development checkpoint: `b6196a1` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-b6196a1.x86_64),
+[archive](../builds/linux/MuddsShipyards-b6196a1-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-b6196a1-linux-notes.txt) use clean accepted
+source `b6196a19acf26a018f66341c014cc655bb9dc92d`. Confirmed crew craft name/ID
+now follows the occupied chair's ship while preserving the pilot selection.
+
+The initial Windows export failed at a missing private XDG template link. Its
+one setup repair verifies the actual versioned paths; both safe exports pass.
+Direct Linux, extracted archive and Windows payload through Linux Godot each
+exit0 with exactly one STARTUP_MENU_READY_OK and zero diagnostics. All1515 actual
+PCK entry bytes match across platforms; stock PE .text, architecture, exact
+Linux archive/Windows ZIP contents and metadata pass. Focused source HUD51/role3
+were already accepted on this exact source and were not rerun unchanged.
+Ordinary two-client boarding on the repaired source is NOT_RUN; its last attempt
+remains FAILED. Native Windows/GPU/device/audio/human/full-release gates remain
+open/NOT_RUN. See notes for the source-fixture limits and actual checks.
+
+## Earlier development checkpoint: `ad596e4` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-ad596e4.x86_64),
 [archive](../builds/linux/MuddsShipyards-ad596e4-linux-x86_64.tar.gz) and

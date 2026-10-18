@@ -4387,3 +4387,73 @@ contract](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-boarding--passenger
   action. Do not regenerate unchanged artifacts to erase a failed check.
 - **Close:** publish exact local artifacts and honest notes, commit/push indices,
   remove owned clean export checkout/profiles and keep actual raw acceptance.
+
+
+## Crew craft-label checkpoint — profile repaired; packages published
+
+CHECKPOINT-CREW-HUD-REPAIR is DONE on unchanged accepted clean runtime source
+`b6196a19acf26a018f66341c014cc655bb9dc92d`. The original failed Windows export at
+`crew-hud-craft-20261018/results/` remains FAILED and counted. Its one bounded
+setup repair creates the correct private XDG versioned template link and resolves/
+hashes actual Windows debug/release and Linux files before any engine invocation.
+Root independently repeats that preflight. No runtime change or unchanged focused
+suite rerun is introduced: existing exact-source HUD51/role3 acceptance applies.
+
+One repair Windows export and one Linux export pass sequentially, actual exits0,
+zero diagnostics. Direct Linux startup21.471s and extracted archive21.152s pass;
+Windows actual EXE payload through pinned Linux Godot also passes. Each actual
+startup exit0 has exactly one STARTUP_MENU_READY_OK and no error/leak diagnostics.
+All runs headless/Dummy/private profiles; native Windows execution is NOT_RUN.
+
+Independent mechanical artifact audit GO: all1515 actual PCK entry bytes match
+across EXE/ELF, existing integrity/privacy/raw-source exclusions pass, Windows
+.text matches the pinned stock template and PE/ELF are x86_64. Linux archive
+contains exactly one root directory and five regular files with exact modes/
+contents, including exporter launchers and source installer/icon. Full source,
+binary/archive hash and size metadata match. Root verifies checkpoint ZIP
+CRC/exact two members/full EXE+notes bytes and publishes seven files with identical
+hashes/modes under repository builds/windows and builds/linux. No Downloads.
+
+Latest playable checkpoint is b6196a1. Notes explain the visible passenger label
+repair, included pilot/chair fixes, previous setup failure, actual checks and
+limits. Original ordinary-spawn two-client boarding is still FAILED on cbbebd715;
+it has not been rerun on this repaired source or package. Flight/return/endurance,
+native Windows/GPU/device/audio/human/full-matrix/signing/release gates remain
+open or NOT_RUN. No parent or phase gate closes.
+
+Raw `/srv/mudds-work/crew-hud-checkpoint-repair-20261018/results/` retains pinned
+preparation, exact stage commands/statuses, all logs, artifact audit, package
+startup receipts, publication map, terminal review and cleanup. All five stage
+supervisors finish0 and observed owned processes are absent. Owned clean checkout,
+private export/startup profiles and operational helpers are removed after exact
+publication verification; unique raw and public builds remain. No hosted CI.
+Next selected task is one unchanged original boarding qualification using the
+already corrected held caller composed with b6196a19a, original300s limit and
+first-failure stopping rule. No new diagnostics or speculative repair are selected.
+
+### Executed checkpoint repair card — frozen contract
+
+### CHECKPOINT-CREW-HUD-REPAIR — correct private template mapping and publish
+
+- **Parent/result:** parents6/32; publish the missing playable checkpoint from
+  accepted clean source b6196a19acf26a018f66341c014cc655bb9dc92d. No runtime change.
+- **Known failure:** the Windows exporter reads templates from XDG_DATA_HOME,
+  unlike Linux's GODOT_EXPORT_TEMPLATES_DIR override. The failed private profile
+  had an empty export_templates directory; its 4.7.1.stable link was missing.
+  This setup error belongs to the agent. Original failure logs stay retained.
+- **Boundary:** use a new owned clean checkout/private profile; link its exact
+  versioned XDG template path to the pinned templates. Before any engine run,
+  resolve and hash both Windows debug/release files at the paths Godot actually
+  reads, plus the Linux release template. Preserve HOME/CODEX_HOME and isolation.
+- **Proof:** existing safe Windows/Linux exports, payload-entry byte parity,
+  exact archive/ZIP members/modes/content and source metadata. Direct Linux,
+  extracted Linux and Windows-payload strict silent startups each require actual
+  exit0 plus exactly one STARTUP_MENU_READY_OK and no diagnostics. Publish EXE,
+  ZIP, notes and matching Linux artifacts under repository builds only.
+- **Budget/stop:** profile correction/preflight 5–10min; actual export900s and
+  startup300s caps unchanged. One repair export per platform; any failure stops
+  for priority review. The first failed attempt remains counted. No unchanged
+  rerun, additional runtime fix or broader boarding probe belongs to this card.
+- **Close:** publish exact artifacts/actual validation notes, commit/push indices,
+  remove owned disposable checkout/profiles, preserve raw failures and success.
+  Native Windows/hardware/human/full-release gates remain unperformed.
