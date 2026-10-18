@@ -30,6 +30,7 @@ func _run() -> void:
 	await _test_analog_locomotion_and_neutral_braking()
 	await _test_assist_contract()
 	await _test_step_height_boundary()
+	await _test_completed_step_event_expiry()
 	await _test_refuses_to_step_into_a_void()
 	await _test_refuses_a_lip_without_headroom()
 	await _test_refuses_an_unwalkable_landing()
@@ -604,16 +605,93 @@ func _walks_up_lip(height: float) -> bool:
 		await physics_frame
 	Input.action_press(&"move_forward")
 	var climbed := false
+	var successful_events := 0
 	for _frame in WALK_FRAMES:
 		await physics_frame
+		var motion: Dictionary = player.get_step_up_assist_audit().get("completed_motion", {})
+		if not (motion.get("step_up", {}) as Dictionary).is_empty():
+			successful_events += 1
 		if player.global_position.z < -4.5 and player.global_position.y >= height - 0.02:
 			climbed = true
 			break
 	Input.action_release(&"move_forward")
 	await physics_frame
+	if height > 0.30:
+		_check(successful_events == 0, "a refused %.2f m lip never creates a successful step event" % height)
+	elif height >= 0.25:
+		_check(successful_events > 0, "a genuinely mounted %.2f m lip retains an actual successful step event" % height)
 	rig.queue_free()
 	await process_frame
 	return climbed
+
+
+## Real InputMap movement reaches the solver, then a normal tick or the seated
+## early-return path expires that actual event. No fabricated proof is seeded.
+func _test_completed_step_event_expiry() -> void:
+	for seated_next in [false, true]:
+		var rig := Node3D.new()
+		root.add_child(rig)
+		rig.add_child(_slab(Vector3(8.0, 1.0, 8.0), Vector3(0.0, -0.5, 0.0)))
+		rig.add_child(_slab(Vector3(8.0, 1.25, 8.0), Vector3(0.0, -0.375, -8.0)))
+		var player := PLAYER_SCENE.instantiate() as PlayerController
+		rig.add_child(player)
+		await process_frame
+		player.set_physics_process(false)
+		player.teleport_to(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.05, 2.0)))
+		var tick := 1.0 / float(Engine.physics_ticks_per_second)
+		for _settle in 10:
+			await physics_frame
+			player._physics_process(tick)
+		var captured: Dictionary = {}
+		Input.action_press(&"move_forward")
+		for _walk_frame in WALK_FRAMES:
+			await physics_frame
+			var before := player.global_position
+			player._physics_process(tick)
+			var motion: Dictionary = player.get_step_up_assist_audit().completed_motion
+			var event: Dictionary = motion.step_up
+			if event.is_empty():
+				continue
+			captured = motion
+			var capsule := player.get_node(^"PlayerCollision") as CollisionShape3D
+			_check(motion.frame == Engine.get_physics_frames() and event.frame == motion.frame
+				and event.player_id == player.get_instance_id()
+				and event.capsule_id == capsule.get_instance_id()
+				and event.shape_id == capsule.shape.get_instance_id(),
+				"real successful lip event retains its actual physics frame and current actor/capsule/shape")
+			_check(motion.start == before and event.start == before and event.tick_start == before
+				and motion.end == player.global_position and event.landing == motion.end
+				and event.tick_end == motion.end and event.up == Vector3.UP
+				and event.collision_transform == Transform3D.IDENTITY,
+				"successful lip event is finalized with exact actual tick endpoints and committed landing")
+			var offset: Vector3 = event.landing - event.start
+			_check(offset.y > 0.001 and offset.y <= 0.301
+				and offset.slide(Vector3.UP).length() <= event.bounds.probe_reach + event.bounds.min_advance
+				and offset.dot(event.intended) > 0.0
+				and event.bounds.capsule_radius == (capsule.shape as CapsuleShape3D).radius,
+				"successful lip event reports actual positive tangent motion and live capsule-derived bounds")
+			var original := motion.duplicate(true)
+			event.bounds["max_step_height"] = 99.0
+			event["landing"] = Vector3.ONE * 999.0
+			motion["start"] = Vector3.ONE * 888.0
+			_check(player.get_step_up_assist_audit().completed_motion == original,
+				"mutating the audit's nested event and bounds leaves the retained actor proof detached")
+			break
+		Input.action_release(&"move_forward")
+		_check(not captured.is_empty(), "real move_forward obtains a successful event before expiry testing")
+		if seated_next:
+			var anchor := Node3D.new()
+			rig.add_child(anchor)
+			anchor.global_transform = player.global_transform
+			_check(player.begin_boarding(player.global_transform, anchor, 0.0) and player.is_seated(),
+				"expiry fixture enters the real seated early-return path")
+		await physics_frame
+		player._physics_process(tick)
+		var next: Dictionary = player.get_step_up_assist_audit().completed_motion
+		_check((next.step_up as Dictionary).is_empty() and next.frame == Engine.get_physics_frames(),
+			"the next %s tick expires the prior successful event" % ("seated" if seated_next else "ordinary non-step"))
+		rig.queue_free()
+		await process_frame
 
 
 func _walk(player: PlayerController, start: Vector3, frames: int) -> Dictionary:
