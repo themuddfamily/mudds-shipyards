@@ -32,13 +32,14 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-LIFE-ARM is selected for implementation and its bounded acceptance below.
-Route definition is complete from existing source; no engine or route run was
-needed for definition. Root owns integration, checks, packaging and cleanup.
+LIFE-ARM is now PARKED after its first archived route failure; its fixed
+contract and both failed stages remain in delivery history. No further route,
+repair or adjacent station task is selected. Owned scratch cleanup is complete;
+only unique raw results/withheld artifacts remain.
 
 | Work | Kind / readiness | Owner and bounded next result | Estimate |
 | --- | --- | --- | --- |
-| LIFE-ARM | Acceptance/release capability; SELECTED, runtime NOT_RUN | Implementation in /srv/mudds-work/life-arm-20261018/source owns the five named files; root integrates, checks and packages. One independent reviewer checks lifecycle/input boundaries. Stop after one complete route or first failure. | 30–45min implementation/review; 10–15min focused checks/export/startup; native cap300s, outer360s |
+| LIFE-ARM | Acceptance/release capability; PARKED | Four goals passed; first native route failed continuity near Aft stair base. Exact caller/source950574e3f retained unmerged. Reopening condition below; no automatic retry. | Selected implementation/review30–45min plus10–15min checks; attempt reached terminal review in≈13min, original limits retained |
 | HAULER-CARGO-MANIFEST | Production behavior; GATED on HAULER-CARGO-STOCK | Binding admission/conserved source custody. Current source rejects Hauler; generation-floor API already exists. [Exact stock prerequisite and proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). No duplicate generation API or implicit stock grant. | 60–90min implementation/focused checks after decision, checkpoint additional; split before90min |
 
 This is a local queue, not the remaining project. No Habitat-patrol, full Sandbox,
@@ -48,96 +49,27 @@ The bounded production-seam review found the Hauler gap above; other inspected
 Hauler/Bomber/terminal-recovery policies need their recorded decisions. That is
 not a claim that the entire game has no other implementation gaps.
 
-### LIFE-ARM — prepared acceptance card
+### LIFE-ARM — parked after first native route failure
 
-**Result:** the release driver can prove ordinary hub→Aft stairs→Zenith pilot
-boarding while the existing service arm continues operating. This delivers an
-executable release check; it adds no new animation or gameplay. Parent9 remains
-open until its other applicable outcomes hold. Definition source:668b5b6dc.
+Source/caller950574e3f remains pushed on its branch, unmerged; no checkpoint
+published. The ONE actual archived route fails33.850s guarded/31.139s driver
+at frame996 while approaching fifth goal aft_stair_base, after four settled
+goals and48.963m walking. Local arm interval, Zenith boarding and90seatedframes
+remain NOT_RUN. Inputs/helper/game/Xvfb cleanup passes, diagnostics0.
 
-**Owned files:** `tools/release/run_native_sortie.py`,
-`tools/release/test_native_sortie.py`,
-`scripts/diagnostics/native_sortie_observer.gd`,
-`scripts/game/startup_loader.gd`, `tests/startup_cli_privacy_test.gd`.
-Extend the shared LIFE pilot/observer with bounded route configuration; do not
-copy another pilot or change world geometry, controls, cargo or ship behavior.
+The failed step is.425817m against the unchanged.211667m bound. Its.400m planar
+advance/.146m rise matches the controller's authored step-up bounds, but the
+observer does not prove that call executed. This is not proof of injected
+placement. Preserve the route and failing assertion; do not relax the bound or
+repeat the route automatically. Reopening requires separately selected concrete
+causal work or a continuity-contract review with actual actor-owned evidence.
 
-Use fresh ordinary Start Shift and OS input only. Existing authored goals, in order:
-
-```text
-(0,0,15.5) → (0,0,39) → (0,0,46.3) → (0,0,51)
-→ (-5.7,0,51) → (-5.7,4.2,61.2) → (-3.5,4.2,61.5)
-→ (-3.5,4.2,64.2) → (-3.5,4.2,68.3) → (6,4.2,68.3)
-→ (13,4.2,68.3) → (22,4.2,68.3)
-→ (20.2,4.2,59.2) → (18.6,4.2,58.6) → (18.2,4.2,58.2)
-```
-
-These reuse the existing Sandbox walking/Zenith approach coordinates, without
-Sandbox triggers or sorties. Observe actual production Zenith candidate and
-settled walking before ordinary Interact. Do not append Jovian's dynamic-marker
-walk or impose its extra3.1m proximity rule: production boarding selects the
-available actual candidate under its existing7m fallback reach. Never force a
-candidate, active ship, boarding call, actor pose or rescue.
-
-Observe `ShipyardWorld/OperationalLattice/Activities/AftOperationsActivity`,
-SERVICE_ARM profile, and its actual shoulder/elbow/tool transform owners.
-Local walking interval: stair-top(-5.7,4.2,61.2) through fleet-bridge(6,4.2,68.3).
-Require actual local distance>11m and every local sample within12m of actual
-arm origin(5.8,4.99,61.2). Source polyline≈18.52m/max goal distance≈11.527m
-is a route definition, not measured runtime acceptance.
-
-Require the same supported Player/capsule/shape, default tuning, enabled/visible/
-processing service, nondecreasing finite clock and all three actual mover poses
-changing in both local walking and seated intervals. Zenith must be the original
-`Main/ZenithInterceptor`, ID `zenith_b7_observed`, home berth
-`zenith_fleet_dock_berth`. Authenticate actual input→BOARDING→local pilot, then
-90 seated physics frames with correct current ownership/home reservation,
-OFFLINE engine and unchanged parked pose. Seat coexistence is separate from
-nearby walking/readability. Read-only observation must not create seats, clean
-leases, advance/seek service animation or alter authority.
-
-Retain shared LIFE limits:15s per goal, .30m planar arrival, vertical error<.8m,
-speed<.1m/s and15 consecutive settled physics samples; boarding12s; whole
-route300s/outer360s. These are shared LIFE limits, not a claimed previous Zenith
-per-goal deadline. Validate every emitted consecutive sample. First unexpected
-failure stops execution; no automatic repair/retry or budget reset.
-
-Checks: existing full Python driver tests, observer compile and CLI privacy;
-clean paired exports, three strict startup checks and actual payload/archive
-audit; ONE exact archive-extracted ordinary route using the planned
-`--route life-arm` selector and `NATIVE_LIFE_ARM_OK` marker. The selector is not
-implemented yet. Root owns silent/headless or isolated x11 checks and independent
-abort/input/process cleanup. Review before launch; record source, actual duration
-and failures. Native GPU/rendered readability/final integration remain separate.
-
-Execution pin: `cbda67e41b1f14b7f5408976be8ac933926907eb`, five scoped files.
-Independent source review GO includes actual station-prompt priority handling
-before the first boarding press; no runtime pass claimed. Root reuses the prior
-guarded task helpers under `/srv/mudds-work/life-arm-20261018/helpers/`, with
-clean-source/engine/process/diagnostic checks and first-failure STOP. Authorized
-order: import→observer compile→privacy→full Python→paired exports→three strict
-startups→artifact audit→ONE archived native route. Actual results remain in
-`/srv/mudds-work/life-arm-20261018/results/`; no deadline/route changes selected.
-
-First validation STOP: full71 Python tests fail once in8.176s guarded at the
-new competing-prompt fixture's nonzero-yaw assertion. Import20.673s, observer
-compile15.570s and CLI privacy1.033s pass. No export/native stage entered.
-Review the exact pending-mouse/observed-facing cause before one bounded repair;
-retain the failing log and original deadlines. No retry is yet authorized.
-
-Reviewed repair selection: the position-only fixture retains walk_forward(1,0,0)
-through all15 goals, leaving the first OS yaw unacknowledged; production correctly
-suppresses duplicate yaw. Before the competing-prompt sample, update only that
-fixture's coherent observed basis to forward(.8,0,.6), right(-.6,0,.8).
-Keep nonzero-yaw/no-input assertions and production suppression unchanged.
-Only `tools/release/test_native_sortie.py` may change. Retain identical GDScript/
-privacy passes; authorize one full repaired Python run on its new clean pin,
-then obtain explicit cumulative priority review before any remaining stage.
-
-Repair source `950574e3fbaec59ae49d4626a8fd6affd99c5c26` changes only the
-two fixture lines above. Full71 Python PASS8.229s guarded; initial failure8.176s
-retained, combined Python16.405s. GDScript/privacy checks remain byte-identical
-and are retained. Exports/native remain NOT_RUN pending cumulative review.
+Initial Python71FAIL8.176s and one fixture-only two-line repair71PASS8.229s
+remain recorded. Identical observer/privacy checks were retained; fresh paired
+exports,three strict startups and1521-entry audit pass. Those do not accept the
+failed route. [Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#aft-service-arm--stopped-at-continuity-boundary)
+retain source, budgets, exact failed sample and reopening boundary. Latest
+accepted playable remains2df8c31. No next station-service chain is selected.
 
 ## Latest delivered result
 

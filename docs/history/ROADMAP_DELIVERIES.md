@@ -11004,3 +11004,118 @@ unexpected failure; no second repair is selected. Named remaining LIFE-ARM still
 needs its own exact supported Aft approach/boarding route before later selection;
 it is not automatically added to this task. No new production defect was found
 by the negative-fixture failure.
+
+## Aft service arm — stopped at continuity boundary
+
+2026-10-18. Selected main5368ef660, frozen execution2df925283; initial source
+cbda67e41, exact fixture repair950574e3f (branchfeat/life-arm-20261018 pushed,
+unmerged). Independent source and cumulative reviews allowed one bounded route.
+
+STOP / WITHHOLD / PARK LIFE-ARM on950574e3fbaec59ae49d4626a8fd6affd99c5c26.
+Independent raw/source review confirms one native attempt failed33.850073214s guarded/31.139s driver at frame996 after four goals and48.962821610m validated walking. Frame995→996 delta(-.3999848366,+.1460156052,+.0034675598), planar.3999998668m/3D.4258173909m versus unchanged.2116666667m bound. Support StairBaseLanding→ContinuousStairRamp; both grounded/supported/default/current and ordinary controls. Existing controller step probe caps planar reach at radius+.02=.40m and rise.30m. Raw movement matches those bounds, but no per-frame assist-return telemetry proves direct call attribution. Do not call this proof of teleport, weaken continuity or rerun automatically.
+Four goals completed: central_aft_turn603,aft_spine796,aft_approach886,Aft953. Failure approaching fifth aft_stair_base. All three actual arm poses/clock change over approach only; local stair-top→fleet-bridge interval, nearby acceptance, Zenith candidate/boarding, authenticated BOARDING/pilot and90seated frames remainNOT_RUN. Full routeFAIL. Source checks, repaired71Python, pairedexports/three strictstartups/1521auditPASS; initialPythonFAIL retained. Total recorded guarded stages218.024962366s, not wall time. No caps reset.
+Native inputs/helper/game/Xvfb cleanup alltrue, diagnostics0. Exports remainwithheld; no repositorycheckpoint/ZIP published. Keep exact source/raw results/artifacts. One fixture repair plus first native failure ends selected attempt. Reopen only separately selected concrete causal change or continuity-contract review; no automatic successor. NativeGPU/readability/device/audio/final notqualified; ownerWindows/human exclusions retained. Reviewer ran no engines/tests or edits.
+
+Raw results: `/srv/mudds-work/life-arm-20261018/results/`. Exact Windows EXE
+and Linux archive plus metadata/startup logs are retained under `withheld-packages/`;
+no new public checkpoint. Normal source/helper/profile/extraction cleanup is complete:12 terminal owners
+and65 observed process identities are absent;12 private-profile files/helpers
+archived. Only unique results remain, with seven withheld artifacts and no public
+publication. `cleanup.json` records actual removal. Latest accepted playable
+remains2df8c31.
+Elapsed selection→terminal review approximately13min, within the original
+30–45min implementation/review estimate plus checks. No project percentage or
+new gameplay acceptance follows from these checks.
+
+### Retained frozen LIFE-ARM card
+
+Original selected card (historical; attempt is now PARKED).
+
+**Result:** the release driver can prove ordinary hub→Aft stairs→Zenith pilot
+boarding while the existing service arm continues operating. This delivers an
+executable release check; it adds no new animation or gameplay. Parent9 remains
+open until its other applicable outcomes hold. Definition source:668b5b6dc.
+
+**Owned files:** `tools/release/run_native_sortie.py`,
+`tools/release/test_native_sortie.py`,
+`scripts/diagnostics/native_sortie_observer.gd`,
+`scripts/game/startup_loader.gd`, `tests/startup_cli_privacy_test.gd`.
+Extend the shared LIFE pilot/observer with bounded route configuration; do not
+copy another pilot or change world geometry, controls, cargo or ship behavior.
+
+Use fresh ordinary Start Shift and OS input only. Existing authored goals, in order:
+
+```text
+(0,0,15.5) → (0,0,39) → (0,0,46.3) → (0,0,51)
+→ (-5.7,0,51) → (-5.7,4.2,61.2) → (-3.5,4.2,61.5)
+→ (-3.5,4.2,64.2) → (-3.5,4.2,68.3) → (6,4.2,68.3)
+→ (13,4.2,68.3) → (22,4.2,68.3)
+→ (20.2,4.2,59.2) → (18.6,4.2,58.6) → (18.2,4.2,58.2)
+```
+
+These reuse the existing Sandbox walking/Zenith approach coordinates, without
+Sandbox triggers or sorties. Observe actual production Zenith candidate and
+settled walking before ordinary Interact. Do not append Jovian's dynamic-marker
+walk or impose its extra3.1m proximity rule: production boarding selects the
+available actual candidate under its existing7m fallback reach. Never force a
+candidate, active ship, boarding call, actor pose or rescue.
+
+Observe `ShipyardWorld/OperationalLattice/Activities/AftOperationsActivity`,
+SERVICE_ARM profile, and its actual shoulder/elbow/tool transform owners.
+Local walking interval: stair-top(-5.7,4.2,61.2) through fleet-bridge(6,4.2,68.3).
+Require actual local distance>11m and every local sample within12m of actual
+arm origin(5.8,4.99,61.2). Source polyline≈18.52m/max goal distance≈11.527m
+is a route definition, not measured runtime acceptance.
+
+Require the same supported Player/capsule/shape, default tuning, enabled/visible/
+processing service, nondecreasing finite clock and all three actual mover poses
+changing in both local walking and seated intervals. Zenith must be the original
+`Main/ZenithInterceptor`, ID `zenith_b7_observed`, home berth
+`zenith_fleet_dock_berth`. Authenticate actual input→BOARDING→local pilot, then
+90 seated physics frames with correct current ownership/home reservation,
+OFFLINE engine and unchanged parked pose. Seat coexistence is separate from
+nearby walking/readability. Read-only observation must not create seats, clean
+leases, advance/seek service animation or alter authority.
+
+Retain shared LIFE limits:15s per goal, .30m planar arrival, vertical error<.8m,
+speed<.1m/s and15 consecutive settled physics samples; boarding12s; whole
+route300s/outer360s. These are shared LIFE limits, not a claimed previous Zenith
+per-goal deadline. Validate every emitted consecutive sample. First unexpected
+failure stops execution; no automatic repair/retry or budget reset.
+
+Checks: existing full Python driver tests, observer compile and CLI privacy;
+clean paired exports, three strict startup checks and actual payload/archive
+audit; ONE exact archive-extracted ordinary route using the planned
+`--route life-arm` selector and `NATIVE_LIFE_ARM_OK` marker. The selector is not
+implemented yet. Root owns silent/headless or isolated x11 checks and independent
+abort/input/process cleanup. Review before launch; record source, actual duration
+and failures. Native GPU/rendered readability/final integration remain separate.
+
+Execution pin: `cbda67e41b1f14b7f5408976be8ac933926907eb`, five scoped files.
+Independent source review GO includes actual station-prompt priority handling
+before the first boarding press; no runtime pass claimed. Root reuses the prior
+guarded task helpers under `/srv/mudds-work/life-arm-20261018/helpers/`, with
+clean-source/engine/process/diagnostic checks and first-failure STOP. Authorized
+order: import→observer compile→privacy→full Python→paired exports→three strict
+startups→artifact audit→ONE archived native route. Actual results remain in
+`/srv/mudds-work/life-arm-20261018/results/`; no deadline/route changes selected.
+
+First validation STOP: full71 Python tests fail once in8.176s guarded at the
+new competing-prompt fixture's nonzero-yaw assertion. Import20.673s, observer
+compile15.570s and CLI privacy1.033s pass. No export/native stage entered.
+Review the exact pending-mouse/observed-facing cause before one bounded repair;
+retain the failing log and original deadlines. No retry is yet authorized.
+
+Reviewed repair selection: the position-only fixture retains walk_forward(1,0,0)
+through all15 goals, leaving the first OS yaw unacknowledged; production correctly
+suppresses duplicate yaw. Before the competing-prompt sample, update only that
+fixture's coherent observed basis to forward(.8,0,.6), right(-.6,0,.8).
+Keep nonzero-yaw/no-input assertions and production suppression unchanged.
+Only `tools/release/test_native_sortie.py` may change. Retain identical GDScript/
+privacy passes; authorize one full repaired Python run on its new clean pin,
+then obtain explicit cumulative priority review before any remaining stage.
+
+Repair source `950574e3fbaec59ae49d4626a8fd6affd99c5c26` changes only the
+two fixture lines above. Full71 Python PASS8.229s guarded; initial failure8.176s
+retained, combined Python16.405s. GDScript/privacy checks remain byte-identical
+and are retained. Exports/native remain NOT_RUN pending cumulative review.
