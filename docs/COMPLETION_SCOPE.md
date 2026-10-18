@@ -1,6 +1,20 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **a43ae4b**, clean source
+Latest accepted paired checkpoint: **4d7ac43**, clean source
+`4d7ac4386c069873b255979c329a2124acee56ef`
+([Windows notes](../builds/windows/MuddsShipyards-4d7ac43-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-4d7ac43-linux-notes.txt)). Large-scale
+Settings focus now fully reveals the selected control; deferred corrections
+coalesce and respect live page/current focus. Original21:9 failure33.080s retained;
+explicit repair with pre-engine review correction passes focus59 plus full16:9/
+21:9/32:9 (96 actual Main observations each, unchanged bounds/font/focus/scroll
+criteria). Independent review, paired exports/three strict silent startups and
+actual1519-entry audit pass. Earlier4:3/16:10 qualification retains its own sources.
+No rendered/human/device/real display-persistence transaction/full UI or final
+regression claim. Prior Hauler access and controller/music/runtime improvements
+included. All36 parents/ten gates OPEN; Titan unapproved; cargo stock choice pending.
+
+Earlier accepted paired checkpoint: **a43ae4b**, clean source
 `a43ae4bc1f718d0f8042046e35b9aa30a653bad4`
 ([Windows notes](../builds/windows/MuddsShipyards-a43ae4b-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-a43ae4b-linux-notes.txt)). Cargo Hauler

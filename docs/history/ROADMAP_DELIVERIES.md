@@ -8949,3 +8949,122 @@ All36 parents/ten gates remain OPEN, CI disabled; no automatic next task.
 - **Delivery:** preserve actual results and owned scratch cleanup; commit/push
   fixture/roadmap. If no runtime change is needed, existing playable checkpoint
   a43ae4b stays latest; no duplicate build for qualification-only test changes.
+
+## Scaled Settings focus — accepted4d7ac43
+
+Clean source `4d7ac4386c069873b255979c329a2124acee56ef`; parents12/29.
+SETTINGS-SCALED-FOCUS-SCROLL is DONE. Keyboard/controller focus now fully reveals
+selected Settings controls at large pause scale. Existing guarded helper computes
+target rect in scroll-local units and rounds outward; all ordinary SettingsScroll
+focus routes through it. Latest-target/pending flush coalesces binding/focus/reentry
+requests, with current-focus/current-descendant/tree/page guards. No generic layout,
+horizontal scrolling, focus stealing or criteria/tolerance/deadline changes.
+
+Original selected source666957b40 adds only remaining aspect selectors. Cold
+import20.595s/compile16.235s pass;16:9 full96 passes33.599s.21:9 fails33.080s after
+70 observations at requested1.6, options_graphics_profile complete-clip check at
+scroll2002.32:9 NOT_RUN. STOP retained; no unchanged retry. Independent review
+identifies native float-to-int visibility truncation plus ordinary Settings focus
+bypassing deferred helper. Exact residual/edge initially inferred, not logged.
+Explicit repair838f06c15: candidatecf83988 is never run; pre-engine review requires
+coalescing duplicate callbacks before container sort. Corrected4d7ac43 independent
+GO then runs exactly one selected source sequence. Import6.689s, compile2.004s,
+focused navigation59 in2.417s pass, including stale target, duplicate current
+requests and closed-page protection. Full21:9/16:9/32:9 pass33.533/33.405/33.412s;
+each96 observations/948 assertions, identical32-state sequence per0.75/1/1.6
+against retained16:10 fixture, zero diagnostics/exactly one success marker.
+Former graphics control now scroll2003 and passes complete enclosure. Full
+fixture blob remains3e3adeaaaafbb227104e36dc8674c905cc51cb00. Single failed runtime
+stage33.080s retained; independent final/cumulative GO for required checkpoint.
+
+Windows/Linux export26.723/25.824s, direct Linux/archive/actual Windows payload
+startups22.205/24.066/26.122s pass; each startup exit0/exactly one menu-ready marker.
+All1519 actual payload entries match; stock x64 PE code, archive bytes/modes/epoch,
+metadata, published copies and EXE+notes ZIP verify. Fifteen actual supervised
+stages include the original failure; source/index/cache/pinned engine unchanged.
+Aspect selection15:08:40UTC through cleanup15:26:44UTC took18.1min; explicit
+repair selection15:14:49UTC through cleanup11.9min, within its20–30min budget.
+All70 observed process identities absent;9 profile logs/39 app_userdata files
+archived and byte-verified. Published11 files rehashed; owned checkout/duplicate
+exports/cache/private profiles/helpers removed, unique raw results/remote branch
+and public builds retained. Raw: `/srv/mudds-work/pause-aspects-20261018/results/`.
+
+EXE184600832 bytes SHA256
+`08209c617bf8f0891806b2e649aab81f8a63c816083f61c8b3c2faf75a982268`;
+ELF148842544 bytes SHA256
+`8f91a3e0c00aa8599995651b7a080ab7c8850c45e0a3f4049534c763ca09aca4`;
+Linux archive95259603 bytes SHA256
+`b6db3a69dfdb751acdc71d21ba5321e344a5e57f2281829ee0ec328f5e2a2931`.
+[Windows checkpoint](../../builds/windows/MuddsShipyards-4d7ac43-checkpoint.zip)
+and [notes](../../builds/windows/MuddsShipyards-4d7ac43-notes.txt).
+
+Actual Main headless/Dummy geometry and synthetic focus/presentation-state proof;
+physical devices, rendered/human readability, real display/persistence transactions,
+full UI/current matrix and native Windows/GPU/audio stay unqualified. Windows
+payload startup uses Linux Godot. Earlier4:3/16:10 source results retain scope.
+Torpedo authority source definition separately identifies finite qualification
+cases without a new runtime defect/engine pass. All36 parents/ten gates OPEN,
+CI disabled, Titan/Hauler stock questions pending; no automatic successor.
+
+### Retained aspect selection, failure and explicit repair cards
+
+### Selected — remaining pause/options aspect groups
+
+- **Outcomes/parents:** ACCESS-PAUSE-16X9 at1920x1080, ACCESS-PAUSE-21X9 at3440x1440
+  and ACCESS-PAUSE-32X9 at5120x1440, parents12/29. Each is a separate qualification
+  of the same32 production states at requested0.75/1/1.6; original criteria stay.
+- **Owner/files:** root extends only tests/ultrawide_layout_test.gd with the three
+  selectors in the existing finite fixture. Shared fixture edits stay with one
+  owner. One independent source reader resolves TORPEDO-AUTH-DEFINE in parallel;
+  no overlap/runtime implementation implied by that review.
+- **Proof/budget:**10–20min selector work; cold import600s, compile300s once, then
+  one full run per aspect at original300s each, in listed order/headless/Dummy,
+  private profiles. Each requires exit0/exactly one success marker/no diagnostics,
+  all96 observations in the existing state order, bounds/font/focus/scroll criteria
+  and unchanged source/index/cache/process closure. Existing4:3/16:10 acceptance
+  is retained on recorded sources, not rerun. First new defect stops sequence;
+  no automatic repair or subsequent aspect run after failure.
+- **Delivery:** record each named actual result, commit/push and owned cleanup.
+  No runtime change is currently proposed; latest playablea43ae4b remains. Human,
+  rendered/device/persistence/final-candidate acceptance remains separate.
+
+### Pause aspect qualification — stopped at one new defect
+
+Source666957b40 imports/compiles cleanly. ACCESS-PAUSE-16X9 passes all96
+observations in33.599s. ACCESS-PAUSE-21X9 fails33.080s after70 observations:
+at requested1.6, options_graphics_profile has current focus but its complete row
+is outside the SettingsScroll clip (scroll2002). Exactly that failure; original
+bounds/font/overlap checks report no other defect. ACCESS-PAUSE-32X9 is NOT_RUN.
+STOP/raw result retained; no retries or changed criteria/caps. One bounded
+independent read-only review is selected to identify the actual settings focus/
+scroll production cause and propose ONE repair. No edit or new engine invocation
+is authorized until root freezes the reviewed repair and acceptance obligations.
+
+### Selected repair — SETTINGS-SCALED-FOCUS-SCROLL
+
+Independent cumulative review permits ONE production repair after the original
+21:9 failure33.080s (16:9 pass33.599s retained;32:9 NOT_RUN). Ordinary Settings
+focus bypasses HUD's deferred scroll helper; native visibility math truncates a
+float scroll delta to integer. Exact clipped edge/residual is inferred, not logged.
+
+- **Outcome/files:** currently focused Settings row is fully revealed at scaled
+  pause layouts. One medium-effort implementer owns scripts/ui/hud.gd and smallest
+  extension of existing tests/settings_focus_navigation_test.gd; root integrates,
+  original high-effort reader reviews final diff independently.20–30min cap.
+- **Change:** route SettingsScroll descendant focus through existing deferred helper;
+  retain all liveness/visibility guards and require current focus/current scroll
+  descendant. Compute target rect in scroll-local units via inverse global transform;
+  correct upper overflow with floori, lower with ceili, normal scrollbar clamping.
+  No horizontal scroll, new layout framework, focus stealing or duplicate correction
+  against stale geometry. Preserve state sequence/fixture/tolerances/caps.
+- **Pre-run review:** cf83988e2 has not run. Independent review requires central
+  coalescing of duplicate focus/binding/reentry requests before one deferred
+  visibility correction; keep latest target and all execution-time guards.
+  This completes the existing no-duplicate-correction invariant, with no new scope.
+- **Proof:** clean import600s/compile300s, existing focused Settings navigation300s
+  including obsolete queued focus/page guards; full21:9 once at300s requires all96
+  original observations/former graphics row. Then required full16:9 and32:9 at300s
+  each on same clean pin. First new failure STOPs; no automatic second repair.
+- **Delivery:** independent final/cumulative GO, fresh paired checkpoint/three strict
+  silent startups/actual package audit, visible notes, commit/push and owned cleanup.
+  Prior failure retained; no rendered/device/persistence/full UI claim.

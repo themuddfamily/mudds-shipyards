@@ -1,10 +1,10 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**a43ae4b**, with Cargo Hauler landing and pilot access to Cinder's supply terminal,
-plus earlier controller, startup, music, saved sprint and remote HUD fixes.
-[Windows notes](builds/windows/MuddsShipyards-a43ae4b-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-a43ae4b-linux-notes.txt) state actual validation.
+**4d7ac43**, with complete Settings focus visibility at large UI scales, plus
+prior Hauler access, controller look, startup, music, sprint and remote HUD fixes.
+[Windows notes](builds/windows/MuddsShipyards-4d7ac43-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-4d7ac43-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -52,6 +52,7 @@ unapproved; parked failures remain outside the queue.
 | BOOT-BREACH-OWNERS /9,11,13 | DONE; packagede3d1ada | Physical Heavy Breach board has its actual director/combat/objective owners before play | Full startup and production route pass; paired checkpoint. Crash-recovery transaction stays parked. |
 | GAMEPAD-LOOK /8,29 | DONE; packaged99e79c3 | Held right stick rotates actual local Player/tractor camera with safe handoffs | Full focused camera/tow/glyph checks, independent review and paired checkpoint pass; real-device/full controller route remains open. |
 | HAULER-SUPPLY-ACCESS /10,13 | DONE; packageda43ae4b | Actual Hauler lands at Cinder supply platform; current pilot walks to authorized terminal | Full focused access/berth/switching checks, independent review and paired checkpoint pass; cargo stock/manifest/delivery remain separate. |
+| SETTINGS-SCALED-FOCUS-SCROLL /12,29 | DONE; packaged4d7ac43 | Large-scale Settings focus fully reveals its current row; pending requests respect focus/page ownership | Focus59 and full16:9/21:9/32:9 source checks, independent review and paired checkpoint pass; rendered/device/transaction gates remain open. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
 are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
@@ -175,7 +176,7 @@ source re-entry/refill path leaves BOMBER-REARM-POLICY unresolved. No new missio
 stock entitlement, role or rearm mechanic is invented. All nine current CRAFT-GAPS
 rows now have bounded definitions (including exact remaining interpretation gaps);
 this does not close any full craft/art/combat/crew/world/recovery requirement.
-No engine/test/capture/export ran; playable checkpoint99e79c3 remains unchanged.
+No engine/test/capture/export ran; no new build was needed for this definition.
 No runtime repair or qualification successor is automatically selected.
 
 ### Hauler supply access — delivered
@@ -214,8 +215,8 @@ font floor, complete scroll reachability and correct live focus. The existing
 fixture gained only a resolution selector; no production change was needed.
 Cold import20.807s, compile16.457s and full selected33.402s pass at original caps.
 [Result and retained card](docs/history/ROADMAP_DELIVERIES.md#minimum-size-pauseoptions--qualifiedece9a0253).
-Rendered/human/device and other aspect groups remain separate; latest playable
-checkpoint staysa43ae4b. No successor is selected by this closure.
+Rendered/human/device gates remain separate. This qualification needed no new
+build; the later Settings repair below has its own checkpoint.
 
 ### Torpedo authority definition — finite cases
 
@@ -228,66 +229,21 @@ and genuine baseline; none is selected automatically. Prior API/in-process/sourc
 passes retain their scope; independent packaged/ordinary Torpedo play stays open.
 No engine/test/export ran for this definition.
 
-### Selected — remaining pause/options aspect groups
+### Settings focus scrolling — delivered; remaining pause aspects qualified
 
-- **Outcomes/parents:** ACCESS-PAUSE-16X9 at1920x1080, ACCESS-PAUSE-21X9 at3440x1440
-  and ACCESS-PAUSE-32X9 at5120x1440, parents12/29. Each is a separate qualification
-  of the same32 production states at requested0.75/1/1.6; original criteria stay.
-- **Owner/files:** root extends only tests/ultrawide_layout_test.gd with the three
-  selectors in the existing finite fixture. Shared fixture edits stay with one
-  owner. One independent source reader resolves TORPEDO-AUTH-DEFINE in parallel;
-  no overlap/runtime implementation implied by that review.
-- **Proof/budget:**10–20min selector work; cold import600s, compile300s once, then
-  one full run per aspect at original300s each, in listed order/headless/Dummy,
-  private profiles. Each requires exit0/exactly one success marker/no diagnostics,
-  all96 observations in the existing state order, bounds/font/focus/scroll criteria
-  and unchanged source/index/cache/process closure. Existing4:3/16:10 acceptance
-  is retained on recorded sources, not rerun. First new defect stops sequence;
-  no automatic repair or subsequent aspect run after failure.
-- **Delivery:** record each named actual result, commit/push and owned cleanup.
-  No runtime change is currently proposed; latest playablea43ae4b remains. Human,
-  rendered/device/persistence/final-candidate acceptance remains separate.
+SETTINGS-SCALED-FOCUS-SCROLL is DONE in paired checkpoint **4d7ac43**. Settings
+keyboard/controller focus fully reveals the selected row at large scale;
+obsolete/duplicate deferred requests cannot move the wrong page or overscroll.
+Existing focus59 checks and unchanged full16:9/21:9/32:9 checks each pass96
+observations at requested0.75/1/1.6. Independent review, paired exports/three
+strict silent startups and actual1519-entry package audit pass.
 
-### Pause aspect qualification — stopped at one new defect
-
-Source666957b40 imports/compiles cleanly. ACCESS-PAUSE-16X9 passes all96
-observations in33.599s. ACCESS-PAUSE-21X9 fails33.080s after70 observations:
-at requested1.6, options_graphics_profile has current focus but its complete row
-is outside the SettingsScroll clip (scroll2002). Exactly that failure; original
-bounds/font/overlap checks report no other defect. ACCESS-PAUSE-32X9 is NOT_RUN.
-STOP/raw result retained; no retries or changed criteria/caps. One bounded
-independent read-only review is selected to identify the actual settings focus/
-scroll production cause and propose ONE repair. No edit or new engine invocation
-is authorized until root freezes the reviewed repair and acceptance obligations.
-
-### Selected repair — SETTINGS-SCALED-FOCUS-SCROLL
-
-Independent cumulative review permits ONE production repair after the original
-21:9 failure33.080s (16:9 pass33.599s retained;32:9 NOT_RUN). Ordinary Settings
-focus bypasses HUD's deferred scroll helper; native visibility math truncates a
-float scroll delta to integer. Exact clipped edge/residual is inferred, not logged.
-
-- **Outcome/files:** currently focused Settings row is fully revealed at scaled
-  pause layouts. One medium-effort implementer owns scripts/ui/hud.gd and smallest
-  extension of existing tests/settings_focus_navigation_test.gd; root integrates,
-  original high-effort reader reviews final diff independently.20–30min cap.
-- **Change:** route SettingsScroll descendant focus through existing deferred helper;
-  retain all liveness/visibility guards and require current focus/current scroll
-  descendant. Compute target rect in scroll-local units via inverse global transform;
-  correct upper overflow with floori, lower with ceili, normal scrollbar clamping.
-  No horizontal scroll, new layout framework, focus stealing or duplicate correction
-  against stale geometry. Preserve state sequence/fixture/tolerances/caps.
-- **Pre-run review:** cf83988e2 has not run. Independent review requires central
-  coalescing of duplicate focus/binding/reentry requests before one deferred
-  visibility correction; keep latest target and all execution-time guards.
-  This completes the existing no-duplicate-correction invariant, with no new scope.
-- **Proof:** clean import600s/compile300s, existing focused Settings navigation300s
-  including obsolete queued focus/page guards; full21:9 once at300s requires all96
-  original observations/former graphics row. Then required full16:9 and32:9 at300s
-  each on same clean pin. First new failure STOPs; no automatic second repair.
-- **Delivery:** independent final/cumulative GO, fresh paired checkpoint/three strict
-  silent startups/actual package audit, visible notes, commit/push and owned cleanup.
-  Prior failure retained; no rendered/device/persistence/full UI claim.
+The original21:9 graphics-row failure33.080s and pre-run duplicate-request review
+are retained in [delivery history](docs/history/ROADMAP_DELIVERIES.md#scaled-settings-focus--accepted4d7ac43).
+The three named aspect children are DONE on4d7ac43; earlier4:3/16:10 source
+results retain their recorded scope. This is actual Main geometry/focus proof,
+not physical-device, rendered/human or real Settings transaction qualification.
+No successor is selected by this closure; original UI/device/release gates remain.
 
 ## Parked failures and dependent work
 
