@@ -130,6 +130,20 @@ scope, with cumulative priority review after one attempted repair. No cap reset.
 Checkpoint only after accepted focused checks, strict silent isolated menu-ready
 startup and route. CI stays disabled; no native GPU/Windows/device claim.
 
+Execution freeze: clean source9162face57269bbb99252ff0a30401006c4199ec;
+existing pinned Godot4.7.1 SHA32f8d759…a97bcde. Commands and helper hashes are
+frozen under `/srv/mudds-work/life-tow-20261018/{helpers,results/source.json}`.
+One `helpers/sequence.py import observer_compile privacy python` runs headless
+Dummy import600, observer check-only300, existing privacy300 and full Python
+native-driver suite300. Then separately run the frozen windows_export/linux_export
+commands (existing safe workflows900 each), direct/archive startup330 each,
+Windows-payload Linux-Godot startup300, actual artifact audit120, and ONE native
+archive route360 through `helpers/native.py` (driver's ownCAP300 unchanged).
+Exact source/engine/index/cache/process guards and strict diagnostic scan protect
+each stage; first failure writes STOP and prevents the next stage. No hosted CI.
+The initial static review corrected skipped intermediate observations before any
+execution; this is not a failed runtime attempt or a new budget.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
