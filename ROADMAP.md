@@ -33,9 +33,11 @@ Only the two cards below are scheduled. Root owns both.
   defense-board briefing, clean source `9be5c833a`, paired checkpoint `9be5c83`.
   Source UI checks and package startup/artifact checks pass; full remote-host
   migration and physical defense gameplay are not qualified by those checks.
-- **Next:** run the one packaged Ember preflight below after checking its prepared
-  command. No engine preflight has run yet. Its result decides whether the long
-  packaged journey can start.
+- **Latest check:** packaged Ember preflight FAILED immediately: shipped ELF
+  rejects `--path` because path overrides are disabled. Driver/menu markers0;
+  no journey ran, artifacts unchanged, owned processes/sockets closed.
+- **Next:** one static consumer-definition card below determines a supported
+  native entry point or exact capability gap before any new preflight/repair.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
   walk, Convoy/Patrol startup and Q4/Q5 investigations retain their failures and
   repair limits. No unchanged retry is selected. See the
@@ -63,41 +65,36 @@ durable-save acceptance. The existing unchanged driver is
 
 | Task | Status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| EMBER-PACKAGE-PREFLIGHT | READY / root | Native shipped Linux ELF demonstrably loads the external original driver against packed resources, or records the exact unsupported boundary. | 20–30min setup; one owned120s preflight. |
+| EMBER-PACKAGE-CONSUMER-DEFINE | READY / root | Supported native entry point, exact missing capability or precise missing fact recorded. | One30min static pass; no engine invocation. |
 | EMBER-PACKAGE-ABANDON | GATED on preflight / root | Exact shipped Linux package completes unchanged canonical outbound/abandon/reboard/home/walk. | 30–45min setup; original7200s route cap, prior source run41m15s. |
 
-### EMBER-PACKAGE-PREFLIGHT — establish the actual package consumer
+### EMBER-PACKAGE-CONSUMER-DEFINE — select a supported entry point
 
-- **Parent/result:** [WORLD-ABANDON / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
-  Establish an executable native package qualification command before starting
-  the long journey. This is preflight, not gameplay or route acceptance.
-- **Owner/dependency:** root, with one bounded mechanical helper if useful.
-  Exact public `builds/linux/MuddsShipyards-9be5c83.x86_64` and matching archive
-  must retain the published SHA256. Read the original harness from source9be5c83
-  and verify the hash above. No production change or new source worktree needed.
-- **Boundary:** one fresh private directory containing only the unchanged raw
-  driver and a tiny bootstrap that compiles/loads it without instantiating the
-  journey. No loose production scripts/scenes/assets/project/cache may mask a
-  missing export. Execute the actual shipped ELF; record actual executable and
-  artifact hash, argv and private XDG/user-data resolution. Do not use an editor
-  engine with --main-pack as a substitute and call it native-package acceptance.
-- **Proof:** bootstrap emits exactly one EMBER_PACKAGE_DRIVER_READY only after
-  executing and loading the exact original driver against packed dependencies;
-  actual child exits0, no diagnostics, all owned children close and package bytes
-  stay unchanged. Include --startup-check so an ignored external --script can
-  exit at its ordinary menu: STARTUP_MENU_READY_OK alone is explicitly not a
-  preflight pass. Export templates can ignore script overrides; observe rather
-  than assume support. No route actors should be instantiated in this preflight.
-- **Budget/stop:**20–30min setup; write exact command/expected marker before one
- 120s supervised attempt. Every engine invocation headless/Dummy/private XDG,
-  independent PID/start-checked abort/reap. Stop on the first unsupported/missing
-  boundary and retain raw; no automatic alternate consumer, script injection,
-  export modification, cap change or long-run launch. Record a separate decision
-  before any repair. A failed task plus one repair requires priority review.
-- **Next/close:** inspect native launcher/driver argument compatibility, prepare
-  the isolated bootstrap and run once. Commit/push actual result/command in the
-  existing docs, clean disposable owned scratch and preserve unique failures.
-  No new build for preflight-only work. Ungate the journey only on actual proof.
+- **Parent/result:** WORLD-ABANDON / PACKAGE-LINUX. Determine whether the exact
+  shipped native ELF has a supported way to consume the unchanged journey driver
+  using packed production resources. This is bounded diagnosis, not gameplay.
+- **Owner/dependency:** root; READY after the one failed preflight. Read the
+  existing native launcher, export/template build configuration and established
+  package-test entry points. Preserve frozen9be5c83 artifacts/driver and failed raw.
+- **Proof/finish:** record one supported exact invocation grounded in the actual
+  artifact/configuration, or the specific missing runtime/export capability and
+  its smallest separately scoped production change. If support cannot be
+  established from those sources, record that missing fact and stop. Native
+  package proof still requires a separately scheduled actual preflight.
+- **Boundary/budget:** one30min static pass; no engines, template rebuild, export
+  modification, script injection, alternate consumer or long journey. No editor
+  payload substitution, looser marker/route criteria or new validator family.
+  This card chooses a path; it does not authorize an unlimited repair sequence.
+- **Next/close:** inspect the existing launcher/build arguments, record the
+  supported path or blocker, then select a separate bounded repair/preflight
+  card. A failed preflight plus one attempted repair requires priority review
+  before any further diagnosis/rerun. Commit/push the concrete decision.
+
+The prior **EMBER-PACKAGE-PREFLIGHT is FAILED**, not READY. Its one120s-cap
+attempt stopped at the unsupported `--path` boundary. Full command, raw result,
+process-observation limits and unchanged artifact hashes are in
+[delivery history](docs/history/ROADMAP_DELIVERIES.md#ember-native-package-preflight--failed-path-overrides-disabled).
+The long journey remains gated; no alternate invocation or export repair ran.
 
 ### EMBER-PACKAGE-ABANDON — one unchanged physical journey
 

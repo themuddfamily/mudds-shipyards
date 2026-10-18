@@ -50,8 +50,10 @@ viewport fixture repair both fail before capture; candidates withheld, raw and
 remote hold retained, clean checkout removed. Required priority review selected
 PLAN-VISIBLE-DELIVERIES, now DONE: browser per-session generation handling and
 defense briefing corrections are DONE on9be5c833a, with paired checkpoint9be5c83.
-Next is native packaged Ember driver preflight, then its gated unchanged full
-abandonment journey; source proof is not transferred to packages automatically.
+Native packaged Ember driver preflight FAILED at disabled `--path` overrides.
+Next is one static supported-consumer definition, then only a separately scheduled
+preflight/repair; full abandonment remains GATED. Source proof is not transferred
+to packages automatically.
 A third station implementation has no evidenced finding and remains DEFINE/
 GATED; no speculative fix is scheduled. No further Fire probe/repair is selected. See
 ROADMAP.md for exact contracts. No further Rime
@@ -288,7 +290,7 @@ part of this breakdown. Parent numbers refer to the crosswalk below.
 | Nearby ten-run reuse / 13 | Each repeatable activity completes its original ten same-world runs without resource growth, stranded objectives or duplicate rewards. | GATED on its first full play; preserve established duration. |
 | Ordinary-travel envelope / 13 | Name numeric maximum travel conditions for the existing nearby routes, with design/runtime basis and required scope decision. | DEFINE decision; no invented threshold or route shortening. |
 | HULK revisit / 13 | After actual home return/reload, ordinary revisit retains restored bus/claimed cell and creates no second reward. | PARKED after failure+repair; preserve300s and priority-review boundary. Revisit package GATED. |
-| Ember packaged abandonment preflight / 1 | Actual frozen native ELF loads the unchanged original driver against packed dependencies and emits EMBER_PACKAGE_DRIVER_READY; startup alone fails. | Scheduled READY; exact card in ROADMAP.md. |
+| Ember packaged abandonment preflight / 1 | Actual frozen native ELF loads the unchanged original driver against packed dependencies and emits EMBER_PACKAGE_DRIVER_READY; startup alone fails. | FAILED at disabled --path overrides; static consumer definition selected in ROADMAP.md. No unchanged rerun. |
 | Ember packaged abandonment journey / 1,14 | Same native package completes unchanged physical outbound/abandon/walk/reboard/ascent/home occupied dock/unload/disembark/walk, exact31 and original7200s cap. | GATED on preflight; earlier integrated-source journey DONE, no unchanged source rerun. |
 | Solo survey full returns / 14 | Separate Ember, Aurora, Rime children: canonical outbound/descent/landing, walk actual survey, save earned reward once, reboard/ascent/home dock through ordinary controls. | UNSCHEDULED or source-specific DONE per history; choose uncovered candidate/scenario, not staged proof. |
 | World abandonment/re-entry / 1,14 | Separate Aurora and Rime scenarios, and Ember reuse/durability still uncovered: ordinary abandonment and usable physical recovery/return with no rescue. | DEFINE exact original applicable contract; source Ember abandonment is already accepted. |

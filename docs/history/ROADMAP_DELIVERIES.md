@@ -2809,3 +2809,93 @@ matches the previous exact31 source run; it uses MemoryFilesystem and does not
 qualify disk durability. Preflight must observe actual native ELF driver support
 without loose production assets, not silently substitute editor-engine payload
 execution. That preflight/route and all broad phase gates remain unperformed.
+
+
+## Ember native package preflight — FAILED, path overrides disabled
+
+One attempt on the unchanged published9be5c83 native Linux ELF failed immediately
+before bootstrap/driver execution. The first diagnostic is:
+
+> ERROR: `--path` was specified on the command line, but this Godot binary was compiled without support for path overrides. Aborting.
+
+Raw: `/srv/mudds-work/ember-package-preflight-20261018/results/`.
+`prepared-plan.json` freezes runner/bootstrap/driver/abort; `command.json`,
+`native.log`, `native.status.json`, `result.json`, before/after snapshots and
+closure receipts retain the exact attempt. Consumer contained only the raw
+unchanged driver and bootstrap; no source worktree, loose production resources
+or generated consumer cache. All engine arguments included headless/Dummy;
+private XDG paths, inherited lanes and an independent PID/start-checked abort
+were prepared. Independent review GO preceded the sole attempt.
+
+Exact native command, with cwd `/srv/mudds-work/ember-package-preflight-20261018/consumer`:
+
+```text
+/srv/mudds-shipyards/builds/linux/MuddsShipyards-9be5c83.x86_64 --headless --audio-driver Dummy --path /srv/mudds-work/ember-package-preflight-20261018/consumer --script /srv/mudds-work/ember-package-preflight-20261018/consumer/bootstrap.gd --startup-check
+```
+
+Existing `suite_process.py` used its120s cap. On the first diagnostic the observer
+signalled the exact owned supervisor; final supervisor status FINISHED/143 and
+outer helper exit1 are failures, not a clean native exit result. Neither
+EMBER_PACKAGE_DRIVER_READY nor STARTUP_MENU_READY_OK appeared. The rapid failing
+native process was not captured by the `/proc/exe` sampler (`native_count=0`);
+do not claim that identity observation passed. Two observed owned identities
+closed, with no remaining owned processes/socket remnants and no consumer cache.
+No driver receipt, journey actor, physical route or gameplay acceptance exists.
+
+Before/after artifact and consumer hashes are identical. Native ELF SHA256
+`2aaedc8dce332b34b1214f4eda909201bc818c25749d88d4c131eb74622d0679`,
+archive SHA256
+`76a178be0afddfd28d27645790740ab6cd0ac7821de9775eb2b3665e6d268447`,
+driver SHA256
+`4728e8875706b1dac77b70e0a4212007a08fda11bb114e83a4299efb80ab9f2d`.
+No production changes, package rebuild, alternate consumer, relaxed limit,
+engine rerun or long journey followed this failure.
+
+**Separate scheduling decision:** select EMBER-PACKAGE-CONSUMER-DEFINE, one30min
+static read of existing native launcher/template/export/test entry points. It
+ends with a supported exact entry point, one concrete missing capability and
+separate change card, or a precise missing fact. No engines or export changes in
+that definition task. Packaged abandonment remains GATED. The failed preflight
+plus one attempted repair will require priority review before more investigation.
+Independent terminal review confirmed the boundary, hashes and process absence.
+The empty owned private profile was removed; raw/consumer/plan are retained.
+All durable-save/shared/hardware/native-Windows/device/audio/human/matrix/release
+limits retain their prior scope. No checkpoint is required for this failed
+preflight-only task.
+
+### Archived preflight contract
+
+### EMBER-PACKAGE-PREFLIGHT — establish the actual package consumer
+
+- **Parent/result:** [WORLD-ABANDON / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
+  Establish an executable native package qualification command before starting
+  the long journey. This is preflight, not gameplay or route acceptance.
+- **Owner/dependency:** root, with one bounded mechanical helper if useful.
+  Exact public `builds/linux/MuddsShipyards-9be5c83.x86_64` and matching archive
+  must retain the published SHA256. Read the original harness from source9be5c83
+  and verify the hash above. No production change or new source worktree needed.
+- **Boundary:** one fresh private directory containing only the unchanged raw
+  driver and a tiny bootstrap that compiles/loads it without instantiating the
+  journey. No loose production scripts/scenes/assets/project/cache may mask a
+  missing export. Execute the actual shipped ELF; record actual executable and
+  artifact hash, argv and private XDG/user-data resolution. Do not use an editor
+  engine with --main-pack as a substitute and call it native-package acceptance.
+- **Proof:** bootstrap emits exactly one EMBER_PACKAGE_DRIVER_READY only after
+  executing and loading the exact original driver against packed dependencies;
+  actual child exits0, no diagnostics, all owned children close and package bytes
+  stay unchanged. Include --startup-check so an ignored external --script can
+  exit at its ordinary menu: STARTUP_MENU_READY_OK alone is explicitly not a
+  preflight pass. Export templates can ignore script overrides; observe rather
+  than assume support. No route actors should be instantiated in this preflight.
+- **Budget/stop:**20–30min setup; write exact command/expected marker before one
+ 120s supervised attempt. Every engine invocation headless/Dummy/private XDG,
+  independent PID/start-checked abort/reap. Stop on the first unsupported/missing
+  boundary and retain raw; no automatic alternate consumer, script injection,
+  export modification, cap change or long-run launch. Record a separate decision
+  before any repair. A failed task plus one repair requires priority review.
+- **Next/close:** prepared bootstrap/runner reviewed GO; run exactly once with
+  `python3 -B /srv/mudds-work/ember-package-preflight-20261018/results/run.py`.
+  Prepared command, input hashes and raw live under that results directory.
+  Commit/push actual result/command in the
+  existing docs, clean disposable owned scratch and preserve unique failures.
+  No new build for preflight-only work. Ungate the journey only on actual proof.
