@@ -4050,3 +4050,126 @@ all36 broad parents and ten phase gates stay open.
   inconclusive, state the missing fact and select priorities before more work.
   Prior missing seam, passenger repair and type correction remain counted; a
   new task name does not reset them. No further probe is scheduled by this card.
+
+
+## Pilot HUD ownership — repaired and checkpointad596e4 published
+
+NET-PILOT-HUD and CHECKPOINT-PILOT-HUD are DONE on clean accepted source
+`ad596e474b46e19ef3d6b9990191387e3be835c6`, integrated and pushed to main.
+Player-visible change: completed physical pilot seating now replaces stale
+OBSERVER/Torrent with PILOT/the actual craft; confirmed handback refreshes its
+role, and late physical completion cannot reopen retired session presentation.
+Four calls use the existing connected/live-client guarded publisher at completed
+board, completed cabin stand, acknowledged helm handback and confirmed exterior
+seat release. No authority, protocol, input, claim shape or movement changes.
+Independent high source review GO.
+
+Regression-only commit1157c7b40 on old runtime drives real Main/Player physical
+boarding/stand/seat-swap and the HUD's consumed NetworkSessionStatusPresenter.
+Its one expected-red check completes in30.937s: five known stale-HUD publication
+failures,39 other checks pass. Retained-authority pilot state through physical
+stand, acknowledged passenger handoff and late retirement are explicit cases.
+Root corrected the initial Torrent name expectation to the presenter's existing
+48-character truncation before execution; no gameplay expectation changed.
+
+Execution note: the regression was launched while its explicit compile supervisor
+was still finishing; compile subsequently FINISHED/exit0 without diagnostics.
+That overlap is retained in preparation/raw. The single negative run's source
+and cache guards stay stable and its failures match the demonstrated defect.
+No negative run was repeated. The operational launcher now enforces terminal
+prerequisites for dependent stages. Fixed-source import and explicit compile
+finish0 before the positive checks start.
+
+On fixed ad596e474, existing HUD network suite passes44 in30.753s and existing
+role-publication suite passes3 in15.667s: actual exits0, exactly one original
+marker each, zero diagnostics. Runner source/cache guards and independent whole
+cache hashes match. The fixture stages admission/host roles, suppresses Main's
+normal process polling during the component scenario and uses short presentation
+motions; it does not qualify ordinary input/independent transport or a whole route.
+No additional test suite, alternate validator or unchanged full-matrix run is added.
+
+Fresh safe Windows/Linux exports finish0. Direct native Linux, archive-extracted
+native Linux and actual Windows PCK through Linux Godot each pass strict
+`--startup-check`, actual exit0/exactly one STARTUP_MENU_READY_OK/zero diagnostics.
+No external script override or fixed-frame substitute. Native Windows execution
+is not performed. Independent low artifact audit GO: all1515 actual PCK entry
+bytes identical across exports; stock pinned Windows .text, PE/ELF x86_64,
+Linux archive root-directory+five files with exact bytes/modes/launcher content,
+and export metadata full source/binary/archive identity verify. Original export
+metadata's build-time startup NOT_RUN stays intact; later actual startup receipts
+establish only their declared scope.
+
+Published seven repository-local artifacts have identical hashes/modes to the
+frozen export copies: Windows EXE, exact EXE+notes ZIP with CRC/member-byte checks,
+Windows notes; Linux ELF, archive, notes and export-result JSON. Notes state
+actual player changes, source checks, package results and remaining gates.
+No Downloads, hosted CI, signing, public distribution or native-hardware claim.
+
+Raw `/srv/mudds-work/pilot-hud-20261018/results/` retains preparation, source-stage
+identities, expected-red/green matrix results, import/compile/export/startup
+status/logs, inventories/artifact audit, whole-cache guards, observed process
+identities and exact publication map. All supervisors are terminal (expected red1,
+all others0); all observed PID/start identities are absent. Owned clean source,
+private profile/startup profiles, template links and operational launch/observation
+helpers are removed after publication/terminal review; unique raw remains.
+All engine automation used Dummy/headless with inherited HOME/CODEX_HOME.
+
+Only these two named cards close. Ordinary normal-spawn two-client boarding is
+still FAILED on its earlier candidate and has not run on ad596e4; the held caller
+still requires its unsupported local-avatar expectation corrected at the existing
+identity owners. One original-cap qualification is next, not another diagnostic.
+All36 broad parents and ten phase gates stay open; full current matrix/native
+Windows/GPU/device/audio/endurance/human/signing/release gates keep their actual
+open/NOT_RUN or owner-excluded mandatory scopes. Earlier VIP/Ember failures remain
+parked. Prior diagnostic/repair limits are not reset.
+
+### Executed runtime and checkpoint cards — frozen contracts
+
+### NET-PILOT-HUD — publish completed pilot ownership to the actual HUD
+
+- **Parent/result:** parents16/25, original Phase7 ordinary crew acceptance.
+  Player-visible repair: the network status must follow actual pilot ownership
+  and selected craft after a completed physical boarding/seat swap.
+- **Evidence/owner:** the single25fe2080d probe captures A seated/piloting, same
+  peer/Player, current local producer and all11 host pilot lease/publication
+  conditions true. Its consumed HUD still says OBSERVER and Torrent12s later.
+  `GameFlow._board_ship_locally` commits `_piloting`/active craft without a role
+  status publication. Existing `_publish_network_crew_role_status` refreshes
+  connected live clients but its current calls serve crew-seat transitions.
+- **Boundary:** root owns `scripts/game/game_flow.gd` and extends existing
+  `tests/network/game_flow_hud_network_status_test.gd` as needed. Use the existing
+  guarded publication owner at completed pilot transitions and corresponding
+  helm release; preserve joining/failed/migrating/disconnected fences. No seat
+  authority, movement, input sampling, protocol or local-claim format change.
+- **Proof:** first demonstrate the stale consumed presenter on the existing
+  transition path, then the focused check passes after the repair: PILOT/Jovian
+  when seated, correct nonpilot state after release, and no retired-session
+  promotion. Manual direct publication alone is insufficient. Run affected HUD
+  check and `tests/game_flow_network_role_publication_test.gd` once on clean
+  frozen source with Dummy audio/headless isolation and existing caps. Bind exact
+  source/command before execution; this card does not inherit ordinary-route proof.
+- **Stop/next:** 30–45min implementation/review; the expected pre-fix regression
+  reproduces the recorded defect. Stop at any unexpected failure or failed repair
+  check before separately scoping further work. The earlier
+  boarding failures remain counted. No new diagnostic run is authorized here.
+- **Close:** integrate only accepted runtime/focused tests, commit/push, then
+  immediately schedule CHECKPOINT-PILOT-HUD. Remove owned disposable files and
+  retain unique raw. Full normal-spawn boarding stays FAILED until card3 passes.
+
+### CHECKPOINT-PILOT-HUD — playable checkpoint of the accepted HUD repair
+
+- **Parent/result:** parents6/32; gate on accepted NET-PILOT-HUD clean commit.
+  Freeze that exact source and record it before exporting. Root owns the existing
+  safe Windows/Linux export workflow, not a new packaging system.
+- **Artifacts:** repository `builds/windows/` EXE/ZIP/notes plus matching Linux
+  ELF/archive/notes, with concise actual changes and validation. No Downloads copy.
+- **Proof:** relevant focused checks, exact source/engine/cache guards, matching
+  payload bytes and package members/modes, actual strict silent isolated startup
+  for direct Linux, extracted Linux and supported Windows payload workflow.
+  Require exit0 and `STARTUP_MENU_READY_OK`; no fixed-frame substitute. Keep
+  native Windows/GPU/device/audio/full-release gates factually unperformed.
+- **Budget/stop:** existing export/artifact work20–40min plus startup5–10min;
+  one export per platform, first failure stops for a recorded owner/next action.
+  Do not regenerate unchanged artifacts merely to erase a failed audit.
+- **Close:** publish exact local artifacts/notes, commit/push tracked notes/index
+  changes as appropriate, remove owned clean export checkout/profile, keep raw.

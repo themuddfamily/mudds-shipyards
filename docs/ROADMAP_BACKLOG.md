@@ -6,8 +6,8 @@ They preserve scope; they are not an executable queue or a remaining-job count.
 Select a named instance in the [working roadmap](../ROADMAP.md) before starting.
 The previous bounded slice closed both source lifecycle qualifications and the
 one pilot-state diagnostic; ordinary boarding remains FAILED. The working queue
-now schedules a demonstrated pilot HUD publication fix, its playable checkpoint,
-and one original boarding qualification with the caller contract corrected.
+has delivered the demonstrated pilot HUD fix and checkpointad596e4; one original
+boarding qualification with the caller contract corrected remains scheduled.
 These are not project-wide remaining counts; no phase completion is implied.
 The original specifications remain binding in
 [the preserved scope](history/ROADMAP_SCOPE_20261017.md).

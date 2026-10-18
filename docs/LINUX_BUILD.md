@@ -4,7 +4,25 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `6262749` — 2026-10-18
+## Latest development checkpoint: `ad596e4` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-ad596e4.x86_64),
+[archive](../builds/linux/MuddsShipyards-ad596e4-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-ad596e4-linux-notes.txt) use clean accepted
+source `ad596e474b46e19ef3d6b9990191387e3be835c6`. Completed remote pilot seating
+and confirmed helm handback refresh the consumed network HUD, preserving the
+existing live-client and retired-session guards.
+
+The physical Main/HUD regression passes44 and role publication3, after five
+expected stale-HUD failures on old runtime. Admission/host roles are staged;
+this is focused source component acceptance. Both exports, three strict menu
+startups, all1515 identical actual PCK entry bytes, stock PE .text and exact
+Linux archive/Windows ZIP identity pass. Direct and archive-extracted Linux
+binaries were startup-checked; Windows payload ran through Linux Godot.
+Ordinary two-client boarding is not rerun here, and native Windows/GPU/device/
+audio, endurance, human/full-matrix/release gates remain open/NOT_RUN as applicable.
+
+## Earlier development checkpoint: `6262749` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-6262749.x86_64),
 [archive](../builds/linux/MuddsShipyards-6262749-linux-x86_64.tar.gz) and
