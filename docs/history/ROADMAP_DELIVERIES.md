@@ -9675,3 +9675,106 @@ gates OPEN. No temporary checkout/profile/helper created by this task.
   production assignment; do not implement it implicitly. Commit/push the result.
   Independent production alternative: next unimplemented original craft requires
   its existing SPEC/BUILD-SPLIT/owner prerequisites, never an invented ship spec.
+
+### Asteroid Start Fresh — accepted59c55cb
+
+ASTEROID-START-FRESH delivered on clean source
+`59c55cbda4092c1eb9d25e9df276cea37c230417`. Public Start Fresh now retires saved
+active Asteroid Threading with a canonical same-generation IDLE record before its
+world streams. Present live ownership is replaced only after authoritative
+publication. A retained writer cannot overwrite the tombstone, mutation callbacks
+cannot advance/restore/reset/pay during publication, and removed/readded owners
+cannot restore abandoned progress. Genuine completed unpaid and paid history,
+unrelated shared payload and unsupported records remain protected. Refused writes
+retain the current recovery choice; actual published-but-sync-refused primary
+state is reconciled before retry. Existing active continuation fixture now
+chooses ordinary Resume rather than contradictory Start Fresh, preserving all
+original activity/reward assertions as frozen before engines.
+
+One high-effort implementer, one bounded high-effort independent reviewer; four
+owned files only: GameFlow, streamed activity binding, existing strict session
+adapter and existing asteroid test. No schema version/new validator/probe family,
+actor pose restoration or neighboring recovery-suite replay. Original direct
+Reset callback-owner-change behavior/assertion is preserved.
+
+Complete existing production asteroid suite179 assertions/253.847268s under
+original300s cap, exit0/one CINDER_ASTEROID_FIELD_TEST_OK, no diagnostics/issues.
+Independent actual-source review inspected full log, unchanged source/index/cache,
+zero survivors and actual JSON. Public title absent-binding refusal→published-sync
+refusal retaining choice→retry→later stream, current live refusal/callback fences/
+retry, retained director/binding and later cold Main no revival all pass. Genuine
+unpaid completion survives Start Fresh and subsequently pays once; paid/replay and
+unsupported-file protection pass. Actual final primary storegen36/run3/IDLE gate0
+flagsfalse; preceding backup storegen35/run3/ACTIVE gate1. Unrelated
+{amount47, keep:start-fresh} remains exact. These are fresh Main/real-file cases,
+not distinct OS-process/kill or complete ordinary OS-input asteroid qualification.
+
+Initiald15 importPASS19.601s, GameFlow compileFAIL2.989s: new boolean expression
+infers through Variant dictionary lookups at4024. Root0ec6476f4 freezes exactly one
+bool annotation; clean59c55cb differs only that line, otherthree hashes/tests
+unchanged. Repair compile15.839s, binding compile4.229s and full asteroid pass.
+No gameplay attempt failed or criteria/caps changed. Original raw failure retained.
+Paired exports26.647/25.443s; strict direct Linux/archive/Windows payload startups
+22.177/23.461/26.195s each exit0/one STARTUP_MENU_READY_OK. Actual1521 payload
+entries match, stock PE code and archive binary/icon/installer bytes/modes/epoch/
+source metadata verify. Eleven published hashes and EXE+notes ZIP memberbytes/
+integrity pass. Windows payload startup uses Linux Godot, not native Windows.
+[Windows notes](../../builds/windows/MuddsShipyards-59c55cb-notes.txt) and
+[Linux notes](../../builds/linux/MuddsShipyards-59c55cb-linux-notes.txt).
+10 terminal owners/45 observed process identities absent;
+archived profile counts {'profile-logs': 5, 'app_userdata': 38}. Allsource/index/cache/engine
+guards pass. Owned checkout/profile/helpers removed at2026-10-18T17:53:34.807662+00:00; raw
+results, actual test save files, original failure and remote branch retained at
+`/srv/mudds-work/asteroid-start-fresh-20261018/results/`.
+
+Selected save/reset capability closes; broader interruption/ordinary/installed/
+final regression/native GPU/device/audio/rendered/human gates retain status.
+All36 parents/ten phase gates OPEN, CI disabled. Next separate capability is
+CINDER-SUPPLY-DEBT, with genuine transfer proof and exact owner/test seams frozen
+before implementation. No automatic adjacent evidence/recovery chain selected.
+
+#### Retained asteroid Start Fresh card and exact correction
+
+### Selected production task — ASTEROID-START-FRESH
+
+- **Outcome/parents:**13/31. Ordinary Start Fresh durably retires an interrupted
+  active Asteroid Threading run before the world streams; later stream/cold load
+  cannot revive it. A present live owner synchronizes only after accepted reset.
+  Preserve completed unpaid/paid history, unrelated data and refused-write choice.
+- **Ownership:** one high-effort implementation agent owns GameFlow's existing
+  decline/fresh/reset paths, asteroid-only binding lifecycle if needed, strict
+  existing asteroid codec if required (no schema change), and existing
+  tests/cinder_asteroid_field_test.gd. Root owns execution/packages/docs/integration;
+  one high-effort independent reviewer checks transactional publication, retained
+  owners, completed debt and once-only rewards. No recursive delegation.
+- **Frozen behavior:** use the existing same-generation IDLE/reset contract and
+  existing UserDataStore transaction/owner fences. Handle title with no binding,
+  live binding and later fresh Main/streamed owner; reject invalid/unsupported or
+  untrusted data without overwriting it. Refused publication must not advance
+  live state or dismiss the recovery choice; published-but-refused outcomes must
+  reconcile only the actual authoritative record. Prevent callbacks/retained
+  writers from restoring abandoned progress. Do not change other activity/planet
+  contracts, startup semantics, reward entitlement, active pose or save schema.
+- **Proof:** extend the existing production asteroid test with real-file active
+  progress→public recovery Start Fresh→cold reload/later stream, present live
+  owner, refused save/retry and genuine unpaid/paid completion preservation.
+  Preserve existing assertions. Root-only clean import600, GameFlow/binding
+  compile300 and complete cinder_asteroid_field_test.gd at original300s cap;
+  independent clean-pin GO before engines. No unchanged parked recovery suite.
+  First unexpected failure STOP, exact reviewed repair selection before retry;
+  no automatic patch/rerun, timeout increase or narrower substitute.
+- **Delivery/budget:**45–60min implementation, split before90 cumulative. Clean
+  paired Windows/Linux exports, three strict silent --startup-check checks
+  (exit0 + exactly one STARTUP_MENU_READY_OK), artifact audit and concise notes;
+  commit/push and remove owned checkout/profiles/helpers after closure. Godot
+  headless/Dummy, no user desktop/audio; no hosted CI. Native/device/human/final
+  gates stay open. Independent production alternative: CINDER-SUPPLY-DEBT remains
+  a separate bounded capability, not another interruption/evidence chain.
+
+Pre-engine fixture clarification: the existing asteroid `_main_board` helper
+chooses Start Fresh while asserting continuation of saved active progress.
+Use normal_start/Resume for those unchanged continuation assertions; add explicit
+public Start Fresh cases for abandonment. Do not weaken existing progress/reward/
+callback assertions. The original direct Reset callback-owner-change case remains.
+Same-generation tombstone, retained-writer resurrection fence, terminal-save-pending
+refusal and asteroid-only publication callback guard are part of the selected fix.

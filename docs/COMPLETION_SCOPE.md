@@ -1,6 +1,20 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **29abe94**, clean source
+Latest accepted paired checkpoint: **59c55cb**, clean source
+`59c55cbda4092c1eb9d25e9df276cea37c230417`
+([Windows notes](../builds/windows/MuddsShipyards-59c55cb-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-59c55cb-linux-notes.txt)). Start Fresh
+now retires saved active Asteroid Threading progress before later streaming,
+with current/retained owner fences and genuine unpaid/paid history protected.
+Full production asteroid179/253.847s under original300s, public choice/real files/
+cold Main/laterstream/refusal/retry checks independently reviewed. Original compile
+inference failure2.989s retained; one explicit bool annotation repair. Clean
+import/compiles, paired exports/three strict menu startups and1521-entry audit
+pass. This is headless save/reset behavior, not OS-interruption/ordinary asteroid
+flight or native GPU/device/audio/rendered/human/final regression qualification.
+All36 parents/ten phase gates OPEN; Cinder supply debt remains a separate gap.
+
+Earlier accepted paired checkpoint: **29abe94**, clean source
 `29abe94c4152535ef41bb0220ee1505b265b2e08`
 ([Windows notes](../builds/windows/MuddsShipyards-29abe94-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-29abe94-linux-notes.txt)). Actual archive

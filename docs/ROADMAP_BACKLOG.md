@@ -684,7 +684,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | DOCK-RECOVERY-CUT | One exact installed candidate survives interruption during actual assist with conserved activity/reward and usable safe-home recovery | 2,31 | GATED exact installed/final candidate. Source and archive-extracted 311df73 Bulwark/home/Convoy cut pass; no old lease/assist/seat identity restored. Ordinary/full installed acceptance remains distinct |
 | DOCK-EXIT-RECOVERY-CUT | One interrupted exterior handoff recovers safely after accepted unavailable publication | 2,31 | GATED frozen actual busy-exit cut and executable driver; rejected publication retains prior durable preference. Completed grounded exit follows existing on-foot contract |
 | RECOVERY-ACTIVITY-DEFINE | Active activity durable-boundary/resume-or-safe-home contract | 2,31 | DONE source map only on470aa24c4; progress/embodiment contract and two actual runtime gaps below. Four terminal-only active-resume policies remain explicitly unresolved; no original promise waived |
-| ASTEROID-START-FRESH | Start Fresh durably abandons the interrupted active Asteroid Threading run | 13,31 | READY for bounded runtime assignment; existing decline transaction/live fresh loop omit independent asteroid slot. Preserve debt/paid history and refuse failed publication; no old active run on later stream/cold load |
+| ASTEROID-START-FRESH | Start Fresh durably abandons the interrupted active Asteroid Threading run | 13,31 | DONE packaged59c55cb: full production179/253.847s under original300; public title/live Start Fresh, refusal/retry, samegen IDLE/laterstream/cold Main and retained-owner/reward protections. Ordinary OS-input/interruption/final candidate remain separate |
 | CINDER-SUPPLY-DEBT | Earned Cinder platform supply completion survives refused payment and cold restart | 13,31 | Unimplemented durable unpaid checkpoint; current summary triggers only after accepted reward. Separate from active manifest reconstruction and Hauler stock policy; exact runtime assignment/acceptance below |
 | RECOVERY-PLANET-DEFINE | Planetary durable-boundary/resume-or-safe-home contract | 2,31 | DONE source map; Aurora/Rime visit restoration differs from Ember passive survey continuity. WORLD-SAVE per-world boundary and installed RECOVERY-KILL remain open; no broader location promise waived |
 | RECOVERY-CUTS-DEFINE | Uncovered installed context/activity/OS-interruption cases | 2,31 | GATED; explicit state contracts and exact installed Linux package |
@@ -1382,7 +1382,9 @@ Convoy through existing persistence. Completed debt/paid history stays authorita
 refused publication must preserve the old save/live state and keep the choice
 available. Unsupported/corrupt records are protected, never silently erased.
 
-Two bounded runtime gaps are established by this map:
+Two bounded runtime gaps were established by this map. ASTEROID-START-FRESH is
+now delivered on59c55cb (full production179/253.847s, paired checkpoint);
+CINDER-SUPPLY-DEBT remains unimplemented. The original acceptance contracts follow:
 
 1. **ASTEROID-START-FRESH:** independent `cinder_asteroid_session` is absent from
    both the durable decline transaction and streamed live reset loop, while
@@ -1393,8 +1395,8 @@ Two bounded runtime gaps are established by this map:
    also synchronize a present live owner. Prove failed publication retains save,
    live progress and choice, and unpaid/paid completions/unrelated payload survive.
    Estimate45–60min implementation plus focused checks/checkpoint; split before90.
-   This is the next preferred capability, not an OS-kill probe or full parked
-   recovery-suite replay.
+   This capability is DONE on59c55cb in its recorded source scope; no OS-kill
+   probe or parked recovery-suite replay was used.
 2. **CINDER-SUPPLY-DEBT:** persist a genuine earned completion before reward
    callback; allow its current legitimate owner to settle exactly one payment
    after cold load, atomically acknowledging paid state through existing authority.
