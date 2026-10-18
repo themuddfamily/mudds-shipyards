@@ -42,7 +42,7 @@ bridge, repair, host-power and service deliveries retain their recorded scopes.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-HOST-LOCAL | STOP at fixture admission; one exact scene repair selected | Connect actual authoritative host chair outcomes to the accepted local binding alongside the independent bridge source; shared-authority stand must wait for the real ship clear. [Exact files, proof and stop](docs/COMPLETION_SCOPE.md#network-navigator-recipients--source-definition-on4f481068c). 45–60 min implementation/review, 10–20 min checks, 10–15 min checkpoint. |
+| AUDIO-NAVIGATOR-HOST-LOCAL | STOP after scene repair; cumulative review selected exact claim-identity correction | Connect actual authoritative host chair outcomes to the accepted local binding alongside the independent bridge source; shared-authority stand must wait for the real ship clear. [Exact files, proof and stop](docs/COMPLETION_SCOPE.md#network-navigator-recipients--source-definition-on4f481068c). 45–60 min implementation/review, 10–20 min checks, 10–15 min checkpoint. |
 | AUDIO-NAVIGATOR-CLIENT-RECEIPTS | Defined consumer gap; freeze implementation card before starting | Applied, already-filtered crew snapshot commands have no client presentation consumer. Preserve actual receipt/session/migration ownership and recipient filter; prove accepted/clear on the client, not host cue counters. Exact runtime seam and existing two-peer proof are linked above; client rejection remains a separate response-path gap. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
@@ -52,11 +52,13 @@ package/ordinary route, actual output device/backend/configuration and explicit
 audible authorization are still required. Repair dispatch under Dummy does not
 close that gate. Recipient source definition found direct host outcomes missing
 from presentation, unconsumed client crew snapshots, and no client rejection
-response. HOST-LOCAL implementation08461d4c compiled, but its first integration run stops
-before the host chair because script-created support Jovian has the base Torrent
-identity. [One frozen authored-scene fixture repair](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-host-local--first-admission-stop-and-exact-scene-repair)
-preserves runtime/assertions/real admission. Next action is that repair and
-remaining checks; candidate is not yet merged or packaged;
+response. HOST-LOCAL source compiles; authored-scene repair reaches real host flow but
+stops on a fixture assertion that expects fixed roster generation to increase.
+[Cumulative review and explicit second fixture correction](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-host-local--cumulative-review-and-explicit-second-fixture-correction)
+checks actual newer claim sequence and assignment generation instead. Runtime
+code and later lifecycle assertions remain unchanged. Both failures stay
+cumulative; no automatic third correction. Candidate remains unmerged/unpackaged.
+
 [host bridge, standalone solo and remaining recipient boundaries](docs/COMPLETION_SCOPE.md#navigator-playback--bounded-delivery-contracts)
 remain distinct. Client rejection coverage still needs its precise behavior
 definition before a requester-only response card. No runtime/engine change was

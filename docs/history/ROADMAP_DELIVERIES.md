@@ -12187,3 +12187,42 @@ suites. Preserve original failed stage and commands. Packages only after focused
 acceptance. Any further failure requires cumulative priority review of original
 plus this one repair; no automatic second repair, renamed retry, weakened fixture
 route or timeout increase. Candidate remains unmerged/withheld until acceptance.
+
+## AUDIO-NAVIGATOR-HOST-LOCAL — cumulative review and explicit second fixture correction
+
+Source `a036de9d7b2af9ef51a53dfbcefc2b67ceb1337c`: authored-scene repair
+compilation PASS16.135s; repaired integration fixture FAIL19.045s solely at
+“host reseat uses shared authority with a fresh physical generation”. Engines
+STOP; remaining six suites/packages NOT_RUN. All six actual stages total
+**91.823s**, including both failures. Original and scene-repair STOP/source/
+helpers/logs retained; this is the same task/budget, not a renamed retry.
+
+Root performed the required cumulative priority review with the independent
+high lifecycle reviewer before selecting further work. Source facts:
+CrewSeatRoleAuthority.claim copies the sealed roster's fixed seat_generation and
+sets claim_sequence from the monotonically admitted request; release erases the
+assignment/intent and advances the peer cursor without changing roster generation.
+GameFlow copies that actual assignment generation; the local binding already
+fences claim_sequence. Thus the fixture's numeric-generation-growth expectation
+is false; fresh claim identity is the existing authority + physical generation +
+new claim sequence. The repaired log has no other assertion/parser/runtime error.
+
+**Explicit second fixture correction selected by root, before edit/run:** at
+reseat capture the actual `_solo_navigator_audio_claim()` and
+`owner.get_assignment(1, SOLO_CREW_AVATAR_ID)`. Replace only the invented
+`seat_generation > first_generation` invariant with generation matching that
+actual assignment and claim_sequence greater than first_claim.claim_sequence;
+retain the same authority comparison and every later old-callback/FIRE/session-
+stop/reentry assertion. No runtime edits, fabricated identity, guard bypass,
+timeout increase or accepted-route narrowing. The original requirement is fresh
+exact claim identity, not numeric roster-generation growth.
+
+Priority: ~5min bounded edit/review plus focused checks delivers the already
+implemented physical host feedback; the independent client consumer remains
+unfrozen and broader, and Hauler is stock-gated. Correct this known fixture
+contract rather than switch to a larger workstream. Use distinct
+`host_local_second_repair_compile` / `host_local_second_repair`, retain unchanged
+import/optional compilation, then the same six remaining suites/package gates.
+All previous attempts remain cumulative. No third automatic correction: any
+further failure stops for a new cumulative decision. Candidate remains unmerged
+and unaccepted until the unchanged full focused/package contract actually passes.
