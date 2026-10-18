@@ -7818,7 +7818,7 @@ Raw stop remains retained under remote-component-row-20261018/results.
 
 ## REMAP-DEFINE — finite source inventory onc1fc23871
 
-Completed in roughly10min against20min cap, with one medium-effort read-only
+Completed in roughly3min against20min cap, with one medium-effort read-only
 mapper and root original-scope review. No engines, new artifacts or renewed test
 passes. Existing persistence contract consolidates23 authored/22 visible actions,
 finite process-restart, ordinary conflict/reset, recovery and hardware outcomes.
@@ -7847,3 +7847,102 @@ no broad remapping/controller/parent acceptance is claimed.
 - **Budget/stop:**20min source-only; no engine, capture, profiling, repeated old
   passing checks, parked Settings diagnosis or automatic implementation successor.
   A concrete runtime gap, if found, requires its own bounded root selection.
+
+## On-foot sprint toggle — acceptedbd4e15d
+
+Clean playable source `bd4e15d0fddda7c4f37a236d07f4f1a4329164d2`, branch
+fix/onfoot-sprint-toggle-20261018. Roughly17min elapsed including implementation,
+review, checks and packaging, within the selected30–60min work allowance.
+
+Shared Sprint/boost HOLD/TOGGLE now executes in the local Player through one
+existing InputActionTransform. GameFlow preflights Player options before InputMap/
+fleet mutation, then applies after the synchronous fleet commit. Fleet counts
+and detached no-Player settings seams are preserved. Equal live bindings/options
+retain the latch; changed bindings/options replace/prime it. Control disable,
+boarding/disembark/recovery, remote transfer and tree exit clear local intent;
+local reenable/reentry primes held input without inventing a new press. Remote
+run remains exclusively accepted _remote_run; no host-input priming while remote.
+No movement/tow semantics, schema, wire, or persistence format change.
+
+Test-onlyd720efe25 import20.722/compile16.079 pass; existing full test reproduces
+exactly one expected actual retained Player release failure32.610s, actual exit1.
+Candidate12df5e6de compiles16.189 but independent reviewer withholds GO because
+remote lifecycle/configuration priming reads host Input. Root STOP/one separate
+repair selection4dc1240bf permits only remote-mode guard. Finalbd4e15d0f exact
+delta gets GO and compile16.241 PASS; review stop remains retained, no reset.
+Fixed full sprint41 assertions34.660s, existing remapping integration5/15.939s,
+remapping persistence13/16.666s, production settings persistence45/33.913s all
+PASS under original budgets, no unexpected diagnostics. Original ship assertions/
+waits preserved. Controlled actual Player performs63 manually driven production
+physics ticks (20 settle+43 movement); sprint speed persists after release and
+returns to walking on second press. Live/HOLD/default/reset, unchanged profile,
+control/tree ownership and remote/local separation also pass.
+
+Fresh safe paired exports26.745/25.572s. Direct Linux22.285/archive23.932/Windows
+payload through Linux engine26.343 each exit0 with exactly one STARTUP_MENU_READY_OK.
+Actual1515-entry payloads match; stock PE/source metadata/exact Linux tar bytes/
+modes verify. Public Windows EXE/checkpoint ZIP/notes and Linux ELF/tar/notes plus
+export/startup records are in builds/.
+EXE184590944 SHA3fa210ee8b3b7b2ffd130a48950a9f668ee6c74786d690d20b864ea02b56ce29;
+ELF148832656 SHA4263615c495cc86c25fe151c1bd62d0909f6b09134784821f3501d0fb41c04b5;
+tar95248700 SHA1bfd069770387b0be5daf4679cb32de44739b82728c8711e831832fa1d2c3b49.
+
+All14 owners terminal0 (old red actual test1 is explicitly expected), all67
+captured PID/start identities absent;9 logs/14 app-data files archived
+byte-identically. Root checks full source/index/cache/engine against final
+snapshot and public export byte copies; integrated runtime/test/build source
+matches qualifiedbd. Owned worktree, duplicate exports, profiles and helpers
+removed; unique raw retained at
+`/srv/mudds-work/onfoot-sprint-toggle-20261018/results/`.
+
+Saved startup/reentry uses isolated in-memory storage, synthetic Input actions,
+a staged slab and manually driven Player physics. This does not qualify ordinary
+station/Settings travel, distinct OS-process restore, hardware, controller-only
+full required route, native Windows/GPU/audio or human review. Original Settings
+artifact dependency/parked return route unchanged. Other movement/tow option
+semantics remain undefined. All36 parent/ten phase gates OPEN; Titan unapproved.
+No automatic adjacent movement/controls successor selected. Next root selection
+must name another concrete production gap or remaining capability definition.
+
+### Retained sprint contract and source-review stop
+
+### ONFOOT-SPRINT-TOGGLE — shared sprint preference works on foot
+
+- **Kind/result:** production controls repair, parents8/29. Persisted/live shared
+  Sprint/boost TOGGLE keeps local walking sprint active after release; second
+  press stops it. HOLD/default/reset retains normal held behavior.
+- **Owner/files:** one high-effort implementer for PlayerController input state,
+  GameFlow validated settings composition and existing
+  tests/game_flow_sprint_toggle_reentry_test.gd (plus existing focused Player
+  test only if needed). Independent high-effort lifecycle review; root integration.
+- **Acceptance:** first extend existing test for actual retained Player consumer
+  using saved profile, reproduce old release failure; then preserve ship assertions
+  and prove local press/release/second press, HOLD/default/live replacement,
+  control disable/re-enable, scene reentry and remote-run separation. Include
+  normal Player physics sprint-speed consumption in disclosed controlled source
+  fixture; no ordinary station route or physical-device claim. Existing settings
+  composition/persistence checks protect shared application; no new wire/schema.
+- **Budget/stop:**30–60min implement/review, split before90; compile then full
+  existing sprint suite and relevant existing settings/Player checks under original
+  limits, headless/Dummy/private profiles. First unexpected failure stops before
+  separately selected repair; original plus one repair requires cumulative review.
+  Other movement/tow option meanings remain unresolved, not extra work here.
+- **Close:** fresh clean paired checkpoint with focused checks/three strict silent
+  startups/package audit. Commit/push, clean owned scratch. Original Settings
+  artifacts/device/full-route gates remain open; no automatic follow-on chain.
+
+### ONFOOT-SPRINT-TOGGLE — source-review stop and one selected repair
+
+Candidate12df5e6de compiles16.189s, but independent review withholds GO:
+_prime_local_sprint_input reads host Input on remote-driven lifecycle/settings
+paths. Remote physics still returns _remote_run; no gameplay authority defect
+was observed. Full fixed gameplay checks and export NOT_RUN.
+
+Root selects ONE bounded repair: guard that prime helper against remote-drive
+mode, preserving existing local-enable priming and all assertions/routes/waits.
+No extra settings/transform changes. Five minutes edit/review; recompile, exact
+review delta, then original full sprint and existing rebind/production settings
+checks. This stop plus one repair is cumulative: any further unexpected failure
+requires priority review before more diagnosis/edit/rerun. Original test-only
+d720efe25 reproduces exactly the local release failure32.610s; import20.722 and
+compile16.079 pass. No parked Settings route is reopened.

@@ -132,11 +132,11 @@ InputRebindService's project-action filter, not removed by profile application.
 
 The shared `sprint_boost` row is labelled “Sprint / boost” and exposes HOLD/
 TOGGLE without a ship-only restriction. HUD commits that option into the same
-profile that GameFlow applies to all registered fleet sources. Ship boost uses
-transformed held state, but Player._sample_sprint_held() reads Input directly;
-Player physics uses that raw held state for sprint speed. Thus local on-foot
-sprint ignores its advertised toggle choice. This concrete consumer repair is
-selected separately in ROADMAP.md. Preserve remote _remote_run authority and
+profile that GameFlow applies to all registered fleet sources. At inventory,
+ship boost used transformed held state, but Player._sample_sprint_held() read
+Input directly and physics used that raw state for sprint speed, ignoring the
+advertised on-foot toggle choice. This concrete consumer repair is
+accepted in checkpointbd4e15d. Preserve remote _remote_run authority and
 control-disable/scene lifecycle fences; no replacement settings store is needed.
 
 | Remaining outcome | Existing scope and boundary |
@@ -152,3 +152,25 @@ ship transform supplies curve/toggle execution. This inventory does not assume
 new behavior for every action/context pair. Keep SETTINGS-INPUT's original
 runner/profile/log dependency WAITING and the failed Settings-return route parked;
 none of these finite definitions replaces or reopens it.
+
+## Local walking sprint application
+
+Checkpoint `bd4e15d` wires the shared sprint profile into PlayerController's
+existing local sampler through one InputActionTransform. GameFlow preflights
+`can_apply_sprint_input_profile()` alongside fleet consumers before InputMap or
+bank mutation and calls `apply_sprint_input_profile()` after synchronous commits.
+Detached settings-only GameFlows with no Player still apply InputMap; fleet
+source counts retain their existing meaning. No second settings store exists.
+
+Equal live sprint bindings/options retain the latch; changed options/bindings
+replace it. Control disable, boarding/disembark/recovery, remote handoff and
+actual tree exit clear local sprint intent. Local enable/reentry primes physical
+held state so a held key is not a new toggle press. While remote drive is enabled,
+only accepted remote run drives sprint and priming never reads host Input.
+
+The existing sprint reentry test preserves its ship assertions and covers the
+retained Player, staged supported physics speed across release/second press,
+live/default/HOLD/reset and lifecycle/remote boundaries. Existing rebind integration,
+rebind persistence and production settings suites pass on this checkpoint.
+These synthetic/in-memory/manual-physics checks do not close the distinct-process,
+ordinary Settings-route or physical-device/full-controller gates above.

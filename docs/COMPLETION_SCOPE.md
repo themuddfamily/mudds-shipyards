@@ -1,6 +1,19 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **39a2ad7**, clean source
+Latest accepted paired checkpoint: **bd4e15d**, clean source
+`bd4e15d0fddda7c4f37a236d07f4f1a4329164d2`
+([Windows notes](../builds/windows/MuddsShipyards-bd4e15d-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-bd4e15d-linux-notes.txt)). Shared
+Sprint/boost HOLD/TOGGLE now applies to local walking sprint, with control/tree/
+remote safety fences. Original ship behavior, settings transaction ordering and
+remote-run authority remain. Old release failure reproduced; one source-review
+hold plus one remote-prime guard retained. Fixed sprint41, rebind5/13 and settings45
+checks pass; paired exports, three strict silent startups and actual1515-entry
+audit pass. Saved settings use in-memory fixtures and supported Player physics
+is manually driven on a staged slab; distinct process/device/full Settings route
+remain unqualified. All36 parents/ten phase gates OPEN; Titan pending.
+
+Earlier accepted paired checkpoint: **39a2ad7**, clean source
 `39a2ad70942364b3d190903b56bcdd3097284b88`
 ([Windows notes](../builds/windows/MuddsShipyards-39a2ad7-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-39a2ad7-linux-notes.txt)). Actual

@@ -1,10 +1,10 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**39a2ad7**, with authoritative remote component-row updates, observer engine/
-throttle HUD, hull HUD and physical gauges, plus earlier steering/cargo/control-help/layout fixes.
-[Windows notes](builds/windows/MuddsShipyards-39a2ad7-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-39a2ad7-linux-notes.txt) state actual validation.
+**bd4e15d**, with saved HOLD/TOGGLE sprint on foot plus authoritative remote
+component/operation/hull HUD, physical gauges and earlier gameplay fixes.
+[Windows notes](builds/windows/MuddsShipyards-bd4e15d-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-bd4e15d-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -46,51 +46,13 @@ unapproved; parked failures remain outside the queue.
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
 | NET-COMPONENT-ROW /11,21 | DONE; packaged39a2ad7 | Retained row follows accepted host components and restores current local data on clear/pilot change | Closed after focused local/pose/Main ENet checks and paired checkpoint; no automatic adjacent successor. |
-| ONFOOT-SPRINT-TOGGLE /8,29 | Production repair; REVIEW STOP, one guard repair selected | Saved/shared Sprint/boost HOLD/TOGGLE works for local walking sprint | Reproduce actual Player consumer gap, implement lifecycle-safe option application, focused checks and paired checkpoint. |
+| ONFOOT-SPRINT-TOGGLE /8,29 | DONE; packagedbd4e15d | Shared Sprint/boost HOLD/TOGGLE works in local walking sprint with safe handoffs | Closed after focused source checks and paired checkpoint; no automatic adjacent successor. |
 
-The component-row repair and REMAP-DEFINE are closed. ONFOOT-SPRINT-TOGGLE is selected independently;
-no adjacent HUD power/gauge successor is selected. Titan approval remains pending.
-
-### ONFOOT-SPRINT-TOGGLE — shared sprint preference works on foot
-
-- **Kind/result:** production controls repair, parents8/29. Persisted/live shared
-  Sprint/boost TOGGLE keeps local walking sprint active after release; second
-  press stops it. HOLD/default/reset retains normal held behavior.
-- **Owner/files:** one high-effort implementer for PlayerController input state,
-  GameFlow validated settings composition and existing
-  tests/game_flow_sprint_toggle_reentry_test.gd (plus existing focused Player
-  test only if needed). Independent high-effort lifecycle review; root integration.
-- **Acceptance:** first extend existing test for actual retained Player consumer
-  using saved profile, reproduce old release failure; then preserve ship assertions
-  and prove local press/release/second press, HOLD/default/live replacement,
-  control disable/re-enable, scene reentry and remote-run separation. Include
-  normal Player physics sprint-speed consumption in disclosed controlled source
-  fixture; no ordinary station route or physical-device claim. Existing settings
-  composition/persistence checks protect shared application; no new wire/schema.
-- **Budget/stop:**30–60min implement/review, split before90; compile then full
-  existing sprint suite and relevant existing settings/Player checks under original
-  limits, headless/Dummy/private profiles. First unexpected failure stops before
-  separately selected repair; original plus one repair requires cumulative review.
-  Other movement/tow option meanings remain unresolved, not extra work here.
-- **Close:** fresh clean paired checkpoint with focused checks/three strict silent
-  startups/package audit. Commit/push, clean owned scratch. Original Settings
-  artifacts/device/full-route gates remain open; no automatic follow-on chain.
-
-### ONFOOT-SPRINT-TOGGLE — source-review stop and one selected repair
-
-Candidate12df5e6de compiles16.189s, but independent review withholds GO:
-_prime_local_sprint_input reads host Input on remote-driven lifecycle/settings
-paths. Remote physics still returns _remote_run; no gameplay authority defect
-was observed. Full fixed gameplay checks and export NOT_RUN.
-
-Root selects ONE bounded repair: guard that prime helper against remote-drive
-mode, preserving existing local-enable priming and all assertions/routes/waits.
-No extra settings/transform changes. Five minutes edit/review; recompile, exact
-review delta, then original full sprint and existing rebind/production settings
-checks. This stop plus one repair is cumulative: any further unexpected failure
-requires priority review before more diagnosis/edit/rerun. Original test-only
-d720efe25 reproduces exactly the local release failure32.610s; import20.722 and
-compile16.079 pass. No parked Settings route is reopened.
+REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
+are closed. No successor is selected. Next root selection must name an independent
+production gap or concrete remaining capability definition; no automatic adjacent
+HUD power or movement/tow chain. Original Settings/hardware gates remain open,
+and Titan approval remains pending.
 
 ## Parked failures and dependent work
 
