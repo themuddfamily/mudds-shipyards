@@ -21165,7 +21165,7 @@ func _sync_activity_hud() -> void:
 			&"set_activity_selection_state",
 			_selected_activity_kind,
 			_activity_selection_locked,
-			board_status_reason,
+			_activity_selection_supply_status(board_status_reason),
 			_cinder_family_reset_selection
 		)
 	if hud.has_method(&"set_patrol_branch_selection_state") \
@@ -22361,6 +22361,22 @@ func _cargo_delivery_phase_id(state: int, next_phase_index: int) -> StringName:
 	return &"outbound" if next_phase_index <= 0 else &"return"
 
 
+func _activity_selection_supply_status(status_reason: StringName) -> StringName:
+	# Read the same authority as departure without probing or starting a run.
+	# Preserve lifecycle locks and rejected-selection feedback.
+	if (
+		_selected_activity_kind == ACTIVITY_KIND_CARGO_DELIVERY
+		and not _activity_selection_locked
+		and status_reason in [&"", &"selected", &"already_selected"]
+		and cargo_transfer_authority != null
+		and cargo_transfer_authority.get_quantity(
+			_cargo_delivery_source_handle, CARGO_DELIVERY_ITEM_ID
+		) < CARGO_DELIVERY_QUANTITY
+	):
+		return &"insufficient_source_quantity"
+	return status_reason
+
+
 func _on_hud_activity_selection_requested(activity_kind: StringName) -> void:
 	var result: Dictionary
 	var repeat_requested := false
@@ -22389,7 +22405,7 @@ func _on_hud_activity_selection_requested(activity_kind: StringName) -> void:
 			&"set_activity_selection_state",
 			_selected_activity_kind,
 			_activity_selection_locked,
-			status_reason,
+			_activity_selection_supply_status(status_reason),
 			_cinder_family_reset_selection
 		)
 

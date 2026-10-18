@@ -9597,6 +9597,9 @@ func _refresh_activity_selection_page(status_reason: StringName) -> void:
 	elif _activity_selection_locked:
 		_activity_selection_status_label.text = "LOCKED  //  CURRENT SORTIE ALREADY STARTED"
 		_activity_selection_status_label.modulate = _c(CAUTION)
+	elif status_reason == &"insufficient_source_quantity":
+		_activity_selection_status_label.text = "UNAVAILABLE  //  INSUFFICIENT FABRICATION KITS"
+		_activity_selection_status_label.modulate = _c(CAUTION)
 	elif status_reason in [&"", &"selected", &"already_selected"]:
 		_activity_selection_status_label.text = "READY  //  " + selected_text
 		_activity_selection_status_label.modulate = _c(NOMINAL_SOFT)
