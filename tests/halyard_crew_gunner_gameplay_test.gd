@@ -2,8 +2,9 @@ extends SceneTree
 ## test-matrix-display: input-only
 
 ## Focused Phase 7 runtime slice: an authority-admitted gunner receipt reaches
-## the Halyard's existing projectile request signal. Combat resolution and
-## damage remain outside this test and outside the ship role consumer.
+## the Halyard's existing projectile request signal. The whole-Main ordinary
+## route also qualifies one real hit through GameFlow and live combat authority;
+## damage remains outside the ship role consumer.
 
 const HALYARD_SCENE := preload("res://scenes/ships/halyard_crew_transport.tscn")
 const Authority := preload("res://scripts/ships/crew_seat_role_authority.gd")
@@ -300,6 +301,30 @@ func _ordinary_gunner_route() -> void:
 		_craft.projectile_fired.connect(func(_origin: Vector3, direction: Vector3): shots[0] += 1; last_direction[0] = direction)
 		await _look(_player.get_interaction_origin() + _craft.global_basis * Vector3(0.3, 0.05, -100.0))
 		var sight_direction := _player.get_interaction_direction().normalized()
+		var combat := _game.get_combat_authority() as LiveCombatAuthority
+		var resolver := _game.get_combat_resolver() as CombatResolver
+		var weapon_profile: Dictionary = combat.get_weapon_profile(_craft, HalyardCrewTransport.HALYARD_CREW_WEAPON_ID)
+		_check(combat.get_resolver() == resolver and is_equal_approx(float(weapon_profile.get("damage", 0.0)), 52.0) and is_equal_approx(float(weapon_profile.get("range", 0.0)), 560.0), "ordinary Main registers the authored Halyard 52-damage 560-metre lance with its actual resolver")
+		var fixture: Dictionary = _stage_gunner_damage_target(sight_direction)
+		var target := fixture.get("target") as StaticBody3D
+		var damageable := fixture.get("damageable") as RangeTargetDamageableAdapter
+		var health_before := damageable.get_health() if damageable != null else -1.0
+		_check(damageable != null and health_before > 52.0 and damageable.can_receive_damage(), "existing colliding range target has its production damageable and survives one authored hit")
+		var authority_results: Array[Dictionary] = []
+		var resolver_results: Array[Dictionary] = []
+		var damage_events: Array[Dictionary] = []
+		var on_authority := func(request: ShotRequest, result: Dictionary) -> void:
+			if request.source_entity == _craft:
+				authority_results.append(result.duplicate(true))
+		var on_resolver := func(request: ShotRequest, result: Dictionary) -> void:
+			if request.source_entity == _craft:
+				resolver_results.append(result.duplicate(true))
+		var on_damage := func(amount: float, current: float, _maximum: float, _position: Vector3, _normal: Vector3, context: Dictionary) -> void:
+			damage_events.append({"amount": amount, "health": current, "source": context.duplicate(true)})
+		combat.authoritative_shot_submitted.connect(on_authority)
+		resolver.shot_resolved.connect(on_resolver)
+		if damageable != null:
+			damageable.damage_applied.connect(on_damage)
 		var profile := _game.runtime_settings.get_input_binding_profile()
 		_check(profile.set_bindings(&"fire", [{"device": &"keyboard", "type": &"key", "physical_keycode": KEY_F13}]), "real runtime settings remap gunner FIRE")
 		_game._on_setting_change_requested(&"input_binding_profile", profile)
@@ -311,6 +336,23 @@ func _ordinary_gunner_route() -> void:
 		await _ticks(3)
 		_check(not _craft.is_piloted() and not _craft.get_last_ship_command().fire and _objective_text().contains("F13") and _objective_text().contains("LANCE FIRED") and (last_direction[0] as Vector3).is_normalized(), "gunner has accurate remapped acknowledgement and normalized projectile without helm")
 		_check((last_direction[0] as Vector3).dot(sight_direction) > 0.99, "existing lance converges along the actual seated gunner view instead of pilot camera")
+		# Read the real handler's synchronous damage receipt after the existing
+		# FIRE release/settle; travelling presentation grants no damage authority.
+		var handler_result: Dictionary = _game.get_last_player_shot_result()
+		var request := handler_result.get("request") as ShotRequest
+		_check(shots[0] == 1 and authority_results.size() == 1 and resolver_results.size() == 1 and damage_events.size() == 1, "one remapped ordinary FIRE produces exactly one Halyard request, authority receipt, resolver result and target damage commit")
+		_check(request != null and request.source_entity == _craft and request.source_id == HalyardCrewTransport.COMBAT_SOURCE_ID and request.faction_id == HalyardCrewTransport.HALYARD_CREW_FACTION_ID and request.weapon_id == HalyardCrewTransport.HALYARD_CREW_WEAPON_ID and is_equal_approx(request.damage, 52.0) and is_equal_approx(request.range, 560.0), "GameFlow submits the admitted gunner shot with the exact registered Halyard source, faction and weapon profile")
+		_check(bool(handler_result.get("accepted", false)) and bool(handler_result.get("resolved", false)) and bool(handler_result.get("hit", false)) and bool(handler_result.get("damaged", false)) and handler_result.get("status") == &"damaged" and not bool(handler_result.get("destroyed", true)) and handler_result.get("collider") == target and handler_result.get("target_entity") == target and handler_result.get("damageable") == damageable and handler_result.get("target_faction_id") == &"range_target", "actual GameFlow receipt resolves the staged registered range target through its production damageable")
+		_check(not authority_results.is_empty() and not resolver_results.is_empty() and authority_results[0] == handler_result and resolver_results[0] == handler_result and request != null and request.sequence == int(handler_result.get("last_sequence", -1)) and request.sequence >= 0 and request.presentation_receipt_id > 0, "GameFlow, live authority and resolver expose the same resolved sequence and deferred-presentation receipt")
+		var damage_result: Dictionary = handler_result.get("damage_result", {})
+		_check(damageable != null and is_equal_approx(damageable.get_health(), health_before - 52.0) and is_equal_approx(float(target.get_meta("health", -1.0)), health_before - 52.0) and bool(damage_result.get("accepted", false)) and is_equal_approx(float(handler_result.get("applied_damage", 0.0)), 52.0) and is_equal_approx(float(handler_result.get("remaining_health", -1.0)), health_before - 52.0) and is_equal_approx(float(damage_result.get("applied_damage", 0.0)), 52.0) and is_equal_approx(float(damage_result.get("health", -1.0)), health_before - 52.0), "the sole authoritative target health and actual damage result decrease by exactly the authored 52 once")
+		var damage_context: Dictionary = damage_events[0].get("source", {}) if not damage_events.is_empty() else {}
+		_check(request != null and not damage_events.is_empty() and damage_context == request.get_source_context() and is_equal_approx(float(damage_events[0].get("amount", 0.0)), 52.0) and is_equal_approx(float(damage_events[0].get("health", -1.0)), health_before - 52.0), "the target's single real damage callback retains the same Halyard weapon, source, sequence and receipt")
+		combat.authoritative_shot_submitted.disconnect(on_authority)
+		resolver.shot_resolved.disconnect(on_resolver)
+		if damageable != null:
+			damageable.damage_applied.disconnect(on_damage)
+		_restore_gunner_damage_target(fixture)
 		await _press(&"interact")
 		_check(await _until(func(): return not _player.is_seated() and _player.is_on_floor() and _player.is_control_enabled() and not _game._transition_busy, 8.0), "ordinary stand restores supported moving cabin walk")
 		_check(owner.get_snapshot().assignments.is_empty() and not _player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META), "ordinary stand releases exact role and existing Halyard tag")
@@ -356,6 +398,35 @@ func _ordinary_gunner_route() -> void:
 	_game.queue_free()
 	await _ticks(3)
 	DirAccess.remove_absolute(path)
+
+# Explicit test fixture: reposition one existing, already adapted range drone
+# along the unchanged seated view. Keep its real collision, bobbing, health and
+# adapter; restore its authored location before the original stand/lifecycle route.
+func _stage_gunner_damage_target(direction: Vector3) -> Dictionary:
+	for candidate in _game.world.find_children("*", "StaticBody3D", true, false):
+		var target := candidate as StaticBody3D
+		var damageable := target.get_node_or_null("AuthoritativeDamageable") as RangeTargetDamageableAdapter
+		if not bool(target.get_meta("is_shipyard_target", false)) or damageable == null or not damageable.can_receive_damage() or damageable.get_health() <= 52.0:
+			continue
+		var fixture: Dictionary = {
+			"target": target,
+			"damageable": damageable,
+			"transform": target.transform,
+			"base_position": target.get_meta("base_position"),
+		}
+		target.global_position = _player.get_interaction_origin() + direction * 280.0
+		target.set_meta("base_position", target.position)
+		print("HALYARD_GUNNER_DAMAGE_FIXTURE: target=", target.get_meta("target_id"), " staged=", target.global_position, " original=", fixture.base_position, " health=", damageable.get_health())
+		return fixture
+	return {}
+
+
+func _restore_gunner_damage_target(fixture: Dictionary) -> void:
+	var target := fixture.get("target") as StaticBody3D
+	if is_instance_valid(target):
+		target.transform = fixture.transform
+		target.set_meta("base_position", fixture.base_position)
+
 
 func _objective_text() -> String:
 	return str((_game.hud.get("_objective_label") as Label).text).to_upper()
