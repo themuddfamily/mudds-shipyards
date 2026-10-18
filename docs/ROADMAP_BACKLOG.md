@@ -1,6 +1,7 @@
 # Roadmap backlog and original requirement crosswalk
 
-These are unscheduled parent requirements and single-instance task templates.
+These are unscheduled parent requirements, named child outcomes and task-family contracts.
+The [concrete breakdown](#concrete-child-outcomes) names selectable outcomes and explicit unknowns.
 They preserve scope; they are not an executable queue or a remaining-job count.
 Select a named instance in the [working roadmap](../ROADMAP.md) before starting.
 The original specifications remain binding in
@@ -221,48 +222,184 @@ CAPTURE instances (13 required sets, **143 PNGs** total):
 
 Registry/commands: [graphical harness inventory](../docs/GRAPHICAL_HARNESS_INVENTORY.md) and `tools/release/graphical_harness_registry.json`. Earlier 3/13 source/image declarations are source-specific, not a current-candidate pass. **Caption production and station operations are blocked on this software-Vulkan environment:** original-cap cold compilation stalls in Godot's built-in Forward+ clustered COLOR_PASS ubershader. Bounded native stack/SPIR-V diagnosis is complete; material owner remains unknown. No custom-shader rewrite, quality/deadline reduction, unchanged cold rerun or registry promotion is justified. A concrete changed environment or supported mitigation is needed before another probe. Preserve RENDER-001 and original failures.
 
+## Concrete child outcomes
+
+This is the finite first breakdown requested after repeated oversized work loops.
+It is **planning, not delivered gameplay**. Each row names an outcome to select;
+semicolon-separated instances are separate children, not one assignment. Existing
+family contracts above supply production owners, original limits and proof anchors.
+Before execution, copy exactly one instance into ROADMAP.md with its actual
+source, command, owner, estimate and next action. Split implementation over90min;
+estimate established long checks separately. Stop on its first failure. One
+failure plus one attempted repair triggers the existing priority review.
+
+**States:** UNSCHEDULED means named scope, not READY or verified missing behavior;
+DEFINE means the stated fact is needed before implementation; WAITING means an
+identified external dependency. Prior accepted scenarios remain DONE only on
+their recorded source. These rows neither reset parked failures nor authorize
+unchanged reruns. No new proof system, validator family or speculative repair is
+part of this breakdown. Parent numbers refer to the crosswalk below.
+
+### Baseline, scope and planning children
+
+| Named child / parent | Observable finish and proof | Dependency / state |
+| --- | --- | --- |
+| Release roster / 4 | Reconcile the named station branches, original12 plus modern5 craft, opponents/weapons, activities, worlds, roles and desktop targets in COMPLETION_SCOPE.md against original promises; every omission has a task or explicit owner decision. | DEFINE unresolved scope; current nine craft do not replace original12. |
+| Release capacity / 4,26 | Record remote guest count and whether host plays; then name the required capacity profiles and their acceptance routes. | WAITING on already-asked owner choice; baseline server/two clients remains independent. |
+| Desktop target list / 4,32 | Establish Windows/Linux and any additional promised target, or record an explicit owner-approved disposition. | DEFINE against Phase9; no invented third-platform delivery/deferral. |
+| Assign next batch / 5 | At most3–5 task cards each have one owner, dependencies, separate implementation/check estimates and an exact finish. | Repeat only when selecting work; planning is not a game feature. |
+| Current-source baseline failures / 6 | Select one of the eleven named suite rows above; one supported diagnosis leads to one runtime fix and the original check, or a precise blocker. | Parked rows retain their reopen conditions; no eleven-suite investigation assignment. |
+| Guided final-candidate sortie / 7 | Selected exact package passes the original fresh-process ordinary-input Guided3/3; physical exit and shutdown timing preserved. | UNSCHEDULED; earlier package passes retained. |
+| Sandbox recovery walk / 7 | Finish the existing same-player physical return walk and craft reuse within original all-nine/54-waypoint/300s route. | GATED on supported changed input/runtime cause; ca0 failure remains parked. |
+| Settings originals / 7,8,29 | Recover the exact original runner, saved profile and logs, or retain the precise missing-artifact handoff. | WAITING; do not replace Gate C with a new route. |
+| Settings re-entry / 7,8,29 | Original keyboard/mouse and gamepad route, including return and mouse observation, completes on selected package. | GATED on originals and a supported correction. |
+| Phantom-geometry lifecycle / 7 | Existing four-cycle lifecycle route completes with ordinary walking/Interact and no phantom collision. | UNSCHEDULED on chosen candidate; preserve original failed history. |
+| Long-session lifecycle / 7 | Existing twelve-cycle soak completes with usable actors/controls and clean shutdown. | UNSCHEDULED; separate from four-cycle qualification. |
+| Control/help finding / 8 | Name one observed camera, steering, brake, hover, landing or tutorial defect and the ordinary action exposing it; a separate repair demonstrates that action working. | DEFINE actual finding; accurate defense briefing already delivered. |
+
+### Station, fleet and combat children
+
+| Named child / parent | Observable finish and proof | Dependency / state |
+| --- | --- | --- |
+| Station walking branches / 7,9 | Separate children: Central launch/return; Aft stairs/door/board; Habitat rest/wake; Freight terminals; Fleet Dock berths; Annex repair-kit service; Observation return; Salvage three-component manifest; VIP reception. Each completes its named ordinary walk/Interact route without rescue and preserves clearance. | UNSCHEDULED; exact scenes/actions in production roster. Nine branches, not a combined station assignment. |
+| Station service motion / 9 | Separate children: Central tow, Freight gantry, Aft service arm, Habitat patrol. Selected behavior remains readable and safe during nearby walking/boarding; use station_operations_activity_test.gd. | UNSCHEDULED; four implemented rails are not missing implementations. |
+| Historical station relationships / 9,36 | Name the unresolved Habitat, VIP, platform, ladder, regeneration, dock-arm and room relationships; resolve one source-supported adjacency/elevation/ladder/scale/version relationship; then one separately scoped module has continuous walking and matching collision. | WAITING where evidence absent; no invented floor plan. |
+| Central operational-view finding / 9,12 | Identify one source-tied player-height layout/readability defect, or the exact missing image/reproduction. Repair is a separate card. | DEFINE/GATED; unchanged300s capture stall remains parked. |
+| Station remaining presentation scope / 9,12 | Use the nine named branches to list actual placeholder/material/signage/furniture findings and remaining living-station content; each finding becomes its own before/after repair. | DEFINE finite finding list; no unbounded art pass. |
+| Bomber crew/navigation contract / 4,10,16 | Establish which promised bomber crew/navigation capability is supported, implemented or still missing; name a separate production child for each actual gap. | DEFINE against original Phase5 and production roster; Cargo Hauler roles do not establish bomber roles. |
+| Current craft capability gaps / 10,11 | For Torrent, Arrow, Jovian, Zenith, Halyard, Bulwark, Cinder Light, Cinder Hauler and Cinder Bomber, name any remaining hull/cabin/animation/LOD or role gap from the roster. Each named component is a separate production change with boarding/readability proof. | DEFINE actual missing component; do not rebuild existing craft/roles. |
+| Current craft full acceptance / 7,10,11 | One child per named current craft: walk/board/launch, applicable weapon/role, damage/repair or destruction/recovery, strict landing/exit/reuse and cross-craft/Main re-entry. | GATED on that craft's capabilities; full route qualification, not30–90min implementation. |
+| Missing originals / 10,36 | Separate specification children: Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut. Each ends in evidence-bounded identity/capability specification or exact external dependency. | WAITING on evidence or explicit interpretation choice. Eight definitions remain absent. |
+| Original craft implementation / 10,36 | For each specified missing craft, split hull/art, definition/handling, berth/access, applicable weapons/roles and damage/recovery into bounded production changes; then its complete fleet acceptance. | GATED on its specification; capability list/estimates must exist before scheduling build. No single “finish craft” card. |
+| Initial interceptor; Courier Intercept / 11 | Two encounter children demonstrate real pressure/escape, damage, success/failure and safe recovery through ordinary controls. | UNSCHEDULED, existing live encounter owners. |
+| Paired Wing Break; Perimeter Hold; Heavy Breach / 11 | Three encounter children prove actual standoff/flank behavior, occlusion, counters and usable return. | UNSCHEDULED, existing encounter director; no detached-catalog-only acceptance. |
+| Torpedo Run combat / 11,23 | Evade/intercept real seekers, destroy boat, exercise failure/abort and return to use. | UNSCHEDULED; authority/recovery case remains a distinct network child. |
+| Craft/role weapon acceptance / 11 | Per supported weapon: actual target damage plus friendly/self/occluded refusal and heat/cadence; separate Cinder repeater, mass-driver travel/rebase, bomber finite-payload/depletion cases. | DEFINE exact weapon-to-craft roster from assets/roles before scheduling. |
+| Damage and recovery / 11,21 | Per supported craft/role: component consequences, repair, destruction/regeneration and re-entry without duplicated score/effects. Remote proof additionally checks peer presentation/ownership. | DEFINE uncovered craft/role cells; use existing component/damage/respawn owners. |
+| Whole-game presentation findings / 12,15 | List concrete UI, animation, effects, lighting, world terrain/weather/water and transition defects from required views/routes; each gets matching before/after view and affected gameplay check. | DEFINE finite findings; captures and hardware review stay separate. |
+
+### Activities and solo-world children
+
+| Named child / parent | Observable finish and proof | Dependency / state |
+| --- | --- | --- |
+| Nearby first full plays / 13 | Separate children: Checkpoint Race; Threading; Platform Patrol; Jovian kit delivery; Cinder supply; Mining; Structure Scan; Beacon Traversal; Convoy; Station Defense; Heavy Breach; Torpedo Run. Each uses ordinary outbound/start/activity/reward/home return at canonical distance. | UNSCHEDULED for implemented content; first failure ends that activity's task. HULK has separate one-shot route. |
+| Activity durable UI / 13 | Separate Race, Patrol, Cargo, Convoy children: reset/select/start and fresh Main display the correct durable state. Fix only a demonstrated discrepancy. | UNSCHEDULED; Race static diagnosis established separate owners, not a bug. Fire restart stays parked. |
+| Activity write boundaries / 13,31 | Per uncovered activity, separately exercise ACTIVE, earned-unpaid, paid/reset or refused/reset: fresh process retains once-only reward and usable recovery after the selected rejected write. | DEFINE uncovered activity/boundary list from existing lifecycle checks; no parallel duplicate tests. |
+| Nearby ten-run reuse / 13 | Each repeatable activity completes its original ten same-world runs without resource growth, stranded objectives or duplicate rewards. | GATED on its first full play; preserve established duration. |
+| Ordinary-travel envelope / 13 | Name numeric maximum travel conditions for the existing nearby routes, with design/runtime basis and required scope decision. | DEFINE decision; no invented threshold or route shortening. |
+| HULK revisit / 13 | After actual home return/reload, ordinary revisit retains restored bus/claimed cell and creates no second reward. | PARKED after failure+repair; preserve300s and priority-review boundary. Revisit package GATED. |
+| Ember packaged abandonment preflight / 1 | Actual frozen native ELF loads the unchanged original driver against packed dependencies and emits EMBER_PACKAGE_DRIVER_READY; startup alone fails. | Scheduled READY; exact card in ROADMAP.md. |
+| Ember packaged abandonment journey / 1,14 | Same native package completes unchanged physical outbound/abandon/walk/reboard/ascent/home occupied dock/unload/disembark/walk, exact31 and original7200s cap. | GATED on preflight; earlier integrated-source journey DONE, no unchanged source rerun. |
+| Solo survey full returns / 14 | Separate Ember, Aurora, Rime children: canonical outbound/descent/landing, walk actual survey, save earned reward once, reboard/ascent/home dock through ordinary controls. | UNSCHEDULED or source-specific DONE per history; choose uncovered candidate/scenario, not staged proof. |
+| World abandonment/re-entry / 1,14 | Separate Aurora and Rime scenarios, and Ember reuse/durability still uncovered: ordinary abandonment and usable physical recovery/return with no rescue. | DEFINE exact original applicable contract; source Ember abandonment is already accepted. |
+| World save boundaries / 14,31 | Per Ember/Aurora/Rime, select one uncovered survey/reward/reboard/visit boundary; distinct-process real-file reload or OS interruption preserves once-only rewards and usable play. | GATED on explicit resume/safe-recovery contract. MemoryFilesystem and staged restoration do not qualify disk journeys. |
+| World solo edge cases / 14 | Per world, separately cover cancellation, refusal, failure and repeat visit under original physical limits. | GATED on baseline route and exact missing case; do not combine full matrix into one job. |
+| World content gaps / 15 | Compare each named world's authored environmental/content promises with the roster and name actual remaining behavior, or record none found. A repair implements one named interaction/presentation outcome. | DEFINE; no new planet catalogue or speculative feature. |
+
+### Multiplayer children
+
+| Named child / parent | Observable finish and proof | Dependency / state |
+| --- | --- | --- |
+| Ordinary role lifecycle / 16,24 | Separate routes: Jovian engineer; Halyard passenger, engineer, gunner, loadmaster; Bulwark gunner; Cinder loadmaster and navigator; supported pilot roles. Walk/sit/use/stand/exit, moving-cabin support and ownership/disconnect recovery work in independent authenticated peers. | UNSCHEDULED or exact earlier-source proof per history; bind Cinder roles to actual supported craft before scheduling. |
+| Final seat/ownership acceptance / 16 | Final candidate preserves promotion, seat-ledger consistency, berth handback and usable solo recovery; malicious/stale claims are refused. | GATED on chosen candidate; delivered authority/boarding fixes are not reassigned as missing work. |
+| Remote engine/pose/dock views / 17 | Per supported craft, separate engine operation, station-frame motion and landing/dock views appear correctly to current and late peers. | DEFINE missing craft/operation cells; existing remote-pose/station-frame tests anchor proof. |
+| Local-input-to-remote-helm actions / 18 | Each supported action goes from actual sampled local input to authenticated remote helm and usable handback; command injection alone does not pass. | DEFINE finite action list from network_remote_pilot_helm_test.gd and actual input bindings. Physical devices separate. |
+| Host simulation stall recovery / 19 | Existing original600-step stall route meets2s action limits without false completion and returns to usable command ownership. | UNSCHEDULED on stable independent processes; no timing relaxation. |
+| Second-landing boundary / 20 | One diagnostic hypothesis/probe identifies the first intermittent second-landing failure and production owner, or exact missing fact. | DEFINE; a supported repair is a separate card, no speculative clock rewrite. |
+| Remote dock/disembark/reuse / 20 | One supported craft lands/docks remotely, crew physically exits/reboards and completes repeat departure. | GATED on relevant landing fix if needed; one craft per task. |
+| Convoy actor lifecycle / 22 | Actual native gameplay shows authorized tender live/dead/reset, then correct late-peer/disconnect behavior and usable recovery. Split missing cases into individual cards. | DEFINE exact uncovered native cases from existing authority tests. |
+| Torpedo authority/solo recovery / 23 | Supported host/peer sees authorized projectile lifecycle and ownership, then pilot loss/solo restoration leaves usable craft/weapons. | DEFINE exact uncovered lifecycle cases; combat route does not close authority. |
+| Picket; Emberline travelling actors / 24 | Separate channels/cases: flight, hit/miss/expiry, late join, dead/reset, disconnect; real moving crew stays supported. | DEFINE missing cells; Emberline prior failed dead-peer baseline is not fixed by later isolated pass. |
+| Ordinary browser connection cases / 25 | Separate real-menu routes: discover/refresh/select/join, stale session, full session, unreachable endpoint, controller navigation, disconnect/retry, cancel/reuse. Each ends in honest error or valid admission and usable menus. | UNSCHEDULED; cancel/reuse and session-generation UI delivered on named sources, no redundant reimplementation. |
+| Original server/two-client baseline / 26 | Independent server and two clients complete promised ordinary crew/flight/recovery behavior; one-client menus or staged cabin route alone do not pass. | DEFINE exact combined command/participants/cases; authorized regardless of larger-capacity choice. |
+| Forced-full snapshot budget / 17,26 | All-nine supported load meets original full-publication/byte budgets; movement-only bytes are insufficient. | UNSCHEDULED aggregate check; not repeated per craft/pose card. |
+| Multiplayer adverse profiles / 26 | Name the original required latency, loss, jitter, reorder and stall profiles and their applicable ownership/seat/lifecycle checks; qualify one supported profile per task. | DEFINE finite profiles and exact original commands; short synthetic sweeps do not close independent-process endurance. |
+| Thirty-minute moving-interior endurance / 26 | Independent two-client session runs original30min at declared latency, with no ownership/state leak and clean closure. | DEFINE exact executable command, then GATED on stable baseline. |
+| Shared planetary baseline / 3,27 | Three children: Ember baseline, Aurora baseline, Rime baseline. Ordinary remote crew completes canonical outbound/physical landing/survey/durable reward/reboard/physical home return. | GATED on baseline crew/profile. Rime arrival parked after failure+repair; Aurora original bundle WAITING. |
+| Shared planetary failure/reuse cases / 3,27 | Six separate children per world: late join; disconnect/reconnect; pilot loss; cancellation; actual interruption; repeat visit. Preserve the selected case's activity/save/usable-return criteria and original landing/route limits. | GATED on that world's genuine baseline and exact case command;21 total world/case cells including3 baselines, not21 READY tasks. |
+
+### Hardware, accessibility and audio children
+
+| Named child / parent | Observable finish and proof | Dependency / state |
+| --- | --- | --- |
+| Minimum and target machines / 28 | Two profile definitions bind required CPU/GPU/RAM/display/driver to actual available isolated hardware. | WAITING if hardware absent; VM/software runs do not establish target performance. |
+| Missing benchmark coverage / 28 | Identify unsupported required fleet/cabin/combat/surface/repeat scenario in existing runner; implement only that route/selection. | DEFINE remaining route list; station, nearby flight, Halyard cabin, Torrent combat, Ember, Aurora and Rime routes already exist. |
+| Native performance scenarios / 28 | Per required machine/route, original≥60s/3,600-frame warmup and≥600s/18,000-frame measurement meet1080p High p95≤16.7ms, p99≤33.3ms, no post-warm frame>100ms,≤4GiB working set and original GPU/VRAM/streaming/transient budgets. | GATED on machine+route; one measured scenario per task. Named measured hotspot gets a separate fix/recheck. |
+| Keyboard/mouse; controller full routes / 8,18,29 | Two device families, each selected ordinary sortie/lifecycle/planetary route, including remapped return and menus, works with actual physical device. | WAITING on device/isolated session if absent; exact required routes DEFINE before scheduling. |
+| Remapping persistence / 8,29 | Selected binding applies, survives restart, drives actual menu/gameplay action and retains conflict/recovery handling. | DEFINE uncovered binding cases from existing runtime tests; physical confirmation separate. |
+| Readability matrix / 12,29 | For each specified view/cell, check readable text, visible focus and no clipping across the promised minimum/default/maximum scale and4:3,16:9,16:10,21:9,32:9 coverage. Each selected cell is a separate check. | DEFINE finite required views and applicable cells from original promises; do not invent every Cartesian combination or call all settings one task. |
+| Comfort option routes / 29 | Separate reduced-motion, reduced-flash, colour-safe and caption routes show the intended runtime result and retained setting after restart where required. | DEFINE exact affected route per option; reuse existing accessibility owners/tests. |
+| Audio content findings / 30 | List actual missing ambience/music/effect cues or broken station/activity/orbit/surface transitions; deliver one named cue/transition and silent integration proof. | DEFINE finite gaps; delivered Aurora coast is not missing content. |
+| Real-output mix scenarios / 30 | Named scenario has usable levels/cues/transitions on the actual declared output device; correct concrete finding and repeat only affected scenario. | DEFINE finite required real-output scenarios, then WAITING on explicit audible authorization/device; Dummy tests do not qualify audible mix. |
+
+### Recovery and release children
+
+| Named child / parent | Observable finish and proof | Dependency / state |
+| --- | --- | --- |
+| Recovery state contracts / 2,31 | Separate on-foot, pilot, cabin/rest, seated crew, docking, active activity and planetary contexts name durable boundary, player support, craft/berth/seat ownership and usable resume or safe-home route. | DEFINE ambiguous contexts only; do not promise airborne pose where safe recovery is specified. |
+| Installed OS-interruption cases / 2,31 | Per uncovered supported activity/context on chosen installed Linux package: actual owned SIGKILL, distinct restart, valid protected data, once-only reward and ordinary usable recovery/closure. | GATED on contract/package; earlier Convoy pilot/cabin/rest/crew passes stay exact-source, not arbitrary-cut/power-loss proof. |
+| Save migration/corrupt/unsupported data / 31,32 | Three separate cases preserve valid data, select specified corrupt fallback and refuse overwriting unsupported data, with secret-free diagnostics and usable recovery. | DEFINE exact existing format/fixture and uncovered failure; use current persistence owners. |
+| Paired checkpoint / 6,32 | Clean source produces exact Windows EXE/ZIP/notes and matching Linux ELF/archive/notes, focused checks, strict startup and byte/member/mode identity. | GATED on meaningful production change; use existing export flow, no new build for planning-only change. |
+| Final Windows installer artifact / 32 | Existing NSIS build has matching extracted game/build identity and applicable non-execution checks. | GATED on final package; native Windows installation/execution remains held. |
+| Linux install transactions / 32 | Separate clean install, upgrade, rollback, retained-data, corrupt-data and uninstall cases preserve saves/unrelated files and exact owned bytes/modes. | UNSCHEDULED for uncovered/final-candidate cases; accepted named install/update/uninstall interruption cuts are not reimplemented. |
+| Linux graphical launch / 32 | Separate actual desktop-entry and direct-ELF launches complete ordinary play on a clean isolated graphical Linux session. | WAITING if session unavailable; inert argv parsing/headless startup is insufficient. |
+| Required capture sets / 12,33 | Thirteen separate registry IDs in the existing table above each produce exact declared images on chosen frozen source; inspect originals and fix any concrete defect separately. | GATED on runnable environment/candidate;143 PNG total. Caption production/station operations stalls stay parked, no unchanged cold rerun. |
+| Redistribution rights / 34 | Named project/asset/source families each have recorded licensing/distribution disposition; precise missing documents stay visible. | DEFINE finite family list from existing credits/source inventory; preserve settled creator permission without claiming a written grant. |
+| Trusted signing / 34 | Game, installer and uninstaller have trusted verified signatures and expected publisher on exact distributed bytes using existing signing flow. | WAITING on external credentials; development signatures do not qualify. |
+| Final complete local matrix / 6,35 | One frozen integrated candidate completes existing unfiltered --mode all with original suite/long limits and isolated graphics, no exclusions. | GATED on selected repairs/integration; failure creates named child, no whole-matrix rerun per small change. |
+| Final candidate reconciliation / 35 | All original promises and applicable device/performance/audio/endurance/install/capture gates hold on candidate, zero P0/P1 and reviewed P2/residual risks; existing candidate record/SHA256SUMS identify exact bytes. | GATED on actual required results; native Windows/human exclusions remain factual NOT_RUN. No new attestation layers. |
+| Distribution / 34,35 | Authorized destination serves accepted artifact bytes/checksums and concise player notes; downloaded bytes match tested candidate. | GATED on final acceptance and publication authorization; local checkpoint does not authorize public publication. |
+| Historical identity claims / 36 | Separate Torrent B5 provenance/continuity, Zenith B7 provenance/naming, Arrow identity and Jovian identity claims resolve from tied registered sources or remain exact external dependencies. | WAITING where missing; modern interpretations require explicit decision and honest label. |
+
+Unknowns above are work boundaries, not permission to explore indefinitely. One
+bounded definition card ends with the finite list/contract or exact missing fact;
+it does not loop until a convenient implementation appears. New findings amend
+the existing named parent/child rather than creating numbered evidence chains.
+The final executable-job count remains unknown until DEFINE scopes are resolved;
+this inventory makes those unknowns inspectable instead of hiding them in prose.
+
 ## Coverage of the original remaining outcomes
 
 These are **36 parent outcomes**, not 36 executable jobs. They remain open until all applicable named instances and original acceptance conditions hold. This crosswalk is the guard against losing scope during the rewrite; it is not an extra evidence system. Original wording and all ten phase specifications remain in the preserved reference.
 
-| Original parent outcome | Active task families |
-| --- | --- |
-| Finish final integrated-source and packaged physical abandonment acceptance | WORLD-ABANDON, WORLD-SOLO, PACKAGE-WIN, PACKAGE-LINUX |
-| Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE |
-| Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL |
-| Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC |
-| Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card |
-| Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX |
-| Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT |
-| Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP |
-| Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE |
-| Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT |
-| Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE |
-| Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE |
-| Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK |
-| Qualify each implemented world's full physical round trip | WORLD-SOLO/ABANDON/SAVE/EDGE |
-| Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING |
-| Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY |
-| Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET |
-| Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE |
-| Qualify honest remote-command recovery after host simulation stalls | NET-STALL |
-| Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK |
-| Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE |
-| Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] |
-| Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] |
-| Finish remaining travelling-weapon and moving-crew integration | NET-ACTOR[Picket/Emberline], NET-CREW, WORLD-SHARED |
-| Qualify the production server-browser and connection flow | NET-BROWSER |
-| Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET |
-| Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) |
-| Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX |
-| Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT |
-| Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX |
-| Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE |
-| Qualify installation, updates and supported desktop platforms | PACKAGE-WIN/LINUX, INSTALL-WIN/LINUX, LINUX-BUNDLE/DESKTOP |
-| Complete all required graphical capture gates | CAPTURE (each required registry ID) |
-| Complete release licensing, trusted signing and distribution | RIGHTS, SIGN, DISTRIBUTE |
-| Run final release acceptance on the exact distributed candidate | MATRIX, FINAL-RECONCILE, DISTRIBUTE |
-| Resolve historical reconstruction dependencies and deliver the remaining researched fleet | HIST-CLAIM, ORIGINAL-SPEC/BUILD, CRAFT-ART/ACCEPT, STATION-MODULE |
+| Parent | Original parent outcome | Active task families |
+| --- | --- | --- |
+| 1 | Finish final integrated-source and packaged physical abandonment acceptance | WORLD-ABANDON, WORLD-SOLO, PACKAGE-WIN, PACKAGE-LINUX |
+| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE |
+| 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL |
+| 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC |
+| 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card |
+| 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX |
+| 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT |
+| 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP |
+| 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE |
+| 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT |
+| 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE |
+| 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE |
+| 13 | Close the complete nearby-activity roster | ACT-HUD/WRITE/PLAY/REPEAT, TRAVEL-LIMIT, HULK |
+| 14 | Qualify each implemented world's full physical round trip | WORLD-SOLO/ABANDON/SAVE/EDGE |
+| 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING |
+| 16 | Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY |
+| 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET |
+| 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE |
+| 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL |
+| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK |
+| 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE |
+| 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] |
+| 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] |
+| 24 | Finish remaining travelling-weapon and moving-crew integration | NET-ACTOR[Picket/Emberline], NET-CREW, WORLD-SHARED |
+| 25 | Qualify the production server-browser and connection flow | NET-BROWSER |
+| 26 | Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET |
+| 27 | Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) |
+| 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX |
+| 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT |
+| 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX |
+| 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE |
+| 32 | Qualify installation, updates and supported desktop platforms | PACKAGE-WIN/LINUX, INSTALL-WIN/LINUX, LINUX-BUNDLE/DESKTOP |
+| 33 | Complete all required graphical capture gates | CAPTURE (each required registry ID) |
+| 34 | Complete release licensing, trusted signing and distribution | RIGHTS, SIGN, DISTRIBUTE |
+| 35 | Run final release acceptance on the exact distributed candidate | MATRIX, FINAL-RECONCILE, DISTRIBUTE |
+| 36 | Resolve historical reconstruction dependencies and deliver the remaining researched fleet | HIST-CLAIM, ORIGINAL-SPEC/BUILD, CRAFT-ART/ACCEPT, STATION-MODULE |
 
 ## Original phase gates and completion
 
