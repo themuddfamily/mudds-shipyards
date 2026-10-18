@@ -387,33 +387,34 @@ WALK-HABITAT's normal loop/restart aggregate closes on3707bc9/29abe94; final dre
 Sandbox, installed/final regression and native/device/audio/rendered/human gates
 remain separate/open. All36 broad parents/ten phase gates remain OPEN.
 
-Next planning action is RECOVERY-ACTIVITY-DEFINE: resolve only ambiguous activity
-recovery promises against existing durable owners and accepted source cases, then
-name actual missing runtime capabilities or exact external gates. No new probe,
-adjacent restart chain or parked replay is selected by this closure.
+### Activity recovery — definition complete, two runtime gaps identified
 
-### Selected planning task — RECOVERY-ACTIVITY-DEFINE
+RECOVERY-ACTIVITY-DEFINE is DONE as a source map, not new gameplay acceptance.
+The [finite contract](docs/ROADMAP_BACKLOG.md#activity-recovery--progress-player-state-and-uncovered-capabilities)
+separates last-committed activity progress from fresh safe-home player/craft
+recovery, normal Resume/Begin Shift and durable Start Fresh. The existing twelve
+activity owners/tests remain authoritative; no duplicated roster/probe family.
+Four terminal-only active-resume policies remain explicitly unresolved, and the
+original recovery promises remain binding.
 
-- **Outcome/parents:**2/31. Resolve active-activity recovery into finite source-tied
-  durable progress/debt and usable player/craft continuation contracts. Preserve
-  every original promise; terminal-only implementations do not waive active
-  resume requirements. Definition only, no new runtime acceptance claimed.
-- **Ownership:** root owns ROADMAP.md, docs/ROADMAP_BACKLOG.md and delivery history.
-  One medium-effort read-only agent maps only the four terminal-only activities;
-  root checks shared player recovery and remaining session owners. No recursive
-  delegation, code/test/validator/schema edits or engines/packages.
-- **Scope/proof:** reuse the existing twelve-row ACT-WRITES roster rather than
-  duplicate it. Name restored durable state versus ephemeral actors/claims, actual
-  Resume/Begin Shift/Start Fresh behavior, player support/control contract and
-  once-only reward/reset rules. Separate uncovered runtime capabilities, final/
-  installed/ordinary qualifications and owner decisions; cite production seams.
-  Existing Convoy/on-foot/docking/planetary passes retain exact sources; all parked
-  failures and original deadlines remain. No probe/replay selected.
-- **Budget/stop:**20–30min source mapping/docs, stop once ownership/contract and
-  finite acceptance are known. If a real gap is established, name a bounded
-  production assignment; do not implement it implicitly. Commit/push the result.
-  Independent production alternative: next unimplemented original craft requires
-  its existing SPEC/BUILD-SPLIT/owner prerequisites, never an invented ship spec.
+Two production gaps now have bounded observable finishes:
+
+- **ASTEROID-START-FRESH:** Start Fresh omits saved Asteroid Threading progress
+  from both title-time durable decline and live reset. Finish: abandon the active
+  run before its world streams, no old run on later stream/cold load; retain
+  earnings/unrelated data and refuse failed publication without hiding the choice.
+- **CINDER-SUPPLY-DEBT:** supply persistence only triggers after accepted reward,
+  leaving earned-but-refused completion live-only. Finish: genuine earned debt
+  survives cold load, pays once, then remains paid after another load; preserve
+  transfer identity/quantity and extend existing authority's atomic acknowledgement.
+
+Independent source review GO. No code/tests/engines/packages changed or ran for
+this definition. Existing checkpoint29abe94 remains current; parked Breach and
+other failures, Hauler stock decisions, four active recovery policy gates and
+native/device/human/final acceptance remain unchanged. Next assignment should
+implement ASTEROID-START-FRESH through the existing GameFlow decline/reset owners,
+then address Cinder debt as a separate capability. No additional interruption
+probe or broad recovery rerun is selected by this planning closure.
 
 ## Parked failures and dependent work
 

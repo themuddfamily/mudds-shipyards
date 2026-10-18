@@ -40,7 +40,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | Parent | Original parent outcome | Active task families | Reconciliation / next named outcome |
 | --- | --- | --- | --- |
 | 1 | Finish final integrated-source and packaged physical abandonment acceptance | WORLD-ABANDON, WORLD-SOLO, PACKAGE-WIN, PACKAGE-LINUX | Source Ember abandonment DONE on e85157b4d; EMBER-PACKAGE-ABANDON and real-file/reuse cases remain gated. |
-| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Pilot/cabin/crew/docking/planetary source contracts are defined below; activity definition and remaining installed cuts stay open. |
+| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Pilot/cabin/crew/docking/planetary/activity source maps are defined below; explicit activity capability/policy gaps and remaining installed cuts stay open. |
 | 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
 | 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER/SCOPE-DESKTOP DEFINE; SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
 | 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | One prepared card selected in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
@@ -683,7 +683,9 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | DOCK-RECOVERY-PROBE | Existing release driver can interrupt one actual accepted landing assist and check fresh safe-home recovery | 2,31,32 | DONE packaged311df73; existing loader/probe/runner docking+Convoy selector, full source and archive ELF kill/restart pass at original caps with fresh home-pilot control and exact terminal/reward boundary |
 | DOCK-RECOVERY-CUT | One exact installed candidate survives interruption during actual assist with conserved activity/reward and usable safe-home recovery | 2,31 | GATED exact installed/final candidate. Source and archive-extracted 311df73 Bulwark/home/Convoy cut pass; no old lease/assist/seat identity restored. Ordinary/full installed acceptance remains distinct |
 | DOCK-EXIT-RECOVERY-CUT | One interrupted exterior handoff recovers safely after accepted unavailable publication | 2,31 | GATED frozen actual busy-exit cut and executable driver; rejected publication retains prior durable preference. Completed grounded exit follows existing on-foot contract |
-| RECOVERY-ACTIVITY-DEFINE | Active activity durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
+| RECOVERY-ACTIVITY-DEFINE | Active activity durable-boundary/resume-or-safe-home contract | 2,31 | DONE source map only on470aa24c4; progress/embodiment contract and two actual runtime gaps below. Four terminal-only active-resume policies remain explicitly unresolved; no original promise waived |
+| ASTEROID-START-FRESH | Start Fresh durably abandons the interrupted active Asteroid Threading run | 13,31 | READY for bounded runtime assignment; existing decline transaction/live fresh loop omit independent asteroid slot. Preserve debt/paid history and refuse failed publication; no old active run on later stream/cold load |
+| CINDER-SUPPLY-DEBT | Earned Cinder platform supply completion survives refused payment and cold restart | 13,31 | Unimplemented durable unpaid checkpoint; current summary triggers only after accepted reward. Separate from active manifest reconstruction and Hauler stock policy; exact runtime assignment/acceptance below |
 | RECOVERY-PLANET-DEFINE | Planetary durable-boundary/resume-or-safe-home contract | 2,31 | DONE source map; Aurora/Rime visit restoration differs from Ember passive survey continuity. WORLD-SAVE per-world boundary and installed RECOVERY-KILL remain open; no broader location promise waived |
 | RECOVERY-CUTS-DEFINE | Uncovered installed context/activity/OS-interruption cases | 2,31 | GATED; explicit state contracts and exact installed Linux package |
 | SAVE-MIGRATION | Real-file valid migration with distinct-process reload | 31,32 | GATED; exact current format/fixture and uncovered case |
@@ -1328,6 +1330,92 @@ Scope: original §6 and retained installed-interruption milestone. Final-candida
 | MATRIX[one frozen integrated candidate] | GATED on targeted repairs/integration | Clean import and existing unfiltered `--mode all` matrix at original suite/long caps, no exclusions, including isolated graphics. Stop at complete result; failures become named child fixes. Do not rerun whole matrix for every small change. |
 | FINAL-RECONCILE[one candidate] | GATED on required content, matrix and applicable platform/device/performance/audio/endurance/install/capture/signing results | Reconcile all original promises and exact candidate results with existing `release_candidate.py`, candidate record and `SHA256SUMS`. Zero open P0/P1, explicit reviewed P2/residual-risk dispositions including RENDER-001 where applicable. Changed source invalidates affected qualification; owner exclusions stay excluded. Stop at actual complete or named unmet gates, never a new evidence layer. |
 | DISTRIBUTE[accepted candidate] | GATED on FINAL-RECONCILE and authorized destination/publication | Publish exact qualified artifacts/checksums and concise player-facing notes using existing release flow. Stop after byte identity and download checks. No Downloads copy or public publication implied by local checkpoints. |
+
+### Activity recovery — progress, player state and uncovered capabilities
+
+RECOVERY-ACTIVITY-DEFINE is DONE as a source map on470aa24c4, not runtime or
+final-source acceptance. Reuse the [twelve activity/write owners](#activity-write-boundary-roster--act-writes-define)
+and their existing tests; do not create a second activity roster or a48-case
+cross product. Original [active-activity recovery acceptance](history/ROADMAP_SCOPE_20261017.md)
+still requires an explicit expected resume/safe-recovery state, durable progress,
+usable controls and no duplicated reward or stranded craft/seat. Current behavior
+alone does not settle an unresolved promise.
+
+**Player continuation is independent of activity data.** GameFlow's
+`_handle_hud_session_recovery_choice(normal_start)` acknowledges the current
+fenced receipt and schedules existing solo recovery; normal `start_shift` also
+chooses Resume if its notice remains open. `_apply_solo_safe_recovery` reacquires
+the saved craft at its home berth: on-foot support, fresh pilot boarding, or awake
+unseated cabin/rest/crew, according to the existing four-field preference. No
+activity owner may invent a saved player pose, airborne ship position, former
+seat/lease/crew authority or networking session. Aurora/Rime visits retain their
+separate restoration owners. Unavailable contexts use normal supported station
+start. Physical look/walk/interaction after recovery remains necessary; loading
+JSON or acknowledging a crash notice alone does not prove it.
+
+**Progress continuation uses the last accepted activity checkpoint.** Race,
+Patrol, Jovian cargo and Convoy restore through their typed GameFlow persistence
+owners. Convoy retains escort identity/progress/threat state but requires a fresh
+current runtime rebind. Scan, Beacon, Mining and Asteroid Threading restore through
+the actual streamed activity owner; their presence in the saved document does not
+imply a loaded world or automatic location restoration. Mining retains extraction
+capacity, not an invented credit/ore reward. Respect each owner's trust/validation,
+generation, checkpoint interval, refused-write retry and payment fence. Reuse
+`ACT-WRITE` for a selected uncovered write boundary and `RECOVERY-KILL` for an
+exact installed/ordinary interruption; retain existing source/package passes and
+parked failures instead of rerunning them under a new name.
+
+Four owners cannot currently reconstruct an active cold run:
+
+| Actual owner | What a cold load provides | Unfinished capability/policy |
+| --- | --- | --- |
+| [Cinder supply persistence](../scripts/persistence/cinder_cargo_delivery_persistence.gd) / [reward handoff](../scripts/cargo/cinder_cargo_reward_handoff.gd) | Completed summary only after accepted reward; presentation generation0 has no replayable transfer authority. Later incomplete manifest is discarded. | **CINDER-SUPPLY-DEBT:** earned-but-refused reward has no durable checkpoint. Active manifest/inventory/deadline restoration separately needs an explicit resume-or-safe-home policy; Hauler stock choices remain untouched. |
+| [StationDefenseActivityBoard](../scripts/activities/station_defense_activity_board.gd) | Durable terminal generation/history and genuine unpaid debt; fresh IDLE encounter, no saved enemies/health/leases. | Active wave/health continuation policy unresolved; terminal debt/reset/atomic paid acknowledgement already have owners, so do not invent a replacement. |
+| [HeavyBreachActivityBoard](../scripts/activities/heavy_breach_activity_board.gd), Heavy Breach | Scenario/generation floor and earned unpaid/paid completion, no active combat/timer/actors. | Active encounter recovery policy unresolved. Original real-file interruption remains PARKED140.961s; this map does not reopen it. |
+| Same board, Torpedo Run scenario | Separate reward/scenario terminal debt. Retained network suspension preserves live timer/distance; it is not a cold-process codec. | Cold active-run policy and distinct Torpedo terminal qualification remain open. Do not widen the retained-network promise into arbitrary disk pose restoration or count Breach as Torpedo acceptance. |
+
+**Start Fresh must abandon active progress without discarding earnings.** The
+existing `_decline_interrupted_planetary_visits` transaction retires Scan/Beacon/
+Mining progress even before their world streams; `_start_fresh_after_interrupted_session`
+synchronizes their live owners and resets the selected Race/Patrol/Jovian cargo/
+Convoy through existing persistence. Completed debt/paid history stays authoritative;
+refused publication must preserve the old save/live state and keep the choice
+available. Unsupported/corrupt records are protected, never silently erased.
+
+Two bounded runtime gaps are established by this map:
+
+1. **ASTEROID-START-FRESH:** independent `cinder_asteroid_session` is absent from
+   both the durable decline transaction and streamed live reset loop, while
+   `_ensure_cinder_asteroid_session` reloads it on a later current binding.
+   Extend those existing owners, using the strict asteroid codec and existing
+   reset/publication rules. Finish: active real-file run→ordinary Start Fresh at
+   title with the world absent→later stream/cold load has no old active run;
+   also synchronize a present live owner. Prove failed publication retains save,
+   live progress and choice, and unpaid/paid completions/unrelated payload survive.
+   Estimate45–60min implementation plus focused checks/checkpoint; split before90.
+   This is the next preferred capability, not an OS-kill probe or full parked
+   recovery-suite replay.
+2. **CINDER-SUPPLY-DEBT:** persist a genuine earned completion before reward
+   callback; allow its current legitimate owner to settle exactly one payment
+   after cold load, atomically acknowledging paid state through existing authority.
+   Finish: actual-file earned/refused payment→cold reload→one payment→paid cold
+   reload with no replay; preserve quantities, unrelated payload and reset refusal.
+   The debt must prove the genuine completed transfer identity/item/quantity/
+   generation; a summary or minted entitlement cannot substitute. The existing
+   authority needs Cinder-specific debt validation/atomic acknowledgement; those
+   checks do not already exist.
+   Likely45–60min cross-component work, but freeze exact handoff/persistence/
+   authority ownership and existing focused tests before assignment. Active
+   manifest reconstruction and Hauler stock policy are excluded from this gap.
+
+Production seams: [GameFlow](../scripts/game/game_flow.gd) functions named above,
+`_initialize_cinder_*_session_persistence`, `_ensure_cinder_{scan,beacon,asteroid}_session`,
+`_reset_cinder_asteroid_session`; [streamed activity binding](../scripts/world/nearby_sector_activity_binding.gd)
+`configure_cinder_mining_capacity_persistence`, scan/beacon/asteroid capture/restore;
+[existing reward authority](../scripts/game/game_flow_reward_authority.gd).
+No code/tests/engines/packages changed or ran for this definition. Four active
+terminal-owner policies, installed/final candidate and ordinary-controls recovery
+remain open. Native/device/human gates and all36 parents/ten phase gates remain open.
 
 ### Settled exterior on-foot recovery contract
 

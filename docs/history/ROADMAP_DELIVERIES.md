@@ -9624,3 +9624,54 @@ Identical GDScript import/compile/privacy inputs retain original successful chec
 Any further failure STOPs for cumulative priority review; no automatic second
 repair. Original45–60min/split-before90 cumulative budget remains (selection17:06UTC,
 first stop17:20UTC). Raw results retained in the task results directory.
+
+### Activity recovery definition — source map on470aa24c4
+
+RECOVERY-ACTIVITY-DEFINE maps the existing twelve durable owners to last accepted
+progress/debt and separate safe-home player/craft recovery. Ordinary Resume and
+Begin Shift consume the current fenced notice; supported location/control claims
+remain the existing on-foot/pilot/cabin/rest/crew contracts, with planetary visits
+separate. Streamed Scan/Beacon/Mining/Asteroid restoration does not imply an
+already loaded world or original flight/actor pose. Terminal-only Cinder supply,
+Station Defense, Heavy Breach and Torpedo Run active cold policies remain explicitly
+unresolved; original scope is not waived. Torpedo retained-network timer/distance
+recovery is not cold disk reconstruction.
+
+Two actual runtime gaps are now finite: ASTEROID-START-FRESH must retire the
+independent saved active route before later streaming while preserving debt/
+paid history and failed-write choice; CINDER-SUPPLY-DEBT must checkpoint genuine
+earned transfer identity/item/quantity/generation before refused payment, validate
+and atomically acknowledge it through existing authority, then cold-reload paid
+without duplicate reward. Neither capability is implemented by this definition.
+[Exact contract and acceptance](../ROADMAP_BACKLOG.md#activity-recovery--progress-player-state-and-uncovered-capabilities).
+One medium read-only source mapper and root shared-contract inspection; independent
+review GO, no code/test/engine/package work. Existing accepted source/package
+checks and parked failures unchanged. In particular Breach140.961s remains PARKED;
+no fourth replay/renamed probe. Hauler stock choices untouched. Four active-policy
+contracts and native/device/human/final gates stay open; all36 parents/ten phase
+gates OPEN. No temporary checkout/profile/helper created by this task.
+
+#### Retained activity recovery definition card
+
+### Selected planning task — RECOVERY-ACTIVITY-DEFINE
+
+- **Outcome/parents:**2/31. Resolve active-activity recovery into finite source-tied
+  durable progress/debt and usable player/craft continuation contracts. Preserve
+  every original promise; terminal-only implementations do not waive active
+  resume requirements. Definition only, no new runtime acceptance claimed.
+- **Ownership:** root owns ROADMAP.md, docs/ROADMAP_BACKLOG.md and delivery history.
+  One medium-effort read-only agent maps only the four terminal-only activities;
+  root checks shared player recovery and remaining session owners. No recursive
+  delegation, code/test/validator/schema edits or engines/packages.
+- **Scope/proof:** reuse the existing twelve-row ACT-WRITES roster rather than
+  duplicate it. Name restored durable state versus ephemeral actors/claims, actual
+  Resume/Begin Shift/Start Fresh behavior, player support/control contract and
+  once-only reward/reset rules. Separate uncovered runtime capabilities, final/
+  installed/ordinary qualifications and owner decisions; cite production seams.
+  Existing Convoy/on-foot/docking/planetary passes retain exact sources; all parked
+  failures and original deadlines remain. No probe/replay selected.
+- **Budget/stop:**20–30min source mapping/docs, stop once ownership/contract and
+  finite acceptance are known. If a real gap is established, name a bounded
+  production assignment; do not implement it implicitly. Commit/push the result.
+  Independent production alternative: next unimplemented original craft requires
+  its existing SPEC/BUILD-SPLIT/owner prerequisites, never an invented ship spec.
