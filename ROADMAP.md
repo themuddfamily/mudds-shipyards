@@ -194,6 +194,11 @@ and run ONE full Python suiteCAP300. Retain accepted unchanged import/compile/
 privacy (actual tested files unchanged). Cumulative priority review after this
 fixture repair result is required before selecting remaining export/native
 stages. No automatic second repair, cap reset or accepted-check replay.
+Repair unit freeze: clean2df8c31a5357075f0f6cadc96429213ae6b99893;
+helper hashes/results/repair-source.json fixed before one
+`helpers/sequence.py repair_python` CAP300. Retain initial STOP as python-stop.json
+before clearing launch latch after exact-pin independent GO. No other execution
+is selected by this fixture repair freeze.
 
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
