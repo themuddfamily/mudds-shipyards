@@ -120,6 +120,50 @@ Next single action: select one remaining LIFE-GANTRY ordinary Freight walking/
 boarding card with exact approach and observer/driver scope. Do not automatically
 repeat Central, expand into a full station tour or reopen parked failures.
 
+### Selected — LIFE-GANTRY ordinary Freight approach and boarding
+
+Parent9; extend the existing executable station-service release capability.
+The bounded source mapper identified the accepted KIT-BOARD physical approach;
+its scripted-input source pass is retained, not an OS-input package pass. Root
+integrates/packages; one medium implementer owns only existing native driver/
+unit test, native observer and startup selector/privacy test in an isolated
+worktree. Reuse the LIFE-TOW mechanics with bounded configuration, not a copied
+pilot/observer or validator family. Sequential implementation avoids shared-file
+overlap. No world/ship/GameFlow/geometry/tuning/cargo changes.
+
+Fresh normal Start Shift, same actual Player/capsule/shape and original
+JovianLightFreighter. Real OS input follows accepted authored goals in order:
+(0,0,13.5)→(-35,0,13.5)→(-35,0,22)→(-48,0,22)→(-48,.38,24)→(-49,.38,26)→
+(-51.5,.38,26)→(-53,.38,27.5)→(-53,.38,33.5)→(-53,.38,40)→(-42,.38,40)→
+(-42,.38,live boarding.z)→live ship boarding marker. No actor placement, direct
+boarding methods, service enable/seek/advance, synthetic input callbacks or
+active-craft substitution. Preserve supported continuous walking/default inputs/
+tuning, every emitted sample checks and ordinary authenticated Interact→BOARDING
+→local physical pilot ownership. Retain KIT-BOARD's15s per goal, within.30m,
+15 settled physics frames at planar speed<.1, vertical error<.8; boarding12s,
+whole driverCAP300/outer360. Deadline failure stops; no extra retries.
+
+Observe SAME FreightApproachGantry/profileGANTRY and actual carriage/tool movers,
+visible/enabled/advancing with finite nondecreasing clock. The local interval
+(-53,.38,27.5)→(-53,.38,33.5)→(-53,.38,40) is separate from the hub approach:
+require actual walk>11m, all interval samples within12m of actual gantry origin,
+strict clock increase and actual changed mover poses. Repeat clock/pose proof
+for90 normal physics frames after actual Jovian pilot ownership, with original
+home freight berth occupied/reserved correctly, engineOFFLINE and unchanged parked
+pose. The seat is about36m from the gantry: claim continued service coexistence,
+not nearby seated placement or rendered readability. No cargo selection/start,
+transfer, reward, departure or full station tour acceptance.
+
+Estimate30–45min implementation; focused full native-driver Python/privacy/
+observer checks, clean paired exports/strict three menu-ready startups/actual
+artifact audit, then ONE actual archived native route. Freeze exact commands,
+source/engine/helper/archive hashes before execution. First unexpected failure
+STOP; one repair requires concrete independent review/freeze, followed by
+cumulative priority review before further work. No cap reset or parked Sandbox
+replay. Relevant existing Central unit coverage protects shared mechanics; no
+unchanged Central full journey is scheduled. Checkpoint only after acceptance;
+CI disabled, hardware/rendered/full-station/final gates stay open.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
