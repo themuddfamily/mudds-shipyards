@@ -1273,6 +1273,11 @@ func _test_failure_expiry_reset_and_authority(game: GameFlow, hud: GameHUD) -> v
 	)
 	var final_reset := game.reset_active_activity()
 	_check(final_reset, "the drained delivery resets")
+	_check(
+		hud.get_activity_selection_report().get("status", "")
+		== "UNAVAILABLE  //  INSUFFICIENT FABRICATION KITS",
+		"the reset cargo board reports insufficient kits instead of READY"
+	)
 	game.phase = GameFlow.Phase.FREE_FLIGHT
 	var empty_start := game.request_activity_start(GameFlow.CARGO_DELIVERY_ACTIVITY_ID)
 	_check(
@@ -1280,6 +1285,11 @@ func _test_failure_expiry_reset_and_authority(game: GameFlow, hud: GameHUD) -> v
 		and empty_start.get("reason", &"") == &"insufficient_source_quantity"
 		and game.get_active_activity_snapshot().get("state_id", &"") == &"idle",
 		"an empty Jovian hold refuses the run at departure instead of failing it on landing"
+	)
+	_check(
+		hud.get_activity_selection_report().get("status", "")
+		== "UNAVAILABLE  //  INSUFFICIENT FABRICATION KITS",
+		"a refused empty-hold departure preserves the board's insufficient-kits status"
 	)
 	_check(final_reset and game.get_active_activity_snapshot().get("state_id") == &"idle",
 		"the actual completed cargo run retains IDLE after its accepted ordinary reset")
@@ -1302,6 +1312,12 @@ func _test_failure_expiry_reset_and_authority(game: GameFlow, hud: GameHUD) -> v
 			and _manifest_quantity(chosen.cargo_source_manifest) == 0
 			and _manifest_quantity(chosen.cargo_destination_manifest) == 6,
 			"ordinary %s HUD adoption preserves depleted cargo, generation and one route owner" % kind)
+		if kind == GameFlow.ACTIVITY_KIND_CARGO_DELIVERY:
+			_check(
+				hud.get_activity_selection_report().get("status", "")
+				== "UNAVAILABLE  //  INSUFFICIENT FABRICATION KITS",
+				"ordinary HUD Cargo reselection retains insufficient-kits status instead of READY"
+			)
 
 
 
