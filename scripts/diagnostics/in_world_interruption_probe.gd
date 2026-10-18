@@ -2,10 +2,14 @@ extends Node
 
 ## Opt-in release probe. It drives only the Main supplied by Boot, using the
 ## same accepted escort setup as the production regression. The arm leg first
-## acquires a real Player seat; cold Resume must reacquire it at the disclosed
-## safe home berth before the escort motion fixture runs. This does not qualify
+## acquires a real Player seat; cold Resume must acquire the selected safe home
+## context before the escort motion fixture runs. Exterior recovery additionally
+## walks and boards through real input after an actual landing/exit commit. This does not qualify
 ## human flight acceptance, original flight-pose restoration or native GPU work.
 const SLOT: StringName = &"cinder_convoy_session"
+const ON_FOOT_CRAFT_ID: StringName = &"bulwark_heavy_gunship"
+const ON_FOOT_BERTH_ID: StringName = &"bulwark_fleet_dock_berth"
+const ON_FOOT_INITIALIZATION := "existing_convoy_motion_fixture_then_home_approach_3m_above_registered_berth_real_landing_and_exterior_exit"
 
 var stage := ""
 var recovery_context := "pilot"
@@ -63,6 +67,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	if store == null or game.get_tree() != get_tree():
 		_fail("the supplied production Main owns its existing store and scene tree")
 		return
+	if recovery_context == "on_foot" and activity != "convoy":
+		_fail("settled exterior interruption supports only the existing convoy boundary")
+		return
 	if recovery_context == "engineer":
 		await _run_engineer(game, store, entry)
 		return
@@ -88,7 +95,7 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	game.set_physics_process(false)
 	if stage == "arm":
 		game.call("_on_settings_save_requested")
-		var craft := (game.get_flyable_ships()[1] if recovery_context == "pilot" else game.get_node("HalyardCrewTransport")) as HeroShip
+		var craft := (game.get_node("BulwarkHeavyGunship") if recovery_context == "on_foot" else game.get_flyable_ships()[1] if recovery_context == "pilot" else game.get_node("HalyardCrewTransport")) as HeroShip
 		if recovery_context == "pilot":
 			game.canopy_motion_time = 0.01
 			game.boarding_motion_time = 0.02
@@ -107,7 +114,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		for _tick in 4:
 			craft.global_position = (game.cinder_convoy_host.get_snapshot().entity_position as Vector3) + GameFlow.CINDER_CONVOY_ESCORT_LANE_OFFSET
 			game.call("_physics_process", 0.25)
-		if recovery_context != "pilot":
+		if recovery_context == "on_foot":
+			await _settle_exterior_context(game, craft)
+		elif recovery_context != "pilot":
 			await _settle_airborne_context(game, craft)
 		var saved := game.save_cinder_convoy_session()
 		var boundary := _stored_session_state(store)
@@ -124,9 +133,20 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		if not _failures.is_empty():
 			get_tree().quit(1)
 			return
+		if recovery_context == "on_foot":
+			_check(_on_foot_context_matches(saved_context, craft)
+				and _is_settled_exterior(game, craft),
+				"the committed exterior preference has exactly four fields and actual supported claim-free owners")
+			if not _failures.is_empty():
+				get_tree().quit(1)
+				return
 		var ready := {"boundary": boundary, "receipts": _convoy_receipts(game),
 			"runtime_observation": _interruption_runtime_observation(game),
 			"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+		if recovery_context == "on_foot":
+			ready["safe_context"] = saved_context
+			ready["exterior_observation"] = _exterior_observation(game, craft)
+			ready["initialization"] = ON_FOOT_INITIALIZATION
 		# No orderly exit or further gameplay/save mutation before the harness kill.
 		get_tree().paused = true
 		print("IN_WORLD_INTERRUPTION_READY: " + JSON.stringify(ready))
@@ -154,6 +174,7 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 	_check(craft_index >= 0, "the durable escort identity resolves to its actual shipped craft")
 	var arrived := false
 	var safe_recovery_observation := {}
+	var exterior_safe_context: Dictionary = store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {})
 	if craft_index >= 0 and _failures.is_empty():
 		var craft := ships[craft_index] as HeroShip
 		var resumed: Dictionary = game.call("_handle_hud_session_recovery_choice", &"normal_start", int(recovery.session_id), int(recovery.startup_generation))
@@ -161,8 +182,15 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 			game.canopy_motion_time = 0.01
 			game.boarding_motion_time = 0.02
 		game.start_shift()
-		var settled := await _wait_for_real_pilot(game, craft) if recovery_context == "pilot" else await _wait_for_awake_cabin(game, craft)
-		if recovery_context != "pilot":
+		var settled := false
+		if recovery_context == "pilot":
+			settled = await _wait_for_real_pilot(game, craft)
+		elif recovery_context == "on_foot":
+			await _settle_frames()
+			settled = _is_settled_exterior(game, craft)
+		else:
+			settled = await _wait_for_awake_cabin(game, craft)
+		if recovery_context not in ["pilot", "on_foot"]:
 			_check(craft.get_ship_id() == GameFlow.HALYARD_SHIP_ID and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1,
 				"cold cabin recovery resolves the registered Halyard at its exact safe home berth")
 		if recovery_context == "crew":
@@ -171,16 +199,34 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 				and (craft as HalyardCrewTransport).get_crew_role_authority() == null
 				and not game.player.has_meta(HalyardCrewTransport.HALYARD_CREW_ROLE_OCCUPANT_META),
 				"cold crew Resume acquires awake cabin ownership without replaying the old passenger ledger or occupant tag")
-		safe_recovery_observation = _interruption_runtime_observation(game)
+		safe_recovery_observation = _exterior_observation(game, craft) if recovery_context == "on_foot" else _interruption_runtime_observation(game)
 		var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
 		var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
 		_check(bool(resumed.get("accepted", false)) and settled
-			and area.get_reservation_token() == game.player and berth.get_occupant() == craft
+			and (area.get_reservation_token() == null if recovery_context == "on_foot" else area.get_reservation_token() == game.player) and berth.get_occupant() == craft
 			and berth.get_reservation_owner() == craft
 			and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state
 			and _restored_threat_boundary_matches(game, boundary),
 			"ordinary cold Resume reacquires the selected real safe home context and preserves the exact convoy before fixture positioning")
-		if recovery_context != "pilot":
+		if recovery_context == "on_foot":
+			_check(_on_foot_context_matches(store.get_snapshot().get(GameFlow.SOLO_SAFE_RECOVERY_SLOT, {}), craft)
+				and game.active_ship != craft and game.active_ship == game.ship,
+				"cold exterior Resume retains the saved Bulwark preference without changing Main's default active craft")
+			var walk := await _walk_exterior_home(game, craft)
+			safe_recovery_observation["walking"] = walk
+			_check(bool(walk.supported) and float(walk.distance_m) > 0.1
+				and _is_settled_exterior(game, craft)
+				and _canonical(game.cinder_convoy_host.capture_persistence_state()) == boundary.host_state
+				and _restored_threat_boundary_matches(game, boundary)
+				and _convoy_receipts(game) == before_receipts,
+				"normal on-foot input walks the actual supported home deck without taking claims or changing the convoy and receipt")
+			_check(game.boarding_candidate == craft, "ordinary exterior discovery selects the saved Bulwark before Interact")
+			if _failures.is_empty():
+				await _press_real_interaction()
+				_check(await _wait_for_real_pilot(game, craft, 300)
+					and area.get_reservation_token() == game.player,
+					"normal exterior Interact boards the saved Bulwark through its real seat and hatch owner")
+		elif recovery_context != "pilot":
 			var start := game.player.global_position
 			Input.action_press(&"move_forward")
 			await _settle_frames(24)
@@ -198,6 +244,9 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 			_check(await _wait_for_real_pilot(game, craft, 300) and not game.player.is_cabin_containment_active()
 				and not craft.get_moving_interior_component().is_occupant_registered(game.player),
 				"ordinary cabin interaction retakes a real pilot seat and releases passenger owners")
+		if not _failures.is_empty():
+			get_tree().quit(1)
+			return
 		Input.action_press(&"move_forward")
 		await get_tree().physics_frame
 		await get_tree().physics_frame
@@ -229,6 +278,10 @@ func run_with_main(game: GameFlow, entry: String) -> void:
 		"safe_recovery_observation": safe_recovery_observation,
 		"continuation_method": "real_safe_home_berth_boarding_then_escort_motion_fixture" if recovery_context == "pilot" else "real_awake_home_cabin_walk_then_pilot_retake_new_convoy_escort_motion_fixture",
 		"entry": entry, "loaded_main_instance_id": main_id, "recovery_context": recovery_context}
+	if recovery_context == "on_foot":
+		outcome["safe_context"] = exterior_safe_context
+		outcome["initialization"] = ON_FOOT_INITIALIZATION
+		outcome["continuation_method"] = "ordinary_cold_exterior_home_walk_and_interact_boarding_then_distinct_convoy_motion_fixture"
 	_check(is_instance_valid(game) and game.get_instance_id() == main_id
 		and game.get_tree() == get_tree(), "continuation retains the supplied Main and its authority")
 	if _failures.is_empty():
@@ -1094,6 +1147,103 @@ func _settle_frames(count: int = 12) -> void:
 	for _frame in count:
 		await get_tree().physics_frame
 		await get_tree().process_frame
+
+
+func _on_foot_context_matches(context: Dictionary, craft: HeroShip) -> bool:
+	return context.size() == 4 and context.get("location") == "mudds_home_berth" \
+		and context.get("mode") == "on_foot" and context.get("craft_id") == String(ON_FOOT_CRAFT_ID) \
+		and context.get("berth_id") == String(ON_FOOT_BERTH_ID) \
+		and craft.get_ship_id() == ON_FOOT_CRAFT_ID and craft.get_home_berth_id() == ON_FOOT_BERTH_ID
+
+
+func _is_settled_exterior(game: GameFlow, craft: HeroShip) -> bool:
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	return game.phase in [GameFlow.Phase.APPROACH_SHIP, GameFlow.Phase.COMPLETE] \
+		and not bool(game.get("_transition_busy")) and not bool(game.get("_piloting")) \
+		and not craft.is_piloted() and not game.player.is_seated() and not game.player.is_sleeping() \
+		and game.player.is_on_floor() and game.player.is_control_enabled() \
+		and not game.player.is_cabin_containment_active() \
+		and not bool(game.get_solo_crew_seat_status().get("seated", false)) \
+		and (game.get_solo_crew_seat_status().get("assignment", {}) as Dictionary).is_empty() \
+		and game.player.global_position.distance_to(craft.get_exit_transform().origin) < 1.5 \
+		and not craft.get_moving_interior_component().is_occupant_registered(game.player) \
+		and area.get_reservation_token() == null and berth.get_occupant() == craft \
+		and berth.get_reservation_owner() == craft \
+		and craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1
+
+
+func _exterior_observation(game: GameFlow, craft: HeroShip) -> Dictionary:
+	var observation := _interruption_runtime_observation(game)
+	var area := craft.get_node("ShipBoardingArea") as ShipBoardingArea
+	var berth := game.world.get_berth_node(craft.get_home_berth_id()) as ShipBerth
+	observation["preferred_craft_id"] = String(craft.get_ship_id())
+	observation["preferred_berth_id"] = String(craft.get_home_berth_id())
+	observation["preferred_craft_piloted"] = craft.is_piloted()
+	observation["preferred_craft_at_home"] = craft.global_position.distance_to(game.world.get_berth_transform(craft.get_home_berth_id()).origin) < 0.1
+	observation["home_berth_occupied_by_craft"] = berth.get_occupant() == craft and berth.get_reservation_owner() == craft
+	observation["hatch_reserved"] = area.get_reservation_token() != null
+	observation["moving_interior_occupant"] = craft.get_moving_interior_component().is_occupant_registered(game.player)
+	observation["solo_crew_seated"] = bool(game.get_solo_crew_seat_status().get("seated", false))
+	observation["solo_crew_assignment_empty"] = (game.get_solo_crew_seat_status().get("assignment", {}) as Dictionary).is_empty()
+	observation["distance_to_authored_exit_m"] = game.player.global_position.distance_to(craft.get_exit_transform().origin)
+	return observation
+
+
+func _settle_exterior_context(game: GameFlow, craft: HeroShip) -> void:
+	# The existing escort fixture positions flight. Disclose a final approach
+	# placement; only real thrust, landing, berth lease and pilot exit may own
+	# support/claims. No Player pose or saved recovery payload is injected.
+	game.set_physics_process(true)
+	Input.action_press(&"hover")
+	Input.action_press(&"move_forward")
+	await _settle_frames(6)
+	Input.action_release(&"move_forward")
+	Input.action_release(&"hover")
+	_check(not bool(craft.get_telemetry().get("landed", true)),
+		"ordinary flight demand clears the actual hull's landed state before return staging")
+	craft.global_transform = game.world.get_berth_transform(craft.get_home_berth_id()).translated_local(Vector3(0.0, 3.0, 0.0))
+	craft.velocity = Vector3.ZERO
+	game.call("_try_request_landing")
+	for _frame in 300:
+		if bool(craft.get_telemetry().get("landed", false)) and game.phase == GameFlow.Phase.SHUT_DOWN:
+			break
+		await _settle_frames(1)
+	_check(bool(craft.get_telemetry().get("landed", false)) and game.phase == GameFlow.Phase.SHUT_DOWN,
+		"the normal landing owner docks the staged approach at the registered home berth")
+	await _settle_frames(int(ceil(HeroShip.AUTOMATIC_ENGINE_IDLE_SHUTDOWN_SECONDS * Engine.physics_ticks_per_second)) + 3)
+	game.call("_try_exit_ship")
+	for _frame in 300:
+		if not bool(game.get("_transition_busy")) and not game.player.is_seated():
+			break
+		await _settle_frames(1)
+	await _settle_frames()
+	game.call("_capture_solo_safe_recovery_context")
+	_check(_is_settled_exterior(game, craft) and game.get_active_activity_snapshot().state_id == &"failed",
+		"real home landing and exterior pilot exit leave a supported claim-free player and failed second convoy")
+	game.set_physics_process(false)
+
+
+func _walk_exterior_home(game: GameFlow, craft: HeroShip) -> Dictionary:
+	var start := game.player.global_position
+	# The Bulwark's authored exit is a narrow aft-port deck corner. Walk inboard
+	# along ship +X using camera-relative action strengths, without moving the
+	# actor or camera by fixture. Keep clear of the aft edge's real void.
+	var forward: Vector3 = (-game.player.get_camera().global_basis.z).slide(Vector3.UP).normalized()
+	var right: Vector3 = forward.cross(Vector3.UP).normalized()
+	var direction := craft.global_basis.x.normalized()
+	var forward_strength := direction.dot(forward)
+	var right_strength := direction.dot(right)
+	Input.action_press(&"move_forward", maxf(forward_strength, 0.0))
+	Input.action_press(&"move_back", maxf(-forward_strength, 0.0))
+	Input.action_press(&"move_right", maxf(right_strength, 0.0))
+	Input.action_press(&"move_left", maxf(-right_strength, 0.0))
+	await _settle_frames(8)
+	for action: StringName in [&"move_forward", &"move_back", &"move_right", &"move_left"]:
+		Input.action_release(action)
+	await _settle_frames(4)
+	return {"distance_m": game.player.global_position.distance_to(start),
+		"supported": game.player.is_on_floor(), "method": "ordinary_camera_relative_inboard_walking_input"}
 
 
 func _settle_airborne_context(game: GameFlow, craft: HeroShip) -> void:
