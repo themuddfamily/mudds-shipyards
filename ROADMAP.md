@@ -8,13 +8,14 @@ open.** This file contains the next bounded production tasks and their dependenc
 [Completed deliveries](docs/history/ROADMAP_DELIVERIES.md) retain their recorded
 source, checks, failures and limitations. Moving them does not close requirements.
 
-Latest Windows checkpoint: **a39e93a**, with [notes](builds/windows/MuddsShipyards-a39e93a-notes.txt).
-Latest Linux package: **a39e93a**, with [notes](builds/linux/MuddsShipyards-a39e93a-linux-notes.txt).
-Server Browser now offers Cancel Connection during pending Manual Join. Actual
-source UI cancellation/reuse passes twice; clean paired exports, three strict
-startups, privacy207 and all1,515 payload-entry bytes pass. Exported packages
-have startup/artifact acceptance, not a repeated live cancellation route.
-Earlier gameplay/installed transaction proofs retain their exact scopes.
+Latest Windows checkpoint: **9be5c83**, with [notes](builds/windows/MuddsShipyards-9be5c83-notes.txt).
+Latest Linux package: **9be5c83**, with [notes](builds/linux/MuddsShipyards-9be5c83-linux-notes.txt).
+Browser sessions stay visible across independent capacity generations; defense
+briefing describes the physical-board controls and conditional recovery. Four
+focused source suites, paired exports, three strict startups, privacy207 and
+all1,515 payload-entry bytes pass. Exported proof covers startup/artifacts, not
+real-host migration or the full physical defense route. Earlier journey and
+installed transaction proofs retain their exact scopes.
 Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
 replace it. Native Windows execution and human review remain owner-excluded
@@ -86,11 +87,11 @@ b41c3cc, and managed installed Guided3/3. See
 [completed deliveries](docs/history/ROADMAP_DELIVERIES.md) for exact proof/limits.
 These do not close their broad parents or the ten phase gates.
 
-**Latest accepted delivery: BROWSER-CANCEL and checkpointa39e93a — DONE.**
-Cancel pending Manual Join from the browser; real source UI cancellation/reuse
-passes twice, with paired startup/artifact acceptance. This is one production
-UI outcome. Fire restart qualification remains parked at its recorded visible-
-row failure after one fixture repair; neither candidate is integrated.
+**Latest accepted deliveries: browser session rows and defense briefing — DONE.**
+Clean source9be5c833a passes all four focused suites and paired checkpoint9be5c83.
+This delivers two bounded UI outcomes; no broad parent or phase gate closes.
+Fire restart qualification stays parked after its recorded failure and one
+fixture repair, with both candidates unintegrated.
 
 **Earlier accepted task: RIME-BENCH-ROUTE and checkpoint — DONE.**
 Source `a8f563e39` adds select-only walking through every authored Rime survey/
@@ -112,7 +113,7 @@ No unchanged Ember rerun or further HULK diagnosis/repair is selected.
 Retired-directory cleanup removed 16 clean checkouts; three containing uncommitted
 work remain intact, with source refs and unique raw results preserved.
 
-## Batch closed — one production UI delivery
+## Earlier browser / Fire batch
 
 BROWSER-CANCEL and paired checkpointa39e93a are DONE. RACE-PAGE-RESET static
 diagnosis found an intentional owner separation, with no justified repair.
@@ -127,142 +128,92 @@ raw are retained. Fire source38e475960 and its failed parentb5b3c5a76 are preser
 by remote hold `hold/fire-restart-viewport-20261018`. Earlier Rime/HULK/startup
 failures remain parked; renaming a card does not reset the one-repair limit.
 
-## Next queue — two production fixes and a checkpoint
+## Current batch closed — two UI changes, checkpoint9be5c83
 
-PLAN-VISIBLE-DELIVERIES is DONE on baseline `1d1795625`: two independent runtime
-changes are grounded in source; the requested third station implementation has
-no evidenced defect and remains gated as described below. No engine/test/capture
-runs or scratch worktrees were created during planning. This is planning progress,
-not delivered gameplay. Root owns integration and final decisions.
+Browser session presentation and defense briefing are DONE on clean source
+`9be5c833a8608900e7af71b344be948dd5d23722`, integrated in mainb4fbeeba6.
+Four focused source suites and all paired startup/artifact checks pass.
+Independent final artifact audit is GO; both owned clean source checkouts are
+removed. Public artifacts and unique raw remain under repository builds/ and
+`/srv/mudds-work/visible-fixes-20261018/results/`. These are two scoped UI
+outcomes, not whole networking/tutorial/phase completion.
 
-| Task | Status / owner | Player-visible finish | Work budget; separate checks |
+## Next queue — packaged Ember abandonment acceptance
+
+The remaining WORLD-ABANDON requirement includes a packaged physical journey.
+The earlier source run on e85157b4d completed exact31 in about41m15s under the
+original7200s cap, using MemoryFilesystem. That does not establish package or
+durable-save acceptance. The existing unchanged driver is
+`tests/ember_transit_movement_soak.gd`, SHA256
+`4728e8875706b1dac77b70e0a4212007a08fda11bb114e83a4299efb80ab9f2d`.
+
+| Task | Status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| BROWSER-SESSION-GENERATIONS | DONE on9be5c833a / root | A valid session remains listed when another host has a higher capacity generation. | 60–90min; focused checks≤10min, original300s each. |
-| DEFENSE-BRIEFING | DONE on9be5c833a / root | Defense briefing names the actual physical-board start/reset and protected-assets objective. | 30–45min; focused checks≤10min, original300s each. |
-| VISIBLE-CHECKPOINT | IN PROGRESS / root | Paired playable packages contain accepted changes with actual startup/artifact results. | 30–45min setup/closure; existing caps below. |
+| EMBER-PACKAGE-PREFLIGHT | READY / root | Native shipped Linux ELF demonstrably loads the external original driver against packed resources, or records the exact unsupported boundary. | 20–30min setup; one owned120s preflight. |
+| EMBER-PACKAGE-ABANDON | GATED on preflight / root | Exact shipped Linux package completes unchanged canonical outbound/abandon/reboard/home/walk. | 30–45min setup; original7200s route cap, prior source run41m15s. |
 
-### BROWSER-SESSION-GENERATIONS — retain independently valid sessions
+### EMBER-PACKAGE-PREFLIGHT — establish the actual package consumer
 
-Accepted browser source74ddbea911 and defense source79996ba87d are combined
-in clean frozen `9be5c833a8608900e7af71b344be948dd5d23722`. One cold import and
-four focused suites pass: browser presenter83, browser HUD40, tutorial319,
-board presentation16; each exits0 with exactly one expected terminal marker,
-no diagnostics and unchanged source/index/cache/engine. All13 observed owned
-process identities close. Independent code/helper review GO. Raw commands,
-results and snapshots: `/srv/mudds-work/visible-fixes-20261018/results/focused/`.
-Browser proof uses real directory inputs and presenter/HUD, not running host
-migration peers. VISIBLE-CHECKPOINT now exports this exact accepted source.
+- **Parent/result:** [WORLD-ABANDON / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
+  Establish an executable native package qualification command before starting
+  the long journey. This is preflight, not gameplay or route acceptance.
+- **Owner/dependency:** root, with one bounded mechanical helper if useful.
+  Exact public `builds/linux/MuddsShipyards-9be5c83.x86_64` and matching archive
+  must retain the published SHA256. Read the original harness from source9be5c83
+  and verify the hash above. No production change or new source worktree needed.
+- **Boundary:** one fresh private directory containing only the unchanged raw
+  driver and a tiny bootstrap that compiles/loads it without instantiating the
+  journey. No loose production scripts/scenes/assets/project/cache may mask a
+  missing export. Execute the actual shipped ELF; record actual executable and
+  artifact hash, argv and private XDG/user-data resolution. Do not use an editor
+  engine with --main-pack as a substitute and call it native-package acceptance.
+- **Proof:** bootstrap emits exactly one EMBER_PACKAGE_DRIVER_READY only after
+  executing and loading the exact original driver against packed dependencies;
+  actual child exits0, no diagnostics, all owned children close and package bytes
+  stay unchanged. Include --startup-check so an ignored external --script can
+  exit at its ordinary menu: STARTUP_MENU_READY_OK alone is explicitly not a
+  preflight pass. Export templates can ignore script overrides; observe rather
+  than assume support. No route actors should be instantiated in this preflight.
+- **Budget/stop:**20–30min setup; write exact command/expected marker before one
+ 120s supervised attempt. Every engine invocation headless/Dummy/private XDG,
+  independent PID/start-checked abort/reap. Stop on the first unsupported/missing
+  boundary and retain raw; no automatic alternate consumer, script injection,
+  export modification, cap change or long-run launch. Record a separate decision
+  before any repair. A failed task plus one repair requires priority review.
+- **Next/close:** inspect native launcher/driver argument compatibility, prepare
+  the isolated bootstrap and run once. Commit/push actual result/command in the
+  existing docs, clean disposable owned scratch and preserve unique failures.
+  No new build for preflight-only work. Ungate the journey only on actual proof.
 
-- **Parent/result:** [NET-BROWSER](docs/ROADMAP_BACKLOG.md#multiplayer). Two
-  independently valid directory rows must both be listed when their hosts have
-  different capacity generations; updating one host must not hide the other.
-- **Evidenced gap:** `scripts/ui/server_browser_presenter.gd::present_result`
-  computes one global `_latest_capacity_generation` across every row, then drops
-  rows below that maximum. Existing `tests/ui_server_browser_presenter_test.gd`
-  even expects generation4 session `new` to hide distinct generation3 session
-  `stale`. But `network_server_browser.gd::_validate_entry` retains capacity
-  generation per row, and `network_enet_session_adapter.gd::_decorate_hosted_directory`
-  sets it from that hosted session's migration generation. These are not a shared
-  clock across unrelated hosts. LAN entries independently begin at generation1.
-  This is a source-grounded suppression bug; no runtime reproduction ran in planning.
-- **Owner/boundary:** one implementer owns only the presenter and
-  `tests/ui_server_browser_presenter_test.gd`, with a minimal row-visibility
-  regression in `tests/server_browser_hud_integration_test.gd`. Real directory
-  owner is a fixture seam, not a rewrite target. Leave transport, migration,
-  browser cancel behavior, protocol/schema versions and validators unchanged.
-  No dependency beyond the clean baseline; disjoint from DEFENSE-BRIEFING.
-- **Proof:** use the existing real directory/presenter path with two valid
-  distinct host/session entries at capacity generations4 and1; both rows and
-  their exact occupancy appear in presentation/HUD. Advance hostA while hostB
-  remains1: both remain. An older capacity update for the *same* session must
-  still be ignored, without hiding another valid session. Existing stale
-  request/source-directory/tick fencing and close-view reset checks remain.
-  Close/reopen the view and accept fresh generation1 sessions; any per-session
-  retained state must be bounded to supported rows and have explicit close/expiry
-  behavior. Do not replace directory freshness with capacity counters.
-- **Budget/stop:**60–90min implementation; two focused suites≤300s each. Cold
-  import/setup separately≤600s if needed. Run headless/Dummy in private profiles
-  via existing `suite_process.py` and assess existing suite sentinels/diagnostics.
-  Record exact frozen commit and commands before running. Stop first failure;
-  any bounded repair is a separate card. Failure plus one repair triggers priority
-  review before further diagnosis/run; no larger networking investigation.
-- **Next/close:** add the two-host regression, replace the global comparison
-  with identity-scoped handling preserving actual freshness, run focused checks,
-  commit/push and hand accepted source to VISIBLE-CHECKPOINT. Clean only owned
-  disposable checkout after publication, retaining unique failures. This qualifies
-  the selected listing behavior, not real-host migration or full multiplayer.
+### EMBER-PACKAGE-ABANDON — one unchanged physical journey
 
-### DEFENSE-BRIEFING — describe the physical-board controls
+- **Parent/result:** [WORLD-ABANDON](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys),
+  Ember only. Qualify the actual native Linux package for canonical outbound,
+  physical landing/exit, abandon, ordinary walking/reboard/ascent, return,
+  occupied home berth, unload/disembark and supported home walking.
+- **Owner/dependency:** root; GATED until preflight proves the exact consumer.
+  Same frozen public9be5c83 binary/archive and unchanged driver hash. One distinct
+  private journey process/profile; no loose production fallback or user saves.
+- **Proof:** existing KETH_EMBER_PHYSICAL_RETURN=1, headless/Dummy/fixed-fps60;
+  no completed-return or local-arrival diagnostic mode, no --startup-check in the
+  journey. Preserve every original tick/landing/walk/continuity limit, fixture
+  initial placement and canopy/boarding timings. Require actual exit0 and exactly
+  one terminal EMBER_TRANSIT_MOVEMENT_TEST_OK with exact31, zero diagnostics,
+  frozen package/driver and full process/socket closure. No extra staging,
+  pose/velocity/lease rescue, shortened route or relaxed deadline.
+- **Budget/stop:**30–45min setup/closure; the original route cap is7200s and
+  previous source result took2474.7s. Record the exact command/environment and
+  milestone receipts before launch; report only observed stages while it runs.
+  Use existing supervisor/independent abort. First failure ends the task; preserve
+  exact source/binary/stage, schedule any repair separately and apply the same
+  one-repair priority-review rule. Do not silently extend or restart the route.
+- **Close/limits:** record actual native package result and exact scopes, commit/
+  push and remove owned disposable checkout/scratch. This driver uses
+  MemoryFilesystem: durable disk rewards/recovery, completed survey, reuse,
+  shared crew, hardware/GPU/audio/Windows/human/full-release gates remain open.
+  A passing preflight alone cannot close this journey or its broad parent.
 
-Accepted source79996ba87d is integrated through frozen9be5c833a above.
-Defense-specific semantic, keyboard/controller/accessibility/remap and real HUD
-composition checks pass in tutorial319; existing board presentation16 also passes.
-Physical start-to-briefing and full combat qualification remain separate.
-
-- **Parent/result:** [CONTROL-FIX](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls),
-  control/tutorial tuning. Station-defense instructions must explain the actual
-  on-foot board admission, combat-craft/protected-assets objective, and returning
-  on foot to that board to Reset/retry when required by its current state.
-- **Evidenced gap:** `scripts/ui/activity_tutorial_presenter.gd` defense copy
-  says stay in a perimeter ring and fall back to the ring. GameFlow
-  `_start_physical_station_defense_board` / `_reset_physical_station_defense_board`
-  gate both actions on foot and within the real board's range. The existing
-  `nearby_sector_activity_presenter.gd` already says protect station assets and
-  Reset at the defense board; the production
-  objective protects real station assets. Ring entry is not a start/reset or
-  resume-authority mechanism; preserve any existing resumable/lull semantics.
-- **Owner/boundary:** one implementer owns only
-  `scripts/ui/activity_tutorial_presenter.gd` and
-  `tests/activity_tutorial_presenter_test.gd`. No HUD/GameFlow/combat/persistence
-  changes, no new recovery/resume UI and no edits to other briefings. Dependency:
-  clean baseline only; can proceed alongside the browser presenter task.
-- **Proof:** extend existing semantic briefing checks for defense keyboard,
-  controller and accessible copy, resolved Interact/Fire prompts, truthful next
-  action and board Reset/retry. Use existing real HUD composition coverage in
-  the tutorial suite, and retain `station_defense_activity_board_readability_test`
-  terminal/recovery presentation and direct-interaction behavior. The player
-  inspection recipe is on-foot board arrival → nearby-page Start within range →
-  first briefing naming the actual start/next action. Automated acceptance for
-  this copy-only task is the real HUD composition for defense/device variants,
-  plus existing board presentation checks. The current tutorial accepted-start
-  loop excludes defense; do not claim automated physical start-to-briefing or
-  full combat qualification. Guidance must name board Reset/retry when required,
-  without claiming ring entry resumes combat or reset is always mandatory.
-- **Budget/stop:**30–45min implementation; two existing suites≤300s each, import
-  setup separately≤600s. Use headless/private display/Dummy and original limits;
-  write the exact focused commands before running. Do not build a large new
-  admission/flight fixture for the copy change; physical route qualification
-  remains a separate backlog instance. Stop first failure;
-  one separately recorded repair then priority review, no automatic reruns.
-- **Next/close:** add defense-specific semantic assertions, correct only authored
-  copy, verify, commit/push and package via VISIBLE-CHECKPOINT. Remove the owned
-  clean checkout after integration/publication; preserve unique failed raw. Native
-  device/audio/human review and full combat/route gates stay open.
-
-### VISIBLE-CHECKPOINT — package accepted runtime changes
-
-- **Parent/result:** [PACKAGE-WIN / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#recovery-packages-captures-and-release).
-  Root exports paired playable artifacts from the exact clean integrated source.
-  GATED on at least one accepted production card and its focused checks; failure
-  of the independent other card does not block publishing an accepted change.
-- **Boundary/proof:** existing safe export scripts, Windows EXE/ZIP/notes in
-  repository `builds/windows/`, matching Linux ELF/archive/notes/export result in
-  `builds/linux/`. Require actual exit0+STARTUP_MENU_READY_OK for direct/archive
-  Linux and Windows-payload startup; existing privacy, strict PCK entry-byte
-  parity, stock PE, exact tar membership/bytes/modes and exact EXE/notes ZIP CRC.
-  Preserve factual source-only UI proof versus exported startup/artifact scope.
-- **Budget/stop:**30–45min setup/closure; import≤600s if needed, exports≤930s each,
-  startups≤330s each, privacy≤300s. Reuse a verified unchanged import/cache rather
-  than repeating it. Headless/Dummy, owned abort/reap and no active desktop.
-  Stop first required failure, retain accepted checkpointa39e93a and record repair
-  separately. No CI, Downloads, native Windows or new qualification claims.
-- **Next/close:** after focused acceptance integrate disjoint changes, export,
-  publish verified artifacts with player-visible notes and actual limits,
-  independently review artifact identity/scope, update latest build, commit/push
-  and remove owned clean scratch. Native hardware/device/audio/human, matrix,
-  signing/endurance/release gates remain open.
-
-### Third implementation candidate — station finding still missing
+## Station finding still missing — DEFINE/GATED
 
 STATION-FINDING[Central operational view] is DEFINE/GATED, not a READY repair.
 Root needs one source-tied current image or ordinary-action reproduction showing

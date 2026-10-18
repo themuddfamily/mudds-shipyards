@@ -4,7 +4,30 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `a39e93a` — 2026-10-18
+## Latest development checkpoint: `9be5c83` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-9be5c83.x86_64),
+[archive](../builds/linux/MuddsShipyards-9be5c83-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-9be5c83-linux-notes.txt) come from clean
+source `9be5c833a8608900e7af71b344be948dd5d23722`. Browser capacity presentation
+is now per session, so one host's generation does not hide another valid row.
+Defense briefing names physical-board Start/conditional Reset, combat craft,
+protected assets and existing offered recovery/lulls.
+
+Cold import and focused presenter83/HUD40/tutorial319/board16 checks pass with
+exact terminal markers and no diagnostics. Fresh paired exports, strict direct/
+archive Linux and Windows-payload startups, privacy207, all1515 exact payload
+entry bytes, stock PE, Linux archive and exact EXE/notes ZIP checks pass. All13
+focused and40 checkpoint observed process identities close. Raw and artifact
+identities remain under `/srv/mudds-work/visible-fixes-20261018/results/`.
+
+Browser proof uses real directory inputs/presenter/HUD, not running migration
+peers. Tutorial proof is real HUD/device composition and board presentation,
+not physical start-to-briefing or full combat. Native Windows/hardware/device/
+audio/human/full-matrix/release gates remain NOT_RUN/open. Earlier journey and
+installed transaction proofs do not automatically transfer to these binary bytes.
+
+## Earlier development checkpoint: `a39e93a` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-a39e93a.x86_64),
 [archive](../builds/linux/MuddsShipyards-a39e93a-linux-x86_64.tar.gz) and

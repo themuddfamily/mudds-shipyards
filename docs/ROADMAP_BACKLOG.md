@@ -47,8 +47,10 @@ working queue delivered BROWSER-CANCEL and paired checkpointa39e93a, closed
 RACE-PAGE-RESET static diagnosis without a repair. FIRE-RESTART and its one
 viewport fixture repair both fail before capture; candidates withheld, raw and
 remote hold retained, clean checkout removed. Required priority review selected
-PLAN-VISIBLE-DELIVERIES, now DONE: source-grounded browser per-session generation
-handling and defense briefing corrections are READY, with a gated checkpoint.
+PLAN-VISIBLE-DELIVERIES, now DONE: browser per-session generation handling and
+defense briefing corrections are DONE on9be5c833a, with paired checkpoint9be5c83.
+Next is native packaged Ember driver preflight, then its gated unchanged full
+abandonment journey; source proof is not transferred to packages automatically.
 A third station implementation has no evidenced finding and remains DEFINE/
 GATED; no speculative fix is scheduled. No further Fire probe/repair is selected. See
 ROADMAP.md for exact contracts. No further Rime
