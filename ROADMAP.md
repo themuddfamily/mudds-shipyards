@@ -42,16 +42,18 @@ Earlier host-power and four service runtime passes retain their recorded scopes.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-PLAYBACK | DEFINE; existing MIX-NAVIGATOR semantic-only boundary | Trace actual accepted/rejected navigator ping results and recipient/source lifetimes to the current playback owner. End with one concrete missing cue path and bounded implementation card, or exact missing fact. Verify alternate generic playback before declaring absence; source-only, 15–20 min, no engine/audible run or automatic reuse of crew logic. |
+| AUDIO-NAVIGATOR-HOST | READY; source definition complete on `d1f297f19` | Give actual host bridge accepted/rejected/cleared outcomes distinct existing sound requests, retain captions, and allow consecutive distinct accepted receipts without replay. [Exact files, proof and stop](docs/COMPLETION_SCOPE.md#navigator-playback--bounded-delivery-contracts). 45–60 min implementation/review, 10–20 min focused checks, 10–15 min paired checkpoint. Solo and remote recipient integration remain separate unfinished outcomes. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 AUDIO-MIX-DEFINE’s [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
 remains complete as a definition; all 28 listening cases remain NOT_RUN. Exact
 package/ordinary route, actual output device/backend/configuration and explicit
 audible authorization are still required. Repair dispatch under Dummy does not
-close that gate. The next single action is the finite navigator source definition
-above. Hauler’s pending stock/custody choice remains unchanged; do not repeat the
-question or invent stock. This queue is not a project estimate.
+close that gate. The next single action is AUDIO-NAVIGATOR-HOST above. The
+source definition found missing playback, redundant tuple deduplication, and a
+malformed-rejection input seam; it also identified the separate solo bypass and
+remote recipient boundary. Its result is a task definition, not delivered audio.
+Hauler’s pending stock/custody choice remains unchanged; do not repeat the question or invent stock. This queue is not a project estimate.
 
 ## Turning the remaining scope into executable work
 

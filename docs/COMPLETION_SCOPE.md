@@ -1099,6 +1099,62 @@ These are Dummy sound-request/resource/bus/lifecycle checks, not listening or
 ordinary physical-seat qualification. All28 real-output selectors remain NOT_RUN.
 Other crew/navigator/payload playback and original native/mix scope remain open.
 
+
+## Navigator playback — bounded delivery contracts
+
+**AUDIO-NAVIGATOR-PLAYBACK source definition, `d1f297f19`: complete as a
+source review only.** No engine, tests, playback, exports or scratch created.
+The ordinary server command reaches `NetworkHalyardPassengerBinding` and either
+`NetworkShipAuthorityComposition.submit_cinder_navigator_ping` or the passenger
+binding's `publish_navigator_ping`. Both emit bridge results consumed by
+`GameFlow._forward_cinder_navigator_presentation`; optional composition binds the
+navigator source to its ship generation. The binding validates receipt identities,
+orders and deduplicates receipts, and retires matching tombstones. Exact detach
+unbinds the source. AudioDirector currently maps only crew repair semantic cues
+to resident playback; navigator cues stop at semantic/caption forwarding. No
+alternate navigator playback was found in the reviewed ship/bridge/composition/
+Director paths.
+
+Two additional facts change the implementation: the router's last-event tuple
+collapses consecutive *distinct* accepted receipts with identical cue/intensity,
+after the binding has already checked receipt identity. Also, the binding currently
+accepts arbitrary dictionaries such as `{}` as rejected results. Genuine bridge
+results carry boolean `accepted`, nonempty `status` and the bridge's existing
+`policy_version`; adding playback must not turn malformed inputs into alerts.
+Do not change the network authority or invent another schema/version.
+
+| Child outcome | Observable result / remaining boundary | Acceptance and stopping point |
+| --- | --- | --- |
+| AUDIO-NAVIGATOR-HOST — READY | On the existing host presentation path, each fresh accepted ping, genuine rejected result and matching active clear selects its distinct existing resident one-shot and keeps the navigator caption. | Actual bridge/GameFlow fixture plus Director request spy under Dummy; consecutive distinct accepted receipts both dispatch; exact replay/stale/malformed/unbound results do not; generation replacement and exact detach preserve existing fences. Stop after focused suites and fresh paired checkpoint; no listening claim. |
+| AUDIO-NAVIGATOR-SOLO — unfinished | Ordinary solo navigator FIRE currently calls `CinderCargoHauler.submit_navigator_ping` and drops its result; it does not traverse the bridge presentation path. | Separate integration card must consume actual solo authority outcomes and clear on ordinary seat/ship lifetime changes without fabricating network receipts. Prove ordinary input-to-request/caption and replay/stand/re-entry behavior with the real ship. Freeze exact files/budget before implementation. Host completion does not close this child. |
+| AUDIO-NAVIGATOR-RECIPIENT — definition still required | Client navigator input sends `navigator_ping` through the loadmaster intent route and reads navigator state from its seat view. Host result forwarding alone does not establish feedback on the initiating client or other supported recipients. | Trace actual receipt/rejection/tombstone transport and recipient ownership before selecting a change. Preserve authority and original supported crew scope; do not broadcast rejected feedback or invent recipient policy. End with a concrete runtime integration card or exact missing policy fact. No host-only pass closes this child. |
+
+**Frozen next implementation: AUDIO-NAVIGATOR-HOST.** Parent MIX-NAVIGATOR /
+original audio scope remains open. One implementer owns
+`scripts/audio/audio_director.gd`, `cinder_navigator_ping_audio_binding.gd`,
+`semantic_audio_cue_router.gd`, existing
+`tests/audio/cinder_navigator_ping_audio_test.gd`, and
+`tests/network/game_flow_cinder_navigator_production_flow_test.gd` (all script
+paths above share `scripts/audio/`). Root integrates, runs checks/exports and
+records results; one independent lifecycle reviewer checks the final diff.
+No overlapping edits, nested delegation, new asset, voice pool, timer, validator,
+transport/schema or generic echo cue. Preserve dedup for other sources; any
+navigator exception must rely on the binding's existing identity fences.
+
+Use the existing private resident playback API, current UI bus and reduced-range
+attenuation. Extend the existing focused tests rather than add a parallel family.
+Before execution freeze the clean source pin and exact guarded commands for
+navigator audio, actual GameFlow navigator production flow, Director, router,
+exact-source unbind and reduced-range regression suites. Every Godot invocation
+uses `--headless --audio-driver Dummy`. Package from the accepted clean commit
+using the existing paired workflow, strict startup sentinel checks and package
+audit; retain native/listening gates as NOT_RUN. Budget: 45–60 min implementation
+and review, 10–20 min focused checks, 10–15 min checkpoint. First unexpected
+failure stops execution; freeze any causal repair before editing/rerunning.
+Failed task plus one repair requires cumulative priority review, with no automatic
+second repair or expansion into solo/recipient changes. This source definition
+has not consumed an engine attempt or accepted any runtime change.
+
 ## Phase-wide acceptance still required
 
 The roster tables name content; the following shared commitments still apply to every required item. Detailed remaining tasks and historical results stay in [ROADMAP](ROADMAP_BACKLOG.md#remaining-tasks-to-complete-the-project).
