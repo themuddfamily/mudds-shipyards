@@ -218,6 +218,12 @@ accepted runtime repairs require separate cards and fresh paired builds.
   against old HUD to demonstrate regression and one against corrected HUD.
   Capture both keys through existing HUD flow, inspect actual piloting help row,
   reset and verify authored hint. No broad remap matrix or physical device claim.
+- **First result/one repair:**36588c929 old HUD fails exactly the two new
+  assertions.4152348a5 corrected compile passes; focused run passes keyboard
+  remaps but fails pad case. Static diagnosis: test bypasses HUD `_input`, the
+  sole device observer, by calling `_unhandled_input` directly. Select ONE5min
+  caller correction routing those two pad events through real `_input`; production
+  fix unchanged. One compile/focused rerun; another failure requires priority review.
 - **Close/stop:** first unexpected failure stops and names owner; no automatic
   broader repair. Accepted runtime needs clean safe paired Windows/Linux exports,
   strict isolated silent startup exit0/exactone STARTUP_MENU_READY_OK and existing

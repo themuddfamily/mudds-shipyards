@@ -6062,3 +6062,15 @@ One old-HUD regression reproduction and one corrected focused run, original300s
 caps/private x11/Dummy; first unexpected failure stops. Accepted runtime requires
 fresh clean paired safe exports/strict silent package startups/actual audits.
 No input authority or persistence format changes; cargo/Halyard remain parked.
+
+
+CAMERA-DISTANCE-PROMPTS baseline36588c929 compiles; old HUD focused run exits1
+with exactly keyboard and asymmetric pad assertions failing, no other errors.
+Corrected4152348a5 compile PASS; focused run FAIL2.822s only pad assertion;
+keyboard remap defect fixed. Stop before help/export. One bounded static
+comparison identifies test-owned event route: device observer is HUD._input;
+direct _unhandled_input capture bypasses it. Supported generic labels/buttons
+are correct and conflict-free. Select ONE5min caller repair using _input for two
+pad capture events; production correction/acceptance unchanged. One compile and
+focused run; any further failure requires cumulative priority review. No export
+until focused acceptance. Original failed candidate/raw/STOP retained.
