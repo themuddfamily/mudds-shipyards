@@ -3295,3 +3295,31 @@ records why another invocation cannot qualify the unchanged shipped artifact.
   MemoryFilesystem: durable disk rewards/recovery, completed survey, reuse,
   shared crew, hardware/GPU/audio/Windows/human/full-release gates remain open.
   A passing preflight alone cannot close this journey or its broad parent.
+
+## VIP route definition — static only
+
+2026-10-18, source `cee707916bed78d34cf6c81d8482547289d1723a`: the bounded
+STATION-VIP-DEFINE source pass identified the authored ordinary spawn/Aft stair/
+upper bypass/VIP threshold and a real reception seat interaction. No engine,
+walking check, gameplay repair or package was produced by this definition.
+Continuous traversal remains NOT_RUN; no station parent or phase gate closes.
+
+Sources: `scenes/world/shipyard_world.tscn` PlayerSpawn;
+`scripts/world/shipyard_world.gd` Aft spine/connector;
+`scripts/world/aft_junction_stack.gd` continuous stair, upper floor and VIPAccess;
+`tests/station_traversal_defect_witness_test.gd` existing Aft bypass;
+`scripts/world/vip_reception_suite.gd` threshold/front floor/starboard plate and
+Armchair03; `scripts/interaction/station_seat.gd` normal seat interaction.
+The suite is explicitly an invented modern interpretation, confidence none;
+this route definition makes no historical adjacency claim.
+
+The existing structural door test invokes the door directly, well tests stage
+local player starts, and the old waypoint helper writes player orientation.
+None proves the required ordinary spawn-to-reception-and-return route. The
+shared contract and two execution steps now live in ROADMAP.md. The smallest
+missing capability is one caller using actual UI/player input and the same
+production capsule throughout; no missing authored connector was identified.
+The source-derived final chair approach is proposed geometry, not a walking pass.
+
+Definition produced no disposable files/worktree. All original parked failures,
+source-specific prior deliveries and external/hardware gates remain unchanged.
