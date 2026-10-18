@@ -8208,3 +8208,117 @@ stop once owner, durable/reward seam and uncovered cases are known. No engine
 runs, new validators, invented activities or unchanged parked route retries.
 Any actual runtime defect requires a separately frozen implementation card;
 definition success alone does not select a qualification chain or require a build.
+
+
+## Breach interruption — failed and parked
+
+Selected parent13/31/32 executable release capability on62d1c5613; original
+candidate `e9c6111b46f98cd1746a110777aec24fe07c798f`, one caller repair
+`3c10a071b0e52c18c1e9f10fb41481a603cabae5`, retained remote branch
+`feat/breach-interruption-20261018`. Neither candidate is merged or accepted.
+Current playable checkpoint remains4ff7a08; no new exports/checkpoint published.
+
+Draft source review first caught extraneous ACTIVE cargo blocking board admission;
+that setup was removed before the first clean candidate/engine run. Both exact
+committed candidates received independent source GO, which did not establish
+runtime acceptance. Source import20.640s, probe compile15.597s, route compile16.251s,
+startup privacy1.171s, existing Heavy Breach board52 assertions25.305s and existing
+production route48 assertions74.759s pass on e9 under original budgets/Dummy.
+
+The original full source transaction fails35.365473745s at the board-arming
+assertion after discovering the real physical board, before saved earned debt.
+The first log cannot distinguish missed/refused/repeated interaction; no input
+or gameplay cause was established. The supervisor kills/reaps the child during
+failure cleanup; this is not an accepted readiness-triggered crash scenario.
+Source/cache guards hold. Root froze one caller repair in mainf7bdf377f before
+further edits/runs: breach-only E timing copied from passing production suite,
+explicit Begin Shift idle frame, and real synchronous cargo start/reset/save
+ending IDLE. This also corrects the proven generation-zero accepted no-op save,
+so the actual unrelated cargo document exists. Shared helper/gameplay unchanged.
+
+Repaired probe compile15.448s passes. Its one full source transaction fails
+35.638238582s at the same board-arm assertion. Retained snapshot: attached=true,
+configured=false, director_instance_id=0, combat_authority_instance_id=0,
+protected_objective empty, last_result.reason=external_owners_unavailable.
+This identifies the observed missing configured-owner boundary, not why Boot
+left it unconfigured or a proven gameplay defect. No further source investigation
+or engine run selected after this second failure.
+
+Original+repair transaction time71.003712327s; independent cumulative review says
+STOP/PARK. Existing finish criteria stay fixed: genuine earned debt, owned live
+readiness kill/reap, distinct normal Resume/real pilot/production exit/board retry,
+one atomic matching receipt/ack and further paid cold restart. All remain
+unqualified. No third attempt, timeout increase, Start Fresh substitute, renamed
+successor or automatic adjacent Torpedo/recovery chain. A future task needs a
+concrete selected causal production change/new fact addressing this boundary,
+not another unchanged probe or review alone.
+
+All9 supervisor owners terminal:7 exit0 and2 exit1 retained; all39 captured
+PID/start identities absent, both inner children reaped, source/index/cache/engine
+stable. Archived6 profile logs and8 app-data files byte-identically. The inner
+supervisor also retained actual failed documents/logs and source/cache manifests.
+Removed owned source worktree/import cache, profiles/helpers; retained unique raw
+`/srv/mudds-work/breach-interruption-20261018/results/` and remote source branch.
+No unrelated worktree or public build removed. Selection-to-closure about17min
+against60–90min implementation/review allowance; failure budget stopped it first.
+All automation headless/Dummy; no native Windows/GPU/device/audio/ordinary combat
+qualification. All36 parent requirements and ten phase gates remain open.
+
+Frozen selected card and root's one-repair authorization follow:
+
+### BREACH-INTERRUPTION — exported real-file terminal recovery
+
+- **Kind/parent:** executable build/release capability,13/31/32; SELECTED for
+  next implementation. Extend the existing release interruption path with one
+  Heavy Breach selector. Torpedo remains a separate required scenario; it is
+  not accepted by shared-code coverage. No new gameplay or active-combat resume.
+- **Owners/files:** one high-effort implementer in an isolated worktree owns
+  scripts/game/startup_loader.gd, scripts/diagnostics/in_world_interruption_probe.gd,
+  tools/release/run_package_probes.sh and tests/startup_cli_privacy_test.gd.
+  One high-effort independent reviewer checks exact source and process/data
+  ownership; root runs checks/integrates/packages. Extend existing helpers;
+  no new validator/schema, duplicate harness or runtime board/authority edits.
+- **Finish:** genuine production board/director completion yields the exact
+  saved Heavy Breach earned debt while the existing delegated real-filesystem
+  reward fault refuses payment. The owned live arm process is actually killed
+  and reaped; its document remains byte-identical. A distinct Boot/Main using
+  the same private profile recovers debt and retries through the production
+  board/reward owner, saving exactly one Heavy Breach receipt/acknowledgement.
+  A further distinct cold process retains paid state without another receipt.
+  Preserve unrelated settings/activity payload, save authority, admission and
+  secret-free diagnostics. Setup/target-damage fixtures must be disclosed;
+  this proves terminal recovery, not ordinary flight/combat/hardware acceptance.
+- **Checks/budget:**60–90min implementation/review, split before90 if necessary.
+  Compile, existing startup privacy and both existing Heavy Breach production
+  suites at original300s caps, plus one real-file source arm/kill/recover/paid
+  replay and the exact archive-extracted packaged transaction at original300s
+  per-process caps. Headless/Dummy/private profiles and complete owned cleanup.
+  First unexpected failure stops for separately selected repair; original plus
+  one repair requires cumulative priority review, no third automatic attempt.
+- **Delivery/alternative:** fresh clean paired checkpoints/three strict startups/
+  actual package audit, concise limits, commit/push and scratch cleanup. No
+  parked route is reopened. Independent alternative is Cinder supply terminal
+  summary real-file qualification, with its existing terminal-only contract;
+  it is not selected. No automatic adjacent Torpedo/recovery chain.
+
+#### One selected caller repair after the first source failure
+
+Candidatee9c6111b4 compiles and passes privacy plus both existing production
+suites, but source transaction fails35.365s at its first board-arming assertion.
+The child is reaped; source/cache unchanged; no terminal debt or exports accepted.
+The log cannot distinguish missed/refused/repeated interaction, so no gameplay
+defect is claimed. Before any further run, root selects exactly one caller repair:
+normalize breach-only input/start sequencing to the already passing production
+route (one idle frame after Begin Shift, E press→physics→release→physics→idle),
+leaving the shared helper and gameplay untouched. Also replace generation-zero
+cargo save (a proven accepted no-op) with synchronous genuine start/reset/save,
+ending idle with an actual unrelated cargo document. Retain richer board result
+in the existing failing assertion; no new diagnostic run or harness.
+
+Same implementer/reviewer and original finish criteria apply. Recompile the
+changed probe and run the full source transaction once at original process caps;
+prior unchanged privacy/board/route passes retain their recorded source. If it
+passes, continue exact-source paired packaging and archive transaction. If it
+fails, cumulative original+repair priority review is mandatory; no automatic
+third attempt, timeout change or renamed successor. Raw original failure stays
+under `/srv/mudds-work/breach-interruption-20261018/results/`.

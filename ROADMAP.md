@@ -83,64 +83,14 @@ checks. Terminal-only behavior is recorded without waiving broader original
 recovery promises. Existing coverage and parked failures remain intact.
 A concrete build/release gap is identified: the exported interruption driver
 cannot select Heavy Breach/Torpedo terminal debt, although source memory-backed
-checks already cover the gameplay owner. No implementation or engine run yet.
+checks already cover the gameplay owner. The candidate below was implemented and
+checked, then withheld after its original and one repaired transaction failed.
 
-### BREACH-INTERRUPTION — exported real-file terminal recovery
-
-- **Kind/parent:** executable build/release capability,13/31/32; SELECTED for
-  next implementation. Extend the existing release interruption path with one
-  Heavy Breach selector. Torpedo remains a separate required scenario; it is
-  not accepted by shared-code coverage. No new gameplay or active-combat resume.
-- **Owners/files:** one high-effort implementer in an isolated worktree owns
-  scripts/game/startup_loader.gd, scripts/diagnostics/in_world_interruption_probe.gd,
-  tools/release/run_package_probes.sh and tests/startup_cli_privacy_test.gd.
-  One high-effort independent reviewer checks exact source and process/data
-  ownership; root runs checks/integrates/packages. Extend existing helpers;
-  no new validator/schema, duplicate harness or runtime board/authority edits.
-- **Finish:** genuine production board/director completion yields the exact
-  saved Heavy Breach earned debt while the existing delegated real-filesystem
-  reward fault refuses payment. The owned live arm process is actually killed
-  and reaped; its document remains byte-identical. A distinct Boot/Main using
-  the same private profile recovers debt and retries through the production
-  board/reward owner, saving exactly one Heavy Breach receipt/acknowledgement.
-  A further distinct cold process retains paid state without another receipt.
-  Preserve unrelated settings/activity payload, save authority, admission and
-  secret-free diagnostics. Setup/target-damage fixtures must be disclosed;
-  this proves terminal recovery, not ordinary flight/combat/hardware acceptance.
-- **Checks/budget:**60–90min implementation/review, split before90 if necessary.
-  Compile, existing startup privacy and both existing Heavy Breach production
-  suites at original300s caps, plus one real-file source arm/kill/recover/paid
-  replay and the exact archive-extracted packaged transaction at original300s
-  per-process caps. Headless/Dummy/private profiles and complete owned cleanup.
-  First unexpected failure stops for separately selected repair; original plus
-  one repair requires cumulative priority review, no third automatic attempt.
-- **Delivery/alternative:** fresh clean paired checkpoints/three strict startups/
-  actual package audit, concise limits, commit/push and scratch cleanup. No
-  parked route is reopened. Independent alternative is Cinder supply terminal
-  summary real-file qualification, with its existing terminal-only contract;
-  it is not selected. No automatic adjacent Torpedo/recovery chain.
-
-#### One selected caller repair after the first source failure
-
-Candidatee9c6111b4 compiles and passes privacy plus both existing production
-suites, but source transaction fails35.365s at its first board-arming assertion.
-The child is reaped; source/cache unchanged; no terminal debt or exports accepted.
-The log cannot distinguish missed/refused/repeated interaction, so no gameplay
-defect is claimed. Before any further run, root selects exactly one caller repair:
-normalize breach-only input/start sequencing to the already passing production
-route (one idle frame after Begin Shift, E press→physics→release→physics→idle),
-leaving the shared helper and gameplay untouched. Also replace generation-zero
-cargo save (a proven accepted no-op) with synchronous genuine start/reset/save,
-ending idle with an actual unrelated cargo document. Retain richer board result
-in the existing failing assertion; no new diagnostic run or harness.
-
-Same implementer/reviewer and original finish criteria apply. Recompile the
-changed probe and run the full source transaction once at original process caps;
-prior unchanged privacy/board/route passes retain their recorded source. If it
-passes, continue exact-source paired packaging and archive transaction. If it
-fails, cumulative original+repair priority review is mandatory; no automatic
-third attempt, timeout change or renamed successor. Raw original failure stays
-under `/srv/mudds-work/breach-interruption-20261018/results/`.
+BREACH-INTERRUPTION is now FAILED/PARKED after its original source attempt and
+one caller repair. Both stop at physical board arming; no earned terminal,
+recovery/payment/replay or checkpoint is accepted. The retained snapshot shows
+missing configured board owners, but its cause remains unproven. No successor
+or third attempt is selected. [Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#breach-interruption--failed-and-parked).
 
 ## Parked failures and dependent work
 
@@ -149,6 +99,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| BREACH-INTERRUPTION /13,31,32 | Originale9c6111b4 fails35.365s; one caller repair3c10a071b fails35.638s at same board-arm step. Board snapshot: attached, configured=false, director/combat IDs0, external_owners_unavailable. No saved terminal or recovery proof. | Cumulative71.004s review PARKED; candidate unmerged/withheld, no exports. No third probe/repair/renaming or further diagnosis selected; a concrete separately selected production configuration change or causal fact is required. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |
 | CABIN-PASSENGER-ROLE / 18,20 | Candidate38c079086 HUD36 and actual handback PASSENGER pass, full required route fails walking. Unmerged/withheld; no package. | Preserve full route; no acceptance narrowing or automatic second repair. |

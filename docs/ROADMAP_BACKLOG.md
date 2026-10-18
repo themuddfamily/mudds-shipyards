@@ -291,6 +291,7 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked |
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
+| BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: originale9c6111b4 and one caller repair3c10a071b fail first board-arm step35.365/35.638s; missing configured external owners observed, cause unknown. Unmerged/withheld; no third attempt/exports selected |
 | ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DEFINE; bind existing repeatable activities, do not invent repetitions |
 | TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DEFINE; design/runtime basis and scope decision |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED; failed route plus repair, original 300s |
@@ -745,6 +746,17 @@ one scenario explicitly before implementation; retain startup admission/privacy,
 real owned kill/reap, distinct restart, exact document and once-only receipt checks.
 No engine or package checks were run for this definition; all original failures,
 external decisions and final gates retain status.
+
+The separately selected BREACH-INTERRUPTION implementation then failed: source
+candidatee9c6111b4 and its one selected caller repair3c10a071b both stop at board
+arming before earned debt. Existing privacy and both production suites pass on
+e9, but no source transaction or package result is accepted. The repaired arm
+snapshot has attached=true/configured=false, zero director/combat authority IDs
+and external_owners_unavailable. This establishes the observed missing-owner
+boundary, not why it occurred or a gameplay fix. Cumulative71.004s priority review
+parks the task; branch/result retained, candidate unmerged, no exports or third
+attempt. Preserve required real-file/pilot/board/payment/cold replay acceptance;
+no Start Fresh substitute, clock relaxation or renamed retry is selected.
 
 ## Multiplayer
 
