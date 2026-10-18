@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 READY repair, 3 FAILED (two parked), 2 GATED, 2 DONE.** Root owns integration and closure.
+**1 IN PROGRESS repair, 3 FAILED (two parked), 2 GATED, 2 DONE.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -52,7 +52,7 @@ and delivery history; they do not consume active queue slots.
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
 | HELM-YAW-TURN | FAILED; repair selected | Original remote pilot turns host-owned Jovian both ways with normal sampled input; release stops yaw and both clients consume the attitude. |c2e3df979; route FAIL138.085s at pilot attitude convergence; original limits retained |
-| HELM-NEUTRAL-REPAIR | READY | After yaw release the pilot view converges to host attitude, preserving active steering behavior. |45–60min implementation/review; focused regression plus one unchanged yaw route; fresh checkpoint if accepted |
+| HELM-NEUTRAL-REPAIR | IN PROGRESS | After yaw release the pilot view converges to host attitude, preserving active steering behavior. |45–60min implementation/review; focused regression plus one unchanged yaw route; fresh checkpoint if accepted |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
@@ -139,7 +139,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   all three OS exits0 and fullraw diagnostics0. Guard detached receipt paths;
   do not suppress diagnostics. Any new runtime change requires fresh paired
   clean exports and three strict startup/package checks before closure.
-- **Budget/next:** READY;45–60min implementation/review; split before90min.
+- **Budget/next:** IN PROGRESS;45–60min implementation/review; split before90min.
   Compile/focused checks up to300s each, yaw route original300s/outer360s;
   exports/startups separate. Next action: implement/review this named correction
   in an isolated checkout from the retained candidate. No new profiling probe.
