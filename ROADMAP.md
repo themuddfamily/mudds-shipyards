@@ -125,6 +125,15 @@ compile15.570s and CLI privacy1.033s pass. No export/native stage entered.
 Review the exact pending-mouse/observed-facing cause before one bounded repair;
 retain the failing log and original deadlines. No retry is yet authorized.
 
+Reviewed repair selection: the position-only fixture retains walk_forward(1,0,0)
+through all15 goals, leaving the first OS yaw unacknowledged; production correctly
+suppresses duplicate yaw. Before the competing-prompt sample, update only that
+fixture's coherent observed basis to forward(.8,0,.6), right(-.6,0,.8).
+Keep nonzero-yaw/no-input assertions and production suppression unchanged.
+Only `tools/release/test_native_sortie.py` may change. Retain identical GDScript/
+privacy passes; authorize one full repaired Python run on its new clean pin,
+then obtain explicit cumulative priority review before any remaining stage.
+
 ## Latest delivered result
 
 Freight LIFE-GANTRY is accepted on packaged2df8c31: ordinary approach, nearby
