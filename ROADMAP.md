@@ -28,14 +28,35 @@ explicit owner decision.
 
 ## Execution now
 
-No task currently running. Reverse qualification and the bounded Torrent definition
-are closed below; select an independent named production gap before the next implementation. Completed and parked work does not
-occupy the executable queue. Root owns review, integration, checks and closure.
+WALK-SALVAGE definition is selected. Reverse qualification and the bounded Torrent
+definition are closed below. Completed and parked work does not occupy the
+executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
+| WALK-SALVAGE / 7,9 | IN PROGRESS definition | Freeze ordinary supported access, three inspections, durable manifest/revisit and return using existing owners. | Source-only10min: existing caller or one smallest extension seam, then root selection. |
 | CRAFT-GAPS-TORRENT / 10,11 | Definition DONE; craft acceptance OPEN | No specifically required missing implementation found within inspected owners. | Do not invent a feature; any successor needs a concrete requirement/finding. |
 | HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
+
+### WALK-SALVAGE — three inspections and usable return
+
+- **Owner/type:** one read-only definition agent, root selection; qualification
+  of implemented station gameplay unless a concrete production gap is found.
+- **Boundary:** existing Salvage Terrace, station route/inspection/save owners
+  and relevant callers only. No fleet research, parked VIP/capture reopening,
+  new harness/framework, pose staging or speculative content.
+- **Proof/finish:** identify one existing ordinary-input command or smallest
+  extension seam, physical route, three inspection interactions, durable3/3
+  manifest/revisit and supported return. State actual source/fixtures/limits.
+  Missing runtime behavior and missing route qualification stay distinct.
+- **Budget/stop/next:**10min source-only, no engines. End with a finite executable
+  successor or concrete blocker. Root separately freezes one task before any
+  implementation/run; first failure will stop it. Definition has no gameplay or
+  checkpoint claim. Record result here and in the existing backlog; commit/push.
+- **Priority:** missing eight original craft still require existing evidence or
+  interpretation dependencies. Do not invent a historical hull to fill the queue.
+  This independent named station outcome does not depend on parked handback,
+  Halyard, cargo reload, Rime or graphics-capture failures.
 
 ### CRAFT-GAPS-TORRENT — bounded definition complete
 
