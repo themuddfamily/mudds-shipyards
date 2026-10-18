@@ -31,9 +31,9 @@ Do not report those steps as two gameplay features or a project percentage.
   actual active-craft/lifecycle observations and read-only source checks232/20 pass.
   Paired development checkpoint4270d71 is published. Native window-close smoke
   FAILED and stays open; no physical journey is qualified.
-- **Next:** implement the ordinary-input VIP route caller, then run its one
-  continuous outward/interaction/return qualification. Static route definition
-  is complete; walking is NOT_RUN. Do not restart Ember window diagnostics.
+- **Next:** run the committed ordinary-input VIP caller once through the full
+  outward/interaction/return route. Caller implementation and cold import are
+  complete; walking is NOT_RUN. Do not restart Ember window diagnostics.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -58,8 +58,8 @@ branches and all 36 parents retain their original scope in the backlog.
 
 | Step | Status / owner | Exact finish | Estimate and stop |
 | --- | --- | --- | --- |
-| STATION-VIP-CALLER | READY / root | One source test drives the real menu and player input through the route below, with no actor/camera pose writes or direct interaction calls. | 45–75min implementation; stop at75min if unfinished and record the precise remaining work. |
-| STATION-VIP-WALK | GATED on caller / root | One uninterrupted run passes the complete route, seat interaction and supported return with the same player. | Up to900s route check; cold import/preflight estimated separately at10–15min. First failure ends this qualification attempt. |
+| STATION-VIP-CALLER | DONE (implementation only) / root | One source test drives the real menu and player input through the route below, with no actor/camera pose writes or direct interaction calls. | 45–75min implementation; stop at75min if unfinished and record the precise remaining work. |
+| STATION-VIP-WALK | READY / root | One uninterrupted run passes the complete route, seat interaction and supported return with the same player. | Up to900s route check; cold import/preflight estimated separately at10–15min. First failure ends this qualification attempt. |
 
 Two steps are sufficient for this batch; do not invent extra tasks to fill a
 quota. A demonstrated runtime defect gets its own bounded repair card before
@@ -114,9 +114,10 @@ check ran. Mapping and limitations are recorded in
   `VIP_RECEPTION_ROUND_TRIP_OK` marker and exit0. Release all held actions,
   restore mouse capture and free Main on success/failure; outer process cleanup
   remains independent of the game's menu. Preserve raw failures.
-- **Next action:** implement this single caller from the mapped source. Commit
-  the test before qualification and record that exact source in STATION-VIP-WALK.
-  Caller completion is test capability, not proof the player route works.
+- **Implementation result:** the caller and generated UID are committed with
+  this card update. Static review/catalog discovery and isolated cold import
+  pass; no route has run yet. It contains32 walking legs and normal door/seat
+  interactions. Caller completion is test capability, not a walking pass.
 - **Failure/close:** at the implementation estimate boundary, record the missing
   seam or unfinished code. Do not turn fixture work into a renderer investigation.
 
