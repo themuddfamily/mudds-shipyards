@@ -71,8 +71,11 @@ parent or phase gate closes.
 - **Latest return repair:**37cbc7a4e FAIL in142.090s at the8s request-acceptance
   boundary. Release/neutrality and client identities pass; host request serial0,
   result/handoff absent. Physical landing/arrival stay unqualified; source held.
-- **Next:** required priority review selects one20–30min static input-producer/
-  client-forwarding read. No third route or speculative runtime repair.
+- **Static finding:** the immediate InputEventAction command is drained locally
+  but remote forwarding reads only later physics snapshots. The mapping itself
+  is intact; failed-run admission at pulse time remains unobserved.
+- **Next:** focused old-runtime reproduction and bounded command-delivery repair,
+  accepted checkpoint, then one unchanged original return qualification. No extra probe.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -88,47 +91,99 @@ parent or phase gate closes.
 Report the named result, actual proof, next action and estimate. Source checks,
 planning or test totals do not establish whole-parent or hardware completion.
 
-## Next slice — locate the missing ordinary landing request
+## Next slice — retain immediately sampled client landing edges
 
-NET-JOVIAN-RETURN-CALLER is FAILED on held37cbc7a4e after one142.090s repair route.
-The release repair works: both clients report neutral input/current identities
-and zero seat error. After8.033s from host.return_go, B first aborts waiting for
-request acceptance. Host's current landing-request serial is0 with no result or
-handoff. No accepted request or physical docking is established.
-[Exact result and executed repair card](docs/history/ROADMAP_DELIVERIES.md#ordinary-shared-return--release-repaired-request-acceptance-still-failed).
-The original failed task plus its one repair have reached the priority-review
-boundary; no third route, input substitution or runtime patch is scheduled.
+NET-JOVIAN-LANDING-INPUT-DIAG is DONE as static diagnosis. InputEventAction's
+supported compatibility path samples/drains a landing-bearing command immediately
+in GameFlow, while remote forwarding reads only HeroShip's later physics snapshot.
+The immediate command has no route to the helm counter. Source mapping is intact.
+[Code finding and retained uncertainty](docs/history/ROADMAP_DELIVERIES.md#landing-input-diagnosis--immediate-command-misses-remote-forwarding).
+The failed run did not capture pulse-time producer output, so this is a supported
+code gap, not proof of every event in that run. A focused old-runtime regression
+must demonstrate the loss before accepting any repair; no unchanged probe runs.
 
 | Task | Type / status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| NET-JOVIAN-LANDING-INPUT-DIAG | Static diagnosis / READY / root | Identify the first producer/forwarding boundary for the ordinary landing input, or name exactly one missing fact and a separately scoped probe. |20–30min static read; no engine probe in this card. |
+| NET-HELM-EDGE-FIX | Runtime fix / READY / root | One valid immediately sampled landing edge reaches the current client's remote helm exactly once and is revoked by source/session boundaries. | Implementation/review45–75min; focused import/compile/checks separate. |
+| CHECKPOINT-HELM-EDGE | Build / GATED on fix / root | Fresh playable Windows/Linux checkpoint contains the accepted command-delivery repair. | Preparation/checks15–25min; original export/startup caps separate. |
+| NET-JOVIAN-RETURN | Qualification / GATED on fix+checkpoint / root | Original ordinary shared return docks physically and both retained clients consume committed arrival. | Compose/freeze5–10min; compile and one original300s route separate. |
 
-### NET-JOVIAN-LANDING-INPUT-DIAG — locate the request producer before changing it
+### NET-HELM-EDGE-FIX — capture the actual sampled command for remote forwarding
 
-- **Parent/result:** parents16/26; diagnose only why the original pilot landing
-  pulse does not produce an observed host request. Use held pushed37cbc7a4e and
-  retained raw; accepted boarding/departure/checkpoint remain unchanged.
-- **Boundary:** inspect the existing LocalShipInputSource edge sampling, GameFlow
-  confirmed-client helm forwarding and NetworkRemotePilotCommandSource request
-  consumption. Map exact ordinary input event, sampled landing edge, client
-  monotonic request serial and host serial. No geometry, berth, docking movement,
-  protocol rewrite or general networking audit while the request is absent.
-- **Proof/deliverable:** identify a supported first code owner and one bounded
-  production/caller fix card, or state the single unobserved producer/forwarding
-  fact and define one separate hypothesis/probe with original route limits. Do
-  not infer a missing client edge solely from host serial0. Current snapshots
-  cannot distinguish unsampled input, unforwarded request or later transport/
-  consumption failure. No aliases, broad logging framework or duplicate validator.
-- **Priority/budget/stop:**20–30min static diagnosis only, no engine run, patch or
-  unchanged third route. This follows the required priority review after failed
-  return plus one repair: no other instantiated READY delivery exists in this
-  working queue; parked VIP/Ember stay parked. Select the finite input-owner read
-  over speculative docking/authority repair. Stop once owner/seam/acceptance are
-  known, or at one exact missing fact; do not extend this into repeated probes.
-- **Close:** commit/push the actual finding and separately executable next card.
-  Diagnosis is not gameplay delivery. Preserve original300s route,8s request,
-  physical120s/client5s and all original identity/input/seat/authority criteria.
-  Original failed task and repair remain cumulative; this name resets no limit.
+- **Parent/result:** parents16/26; repair GameFlow's supported InputEventAction/
+  replay input path so an immediately sampled landing command is retained for the
+  confirmed remote helm before later neutral sampling. No native physical-key
+  failure is established; do not widen that claim or substitute physical keys to
+  hide the supported compatibility-path loss.
+- **Evidence/owner:** LocalShipInputSource553 applies then clears explicit edges;
+  ShipCommandSource94 retains a detached GameFlow FIFO entry. GameFlow9051–9069
+  queues/samples/drains it synchronously. HeroShip660 updates last_ship_command
+  only in physics. GameFlow12199–12209 increments remote landing/roll counters
+  only from that physics snapshot, and8959 merely shows pending landing feedback.
+  No command_produced capture exists in GameFlow. A later neutral snapshot cannot
+  recover the already-consumed edge.
+- **Boundary/ownership:** root owns `scripts/game/game_flow.gd` and extends the
+  existing `tests/command_consumer_delivery_test.gd`. Share one capture/deduplication
+  owner between immediate/FIFO delivery and physics polling, or bind a bounded
+  equivalent existing delivery seam. Preserve current live confirmed pilot/source/
+  authority/stream checks, monotonic sequence and stream initialization, send
+  cadence/clock hold/rate limits, session teardown and source invalidation. Do not
+  double-count one command observed by both consumers or let an old source edge
+  revive after focus/pause/migration/replacement. No wire/schema/authority/input
+  timing/pose change and no additional source queue, validator or event framework.
+- **Proof:** extend existing production-consumer fixture with distinct immediate
+  command and later neutral physics command under a declared staged confirmed
+  client session. Exercise actual GameFlow event/FIFO consumer, observe the source's
+  produced landing command, and require remote serial/wire identity exactly once
+  after later neutral sampling. Preserve claim/source ownership. Repeated polls,
+  stale/non-owner snapshots and source/session invalidation must not replay it.
+  Expected old-runtime failure first, then same regression green; do not pre-set
+  remote counters, inject a network request or replace the immediate path with a
+  manually populated physics snapshot. Component staging is not ordinary-route proof.
+- **Checks/budget/stop:** implementation/review45–75min, clean source before
+  engines. Existing command_consumer_delivery_test and ship_command_test on pinned
+  engine, Dummy/headless, original300s suite caps; import/compile separate. One
+  planned old-runtime reproduction and one repaired focused acceptance; unexpected
+  failure stops for priority review. Do not broaden to parked stall/endurance or
+  add a third unchanged return route to diagnose this static gap.
+- **Close:** integrate accepted runtime/tests, commit/push, immediately create
+  CHECKPOINT-HELM-EDGE. The earlier return failure/repair remain cumulative and
+  return stays unqualified until its separately gated unchanged original route.
+
+### CHECKPOINT-HELM-EDGE — playable accepted command-delivery repair
+
+- **Parent/result:** parents6/32; exact clean accepted runtime, pinned Godot/templates.
+  Existing safe Windows/Linux exports with correct private versioned XDG template
+  mapping; verify actual debug/release paths before engines. Preserve HOME/CODEX_HOME.
+- **Proof:** relevant focused checks, EXE/ZIP/notes and Linux ELF/archive/notes,
+  actual payload-byte parity, exact archive members/modes/content and metadata.
+  Direct Linux, archive Linux and Windows payload strict headless/Dummy startup
+  each actualexit0+exactly one STARTUP_MENU_READY_OK/no error or leak diagnostics.
+  Original matrix diagnostic policy; retain raw root notice without an invented gate.
+- **Budget/stop:**15–25min preparation/checks; export900/startup300 caps separate,
+  one export/platform; first failure stops with retained raw. No unchanged rerun.
+- **Close:** repository builds only, actual player-visible/input-path changes and
+  validation limits in notes, commit/push indices, clean owned checkouts/profiles.
+  Native Windows/GPU/device/audio/human/full-release gates remain unperformed.
+
+### NET-JOVIAN-RETURN — unchanged qualification after supported input repair
+
+- **Parent/result:** parents16/26; gate on accepted runtime+fresh checkpoint above.
+  Compose held37cbc7a4e caller with accepted runtime; retain its complete input
+  pulse and original [physical return contract](docs/history/ROADMAP_DELIVERIES.md#ordinary-shared-return--input-release-boundary-failed).
+  No replacement input, route or artificial local landing request.
+- **Proof:** original normal menus/all13+interior goals, real chairs/current identity/
+  authority/HUD,5m departure/brake, free-home capture, one landing_assist pulse,
+  host request8s, physical strict docking/lease/commit120s, client consumed arrival/
+  body/hull5s. Existing private-Xvfb/x11/Dummy input-only matrix, original300s total/
+  360s outer; actual allpeerexits0, original marker1, no diagnostics, source/cache
+  guards. Preserve all original10/10/5/12/8s prerequisites and snapshot criteria.
+- **Budget/stop:** compose/freeze5–10min; compile and one original route separately.
+  First failure ends FAILED; required priority review before any more action.
+  Original failed task plus repair remain counted; no new diagnostic run belongs here.
+- **Close:** integrate caller only after acceptance, commit/push exact outcome and
+  clean owned checkout/profiles, retain unique raw. No stand/exterior/reuse/
+  native/package/endurance or whole-parent/phase claim from this source qualification.
 
 ## Earlier ordinary Jovian boarding attempt — FAILED (retained history)
 

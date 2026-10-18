@@ -5065,3 +5065,85 @@ gates retain their actual open/unqualified scope.
   actual failure/receipts, commit/push and remove owned disposable checkout/profiles.
   No unchanged game export; native/packaged/landing/return claims stay unperformed
   until their actual scope passes.
+
+
+## Landing input diagnosis — immediate command misses remote forwarding
+
+NET-JOVIAN-LANDING-INPUT-DIAG is DONE as static diagnosis on95dca1184. No engine,
+code patch, new worktree/profile or third return route. One bounded medium agent
+read local sampling; root traced consumers/forwarding/host decode. Investigation
+stops at supported owner/seam and focused regression acceptance, without a probe.
+
+LocalShipInputSource's landing mapping is present: supported synthetic explicit
+edge becomes values.landing=true and the pending edge queue clears after successful
+sampling (515–554,778). Physical transform mapping also supports landing_assist.
+ShipCommandSource.next_command retains GameFlow-edge snapshots in its FIFO and
+publishes command_produced synchronously (49–107). Admission still requires current
+enabled/focused/unpaused source; retained failure does not prove pulse-time admission.
+
+The deterministic consumer gap is GameFlow._unhandled_input9051–9069: for accepted
+InputEventAction it queues an edge, immediately calls source.next_command, applies
+camera edges and drains the GameFlow FIFO. _consume_active_ship_command8959 gives
+remote landing pending feedback but does not capture a helm request. HeroShip's
+last_ship_command is assigned only by physics660, not by the immediate sample.
+The remote forwarder12199–12209 exclusively polls that physics snapshot for landing
+and roll edges before its cadence gate. GameFlow has no command_produced listener
+or other landing_request_id increment. Thus an admitted immediate landing command
+can be consumed without ever reaching the remote request counter; later neutral
+physics cannot recover it. When immediate sampling also observes the action held,
+the transform records pressed history and the next held sample has no new edge.
+If immediate raw input were not yet pressed, a later held sample could emit one;
+this is a supported loss counterexample, not universal suppression. Host decoding correctly expects the monotonic
+pilot_landing_<id> target and only advances on a newer validated request, so host
+serial0 cannot distinguish this loss from another earlier producer/forwarding gap.
+
+This is a statically supported code gap in the supported synthetic/replay input
+path, not proof that native L is broken or that the exact prior pulse was admitted.
+The required focused regression must witness production source output and the
+immediate consumer, keep the later physics snapshot distinct/neutral, fail on old
+runtime and pass after one shared capture/deduplication fix. Do not substitute
+physical keys, populate last_ship_command or directly increment request counters.
+
+Existing command_consumer_delivery_test already covers source/FIFO ordering and
+production HeroShip/GameFlow consumers, including an edge followed by a neutral
+sample before polling. Extend that fixture for declared staged confirmed-client
+forwarding instead of a new suite/framework. Source/session invalidation, replay
+rejection, current authority and send cadence must remain intact. Staged component
+acceptance does not replace the ordinary two-client route.
+
+Priority selection: NET-HELM-EDGE-FIX45–75min, accepted playable checkpoint, then
+one separately gated unchanged original return qualification. Original return
+failure plus caller repair remain cumulative; no extra diagnostic or unbounded
+retry is selected. Any failed focused repair or new route failure stops for
+priority review. No wire/schema changes or alternative input to erase the failure.
+Static planning/diagnosis is not gameplay delivery; landing/return/endurance,
+all36 parents/ten phases and hardware/human/full-release gates stay open.
+
+### Executed landing-input diagnosis card — frozen contract
+
+### NET-JOVIAN-LANDING-INPUT-DIAG — locate the request producer before changing it
+
+- **Parent/result:** parents16/26; diagnose only why the original pilot landing
+  pulse does not produce an observed host request. Use held pushed37cbc7a4e and
+  retained raw; accepted boarding/departure/checkpoint remain unchanged.
+- **Boundary:** inspect the existing LocalShipInputSource edge sampling, GameFlow
+  confirmed-client helm forwarding and NetworkRemotePilotCommandSource request
+  consumption. Map exact ordinary input event, sampled landing edge, client
+  monotonic request serial and host serial. No geometry, berth, docking movement,
+  protocol rewrite or general networking audit while the request is absent.
+- **Proof/deliverable:** identify a supported first code owner and one bounded
+  production/caller fix card, or state the single unobserved producer/forwarding
+  fact and define one separate hypothesis/probe with original route limits. Do
+  not infer a missing client edge solely from host serial0. Current snapshots
+  cannot distinguish unsampled input, unforwarded request or later transport/
+  consumption failure. No aliases, broad logging framework or duplicate validator.
+- **Priority/budget/stop:**20–30min static diagnosis only, no engine run, patch or
+  unchanged third route. This follows the required priority review after failed
+  return plus one repair: no other instantiated READY delivery exists in this
+  working queue; parked VIP/Ember stay parked. Select the finite input-owner read
+  over speculative docking/authority repair. Stop once owner/seam/acceptance are
+  known, or at one exact missing fact; do not extend this into repeated probes.
+- **Close:** commit/push the actual finding and separately executable next card.
+  Diagnosis is not gameplay delivery. Preserve original300s route,8s request,
+  physical120s/client5s and all original identity/input/seat/authority criteria.
+  Original failed task and repair remain cumulative; this name resets no limit.

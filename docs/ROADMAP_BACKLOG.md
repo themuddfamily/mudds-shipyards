@@ -14,11 +14,12 @@ history. Ordinary shared departure/braking is now DONE on96c96312f after its one
 caller-field correction:132.562s, host5.004m departure/berth release/zero-speed
 stop, both clients retained and converged, all actual exits0. Game runtime is
 unchanged from checkpointb6196a1; this is source-route qualification. Next is one
-a bounded static producer/forwarding diagnosis after return and its one repair
-fail. The repair37cbc7a4e fixes input settling; both client identities/neutrality
-pass, but host request serial remains0 at the8s acceptance boundary. No accepted
-landing or physical docking is established. No third route or speculative patch
-is selected. Original failed task/repair limits remain cumulative.
+the bounded immediate-command delivery repair after completed static diagnosis.
+GameFlow's synthetic action seam samples/drains landing before physics, while
+remote forwarding only reads the physics snapshot. Source mapping is intact;
+the prior run did not capture pulse-time command publication. Require focused
+old-runtime reproduction, accepted fix/checkpoint, then one unchanged return
+qualification. Earlier failed task/repair remain cumulative; no extra probe.
 Landing/return remains NOT_RUN; broader
 flight/endurance remain unqualified. Both lifecycle qualifications retain
 their accepted source scopes.
