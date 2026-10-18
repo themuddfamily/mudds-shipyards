@@ -5896,3 +5896,14 @@ source/index and non-import cache unchanged. Both48-file peer bundles independen
 byte-identical to private originals (96 files total). Retain both failures, STOPs,
 raw and pushed source branch; remove owned clean checkout/profiles/helpers and
 now-unused shared supervisor. No runtime change/new checkpoint or native claim.
+
+
+KIT-DELIVER selected from e335f2f0e in isolated
+`work/jovian-kit-deliver-20261018`, only existing cargo integration caller.
+One implementation agent/ root review; proposed --ordinary-jovian-kit-deliver,
+JOVIAN_KIT_ORDINARY_DELIVER_OK. Preserve accepted board/depart and default paths.
+Ordinary landing_assist, strict occupied home dock, actual automatic engine OFFLINE,
+authored Interact exit and supported same-Player ground movement; exact two-kit
+transfer and one reward. Preserve actual private real store for KIT-RELOAD.
+Original300s/outer360,180s activity,8s acceptance/120s dock, authored exit cap and
+15s walk unchanged. First failure stops; no runtime repair or new build selected.

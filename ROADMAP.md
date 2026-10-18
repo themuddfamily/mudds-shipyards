@@ -36,7 +36,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 READY, 1 FAILED/PARKED, 3 GATED, 3 DONE (two qualifications, one definition).** Root owns integration and closure.
+**1 IN PROGRESS, 1 FAILED/PARKED, 3 GATED, 3 DONE (two qualifications, one definition).** Root owns integration and closure.
 Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
@@ -48,7 +48,7 @@ and delivery history; they do not consume active queue slots.
 | --- | --- | --- | --- |
 | KIT-BOARD | DONE | Fresh player selects cargo, walks to Jovian and takes the real solo pilot seat. |Accepted62bc7c823;66.158s at original300s cap |
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
-| KIT-DELIVER | READY | Physical home return transfers two kits, pays once and leaves player walking outside. |45–60 min; one extended route at unchanged caps |
+| KIT-DELIVER | IN PROGRESS | Physical home return transfers two kits, pays once and leaves player walking outside. |45–60 min; one extended route at unchanged caps |
 | KIT-RELOAD | GATED on KIT-DELIVER | Distinct process reloads accepted delivery without duplicate kits or reward. |20–40 min; compile300s + one restore30s |
 | HALYARD-APPROACH | DONE definition | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
 | HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
@@ -155,7 +155,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   COMPLETED generation1, source6→4/destination0→2, exactlyone accepted transfer
   `jovian_fabrication_kit_delivery_g1`, reward0→1 and none owed; normal ticks cannot
   duplicate it. No remote landing path: it deliberately skips cargo completion.
-- **Next/check:** READY; KIT-DEPART accepted.45–60 min implementation/review. Freeze
+- **Next/check:** IN PROGRESS/root; KIT-DEPART accepted.45–60 min implementation/review. Freeze
   selected continuation/marker/pin; compile300s and one full300s/outer360s route,
   preserving180s activity deadline,8s acceptance/120s physical dock and all prior
   bounds. Exit cap is authored2×canopy_motion_time+disembarking_motion_time+1s,
