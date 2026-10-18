@@ -851,9 +851,17 @@ func reset_cargo_run() -> Dictionary:
 ## and current physical berth lease. The access component remains the sole
 ## proximity, attachment-generation, occupant, and token validator.
 func authorize_cargo_terminal_actor(actor: Node3D, ship: Node) -> Dictionary:
-	if not is_instance_valid(_cargo_access) or not is_instance_valid(_cargo_source_entity):
+	if not is_instance_valid(_cargo_access):
 		return _result(false, &"cargo_physical_endpoint_required")
-	if not is_instance_valid(actor) or ship != _cargo_source_entity:
+	# Physical Hauler access is independent of the Jovian cargo source. Forward
+	# only this live craft; the access component still validates its exact
+	# occupied lease, attachment and disembark marker. No source is registered.
+	var hauler_physical_only := ship is CinderCargoHauler \
+		and (ship as CinderCargoHauler).get_ship_id() == &"cinder_cargo_hauler"
+	if not hauler_physical_only and not is_instance_valid(_cargo_source_entity):
+		return _result(false, &"cargo_physical_endpoint_required")
+	if not is_instance_valid(actor) or not is_instance_valid(ship) \
+		or (not hauler_physical_only and ship != _cargo_source_entity):
 		return _result(false, &"wrong_terminal_craft")
 	var berth := _cargo_access.get_berth()
 	if not is_instance_valid(berth) or berth.get_occupant() != ship:
