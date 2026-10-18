@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: ordinary Jovian departure and automatic cargo start; home delivery remains separate.**
+**Next cargo: strict home return, two-kit transfer and usable exit; Halyard boarding is being checked independently.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -19,6 +19,7 @@ phase gates remain open.** This file holds the executable queue; the
 | Pause/options16:10 selected source qualification | 1cf102298 PASS:26 focused repair assertions;948 layout assertions/96 observations,32 states at requested.75/1/1.6. Original criteria/caps retained; device/render/persistence transactions and other aspects remain open. |
 | Fresh hub→Annex service→hub |9af57671d selected route PASS81.387s: same supported Player, actual kits5→6 and one Annex update/Aft unchanged. Active-craft/kit-spend fixtures disclosed; default caller unchanged. |
 | Ordinary offline Jovian cargo selection and boarding |62bc7c823 PASS66.158s: normal UI/spawn walk/hatch boarding to real local pilot seat, occupied home lease, cargo remainsIDLE0/source6/destination0. No departure/delivery acceptance. |
+| Ordinary offline Jovian cargo departure |b91019562 PASS70.350s: real≥5m departure/berth release, automatic ACTIVEg1/return objective and≤.5m/s brake for1s, original180s clock. No home delivery/transfer/reload proof. |
 | Earlier passenger chair/HUD, lifecycle, browser/briefing deliveries | Retain their recorded scopes; no whole craft, parent or phase closes. |
 
 The on-foot batch's failed UI qualification is now resolved by two bounded
@@ -35,7 +36,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**2 IN PROGRESS, 4 GATED, 2 DONE (one caller qualification, one definition).** Root owns integration and closure.
+**1 READY, 1 IN PROGRESS, 3 GATED, 3 DONE (two qualifications, one definition).** Root owns integration and closure.
 Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
@@ -46,8 +47,8 @@ and delivery history; they do not consume active queue slots.
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
 | KIT-BOARD | DONE | Fresh player selects cargo, walks to Jovian and takes the real solo pilot seat. |Accepted62bc7c823;66.158s at original300s cap |
-| KIT-DEPART | IN PROGRESS | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |30–60 min; one extended route at unchanged caps |
-| KIT-DELIVER | GATED on KIT-DEPART | Physical home return transfers two kits, pays once and leaves player walking outside. |45–60 min; one extended route at unchanged caps |
+| KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
+| KIT-DELIVER | READY | Physical home return transfers two kits, pays once and leaves player walking outside. |45–60 min; one extended route at unchanged caps |
 | KIT-RELOAD | GATED on KIT-DELIVER | Distinct process reloads accepted delivery without duplicate kits or reward. |20–40 min; compile300s + one restore30s |
 | HALYARD-APPROACH | DONE definition | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
 | HALYARD-BOARD | IN PROGRESS | Two independent clients ordinarily board distinct pilot/passenger seats. |45–60 min; compile300s + one route300s/outer360s |
@@ -118,22 +119,28 @@ accepted runtime repairs require separate cards and fresh paired builds.
   ACTIVE generation1/return objective/departure checkpoint, source6/destination0,
   current same pilot/source and actual released berth. Keep180s physics deadline
   from automatic start; no clock reset, tuning change or forced landed flag.
-- **Next/check:** IN PROGRESS/root; KIT-BOARD accepted. Selected continuation
-  `--ordinary-jovian-kit-depart`/`JOVIAN_KIT_ORDINARY_DEPART_OK`, isolated branch
-  `work/jovian-kit-depart-20261018`. Freeze clean candidate
-  before implementation.30–60 min; compile300s and one full extended300s route,
-  outer360s; preserve prior approach/boarding and10s departure/10s brake bounds.
+- **Accepted/check:** DONE/root onb91019562, integrated on main. Corrected
+  compile and ONE unchanged selected route PASS70.350s,52 assertions, actual0/
+  marker1/original fullraw diagnostics0. Original normal boarding plus sampled
+  thrust/actual≥5m berth release, automatic ACTIVEg1/return objective/minimap and
+  ordinary sampled brake≤.5m/s for1s pass; cargo stays source6/destination0 and
+  original180s physics clock remains. Same Player/source/hatch/home/hull retained.
+  Selector `--ordinary-jovian-kit-depart`, marker `JOVIAN_KIT_ORDINARY_DEPART_OK`;
+  default/staged and accepted board paths preserved. No landing/delivery proof.
+  Existing300s route/outer360s,15s waypoints/12s boarding/10s departure/10s brake
+  remain; input-only private x11/Dummy, no rendered/device qualification.
 - **First attempt/repair:** e2cf6ce64 import/compile PASS; route FAILED before
   thrust at cargo destination identity. Snapshot source6/destination0 is correct,
   but caller compared JovianFreightBerth service node to the distinct ShipBerth
   physical lease owner. One static raw/source comparison identifies this caller
-  error. KIT-DEPART-CALLER-OWNER is selected,5 min: use actual service accessor
-  for cargo identity, retain physical ShipBerth for lease checks. Preserve failed
-  raw, commit clean corrected pin, one compile and ONE unchanged selected route.
-  No runtime/criterion/timeout changes. Further failure requires priority review.
+  error. Accepted KIT-DEPART-CALLER-OWNER uses the actual service accessor
+  for cargo identity and retains physical ShipBerth lease checks. Failed source/
+  raw remain beside accepted proof; no runtime/criterion/timeout changes.
 - **Stop/close:** first failure records actual input/engine/berth/activity owner;
   no automatic runtime fix. Landing/transfer/reward remain KIT-DELIVER.
-  Record result/pin/limits, commit/push and owned cleanup.
+  All5 owners terminal/all19 PID identities absent; source/non-import cache
+  intact. Result/pin/limits recorded, commit/push and owned checkout/profile/helper
+  cleanup; unique raw `/srv/mudds-work/jovian-kit-depart-20261018/results/`.
 
 ### KIT-DELIVER — return two kits and walk clear
 
@@ -148,7 +155,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   COMPLETED generation1, source6→4/destination0→2, exactlyone accepted transfer
   `jovian_fabrication_kit_delivery_g1`, reward0→1 and none owed; normal ticks cannot
   duplicate it. No remote landing path: it deliberately skips cargo completion.
-- **Next/check:** GATED on KIT-DEPART;45–60 min implementation/review. Freeze
+- **Next/check:** READY; KIT-DEPART accepted.45–60 min implementation/review. Freeze
   selected continuation/marker/pin; compile300s and one full300s/outer360s route,
   preserving180s activity deadline,8s acceptance/120s physical dock and all prior
   bounds. Exit cap is authored2×canopy_motion_time+disembarking_motion_time+1s,

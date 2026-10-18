@@ -5836,3 +5836,22 @@ acceptance growth. Another failure requires cumulative priority review before
 more work. Independent Halyard6b17c130f static review completed after own-pilot
 publication and nullable diagnostic corrections; its silent import starts only
 after the cargo route is terminal, avoiding concurrent engine checks.
+
+
+KIT-DEPART and one-line caller-owner repair DONE atb91019562cfe67940b3908cfe88386152a84b86a.
+Corrected compile PASSES; ONE unchanged selected input-only x11/Dummy route PASSES
+70.350s,52 assertions, actualexit0/marker1/original fullraw diagnostics0. Full
+accepted normalspawn/UI/boarding precedes actual sampled forward≥5m departure,
+retired physical home lease/maps, automatic cargo ACTIVEg1/return checkpoint/HUD/
+minimap and sampled neutral brake≤.5m/s for one continuous physics second. Original
+180s clock, same Player/local source/hatch claim/home/hull and six source/zero
+destination kits remain. No landing, cargo transfer/reward or restart acceptance.
+
+All5 stage owners terminal, all19 observed PID/start identities absent; source
+and non-import cache unchanged. Original e2cf6ce64 before-thrust wrong-owner
+failure retained beside passing raw under
+`/srv/mudds-work/jovian-kit-depart-20261018/results/`. Caller integrated, owned
+clean checkout/profile/helpers removed after source-ref/raw retention. Shared
+private supervisor stays only until independent Halyard task closes. No runtime
+change/new identical checkpoint; latest playable1cf1022 and external gates remain.
+KIT-DELIVER becomes READY; Halyard boarding compile is independent/in progress.
