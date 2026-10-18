@@ -44,15 +44,17 @@ their recorded scopes.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-CLIENT-RECEIPTS | DEFINE exact implementation contract; source seam already known | Freeze files/owner, actual session/migration/ship/recipient lifetime and client accepted/clear proof from existing filtered crew commands. End with one implementable runtime card or exact missing fact; no repeat broad source audit. Source-only, 15–20 min, no engine/audible run or fabricated receipt; requester-only rejection remains separate. |
+| AUDIO-NAVIGATOR-CLIENT-RECEIPTS | READY; exact contract frozen on `4a494469f` | Connect actual applied client crew commands to distinct session/migration/ship-owned navigator presentation. Prove client request/caption/clear/replay/disconnect in the explicit existing `--cinder-navigator` two-peer route; preserve filters and original caps. [Files, recipient rules, exact launch and stop](docs/COMPLETION_SCOPE.md#client-navigator-accepted-receipts--frozen-implementation-contract). 60–75 min implementation/review, 15–25 min checks/route, 10–15 min checkpoint. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 AUDIO-MIX-DEFINE’s [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
 remains complete as a definition; all 28 listening cases remain NOT_RUN. Exact
 package/ordinary route, actual output device/backend/configuration and explicit
 audible authorization are still required. Repair dispatch under Dummy does not
-close that gate. The next action is the finite client implementation contract
-above. Host bridge, standalone and authoritative host-local feedback are delivered
+close that gate. Client implementation/proof ownership is now frozen; the next
+action is its runtime implementation above. The explicit navigator argument is
+required, and the route stands the navigator before migration. This source-only
+contract adds no runtime change or engine attempt. Host bridge, standalone and authoritative host-local feedback are delivered
 within their recorded scopes; client accepted/clear and rejection remain open.
 [Actual boundaries](docs/COMPLETION_SCOPE.md#network-navigator-recipients--source-definition-on4f481068c)
 retain recipient filtering and the separate missing rejection-response behavior.

@@ -1224,10 +1224,8 @@ manufacture a wire receipt from the simpler passenger view. Session retirement,
 migration, ship/owner replacement and unrelated/stale/malformed/replayed input
 must retire/fence the correct source.
 
-AUDIO-NAVIGATOR-CLIENT-RECEIPTS has an implementation seam, but its exact
-file ownership/recipient-lifetime acceptance card must be frozen before starting.
-Likely GameFlow plus existing navigator composition APIs; keep transport/filter
-unchanged. Existing `tests/network/halyard_network_passenger_route_test.gd`
+AUDIO-NAVIGATOR-CLIENT-RECEIPTS now has the [frozen implementation contract](#client-navigator-accepted-receipts--frozen-implementation-contract)
+below; keep transport/filter unchanged. Existing `tests/network/halyard_network_passenger_route_test.gd`
 `--cinder-navigator` has the real two-peer chair/FIRE/stand/reseat/migration route;
 extend **client** Director request/caption assertions for two distinct accepted
 receipts, matching clear once, replay silence and post-migration freshness.
@@ -1250,8 +1248,150 @@ never evidence of a fresh current user request. Resolve that boundary before
 freezing the rejection-response card; do not silently omit rejection from final
 MIX-NAVIGATOR acceptance. No user decision or authorization is inferred here.
 
-Host-local, client accepted/clear and client rejection stay separate unfinished
-requirements. All listening/device/native/endurance/final gates remain open.
+Host-local is delivered; client accepted/clear and client rejection remain
+separate unfinished requirements. All listening/device/native/endurance/final gates remain open.
+
+
+### Client navigator accepted receipts — frozen implementation contract
+
+**AUDIO-NAVIGATOR-CLIENT-RECEIPTS READY after source definition on4a494469f.**
+No runtime edits, engines, tests, captures or scratch in this definition. Root
+fixed runtime ownership/lifetimes; one medium read-only agent established the
+exact existing two-peer proof and its real migration boundary. The known source
+trace above is sufficient; no further broad mapping is selected.
+
+**Player result:** a supported authenticated client receiving its already-filtered
+Cinder navigator ping gets the existing acceptance sound/caption once. A matching
+real clear gets the existing clear sound/caption once, including when passenger
+assignment has already emptied. Reseat and post-migration rebind produce fresh
+feedback; replay/unrelated/old-owner data does not. Client rejection transport
+remains a separate unfinished outcome; this card must not synthesize a rejection
+from a missing receipt or passenger readiness flag.
+
+One implementation agent owns exactly three runtime files:
+
+- `scripts/game/game_flow.gd`: subscribe/disconnect the exact current client
+  adapter's `crew_snapshot_applied`, consume only successful applied results and
+  their actual `snapshot.commands`, and manage client presentation lifetime.
+- `scripts/audio/optional_semantic_audio_composition.gd`: own a distinct client
+  navigator composition/context, separate from host generation/local claim
+  owners. Host generation lookup returns zero on clients and must not unbind this
+  independent source every HUD sync. Exact detach/whole-Main re-entry must reset
+  both router registration and owned attachment flags.
+- `scripts/audio/cinder_navigator_ping_audio_composition.gd`: expose forwarding
+  of actual accepted receipt and actual clear to the existing binding APIs as
+  needed. Preserve raw identity; do not wrap local data in a fabricated bridge
+  result. Existing binding receipt/replay/active-clear fences and Director resident
+  playback remain unchanged. If those owners need a real change, stop and freeze
+  the concrete reason before expanding ownership.
+
+Own existing tests `tests/audio/optional_semantic_audio_composition_test.gd`,
+`tests/audio/cinder_navigator_ping_audio_test.gd` and
+`tests/network/halyard_network_passenger_route_test.gd`. No new validator, schema,
+transport, filter, asset, voice, timer, broad owner refactor or client rejection
+response. One independent high lifecycle reviewer; root integrates, runs engines,
+exports and publishes. No nested agents.
+
+**Exact recipient/lifetime rules:** server `_crew_snapshot_for_peer` already
+filters actual supplemental receipts to the originating peer and network-role
+members of that ship; codec flattens them into `snapshot.commands`. Preserve that
+filter and the distinction from physical passenger assignments. Consume only
+navigator ping/clear commands for the client's actual current Cinder: supported
+cabin boarding context, or current remote-pilot ship/boarding ownership. Do not
+limit presentation to the navigator chair alone and silently exclude other
+already-authorized same-ship recipients. Match own command peer or the applied
+snapshot's actual local-peer ship role; unrelated actors/ships/foreign seat types
+remain silent. Do not broaden authority to all boarded bodies.
+
+Capture exact adapter/session identity, client peer, current migration, craft
+instance and transported ship generation; bind positive ship generation from the
+real accepted command, not the host-only GameFlow generation counter or simpler
+passenger replica. Retain active receipt ownership through a matching clear even
+if its physical assignment emptied first. A clear with no known active accepted
+receipt stays silent. Empty `commands`/missing passenger receipt is not a clear.
+Disconnect/retire on session stop/replacement, migration/ship/recipient-owner
+replacement, leaving the supported craft and whole-Main exit; stale callbacks
+cannot attach to the new owner. A fresh connection must not replay the adapter's
+cached old snapshot as a new ping. Repeated applied state must not create another
+cue; no generic cue echo. Existing source gains/UI bus/reduced-range/driver guards
+remain in force. Correctly applied transport is evidence of server publication,
+not a licence to skip exact source/identity/lifetime checks.
+
+**Focused source tests before the route:** extend existing optional/navigator
+fixtures for two distinct accepted receipts in one client context, exact replay,
+malformed/unrelated source, matching/unknown/duplicate clear, assignment-empty
+clear, old session/ship/migration callbacks, detach/re-entry and exact unbind.
+Use actual wire-shaped input only for focused adapter fences, labelled as such;
+that is not the two-peer production acceptance. Preserve host/local source counts
+and do not mutate actual transported records. Test spies must retain super's real
+Dummy guard. In full Main there are legitimate generic UI sounds; isolate
+navigator request context rather than assert the entire game's generic cue list
+is empty.
+
+**Required production proof:** extend the existing navigator branch of
+`tests/network/halyard_network_passenger_route_test.gd`. Install a fixture-local
+AudioDirector request spy on the existing Main node before it enters the tree,
+keep real playback/backend logic, and capture navigator captions through the real
+SemanticAudioCuePresenter. On the CLIENT assert confirmation/UI/accepted caption
+for first chair FIRE; exactly one real clear for ordinary stand; distinct accepted
+receipt on real reseat FIRE; exactly one retained-publication clear after host
+revokes that row; silence on replay of old accepted/clear commands; new accepted
+receipt after actual migration/rebind/reseat/FIRE; and exact retirement at real
+disconnect. Correlate with successfully applied crew commands and their unchanged
+identity. Existing host-only cue counters are insufficient. Preserve host/off-camera
+assertions and all physical walk/claim/stand/file waits. The route's two distinct
+pre-migration accepted receipts span separate claims; the focused test covers
+consecutive receipts within one context. Do not claim two FIRE presses on one
+claim from that route unless an explicit additional input step is selected first.
+
+The route revokes the navigator and stands its body BEFORE rotating migration,
+then performs authenticated stream-2 rebind/reseat/FIRE. It proves that actual
+boundary, not a seated navigator carried through migration. Other parked moving-
+crew/full-route gates remain unchanged. The default passenger117.641s historical
+pass is not navigator proof.
+
+**Frozen launch shape:** matrix selection alone forwards no user arguments and
+runs default Halyard. Root must use the explicit navigator script argument from
+an isolated candidate profile, exact clean pin/absolute binary paths frozen before
+execution:
+
+```sh
+python3 tools/release/suite_process.py --timeout 300 -- \
+  "$godot_bin" --headless --audio-driver Dummy --path "$candidate" \
+  --script res://tests/network/halyard_network_passenger_route_test.gd \
+  -- --cinder-navigator
+```
+
+This parent spawns its own actual host/client, each with separate `xvfb-run -a`,
+explicit `--display-driver x11 --disable-render-loop --rendering-driver dummy
+--audio-driver Dummy`. Do not launch peers separately on the user's desktop.
+Outer process owner supplies timeout/abort/descendant reaping; release synthetic
+input/cursor on exit. Inherit private XDG/TMP from root's isolated environment;
+the peer profile's optional `private_environment` is not enabled by default.
+Do not repurpose HOME/CODEX_HOME or add display/focus on the active desktop.
+
+Keep outer300s and existing Main-ready60s, peer-ready60s, client.done120s,
+host.done60s, peer.exit10s and all stage waits unchanged. Do not select Ember's
+2400s/custom profile or a shorter alternate route. PASS requires outer exit0,
+exactly one `HALYARD_NETWORK_PASSENGER_ROUTE_TEST_OK`, no engine/test diagnostics,
+both role.done failures empty, both role.exit values0 and actual child PID/start
+identities absent. Preserve peer artifacts/raw logs and actual settings/source.
+
+Budget60–75min implementation/review, 15–25min focused/route checks, 10–15min
+paired checkpoint; split before90min implementation. Before the route, compile
+changed tests and run existing navigator audio, optional composition, actual host
+navigator flow, extended host-local/solo fixture and exact unbind/reduced-range;
+protect current recipient filtering with
+`tests/network/network_enet_crew_snapshot_integration_test.gd` and actual bridge
+clear with `tests/network/network_cinder_navigator_ping_bridge_test.gd`.
+These source checks do not replace the required actual client route. First
+unexpected failure stops; freeze one causal repair before edit/rerun. Failed task
+plus one repair requires cumulative priority review; no automatic second repair,
+budget reset, timeout growth or narrowing an already-failed route. Preserve all
+existing parked budgets. After complete focused/route acceptance, create fresh
+paired exports, strict startup sentinel checks and package audit; publish in
+repository builds, commit/push and clean owned scratch. Listening/native/GPU/
+complete physical travel/endurance/human/final gates remain open.
 
 ## Phase-wide acceptance still required
 
