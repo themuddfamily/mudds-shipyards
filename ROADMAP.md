@@ -28,12 +28,26 @@ explicit owner decision.
 
 ## Execution now
 
-One selected task; no automatic successor. Completed and parked work does not
+One selected next definition; the completed reverse qualification is retained below. Completed and parked work does not
 occupy the executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
-| HELM-REVERSE-FLIGHT / 18 | PREPARED; qualification pending | Original remote pilot moves host Jovian backwards through normal input, releases thrust, brakes, and both retained clients agree with the stopped hull. | Review prepared caller, freeze source, one compile and one isolated route. |
+| CRAFT-GAPS-TORRENT / 10,11 | READY definition | A finite list of actual remaining Torrent capabilities or a concrete missing specification; no assumed defects. | Compare existing craft specification with runtime owners, source-only10min. |
+| HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
+
+### CRAFT-GAPS-TORRENT — choose a production capability, not another helm test
+
+- **Owner/boundary:** one read-only agent; root selects any successor. Existing
+  Torrent specification, definition and runtime component/role owners only.
+- **Proof/finish:** finite actual implementation gaps with specification and owner
+  anchors, or none found/missing fact. Separate implemented-but-unqualified behavior
+  from missing capability. No speculative art finding or automatic test expansion.
+- **Budget/next:**10min source-only, no engine or broad fleet audit. Stop once
+  one implementable production alternative is identified, or a concrete blocker
+  is recorded. Root reviews before a separate implementation card; no automatic
+  diagnosis/probe chain. Record result in the existing inventory, commit/push;
+  no gameplay claim or new checkpoint for the definition.
 
 ### HELM-REVERSE-FLIGHT
 
@@ -63,14 +77,23 @@ occupy the executable queue. Root owns review, integration, checks and closure.
   exactly one marker and original full-raw diagnostics0. Import600s,
   compile300s, one private Xvfb/x11/Dummy route with unchanged inherited300s
   clock and outer360s supervisor. Independent abort; release inputs on every exit.
-- **Budget/stop:** implementation/review30–45min, split before90; checks separate.
-  Prepared source has not run. First unexpected failure ends qualification:
+- **Budget/stop:** DONE; implementation/review30–45min estimate, split before90; checks separate.
+  Accepted clean source52b228c8646b447a8f3044542c645be1db397e5e. First unexpected failure ends qualification:
   retain raw, record actor/boundary/owner, at most one bounded static diagnosis,
   then select a separate repair. No automatic retry or criterion relaxation.
 - **Close:** record actual source/result/limits, commit/push, remove only owned
   disposable checkout/profiles/helpers after retaining unique work/raw. Caller-only
   qualification needs no identical-runtime checkpoint. Any accepted runtime repair
   requires its own card, focused regression and fresh paired playable packages.
+
+**Actual reverse result:** ONE unchanged route PASS138.086s after import/compile.
+Host reverse1.448m/888ms, release neutral334ms, brake stops and holds<=0.5m/s1s,
+brake release neutral315ms. Pilot replica error0.167m, passenger0m; newer consumed
+poses and original identities preserved. Three actual exits0, marker1, diagnostics0.
+All3 owners terminal/all23 PID identities absent;74 peer files copied identically.
+Raw retained in `/srv/mudds-work/jovian-remote-reverse-20261018/results/`;
+owned source/profiles/helpers removed. Caller-only: latest playable624d2a6 unchanged;
+handback, native devices, endurance and parent18 remain open.
 
 **HELM-REVERSE-DEFINE: DONE, source definition only.** Existing sampled reverse
 input reaches signed host thrust through current authority owners. Neutral means

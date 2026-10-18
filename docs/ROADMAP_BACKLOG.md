@@ -667,7 +667,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | DEFINE; nine named branches, no speculative art pass |
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | DONE; pilot/payload implemented, additional crew/Nav semantics missing |
 | BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | WAITING; precise interpretation needed, no approved scope reduction |
-| CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
+| CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | Selected source-only10min definition; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-ARROW | Arrow remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-JOVIAN | Jovian remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-ZENITH | Zenith remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
@@ -786,7 +786,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | GATED; selected candidate, no rebuild of delivered authority |
 | NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | DEFINE; existing remote-pose/station-frame coverage first |
 | HELM-ACTIONS-DEFINE | Finite sampled-local-input to remote-helm action roster | 18 | DONE; seven held fields/two ordered edges, source definition only |
-| HELM-THROTTLE-REVERSE | Sampled reverse thrust and neutral release | 18 | HELM-REVERSE-DEFINE DONE source-only; HELM-REVERSE-FLIGHT prepared for qualification; same source/lease/host effect required. Original handback requirement remains open; shared handback parked |
+| HELM-THROTTLE-REVERSE | Sampled reverse thrust and neutral release | 18 | OPEN; reverse flight/release child DONE52b228c86, unchanged ordinary route138.086s, host1.448m/888ms and both actual replicas pass; same source/lease/host effect required. Original handback requirement remains open; shared handback parked |
 | HELM-YAW | Both sampled yaw directions, neutral release and handback without stale ownership | 18 | OPEN; turn/release child DONE624d2a6 after neutral-attitude fix, unchanged ordinary route139.519s and both client attitudes pass. Original failures retained; corrected38c079086 shows PASSENGER after real handback but fails156.016s at cabin walk15s. Handback parked after original plus one repair; candidate unmerged, full walk/handback remains required |
 | HELM-PITCH | Both sampled pitch directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | HELM-ROLL-RATE | Both sampled roll-rate directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
@@ -935,8 +935,9 @@ qualifications. **It is not a remaining-job count.** In particular, “one craft
 assignments. Completing a definition does not deliver the gameplay it describes.
 
 The [working roadmap](../ROADMAP.md#execution-now) selects the next exact
-outcome and keeps failed/gated work separate. HELM-REVERSE-FLIGHT is prepared for
-review and one qualification route; its source-only definition is DONE. Cargo
+outcome and keeps failed/gated work separate. HELM-REVERSE-FLIGHT is source-qualified on52b228c86;
+its source-only definition is DONE. CRAFT-GAPS-TORRENT is selected for a finite
+production-gap definition, not an automatic qualification chain. Cargo
 boarding/departure/delivery and yaw turns retain their accepted source scopes.
 Cargo reload, Halyard boarding and handback retain their recorded failures and
 reopen conditions; they are not READY work. All36 original parents and ten phase
