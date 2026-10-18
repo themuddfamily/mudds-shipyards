@@ -11,7 +11,17 @@ var _failures := PackedStringArray()
 var _events: Array[Dictionary] = []
 var _captions: Array[String] = []
 var _typed_cues: Array[StringName] = []
+var _generic_cues: Array[StringName] = []
 var _presenter := CuePresenter.new()
+
+
+class RequestSpy extends Director:
+	var requests: Array[Dictionary] = []
+
+	func _play_resident(stream_id: StringName, bus: StringName, volume_db: float) -> bool:
+		requests.append({"stream_id": stream_id, "bus": bus, "volume_db": volume_db,
+			"effective_volume_db": volume_db + _effect_attenuation_db()})
+		return super._play_resident(stream_id, bus, volume_db)
 
 
 class BridgeAdapter:
@@ -27,7 +37,11 @@ func _init() -> void:
 
 
 func _run() -> void:
-	var director := Director.new()
+	_check(AudioServer.get_driver_name() == "Dummy", "navigator dispatch test requires silent Dummy output")
+	if AudioServer.get_driver_name() != "Dummy":
+		quit(1)
+		return
+	var director := RequestSpy.new()
 	var composition := Composition.new()
 	var cinder := Cinder.new()
 	root.add_child(director)
@@ -35,6 +49,7 @@ func _run() -> void:
 	root.add_child(cinder)
 	await process_frame
 	director.semantic_cue_emitted.connect(_on_cue)
+	director.cue_started.connect(func(cue_id: StringName) -> void: _generic_cues.append(cue_id))
 	_check(bool(composition.attach(director, 1).get("accepted", false)), "navigator composition binds to AudioDirector")
 	_check(director.get_semantic_audio_binding_count() == 1, "one targeted navigator source is registered")
 	composition._binding.semantic_navigator_ping_cue_emitted.connect(func(cue_id: StringName, _intensity: float) -> void: _typed_cues.append(cue_id))
@@ -48,11 +63,32 @@ func _run() -> void:
 	var typed_after_rejection := _typed_cues.size()
 	_check(not composition.present_bridge_result(rejected).get("accepted", false) and _typed_cues.size() == typed_after_rejection, "exact rejected-result replay is deduplicated")
 
+	var silent_count := director.requests.size()
+	var malformed_results: Array[Dictionary] = [
+		{}, {"accepted": false},
+		{"accepted": false, "status": &"authority_unavailable"},
+		{"accepted": false, "status": &"", "policy_version": Bridge.POLICY_VERSION},
+		{"accepted": 0, "status": &"authority_unavailable", "policy_version": Bridge.POLICY_VERSION},
+		{"accepted": false, "status": 1, "policy_version": Bridge.POLICY_VERSION},
+		{"accepted": false, "status": &"authority_unavailable", "policy_version": &"foreign"},
+	]
+	for malformed in malformed_results:
+		_check(not composition.present_bridge_result(malformed).get("accepted", false), "malformed rejection envelope is refused")
+		_check(not composition._binding.present_rejected(malformed).get("accepted", false), "direct rejection entry preserves envelope validation")
+	_check(director.requests.size() == silent_count and _events.size() == silent_count, "malformed rejected dictionaries remain silent")
+
 	var receipt := _wire_receipt()
 	var accepted_result := _accepted_result(receipt)
 	_check(bool(composition.present_bridge_result(accepted_result).get("accepted", false)), "real accepted bridge-result shape emits the navigator acceptance cue")
 	var typed_after_accept := _typed_cues.size()
 	_check(not composition.present_bridge_result(accepted_result).get("accepted", false) and _typed_cues.size() == typed_after_accept, "exact accepted receipt replay is deduplicated before fencing")
+
+	var next_receipt := receipt.duplicate(true)
+	next_receipt.request_sequence = 3
+	next_receipt.server_tick = 13
+	var requests_before_next := director.requests.size()
+	_check(bool(composition.present_bridge_result(_accepted_result(next_receipt)).get("accepted", false)), "distinct consecutive accepted receipt is admitted")
+	_check(director.requests.size() == requests_before_next + 1 and _events.size() == _typed_cues.size(), "identical acceptance cue tuples dispatch once per distinct receipt")
 
 	var altered_replay := receipt.duplicate(true)
 	altered_replay.server_tick = 13
@@ -102,6 +138,8 @@ func _run() -> void:
 	var stale_clear := _clear_receipt(migrated, 2, 2, 3)
 	stale_clear.peer_generation = 4
 	_check(composition._binding.present_receipt_clear(stale_clear).get("reason") == &"stale_tombstone", "clear must match the active peer and seat generations")
+	_check(director.requests.size() == _events.size() and _events.size() == _typed_cues.size(), "replay and stale lifecycle, peer, seat, migration and clear results add no requests")
+	director.set_reduced_dynamic_range(true)
 	var clear := _clear_receipt(migrated, 2, 2, 4)
 	var released_result := {
 		"accepted": true,
@@ -120,11 +158,28 @@ func _run() -> void:
 	_check(_has(&"cinder_navigator_ping_accepted") and _has(&"cinder_navigator_ping_rejected") and _has(&"cinder_navigator_ping_cleared"), "AudioDirector receives all three navigator-specific cues")
 	_check(not _has(&"crew_passenger_joined") and not _has(&"crew_passenger_left"), "navigator ping outcomes never masquerade as passenger lifecycle cues")
 	_check(_captions.has("Navigator ping accepted") and _captions.has("Navigator ping rejected") and _captions.has("Navigator ping cleared"), "real semantic caption presenter labels all navigator outcomes")
+	var expected_streams := {
+		&"cinder_navigator_ping_accepted": Director.STREAM_UI_CONFIRM,
+		&"cinder_navigator_ping_rejected": Director.STREAM_COMBAT_ALERT_PRIMARY,
+		&"cinder_navigator_ping_cleared": Director.STREAM_CANOPY_CLOSE,
+	}
+	_check(director.requests.size() == _events.size(), "each forwarded navigator cue selects exactly one resident request")
+	for index in range(mini(director.requests.size(), _events.size())):
+		var request: Dictionary = director.requests[index]
+		_check(request.stream_id == expected_streams[_events[index].cue_id] and request.bus == &"UI", "navigator outcome selects its distinct existing resident UI one-shot")
+		_check(director.get_resident_stream_ids().has(str(request.stream_id)), "requested navigator sound belongs to the resident bank")
+	_check(is_equal_approx(float(director.requests.back().effective_volume_db), -17.0), "navigator clear keeps reduced-range effect attenuation")
+	_check(_generic_cues.is_empty(), "resident navigator dispatch never echoes a generic caption cue")
+	_check(bool(director.get_audit_report().get("valid", false)), "Dummy request spy preserves Director resource and backend contract")
 	var snapshot: Dictionary = composition._binding.get_snapshot()
 	_check(bool(snapshot.get("presentation_only", false)) and not snapshot.has("max_voices"), "binding reports truthful presentation-only capability without an unenforced voice ceiling")
 
+	var retired_binding: Node = composition._binding
+	var requests_before_detach := director.requests.size()
 	_check(bool(composition.detach().get("accepted", false)), "targeted detach clears navigator source")
 	_check(director.get_semantic_audio_binding_count() == 0, "detach removes only navigator source")
+	retired_binding.semantic_navigator_ping_cue_emitted.emit(&"cinder_navigator_ping_accepted", 0.7)
+	_check(not composition.present_bridge_result(accepted_result).get("accepted", false) and director.requests.size() == requests_before_detach, "exact unbound source and detached composition cannot request playback")
 	_check(bool(composition.attach(director, 1).get("accepted", false)), "composition can attach a fresh binding after targeted detach")
 	composition.queue_free()
 	await process_frame
