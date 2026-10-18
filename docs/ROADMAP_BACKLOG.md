@@ -743,7 +743,7 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | PLAY-TORPEDO | Torpedo Run first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | HUD-RACE | Race durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
 | HUD-PATROL | Patrol durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
-| HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
+| HUD-CARGO | Cargo durable reset/select/start/fresh-Main UI | 13 | Supply-status child DONE0c2dc2e: depleted hold reports insufficient kits after reset/reselection; cargo127/nearby HUD13 and paired checkpoint pass. Broader durable UI/restart remains open; KIT-RELOAD stays parked |
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DEFINE; ACTIVE, earned-unpaid, paid/reset, refused/reset |
 | ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DEFINE; bind existing repeatable activities, do not invent repetitions |

@@ -6158,3 +6158,28 @@ state with objective/selection/reset presentation, at most one concrete trigger/
 owner/existing focused acceptance or finite no finding. No runtime change until
 real discrepancy established; no new evidence framework. Retire completed
 KIT-DEPART table slot while preserving its full card/history.
+
+
+## Depleted Jovian cargo board status — shipped on 0c2dc2ef5
+
+The Activity Board now reports insufficient fabrication kits after the six-kit
+hold is exhausted and Cargo is reset or reselected. Both existing GameFlow board
+publishers read the existing inventory authority; the HUD gains no inventory or
+start authority. Existing locks, start refusal, other activity choices, transfers,
+rewards and generations remain unchanged.
+
+The unchanged full default cargo integration test reproduces exactly three new
+status failures on old runtime fb87e7050 (127 assertions/268.573s). Corrected
+source0c2dc2ef5 passes127/268.267s under the original300s cap; nearby HUD13 and
+compile checks pass. Clean paired exports, three strict silent headless/Dummy
+startups and actual1515-entry package audit pass. Windows EXE payload was checked
+through Linux Godot; native Windows/GPU/device/audio/human/full matrix/endurance
+and release gates remain open. Separate ordinary-delivery30s restart and Halyard
+boarding remain parked. Source integration scenarios do not close those journeys.
+
+Public EXE/checkpoint ZIP/notes are in builds/windows/ and paired Linux artifacts
+in builds/linux/, prefix MuddsShipyards-0c2dc2e. All11 owners terminal/all58 PID
+identities absent, source and required cache unchanged. Raw and archived engine
+logs: /srv/mudds-work/cargo-supply-status-20261018/results/. Owned disposable
+source/profile/helpers and duplicate builds removed at closure; source refs and
+public artifacts retained.

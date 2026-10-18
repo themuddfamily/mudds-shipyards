@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Fresh playable checkpointb86264f retains mixed button/stick controls in help, including the prior camera-distance fix. Cargo restart and Halyard remain parked.**
+**Fresh playable checkpoint0c2dc2e reports depleted Jovian kits truthfully on the Activity Board. Earlier control-help fixes remain included. Cargo restart and Halyard remain parked.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -13,7 +13,7 @@ phase gates remain open.** This file holds the executable queue; the
 | Outcome | Actual proof / limit |
 | --- | --- |
 | Immediate client landing edge retained exactly once | Runtime `2c73494a4`; old-runtime failure reproduced, consumer40/ship_command79 pass. Source/ownership/session boundaries revoke pending input. |
-| Fresh playable checkpoint **b86264f** | [Windows notes](builds/windows/MuddsShipyards-b86264f-notes.txt), [Linux notes](builds/linux/MuddsShipyards-b86264f-linux-notes.txt). Grouped help retains buttons beside stick directions in either order; default shorthand stays. Glyph40/camera27/help20, both exports/three strict startups/actual1515-entry audit pass. Earlier7718a5a camera and1cf1022 layout/focus corrections retained. |
+| Fresh playable checkpoint **0c2dc2e** | [Windows notes](builds/windows/MuddsShipyards-0c2dc2e-notes.txt), [Linux notes](builds/linux/MuddsShipyards-0c2dc2e-linux-notes.txt). Depleted cargo shows insufficient kits after reset/reselection; other choices remain usable. Full cargo127/nearby HUD13, paired exports/three strict startups/actual1515-entry audit pass. Earlier control-help/layout fixes retained. |
 | Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
 | Actual on-foot recovery in exported/archive Linux checkpoint | f90547c real-file SIGKILL/distinct restart; supported awake unseated player, ordinary walk0.525555m+Interact boarding, conserved convoy and receipts1→2 once. Private headless/Dummy and disclosed craft-placement fixtures; no fullflight/native-device claim. |
 | Pause/options16:10 selected source qualification | 1cf102298 PASS:26 focused repair assertions;948 layout assertions/96 observations,32 states at requested.75/1/1.6. Original criteria/caps retained; device/render/persistence transactions and other aspects remain open. |
@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS, 2 FAILED/PARKED, 2 GATED, 3 DONE (one qualification, two production fixes).** Root owns integration and closure.
+**2 FAILED/PARKED, 2 GATED, 4 DONE (one qualification, three production fixes).** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -51,7 +51,7 @@ and delivery history; they do not consume active queue slots.
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
 | MIXED-CONTROL-PROMPTS | DONE | Grouped movement help retains a remapped button alongside stick directions in either order. |b86264f; glyph40/camera27/help20, paired checkpoint/startups/audits pass |
-| HUD-CARGO-SUPPLY | IN PROGRESS | After the six-kit supply is exhausted and the run reset, the Activity Board reports insufficient kits; other activities remain selectable. |30–60 min implementation/review; existing focused check up to300s, packaging/checks separate |
+| HUD-CARGO-SUPPLY | DONE | After the six-kit supply is exhausted and the run reset, the Activity Board reports insufficient kits; other activities remain selectable. |0c2dc2e; cargo127/nearby HUD13, paired checkpoint/startups/audit pass |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
@@ -89,14 +89,25 @@ accepted runtime repairs require separate cards and fresh paired builds.
   refusal, and ordinary Race selection. Reproduce the new assertion against the
   old runtime, then pass it with the fix. Keep the existing300s check cap;
   a timeout is a failure, not permission to weaken or replace the acceptance.
-- **Budget/next:** IN PROGRESS;30–60min implementation/review, split before90min.
+- **Budget/next:** DONE; planned30–60min implementation/review, split before90min.
   Check runtime is separate: focused check up to300s per selected run, plus
   import/compile and paired checkpoint exports/startups. Next action is the
-  bounded implementation; stop at its first unexpected failure and record the
-  exact boundary before choosing one separate repair.
+  bounded implementation (now complete); first unexpected failure would stop
+  work before choosing one separate repair.
 - **Close:** accepted runtime change, focused proof and fresh paired playable
   checkpoint with actual validation/limits; commit/push and owned scratch cleanup.
   This closes only the supply-status defect, not cargo persistence or parent13.
+- **Actual result:**0c2dc2ef5; old runtime fails only the three new status
+  assertions,127 total/268.573s. Corrected full unchanged default cargo test
+  passes127/268.267s; nearby HUD13/2.401s and both compile checks pass. Both safe
+  exports, direct/archive/Windows-payload startups and actual1515-entry package
+  audit pass; original limits/fullraw diagnostics retained. Windows payload is
+  checked through Linux Godot, not native Windows. All11 owners terminal/all58
+  observed PID identities absent; source/required cache unchanged. Public paired
+  checkpoint/notes retained; owned checkout/profile/helpers removed after archival.
+  Raw: `/srv/mudds-work/cargo-supply-status-20261018/results/`.
+- **Next:** replenish the queue with one concrete player/build outcome from the
+  named backlog. This closure does not reopen parked cargo restart or Halyard.
 
 ### HUD-CARGO-FINDING — DONE, source definition only
 
