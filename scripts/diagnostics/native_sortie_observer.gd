@@ -4,6 +4,7 @@ extends Node
 ## timing overrides, or process shutdown: the external OS-input driver owns those.
 var _game: GameFlow
 var _life_tow := false
+var _life_gantry := false
 var _habitat_loop := false
 var _habitat_restart := false
 var _restart_sequence: int = 0
@@ -44,9 +45,12 @@ func on_startup_completed(main: Node) -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 	if _habitat_loop or _habitat_restart:
 		return
-	_life_tow = "--native-sortie-observer=life-tow" in OS.get_cmdline_args()
-	_ship = _game.get_node("TorrentInterceptor") as HeroShip
+	_life_gantry = "--native-sortie-observer=life-gantry" in OS.get_cmdline_args()
+	_life_tow = "--native-sortie-observer=life-tow" in OS.get_cmdline_args() or _life_gantry
+	_ship = _game.get_node("JovianLightFreighter" if _life_gantry else "TorrentInterceptor") as HeroShip
 	if _life_tow:
+		if _life_gantry:
+			_parked = _ship.global_transform
 		_tuning = _sortie_tuning()
 		return
 	_opponent = _game.get_node("RangeOpponent") as RangeOpponent
@@ -702,18 +706,20 @@ func _habitat_restart_observation() -> Dictionary:
 	return result
 
 
-## Narrow live Central service/walking/helm reads. No Habitat or fleet audit,
+## Narrow live station service/walking/helm reads. No Habitat or fleet audit,
 ## service simulation mutator, synthetic input or actor placement is involved.
 func _life_tow_observation() -> Dictionary:
+	var ship_path := ^"JovianLightFreighter" if _life_gantry else ^"TorrentInterceptor"
+	var activity_path := ^"OperationalLattice/Activities/FreightApproachGantry" if _life_gantry else ^"OperationalLattice/Activities/CentralTowServiceActivity"
 	var owner := get_parent()
 	var current: bool = is_instance_valid(_game) and _game.is_inside_tree() and not _game.is_queued_for_deletion() \
 		and owner.call("get_main") == _game and _ember_node_current(_player) \
 		and _game.player == _player and _ember_node_current(_game.world) \
-		and _ember_node_current(_ship) and _game.get_node_or_null(^"TorrentInterceptor") == _ship
-	var result := {"mode": "life-tow", "frame": Engine.get_physics_frames(), "actors_current": current}
+		and _ember_node_current(_ship) and _game.get_node_or_null(ship_path) == _ship
+	var result := {"mode": "life-gantry" if _life_gantry else "life-tow", "frame": Engine.get_physics_frames(), "actors_current": current}
 	if not current:
 		return result
-	var activity := _game.world.get_node_or_null(^"OperationalLattice/Activities/CentralTowServiceActivity") as StationOperationsActivity
+	var activity := _game.world.get_node_or_null(activity_path) as StationOperationsActivity
 	result.actors_current = _ember_node_current(activity)
 	if not bool(result.actors_current):
 		return result
@@ -733,11 +739,14 @@ func _life_tow_observation() -> Dictionary:
 	var source := _ship.get("_default_local_command_source") as LocalShipInputSource
 	var pilot_seat := _ship.get("_pilot_seat_anchor") as Node3D
 	var movers: Array = []
-	# These are the FULL profile's actual transform owners, not clock-derived
-	# expected poses or get_activity_state()'s presentation summary.
+	# Actual transform owners, not clock-derived expected poses or summary data.
+	# GANTRY uses only carriage/tool; FULL retains its arm and drone owners.
 	var live_movers: Array = [activity.get("_gantry_carriage"), activity.get("_gantry_tool"),
 		activity.get("_service_arm_shoulder"), activity.get("_service_arm_elbow"), activity.get("_service_arm_tool")]
-	live_movers.append_array(activity.get("_drone_roots") as Array)
+	if _life_gantry:
+		live_movers.resize(2)
+	else:
+		live_movers.append_array(activity.get("_drone_roots") as Array)
 	for candidate: Variant in live_movers:
 		var mover := candidate as Node3D
 		if not _ember_node_current(mover) or not activity.is_ancestor_of(mover):
@@ -790,4 +799,16 @@ func _life_tow_observation() -> Dictionary:
 		"service": {"id": activity.get_instance_id(), "clock": activity.get_activity_time(),
 			"enabled": activity.is_activity_enabled(), "advancing": activity.is_activity_advancing(),
 			"processing": activity.is_processing(), "visible": activity.is_visible_in_tree(), "movers": movers}}, true)
+	if _life_gantry:
+		var berth := _game.world.get_berth_node(_ship.get_home_berth_id()) as ShipBerth
+		result.merge({"ship_name": str(_ship.name), "boarding": _v(_ship.get_boarding_position()),
+			"engine": str(_ship.get("_engine_state")),
+			"parked_exact": _ship.global_transform.is_equal_approx(_parked),
+			"home_berth_id": str(_ship.get_home_berth_id()),
+			"home_berth_instance_id": berth.get_instance_id() if _ember_node_current(berth) else 0,
+			"home_lease": _ember_node_current(berth) and berth.get_occupant() == _ship
+				and berth.get_reservation_owner() == _ship
+				and StringName(berth.get("_reserved_ship_id")) == _ship.get_ship_definition().ship_id})
+		result.service.merge({"profile": str(activity.get_activity_profile_id()),
+			"path": str(activity_path), "origin": _v(activity.global_position)})
 	return result
