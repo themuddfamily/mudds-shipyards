@@ -211,6 +211,15 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | COMBAT-BREACH | Heavy Breach | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | UNSCHEDULED; existing live encounter, actual damage and safe return |
 
+**Fleet handoff:** a SPEC closes with supported identity/capability facts,
+explicit unknowns and any required owner interpretation. BUILD-SPLIT replaces
+that craft’s placeholder with named production capabilities: each needs files/owner,
+dependencies, player-visible result, focused proof, implementation/check estimates
+and checkpoint requirement. Only a capability whose own prerequisites hold becomes
+READY. Do not assign “build the complete ship,” assume a fixed task count per craft,
+or estimate a whole build before this split. Titan’s existing decision remains
+WAITING; the full CRAFT-ACCEPT journey is preserved after capability delivery.
+
 ### Ordinary Habitat journey — finite acceptance contract
 
 Definition on32d773487 after packaged221f523 station-bunk delivery. LOOP is now
@@ -296,7 +305,7 @@ Finite uncovered work is shared by parents11/21:
 | Outcome | Exact scope / status |
 | --- | --- |
 | NET-COMPONENT-ROW | DONE39a2ad709, packaged. Actual retained row now uses accepted host facts with source/role/lifecycle fences; local HUD29/30, pose216 and Main ENet382 pass. Original compile failure and one annotation repair retained; full parent OPEN. |
-| NET-COMPONENT-POWERS | Definition unresolved: local engine/weapon/targeting HUD values include critical-hull stutter and Halyard routing. Integrity alone is insufficient; no wire/format change selected. |
+| NET-COMPONENT-POWERS | Definition DONE; implementation READY in the [executable card](../ROADMAP.md#next-executable-card-net-component-powers). Per-craft pose building/packing/decoding omit live powers; host-active canonical telemetry already carries them. Existing optional primitive fields suffice; preserve packed layout and ordering. Actual HUD/power projection and checkpoint remain NOT_RUN. |
 | Existing full-craft/role recovery acceptance | Preserve existing CRAFT-ACCEPT and NET-DAMAGE scenarios; nine-craft parity is not every role/contact route. No new Cartesian matrix. |
 | Missing-original components/roles | UNKNOWN for the eight missing originals; original specification prerequisites remain. |
 

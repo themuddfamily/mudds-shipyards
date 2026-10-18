@@ -325,13 +325,25 @@ tick and local ledger ordering remain independent; host reports cannot invent
 local repair/recovery facts. Old actual row/label regression, existing local
 HUD checks, full pose and independent Main/ENet checks pass; see delivery history.
 
-The HUD's engine/weapon/targeting power scalars also remain local. Host integrity
-alone cannot define their replacement: critical-hull stutter and Halyard routing
-change live powers. Keep this unresolved projection separate from the finite
-component-row repair; no invented host operational facts or wire change follows
-from this inventory. Host display eligibility must preserve client/session and
-locally-flown exclusions, accepted generation/tick order, destruction fencing,
-and clear/re-entry behavior. Display facts never mutate local simulation.
+The HUD's engine/weapon/targeting power scalars also remain local. Source review
+on `b00ab078f` resolves the production seam: `HeroShip.get_telemetry()` samples
+actual live powers, including critical-hull stutter and Halyard routing. The
+canonical snapshot bridge already carries these for the host active craft, but
+`NetworkRemoteCraftPoseStream.build_pose_entry()`, `pack_display_facts()` and
+`_sample_from_entry()` omit them for arbitrary observed craft. Existing optional
+primitive power fields are already bounded by the authoritative snapshot contract;
+no new protocol version or compressed row layout is required. Settled rows retain
+the last pose tick and already advance operation tick, allowing fresh display
+facts without fresh movement. Integrity alone cannot reconstruct live powers.
+
+[The executable card](../ROADMAP.md#next-executable-card-net-component-powers)
+freezes the next implementation and focused proof; implementation/runtime checks
+remain NOT_RUN. Keep its detached power projection separate from the accepted
+component-row report and local repair ledger. Host display eligibility must
+preserve client/session and locally-flown exclusions, accepted generation/tick
+order, destruction fencing and clear/re-entry. A newer missing-power row must
+clear the prior projection; incomplete or invalid triples cannot become accepted
+power facts. Display facts never mutate local simulation.
 
 Existing adapter checks cover attribution/stages/authorization/repair/cleanup;
 Main integration explicitly enumerates five earlier craft; nine-craft recovery

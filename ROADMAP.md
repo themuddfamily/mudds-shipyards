@@ -34,11 +34,12 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 LIFE-PATROL is accepted on `ea8fe43`. All four station service runtime cards
 have passed on their recorded sources. The source is merged, a fresh checkpoint
-is published and owned scratch is cleaned. No successor is selected for execution.
+is published and owned scratch is cleaned. The remote-power source definition is
+complete; its bounded implementation card below is READY, not yet executed.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| NET-COMPONENT-POWERS | DEFINE; existing [component consequence boundary](docs/ROADMAP_BACKLOG.md#component-consequences-and-acceptance-boundary) | Inspect actual host→peer engine/weapon/targeting HUD power values, including critical-hull and Halyard routing. End with one concrete mismatch/production owner and focused acceptance, or an exact missing fact. Source-only, 15–20 min; no wire/schema or engine run by definition. |
+| NET-COMPONENT-POWERS | READY; source definition complete | Show the observed craft’s actual host engine/weapon/targeting percentages. Exact implementation and acceptance below; 45–75 min implementation, 10–20 min focused checks, 15–25 min checkpoint work, estimated rather than guaranteed. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 The Hauler stock/custody decision remains the concrete missing prerequisite for
@@ -46,6 +47,73 @@ the reviewed independent production alternative. Do not invent stock, a duplicat
 generation API or a whole-game absence-of-defects claim. The next definition must
 identify a real production gap before implementation, rather than extend a service
 qualification chain. This is a local queue, not a project estimate.
+
+## Next executable card: NET-COMPONENT-POWERS
+
+**Player result:** when observing another craft, HUD ENGINE OUTPUT, WEAPONS and
+TARGETING percentages agree with that craft’s accepted host telemetry, including
+critical-hull stutter and Halyard engineer routing. Parents 11/21 remain open.
+This is one production fix; its checks and checkpoint are part of delivery,
+not three extra features.
+
+- **Owner/files:** one implementation agent owns
+  `scripts/network/network_remote_craft_pose_stream.gd`,
+  `scripts/ships/hero_ship.gd`, `scripts/game/game_flow.gd` and the existing
+  `tests/network_remote_craft_pose_test.gd`. Extend the existing Halyard role test
+  only if needed to prove the routed-value transport. Root integrates, runs checks
+  and packages; an independent reviewer checks ordering/authority boundaries.
+- **Known cause:** host-active canonical telemetry already carries the three
+  powers. Per-craft pose entries omit them, packing drops them, and the HUD only
+  overlays host hull/engine/throttle. Use the existing optional primitive power
+  fields in that craft’s pose payload; preserve the compressed row layout.
+  Settled craft already publish fresh `operation_tick` with their retained pose;
+  power updates must use that ordering without manufacturing movement.
+- **Implementation:** sample the craft’s actual live powers together; retain a
+  finite, bounded complete trio through packing/decoding and accepted ordering;
+  expose a detached eligible HUD projection through the existing publisher.
+  A newer legacy row without powers clears any older power projection.
+- **Completion proof:** extend the existing pose test to deliver packed host
+  powers into the actual retained HUD label, including impaired/zero powers,
+  critical-hull output and an admitted Halyard route. Check settled updates,
+  stale/generation/epoch rejection, destruction, missing-field fallback,
+  local-pilot exclusion and clear/re-entry. Raw local telemetry, component report,
+  repair ledger and motion stay unchanged. Invalid/partial triples cannot become
+  an accepted power projection. Do not claim physical crew admission from a fixture.
+- **Commands:** pinned Godot, `--headless --audio-driver Dummy --path <clean-source>
+  --script res://tests/network_remote_craft_pose_test.gd`; run the existing
+  station-frame pose and Halyard role tests for the affected seams, plus existing
+  Main/ENet integration selected by the reviewer. Each requires exit 0 and its
+  existing success marker. Freeze exact commands/source before execution.
+- **Delivery:** clean-commit checkpoint export, focused checks and silent isolated
+  package `--startup-check` with exit 0 and `STARTUP_MENU_READY_OK`; EXE, ZIP and
+  actual build notes in `builds/windows/`, using the existing paired workflow.
+- **Stop:** first unexpected failure ends the attempt. Record its cause before
+  one bounded repair; preserve cumulative time and original acceptance. If the
+  implementation will exceed 90 minutes, split the remaining production capability
+  before continuing. No new protocol/version/validator family, weapon behavior,
+  role authority, full multiplayer endurance or parked-route retry belongs here.
+
+## Turning the remaining scope into executable work
+
+A broad parent stays open until all its original requirements are accepted; this
+can coexist with many completed children. Use the backlog as the scope inventory,
+then promote a child only when its result, prerequisites, file owner, proof,
+estimate and stop condition are explicit, as above. **READY, WAITING and PARKED
+must never appear as interchangeable “tasks left.”**
+
+For each missing craft, SPEC must first settle the evidence/interpretation and
+required capabilities. BUILD-SPLIT then names the actual hull/access, handling,
+role/weapon and recovery deliveries with individual owners and proofs before
+implementation. These are a checklist for decomposition, not an invented fixed
+number of tasks per ship. CRAFT-ACCEPT retains the original complete craft journey.
+An unresolved SPEC remains WAITING; a template or a source audit does not deliver
+that ship. The already-asked Titan decision remains pending.
+
+At each delivery, update that child’s result and remaining dependency, give actual
+elapsed time against the estimate, and nominate one next action. Keep at most
+three executable cards. Broader estimation becomes possible as unknown build
+scope and policy choices are resolved; this planning update does not establish
+a total job count or release date.
 
 ## Latest delivered result
 

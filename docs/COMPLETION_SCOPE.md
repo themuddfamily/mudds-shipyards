@@ -443,6 +443,11 @@ The original Phase 4 promise is **Torrent, Arrow, Jovian, Titan, Vortex, Paradox
 
 Every craft acceptance includes ordinary walk-up → board → launch → role/weapon → damage/repair or destruction/recovery → strict supported landing → exit → reuse, plus cross-craft switching and Main re-entry. Hull, cabin, collision, camera/muzzle clearance, audio and lateral handling require review on the final package.
 
+The table’s complete craft loops are eventual acceptance requirements. Executable
+work for each missing craft must pass SPEC-* → BUILD-SPLIT-* → individual
+capability cards → CRAFT-ACCEPT-* in the [backlog](ROADMAP_BACKLOG.md#station-fleet-and-combat-children).
+The broad “complete craft” descriptions below are not implementation assignments.
+
 | Craft | Original phase | Definition under `assets/ships/` or gap | Status | Concrete next action / acceptance scenario |
 | --- | --- | --- | --- | --- |
 | Torrent | 2, 4, 6 | `torrent_provisional.tres` | I + E | Complete guided first sortie/combat/return and finish source-bounded reconstruction; resolve B5 recording/build and 2009 continuity before stronger historical wording. |
