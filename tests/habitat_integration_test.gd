@@ -218,8 +218,46 @@ func _test_production_bunk_rest(
 		"ordinary walking moves the awake player away from the bunk")
 	_check(player.is_on_floor() and player.global_position.y > -0.1,
 		"awake walking remains supported on the authored station floor")
-	_check(await _drive_player_z(player, wake.origin.z, false, 1.0),
-		"ordinary walking returns to the same wake handoff for reuse")
+	# A crossing helper deliberately leaves normal momentum intact. This short
+	# return needs an actual settled handoff before facing the discovery target,
+	# so brake through live movement/release input within the same frame budget.
+	var crossed_wake := false
+	var returned_to_wake := false
+	var settled_frames := 0
+	var return_target_z: float = wake.origin.z + 0.04
+	var physics_step: float = 1.0 / float(Engine.physics_ticks_per_second)
+	for _tick in _frame_budget(1.0):
+		crossed_wake = crossed_wake or player.global_position.z >= wake.origin.z
+		var remaining: float = return_target_z - player.global_position.z
+		var speed_z: float = player.velocity.z
+		var stopping_distance: float = speed_z * speed_z / (2.0 * player.ground_deceleration)
+		# Account for the next movement step when deciding to release the key.
+		var keep_moving: bool = absf(remaining) > 0.025 and (
+			speed_z * remaining <= 0.0
+			or stopping_distance + absf(speed_z) * physics_step < absf(remaining)
+		)
+		Input.action_release("move_forward")
+		Input.action_release("move_back")
+		if keep_moving:
+			Input.action_press("move_back" if remaining > 0.0 else "move_forward")
+		await physics_frame
+		await process_frame
+		crossed_wake = crossed_wake or player.global_position.z >= wake.origin.z
+		var horizontal_speed: float = Vector2(player.velocity.x, player.velocity.z).length()
+		if crossed_wake and absf(player.global_position.z - wake.origin.z) <= 0.12 \
+				and horizontal_speed <= 0.05 and player.is_on_floor():
+			settled_frames += 1
+			if settled_frames >= 3:
+				returned_to_wake = true
+				break
+		else:
+			settled_frames = 0
+	Input.action_release("move_forward")
+	Input.action_release("move_back")
+	_check(returned_to_wake, "ordinary walking returns to the same wake handoff for reuse")
+	if not returned_to_wake:
+		_print_bunk_rest_failure(game, player, bunk, "return did not settle at authored wake")
+		return
 	player.global_basis = wake.basis
 	player._camera_yaw.rotation.y = 0.0
 	if not await _sleep_with_live_bunk_input(game, player, bunk, "reuse after walking"):
@@ -280,6 +318,7 @@ func _sleep_with_live_bunk_input(game: GameFlow, player: PlayerController, bunk:
 	var discovered: bool = game.station_interaction_candidate == bunk and "SLEEP" in bunk.get_interaction_prompt()
 	_check(discovered, "%s discovers the actual station bunk through normal facing and proximity" % description)
 	if not discovered:
+		_print_bunk_rest_failure(game, player, bunk, description)
 		return false
 	Input.action_press("interact")
 	await physics_frame
@@ -287,6 +326,8 @@ func _sleep_with_live_bunk_input(game: GameFlow, player: PlayerController, bunk:
 	Input.action_release("interact")
 	var reached := await _wait_for_rest_state(game, player, true)
 	_check(reached, "%s uses ordinary E to sleep" % description)
+	if not reached:
+		_print_bunk_rest_failure(game, player, bunk, description)
 	return reached
 
 
@@ -297,11 +338,32 @@ func _wake_with_live_bunk_input(game: GameFlow, player: PlayerController, bunk: 
 	Input.action_release("interact")
 	var reached := await _wait_for_rest_state(game, player, false)
 	_check(reached and bunk.is_available(), "%s uses ordinary E and releases the reserved bunk" % description)
+	if not reached or not bunk.is_available():
+		_print_bunk_rest_failure(game, player, bunk, description)
 	for _tick in 8:
 		await physics_frame
 		await process_frame
 	_check(player.is_on_floor(), "%s restores supported floor collision" % description)
 	return reached
+
+
+func _print_bunk_rest_failure(game: GameFlow, player: PlayerController, bunk: StationSeat, description: String) -> void:
+	var candidate: Node3D = game.station_interaction_candidate
+	var candidate_path: String = str(candidate.get_path()) if is_instance_valid(candidate) else "<none>"
+	var nearby: Array[Node3D] = player.get_nearby_interactables()
+	print("HABITAT_BUNK_REST_FAILURE_STATE: ", {
+		"case": description,
+		"player_pose": player.global_transform,
+		"wake_pose": bunk.get_exit_transform(),
+		"velocity": player.velocity,
+		"interaction_origin": player.get_interaction_origin(),
+		"interaction_direction": player.get_interaction_direction(),
+		"bunk_position": bunk.global_position,
+		"candidate_path": candidate_path,
+		"nearby_contains_bunk": nearby.has(bunk),
+		"bunk_available": bunk.is_available(),
+		"bunk_collision_layer": bunk.collision_layer,
+	})
 
 
 func _wait_for_rest_state(game: GameFlow, player: PlayerController, sleeping: bool) -> bool:
