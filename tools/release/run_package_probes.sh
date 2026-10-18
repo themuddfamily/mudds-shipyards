@@ -6,7 +6,9 @@ set -o pipefail
 # --activity=mining, --activity=scan, --activity=hulk or --activity=stationdefense selects unpaid recovery
 # or --activity=ember selects a genuine interrupted planetary survey
 # (pilot only); default remains convoy. PACKAGE_PROBE_RECOVERY_CONTEXT=on_foot
-# selects the supported exterior Bulwark/home-berth convoy case. Ember excludes canonical outbound and
+# selects the supported exterior Bulwark/home-berth convoy case. Context docking
+# selects one real Bulwark assist cut, then cold home-pilot recovery and explicit
+# reset/distinct escort continuation; it does not restore an approach pose. Ember excludes canonical outbound and
 # standing-pose restore; each necessary visit discloses initial flight placement.
 # --source selects the current project instead of PACKAGE_PATH; source
 # and PCK identities are recorded separately and neither qualifies native input.
@@ -56,8 +58,12 @@ if (( IN_WORLD_INTERRUPTION == 0 )) && { (( ACTIVITY_FLAG_SEEN == 1 )) || [[ "$P
   echo "Activity selection requires --in-world-interruption" >&2
   exit 2
 fi
-if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest && "$RECOVERY_CONTEXT" != crew && "$RECOVERY_CONTEXT" != engineer && "$RECOVERY_CONTEXT" != on_foot ]]; then
+if [[ "$RECOVERY_CONTEXT" != pilot && "$RECOVERY_CONTEXT" != cabin && "$RECOVERY_CONTEXT" != rest && "$RECOVERY_CONTEXT" != crew && "$RECOVERY_CONTEXT" != engineer && "$RECOVERY_CONTEXT" != on_foot && "$RECOVERY_CONTEXT" != docking ]]; then
   echo "Invalid interruption recovery context" >&2
+  exit 2
+fi
+if [[ "$RECOVERY_CONTEXT" == docking ]] && (( IN_WORLD_INTERRUPTION == 0 )); then
+  echo "Docking context requires --in-world-interruption" >&2
   exit 2
 fi
 if [[ ( "$PROBE_ACTIVITY" == beacon || "$PROBE_ACTIVITY" == mining || "$PROBE_ACTIVITY" == stationdefense || "$PROBE_ACTIVITY" == scan || "$PROBE_ACTIVITY" == hulk || "$PROBE_ACTIVITY" == ember ) && "$RECOVERY_CONTEXT" != pilot ]]; then
@@ -451,6 +457,45 @@ try:
     else:
         row = saved["payload"]["cinder_convoy_session"]["activities"][0]
         require(row["progress"]["convoy_session_state"] == ready["boundary"], "readiness differs from real durable document")
+        if recovery_context == "docking":
+            context = saved["payload"]["solo_safe_recovery"]
+            observed = ready["docking_observation"]
+            landing = observed["landing"]
+            require(context == ready["safe_context"] == {
+                        "location": "mudds_home_berth", "mode": "pilot",
+                        "craft_id": "bulwark_heavy_gunship", "berth_id": "bulwark_fleet_dock_berth"}
+                    and ready["boundary"]["escort_ship_id"] == context["craft_id"]
+                    and row["state"] == 3 and ready["receipts"] == 1,
+                    "docking readiness has no actual four-field pilot preference and failed second convoy")
+            require(saved["payload"]["cinder_convoy_session"] == ready["convoy_record"]
+                    and saved["payload"]["game_flow_reward_store"] == ready["reward_store"]
+                    and saved["payload"]["game_flow_reward_store"]["reward_counts"]["return_convoy_credit_to_shipyard"] == 1
+                    and observed["owed_rewards"] == [],
+                    "docking arm omitted exact activity/debt/reward boundary or actual first payment")
+            require(observed["craft_id"] == context["craft_id"] and observed["craft_piloted"] is True
+                    and observed["piloting"] is True and observed["player_at_pilot_seat"] is True
+                    and observed["player_seated"] is True and observed["player_sleeping"] is False
+                    and observed["hatch_reserved_by_player"] is True and observed["landed"] is False
+                    and observed["berth_unoccupied"] is True and observed["berth_reserved_by_craft"] is True
+                    and observed["berth_lease_current"] is True and bool(observed["berth_reservation_token"])
+                    and observed["landing_request_active"] is True
+                    and observed["active_landing_berth_id"] == observed["home_berth_id"] == context["berth_id"],
+                    "docking arm lacks actual pilot/hatch and current unoccupied target berth claim")
+            require(landing["active"] is True and landing["contract_accepted"] is True
+                    and landing["reservation_identity_snapshotted"] is True and landing["reservation_token_bound"] is True
+                    and landing["berth_id"] == context["berth_id"]
+                    and landing["berth_instance_id"] == observed["home_berth_instance_id"]
+                    and landing["acceptance"]["reservation_owner_instance_id"] == observed["craft_instance_id"],
+                    "docking arm lacks the exact accepted live landing contract")
+            require(landing["reserved_ship_id"] == context["craft_id"]
+                    and landing["elapsed"] > observed["requested_elapsed"] >= 0
+                    and landing["phase"] not in ("none", "docked") and landing["last_abort_reason"] == ""
+                    and observed["advanced_distance_m"] > 0 and observed["distance_to_dock_m"] > 0.1
+                    and observed["completed_signals"] == observed["aborted_signals"] == 0,
+                    "docking cut did not advance actual assist physics or already completed/aborted")
+            require(ready["initialization"] == "existing_convoy_motion_fixture_then_home_approach_3m_above_registered_berth_real_landing_request_two_assist_physics_ticks"
+                    and ready["approach_pose_restore"] == "NOT_SUPPORTED",
+                    "docking readiness omitted escort/approach fixture disclosure and safe preference limit")
         if recovery_context == "on_foot":
             context = saved["payload"]["solo_safe_recovery"]
             observed = ready["exterior_observation"]
@@ -624,6 +669,35 @@ try:
         require(final["payload"]["game_flow_reward_store"]["reward_counts"]["debris_route_navigation_data"] == ready["receipts"] + 1,
                 "beacon retry lost or duplicated the actual saved navigation-data payment")
 
+    if recovery_context == "docking":
+        safe = recovered["safe_recovery_observation"]
+        control = recovered["control_observation"]
+        context = ready["safe_context"]
+        require(recovered["convoy_record"] == ready["convoy_record"]
+                and recovered["reward_store"] == ready["reward_store"]
+                and recovered["safe_context"] == context and safe["owed_rewards"] == [],
+                "cold docking Resume changed exact failed activity, debt, reward or four-field preference")
+        require(safe["craft_id"] == context["craft_id"] and safe["home_berth_id"] == context["berth_id"]
+                and safe["craft_piloted"] is True and safe["piloting"] is True
+                and safe["player_seated"] is True and safe["player_at_pilot_seat"] is True
+                and safe["player_sleeping"] is False and safe["cabin_containment"] is False
+                and safe["craft_at_home"] is True and safe["berth_occupied_by_craft"] is True
+                and safe["berth_reserved_by_craft"] is True and safe["berth_lease_current"] is True
+                and safe["hatch_reserved_by_player"] is True and bool(safe["berth_reservation_token"])
+                and safe["berth_reservation_token"] != ready["docking_observation"]["berth_reservation_token"]
+                and safe["landing"]["active"] is False and safe["landing_request_active"] is False
+                and safe["active_landing_berth_id"] == "",
+                "cold docking Resume did not acquire fresh home pilot/seat/berth/hatch without old assist authority")
+        require(control["engine_online"] is True and control["throttle"] > 0 and control["landing_active"] is False
+                and recovered["initialization"] == ready["initialization"]
+                and recovered["approach_pose_restore"] == "NOT_SUPPORTED"
+                and recovered["continuation_method"] == "ordinary_cold_home_pilot_resume_throttle_explicit_reset_then_distinct_convoy_motion_fixture",
+                "docking recovery omitted normal usable throttle, explicit reset/distinct fixture or placement disclosure")
+        paid_row = final["payload"]["cinder_convoy_session"]["activities"][0]
+        require(paid_row["reward_granted"] is True
+                and paid_row["generation"] == recovered["continuation_generation"] > row["generation"]
+                and final["payload"]["game_flow_reward_store"]["reward_counts"]["return_convoy_credit_to_shipyard"] == 2,
+                "docking continuation lost or duplicated the actual distinct convoy payment")
     if recovery_context == "on_foot":
         safe = recovered["safe_recovery_observation"]
         require(recovered["safe_context"] == ready["safe_context"]

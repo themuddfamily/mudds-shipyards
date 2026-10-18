@@ -121,7 +121,7 @@ func _run() -> void:
 	beacon_args.append("--in-world-interruption-activity=beacon")
 	_check(StartupLoaderType.in_world_probe_request(beacon_args, "headless", "Dummy").accepted,
 		"the beacon interruption selector admits the supported pilot context")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := beacon_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -129,7 +129,7 @@ func _run() -> void:
 	var scan_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=scan"])
 	_check(StartupLoaderType.in_world_probe_request(scan_args, "headless", "Dummy").accepted,
 		"scan interruption admits its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := scan_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -140,7 +140,7 @@ func _run() -> void:
 	var mining_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=mining"])
 	_check(StartupLoaderType.in_world_probe_request(mining_args, "headless", "Dummy").accepted,
 		"the mining interruption selector admits the supported pilot context")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := mining_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -151,7 +151,7 @@ func _run() -> void:
 	var hulk_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=hulk"])
 	_check(StartupLoaderType.in_world_probe_request(hulk_args, "headless", "Dummy").accepted,
 		"hulk interruption admits its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := hulk_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -162,7 +162,7 @@ func _run() -> void:
 	var ember_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=ember"])
 	_check(StartupLoaderType.in_world_probe_request(ember_args, "headless", "Dummy").accepted,
 		"ember interruption admits its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := ember_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -179,7 +179,7 @@ func _run() -> void:
 	var defense_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=stationdefense"])
 	_check(StartupLoaderType.in_world_probe_request(defense_args, "headless", "Dummy").accepted,
 		"station-defense interruption admits only its supported pilot recovery")
-	for context in ["cabin", "rest", "crew", "engineer", "on_foot"]:
+	for context in ["cabin", "rest", "crew", "engineer", "on_foot", "docking"]:
 		var unsupported := defense_args.duplicate()
 		unsupported.append("--in-world-interruption-context=" + context)
 		_check(not StartupLoaderType.in_world_probe_request(unsupported, "headless", "Dummy").accepted,
@@ -204,6 +204,25 @@ func _run() -> void:
 		_check(not StartupLoaderType.in_world_probe_request(foot_args, "headless", "PulseAudio").accepted
 			and not StartupLoaderType.in_world_probe_request(foot_args, "headless", "Dummy", true).accepted,
 			"on-foot recovery requires actual Dummy and cannot inherit engineer input admission")
+	for stage in ["arm", "resume"]:
+		var docking_args := PackedStringArray(["--in-world-interruption-stage=" + stage,
+			"--in-world-interruption-context=docking", "--in-world-interruption-activity=convoy"])
+		var request := StartupLoaderType.in_world_probe_request(docking_args, "headless", "Dummy")
+		_check(request.accepted and request.recovery_context == "docking" and request.activity == "convoy",
+			"actual docking convoy admits only the explicit silent %s stage" % stage)
+		for unsafe_display in ["X11", "wayland"]:
+			_check(not StartupLoaderType.in_world_probe_request(docking_args, unsafe_display, "Dummy").accepted,
+				"docking interruption remains isolated from rendered displays")
+		for unsafe_audio in ["", "PulseAudio", "WASAPI"]:
+			_check(not StartupLoaderType.in_world_probe_request(docking_args, "headless", unsafe_audio).accepted,
+				"docking interruption requires the actual Dummy driver")
+		_check(not StartupLoaderType.in_world_probe_request(docking_args, "headless", "Dummy", true).accepted,
+			"docking cannot inherit private engineer input admission")
+		for conflict in ["--startup-check", "--frame-capture", "--version", "--support-info", "--support-export"]:
+			var conflicting := docking_args.duplicate()
+			conflicting.append(conflict)
+			_check(not StartupLoaderType.in_world_probe_request(conflicting, "headless", "Dummy").accepted,
+				"docking refuses competing exit modes before Main loading")
 	var engineer_args := PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=engineer"])
 	_check(StartupLoaderType.in_world_probe_request(engineer_args, "X11", "Dummy", true).accepted,
 		"engineer admits only the explicitly owned private X11 Dummy input path")
@@ -245,6 +264,9 @@ func _run() -> void:
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=unknown"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity", "beacon"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-activity=beacon", "--in-world-interruption-activity=beacon"]),
+		PackedStringArray(["--in-world-interruption-context=docking"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context", "docking"]),
+		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=docking", "--in-world-interruption-context=docking"]),
 		PackedStringArray(["--in-world-interruption-context=on_foot"]),
 		PackedStringArray(["--in-world-interruption-stage=arm", "--in-world-interruption-context=on_foot", "--in-world-interruption-context=on_foot"]),
 		PackedStringArray(["--in-world-interruption-context=cabin"]),
