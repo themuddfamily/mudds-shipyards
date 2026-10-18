@@ -2962,3 +2962,75 @@ parent or phase closes; other final hardware/release gates retain their scope.
   supported path or blocker, then select a separate bounded repair/preflight
   card. A failed preflight plus one attempted repair requires priority review
   before any further diagnosis/rerun. Commit/push the concrete decision.
+
+## Ember native observer first check — STOPPED, missing test UID
+
+Candidate `e9e04c1f155b4eb6f99a4bc05e6673effc2211d6` implements the existing
+native observer's Ember selector and pure state observations. Independent static
+review fixed hidden stale-claim cleanup/getter creation/streaming reconciliation
+before any engine invocation, with focused stale-state regressions. No generic
+script loader, template modification or flight driver was added.
+
+The one original600s-cap cold import exited0 without diagnostics; the frozen
+source guard nevertheless FAILED solely because Godot generated untracked
+`tests/native_ember_observer_test.gd.uid` with `uid://ba7kjjwh57t34`.
+Tracked source, index and engine hashes are identical before/after. No privacy
+or runtime suite ran, and no exported checkpoint exists from this candidate.
+All3 observed owned process identities close, no socket remnants. Setup through
+first-check closure6.3min; import invocation through closure23.4s. Raw preserved
+in `/srv/mudds-work/ember-native-observer-20261018/results/focused/`.
+
+Required priority review after the prior failed preflight and this implementation
+attempt selects EMBER-OBSERVER-UID: track the exact generated sidecar with no
+behavior changes, commit, discard only this owned disposable import cache and
+run one fresh import/privacy/runtime attempt at original600/300/300s caps.
+Independent review confirms sole difference and GO for that exact correction.
+Alternative long journey remains unsupported; parked failures stay parked. New
+raw goes under focused-uid/, old failure stays unchanged. First new failure ends
+work for another priority decision; exports remain gated until focused acceptance.
+This is a source metadata repair, not a gameplay outcome or native journey pass.
+
+## Ember observer metadata repair — source clean, runtime fixture parse FAILED
+
+`34b048287df8780b87975b19894ddd268d08b7a6` tracks the exact generated UID only.
+One new cold import passes with exit0, no diagnostics and stable tracked source/
+index/engine; privacy exits0 with exact terminal STARTUP_CLI_PRIVACY_TEST_OK and
+232 assertions. Runtime stops at its first diagnostic, before assertions:
+`tests/native_ember_observer_test.gd:115` infers Variant from `weakref()` while
+warnings are errors. The supervisor records143 after the exact diagnostic abort;
+this is not a clean runtime test result. All7 observed identities close, no socket
+remnants. Source/index/cache/engine stay frozen. The attempt takes49.9s. Raw:
+`/srv/mudds-work/ember-native-observer-20261018/results/focused-uid/`.
+
+Required priority review selects one bounded fixture declaration correction,
+EMBER-OBSERVER-TYPING: annotate the local WeakRef, commit, reuse the unchanged
+accepted import cache (test-only declaration, same UID) and run privacy/runtime
+once at original300s caps in focused-typing/. No runtime behavior, assertions,
+route or limits change; no new import is justified by that declaration. The
+competing long journey is unsupported; exports remain gated until acceptance.
+First new failure stops for priority review. This does not reset the earlier
+failure/repair history. No native route, observer runtime pass or checkpoint is
+claimed from this attempt.
+
+## Ember native observer source — PASS on4270d7187, packaging pending
+
+`4270d7187f1c93f45191925a13e2eee8255a2ba7` annotates only the fixture's WeakRef.
+Independent review GO preceded the one repaired attempt. Existing accepted import
+cache from34b048287 is reused byte-identically; no production change requires
+another import. Exact source privacy232 and real-Main observer20 pass with exit0,
+exactly one expected terminal marker, zero diagnostics and unchanged source/
+index/cache/engine guards. Source raw:
+`/srv/mudds-work/ember-native-observer-20261018/results/focused-typing/`.
+
+The runtime checks use one genuine Main with fixture-only craft selection,
+stale lease/boarding tokens and streaming records, then missing world and
+retired/detached/freed Main. Observations follow actual craft/player identities
+and poses and preserve raw state, actors, claims, store, input, origin and Host.
+No ordinary physical flight/landing/return or disk journey is inferred. Earlier
+cold-import UID and fixture parse failures remain retained in their own raw.
+
+Source capability is accepted; complete the required clean paired checkpoint on
+that exact source using existing safe exports, three strict startups, packed
+privacy and one owned Xvfb native Ember menu-observer/normal-window-close smoke.
+Only those artifact/runtime outcomes can be claimed after they actually pass.
+All full physical, hardware, device, audio, matrix and release gates stay open.

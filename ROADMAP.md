@@ -39,9 +39,10 @@ Only the two cards below are scheduled. Root owns both.
 - **Static decision:** consumer definition DONE. Disabled engine overrides also
   discard external --script; removing --path cannot fix the unchanged driver.
   No engine was run during this diagnosis.
-- **Next:** add one read-only Ember mode to the established native observer for
-  a new checkpoint. Full physical OS-input journey needs its own subsequent card;
-  unchanged-driver acceptance on9be5c83 remains unsupported, not passed.
+- **Current:** native Ember observer source4270d7187 passes privacy232 and
+  runtime20 with exact markers/zero diagnostics/frozen source/index/cache/engine.
+  Paired exports, strict startups and native menu smoke are next. Full physical
+  OS-input journey still needs its own card;9be5c83 remains unsupported.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
   walk, Convoy/Patrol startup and Q4/Q5 investigations retain their failures and
   repair limits. No unchanged retry is selected. See the
@@ -69,7 +70,7 @@ durable-save acceptance. The existing unchanged driver is
 
 | Task | Status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| EMBER-NATIVE-OBSERVER | READY / root | Native packaged observer exposes actual Ember journey state without changing it. | 60–90min implementation; focused checks and required paired checkpoint separately. |
+| EMBER-NATIVE-OBSERVER | SOURCE PASS; packaging / root | Native packaged observer exposes actual Ember journey state without changing it. | 60–90min implementation; focused checks and required paired checkpoint separately. |
 | EMBER-PACKAGE-ABANDON | UNSUPPORTED on9be5c83 / root | Exact shipped Linux package completes unchanged canonical outbound/abandon/reboard/home/walk. | 30–45min setup; original7200s route cap, prior source run41m15s. |
 
 ### EMBER-NATIVE-OBSERVER — expose the actual packaged journey state
@@ -95,6 +96,9 @@ durable-save acceptance. The existing unchanged driver is
   Use existing production snapshots, with no transforms, input, authority, save,
   reward or actor creation written by the observer. Focused checks prove routing,
   active-craft switching, absent/retired lifecycle and unchanged observed state.
+  One owned native Xvfb/x11/Dummy/dummy-renderer menu smoke observes real Ember
+  mode readiness, then asks only its own window to close normally (exit0). This
+  is observer integration proof, not startup-only or physical-journey acceptance.
 - **Budget/stop:**60–90min implementation, focused checks at original caps;
   cold import≤600s, exports≤930s each and strict startup≤330s each if needed for
   the required clean paired checkpoint. First failure ends verification; one
@@ -105,6 +109,52 @@ durable-save acceptance. The existing unchanged driver is
   canonical route, continuity/landing/return limits and physical outcomes. Neither
   observer fields nor startup alone qualify that route. Do not rename this mode
   as the unchanged external-driver test or claim9be5c83 acceptance.
+
+### EMBER-OBSERVER-TYPING — DONE, focused source checks pass on4270d7187
+
+**Priority review after the next failure:** repaired source `34b048287` passes
+cold import/source guards and privacy232, but runtime stops before assertions at
+`native_ember_observer_test.gd:115`: `weakref()` infers Variant under warnings-as-
+errors. All7 observed processes close; source/index/cache/engine remain frozen.
+This attempt took49.9s. The metadata issue is fixed; observer qualification and
+exports are still open. The competing long journey has no supported driver.
+
+Select one≤10min correction: explicitly type that local as WeakRef, commit, then
+one privacy/runtime attempt≤300s each in focused-typing/. Reuse the exact unchanged
+import cache because only the fixture declaration changes and its UID is tracked;
+record cache identity before/after, with no source-guard exception. Do not repeat
+cold import or alter runtime behavior, route, assertion or cap. This priority
+decision retains all earlier failures and does not reset the repair history.
+This exact annotation is committed in4270d7187. One privacy/runtime retest passes
+232/20 with exit0, exact markers, no diagnostics and frozen guards; owned closure
+is complete. Exports are now ungated for this exact clean candidate. Earlier
+failed raw and priority decisions remain unchanged.
+
+### EMBER-OBSERVER-UID — metadata fixed, retest FAILED before runtime assertions
+
+The first observer check on `e9e04c1f1` stopped: cold import exited0 without
+engine diagnostics, but created untracked `tests/native_ember_observer_test.gd.uid`.
+Tracked source/index/engine hashes stayed identical; privacy/runtime never ran.
+Three observed owned identities closed, no socket remnants. Setup/implementation/
+first-check took6.3min; import invocation through closure23.4s. Raw is
+`/srv/mudds-work/ember-native-observer-20261018/results/focused/`.
+
+**Priority review:** the native observation/build outcome is still unqualified.
+The only concrete blocker is missing generated source metadata. The competing
+long journey is unsupported and has no runnable native driver; parked repairs
+retain their limits. Select one small metadata repair instead of more consumer
+or gameplay diagnosis. Independent review confirms that exact boundary.
+
+- **Owner/result/boundary:** root; sidecar tracked in34b048287, clean import and
+  privacy pass; runtime parse failure recorded above. Track the exact generated UID sidecar
+  `uid://ba7kjjwh57t34`, commit it and change no runtime/test behavior.
+- **Proof/budget:**≤10min preparation; remove only this owned disposable import
+  cache and run one new cold import≤600s plus privacy/runtime≤300s each from the
+  clean repaired commit, frozen throughout. Keep the failed raw unchanged under
+  focused/ and put new results in focused-uid/. No source-guard exception.
+- **Stop/close:** first failure stops with a new priority review before any more
+  repair. Exports remain gated until focused checks pass. If accepted, complete
+  the existing observer/checkpoint card and preserve both attempt scopes.
 
 The prior **EMBER-PACKAGE-PREFLIGHT is FAILED**, not READY. Its one120s-cap
 attempt stopped at the unsupported `--path` boundary. Full command, raw result,
