@@ -12,6 +12,8 @@ const NAVIGATOR_COMPOSITION := preload("res://scripts/audio/cinder_navigator_pin
 var _audio_director: Node
 var _cinder_adapter: Node
 var _final_approach_adapter: Node
+var _local_navigator_composition: Node
+var _local_navigator_claim: Dictionary = {}
 var _navigator_composition: Node
 var _cinder_craft: Node
 var _cruise: Node
@@ -75,6 +77,8 @@ func set_navigator_generation(generation: int) -> Dictionary:
 		return _result(false, &"not_attached")
 	if generation < 0:
 		return _result(false, &"invalid_navigator_generation")
+	if generation > 0:
+		clear_local_navigator()
 	if generation == _navigator_generation:
 		return _result(true, &"navigator_unchanged")
 	if _navigator_composition != null and is_instance_valid(_navigator_composition):
@@ -92,6 +96,36 @@ func set_navigator_generation(generation: int) -> Dictionary:
 	_navigator_generation = generation
 	return _result(true, &"navigator_bound")
 
+func set_local_navigator_claim(claim: Dictionary) -> Dictionary:
+	if not _attached or _navigator_generation > 0:
+		return _result(false, &"local_navigator_unavailable")
+	if claim == _local_navigator_claim and _local_navigator_composition != null \
+			and _local_navigator_composition.local_is_attached():
+		return _result(true, &"local_navigator_unchanged")
+	clear_local_navigator()
+	if _local_navigator_composition == null or not is_instance_valid(_local_navigator_composition):
+		_local_navigator_composition = NAVIGATOR_COMPOSITION.new()
+		_local_navigator_composition.name = "CinderSoloNavigatorPingAudioComposition"
+		add_child(_local_navigator_composition)
+	var attached: Dictionary = _local_navigator_composition.attach_local(_audio_director, claim)
+	if bool(attached.get("accepted", false)):
+		_local_navigator_claim = claim.duplicate()
+	return attached
+
+func present_cinder_local_navigator_result(result: Dictionary, claim: Dictionary, sequence: int) -> Dictionary:
+	if not _attached or claim != _local_navigator_claim or _local_navigator_composition == null:
+		return _result(false, &"local_navigator_not_attached")
+	return _local_navigator_composition.present_local_result(result, claim, sequence)
+
+func retire_local_navigator_if_lost() -> void:
+	if _local_navigator_composition != null and is_instance_valid(_local_navigator_composition):
+		_local_navigator_composition.retire_local_if_lost()
+
+func clear_local_navigator() -> void:
+	if _local_navigator_composition != null and is_instance_valid(_local_navigator_composition):
+		_local_navigator_composition.detach()
+	_local_navigator_claim.clear()
+
 func present_cinder_navigator_bridge_result(result: Dictionary) -> Dictionary:
 	if not _attached or _navigator_generation <= 0 \
 			or _navigator_composition == null or not is_instance_valid(_navigator_composition):
@@ -101,6 +135,7 @@ func present_cinder_navigator_bridge_result(result: Dictionary) -> Dictionary:
 func detach() -> Dictionary:
 	if not _attached:
 		return _result(true, &"already_detached")
+	clear_local_navigator()
 	_unbind(&"crew", _cinder_adapter)
 	_unbind(&"planetary", _final_approach_adapter)
 	if _navigator_composition != null and is_instance_valid(_navigator_composition):
@@ -121,6 +156,9 @@ func get_snapshot() -> Dictionary:
 		"attached": _attached,
 		"cinder": _cinder_adapter.get_snapshot() if _cinder_adapter != null else {"attached": false},
 		"final_approach": _final_approach_adapter.get_snapshot() if _final_approach_adapter != null else {"attached": false},
+		"local_navigator": {
+			"attached": _attached and _local_navigator_composition != null and _local_navigator_composition.local_is_attached(),
+		},
 		"navigator": {
 			"attached": _attached and _navigator_generation > 0,
 			"generation": _navigator_generation,
