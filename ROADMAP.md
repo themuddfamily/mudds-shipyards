@@ -45,7 +45,7 @@ unapproved; parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| NET-COMPONENT-ROW /11,21 | Production UI repair; SELECTED, not started | Existing component row agrees with eligible accepted host damage and returns to local display on clear | Implement readonly display projection with existing binding/order lifecycle; focused checks and fresh paired checkpoint. |
+| NET-COMPONENT-ROW /11,21 | Production UI repair; STOPPED at station compile; one annotation repair selected | Existing component row agrees with eligible accepted host damage and returns to local display on clear | Implement readonly display projection with existing binding/order lifecycle; focused checks and fresh paired checkpoint. |
 
 ### NET-COMPONENT-ROW — accepted host components in the existing HUD row
 
@@ -72,6 +72,22 @@ unapproved; parked failures remain outside the queue.
 - **Close:** meaningful accepted runtime change requires clean paired checkpoint,
   three strict silent startup checks and existing package audit. Commit/push and
   clean owned scratch. Gates/native hardware/human review remain open.
+
+### NET-COMPONENT-ROW — first stop and one selected caller repair
+
+Candidate `a9cded3f6` has independent source-review GO and fixed pose compile
+PASS16.436s. Station compile FAIL15.954s: new assertion variable `matches` at
+line525 cannot infer a static type from Dictionary.get(). No fixed gameplay
+suite or export has run. Original test-only78b8bfcc4 reproduces exactly the two
+expected row/label failures31.031s; import19.650/compile16.368 pass.
+
+Root separately selects ONE caller repair: explicitly type that existing
+boolean as `bool`, preserving the entire assertion, route, waits and deadlines.
+No runtime edit. Five minutes edit/review; recompile the changed station test,
+then run the original full fixed pose, Main/ENet and two existing local HUD
+checks. Original failure plus this one repair is cumulative: any further
+unexpected failure requires priority review before diagnosis/edit/rerun.
+Raw stop remains retained under remote-component-row-20261018/results.
 
 ## Parked failures and dependent work
 
