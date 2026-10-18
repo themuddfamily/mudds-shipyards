@@ -4,7 +4,24 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `9be5c83` — 2026-10-18
+## Latest development checkpoint: `4270d71` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-4270d71.x86_64),
+[archive](../builds/linux/MuddsShipyards-4270d71-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-4270d71-linux-notes.txt) use clean source
+`4270d7187f1c93f45191925a13e2eee8255a2ba7`. This adds private read-only Ember
+observations through the existing native observer, with source privacy232 and
+runtime20 passes. Paired exports, three strict menu startups, packed privacy232,
+all1515 payload-entry bytes, stock PE and archive/ZIP identity checks pass.
+
+**Native observer smoke remains FAILED/open:** dummy-renderer normal close and
+visible/protocol-window checks fail; a final software-GL attempt stops on a
+V-Sync warning. All owned resources close and failed raw is retained. This is a
+startup-qualified development checkpoint, not completed native observer, physical
+Ember journey, durable recovery, device/GPU/audio or release qualification.
+Further native-window work is parked for this batch. See notes for actual scope.
+
+## Earlier development checkpoint: `9be5c83` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-9be5c83.x86_64),
 [archive](../builds/linux/MuddsShipyards-9be5c83-linux-x86_64.tar.gz) and

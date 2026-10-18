@@ -52,8 +52,10 @@ PLAN-VISIBLE-DELIVERIES, now DONE: browser per-session generation handling and
 defense briefing corrections are DONE on9be5c833a, with paired checkpoint9be5c83.
 Native packaged Ember driver preflight FAILED at disabled `--path` overrides.
 Static consumer definition is DONE: disabled overrides also discard external
-script, so removing --path is not a repair. Next selected production capability
-is one Ember mode in the existing native observer for a NEW checkpoint. The
+script, so removing --path is not a repair. Native Ember observer source capability ships in4270d71 with privacy232/runtime20
+and strict package startup/artifact passes. Its normal-window-close smoke FAILED
+and further native-window work is parked after the recorded priority review.
+Next selected independent work is ordinary VIP-route definition/walking. The
 original9be5c83 unchanged-driver journey is UNSUPPORTED and remains unperformed;
 a subsequent full OS-input route needs its own explicit card. Source proof is not transferred
 to packages automatically.

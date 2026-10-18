@@ -3034,3 +3034,264 @@ that exact source using existing safe exports, three strict startups, packed
 privacy and one owned Xvfb native Ember menu-observer/normal-window-close smoke.
 Only those artifact/runtime outcomes can be claimed after they actually pass.
 All full physical, hardware, device, audio, matrix and release gates stay open.
+
+## Ember observer checkpoint first attempt — native window-close fixture FAILED
+
+Frozen4270d7187 safe Linux/Windows exports, direct/archive native Linux and
+Windows-payload strict startups, packed privacy232 all PASS. Every startup has
+exit0 and one STARTUP_MENU_READY_OK. All1515 PCK paths/bytes, stock PE text,
+exact six-member archive bytes/modes/CRC and metadata PASS. Native private
+Xvfb/x11/Dummy/dummy-renderer emits617 Ember observations (603menu-ready),
+valid actual actors/origin/unloaded Ember/home lease, zero engine diagnostics,
+then fails the helper's10s normal-window-close deadline. No native smoke pass or
+checkpoint publication. All42 observed identities close; no owned display/auth/
+socket remnants; source/index/cache/engine and exact package bytes unchanged.
+Raw: `/srv/mudds-work/ember-native-observer-20261018/results/checkpoint/`.
+
+Required priority review selects one fixture-only correction: match existing
+native pilot's IsViewable check, require advertised WM_DELETE_WINDOW plus exact
+PID, persist window/WM send receipts, then one native-only retry at unchanged
+330s/10s caps. Wrong hidden-window selection is a hypothesis; original attempt
+has no persisted window receipt, so it is not proven. Reviewer checks local Xlib
+headers and finds no ctypes ABI blocker. Reuse six genuine passes and immutable
+artifacts/cache; no runtime change/reexport/repeated startups. New raw under
+checkpoint-window/. First new failure stops for another priority decision;
+previous failures remain in scope. Long journey is still unsupported/unperformed.
+
+## Ember native window-selection repair — FAILED, final environment decision
+
+The one corrected dummy-renderer retry reaches Ember/menu observations but finds
+no exact-PID window satisfying both IsViewable and advertised WM_DELETE_WINDOW,
+so it stops before close. Native engine diagnostics0; source/index/cache/engine
+and ELF unchanged; all6 observed identities and display/auth/socket resources
+close. Raw checkpoint-window/ under the existing Ember observer results root.
+Root cause remains unknown; no further dummy-renderer/window-selection probe.
+
+Required priority review selects ONE distinct software-OpenGL check on the same
+ELF, owned Xvfb/x11/Dummy, gl_compatibility/opengl3 and explicit
+LIBGL_ALWAYS_SOFTWARE=1. Persist all window selection data before assertions;
+retain330s total/10s normal-close limits and exact-PID/viewability/protocol gate.
+Independent review GO. Reuse the six passing package stages and immutable
+artifacts/cache. If this fails, park further native-window work and publish only
+the startup-qualified development checkpoint with the native smoke FAILED/open;
+no completed observer package/route qualification claim. Hardware/physics/input/
+quality acceptance is not substituted by this software-GL menu check. This
+decision retains all prior failure/repair history and is the last native-window
+attempt in this batch. New raw under checkpoint-gl/; no source/runtime changes.
+
+## Ember native observer checkpoint — published with native smoke open
+
+Clean source4270d7187 is integrated in mainb92c21a44. Seven exact development
+artifacts are published as MuddsShipyards-4270d71 in repository builds/windows/
+and builds/linux/, with identical concise notes and actual limitations.
+
+Source privacy232 and observer20 pass. Six checkpoint stages pass: paired safe
+exports; direct/archive Linux and Windows-payload strict startups (each exit0
+plus one STARTUP_MENU_READY_OK); packed privacy232. Actual1515 PCK entry bytes,
+stock PE text, six-member archive/bytes/modes/CRC/metadata and exact EXE/notes
+ZIP/CRC pass. Source/cache/engine guards pass throughout. The one fixture type
+annotation reused the identical accepted metadata-candidate import cache; earlier
+UID and parse failures remain preserved, not recast as passes.
+
+**Native smoke FAILED/open.** Dummy native mode emits live actual Ember/menu/
+actor/home observations but its normal-close check times out. One window-selection
+repair fails to establish a visible WM_DELETE_WINDOW window. The final isolated
+software-GL attempt stops on its first V-Sync driver warning before the menu;
+no filtering or extended deadline. Required priority review now parks further
+native-window work this batch. No normal-close, complete native observer card,
+physical journey, disk/reward, native GPU/Windows/device/audio, human, matrix or
+release qualification is inferred from publishing this development checkpoint.
+
+Independent mechanical audit GO recomputes all seven public identities/modes,
+ZIP, archive, actual cross-platform1515 payload bytes and stock PE text, confirms
+three strict raw startup markers and notes' FAILED/open scope. All71 recorded
+PID/start identities are absent, owned display socket/lock and authority paths
+are gone. One GL-abort Xauthority file was removed by exact owned path after
+all related processes closed; original failed closure receipt remains intact.
+Raw/source/public mapping:
+`/srv/mudds-work/ember-native-observer-20261018/results/`, including
+checkpoint/published-results.json and cleanup.json. No new validator family,
+hosted CI, Downloads copy, template change, generic loader or gameplay driver.
+
+Next selected independent work is STATION-VIP-DEFINE: one20–30min source mapping
+of ordinary spawn/menu/walk/reception/return and the supported input/check seam.
+It ends with an exact runnable route or one missing fact; no speculative room/art
+repair or new engine probe. STATION-VIP-WALK is gated until that contract exists.
+The full ordinary branch is distinct from local staged well-exit tests. Original
+station scope and all36 broad parent/ten-phase gates remain open.
+
+### Archived observer and repair task cards
+
+## Next queue — packaged Ember abandonment acceptance
+
+The remaining WORLD-ABANDON requirement includes a packaged physical journey.
+The earlier source run on e85157b4d completed exact31 in about41m15s under the
+original7200s cap, using MemoryFilesystem. That does not establish package or
+durable-save acceptance. The existing unchanged driver is
+`tests/ember_transit_movement_soak.gd`, SHA256
+`4728e8875706b1dac77b70e0a4212007a08fda11bb114e83a4299efb80ab9f2d`.
+
+| Task | Status / owner | Observable finish | Budget |
+| --- | --- | --- | --- |
+| EMBER-NATIVE-OBSERVER | SOURCE PASS; packaging / root | Native packaged observer exposes actual Ember journey state without changing it. | 60–90min implementation; focused checks and required paired checkpoint separately. |
+| EMBER-PACKAGE-ABANDON | UNSUPPORTED on9be5c83 / root | Exact shipped Linux package completes unchanged canonical outbound/abandon/reboard/home/walk. | 30–45min setup; original7200s route cap, prior source run41m15s. |
+
+### EMBER-NATIVE-OBSERVER — expose the actual packaged journey state
+
+- **Parent/result:** WORLD-ABANDON / PACKAGE-LINUX. Extend the existing native
+  OS-input observer with one Ember mode so a future shipped executable can expose
+  actual journey state without external scripts or loose game resources. This is
+  executable qualification capability, not a completed journey or gameplay feature.
+- **Owner/dependency:** root implementation, one bounded independent reviewer.
+  READY after the static consumer decision. Current9be5c83 remains immutable and
+  unsupported for the unchanged external SceneTree driver; no proof transfers to it.
+- **Boundary:** `scripts/game/startup_loader.gd`, existing
+  `scripts/diagnostics/native_sortie_observer.gd`, existing startup privacy checks
+  and the smallest focused runtime check needed for the new observation path.
+  Reuse the owned private X11/Dummy/native-sortie authorization. Add no generic
+  script loader, template change, new validator, flight driver or gameplay writes.
+- **Result/proof:** exact Ember selector accepted only under existing private
+  X11/Dummy inputs; ordinary startup remains lazy. Read-only observations name the
+  actual active craft/player identity and pose, world-origin transaction count,
+  Ember loaded/host/abandon state, seat/support and physical home lease/return
+  state. Absent world/retired Main is represented safely; no fallback to Torrent
+  may masquerade as the active Ember craft. Existing modes retain their behavior.
+  Use existing production snapshots, with no transforms, input, authority, save,
+  reward or actor creation written by the observer. Focused checks prove routing,
+  active-craft switching, absent/retired lifecycle and unchanged observed state.
+  One owned native Xvfb/x11/Dummy/dummy-renderer menu smoke observes real Ember
+  mode readiness, then asks only its own window to close normally (exit0). This
+  is observer integration proof, not startup-only or physical-journey acceptance.
+- **Budget/stop:**60–90min implementation, focused checks at original caps;
+  cold import≤600s, exports≤930s each and strict startup≤330s each if needed for
+  the required clean paired checkpoint. First failure ends verification; one
+  repair maximum before priority review, including the prior preflight failure.
+- **Next/close:** implement only the supported observer mode, verify, commit/push,
+  publish the required new paired checkpoint and remove owned disposable worktree.
+  A future OS-input pilot needs a separate bounded card preserving the full
+  canonical route, continuity/landing/return limits and physical outcomes. Neither
+  observer fields nor startup alone qualify that route. Do not rename this mode
+  as the unchanged external-driver test or claim9be5c83 acceptance.
+
+### EMBER-OBSERVER-GL-WINDOW — final distinct window-environment check
+
+The one corrected dummy-renderer retry FAILED before close: it could not
+establish an exact-PID visible window advertising WM_DELETE_WINDOW. No engine
+diagnostics, guards unchanged, all6 observed identities/resources closed. Cause
+remains unknown. Required priority review selects one final software-OpenGL
+native window check on the identical ELF: owned Xvfb, explicitx11/Dummy,
+gl_compatibility/opengl3 with LIBGL_ALWAYS_SOFTWARE=1, same330s total/10s close.
+Persist candidate/tree/property receipts before asserting and retain exact-PID/
+viewability/protocol gates. No source, actor, input, physics or artifact changes.
+
+Root owns this native-only attempt in checkpoint-gl/; reuse the six actual
+passing export/startup/privacy stages and exact artifact/cache hashes. This
+qualifies software-GL window integration only, not native GPU or a journey. If
+it fails, park all further native-window work this batch and publish only the
+already startup-qualified development checkpoint with native smoke FAILED/open.
+Do not mark the observer's full package gate complete or weaken normal-close
+acceptance. Prior failures/repairs remain part of the same scheduling history.
+
+### EMBER-OBSERVER-WINDOW — one native smoke fixture correction
+
+The checkpoint's first six stages PASS (paired exports, three strict startups,
+packed privacy232); payload1515/PE/archive checks PASS. Native Ember observations
+reach the real menu with live actors/home state and no diagnostics, but the
+helper's10s normal-close deadline fails. All42 observed identities close and
+owned sockets/display/auth are absent. Exact artifacts/source/cache stay frozen.
+No checkpoint publication or native smoke pass is claimed from that attempt.
+
+**Priority review:** retain this unresolved final-close outcome. The helper
+selected the first exact-PID window without the existing native pilot's
+IsViewable check. Wrong-window selection is one hypothesis, not a proven cause.
+Independent review confirms Xlib ABI and selects one≤10min fixture correction:
+require exactPID + IsViewable + advertised WM_DELETE_WINDOW, persist selection/
+send receipts before close, and retry only native smoke once in checkpoint-window/
+with identical artifacts/cache and unchanged330s/10s caps. Reuse the six actual
+passing stages; do not rerun exports/startups/privacy. The competing long journey
+is unsupported. First new failure stops for another priority decision; prior
+failures/repair limits remain, with no runtime change or weaker acceptance.
+
+### EMBER-OBSERVER-TYPING — DONE, focused source checks pass on4270d7187
+
+**Priority review after the next failure:** repaired source `34b048287` passes
+cold import/source guards and privacy232, but runtime stops before assertions at
+`native_ember_observer_test.gd:115`: `weakref()` infers Variant under warnings-as-
+errors. All7 observed processes close; source/index/cache/engine remain frozen.
+This attempt took49.9s. The metadata issue is fixed; observer qualification and
+exports are still open. The competing long journey has no supported driver.
+
+Select one≤10min correction: explicitly type that local as WeakRef, commit, then
+one privacy/runtime attempt≤300s each in focused-typing/. Reuse the exact unchanged
+import cache because only the fixture declaration changes and its UID is tracked;
+record cache identity before/after, with no source-guard exception. Do not repeat
+cold import or alter runtime behavior, route, assertion or cap. This priority
+decision retains all earlier failures and does not reset the repair history.
+This exact annotation is committed in4270d7187. One privacy/runtime retest passes
+232/20 with exit0, exact markers, no diagnostics and frozen guards; owned closure
+is complete. Exports are now ungated for this exact clean candidate. Earlier
+failed raw and priority decisions remain unchanged.
+
+### EMBER-OBSERVER-UID — metadata fixed, retest FAILED before runtime assertions
+
+The first observer check on `e9e04c1f1` stopped: cold import exited0 without
+engine diagnostics, but created untracked `tests/native_ember_observer_test.gd.uid`.
+Tracked source/index/engine hashes stayed identical; privacy/runtime never ran.
+Three observed owned identities closed, no socket remnants. Setup/implementation/
+first-check took6.3min; import invocation through closure23.4s. Raw is
+`/srv/mudds-work/ember-native-observer-20261018/results/focused/`.
+
+**Priority review:** the native observation/build outcome is still unqualified.
+The only concrete blocker is missing generated source metadata. The competing
+long journey is unsupported and has no runnable native driver; parked repairs
+retain their limits. Select one small metadata repair instead of more consumer
+or gameplay diagnosis. Independent review confirms that exact boundary.
+
+- **Owner/result/boundary:** root; sidecar tracked in34b048287, clean import and
+  privacy pass; runtime parse failure recorded above. Track the exact generated UID sidecar
+  `uid://ba7kjjwh57t34`, commit it and change no runtime/test behavior.
+- **Proof/budget:**≤10min preparation; remove only this owned disposable import
+  cache and run one new cold import≤600s plus privacy/runtime≤300s each from the
+  clean repaired commit, frozen throughout. Keep the failed raw unchanged under
+  focused/ and put new results in focused-uid/. No source-guard exception.
+- **Stop/close:** first failure stops with a new priority review before any more
+  repair. Exports remain gated until focused checks pass. If accepted, complete
+  the existing observer/checkpoint card and preserve both attempt scopes.
+
+The prior **EMBER-PACKAGE-PREFLIGHT is FAILED**, not READY. Its one120s-cap
+attempt stopped at the unsupported `--path` boundary. Full command, raw result,
+process-observation limits and unchanged artifact hashes are in
+[delivery history](ROADMAP_DELIVERIES.md#ember-native-package-preflight--failed-path-overrides-disabled).
+The long journey did not run; no alternate invocation or export repair ran.
+[Static consumer decision](ROADMAP_DELIVERIES.md#ember-native-consumer-definition--done-unsupported-external-driver)
+records why another invocation cannot qualify the unchanged shipped artifact.
+
+### EMBER-PACKAGE-ABANDON — one unchanged physical journey
+
+- **Parent/result:** [WORLD-ABANDON](../ROADMAP_BACKLOG.md#activities-and-planetary-journeys),
+  Ember only. Qualify the actual native Linux package for canonical outbound,
+  physical landing/exit, abandon, ordinary walking/reboard/ascent, return,
+  occupied home berth, unload/disembark and supported home walking.
+- **Owner/dependency:** root; UNSUPPORTED on current9be5c83 because its compiled
+  engine disables the required script override. This original exact-artifact/
+  driver qualification remains unperformed; the observer work does not close it.
+  Same frozen public9be5c83 binary/archive and unchanged driver hash. One distinct
+  private journey process/profile; no loose production fallback or user saves.
+- **Proof:** existing KETH_EMBER_PHYSICAL_RETURN=1, headless/Dummy/fixed-fps60;
+  no completed-return or local-arrival diagnostic mode, no --startup-check in the
+  journey. Preserve every original tick/landing/walk/continuity limit, fixture
+  initial placement and canopy/boarding timings. Require actual exit0 and exactly
+  one terminal EMBER_TRANSIT_MOVEMENT_TEST_OK with exact31, zero diagnostics,
+  frozen package/driver and full process/socket closure. No extra staging,
+  pose/velocity/lease rescue, shortened route or relaxed deadline.
+- **Budget/stop:**30–45min setup/closure; the original route cap is7200s and
+  previous source result took2474.7s. Record the exact command/environment and
+  milestone receipts before launch; report only observed stages while it runs.
+  Use existing supervisor/independent abort. First failure ends the task; preserve
+  exact source/binary/stage, schedule any repair separately and apply the same
+  one-repair priority-review rule. Do not silently extend or restart the route.
+- **Close/limits:** record actual native package result and exact scopes, commit/
+  push and remove owned disposable checkout/scratch. This driver uses
+  MemoryFilesystem: durable disk rewards/recovery, completed survey, reuse,
+  shared crew, hardware/GPU/audio/Windows/human/full-release gates remain open.
+  A passing preflight alone cannot close this journey or its broad parent.
