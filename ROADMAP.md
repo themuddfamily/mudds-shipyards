@@ -34,7 +34,7 @@ executable queue. Root owns review, integration, checks and closure.
 
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
-| WALK-SALVAGE-ACCESS / 7,9 | IN PROGRESS qualification caller | Same supported Player walks from hub to all three inspection positions and back without staging. | Review selected existing-caller mode, compile once, one isolated route. |
+| WALK-SALVAGE-ACCESS / 7,9 | FAILED; one caller repair selected | Same supported Player walks from hub to all three inspection positions and back without staging. | Review selected existing-caller mode, compile once, one isolated route. |
 | CRAFT-GAPS-TORRENT / 10,11 | Definition DONE; craft acceptance OPEN | No specifically required missing implementation found within inspected owners. | Do not invent a feature; any successor needs a concrete requirement/finding. |
 | HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
 
@@ -78,6 +78,22 @@ executable queue. Root owns review, integration, checks and closure.
   proves durable fresh-process physical revisit without a duplicate transaction.
   Their exact commands/budgets must be frozen when prerequisites pass. Existing
   connector-staged memory-store proof does not silently satisfy either whole route.
+
+**Initial access result:** source46c059cf1 import/compile pass; ONE route
+FAIL61.019s at outbound20, target(91,50.50001), actual(91.54988,40.575),
+same supported controlled Player. Collision is Annex GuardrailCollider04.
+One bounded static comparison identifies rear-edge guardrail clearance during
+this caller's corner turn; no runtime access defect is established. All3 owners
+terminal and owned PID identities absent; original profile logs retained unchanged.
+Raw: `/srv/mudds-work/salvage-ordinary-access-20261018/results/route/`.
+
+**Selected ONE caller repair:** inset only the two rear-cross corner goals from
+Annex local z19 to18.5 within its authored z18..20 rear aisle. Preserve original
+hub/inspection-row/service-gate destinations, ordinary movement and all240-frame,
+0.20m/floor/300s criteria. Root owns these two literals; no runtime changes,
+geometry removal or diagnostic engine probe. Compile once and ONE corrected route.
+Original plus this repair are cumulative; another failure requires priority review
+before further diagnosis/fix/run. Estimated5min edit/review, checks separate.
 
 ### CRAFT-GAPS-TORRENT — bounded definition complete
 
