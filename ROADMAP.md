@@ -128,10 +128,13 @@ accepted runtime repairs require separate cards and fresh paired builds.
 - **Boundary/owner:** root integrates one bounded implementation and one
   independent high-risk reviewer. Existing
   `scripts/network/network_remote_craft_pose_stream.gd::reconcile_pilot`, its
-  existing pose integration test, and the new yaw caller's detached-node receipt
-  only. Preserve active-input smoothing/deadband, interpolation/extrapolation,
+  existing pose integration test, the minimal read-only HeroShip active-roll
+  getter needed to preserve multi-tick steering, and the new yaw caller's
+  detached-node receipt only. Preserve active-input smoothing/deadband, interpolation/extrapolation,
   positional correction, large-error snaps, stale/destroyed/landing behavior,
   packet formats and source/ownership generations. No blanket threshold reduction.
+  Independent review requires active hover and ongoing barrel-roll guards;
+  corrected candidate is GO before engines. Throttle alone stays eligible.
 - **Proof:** add the smallest existing-suite regression for neutral residual
   attitude convergence and retained active-steering policy; reproduce it on old
   runtime. Fixed focused suite plus ONE unchanged full yaw route must pass
