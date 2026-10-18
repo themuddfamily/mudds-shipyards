@@ -141,7 +141,7 @@ func _present_raw_repair_snapshot(repair: Dictionary) -> Dictionary:
 	var same_generation := int(component_generation) == _raw_repair_component_generation
 	if same_generation and int(token) < _raw_repair_token:
 		return _result(false, &"stale_sequence")
-	var same_operation := same_generation and int(token) == _raw_repair_token \
+	var same_operation: bool = same_generation and int(token) == _raw_repair_token \
 		and component == _raw_repair_component
 	if status == &"repairing":
 		if same_operation:
