@@ -28,8 +28,13 @@ explicit owner decision.
 
 ## Execution now
 
+Only the selected card below is executable. A missing definition, failed route
+or full-craft qualification is not an implementation assignment. Do not create
+a successor chain just because a nearby check can be added.
+
 NET-HULL-HUD is selected. Physical hull/throttle gauges remain accepted in24430b7.
-SPEC-TITAN proposal awaits the owner interpretation choice; implementation remains gated.
+The [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) awaits the
+owner interpretation choice; implementation remains gated.
 WALK-SALVAGE-ACCESS is parked after its original attempt and one caller repair. Reverse qualification and the bounded Torrent
 definition are closed below. Completed and parked work does not occupy the
 executable queue. Root owns review, integration, checks and closure.
@@ -37,12 +42,8 @@ executable queue. Root owns review, integration, checks and closure.
 | Task / parents | State | Observable finish | Next action |
 | --- | --- | --- | --- |
 | NET-HULL-HUD / 21 | IN PROGRESS implementation | Gameplay HUD hull bar/frame uses eligible host health/status, with current solo restoration and no simulation telemetry mutation. | Old-runtime actual publisher regression, bounded HUD-only decoration, full pose/real-peer checks and paired checkpoint. |
-| NET-HULL-INSTRUMENTS / 21 | DONE; checkpoint24430b7 | Physical remote hull text/arc/color follows host damage, destruction and revival; clear restores current solo health. | Old2 failures reproduced; pose121/real-peer250, paired exports/three strict startups/actual1515-entry audit pass. Parent21 OPEN. |
-| NET-THROTTLE-INSTRUMENTS / 17 | DONE; checkpoint8f17b02 | Remote physical Jovian gauge shows signed host throttle, shutdown neutral and current solo restore. | Pose91, real-peer fixture203, paired exports/three strict startups/actual1515-entry audit pass; broader parent17 OPEN. |
 | SPEC-TITAN / 10,36 | Proposal DONE; WAITING interpretation decision | Concrete one-pilot/two-passenger/four-unit modern candidate and bounded build tasks. | Owner decision on linked proposal before runtime implementation; historical model gate stays open. |
 | WALK-SALVAGE-ACCESS / 7,9 | FAILED/PARKED | Same supported Player must walk hub→inspection row→hub without staging. | Both attempts fail at outbound20; no further diagnosis/fix/run selected. |
-| CRAFT-GAPS-TORRENT / 10,11 | Definition DONE; craft acceptance OPEN | No specifically required missing implementation found within inspected owners. | Do not invent a feature; any successor needs a concrete requirement/finding. |
-| HELM-REVERSE-FLIGHT / 18 | DONE, source qualification | Normal reverse moves host1.448m in888ms; fresh neutral, brake and both real replicas pass. | Closed52b228c86; original parent handback remains open. |
 
 Completed reverse/Torrent definitions and the full failed Salvage contracts now
 live in [retained task closures](docs/history/ROADMAP_DELIVERIES.md#task-closures-after-remote-throttle-checkpoint--2026-10-18).
@@ -98,35 +99,6 @@ failures in31.230s, exit1/no unrelated diagnostics. Runtime HUD-only repair may
 proceed. Initial compile failure remains retained and cumulative; another
 unexpected failure requires priority review, not an automatic second caller fix.
 
-### SPEC-TITAN — concrete interpretation proposal before building
-
-- **Owner/boundary:** one medium-effort documentation agent owns only
-  `docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md`; root reviews scope and runtime
-  seams. Existing Titan evidence row, original fleet promise and production
-  craft/definition/access/berth/recovery pipeline only. No runtime changes,
-  engine runs, new research framework, invented historical silhouette or media.
-- **Finish:** historical name/medium-transport role separated from unknown model,
-  scale, interior, access, systems and handling; one concrete modern proposal,
-  ordered30–60min capability cards with exact source owners/player checks and
-  preserved full fleet acceptance. No automatic feature/capacity expansion.
-- **Budget/next:**15min draft/review, then one explicit interpretation decision
-  on the completed proposal before implementation. Original SPEC-TITAN evidence
-  gate remains WAITING; proposal is not approved scope or a delivered craft.
-- **Source:** existing ledger/matrix support only identity/role. Reopening A3
-  through the web tool was inaccessible this turn; no new historical evidence
-  or name-to-model claim is asserted. Owner-approved modern interpretation may
-  unblock production but never authenticate its appearance.
-- **Close:** commit/push the reviewable proposal, source links and actual limits;
-  no checkpoint for documentation. Keep all other original craft promises open.
-- **Actual result:** [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md)
-  written and root-reviewed against existing source/seams. Proposed one pilot,
-  two passengers, four conserved repair-kit cargo units, connected cabin/hatch,
-  existing pilot pulse profile and explicit trial handling. All are modern choices;
-  only name/medium-transport role is historically supported. Ordered build tasks
-  retain full-craft acceptance and immediate meaningful paired checkpoint policy.
-  No runtime edits, engines, new evidence status, approved deferral or craft
-  completion. Interpretation decision remains pending; no elapsed time implies it.
-
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
@@ -172,8 +144,11 @@ Dedicated server/two-client baseline remains authorized independently of capacit
 4. At closure report: what the player can now do, whether it is source-qualified
    or packaged, what failed/remains, and the next single action. Commit/push and
    clean owned scratch. No progress percentage from tests, commits or task rows.
-5. Replenish only after reviewing the result and available independent product
-   work. Do not append every newly discovered edge case to the current chain.
+5. Replenish only after reviewing the result against its original parent and
+   available independent product work. Report elapsed work against the selected
+   card before selecting a successor; never let one session become an unbounded
+   sequence of adjacent repairs. Do not append every newly discovered edge case
+   to the current chain.
    Keep at most three executable cards; dependent and parked scope stays above or
    in the backlog. Preserve the original parent acceptance until fully proven.
 

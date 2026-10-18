@@ -7261,3 +7261,37 @@ hull regression reproduces exactly two unpacked/compact25% gauge failures in
 30.910s, actual exit1 and no unrelated diagnostic. The host50/200 pair differs
 from retained local maximum, so normalizing against local health is insufficient.
 Runtime repair is now selected; no fixed-runtime or replacement build claim yet.
+
+## Titan proposal task — retained contract, decision pending
+
+The proposal is complete; its owner interpretation decision is still pending.
+No runtime implementation or scope deferral is approved.
+
+### SPEC-TITAN — concrete interpretation proposal before building
+
+- **Owner/boundary:** one medium-effort documentation agent owns only
+  `docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md`; root reviews scope and runtime
+  seams. Existing Titan evidence row, original fleet promise and production
+  craft/definition/access/berth/recovery pipeline only. No runtime changes,
+  engine runs, new research framework, invented historical silhouette or media.
+- **Finish:** historical name/medium-transport role separated from unknown model,
+  scale, interior, access, systems and handling; one concrete modern proposal,
+  ordered30–60min capability cards with exact source owners/player checks and
+  preserved full fleet acceptance. No automatic feature/capacity expansion.
+- **Budget/next:**15min draft/review, then one explicit interpretation decision
+  on the completed proposal before implementation. Original SPEC-TITAN evidence
+  gate remains WAITING; proposal is not approved scope or a delivered craft.
+- **Source:** existing ledger/matrix support only identity/role. Reopening A3
+  through the web tool was inaccessible this turn; no new historical evidence
+  or name-to-model claim is asserted. Owner-approved modern interpretation may
+  unblock production but never authenticate its appearance.
+- **Close:** commit/push the reviewable proposal, source links and actual limits;
+  no checkpoint for documentation. Keep all other original craft promises open.
+- **Actual result:** [Titan proposal](../design/TITAN_IMPLEMENTATION_PROPOSAL.md)
+  written and root-reviewed against existing source/seams. Proposed one pilot,
+  two passengers, four conserved repair-kit cargo units, connected cabin/hatch,
+  existing pilot pulse profile and explicit trial handling. All are modern choices;
+  only name/medium-transport role is historically supported. Ordered build tasks
+  retain full-craft acceptance and immediate meaningful paired checkpoint policy.
+  No runtime edits, engines, new evidence status, approved deferral or craft
+  completion. Interpretation decision remains pending; no elapsed time implies it.
