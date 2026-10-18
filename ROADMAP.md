@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**2 FAILED/PARKED, 2 GATED, 4 DONE.** Root owns integration and closure.
+**1 IN PROGRESS definition, 2 FAILED/PARKED, 2 GATED, 3 DONE.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -51,7 +51,7 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| HELM-YAW-TURN | DONE after one repair | Original remote pilot turns host-owned Jovian both ways with normal sampled input; release stops yaw and both clients consume the attitude. |624d2a6; ordinary route139.519s, both turns/release/client attitudes pass; original failure retained |
+| HELM-YAW-HANDBACK | IN PROGRESS definition | Freeze the supported ordinary pilot-release route with the original passenger still aboard, or name its concrete blocking owner. |10min source-only definition; no engine probe |
 | HELM-NEUTRAL-REPAIR | DONE | After yaw release the pilot view converges to host attitude, preserving active steering behavior. |624d2a6; old-runtime failure reproduced, pose62/yaw/paired checkpoint pass |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
@@ -73,6 +73,20 @@ one probe. Failed task plus one attempted repair requires priority review before
 any more. Close with actual result/pin/limits, commit/push and owned cleanup,
 retaining unique raw/work. Caller-only work needs no identical checkpoint;
 accepted runtime repairs require separate cards and fresh paired builds.
+
+### HELM-YAW-HANDBACK — define the ordinary control-release continuation
+
+- **Parents/result/type:**18/20; finite source definition before implementation.
+  Original remote pilot releases helm through normal Interact after accepted
+  yaw turn/release while the original passenger retains the co-pilot station.
+- **Boundary/owner:** one medium-effort read-only agent,10min. Existing GameFlow
+  Interact/helm-release path, Jovian cabin capability and the accepted caller
+  seam only. No engine, handler injection, staged roles, new disembark contract
+  or replay of parked postdock-exit work.
+- **Finish/next:** identify exact action, required engine state, legitimate role/
+  generation transitions and existing runtime reports for source retirement and
+  ownership handback; root separately selects implementation. If unsupported,
+  name the blocking production condition and stop. No speculative lifecycle audit.
 
 ### HELM-YAW-TURN — remote pilot turns the actual host-owned Jovian
 
