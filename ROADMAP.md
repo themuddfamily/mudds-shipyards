@@ -137,17 +137,21 @@ not delivered gameplay. Root owns integration and final decisions.
 
 | Task | Status / owner | Player-visible finish | Work budget; separate checks |
 | --- | --- | --- | --- |
-| BROWSER-SESSION-GENERATIONS | IN PROGRESS / browser_generations_impl | A valid session remains listed when another host has a higher capacity generation. | 60–90min; focused checks≤10min, original300s each. |
-| DEFENSE-BRIEFING | IN PROGRESS / defense_briefing_impl | Defense briefing names the actual physical-board start/reset and protected-assets objective. | 30–45min; focused checks≤10min, original300s each. |
-| VISIBLE-CHECKPOINT | GATED / root | Paired playable packages contain accepted changes with actual startup/artifact results. | 30–45min setup/closure; existing caps below. |
+| BROWSER-SESSION-GENERATIONS | DONE on9be5c833a / root | A valid session remains listed when another host has a higher capacity generation. | 60–90min; focused checks≤10min, original300s each. |
+| DEFENSE-BRIEFING | DONE on9be5c833a / root | Defense briefing names the actual physical-board start/reset and protected-assets objective. | 30–45min; focused checks≤10min, original300s each. |
+| VISIBLE-CHECKPOINT | IN PROGRESS / root | Paired playable packages contain accepted changes with actual startup/artifact results. | 30–45min setup/closure; existing caps below. |
 
 ### BROWSER-SESSION-GENERATIONS — retain independently valid sessions
 
-Execution: `browser_generations_impl` owns its declared files in
-`/srv/mudds-work/visible-fixes-20261018/browser`, branch
-`work/browser-generations-20261018`, baseline6b551f4d6. Root will combine the
-disjoint candidates into one clean source for independent review and the four
-original-cap focused suites; no candidate is accepted before those checks.
+Accepted browser source74ddbea911 and defense source79996ba87d are combined
+in clean frozen `9be5c833a8608900e7af71b344be948dd5d23722`. One cold import and
+four focused suites pass: browser presenter83, browser HUD40, tutorial319,
+board presentation16; each exits0 with exactly one expected terminal marker,
+no diagnostics and unchanged source/index/cache/engine. All13 observed owned
+process identities close. Independent code/helper review GO. Raw commands,
+results and snapshots: `/srv/mudds-work/visible-fixes-20261018/results/focused/`.
+Browser proof uses real directory inputs and presenter/HUD, not running host
+migration peers. VISIBLE-CHECKPOINT now exports this exact accepted source.
 
 - **Parent/result:** [NET-BROWSER](docs/ROADMAP_BACKLOG.md#multiplayer). Two
   independently valid directory rows must both be listed when their hosts have
@@ -190,10 +194,10 @@ original-cap focused suites; no candidate is accepted before those checks.
 
 ### DEFENSE-BRIEFING — describe the physical-board controls
 
-Execution: `defense_briefing_impl` committed clean candidate79996ba87d in
-`/srv/mudds-work/visible-fixes-20261018/defense`, based on6b551f4d6. Static
-checks pass; runtime acceptance remains unrun. Integration/review/checks and
-checkpoint are owned by root, with results under the same batch directory.
+Accepted source79996ba87d is integrated through frozen9be5c833a above.
+Defense-specific semantic, keyboard/controller/accessibility/remap and real HUD
+composition checks pass in tutorial319; existing board presentation16 also passes.
+Physical start-to-briefing and full combat qualification remain separate.
 
 - **Parent/result:** [CONTROL-FIX](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls),
   control/tutorial tuning. Station-defense instructions must explain the actual

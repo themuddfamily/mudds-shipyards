@@ -2617,3 +2617,33 @@ No engines/tests/captures, runtime edits or scratch/worktrees during planning.
 No gameplay/parent/phase completion claimed; original36-parent scope retained.
 Next implementation: independent browser presenter and defense briefing tasks,
 then package accepted source; parked Fire/Rime/HULK/startup paths stay parked.
+
+## Browser session generations and defense briefing — source DONE
+
+Independent browser74ddbea9118797c63c89ade81d37424c019d11cb and defense
+79996ba87d8d74a5a7921874f8008be9bdbc9d1f combine in clean frozen source
+9be5c833a8608900e7af71b344be948dd5d23722. Five authorized files only.
+Browser now retains capacity presentation per session: valid lower-generation
+host remains visible, stale same-session update retains accepted row, and
+omissions/error/expiry/close clear bounded state. Existing request/source fences
+are preserved. Defense copy names physical on-foot board admission and Reset
+when required, healthy combat craft, protected assets, offered repair lulls and
+conditional Resume/Reset status; no new combat/recovery behavior.
+
+Independent code/helper review GO. Review caught the raw focused helper relying
+on catalog exit0 without checking completion fields; corrected before any engine
+run to require the expected marker, count1, terminal placement and positive
+assertion metadata. No repository validator or schema family added.
+One cold import and all four focused suites exit0: browser presenter83,
+browser HUD40, tutorial319, board presentation16. Exactly one expected terminal
+marker and zero diagnostics for each; frozen source/index/cache/engine unchanged.
+Helper exits0 after all13 observed owned identities close with no owned sockets,
+displays or authority remnants. Headless/Dummy/private XDG; no hosted CI or native
+Windows. Exact commands/results/snapshots under
+`/srv/mudds-work/visible-fixes-20261018/results/focused/`.
+
+Scope: real directory inputs/presenter/HUD, not independent running migration
+hosts; real HUD briefing/device composition and board presentation, not physical
+start-to-first-briefing or full defense combat. Broad networking/control/phase
+requirements stay open. Paired checkpoint now exports the exact clean9be5 source;
+no package acceptance claimed until its checks finish.

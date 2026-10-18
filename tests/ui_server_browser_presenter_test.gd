@@ -50,16 +50,7 @@ func _run() -> void:
 	_check(sorted_descending.rows[0].session_id == &"locked", "descending sort is explicit")
 	var cleared_sort := presenter.clear_sort()
 	_check(cleared_sort.sort.summary == "SORT: NAME ↑", "clear sort restores deterministic name order")
-	var generation_presenter := Presenter.new()
-	var generation_snapshot := generation_presenter.present_result({
-		"accepted": true,
-		"rows": [
-			{"session_id": &"new", "title": "New", "player_count": 2, "max_players": 4, "capacity_generation": 4},
-			{"session_id": &"stale", "title": "Old", "player_count": 1, "max_players": 4, "capacity_generation": 3},
-		],
-	})
-	_check(generation_snapshot.row_count == 1 and generation_snapshot.rows[0].session_id == &"new", "older capacity generations are ignored")
-	_check(generation_snapshot.rows[0].capacity_generation == 4, "capacity generation is exposed with bounded counts")
+	_check_session_capacity_generations()
 	_check(presenter.configure_filters(&"eu-west", 100, false).accepted, "region/ping/full filters apply atomically")
 	snapshot = presenter.present(browser)
 	_check(snapshot.row_count == 1 and snapshot.rows[0].session_id == &"cinder_run", "filters narrow presentation rows")
@@ -314,3 +305,70 @@ func _check_filtered_empty_recovery() -> void:
 	_check(empty.status == &"empty" and empty.next_action == "REFRESH SERVER LIST"
 		and not empty.error_message.contains("CLEAR FILTERS"),
 		"an unfiltered empty directory retains refresh guidance")
+
+
+func _check_session_capacity_generations() -> void:
+	var browser := Browser.new(77, 3)
+	var presenter := Presenter.new()
+	var entries := [
+		{"session_id": &"host_a", "host_peer_id": 7, "title": "Host A", "region_id": &"eu-west", "ping_ms": 42, "player_count": 2, "max_players": 4, "capacity_generation": 4},
+		{"session_id": &"host_b", "host_peer_id": 8, "title": "Host B", "region_id": &"us-east", "ping_ms": 85, "player_count": 1, "max_players": 6, "capacity_generation": 1},
+	]
+	_check(browser.publish_snapshot(77, 1, 10, entries).accepted, "independent host generations publish through the real directory")
+	var initial := presenter.present(browser)
+	_check(initial.row_count == 2 and initial.rows[0].session_id == &"host_a"
+		and initial.rows[0].capacity_generation == 4 and initial.rows[0].occupancy_label == "2/4 guests"
+		and initial.rows[1].session_id == &"host_b" and initial.rows[1].capacity_generation == 1
+		and initial.rows[1].occupancy_label == "1/6 guests",
+		"independent generation4 and generation1 hosts both retain exact occupancy")
+	entries[0].capacity_generation = 5
+	entries[0].player_count = 3
+	_check(browser.publish_snapshot(77, 1, 11, entries).accepted, "host A capacity advances in the directory")
+	var advanced := presenter.present(browser)
+	_check(advanced.row_count == 2 and advanced.rows[0].capacity_generation == 5
+		and advanced.rows[0].occupancy_label == "3/4 guests" and advanced.rows[1].occupancy_label == "1/6 guests",
+		"advancing host A leaves host B visible at its own generation1")
+	entries[0].capacity_generation = 4
+	entries[0].player_count = 1
+	_check(browser.publish_snapshot(77, 1, 12, entries).accepted, "directory accepts a fresh snapshot containing an older same-session capacity")
+	var stale := presenter.present(browser)
+	_check(stale.row_count == 2 and stale.rows[0].capacity_generation == 5
+		and stale.rows[0].occupancy_label == "3/4 guests" and stale.rows[1].occupancy_label == "1/6 guests",
+		"older same-session capacity cannot roll occupancy back or suppress the other host")
+	# Returned dictionaries cannot alter the retained same-session capacity floor.
+	stale.rows[0].capacity_generation = 99
+	stale.rows[0].occupancy_label = "changed by caller"
+	var detached_copy := presenter.present(browser)
+	_check(detached_copy.rows[0].capacity_generation == 5 and detached_copy.rows[0].occupancy_label == "3/4 guests",
+		"per-session retained rows are detached from caller mutations")
+	presenter.close_view()
+	presenter.begin_refresh()
+	entries[0].capacity_generation = 1
+	entries[0].player_count = 1
+	_check(browser.publish_snapshot(77, 1, 13, entries).accepted, "fresh generation1 hosts republish after view close")
+	var reopened := presenter.present(browser)
+	_check(reopened.row_count == 2 and reopened.rows[0].capacity_generation == 1
+		and reopened.rows[0].occupancy_label == "1/4 guests" and reopened.rows[1].occupancy_label == "1/6 guests",
+		"close and reopen discard retired session generations")
+	entries[0].capacity_generation = 9
+	browser.publish_snapshot(77, 1, 14, entries)
+	presenter.present(browser)
+	browser.advance_clock(77, 18)
+	_check(presenter.present(browser).row_count == 0 and (presenter.get("_session_capacity_rows") as Dictionary).is_empty(),
+		"real directory expiry removes rows and their retained capacity state")
+	entries[0].capacity_generation = 1
+	browser.publish_snapshot(77, 1, 19, entries)
+	_check(presenter.present(browser).rows[0].capacity_generation == 1, "expired session identities can return at fresh generation1")
+	presenter.present_result({"accepted": false, "status": &"expired", "reason": &"directory_expired"})
+	_check((presenter.get("_session_capacity_rows") as Dictionary).is_empty(), "explicit expiry clears retained capacity state")
+	var bounded_entries: Array = []
+	for index in range(Presenter.MAX_ROWS + 10):
+		bounded_entries.append({"session_id": StringName("bounded_%d" % index), "capacity_generation": index + 1})
+	var bounded := presenter.present_result({"accepted": true, "rows": bounded_entries})
+	_check(bounded.row_count == Presenter.MAX_ROWS and (presenter.get("_session_capacity_rows") as Dictionary).size() == Presenter.MAX_ROWS,
+		"accepted snapshots bound retained per-session state to supported presentation rows")
+	presenter.present_result({"accepted": true, "rows": [entries[1]]})
+	_check((presenter.get("_session_capacity_rows") as Dictionary).size() == 1,
+		"replacement snapshots prune capacity state for omitted sessions")
+	presenter.present_result({"accepted": false, "reason": &"directory_timeout"})
+	_check((presenter.get("_session_capacity_rows") as Dictionary).is_empty(), "directory failure drops retained session rows")
