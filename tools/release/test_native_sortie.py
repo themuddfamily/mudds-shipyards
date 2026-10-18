@@ -719,7 +719,9 @@ class NativeSortieSafetyTests(unittest.TestCase):
             corrupted['payload']['tutorial_prompts_seen']['seen_ids'].append('unrelated_activity')
             with self.assertRaisesRegex(AssertionError, 'tutorial persistence'):
                 files.require_preserved(before, corrupted)
-            path.write_text(json.dumps(before))
+            missing_receipt = copy.deepcopy(after)
+            missing_receipt['payload'].pop('cinder_mining_capacity')
+            path.write_text(json.dumps(missing_receipt))
             with self.assertRaisesRegex(AssertionError, 'record matches observed'):
                 files.capture('fabricated-paid', sample)
 
