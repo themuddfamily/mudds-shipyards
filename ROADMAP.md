@@ -15,8 +15,10 @@ craft name/ID from the occupied chair's ship while retaining the pilot selection
 The old runtime reproduces the passenger mismatch; focused HUD51 and role3 pass
 with no diagnostics. The repaired private export profile now produces checkpoint
 b6196a1: both safe exports, three strict menu startups and exact artifact checks
-pass. Original failed export logs remain retained. The ordinary two-client
-boarding route is still unqualified on this repaired source.
+pass. Original failed export logs remain retained. Ordinary two-client boarding
+now PASS on fff5f7221 in127.937s: both real seats, current identities/authority/
+consumed HUD, host confirmation and all three actual exits0. Flight/return and
+endurance remain unqualified.
 Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
 replace it. Native Windows execution and human review remain owner-excluded
@@ -27,11 +29,13 @@ mandatory gates, factually NOT_RUN. Other hardware/release gates remain open.
 **36 broad parents and all ten phase gates remain open.** The
 [concrete child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes)
 separates named outcomes from missing definitions; it is not a remaining-job
-count. **The physical Jovian passenger-seat repair is delivered. The ordinary
-two-client boarding attempt FAILED. Both lifecycle cards PASS on frozen d7be01487.**
+count. **Physical Jovian passenger seating, passenger/pilot HUD repairs and
+ordinary two-client boarding are delivered in their recorded scopes. Both
+lifecycle cards PASS on frozen d7be01487.**
 **Pilot HUD ownership is repaired and checkpointad596e4 is published.**
 **The passenger craft-label source repair and checkpoint b6196a1 are delivered.**
-The full ordinary two-client boarding route is still unqualified.
+The original ordinary two-client boarding route PASS on fff5f7221; this closes
+boarding only, not flight, return, dedicated headless server or endurance.
 VIP remains FAILED/parked after its first attempt and one syntax repair.
 The passenger-seat and pilot-HUD outcomes close only their named scope; no
 parent or phase gate closes.
@@ -49,15 +53,15 @@ parent or phase gate closes.
   sorties/all nine physical berth returns/three Main re-entries in205.716s,
   stable resources and teardown1→1 nodes/zero orphans. Both actual exit0 and
   original diagnostics0. Staged headless source behavior, not packaged ordinary play.
-- **Latest ordinary route result:** one cbbebd715 run FAILED in134.850s. Both
-  clients complete the station approach; A passes pilot seating/current HUD and
-  host authority, B is locally seated passenger but status names Torrent.
-  All first failures/.done/actual exits1 are retained. The held caller is pushed
-  and unmerged; the focused source repair below does not close this failed route.
-- **Next:** compose the already corrected held caller with accepted runtime
-  b6196a19a and attempt the original ordinary two-client boarding route once.
-  Preserve original approach, chair/HUD/identity/authority criteria and limits;
-  first failure ends the qualification and requires priority review.
+- **Latest ordinary route result:** fff5f7221 PASS in127.937s with152 checks,
+  one original success marker and diagnostics0. Both clients walk all13 approach
+  goals plus their interior goal, use their real chairs and pass current identity,
+  consumed HUD, producer/host authority and final host dual-seat confirmation.
+  All three actual peer exits0/.done failures0; source/cache guards unchanged.
+  The unchanged held caller is now integrated; independent contract/result review GO.
+- **Next:** define one ordinary two-client Jovian flight segment using these
+  existing admitted/seated actors. Stop at one executable delivery card; do not
+  silently expand boarding into outbound/landing/return/endurance qualification.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -68,51 +72,48 @@ parent or phase gate closes.
 - **Cleanup:** owned clean Ember, VIP, Jovian, lifecycle and pilot-HUD source
   checkouts are removed; the crew-HUD checkout/profile are also removed after its
   failed export; the separate successful checkpoint checkout/profiles are also
-  removed after publication. Unique raw/public builds remain. Three older checkouts with
+  removed after publication. The accepted boarding checkout/profile/helpers are
+  also removed after integration; unique raw/public builds remain. Three older checkouts with
   unique uncommitted work stay protected. Scratch belongs under `/srv/mudds-work/`.
 
 Report the named result, actual proof, next action and estimate. Source checks,
 planning or test totals do not establish whole-parent or hardware completion.
 
-## Next slice — qualify ordinary Jovian boarding on the accepted runtime
+## Next slice — define the first ordinary shared flight segment
 
-NET-CREW-HUD-CRAFT and CHECKPOINT-CREW-HUD-REPAIR are DONE in their named scopes.
-The first checkpoint attempt stays FAILED; its one profile repair passes and
-publishes b6196a1. [Actual package result and executed card](docs/history/ROADMAP_DELIVERIES.md#crew-craft-label-checkpoint--profile-repaired-packages-published).
-The original boarding attempt cbbebd715 remains FAILED; this source fix has not
-yet been tried through that route. Its other passenger predicates remain unknown.
+NET-JOVIAN-BOARD is DONE for the original normal-spawn boarding route on fff5f7221.
+[Actual result and executed card](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-boarding--accepted-on-fixed-crew-hud).
+This establishes two independent clients aboard the same ship with current seat/
+identity/authority/HUD state. It does not establish flight, landing/return or the
+original30-minute endurance gate. Checkpoint b6196a1 contains the exact accepted
+game runtime; fff5f7221 adds only the now-accepted qualification caller/harness.
 
 | Task | Type / status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| NET-JOVIAN-BOARD | Qualification / READY / root | Both ordinary clients retain their real Jovian seats, current identity/authority and correct consumed HUD, with actual exits0. | Compose/freeze 5–10min; compile and one original 300s route separately. |
+| NET-JOVIAN-FLIGHT-DEFINE | Definition / READY / root | One executable card for the first ordinary pilot-input flight segment with the passenger retained. | 20–30min static definition; no engine probe in this card. |
 
-### NET-JOVIAN-BOARD — original qualification after the supported runtime repair
+### NET-JOVIAN-FLIGHT-DEFINE — bound the first shared flight outcome
 
-- **Parent/result:** parents16/26, Phase7 first server/two-client slice; gate on
-  accepted label source b6196a19a and checkpoint b6196a1, both delivered.
-  Pilot HUD and physical passenger-seat fixes remain included.
-- **Boundary/source:** root composes pushed cbbebd715 caller/harness/UID with the
-  accepted runtime b6196a19a in a clean branch. The local claim-avatar correction is
-  already implemented and source-reviewed; do not rewrite identity criteria.
-  Main still does not contain this held caller/harness. Record exact source.
-- **Proof:** explicit compile, then one unchanged original normal-spawn13-goal
-  approach per client, menu joins, pilot and actual passenger chairs, current
-  peer/entity/Player generations, consumed HUD/producer/host authority and actual
-  OS exits0. Use existing private-Xvfb/x11/Dummy input-only runner, original300s
-  total/12s pilot/8s passenger waits and original success marker. No pose writes,
-  direct claims/private client actions, shortened routes or weakened predicates.
-- **Budget/stop:** compose/freeze5–10min, import/compile and one route separately.
-  First failure closes FAILED with original snapshots/receipts/logs; priority
-  review precedes any more repair, diagnosis or rerun. Other passenger predicate
-  fields were not retained in the latest failure snapshot; they remain unknown,
-  not assumed passing after this one known craft-label correction.
-- **Close:** integrate caller only after full acceptance, commit/push result,
-  clean owned checkout/profiles and preserve unique raw. No flight, endurance,
-  headless-server, native-hardware or whole-phase completion is implied.
+- **Parent/result:** parents16/26; turn the next part of the existing server/two-
+  client baseline into one concrete player action and acceptance contract.
+- **Boundary:** inspect the accepted boarding caller, production Jovian helm/
+  departure controls and existing remote-pilot/craft-pose checks only. Reuse the
+  same normal join/walk/seat prerequisites and current identities. Name the exact
+  ordinary input sequence, flight endpoint and pilot/passenger/host consumers.
+  Do not assume undocking, flight, landing or return already pass.
+- **Proof/deliverable:** one ready implementation/qualification card with file
+  ownership, visible endpoint, authority/identity/HUD criteria, existing commands
+  and original limits. Separate any unsupported runtime action as a named
+  production gap. No new validators, speculative feature matrix or engine probe.
+- **Budget/stop:**20–30min static definition, stop when owner/seam/acceptance are
+  known or state one exact missing fact. Split implementation over90min; retain
+  established300s source and30-minute endurance requirements in their own scopes.
+- **Close:** commit/push the actionable roadmap card; definition is planning,
+  not delivered flight. Next action is its bounded implementation/qualification.
 
-## Held ordinary Jovian boarding qualification — FAILED
+## Earlier ordinary Jovian boarding attempt — FAILED (retained history)
 
-Latest held candidatecbbebd715 combines accepted runtimead596e474 with corrected
+Earlier candidatecbbebd715 combines accepted runtimead596e474 with corrected
 local identity proof and the previously reviewed failure capture. Import/compile
 pass, but the one original-cap route fails at B's passenger confirmation.
 The first shared abort names B; A and host retain their cascading waits. All
@@ -123,15 +124,15 @@ wrong craft label, not proof that every other passenger condition passed.
 **Priority review:** select NET-CREW-HUD-CRAFT, a demonstrated player-visible
 presentation gap, over another diagnostic or parked VIP/Ember work. Task-root
 creation through terminal qualification took495s; the route itself134.850s.
-The source owner and finite repair boundary are known. The repair/checkpoint
-cards above precede one further original qualification; no further run belongs
+The source owner and finite repair boundary were known. Completed source/build
+repairs preceded accepted qualification fff5f7221; no further run belongs
 to this FAILED card. Earlier prerequisite, compile, diagnostic and repair limits
 remain counted; new card names do not reset them.
 
 Earlier exact compile and pilot-confirmation failures remain in
 [delivery history](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-boarding--runtime-failure-held-on27879aa62),
 with the later [pilot-state diagnostic](docs/history/ROADMAP_DELIVERIES.md#jovian-pilot-state--diagnostic-complete-boarding-still-failed).
-The accepted pilot HUD repair/checkpoint are unaffected by this new mismatch.
+The later label repair/checkpoint and accepted boarding qualification are recorded above.
 
 ## Parked VIP round trip — first runtime guard failure
 

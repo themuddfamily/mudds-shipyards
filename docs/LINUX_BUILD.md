@@ -19,8 +19,10 @@ exit0 with exactly one STARTUP_MENU_READY_OK and zero diagnostics. All1515 actua
 PCK entry bytes match across platforms; stock PE .text, architecture, exact
 Linux archive/Windows ZIP contents and metadata pass. Focused source HUD51/role3
 were already accepted on this exact source and were not rerun unchanged.
-Ordinary two-client boarding on the repaired source is NOT_RUN; its last attempt
-remains FAILED. Native Windows/GPU/device/audio/human/full-release gates remain
+Later source qualification fff5f7221, with identical game runtime, passes the
+original ordinary two-client boarding route in127.937s with all peers exit0.
+This is source qualification, not a packaged route test. Flight/return/endurance
+remain open. Native Windows/GPU/device/audio/human/full-release gates remain
 open/NOT_RUN. See notes for the source-fixture limits and actual checks.
 
 ## Earlier development checkpoint: `ad596e4` — 2026-10-18

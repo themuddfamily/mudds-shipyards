@@ -4,15 +4,15 @@ These are unscheduled parent requirements, named child outcomes and task-family 
 The [concrete breakdown](#concrete-child-outcomes) names selectable outcomes and explicit unknowns.
 They preserve scope; they are not an executable queue or a remaining-job count.
 Select a named instance in the [working roadmap](../ROADMAP.md) before starting.
-The previous bounded slice closed both source lifecycle qualifications and the
-one pilot-state diagnostic; ordinary boarding remains FAILED. The working queue
-has delivered the pilot HUD fix/checkpointad596e4; its one ordinary boarding
-qualification advances A but fails B’s passenger craft label on cbbebd715.
-Crew craft-label source repair is DONE on b6196a19a (focused HUD51/role3).
-The initial private-profile export attempt remains FAILED; its bounded mapping
-repair is DONE with checkpoint b6196a1, both exports/three strict startups/exact
-artifact checks. Next: one unchanged original boarding qualification on the
-accepted runtime. Source/package acceptance does not qualify that route.
+Pilot and passenger craft-label repairs are delivered in checkpoint b6196a1.
+The original ordinary two-client boarding qualification is DONE on fff5f7221:
+127.937s, both normal approaches and actual seats, current identities/authority/
+consumed HUD, final host confirmation and all three actual peer exits0. It adds
+only the accepted caller/harness; playable checkpoint b6196a1 contains its exact
+game runtime. Earlier boarding and initial export failures remain retained in
+history. Next: one bounded definition of the first ordinary shared flight segment;
+flight/return/endurance remain unqualified. Both lifecycle qualifications retain
+their accepted source scopes.
 These are not project-wide remaining counts; no phase completion is implied.
 The original specifications remain binding in
 [the preserved scope](history/ROADMAP_SCOPE_20261017.md).

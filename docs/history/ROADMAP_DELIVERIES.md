@@ -4457,3 +4457,74 @@ first-failure stopping rule. No new diagnostics or speculative repair are select
 - **Close:** publish exact artifacts/actual validation notes, commit/push indices,
   remove owned disposable checkout/profiles, preserve raw failures and success.
   Native Windows/hardware/human/full-release gates remain unperformed.
+
+
+## Ordinary Jovian boarding — accepted on fixed crew HUD
+
+NET-JOVIAN-BOARD is DONE on clean `fff5f72210a81ed1610ce8adab2223305575c345`, now
+integrated and pushed to main. The three caller/harness/UID files are byte-identical
+to held cbbebd715; game runtime/content matches accepted b6196a19a/checkpoint
+b6196a1 exactly. Independent high contract review GO before the run and independent
+result review GO afterward. Earlier failures and their raw remain retained.
+
+One original300s route completes in127.937s, actual exit0, exactly one original
+JOVIAN_NETWORK_TWO_CLIENT_BOARDING_OK marker,152 coordinator/peer checks and
+zero diagnostics. Both clients join via real HUD menus, walk all13 approach goals
+plus their interior goal and occupy the production pilot/passenger chairs. Current
+peer/entity/Player identities, consumed PILOT/PASSENGER Jovian HUD, pilot producer
+and host authority, final host dual-seat confirmation and retention all pass the
+unchanged original predicates. Host/client/client_b .done receipts contain
+22/40/41 checks with no failures; all three actual OS exits0 and actor PIDs absent.
+No shared abort or first-failure artifacts. No pose writes, direct claims, private
+client actions, shortened paths or relaxed predicates/time limits.
+
+Cold import600/explicit compile300 both terminal0 before the single private-Xvfb/
+x11/Dummy input-only route (original300s, outer cleanup360s). Each peer has its own
+private profile/display. Full source guard11881 files, private cache320 files and
+main cache645 files remain unchanged; all19 observed PID/start identities absent.
+The server is non-playing Main under private X11; dedicated headless-server
+acceptance remains open. This proves source ordinary boarding only, not packaged
+route, flight/return/landing or original30-minute endurance acceptance. Native
+Windows/GPU/device/audio/human/full-matrix/release gates and all36 parents/ten
+phase gates remain open.
+
+Raw `/srv/mudds-work/jovian-boarding-fixed-hud-20261018/results/` retains exact
+preparation/commands/statuses, source/cache guards, original matrix
+`matrix/20261018T030640Z/`, complete flat peer-bundle logs/receipts/actual exits,
+terminal review and cleanup. Accepted candidate branch was pushed before running.
+Owned clean checkout/private profile/operational helpers are removed after
+integration and process inspection; raw/source refs/public builds remain. No new
+export: this commit adds qualification capability only; b6196a1 contains identical
+game runtime. No active desktop/audio, Downloads or hosted CI.
+
+Next selected task is a20–30min bounded static definition of the first ordinary
+shared flight segment, using the same admitted/seated actors and existing helm/
+pose owners. It ends at one executable card or exact missing fact; no extra engine
+probe or speculative runtime repair is authorized by that definition. Planning
+will not count as delivered flight.
+
+### Executed ordinary boarding card — frozen contract
+
+### NET-JOVIAN-BOARD — original qualification after the supported runtime repair
+
+- **Parent/result:** parents16/26, Phase7 first server/two-client slice; gate on
+  accepted label source b6196a19a and checkpoint b6196a1, both delivered.
+  Pilot HUD and physical passenger-seat fixes remain included.
+- **Boundary/source:** root composes pushed cbbebd715 caller/harness/UID with the
+  accepted runtime b6196a19a in a clean branch. The local claim-avatar correction is
+  already implemented and source-reviewed; do not rewrite identity criteria.
+  Main still does not contain this held caller/harness. Record exact source.
+- **Proof:** explicit compile, then one unchanged original normal-spawn13-goal
+  approach per client, menu joins, pilot and actual passenger chairs, current
+  peer/entity/Player generations, consumed HUD/producer/host authority and actual
+  OS exits0. Use existing private-Xvfb/x11/Dummy input-only runner, original300s
+  total/12s pilot/8s passenger waits and original success marker. No pose writes,
+  direct claims/private client actions, shortened routes or weakened predicates.
+- **Budget/stop:** compose/freeze5–10min, import/compile and one route separately.
+  First failure closes FAILED with original snapshots/receipts/logs; priority
+  review precedes any more repair, diagnosis or rerun. Other passenger predicate
+  fields were not retained in the latest failure snapshot; they remain unknown,
+  not assumed passing after this one known craft-label correction.
+- **Close:** integrate caller only after full acceptance, commit/push result,
+  clean owned checkout/profiles and preserve unique raw. No flight, endurance,
+  headless-server, native-hardware or whole-phase completion is implied.
