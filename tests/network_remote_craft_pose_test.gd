@@ -79,6 +79,10 @@ var _full_throttle: ShipCommand = null
 
 func _run() -> void:
 	if await _build():
+		if OS.get_cmdline_user_args().has("--operation-hud-only"):
+			_assert_remote_operation_hud()
+			await _finish_pose_suite()
+			return
 		if OS.get_cmdline_user_args().has("--hull-hud-only"):
 			_assert_remote_hull_hud()
 			await _finish_pose_suite()
@@ -93,6 +97,7 @@ func _run() -> void:
 			return
 		_assert_remote_hull_instruments()
 		_assert_remote_hull_hud()
+		_assert_remote_operation_hud()
 		await _assert_a_grant_claims_ownership()
 		await _assert_b_host_publishes_the_pose()
 		await _assert_c_the_pilot_copy_is_reconciled()
@@ -245,6 +250,138 @@ func _assert_remote_throttle_instruments() -> void:
 	ship.set("_piloted", piloted)
 	ship._update_presentation(TICK, ShipCommand.new())
 	ship.set_physics_process(was_processing)
+
+## The HUD must consume the same accepted operation sample as the cockpit,
+## while the observer's retained simulation remains OFFLINE with zero throttle.
+func _assert_remote_operation_hud() -> void:
+	var ship := _host.get_node("JovianLightFreighter") as HeroShip
+	var previous_ship: HeroShip = _host.active_ship
+	var previous_piloting: bool = _host._piloting
+	var was_processing: bool = ship.is_physics_processing()
+	var original_engine: Variant = ship.get("_engine_state")
+	var original_throttle: float = float(ship.get("_throttle"))
+	var original_piloted: bool = bool(ship.get("_piloted"))
+	ship.set_physics_process(false)
+	ship.set("_piloted", false)
+	ship.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	ship.set("_throttle", 0.65)
+	ship._update_presentation(TICK, ShipCommand.new())
+	var entry: Dictionary = PoseStream.build_pose_entry(ship, ship.get_ship_id(), 1, 90)
+	entry["craft_epoch"] = 1
+	ship.set("_engine_state", HeroShip.ENGINE_OFFLINE)
+	ship.set("_throttle", 0.0)
+	var solo: Dictionary = ship.get_telemetry()
+	var solo_damage: Dictionary = ship.get_network_damage_presentation_snapshot()
+	var source: ShipCommandSource = ship.get_command_source()
+	var velocity: Vector3 = ship.velocity
+	var stream := PoseStream.new()
+	stream.bind_replica_craft_presentations([ship])
+	_check(stream.consume_movement_section(PoseStream.pack_display_facts([entry])) == 1,
+		"operation HUD regression admits the existing validated ONLINE/+65 host pose")
+	ship.set_network_damage_presentation_enabled(true)
+	_check(ship.get_network_operation_telemetry_presentation().is_empty(),
+		"enabled operation HUD projection has no override before an accepted sample")
+	ship.apply_network_operation_presentation(stream.latest_sample(ship.get_ship_id()))
+	var operation: Dictionary = ship.get_network_operation_presentation_audit().state
+	_check(operation.get("engine") == HeroShip.ENGINE_ONLINE
+		and is_equal_approx(float(operation.get("throttle", 0.0)), 0.65),
+		"operation HUD regression retains accepted host engine and signed throttle display facts")
+	_host.active_ship = ship
+	_host._piloting = true
+	_host._physics_process(TICK)
+	var engine_label := _host.hud.get("_engine_label") as Label
+	var throttle_bar := _host.hud.get("_throttle_bar") as ProgressBar
+	var throttle_label := _host.hud.get("_throttle_label") as Label
+	_check(engine_label.text == "ENGINE  //  ONLINE",
+		"normal GameFlow publication sets the actual HUD engine label to host ONLINE instead of observer OFFLINE")
+	_check(is_equal_approx(throttle_bar.value, 65.0),
+		"normal GameFlow publication sets the actual HUD throttle bar to host 65 percent instead of observer zero")
+	_check(throttle_label.text == "THROTTLE  //  FORWARD",
+		"normal GameFlow publication sets the actual HUD throttle direction to host FORWARD instead of observer NEUTRAL")
+	_check(ship.get_telemetry() == solo and ship.get_network_damage_presentation_snapshot() == solo_damage
+		and ship.get_command_source() == source and ship.velocity == velocity,
+		"operation HUD projection retains all raw local telemetry, damage, velocity and command authority")
+	var display: Dictionary = ship.get_network_operation_telemetry_presentation()
+	_check(display.size() == 2 and display.has("engine_state") and display.has("throttle"),
+		"operation HUD getter exposes only engine state and signed throttle")
+	display.engine_state = HeroShip.ENGINE_OFFLINE
+	display.throttle = -1.0
+	_assert_published_operation_hud(HeroShip.ENGINE_ONLINE, 0.65,
+		"mutating a detached operation HUD sample cannot change accepted display facts")
+	var tick: int = 91
+	# Existing wire validation permits retained signed throttle on a stopped or
+	# destroyed sample; only a live ONLINE host may display it as active thrust.
+	for transition: Dictionary in [
+		{"engine": HeroShip.ENGINE_ONLINE, "throttle": -0.45, "destroyed": false},
+		{"engine": HeroShip.ENGINE_STARTING, "throttle": 0.65, "destroyed": false},
+		{"engine": HeroShip.ENGINE_OFFLINE, "throttle": -0.45, "destroyed": false},
+		{"engine": HeroShip.ENGINE_ONLINE, "throttle": 0.65, "destroyed": true},
+	]:
+		var next: Dictionary = entry.duplicate(true)
+		next.pose_tick = tick
+		next.operation_tick = tick
+		next.operation_presentation.engine = transition.engine
+		next.operation_presentation.throttle = transition.throttle
+		next.destroyed = transition.destroyed
+		if bool(transition.destroyed):
+			next.hull_presentation.health = 0.0
+		_check(stream.consume_movement_section(PoseStream.pack_display_facts([next])) == 1,
+			"existing compact pose admits the operation HUD lifecycle sample")
+		ship.apply_network_operation_presentation(stream.latest_sample(ship.get_ship_id()))
+		var expected_engine: StringName = HeroShip.ENGINE_OFFLINE if bool(transition.destroyed) else transition.engine
+		var expected_throttle: float = float(transition.throttle) if expected_engine == HeroShip.ENGINE_ONLINE else 0.0
+		_assert_published_operation_hud(expected_engine, expected_throttle,
+			"actual HUD follows host reverse/STARTING/OFFLINE/dead display facts")
+		tick += 1
+	_check(stream.consume_movement_section(PoseStream.pack_display_facts([entry])) == 0,
+		"stale compact ONLINE/+65 replay cannot replace the accepted terminal operation sample")
+	ship.apply_network_operation_presentation(stream.latest_sample(ship.get_ship_id()))
+	_assert_published_operation_hud(HeroShip.ENGINE_OFFLINE, 0.0,
+		"rejected stale ONLINE/+65 replay leaves the actual HUD OFFLINE and neutral")
+	_check(ship.get_telemetry() == solo and ship.get_network_damage_presentation_snapshot() == solo_damage
+		and ship.get_command_source() == source and ship.velocity == velocity,
+		"operation HUD lifecycle leaves raw health, engine, controls, flight and component authority unchanged")
+	ship.set("_engine_state", HeroShip.ENGINE_ONLINE)
+	ship.set("_throttle", 0.23)
+	ship.set("_piloted", true)
+	_check(ship.get_network_operation_telemetry_presentation().is_empty(),
+		"this-machine pilot refuses remote engine and throttle HUD overrides")
+	_assert_published_operation_hud(HeroShip.ENGINE_ONLINE, 0.23,
+		"this-machine pilot keeps predicted engine and throttle despite a dead host display sample")
+	ship.set("_piloted", false)
+	ship.set("_engine_state", HeroShip.ENGINE_STARTING)
+	ship.clear_network_operation_presentation()
+	_check(ship.get_network_operation_telemetry_presentation().is_empty(),
+		"cleared operation HUD projection contains no override")
+	_assert_published_operation_hud(HeroShip.ENGINE_STARTING, 0.23,
+		"operation HUD clear samples the current local engine and throttle")
+	ship.apply_network_operation_presentation(stream.latest_sample(ship.get_ship_id()))
+	ship.set_network_damage_presentation_enabled(false)
+	_check(ship.get_network_operation_telemetry_presentation().is_empty(),
+		"disabled operation HUD projection contains no override")
+	_assert_published_operation_hud(HeroShip.ENGINE_STARTING, 0.23,
+		"operation HUD disable restores the current local engine and throttle")
+	ship.set("_engine_state", original_engine)
+	ship.set("_throttle", original_throttle)
+	ship.set("_piloted", original_piloted)
+	ship._update_presentation(TICK, ShipCommand.new())
+	_host.active_ship = previous_ship
+	_host._piloting = previous_piloting
+	ship.set_physics_process(was_processing)
+
+
+func _assert_published_operation_hud(engine: StringName, throttle: float, description: String) -> void:
+	var raw: Dictionary = _host.active_ship.get_telemetry()
+	var returned: Dictionary = _host._publish_active_ship_telemetry_to_hud()
+	var engine_label := _host.hud.get("_engine_label") as Label
+	var throttle_bar := _host.hud.get("_throttle_bar") as ProgressBar
+	var throttle_label := _host.hud.get("_throttle_label") as Label
+	var direction: String = "REVERSE" if throttle < -0.04 else ("FORWARD" if throttle > 0.04 else "NEUTRAL")
+	_check(engine_label.text == "ENGINE  //  " + String(engine)
+		and is_equal_approx(throttle_bar.value, absf(throttle) * 100.0)
+		and throttle_label.text == "THROTTLE  //  " + direction, description)
+	_check(returned == raw and _host.active_ship.get_telemetry() == raw,
+		"HUD-only operation scalars do not replace the publisher's raw gameplay telemetry result")
 
 
 ## Drive the existing GameFlow publisher rather than handing crafted telemetry

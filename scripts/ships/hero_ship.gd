@@ -2655,6 +2655,20 @@ func get_network_hull_telemetry_presentation() -> Dictionary:
 	}
 
 
+## Observer HUD scalars from accepted operation display facts. This machine's
+## pilot retains predicted engine/throttle; gameplay telemetry stays local.
+func get_network_operation_telemetry_presentation() -> Dictionary:
+	if not _network_damage_presentation_enabled or _network_operation_state.is_empty() \
+			or _is_piloted_from_this_machine():
+		return {}
+	var engine: StringName = ENGINE_OFFLINE if bool(_network_operation_state.get("destroyed", false)) \
+		else StringName(_network_operation_state.engine)
+	return {
+		"engine_state": engine,
+		"throttle": float(_network_operation_state.get("throttle", 0.0)) if engine == ENGINE_ONLINE else 0.0,
+	}
+
+
 func set_network_damage_presentation_enabled(enabled: bool) -> void:
 	_network_damage_presentation_enabled = enabled
 	if not enabled:
