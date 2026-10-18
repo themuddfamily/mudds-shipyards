@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 READY, 2 FAILED/PARKED, 2 GATED, 3 DONE (one qualification, two production fixes).** Root owns integration and closure.
+**1 IN PROGRESS, 2 FAILED/PARKED, 2 GATED, 3 DONE (one qualification, two production fixes).** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -51,7 +51,7 @@ and delivery history; they do not consume active queue slots.
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
 | MIXED-CONTROL-PROMPTS | DONE | Grouped movement help retains a remapped button alongside stick directions in either order. |b86264f; glyph40/camera27/help20, paired checkpoint/startups/audits pass |
-| HUD-CARGO-SUPPLY | READY | After the six-kit supply is exhausted and the run reset, the Activity Board reports insufficient kits; other activities remain selectable. |30–60 min implementation/review; existing focused check up to300s, packaging/checks separate |
+| HUD-CARGO-SUPPLY | IN PROGRESS | After the six-kit supply is exhausted and the run reset, the Activity Board reports insufficient kits; other activities remain selectable. |30–60 min implementation/review; existing focused check up to300s, packaging/checks separate |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
@@ -89,7 +89,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   refusal, and ordinary Race selection. Reproduce the new assertion against the
   old runtime, then pass it with the fix. Keep the existing300s check cap;
   a timeout is a failure, not permission to weaken or replace the acceptance.
-- **Budget/next:** READY;30–60min implementation/review, split before90min.
+- **Budget/next:** IN PROGRESS;30–60min implementation/review, split before90min.
   Check runtime is separate: focused check up to300s per selected run, plus
   import/compile and paired checkpoint exports/startups. Next action is the
   bounded implementation; stop at its first unexpected failure and record the
