@@ -36,8 +36,12 @@ Only the two cards below are scheduled. Root owns both.
 - **Latest check:** packaged Ember preflight FAILED immediately: shipped ELF
   rejects `--path` because path overrides are disabled. Driver/menu markers0;
   no journey ran, artifacts unchanged, owned processes/sockets closed.
-- **Next:** one static consumer-definition card below determines a supported
-  native entry point or exact capability gap before any new preflight/repair.
+- **Static decision:** consumer definition DONE. Disabled engine overrides also
+  discard external --script; removing --path cannot fix the unchanged driver.
+  No engine was run during this diagnosis.
+- **Next:** add one read-only Ember mode to the established native observer for
+  a new checkpoint. Full physical OS-input journey needs its own subsequent card;
+  unchanged-driver acceptance on9be5c83 remains unsupported, not passed.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
   walk, Convoy/Patrol startup and Q4/Q5 investigations retain their failures and
   repair limits. No unchanged retry is selected. See the
@@ -65,36 +69,50 @@ durable-save acceptance. The existing unchanged driver is
 
 | Task | Status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| EMBER-PACKAGE-CONSUMER-DEFINE | READY / root | Supported native entry point, exact missing capability or precise missing fact recorded. | One30min static pass; no engine invocation. |
-| EMBER-PACKAGE-ABANDON | GATED on preflight / root | Exact shipped Linux package completes unchanged canonical outbound/abandon/reboard/home/walk. | 30–45min setup; original7200s route cap, prior source run41m15s. |
+| EMBER-NATIVE-OBSERVER | READY / root | Native packaged observer exposes actual Ember journey state without changing it. | 60–90min implementation; focused checks and required paired checkpoint separately. |
+| EMBER-PACKAGE-ABANDON | UNSUPPORTED on9be5c83 / root | Exact shipped Linux package completes unchanged canonical outbound/abandon/reboard/home/walk. | 30–45min setup; original7200s route cap, prior source run41m15s. |
 
-### EMBER-PACKAGE-CONSUMER-DEFINE — select a supported entry point
+### EMBER-NATIVE-OBSERVER — expose the actual packaged journey state
 
-- **Parent/result:** WORLD-ABANDON / PACKAGE-LINUX. Determine whether the exact
-  shipped native ELF has a supported way to consume the unchanged journey driver
-  using packed production resources. This is bounded diagnosis, not gameplay.
-- **Owner/dependency:** root; READY after the one failed preflight. Read the
-  existing native launcher, export/template build configuration and established
-  package-test entry points. Preserve frozen9be5c83 artifacts/driver and failed raw.
-- **Proof/finish:** record one supported exact invocation grounded in the actual
-  artifact/configuration, or the specific missing runtime/export capability and
-  its smallest separately scoped production change. If support cannot be
-  established from those sources, record that missing fact and stop. Native
-  package proof still requires a separately scheduled actual preflight.
-- **Boundary/budget:** one30min static pass; no engines, template rebuild, export
-  modification, script injection, alternate consumer or long journey. No editor
-  payload substitution, looser marker/route criteria or new validator family.
-  This card chooses a path; it does not authorize an unlimited repair sequence.
-- **Next/close:** inspect the existing launcher/build arguments, record the
-  supported path or blocker, then select a separate bounded repair/preflight
-  card. A failed preflight plus one attempted repair requires priority review
-  before any further diagnosis/rerun. Commit/push the concrete decision.
+- **Parent/result:** WORLD-ABANDON / PACKAGE-LINUX. Extend the existing native
+  OS-input observer with one Ember mode so a future shipped executable can expose
+  actual journey state without external scripts or loose game resources. This is
+  executable qualification capability, not a completed journey or gameplay feature.
+- **Owner/dependency:** root implementation, one bounded independent reviewer.
+  READY after the static consumer decision. Current9be5c83 remains immutable and
+  unsupported for the unchanged external SceneTree driver; no proof transfers to it.
+- **Boundary:** `scripts/game/startup_loader.gd`, existing
+  `scripts/diagnostics/native_sortie_observer.gd`, existing startup privacy checks
+  and the smallest focused runtime check needed for the new observation path.
+  Reuse the owned private X11/Dummy/native-sortie authorization. Add no generic
+  script loader, template change, new validator, flight driver or gameplay writes.
+- **Result/proof:** exact Ember selector accepted only under existing private
+  X11/Dummy inputs; ordinary startup remains lazy. Read-only observations name the
+  actual active craft/player identity and pose, world-origin transaction count,
+  Ember loaded/host/abandon state, seat/support and physical home lease/return
+  state. Absent world/retired Main is represented safely; no fallback to Torrent
+  may masquerade as the active Ember craft. Existing modes retain their behavior.
+  Use existing production snapshots, with no transforms, input, authority, save,
+  reward or actor creation written by the observer. Focused checks prove routing,
+  active-craft switching, absent/retired lifecycle and unchanged observed state.
+- **Budget/stop:**60–90min implementation, focused checks at original caps;
+  cold import≤600s, exports≤930s each and strict startup≤330s each if needed for
+  the required clean paired checkpoint. First failure ends verification; one
+  repair maximum before priority review, including the prior preflight failure.
+- **Next/close:** implement only the supported observer mode, verify, commit/push,
+  publish the required new paired checkpoint and remove owned disposable worktree.
+  A future OS-input pilot needs a separate bounded card preserving the full
+  canonical route, continuity/landing/return limits and physical outcomes. Neither
+  observer fields nor startup alone qualify that route. Do not rename this mode
+  as the unchanged external-driver test or claim9be5c83 acceptance.
 
 The prior **EMBER-PACKAGE-PREFLIGHT is FAILED**, not READY. Its one120s-cap
 attempt stopped at the unsupported `--path` boundary. Full command, raw result,
 process-observation limits and unchanged artifact hashes are in
 [delivery history](docs/history/ROADMAP_DELIVERIES.md#ember-native-package-preflight--failed-path-overrides-disabled).
-The long journey remains gated; no alternate invocation or export repair ran.
+The long journey did not run; no alternate invocation or export repair ran.
+[Static consumer decision](docs/history/ROADMAP_DELIVERIES.md#ember-native-consumer-definition--done-unsupported-external-driver)
+records why another invocation cannot qualify the unchanged shipped artifact.
 
 ### EMBER-PACKAGE-ABANDON — one unchanged physical journey
 
@@ -102,7 +120,9 @@ The long journey remains gated; no alternate invocation or export repair ran.
   Ember only. Qualify the actual native Linux package for canonical outbound,
   physical landing/exit, abandon, ordinary walking/reboard/ascent, return,
   occupied home berth, unload/disembark and supported home walking.
-- **Owner/dependency:** root; GATED until preflight proves the exact consumer.
+- **Owner/dependency:** root; UNSUPPORTED on current9be5c83 because its compiled
+  engine disables the required script override. This original exact-artifact/
+  driver qualification remains unperformed; the observer work does not close it.
   Same frozen public9be5c83 binary/archive and unchanged driver hash. One distinct
   private journey process/profile; no loose production fallback or user saves.
 - **Proof:** existing KETH_EMBER_PHYSICAL_RETURN=1, headless/Dummy/fixed-fps60;

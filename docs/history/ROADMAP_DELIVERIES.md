@@ -2867,7 +2867,7 @@ preflight-only task.
 
 ### EMBER-PACKAGE-PREFLIGHT — establish the actual package consumer
 
-- **Parent/result:** [WORLD-ABANDON / PACKAGE-LINUX](docs/ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
+- **Parent/result:** [WORLD-ABANDON / PACKAGE-LINUX](../ROADMAP_BACKLOG.md#activities-and-planetary-journeys).
   Establish an executable native package qualification command before starting
   the long journey. This is preflight, not gameplay or route acceptance.
 - **Owner/dependency:** root, with one bounded mechanical helper if useful.
@@ -2899,3 +2899,66 @@ preflight-only task.
   Commit/push actual result/command in the
   existing docs, clean disposable owned scratch and preserve unique failures.
   No new build for preflight-only work. Ungate the journey only on actual proof.
+
+## Ember native consumer definition — DONE, unsupported external driver
+
+Bounded static read only; no engine, export, build or new scratch. Linux preset
+uses the embedded release PCK and excludes tests. Existing native package probes
+invoke the ELF directly and select packaged diagnostic Nodes from StartupLoader;
+none dispatches an external SceneTree driver. Relevant seams:
+`export_presets.cfg` Linux preset, `export_linux_candidate.sh`,
+`run_package_probes.sh` native command, `run_native_sortie.py` native command,
+`startup_loader.gd::_ready/native_sortie_request`, and
+`native_sortie_observer.gd::_physics_process`.
+
+The pinned engine commit is `a13da4feb8d8aefc283c3763d33a2f170a18d541`, matching
+the exported4.7.1 revision and build recipe. Its
+[main.cpp](https://github.com/godotengine/godot/blob/a13da4feb8d8aefc283c3763d33a2f170a18d541/main/main.cpp#L4013-L4024)
+clears script, game path and main-loop override when OVERRIDE_PATH_ENABLED is
+absent. The preceding --path rejection is the observed disabled-override branch.
+Together these establish that merely dropping --path cannot execute the unchanged
+external driver. Do not spend another invocation on that hypothesis. This source
+inspection is not an actual --script runtime pass or a native journey result.
+Independent static review confirms the boundary and absence of an existing Ember
+native-observer selector/fields. Editor-engine --main-pack would be a distinct
+consumer and cannot inherit native-package acceptance.
+
+**Concrete decision:** close EMBER-PACKAGE-CONSUMER-DEFINE. Keep the original
+9be5c83 exact-package/unchanged-driver journey UNSUPPORTED/unperformed and retain
+all raw/artifact hashes. Select EMBER-NATIVE-OBSERVER as a separate60–90min
+implementation card: extend the existing private X11/Dummy read-only observer
+with active-craft/Ember/rebase/seat/return information, safely handling unloaded
+worlds and retired Main. No generic script injection, modified template,
+state-changing observer or new evidence family. Meaningful runtime change must
+ship a new clean paired checkpoint; it never retroactively qualifies9be5c83.
+
+The subsequent external OS-input pilot/full journey must be separately defined
+and retain canonical distance, genuine departure/landing/abandon/reboarding,
+continuity, occupied home dock/disembark/walk and unchanged original physical
+limits. Observer readiness is no replacement for that route. The prior failed
+preflight still counts toward the one-repair priority-review limit. No broad
+parent or phase closes; other final hardware/release gates retain their scope.
+
+### Archived static-definition contract
+
+### EMBER-PACKAGE-CONSUMER-DEFINE — select a supported entry point
+
+- **Parent/result:** WORLD-ABANDON / PACKAGE-LINUX. Determine whether the exact
+  shipped native ELF has a supported way to consume the unchanged journey driver
+  using packed production resources. This is bounded diagnosis, not gameplay.
+- **Owner/dependency:** root; READY after the one failed preflight. Read the
+  existing native launcher, export/template build configuration and established
+  package-test entry points. Preserve frozen9be5c83 artifacts/driver and failed raw.
+- **Proof/finish:** record one supported exact invocation grounded in the actual
+  artifact/configuration, or the specific missing runtime/export capability and
+  its smallest separately scoped production change. If support cannot be
+  established from those sources, record that missing fact and stop. Native
+  package proof still requires a separately scheduled actual preflight.
+- **Boundary/budget:** one30min static pass; no engines, template rebuild, export
+  modification, script injection, alternate consumer or long journey. No editor
+  payload substitution, looser marker/route criteria or new validator family.
+  This card chooses a path; it does not authorize an unlimited repair sequence.
+- **Next/close:** inspect the existing launcher/build arguments, record the
+  supported path or blocker, then select a separate bounded repair/preflight
+  card. A failed preflight plus one attempted repair requires priority review
+  before any further diagnosis/rerun. Commit/push the concrete decision.

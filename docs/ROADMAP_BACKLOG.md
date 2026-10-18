@@ -51,8 +51,11 @@ remote hold retained, clean checkout removed. Required priority review selected
 PLAN-VISIBLE-DELIVERIES, now DONE: browser per-session generation handling and
 defense briefing corrections are DONE on9be5c833a, with paired checkpoint9be5c83.
 Native packaged Ember driver preflight FAILED at disabled `--path` overrides.
-Next is one static supported-consumer definition, then only a separately scheduled
-preflight/repair; full abandonment remains GATED. Source proof is not transferred
+Static consumer definition is DONE: disabled overrides also discard external
+script, so removing --path is not a repair. Next selected production capability
+is one Ember mode in the existing native observer for a NEW checkpoint. The
+original9be5c83 unchanged-driver journey is UNSUPPORTED and remains unperformed;
+a subsequent full OS-input route needs its own explicit card. Source proof is not transferred
 to packages automatically.
 A third station implementation has no evidenced finding and remains DEFINE/
 GATED; no speculative fix is scheduled. No further Fire probe/repair is selected. See
@@ -290,8 +293,8 @@ part of this breakdown. Parent numbers refer to the crosswalk below.
 | Nearby ten-run reuse / 13 | Each repeatable activity completes its original ten same-world runs without resource growth, stranded objectives or duplicate rewards. | GATED on its first full play; preserve established duration. |
 | Ordinary-travel envelope / 13 | Name numeric maximum travel conditions for the existing nearby routes, with design/runtime basis and required scope decision. | DEFINE decision; no invented threshold or route shortening. |
 | HULK revisit / 13 | After actual home return/reload, ordinary revisit retains restored bus/claimed cell and creates no second reward. | PARKED after failure+repair; preserve300s and priority-review boundary. Revisit package GATED. |
-| Ember packaged abandonment preflight / 1 | Actual frozen native ELF loads the unchanged original driver against packed dependencies and emits EMBER_PACKAGE_DRIVER_READY; startup alone fails. | FAILED at disabled --path overrides; static consumer definition selected in ROADMAP.md. No unchanged rerun. |
-| Ember packaged abandonment journey / 1,14 | Same native package completes unchanged physical outbound/abandon/walk/reboard/ascent/home occupied dock/unload/disembark/walk, exact31 and original7200s cap. | GATED on preflight; earlier integrated-source journey DONE, no unchanged source rerun. |
+| Ember packaged abandonment preflight / 1 | Actual frozen native ELF loads the unchanged original driver against packed dependencies and emits EMBER_PACKAGE_DRIVER_READY; startup alone fails. | FAILED at disabled --path overrides; static definition confirms external-script discard. New native observer selected in ROADMAP.md, no unchanged rerun. |
+| Ember packaged abandonment journey / 1,14 | Same native package completes unchanged physical outbound/abandon/walk/reboard/ascent/home occupied dock/unload/disembark/walk, exact31 and original7200s cap. | UNSUPPORTED on9be5c83; unchanged-script override is compiled out. Earlier integrated-source journey DONE, no unchanged source rerun. |
 | Solo survey full returns / 14 | Separate Ember, Aurora, Rime children: canonical outbound/descent/landing, walk actual survey, save earned reward once, reboard/ascent/home dock through ordinary controls. | UNSCHEDULED or source-specific DONE per history; choose uncovered candidate/scenario, not staged proof. |
 | World abandonment/re-entry / 1,14 | Separate Aurora and Rime scenarios, and Ember reuse/durability still uncovered: ordinary abandonment and usable physical recovery/return with no rescue. | DEFINE exact original applicable contract; source Ember abandonment is already accepted. |
 | World save boundaries / 14,31 | Per Ember/Aurora/Rime, select one uncovered survey/reward/reboard/visit boundary; distinct-process real-file reload or OS interruption preserves once-only rewards and usable play. | GATED on explicit resume/safe-recovery contract. MemoryFilesystem and staged restoration do not qualify disk journeys. |
