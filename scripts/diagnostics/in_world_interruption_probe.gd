@@ -1229,8 +1229,8 @@ func _walk_exterior_home(game: GameFlow, craft: HeroShip) -> Dictionary:
 	# The Bulwark's authored exit is a narrow aft-port deck corner. Walk inboard
 	# along ship +X using camera-relative action strengths, without moving the
 	# actor or camera by fixture. Keep clear of the aft edge's real void.
-	var forward := (-game.player.get_camera().global_basis.z).slide(Vector3.UP).normalized()
-	var right := forward.cross(Vector3.UP).normalized()
+	var forward: Vector3 = (-game.player.get_camera().global_basis.z).slide(Vector3.UP).normalized()
+	var right: Vector3 = forward.cross(Vector3.UP).normalized()
 	var direction := craft.global_basis.x.normalized()
 	var forward_strength := direction.dot(forward)
 	var right_strength := direction.dot(right)
