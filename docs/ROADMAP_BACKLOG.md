@@ -43,11 +43,11 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Pilot/cabin/crew/docking/planetary/activity source maps are defined below; explicit activity capability/policy gaps and remaining installed cuts stay open. |
 | 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
 | 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER definition DONE; SCOPE-DESKTOP final target list and SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
-| 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | One prepared card selected in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
+| 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | ROADMAP.md holds one prepared Aft acceptance card and the stock-gated Hauler production alternative with local estimates; later capability scopes/estimates remain undefined. No whole-project estimate or release date. |
 | 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | Checkpoint2c73494 and HELM-EDGE-REPRO/REPAIR accepted; MATRIX-FINAL still gated. |
 | 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT | LIFE-VISIBLE/REUSE source DONE; Guided earlier-package pass retained. Nine WALK-* and17 eventual CRAFT-ACCEPT-* outcomes named; Sandbox PARKED and Settings WAITING. |
 | 8 | Complete control and tutorial tuning | CONTROL-FIX, INPUT-DEVICE, INPUT-REMAP | REMAP-DEFINE DONE; ONFOOT-SPRINT-TOGGLE packagedbd4e15d. CONTROL-FINDINGS definition DONE; GAMEPAD-LOOK packaged99e79c3 repairs its concrete camera gap. Remaining context definitions and INPUT-KBM/CONTROLLER real-device routes stay open. |
-| 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE | WALK-ANNEX source9af57671d DONE in its disclosed-fixture scope; other WALK-* and four station LIFE-* rows remain, VIP PARKED. STATION-RELATIONS/FINDINGS require bounded source-tied definitions. |
+| 9 | Finish station layout and final presentation | HIST-CLAIM, STATION-MODULE/ROUTE/ART/LIFE | WALK-ANNEX source9af57671d and Habitat loop/restart DONE in recorded scopes. Central/Freight LIFE runtime acceptance DONE; Aft/Habitat LIFE and other WALK-* remain, VIP PARKED. STATION-FINDINGS view roster defined; actual presentation findings and STATION-RELATIONS remain. |
 | 10 | Finish fleet art, character animation and role acceptance | CRAFT-ART, CRAFT-ROLE, CRAFT-ACCEPT | Nine current craft plus eight missing originals explicitly named. Each SPEC/BUILD-SPLIT/CRAFT-ACCEPT outcome remains distinct; component gaps DEFINE. |
 | 11 | Complete the combat-and-recovery slice across supported craft | COMBAT-SLICE, CRAFT-ACCEPT, NET-DAMAGE | Six COMBAT-* encounters named. WEAPONS-DEFINE/DAMAGE-DEFINE resolve actual supported cells; no duplicated network-damage assignment. |
 | 12 | Complete the whole-game art-direction pass | ART-FINDING, STATION-ART, CRAFT-ART, CAPTURE | ART-FINDINGS, ACCESS-* and13 named capture sets; each actual repair needs its own view/behavior proof. |
@@ -115,7 +115,7 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 | SCOPE-ROSTER | Reconcile original twelve plus modern five craft, stations, opponents/weapons, activities, worlds, roles and targets | 4 | DONE as [finite named roster](COMPLETION_SCOPE.md#finite-release-roster--scope-roster): original12+modern5/eventual17, current9/missing8; other named inventories and unresolved boundaries preserved. No gameplay/qualification completion implied |
 | SCOPE-LIMIT | Release guest count and playing-host decision | 4,26 | WAITING; already-asked owner decision |
 | SCOPE-DESKTOP | Required desktop target list | 4,32 | WAITING final owner list: Windows Desktop/Linux x86_64 presets exist; Phase9 conditionally requires other non-Windows targets without naming one. Source investigation DONE; no third-target promise or deferral inferred |
-| PLAN-NEXT | Assign the next bounded queue | 5 | DONE; this planning pass, no gameplay claim |
+| PLAN-NEXT | Assign the next bounded queue | 5 | DONE locally: prepared Aft acceptance card, stock-gated Hauler production alternative and explicit estimates in ROADMAP.md. Not a whole-project decomposition/estimate or gameplay delivery |
 | GUIDED-FINAL | Final-package Guided ordinary-input sortie, original 3/3 | 7 | GATED; final package, earlier f676c50 acceptance retained |
 | SANDBOX-RECOVERY | Original all-nine/54-waypoint recovery walk and reuse | 7 | PARKED; supported changed input/runtime cause required |
 | SETTINGS-INPUT | Recover original runner, profile and logs | 7,8,29 | WAITING; original artifacts, no substitute Gate C |
@@ -150,7 +150,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-VIP | VIP reception | 7,9 | PARKED; failed route plus repair, see working-roadmap failure summary |
 | LIFE-TOW | Central tow during nearby walking/boarding | 9 | DONE in packaged9162fac/caller11c2332 ordinary scope:43.086m supported walking/five goals, actual Torrent boarding and90seatedframes; same service/seven movers advance clock/poses,745 consecutive samples, zero diagnostics. Rendered readability/native hardware/whole-station remain separate |
 | LIFE-GANTRY | Freight gantry during nearby walking/boarding | 9 | DONE packaged2df8c31 ordinary scope:127.445m/13 settled goals,12.509m local walk/max10.297m from gantry, actual Jovian boarding/90seatedframes; same two movers clock/poses, home berth/OFFLINE/parked,1,668 consecutive samples/no diagnostics. Seat is distant; rendered/full-station/final remain separate |
-| LIFE-ARM | Aft service arm during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
+| LIFE-ARM | Aft service arm during nearby walking/boarding | 9 | Route definition DONE on668b5b6dc source; [bounded executable card](../ROADMAP.md#life-arm--prepared-acceptance-card). Runtime acceptance NOT_RUN; three real arm movers, ordinary Aft stairs/Zenith boarding, original shared LIFE limits |
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
 | STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | DEFINE; tied source anchors or precise missing evidence |
 | STATION-CENTRAL-VIEW | One current source-tied Central operational-view defect | 9,12 | GATED; usable existing view/reproduction, capture stall parked |
@@ -1850,15 +1850,22 @@ stay unchanged. CargoTransferAuthority alone owns quantities/atomic receipts.
 | --- | --- | --- |
 | HAULER-SUPPLY-ACCESS | Actual Hauler reservation/contact/landing/disembarked current pilot walks supported to existing terminal; preserve exact lease/actor/attachment and old Jovian route | DONE; paired checkpointa43ae4b. Full access76/berth83/switching35 checks and three strict startups pass. Actual collider contact root4.25; Hauler-only leased staging above deck. No inventory/reward grant. Initial placement staged; full Main journey remains open. |
 | HAULER-CARGO-STOCK | Decide shared existing two-crate mission stock, separate two-crate Hauler stock, or loading-terminal custody | WAITING on the one already-asked question; no elapsed-time answer/default authorization. This selects custody/initial entitlement, not a new approval requirement for independent access work. |
-| HAULER-CARGO-MANIFEST | Admit actual Hauler with distinct exact source handle/manifest and conserved chosen stock; source replacement keeps a monotonic activity generation and existing reward/transfer replay fences | GATED on stock policy/access. Existing CargoDeliveryActivity starts generation0, producing contract_g1; simply recreating it after completion collides with the ledger. Nonactive source retirement/re-registration also reseeds stock. Prove Jovian→Hauler→Jovian ownership, stale-handle refusal, no stock recreation, exact destination conservation/one receipt per completion. Do not clear ledgers/fences. Freeze files and proof before implementation. |
+| HAULER-CARGO-MANIFEST | Admit actual Hauler with distinct exact source handle/manifest and conserved chosen stock; source replacement keeps a monotonic activity generation and existing reward/transfer replay fences | GATED on stock policy; access DONE. Current668b5b6dc binding accepts only jovian_provisional and seeds two crates on source registration. CargoDeliveryActivity already supplies adopt_terminal_generation_floor, and the binding applies its retained floor. Reuse that API; do not schedule another generation-continuation implementation. Prove Jovian→Hauler→Jovian ownership, stale-handle refusal, no stock recreation, exact destination conservation/one receipt per completion. Do not clear ledgers/fences. Freeze files and proof before implementation. |
 | HAULER-CARGO-DELIVERY | Current pilot loads through real terminal, physically departs/clears gate, lands/exits/walks back and commits exactly one source→destination transfer/reward; repeat preserves quantities/receipts | GATED on access/manifest. Use actual ship/actor/lease/terminal generations and chosen custody; preserve old Jovian route. Define exact unchanged route/caps before running. Bridge/role proposals are not delivery proof. |
 
-The smallest manifest seam is NearbySectorActivityBinding source admission and,
-if required, a supported CargoDeliveryActivity generation continuation. Keep
+Current-source correction on668b5b6dc: the smallest manifest seam is
+NearbySectorActivityBinding source admission and conserved stock custody.
+CargoDeliveryActivity.adopt_terminal_generation_floor and the binding's
+_apply_cargo_generation_floor already exist; prove their integration rather than
+adding a duplicate API. Estimate after the stock decision:60–90min for manifest
+implementation/focused checks, plus checkpoint export/startup; split before90min
+if the chosen custody requires a separate independently useful capability. Keep
 CargoManifest/transfer authority/reward handoff/persistence formats unchanged
 unless a concrete consumer requires a change. Terminal-summary-only Cinder cargo
-persistence remains: cold restore exposes completion at generation0 without live
-inventory/progress or replayable reward. Existing tests are anchors, not new passes:
+persistence description above is historical: current strict v2 earned debt and
+cold payment are delivered by CINDER-SUPPLY-DEBT onf8b5f86. That acceptance does
+not reconstruct active inventory/manifests or settle stock custody.
+Existing tests are anchors, not new passes:
 access suite declares1200s; authority/contract/handoff/summary/bridge suites retain
 their original default300s. No schema/validator growth or unchanged parked retry.
 Full ordinary packaged outbound/home, craft/art/crew/recovery gates remain open.

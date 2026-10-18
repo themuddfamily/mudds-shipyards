@@ -1,170 +1,128 @@
 # Development roadmap
 
-The game is a playable development alpha. Latest accepted playable checkpoint:
-**2df8c31** passes ordinary Freight gantry walking/Jovian boarding coexistence:
-13 authored walking goals, both movers active, correct pilot/home berth and90
-seated physics frames. Central acceptance remains recorded on9162fac. Earlier
-Cinder reward recovery, asteroid Start Fresh, Habitat, Settings, controls, audio
-and HUD work is included.
-[Windows notes](builds/windows/MuddsShipyards-2df8c31-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-2df8c31-linux-notes.txt) state actual validation.
+**Status: playable development alpha; project completion is unproven.** Latest
+accepted checkpoint: **2df8c31**, with ordinary Freight walking/Jovian boarding
+and active gantry coexistence. [Windows build notes](builds/windows/MuddsShipyards-2df8c31-notes.txt)
+and [Linux build notes](builds/linux/MuddsShipyards-2df8c31-linux-notes.txt) state
+actual checks and limits. All 36 original parents and ten phase gates remain open.
 
-**Project finish: unproven. All 36 broad requirements and all ten phase gates
-remain open.** This is not zero progress: accepted child outcomes remain accepted
-on their recorded sources. A reliable remaining-job count or finish date is not
-available while capability definitions and external dependencies are unresolved.
+## What separates this alpha from completion
 
-## Where the remaining work lives
+These are scope groups, not equally sized tasks or a percentage. The
+[36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
+and [original ten phase gates](docs/history/ROADMAP_SCOPE_20261017.md) retain every
+promise. Each named child and its dependencies live in the existing
+[backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes).
 
-| Question | Authoritative location |
-| --- | --- |
-| What was promised? | [Original scope and ten phase gates](docs/history/ROADMAP_SCOPE_20261017.md) |
-| Is every promise still covered? | [36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes) |
-| What are the smaller named outcomes? | [Concrete child inventory](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) |
-| Which work has actually passed or failed? | [Delivery history](docs/history/ROADMAP_DELIVERIES.md), including [retained task contracts](docs/history/ROADMAP_DELIVERIES.md#working-card-records-retained-on-2026-10-18) |
-| What happens next? | The execution table and selected card below. |
+| Remaining scope | Known boundary | What must be settled or delivered next |
+| --- | --- | --- |
+| Fleet and historical content | 17 eventual craft: 9 implemented, 8 absent | Eight SPEC→BUILD-SPLIT→CRAFT-ACCEPT chains; missing evidence/interpretation decisions precede builds. Existing nine still require their applicable full craft/art/role journeys. |
+| Station | Nine branches; four service-motion outcomes | Habitat ordinary loop/restart and Central/Freight service coexistence accepted on recorded checkpoints. Aft/Habitat service acceptance, other branch routes and actual presentation findings remain; parked routes retain their limits. |
+| Activities and combat | Twelve activities, six named combat encounters | Complete uncovered ordinary outbound/activity/reward/home journeys, then each legitimate ten-run contract. Cargo replenishment/turnover policy is unresolved; Hauler source integration is a known stock-policy-gated production gap. |
+| Worlds | Ember, Aurora, Rime; 21 named shared-world cells | Canonical solo/shared returns, saves, abandonment, crew and repeat visits; source/staged passes cover only their recorded cases. Aurora originals remain waiting and Rime arrival remains parked. |
+| Multiplayer | Named browser, helm, role, damage, actor and postdock cases | Dedicated server/two-client baseline, applicable role/reuse cases, original 30-minute endurance and chosen capacity. Release guest count/playing-host decision remains waiting. |
+| Recovery and saves | Seven context definitions; accepted cuts retained | Four terminal-only active-run policies remain unresolved; remaining installed/ordinary cuts and migration/corrupt/unsupported data cases need their exact expected behavior and candidate. |
+| Presentation, controls, audio and performance | Finite view/device/capture families | Actual defects and native measurements, real devices/audio, accessibility and applicable capture gates. Hardware/authorization dependencies cannot be replaced by headless passes. |
+| Release | Existing Windows/Linux checkpoint workflows | Target-list decision, exact final integrated regression/packages/install transactions, licensing/signing and authorized distribution. Native Windows execution/human-review owner exclusions stay in force. |
 
-The inventory includes finite scenarios, unresolved definitions and external
-waits. A DEFINE or BUILD-SPLIT row is not an implemented capability or a countable
-remaining implementation job. Resolve those rows into finite capabilities before
-estimating them. Do not change the shipped roster or defer promises without an
-explicit owner decision.
+**Remaining job count and finish date: unknown.** BUILD-SPLIT placeholders,
+policy choices and actual visual/performance findings still have unresolved
+multiplicities. Do not call a definition, qualification or checkpoint a finished
+feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-**Last planning result:** SCOPE-ROSTER is DONE as a
-[finite named scope](docs/COMPLETION_SCOPE.md#finite-release-roster--scope-roster).
-The original12 plus modern5 yield17 eventual craft:9 implemented/8 absent.
-Nine station routes, four service motions, twelve activities, three worlds,
-combat/weapon and physical-role inventories now have explicit boundaries.
-SCOPE-DESKTOP source investigation is complete; the final supported target list
-remains WAITING. Windows Desktop/Linux x86_64 exports exist; Phase9 does not name
-a third target. This is scope definition, not new gameplay or full acceptance.
+The current planning task is to remove stale assignments and leave a bounded
+next card, rather than start another station-wide chain. Aft route definition
+is now complete from existing source; no engine or route run was needed.
 
-**ACT-REPEAT-DEFINE is now DONE as a definition.** The
-[remaining nine activity contracts](docs/ROADMAP_BACKLOG.md#activity-repetition--remaining-nine-definitions)
-complete the twelve-activity classification. Ten same-world runs, no resource
-growth and no stranded objectives remain required; no repeat journey was run.
+| Work | Kind / readiness | Owner and bounded next result | Estimate |
+| --- | --- | --- | --- |
+| LIFE-ARM | Acceptance/release capability; prepared below, not yet executed | One implementer owns the five named driver/observer/privacy files; root integrates, checks and packages. One independent reviewer checks lifecycle/input boundaries. Stop after one complete route or first failure. | 30–45min implementation/review; 10–15min focused checks/export/startup; native cap300s, outer360s |
+| HAULER-CARGO-MANIFEST | Production behavior; GATED on HAULER-CARGO-STOCK | Binding admission/conserved source custody. Current source rejects Hauler; generation-floor API already exists. [Exact stock prerequisite and proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). No duplicate generation API or implicit stock grant. | 60–90min implementation/focused checks after decision, checkpoint additional; split before90min |
 
-| Remaining gate | Concrete next action | Acceptance boundary |
-| --- | --- | --- |
-| First ordinary activity play | Select one existing PLAY-* card and freeze actual route, current production owners, original deadlines and once-only reward/home return before any execution | Existing source/staged checks do not qualify ordinary play; no ten-run chain automatically follows |
-| Cargo repetition policy | Specify legitimate same-world replenishment and destination turnover before selecting ten deliveries | Jovian6 kits fund3 deliveries; Cinder2 crates fund2 per retained source and destination capacity8. Preserve unanswered Hauler stock choice; no fixture restock or implicit exemption |
-| Repeat resource/deadline contract | After accepted first play, freeze one activity's actual command/candidate, equivalent-phase resource baseline and ten measured cycle budget | Generation/receipt/inventory changes need exact legitimate accounting; original deadlines, no-growth and failure-stop criteria remain |
+This is a local queue, not the remaining project. No Habitat-patrol, full Sandbox,
+mining, ten-run activity or capture successor starts automatically after LIFE-ARM.
+Review the result against its original parent and available production work first.
+The bounded production-seam review found the Hauler gap above; other inspected
+Hauler/Bomber/terminal-recovery policies need their recorded decisions. That is
+not a claim that the entire game has no other implementation gaps.
 
-Heavy Breach and Torpedo remain separate ten-clear outcomes on the actual
-alternating board: twenty successful alternating sorties yield ten of each.
-Do not skip offers, count ten mixed sorties as ten each or replay the parked
-BREACH-INTERRUPTION probe. The physical-defense contract retains all three waves
-and fresh-reset cycles; failed-wave continuation is not another successful run.
+### LIFE-ARM — prepared acceptance card
 
-### UI-BOARD-FOCUS — parked after two distinct component results
+**Result:** the release driver can prove ordinary hub→Aft stairs→Zenith pilot
+boarding while the existing service arm continues operating. This delivers an
+executable release check; it adds no new animation or gameplay. Parent9 remains
+open until its other applicable outcomes hold. Definition source:668b5b6dc.
 
-The second, changed component **did establish the missing tooltip condition**:
-real OS mouse motion hovered Destination Board; visible embedded PopupPanel
-199934088938 owned both root connections before the keyboard transition. The
-popup and connections disappeared on page change; TimedRace retained valid
-visible focus. Exit0, one completion marker,96samples, no engine errors.
-**Target NOT_REPRODUCED**, not a repair or Main/mining acceptance.
-[Result, exact source/commands and retained card](docs/history/ROADMAP_DELIVERIES.md#activity-board-tooltip--changed-reproduction-did-not-reproduce-failure).
+**Owned files:** `tools/release/run_native_sortie.py`,
+`tools/release/test_native_sortie.py`,
+`scripts/diagnostics/native_sortie_observer.gd`,
+`scripts/game/startup_loader.gd`, `tests/startup_cli_privacy_test.gd`.
+Extend the shared LIFE pilot/observer with bounded route configuration; do not
+copy another pilot or change world geometry, controls, cargo or ship behavior.
 
-The first key-only component4.673s and changed tooltip component4.954s total
-9.627s guarded. Source/import/review work remained within the same original
-20–30min investigation from19:07UTC. STOP/PARK: do not reset that budget or
-schedule another popup variant, broad audit or unchanged mining flight.
-Original missing fact remains the popup identity and event that removed or
-mismatched its root connections. This normal component lifecycle succeeds;
-no production repair is justified yet.
+Use fresh ordinary Start Shift and OS input only. Existing authored goals, in order:
 
-| Separate remaining outcome | State | Requirement before selection |
-| --- | --- | --- |
-| Production Activity Board repair | GATED | Concrete original cause/owner/event, exact runtime files and bounded estimate; then focused regression, lifecycle review and checkpoint |
-| Full ordinary mining sortie | PARKED | Concrete production repair addressing the observed failure; separately reselect the entire original route, once-only receipt and strict home return, failed-stage61.925s/CAP300 retained |
+```text
+(0,0,15.5) → (0,0,39) → (0,0,46.3) → (0,0,51)
+→ (-5.7,0,51) → (-5.7,4.2,61.2) → (-3.5,4.2,61.5)
+→ (-3.5,4.2,64.2) → (-3.5,4.2,68.3) → (6,4.2,68.3)
+→ (13,4.2,68.3) → (22,4.2,68.3)
+→ (20.2,4.2,59.2) → (18.6,4.2,58.6) → (18.2,4.2,58.2)
+```
 
-STATION-FINDINGS now has a [finite branch/view review roster](docs/ROADMAP_BACKLOG.md#station-presentation--finite-review-boundaries).
-The bounded service/wayfinding source review found no supported new runtime gap;
-actual visual findings remain OPEN. Existing motion, lifecycle and real-console/
-berth sign bindings are implemented. No engine/capture pass or art repair is
-claimed. Do not invent missing logistics, rooms or signs from an open parent.
+These reuse the existing Sandbox walking/Zenith approach coordinates, without
+Sandbox triggers or sorties. Observe actual production Zenith candidate and
+settled walking before ordinary Interact. Do not append Jovian's dynamic-marker
+walk or impose its extra3.1m proximity rule: production boarding selects the
+available actual candidate under its existing7m fallback reach. Never force a
+candidate, active ship, boarding call, actor pose or rescue.
 
-Next scheduling action: choose one independent existing station LIFE or WALK
-acceptance card, freeze its ordinary route and original limits, and implement
-only an observed blocker. Presentation repairs need one actual view/defect from
-the finite roster. Central capture, VIP and Salvage failures retain their parked
-conditions; no accepted Habitat journey is repeated by this selection.
+Observe `ShipyardWorld/OperationalLattice/Activities/AftOperationsActivity`,
+SERVICE_ARM profile, and its actual shoulder/elbow/tool transform owners.
+Local walking interval: stair-top(-5.7,4.2,61.2) through fleet-bridge(6,4.2,68.3).
+Require actual local distance>11m and every local sample within12m of actual
+arm origin(5.8,4.99,61.2). Source polyline≈18.52m/max goal distance≈11.527m
+is a route definition, not measured runtime acceptance.
 
-Fixturee646fc792 remains unmerged and its branch pushed; owned source/profile/
-helpers are cleaned after archiving unique results. At that UI closure no new playable build was published;f8b5f86 was retained.
-All original broad parents/phase gates remain OPEN.
-CI stays disabled.
+Require the same supported Player/capsule/shape, default tuning, enabled/visible/
+processing service, nondecreasing finite clock and all three actual mover poses
+changing in both local walking and seated intervals. Zenith must be the original
+`Main/ZenithInterceptor`, ID `zenith_b7_observed`, home berth
+`zenith_fleet_dock_berth`. Authenticate actual input→BOARDING→local pilot, then
+90 seated physics frames with correct current ownership/home reservation,
+OFFLINE engine and unchanged parked pose. Seat coexistence is separate from
+nearby walking/readability. Read-only observation must not create seats, clean
+leases, advance/seek service animation or alter authority.
 
-### LIFE-TOW — accepted ordinary route, card closed
+Retain shared LIFE limits:15s per goal, .30m planar arrival, vertical error<.8m,
+speed<.1m/s and15 consecutive settled physics samples; boarding12s; whole
+route300s/outer360s. These are shared LIFE limits, not a claimed previous Zenith
+per-goal deadline. Validate every emitted consecutive sample. First unexpected
+failure stops execution; no automatic repair/retry or budget reset.
 
-Packaged source9162fac with repaired caller11c2332 passes fresh ordinary OS-input
-Central walking and Torrent boarding:43.086m walked/14.334m nearby, five ordered
-goals, same supported Player/capsule/shape and actual pilot ownership, then90
-seated physics frames. The same visible service/seven movers advance clock and
-change transforms in both intervals. All745 emitted samples are consecutive and
-checked. Zero engine diagnostics; full input/process cleanup passes.
-
-The initial35.578s guarded attempt stopped on the caller omitting normal BOARDING.
-One reviewed two-Python-file correction passes61 tests/7.944s and the full unchanged
-native route35.932s guarded/34.817s driver on the SAME audited archive/ELF.
-Accepted unchanged engine/privacy/exports/startups were retained. No cap reset;
-original failed raw result stays recorded. [Full result and frozen card](docs/history/ROADMAP_DELIVERIES.md#central-tow--ordinary-walking-and-boarding-accepted).
-
-The release capability is merged and checkpoint published; owned source/profile/
-helpers/extraction removed after archiving. Central runtime coexistence only:
-rendered readability, other LIFE rails and whole-station/final gates stay OPEN.
-Next single action: select one remaining LIFE-GANTRY ordinary Freight walking/
-boarding card with exact approach and observer/driver scope. Do not automatically
-repeat Central, expand into a full station tour or reopen parked failures.
-
-### LIFE-GANTRY — accepted ordinary route, card closed
-
-Clean packaged2df8c31 passes the full ordinary hub→Freight→Jovian route:
-127.445m supported walking,13 ordered goals with15 settled samples each,
-12.509m in the separately bounded local interval (max gantry distance10.297m),
-actual Interact→BOARDING→local pilot and90 seated physics frames. Same actors,
-GANTRY/two movers, default controls, occupied/reserved home berth, OFFLINE engine
-and parked pose persist across1,668 consecutive samples. Both real mover poses
-and clock advance during local walking and seated coexistence. No engine errors.
-
-The first Python stage fails8.376s because the negative-count fixture indexes a
-removed mover; one reviewed test-helper condition preserves the mutant/assertion
-and production code. All68 tests pass8.189s. Cumulative review GO retains identical
-GDScript/privacy passes; fresh paired exports/three strict startups/1521-entry
-audit and ONE archived native route53.608s guarded/50.744s driver pass with original
-15s-goal/12s-boarding/CAP300 limits. No second repair or cap reset.
-[Full result and frozen card](docs/history/ROADMAP_DELIVERIES.md#freight-gantry--ordinary-approach-and-jovian-boarding-accepted).
-
-Merged and checkpoint published; twelve terminal owners/65 process identities
-absent, private profile files/helpers archived, owned scratch removed. This closes
-Freight runtime coexistence only. Central remains accepted on9162fac; Aft arm,
-Habitat patrol, rendered readability and all broad parent/phase gates remain open.
-Next single action: define LIFE-ARM's exact Aft approach and supported boarding
-route before selecting its executable card. No automatic service/station tour.
-
-At most three executable cards belong here. A definition ends with a finite
-answer or exact missing fact; it does not automatically launch its qualifications.
-A product implementation card must name one actual production gap, files,
-acceptance action, dependencies and estimate before work. Split implementation
-expected to exceed90min into independently useful capabilities.
+Checks: existing full Python driver tests, observer compile and CLI privacy;
+clean paired exports, three strict startup checks and actual payload/archive
+audit; ONE exact archive-extracted ordinary route using the planned
+`--route life-arm` selector and `NATIVE_LIFE_ARM_OK` marker. The selector is not
+implemented yet. Root owns silent/headless or isolated x11 checks and independent
+abort/input/process cleanup. Review before launch; record source, actual duration
+and failures. Native GPU/rendered readability/final integration remain separate.
 
 ## Latest delivered result
 
-**LIFE-GANTRY accepted on packaged2df8c31.** Ordinary Freight approach, local
-walking past the gantry, actual Jovian boarding and seated coexistence pass.
-Full68 Python checks, retained identical observer/privacy checks, fresh paired
-exports/three strict startups/1521-entry artifact audit and one full native route
-pass after the recorded fixture-only repair. Eleven public files including EXE,
-checkpoint ZIP and notes verified. No new service animation/geometry or cargo/
-flight acceptance is claimed; other station/full-release gates remain open.
+Freight LIFE-GANTRY is accepted on packaged2df8c31: ordinary approach, nearby
+walking, Jovian boarding and90 seated frames. Central LIFE-TOW remains accepted
+on9162fac with caller11c2332. Both are existing-service runtime coexistence,
+not new service animations. Builds are in repository `builds/`; owned scratch
+was cleaned after preserving unique results.
 
-[Delivery history](docs/history/ROADMAP_DELIVERIES.md#freight-gantry--ordinary-approach-and-jovian-boarding-accepted)
-retains exact failed/passing checks, frozen card and cleanup records.
-[Backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) retains all unfinished
-scope. All broad parents/phase gates remain OPEN.
+Full frozen cards, failures, checks and publication records live in
+[delivery history](docs/history/ROADMAP_DELIVERIES.md). No completed Central or
+Freight selection is reissued here. UI-BOARD-FOCUS and ordinary mining retain
+their parked conditions in the [backlog](docs/ROADMAP_BACKLOG.md#baseline-scope-and-planning-children);
+the successful component reproduction did not establish a production repair.
 
 ## Parked failures and dependent work
 
