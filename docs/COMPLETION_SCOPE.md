@@ -1,6 +1,21 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **9162fac**, clean packaged source
+Latest accepted paired checkpoint: **2df8c31**, clean source
+`2df8c31a5357075f0f6cadc96429213ae6b99893`
+([Windows notes](../builds/windows/MuddsShipyards-2df8c31-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-2df8c31-linux-notes.txt)). Ordinary
+Freight gantry coexistence passes127.445m supported walk/13 settled goals,
+12.509m local interval/max10.297m from actual gantry, real Jovian boarding and90
+seated frames. Same actors/two movers/defaults/occupied-reserved home berth,
+OFFLINE/parked state persist across1,668 consecutive samples; actual clock/poses
+advance both intervals. Full68 Python tests pass after one reviewed fixture-only
+repair; initial8.376s failure remains retained. Identical GDScript/privacy checks
+retained; fresh paired exports/three strict startups/1521-entry artifact audit and
+one native route53.608s guarded pass. No rendered readability/native GPU/full
+station/flight/cargo acceptance claimed. Central's9162fac acceptance remains
+source-specific. All36 broad parents/ten phase gates OPEN; exclusions unchanged.
+
+Earlier accepted paired checkpoint: **9162fac**, clean packaged source
 `9162face57269bbb99252ff0a30401006c4199ec`, repaired Python caller
 `11c233239af6e6de3010181ec4c48052fc2e09f8`
 ([Windows notes](../builds/windows/MuddsShipyards-9162fac-notes.txt),

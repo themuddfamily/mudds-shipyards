@@ -149,7 +149,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-SALVAGE-REVISIT | Durable fresh-process physical revisit without duplicate transaction | 7,9 | GATED on INSPECT; freeze store/ordinary route before execution |
 | WALK-VIP | VIP reception | 7,9 | PARKED; failed route plus repair, see working-roadmap failure summary |
 | LIFE-TOW | Central tow during nearby walking/boarding | 9 | DONE in packaged9162fac/caller11c2332 ordinary scope:43.086m supported walking/five goals, actual Torrent boarding and90seatedframes; same service/seven movers advance clock/poses,745 consecutive samples, zero diagnostics. Rendered readability/native hardware/whole-station remain separate |
-| LIFE-GANTRY | Freight gantry during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
+| LIFE-GANTRY | Freight gantry during nearby walking/boarding | 9 | DONE packaged2df8c31 ordinary scope:127.445m/13 settled goals,12.509m local walk/max10.297m from gantry, actual Jovian boarding/90seatedframes; same two movers clock/poses, home berth/OFFLINE/parked,1,668 consecutive samples/no diagnostics. Seat is distant; rendered/full-station/final remain separate |
 | LIFE-ARM | Aft service arm during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
 | STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | DEFINE; tied source anchors or precise missing evidence |

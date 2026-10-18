@@ -10848,3 +10848,159 @@ CAP300 then native wrapper360/driverCAP300, new repair-native-route output.
 Only two excluded Python callers differ; all embedded/runtime files unchanged.
 Initial STOP is archived as native-stop.json before clearing the launch latch.
 Independent exact-pin review is required before this sole repair execution.
+
+
+### Freight gantry — ordinary approach and Jovian boarding accepted
+
+LIFE-GANTRY / parent9 complete in its bounded ordinary runtime scope. About18min
+from selection through implementation/checks/fixture repair/publication/cleanup,
+within30–45min implementation estimate plus focused/package checks. Original
+sourcecb12f5b46c39a1941b58a9771c80f654fbfdd77d extends shared LIFE-TOW machinery,
+not a copied pilot/observer. Final2df8c31a5357075f0f6cadc96429213ae6b99893 adds
+only the reviewed test-helper condition; merged in1f3ede935.
+
+Fresh real OS-input Start Shift follows13 authored hub/Freight/live-Jovian-marker
+goals, then actual Interact→BOARDING→local physical pilot ownership and90 seated
+physics frames.127.445m supported walking,12.509m in the separate local gantry
+interval; max local gantry distance10.297m. Raw1,668 consecutive samples447–2114,
+max walking step0.154887m. All13 goals have15 consecutive settled samples within
+15s, .30m planar/<.8m vertical/<.1m/s limits. Real E1879→BOARDING1880–2022→
+Jovian pilot2023–2113; trailing cleanup sample2114 also retains valid state.
+Same Player/capsule/shape/Jovian/GANTRY/two actual movers/defaults/occupied-reserved
+home berth/OFFLINE/parked persist. Local clock19.866667→22.531168 and seated
+31.515802→32.938288 advance; both drawn mover poses change in both intervals.
+The seated pilot is about36m away: continued service coexistence, not nearby
+seated placement or rendered readability. No placement/service mutation/cargo
+menus/start/transfer/reward/departure or full station-tour proof.
+
+Import19.768s, observer compile15.543s, privacy1.028s PASS oncb12. Initial full
+Python68 FAIL8.376s (one ERROR): negative test removes second mover, fixture's
+motion tick then indexes it before unchanged driver count assertion. Independent
+review freezes ONE condition in existing gantry_tick (`len(movers)>1`); mutation,
+assertion, baseline motion and production code unchanged. Repaired68 PASS8.189s;
+cumulative Python16.565s/failed-stage8.376s retained. Explicit cumulative priority
+review GO finishes original remaining stages; no automatic extra repair or cap
+reset. Accepted identical GDScript/privacy files retained, no unchanged replay.
+
+Fresh clean2df paired exports26.673/25.871s, direct Linux/archive and Windows
+payload startups22.354/23.429/25.929s PASS exit0/one menu-ready marker. Actual
+1521-entry PCK equality, stock PE text and exact archive bytes/modes/metadata
+PASS5.810s. ONE actual archived native route PASS53.608s guarded/50.744s driver,
+marker1/engine diagnostics0/all input/game/helper/Xvfb cleanup true. Original
+15s goals/12s boarding/driverCAP300/outer360 unchanged. Independent exact source,
+repair/cumulative and raw-result reviews GO; reviewer runs no engines.
+
+Eleven public repository build files hash-verified, including Windows EXE/
+checkpoint ZIP/notes and Linux archive/metadata/startup records. ZIP exact EXE+
+notes membership/bytes verified. EXE184631456bytes SHA
+72462892838c959e9ecea76e7ca7e7f4bade7f1b52a04f5bab20f31379ef8d77;
+ELF148873168bytes SHAcf84ffc2beb74e4906879529aff450e97d1082039c0ce2b2dab207ea4447a887;
+archive95288291bytes SHA60f888c12ed710e7339da4e698c53f36f34d163d398eea7ec0d5b5387e2f1d78.
+Source/actual validation/fixture failure and qualification limits explicit in notes.
+
+Raw data/source/helper hashes/reviews/publication/cleanup:
+`/srv/mudds-work/life-gantry-20261018/results/`. Twelve terminal owners and65
+observed PID/start identities absent; twelve private profile files and helpers
+archived. Owned source/profile/helpers/extraction removed normally; unique
+results and remote source commits preserved. No survivors/unrelated deletion.
+Central remains accepted on9162fac, Aft/Habitat service cards stay open. This
+silent isolated Xvfb/x11/Dummy/dummy-renderer result does not qualify rendered
+readability/native GPU; Windows payload startup uses Linux Godot. All applicable
+native/device/audio/human/installed/final/full-matrix gates retain status and
+owner exclusions remain. All36 broad parents/ten phase gates OPEN; CI disabled.
+Next single action defines Aft approach/boarding route, not an automatic tour.
+Frozen card follows unchanged:
+
+### Selected — LIFE-GANTRY ordinary Freight approach and boarding
+
+Parent9; extend the existing executable station-service release capability.
+The bounded source mapper identified the accepted KIT-BOARD physical approach;
+its scripted-input source pass is retained, not an OS-input package pass. Root
+integrates/packages; one medium implementer owns only existing native driver/
+unit test, native observer and startup selector/privacy test in an isolated
+worktree. Reuse the LIFE-TOW mechanics with bounded configuration, not a copied
+pilot/observer or validator family. Sequential implementation avoids shared-file
+overlap. No world/ship/GameFlow/geometry/tuning/cargo changes.
+
+Fresh normal Start Shift, same actual Player/capsule/shape and original
+JovianLightFreighter. Real OS input follows accepted authored goals in order:
+(0,0,13.5)→(-35,0,13.5)→(-35,0,22)→(-48,0,22)→(-48,.38,24)→(-49,.38,26)→
+(-51.5,.38,26)→(-53,.38,27.5)→(-53,.38,33.5)→(-53,.38,40)→(-42,.38,40)→
+(-42,.38,live boarding.z)→live ship boarding marker. No actor placement, direct
+boarding methods, service enable/seek/advance, synthetic input callbacks or
+active-craft substitution. Preserve supported continuous walking/default inputs/
+tuning, every emitted sample checks and ordinary authenticated Interact→BOARDING
+→local physical pilot ownership. Retain KIT-BOARD's15s per goal, within.30m,
+15 settled physics frames at planar speed<.1, vertical error<.8; boarding12s,
+whole driverCAP300/outer360. Deadline failure stops; no extra retries.
+
+Observe SAME FreightApproachGantry/profileGANTRY and actual carriage/tool movers,
+visible/enabled/advancing with finite nondecreasing clock. The local interval
+(-53,.38,27.5)→(-53,.38,33.5)→(-53,.38,40) is separate from the hub approach:
+require actual walk>11m, all interval samples within12m of actual gantry origin,
+strict clock increase and actual changed mover poses. Repeat clock/pose proof
+for90 normal physics frames after actual Jovian pilot ownership, with original
+home freight berth occupied/reserved correctly, engineOFFLINE and unchanged parked
+pose. The seat is about36m from the gantry: claim continued service coexistence,
+not nearby seated placement or rendered readability. No cargo selection/start,
+transfer, reward, departure or full station tour acceptance.
+
+Estimate30–45min implementation; focused full native-driver Python/privacy/
+observer checks, clean paired exports/strict three menu-ready startups/actual
+artifact audit, then ONE actual archived native route. Freeze exact commands,
+source/engine/helper/archive hashes before execution. First unexpected failure
+STOP; one repair requires concrete independent review/freeze, followed by
+cumulative priority review before further work. No cap reset or parked Sandbox
+replay. Relevant existing Central unit coverage protects shared mechanics; no
+unchanged Central full journey is scheduled. Checkpoint only after acceptance;
+CI disabled, hardware/rendered/full-station/final gates stay open.
+
+Execution freeze: cleancb12f5b46c39a1941b58a9771c80f654fbfdd77d, pinned
+Godot4.7.1 SHA32f8d759…a97bcde. Task root
+`/srv/mudds-work/life-gantry-20261018/`; helpers/JSON commands and helper hashes
+fixed in results/source.json before execution. One sequence import/observer_compile/
+privacy/python uses headless Dummy import600, observer check-only300, existing
+privacy300 and complete native-driver Python suite300. Separately run existing
+safe paired export commands900 each, direct/archive Linux startup330 each,
+Windows-payload Linux-Godot startup300 (all require exit0/one menu-ready marker),
+actual artifact audit120 and ONE archived native route wrapper360/driverCAP300.
+Private owned Xvfb/x11/Dummy/dummy-renderer/disabled-render-loop only; actual
+archive/ELF identity checked against audit before OS input. Exact source/index/
+cache/process guards and strict unfiltered diagnostic scan remain. Independent
+exact-pin review required before execution; first failure STOP, no silent repair
+or automatic route retry. No engines have run on this candidate at selection.
+
+First focused sequence STOP: import19.768/observer compile15.543/privacy1.028s
+PASS; Python68tests FAIL8.376s (one ERROR). Negative mover-count test pops the
+second mover, then gantry_tick indexes that missing slot before unchanged driver
+validation can reject it. No exports or native route ran; no runtime defect
+established. Initial raw/STOP retained and failed-stage8.376s remains cumulative.
+
+One independently reviewed repair selected BEFORE editing: only existing
+`tools/release/test_native_sortie.py`, add `len(movers)>1` to gantry_tick's
+second-mover motion condition. Keep missing-mover mutant/assertRaises, first
+mover's existing frames*.001 and second mover's .001 baseline motion, production
+driver/observer/CLI and all route criteria unchanged. Freeze clean repaired pin
+and run ONE full Python suiteCAP300. Retain accepted unchanged import/compile/
+privacy (actual tested files unchanged). Cumulative priority review after this
+fixture repair result is required before selecting remaining export/native
+stages. No automatic second repair, cap reset or accepted-check replay.
+Repair unit freeze: clean2df8c31a5357075f0f6cadc96429213ae6b99893;
+helper hashes/results/repair-source.json fixed before one
+`helpers/sequence.py repair_python` CAP300. Retain initial STOP as python-stop.json
+before clearing launch latch after exact-pin independent GO. No other execution
+is selected by this fixture repair freeze.
+
+Cumulative priority review after the one fixture repair: GO to finish the
+original remaining sequence at clean2df8c31a5357075f0f6cadc96429213ae6b99893.
+Full68 tests PASS8.189s, source/index/cache unchanged and no process survivors.
+Original failed Python8.376s retained; total16.565s, no budget reset. Production
+files are byte-identical to cb12's accepted import/observer/privacy source; no
+new engine replay is needed. Exact repaired pin becomes the fresh export source;
+initial source/command records are retained separately before refreshing unrun
+artifact authorizations. Select only paired exports/three strict startups/actual
+audit/ONE archived native route under the original commands/caps. Stop on any
+unexpected failure; no second repair is selected. Named remaining LIFE-ARM still
+needs its own exact supported Aft approach/boarding route before later selection;
+it is not automatically added to this task. No new production defect was found
+by the negative-fixture failure.

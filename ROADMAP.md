@@ -1,13 +1,13 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**9162fac** includes the ordinary Central tow walking/boarding release check:
-same live service remains active through the supported walking loop and90 seated
-physics frames. Repaired Python caller11c2332 uses the unchanged audited package.
-Previous Cinder reward recovery, asteroid Start Fresh, Habitat, Settings, controls,
-audio and HUD work is included.
-[Windows notes](builds/windows/MuddsShipyards-9162fac-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-9162fac-linux-notes.txt) state actual validation.
+**2df8c31** passes ordinary Freight gantry walking/Jovian boarding coexistence:
+13 authored walking goals, both movers active, correct pilot/home berth and90
+seated physics frames. Central acceptance remains recorded on9162fac. Earlier
+Cinder reward recovery, asteroid Start Fresh, Habitat, Settings, controls, audio
+and HUD work is included.
+[Windows notes](builds/windows/MuddsShipyards-2df8c31-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-2df8c31-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -120,99 +120,30 @@ Next single action: select one remaining LIFE-GANTRY ordinary Freight walking/
 boarding card with exact approach and observer/driver scope. Do not automatically
 repeat Central, expand into a full station tour or reopen parked failures.
 
-### Selected — LIFE-GANTRY ordinary Freight approach and boarding
+### LIFE-GANTRY — accepted ordinary route, card closed
 
-Parent9; extend the existing executable station-service release capability.
-The bounded source mapper identified the accepted KIT-BOARD physical approach;
-its scripted-input source pass is retained, not an OS-input package pass. Root
-integrates/packages; one medium implementer owns only existing native driver/
-unit test, native observer and startup selector/privacy test in an isolated
-worktree. Reuse the LIFE-TOW mechanics with bounded configuration, not a copied
-pilot/observer or validator family. Sequential implementation avoids shared-file
-overlap. No world/ship/GameFlow/geometry/tuning/cargo changes.
+Clean packaged2df8c31 passes the full ordinary hub→Freight→Jovian route:
+127.445m supported walking,13 ordered goals with15 settled samples each,
+12.509m in the separately bounded local interval (max gantry distance10.297m),
+actual Interact→BOARDING→local pilot and90 seated physics frames. Same actors,
+GANTRY/two movers, default controls, occupied/reserved home berth, OFFLINE engine
+and parked pose persist across1,668 consecutive samples. Both real mover poses
+and clock advance during local walking and seated coexistence. No engine errors.
 
-Fresh normal Start Shift, same actual Player/capsule/shape and original
-JovianLightFreighter. Real OS input follows accepted authored goals in order:
-(0,0,13.5)→(-35,0,13.5)→(-35,0,22)→(-48,0,22)→(-48,.38,24)→(-49,.38,26)→
-(-51.5,.38,26)→(-53,.38,27.5)→(-53,.38,33.5)→(-53,.38,40)→(-42,.38,40)→
-(-42,.38,live boarding.z)→live ship boarding marker. No actor placement, direct
-boarding methods, service enable/seek/advance, synthetic input callbacks or
-active-craft substitution. Preserve supported continuous walking/default inputs/
-tuning, every emitted sample checks and ordinary authenticated Interact→BOARDING
-→local physical pilot ownership. Retain KIT-BOARD's15s per goal, within.30m,
-15 settled physics frames at planar speed<.1, vertical error<.8; boarding12s,
-whole driverCAP300/outer360. Deadline failure stops; no extra retries.
+The first Python stage fails8.376s because the negative-count fixture indexes a
+removed mover; one reviewed test-helper condition preserves the mutant/assertion
+and production code. All68 tests pass8.189s. Cumulative review GO retains identical
+GDScript/privacy passes; fresh paired exports/three strict startups/1521-entry
+audit and ONE archived native route53.608s guarded/50.744s driver pass with original
+15s-goal/12s-boarding/CAP300 limits. No second repair or cap reset.
+[Full result and frozen card](docs/history/ROADMAP_DELIVERIES.md#freight-gantry--ordinary-approach-and-jovian-boarding-accepted).
 
-Observe SAME FreightApproachGantry/profileGANTRY and actual carriage/tool movers,
-visible/enabled/advancing with finite nondecreasing clock. The local interval
-(-53,.38,27.5)→(-53,.38,33.5)→(-53,.38,40) is separate from the hub approach:
-require actual walk>11m, all interval samples within12m of actual gantry origin,
-strict clock increase and actual changed mover poses. Repeat clock/pose proof
-for90 normal physics frames after actual Jovian pilot ownership, with original
-home freight berth occupied/reserved correctly, engineOFFLINE and unchanged parked
-pose. The seat is about36m from the gantry: claim continued service coexistence,
-not nearby seated placement or rendered readability. No cargo selection/start,
-transfer, reward, departure or full station tour acceptance.
-
-Estimate30–45min implementation; focused full native-driver Python/privacy/
-observer checks, clean paired exports/strict three menu-ready startups/actual
-artifact audit, then ONE actual archived native route. Freeze exact commands,
-source/engine/helper/archive hashes before execution. First unexpected failure
-STOP; one repair requires concrete independent review/freeze, followed by
-cumulative priority review before further work. No cap reset or parked Sandbox
-replay. Relevant existing Central unit coverage protects shared mechanics; no
-unchanged Central full journey is scheduled. Checkpoint only after acceptance;
-CI disabled, hardware/rendered/full-station/final gates stay open.
-
-Execution freeze: cleancb12f5b46c39a1941b58a9771c80f654fbfdd77d, pinned
-Godot4.7.1 SHA32f8d759…a97bcde. Task root
-`/srv/mudds-work/life-gantry-20261018/`; helpers/JSON commands and helper hashes
-fixed in results/source.json before execution. One sequence import/observer_compile/
-privacy/python uses headless Dummy import600, observer check-only300, existing
-privacy300 and complete native-driver Python suite300. Separately run existing
-safe paired export commands900 each, direct/archive Linux startup330 each,
-Windows-payload Linux-Godot startup300 (all require exit0/one menu-ready marker),
-actual artifact audit120 and ONE archived native route wrapper360/driverCAP300.
-Private owned Xvfb/x11/Dummy/dummy-renderer/disabled-render-loop only; actual
-archive/ELF identity checked against audit before OS input. Exact source/index/
-cache/process guards and strict unfiltered diagnostic scan remain. Independent
-exact-pin review required before execution; first failure STOP, no silent repair
-or automatic route retry. No engines have run on this candidate at selection.
-
-First focused sequence STOP: import19.768/observer compile15.543/privacy1.028s
-PASS; Python68tests FAIL8.376s (one ERROR). Negative mover-count test pops the
-second mover, then gantry_tick indexes that missing slot before unchanged driver
-validation can reject it. No exports or native route ran; no runtime defect
-established. Initial raw/STOP retained and failed-stage8.376s remains cumulative.
-
-One independently reviewed repair selected BEFORE editing: only existing
-`tools/release/test_native_sortie.py`, add `len(movers)>1` to gantry_tick's
-second-mover motion condition. Keep missing-mover mutant/assertRaises, first
-mover's existing frames*.001 and second mover's .001 baseline motion, production
-driver/observer/CLI and all route criteria unchanged. Freeze clean repaired pin
-and run ONE full Python suiteCAP300. Retain accepted unchanged import/compile/
-privacy (actual tested files unchanged). Cumulative priority review after this
-fixture repair result is required before selecting remaining export/native
-stages. No automatic second repair, cap reset or accepted-check replay.
-Repair unit freeze: clean2df8c31a5357075f0f6cadc96429213ae6b99893;
-helper hashes/results/repair-source.json fixed before one
-`helpers/sequence.py repair_python` CAP300. Retain initial STOP as python-stop.json
-before clearing launch latch after exact-pin independent GO. No other execution
-is selected by this fixture repair freeze.
-
-Cumulative priority review after the one fixture repair: GO to finish the
-original remaining sequence at clean2df8c31a5357075f0f6cadc96429213ae6b99893.
-Full68 tests PASS8.189s, source/index/cache unchanged and no process survivors.
-Original failed Python8.376s retained; total16.565s, no budget reset. Production
-files are byte-identical to cb12's accepted import/observer/privacy source; no
-new engine replay is needed. Exact repaired pin becomes the fresh export source;
-initial source/command records are retained separately before refreshing unrun
-artifact authorizations. Select only paired exports/three strict startups/actual
-audit/ONE archived native route under the original commands/caps. Stop on any
-unexpected failure; no second repair is selected. Named remaining LIFE-ARM still
-needs its own exact supported Aft approach/boarding route before later selection;
-it is not automatically added to this task. No new production defect was found
-by the negative-fixture failure.
+Merged and checkpoint published; twelve terminal owners/65 process identities
+absent, private profile files/helpers archived, owned scratch removed. This closes
+Freight runtime coexistence only. Central remains accepted on9162fac; Aft arm,
+Habitat patrol, rendered readability and all broad parent/phase gates remain open.
+Next single action: define LIFE-ARM's exact Aft approach and supported boarding
+route before selecting its executable card. No automatic service/station tour.
 
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
@@ -222,18 +153,18 @@ expected to exceed90min into independently useful capabilities.
 
 ## Latest delivered result
 
-**LIFE-TOW accepted on packaged9162fac / caller11c2332.** Ordinary Central
-walking and Torrent boarding coexist with the same active service. Full61 Python
-checks, focused observer/privacy, clean paired exports/three strict menu-ready
-startups and1521-entry actual artifact audit pass; one full archived native route
-passes after the recorded caller-only repair. Eleven public files including EXE,
-checkpoint ZIP and notes are verified. No new animation/geometry was added;
-rendered/native hardware/full-station/final gates remain separate.
+**LIFE-GANTRY accepted on packaged2df8c31.** Ordinary Freight approach, local
+walking past the gantry, actual Jovian boarding and seated coexistence pass.
+Full68 Python checks, retained identical observer/privacy checks, fresh paired
+exports/three strict startups/1521-entry artifact audit and one full native route
+pass after the recorded fixture-only repair. Eleven public files including EXE,
+checkpoint ZIP and notes verified. No new service animation/geometry or cargo/
+flight acceptance is claimed; other station/full-release gates remain open.
 
-Completed task contracts and raw/cleanup records remain in
-[delivery history](docs/history/ROADMAP_DELIVERIES.md#central-tow--ordinary-walking-and-boarding-accepted).
-[The backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) retains every
-unfinished promise. All broad parents/phase gates remain OPEN.
+[Delivery history](docs/history/ROADMAP_DELIVERIES.md#freight-gantry--ordinary-approach-and-jovian-boarding-accepted)
+retains exact failed/passing checks, frozen card and cleanup records.
+[Backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) retains all unfinished
+scope. All broad parents/phase gates remain OPEN.
 
 ## Parked failures and dependent work
 
