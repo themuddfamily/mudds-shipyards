@@ -3341,3 +3341,162 @@ The next bounded repair corrects multiline inline-lambda return syntax only,
 then reruns the unchanged full acceptance once. A further failure requires a
 priority review before additional work. All36 parents/ten phase gates remain
 open. No package build is implied by this test-only implementation.
+
+## VIP round-trip contract — parked after one repair
+
+2026-10-18, repair source `64c74dd46`: inline return expressions were joined
+without changing route, control path, success criteria or900s cap. The second
+input-only run compiled and Boot opened the real title menu. Ordinary UI input
+started play; same-player walking reached Central X0, AftSpine,
+AftModuleConnector and lower JunctionDeck on supported ground.
+
+At `out/stair-base`, the movement monitor failed: displacement
+`(-0.339476,0.29875,-0.211555)` (horizontal≈0.400m) against horizontal0.177m/
+vertical0.360m limits. Player `(-4.211639,0.299632,51.36559)`, floor=true,
+support `AftJunctionStack/Structure/LowerOpenDeck/StairBaseLanding`; slide
+collisions named `Structure/Circulation/ContinuousStairRamp`. This is not yet
+a proved rescue or runtime defect; production step assistance may require a
+source-supported movement contract. Door stayed CLOSED, no seat or return ran.
+Actual suite exit1 after46.816s, no success marker, one failure diagnostic.
+Matrix `20261018T010923Z`, under the same retained raw results directory.
+Source manifests and complete import cache stayed unchanged for both attempts.
+
+Priority review selects the independent original server/two-client baseline
+definition rather than further VIP diagnosis, guard changes or reruns this
+batch. First failure plus one attempted repair is the stopping boundary.
+Future reopening needs a bounded source-supported movement contract before
+another probe; renaming the card does not reset its limit. Runtime gameplay,
+native Windows/GPU/human review, full matrix and all original parent gates
+remain open. No new playable build is claimed for this test-only change.
+
+All three import/route supervisors are FINISHED; their PID/start identities
+are absent, and the owned temporary directory is empty. The clean source
+checkout is removed; raw failure logs and source commits are retained.
+
+### Frozen route and caller contract
+
+The following is the scheduled contract at the first attempts, preserved for
+resumption. Its READY/next-action wording is historical; active scheduling is
+only in ROADMAP.md.
+
+### Original VIP batch
+
+**Player outcome:** from a fresh ordinary spawn, walk to VIP reception, open its
+normal door, sit and stand using Interact, and walk back to the original spawn
+without rescue. This is qualification of existing gameplay, not a claimed new
+feature. STATION-ROUTE[VIP] stays open until this whole route passes. Other station
+branches and all 36 parents retain their original scope in the backlog.
+
+| Step | Status / owner | Exact finish | Estimate and stop |
+| --- | --- | --- | --- |
+| STATION-VIP-CALLER | DONE (implementation only) / root | One source test drives the real menu and player input through the route below, with no actor/camera pose writes or direct interaction calls. | 45–75min implementation; stop at75min if unfinished and record the precise remaining work. |
+| STATION-VIP-WALK | FAILED on57fc1122a / root | One uninterrupted run passes the complete route, seat interaction and supported return with the same player. | Up to900s route check; cold import/preflight estimated separately at10–15min. First failure ends this qualification attempt. |
+
+Two steps are sufficient for this batch; do not invent extra tasks to fill a
+quota. A demonstrated runtime defect gets its own bounded repair card before
+work starts. A clean passing route closes this child without speculative repairs.
+
+#### Shared source-derived route and acceptance
+
+Definition was a read-only source pass against `cee707916`; no engine or walking
+check ran. Mapping and limitations are recorded in
+[delivery history](docs/history/ROADMAP_DELIVERIES.md#vip-route-definition--static-only).
+
+- Start fresh Main through the production boot path with an isolated empty
+  profile. Boot `scenes/boot.tscn`, wait for initialized Main and activate the
+  actual HUD `IntroBeginShiftButton` through UI input; dismiss a visible
+  `RuntimeStatusDismissButton` through the same input path.
+  Keep the authored `PlayerSpawn` at world `(-8.5, 0.18, 11)`.
+- Walk via central X0, Z30, Aft approach `(0,0.15,46.3)`, lower junction
+  `(0,0.15,55.2)`, stair base `(-5.7,0.15,51)` and top `(-5.7,4.35,60.8)`.
+  Use the upper bypass `(-4.6,4.2,63)`, `(-3.6,4.2,63)`, `(-3.6,4.2,67)`;
+  then approach VIP at `(-5.15,4.35,68.9)`.
+- Use ordinary Interact on `AftJunctionStack/VIPAccess`; wait for its actual OPEN
+  state and removed blocker before crossing. The upper floor and threshold meet
+  at world Z70.6. The suite origin is `(-5.15,4.2,70.6)`.
+- Enter through suite-local `(0,0.15,1.5)` and reception `(-1.3,0.15,4.6)`.
+  Approach `Structure/Fitout/Armchair03/StationSeatInteraction` across the front
+  plate near local Z5.5, then along X≈1.99 to its entry near `(1.99,0,7.49)`.
+  This final approach is derived from geometry and remains untested. HostDesk
+  and HostDeskReader are geometry, not interactions. Require the normal SIT and
+  STAND actions on `RECEPTION ARMCHAIR 03`.
+- Reverse the supported lanes and return within0.5m horizontally of the original
+  spawn, on the original central deck, with ordinary movement still usable.
+  Observe the same player identity throughout, real ground/collision support
+  except the normal stair/seat transitions, and no recovery/rescue teleport.
+  Never stage positions, respawn actors, force door/seat state or call private
+  coordinator interaction methods to make the route pass.
+
+#### STATION-VIP-CALLER — implement one ordinary-input route
+
+- **Ownership/boundary:** root owns `tests/vip_reception_round_trip_test.gd` and
+  its Godot UID only. Exercise real Main, menu, player, door and StationSeat.
+  No runtime geometry, art, renderer, native observer or unrelated test changes.
+- **Input seam:** dispatch UI accept and gameplay action press/release through
+  `Input.parse_input_event`; use ordinary mouse-motion/controller look input
+  through PlayerController (`get_look_yaw()` and mouse sensitivity are read-only
+  steering observations). Do not set body/camera transforms or inject an
+  interaction candidate. Reuse the existing production-boot/menu activation
+  conventions in `tests/network/game_flow_server_browser_integration_test.gd`
+  rather than calling `game.start_shift()` directly.
+- **Proof:** declare `test-matrix-display: input-only` and the existing applicable
+  `test-matrix-timeout-seconds: 900`. Fail fast with the named route leg and
+  actual obstruction/state. Success requires the full shared acceptance, one
+  `VIP_RECEPTION_ROUND_TRIP_OK` marker and exit0. Release all held actions,
+  restore mouse capture and free Main on success/failure; outer process cleanup
+  remains independent of the game's menu. Preserve raw failures.
+- **Implementation result:** the caller and generated UID are committed with
+  this card update. Static review/catalog discovery and isolated cold import
+  pass; no route has run yet. It contains32 walking legs and normal door/seat
+  interactions. Caller completion is test capability, not a walking pass.
+- **Failure/close:** at the implementation estimate boundary, record the missing
+  seam or unfinished code. Do not turn fixture work into a renderer investigation.
+
+#### STATION-VIP-SYNTAX — one bounded caller repair
+
+- **Priority decision:** the first route attempt failed before Boot at caller
+  line198, `Expected closing ")" after call arguments`. Cold import exit0 did
+  not compile this non-class test. No gameplay failure is established.
+- **Result/ownership:** root, this test only; make its inline lambda returns
+  syntactically complete, including the same continuation pattern in seat/stand
+  waits. Estimate10–20min including review; the unchanged route check is separate.
+- **Proof/stop:** commit clean source, run the same isolated900s qualification
+  once. Preserve57fc1122a raw logs. Any further failure triggers priority review
+  before more diagnosis/repair/rerun; do not silently extend this repair.
+- **Selection:** this bounded syntax correction enables the already-defined VIP
+  player outcome. Prefer it now over starting the independent, unscheduled
+  server/two-client baseline definition. No renderer investigation is involved.
+
+#### STATION-VIP-WALK — qualify the complete player outcome once
+
+- **Dependency/source:** the committed caller, pinned existing Godot4.7.1 editor,
+  fresh clean source checkout and accepted cold import. Record exact source and
+  engine identity before running; do not qualify a dirty or unspecified source.
+- **Command:** from that checkout, with `GODOT_BIN` set to the pinned editor:
+
+  ```sh
+  GODOT_BIN=/tmp/mudds-tools/godot-4.7.1/godot
+  xvfb-run -a -s '-screen 0 1280x720x24' env -u WAYLAND_DISPLAY \
+    bash tools/release/run_test_matrix.sh --godot "$GODOT_BIN" \
+    --mode graphical --display-driver x11 --audio-driver Dummy --jobs 1 \
+    --scope vip_reception_round_trip_test --timeout 900 --import-gate never \
+    --results-dir /srv/mudds-work/vip-round-trip-results
+  ```
+
+  The existing input-only runner selects the dummy renderer with real physics
+  and input. It must never use the active desktop. Run import separately within
+  its established600s cap; the900s route cap is unchanged. Use the existing
+  independent supervisor/abort and verify owned process/input/display cleanup.
+- **Finish:** exit0, exact success marker, no diagnostics and every shared route
+  criterion, including physical return. A timeout, missing interaction or rescue
+  is FAILED; test totals and menu startup alone cannot pass this card. This is a
+  source/input qualification, not native GPU, Windows or human acceptance.
+- **After failure:** record the first leg/obstruction and stop; define one
+  diagnosis/repair card with unchanged acceptance before another attempt. After
+  one failed task plus one attempted repair, review priorities before further
+  probes. No cap extensions, route clipping or unchanged reruns.
+- **Close:** record actual result in delivery history, commit/push the updated
+  status and remove this task's owned disposable checkout after preserving raw.
+  If a separate runtime repair is required, its meaningful gameplay checkpoint
+  must include a fresh safe Windows build and strict package startup checks.
+  This caller-only batch does not justify re-exporting unchanged gameplay.
