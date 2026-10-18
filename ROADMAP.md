@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Fresh playable checkpoint7718a5a shows remapped camera-distance controls correctly. Cargo restart and Halyard boarding remain parked.**
+**Fresh playable checkpointb86264f retains mixed button/stick controls in help, including the prior camera-distance fix. Cargo restart and Halyard remain parked.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -13,7 +13,7 @@ phase gates remain open.** This file holds the executable queue; the
 | Outcome | Actual proof / limit |
 | --- | --- |
 | Immediate client landing edge retained exactly once | Runtime `2c73494a4`; old-runtime failure reproduced, consumer40/ship_command79 pass. Source/ownership/session boundaries revoke pending input. |
-| Fresh playable checkpoint **7718a5a** | [Windows notes](builds/windows/MuddsShipyards-7718a5a-notes.txt), [Linux notes](builds/linux/MuddsShipyards-7718a5a-linux-notes.txt). Piloting Controls shows both remapped camera-distance directions; desktop wheel hint remains. Focused27/help20, both exports, three strict startups and actual1515-entry package audit pass. Earlier1cf1022 layout/focus fixes retained. |
+| Fresh playable checkpoint **b86264f** | [Windows notes](builds/windows/MuddsShipyards-b86264f-notes.txt), [Linux notes](builds/linux/MuddsShipyards-b86264f-linux-notes.txt). Grouped help retains buttons beside stick directions in either order; default shorthand stays. Glyph40/camera27/help20, both exports/three strict startups/actual1515-entry audit pass. Earlier7718a5a camera and1cf1022 layout/focus corrections retained. |
 | Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
 | Actual on-foot recovery in exported/archive Linux checkpoint | f90547c real-file SIGKILL/distinct restart; supported awake unseated player, ordinary walk0.525555m+Interact boarding, conserved convoy and receipts1→2 once. Private headless/Dummy and disclosed craft-placement fixtures; no fullflight/native-device claim. |
 | Pause/options16:10 selected source qualification | 1cf102298 PASS:26 focused repair assertions;948 layout assertions/96 observations,32 states at requested.75/1/1.6. Original criteria/caps retained; device/render/persistence transactions and other aspects remain open. |
@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS production fix, 2 FAILED/PARKED, 2 GATED, 3 DONE (two qualifications, one production fix).** Root owns integration and closure.
+**2 FAILED/PARKED, 2 GATED, 4 DONE (two qualifications, two production fixes); no READY card.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD card remains below; its slot now holds mixed control prompts. Two definitions are complete: offline Jovian delivery and residual Halyard
@@ -49,7 +49,7 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| MIXED-CONTROL-PROMPTS | IN PROGRESS | Grouped movement help retains a remapped button alongside stick directions in either order. |30 min implementation; old/new focused check + paired checkpoint |
+| MIXED-CONTROL-PROMPTS | DONE | Grouped movement help retains a remapped button alongside stick directions in either order. |b86264f; glyph40/camera27/help20, paired checkpoint/startups/audits pass |
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
@@ -86,10 +86,16 @@ accepted runtime repairs require separate cards and fresh paired builds.
   `fix/mixed-control-prompts-20261018`. One test-only old HUD reproduction,
   corrected compile/focused run and existing help/camera regression checks,
   original300s caps/private x11/Dummy. No actual input/persistence authority change.
-- **Stop/close:** first unexpected failure stops at exact owner; no broad prompt
-  audit. Accepted runtime requires fresh clean safe paired checkpoint, three
-  strict isolated startup checks and actual package audits; EXE/ZIP/notes in
-  builds/windows. Commit/push, retain raw/ref and remove disposable task files.
+- **Accepted/close:** DONE atb86264f3d092f6c7e7f1fd5dff0718841b946847,
+  integrated on main. Old17a74d915 fails exactly leading-button/helper and MOVE
+  row assertions; corrected glyph40/camera27/help20 pass, no unexpected failure.
+  Both safe clean exports/three strict silent startups/fullraw diagnostics and
+  actual1515-entry payload/stock PE/archive audit pass. EXE/checkpoint ZIP/notes
+  in builds/windows and matching Linux checkpoint in builds/linux.
+  All12 owners terminal/all57 observed PID identities absent; source/index and
+  non-export cache unchanged. Raw/source refs/public builds retained; disposable
+  checkout/profiles/helpers removed. No physical device/rendered/native Windows/
+  GPU/audio/whole remap-flight qualification; original parents/gates stay open.
 
 ### KIT-BOARD — select cargo and board one offline Jovian
 

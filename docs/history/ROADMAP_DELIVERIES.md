@@ -6118,3 +6118,32 @@ One medium implementation agent owns HUD/helper and existing glyphHUD test;
 corrected focused/help/camera checks then clean paired exports/strict startups/
 audits. First unexpected failure stops. Retire completed KIT-BOARD queue row,
 retain full card/history. No broad input-authority or persistence change.
+
+
+MIXED-CONTROL-PROMPTS DONEb86264f3d092f6c7e7f1fd5dff0718841b946847,
+integrated on main. Any resolved non-stick glyph now permanently marks the group
+mixed, preventing later stick directions from hiding a leading actual button.
+Both orders retain distinct labels; all-stick default still abbreviates Left Stick.
+Existing glyphHUD test uses a compatible detached profile and actual MOVE Label.
+Baseline17a74d915 exits1 in2.685s with exactly helper/actual-MOVE missing-button
+assertions; reverse/default checks pass. Corrected compile PASS1.847s; same glyph
+suite PASS2.695s/40, camera/rebind PASS2.897s/27, help-overlay PASS2.677s/20,
+actualexit0/exactone selected marker/fullraw diagnostics0. No unexpected failure.
+Private Xvfb/explicit x11/input-only dummy/Dummy, no user desktop or real audio.
+
+Clean safe Windows/Linux exports PASS26.732s/25.791s. Direct Linux, extracted
+archive and Windows EXE payload through pinned Linux Godot PASS22.175s/23.722s/
+25.846s; actualexit0/exactone STARTUP_MENU_READY_OK/original diagnostics0 each.
+Actual audit PASS1515 matching PCK entry bytes, stock PE .text/x86_64, Linux
+archive binary/icon/installer bytes/modes/epoch and launcher/source metadata.
+Fresh EXE/checkpoint ZIP/notes in builds/windows; matching Linux in builds/linux.
+Prior7718a5a camera fix remains included. Native Windows/GPU/audio/device/rendered
+readability/human/full-matrix/endurance/release gates remain open/NOT_RUN.
+
+All12 owners terminal/all57 observed PID/start identities independently absent;
+source/index/non-export cache unchanged. Raw/source refs retained under
+`/srv/mudds-work/mixed-control-prompts-20261018/results/`; owned checkout/profiles/
+helpers and verified duplicate private builds removed after public publication.
+No GitHub Actions runs. All36 broad parents/ten phase gates stay open; cargo
+restart/Halyard stay parked. Queue now has no READY card; next item needs its
+own bounded production trigger/acceptance rather than repeating parked probes.
