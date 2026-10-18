@@ -42,7 +42,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 1 | Finish final integrated-source and packaged physical abandonment acceptance | WORLD-ABANDON, WORLD-SOLO, PACKAGE-WIN, PACKAGE-LINUX | Source Ember abandonment DONE on e85157b4d; EMBER-PACKAGE-ABANDON and real-file/reuse cases remain gated. |
 | 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE/PROBE/CUT DONE in the selected f90547c direct/archive scope. Pilot/cabin/crew/docking/planetary/activity source maps are defined below; explicit activity capability/policy gaps and remaining installed cuts stay open. |
 | 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
-| 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER/SCOPE-DESKTOP DEFINE; SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
+| 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER definition DONE; SCOPE-DESKTOP final target list and SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
 | 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | One prepared card selected in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
 | 6 | Qualify and package current source | BASE-DIAG/FIX, MATRIX, PACKAGE-WIN/LINUX | Checkpoint2c73494 and HELM-EDGE-REPRO/REPAIR accepted; MATRIX-FINAL still gated. |
 | 7 | Complete the normal-controls core playthrough and fix observed blockers | GUIDED, SANDBOX, SETTINGS-INPUT/RUN, LIFECYCLE, STATION-ROUTE, CRAFT-ACCEPT | LIFE-VISIBLE/REUSE source DONE; Guided earlier-package pass retained. Nine WALK-* and17 eventual CRAFT-ACCEPT-* outcomes named; Sandbox PARKED and Settings WAITING. |
@@ -112,9 +112,9 @@ Finish means the named existing route passes on its frozen candidate, or the nam
 
 | ID | Named outcome | Parents | State / dependency |
 | --- | --- | --- | --- |
-| SCOPE-ROSTER | Reconcile original twelve plus modern five craft, stations, opponents/weapons, activities, worlds, roles and targets | 4 | DEFINE; COMPLETION_SCOPE.md, no silent omissions |
+| SCOPE-ROSTER | Reconcile original twelve plus modern five craft, stations, opponents/weapons, activities, worlds, roles and targets | 4 | DONE as [finite named roster](COMPLETION_SCOPE.md#finite-release-roster--scope-roster): original12+modern5/eventual17, current9/missing8; other named inventories and unresolved boundaries preserved. No gameplay/qualification completion implied |
 | SCOPE-LIMIT | Release guest count and playing-host decision | 4,26 | WAITING; already-asked owner decision |
-| SCOPE-DESKTOP | Required desktop target list | 4,32 | DEFINE; Phase 9, no invented third platform |
+| SCOPE-DESKTOP | Required desktop target list | 4,32 | WAITING final owner list: Windows Desktop/Linux x86_64 presets exist; Phase9 conditionally requires other non-Windows targets without naming one. Source investigation DONE; no third-target promise or deferral inferred |
 | PLAN-NEXT | Assign the next bounded queue | 5 | DONE; this planning pass, no gameplay claim |
 | GUIDED-FINAL | Final-package Guided ordinary-input sortie, original 3/3 | 7 | GATED; final package, earlier f676c50 acceptance retained |
 | SANDBOX-RECOVERY | Original all-nine/54-waypoint recovery walk and reuse | 7 | PARKED; supported changed input/runtime cause required |

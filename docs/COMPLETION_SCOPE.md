@@ -1,6 +1,19 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **59c55cb**, clean source
+Latest accepted paired checkpoint: **f8b5f86**, clean source
+`f8b5f86afa9bdce3bdffa1bc4f5285d533e61ff4`
+([Windows notes](../builds/windows/MuddsShipyards-f8b5f86-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-f8b5f86-linux-notes.txt)). Genuine
+Cinder supply completion checkpoints earned reward before payment. Actual-file
+three-process recovery proves refused debt→one cold payment→paid no-replay and
+next actual generation; reward62/16.314s and roundtrip17/71.163s pass. Paired
+exports/three strict startups and1521-entry artifact comparison pass; independently
+reviewed, committed/pushed and owned scratch removed. Active manifest restoration,
+Hauler stock, ordinary full delivery, OS-kill and installed/final acceptance remain
+separate. Native/device/audio/human checks remain factually NOT_RUN where recorded;
+owner exclusions below still apply. All36 parents/ten phase gates remain OPEN.
+
+Earlier accepted paired checkpoint: **59c55cb**, clean source
 `59c55cbda4092c1eb9d25e9df276cea37c230417`
 ([Windows notes](../builds/windows/MuddsShipyards-59c55cb-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-59c55cb-linux-notes.txt)). Start Fresh
@@ -12,7 +25,8 @@ inference failure2.989s retained; one explicit bool annotation repair. Clean
 import/compiles, paired exports/three strict menu startups and1521-entry audit
 pass. This is headless save/reset behavior, not OS-interruption/ordinary asteroid
 flight or native GPU/device/audio/rendered/human/final regression qualification.
-All36 parents/ten phase gates OPEN; Cinder supply debt remains a separate gap.
+All36 parents/ten phase gates OPEN. Cinder supply debt was a separate gap on that
+source and is delivered in the later f8b5f86 checkpoint above.
 
 Earlier accepted paired checkpoint: **29abe94**, clean source
 `29abe94c4152535ef41bb0220ee1505b265b2e08`
@@ -314,6 +328,33 @@ Status vocabulary used in every table:
 - **External dependency (E):** source material, physical review equipment/players or release credentials are needed. This does not erase implementation work.
 
 There are no newly approved deferrals in this inventory. Nine flyable definitions, test totals and checkpoint counts are not project completion percentages. Native GPU, physical-device, audible and human gates remain `NOT_RUN` until performed for their actual candidate.
+
+## Finite release roster — SCOPE-ROSTER
+
+Defined on2026-10-18 from the original promises and existing production inventories.
+This fixes the named scope, not its implementation completeness or acceptance.
+The detailed family tables below remain authoritative; do not multiply each row
+into an unbounded research or qualification chain.
+
+| Family | Finite promised instances / existing acceptance owner | Unresolved boundary |
+| --- | --- | --- |
+| Original fleet | Torrent, Arrow, Jovian, Zenith implemented; Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut absent. [Fleet table](#fleet-original-twelve-and-modern-additions) | Eight original specifications/builds plus historical identity and full craft acceptance remain open |
+| Modern additions | Halyard, Bulwark, Cinder Light Interceptor, Cinder Cargo Hauler, Cinder Long-Range Bomber implemented: original12+modern5=eventual17; current9 | Modern additions do not satisfy absent originals; Bomber additional-role semantics and Hauler stock remain unresolved |
+| Station routes | Central, Aft, Habitat, Freight, Fleet, Fabrication Annex, Observation/logistics, Salvage Terrace, VIP. [Route table](#station-routes-and-historical-topology) | Historical relationships and nine presentation-finding branches still need their own source-bounded definitions |
+| Station service life | Central tow, freight gantry, Aft service arm, Habitat patrol. Existing LIFE-TOW/GANTRY/ARM/PATROL | Four service-motion qualifications; fixed rails do not imply an autonomous logistics graph |
+| Nearby activities | Race, Asteroid Threading, Platform Patrol, Jovian kit delivery, Cinder supply, Mining, Structure Scan, Beacon Traversal, Convoy Escort, Station Defense, Heavy Breach, Torpedo Run. Existing twelve PLAY-* cards in [backlog](ROADMAP_BACKLOG.md#activities-and-solo-world-children) | Repetition/recovery applicability remains separately defined; terminal reward acceptance does not accept whole activity play |
+| Additional nearby content | Hulk salvage/power restoration and belt interior | Preserve HULK/parked revisit; neither is an extra planet |
+| Worlds | Ember Moon, Aurora, Rime. [World/activity table](#nearby-activities-and-three-visitable-worlds) | Original solo/shared/recovery/presentation acceptance remains; sector sites/coloured bodies are not extra visitable worlds |
+| Opponents/encounters | Pressing interceptor, escaping courier, standoff picket, flanking skirmisher, torpedo boat; seeker is a projectile. Six existing COMBAT-* encounters | [Combat table](#combat-opponents-weapons-and-damage) and backlog preserve encounter acceptance; no new opponent inferred |
+| Weapons | Existing nine-craft/eleven-firing-binding [weapon map](WEAPON_DEFINITION_CONTRACT.md#current-registration-map) | Missing original craft weapons remain unknown until specified; physical gunner bindings remain distinct |
+| Crew roles | Pilot/passenger; Jovian/Halyard engineer; Halyard/Bulwark gunner; Halyard Loadmaster; Cargo Hauler Loadmaster/Navigator. [Role table](#roles-supported-session-limits-and-desktop-targets) | Physical seats, standing/bunks and policy labels are distinct; Bomber extra roles and release capacity decisions remain open |
+| Desktop targets | Windows Desktop and Linux x86_64 exist in export presets; Phase9 conditionally requires other non-Windows targets | Final owner-supported target list missing; no named third target, invented macOS promise or assumed deferral |
+
+SCOPE-ROSTER is DONE as this finite definition. SCOPE-DESKTOP's source investigation
+is complete but its final target-list outcome is WAITING on the exact owner
+scope decision. SCOPE-LIMIT remains separately WAITING; runtime settings/defaults
+are not a promised release capacity. Full per-instance acceptance, required
+hardware/device checks and original phase gates remain in the backlog.
 
 ## Station routes and historical topology
 
@@ -637,7 +678,7 @@ For repeatable activities, accept ten same-world runs without resource growth or
 | Halyard Loadmaster and Cinder Loadmaster/Navigator | 5, 7 | Halyard/Cinder ship owners; `scripts/network/network_cinder_loadmaster_manifest_bridge.gd`, `network_cinder_navigator_ping_bridge.gd` | I | Walk to stations, use readiness/route hints, stand/reseat and reconnect; hints/readiness confer no cargo, reward or helm authority. |
 | Shared planetary multiplayer | 7, 10.4 | `scripts/network/network_planetary_journey_bridge.gd`, GameFlow and planetary surface/return bindings | I / complete journey acceptance open | Accepted shared return, survey ownership/help, interrupted-visit restoration and fresh crew boarding are integrated into main. Finish the genuine canonical outbound/landing/survey/durable reward/reboard/physical home-return route with real remote crews and late observer, including rebase, cancellation, reconnect and interruptions. Investigate the retained original 120-second shared-arrival landing failure without relaxing it; staged surface checks and solo returns do not qualify the full journey. |
 | Release player/crew capacity | 7, 9 | ENet remote-guest default 8; settings range1–32; separate handshake/migration64 and interest128 ceilings | E release-target decision + I configuration | See the finite capacity contract below. Qualify the original server/two-client baseline and original 30-minute soak, then each required larger-crowd profile at the chosen release target. Native Windows execution and human review remain excluded mandatory gates; applicable Linux/device/hardware checks remain. |
-| Windows Desktop | 9 | `export_presets.cfg`, `tools/release/` Windows export/NSIS/startup/interruption commands | I + E | Qualify one integrated candidate's EXE/ZIP/installer, clean install/upgrade/rollback/uninstall and all required recovery contexts; complete native gameplay/GPU/controller/audio review and trusted signing. |
+| Windows Desktop | 9 | `export_presets.cfg`, `tools/release/` Windows export/NSIS/startup/interruption commands | I + E | Qualify one integrated candidate's export, archive, embedded payload, installer artifacts and trusted signatures. Owner exclusions remove mandatory native Windows execution/installation and human review; those unperformed checks remain factually NOT_RUN. Applicable Linux/device/hardware acceptance remains separate. |
 | Linux x86_64 | 9 | `export_presets.cfg`, `tools/release/` archive/desktop helper workflow | I + E | Qualify matching final archive and private install/reinstall/uninstall with preserved userdata, native graphical solo/crew play and actual interruption/recovery; complete hardware/input/audio review. |
 | Other desktop targets | 9 | No additional export preset in inspected source; original wording does not name a specific third target | M if required; E scope decision | Record the actual required desktop target list against Phase 9. Implement and accept any additional required target or record an explicit owner-approved decision beside the promise; no macOS delivery or deferral is invented here. |
 
