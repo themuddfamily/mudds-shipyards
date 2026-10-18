@@ -114,8 +114,9 @@ Torrent. Require supported grounded continuous walking with the same real
 Player/capsule/shape, default controls/tuning and no teleport, then actual seated
 pilot ownership. Observe the SAME current CentralTowServiceActivity live clock
 and real mover transforms while walking nearby and for90 physics frames after
-boarding: visible/enabled/advancing, finite increasing clock and changed drawn
-mover pose in both intervals. No method to advance, seek, repair or enable service
+boarding: visible/enabled/advancing, finite nondecreasing samples with strictly increased
+clock and changed drawn mover pose across each interval (physics catch-up samples
+may share one presentation tick). No method to advance, seek, repair or enable service
 may be called by observer/driver. This qualifies runtime coexistence in that
 route; rendered readability, four other branches and full station remain open.
 

@@ -10696,3 +10696,16 @@ before launch. No additional source research is selected.
 PLAY-MINING candidate20bd1ab remains unmerged/checkpoint withheld. Latest accepted
 playable remainsf8b5f86. All original broad parents/phase gates remain OPEN;
 CI stays disabled. This queue clarification changes no gameplay acceptance.
+
+
+### Owned scratch organization — preserve idle cost investigation
+
+On2026-10-18, a low-effort read-only inventory found no active process using
+`/srv/mudds-game-flow-cost`. Its clean HEADdf86280b5 is retained by
+`perf/game-flow-cost`; ignored builds/artifacts include unverified unique bytes.
+Root used normal `git worktree move` to relocate the entire8.3GB checkout to
+`/srv/mudds-work/retired-worktrees/mudds-game-flow-cost`, preserving those files
+and branch registration. Post-move tracked/untracked status remains clean.
+This clears the adjacent directory without deleting uncertain build evidence.
+Other five inspected scratch worktrees contain modified files and were preserved;
+no gameplay, build qualification or disk-space recovery is claimed by the move.
