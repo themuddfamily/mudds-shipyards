@@ -5680,3 +5680,24 @@ that failure. Candidate e147b6d49 is retained on its work branch, unmerged;
 raw stays and owned disposable checkout/profiles/helpers are retired after push.
 No checkpoint is due for this unaccepted caller. All original external gates stay
 open. ROADMAP queue is2 READY/1 IN PROGRESS/4 GATED/1 FAILED.
+
+
+WALK-ANNEX candidatefd7f165bd import/compile PASS; selected input-only isolated
+x11/Dummy run FAILS in61.023s at reverse waypoint17, actual(76.48568,.381892,
+34.38728), grounded/controls/focus true and velocity0. Full outbound and actual
+Annex restock5→6/one origin increment/Aft unchanged passed before this first
+failure. Marker0/actualexit1, expected failure diagnostic; all3 stage owners
+terminal, all11 PID/start identities absent; source and non-import cache intact.
+No full-roundtrip or runtime acceptance is claimed.
+
+One static hypothesis/probe identifies authored RoofColumn at Annex-local
+(3,2.8,4.5), .45-square footprint; blocked local(3.61272,.001892,4.48568)
+closely matches east-face capsule contact. Frozen crossing z4.8 clears column
+north face byonly.075m vs actual Player radius.38 (safe margin.002). Caller
+segment is unsafe even without settling drift. No production collision fix is
+justified. One bounded WALK-ANNEX-CALLER-AISLE repair selected: retain local
+(0,4.8), then(0,9.5),(4.5,9.5),(4.5,7.55), crossing existing gap between first
+bench end8.5 and next row10.3; reverse same route. Only waypoints change,
+no physics/geometry/arrival/240frame/300s acceptance relaxation.5–10min correction,
+one compile then one selected route; further failure requires priority review.
+Original raw remains in `/srv/mudds-work/annex-round-trip-20261018/results/annex_route/`.

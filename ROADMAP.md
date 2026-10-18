@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 Root owns integration and closure.
 READY means its stated next action can start; it does not mean gameplay passed.
 Two READY cards are finite route/coverage definitions, explicitly labelled below.
-The Annex definition is complete; its caller/qualification successor is now READY.
+The Annex definition is complete; its caller/qualification successor is active.
 The Jovian chain is stopped after its failed compile and one failed caller repair.
 Priority review selected independent Annex work. Do not run every
 card merely because it appears here. Review priorities before replenishment.
@@ -208,7 +208,24 @@ passes; reassess before starting, with 90 minutes as the split boundary.
   console must change spent kits5→6, increment Annex origin presentation once
   and leave Aft presentation unchanged. Fixtures do not prove ordinary craft
   selection or kit consumption by this walking player.
-- **Next/budget/check:** IN PROGRESS/root;30–60 min caller implementation/review,
+- **First result/correction:** fd7f165bd import/compile PASS; selected route
+  FAILS in61.023s at return waypoint17 after full outbound and actual5→6 kit
+  restock/one Annex presentation/Aft unchanged. Actual local(3.61272,.001892,
+  4.48568), grounded/control enabled/zero velocity. No full roundtrip pass.
+  One static probe identifies authored RoofColumn at local(3,2.8,4.5), footprint
+  x2.775–3.225/z4.275–4.725; nominal crossing z4.8 leaves only.075m clearance
+  against actual Player radius.38. This is an unsafe caller segment, not evidence
+  of a production collision defect.
+- **Bounded repair — WALK-ANNEX-CALLER-AISLE:** IN PROGRESS/root,5–10 min.
+  Preserve original failed route/raw. Change only the last approach to
+  local(0,4.8)→(0,9.5)→(4.5,9.5)→(4.5,7.55), using the authored gap between
+  first bench end8.5 and next row10.3. Return the same corrected route in reverse.
+  No geometry/physics/arrival/timeout change. One compile300s then one selected
+  route300s/outer360s on clean repaired pin. Marker
+  `WALK_ANNEX_ROUND_TRIP_TEST_OK:` exactly once, actual exit0, diagnostics0.
+  Failure after this one attempted repair requires priority review before
+  further Annex work; independent kit/server definitions remain READY.
+- **Budget/check:**30–60 min caller implementation/review,
   splitbefore90. Freeze clean source and unique selected marker, then ONE
   existing300s suite-process run of this script with the selector; use private
   Xvfb, explicit x11/Dummy and independent abort/input/cursor cleanup. Retain
