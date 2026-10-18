@@ -987,6 +987,15 @@ var _solo_crew_seat_id: StringName = &""
 var _solo_crew_role: StringName = &""
 # Captured host scope outlives seat fields until Cinder commits its real clear.
 var _solo_navigator_audio_network_context: Dictionary = {}
+var _client_navigator_audio_adapter: NetworkSessionAdapterType
+var _client_navigator_audio_callback: Callable
+var _client_navigator_audio_epoch := 0
+var _client_navigator_audio_migration := 0
+var _client_navigator_audio_context: Dictionary = {}
+# Only successful applied commands enter this session history. Retiring a craft
+# source must not make a previously observed publication fresh on cabin re-entry.
+var _client_navigator_audio_seen: Dictionary = {}
+var _client_navigator_audio_presenting_transition := ""
 var _network_engineer_binding: NetworkJovianEngineerBindingType
 var _network_engineer_generation := 0
 var _network_engineer_pending_seat: ShipCrewSeat
@@ -7347,6 +7356,8 @@ func _publish_network_session_result(result: Dictionary, role: StringName) -> vo
 
 
 func _on_network_session_started(mode: StringName) -> void:
+	_disconnect_client_navigator_audio()
+	_sync_client_navigator_audio_lifetime()
 	_sync_lan_discovery_responder(mode)
 	_network_hud_session_epoch += 1
 	_network_hud_session_retired = false
@@ -7406,6 +7417,7 @@ func _on_network_session_started(mode: StringName) -> void:
 
 
 func _on_network_session_stopped(reason: StringName) -> void:
+	_disconnect_client_navigator_audio()
 	# Stopped-session teardown must not announce the old host claim as a fresh
 	# physical stand when binding detach synchronously clears its ship receipt.
 	if not _solo_navigator_audio_network_context.is_empty():
@@ -7628,6 +7640,7 @@ func _on_network_migration_result(result: Dictionary) -> void:
 	var generation := int(
 		network_session.get_migration_snapshot().get("migration_generation", 0)
 	)
+	_sync_client_navigator_audio_lifetime()
 	# Migration retires physical crew claims on the host. Release this
 	# confirmed chair and its borrowed input producer in the same boundary,
 	# before relationship recovery can make the body appear on foot.
@@ -21406,6 +21419,7 @@ func _initialize_optional_semantic_audio() -> void:
 		optional_semantic_audio_composition.set_sources(cinder, planetary_cruise_binding)
 		optional_semantic_audio_composition.set_navigator_generation(navigator_generation)
 	_sync_solo_navigator_audio_lifetime()
+	_sync_client_navigator_audio_lifetime()
 	var local_claim := _solo_navigator_audio_claim()
 	if not local_claim.is_empty():
 		var bound: Dictionary = optional_semantic_audio_composition.set_local_navigator_claim(local_claim)
@@ -21429,9 +21443,168 @@ func _sync_optional_semantic_audio() -> void:
 			_get_cinder_navigator_presentation_generation()
 		)
 	_sync_solo_navigator_audio_lifetime()
+	_sync_client_navigator_audio_lifetime()
 	_sync_cinder_navigator_hud_composition(
 		_get_cinder_navigator_presentation_generation()
 	)
+
+
+## Client navigator playback consumes only the exact current adapter's applied
+## crew stream. Physical passenger readiness is deliberately not a receipt.
+func _sync_client_navigator_audio_lifetime() -> void:
+	if not is_inside_tree() or _network_session_mode != &"client" \
+			or not _network_session_is_live() or network_session.is_server():
+		_disconnect_client_navigator_audio()
+		return
+	if _client_navigator_audio_adapter != network_session:
+		_disconnect_client_navigator_audio()
+		_client_navigator_audio_adapter = network_session
+	var migration := int(network_session.get_migration_snapshot().get("migration_generation", 0))
+	var rebind := not _client_navigator_audio_callback.is_valid()
+	if migration != _client_navigator_audio_migration:
+		_client_navigator_audio_migration = migration
+		_clear_client_navigator_audio_context()
+		rebind = true
+	var context := _current_client_navigator_audio_context()
+	if context != _client_navigator_audio_context:
+		_clear_client_navigator_audio_context()
+		_client_navigator_audio_context = context
+		rebind = true
+	if rebind:
+		if _client_navigator_audio_callback.is_valid() and network_session.crew_snapshot_applied.is_connected(_client_navigator_audio_callback):
+			network_session.crew_snapshot_applied.disconnect(_client_navigator_audio_callback)
+		_client_navigator_audio_epoch += 1
+		_client_navigator_audio_callback = _on_client_navigator_crew_applied.bind(network_session, _client_navigator_audio_epoch, migration)
+		network_session.crew_snapshot_applied.connect(_client_navigator_audio_callback)
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.set_client_navigator_context(_client_navigator_audio_context)
+
+
+func _current_client_navigator_audio_context() -> Dictionary:
+	var peer := _network_client_peer_id()
+	if peer <= 1 or _client_navigator_audio_migration <= 0:
+		return {}
+	var offer: Dictionary = network_session.get_server_offer()
+	var admission: Dictionary = offer.get("admission", {})
+	var admitted_peer: Dictionary = admission.get("peer", {})
+	var transport: Dictionary = offer.get("transport", {})
+	var offered_epoch: Dictionary = (offer.get("migration", {}) as Dictionary).get("epoch", {})
+	var current_epoch: Dictionary = network_session.get_migration_snapshot()
+	if admission.get("accepted") != true or int(admitted_peer.get("peer_id", 0)) != peer \
+			or int(admitted_peer.get("peer_generation", 0)) <= 0 \
+			or int(transport.get("peer_id", 0)) != peer \
+			or int(transport.get("peer_generation", 0)) != int(admitted_peer.peer_generation):
+		return {}
+	for key: String in ["package_generation", "session_generation", "migration_generation"]:
+		if int(offered_epoch.get(key, 0)) <= 0 or offered_epoch.get(key) != current_epoch.get(key):
+			return {}
+	var craft: HeroShip = _network_client_remote_helm_ship()
+	if craft == null and phase == Phase.IN_FLIGHT_CABIN and _network_client_boarding_holds(_cabin_ship):
+		craft = _cabin_ship
+	if not craft is CinderCargoHauler or not craft.is_inside_tree() \
+			or craft.is_queued_for_deletion() or craft.is_destroyed():
+		return {}
+	return {"adapter": network_session,
+		"peer": peer, "peer_generation": int(admitted_peer.peer_generation),
+		"session_generation": int(current_epoch.session_generation),
+		"package_generation": int(current_epoch.package_generation),
+		"migration": _client_navigator_audio_migration, "craft": craft,
+		"boarding": _network_client_boarding_claim.duplicate(true)}
+
+
+func _clear_client_navigator_audio_context() -> void:
+	_client_navigator_audio_context.clear()
+	if is_instance_valid(optional_semantic_audio_composition):
+		optional_semantic_audio_composition.clear_client_navigator()
+
+
+func _disconnect_client_navigator_audio() -> void:
+	if is_instance_valid(_client_navigator_audio_adapter) and _client_navigator_audio_callback.is_valid() \
+			and _client_navigator_audio_adapter.crew_snapshot_applied.is_connected(_client_navigator_audio_callback):
+		_client_navigator_audio_adapter.crew_snapshot_applied.disconnect(_client_navigator_audio_callback)
+	_client_navigator_audio_adapter = null
+	_client_navigator_audio_callback = Callable()
+	_client_navigator_audio_epoch += 1
+	_client_navigator_audio_migration = 0
+	_client_navigator_audio_seen.clear()
+	_clear_client_navigator_audio_context()
+
+
+func _on_client_navigator_crew_applied(result: Dictionary, adapter: NetworkSessionAdapterType, epoch: int, migration: int) -> void:
+	# A queued callback from a retired adapter, migration or Main cannot acquire
+	# a new source. Never bootstrap this listener from the adapter's cache.
+	if not is_inside_tree() or adapter != network_session or adapter != _client_navigator_audio_adapter \
+			or epoch != _client_navigator_audio_epoch or migration != _client_navigator_audio_migration \
+			or _network_session_mode != &"client" or not _network_session_is_live() \
+			or adapter.is_server() or result.get("accepted") != true \
+			or StringName(result.get("status", &"")) != &"crew_snapshot_applied" \
+			or not result.get("snapshot") is Dictionary:
+		return
+	if migration != int(adapter.get_migration_snapshot().get("migration_generation", 0)):
+		return
+	var snapshot: Dictionary = result.snapshot
+	if int(snapshot.get("migration_generation", 0)) != migration or not snapshot.get("commands") is Array:
+		return
+	if _current_client_navigator_audio_context() != _client_navigator_audio_context:
+		_sync_client_navigator_audio_lifetime()
+		return
+	for value: Variant in snapshot.commands:
+		if adapter != network_session or adapter != _client_navigator_audio_adapter \
+				or epoch != _client_navigator_audio_epoch or migration != _client_navigator_audio_migration \
+				or migration != int(adapter.get_migration_snapshot().get("migration_generation", 0)):
+			return
+		if not value is Dictionary:
+			continue
+		var command: Dictionary = value
+		if StringName(command.get("action", &"")) not in [&"passenger_ping", &"passenger_ping_clear"]:
+			continue
+		var identity: Array = []
+		for field: String in ["action", "migration_generation", "peer_id", "avatar_id", "peer_generation", "seat_id", "seat_generation", "ship_id", "ship_generation", "request_sequence", "server_tick"]:
+			identity.append(command.get(field))
+		var receipt_key := JSON.stringify(identity).sha256_text()
+		if _client_navigator_audio_seen.has(receipt_key):
+			continue
+		_client_navigator_audio_seen[receipt_key] = true
+		if _client_navigator_audio_context.is_empty() or not is_instance_valid(optional_semantic_audio_composition):
+			continue
+		if not _client_navigator_command_is_recipient(command, snapshot):
+			continue
+		var previous_transition := _client_navigator_audio_presenting_transition
+		_client_navigator_audio_presenting_transition = ("%d:%d:%s" % [adapter.get_instance_id(), epoch, receipt_key]).sha256_text()
+		optional_semantic_audio_composition.present_cinder_client_navigator_command(command, _client_navigator_audio_context)
+		_client_navigator_audio_presenting_transition = previous_transition
+
+
+func _client_navigator_command_is_recipient(command: Dictionary, snapshot: Dictionary) -> bool:
+	var context := _client_navigator_audio_context
+	var craft: HeroShip = context.craft
+	if StringName(command.get("action", &"")) not in [&"passenger_ping", &"passenger_ping_clear"] \
+			or StringName(command.get("ship_id", &"")) != craft.get_ship_id() \
+			or StringName(command.get("seat_id", &"")) != CinderCargoHauler.NAVIGATOR_STATION_SEAT_ID \
+			or StringName(command.get("role", &"")) != &"passenger" \
+			or int(command.get("migration_generation", 0)) != int(context.migration):
+		return false
+	if StringName(command.get("action", &"")) == &"passenger_ping_clear":
+		# Only the existing binding's exact known active receipt can accept this;
+		# its physical assignment/role may already be empty in this publication.
+		return true
+	if int(command.get("peer_id", 0)) == int(context.peer):
+		return int(command.get("peer_generation", 0)) == int(context.peer_generation)
+	# Server-filtered same-ship recipients may sit in another authored role;
+	# cabin bodies alone do not establish that role. Use this applied snapshot.
+	var roles: Variant = snapshot.get("roles", [])
+	if roles is Array:
+		for value: Variant in roles:
+			if not value is Dictionary:
+				continue
+			var role: Dictionary = value
+			if int(role.get("peer_id", 0)) == int(context.peer) \
+					and int(role.get("peer_generation", 0)) == int(context.peer_generation) \
+					and StringName(role.get("ship_id", &"")) == craft.get_ship_id() \
+					and int(role.get("ship_generation", 0)) == int(command.get("ship_generation", 0)) \
+					and int(role.get("migration_generation", 0)) == int(context.migration):
+				return true
+	return false
 
 
 func _solo_navigator_audio_claim() -> Dictionary:
@@ -21485,12 +21658,15 @@ func _bind_solo_navigator_audio_claim() -> void:
 
 
 func _detach_optional_semantic_audio() -> void:
+	_disconnect_client_navigator_audio()
 	_solo_navigator_audio_network_context.clear()
 	if is_instance_valid(optional_semantic_audio_composition):
 		optional_semantic_audio_composition.detach()
 
 
 func _get_cinder_navigator_presentation_generation() -> int:
+	if _network_session_mode == &"client":
+		return 0
 	if _network_ship_authority_composition != null and is_instance_valid(_network_composition_ship) and _network_composition_ship is CinderCargoHaulerType:
 		return _network_ship_generation
 	if _network_engineer_binding != null and _network_engineer_binding.loadmaster != null:
@@ -25061,7 +25237,14 @@ func _on_semantic_audio_cue_emitted(
 	world_position: Vector3
 ) -> void:
 	if is_instance_valid(hud) and hud.has_method(&"present_semantic_audio_cue"):
-		hud.call(&"present_semantic_audio_cue", cue_id, source_id, intensity, world_position)
+		if source_id == &"navigator" and cue_id in [&"cinder_navigator_ping_accepted", &"cinder_navigator_ping_cleared"] \
+				and not _client_navigator_audio_presenting_transition.is_empty():
+			# Consecutive real accepted commands share one cue, but are distinct
+			# caption transitions. Preserve that identity only during dispatch.
+			hud.call(&"present_semantic_audio_cue", cue_id, source_id, intensity, world_position,
+				{"transition_id": _client_navigator_audio_presenting_transition})
+		else:
+			hud.call(&"present_semantic_audio_cue", cue_id, source_id, intensity, world_position)
 
 
 func _on_setting_change_requested(setting: StringName, value: Variant) -> void:
