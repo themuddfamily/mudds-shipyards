@@ -122,6 +122,13 @@ originals—Titan, Vortex, Paradox, Katana, Predator, Dynamic, Utopia, Salyut—
 UNKNOWN bindings, not zero weapons or accepted deferrals. Bomber's additional
 crew/navigation promise remains at its existing explicit decision boundary.
 
+The attempted Halyard ordinary actual-hit extension is currently FAILED/PARKED:
+original 0b157138b (51.847s) and one caller repair 3a7c4b4bf (52.025s) both stop at the
+existing physical co-pilot admission, before new FIRE/damage assertions. Binding
+presence above is not a current ordinary-hit pass. Cause unestablished; no
+weapon/runtime change or third retry is selected. See the retained roadmap
+failure contract; network boarding and moving-cabin gates remain separate.
+
 ### Retained opponent registration context
 
 The earlier table below is retained historical context, not an exhaustive current

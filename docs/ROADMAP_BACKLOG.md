@@ -162,7 +162,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | CRAFT-GAPS-CINDER-HAULER | Cinder Cargo Hauler remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-CINDER-BOMBER | Cinder Long-Range Bomber remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | WEAPONS-DEFINE | Actual craft/role to weapon acceptance roster | 11 | Definition DONE on a0d446645; current binding map in WEAPON_DEFINITION_CONTRACT.md, finite distinctions below. No missing runtime weapon type inferred; eight originals UNKNOWN/Bomber role decision retained |
-| DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | DEFINE; share solo/network ownership, existing checks first |
+| DAMAGE-DEFINE | Uncovered craft/role component-damage/recovery cells | 11,21 | SELECTED bounded source definition in ROADMAP.md; actual consequences/owners before finite uncovered cases, no engine or duplicated checks |
 | ART-FINDINGS | Finite actual UI/animation/effect/lighting/terrain/weather defects | 12,15 | DEFINE; named before/after view and affected route |
 | CRAFT-ACCEPT-TORRENT | Torrent full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
 | CRAFT-ACCEPT-ARROW | Arrow full solo craft loop | 7,10,11 | GATED; craft capabilities and exact full-route command |
@@ -223,7 +223,7 @@ their recorded scopes; none was rerun by this definition.
 | WEAPON-ARROW | Actual pilot precision-emitter selection/damage through the common chain | Arrow resource, HeroShip, GameFlow; migration/common combat checks |
 | WEAPON-JOVIAN | Actual pilot heavy-cannon selection/damage through the common chain | Jovian resource, HeroShip, GameFlow; migration/common combat checks |
 | WEAPON-ZENITH | Actual pilot repeater selection/damage through the common chain | Zenith resource, HeroShip, GameFlow; migration/common combat checks |
-| WEAPON-HALYARD | Both pilot and admitted gunner use the same lance/heat/cooldown; real damage beyond a request receipt | Halyard crew consumer and HeroShip; existing gunner gameplay test currently stops at emitted request |
+| WEAPON-HALYARD | Both pilot and admitted gunner use the same lance/heat/cooldown; real damage beyond a request receipt | Halyard crew consumer and HeroShip; existing gunner gameplay test stops at emitted request; attempted actual-hit extension is parked at ordinary seat admission |
 | WEAPON-BULWARK-PILOT | Actual pilot sustained-pulse binding through the common chain | Bulwark pulse resource, HeroShip, GameFlow |
 | WEAPON-BULWARK-GUNNER | Charged limited-ammo hitscan, component gates/revalidation and accepted-submission debit | Bulwark crew consumer; bulwark_crew_gunner_gameplay_test.gd; not Picket opponent travel |
 | WEAPON-CINDER-LIGHT | Runtime repeater definition and inherited live heat/cadence | cinder_light_interceptor_combat_production_test.gd |
@@ -242,11 +242,14 @@ this map does not generate a craft×encounter matrix or qualify full fleet comba
 No new runtime weapon was shown absent by the inspected roster. Resource-only
 beam support is not a delivered beam, nor proof that one was promised. Generic
 converter ammunition refusal does not erase existing Bomber/Bulwark ammunition.
-The selected HALYARD-GUNNER-DAMAGE child failed its original co-pilot admission
-before new proof:0b157138b,51.847s, supported Player/candidate null. Damage
-NOT_RUN; candidate withheld. One static boundary comparison is selected in
-ROADMAP.md, no repair/rerun. Parked network boarding/moving-cabin/handback stays
-open; no failure budget is reset.
+HALYARD-GUNNER-DAMAGE is FAILED/PARKED after original 0b157138b (51.847s) plus
+one caller repair 3a7c4b4bf (52.025s): both fail the original co-pilot seat admission,
+supported Player/candidate null, before target fixture/new damage proof. The
+fixed-world→craft-local aim caller change did not qualify the route; actual cause
+and runtime weapon defect remain unestablished. Cumulative 103.872s review stops
+further diagnosis/fix/rerun without concrete new fact/change; no third variant.
+Both candidates withheld, no build; raw/source/actual attempt/selection preserved
+in delivery history. Existing network Halyard failure budgets remain unchanged.
 
 ### Activities and solo-world children
 

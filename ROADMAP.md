@@ -33,8 +33,9 @@ Only the selected card below is executable. A missing definition, failed route
 or full-craft qualification is not an implementation assignment. Do not create
 a successor chain just because a nearby check can be added.
 
-HALYARD-GUNNER-DAMAGE is selected as a bounded source qualification.
-WEAPONS-DEFINE now has a finite actual binding roster and acceptance distinctions.
+DAMAGE-DEFINE is selected as an independent bounded source definition.
+HALYARD-GUNNER-DAMAGE failed its original seat step twice and is parked below.
+WEAPONS-DEFINE has a finite actual roster; no new weapon is inferred missing.
 NET-OPERATION-HUD is accepted in the current checkpoint; its full contract and
 actual checks are in [delivery history](docs/history/ROADMAP_DELIVERIES.md#remote-operation-hud--acceptedda1ae60).
 Ember, Aurora and Rime definitions found no missing implementation within their
@@ -43,55 +44,27 @@ unapproved; parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| HALYARD-GUNNER-DAMAGE /11,16 | FAILED original seat step; damage NOT_RUN | Actual existing ordinary gunner FIRE produces one authority damage result | One caller repair selected after static comparison; unchanged full qualification once, cumulative failure retained. |
+| DAMAGE-DEFINE /11,21 | Definition; SELECTED, not started | Finite actual component consequences and uncovered recovery/presentation cases | One source inventory capped at 20 minutes; no engine/probe or automatic successor. |
 
-### HALYARD-GUNNER-DAMAGE — one real hit through the existing ordinary role
+### DAMAGE-DEFINE — finite existing component consequences and recovery cases
 
-- **Kind/result:** source qualification, parents 11/16. Existing gunner gameplay
-  test proves a request signal and HUD acknowledgement; extend its existing
-  ordinary role firing step to prove the actual GameFlow→LiveCombatAuthority→
-  resolver→registered damageable chain and exactly one real damage commit.
-  This qualifies one focused hit, not full combat or network crew travel.
-- **Owner/files:** one medium-effort test implementer; root reviews/runs.
-  Only tests/halyard_crew_gunner_gameplay_test.gd initially. Reuse its current
-  whole-Main ordinary boarding/cabin/sit/remapped-FIRE/stand/lifecycle route.
-  Preserve disclosed exterior staging; a registered damageable target may be
-  positioned as a fixture in the existing gunner aim direction. Do not move the
-  player/ship to satisfy a route or call the fire handler directly as proof.
-- **Acceptance:** actual admitted gunner and remapped FIRE emit the request,
-  existing production handler accepts the Halyard weapon/source, resolved authority receipt
-  and target health show the authored damage once. Existing raw pilot/role/HUD/
-  cooldown/lifecycle assertions all remain. Do not replace signal-only assertions
-  or weaken the original route; append the actual consumer proof at that step.
-- **Budget/stop:** 30–60 minutes caller work/review, split before 90; compile once,
-  full existing test once under original 300s (checks separate). Headless/Dummy,
-  private profile and source/cache/process guards. First unexpected failure stops
-  before further diagnosis/fix/run selection; original plus one repair requires
-  cumulative review. No automatic retry or scene/runtime change.
-- **Close:** caller-only acceptance needs no identical rebuild; current checkpoint
-  remains da1ae60. If a runtime defect appears, stop and select its bounded repair
-  separately, preserving this full check; accepted runtime changes need a fresh
-  paired checkpoint. Retain actual result/source, commit/push and clean scratch.
-  Parked Halyard server boarding/moving-cabin/handback is not reopened or reset.
-
-**First unexpected failure, retained:** candidate0b157138b imports20.671s and
-compiles15.867s; full original test FAIL51.847s, exit1, one diagnostic:
-`ordinary Interact seats at existing co-pilot gunner anchor`. Raw supported
-Player is local(0,.500176,-10.62889), approach candidate null. No target fixture
-or new FIRE/damage assertions were reached. Source/cache guards and terminal
-owner hold; no runtime weapon defect established. Raw/source remain at
-`/srv/mudds-work/halyard-gunner-damage-20261018/results/` and branch
-`test/halyard-gunner-damage-20261018`; no integration/build/acceptance.
-
-**Separate root selection after stop:** one read-only comparison of the existing
-approach/interaction seam against that captured boundary, capped at10 minutes.
-Owner: one high-effort lifecycle reviewer; root coordinates. Inspect existing test
-look/walk target, Halyard physical gunner anchor/interaction candidate consumer
-and GameFlow/Player eligibility only. No engine/probe, code edit or unchanged
-retry. End with one exact caller/runtime seam and supported repair candidate, or
-no cause established. Any repair needs a separate frozen selection preserving
-this full original test and new damage proof. The first failure stays cumulative;
-original plus one attempted repair requires priority review before more work.
+- **Kind/result:** definition, parents 11/21. Resolve the actual implemented craft/
+  component/role consequences and finite uncovered recovery/presentation cases.
+  Distinguish missing runtime capability from missing qualification. Preserve
+  nine current plus eight missing-original craft; unknown definitions stay UNKNOWN.
+- **Owner/files:** root; original Phase 6 and COMPLETION_SCOPE.md versus
+  scripts/combat/component_damage_model.gd, ship_component_damage.gd,
+  repair_authority.gd, scripts/ships/hero_ship.gd and actual subclass/crew modifier
+  consumers. Read existing damage/repair and network-presentation checks only
+  to preserve their scopes; no audit of tools/evidence validator families.
+- **Acceptance:** finite actual component IDs, gameplay consequence consumers,
+  damage/repair/destruction/reset owners, eligible local/host presentation fields
+  and uncovered original cases. Share ownership between parents 11/21; do not
+  create a craft×role×fault Cartesian matrix or duplicate existing checks.
+- **Budget/stop:** source inventory capped at 20 minutes; no engine, capture,
+  profile, parked crew/access rerun or automatic implementation successor. Stop
+  when finite rows or exact missing facts are known. Update existing DAMAGE-DEFINE
+  and backlog; no new tracker, validator, format migration or gameplay claim.
 
 ## Parked failures and dependent work
 
@@ -100,6 +73,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |
 | CABIN-PASSENGER-ROLE / 18,20 | Candidate38c079086 HUD36 and actual handback PASSENGER pass, full required route fails walking. Unmerged/withheld; no package. | Preserve full route; no acceptance narrowing or automatic second repair. |
 | WALK-SALVAGE-ACCESS / 7,9 | Original61.019s plus one repair60.822s both fail outbound20; same supported Player, inspection/return NOT_RUN. | Parked after cumulative review; no further diagnosis/fix/run. INSPECT/REVISIT remain gated; concrete new fact/change required to reopen. |
@@ -165,20 +139,3 @@ software-renderer or source checks cannot replace them. Project completion requi
 every original promise accepted or explicitly owner-deferred beside that promise,
 all applicable final-candidate gates passed, and distributed bytes matching the
 qualified candidate. No broad parent or phase closes in this reorganization.
-
-### Selected one caller repair — same failed gunner task
-
-The read-only comparison found a coordinate-lifetime mismatch: `_look()` retains
-one world point over four physics waits on the deliberately drifting Halyard,
-while the interaction consumer reads the live seat center/facing. Nominal target
-matches the seat's local UP*1.2 interaction center. Actual failure cause is still
-unestablished: raw log lacks facing/overlap/arbitration values. No runtime fix.
-
-Root selects ONE test-only attempt: capture aim target in craft-local coordinates
-on `_look` entry and recompute its world position before each existing iteration.
-All five existing calls target craft-relative anchors/views. Preserve the four
-waits, Input route, all assertions, target fixture, full300s and actual damage
-proof. Five minutes edit/review; compile once then full original test once.
-This is the original failed task plus its one repair, not a new budget. Any
-unexpected failure now requires cumulative priority review before more diagnosis,
-fix or run. No timeout increase, geometry/state staging or automatic third attempt.

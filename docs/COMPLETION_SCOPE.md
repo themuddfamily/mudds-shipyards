@@ -207,7 +207,10 @@ Cargo and Bomber have actual travelling authority. Policy-only role records are
 not delivered weapons. Eight missing originals remain UNKNOWN and the Bomber
 crew-role decision remains pending. The [finite acceptance distinctions](ROADMAP_BACKLOG.md#weapon-binding-and-acceptance-boundary)
 preserve common Phase 6 gates without inventing a craft/encounter matrix.
-Source inventory only: no tests run, whole-fleet combat acceptance remains open.
+Source inventory only: no tests run, whole-fleet combat acceptance remains open. The later
+HALYARD-GUNNER-DAMAGE qualification failed original co-pilot admission twice
+(51.847/52.025s), before the new actual-hit proof; candidates remain unmerged,
+no weapon defect established, no build. It is parked after cumulative review.
 
 ## Nearby activities and three visitable worlds
 
