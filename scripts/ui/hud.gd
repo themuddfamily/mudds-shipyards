@@ -521,6 +521,8 @@ var _planetary_destination_buttons: Dictionary = {}
 var _planetary_destination_snapshot: Dictionary = {}
 var _settings_page: Control
 var _settings_scroll: ScrollContainer
+var _settings_scroll_request_pending: bool = false
+var _settings_scroll_request_target: Control
 var _settings_controls: Dictionary = {}
 var _settings_value_labels: Dictionary = {}
 const _CONTROLLER_GLYPH_FAMILY_KEY := &"controller_glyph_family"
@@ -8142,7 +8144,20 @@ func _scroll_to_input_binding(control: Control) -> void:
 ## capture and pause-focus restoration can schedule this at the same time as a
 ## whole HUD subtree is being retired, so the callback owns the liveness check.
 func _request_settings_scroll(control: Control) -> void:
-	_ensure_settings_control_visible.call_deferred(control)
+	# Focus tracking, binding capture and re-entry can all request the same
+	# row before container sorting updates its position after a scroll change.
+	_settings_scroll_request_target = control
+	if _settings_scroll_request_pending:
+		return
+	_settings_scroll_request_pending = true
+	_flush_settings_scroll_request.call_deferred()
+
+
+func _flush_settings_scroll_request() -> void:
+	var target: Control = _settings_scroll_request_target
+	_settings_scroll_request_pending = false
+	_settings_scroll_request_target = null
+	_ensure_settings_control_visible(target)
 
 
 func _ensure_settings_control_visible(control: Control) -> void:
@@ -8168,8 +8183,8 @@ func _ensure_settings_control_visible(control: Control) -> void:
 		return
 	# Round overflow outwards in scroll-local units: native focus following can
 	# truncate a fractional delta and leave a scaled row partially clipped.
-	var relative := _settings_scroll.get_global_transform().affine_inverse() * control.get_global_transform()
-	var rect := relative * Rect2(Vector2.ZERO, control.size)
+	var relative: Transform2D = _settings_scroll.get_global_transform().affine_inverse() * control.get_global_transform()
+	var rect: Rect2 = relative * Rect2(Vector2.ZERO, control.size)
 	var correction: int = 0
 	if rect.position.y < 0.0:
 		correction = floori(rect.position.y)
