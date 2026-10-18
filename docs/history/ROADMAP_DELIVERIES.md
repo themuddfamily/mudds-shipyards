@@ -5386,3 +5386,12 @@ row visibility after re-entry. Existing fixture selector
 `--pause-16x10-reentry-only` stops after this observation at0.75. Preparation10min,
 compile300s and one unchanged300s diagnostic cap; no production HUD fix, later
 modal sweep, additional rerun or relaxed criteria authorized by this card.
+
+RECOVERY-ONFOOT-PROBE candidate b5e2b00a5 FAILED at explicit compile, actual1:
+probe lines1232/1233 cannot infer forward/right vector types from the dynamic
+camera return. Import exits0/diagnostics0; compile raw retains two SCRIPT ERROR
+lines and one load ERROR. CLI was not launched. Commit/status/tracked/cache
+remain frozen; owner closed. One separately bounded repair annotates just those
+two values as Vector3 (preparation5min, compile300s and CLI300s if green). No
+gameplay/recovery authority or check limits change. Review priorities after the
+one repair before more implementation/qualification; no automatic error loop.

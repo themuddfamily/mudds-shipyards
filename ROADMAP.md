@@ -32,12 +32,12 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Next four cards
 
-**1 IN PROGRESS, 1 FAILED, 2 GATED.** These are the current bounded deliveries, not the remaining
+**2 FAILED with bounded follow-ups, 2 GATED.** These are the current bounded deliveries, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
-| RECOVERY-ONFOOT-PROBE | Release capability / IN PROGRESS | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
+| RECOVERY-ONFOOT-PROBE | Release capability / FAILED compile; type repair pending check | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
 | CHECKPOINT-ONFOOT-PROBE | Build / GATED on probe | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
 | RECOVERY-ONFOOT-CUT | Recovery qualification / GATED on probe+package | Real-file on-foot commit survives owned SIGKILL/distinct restart into supported walking and real boarding beside the saved craft. |10–20 min freeze/driver preparation; existing package-probe limits separate and unchanged. |
 | ACCESS-PAUSE-16X10 | UI qualification / FAILED, attribution pending | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
@@ -71,8 +71,11 @@ concrete boundary; one attempted repair requires priority review before more wor
   player state and explicit arm/resume observation. Compile and relevant existing
   checks on a clean pinned source. Do not rerun parked whole session recovery/Q5.
   Source-driver proof does not close real OS interruption or packaged acceptance.
-- **Execution:** IN PROGRESS/root; candidate `b5e2b00a5` has independent static
-  review GO; compile/CLI checks are next. Inspect existing arm/resume branches and freeze the
+- **Execution:** FAILED/root; candidate `b5e2b00a5` passed static review and
+  import but explicit compile exits1: forward/right types cannot be inferred
+  at probe lines1232/1233. CLI not run. One bounded repair adds only explicit
+  Vector3 annotations; repeat compile300s, then CLI300s if green. No other
+  correction is bundled; review priorities after this repair before further work. Inspect existing arm/resume branches and freeze the
   on-foot case contract from the [completed definition](docs/ROADMAP_BACKLOG.md#settled-exterior-on-foot-recovery-contract).
   Budget45–60 min; split before 90 min. First unexpected result stops for review.
   Commit/push accepted production capability; immediately build the next card.
