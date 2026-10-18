@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next task: qualify the unchanged ordinary shared Jovian return on the accepted repair.**
+**Next task: correct the client ownership reader, then qualify the original shared return once.**
 The game is a playable development alpha. **36 broad requirements and all ten
 phase gates remain open.** This file is the execution queue. The
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves remaining
@@ -21,12 +21,13 @@ remains binding. Actual source-specific results belong in the
 | Four-cycle phantom cleanup and twelve-cycle all-nine reuse | d7be01487: both source qualifications pass. Staged/headless source scope; packaged ordinary play is separate. |
 | Browser generation/cancel handling and defense briefing | Delivered on their recorded sources; broader connection/controller acceptance stays open. |
 
-**Current failed boundary:** the latest return caller 37cbc7a4e fails its original
-8s request-acceptance gate: host landing serial 0. Input release/neutrality and
-client identities pass; physical docking and arrival are unqualified. Static
-reading identifies a supported immediate-command forwarding gap, but pulse-time
-admission in that failed run was not captured. The focused reproduction below now establishes this supported code gap; it does
-not retroactively establish pulse-time admission in that failed ordinary run.
+**Current failed boundary:** original return331a9628b fails client arrival
+confirmation after strict physical home docking. Host request serial1, valid
+lease, zero dock position/orientation error, speed0 and landed commit generation1
+pass. Both clients show matching landed/docked generation1 and zero seat error;
+passenger hull error0m, pilot0.473m. The remaining predicate reads the host-only
+ownership registry on a client. Failure/raw remain recorded; full return stays
+unqualified until the bounded caller repair below passes the original route.
 
 **Unverified:** current full matrix NOT_RUN (last unfiltered f85957f failed 11 of
 1,045 suites); native hardware/device/audio, endurance and final release gates
@@ -35,7 +36,8 @@ exclusions and factual NOT_RUN records. Focused passes do not replace these gate
 
 ## Current eight-task batch
 
-**3 DONE, 5 READY.** Five cards remain in this batch.
+**4 DONE, 1 FAILED, 3 READY.** The failed return has one explicitly selected
+caller-repair follow-up below; it does not reset earlier attempts or repair counts.
 These are queue cards, not the remaining whole-project job count. READY definition cards can proceed independently; no parked route is
 reopened by this list. Root owns integration and each card unless assigned below.
 Implementation and check time are separate; caps are safety limits, not estimates.
@@ -47,20 +49,21 @@ checkpoint2c73494 is published locally with all declared package checks passing.
 | 1. HELM-EDGE-REPRO | Regression qualification | DONE on a3955ee90 | Real immediate landing then neutral physics demonstrates the missing remote serial on the old runtime. | 15–30min freeze/review; import ≤600s, compile ≤300s, one suite ≤300s. |
 | 2. HELM-EDGE-REPAIR | Runtime repair | DONE on 2c73494a4 | The same admitted edge reaches the current remote helm exactly once; invalidation revokes it. | 30–60min review/integrate existing patch; focused pair ≤300s each. |
 | 3. CHECKPOINT-HELM-EDGE | Playable build | DONE on 2c73494a4 | Fresh paired Windows/Linux packages contain the accepted fix. | 15–25min preparation/artifact work; export ≤900s/platform, startup ≤300s each. |
-| 4. NET-JOVIAN-RETURN | Ordinary gameplay qualification | READY; 2+3 accepted | Physical home dock commits and both retained clients consume arrival. | 5–10min compose/freeze; compile ≤300s, one original route ≤300s. |
-| 5. HELM-ACTIONS-DEFINE | Scope definition | READY | Finite supported action/binding/consumer/coverage list, with uncovered cases named. | 30min; no engines. |
+| 4. NET-JOVIAN-RETURN | Ordinary gameplay qualification | FAILED on 331a9628b; follow-up below | Physical home dock commits and both retained clients consume arrival. | 5–10min compose/freeze; compile ≤300s, one original route ≤300s. |
+| 5. HELM-ACTIONS-DEFINE | Scope definition | DONE; source definition only | Finite supported action/binding/consumer/coverage list, with uncovered cases named. | 30min; no engines. |
 | 6. RECOVERY-ONFOOT-DEFINE | Scope definition | READY | On-foot durable boundary and usable resume/safe-home outcome are unambiguous. | 30min; no engines. |
 | 7. ACCESS-PAUSE-DEFINE | Scope definition | READY | Pause/options views and required scale/aspect cells are named. | 30min; no captures. |
 | 8. BOMBER-ROLES-DEFINE | Scope definition | READY | Promised bomber crew/navigation capabilities are matched to actual production owners or explicit gaps. | 30min; no engines. |
 
-**Selection rule:** run the unchanged return card4 once on the composed clean source.
-Cards1–3 are closed; do not repeat their accepted checks without a relevant change. A check failure
-ends that card; it does not expand the queue. After the existing failed return
-and attempted repair, the recorded priority review selected this input repair.
-Those failures remain counted. If the repaired qualification fails, record the
-first boundary and reassess competing READY work before further action.
-Definition cards end at their finite answer or exact missing input; they cannot
-turn into diagnostics, implementations or additional checks under the same card.
+**Selected follow-up: NET-JOVIAN-ARRIVAL-CALLER — READY/root.** One test-file
+correction reads the client's received ownership section, retaining original
+pilot/ship/ownership generations and every arrival condition. Budget10–20min
+review/correction; explicit compile300 and one original route300/outer360 separate.
+Independent review GO. This is selected over the three independent READY definition
+cards because the remaining check demonstrably reads the wrong registry. The
+failed run and its two secondary snapshot get_path errors remain retained.
+No runtime, input, route, physical tolerance or deadline changes. First further
+failure stops for priority review; no extra probe or automatic second correction.
 
 ## Card contracts
 
@@ -167,9 +170,9 @@ turn into diagnostics, implementations or additional checks under the same card.
 
 ### NET-JOVIAN-RETURN — unchanged qualification after supported input repair
 
-- **Execution:** READY/root; compose held37cbc7a4e with accepted runtime2c73494a4
-  in a new owned clean checkout, freeze the exact source and run the original
-  route once. Prior failed task plus repair remain counted; first failure stops.
+- **Execution:** FAILED/root on331a9628b: one142.125s route, all peers actualexit1,
+  first abort client_b5.01264s after physical host docking. Caller ownership reader
+  is corrected only in the separately bounded follow-up below; source held, no rerun.
 - **Parent/result:** parents16/26; gate on accepted runtime+fresh checkpoint above.
   Compose held37cbc7a4e caller with accepted runtime; retain its complete input
   pulse and original [physical return contract](docs/history/ROADMAP_DELIVERIES.md#ordinary-shared-return--input-release-boundary-failed).
@@ -187,17 +190,41 @@ turn into diagnostics, implementations or additional checks under the same card.
   clean owned checkout/profiles, retain unique raw. No stand/exterior/reuse/
   native/package/endurance or whole-parent/phase claim from this source qualification.
 
+### NET-JOVIAN-ARRIVAL-CALLER — read the ownership actually consumed by clients
+
+- **Result/boundary:** only `tests/network/jovian_network_two_client_return_test.gd`.
+  Replace client `get_owned_ship()` authority-ledger lookup with the matching
+  `get_authoritative_snapshot().sections.ownership` record. Retain owner==original
+  pilot and also require original ship/ownership generations; expose that received
+  record in the existing receipt. No production code or authority writes.
+- **Proof:** independent API/schema review GO; original hull<=0.5m, anchor<=0.05m,
+  fresh same-pilot pose, landed/docked/not-landing, landing generation and retained
+  identity checks stay intact. Exact caller source4c9c764e9; accepted runtime2c73494
+  and its playable checkpoint unchanged. Existing import remains applicable: no
+  resource/class/UID change. Compile300, then one original private-Xvfb/x11/Dummy
+  route300/outer360 with all three actualexits0/marker1/originaldiagnostics0 and
+  source/cache/process closure. Use fresh peer profiles; preserve original failure.
+- **Execution/stop:** READY/root; verify clean4c9c764e9, compile then run once.
+  Failed task+attempted repair counts remain cumulative. Any further failure stops;
+  competing READY work is RECOVERY-ONFOOT-DEFINE/ACCESS-PAUSE-DEFINE/BOMBER-ROLES-DEFINE.
+  Integrate the caller only on acceptance; no identical-runtime checkpoint rebuild.
+
 ### HELM-ACTIONS-DEFINE — close the remote-helm action-list unknown
 
+- **Execution:** DONE/root, source definition only. Seven held fields and two
+  ordered edge requests are mapped in the [existing backlog roster](docs/ROADMAP_BACKLOG.md#supported-remote-helm-action-roster). Six uncovered held-action
+  cases are named; accepted forward throttle/brake and input-edge deliveries are
+  retained. No engines or device qualification belong to this definition.
 - **Result/boundary:** list each action actually supported by local input and
   remote helm, with binding, producing source, wire/consumer and existing proof.
-  Read `scripts/input/`, `scripts/network/network_remote_pilot_command_source.gd`,
+  Read `scripts/control/`, `scripts/network/network_remote_pilot_command_source.gd`,
   GameFlow's helm path and `tests/network_remote_pilot_helm_test.gd`; no runtime edits.
 - **Finish/proof:** update the existing parent18 backlog with the finite action
   list and only uncovered named cases. Distinguish immediate synthetic events,
   physical-device proof and direct injected commands. Preserve current landing
   repair ownership; no second investigation of that gap.
-- **Execution/stop:** READY/root, 30min. First read actual action bindings; stop
+- **Execution/stop:** DONE/root within the30min definition boundary. Frozen recipe:
+  first read actual action bindings; stop
   at finite roster or exact missing fact. Commit/push the documentation; any
   implementation or engine check needs its own scheduled production card.
 
@@ -252,8 +279,8 @@ turn into diagnostics, implementations or additional checks under the same card.
 
 Clean up each card's owned disposable worktree/profile/helpers at closure after
 checking for unique work and live processes; preserve raw failures and source refs.
-Scratch belongs under `/srv/mudds-work/`. The helm checkout/profiles/helpers
-are removed after checkpoint publication; three older dirty retired checkouts remain protected.
+Scratch belongs under `/srv/mudds-work/`. The completed helm checkpoint checkout/profiles/helpers
+are removed; the return checkout remains needed for its selected caller repair; three older dirty retired checkouts remain protected.
 
 ## Rules that prevent loops
 

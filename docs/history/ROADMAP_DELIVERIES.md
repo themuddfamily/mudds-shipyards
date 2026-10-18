@@ -5234,3 +5234,45 @@ ordinary-return, native Windows/GPU/device/audio, human, endurance, full-matrix
 or full-release acceptance from these component/menu/artifact checks. All36
 parents and ten phase gates remain open; earlier failures and repair counts stay
 cumulative. No hosted CI, Downloads copy or public release publication occurred.
+
+## Shared Jovian return — physical host docking passes, client ownership caller fails
+
+Original unchanged37cbc7a4e caller bytes composed with accepted runtime2c73494
+on clean331a9628b08057bd4f19e1e38f2d8dd0bc925310. Import/compile actual0 and
+original diagnostics0; one original300s/private-Xvfb/x11/Dummy route fails in
+142.125s. All three peers actualexit1 with original.done failures; no forced137.
+First abort is client_b at arrival_convergence,5.01264s after host.return_docked.
+The raw retains nine coordinator diagnostics, including two original host failure
+snapshot get_path errors; no failure was filtered, rerun or promoted to acceptance.
+
+Unlike the earlier serial0 boundary, host receives landingserial1, accepts the
+reservation, physically docks at jovian_freight_berth with0m/0deg error and0m/s,
+valid actual lease/occupancy/bookkeeping and landed generation1 commit with
+completion_retry=false. Both real clients retain current identities, neutral
+controls, matching fresh same-pilot landed/docked snapshots and landed generation1;
+anchors0m, hull errors pilot0.473091m/passenger0m. Full return is FAILED because
+the original client predicate additionally reads get_owned_ship(), which queries
+its separate host-authority ledger rather than the client's received snapshot.
+
+Recorded priority review selects ONE NET-JOVIAN-ARRIVAL-CALLER correction over
+READY on-foot recovery/readability/bomber definition tasks:17 inserted/2 replaced
+lines in the return test, read sections.ownership by shipid and require original
+pilot plus original ship/ownership generations. Added receipt exposes consumed
+ownership. Independent API/schema/exact-diff review GO. Runtime, ordinary input,
+route, dock/hull/anchor criteria and all original time limits stay unchanged.
+Budget10–20min; explicitcompile300 then one originalroute300/outer360 separate.
+No unchanged extra diagnostic probe. Earlier return failed task/caller repair,
+accepted input runtime repair and this failure remain counted; another failure
+stops without automatic further correction. Candidate4c9c764e9838766822eecfd01836cec3dea93ab3
+is clean and held pending that single acceptance. No identical-runtime rebuild.
+
+All source/main/cache guards unchanged; owned processes absent/input sessions
+released. Original complete peer bundle and SHA manifest are retained under
+`/srv/mudds-work/jovian-return-fixed-input-20261018/results/peer-bundle/`, with
+terminal-review.json, route-outcome-summary.json and arrival-priority-review.txt.
+Clean source/private profiles remain only for this explicitly selected follow-up.
+
+HELM-ACTIONS-DEFINE also closes as a bounded source definition in parallel: seven
+held fields/two ordered edges, real ownership/wire consumers, six uncovered held
+cases named in the existing backlog. Recorded forward/brake and landing proofs
+are retained, no new engine/device acceptance or gameplay feature is claimed.

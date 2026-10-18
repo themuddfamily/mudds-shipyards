@@ -16,7 +16,9 @@ stop, both clients retained and converged, all actual exits0. Game runtime is
 unchanged from checkpointb6196a1; this is source-route qualification. Immediate-command reproduction/repair and checkpoint2c73494 are now DONE: the
 old runtime fails only the new edge-delivery assertion; repaired source passes
 consumer40/ship_command79, and both packages pass strict startup/artifact checks.
-Next is the unchanged original return qualification; it remains unqualified.
+The unchanged return331a9628b now reaches strict physical host docking, then
+fails client arrival confirmation because the caller reads the host-only ownership
+registry. One bounded caller correction is selected; full return remains unqualified.
 GameFlow's synthetic action seam samples/drains landing before physics, while
 remote forwarding only reads the physics snapshot. Source mapping is intact;
 the prior run did not capture pulse-time command publication. Require focused
@@ -192,6 +194,42 @@ Scope: all twelve original §4 outcomes and retained ordinary-remote-crew milest
 | WORLD-SHARED[one world/case] | GATED on supported crew/profile and baseline dependencies | Ordinary independent remote crew completes the selected canonical case, including actual outbound/return, activity/reward/save and appropriate usable recovery. Preserve focused 300s/canonical 900s and physical landing 120s where specified. Stop at one matrix cell. |
 
 WORLD-SHARED instances: **Ember, Aurora, Rime**, each with **baseline full outbound/return, late join, disconnect/reconnect, pilot loss, cancellation, real interruption, repeat visit**. Each cell is a separate task and must name participants, initial state, ordinary-input route and durable reward/return criteria before execution. The baseline includes activity and save behavior; failure cases do not inherit a staged baseline. Use existing `tests/network/halyard_network_shared_planetary_cruise_test.gd` and applicable world/landing tests. Missing exact case coverage becomes a bounded DEFINE child, not a claim that the anchor already covers it.
+
+### Supported remote helm action roster
+
+HELM-ACTIONS-DEFINE is DONE as a source definition, not new gameplay or current
+source qualification. Production owners: `scripts/control/local_ship_input_source.gd`,
+`transformed_ship_command_mapper.gd`, GameFlow's capture/forwarding path and
+`network_remote_pilot_command_source.gd`. Defaults below are from `project.godot`;
+remaps may replace them. Test references are coverage anchors unless a recorded
+accepted source/result is explicitly stated. No tests ran for this definition.
+
+| Action / default binding | Command field | Wire / actual host consumer | Proof and remaining boundary |
+| --- | --- | --- | --- |
+| Forward W / reverse S; controller axis1 | throttle | move_axis[1] → decoded throttle → HeroShip flight thrust | Sampled forward and neutral stop accepted on96c96312f. Reverse effect/release remains HELM-THROTTLE-REVERSE. |
+| Left A / right D; controller axis0 | yaw | move_axis[0] → yaw → host attitude | Provider mapping/solo action anchors in ship_command_test and flight_input_test; both sampled remote directions/effect/release remain HELM-YAW. |
+| Up/Down arrows; controller axis3 | pitch | look_pitch → pitch → host attitude | Provider mapping anchor in ship_command_test; both sampled remote directions/effect/release remain HELM-PITCH. |
+| Roll left Q / right R; controller axis2 | roll | look_yaw → roll rate → host attitude | Provider mapping anchor; both sampled remote directions/effect/release remain HELM-ROLL-RATE, separate from barrel roll. |
+| Boost Shift; controller button7 | boost | run → boost → host acceleration/speed envelope | Provider mapping anchors in ship_command_test/local_ship_transformed_input_test; actual sampled host effect/release remains HELM-BOOST. |
+| Brake PageUp / right mouse; controller axis4 | brake | crouch → brake → host deceleration | Ordinary two-client source96c96312f already proves sampled throttle/brake/neutral0m/s stop; no duplicate brake task. |
+| Hover H; controller button0 | hover | jump → hover → host vertical/upright correction | Command boolean anchor in ship_command_test; sampled host correction/release remains HELM-HOVER. |
+| Barrel roll G; controller button1 | barrel_roll edge | roll_request_id → interaction_request_id → host pending roll edge | network_remote_pilot_helm_test contains sampled key/first-packet/dedup/rebind cases; this is a static anchor, not a new current-source run. Preserve existing source-specific proof. |
+| Landing L; controller button13 | landing edge | landing_request_id → board_request/pilot_landing_serial → host take_landing_request/network landing | Immediate compatibility/FIFO preservation accepted on2c73494 (consumer40/ship79); actual one-pulse331a9628b reaches accepted request and strict physical host dock, but full client arrival fails. No duplicate input investigation. |
+
+Yaw/throttle share unit-disc normalization; pitch/roll clamp independently. Held
+commands send at the existing four-tick cadence and neutralize after the host's
+30-tick hold window. Edge serials deduplicate with pending booleans; do not infer
+one host action per serial increment when multiple presses precede host sampling.
+
+Interact handback uses the separate boarding/seat-swap/disembarkation route
+(parent20), not movement helm encoding. Captured mouse-look deltas and local
+camera controls are not encoded by this builder; its look_yaw carries roll rate,
+not mouse yaw. Fire uses separate craft/role weapon authority owners. Retired
+engine start/stop mapper values are false; no additional encoded action is invented.
+Synthetic key events, logical Input actions, provider injection and staged
+InputEventAction/FIFO cases are distinct proof scopes. None establishes actual
+keyboard/controller hardware acceptance. Existing dock/reuse and INPUT-DEVICE
+rows retain those requirements; no native/human gate is closed here.
 
 ## Performance, controls, accessibility and audio
 
@@ -416,7 +454,8 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-JOVIAN-DEPART | Ordinary shared 5m departure and zero-speed braking | 16,26 | DONE; 96c96312f, broader return/endurance not established |
 | HELM-EDGE-REPRO | Actual immediate landing followed by neutral physics reproduces missing remote edge | 18 | DONE; a3955ee90 expected-only failure, original fixture compile repair retained |
 | HELM-EDGE-REPAIR | Preserve admitted immediate command exactly once across consumers | 18 | DONE; 2c73494a4, consumer40/ship_command79, component-staged scope |
-| NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | READY in working queue; accepted repair/checkpoint, original failure plus repair retained |
+| NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | FAILED;331a9628b strict host dock passes, client ownership predicate fails |
+| NET-JOVIAN-ARRIVAL-CALLER | Confirm arrival using client-received ownership record | 16,20,26 | READY in working queue; one bounded caller correction, no runtime/limit change |
 | ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
@@ -427,7 +466,13 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | GATED; selected candidate, no rebuild of delivered authority |
 | NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | DEFINE; existing remote-pose/station-frame coverage first |
-| HELM-ACTIONS-DEFINE | Finite sampled-local-input to remote-helm action roster | 18 | DEFINE; actual bindings, wire consumer and existing proof |
+| HELM-ACTIONS-DEFINE | Finite sampled-local-input to remote-helm action roster | 18 | DONE; seven held fields/two ordered edges, source definition only |
+| HELM-THROTTLE-REVERSE | Sampled reverse thrust and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
+| HELM-YAW | Both sampled yaw directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
+| HELM-PITCH | Both sampled pitch directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
+| HELM-ROLL-RATE | Both sampled roll-rate directions and neutral release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
+| HELM-BOOST | Sampled boost effect on authoritative flight and release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
+| HELM-HOVER | Sampled hover correction on authoritative craft and release | 18 | UNSCHEDULED; same confirmed source/lease, actual host effect, handback without stale ownership |
 | NET-STALL | Original 600-step host simulation stall and honest command recovery | 19 | UNSCHEDULED; independent peers, original 2s action limits |
 | NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | GATED; establish distinctness from current return failure before any probe |
 | NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DEFINE; original craft cases, no duplication of current return |
@@ -548,9 +593,9 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 
 Count the named rows as inventory outcomes, **not remaining executable jobs**.
 DONE rows retain their exact-source scope; definition, qualification, build and
-implementation are different types of work. This inventory has **230 named outcomes**, including **10 DONE** in their recorded
-planning/source scopes. The other220 rows include definitions, dependencies and
-qualifications; they are not220 implementation jobs. The working queue has eight cards;
+implementation are different types of work. This inventory has **237 named outcomes**, including **11 DONE** in their recorded
+planning/source scopes. The other226 rows include definitions, dependencies and
+qualifications; they are not226 implementation jobs. The working queue has eight cards;
 its current completion and READY/GATED counts are shown in ROADMAP.md.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with
@@ -587,7 +632,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 15 | Resolve remaining planetary content and presentation gaps | WORLD-CONTENT, ART-FINDING | CONTENT-EMBER/AURORA/RIME each ends with finite actual content findings or none found; no assumed new planets/features. |
 | 16 | Close remaining fleet/crew replication gaps | NET-CREW, NET-CAPACITY | Jovian boarding/departure DONE in recorded scopes. Eight named role routes, NET-SEATS-FINAL and bomber role contract remain separate. |
 | 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | NET-POSE-DEFINE resolves craft/operation views; NET-FULL-SNAPSHOT is one aggregate original-budget check. |
-| 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | HELM-EDGE-REPRO/REPAIR DONE on recorded source; HELM-ACTIONS-DEFINE resolves remaining actions. Physical-device proof stays separate. |
+| 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | HELM-EDGE-REPRO/REPAIR DONE on recorded source; HELM-ACTIONS-DEFINE now names six uncovered held-action cases; devices remain separate. Physical-device proof stays separate. |
 | 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL | NET-STALL retains original600-step/2s contract; no unchanged parked/stall expansion under current repair. |
 | 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | NET-JOVIAN-RETURN first; NET-SECOND-LAND must prove distinctness before diagnosis. NET-DOCK-DEFINE names later reuse cases. |
 | 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE | DAMAGE-DEFINE shares parent11 ownership and names uncovered real craft/role consequences and peer presentation. |
