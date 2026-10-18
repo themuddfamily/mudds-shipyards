@@ -4021,7 +4021,7 @@ func _decline_interrupted_planetary_visits() -> Dictionary:
 					and int(live.get("generation", -1)) >= int(entry.generation):
 				return {"accepted": false, "reason": &"asteroid_terminal_save_pending"}
 		next[asteroid_slot] = planned.session_record
-	var asteroid_declined := payload.has(asteroid_slot) and next[asteroid_slot] != payload[asteroid_slot]
+	var asteroid_declined : bool = payload.has(asteroid_slot) and next[asteroid_slot] != payload[asteroid_slot]
 	if next.has(String(CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)):
 		var mining := CinderMiningCapacityPersistence.new()
 		mining.configure(store, CINDER_MINING_CAPACITY_PERSISTENCE_SLOT)
