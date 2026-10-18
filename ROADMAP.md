@@ -120,6 +120,28 @@ checks already cover the gameplay owner. No implementation or engine run yet.
   summary real-file qualification, with its existing terminal-only contract;
   it is not selected. No automatic adjacent Torpedo/recovery chain.
 
+#### One selected caller repair after the first source failure
+
+Candidatee9c6111b4 compiles and passes privacy plus both existing production
+suites, but source transaction fails35.365s at its first board-arming assertion.
+The child is reaped; source/cache unchanged; no terminal debt or exports accepted.
+The log cannot distinguish missed/refused/repeated interaction, so no gameplay
+defect is claimed. Before any further run, root selects exactly one caller repair:
+normalize breach-only input/start sequencing to the already passing production
+route (one idle frame after Begin Shift, E press→physics→release→physics→idle),
+leaving the shared helper and gameplay untouched. Also replace generation-zero
+cargo save (a proven accepted no-op) with synchronous genuine start/reset/save,
+ending idle with an actual unrelated cargo document. Retain richer board result
+in the existing failing assertion; no new diagnostic run or harness.
+
+Same implementer/reviewer and original finish criteria apply. Recompile the
+changed probe and run the full source transaction once at original process caps;
+prior unchanged privacy/board/route passes retain their recorded source. If it
+passes, continue exact-source paired packaging and archive transaction. If it
+fails, cumulative original+repair priority review is mandatory; no automatic
+third attempt, timeout change or renamed successor. Raw original failure stays
+under `/srv/mudds-work/breach-interruption-20261018/results/`.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
