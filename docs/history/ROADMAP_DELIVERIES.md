@@ -7978,3 +7978,79 @@ GameFlow ownership. Audible/device mix and original broad acceptance remain open
   profiling or parked native smoke. Stop once finite rows/precise missing facts
   are known. Audible/device mix remains NOT_RUN and requires its existing explicit
   authorization; this definition does not substitute for it. No automatic successor.
+
+## Activity music lifecycle — acceptedf1f35d1
+
+Clean playable source `f1f35d1371b91671881b90ed641c815dda9f82c7`, branch
+fix/activity-music-lifecycle-20261018. Roughly15min including implementation,
+review, checks, packaging and cleanup, within30–60min work allowance.
+
+The adapter accepts forward state changes within one activity generation,
+rejecting duplicate/stale/terminal→active replay. GameFlow supplies base phase
+through the same adapter so ordinary frames preserve the current activity mix.
+Combat/landing suppress the overlay while retaining current facts; release
+resumes current activity. Reset/idle restores actual base context; detach clears
+facts. Unchanged resolved presentation does not retrigger director observations
+or restart the loop clock. Only normalized routing tuple is retained, not PCM.
+StationMusicBed, assets, three calm voices, activity/reward/generation authority
+and gameplay remain unchanged. No Aurora/Rime or Ember environment change.
+
+Test-onlyb40868184 import20.814/compile15.739 pass; existing integration reproduces
+exactly two expected state/target failures15.766s, actual exit1. Independent exact
+source GO; fixed integration compile15.374 and adapter compile0.802 pass. Full
+integration26 assertions15.533s, adapter35/0.778s, existing phase14/15.545s,
+activity profiles13/0.915s and retained music-bed suite33.644s all PASS under
+original budgets. Actual bed targets/envelope/voices, same-run terminal fences,
+base restoration, suppression/resumption, clock/PCM/lifecycle scopes hold.
+
+Fresh safe exports26.654/25.684s. Direct Linux22.251/archive23.755/Windows payload
+through Linux engine25.834 each exit0/exactly one STARTUP_MENU_READY_OK with no
+unexpected diagnostics. Actual1515-entry payloads match; stock PE/source metadata/
+exact Linux tar bytes/modes verify. Public Windows EXE/checkpoint ZIP/notes and
+Linux ELF/tar/notes plus export/startup records are in builds/.
+EXE184592224 SHAc2ae2dfac45e4ddfe208dff2e604f4c464ea59594744d606eeefb4c68249fc3b;
+ELF148833936 SHA9c0d4321f5ae2d763fef54d9c454aca747f8dbce3e69aa9521436cb61a5a47b8;
+tar95250735 SHA7bbcec59b92bdd7265195ec35dc97e0baec99104a490535ca233c702f19e4eda.
+
+All15 owners terminal0; old red actual test1 explicitly expected. All70 captured
+PID/start identities absent;10 logs/20 app-data files archived byte-identically.
+Root verifies full source/index/cache/engine against final guarded snapshot and
+public export byte copies; integrated runtime/test/build source matches qualified
+f1. Owned worktree, duplicate exports, profiles and helpers removed; unique raw:
+`/srv/mudds-work/activity-music-lifecycle-20261018/results/`.
+
+All automation headless/Dummy. Detached activity snapshots and production update
+methods are controlled source fixtures, not an ordinary activity/Convoy journey,
+audible mix or device review. Native Windows/GPU, full matrix/fleet/world routes
+and human review remain open. All36 parents/ten phase gates OPEN; Titan pending.
+Known independent next runtime alternative is AUDIO-SURFACE-MUSIC; it needs a
+separate exact selection, not automatic extension. Ember feed remains definition.
+
+### Retained activity music contract
+
+### AUDIO-ACTIVITY-LIFECYCLE — current activity owns its music presentation
+
+- **Kind/result:** production audio integration, parent30. Real same-generation
+  active→complete reaches the existing activity profile, and ordinary base-phase
+  updates preserve current activity mix. Reset/idle restores actual base context.
+- **Owner/files:** one high-effort implementer; GameFlow music/activity sync and
+  NearbySectorActivityMusicAdapter; existing activity adapter and GameFlow nearby
+  music integration tests, relevant existing bed/phase tests. Independent high-
+  effort lifecycle review; root owns integration/checkpoint. No Aurora/Rime phase
+  repair or Ember environment work in this card.
+- **Acceptance:** test-only old reproduction of same-run completion and normal
+  update-order overwrite in real StationMusicBed. Preserve existing assertions/
+  original limits. Final active/complete/reset and duplicate/stale/terminal replay
+  fences, combat/landing precedence, current activity resumption/base-context
+  return and detach/reentry. Observe existing player targets/playback state under
+  Dummy audio; no listening/ordinary activity journey claim. Gameplay/activity/
+  reward/generation authority, asset roster and voice ceiling remain unchanged.
+- **Budget/stop:**30–60min implement/review, split before90. Import/compile and
+  focused existing suites once per frozen stage; no audio output, headless/Dummy
+  and private profiles. First unexpected failure stops for separate repair
+  selection; original plus one repair requires cumulative priority review.
+- **Alternative/close:** AUDIO-SURFACE-MUSIC is a separately identified runtime
+  alternative, sequential because it shares GameFlow. No automatic successor.
+  Accepted runtime needs fresh clean paired exports/three strict silent startups/
+  existing package audit, commit/push and owned scratch cleanup. Mix/hardware
+  gates stay open.

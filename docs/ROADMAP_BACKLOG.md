@@ -68,7 +68,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 27 | Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) | Same21 SHARED-* cells as3; no double count or staged-arrival substitute. |
 | 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | PERF-MINIMUM/TARGET WAITING on actual hardware; PERF-ROUTES/CELLS-DEFINE precede original-length measurements. |
 | 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | Two device families/four COMFORT-* outcomes named. ACCESS-PAUSE-DEFINE first; other readability/remap cells unresolved. |
-| 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX | AUDIO-CONTENT/MIX-DEFINE produce finite gaps/scenarios; real AUDIO-MIX WAITING on audible authorization/device. |
+| 30 | Finish authored audio and the real-device mix pass | AUDIO-CONTENT/MIX | AUDIO-CONTENT-DEFINE DONE; activity lifecycle packagedf1f35d1, surface-music repair and dormant Ember-feed definition remain. MIX-DEFINE/real AUDIO-MIX retain audible authorization/device gates. |
 | 31 | Finish production crash and save recovery | RECOVERY-CONTRACT/FIX/KILL, ACT-WRITE, WORLD-SAVE | Seven recovery context definitions plus ACT-WRITES/WORLD-SAVE lists; SAVE-MIGRATION/CORRUPT/UNSUPPORTED named. Existing accepted cuts retained. |
 | 32 | Qualify installation, updates and supported desktop platforms | PACKAGE-WIN/LINUX, INSTALL-WIN/LINUX, LINUX-BUNDLE/DESKTOP | Checkpoint packages retained; final package/NSIS, six final Linux transactions and two graphical launch paths named. Additional target scope DEFINE. |
 | 33 | Complete all required graphical capture gates | CAPTURE (each required registry ID) | All13 registry IDs/143 PNGs named individually; caption-production and station-operations stalls PARKED. |
@@ -521,7 +521,7 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | COMFORT-COLOUR | Colour-safe cues route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
 | COMFORT-CAPTIONS | Captions route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
 | AUDIO-CONTENT-DEFINE | Finite actually missing cues and broken transitions | 30 | Definition DONE on8a6e7dfe6; existing COMPLETION_SCOPE audio map separates real playback, two transition outcomes and dormant Ember feed definition; no missing new theme inferred |
-| AUDIO-ACTIVITY-LIFECYCLE | Current activity music survives normal updates and same-run completion | 30 | Concrete adapter/GameFlow repair SELECTED in ROADMAP.md; preserve phase/authority ordering |
+| AUDIO-ACTIVITY-LIFECYCLE | Current activity music survives normal updates and same-run completion | 30 | DONEf1f35d137, packaged. Same-run completion/base updates, terminal fences, combat/landing resume, reset/context/lifecycle/PCM/clock scopes pass; five focused suites, paired exports/three strict startups. Audible mix OPEN |
 | AUDIO-SURFACE-MUSIC | Aurora/Rime surface visit selects existing surface bed | 30 | Concrete phase-owner gap; separate selection after activity integration to avoid shared GameFlow edits |
 | AUDIO-EMBER-FEED-DEFINE | Actual intended Ember environment and observation owner | 30 | DEFINE; wrappers dormant, zero-delta helper alone is not a running-game delivery |
 | AUDIO-MIX-DEFINE | Finite real-output scenario/device mix list | 30 | DEFINE; distinct from silent state/integration checks |

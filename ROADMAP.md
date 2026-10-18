@@ -1,10 +1,10 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**bd4e15d**, with saved HOLD/TOGGLE sprint on foot plus authoritative remote
-component/operation/hull HUD, physical gauges and earlier gameplay fixes.
-[Windows notes](builds/windows/MuddsShipyards-bd4e15d-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-bd4e15d-linux-notes.txt) state actual validation.
+**f1f35d1**, with stable activity music through normal updates/completion,
+saved walking sprint toggle, authoritative remote HUD and earlier gameplay fixes.
+[Windows notes](builds/windows/MuddsShipyards-f1f35d1-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-f1f35d1-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -47,39 +47,17 @@ unapproved; parked failures remain outside the queue.
 | --- | --- | --- | --- |
 | NET-COMPONENT-ROW /11,21 | DONE; packaged39a2ad7 | Retained row follows accepted host components and restores current local data on clear/pilot change | Closed after focused local/pose/Main ENet checks and paired checkpoint; no automatic adjacent successor. |
 | ONFOOT-SPRINT-TOGGLE /8,29 | DONE; packagedbd4e15d | Shared Sprint/boost HOLD/TOGGLE works in local walking sprint with safe handoffs | Closed after focused source checks and paired checkpoint; no automatic adjacent successor. |
-| AUDIO-ACTIVITY-LIFECYCLE /30 | Production integration; SELECTED | Current activity mix survives normal base updates and same-run completion | Reproduce actual bed/adapter gap; focused lifecycle fix/checks and paired checkpoint. |
+| AUDIO-ACTIVITY-LIFECYCLE /30 | DONE; packagedf1f35d1 | Current activity mix survives normal base updates and same-run completion | Closed after five focused suites and paired checkpoint; audible mix review stays open. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
-are closed. AUDIO-CONTENT-DEFINE is complete; AUDIO-ACTIVITY-LIFECYCLE is selected below. No adjacent
+are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
 HUD power or movement/tow chain is selected. Original Settings/hardware gates
 remain open, and Titan approval remains pending.
 
-### AUDIO-ACTIVITY-LIFECYCLE — current activity owns its music presentation
-
-- **Kind/result:** production audio integration, parent30. Real same-generation
-  active→complete reaches the existing activity profile, and ordinary base-phase
-  updates preserve current activity mix. Reset/idle restores actual base context.
-- **Owner/files:** one high-effort implementer; GameFlow music/activity sync and
-  NearbySectorActivityMusicAdapter; existing activity adapter and GameFlow nearby
-  music integration tests, relevant existing bed/phase tests. Independent high-
-  effort lifecycle review; root owns integration/checkpoint. No Aurora/Rime phase
-  repair or Ember environment work in this card.
-- **Acceptance:** test-only old reproduction of same-run completion and normal
-  update-order overwrite in real StationMusicBed. Preserve existing assertions/
-  original limits. Final active/complete/reset and duplicate/stale/terminal replay
-  fences, combat/landing precedence, current activity resumption/base-context
-  return and detach/reentry. Observe existing player targets/playback state under
-  Dummy audio; no listening/ordinary activity journey claim. Gameplay/activity/
-  reward/generation authority, asset roster and voice ceiling remain unchanged.
-- **Budget/stop:**30–60min implement/review, split before90. Import/compile and
-  focused existing suites once per frozen stage; no audio output, headless/Dummy
-  and private profiles. First unexpected failure stops for separate repair
-  selection; original plus one repair requires cumulative priority review.
-- **Alternative/close:** AUDIO-SURFACE-MUSIC is a separately identified runtime
-  alternative, sequential because it shares GameFlow. No automatic successor.
-  Accepted runtime needs fresh clean paired exports/three strict silent startups/
-  existing package audit, commit/push and owned scratch cleanup. Mix/hardware
-  gates stay open.
+The activity music capability is closed in a fresh paired checkpoint. No
+successor is selected yet. The known next runtime alternative is
+AUDIO-SURFACE-MUSIC, requiring its own source/acceptance card before work.
+Dormant Ember environment feed and audible mix remain separate definitions/gates.
 
 ## Parked failures and dependent work
 

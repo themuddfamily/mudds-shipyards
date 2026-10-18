@@ -1,6 +1,18 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **bd4e15d**, clean source
+Latest accepted paired checkpoint: **f1f35d1**, clean source
+`f1f35d1371b91671881b90ed641c815dda9f82c7`
+([Windows notes](../builds/windows/MuddsShipyards-f1f35d1-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-f1f35d1-linux-notes.txt)). Activity
+music now persists through normal updates and same-run completion; combat/landing
+priority, current resumption and reset/base restoration hold. Voice/asset/gameplay
+authority unchanged. Old two-target regression, five focused suites, independent
+review, paired exports/three strict silent startups/actual1515-entry audit pass.
+These are staged source/Dummy playback checks, not ordinary activity journeys or
+audible/device/native Windows/GPU/human mix acceptance. All36 parents/ten gates
+OPEN. Aurora/Rime surface music and dormant Ember feed remain separate gaps.
+
+Earlier accepted paired checkpoint: **bd4e15d**, clean source
 `bd4e15d0fddda7c4f37a236d07f4f1a4329164d2`
 ([Windows notes](../builds/windows/MuddsShipyards-bd4e15d-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-bd4e15d-linux-notes.txt)). Shared
@@ -463,7 +475,7 @@ No engine, playback, new asset, renewed check or audible quality acceptance.
 | --- | --- |
 | Station/landing, flight/orbit, surface music | Nine checked-in music WAV loops documented in ASSETS.md → StationMusicBed's three Music voices → GameFlow._update_music_bed_state. Three bounded families exist; no per-activity themes are inferred missing. |
 | Combat music/endings | Combat stems and victory/failure stingers → CombatMusicLayer → GameFlow._sync_combat_music_layer/collected encounter/defense/convoy sources and ending hold. |
-| Activity music | Existing calm family with authored activity layer gains → StationMusicBed.notify_activity_state → NearbySectorActivityMusicAdapter → GameFlow nearby activity synchronization. Two lifecycle defects below; semantic activity captions alone are not playback. |
+| Activity music | Existing calm family with authored activity layer gains → StationMusicBed.notify_activity_state → NearbySectorActivityMusicAdapter → GameFlow nearby activity synchronization. Inventory lifecycle defects are repaired inf1f35d1; semantic activity captions alone are not playback. |
 | Station machinery/doors | Code-authored hum/servo/latch → StationMachineryAmbience positional voices → ShipyardWorld operational lattice/door state and completion callbacks. |
 | Player/UI | AudioDirector resident procedural confirmation/canopy/footstep/impact/alert bank → actual GameFlow action/presentation calls. |
 | Aurora environment | Authored temperate wind/cabin/coastal assets → AuroraExteriorAmbienceMixer/scene voices → surface visit streaming bootstrap and authored scene snapshots. Coast playback already implemented. |
@@ -471,11 +483,12 @@ No engine, playback, new asset, renewed check or audible quality acceptance.
 
 Finite remaining source findings:
 
-- **AUDIO-ACTIVITY-LIFECYCLE:** adapter rejects same-generation active→complete
-  because it requires strictly newer generation, although real convoy generation
-  changes at start/reset. Per-frame base-phase update also erases activity mix.
-  Repair one coherent activity-state presentation outcome; preserve duplicate/
-  stale fences, combat/landing priority and gameplay ownership.
+- **AUDIO-ACTIVITY-LIFECYCLE — DONEf1f35d1:** inventory found rejected
+  same-generation active→complete and per-frame base updates erasing activity mix.
+  The adapter now fences run/state separately and composes actual base phase with
+  current activity. Duplicate/stale/terminal fences, combat/landing suppression/
+  resumption, reset/context/clock/PCM/lifecycle checks pass. Five focused suites
+  and paired checkpoint qualify this source scope; audible mix remains open.
 - **AUDIO-SURFACE-MUSIC:** base-phase selection checks only the Ember latch.
   Aurora/Rime expedition disembark clears piloting and uses APPROACH_SHIP without
   that latch, selecting station music. Bind their actual visit state in a separate
@@ -485,9 +498,10 @@ Finite remaining source findings:
   temperate wind requirement is inferred for Ember. A zero-delta helper patch
   alone would leave ordinary gameplay unchanged.
 
-Existing phase/activity tests cover direct state selection, forwarding and combat
-precedence, not the combined per-frame/same-generation lifecycle or Aurora/Rime
-expedition path. Ember tests manually inject observations and check acceptance/
+At inventory, phase/activity tests covered direct selection/forwarding/combat
+precedence without the combined per-frame/same-generation lifecycle. The current
+activity repair adds that scope; Aurora/Rime expedition music remains unqualified.
+Ember tests manually inject observations and check acceptance/
 voices, not ordinary-game positive gain. SemanticAudioCueRouter/AudioDirector
 semantic forwarding never proves a sound was played; optional semantic bindings
 are not absent sound banks without a specific audible contract. Real-device mix,
