@@ -34,32 +34,23 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-AUDIO-NAVIGATOR-HOST-LOCAL is accepted on `292d3e4`, merged and packaged.
-Actual authoritative host chair FIRE now requests existing navigator sounds and
-captions alongside independent bridge feedback. Stand waits for the genuine ship
-clear; session stop is silent and re-entry restores bindings. [Full result](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-host-local--authoritative-physical-host-feedback-delivered).
-Owned scratch is cleaned; both failed fixture attempts and accepted results stay
-retained. Earlier standalone, bridge, repair, host-power and service passes retain
-their recorded scopes.
+AUDIO-NAVIGATOR-HOST-LOCAL remains accepted on `292d3e4`, merged and packaged.
+Client candidate `279d3b378` is pushed **unmerged/withheld** after mandatory route
+failure plus one frozen causal repair. All eight focused suites passed twice;
+the actual repaired route still fails post-migration presentation, exact disconnect
+proof and an original host walk-clear assertion. [Full retained result](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-client-receipts--parked-after-actual-client-route-and-one-repair).
+No checkpoint was produced from the failed candidate; no second repair/retry is
+selected. Owned scratch is cleaned with raw results/profiles retained.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-CLIENT-RECEIPTS | READY; exact contract frozen on `4a494469f` | Connect actual applied client crew commands to distinct session/migration/ship-owned navigator presentation. Prove client request/caption/clear/replay/disconnect in the explicit existing `--cinder-navigator` two-peer route; preserve filters and original caps. [Files, recipient rules, exact launch and stop](docs/COMPLETION_SCOPE.md#client-navigator-accepted-receipts--frozen-implementation-contract). 60–75 min implementation/review, 15–25 min checks/route, 10–15 min checkpoint. |
-| HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
+| AUDIO-NAVIGATOR-CLIENT-MIGRATION-CAUSE | READY for source-only definition; implementation PARKED | Explain actual applied migrated command → exact recipient context/composition retirement. One demonstrated cause and correction/proof contract in existing notes;20–30min, no engines/runtime edits/retry. [Boundary and stop](docs/COMPLETION_SCOPE.md#client-navigator-accepted-receipts--frozen-implementation-contract). |
+| HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries).60–90min implementation/focused checks after decision, checkpoint additional; split before90min. |
 
-AUDIO-MIX-DEFINE’s [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
-remains complete as a definition; all 28 listening cases remain NOT_RUN. Exact
-package/ordinary route, actual output device/backend/configuration and explicit
-audible authorization are still required. Repair dispatch under Dummy does not
-close that gate. Client implementation/proof ownership is now frozen; the next
-action is its runtime implementation above. The explicit navigator argument is
-required, and the route stands the navigator before migration. This source-only
-contract adds no runtime change or engine attempt. Host bridge, standalone and authoritative host-local feedback are delivered
-within their recorded scopes; client accepted/clear and rejection remain open.
-[Actual boundaries](docs/COMPLETION_SCOPE.md#network-navigator-recipients--source-definition-on4f481068c)
-retain recipient filtering and the separate missing rejection-response behavior.
-Hauler’s already-asked stock/custody choice remains unchanged; do not repeat the
-question or invent stock. This queue is not a project estimate.
+All28 real-output listening cases remain NOT_RUN. Client rejection transport is a
+separate unfinished outcome; accepted/clear delivery remains unaccepted overall.
+Hauler's already-asked stock/custody choice is unchanged. This queue is not a
+project estimate; the cause definition will not count as a delivered feature.
 
 ## Turning the remaining scope into executable work
 
@@ -115,6 +106,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
+| AUDIO-NAVIGATOR-CLIENT / audio,16 | Initial route aborted133.464s observed interval; repair route FAIL125.925s. Migrated command applies but client presentation fails; disconnect probe nil-source error; original host walk-clear also fails. | STOP/PARK candidate279d3b378 unmerged/withheld.24 actual stages504.404s includes initial observation interval. No automatic second repair/unchanged retry; bounded source cause definition only. |
 | BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |
