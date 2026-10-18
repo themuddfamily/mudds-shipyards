@@ -377,7 +377,7 @@ func _ordinary_depart_integrity() -> bool:
 		and is_equal_approx(float(_ordinary_ship.get_telemetry().get("hull", -1.0)), _ordinary_hull),
 		"departure retains same original seated Player, current default Input-backed owner, hatch claim, home and hull"):
 		return false
-	if not _ordinary_depart_check(report.get("cargo_source_entity") == _ordinary_ship and report.get("cargo_destination_entity") == _ordinary_home_berth
+	if not _ordinary_depart_check(report.get("cargo_source_entity") == _ordinary_ship and report.get("cargo_destination_entity") == _ordinary_game.world.get_jovian_freight_berth()
 		and _manifest_quantity(report.get("cargo_source_manifest", {}) as Dictionary) == 6
 		and _manifest_quantity(report.get("cargo_destination_manifest", {}) as Dictionary) == 0
 		and _ordinary_start_snapshots.size() <= 1, "departure conserves six source kits, zero destination kits and one automatic start"):
