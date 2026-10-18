@@ -1,10 +1,10 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**7be348d**, with authoritative remote hull HUD and physical hull/throttle gauges,
-plus the earlier steering/cargo/control-help/layout fixes.
-[Windows notes](builds/windows/MuddsShipyards-7be348d-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-7be348d-linux-notes.txt) state actual validation.
+**da1ae60**, with remote observer engine/throttle HUD, authoritative hull HUD
+and physical gauges, plus earlier steering/cargo/control-help/layout fixes.
+[Windows notes](builds/windows/MuddsShipyards-da1ae60-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-da1ae60-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -33,49 +33,33 @@ Only the selected card below is executable. A missing definition, failed route
 or full-craft qualification is not an implementation assignment. Do not create
 a successor chain just because a nearby check can be added.
 
-NET-OPERATION-HUD is selected from a concrete source finding under parent17:
-the existing publisher overlays host hull, but engine/throttle HUD consumers
-still read retained local telemetry. Physical throttle instruments are already
-accepted; this card changes the gameplay HUD only. Ember's bounded definition
-is complete with no missing authored content identified. Titan remains pending.
+CONTENT-AURORA is selected as an independent bounded definition under parent 15.
+NET-OPERATION-HUD is accepted in the current checkpoint; its full contract and
+actual checks are in [delivery history](docs/history/ROADMAP_DELIVERIES.md#remote-operation-hud--acceptedda1ae60).
+Ember's content definition found no missing implementation within its inspected
+scope. The [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) remains
+unapproved; parked failures remain outside the queue.
 
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| NET-OPERATION-HUD /17 | Production fix; test-only regression first | Eligible observer HUD follows accepted host engine/throttle; local pilot prediction and raw simulation stay intact | Reproduce actual normal-publisher HUD discrepancy, then reviewed repair and checkpoint. |
+| CONTENT-AURORA /15 | Definition; SELECTED, not started | Finite actual content gaps or exact missing fact | One source comparison capped at 15 minutes; no engine/probe or automatic successor. |
 
-### NET-OPERATION-HUD — engine and throttle in the gameplay HUD
+### CONTENT-AURORA — resolve one world's remaining authored content
 
-- **Player result:** eligible remote observer sees accepted host engine label,
-  throttle magnitude and signed direction; STARTING/OFFLINE/destruction show
-  neutral thrust. This machine's pilot keeps its local predicted operation HUD.
-  Clear/disable/retirement restores current local readings.
-- **Source finding:** GameFlow::_publish_active_ship_telemetry_to_hud merges only
-  the accepted hull projection into raw get_telemetry. HUD consumes throttle and
-  engine_state directly. HeroShip already retains accepted operation facts and
-  applies the observer/pilot policy to physical throttle instruments. No missing
-  transport or new wire contract is implied. Source finding is not runtime proof.
-- **Owner/files:** one high-effort implementer plus independent high-risk review;
-  root freezes/tests/integrates. Only scripts/game/game_flow.gd,
-  scripts/ships/hero_ship.gd and existing remote-pose/station-frame tests.
-  Read-only display getter and HUD publication seam; raw engine/throttle/health,
-  components, saves, controls, physics and command authority stay unchanged.
-  No component/power/weapon/landing HUD fields, parked routes or new framework.
-- **Proof:** test-only host ONLINE/+65% against retained local OFFLINE/zero,
-  actual normal physics publisher and actual engine label/throttle bar/direction.
-  Exact expected new failures first. Then forward/reverse, STARTING/OFFLINE/dead,
-  local pilot prediction, stale/lifecycle/clear and raw authority invariants in
-  full existing pose suite; actual current/late received facts in independent
-  Main station-frame suite. Explicit fixture publisher calls are disclosed and
-  do not claim an ordinary remote-helm journey. Original300s/per-wait60s caps,
-  exit0/exact existing markers/fullraw diagnostics0 unchanged.
-- **Budget/stop:**30–60 minutes implementation/review, split before90; import,
-  compile, focused pose (~41s) and real-peer (~174s) checks separate. First
-  unexpected failure stops before diagnosis/fix/run selection; original plus
-  one repair requires cumulative priority review. No automatic successor.
-- **Close:** reviewed clean source commit, fresh paired Windows/Linux exports,
-  three strict silent startups and actual payload/archive audit; publish under
-  repository builds/. Commit/push, preserve unique results and clean owned
-  checkout/profiles/helpers/duplicate exports. All broad parents/phase gates open.
+- **Result:** compare the original Phase 10.4 authored-content promise against
+  Aurora's actual composition. End with finite missing capabilities and exact
+  production owners/checks, or none identified within the inspected scope.
+- **Owner/files:** root; COMPLETION_SCOPE.md and retained Phase 10.4 versus
+  assets/world/planets/aurora_temperate_world.tres,
+  scenes/world/planets/aurora_temperate_world.tscn, their referenced authored
+  runtime and tests/aurora_temperate_authored_scene_test.gd. Follow only an owner
+  needed to resolve a named criterion; no broad atmosphere/performance audit.
+- **Proof/stop:** 15 minutes source comparison; map silhouette, landing region,
+  landmarks/routes, activities/rewards, recovery and reason to return. Separate
+  missing implementation from ordinary/shared/repeat/visual/hardware acceptance.
+  Write findings into existing CONTENT-AURORA row/backlog, no new tracker.
+  No engines, captures, parked original-arrival bundle reconstruction or automatic
+  implementation/qualification successor. Source comparison cannot accept a world.
 
 ## Parked failures and dependent work
 

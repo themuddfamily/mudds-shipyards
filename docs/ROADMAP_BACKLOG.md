@@ -244,7 +244,7 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | Definition DONE on 7c0bc2967: no missing implementation identified in the inspected authored-content scope; see boundary below. Full ordinary/repeat/shared/hardware qualification remains open |
 | SOLO-AURORA | Aurora canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
-| CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | DEFINE; original promises versus implemented world, none found is valid |
+| CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | SELECTED definition in ROADMAP.md; source comparison capped at 15 minutes, not started; no engine/probe |
 | SOLO-RIME | Rime canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-RIME | Rime finite remaining authored content/presentation findings | 15 | DEFINE; original promises versus implemented world, none found is valid |
 
@@ -303,7 +303,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | GATED; selected candidate, no rebuild of delivered authority |
 | NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | Bounded Jovian source comparison DONE: concrete physical throttle instrument consumer gap; broader cells remain unqualified |
-| NET-OPERATION-HUD | Gameplay HUD engine/throttle follows eligible accepted host operation facts; local pilot prediction/raw authority retained | 17 | SELECTED bounded production repair in ROADMAP.md; old-runtime actual publisher regression first, no new transport |
+| NET-OPERATION-HUD | Gameplay HUD engine/throttle follows eligible accepted host operation facts; local pilot prediction/raw authority retained | 17 | DONEda1ae60; exact old3 failures, pose175/real-peer354, paired exports/three strict startups/actual1515-entry audit. No simulation/wire changes; parent 17 OPEN |
 | NET-HULL-HUD | Gameplay HUD bar/frame projects existing authoritative hull/maximum/status; raw simulation telemetry remains local | 21 | DONE7be348d62; exact old2 HUD failures, fixed pose140/real-peer272, paired exports/three strict startups/actual1515-entry audit. Raw simulation authority preserved; parent21 OPEN |
 | NET-HULL-INSTRUMENTS | Physical remote hull gauge reflects existing authoritative health; damage/destruction/new-life/solo-clear | 21 | DONE24430b7c1; old2 failures reproduced, pose121/real-peer250 and fresh paired24430b7 with3strict startups/actual1515-entry audit. Parent21 OPEN, no wire change |
 | NET-THROTTLE-INSTRUMENTS | Current/late physical cockpit gauge reflects signed authoritative throttle, neutral shutdown and solo restore | 17 | DONE8f17b0241; old4 failures reproduced, pose91/real-peer203 pass; fresh paired8f17b02 with3strict startups/actual1515-entry audit. Broader parent17 remains OPEN |
@@ -457,8 +457,8 @@ qualifications. **It is not a remaining-job count.** In particular, “one craft
 assignments. Completing a definition does not deliver the gameplay it describes.
 
 The [working roadmap](../ROADMAP.md#execution-now) selects the next exact
-outcome and keeps failed/gated work separate. Remote hull HUD plus physical hull/throttle
-instrument repairs ship in paired7be348d; their broader parents remain open.
+outcome and keeps failed/gated work separate. Remote operation/hull HUD plus physical hull/throttle
+instrument repairs ship in pairedda1ae60; their broader parents remain open.
 HELM-REVERSE-FLIGHT is source-qualified on52b228c86;
 its source-only definition is DONE. CRAFT-GAPS-TORRENT definition found no concrete
 required missing implementation in the inspected owners; full craft acceptance

@@ -7412,3 +7412,77 @@ The selected contract is retained below.
   Stop at the finite findings or exact missing fact. No invented features, whole
   world rebuild, parked native Ember work or automatic implementation successor.
   Root reviews any proposed production card separately before selection.
+
+## Remote operation HUD — acceptedda1ae60
+
+Clean source `da1ae6017bb7c35a53b6ef380e623b0570e316d8` fixes the observer gameplay HUD's retained
+local engine/throttle display. A read-only two-scalar accepted-operation getter
+uses existing eligibility/local-pilot policy. HUD publication merges host display
+facts into a shallow copy and returns raw local telemetry. STARTING/OFFLINE are
+neutral; destroyed display is OFFLINE/zero. This machine's pilot retains predicted
+operation readings; clear/disable/retirement restores current local readings.
+No wire, simulation, component/power/weapon, save, command or physics changes.
+Root and independent high-risk review approve matching final four-file hashes.
+
+Test-only f9721c11c: import 20.608s, compile 16.472s;
+old runtime reproduces exactly three actual normal physics-to-HUD engine label,
+bar and direction failures in 31.206s, actual test exit1, no unrelated
+diagnostics. Fixed compile 16.327s/station compile 16.074s pass.
+Full pose 175 PASS 40.990s; independent Main/ENet station-frame
+354 (71 host/283 peers) PASS 172.199s, original 300s/per-wait 60s.
+Forward/reverse, STARTING/OFFLINE/dead, stale replay, revival, detached getter,
+raw invariants, local prediction and current-local clear/eligibility/reentry pass.
+Station peers are on foot: explicit craft selection and production publisher
+calls consume real received host facts, without a pilot grant or ordinary remote
+helm voyage claim. All unexpected diagnostics are zero.
+
+Clean Windows/Linux exports 26.697s/25.665s; direct
+Linux 22.458s, archive 23.834s and actual Windows payload
+through Linux Godot 25.855s each pass strict exit0/one
+STARTUP_MENU_READY_OK. Actual 1515-entry payloads match;
+stock PE code, metadata, exact archive bytes/modes pass. Published Windows
+EXE/ZIP/notes and Linux ELF/archive/notes live in repository builds/.
+All 12 owners terminal/all 65 PID identities absent;
+source/required cache immutable, 11 logs and
+96 peer files archived byte-identically. Raw:
+`/srv/mudds-work/remote-operation-hud-20261018/results/`.
+Native Windows/GPU/devices/audio/human/current full matrix/endurance/full fleet/
+ordinary handback/final release remain unqualified or excluded as previously
+recorded. All 36 parents/ten gates stay open; Titan pending. The frozen contract
+follows; actual closure above supersedes planned state. Owned checkout,
+profiles/helpers and eight duplicate exports were removed after public byte
+verification; unique results, source refs and public builds remain.
+
+### NET-OPERATION-HUD — engine and throttle in the gameplay HUD
+
+- **Player result:** eligible remote observer sees accepted host engine label,
+  throttle magnitude and signed direction; STARTING/OFFLINE/destruction show
+  neutral thrust. This machine's pilot keeps its local predicted operation HUD.
+  Clear/disable/retirement restores current local readings.
+- **Source finding:** GameFlow::_publish_active_ship_telemetry_to_hud merges only
+  the accepted hull projection into raw get_telemetry. HUD consumes throttle and
+  engine_state directly. HeroShip already retains accepted operation facts and
+  applies the observer/pilot policy to physical throttle instruments. No missing
+  transport or new wire contract is implied. Source finding is not runtime proof.
+- **Owner/files:** one high-effort implementer plus independent high-risk review;
+  root freezes/tests/integrates. Only scripts/game/game_flow.gd,
+  scripts/ships/hero_ship.gd and existing remote-pose/station-frame tests.
+  Read-only display getter and HUD publication seam; raw engine/throttle/health,
+  components, saves, controls, physics and command authority stay unchanged.
+  No component/power/weapon/landing HUD fields, parked routes or new framework.
+- **Proof:** test-only host ONLINE/+65% against retained local OFFLINE/zero,
+  actual normal physics publisher and actual engine label/throttle bar/direction.
+  Exact expected new failures first. Then forward/reverse, STARTING/OFFLINE/dead,
+  local pilot prediction, stale/lifecycle/clear and raw authority invariants in
+  full existing pose suite; actual current/late received facts in independent
+  Main station-frame suite. Explicit fixture publisher calls are disclosed and
+  do not claim an ordinary remote-helm journey. Original300s/per-wait60s caps,
+  exit0/exact existing markers/fullraw diagnostics0 unchanged.
+- **Budget/stop:**30–60 minutes implementation/review, split before90; import,
+  compile, focused pose (~41s) and real-peer (~174s) checks separate. First
+  unexpected failure stops before diagnosis/fix/run selection; original plus
+  one repair requires cumulative priority review. No automatic successor.
+- **Close:** reviewed clean source commit, fresh paired Windows/Linux exports,
+  three strict silent startups and actual payload/archive audit; publish under
+  repository builds/. Commit/push, preserve unique results and clean owned
+  checkout/profiles/helpers/duplicate exports. All broad parents/phase gates open.

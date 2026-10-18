@@ -2,7 +2,18 @@
 
 This is the working roster for [roadmap task 0](ROADMAP_BACKLOG.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
-Current paired development checkpoint: **7be348d**, accepted clean source
+Current paired development checkpoint: **da1ae60**, clean source
+`da1ae6017bb7c35a53b6ef380e623b0570e316d8`
+([Windows notes](../builds/windows/MuddsShipyards-da1ae60-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-da1ae60-linux-notes.txt)). Observer
+engine/throttle HUD follows accepted host operation facts, with local pilot
+prediction/raw telemetry preserved. Three expected old-runtime HUD failures,
+fixed pose 175/independent Main-ENet354, paired exports/three strict startups/
+actual1515-entry audit pass. Controlled publisher fixtures do not qualify an
+ordinary remote-helm voyage or native hardware. All 36 parents/ten gates remain
+open; Titan interpretation pending.
+
+Earlier paired development checkpoint: **7be348d**, accepted clean source
 `7be348d62bcb587f91c5b5c4b063f68306fd4e05`
 ([Windows notes](../builds/windows/MuddsShipyards-7be348d-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-7be348d-linux-notes.txt)). Gameplay
