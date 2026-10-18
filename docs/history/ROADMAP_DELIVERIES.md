@@ -5726,3 +5726,33 @@ profiles/helpers are removed after source-ref/raw retention. Unique results:
 Next queue is2 READY definitions/4 GATED/1 FAILED/1 DONE. Next selected work is
 PLAY-JOVIAN-KIT-ROUTE: freeze one normal delivery sortie, ordinary caller and
 original180s activity deadline/once-only durable receipt; no full-activities audit.
+
+
+### 2026-10-18 — split ordinary cargo and residual Halyard baseline
+
+PLAY-JOVIAN-KIT-ROUTE and SERVER-BASELINE-DEFINE complete as static definitions
+at a94234837; no engines or gameplay acceptance. Cargo must use offline normal
+pilot flow: remote landing intentionally skips activity completion. New working
+queue separates actual boarding, physical departure/automatic start, home return/
+transfer/usable exit and distinct-process restore. Same ordinary route extends
+through the first three stages without rescue;180s activity clock starts at
+production FREE_FLIGHT transition, not spawn. Cargo IDLE starts generation0;
+first ACTIVE is generation1, initial manifest handles generation1. Modern save
+owner is jovian_cargo_session_persistence.gd. Existing misleadingly named
+MemoryFilesystem calls real FileAccess/flush; prior same-process fresh-Main disk
+proof is credited and distinct OS reload remains separate.
+
+Halyard definition credits staged D2/7412a6e50 and accepted Jovian ordinary
+server/two-client results. Residual goals split into finite approach definition,
+ordinary two-client seating, genuine moving-cabin use and actual graceful server
+stop while both original occupants remain. Production disconnect/solo restore,
+not direct handler invocation, is the recovery target; SIGKILL/migration/
+reconnect/endurance remain separate. Exact ordinary Halyard approach is still
+missing; this ends in a READY bounded definition, not fabricated route support.
+
+All eight cards specify player-visible finish, ownership, proof, budgets,
+dependencies and first-failure/closure actions. Previously parked Jovian exit/
+reuse cards move intact to backlog; accepted Annex stays DONE. Queue1 active/
+1 READY definition/6 GATED; all36 parents/ten phase gates remain open. Root selects
+KIT-BOARD only for implementation now, existing cargo caller in isolated branch
+work/jovian-kit-board-20261018; no thrust/landing/restore expansion in that task.

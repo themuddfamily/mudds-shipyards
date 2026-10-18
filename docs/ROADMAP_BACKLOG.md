@@ -320,6 +320,133 @@ requirements. The engineer and other craft instances remain unscheduled.
   Native Windows/GPU/device/human gates remain NOT_RUN. Definition adds no
   gameplay feature, checkpoint requirement or project percentage progress.
 
+### Retained Jovian exit/reuse cards — parked, outside the active queue
+
+The original exit caller and its one repair failed parsing; no gameplay route
+ran. Candidates8054a2cc4/e147b6d49 and raw failures remain retained. These five
+ordered cards preserve their acceptance/dependencies; none is currently selected.
+Numeric predecessor references here mean this parked five-card Jovian sequence,
+not the current eight-card queue.
+A new explicitly bounded syntax correction/review must precede any retry.
+
+### NET-JOVIAN-PASSENGER-EXIT — one actual postdock passenger exit
+
+- **Parents/result:**16/20/26. Extend the accepted ordinary Jovian return with
+  one selected client_b co-pilot passenger stand/walk/hatch/ground exit. The
+  original first client stays pilot. Reboard and another departure are later
+  outcomes; original return/default behavior stays its accepted scope.
+- **Ownership/boundary:** existing
+  `tests/network/jovian_network_two_client_return_test.gd`, plus only the smallest
+  existing coordinator selector propagation if necessary. Reuse ordinary
+  look/walk/Interact and process/first-failure/input cleanup helpers. No new
+  harness or speculative networking/physics fix. Freeze any actual failing
+  production owner before scheduling its separate repair.
+- **Proof:** original Main host/two clients and all existing ordinary approach,
+  seats, departure, landing, strict home lease and consumed arrival. Then actual
+  chair release, supported cabin movement, hatch exit, released cabin/hatch/body
+  claims and measurable supported ground locomotion. Retain original peer/avatar/
+  Player identity; consume current body/ship/frame/seat/ownership generations,
+  with legitimate retirement rather than resurrected bindings. Pilot source/
+  stream/delivery epoch, helm/ownership and occupied landed home lease remain.
+  No teleport, direct seat/phase/body mutation or fabricated completion.
+- **Execution/result:** independent review of8054a2cc4 found no lifecycle/default
+  blocker; clean import PASS. Compile FAILED at line321: single-line lambda
+  predicates continued across physical lines without explicit continuation.
+  No selected gameplay route started. Source/cache guards held, supervisors ended,
+  raw is retained in `/srv/mudds-work/jovian-passenger-exit-20261018/results/`.
+- **Bounded repair result:** NET-JOVIAN-EXIT-CALLER-PARSE FAILED at clean
+  e147b6d49. Three explicit continuations fixed the original line321 boundary,
+  but the single allowed compile retry finds another parse error at line406.
+  No route, peer, passenger exit or production runtime was exercised. Both
+  failed commits/raw are retained; no test acceptance was relaxed.
+- **Priority review/next:** about45 min implementation/review/setup plus bounded
+  correction/check time; one task failure plus one attempted repair is used.
+  The unresolved outcome is ordinary postdock exit, not an established game
+  defect. Competing READY WALK-ANNEX has a frozen route and separate caller;
+  root selected it. No further Jovian diagnosis/correction/compile/route is
+  selected. A future explicitly bounded caller syntax review/correction must
+  precede any requalification; original300/360/15/8/120/5 limits remain.
+- **Close/retention:** preserve refs8054a2cc4/e147b6d49 and both raw failures,
+  commit/push, remove owned clean checkout/private profiles/helpers after process
+  closure. This failed caller is not merged and needs no checkpoint. Original
+  return remains accepted only at its earlier source scope. Reboard/reclaim/
+  redepart and native/device/world/endurance gates stay open.
+
+### NET-JOVIAN-PASSENGER-REBOARD — reclaim one passenger chair
+
+- **Parents/result:**16/20/26. After card 1's actual exterior walk, the original
+  client_b walks back through the authored hatch and sits in its original
+  `co_pilot_station`; original pilot retains helm and occupied home berth.
+- **Boundary/owner:** root; same existing return caller and inherited normal
+  input helpers as card 1. No engineer, craft swap, pilot release or departure.
+  Start from card 1's accepted clean source, not staged ground/seat state.
+- **Proof:** ordinary look/walk/Interact; same authenticated peer/avatar/Player;
+  host and consumed client agree on current boarding/body/frame/seat generations
+  and exactly one chair claim, with released exterior claims retired. Original
+  pilot source/ownership and strict home lease remain valid. No pose/claim writes.
+- **Next/budget/stop:** GATED until 1 passes. Then freeze proposed select-only
+  continuation/marker before implementation; 30–60 min, split before 90. Preserve
+  existing 300s route/peer,15s waypoint,8s transition,120s landing,5s convergence
+  limits; one compile 300s and one route/outer 360s after clean pin/review.
+  First failure records exact owner and ends the card; no automatic repair.
+- **Close:** actual result/pin/limits, commit/push and owned cleanup. Caller-only
+  acceptance needs no identical rebuild; any runtime repair is a separate card
+  with focused proof and fresh paired checkpoint.
+
+### NET-JOVIAN-PILOT-EXIT — release helm and reach ground
+
+- **Parents/result:**16/20/26. After 2, original pilot stands and walks through
+  the real hatch to supported berth ground and walks at least 1m; passenger stays
+  in its original chair. Reclaim and departure are cards 4/5.
+- **Boundary/owner:** root; existing return caller/ordinary input helpers. Use
+  accepted 2 source and actual prior route. Do not keep a seated-pilot predicate
+  as the success condition for an exited pilot or give the passenger the helm.
+- **Proof:** original actors persist; actual pilot seat/source/ownership releases
+  are reflected by host and clients, old commands cannot move the hull, no stale
+  cabin/chair/hatch/body claim survives exit, and the same hull retains occupied
+  home lease/committed landed generation. Require ground by authored exit before
+  further walking; spawn relocation cannot satisfy the result.
+- **Next/budget/stop:** GATED on 2. Freeze selected continuation/marker and clean
+  source; 30–60 min, split before 90. Compile 300s, one route 300s/outer 360s and the
+  same15/8/120/5s stage limits. First failure ends qualification with exact owner.
+- **Close:** actual result/source/limits, commit/push, cleanup; fresh paired
+  checkpoint only for a separately accepted runtime repair.
+
+### NET-JOVIAN-PILOT-RECLAIM — reacquire the same helm
+
+- **Parents/result:**16/20/26. Original exterior pilot walks back aboard the
+  same Jovian and takes the real pilot seat; passenger remains seated.
+- **Boundary/owner:** root; existing return caller, starting from accepted 3.
+  No second flight, replacement client, fabricated authority or forced seat.
+- **Proof:** ordinary walk/look/Interact; same peer/avatar/Player, current host
+  ownership and client-consumed seat/source/stream/delivery epoch agree; released
+  generations stay retired and old commands remain refused. Physically occupied
+  home lease and landed state remain valid until card 5.
+- **Next/budget/stop:** GATED on 3. Freeze selected continuation/marker/source;
+ 30–60 min, split before 90. Compile 300s and one route 300s/outer 360s, existing
+ 15/8/120/5s stage limits. First failure records owner and ends the card.
+- **Close:** actual proof/pin, commit/push, owned cleanup; same runtime-checkpoint
+  condition as 3. Reclaim does not count as repeat-departure proof.
+
+### NET-JOVIAN-REDEPART — depart once after actual reuse
+
+- **Parents/result:**16/20/26. After accepted 4's physical exit/reboard/reclaim,
+  same pilot launches same hull at least 5m from home berth and brakes to the
+  existing departure test's zero-speed tolerance, with original passenger seated.
+- **Boundary/owner:** root; existing return/flight callers. Reuse their ordinary
+  engine/thrust/brake actions; no second landing, endurance or additional craft.
+- **Proof:** berth release comes from actual departure; current pilot authority,
+  passenger chair/body/frame and consumed peer poses remain valid. Retired
+  pre-exit commands/claims do not regain authority. No direct ship/phase mutation.
+- **Next/budget/stop:** GATED on 4. Freeze selected continuation/marker/source;
+ 30–60 min, split before 90. Compile 300s, one route 300s/outer 360s and original
+ stage limits. If the cumulative route cannot fit, stop and record the blocked
+ acceptance/design decision before any engine run; do not enlarge deadlines,
+ shorten the prerequisite route or replace physical reuse with staging. First
+ failure ends qualification.
+- **Close:** actual result/pin/limits, commit/push and cleanup. Runtime repairs
+  need their separate focused proof/checkpoint. Parent20/endurance stay open.
+
 ## Performance, controls, accessibility and audio
 
 Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote-display behavior do not qualify native target GPU performance.
@@ -601,7 +728,11 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | PLAY-RACE | Checkpoint Race first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-PATROL | Platform Patrol first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | UNSCHEDULED qualification; PLAY-JOVIAN-KIT-ROUTE planning READY in ROADMAP.md |
+| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Route definition DONE; KIT-BOARD active, KIT-DEPART/DELIVER/RELOAD GATED in ROADMAP.md; ordinary full delivery unqualified |
+| KIT-BOARD | Ordinary offline cargo selection and Jovian pilot boarding | 7,13 | IN PROGRESS; exact selected caller/criteria in ROADMAP.md |
+| KIT-DEPART | Real departure automatically starts cargo, then ordinary brake | 13 | GATED on KIT-BOARD;180s activity deadline retained |
+| KIT-DELIVER | Strict home landing transfers2 kits/pays once; usable exterior exit | 13 | GATED on KIT-DEPART; exact physical/receipt criteria in ROADMAP.md |
+| KIT-RELOAD | Distinct process reloads actual completed store without duplication | 13,31 | GATED on KIT-DELIVER's retained real store and unchanged runtime |
 | PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-MINING | Mining/extraction first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-SCAN | Structure Scan first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
@@ -665,7 +796,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-SECOND-LAND | Historical intermittent second-landing boundary | 20 | GATED; establish distinctness from current return failure before any probe |
 | NET-DOCK-DEFINE | Supported craft dock/exit/reboard/redeparture acceptance cases | 20 | DONE definition only; next five Jovian instances below, all other craft/roles remain unscheduled |
 | NET-JOVIAN-PASSENGER-EXIT | Original passenger reaches supported ground while pilot retains helm | 16,20,26 | FAILED compile8054a2cc4 and one syntax repair e147b6d49; parked after priority review, gameplay NOT_RUN |
-| NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | GATED on passenger exit; exact bounded card in ROADMAP.md |
+| NET-JOVIAN-PASSENGER-REBOARD | Original passenger reclaims original co-pilot chair | 16,20,26 | GATED on passenger exit; retained parked card above |
 | NET-JOVIAN-PILOT-EXIT | Original pilot releases helm and walks onto supported berth ground | 16,20,26 | GATED on passenger reboard; passenger stays seated |
 | NET-JOVIAN-PILOT-RECLAIM | Original pilot returns to same hull and acquires current helm authority | 16,20,26 | GATED on pilot exit; old command generations stay retired |
 | NET-JOVIAN-REDEPART | Same crew/hull departs at least5m and brakes after physical reuse | 16,20,26 | GATED on pilot reclaim; no second landing/endurance expansion |
@@ -680,7 +811,11 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-DISCONNECT | Disconnect/retry ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-CANCEL | Cancel/reuse ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
-| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | READY planning in ROADMAP.md; accepted Jovian subroutes credited, no run or capacity-choice dependency |
+| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | DONE definition only; Halyard approach definition READY, BOARD/MOVING-CABIN/AUTHORITY-STOP GATED; no baseline completion |
+| HALYARD-APPROACH | Freeze ordinary spawn-to-airstair input waypoint route | 16,26 | READY planning;30min static stop at finite contract/missing fact |
+| HALYARD-BOARD | Non-playing Main authority and two original ordinary occupants | 16,26 | GATED on HALYARD-APPROACH; real pilot/crew_port_00 seats |
+| HALYARD-MOVING-CABIN | Actual departure with passenger supported walk/chair cycle | 16,24,26 | GATED on HALYARD-BOARD; no staged flight envelope |
+| HALYARD-AUTHORITY-STOP | Real server stop restores both remaining occupants to solo play | 16,26 | GATED on HALYARD-MOVING-CABIN; no SIGKILL/migration/reconnect claim |
 | SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | GATED; exact baseline contract, boarding/departure passes do not close it |
 | NET-FULL-SNAPSHOT | All-nine forced-full publication and byte budget | 17,26 | UNSCHEDULED; original aggregate budgets, movement-only bytes insufficient |
 | NET-PROFILES-DEFINE | Original latency/loss/jitter/reorder/stall profile roster | 26 | DEFINE; exact existing commands and ownership/lifecycle limits |
@@ -798,11 +933,13 @@ qualifications. **It is not a remaining-job count.** In particular, “one craft
 assignments. Completing a definition does not deliver the gameplay it describes.
 
 The [working queue](../ROADMAP.md#working-queue-eight-bounded-cards) now has eight
-specific cards: two READY definitions, four dependent GATED cards, one FAILED
-Jovian exit after its attempted caller repair and one accepted Annex round trip.
-Five separate Jovian outcomes replace the single exit/reuse assignment; the Annex route definition and its caller qualification are now accepted, while
-kit delivery and residual server gameplay retain finite READY definitions. This is a local scheduling count, not a whole-project estimate.
-All 36 original parents and ten phase gates remain open.
+specific successor cards: four offline cargo stages (board, depart, deliver,
+distinct-process reload), and four Halyard stages (approach definition, board,
+moving cabin, real authority stop). One cargo caller is active, one Halyard
+route definition is READY and six dependent cards are GATED. Original Jovian
+exit/reuse remains parked; Annex source qualification remains DONE.
+All36 original parents and ten phase gates remain open. This is local scheduling,
+not a whole-project estimate or a claim that the eight cards finish these parents.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with
 no engine run unless separately scheduled. Expand its existing parent here only
