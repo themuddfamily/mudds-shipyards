@@ -3,6 +3,8 @@ extends Node
 ## Read-only exported-game telemetry. No input, actor writes, gameplay actions,
 ## timing overrides, or process shutdown: the external OS-input driver owns those.
 var _game: GameFlow
+var _ember := false
+var _ember_started := false
 var _player: PlayerController
 var _ship: HeroShip
 var _opponent: RangeOpponent
@@ -21,6 +23,11 @@ var _fleet_details := {}
 
 
 func on_startup_completed(main: Node) -> void:
+	if _ember:
+		if main is GameFlow and get_parent().call("get_main") == main:
+			_game = main as GameFlow
+			_ember_started = true
+		return
 	if _game != null or not main is GameFlow or get_parent().call("get_main") != main:
 		return
 	_game = main as GameFlow
@@ -45,6 +52,152 @@ func _v(value: Vector3) -> Array:
 	return [value.x, value.y, value.z]
 
 
+## All poses below are live common-world coordinates from this one sample.
+## Never use the legacy Torrent reference, retained startup poses, or a Host's
+## retained actor pose as a substitute for the actual active craft.
+func _ember_observation() -> Dictionary:
+	var result := {"mode": "ember", "frame": Engine.get_physics_frames(),
+		"main_current": false, "world_available": false, "actors_available": false, "menu_ready": false,
+		"coordinate_space": "common_world", "main_id": 0,
+		"world_origin_transaction_count": -1, "player": {}, "ship": {},
+		"ember": {"loaded": false, "loaded_instance_id": 0, "host": {}, "abandon": {}},
+		"home": {}, "return": {}}
+	var owner := get_parent()
+	if not is_instance_valid(_game) or not _game.is_inside_tree() \
+			or _game.is_queued_for_deletion() or not is_instance_valid(owner) \
+			or not owner.has_method("get_main") or owner.call("get_main") != _game:
+		return result
+	result.main_current = true
+	result.main_id = _game.get_instance_id()
+	result.menu_ready = StartupLoader.is_title_menu_ready(_game) and owner.has_method("get_loading_screen") \
+		and not is_instance_valid(owner.call("get_loading_screen"))
+	result["phase"] = GameFlow.Phase.keys()[_game.phase]
+	if not _ember_node_current(_game.world):
+		return result
+	result.world_available = true
+	var origin := _game.common_world_origin_rebase_owner
+	if _ember_node_current(origin):
+		result.world_origin_transaction_count = int(origin.get_snapshot().get("transaction_count", 0))
+	var bootstrap := _game.ember_streaming_bootstrap
+	var loaded: Node3D
+	if _ember_node_current(bootstrap) and bool(bootstrap.get("_configured")):
+		# The bootstrap's loaded-instance and generation getters reconcile the
+		# coordinator. Inspect its existing records without advancing streaming.
+		var coordinator := bootstrap.get("_coordinator") as WorldStreamingCoordinator
+		if _ember_node_current(coordinator):
+			var records := coordinator.get("_loaded") as Dictionary
+			var generations := coordinator.get("_generation_by_id") as Dictionary
+			var record := records.get(EmberMoonStreamingBootstrap.LOCATION_ID, {}) as Dictionary
+			var generation := int(generations.get(EmberMoonStreamingBootstrap.LOCATION_ID, -1))
+			result.ember["location_generation"] = generation
+			var candidate: Variant = record.get("instance")
+			if is_instance_valid(candidate) and candidate is Node3D \
+					and candidate.get_parent() == coordinator and int(record.get("generation", -1)) == generation:
+				loaded = candidate as Node3D
+		var frame := bootstrap.get_coordinate_frame_for_session()
+		result.ember["coordinate_frame_generation"] = frame.get_generation() if frame != null else -1
+	if _ember_node_current(loaded):
+		result.ember.loaded = true
+		result.ember.loaded_instance_id = loaded.get_instance_id()
+	var host := _game.ember_surface_loop_host
+	if _ember_node_current(host):
+		# This lightweight production snapshot avoids the full Host audit's
+		# bootstrap, telemetry and physics calculations on every observer tick.
+		var status := host.get_return_status_snapshot()
+		result.ember.host = {"instance_id": host.get_instance_id(),
+			"attached": status.get("attached", false), "phase_id": str(status.get("phase_id", &"")),
+			"generation": status.get("generation", -1),
+			"attachment_generation": status.get("attachment_generation", -1),
+			"terminal_reason": str(status.get("terminal_reason", &"")),
+			"identities": (status.get("identities", {}) as Dictionary).duplicate(true)}
+		result.ember.abandon = host.get_abandon_snapshot()
+	result["return"] = {
+		"approach_active": bool(_game.get("_mudds_return_approach_active")),
+		"approach_result": (_game.get("_last_mudds_return_approach_result") as Dictionary).duplicate(true),
+		"physical_arrival_required": bool(_game.get("_planetary_return_physical_arrival_required")),
+		"physical_arrival_armed": bool(_game.get("_planetary_return_physical_arrival_armed")),
+		"physical_arrival_result": (_game.get("_last_planetary_return_physical_arrival_result") as Dictionary).duplicate(true),
+		"receipt_consumed": bool(_game.get("_planetary_return_receipt_consumed")),
+	}
+	var craft := _game.get_active_ship()
+	var pilot := _game.player as PlayerController
+	if not _ember_node_current(craft) or not _ember_node_current(pilot):
+		return result
+	result.actors_available = true
+	# Exactly one telemetry sample for the current craft. Read the retained
+	# landing acceptance directly: the full contract getter cleans stale leases.
+	var telemetry := craft.get_telemetry()
+	var contract := craft.get("_landing_contract") as Dictionary
+	# These existing fields avoid getters that lazily build seats/input owners.
+	var source := craft.get("_default_local_command_source") as LocalShipInputSource
+	var boarding := craft.get_node_or_null(^"ShipBoardingArea") as ShipBoardingArea
+	var seat := craft.get("_pilot_seat_anchor") as Node3D
+	var support: Dictionary = {}
+	if not pilot.is_seated():
+		var ray := PhysicsRayQueryParameters3D.create(pilot.global_position + Vector3.UP * 0.2,
+			pilot.global_position - Vector3.UP * 0.3, PhysicsLayers.WORLD, [pilot.get_rid(), craft.get_rid()])
+		support = pilot.get_world_3d().direct_space_state.intersect_ray(ray)
+	var collider := support.get("collider") as Node
+	var supported_home := _ember_node_current(collider) and _game.world.is_ancestor_of(collider)
+	var supported_ember := _ember_node_current(collider) and _ember_node_current(loaded) and loaded.is_ancestor_of(collider)
+	result.player = {"instance_id": pilot.get_instance_id(), "path": str(pilot.get_path()),
+		"position": _v(pilot.global_position), "right": _v(pilot.global_basis.x),
+		"up": _v(pilot.global_basis.y), "back": _v(pilot.global_basis.z), "velocity": _v(pilot.velocity),
+		"seated": pilot.is_seated(), "seated_at_active_craft": is_instance_valid(seat) and pilot.is_seated_at(seat),
+		"seat_instance_id": seat.get_instance_id() if is_instance_valid(seat) else 0,
+		"boarding_reserved": is_instance_valid(boarding) and bool(boarding.get("_has_reservation"))
+			and boarding.get("_reservation_token") == pilot,
+		"control_enabled": pilot.is_control_enabled(), "grounded": pilot.is_on_floor(),
+		"support_collider_id": collider.get_instance_id() if is_instance_valid(collider) else 0,
+		"support_collider": str(collider.get_path()) if _ember_node_current(collider) else "",
+		"supported_home": supported_home, "supported_ember": supported_ember}
+	result.ship = {"instance_id": craft.get_instance_id(), "definition_id": str(craft.get_ship_id()),
+		"path": str(craft.get_path()), "position": _v(craft.global_position),
+		"right": _v(craft.global_basis.x), "up": _v(craft.global_basis.y), "back": _v(craft.global_basis.z),
+		"velocity": _v(craft.velocity), "piloted": craft.is_piloted(), "destroyed": craft.is_destroyed(),
+		"landed": bool(telemetry.get("landed", false)), "engine": str(telemetry.get("engine_state", &"")),
+		"landing_active": craft.is_landing_active(), "boarding": _v(craft.get_boarding_position()),
+		"exit": _v(craft.get_exit_transform().origin), "candidate": _game.boarding_candidate == craft,
+		"default_sampler": is_instance_valid(source) and craft.get("_command_source") == source and source.get_input_provider() == null}
+	var home: ShipBerth
+	if _game.world.has_method("get_berth_node") and _game.world.has_method("get_landing_assist_report"):
+		home = _game.world.call("get_berth_node", craft.get_home_berth_id()) as ShipBerth
+	if _ember_node_current(home):
+		var capture := _game.world.call("get_landing_assist_report", craft, craft.get_home_berth_id()) as Dictionary
+		var occupant := home.get_occupant()
+		var reservation_owner := home.get_reservation_owner()
+		# The public token/ship-id getters reconcile stale claims. Observing a
+		# stale lease must leave its owner, token and weak references untouched.
+		var token := StringName(home.get("_reservation_token"))
+		var reserved_ship_id := StringName(home.get("_reserved_ship_id"))
+		var token_bound := reservation_owner == craft and (occupant == null or occupant == craft) and not token.is_empty() \
+			and token == StringName(craft.get("_landing_reservation_token")) \
+			and reserved_ship_id == StringName(craft.get("_landing_reserved_ship_id"))
+		result.home = {"berth_id": str(home.get_berth_id()), "berth_instance_id": home.get_instance_id(),
+			"dock": _v(home.get_dock_transform().origin), "dock_forward": _v(-home.get_dock_transform().basis.z),
+			"capture_position": _v(home.get_assist_capture_transform().origin),
+			"selected_berth_id": str(capture.get("selected_berth_id", &"")),
+			"capture": bool(capture.get("assist_capture_accepted", false)),
+			"contract": bool(contract.get("contract_accepted", false)) and bool(contract.get("strict_dock_acceptance", false))
+				and token_bound and StringName(craft.get("_landing_berth_id")) == home.get_berth_id()
+				and int(craft.get("_landing_berth_instance_id")) == home.get_instance_id(),
+			"landing_abort_reason": str(craft.get("_landing_last_abort_reason")),
+			"lease": occupant == craft and reservation_owner == craft and not token.is_empty() and reserved_ship_id == craft.get_ship_id(),
+			"lease_free": occupant == null and reservation_owner == null and token.is_empty() and reserved_ship_id == &"",
+			"occupant_id": occupant.get_instance_id() if is_instance_valid(occupant) else 0,
+			"reservation_owner_id": reservation_owner.get_instance_id() if is_instance_valid(reservation_owner) else 0,
+			"reservation_token": str(token),
+			"reserved_ship_id": str(reserved_ship_id),
+			"parked_exact": craft.global_transform.is_equal_approx(home.get_dock_transform()),
+			"grounded": pilot.is_on_floor(), "supported": supported_home}
+	return result
+
+
+func _ember_node_current(node: Node) -> bool:
+	return is_instance_valid(node) and node.is_inside_tree() and not node.is_queued_for_deletion() \
+		and _game.is_ancestor_of(node)
+
+
 func _sortie_tuning() -> Dictionary:
 	return _craft_tuning(_ship)
 
@@ -62,6 +215,11 @@ func _craft_tuning(craft: HeroShip) -> Dictionary:
 
 
 func _physics_process(delta: float) -> void:
+	if _ember:
+		if not _ember_started:
+			return
+		print("NATIVE_SORTIE_OBSERVATION: " + JSON.stringify(_ember_observation()))
+		return
 	if _game == null:
 		return
 	_elapsed += delta

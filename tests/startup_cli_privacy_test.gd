@@ -51,6 +51,20 @@ func _run() -> void:
 		home_conflicting.append(conflict)
 		_check(not StartupLoaderType.native_sortie_request(home_conflicting, "X11", "Dummy", true).accepted,
 			"HULK home rejects duplicate or competing mode: %s" % conflict)
+	var ember_observer_args := PackedStringArray(["--native-sortie-observer=ember"])
+	_check(StartupLoaderType.native_sortie_request(ember_observer_args, "X11", "Dummy", true).accepted,
+		"Ember observation admits only the same silent private X11 route")
+	for row: Array in [["headless", "Dummy", true], ["wayland", "Dummy", true], ["X11", "PulseAudio", true], ["X11", "Dummy", false]]:
+		_check(not StartupLoaderType.native_sortie_request(ember_observer_args, row[0], row[1], row[2]).accepted,
+			"Ember preserves private X11 and Dummy admission")
+	for conflict in ["--native-sortie-observer", "--native-sortie-observer=ember", "--native-sortie-observer=sandbox-walk", "--native-sortie-observer=sandbox", "--native-sortie-observer=hulk-arrival", "--native-sortie-observer=hulk-breaker", "--native-sortie-observer=hulk-home", "--startup-check", "--frame-capture", "--version", "--help", "--support-info", "--support-export", "--reflection-reentry-check", "--in-world-interruption-stage=arm"]:
+		var ember_conflicting := ember_observer_args.duplicate()
+		ember_conflicting.append(conflict)
+		_check(not StartupLoaderType.native_sortie_request(ember_conflicting, "X11", "Dummy", true).accepted,
+			"Ember rejects duplicate or competing mode: %s" % conflict)
+	for malformed in ["--native-sortie-observer=Ember", "--native-sortie-observer=ember-extra", "--native-sortie-observer=ember=", "--native-sortie-observer ember"]:
+		_check(not StartupLoaderType.native_sortie_request(PackedStringArray([malformed]), "X11", "Dummy", true).accepted,
+			"Ember rejects malformed selector: %s" % malformed)
 	var fleet_args := PackedStringArray(["--native-sortie-observer=sandbox"])
 	_check(StartupLoaderType.native_sortie_request(fleet_args, "X11", "Dummy", true).accepted,
 		"full Sandbox observation admits only the same silent private input route")
@@ -73,6 +87,7 @@ func _run() -> void:
 	_check(not StartupLoaderType.native_sortie_request(PackedStringArray(["--native-sortie-observer=wrong"]), "X11", "Dummy", true).accepted,
 		"native observer rejects malformed selector")
 	for script_path in [
+		"res://scripts/diagnostics/native_sortie_observer.gd",
 		"res://scripts/game/game_flow.gd",
 		"res://scripts/world/shipyard_world.gd",
 		"res://scripts/ships/hero_ship.gd",
