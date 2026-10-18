@@ -8714,3 +8714,28 @@ capture/export/CI, runtime edit, tracker/validator, parked route retry or automa
 qualification chain. Stop once owner/seam/acceptance distinctions are known;
 real repairs need separate frozen cards. Commit/push source definitions without
 claiming current gameplay passes or whole fleet completion.
+
+
+## Hauler supply contract decomposition — 2026-10-18
+
+Selected source530ccda6b; one high-effort manifest/persistence reader plus root
+physical mapping, within20min source-only cap. No engine/test/capture/export/CI.
+Existing Cinder item/destination/quantity/phases/time and Jovian source IDs/stock
+remain binding. One initial-stock/custody choice was asked asynchronously and is
+pending; no answer/default or approval is inferred. Physical access is independent.
+
+Source shows three concrete blockers to a mere ship allowlist edit: Jovian-only
+compatibility/dock contact/frozen exit, generation0 recreated activity colliding
+with prior contract_g1 transfer/reward fences, and nonactive source retirement
+reseeding stock. Existing bridge and Loadmaster own none of that inventory.
+The existing backlog now names ordered access, stock, manifest and delivery cards.
+Stock choice controls later custody; manifest replacement must be monotonic and
+conserved without clearing reward/transfer fences. Cinder persistence remains
+terminal-summary-only, not live inventory or active-resume entitlement.
+
+HAULER-SUPPLY-ACCESS is separately selected onf09be3582 with exact files/proof/
+budget: production Hauler normal leased landing/contact and supported disembarked
+Player walk/Interact to existing terminal; original Jovian route retained. It does
+not admit cargo stock or complete delivery. No parked route reopened. Original
+craft/cargo/recovery gates, all36 parents/ten gates remain OPEN. Latest accepted
+playable99e79c3 unchanged until a separately validated checkpoint.
