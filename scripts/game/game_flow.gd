@@ -10878,6 +10878,7 @@ func _board_ship_locally(candidate: HeroShip, candidate_area: ShipBoardingArea) 
 	audio.set_on_foot(false)
 	audio.play_ui_confirm()
 	_transition_busy = false
+	_publish_network_crew_role_status()
 	_capture_solo_safe_recovery_context()
 
 
@@ -14284,6 +14285,9 @@ func _present_network_client_helm_released(craft: HeroShip) -> void:
 		))
 		_bind_cabin_occupancy(craft)
 	bind_network_remote_body(network_client_boarding_avatar_id(_network_client_peer_id()))
+	# The host's confirmed berth can replace a retained pilot role after the
+	# physical stand has already completed. Refresh that handoff as well.
+	_publish_network_crew_role_status()
 	if is_instance_valid(hud) and is_instance_valid(craft):
 		hud.toast(
 			"Helm handed back",
@@ -14464,6 +14468,7 @@ func _release_network_client_boarding_presentation(
 		# engine/landed/berth gates after the authority has released the seat.
 		_network_remote_helm = {}
 		_piloting = false
+		_publish_network_crew_role_status()
 		_disembark_ship_to_exterior(craft)
 		return
 	if not was_aboard:
@@ -14813,6 +14818,7 @@ func _leave_seat_into_cabin() -> void:
 	audio.set_on_foot(true)
 	audio.play_ui_confirm()
 	_transition_busy = false
+	_publish_network_crew_role_status()
 
 
 ## Single writer of the cabin occupancy + containment pair. Occupancy is the
