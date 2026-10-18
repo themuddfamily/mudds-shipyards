@@ -32,13 +32,13 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-The current planning task is to remove stale assignments and leave a bounded
-next card, rather than start another station-wide chain. Aft route definition
-is now complete from existing source; no engine or route run was needed.
+LIFE-ARM is selected for implementation and its bounded acceptance below.
+Route definition is complete from existing source; no engine or route run was
+needed for definition. Root owns integration, checks, packaging and cleanup.
 
 | Work | Kind / readiness | Owner and bounded next result | Estimate |
 | --- | --- | --- | --- |
-| LIFE-ARM | Acceptance/release capability; prepared below, not yet executed | One implementer owns the five named driver/observer/privacy files; root integrates, checks and packages. One independent reviewer checks lifecycle/input boundaries. Stop after one complete route or first failure. | 30–45min implementation/review; 10–15min focused checks/export/startup; native cap300s, outer360s |
+| LIFE-ARM | Acceptance/release capability; SELECTED, runtime NOT_RUN | Implementation in /srv/mudds-work/life-arm-20261018/source owns the five named files; root integrates, checks and packages. One independent reviewer checks lifecycle/input boundaries. Stop after one complete route or first failure. | 30–45min implementation/review; 10–15min focused checks/export/startup; native cap300s, outer360s |
 | HAULER-CARGO-MANIFEST | Production behavior; GATED on HAULER-CARGO-STOCK | Binding admission/conserved source custody. Current source rejects Hauler; generation-floor API already exists. [Exact stock prerequisite and proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). No duplicate generation API or implicit stock grant. | 60–90min implementation/focused checks after decision, checkpoint additional; split before90min |
 
 This is a local queue, not the remaining project. No Habitat-patrol, full Sandbox,
