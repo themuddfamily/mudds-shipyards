@@ -82,6 +82,16 @@ Titan decision remains pending; no further parked-route work is selected.
   consumes that velocity. No missing speed transport or new fix was identified;
   no engine run for this bounded comparison. Do not invent another gauge task.
 
+**Initial failure:** test-only920eb4bc0 import PASS20.693s; compile FAIL16.329s
+before HUD regression. GDScript cannot infer the new `frame` variable from
+GameFlow's dynamically typed HUD call. No runtime change or old-HUD proof yet.
+Raw: `/srv/mudds-work/remote-hull-hud-20261018/results/baseline_compile/`.
+**Selected ONE test repair:** root adds explicit Dictionary annotation to that
+snapshot local only. Compile once then old-runtime regression; preserve all
+acceptance and budgets. This failure and repair remain cumulative; any further
+unexpected failure requires priority review before diagnosis/fix/run. Estimate
+one minute edit/review, checks separate. No extra diagnostic probe selected.
+
 ### SPEC-TITAN — concrete interpretation proposal before building
 
 - **Owner/boundary:** one medium-effort documentation agent owns only
