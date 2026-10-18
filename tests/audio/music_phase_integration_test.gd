@@ -28,6 +28,31 @@ func _run() -> void:
 	bed.set_process(false)
 	game.music_bed = bed
 
+	# Stage the actual retained visits at the presentation seam; this is not a
+	# claim that either world's ordinary arrival route has been exercised.
+	game.set("phase", GameFlowType.Phase.APPROACH_SHIP)
+	game.set("_piloting", false)
+	game.set("_landing_request_active", false)
+	game.set("_ember_surface_journey_active", false)
+	for property: StringName in [&"_aurora_expedition", &"_rime_expedition"]:
+		var visit: RefCounted = game.get(property)
+		visit.set("state", &"surface")
+		game.call("_update_music_bed_state")
+		_check(
+			bed.get_presentation_state() == &"surface",
+			"%s retained surface visit selects the surface music profile on foot" % property
+		)
+		_check(
+			bed.get_bed_family() == StationMusicBed.FAMILY_SURFACE,
+			"%s retained surface visit uses the authored surface bed on foot" % property
+		)
+		visit.set("state", &"idle")
+	# Restore all staged flags before the original phase assertions.
+	game.set("_ember_surface_journey_active", false)
+	game.set("_landing_request_active", false)
+	game.set("_piloting", false)
+	game.set("phase", GameFlowType.Phase.APPROACH_SHIP)
+
 	game.set("phase", GameFlowType.Phase.APPROACH_SHIP)
 	game.set("_piloting", false)
 	game.set("_landing_request_active", false)
