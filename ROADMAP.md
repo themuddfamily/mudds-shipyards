@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: package the accepted on-foot release driver, then qualify the exported recovery.**
+**Next: qualify on-foot recovery in the exact new Linux checkpoint.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -13,7 +13,7 @@ phase gates remain open.** This file holds the executable queue; the
 | Outcome | Actual proof / limit |
 | --- | --- |
 | Immediate client landing edge retained exactly once | Runtime `2c73494a4`; old-runtime failure reproduced, consumer40/ship_command79 pass. Source/ownership/session boundaries revoke pending input. |
-| Fresh playable checkpoint **2c73494** | [Windows notes](builds/windows/MuddsShipyards-2c73494-notes.txt), [Linux notes](builds/linux/MuddsShipyards-2c73494-linux-notes.txt). Both exports, three strict startups,1515 actual matching payload entries and exact archives pass. |
+| Fresh playable checkpoint **f90547c** | [Windows notes](builds/windows/MuddsShipyards-f90547c-notes.txt), [Linux notes](builds/linux/MuddsShipyards-f90547c-linux-notes.txt). Adds on-foot release-driver support; both exports, three strict startups,1515 matching payload entries and exact archives pass. |
 | Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
 | Earlier passenger chair/HUD, lifecycle, browser/briefing deliveries | Retain their recorded scopes; no whole craft, parent or phase closes. |
 
@@ -22,7 +22,7 @@ return and four bounded definitions. Definitions are planning, not extra game
 features. The return's first`331a9628b` attempt FAILED at a client ownership predicate;
 one reviewed caller-only correction reads the received authoritative snapshot.
 Failed raw, original criteria and cumulative repair counts remain retained.
-The accepted caller changes no game runtime; checkpoint `2c73494` is still current.
+The accepted caller changes no game runtime; checkpoint `f90547c` now adds the accepted on-foot release-driver capability.
 No identical rebuild or unchanged route rerun is scheduled.
 
 **Still unqualified:** dedicated server, postdock exit/reuse, canonical shared
@@ -32,14 +32,14 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Next four cards
 
-**1 DONE, 2 IN PROGRESS, 1 GATED.** These are the current bounded deliveries, not the remaining
+**2 DONE, 2 IN PROGRESS.** These are the current bounded deliveries, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
 | RECOVERY-ONFOOT-PROBE | Release capability / DONE (source scope) | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
-| CHECKPOINT-ONFOOT-PROBE | Build / IN PROGRESS | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
-| RECOVERY-ONFOOT-CUT | Recovery qualification / GATED on probe+package | Real-file on-foot commit survives owned SIGKILL/distinct restart into supported walking and real boarding beside the saved craft. |10–20 min freeze/driver preparation; existing package-probe limits separate and unchanged. |
+| CHECKPOINT-ONFOOT-PROBE | Build / DONE | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
+| RECOVERY-ONFOOT-CUT | Recovery qualification / IN PROGRESS | Real-file on-foot commit survives owned SIGKILL/distinct restart into supported walking and real boarding beside the saved craft. |10–20 min freeze/driver preparation; existing package-probe limits separate and unchanged. |
 | ACCESS-PAUSE-16X10 | UI qualification / IN PROGRESS, fixture timing corrected | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
 
 The three recovery cards are sequential. UI work can proceed independently in
@@ -97,8 +97,9 @@ concrete boundary; one attempted repair requires priority review before more wor
   stock PE .text. Direct/archive Linux and actual Windows payload each strict
   headless/Dummy startup actualexit0+exactlyone STARTUP_MENU_READY_OK/no original
   error/leak diagnostics. Native Windows execution is not implied.
-- **Execution:** IN PROGRESS/root on accepted clean source `f90547c37`; paired
-  safe exports and three strict startups next.
+- **Execution:** DONE/root on accepted clean source `f90547c37`; both safe exports,
+  three strict startups, actual payload parity/archive/stock PE checks pass.
+  EXE/ZIP/notes and matching Linux artifacts are in repository builds/.
 - **Budget/stop/close:**15–25 min preparation/checks, original900s exports/300s
   startups separately. One export/platform, first failure stops with raw retained.
   Publish only repository builds; commit/push notes/index, then qualify the cut.
@@ -114,8 +115,11 @@ concrete boundary; one attempted repair requires priority review before more wor
   awake/unseated/controls enabled with no stale seat/hatch claim. Walk through
   normal input and Interact to board that craft; activity/debt/earned-reward state
   remains conserved/once-only. No airborne position or arbitrary power-loss claim.
-- **Execution:** GATED/root. Freeze exact package/hash, invocation, selected context
-  and original timeout before engines. Preparation10–20 min; stage checks retain
+- **Execution:** IN PROGRESS/root. Freeze accepted `f90547c` Linux ELF, SHA256
+  `5c0cfb46f1aa0a42bb9bdc087dfe9aec6fba6a5038425f197e282c0bb5dc17d9`,
+  existing runner `--native-export --in-world-interruption --activity=convoy`,
+  on_foot/private headless/Dummy, original300s/stage and660s outer. One run;
+  no automatic repair. Preparation10–20 min; stage checks retain
   existing release-driver bounds. First failure closes FAILED; no extra probe or
   automatic correction. Preserve raw/process/input closure; commit/push actual
   scope and clean owned scratch. Native hardware/device/audio remain separate.

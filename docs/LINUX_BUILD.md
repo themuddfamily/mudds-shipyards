@@ -4,7 +4,25 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `2c73494` — 2026-10-18
+## Latest development checkpoint: `f90547c` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-f90547c.x86_64),
+[archive](../builds/linux/MuddsShipyards-f90547c-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-f90547c-linux-notes.txt) use accepted clean
+source `f90547c37998a588e5f16baad462be17ebeb5986`, integrated on main. The existing
+release driver now covers settled exterior on-foot recovery beside Bulwark.
+Source compile/CLI249 and real-file source kill/restart pass: supported walking,
+ordinary Interact boarding, conserved convoy boundary and receipts1→2 once.
+Craft-motion/home-approach fixtures are disclosed; no fullflight/pose claim.
+
+Both safe exports, direct/archive Linux strict startups and actual Windows
+payload startup through Linux Godot pass. All1515 actual PCK entries match;
+stock PE .text, exact archive/generated launchers/modes/metadata and Windows ZIP
+verify. Seven artifact/note files are available in repository builds/. Exact
+exported-game on-foot interruption is IN PROGRESS; source proof does not close it.
+Native Windows/GPU/device/audio/human/full matrix/endurance/release remain open.
+
+## Earlier development checkpoint: `2c73494` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-2c73494.x86_64),
 [archive](../builds/linux/MuddsShipyards-2c73494-linux-x86_64.tar.gz) and

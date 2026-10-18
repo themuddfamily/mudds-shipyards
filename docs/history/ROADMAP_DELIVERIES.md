@@ -5438,3 +5438,20 @@ Packaged/native execution remains NOT_RUN. CHECKPOINT-ONFOOT-PROBE now starts
 from exact accepted clean f90547c37 with original exports900/platform and strict
 startups300 each; public checkpoint2c73494 remains current until all new audits
 and publication pass. Hosted CI/native Windows/GPU/human gates remain open.
+
+CHECKPOINT-ONFOOT-PROBE DONE on accepted clean f90547c37. Both safe exports
+and three strict startups pass actual0/exactlyone menu marker/diagnostics0.
+All1515 actual PCK entry bytes match, stock PE .text/architecture, exact tar
+root+five files/modes/launchers/metadata and two-member WindowsZIP verify.
+Seven files copied byte-identically into repository builds/windows and builds/linux;
+checkpoint-publication.json retains exact hashes. EXE184583616 bytes SHA
+e714066935b76076edcd86b9e20f484a6435c40e892b7b1657adf16258f81718;
+Linux ELF148825328 SHA5c0cfb46f1aa0a42bb9bdc087dfe9aec6fba6a5038425f197e282c0bb5dc17d9.
+All startup source/cache guards hold, supervisors close, startup private profiles
+are removed. Windows is actual embedded payload through Linux Godot, not native.
+
+RECOVERY-ONFOOT-CUT now freezes that public Linux ELF/hash and existing source
+f905 driver, --native-export --in-world-interruption --activity=convoy, on_foot,
+headless/Dummy/private profile, original300s per stage/660s outer. One actual
+package invocation; first failure STOP without automatic repair. Source proof
+does not substitute for this packaged acceptance. Raw stays in the same taskroot.
