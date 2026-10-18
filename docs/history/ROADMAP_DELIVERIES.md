@@ -5818,3 +5818,21 @@ normal approach; flight/moving cabin/recovery are not included. No runtime fix
 or checkpoint is selected. Frozen timeouts, unique selected markers, firstfailure
 and cumulative one-repair/priority-review limits remain. Engines NOT_RUN at
 assignment; candidates require source review/pin before one compile/selected run.
+
+
+KIT-DEPART e2cf6ce64 clean import/compile PASS; ONE selected route FAILS before
+thrust at cargo-owner identity. Raw shows initial phaseSTART_ENGINES, source6/
+destination0, no start snapshot and forward0. GameFlow cargo_destination_entity
+is actual JovianFreightBerth service node, while caller compared it to ShipBerth
+physical lease node. Source/report comparison is the one bounded diagnostic;
+minimap correctly uses the physical dock origin and needs no change. No runtime
+departure defect is established. Failed source/raw retained under
+`/srv/mudds-work/jovian-kit-depart-20261018/results/route/`.
+
+One5min KIT-DEPART-CALLER-OWNER repair selected: compare cargo destination with
+world.get_jovian_freight_berth(), retaining all physical ShipBerth lease assertions.
+One compile and one unchanged selected route after new clean pin; no deadline or
+acceptance growth. Another failure requires cumulative priority review before
+more work. Independent Halyard6b17c130f static review completed after own-pilot
+publication and nullable diagnostic corrections; its silent import starts only
+after the cargo route is terminal, avoiding concurrent engine checks.

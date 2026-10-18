@@ -123,6 +123,14 @@ accepted runtime repairs require separate cards and fresh paired builds.
   `work/jovian-kit-depart-20261018`. Freeze clean candidate
   before implementation.30–60 min; compile300s and one full extended300s route,
   outer360s; preserve prior approach/boarding and10s departure/10s brake bounds.
+- **First attempt/repair:** e2cf6ce64 import/compile PASS; route FAILED before
+  thrust at cargo destination identity. Snapshot source6/destination0 is correct,
+  but caller compared JovianFreightBerth service node to the distinct ShipBerth
+  physical lease owner. One static raw/source comparison identifies this caller
+  error. KIT-DEPART-CALLER-OWNER is selected,5 min: use actual service accessor
+  for cargo identity, retain physical ShipBerth for lease checks. Preserve failed
+  raw, commit clean corrected pin, one compile and ONE unchanged selected route.
+  No runtime/criterion/timeout changes. Further failure requires priority review.
 - **Stop/close:** first failure records actual input/engine/berth/activity owner;
   no automatic runtime fix. Landing/transfer/reward remain KIT-DELIVER.
   Record result/pin/limits, commit/push and owned cleanup.
