@@ -121,7 +121,7 @@ func _client_flight() -> bool:
 	if not await _flight_wait(func():
 		var sample := _flight_pose_sample()
 		return int(sample.get("pose_tick", -1)) > int(_flight_start.pose_tick) \
-			and int(sample.get("owner_peer_id", 0)) == int(_flight_start.pilot_peer),
+			and int(sample.get("pilot_peer_id", 0)) == int(_flight_start.pilot_peer),
 		maxf(0.0, float(initialization_deadline - Time.get_ticks_msec()) / 1000.0),
 		"initial consumed craft pose advances past host start tick with current pilot owner inside initial8s"):
 		return false
@@ -153,7 +153,7 @@ func _client_flight() -> bool:
 	if not await _flight_wait(func():
 		var sample := _flight_pose_sample()
 		return int(sample.get("pose_tick", -1)) > int(_flight_start.pose_tick) \
-			and int(sample.get("owner_peer_id", 0)) == int(_flight_start.pilot_peer) \
+			and int(sample.get("pilot_peer_id", 0)) == int(_flight_start.pilot_peer) \
 			and _station_position().distance_to(stopped_position) <= 0.5 \
 			and _body_follows_anchor(_player, _flight_anchor, true), 5.0,
 		"actual client hull converges<=0.5m in station frame with advanced consumed pose tick and same pilot owner within5s"):
@@ -237,7 +237,7 @@ func _local_flight_current() -> bool:
 	var passenger_has_no_producer := _role == "client" or ((source == null or not source.is_enabled_owner())
 		and (active == null or not active.is_enabled_owner()))
 	var sample := _flight_pose_sample()
-	var owner_current := not _flight_pose_ready or int(sample.get("owner_peer_id", 0)) == int(_flight_start.pilot_peer)
+	var owner_current := not _flight_pose_ready or int(sample.get("pilot_peer_id", 0)) == int(_flight_start.pilot_peer)
 	return current and _walking_identity_is_preserved() and _player.get_instance_id() == _initial_player_id \
 		and _player.is_seated_at(_flight_anchor) and _body_follows_anchor(_player, _flight_anchor) \
 		and source == _flight_source \
@@ -312,7 +312,7 @@ func _client_flight_receipt() -> Dictionary:
 		"anchor": _node_identity(_flight_anchor),
 		"seat_anchor_error_m": _player.global_position.distance_to(_flight_anchor.global_position) if is_instance_valid(_flight_anchor) else -1.0,
 		"identities": _local_flight_manifest(),
-		"consumed_pose": _primitive_fields(_flight_pose_sample(), ["ship_id", "pose_tick", "owner_peer_id"])}
+		"consumed_pose": _primitive_fields(_flight_pose_sample(), ["ship_id", "pose_tick", "pilot_peer_id"])}
 
 
 func _failure_snapshot(description: String) -> Dictionary:
@@ -323,7 +323,7 @@ func _failure_snapshot(description: String) -> Dictionary:
 		flight["station_position"] = _vector_values(_station_position())
 		flight["speed"] = _craft.velocity.length()
 		flight["landed"] = bool(_craft.get("_landed"))
-		flight["consumed_pose"] = _primitive_fields(_flight_pose_sample(), ["ship_id", "pose_tick", "owner_peer_id"])
+		flight["consumed_pose"] = _primitive_fields(_flight_pose_sample(), ["ship_id", "pose_tick", "pilot_peer_id"])
 		var command := _craft.get_last_ship_command()
 		if command != null:
 			flight["consumed_command"] = {"stream_id": command.stream_id, "sequence": command.sequence,
