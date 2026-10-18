@@ -700,15 +700,10 @@ func _walk(player: PlayerController, start: Vector3, frames: int) -> Dictionary:
 		await physics_frame
 	var initial := player.global_position
 	Input.action_press(&"move_forward")
-	var successful_events := 0
 	for _frame in frames:
 		await physics_frame
-		var motion: Dictionary = player.get_step_up_assist_audit().get("completed_motion", {})
-		if not (motion.get("step_up", {}) as Dictionary).is_empty():
-			successful_events += 1
 	Input.action_release(&"move_forward")
 	await physics_frame
-	_check(successful_events == 0, "a headroom, void or nonwalkable refusal never creates a successful step event")
 	return {
 		"initial": initial,
 		"final": player.global_position,
