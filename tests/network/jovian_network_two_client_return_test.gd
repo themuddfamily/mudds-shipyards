@@ -318,7 +318,7 @@ func _host_postdock_exit() -> bool:
 	_postdock_start = _postdock_receipt()
 	_postdock_active = true
 	_write("host.postdock_go", _postdock_start)
-	if not await _postdock_wait(func(): return _flight_file_exists("client_b.postdock_stood")
+	if not await _postdock_wait(func(): return _flight_file_exists("client_b.postdock_stood") \
 		and _host_postdock_cabin_current(), 8.0,
 		"original passenger releases exact co_pilot_station and stands supported with original cabin berth/body within8s"):
 		return false
@@ -334,14 +334,14 @@ func _host_postdock_exit() -> bool:
 		return false
 	_write("host.postdock_hatch_checked", _postdock_receipt())
 	_return_stage = "host.postdock_exterior"
-	if not await _postdock_wait(func(): return _flight_file_exists("client_b.postdock_exterior")
+	if not await _postdock_wait(func(): return _flight_file_exists("client_b.postdock_exterior") \
 		and _host_postdock_released(), 8.0,
 		"ordinary hatch exit releases passenger cabin occupancy, chair, moving-body publication and movement generation within8s"):
 		return false
 	_postdock_exited = true
 	_write("host.postdock_exterior_checked", _postdock_receipt())
 	_return_stage = "host.postdock_ground_walk"
-	if not await _postdock_wait(func(): return _flight_file_exists("client_b.postdock_ground_walk")
+	if not await _postdock_wait(func(): return _flight_file_exists("client_b.postdock_ground_walk") \
 		and _flight_file_exists("client.postdock_retained") and _host_postdock_released(), 15.0,
 		"original pilot consumes unchanged landed arrival while original passenger measurably walks supported berth ground"):
 		return false
