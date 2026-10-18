@@ -5513,3 +5513,15 @@ outcome,30–45min; existing selected300s acceptance), then its gated paired
 checkpoint. No new UI probe/repair ran after the failed corrected qualification.
 All36 broad parents and ten phase gates remain open; inventory count19 DONE
 includes scoped planning/source/build/qualification outcomes, not project%.
+
+## UI-CONFLICT-REVEAL — bounded production correction
+
+Clean candidate af660151c adds five HUD lines after conflict presentation/focus:
+next process_frame once requests the existing deferred/liveness-guarded scroll
+reveal. Existing automatic focus-follow used pre-reveal layout; no later reveal
+corrected the offscreen choice. Decisions/persistence/focus identity are unchanged.
+Original HUD bytes match the4128526 failed qualification; no unchanged baseline
+engine rerun. Independent static review and explicit import600/compile300/one
+existing selected300s check are frozen before engines. First new failure stops;
+original initial failure/fixture correction/full conflict failure stay cumulative.
+Private scratch stays under ui-conflict-reveal-20261018; no new repository harness.

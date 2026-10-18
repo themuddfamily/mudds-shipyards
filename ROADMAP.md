@@ -33,12 +33,12 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Next two cards
 
-**1 READY, 1 GATED.** These are executable task instances, not the remaining
+**1 IN PROGRESS, 1 GATED.** These are executable task instances, not the remaining
 whole-project job count. Root owns integration. Do not reopen parked failures.
 
 | Task | Type / state | Observable finish | Work estimate; checks separate |
 | --- | --- | --- | --- |
-| UI-CONFLICT-REVEAL | Production UI / READY | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
+| UI-CONFLICT-REVEAL | Production UI / IN PROGRESS | Binding-conflict choices remain visible and focused when Options scrolls at1920x1200. |30–45 min implementation/review; compile300s and existing selected check300s. |
 | CHECKPOINT-PAUSE-CONFLICT | Build / GATED on accepted repair | Fresh paired package contains the accepted UI repair. |15–25 min artifact work; export900s/platform and startup300s each. |
 
 ### UI-CONFLICT-REVEAL — make the focused conflict choice visible
@@ -60,8 +60,11 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
   choice must fit both safe bounds and its scroll clip, with live focus. Preserve
   every existing criterion and requested/effective scale reporting. Native
   devices, rendered readability and actual persistence transactions stay separate.
-- **Execution:** READY/root; inspect the demonstrated conflict reveal/scroll
-  ordering and make one bounded production correction. One diagnostic hypothesis
+- **Execution:** IN PROGRESS/root; clean candidate `af660151c` schedules the
+  existing guarded conflict reveal after layout. Independent static review and
+  exact import600s/compile300s/one selected300s check are next; preserve all
+  original criteria. No unchanged baseline rerun: HUD source matches4128526
+  before the candidate. One bounded production correction only. One diagnostic hypothesis
   permits one probe if needed. Budget30–45 min; split before90. First new failure
   stops with source/view/control/scale recorded; no automatic second repair.
   Initial qualification and fixture-correction failures remain cumulative.
