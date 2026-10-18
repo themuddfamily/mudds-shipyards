@@ -1,6 +1,7 @@
 extends SceneTree
 
 const HudType := preload("res://scripts/ui/hud.gd")
+const Browser := preload("res://scripts/network/network_server_browser.gd")
 
 var _assertions := 0
 var _failures: PackedStringArray = []
@@ -127,6 +128,7 @@ func _run() -> void:
 	disconnect.pressed.emit()
 	_check(_intents.size() == intent_count + 1, "offline browser leave cannot emit a stale connected intent")
 
+	_check_independent_host_rows(hud)
 	hud.queue_free()
 	await process_frame
 	if _failures.is_empty():
@@ -146,3 +148,38 @@ func _check(condition: bool, message: String) -> void:
 	_assertions += 1
 	if not condition:
 		_failures.append("FAIL: " + message)
+
+
+func _check_independent_host_rows(hud: Node) -> void:
+	var browser := Browser.new(77, 3)
+	var entries := [
+		{"session_id": &"host_a", "host_peer_id": 7, "title": "Host A", "region_id": &"eu-west", "ping_ms": 42, "player_count": 2, "max_players": 4, "capacity_generation": 4},
+		{"session_id": &"host_b", "host_peer_id": 8, "title": "Host B", "region_id": &"us-east", "ping_ms": 85, "player_count": 1, "max_players": 6, "capacity_generation": 1},
+	]
+	_check(browser.publish_snapshot(77, 1, 10, entries).accepted, "two independent host generations publish to the real directory")
+	_check(hud.apply_server_browser_result({"accepted": true, "rows": browser.query()}), "HUD accepts the real directory's independent host rows")
+	_check_host_occupancy(hud, "2/4 guests", "HUD lists host A generation4 and host B generation1 with exact occupancy")
+	entries[0].capacity_generation = 5
+	entries[0].player_count = 3
+	_check(browser.publish_snapshot(77, 1, 11, entries).accepted, "real directory advances only host A capacity")
+	hud.apply_server_browser_result({"accepted": true, "rows": browser.query()})
+	_check_host_occupancy(hud, "3/4 guests", "advancing host A preserves host B generation1 in the HUD")
+	entries[0].capacity_generation = 4
+	entries[0].player_count = 1
+	_check(browser.publish_snapshot(77, 1, 12, entries).accepted, "real directory delivers an older host A capacity in a fresh snapshot")
+	hud.apply_server_browser_result({"accepted": true, "rows": browser.query()})
+	_check_host_occupancy(hud, "3/4 guests", "stale host A capacity cannot roll back its HUD row or hide host B")
+
+
+func _check_host_occupancy(hud: Node, host_a_occupancy: String, description: String) -> void:
+	var rows := hud.get("_server_browser_rows") as VBoxContainer
+	var host_a: Button
+	var host_b: Button
+	for child in rows.get_children():
+		if child is Button and child.get_meta(&"session_id", &"") == &"host_a":
+			host_a = child as Button
+		if child is Button and child.get_meta(&"session_id", &"") == &"host_b":
+			host_b = child as Button
+	_check(rows.get_child_count() == 2 and host_a != null and host_b != null
+		and host_a.text.contains(host_a_occupancy) and host_b.text.contains("1/6 guests")
+		and not host_a.disabled and not host_b.disabled, description)

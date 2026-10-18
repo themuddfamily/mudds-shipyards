@@ -22,7 +22,7 @@ var _region_filter: StringName = &""
 var _max_ping_ms := PING_ANY
 var _include_full := true
 var _generation := 0
-var _latest_capacity_generation := 0
+var _session_capacity_rows: Dictionary = {}
 var _last_snapshot: Dictionary = {}
 var _last_unfiltered_rows: Array = []
 var _focus_target: StringName = &"refresh"
@@ -117,6 +117,7 @@ func present_result(result: Dictionary) -> Dictionary:
 	var requested_status := StringName(str(result.get("status", &"")))
 	if requested_status == &"expired" or result.get("reason", &"") in [&"directory_expired", &"results_expired"]:
 		_last_unfiltered_rows.clear()
+		_session_capacity_rows.clear()
 		_focus_target = &"retry"
 		return _complete_result(_status_snapshot(
 			&"expired", [], &"directory_expired",
@@ -124,6 +125,7 @@ func present_result(result: Dictionary) -> Dictionary:
 		))
 	if not bool(result.get("accepted", false)):
 		_last_unfiltered_rows.clear()
+		_session_capacity_rows.clear()
 		var reason := StringName(str(result.get("reason", &"directory_unavailable")))
 		var message := _status_reason_message(reason, str(result.get("message", "")))
 		var retryable := bool(result.get("retryable", true))
@@ -135,23 +137,24 @@ func present_result(result: Dictionary) -> Dictionary:
 		failed["retry_after_milliseconds"] = retry_after_milliseconds
 		return _complete_result(failed)
 	var source_rows: Array = result.get("rows", []) as Array
-	var newest_capacity_generation := _latest_capacity_generation
-	for source in source_rows:
-		if source is Dictionary:
-			newest_capacity_generation = maxi(
-				newest_capacity_generation,
-				int((source as Dictionary).get("capacity_generation", (source as Dictionary).get("generation", 0)))
-			)
-	_latest_capacity_generation = newest_capacity_generation
+	# Capacity generations belong to a session, not the directory as a whole.
+	# Retain only sessions in this accepted, bounded snapshot: removed/expired
+	# records must never be resurrected by a later capacity comparison.
+	var next_capacity_rows: Dictionary = {}
 	var rows: Array = []
 	for source in source_rows:
 		if rows.size() >= MAX_ROWS or not source is Dictionary:
 			break
-		var source_generation := int((source as Dictionary).get("capacity_generation", (source as Dictionary).get("generation", 0)))
-		if source_generation > 0 and source_generation < _latest_capacity_generation:
-			continue
 		var row := _present_row(source as Dictionary)
+		var session_id := StringName(str(row.get("session_id", "")))
+		if session_id != &"":
+			var previous: Dictionary = _session_capacity_rows.get(session_id, {})
+			var source_generation := int(row.get("capacity_generation", 0))
+			if source_generation > 0 and source_generation < int(previous.get("capacity_generation", 0)):
+				row = previous.duplicate(true)
+			next_capacity_rows[session_id] = row.duplicate(true)
 		rows.append(row)
+	_session_capacity_rows = next_capacity_rows
 	_last_unfiltered_rows = rows.duplicate(true)
 	var filtered_rows := _sort_rows(_filter_rows(_last_unfiltered_rows))
 	var all_full := not filtered_rows.is_empty() and filtered_rows.all(
@@ -278,7 +281,7 @@ func close_view() -> Dictionary:
 	_source_server_tick = -1
 	_source_receipt_sequence = -1
 	_source_fenced = false
-	_latest_capacity_generation = 0
+	_session_capacity_rows.clear()
 	if _focus_target in [&"retry", &"cancel"] or _focus_target.begins_with("row:"):
 		_focus_target = &"refresh"
 	_last_unfiltered_rows.clear()
