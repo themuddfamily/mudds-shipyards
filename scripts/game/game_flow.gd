@@ -7196,6 +7196,16 @@ func _network_local_role_presentation() -> Dictionary:
 	# A confirmed crew chair can belong to a different craft than the retained
 	# pilot selection. Resolve its presentation without changing that selection.
 	var presentation_craft: HeroShip = active_ship
+	# A confirmed walking berth is a passenger role even when admission still
+	# remembers the pilot role from before the seat-to-cabin handback.
+	if local_role == &"observer" and phase == Phase.IN_FLIGHT_CABIN \
+			and is_instance_valid(_cabin_ship) and _cabin_ship.is_inside_tree() \
+			and not _cabin_ship.is_queued_for_deletion() \
+			and _network_client_boarding_is_live() and _network_client_boarding_holds(_cabin_ship) \
+			and StringName(_network_client_boarding_claim.get("role", &"")) == &"passenger" \
+			and not StringName(_network_client_boarding_claim.get("seat_id", &"")).is_empty():
+		local_role = &"passenger"
+		presentation_craft = _cabin_ship
 	if not _piloting and _station_seated and is_instance_valid(_network_engineer_client_seat):
 		var crew_craft: HeroShip = _network_engineer_client_seat.get_ship()
 		if is_instance_valid(crew_craft):
