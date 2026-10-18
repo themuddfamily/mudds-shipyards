@@ -4274,3 +4274,116 @@ parents and ten phase gates remain open.
 - **Close:** integrate caller only after acceptance, commit/push result and clean
   owned disposable checkout/profiles. This qualifies boarding only, not flight,
   headless-server operation, endurance, native hardware or a whole phase.
+
+
+## Confirmed crew craft label — source delivered; checkpoint setup failed
+
+NET-CREW-HUD-CRAFT is DONE for its focused source scope. Clean source
+`b6196a19acf26a018f66341c014cc655bb9dc92d` is integrated and pushed to main.
+Confirmed crew presentation now uses the occupied chair's ship for craft name
+and ID while preserving the selected pilot craft, pilot priority, pending/invalid/
+released fallback and existing lifecycle guards. No claims, authority or movement
+changed. Independent bounded source review GO.
+
+Regression-only source `3a8db6003d287a0850d1f833c356a07be112ce60` reproduces exactly
+the passenger Torrent/Jovian mismatch: 50 other assertions pass, actual exit1,
+one expected failure and no unexpected diagnostics. Fixed source's existing HUD
+suite passes51 in30.865s and role-publication suite passes3 in15.777s; actual
+exit0, exactly one original marker per suite, diagnostics0. Production crew
+boarding/stand callbacks and consumed presenter are exercised with distinct
+selected Torrent and occupied Jovian; admitted host state is staged. Existing
+physical pilot and retired-session checks remain. Import/explicit compile pass
+before each run; source manifests and all320 cache files remain unchanged
+through focused checks. This is source component acceptance, not ordinary-peer
+or packaged route qualification.
+
+CHECKPOINT-CREW-HUD is FAILED at its first Windows export, actual exit1. Godot
+cannot find Windows debug/release templates under the private XDG profile.
+The agent noticed an existing export_templates directory during preparation,
+but proceeded without creating/verifying its versioned child link. Windows
+uses this XDG path; the supplied Linux template override does not redirect it.
+This is an agent setup error, not evidence of a game defect. No new EXE published;
+Linux export, all package startups, artifact audit and checkpoint publication
+are NOT_RUN. Latest playable Windows/Linux packages remain ad596e4. No rerun
+erases this failure.
+
+Priority review selects one bounded private-profile correction and checkpoint
+from the same accepted runtime, ahead of ordinary boarding or parked VIP/Ember:
+a playable build is required after the delivered runtime change, and the exact
+setup defect is known. Preflight must resolve/hash the actual versioned XDG
+Windows paths before another engine launch. Its one repair export retains the
+original900s/300s export/startup caps and stops on any failure. Prior failures
+remain cumulative; no new runtime diagnosis is selected. Actual task preparation
+began02:48:36 UTC; source checks completed around02:54 UTC and export failed
+at02:54:51 UTC; original status/log times remain authoritative.
+
+Raw: `/srv/mudds-work/crew-hud-craft-20261018/results/`, including negative/positive
+results, exact stage commands/statuses, PID/start observations, full logs, cache
+guards, source review and failed export. Owned clean checkout/private profiles
+and operational helpers are removed after terminal-process inspection; unique raw
+and committed source remain. All automated engines used headless/Dummy. No
+Downloads, active desktop or hosted CI. All36 broad parents/ten phase gates and
+native Windows/GPU/device/audio/human/full-matrix/release gates retain their
+actual open or NOT_RUN scope.
+
+### Executed cards — frozen contract
+
+## Next slice — correct the confirmed passenger craft label
+
+The original boarding qualification on cbbebd715 is FAILED after one134.850s
+run. A now passes ordinary pilot seating/PILOT-Jovian and current host authority.
+B is locally seated at Jovian's copilot anchor with current identity and PASSENGER
+role, but its consumed craft remains Torrent. The full passenger predicate and
+final dual-seat host confirmation have not passed. [Exact result and original
+contract](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-boarding--passenger-craft-label-failure-oncbbebd715).
+
+| Task | Type / status / owner | Observable finish | Budget |
+| --- | --- | --- | --- |
+| NET-CREW-HUD-CRAFT | Runtime fix / READY / root | A confirmed Jovian passenger sees Jovian in network status even when the previous pilot craft remains selected. | Implementation/review20–30min; focused checks/import/compile separately. |
+| CHECKPOINT-CREW-HUD | Build / GATED on1 / root | Fresh playable Windows/Linux checkpoint contains the accepted label fix, with strict startups and exact artifact checks. | Preparation/checks15–25min; original export/startup caps retained. |
+| NET-JOVIAN-BOARD | Qualification / GATED on1–2 / root | Both ordinary clients retain their real Jovian seats, current identity/authority and correct consumed HUD, with actual exits0. | Compose/freeze5–10min; compile and one original300s route separately. |
+
+### NET-CREW-HUD-CRAFT — derive crew presentation from the confirmed seat
+
+- **Parent/result:** parents16/25; fix the demonstrated PASSENGER/Torrent label
+  while B is physically seated in Jovian. This is a presentation repair, not a
+  new seat or authority. A's accepted pilot HUD behavior must remain intact.
+- **Evidence/owner:** `_network_local_role_presentation` derives role from the
+  live crew seat but always derives craft name/ID from `active_ship`. A passenger
+  need not replace the prior pilot selection. The retained B snapshot proves
+  the visible mismatch; `ShipCrewSeat.get_ship()` exposes the actual seat owner.
+- **Boundary:** root owns `scripts/game/game_flow.gd` and the existing
+  `tests/network/game_flow_hud_network_status_test.gd`. Resolve craft name/ID
+  through the confirmed crew presentation owner, preserving pilot/observer and
+  invalid/released-seat fallback. Do not mutate `active_ship`, claims, controls,
+  seat authority, protocol or physical movement to make a label match.
+- **Proof:** extend the existing confirmed-crew regression with distinct prior
+  pilot craft and actual crew-seat craft. Its expected pre-fix mismatch must
+  reproduce the recorded defect, then confirmed callback status names Jovian
+  after the repair, release/fallback stays correct, and pilot/retired-session
+  checks remain green. Use the existing HUD network suite and
+  `tests/game_flow_network_role_publication_test.gd`, Dummy/headless, original
+  limits and clean recorded source. Do not substitute a manual role publication
+  or staged selection equal to the occupied craft for the production callback.
+- **Budget/stop:**20–30min implementation/review; source import/compile/checks
+  separately. Any unexpected failure or failed repair check stops for priority
+  review. The planned old-runtime regression is defect reproduction, not another
+  ordinary-route probe. No extra diagnostic run is scheduled.
+- **Close:** integrate only accepted runtime/tests, commit/push, immediately build
+  CHECKPOINT-CREW-HUD; clean owned disposable files and retain unique raw.
+
+### CHECKPOINT-CREW-HUD — playable checkpoint of the accepted label repair
+
+- **Parent/result:** parents6/32; root uses the existing safe export workflow on
+  the accepted clean runtime commit. Freeze exact source/engine/templates first.
+- **Artifacts/proof:** repository `builds/windows/` EXE/ZIP/notes and matching
+  Linux ELF/archive/notes. Relevant focused checks, payload-entry byte parity,
+  exact archive/ZIP members/modes/content and source metadata; direct Linux,
+  extracted Linux and supported Windows-payload strict silent startups each
+  require actual exit0 plus STARTUP_MENU_READY_OK. Native Windows/hardware and
+  full-release gates retain their unperformed scope. No Downloads/hosted CI.
+- **Budget/stop:**15–25min preparation/checks, original900s export and300s startup
+  budgets. One export per platform; first failure stops with its owner/remaining
+  action. Do not regenerate unchanged artifacts to erase a failed check.
+- **Close:** publish exact local artifacts and honest notes, commit/push indices,
+  remove owned clean export checkout/profiles and keep actual raw acceptance.

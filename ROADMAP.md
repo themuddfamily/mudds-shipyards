@@ -10,13 +10,12 @@ source, checks, failures and limitations. Moving them does not close requirement
 
 Latest Windows checkpoint: **ad596e4**, with [notes](builds/windows/MuddsShipyards-ad596e4-notes.txt).
 Latest Linux package: **ad596e4**, with [notes](builds/linux/MuddsShipyards-ad596e4-linux-notes.txt).
-Remote pilot seating and confirmed helm release now refresh the consumed
-network HUD through the existing live-session guard. Focused physical Main/HUD44
-and role-publication3 pass; paired exports, three strict menu startups and all1515
-identical payload-entry bytes pass. The focused fixture stages admission/host
-roles. The latest normal-spawn/two-client run passes pilot/HUD but fails B’s
-passenger craft label; full boarding stays unqualified. Flight/return/endurance
-and earlier native observer smoke stay open.
+Latest runtime source: **b6196a19a** (pushed). Confirmed crew status now takes
+craft name/ID from the occupied chair's ship while retaining the pilot selection.
+The old runtime reproduces the passenger mismatch; focused HUD51 and role3 pass
+with no diagnostics. **Its checkpoint is not published:** Windows export failed
+because the private XDG profile lacked its versioned template link. The latest
+playable packages remain ad596e4; the original boarding route is still unqualified.
 Current full matrix: NOT_RUN;
 last unfiltered matrix `f85957f` failed 11 of 1,045 suites. Focused passes do not
 replace it. Native Windows execution and human review remain owner-excluded
@@ -30,16 +29,16 @@ separates named outcomes from missing definitions; it is not a remaining-job
 count. **The physical Jovian passenger-seat repair is delivered. The ordinary
 two-client boarding attempt FAILED. Both lifecycle cards PASS on frozen d7be01487.**
 **Pilot HUD ownership is repaired and checkpointad596e4 is published.**
-**The next task fixes the confirmed passenger’s wrong craft label.**
+**The passenger craft-label source repair is delivered; its checkpoint failed at export-profile setup.**
 The full ordinary two-client boarding route is still unqualified.
 VIP remains FAILED/parked after its first attempt and one syntax repair.
 The passenger-seat and pilot-HUD outcomes close only their named scope; no
 parent or phase gate closes.
 
-- **Latest source delivery:** ad596e474 publishes consumed pilot/craft status
-  after physical seating, completed cabin stand and confirmed helm/departure
-  handoffs, preserving live-client/retired-session guards. Physical Main/HUD44
-  and role-publication3 pass, with staged admission/host roles.
+- **Latest source delivery:** b6196a19a resolves confirmed crew craft name/ID
+  through the actual chair owner without changing selection or authority.
+  The expected old-runtime mismatch is reproduced; focused HUD51 and role3 pass,
+  source/cache guards pass, independent review GO.
 - **Latest checkpoint:** ad596e4 Windows EXE/ZIP/notes and matching Linux
   ELF/archive/notes are published with strict startup and artifact acceptance.
   The physical Jovian passenger-chair delivery6262749 remains included.
@@ -52,10 +51,11 @@ parent or phase gate closes.
   clients complete the station approach; A passes pilot seating/current HUD and
   host authority, B is locally seated passenger but status names Torrent.
   All first failures/.done/actual exits1 are retained. The held caller is pushed
-  and unmerged; no source runtime change or unchanged export follows this run.
-- **Next:** fix the demonstrated crew craft-label owner with a focused regression,
-  publish its accepted checkpoint, then attempt the unchanged original boarding
-  qualification once. No extra diagnostic or speculative authority repair.
+  and unmerged; the focused source repair below does not close this failed route.
+- **Next:** correct and verify the private Windows template mapping, then make
+  the missing checkpoint from the same accepted source. The first export failure
+  is retained; this is its one bounded setup repair, not another runtime change.
+  Only an accepted checkpoint unlocks the original boarding qualification.
 - **Earlier delivered:** browser per-session generations and accurate defense
   briefing on9be5c83 retain their source/UI scopes.
 - **Parked:** Fire restart, Rime shared arrival, HULK revisit, Sandbox recovery
@@ -64,78 +64,58 @@ parent or phase gate closes.
   and final capacity choice. The original server/two-client baseline remains
   authorized independently; do not ask settled questions again.
 - **Cleanup:** owned clean Ember, VIP, Jovian, lifecycle and pilot-HUD source
-  checkouts are removed; unique raw results/public builds remain. Three older checkouts with
+  checkouts are removed; the crew-HUD checkout/profile are also removed after its
+  failed export. Unique raw results/public builds remain. Three older checkouts with
   unique uncommitted work stay protected. Scratch belongs under `/srv/mudds-work/`.
 
 Report the named result, actual proof, next action and estimate. Source checks,
 planning or test totals do not establish whole-parent or hardware completion.
 
-## Next slice — correct the confirmed passenger craft label
+## Next slice — package the accepted passenger craft-label repair
 
-The original boarding qualification on cbbebd715 is FAILED after one134.850s
-run. A now passes ordinary pilot seating/PILOT-Jovian and current host authority.
-B is locally seated at Jovian's copilot anchor with current identity and PASSENGER
-role, but its consumed craft remains Torrent. The full passenger predicate and
-final dual-seat host confirmation have not passed. [Exact result and original
-contract](docs/history/ROADMAP_DELIVERIES.md#ordinary-jovian-boarding--passenger-craft-label-failure-oncbbebd715).
+NET-CREW-HUD-CRAFT is DONE for its focused source scope on b6196a19a.
+CHECKPOINT-CREW-HUD is FAILED at private export setup; no new EXE was published,
+Linux export/startups were not run. [Actual result and executed cards](docs/history/ROADMAP_DELIVERIES.md#confirmed-crew-craft-label--source-delivered-checkpoint-setup-failed).
+The original boarding attempt cbbebd715 remains FAILED; this source fix has not
+been tried through that route.
 
 | Task | Type / status / owner | Observable finish | Budget |
 | --- | --- | --- | --- |
-| NET-CREW-HUD-CRAFT | Runtime fix / READY / root | A confirmed Jovian passenger sees Jovian in network status even when the previous pilot craft remains selected. | Implementation/review20–30min; focused checks/import/compile separately. |
-| CHECKPOINT-CREW-HUD | Build / GATED on1 / root | Fresh playable Windows/Linux checkpoint contains the accepted label fix, with strict startups and exact artifact checks. | Preparation/checks15–25min; original export/startup caps retained. |
-| NET-JOVIAN-BOARD | Qualification / GATED on1–2 / root | Both ordinary clients retain their real Jovian seats, current identity/authority and correct consumed HUD, with actual exits0. | Compose/freeze5–10min; compile and one original300s route separately. |
+| CHECKPOINT-CREW-HUD-REPAIR | Build / READY / root | Playable Windows/Linux checkpoint contains accepted b6196a19a with strict startups and exact artifact checks. | Profile correction/preflight 5–10min; original export/startup caps separately. |
+| NET-JOVIAN-BOARD | Qualification / GATED on checkpoint / root | Both ordinary clients retain their real Jovian seats, current identity/authority and correct consumed HUD, with actual exits0. | Compose/freeze 5–10min; compile and one original 300s route separately. |
 
-### NET-CREW-HUD-CRAFT — derive crew presentation from the confirmed seat
+### CHECKPOINT-CREW-HUD-REPAIR — correct private template mapping and publish
 
-- **Parent/result:** parents16/25; fix the demonstrated PASSENGER/Torrent label
-  while B is physically seated in Jovian. This is a presentation repair, not a
-  new seat or authority. A's accepted pilot HUD behavior must remain intact.
-- **Evidence/owner:** `_network_local_role_presentation` derives role from the
-  live crew seat but always derives craft name/ID from `active_ship`. A passenger
-  need not replace the prior pilot selection. The retained B snapshot proves
-  the visible mismatch; `ShipCrewSeat.get_ship()` exposes the actual seat owner.
-- **Boundary:** root owns `scripts/game/game_flow.gd` and the existing
-  `tests/network/game_flow_hud_network_status_test.gd`. Resolve craft name/ID
-  through the confirmed crew presentation owner, preserving pilot/observer and
-  invalid/released-seat fallback. Do not mutate `active_ship`, claims, controls,
-  seat authority, protocol or physical movement to make a label match.
-- **Proof:** extend the existing confirmed-crew regression with distinct prior
-  pilot craft and actual crew-seat craft. Its expected pre-fix mismatch must
-  reproduce the recorded defect, then confirmed callback status names Jovian
-  after the repair, release/fallback stays correct, and pilot/retired-session
-  checks remain green. Use the existing HUD network suite and
-  `tests/game_flow_network_role_publication_test.gd`, Dummy/headless, original
-  limits and clean recorded source. Do not substitute a manual role publication
-  or staged selection equal to the occupied craft for the production callback.
-- **Budget/stop:**20–30min implementation/review; source import/compile/checks
-  separately. Any unexpected failure or failed repair check stops for priority
-  review. The planned old-runtime regression is defect reproduction, not another
-  ordinary-route probe. No extra diagnostic run is scheduled.
-- **Close:** integrate only accepted runtime/tests, commit/push, immediately build
-  CHECKPOINT-CREW-HUD; clean owned disposable files and retain unique raw.
-
-### CHECKPOINT-CREW-HUD — playable checkpoint of the accepted label repair
-
-- **Parent/result:** parents6/32; root uses the existing safe export workflow on
-  the accepted clean runtime commit. Freeze exact source/engine/templates first.
-- **Artifacts/proof:** repository `builds/windows/` EXE/ZIP/notes and matching
-  Linux ELF/archive/notes. Relevant focused checks, payload-entry byte parity,
-  exact archive/ZIP members/modes/content and source metadata; direct Linux,
-  extracted Linux and supported Windows-payload strict silent startups each
-  require actual exit0 plus STARTUP_MENU_READY_OK. Native Windows/hardware and
-  full-release gates retain their unperformed scope. No Downloads/hosted CI.
-- **Budget/stop:**15–25min preparation/checks, original900s export and300s startup
-  budgets. One export per platform; first failure stops with its owner/remaining
-  action. Do not regenerate unchanged artifacts to erase a failed check.
-- **Close:** publish exact local artifacts and honest notes, commit/push indices,
-  remove owned clean export checkout/profiles and keep actual raw acceptance.
+- **Parent/result:** parents6/32; publish the missing playable checkpoint from
+  accepted clean source b6196a19acf26a018f66341c014cc655bb9dc92d. No runtime change.
+- **Known failure:** the Windows exporter reads templates from XDG_DATA_HOME,
+  unlike Linux's GODOT_EXPORT_TEMPLATES_DIR override. The failed private profile
+  had an empty export_templates directory; its 4.7.1.stable link was missing.
+  This setup error belongs to the agent. Original failure logs stay retained.
+- **Boundary:** use a new owned clean checkout/private profile; link its exact
+  versioned XDG template path to the pinned templates. Before any engine run,
+  resolve and hash both Windows debug/release files at the paths Godot actually
+  reads, plus the Linux release template. Preserve HOME/CODEX_HOME and isolation.
+- **Proof:** existing safe Windows/Linux exports, payload-entry byte parity,
+  exact archive/ZIP members/modes/content and source metadata. Direct Linux,
+  extracted Linux and Windows-payload strict silent startups each require actual
+  exit0 plus exactly one STARTUP_MENU_READY_OK and no diagnostics. Publish EXE,
+  ZIP, notes and matching Linux artifacts under repository builds only.
+- **Budget/stop:** profile correction/preflight 5–10min; actual export900s and
+  startup300s caps unchanged. One repair export per platform; any failure stops
+  for priority review. The first failed attempt remains counted. No unchanged
+  rerun, additional runtime fix or broader boarding probe belongs to this card.
+- **Close:** publish exact artifacts/actual validation notes, commit/push indices,
+  remove owned disposable checkout/profiles, preserve raw failures and success.
+  Native Windows/hardware/human/full-release gates remain unperformed.
 
 ### NET-JOVIAN-BOARD — original qualification after the supported runtime repair
 
 - **Parent/result:** parents16/26, Phase7 first server/two-client slice; gate on
-  the two accepted cards above. Pilot HUD/checkpointad596e4 remain included.
+  the accepted label source b6196a19a and its pending checkpoint repair above.
+  Pilot HUD/checkpointad596e4 remain included.
 - **Boundary/source:** root composes pushed cbbebd715 caller/harness/UID with the
-  accepted runtime in a clean branch. The local claim-avatar correction is
+  accepted runtime b6196a19a in a clean branch. The local claim-avatar correction is
   already implemented and source-reviewed; do not rewrite identity criteria.
   Main still does not contain this held caller/harness. Record exact source.
 - **Proof:** explicit compile, then one unchanged original normal-spawn13-goal

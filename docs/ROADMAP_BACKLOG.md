@@ -8,7 +8,10 @@ The previous bounded slice closed both source lifecycle qualifications and the
 one pilot-state diagnostic; ordinary boarding remains FAILED. The working queue
 has delivered the pilot HUD fix/checkpointad596e4; its one ordinary boarding
 qualification advances A but fails B’s passenger craft label on cbbebd715.
-Next: bounded crew craft-label repair, checkpoint and one original qualification.
+Crew craft-label source repair is now DONE on b6196a19a (focused HUD51/role3);
+its checkpoint FAILED because the private Windows profile lacked its versioned
+template link. Next: one bounded profile/setup repair and checkpoint, then one
+original qualification. Latest playable packages remain ad596e4.
 These are not project-wide remaining counts; no phase completion is implied.
 The original specifications remain binding in
 [the preserved scope](history/ROADMAP_SCOPE_20261017.md).
