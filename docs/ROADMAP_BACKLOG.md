@@ -728,9 +728,9 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | PLAY-RACE | Checkpoint Race first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-THREADING | Asteroid/debris Threading first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
 | PLAY-PATROL | Platform Patrol first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
-| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Route definition and KIT-BOARD source62bc7c823 DONE; KIT-DEPART READY, DELIVER/RELOAD GATED; ordinary full delivery unqualified |
+| PLAY-JOVIAN-KIT | Jovian kit delivery first full ordinary play | 13 | Route definition and KIT-BOARD source62bc7c823 DONE; KIT-DEPART active, DELIVER/RELOAD GATED; ordinary full delivery unqualified |
 | KIT-BOARD | Ordinary offline cargo selection and Jovian pilot boarding | 7,13 | DONE source62bc7c823;66.158s, real menus/walk/local pilot/occupied berth, cargoIDLE0/source6/destination0 manifests; no departure |
-| KIT-DEPART | Real departure automatically starts cargo, then ordinary brake | 13 | READY; KIT-BOARD accepted,180s activity deadline retained |
+| KIT-DEPART | Real departure automatically starts cargo, then ordinary brake | 13 | IN PROGRESS; KIT-BOARD accepted,180s activity deadline retained |
 | KIT-DELIVER | Strict home landing transfers2 kits/pays once; usable exterior exit | 13 | GATED on KIT-DEPART; exact physical/receipt criteria in ROADMAP.md |
 | KIT-RELOAD | Distinct process reloads actual completed store without duplication | 13,31 | GATED on KIT-DELIVER's retained real store and unchanged runtime |
 | PLAY-CINDER-SUPPLY | Cinder platform supply first full ordinary play | 13 | UNSCHEDULED; canonical outbound/activity/reward/home return |
@@ -811,9 +811,9 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | BROWSER-CONTROLLER | Controller menu navigation ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-DISCONNECT | Disconnect/retry ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
 | BROWSER-CANCEL | Cancel/reuse ordinary browser route | 25 | GATED; chosen candidate/scenario, delivered UI fixes retained |
-| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | DONE definition only; Halyard approach definition DONE, BOARD READY, MOVING-CABIN/AUTHORITY-STOP GATED; no baseline completion |
+| SERVER-BASELINE-DEFINE | Residual authoritative-server/two-client gameplay command and cases | 26 | DONE definition only; Halyard approach definition DONE, BOARD active, MOVING-CABIN/AUTHORITY-STOP GATED; no baseline completion |
 | HALYARD-APPROACH | Freeze ordinary spawn-to-airstair input waypoint route | 16,26 | DONE definition; native aft/fleet chain and authored final extension, no collision qualification |
-| HALYARD-BOARD | Non-playing Main authority and two original ordinary occupants | 16,26 | READY; frozen approach definition, real pilot/crew_port_00 seats |
+| HALYARD-BOARD | Non-playing Main authority and two original ordinary occupants | 16,26 | IN PROGRESS; frozen approach definition, real pilot/crew_port_00 seats |
 | HALYARD-MOVING-CABIN | Actual departure with passenger supported walk/chair cycle | 16,24,26 | GATED on HALYARD-BOARD; no staged flight envelope |
 | HALYARD-AUTHORITY-STOP | Real server stop restores both remaining occupants to solo play | 16,26 | GATED on HALYARD-MOVING-CABIN; no SIGKILL/migration/reconnect claim |
 | SERVER-BASELINE | Dedicated-server/two-client ordinary flight/recovery acceptance | 26 | GATED; exact baseline contract, boarding/departure passes do not close it |
@@ -935,7 +935,8 @@ assignments. Completing a definition does not deliver the gameplay it describes.
 The [working queue](../ROADMAP.md#working-queue-eight-bounded-cards) now has eight
 specific successor cards: four offline cargo stages (board, depart, deliver,
 distinct-process reload), and four Halyard stages (approach definition, board,
-moving cabin, real authority stop). Cargo departure and Halyard boarding are READY; four dependent cards are GATED.
+moving cabin, real authority stop). Cargo departure and Halyard boarding are active in disjoint isolated checkouts;
+four dependent cards are GATED.
 Cargo boarding is source-qualified and Halyard approach definition is DONE; these
 are distinct completion types, neither closes a whole parent. Original Jovian
 exit/reuse remains parked; Annex source qualification remains DONE.

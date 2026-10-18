@@ -35,7 +35,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**2 READY, 4 GATED, 2 DONE (one caller qualification, one definition).** Root owns integration and closure.
+**2 IN PROGRESS, 4 GATED, 2 DONE (one caller qualification, one definition).** Root owns integration and closure.
 Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
@@ -46,11 +46,11 @@ and delivery history; they do not consume active queue slots.
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
 | KIT-BOARD | DONE | Fresh player selects cargo, walks to Jovian and takes the real solo pilot seat. |Accepted62bc7c823;66.158s at original300s cap |
-| KIT-DEPART | READY | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |30–60 min; one extended route at unchanged caps |
+| KIT-DEPART | IN PROGRESS | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |30–60 min; one extended route at unchanged caps |
 | KIT-DELIVER | GATED on KIT-DEPART | Physical home return transfers two kits, pays once and leaves player walking outside. |45–60 min; one extended route at unchanged caps |
 | KIT-RELOAD | GATED on KIT-DELIVER | Distinct process reloads accepted delivery without duplicate kits or reward. |20–40 min; compile300s + one restore30s |
 | HALYARD-APPROACH | DONE definition | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
-| HALYARD-BOARD | READY | Two independent clients ordinarily board distinct pilot/passenger seats. |45–60 min; compile300s + one route300s/outer360s |
+| HALYARD-BOARD | IN PROGRESS | Two independent clients ordinarily board distinct pilot/passenger seats. |45–60 min; compile300s + one route300s/outer360s |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
 | HALYARD-AUTHORITY-STOP | GATED on HALYARD-MOVING-CABIN | Real server shutdown restores both occupants to usable solo operation. |30–60 min; one selected route at unchanged caps |
 
@@ -118,7 +118,9 @@ accepted runtime repairs require separate cards and fresh paired builds.
   ACTIVE generation1/return objective/departure checkpoint, source6/destination0,
   current same pilot/source and actual released berth. Keep180s physics deadline
   from automatic start; no clock reset, tuning change or forced landed flag.
-- **Next/check:** READY; KIT-BOARD accepted. Freeze a new selected continuation/marker
+- **Next/check:** IN PROGRESS/root; KIT-BOARD accepted. Selected continuation
+  `--ordinary-jovian-kit-depart`/`JOVIAN_KIT_ORDINARY_DEPART_OK`, isolated branch
+  `work/jovian-kit-depart-20261018`. Freeze clean candidate
   before implementation.30–60 min; compile300s and one full extended300s route,
   outer360s; preserve prior approach/boarding and10s departure/10s brake bounds.
 - **Stop/close:** first failure records actual input/engine/berth/activity owner;
@@ -204,7 +206,10 @@ accepted runtime repairs require separate cards and fresh paired builds.
   generations agree on host and consumed clients; distinct exclusive claims,
   correct supported controls and real seats. Existing remote-pilot actions are
   supported by `_client_loadmaster_pilot`; no new authority implementation presumed.
-- **Next/check:** READY; HALYARD-APPROACH definition complete.45–60 min. Freeze exact selector,
+- **Next/check:** IN PROGRESS/root; HALYARD-APPROACH definition complete.45–60 min.
+  Proposed selector `--ordinary-two-client-board`, unique
+  `HALYARD_ORDINARY_TWO_CLIENT_BOARD_OK`, isolated branch
+  `work/halyard-ordinary-board-20261018`. Freeze exact clean
   source/marker; compile300s, ONE selected300s/outer360s route,15s walking,
   8s role transitions/10s owned exit grace. Require all three actual OS exits0
   before coordinator success. No flight, moving walk or recovery in this card.

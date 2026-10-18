@@ -5806,3 +5806,15 @@ cargo generation1 and neutral brake only. KIT-DELIVER and distinct-process
 KIT-RELOAD remain separate gated tasks. Halyard boarding is an independent READY
 alternative after source-only approach definition. Queue2 READY/4 GATED/2 DONE,
 with qualification and planning completions distinguished; all36 parents stayopen.
+
+
+### 2026-10-18 — bounded cargo departure and independent Halyard boarding
+
+Root selects KIT-DEPART and independent HALYARD-BOARD from221833fa6, each in its
+own clean checkout with disjoint caller-file ownership. Cargo extends original
+normal offline boarding with actual5m thrust departure/automatic cargo start and
+braked≤.5m/s for1s. Halyard ends at actual distinct authenticated seats after
+normal approach; flight/moving cabin/recovery are not included. No runtime fix
+or checkpoint is selected. Frozen timeouts, unique selected markers, firstfailure
+and cumulative one-repair/priority-review limits remain. Engines NOT_RUN at
+assignment; candidates require source review/pin before one compile/selected run.
