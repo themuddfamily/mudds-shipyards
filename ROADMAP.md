@@ -1,12 +1,12 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**59c55cb** fixes Start Fresh for interrupted Asteroid Threading: the abandoned
-active run cannot return after later streaming/reload, while earned rewards and
-failed-save retry remain protected. Previous Habitat loop/restart, six bunks,
-Settings, Hauler access, controller look, audio, sprint and HUD work is included.
-[Windows notes](builds/windows/MuddsShipyards-59c55cb-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-59c55cb-linux-notes.txt) state actual validation.
+**f8b5f86** preserves earned Cinder platform supply rewards across payment refusal
+and reload, pays once and prevents paid replay. Previous asteroid Start Fresh,
+Habitat loop/restart/bunks, Settings, Hauler access, controller look, audio, sprint
+and HUD work is included.
+[Windows notes](builds/windows/MuddsShipyards-f8b5f86-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-f8b5f86-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -551,6 +551,41 @@ New clean pin and independent review precede compile300, full reward300 and full
 three-child roundtrip300; only then the original package/startup gates. Cumulative
 failed-stage time68.507s; no reset of original task budget. Any further unexpected
 failure stops for cumulative priority review before additional work.
+
+### Cinder supply debt — delivered
+
+CINDER-SUPPLY-DEBT is DONE on clean source
+`f8b5f86afa9bdce3bdffa1bc4f5285d533e61ff4` in its frozen terminal-reward scope.
+A real completed transfer checkpoints immutable proof before payment; refused
+payment survives cold reload, its current owner pays once atomically, paid reload
+cannot replay, and the next actual delivery advances generation. Retry makes no
+inventory transfer. Unpaid debt blocks replacement/reset; removed owners cannot
+publish/pay. Legacy summaries remain presentation-only; active manifest recovery
+and Hauler stock choices remain separate.
+
+Full focused checks: handoff0.922s, cargo contract1.172s, reward62/16.314s,
+roundtrip17/71.163s. Three distinct actual-file child processes earn/pay/paid each
+exit0/reaped; primary generations2→3→3 retain transfer proof and unrelated payload,
+with exactly one reward ledger entry. Added pay assertion proves successful
+callback/adapter consumption. Independent source and actual-file review GO.
+The initial compile15.245s, reward15.988s and roundtrip37.274s failures are retained
+(total68.507s), with separately frozen reviewed corrections; no assertions/caps
+were weakened. Accepted final compile15.705s; original import/authority compile
+and unchanged focused checks retained.
+
+Paired exports26.681/25.912s and direct Linux/archive/Windows-payload startup
+22.294/23.682/25.992s pass strict menu-ready+exit0. Actual1521-entry payload match,
+stock PE and exact archive audit pass. Checkpoint EXE/ZIP/notes are in repository
+builds/windows, paired Linux files in builds/linux. Raw failed/passing stages,
+actual profiles and closure records remain in
+`/srv/mudds-work/cinder-supply-debt-20261018/results/`.
+Native Windows/GPU/device/audio/human, ordinary whole-delivery, OS-kill,
+installed/final candidate and full regression gates remain open/NOT_RUN.
+All36 broad requirements and ten phase gates remain OPEN; CI remains disabled.
+This closes the selected capability, not its broad parents. No adjacent recovery
+qualification chain is selected. Next planning work should turn unresolved
+DEFINE/BUILD-SPLIT scope into finite deliverables with dependencies, acceptance
+and estimates before claiming a project remaining-job count or date.
 
 ## Parked failures and dependent work
 

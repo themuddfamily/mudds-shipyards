@@ -685,7 +685,7 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | DOCK-EXIT-RECOVERY-CUT | One interrupted exterior handoff recovers safely after accepted unavailable publication | 2,31 | GATED frozen actual busy-exit cut and executable driver; rejected publication retains prior durable preference. Completed grounded exit follows existing on-foot contract |
 | RECOVERY-ACTIVITY-DEFINE | Active activity durable-boundary/resume-or-safe-home contract | 2,31 | DONE source map only on470aa24c4; progress/embodiment contract and two actual runtime gaps below. Four terminal-only active-resume policies remain explicitly unresolved; no original promise waived |
 | ASTEROID-START-FRESH | Start Fresh durably abandons the interrupted active Asteroid Threading run | 13,31 | DONE packaged59c55cb: full production179/253.847s under original300; public title/live Start Fresh, refusal/retry, samegen IDLE/laterstream/cold Main and retained-owner/reward protections. Ordinary OS-input/interruption/final candidate remain separate |
-| CINDER-SUPPLY-DEBT | Earned Cinder platform supply completion survives refused payment and cold restart | 13,31 | Unimplemented durable unpaid checkpoint; current summary triggers only after accepted reward. Separate from active manifest reconstruction and Hauler stock policy; exact runtime assignment/acceptance below |
+| CINDER-SUPPLY-DEBT | Earned Cinder platform supply completion survives refused payment and cold restart | 13,31 | DONE packagedf8b5f86: genuine earned proof before payment; three actual-file child processes prove refused debt, one cold payment, paid replay fence and next generation. Active manifest reconstruction and Hauler stock policy remain separate |
 | RECOVERY-PLANET-DEFINE | Planetary durable-boundary/resume-or-safe-home contract | 2,31 | DONE source map; Aurora/Rime visit restoration differs from Ember passive survey continuity. WORLD-SAVE per-world boundary and installed RECOVERY-KILL remain open; no broader location promise waived |
 | RECOVERY-CUTS-DEFINE | Uncovered installed context/activity/OS-interruption cases | 2,31 | GATED; explicit state contracts and exact installed Linux package |
 | SAVE-MIGRATION | Real-file valid migration with distinct-process reload | 31,32 | GATED; exact current format/fixture and uncovered case |
@@ -1369,7 +1369,7 @@ Four owners cannot currently reconstruct an active cold run:
 
 | Actual owner | What a cold load provides | Unfinished capability/policy |
 | --- | --- | --- |
-| [Cinder supply persistence](../scripts/persistence/cinder_cargo_delivery_persistence.gd) / [reward handoff](../scripts/cargo/cinder_cargo_reward_handoff.gd) | Completed summary only after accepted reward; presentation generation0 has no replayable transfer authority. Later incomplete manifest is discarded. | **CINDER-SUPPLY-DEBT:** earned-but-refused reward has no durable checkpoint. Active manifest/inventory/deadline restoration separately needs an explicit resume-or-safe-home policy; Hauler stock choices remain untouched. |
+| [Cinder supply persistence](../scripts/persistence/cinder_cargo_delivery_persistence.gd) / [reward handoff](../scripts/cargo/cinder_cargo_reward_handoff.gd) | Strict v2 terminal transfer proof checkpoints before payment; atomic paid acknowledgement and cold current-owner settlement. Legacy v1 generation0 remains presentation-only; no manifests/handles restored. | **CINDER-SUPPLY-DEBT DONE** onf8b5f86: actual-file earned/refused→cold one-payment→paid no-replay, next generation, immutable proof and unrelated payload retained. Active manifest/inventory/deadline restoration separately needs an explicit resume-or-safe-home policy; Hauler stock choices remain untouched. |
 | [StationDefenseActivityBoard](../scripts/activities/station_defense_activity_board.gd) | Durable terminal generation/history and genuine unpaid debt; fresh IDLE encounter, no saved enemies/health/leases. | Active wave/health continuation policy unresolved; terminal debt/reset/atomic paid acknowledgement already have owners, so do not invent a replacement. |
 | [HeavyBreachActivityBoard](../scripts/activities/heavy_breach_activity_board.gd), Heavy Breach | Scenario/generation floor and earned unpaid/paid completion, no active combat/timer/actors. | Active encounter recovery policy unresolved. Original real-file interruption remains PARKED140.961s; this map does not reopen it. |
 | Same board, Torpedo Run scenario | Separate reward/scenario terminal debt. Retained network suspension preserves live timer/distance; it is not a cold-process codec. | Cold active-run policy and distinct Torpedo terminal qualification remain open. Do not widen the retained-network promise into arbitrary disk pose restoration or count Breach as Torpedo acceptance. |
@@ -1384,7 +1384,7 @@ available. Unsupported/corrupt records are protected, never silently erased.
 
 Two bounded runtime gaps were established by this map. ASTEROID-START-FRESH is
 now delivered on59c55cb (full production179/253.847s, paired checkpoint);
-CINDER-SUPPLY-DEBT remains unimplemented. The original acceptance contracts follow:
+CINDER-SUPPLY-DEBT is delivered onf8b5f86 (three-process roundtrip71.163s, reward62, paired checkpoint). The original acceptance contracts follow:
 
 1. **ASTEROID-START-FRESH:** independent `cinder_asteroid_session` is absent from
    both the durable decline transaction and streamed live reset loop, while
@@ -1405,10 +1405,11 @@ CINDER-SUPPLY-DEBT remains unimplemented. The original acceptance contracts foll
    The debt must prove the genuine completed transfer identity/item/quantity/
    generation; a summary or minted entitlement cannot substitute. The existing
    authority needs Cinder-specific debt validation/atomic acknowledgement; those
-   checks do not already exist.
-   Likely45–60min cross-component work, but freeze exact handoff/persistence/
-   authority ownership and existing focused tests before assignment. Active
-   manifest reconstruction and Hauler stock policy are excluded from this gap.
+   checks are now implemented and accepted onf8b5f86. Existing reward62 and
+   roundtrip17 pass; retained actual files prove unpaidgen2→paidgen3→unchanged
+   paidgen3 and exactly one receipt. Current-owner callback acceptance, no inventory
+   retry edits, next actual generation and refusal/provenance guards are covered.
+   Active manifest reconstruction and Hauler stock policy remain separate.
 
 Production seams: [GameFlow](../scripts/game/game_flow.gd) functions named above,
 `_initialize_cinder_*_session_persistence`, `_ensure_cinder_{scan,beacon,asteroid}_session`,

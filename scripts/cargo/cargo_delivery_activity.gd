@@ -50,6 +50,21 @@ func _init(authority: CargoTransferAuthority, contract: CargoDeliveryContract) -
 		_authority.transfer_committed.connect(_on_transfer_committed)
 
 
+## A fresh session may advance beyond a validated terminal epoch without
+## reconstructing its inventory, handles, progress, or entitlement.
+func adopt_terminal_generation_floor(generation: int) -> Dictionary:
+	if _signal_dispatch_active or _state != State.IDLE or _generation != 0 or not _accepted_receipt.is_empty() or generation < 0 or generation > CargoTransferAuthority.MAX_SAFE_INTEGER:
+		return {"accepted": false, "reason": &"delivery_generation_floor_unavailable"}
+	_generation = generation
+	return {"accepted": true, "reason": &"delivery_generation_floor_adopted"}
+
+
+func validate_terminal_transfer(authority: CargoTransferAuthority) -> Dictionary:
+	if authority != _authority or _state != State.COMPLETED:
+		return {"accepted": false, "reason": &"invalid_delivery_terminal_owner"}
+	return validate_persistence_state(capture_persistence_state(), authority.to_dictionary())
+
+
 func is_configuration_valid() -> bool:
 	return get_configuration_errors().is_empty()
 

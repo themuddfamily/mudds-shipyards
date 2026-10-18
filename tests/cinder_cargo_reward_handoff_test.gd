@@ -7,6 +7,8 @@ var _assertions := 0
 var _failures: Array[String] = []
 var _callback_count := 0
 var _reject_next := false
+var _checkpoint_rejected := false
+var _checkpoint_calls := 0
 
 
 func _initialize() -> void:
@@ -88,6 +90,20 @@ func _run() -> void:
 		"the handoff never acquires reward, inventory, or grant authority"
 	)
 
+	var checkpoint_fixture: Dictionary = _build_fixture()
+	var checkpoint_adapter: RefCounted = ADAPTER.new()
+	checkpoint_adapter.configure(Callable(self, "_reward_callback"), HANDOFF.ACTIVITY_ID, HANDOFF.REWARD_ID)
+	var checkpoint_handoff: RefCounted = HANDOFF.new()
+	_checkpoint_rejected = true
+	checkpoint_handoff.attach(checkpoint_fixture.activity, checkpoint_adapter, Callable(self, "_checkpoint"))
+	var before_checkpoint: int = _callback_count
+	var checkpoint_generation: int = _complete(checkpoint_fixture.activity)
+	_check(_callback_count == before_checkpoint and _checkpoint_calls == 1 and checkpoint_handoff.get_snapshot().last_result.reason == &"cargo_terminal_save_pending", "refused durable checkpoint calls no reward callback")
+	_checkpoint_rejected = false
+	_check(checkpoint_handoff.request(checkpoint_generation).accepted and _callback_count == before_checkpoint + 1, "checkpoint retry precedes the one reward callback")
+	checkpoint_handoff.detach()
+	(checkpoint_fixture.authority as Node).queue_free()
+
 	handoff.detach()
 	rejected_handoff.detach()
 	(fixture.authority as Node).queue_free()
@@ -132,6 +148,11 @@ func _complete(activity: CargoDeliveryActivity) -> int:
 	var delivered := activity.submit_transfer(int(started.generation))
 	_check(bool(delivered.accepted), "fixture commits one authoritative cargo transfer")
 	return int(started.generation)
+
+
+func _checkpoint(_cargo: Dictionary) -> Dictionary:
+	_checkpoint_calls += 1
+	return {"accepted": not _checkpoint_rejected}
 
 
 func _reward_callback(_request: Dictionary) -> Dictionary:
