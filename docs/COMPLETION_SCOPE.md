@@ -1,6 +1,22 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **f2bf35a**, clean source
+Latest accepted paired checkpoint: **ea8fe43**, clean source
+`ea8fe43e7d9b3045866052574283c3170f2490a7`
+([Windows notes](../builds/windows/MuddsShipyards-ea8fe43-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-ea8fe43-linux-notes.txt)). Ordinary
+Habitat door/local corridor/return/Torrent boarding passes22 settled goals,
+171.602m supported walking,17.302m local interval/max9.944m patrol-origin radius,
+actual candidate/native door E→OPEN/unblocked, later distinct board E→BOARDING→
+same local pilot and90 seated frames. Both real drone roots/clock advance in local
+and seated intervals; same actors/defaults/door/home/OFFLINE/parked persist across
+2,428 consecutive frames. Full77Python/observer/privacy, paired exports/three
+strict startups/1521-entry audit and ONE native65.899s guarded pass first attempt.
+Unchanged Player collision82 check retained onf2bf35a. Source merged/checkpoint
+published/owned scratch cleaned. Four service runtime cards accepted on recorded
+sources; no new animation/physics/cargo/rest or rendered/native GPU/full-station/
+final acceptance claimed. All36 parents/ten phase gates OPEN; exclusions unchanged.
+
+Earlier accepted paired checkpoint: **f2bf35a**, clean source
 `f2bf35a6a6305893413ae6000a4a5c45715c3e1d`
 ([Windows notes](../builds/windows/MuddsShipyards-f2bf35a-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-f2bf35a-linux-notes.txt)). Ordinary

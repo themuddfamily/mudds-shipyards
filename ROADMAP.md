@@ -1,9 +1,9 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **f2bf35a**, with ordinary Aft walking/Zenith boarding
-and actual service-arm coexistence. [Windows build notes](builds/windows/MuddsShipyards-f2bf35a-notes.txt)
-and [Linux build notes](builds/linux/MuddsShipyards-f2bf35a-linux-notes.txt) state
+accepted checkpoint: **ea8fe43**, with ordinary Habitat door walking/Torrent
+boarding and actual patrol-drone coexistence. [Windows build notes](builds/windows/MuddsShipyards-ea8fe43-notes.txt)
+and [Linux build notes](builds/linux/MuddsShipyards-ea8fe43-linux-notes.txt) state
 actual checks and limits. All 36 original parents and ten phase gates remain open.
 
 ## What separates this alpha from completion
@@ -17,7 +17,7 @@ promise. Each named child and its dependencies live in the existing
 | Remaining scope | Known boundary | What must be settled or delivered next |
 | --- | --- | --- |
 | Fleet and historical content | 17 eventual craft: 9 implemented, 8 absent | Eight SPEC→BUILD-SPLIT→CRAFT-ACCEPT chains; missing evidence/interpretation decisions precede builds. Existing nine still require their applicable full craft/art/role journeys. |
-| Station | Nine branches; four service-motion outcomes | Habitat ordinary loop/restart and Central/Freight/Aft service coexistence accepted on recorded checkpoints. Habitat patrol, other branch routes and actual presentation findings remain; parked routes retain their limits. |
+| Station | Nine branches; four service-motion outcomes | Habitat ordinary loop/restart and all four service runtime outcomes accepted on recorded checkpoints. Other branch routes and actual presentation findings remain; parked routes retain their limits. |
 | Activities and combat | Twelve activities, six named combat encounters | Complete uncovered ordinary outbound/activity/reward/home journeys, then each legitimate ten-run contract. Cargo replenishment/turnover policy is unresolved; Hauler source integration is a known stock-policy-gated production gap. |
 | Worlds | Ember, Aurora, Rime; 21 named shared-world cells | Canonical solo/shared returns, saves, abandonment, crew and repeat visits; source/staged passes cover only their recorded cases. Aurora originals remain waiting and Rime arrival remains parked. |
 | Multiplayer | Named browser, helm, role, damage, actor and postdock cases | Dedicated server/two-client baseline, applicable role/reuse cases, original 30-minute endurance and chosen capacity. Release guest count/playing-host decision remains waiting. |
@@ -32,133 +32,44 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-LIFE-ARM is accepted on packaged `f2bf35a`; its ordinary route and actual controller
-step proof passed. Source merged, checkpoint published, owned scratch cleaned.
-LIFE-PATROL is selected for implementation and bounded validation under the
-card below. Root owns integration/checks/packages; source work is isolated in
-`/srv/mudds-work/life-patrol-20261018/source`.
+LIFE-PATROL is accepted on `ea8fe43`. All four station service runtime cards
+have passed on their recorded sources. The source is merged, a fresh checkpoint
+is published and owned scratch is cleaned. No successor is selected for execution.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| LIFE-PATROL | SELECTED; source definition DONE, runtime NOT_RUN | Shared LIFE configuration plus actual Habitat door input,22 walking goals and original Torrent boarding. Five files, exact card below. Estimate30–45min implementation/review plus10–15min checks/package; original route CAP300/outer360. |
-| HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Current binding rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
+| NET-COMPONENT-POWERS | DEFINE; existing [component consequence boundary](docs/ROADMAP_BACKLOG.md#component-consequences-and-acceptance-boundary) | Inspect actual host→peer engine/weapon/targeting HUD power values, including critical-hull and Halyard routing. End with one concrete mismatch/production owner and focused acceptance, or an exact missing fact. Source-only, 15–20 min; no wire/schema or engine run by definition. |
+| HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 The Hauler stock/custody decision remains the concrete missing prerequisite for
 the reviewed independent production alternative. Do not invent stock, a duplicate
-generation API or a whole-game absence-of-defects claim. This queue is local,
-not a project estimate. No full station/Sandbox/activity/capture chain follows.
-
-### LIFE-PATROL — prepared Habitat runtime card
-
-Parent9. Definition source `a9c9c4244`; one bounded read-only mapper and root
-confirmed the existing route/door/shared-driver seam, without engines or edits to
-runtime. This is definition only. Executable outcome: ordinary fresh hub→Habitat
-local walking→return→original Torrent boarding while actual patrol drones continue.
-No new animation, room, locomotion, cargo or bunk/restart capability is needed.
-
-One implementer owns only `tools/release/run_native_sortie.py`,
-`tools/release/test_native_sortie.py`,
-`scripts/diagnostics/native_sortie_observer.gd`,
-`scripts/game/startup_loader.gd`, `tests/startup_cli_privacy_test.gd`.
-Root owns integration/checks/packages; one independent reviewer checks actual
-input/door/boarding lifecycle. Reuse `LifeTowPilot` configuration and narrow
-observer, not another copied pilot/observer or a replay of Habitat sleep/restart.
-
-Exact ordered22 walking goals (world X,Y,Z):
-
-```text
-(0,0,12.5) → (6,0,12.5) → (6,0,13.5) → (34.8,0,13.5)
-→ (34.8,0,15.5) → (43,0,15.5) → (46,0,15.5) → (48,0,15.5)
-  [normal Habitat door aim / Interact / OPEN and portal-clear wait]
-→ (50.5,0,15.5) → (59.15,0,15.5) → (67.8,0,15.5)
-→ (59.15,0,15.5) → (54.1,0,15.5) → (50.5,0,15.5)
-→ (48,0,15.5) → (46,0,15.5) → (43,0,15.5)
-→ (34.8,0,15.5) → (34.8,0,13.5) → (6,0,13.5)
-→ (6,0,12.5) → (0,0,12.5)
-  [existing LIFE-TOW actual Torrent walk_offset approach and ordinary boarding]
-```
-
-Use actual `ShipyardWorld/HabitatSpine/MainAccess`, initially CLOSED/blocked,
-unlocked; authored motion.55s. Read only current door ID/path/position/state,
-`is_open()` and pure `is_portal_blocked()`, plus actual station candidate.
-Reuse HabitatLoop's candidate/aim/OS-E/wait mechanics. Keep supported ordinary
-walking/continuity checks active during door aim/wait; a door-stage E cannot count
-as the later board-stage press. Authenticate the actual
-candidate receipt and native press before OPEN/unblocked; no door setter or forced
-candidate. Door aim/wait shares the existing door-near goal's15s clock, without
-resetting it; next goal starts its normal15s clock after clear. Keep the same door
-open/unblocked on return. No automatic close/reopen retry or Garden Bay branch.
-
-Observe `OperationalLattice/Activities/HabitatServicePatrol`, DRONE_PATROL,
-seed3301, actual origin(59.15,4.88,15.5). The two actual `_drone_roots` are
-`PresentationRoot/AnimatedServiceDrone01` and02, with retained visible drawn
-meshes/global poses. Observer config uses no gantry/arm movers and appends these
-two roots. Require same current activity/movers, enabled/visible/processing,
-finite nondecreasing clock and both poses changing in local and seated intervals.
-
-Local interval is only goal9(50.5,0,15.5)→goal11(67.8,0,15.5), named
-`patrol_inner_threshold`→`patrol_common`. Source polyline17.3m/max goal distance
-≈9.932m is definition, not runtime proof. Require actual supported local walk>11m
-and every local sample within12m of the live origin. Seat is distant: prove
-continued patrol coexistence, not nearby seated placement/readability.
-
-Board original `Main/TorrentInterceptor`, definition `torrent_provisional`,
-occupied/reserved `central_berth`. Reuse actual LIFE-TOW `walk_offset` approach
-and actual ship candidate within3.1m planar before ordinary Interact; do not append
-the raised BoardingPoint as a ground walking goal. Authenticate actual OS press→
-BOARDING→START_ENGINES/local pilot at retained real pilot anchor, then90 seated
-physics frames. Same ship/Player/capsule/shape/default tuning/physical support,
-OFFLINE engine and unchanged parked pose/home ownership persist. No seat/lease
-creation, actor placement, animation seeking or authority mutation by observer.
-
-Keep full-stream consecutive validation and retained completed-motion/actual
-step proof through shared route configuration, as accepted for Aft; no blanket
-movement-limit increase or PlayerController change. Keep15s per goal, .30m planar,
-vertical error<.8m, speed<.1m/s and15 consecutive settled samples; boarding12s from
-final hub goal, route CAP300/outer360. Existing Habitat/Tow passes retain their
-scopes and deadlines; these per-goal limits are shared LIFE limits, not a newly
-claimed historical Habitat deadline. First unexpected failure STOP.
-
-Before execution: freeze clean source and independent source review; root runs
-observer compile, CLI privacy and full existing Python driver suite, then fresh
-paired exports/three strict menu-ready startups/actual payload/archive audit and
-ONE archived `--route life-patrol` attempt (`NATIVE_LIFE_PATROL_OK`). These selectors
-are not implemented yet. Unchanged Player step-up suite remains accepted onf2bf35a;
-no replay is needed without a relevant change. Estimate30–45min implementation/
-review plus10–15min checks/package; split before90min. No broad station tour or
-automatic successor, native hardware/rendered/full-parent closure or CI dispatch.
-
-Execution pin: `ea8fe43e7d9b3045866052574283c3170f2490a7`, clean five-file source.
-Independent source review GO; static Python compile/diff checks pass. Root uses
-reused guarded helpers under `/srv/mudds-work/life-patrol-20261018/`: import→
-observer compile→privacy→full Python, then only on PASS paired exports→three
-strict startups→artifact audit→ONE archive-extracted native route. First failure
-STOP, no retry or deadline reset. Final raw-result review precedes publication.
+generation API or a whole-game absence-of-defects claim. The next definition must
+identify a real production gap before implementation, rather than extend a service
+qualification chain. This is a local queue, not a project estimate.
 
 ## Latest delivered result
 
-**Aft service-arm runtime coexistence accepted on `f2bf35a`.** The same supported
-Player completes 15 authored walking goals, 18.303 m local walking within 12 m of the
-arm, ordinary Zenith boarding and 90 seated physics frames. All three actual
-service movers/clock advance in both intervals; home berth/OFFLINE/parked state
-persists. One genuine controller step event accounts for the stair approach;
-the ordinary displacement limit and actual movement remain unchanged.
+**Habitat patrol runtime coexistence accepted on `ea8fe43`.** The same supported
+Player completes all 22 walking goals, opens actual MainAccess through normal
+Interact, walks 17.302 m locally within 12 m of the two patrol drones' activity,
+returns, boards the original Torrent and remains pilot for 90 seated frames.
+Both actual drone poses/clock advance during local and seated intervals; the
+same door/home berth/OFFLINE/parked state and default controls persist.
 
-Full player-step suite, 74 Python tests, observer/privacy, fresh paired exports,
-three strict menu-ready startups and 1,521-entry audit pass. The changed archived
-route passes in 52.812 s guarded, zero diagnostics, full input/process cleanup.
-[Windows checkpoint ZIP](builds/windows/MuddsShipyards-f2bf35a-checkpoint.zip)
-and [notes](builds/windows/MuddsShipyards-f2bf35a-notes.txt) are published.
+All 77 Python checks, observer/privacy, fresh paired exports, three strict menu-ready
+startups and 1,521-entry audit pass. ONE archived route passes in 65.899 s guarded,
+zero diagnostics and full input/process cleanup, on the first attempt.
+[Windows checkpoint ZIP](builds/windows/MuddsShipyards-ea8fe43-checkpoint.zip)
+and [notes](builds/windows/MuddsShipyards-ea8fe43-notes.txt) are published.
 
-[Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#aft-service-arm--actor-proven-ordinary-route-accepted)
-retain the original failed route, both test-only corrections, cumulative budgets
-and actual actor proof. Thirteen terminal owners/69 process identities absent;
-14 private-profile files/helpers archived, owned source/profile/extraction removed.
-Only unique results remain. This is executable release capability/acceptance,
-not new service animation or locomotion tuning. Central/Freight retain their
-recorded earlier-source acceptance; Habitat patrol, rendered/hardware/full-station
-and all 36 parents/ten phase gates remain OPEN. UI/mining and unrelated parked
-failures retain their exact reopening conditions in the backlog/history.
+[Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#habitat-patrol--ordinary-door-walking-and-torrent-boarding-accepted)
+retain exact route/door/boarding proof, original caps and actual artifact hashes.
+Eleven terminal owners/67 process identities absent; 12 private-profile files/
+helpers archived, owned source/profile/extraction removed. Only unique results
+remain. No new animation, locomotion, cargo or bunk behavior is claimed. All four
+LIFE runtime cards are accepted source-specifically; station art/readability,
+other routes, hardware/full-station/final and all 36 parents/ten phase gates stay
+OPEN. Unrelated parked failures retain their exact conditions and budgets.
 
 ## Parked failures and dependent work
 
