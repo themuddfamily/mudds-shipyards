@@ -14,9 +14,11 @@ history. Ordinary shared departure/braking is now DONE on96c96312f after its one
 caller-field correction:132.562s, host5.004m departure/berth release/zero-speed
 stop, both clients retained and converged, all actual exits0. Game runtime is
 unchanged from checkpointb6196a1; this is source-route qualification. Next is one
-ordinary shared return-to-berth capability after completed static definition.
-The card requires physical host docking and both clients consuming committed
-arrival through ordinary landing input. Landing/return remains NOT_RUN; broader
+one caller-only release-settling repair after the first ordinary shared return
+attempt b7114a4e1 fails its immediate neutral-input guard. Capture/free home berth
+pass; no accepted host request or physical landing is established. Reuse the
+existing complete press/release helper and keep all original criteria/limits.
+Landing/return remains NOT_RUN; broader
 flight/endurance remain unqualified. Both lifecycle qualifications retain
 their accepted source scopes.
 These are not project-wide remaining counts; no phase completion is implied.
