@@ -522,7 +522,7 @@ func _client() -> void:
 func _assert_component_hud(components: Array, destroyed: bool, description: String) -> void:
 	var row: Dictionary = _game.hud.get_hero_component_hud_snapshot()
 	var label := _game.hud.find_child("ComponentStatus", true, false) as Label
-	var matches := label != null and label.visible and label.text == row.get("text") \
+	var matches: bool = label != null and label.visible and label.text == row.get("text") \
 		and not bool(row.get("repairing", true))
 	if destroyed:
 		matches = matches and row.get("wording") == &"destroyed" and label.text == "[X] DESTROYED  //  HULL LOST"
