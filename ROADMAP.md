@@ -40,7 +40,7 @@ whole-project job count. Root owns integration. Do not reopen parked failures.
 | RECOVERY-ONFOOT-PROBE | Release capability / DONE (source scope) | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
 | CHECKPOINT-ONFOOT-PROBE | Build / DONE | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
 | RECOVERY-ONFOOT-CUT | Recovery qualification / IN PROGRESS | Real-file on-foot commit survives owned SIGKILL/distinct restart into supported walking and real boarding beside the saved craft. |10–20 min freeze/driver preparation; existing package-probe limits separate and unchanged. |
-| ACCESS-PAUSE-16X10 | UI qualification / IN PROGRESS, fixture timing corrected | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
+| ACCESS-PAUSE-16X10 | UI qualification / FAILED at binding-conflict visibility | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
 
 The three recovery cards are sequential. UI work can proceed independently in
 an isolated checkout with disjoint ownership. A failed card ends at its first
@@ -144,23 +144,17 @@ concrete boundary; one attempted repair requires priority review before more wor
   options scrolling and focus/confirmation return remain usable. Record requested
   and effective pause scale; its authored fit ceiling is valid behavior. This
   source-layout result does not qualify physical controllers or all rendered views.
-- **Execution:** FAILED/root at the first selected run of `dd4ff0353`. At
-  1920x1200/requested0.75, options re-entry retains ControllerGlyphFamilyControl
-  focus while scroll=0 leaves its rectangle (1011,1245,229.5,28.5) below the
-  viewport. Import/compile passed; actual selected exit1, source/cache stable.
-  Later states/scales NOT_RUN. Review production-versus-fixture attribution
-  before scheduling one bounded correction; no unchanged rerun. One discriminator
-  is now frozen at `4128526c9`: ordinary Back/Open button actions separated
-  by frames, unchanged retained-focus/full-row criteria, requested0.75 only.
-  Diagnostic PASS: exit0/159 assertions/diagnostics0; scroll1099 and retained
-  row visible. The original failure was fixture transition timing; no HUD fix.
-  Full corrected state/scale qualification remains NOT_RUN. Priority review
-  selects recovery type checks next; return to this full selected fixture after
-  that boundary, with original300s cap and first-failure stop. Original budget:
-  30–45 min coverage/review, original300s
-  check cap. First actual defect stops with the view/control/scale identified and
-  a separate bounded UI repair. Integrate accepted coverage; a demonstrated UI
-  runtime change requires its own focused acceptance and fresh checkpoint.
+- **Execution:** FAILED/root. Original `dd4ff0353` same-frame options re-entry
+  failed; one fixture correction `4128526c9` uses separated ordinary buttons,
+  whose diagnostic passes159 assertions. One corrected full300s invocation
+  then fails at requested0.75/binding_conflict: focused Replace button rectangle
+  (681.75,1815.75,252.75,24) is outside visible bounds; scroll450. Eighteen
+  observations run; later states/scales NOT_RUN. Actualexit1, source/cache stable,
+  owner closed. Coverage is integrated; no production HUD fix is bundled.
+- **Priority review:** after the initial failure and one fixture correction,
+  stop UI diagnosis/repair here. Finish the archive recovery placement first.
+  The next production task must fix this exact visible conflict/focus outcome,
+  with original full selected300s acceptance; no repeated general UI audit.
 
 ## Parked work and external waits
 

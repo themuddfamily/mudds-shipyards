@@ -5471,3 +5471,20 @@ immutable matching export metadata, then run the existing native driver once
 from that extracted executable path, unchanged300s/stage/660s outer. No install
 menu/device/fullflight claim; first failure stops, no correction/retry. This is
 the missing original placement, not a repeated direct-export qualification.
+
+The single corrected full ACCESS-PAUSE-16X10 invocation at4128526c9 FAILS
+actual1 after18 observations, requested0.75/binding_conflict. The actual focused
+InputBindingConflictReplaceButton rectangle is(681.75,1815.75,252.75,24),
+outside safe bounds and the scroll clip at450. Options re-entry now passes.
+Later binding/reset/display/repair states and scales1/1.6 are NOT_RUN. All
+tracked/commit/status/cache guards hold, owner691176/start111310442 is closed.
+Raw ui-corrected-full* retained. Existing fixture coverage is integrated while
+retaining this known failed selected qualification; default sweep is unchanged.
+No production HUD changes or acceptance relaxation occur.
+
+Priority review retains initial failure plus one fixture correction rather than
+resetting the budget. Stop UI diagnosis here; finish the required archive recovery
+placement first. Next production card is the exact offscreen conflict/focus repair
+in existing HUD owners, with one unchanged full selected300s proof after repair
+and a fresh paired checkpoint if accepted. No overlapping UI audit or repeated
+unchanged run is scheduled.
