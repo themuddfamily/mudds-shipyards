@@ -121,11 +121,11 @@ const ACTIVITY_COPY := {
 	&"station_defense": {
 		"title": "Hold the station perimeter",
 		"label": "STATION DEFENCE",
-		"controller": "Stay inside the perimeter ring and press {fire} on each wave as it breaks in.",
-		"keyboard": "Stay inside the perimeter ring and press {fire} on each wave as it breaks in.",
-		"accessible": "Stay inside the station perimeter ring and use the fire control on each incoming wave.",
-		"next_action": "HOLD THE PERIMETER // ENGAGE THE WAVE",
-		"recovery": "PERIMETER BREACHED // FALL BACK TO THE STATION RING",
+		"controller": "On foot within reach of the station defense board, press {interact} or choose the nearby page's Start to deploy the defense. Then launch a healthy combat craft and press {fire} on incoming hostiles to protect the real station assets.",
+		"keyboard": "On foot within reach of the station defense board, press {interact} or choose the nearby page's Start to deploy the defense. Then launch a healthy combat craft and press {fire} on incoming hostiles to protect the real station assets.",
+		"accessible": "On foot within reach of the station defense board, use the interact control or choose the nearby page's Start to deploy the defense. Then launch a healthy combat craft and use the fire control on incoming hostiles to protect the real station assets.",
+		"next_action": "LAUNCH A COMBAT CRAFT // PROTECT STATION ASSETS AND CLEAR THE WAVE",
+		"recovery": "LULL // USE THE BERTH WINDOW WHEN OFFERED; FAILED // CHECK THE BOARD'S RESUME OR RESET STATUS; RESET REQUIRED // RETURN ON FOOT WITHIN REACH OF THE DEFENSE BOARD, CHOOSE RESET, THEN START TO RETRY",
 	},
 	&"shipyard_heavy_breach": {
 		"title": "Break the charged picket",

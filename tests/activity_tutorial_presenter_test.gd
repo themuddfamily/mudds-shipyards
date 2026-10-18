@@ -204,6 +204,8 @@ func _run() -> void:
 				_check_surface_survey_briefing(detail.text, activity_id)
 			if activity_id == &"cinder_platform_supply_run":
 				_check_supply_briefing(detail.text)
+			if activity_id == &"station_defense":
+				_check_defense_briefing(detail.text)
 		_check(
 			seen_titles.size() == Presenter.ACTIVITY_ORDER.size(),
 			"each %s activity kind yields its own distinct briefing" % String(device_family),
@@ -212,6 +214,7 @@ func _run() -> void:
 	await _check_production_board_sortie_briefings()
 	_check_board_sortie_presentation_variants()
 	_check_surface_survey_presentation_variants()
+	_check_defense_presentation_variants()
 	await _check_production_convoy_behaviors()
 	_check_convoy_presentation_variants()
 	await _check_production_route_behaviors()
@@ -278,9 +281,18 @@ func _run() -> void:
 		})
 		and hud.get("_reduced_motion")
 		and (hud.get("_runtime_status_panel") as PanelContainer).visible
-		and detail.text.contains("NEXT ACTION // HOLD THE PERIMETER"),
+		and detail.text.contains("NEXT ACTION // LAUNCH A COMBAT CRAFT"),
 		"a reduced-motion, reduced-flash preset still renders the briefing text",
 	)
+	_check_defense_briefing(detail.text)
+	hud.clear_activity_tutorial(&"accessible_defense_case")
+	_check(hud.apply_activity_tutorial_snapshot({
+		"activity_id": &"station_defense", "generation": 91, "revision": 1,
+		"accessible": true,
+	}) and detail.text.contains("interact control") and detail.text.contains("fire control")
+		and not detail.text.contains("{"),
+		"the real HUD composes glyph-free accessible defense admission and combat guidance")
+	_check_defense_briefing(detail.text)
 	var accessible_presenter := Presenter.new()
 	var accessible := accessible_presenter.present_snapshot({
 		"activity_id": &"station_defense", "generation": 1, "revision": 1,
@@ -291,7 +303,7 @@ func _run() -> void:
 		and accessible.prompt == accessible.accessible_prompt
 		and not accessible.prompt.contains("{")
 		and accessible.color_independent
-		and accessible.prompt.contains("RECOVERY // PERIMETER BREACHED"),
+		and accessible.prompt.contains("RESET REQUIRED // RETURN ON FOOT"),
 		"the accessible variant is glyph-free, colour-independent and keeps recovery guidance",
 	)
 	var disabled := accessible_presenter.present_snapshot({
@@ -1178,6 +1190,36 @@ func _check_production_convoy_behaviors() -> void:
 	game.queue_free()
 	await process_frame
 	await process_frame
+
+
+func _check_defense_briefing(prompt: String) -> void:
+	_check(prompt.contains("On foot within reach of the station defense board")
+		and prompt.contains("nearby page's Start") and prompt.contains("deploy the defense")
+		and prompt.contains("healthy combat craft") and prompt.contains("real station assets"),
+		"defense help explains physical on-foot board admission and the protected-assets objective")
+	_check(prompt.contains("NEXT ACTION // LAUNCH A COMBAT CRAFT")
+		and prompt.contains("PROTECT STATION ASSETS AND CLEAR THE WAVE")
+		and prompt.contains("RESET REQUIRED // RETURN ON FOOT WITHIN REACH OF THE DEFENSE BOARD")
+		and prompt.contains("CHOOSE RESET, THEN START TO RETRY"),
+		"defense help names the combat next action and physical-board Reset/retry when required")
+	_check(prompt.contains("LULL // USE THE BERTH WINDOW WHEN OFFERED")
+		and prompt.contains("FAILED // CHECK THE BOARD'S RESUME OR RESET STATUS")
+		and not prompt.to_lower().contains("ring"),
+		"defense help preserves offered berth lulls and resumable failures without ring-entry recovery")
+
+
+func _check_defense_presentation_variants() -> void:
+	for input_family: StringName in [&"keyboard", &"controller"]:
+		var presenter := Presenter.new()
+		var remapped := presenter.present_snapshot({
+			"activity_id": &"station_defense", "generation": 1,
+			"input_family": input_family,
+			"glyphs": {&"interact": "CUSTOM INTERACT", &"fire": "CUSTOM FIRE"},
+		})
+		_check(remapped.accepted and remapped.prompt.contains("CUSTOM INTERACT")
+			and remapped.prompt.contains("CUSTOM FIRE") and not remapped.prompt.contains("{"),
+			"defense %s board admission and combat use caller-resolved controls" % input_family)
+		_check_defense_briefing(remapped.prompt)
 
 
 func _check_board_sortie_briefing(prompt: String, activity_id: StringName) -> void:
