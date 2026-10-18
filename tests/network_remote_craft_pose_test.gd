@@ -433,7 +433,7 @@ func _assert_remote_component_power_hud() -> void:
 		and bool(authority.claim(1, 77, &"power_engineer", &"crew_port_01", authority.ROLE_ENGINEER, 1).get("accepted", false)),
 		"power route fixture admits an engineer through the existing role authority")
 	var routed := source.submit_crew_intent(1, 77, &"power_engineer", authority.ACTION_ENGINEER_REPAIR,
-		{"system_id": ShipComponentDamage.COMPONENT_ENGINE_BAY, "repair": 0.0, "system_generation": model.get_ledger_generation()}, 1)
+		{"system_id": ShipComponentDamage.COMPONENT_ENGINE_BAY, "repair": 0.0, "system_generation": model.get_ledger_generation()}, 2)
 	_check(bool(routed.get("consumed", false)) and float(source.get_telemetry().engine_power) > float(before_route.engine_power),
 		"admitted Halyard selection changes actual live engine output")
 	var host_stream := PoseStream.new()
