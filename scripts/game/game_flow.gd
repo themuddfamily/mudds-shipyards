@@ -8961,6 +8961,7 @@ func _consume_active_ship_command(command: ShipCommand) -> void:
 	_last_lifecycle_command_ship_instance_id = ship_instance_id
 	_last_lifecycle_command_stream_id = command.stream_id
 	_last_lifecycle_command_sequence = command.sequence
+	_capture_network_remote_helm_command(command, source)
 	# Confirmed remote helm already carries this edge to the host, even while
 	# local boarding presentation/solo phase lags the authoritative craft.
 	# Show pending feedback without granting local landing or changing phase.
@@ -9053,6 +9054,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		or not is_instance_valid(active_ship)
 	):
 		return
+	# Establish the confirmed client producer before sampling: assigning its peer
+	# authority is itself a source boundary and must precede the admitted edge.
+	_bind_network_client_helm_input_source(active_ship)
 	var source := active_ship.get_command_source()
 	if source != null and source.has_method(&"queue_action_edge"):
 		source.call(
@@ -12147,10 +12151,13 @@ func _bind_network_client_helm_input_source(craft: HeroShip) -> void:
 	var peer_id := _network_client_peer_id()
 	if peer_id <= 1:
 		return
+	var capture := _capture_network_remote_helm_produced_command.bind(source)
 	_network_client_helm_input_sources[key] = {
 		"craft": craft, "source": source, "authority": source.get_authority_peer_id(),
+		"capture": capture,
 	}
 	source.set_authority_peer_id(peer_id)
+	source.command_produced.connect(capture)
 
 
 func _restore_network_client_helm_input_sources(craft: HeroShip = null) -> void:
@@ -12161,15 +12168,23 @@ func _restore_network_client_helm_input_sources(craft: HeroShip = null) -> void:
 		_network_client_helm_input_sources.erase(key)
 		var source := saved.get("source") as LocalShipInputSource
 		if is_instance_valid(source):
+			var capture: Callable = saved.get("capture", Callable())
+			if capture.is_valid() and source.command_produced.is_connected(capture):
+				source.command_produced.disconnect(capture)
 			source.set_authority_peer_id(int(saved.authority))
 
 
-## Client half: while this peer holds a ledger pilot seat and is flying that
-## craft, its held helm goes to the host every `SEND_INTERVAL_TICKS` physics
-## ticks on the one movement RPC. The local craft keeps flying from the same
-## input as a prediction; the host's copy is the one the crew aboard rides.
-func _advance_network_remote_helm_stream() -> void:
-	if not _network_client_boarding_is_live() \
+## Observe the retained producer before either consumer can overwrite an edge.
+func _capture_network_remote_helm_produced_command(
+	command: ShipCommand, authority_peer_id: int, source: ShipCommandSource
+) -> void:
+	if authority_peer_id == _network_client_peer_id() and is_instance_valid(active_ship) \
+			and active_ship.get_command_source() == source:
+		_capture_network_remote_helm_command(command, source)
+
+
+func _capture_network_remote_helm_command(command: ShipCommand, sampled_source: ShipCommandSource) -> void:
+	if not is_instance_valid(network_session) or not _network_client_boarding_is_live() \
 			or StringName(_network_client_boarding_claim.get("role", &"")) \
 				!= NetworkBoardingIntentType.ROLE_PILOT \
 			or not _piloting or not is_instance_valid(active_ship) \
@@ -12180,10 +12195,15 @@ func _advance_network_remote_helm_stream() -> void:
 	var ship_id := active_ship.get_ship_id()
 	var producer := active_ship.get_command_source()
 	var producer_id := producer.get_instance_id() if is_instance_valid(producer) else 0
-	var producer_stream := producer.get_stream_id() if is_instance_valid(producer) else -1
+	if not is_instance_valid(producer) or not producer.is_enabled_owner() \
+			or producer.is_stream_exhausted():
+		_network_remote_helm = {}
+		return
+	var producer_stream := producer.get_stream_id()
 	if StringName(_network_remote_helm.get("ship_id", &"")) != ship_id \
 			or int(_network_remote_helm.get("producer_id", 0)) != producer_id \
-			or int(_network_remote_helm.get("producer_stream", -1)) != producer_stream:
+			or int(_network_remote_helm.get("producer_stream", -1)) != producer_stream \
+			or int(_network_remote_helm.get("session_id", 0)) != network_session.get_instance_id():
 		# Every (re)started helm stream is a new, higher stream id starting at
 		# sequence zero: a fresh host record accepts any stream, and a record
 		# the host kept from before a local seat-leave accepts a higher one.
@@ -12192,13 +12212,14 @@ func _advance_network_remote_helm_stream() -> void:
 			"ship_id": ship_id, "sequence": 0, "ticks": 0,
 			"stream_id": _network_remote_helm_stream_epoch,
 			"producer_id": producer_id, "producer_stream": producer_stream,
+			"session_id": network_session.get_instance_id(),
 			"sample_sequence": -1, "roll_request_id": 0, "landing_request_id": 0,
 		}
-	# Capture every sampled edge before the lower-rate send gate. Source epochs
-	# revoke unsent edges; repeated polling of one snapshot never adds a press.
-	var command := active_ship.get_last_ship_command()
-	if command != null and command.is_valid() and is_instance_valid(producer) \
-			and producer.is_enabled_owner() and command.stream_id == producer_stream \
+	# Production, FIFO delivery and physics polling share this one cursor. The
+	# producer signal observes commands in order before a later neutral snapshot
+	# can overwrite an edge; no second queue or press counter belongs to a caller.
+	if sampled_source == producer and command != null and command.is_valid() \
+			and command.stream_id == producer_stream \
 			and command.sequence > int(_network_remote_helm.get("sample_sequence", -1)):
 		_network_remote_helm["sample_sequence"] = command.sequence
 		if command.barrel_roll:
@@ -12207,6 +12228,17 @@ func _advance_network_remote_helm_stream() -> void:
 		if command.landing:
 			_network_remote_helm["landing_request_id"] = mini(
 				int(_network_remote_helm.get("landing_request_id", 0)) + 1, ShipCommand.MAX_SAFE_SERIALIZED_INTEGER)
+
+
+## Send the current held helm at the existing physics cadence. The host still
+## owns the craft, lease, clock admission and remote command validation.
+func _advance_network_remote_helm_stream() -> void:
+	var command: ShipCommand = active_ship.get_last_ship_command() if is_instance_valid(active_ship) else null
+	var producer: ShipCommandSource = active_ship.get_command_source() if is_instance_valid(active_ship) else null
+	_capture_network_remote_helm_command(command, producer)
+	if _network_remote_helm.is_empty():
+		return
+	var ship_id := active_ship.get_ship_id()
 	var ticks := int(_network_remote_helm.get("ticks", 0))
 	_network_remote_helm["ticks"] = ticks + 1
 	if ticks % NetworkRemotePilotCommandSourceType.SEND_INTERVAL_TICKS != 0:
