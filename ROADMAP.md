@@ -88,12 +88,10 @@ cannot select Heavy Breach/Torpedo terminal debt, although source memory-backed
 checks already cover the gameplay owner. The candidate below was implemented and
 checked, then withheld after its original and one repaired transaction failed.
 
-BREACH-INTERRUPTION is now FAILED/PARKED after its original source attempt and
-one caller repair. Both stop at physical board arming; no earned terminal,
-recovery/payment/replay or checkpoint is accepted. The retained snapshot shows
-missing configured board owners. The separate startup repair below addresses
-that binding seam without accepting this transaction. No successor
-or third attempt is selected. [Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#breach-interruption--failed-and-parked).
+BREACH-INTERRUPTION's original failure/one-repair history remains retained.
+The production binding repair below resolved its missing-owner prerequisite;
+a separately selected unchanged-probe reopening then failed at a later atomic
+payment check. The result below remains unaccepted; this is not a new budget.
 
 BOOT-BREACH-OWNERS is DONE in checkpoint **e3d1ada**. Startup now retries the
 existing Heavy Breach owner binding after the actual shared combat/director
@@ -103,40 +101,14 @@ and strict package checks pass. [Result and retained card](docs/history/ROADMAP_
 No successor is selected; full combat and parked interruption acceptance remain
 open. This repair does not accept or rerun the failed release probe.
 
-### Selected reopening — BREACH-INTERRUPTION after the production fix
+### Latest interruption result
 
-Root explicitly reopens the same13/31/32 outcome on the changed production
-baseline342705a1e, retaining both original failures and cumulative71.004s. The
-qualifying new fact/change is accepted BOOT-BREACH-OWNERS e3d1ada: the missing
-deferred binding and exact production owners are now directly proven/fixed in
-the full startup suite. This is not an unchanged third probe or a reset budget.
-
-- One medium-effort integration agent ports only the retained e9c6111b4 and
-  3c10a071b four-file release capability onto this clean fixed baseline, without
-  further caller/gameplay edits. One high-effort reviewer checks exact source
-  composition, independent processes and preserved finish criteria. Root owns
-  execution, integration, builds and cleanup. No nested agents or new validators.
-- Finish remains the original genuine Heavy Breach earned terminal/unpaid debt,
-  target-only delegated filesystem refusal, owned live readiness kill/reap with
-  byte-identical interrupted document, distinct same-profile normal Resume/real
-  pilot/production exit/physical board retry, exactly one atomic receipt/ack,
-  then a further distinct cold paid replay without a second receipt. Settings,
-  actual unrelated cargo payload and all authority/admission/diagnostic guards
-  remain. Torpedo and active-combat restore are separate/unqualified.
--30–60min integration/qualification. Import, compile changed probe, existing
-  startup CLI privacy, then exactly one full source transaction at original300s
-  per-process caps. Unchanged startup96.328s/production route48 on e3 and board52
-  on e9 retain their recorded sources; they are not rerun merely for a new pin.
-  If source passes, clean paired exports/three strict silent startups/actual
-  package audit, then one exact archive-extracted ELF transaction, same caps.
-- First unexpected failure ends this reopening, with cumulative priority review
-  including the retained71.004s and this run. No further caller repair, fourth
-  automatic attempt, rename, timeout change or different recovery choice.
-  Preserve raw failure and candidate; no failed candidate publication.
-- All engine runs private/headless/Dummy; no native Windows, audible output or
-  CI. Fixtures and acceptance limits remain disclosed. Commit/push regularly;
-  clean owned scratch after terminal closure. Independent Cinder supply terminal
-  qualification remains an unselected alternative; no adjacent recovery chain.
+BREACH-INTERRUPTION's explicitly selected reopening on the accepted startup fix
+is FAILED/PARKED. Candidatec1598ad67 reached earned debt, real readiness kill,
+cold normal Resume and one matching paid receipt, then failed its atomic-payment
+commit assertion in69.957s. No terminal recovery OK or third paid cold replay;
+no export/merge/checkpoint. Prior71.004s is retained: cumulative140.961s. No
+further repair/run is selected. [Reopening result and retained scope](docs/history/ROADMAP_DELIVERIES.md#breach-interruption-after-fixed-startup--failed-and-parked).
 
 ## Parked failures and dependent work
 
@@ -145,7 +117,7 @@ contracts and cumulative attempt records remain in the retained history.
 
 | Outcome | Last actual result | Condition before more work |
 | --- | --- | --- |
-| BREACH-INTERRUPTION /13,31,32 | Originale9c6111b4 fails35.365s; one caller repair3c10a071b fails35.638s at same board-arm step. Board snapshot: attached, configured=false, director/combat IDs0, external_owners_unavailable. No saved terminal or recovery proof. | Cumulative71.004s review PARKED; candidate unmerged/withheld, no exports. Separate production binding repair e3d1ada addresses the observed owner seam; recovery transaction remains unqualified and no further probe/repair is selected. No automatic third attempt or renamed retry. |
+| BREACH-INTERRUPTION /13,31,32 | Originale9/repair3c fail board arming35.365/35.638s. After accepted owner fix e3, unchanged probe c159 fails69.957s at atomic-payment commit assertion after cold Resume/one matching receipt; third cold replay NOT_RUN. | Cumulative140.961s STOP/PARK; candidates unmerged/withheld, no recovery checkpoint. No further diagnosis/repair/run, fourth automatic attempt or renamed retry selected; concrete causal fact/change required. |
 | HALYARD-GUNNER-DAMAGE /11,16 | Original 51.847s and one caller repair 52.025s both fail co-pilot admission; actual new damage proof NOT_RUN. | Parked after cumulative 103.872s review. No further diagnosis/fix/run without concrete reopening fact/change; candidates unmerged, no weapon defect established. |
 | HELM-YAW-HANDBACK / 18,20 | Original146.578s failure; one repair reaches cabin walking then FAIL156.016s at >=0.6m/15s. | Recorded cumulative priority review parked it. Explicit selection required before further diagnosis/fix/run; no movement cause established. |
 | CABIN-PASSENGER-ROLE / 18,20 | Candidate38c079086 HUD36 and actual handback PASSENGER pass, full required route fails walking. Unmerged/withheld; no package. | Preserve full route; no acceptance narrowing or automatic second repair. |

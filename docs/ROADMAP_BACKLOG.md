@@ -292,7 +292,7 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | HUD-CONVOY | Convoy durable reset/select/start/fresh-Main UI | 13 | UNSCHEDULED; correct existing owner only on actual discrepancy |
 | ACT-WRITES-DEFINE | Uncovered activity/write-boundary cells | 13,31 | DONE definition only; finite durable owner/boundary map below, with terminal-only owners distinguished; exact-package/real-file/ordinary recovery acceptance remains open |
 | BOOT-BREACH-OWNERS | Physical Heavy Breach board has exact production owners before gameplay | 9,11,13 | DONE packagede3d1ada; two exact old owner failures, final full startup/48-check production route and strict paired checkpoint pass; original interruption transaction remains parked |
-| BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: originale9c6111b4 and one caller repair3c10a071b fail first board-arm step35.365/35.638s; missing configured external owners observed. Separate production binding repair e3d1ada accepted; this unmerged release-probe candidate remains withheld, no recovery result/third attempt selected |
+| BREACH-INTERRUPTION | Exported Heavy Breach real-file earned debt/kill/recovery/paid replay | 13,31,32 | FAILED/PARKED: after originale9/repair3c board failures and accepted startupfixe3, unchanged-probe reopeningc159 fails69.957s at atomic-payment commit assertion; third cold replay NOT_RUN. Cumulative140.961s; unmerged/withheld, no further run/repair selected |
 | ACT-REPEAT-DEFINE | Exact applicable ten-run activity scenarios | 13 | DEFINE; bind existing repeatable activities, do not invent repetitions |
 | TRAVEL-LIMIT | Numeric ordinary nearby-travel envelope | 13 | DEFINE; design/runtime basis and scope decision |
 | HULK-REVISIT | Home-return/reload/revisit retains restored bus and single claimed cell | 13 | PARKED; failed route plus repair, original 300s |
@@ -748,26 +748,18 @@ real owned kill/reap, distinct restart, exact document and once-only receipt che
 No engine or package checks were run for this definition; all original failures,
 external decisions and final gates retain status.
 
-The separately selected BREACH-INTERRUPTION implementation then failed: source
-candidatee9c6111b4 and its one selected caller repair3c10a071b both stop at board
-arming before earned debt. Existing privacy and both production suites pass on
-e9, but no source transaction or package result is accepted. The repaired arm
-snapshot has attached=true/configured=false, zero director/combat authority IDs
-and external_owners_unavailable. This establishes the observed missing-owner
-boundary, not why it occurred or a gameplay fix. Cumulative71.004s priority review
-parks the task; branch/result retained, candidate unmerged, no exports or third
-attempt. Preserve required real-file/pilot/board/payment/cold replay acceptance;
-no Start Fresh substitute, clock relaxation or renamed retry is selected.
-
-Separate production repair BOOT-BREACH-OWNERS is now accepted on e3d1ada. Source
-tracing proves the world deferred binder ran before Boot reattached later combat/
-director siblings, while the gameplay tail retried defense only. The existing
-Heavy Breach binder now retries beside defense after normal combat initialization.
-Actual board/director/combat/objective identity checks fail twice on old code and
-pass in full startup on the fixed source; the existing48-check production route
-and strict paired checkpoint pass. This closes the named startup integration gap,
-not full ordinary combat or the parked real-file interruption transaction.
-
+BREACH-INTERRUPTION remains FAILED/PARKED. Its original e9 and one caller repair3c
+failed board admission35.365/35.638s. Separate production fix BOOT-BREACH-OWNERS
+e3d1ada resolved the actual missed startup binding and passed full startup plus
+existing48-check route and paired checkpoint. Root then explicitly selected one
+unchanged-probe reopening on that causal fixed baseline, preserving prior71.004s.
+Candidatec159 reaches real earned debt/readiness kill/cold normal Resume/production
+exit/physical board retry and matching paid receipt checks, but fails its atomic
+payment commit assertion69.957s. Cause unproven; no IN_WORLD_RECOVERY_OK, third cold
+paid replay or package transaction. Cumulative140.961s STOP/PARK; all failed refs/
+raw results retained, no further diagnosis, repair, fourth automatic attempt or
+renamed retry selected. These partial observations do not accept the unchanged
+full real-file/pilot/board/payment/cold replay contract. [Reopening closure](history/ROADMAP_DELIVERIES.md#breach-interruption-after-fixed-startup--failed-and-parked).
 
 ## Multiplayer
 

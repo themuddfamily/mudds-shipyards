@@ -8416,3 +8416,93 @@ Titan unapproved; CI stays disabled. Frozen selected contract follows.
   cleanup. Full ordinary combat, parked debt transaction/Torpedo and native
   hardware gates stay open. Independent alternative is terminal Cinder supply
   real-file qualification; it remains unselected. No automatic adjacent chain.
+
+
+## Breach interruption after fixed startup — failed and parked
+
+Root explicitly reopened the same parent13/31/32 outcome on9ce3eea1e because
+accepted production startup fix e3d1ada directly addresses the retained missing
+board-owner failure. Both original failures and71.003712327s remain; this is not
+an unchanged third run or budget reset. One medium-effort integrator cherry-picked
+the existing release capability onto that fixed baseline; high-effort independent
+review GO confirmed four blobs exactly match retained3c, GameFlow exactly matches
+the proven fixed e3 baseline and no hidden source change. Candidate
+`c1598ad67dce23190c51083780a443989b18ee3a` is retained on remote
+`feat/breach-interruption-fixed-boot-20261018`, unmerged/withheld. Prior e9/3c branch
+and all original results remain. Current playable checkpoint stays e3d1ada.
+
+Import20.867s, changed probe compile15.573s and existing startup CLI privacy1.034s
+pass. Existing startup96.328s/production route48 on e3 and board52 on e9 retain
+their named sources; no unchanged suite rerun or new exact-pin claim. The one
+full reopened source transaction fails69.956817119s at the existing atomic-payment
+assertion; no edit/repair/run followed. No exports or packaged transaction ran.
+
+Unlike the missing-owner failures, this run reaches genuine Heavy Breach earned
+unpaid terminal and live IN_WORLD_INTERRUPTION_READY. The supervisor performs
+actual owned SIGKILL exit-9/reap and verifies the killed document unchanged.
+Fresh Boot reports preserved debt/no old combat claims, normal Resume acquires
+the saved Arrow's real safe-home pilot, production exit releases claims, the
+physical board is discovered and the exact paid terminal/one matching receipt
+checks pass. Then the source probe fails “payment and terminal acknowledgement
+use the one existing atomic reward transaction”; resume exits1 without terminal
+IN_WORLD_RECOVERY_OK. The third distinct paid cold process is NOT_RUN. Those
+preceding observations do not establish full transaction/atomicity acceptance;
+the underlying reason for this check's failure remains unproven. No source
+exploration or caller repair was selected after the failure.
+
+Independent cumulative review confirms STOP/PARK:71.003712327+69.956817119 =
+140.960529446s. Full original criteria remain earned debt, exact live readiness
+kill/document guard, distinct normal Resume/real pilot/exit/board retry, one atomic
+receipt/ack and further cold paid replay, plus exact archive package transaction.
+No further diagnosis/repair/run, fourth automatic attempt, rename, timeout change
+or different recovery choice. A genuinely new concrete causal fact/production
+change and explicit selection would be required; review alone is insufficient.
+
+All4 supervisor owners terminal:3 exit0,1 exit1; all19 captured PID/start identities
+absent, both inner engine children reaped. Source/index/cache/engine guards hold.
+Archived2 profile logs and2 app-data files byte-identically; inner supervisor
+retained actual documents, source/cache manifests and both game logs. Unique raw:
+`/srv/mudds-work/breach-interruption-fixed-boot-20261018/results/`. Removed owned
+source worktree/import cache, profiles/helpers; remote candidate retained. Public
+checkpoints and unrelated worktrees unchanged. Selection-to-closure about7min
+against30–60min allowance; first unexpected failure stopped this reopening.
+
+All engine automation headless/Dummy; native Windows/GPU/device/audio/ordinary
+combat and human qualification remain unperformed. All36 parents/ten gates stay
+open, Titan unapproved, CI disabled. No successor selected. Frozen reopening
+contract follows:
+
+### Selected reopening — BREACH-INTERRUPTION after the production fix
+
+Root explicitly reopens the same13/31/32 outcome on the changed production
+baseline342705a1e, retaining both original failures and cumulative71.004s. The
+qualifying new fact/change is accepted BOOT-BREACH-OWNERS e3d1ada: the missing
+deferred binding and exact production owners are now directly proven/fixed in
+the full startup suite. This is not an unchanged third probe or a reset budget.
+
+- One medium-effort integration agent ports only the retained e9c6111b4 and
+  3c10a071b four-file release capability onto this clean fixed baseline, without
+  further caller/gameplay edits. One high-effort reviewer checks exact source
+  composition, independent processes and preserved finish criteria. Root owns
+  execution, integration, builds and cleanup. No nested agents or new validators.
+- Finish remains the original genuine Heavy Breach earned terminal/unpaid debt,
+  target-only delegated filesystem refusal, owned live readiness kill/reap with
+  byte-identical interrupted document, distinct same-profile normal Resume/real
+  pilot/production exit/physical board retry, exactly one atomic receipt/ack,
+  then a further distinct cold paid replay without a second receipt. Settings,
+  actual unrelated cargo payload and all authority/admission/diagnostic guards
+  remain. Torpedo and active-combat restore are separate/unqualified.
+-30–60min integration/qualification. Import, compile changed probe, existing
+  startup CLI privacy, then exactly one full source transaction at original300s
+  per-process caps. Unchanged startup96.328s/production route48 on e3 and board52
+  on e9 retain their recorded sources; they are not rerun merely for a new pin.
+  If source passes, clean paired exports/three strict silent startups/actual
+  package audit, then one exact archive-extracted ELF transaction, same caps.
+- First unexpected failure ends this reopening, with cumulative priority review
+  including the retained71.004s and this run. No further caller repair, fourth
+  automatic attempt, rename, timeout change or different recovery choice.
+  Preserve raw failure and candidate; no failed candidate publication.
+- All engine runs private/headless/Dummy; no native Windows, audible output or
+  CI. Fixtures and acceptance limits remain disclosed. Commit/push regularly;
+  clean owned scratch after terminal closure. Independent Cinder supply terminal
+  qualification remains an unselected alternative; no adjacent recovery chain.
