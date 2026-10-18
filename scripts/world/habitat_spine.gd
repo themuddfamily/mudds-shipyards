@@ -1064,7 +1064,8 @@ func get_performance_contract() -> Dictionary:
 	var contract := StationModuleContract.build_performance_contract(self, {
 		"mesh_instances": 1350,
 		"static_bodies": 260,
-		"collision_shapes": 270,
+		# Existing 266 shapes plus one discovery shape for each of six usable bunks.
+		"collision_shapes": 272,
 		"labels": 25,
 		# Light ceiling re-frozen in the open, 12 -> 15 -> 21. The module built 6
 		# lights against that 12; the fixture pass took it to 15 — one warm
