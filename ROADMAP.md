@@ -179,6 +179,22 @@ cache/process guards and strict unfiltered diagnostic scan remain. Independent
 exact-pin review required before execution; first failure STOP, no silent repair
 or automatic route retry. No engines have run on this candidate at selection.
 
+First focused sequence STOP: import19.768/observer compile15.543/privacy1.028s
+PASS; Python68tests FAIL8.376s (one ERROR). Negative mover-count test pops the
+second mover, then gantry_tick indexes that missing slot before unchanged driver
+validation can reject it. No exports or native route ran; no runtime defect
+established. Initial raw/STOP retained and failed-stage8.376s remains cumulative.
+
+One independently reviewed repair selected BEFORE editing: only existing
+`tools/release/test_native_sortie.py`, add `len(movers)>1` to gantry_tick's
+second-mover motion condition. Keep missing-mover mutant/assertRaises, first
+mover's existing frames*.001 and second mover's .001 baseline motion, production
+driver/observer/CLI and all route criteria unchanged. Freeze clean repaired pin
+and run ONE full Python suiteCAP300. Retain accepted unchanged import/compile/
+privacy (actual tested files unchanged). Cumulative priority review after this
+fixture repair result is required before selecting remaining export/native
+stages. No automatic second repair, cap reset or accepted-check replay.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
