@@ -122,6 +122,7 @@ var _ordinary_ship: HeroShip
 var _ordinary_player_id := 0
 var _ordinary_deadline := 0
 var _ordinary_directory := ""
+var _ordinary_board_completed := false
 
 
 func _run_ordinary_jovian_kit_board() -> void:
@@ -129,6 +130,7 @@ func _run_ordinary_jovian_kit_board() -> void:
 	_ordinary_directory = "user://jovian-kit-ordinary-board-%d-%d" % [OS.get_process_id(), Time.get_ticks_usec()]
 	_ordinary_game = MAIN_SCENE.instantiate() as GameFlow
 	await _ordinary_board_scenario()
+	_ordinary_require(_ordinary_board_completed, "ordinary boarding scenario reached its terminal acceptance")
 	# Always release input/capture and destroy Main, including the first failed
 	# boundary. Do not use the staged fixture's piloting-state mutation cleanup.
 	for action in ORDINARY_WALK_ACTIONS + [&"interact", &"sprint_boost", &"brake", &"ui_accept", &"fire", &"pause"]:
@@ -228,7 +230,7 @@ func _ordinary_board_scenario() -> void:
 		return
 	if not _ordinary_require(_ordinary_home_berth_is_current(), "Jovian remains physically parked in its valid occupied home freight berth"):
 		return
-	_ordinary_require(_ordinary_game.phase == GameFlow.Phase.START_ENGINES and _ordinary_cargo_is_initial()
+	_ordinary_board_completed = _ordinary_require(_ordinary_game.phase == GameFlow.Phase.START_ENGINES and _ordinary_cargo_is_initial()
 		and not bool(_ordinary_game.get("_sortie_departed_berth"))
 		and str(_ordinary_ship.get_telemetry().get("engine_state", "")).to_upper() == "OFFLINE",
 		"stop before thrust/departure/start: cargo IDLE generation zero, initial manifest generations one, six source kits and zero destination kits")
@@ -347,10 +349,12 @@ func _ordinary_button(node_name: String) -> bool:
 
 
 func _ordinary_activate(button: Button) -> bool:
+	# Activating a transient notice may retire its button before the next frame.
+	var button_name := str(button.name)
 	root.grab_focus()
 	button.grab_focus()
 	await process_frame
-	if not _ordinary_require(root.gui_get_focus_owner() == button, "actual HUD button receives keyboard/controller focus: " + button.name):
+	if not _ordinary_require(root.gui_get_focus_owner() == button, "actual HUD button receives keyboard/controller focus: " + button_name):
 		return false
 	var activated := [false]
 	button.pressed.connect(func(): activated[0] = true, CONNECT_ONE_SHOT)
@@ -358,7 +362,7 @@ func _ordinary_activate(button: Button) -> bool:
 	await process_frame
 	_ordinary_action(&"ui_accept", false)
 	await process_frame
-	return await _ordinary_boundary(func(): return activated[0], 5.0, "focused ui_accept activates real HUD button: " + button.name)
+	return await _ordinary_boundary(func(): return activated[0], 5.0, "focused ui_accept activates real HUD button: " + button_name)
 
 
 func _ordinary_ticks(count: int) -> void:
