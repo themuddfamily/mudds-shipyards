@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Fresh playable checkpoint0c2dc2e reports depleted Jovian kits truthfully on the Activity Board. Earlier control-help fixes remain included. Cargo restart and Halyard remain parked.**
+**Fresh playable checkpoint624d2a6 settles the remote pilot's heading after steering release. Both ordinary yaw directions now qualify; handback stays open. Cargo restart and Halyard remain parked.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -13,7 +13,7 @@ phase gates remain open.** This file holds the executable queue; the
 | Outcome | Actual proof / limit |
 | --- | --- |
 | Immediate client landing edge retained exactly once | Runtime `2c73494a4`; old-runtime failure reproduced, consumer40/ship_command79 pass. Source/ownership/session boundaries revoke pending input. |
-| Fresh playable checkpoint **0c2dc2e** | [Windows notes](builds/windows/MuddsShipyards-0c2dc2e-notes.txt), [Linux notes](builds/linux/MuddsShipyards-0c2dc2e-linux-notes.txt). Depleted cargo shows insufficient kits after reset/reselection; other choices remain usable. Full cargo127/nearby HUD13, paired exports/three strict startups/actual1515-entry audit pass. Earlier control-help/layout fixes retained. |
+| Fresh playable checkpoint **624d2a6** | [Windows notes](builds/windows/MuddsShipyards-624d2a6-notes.txt), [Linux notes](builds/linux/MuddsShipyards-624d2a6-linux-notes.txt). Neutral pilot attitude smoothly converges while active steering/hover/ongoing roll retain policy. Pose62, ordinary two-client yaw139.519s, paired exports/three strict startups/actual1515-entry audit pass. Earlier supply-status/control-help/layout fixes retained. |
 | Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
 | Actual on-foot recovery in exported/archive Linux checkpoint | f90547c real-file SIGKILL/distinct restart; supported awake unseated player, ordinary walk0.525555m+Interact boarding, conserved convoy and receipts1→2 once. Private headless/Dummy and disclosed craft-placement fixtures; no fullflight/native-device claim. |
 | Pause/options16:10 selected source qualification | 1cf102298 PASS:26 focused repair assertions;948 layout assertions/96 observations,32 states at requested.75/1/1.6. Original criteria/caps retained; device/render/persistence transactions and other aspects remain open. |
@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS repair, 3 FAILED (two parked), 2 GATED, 2 DONE.** Root owns integration and closure.
+**2 FAILED/PARKED, 2 GATED, 4 DONE.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. The
 completed KIT-BOARD/KIT-DEPART cards remain below; their slots now hold mixed
@@ -51,8 +51,8 @@ and delivery history; they do not consume active queue slots.
 
 | Task | State | Observable finish | Implementation estimate; checks separate |
 | --- | --- | --- | --- |
-| HELM-YAW-TURN | FAILED; repair selected | Original remote pilot turns host-owned Jovian both ways with normal sampled input; release stops yaw and both clients consume the attitude. |c2e3df979; route FAIL138.085s at pilot attitude convergence; original limits retained |
-| HELM-NEUTRAL-REPAIR | IN PROGRESS | After yaw release the pilot view converges to host attitude, preserving active steering behavior. |45–60min implementation/review; focused regression plus one unchanged yaw route; fresh checkpoint if accepted |
+| HELM-YAW-TURN | DONE after one repair | Original remote pilot turns host-owned Jovian both ways with normal sampled input; release stops yaw and both clients consume the attitude. |624d2a6; ordinary route139.519s, both turns/release/client attitudes pass; original failure retained |
+| HELM-NEUTRAL-REPAIR | DONE | After yaw release the pilot view converges to host attitude, preserving active steering behavior. |624d2a6; old-runtime failure reproduced, pose62/yaw/paired checkpoint pass |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
@@ -93,7 +93,8 @@ accepted runtime repairs require separate cards and fresh paired builds.
   heading drifts at most0.5degree over the following1s. Both clients consume
   advanced current-owner attitudes within2degrees of the host within2s. Preserve
   source/ship/seat/ownership generations and actual supported occupants.
-- **Budget/next:** FAILED qualification; planned30–45min implementation/review,
+- **Budget/next:** DONE after the one selected repair; initial qualification
+  failed. Planned30–45min implementation/review,
   split before90min. One compile300s, one private Xvfb/x11/Dummy route300s with
   inherited outer360s and unchanged boarding/walking stage caps. Root reviews
   before executing. First unexpected failure stops; record its actual owner
@@ -106,7 +107,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
 - **Priority:** this already-named uncovered action has no parked failed attempt.
   Select it over reopening failed cargo restart/Halyard or repeating unchanged
   passing HUD checks. Parked failure budgets and reopen conditions stay intact.
-- **Actual result:** candidate c2e3df979 is unmerged. Import/compile pass;
+- **Initial result:** candidate c2e3df979 is unmerged. Import/compile pass;
   single route FAIL138.085s. First diagnostic is caller receipt get_path on a
   valid detached command source. Left turn is actual3.6deg/334ms, fresh neutral
   delivered and host drift0; passenger attitude error0deg. Original pilot still
@@ -116,9 +117,15 @@ accepted runtime repairs require separate cards and fresh paired builds.
   do not loosen the comparison to turn the run green.
 - **Closure:** all3 owners terminal/all23 PID identities absent; source/required
   cache unchanged,67 peer files copied byte-identically. Raw and source refs
-  retained; owned checkout/profiles/helpers removed. Next is the ONE selected
-  repair below. This failure and its repair share the cumulative work budget;
+  retained; owned checkout/profiles/helpers removed. The ONE selected
+  repair below is now accepted. This failure and its repair share the cumulative work budget;
   another failure requires priority review before more diagnosis or reruns.
+- **Accepted result:**624d2a697; ONE unchanged route PASS139.519s with normal
+  original boarding/departure/brake. Left/right signed turns4.8deg in296/372ms,
+  fresh neutral within1s, host drift0deg/1s and both actual clients within2deg/2s
+  (pilot0.206/0.202deg, passenger0deg). All three actual OS exits0, marker1 and
+  fullraw diagnostics0. Same original source/seat/ownership generations retained.
+  Parent handback remains required and unqualified.
 
 ### HELM-NEUTRAL-REPAIR — converge the released pilot's attitude
 
@@ -142,13 +149,26 @@ accepted runtime repairs require separate cards and fresh paired builds.
   all three OS exits0 and fullraw diagnostics0. Guard detached receipt paths;
   do not suppress diagnostics. Any new runtime change requires fresh paired
   clean exports and three strict startup/package checks before closure.
-- **Budget/next:** IN PROGRESS;45–60min implementation/review; split before90min.
+- **Budget/next:** DONE; planned45–60min implementation/review; split before90min.
   Compile/focused checks up to300s each, yaw route original300s/outer360s;
   exports/startups separate. Next action: implement/review this named correction
   in an isolated checkout from the retained candidate. No new profiling probe.
 - **Stop:** first unexpected failure; no second automatic repair. Review
   cumulative original failure plus this attempted repair before any next action.
   Parent handback, devices, other axes and full multiplayer baseline remain open.
+- **Actual close:** independent review GO; old runtime fails only four new
+  neutral regression assertions (full62/41.152s). Fixed full pose62/41.487s and
+  the single unchanged yaw route pass. Runtime624d2a697 has fresh paired exports,
+  three strict silent startups and actual1515-entry package audit PASS. Windows
+  payload checked through Linux Godot; native Windows/GPU/devices/audio/human,
+  full matrix/endurance/release remain open. All11 owners terminal/all76 observed
+  PID identities absent, source/required cache unchanged,81 peer files copied
+  byte-identically. Public paired checkpoint/notes and unique raw/source refs
+  retained; owned checkout/profiles/helpers removed after archival.
+  Raw: `/srv/mudds-work/remote-pilot-neutral-20261018/results/`.
+- **Next:** replenish the queue from named player/build outcomes. No further yaw
+  probe or unchanged rerun is selected; original handback needs its own bounded
+  ordinary-crew acceptance before HELM-YAW can close.
 
 ### HUD-CARGO-SUPPLY — show when delivery kits have run out
 

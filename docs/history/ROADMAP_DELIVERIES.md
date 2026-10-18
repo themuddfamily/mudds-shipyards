@@ -6207,3 +6207,33 @@ All3 owners terminal/all23 observed PID identities absent; source/required cache
 unchanged,67 peer files byte-identical in the retained bundle. Raw:
 /srv/mudds-work/jovian-remote-yaw-20261018/results/. Owned disposable source,
 profiles and helper removed at closure; work branch/source refs retained.
+
+
+## Neutral remote pilot attitude — shipped on 624d2a697
+
+A valid current pilot's released steering smoothly converges inside the existing
+rotation deadband, including straight-ahead thrust. Active steering, hover and
+ongoing barrel rolls retain the old policy. Small readonly HeroShip active-roll
+API preserves multi-tick steering; ownership/stream fences exclude retired,
+disabled/non-owner/invalid snapshots. Position/velocity/snap/landing/destroyed/
+stale/observer paths remain unchanged. New yaw receipts safely inspect detached
+sources without suppressing diagnostics. Independent high-risk review GO.
+
+Old runtime fails exactly four new neutral assertions in the full pose suite,
+62 total/41.152s; fixed suite passes62/41.487s. ONE unchanged ordinary three-process
+Jovian yaw route passes139.519s at original300s/outer360s: normal original crew
+walking/boarding/departure/brake and identity/ownership support, both4.8deg signed
+turns296/372ms, fresh neutral within1s, host drift0deg for1s. Actual pilot attitudes
+converge0.206/0.202deg and passenger0deg within original2deg/2s; actual three OS
+exits0, marker1/fullraw diagnostics0. Original c2e3df979 failure remains retained.
+Turn/release child closes; HELM-YAW ordinary handback remains open and required.
+
+Fresh clean paired exports, direct/archive/Windows-payload startup checks and
+actual1515-entry package audit pass. Windows payload was run through Linux
+Godot, not native Windows. Public prefix MuddsShipyards-624d2a6 in builds/windows/
+and builds/linux/ includes checkpoint ZIP/notes. Native GPU/devices/audio/human,
+full matrix/endurance/release gates stay open. Cargo restart and Halyard remain
+parked. All11 owners terminal/all76 PID identities absent, source/required cache
+unchanged,81 peer files byte-identical. Raw and original profile logs:
+/srv/mudds-work/remote-pilot-neutral-20261018/results/. Owned disposable source,
+profiles/helpers and duplicate builds removed at closure; source refs preserved.
