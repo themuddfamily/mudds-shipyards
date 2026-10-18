@@ -134,7 +134,9 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | --- | --- | --- | --- |
 | WALK-CENTRAL | Central launch/return | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-AFT | Aft stairs/door/board | 7,9 | UNSCHEDULED; exact production-roster route |
-| WALK-HABITAT | Ordinary hub→Habitat rest/wake/common room→hub plus usable restart controls | 7,9 | UNSCHEDULED; packaged221f523 supplies actual rest/wake. Freeze complete ordinary hub/common-room/home/restart journey separately; staged rest fixture and parked Sandbox cannot substitute it |
+| WALK-HABITAT | Ordinary hub→Habitat rest/wake/common room→hub plus usable restart controls | 7,9 | DEFINED; aggregate remains open until WALK-HABITAT-LOOP and WALK-HABITAT-RESTART pass. Existing packaged rest capability is retained; staged proof and parked Sandbox cannot substitute either child |
+| WALK-HABITAT-LOOP | Fresh normal Start Shift, hub→door→bunk sleep/wake→common room→same hub | 7,9 | UNSCHEDULED qualification; finite ordinary-input route below, no scenario placement. Implement any needed journey-driver support within this task; do not count writing a test as separate gameplay delivery |
+| WALK-HABITAT-RESTART | Normal quit while resting, distinct process with same data, fresh awake supported controls | 7,9 | GATED accepted loop and one frozen normal-quit cut. No saved station-bunk pose/claim entitlement or OS-kill coverage inferred; exact continuation below |
 | HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | DONE; packaged221f523. Six StationSeat-based bunks, focused134/full spine/Habitat/ship sleep checks and paired startup pass; no saved station pose or ship/recovery/network authority expansion |
 | WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
@@ -207,6 +209,78 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | COMBAT-PERIMETER | Perimeter Hold | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
 | COMBAT-BREACH | Heavy Breach | 11 | UNSCHEDULED; existing live encounter, actual damage and safe return |
 | COMBAT-TORPEDO | Torpedo Run evade/intercept/destroy/fail/abort | 11,23 | UNSCHEDULED; existing live encounter, actual damage and safe return |
+
+### Ordinary Habitat journey — finite acceptance contract
+
+Definition on32d773487 after packaged221f523 station-bunk delivery; no engine
+run or new gameplay acceptance. WALK-HABITAT retains both complete outcomes
+below. Final packaged dressing/native/device requirements keep their own gates.
+No additional runtime gap was established by this source map.
+
+**WALK-HABITAT-LOOP** starts in fresh production Main and uses normal Start Shift,
+movement/look and Interact. No teleport, direct transform/velocity assignment,
+forced sleep/door/control flags, per-waypoint relocation or rescue is permitted.
+Turn through actual input; observe current target discovery rather than invoking
+the interaction coordinator directly. Keep one live Player throughout.
+
+| Leg | Authored target / required observation |
+| --- | --- |
+| Hub start | PlayerSpawn≈(-8.5,0.18,11), normal camera/controls and supported walking; retain this actual starting region as the return target. |
+| Starboard approach | Reuse the obstacle-aware circulation witnesses (6,13.5)→(34.8,13.5)→(34.8,15.5)→(43,15.5)→(46,15.5), expressed as world X/Z. Totes occupy z15.05–15.85 and cabinets x36.8; a direct z15.5 line is not presumed clear. The fresh hub connection still needs actual live proof. |
+| Pressure doorway | Initially closed HabitatSpine/MainAccess≈(49.72,0,15.5); actual proximity/facing candidate, separate Interact press/release, door opens and the same Player crosses its physical threshold. |
+| Bunk | BunkAlcove01/StationBunkInteraction; actual wake point Habitat-local(-2,0.04,5.1)≈world(54.1,0.04,17.5). Reach by walking, face/discover it, Interact sleeps with its exact reservation; released/repressed Interact wakes, clears reservation and restores supported locomotion. No borrowed ship/crew/hatch claim. |
+| Common room | Return to central circulation then cross RouteCommonEntry≈(67.65,0.15,15.5), with x≈67.8 an existing threshold witness. Require actual observation-common occupancy and physical support. |
+| Hub return | Reverse the physical corridor/doorway and obstacle-aware starboard route to the original hub region, retaining normal camera, walking and interaction. No rescue/snap or substituted staged return. |
+
+These are source-authored witnesses, not a newly accepted unobstructed polyline.
+Use existing Player/StationDoor/StationBunk/GameFlow input and reservation owners.
+The Habitat origin is(49,0,15.5), yaw+π/2; its floor0 meets the station floor−0.02
+within the existing seam contract. Runtime collisions and supported movement
+must be observed, rather than inferred from these coordinates.
+
+Freeze one source/package and existing driver invocation before executing;
+use one300s whole-loop cap, stop on complete route or first failure. Extend the
+existing ordinary-input driver/observer only as required for this full loop,
+without replaying the unrelated parked all-craft Sandbox route. Complete-loop
+acceptance uses the existing external OS-input path on owned isolated Xvfb with
+explicit x11 and Dummy, independent abort, input/cursor release and process
+cleanup. Headless fixtures can support focused regressions; they do not replace
+this ordinary-input journey. Rendering/device feel retain separate gates.
+A failure retains the whole frozen route; diagnose/repair only its concrete
+production owner and never narrow the accepted journey to a staged subcase.
+
+**WALK-HABITAT-RESTART** is a separate normal-restart outcome. Freeze normal UI
+quit while occupying that real station bunk after ordinary admission. Confirm
+accepted durable context and orderly session/safe-start closure, reap the game,
+then launch a distinct process with the same private real-file profile and normal
+Begin Shift. Require a fresh awake/unseated, collision-supported Player, no old
+bunk reservation/sleep/crew/ship claim, and ordinary look, walking displacement
+and interaction at the supported safe station start. Use one300s cap for the
+whole quit/restart operation; no new timeout following a failed attempt.
+
+Current `_capture_solo_safe_recovery_context` admits saved rest only for ShipBunk.
+StationBunk sleep attempts `{mode:unavailable}` publication; accepted commit
+makes it durable, while refused writes retain the previous preference/retry.
+Cold normal start therefore promises supported awake station controls, not the
+old Habitat pose, bunk lease or sleep. This definition adds no station save mode.
+Normal restart does not close OS-kill/interruption promises: those stay in the
+existing RECOVERY-KILL family. A rejected publication or unavailable startup is
+a real failed boundary, not permission to fabricate a saved record or claim.
+
+Existing [Habitat integration](../tests/habitat_integration_test.gd) starts its
+traversal at(43,0.18,15.5), returns only to x47.8 and separately stages the bunk
+wake point. Its accepted134/203 rest/full results retain that exact scope.
+[Native sortie driver](../tools/release/run_native_sortie.py) and
+[read-only observer](../scripts/diagnostics/native_sortie_observer.gd) supply the
+existing obstacle-aware circulation/door input seams; a Habitat-only full loop
+and normal-restart selector are not currently implemented there. Preserve all
+54-waypoint Sandbox requirements and its original failed300s record.
+[GameFlow](../scripts/game/game_flow.gd) `start_shift`,
+`_refresh_interaction_targets`, `_on_interact_requested`,
+`_capture_solo_safe_recovery_context` and orderly shutdown own the real behavior.
+The parked full resume suite remains parked. Runtime changes, if actually
+required, need focused regressions and a fresh checkpoint; qualification alone
+does not require an identical rebuild or close native/human/full-parent gates.
 
 ### Component consequences and acceptance boundary
 

@@ -9346,3 +9346,20 @@ ordinary Habitat route definition, not another recovery evidence chain.
   is delivered or fails; no successor recovery/evidence chain. Independent
   production alternative is the identified Habitat ordinary journey definition;
   Hauler stock/Titan choices remain unresolved and are not inferred here.
+
+## Ordinary Habitat journey — definition20261018
+
+Source32d773487; one bounded read-only route map plus root restart-owner review.
+WALK-HABITAT remains open, split into LOOP (fresh normal hub/door/sleep/wake/
+common-room/same-hub route) and RESTART (normal UI quit while resting, distinct
+process/same real files, fresh supported awake controls). Each has one300s whole-
+operation cap; writing driver support is not counted as a separate gameplay
+outcome. Full loop uses isolated external OS input, with no scenario placement.
+Obstacle-aware circulation witnesses preserve totes/cabinet clearance; the fresh
+hub polyline remains unqualified. StationBunk has no durable sleep-pose contract;
+accepted unavailable publication supports normal safe station start. OS-kill
+scope remains RECOVERY-KILL, not this orderly restart. Existing staged rest/full
+Habitat passes and parked Sandbox/resume failures retain their recorded scopes.
+No additional gameplay defect, engine pass or new checkpoint claimed. Static
+owner/link checks and independent contract review pass. Next action is one frozen
+LOOP driver/qualification card. All36 parents/ten phase gates remain open.

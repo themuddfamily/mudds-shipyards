@@ -328,9 +328,25 @@ No unexpected failed attempt. Escort/approach placement remains disclosed;
 ordinary docking, busy exit and installed/final-candidate qualification stay open.
 Owned source checkout/profiles/helpers removed; raw results retained.
 
-Next single action: define WALK-HABITAT's complete ordinary hub/rest/common-room/
-home/restart route and acceptance using the now-delivered bunks. No staged rest
-rerun, unchanged parked Sandbox retry or successor recovery chain is selected.
+### Ordinary Habitat journey — definition complete
+
+WALK-HABITAT now has two bounded acceptance outcomes in the
+[complete route contract](docs/ROADMAP_BACKLOG.md#ordinary-habitat-journey--finite-acceptance-contract):
+WALK-HABITAT-LOOP (fresh hub→door→actual sleep/wake→common room→same hub) and
+WALK-HABITAT-RESTART (normal quit while resting, distinct process, supported awake
+controls). Source mapping found no further gameplay gap. Existing staged tests
+do not prove this journey, and the parked whole-Sandbox route is unchanged.
+
+The route uses actual authored circulation and obstacle-aware waypoints;
+restart preserves the current safe-start contract without inventing a saved
+station sleeping pose. Each outcome has one300s whole-operation cap, actual
+input/state observations and explicit abort/cleanup. No engines or new build
+were needed for the definition; neither outcome is accepted yet.
+
+Next single action: freeze one WALK-HABITAT-LOOP source/input-driver card, then
+implement any missing full-loop driver support and complete that same route.
+Stop at its result; normal restart remains a separate dependent outcome.
+All36 broad parents and ten phase gates remain open.
 
 ## Parked failures and dependent work
 
