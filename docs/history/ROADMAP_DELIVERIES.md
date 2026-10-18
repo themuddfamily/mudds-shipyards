@@ -6953,3 +6953,241 @@ slot now holds HUD-CARGO-SUPPLY; no further broad cargo audit is selected.
 - **Stop/close:** first failure names actual cleanup/recovery owner; no automatic
   migration rewrite. Graceful server-stop proof is not SIGKILL, reconnect,
   migration or endurance qualification. Record proof, commit/push, owned cleanup.
+
+
+## Task closures after remote throttle checkpoint — 2026-10-18
+
+### Remote throttle instrument repair — accepted8f17b0241
+
+Old test-onlyc74058eef reproduced exactly four new physical Jovian gauge failures
+in30.790s. Root and independent high-risk review accepted the final source;
+initial proposed compact11 row was corrected before any fixed-runtime test so
+old admitted clients retain their original10-field rows/hash. Optional primitive
+operation_throttle header is ignored by old receivers and validated finite[-1,1]
+by new ones; no wire/schema version bump. Local pilot prediction/flight authority
+stay unchanged; current solo throttle restores immediately on clear.
+
+Fixed full pose91 PASS40.700s. Independent Main station-frame ENet fixture
+PASS171.926s:71 host/132 peer assertions, signed current/late physical Jovian gauges,
+shutdown neutral and session/reentry restoration; original forced-full/delta fleet
+envelopes pass. These fixtures control ship state/physics and use private saves;
+no full ordinary voyage/device/native GPU claim.
+
+Fresh safe Windows/Linux exports PASS26.704/25.843s. Direct Linux22.089s,
+extracted archive23.984s, actual Windows payload via Linux Godot25.783s each strict
+exit0/one STARTUP_MENU_READY_OK/fullraw diagnostics0. Actual1515-entry payloads
+match; stock PE code, metadata and exact archive bytes/modes audited. Public
+Windows EXE/ZIP/notes and Linux binary/archive/notes: MuddsShipyards-8f17b02 in
+repository builds/. No native Windows execution, full matrix/endurance, human/
+hardware/device/audio/final release or broad parent/phase acceptance asserted.
+
+All12 supervised owners terminal/all65 PID identities absent. Source/required
+cache unchanged within each run;87 unique peer files archived byte-identically.
+Owned checkout/profile/helpers/duplicate exports removed; raw/source refs and
+public builds retained. Raw:
+`/srv/mudds-work/remote-throttle-instruments-20261018/results/`.
+
+### NET-THROTTLE-INSTRUMENTS — physical remote cockpit gauge
+
+- **Definition DONE:** Jovian keeps the common physical instrument cluster.
+  HeroShip5597 reads local `_throttle`, while host operation snapshot2847 and
+  compact operation fields omit it. Remote engine/exhaust/readout projection
+  therefore leaves cockpit THR at local retained zero. No runtime proof yet.
+- **Player result/owner:** one high-effort implementation agent; root and one
+  independent high-risk reviewer. Signed host throttle reaches current/late
+  clients' actual physical ThrottleReadout. Local flight/input authority remains
+  separate; shutdown and session retirement restore the correct neutral/solo view.
+- **Boundary:** existing HeroShip operation snapshot/instrument presentation,
+  existing remote pose stream pack/unpack/validation, existing remote-pose and
+  station-frame tests only. No physics/command ownership, geometry, new framework,
+  validator/schema family or sibling-feature change. Legacy packed10 operation
+  rows remain readable; validate finite[-1,1] display input, retain original wire
+  envelope and all-nine forced-full snapshot budget checks.
+- **Proof/next:** test-only old-runtime regression must fail only the new actual
+  instrument assertions; then freeze corrected source, compile once and run full
+  existing focused pose test plus independent Main station-frame ENet test. Check
+  actual current/late cockpit instruments after local presentation, signed thrust,
+  shutdown neutral and session-clear solo restore without modifying local throttle.
+  Root reviews before execution. Headless/Dummy; original tests300s and existing
+  per-wait60s retained. Success exact existing markers/exit0/fullraw diagnostics0.
+- **Budget/stop:**30–60min implementation/review, split before90; checks separate.
+  First unexpected failure stops at exact actor/boundary/owner before a separately
+  selected bounded repair. Failed task plus one repair requires cumulative priority
+  review. No automatic extra probe or budget relaxation.
+- **Package/close:** accepted runtime requires clean paired Windows/Linux exports,
+  direct Linux/archive Linux/actual Windows-payload strict startup checks,
+  actual existing package/archive audit and concise player-visible notes. Require
+  exit0/exactlyone STARTUP_MENU_READY_OK/fullraw diagnostics0; no native GPU/device
+  claim. Commit/push results, retain unique raw/source refs and clean owned scratch.
+  Latest playable624d2a6 stays current until accepted replacement.
+
+**Old-runtime reproduction:** test-onlyc74058eef compiles. Selected physical
+instrument regression FAIL as expected in30.790s: exactly four new unpacked/
+compact +65/-45 gauge assertions; no unrelated diagnostic. Import19.685s and
+compile16.213s pass; source/cache guards and owned cleanup pass. Runtime repair
+may proceed; no fixed-runtime or package acceptance yet.
+
+### NET-POSE-DEFINE — completed bounded source comparison
+
+- **Owner/boundary:** one medium-effort read-only agent; root selects successor.
+  Existing remote pose stream, HeroShip client presentation, GameFlow composition,
+  `network_remote_craft_pose_test.gd` and station-frame test. Only Jovian engine
+  start/stop/throttle and landing/dock state publication and consumption.
+- **Finish/proof:** one actual missing/incorrect visible behavior with producer,
+  consumer and smallest existing regression seam; otherwise finite unqualified
+  operation cases. Static inspection is not a runtime pass. No invented defect.
+- **Budget/next:**10min source-only, no engine/probe/framework or broad network
+  audit. Stop at first implementable gap or finite no-gap result. Root freezes a
+  separate implementation/check card; no automatic test or further definition.
+  Preserve parked failures and their budgets, including shared handback.
+- **Close:** record source anchors and actual limits in existing backlog,
+  commit/push. Definition has no gameplay/build/percentage claim. Titan decision
+  remains pending and is not inferred from goal continuation or elapsed time.
+
+### WALK-SALVAGE-ACCESS — normal hub to inspection row and back
+
+- **Type/parents:** qualification of existing station gameplay,7/9. First child
+  of WALK-SALVAGE; ordinary inspection/publication and durable physical revisit
+  remain required later. It cannot close the whole station or Salvage parent.
+- **Definition DONE:** inspection/save runtime exists. Current
+  `tests/salvage_terrace_test.gd` stages the connector and uses a memory filesystem
+  for its Main inspection/reload checks; it does not prove ordinary hub access.
+  Extend that caller with selected `--walk-salvage-access`; default/capture unchanged.
+- **Owner/boundary:** one implementation agent owns that existing script only,
+  root review/execution. Prepared worktree
+  `/srv/mudds-work/salvage-ordinary-access-20261018/source`. No runtime/geometry
+  changes, active-craft/position/seat fixtures, direct interaction handlers,
+  inspection/save mutation, new framework or parked-route reopening.
+- **Proof:** fresh Main, retained normal hub spawn(-8.5,11), ordinary intro
+  Interact, same controlled unseated supported Player. Use accepted Annex prefix
+  through local(0,4.8), then proposed unqualified north-service continuation
+  (0,9.5),(0,19),(-12.5,19),(-12.5,12),(-14,12); cross actual connector and Salvage
+  local(0,7),(-8,7),(-16,7). Return by reversed goals to retained spawn. Normal
+  mouse-event look/held movement only; physical floor decides height. Preserve
+  manifest without inspection. Each waypoint retains240 physics frames,0.20m
+  arrival radius/four-frame settle/floor support; same Main/Player and phase/control
+  remain current throughout. First failed waypoint ends the route.
+- **Command/limits:** existing script plus `-- --walk-salvage-access`, one clean
+  source pin, compile300s then ONE private Xvfb/x11/Dummy route300s/outer360s.
+  `WALK_SALVAGE_ACCESS_TEST_OK` exactly once only on actual exit0/cleanup and
+  original fullraw diagnostics0. Release inputs/cursor on every path; independent
+  supervisor abort and owned-process cleanup.
+- **Budget/close:**30–45min implementation/review, split before90; check duration
+  separate. First unexpected failure stops: exact actor/boundary/owner and at most
+  one bounded static diagnosis before a separately selected repair. Failed task
+  plus one repair requires cumulative priority review. Commit/push result/limits,
+  retain unique raw/source refs, clean owned scratch. Caller-only pass needs no
+  identical-runtime checkpoint; any accepted runtime repair has a separate card
+  and fresh paired playable packages.
+- **Remaining ordered children:** WALK-SALVAGE-INSPECT proves ordinary component
+  interactions and manifest publication after actual approach; WALK-SALVAGE-REVISIT
+  proves durable fresh-process physical revisit without a duplicate transaction.
+  Their exact commands/budgets must be frozen when prerequisites pass. Existing
+  connector-staged memory-store proof does not silently satisfy either whole route.
+
+**Initial access result:** source46c059cf1 import/compile pass; ONE route
+FAIL61.019s at outbound20, target(91,50.50001), actual(91.54988,40.575),
+same supported controlled Player. Collision is Annex GuardrailCollider04.
+One bounded static comparison identifies rear-edge guardrail clearance during
+this caller's corner turn; no runtime access defect is established. All3 owners
+terminal and owned PID identities absent; original profile logs retained unchanged.
+Raw: `/srv/mudds-work/salvage-ordinary-access-20261018/results/route/`.
+
+**ONE attempted caller repair:** inset only the two rear-cross corner goals from
+Annex local z19 to18.5 within its authored z18..20 rear aisle. Preserve original
+hub/inspection-row/service-gate destinations, ordinary movement and all240-frame,
+0.20m/floor/300s criteria. Root owns these two literals; no runtime changes,
+geometry removal or diagnostic engine probe. Compile once and ONE corrected route.
+Original plus this repair are cumulative; another failure requires priority review
+before further diagnosis/fix/run. Estimated5min edit/review, checks separate.
+
+**Repair result/closure:** unmerged641bbdbb0 compiles; ONE corrected route
+FAIL60.822s at outbound20, target(90.5,50.50001), actual(90.79643,40.39536),
+still supported and controlled. It does not prove access to Salvage, inspection
+or return. No runtime change/checkpoint. All5 owners terminal/all19 PID identities
+absent; source/required cache unchanged, both failed profile bundles/logs retained
+byte-identically. Owned checkout/profiles/helpers removed; raw and remote source
+ref retained. Latest playable624d2a6 is unchanged.
+
+**Cumulative priority review:**61.019+60.822=121.842s route execution, excluding
+source work/import/compile. The two-corner inset did not resolve the retained
+route boundary. No competing READY production implementation is established.
+Park this chain; do not schedule another diagnostic, path edit, geometry change
+or unchanged route under a new name. INSPECT and REVISIT stay gated. Next priority
+is a finite evidence-bounded missing-original-craft specification proposal, so
+full fleet scope can become executable; an interpretation proposal is not approval
+or a delivered craft. Existing evidence/owner-decision gates remain intact.
+
+### CRAFT-GAPS-TORRENT — bounded definition complete
+
+- **Owner/boundary:** one read-only agent; root selects any successor. Existing
+  Torrent specification, definition and runtime component/role owners only.
+- **Proof/finish:** finite actual implementation gaps with specification and owner
+  anchors, or none found/missing fact. Separate implemented-but-unqualified behavior
+  from missing capability. No speculative art finding or automatic test expansion.
+- **Budget/next:**10min source-only, no engine or broad fleet audit. Stop once
+  one implementable production alternative is identified, or a concrete blocker
+  is recorded. Root reviews before a separate implementation card; no automatic
+  diagnosis/probe chain. Record result in the existing inventory, commit/push;
+  no gameplay claim or new checkpoint for the definition.
+- **Actual result:** existing [Torrent specification](../TORRENT_2011_RECONSTRUCTION_SPEC.md)
+  defines source-recognition geometry and physical single-pilot access; its modern
+  detail zones do not mandate another weapon or cabin capability. HeroShip owns
+  flight, fire, component damage, boarding, landing and reuse. FleetRoleRegistry
+  explicitly expects no walkable Torrent cabin. No concrete missing implementation
+  was identified in the bounded review; this is not full craft acceptance. Visual
+  review and ordinary gameplay-continuity qualifications remain open. Reopen this
+  implementation definition only with a specific absent required behavior or a
+  supported reference/finding, not another unchanged source inventory. No engines,
+  runtime changes, temporary checkout or checkpoint were created.
+
+### HELM-REVERSE-FLIGHT
+
+- **Type/result:** qualify existing gameplay. This is reverse flight and release,
+  not a new feature or completion of the reverse parent's required handback.
+- **Prerequisite:** retain the existing ordinary three-process Jovian flight
+  route: real menu/spawn walk/hatch/chairs, original pilot and co-pilot, forward
+  departure >=5m, physical berth release and initial brake. No yaw or handback
+  replay is added to this independent continuation.
+- **Owner/boundary:** one implementation agent prepared only
+  `tests/network/jovian_network_two_client_reverse_test.gd` and its UID in
+  `/srv/mudds-work/jovian-remote-reverse-20261018/source`. Root reviews/runs it.
+  Existing input, network, physics and base caller remain unchanged. No forced
+  position/command/seat/ownership, fabricated replica, or new validator/framework.
+- **Proof:** normal original-pilot move_back must produce same-source negative
+  throttle, advancing local capture/wire and host delivered-command receipts,
+  actual negative velocity and >=1m displacement opposite the recorded nose
+  within the host-owned 2s clock, including authorization delivery. Release must
+  deliver a fresh fully neutral command within1s; silence-timeout neutral is
+  insufficient. Ordinary brake must hold speed <=0.5m/s for1s within10s, then
+  brake release must deliver fresh neutral within1s. Both actual client hulls
+  must consume newer current-owner poses within0.5m of the stopped host within5s.
+  Preserve original actors, seats, ownership generations, source/stream identities
+  and released berth throughout all waits. Coasting after thrust release is valid.
+- **Command/acceptance:** selected script above; coordinator-only
+  `JOVIAN_NETWORK_TWO_CLIENT_REVERSE_OK` after all three actual OS exits0,
+  exactly one marker and original full-raw diagnostics0. Import600s,
+  compile300s, one private Xvfb/x11/Dummy route with unchanged inherited300s
+  clock and outer360s supervisor. Independent abort; release inputs on every exit.
+- **Budget/stop:** DONE; implementation/review30–45min estimate, split before90; checks separate.
+  Accepted clean source52b228c8646b447a8f3044542c645be1db397e5e. First unexpected failure ends qualification:
+  retain raw, record actor/boundary/owner, at most one bounded static diagnosis,
+  then select a separate repair. No automatic retry or criterion relaxation.
+- **Close:** record actual source/result/limits, commit/push, remove only owned
+  disposable checkout/profiles/helpers after retaining unique work/raw. Caller-only
+  qualification needs no identical-runtime checkpoint. Any accepted runtime repair
+  requires its own card, focused regression and fresh paired playable packages.
+
+**Actual reverse result:** ONE unchanged route PASS138.086s after import/compile.
+Host reverse1.448m/888ms, release neutral334ms, brake stops and holds<=0.5m/s1s,
+brake release neutral315ms. Pilot replica error0.167m, passenger0m; newer consumed
+poses and original identities preserved. Three actual exits0, marker1, diagnostics0.
+All3 owners terminal/all23 PID identities absent;74 peer files copied identically.
+Raw retained in `/srv/mudds-work/jovian-remote-reverse-20261018/results/`;
+owned source/profiles/helpers removed. Caller-only: latest playable624d2a6 unchanged;
+handback, native devices, endurance and parent18 remain open.
+
+**HELM-REVERSE-DEFINE: DONE, source definition only.** Existing sampled reverse
+input reaches signed host thrust through current authority owners. Neutral means
+release, not instantaneous stop; ordinary brake supplies the stop. The definition
+selected the subclass seam above. No engine run or gameplay acceptance is claimed.

@@ -2,7 +2,19 @@
 
 This is the working roster for [roadmap task 0](ROADMAP_BACKLOG.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
-Current paired development checkpoint: **624d2a6**, accepted clean source
+Current paired development checkpoint: **8f17b02**, accepted clean source
+`8f17b024148a4c3f249b2021d3831a1a3c3df36c`
+([Windows notes](../builds/windows/MuddsShipyards-8f17b02-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-8f17b02-linux-notes.txt)). Remote physical
+cockpit throttle instruments now display signed host thrust with local pilot
+prediction and solo authority preserved. Old-runtime four-failure reproduction,
+full pose91, independent Main station-frame203 and paired exports/three strict
+startups/actual1515-entry audit pass. Fixtures control ship state/physics; complete
+ordinary voyages, native/hardware/device/audio/human/current full matrix/endurance
+and final release remain open. Titan modern interpretation decision is pending.
+All36 broad requirements and ten phase gates remain open.
+
+Earlier paired development checkpoint: **624d2a6**, accepted clean source
 `624d2a6977e2b591d29575332b7f77c92e63caa5`
 ([Windows notes](../builds/windows/MuddsShipyards-624d2a6-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-624d2a6-linux-notes.txt)). Neutral
