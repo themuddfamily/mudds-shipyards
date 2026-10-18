@@ -137,11 +137,17 @@ not delivered gameplay. Root owns integration and final decisions.
 
 | Task | Status / owner | Player-visible finish | Work budget; separate checks |
 | --- | --- | --- | --- |
-| BROWSER-SESSION-GENERATIONS | READY / root assigns one medium-effort implementer | A valid session remains listed when another host has a higher capacity generation. | 60–90min; focused checks≤10min, original300s each. |
-| DEFENSE-BRIEFING | READY / root assigns one medium-effort implementer | Defense briefing names the actual physical-board start/reset and protected-assets objective. | 30–45min; focused checks≤10min, original300s each. |
+| BROWSER-SESSION-GENERATIONS | IN PROGRESS / browser_generations_impl | A valid session remains listed when another host has a higher capacity generation. | 60–90min; focused checks≤10min, original300s each. |
+| DEFENSE-BRIEFING | IN PROGRESS / defense_briefing_impl | Defense briefing names the actual physical-board start/reset and protected-assets objective. | 30–45min; focused checks≤10min, original300s each. |
 | VISIBLE-CHECKPOINT | GATED / root | Paired playable packages contain accepted changes with actual startup/artifact results. | 30–45min setup/closure; existing caps below. |
 
 ### BROWSER-SESSION-GENERATIONS — retain independently valid sessions
+
+Execution: `browser_generations_impl` owns its declared files in
+`/srv/mudds-work/visible-fixes-20261018/browser`, branch
+`work/browser-generations-20261018`, baseline6b551f4d6. Root will combine the
+disjoint candidates into one clean source for independent review and the four
+original-cap focused suites; no candidate is accepted before those checks.
 
 - **Parent/result:** [NET-BROWSER](docs/ROADMAP_BACKLOG.md#multiplayer). Two
   independently valid directory rows must both be listed when their hosts have
@@ -183,6 +189,11 @@ not delivered gameplay. Root owns integration and final decisions.
   the selected listing behavior, not real-host migration or full multiplayer.
 
 ### DEFENSE-BRIEFING — describe the physical-board controls
+
+Execution: `defense_briefing_impl` committed clean candidate79996ba87d in
+`/srv/mudds-work/visible-fixes-20261018/defense`, based on6b551f4d6. Static
+checks pass; runtime acceptance remains unrun. Integration/review/checks and
+checkpoint are owned by root, with results under the same batch directory.
 
 - **Parent/result:** [CONTROL-FIX](docs/ROADMAP_BACKLOG.md#baseline-and-ordinary-controls),
   control/tutorial tuning. Station-defense instructions must explain the actual
