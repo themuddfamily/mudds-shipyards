@@ -334,8 +334,14 @@ implicitly selected. All36 parents and ten phase gates remain open.
   OS-kill, journal, private profiles, cleanup and unchanged300s stage caps.
   Fresh process must preserve exact pre-kill boundary, acquire current supported
   home craft/berth/hatch/seat, have no active old assist, accept ordinary throttle,
-  then finish existing escort fixture once (receipt1→2, crash1). No ordinary full
-  approach/dock/exit journey, busy-exit or saved approach-pose entitlement claimed.
+  then use the public reset/start and existing escort fixture once (receipt1→2,
+  crash1). Source clarification BEFORE any engine run: normal landing request
+  terminalizes the second Convoy with landing_requested. Persist/load that exact
+  failed boundary and retained threat record; safe-home pilot boarding explicitly
+  preserves it. Prove unchanged boundary/receipt through Resume and throttle,
+  then public reset_active_activity (no credit) and a distinct new convoy once.
+  No active-Convoy-at-assist promise or automatic boarding reset is inferred.
+  No ordinary full approach/dock/exit journey, busy-exit or saved pose claimed.
 - **Proof/delivery:** compile/import600s, existing startup privacy300s and complete
   landing_clearance_test300s; existing driver --source with docking/convoy (each
   leg300s). Independent GO before one source sequence; first failure STOP, no
