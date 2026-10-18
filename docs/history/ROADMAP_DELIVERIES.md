@@ -6074,3 +6074,34 @@ are correct and conflict-free. Select ONE5min caller repair using _input for two
 pad capture events; production correction/acceptance unchanged. One compile and
 focused run; any further failure requires cumulative priority review. No export
 until focused acceptance. Original failed candidate/raw/STOP retained.
+
+
+CAMERA-DISTANCE-PROMPTS DONE7718a5a7afe590c2106f5b10da71235096bb4fda,
+integrated on main. Production HUD resolves both in/out bindings for active
+keyboard/mouse or gamepad family, deduplicates identical labels and retains
+always-live desktop wheel route. Original keyboard assertion reproduces hidden
+keys in old HUD36588c929. First fixed4152348a5 pad test failed because it called
+_unhandled_input without production device observation; two-event _input caller
+repair accepted. Final compile PASS1.985s; focused HUD PASS2.818s/27 assertions;
+existing help-overlay PASS2.523s/20. Private Xvfb/x11/input-only dummy/Dummy, no
+physical device/rendered readability or whole remap/apply/persistence/flight claim.
+
+Clean Windows/Linux safe exports PASS26.644s/25.653s. Direct Linux and extracted
+archive startup PASS22.125s/23.536s; Windows EXE payload through pinned Linux
+Godot actualexit0 in26.058s. Each has exactlyone STARTUP_MENU_READY_OK and original
+fullraw diagnostics0. Private Windows result parser initially excluded the
+sentinel colon, reporting marker0 despite actual valid startup. Root reviewed
+unchanged raw, preserved original result/STOP plus explicit root-review, no engine
+rerun/criterion change. Actual startup is accepted, native Windows remains NOT_RUN.
+
+Actual package audit PASS:1515 matching PCK entry bytes, stock PE .text/x86_64,
+Linux archive binary/icon/managed-installer bytes and file modes/epoch, launcher
+commit identity and export metadata. Metadata's build-time startup_check remains
+NOT_RUN; later actual startup logs are separate. Publish fresh EXE/checkpoint ZIP/
+notes under builds/windows and matching Linux artifacts/notes under builds/linux.
+All13 owners terminal/all59 observed PID/start identities independently absent;
+source/index/non-export cache unchanged. Raw/source refs retained under
+`/srv/mudds-work/camera-distance-prompts-20261018/results/`; owned clean checkout/
+profiles/helpers and duplicate private builds removed after publication.
+No GitHub Actions or native/device/audio/human/full-matrix gates performed;
+all36 parents/ten phase gates remain open. Cargo/Halyard stay parked.

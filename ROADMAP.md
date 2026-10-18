@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Cargo delivery is qualified; its distinct-process restore is unqualified after a 30-second startup timeout. Halyard boarding remains parked.**
+**Fresh playable checkpoint7718a5a shows remapped camera-distance controls correctly. Cargo restart and Halyard boarding remain parked.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -13,7 +13,7 @@ phase gates remain open.** This file holds the executable queue; the
 | Outcome | Actual proof / limit |
 | --- | --- |
 | Immediate client landing edge retained exactly once | Runtime `2c73494a4`; old-runtime failure reproduced, consumer40/ship_command79 pass. Source/ownership/session boundaries revoke pending input. |
-| Fresh playable checkpoint **1cf1022** | [Windows notes](builds/windows/MuddsShipyards-1cf1022-notes.txt), [Linux notes](builds/linux/MuddsShipyards-1cf1022-linux-notes.txt). Conflict choices reveal after layout; disappearing repair action hands focus to live Save. Both exports, three strict startups and exact package audits pass. |
+| Fresh playable checkpoint **7718a5a** | [Windows notes](builds/windows/MuddsShipyards-7718a5a-notes.txt), [Linux notes](builds/linux/MuddsShipyards-7718a5a-linux-notes.txt). Piloting Controls shows both remapped camera-distance directions; desktop wheel hint remains. Focused27/help20, both exports, three strict startups and actual1515-entry package audit pass. Earlier1cf1022 layout/focus fixes retained. |
 | Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
 | Actual on-foot recovery in exported/archive Linux checkpoint | f90547c real-file SIGKILL/distinct restart; supported awake unseated player, ordinary walk0.525555m+Interact boarding, conserved convoy and receipts1→2 once. Private headless/Dummy and disclosed craft-placement fixtures; no fullflight/native-device claim. |
 | Pause/options16:10 selected source qualification | 1cf102298 PASS:26 focused repair assertions;948 layout assertions/96 observations,32 states at requested.75/1/1.6. Original criteria/caps retained; device/render/persistence transactions and other aspects remain open. |
@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS production fix, 2 FAILED/PARKED, 2 GATED, 3 DONE qualifications.** Root owns integration and closure.
+**2 FAILED/PARKED, 2 GATED, 4 DONE (three qualifications, one production fix); no READY card.** Root owns integration and closure.
 Completed HALYARD-APPROACH and RELOAD-BOUNDARY definitions are retained below;
 their reused queue slot now holds the camera-distance prompt correction. Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
@@ -52,7 +52,7 @@ and delivery history; they do not consume active queue slots.
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
 | KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
-| CAMERA-DISTANCE-PROMPTS | IN PROGRESS | Piloting Controls shows both current camera-distance bindings after remap. |30 min implementation; old/new focused check + paired checkpoint |
+| CAMERA-DISTANCE-PROMPTS | DONE | Piloting Controls shows both current camera-distance bindings after remap. |7718a5a; focused27/help20, paired checkpoint/startups/audits pass |
 | HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
 | HALYARD-AUTHORITY-STOP | GATED on HALYARD-MOVING-CABIN | Real server shutdown restores both occupants to usable solo operation. |30–60 min; one selected route at unchanged caps |
@@ -218,17 +218,19 @@ accepted runtime repairs require separate cards and fresh paired builds.
   against old HUD to demonstrate regression and one against corrected HUD.
   Capture both keys through existing HUD flow, inspect actual piloting help row,
   reset and verify authored hint. No broad remap matrix or physical device claim.
-- **First result/one repair:**36588c929 old HUD fails exactly the two new
-  assertions.4152348a5 corrected compile passes; focused run passes keyboard
-  remaps but fails pad case. Static diagnosis: test bypasses HUD `_input`, the
-  sole device observer, by calling `_unhandled_input` directly. Select ONE5min
-  caller correction routing those two pad events through real `_input`; production
-  fix unchanged. One compile/focused rerun; another failure requires priority review.
-- **Close/stop:** first unexpected failure stops and names owner; no automatic
-  broader repair. Accepted runtime needs clean safe paired Windows/Linux exports,
-  strict isolated silent startup exit0/exactone STARTUP_MENU_READY_OK and existing
-  exact package audits. EXE/ZIP/notes in builds/windows, Linux in builds/linux.
-  Commit/push and remove owned disposable files; external gates stay open.
+- **Accepted/close:** DONE at7718a5a7afe590c2106f5b10da71235096bb4fda,
+  integrated on main. Old HUD demonstrates missing keyboard labels; final focused
+  rebind HUD27 and existing help-overlay20 pass after one test event-route repair.
+  Both clean safe exports/three strict startups/fullraw diagnostics and actual
+ 1515-entry cross-platform payload/stock PE/archive metadata audit pass. Fresh
+  EXE/checkpoint ZIP/notes in builds/windows; matching Linux in builds/linux.
+- **History/limits:** initial pad test bypassed device observation; caller-only
+  correction is recorded in delivery history. Windows startup's private review
+  parser excluded colon; unchanged raw proves actualexit0/exactone marker, no
+  rerun or criteria change. No physical device/rendered/native Windows/GPU/audio
+  or whole remap/persistence/flight qualification. All13 owners terminal/all59
+  observed PID identities absent; source/index/non-export cache unchanged.
+  Owned checkout/profiles/helpers removed, raw/source refs/public builds retained.
 
 ### CONTROL-FINDINGS — select one actual binding/help defect
 
