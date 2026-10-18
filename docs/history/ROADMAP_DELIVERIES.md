@@ -11413,3 +11413,26 @@ reused guarded helpers under `/srv/mudds-work/life-patrol-20261018/`: import→
 observer compile→privacy→full Python, then only on PASS paired exports→three
 strict startups→artifact audit→ONE archive-extracted native route. First failure
 STOP, no retry or deadline reset. Final raw-result review precedes publication.
+
+## NET-COMPONENT-POWERS — first stop and selected fixture repair
+
+Selected production card remains in ROADMAP.md, parents11/21. Clean source
+`29389ff9344a02d5a05f32c80dfedf7bb1ef91a7` passed independent static review,
+import20.693s and four check-only compilations16.342/16.278/3.519/15.584s.
+First full pose run FAIL42.010s:300/302 assertions pass. Exactly two new fixture
+assertions fail: admitted route increases engine output; first critical stutter
+falls below routed mobility. Transport/retained actual HUD and existing full
+pose/authority assertions pass. Other three full suites and exports NOT_RUN.
+
+Concrete cause: the fixture claims engineer peer77 with sequence1, then submits
+its action with the same sequence1. The authority requires a strictly increasing
+sequence, so no route is admitted. Unrouted mobility0.62 also caps the first
+stutter sample(~0.636), explaining both failures. Root selects ONE test-only
+repair: action sequence1→2. No runtime change, assertion removal, stutter-phase
+change or acceptance narrowing. Review the exact one-line diff before executing
+its compile and the original full pose suite, then retain the original remaining
+three suites/checkpoint gates if successful. This failed task plus one repair
+requires cumulative priority review before further work; another unexpected
+failure stops for that review, not an automatic second repair. Raw original
+source/configs/stage logs/results remain under
+`/srv/mudds-work/net-component-powers-20261018/results/`.
