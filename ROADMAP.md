@@ -46,30 +46,35 @@ unapproved; parked failures remain outside the queue.
 | Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
 | NET-COMPONENT-ROW /11,21 | DONE; packaged39a2ad7 | Retained row follows accepted host components and restores current local data on clear/pilot change | Closed after focused local/pose/Main ENet checks and paired checkpoint; no automatic adjacent successor. |
-| REMAP-DEFINE /8,29 | Definition; SELECTED | Finite uncovered binding/apply/restart/conflict/recovery outcomes | Source inventory capped20min; preserve Settings/hardware dependencies. |
+| ONFOOT-SPRINT-TOGGLE /8,29 | Production repair; SELECTED | Saved/shared Sprint/boost HOLD/TOGGLE works for local walking sprint | Reproduce actual Player consumer gap, implement lifecycle-safe option application, focused checks and paired checkpoint. |
 
-The component-row repair is closed. REMAP-DEFINE is selected independently;
+The component-row repair and REMAP-DEFINE are closed. ONFOOT-SPRINT-TOGGLE is selected independently;
 no adjacent HUD power/gauge successor is selected. Titan approval remains pending.
 
-### REMAP-DEFINE — finite remaining input-remapping outcomes
+### ONFOOT-SPRINT-TOGGLE — shared sprint preference works on foot
 
-- **Kind/result:** definition, parents8/29. Map the actual required action/device
-  bindings, apply/reset/conflict, restart and recovery semantics to current
-  runtime consumers and existing checks. Name finite genuinely uncovered cases,
-  distinguishing missing implementation from unperformed qualification.
-- **Owner/files:** one medium-effort source mapper; root owns original acceptance
-  and integration. Runtime input-remapping controller/profile/rebind service,
-  RuntimeSettings/GameFlow/HUD consumers, transformed input consumers and existing
-  remapping/persistence/UI checks. Consolidate into existing
-  docs/RUNTIME_SETTINGS_PRODUCTION_PERSISTENCE.md and backlog; no new tracker.
-- **Acceptance:** exact finite scenarios and owners/consumer proof, retained
-  hardware/controller-only full-route gates, original Settings artifact dependency
-  and previous failures. Existing passes are not renewed by source inspection.
-  Stop when remaining cases or precise missing facts are known; no Cartesian
-  action×device×failure matrix or format/validator changes.
-- **Budget/stop:**20min source-only; no engine, capture, profiling, repeated old
-  passing checks, parked Settings diagnosis or automatic implementation successor.
-  A concrete runtime gap, if found, requires its own bounded root selection.
+- **Kind/result:** production controls repair, parents8/29. Persisted/live shared
+  Sprint/boost TOGGLE keeps local walking sprint active after release; second
+  press stops it. HOLD/default/reset retains normal held behavior.
+- **Owner/files:** one high-effort implementer for PlayerController input state,
+  GameFlow validated settings composition and existing
+  tests/game_flow_sprint_toggle_reentry_test.gd (plus existing focused Player
+  test only if needed). Independent high-effort lifecycle review; root integration.
+- **Acceptance:** first extend existing test for actual retained Player consumer
+  using saved profile, reproduce old release failure; then preserve ship assertions
+  and prove local press/release/second press, HOLD/default/live replacement,
+  control disable/re-enable, scene reentry and remote-run separation. Include
+  normal Player physics sprint-speed consumption in disclosed controlled source
+  fixture; no ordinary station route or physical-device claim. Existing settings
+  composition/persistence checks protect shared application; no new wire/schema.
+- **Budget/stop:**30–60min implement/review, split before90; compile then full
+  existing sprint suite and relevant existing settings/Player checks under original
+  limits, headless/Dummy/private profiles. First unexpected failure stops before
+  separately selected repair; original plus one repair requires cumulative review.
+  Other movement/tow option meanings remain unresolved, not extra work here.
+- **Close:** fresh clean paired checkpoint with focused checks/three strict silent
+  startups/package audit. Commit/push, clean owned scratch. Original Settings
+  artifacts/device/full-route gates remain open; no automatic follow-on chain.
 
 ## Parked failures and dependent work
 

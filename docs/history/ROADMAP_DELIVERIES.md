@@ -7815,3 +7815,35 @@ then run the original full fixed pose, Main/ENet and two existing local HUD
 checks. Original failure plus this one repair is cumulative: any further
 unexpected failure requires priority review before diagnosis/edit/rerun.
 Raw stop remains retained under remote-component-row-20261018/results.
+
+## REMAP-DEFINE — finite source inventory onc1fc23871
+
+Completed in roughly10min against20min cap, with one medium-effort read-only
+mapper and root original-scope review. No engines, new artifacts or renewed test
+passes. Existing persistence contract consolidates23 authored/22 visible actions,
+finite process-restart, ordinary conflict/reset, recovery and hardware outcomes.
+Concrete missing consumer: shared Sprint/boost TOGGLE is stored and reaches ship
+boost but Player sprint reads held Input directly. Other movement/tow option
+semantics remain undefined. Preserve original Settings artifact dependency and
+parked failures. Root separately selects that concrete sprint production repair;
+no broad remapping/controller/parent acceptance is claimed.
+
+### REMAP-DEFINE — finite remaining input-remapping outcomes
+
+- **Kind/result:** definition, parents8/29. Map the actual required action/device
+  bindings, apply/reset/conflict, restart and recovery semantics to current
+  runtime consumers and existing checks. Name finite genuinely uncovered cases,
+  distinguishing missing implementation from unperformed qualification.
+- **Owner/files:** one medium-effort source mapper; root owns original acceptance
+  and integration. Runtime input-remapping controller/profile/rebind service,
+  RuntimeSettings/GameFlow/HUD consumers, transformed input consumers and existing
+  remapping/persistence/UI checks. Consolidate into existing
+  docs/RUNTIME_SETTINGS_PRODUCTION_PERSISTENCE.md and backlog; no new tracker.
+- **Acceptance:** exact finite scenarios and owners/consumer proof, retained
+  hardware/controller-only full-route gates, original Settings artifact dependency
+  and previous failures. Existing passes are not renewed by source inspection.
+  Stop when remaining cases or precise missing facts are known; no Cartesian
+  action×device×failure matrix or format/validator changes.
+- **Budget/stop:**20min source-only; no engine, capture, profiling, repeated old
+  passing checks, parked Settings diagnosis or automatic implementation successor.
+  A concrete runtime gap, if found, requires its own bounded root selection.
