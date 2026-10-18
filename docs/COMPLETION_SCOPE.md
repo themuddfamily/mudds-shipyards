@@ -1,6 +1,18 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **f1f35d1**, clean source
+Latest accepted paired checkpoint: **4ff7a08**, clean source
+`4ff7a08547f683e8eaec2e541be95adba5e12ecb`
+([Windows notes](../builds/windows/MuddsShipyards-4ff7a08-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-4ff7a08-linux-notes.txt)). Aurora/Rime
+music now follows actual transit/landing/landed visit states, including canopy
+opening and reboarding. Combat/authoritative landing priority and current activity
+composition remain. Old four-target regression, final phase150/activity26/retained
+bed checks, independent review, paired exports/three strict silent startups and
+actual1515-entry payload audit pass. These are controlled state/Dummy playback
+checks, not ordinary planetary journeys, listening or native Windows/GPU/device
+acceptance. All36 parents/ten phase gates remain OPEN; Titan pending.
+
+Earlier accepted paired checkpoint: **f1f35d1**, clean source
 `f1f35d1371b91671881b90ed641c815dda9f82c7`
 ([Windows notes](../builds/windows/MuddsShipyards-f1f35d1-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-f1f35d1-linux-notes.txt)). Activity
@@ -10,7 +22,7 @@ authority unchanged. Old two-target regression, five focused suites, independent
 review, paired exports/three strict silent startups/actual1515-entry audit pass.
 These are staged source/Dummy playback checks, not ordinary activity journeys or
 audible/device/native Windows/GPU/human mix acceptance. All36 parents/ten gates
-OPEN. Aurora/Rime surface music and dormant Ember feed remain separate gaps.
+OPEN. Its surface-music gap is addressed in4ff7a08 above; dormant Ember feed remains undefined.
 
 Earlier accepted paired checkpoint: **bd4e15d**, clean source
 `bd4e15d0fddda7c4f37a236d07f4f1a4329164d2`
@@ -489,10 +501,12 @@ Finite remaining source findings:
   current activity. Duplicate/stale/terminal fences, combat/landing suppression/
   resumption, reset/context/clock/PCM/lifecycle checks pass. Five focused suites
   and paired checkpoint qualify this source scope; audible mix remains open.
-- **AUDIO-SURFACE-MUSIC:** base-phase selection checks only the Ember latch.
-  Aurora/Rime expedition disembark clears piloting and uses APPROACH_SHIP without
-  that latch, selecting station music. Bind their actual visit state in a separate
-  bounded repair, preserving combat/landing precedence.
+- **AUDIO-SURFACE-MUSIC — DONE4ff7a08:** inventory found the Ember-only latch
+  selected station music after Aurora/Rime disembarkation. GameFlow now uses a
+  readonly projection of actual visit state, including opening_exit canopy wait,
+  before Ember/piloting fallbacks. Combat/landing priority, transit/restoration,
+  current activity composition and unchanged gameplay state pass controlled tests.
+  Paired checkpoint accepted; ordinary planetary journeys/listening remain open.
 - **AUDIO-EMBER-FEED-DEFINE:** identify the intended world-specific audible
   environment and real observation owner before selecting integration. No new
   temperate wind requirement is inferred for Ember. A zero-delta helper patch
@@ -500,7 +514,9 @@ Finite remaining source findings:
 
 At inventory, phase/activity tests covered direct selection/forwarding/combat
 precedence without the combined per-frame/same-generation lifecycle. The current
-activity repair adds that scope; Aurora/Rime expedition music remains unqualified.
+activity repair adds that scope. Surface repair adds150 controlled phase checks
+using actual retained Aurora/Rime expeditions; ordinary planetary music journeys
+remain unqualified.
 Ember tests manually inject observations and check acceptance/
 voices, not ordinary-game positive gain. SemanticAudioCueRouter/AudioDirector
 semantic forwarding never proves a sound was played; optional semantic bindings

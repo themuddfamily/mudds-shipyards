@@ -8054,3 +8054,81 @@ separate exact selection, not automatic extension. Ember feed remains definition
   Accepted runtime needs fresh clean paired exports/three strict silent startups/
   existing package audit, commit/push and owned scratch cleanup. Mix/hardware
   gates stay open.
+
+
+## Surface visit music — accepted4ff7a08
+
+Source `4ff7a08547f683e8eaec2e541be95adba5e12ecb`; parent30 remains open.
+Aurora/Rime now use existing surface music while landed/opening canopy/exiting/
+walking/reboarding, landing profile on landing and flight context on transit.
+A pure visit-state projection adds no gameplay authority; GameFlow preserves
+combat/authoritative landing precedence and composes the current activity mix.
+No assets, voices, travel, physics or save behavior changed. Independent exact-source
+review GO; original phase assertions and waits retained.
+
+Old test-only `b07cc79f379364c37275fe7ac215fc769491a142` imports19.734s,
+compiles15.463s; full phase15.702s reproduces exactly four expected actual
+Aurora/Rime surface state/family errors, actual exit1 retained. Final compile15.305s,
+full phase150 assertions15.358s, nearby activity26 assertions15.653s and retained
+music-bed33.503s pass. No unexpected failure or repair attempt. Before implementation,
+root explicitly included actual opening_exit canopy wait in the finite state map.
+
+Windows/Linux exports26.705/25.727s; direct Linux22.076s, extracted archive23.382s
+and Windows payload through Linux engine25.590s each exit0/exactly one
+STARTUP_MENU_READY_OK. Actual1515 PCK entries match, stock PE text/x64 identity,
+metadata and exact archive bytes/modes/epoch pass. Published11 files under repository
+builds/windows and builds/linux, including EXE/checkpoint ZIP/notes and Linux
+ELF/archive/notes/metadata/startup records; exact copies and ZIP bytes verified.
+
+- `MuddsShipyards-4ff7a08.exe`: 184592432 bytes, SHA-256 `e730ccd7bfa1270e61bb951034c300c7482297a4e1ac96b39c7111fd7124bbdc`.
+
+- `MuddsShipyards-4ff7a08.x86_64`: 148834144 bytes, SHA-256 `ceacd0d9c1354fdf3019892f580b8b2a5888efaec403758a87fa2f0501400b16`.
+
+- `MuddsShipyards-4ff7a08-linux-x86_64.tar.gz`: 95250797 bytes, SHA-256 `d6ca1cd3c01b88ac94717133d387c8c8e1458de7814c0c2deae70384f74a52b8`.
+
+All12 supervisor owners terminal0,61 captured PID/start identities absent;
+7 logs and17 app-data files archived byte-identically. Source/index/cache/engine
+snapshots unchanged. Main runtime/test content equals qualified source. Removed
+owned worktree, profiles, helpers and duplicate exports; unique results retained
+at `/srv/mudds-work/surface-music-phase-20261018/results/` and source branch retained.
+Elapsed selection-to-closure approximately14min against30–60min allowance,
+including owner status conversation. No successor selected.
+
+All engine automation headless/Dummy. Controlled source presentation checks are
+not ordinary world travel, audible mix, physical-device or native Windows/GPU
+qualification. Parked world bundles unchanged, Ember feed/acoustics undefined;
+all36 parent requirements/ten phase gates remain open and Titan unapproved.
+
+Retained selected contract follows:
+
+### AUDIO-SURFACE-MUSIC — existing surface bed follows actual visit state
+
+- **Kind/result:** production music phase repair, parent30. Aurora/Rime use the
+  existing surface bed during landed/opening_exit/disembarking/surface/opening_boarding/
+  boarding states. Their landing state selects the existing landing profile;
+  outbound/corridor/return_cruise retain flight context. Idle/restoring/retiring
+  do not imply a surface. Combat retains highest priority.
+- **Owner/files:** one high-effort implementer, independent lifecycle reviewer;
+  GameFlow._update_music_bed_state and optional readonly shared visit-state
+  projection in planetary_surface_visit_expedition.gd; existing
+  tests/audio/music_phase_integration_test.gd. Root owns integration/checkpoint.
+  No world travel/physics/content/save authority or asset/voice change.
+  Before runtime implementation, root confirmed request_exit sets opening_exit
+  while still landed; include that canopy wait in the same finite surface map.
+- **Acceptance:** preserve original phase assertions/waits. Test-only old proof
+  stages actual retained Aurora/Rime visit state in the existing focused test,
+  asserting real StationMusicBed surface state/family. Final finite visit-state
+  map, combat/landing precedence, return/idle restoration and current activity
+  overlay/base-family composition must pass with unchanged visit/gameplay state.
+  This is controlled source presentation proof, not ordinary surface travel or
+  listening. Parked Rime arrival/Aurora originals remain untouched.
+- **Budget/stop:**30–60min implement/review, split before90. Compile then full
+  existing phase, nearby activity integration and music-bed suites once under
+  original budgets, headless/Dummy/private profiles. First unexpected failure
+  stops before separate repair selection; original plus one repair requires
+  cumulative priority review. No audio output or parked route rerun.
+- **Alternative/close:** no independent production successor is identified by
+  the audio map beyond this repair; Ember feed/acoustics needs its own definition.
+  No automatic adjacent audio chain. Accepted runtime requires fresh clean paired
+  exports/three strict silent startups/existing package audit, commit/push and
+  owned scratch cleanup. Mix/device/full-world gates remain open.
