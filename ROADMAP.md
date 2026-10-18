@@ -248,6 +248,18 @@ No engine/test/export ran for this definition.
   No runtime change is currently proposed; latest playablea43ae4b remains. Human,
   rendered/device/persistence/final-candidate acceptance remains separate.
 
+### Pause aspect qualification — stopped at one new defect
+
+Source666957b40 imports/compiles cleanly. ACCESS-PAUSE-16X9 passes all96
+observations in33.599s. ACCESS-PAUSE-21X9 fails33.080s after70 observations:
+at requested1.6, options_graphics_profile has current focus but its complete row
+is outside the SettingsScroll clip (scroll2002). Exactly that failure; original
+bounds/font/overlap checks report no other defect. ACCESS-PAUSE-32X9 is NOT_RUN.
+STOP/raw result retained; no retries or changed criteria/caps. One bounded
+independent read-only review is selected to identify the actual settings focus/
+scroll production cause and propose ONE repair. No edit or new engine invocation
+is authorized until root freezes the reviewed repair and acceptance obligations.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
