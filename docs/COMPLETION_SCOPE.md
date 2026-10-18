@@ -1,6 +1,21 @@
 # Completion scope and production roster
 
-Latest accepted paired checkpoint: **f8b5f86**, clean source
+Latest accepted paired checkpoint: **9162fac**, clean packaged source
+`9162face57269bbb99252ff0a30401006c4199ec`, repaired Python caller
+`11c233239af6e6de3010181ec4c48052fc2e09f8`
+([Windows notes](../builds/windows/MuddsShipyards-9162fac-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-9162fac-linux-notes.txt)). Ordinary
+Central tow coexistence passes43.086m supported walking/14.334m nearby, five
+goals, actual Torrent boarding and90 seated physics frames. Same actors/defaults
+and seven visible service movers remain current across745 consecutive samples;
+clock and actual poses advance in walking/seated intervals. Source/privacy,
+61 Python checks, paired exports/three strict startups and1521-entry artifact
+audit pass. Initial caller BOARDING omission35.578s is retained; one reviewed
+caller-only repair passes35.932s guarded using unchanged package bytes. No new
+animation/geometry or rendered/native hardware/full-station acceptance is claimed.
+All36 parents/ten phase gates remain OPEN; existing exclusions below still apply.
+
+Earlier accepted paired checkpoint: **f8b5f86**, clean source
 `f8b5f86afa9bdce3bdffa1bc4f5285d533e61ff4`
 ([Windows notes](../builds/windows/MuddsShipyards-f8b5f86-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-f8b5f86-linux-notes.txt)). Genuine

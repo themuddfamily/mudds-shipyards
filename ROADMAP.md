@@ -1,12 +1,13 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**f8b5f86** preserves earned Cinder platform supply rewards across payment refusal
-and reload, pays once and prevents paid replay. Previous asteroid Start Fresh,
-Habitat loop/restart/bunks, Settings, Hauler access, controller look, audio, sprint
-and HUD work is included.
-[Windows notes](builds/windows/MuddsShipyards-f8b5f86-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-f8b5f86-linux-notes.txt) state actual validation.
+**9162fac** includes the ordinary Central tow walking/boarding release check:
+same live service remains active through the supported walking loop and90 seated
+physics frames. Repaired Python caller11c2332 uses the unchanged audited package.
+Previous Cinder reward recovery, asteroid Start Fresh, Habitat, Settings, controls,
+audio and HUD work is included.
+[Windows notes](builds/windows/MuddsShipyards-9162fac-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-9162fac-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -93,87 +94,31 @@ the finite roster. Central capture, VIP and Salvage failures retain their parked
 conditions; no accepted Habitat journey is repeated by this selection.
 
 Fixturee646fc792 remains unmerged and its branch pushed; owned source/profile/
-helpers are cleaned after archiving unique results. No new playable build;
-latest acceptedf8b5f86. All original broad parents/phase gates remain OPEN.
+helpers are cleaned after archiving unique results. At that UI closure no new playable build was published;f8b5f86 was retained.
+All original broad parents/phase gates remain OPEN.
 CI stays disabled.
 
-### Selected — LIFE-TOW ordinary walking and boarding
+### LIFE-TOW — accepted ordinary route, card closed
 
-Parent9; executable release capability, not a new service-motion implementation.
-Current component/graph checks do not exercise this LIFE card through an actual
-packaged OS-input route. Root integrates/packages; one medium implementer owns
-only `tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py`,
-`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
-and `tests/startup_cli_privacy_test.gd` in isolated branch feat/life-tow-20261018.
-No gameplay geometry, service animation, actor placement or tuning changes.
+Packaged source9162fac with repaired caller11c2332 passes fresh ordinary OS-input
+Central walking and Torrent boarding:43.086m walked/14.334m nearby, five ordered
+goals, same supported Player/capsule/shape and actual pilot ownership, then90
+seated physics frames. The same visible service/seven movers advance clock and
+change transforms in both intervals. All745 emitted samples are consecutive and
+checked. Zero engine diagnostics; full input/process cleanup passes.
 
-Deliver `--route life-tow` using fresh normal Start Shift and actual XTest
-walking: existing clear Central goals(0,0,12.5)→(6,0,12.5)→(6,0,13.5), reverse
-via(6,0,12.5)→(0,0,12.5), then ordinary approach/Interact boards the original
-Torrent. Require supported grounded continuous walking with the same real
-Player/capsule/shape, default controls/tuning and no teleport, then actual seated
-pilot ownership. Observe the SAME current CentralTowServiceActivity live clock
-and real mover transforms while walking nearby and for90 physics frames after
-boarding: visible/enabled/advancing, finite nondecreasing samples with strictly increased
-clock and changed drawn mover pose across each interval (physics catch-up samples
-may share one presentation tick). No method to advance, seek, repair or enable service
-may be called by observer/driver. This qualifies runtime coexistence in that
-route; rendered readability, four other branches and full station remain open.
+The initial35.578s guarded attempt stopped on the caller omitting normal BOARDING.
+One reviewed two-Python-file correction passes61 tests/7.944s and the full unchanged
+native route35.932s guarded/34.817s driver on the SAME audited archive/ELF.
+Accepted unchanged engine/privacy/exports/startups were retained. No cap reset;
+original failed raw result stays recorded. [Full result and frozen card](docs/history/ROADMAP_DELIVERIES.md#central-tow--ordinary-walking-and-boarding-accepted).
 
-Estimate30–45min implementation, focused Python/privacy/observer checks then
-clean paired export/strict startup/artifact checks and ONE actual archived Linux
-route under existing CAP300 (outer360). No full Guided sortie, Habitat repetition,
-mining/UI repair, parked Sandbox replay or ten-run chain. Freeze exact clean source,
-engine, helper commands and archive bytes before each execution. First unexpected
-failure stops this attempt; a repair needs concrete reviewed cause and frozen
-scope, with cumulative priority review after one attempted repair. No cap reset.
-Checkpoint only after accepted focused checks, strict silent isolated menu-ready
-startup and route. CI stays disabled; no native GPU/Windows/device claim.
-
-Execution freeze: clean source9162face57269bbb99252ff0a30401006c4199ec;
-existing pinned Godot4.7.1 SHA32f8d759…a97bcde. Commands and helper hashes are
-frozen under `/srv/mudds-work/life-tow-20261018/{helpers,results/source.json}`.
-One `helpers/sequence.py import observer_compile privacy python` runs headless
-Dummy import600, observer check-only300, existing privacy300 and full Python
-native-driver suite300. Then separately run the frozen windows_export/linux_export
-commands (existing safe workflows900 each), direct/archive startup330 each,
-Windows-payload Linux-Godot startup300, actual artifact audit120, and ONE native
-archive route360 through `helpers/native.py` (driver's ownCAP300 unchanged).
-Exact source/engine/index/cache/process guards and strict diagnostic scan protect
-each stage; first failure writes STOP and prevents the next stage. No hosted CI.
-The initial static review corrected skipped intermediate observations before any
-execution; this is not a failed runtime attempt or a new budget.
-
-First attempt STOP: full walking loop and approach45.203m complete, actual E
-frame1071 enters normal BOARDING/busy/controls-disabled at1072. Driver's allowed
-phase list wrongly rejected this transient (`no Guided flight or recovery`).
-Native35.578s guarded/32.734s driver, zero engine diagnostics, all input/process
-cleanup true; seated90frames NOT_RUN. Source/exports/startups/audit and60 Python
-tests passed but do not qualify the failed route. No checkpoint published.
-
-One independently reviewed caller repair is selected before editing: only
-`run_native_sortie.py` and `test_native_sortie.py`. Production GameFlow10863–10968
-already enters BOARDING normally. Admit it only in board stage with candidate
-press receipt, actual board-stage Interact edge and busy transition; record the
-edge before gating. Correct the positive fixture to actual BOARDING and reject
-missing/unsolicited admission evidence. No observer/gameplay/timing/cap change.
-Retain the entire original walking/boarding/service/90-frame acceptance.
-
-Reuse the exact audited9162fac archive and accepted engine/privacy/package
-checks: the two caller Python files are excluded from its actual PCK, and no
-embedded source changes are authorized. Freeze repaired caller commit, helper
-hash and unchanged archive/ELF hashes before ONE full Python suite and ONE full
-native route. Keep original raw/STOP records, distinct repair results and the
-35.578s failed-stage total. No identical export/startup replay; caller repair is
-not another gameplay build. A further failure ends this repair and triggers
-cumulative priority review/parking; no automatic second repair or cap reset.
-Repair execution freeze: clean caller11c233239af6e6de3010181ec4c48052fc2e09f8;
-`results/repair-source.json` fixes the unchanged9162fac archive/ELF and helper
-hashes. One `helpers/sequence.py repair_python repair_native` uses full Python
-CAP300 then native wrapper360/driverCAP300, new repair-native-route output.
-Only two excluded Python callers differ; all embedded/runtime files unchanged.
-Initial STOP is archived as native-stop.json before clearing the launch latch.
-Independent exact-pin review is required before this sole repair execution.
+The release capability is merged and checkpoint published; owned source/profile/
+helpers/extraction removed after archiving. Central runtime coexistence only:
+rendered readability, other LIFE rails and whole-station/final gates stay OPEN.
+Next single action: select one remaining LIFE-GANTRY ordinary Freight walking/
+boarding card with exact approach and observer/driver scope. Do not automatically
+repeat Central, expand into a full station tour or reopen parked failures.
 
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
@@ -183,18 +128,18 @@ expected to exceed90min into independently useful capabilities.
 
 ## Latest delivered result
 
-**CINDER-SUPPLY-DEBT is packaged on f8b5f86.** Genuine completed delivery now
-checkpoints earned reward before payment; refusal survives reload, a current
-owner pays once, and paid reload cannot replay. Focused reward62/16.314s and
-three-process roundtrip17/71.163s pass; paired exports, three menu-ready startups
-and1521-entry artifact comparison pass. Commit/push and owned scratch cleanup
-completed. Active manifest recovery and Hauler stock decisions remain separate.
+**LIFE-TOW accepted on packaged9162fac / caller11c2332.** Ordinary Central
+walking and Torrent boarding coexist with the same active service. Full61 Python
+checks, focused observer/privacy, clean paired exports/three strict menu-ready
+startups and1521-entry actual artifact audit pass; one full archived native route
+passes after the recorded caller-only repair. Eleven public files including EXE,
+checkpoint ZIP and notes are verified. No new animation/geometry was added;
+rendered/native hardware/full-station/final gates remain separate.
 
-Completed task cards, exact failed attempts, repairs and check/cleanup records
-moved intact to [delivery history](docs/history/ROADMAP_DELIVERIES.md#execution-queue-archived-on-2026-10-18).
-[The backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) retains accepted
-children and all unfinished scope. A finished card leaves this queue rather than
-accumulating a new active qualification chain.
+Completed task contracts and raw/cleanup records remain in
+[delivery history](docs/history/ROADMAP_DELIVERIES.md#central-tow--ordinary-walking-and-boarding-accepted).
+[The backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) retains every
+unfinished promise. All broad parents/phase gates remain OPEN.
 
 ## Parked failures and dependent work
 

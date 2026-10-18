@@ -10709,3 +10709,142 @@ and branch registration. Post-move tracked/untracked status remains clean.
 This clears the adjacent directory without deleting uncertain build evidence.
 Other five inspected scratch worktrees contain modified files and were preserved;
 no gameplay, build qualification or disk-space recovery is claimed by the move.
+
+
+### Central tow — ordinary walking and boarding accepted
+
+LIFE-TOW / parent9 complete in its ordinary packaged coexistence scope. About
+19min elapsed from selection through checks/repair/publication/cleanup, within the
+30–45min implementation estimate plus focused/package checks. Clean
+packaged source9162face57269bbb99252ff0a30401006c4199ec plus repaired Python caller
+11c233239af6e6de3010181ec4c48052fc2e09f8 merged in19ddc4113. Full real OS-input
+Start Shift→five Central clear-route goals→ordinary Torrent approach/Interact→
+actual local pilot ownership→90 seated physics frames passes on the same audited
+Linux archive.43.086m supported walk,14.334m nearby; no placement, service seek,
+clock advance, synthetic input callback or tuning change. Raw745 consecutive
+samples451–1195 retain one Main/world/Player/capsule/shape/Torrent and same
+service/seven visible drawn mover IDs. All seven poses change across nearby
+clock7.713145→11.235237 and seated16.297067→17.792852. Native E958→BOARDING959→
+START_ENGINES1103;91 owned seated samples span90elapsed physics frames.
+
+Initial source review caught last-sample-only processing before execution; every
+emitted observation is now validated before latest-only X11 commands. Initial
+import19.649s, observer compile15.950s, privacy1.036s and Python60/7.790s pass.
+Paired clean exports26.737/25.667s, Linux direct/archive and Windows payload
+startups22.323/23.691/25.923s pass exit0/one menu-ready sentinel. Actual1521-entry
+PCK pair, stock PE text and exact archive bytes/modes/metadata audit passes.
+
+First native attempt FAIL35.578s guarded/32.734s driver after five goals45.203m:
+caller whitelist omitted production BOARDING; real E1071→BOARDING/busy/controls
+false1072. Zero engine diagnostics/all cleanup true, seated interval NOT_RUN.
+Independently reviewed two-Python-file repair permits only authenticated ordinary
+boarding and corrects the positive fixture's missing transient, with refusal
+cases. No observer/runtime/gameplay/timing/cap changes. Repaired61 Python checks
+pass7.944s; ONE full repaired native route passes35.932s guarded/34.817s driver.
+Initial failure and STOP retained, failed-stage35.578s; two native attempts total
+71.509s guarded/67.551s driver, original CAP300 unchanged. Accepted unchanged
+compile/privacy/export/startup checks retained because actual PCK excludes both
+changed caller files. Independent exact-source and raw-result review GO.
+
+Eleven public files including Windows EXE/checkpoint ZIP/notes and Linux archive/
+metadata/startup records are hash-verified; ZIP exact EXE+notes bytes verified.
+Windows EXE184630480bytes SHAac2d843f9ecb38316ce776c4e0e57fba8e70ead488ee802641f91da8d9df2d7f.
+Linux ELF148872192bytes SHA3a921161aa58281c41ae884973dce9ad731a85a4545ca4a3bd5112d4256dd827;
+archive95287850bytes SHA369e0c22a71faac20c77f2a2e648fc242a43b90c885e7c9f6d99e350ade5e2a4.
+Native original/repaired ELF hashes are identical. Source versus repaired caller
+is explicit in build notes. Existing Cinder/asteroid/Habitat/control/audio work
+is included; no new service animation/geometry is claimed.
+
+Raw data/source/helper hashes/reviews/publication/cleanup:
+`/srv/mudds-work/life-tow-20261018/results/`. Thirteen terminal owners and72
+observed process identities verified absent; twelve private profile files and
+helpers archived. Owned source/profile/helpers/package removed normally, remote
+source commits and unique results retained. All input/game/helper/Xvfb cleanup
+passes; no survivors. Root also moved the unrelated idle cost checkout intact
+under retired-worktrees as separately recorded.
+
+This qualifies silent isolated Linux/Xvfb/Dummy runtime coexistence only. Dummy
+renderer/disabled render loop does not establish rendered readability or native
+GPU performance; Windows payload startup uses Linux Godot. All applicable native,
+device/audio/human/installed/final/full-matrix gates retain status; existing owner
+exclusions unchanged. Three other station LIFE routes and broad parent9 remain
+open; all36 parents/ten phase gates OPEN, CI stays disabled. No automatic next
+service/whole-station chain. Frozen card follows unchanged:
+
+### Selected — LIFE-TOW ordinary walking and boarding
+
+Parent9; executable release capability, not a new service-motion implementation.
+Current component/graph checks do not exercise this LIFE card through an actual
+packaged OS-input route. Root integrates/packages; one medium implementer owns
+only `tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py`,
+`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
+and `tests/startup_cli_privacy_test.gd` in isolated branch feat/life-tow-20261018.
+No gameplay geometry, service animation, actor placement or tuning changes.
+
+Deliver `--route life-tow` using fresh normal Start Shift and actual XTest
+walking: existing clear Central goals(0,0,12.5)→(6,0,12.5)→(6,0,13.5), reverse
+via(6,0,12.5)→(0,0,12.5), then ordinary approach/Interact boards the original
+Torrent. Require supported grounded continuous walking with the same real
+Player/capsule/shape, default controls/tuning and no teleport, then actual seated
+pilot ownership. Observe the SAME current CentralTowServiceActivity live clock
+and real mover transforms while walking nearby and for90 physics frames after
+boarding: visible/enabled/advancing, finite nondecreasing samples with strictly increased
+clock and changed drawn mover pose across each interval (physics catch-up samples
+may share one presentation tick). No method to advance, seek, repair or enable service
+may be called by observer/driver. This qualifies runtime coexistence in that
+route; rendered readability, four other branches and full station remain open.
+
+Estimate30–45min implementation, focused Python/privacy/observer checks then
+clean paired export/strict startup/artifact checks and ONE actual archived Linux
+route under existing CAP300 (outer360). No full Guided sortie, Habitat repetition,
+mining/UI repair, parked Sandbox replay or ten-run chain. Freeze exact clean source,
+engine, helper commands and archive bytes before each execution. First unexpected
+failure stops this attempt; a repair needs concrete reviewed cause and frozen
+scope, with cumulative priority review after one attempted repair. No cap reset.
+Checkpoint only after accepted focused checks, strict silent isolated menu-ready
+startup and route. CI stays disabled; no native GPU/Windows/device claim.
+
+Execution freeze: clean source9162face57269bbb99252ff0a30401006c4199ec;
+existing pinned Godot4.7.1 SHA32f8d759…a97bcde. Commands and helper hashes are
+frozen under `/srv/mudds-work/life-tow-20261018/{helpers,results/source.json}`.
+One `helpers/sequence.py import observer_compile privacy python` runs headless
+Dummy import600, observer check-only300, existing privacy300 and full Python
+native-driver suite300. Then separately run the frozen windows_export/linux_export
+commands (existing safe workflows900 each), direct/archive startup330 each,
+Windows-payload Linux-Godot startup300, actual artifact audit120, and ONE native
+archive route360 through `helpers/native.py` (driver's ownCAP300 unchanged).
+Exact source/engine/index/cache/process guards and strict diagnostic scan protect
+each stage; first failure writes STOP and prevents the next stage. No hosted CI.
+The initial static review corrected skipped intermediate observations before any
+execution; this is not a failed runtime attempt or a new budget.
+
+First attempt STOP: full walking loop and approach45.203m complete, actual E
+frame1071 enters normal BOARDING/busy/controls-disabled at1072. Driver's allowed
+phase list wrongly rejected this transient (`no Guided flight or recovery`).
+Native35.578s guarded/32.734s driver, zero engine diagnostics, all input/process
+cleanup true; seated90frames NOT_RUN. Source/exports/startups/audit and60 Python
+tests passed but do not qualify the failed route. No checkpoint published.
+
+One independently reviewed caller repair is selected before editing: only
+`run_native_sortie.py` and `test_native_sortie.py`. Production GameFlow10863–10968
+already enters BOARDING normally. Admit it only in board stage with candidate
+press receipt, actual board-stage Interact edge and busy transition; record the
+edge before gating. Correct the positive fixture to actual BOARDING and reject
+missing/unsolicited admission evidence. No observer/gameplay/timing/cap change.
+Retain the entire original walking/boarding/service/90-frame acceptance.
+
+Reuse the exact audited9162fac archive and accepted engine/privacy/package
+checks: the two caller Python files are excluded from its actual PCK, and no
+embedded source changes are authorized. Freeze repaired caller commit, helper
+hash and unchanged archive/ELF hashes before ONE full Python suite and ONE full
+native route. Keep original raw/STOP records, distinct repair results and the
+35.578s failed-stage total. No identical export/startup replay; caller repair is
+not another gameplay build. A further failure ends this repair and triggers
+cumulative priority review/parking; no automatic second repair or cap reset.
+Repair execution freeze: clean caller11c233239af6e6de3010181ec4c48052fc2e09f8;
+`results/repair-source.json` fixes the unchanged9162fac archive/ELF and helper
+hashes. One `helpers/sequence.py repair_python repair_native` uses full Python
+CAP300 then native wrapper360/driverCAP300, new repair-native-route output.
+Only two excluded Python callers differ; all embedded/runtime files unchanged.
+Initial STOP is archived as native-stop.json before clearing the launch latch.
+Independent exact-pin review is required before this sole repair execution.

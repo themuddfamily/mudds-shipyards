@@ -148,7 +148,7 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | WALK-SALVAGE-INSPECT | Ordinary three components and manifest publication after actual approach | 7,9 | GATED on ACCESS; freeze exact continuation before execution |
 | WALK-SALVAGE-REVISIT | Durable fresh-process physical revisit without duplicate transaction | 7,9 | GATED on INSPECT; freeze store/ordinary route before execution |
 | WALK-VIP | VIP reception | 7,9 | PARKED; failed route plus repair, see working-roadmap failure summary |
-| LIFE-TOW | Central tow during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
+| LIFE-TOW | Central tow during nearby walking/boarding | 9 | DONE in packaged9162fac/caller11c2332 ordinary scope:43.086m supported walking/five goals, actual Torrent boarding and90seatedframes; same service/seven movers advance clock/poses,745 consecutive samples, zero diagnostics. Rendered readability/native hardware/whole-station remain separate |
 | LIFE-GANTRY | Freight gantry during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
 | LIFE-ARM | Aft service arm during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
 | LIFE-PATROL | Habitat patrol during nearby walking/boarding | 9 | UNSCHEDULED; existing station operations owner |
