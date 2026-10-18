@@ -10591,3 +10591,108 @@ Cumulative UI budget remains20–30min from19:07UTC, first component4.673s. Mini
 remains failed/parked61.925s/CAP300, source20bd1ab unmerged/checkpoint withheld.
 No new playable build; latest acceptedf8b5f86. Root changed only the three existing
 roadmap/history files, created no scratch, and preserved all parent/phase gates.
+
+
+### Activity Board tooltip — changed reproduction did not reproduce failure
+
+One changed component attempt on clean fixturee646fc792 completed under private
+Xvfb/x11/Dummy. Import20.671s and check-only2.130s passed; one reproduction4.954s
+guarded/4.604s driver passed its input/cleanup checks, exit0/one marker/96samples.
+The strict diagnostic scan reported no relevant diagnostics. Raw output retains
+the benign root/superuser warning separately; no diagnostic was suppressed.
+
+Actual OS motion(0,+18) hovered the authored Destination Board tooltip. At
+sequence52 visible embedded PopupPanel199934088938 owned both root signal
+connections. It remained through SettingsOpen and ActivityBoard keyboard focus;
+atsequence92 the popup/connections were gone, Activity Selection was visible and
+TimedRace focused. Five consecutive completion samples were required.
+**Target NOT_REPRODUCED: zero errors, including both original disconnect errors.**
+Independent high-effort raw-result review confirms the same popup persisted
+through both Tabs/Enter, then disappeared with both connections; valid TimedRace
+focus persisted throughsequence96. Review GO for this outcome and parking only.
+This disproves neither the original failure nor every tooltip hypothesis; it
+shows this exact normal tooltip/hide/keyboard lifecycle succeeds in the component.
+No production cause/fix or ordinary Main/mining acceptance is established.
+
+STOP/PARK the UI investigation after its two distinct component attempts
+(4.673+4.954=9.627s guarded). This was within the original20–30min window from
+19:07UTC; source/import/review time remains part of the same investigation.
+Do not automatically try another popup, variant or full flight. Reopening needs
+a concrete fact addressing the missing original popup identity or mismatched
+connection-removal event; this completed candidate is not that fact.
+
+Fixture branch remains unmerged, pushed at e646fc792. Raw logs, driver, source
+and helper hashes, exact authorizations, process identities and archived private
+profile files are retained at
+`/srv/mudds-work/ui-board-focus-20261018/results/` under tooltip_* / tooltip-*.
+All three terminal owners and14 observed identities were verified absent;
+four private profile files archived. Root removes owned source/profile/helpers
+normally after review; unique results and remote commits are preserved.
+
+PLAY-MINING remains parked61.925s/CAP300 and candidate20bd1ab withheld. No new
+playable build; latest acceptedf8b5f86. All broad parents/phase gates stay open.
+The causal-fix and full mining steps remain separate and gated. Independent
+production work must be selected next; no automatic extension of this chain.
+
+Frozen selection retained below (relative history link relocated):
+
+### Next work: three bounded steps
+
+These are three different outcomes, not one expanding investigation. Only the
+first is ready for selection; each ends before the next is scheduled. Parent
+UI-BOARD-FOCUS remains unresolved until the production behavior is repaired and
+verified. PLAY-MINING remains parked under its original contract.
+
+| Step | Deliverable | Completion check | Dependency / limit |
+| --- | --- | --- | --- |
+| 1. Establish a tooltip during the keyboard transition | One changed real-input HUD reproduction, observing the actual popup and its root connections | Establish the existing Destination Board tooltip with real OS mouse motion; identify the same visible PopupPanel in root connection recipients; then Tab→Tab→Enter and record exact errors, popup teardown and visible focus | Source-backed candidate only. One attempt, CAP60/outer90, within the original UI investigation budget; freeze source/driver pins before execution. No popup or no target error ends the attempt without a fix claim |
+| 2. Repair the established production cause | A bounded HUD lifecycle change, if step1 establishes the cause | Existing focused navigation coverage plus the reproducer pass with valid visible focus and no engine errors; independent lifecycle review; fresh checkpoint for accepted runtime change | GATED: observing an error alone is insufficient. Freeze exact runtime files and estimate after identifying the faulty owner/event. No speculative focus deferral, signal suppression or engine change |
+| 3. Complete the ordinary mining sortie | Full actual packaged route and once-only saved capacity reward, followed by home return | Original walk/board/flight→Cinder→ordinary SELECT/START→six real extraction seconds→receipt→strict home landing/offline/exit walk | GATED on concrete production repair. Re-select the original PLAY-MINING contract; retain failed-stage61.925s/CAP300. No automatic flight retry or ten-run chain |
+
+Step1 extends the existing UI investigation; it is not a fresh budget or a
+replacement acceptance contract. If it does not identify a cause, park the UI
+investigation with its exact missing fact and select independent product work.
+Do not turn an inconclusive attempt into another menu audit or tooltip variant.
+
+### UI-BOARD-FOCUS — source investigation closed, candidate condition identified
+
+The first real-key HUD component completed the transition (69 samples, exit0,
+4.673s guarded), but never created hover, a visible popup or root popup-parent
+connections. **NOT_REPRODUCED**, not a repair or Main acceptance. The fixture
+remains unmerged and production HUD unchanged.
+
+The follow-up source review found a precise omitted event: switching mouse
+capture to visible does not itself synthesize mouse motion or start a tooltip.
+The existing Destination Board button has authored tooltip text; real motion
+onto it can start the engine timer and create an embedded PopupPanel. Opening
+Activity Board hides its parent pause page, which can cancel and queue that
+popup for deletion. Popup parent cleanup owns the exact reported signal pair.
+This justifies step1 as a changed candidate condition; it does **not** establish
+that the original mining run had that tooltip or identify a faulty disconnect.
+[Source findings and limits](ROADMAP_DELIVERIES.md#activity-board-tooltip--source-backed-candidate-condition).
+
+Original missing fact: which popup held the original root connections, and what
+removed or mismatched those connections before teardown. No runtime repair is
+justified yet. No unchanged key-only component or mining replay is selected.
+The original UI investigation budget20–30min from19:07UTC remains cumulative;
+first component4.673s. Source review ended19:25UTC, without another engine run.
+Cumulative priority review selects ONE changed tooltip attempt within this same
+budget: fixturee646fc792 (only three observational geometry lines added to the
+previous unmerged fixture). Root owns the external `results/tooltip-driver.py`
+and runs it through `helpers/tooltip-runner.py` at the existing task root.
+Driver SHA256 is recorded before launch in the task results. Exact commands are
+frozen in `helpers/tooltip_{import,compile,repro}.json`: one headless Dummy import
+CAP600 and fixture check-only CAP300, then `xvfb-run -a -s '-screen 0 1600x900x24
+-nolisten tcp' python3 results/tooltip-driver.py`, whole driver CAP60/outer90.
+The driver launches pinned Godot with Dummy/x11/dummy-renderer/disable-render-loop
+and the existing optional probe script. Before keys it requires the hovered
+Destination Board plus one visible embedded PopupPanel whose identical ID owns
+both root signal connections. Target errors and all diagnostics are retained
+separately; the strict outer diagnostic check remains unchanged. Stop after the
+first outcome or unexpected failure. No production edit or mining run follows
+without a separate selection; no budget reset. Independent probe review required
+before launch. No additional source research is selected.
+
+PLAY-MINING candidate20bd1ab remains unmerged/checkpoint withheld. Latest accepted
+playable remainsf8b5f86. All original broad parents/phase gates remain OPEN;
+CI stays disabled. This queue clarification changes no gameplay acceptance.
