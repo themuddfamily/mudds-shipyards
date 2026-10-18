@@ -112,17 +112,15 @@ further repair/run is selected. [Reopening result and retained scope](docs/histo
 
 ### Selected definitions — controls/help and remaining UI views
 
-CONTROL-FINDINGS (parent8) is assigned to one medium-effort read-only agent;
-root owns ACCESS-VIEWS-DEFINE (parents12/29) and integration into this existing
-roadmap/backlog. Limit30min total; source reading only, no engine/capture/physical
-input or unchanged test reruns. Name the actual ordinary actions/view states,
-current owner and existing coverage before assigning any repair. Existing mixed
-prompts, camera-distance help, sprint toggle and16:10 pause acceptance remain
-accepted in their recorded scope. Do not invent control/tow semantics or missing
-options, repeat parked work, add a tracker/validator or turn qualification into
-missing gameplay. Stop when the finite roster and any concrete discrepancy are
-known; a real repair needs its separate fixed card. No definition implies whole
-UI/device acceptance. These are independent of the parked breach recovery work.
+CONTROL-FINDINGS (parent8) is DONE as source review: the concrete missing
+right-stick camera input is selected below. ACCESS-VIEWS-DEFINE (parents12/29)
+is DONE as a source definition in the [finite production view roster](docs/ROADMAP_BACKLOG.md#remaining-ui-view-roster--access-views-define).
+It identifies actual owners, visible states and existing coverage for gameplay,
+help, activity/nearby/destination pages, browser, credits, captions, role status,
+recovery and rest. Each future check selects one named state/aspect/scale cell.
+No new UI qualification ran. Existing mixed prompts, camera-distance help,
+sprint toggle and16:10 pause acceptance retain their recorded scope. No full
+UI/device acceptance or unchanged parked rerun is implied.
 
 ### GAMEPAD-LOOK — make the advertised camera control work
 

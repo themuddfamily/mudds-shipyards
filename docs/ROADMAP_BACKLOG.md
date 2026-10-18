@@ -1053,6 +1053,44 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | AUDIO-CONTENT[one cue/transition gap] | GATED on identified missing behavior | Author/fix one production ambience/music/effect transition and run existing music state/activity/orbit/surface integration checks with Dummy audio. Delivered Aurora coast is not a new gap. Stop at cue/transition and checkpoint. |
 | AUDIO-MIX[one real-output scenario] | WAITING on explicit audible-test authorization and output device | Check actual mix/levels/transitions for selected scenario, fix concrete issue and repeat it. Stop at scenario result; automated Dummy output does not qualify real audio. Owner-excluded human review does not become a mandatory approval gate. |
 
+### Remaining UI view roster — ACCESS-VIEWS-DEFINE
+
+DONE as a source definition, not layout or device qualification. Owners below
+are the actual production surfaces in `scripts/ui/hud.gd` unless named otherwise.
+Use the five aspect groups and three authored scales in the pause/options roster
+below. Select one row's named state and one aspect/scale cell per bounded task;
+do not start a whole-UI Cartesian run. Preserve existing accepted cells and
+original wider acceptance promises. Source/test anchors are coverage maps, not
+new test results. No engine, capture or physical input was used for this definition.
+
+| Child family / visible states | Actual owner | Existing coverage / what a new cell must establish |
+| --- | --- | --- |
+| ACCESS-GAMEPLAY: approach, boarding confirmation, first-sortie tutorial, activity briefing/objective, weapon readiness, component damage, fleet registry | GameHUD interaction/tutorial/objective/weapon/component/registry panels; boarding confirmation adapter | `ultrawide_layout_test.gd` names these states and checks production Controls. Retain actual simultaneous telemetry/minimap/help/toast/interaction/status composition; one selected state/cell must preserve readable labels and nonoverlap rather than fabricate every possible card combination. |
+| ACCESS-HELP: on_foot, aboard, driving, piloting; each reachable help page, plus published copilot/loadmaster context rows | `_help_rows_for_mode`, `_help_rows_with_role_context`, `_refresh_help_page`; five rows per page | `help_overlay_accessibility_test.gd` checks paging and enabled boundary focus; `runtime_input_glyph_hud_integration_test.gd` checks device text. A cell checks all pages of one named mode/context, labels and Previous/Next/Close focus. Aircraft-specific text uses the existing selected craft; new control semantics are not implied. GAMEPAD-LOOK separately repairs the found camera-input gap. |
+| ACCESS-ACTIVITY: selection page, current selection/status/reward summary, return from nearby page | ActivitySelectionPage / `open_activity_board`, `_show_activity_selection_page` | Existing ultrawide `activity_board` calls `open_activity_board`: this is the selection page. It does not cover NearbyActivityPage. Check visible rows/footer and return focus in one cell; preserve authored selection behavior. |
+| ACCESS-NEARBY: activity list, current progress, rejected start guidance, terminal delivered/lost feedback | NearbyActivityPage / `show_nearby_activity_page`, `set_nearby_activity_snapshot` | `nearby_activity_hud_integration_test.gd` covers real HUD entry, ten production rows and cargo pickup/transit/delivery/terminal feedback. Check list top/middle/bottom, enabled actions and Back focus in a selected cell. Other activities use their published current presenter rows, not invented activity variants. |
+| ACCESS-DESTINATIONS: destination list, selected destination detail/status, enabled travel and Back | PlanetaryDestinationPage / `open_planetary_destination_board`, `_restore_planetary_destination_focus` | `planetary_destination_console_production_test.gd` covers the actual console route; catalog/content-contract tests describe authored rows. A cell checks retained destination rows, scroll/detail/footer and disabled versus enabled action focus; presentation does not establish planetary travel acceptance. |
+| ACCESS-BROWSER: refreshing, available/full rows, all-full, empty, unavailable/retry; manual controls and connection cancel/disconnect | ServerBrowserPage / `_show_server_browser_page`; server_browser_presenter | `server_browser_hud_integration_test.gd`, `server_browser_focus_navigation_test.gd`, `server_browser_manual_controls_hud_integration_test.gd` cover status/focus behavior. Select one state/cell; verify headers, filters/sort, scroll rows, guidance and enabled footer actions. Connection-state wording follows the current network presenter; this is not network qualification. |
+| ACCESS-CREDITS: intro entry and pause entry; attribution list and engine notices; return to opener | CreditsPage / `_show_credits_page`, `close_credits_page` | `credits_page_test.gd` covers entry provenance, scroll focus and content. A cell checks top/bottom/notice text and keyboard/controller focus return. No new attribution or license scope is created. |
+| ACCESS-CAPTIONS: current caption, transcript collapsed/expanded, transcript paging | caption_presentation_service, caption_presenter; GameHUD semantic transcript controls | `caption_presenter_layout_test.gd`, `caption_accessibility_contract_test.gd`, `caption_production_integration_test.gd` and ultrawide captions state supply existing anchors. Check readable caption/history controls and supported surrounding cards. Preserve the existing ToastPanel/expanded transcript non-simultaneous exemption. Dummy checks cannot qualify audible output. |
+| ACCESS-ROLE-STATUS: copilot navigation support, loadmaster telemetry, bomber readiness, boarding/recovery cue | GameHUD runtime status composition; copilot/loadmaster presenters, cinder_loadmaster_hud_binding, boarding adapter | Existing copilot/loadmaster/bomber/boarding/audio-recovery HUD tests cover their own published payloads. Select one card/cell and its actual priority/retirement composition; check text, actions and caption reservation. Do not force mutually exclusive foreground cards to coexist or infer role authority from the HUD. |
+| ACCESS-RECOVERY: title recovery notice/choices/support feedback, safe-start recommendation/result | GameHUD recovery prompt layer; safe_start_recovery_presenter | `session_recovery_hud_test.gd`, `game_flow_session_recovery_hud_integration_test.gd`, `game_flow_safe_start_recovery_hud_integration_test.gd` cover their named routes. Check one visible notice/result and enabled action focus without initiating destructive recovery as a layout shortcut. This does not accept parked interruption routes. |
+| ACCESS-REST: entering/resting/leaving visible overlay and wake affordance | `scripts/ui/ship_rest_overlay.gd` | Existing ultrawide `ship_rest_overlay` state constructs the actual overlay. A cell checks its authored presentation and wake text with current motion setting; rest gameplay and physical controls remain separate acceptance. |
+
+A selected cell must name its source pin, state, requested/effective scale and
+resolution before running. Use the existing relevant test and actual Control
+geometry first; add only a focused missing regression for a concrete layout fix.
+For rendered inspection use an isolated display with explicit x11 and Dummy audio.
+Check viewport/safe-area containment, readable untruncated essential text,
+authored scrolling access and enabled focus/return. Preserve existing clipping,
+background and mutually exclusive-card exemptions; do not weaken them to pass.
+The existing ultrawide suite's five resolutions omit16:10, and its four authored
+presets do not sample minimum0.75 scale. The separately accepted16:10 pause
+case stays accepted in its scope; it does not accept every row above. Human
+readability/device/native GPU judgments stay unperformed until actually tested.
+Stop after the selected cell or its concrete discrepancy; a runtime repair needs
+its own bounded files/checks/checkpoint card. No serial validator or new tracker.
+
 ### Pause/options view and cell roster
 
 ACCESS-PAUSE-DEFINE is DONE as a static definition. Actual owners are
@@ -1076,8 +1114,7 @@ Five named aspect groups:4:3 at1024x768,16:9 at1920x1080,16:10 at1920x1200,
 21:9-class at3440x1440 and32:9 at5120x1440. Each checks the three authored scales
 0.75/1.0/1.6 for this finite pause/options surface set. These are the explicitly
 promised scale/aspect axes, not combinations of every setting/device/world.
-Destination/Activity Boards, server browser, credits, gameplay HUD, help and
-crew overlays remain with ACCESS-VIEWS-DEFINE; no whole-UI acceptance is inferred.
+The remaining production surfaces are defined below; no whole-UI acceptance is inferred.
 
 Existing `ultrawide_layout_test.gd` resizes production Main/Window and already
 contains pause_menu/settings_menu at4:3,16:9,21:9,32:9 with authored/reduced-motion/
