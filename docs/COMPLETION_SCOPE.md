@@ -267,6 +267,57 @@ Every craft acceptance includes ordinary walk-up → board → launch → role/w
 
 **None of the eight missing original craft definitions is delivered.** The modern craft are additional scope. Legally available higher-resolution source material remains a Phase 1 dependency; this document does not reopen the creator/rightsholder question settled by the owner in Phase 1.
 
+### Arrow authored capability map — CRAFT-GAPS-ARROW
+
+Source-only definition on7047677c6 (2026-10-18), shared by parents10/11.
+One bounded independent reader mapped Arrow while root mapped Jovian. No engine,
+test or capture ran. A3 supports the Arrow name, reconnaissance role and written
+two-pod count; geometry, placement, systems and mechanics remain provisional.
+Original Phase4 still requires tied name/model evidence before stronger identity
+claims; additional gameplay checks cannot resolve that external dependency.
+
+| Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
+| --- | --- | --- |
+| Single-pilot recon handling and hull/cockpit/material fitout | `assets/ships/arrow_provisional.tres`, ArrowReconShip `_build_slender_airframe`/cockpit/canopy assembly; FleetRoleRegistry | Definition94m/s cruise/132 boost/29 acceleration/82 hull; role registry says `interior_expected=false`. `fleet_role_registry_test.gd`, `fleet_role_differentiation_test.gd` and `arrow_recon_ship_test.gd` cover authored trade-offs/fitout. No gunner/engineer/passenger/cargo role or walkable in-flight cabin is defined. Art/material/LOD and full craft acceptance remain open. |
+| Exactly two distinct escape-pod presentation modules | Arrow `_build_escape_pods`; stable port/starboard IDs, shells/hatches/latches/collars/status lights | `arrow_recon_ship_test.gd` checks count, side lookup, provisional status and reuse. Source explicitly sets `release_mechanism_implemented=false`. Current bounded promise is two-pod presentation; do not invent operational escape/release gameplay or silently claim it implemented. |
+| Recon sensor presentation | Arrow `_build_recon_systems`: mast/sweep, survey head, ventral gimbal and lateral arrays | Sweep is explicitly `visual_only=true`/`gameplay_authority=false`; main ship, `arrow_sensor_sweep_readability_test.gd`, `arrow_recon_crown_visual_test.gd` and failed-core silhouette tests cover presentation. This is not a delivered scanning action or new scanning-gameplay requirement. |
+| Twin engines/gear, folding canopy access, physical pilot seat/cameras/exit | Arrow final collision/marker assembly, scene ShipBoardingArea/damage/audio rig, shared Hero/Player/GameFlow handoffs | Main ship test samples production boarding motion/geometry and camera/seat/collider alignment. Complete ordinary walk-up, camera/muzzle/parked-neighbour/landing clearance and native presentation remain original acceptance. |
+| Pilot precision recon emitter and common damage/recovery | Source1102; `arrow_precision_recon_emitter`/`arrow_combat_pulse.tres`, shared combat authority/resolver; HeroShip/ShipComponentDamage/GameFlow berth recovery | Actual hitscan480m/24 damage/.38s, five shared component IDs/consequences. `weapon_definition_migration_test.gd`, `ship_component_damage_integration_test.gd`, `arrow_component_damage_cue_test.gd`, `arrow_core_systems_damage_silhouette_test.gd`, `hero_weapon_emitter_component_damage_test.gd` and main ship reuse tests supply focused coverage. No new weapon/component family inferred missing. |
+| Recon berth/freeplay lifecycle and entry presentation | Scene home `arrow_recon_berth`; common landing/lease owners; `arrow_entry_presentation_binding.gd` consumes authoritative observations | `arrow_sandbox_integration_test.gd` covers Main registration, ordinary Interact after staged proximity, departure/fire, lease rejection, staged return/strict landing, exit/reboard/recovery/switching. `arrow_entry_presentation_production_caller_test.gd` covers the existing passive entry presentation. Staged start/return and focused damage setup do not accept the full ordinary final-package journey or physical controls/audio. |
+
+No concrete new required missing runtime component or role was established in
+these bounded owners. CRAFT-GAPS-ARROW definition is DONE; CRAFT-ACCEPT-ARROW and
+original craft art/reconstruction/combat/ordinary controls gates remain OPEN.
+A production art repair still needs a named current form/surface/transition or
+view defect, desired player-visible change and fixed acceptance view/action.
+Source reading neither accepts final art nor invents a specific repair. Existing
+recorded checks remain accepted in their own scopes; no rerun/successor selected.
+
+### Jovian authored capability map — CRAFT-GAPS-JOVIAN
+
+Source-only definition on7047677c6 (2026-10-18), shared by parents10/11.
+No engine, test or capture ran. This maps the current provisional modern craft;
+A3 supports name/light-freighter role, not this model/layout. The original
+reconstruction/art pipeline and full craft acceptance remain binding.
+
+| Authored capability / finite distinction | Production owner | Existing coverage anchor / remaining acceptance |
+| --- | --- | --- |
+| Freighter handling, pilot hatch, cockpit/chase cameras, engine and berth | `assets/ships/jovian_provisional.tres`, `scenes/ships/jovian_light_freighter.tscn`, JovianLightFreighter + HeroShip; home `jovian_freight_berth` | `jovian_light_freighter_test.gd` checks scale/handling/access/cameras and engine/weapon/damage/reuse. Existing staged tests are not the entire ordinary final-package walk/launch/land/exit/reuse/switch/Main route. |
+| Connected exterior ramp → cargo bay → passenger cabin → cockpit, moving interior, ramp fold/collision | Jovian `_build_folding_cargo_ramp`, `_update_cargo_ramp_presentation`, `_build_cargo_bay`, `_build_passenger_cabin`, `_build_interior_route_and_markers`; MovingInteriorFrame | Main ship test's connected-interior/collision/physical traversal cases and `jovian_continuous_interior_route_test.gd` (one exterior staging placement, then locomotion). Native views/clearance and full packaged route remain acceptance, not a newly assumed absent interior. |
+| Four cargo hardpoints and six cabin chair anchors, plus pilot and cockpit-side co-pilot | Jovian `get_cargo_hardpoints`, `get_passenger_seat_anchors`, `get_copilot_seat_anchor`; existing network walking registration | Main ship test checks four/six geometry counts. Eight physical seats do not establish eight admitted network roles or a release capacity; four walking registrations and role authority are separate owners. Capacity and crew acceptance stay open. |
+| Conserved fabrication-kit freight activity and durable state | GameFlow `_initialize_cargo_delivery_composition`, CargoTransferAuthority, CargoDeliveryActivity, JovianCargoSessionPersistence | `cargo_delivery_production_integration_test.gd` includes ordinary board/depart/deliver selectors plus persistence/reward cases. Existing accepted delivery/reset scopes and failed KIT-RELOAD stay intact. Four physical hardpoints are not manifest capacity: authored source manifest capacity/initial stock6, destination64; no new entitlement inferred. |
+| Optional engineer selection and timed repair | Physical `passenger_port_01`; CrewSeatRoleAuthority, Jovian `_consume_engineer_repair_intent`/`_advance_engineer_repair`, RepairAuthority/ShipComponentDamage, repair console/presentation/audio consumers | `jovian_solo_engineer_route_test.gd`, `network/jovian_network_engineer_route_test.gd` and `jovian_engineer_repair_presentation_test.gd` cover their own routes/payloads. Preserve recorded solo/crew passes and source staging disclosures; full packaged crew lifecycle remains separate. |
+| Co-pilot navigation support / passenger access | Physical `co_pilot_station` is ROLE_PASSENGER in `register_jovian_roster`; Jovian `submit_crew_intent` and navigation state, GameFlow bridge | `jovian_copilot_navigation_gameplay_test.gd` tests fenced navigation receipts/read-only cargo/berth context. It grants no helm, cargo or landing authority. Existing pilot/passenger/return acceptance and remaining reuse/endurance gates retain scope. Policy `freight_defense_slot` has no physical chair; it is not a delivered gunner station or a newly inferred required mechanic. |
+| Pilot defensive weapon, hull/five-component damage, repair/destruction/recovery presentation | Pilot source1103 / `jovian_heavy_defensive_cannon` / `jovian_combat_pulse.tres`; HeroShip, ShipComponentDamage and GameFlow berth recovery | Existing weapon/damage contracts specify hitscan650m/70/.62s and shared five component consequences. Two visible defensive mounts feed inherited pilot firing, not independently claimed turrets. Main ship tests plus existing component/peer coverage do not close all craft/role combat/recovery cases. |
+
+No concrete new missing runtime component or role was established in these
+bounded authored owners. CRAFT-GAPS-JOVIAN definition is DONE; CRAFT-ACCEPT-JOVIAN,
+craft art/reconstruction, ordinary packaged freight/crew/damage/reuse and original
+network/world gates remain OPEN. Stronger identity claims need tied name/model
+source evidence, not additional gameplay validators. No repair or qualification
+successor is selected by this definition; a new product finding needs an exact
+ordinary trigger, affected owner and focused proof before implementation.
+
 ## Combat opponents, weapons and damage
 
 DAMAGE-DEFINE source inventory on82a7564cb is complete in

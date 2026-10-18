@@ -136,20 +136,18 @@ open. [Result and retained card](docs/history/ROADMAP_DELIVERIES.md#gamepad-came
 No successor is selected by this closure; remaining definitions and original
 qualification routes retain their named boundaries.
 
-### Selected craft definitions — Arrow and Jovian
+### Completed craft definitions — Arrow and Jovian
 
-CRAFT-GAPS-ARROW and CRAFT-GAPS-JOVIAN (parents10/11) are selected as independent
-source-only definitions,30min total. One medium-effort read-only agent owns Arrow;
-root owns Jovian and integration into the existing backlog/completion roster.
-Read the actual authored ship/definition, shared role/weapon/damage contracts and
-relevant existing test callers. Finish with a finite component/role/content map,
-actual coverage and concrete missing behavior or exact missing definition. Do not
-invent reconstruction facts, new mechanics, additional roles or hardware passes.
-No engine/capture/test rerun, runtime edit, new tracker/validator, parked route
-retry or automatic full-craft qualification. Stop once owners, implementation
-seams and acceptance distinctions are known; any real repair needs its separately
-frozen card. Existing solo/crew/return and component passes remain accepted in
-scope. Commit/push the definitions and retain original full-craft gates.
+CRAFT-GAPS-ARROW and CRAFT-GAPS-JOVIAN (parents10/11) are DONE as bounded
+source definitions in the existing [fleet capability maps](docs/COMPLETION_SCOPE.md#arrow-authored-capability-map--craft-gaps-arrow).
+Arrow's one-pilot/recon/two-pod presentation and Jovian's connected interior,
+freight/engineer/navigation roles are mapped to actual owners and existing
+coverage. No concrete new required missing runtime component/role was found in
+those bounded owners. No engine/capture/test ran; no new gameplay pass/build is
+claimed. Operational escape pods, scanning gameplay or a Jovian gunner station
+are not inferred from presentation/policy records. Original full-craft/art/combat/
+ordinary packaged routes and historical source dependencies remain OPEN. No
+runtime repair or qualification successor is automatically selected.
 
 ## Parked failures and dependent work
 

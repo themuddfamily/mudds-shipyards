@@ -8588,3 +8588,33 @@ whole-UI acceptance is claimed. No successor is automatically selected.
   payload audit, notes/commit/push/owned cleanup. UI-view definition is independent
   useful work; root completes it while implementation proceeds. No new option,
   validator, generic input framework or adjacent control chain is selected.
+
+
+## Arrow and Jovian authored capability definitions — 2026-10-18
+
+Selected source7047677c6; bounded independent Arrow reader and root Jovian
+mapping, approximately3.5min elapsed against30min total selection before
+closure review. CRAFT-GAPS-ARROW/JOVIAN definitions DONE in the existing
+[completion roster](../COMPLETION_SCOPE.md#arrow-authored-capability-map--craft-gaps-arrow).
+Finite maps name actual authored components/roles, owners, existing tests and
+remaining ordinary/final-package/art/historical distinctions. No concrete new
+required missing runtime component/role was established in inspected owners;
+this is definition progress, not new gameplay or whole-craft acceptance.
+
+Arrow has one pilot, differentiated recon handling, two explicit pod presentation
+modules, visual-only sensors, physical canopy access, existing pilot weapon and
+shared damage/recovery. Operational pod release/scanning gameplay/additional roles
+are not inferred. Jovian already has a connected ramp/hold/cabin/cockpit, separate
+physical seating versus admission policy, conserved kit freight, engineer repair,
+co-pilot navigation support and inherited pilot combat/damage/recovery. Four cargo
+hardpoints do not redefine the six-kit source manifest; gunner policy without an
+anchor is not a delivered physical station. No reconstruction/model authenticity
+is inferred from either modern provisional craft.
+
+No engine/test/capture/export/CI ran; original passes and parked failures retain
+their scopes/budgets. Full craft/art/material/collision/ordinary controls/crew/
+world/recovery qualification remains OPEN; stronger Arrow/Jovian identity needs
+external tied model evidence. No runtime repair or qualification successor selected.
+Existing backlog rows/roster/roadmap updated; no new tracker, validator, worktree,
+profile or duplicate build created. All36 original parents/ten gates remain OPEN;
+latest accepted playable99e79c3 unchanged; Titan approval still pending.

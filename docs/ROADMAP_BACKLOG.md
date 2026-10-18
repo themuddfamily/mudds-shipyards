@@ -154,8 +154,8 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | DONE; pilot/payload implemented, additional crew/Nav semantics missing |
 | BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | WAITING; precise interpretation needed, no approved scope reduction |
 | CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | Definition DONE: no concrete required missing implementation found in bounded owners; craft acceptance OPEN, supported finding needed for implementation |
-| CRAFT-GAPS-ARROW | Arrow remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
-| CRAFT-GAPS-JOVIAN | Jovian remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
+| CRAFT-GAPS-ARROW | Arrow remaining authored components/roles | 10,11 | Definition DONE: finite authored capability map in COMPLETION_SCOPE.md; no concrete new required missing runtime component/role found in bounded owners. Full craft/art/combat acceptance OPEN; exact product finding needed for repair. |
+| CRAFT-GAPS-JOVIAN | Jovian remaining authored components/roles | 10,11 | Definition DONE: finite authored capability map in COMPLETION_SCOPE.md; no concrete new required missing runtime component/role found in bounded owners. Full craft/art/combat acceptance OPEN; exact product finding needed for repair. |
 | CRAFT-GAPS-ZENITH | Zenith remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-HALYARD | Halyard remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-BULWARK | Bulwark remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
@@ -596,8 +596,10 @@ outcome and keeps failed/gated work separate. Remote operation/hull HUD plus phy
 instrument repairs ship in pairedda1ae60; their broader parents remain open.
 HELM-REVERSE-FLIGHT is source-qualified on52b228c86;
 its source-only definition is DONE. CRAFT-GAPS-TORRENT definition found no concrete
-required missing implementation in the inspected owners; full craft acceptance
-remains open. No automatic successor or qualification chain is scheduled. Cargo
+required missing implementation in the inspected owners; Arrow/Jovian now also
+have finite authored maps in COMPLETION_SCOPE.md. Their full craft/art/combat
+acceptance and stronger historical identity claims remain open. No automatic
+successor or qualification chain is scheduled. Cargo
 boarding/departure/delivery and yaw turns retain their accepted source scopes.
 Cargo reload, Halyard boarding and handback retain their recorded failures and
 reopen conditions; they are not READY work. All36 original parents and ten phase
