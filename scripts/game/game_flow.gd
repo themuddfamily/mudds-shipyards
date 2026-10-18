@@ -24322,6 +24322,11 @@ func get_music_bed() -> StationMusicBed:
 func _update_music_bed_state() -> void:
 	if not is_instance_valid(music_bed):
 		return
+	# Visits retain travel/surface context even when the local actor is on foot
+	# or riding as a passenger. Observe their finite presentation projection only.
+	var visit_music_phase: StringName = _aurora_expedition.get_music_presentation_phase()
+	if visit_music_phase.is_empty():
+		visit_music_phase = _rime_expedition.get_music_presentation_phase()
 	var presentation_state: StringName = &"station"
 	if (
 		phase == Phase.INTERCEPTOR_ENGAGEMENT
@@ -24335,6 +24340,8 @@ func _update_music_bed_state() -> void:
 		or phase == Phase.SHUT_DOWN
 	):
 		presentation_state = &"landing"
+	elif not visit_music_phase.is_empty():
+		presentation_state = visit_music_phase
 	elif _ember_surface_journey_active:
 		# The same retained latch the session diagnostics use for SURFACE. The
 		# flow already owns it; the bed only observes it.

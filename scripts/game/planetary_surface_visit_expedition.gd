@@ -88,6 +88,18 @@ func _init(flow: GameFlow, visit_profile: ProfileType) -> void:
 func is_active() -> bool:
 	return state != &"idle"
 
+## Presentation-only projection of the visit's already reached state. Recovery
+## and unknown states leave GameFlow's existing music context in charge.
+func get_music_presentation_phase() -> StringName:
+	match state:
+		&"landed", &"opening_exit", &"disembarking", &"surface", &"opening_boarding", &"boarding":
+			return &"surface"
+		&"landing":
+			return &"landing"
+		&"outbound", &"corridor", &"return_cruise":
+			return &"orbit"
+	return &""
+
 ## The craft this visit owns, or null. Read by an activity's warmth check.
 func get_craft() -> HeroShip:
 	return _ship if is_instance_valid(_ship) else null
