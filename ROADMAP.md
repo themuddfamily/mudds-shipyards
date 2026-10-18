@@ -97,6 +97,38 @@ helpers are cleaned after archiving unique results. No new playable build;
 latest acceptedf8b5f86. All original broad parents/phase gates remain OPEN.
 CI stays disabled.
 
+### Selected — LIFE-TOW ordinary walking and boarding
+
+Parent9; executable release capability, not a new service-motion implementation.
+Current component/graph checks do not exercise this LIFE card through an actual
+packaged OS-input route. Root integrates/packages; one medium implementer owns
+only `tools/release/run_native_sortie.py`, `tools/release/test_native_sortie.py`,
+`scripts/diagnostics/native_sortie_observer.gd`, `scripts/game/startup_loader.gd`
+and `tests/startup_cli_privacy_test.gd` in isolated branch feat/life-tow-20261018.
+No gameplay geometry, service animation, actor placement or tuning changes.
+
+Deliver `--route life-tow` using fresh normal Start Shift and actual XTest
+walking: existing clear Central goals(0,0,12.5)→(6,0,12.5)→(6,0,13.5), reverse
+via(6,0,12.5)→(0,0,12.5), then ordinary approach/Interact boards the original
+Torrent. Require supported grounded continuous walking with the same real
+Player/capsule/shape, default controls/tuning and no teleport, then actual seated
+pilot ownership. Observe the SAME current CentralTowServiceActivity live clock
+and real mover transforms while walking nearby and for90 physics frames after
+boarding: visible/enabled/advancing, finite increasing clock and changed drawn
+mover pose in both intervals. No method to advance, seek, repair or enable service
+may be called by observer/driver. This qualifies runtime coexistence in that
+route; rendered readability, four other branches and full station remain open.
+
+Estimate30–45min implementation, focused Python/privacy/observer checks then
+clean paired export/strict startup/artifact checks and ONE actual archived Linux
+route under existing CAP300 (outer360). No full Guided sortie, Habitat repetition,
+mining/UI repair, parked Sandbox replay or ten-run chain. Freeze exact clean source,
+engine, helper commands and archive bytes before each execution. First unexpected
+failure stops this attempt; a repair needs concrete reviewed cause and frozen
+scope, with cumulative priority review after one attempted repair. No cap reset.
+Checkpoint only after accepted focused checks, strict silent isolated menu-ready
+startup and route. CI stays disabled; no native GPU/Windows/device claim.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
