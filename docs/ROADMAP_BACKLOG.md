@@ -242,7 +242,7 @@ First-play proof: ordinary outbound/start/activity, once-only durable reward and
 | WORLD-SAVE-DEFINE | Uncovered world survey/reward/reboard/visit disk boundaries | 14,31 | DEFINE; contract per world, staged/MemoryFilesystem proof retained only as scoped |
 | WORLD-EDGE-DEFINE | Applicable solo cancellation/refusal/failure/repeat cases | 14 | DEFINE; exact original cases and route limits |
 | SOLO-EMBER | Ember canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
-| CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | DEFINE; original promises versus implemented world, none found is valid |
+| CONTENT-EMBER | Ember finite remaining authored content/presentation findings | 15 | SELECTED definition in ROADMAP.md;15-minute source comparison, not started; finite actual gaps or exact missing fact, no engine/probe |
 | SOLO-AURORA | Aurora canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
 | CONTENT-AURORA | Aurora finite remaining authored content/presentation findings | 15 | DEFINE; original promises versus implemented world, none found is valid |
 | SOLO-RIME | Rime canonical physical survey round trip | 14 | GATED; freeze uncovered candidate/scenario, prior source passes retained |
@@ -270,7 +270,7 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | ROLE-CINDER-NAVIGATOR | Cinder navigator ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | NET-SEATS-FINAL | Final-candidate promotion/seat ledger/berth handback/stale refusal | 16 | GATED; selected candidate, no rebuild of delivered authority |
 | NET-POSE-DEFINE | Uncovered supported craft/engine/motion/landing-view cells | 17 | Bounded Jovian source comparison DONE: concrete physical throttle instrument consumer gap; broader cells remain unqualified |
-| NET-HULL-HUD | Gameplay HUD bar/frame projects existing authoritative hull/maximum/status; raw simulation telemetry remains local | 21 | IN PROGRESS bounded publisher repair; actual old-publisher regression then existing pose/real-peer tests and paired checkpoint |
+| NET-HULL-HUD | Gameplay HUD bar/frame projects existing authoritative hull/maximum/status; raw simulation telemetry remains local | 21 | DONE7be348d62; exact old2 HUD failures, fixed pose140/real-peer272, paired exports/three strict startups/actual1515-entry audit. Raw simulation authority preserved; parent21 OPEN |
 | NET-HULL-INSTRUMENTS | Physical remote hull gauge reflects existing authoritative health; damage/destruction/new-life/solo-clear | 21 | DONE24430b7c1; old2 failures reproduced, pose121/real-peer250 and fresh paired24430b7 with3strict startups/actual1515-entry audit. Parent21 OPEN, no wire change |
 | NET-THROTTLE-INSTRUMENTS | Current/late physical cockpit gauge reflects signed authoritative throttle, neutral shutdown and solo restore | 17 | DONE8f17b0241; old4 failures reproduced, pose91/real-peer203 pass; fresh paired8f17b02 with3strict startups/actual1515-entry audit. Broader parent17 remains OPEN |
 | HELM-ACTIONS-DEFINE | Finite sampled-local-input to remote-helm action roster | 18 | DONE; seven held fields/two ordered edges, source definition only |
@@ -423,8 +423,8 @@ qualifications. **It is not a remaining-job count.** In particular, “one craft
 assignments. Completing a definition does not deliver the gameplay it describes.
 
 The [working roadmap](../ROADMAP.md#execution-now) selects the next exact
-outcome and keeps failed/gated work separate. Physical remote hull/throttle
-instrument repairs ship in paired24430b7; their broader parents remain open.
+outcome and keeps failed/gated work separate. Remote hull HUD plus physical hull/throttle
+instrument repairs ship in paired7be348d; their broader parents remain open.
 HELM-REVERSE-FLIGHT is source-qualified on52b228c86;
 its source-only definition is DONE. CRAFT-GAPS-TORRENT definition found no concrete
 required missing implementation in the inspected owners; full craft acceptance

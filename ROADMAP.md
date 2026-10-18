@@ -1,9 +1,10 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**24430b7**, with authoritative physical remote hull/throttle gauges and the earlier
-steering/cargo/control-help/layout fixes. [Windows notes](builds/windows/MuddsShipyards-24430b7-notes.txt)
-and [Linux notes](builds/linux/MuddsShipyards-24430b7-linux-notes.txt) state actual validation.
+**7be348d**, with authoritative remote hull HUD and physical hull/throttle gauges,
+plus the earlier steering/cargo/control-help/layout fixes.
+[Windows notes](builds/windows/MuddsShipyards-7be348d-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-7be348d-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -32,72 +33,33 @@ Only the selected card below is executable. A missing definition, failed route
 or full-craft qualification is not an implementation assignment. Do not create
 a successor chain just because a nearby check can be added.
 
-NET-HULL-HUD is selected. Physical hull/throttle gauges remain accepted in24430b7.
-The [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) awaits the
-owner interpretation choice; implementation remains gated.
-WALK-SALVAGE-ACCESS is parked after its original attempt and one caller repair. Reverse qualification and the bounded Torrent
-definition are closed below. Completed and parked work does not occupy the
-executable queue. Root owns review, integration, checks and closure.
+CONTENT-EMBER is the next bounded definition; it is not a gameplay delivery.
+NET-HULL-HUD is accepted in checkpoint 7be348d. Completed contracts and actual
+checks live in [delivery history](docs/history/ROADMAP_DELIVERIES.md#remote-gameplay-hud-hull--accepted7be348d).
+The [Titan proposal](docs/design/TITAN_IMPLEMENTATION_PROPOSAL.md) still awaits
+its owner interpretation decision. Parked failures remain outside the queue.
 
-| Task / parents | State | Observable finish | Next action |
+| Task / parent | Kind / state | Observable finish | Next action |
 | --- | --- | --- | --- |
-| NET-HULL-HUD / 21 | IN PROGRESS implementation | Gameplay HUD hull bar/frame uses eligible host health/status, with current solo restoration and no simulation telemetry mutation. | Old-runtime actual publisher regression, bounded HUD-only decoration, full pose/real-peer checks and paired checkpoint. |
-| SPEC-TITAN / 10,36 | Proposal DONE; WAITING interpretation decision | Concrete one-pilot/two-passenger/four-unit modern candidate and bounded build tasks. | Owner decision on linked proposal before runtime implementation; historical model gate stays open. |
-| WALK-SALVAGE-ACCESS / 7,9 | FAILED/PARKED | Same supported Player must walk hub→inspection row→hub without staging. | Both attempts fail at outbound20; no further diagnosis/fix/run selected. |
+| CONTENT-EMBER /15 | Definition; SELECTED, not started | Finite actual content gaps or exact missing input | One source comparison capped at 15 minutes below; no engine run or automatic successor. |
 
-Completed reverse/Torrent definitions and the full failed Salvage contracts now
-live in [retained task closures](docs/history/ROADMAP_DELIVERIES.md#task-closures-after-remote-throttle-checkpoint--2026-10-18).
-Hull repair24430b7 and throttle8f17b02 are named player-visible deliveries,
-not whole-project completion. [Hull closure](docs/history/ROADMAP_DELIVERIES.md#remote-physical-hull-instruments--accepted24430b7c1) retains proof and limits.
-Titan decision remains pending; no further parked-route work is selected.
+### CONTENT-EMBER — resolve one world's remaining content scope
 
-### NET-HULL-HUD — remote health in the gameplay HUD
-
-- **Player result/parent:**21; gameplay HUD hull bar/frame must reflect accepted
-  host health/maximum/status for the eligible active craft. GameFlow's normal
-  physics publisher currently passes local `get_telemetry()` directly to HUD.
-  Physical cockpit gauges are already fixed; separate simulation telemetry must
-  remain local for flight, repairs, saves and ownership decisions.
-- **Owner/boundary:** one high-effort implementation agent; root plus independent
-  high-risk review. GameFlow HUD publication, minimal HeroShip read-only display
-  getter if needed, existing remote-pose/station-frame tests only. Already-validated
-  damage projection owns the display fields; local-authority/clear/retirement must
-  restore current source HUD. No wire, physics/damage/command, other HUD telemetry,
-  component/power, parked-route, or new-framework changes.
-- **Proof/next:** test-only existing normal physics→HUD publisher regression first,
-  actual GameHUD hull bar/frame for host50/200 versus local full health. Exact new
-  failures on old runtime, no new helper dependency. After root-reviewed clean fix,
-  compile and full existing pose/independent Main station-frame tests (original300s,
-  per-wait60s) with current/late projected damage/destruction/revival/clear HUD,
-  local raw telemetry and throttle/pilot behavior preserved. Exit0/exact existing
-  marker/fullraw diagnostics0. Controlled fixtures are not a full ordinary voyage.
-- **Budget/stop:**30–60min implementation/review, split before90; checks separate.
-  First unexpected failure stops at owner/boundary before separate bounded repair;
-  original plus one repair needs cumulative priority review. No automatic retry.
-- **Package/close:** fresh clean paired exports, three strict silent startup checks
-  and actual package/archive audit; repository builds/ with actual notes. Commit/
-  push, retain unique raw/source refs, clean owned scratch. Latest24430b7 remains
-  until accepted replacement. No broad parent closes.
-- **Completed speed comparison:** observer interpolation/settled pose and pilot
-  reconciliation already assign replicated/corrected velocity; physical speed
-  consumes that velocity. No missing speed transport or new fix was identified;
-  no engine run for this bounded comparison. Do not invent another gauge task.
-
-**Initial failure:** test-only920eb4bc0 import PASS20.693s; compile FAIL16.329s
-before HUD regression. GDScript cannot infer the new `frame` variable from
-GameFlow's dynamically typed HUD call. No runtime change or old-HUD proof yet.
-Raw: `/srv/mudds-work/remote-hull-hud-20261018/results/baseline_compile/`.
-**Selected ONE test repair:** root adds explicit Dictionary annotation to that
-snapshot local only. Compile once then old-runtime regression; preserve all
-acceptance and budgets. This failure and repair remain cumulative; any further
-unexpected failure requires priority review before diagnosis/fix/run. Estimate
-one minute edit/review, checks separate. No extra diagnostic probe selected.
-
-**Repaired baseline:** test-only1fd8d662e compiles16.283s. Actual normal
-physics→HUD regression then reproduces exactly two expected host25% bar/frame
-failures in31.230s, exit1/no unrelated diagnostics. Runtime HUD-only repair may
-proceed. Initial compile failure remains retained and cumulative; another
-unexpected failure requires priority review, not an automatic second caller fix.
+- **Kind/result:** definition, parent15. A finite list of actual missing Ember
+  content/presentation promises, or “none identified” with the inspected scope.
+  This delivers no gameplay and does not accept the full world journey.
+- **Owner/files:** root; original Phase 10.4 scope and COMPLETION_SCOPE.md versus
+  assets/world/planets/ember_moon_content.tres, its referenced world/landing
+  resources, scenes/world/planets/ember_moon.tscn and existing authored-content
+  runtime/tests. Follow only a referenced owner needed to resolve a named promise.
+- **Acceptance:** each finding names the original promise, actual missing behavior,
+  exact production owner and smallest observable fix/check. Separate ordinary
+  journey qualification from missing implementation. Add findings to the existing
+  CONTENT-EMBER row; do not create a tracking file or validator.
+- **Budget/stop:** 15 minutes read-only source comparison, no engine/capture/probe.
+  Stop at the finite findings or exact missing fact. No invented features, whole
+  world rebuild, parked native Ember work or automatic implementation successor.
+  Root reviews any proposed production card separately before selection.
 
 ## Parked failures and dependent work
 

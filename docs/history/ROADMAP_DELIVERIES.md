@@ -7295,3 +7295,89 @@ No runtime implementation or scope deferral is approved.
   retain full-craft acceptance and immediate meaningful paired checkpoint policy.
   No runtime edits, engines, new evidence status, approved deferral or craft
   completion. Interpretation decision remains pending; no elapsed time implies it.
+
+## Remote gameplay HUD hull — accepted7be348d
+
+Clean source `7be348d62bcb587f91c5b5c4b063f68306fd4e05` overlays exactly hull/maximum/status at GameFlow's
+normal HUD publisher using an eligible accepted host projection. Raw simulation
+telemetry, health/components, commands, physics, repairs and saves remain local.
+Death reads zero; new-life revival and current-local clear/retirement work.
+Root and independent high-risk review approve matching final four-file hashes.
+
+Initial test-only920eb4bc0 import20.693s passes; compile16.329s fails at an
+inferred Dictionary snapshot local. One explicit-annotation repair1fd8d662e
+compiles16.283s and reproduces exactly two expected normal physics-to-HUD
+bar/frame errors on old runtime in31.230s. The failure and repair stay cumulative.
+Fixed compile16.330s/station compile16.103s pass. Full pose140 assertions
+PASS40.676s; independent Main/ENet station-frame272 (71 host/201 peers)
+PASS173.466s, unchanged300s/original per-wait limits, no unexpected diagnostics.
+Current/late damage/death/revival/stale/clear/reentry and prior gauges pass.
+The focused test uses normal physics publication. Station peers are on foot;
+the fixture explicitly selects the craft and calls the same production publisher
+after actual received host facts. No ordinary remote-helm voyage is claimed.
+
+Clean Windows/Linux exports26.813/25.876s; direct Linux22.347s, archive23.917s
+and actual Windows payload through Linux Godot25.980s all pass strict exit0,
+one STARTUP_MENU_READY_OK and fullraw diagnostics0. Actual1515-entry payloads
+match, stock PE code/source metadata/exact archive bytes and modes pass.
+Published Windows EXE/ZIP/notes and Linux ELF/archive/notes are in repository
+builds/. All13 owners terminal/all69 PID identities absent; immutable source
+and required cache verified,12 logs and97 peer files archived byte-identically.
+Initial compile failure retained; every other owner exits0 including the
+expected-red supervisor (actual old test exit1). Raw:
+`/srv/mudds-work/remote-hull-hud-20261018/results/`.
+
+Native Windows/GPU/devices/audio/human/current full matrix/endurance/full fleet
+and final release remain unqualified or excluded as previously recorded. All36
+parents and ten phase gates stay open; Titan decision remains pending.
+Owned checkout, profiles/helpers and eight duplicate export files were removed
+after public byte verification. Unique results, source refs and public builds
+remain. The frozen contract follows; this closure supersedes its plan.
+
+### NET-HULL-HUD — remote health in the gameplay HUD
+
+- **Player result/parent:**21; gameplay HUD hull bar/frame must reflect accepted
+  host health/maximum/status for the eligible active craft. GameFlow's normal
+  physics publisher currently passes local `get_telemetry()` directly to HUD.
+  Physical cockpit gauges are already fixed; separate simulation telemetry must
+  remain local for flight, repairs, saves and ownership decisions.
+- **Owner/boundary:** one high-effort implementation agent; root plus independent
+  high-risk review. GameFlow HUD publication, minimal HeroShip read-only display
+  getter if needed, existing remote-pose/station-frame tests only. Already-validated
+  damage projection owns the display fields; local-authority/clear/retirement must
+  restore current source HUD. No wire, physics/damage/command, other HUD telemetry,
+  component/power, parked-route, or new-framework changes.
+- **Proof/next:** test-only existing normal physics→HUD publisher regression first,
+  actual GameHUD hull bar/frame for host50/200 versus local full health. Exact new
+  failures on old runtime, no new helper dependency. After root-reviewed clean fix,
+  compile and full existing pose/independent Main station-frame tests (original300s,
+  per-wait60s) with current/late projected damage/destruction/revival/clear HUD,
+  local raw telemetry and throttle/pilot behavior preserved. Exit0/exact existing
+  marker/fullraw diagnostics0. Controlled fixtures are not a full ordinary voyage.
+- **Budget/stop:**30–60min implementation/review, split before90; checks separate.
+  First unexpected failure stops at owner/boundary before separate bounded repair;
+  original plus one repair needs cumulative priority review. No automatic retry.
+- **Package/close:** fresh clean paired exports, three strict silent startup checks
+  and actual package/archive audit; repository builds/ with actual notes. Commit/
+  push, retain unique raw/source refs, clean owned scratch. Latest24430b7 remains
+  until accepted replacement. No broad parent closes.
+- **Completed speed comparison:** observer interpolation/settled pose and pilot
+  reconciliation already assign replicated/corrected velocity; physical speed
+  consumes that velocity. No missing speed transport or new fix was identified;
+  no engine run for this bounded comparison. Do not invent another gauge task.
+
+**Initial failure:** test-only920eb4bc0 import PASS20.693s; compile FAIL16.329s
+before HUD regression. GDScript cannot infer the new `frame` variable from
+GameFlow's dynamically typed HUD call. No runtime change or old-HUD proof yet.
+Raw: `/srv/mudds-work/remote-hull-hud-20261018/results/baseline_compile/`.
+**Selected ONE test repair:** root adds explicit Dictionary annotation to that
+snapshot local only. Compile once then old-runtime regression; preserve all
+acceptance and budgets. This failure and repair remain cumulative; any further
+unexpected failure requires priority review before diagnosis/fix/run. Estimate
+one minute edit/review, checks separate. No extra diagnostic probe selected.
+
+**Repaired baseline:** test-only1fd8d662e compiles16.283s. Actual normal
+physics→HUD regression then reproduces exactly two expected host25% bar/frame
+failures in31.230s, exit1/no unrelated diagnostics. Runtime HUD-only repair may
+proceed. Initial compile failure remains retained and cumulative; another
+unexpected failure requires priority review, not an automatic second caller fix.

@@ -2,7 +2,19 @@
 
 This is the working roster for [roadmap task 0](ROADMAP_BACKLOG.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
-Current paired development checkpoint: **24430b7**, accepted clean source
+Current paired development checkpoint: **7be348d**, accepted clean source
+`7be348d62bcb587f91c5b5c4b063f68306fd4e05`
+([Windows notes](../builds/windows/MuddsShipyards-7be348d-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-7be348d-linux-notes.txt)). Gameplay
+HUD hull bar/frame now projects eligible accepted host health/maximum/status,
+with local simulation authority preserved. Initial compile failure plus one
+annotation repair retained; exact old two-failure regression then fixed pose140
+and independent Main/ENet272 pass. Fresh paired exports/three strict startups/
+actual1515-entry audit pass. Station HUD checks invoke the production publisher
+with real received facts in a controlled on-foot fixture; no ordinary remote-helm
+voyage/native hardware claim. All36 parents/ten gates remain open; Titan pending.
+
+Earlier paired development checkpoint: **24430b7**, accepted clean source
 `24430b7c13ddbec81715caf23c04520b7630ec9b`
 ([Windows notes](../builds/windows/MuddsShipyards-24430b7-notes.txt),
 [Linux notes](../builds/linux/MuddsShipyards-24430b7-linux-notes.txt)). Physical
