@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 READY, 1 FAILED/PARKED, 2 GATED, 4 DONE (three qualifications, one definition).** Root owns integration and closure.
+**1 IN PROGRESS, 1 FAILED/PARKED, 2 GATED, 4 DONE (three qualifications, one definition).** Root owns integration and closure.
 Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
@@ -50,7 +50,7 @@ and delivery history; they do not consume active queue slots.
 | KIT-BOARD | DONE | Fresh player selects cargo, walks to Jovian and takes the real solo pilot seat. |Accepted62bc7c823;66.158s at original300s cap |
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
-| KIT-RELOAD | READY | Distinct process reloads accepted delivery without duplicate kits or reward. |20–40 min; compile300s + one restore30s |
+| KIT-RELOAD | IN PROGRESS | Distinct process reloads accepted delivery without duplicate kits or reward. |20–40 min; compile300s + one restore30s |
 | HALYARD-APPROACH | DONE definition | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
 | HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
@@ -186,7 +186,7 @@ accepted runtime repairs require separate cards and fresh paired builds.
   `scripts/persistence/jovian_cargo_session_persistence.gd`, not Cinder's owner.
   Require generation1 COMPLETED/source4/destination2, same transfer receipt and
   one reward receipt after normal startup/retry ticks. No reset/start/state fixture.
-- **Next/check:** READY; KIT-DELIVER's actual accepted real store retained;20–40 min. Freeze
+- **Next/check:** IN PROGRESS/root; actual accepted KIT-DELIVER store retained;20–40 min. Freeze
   selector/marker/pin and prior runtime compatibility before execution; compile300s,
   ONE restore-only process30s using that exact private XDG data directory.
   Do not silently replay the already-accepted route; relevant runtime changes

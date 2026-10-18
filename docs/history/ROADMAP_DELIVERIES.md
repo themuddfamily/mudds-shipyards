@@ -5957,3 +5957,15 @@ consume this file, not fabricate completion or replay the route. Remove owned
 clean checkout/helpers/unneeded profiles; preserve accepted data until consumer
 closes. No runtime change/new identical checkpoint; latest playable1cf1022.
 All36 parents/ten phase gates remain open; Halyard stays parked.
+
+
+KIT-RELOAD selected from05b2eb97b in isolated work/jovian-kit-reload-20261018,
+only existing cargo integration caller. Previous turn is concrete progress:
+ordinary delivery accepted/integrated/pushed and real save retained. Store SHA256
+e5000c06734eff363c70cab9e394bb378b1de59b79254ec07a3b6a78a870ee0c reverified before
+work; accepted runtime files must match28a5e354e. Add restore-only selector/marker,
+configure real production store before Main startup, require exact saved completedg1
+activity/receipt/clock, kits4/2 and one paid reward after60 normal ticks. No replay,
+state mutation, reset/submit/retry APIs or save-format change. One compile300s and
+one distinct OS restore30s with exact original private XDG data directory, silent
+headless/Dummy. First failure stops; no runtime repair/new checkpoint selected.
