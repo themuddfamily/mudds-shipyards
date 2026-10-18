@@ -510,6 +510,29 @@ compile300 then original remaining checks/packages if each passes. Preserve raw
 failure; no automatic further repair, timeout change or narrower proof. Original
 45–60min/split-before90 budget remains cumulative (selection≈17:57UTC, stop18:09UTC).
 
+### Cinder supply debt — cumulative stop and primitive ledger repair
+
+After reviewed member-call repair0ec30971c, GameFlow/authority compilePASS15.613/
+15.600s, handoffPASS0.922s, cargo-contractPASS1.172s. Full reward-authority suite
+FAIL15.988s: genuine capture cannot commit Cinder debt, then missing namespace
+causes one runtime key error/five downstream failed assertions. Its printed OK56
+is not acceptance (exit1/diagnostics); roundtrip/packages NOT_RUN. Initial compile
+15.245s and this failure remain cumulative31.233s, no OS/reload route attempt.
+
+Independent cumulative review establishes a concrete production cause without
+another diagnostic run: CargoTransferAuthority.to_dictionary emits ledger ID as
+StringName; capture copies it verbatim, while UserDataStore rejects non-JSON types.
+Root freezes ONE bounded repair: replace only `ledger = entry.duplicate(true)`
+with `{ "transfer_id": String(entry.get("transfer_id", "")), "receipt_id": int(entry.get("receipt_id", 0)) }`.
+Retain strict proof/store validation, eight receipt totals, every test assertion,
+all criteria/caps and prior failures. Root applies this small sanitation change;
+no further implementation delegation needed. New clean pin/review, fresh relevant
+compile300, full reward retry300 and original unrun roundtrip300/packages only if
+all pass. Reuse unchanged accepted handoff/contract source checks; no gratuitous
+reruns. Any further unexpected failure STOPs for cumulative priority review; no
+automatic third correction/renamed task. Cumulative budget remains original
+45–60min/split-before90 (selection17:57UTC; review18:14UTC).
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
