@@ -5276,3 +5276,77 @@ HELM-ACTIONS-DEFINE also closes as a bounded source definition in parallel: seve
 held fields/two ordered edges, real ownership/wire consumers, six uncovered held
 cases named in the existing backlog. Recorded forward/brake and landing proofs
 are retained, no new engine/device acceptance or gameplay feature is claimed.
+
+## Ordinary shared Jovian return — accepted with client ownership reader correction
+
+Candidate4c9c764e9838766822eecfd01836cec3dea93ab3 is accepted and integrated on
+main dd2f3be04a0f5d196571327f5cd8823f6dafa8b8. The only repair replaces the
+client's authority-only ownership getter with its received authoritative ownership
+record, retains every arrival condition and additionally compares original ship
+and ownership generations. Independent exact API/schema/diff review GO. No runtime,
+wire, authority grant, ordinary input, route, physical criterion or wait changed.
+Original failed331a9628b and all earlier failed attempts/repairs remain retained.
+
+One explicit compile exits0; one original private-Xvfb/x11/Dummy route passes in
+138.915s at unchanged300s/360s caps. Normal menus/all13+interior approach, actual
+pilot/passenger chairs, current identities/HUD/authority,5m departure/brake,
+free-home capture and one landing pulse run before strict physical dock/arrival.
+Host actual dock error0m/0deg, speed0m/s, physical lease valid and commit landed
+generation1/completion_retryfalse. Both retained clients consume landed/docked/
+not-landing and original pilot ownership with ship/ownership generations1.
+Fresh pose ticks5031/5067 exceed dock5029; anchor errors0m, passenger hull error
+approximately0.050583m and pilot0.491680m against the host docked position. Host
+then confirms both original retained generations and final completion.
+
+Actual host/client/client_b exits are all0, done failures[] (95/112/397 local
+checks), original success marker exactly1 and original diagnostics0 including
+all three raw peer logs. Source/main source/cache guards hold, full private cache
+unchanged through compile+route. Inputs/private display sessions close; root
+independently checks all58 observed PID/start identities absent before closure.
+Complete original and repair peer bundles/SHA manifests remain in
+`/srv/mudds-work/jovian-return-fixed-input-20261018/results/`; repair matrix
+`repair/matrix/20261018T043632Z`. Clean checkout/profiles/helpers are removed;
+other worktrees untouched. Runtime is byte-identical to accepted2c73494, so its
+published playable checkpoint remains current; no identical export was repeated.
+
+This closes the named retained-seat short-sortie/home-return scope. Postdock
+stand/disembark/reuse, dedicated server, canonical shared worlds,30-minute
+endurance and native/package/device/full-release acceptance remain open. All36
+parents and ten phase gates stay open. Hosted CI remains disabled.
+
+## Eight-card batch — closed with finite remaining contracts
+
+The original batch's eight outcomes are DONE: immediate-edge reproduction,
+runtime repair, paired checkpoint, ordinary return (after the recorded caller
+repair), remote-helm roster, on-foot recovery contract, pause/options coverage
+roster and Bomber role comparison. The separate caller correction is DONE as
+recorded above; failed task/repair counts were not reset. Executed card contracts
+are retained by ROADMAP source18c63dc76 and the original return contract above.
+Definitions are planning, not additional gameplay features or project percentages.
+
+RECOVERY-ONFOOT-DEFINE identifies exactly a persisted four-field home preference,
+no pose; source fake-filesystem cold recovery exists, real-file distinct-process
+on-foot interruption/usable walking does not. Existing exported release driver
+rejects on_foot; next bounded production card extends that existing path, followed
+by fresh packages and one actual OS-interruption qualification. The original safe
+recovery, receipt/debt, support/ordinary boarding and private/Dummy constraints
+remain in the existing backlog contract; no new validator or restoration promise.
+
+ACCESS-PAUSE-DEFINE names real PauseMain/SettingsPage and binding/reset/display/
+repair states, three authored scales0.75/1.0/1.6 and five explicit aspect groups.
+Existing production Main ultrawide fixture omits16:10/minimum-scale Main coverage;
+HUD SubViewport/policy tests do not establish those views. First independent
+qualification is the existing Main fixture at1920x1200. No capture/test/device
+review ran for this definition; no full every-setting/device/world matrix invented.
+
+BOMBER-ROLES-DEFINE finds one pilot and pilot-fired finite payloads implemented,
+no extra crew/Nav station, cabin/access, action or replication. Injected bomber_gunner
+API actor names and Cargo Hauler navigation are not physical Bomber roles. Phase5
+and the retained roster do not specify role count/navigation behavior/access;
+BOMBER-ROLE-DECISION records those exact missing choices. No pilot-only reduction
+or invented crew feature is approved; spent-payload recovery remains separate.
+
+All three definitions are static source comparisons without new engine execution.
+Their named production/qualification/decision children replace the ambiguity in
+the same backlog. The next four-card queue has2 READY (on-foot release capability,
+16:10 pause/options coverage) and2 GATED (package, real OS-interruption cut).

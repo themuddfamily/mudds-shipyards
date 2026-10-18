@@ -17,7 +17,11 @@ revoke pending actions. Host authority, landing physics and wire format remain.
 The old-runtime consumer regression fails only its new edge-delivery assertion;
 the repaired source passes consumer40 and ship_command79, with independent
 review and source/cache guards. This is staged-client component proof, not the
-complete ordinary shared-return route; that unchanged qualification is next.
+complete ordinary shared-return route. Subsequent source4c9c764e9, on identical
+game runtime, passes that original route in138.915s after the caller ownership-reader
+correction: strict physical dock/lease/commit and both retained clients consume
+matching landed arrival/original pilot ownership, all three actual exits0. This
+is source qualification; no packaged route run or unchanged rebuild is claimed.
 Both safe exports pass. Direct Linux, extracted archive and the actual Windows
 payload through pinned Linux Godot each exit0 with exactly one menu-ready marker
 and no original error/leak diagnostics. All1515 actual PCK entry bytes match;

@@ -16,16 +16,17 @@ stop, both clients retained and converged, all actual exits0. Game runtime is
 unchanged from checkpointb6196a1; this is source-route qualification. Immediate-command reproduction/repair and checkpoint2c73494 are now DONE: the
 old runtime fails only the new edge-delivery assertion; repaired source passes
 consumer40/ship_command79, and both packages pass strict startup/artifact checks.
-The unchanged return331a9628b now reaches strict physical host docking, then
-fails client arrival confirmation because the caller reads the host-only ownership
-registry. One bounded caller correction is selected; full return remains unqualified.
+The original shared return is now accepted on4c9c764e9 after one bounded caller
+ownership-reader correction:138.915s, strict actual dock/lease/commit, both clients
+consume original pilot/ownership and matching landed arrival, all three peers exit0.
+The failed331a9628b arrival check and earlier failed attempts remain retained.
 GameFlow's synthetic action seam samples/drains landing before physics, while
 remote forwarding only reads the physics snapshot. Source mapping is intact;
 the prior run did not capture pulse-time command publication. Require focused
 old-runtime reproduction, accepted fix/checkpoint, then one unchanged return
 qualification. Earlier failed task/repair remain cumulative; no extra probe.
-The latest return attempt FAILED at request acceptance; physical landing/arrival
-remain unqualified. Broader
+Ordinary retained-seat home return is accepted in that source scope. Dedicated
+server, disembark/reuse, canonical worlds and endurance remain unqualified. Broader
 flight/endurance remain unqualified. Both lifecycle qualifications retain
 their accepted source scopes.
 These are not project-wide remaining counts; no phase completion is implied.
@@ -248,6 +249,47 @@ Scope: original §5, Phases 9 and 10.2–10.3. Software rendering, VM and remote
 | AUDIO-CONTENT[one cue/transition gap] | GATED on identified missing behavior | Author/fix one production ambience/music/effect transition and run existing music state/activity/orbit/surface integration checks with Dummy audio. Delivered Aurora coast is not a new gap. Stop at cue/transition and checkpoint. |
 | AUDIO-MIX[one real-output scenario] | WAITING on explicit audible-test authorization and output device | Check actual mix/levels/transitions for selected scenario, fix concrete issue and repeat it. Stop at scenario result; automated Dummy output does not qualify real audio. Owner-excluded human review does not become a mandatory approval gate. |
 
+### Pause/options view and cell roster
+
+ACCESS-PAUSE-DEFINE is DONE as a static definition. Actual owners are
+`GameHUD._build_pause/_build_settings_page/layout_for_viewport` in
+`scripts/ui/hud.gd`, RuntimeSettings (MIN_UI_SCALE0.75, DEFAULT1.0, MAX1.6),
+and the existing display/rebind/repair presenters. Each observation must record
+requested and effective pause scale: the authored fit ceiling may reduce it.
+No capture, test or real-device review ran for this definition.
+
+| Surface / required visible state | Production node or owner | Existing coverage anchor / remaining distinction |
+| --- | --- | --- |
+| Pause main, resume/settings/back focus | PauseMainPage / _show_pause_main | ultrawide_layout_test pause_menu; controller_pause_navigation_prompt_test; runtime visible Control geometry, not human review |
+| Normal options, both columns, top/middle/bottom scroll and Save/Reset/Back | SettingsPage/SettingsScroll | FLIGHT+CAMERA, bindings, DISPLAY, MULTIPLAYER, AUDIO MIX, ACCESSIBILITY and status/footer must be reachable; settings_menu baseline alone does not inspect offscreen rows |
+| Binding capture/conflict/reset row | _build_input_bindings / runtime rebind presenter | runtime_input_rebind_hud_integration_test; preserve focus and scrolling after a row changes |
+| Unsaved reset confirmation and cancel/confirm return | _settings_reset_confirmation | _request_settings_reset/_confirm_settings_reset; must not strand focus when retired |
+| Pending display Keep/Revert/countdown/result | DisplaySettingsConfirmation | display_settings_hud_integration_test; temporary resolution confirmation is a distinct visible state |
+| Settings repair notice, failure and confirm surface | SettingsRepairNotice | runtime_settings_repair_hud_test/integration; presentation cannot invent persistence authority |
+
+Five named aspect groups:4:3 at1024x768,16:9 at1920x1080,16:10 at1920x1200,
+21:9-class at3440x1440 and32:9 at5120x1440. Each checks the three authored scales
+0.75/1.0/1.6 for this finite pause/options surface set. These are the explicitly
+promised scale/aspect axes, not combinations of every setting/device/world.
+Destination/Activity Boards, server browser, credits, gameplay HUD, help and
+crew overlays remain with ACCESS-VIEWS-DEFINE; no whole-UI acceptance is inferred.
+
+Existing `ultrawide_layout_test.gd` resizes production Main/Window and already
+contains pause_menu/settings_menu at4:3,16:9,21:9,32:9 with authored/reduced-motion/
+large-text/high-contrast presets. It lacks16:10 and the minimum-scale Main preset.
+`hud_ultrawide_safe_area_test.gd` covers16:10 and all three scales for gameplay
+HUD in a SubViewport, not the missing pause/settings Main state. The detached
+runtime_accessibility_presentation test covers policies/status/prompt fitting,
+not these Controls. settings_focus_navigation checks focused right-column entries
+and re-entry; it does not establish every scale/aspect or rendered readability.
+
+First selected qualification is ACCESS-PAUSE-16X10: use the existing Main layout
+fixture, one named viewport and its pause/options states, retaining actual window,
+safe bounds, font-floor/focus/scroll criteria and original300s cap. Extend that
+fixture only for uncovered cases; no duplicate harness/validator. At the first
+actual defect, stop and name a separate UI repair. Existing native/device and
+visual-capture requirements remain unperformed; static anchors are not passes.
+
 ## Recovery, packages, captures and release
 
 Scope: original §6 and retained installed-interruption milestone. Final-candidate qualification is scheduled once dependencies are met, not attached to every child.
@@ -269,6 +311,62 @@ Scope: original §6 and retained installed-interruption milestone. Final-candida
 | MATRIX[one frozen integrated candidate] | GATED on targeted repairs/integration | Clean import and existing unfiltered `--mode all` matrix at original suite/long caps, no exclusions, including isolated graphics. Stop at complete result; failures become named child fixes. Do not rerun whole matrix for every small change. |
 | FINAL-RECONCILE[one candidate] | GATED on required content, matrix and applicable platform/device/performance/audio/endurance/install/capture/signing results | Reconcile all original promises and exact candidate results with existing `release_candidate.py`, candidate record and `SHA256SUMS`. Zero open P0/P1, explicit reviewed P2/residual-risk dispositions including RENDER-001 where applicable. Changed source invalidates affected qualification; owner exclusions stay excluded. Stop at actual complete or named unmet gates, never a new evidence layer. |
 | DISTRIBUTE[accepted candidate] | GATED on FINAL-RECONCILE and authorized destination/publication | Publish exact qualified artifacts/checksums and concise player-facing notes using existing release flow. Stop after byte identity and download checks. No Downloads copy or public publication implied by local checkpoints. |
+
+### Settled exterior on-foot recovery contract
+
+RECOVERY-ONFOOT-DEFINE is DONE. GameFlow _capture_solo_safe_recovery_context and
+_persist_solo_safe_recovery_context persist exactly a four-field `solo_safe_recovery` home
+preference: location=mudds_home_berth, mode=on_foot, craft_id, berth_id. Successful
+expected-generation UserDataStore commit establishes authority; refused writes
+retain the last preference and retry. Backup-derived authority is not overwritten.
+No player coordinates, velocity, seat identity or flight pose are persisted here.
+
+Eligible capture is settled exterior APPROACH_SHIP/COMPLETE with floor support,
+no transition, live network session, planetary blocker, seat/sleep/piloting claim.
+Jumps retain the last supported preference. Resume or Begin Shift accepting the
+Resume offer resolves fresh registered craft/home berth and supported authored
+exit, starts the fresh player awake/unseated/controls enabled, acquires no pilot/
+crew/hatch claim and does not switch active_ship to the preferred craft. Unsupported
+context falls back to ordinary shipyard start. PlayerController.settle_exit_onto_support
+can return the original exit on unsuitable support, so acceptance must actually
+check floor support and walking rather than infer it from a helper call.
+
+The on-foot leg of session_recovery_resume_offer_test's cold solo recovery case
+uses a fake filesystem/fresh Main and does not walk. Its real-file case covers
+cabin/rest. safe_start_production_recovery_test and CrashRecoveryCoordinator
+cover boot-marker/settings ordering, not on-foot pose/usable walking. Existing
+startup_loader.in_world_probe_request, in_world_interruption_probe and
+run_package_probes.sh admit pilot/cabin/rest/crew/engineer; on_foot is unsupported.
+
+Next production capability is RECOVERY-ONFOOT-PROBE: extend this existing exported
+release-driver path to a genuine settled on-foot commit/resume case, preserving
+private headless/Dummy admission and existing contexts. Then ship the exact new
+package. Separate RECOVERY-ONFOOT-CUT owns actual real-file commit for a named
+nondefault craft, owned SIGKILL/reap and distinct same-profile Resume/Begin Shift,
+supported outside-home recovery with no seat/hatch claim, ordinary walking then
+real Interact boarding, and conserved existing activity/debt/reward boundary.
+No arbitrary power-loss, other context, airborne-pose or native-device claim.
+
+### Bomber crew/navigation interpretation
+
+BOMBER-ROLES-DEFINE is DONE as a static comparison. The Bomber definition and
+scripts/ships/cinder_long_range_bomber.gd implement one physical pilot, Dock05
+access, pilot-fired finite travelling payloads, and shared landing/reuse owners.
+GameFlow fires as player_pilot. Injected test identifiers bomber_gunner/new_gunner
+are API actors, not authored chairs or registered crew gameplay. No MovingInteriorFrame,
+walkable in-flight cabin, extra crew role/seat or Bomber navigator is registered;
+HeroShip reports no_walkable_cabin. Cargo Hauler navigator dispatch and the physical
+role allowlist do not cover Bomber. Existing tests are implementation/coverage
+anchors, not newly executed whole-craft acceptance.
+
+COMPLETION_SCOPE retains additional Bomber crew/navigation open, but Phase5's
+conditional crew instruction gives no Bomber role count, concrete navigator action
+or physical access layout. BOMBER-ROLE-DECISION therefore needs those exact choices
+before a production station is assigned; no pilot-only scope reduction or invented
+role is approved. Once defined, one station's physical enter/action/stand/reseat
+and authority integration is a bounded production child with a fresh checkpoint.
+Spent-payload recovery remains separate: explicit fresh-generation reset exists,
+but ordinary disembark/reboard replenishment is not settled by those unit tests.
 
 CAPTURE instances (13 required sets, **143 PNGs** total):
 
@@ -351,7 +449,8 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | STATION-RELATIONS | Name unresolved historical adjacency/elevation/ladder relationships | 9,36 | DEFINE; tied source anchors or precise missing evidence |
 | STATION-CENTRAL-VIEW | One current source-tied Central operational-view defect | 9,12 | GATED; usable existing view/reproduction, capture stall parked |
 | STATION-FINDINGS | Finite remaining presentation/living-station findings | 9,12 | DEFINE; nine named branches, no speculative art pass |
-| BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | DEFINE; bounded Phase 5/runtime comparison |
+| BOMBER-ROLES-DEFINE | Bomber promised crew/navigation versus actual supported roles | 4,10,16 | DONE; pilot/payload implemented, additional crew/Nav semantics missing |
+| BOMBER-ROLE-DECISION | Choose additional Bomber role/count, action and physical access | 4,10,16 | WAITING; precise interpretation needed, no approved scope reduction |
 | CRAFT-GAPS-TORRENT | Torrent remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-ARROW | Arrow remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
 | CRAFT-GAPS-JOVIAN | Jovian remaining authored components/roles | 10,11 | DEFINE; finite actual gaps only, preserve existing content |
@@ -454,8 +553,8 @@ Role proof: ordinary walk/sit/use/stand/exit with authenticated peers, supported
 | NET-JOVIAN-DEPART | Ordinary shared 5m departure and zero-speed braking | 16,26 | DONE; 96c96312f, broader return/endurance not established |
 | HELM-EDGE-REPRO | Actual immediate landing followed by neutral physics reproduces missing remote edge | 18 | DONE; a3955ee90 expected-only failure, original fixture compile repair retained |
 | HELM-EDGE-REPAIR | Preserve admitted immediate command exactly once across consumers | 18 | DONE; 2c73494a4, consumer40/ship_command79, component-staged scope |
-| NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | FAILED;331a9628b strict host dock passes, client ownership predicate fails |
-| NET-JOVIAN-ARRIVAL-CALLER | Confirm arrival using client-received ownership record | 16,20,26 | READY in working queue; one bounded caller correction, no runtime/limit change |
+| NET-JOVIAN-RETURN | Original shared physical home docking and both clients consumed arrival | 16,20,26 | DONE;4c9c764e9 original route138.915s, failed331 arrival attempt retained |
+| NET-JOVIAN-ARRIVAL-CALLER | Confirm arrival using client-received ownership record | 16,20,26 | DONE;4c9c764e9, original pilot/ship/ownership generations, all peers exit0 |
 | ROLE-JOVIAN-ENGINEER | Jovian engineer ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-HALYARD-PASSENGER | Halyard passenger ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
 | ROLE-HALYARD-ENGINEER | Halyard engineer ordinary moving-crew lifecycle | 16,24 | GATED; exact supported craft/candidate, prior role-specific proofs retained |
@@ -528,7 +627,12 @@ Native performance proof retains ≥60s/3,600-frame warmup and ≥600s/18,000-fr
 | INPUT-KBM | Physical keyboard/mouse ordinary full route | 8,18,29 | WAITING; actual device/isolated session, exact required route |
 | INPUT-CONTROLLER | Physical controller ordinary full route | 8,18,29 | WAITING; actual device/isolated session, exact required route |
 | REMAP-DEFINE | Uncovered binding/apply/restart/conflict/recovery cases | 8,29 | DEFINE; actual menu/gameplay effects, existing persistence tests first |
-| ACCESS-PAUSE-DEFINE | Pause/options readability views and required scale/aspect cells | 12,29 | DEFINE; bounded first view, no invented Cartesian product |
+| ACCESS-PAUSE-DEFINE | Pause/options readability views and required scale/aspect cells | 12,29 | DONE; five named aspect groups/three authored scales, actual view states below |
+| ACCESS-PAUSE-4X3 | Pause/options at 1024x768, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
+| ACCESS-PAUSE-16X9 | Pause/options at 1920x1080, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
+| ACCESS-PAUSE-16X10 | Pause/options at 1920x1200, requested scales0.75/1.0/1.6 | 12,29 | READY in working queue; missing production Main16:10 case |
+| ACCESS-PAUSE-21X9 | Pause/options at 3440x1440, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
+| ACCESS-PAUSE-32X9 | Pause/options at 5120x1440, requested scales0.75/1.0/1.6 | 12,29 | UNSCHEDULED; existing Main coverage anchors retained, no unchanged rerun selected |
 | ACCESS-VIEWS-DEFINE | Remaining required HUD/menu/help/role readability views/cells | 12,29 | DEFINE; original promises, reuse pause/options decisions |
 | COMFORT-MOTION | Reduced motion route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
 | COMFORT-FLASH | Reduced flash route and retained setting | 29 | GATED; exact affected existing route, no new option implementation assumed |
@@ -544,7 +648,10 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 
 | ID | Named outcome | Parents | State / dependency |
 | --- | --- | --- | --- |
-| RECOVERY-ONFOOT-DEFINE | On-foot durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
+| RECOVERY-ONFOOT-DEFINE | On-foot durable-boundary/resume-or-safe-home contract | 2,31 | DONE; four-field home preference, real-file OS interruption still uncovered |
+| RECOVERY-ONFOOT-PROBE | Exported release driver admits and observes genuine on-foot save/resume context | 2,31,32 | READY in working queue; extend existing boot/probe/runner, no fabricated save |
+| CHECKPOINT-ONFOOT-PROBE | Paired checkpoint ships accepted on-foot release-driver support | 6,32 | GATED; accepted probe change, standard package checks |
+| RECOVERY-ONFOOT-CUT | Real-file on-foot commit, owned SIGKILL and distinct-process usable home recovery | 2,31 | GATED; supported context and exact new Linux package/install |
 | RECOVERY-PILOT-DEFINE | Pilot durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-CABIN-DEFINE | Cabin/rest durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
@@ -593,9 +700,9 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 
 Count the named rows as inventory outcomes, **not remaining executable jobs**.
 DONE rows retain their exact-source scope; definition, qualification, build and
-implementation are different types of work. This inventory has **237 named outcomes**, including **11 DONE** in their recorded
-planning/source scopes. The other226 rows include definitions, dependencies and
-qualifications; they are not226 implementation jobs. The working queue has eight cards;
+implementation are different types of work. This inventory has **246 named outcomes**, including **16 DONE** in their recorded
+planning/source scopes. The other230 rows include definitions, dependencies and
+qualifications; they are not230 implementation jobs. The completed eight-card batch is archived; the working queue has four cards;
 its current completion and READY/GATED counts are shown in ROADMAP.md.
 
 A DEFINE row must end in a finite list/contract or an exact missing fact, with
@@ -616,7 +723,7 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | Parent | Original parent outcome | Active task families | Reconciliation / next named outcome |
 | --- | --- | --- | --- |
 | 1 | Finish final integrated-source and packaged physical abandonment acceptance | WORLD-ABANDON, WORLD-SOLO, PACKAGE-WIN, PACKAGE-LINUX | Source Ember abandonment DONE on e85157b4d; EMBER-PACKAGE-ABANDON and real-file/reuse cases remain gated. |
-| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE first; six other named context contracts and uncovered installed cuts remain. |
+| 2 | Complete matching installed interruption/recovery on the accepted integrated build | RECOVERY-CONTRACT, RECOVERY-KILL, INSTALL-LINUX, FINAL-RECONCILE | RECOVERY-ONFOOT-DEFINE DONE; actual on-foot package-driver/CUT next. Six other context contracts and installed cuts remain. |
 | 3 | Complete canonical-distance outbound and return with ordinary remote crews for Ember, Aurora and Rime, including activities/rewards/save, late join, disconnect, pilot loss, cancellation, interruptions and repeat visits | WORLD-SHARED (each world/case), NET-CREW, RECOVERY-KILL | The 21 SHARED-* cells are named below; Aurora originals WAITING and Rime arrival PARKED. Same cells as27. |
 | 4 | Record the final shipped roster and supported limits | SCOPE-DECISION, NET-CAPACITY, ORIGINAL-SPEC | SCOPE-ROSTER/SCOPE-DESKTOP DEFINE; SCOPE-LIMIT WAITING; BOMBER-ROLES-DEFINE resolves one exact role promise. |
 | 5 | Assign owners, dependencies and estimates to the remaining deliverables | PLAN-ASSIGN and the per-session task card | Next eight cards assigned in ROADMAP.md; later capability scopes/estimates still undefined. No release date. |
@@ -634,13 +741,13 @@ These are **36 parent outcomes**, not 36 executable jobs. They remain open until
 | 17 | Complete remote engine and landing/dock presentation | NET-POSE, NET-BUDGET | NET-POSE-DEFINE resolves craft/operation views; NET-FULL-SNAPSHOT is one aggregate original-budget check. |
 | 18 | Complete supported remote helm actions and their real local-input prerequisite | NET-HELM, INPUT-DEVICE | HELM-EDGE-REPRO/REPAIR DONE on recorded source; HELM-ACTIONS-DEFINE now names six uncovered held-action cases; devices remain separate. Physical-device proof stays separate. |
 | 19 | Qualify honest remote-command recovery after host simulation stalls | NET-STALL | NET-STALL retains original600-step/2s contract; no unchanged parked/stall expansion under current repair. |
-| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | NET-JOVIAN-RETURN first; NET-SECOND-LAND must prove distinctness before diagnosis. NET-DOCK-DEFINE names later reuse cases. |
+| 20 | Complete remote landing, post-dock disembarkation and craft reuse | NET-LAND-DIAG, NET-DOCK | NET-JOVIAN-RETURN DONE; NET-SECOND-LAND must prove distinctness from recorded failures before diagnosis. NET-DOCK-DEFINE names later reuse cases. |
 | 21 | Qualify fleet hull/component damage, repair, destruction and regeneration presentation across supported craft and roles | NET-DAMAGE | DAMAGE-DEFINE shares parent11 ownership and names uncovered real craft/role consequences and peer presentation. |
 | 22 | Qualify the implemented convoy actor lifecycle in native gameplay | NET-ACTOR[Convoy] | CONVOY-ACTOR-DEFINE ends with actual uncovered native lifecycle cases, not another full Convoy save probe. |
 | 23 | Qualify Torpedo Run authority and solo recovery | NET-ACTOR[Torpedo Run] | COMBAT-TORPEDO ordinary route and TORPEDO-AUTH-DEFINE authority/recovery cases remain distinct. |
 | 24 | Finish remaining travelling-weapon and moving-crew integration | NET-ACTOR[Picket/Emberline], NET-CREW, WORLD-SHARED | PICKET-ACTOR-DEFINE/EMBERLINE-ACTOR-DEFINE plus existing ROLE-/SHARED-* cells; no duplicate moving-crew queue. |
 | 25 | Qualify the production server-browser and connection flow | NET-BROWSER | Seven BROWSER-* menu outcomes named; delivered cancel/session-generation fixes retained on recorded sources. |
-| 26 | Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET | Boarding/departure subroutes DONE. Return, dedicated SERVER-BASELINE, profiles,30min endurance/full-snapshot/capacity remain open. |
+| 26 | Pass multiplayer and endurance acceptance | NET-ENDURANCE, NET-CAPACITY, NET-BUDGET | Boarding/departure subroutes DONE. Return is now DONE in its source scope; dedicated SERVER-BASELINE, profiles,30min endurance/full-snapshot/capacity remain open. |
 | 27 | Resolve planetary travel during multiplayer explicitly | WORLD-SHARED (each world/case) | Same21 SHARED-* cells as3; no double count or staged-arrival substitute. |
 | 28 | Benchmark and optimize on representative native hardware | PERF-MACHINE/ROUTE/RUN/FIX | PERF-MINIMUM/TARGET WAITING on actual hardware; PERF-ROUTES/CELLS-DEFINE precede original-length measurements. |
 | 29 | Complete real-device controls and accessibility review | INPUT-DEVICE/REMAP, ACCESS-VIEW/COMFORT | Two device families/four COMFORT-* outcomes named. ACCESS-PAUSE-DEFINE first; other readability/remap cells unresolved. |

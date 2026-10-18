@@ -2,7 +2,21 @@
 
 This is the working roster for [roadmap task 0](ROADMAP_BACKLOG.md#0-fix-the-release-scope-and-assign-the-completion-work--all-phases), reconciled against the current runtime on 2026-10-17. It retains the original promises and remaining work; it does not reduce scope, set a date or close phase gates.
 
-Latest paired checkpoints: clean `b6af782021ef89c2ef200033c6c72573f4cf238b` ([Windows notes](../builds/windows/MuddsShipyards-b6af782-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-b6af782-linux-notes.txt)). A stable server-browser Disconnect button lets connected hosts/guests leave and reuse the browser; existing shutdown/capacity rules remain. Fresh source and actual Windows-payload checks each pass262 assertions; three strict startups and all1,515 matching payload entries verify. Against f676c50, HUD code changes and65 generated scenes differ only within their equally sized node-ID arrays; every other decoded scene byte matches. The initial comparison failure is preserved; unrun package checks resumed on those exact exports without rebuilding. Native Windows/GPU/device/audio, full matrix and final release gates remain unqualified. Earlier f676c50 guest-count wording remains included; its historical gameplay results below qualify that earlier package only.
+Current paired development checkpoint: **2c73494**, clean runtime
+`2c73494a41fa86a48f08d608922c2a1b41e5a927` ([Windows notes](../builds/windows/MuddsShipyards-2c73494-notes.txt),
+[Linux notes](../builds/linux/MuddsShipyards-2c73494-linux-notes.txt)). Immediate
+client landing edges survive later neutral sampling; both packages pass their
+strict menu/artifact checks. Subsequent original ordinary two-client Jovian
+short-sortie/home-return qualification passes on4c9c764e9 in138.915s: strict
+physical dock/lease/landed commit and both clients consume original ownership/
+matching arrival, all three actual exits0 and diagnostics0. Caller-only ownership
+reader correction, unchanged game runtime; earlier failed raw remains retained.
+This is source-route qualification, not a packaged/native/canonical-planetary/
+endurance/full-craft pass. Current full matrix and remaining hardware/release
+requirements stay open. [Current bounded work](../ROADMAP.md) now selects the
+missing on-foot package-recovery context and a separate pause/options16:10 case.
+
+Earlier paired checkpoints: clean `b6af782021ef89c2ef200033c6c72573f4cf238b` ([Windows notes](../builds/windows/MuddsShipyards-b6af782-notes.txt), [Linux notes](../builds/linux/MuddsShipyards-b6af782-linux-notes.txt)). A stable server-browser Disconnect button lets connected hosts/guests leave and reuse the browser; existing shutdown/capacity rules remain. Fresh source and actual Windows-payload checks each pass262 assertions; three strict startups and all1,515 matching payload entries verify. Against f676c50, HUD code changes and65 generated scenes differ only within their equally sized node-ID arrays; every other decoded scene byte matches. The initial comparison failure is preserved; unrun package checks resumed on those exact exports without rebuilding. Native Windows/GPU/device/audio, full matrix and final release gates remain unqualified. Earlier f676c50 guest-count wording remains included; its historical gameplay results below qualify that earlier package only.
 
 Earlier exact-package Guided qualification (D1): the f676c50 Linux ELF
 completes the unchanged original ordinary-input route **3/3**, in

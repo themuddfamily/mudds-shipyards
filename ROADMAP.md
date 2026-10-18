@@ -1,286 +1,140 @@
 # Development roadmap
 
-**Next task: correct the client ownership reader, then qualify the original shared return once.**
-The game is a playable development alpha. **36 broad requirements and all ten
-phase gates remain open.** This file is the execution queue. The
-[named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes) preserves remaining
-scope, the [36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes)
-prevents omissions, and the [original specification](docs/history/ROADMAP_SCOPE_20261017.md)
-remains binding. Actual source-specific results belong in the
-[existing delivery history](docs/history/ROADMAP_DELIVERIES.md).
+**Next: add the missing on-foot context to the existing packaged recovery driver.**
+The game is a playable development alpha. **All 36 broad requirements and all ten
+phase gates remain open.** This file holds the executable queue; the
+[named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
+[36-parent crosswalk](docs/ROADMAP_BACKLOG.md#coverage-of-the-original-remaining-outcomes),
+[original specification](docs/history/ROADMAP_SCOPE_20261017.md) and
+[delivery history](docs/history/ROADMAP_DELIVERIES.md) retain full scope/results.
 
-## Progress you can assess
+## Current delivered position
 
-| Delivered outcome | Accepted scope / remaining limit |
+| Outcome | Actual proof / limit |
 | --- | --- |
-| Passenger chair and pilot/passenger HUD repairs | Integrated. Crew-label source b6196a19a resolves craft labels through the actual occupied chair. |
-| Immediate client landing-edge repair | 2c73494a4, integrated on eaac8a432: old-runtime regression reproduced, repaired command delivery40 and ship commands79 pass. Ordinary return remains unqualified. |
-| Playable Windows/Linux checkpoint **2c73494** | [Windows notes](builds/windows/MuddsShipyards-2c73494-notes.txt), [Linux notes](builds/linux/MuddsShipyards-2c73494-linux-notes.txt). Safe exports, three strict menu startups and actual payload/archive checks pass. |
-| Ordinary two-client Jovian boarding | fff5f7221: normal approaches, both actual seats, current identities/HUD/authority and host confirmation; all three peers exit 0. |
-| Ordinary shared departure and braking | 96c96312f: host physically moves 5.004m, frees berth and stops; both clients remain seated/current. |
-| Four-cycle phantom cleanup and twelve-cycle all-nine reuse | d7be01487: both source qualifications pass. Staged/headless source scope; packaged ordinary play is separate. |
-| Browser generation/cancel handling and defense briefing | Delivered on their recorded sources; broader connection/controller acceptance stays open. |
+| Immediate client landing edge retained exactly once | Runtime `2c73494a4`; old-runtime failure reproduced, consumer40/ship_command79 pass. Source/ownership/session boundaries revoke pending input. |
+| Fresh playable checkpoint **2c73494** | [Windows notes](builds/windows/MuddsShipyards-2c73494-notes.txt), [Linux notes](builds/linux/MuddsShipyards-2c73494-linux-notes.txt). Both exports, three strict startups,1515 actual matching payload entries and exact archives pass. |
+| Ordinary two-client Jovian short sortie and physical home return | Source `4c9c764e9` PASS in138.915s: normal boarding/real seats,5m departure/brake, accepted landing, strict home dock/lease/landed commit and both retained clients consume original pilot/ownership generations and arrival. All three peers exit 0; marker 1; diagnostics 0. |
+| Earlier passenger chair/HUD, lifecycle, browser/briefing deliveries | Retain their recorded scopes; no whole craft, parent or phase closes. |
 
-**Current failed boundary:** original return331a9628b fails client arrival
-confirmation after strict physical home docking. Host request serial1, valid
-lease, zero dock position/orientation error, speed0 and landed commit generation1
-pass. Both clients show matching landed/docked generation1 and zero seat error;
-passenger hull error0m, pilot0.473m. The remaining predicate reads the host-only
-ownership registry on a client. Failure/raw remain recorded; full return stays
-unqualified until the bounded caller repair below passes the original route.
+The eight-card batch is closed: reproduction, runtime repair, checkpoint, shared
+return and four bounded definitions. Definitions are planning, not extra game
+features. The return's first`331a9628b` attempt FAILED at a client ownership predicate;
+one reviewed caller-only correction reads the received authoritative snapshot.
+Failed raw, original criteria and cumulative repair counts remain retained.
+The accepted caller changes no game runtime; checkpoint `2c73494` is still current.
+No identical rebuild or unchanged route rerun is scheduled.
 
-**Unverified:** current full matrix NOT_RUN (last unfiltered f85957f failed 11 of
-1,045 suites); native hardware/device/audio, endurance and final release gates
-remain open. Native Windows execution and human review retain the owner's
-exclusions and factual NOT_RUN records. Focused passes do not replace these gates.
+**Still unqualified:** dedicated server, postdock exit/reuse, canonical shared
+world journeys,30-minute endurance, devices/native GPU/audio and final release.
+Current full matrix NOT_RUN; last unfiltered f85957f failed 11 of 1,045 suites.
+Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
-## Current eight-task batch
+## Next four cards
 
-**4 DONE, 1 FAILED, 3 READY.** The failed return has one explicitly selected
-caller-repair follow-up below; it does not reset earlier attempts or repair counts.
-These are queue cards, not the remaining whole-project job count. READY definition cards can proceed independently; no parked route is
-reopened by this list. Root owns integration and each card unless assigned below.
-Implementation and check time are separate; caps are safety limits, not estimates.
-Runtime source2c73494a4 is accepted and integrated. Its fresh Windows/Linux
-checkpoint2c73494 is published locally with all declared package checks passing.
+**2 READY, 2 GATED.** These are the next executable deliveries, not the remaining
+whole-project job count. Root owns integration. Do not reopen parked failures.
 
-| Order / task | Type | Status / dependency | Finish | Work estimate; checks separate |
-| --- | --- | --- | --- | --- |
-| 1. HELM-EDGE-REPRO | Regression qualification | DONE on a3955ee90 | Real immediate landing then neutral physics demonstrates the missing remote serial on the old runtime. | 15–30min freeze/review; import ≤600s, compile ≤300s, one suite ≤300s. |
-| 2. HELM-EDGE-REPAIR | Runtime repair | DONE on 2c73494a4 | The same admitted edge reaches the current remote helm exactly once; invalidation revokes it. | 30–60min review/integrate existing patch; focused pair ≤300s each. |
-| 3. CHECKPOINT-HELM-EDGE | Playable build | DONE on 2c73494a4 | Fresh paired Windows/Linux packages contain the accepted fix. | 15–25min preparation/artifact work; export ≤900s/platform, startup ≤300s each. |
-| 4. NET-JOVIAN-RETURN | Ordinary gameplay qualification | FAILED on 331a9628b; follow-up below | Physical home dock commits and both retained clients consume arrival. | 5–10min compose/freeze; compile ≤300s, one original route ≤300s. |
-| 5. HELM-ACTIONS-DEFINE | Scope definition | DONE; source definition only | Finite supported action/binding/consumer/coverage list, with uncovered cases named. | 30min; no engines. |
-| 6. RECOVERY-ONFOOT-DEFINE | Scope definition | READY | On-foot durable boundary and usable resume/safe-home outcome are unambiguous. | 30min; no engines. |
-| 7. ACCESS-PAUSE-DEFINE | Scope definition | READY | Pause/options views and required scale/aspect cells are named. | 30min; no captures. |
-| 8. BOMBER-ROLES-DEFINE | Scope definition | READY | Promised bomber crew/navigation capabilities are matched to actual production owners or explicit gaps. | 30min; no engines. |
+| Task | Type / state | Observable finish | Work estimate; checks separate |
+| --- | --- | --- | --- |
+| RECOVERY-ONFOOT-PROBE | Release capability / READY | Existing exported recovery driver admits and observes a genuine settled exterior on-foot save/resume context. |45–60 min implementation/review; explicit compile and focused source checks≤300s each. |
+| CHECKPOINT-ONFOOT-PROBE | Build / GATED on probe | Fresh paired package contains the accepted on-foot driver capability. |15–25 min preparation/artifact work; export≤900s/platform and startup≤300s each. |
+| RECOVERY-ONFOOT-CUT | Recovery qualification / GATED on probe+package | Real-file on-foot commit survives owned SIGKILL/distinct restart into supported walking and real boarding beside the saved craft. |10–20 min freeze/driver preparation; existing package-probe limits separate and unchanged. |
+| ACCESS-PAUSE-16X10 | UI qualification / READY, independent | Actual Main pause/options views remain readable, reachable and focused at1920x1200 and the three authored scale choices. |30–45 min existing-fixture coverage/review; one original300s source check. |
 
-**Selected follow-up: NET-JOVIAN-ARRIVAL-CALLER — READY/root.** One test-file
-correction reads the client's received ownership section, retaining original
-pilot/ship/ownership generations and every arrival condition. Budget10–20min
-review/correction; explicit compile300 and one original route300/outer360 separate.
-Independent review GO. This is selected over the three independent READY definition
-cards because the remaining check demonstrably reads the wrong registry. The
-failed run and its two secondary snapshot get_path errors remain retained.
-No runtime, input, route, physical tolerance or deadline changes. First further
-failure stops for priority review; no extra probe or automatic second correction.
+The three recovery cards are sequential. UI work can proceed independently in
+an isolated checkout with disjoint ownership. A failed card ends at its first
+concrete boundary; one attempted repair requires priority review before more work.
 
-## Card contracts
+### RECOVERY-ONFOOT-PROBE — support the missing release-driver context
 
-### HELM-EDGE-REPRO — prove the supported immediate-command loss
+- **Parents/result:**2/31/32. The existing runtime already saves a four-field
+  home-berth preference for settled on-foot play; it stores no player pose. The
+  release driver's allowed contexts currently reject on_foot. Deliver this
+  executable package/release capability, not another evidence format.
+- **Ownership:** `scripts/game/startup_loader.gd`,
+  `scripts/diagnostics/in_world_interruption_probe.gd`,
+  `tools/release/run_package_probes.sh` and the smallest relevant existing checks
+  such as `tests/startup_cli_privacy_test.gd`. Use existing GameFlow capture/apply
+  and UserDataStore owners; change runtime recovery only for a reproduced defect.
+- **Boundary:** add on_foot to the existing isolated silent driver path. Preserve
+  pilot/cabin/rest/crew/engineer behavior, unsafe CLI rejection, private profile/
+  Dummy requirements and normal startup isolation. Arm a named nondefault craft's
+  genuine settled exterior preference through the production capture/commit seam;
+  do not fabricate saved payload, position, berth/seat authority or rewards.
+- **Proof:** the old boot contract rejects this context; new focused admission/
+  source-probe checks require the supported four fields, correct actual supported
+  player state and explicit arm/resume observation. Compile and relevant existing
+  checks on a clean pinned source. Do not rerun parked whole session recovery/Q5.
+  Source-driver proof does not close real OS interruption or packaged acceptance.
+- **Execution:** READY/root; inspect existing arm/resume branches and freeze the
+  on-foot case contract from the [completed definition](docs/ROADMAP_BACKLOG.md#settled-exterior-on-foot-recovery-contract).
+  Budget45–60 min; split before 90 min. First unexpected result stops for review.
+  Commit/push accepted production capability; immediately build the next card.
 
-- **Parent/result:** parent18, also supporting16/26. In the existing production
-  consumer fixture, a real LocalShipInputSource produces an immediate landing
-  command through GameFlow's supported InputEventAction path. Later actual
-  neutral physics must not erase the required remote serial/wire identity.
-- **Boundary:** only the extension to `tests/command_consumer_delivery_test.gd`.
-  Preserve the runtime patch separately; clean test-only commit on old runtime.
-  The staged confirmed network client is component proof, not ordinary play.
-- **Proof:** source publication witnesses the landing-bearing command and later
-  distinct neutral physics. The old runtime fails the new exactly-once remote
-  serial/`pilot_landing_1` assertion, with no unrelated failures. No manually
-  populated physics snapshot, preset counter or injected landing request.
-- **Execution:** DONE/root on a3955ee90: compile0, one suite fails only the
-  new expected assertion (39 others pass). Initial de787d5 compile failed on two
-  bare pause-notification constants; one reviewed Node qualifier repair passed.
-  Both attempts/raw and cumulative repair count remain retained. Frozen recipe:
-  inspect the held two-file diff, save the runtime
-  patch under its owned results, and freeze only the regression on old runtime.
-  Cold import ≤600s, compile ≤300s, one existing consumer suite ≤300s using the
-  pinned engine/headless/Dummy and original diagnostics. Expected red closes
-  this card as reproduced; an unexpected failure stops for review. Do not apply
-  a repair simply to hide a fixture failure.
-- **Check command:** after the clean import/compile prerequisites, launch the
-  existing matrix through the prepared private environment with
-  `--mode headless --audio-driver Dummy --jobs 1 --timeout 300 --import-gate never
-  --scope tests/command_consumer_delivery_test.gd` and an owned results directory.
-  Pin `/tmp/mudds-tools/godot-4.7.1/godot`; retain the 360s outer suite guard.
-- **Close:** record exact source/assertion/result in existing history, retain raw
-  and runtime patch, commit/push the regression branch. Next action is card 2.
+### CHECKPOINT-ONFOOT-PROBE — ship the accepted release capability
 
-### HELM-EDGE-REPAIR — retain the admitted immediate command exactly once
+- **Parents/result:**6/32; gate on clean accepted probe source. Pin Godot/templates,
+  correct private versioned XDG template mapping, preserve HOME/CODEX_HOME.
+- **Proof:** existing safe sequential Windows/Linux exports; EXE/ZIP/notes and
+  matching ELF/archive/notes; actual PCK byte parity, exact members/modes/metadata,
+  stock PE .text. Direct/archive Linux and actual Windows payload each strict
+  headless/Dummy startup actualexit0+exactlyone STARTUP_MENU_READY_OK/no original
+  error/leak diagnostics. Native Windows execution is not implied.
+- **Budget/stop/close:**15–25 min preparation/checks, original900s exports/300s
+  startups separately. One export/platform, first failure stops with raw retained.
+  Publish only repository builds; commit/push notes/index, then qualify the cut.
 
-- **Parent/result:** parents18/16/26; repair GameFlow's supported InputEventAction/
-  replay input path so an immediately sampled landing command is retained for the
-  confirmed remote helm before later neutral sampling. No native physical-key
-  failure is established; do not widen that claim or substitute physical keys to
-  hide the supported compatibility-path loss.
-- **Evidence/owner:** LocalShipInputSource553 applies then clears explicit edges;
-  ShipCommandSource94 retains a detached GameFlow FIFO entry. GameFlow9051–9069
-  queues/samples/drains it synchronously. HeroShip660 updates last_ship_command
-  only in physics. GameFlow12199–12209 increments remote landing/roll counters
-  only from that physics snapshot, and8959 merely shows pending landing feedback.
-  On the old runtime no command_produced capture exists in GameFlow. A later neutral snapshot cannot
-  recover the already-consumed edge.
-- **Boundary/ownership:** root owns `scripts/game/game_flow.gd` and reviews the
-  extended existing `tests/command_consumer_delivery_test.gd`. Share one capture/deduplication
-  owner between immediate/FIFO delivery and physics polling, or bind a bounded
-  equivalent existing delivery seam. Preserve current live confirmed pilot/source/
-  authority/stream checks, monotonic sequence and stream initialization, send
-  cadence/clock hold/rate limits, session teardown and source invalidation. Do not
-  double-count one command observed by both consumers or let an old source edge
-  revive after focus/pause/migration/replacement. No wire/schema/authority/input
-  timing/pose change and no additional source queue, validator or event framework.
-- **Proof:** extend existing production-consumer fixture with distinct immediate
-  command and later neutral physics command under a declared staged confirmed
-  client session. Exercise actual GameFlow event/FIFO consumer, observe the source's
-  produced landing command, and require remote serial/wire identity exactly once
-  after later neutral sampling. Preserve claim/source ownership. Repeated polls,
-  stale/non-owner snapshots and source/session invalidation must not replay it.
-  HELM-EDGE-REPRO must first establish the old-runtime failure; then the same
-  regression must pass. Do not pre-set remote counters, inject a network request or replace the immediate path with a
-  manually populated physics snapshot. Component staging is not ordinary-route proof.
-- **Checks/budget/stop:** review/integration30–60min, clean source before
-  engines. Existing command_consumer_delivery_test and ship_command_test on pinned
-  engine, Dummy/headless, original300s suite caps; import/compile separate. One
-  repaired focused acceptance after the separately recorded expected reproduction; unexpected
-  failure stops for priority review. Do not broaden to parked stall/endurance or
-  add a third unchanged return route to diagnose this static gap.
-- **Check command:** same matrix/environment, with scope
-  `tests/command_consumer_delivery_test.gd,tests/ship_command_test.gd`,
-  jobs1, original300s per-suite and660s outer guard. Import/compile are separate.
-- **Execution:** DONE/root on 2c73494a4, integrated as eaac8a432. Import/compile
-  and both suites exit0, original diagnostics0; consumer40 and ship_command79.
-  Full source/cache guards hold, owned processes exit, independent review GO.
-  [Exact reproduction and repair](docs/history/ROADMAP_DELIVERIES.md#immediate-client-landing-edge--reproduced-and-repaired).
-- **Close:** integrate accepted runtime/tests, commit/push, immediately create
-  CHECKPOINT-HELM-EDGE. The earlier return failure/repair remain cumulative and
-  return stays unqualified until its separately gated unchanged original route.
+### RECOVERY-ONFOOT-CUT — actual installed/archive interruption and usable return
 
-### CHECKPOINT-HELM-EDGE — playable accepted command-delivery repair
+- **Parents/result:**2/31; gate on exact package supporting on_foot and existing
+  release-driver contract. Choose one existing supported activity/debt boundary
+  and named nondefault craft/home berth; retain its existing limits and criteria.
+- **Proof:** actual real-file settled exterior preference committed before the
+  armed signal; own/reap real SIGKILL, then a distinct same-profile process accepts
+  ordinary Resume/Begin Shift. Fresh craft/home-berth support is valid, player is
+  awake/unseated/controls enabled with no stale seat/hatch claim. Walk through
+  normal input and Interact to board that craft; activity/debt/earned-reward state
+  remains conserved/once-only. No airborne position or arbitrary power-loss claim.
+- **Execution:** GATED/root. Freeze exact package/hash, invocation, selected context
+  and original timeout before engines. Preparation10–20 min; stage checks retain
+  existing release-driver bounds. First failure closes FAILED; no extra probe or
+  automatic correction. Preserve raw/process/input closure; commit/push actual
+  scope and clean owned scratch. Native hardware/device/audio remain separate.
 
-- **Execution:** DONE/root on exact clean2c73494a4. Both exports, three strict
-  startups, all1515 actual payload-entry bytes, stock PE .text, exact Linux archive
-  and two-member Windows ZIP checks pass. Seven public artifacts/notes are under
-  repository builds. Owned checkout/profiles/helpers are removed; raw/source refs
-  remain. [Package closure](docs/history/ROADMAP_DELIVERIES.md#immediate-client-landing-edge--checkpoint-published).
-- **Parent/result:** parents6/32; exact clean accepted runtime, pinned Godot/templates.
-  Existing safe Windows/Linux exports with correct private versioned XDG template
-  mapping; verify actual debug/release paths before engines. Preserve HOME/CODEX_HOME.
-- **Proof:** relevant focused checks, EXE/ZIP/notes and Linux ELF/archive/notes,
-  actual payload-byte parity, exact archive members/modes/content and metadata.
-  Direct Linux, archive Linux and Windows payload strict headless/Dummy startup
-  each actualexit0+exactly one STARTUP_MENU_READY_OK/no error or leak diagnostics.
-  Original matrix diagnostic policy; retain raw root notice without an invented gate.
-- **Budget/stop:**15–25min preparation/checks; export900/startup300 caps separate,
-  one export/platform; first failure stops with retained raw. No unchanged rerun.
-- **Close:** repository builds only, actual player-visible/input-path changes and
-  validation limits in notes, commit/push indices, clean owned checkouts/profiles.
-  Native Windows/GPU/device/audio/human/full-release gates remain unperformed.
+### ACCESS-PAUSE-16X10 — one missing production-window layout case
 
-### NET-JOVIAN-RETURN — unchanged qualification after supported input repair
-
-- **Execution:** FAILED/root on331a9628b: one142.125s route, all peers actualexit1,
-  first abort client_b5.01264s after physical host docking. Caller ownership reader
-  is corrected only in the separately bounded follow-up below; source held, no rerun.
-- **Parent/result:** parents16/26; gate on accepted runtime+fresh checkpoint above.
-  Compose held37cbc7a4e caller with accepted runtime; retain its complete input
-  pulse and original [physical return contract](docs/history/ROADMAP_DELIVERIES.md#ordinary-shared-return--input-release-boundary-failed).
-  No replacement input, route or artificial local landing request.
-- **Proof:** original normal menus/all13+interior goals, real chairs/current identity/
-  authority/HUD,5m departure/brake, free-home capture, one landing_assist pulse,
-  host request8s, physical strict docking/lease/commit120s, client consumed arrival/
-  body/hull5s. Existing private-Xvfb/x11/Dummy input-only matrix, original300s total/
-  360s outer; actual allpeerexits0, original marker1, no diagnostics, source/cache
-  guards. Preserve all original10/10/5/12/8s prerequisites and snapshot criteria.
-- **Budget/stop:** compose/freeze5–10min; compile and one original route separately.
-  First failure ends FAILED; required priority review before any more action.
-  Original failed task plus repair remain counted; no new diagnostic run belongs here.
-- **Close:** integrate caller only after acceptance, commit/push exact outcome and
-  clean owned checkout/profiles, retain unique raw. No stand/exterior/reuse/
-  native/package/endurance or whole-parent/phase claim from this source qualification.
-
-### NET-JOVIAN-ARRIVAL-CALLER — read the ownership actually consumed by clients
-
-- **Result/boundary:** only `tests/network/jovian_network_two_client_return_test.gd`.
-  Replace client `get_owned_ship()` authority-ledger lookup with the matching
-  `get_authoritative_snapshot().sections.ownership` record. Retain owner==original
-  pilot and also require original ship/ownership generations; expose that received
-  record in the existing receipt. No production code or authority writes.
-- **Proof:** independent API/schema review GO; original hull<=0.5m, anchor<=0.05m,
-  fresh same-pilot pose, landed/docked/not-landing, landing generation and retained
-  identity checks stay intact. Exact caller source4c9c764e9; accepted runtime2c73494
-  and its playable checkpoint unchanged. Existing import remains applicable: no
-  resource/class/UID change. Compile300, then one original private-Xvfb/x11/Dummy
-  route300/outer360 with all three actualexits0/marker1/originaldiagnostics0 and
-  source/cache/process closure. Use fresh peer profiles; preserve original failure.
-- **Execution/stop:** READY/root; verify clean4c9c764e9, compile then run once.
-  Failed task+attempted repair counts remain cumulative. Any further failure stops;
-  competing READY work is RECOVERY-ONFOOT-DEFINE/ACCESS-PAUSE-DEFINE/BOMBER-ROLES-DEFINE.
-  Integrate the caller only on acceptance; no identical-runtime checkpoint rebuild.
-
-### HELM-ACTIONS-DEFINE — close the remote-helm action-list unknown
-
-- **Execution:** DONE/root, source definition only. Seven held fields and two
-  ordered edge requests are mapped in the [existing backlog roster](docs/ROADMAP_BACKLOG.md#supported-remote-helm-action-roster). Six uncovered held-action
-  cases are named; accepted forward throttle/brake and input-edge deliveries are
-  retained. No engines or device qualification belong to this definition.
-- **Result/boundary:** list each action actually supported by local input and
-  remote helm, with binding, producing source, wire/consumer and existing proof.
-  Read `scripts/control/`, `scripts/network/network_remote_pilot_command_source.gd`,
-  GameFlow's helm path and `tests/network_remote_pilot_helm_test.gd`; no runtime edits.
-- **Finish/proof:** update the existing parent18 backlog with the finite action
-  list and only uncovered named cases. Distinguish immediate synthetic events,
-  physical-device proof and direct injected commands. Preserve current landing
-  repair ownership; no second investigation of that gap.
-- **Execution/stop:** DONE/root within the30min definition boundary. Frozen recipe:
-  first read actual action bindings; stop
-  at finite roster or exact missing fact. Commit/push the documentation; any
-  implementation or engine check needs its own scheduled production card.
-
-### RECOVERY-ONFOOT-DEFINE — settle one recovery state
-
-- **Result/boundary:** for on-foot recovery only, state what is persisted, whether
-  restart resumes supported position or returns safely home, and the ordinary
-  action proving usable play. Read existing safe-start/session recovery policy,
-  persistence consumers and `tests/safe_start_production_recovery_test.gd`.
-- **Finish/proof:** update the existing parent2/31 row with the actual contract,
-  production owner, real-file/distinct-process check anchor and exact uncovered
-  interruption boundary or missing decision. Cabin/pilot/planetary scope stays
-  with its own rows; no new airborne-pose promise or invented entitlement.
-- **Execution/stop:** READY/root, 30min; first read the production safe-start
-  policy. No engines. Finite contract or exact missing input ends the card;
-  commit/push. It does not include implementing or exercising SIGKILL recovery.
-
-### ACCESS-PAUSE-DEFINE — name one finite readability set
-
-- **Result/boundary:** identify pause/options views and applicable promised
-  minimum/default/maximum scale and aspect coverage from Phase9/10.3, the
-  production UI and existing `tests/runtime_accessibility_presentation_test.gd`.
-- **Finish/proof:** update parent29's existing backlog row with exact named cells,
-  view/setting owner and existing check/capture anchor. Record unresolved coverage
-  explicitly. Do not invent the full Cartesian product, change UI or run captures.
-- **Execution/stop:** READY/root, 30min; read the pause/options owner and original
-  promise once. Stop at finite cells or exact missing fact, commit/push. A concrete
-  readability defect gets a separate production repair card.
-
-### BOMBER-ROLES-DEFINE — resolve the promised capability before building it
-
-- **Result/boundary:** compare Phase5 and the production roster's bomber crew/
-  navigation promise with `scripts/ships/cinder_long_range_bomber.gd`, its ship
-  definition, actual chair/access bindings and existing bomber tests.
-- **Finish/proof:** update parents4/10/16's existing row: each promised capability
-  has a supported implemented owner, named missing production behavior, or exact
-  interpretation decision. Cargo Hauler roles do not establish Bomber roles.
-- **Execution/stop:** READY/root, 30min; start with the original promise and actual
-  bomber seat/role registration. No engines or implementation. Finite comparison
-  or precise missing decision ends the card; commit/push. Schedule only one named
-  production gap afterwards, with its own acceptance and checkpoint.
+- **Parents/result:**12/29. Existing Main ultrawide layout coverage omits16:10;
+  a gameplay-only SubViewport check does not cover pause/options Controls.
+- **Ownership/boundary:** extend existing `tests/ultrawide_layout_test.gd` for the
+  selected1920x1200 case and required authored scales0.75/1.0/1.6 and pause/options
+  states from the [finite view roster](docs/ROADMAP_BACKLOG.md#pauseoptions-view-and-cell-roster).
+  Reuse existing HUD layout/focus/rebind/display/repair owners and checks. No new
+  harness/validator, speculative UI redesign or full settings/device matrix.
+- **Proof:** actual Main Window/viewport, visible Control safe bounds/font floor,
+  options scrolling and focus/confirmation return remain usable. Record requested
+  and effective pause scale; its authored fit ceiling is valid behavior. This
+  source-layout result does not qualify physical controllers or all rendered views.
+- **Execution:** READY/root, independent;30–45 min coverage/review, original300s
+  check cap. First actual defect stops with the view/control/scale identified and
+  a separate bounded UI repair. Integrate accepted coverage; a demonstrated UI
+  runtime change requires its own focused acceptance and fresh checkpoint.
 
 ## Parked work and external waits
 
-| Item | Reopen condition / retained fact |
-| --- | --- |
-| VIP route | First runtime guard failure plus one syntax repair retained; no VIP arrival/seat/return acceptance. Priority review before further work. |
-| Ember native close smoke | Observer capability ships in4270d71; native smoke FAILED/parked. Supported changed fixture/environment required; unchanged external-driver override remains unsupported. |
-| Rime shared arrival; HULK revisit; Fire restart; Sandbox recovery; Convoy/Patrol/Q4/Q5 | Original failures, attempted repairs, physical criteria and limits remain in backlog/history. No unchanged retries. |
-| Central operational-view finding / two software-renderer capture stalls | No supported art defect or material owner established. Source-tied usable image/reproduction or justified changed environment required. |
-| Settings originals; Aurora original arrival bundle; release capacity choice | Existing external questions remain pending. Do not ask again or replace original acceptance. Server/two-client baseline remains authorized independently. |
+VIP, Ember native close smoke, Rime arrival, HULK revisit, Fire restart, Sandbox
+recovery, Convoy/Patrol/Q4/Q5 and the two software-renderer capture stalls retain
+their original failures/reopen conditions. No unchanged retry is selected.
+Settings originals, Aurora original arrival bundle and release capacity choice
+remain existing external waits; do not ask settled questions again. The dedicated
+server/two-client baseline remains authorized independently of larger capacity.
+Bomber comparison now identifies one further precise interpretation: additional
+role/count, concrete navigation action and physical access are unspecified. It
+is not an approved pilot-only deferral; no invented crew feature is scheduled.
 
-Clean up each card's owned disposable worktree/profile/helpers at closure after
-checking for unique work and live processes; preserve raw failures and source refs.
-Scratch belongs under `/srv/mudds-work/`. The completed helm checkpoint checkout/profiles/helpers
-are removed; the return checkout remains needed for its selected caller repair; three older dirty retired checkouts remain protected.
+Owned helm/return checkouts, profiles/helpers and duplicate builds are removed;
+unique raw/source refs and public builds remain. Three older dirty retired
+checkouts remain protected. Scratch belongs under `/srv/mudds-work/`.
 
 ## Rules that prevent loops
 
@@ -297,7 +151,7 @@ are removed; the return checkout remains needed for its selected caller repair; 
   silently extend scope, lower physical criteria or shorten required test durations.
 - Close by recording the actual result, committing/pushing, and removing owned
   disposable clean worktrees/scratch. Preserve unique work and raw failures.
-- Keep the next eight cards visible; run only READY cards and at most one dependent
+- Keep at most eight bounded cards visible; run only READY cards and at most one dependent
   chain at a time. Review priorities before replenishing the queue.
   Uninstantiated backlog templates are not scheduled work or measurable progress.
 - Every scheduled task must fit the task card below. A broad parent such as
