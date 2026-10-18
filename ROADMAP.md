@@ -144,6 +144,30 @@ each stage; first failure writes STOP and prevents the next stage. No hosted CI.
 The initial static review corrected skipped intermediate observations before any
 execution; this is not a failed runtime attempt or a new budget.
 
+First attempt STOP: full walking loop and approach45.203m complete, actual E
+frame1071 enters normal BOARDING/busy/controls-disabled at1072. Driver's allowed
+phase list wrongly rejected this transient (`no Guided flight or recovery`).
+Native35.578s guarded/32.734s driver, zero engine diagnostics, all input/process
+cleanup true; seated90frames NOT_RUN. Source/exports/startups/audit and60 Python
+tests passed but do not qualify the failed route. No checkpoint published.
+
+One independently reviewed caller repair is selected before editing: only
+`run_native_sortie.py` and `test_native_sortie.py`. Production GameFlow10863–10968
+already enters BOARDING normally. Admit it only in board stage with candidate
+press receipt, actual board-stage Interact edge and busy transition; record the
+edge before gating. Correct the positive fixture to actual BOARDING and reject
+missing/unsolicited admission evidence. No observer/gameplay/timing/cap change.
+Retain the entire original walking/boarding/service/90-frame acceptance.
+
+Reuse the exact audited9162fac archive and accepted engine/privacy/package
+checks: the two caller Python files are excluded from its actual PCK, and no
+embedded source changes are authorized. Freeze repaired caller commit, helper
+hash and unchanged archive/ELF hashes before ONE full Python suite and ONE full
+native route. Keep original raw/STOP records, distinct repair results and the
+35.578s failed-stage total. No identical export/startup replay; caller repair is
+not another gameplay build. A further failure ends this repair and triggers
+cumulative priority review/parking; no automatic second repair or cap reset.
+
 At most three executable cards belong here. A definition ends with a finite
 answer or exact missing fact; it does not automatically launch its qualifications.
 A product implementation card must name one actual production gap, files,
