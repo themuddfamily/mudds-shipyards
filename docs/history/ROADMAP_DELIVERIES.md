@@ -5969,3 +5969,32 @@ activity/receipt/clock, kits4/2 and one paid reward after60 normal ticks. No rep
 state mutation, reset/submit/retry APIs or save-format change. One compile300s and
 one distinct OS restore30s with exact original private XDG data directory, silent
 headless/Dummy. First failure stops; no runtime repair/new checkpoint selected.
+
+
+KIT-RELOAD972efd90615bfc8f198ae9af8606b52a438520af import PASS20.608s,
+compile PASS16.306s; ONE restore-only30s process FAIL/exit124 after30.225s,
+marker0, supervisor timeout diagnostic. Exact actual primary SHA and completedg1/
+paid baseline pass; last receipt is real store configured before Main tree entry.
+No runtime restore-status rejection or first-failure snapshot; final acceptance
+was not reached. Candidate stays unmerged on pushed work branch.
+
+ONE bounded static comparison ends: Main child readiness/_start_up and four
+awaited pairs span the missing boundary. Compilation is comparable to prior
+16.489s, import20.608s vs19.697s; whole delivery79.213s contains no timestamped
+startup breakdown. These do not isolate a narrower fix. Startup wrote ordinary
+bookkeeping generation19→23, session2, physics tick0/safe-start starting.
+Cargo session and paid reward slots exactly equal accepted baseline; new real
+store SHA47c8cbc489519c204c661df4e516af40432013802e3346997abeea049e208914.
+Original byte-exact input SHAe5000c06734eff363c70cab9e394bb378b1de59b79254ec07a3b6a78a870ee0c
+retained at results/reload/input-store/settings.json; post-timeout copy retained
+beside it before original private profile cleanup. This is a startup-budget
+failure, not observed corrupt/duplicate cargo or a qualified restart.
+
+All3 owners terminal/all6 observed PID/start identities absent; source/index and
+non-import cache unchanged. Full raw retained; source branch pushed, disposable
+checkout/helpers/profiles removed. No runtime change/checkpoint. KIT-RELOAD
+FAILED/PARKED; no engine retry or repair selected. Queue now has no READY card;
+next scheduling requires priority review and a finite startup-boundary diagnostic
+or independent production deliverable, preserving original30s OS budget. Do not
+resume Q4's parked construction profile without its concrete reopen condition.
+All36 parents/ten phase gates remain open; Halyard stays parked.

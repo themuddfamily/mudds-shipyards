@@ -1,6 +1,6 @@
 # Development roadmap
 
-**Next: restore the delivered cargo save in a distinct process. Ordinary home delivery and usable exit are qualified; Halyard boarding is parked.**
+**Cargo delivery is qualified; its distinct-process restore is unqualified after a 30-second startup timeout. Halyard boarding remains parked.**
 The game is a playable development alpha. **All 36 broad requirements and all ten
 phase gates remain open.** This file holds the executable queue; the
 [named backlog](docs/ROADMAP_BACKLOG.md#concrete-child-outcomes),
@@ -37,7 +37,7 @@ Native Windows/human-review owner exclusions remain factual NOT_RUN.
 
 ## Working queue: eight bounded cards
 
-**1 IN PROGRESS, 1 FAILED/PARKED, 2 GATED, 4 DONE (three qualifications, one definition).** Root owns integration and closure.
+**2 FAILED/PARKED, 2 GATED, 4 DONE (three qualifications, one definition); no READY card.** Root owns integration and closure.
 Two definitions are complete: offline Jovian delivery and residual Halyard
 server gameplay. They split into the eight concrete outcomes below. This is a
 local work queue, not a remaining-project job count. Original36 parents and all
@@ -50,7 +50,7 @@ and delivery history; they do not consume active queue slots.
 | KIT-BOARD | DONE | Fresh player selects cargo, walks to Jovian and takes the real solo pilot seat. |Accepted62bc7c823;66.158s at original300s cap |
 | KIT-DEPART | DONE | Ordinary thrust leaves berth, starts delivery automatically, then brakes. |Acceptedb91019562;70.350s at original300s cap |
 | KIT-DELIVER | DONE | Physical home return transfers two kits, pays once and leaves player walking outside. |Accepted28a5e354e;79.213s at original300s cap |
-| KIT-RELOAD | IN PROGRESS | Distinct process reloads accepted delivery without duplicate kits or reward. |20–40 min; compile300s + one restore30s |
+| KIT-RELOAD | FAILED/PARKED | Distinct process reloads accepted delivery without duplicate kits or reward. |Compile passed; restore30s timed out before runtime acceptance |
 | HALYARD-APPROACH | DONE definition | Freeze one ordinary spawn→airstair→hatch input route and exact caller. |30 min static comparison; no engine |
 | HALYARD-BOARD | FAILED/PARKED | Two independent clients ordinarily board distinct pilot/passenger seats. |Both attempts failed; priority review selects KIT-DELIVER |
 | HALYARD-MOVING-CABIN | GATED on HALYARD-BOARD | Actual departure and supported passenger walk/sit/stand/reseat while moving. |45–60 min; one extended route at unchanged caps |
@@ -186,14 +186,24 @@ accepted runtime repairs require separate cards and fresh paired builds.
   `scripts/persistence/jovian_cargo_session_persistence.gd`, not Cinder's owner.
   Require generation1 COMPLETED/source4/destination2, same transfer receipt and
   one reward receipt after normal startup/retry ticks. No reset/start/state fixture.
-- **Next/check:** IN PROGRESS/root; actual accepted KIT-DELIVER store retained;20–40 min. Freeze
-  selector/marker/pin and prior runtime compatibility before execution; compile300s,
-  ONE restore-only process30s using that exact private XDG data directory.
-  Do not silently replay the already-accepted route; relevant runtime changes
-  require requalification rather than transferring proof.
-- **Stop/close:** mismatch is a named persistence boundary, not permission for
-  new save formats or validators. Record actual result/source/store, commit/push,
-  retain necessary raw and remove the consumed private profile after closure.
+- **Actual/check:** source972efd906 import/compile PASS; ONE strict30s restore
+  exits124 after30.225s, no marker. Exact primary/hash and saved completed/paid
+  baseline accepted before Main tree entry; runtime startup/tick acceptance was
+  not reached. No persistence rejection is demonstrated. Candidate stays unmerged.
+- **Bounded diagnosis/next:** source/log comparison complete, no further engines.
+  Last observed boundary spans synchronous Main child readiness/_start_up and
+  four awaited physics/process pairs. Startup bookkeeping reached session2,
+  physics tick0; logs cannot isolate the stall. No narrower runtime fix supported.
+  Before any retry, select a separate finite startup-boundary diagnostic with
+  elapsed tree-entry/ready/frame receipts and original30s OS clock. Do not extend
+  the timeout, move preload outside timing or revive parked Q4 startup profiling.
+  No repair or rerun is selected at this closure; replenish queue by priority review.
+- **Close:** all3 owners terminal/all6 observed PID identities absent, source/
+  index/non-import cache unchanged. Saved cargo/reward slots exactly preserved;
+  startup changed unrelated store bookkeeping/hash. Retain original byte-exact
+  accepted input plus modified real store and raw under
+  `/srv/mudds-work/jovian-kit-reload-20261018/results/reload/`. Source branch pushed;
+  owned checkout/helpers/profiles removed. No new build or restart qualification.
 
 ### HALYARD-APPROACH — define one actual airstair approach
 
