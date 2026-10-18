@@ -194,7 +194,7 @@ func _test_hauler_physical_access() -> void:
 	var frames := await _await_public_landing(ship, 1200)
 	var telemetry := ship.get_telemetry()
 	var contract := ship.get_landing_contract_report()
-	var completed := requested and frames > 0 and frames < 1200 and telemetry.landed \
+	var completed: bool = requested and frames > 0 and frames < 1200 and telemetry.landed \
 		and StringName(telemetry.landing_abort_reason).is_empty() \
 		and contract.contract_accepted and contract.strict_dock_acceptance \
 		and berth.get_occupant() == ship and berth.get_reservation_token(ship) == lease \
