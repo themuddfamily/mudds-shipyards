@@ -158,25 +158,13 @@ accepted runtime repairs require separate cards and fresh paired builds.
   duplicate it. No remote landing path: it deliberately skips cargo completion.
 - **Accepted/check:** DONE/root at28a5e354e, integrated on main. PASS79.213s,
   actualexit0/marker1/fullraw diagnostics0. Original selected limits retained.
-  Frozen
-  selected continuation/marker/pin; compile300s and one full300s/outer360s route,
+  Selector `--ordinary-jovian-kit-deliver`; marker
+  `JOVIAN_KIT_ORDINARY_DELIVER_OK`. Compile300s/full300s/outer360s route,
   preserving180s activity deadline,8s acceptance/120s physical dock and all prior
   bounds. Exit cap is authored2×canopy_motion_time+disembarking_motion_time+1s,
   then15s ground walk. No rescue, geometry/phase mutation or deadline growth.
-- **First failure/one repair:**1b2931b38 clean import PASS, compile FAIL at
-  line360: multiline lambda return lacks grouping. No gameplay route ran.
-  Select ONE5min caller syntax correction grouping both new multiline lambda
-  returns. Root owns this trivial correction; no further delegation needed.
-  One corrected compile, then one unchanged route only if it passes. Any further
-  failure requires cumulative priority review before more repair or rerun.
-- **Priority review:**cfe10a461 corrected compile PASS; first route FAIL70.453s
-  before landing input: brake release is queued and its old sampled brake remains
-  visible to immediate neutral check. No delivery acceptance. There are no other
-  READY cards: reload/moving/authority depend on unaccepted work and Halyard is
-  parked. Select ONE additional5min root correction to let two normal ticks consume
-  the existing release before delivery checks. Keep neutral acceptance, original
-  clock/deadlines and accepted departure unchanged. This remains the same
-  cumulative card, not a budget reset; another failure parks delivery for review.
+- **History:** original syntax failure, queued-brake handoff failure and explicit
+  cumulative priority review remain in [delivery history](docs/history/ROADMAP_DELIVERIES.md).
 - **Close:** corrected compile PASS16.489s; ONE corrected route PASS79.213s,
   55 assertions. Actual home dock/lease, COMPLETEDg1 source4/destination2, one
   transfer/reward with none owed, automatic OFFLINE, authored exit and supported
