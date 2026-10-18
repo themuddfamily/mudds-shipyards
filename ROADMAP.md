@@ -1,10 +1,10 @@
 # Development roadmap
 
 The game is a playable development alpha. Latest accepted playable checkpoint:
-**4d7ac43**, with complete Settings focus visibility at large UI scales, plus
-prior Hauler access, controller look, startup, music, sprint and remote HUD fixes.
-[Windows notes](builds/windows/MuddsShipyards-4d7ac43-notes.txt) and
-[Linux notes](builds/linux/MuddsShipyards-4d7ac43-linux-notes.txt) state actual validation.
+**221f523**, with actual sleep/wake interactions at all six Habitat bunks, plus
+prior Settings focus, Hauler access, controller look, startup, music, sprint and HUD fixes.
+[Windows notes](builds/windows/MuddsShipyards-221f523-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-221f523-linux-notes.txt) state actual validation.
 
 **Project finish: unproven. All 36 broad requirements and all ten phase gates
 remain open.** This is not zero progress: accepted child outcomes remain accepted
@@ -53,6 +53,7 @@ unapproved; parked failures remain outside the queue.
 | GAMEPAD-LOOK /8,29 | DONE; packaged99e79c3 | Held right stick rotates actual local Player/tractor camera with safe handoffs | Full focused camera/tow/glyph checks, independent review and paired checkpoint pass; real-device/full controller route remains open. |
 | HAULER-SUPPLY-ACCESS /10,13 | DONE; packageda43ae4b | Actual Hauler lands at Cinder supply platform; current pilot walks to authorized terminal | Full focused access/berth/switching checks, independent review and paired checkpoint pass; cargo stock/manifest/delivery remain separate. |
 | SETTINGS-SCALED-FOCUS-SCROLL /12,29 | DONE; packaged4d7ac43 | Large-scale Settings focus fully reveals its current row; pending requests respect focus/page ownership | Focus59 and full16:9/21:9/32:9 source checks, independent review and paired checkpoint pass; rendered/device/transaction gates remain open. |
+| HABITAT-BUNK-REST /7,9 | DONE; packaged221f523 | All six Habitat bunks offer actual Interact sleep/wake, supported walking/reuse and owner-loss cleanup | Full focused rest, spine, Habitat and ship sleep checks; independent review and paired checkpoint pass. Ordinary hub/common-room/restart journey remains open. |
 
 REMAP-DEFINE and [the sprint repair](docs/history/ROADMAP_DELIVERIES.md#on-foot-sprint-toggle--acceptedbd4e15d)
 are closed. AUDIO-CONTENT-DEFINE and AUDIO-ACTIVITY-LIFECYCLE are complete. No adjacent
@@ -258,93 +259,29 @@ Habitat bunks install no rest interaction, and existing sleep/wake requires a
 live ship-backed ShipBunk. A chair or Halyard sleep cannot accept station rest.
 Full hub/rest/common-room/home/restart qualification remains unaccepted; do not
 rerun parked Sandbox or replace ordinary walking with staged placement. Station
-bunk support requires its own explicit production card before engines/edits.
+bunk support was selected separately and is now delivered below.
 
-### Selected production — HABITAT-BUNK-REST
+### Habitat bunk rest — delivered
 
-- **Outcome/parents:**7/9, give the six existing Habitat sleeping berths actual
-  local SLEEP/WAKE interactions. After ordinary Interact, the same Player rests,
-  wakes onto supported authored floor and can walk again. No inventory/healing/
-  time-skip or saved station-sleep pose is invented. Full WALK-HABITAT stays open.
-- **Ownership:** one high-effort implementer owns new scripts/interaction/station_bunk.gd
-  plus unique UID, scripts/world/habitat_spine.gd, narrow GameFlow rest-presentation
-  admission/StationBunk-only owner-liveness guard in scripts/game/game_flow.gd, and existing tests/habitat_integration_test.gd.
-  Root executes/integrates/packages; one high-effort reviewer checks reservation,
-  lifecycle and physical anchors. No ShipBunk refactor, new generic interaction
-  framework, save/network authority/crew changes, furniture/collider overhaul or
-  parked-route changes. Retain every ship-specific guard/recovery contract.
-- **Contract:** StationBunk extends existing StationSeat, owns fixed authored rest/
-  wake/discovery anchors and inherited exact reservation. GameFlow's existing
-  animated seat flow/Player sleeping/overlay/wake/cancel handle it without requiring
-  HeroShip. All six bunk roots install actual components; verify real aisle-floor
-  wake support, not metadata height. Existing ship bunks still require live ships.
-- **Proof:** test-only commit first adds --bunk-rest-only in existing Habitat fixture,
-  with only frozen intended missing-station-bunks failure on old code. Final clean
-  pin import600s/compile300s, same focused route300s, full unchanged Habitat suite300s,
-  existing ship_sleep_gameplay_test and ship_sleep_lifecycle_test at original300s.
-  Headless/Dummy/private profiles, exit0/one suite marker/no diagnostics/clean guards.
-  New fixture may stage once at actual production wake handoff, then actual E input,
-  no direct coordinator sleep/forced flags. Show sleep/wake/reuse, pause/owner-free/retained-component-removal/
-  Main detach safe awake controls, supported normal walking and no ship/seat claim
-  borrowed. This is focused rest proof, not ordinary hub/full-route acceptance.
-  Retained StationBunk removal must recover from the last supported wake pose
-  before reading detached anchors; preserve all existing ship/shared-seat behavior.
-  Idle Habitat disable/re-enable must disable/restore discovery. Occupied whole-
-  module disable recovery is not claimed by this focused delivery.
-- **Budget/delivery:**45–60min implementation, split before90. First unexpected
-  failure STOP; freeze one reviewed repair before more work, no automatic retry or
-  deadline/route relaxation. Independent final/cumulative GO, paired playable
-  checkpoint/three strict silent startups/actual package audit, notes, push and
-  owned cleanup. Freeze full ordinary Habitat walk only after this capability.
+HABITAT-BUNK-REST is DONE in paired checkpoint221f523: six authored Habitat bunks
+use normal local Interact sleep/wake, safe supported exits and reuse. Pause
+preserves sleep; Main detach, retained-owner removal/reuse and owner destruction
+recover awake controls. Existing ship-specific guards and recovery authority remain intact.
 
-### Habitat rest — first result and one selected fixture correction
+Focused rest134, complete spine, full Habitat and existing ship sleep gameplay/
+lifecycle suites pass on the exact clean source; independent cumulative review,
+paired exports, three strict silent startups and actual1521-entry payload audit pass.
+The initial reuse33.678s and full audit41.239s failures remain recorded; one
+fixture correction and explicit exact266+6 collision-cost integration resolved
+the frozen checks. [Actual results and retained cards](docs/history/ROADMAP_DELIVERIES.md#habitat-bunk-rest--accepted221f523).
+Owned temporary checkout/profiles/helpers removed; raw results retained.
 
-Production18d4388 imports/compiles cleanly; focused rest fails33.678s at reuse
-bunk discovery after119 passes. All six geometry/reservation/idle discovery,
-actual initial E sleep/wake, unborrowed authority and supported walking pass.
-Full Habitat/ship suites/packages NOT_RUN. STOP/raw failure retained.
-
-Independent cumulative review identifies a concrete caller seam: existing shared
-_drive_player_z sprints until target crossing then waits one physics tick, leaving
-momentum before fixed-facing reuse. Actual final pose/velocity were not logged;
-overshoot is a source-supported hypothesis, not a proven production cause.
-Root selects ONE15–20min fixture correction in tests/habitat_integration_test.gd:
-only the new focused return leg uses bounded normal Input braking/settling at its
-authored wake handoff before facing/Interact. Preserve outbound displacement,
-all floor/reuse assertions, original1.0s frame budget/grace and300s suite caps,
-original shared helper/routes, and all production code/reach/facing/volumes.
-No position/velocity assignment or per-waypoint teleport. Add failure-only pose/
-velocity/origin/direction/target/candidate/nearby/availability diagnostics. Root
-runs import/compile/full same focused case once on reviewed clean pin; remaining
-already-required suites/packages only if pass. Any new failure STOPs for cumulative
-priority review; no automatic second correction/renamed budget. Original failure
-33.678s and intended old missing-six red30.802s remain separately recorded.
-
-### Habitat rest — cumulative review and exact navigation integration repair
-
-Corrected8fb2a73 import/compile pass; focused rest134 checks passes40.710s,
-including full lifecycle. Next full Habitat fails41.239s at unchanged component
-audit. Ship/package checks NOT_RUN. Original reuse failure33.678s retained:
-cumulative unexpected failed stages74.918s, intended old red30.802s separate.
-
-New source fact: Habitat's actual baseline266 collision shapes plus six required
-StationBunk discovery shapes equals272, over its270 policy ceiling. The runtime
-registry calls this audit; navigation refuses an invalid registry. This is a
-production integration gap, not an artifact-only failing report. Independent
-cumulative priority review supports ONE exact cost-contract migration; no unused
-furniture removal or excluding interaction shapes to hide the new capability.
-
-Root selects: scripts/world/habitat_spine.gd declares exact collision ceiling272,
-with concise baseline266+six authored shapes explanation; preserve all other
-ceilings/counting/collision and validation semantics. Existing
- tests/habitat_spine_test.gd migrates only exact266→272 census/message (245 solid
-bodies unchanged). No schema/version/new validator, broad budget relaxation,
-GameFlow/component/pose/fixture/deadline changes.15min implementation cap.
-Root runs clean import/compile, full focused rest, existing complete spine suite
-at original300s, full Habitat300s, existing ship gameplay/lifecycle300s, then
-required paired checkpoint only if all pass. Independent final/cumulative review
-required; first new failure STOPs, no automatic further repair or renamed budget.
-Native performance is not qualified by this exact module-cost policy migration.
+This delivery starts with one staged placement at a real wake point. Full
+WALK-HABITAT ordinary hub/rest/common-room/home/restart remains UNSCHEDULED;
+it needs its own frozen complete journey, not another staged rest check.
+Next planning action: resolve RECOVERY-CREW-DEFINE into finite source-backed
+capabilities, preserving installed/final-candidate and original route gates.
+No new engine qualification or repair chain is selected.
 
 ## Parked failures and dependent work
 

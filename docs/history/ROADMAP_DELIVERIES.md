@@ -9068,3 +9068,151 @@ float scroll delta to integer. Exact clipped edge/residual is inferred, not logg
 - **Delivery:** independent final/cumulative GO, fresh paired checkpoint/three strict
   silent startups/actual package audit, visible notes, commit/push and owned cleanup.
   Prior failure retained; no rendered/device/persistence/full UI claim.
+
+## Habitat bunk rest — accepted221f523
+
+Clean source `221f523e48c20bc72f719dd2c93f4713c9e62d27`; test-only missing-capability commit624baa31d,
+initial production18d4388fe, fixture correction8fb2a73e3, exact production-cost
+integration221f523e4. All six StationSeat-based components provide actual local
+SLEEP/WAKE through existing GameFlow with fixed authored horizontal rest and
+supported aisle-floor wake anchors. No ship guards, saved station pose or new
+inventory/recovery/network authority. Focused fixture stages once at a real wake
+point then uses ordinary input/walking. Full ordinary Habitat journey stays open.
+
+Old red30.802s is intended. Initial reuse fails33.678s; retained shared-walk coast
+hypothesis was not measured on that old pose. One explicitly selected fixture-only
+normal-input braking/settling correction passes134 checks40.710s. Full Habitat
+then fails41.239s at existing audit: baseline266+six discovery shapes272 exceeds
+270, invalidating production registry/navigation. Explicit root-selected exact
+272 cost ceiling/census migration preserves all other counts/limits and counting
+semantics. Unexpected failed stages total74.918s; no deadline relaxation.
+Independent cumulative final review GO before the one final sequence and package.
+
+| Stage | Actual exit | Seconds | Printed checks |
+| --- | --- | --- | --- |
+| archive_startup | 0 | 23.686 | 0 |
+| final_compile | 0 | 16.264 | 0 |
+| final_habitat | 1 | 41.239 | 154 |
+| final_import | 0 | 6.811 | 0 |
+| final_rest | 1 | 33.678 | 119 |
+| integration_compile | 0 | 16.465 | 0 |
+| integration_habitat | 0 | 51.312 | 203 |
+| integration_import | 0 | 6.630 | 0 |
+| integration_rest | 0 | 40.679 | 134 |
+| integration_ship_lifecycle | 0 | 33.751 | 9 |
+| integration_ship_sleep | 0 | 50.743 | 31 |
+| integration_spine | 0 | 7.102 | 444 |
+| linux_export | 0 | 25.915 | 0 |
+| linux_startup | 0 | 22.182 | 0 |
+| old_compile | 0 | 16.164 | 0 |
+| old_import | 0 | 20.680 | 0 |
+| old_rest | 1 | 30.802 | 1 |
+| repair_compile | 0 | 16.173 | 0 |
+| repair_import | 0 | 6.628 | 0 |
+| repair_rest | 0 | 40.710 | 134 |
+| windows_export | 0 | 26.653 | 0 |
+| windows_payload_startup | 0 | 26.374 | 0 |
+
+All required final stages pass; no diagnostic matches. Startup checks use
+--startup-check with exit0 and exactly one STARTUP_MENU_READY_OK, including Linux
+binary/archive and Windows payload under Linux Godot. Actual1521 payload entries
+match; stock PE code, archive bytes/modes/epoch and metadata verify. Published
+11 files include both platform artifacts/notes and Windows EXE+notes ZIP.
+[Windows notes](../../builds/windows/MuddsShipyards-221f523-notes.txt) and
+[Linux notes](../../builds/linux/MuddsShipyards-221f523-linux-notes.txt).
+
+22 stage owners and 92 observed process identities absent;
+profile archive counts {'profile-logs': 14, 'app_userdata': 59}. Source/index/cache/engine guard
+passes; published hashes rechecked. Owned source checkout, profiles and helpers
+removed; raw results/publication/cleanup retained at `/srv/mudds-work/habitat-bunk-rest-20261018/results/`.
+Native Windows/GPU/device/rendered/human/audio/full final regression remain
+NOT_RUN/open; no full hub/rest/common-room/home/restart acceptance. All36 broad
+parents and ten phase gates OPEN. CI disabled, pending owner choices unchanged.
+
+### Habitat rest retained selected cards
+
+### Selected production — HABITAT-BUNK-REST
+
+- **Outcome/parents:**7/9, give the six existing Habitat sleeping berths actual
+  local SLEEP/WAKE interactions. After ordinary Interact, the same Player rests,
+  wakes onto supported authored floor and can walk again. No inventory/healing/
+  time-skip or saved station-sleep pose is invented. Full WALK-HABITAT stays open.
+- **Ownership:** one high-effort implementer owns new scripts/interaction/station_bunk.gd
+  plus unique UID, scripts/world/habitat_spine.gd, narrow GameFlow rest-presentation
+  admission/StationBunk-only owner-liveness guard in scripts/game/game_flow.gd, and existing tests/habitat_integration_test.gd.
+  Root executes/integrates/packages; one high-effort reviewer checks reservation,
+  lifecycle and physical anchors. No ShipBunk refactor, new generic interaction
+  framework, save/network authority/crew changes, furniture/collider overhaul or
+  parked-route changes. Retain every ship-specific guard/recovery contract.
+- **Contract:** StationBunk extends existing StationSeat, owns fixed authored rest/
+  wake/discovery anchors and inherited exact reservation. GameFlow's existing
+  animated seat flow/Player sleeping/overlay/wake/cancel handle it without requiring
+  HeroShip. All six bunk roots install actual components; verify real aisle-floor
+  wake support, not metadata height. Existing ship bunks still require live ships.
+- **Proof:** test-only commit first adds --bunk-rest-only in existing Habitat fixture,
+  with only frozen intended missing-station-bunks failure on old code. Final clean
+  pin import600s/compile300s, same focused route300s, full unchanged Habitat suite300s,
+  existing ship_sleep_gameplay_test and ship_sleep_lifecycle_test at original300s.
+  Headless/Dummy/private profiles, exit0/one suite marker/no diagnostics/clean guards.
+  New fixture may stage once at actual production wake handoff, then actual E input,
+  no direct coordinator sleep/forced flags. Show sleep/wake/reuse, pause/owner-free/retained-component-removal/
+  Main detach safe awake controls, supported normal walking and no ship/seat claim
+  borrowed. This is focused rest proof, not ordinary hub/full-route acceptance.
+  Retained StationBunk removal must recover from the last supported wake pose
+  before reading detached anchors; preserve all existing ship/shared-seat behavior.
+  Idle Habitat disable/re-enable must disable/restore discovery. Occupied whole-
+  module disable recovery is not claimed by this focused delivery.
+- **Budget/delivery:**45–60min implementation, split before90. First unexpected
+  failure STOP; freeze one reviewed repair before more work, no automatic retry or
+  deadline/route relaxation. Independent final/cumulative GO, paired playable
+  checkpoint/three strict silent startups/actual package audit, notes, push and
+  owned cleanup. Freeze full ordinary Habitat walk only after this capability.
+
+### Habitat rest — first result and one selected fixture correction
+
+Production18d4388 imports/compiles cleanly; focused rest fails33.678s at reuse
+bunk discovery after119 passes. All six geometry/reservation/idle discovery,
+actual initial E sleep/wake, unborrowed authority and supported walking pass.
+Full Habitat/ship suites/packages NOT_RUN. STOP/raw failure retained.
+
+Independent cumulative review identifies a concrete caller seam: existing shared
+_drive_player_z sprints until target crossing then waits one physics tick, leaving
+momentum before fixed-facing reuse. Actual final pose/velocity were not logged;
+overshoot is a source-supported hypothesis, not a proven production cause.
+Root selects ONE15–20min fixture correction in tests/habitat_integration_test.gd:
+only the new focused return leg uses bounded normal Input braking/settling at its
+authored wake handoff before facing/Interact. Preserve outbound displacement,
+all floor/reuse assertions, original1.0s frame budget/grace and300s suite caps,
+original shared helper/routes, and all production code/reach/facing/volumes.
+No position/velocity assignment or per-waypoint teleport. Add failure-only pose/
+velocity/origin/direction/target/candidate/nearby/availability diagnostics. Root
+runs import/compile/full same focused case once on reviewed clean pin; remaining
+already-required suites/packages only if pass. Any new failure STOPs for cumulative
+priority review; no automatic second correction/renamed budget. Original failure
+33.678s and intended old missing-six red30.802s remain separately recorded.
+
+### Habitat rest — cumulative review and exact navigation integration repair
+
+Corrected8fb2a73 import/compile pass; focused rest134 checks passes40.710s,
+including full lifecycle. Next full Habitat fails41.239s at unchanged component
+audit. Ship/package checks NOT_RUN. Original reuse failure33.678s retained:
+cumulative unexpected failed stages74.918s, intended old red30.802s separate.
+
+New source fact: Habitat's actual baseline266 collision shapes plus six required
+StationBunk discovery shapes equals272, over its270 policy ceiling. The runtime
+registry calls this audit; navigation refuses an invalid registry. This is a
+production integration gap, not an artifact-only failing report. Independent
+cumulative priority review supports ONE exact cost-contract migration; no unused
+furniture removal or excluding interaction shapes to hide the new capability.
+
+Root selects: scripts/world/habitat_spine.gd declares exact collision ceiling272,
+with concise baseline266+six authored shapes explanation; preserve all other
+ceilings/counting/collision and validation semantics. Existing
+ tests/habitat_spine_test.gd migrates only exact266→272 census/message (245 solid
+bodies unchanged). No schema/version/new validator, broad budget relaxation,
+GameFlow/component/pose/fixture/deadline changes.15min implementation cap.
+Root runs clean import/compile, full focused rest, existing complete spine suite
+at original300s, full Habitat300s, existing ship gameplay/lifecycle300s, then
+required paired checkpoint only if all pass. Independent final/cumulative review
+required; first new failure STOPs, no automatic further repair or renamed budget.
+Native performance is not qualified by this exact module-cost policy migration.

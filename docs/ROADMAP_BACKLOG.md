@@ -134,8 +134,8 @@ Walking proof: complete the named ordinary walk/Interact route without rescue an
 | --- | --- | --- | --- |
 | WALK-CENTRAL | Central launch/return | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-AFT | Aft stairs/door/board | 7,9 | UNSCHEDULED; exact production-roster route |
-| WALK-HABITAT | Ordinary hub→Habitat rest/wake/common room→hub plus usable restart controls | 7,9 | GATED on missing station-bunk rest capability; existing Habitat fixture stages approach/no sleep and parked Sandbox cannot substitute full route |
-| HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | SELECTED in ROADMAP.md; fixed StationSeat-based sleeping component plus narrow GameFlow rest presentation, no ship/recovery/network authority expansion |
+| WALK-HABITAT | Ordinary hub→Habitat rest/wake/common room→hub plus usable restart controls | 7,9 | UNSCHEDULED; packaged221f523 supplies actual rest/wake. Freeze complete ordinary hub/common-room/home/restart journey separately; staged rest fixture and parked Sandbox cannot substitute it |
+| HABITAT-BUNK-REST | Six production Habitat bunks offer actual local SLEEP/WAKE with supported return and lifecycle cleanup | 7,9 | DONE; packaged221f523. Six StationSeat-based bunks, focused134/full spine/Habitat/ship sleep checks and paired startup pass; no saved station pose or ship/recovery/network authority expansion |
 | WALK-FREIGHT | Freight terminals | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-FLEET | Fleet Dock berths | 7,9 | UNSCHEDULED; exact production-roster route |
 | WALK-ANNEX | Fresh normal hub→Annex console→hub with one actual restock | 7,9 | DONE source9af57671d;81.387s, same supported Player, kits5→6/one Annex update/Aft unchanged, disclosed pre-walk craft/repair fixtures; no whole-station closure |
@@ -1345,7 +1345,7 @@ established here; do not create one just to obtain another task.
 
 RECOVERY-CABIN-DEFINE is DONE as a source definition on3598e1788; no engine,
 new runtime feature, save format or fresh qualification. This covers **ship**
-cabin/rest. Station Habitat rest is a separate production gap below; a ShipBunk
+cabin/rest. Station Habitat rest is delivered separately in checkpoint221f523; a ShipBunk
 fixture cannot accept that station interaction.
 
 - GameFlow._capture_solo_safe_recovery_context accepts grounded, awake, unseated
