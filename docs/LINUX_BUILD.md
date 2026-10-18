@@ -4,7 +4,27 @@ Linux x86_64 is a supported desktop export target alongside Windows. This page
 covers how a Linux candidate is exported, packaged and startup-checked, and
 what has been validated so far.
 
-## Latest development checkpoint: `4270d71` — 2026-10-18
+## Latest development checkpoint: `6262749` — 2026-10-18
+
+The [ELF](../builds/linux/MuddsShipyards-6262749.x86_64),
+[archive](../builds/linux/MuddsShipyards-6262749-linux-x86_64.tar.gz) and
+[notes](../builds/linux/MuddsShipyards-6262749-linux-notes.txt) use clean source
+`6262749aa8261df4dc3d1ec4a9ab0e72dd937d49`. Remote Jovian passengers can sit
+in the authored cockpit chair and stand through the existing authoritative
+body/seat/replica path. Migration, occupied disconnect and destruction release
+that chair without adding another roster.
+
+Independent host/client component65 and existing engineer67 pass with zero
+diagnostics. The component stages hatch starts and dispatches mouse events to
+Player directly; it does not qualify the ordinary-spawn/two-client baseline.
+Safe paired exports, direct/archive Linux and Windows-payload strict menu
+startups, all1515 identical PCK entry bytes, stock PE .text and archive/ZIP
+identity checks pass. Windows payload runs through Linux Godot, not native
+Windows. Full boarding/flight/landing/recovery, original30min endurance, native
+hardware/device/audio, human/full-matrix/release gates remain open. Earlier
+Ember window-close smoke and VIP walking guard failures remain parked.
+
+## Earlier development checkpoint: `4270d71` — 2026-10-18
 
 The [ELF](../builds/linux/MuddsShipyards-4270d71.x86_64),
 [archive](../builds/linux/MuddsShipyards-4270d71-linux-x86_64.tar.gz) and

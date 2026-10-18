@@ -3596,3 +3596,88 @@ existing host overlap/peer/replica lifecycle. Focused component proof will not
 close the original normal-spawn/two-independent-client milestone. An additional
 failed repair check triggers priority review; the new name does not reset the
 original stop boundary. No parent/phase gate closes.
+
+## Jovian physical passenger seat — delivered on6262749aa
+
+2026-10-18, clean source `6262749aa8261df4dc3d1ec4a9ab0e72dd937d49`,
+independently reviewed and integrated to main. Existing cockpit passenger chair
+now has a discoverable role contract; remote Interact confirms its physical
+seat through Jovian's existing engineer-owned roster and passenger replica.
+Normal stand restores supported cabin controls; migration, occupied disconnect
+and destruction release the chair. No second authority, geometry, tuning or
+protocol version was introduced. Halyard/Cinder providers are unchanged.
+
+Silent isolated cold import and explicit check-only compilation exit0 with no
+diagnostics. The new independent-Main host/client component passes65 checks in
+119.096s under the original300s cap: live body/seat/replica sit/stand/reseat,
+refused wrong body/owner/avatar/entity generation, real migration, occupied
+disconnect, fresh Main admission and occupied destruction. Both actual peer
+OS exits are0; source and complete import cache remain unchanged. Existing
+Jovian engineer gameplay passes67 checks in5.030s with zero diagnostics and
+stable source/cache. Component hatch starts are staged and the inherited look
+helper dispatches mouse events directly to Player; this does not qualify normal
+spawn, two clients, viewport/OS mouse, flight or physical landing/recovery.
+
+Safe Windows/Linux exports pass. Direct/archive native Linux and actual Windows
+PCK through Linux Godot each exit0, emit exactly one STARTUP_MENU_READY_OK and
+produce zero diagnostics. All1515 PCK entry payloads are byte-identical between
+exports. Stock Windows .text, Linux archive root+five files, modes/content and
+export metadata identity pass. One initial one-off audit incorrectly required
+all six archive entries to be regular files; inspection confirmed the exporter
+specifies one root directory plus five files. The audit was corrected without
+changing or rerunning any artifact, export or gameplay acceptance.
+
+Checkpoint6262749 publishes EXE/ZIP/notes under builds/windows/ and native ELF/
+archive/notes/export metadata under builds/linux/. The ZIP contains exactly
+the EXE and matching notes. Build-time export startup fields remain immutable
+NOT_RUN; actual later startup results are retained separately. Native Windows,
+GPU/device/audio/human/full matrix/endurance/signing/release and every original
+parent/phase gate remain open within their existing scope. VIP and Ember native
+window work remain parked. No full server/two-client baseline is claimed.
+
+Raw source, compilation, matrix, peer receipts, export, startup and artifact
+results: `/srv/mudds-work/jovian-two-client-boarding-20261018/results/`.
+Owned clean checkout/profile are removed after publication/audit; unique raw
+and public builds remain. The next unchanged milestone is the ordinary-spawn
+two-client Jovian boarding caller, now that the real passenger seat is wired.
+
+### Closed repair scope
+
+### Original repair card
+
+NET-JOVIAN-BOARD stopped at its first missing production seam without edits or
+engine runs. `GameFlow._network_physical_crew_seat_is_wired`, confirmation and
+replica selection admit Jovian engineer only. `NetworkJovianEngineerBinding`
+owns Jovian's roster but has no passenger provider; Halyard's passenger binding
+cannot attach as a second Jovian authority. The existing copilot passenger anchor
+and roster entry are authored. A standing cabin berth does not meet acceptance.
+
+| Task | Status / owner | Observable finish | Budget |
+| --- | --- | --- | --- |
+| NET-JOVIAN-PASSENGER | READY / root + implementer/reviewer | A remote boarded player uses Interact to sit in Jovian's existing passenger chair, sees the confirmed seated state, and stands through the same authority. | 60–90min implementation; focused check under existing300s cap, import/preflight separately. Stop at90min or first failure. |
+
+- **Ownership:** one implementer owns Jovian's existing passenger contract and
+  discovery (`jovian_light_freighter.gd`, `ship_crew_seat.gd`), existing network
+  engineer/passenger binding integration and GameFlow client confirmation/view.
+  One independent reviewer checks authority identity and teardown. No geometry,
+  craft tuning, global network protocol or extra seat authority is introduced.
+- **Acceptance:** reuse Jovian's one roster, actual physical host body/overlap,
+  existing peer/entity/seat generations and passenger replica transport. A
+  normal press claims the authored chair once; another press stands supported.
+  Stale/unadmitted/wrong-body claims cannot acquire it. Disconnect/teardown must
+  release it without disturbing engineer or existing Halyard/Cinder profiles.
+- **Proof:** extend the smallest relevant runtime test or add one focused
+  physical passenger regression. A staged hatch start may isolate this repair
+  but must be labelled component scope; it cannot pass NET-JOVIAN-BOARD, which
+  still requires two independent clients walking from ordinary spawn. Check
+  source compilation explicitly; cold import alone does not prove it.
+- **Execution/stop:** implement this supported gap now, review before the first
+  focused run; commit clean source before qualification. A failed check ends
+  this repair attempt and invokes priority review (the boarding task already
+  ended at its missing prerequisite). Do not repair successive failures in an
+  unbounded chain or lower physical/authority criteria.
+- **Close:** a working runtime change requires a fresh safe Windows checkpoint
+  with relevant checks, strict startup exit0 plus STARTUP_MENU_READY_OK, notes
+  disclosing actual scope and the unchanged external gates. Commit/push regularly,
+  remove owned clean checkout/profile and retain raw failures. Full baseline,
+  flight/landing/return and endurance stay open.
