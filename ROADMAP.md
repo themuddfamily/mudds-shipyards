@@ -1,10 +1,11 @@
 # Development roadmap
 
 **Status: playable development alpha; project completion is unproven.** Latest
-accepted checkpoint: **c4de728**, with actual standalone solo navigator
-chair/FIRE/stand/reseat feedback. [Windows notes](builds/windows/MuddsShipyards-c4de728-notes.txt)
-and [Linux notes](builds/linux/MuddsShipyards-c4de728-linux-notes.txt) state actual
-checks and limits. Host-local/remote-client/listening scope remains unfinished.
+accepted checkpoint: **292d3e4**, with authoritative host-local navigator
+feedback and shared-authority stand/session lifecycle handling.
+[Windows notes](builds/windows/MuddsShipyards-292d3e4-notes.txt) and
+[Linux notes](builds/linux/MuddsShipyards-292d3e4-linux-notes.txt) state actual
+checks and limits. Client feedback/listening scope remains unfinished.
 All 36 original parents and ten phase gates remain open.
 
 ## What separates this alpha from completion
@@ -33,37 +34,30 @@ feature. Do not invent a project percentage from rows, tests or commits.
 
 ## Execution now
 
-AUDIO-NAVIGATOR-SOLO is accepted on `c4de728`, merged and packaged. Actual
-standalone chair FIRE now gives sound/caption feedback, held input stays quiet,
-and stand/claim loss clears once before source retirement. Reseat uses a fresh
-exact owner even when numeric generations repeat. [Full result](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-solo--actual-standalone-chair-feedback-delivered).
-Owned scratch is cleaned; unique original/repaired results remain. Existing host
-bridge, repair, host-power and service deliveries retain their recorded scopes.
+AUDIO-NAVIGATOR-HOST-LOCAL is accepted on `292d3e4`, merged and packaged.
+Actual authoritative host chair FIRE now requests existing navigator sounds and
+captions alongside independent bridge feedback. Stand waits for the genuine ship
+clear; session stop is silent and re-entry restores bindings. [Full result](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-host-local--authoritative-physical-host-feedback-delivered).
+Owned scratch is cleaned; both failed fixture attempts and accepted results stay
+retained. Earlier standalone, bridge, repair, host-power and service passes retain
+their recorded scopes.
 
 | Remaining work | Readiness | Next bounded action / estimate |
 | --- | --- | --- |
-| AUDIO-NAVIGATOR-HOST-LOCAL | STOP after scene repair; cumulative review selected exact claim-identity correction | Connect actual authoritative host chair outcomes to the accepted local binding alongside the independent bridge source; shared-authority stand must wait for the real ship clear. [Exact files, proof and stop](docs/COMPLETION_SCOPE.md#network-navigator-recipients--source-definition-on4f481068c). 45–60 min implementation/review, 10–20 min checks, 10–15 min checkpoint. |
-| AUDIO-NAVIGATOR-CLIENT-RECEIPTS | Defined consumer gap; freeze implementation card before starting | Applied, already-filtered crew snapshot commands have no client presentation consumer. Preserve actual receipt/session/migration ownership and recipient filter; prove accepted/clear on the client, not host cue counters. Exact runtime seam and existing two-peer proof are linked above; client rejection remains a separate response-path gap. |
+| AUDIO-NAVIGATOR-CLIENT-RECEIPTS | DEFINE exact implementation contract; source seam already known | Freeze files/owner, actual session/migration/ship/recipient lifetime and client accepted/clear proof from existing filtered crew commands. End with one implementable runtime card or exact missing fact; no repeat broad source audit. Source-only, 15–20 min, no engine/audible run or fabricated receipt; requester-only rejection remains separate. |
 | HAULER-CARGO-MANIFEST | Production gap; GATED on HAULER-CARGO-STOCK | Binding still rejects Hauler; generation-floor API already exists. [Stock prerequisite and conserved-source proof](docs/ROADMAP_BACKLOG.md#hauler-supply-integration-boundaries). 60–90 min implementation/focused checks after decision, checkpoint additional; split before 90 min. |
 
 AUDIO-MIX-DEFINE’s [finite real-output roster](docs/COMPLETION_SCOPE.md#real-output-mix-roster--audio-mix-define)
 remains complete as a definition; all 28 listening cases remain NOT_RUN. Exact
 package/ordinary route, actual output device/backend/configuration and explicit
 audible authorization are still required. Repair dispatch under Dummy does not
-close that gate. Recipient source definition found direct host outcomes missing
-from presentation, unconsumed client crew snapshots, and no client rejection
-response. HOST-LOCAL source compiles; authored-scene repair reaches real host flow but
-stops on a fixture assertion that expects fixed roster generation to increase.
-[Cumulative review and explicit second fixture correction](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-host-local--cumulative-review-and-explicit-second-fixture-correction)
-checks actual newer claim sequence and assignment generation instead. Runtime
-code and later lifecycle assertions remain unchanged. Both failures stay
-cumulative; no automatic third correction. Candidate remains unmerged/unpackaged.
-
-[host bridge, standalone solo and remaining recipient boundaries](docs/COMPLETION_SCOPE.md#navigator-playback--bounded-delivery-contracts)
-remain distinct. Client rejection coverage still needs its precise behavior
-definition before a requester-only response card. No runtime/engine change was
-made by this source definition. Hauler’s already-asked stock/custody choice remains unchanged;
-do not repeat the question or invent stock. This queue is not a project estimate.
+close that gate. The next action is the finite client implementation contract
+above. Host bridge, standalone and authoritative host-local feedback are delivered
+within their recorded scopes; client accepted/clear and rejection remain open.
+[Actual boundaries](docs/COMPLETION_SCOPE.md#network-navigator-recipients--source-definition-on4f481068c)
+retain recipient filtering and the separate missing rejection-response behavior.
+Hauler’s already-asked stock/custody choice remains unchanged; do not repeat the
+question or invent stock. This queue is not a project estimate.
 
 ## Turning the remaining scope into executable work
 
@@ -89,27 +83,28 @@ a total job count or release date.
 
 ## Latest delivered result
 
-**Standalone solo navigator feedback accepted on `c4de728`.** The focused real
-Player/Cinder/GameFlow chair→FIRE→stand→reseat path now reaches existing
-navigator sounds/captions. Ship-owned active clear covers exact stand/ledger
-loss/removal once; old authority callbacks and held input cannot replay.
+**Authoritative host navigator feedback accepted on `292d3e4`.** A real live
+server-owned physical claim forwards one direct submission per FIRE. Local and
+bridge sources coexist. Captured claim ownership survives stand until real ship
+physics clear, while actual session retirement silences old callbacks and resets
+attachment flags for re-entry.
 
-Nine focused suites PASS. One existing optional test envelope lacked the bridge
-policy field already required by 81f885b; the frozen one-field fixture repair
-preserved runtime code and all assertions. The original failure and seven
-unchanged passes remain cumulative. Fresh paired exports, three strict menu-ready
-startups and 1,521-entry actual package audit PASS. [Windows checkpoint ZIP](builds/windows/MuddsShipyards-c4de728-checkpoint.zip)
-and [notes](builds/windows/MuddsShipyards-c4de728-notes.txt) are available.
+Seven focused suites PASS. Two fixture failures are preserved: script-created
+support Jovian lacked its authored identity; reseat incorrectly expected fixed
+roster generation growth. Both corrections were frozen before execution, with
+explicit cumulative review before the second. Runtime and later lifecycle
+assertions stayed unchanged. Fresh paired exports, three strict menu-ready checks
+and matching 1,521-entry package audit PASS. [Windows ZIP](builds/windows/MuddsShipyards-292d3e4-checkpoint.zip)
+and [notes](builds/windows/MuddsShipyards-292d3e4-notes.txt) are available.
 
-[Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-solo--actual-standalone-chair-feedback-delivered)
-record all 21 actual stages / 260.802s and about 17.6 min selection through publication/
-cleanup, below the stated implementation/check/package estimate. All 21 owners /
-109 observed identities absent; 24 profile files and original/final helpers
-preserved; owned worktree/profile/helpers removed. Eleven public files and exact
-ZIP reverified. Dummy checks establish focused source/input/dispatch/captions,
-not listening/native/full ordinary travel/endurance/final acceptance. Live-host
-local and remote-client feedback remain open, as do all 28 listening cases and
-broader roadmap scope.
+[Full result/original contract](docs/history/ROADMAP_DELIVERIES.md#audio-navigator-host-local--authoritative-physical-host-feedback-delivered)
+records all 20 stages / 313.943s and about 21.0 min through publication/cleanup,
+both failures included. All 20 owners / 105 identities absent; 23 profile files and
+original/intermediate/final helpers preserved. Worktree/profile/helpers removed;
+eleven public files and exact ZIP reverified. Silent focused checks do not
+establish listening, client feedback, full ordinary travel/moving remote helm,
+native Windows/GPU/endurance/final qualification. All 28 listening cases and
+broader roadmap requirements remain open.
 
 ## Parked failures and dependent work
 

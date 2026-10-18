@@ -12226,3 +12226,172 @@ import/optional compilation, then the same six remaining suites/package gates.
 All previous attempts remain cumulative. No third automatic correction: any
 further failure stops for a new cumulative decision. Candidate remains unmerged
 and unaccepted until the unchanged full focused/package contract actually passes.
+
+## AUDIO-NAVIGATOR-HOST-LOCAL — authoritative physical host feedback delivered
+
+**DONE292d3e4**, source `292d3e464d8356757a982f6fe72ef3e5759a32b0`, merged by
+`7003924a0`. Actual authoritative-host navigator chair FIRE now forwards one real
+direct ship outcome to existing navigator sound requests/captions. It coexists
+with independent bridge presentation without submitting the command twice or
+inventing host wire identity. Valid host scope requires real server/session,
+network binding ownership, authority/migration and exact physical claim. Clients,
+foreign/pre-host solo claims and old callbacks cannot acquire/reuse that scope.
+
+Shared network authority survives standing. The captured local source remains
+bound after GameFlow seat fields retire until actual Cinder physics clears the
+released claim's ping, then unbinds once. Actual session-stopped handler retires
+local feedback before cancellation/clear callbacks; optional owner detaches after
+existing global semantic source detach, so re-entry restores real bindings.
+Existing local composition/binding/ship-clear/Director resources are reused;
+no new asset/voice/timer/schema/transport/validator/client consumer.
+
+One high implementer plus independent high lifecycle reviewer; root inspected,
+integrated and owned all engine runs. Four files: two existing runtime owners
+and two existing tests. The extended physical fixture uses actual GameFlow,
+Player/Cinder chair and local input, authored Jovian, live adapter, actual body
+simulation, real engineer/passenger binding ownership and actual production
+session-stop handler. Real sit/FIRE twice/held-input silence/stand/reseat and real
+ship physics clear are exercised. Direct submission spy calls super and counts
+one consumption per FIRE. Real local refusal selects existing alert/caption once;
+independent bridge refusal/replay cannot mutate the host receipt. Session stop
+is silent; new session/claim is fresh. Standalone and pre-host foreign-authority
+negative cases remain. Staged chair approach and deterministic headless focus
+retain real floor/range/frame/reservation/admission guards. No actual moving
+remote-helm flight or full ordinary Main approach/travel is claimed.
+
+Two fixture failures remain recorded: initial17.712s support Jovian roster mismatch
+fixed by the authored scene; scene-repaired19.045s run expected physical generation
+growth instead of a new claim sequence. [Initial exact repair freeze](#audio-navigator-host-local--first-admission-stop-and-exact-scene-repair)
+and [cumulative priority decision](#audio-navigator-host-local--cumulative-review-and-explicit-second-fixture-correction)
+were committed before their edits/reruns. The second correction was explicitly
+selected after cumulative source/result review, not an automatic retry or budget
+reset. Both corrections change only the fixture; runtime and later lifecycle
+assertions remain byte-identical to08461d4c. Final fixture passes73 checks; no
+third correction. Import/optional compilation retained on unchanged inputs;
+original intermediate compilations also remain historical evidence.
+
+| Actual stage | Seconds | Result |
+| --- | ---: | --- |
+| import | 19.679 | PASS |
+| host_local_compile | 15.749 | PASS |
+| optional_compile | 3.503 | PASS |
+| host_local | 17.712 | FAIL; preserved original attempt |
+| host_local_repair_compile | 16.135 | PASS |
+| host_local_repair | 19.045 | FAIL; preserved original attempt |
+| host_local_second_repair_compile | 16.004 | PASS |
+| host_local_second_repair | 18.871 | PASS; 73 checks |
+| optional | 4.127 | PASS; 63 assertions |
+| navigator | 3.826 | PASS; 86 checks |
+| host | 16.048 | PASS; 38 assertions |
+| optional_flow | 15.973 | PASS; 5 assertions |
+| unbind | 0.894 | PASS; 18 assertions |
+| reduced_range | 15.880 | PASS; 10 assertions |
+| windows_export | 26.779 | PASS |
+| linux_export | 25.819 | PASS |
+| linux_startup | 22.499 | PASS |
+| archive_startup | 23.769 | PASS |
+| windows_payload_startup | 25.916 | PASS |
+| audit | 5.714 | PASS |
+
+Seven full suites accepted. Sixteen accepted gates; **all20 actual stages total
+313.943s**, both failures included. About **21.0min** from branch creation
+through publication/hash recheck/cleanup, below45–60min implementation/review
++10–20min focused checks +10–15min packaging estimates. This is one named runtime
+outcome, not a project percentage. Independent final review verified exact two
+fixture changes, unchanged runtime/later assertions, all seven markers/diagnostics
+and cumulative original/scene-repair/second-correction records before publication.
+
+Fresh clean paired exports; direct Linux/archive/Windows-payload menu ready each
+exit0 plus exactly one `STARTUP_MENU_READY_OK`. Actual matching1521-entry PCKs,
+stock PE text and exact Linux archive binary/icon/installer bytes/modes/epoch/
+source metadata PASS. Windows payload uses Linux Godot, not native Windows.
+[Windows ZIP](../../builds/windows/MuddsShipyards-292d3e4-checkpoint.zip),
+[Windows notes](../../builds/windows/MuddsShipyards-292d3e4-notes.txt),
+[Linux notes](../../builds/linux/MuddsShipyards-292d3e4-linux-notes.txt).
+Eleven public files and exact EXE+notes ZIP reverified. Artifact hashes:
+
+- `MuddsShipyards-292d3e4.exe`: 184648288 bytes; SHA256 `6cd662b4362e407c7c379b93d93ac5208a1fe12e45f6d96213f868a3e4c042f1`.
+- `MuddsShipyards-292d3e4.x86_64`: 148890000 bytes; SHA256 `16721de02d00d7936cdc52b2bc7cc9a5a5e75198c3cb354199ebdd0b3ccd8abc`.
+- `MuddsShipyards-292d3e4-linux-x86_64.tar.gz`: 95303488 bytes; SHA256 `68c33334a8f059d68f6bc2034ce038d8cd532de187c213dc97d15146ec57606c`.
+
+All20 owners terminal; all105 observed PID/start identities absent.
+23 private profile files, original/scene-repair/final helpers/configs,
+both failed STOP/source/log records and all accepted results preserved. Owned
+worktree/profile/helpers removed; only `/srv/mudds-work/navigator-host-local-audio-20261019/results/` remains.
+
+Client accepted/clear consumer and requester-only rejection response remain
+unfinished. Listening/device/native Windows/GPU/full ordinary travel/moving remote
+helm/endurance/installed/human/final gates remain NOT_RUN/open as applicable.
+All28 listening selectors/all36 parents/ten phases stay open; no full-matrix
+claim. Next single action is to freeze AUDIO-NAVIGATOR-CLIENT-RECEIPTS exact
+implementation ownership, session/recipient lifetime and actual client proof from
+the already-defined source seam, source-only15–20min, no engine/audible run.
+
+### Original frozen host-local implementation contract
+
+Historical pre-implementation scope follows; its READY/future tense does not
+describe current status. The actual delivery and both fixture decisions are above.
+
+**Host-local gap:** `_update_solo_gunner_input` runs for the supported physical
+host chair, including retained local input while a remote pilot owns the helm.
+It calls actual `CinderCargoHauler.submit_navigator_ping`, but the standalone
+presentation claim and forwarding deliberately reject every live session.
+Optional composition also clears the local source for any positive network
+navigator generation. Existing bridge result signals cannot observe that direct
+submission. Do not submit the same command a second time through a bridge or
+invent a host peer generation to reuse a client wire contract.
+
+The accepted local binding already consumes real local results and exact ship
+clear under craft/authority/avatar/seat/claim identity. Reuse it for an
+**authoritative host-owned physical local claim**, alongside the independent
+bridge source. Each direct input has one consumer and one presentation path;
+remote wire receipts keep their existing source. No extra local source for a
+client, foreign/session-stale authority or merely surviving pre-host solo claim.
+The actual live session must be a server, with the existing network binding owning
+this exact role authority and the ordinary physical claim still current.
+
+Host stand differs from standalone stand: `_release_solo_crew_authority` retains
+the authority owned by the network binding, so Cinder authority detach does not
+clear. Generic HeroShip occupant release drops the ledger directly; existing
+Cinder `_cleanup_detached_navigator` commits the clear on its physics update.
+Keep the captured local source connected through that genuine clear even after
+GameFlow seat fields retire, then unbind. Replacement, repeated cleanup, session
+retirement and whole-composition teardown must preserve exact ownership and
+silence stale callbacks. Do not turn an arbitrary source detach into a fake clear.
+
+**AUDIO-NAVIGATOR-HOST-LOCAL — next READY runtime card.** A real live host can
+sit at the navigator chair, FIRE twice with release between, hear/request the
+existing accepted cue/caption once per actual outcome, stand for one real clear,
+and reseat fresh without disturbing remote helm/bridge publication. Genuine local
+refusal uses the existing rejected feedback. Held/replayed/stale input stays
+silent. Preserve standalone acceptance and host bridge request counts.
+
+One implementer owns `scripts/game/game_flow.gd` and
+`scripts/audio/optional_semantic_audio_composition.gd`, plus existing
+`tests/audio/game_flow_cinder_solo_navigator_audio_integration_test.gd` and
+`tests/audio/optional_semantic_audio_composition_test.gd`. Reuse the accepted local
+composition/binding/ship clear APIs; if a required change falls outside this seam,
+stop and freeze the concrete reason before expanding ownership. One independent
+high lifecycle reviewer checks local/bridge coexistence and shared-authority
+stand ordering. No new asset/voice/timer, validator/schema, transport, synthetic
+wire receipt or client integration.
+
+Extend the real Player/Cinder/chair/local-input fixture with an actual live
+NetworkEnetSessionAdapter and real NetworkJovianEngineerBinding ownership of the
+Cinder roster. Keep the original foreign/pre-host authority exclusion as a
+negative case; merely starting a session around a solo claim is not positive
+proof. Use real sit/FIRE/stand/reseat, both actual source registrations, genuine
+shared-ledger release and ship-owned clear, then old callback/replay silence.
+Include session stop/re-entry and exact source retirement; keep existing bridge
+and standalone fixtures as regressions. Ordinary remote helm movement remains its
+larger route gate; if claiming that particular behavior in the focused fixture,
+use the real admitted remote producer and verify its cursor unchanged.
+
+Freeze clean source/commands before engines. Focused suites: extended real local
+fixture, optional composition, navigator audio, actual host bridge flow, GameFlow
+optional composition, exact unbind and reduced-range. Budget45–60min
+implementation/review +10–20min focused checks +10–15min paired checkpoint;
+split before90min implementation. Headless/Dummy,300s per focused stage, same
+first-failure stop/one causal repair/cumulative review rule. No automatic second
+repair or unchanged parked/full-Main route rerun. Fresh paired checkpoint and
+strict startup/audit required before acceptance, then commit/push/clean scratch.
