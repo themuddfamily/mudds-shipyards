@@ -598,7 +598,9 @@ Recovery proof uses an owned actual OS SIGKILL, distinct restart, protected real
 | RECOVERY-ONFOOT-CUT | Real-file on-foot commit, owned SIGKILL and distinct-process usable home recovery | 2,31 | DONE f90547c direct and actual archive-extracted ELF cuts; supported walk/Interact, receipts1→2 once |
 | RECOVERY-PILOT-DEFINE | Pilot durable-boundary/resume-or-safe-home contract | 2,31 | DONE definition only; four-field safe-home pilot preference, fresh claims, preserved activity/debt; ca0 archive pilot/Convoy pass retained; final candidate and ordinary-controls qualification remain |
 | RECOVERY-CABIN-DEFINE | Cabin/rest durable-boundary/resume-or-safe-home contract | 2,31 | DONE definition only; four-field craft/home preference, fresh supported awake cabin/hatch, no saved flight/sleep pose. Earlier package passes retained; finite remaining cases below |
-| RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
+| RECOVERY-CREW-DEFINE | Seated crew durable-boundary/resume-or-safe-home contract | 2,31 | DONE definition only; settled solo crew saves four-field home-cabin preference; Resume wakes unseated with fresh cabin/hatch, no prior role or seat claim. Earlier ca0 crew pass retained; finite cases below |
+| CREW-RECOVERY-INSTALLED | One installed crew interruption returns awake to the supported home cabin with activity/reward integrity | 2,31 | GATED final installed candidate plus one frozen supported craft/seat/cut; use existing crew selector, original caps and owned kill/reap/distinct restart |
+| CREW-RECOVERY-ORDINARY | One ordinary crew admission→recovery→walk/helm-or-exit journey | 2,31 | UNSCHEDULED; freeze one supported craft/physical role and complete ordinary setup/continuation. Scripted ca0 package setup/escort is not this acceptance |
 | RECOVERY-DOCK-DEFINE | Docking durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-ACTIVITY-DEFINE | Active activity durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
 | RECOVERY-PLANET-DEFINE | Planetary durable-boundary/resume-or-safe-home contract | 2,31 | DEFINE; ambiguous contexts only, previous exact-source passes retained |
@@ -1355,7 +1357,7 @@ fixture cannot accept that station interaction.
   craft from that bunk, rather than Main's possibly different active_ship.
   No transition/network/planetary owner may conflict. Jumps retain the prior
   settled preference; unsupported handoffs persist unavailable rather than a
-  stale seat claim. Crew mode remains RECOVERY-CREW-DEFINE's separate contract.
+  stale seat claim. Crew mode has its separate settled contract below.
 - UserDataStore atomically commits exactly `{location:mudds_home_berth,
   mode:cabin|rest, craft_id, berth_id}` with expected generation. Refused writes
   retain last committed preference/retry; backup authority is not overwritten.
@@ -1395,6 +1397,58 @@ any broader journey promise. Unavailable-frame/refused-write source coverage is
 retained; only a concrete uncovered boundary justifies a new repair or case.
 Native/device/full release gates stay open; this definition runs no probe and
 selects no automatic successor.
+
+### Settled seated-crew recovery contract
+
+RECOVERY-CREW-DEFINE is DONE as a source definition on the Habitat-integrated
+source (main1bdd0f717). No new feature, engine run or package qualification.
+
+A settled supported solo crew seat saves a **home-cabin preference**. Explicit
+Resume/Begin Shift returns the player awake and unseated inside that craft at its
+home berth, with fresh cabin/hatch ownership and enabled controls. Saved activity
+progress stays with its independent owner. Previous crew role, seat, lease,
+flight pose and authority are not restored; the existing recovery offer says so.
+
+- Capture uses the actual `_solo_crew_ship`, even when `active_ship` differs.
+  `_solo_crew_claim_is_current` requires the live registered craft/chair, matching
+  role contract, attached authority, exact peer/avatar/seat generation and seated
+  frame occupant. Transition, network and planetary conflicts prevent capture;
+  unsupported handoffs publish unavailable.
+- Durable fields are exactly `{location:mudds_home_berth, mode:crew, craft_id,
+  berth_id}`. Existing UserDataStore generation-checked publication protects
+  backup authority and retains the last commit/retries refused writes.
+- Fresh resolution supports Halyard, Bulwark, Jovian and Cinder Hauler. It requires
+  registered boardable craft at its matching occupied/reserved home berth,
+  available hatch, authored frame/bounds and real walkable hull-floor support.
+  Apply reserves a fresh hatch and registers cabin containment; failed binding
+  rolls back pose/ownership. Success enables cabin walking without crew/pilot
+  claims. Unsupported recovery retains the ordinary safe-start fallback.
+
+Source owners: [GameFlow](../scripts/game/game_flow.gd)
+`_solo_crew_claim_is_current`, `_capture_solo_safe_recovery_context`,
+`_persist_solo_safe_recovery_context`, `_solo_safe_recovery_craft`,
+`_solo_safe_recovery_cabin`, `_apply_solo_safe_recovery` and recovery description;
+[UserDataStore](../scripts/persistence/user_data_store.gd) `commit`.
+
+Existing [resume fixture](../tests/session_recovery_resume_offer_test.gd) contains
+real Halyard admission, stale/conflicting claims, network exclusion, real-file
+crew capture, cold Resume and walking/helm/exit checks. These are coverage
+anchors, not a new pass: its full suite remains FAILED/PARKED at Main17/300s
+after151 passes, before the later crew recovery subsection completes.
+The accepted [ca0 archive crew cut](LINUX_BUILD.md#earlier-local-checkpoint-ca0afc449--2026-10-17)
+uses source `ca0afc449efc547de0d6049ac94ea2c876d14e2d`:64.872s, actual Halyard
+passenger, owned SIGKILL−9, distinct restart0, same activity boundary,
+receipts1→2 once/crash1, awake supported unseated cabin and clean markers.
+Its scripted setup/escort continuation remains disclosed.
+
+The two named remaining rows above separate final installed bytes from an
+ordinary player journey. Freeze one craft/seat/cut before either execution;
+other supported role/craft instances remain unscheduled selectors within the
+original scope. Existing `PACKAGE_PROBE_RECOVERY_CONTEXT=crew` already serves the
+installed cut: no new probe family or validator is required. No runtime defect
+or missing owner decision was established. All original recovery promises,
+parked failures and native/device/human/final-release gates remain open.
+No automatic qualification or repair successor is selected.
 
 ### Hauler supply integration boundaries
 

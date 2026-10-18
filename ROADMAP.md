@@ -279,9 +279,20 @@ Owned temporary checkout/profiles/helpers removed; raw results retained.
 This delivery starts with one staged placement at a real wake point. Full
 WALK-HABITAT ordinary hub/rest/common-room/home/restart remains UNSCHEDULED;
 it needs its own frozen complete journey, not another staged rest check.
-Next planning action: resolve RECOVERY-CREW-DEFINE into finite source-backed
-capabilities, preserving installed/final-candidate and original route gates.
-No new engine qualification or repair chain is selected.
+### Crew recovery — definition complete
+
+RECOVERY-CREW-DEFINE is DONE as a source definition. A settled solo crew seat
+saves a four-field home-cabin preference; explicit Resume returns awake/unseated
+with fresh cabin/hatch ownership, without restoring old role/seat authority.
+The [settled contract](docs/ROADMAP_BACKLOG.md#settled-seated-crew-recovery-contract)
+names actual owners, prior ca0 crew acceptance and two finite remaining outcomes:
+CREW-RECOVERY-INSTALLED and CREW-RECOVERY-ORDINARY. Their candidate/route gates
+remain; the parked full resume-suite failure is unchanged. No new runtime gap,
+engine qualification or playable build is claimed by this definition.
+
+Next single planning action: resolve RECOVERY-DOCK-DEFINE's durable docking
+boundary into a finite existing contract or exact production gap. No docking
+probe/repair or unchanged parked-route retry is selected.
 
 ## Parked failures and dependent work
 
