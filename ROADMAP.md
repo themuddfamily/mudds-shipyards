@@ -119,6 +119,12 @@ order: import→observer compile→privacy→full Python→paired exports→thre
 startups→artifact audit→ONE archived native route. Actual results remain in
 `/srv/mudds-work/life-arm-20261018/results/`; no deadline/route changes selected.
 
+First validation STOP: full71 Python tests fail once in8.176s guarded at the
+new competing-prompt fixture's nonzero-yaw assertion. Import20.673s, observer
+compile15.570s and CLI privacy1.033s pass. No export/native stage entered.
+Review the exact pending-mouse/observed-facing cause before one bounded repair;
+retain the failing log and original deadlines. No retry is yet authorized.
+
 ## Latest delivered result
 
 Freight LIFE-GANTRY is accepted on packaged2df8c31: ordinary approach, nearby
