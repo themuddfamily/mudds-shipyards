@@ -92,6 +92,40 @@ recovery/payment/replay or checkpoint is accepted. The retained snapshot shows
 missing configured board owners, but its cause remains unproven. No successor
 or third attempt is selected. [Full result and frozen contract](docs/history/ROADMAP_DELIVERIES.md#breach-interruption--failed-and-parked).
 
+### BOOT-BREACH-OWNERS — bind the physical contract before gameplay
+
+- **Kind/parent:** production startup repair,9/11/13. SELECTED from the concrete
+  missing-owner observation retained by BREACH-INTERRUPTION. Source confirms the
+  cause: staged world construction drains its deferred board bind before later
+  Main combat/director siblings exist; the activity tail retries defense only.
+  This changes the game startup handoff. The parked interruption transaction is
+  not rerun, narrowed, renamed or accepted by this task.
+- **Owner/files:** one high-effort implementer owns only
+  scripts/game/game_flow.gd::_start_up_activities and existing
+  tests/startup_loading_screen_test.gd. Root owns checks/integration/builds; one
+  independent high-effort reviewer checks exact ownership/lifecycle delta.
+  Reuse world's existing idempotent heavy-board binder beside the defense retry
+  after normal combat initialization. No probe, stager, world-builder, board,
+  persistence, gameplay timing, actor or authority contract edits.
+- **Finish:** before staged Boot admits gameplay/menu, the actual physical
+  Heavy Breach board is attached/configured with the exact retained director,
+  shared combat authority and world-owned protected objective. Synchronous Main
+  startup has the same owner identities. Extend existing staged-phase watcher
+  and direct-Main checks without constructing extra Main lifetimes or changing
+  original assertions/waits. No invented combat or crash-recovery acceptance.
+- **Checks/budget:**30–60min; split before90. Commit test-only old reproduction;
+  import/compile and full existing startup suite under original300s cap must
+  complete with only intended owner-binding assertion failures. Final compile,
+  same full startup suite and existing Heavy Breach production route run once
+  under original300s caps, private/headless/Dummy and source/cache/process guards.
+  First unexpected failure stops for separate bounded selection; original plus
+  one repair requires cumulative priority review, no automatic third attempt.
+- **Delivery/alternative:** clean paired checkpoints, three strict silent menu
+  startups and existing actual-payload/archive audit, notes/commit/push/owned
+  cleanup. Full ordinary combat, parked debt transaction/Torpedo and native
+  hardware gates stay open. Independent alternative is terminal Cinder supply
+  real-file qualification; it remains unselected. No automatic adjacent chain.
+
 ## Parked failures and dependent work
 
 These are unfinished outcomes, not candidates for an unchanged retry. Exact
